@@ -55,6 +55,7 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
+#include "module-verify.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
@@ -2118,8 +2119,10 @@ static noinline struct module *load_module(void __user *umod,
 		goto free_hdr;
 	}
 
-	if (len < hdr->e_shoff + hdr->e_shnum * sizeof(Elf_Shdr))
-		goto truncated;
+	/* Verify the module's contents */
+	err = module_verify(hdr, len);
+	if (err < 0)
+		goto free_hdr;
 
 	/* Convenience variables */
 	sechdrs = (void *)hdr + hdr->e_shoff;
