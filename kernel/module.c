@@ -2091,6 +2091,7 @@ static noinline struct module *load_module(void __user *umod,
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
 	unsigned long symoffs, stroffs, *strmap;
+	int gpgsig_ok;
 
 	mm_segment_t old_fs;
 
@@ -2120,7 +2121,8 @@ static noinline struct module *load_module(void __user *umod,
 	}
 
 	/* Verify the module's contents */
-	err = module_verify(hdr, len);
+	gpgsig_ok = 0;
+	err = module_verify(hdr, len, &gpgsig_ok);
 	if (err < 0)
 		goto free_hdr;
 
@@ -2160,6 +2162,7 @@ static noinline struct module *load_module(void __user *umod,
 	}
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)sechdrs[modindex].sh_addr;
+	mod->gpgsig_ok = gpgsig_ok;
 
 	if (symindex == 0) {
 		printk(KERN_WARNING "%s: module has no symbols (stripped?)\n",
@@ -3086,8 +3089,13 @@ void print_modules(void)
 	printk(KERN_DEFAULT "Modules linked in:");
 	/* Most callers should already have preempt disabled, but make sure */
 	preempt_disable();
-	list_for_each_entry_rcu(mod, &modules, list)
+	list_for_each_entry_rcu(mod, &modules, list) {
 		printk(" %s%s", mod->name, module_flags(mod, buf));
+#ifdef CONFIG_MODULE_SIG
+		if (!mod->gpgsig_ok)
+			printk("(U)");
+#endif
+	}
 	preempt_enable();
 	if (last_unloaded_module[0])
 		printk(" [last unloaded: %s]", last_unloaded_module);

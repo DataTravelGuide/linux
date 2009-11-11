@@ -10,11 +10,12 @@
  */
 
 #include <linux/types.h>
+#include <linux/crypto.h>
 #include <asm/module.h>
 
 #ifdef CONFIG_MODULE_VERIFY
 struct module_verify_data {
-	struct crypto_tfm	*digest;	/* module signature digest */
+	struct hash_desc	hash;		/* module signature digest */
 	const void		*buffer;	/* module buffer */
 	const Elf_Ehdr		*hdr;		/* ELF header */
 	const Elf_Shdr		*sections;	/* ELF section table */
@@ -37,7 +38,7 @@ struct module_verify_data {
 /*
  * module-verify.c
  */
-extern int module_verify(const Elf_Ehdr *hdr, size_t size);
+extern int module_verify(const Elf_Ehdr *hdr, size_t size, int *_gpgsig_ok);
 
 /*
  * module-verify-elf.c
@@ -48,6 +49,16 @@ extern int module_verify_elf(struct module_verify_data *mvdata);
 #define module_verify_elf(m) (0)
 #endif
 
+/*
+ * module-verify-sig.c
+ */
+#ifdef CONFIG_MODULE_SIG
+extern int module_verify_signature(struct module_verify_data *mvdata,
+				   int *_gpgsig_ok);
 #else
-#define module_verify(h, s) (0)
+#define module_verify_signature(m, g) (0)
+#endif
+
+#else
+#define module_verify(h, s, g) (0)
 #endif

@@ -1203,10 +1203,30 @@ config MODULE_VERIFY_ELF
 	help
 	  Check ELF structure of modules upon load
 
+config MODULE_SIG
+	bool "Module signature verification (EXPERIMENTAL)"
+	depends on MODULES && EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_SHA1
+	select CRYPTO_SIGNATURE
+	select MODULE_VERIFY_ELF
+	help
+	  Check modules for valid signatures upon load.  For more information
+	  see:
+
+	  Documentation/module-signing.txt
+
+config MODULE_SIG_FORCE
+	bool "Required modules to be validly signed (EXPERIMENTAL)"
+	depends on MODULE_SIG
+	help
+	  Reject unsigned modules or signed modules for which we don't have a
+	  key.
+
 config MODULE_VERIFY
 	bool
 	depends on MODULES
-	default y if MODULE_VERIFY_ELF
+	default y if MODULE_VERIFY_ELF || MODULE_SIG
 
 endif # MODULES
 

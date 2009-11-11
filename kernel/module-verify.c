@@ -16,8 +16,9 @@
 /*
  * verify a module's integrity
  * - check the ELF is viable
+ * - check the module's signature
  */
-int module_verify(const Elf_Ehdr *hdr, size_t size)
+int module_verify(const Elf_Ehdr *hdr, size_t size, int *_gpgsig_ok)
 {
 	struct module_verify_data mvdata;
 	int ret;
@@ -33,6 +34,8 @@ int module_verify(const Elf_Ehdr *hdr, size_t size)
 			printk("Module failed ELF checks\n");
 		goto error;
 	}
+
+	ret = module_verify_signature(&mvdata, _gpgsig_ok);
 
 error:
 	kfree(mvdata.secsizes);
