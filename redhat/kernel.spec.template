@@ -19,6 +19,7 @@ Summary: The Linux kernel
 %define rhel 1
 %if %{rhel}
 %define distro_build %%BUILD%%
+%define signmodules 1
 %else
 # fedora_build defines which build revision of this kernel version we're
 # building. Rather than incrementing forever, as with the prior versioning
@@ -34,6 +35,7 @@ Summary: The Linux kernel
 %define fedora_cvs_revision() %2
 %global distro_build %(echo %{fedora_cvs_origin}.%{fedora_cvs_revision $Revision: 1.1532 $} | awk -F . '{ OFS = "."; ORS = ""; print $3 - $1 ; i = 4 ; OFS = ""; while (i <= NF) { print ".", $i ; i++} }')
 %define distro_build %{fedora_build}
+%define signmodules 0
 %endif
 
 # if patch fuzzy patch applying will be forbidden
@@ -527,6 +529,9 @@ BuildRequires: sparse >= 0.4.1
 %endif
 %if %{with_perftool}
 BuildRequires: elfutils-libelf-devel zlib-devel binutils-devel
+%endif
+%if %{signmodules}
+BuildPreReq: gnupg
 %endif
 %if %{with_kabichk}
 BuildRequires: python
@@ -1269,6 +1274,18 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/boot
 
 cd linux-%{kversion}.%{_target_cpu}
+
+%if %{signmodules}
+cp %{SOURCE19} .
+gpg --homedir . --batch --gen-key %{SOURCE11}
+# if there're external keys to be included
+if [ -s %{SOURCE19} ]; then
+	gpg --homedir . --no-default-keyring --keyring kernel.pub --import %{SOURCE19}
+fi
+gpg --homedir . --export --keyring ./kernel.pub Red > extract.pub
+gcc -o scripts/bin2c scripts/bin2c.c
+scripts/bin2c ksign_def_public_key __initdata <extract.pub >crypto/signature/key.h
+%endif
 
 %if %{with_debug}
 BuildKernel %make_target %kernel_image debug
