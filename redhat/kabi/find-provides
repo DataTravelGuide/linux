@@ -1,0 +1,44 @@
+#!/usr/bin/python
+#
+# find-provides: munge the provides dependencies from the kabideps file
+#
+# This software may be freely redistributed under the terms of the GNU
+# General Public License (GPL).
+#
+# Takes a directory prefix, then outputs the kernel ABI dependencies.
+
+__author__ = "Jon Masters <jcm@redhat.com>"
+__version__ = "2.0"
+__date__ = "Sat 1 Aug 2009 10:00 EDT"
+__copyright__ = "Copyright (C) 2009 Red Hat, Inc"
+__license__ = "GPL"
+
+import os
+import re
+import string
+import sys
+
+false = 0
+true = 1
+
+kabideps=""
+
+p = re.compile('^(.*)/symvers-(.*).gz$')
+while true:
+	foo = sys.stdin.readline()
+	if foo == "":
+		break
+	string.split(foo)
+	m = p.match(foo)
+	if m:
+		kabideps=sys.argv[1] + "/kernel-" + m.group(2) + "-kabideps"
+	
+if kabideps == "":
+	sys.exit(0)
+
+if not (os.path.isfile(kabideps)):
+	sys.stderr.write(sys.argv[0] + ": cannot locate kabideps file: " + kabideps + "\n")
+	sys.exit(1)
+
+sys.stderr.write(sys.argv[0] + ": processing kABI: " + kabideps + "\n")
+os.system("cat " + kabideps)

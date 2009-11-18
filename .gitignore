@@ -75,3 +75,7 @@ GTAGS
 *.orig
 *~
 \#*#
+
+configs/*
+localversion
+

@@ -1,0 +1,10 @@
+i686:config-i686:config-x86-generic:config-nodebug:config-generic
+i686-debug:config-i686:config-x86-generic:config-debug:config-generic
+x86_64:config-x86_64-generic:config-nodebug:config-generic
+x86_64-debug:config-x86_64-generic:config-debug:config-generic
+ppc64:config-powerpc64:config-powerpc-generic:config-nodebug:config-generic
+ppc64-kdump:config-powerpc64-kdump:config-powerpc64:config-powerpc-generic:config-nodebug:config-generic
+ppc64-debug:config-powerpc64:config-powerpc-generic:config-debug:config-generic
+s390x:config-s390x:config-nodebug:config-generic
+s390x-kdump:config-s390x-kdump:config-s390x:config-nodebug:config-generic
+s390x-debug:config-s390x:config-debug:config-generic
