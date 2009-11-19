@@ -1575,6 +1575,21 @@ void usb_autopm_put_interface_async(struct usb_interface *intf)
 EXPORT_SYMBOL_GPL(usb_autopm_put_interface_async);
 
 /**
+ * usb_device_autosuspend_enable - enable autosuspend on a device
+ * @udev: the usb_device to be autosuspended
+ *
+ * This routine should be called by an interface driver when it knows that
+ * the device in question supports USB autosuspend.
+ *
+ */
+void usb_device_autosuspend_enable(struct usb_device *udev)
+{
+	udev->autosuspend_disabled = 0;
+	udev->autoresume_disabled = 0;
+}
+EXPORT_SYMBOL_GPL(usb_device_autosuspend_enable);
+
+/**
  * usb_autopm_get_interface - increment a USB interface's PM-usage counter
  * @intf: the usb_interface whose counter should be incremented
  *
