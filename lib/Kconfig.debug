@@ -253,6 +253,14 @@ config SCHEDSTATS
 	  application, you can say N to avoid the very slight overhead
 	  this adds.
 
+config DEBUG_NMI_TIMEOUT
+	int "Number of seconds before NMI timeout"
+	depends on X86
+	default 5
+	help
+	  This value is the number of seconds the NMI watchdog will tick
+	  before it decides the machine has hung.
+
 config TIMER_STATS
 	bool "Collect kernel timers statistics"
 	depends on DEBUG_KERNEL && PROC_FS

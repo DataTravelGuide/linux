@@ -438,7 +438,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		 * wait a few IRQs (5 seconds) before doing the oops ...
 		 */
 		local_inc(&__get_cpu_var(alert_counter));
-		if (local_read(&__get_cpu_var(alert_counter)) == 5 * nmi_hz)
+		if (local_read(&__get_cpu_var(alert_counter)) == CONFIG_DEBUG_NMI_TIMEOUT * nmi_hz)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
