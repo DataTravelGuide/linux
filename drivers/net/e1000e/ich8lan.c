@@ -329,6 +329,12 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 
 	/* Verify phy id */
 	switch (phy->id) {
+	case 0x0:
+		if (hw->adapter->pdev->device == 0x10be)
+			hw_dbg(hw, "got 0 phy id, trying anyway");
+			/* Fall through to IGP03E1000 case below */
+		else
+			return -E1000_ERR_PHY;
 	case IGP03E1000_E_PHY_ID:
 		phy->type = e1000_phy_igp_3;
 		phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
