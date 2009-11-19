@@ -134,13 +134,9 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 		err = request_module("can-proto-%d", protocol);
 
 		/*
-		 * In case of error we only print a message but don't
-		 * return the error code immediately.  Below we will
-		 * return -EPROTONOSUPPORT
+		 * In case of error we don't return the error code immediately.
+		 * Below we will return -EPROTONOSUPPORT
 		 */
-		if (err && printk_ratelimit())
-			printk(KERN_ERR "can: request_module "
-			       "(can-proto-%d) failed.\n", protocol);
 	}
 #endif
 
