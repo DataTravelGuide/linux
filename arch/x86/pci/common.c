@@ -432,6 +432,22 @@ int __init pcibios_init(void)
 	else if (c->x86 > 6 && c->x86_vendor == X86_VENDOR_INTEL)
 		pci_cache_line_size = 128 >> 2;	/* P4 */
 
+	if (c->x86_clflush_size != (pci_cache_line_size <<2))
+		printk(KERN_DEBUG "PCI: old code would have set cacheline "
+			"size to %d bytes, but clflush_size = %d\n",
+			pci_cache_line_size << 2,
+			c->x86_clflush_size);
+
+	/* Once we know this logic works, all the above code can be deleted. */
+	if (c->x86_clflush_size > 0) {
+		pci_cache_line_size = c->x86_clflush_size >> 2;
+		printk(KERN_DEBUG "PCI: pci_cache_line_size set to %d bytes\n",
+			pci_cache_line_size << 2);
+	} else {
+		pci_cache_line_size = 32 >> 2;
+		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
+	}
+
 	pcibios_resource_survey();
 
 	if (pci_bf_sort >= pci_force_bf)
