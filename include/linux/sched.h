@@ -103,6 +103,9 @@ struct fs_struct;
 struct bts_context;
 struct perf_event_context;
 
+extern int exec_shield;
+extern int print_fatal_signals;
+
 /*
  * List of flags we want to share for kernel threads,
  * if only because they are not used by them anyway.
@@ -378,6 +381,10 @@ extern int sysctl_max_map_count;
 
 extern unsigned long
 arch_get_unmapped_area(struct file *, unsigned long, unsigned long,
+		       unsigned long, unsigned long);
+
+extern unsigned long
+arch_get_unmapped_exec_area(struct file *, unsigned long, unsigned long,
 		       unsigned long, unsigned long);
 extern unsigned long
 arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
