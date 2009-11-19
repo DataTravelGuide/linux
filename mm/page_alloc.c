@@ -263,9 +263,10 @@ static void bad_page(struct page *page)
 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
 	printk(KERN_ALERT
-		"page:%p flags:%p count:%d mapcount:%d mapping:%p index:%lx\n",
+		"page:%p flags:%p count:%d mapcount:%d mapping:%p ",
 		page, (void *)page->flags, page_count(page),
-		page_mapcount(page), page->mapping, page->index);
+		page_mapcount(page), page->mapping);
+	printk(KERN_CONT "index:%lx (%s)\n", page->index, print_tainted());
 
 	dump_stack();
 out:

@@ -200,6 +200,7 @@ const char *print_tainted(void)
 
 	return buf;
 }
+EXPORT_SYMBOL(print_tainted);
 
 int test_taint(unsigned flag)
 {
@@ -352,7 +353,8 @@ static void warn_slowpath_common(const char *file, int line, void *caller, struc
 	const char *board;
 
 	printk(KERN_WARNING "------------[ cut here ]------------\n");
-	printk(KERN_WARNING "WARNING: at %s:%d %pS()\n", file, line, caller);
+	printk(KERN_WARNING "WARNING: at %s:%d %pS() (%s)\n",
+		file, line, caller, print_tainted());
 	board = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (board)
 		printk(KERN_WARNING "Hardware name: %s\n", board);
