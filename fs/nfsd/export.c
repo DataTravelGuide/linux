@@ -109,6 +109,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
+	dprintk("expkey_parse: '%s'\n", mesg);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	err = -ENOMEM;
@@ -186,6 +187,8 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (dom)
 		auth_domain_put(dom);
 	kfree(buf);
+	if (err)
+		dprintk("expkey_parse: err %d\n", err);
 	return err;
 }
 
@@ -356,7 +359,10 @@ static void svc_export_request(struct cache_detail *cd,
 		(*bpp)[0] = '\n';
 		return;
 	}
+
 	qword_add(bpp, blen, pth);
+	dprintk("svc_export_request: pth %s\n", pth);
+
 	(*bpp)[-1] = '\n';
 }
 
@@ -510,6 +516,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
+	dprintk("svc_export_parse: '%s'\n", mesg);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -629,6 +636,8 @@ out1:
 	auth_domain_put(dom);
 out:
 	kfree(buf);
+	if (err)
+		dprintk("svc_export_parse: err %d\n", err);
 	return err;
 }
 
@@ -1425,6 +1434,7 @@ static struct flags {
 	{ NFSEXP_CROSSMOUNT, {"crossmnt", ""}},
 	{ NFSEXP_NOSUBTREECHECK, {"no_subtree_check", ""}},
 	{ NFSEXP_NOAUTHNLM, {"insecure_locks", ""}},
+	{ NFSEXP_V4ROOT, {"v4root", ""}},
 #ifdef MSNFS
 	{ NFSEXP_MSNFS, {"msnfs", ""}},
 #endif
@@ -1505,7 +1515,7 @@ static int e_show(struct seq_file *m, void *p)
 	struct svc_export *exp = container_of(cp, struct svc_export, h);
 
 	if (p == SEQ_START_TOKEN) {
-		seq_puts(m, "# Version 1.1\n");
+		seq_puts(m, "# Version 1.2\n");
 		seq_puts(m, "# Path Client(Flags) # IPs\n");
 		return 0;
 	}

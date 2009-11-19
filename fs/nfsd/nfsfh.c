@@ -109,6 +109,30 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	return nfserrno(nfsd_setuser(rqstp, exp));
 }
 
+static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
+	struct dentry *dentry, struct svc_export *exp)
+{
+	/*
+	 * Only interested in pseudo roots
+	 */
+	if (!(exp->ex_flags & NFSEXP_V4ROOT))
+		return nfs_ok;
+
+	/*
+	 * Only directories should be on the pseudo root
+	 */
+	if (unlikely(!S_ISDIR(dentry->d_inode->i_mode)))
+		return nfserr_stale;
+
+	/*
+	 * Make sure the export is the parent of the dentry
+	 */
+	if (unlikely(dentry->d_parent != exp->ex_path.dentry))
+		return nfserr_stale;
+
+	return nfs_ok;
+}
+
 /*
  * Use the given filehandle to look up the corresponding export and
  * dentry.  On success, the results are used to set fh_export and
@@ -315,6 +339,14 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		error = nfsd_setuser_and_check_port(rqstp, exp);
 		if (error)
 			goto out;
+
+		/*
+		 * Do some spoof checking if we are on the pseudo root
+		 */
+		error = check_pseudo_root(rqstp, dentry, exp);
+		if (error)
+			goto out;
+
 	}
 
 	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);

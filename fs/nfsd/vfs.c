@@ -141,6 +141,55 @@ out:
 	return err;
 }
 
+/*
+ * Lookup the export the dentry is on. To be
+ * viewable on a pseudo export, the dentry
+ * has to be an exported directory. 
+ */
+int
+nfsd_export_lookup(struct svc_rqst *rqstp, struct dentry *dentry,
+	struct svc_export *exp)
+{
+	struct svc_export *exp2 = NULL;
+	struct path path;
+	int err = 0;
+
+	if ((exp->ex_flags & NFSEXP_V4ROOT) == 0)
+		return 0;
+
+	/*
+	 * Make sure the export is the parent of the dentry
+	 */
+	if (unlikely(dentry->d_parent != exp->ex_path.dentry))
+		return -ENOENT;
+
+	/*
+	 * Only directories are seen on psuedo exports
+	 */
+	if (!S_ISDIR(dentry->d_inode->i_mode))
+		return -ENOENT;
+
+	/*
+	 * Make the upcall 
+	 */
+	path.mnt = mntget(exp->ex_path.mnt);
+	path.dentry = dget(dentry);
+	while (d_mountpoint(path.dentry) && follow_down(&path));
+
+	exp2 = rqst_exp_get_by_name(rqstp, &path);
+	if (IS_ERR(exp2))
+		err = PTR_ERR(exp2);
+	else  {
+		/*
+		 * The export exist so allow the access
+		 */
+		exp_put(exp2);
+	}
+
+	dput(path.dentry);
+	mntput(path.mnt);
+	return err;
+}
 __be32
 nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		   const char *name, unsigned int len,
@@ -150,7 +199,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct dentry		*dparent;
 	struct dentry		*dentry;
 	__be32			err;
-	int			host_err;
+	int			host_err, v4root;
 
 	dprintk("nfsd: nfsd_lookup(fh %s, %.*s)\n", SVCFH_fmt(fhp), len,name);
 
@@ -162,6 +211,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dparent = fhp->fh_dentry;
 	exp  = fhp->fh_export;
 	exp_get(exp);
+	v4root = (exp->ex_flags & NFSEXP_V4ROOT);
 
 	/* Lookup the name, but don't follow links */
 	if (isdotent(name, len)) {
@@ -169,7 +219,7 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			dentry = dget(dparent);
 		else if (dparent != exp->ex_path.dentry)
 			dentry = dget_parent(dparent);
-		else if (!EX_NOHIDE(exp))
+		else if (!EX_NOHIDE(exp) && !nfsd_v4client(rqstp))
 			dentry = dget(dparent); /* .. == . just like at / */
 		else {
 			/* checking mountpoint crossing is very different when stepping up */
@@ -206,9 +256,21 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		if (IS_ERR(dentry))
 			goto out_nfserr;
 		/*
+		 * The export is a pseudo one, make sure the
+		 * dentry is accessible 
+		 */
+		v4root = (dentry->d_inode && v4root);
+		if (v4root) {
+			host_err = nfsd_export_lookup(rqstp, dentry, exp);
+			if (host_err) {
+				dput(dentry);
+				goto out_nfserr;
+			}
+		}
+		/*
 		 * check if we have crossed a mount point ...
 		 */
-		if (d_mountpoint(dentry)) {
+		if (d_mountpoint(dentry) || v4root) {
 			if ((host_err = nfsd_cross_mnt(rqstp, &dentry, &exp))) {
 				dput(dentry);
 				goto out_nfserr;

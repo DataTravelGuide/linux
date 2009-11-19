@@ -79,6 +79,8 @@ int		nfsd_racache_init(int);
 void		nfsd_racache_shutdown(void);
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);
+int		nfsd_export_lookup(struct svc_rqst *rqstp, struct dentry *dpp,
+		                struct svc_export *exp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
 				const char *, unsigned int, struct svc_fh *);
 __be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
