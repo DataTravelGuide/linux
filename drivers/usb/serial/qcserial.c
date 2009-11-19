@@ -74,6 +74,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	dbg("This Interface = %d", ifnum);
 
+	usb_device_autosuspend_enable(serial->dev);
+
 	switch (nintf) {
 	case 1:
 		/* QDL mode */
