@@ -31,6 +31,7 @@
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks;
+int sysctl_would_have_oomkilled;
 static DEFINE_SPINLOCK(zone_scan_lock);
 /* #define DEBUG */
 
@@ -353,6 +354,12 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 	if (!p->mm) {
 		WARN_ON(1);
 		printk(KERN_WARNING "tried to kill an mm-less task!\n");
+		return;
+	}
+
+	if (sysctl_would_have_oomkilled == 1) {
+		printk(KERN_ERR "Would have killed process %d (%s). But continuing instead.\n",
+				task_pid_nr(p), p->comm);
 		return;
 	}
 

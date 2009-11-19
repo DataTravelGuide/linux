@@ -72,6 +72,7 @@ extern int sysctl_overcommit_ratio;
 extern int sysctl_panic_on_oom;
 extern int sysctl_oom_kill_allocating_task;
 extern int sysctl_oom_dump_tasks;
+extern int sysctl_would_have_oomkilled;
 extern int max_threads;
 extern int core_uses_pid;
 extern int suid_dumpable;
@@ -1097,6 +1098,14 @@ static struct ctl_table vm_table[] = {
 		.procname	= "oom_dump_tasks",
 		.data		= &sysctl_oom_dump_tasks,
 		.maxlen		= sizeof(sysctl_oom_dump_tasks),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "would_have_oomkilled",
+		.data		= &sysctl_would_have_oomkilled,
+		.maxlen		= sizeof(sysctl_would_have_oomkilled),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
