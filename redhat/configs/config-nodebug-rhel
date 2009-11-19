@@ -1,0 +1,4 @@
+# CONFIG_SND_DEBUG is not set
+# CONFIG_SND_PCM_XRUN_DEBUG is not set
+# CONFIG_SND_VERBOSE_PRINTK is not set
+# CONFIG_LATENCYTOP is not set
