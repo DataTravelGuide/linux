@@ -484,6 +484,8 @@ config LEGACY_PTYS
 	  security.  This option enables these legacy devices; on most
 	  systems, it is safe to say N.
 
+config CRASH
+        tristate "Crash Utility memory driver"
 
 config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"
