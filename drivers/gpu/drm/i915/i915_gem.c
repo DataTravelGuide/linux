@@ -3595,6 +3595,11 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 
+	/* We don't get the flushing right for these chipsets, use the
+	 * big hamer for now to avoid random crashiness. */
+	if (IS_I855(dev) || IS_I865G(dev))
+		wbinvd();
+
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
