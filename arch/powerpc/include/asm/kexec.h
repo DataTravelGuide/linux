@@ -39,6 +39,34 @@ typedef void (*crash_shutdown_t)(void);
 
 #ifdef CONFIG_KEXEC
 
+#ifdef CONFIG_KEXEC_AUTO_RESERVE
+
+#if PAGE_SHIFT==12
+#ifndef KEXEC_AUTO_THRESHOLD
+#define KEXEC_AUTO_THRESHOLD (1ULL<<31) /* 2G */
+#endif
+#else
+#ifndef KEXEC_AUTO_THRESHOLD
+#define KEXEC_AUTO_THRESHOLD (1ULL<<33) /* 8G */
+#endif
+#endif /*PAGE_SHIFT == 12 */
+
+#ifndef arch_default_crash_base
+extern
+unsigned long long __init arch_default_crash_base(void);
+#define arch_default_crash_base arch_default_crash_base
+#endif
+
+#ifndef arch_default_crash_size
+extern
+unsigned long long __init arch_default_crash_size(unsigned long long);
+#define arch_default_crash_size arch_default_crash_size
+#endif
+
+#endif
+
+#include <asm-generic/kexec.h>
+
 /*
  * This function is responsible for capturing register states if coming
  * via panic or invoking dump using sysrq-trigger.
