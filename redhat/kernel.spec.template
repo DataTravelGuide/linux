@@ -121,6 +121,8 @@ Summary: The Linux kernel
 
 # Control whether we perform a compat. check against published ABI.
 %define with_kabichk   %{?_without_kabichk:   0} %{?!_without_kabichk: 1}
+# Control whether we perform a compat. check against published ABI.
+%define with_fips      %{?_without_fips:      0} %{?!_without_fips:      1}
 
 # Additional options for user-friendly one-off kernel building:
 #
@@ -528,6 +530,9 @@ BuildRequires: elfutils-libelf-devel zlib-devel binutils-devel
 %endif
 %if %{with_kabichk}
 BuildRequires: python
+%endif
+%if %{with_fips}
+BuildRequires: hmaccalc
 %endif
 %ifarch s390x
 # Ensure glibc{,-devel} is installed so zfcpdump can be built
@@ -1084,6 +1089,13 @@ EOF
     		$RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
     chmod 755 $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
 
+%if %{with_fips}
+    # hmac sign the kernel for FIPS
+    echo "Creating hmac file: $RPM_BUILD_ROOT/%{image_install_path}/.vmlinuz-$KernelVer.hmac"
+    ls -l $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
+    sha512hmac $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer | sed -e "s,$RPM_BUILD_ROOT,," > $RPM_BUILD_ROOT/%{image_install_path}/.vmlinuz-$KernelVer.hmac;
+%endif
+
     mkdir -p $RPM_BUILD_ROOT/lib/modules/$KernelVer
     # Override $(mod-fw) because we don't want it to install any firmware
     # We'll do that ourselves with 'make firmware_install'
@@ -1583,6 +1595,9 @@ fi
 %{expand:%%files %{?2}}\
 %defattr(-,root,root)\
 /%{image_install_path}/%{?-k:%{-k*}}%{!?-k:vmlinuz}-%{KVERREL}%{?2:.%{2}}\
+%if %{with_fips} \
+/%{image_install_path}/.vmlinuz-%{KVERREL}%{?2:.%{2}}.hmac \
+%endif \
 /boot/System.map-%{KVERREL}%{?2:.%{2}}\
 /boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
 %if %{with_perftool}\
