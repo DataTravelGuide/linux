@@ -1663,6 +1663,44 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sat Nov 21 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.31-50.el6]
+- [crypto] padlock-aes: Use the correct mask when checking whether copying is required (Chuck Ebbert)
+- [rfkill] add support to a key to control all radios (Aristeu Rozanski)
+- [acpi] be less verbose about old BIOSes (Aristeu Rozanski)
+- [drm] intel big hammer (Aristeu Rozanski)
+- [e1000] add quirk for ich9 (Aristeu Rozanski)
+- [pci] cacheline sizing (Dave Jones)
+- [crash] add crash driver (Dave Anderson)
+- [fb] disable fbcon logo with parameter (Aristeu Rozanski)
+- [pci] silence some PCI resource allocation errors (Aristeu Rozanski)
+- [serio] disable error messages when i8042 isn't found (Peter Jones)
+- [serial] Enable higher baud rates for 16C95x (Aristeu Rozanski)
+- [input] remove pcspkr modalias (Aristeu Rozanski)
+- [floppy] remove the floppy pnp modalias (Aristeu Rozanski)
+- [input] remove unwanted messages on spurious events (Aristeu Rozanski)
+- [sound] hda intel prealloc 4mb dmabuffer (Aristeu Rozanski)
+- [sound] disables hda beep by default (Aristeu Rozanski)
+- [pci] sets PCIE ASPM default policy to POWERSAVE (Aristeu Rozanski)
+- [pci] add config option to control the default state of PCI MSI interrupts (Aristeu Rozanski)
+- [debug] always inline kzalloc (Aristeu Rozanski)
+- [debug] add would_have_oomkilled procfs ctl (Aristeu Rozanski)
+- [debug] add calls to print_tainted() on spinlock functions (Aristeu Rozanski)
+- [debug] display tainted information on other places (Aristeu Rozanski)
+- [x86] add option to control the NMI watchdog timeout (Aristeu Rozanski)
+- [debug] print common struct sizes at boot time (Aristeu Rozanski)
+- [acpi] Disable firmware video brightness change by default (Matthew Garrett)
+- [acpi] Disable brightness switch by default (Aristeu Rozanski)
+- [usb] enable autosuspend on UVC by default (Matthew Garrett)
+- [usb] enable autosuspend by default on qcserial (Matthew Garrett)
+- [usb] Allow drivers to enable USB autosuspend on a per-device basis (Matthew Garrett)
+- [nfs] make nfs4 callback hidden (Steve Dickson)
+- [nfsd4] proots (Aristeu Rozanski)
+- [execshield] introduce execshield (Aristeu Rozanski)
+- [powerpc] add modalias_show operation (Aristeu Rozanski)
+- [hwmon] add VIA hwmon temperature sensor support (Aristeu Rozanski)
+- [utrace] introduce utrace implementation (Aristeu Rozanski)
+- [build] introduce AFTER_LINK variable (Aristeu Rozanski)
+
 
 ###
 # The following Emacs magic makes C-c C-e use UTC dates.
