@@ -83,6 +83,9 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 		name=substr(name,1,pos-2);
 		if ( HIDE_REDHAT == 1 ) {
 			if ( subj ~ /^[\[]?redhat[:\]]/ ) {
+				if ( COMMIT == LASTCOMMIT ) {
+					dolog = 1;
+				}
 				return;
 			}
 			# keep Fedora on the patch name but not on the changelog
