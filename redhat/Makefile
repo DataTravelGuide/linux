@@ -105,7 +105,7 @@ rh-prep: rh-sources
 rh-release: rh-clean-sources
 	@$(REDHAT)/scripts/new_release.sh $(KVERSION) $(BUILD) $(REDHAT)
 	@make rh-srpm
-	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1])$(BUILDID).el6"
+	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP_VERSION)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1])$(BUILDID).el6"
 rh-release-commit:
 	@git commit -s Makefile.common kernel.spec.template -m "[redhat] tagging $(KVERSION)-$(BUILD)$(LOCALVERSION).el6"
 	@git tag kernel-$(STAMP)-$(PREBUILD)$(BUILD)$(LOCALVERSION).el6
