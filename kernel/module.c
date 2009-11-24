@@ -181,8 +181,11 @@ extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const unsigned long __start___kcrctab[];
+extern const unsigned long __stop___kcrctab[];
 extern const unsigned long __start___kcrctab_gpl[];
+extern const unsigned long __stop___kcrctab_gpl[];
 extern const unsigned long __start___kcrctab_gpl_future[];
+extern const unsigned long __stop___kcrctab_gpl_future[];
 #ifdef CONFIG_UNUSED_SYMBOLS
 extern const struct kernel_symbol __start___ksymtab_unused[];
 extern const struct kernel_symbol __stop___ksymtab_unused[];
@@ -3146,4 +3149,31 @@ int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 	mutex_unlock(&module_mutex);
 	return found;
 }
+#endif
+
+#ifdef ARCH_USES_RELOC_ENTRIES
+static __init int adjust_kcrctab(void)
+{
+	int i;
+	int count;
+	unsigned long  *crc ;
+
+	count = __stop___kcrctab - __start___kcrctab;
+	crc = (unsigned long *)__start___kcrctab;
+	for (i = 0; i < count; i++) {
+		crc[i] -= (unsigned long)&reloc_start;
+	}
+	count = __stop___kcrctab_gpl - __start___kcrctab_gpl;
+	crc = (unsigned long *)__start___kcrctab_gpl;
+	for (i = 0; i < count; i++) {
+		crc[i] -= (unsigned long)&reloc_start;
+	}
+	count = __stop___kcrctab_gpl_future - __start___kcrctab_gpl_future;
+	crc = (unsigned long *)__start___kcrctab_gpl_future;
+	for (i = 0; i< count; i++) {
+                crc[i] -= (unsigned long)&reloc_start;
+	}
+	return 0;
+}
+early_initcall(adjust_kcrctab);
 #endif

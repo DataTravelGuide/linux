@@ -4,6 +4,10 @@
 #include <linux/percpu.h>
 #include <asm/atomic.h>
 
+#define ARCH_USES_RELOC_ENTRIES
+
+extern unsigned long reloc_start;
+
 typedef struct
 {
 	atomic_long_t a;
