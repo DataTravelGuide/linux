@@ -228,7 +228,6 @@ setversion_out:
 		if (copy_from_user(&me,
 			(struct move_extent __user *)arg, sizeof(me)))
 			return -EFAULT;
-		me.moved_len = 0;
 
 		donor_filp = fget(me.donor_fd);
 		if (!donor_filp)
@@ -243,6 +242,7 @@ setversion_out:
 		if (err)
 			goto mext_out;
 
+		me.moved_len = 0;
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		mnt_drop_write(filp->f_path.mnt);
