@@ -105,12 +105,12 @@ rh-prep: rh-sources
 rh-release: rh-clean-sources
 	@$(REDHAT)/scripts/new_release.sh $(KVERSION) $(BUILD) $(REDHAT)
 	@make rh-srpm
-	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(KVERSION)-$(shell echo $$[$(BUILD) + 1])$(BUILDID).el6"
+	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1])$(BUILDID).el6"
 rh-release-commit:
 	@git commit -s Makefile.common kernel.spec.template -m "[redhat] tagging $(KVERSION)-$(BUILD)$(LOCALVERSION).el6"
-	@git tag kernel-$(KVERSION)-$(BUILD)$(LOCALVERSION).el6
+	@git tag kernel-$(STAMP)-$(PREBUILD)$(BUILD)$(LOCALVERSION).el6
 	@git log --max-count=1 --pretty=format:%H >$(REDHAT)/lastcommit;
-	@git commit -s lastcommit -m "[redhat] updating lastcommit for $(KVERSION)-$(BUILD)"
+	@git commit -s lastcommit -m "[redhat] updating lastcommit for $(STAMP)-$(PREBUILD)$(BUILD)"
 
 .PHONY: rh-brew rh-koji
 rh-brew : BUILD_FLAGS ?= $(BREW_FLAGS)

@@ -1663,7 +1663,7 @@ fi
 
 %changelog
 %%CHANGELOG%%
-* Mon Nov 23 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.31-51.el6]
+* Mon Nov 23 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.51.el6]
 - [kernel] Set panic_on_oops to 1 (Prarit Bhargava) [529963]
 - [kdump] kexec: allow to shrink reserved memory (Amerigo Wang) [523091]
 - [kdump] doc: update the kdump document (Amerigo Wang) [523091]
@@ -1676,7 +1676,7 @@ fi
 - [block] aio: implement request batching (Jeff Moyer) [533931]
 - [block] get rid of the WRITE_ODIRECT flag (Jeff Moyer) [533931]
 
-* Sat Nov 21 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.31-50.el6]
+* Sat Nov 21 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.50.el6]
 - [crypto] padlock-aes: Use the correct mask when checking whether copying is required (Chuck Ebbert)
 - [rfkill] add support to a key to control all radios (Aristeu Rozanski)
 - [acpi] be less verbose about old BIOSes (Aristeu Rozanski)

@@ -18,17 +18,20 @@ SUBLEVEL="$(echo $MARKER | cut -f 3 -d '.' | cut -f 1 -d '-')";
 RCREV=$(echo $MARKER | cut -f 2 -d '-' -s | sed -e "s/rc//")
 GITREV=$(echo $MARKER | cut -f 3 -d '-' -s | sed -e "s/git//")
 LASTCOMMIT=$(cat lastcommit);
+STAMP=$(echo $MARKER | cut -f 1 -d '-' | sed -e "s/v//");
 if [ -n "$RCREV" ]; then
 	RELEASED_KERNEL="0";
 	SUBLEVEL=$(($SUBLEVEL - 1));
+	PREBUILD="0.";
 else
 	RELEASED_KERNEL="1";
 	RCREV=0;
+	PREBUILD="";
 fi
 if [ -z "$GITREV" ]; then
 	GITREV=0;
 fi
-RPM_VERSION="2.6.$[SUBLEVEL+1]-0.$BUILD$BUILDID.el6";
+RPM_VERSION="$STAMP-$PREBUILD$BUILD$BUILDID.el6";
 
 touch $PATCHF $patchf
 echo >$clogf
