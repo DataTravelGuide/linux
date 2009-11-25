@@ -264,7 +264,7 @@ Summary: The Linux kernel
 %endif
 
 # don't do debug builds on anything but i686 and x86_64
-%ifnarch i686 x86_64
+%ifnarch i686 x86_64 s390x ppc64
 %define with_debug 0
 %endif
 
