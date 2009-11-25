@@ -1663,6 +1663,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Nov 25 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.52.el6]
+- [x86] AMD Northbridge: Verify NB's node is online (Prarit Bhargava) [536759]
+- [scsi] devinfo update for Hitachi entries (Takahiro Yasui) [526763]
+- [net] export device speed and duplex via sysfs (Andy Gospodarek) [453432]
+- [ppc64] Fix kcrctab_ sections to undo undesireable relocations that break kdump (Neil Horman) [509012]
+- [mm] Limit 32-bit x86 systems to 16GB and prevent panic on boot when system has more than ~30GB (Larry Woodman) [532039]
+
 * Mon Nov 23 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.51.el6]
 - [kernel] Set panic_on_oops to 1 (Prarit Bhargava) [529963]
 - [kdump] kexec: allow to shrink reserved memory (Amerigo Wang) [523091]
