@@ -1693,7 +1693,7 @@ fi
 - [s390x] fix build failure with CONFIG_FTRACE_SYSCALLS (Aristeu Rozanski) [538978]
 
 * Wed Nov 25 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.52.el6]
-- [x86] AMD Northbridge: Verify NB's node is online (Prarit Bhargava) [536759]
+- [x86] AMD Northbridge: Verify NB's node is online (Prarit Bhargava) [536769]
 - [scsi] devinfo update for Hitachi entries (Takahiro Yasui) [526763]
 - [net] export device speed and duplex via sysfs (Andy Gospodarek) [453432]
 - [ppc64] Fix kcrctab_ sections to undo undesireable relocations that break kdump (Neil Horman) [509012]
