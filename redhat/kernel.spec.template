@@ -1680,6 +1680,18 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Nov 25 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.53.el6]
+- [net] Add acession counts to all datagram protocols (Neil Horman) [445366]
+- [modsign] Enable module signing in the RHEL RPM (David Howells) [517341]
+- [modsign] Don't include .note.gnu.build-id in the digest (David Howells) [517341]
+- [modsign] Apply signature checking to modules on module load (David Howells) [517341]
+- [modsign] Module signature checker and key manager (David Howells) [517341]
+- [modsign] Module ELF verifier (David Howells) [517341]
+- [modsign] Add indications of module ELF types (David Howells) [517341]
+- [modsign] Multiprecision maths library (David Howells) [517341]
+- [procfs] add ability to modify proc file limits from outside a processes own context (Neil Horman) [461946]
+- [s390x] fix build failure with CONFIG_FTRACE_SYSCALLS (Aristeu Rozanski) [538978]
+
 * Wed Nov 25 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.52.el6]
 - [x86] AMD Northbridge: Verify NB's node is online (Prarit Bhargava) [536759]
 - [scsi] devinfo update for Hitachi entries (Takahiro Yasui) [526763]
