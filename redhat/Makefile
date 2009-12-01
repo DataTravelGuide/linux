@@ -44,6 +44,16 @@ rh-clean-sources:
 rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
 
+rh-key:
+	cd $(REDHAT)/../; \
+	gpg --homedir . --batch --gen-key $(REDHAT)/genkey; \
+	if [ -s $(REDHAT)/extrakeys.pub ]; then \
+		gpg --homedir . --no-default-keyring --keyring kernel.pub --import $(REDHAT)/extrakeys.pub; \
+	fi; \
+	gpg --homedir . --export --keyring kernel.pub Red > extract.pub; \
+	gcc -o scripts/bin2c scripts/bin2c.c; \
+	scripts/bin2c ksign_def_public_key __initdata < extract.pub >crypto/signature/key.h;
+
 $(TARBALL):
 	@echo "Creating archive $(TARBALL)"
 	(cd ../; \
@@ -134,6 +144,7 @@ rh-help:
 	@echo  '  rh-prep	- Setup the redhat/rpm/BUILD/ directory with the kernel source'
 	@echo  '  rh-test-patch - Create a diff against HEAD and put it in linux-kernel-test.patch.'
 	@echo  '                  Then linux-kernel-test.patch will be added to the kernel build'
+	@echo  '  rh-key	- Generate the required files for compiling with module signing enabled'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
