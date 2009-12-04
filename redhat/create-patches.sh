@@ -36,8 +36,8 @@ RPM_VERSION="$STAMP-$PREBUILD$BUILD$BUILDID.el6";
 touch $PATCHF $patchf
 echo >$clogf
 
-total="$(git log --pretty=oneline $MARKER.. |wc -l)"
-git format-patch --no-renames -k --stdout $MARKER..|awk '
+total="$(git log --first-parent --pretty=oneline $MARKER.. |wc -l)"
+git format-patch --first-parent --no-renames -k --stdout $MARKER..|awk '
 BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 
 	#convert subject line to a useable filename
