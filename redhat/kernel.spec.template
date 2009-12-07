@@ -1700,6 +1700,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Dec 07 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.54.el6]
+- [edac] amd64_edac: disabling temporarily (Aristeu Rozanski)
+- [x86] Enable CONFIG_SPARSE_IRQ (Prarit Bhargava) [543174]
+- [x86] panic if AMD cpu_khz is wrong (Prarit Bhargava) [523468]
+- [infiniband] Rewrite SG handling for RDMA logic (Mike Christie) [540269]
+
 * Wed Nov 25 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.53.el6]
 - [net] Add acession counts to all datagram protocols (Neil Horman) [445366]
 - [modsign] Enable module signing in the RHEL RPM (David Howells) [517341]
