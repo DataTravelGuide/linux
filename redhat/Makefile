@@ -108,6 +108,9 @@ rh-srpm: rh-sources
 rh-rpms: rh-sources
 	$(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" --target $(MACH) -bb $(RPM)/SOURCES/kernel.spec
 
+rh-kernel-debug: rh-sources
+	$(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" --target $(MACH) --with dbgonly --without up --without vdso_install --with firmware --without dracut -bb $(RPM)/SOURCES/kernel.spec
+
 rh-prep: rh-sources
 	$(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" --nodeps --target noarch -bp $(RPM)/SOURCES/kernel.spec
 
@@ -140,6 +143,7 @@ rh-help:
 	@echo  '  rh-brew	- Create a kernel SRPM and then call brew to build the created SRPM'
 	@echo  '  rh-koji	- Create a kernel SRPM and then call koji to build the created SRPM'
 	@echo  '  rh-rpms	- Create the binary RPMS for the kernel'
+	@echo  '  rh-kernel-debug - Create only the debug kernel and the firmware package'
 	@echo  '  rh-all-rpms	- Create the binary RPMS and the SRPM for the kernel'
 	@echo  '  rh-prep	- Setup the redhat/rpm/BUILD/ directory with the kernel source'
 	@echo  '  rh-test-patch - Create a diff against HEAD and put it in linux-kernel-test.patch.'

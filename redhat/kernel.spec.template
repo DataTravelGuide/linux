@@ -245,6 +245,7 @@ Summary: The Linux kernel
 %define with_xen 0
 %define with_kdump 0
 %define with_perftool 0
+%define with_framepointer 0
 %endif
 
 %define all_x86 i386 i686
