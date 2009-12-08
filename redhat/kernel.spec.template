@@ -207,7 +207,7 @@ Summary: The Linux kernel
 %endif
 
 %if %{rhel}
-%define pkg_release 0.%{distro_build}%{?buildid}%{?dist}
+%define pkg_release %{distro_build}%{?buildid}%{?dist}
 %endif
 
 %if !%{debugbuildsenabled}
@@ -1700,6 +1700,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 08 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-1.el6]
+- [rebase] Rebased to 2.6.32
+
 * Mon Dec 07 2009 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-0.54.el6]
 - [edac] amd64_edac: disabling temporarily (Aristeu Rozanski)
 - [x86] Enable CONFIG_SPARSE_IRQ (Prarit Bhargava) [543174]
