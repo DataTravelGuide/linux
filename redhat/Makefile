@@ -2,8 +2,8 @@ include Makefile.common
 
 LOCVERFILE:=../localversion
 LANG=C
-BUILD_DEFAULT_TARGET = RHEL-6-alpha
-BUILD_SCRATCH_TARGET = RHEL-6-alpha
+BUILD_DEFAULT_TARGET = RHEL-6-test
+BUILD_SCRATCH_TARGET = RHEL-6-test
 
 #ifeq ($(shell git diff --quiet HEAD && git describe --exact-match 2>/dev/null && echo ok),)
 BUILD_TARGET ?= --scratch $(BUILD_SCRATCH_TARGET)
