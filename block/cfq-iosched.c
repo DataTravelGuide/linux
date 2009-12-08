@@ -286,6 +286,7 @@ struct cfq_data {
 
 	/* List of cfq groups being managed on this device*/
 	struct hlist_head cfqg_list;
+	struct rcu_head rcu;
 };
 
 static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
@@ -3600,6 +3601,11 @@ static void cfq_put_async_queues(struct cfq_data *cfqd)
 		cfq_put_queue(cfqd->async_idle_cfqq);
 }
 
+static void cfq_cfqd_free(struct rcu_head *head)
+{
+	kfree(container_of(head, struct cfq_data, rcu));
+}
+
 static void cfq_exit_queue(struct elevator_queue *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
@@ -3629,8 +3635,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	cfq_shutdown_timer_wq(cfqd);
 
 	/* Wait for cfqg->blkg->key accessors to exit their grace periods. */
-	synchronize_rcu();
-	kfree(cfqd);
+	call_rcu(&cfqd->rcu, cfq_cfqd_free);
 }
 
 static void *cfq_init_queue(struct request_queue *q)
@@ -3705,6 +3710,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_group_isolation = 0;
 	cfqd->hw_tag = -1;
 	cfqd->last_end_sync_rq = jiffies;
+	INIT_RCU_HEAD(&cfqd->rcu);
 	return cfqd;
 }
 
