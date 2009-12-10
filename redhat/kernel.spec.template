@@ -1669,6 +1669,7 @@ fi
 %ifnarch noarch\
 %if %{fancy_debuginfo}\
 %{expand:%%files -f debuginfo%{?2}.list %{?2:%{2}-}debuginfo}\
+%{debuginfodir}/boot/System.map-%{KVERREL}%{?2:.%{2}}\
 %else\
 %{expand:%%files %{?2:%{2}-}debuginfo}\
 %endif\
