@@ -109,7 +109,6 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
-	dprintk("expkey_parse: '%s'\n", mesg);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	err = -ENOMEM;
@@ -187,8 +186,6 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (dom)
 		auth_domain_put(dom);
 	kfree(buf);
-	if (err)
-		dprintk("expkey_parse: err %d\n", err);
 	return err;
 }
 
@@ -359,10 +356,7 @@ static void svc_export_request(struct cache_detail *cd,
 		(*bpp)[0] = '\n';
 		return;
 	}
-
 	qword_add(bpp, blen, pth);
-	dprintk("svc_export_request: pth %s\n", pth);
-
 	(*bpp)[-1] = '\n';
 }
 
@@ -378,10 +372,12 @@ static struct svc_export *svc_export_lookup(struct svc_export *);
 static int check_export(struct inode *inode, int flags, unsigned char *uuid)
 {
 
-	/* We currently export only dirs and regular files.
-	 * This is what umountd does.
+	/*
+	 * We currently export only dirs, regular files, and (for v4
+	 * pseudoroot) symlinks.
 	 */
 	if (!S_ISDIR(inode->i_mode) &&
+	    !S_ISLNK(inode->i_mode) &&
 	    !S_ISREG(inode->i_mode))
 		return -ENOTDIR;
 
@@ -516,7 +512,6 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
-	dprintk("svc_export_parse: '%s'\n", mesg);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -636,8 +631,6 @@ out1:
 	auth_domain_put(dom);
 out:
 	kfree(buf);
-	if (err)
-		dprintk("svc_export_parse: err %d\n", err);
 	return err;
 }
 

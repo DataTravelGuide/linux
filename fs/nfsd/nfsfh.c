@@ -112,24 +112,30 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
 	struct dentry *dentry, struct svc_export *exp)
 {
-	/*
-	 * Only interested in pseudo roots
-	 */
 	if (!(exp->ex_flags & NFSEXP_V4ROOT))
 		return nfs_ok;
-
 	/*
-	 * Only directories should be on the pseudo root
+	 * v2/v3 clients have no need for the V4ROOT export--they use
+	 * the mount protocl instead; also, further V4ROOT checks may be
+	 * in v4-specific code, in which case v2/v3 clients could bypass
+	 * them.
 	 */
-	if (unlikely(!S_ISDIR(dentry->d_inode->i_mode)))
+	if (!nfsd_v4client(rqstp))
 		return nfserr_stale;
-
 	/*
-	 * Make sure the export is the parent of the dentry
+	 * We're exposing only the directories and symlinks that have to be
+	 * traversed on the way to real exports:
 	 */
-	if (unlikely(dentry->d_parent != exp->ex_path.dentry))
+	if (unlikely(!S_ISDIR(dentry->d_inode->i_mode) &&
+		     !S_ISLNK(dentry->d_inode->i_mode)))
 		return nfserr_stale;
-
+	/*
+	 * A pseudoroot export gives permission to access only one
+	 * single directory; the kernel has to make another upcall
+	 * before granting access to anything else under it:
+	 */
+	if (unlikely(dentry != exp->ex_path.dentry))
+		return nfserr_stale;
 	return nfs_ok;
 }
 
@@ -339,15 +345,14 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		error = nfsd_setuser_and_check_port(rqstp, exp);
 		if (error)
 			goto out;
-
-		/*
-		 * Do some spoof checking if we are on the pseudo root
-		 */
-		error = check_pseudo_root(rqstp, dentry, exp);
-		if (error)
-			goto out;
-
 	}
+
+	/*
+	 * Do some spoof checking if we are on the pseudo root
+	 */
+	error = check_pseudo_root(rqstp, dentry, exp);
+	if (error)
+		goto out;
 
 	error = nfsd_mode_check(rqstp, dentry->d_inode->i_mode, type);
 	if (error)

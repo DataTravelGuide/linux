@@ -2174,60 +2174,27 @@ static inline int attributes_need_mount(u32 *bmval)
 	return 0;
 }
 
-struct dentry *
-nfsd_check_export(struct nfsd4_readdir *cd, const char *name, int namlen)
+static __be32
+nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
+		const char *name, int namlen, __be32 *p, int *buflen)
 {
 	struct svc_export *exp = cd->rd_fhp->fh_export;
 	struct dentry *dentry;
-	int err;
+	__be32 nfserr;
+	int ignore_crossmnt = 0;
 
 	dentry = lookup_one_len(name, cd->rd_fhp->fh_dentry, namlen);
 	if (IS_ERR(dentry))
-		return dentry;
+		return nfserrno(PTR_ERR(dentry));
 	if (!dentry->d_inode) {
+		/*
+		 * nfsd_buffered_readdir drops the i_mutex between
+		 * readdir and calling this callback, leaving a window
+		 * where this directory entry could have gone away.
+		 */
 		dput(dentry);
-		return ERR_PTR(-ENOENT);
+		return nfserr_noent;
 	}
-	
-	/*
-	 * Check to see if this dentry is part 
-	 * of the psuedo root
-	 */
-	if ((exp->ex_flags & NFSEXP_V4ROOT) == 0)
-		return dentry;
-
-	/*
-	 * Only exported directories are visable
-	 * on psuedo exports
-	 */
-	if (!S_ISDIR(dentry->d_inode->i_mode)) {
-		dput(dentry);
-		return ERR_PTR(-ENOENT);
-	}
-
-	/*
-	 * Make the upcall to see if this directory
-	 * is exported.
-	 */
-	exp_get(exp);
-	err = nfsd_export_lookup(cd->rd_rqstp, dentry, exp);
-	if (err) {
-		exp_put(exp);
-		dput(dentry);
-		return ERR_PTR(err);
-	}
-	exp_put(exp);
-
-	return dentry;
-}
-
-static __be32
-nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
-		struct dentry *dentry, __be32 *p, int *buflen)
-{
-	struct svc_export *exp = cd->rd_fhp->fh_export;
-	__be32 nfserr;
-	int ignore_crossmnt = 0;
 
 	exp_get(exp);
 	/*
@@ -2237,11 +2204,14 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 	 * we will not follow the cross mount and will fill the attribtutes
 	 * directly from the mountpoint dentry.
 	 */
-	if (d_mountpoint(dentry) && !attributes_need_mount(cd->rd_bmval))
-		ignore_crossmnt = 1;
-	else if (d_mountpoint(dentry)) {
+	if (nfsd_mountpoint(dentry, exp)) {
 		int err;
 
+		if (!(exp->ex_flags & NFSEXP_V4ROOT)
+				&& !attributes_need_mount(cd->rd_bmval)) {
+			ignore_crossmnt = 1;
+			goto out_encode;
+		}
 		/*
 		 * Why the heck aren't we just using nfsd_lookup??
 		 * Different "."/".." handling?  Something else?
@@ -2257,6 +2227,7 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 			goto out_put;
 
 	}
+out_encode:
 	nfserr = nfsd4_encode_fattr(NULL, exp, dentry, p, buflen, cd->rd_bmval,
 					cd->rd_rqstp, ignore_crossmnt);
 out_put:
@@ -2289,7 +2260,6 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	struct readdir_cd *ccd = ccdv;
 	struct nfsd4_readdir *cd = container_of(ccd, struct nfsd4_readdir, common);
 	int buflen;
-	struct dentry *dentry;
 	__be32 *p = cd->buffer;
 	__be32 *cookiep;
 	__be32 nfserr = nfserr_toosmall;
@@ -2300,40 +2270,19 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		return 0;
 	}
 
-	/*
-	 * Do the lookup and make sure the dentry is 
-	 * visible on the exported directory
-	 */
-	dentry = nfsd_check_export(cd, name, namlen);
-	if (IS_ERR(dentry)) {
-		if (PTR_ERR(dentry) == -ENOENT) {
-			cd->common.err = nfs_ok;
-			return 0;
-		}
-		cd->common.err = nfserrno(PTR_ERR(dentry));
-		return -EINVAL;
-	}
- 
 	if (cd->offset)
 		xdr_encode_hyper(cd->offset, (u64) offset);
 
 	buflen = cd->buflen - 4 - XDR_QUADLEN(namlen);
-	if (buflen < 0) {
-		dput(dentry);
+	if (buflen < 0)
 		goto fail;
-	}
 
 	*p++ = xdr_one;                             /* mark entry present */
 	cookiep = p;
 	p = xdr_encode_hyper(p, NFS_OFFSET_MAX);    /* offset of next entry */
 	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
-	/*
-	 * Note: the dput() on the dentry is done in 
-	 * nfsd4_encode_dirent_fattr() since the dentry can
-	 * change when crossing a mount point.
-	 */
-	nfserr = nfsd4_encode_dirent_fattr(cd, dentry, p, &buflen);
+	nfserr = nfsd4_encode_dirent_fattr(cd, name, namlen, p, &buflen);
 	switch (nfserr) {
 	case nfs_ok:
 		p += buflen;

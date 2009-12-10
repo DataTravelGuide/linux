@@ -79,8 +79,6 @@ int		nfsd_racache_init(int);
 void		nfsd_racache_shutdown(void);
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);
-int		nfsd_export_lookup(struct svc_rqst *rqstp, struct dentry *dpp,
-		                struct svc_export *exp);
 __be32		nfsd_lookup(struct svc_rqst *, struct svc_fh *,
 				const char *, unsigned int, struct svc_fh *);
 __be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
@@ -88,6 +86,7 @@ __be32		 nfsd_lookup_dentry(struct svc_rqst *, struct svc_fh *,
 				struct svc_export **, struct dentry **);
 __be32		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
 				struct iattr *, int, time_t);
+int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
 __be32          nfsd4_set_nfs4_acl(struct svc_rqst *, struct svc_fh *,
                     struct nfs4_acl *);
@@ -395,6 +394,10 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 {
 	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD2
 			    : NFSD4_SUPPORTED_ATTRS_WORD2;
+}
+static inline int nfsd_v4client(struct svc_rqst *rq)
+{
+	return rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
