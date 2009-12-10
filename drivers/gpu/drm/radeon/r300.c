@@ -1193,6 +1193,12 @@ static int r300_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+
+	if (rdev->family == CHIP_R300 ||
+	    rdev->family == CHIP_R350 ||
+	    rdev->family == CHIP_RV350)
+		r100_enable_bm(rdev);
+
 	if (rdev->flags & RADEON_IS_PCI) {
 		r = r100_pci_gart_enable(rdev);
 		if (r)
@@ -1303,10 +1309,8 @@ int r300_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
 	/* Set asic errata */
 	r300_errata(rdev);
 	/* Initialize clocks */

@@ -94,6 +94,15 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 	return radeon_gart_table_ram_alloc(rdev);
 }
 
+/* required on r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
+void r100_enable_bm(struct radeon_device *rdev)
+{
+	uint32_t tmp;
+	/* Enable bus mastering */
+	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+	WREG32(RADEON_BUS_CNTL, tmp);
+}
+
 int r100_pci_gart_enable(struct radeon_device *rdev)
 {
 	uint32_t tmp;
@@ -105,9 +114,6 @@ int r100_pci_gart_enable(struct radeon_device *rdev)
 	WREG32(RADEON_AIC_LO_ADDR, rdev->mc.gtt_location);
 	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
 	WREG32(RADEON_AIC_HI_ADDR, tmp);
-	/* Enable bus mastering */
-	tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-	WREG32(RADEON_BUS_CNTL, tmp);
 	/* set PCI GART page-table base address */
 	WREG32(RADEON_AIC_PT_BASE, rdev->gart.table_addr);
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_PCIGART_TRANSLATE_EN;
@@ -1581,6 +1587,14 @@ void r100_gpu_init(struct radeon_device *rdev)
 {
 	/* TODO: anythings to do here ? pipes ? */
 	r100_hdp_reset(rdev);
+}
+
+void r100_hdp_flush(struct radeon_device *rdev)
+{
+	u32 tmp;
+	tmp = RREG32(RADEON_HOST_PATH_CNTL);
+	tmp |= RADEON_HDP_READ_BUFFER_INVALIDATE;
+	WREG32(RADEON_HOST_PATH_CNTL, tmp);
 }
 
 void r100_hdp_reset(struct radeon_device *rdev)
@@ -3108,6 +3122,7 @@ static int r100_startup(struct radeon_device *rdev)
 	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
+	r100_enable_bm(rdev);
 	if (rdev->flags & RADEON_IS_PCI) {
 		r = r100_pci_gart_enable(rdev);
 		if (r)
@@ -3242,10 +3257,8 @@ int r100_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
 	/* Set asic errata */
 	r100_errata(rdev);
 	/* Initialize clocks */

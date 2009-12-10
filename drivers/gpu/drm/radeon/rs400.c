@@ -387,6 +387,7 @@ static int rs400_startup(struct radeon_device *rdev)
 	r300_clock_startup(rdev);
 	/* Initialize GPU configuration (# pipes, ...) */
 	rs400_gpu_init(rdev);
+	r100_enable_bm(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r = rs400_gart_enable(rdev);
@@ -490,10 +491,9 @@ int rs400_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Get vram informations */

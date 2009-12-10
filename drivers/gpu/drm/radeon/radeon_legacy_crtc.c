@@ -408,6 +408,11 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint32_t gen_cntl_reg, gen_cntl_val;
 
 	DRM_DEBUG("\n");
+	/* no fb bound */
+	if (!crtc->fb) {
+		DRM_DEBUG("No FB bound\n");
+		return 0;
+	}
 
 	radeon_fb = to_radeon_framebuffer(crtc->fb);
 
@@ -642,12 +647,8 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 		uint32_t crtc2_gen_cntl;
 		uint32_t disp2_merge_cntl;
 
-		/* check to see if TV DAC is enabled for another crtc and keep it enabled */
-		if (RREG32(RADEON_CRTC2_GEN_CNTL) & RADEON_CRTC2_CRT2_ON)
-			crtc2_gen_cntl = RADEON_CRTC2_CRT2_ON;
-		else
-			crtc2_gen_cntl = 0;
-
+		/* if TV DAC is enabled for another crtc and keep it enabled */
+		crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL) & 0x00718080;
 		crtc2_gen_cntl |= ((format << 8)
 				   | RADEON_CRTC2_VSYNC_DIS
 				   | RADEON_CRTC2_HSYNC_DIS
@@ -676,7 +677,8 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 		uint32_t crtc_ext_cntl;
 		uint32_t disp_merge_cntl;
 
-		crtc_gen_cntl = (RADEON_CRTC_EXT_DISP_EN
+		crtc_gen_cntl = RREG32(RADEON_CRTC_GEN_CNTL) & 0x00718000;
+		crtc_gen_cntl |= (RADEON_CRTC_EXT_DISP_EN
 				 | (format << 8)
 				 | RADEON_CRTC_DISP_REQ_EN_B
 				 | ((mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -1042,12 +1044,29 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 
 static void radeon_crtc_prepare(struct drm_crtc *crtc)
 {
-	radeon_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *crtci;
+
+	/*
+	* The hardware wedges sometimes if you reconfigure one CRTC
+	* whilst another is running (see fdo bug #24611).
+	*/
+	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head)
+		radeon_crtc_dpms(crtci, DRM_MODE_DPMS_OFF);
 }
 
 static void radeon_crtc_commit(struct drm_crtc *crtc)
 {
-	radeon_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc *crtci;
+
+	/*
+	* Reenable the CRTCs that should be running.
+	*/
+	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head) {
+		if (crtci->enabled)
+			radeon_crtc_dpms(crtci, DRM_MODE_DPMS_ON);
+	}
 }
 
 static const struct drm_crtc_helper_funcs legacy_helper_funcs = {

@@ -1101,6 +1101,10 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	(void)RREG32(PCIE_PORT_DATA);
 }
 
+void r600_hdp_flush(struct radeon_device *rdev)
+{
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+}
 
 /*
  * CP & Ring
@@ -1627,7 +1631,11 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Post card if necessary */
-	if (!r600_card_posted(rdev) && rdev->bios) {
+	if (!r600_card_posted(rdev)) {
+		if (!rdev->bios) {
+			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			return -EINVAL;
+		}
 		DRM_INFO("GPU not posted. posting now...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}

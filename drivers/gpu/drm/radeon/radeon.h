@@ -639,6 +639,7 @@ struct radeon_asic {
 			       uint32_t offset, uint32_t obj_size);
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
+	void (*hdp_flush)(struct radeon_device *rdev);
 };
 
 /*
@@ -971,12 +972,14 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
+#define radeon_hdp_flush(rdev) (rdev)->asic->hdp_flush((rdev))
 
 /* Common functions */
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
+extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern int radeon_clocks_init(struct radeon_device *rdev);
 extern void radeon_clocks_fini(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
@@ -1029,6 +1032,7 @@ extern int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt,
 				unsigned idx);
+extern void r100_enable_bm(struct radeon_device *rdev);
 
 /* rv200,rv250,rv280 */
 extern void r200_set_safe_registers(struct radeon_device *rdev);
