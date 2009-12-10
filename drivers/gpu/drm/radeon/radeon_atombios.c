@@ -60,12 +60,12 @@ union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO_2d1 info_2d1;
 };
 
-static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
-							   *dev, uint8_t id)
+static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device *dev,
+							   uint8_t id)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct atom_context *ctx = rdev->mode_info.atom_context;
-	ATOM_GPIO_I2C_ASSIGMENT gpio;
+	ATOM_GPIO_I2C_ASSIGMENT *gpio;
 	struct radeon_i2c_bus_rec i2c;
 	int index = GetIndexIntoMasterTable(DATA, GPIO_I2C_Info);
 	struct _ATOM_GPIO_I2C_INFO *i2c_info;
@@ -78,24 +78,37 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_gpio(struct drm_device
 
 	i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
 
-	gpio = i2c_info->asGPIO_Info[id];
+	gpio = &i2c_info->asGPIO_Info[id];
 
-	i2c.mask_clk_reg = le16_to_cpu(gpio.usClkMaskRegisterIndex) * 4;
-	i2c.mask_data_reg = le16_to_cpu(gpio.usDataMaskRegisterIndex) * 4;
-	i2c.en_clk_reg = le16_to_cpu(gpio.usClkEnRegisterIndex) * 4;
-	i2c.en_data_reg = le16_to_cpu(gpio.usDataEnRegisterIndex) * 4;
-	i2c.y_clk_reg = le16_to_cpu(gpio.usClkY_RegisterIndex) * 4;
-	i2c.y_data_reg = le16_to_cpu(gpio.usDataY_RegisterIndex) * 4;
-	i2c.a_clk_reg = le16_to_cpu(gpio.usClkA_RegisterIndex) * 4;
-	i2c.a_data_reg = le16_to_cpu(gpio.usDataA_RegisterIndex) * 4;
-	i2c.mask_clk_mask = (1 << gpio.ucClkMaskShift);
-	i2c.mask_data_mask = (1 << gpio.ucDataMaskShift);
-	i2c.en_clk_mask = (1 << gpio.ucClkEnShift);
-	i2c.en_data_mask = (1 << gpio.ucDataEnShift);
-	i2c.y_clk_mask = (1 << gpio.ucClkY_Shift);
-	i2c.y_data_mask = (1 << gpio.ucDataY_Shift);
-	i2c.a_clk_mask = (1 << gpio.ucClkA_Shift);
-	i2c.a_data_mask = (1 << gpio.ucDataA_Shift);
+	i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
+	i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
+	i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
+	i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
+	i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
+	i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
+	i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
+	i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
+	i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
+	i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
+	i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
+	i2c.en_data_mask = (1 << gpio->ucDataEnShift);
+	i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
+	i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
+	i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
+	i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
+
+	if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
+		i2c.hw_capable = true;
+	else
+		i2c.hw_capable = false;
+
+	if (gpio->sucI2cId.ucAccess == 0xa0)
+		i2c.mm_i2c = true;
+	else
+		i2c.mm_i2c = false;
+
+	i2c.i2c_id = gpio->sucI2cId.ucAccess;
+
 	i2c.valid = true;
 
 	return i2c;
@@ -259,7 +272,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	uint16_t igp_lane_info, conn_id, connector_object_id;
 	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
-
 	atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset);
 
 	if (data_offset == 0)
@@ -285,7 +297,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 		path = (ATOM_DISPLAY_OBJECT_PATH *) addr;
 		path_size += le16_to_cpu(path->usSize);
 		linkb = false;
-
 		if (device_support & le16_to_cpu(path->usDeviceTag)) {
 			uint8_t con_obj_id, con_obj_num, con_obj_type;
 

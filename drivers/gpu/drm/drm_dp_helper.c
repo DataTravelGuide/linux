@@ -28,7 +28,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
 #include "drmP.h"
 
 /* Run a single AUX_CH I2C transaction, writing/reading data as necessary */
@@ -50,6 +50,7 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 	int reply_bytes;
 	int ret;
 
+	memset(msg, 0, 5);
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
 		msg[0] = AUX_I2C_READ << 4;

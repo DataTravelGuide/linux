@@ -33,7 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "intel_dp.h"
+#include "drm_dp_helper.h"
 
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)

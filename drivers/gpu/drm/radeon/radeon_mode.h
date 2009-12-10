@@ -33,6 +33,7 @@
 #include <drm_crtc.h>
 #include <drm_mode.h>
 #include <drm_edid.h>
+#include <drm_dp_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
@@ -105,6 +106,13 @@ enum radeon_tv_std {
  */
 struct radeon_i2c_bus_rec {
 	bool valid;
+	/* id used by atom */
+	uint8_t i2c_id;
+	/* can be used with hw i2c engine */
+	bool hw_capable;
+	/* uses multi-media i2c engine */
+	bool mm_i2c;
+	/* regs and bits */
 	uint32_t mask_clk_reg;
 	uint32_t mask_data_reg;
 	uint32_t a_clk_reg;
@@ -164,9 +172,12 @@ struct radeon_pll {
 };
 
 struct radeon_i2c_chan {
-	struct drm_device *dev;
 	struct i2c_adapter adapter;
-	struct i2c_algo_bit_data algo;
+	struct drm_device *dev;
+	union {
+		struct i2c_algo_dp_aux_data dp;
+		struct i2c_algo_bit_data bit;
+	} algo;
 	struct radeon_i2c_bus_rec rec;
 };
 
@@ -328,6 +339,12 @@ struct radeon_encoder {
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
 	bool linkb;
+	/* displayport */
+	struct radeon_i2c_chan *dp_i2c_bus;
+	u8 dpcd[8];
+	u8 dp_sink_type;
+	int dp_clock;
+	int dp_lane_count;
 };
 
 struct radeon_connector {
@@ -351,6 +368,24 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+extern int radeon_dp_mode_valid_helper(struct radeon_connector *radeon_connector,
+				       struct drm_display_mode *mode);
+extern void radeon_dp_set_link_config(struct drm_connector *connector,
+				      struct drm_display_mode *mode);
+extern void dp_link_train(struct drm_encoder *encoder,
+			  struct drm_connector *connector);
+extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
+extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
+extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
+					   int action, uint8_t lane_num,
+					   uint8_t lane_set);
+extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter,
+				u8 *send, int send_bytes,
+				u8 *recv, int recv_bytes);
+
+extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
+						    struct radeon_i2c_bus_rec *rec,
+						    const char *name);
 extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);
