@@ -1003,7 +1003,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 			info.si_errno = 0;
 			info.si_code = ILL_BADSTK;
 			info.si_addr = 0;
-			do_trap(32, SIGSEGV, "iret exception", 0, error_code, &info);
+			do_trap(32, SIGSEGV, "iret exception", regs, error_code, &info);
 	}
 }
 #endif
