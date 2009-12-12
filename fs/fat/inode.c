@@ -871,7 +871,7 @@ enum {
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
 	Opt_obsolate, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
-	Opt_err_panic, Opt_err_ro, Opt_err,
+	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_err,
 };
 
 static const match_table_t fat_tokens = {
@@ -910,6 +910,7 @@ static const match_table_t fat_tokens = {
 	{Opt_obsolate, "cvf_format=%20s"},
 	{Opt_obsolate, "cvf_options=%100s"},
 	{Opt_obsolate, "posix"},
+	{Opt_discard, "discard"},
 	{Opt_err, NULL},
 };
 static const match_table_t msdos_tokens = {
@@ -1135,6 +1136,9 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 			break;
 		case Opt_rodir:
 			opts->rodir = 1;
+			break;
+		case Opt_discard:
+			opts->discard = 1;
 			break;
 
 		/* obsolete mount options */
