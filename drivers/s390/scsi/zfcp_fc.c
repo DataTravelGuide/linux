@@ -392,14 +392,6 @@ void zfcp_fc_plogi_evaluate(struct zfcp_port *port, struct fsf_plogi *plogi)
 		port->supported_classes |= FC_COS_CLASS4;
 }
 
-struct zfcp_els_adisc {
-	struct zfcp_send_els els;
-	struct scatterlist req;
-	struct scatterlist resp;
-	struct zfcp_ls_adisc ls_adisc;
-	struct zfcp_ls_adisc ls_adisc_acc;
-};
-
 static void zfcp_fc_adisc_handler(unsigned long data)
 {
 	struct zfcp_els_adisc *adisc = (struct zfcp_els_adisc *) data;
@@ -428,15 +420,16 @@ static void zfcp_fc_adisc_handler(unsigned long data)
  out:
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_port_put(port);
-	kfree(adisc);
+	kmem_cache_free(zfcp_data.adisc_cache, adisc);
 }
 
 static int zfcp_fc_adisc(struct zfcp_port *port)
 {
 	struct zfcp_els_adisc *adisc;
 	struct zfcp_adapter *adapter = port->adapter;
+	int ret;
 
-	adisc = kzalloc(sizeof(struct zfcp_els_adisc), GFP_ATOMIC);
+	adisc = kmem_cache_alloc(zfcp_data.adisc_cache, GFP_ATOMIC);
 	if (!adisc)
 		return -ENOMEM;
 
@@ -460,7 +453,11 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	adisc->ls_adisc.wwnn = fc_host_node_name(adapter->scsi_host);
 	adisc->ls_adisc.nport_id = fc_host_port_id(adapter->scsi_host);
 
-	return zfcp_fsf_send_els(&adisc->els);
+	ret = zfcp_fsf_send_els(&adisc->els);
+	if (ret)
+		kmem_cache_free(zfcp_data.adisc_cache, adisc);
+
+	return ret;
 }
 
 void zfcp_fc_link_test_work(struct work_struct *work)

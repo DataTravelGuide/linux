@@ -365,6 +365,14 @@ struct zfcp_send_els {
 	int status;
 };
 
+struct zfcp_els_adisc {
+	struct zfcp_send_els els;
+	struct scatterlist req;
+	struct scatterlist resp;
+	struct zfcp_ls_adisc ls_adisc;
+	struct zfcp_ls_adisc ls_adisc_acc;
+};
+
 struct zfcp_wka_port {
 	struct zfcp_adapter	*adapter;
 	wait_queue_head_t	completion_wq;
@@ -609,6 +617,7 @@ struct zfcp_data {
 	struct kmem_cache	*qtcb_cache;
 	struct kmem_cache	*sr_buffer_cache;
 	struct kmem_cache	*gid_pn_cache;
+	struct kmem_cache	*adisc_cache;
 };
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/
