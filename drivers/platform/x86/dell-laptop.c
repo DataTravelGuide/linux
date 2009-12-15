@@ -22,6 +22,7 @@
 #include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
+#include <linux/i8042.h>
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
@@ -206,6 +207,16 @@ static const struct rfkill_ops dell_rfkill_ops = {
 	.query = dell_rfkill_query,
 };
 
+static void dell_rfkill_update(void)
+{
+	if (wifi_rfkill)
+		dell_rfkill_query(wifi_rfkill, (void *)1);
+	if (bluetooth_rfkill)
+		dell_rfkill_query(bluetooth_rfkill, (void *)2);
+	if (wwan_rfkill)
+		dell_rfkill_query(wwan_rfkill, (void *)3);
+}
+
 static int dell_setup_rfkill(void)
 {
 	struct calling_interface_buffer buffer;
@@ -310,6 +321,29 @@ static struct backlight_ops dell_ops = {
 	.update_status  = dell_send_intensity,
 };
 
+bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+			      struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x8:
+			dell_rfkill_update();
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
+
 static int __init dell_init(void)
 {
 	struct calling_interface_buffer buffer;
@@ -330,6 +364,13 @@ static int __init dell_init(void)
 
 	if (ret) {
 		printk(KERN_WARNING "dell-laptop: Unable to setup rfkill\n");
+		goto out;
+	}
+
+	ret = i8042_install_filter(dell_laptop_i8042_filter);
+	if (ret) {
+		printk(KERN_WARNING
+		       "dell-laptop: Unable to install key filter\n");
 		goto out;
 	}
 
@@ -369,6 +410,7 @@ static int __init dell_init(void)
 
 	return 0;
 out:
+	i8042_remove_filter(dell_laptop_i8042_filter);
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
 	if (bluetooth_rfkill)
@@ -381,6 +423,7 @@ out:
 
 static void __exit dell_exit(void)
 {
+	i8042_remove_filter(dell_laptop_i8042_filter);
 	backlight_device_unregister(dell_backlight_device);
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
