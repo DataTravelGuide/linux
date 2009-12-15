@@ -19,7 +19,6 @@ CONFIG_HUGETLBFS=y
 # CONFIG_PREEMPT_BKL is not set
 # CONFIG_HOTPLUG_PCI_PCIE is not set
 # CONFIG_NETIUCV is not set
-# CONFIG_HIBERNATION is not set
 # CONFIG_MARCH_Z900 is not set
 # CONFIG_QETH_VLAN is not set
 # CONFIG_CTC is not set
