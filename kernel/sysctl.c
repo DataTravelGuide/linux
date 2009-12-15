@@ -1237,6 +1237,7 @@ static struct ctl_table vm_table[] = {
 		.extra2		= (void *)&hugetlb_infinity,
 	},
 #endif
+#ifdef CONFIG_MMU
 	{
 		.ctl_name	= VM_LOWMEM_RESERVE_RATIO,
 		.procname	= "lowmem_reserve_ratio",
@@ -1390,6 +1391,7 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &mmap_min_addr_handler,
 	},
+#endif
 #ifdef CONFIG_NUMA
 	{
 		.ctl_name	= CTL_UNNUMBERED,
