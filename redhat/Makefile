@@ -46,6 +46,7 @@ rh-pull-configs:
 
 rh-key:
 	cd $(REDHAT)/../; \
+	/sbin/rngd -r /dev/urandom; \
 	gpg --homedir . --batch --gen-key $(REDHAT)/genkey; \
 	if [ -s $(REDHAT)/extrakeys.pub ]; then \
 		gpg --homedir . --no-default-keyring --keyring kernel.pub --import $(REDHAT)/extrakeys.pub; \
