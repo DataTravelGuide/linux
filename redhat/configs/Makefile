@@ -84,12 +84,6 @@ temp-powerpc-generic: config-powerpc-generic-merged temp-generic
 temp-powerpc-debug-generic: config-powerpc-generic-merged temp-debug-generic
 	perl merge.pl $^  > $@
 
-temp-powerpc64-generic: config-powerpc64-generic-merged temp-powerpc-generic
-	perl merge.pl $^  > $@
-
-temp-powerpc64-debug-generic: config-powerpc64-generic-merged temp-powerpc-debug-generic
-	perl merge.pl $^  > $@
-
 temp-s390x-generic: config-s390x-merged temp-generic
 	perl merge.pl $^ > $@
 
