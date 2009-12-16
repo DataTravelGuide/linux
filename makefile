@@ -3,6 +3,8 @@
 extract.pub:
 	$(MAKE) -C redhat rh-key
 
+.PHONY: makefile
+
 ifeq ($(filter rh-%,$(MAKECMDGOALS)),)
 %:: extract.pub
 	$(MAKE) -f Makefile $(@)
