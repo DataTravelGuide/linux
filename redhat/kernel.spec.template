@@ -1043,11 +1043,6 @@ BuildKernel() {
     # make sure EXTRAVERSION says what we want it to say
     perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev}-%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
 
-    cat >> Makefile <<\EOF
-# XXX temp workaround for https://bugzilla.redhat.com/show_bug.cgi?id=521991
-KBUILD_CFLAGS += $(call cc-option,-fno-var-tracking-assignments)
-EOF
-
     # if pre-rc1 devel kernel, must fix up SUBLEVEL for our versioning scheme
     %if !0%{?rcrev}
     %if 0%{?gitrev}
