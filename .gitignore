@@ -87,4 +87,5 @@ localversion
 #
 trustdb.gpg
 random_seed
+crypto/signature/key.h
 
