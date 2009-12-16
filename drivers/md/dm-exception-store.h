@@ -75,6 +75,23 @@ struct dm_exception_store_type {
 				  void *callback_context);
 
 	/*
+	 * Returns 0 if the exception store is empty.
+	 *
+	 * If there are exceptions still to be merged, sets
+	 * *last_old_chunk and *last_new_chunk to the most recent
+	 * still-to-be-merged chunk and returns the number of
+	 * consecutive previous ones.
+	 */
+	int (*prepare_merge) (struct dm_exception_store *store,
+			      chunk_t *last_old_chunk, chunk_t *last_new_chunk);
+
+	/*
+	 * Clear the last n exceptions.
+	 * nr_merged must be <= the value returned by prepare_merge.
+	 */
+	int (*commit_merge) (struct dm_exception_store *store, int nr_merged);
+
+	/*
 	 * The snapshot is invalid, note this in the metadata.
 	 */
 	void (*drop_snapshot) (struct dm_exception_store *store);
@@ -137,6 +154,13 @@ static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
 	BUG_ON(!dm_consecutive_chunk_count(e));
 }
 
+static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
+{
+	BUG_ON(!dm_consecutive_chunk_count(e));
+
+	e->new_chunk -= (1ULL << DM_CHUNK_NUMBER_BITS);
+}
+
 #  else
 #    define DM_CHUNK_CONSECUTIVE_BITS 0
 
@@ -151,6 +175,10 @@ static inline unsigned dm_consecutive_chunk_count(struct dm_exception *e)
 }
 
 static inline void dm_consecutive_chunk_count_inc(struct dm_exception *e)
+{
+}
+
+static inline void dm_consecutive_chunk_count_dec(struct dm_exception *e)
 {
 }
 
