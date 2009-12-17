@@ -61,7 +61,7 @@ do { if (unlikely(!(X))) { line = __LINE__; goto notecheck_error; } } while(0)
 
 	/* validate the ELF header */
 	elfcheck(hdr->e_ehsize < size);
-	elfcheck(hdr->e_entry == 0);
+	/*elfcheck(hdr->e_entry == 0);*/
 	elfcheck(hdr->e_phoff == 0);
 	elfcheck(hdr->e_phnum == 0);
 
