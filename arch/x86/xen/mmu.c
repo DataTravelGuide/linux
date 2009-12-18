@@ -1293,7 +1293,7 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-		DECLARE_BITMAP(mask, NR_CPUS);
+		DECLARE_BITMAP(mask, num_processors);
 	} *args;
 	struct multicall_space mcs;
 
