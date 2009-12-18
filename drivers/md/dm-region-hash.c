@@ -113,10 +113,11 @@ struct dm_region {
 /*
  * Conversion fns
  */
-static region_t dm_rh_sector_to_region(struct dm_region_hash *rh, sector_t sector)
+region_t dm_rh_sector_to_region(struct dm_region_hash *rh, sector_t sector)
 {
 	return sector >> rh->region_shift;
 }
+EXPORT_SYMBOL_GPL(dm_rh_sector_to_region);
 
 sector_t dm_rh_region_to_sector(struct dm_region_hash *rh, region_t region)
 {
@@ -496,7 +497,7 @@ void dm_rh_update_states(struct dm_region_hash *rh, int errors_handled)
 }
 EXPORT_SYMBOL_GPL(dm_rh_update_states);
 
-static void rh_inc(struct dm_region_hash *rh, region_t region)
+void dm_rh_inc(struct dm_region_hash *rh, region_t region)
 {
 	struct dm_region *reg;
 
@@ -526,7 +527,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 	for (bio = bios->head; bio; bio = bio->bi_next) {
 		if (bio_empty_barrier(bio))
 			continue;
-		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
+		dm_rh_inc(rh, dm_rh_bio_to_region(rh, bio));
 	}
 }
 EXPORT_SYMBOL_GPL(dm_rh_inc_pending);
@@ -694,6 +695,19 @@ void dm_rh_delay(struct dm_region_hash *rh, struct bio *bio)
 	read_unlock(&rh->hash_lock);
 }
 EXPORT_SYMBOL_GPL(dm_rh_delay);
+
+void dm_rh_delay_by_region(struct dm_region_hash *rh,
+			   struct bio *bio, region_t region)
+{
+	struct dm_region *reg;
+
+	/* FIXME: locking. */
+	read_lock(&rh->hash_lock);
+	reg = __rh_find(rh, region);
+	bio_list_add(&reg->delayed_bios, bio);
+	read_unlock(&rh->hash_lock);
+}
+EXPORT_SYMBOL_GPL(dm_rh_delay_by_region);
 
 void dm_rh_stop_recovery(struct dm_region_hash *rh)
 {
