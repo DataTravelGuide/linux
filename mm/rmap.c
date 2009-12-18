@@ -56,6 +56,7 @@
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>
+#include <trace/events/kmem.h>
 
 #include <asm/tlbflush.h>
 
@@ -874,6 +875,7 @@ out_unmap:
 			}
 			up_read(&vma->vm_mm->mmap_sem);
 		}
+		trace_mm_anon_unmap(vma->vm_mm, vma->vm_start+page->index);
 	}
 out:
 	return ret;
