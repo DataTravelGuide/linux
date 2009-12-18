@@ -314,6 +314,14 @@ config DM_DELAY
 
 	If unsure, say N.
 
+config DM_REPLICATOR
+	tristate "Replication target (EXPERIMENTAL)"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	---help---
+	A target that supports replication of local devices to remote sites.
+
+	If unsure, say N.
+
 config DM_UEVENT
 	bool "DM uevents (EXPERIMENTAL)"
 	depends on BLK_DEV_DM && EXPERIMENTAL
