@@ -21,7 +21,6 @@ enum dev_state {
 	DEV_STATE_DISBAND_PGID,
 	DEV_STATE_BOXED,
 	/* states to wait for i/o completion before doing something */
-	DEV_STATE_CLEAR_VERIFY,
 	DEV_STATE_TIMEOUT_KILL,
 	DEV_STATE_QUIESCE,
 	/* special states for devices gone not operational */
@@ -98,22 +97,26 @@ void ccw_device_accumulate_basic_sense(struct ccw_device *, struct irb *);
 int ccw_device_accumulate_and_sense(struct ccw_device *, struct irb *);
 int ccw_device_do_sense(struct ccw_device *, struct irb *);
 
+/* Function prototype for internal request handling. */
+int lpm_adjust(int lpm, int mask);
+void ccw_request_start(struct ccw_device *);
+int ccw_request_cancel(struct ccw_device *cdev);
+void ccw_request_handler(struct ccw_device *cdev);
+void ccw_request_timeout(struct ccw_device *cdev);
+void ccw_request_notoper(struct ccw_device *cdev);
+
 /* Function prototypes for sense id stuff. */
 void ccw_device_sense_id_start(struct ccw_device *);
-void ccw_device_sense_id_irq(struct ccw_device *, enum dev_event);
 void ccw_device_sense_id_done(struct ccw_device *, int);
 
 /* Function prototypes for path grouping stuff. */
 void ccw_device_sense_pgid_start(struct ccw_device *);
-void ccw_device_sense_pgid_irq(struct ccw_device *, enum dev_event);
 void ccw_device_sense_pgid_done(struct ccw_device *, int);
 
 void ccw_device_verify_start(struct ccw_device *);
-void ccw_device_verify_irq(struct ccw_device *, enum dev_event);
 void ccw_device_verify_done(struct ccw_device *, int);
 
 void ccw_device_disband_start(struct ccw_device *);
-void ccw_device_disband_irq(struct ccw_device *, enum dev_event);
 void ccw_device_disband_done(struct ccw_device *, int);
 
 int ccw_device_call_handler(struct ccw_device *);
