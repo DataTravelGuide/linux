@@ -25,6 +25,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
+#include <trace/events/kmem.h>
 #include "internal.h"
 
 #define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
@@ -877,7 +878,9 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 			.range_cyclic	= 1,
 		};
 
-		return wb_writeback(wb, &args);
+		nr_pages = wb_writeback(wb, &args);
+		trace_mm_olddata_writeout(nr_pages);
+		return nr_pages;
 	}
 
 	return 0;
@@ -917,6 +920,7 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (args.sync_mode == WB_SYNC_ALL)
 			wb_clear_pending(wb, work);
 	}
+	trace_mm_background_writeout(wrote);
 
 	/*
 	 * Check for periodic writeback, kupdated() style
