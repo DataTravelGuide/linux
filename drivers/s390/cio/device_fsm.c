@@ -498,20 +498,9 @@ ccw_device_sense_pgid_done(struct ccw_device *cdev, int err)
 /*
  * Start device recognition.
  */
-int
-ccw_device_recognition(struct ccw_device *cdev)
+void ccw_device_recognition(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-	int ret;
-
-	sch = to_subchannel(cdev->dev.parent);
-	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
-	if (ret != 0)
-		/* Couldn't enable the subchannel for i/o. Sick device. */
-		return ret;
-
-	/* After 60s the device recognition is considered to have failed. */
-	ccw_device_set_timeout(cdev, 60*HZ);
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 
 	/*
 	 * We used to start here with a sense pgid to find out whether a device
@@ -523,8 +512,11 @@ ccw_device_recognition(struct ccw_device *cdev)
 	 */
 	cdev->private->flags.recog_done = 0;
 	cdev->private->state = DEV_STATE_SENSE_ID;
+	if (cio_enable_subchannel(sch, (u32) (addr_t) sch)) {
+		ccw_device_recog_done(cdev, DEV_STATE_NOT_OPER);
+		return;
+	}
 	ccw_device_sense_id_start(cdev);
-	return 0;
 }
 
 /*
@@ -557,9 +549,8 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 	sch = to_subchannel(cdev->dev.parent);
 	/* Update schib - pom may have changed. */
 	if (cio_update_schib(sch)) {
-		cdev->private->flags.donotify = 0;
-		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
-		return;
+		err = -ENODEV;
+		goto callback;
 	}
 	/* Update lpm with verified path mask. */
 	sch->lpm = sch->vpm;
@@ -569,9 +560,8 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 		ccw_device_verify_start(cdev);
 		return;
 	}
+callback:
 	switch (err) {
-	case -EOPNOTSUPP: /* path grouping not supported, just set online. */
-		cdev->private->options.pgroup = 0;
 	case 0:
 		ccw_device_done(cdev, DEV_STATE_ONLINE);
 		/* Deliver fake irb to device driver, if needed. */
@@ -594,14 +584,15 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 		cdev->private->flags.donotify = 0;
 		ccw_device_done(cdev, DEV_STATE_BOXED);
 		break;
+	case -EACCES:
+		/* Reset oper notify indication after verify error. */
+		cdev->private->flags.donotify = 0;
+		ccw_device_done(cdev, DEV_STATE_DISCONNECTED);
+		break;
 	default:
 		/* Reset oper notify indication after verify error. */
 		cdev->private->flags.donotify = 0;
-		if (cdev->online) {
-			ccw_device_set_timeout(cdev, 0);
-			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		} else
-			ccw_device_done(cdev, DEV_STATE_NOT_OPER);
+		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}
 }
