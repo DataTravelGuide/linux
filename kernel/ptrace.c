@@ -302,6 +302,7 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 }
 #endif	/* CONFIG_COMPAT */
 
+#ifndef CONFIG_UTRACE
 /*
  * ptrace a task: make the debugger its new parent and
  * move it to the ptrace list.
@@ -762,3 +763,4 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 	return ret;
 }
 #endif	/* CONFIG_COMPAT */
+#endif	/* CONFIG_UTRACE */
