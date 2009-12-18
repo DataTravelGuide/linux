@@ -1072,6 +1072,7 @@ static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
 		ret = try_to_unmap_one(page, vma, address, flags);
 		if (ret != SWAP_AGAIN || !page_mapped(page))
 			goto out;
+		trace_mm_filemap_unmap(vma->vm_mm, vma->vm_start+page->index);
 	}
 
 	if (list_empty(&mapping->i_mmap_nonlinear))

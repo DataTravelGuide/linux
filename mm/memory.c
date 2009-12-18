@@ -873,6 +873,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				    likely(!VM_SequentialReadHint(vma)))
 					mark_page_accessed(page);
 				file_rss--;
+				trace_mm_filemap_userunmap(mm, addr);
 			}
 			page_remove_rmap(page);
 			if (unlikely(page_mapcount(page) < 0))
@@ -2165,6 +2166,7 @@ gotten:
 			if (!PageAnon(old_page)) {
 				dec_mm_counter(mm, file_rss);
 				inc_mm_counter(mm, anon_rss);
+				trace_mm_filemap_cow(mm, address);
 			}
 		} else {
 			inc_mm_counter(mm, anon_rss);
