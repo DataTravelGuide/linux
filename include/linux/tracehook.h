@@ -134,7 +134,7 @@ static inline __must_check int tracehook_report_syscall_entry(
  */
 static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 {
-	if (step) {
+	if (step && (task_ptrace(current) & PT_PTRACED)) {
 		siginfo_t info;
 		user_single_step_siginfo(current, regs, &info);
 		force_sig_info(SIGTRAP, &info, current);
@@ -386,7 +386,7 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 					    const struct k_sigaction *ka,
 					    struct pt_regs *regs, int stepping)
 {
-	if (stepping)
+	if (stepping && (task_ptrace(current) & PT_PTRACED))
 		ptrace_notify(SIGTRAP);
 }
 
