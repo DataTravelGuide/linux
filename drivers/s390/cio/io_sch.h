@@ -145,7 +145,6 @@ struct ccw_device_private {
 	struct subchannel *sch;
 	int state;		/* device state */
 	atomic_t onoff;
-	unsigned long registered;
 	struct ccw_dev_id dev_id;	/* device id */
 	struct subchannel_id schid;	/* subchannel number */
 	struct ccw_request req;		/* internal I/O request */
@@ -168,6 +167,7 @@ struct ccw_device_private {
 		unsigned int resuming:1;    /* recognition while resume */
 		unsigned int pgroup:1;	    /* pathgroup is set up */
 		unsigned int mpath:1;	    /* multipathing is set up */
+		unsigned int initialized:1; /* set if initial reference held */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */
 	struct qdio_irq *qdio_data;
