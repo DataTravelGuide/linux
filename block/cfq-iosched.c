@@ -318,7 +318,6 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_coop,		/* cfqq is shared */
 	CFQ_CFQQ_FLAG_deep,		/* sync cfqq experienced large depth */
 	CFQ_CFQQ_FLAG_wait_busy,	/* Waiting for next request */
-	CFQ_CFQQ_FLAG_wait_busy_done,	/* Got new request. Expire the queue */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -347,7 +346,6 @@ CFQ_CFQQ_FNS(sync);
 CFQ_CFQQ_FNS(coop);
 CFQ_CFQQ_FNS(deep);
 CFQ_CFQQ_FNS(wait_busy);
-CFQ_CFQQ_FNS(wait_busy_done);
 #undef CFQ_CFQQ_FNS
 
 #ifdef CONFIG_DEBUG_CFQ_IOSCHED
@@ -1573,7 +1571,6 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	cfq_clear_cfqq_wait_request(cfqq);
 	cfq_clear_cfqq_wait_busy(cfqq);
-	cfq_clear_cfqq_wait_busy_done(cfqq);
 
 	/*
 	 * store what was left of this slice, if the queue idled/timed out
@@ -2133,11 +2130,17 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 
 	if (!cfqd->rq_queued)
 		return NULL;
+
+	/*
+	 * We were waiting for group to get backlogged. Expire the queue
+	 */
+	if (cfq_cfqq_wait_busy(cfqq) && !RB_EMPTY_ROOT(&cfqq->sort_list))
+		goto expire;
+
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
-	if ((cfq_slice_used(cfqq) || cfq_cfqq_wait_busy_done(cfqq))
-	     && !cfq_cfqq_must_dispatch(cfqq))
+	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq))
 		goto expire;
 
 	/*
@@ -3170,10 +3173,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
-		if (cfq_cfqq_wait_busy(cfqq)) {
-			cfq_clear_cfqq_wait_busy(cfqq);
-			cfq_mark_cfqq_wait_busy_done(cfqq);
-		}
 		/*
 		 * Remember that we saw a request from this process, but
 		 * don't start queuing just yet. Otherwise we risk seeing lots
