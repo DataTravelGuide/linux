@@ -26,6 +26,7 @@ struct dm_dirty_log {
 };
 
 struct dm_dirty_log_type {
+	uint64_t features;
 	const char *name;
 	struct module *module;
 

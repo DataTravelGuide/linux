@@ -61,6 +61,7 @@ struct dm_exception_table {
 };
 
 struct dm_snapshot {
+	uint64_t features;
 	struct rw_semaphore lock;
 
 	struct dm_dev *origin;

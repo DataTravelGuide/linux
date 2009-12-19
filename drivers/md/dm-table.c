@@ -39,6 +39,7 @@
  */
 
 struct dm_table {
+	uint64_t features;
 	struct mapped_device *md;
 	atomic_t holders;
 	unsigned type;
