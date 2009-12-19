@@ -519,6 +519,7 @@ void dm_rh_inc(struct dm_region_hash *rh, region_t region)
 
 	read_unlock(&rh->hash_lock);
 }
+EXPORT_SYMBOL_GPL(dm_rh_inc);
 
 void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 {
