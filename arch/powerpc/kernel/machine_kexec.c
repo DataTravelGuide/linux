@@ -64,7 +64,11 @@ void machine_kexec(struct kimage *image)
 #ifdef CONFIG_KEXEC_AUTO_RESERVE
 unsigned long long __init arch_default_crash_base(void)
 {
+#ifndef CONFIG_RELOCATABLE
 	return KDUMP_KERNELBASE;
+#else
+	return 0;
+#endif
 }
 
 unsigned long long __init arch_default_crash_size(unsigned long long total_size)
@@ -118,32 +122,41 @@ void __init reserve_crashkernel(void)
 
 	crashk_res.start = KDUMP_KERNELBASE;
 #else
-	if (!crashk_res.start) {
-		/*
-		 * unspecified address, choose a region of specified size
-		 * can overlap with initrd (ignoring corruption when retained)
-		 * ppc64 requires kernel and some stacks to be in first segemnt
-		 */
-		crashk_res.start = KDUMP_KERNELBASE;
-	}
-
 	crash_base = PAGE_ALIGN(crashk_res.start);
 	if (crash_base != crashk_res.start) {
 		printk("Crash kernel base must be aligned to 0x%lx\n",
 				PAGE_SIZE);
 		crashk_res.start = crash_base;
 	}
-
 #endif
 	crash_size = PAGE_ALIGN(crash_size);
 	crashk_res.end = crashk_res.start + crash_size - 1;
 
 	/* The crash region must not overlap the current kernel */
 	if (overlaps_crashkernel(__pa(_stext), _end - _stext)) {
+#ifdef CONFIG_RELOCATABLE
+		do {
+			/* Align kdump kernel to 16MB (size of large page) */
+			crashk_res.start = ALIGN(crashk_res.start +
+						(16 * 1024 * 1024), 0x1000000);
+			if (crashk_res.start + (_end - _stext) > lmb.rmo_size) {
+				printk(KERN_WARNING
+					"Not enough memory for crash kernel\n");
+				crashk_res.start = crashk_res.end = 0;
+				return;
+			}
+		} while (overlaps_crashkernel(__pa(_stext), _end - _stext));
+
+		crashk_res.end = crashk_res.start + crash_size - 1;
+		printk(KERN_INFO
+			"crash kernel memory overlaps with kernel memory\n"
+			"Moving it to %ldMB\n", (unsigned long)(crashk_res.start >> 20));
+#else
 		printk(KERN_WARNING
 			"Crash kernel can not overlap current kernel\n");
 		crashk_res.start = crashk_res.end = 0;
 		return;
+#endif
 	}
 
 	/* Crash kernel trumps memory limit */
