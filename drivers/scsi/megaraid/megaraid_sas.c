@@ -2087,7 +2087,9 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		instance->base_addr = pci_resource_start(instance->pdev, 0);
 	}
 
-	if (pci_request_regions(instance->pdev, "megasas: LSI")) {
+	if (pci_request_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM),
+		"megasas: LSI")) {
 		printk(KERN_DEBUG "megasas: IO memory region busy!\n");
 		return -EBUSY;
 	}
@@ -2220,7 +2222,8 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	iounmap(instance->reg_set);
 
       fail_ioremap:
-	pci_release_regions(instance->pdev);
+	pci_release_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM));
 
 	return -EINVAL;
 }
@@ -2240,7 +2243,8 @@ static void megasas_release_mfi(struct megasas_instance *instance)
 
 	iounmap(instance->reg_set);
 
-	pci_release_regions(instance->pdev);
+	pci_release_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM));
 }
 
 /**
@@ -2537,7 +2541,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * PCI prepping: enable device set bus mastering and dma mask
 	 */
-	rval = pci_enable_device(pdev);
+	rval = pci_enable_device_mem(pdev);
 
 	if (rval) {
 		return rval;
@@ -2818,7 +2822,7 @@ megasas_resume(struct pci_dev *pdev)
 	/*
 	 * PCI prepping: enable device set bus mastering and dma mask
 	 */
-	rval = pci_enable_device(pdev);
+	rval = pci_enable_device_mem(pdev);
 
 	if (rval) {
 		printk(KERN_ERR "megasas: Enable device failed\n");
