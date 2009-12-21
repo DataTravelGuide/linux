@@ -16,7 +16,6 @@
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
 #include <linux/ptrace.h>
-#include <linux/utrace.h>
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
@@ -165,14 +164,6 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 	return !err;
 }
 
-/*
- * For experimental use of utrace, exclude ptrace on the same task.
- */
-static inline bool exclude_ptrace(struct task_struct *task)
-{
-	return unlikely(!!task_utrace_flags(task));
-}
-
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
@@ -195,13 +186,6 @@ int ptrace_attach(struct task_struct *task)
 		goto out;
 
 	task_lock(task);
-
-	if (exclude_ptrace(task)) {
-		retval = -EBUSY;
-		task_unlock(task);
-		goto unlock_creds;
-	}
-
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
 	task_unlock(task);
 	if (retval)
@@ -242,9 +226,7 @@ int ptrace_traceme(void)
 
 	write_lock_irq(&tasklist_lock);
 	/* Are we already being traced? */
-	if (exclude_ptrace(current)) {
-		ret = -EBUSY;
-	} else if (!current->ptrace) {
+	if (!current->ptrace) {
 		ret = security_ptrace_traceme(current->parent);
 		/*
 		 * Check PF_EXITING to ensure ->real_parent has not passed
@@ -598,17 +580,7 @@ int ptrace_request(struct task_struct *child, long request,
 	return ret;
 }
 
-/**
- * ptrace_get_task_struct  --  grab a task struct reference for ptrace
- * @pid:       process id to grab a task_struct reference of
- *
- * This function is a helper for ptrace implementations.  It checks
- * permissions and then grabs a task struct for use of the actual
- * ptrace implementation.
- *
- * Returns the task_struct for @pid or an ERR_PTR() on failure.
- */
-struct task_struct *ptrace_get_task_struct(pid_t pid)
+static struct task_struct *ptrace_get_task_struct(pid_t pid)
 {
 	struct task_struct *child;
 
