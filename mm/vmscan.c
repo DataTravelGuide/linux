@@ -40,6 +40,7 @@
 #include <linux/memcontrol.h>
 #include <linux/delayacct.h>
 #include <linux/sysctl.h>
+#include <trace/events/kmem.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -420,6 +421,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
 			ClearPageReclaim(page);
 		}
 		inc_zone_page_state(page, NR_VMSCAN_WRITE);
+		trace_mm_pagereclaim_pgout(mapping, page->index<<PAGE_SHIFT,
+					PageAnon(page), page_is_file_cache(page));
 		return PAGE_SUCCESS;
 	}
 
@@ -800,6 +803,7 @@ keep:
 	if (pagevec_count(&freed_pvec))
 		__pagevec_free(&freed_pvec);
 	count_vm_events(PGACTIVATE, pgactivate);
+	trace_mm_pagereclaim_free(nr_reclaimed);
 	return nr_reclaimed;
 }
 
@@ -1239,6 +1243,8 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 done:
 	spin_unlock_irq(&zone->lru_lock);
 	pagevec_release(&pvec);
+	trace_mm_pagereclaim_shrinkinactive(nr_scanned, file, 
+				nr_reclaimed, priority);
 	return nr_reclaimed;
 }
 
@@ -1393,6 +1399,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 						LRU_BASE   + file * LRU_FILE);
 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
 	spin_unlock_irq(&zone->lru_lock);
+	trace_mm_pagereclaim_shrinkactive(pgscanned, file, priority);  
 }
 
 static int inactive_anon_is_low_global(struct zone *zone)
@@ -1648,6 +1655,7 @@ static void shrink_zone(int priority, struct zone *zone,
 	}
 
 	sc->nr_reclaimed = nr_reclaimed;
+	trace_mm_pagereclaim_shrinkzone(nr_reclaimed, priority);
 
 	/*
 	 * Even if we did not try to evict anon pages at all, we want to
@@ -1814,6 +1822,12 @@ out:
 	if (priority < 0)
 		priority = 0;
 
+#ifdef CONFIG_NUMA
+	trace_mm_directreclaim_reclaimall(zonelist[0]._zonerefs->zone->node,
+						sc->nr_reclaimed, priority);
+#else
+	trace_mm_directreclaim_reclaimall(0, sc->nr_reclaimed, priority);
+#endif
 	if (scanning_global_lru(sc)) {
 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 
@@ -1959,6 +1973,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
 	int priority;
 	int i;
 	unsigned long total_scanned;
+	unsigned long total_reclaimed = 0;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
@@ -2110,6 +2125,7 @@ loop_again:
 				has_under_min_watermark_zone = 1;
 
 		}
+		total_reclaimed += sc.nr_reclaimed;
 		if (all_zones_ok)
 			break;		/* kswapd: all done */
 		/*
@@ -2168,6 +2184,7 @@ out:
 		goto loop_again;
 	}
 
+	trace_mm_kswapd_ran(pgdat, total_reclaimed);
 	return sc.nr_reclaimed;
 }
 
@@ -2511,7 +2528,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	const unsigned long nr_pages = 1 << order;
 	struct task_struct *p = current;
 	struct reclaim_state reclaim_state;
-	int priority;
+	int priority = ZONE_RECLAIM_PRIORITY;
 	struct scan_control sc = {
 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
@@ -2576,6 +2593,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 
 	p->reclaim_state = NULL;
 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
+	trace_mm_directreclaim_reclaimzone(zone->node,
+				sc.nr_reclaimed, priority);
 	return sc.nr_reclaimed >= nr_pages;
 }
 
