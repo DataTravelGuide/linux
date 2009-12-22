@@ -5,6 +5,7 @@
 #define _TRACE_KMEM_H
 
 #include <linux/types.h>
+#include <linux/fs.h>
 #include <linux/tracepoint.h>
 
 /*
@@ -388,6 +389,418 @@ TRACE_EVENT(mm_page_alloc_extfrag,
 		__entry->alloc_migratetype == __entry->fallback_migratetype)
 );
 
+TRACE_EVENT(mm_anon_fault,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+);
+
+TRACE_EVENT(mm_anon_pgin,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_anon_cow,
+
+	TP_PROTO(struct mm_struct *mm,
+			unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_anon_userfree,
+
+	TP_PROTO(struct mm_struct *mm,
+			unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_anon_unmap,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_filemap_fault,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address, int flag),
+
+	TP_ARGS(mm, address, flag),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+		__field(int, flag)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+		__entry->flag = flag;
+	),
+
+	TP_printk("%s: mm=%lx address=%lx",
+		__entry->flag ? "pagein" : "primary fault",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_filemap_cow,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_filemap_unmap,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_filemap_userunmap,
+
+	TP_PROTO(struct mm_struct *mm, unsigned long address),
+
+	TP_ARGS(mm, address),
+
+	TP_STRUCT__entry(
+		__field(struct mm_struct *, mm)
+		__field(unsigned long, address)
+	),
+
+	TP_fast_assign(
+		__entry->mm = mm;
+		__entry->address = address;
+	),
+
+	TP_printk("mm=%lx address=%lx",
+		(unsigned long)__entry->mm, __entry->address)
+	);
+
+TRACE_EVENT(mm_pagereclaim_pgout,
+
+	TP_PROTO(struct address_space *mapping, unsigned long offset, int anon, int filecache),
+
+	TP_ARGS(mapping, offset, anon, filecache),
+
+	TP_STRUCT__entry(
+		__field(struct address_space *, mapping)
+		__field(unsigned long, offset)
+		__field(int, anon)
+		__field(int, filecache)
+	),
+
+	TP_fast_assign(
+		__entry->mapping = mapping;
+		__entry->offset = offset;
+		__entry->anon = anon;
+		__entry->filecache = filecache;
+	),
+
+	TP_printk("mapping=%lx, offset=%lx %s %s",
+		(unsigned long)__entry->mapping, __entry->offset, 
+			__entry->anon ? "anonymous" : "pagecache",
+			__entry->filecache ? "filebacked" : "swapbacked")
+	);
+
+TRACE_EVENT(mm_pagereclaim_free,
+
+	TP_PROTO(unsigned long nr_reclaimed),
+
+	TP_ARGS(nr_reclaimed),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, nr_reclaimed)
+	),
+
+	TP_fast_assign(
+		__entry->nr_reclaimed = nr_reclaimed;
+	),
+
+	TP_printk("freed=%ld", __entry->nr_reclaimed)
+	);
+
+TRACE_EVENT(mm_background_writeout,
+
+	TP_PROTO(unsigned long written),
+
+	TP_ARGS(written),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, written)
+	),
+
+	TP_fast_assign(
+		__entry->written = written;
+	),
+
+	TP_printk("written=%ld", __entry->written)
+	);
+
+TRACE_EVENT(mm_olddata_writeout,
+
+	TP_PROTO(unsigned long written),
+
+	TP_ARGS(written),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, written)
+	),
+
+	TP_fast_assign(
+		__entry->written = written;
+	),
+
+	TP_printk("written=%ld", __entry->written)
+	);
+
+TRACE_EVENT(mm_balancedirty_writeout,
+
+	TP_PROTO(unsigned long written),
+
+	TP_ARGS(written),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, written)
+	),
+
+	TP_fast_assign(
+		__entry->written = written;
+	),
+
+	TP_printk("written=%ld", __entry->written)
+	);
+
+TRACE_EVENT(mm_kswapd_ran,
+
+	TP_PROTO(struct pglist_data *pgdat, unsigned long reclaimed),
+
+	TP_ARGS(pgdat, reclaimed),
+
+	TP_STRUCT__entry(
+		__field(struct pglist_data *, pgdat)
+		__field(int, node_id)
+		__field(unsigned long, reclaimed)
+	),
+
+	TP_fast_assign(
+		__entry->pgdat = pgdat;
+		__entry->node_id = pgdat->node_id;
+		__entry->reclaimed = reclaimed;
+	),
+
+	TP_printk("node=%d reclaimed=%ld", __entry->node_id, __entry->reclaimed)
+	);
+
+TRACE_EVENT(mm_directreclaim_reclaimall,
+
+	TP_PROTO(int node, unsigned long reclaimed, unsigned long priority),
+
+	TP_ARGS(node, reclaimed, priority),
+
+	TP_STRUCT__entry(
+		__field(int, node)
+		__field(unsigned long, reclaimed)
+		__field(unsigned long, priority)
+	),
+
+	TP_fast_assign(
+		__entry->node = node;
+		__entry->reclaimed = reclaimed;
+		__entry->priority = priority;
+	),
+
+	TP_printk("node=%d reclaimed=%ld priority=%ld", __entry->node, __entry->reclaimed, 
+					__entry->priority)
+	);
+
+TRACE_EVENT(mm_directreclaim_reclaimzone,
+
+	TP_PROTO(int node, unsigned long reclaimed, unsigned long priority),
+
+	TP_ARGS(node, reclaimed, priority),
+
+	TP_STRUCT__entry(
+		__field(int, node)
+		__field(unsigned long, reclaimed)
+		__field(unsigned long, priority)
+	),
+
+	TP_fast_assign(
+		__entry->node = node;
+		__entry->reclaimed = reclaimed;
+		__entry->priority = priority;
+	),
+
+	TP_printk("node = %d reclaimed=%ld, priority=%ld",
+			__entry->node, __entry->reclaimed, __entry->priority)
+	);
+TRACE_EVENT(mm_pagereclaim_shrinkzone,
+
+	TP_PROTO(unsigned long reclaimed, unsigned long priority),
+
+	TP_ARGS(reclaimed, priority),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, reclaimed)
+		__field(unsigned long, priority)
+	),
+
+	TP_fast_assign(
+		__entry->reclaimed = reclaimed;
+		__entry->priority = priority;
+	),
+
+	TP_printk("reclaimed=%ld priority=%ld",
+			__entry->reclaimed, __entry->priority)
+	);
+
+TRACE_EVENT(mm_pagereclaim_shrinkactive,
+
+	TP_PROTO(unsigned long scanned, int file, int priority),
+
+	TP_ARGS(scanned, file, priority),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, scanned)
+		__field(int, file)
+		__field(int, priority)
+	),
+
+	TP_fast_assign(
+		__entry->scanned = scanned;
+		__entry->file = file;
+		__entry->priority = priority;
+	),
+
+	TP_printk("scanned=%ld, %s, priority=%d",
+		__entry->scanned, __entry->file ? "pagecache" : "anonymous",
+		__entry->priority)
+	);
+
+TRACE_EVENT(mm_pagereclaim_shrinkinactive,
+
+	TP_PROTO(unsigned long scanned, int file, 
+			unsigned long reclaimed, int priority),
+
+	TP_ARGS(scanned, file, reclaimed, priority),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, scanned)
+		__field(int, file)
+		__field(unsigned long, reclaimed)
+		__field(int, priority)
+	),
+
+	TP_fast_assign(
+		__entry->scanned = scanned;
+		__entry->file = file;
+		__entry->reclaimed = reclaimed;
+		__entry->priority = priority;
+	),
+
+	TP_printk("scanned=%ld, %s, reclaimed=%ld, priority=%d",
+		__entry->scanned,
+		__entry->file ? "pagecache" : "anonymous",
+		__entry->reclaimed, __entry->priority)
+	);
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */
