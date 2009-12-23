@@ -1,6 +1,4 @@
 /*
- * linux/fs/nfsd/nfsfh.c
- *
  * NFS server file handle treatment.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
@@ -9,19 +7,11 @@
  * ... and again Southern-Winter 2001 to support export_operations
  */
 
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/unistd.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/dcache.h>
 #include <linux/exportfs.h>
-#include <linux/mount.h>
 
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#include <linux/nfsd/nfsd.h>
+#include "nfsd.h"
+#include "vfs.h"
 #include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_FH
@@ -96,8 +86,10 @@ nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int type)
 static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 					  struct svc_export *exp)
 {
+	int flags = nfsexp_flags(rqstp, exp);
+
 	/* Check if the request originated from a secure port. */
-	if (!rqstp->rq_secure && EX_SECURE(exp)) {
+	if (!rqstp->rq_secure && (flags & NFSEXP_INSECURE_PORT)) {
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 		dprintk(KERN_WARNING
 		       "nfsd: request from insecure port %s!\n",
@@ -262,14 +254,6 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		goto out;
 	}
 
-	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
-		error = nfsd_setuser_and_check_port(rqstp, exp);
-		if (error) {
-			dput(dentry);
-			goto out;
-		}
-	}
-
 	if (S_ISDIR(dentry->d_inode->i_mode) &&
 			(dentry->d_flags & DCACHE_DISCONNECTED)) {
 		printk("nfsd: find_fh_dentry returned a DISCONNECTED directory: %s/%s\n",
@@ -324,33 +308,30 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
 		error = nfsd_set_fh_dentry(rqstp, fhp);
 		if (error)
 			goto out;
-		dentry = fhp->fh_dentry;
-		exp = fhp->fh_export;
-	} else {
-		/*
-		 * just rechecking permissions
-		 * (e.g. nfsproc_create calls fh_verify, then nfsd_create
-		 * does as well)
-		 */
-		dprintk("nfsd: fh_verify - just checking\n");
-		dentry = fhp->fh_dentry;
-		exp = fhp->fh_export;
-		/*
-		 * Set user creds for this exportpoint; necessary even
-		 * in the "just checking" case because this may be a
-		 * filehandle that was created by fh_compose, and that
-		 * is about to be used in another nfsv4 compound
-		 * operation.
-		 */
-		error = nfsd_setuser_and_check_port(rqstp, exp);
-		if (error)
-			goto out;
 	}
-
+	dentry = fhp->fh_dentry;
+	exp = fhp->fh_export;
 	/*
-	 * Do some spoof checking if we are on the pseudo root
+	 * We still have to do all these permission checks, even when
+	 * fh_dentry is already set:
+	 * 	- fh_verify may be called multiple times with different
+	 * 	  "access" arguments (e.g. nfsd_proc_create calls
+	 * 	  fh_verify(...,NFSD_MAY_EXEC) first, then later (in
+	 * 	  nfsd_create) calls fh_verify(...,NFSD_MAY_CREATE).
+	 *	- in the NFSv4 case, the filehandle may have been filled
+	 *	  in by fh_compose, and given a dentry, but further
+	 *	  compound operations performed with that filehandle
+	 *	  still need permissions checks.  In the worst case, a
+	 *	  mountpoint crossing may have changed the export
+	 *	  options, and we may now need to use a different uid
+	 *	  (for example, if different id-squashing options are in
+	 *	  effect on the new filesystem).
 	 */
 	error = check_pseudo_root(rqstp, dentry, exp);
+	if (error)
+		goto out;
+
+	error = nfsd_setuser_and_check_port(rqstp, exp);
 	if (error)
 		goto out;
 

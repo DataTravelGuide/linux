@@ -12,7 +12,7 @@
 
 # include <linux/types.h>
 #ifdef __KERNEL__
-# include <linux/in.h>
+# include <linux/nfsd/nfsfh.h>
 #endif
 
 /*
@@ -49,11 +49,13 @@
  * exported filesystem.
  */
 #define	NFSEXP_V4ROOT		0x10000
-#define NFSEXP_ALLFLAGS		0x1FE3F
+/* All flags that we claim to support.  (Note we don't support NOACL.) */
+#define NFSEXP_ALLFLAGS		0x17E3F
 
 /* The flags that may vary depending on security flavor: */
 #define NFSEXP_SECINFO_FLAGS	(NFSEXP_READONLY | NFSEXP_ROOTSQUASH \
-					| NFSEXP_ALLSQUASH)
+					| NFSEXP_ALLSQUASH \
+					| NFSEXP_INSECURE_PORT)
 
 #ifdef __KERNEL__
 
@@ -118,7 +120,6 @@ struct svc_expkey {
 	struct path		ek_path;
 };
 
-#define EX_SECURE(exp)		(!((exp)->ex_flags & NFSEXP_INSECURE_PORT))
 #define EX_ISSYNC(exp)		(!((exp)->ex_flags & NFSEXP_ASYNC))
 #define EX_NOHIDE(exp)		((exp)->ex_flags & NFSEXP_NOHIDE)
 #define EX_WGATHER(exp)		((exp)->ex_flags & NFSEXP_GATHERED_WRITES)

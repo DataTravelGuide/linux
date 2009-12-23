@@ -40,23 +40,15 @@
  * at the end of nfs4svc_decode_compoundargs.
  */
 
-#include <linux/param.h>
-#include <linux/smp.h>
-#include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/vfs.h>
+#include <linux/statfs.h>
 #include <linux/utsname.h>
-#include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/state.h>
-#include <linux/nfsd/xdr4.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/nfs4.h>
 #include <linux/nfs4_acl.h>
-#include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/svcauth_gss.h>
+
+#include "xdr4.h"
+#include "vfs.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
