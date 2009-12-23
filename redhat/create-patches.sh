@@ -91,6 +91,12 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 				}
 				return;
 			}
+			if ( subj ~ /^Revert/ ) {
+				if ( COMMIT == LASTCOMMIT ) {
+					dolog = 1;
+				}
+				return;
+			}
 			# keep Fedora on the patch name but not on the changelog
 			if ( subj ~ /^\[Fedora\]/ ) {
 				gsub(/\[Fedora\] /, "", subj)
