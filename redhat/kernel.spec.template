@@ -329,7 +329,7 @@ Summary: The Linux kernel
 %endif
 
 %ifarch s390
-%define all_arch_configs redhat/configs/kernel-%{kversion}-s390*.config
+%define all_arch_configs kernel-%{kversion}-s390*.config
 %define image_install_path boot
 %define make_target image
 %define kernel_image arch/s390/boot/image
@@ -526,7 +526,7 @@ Obsoletes: kernel-smp
 BuildRequires: module-init-tools, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
 BuildRequires: gcc >= 3.4.2, binutils >= 2.12, redhat-rpm-config
-BuildRequires: net-tools
+BuildRequires: net-tools, patchutils
 %if %{with_doc}
 BuildRequires: xmlto
 BuildRequires: asciidoc
@@ -804,6 +804,11 @@ ApplyPatch()
   shift
   if [ ! -f $RPM_SOURCE_DIR/$patch ]; then
     exit 1
+  fi
+  # check if the patch is empty
+  if [ -z "$(lsdiff $RPM_SOURCE_DIR/$patch)" ]; then
+    echo "WARNING: empty patch";
+    return;
   fi
   case "$patch" in
   *.bz2) bunzip2 < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;

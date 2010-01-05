@@ -11,6 +11,10 @@ SERIESF="$SOURCES/series"
 clogf="$SOURCES/changelog"
 # hide [redhat] entries from changelog
 HIDE_REDHAT=1;
+# strips all redhat/ and .gitignore patches
+# This was requested in order to avoid the contents of the redhat/ directory
+# to be included on the packages (arozansk, orders of lwang)
+STRIP_REDHAT=1;
 # override LC_TIME to avoid date conflicts when building the srpm
 LC_TIME=
 SUBLEVEL="$(echo $MARKER | cut -f 3 -d '.' | cut -f 1 -d '-')";
@@ -219,7 +223,15 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 	{ print $0 >> OUTF; }
 ' SOURCES=$SOURCES PATCHF=$PATCHF patchf=$patchf SPECFILE=$SPECFILE \
 	SERIESF=$SERIESF CLOGF=$clogf total=$total LASTCOMMIT=$LASTCOMMIT \
-	HIDE_REDHAT=$HIDE_REDHAT
+	HIDE_REDHAT=$HIDE_REDHAT STRIP_REDHAT=$STRIP_REDHAT
+
+# strip all redhat/ code
+if [ $STRIP_REDHAT = 1 ]; then
+	for patch in $(find $SOURCES/ -name \*.patch); do
+		filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $patch >$SOURCES/.tmp;
+		mv $SOURCES/.tmp $patch;
+	done
+fi
 
 CONFIGS=configs/config.include
 CONFIGS2=configs/config2.include
