@@ -3406,6 +3406,7 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id)
 					       "cciss: controller cciss%d failed, stopping.\n",
 					       h->ctlr);
 					fail_all_cmds(h->ctlr);
+					spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 					return IRQ_HANDLED;
 				}
 
@@ -4550,8 +4551,6 @@ static void fail_all_cmds(unsigned long ctlr)
 	printk(KERN_WARNING "cciss%d: controller not responding.\n", h->ctlr);
 	h->alive = 0;		/* the controller apparently died... */
 
-	spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
-
 	pci_disable_device(h->pdev);	/* Make sure it is really dead. */
 
 	/* move everything off the request queue onto the completed queue */
@@ -4577,7 +4576,6 @@ static void fail_all_cmds(unsigned long ctlr)
 			complete_scsi_command(c, 0, 0);
 #endif
 	}
-	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 	return;
 }
 
