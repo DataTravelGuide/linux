@@ -179,7 +179,6 @@ Summary: The Linux kernel
 
 %define make_target bzImage
 
-%define KVERREL %{PACKAGE_VERSION}-%{PACKAGE_RELEASE}.%{_target_cpu}
 %define hdrarch %_target_cpu
 %define asmarch %_target_cpu
 
@@ -209,6 +208,7 @@ Summary: The Linux kernel
 %if %{rhel}
 %define pkg_release %{distro_build}%{?buildid}%{?dist}
 %endif
+%define KVERREL %{rpmversion}-%{pkg_release}.%{_target_cpu}
 
 %if !%{debugbuildsenabled}
 %define with_debug 0
