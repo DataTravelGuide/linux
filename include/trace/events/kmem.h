@@ -801,6 +801,29 @@ TRACE_EVENT(mm_pagereclaim_shrinkinactive,
 		__entry->file ? "pagecache" : "anonymous",
 		__entry->reclaimed, __entry->priority)
 	);
+
+TRACE_EVENT(mm_kernel_pagefault,
+
+	TP_PROTO(struct task_struct *task, unsigned long address, struct pt_regs *regs),
+
+	TP_ARGS(task, address, regs),
+
+	TP_STRUCT__entry(
+		__field(struct task_struct *, task)
+		__field(unsigned long, address)
+		__field(struct pt_regs *, regs)
+	),
+
+	TP_fast_assign(
+		__entry->task = task;
+		__entry->address = address;
+		__entry->regs = regs;
+	),
+
+	TP_printk("task=%lx, address=%lx, regs=%lx",
+		(unsigned long)__entry->task, (unsigned long)__entry->address,
+			__entry->regs)
+	);
 #endif /* _TRACE_KMEM_H */
 
 /* This part must be outside protection */
