@@ -276,9 +276,10 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
 					page_flags | TTM_PAGE_FLAG_USER,
 					glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL))
+		if (unlikely(bo->ttm == NULL)) {
 			ret = -ENOMEM;
-		break;
+			break;
+		}
 
 		ret = ttm_tt_set_user(bo->ttm, current,
 				      bo->buffer_start, bo->num_pages);
@@ -409,6 +410,8 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 		spin_unlock(&bo->lock);
 
 		spin_lock(&glob->lru_lock);
+		put_count = ttm_bo_del_from_lru(bo);
+
 		ret = ttm_bo_reserve_locked(bo, false, false, false, 0);
 		BUG_ON(ret);
 		if (bo->ttm)
@@ -416,19 +419,18 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 
 		if (!list_empty(&bo->ddestroy)) {
 			list_del_init(&bo->ddestroy);
-			kref_put(&bo->list_kref, ttm_bo_ref_bug);
+			++put_count;
 		}
 		if (bo->mem.mm_node) {
 			drm_mm_put_block(bo->mem.mm_node);
 			bo->mem.mm_node = NULL;
 		}
-		put_count = ttm_bo_del_from_lru(bo);
 		spin_unlock(&glob->lru_lock);
 
 		atomic_set(&bo->reserved, 0);
 
 		while (put_count--)
-			kref_put(&bo->list_kref, ttm_bo_release_list);
+			kref_put(&bo->list_kref, ttm_bo_ref_bug);
 
 		return 0;
 	}
