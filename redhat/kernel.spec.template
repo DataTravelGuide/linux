@@ -591,6 +591,12 @@ Patch99999: linux-kernel-test.patch
 
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
 
+# Override find_provides to use a script that provides "kernel(symbol) = hash".
+# Pass path of the RPM temp dir containing kabideps to find-provides script.
+%global _use_internal_dependency_generator 0
+%define __find_provides %_sourcedir/find-provides %{_tmppath}
+%define __find_requires /usr/lib/rpm/redhat/find-requires kernel
+
 %description
 The kernel package contains the Linux kernel (vmlinuz), the core of any
 Linux operating system.  The kernel handles the basic functions
@@ -1531,10 +1537,10 @@ fi\
 %define kernel_variant_preun() \
 %{expand:%%preun %{?1}}\
 /sbin/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
-#if [ -x /sbin/weak-modules ]\
-#then\
-#    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1} || exit $?\
-#fi\
+if [ -x /sbin/weak-modules ]\
+then\
+    /sbin/weak-modules --remove-kernel %{KVERREL}%{?-v:.%{-v*}} || exit $?\
+fi\
 %{nil}
 
 %kernel_variant_preun
