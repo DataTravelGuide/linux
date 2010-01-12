@@ -379,9 +379,8 @@ extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   int action, uint8_t lane_num,
 					   uint8_t lane_set);
-extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter,
-				u8 *send, int send_bytes,
-				u8 *recv, int recv_bytes);
+extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+				uint8_t write_byte, uint8_t *read_byte);
 
 extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 						    struct radeon_i2c_bus_rec *rec,

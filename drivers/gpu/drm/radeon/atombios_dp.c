@@ -412,30 +412,6 @@ bool radeon_dp_aux_native_read(struct radeon_connector *radeon_connector, uint16
 	return ret;
 }
 
-int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter,
-			 u8 *send, int send_bytes,
-			 u8 *recv, int recv_bytes)
-{
-	struct radeon_i2c_chan *auxch = (struct radeon_i2c_chan *)adapter;
-	int ret = 0;
-	u8 tmp1;
-
-	/* swap some of the bytes around */
-	tmp1 = send[0];
-	send[0] = send[2];
-	send[2] = tmp1;
-
-	send[3] = (send_bytes) << 4;
-	if (send_bytes == 3)
-		send_bytes++;
-	ret = radeon_process_aux_ch(auxch, send, send_bytes, recv + 1, recv_bytes - 1, 0);
-	if (ret == true)
-		recv[0] = AUX_I2C_REPLY_ACK;
-	else
-		recv[0] = AUX_I2C_REPLY_NACK;
-	return 0;
-}
-
 /* radeon dp functions */
 static u8 radeon_dp_encoder_service(struct radeon_device *rdev, int action, int dp_clock,
 				    uint8_t ucconfig, uint8_t lane_num)
@@ -746,5 +722,57 @@ void dp_link_train(struct drm_encoder *encoder,
 
 	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
 				  dig_connector->dp_clock, enc_id, 0);
+}
+
+int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+			 uint8_t write_byte, uint8_t *read_byte)
+{
+	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
+	struct radeon_i2c_chan *auxch = (struct radeon_i2c_chan *)adapter;
+	int ret = 0;
+	uint16_t address = algo_data->address;
+	uint8_t msg[5];
+	uint8_t reply[2];
+	int msg_len, dp_msg_len;
+	int reply_bytes;
+
+	/* Set up the command byte */
+	if (mode & MODE_I2C_READ)
+		msg[2] = AUX_I2C_READ << 4;
+	else
+		msg[2] = AUX_I2C_WRITE << 4;
+
+	if (!(mode & MODE_I2C_STOP))
+		msg[2] |= AUX_I2C_MOT << 4;
+
+	msg[0] = address;
+	msg[1] = address >> 8;
+
+	reply_bytes = 1;
+
+	msg_len = 4;
+	dp_msg_len = 3;
+	switch (mode) {
+	case MODE_I2C_WRITE:
+		msg[4] = write_byte;
+		msg_len++;
+		dp_msg_len += 2;
+		break;
+	case MODE_I2C_READ:
+		dp_msg_len += 1;
+		break;
+	default:
+		break;
+	}
+
+	msg[3] = (dp_msg_len) << 4;
+	ret = radeon_process_aux_ch(auxch, msg, msg_len, reply, reply_bytes, 0);
+
+	if (ret) {
+		if (read_byte)
+			*read_byte = reply[0];
+		return reply_bytes;
+	}
+	return -EREMOTEIO;
 }
 

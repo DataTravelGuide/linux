@@ -160,12 +160,17 @@
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 
+#define MODE_I2C_START	1
+#define MODE_I2C_WRITE	2
+#define MODE_I2C_READ	4
+#define MODE_I2C_STOP	8
+
 struct i2c_algo_dp_aux_data {
 	bool running;
 	u16 address;
 	int (*aux_ch) (struct i2c_adapter *adapter,
-		       uint8_t *send, int send_bytes,
-		       uint8_t *recv, int recv_bytes);
+		       int mode, uint8_t write_byte,
+		       uint8_t *read_byte);
 };
 
 int
