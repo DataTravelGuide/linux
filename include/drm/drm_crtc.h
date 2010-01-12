@@ -123,7 +123,7 @@ struct drm_display_mode {
 	int type;
 
 	/* Proposed mode values */
-	int clock;
+	int clock;		/* in kHz */
 	int hdisplay;
 	int hsync_start;
 	int hsync_end;
@@ -164,8 +164,8 @@ struct drm_display_mode {
 	int *private;
 	int private_flags;
 
-	int vrefresh;
-	float hsync;
+	int vrefresh;		/* in Hz */
+	int hsync;		/* in kHz */
 };
 
 enum drm_connector_status {
@@ -667,6 +667,7 @@ extern void drm_mode_validate_size(struct drm_device *dev,
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
+extern int drm_mode_hsync(struct drm_display_mode *mode);
 extern int drm_mode_vrefresh(struct drm_display_mode *mode);
 extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 				  int adjust_flags);
@@ -711,7 +712,8 @@ extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
 extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
-extern void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type);
+extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type);
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);

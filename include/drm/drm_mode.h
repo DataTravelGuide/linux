@@ -158,6 +158,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_HDMIA	11
 #define DRM_MODE_CONNECTOR_HDMIB	12
 #define DRM_MODE_CONNECTOR_TV		13
+#define DRM_MODE_CONNECTOR_eDP		14
 
 struct drm_mode_get_connector {
 
