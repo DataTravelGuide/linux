@@ -265,19 +265,8 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 
 #define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
 #define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
-#define DRM_WAITCOUNT(dev,idx) DRM_BUFCOUNT(&dev->queuelist[idx]->waitlist)
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
-/**
- * Get the private SAREA mapping.
- *
- * \param _dev DRM device.
- * \param _ctx context number.
- * \param _map output mapping.
- */
-#define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
-	(_map) = (_dev)->context_sareas[_ctx];		\
-} while(0)
 
 /**
  * Test that the hardware lock is held by the caller, returning otherwise.
@@ -297,18 +286,6 @@ do {										\
 } while (0)
 
 /**
- * Copy and IOCTL return string to user space
- */
-#define DRM_COPY( name, value )						\
-	len = strlen( value );						\
-	if ( len > name##_len ) len = name##_len;			\
-	name##_len = strlen( value );					\
-	if ( len && name ) {						\
-		if ( copy_to_user( name, value, len ) )			\
-			return -EFAULT;					\
-	}
-
-/**
  * Ioctl function type.
  *
  * \param inode device inode.
@@ -326,6 +303,7 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 #define	DRM_MASTER	0x2
 #define DRM_ROOT_ONLY	0x4
 #define DRM_CONTROL_ALLOW 0x8
+#define DRM_UNLOCKED	0x10
 
 struct drm_ioctl_desc {
 	unsigned int cmd;
@@ -1125,8 +1103,8 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 				/* Driver support (drm_drv.h) */
 extern int drm_init(struct drm_driver *driver);
 extern void drm_exit(struct drm_driver *driver);
-extern int drm_ioctl(struct inode *inode, struct file *filp,
-		     unsigned int cmd, unsigned long arg);
+extern long drm_ioctl(struct file *filp,
+		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern int drm_lastclose(struct drm_device *dev);
