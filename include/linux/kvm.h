@@ -190,6 +190,9 @@ struct kvm_run {
 		} dcr;
 		struct {
 			__u32 suberror;
+			/* Available with KVM_CAP_INTERNAL_ERROR_DATA: */
+			__u32 ndata;
+			__u64 data[16];
 		} internal;
 		/* Fix the size of the union. */
 		char padding[256];
@@ -440,6 +443,7 @@ struct kvm_ioeventfd {
 #define KVM_CAP_IOEVENTFD 36
 #define KVM_CAP_SET_IDENTITY_MAP_ADDR 37
 #define KVM_CAP_ADJUST_CLOCK 39
+#define KVM_CAP_INTERNAL_ERROR_DATA 40
 #ifdef __KVM_HAVE_VCPU_EVENTS
 #define KVM_CAP_VCPU_EVENTS 41
 #endif
