@@ -468,7 +468,8 @@ void radeon_dp_set_link_config(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
 	radeon_connector = to_radeon_connector(connector);
@@ -504,6 +505,18 @@ static bool atom_dp_get_link_status(struct radeon_connector *radeon_connector,
 	DRM_DEBUG("link status %02x %02x %02x %02x %02x %02x\n",
 		  link_status[0], link_status[1], link_status[2],
 		  link_status[3], link_status[4], link_status[5]);
+	return true;
+}
+
+bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector)
+{
+	struct radeon_connector_atom_dig *dig_connector = radeon_connector->con_priv;
+	u8 link_status[DP_LINK_STATUS_SIZE];
+
+	if (!atom_dp_get_link_status(radeon_connector, link_status))
+		return false;
+	if (dp_channel_eq_ok(link_status, dig_connector->dp_lane_count))
+		return false;
 	return true;
 }
 
@@ -570,7 +583,8 @@ void dp_link_train(struct drm_encoder *encoder,
 	u8 train_set[4];
 	int i;
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
 	if (!radeon_encoder->enc_priv)

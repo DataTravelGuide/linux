@@ -459,9 +459,8 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 				if (encoder->encoder_type !=
 				    DRM_MODE_ENCODER_DAC)
 					pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
-				if (!ASIC_IS_AVIVO(rdev)
-				    && (encoder->encoder_type ==
-					DRM_MODE_ENCODER_LVDS))
+				if (encoder->encoder_type ==
+					DRM_MODE_ENCODER_LVDS)
 					pll_flags |= RADEON_PLL_USE_REF_DIV;
 			}
 			radeon_encoder = to_radeon_encoder(encoder);
@@ -502,8 +501,18 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	else
 		pll = &rdev->clock.p2pll;
 
-	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-			   &ref_div, &post_div, pll_flags);
+	if (ASIC_IS_AVIVO(rdev)) {
+		if (radeon_new_pll)
+			radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock,
+						 &fb_div, &frac_fb_div,
+						 &ref_div, &post_div, pll_flags);
+		else
+			radeon_compute_pll(pll, adjusted_clock, &pll_clock,
+					   &fb_div, &frac_fb_div,
+					   &ref_div, &post_div, pll_flags);
+	} else
+		radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+				   &ref_div, &post_div, pll_flags);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
@@ -576,9 +585,10 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_framebuffer *radeon_fb;
 	struct drm_gem_object *obj;
-	struct drm_radeon_gem_object *obj_priv;
+	struct radeon_bo *rbo;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	int r;
 
 	/* no fb bound */
 	if (!crtc->fb) {
@@ -588,12 +598,19 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	radeon_fb = to_radeon_framebuffer(crtc->fb);
 
+	/* Pin framebuffer & get tilling informations */
 	obj = radeon_fb->obj;
-	obj_priv = obj->driver_private;
-
-	if (radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &fb_location)) {
+	rbo = obj->driver_private;
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &fb_location);
+	if (unlikely(r != 0)) {
+		radeon_bo_unreserve(rbo);
 		return -EINVAL;
 	}
+	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
+	radeon_bo_unreserve(rbo);
 
 	switch (crtc->fb->bits_per_pixel) {
 	case 8:
@@ -623,8 +640,6 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
-	radeon_object_get_tiling_flags(obj->driver_private,
-				       &tiling_flags, NULL);
 	if (tiling_flags & RADEON_TILING_MACRO)
 		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
@@ -679,7 +694,12 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (old_fb && old_fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(old_fb);
-		radeon_gem_object_unpin(radeon_fb->obj);
+		rbo = radeon_fb->obj->driver_private;
+		r = radeon_bo_reserve(rbo, false);
+		if (unlikely(r != 0))
+			return r;
+		radeon_bo_unpin(rbo);
+		radeon_bo_unreserve(rbo);
 	}
 
 	/* Bytes per pixel may have changed */

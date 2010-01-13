@@ -46,32 +46,6 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
-enum radeon_connector_type {
-	CONNECTOR_NONE,
-	CONNECTOR_VGA,
-	CONNECTOR_DVI_I,
-	CONNECTOR_DVI_D,
-	CONNECTOR_DVI_A,
-	CONNECTOR_STV,
-	CONNECTOR_CTV,
-	CONNECTOR_LVDS,
-	CONNECTOR_DIGITAL,
-	CONNECTOR_SCART,
-	CONNECTOR_HDMI_TYPE_A,
-	CONNECTOR_HDMI_TYPE_B,
-	CONNECTOR_0XC,
-	CONNECTOR_0XD,
-	CONNECTOR_DIN,
-	CONNECTOR_DISPLAY_PORT,
-	CONNECTOR_UNSUPPORTED
-};
-
-enum radeon_dvi_type {
-	DVI_AUTO,
-	DVI_DIGITAL,
-	DVI_ANALOG
-};
-
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,
@@ -88,6 +62,7 @@ enum radeon_tv_std {
 	TV_STD_SCART_PAL,
 	TV_STD_SECAM,
 	TV_STD_PAL_CN,
+	TV_STD_PAL_N,
 };
 
 /* radeon gpio-based i2c
@@ -334,6 +309,9 @@ struct radeon_encoder {
 	enum radeon_rmx_type rmx_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
+	int hdmi_offset;
+	int hdmi_audio_workaround;
+	int hdmi_buffer_status;
 };
 
 struct radeon_connector_atom_dig {
@@ -345,6 +323,29 @@ struct radeon_connector_atom_dig {
 	u8 dp_sink_type;
 	int dp_clock;
 	int dp_lane_count;
+};
+
+struct radeon_gpio_rec {
+	bool valid;
+	u8 id;
+	u32 reg;
+	u32 mask;
+};
+
+enum radeon_hpd_id {
+	RADEON_HPD_NONE = 0,
+	RADEON_HPD_1,
+	RADEON_HPD_2,
+	RADEON_HPD_3,
+	RADEON_HPD_4,
+	RADEON_HPD_5,
+	RADEON_HPD_6,
+};
+
+struct radeon_hpd {
+	enum radeon_hpd_id hpd;
+	u8 plugged_state;
+	struct radeon_gpio_rec gpio;
 };
 
 struct radeon_connector {
@@ -361,6 +362,7 @@ struct radeon_connector {
 	void *con_priv;
 	bool dac_load_detect;
 	uint16_t connector_object_id;
+	struct radeon_hpd hpd;
 };
 
 struct radeon_framebuffer {
@@ -368,6 +370,13 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+extern enum radeon_tv_std
+radeon_combios_get_tv_info(struct radeon_device *rdev);
+extern enum radeon_tv_std
+radeon_atombios_get_tv_info(struct radeon_device *rdev);
+
+extern void radeon_connector_hotplug(struct drm_connector *connector);
+extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);
 extern int radeon_dp_mode_valid_helper(struct radeon_connector *radeon_connector,
 				       struct drm_display_mode *mode);
 extern void radeon_dp_set_link_config(struct drm_connector *connector,
@@ -410,6 +419,15 @@ extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint32_t *ref_div_p,
 			       uint32_t *post_div_p,
 			       int flags);
+
+extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
+				     uint64_t freq,
+				     uint32_t *dot_clock_p,
+				     uint32_t *fb_div_p,
+				     uint32_t *frac_fb_div_p,
+				     uint32_t *ref_div_p,
+				     uint32_t *post_div_p,
+				     int flags);
 
 extern void radeon_setup_encoder_clones(struct drm_device *dev);
 
