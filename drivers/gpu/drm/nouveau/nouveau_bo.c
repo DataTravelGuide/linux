@@ -33,16 +33,22 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 
+#include <linux/log2.h>
+
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
 	ttm_bo_kunmap(&nvbo->kmap);
 
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
+
+	if (nvbo->tile)
+		nv10_mem_expire_tiling(dev, nvbo->tile, NULL);
 
 	spin_lock(&dev_priv->ttm.bo_list_lock);
 	list_del(&nvbo->head);
@@ -343,8 +349,10 @@ nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
 	struct drm_device *dev = dev_priv->dev;
 
 	switch (dev_priv->gart_info.type) {
+#if __OS_HAS_AGP
 	case NOUVEAU_GART_AGP:
 		return ttm_agp_backend_init(bdev, dev->agp->bridge);
+#endif
 	case NOUVEAU_GART_SGDMA:
 		return nouveau_sgdma_init_ttm(dev);
 	default:
@@ -446,6 +454,7 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 /* GPU-assisted copy using NV_MEMORY_TO_MEMORY_FORMAT, can access
  * TTM_PL_{VRAM,TT} directly.
  */
+
 static int
 nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 			      struct nouveau_bo *nvbo, bool evict, bool no_wait,
@@ -480,22 +489,20 @@ nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 }
 
 static int
-nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, int no_wait,
-		     struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
+		     int no_wait, struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct nouveau_channel *chan;
 	uint64_t src_offset, dst_offset;
 	uint32_t page_count;
 	int ret;
 
 	chan = nvbo->channel;
-	if (!chan || nvbo->tile_flags || nvbo->no_vm) {
+	if (!chan || nvbo->tile_flags || nvbo->no_vm)
 		chan = dev_priv->channel;
-		if (!chan)
-			return -EINVAL;
-	}
 
 	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
 	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
@@ -587,7 +594,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, no_wait, &bo->mem, &tmp_mem);
+	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait, &tmp_mem);
 	if (ret)
 		goto out;
 
@@ -625,7 +632,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_move_m2mf(bo, true, no_wait, &bo->mem, new_mem);
+	ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait, new_mem);
 	if (ret)
 		goto out;
 
@@ -640,51 +647,106 @@ out:
 }
 
 static int
-nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
-		bool no_wait, struct ttm_mem_reg *new_mem)
+nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
+		   struct nouveau_tile_reg **new_tile)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct drm_device *dev = dev_priv->dev;
-	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	uint64_t offset;
 	int ret;
 
-	if (dev_priv->card_type == NV_50 &&
-	    (new_mem->mem_type == TTM_PL_VRAM) && !nvbo->no_vm) {
-		uint64_t offset = new_mem->mm_node->start << PAGE_SHIFT;
+	if (nvbo->no_vm || new_mem->mem_type != TTM_PL_VRAM) {
+		/* Nothing to do. */
+		*new_tile = NULL;
+		return 0;
+	}
 
+	offset = new_mem->mm_node->start << PAGE_SHIFT;
+
+	if (dev_priv->card_type == NV_50) {
 		ret = nv50_mem_vm_bind_linear(dev,
 					      offset + dev_priv->vm_vram_base,
 					      new_mem->size, nvbo->tile_flags,
 					      offset);
 		if (ret)
 			return ret;
+
+	} else if (dev_priv->card_type >= NV_10) {
+		*new_tile = nv10_mem_set_tiling(dev, offset, new_mem->size,
+						nvbo->tile_mode);
 	}
 
-	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE)
-		return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+	return 0;
+}
 
+static void
+nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
+		      struct nouveau_tile_reg *new_tile,
+		      struct nouveau_tile_reg **old_tile)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct drm_device *dev = dev_priv->dev;
+
+	if (dev_priv->card_type >= NV_10 &&
+	    dev_priv->card_type < NV_50) {
+		if (*old_tile)
+			nv10_mem_expire_tiling(dev, *old_tile, bo->sync_obj);
+
+		*old_tile = new_tile;
+	}
+}
+
+static int
+nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
+		bool no_wait, struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct ttm_mem_reg *old_mem = &bo->mem;
+	struct nouveau_tile_reg *new_tile = NULL;
+	int ret = 0;
+
+	ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
+	if (ret)
+		return ret;
+
+	/* Software copy if the card isn't up and running yet. */
+	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DONE ||
+	    !dev_priv->channel) {
+		ret = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+		goto out;
+	}
+
+	/* Fake bo copy. */
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
 		BUG_ON(bo->mem.mm_node != NULL);
 		bo->mem = *new_mem;
 		new_mem->mm_node = NULL;
-		return 0;
+		goto out;
 	}
 
-	if (new_mem->mem_type == TTM_PL_SYSTEM) {
-		if (old_mem->mem_type == TTM_PL_SYSTEM)
-			return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
-		if (nouveau_bo_move_flipd(bo, evict, intr, no_wait, new_mem))
-			return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
-	} else if (old_mem->mem_type == TTM_PL_SYSTEM) {
-		if (nouveau_bo_move_flips(bo, evict, intr, no_wait, new_mem))
-			return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
-	} else {
-		if (nouveau_bo_move_m2mf(bo, evict, no_wait, old_mem, new_mem))
-			return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
-	}
+	/* Hardware assisted copy. */
+	if (new_mem->mem_type == TTM_PL_SYSTEM)
+		ret = nouveau_bo_move_flipd(bo, evict, intr, no_wait, new_mem);
+	else if (old_mem->mem_type == TTM_PL_SYSTEM)
+		ret = nouveau_bo_move_flips(bo, evict, intr, no_wait, new_mem);
+	else
+		ret = nouveau_bo_move_m2mf(bo, evict, intr, no_wait, new_mem);
 
-	return 0;
+	if (!ret)
+		goto out;
+
+	/* Fallback to software copy. */
+	ret = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+
+out:
+	if (ret)
+		nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
+	else
+		nouveau_bo_vm_cleanup(bo, new_tile, &nvbo->tile);
+
+	return ret;
 }
 
 static int

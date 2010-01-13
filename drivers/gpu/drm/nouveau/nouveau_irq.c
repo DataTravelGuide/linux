@@ -35,6 +35,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
+#include <linux/ratelimit.h>
 
 /* needed for hotplug irq */
 #include "nouveau_connector.h"
@@ -462,6 +463,14 @@ nouveau_pgraph_intr_notify(struct drm_device *dev, uint32_t nsource)
 		nouveau_graph_dump_trap_info(dev, "PGRAPH_NOTIFY", &trap);
 }
 
+static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
+
+static int nouveau_ratelimit(void)
+{
+	return __ratelimit(&nouveau_ratelimit_state);
+}
+
+
 static inline void
 nouveau_pgraph_intr_error(struct drm_device *dev, uint32_t nsource)
 {
@@ -478,7 +487,7 @@ nouveau_pgraph_intr_error(struct drm_device *dev, uint32_t nsource)
 		unhandled = 1;
 	}
 
-	if (unhandled)
+	if (unhandled && nouveau_ratelimit())
 		nouveau_graph_dump_trap_info(dev, "PGRAPH_ERROR", &trap);
 }
 
@@ -494,12 +503,9 @@ nouveau_pgraph_intr_context_switch(struct drm_device *dev)
 
 	switch (dev_priv->card_type) {
 	case NV_04:
-	case NV_05:
 		nv04_graph_context_switch(dev);
 		break;
 	case NV_10:
-	case NV_11:
-	case NV_17:
 		nv10_graph_context_switch(dev);
 		break;
 	default:
@@ -629,6 +635,7 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 
 		if ((nv_rd32(dev, 0x400500) & isb) != isb)
 			nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | isb);
+		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 	}
 
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);

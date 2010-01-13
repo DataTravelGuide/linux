@@ -44,7 +44,7 @@ nv50_sor_disconnect(struct nouveau_encoder *nv_encoder)
 	struct nouveau_channel *evo = dev_priv->evo;
 	int ret;
 
-	NV_DEBUG(dev, "Disconnecting SOR %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(dev, "Disconnecting SOR %d\n", nv_encoder->or);
 
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
@@ -56,6 +56,36 @@ nv50_sor_disconnect(struct nouveau_encoder *nv_encoder)
 }
 
 static void
+nv50_sor_dp_link_train(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct bit_displayport_encoder_table *dpe;
+	int dpe_headerlen;
+
+	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
+	if (!dpe) {
+		NV_ERROR(dev, "SOR-%d: no DP encoder table!\n", nv_encoder->or);
+		return;
+	}
+
+	if (dpe->script0) {
+		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
+		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script0),
+					    nv_encoder->dcb);
+	}
+
+	if (!nouveau_dp_link_train(encoder))
+		NV_ERROR(dev, "SOR-%d: link training failed\n", nv_encoder->or);
+
+	if (dpe->script1) {
+		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 1\n", nv_encoder->or);
+		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script1),
+					    nv_encoder->dcb);
+	}
+}
+
+static void
 nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -63,7 +93,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t val;
 	int or = nv_encoder->or;
 
-	NV_DEBUG(dev, "or %d mode %d\n", or, mode);
+	NV_DEBUG_KMS(dev, "or %d mode %d\n", or, mode);
 
 	/* wait for it to be done */
 	if (!nv_wait(NV50_PDISPLAY_SOR_DPMS_CTRL(or),
@@ -88,6 +118,9 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		NV_ERROR(dev, "SOR_DPMS_STATE(%d) = 0x%08x\n", or,
 			 nv_rd32(dev, NV50_PDISPLAY_SOR_DPMS_STATE(or)));
 	}
+
+	if (nv_encoder->dcb->type == OUTPUT_DP && mode == DRM_MODE_DPMS_ON)
+		nv50_sor_dp_link_train(encoder);
 }
 
 static void
@@ -109,7 +142,7 @@ nv50_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *connector;
 
-	NV_DEBUG(encoder->dev, "or %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(encoder->dev, "or %d\n", nv_encoder->or);
 
 	connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!connector) {
@@ -149,15 +182,26 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	uint32_t mode_ctl = 0;
 	int ret;
 
-	NV_DEBUG(dev, "or %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(dev, "or %d\n", nv_encoder->or);
 
 	nv50_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
 	switch (nv_encoder->dcb->type) {
 	case OUTPUT_TMDS:
-		mode_ctl |= NV50_EVO_SOR_MODE_CTRL_TMDS;
-		if (adjusted_mode->clock > 165000)
-			mode_ctl |= NV50_EVO_SOR_MODE_CTRL_TMDS_DUAL_LINK;
+		if (nv_encoder->dcb->sorconf.link & 1) {
+			if (adjusted_mode->clock < 165000)
+				mode_ctl = 0x0100;
+			else
+				mode_ctl = 0x0500;
+		} else
+			mode_ctl = 0x0200;
+		break;
+	case OUTPUT_DP:
+		mode_ctl |= 0x00050000;
+		if (nv_encoder->dcb->sorconf.link & 1)
+			mode_ctl |= 0x00000800;
+		else
+			mode_ctl |= 0x00000900;
 		break;
 	default:
 		break;
@@ -202,7 +246,7 @@ nv50_sor_destroy(struct drm_encoder *encoder)
 	if (!encoder)
 		return;
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 
@@ -221,7 +265,7 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 	bool dum;
 	int type;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	switch (entry->type) {
 	case OUTPUT_TMDS:

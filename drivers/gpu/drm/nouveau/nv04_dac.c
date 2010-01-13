@@ -205,23 +205,22 @@ out:
 	NVWriteVgaSeq(dev, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1);
 
 	if (blue == 0x18) {
-		NV_TRACE(dev, "Load detected on head A\n");
+		NV_INFO(dev, "Load detected on head A\n");
 		return connector_status_connected;
 	}
 
 	return connector_status_disconnected;
 }
 
-enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
-					  struct drm_connector *connector)
+uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	uint32_t testval, regoffset = nv04_dac_output_offset(encoder);
+	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
-		saved_rtest_ctrl, temp, saved_gpio_ext = 0, routput;
-	int head, present = 0;
+		saved_rtest_ctrl, saved_gpio0, saved_gpio1, temp, routput;
+	int head;
 
 #define RGB_TEST_DATA(r, g, b) (r << 0 | g << 10 | b << 20)
 	if (dcb->type == OUTPUT_TV) {
@@ -248,12 +247,11 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
-	if (dev_priv->chipset >= 0x34) {
-		saved_gpio_ext = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT);
+	saved_gpio1 = nv17_gpio_get(dev, DCB_GPIO_TVDAC1);
+	saved_gpio0 = nv17_gpio_get(dev, DCB_GPIO_TVDAC0);
 
-		NVWriteCRTC(dev, 0, NV_PCRTC_GPIO_EXT, (saved_gpio_ext & ~(3 << 20)) |
-			    (dcb->type == OUTPUT_TV ? (1 << 20) : 0));
-	}
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
 
 	msleep(4);
 
@@ -268,11 +266,11 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
-	if (nv_arch(dev) >= NV_40) {
+	if (dev_priv->card_type >= NV_40) {
 		if (dcb->type == OUTPUT_TV)
-			routput |= 1 << 20;
+			routput |= 0x1a << 16;
 		else
-			routput &= ~(1 << 20);
+			routput &= ~(0x1a << 16);
 	}
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, routput);
@@ -288,13 +286,7 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 		      temp | NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	msleep(5);
 
-	temp = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
-
-	if (dcb->type == OUTPUT_TV)
-		present = (nv17_tv_detect(encoder, connector, (temp >> 28) & 0xe)
-			   == connector_status_connected);
-	else
-		present = temp & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI;
+	sample = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
 
 	temp = NVReadRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL,
@@ -308,17 +300,27 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
 	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
-	if (dev_priv->chipset >= 0x34)
-		NVWriteRAMDAC(dev, 0, NV_PCRTC_GPIO_EXT, saved_gpio_ext);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
 
-	if (present) {
-		NV_INFO(dev, "Load detected on output %c\n", '@' + ffs(dcb->or));
-		return connector_status_connected;
-	}
-
-	return connector_status_disconnected;
+	return sample;
 }
 
+static enum drm_connector_status
+nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	uint32_t sample = nv17_dac_sample_load(encoder);
+
+	if (sample & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
+		NV_INFO(dev, "Load detected on output %c\n",
+			'@' + ffs(dcb->or));
+		return connector_status_connected;
+	} else {
+		return connector_status_disconnected;
+	}
+}
 
 static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
@@ -351,13 +353,9 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int head = nouveau_crtc(encoder->crtc)->index;
-
-	NV_TRACE(dev, "%s called for encoder %d\n", __func__,
-		      nv_encoder->dcb->index);
 
 	if (nv_gf4_disp_arch(dev)) {
 		struct drm_encoder *rebind;
@@ -467,7 +465,7 @@ static void nv04_dac_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);

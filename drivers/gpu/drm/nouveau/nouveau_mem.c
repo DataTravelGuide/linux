@@ -192,6 +192,92 @@ void nouveau_mem_release(struct drm_file *file_priv, struct mem_block *heap)
 }
 
 /*
+ * NV10-NV40 tiling helpers
+ */
+
+static void
+nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			   uint32_t size, uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = addr;
+	tile->size = size;
+	tile->used = !!pitch;
+	nouveau_fence_unref((void **)&tile->fence);
+
+	if (!pfifo->cache_flush(dev))
+		return;
+
+	pfifo->reassign(dev, false);
+	pfifo->cache_flush(dev);
+	pfifo->cache_pull(dev, false);
+
+	nouveau_wait_for_idle(dev);
+
+	pgraph->set_region_tiling(dev, i, addr, size, pitch);
+	pfb->set_region_tiling(dev, i, addr, size, pitch);
+
+	pfifo->cache_pull(dev, true);
+	pfifo->reassign(dev, true);
+}
+
+struct nouveau_tile_reg *
+nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
+		    uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_tile_reg *tile = dev_priv->tile.reg, *found = NULL;
+	int i;
+
+	spin_lock(&dev_priv->tile.lock);
+
+	for (i = 0; i < pfb->num_tiles; i++) {
+		if (tile[i].used)
+			/* Tile region in use. */
+			continue;
+
+		if (tile[i].fence &&
+		    !nouveau_fence_signalled(tile[i].fence, NULL))
+			/* Pending tile region. */
+			continue;
+
+		if (max(tile[i].addr, addr) <
+		    min(tile[i].addr + tile[i].size, addr + size))
+			/* Kill an intersecting tile region. */
+			nv10_mem_set_region_tiling(dev, i, 0, 0, 0);
+
+		if (pitch && !found) {
+			/* Free tile region. */
+			nv10_mem_set_region_tiling(dev, i, addr, size, pitch);
+			found = &tile[i];
+		}
+	}
+
+	spin_unlock(&dev_priv->tile.lock);
+
+	return found;
+}
+
+void
+nv10_mem_expire_tiling(struct drm_device *dev, struct nouveau_tile_reg *tile,
+		       struct nouveau_fence *fence)
+{
+	if (fence) {
+		/* Mark it as pending. */
+		tile->fence = fence;
+		nouveau_fence_ref(fence);
+	}
+
+	tile->used = false;
+}
+
+/*
  * NV50 VM helpers
  */
 int
@@ -364,10 +450,11 @@ nouveau_mem_fb_amount_igp(struct drm_device *dev)
 uint64_t nouveau_mem_fb_amount(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t boot0;
+
 	switch (dev_priv->card_type) {
 	case NV_04:
-	case NV_05: {
-		uint32_t boot0 = nv_rd32(dev, NV03_BOOT_0);
+		boot0 = nv_rd32(dev, NV03_BOOT_0);
 		if (boot0 & 0x00000100)
 			return (((boot0 >> 12) & 0xf) * 2 + 2) * 1024 * 1024;
 
@@ -382,10 +469,7 @@ uint64_t nouveau_mem_fb_amount(struct drm_device *dev)
 			return 4 * 1024 * 1024;
 		}
 		break;
-	}
 	case NV_10:
-	case NV_11:
-	case NV_17:
 	case NV_20:
 	case NV_30:
 	case NV_40:
@@ -409,6 +493,7 @@ uint64_t nouveau_mem_fb_amount(struct drm_device *dev)
 	return 0;
 }
 
+#if __OS_HAS_AGP
 static void nouveau_mem_reset_agp(struct drm_device *dev)
 {
 	uint32_t saved_pci_nv_1, saved_pci_nv_19, pmc_enable;
@@ -434,10 +519,12 @@ static void nouveau_mem_reset_agp(struct drm_device *dev)
 	nv_wr32(dev, NV04_PBUS_PCI_NV_19, saved_pci_nv_19);
 	nv_wr32(dev, NV04_PBUS_PCI_NV_1, saved_pci_nv_1);
 }
+#endif
 
 int
 nouveau_mem_init_agp(struct drm_device *dev)
 {
+#if __OS_HAS_AGP
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_agp_info info;
 	struct drm_agp_mode mode;
@@ -473,6 +560,7 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	dev_priv->gart_info.type	= NOUVEAU_GART_AGP;
 	dev_priv->gart_info.aper_base	= info.aperture_base;
 	dev_priv->gart_info.aper_size	= info.aperture_size;
+#endif
 	return 0;
 }
 
@@ -511,6 +599,7 @@ nouveau_mem_init(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&dev_priv->ttm.bo_list);
 	spin_lock_init(&dev_priv->ttm.bo_list_lock);
+	spin_lock_init(&dev_priv->tile.lock);
 
 	dev_priv->fb_available_size = nouveau_mem_fb_amount(dev);
 

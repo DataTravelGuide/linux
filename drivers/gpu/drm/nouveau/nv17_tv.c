@@ -33,15 +33,105 @@
 #include "nouveau_hw.h"
 #include "nv17_tv.h"
 
-enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
-					 struct drm_connector *connector,
-					 uint32_t pin_mask)
+static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t testval, regoffset = nv04_dac_output_offset(encoder);
+	uint32_t gpio0, gpio1, fp_htotal, fp_hsync_start, fp_hsync_end,
+		fp_control, test_ctrl, dacclk, ctv_14, ctv_1c, ctv_6c;
+	uint32_t sample = 0;
+	int head;
+
+#define RGB_TEST_DATA(r, g, b) (r << 0 | g << 10 | b << 20)
+	testval = RGB_TEST_DATA(0x82, 0xeb, 0x82);
+	if (dev_priv->vbios->tvdactestval)
+		testval = dev_priv->vbios->tvdactestval;
+
+	dacclk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset);
+	head = (dacclk & 0x100) >> 8;
+
+	/* Save the previous state. */
+	gpio1 = nv17_gpio_get(dev, DCB_GPIO_TVDAC1);
+	gpio0 = nv17_gpio_get(dev, DCB_GPIO_TVDAC0);
+	fp_htotal = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL);
+	fp_hsync_start = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START);
+	fp_hsync_end = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_END);
+	fp_control = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_TG_CONTROL);
+	test_ctrl = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
+	ctv_1c = NVReadRAMDAC(dev, head, 0x680c1c);
+	ctv_14 = NVReadRAMDAC(dev, head, 0x680c14);
+	ctv_6c = NVReadRAMDAC(dev, head, 0x680c6c);
+
+	/* Prepare the DAC for load detection.  */
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, true);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, true);
+
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL, 1343);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START, 1047);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_END, 1183);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_TG_CONTROL,
+		      NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |
+		      NV_PRAMDAC_FP_TG_CONTROL_WIDTH_12 |
+		      NV_PRAMDAC_FP_TG_CONTROL_READ_PROG |
+		      NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS |
+		      NV_PRAMDAC_FP_TG_CONTROL_VSYNC_POS);
+
+	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, 0);
+
+	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset,
+		      (dacclk & ~0xff) | 0x22);
+	msleep(1);
+	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset,
+		      (dacclk & ~0xff) | 0x21);
+
+	NVWriteRAMDAC(dev, head, 0x680c1c, 1 << 20);
+	NVWriteRAMDAC(dev, head, 0x680c14, 4 << 16);
+
+	/* Sample pin 0x4 (usually S-video luma). */
+	NVWriteRAMDAC(dev, head, 0x680c6c, testval >> 10 & 0x3ff);
+	msleep(20);
+	sample |= NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset)
+		& 0x4 << 28;
+
+	/* Sample the remaining pins. */
+	NVWriteRAMDAC(dev, head, 0x680c6c, testval & 0x3ff);
+	msleep(20);
+	sample |= NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset)
+		& 0xa << 28;
+
+	/* Restore the previous state. */
+	NVWriteRAMDAC(dev, head, 0x680c1c, ctv_1c);
+	NVWriteRAMDAC(dev, head, 0x680c14, ctv_14);
+	NVWriteRAMDAC(dev, head, 0x680c6c, ctv_6c);
+	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset, dacclk);
+	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset, test_ctrl);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_TG_CONTROL, fp_control);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_END, fp_hsync_end);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HSYNC_START, fp_hsync_start);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HTOTAL, fp_htotal);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, gpio1);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, gpio0);
+
+	return sample;
+}
+
+static enum drm_connector_status
+nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
+	struct dcb_entry *dcb = tv_enc->base.dcb;
 
-	tv_enc->pin_mask = pin_mask;
+	if (dev_priv->chipset == 0x42 ||
+	    dev_priv->chipset == 0x43)
+		tv_enc->pin_mask = nv42_tv_sample_load(encoder) >> 28 & 0xe;
+	else
+		tv_enc->pin_mask = nv17_dac_sample_load(encoder) >> 28 & 0xe;
 
-	switch (pin_mask) {
+	switch (tv_enc->pin_mask) {
 	case 0x2:
 	case 0x4:
 		tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Composite;
@@ -50,7 +140,7 @@ enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
 		tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_SVIDEO;
 		break;
 	case 0xe:
-		if (nouveau_encoder(encoder)->dcb->tvconf.has_component_output)
+		if (dcb->tvconf.has_component_output)
 			tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_Component;
 		else
 			tv_enc->subconnector = DRM_MODE_SUBCONNECTOR_SCART;
@@ -61,11 +151,16 @@ enum drm_connector_status nv17_tv_detect(struct drm_encoder *encoder,
 	}
 
 	drm_connector_property_set_value(connector,
-			encoder->dev->mode_config.tv_subconnector_property,
-							tv_enc->subconnector);
+					 conf->tv_subconnector_property,
+					 tv_enc->subconnector);
 
-	return tv_enc->subconnector ? connector_status_connected :
-					connector_status_disconnected;
+	if (tv_enc->subconnector) {
+		NV_INFO(dev, "Load detected on output %c\n",
+			'@' + ffs(dcb->or));
+		return connector_status_connected;
+	} else {
+		return connector_status_disconnected;
+	}
 }
 
 static const struct {
@@ -212,7 +307,6 @@ static bool nv17_tv_mode_fixup(struct drm_encoder *encoder,
 static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv17_tv_state *regs = &to_tv_enc(encoder)->state;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 
@@ -220,7 +314,7 @@ static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nouveau_encoder(encoder)->last_dpms = mode;
 
-	NV_TRACE(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
+	NV_INFO(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
 		 mode, nouveau_encoder(encoder)->dcb->index);
 
 	regs->ptv_200 &= ~1;
@@ -237,15 +331,8 @@ static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 
 	nv_load_ptv(dev, regs, 200);
 
-	if (dev_priv->chipset >= 0x34) {
-		uint32_t *gpio_ext = &dev_priv->mode_reg.crtc_reg[0].gpio_ext;
-
-		*gpio_ext &= ~(3 << 20);
-		if (mode == DRM_MODE_DPMS_ON)
-			*gpio_ext |= 1 << 20;
-
-		NVWriteCRTC(dev, 0, NV_PCRTC_GPIO_EXT, *gpio_ext);
-	}
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, mode == DRM_MODE_DPMS_ON);
+	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, mode == DRM_MODE_DPMS_ON);
 
 	nv04_dac_update_dacclk(encoder, mode == DRM_MODE_DPMS_ON);
 }
@@ -299,8 +386,8 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	/* Set the DACCLK register */
 	dacclk = (NVReadRAMDAC(dev, 0, dacclk_off) & ~0x30) | 0x1;
 
-	if (nv_arch(dev) == NV_40)
-		dacclk |= 1 << 20;
+	if (dev_priv->card_type == NV_40)
+		dacclk |= 0x1a << 16;
 
 	if (tv_norm->kind == CTV_ENC_MODE) {
 		dacclk |=  0x20;
@@ -356,7 +443,7 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 			tv_regs->ptv_614 = 0x13;
 		}
 
-		if (nv_arch(dev) >= NV_30) {
+		if (dev_priv->card_type >= NV_30) {
 			tv_regs->ptv_500 = 0xe8e0;
 			tv_regs->ptv_504 = 0x1710;
 			tv_regs->ptv_604 = 0x0;
@@ -627,7 +714,7 @@ static void nv17_tv_destroy(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(tv_enc);
@@ -641,7 +728,7 @@ static struct drm_encoder_helper_funcs nv17_tv_helper_funcs = {
 	.prepare = nv17_tv_prepare,
 	.commit = nv17_tv_commit,
 	.mode_set = nv17_tv_mode_set,
-	.detect = nv17_dac_detect,
+	.detect = nv17_tv_detect,
 };
 
 static struct drm_encoder_slave_funcs nv17_tv_slave_funcs = {

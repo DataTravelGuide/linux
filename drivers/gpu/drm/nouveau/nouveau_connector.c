@@ -86,7 +86,7 @@ nouveau_connector_destroy(struct drm_connector *drm_connector)
 	struct nouveau_connector *connector = nouveau_connector(drm_connector);
 	struct drm_device *dev = connector->base.dev;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (!connector)
 		return;
@@ -248,9 +248,12 @@ nouveau_connector_detect(struct drm_connector *connector)
 			NV_ERROR(dev, "DDC responded, but no EDID for %s\n",
 				 drm_get_connector_name(connector));
 			return connector_status_disconnected;
-		} else
-		if (nv_encoder->dcb->type == OUTPUT_DP) {
-			NV_ERROR(dev, "Detected DP connected, ignoring!\n");
+		}
+
+		if (nv_encoder->dcb->type == OUTPUT_DP &&
+		    !nouveau_dp_detect(to_drm_encoder(nv_encoder))) {
+			NV_ERROR(dev, "Detected %s, but failed init\n",
+				 drm_get_connector_name(connector));
 			return connector_status_disconnected;
 		}
 
@@ -417,7 +420,7 @@ nouveau_connector_native_mode(struct nouveau_connector *connector)
 	/* Use preferred mode if there is one.. */
 	list_for_each_entry(mode, &connector->base.probed_modes, head) {
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			NV_DEBUG(dev, "native mode from preferred\n");
+			NV_DEBUG_KMS(dev, "native mode from preferred\n");
 			return drm_mode_duplicate(dev, mode);
 		}
 	}
@@ -442,7 +445,7 @@ nouveau_connector_native_mode(struct nouveau_connector *connector)
 		largest = mode;
 	}
 
-	NV_DEBUG(dev, "native mode from largest: %dx%d@%d\n",
+	NV_DEBUG_KMS(dev, "native mode from largest: %dx%d@%d\n",
 		      high_w, high_h, high_v);
 	return largest ? drm_mode_duplicate(dev, largest) : NULL;
 }
@@ -556,6 +559,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
 	unsigned min_clock = 25000, max_clock = min_clock;
+	unsigned clock = mode->clock;
 
 	switch (nv_encoder->dcb->type) {
 	case OUTPUT_LVDS:
@@ -583,12 +587,20 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case OUTPUT_TV:
 		return get_slave_funcs(nv_encoder)->
 			mode_valid(to_drm_encoder(nv_encoder), mode);
+	case OUTPUT_DP:
+		if (nv_encoder->dp.link_bw == DP_LINK_BW_2_7)
+			max_clock = nv_encoder->dp.link_nr * 270000;
+		else
+			max_clock = nv_encoder->dp.link_nr * 162000;
+
+		clock *= 3;
+		break;
 	}
 
-	if (mode->clock < min_clock)
+	if (clock < min_clock)
 		return MODE_CLOCK_LOW;
 
-	if (mode->clock > max_clock)
+	if (clock > max_clock)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -663,9 +675,9 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	 * modeline is avalilable for the panel, set it as the panel's
 	 * native mode and exit.
 	 */
-	if (!nv_connector->edid &&
-	     nv_encoder->dcb->lvdsconf.use_straps_for_mode &&
-	     nouveau_bios_fp_mode(dev, &native)) {
+	if (!nv_connector->edid && nouveau_bios_fp_mode(dev, &native) &&
+	     (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
+	      dev_priv->VBIOS.pub.fp_no_ddc)) {
 		nv_connector->native_mode = drm_mode_duplicate(dev, &native);
 		goto out;
 	}
@@ -713,11 +725,12 @@ nouveau_connector_create(struct drm_device *dev, int index, int type)
 	struct drm_encoder *encoder;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
 	if (!nv_connector)
 		return -ENOMEM;
+	nv_connector->dcb = nouveau_bios_connector_entry(dev, index);
 	connector = &nv_connector->base;
 
 	switch (type) {
