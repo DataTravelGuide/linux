@@ -160,7 +160,6 @@ quiet_cmd_sign_ko_ko_unsigned = SIGN [M] $@
 else
 quiet_cmd_sign_ko_ko_unsigned = NO SIGN [M] $@
       cmd_sign_ko_ko_unsigned = \
-		echo "Can't sign module $@ - missing keyfile" && \
 		cp $< $@
 endif
 
