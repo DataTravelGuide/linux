@@ -227,6 +227,11 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 
 # strip all redhat/ code
 if [ $STRIP_REDHAT = 1 ]; then
+	which filterdiff >/dev/null 2>&1;
+	if [ ! $? = 0 ]; then
+		echo "patchutils is required (filterdiff)" >&2;
+		exit 1;
+	fi
 	for patch in $(find $SOURCES/ -name \*.patch); do
 		filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $patch >$SOURCES/.tmp;
 		mv $SOURCES/.tmp $patch;
