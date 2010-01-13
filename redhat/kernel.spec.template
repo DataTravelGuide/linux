@@ -1119,6 +1119,14 @@ BuildKernel() {
     # We'll do that ourselves with 'make firmware_install'
     if [ "$Arch" != "s390" -o "$Flavour" != "kdump" ]; then
       make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
+
+      # check if the modules are being signed
+%if %{signmodules}
+      if [ -z "$(readelf -n $(find fs/ -name \*.ko | head -n 1) | grep module.sig)" ]; then
+          echo "ERROR: modules are NOT signed" >&2;
+          exit 1;
+      fi
+%endif
     else
       mkdir -p $RPM_BUILD_ROOT/lib/modules/$KernelVer/{kernel,extra}
     fi
