@@ -439,7 +439,7 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_IOEVENTFD 36
 #define KVM_CAP_SET_IDENTITY_MAP_ADDR 37
-#define KVM_CAP_ADJUST_CLOCK 38
+#define KVM_CAP_ADJUST_CLOCK 39
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -504,7 +504,8 @@ struct kvm_irqfd {
 
 struct kvm_clock_data {
 	__u64 clock;
-	__u64 pad[2];
+	__u32 flags;
+	__u32 pad[9];
 };
 
 /*

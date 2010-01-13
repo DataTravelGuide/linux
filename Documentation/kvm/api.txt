@@ -607,7 +607,8 @@ such as migration.
 
 struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
-	__u64 pad[2];
+	__u32 flags;
+	__u32 pad[9];
 };
 
 4.28 KVM_SET_CLOCK
@@ -624,7 +625,8 @@ such as migration.
 
 struct kvm_clock_data {
 	__u64 clock;  /* kvmclock current value */
-	__u64 pad[2];
+	__u32 flags;
+	__u32 pad[9];
 };
 
 5. The kvm_run structure
