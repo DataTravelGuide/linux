@@ -113,7 +113,7 @@ Summary: The Linux kernel
 # Use dracut instead of mkinitrd for initrd image generation
 %define with_dracut       %{?_without_dracut:       0} %{?!_without_dracut:       1}
 # Temporary variant: framepointer
-%define with_framepointer	%{?_without_framepointer:	0} %{?!_without_framepointer:	1}
+%define with_framepointer	%{?_with_framepointer:	1} %{?!_with_framepointer:	0}
 
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
