@@ -273,7 +273,7 @@ static const struct option options[] = {
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
-	page_size = getpagesize();
+	page_size = sysconf(_SC_PAGESIZE);
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 	if (argc) {

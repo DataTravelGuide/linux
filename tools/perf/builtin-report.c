@@ -1692,7 +1692,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 
-	page_size = getpagesize();
+	page_size = sysconf(_SC_PAGESIZE);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
