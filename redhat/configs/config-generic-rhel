@@ -322,3 +322,4 @@ CONFIG_NFS_V4_1=y
 # CONFIG_SCSI_BUSLOGIC is not set
 # CONFIG_DEVTMPFS is not set
 # CONFIG_DEVTMPFS_MOUNT is not set
+# CONFIG_DECNET is not set
