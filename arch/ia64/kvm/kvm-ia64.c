@@ -634,12 +634,9 @@ static void kvm_vcpu_post_transition(struct kvm_vcpu *vcpu)
 static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	union context *host_ctx, *guest_ctx;
-	int r;
+	int r, idx;
 
-	/*
-	 * down_read() may sleep and return with interrupts enabled
-	 */
-	down_read(&vcpu->kvm->slots_lock);
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 again:
 	if (signal_pending(current)) {
@@ -661,7 +658,7 @@ again:
 	if (r < 0)
 		goto vcpu_run_fail;
 
-	up_read(&vcpu->kvm->slots_lock);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	kvm_guest_enter();
 
 	/*
@@ -685,7 +682,7 @@ again:
 	kvm_guest_exit();
 	preempt_enable();
 
-	down_read(&vcpu->kvm->slots_lock);
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	r = kvm_handle_exit(kvm_run, vcpu);
 
@@ -695,10 +692,10 @@ again:
 	}
 
 out:
-	up_read(&vcpu->kvm->slots_lock);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	if (r > 0) {
 		kvm_resched(vcpu);
-		down_read(&vcpu->kvm->slots_lock);
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		goto again;
 	}
 
