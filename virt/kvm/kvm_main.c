@@ -87,6 +87,8 @@ struct dentry *kvm_debugfs_dir;
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
 
+static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
+
 static bool kvm_rebooting;
 
 static bool largepages_enabled = true;
@@ -957,7 +959,7 @@ static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
 
 static struct kvm *kvm_create_vm(void)
 {
-	int r;
+	int r, i;
 	struct kvm *kvm = kvm_arch_create_vm();
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	struct page *page;
@@ -982,9 +984,22 @@ static struct kvm *kvm_create_vm(void)
 		return ERR_PTR(r);
 	}
 
+	for (i = 0; i < KVM_NR_BUSES; i++) {
+		kvm->buses[i] = kzalloc(sizeof(struct kvm_io_bus),
+					GFP_KERNEL);
+		if (!kvm->buses[i]) {
+			cleanup_srcu_struct(&kvm->srcu);
+			kfree(kvm->memslots);
+			kfree(kvm);
+			return ERR_PTR(-ENOMEM);
+		}
+	}
+
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page) {
+		for (i = 0; i < KVM_NR_BUSES; i++)
+			kfree(kvm->buses[i]);
 		cleanup_srcu_struct(&kvm->srcu);
 		kfree(kvm->memslots);
 		kfree(kvm);
@@ -1003,6 +1018,8 @@ static struct kvm *kvm_create_vm(void)
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 			put_page(page);
 #endif
+			for (i = 0; i < KVM_NR_BUSES; i++)
+				kfree(kvm->buses[i]);
 			cleanup_srcu_struct(&kvm->srcu);
 			kfree(kvm->memslots);
 			kfree(kvm);
@@ -1015,11 +1032,9 @@ static struct kvm *kvm_create_vm(void)
 	atomic_inc(&kvm->mm->mm_count);
 	spin_lock_init(&kvm->mmu_lock);
 	spin_lock_init(&kvm->requests_lock);
-	kvm_io_bus_init(&kvm->pio_bus);
 	kvm_eventfd_init(kvm);
 	mutex_init(&kvm->lock);
 	mutex_init(&kvm->irq_lock);
-	kvm_io_bus_init(&kvm->mmio_bus);
 	init_rwsem(&kvm->slots_lock);
 	atomic_set(&kvm->users_count, 1);
 	spin_lock(&kvm_lock);
@@ -1072,6 +1087,7 @@ void kvm_free_physmem(struct kvm *kvm)
 
 static void kvm_destroy_vm(struct kvm *kvm)
 {
+	int i;
 	struct mm_struct *mm = kvm->mm;
 
 	kvm_arch_sync_events(kvm);
@@ -1079,8 +1095,8 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
-	kvm_io_bus_destroy(&kvm->pio_bus);
-	kvm_io_bus_destroy(&kvm->mmio_bus);
+	for (i = 0; i < KVM_NR_BUSES; i++)
+		kvm_io_bus_destroy(kvm->buses[i]);
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 	if (kvm->coalesced_mmio_ring != NULL)
 		free_page((unsigned long)kvm->coalesced_mmio_ring);
@@ -2616,12 +2632,7 @@ static struct notifier_block kvm_reboot_notifier = {
 	.priority = 0,
 };
 
-void kvm_io_bus_init(struct kvm_io_bus *bus)
-{
-	memset(bus, 0, sizeof(*bus));
-}
-
-void kvm_io_bus_destroy(struct kvm_io_bus *bus)
+static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 {
 	int i;
 
@@ -2630,13 +2641,15 @@ void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 
 		kvm_iodevice_destructor(pos);
 	}
+	kfree(bus);
 }
 
 /* kvm_io_bus_write - called under kvm->slots_lock */
-int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr,
+int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		     int len, const void *val)
 {
 	int i;
+	struct kvm_io_bus *bus = rcu_dereference(kvm->buses[bus_idx]);
 	for (i = 0; i < bus->dev_count; i++)
 		if (!kvm_iodevice_write(bus->devs[i], addr, len, val))
 			return 0;
@@ -2644,59 +2657,71 @@ int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr,
 }
 
 /* kvm_io_bus_read - called under kvm->slots_lock */
-int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len, void *val)
+int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
+		    int len, void *val)
 {
 	int i;
+	struct kvm_io_bus *bus = rcu_dereference(kvm->buses[bus_idx]);
+
 	for (i = 0; i < bus->dev_count; i++)
 		if (!kvm_iodevice_read(bus->devs[i], addr, len, val))
 			return 0;
 	return -EOPNOTSUPP;
 }
 
-int kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
-			     struct kvm_io_device *dev)
+/* Caller must have write lock on slots_lock. */
+int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+			    struct kvm_io_device *dev)
 {
-	int ret;
+	struct kvm_io_bus *new_bus, *bus;
 
-	down_write(&kvm->slots_lock);
-	ret = __kvm_io_bus_register_dev(bus, dev);
-	up_write(&kvm->slots_lock);
-
-	return ret;
-}
-
-/* An unlocked version. Caller must have write lock on slots_lock. */
-int __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
-			      struct kvm_io_device *dev)
-{
+	bus = kvm->buses[bus_idx];
 	if (bus->dev_count > NR_IOBUS_DEVS-1)
 		return -ENOSPC;
 
-	bus->devs[bus->dev_count++] = dev;
+	new_bus = kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL);
+	if (!new_bus)
+		return -ENOMEM;
+	memcpy(new_bus, bus, sizeof(struct kvm_io_bus));
+	new_bus->devs[new_bus->dev_count++] = dev;
+	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
+	synchronize_srcu_expedited(&kvm->srcu);
+	kfree(bus);
 
 	return 0;
 }
 
-void kvm_io_bus_unregister_dev(struct kvm *kvm,
-			       struct kvm_io_bus *bus,
-			       struct kvm_io_device *dev)
+/* Caller must have write lock on slots_lock. */
+int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+			      struct kvm_io_device *dev)
 {
-	down_write(&kvm->slots_lock);
-	__kvm_io_bus_unregister_dev(bus, dev);
-	up_write(&kvm->slots_lock);
-}
+	int i, r;
+	struct kvm_io_bus *new_bus, *bus;
 
-/* An unlocked version. Caller must have write lock on slots_lock. */
-void __kvm_io_bus_unregister_dev(struct kvm_io_bus *bus,
-				 struct kvm_io_device *dev)
-{
-	int i;
+	new_bus = kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL);
+	if (!new_bus)
+		return -ENOMEM;
 
-	for (i = 0; i < bus->dev_count; i++)
-		if (bus->devs[i] == dev) {
-			bus->devs[i] = bus->devs[--bus->dev_count];
+	bus = kvm->buses[bus_idx];
+	memcpy(new_bus, bus, sizeof(struct kvm_io_bus));
+
+	r = -ENOENT;
+	for (i = 0; i < new_bus->dev_count; i++)
+		if (new_bus->devs[i] == dev) {
+			r = 0;
+			new_bus->devs[i] = new_bus->devs[--new_bus->dev_count];
 			break;
 		}
+
+	if (r) {
+		kfree(new_bus);
+		return r;
+	}
+
+	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
+	synchronize_srcu_expedited(&kvm->srcu);
+	kfree(bus);
+	return r;
 }
 
 static struct notifier_block kvm_cpu_notifier = {
