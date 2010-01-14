@@ -308,7 +308,7 @@ int dlpar_acquire_drc(u32 drc_index)
 	rc = rtas_call(rtas_token("get-sensor-state"), 2, 2, &dr_status,
 		       DR_ENTITY_SENSE, drc_index);
 	if (rc || dr_status != DR_ENTITY_UNUSABLE)
-		return -1;
+		return rc ? rc : -EIO;
 
 	rc = rtas_set_indicator(ALLOCATION_STATE, drc_index, ALLOC_USABLE);
 	if (rc)
@@ -330,7 +330,7 @@ int dlpar_release_drc(u32 drc_index)
 	rc = rtas_call(rtas_token("get-sensor-state"), 2, 2, &dr_status,
 		       DR_ENTITY_SENSE, drc_index);
 	if (rc || dr_status != DR_ENTITY_PRESENT)
-		return -1;
+		return rc ? rc : -EIO;
 
 	rc = rtas_set_indicator(ISOLATION_STATE, drc_index, ISOLATE);
 	if (rc)
@@ -345,4 +345,90 @@ int dlpar_release_drc(u32 drc_index)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 
+static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
+{
+	struct device_node *dn;
+	unsigned long drc_index;
+	char *cpu_name;
+	int rc;
+
+	rc = strict_strtoul(buf, 0, &drc_index);
+	if (rc)
+		return -EINVAL;
+
+	dn = dlpar_configure_connector(drc_index);
+	if (!dn)
+		return -EINVAL;
+
+	/* configure-connector reports cpus as living in the base
+	 * directory of the device tree.  CPUs actually live in the
+	 * cpus directory so we need to fixup the full_name.
+	 */
+	cpu_name = kasprintf(GFP_KERNEL, "/cpus%s", dn->full_name);
+	if (!cpu_name) {
+		dlpar_free_cc_nodes(dn);
+		return -ENOMEM;
+	}
+
+	kfree(dn->full_name);
+	dn->full_name = cpu_name;
+
+	rc = dlpar_acquire_drc(drc_index);
+	if (rc) {
+		dlpar_free_cc_nodes(dn);
+		return -EINVAL;
+	}
+
+	rc = dlpar_attach_node(dn);
+	if (rc) {
+		dlpar_release_drc(drc_index);
+		dlpar_free_cc_nodes(dn);
+	}
+
+	return rc ? rc : count;
+}
+
+static ssize_t dlpar_cpu_release(const char *buf, size_t count)
+{
+	struct device_node *dn;
+	const u32 *drc_index;
+	int rc;
+
+	dn = of_find_node_by_path(buf);
+	if (!dn)
+		return -EINVAL;
+
+	drc_index = of_get_property(dn, "ibm,my-drc-index", NULL);
+	if (!drc_index) {
+		of_node_put(dn);
+		return -EINVAL;
+	}
+
+	rc = dlpar_release_drc(*drc_index);
+	if (rc) {
+		of_node_put(dn);
+		return -EINVAL;
+	}
+
+	rc = dlpar_detach_node(dn);
+	if (rc) {
+		dlpar_acquire_drc(*drc_index);
+		return rc;
+	}
+
+	of_node_put(dn);
+	return count;
+}
+
+static int __init pseries_dlpar_init(void)
+{
+	ppc_md.cpu_probe = dlpar_cpu_probe;
+	ppc_md.cpu_release = dlpar_cpu_release;
+
+	return 0;
+}
+machine_device_initcall(pseries, pseries_dlpar_init);
+
+#endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
