@@ -70,7 +70,7 @@ static inline void kvm_s390_vcpu_set_mem(struct kvm_vcpu *vcpu)
 	struct kvm_memory_slot *mem;
 
 	down_read(&vcpu->kvm->slots_lock);
-	mem = &vcpu->kvm->memslots[0];
+	mem = &vcpu->kvm->memslots->memslots[0];
 
 	vcpu->arch.sie_block->gmsor = mem->userspace_addr;
 	vcpu->arch.sie_block->gmslm =
