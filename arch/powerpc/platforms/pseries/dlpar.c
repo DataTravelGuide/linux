@@ -440,6 +440,20 @@ int dlpar_release_drc(u32 drc_index)
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 
+static DEFINE_MUTEX(pseries_cpu_hotplug_mutex);
+
+void cpu_hotplug_driver_lock(void)
+__acquires(pseries_cpu_hotplug_mutex)
+{
+	mutex_lock(&pseries_cpu_hotplug_mutex);
+}
+
+void cpu_hotplug_driver_unlock(void)
+__releases(pseries_cpu_hotplug_mutex)
+{
+	mutex_unlock(&pseries_cpu_hotplug_mutex);
+}
+
 static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 {
 	struct device_node *dn;
@@ -447,13 +461,18 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	char *cpu_name;
 	int rc;
 
+	cpu_hotplug_driver_lock();
 	rc = strict_strtoul(buf, 0, &drc_index);
-	if (rc)
-		return -EINVAL;
+	if (rc) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	dn = dlpar_configure_connector(drc_index);
-	if (!dn)
-		return -EINVAL;
+	if (!dn) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/* configure-connector reports cpus as living in the base
 	 * directory of the device tree.  CPUs actually live in the
@@ -462,7 +481,8 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	cpu_name = kasprintf(GFP_KERNEL, "/cpus%s", dn->full_name);
 	if (!cpu_name) {
 		dlpar_free_cc_nodes(dn);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out;
 	}
 
 	kfree(dn->full_name);
@@ -471,7 +491,8 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	rc = dlpar_acquire_drc(drc_index);
 	if (rc) {
 		dlpar_free_cc_nodes(dn);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = dlpar_attach_node(dn);
@@ -481,6 +502,8 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	}
 
 	rc = online_node_cpus(dn);
+out:
+	cpu_hotplug_driver_unlock();
 
 	return rc ? rc : count;
 }
@@ -501,26 +524,30 @@ static ssize_t dlpar_cpu_release(const char *buf, size_t count)
 		return -EINVAL;
 	}
 
+	cpu_hotplug_driver_lock();
 	rc = offline_node_cpus(dn);
 	if (rc) {
 		of_node_put(dn);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = dlpar_release_drc(*drc_index);
 	if (rc) {
 		of_node_put(dn);
-		return -EINVAL;
+		goto out;
 	}
 
 	rc = dlpar_detach_node(dn);
 	if (rc) {
 		dlpar_acquire_drc(*drc_index);
-		return rc;
+		goto out;
 	}
 
 	of_node_put(dn);
-	return count;
+out:
+	cpu_hotplug_driver_unlock();
+	return rc ? rc : count;
 }
 
 static int __init pseries_dlpar_init(void)
