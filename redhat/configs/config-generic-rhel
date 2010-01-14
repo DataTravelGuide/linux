@@ -188,6 +188,7 @@ CONFIG_NFS_V4_1=y
 # CONFIG_BLK_DEV_NBD is not set
 # CONFIG_HFS_FS is not set
 # CONFIG_HFSPLUS_FS is not set
+# CONFIG_VXFS_FS is not set
 # CONFIG_SCSI_GDTH is not set
 # CONFIG_SCSI_AIC7XXX_OLD is not set
 # CONFIG_SCSI_QLOGIC_1280 is not set
