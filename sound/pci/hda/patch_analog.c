@@ -244,8 +244,7 @@ static int ad198x_build_controls(struct hda_codec *codec)
 	if (!kctl)
 		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
-		err = snd_hda_add_nids(codec, kctl, i, spec->capsrc_nids,
-				       spec->input_mux->num_items);
+		err = snd_hda_add_nid(codec, kctl, i, spec->capsrc_nids[i]);
 		if (err < 0)
 			return err;
 	}
@@ -1209,6 +1208,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	 */
 	spec->multiout.no_share_stream = 1;
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -1393,6 +1394,8 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -1837,6 +1840,9 @@ static int patch_ad1981(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -3144,6 +3150,8 @@ static int patch_ad1988(struct hda_codec *codec)
 #endif
 	spec->vmaster_nid = 0x04;
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -3355,6 +3363,8 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->slave_vols = ad1884_slave_vols;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -4316,6 +4326,8 @@ static int patch_ad1884a(struct hda_codec *codec)
 		break;
 	}
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -4652,6 +4664,9 @@ static int patch_ad1882(struct hda_codec *codec)
 		spec->mixers[2] = ad1882_6stack_mixers;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
