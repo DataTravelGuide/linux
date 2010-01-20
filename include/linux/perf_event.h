@@ -543,6 +543,8 @@ struct perf_pending_entry {
 	void (*func)(struct perf_pending_entry *);
 };
 
+typedef void (*perf_callback_t)(struct perf_event *, void *);
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -633,6 +635,8 @@ struct perf_event {
 
 	struct pid_namespace		*ns;
 	u64				id;
+
+	perf_callback_t			callback;
 #endif
 };
 
