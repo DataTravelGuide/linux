@@ -387,6 +387,13 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	int ret;
 	struct memory_notify arg;
 
+#ifdef __i386__
+	/* BZ 557131 -- disable Memory Hotplug (hot add) for 32-bit kernel.
+	 * This code block must be removed when hot add is re-enabled for
+	 * 32-bit */
+	pr_info("ERROR: Memory Hot Add is currently disabled for x86 32-bit\n");
+	return -EINVAL;
+#endif
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
 	arg.status_change_nid = -1;
