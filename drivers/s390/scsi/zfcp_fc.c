@@ -857,6 +857,12 @@ int zfcp_fc_execute_ct_fc_job(struct fc_bsg_job *job)
 	return ret;
 }
 
+int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *job)
+{
+	/* hardware tracks timeout, reset bsg timeout to not interfere */
+	return -EAGAIN;
+}
+
 int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
 {
 	struct zfcp_wka_ports *wka_ports;
