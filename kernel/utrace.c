@@ -1,7 +1,7 @@
 /*
  * utrace infrastructure interface for debugging user processes
  *
- * Copyright (C) 2006-2009 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2006-2010 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -859,6 +859,7 @@ void utrace_maybe_reap(struct task_struct *target, struct utrace *utrace,
 		       bool reap)
 {
 	struct utrace_engine *engine, *next;
+	struct list_head attached;
 
 	spin_lock(&utrace->lock);
 
@@ -897,16 +898,24 @@ void utrace_maybe_reap(struct task_struct *target, struct utrace *utrace,
 	}
 
 	/*
-	 * utrace_add_engine() checks ->utrace_flags != 0.
-	 * Since @utrace->reap is set, nobody can set or clear
-	 * UTRACE_EVENT(REAP) in @engine->flags or change
-	 * @engine->ops, and nobody can change @utrace->attached.
+	 * utrace_add_engine() checks ->utrace_flags != 0.  Since
+	 * @utrace->reap is set, nobody can set or clear UTRACE_EVENT(REAP)
+	 * in @engine->flags or change @engine->ops and nobody can change
+	 * @utrace->attached after we drop the lock.
 	 */
 	target->utrace_flags = 0;
-	splice_attaching(utrace);
+
+	/*
+	 * We clear out @utrace->attached before we drop the lock so
+	 * that find_matching_engine() can't come across any old engine
+	 * while we are busy tearing it down.
+	 */
+	list_replace_init(&utrace->attached, &attached);
+	list_splice_tail_init(&utrace->attaching, &attached);
+
 	spin_unlock(&utrace->lock);
 
-	list_for_each_entry_safe(engine, next, &utrace->attached, entry) {
+	list_for_each_entry_safe(engine, next, &attached, entry) {
 		if (engine->flags & UTRACE_EVENT(REAP))
 			engine->ops->report_reap(engine, target);
 
