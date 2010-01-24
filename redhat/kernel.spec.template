@@ -582,6 +582,11 @@ Source19: extrakeys.pub
 
 Source20: Makefile.config
 
+Source30: Module.kabi_i686
+Source31: Module.kabi_ppc64
+Source32: Module.kabi_s390x
+Source33: Module.kabi_x86_64
+
 %%CONFIGS%%
 
 %%PATCH_LIST%%

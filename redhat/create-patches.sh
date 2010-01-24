@@ -241,7 +241,8 @@ fi
 CONFIGS=configs/config.include
 CONFIGS2=configs/config2.include
 find configs/ -mindepth 1 -maxdepth 1 -name config-\* | grep -v merged | cut -f 2 -d '/' >$CONFIGS;
-count=21;
+# Set this to a nice high starting point
+count=50;
 rm -f $CONFIGS2;
 for i in $(cat $CONFIGS); do
 	echo "Source$count: $i" >>$CONFIGS2;
