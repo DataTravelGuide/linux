@@ -332,7 +332,8 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	return 0;
 }
 
-static ssize_t send_buf(struct port *port, const char *in_buf, size_t in_count)
+static ssize_t send_buf(struct port *port, const char *in_buf, size_t in_count,
+			bool from_user)
 {
 	struct scatterlist sg[1];
 	struct virtqueue *out_vq;
@@ -346,15 +347,19 @@ static ssize_t send_buf(struct port *port, const char *in_buf, size_t in_count)
 	if (in_count > buf->size)
 		in_count = buf->size;
 
-	/*
-	 * Since we're not sure when the host will actually
-	 * consume the data and tell us about it, we have to
-	 * copy the data here in case the caller frees the
-	 * in_buf.
-	 */
-	memcpy(buf->buf, in_buf, in_count);
-
-	buf->len = in_count;
+	if (from_user) {
+		ret = copy_from_user(buf->buf, in_buf, in_count);
+	} else {
+		/*
+		 * Since we're not sure when the host will actually
+		 * consume the data and tell us about it, we have to
+		 * copy the data here in case the caller frees the
+		 * in_buf.
+		 */
+		memcpy(buf->buf, in_buf, in_count);
+		ret = 0; /* Emulate copy_from_user behaviour */
+	}
+	buf->len = in_count - ret;
 
 	sg_init_one(sg, buf->buf, buf->len);
 	ret = out_vq->vq_ops->add_buf(out_vq, sg, 1, 0, buf);
@@ -385,9 +390,11 @@ fail:
  * Give out the data that's requested from the buffer that we have
  * queued up.
  */
-static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
+static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
+			    bool to_user)
 {
 	struct port_buffer *buf;
+	ssize_t ret;
 	unsigned long flags;
 
 	if (!out_count || !port_has_data(port))
@@ -397,10 +404,16 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
 	if (out_count > buf->len - buf->offset)
 		out_count = buf->len - buf->offset;
 
-	memcpy(out_buf, buf->buf + buf->offset, out_count);
+	if (to_user) {
+		ret = copy_to_user(out_buf, buf->buf + buf->offset, out_count);
+	} else {
+		memcpy(out_buf, buf->buf + buf->offset, out_count);
+		ret = 0; /* Emulate copy_to_user behaviour */
+	}
 
 	/* Return the number of bytes actually copied */
-	buf->offset += out_count;
+	ret = out_count - ret;
+	buf->offset += ret;
 
 	if (buf->offset == buf->len) {
 		/*
@@ -415,7 +428,7 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
 
 		spin_unlock_irqrestore(&port->inbuf_lock, flags);
 	}
-	return out_count;
+	return ret;
 }
 
 /*
@@ -437,7 +450,7 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 	if (unlikely(early_put_chars))
 		return early_put_chars(vtermno, buf, count);
 
-	return send_buf(port, buf, count);
+	return send_buf(port, buf, count, false);
 }
 
 /*
@@ -458,7 +471,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	/* If we don't have an input queue yet, we can't get input. */
 	BUG_ON(!port->in_vq);
 
-	return fill_readbuf(port, buf, count);
+	return fill_readbuf(port, buf, count, false);
 }
 
 static void resize_console(struct port *port)
