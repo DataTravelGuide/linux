@@ -140,9 +140,9 @@ EXPORT_SYMBOL(pci_setup_cardbus);
 static void pci_setup_bridge(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
+	struct resource *res;
 	struct pci_bus_region region;
 	u32 l, bu, lu, io_upper16;
-	int pref_mem64;
 
 	if (pci_is_enabled(bridge))
 		return;
@@ -151,23 +151,22 @@ static void pci_setup_bridge(struct pci_bus *bus)
 		 pci_domain_nr(bus), bus->number);
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
-	pcibios_resource_to_bus(bridge, &region, bus->resource[0]);
-	if (bus->resource[0]->flags & IORESOURCE_IO) {
+	res = bus->resource[0];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_IO) {
 		pci_read_config_dword(bridge, PCI_IO_BASE, &l);
 		l &= 0xffff0000;
 		l |= (region.start >> 8) & 0x00f0;
 		l |= region.end & 0xf000;
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
-		dev_info(&bridge->dev, "  IO window: %#04lx-%#04lx\n",
-		    (unsigned long)region.start,
-		    (unsigned long)region.end);
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 	}
 	else {
 		/* Clear upper 16 bits of I/O base/limit. */
 		io_upper16 = 0;
 		l = 0x00f0;
-		dev_info(&bridge->dev, "  IO window: disabled\n");
+		dev_info(&bridge->dev, "  bridge window [io  disabled]\n");
 	}
 	/* Temporarily disable the I/O range before updating PCI_IO_BASE. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, 0x0000ffff);
@@ -178,17 +177,16 @@ static void pci_setup_bridge(struct pci_bus *bus)
 
 	/* Set up the top and bottom of the PCI Memory segment
 	   for this bus. */
-	pcibios_resource_to_bus(bridge, &region, bus->resource[1]);
-	if (bus->resource[1]->flags & IORESOURCE_MEM) {
+	res = bus->resource[1];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-		dev_info(&bridge->dev, "  MEM window: %#08lx-%#08lx\n",
-		    (unsigned long)region.start,
-		    (unsigned long)region.end);
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 	}
 	else {
 		l = 0x0000fff0;
-		dev_info(&bridge->dev, "  MEM window: disabled\n");
+		dev_info(&bridge->dev, "  bridge window [mem disabled]\n");
 	}
 	pci_write_config_dword(bridge, PCI_MEMORY_BASE, l);
 
@@ -198,34 +196,27 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, 0);
 
 	/* Set up PREF base/limit. */
-	pref_mem64 = 0;
 	bu = lu = 0;
-	pcibios_resource_to_bus(bridge, &region, bus->resource[2]);
-	if (bus->resource[2]->flags & IORESOURCE_PREFETCH) {
-		int width = 8;
+	res = bus->resource[2];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_PREFETCH) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-		if (bus->resource[2]->flags & IORESOURCE_MEM_64) {
-			pref_mem64 = 1;
+		if (res->flags & IORESOURCE_MEM_64) {
 			bu = upper_32_bits(region.start);
 			lu = upper_32_bits(region.end);
-			width = 16;
 		}
-		dev_info(&bridge->dev, "  PREFETCH window: %#0*llx-%#0*llx\n",
-				width, (unsigned long long)region.start,
-				width, (unsigned long long)region.end);
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 	}
 	else {
 		l = 0x0000fff0;
-		dev_info(&bridge->dev, "  PREFETCH window: disabled\n");
+		dev_info(&bridge->dev, "  bridge window [mem pref disabled]\n");
 	}
 	pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, l);
 
-	if (pref_mem64) {
-		/* Set the upper 32 bits of PREF base & limit. */
-		pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32, bu);
-		pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, lu);
-	}
+	/* Set the upper 32 bits of PREF base & limit. */
+	pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32, bu);
+	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, lu);
 
 	pci_write_config_word(bridge, PCI_BRIDGE_CONTROL, bus->bridge_ctl);
 }
