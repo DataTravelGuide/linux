@@ -52,7 +52,6 @@ void do_mm_track_pte(void *val)
 	if (!test_and_set_bit(pfn, mm_tracking_struct.vector))
 		atomic_inc(&mm_tracking_struct.count);
 }
-EXPORT_SYMBOL_GPL(do_mm_track_pte);
 
 #define LARGE_PMD_SIZE	(1 << PMD_SHIFT)
 
@@ -86,7 +85,6 @@ void do_mm_track_pmd(void *val)
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++)
 		do_mm_track_pte(pte);
 }
-EXPORT_SYMBOL_GPL(do_mm_track_pmd);
 
 static inline void track_as_pte(void *val)
 {
@@ -102,13 +100,11 @@ void do_mm_track_pud(void *val)
 {
 	track_as_pte(val);
 }
-EXPORT_SYMBOL_GPL(do_mm_track_pud);
 
 void do_mm_track_pgd(void *val)
 {
 	track_as_pte(val);
 }
-EXPORT_SYMBOL_GPL(do_mm_track_pgd);
 
 void do_mm_track_phys(void *val)
 {
