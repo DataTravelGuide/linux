@@ -1034,11 +1034,23 @@ static int try_to_force_load(struct module *mod, const char *reason)
 }
 
 #ifdef CONFIG_MODVERSIONS
+/* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
+static unsigned long maybe_relocated(unsigned long crc,
+				     const struct module *crc_owner)
+{
+#ifdef ARCH_RELOCATES_KCRCTAB
+	if (crc_owner == NULL)
+		return crc - (unsigned long)reloc_start;
+#endif
+	return crc;
+}
+
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
 			 const char *symname,
 			 struct module *mod, 
-			 const unsigned long *crc)
+			 const unsigned long *crc,
+			 const struct module *crc_owner)
 {
 	unsigned int i, num_versions;
 	struct modversion_info *versions;
@@ -1059,10 +1071,10 @@ static int check_version(Elf_Shdr *sechdrs,
 		if (strcmp(versions[i].name, symname) != 0)
 			continue;
 
-		if (versions[i].crc == *crc)
+		if (versions[i].crc == maybe_relocated(*crc, crc_owner))
 			return 1;
 		DEBUGP("Found checksum %lX vs module %lX\n",
-		       *crc, versions[i].crc);
+		       maybe_relocated(*crc, crc_owner), versions[i].crc);
 		goto bad_version;
 	}
 
@@ -1085,7 +1097,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
 			 &crc, true, false))
 		BUG();
-	return check_version(sechdrs, versindex, "module_layout", mod, crc);
+	return check_version(sechdrs, versindex, "module_layout", mod, crc,
+			     NULL);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
@@ -1103,7 +1116,8 @@ static inline int check_version(Elf_Shdr *sechdrs,
 				unsigned int versindex,
 				const char *symname,
 				struct module *mod, 
-				const unsigned long *crc)
+				const unsigned long *crc,
+				const struct module *crc_owner)
 {
 	return 1;
 }
@@ -1138,8 +1152,8 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 	/* use_module can fail due to OOM,
 	   or module initialization or unloading */
 	if (sym) {
-		if (!check_version(sechdrs, versindex, name, mod, crc) ||
-		    !use_module(mod, owner))
+		if (!check_version(sechdrs, versindex, name, mod, crc, owner)
+		    || !use_module(mod, owner))
 			sym = NULL;
 	}
 	return sym;
@@ -3165,29 +3179,3 @@ int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 }
 #endif
 
-#ifdef ARCH_USES_RELOC_ENTRIES
-static __init int adjust_kcrctab(void)
-{
-	int i;
-	int count;
-	unsigned long  *crc ;
-
-	count = __stop___kcrctab - __start___kcrctab;
-	crc = (unsigned long *)__start___kcrctab;
-	for (i = 0; i < count; i++) {
-		crc[i] -= (unsigned long)&reloc_start;
-	}
-	count = __stop___kcrctab_gpl - __start___kcrctab_gpl;
-	crc = (unsigned long *)__start___kcrctab_gpl;
-	for (i = 0; i < count; i++) {
-		crc[i] -= (unsigned long)&reloc_start;
-	}
-	count = __stop___kcrctab_gpl_future - __start___kcrctab_gpl_future;
-	crc = (unsigned long *)__start___kcrctab_gpl_future;
-	for (i = 0; i< count; i++) {
-                crc[i] -= (unsigned long)&reloc_start;
-	}
-	return 0;
-}
-early_initcall(adjust_kcrctab);
-#endif

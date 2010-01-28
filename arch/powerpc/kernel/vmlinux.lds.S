@@ -40,7 +40,7 @@ SECTIONS
 {
 	. = 0;
 	reloc_start = .;
-	. = 0;
+
 	. = KERNELBASE;
 
 /*
