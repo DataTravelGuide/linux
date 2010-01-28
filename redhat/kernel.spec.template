@@ -1721,6 +1721,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jan 28 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-12.el6]
+- [drm] radeon possible security issue (Jerome Glisse) [556692]
+- [mm] Memory tracking for Stratus (James Paradis) [512400]
+- [pci] Always set prefetchable base/limit upper32 registers (Prarit Bhargava) [553471]
+- [scsi] Sync be2iscsi with upstream (Mike Christie) [515256]
+- [x86] msr/cpuid: Register enough minors for the MSR and CPUID drivers (George Beshers) [557554]
+- [x86] Remove unnecessary mdelay() from cpu_disable_common() (Peter Bogdanovic) [463633]
+- [x86] ioapic: Document another case when level irq is seen as an edge (Peter Bogdanovic) [463633]
+- [x86] ioapic: Fix the EOI register detection mechanism (Peter Bogdanovic) [463633]
+- [x86] io-apic: Move the effort of clearing remoteIRR explicitly before migrating the irq (Peter Bogdanovic) [463633]
+- [x86] Remove local_irq_enable()/local_irq_disable() in fixup_irqs() (Peter Bogdanovic) [463633]
+- [x86] Use EOI register in io-apic on intel platforms (Peter Bogdanovic) [463633]
+
 * Tue Jan 26 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-11.el6]
 - [kdump] Remove the 32MB limitation for crashkernel (Steve Best) [529270]
 - [dm] dm-raid45: export missing dm_rh_inc (Heinz Mauelshagen) [552329]
