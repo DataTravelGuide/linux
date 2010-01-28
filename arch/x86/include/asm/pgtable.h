@@ -84,7 +84,7 @@ extern struct list_head pgd_list;
  */
 static inline int pte_dirty(pte_t pte)
 {
-	return pte_flags(pte) & _PAGE_DIRTY;
+	return pte_flags(pte) & (_PAGE_DIRTY | _PAGE_SOFTDIRTY);
 }
 
 static inline int pte_young(pte_t pte)
@@ -156,7 +156,7 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	return pte_clear_flags(pte, _PAGE_DIRTY);
+	return pte_clear_flags(pte, (_PAGE_DIRTY | _PAGE_SOFTDIRTY));
 }
 
 static inline pte_t pte_mkold(pte_t pte)

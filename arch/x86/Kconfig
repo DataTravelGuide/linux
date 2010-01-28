@@ -1120,6 +1120,17 @@ config DIRECT_GBPAGES
 	  support it. This can improve the kernel's performance a tiny bit by
 	  reducing TLB pressure. If in doubt, say "Y".
 
+config TRACK_DIRTY_PAGES
+	bool "Enable dirty page tracking"
+	default n
+	depends on !KMEMCHECK
+	---help---
+	  Turning this on allows third party modules to use a
+	  kernel interface that can track dirty page generation
+	  in the system.  This can be used to copy/mirror live
+	  memory to another system or node.  Most users will
+	  say n here.
+
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support"

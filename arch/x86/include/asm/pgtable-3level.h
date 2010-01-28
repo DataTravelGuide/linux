@@ -26,6 +26,7 @@
  */
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
+	mm_track_pte(ptep);
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
@@ -33,16 +34,19 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
+	mm_track_pte(ptep);
 	set_64bit((unsigned long long *)(ptep), native_pte_val(pte));
 }
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
+	mm_track_pmd(pmdp);
 	set_64bit((unsigned long long *)(pmdp), native_pmd_val(pmd));
 }
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
+	mm_track_pud(pudp);
 	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
 }
 
@@ -54,6 +58,7 @@ static inline void native_set_pud(pud_t *pudp, pud_t pud)
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
+	mm_track_pte(ptep);
 	ptep->pte_low = 0;
 	smp_wmb();
 	ptep->pte_high = 0;
@@ -62,6 +67,9 @@ static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 static inline void native_pmd_clear(pmd_t *pmd)
 {
 	u32 *tmp = (u32 *)pmd;
+
+	mm_track_pmd(pmd);
+
 	*tmp = 0;
 	smp_wmb();
 	*(tmp + 1) = 0;
@@ -70,6 +78,8 @@ static inline void native_pmd_clear(pmd_t *pmd)
 static inline void pud_clear(pud_t *pudp)
 {
 	unsigned long pgd;
+
+	mm_track_pud(pudp);
 
 	set_pud(pudp, __pud(0));
 
@@ -92,6 +102,8 @@ static inline void pud_clear(pud_t *pudp)
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
 	pte_t res;
+
+	mm_track_pte(ptep);
 
 	/* xchg acts as a barrier before the setting of the high bits */
 	res.pte_low = xchg(&ptep->pte_low, 0);

@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <asm/mm_track.h>
 
 struct mm_struct;
 struct vm_area_struct;
