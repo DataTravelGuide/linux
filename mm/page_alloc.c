@@ -584,6 +584,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 
 	kmemcheck_free_shadow(page, order);
 
+	if (PageAnon(page))
+		page->mapping = NULL;
 	for (i = 0 ; i < (1 << order) ; ++i)
 		bad += free_pages_check(page + i);
 	if (bad)
