@@ -103,6 +103,7 @@ extern int split_huge_page(struct page *page);
 #endif
 
 extern unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
+extern int hugepage_madvise(unsigned long *vm_flags);
 static inline int PageTransHuge(struct page *page)
 {
 	VM_BUG_ON(PageTail(page));
@@ -127,6 +128,11 @@ static inline int split_huge_page(struct page *page)
 #define wait_split_huge_page(__anon_vma, __pmd)	\
 	do { } while (0)
 #define PageTransHuge(page) 0
+static inline int hugepage_madvise(unsigned long *vm_flags)
+{
+	BUG_ON(0);
+	return 0;
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #endif /* _LINUX_HUGE_MM_H */
