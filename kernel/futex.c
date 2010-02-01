@@ -220,7 +220,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 {
 	unsigned long address = (unsigned long)uaddr;
 	struct mm_struct *mm = current->mm;
-	struct page *page;
+	struct page *page, *page_head;
 	int err;
 
 	/*
@@ -252,10 +252,53 @@ again:
 	if (err < 0)
 		return err;
 
-	page = compound_head(page);
-	lock_page(page);
-	if (!page->mapping) {
-		unlock_page(page);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	page_head = page;
+	if (unlikely(PageTail(page))) {
+		put_page(page);
+		/* serialize against __split_huge_page_splitting() */
+		local_irq_disable();
+		if (likely(__get_user_pages_fast(address, 1, 1, &page) == 1)) {
+			page_head = compound_head(page);
+			/*
+			 * page_head is valid pointer but we must pin
+			 * it before taking the PG_lock and/or
+			 * PG_compound_lock. The moment we re-enable
+			 * irqs __split_huge_page_splitting() can
+			 * return and the head page can be freed from
+			 * under us. We can't take the PG_lock and/or
+			 * PG_compound_lock on a page that could be
+			 * freed from under us.
+			 */
+			if (page != page_head)
+				get_page(page_head);
+			local_irq_enable();
+		} else {
+			local_irq_enable();
+			goto again;
+		}
+	}
+#else
+	page_head = compound_head(page);
+	if (page != page_head)
+		get_page(page_head);
+#endif
+
+	lock_page(page_head);
+	if (unlikely(page_head != page)) {
+		compound_lock(page_head);
+		if (unlikely(!PageTail(page))) {
+			compound_unlock(page_head);
+			unlock_page(page_head);
+			put_page(page_head);
+			put_page(page);
+			goto again;
+		}
+	}
+	if (!page_head->mapping) {
+		unlock_page(page_head);
+		if (page_head != page)
+			put_page(page_head);
 		put_page(page);
 		goto again;
 	}
@@ -267,19 +310,25 @@ again:
 	 * it's a read-only handle, it's expected that futexes attach to
 	 * the object not the particular process.
 	 */
-	if (PageAnon(page)) {
+	if (PageAnon(page_head)) {
 		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
 		key->private.mm = mm;
 		key->private.address = address;
 	} else {
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
-		key->shared.inode = page->mapping->host;
-		key->shared.pgoff = page->index;
+		key->shared.inode = page_head->mapping->host;
+		key->shared.pgoff = page_head->index;
 	}
 
 	get_futex_key_refs(key);
 
-	unlock_page(page);
+	unlock_page(page_head);
+	if (page != page_head) {
+		VM_BUG_ON(!PageTail(page));
+		/* releasing compound_lock after page_lock won't matter */
+		compound_unlock(page_head);
+		put_page(page_head);
+	}
 	put_page(page);
 	return 0;
 }
