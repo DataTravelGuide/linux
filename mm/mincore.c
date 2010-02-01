@@ -132,6 +132,7 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	if (pud_none_or_clear_bad(pud))
 		goto none_mapped;
 	pmd = pmd_offset(pud, addr);
+	split_huge_page_vma(vma, pmd);
 	if (pmd_none_or_clear_bad(pmd))
 		goto none_mapped;
 
