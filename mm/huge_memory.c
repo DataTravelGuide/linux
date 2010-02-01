@@ -20,8 +20,8 @@
 #include "internal.h"
 
 unsigned long transparent_hugepage_flags __read_mostly =
-	(1<<TRANSPARENT_HUGEPAGE_FLAG)|
-	(1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG);
+	(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)|
+	(1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG);
 
 /* default scan 8*512 pte (or vmas) every 30 second */
 static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
@@ -407,7 +407,8 @@ static int __init hugepage_init(void)
 	static struct kobject *hugepage_kobj;
 
 	err = -ENOMEM;
-	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
+	hugepage_kobj = kobject_create_and_add("redhat_transparent_hugepage",
+					       mm_kobj);
 	if (unlikely(!hugepage_kobj)) {
 		printk(KERN_ERR "hugepage: failed kobject create\n");
 		goto out;

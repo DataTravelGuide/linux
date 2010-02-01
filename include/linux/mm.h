@@ -325,21 +325,6 @@ static inline int page_count(struct page *page)
 	return atomic_read(&compound_head(page)->_count);
 }
 
-static inline void get_page(struct page *page)
-{
-	VM_BUG_ON(atomic_read(&page->_count) < !PageTail(page));
-	atomic_inc(&page->_count);
-	if (unlikely(PageTail(page))) {
-		/*
-		 * This is safe only because
-		 * __split_huge_page_refcount can't run under
-		 * get_page().
-		 */
-		VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
-		atomic_inc(&page->first_page->_count);
-	}
-}
-
 static inline struct page *virt_to_head_page(const void *x)
 {
 	struct page *page = virt_to_page(x);
@@ -355,6 +340,7 @@ static inline void init_page_count(struct page *page)
 	atomic_set(&page->_count, 1);
 }
 
+void get_page(struct page *page);
 void put_page(struct page *page);
 void put_pages_list(struct list_head *pages);
 
