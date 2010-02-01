@@ -1168,22 +1168,6 @@ out:
 	return ret;
 }
 
-int hugepage_madvise(unsigned long *vm_flags)
-{
-	/*
-	 * Be somewhat over-protective like KSM for now!
-	 */
-	if (*vm_flags & (VM_HUGEPAGE | VM_SHARED  | VM_MAYSHARE   |
-			 VM_PFNMAP   | VM_IO      | VM_DONTEXPAND |
-			 VM_RESERVED | VM_HUGETLB | VM_INSERTPAGE |
-			 VM_MIXEDMAP | VM_SAO))
-		return -EINVAL;
-
-	*vm_flags |= VM_HUGEPAGE;
-
-	return 0;
-}
-
 static int __init khugepaged_slab_init(void)
 {
 	mm_slot_cache = kmem_cache_create("khugepaged_mm_slot",
