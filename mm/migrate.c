@@ -99,6 +99,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 		goto out;
 
 	pmd = pmd_offset(pud, addr);
+	VM_BUG_ON(pmd_trans_huge(*pmd));
 	if (!pmd_present(*pmd))
 		goto out;
 
@@ -818,6 +819,10 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		/* Use PageReserved to check for zero page */
 		if (PageReserved(page) || PageKsm(page))
 			goto put_and_set;
+
+		if (unlikely(PageTransCompound(page)))
+			if (unlikely(split_huge_page(page)))
+				goto put_and_set;
 
 		pp->page = page;
 		err = page_to_nid(page);
