@@ -56,6 +56,7 @@
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>
+#include <linux/hugetlb.h>
 #include <trace/events/kmem.h>
 
 #include <asm/tlbflush.h>
@@ -230,7 +231,7 @@ void page_unlock_anon_vma(struct anon_vma *anon_vma)
  * Returns virtual address or -EFAULT if page's index/offset is not
  * within the range mapped the @vma.
  */
-static inline unsigned long
+inline unsigned long
 vma_address(struct page *page, struct vm_area_struct *vma)
 {
 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
@@ -344,13 +345,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
 			unsigned long *vm_flags)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	pte_t *pte;
-	spinlock_t *ptl;
 	int referenced = 0;
-
-	pte = page_check_address(page, mm, address, &ptl, 0);
-	if (!pte)
-		goto out;
 
 	/*
 	 * Don't want to elevate referenced for mlocked page that gets this far,
@@ -358,21 +353,9 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
 	 * unevictable list.
 	 */
 	if (vma->vm_flags & VM_LOCKED) {
-		*mapcount = 1;	/* break early from loop */
+		*mapcount = 0;	/* break early from loop */
 		*vm_flags |= VM_LOCKED;
-		goto out_unmap;
-	}
-
-	if (ptep_clear_flush_young_notify(vma, address, pte)) {
-		/*
-		 * Don't treat a reference through a sequentially read
-		 * mapping as such.  If the page has been used in
-		 * another mapping, we will catch it; if this other
-		 * mapping is already gone, the unmap path will have
-		 * set PG_referenced or activated the page.
-		 */
-		if (likely(!VM_SequentialReadHint(vma)))
-			referenced++;
+		goto out;
 	}
 
 	/* Pretend the page is referenced if the task has the
@@ -381,9 +364,39 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
 			rwsem_is_locked(&mm->mmap_sem))
 		referenced++;
 
-out_unmap:
+	if (unlikely(PageTransHuge(page))) {
+		pmd_t *pmd;
+
+		spin_lock(&mm->page_table_lock);
+		pmd = page_check_address_pmd(page, mm, address,
+					     PAGE_CHECK_ADDRESS_PMD_FLAG);
+		if (pmd && !pmd_trans_splitting(*pmd) &&
+		    pmdp_clear_flush_young_notify(vma, address, pmd))
+			referenced++;
+		spin_unlock(&mm->page_table_lock);
+	} else {
+		pte_t *pte;
+		spinlock_t *ptl;
+
+		pte = page_check_address(page, mm, address, &ptl, 0);
+		if (!pte)
+			goto out;
+
+		if (ptep_clear_flush_young_notify(vma, address, pte)) {
+			/*
+			 * Don't treat a reference through a sequentially read
+			 * mapping as such.  If the page has been used in
+			 * another mapping, we will catch it; if this other
+			 * mapping is already gone, the unmap path will have
+			 * set PG_referenced or activated the page.
+			 */
+			if (likely(!VM_SequentialReadHint(vma)))
+				referenced++;
+		}
+		pte_unmap_unlock(pte, ptl);
+	}
+
 	(*mapcount)--;
-	pte_unmap_unlock(pte, ptl);
 
 	if (referenced)
 		*vm_flags |= vma->vm_flags;

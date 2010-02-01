@@ -106,6 +106,9 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_SAO		0x20000000	/* Strong Access Ordering (powerpc) */
 #define VM_PFN_AT_MMAP	0x40000000	/* PFNMAP vma that is fully mapped at mmap time */
 #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
+#if BITS_PER_LONG > 32
+#define VM_HUGEPAGE	0x100000000UL	/* MADV_HUGEPAGE marked this vma */
+#endif
 
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
@@ -234,6 +237,7 @@ struct inode;
  * files which need it (119 of them)
  */
 #include <linux/page-flags.h>
+#include <linux/huge_mm.h>
 
 /*
  * Methods to modify the page usage count.
