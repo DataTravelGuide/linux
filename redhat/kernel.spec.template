@@ -1721,6 +1721,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Feb 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-14.el6]
+- [s390x] dasd: fix online/offline race (Hendrik Brueckner) [552840]
+- [netdrv] update tg3 to version 3.106 and fix panic (John Feeney) [555101]
+- [s390x] dasd: Fix null pointer in s390dbf and discipline checking (Hendrik Brueckner) [559615]
+- [s390x] zcrypt: Do not remove coprocessor in case of error 8/72 (Hendrik Brueckner) [559613]
+- [s390x] cio: channel path vary operation has no effect (Hendrik Brueckner) [559612]
+- [uv] x86: Ensure hub revision set for all ACPI modes (George Beshers) [559752]
+- [uv] x86: Add function retrieving node controller revision number (George Beshers) [559752]
+
 * Fri Jan 29 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-13.el6]
 - [virtio] console: show error message if hvc_alloc fails for console ports (Amit Shah) [543824]
 - [virtio] console: Add debugfs files for each port to expose debug info (Amit Shah) [543824]
