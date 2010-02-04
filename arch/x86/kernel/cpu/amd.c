@@ -270,7 +270,7 @@ static void __cpuinit amd_fixup_dcm(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_AMD_DCM))
 		return;
 
-	rdmsrl(0xc001100c, value);
+	rdmsrl(MSR_FAM10H_NODE_ID, value);
 
 	nodes = ((value >> 3) & 7) + 1;
 	if (nodes == 1)
