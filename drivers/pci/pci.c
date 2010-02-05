@@ -2547,7 +2547,7 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 /* Some architectures require additional programming to enable VGA */
 static arch_set_vga_state_t arch_set_vga_state;
 
-void pci_register_set_vga_state(arch_set_vga_state_t func)
+void __init pci_register_set_vga_state(arch_set_vga_state_t func)
 {
 	arch_set_vga_state = func;	/* NULL disables */
 }
