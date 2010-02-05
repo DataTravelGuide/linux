@@ -688,7 +688,11 @@ EXPORT_SYMBOL(vga_client_register);
  * the arbiter.
  */
 
+#ifdef CONFIG_VGA_ARB_MAX_GPUS
+#define MAX_USER_CARDS         CONFIG_VGA_ARB_MAX_GPUS
+#else
 #define MAX_USER_CARDS         16
+#endif
 #define PCI_INVALID_CARD       ((struct pci_dev *)-1UL)
 
 /*
