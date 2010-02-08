@@ -1721,6 +1721,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 05 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-15.el6]
+- [block] blk-cgroup: Fix lockdep warning of potential deadlock in blk-cgroup (Vivek Goyal) [561903]
+- [block] cfq: Do not idle on async queues and drive deeper WRITE depths (Vivek Goyal) [561902]
+- [quota] 64-bit quota format fixes (Jerome Marchand) [546311]
+- [x86] fix Add AMD Node ID MSR support (Bhavna Sarathy) [557540]
+- [fs] ext4: fix type of "offset" in ext4_io_end (Eric Sandeen) [560097]
+- [x86] Disable HPET MSI on ATI SB700/SB800 (Prarit Bhargava) [557332]
+- [x86] arch specific support for remapping HPET MSIs (Prarit Bhargava) [557332]
+- [x86] intr-remap: generic support for remapping HPET MSIs (Prarit Bhargava) [557332]
+- [gfs] GFS2: Extend umount wait coverage to full glock lifetime (Steven Whitehouse) [561287]
+- [gfs] GFS2: Wait for unlock completion on umount (Steven Whitehouse) [561287]
+- [gfs] GFS2: Use MAX_LFS_FILESIZE for meta inode size (Steven Whitehouse) [561307]
+- [gfs] GFS2: Use GFP_NOFS for alloc structure (Steven Whitehouse) [561307]
+- [gfs] GFS2: Fix refcnt leak on gfs2_follow_link() error path (Steven Whitehouse) [561307]
+
 * Wed Feb 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-14.el6]
 - [s390x] dasd: fix online/offline race (Hendrik Brueckner) [552840]
 - [netdrv] update tg3 to version 3.106 and fix panic (John Feeney) [555101]
