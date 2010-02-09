@@ -288,6 +288,12 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 
 	switch (ioctl) {
 	case VHOST_SET_VRING_NUM:
+		/* Resizing ring with an active backend?
+		 * You don't want to do that. */
+		if (vq->private_data) {
+			r = -EBUSY;
+			break;
+		}
 		r = copy_from_user(&s, argp, sizeof s);
 		if (r < 0)
 			break;
@@ -298,6 +304,12 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		vq->num = s.num;
 		break;
 	case VHOST_SET_VRING_BASE:
+		/* Moving base with an active backend?
+		 * You don't want to do that. */
+		if (vq->private_data) {
+			r = -EBUSY;
+			break;
+		}
 		r = copy_from_user(&s, argp, sizeof s);
 		if (r < 0)
 			break;
@@ -413,6 +425,7 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 	return r;
 }
 
+/* Caller must have device mutex */
 long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -422,7 +435,6 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 	long r;
 	int i, fd;
 
-	mutex_lock(&d->mutex);
 	/* If you are not the owner, you can become one */
 	if (ioctl == VHOST_SET_OWNER) {
 		r = vhost_dev_set_owner(d);
@@ -447,9 +459,17 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 			break;
 		}
 		for (i = 0; i < d->nvqs; ++i) {
-			mutex_lock(&d->vqs[i].mutex);
-			d->vqs[i].log_base = (void __user *)(unsigned long)p;
-			mutex_unlock(&d->vqs[i].mutex);
+			struct vhost_virtqueue *vq;
+			vq = d->vqs + i;
+			mutex_lock(&vq->mutex);
+			/* Moving log base with an active backend?
+			 * You don't want to do that. */
+			if (vq->private_data && (vq->log_used ||
+			     vhost_has_feature(d, VHOST_F_LOG_ALL)))
+				r = -EBUSY;
+			else
+				vq->log_base = (void __user *)(unsigned long)p;
+			mutex_unlock(&vq->mutex);
 		}
 		break;
 	case VHOST_SET_LOG_FD:
@@ -483,7 +503,6 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, unsigned long arg)
 		break;
 	}
 done:
-	mutex_unlock(&d->mutex);
 	return r;
 }
 

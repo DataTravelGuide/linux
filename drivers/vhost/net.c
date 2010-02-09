@@ -509,12 +509,10 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	vhost_net_enable_vq(n, vq);
 	mutex_unlock(&vq->mutex);
 done:
-	mutex_unlock(&n->dev.mutex);
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
 		fput(oldsock->file);
 	}
-	return r;
 err:
 	mutex_unlock(&n->dev.mutex);
 	return r;
@@ -554,8 +552,8 @@ static void vhost_net_set_features(struct vhost_net *n, u64 features)
 		n->vqs[i].hdr_size = hdr_size;
 		mutex_unlock(&n->vqs[i].mutex);
 	}
-	mutex_unlock(&n->dev.mutex);
 	vhost_net_flush(n);
+	mutex_unlock(&n->dev.mutex);
 }
 
 static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
@@ -587,8 +585,10 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	case VHOST_RESET_OWNER:
 		return vhost_net_reset_owner(n);
 	default:
+		mutex_lock(&n->dev.mutex);
 		r = vhost_dev_ioctl(&n->dev, ioctl, arg);
 		vhost_net_flush(n);
+		mutex_unlock(&n->dev.mutex);
 		return r;
 	}
 }
