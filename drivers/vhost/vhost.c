@@ -170,21 +170,14 @@ long vhost_dev_reset_owner(struct vhost_dev *dev)
 {
 	struct vhost_memory *memory;
 
-	/* Restore memory to default 1:1 mapping. */
-	memory = kmalloc(offsetof(struct vhost_memory, regions) +
-			 2 * sizeof *memory->regions, GFP_KERNEL);
+	/* Restore memory to default empty mapping. */
+	memory = kmalloc(offsetof(struct vhost_memory, regions), GFP_KERNEL);
 	if (!memory)
 		return -ENOMEM;
 
 	vhost_dev_cleanup(dev);
 
-	memory->nregions = 2;
-	memory->regions[0].guest_phys_addr = 1;
-	memory->regions[0].userspace_addr = 1;
-	memory->regions[0].memory_size = ~0ULL;
-	memory->regions[1].guest_phys_addr = 0;
-	memory->regions[1].userspace_addr = 0;
-	memory->regions[1].memory_size = 1;
+	memory->nregions = 0;
 	dev->memory = memory;
 	return 0;
 }
