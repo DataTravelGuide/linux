@@ -326,7 +326,6 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	int r;
 	if (!n)
 		return -ENOMEM;
-	f->private_data = n;
 	n->vqs[VHOST_NET_VQ_TX].handle_kick = handle_tx_kick;
 	n->vqs[VHOST_NET_VQ_RX].handle_kick = handle_rx_kick;
 	r = vhost_dev_init(&n->dev, n->vqs, VHOST_NET_VQ_MAX);
@@ -338,6 +337,9 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT);
 	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN);
 	n->tx_poll_state = VHOST_NET_POLL_DISABLED;
+
+	f->private_data = n;
+
 	return 0;
 }
 
