@@ -493,6 +493,12 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	}
 	vq = n->vqs + index;
 	mutex_lock(&vq->mutex);
+
+	/* Verify that ring has been setup correctly. */
+	if (!vhost_vq_access_ok(vq)) {
+		r = -EFAULT;
+		goto err;
+	}
 	sock = get_socket(fd);
 	if (IS_ERR(sock)) {
 		r = PTR_ERR(sock);
@@ -539,12 +545,17 @@ done:
 	return err;
 }
 
-static void vhost_net_set_features(struct vhost_net *n, u64 features)
+static int vhost_net_set_features(struct vhost_net *n, u64 features)
 {
 	size_t hdr_size = features & (1 << VHOST_NET_F_VIRTIO_NET_HDR) ?
 		sizeof(struct virtio_net_hdr) : 0;
 	int i;
 	mutex_lock(&n->dev.mutex);
+	if ((features & (1 << VHOST_F_LOG_ALL)) &&
+	    !vhost_log_access_ok(&n->dev)) {
+		mutex_unlock(&n->dev.mutex);
+		return -EFAULT;
+	}
 	n->dev.acked_features = features;
 	smp_wmb();
 	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
@@ -554,6 +565,7 @@ static void vhost_net_set_features(struct vhost_net *n, u64 features)
 	}
 	vhost_net_flush(n);
 	mutex_unlock(&n->dev.mutex);
+	return 0;
 }
 
 static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
@@ -580,8 +592,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 			return r;
 		if (features & ~VHOST_FEATURES)
 			return -EOPNOTSUPP;
-		vhost_net_set_features(n, features);
-		return 0;
+		return vhost_net_set_features(n, features);
 	case VHOST_RESET_OWNER:
 		return vhost_net_reset_owner(n);
 	default:
