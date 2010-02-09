@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <acpi/acpi_hest.h>
 #include <linux/pci-aspm.h>
+#include <linux/iommu.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -1022,6 +1023,10 @@ static void pci_init_capabilities(struct pci_dev *dev)
 
 	/* Single Root I/O Virtualization */
 	pci_iov_init(dev);
+
+	/* Enable ACS P2P upstream forwarding */
+	if (iommu_found())
+		pci_enable_acs(dev);
 }
 
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
