@@ -563,7 +563,7 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 {
 	struct vhost_net *n = f->private_data;
 	void __user *argp = (void __user *)arg;
-	u32 __user *featurep = argp;
+	u64 __user *featurep = argp;
 	struct vhost_vring_file backend;
 	u64 features;
 	int r;
@@ -575,10 +575,9 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 		return vhost_net_set_backend(n, backend.index, backend.fd);
 	case VHOST_GET_FEATURES:
 		features = VHOST_FEATURES;
-		return put_user(features, featurep);
+		return copy_to_user(featurep, &features, sizeof features);
 	case VHOST_SET_FEATURES:
-		r = get_user(features, featurep);
-		/* No features for now */
+		r = copy_from_user(&features, featurep, sizeof features);
 		if (r < 0)
 			return r;
 		if (features & ~VHOST_FEATURES)
