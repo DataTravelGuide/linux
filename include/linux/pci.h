@@ -1296,5 +1296,7 @@ extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
 extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
 #endif
 
+void pci_request_acs(void);
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

@@ -1536,6 +1536,16 @@ void pci_enable_ari(struct pci_dev *dev)
 	bridge->ari_enabled = 1;
 }
 
+static int pci_acs_enable;
+
+/**
+ * pci_request_acs - ask for ACS to be enabled if supported
+ */
+void pci_request_acs(void)
+{
+	pci_acs_enable = 1;
+}
+
 /**
  * pci_enable_acs - enable ACS if hardware support it
  * @dev: the PCI device
@@ -1545,6 +1555,9 @@ void pci_enable_acs(struct pci_dev *dev)
 	int pos;
 	u16 cap;
 	u16 ctrl;
+
+	if (!pci_acs_enable)
+		return;
 
 	if (!dev->is_pcie)
 		return;
