@@ -276,20 +276,6 @@
 	driver_register
 	driver_remove_file
 	driver_unregister
-	drm_core_get_map_ofs
-	drm_core_get_reg_ofs
-	drm_core_ioremapfree
-	drm_core_reclaim_buffers
-	drm_exit
-	drm_fasync
-	drm_init
-	drm_ioctl
-	drm_irq_uninstall
-	drm_mmap
-	drm_open
-	drm_poll
-	drm_release
-	drm_ut_debug_printk
 	dst_release
 	dump_stack
 	dvb_dmx_init
@@ -684,6 +670,7 @@
 	pci_iounmap
 	pci_map_rom
 	pci_match_id
+	pci_msi_enabled
 	pci_release_region
 	pci_release_regions
 	pci_release_selected_regions
