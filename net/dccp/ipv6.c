@@ -1188,7 +1188,6 @@ static struct inet_protosw dccp_v6_protosw = {
 	.protocol	= IPPROTO_DCCP,
 	.prot		= &dccp_v6_prot,
 	.ops		= &inet6_dccp_ops,
-	.capability	= -1,
 	.flags		= INET_PROTOSW_ICSK,
 };
 

@@ -114,7 +114,8 @@ static void can_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 }
 
-static int can_create(struct net *net, struct socket *sock, int protocol)
+static int can_create(struct net *net, struct socket *sock, int protocol,
+		      int kern)
 {
 	struct sock *sk;
 	struct can_proto *cp;
@@ -153,11 +154,6 @@ static int can_create(struct net *net, struct socket *sock, int protocol)
 
 	if (cp->type != sock->type) {
 		err = -EPROTONOSUPPORT;
-		goto errout;
-	}
-
-	if (cp->capability >= 0 && !capable(cp->capability)) {
-		err = -EPERM;
 		goto errout;
 	}
 

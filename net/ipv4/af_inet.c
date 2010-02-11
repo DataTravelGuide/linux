@@ -262,7 +262,8 @@ static inline int inet_netns_ok(struct net *net, int protocol)
  *	Create an inet socket.
  */
 
-static int inet_create(struct net *net, struct socket *sock, int protocol)
+static int inet_create(struct net *net, struct socket *sock, int protocol,
+		       int kern)
 {
 	struct sock *sk;
 	struct inet_protosw *answer;
@@ -325,7 +326,7 @@ lookup_protocol:
 	}
 
 	err = -EPERM;
-	if (answer->capability > 0 && !capable(answer->capability))
+	if (sock->type == SOCK_RAW && !kern && !capable(CAP_NET_RAW))
 		goto out_rcu_unlock;
 
 	err = -EAFNOSUPPORT;
@@ -947,7 +948,6 @@ static struct inet_protosw inetsw_array[] =
 		.protocol =   IPPROTO_TCP,
 		.prot =       &tcp_prot,
 		.ops =        &inet_stream_ops,
-		.capability = -1,
 		.no_check =   0,
 		.flags =      INET_PROTOSW_PERMANENT |
 			      INET_PROTOSW_ICSK,
@@ -958,7 +958,6 @@ static struct inet_protosw inetsw_array[] =
 		.protocol =   IPPROTO_UDP,
 		.prot =       &udp_prot,
 		.ops =        &inet_dgram_ops,
-		.capability = -1,
 		.no_check =   UDP_CSUM_DEFAULT,
 		.flags =      INET_PROTOSW_PERMANENT,
        },
@@ -969,7 +968,6 @@ static struct inet_protosw inetsw_array[] =
 	       .protocol =   IPPROTO_IP,	/* wild card */
 	       .prot =       &raw_prot,
 	       .ops =        &inet_sockraw_ops,
-	       .capability = CAP_NET_RAW,
 	       .no_check =   UDP_CSUM_DEFAULT,
 	       .flags =      INET_PROTOSW_REUSE,
        }
