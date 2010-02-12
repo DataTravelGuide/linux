@@ -468,7 +468,7 @@ extern void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_trans_huge(pmd) 0
-#define pmd_trans_splitting(pmd) ({ BUG(); 0; })
+#define pmd_trans_splitting(pmd) (0)
 #ifndef __HAVE_ARCH_PMD_WRITE
 #define pmd_write(pmd)	({ BUG(); 0; })
 #endif /* __HAVE_ARCH_PMD_WRITE */
