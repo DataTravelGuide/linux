@@ -1075,13 +1075,14 @@ static void __split_huge_page(struct page *page,
 			      struct anon_vma *anon_vma)
 {
 	int mapcount, mapcount2;
-	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 
 	BUG_ON(!PageHead(page));
 	BUG_ON(PageTail(page));
 
 	mapcount = 0;
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+		struct vm_area_struct *vma = avc->vma;
 		unsigned long addr = vma_address(page, vma);
 		if (addr == -EFAULT)
 			continue;
@@ -1092,7 +1093,8 @@ static void __split_huge_page(struct page *page,
 	__split_huge_page_refcount(page);
 
 	mapcount2 = 0;
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+		struct vm_area_struct *vma = avc->vma;
 		unsigned long addr = vma_address(page, vma);
 		if (addr == -EFAULT)
 			continue;
@@ -1416,6 +1418,29 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 	}
 }
 
+/*
+ * This cannot lead to a deadlock because the chains of anon_vmas
+ * are always in the order "self, parent, grandparent".  No two
+ * processes can have anon_vmas in inverted order in their chains.
+ */
+static void lock_anon_vmas(struct vm_area_struct *vma)
+{
+	struct anon_vma_chain *avc;
+
+	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
+		spin_lock_nest_lock(&avc->anon_vma->lock, &vma->vm_mm->mmap_sem);
+	}
+}
+
+static void unlock_anon_vmas(struct vm_area_struct *vma)
+{
+	struct anon_vma_chain *avc;
+
+	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
+		spin_unlock(&avc->anon_vma->lock);
+	}
+}
+
 static void collapse_huge_page(struct mm_struct *mm,
 			       unsigned long address,
 			       struct page **hpage)
@@ -1471,7 +1496,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		goto out;
 
 	/* stop anon_vma rmap pagetable access */
-	spin_lock(&vma->anon_vma->lock);
+	lock_anon_vmas(vma);
 
 	pte = pte_offset_map(pmd, address);
 	ptl = pte_lockptr(mm, pmd);
@@ -1491,7 +1516,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
-		spin_unlock(&vma->anon_vma->lock);
+		unlock_anon_vmas(vma);
 		goto out;
 	}
 
@@ -1499,7 +1524,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * All pages are isolated and locked so anon_vma rmap
 	 * can't run anymore.
 	 */
-	spin_unlock(&vma->anon_vma->lock);
+	unlock_anon_vmas(vma);
 
 	new_page = *hpage;
 	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
