@@ -34,6 +34,7 @@ extern void cpu_nmi_set_wd_enabled(void);
 
 extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;
+#define NMI_DEFAULT     -1
 #define NMI_NONE	0
 #define NMI_IO_APIC	1
 #define NMI_LOCAL_APIC	2
@@ -43,6 +44,7 @@ struct ctl_table;
 extern int proc_nmi_enabled(struct ctl_table *, int ,
 			void __user *, size_t *, loff_t *);
 extern int unknown_nmi_panic;
+extern void nmi_watchdog_default(void);
 
 void arch_trigger_all_cpu_backtrace(void);
 #define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace

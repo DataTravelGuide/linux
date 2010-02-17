@@ -1334,6 +1334,7 @@ void __cpuinit end_local_APIC_setup(void)
 	}
 #endif
 
+	nmi_watchdog_default();
 	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
 }

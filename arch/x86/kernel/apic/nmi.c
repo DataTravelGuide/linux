@@ -50,7 +50,11 @@ static cpumask_t backtrace_mask __read_mostly;
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
 EXPORT_SYMBOL(nmi_active);
 
+#ifdef CONFIG_X86_64
+unsigned int nmi_watchdog = NMI_DEFAULT;
+#else
 unsigned int nmi_watchdog = NMI_NONE;
+#endif
 EXPORT_SYMBOL(nmi_watchdog);
 
 static int panic_on_timeout;
@@ -58,6 +62,22 @@ static int panic_on_timeout;
 static unsigned int nmi_hz = HZ;
 static DEFINE_PER_CPU(short, wd_enabled);
 static int endflag __initdata;
+
+#ifdef CONFIG_X86_64
+void __init nmi_watchdog_default(void)
+{
+        if (nmi_watchdog != NMI_DEFAULT)
+                return;
+        /* if not specified, probe it */
+        if (!lapic_watchdog_init(nmi_hz))
+                nmi_watchdog = NMI_LOCAL_APIC;
+        else
+                nmi_watchdog = NMI_IO_APIC;
+	atomic_inc(&nmi_active);
+}
+#else
+void __init nmi_watchdog_default(void) { return; }
+#endif
 
 static inline unsigned int get_nmi_count(int cpu)
 {
