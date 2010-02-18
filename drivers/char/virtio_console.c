@@ -399,43 +399,23 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	return 0;
 }
 
-static ssize_t send_buf(struct port *port, const char *in_buf, size_t in_count,
-			bool from_user)
+static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count)
 {
 	struct scatterlist sg[1];
 	struct virtqueue *out_vq;
-	struct port_buffer *buf;
 	ssize_t ret;
-	unsigned int tmplen;
+	unsigned int len;
 
 	out_vq = port->out_vq;
-	buf = port->outbuf;
 
-	if (in_count > buf->size)
-		in_count = buf->size;
-
-	if (from_user) {
-		ret = copy_from_user(buf->buf, in_buf, in_count);
-	} else {
-		/*
-		 * Since we're not sure when the host will actually
-		 * consume the data and tell us about it, we have to
-		 * copy the data here in case the caller frees the
-		 * in_buf.
-		 */
-		memcpy(buf->buf, in_buf, in_count);
-		ret = 0; /* Emulate copy_from_user behaviour */
-	}
-	buf->len = in_count - ret;
-
-	sg_init_one(sg, buf->buf, buf->len);
-	ret = out_vq->vq_ops->add_buf(out_vq, sg, 1, 0, buf);
+	sg_init_one(sg, in_buf, in_count);
+	ret = out_vq->vq_ops->add_buf(out_vq, sg, 1, 0, in_buf);
 
 	/* Tell Host to go! */
 	out_vq->vq_ops->kick(out_vq);
 
 	if (ret < 0) {
-		buf->len = 0;
+		len = 0;
 		goto fail;
 	}
 
@@ -444,13 +424,11 @@ static ssize_t send_buf(struct port *port, const char *in_buf, size_t in_count,
 	 * sent. Also ensure we return to userspace the number of
 	 * bytes that were successfully consumed by the host.
 	 */
-	while (!out_vq->vq_ops->get_buf(out_vq, &tmplen))
+	while (!out_vq->vq_ops->get_buf(out_vq, &len))
 		cpu_relax();
-
-	buf->len = tmplen;
 fail:
 	/* We're expected to return the amount of data we wrote */
-	return buf->len;
+	return len;
 }
 
 /*
@@ -548,10 +526,27 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 			       size_t count, loff_t *offp)
 {
 	struct port *port;
+	char *buf;
+	ssize_t ret;
 
 	port = filp->private_data;
 
-	return send_buf(port, ubuf, count, true);
+	count = min((size_t)(32 * 1024), count);
+
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = copy_from_user(buf, ubuf, count);
+	if (ret) {
+		ret = -EFAULT;
+		goto free_buf;
+	}
+
+	ret = send_buf(port, buf, count);
+free_buf:
+	kfree(buf);
+	return ret;
 }
 
 static unsigned int port_fops_poll(struct file *filp, poll_table *wait)
@@ -657,7 +652,7 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 	if (unlikely(early_put_chars))
 		return early_put_chars(vtermno, buf, count);
 
-	return send_buf(port, buf, count, false);
+	return send_buf(port, (void *)buf, count);
 }
 
 /*
