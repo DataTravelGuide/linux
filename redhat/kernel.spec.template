@@ -540,9 +540,7 @@ BuildRequires: elfutils-libelf-devel zlib-devel binutils-devel
 %if %{signmodules}
 BuildRequires: gnupg
 %endif
-%if %{with_kabichk}
 BuildRequires: python
-%endif
 %if %{with_fips}
 BuildRequires: hmaccalc
 %endif
