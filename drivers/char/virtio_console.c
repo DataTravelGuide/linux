@@ -134,9 +134,6 @@ struct ports_device {
 	/* Array of per-port IO virtqueues */
 	struct virtqueue **in_vqs, **out_vqs;
 
-	/* The control messages to the Host are sent via this buffer */
-	struct port_buffer *outbuf;
-
 	/* Used for numbering devices for sysfs and debugfs */
 	unsigned int drv_index;
 
@@ -161,9 +158,6 @@ struct port {
 	 * interrupt context (get_char()).
 	 */
 	spinlock_t inbuf_lock;
-
-	/* Buffer that's used to pass data from the guest to the host */
-	struct port_buffer *outbuf;
 
 	/* The IO vqs for this port */
 	struct virtqueue *in_vq, *out_vq;
@@ -375,8 +369,7 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	struct scatterlist sg[1];
 	struct virtio_console_control cpkt;
 	struct virtqueue *vq;
-	struct port_buffer *outbuf;
-	int tmplen;
+	int len;
 
 	if (!use_multiport(port->portdev))
 		return 0;
@@ -386,14 +379,11 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	cpkt.value = value;
 
 	vq = port->portdev->c_ovq;
-	outbuf = port->portdev->outbuf;
 
-	memcpy(outbuf->buf, (void *)&cpkt, sizeof(cpkt));
-
-	sg_init_one(sg, outbuf->buf, sizeof(cpkt));
-	if (vq->vq_ops->add_buf(vq, sg, 1, 0, outbuf) >= 0) {
+	sg_init_one(sg, &cpkt, sizeof(cpkt));
+	if (vq->vq_ops->add_buf(vq, sg, 1, 0, &cpkt) >= 0) {
 		vq->vq_ops->kick(vq);
-		while (!vq->vq_ops->get_buf(vq, &tmplen))
+		while (!vq->vq_ops->get_buf(vq, &len))
 			cpu_relax();
 	}
 	return 0;
@@ -869,7 +859,6 @@ static int remove_port(struct port *port)
 	cdev_del(&port->cdev);
 
 	discard_port_data(port);
-	free_buf(port->outbuf);
 	kfree(port->name);
 
 	debugfs_remove(port->debugfs_file);
@@ -1138,11 +1127,6 @@ static int add_port(struct ports_device *portdev, u32 id)
 		err = -ENOMEM;
 		goto free_device;
 	}
-	port->outbuf = alloc_buf(PAGE_SIZE);
-	if (!port->outbuf) {
-		err = -ENOMEM;
-		goto free_inbuf;
-	}
 
 	/* Register the input buffer the first time. */
 	add_inbuf(port->in_vq, inbuf);
@@ -1153,7 +1137,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	if (!use_multiport(port->portdev)) {
 		err = init_port_console(port);
 		if (err)
-			goto free_outbuf;
+			goto free_inbuf;
 	}
 
 	spin_lock_irq(&portdev->ports_lock);
@@ -1181,8 +1165,6 @@ static int add_port(struct ports_device *portdev, u32 id)
 	}
 	return 0;
 
-free_outbuf:
-	free_buf(port->outbuf);
 free_inbuf:
 	free_buf(inbuf);
 free_device:
@@ -1443,12 +1425,6 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 		INIT_WORK(&portdev->control_work, &control_work_handler);
 		INIT_WORK(&portdev->config_work, &config_work_handler);
 
-		portdev->outbuf = alloc_buf(PAGE_SIZE);
-		if (!portdev->outbuf) {
-			err = -ENOMEM;
-			dev_err(&vdev->dev, "OOM for control outbuf\n");
-			goto free_vqs;
-		}
 		fill_queue(portdev->c_ivq, &portdev->cvq_lock);
 	}
 
