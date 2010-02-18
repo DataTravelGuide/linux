@@ -439,26 +439,25 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 			    bool to_user)
 {
 	struct port_buffer *buf;
-	ssize_t ret;
 	unsigned long flags;
 
 	if (!out_count || !port_has_data(port))
 		return 0;
 
 	buf = port->inbuf;
-	if (out_count > buf->len - buf->offset)
-		out_count = buf->len - buf->offset;
+	out_count = min(out_count, buf->len - buf->offset);
 
 	if (to_user) {
+		ssize_t ret;
+
 		ret = copy_to_user(out_buf, buf->buf + buf->offset, out_count);
+		if (ret)
+			return -EFAULT;
 	} else {
 		memcpy(out_buf, buf->buf + buf->offset, out_count);
-		ret = 0; /* Emulate copy_to_user behaviour */
 	}
 
-	/* Return the number of bytes actually copied */
-	ret = out_count - ret;
-	buf->offset += ret;
+	buf->offset += out_count;
 
 	if (buf->offset == buf->len) {
 		/*
@@ -473,7 +472,8 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 
 		spin_unlock_irqrestore(&port->inbuf_lock, flags);
 	}
-	return ret;
+	/* Return the number of bytes actually copied */
+	return out_count;
 }
 
 /* The condition that must be true for polling to end */
