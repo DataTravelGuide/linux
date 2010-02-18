@@ -714,20 +714,15 @@ static void zfcp_fc_generic_els_handler(unsigned long data)
 {
 	struct zfcp_els_fc_job *els_fc_job = (struct zfcp_els_fc_job *) data;
 	struct fc_bsg_job *job = els_fc_job->job;
-	struct fc_bsg_reply *reply = job->reply;
+	struct fc_bsg_reply *jr = job->reply;
+	struct zfcp_send_els *zfcp_els = job->dd_data;
 
-	if (els_fc_job->els.status) {
-		/* request rejected or timed out */
-		reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_REJECT;
-		goto out;
-	}
-
-	reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
-	reply->reply_payload_rcv_len = job->reply_payload.payload_len;
-
-out:
+	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	jr->result = zfcp_els->status ? -EIO : 0;
 	job->state_flags = FC_RQST_STATE_DONE;
 	job->job_done(job);
+
 	kfree(els_fc_job);
 }
 
@@ -785,10 +780,12 @@ static void zfcp_fc_generic_ct_handler(unsigned long data)
 {
 	struct zfcp_ct_fc_job *ct_fc_job = (struct zfcp_ct_fc_job *) data;
 	struct fc_bsg_job *job = ct_fc_job->job;
+	struct fc_bsg_reply *jr = job->reply;
+	struct zfcp_send_ct *zfcp_ct  = job->dd_data;
 
-	job->reply->reply_data.ctels_reply.status = ct_fc_job->ct.status ?
-				FC_CTELS_STATUS_REJECT : FC_CTELS_STATUS_OK;
-	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	jr->result = zfcp_ct->status ? -EIO : 0;
 	job->state_flags = FC_RQST_STATE_DONE;
 	job->job_done(job);
 
