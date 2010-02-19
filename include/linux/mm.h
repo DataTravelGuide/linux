@@ -790,7 +790,7 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 unsigned long unmap_vmas(struct mmu_gather **tlb,
 		struct vm_area_struct *start_vma, unsigned long start_addr,
 		unsigned long end_addr, unsigned long *nr_accounted,
-		struct zap_details *);
+		struct zap_details *, int fullmm);
 
 /**
  * mm_walk - callbacks for walk_page_range
