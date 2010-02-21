@@ -1107,29 +1107,29 @@ static void __split_huge_page(struct page *page,
 void __split_huge_page_vma(struct vm_area_struct *vma, pmd_t *pmd)
 {
 	struct page *page;
-	struct anon_vma *anon_vma;
 	struct mm_struct *mm;
 
 	BUG_ON(vma->vm_flags & VM_HUGETLB);
 
 	mm = vma->vm_mm;
 
-	anon_vma = vma->anon_vma;
-
-	spin_lock(&anon_vma->lock);
-	BUG_ON(pmd_trans_splitting(*pmd));
 	spin_lock(&mm->page_table_lock);
 	if (unlikely(!pmd_trans_huge(*pmd))) {
 		spin_unlock(&mm->page_table_lock);
-		spin_unlock(&anon_vma->lock);
 		return;
 	}
 	page = pmd_page(*pmd);
+	VM_BUG_ON(!page_count(page));
+	get_page(page);
 	spin_unlock(&mm->page_table_lock);
 
-	__split_huge_page(page, anon_vma);
+	/*
+	 * The vma->anon_vma->lock is the wrong lock if the page is shared,
+	 * the anon_vma->lock pointed by page->mapping is the right one.
+	 */
+	split_huge_page(page);
 
-	spin_unlock(&anon_vma->lock);
+	put_page(page);
 	BUG_ON(pmd_trans_huge(*pmd));
 }
 
@@ -1361,8 +1361,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		/*
 		 * We can do it before isolate_lru_page because the
 		 * page can't be freed from under us. NOTE: PG_lock
-		 * seems entirely unnecessary but in doubt this is
-		 * safer. If proven unnecessary it can be removed.
+		 * is needed to serialize against split_huge_page
+		 * when invoked from the VM.
 		 */
 		if (!trylock_page(page)) {
 			release_pte_pages(pte, _pte);
@@ -1415,29 +1415,6 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 
 		address += PAGE_SIZE;
 		page++;
-	}
-}
-
-/*
- * This cannot lead to a deadlock because the chains of anon_vmas
- * are always in the order "self, parent, grandparent".  No two
- * processes can have anon_vmas in inverted order in their chains.
- */
-static void lock_anon_vmas(struct vm_area_struct *vma)
-{
-	struct anon_vma_chain *avc;
-
-	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
-		spin_lock_nest_lock(&avc->anon_vma->lock, &vma->vm_mm->mmap_sem);
-	}
-}
-
-static void unlock_anon_vmas(struct vm_area_struct *vma)
-{
-	struct anon_vma_chain *avc;
-
-	list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
-		spin_unlock(&avc->anon_vma->lock);
 	}
 }
 
@@ -1495,8 +1472,14 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
 		goto out;
 
-	/* stop anon_vma rmap pagetable access */
-	lock_anon_vmas(vma);
+	/*
+	 * Stop anon_vma rmap pagetable access. vma->anon_vma->lock is
+	 * enough for now (we don't need to check each anon_vma
+	 * pointed by each page->mapping) because collapse_huge_page
+	 * only works on not-shared anon pages (that are guaranteed to
+	 * belong to vma->anon_vma).
+	 */
+	spin_lock(&vma->anon_vma->lock);
 
 	pte = pte_offset_map(pmd, address);
 	ptl = pte_lockptr(mm, pmd);
@@ -1516,7 +1499,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
-		unlock_anon_vmas(vma);
+		spin_unlock(&vma->anon_vma->lock);
 		goto out;
 	}
 
@@ -1524,7 +1507,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * All pages are isolated and locked so anon_vma rmap
 	 * can't run anymore.
 	 */
-	unlock_anon_vmas(vma);
+	spin_unlock(&vma->anon_vma->lock);
 
 	new_page = *hpage;
 	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
