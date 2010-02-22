@@ -4389,6 +4389,9 @@ static int load_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 {
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
+	int ret;
+	u32 err;
+	gva_t addr;
 
 	get_segment_descriptor_dtable(vcpu, selector, &dtable);
 
@@ -4396,9 +4399,13 @@ static int load_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 		kvm_queue_exception_e(vcpu, GP_VECTOR, selector & 0xfffc);
 		return 1;
 	}
-	return kvm_read_guest_virt_system(dtable.base + index*8,
-					  seg_desc, sizeof(*seg_desc),
-					  vcpu, NULL);
+	addr = dtable.base + index * 8;
+	ret = kvm_read_guest_virt_system(addr, seg_desc, sizeof(*seg_desc),
+					 vcpu,  &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(vcpu, addr, err);
+
+       return ret;
 }
 
 /* allowed just for 8 bytes segments */
