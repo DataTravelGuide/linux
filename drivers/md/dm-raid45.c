@@ -1455,7 +1455,7 @@ static void stripe_recover_free(struct raid_set *rs)
 
 	mc = rec->mem_cache_client;
 	rec->mem_cache_client = NULL;
-	if (mc) {
+	if (mc && !IS_ERR(mc)) {
 		struct stripe *stripe;
 
 		while (!list_empty(&rec->stripes)) {
@@ -1467,8 +1467,11 @@ static void stripe_recover_free(struct raid_set *rs)
 		}
 
 		dm_mem_cache_client_destroy(mc);
-		dm_io_client_destroy(rec->dm_io_client);
-		rec->dm_io_client = NULL;
+
+		if (rec->dm_io_client && !IS_ERR(rec->dm_io_client)) {
+			dm_io_client_destroy(rec->dm_io_client);
+			rec->dm_io_client = NULL;
+		}
 	}
 }
 
