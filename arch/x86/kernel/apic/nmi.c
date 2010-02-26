@@ -64,15 +64,15 @@ static DEFINE_PER_CPU(short, wd_enabled);
 static int endflag __initdata;
 
 #ifdef CONFIG_X86_64
-void __init nmi_watchdog_default(void)
+void __cpuinit nmi_watchdog_default(void)
 {
-        if (nmi_watchdog != NMI_DEFAULT)
-                return;
-        /* if not specified, probe it */
-        if (!lapic_watchdog_init(nmi_hz))
-                nmi_watchdog = NMI_LOCAL_APIC;
-        else
-                nmi_watchdog = NMI_IO_APIC;
+	if (nmi_watchdog != NMI_DEFAULT)
+		return;
+	/* if not specified, probe it */
+	if (!lapic_watchdog_init(nmi_hz))
+		nmi_watchdog = NMI_LOCAL_APIC;
+	else
+		nmi_watchdog = NMI_IO_APIC;
 	atomic_inc(&nmi_active);
 }
 #else
