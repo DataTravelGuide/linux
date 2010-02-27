@@ -1,0 +1,62 @@
+<job>
+  <workflow>kerndev_workflow</workflow>
+  <submitter>%%USER_ID%%</submitter>
+  <whiteboard>XFS filesystem test</whiteboard>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <kickstart>
+        <![CDATA[
+install
+key --skip
+lang en_US.UTF-8
+keyboard us
+skipx
+rootpw rhts
+firewall --disabled
+authconfig --enableshadow --enablemd5
+selinux --enforcing
+timezone --utc America/New_York
+bootloader --location=mbr
+text
+cmdline
+reboot
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext3 --size=100
+part pv.14 --size=100 --grow
+volgroup VolGroup00 --pesize=32768 pv.14
+logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=20480
+logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=4096
+logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=2048
+logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=2048
+]]>
+      </kickstart>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <distroRequires>ARCH = x86_64</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <hostRequires>ARCH = x86_64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/pkginstall'>
+        <params>
+          <param name='PKGARGNAME' value='xfsprogs-2.10.2-7.el5.x86_64 xfsprogs-devel-2.10.2-7.el5.x86_64 xfsdump-2.2.48-3.el5.x86_64'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
+        <params>
+          <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
+          <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
+        </params>
+      </test>
+    </recipe>
+  </recipeSet>
+</job>
