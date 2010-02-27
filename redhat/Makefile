@@ -1,4 +1,5 @@
 include Makefile.common
+include Makefile.test
 
 LOCVERFILE:=../localversion
 LANG=C
@@ -127,10 +128,10 @@ rh-release-commit:
 	@git commit -s lastcommit -m "[redhat] updating lastcommit for $(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(LOCALVERSION)"
 
 .PHONY: rh-brew rh-koji
-rh-brew : BUILD_FLAGS ?= $(BREW_FLAGS)
-rh-koji : BUILD_FLAGS ?= $(KOJI_FLAGS)
+rh-brew : BUILD_FLAGS ?= $(BREW_FLAGS) $(TEST_FLAGS)
+rh-koji : BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
 rh-brew rh-koji: rh-%: rh-srpm
-	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm
+	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
 
 rh-help:
 	@echo  'Cleaning targets:'
@@ -143,6 +144,12 @@ rh-help:
 	@echo  '  rh-srpm	- Create a source RPM and put it into the redhat/rpm/SRPMS/ directory'
 	@echo  '  rh-brew	- Create a kernel SRPM and then call brew to build the created SRPM'
 	@echo  '  rh-koji	- Create a kernel SRPM and then call koji to build the created SRPM'
+	@echo  '  rh-test	- Pass in brew task number, TASK=1234 make rh-test, to use for an RHTS test'
+	@echo  '		  setup ./tests to use a test from redhat/tests (minus the .xml)'
+	@echo  '		  uses a known stable RHEL6 distro as the default'
+	@echo  '		  use TASK=None to use a non-scratch build based on RELEASE string'
+	@echo  '		  see output for possible override options (USER_ID,DISTRO,FAMILY,..)'
+	@echo  '  rh-brew-test  - Calls rh-brew and passes the task number into an RHTS test. See rh-test for more'
 	@echo  '  rh-rpms	- Create the binary RPMS for the kernel'
 	@echo  '  rh-kernel-<type> - Create  binary RPMS for a particular kernel type'
 	@echo  '                   - <type> can be: baseonly, smponly, dbgonly'

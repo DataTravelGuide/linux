@@ -1,0 +1,81 @@
+#stuff needed to kick off rhts tests
+
+NAME=kernel
+VERSION=2.6.32
+FAMILY=RedHatEnterpriseLinux6
+TMPFILE="tests/job.xml"
+USER_ID ?= $(shell /usr/kerberos/bin/klist|awk '/Default principal: /{print tolower($$3)}; ')
+TASK_USER ?= $(shell echo "${USER_ID}" | cut -d'@' -f1)
+
+#find tests
+TESTFILE=../tests
+ifneq ($(wildcard $(TESTFILE)),)
+TEST:=$(shell cat $(TESTFILE))
+TESTNAME:=$(shell echo "tests/$(TEST).xml")
+else
+TEST:=None
+TESTNAME:=None
+endif
+$(info TEST is "$(TEST)". Update '$(shell dirname $(REDHAT))/tests' to change.)
+
+ifndef DISTRO
+DISTROTAG=STABLE = 1
+else
+DISTROTAG=NAME = $(DISTRO)
+endif
+
+pre-xml-check:
+	@(if test -z "$(USER_ID)"; then \
+		echo "Please setup Kerberos for detecting USER_ID"; \
+		exit 1; \
+	fi)
+	@(if test "$(TESTNAME)" == "None" || ! test -f "$(TESTNAME)"; then \
+		echo "INVALID test: $(TEST)"; \
+		echo "Please use something from redhat/tests in the 'tests' file"; \
+		exit 1; \
+	fi)
+	@(if test -z "$(TASK)"; then \
+		echo "TASK number needed"; \
+		echo "set TASK=<num>/None for make rh-test otherwise make rh-brew-test should"; \
+		echo "automagically pick it up"; \
+		exit 1; \
+	fi)
+
+setup-xml: RELEASE ?= $(BUILD)$(BUILDID)$(DIST)
+setup-xml:
+	@echo "Parsing XML with these environment variables:"
+	@echo "(can be overwritten with FOO= make rh-...)"
+	@echo "  USER_ID: $(USER_ID)"
+	@echo "  DISTROTAG: $(DISTROTAG)"
+	@echo "  FAMILY: $(FAMILY)"
+	@echo "  NAME: $(NAME)"
+	@echo "  KVERSION: $(KVERSION)"
+	@echo "  RELEASE: $(RELEASE)"
+	@echo "  TASK_USER: $(TASK_USER)"
+	@echo "  TASK: $(TASK)"
+	@(sed -e 's/%%USER_ID%%/$(USER_ID)/g;' \
+	      -e 's/%%DISTROTAG%%/$(DISTROTAG)/g;' \
+	      -e 's/%%FAMILY%%/$(FAMILY)/g;' \
+	      -e 's/%%RELEASE%%/$(RELEASE)/g;' \
+	      -e 's/%%KVERSION%%/$(KVERSION)/g;' \
+	      -e 's,%%TASK_USER%%,$(TASK_USER),g;' \
+	      -e 's,%%TASK%%,$(TASK),g;' \
+	$(TESTNAME) > $(TMPFILE);)
+	@echo "Parsed redhat/$(TESTNAME) -> redhat/$(TMPFILE)"
+
+.PHONY: rh-test
+rh-test: TASK ?= $(shell test -n "$(OUTFILE)" && awk '/Created task:/{print $$3}' $(OUTFILE))
+rh-test: pre-xml-check setup-xml
+	@echo "Submitting redhat/$(TESTNAME)"
+	@/usr/bin/submit_job.py -S rhts.redhat.com -j $(TMPFILE) > /dev/null || echo "Failed"
+
+.PHONY: rh-brew-test rh-brew-watch
+rh-brew-watch: TASK ?= $(shell awk '/Created task:/{print $$3}' $(OUTFILE))
+rh-brew-watch: rh-%-watch:
+	$* watch-task $(TASK)
+
+rh-brew-test: OUTFILE:=$(shell mktemp)
+rh-brew-test: TEST_FLAGS=--nowait
+rh-brew-test: OUTPUT_FILE=| tee $(OUTFILE)
+rh-brew-test: rh-%-test: rh-% rh-%-watch rh-test
+	@rm $(OUTFILE)
