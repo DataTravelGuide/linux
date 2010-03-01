@@ -30,3 +30,4 @@ CONFIG_LOG_BUF_SHIFT=17
 # CONFIG_ZFCPDUMP is not set
 # CONFIG_FTRACE_SYSCALLS is not set
 # CONFIG_KVM is not set
+# CONFIG_GFS2_FS is not set
