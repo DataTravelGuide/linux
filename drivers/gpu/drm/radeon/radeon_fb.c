@@ -59,7 +59,7 @@ static struct fb_ops radeonfb_ops = {
 };
 
 /**
- * Curretly it is assumed that the old framebuffer is reused.
+ * Currently it is assumed that the old framebuffer is reused.
  *
  * LOCKING
  * caller should hold the mode config lock.
@@ -148,7 +148,6 @@ int radeonfb_create(struct drm_device *dev,
 	unsigned long tmp;
 	bool fb_tiled = false; /* useful for testing */
 	u32 tiling_flags = 0;
-	int crtc_count;
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
@@ -239,16 +238,12 @@ int radeonfb_create(struct drm_device *dev,
 	rfbdev = info->par;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 	rfbdev->helper.dev = dev;
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		crtc_count = 1;
-	else
-		crtc_count = 2;
-	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, crtc_count,
+	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, rdev->num_crtc,
 					    RADEONFB_CONN_LIMIT);
 	if (ret)
 		goto out_unref;
 
-	memset_io(fbptr, 0xff, aligned_size);
+	memset_io(fbptr, 0x0, aligned_size);
 
 	strcpy(info->fix.id, "radeondrmfb");
 

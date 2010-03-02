@@ -106,9 +106,10 @@
  * 1.29- R500 3D cmd buffer support
  * 1.30- Add support for occlusion queries
  * 1.31- Add support for num Z pipes from GET_PARAM
+ * 1.32- fixes for rv740 setup
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		31
+#define DRIVER_MINOR		32
 #define DRIVER_PATCHLEVEL	0
 
 enum radeon_cp_microcode_version {
@@ -266,6 +267,8 @@ typedef struct drm_radeon_private {
 	struct drm_ati_pcigart_info gart_info;
 
 	u32 scratch_ages[5];
+
+	int have_z_offset;
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */

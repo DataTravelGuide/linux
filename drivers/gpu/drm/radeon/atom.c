@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #define ATOM_DEBUG
 
@@ -212,7 +213,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_PS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		val = le32_to_cpu(ctx->ps[idx]);
+		/* get_unaligned_le32 avoids unaligned accesses from atombios
+		 * tables, noticed on a DEC Alpha. */
+		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
@@ -640,7 +643,7 @@ static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t count = U8((*ptr)++);
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
-		schedule_timeout_uninterruptible(usecs_to_jiffies(count));
+		udelay(count);
 	else
 		schedule_timeout_uninterruptible(msecs_to_jiffies(count));
 }
@@ -878,8 +881,6 @@ static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
-	attr &= 0x38;
-	attr |= atom_def_dst[attr >> 3] << 6;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	shift = atom_get_src(ctx, attr, ptr);
@@ -894,8 +895,6 @@ static void atom_op_shr(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++), shift;
 	uint32_t saved, dst;
 	int dptr = *ptr;
-	attr &= 0x38;
-	attr |= atom_def_dst[attr >> 3] << 6;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	shift = atom_get_src(ctx, attr, ptr);
@@ -1122,8 +1121,6 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 
 	SDEBUG(">> execute %04X (len %d, WS %d, PS %d)\n", base, len, ws, ps);
 
-	/* reset reg block */
-	ctx->reg_block = 0;
 	ectx.ctx = ctx;
 	ectx.ps_shift = ps / 4;
 	ectx.start = base;
@@ -1160,6 +1157,12 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 {
 	mutex_lock(&ctx->mutex);
+	/* reset reg block */
+	ctx->reg_block = 0;
+	/* reset fb window */
+	ctx->fb_base = 0;
+	/* reset io mode */
+	ctx->io_mode = ATOM_IO_MM;
 	atom_execute_table_locked(ctx, index, params);
 	mutex_unlock(&ctx->mutex);
 }

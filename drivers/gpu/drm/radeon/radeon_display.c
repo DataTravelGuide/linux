@@ -278,7 +278,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 		DRM_INFO("  %s\n", connector_names[connector->connector_type]);
 		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
 			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
-		if (radeon_connector->ddc_bus)
+		if (radeon_connector->ddc_bus) {
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
@@ -288,6 +288,15 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
+		} else {
+			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
+				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);
@@ -352,6 +361,8 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret = 0;
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
@@ -368,7 +379,9 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
 	}
-
+	/* some servers provide a hardcoded edid in rom for KVMs */
+	if (!radeon_connector->edid)
+		radeon_connector->edid = radeon_combios_get_hardcoded_edid(rdev);
 	if (radeon_connector->edid) {
 		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
@@ -405,17 +418,18 @@ static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 	return n;
 }
 
-void radeon_compute_pll(struct radeon_pll *pll,
-			uint64_t freq,
-			uint32_t *dot_clock_p,
-			uint32_t *fb_div_p,
-			uint32_t *frac_fb_div_p,
-			uint32_t *ref_div_p,
-			uint32_t *post_div_p,
-			int flags)
+static void radeon_compute_pll_legacy(struct radeon_pll *pll,
+				      uint64_t freq,
+				      uint32_t *dot_clock_p,
+				      uint32_t *fb_div_p,
+				      uint32_t *frac_fb_div_p,
+				      uint32_t *ref_div_p,
+				      uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
+	uint32_t min_post_div = pll->min_post_div;
+	uint32_t max_post_div = pll->max_post_div;
 	uint32_t min_fractional_feed_div = 0;
 	uint32_t max_fractional_feed_div = 0;
 	uint32_t best_vco = pll->best_vco;
@@ -431,7 +445,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	DRM_DEBUG("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
-	if (flags & RADEON_PLL_USE_REF_DIV)
+	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
 	else {
 		while (min_ref_div < max_ref_div-1) {
@@ -446,19 +460,22 @@ void radeon_compute_pll(struct radeon_pll *pll,
 		}
 	}
 
-	if (flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+	if (pll->flags & RADEON_PLL_USE_POST_DIV)
+		min_post_div = max_post_div = pll->post_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
 		min_fractional_feed_div = pll->min_frac_feedback_div;
 		max_fractional_feed_div = pll->max_frac_feedback_div;
 	}
 
-	for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
+	for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
 		uint32_t ref_div;
 
-		if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
+		if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 			continue;
 
 		/* legacy radeons only have a few post_divs */
-		if (flags & RADEON_PLL_LEGACY) {
+		if (pll->flags & RADEON_PLL_LEGACY) {
 			if ((post_div == 5) ||
 			    (post_div == 7) ||
 			    (post_div == 9) ||
@@ -505,7 +522,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 					tmp += (uint64_t)pll->reference_freq * 1000 * frac_feedback_div;
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
-					if (flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
+					if (pll->flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
 						error = freq - current_freq;
 						error = error < 0 ? 0xffffffff : error;
 					} else
@@ -532,12 +549,12 @@ void radeon_compute_pll(struct radeon_pll *pll,
 							best_freq = current_freq;
 							best_error = error;
 							best_vco_diff = vco_diff;
-						} else if (((flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
-							   ((flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
-							   ((flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
+						} else if (((pll->flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
 							best_post_div = post_div;
 							best_ref_div = ref_div;
 							best_feedback_div = feedback_div;
@@ -567,14 +584,13 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	*post_div_p = best_post_div;
 }
 
-void radeon_compute_pll_avivo(struct radeon_pll *pll,
-			      uint64_t freq,
-			      uint32_t *dot_clock_p,
-			      uint32_t *fb_div_p,
-			      uint32_t *frac_fb_div_p,
-			      uint32_t *ref_div_p,
-			      uint32_t *post_div_p,
-			      int flags)
+static void radeon_compute_pll_avivo(struct radeon_pll *pll,
+				     uint64_t freq,
+				     uint32_t *dot_clock_p,
+				     uint32_t *fb_div_p,
+				     uint32_t *frac_fb_div_p,
+				     uint32_t *ref_div_p,
+				     uint32_t *post_div_p)
 {
 	fixed20_12 m, n, frac_n, p, f_vco, f_pclk, best_freq;
 	fixed20_12 pll_out_max, pll_out_min;
@@ -657,6 +673,27 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	*post_div_p = rfixed_trunc(p);
 
 	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
+}
+
+void radeon_compute_pll(struct radeon_pll *pll,
+			uint64_t freq,
+			uint32_t *dot_clock_p,
+			uint32_t *fb_div_p,
+			uint32_t *frac_fb_div_p,
+			uint32_t *ref_div_p,
+			uint32_t *post_div_p)
+{
+	switch (pll->algo) {
+	case PLL_ALGO_AVIVO:
+		radeon_compute_pll_avivo(pll, freq, dot_clock_p, fb_div_p,
+					 frac_fb_div_p, ref_div_p, post_div_p);
+		break;
+	case PLL_ALGO_LEGACY:
+	default:
+		radeon_compute_pll_legacy(pll, freq, dot_clock_p, fb_div_p,
+					  frac_fb_div_p, ref_div_p, post_div_p);
+		break;
+	}
 }
 
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -807,7 +844,7 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 
 int radeon_modeset_init(struct radeon_device *rdev)
 {
-	int num_crtc = 2, i;
+	int i;
 	int ret;
 
 	drm_mode_config_init(rdev->ddev);
@@ -830,11 +867,19 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
+	/* check combios for a valid hardcoded EDID - Sun servers */
+	if (!rdev->is_atom_bios) {
+		/* check for hardcoded EDID in BIOS */
+		radeon_combios_check_hardcoded_edid(rdev);
+	}
+
 	if (rdev->flags & RADEON_SINGLE_CRTC)
-		num_crtc = 1;
+		rdev->num_crtc = 1;
+	else
+		rdev->num_crtc = 2;
 
 	/* allocate crtcs */
-	for (i = 0; i < num_crtc; i++) {
+	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
 
@@ -851,6 +896,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
+	kfree(rdev->mode_info.bios_hardcoded_edid);
+
 	if (rdev->mode_info.mode_config_initialized) {
 		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);

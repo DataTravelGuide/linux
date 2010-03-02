@@ -150,6 +150,9 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 	int rev;
 	uint16_t offset = 0, check_offset;
 
+	if (!rdev->bios)
+		return 0;
+
 	switch (table) {
 		/* absolute offset tables */
 	case COMBIOS_ASIC_INIT_1_TABLE:
@@ -443,6 +446,39 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 
 }
 
+bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
+{
+	int edid_info;
+	struct edid *edid;
+	edid_info = combios_get_table_offset(rdev->ddev, COMBIOS_HARDCODED_EDID_TABLE);
+	if (!edid_info)
+		return false;
+
+	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
+		       GFP_KERNEL);
+	if (edid == NULL)
+		return false;
+
+	memcpy((unsigned char *)edid,
+	       (unsigned char *)(rdev->bios + edid_info), EDID_LENGTH);
+
+	if (!drm_edid_is_valid(edid)) {
+		kfree(edid);
+		return false;
+	}
+
+	rdev->mode_info.bios_hardcoded_edid = edid;
+	return true;
+}
+
+struct edid *
+radeon_combios_get_hardcoded_edid(struct radeon_device *rdev)
+{
+	if (rdev->mode_info.bios_hardcoded_edid)
+		return rdev->mode_info.bios_hardcoded_edid;
+	return NULL;
+}
+
 static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rdev,
 						       int ddc_line)
 {
@@ -526,9 +562,6 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 	struct radeon_pll *mpll = &rdev->clock.mpll;
 	int8_t rev;
 	uint16_t sclk, mclk;
-
-	if (rdev->bios == NULL)
-		return false;
 
 	pll_info = combios_get_table_offset(dev, COMBIOS_PLL_INFO_TABLE);
 	if (pll_info) {
@@ -654,9 +687,6 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 	if (!p_dac)
 		return NULL;
 
-	if (rdev->bios == NULL)
-		goto out;
-
 	/* check CRT table */
 	dac_info = combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
 	if (dac_info) {
@@ -673,7 +703,6 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 		found = 1;
 	}
 
-out:
 	if (!found) /* fallback to defaults */
 		radeon_legacy_get_primary_dac_info_from_table(rdev, p_dac);
 
@@ -686,9 +715,6 @@ radeon_combios_get_tv_info(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	uint16_t tv_info;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (rdev->bios == NULL)
-		return tv_std;
 
 	tv_info = combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 	if (tv_info) {
@@ -793,9 +819,6 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 	if (!tv_dac)
 		return NULL;
 
-	if (rdev->bios == NULL)
-		goto out;
-
 	/* first check TV table */
 	dac_info = combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 	if (dac_info) {
@@ -857,7 +880,6 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 		}
 	}
 
-out:
 	if (!found) /* fallback to defaults */
 		radeon_legacy_get_tv_dac_info_from_table(rdev, tv_dac);
 
@@ -945,11 +967,6 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 	int tmp, i;
 	struct radeon_encoder_lvds *lvds = NULL;
 
-	if (rdev->bios == NULL) {
-		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
-		goto out;
-	}
-
 	lcd_info = combios_get_table_offset(dev, COMBIOS_LCD_INFO_TABLE);
 
 	if (lcd_info) {
@@ -971,8 +988,7 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 			 lvds->native_mode.vdisplay);
 
 		lvds->panel_vcc_delay = RBIOS16(lcd_info + 0x2c);
-		if (lvds->panel_vcc_delay > 2000 || lvds->panel_vcc_delay < 0)
-			lvds->panel_vcc_delay = 2000;
+		lvds->panel_vcc_delay = min_t(u16, lvds->panel_vcc_delay, 2000);
 
 		lvds->panel_pwr_delay = RBIOS8(lcd_info + 0x24);
 		lvds->panel_digon_delay = RBIOS16(lcd_info + 0x38) & 0xf;
@@ -1051,7 +1067,7 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 		DRM_INFO("No panel info found in BIOS\n");
 		lvds = radeon_legacy_get_lvds_info_from_regs(rdev);
 	}
-out:
+
 	if (lvds)
 		encoder->native_mode = lvds->native_mode;
 	return lvds;
@@ -1102,9 +1118,6 @@ bool radeon_legacy_get_tmds_info_from_combios(struct radeon_encoder *encoder,
 	uint16_t tmds_info;
 	int i, n;
 	uint8_t ver;
-
-	if (rdev->bios == NULL)
-		return false;
 
 	tmds_info = combios_get_table_offset(dev, COMBIOS_DFP_INFO_TABLE);
 
@@ -1184,9 +1197,6 @@ bool radeon_legacy_get_ext_tmds_info_from_combios(struct radeon_encoder *encoder
 	int i;
 	enum radeon_combios_ddc gpio;
 	struct radeon_i2c_bus_rec i2c_bus;
-
-	if (rdev->bios == NULL)
-		return false;
 
 	tmds->i2c_bus = NULL;
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -1910,9 +1920,6 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 	struct radeon_i2c_bus_rec ddc_i2c;
 	struct radeon_hpd hpd;
 
-	if (rdev->bios == NULL)
-		return false;
-
 	conn_info = combios_get_table_offset(dev, COMBIOS_CONNECTOR_INFO_TABLE);
 	if (conn_info) {
 		for (i = 0; i < 4; i++) {
@@ -2338,9 +2345,6 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 	uint32_t index, id;
 	uint32_t reg, val, and_mask, or_mask;
 	struct radeon_encoder_ext_tmds *tmds = radeon_encoder->enc_priv;
-
-	if (rdev->bios == NULL)
-		return false;
 
 	if (!tmds)
 		return false;

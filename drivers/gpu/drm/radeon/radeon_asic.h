@@ -43,7 +43,7 @@ void radeon_atom_set_memory_clock(struct radeon_device *rdev, uint32_t mem_clock
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
 /*
- * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
+ * r100,rv100,rs100,rv200,rs200
  */
 extern int r100_init(struct radeon_device *rdev);
 extern void r100_fini(struct radeon_device *rdev);
@@ -117,6 +117,52 @@ static struct radeon_asic r100_asic = {
 	.hpd_fini = &r100_hpd_fini,
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
+};
+
+/*
+ * r200,rv250,rs300,rv280
+ */
+extern int r200_copy_dma(struct radeon_device *rdev,
+			uint64_t src_offset,
+			uint64_t dst_offset,
+			unsigned num_pages,
+			struct radeon_fence *fence);
+static struct radeon_asic r200_asic = {
+	.init = &r100_init,
+	.fini = &r100_fini,
+	.suspend = &r100_suspend,
+	.resume = &r100_resume,
+	.vga_set_state = &r100_vga_set_state,
+	.gpu_reset = &r100_gpu_reset,
+	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
+	.gart_set_page = &r100_pci_gart_set_page,
+	.cp_commit = &r100_cp_commit,
+	.ring_start = &r100_ring_start,
+	.ring_test = &r100_ring_test,
+	.ring_ib_execute = &r100_ring_ib_execute,
+	.irq_set = &r100_irq_set,
+	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
+	.fence_ring_emit = &r100_fence_ring_emit,
+	.cs_parse = &r100_cs_parse,
+	.copy_blit = &r100_copy_blit,
+	.copy_dma = &r200_copy_dma,
+	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
+	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
+	.set_memory_clock = NULL,
+	.set_pcie_lanes = NULL,
+	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -137,11 +183,7 @@ extern int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t 
 extern uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 extern void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
-extern int r300_copy_dma(struct radeon_device *rdev,
-			uint64_t src_offset,
-			uint64_t dst_offset,
-			unsigned num_pages,
-			struct radeon_fence *fence);
+
 static struct radeon_asic r300_asic = {
 	.init = &r300_init,
 	.fini = &r300_fini,
@@ -161,7 +203,7 @@ static struct radeon_asic r300_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
@@ -176,6 +218,45 @@ static struct radeon_asic r300_asic = {
 	.hpd_fini = &r100_hpd_fini,
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
+};
+
+
+static struct radeon_asic r300_asic_pcie = {
+	.init = &r300_init,
+	.fini = &r300_fini,
+	.suspend = &r300_suspend,
+	.resume = &r300_resume,
+	.vga_set_state = &r100_vga_set_state,
+	.gpu_reset = &r300_gpu_reset,
+	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
+	.gart_set_page = &rv370_pcie_gart_set_page,
+	.cp_commit = &r100_cp_commit,
+	.ring_start = &r300_ring_start,
+	.ring_test = &r100_ring_test,
+	.ring_ib_execute = &r100_ring_ib_execute,
+	.irq_set = &r100_irq_set,
+	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
+	.fence_ring_emit = &r300_fence_ring_emit,
+	.cs_parse = &r300_cs_parse,
+	.copy_blit = &r100_copy_blit,
+	.copy_dma = &r200_copy_dma,
+	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
+	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
+	.set_memory_clock = NULL,
+	.set_pcie_lanes = &rv370_set_pcie_lanes,
+	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 /*
@@ -204,7 +285,7 @@ static struct radeon_asic r420_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
@@ -219,6 +300,7 @@ static struct radeon_asic r420_asic = {
 	.hpd_fini = &r100_hpd_fini,
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -252,7 +334,7 @@ static struct radeon_asic rs400_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_legacy_get_engine_clock,
 	.set_engine_clock = &radeon_legacy_set_engine_clock,
@@ -267,6 +349,7 @@ static struct radeon_asic rs400_asic = {
 	.hpd_fini = &r100_hpd_fini,
 	.hpd_sense = &r100_hpd_sense,
 	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -310,7 +393,7 @@ static struct radeon_asic rs600_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
@@ -318,11 +401,14 @@ static struct radeon_asic rs600_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 	.bandwidth_update = &rs600_bandwidth_update,
 	.hpd_init = &rs600_hpd_init,
 	.hpd_fini = &rs600_hpd_fini,
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -355,8 +441,8 @@ static struct radeon_asic rs690_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
-	.copy = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
+	.copy = &r200_copy_dma,
 	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
@@ -370,6 +456,7 @@ static struct radeon_asic rs690_asic = {
 	.hpd_fini = &rs600_hpd_fini,
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -406,7 +493,7 @@ static struct radeon_asic rv515_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
@@ -421,6 +508,7 @@ static struct radeon_asic rv515_asic = {
 	.hpd_fini = &rs600_hpd_fini,
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 
@@ -448,7 +536,7 @@ static struct radeon_asic r520_asic = {
 	.fence_ring_emit = &r300_fence_ring_emit,
 	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
-	.copy_dma = &r300_copy_dma,
+	.copy_dma = &r200_copy_dma,
 	.copy = &r100_copy_blit,
 	.get_engine_clock = &radeon_atom_get_engine_clock,
 	.set_engine_clock = &radeon_atom_set_engine_clock,
@@ -463,6 +551,7 @@ static struct radeon_asic r520_asic = {
 	.hpd_fini = &rs600_hpd_fini,
 	.hpd_sense = &rs600_hpd_sense,
 	.hpd_set_polarity = &rs600_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
 };
 
 /*
@@ -504,6 +593,7 @@ void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void r600_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd);
+extern void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo);
 
 static struct radeon_asic r600_asic = {
 	.init = &r600_init,
@@ -538,6 +628,7 @@ static struct radeon_asic r600_asic = {
 	.hpd_fini = &r600_hpd_fini,
 	.hpd_sense = &r600_hpd_sense,
 	.hpd_set_polarity = &r600_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 };
 
 /*
@@ -582,6 +673,7 @@ static struct radeon_asic rv770_asic = {
 	.hpd_fini = &r600_hpd_fini,
 	.hpd_sense = &r600_hpd_sense,
 	.hpd_set_polarity = &r600_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 };
 
 #endif

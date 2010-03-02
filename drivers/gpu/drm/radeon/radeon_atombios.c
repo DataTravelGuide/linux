@@ -206,6 +206,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* Asrock RS600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x7941) &&
+	    (dev->pdev->subsystem_vendor == 0x1849) &&
+	    (dev->pdev->subsystem_device == 0x7941)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
 	if ((dev->pdev->device == 0x7941) &&
 	    (dev->pdev->subsystem_vendor == 0x147b) &&
@@ -222,14 +231,6 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			i2c_bus->valid = false;
 			*line_mux = 53;
 		}
-	}
-
-	/* HIS X1300 is DVI+VGA, not DVI+DVI */
-	if ((dev->pdev->device == 0x7146) &&
-	    (dev->pdev->subsystem_vendor == 0x17af) &&
-	    (dev->pdev->subsystem_device == 0x2058)) {
-		if (supported_device == ATOM_DEVICE_DFP1_SUPPORT)
-			return false;
 	}
 
 	/* HIS X1300 is DVI+VGA, not DVI+DVI */
@@ -295,6 +296,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* XFX Pine Group device rv730 reports no VGA DDC lines
+	 * even though they are wired up to record 0x93
+	 */
+	if ((dev->pdev->device == 0x9498) &&
+	    (dev->pdev->subsystem_vendor == 0x1682) &&
+	    (dev->pdev->subsystem_device == 0x2452)) {
+		struct radeon_device *rdev = dev->dev_private;
+		*i2c_bus = radeon_lookup_i2c_gpio(rdev, 0x93);
+	}
 	return true;
 }
 
@@ -1081,6 +1091,30 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 	return ss;
 }
 
+static void radeon_atom_apply_lvds_quirks(struct drm_device *dev,
+					  struct radeon_encoder_atom_dig *lvds)
+{
+
+	/* Toshiba A300-1BU laptop panel doesn't like new pll divider algo */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1179) &&
+	    (dev->pdev->subsystem_device == 0xff50)) {
+		if ((lvds->native_mode.hdisplay == 1280) &&
+		    (lvds->native_mode.vdisplay == 800))
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+	}
+
+	/* Dell Studio 15 laptop panel doesn't like new pll divider algo */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1028) &&
+	    (dev->pdev->subsystem_device == 0x029f)) {
+		if ((lvds->native_mode.hdisplay == 1280) &&
+		    (lvds->native_mode.vdisplay == 800))
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+	}
+
+}
+
 union lvds_info {
 	struct _ATOM_LVDS_INFO info;
 	struct _ATOM_LVDS_INFO_V12 info_12;
@@ -1150,6 +1184,17 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 
 		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
+
+		if (ASIC_IS_AVIVO(rdev)) {
+			if (radeon_new_pll)
+				lvds->pll_algo = PLL_ALGO_AVIVO;
+			else
+				lvds->pll_algo = PLL_ALGO_LEGACY;
+		} else
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+
+		/* LVDS quirks */
+		radeon_atom_apply_lvds_quirks(dev, lvds);
 
 		encoder->native_mode = lvds->native_mode;
 	}
