@@ -35,7 +35,7 @@ fi
 if [ -z "$GITREV" ]; then
 	GITREV=0;
 fi
-RPM_VERSION="$STAMP-$PREBUILD$BUILD$BUILDID.el6";
+RPM_VERSION="$STAMP-$PREBUILD$BUILD.el6$BUILDID";
 
 touch $PATCHF $patchf
 echo >$clogf

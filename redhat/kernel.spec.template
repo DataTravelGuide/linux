@@ -155,7 +155,7 @@ Summary: The Linux kernel
 %if 0%{?stable_rc}
 %define stable_rctag .rc%{stable_rc}
 %endif
-%define pkg_release %{distro_build}%{?stable_rctag}%{?buildid}%{?dist}
+%define pkg_release %{distro_build}%{?stable_rctag}%{?dist}%{?buildid}
 
 %else
 
@@ -170,7 +170,7 @@ Summary: The Linux kernel
 %else
 %define gittag .git0
 %endif
-%define pkg_release 0.%{distro_build}%{?rctag}%{?gittag}%{?buildid}%{?dist}
+%define pkg_release 0.%{distro_build}%{?rctag}%{?gittag}%{?dist}%{?buildid}
 
 %endif
 
@@ -202,11 +202,11 @@ Summary: The Linux kernel
 %define stable_update 0
 %define using_upstream_branch 1
 %define variant -%{upstream_branch}%{?variant_fedora}
-%define pkg_release 0.%{distro_build}%{upstream_branch_tag}%{?buildid}%{?dist}
+%define pkg_release 0.%{distro_build}%{upstream_branch_tag}%{?dist}%{?buildid}
 %endif
 
 %if %{rhel}
-%define pkg_release %{distro_build}%{?buildid}%{?dist}
+%define pkg_release %{distro_build}%{?dist}%{?buildid}
 %endif
 %define KVERREL %{rpmversion}-%{pkg_release}.%{_target_cpu}
 

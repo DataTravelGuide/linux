@@ -119,7 +119,7 @@ rh-prep: rh-sources
 rh-release: rh-clean-sources
 	@$(REDHAT)/scripts/new_release.sh $(KVERSION) $(BUILD) $(REDHAT)
 	@make rh-srpm
-	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP_VERSION)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1])$(BUILDID).el6"
+	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP_VERSION)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1]).el6$(BUILDID)"
 rh-release-commit:
 	@git commit -s Makefile.common kernel.spec.template -m "[redhat] tagging $(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(LOCALVERSION).el6"
 	@git tag kernel-$(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(LOCALVERSION).el6
@@ -130,7 +130,7 @@ rh-release-commit:
 rh-brew : BUILD_FLAGS ?= $(BREW_FLAGS)
 rh-koji : BUILD_FLAGS ?= $(KOJI_FLAGS)
 rh-brew rh-koji: rh-%: rh-srpm
-	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(BUILDID)$(DIST).src.rpm
+	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm
 
 rh-help:
 	@echo  'Cleaning targets:'
