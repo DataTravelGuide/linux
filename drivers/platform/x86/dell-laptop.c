@@ -22,6 +22,7 @@
 #include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
+#include <linux/mm.h>
 #include <linux/i8042.h>
 #include "../../firmware/dcdbas.h"
 
@@ -74,6 +75,21 @@ static const struct dmi_system_id __initdata dell_device_table[] = {
 	},
 	{ }
 };
+
+static struct calling_interface_buffer *buffer;
+static struct page *bufferpage;
+static DEFINE_MUTEX(buffer_mutex);
+
+static void get_buffer(void)
+{
+	mutex_lock(&buffer_mutex);
+	memset(buffer, 0, sizeof(struct calling_interface_buffer));
+}
+
+static void release_buffer(void)
+{
+	mutex_unlock(&buffer_mutex);
+}
 
 static void parse_da_table(const struct dmi_header *dm)
 {
@@ -177,26 +193,26 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
 
 static int dell_rfkill_set(void *data, bool blocked)
 {
-	struct calling_interface_buffer buffer;
 	int disable = blocked ? 1 : 0;
 	unsigned long radio = (unsigned long)data;
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	buffer.input[0] = (1 | (radio<<8) | (disable << 16));
-	dell_send_request(&buffer, 17, 11);
+	get_buffer();
+	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
+	dell_send_request(buffer, 17, 11);
+	release_buffer();
 
 	return 0;
 }
 
 static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 {
-	struct calling_interface_buffer buffer;
 	int status;
 	int bit = (unsigned long)data + 16;
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	dell_send_request(&buffer, 17, 11);
-	status = buffer.output[1];
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+	release_buffer();
 
 	if (status & BIT(bit))
 		rfkill_set_hw_state(rfkill, !!(status & BIT(16)));
@@ -219,13 +235,13 @@ static void dell_rfkill_update(void)
 
 static int dell_setup_rfkill(void)
 {
-	struct calling_interface_buffer buffer;
 	int status;
 	int ret;
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	dell_send_request(&buffer, 17, 11);
-	status = buffer.output[1];
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+	release_buffer();
 
 	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
 		wifi_rfkill = rfkill_alloc("dell-wifi", NULL, RFKILL_TYPE_WLAN,
@@ -281,39 +297,45 @@ err_wifi:
 
 static int dell_send_intensity(struct backlight_device *bd)
 {
-	struct calling_interface_buffer buffer;
+	get_buffer();
+	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
+	buffer->input[1] = bd->props.brightness;
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	buffer.input[0] = find_token_location(BRIGHTNESS_TOKEN);
-	buffer.input[1] = bd->props.brightness;
-
-	if (buffer.input[0] == -1)
+	if (buffer->input[0] == -1) {
+		release_buffer();
 		return -ENODEV;
+	}
 
 	if (power_supply_is_system_supplied() > 0)
-		dell_send_request(&buffer, 1, 2);
+		dell_send_request(buffer, 1, 2);
 	else
-		dell_send_request(&buffer, 1, 1);
+		dell_send_request(buffer, 1, 1);
 
+	release_buffer();
 	return 0;
 }
 
 static int dell_get_intensity(struct backlight_device *bd)
 {
-	struct calling_interface_buffer buffer;
+	int ret;
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	buffer.input[0] = find_token_location(BRIGHTNESS_TOKEN);
+	get_buffer();
+	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
 
-	if (buffer.input[0] == -1)
+	if (buffer->input[0] == -1) {
+		release_buffer();
 		return -ENODEV;
+	}
 
 	if (power_supply_is_system_supplied() > 0)
-		dell_send_request(&buffer, 0, 2);
+		dell_send_request(buffer, 0, 2);
 	else
-		dell_send_request(&buffer, 0, 1);
+		dell_send_request(buffer, 0, 1);
 
-	return buffer.output[1];
+	ret = buffer->output[1];
+	release_buffer();
+
+	return ret;
 }
 
 static struct backlight_ops dell_ops = {
@@ -346,9 +368,8 @@ bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 
 static int __init dell_init(void)
 {
-	struct calling_interface_buffer buffer;
 	int max_intensity = 0;
-	int ret;
+	int ret = 0;
 
 	if (!dmi_check_system(dell_device_table))
 		return -ENODEV;
@@ -359,6 +380,19 @@ static int __init dell_init(void)
 		printk(KERN_INFO "dell-laptop: Unable to find dmi tokens\n");
 		return -ENODEV;
 	}
+
+	/*
+	 * Allocate buffer below 4GB for SMI data--only 32-bit physical addr
+	 * is passed to SMI handler.
+	 */
+	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
+
+	if (!bufferpage) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	buffer = page_address(bufferpage);
+	mutex_init(&buffer_mutex);
 
 	ret = dell_setup_rfkill();
 
@@ -382,13 +416,14 @@ static int __init dell_init(void)
 		return 0;
 #endif
 
-	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
-	buffer.input[0] = find_token_location(BRIGHTNESS_TOKEN);
+	get_buffer();
+	buffer->input[0] = find_token_location(BRIGHTNESS_TOKEN);
 
-	if (buffer.input[0] != -1) {
-		dell_send_request(&buffer, 0, 2);
-		max_intensity = buffer.output[3];
+	if (buffer->input[0] != -1) {
+		dell_send_request(buffer, 0, 2);
+		max_intensity = buffer->output[3];
 	}
+	release_buffer();
 
 	if (max_intensity) {
 		dell_backlight_device = backlight_device_register(
@@ -410,6 +445,8 @@ static int __init dell_init(void)
 
 	return 0;
 out:
+	if (bufferpage)
+		free_page((unsigned long)bufferpage);
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
@@ -431,6 +468,7 @@ static void __exit dell_exit(void)
 		rfkill_unregister(bluetooth_rfkill);
 	if (wwan_rfkill)
 		rfkill_unregister(wwan_rfkill);
+	free_page((unsigned long)bufferpage);
 }
 
 module_init(dell_init);
