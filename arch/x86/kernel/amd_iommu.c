@@ -1278,10 +1278,6 @@ static int device_change_notifier(struct notifier_block *nb,
 
 	domain = domain_for_device(devid);
 
-	if (domain && !dma_ops_domain(domain))
-		WARN_ONCE(1, "AMD IOMMU WARNING: device %s already bound "
-			"to a non-dma-ops domain\n", dev_name(dev));
-
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (!domain)
