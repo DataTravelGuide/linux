@@ -1208,6 +1208,7 @@ static void attach_device(struct amd_iommu *iommu,
  */
 static void __detach_device(struct protection_domain *domain, u16 devid)
 {
+	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
 
 	/* lock domain */
 	spin_lock(&domain->lock);
@@ -1233,10 +1234,13 @@ static void __detach_device(struct protection_domain *domain, u16 devid)
 	 * passthrough domain if it is detached from any other domain.
 	 * Make sure we can deassign from the pt_domain itself.
 	 */
-	if (iommu_pass_through && domain != pt_domain) {
-		struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
+	if (iommu_pass_through && domain != pt_domain)
 		__attach_device(iommu, pt_domain, devid);
-	}
+
+	iommu_queue_inv_dev_entry(iommu, devid);
+	if (domain->dev_cnt == 0)
+		iommu_flush_tlb_pde(iommu, domain->id);
+	iommu_completion_wait(iommu);
 }
 
 /*
@@ -1276,7 +1280,7 @@ static int device_change_notifier(struct notifier_block *nb,
 
 	if (domain && !dma_ops_domain(domain))
 		WARN_ONCE(1, "AMD IOMMU WARNING: device %s already bound "
-			  "to a non-dma-ops domain\n", dev_name(dev));
+			"to a non-dma-ops domain\n", dev_name(dev));
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -1315,6 +1319,11 @@ out:
 static struct notifier_block device_nb = {
 	.notifier_call = device_change_notifier,
 };
+
+void amd_iommu_init_notifier(void)
+{
+	bus_register_notifier(&pci_bus_type, &device_nb);
+}
 
 /*****************************************************************************
  *
@@ -2130,8 +2139,6 @@ int __init amd_iommu_init_dma_ops(void)
 
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
-
-	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	amd_iommu_stats_init();
 
