@@ -155,7 +155,7 @@ rh-help:
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
-	@echo  '  rh-configs-prep   Creates config files for RHEL 5 architectures, cleans them'
+	@echo  '  rh-configs-prep   Creates config files for RHEL 6 architectures, cleans them'
 	@echo  '		    by running make nonint_oldconfig, and copies them to'
 	@echo  '		    configs/ directory. This is the target to use for a config!'
 	@echo  '		    Copy the config file you want from the configs/ directory'
