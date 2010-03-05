@@ -1288,8 +1288,11 @@ int __init amd_iommu_init(void)
 		ret = amd_iommu_init_passthrough();
 	else
 		ret = amd_iommu_init_dma_ops();
+
 	if (ret)
 		goto free;
+
+	amd_iommu_init_api();
 
 	enable_iommus();
 
@@ -1354,6 +1357,9 @@ void __init amd_iommu_detect(void)
 {
 	if (swiotlb || no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return;
+
+	if (iommu_pass_through)
+		swiotlb_force = 1;
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
