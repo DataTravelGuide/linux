@@ -1707,7 +1707,8 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				alloc_len - sizeof(union  lpfc_sli4_cfg_shdr);
 	}
 	/* The sub-header is in DMA memory, which needs endian converstion */
-	lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
+	if (cfg_shdr)
+		lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
 			      sizeof(union  lpfc_sli4_cfg_shdr));
 
 	return alloc_len;
@@ -1747,7 +1748,7 @@ lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 }
 
 /**
- * lpfc_sli4_mbx_read_fcf_record - Allocate and construct read fcf mbox cmd
+ * lpfc_sli4_mbx_read_fcf_rec - Allocate and construct read fcf mbox cmd
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: index to fcf table.
  *
@@ -1758,9 +1759,9 @@ lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
  * NULL.
  **/
 int
-lpfc_sli4_mbx_read_fcf_record(struct lpfc_hba *phba,
-			      struct lpfcMboxq *mboxq,
-			      uint16_t fcf_index)
+lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *phba,
+			   struct lpfcMboxq *mboxq,
+			   uint16_t fcf_index)
 {
 	void *virt_addr;
 	dma_addr_t phys_addr;
