@@ -1886,13 +1886,50 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	return total_read;
 }
 
+ssize_t
+cifs_file_splice_read(struct file *filp, loff_t *ppos,
+			struct pipe_inode_info *pipe, size_t count,
+			unsigned int flags)
+{
+	int rc;
+	struct dentry *dentry = filp->f_path.dentry;
+
+	cFYI(1, ("%s: splice_read(%s/%s, %lu@%Lu)\n", __func__,
+		dentry->d_parent->d_name.name, dentry->d_name.name,
+		(unsigned long) count, (unsigned long long) *ppos));
+
+	rc = cifs_revalidate_file(filp);
+	if (rc)
+		return rc;
+
+	return generic_file_splice_read(filp, ppos, pipe, count, flags);
+}
+
+ssize_t
+cifs_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t pos)
+{
+	int rc;
+	struct dentry *dentry = iocb->ki_filp->f_path.dentry;
+
+	cFYI(1, ("%s: read(%s/%s), %lu@%lu)", __func__,
+		dentry->d_parent->d_name.name, dentry->d_name.name,
+		(unsigned long) iov_length(iov, nr_segs),
+		(unsigned long) pos));
+
+	rc = cifs_revalidate_file(iocb->ki_filp);
+	if (rc)
+		return rc;
+
+	return generic_file_aio_read(iocb, iov, nr_segs, pos);
+}
+
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	int rc, xid;
 
 	xid = GetXid();
-	rc = cifs_revalidate(dentry);
+	rc = cifs_revalidate_file(file);
 	if (rc) {
 		cFYI(1, ("Validation prior to mmap failed, error=%d", rc));
 		FreeXid(xid);

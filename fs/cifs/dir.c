@@ -735,11 +735,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 static int
 cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 {
+	int rc;
 	int isValid = 1;
 
 	if (direntry->d_inode) {
-		if (cifs_revalidate(direntry))
-			return 0;
+		rc = cifs_revalidate_dentry(direntry);
+		if (rc == -ENOENT)
+			isValid = 0;
+		else if (rc)
+			isValid = rc;
 	} else {
 		cFYI(1, ("neg dentry 0x%p name = %s",
 			 direntry, direntry->d_name.name));

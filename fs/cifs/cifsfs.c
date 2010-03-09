@@ -312,6 +312,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheRead = false;
 	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->delete_pending = false;
+	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 
@@ -638,7 +639,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		   setting the revalidate time to zero */
 		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
-		retval = cifs_revalidate(file->f_path.dentry);
+		retval = cifs_revalidate_file(file);
 		if (retval < 0)
 			return (loff_t)retval;
 	}
@@ -738,7 +739,7 @@ const struct inode_operations cifs_symlink_inode_ops = {
 const struct file_operations cifs_file_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
+	.aio_read = cifs_file_aio_read,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
@@ -746,7 +747,7 @@ const struct file_operations cifs_file_ops = {
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl	= cifs_ioctl,
@@ -758,7 +759,7 @@ const struct file_operations cifs_file_ops = {
 };
 
 const struct file_operations cifs_file_direct_ops = {
-	/* no mmap, no aio, no readv -
+	/* no aio, no readv -
 	   BB reevaluate whether they can be done with directio, no cache */
 	.read = cifs_user_read,
 	.write = cifs_user_write,
@@ -767,7 +768,8 @@ const struct file_operations cifs_file_direct_ops = {
 	.lock = cifs_lock,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
-	.splice_read = generic_file_splice_read,
+	.mmap = cifs_file_mmap,
+	.splice_read = cifs_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
@@ -779,14 +781,14 @@ const struct file_operations cifs_file_direct_ops = {
 const struct file_operations cifs_file_nobrl_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
+	.aio_read = cifs_file_aio_read,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.mmap  = cifs_file_mmap,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl	= cifs_ioctl,
@@ -806,7 +808,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
-	.splice_read = generic_file_splice_read,
+	.splice_read = cifs_file_splice_read,
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
