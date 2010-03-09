@@ -381,27 +381,6 @@
 	i2c_smbus_write_word_data
 	i2c_transfer
 	i2c_unregister_device
-	ib_alloc_device
-	ib_alloc_pd
-	ib_create_ah
-	ib_create_cq
-	ib_dealloc_device
-	ib_dealloc_pd
-	ib_dereg_mr
-	ib_destroy_ah
-	ib_destroy_cq
-	ib_destroy_qp
-	ib_get_client_data
-	ib_get_dma_mr
-	ib_modify_qp
-	ib_query_device
-	ib_register_client
-	ib_register_device
-	ib_set_client_data
-	ib_umem_get
-	ib_umem_release
-	ib_unregister_client
-	ib_unregister_device
 	icmp_send
 	idr_destroy
 	idr_find
@@ -729,7 +708,6 @@
 	rb_insert_color
 	rb_next
 	rcu_barrier
-	rdma_node_get_transport
 	read_cache_page
 	refrigerator
 	register_blkdev
