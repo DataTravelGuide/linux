@@ -1719,6 +1719,79 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 08 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-18.el6]
+- [kernel/time] revert cc2f92ad1d0e03fe527e8ccfc1f918c368964dc8 (Aristeu Rozanski) [567551]
+- [virt] hvc_console: Fix race between hvc_close and hvc_remove (Amit Shah) [568624]
+- [scsi] Add netapp to scsi dh alua dev list (Mike Christie) [559586]
+- [scsi] scsi_dh_emc: fix mode select setup (Mike Christie) [570685]
+- [drm] Remove loop in IronLake graphics interrupt handler (John Villalovos) [557838]
+- [x86] Intel Cougar Point chipset support (John Villalovos) [560077]
+- [vhost] vhost-net: restart tx poll on sk_sndbuf full (Michael S. Tsirkin) [562837]
+- [vhost] fix get_user_pages_fast error handling (Michael S. Tsirkin) [562837]
+- [vhost] initialize log eventfd context pointer (Michael S. Tsirkin) [562837]
+- [vhost] logging thinko fix (Michael S. Tsirkin) [562837]
+- [vhost] vhost-net: switch to smp barriers (Michael S. Tsirkin) [562837]
+- [net] bug fix for vlan + gro issue (Andy Gospodarek) [569922]
+- [uv] Fix unmap_vma() bug related to mmu_notifiers (George Beshers) [253033]
+- [uv] Have mmu_notifiers use SRCU so they may safely schedule (George Beshers) [253033]
+- [drm] radeon/kms: bring all v2.6.33 fixes into EL6 kernel (Dave Airlie) [547422 554323 566618 569704]
+- [dvb] Fix endless loop when decoding ULE at dvb-core (Mauro Carvalho Chehab) [569243]
+- [kernel] sched: Fix SCHED_MC regression caused by change in sched cpu_power (Danny Feng) [568123]
+- [s390x] vdso: glibc does not use vdso functions (Hendrik Brueckner) [567755]
+- [drm] bring drm core/ttm/fb layer fixes in from upstream (Dave Airlie) [569701]
+- [kernel] Fix SMT scheduler regression in find_busiest_queue() (Danny Feng) [568120]
+- [s390x] qeth: avoid recovery during device online setting (Hendrik Brueckner) [568781]
+- [mm] Fix potential crash with sys_move_pages (Danny Feng) [562591] {CVE-2010-0415}
+- [scsi] pmcraid: bug fixes from upstream (Rob Evers) [567376]
+- [scsi] lpfc Update from 8.3.5.4 to 8.3.5.5 FC/FCoE (Rob Evers) [564508]
+- [ata] ahci: disable FPDMA auto-activate optimization on NVIDIA AHCI (David Milburn) [568815]
+- [selinux] netlabel: fix corruption of SELinux MLS categories > 127 (Eric Paris) [568370]
+- [gfs2] print glock numbers in hex (Robert S Peterson) [566755]
+- [mm] Fix hugetlb.c clear_huge_page parameter (Andrea Arcangeli) [566604]
+- [mm] fix anon_vma locking updates for transparent hugepage code (Andrea Arcangeli) [564515]
+- [netdrv] cxgb3: add memory barriers (Steve Best) [568390]
+- [dm] raid45 target: constructor error path oops fix (Heinz Mauelshagen) [567605]
+- [scsi] mpt2sas: fix missing initialization (Tomas Henzl) [567965]
+- [net] netfilter: nf_conntrack: per netns nf_conntrack_cachep (Jiri Pirko) [567181]
+- [x86] nmi_watchdog: use __cpuinit for nmi_watchdog_default (Don Zickus) [567601]
+- [netdrv] ixgbe: prevent speculative processing of descriptors (Steve Best) [568391]
+- [kvm] Fix emulate_sys[call, enter, exit]()'s fault handling (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] Fix segment descriptor loading (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] Fix load_guest_segment_descriptor() to inject page fault (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Forbid modifying CS segment register by mov instruction (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Fix x86_emulate_insn() not to use the variable rc for non-X86EMUL values (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: X86EMUL macro replacements: x86_emulate_insn() and its helpers (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: X86EMUL macro replacements: from do_fetch_insn_byte() to x86_decode_insn() (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] inject #UD in 64bit mode from instruction that are not valid there (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Fix properties of instructions in group 1_82 (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: code style cleanup (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Add LOCK prefix validity checking (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Check CPL level during privilege instruction emulation (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Fix popf emulation (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Check IOPL level during io instruction emulation (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: fix memory access during x86 emulation (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Add Virtual-8086 mode of emulation (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Add group9 instruction decoding (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Add group8 instruction decoding (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Introduce No64 decode option (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [kvm] x86 emulator: Add 'push/pop sreg' instructions (Gleb Natapov) [560903 560904 563466] {CVE-2010-0298 CVE-2010-0306 CVE-2010-0419}
+- [x86] AES/PCLMUL Instruction support: Various fixes for AES-NI and PCLMMUL (John Villalovos) [463496]
+- [x86] AES/PCLMUL Instruction support: Use gas macro for AES-NI instructions (John Villalovos) [463496]
+- [x86] AES/PCLMUL Instruction support: Various small fixes for AES/PCMLMUL and generate .byte code for some new instructions via gas macro (John Villalovos) [463496]
+- [x86] AES/PCLMUL Instruction support: Add PCLMULQDQ accelerated implementation (John Villalovos) [463496]
+- [scsi] megaraid_sas: fix for 32bit apps (Tomas Henzl) [559941]
+- [kvm] fix large packet drops on kvm hosts with ipv6 (Neil Horman) [565525]
+- [kvm] Add MAINTAINERS entry for virtio_console (Amit Shah) [566391]
+- [kvm] virtio: console: Fill ports' entire in_vq with buffers (Amit Shah) [566391]
+- [kvm] virtio: console: Error out if we can't allocate buffers for control queue (Amit Shah) [566391]
+- [kvm] virtio: console: Add ability to remove module (Amit Shah) [566391]
+- [kvm] virtio: console: Ensure no memleaks in case of unused buffers (Amit Shah) [566391]
+- [kvm] virtio: console: update Red Hat copyright for 2010 (Amit Shah) [566391]
+- [kvm] virtio: Initialize vq->data entries to NULL (Amit Shah) [566391]
+- [kvm] virtio: console: outbufs are no longer needed (Amit Shah) [566391]
+- [kvm] virtio: console: return -efault for fill_readbuf if copy_to_user fails (Amit Shah) [566391]
+- [kvm] virtio: console: Allow sending variable-sized buffers to host, efault on copy_from_user err (Amit Shah) [566391]
+
 * Thu Feb 18 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-17.el6]
 - [s390] hvc_iucv: allocate IUCV send/receive buffers in DMA zone (Hendrik Brueckner) [566188]
 - [s390] qdio: continue polling for buffer state ERROR (Hendrik Brueckner) [565528]
