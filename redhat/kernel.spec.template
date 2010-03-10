@@ -1719,6 +1719,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 09 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-19.el6]
+- [mm] Switch to SLAB (Aristeu Rozanski) [570614]
+
 * Mon Mar 08 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-18.el6]
 - [kernel/time] revert cc2f92ad1d0e03fe527e8ccfc1f918c368964dc8 (Aristeu Rozanski) [567551]
 - [virt] hvc_console: Fix race between hvc_close and hvc_remove (Amit Shah) [568624]
