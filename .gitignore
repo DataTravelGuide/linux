@@ -87,5 +87,34 @@ localversion
 #
 trustdb.gpg
 random_seed
+kernel.pub
+kernel.sec
+extract.pub
+secring.gpg
+pubring.gpg
 crypto/signature/key.h
+
+# temporary nouveau firmware files
+firmware/nouveau/nv50.ctxprog
+firmware/nouveau/nv50.ctxvals
+firmware/nouveau/nv84.ctxprog
+firmware/nouveau/nv84.ctxvals
+firmware/nouveau/nv86.ctxprog
+firmware/nouveau/nv86.ctxvals
+firmware/nouveau/nv92.ctxprog
+firmware/nouveau/nv92.ctxvals
+firmware/nouveau/nv94.ctxprog
+firmware/nouveau/nv94.ctxvals
+firmware/nouveau/nv96.ctxprog
+firmware/nouveau/nv96.ctxvals
+firmware/nouveau/nv98.ctxprog
+firmware/nouveau/nv98.ctxvals
+firmware/nouveau/nva0.ctxprog
+firmware/nouveau/nva0.ctxvals
+firmware/nouveau/nva5.ctxprog
+firmware/nouveau/nva5.ctxvals
+firmware/nouveau/nva8.ctxprog
+firmware/nouveau/nva8.ctxvals
+firmware/nouveau/nvaa.ctxprog
+firmware/nouveau/nvaa.ctxvals
 
