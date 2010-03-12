@@ -46,7 +46,8 @@ rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
 
 rh-key:
-	cd $(REDHAT)/../; \
+	echo "Creating a new module signing key...";
+	@cd $(REDHAT)/../; \
 	/sbin/rngd -r /dev/urandom; \
 	gpg --homedir . --batch --gen-key $(REDHAT)/genkey; \
 	if [ -s $(REDHAT)/extrakeys.pub ]; then \

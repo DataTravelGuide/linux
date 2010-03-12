@@ -5,8 +5,14 @@ endif
 rh-%::
 	$(MAKE) -C redhat $(@)
 
-Makefile: extract.pub
+Makefile: kernel.pub kernel.sec crypto/signature/key.h
 
-extract.pub:
+kernel.pub:
+	$(MAKE) -C redhat rh-key
+
+kernel.sec:
+	$(MAKE) -C redhat rh-key
+
+crypto/signature/key.h:
 	$(MAKE) -C redhat rh-key
 
