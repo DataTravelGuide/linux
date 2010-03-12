@@ -154,7 +154,7 @@ quiet_cmd_sign_ko_ko_unsigned = SIGN [M] $@
 		scripts/mod/mod-extract $< $@.digest && \
 		rm -f $@.digest.sig && \
 		gpg --batch --no-greeting $(KEYFLAGS) -b $@.digest && \
-		sh scripts/mod/modsign-note.sh $@.digest.sig | \
+		sh $(KBUILD_SRC)/scripts/mod/modsign-note.sh $@.digest.sig | \
 		  $(CC) -x assembler-with-cpp $(c_flags) $(CFLAGS_MODULE) -c -o $@.note.o - && \
 		$(LD) -r -o $@ $< $@.note.o
 else

@@ -45,16 +45,27 @@ rh-clean-sources:
 rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
 
+# this section is needed in order to make O= and KBUILD_OUTPUT to work
+ifeq ($(KBUILD_OUTPUT),)
+ifeq ("$(origin O)", "command line")
+  KBUILD_OUTPUT := $(O)
+endif
+ifeq ($(KBUILD_OUTPUT),)
+  KBUILD_OUTPUT := $(REDHAT)/..
+endif
+endif
+
 rh-key:
 	echo "Creating a new module signing key...";
-	@cd $(REDHAT)/../; \
+	@cd $(KBUILD_OUTPUT); \
 	/sbin/rngd -r /dev/urandom; \
 	gpg --homedir . --batch --gen-key $(REDHAT)/genkey; \
 	if [ -s $(REDHAT)/extrakeys.pub ]; then \
 		gpg --homedir . --no-default-keyring --keyring kernel.pub --import $(REDHAT)/extrakeys.pub; \
 	fi; \
 	gpg --homedir . --export --keyring kernel.pub Red > extract.pub; \
-	gcc -o scripts/bin2c scripts/bin2c.c; \
+	mkdir -p crypto/signature/ scripts/; \
+	gcc -o scripts/bin2c $(REDHAT)/../scripts/bin2c.c; \
 	scripts/bin2c ksign_def_public_key __initdata < extract.pub >crypto/signature/key.h;
 
 $(TARBALL):
