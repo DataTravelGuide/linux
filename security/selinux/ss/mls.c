@@ -530,7 +530,7 @@ int mls_compute_sid(struct context *scontext,
 			return mls_range_set(newcontext, r);
 		/* Fallthrough */
 	case AVTAB_CHANGE:
-		if (tclass == SECCLASS_PROCESS)
+		if (tclass == policydb.process_class)
 			/* Use the process MLS attributes. */
 			return mls_context_cpy(newcontext, scontext);
 		else
@@ -539,8 +539,8 @@ int mls_compute_sid(struct context *scontext,
 	case AVTAB_MEMBER:
 		/* Use the process effective MLS attributes. */
 		return mls_context_cpy_low(newcontext, scontext);
-	default:
-		return -EINVAL;
+
+	/* fall through */
 	}
 	return -EINVAL;
 }
