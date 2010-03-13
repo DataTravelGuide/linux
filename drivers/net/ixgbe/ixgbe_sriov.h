@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -25,50 +25,23 @@
 
 *******************************************************************************/
 
-#ifndef _IXGBE_FCOE_H
-#define _IXGBE_FCOE_H
+#ifndef _IXGBE_SRIOV_H_
+#define _IXGBE_SRIOV_H_
 
-#include <scsi/fc/fc_fs.h>
-#include <scsi/fc/fc_fcoe.h>
+int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
+                            int entries, u16 *hash_list, u32 vf);
+void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter);
+int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid, u32 vf);
+void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf);
+void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf);
+void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf);
+void ixgbe_msg_task(struct ixgbe_adapter *adapter);
+int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
+                     int vf, unsigned char *mac_addr);
+int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask);
+void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter);
+void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter);
+void ixgbe_dump_registers(struct ixgbe_adapter *adapter);
 
-/* shift bits within STAT fo FCSTAT */
-#define IXGBE_RXDADV_FCSTAT_SHIFT	4
+#endif /* _IXGBE_SRIOV_H_ */
 
-/* ddp user buffer */
-#define IXGBE_BUFFCNT_MAX	256	/* 8 bits bufcnt */
-#define IXGBE_FCPTR_ALIGN	16
-#define IXGBE_FCPTR_MAX	(IXGBE_BUFFCNT_MAX * sizeof(dma_addr_t))
-#define IXGBE_FCBUFF_4KB	0x0
-#define IXGBE_FCBUFF_8KB	0x1
-#define IXGBE_FCBUFF_16KB	0x2
-#define IXGBE_FCBUFF_64KB	0x3
-#define IXGBE_FCBUFF_MAX	65536	/* 64KB max */
-#define IXGBE_FCBUFF_MIN	4096	/* 4KB min */
-#define IXGBE_FCOE_DDP_MAX	512	/* 9 bits xid */
-
-/* Default traffic class to use for FCoE */
-#define IXGBE_FCOE_DEFTC	3
-
-/* fcerr */
-#define IXGBE_FCERR_BADCRC       0x00100000
-
-struct ixgbe_fcoe_ddp {
-	int len;
-	u32 err;
-	unsigned int sgc;
-	struct scatterlist *sgl;
-	dma_addr_t udp;
-	u64 *udl;
-};
-
-struct ixgbe_fcoe {
-#ifdef CONFIG_IXGBE_DCB
-	u8 tc;
-	u8 up;
-#endif
-	spinlock_t lock;
-	struct pci_pool *pool;
-	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];
-};
-
-#endif /* _IXGBE_FCOE_H */
