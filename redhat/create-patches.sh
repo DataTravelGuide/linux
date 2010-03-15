@@ -232,10 +232,26 @@ if [ $STRIP_REDHAT = 1 ]; then
 		echo "patchutils is required (filterdiff)" >&2;
 		exit 1;
 	fi
+	which lsdiff >/dev/null 2>&1;
+	if [ ! $? = 0 ]; then
+		echo "patchutils is required (lsdiff)" >&2;
+		exit 1;
+	fi
 	for patch in $(find $SOURCES/ -name \*.patch); do
 		filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $patch >$SOURCES/.tmp;
 		mv $SOURCES/.tmp $patch;
+		if [ -z "$(lsdiff $patch)" ]; then
+			grep -v -e "^Patch.*: $(basename $patch)$" $PATCHF >$SOURCES/.tmp;
+			mv $SOURCES/.tmp $PATCHF;
+			grep -v -e "^ApplyPatch $(basename $patch)$" $patchf >$SOURCES/.tmp;
+			mv $SOURCES/.tmp $patchf;
+			rm -f $patch;
+		fi
 	done
+	if [ ! "$(cat $PATCHF | wc -l)" = "$(cat $patchf | wc -l)" ]; then
+		echo "Internal error: different number of patches between two lists" >&2;
+		exit 1;
+	fi
 fi
 
 CONFIGS=configs/config.include

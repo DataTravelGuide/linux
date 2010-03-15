@@ -814,11 +814,6 @@ ApplyPatch()
   if [ ! -f $RPM_SOURCE_DIR/$patch ]; then
     exit 1
   fi
-  # check if the patch is empty
-  if [ -z "$(lsdiff $RPM_SOURCE_DIR/$patch)" ]; then
-    echo "WARNING: empty patch";
-    return;
-  fi
   case "$patch" in
   *.bz2) bunzip2 < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
   *.gz) gunzip < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
