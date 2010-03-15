@@ -729,8 +729,15 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	u32 data;
 	void __user *dxferp;
 	int err;
+	int interface_id;
 
 	sgio32 = compat_ptr(arg);
+
+	if (get_user(interface_id, &sgio32->interface_id))
+		return -EFAULT;
+	if (interface_id != 'S')
+		return sys_ioctl(fd, cmd, (unsigned long)sgio32);
+
 	if (get_user(iovec_count, &sgio32->iovec_count))
 		return -EFAULT;
 
