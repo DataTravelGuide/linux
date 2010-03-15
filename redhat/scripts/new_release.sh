@@ -9,5 +9,9 @@ RELEASE="$2";
 NEW_RELEASE="$[RELEASE + 1]";
 RHPATH="$3";
 
+if [ -s "$RHPATH/linux-kernel-test.patch" ]; then
+	echo "linux-kernel-test.patch is not empty, aborting" >&2;
+	exit 1;
+fi
 sed -i -e "s/BUILD:=$RELEASE/BUILD:=$NEW_RELEASE/" $RHPATH/Makefile.common;
 
