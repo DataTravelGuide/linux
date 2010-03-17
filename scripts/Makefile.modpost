@@ -149,12 +149,18 @@ KEYFLAGS += --default-key $(MODKEYNAME)
 endif
 
 ifeq ($(wildcard $(MODSECKEY))+$(wildcard $(MODPUBKEY)),$(MODSECKEY)+$(MODPUBKEY))
+ifeq ($(KBUILD_SRC),)
+	# no O= is being used
+	SCRIPTS_DIR := scripts
+else
+	SCRIPTS_DIR := $(KBUILD_SRC)/scripts
+endif
 quiet_cmd_sign_ko_ko_unsigned = SIGN [M] $@
       cmd_sign_ko_ko_unsigned = \
 		scripts/mod/mod-extract $< $@.digest && \
 		rm -f $@.digest.sig && \
 		gpg --batch --no-greeting $(KEYFLAGS) -b $@.digest && \
-		sh $(KBUILD_SRC)/scripts/mod/modsign-note.sh $@.digest.sig | \
+		sh $(SCRIPTS_DIR)/mod/modsign-note.sh $@.digest.sig | \
 		  $(CC) -x assembler-with-cpp $(c_flags) $(CFLAGS_MODULE) -c -o $@.note.o - && \
 		$(LD) -r -o $@ $< $@.note.o
 else
