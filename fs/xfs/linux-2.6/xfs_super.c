@@ -1031,7 +1031,7 @@ xfs_fs_dirty_inode(
 STATIC int
 xfs_fs_write_inode(
 	struct inode		*inode,
-	int			sync)
+	struct writeback_control *wbc)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1055,7 +1055,7 @@ xfs_fs_write_inode(
 	 * This prevents the flush path from blocking on inodes inside
 	 * another operation right now, they get caught later by xfs_sync.
 	 */
-	if (sync) {
+	if (wbc->sync_mode == WB_SYNC_ALL) {
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 		xfs_iflock(ip);
 
