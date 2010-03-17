@@ -26,6 +26,8 @@ enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
 	TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
 #ifdef CONFIG_DEBUG_VM
 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
 #endif
@@ -48,12 +50,15 @@ extern pmd_t *page_check_address_pmd(struct page *page,
 
 #define transparent_hugepage_enabled(__vma)				\
 	(transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_FLAG) ||	\
-	 (transparent_hugepage_flags &				\
-	  (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&		\
+	 (transparent_hugepage_flags &					\
+	  (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
 	  (__vma)->vm_flags & VM_HUGEPAGE))
-#define transparent_hugepage_defrag()				       \
-	(transparent_hugepage_flags &				       \
-	 (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG))
+#define transparent_hugepage_defrag(__vma)				\
+	((transparent_hugepage_flags &					\
+	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\
+	 (transparent_hugepage_flags &					\
+	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG) &&		\
+	  (__vma)->vm_flags & VM_HUGEPAGE))
 #ifdef CONFIG_DEBUG_VM
 #define transparent_hugepage_debug_cow()				\
 	(transparent_hugepage_flags &					\
