@@ -810,6 +810,7 @@ static int br_multicast_query(struct net_bridge *br,
 	unsigned long max_delay;
 	unsigned long now = jiffies;
 	__be32 group;
+	int err = 0;
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) ||
@@ -828,12 +829,14 @@ static int br_multicast_query(struct net_bridge *br,
 			group = 0;
 		}
 	} else {
-		if (!pskb_may_pull(skb, sizeof(struct igmpv3_query)))
-			return -EINVAL;
+		if (!pskb_may_pull(skb, sizeof(struct igmpv3_query))) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		ih3 = igmpv3_query_hdr(skb);
 		if (ih3->nsrcs)
-			return 0;
+			goto out;
 
 		max_delay = ih3->code ? 1 :
 			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE);
@@ -863,7 +866,7 @@ static int br_multicast_query(struct net_bridge *br,
 
 out:
 	spin_unlock(&br->multicast_lock);
-	return 0;
+	return err;
 }
 
 static void br_multicast_leave_group(struct net_bridge *br,
