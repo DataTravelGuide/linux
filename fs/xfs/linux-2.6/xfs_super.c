@@ -1042,12 +1042,6 @@ xfs_fs_write_inode(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	if (sync) {
-		error = xfs_wait_on_pages(ip, 0, -1);
-		if (error)
-			goto out;
-	}
-
 	/*
 	 * Bypass inodes which have already been cleaned by
 	 * the inode flush clustering code inside xfs_iflush
