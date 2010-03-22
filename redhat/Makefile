@@ -111,7 +111,9 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 rh-sources: setup-source sources-rh
 
 rh-test-patch:
-	git diff --no-renames HEAD > $(TESTPATCH)
+	git diff --no-renames HEAD > $(TESTPATCH);
+	filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $(TESTPATCH) >$(TESTPATCH).tmp;
+	mv $(TESTPATCH).tmp $(TESTPATCH);
 
 rh-all-rpms: rh-sources
 	$(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" --target $(MACH) -ba $(RPM)/SOURCES/kernel.spec
