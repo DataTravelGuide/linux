@@ -1,6 +1,6 @@
 /* bnx2x_main.c: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.52.1-5"
-#define DRV_MODULE_RELDATE	"2009/11/09"
+#define DRV_MODULE_VERSION	"1.52.1-6"
+#define DRV_MODULE_RELDATE	"2010/02/16"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
