@@ -2557,7 +2557,6 @@ static void bnx2x_e1h_disable(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 
 	netif_tx_disable(bp->dev);
-	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 
 	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
 
@@ -6939,19 +6938,21 @@ static void bnx2x_free_msix_irqs(struct bnx2x *bp)
 	}
 }
 
-static void bnx2x_free_irq(struct bnx2x *bp)
+static void bnx2x_free_irq(struct bnx2x *bp, bool disable_only)
 {
 	if (bp->flags & USING_MSIX_FLAG) {
-		bnx2x_free_msix_irqs(bp);
+		if (!disable_only)
+			bnx2x_free_msix_irqs(bp);
 		pci_disable_msix(bp->pdev);
 		bp->flags &= ~USING_MSIX_FLAG;
 
 	} else if (bp->flags & USING_MSI_FLAG) {
-		free_irq(bp->pdev->irq, bp->dev);
+		if (!disable_only)
+			free_irq(bp->pdev->irq, bp->dev);
 		pci_disable_msi(bp->pdev);
 		bp->flags &= ~USING_MSI_FLAG;
 
-	} else
+	} else if (!disable_only)
 		free_irq(bp->pdev->irq, bp->dev);
 }
 
@@ -7098,7 +7099,6 @@ static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 	bnx2x_int_disable_sync(bp, disable_hw);
 	bnx2x_napi_disable(bp);
 	netif_tx_disable(bp->dev);
-	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 }
 
 /*
@@ -7445,8 +7445,10 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	rc = bnx2x_set_num_queues(bp);
 
-	if (bnx2x_alloc_mem(bp))
+	if (bnx2x_alloc_mem(bp)) {
+		bnx2x_free_irq(bp, true);
 		return -ENOMEM;
+	}
 
 	for_each_queue(bp, i)
 		bnx2x_fp(bp, i, disable_tpa) =
@@ -7461,7 +7463,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (bp->flags & USING_MSIX_FLAG) {
 		rc = bnx2x_req_msix_irqs(bp);
 		if (rc) {
-			pci_disable_msix(bp->pdev);
+			bnx2x_free_irq(bp, true);
 			goto load_error1;
 		}
 	} else {
@@ -7473,8 +7475,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		rc = bnx2x_req_irq(bp);
 		if (rc) {
 			BNX2X_ERR("IRQ request failed  rc %d, aborting\n", rc);
-			if (bp->flags & USING_MSI_FLAG)
-				pci_disable_msi(bp->pdev);
+			bnx2x_free_irq(bp, true);
 			goto load_error1;
 		}
 		if (bp->flags & USING_MSI_FLAG) {
@@ -7529,6 +7530,9 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_init_hw(bp, load_code);
 	if (rc) {
 		BNX2X_ERR("HW init failed, aborting\n");
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
 		goto load_error2;
 	}
 
@@ -7595,6 +7599,8 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		if (bp->cnic_eth_dev.drv_state & CNIC_DRV_STATE_REGD) {
 			bnx2x_set_iscsi_eth_mac_addr(bp, 1);
 			bp->cnic_flags |= BNX2X_CNIC_FLAG_MAC_SET;
+			bnx2x_init_sb(bp, bp->cnic_sb, bp->cnic_sb_mapping,
+				      CNIC_SB_ID(bp));
 		}
 		mutex_unlock(&bp->cnic_mutex);
 #endif
@@ -7664,7 +7670,7 @@ load_error3:
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 load_error2:
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 load_error1:
 	bnx2x_napi_disable(bp);
 	for_each_queue(bp, i)
@@ -7855,7 +7861,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 
 	/* Wait until tx fastpath tasks complete */
 	for_each_queue(bp, i) {
@@ -9962,12 +9968,14 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 
 	/* TPA requires Rx CSUM offloading */
 	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
-		if (!(dev->features & NETIF_F_LRO)) {
-			dev->features |= NETIF_F_LRO;
-			bp->flags |= TPA_ENABLE_FLAG;
-			changed = 1;
-		}
-
+		if (!disable_tpa) {
+			if (!(dev->features & NETIF_F_LRO)) {
+				dev->features |= NETIF_F_LRO;
+				bp->flags |= TPA_ENABLE_FLAG;
+				changed = 1;
+			}
+		} else
+			rc = -EINVAL;
 	} else if (dev->features & NETIF_F_LRO) {
 		dev->features &= ~NETIF_F_LRO;
 		bp->flags &= ~TPA_ENABLE_FLAG;
@@ -10287,7 +10295,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	num_pkts++;
 	fp_tx->tx_bd_prod += 2; /* start + pbd */
-	bp->dev->trans_start = jiffies;
 
 	udelay(100);
 
@@ -10431,7 +10438,8 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 
 	config->hdr.length = 0;
 	if (CHIP_IS_E1(bp))
-		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
+		/* use last unicast entries */
+		config->hdr.offset = (BP_PORT(bp) ? 63 : 31);
 	else
 		config->hdr.offset = BP_FUNC(bp);
 	config->hdr.client_id = bp->fp->cl_id;
@@ -12297,7 +12305,7 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	DP(BNX2X_MSG_STATS, "stats_state - DISABLED\n");
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 
 	if (CHIP_IS_E1(bp)) {
 		struct mac_configuration_cmd *config =
