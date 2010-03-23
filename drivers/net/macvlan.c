@@ -39,31 +39,6 @@ struct macvlan_port {
 	struct list_head	vlans;
 };
 
-/**
- *	struct macvlan_rx_stats - MACVLAN percpu rx stats
- *	@rx_packets: number of received packets
- *	@rx_bytes: number of received bytes
- *	@multicast: number of received multicast packets
- *	@rx_errors: number of errors
- */
-struct macvlan_rx_stats {
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long multicast;
-	unsigned long rx_errors;
-};
-
-struct macvlan_dev {
-	struct net_device	*dev;
-	struct list_head	list;
-	struct hlist_node	hlist;
-	struct macvlan_port	*port;
-	struct net_device	*lowerdev;
-	struct macvlan_rx_stats *rx_stats;
-	enum macvlan_mode	mode;
-};
-
-
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 					       const unsigned char *addr)
 {
@@ -116,23 +91,6 @@ static int macvlan_addr_busy(const struct macvlan_port *port,
 		return 1;
 
 	return 0;
-}
-
-static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
-				    unsigned int len, bool success,
-				    bool multicast)
-{
-	struct macvlan_rx_stats *rx_stats;
-
-	rx_stats = per_cpu_ptr(vlan->rx_stats, smp_processor_id());
-	if (likely(success)) {
-		rx_stats->rx_packets++;;
-		rx_stats->rx_bytes += len;
-		if (multicast)
-			rx_stats->multicast++;
-	} else {
-		rx_stats->rx_errors++;
-	}
 }
 
 static int macvlan_broadcast_one(struct sk_buff *skb, struct net_device *dev,
@@ -273,8 +231,8 @@ xmit_world:
 	return dev_queue_xmit(skb);
 }
 
-static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
-				      struct net_device *dev)
+netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
+                               struct net_device *dev)
 {
 	int i = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
@@ -722,7 +680,7 @@ static int macvlan_newlink(struct net_device *dev,
 	return 0;
 }
 
-static void macvlan_dellink(struct net_device *dev)
+void macvlan_dellink(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvlan_port *port = vlan->port;
