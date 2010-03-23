@@ -4199,9 +4199,13 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		if (cciss_hard_reset_controller(pdev) || cciss_reset_msi(pdev))
 			return -ENODEV;
 
-		/* Now try to get the controller to respond to a no-op. Some
-		   devices (notably the HP Smart Array 5i Controller) need
-		   up to 30 seconds to respond. */
+		/* The HP Smart Array 5i Controller needs
+		 * at least 20 seconds before first status checking
+		 * set it to 30 seconds for this controller to be sure */
+		if (0x4080 == pdev->subsystem_device)
+			ssleep(30);
+
+		/* Now try to get the controller to respond to a no-op. */
 		for (i=0; i<30; i++) {
 			if (cciss_noop(pdev) == 0)
 				break;
