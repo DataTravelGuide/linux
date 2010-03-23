@@ -124,11 +124,12 @@ static void zfcp_ccw_remove(struct ccw_device *ccw_device)
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 	write_unlock_irq(&zfcp_data.config_lock);
 
-	list_for_each_entry_safe(port, p, &port_remove_lh, list) {
-		list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
-			zfcp_unit_dequeue(unit);
+	list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
+		zfcp_unit_dequeue(unit);
+
+	list_for_each_entry_safe(port, p, &port_remove_lh, list)
 		zfcp_port_dequeue(port);
-	}
+
 	wait_event(adapter->remove_wq, atomic_read(&adapter->refcount) == 0);
 	zfcp_adapter_dequeue(adapter);
 
