@@ -198,7 +198,7 @@ static int uart_startup(struct uart_state *state, int init_hw)
 			spin_lock_irq(&uport->lock);
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_DSR))
 				port->tty->hw_stopped = 1;
-			spin_unlock_irq(&port->lock);
+			spin_unlock_irq(&uport->lock);
 		}
 
 		set_bit(ASYNCB_INITIALIZED, &port->flags);
