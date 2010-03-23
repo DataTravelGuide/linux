@@ -808,6 +808,7 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
+	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -1434,6 +1435,7 @@ extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_free(struct kref *kref);
+void drm_gem_object_free_unlocked(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 void drm_gem_object_handle_free(struct kref *kref);
@@ -1450,10 +1452,15 @@ drm_gem_object_reference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference(struct drm_gem_object *obj)
 {
-	if (obj == NULL)
-		return;
+	if (obj != NULL)
+		kref_put(&obj->refcount, drm_gem_object_free);
+}
 
-	kref_put(&obj->refcount, drm_gem_object_free);
+static inline void
+drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
+{
+	if (obj != NULL)
+		kref_put(&obj->refcount, drm_gem_object_free_unlocked);
 }
 
 int drm_gem_handle_create(struct drm_file *file_priv,
@@ -1480,6 +1487,21 @@ drm_gem_object_handle_unreference(struct drm_gem_object *obj)
 	 */
 	kref_put(&obj->handlecount, drm_gem_object_handle_free);
 	drm_gem_object_unreference(obj);
+}
+
+static inline void
+drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
+{
+	if (obj == NULL)
+		return;
+
+	/*
+	* Must bump handle count first as this may be the last
+	* ref, in which case the object would disappear before we
+	* checked for a name
+	*/
+	kref_put(&obj->handlecount, drm_gem_object_handle_free);
+	drm_gem_object_unreference_unlocked(obj);
 }
 
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,

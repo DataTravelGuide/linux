@@ -56,11 +56,8 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 
 	chan->notifier_bo = ntfy;
 out_err:
-	if (ret) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(ntfy->gem);
-		mutex_unlock(&dev->struct_mutex);
-	}
+	if (ret)
+		drm_gem_object_unreference_unlocked(ntfy->gem);
 
 	return ret;
 }
@@ -76,8 +73,8 @@ nouveau_notifier_takedown_channel(struct nouveau_channel *chan)
 	nouveau_bo_unmap(chan->notifier_bo);
 	mutex_lock(&dev->struct_mutex);
 	nouveau_bo_unpin(chan->notifier_bo);
-	drm_gem_object_unreference(chan->notifier_bo->gem);
 	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(chan->notifier_bo->gem);
 	nouveau_mem_takedown(&chan->notifier_heap);
 }
 
