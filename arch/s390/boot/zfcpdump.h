@@ -12,7 +12,7 @@
 #include <signal.h>
 #include <stdint.h>
 
-#define ZFCPDUMP_VERSION "2.1"
+#define ZFCPDUMP_VERSION "2.2"
 
 #define PRINT_TRACE(x...) \
 	do { \
@@ -45,8 +45,8 @@
 #define CMDLINE_MAX_LEN 1024
 #define KERN_PARM_MAX 100
 
-#define DUMP_FLAGS (O_CREAT | O_RDWR | O_TRUNC)
-#define DUMP_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define DUMP_FLAGS (O_CREAT | O_RDWR | O_TRUNC | O_DIRECT)
+#define DUMP_MODE (S_IRUSR | S_IWUSR | S_IRGRP)
 
 struct globals {
 	char	*parm_compress;
@@ -127,7 +127,9 @@ struct globals {
 
 #define UTS_LEN		65
 
-#define DUMP_BUF_SIZE	(64 * 1024)
+#define PAGE_SIZE		4096
+#define DUMP_BUF_SIZE		(80 * PAGE_SIZE)
+#define LKCD_HDR_SIZE		(64 * 1024)
 
 /* header definitions for dumps from s390 standalone dump tools */
 #define DUMP_MAGIC_S390SA	0xa8190173618f23fdULL /* s390sa magic number */
@@ -147,7 +149,6 @@ struct globals {
 #define DUMP_DH_COMPRESSED	0x2   /* page is compressed               */
 #define DUMP_DH_END		0x4   /* end marker on a full dump        */
 
-#define PAGE_SIZE		4096
 #define CHUNK_INFO_SIZE		34  /* 2 16-byte char, each followed by blank */
 
 /*

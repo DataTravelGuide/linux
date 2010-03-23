@@ -11,6 +11,8 @@
  * Author(s): Michael Holzheu
  */
 
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <string.h>
 #include <dirent.h>
@@ -678,7 +680,7 @@ static int create_dump(void)
 	struct dump_hdr_s390 s390_dh;
 	compress_fn_t compress_fn;
 	struct dump_page dp;
-	char page_buf[DUMP_BUF_SIZE], buf[PAGE_SIZE], dpcpage[PAGE_SIZE];
+	char buf[PAGE_SIZE], dpcpage[PAGE_SIZE];
 	char dump_name[1024];
 	__u64 mem_loc, mem_count;
 	__u32 buf_loc = 0, dp_size, dp_flags;
@@ -686,6 +688,7 @@ static int create_dump(void)
 	char c_info[CHUNK_INFO_SIZE];
 	struct mem_chunk *chunk, *chunk_first = NULL, *chunk_prev = NULL;
 	char *end_ptr;
+	void *page_buf;
 
 	if (stat(g.dump_dir, &stat_buf) < 0) {
 		PRINT_ERR("Specified dump dir '%s' not found!\n", g.dump_dir);
@@ -693,6 +696,12 @@ static int create_dump(void)
 	} else if (!S_ISDIR(stat_buf.st_mode)) {
 		PRINT_ERR("Specified dump dir '%s' is not a directory!\n",
 			g.dump_dir);
+		return -1;
+	}
+
+	/* Allocate buffer for writing */
+	if (posix_memalign(&page_buf, PAGE_SIZE, DUMP_BUF_SIZE)) {
+		PRINT_ERR("Out of memory: Could not allocate dump buffer\n");
 		return -1;
 	}
 
@@ -817,15 +826,20 @@ static int create_dump(void)
 		dh.num_dump_pages = g.parm_mem / dh.page_size;
 	}
 
-	memset(page_buf, 0, DUMP_BUF_SIZE);
+	memset(page_buf, 0, PAGE_SIZE);
 	memcpy(page_buf, &dh, sizeof(dh));
 	if (lseek(fout, 0L, SEEK_SET) < 0) {
 		PRINT_ERR("lseek() failed\n");
 		rc = -1;
 		goto failed_close_fout;
 	}
-	if (dump_write(fout, page_buf, DUMP_BUF_SIZE) != DUMP_BUF_SIZE) {
+	if (dump_write(fout, page_buf, PAGE_SIZE) != PAGE_SIZE) {
 		PRINT_ERR("Error: Write dump header failed\n");
+		rc = -1;
+		goto failed_close_fout;
+	}
+	if (lseek(fout, LKCD_HDR_SIZE, SEEK_SET) < 0) {
+		PRINT_ERR("lseek() failed\n");
 		rc = -1;
 		goto failed_close_fout;
 	}
@@ -889,22 +903,37 @@ static int create_dump(void)
 			/* copy directly from memory */
 			memcpy(page_buf + buf_loc, buf, dp_size);
 		buf_loc += dp_size;
-		if (dump_write(fout, page_buf, buf_loc) != buf_loc) {
-			PRINT_ERR("write error\n");
-			rc = -1;
-			goto failed_close_fout;
-		}
-		buf_loc = 0;
 		mem_loc += PAGE_SIZE;
 		mem_count += PAGE_SIZE;
+		if (buf_loc + PAGE_SIZE + sizeof(dp) > DUMP_BUF_SIZE) {
+			unsigned long rem = buf_loc % PAGE_SIZE;
+			long size = buf_loc - rem;
+
+			if (dump_write(fout, page_buf, size) != size) {
+				PRINT_ERR("write error\n");
+				rc = -1;
+				goto failed_close_fout;
+			}
+			memmove(page_buf, page_buf + size, rem);
+			buf_loc = rem;
+		}
 		show_progress(mem_count, dh.memory_size);
 	}
 
 	/* write end marker */
 
 	dp.address = 0x0;
-	dp.size    = DUMP_DH_END;
-	dp.flags   = 0x0;
+	dp.size    = 0x0;
+	dp.flags   = DUMP_DH_END;
+	memcpy(page_buf + buf_loc, &dp, sizeof(dp));
+	buf_loc += sizeof(dp);
+	dump_write(fout, page_buf, buf_loc + (PAGE_SIZE - buf_loc % PAGE_SIZE));
+	if (ftruncate(fout, lseek(fout, 0, SEEK_CUR) -
+		      (PAGE_SIZE - buf_loc % PAGE_SIZE)) == -1) {
+		PRINT_ERR("truncate error\n");
+		rc = -1;
+		goto failed_close_fout;
+	}
 	dump_write(fout, &dp, sizeof(dp));
 
 failed_close_fout:
