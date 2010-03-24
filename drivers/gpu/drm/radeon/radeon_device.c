@@ -702,7 +702,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
 		 */
-		radeon_gpu_reset(rdev);
+		radeon_asic_reset(rdev);
 		radeon_fini(rdev);
 		radeon_agp_disable(rdev);
 		r = radeon_init(rdev);
@@ -814,6 +814,25 @@ int radeon_resume_kms(struct drm_device *dev)
 	return 0;
 }
 
+int radeon_gpu_reset(struct radeon_device *rdev)
+{
+	int r;
+
+	radeon_save_bios_scratch_regs(rdev);
+	radeon_suspend(rdev);
+
+	r = radeon_asic_reset(rdev);
+	if (!r) {
+		dev_info(rdev->dev, "GPU reset succeed\n");
+		radeon_resume(rdev);
+		radeon_restore_bios_scratch_regs(rdev);
+		drm_helper_resume_force_mode(rdev->ddev);
+		return 0;
+	}
+	/* bad news, how to tell it to userspace ? */
+	dev_info(rdev->dev, "GPU reset failed\n");
+	return r;
+}
 
 /*
  * Debugfs
