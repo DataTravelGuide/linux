@@ -338,6 +338,8 @@ static void dump_tasks(const struct mem_cgroup *mem)
 	} while_each_thread(g, p);
 }
 
+#define K(x) ((x) << (PAGE_SHIFT-10))
+
 /*
  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
@@ -364,8 +366,12 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 	}
 
 	if (verbose)
-		printk(KERN_ERR "Killed process %d (%s)\n",
-				task_pid_nr(p), p->comm);
+		printk(KERN_ERR "Killed process %d (%s) "
+				"vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+				task_pid_nr(p), p->comm,
+				K(p->mm->total_vm),
+				K(get_mm_counter(p->mm, anon_rss)),
+				K(get_mm_counter(p->mm, file_rss)));
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
