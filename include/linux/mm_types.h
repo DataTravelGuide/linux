@@ -187,6 +187,8 @@ struct vm_area_struct {
 #ifdef CONFIG_NUMA
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
+	void * pad1;
+	void * pad2;
 };
 
 struct core_thread {
@@ -294,6 +296,7 @@ struct mm_struct {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
+	void * pad1;
 };
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
