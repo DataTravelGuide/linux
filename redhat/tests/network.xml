@@ -1,0 +1,139 @@
+%%TESTARGBEGIN%%
+#network supported args
+any
+tg3
+bnx2
+e1000
+e1000e
+%%TESTARGEND%%
+<job>
+  <workflow>kerndev_workflow</workflow>
+  <submitter>%%USER_ID%%</submitter>
+  <whiteboard>Kernel Network test - %%TESTARG%%</whiteboard>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>make</installPackage>
+      <installPackage>wget</installPackage>
+      <installPackage>procmail</installPackage>
+      <installPackage>nfs-utils</installPackage>
+      <installPackage>net-tools</installPackage>
+      <installPackage>net-snmp</installPackage>
+      <installPackage>ethereal</installPackage>
+      <installPackage>wireshark</installPackage>
+      <installPackage>rusers</installPackage>
+      <installPackage>bzip2</installPackage>
+      <installPackage>expect</installPackage>
+      <distroRequires>ARCH = x86_64</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <hostRequires>ARCH = x86_64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>NETWORK = %%TESTARG%%</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='CLIENTS' name='/kernel/networking/nic/stress_mh'/>
+    </recipe>
+    <recipe testrepo='development' whiteboard=''>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>make</installPackage>
+      <installPackage>wget</installPackage>
+      <installPackage>procmail</installPackage>
+      <installPackage>nfs-utils</installPackage>
+      <installPackage>net-tools</installPackage>
+      <installPackage>net-snmp</installPackage>
+      <installPackage>ethereal</installPackage>
+      <installPackage>wireshark</installPackage>
+      <installPackage>rusers</installPackage>
+      <installPackage>bzip2</installPackage>
+      <installPackage>expect</installPackage>
+      <distroRequires>ARCH = x86_64</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <hostRequires>ARCH = x86_64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='SERVERS' name='/kernel/networking/nic/stress_mh'/>
+    </recipe>
+  </recipeSet>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>make</installPackage>
+      <installPackage>wget</installPackage>
+      <installPackage>procmail</installPackage>
+      <installPackage>nfs-utils</installPackage>
+      <installPackage>net-tools</installPackage>
+      <installPackage>net-snmp</installPackage>
+      <installPackage>ethereal</installPackage>
+      <installPackage>wireshark</installPackage>
+      <installPackage>rusers</installPackage>
+      <installPackage>bzip2</installPackage>
+      <installPackage>expect</installPackage>
+      <distroRequires>ARCH = x86_64</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <hostRequires>ARCH = x86_64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>NETWORK = %%TESTARG%%</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='debug'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='CLIENTS' name='/kernel/networking/nic/stress_mh'/>
+    </recipe>
+    <recipe testrepo='development' whiteboard=''>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>make</installPackage>
+      <installPackage>wget</installPackage>
+      <installPackage>procmail</installPackage>
+      <installPackage>nfs-utils</installPackage>
+      <installPackage>net-tools</installPackage>
+      <installPackage>net-snmp</installPackage>
+      <installPackage>ethereal</installPackage>
+      <installPackage>wireshark</installPackage>
+      <installPackage>rusers</installPackage>
+      <installPackage>bzip2</installPackage>
+      <installPackage>expect</installPackage>
+      <distroRequires>ARCH = x86_64</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <hostRequires>ARCH = x86_64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='SERVERS' name='/kernel/networking/nic/stress_mh'/>
+    </recipe>
+  </recipeSet>
+</job>

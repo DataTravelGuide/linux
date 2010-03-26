@@ -1,7 +1,14 @@
+%%TESTARGBEGIN%%
+#filesystem supported args
+xfs
+ext2
+ext3
+ext4
+%%TESTARGEND%%
 <job>
   <workflow>kerndev_workflow</workflow>
   <submitter>%%USER_ID%%</submitter>
-  <whiteboard>XFS filesystem test</whiteboard>
+  <whiteboard>Kernel Filesystem test - %%TESTARG%%</whiteboard>
   <recipeSet>
     <recipe testrepo='development' whiteboard=''>
       <kickstart>
@@ -23,25 +30,28 @@ reboot
 zerombr
 clearpart --all --initlabel
 part /boot --fstype ext3 --size=100
-part pv.14 --size=100 --grow
+part pv.14 --size=1 --grow
 volgroup VolGroup00 --pesize=32768 pv.14
-logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=20480
-logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=4096
-logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=2048
-logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=2048
+logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=15360
+logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=2048
+logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=3072
+logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
 ]]>
       </kickstart>
       <installPackage>kexec-tools</installPackage>
       <installPackage>crash</installPackage>
+      <installPackage>rpm-build</installPackage>
       <distroRequires>ARCH = x86_64</distroRequires>
       <distroRequires>%%DISTROTAG%%</distroRequires>
       <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
       <hostRequires>ARCH = x86_64</hostRequires>
       <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>DISKSPACE > 26000</hostRequires>
       <test role='STANDALONE' name='/distribution/install'/>
       <test role='STANDALONE' name='/distribution/pkginstall'>
         <params>
-          <param name='PKGARGNAME' value='xfsprogs-2.10.2-7.el5.x86_64 xfsprogs-devel-2.10.2-7.el5.x86_64 xfsdump-2.2.48-3.el5.x86_64'/>
+          <param name='PKGARGNAME' value='xfsprogs-3.1.1-3.el6.x86_64 xfsprogs-devel-3.1.1-3.el6.x86_64 xfsdump-3.0.4-1.el6.x86_64'/>
         </params>
       </test>
       <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
@@ -55,6 +65,194 @@ logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=2048
         <params>
           <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
           <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
+          <param name='TEST_PARAM_FSTYPE' value='%%TESTARG%%'/>
+        </params>
+      </test>
+    </recipe>
+  </recipeSet>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <kickstart>
+        <![CDATA[
+install
+key --skip
+lang en_US.UTF-8
+keyboard us
+skipx
+rootpw rhts
+firewall --disabled
+authconfig --enableshadow --enablemd5
+selinux --enforcing
+timezone --utc America/New_York
+bootloader --location=mbr
+text
+cmdline
+reboot
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext3 --size=100
+part pv.14 --size=1 --grow
+volgroup VolGroup00 --pesize=32768 pv.14
+logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=15360
+logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=2048
+logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=3072
+logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
+]]>
+      </kickstart>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>rpm-build</installPackage>
+      <distroRequires>ARCH = i386</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <hostRequires>ARCH = i386</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>DISKSPACE > 26000</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/pkginstall'>
+        <params>
+          <param name='PKGARGNAME' value='xfsprogs-3.1.1-3.el6.i686 xfsprogs-devel-3.1.1-3.el6.i686 xfsdump-3.0.4-1.el6.i686'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
+        <params>
+          <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
+          <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
+          <param name='TEST_PARAM_FSTYPE' value='%%TESTARG%%'/>
+        </params>
+      </test>
+    </recipe>
+  </recipeSet>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <kickstart>
+        <![CDATA[
+install
+key --skip
+lang en_US.UTF-8
+keyboard us
+skipx
+rootpw rhts
+firewall --disabled
+authconfig --enableshadow --enablemd5
+selinux --enforcing
+timezone --utc America/New_York
+bootloader --location=mbr
+text
+cmdline
+reboot
+zerombr
+clearpart --all --initlabel
+part prepboot --fstype=prepboot --size=4
+part /boot --fstype ext3 --size=100
+part pv.14 --size=1 --grow
+volgroup VolGroup00 --pesize=32768 pv.14
+logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=15360
+logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=2048
+logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=3072
+logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
+]]>
+      </kickstart>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>rpm-build</installPackage>
+      <distroRequires>ARCH = ppc64</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <hostRequires>ARCH = ppc64</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>DISKSPACE > 26000</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/pkginstall'>
+        <params>
+          <param name='PKGARGNAME' value='xfsprogs-3.1.1-3.el6.ppc64 xfsprogs-devel-3.1.1-3.el6.ppc64 xfsdump-3.0.4-1.el6.ppc64'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
+        <params>
+          <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
+          <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
+          <param name='TEST_PARAM_FSTYPE' value='%%TESTARG%%'/>
+        </params>
+      </test>
+    </recipe>
+  </recipeSet>
+  <recipeSet>
+    <recipe testrepo='development' whiteboard=''>
+      <kickstart>
+        <![CDATA[
+install
+key --skip
+lang en_US.UTF-8
+keyboard us
+skipx
+rootpw rhts
+firewall --disabled
+authconfig --enableshadow --enablemd5
+selinux --enforcing
+timezone --utc America/New_York
+bootloader --location=mbr
+text
+cmdline
+reboot
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext3 --size=100
+part pv.14 --size=1 --grow
+part pv.15 --size=1 --grow
+part pv.16 --size=1 --grow
+part pv.17 --size=1 --grow
+volgroup VolGroup00 --pesize=32768 pv.14 pv.15 pv.16 pv.17
+logvol / --fstype ext3 --name=LogVol00 --vgname=VolGroup00 --size=15360
+logvol swap --fstype swap --name=LogVol01 --vgname=VolGroup00 --size=2048
+logvol /mnt/testarea/test --name=testvol1 --vgname=VolGroup00 --size=3072
+logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
+]]>
+      </kickstart>
+      <installPackage>kexec-tools</installPackage>
+      <installPackage>crash</installPackage>
+      <installPackage>rpm-build</installPackage>
+      <distroRequires>ARCH = s390x</distroRequires>
+      <distroRequires>%%DISTROTAG%%</distroRequires>
+      <distroRequires>FAMILY = %%FAMILY%%</distroRequires>
+      <distroRequires>VARIANT = Server</distroRequires>
+      <hostRequires>ARCH = s390x</hostRequires>
+      <hostRequires>FAMILY = %%FAMILY%%</hostRequires>
+      <hostRequires>DISKSPACE > 26000</hostRequires>
+      <test role='STANDALONE' name='/distribution/install'/>
+      <test role='STANDALONE' name='/distribution/pkginstall'>
+        <params>
+          <param name='PKGARGNAME' value='xfsprogs-3.1.1-3.el6.s390x xfsprogs-devel-3.1.1-3.el6.s390x xfsdump-3.0.4-1.el6.s390x'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/distribution/kernelinstall-dev2'>
+        <params>
+          <param name='KERNELARGNAME' value='kernel'/>
+          <param name='KERNELARGVARIANT' value='up'/>
+          <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+        </params>
+      </test>
+      <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
+        <params>
+          <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
+          <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
+          <param name='TEST_PARAM_FSTYPE' value='%%TESTARG%%'/>
         </params>
       </test>
     </recipe>
