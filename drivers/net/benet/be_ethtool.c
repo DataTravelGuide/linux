@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -112,6 +112,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"PHY Loopback test",
 	"External Loopback test",
 	"DDR DMA test"
+	"Link test"
 };
 
 #define ETHTOOL_TESTS_NUM ARRAY_SIZE(et_self_tests)
@@ -561,7 +562,6 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 	} else if (mac_speed) {
 		data[4] = 1;
 	}
-
 }
 
 static int
@@ -613,7 +613,7 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	if (!status) {
 		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
-		memcpy(data, resp->seeprom_data, eeprom->len);
+		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
 	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
 			eeprom_cmd.dma);
