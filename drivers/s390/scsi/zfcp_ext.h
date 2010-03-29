@@ -24,6 +24,7 @@ extern void zfcp_unit_dequeue(struct zfcp_unit *);
 extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
+extern void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *);
 
 /* zfcp_ccw.c */
 extern int zfcp_ccw_register(void);

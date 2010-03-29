@@ -492,7 +492,7 @@ static int zfcp_setup_adapter_work_queue(struct zfcp_adapter *adapter)
 	return -ENOMEM;
 }
 
-static void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
+void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
 {
 	if (adapter->work_queue)
 		destroy_workqueue(adapter->work_queue);
@@ -603,18 +603,14 @@ qdio_failed:
 /**
  * zfcp_adapter_dequeue - remove the adapter from the resource list
  * @adapter: pointer to struct zfcp_adapter which should be removed
- * locks:	adapter list write lock is assumed to be held by caller
  */
 void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 {
 	int retval = 0;
 	unsigned long flags;
 
-	cancel_work_sync(&adapter->stat_work);
-	zfcp_fc_wka_ports_force_offline(adapter->gs);
 	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
 			   &zfcp_sysfs_adapter_attrs);
-	dev_set_drvdata(&adapter->ccw_device->dev, NULL);
 	/* sanity check: no pending FSF requests */
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
 	retval = zfcp_reqlist_isempty(adapter);
@@ -622,9 +618,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 	if (!retval)
 		return;
 
-	zfcp_fc_gs_destroy(adapter);
 	zfcp_erp_thread_kill(adapter);
-	zfcp_destroy_adapter_work_queue(adapter);
 	zfcp_dbf_adapter_unregister(adapter->dbf);
 	zfcp_free_low_mem_buffers(adapter);
 	zfcp_qdio_destroy(adapter->qdio);

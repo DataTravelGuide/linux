@@ -349,24 +349,15 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost;
-	struct zfcp_port *port;
 
 	shost = adapter->scsi_host;
 	if (!shost)
 		return;
 
-	read_lock_irq(&zfcp_data.config_lock);
-	list_for_each_entry(port, &adapter->port_list_head, list)
-		if (port->rport)
-			port->rport = NULL;
-
-	read_unlock_irq(&zfcp_data.config_lock);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-
-	return;
 }
 
 static struct fc_host_statistics*

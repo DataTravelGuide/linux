@@ -624,6 +624,10 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 	}
 
 	mutex_lock(&zfcp_data.config_mutex);
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_REMOVE) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	/* first entry is the header */
 	for (x = 1; x < max_entries && !last; x++) {
@@ -657,6 +661,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 	zfcp_erp_wait(adapter);
 	list_for_each_entry_safe(port, tmp, &adapter->port_list_head, list)
 		zfcp_fc_validate_port(port);
+out:
 	mutex_unlock(&zfcp_data.config_mutex);
 	return ret;
 }
