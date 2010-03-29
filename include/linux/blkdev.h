@@ -234,6 +234,8 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
+	/* For future extensions */
+	void *pad;
 };
 
 static inline unsigned short req_get_ioprio(struct request *req)
@@ -442,6 +444,8 @@ struct request_queue
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;
 #endif
+	/* For future extensions */
+	void	*pad;
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
