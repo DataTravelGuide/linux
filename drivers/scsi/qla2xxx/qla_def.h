@@ -33,6 +33,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
 
+#include "qla_bsg.h"
 #define QLA2XXX_DRIVER_NAME  "qla2xxx"
 
 /*
@@ -1579,6 +1580,8 @@ typedef struct fc_port {
 	uint16_t loop_id;
 	uint16_t old_loop_id;
 
+	uint8_t fcp_prio;
+
 	uint8_t fabric_port_name[WWN_SIZE];
 	uint16_t fp_speed;
 
@@ -2257,6 +2260,13 @@ struct req_que {
 	int max_q_depth;
 };
 
+/* Place holder for FW buffer parameters */
+struct qlfc_fw {
+	void *fw_buf;
+	dma_addr_t fw_dma;
+	uint32_t len;
+};
+
 /*
  * Qlogic host adapter specific data structure.
 */
@@ -2291,6 +2301,7 @@ struct qla_hw_data {
 		uint32_t	eeh_busy		:1;
 		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
+		uint32_t	fcp_prio_enabled	:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2594,6 +2605,7 @@ struct qla_hw_data {
 	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
 	uint32_t	flt_region_gold_fw;
+	uint32_t	flt_region_fcp_prio;
 
 	/* Needed for BEACON */
 	uint16_t        beacon_blink_led;
@@ -2621,6 +2633,10 @@ struct qla_hw_data {
 	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
 	struct workqueue_struct *wq;
+	struct qlfc_fw fw_buf;
+
+	/* FCP_CMND priority support */
+	struct qla_fcp_prio_cfg *fcp_prio_cfg;
 };
 
 /*
@@ -2792,16 +2808,4 @@ typedef struct scsi_qla_host {
 #include "qla_inline.h"
 
 #define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
-
-/*
- * BSG Vendor specific commands
- */
-
-#define QL_VND_LOOPBACK		0x01
-
-/* BSG definations for interpreting CommandSent field */
-#define INT_DEF_LB_LOOPBACK_CMD         0
-#define INT_DEF_LB_ECHO_CMD             1
-
-
 #endif
