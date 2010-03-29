@@ -207,30 +207,29 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	struct zfcp_port *port = dev_get_drvdata(dev);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
-	int retval = -EINVAL;
 
 	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
-		retval = -EBUSY;
-		goto out;
+		mutex_unlock(&zfcp_data.config_mutex);
+		return -EBUSY;
 	}
 
-	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
-		goto out;
+	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun)) {
+		mutex_unlock(&zfcp_data.config_mutex);
+		return -EINVAL;
+	}
 
 	unit = zfcp_unit_enqueue(port, fcp_lun);
+	mutex_unlock(&zfcp_data.config_mutex);
 	if (IS_ERR(unit))
-		goto out;
-
-	retval = 0;
+		return -EINVAL;
 
 	zfcp_erp_unit_reopen(unit, 0, "syuas_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
 	flush_work(&unit->scsi_work);
 	zfcp_unit_put(unit);
-out:
-	mutex_unlock(&zfcp_data.config_mutex);
-	return retval ? retval : (ssize_t) count;
+
+	return (ssize_t) count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
 
