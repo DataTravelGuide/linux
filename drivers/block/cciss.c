@@ -1771,10 +1771,7 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 	blk_queue_bounce_limit(disk->queue, h->pdev->dma_mask);
 
 	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(disk->queue, MAXSGENTRIES);
-
-	/* This is a limit in the driver and could be eliminated. */
-	blk_queue_max_phys_segments(disk->queue, MAXSGENTRIES);
+	blk_queue_max_segments(disk->queue, MAXSGENTRIES);
 
 	blk_queue_max_hw_sectors(disk->queue, h->cciss_max_sectors);
 
