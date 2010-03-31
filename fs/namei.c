@@ -1606,8 +1606,9 @@ int may_open(struct path *path, int acc_mode, int flag)
 			       IMA_COUNT_UPDATE);
 }
 
-static int handle_truncate(struct path *path)
+static int handle_truncate(struct file *filp)
 {
+	struct path *path = &filp->f_path;
 	struct inode *inode = path->dentry->d_inode;
 	int error = get_write_access(inode);
 	if (error)
@@ -1622,7 +1623,7 @@ static int handle_truncate(struct path *path)
 	if (!error) {
 		error = do_truncate(path->dentry, 0,
 				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
-				    NULL);
+				    filp);
 	}
 	put_write_access(inode);
 	return error;
@@ -1874,7 +1875,7 @@ ok:
 		vfs_dq_init(nd.path.dentry->d_inode);
 
 	if (will_truncate) {
-		error = handle_truncate(&nd.path);
+		error = handle_truncate(filp);
 		if (error) {
 			mnt_drop_write(nd.path.mnt);
 			fput(filp);
