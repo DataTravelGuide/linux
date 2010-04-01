@@ -430,3 +430,4 @@ CONFIG_VMWARE_PVSCSI=m
 # CONFIG_DRM_TDFX is not set
 # CONFIG_DRM_I810 is not set
 # CONFIG_DRM_I830 is not set
+# CONFIG_NF_CT_ACCT is not set
