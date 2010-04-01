@@ -349,3 +349,4 @@ CONFIG_SLAB=y
 # CONFIG_OCFS2_FS is not set
 # CONFIG_SLUB is not set
 # CONFIG_DEBUG_SLAB is not set
+# CONFIG_TIPC is not set
