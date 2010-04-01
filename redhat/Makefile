@@ -26,13 +26,23 @@ BUILDID:=.$(LOCALVERSION)
 $(info BUILDID is "$(BUILDID)". Update '$(shell dirname $(REDHAT))/localversion' to change.)
 endif
 
+# this section is needed in order to make O= and KBUILD_OUTPUT to work
+ifeq ($(KBUILD_OUTPUT),)
+ifeq ("$(origin O)", "command line")
+  KBUILD_OUTPUT := $(O)
+endif
+ifeq ($(KBUILD_OUTPUT),)
+  KBUILD_OUTPUT := $(REDHAT)/..
+endif
+endif
+
 default: rh-help
 
 rh-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) configs
 
 rh-configs-prep:
-	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) configs-prep
+	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) O=$(KBUILD_OUTPUT) configs-prep
 
 rh-clean-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) clean
@@ -44,16 +54,6 @@ rh-clean-sources:
 
 rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
-
-# this section is needed in order to make O= and KBUILD_OUTPUT to work
-ifeq ($(KBUILD_OUTPUT),)
-ifeq ("$(origin O)", "command line")
-  KBUILD_OUTPUT := $(O)
-endif
-ifeq ($(KBUILD_OUTPUT),)
-  KBUILD_OUTPUT := $(REDHAT)/..
-endif
-endif
 
 rh-key:
 	echo "Creating a new module signing key...";

@@ -3,7 +3,7 @@
 # $Id$
 
 CFG		= kernel-$(VERSION)
-CFG_DIR		= ../../configs
+CFG_DIR		= $(O)/configs
 
 CONFIGFILES	= \
 	$(CFG)-i686.config $(CFG)-i686-debug.config \
@@ -42,15 +42,15 @@ configs-prep: configs
 	@mkdir -p $(CFG_DIR)
 	@rm -f $(CFG_DIR)/*
 	@cp $(CFG)* $(CFG_DIR)
-	@cd ../.. && \
-	for i in configs/*.config; do \
-		mv $$i .config ; \
-		Arch=$$(head -1 .config | cut -b 3-) ; \
+	@cd ../../ && \
+	for i in $(CFG_DIR)/*.config; do \
+		mv $$i $(O)/.config ; \
+		Arch=$$(head -1 $(O)/.config | cut -b 3-) ; \
 		echo "Configuring $$i" ; \
-		make ARCH=$$Arch nonint_oldconfig > /dev/null || exit 1 ; \
+		make ARCH=$$Arch nonint_oldconfig O=$(O) > /dev/null || exit 1 ; \
 		echo "# $$Arch" > $$i ; \
-		cat .config >> $$i ; \
-		rm .config; \
+		cat $(O)/.config >> $$i ; \
+		rm $(O)/.config; \
 	done
 
 config-%-merged:
