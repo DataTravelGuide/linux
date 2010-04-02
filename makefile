@@ -17,7 +17,7 @@ rh-%::
 .PHONY: rhkey
 Makefile: rhkey
 rhkey:
-	@if [ ! -e $(KBUILD_OUTPUT)/kernel.pub -o ! -e $(KBUILD_OUTPUT)/kernel.sec -o ! -e $(KBUILD_OUTPUT)/crypto/signature/key.h ]; then \
+	@if [ ! -s $(KBUILD_OUTPUT)/kernel.pub -o ! -s $(KBUILD_OUTPUT)/kernel.sec -o ! -s $(KBUILD_OUTPUT)/crypto/signature/key.h ]; then \
 		$(MAKE) -C redhat rh-key O=${KBUILD_OUTPUT}; \
 	fi;
 
