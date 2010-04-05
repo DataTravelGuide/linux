@@ -75,8 +75,8 @@ struct io_context {
 	/*
 	 * For request batching
 	 */
-	unsigned long last_waited; /* Time last woken after wait for request */
 	int nr_batch_requests;     /* Number of requests left in the batch */
+	unsigned long last_waited; /* Time last woken after wait for request */
 
 	struct as_io_context *aic;
 	struct radix_tree_root radix_root;
