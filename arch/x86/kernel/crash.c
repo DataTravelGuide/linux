@@ -105,9 +105,5 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	hpet_disable();
 #endif
 
-#ifdef CONFIG_X86_64
-	pci_iommu_shutdown();
-#endif
-
 	crash_save_cpu(regs, safe_smp_processor_id());
 }
