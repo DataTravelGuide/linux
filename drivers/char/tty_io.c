@@ -1933,8 +1933,8 @@ static int tty_fasync(int fd, struct file *filp, int on)
 			type = PIDTYPE_PID;
 		}
 		get_pid(pid);
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
+		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		put_pid(pid);
 		if (retval)
 			goto out;
