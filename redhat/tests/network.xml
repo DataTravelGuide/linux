@@ -101,6 +101,8 @@ e1000e
           <param name='KERNELARGNAME' value='kernel'/>
           <param name='KERNELARGVARIANT' value='debug'/>
           <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
       <test role='CLIENTS' name='/kernel/networking/nic/stress_mh'/>
@@ -131,6 +133,8 @@ e1000e
           <param name='KERNELARGNAME' value='kernel'/>
           <param name='KERNELARGVARIANT' value='up'/>
           <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
       <test role='SERVERS' name='/kernel/networking/nic/stress_mh'/>

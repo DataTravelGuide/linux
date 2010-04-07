@@ -59,6 +59,8 @@ logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
           <param name='KERNELARGNAME' value='kernel'/>
           <param name='KERNELARGVARIANT' value='up'/>
           <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
       <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
@@ -127,6 +129,8 @@ logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
           <param name='TEST_PARAM_TEST_DEV' value='/dev/mapper/VolGroup00-testvol1'/>
           <param name='TEST_PARAM_SCRATCH_DEV' value='/dev/mapper/VolGroup00-testvol2'/>
           <param name='TEST_PARAM_FSTYPE' value='%%TESTARG%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
     </recipe>
@@ -182,6 +186,8 @@ logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
           <param name='KERNELARGNAME' value='kernel'/>
           <param name='KERNELARGVARIANT' value='up'/>
           <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
       <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
@@ -246,6 +252,8 @@ logvol /mnt/testarea/scratch --name=testvol2 --vgname=VolGroup00 --size=3072
           <param name='KERNELARGNAME' value='kernel'/>
           <param name='KERNELARGVARIANT' value='up'/>
           <param name='KERNELARGVERSION' value='%%KVERSION%%-%%RELEASE%%'/>
+          <param name='KERNELARGUSER' value='%%TASK_USER%%'/>
+          <param name='KERNELARGTASKID' value='%%TASK%%'/>
         </params>
       </test>
       <test role='STANDALONE' name='/kernel/filesystems/xfs/xfstests'>
