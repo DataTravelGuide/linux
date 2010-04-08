@@ -54,11 +54,12 @@ static void
 nouveau_sgdma_clear(struct ttm_backend *be)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-	struct drm_device *dev = nvbe->dev;
-
-	NV_DEBUG(nvbe->dev, "\n");
+	struct drm_device *dev;
 
 	if (nvbe && nvbe->pages) {
+		dev = nvbe->dev;
+		NV_DEBUG(dev, "\n");
+
 		if (nvbe->bound)
 			be->func->unbind(be);
 
@@ -169,6 +170,24 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 		}
 	}
 	dev_priv->engine.instmem.finish_access(nvbe->dev);
+
+	if (dev_priv->card_type == NV_50) {
+		nv_wr32(dev, 0x100c80, 0x00050001);
+		if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+			NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+			NV_ERROR(dev, "0x100c80 = 0x%08x\n",
+						nv_rd32(dev, 0x100c80));
+			return -EBUSY;
+		}
+
+		nv_wr32(dev, 0x100c80, 0x00000001);
+		if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+			NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+			NV_ERROR(dev, "0x100c80 = 0x%08x\n",
+						nv_rd32(dev, 0x100c80));
+			return -EBUSY;
+		}
+	}
 
 	nvbe->bound = false;
 	return 0;

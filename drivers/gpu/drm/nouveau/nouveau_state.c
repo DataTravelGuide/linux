@@ -34,52 +34,7 @@
 #include "nouveau_drm.h"
 #include "nv50_display.h"
 
-static int nouveau_stub_init(struct drm_device *dev) { return 0; }
 static void nouveau_stub_takedown(struct drm_device *dev) {}
-
-static int
-sfbhack_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_bo *nvbo = NULL;
-	uint32_t tile_flags = dev_priv->card_type == NV_50 ? 0x7000 : 0x0000;
-	int ret, size;
-
-	if (dev_priv->sfb_gem)
-		return 0;
-
-	size = nouveau_mem_fb_amount(dev);
-	if (size > drm_get_resource_len(dev, 1))
-		size = drm_get_resource_len(dev, 1);
-	size >>= 1;
-
-	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0, TTM_PL_FLAG_VRAM,
-			      0, tile_flags, false, true, &nvbo);
-	if (ret)
-		return ret;
-
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		nouveau_bo_ref(NULL, &nvbo);
-		return ret;
-	}
-
-	dev_priv->sfb_gem = nvbo->gem;
-	return 0;
-}
-
-static void
-sfbhack_takedown(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->sfb_gem) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(dev_priv->sfb_gem);
-		mutex_unlock(&dev->struct_mutex);
-		dev_priv->sfb_gem = NULL;
-	}
-}
 
 static int nouveau_init_engine_ptrs(struct drm_device *dev)
 {
@@ -320,8 +275,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nouveau_stub_init;
-		engine->fb.takedown		= nouveau_stub_takedown;
+		engine->fb.init			= nv50_fb_init;
+		engine->fb.takedown		= nv50_fb_takedown;
 		engine->graph.grclass		= nv50_graph_grclass;
 		engine->graph.init		= nv50_graph_init;
 		engine->graph.takedown		= nv50_graph_takedown;
@@ -354,6 +309,14 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
+	struct drm_device *dev = priv;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset >= 0x40)
+		nv_wr32(dev, 0x88054, state);
+	else
+		nv_wr32(dev, 0x1854, state);
+
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
@@ -376,7 +339,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
+				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
 				     &gpuobj);
 	if (ret)
@@ -427,6 +390,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out;
 	engine = &dev_priv->engine;
 	dev_priv->init_state = NOUVEAU_CARD_INIT_FAILED;
+	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -434,6 +398,10 @@ nouveau_card_init(struct drm_device *dev)
 		if (ret)
 			goto out;
 	}
+
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		goto out_bios;
 
 	ret = nouveau_gpuobj_early_init(dev);
 	if (ret)
@@ -471,15 +439,19 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	/* PGRAPH */
-	ret = engine->graph.init(dev);
-	if (ret)
-		goto out_fb;
+	if (nouveau_noaccel)
+		engine->graph.accel_blocked = true;
+	else {
+		/* PGRAPH */
+		ret = engine->graph.init(dev);
+		if (ret)
+			goto out_fb;
 
-	/* PFIFO */
-	ret = engine->fifo.init(dev);
-	if (ret)
-		goto out_graph;
+		/* PFIFO */
+		ret = engine->fifo.init(dev);
+		if (ret)
+			goto out_graph;
+	}
 
 	/* this call irq_preinstall, register irq handler and
 	 * call irq_postinstall
@@ -506,7 +478,7 @@ nouveau_card_init(struct drm_device *dev)
 		else
 			ret = nv04_display_create(dev);
 		if (ret)
-			goto out_irq;
+			goto out_channel;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -520,12 +492,19 @@ nouveau_card_init(struct drm_device *dev)
 
 	return 0;
 
+out_channel:
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
+	}
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
-	engine->fifo.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->fifo.takedown(dev);
 out_graph:
-	engine->graph.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->graph.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
 out_timer:
@@ -535,6 +514,7 @@ out_mc:
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
 out_mem:
+	nouveau_sgdma_takedown(dev);
 	nouveau_mem_close(dev);
 out_instmem:
 	engine->instmem.takedown(dev);
@@ -562,13 +542,16 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			dev_priv->channel = NULL;
 		}
 
-		engine->fifo.takedown(dev);
-		engine->graph.takedown(dev);
+		if (!nouveau_noaccel) {
+			engine->fifo.takedown(dev);
+			engine->graph.takedown(dev);
+		}
 		engine->fb.takedown(dev);
 		engine->timer.takedown(dev);
 		engine->mc.takedown(dev);
 
 		mutex_lock(&dev->struct_mutex);
+		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);
 		mutex_unlock(&dev->struct_mutex);
 		nouveau_sgdma_takedown(dev);
@@ -777,8 +760,6 @@ static void nouveau_close(struct drm_device *dev)
 /* KMS: we need mmio at load time, not when the first drm client opens. */
 void nouveau_lastclose(struct drm_device *dev)
 {
-	sfbhack_takedown(dev);
-
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
@@ -805,20 +786,11 @@ int nouveau_unload(struct drm_device *dev)
 	return 0;
 }
 
-int
-nouveau_ioctl_card_init(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	return nouveau_card_init(dev);
-}
-
 int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 						struct drm_file *file_priv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_nouveau_getparam *getparam = data;
-	uint32_t sfb_handle;
-	int ret;
 
 	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 
@@ -864,27 +836,15 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
 		break;
-	case 0xdeadcafe00000001: /* NOUVEAU_GETPARAM_SHAREDFB_HANDLE */
-		ret = sfbhack_init(dev);
-		if (ret)
-			return ret;
-
-		ret = drm_gem_handle_create(file_priv, dev_priv->sfb_gem,
-					    &sfb_handle);
-		if (ret)
-			return ret;
-		getparam->value = sfb_handle;
-		break;
-	case 0xdeadcafe00000002: /* NOUVEAU_GETPARAM_SHAREDFB_SIZE */
-		ret = sfbhack_init(dev);
-		if (ret)
-			return ret;
-
-		getparam->value = dev_priv->sfb_gem->size;
-		break;
-	case 0xdeadcafe00000003: /* NOUVEAU_GETPARAM_SCANOUT_TILEFLAGS */
-		getparam->value = 1;
-		break;
+	case NOUVEAU_GETPARAM_GRAPH_UNITS:
+		/* NV40 and NV50 versions are quite different, but register
+		 * address is the same. User is supposed to know the card
+		 * family anyway... */
+		if (dev_priv->chipset >= 0x40) {
+			getparam->value = nv_rd32(dev, NV40_PMC_GRAPH_UNITS);
+			break;
+		}
+		/* FALLTHRU */
 	default:
 		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
