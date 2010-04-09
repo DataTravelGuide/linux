@@ -33,8 +33,8 @@ BFA_TRC_FILE(CNA, IOC_CT);
 static bfa_status_t bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
-static u32 *bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc,
-						u32 off);
+static u32* bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc,
+					u32 off);
 static u32 bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc);
@@ -42,7 +42,7 @@ static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
 static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
 
-static struct bfa_ioc_hwif_s hwif_ct = {
+struct bfa_ioc_hwif_s hwif_ct = {
 	bfa_ioc_ct_pll_init,
 	bfa_ioc_ct_firmware_lock,
 	bfa_ioc_ct_firmware_unlock,
@@ -64,7 +64,7 @@ bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_ct;
 }
 
-static u32 *
+static u32*
 bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off)
 {
 	return bfi_image_ct_get_chunk(off);
@@ -346,14 +346,14 @@ bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 	if (ioc->fcmode) {
 		bfa_reg_write((rb + OP_MODE), 0);
 		bfa_reg_write((rb + ETH_MAC_SER_REG),
-			      __APP_EMS_CMLCKSEL |
-			      __APP_EMS_REFCKBUFEN2 |
-			      __APP_EMS_CHANNEL_SEL);
+				__APP_EMS_CMLCKSEL |
+				__APP_EMS_REFCKBUFEN2 |
+				__APP_EMS_CHANNEL_SEL);
 	} else {
 		ioc->pllinit = BFA_TRUE;
 		bfa_reg_write((rb + OP_MODE), __GLOBAL_FCOE_MODE);
 		bfa_reg_write((rb + ETH_MAC_SER_REG),
-			      __APP_EMS_REFCKBUFEN1);
+				 __APP_EMS_REFCKBUFEN1);
 	}
 
 	bfa_reg_write((rb + BFA_IOC0_STATE_REG), BFI_IOC_UNINIT);
@@ -421,5 +421,3 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	bfa_reg_read(ioc->ioc_regs.ioc_sem_reg);
 	bfa_ioc_hw_sem_release(ioc);
 }
-
-

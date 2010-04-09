@@ -123,7 +123,7 @@ enum bfa_plog_eid {
 	BFA_PL_EID_FIP_FCF_CVL		= 21,
 	BFA_PL_EID_LOGIN		= 22,
 	BFA_PL_EID_LOGO			= 23,
-	BFA_PL_EID_MAX 			= 24
+	BFA_PL_EID_MAX			= 24
 };
 
 #define BFA_PL_ENAME_STRLEN    	8

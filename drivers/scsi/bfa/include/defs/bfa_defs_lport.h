@@ -59,7 +59,7 @@ enum bfa_lport_aen_event {
  */
 struct bfa_lport_aen_data_s {
 	u16        vf_id;	/*  vf_id of this logical port */
-	s16         roles;	/*  Logical port mode,IM/TM/IP etc */
+	s16         roles;  /*  Logical port mode,IM/TM/IP etc */
 	u32        rsvd;
 	wwn_t           ppwwn;	/*  WWN of its physical port */
 	wwn_t           lpwwn;	/*  WWN of this logical port */

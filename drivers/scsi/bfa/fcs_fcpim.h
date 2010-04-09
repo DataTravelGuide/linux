@@ -35,6 +35,5 @@ void bfa_fcs_itnim_pause(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_itnim_resume(struct bfa_fcs_itnim_s *itnim);
 
 void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim, struct fchs_s *fchs,
-				u16 len);
-
+			u16 len);
 #endif /* __FCS_FCPIM_H__ */

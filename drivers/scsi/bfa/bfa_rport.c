@@ -46,14 +46,12 @@ BFA_MODULE(rport);
  * forward declarations
  */
 static struct bfa_rport_s *bfa_rport_alloc(struct bfa_rport_mod_s *rp_mod);
-static void		bfa_rport_free(struct bfa_rport_s *rport);
-static bfa_boolean_t 	bfa_rport_send_fwcreate(struct bfa_rport_s *rp);
-static bfa_boolean_t	bfa_rport_send_fwdelete(struct bfa_rport_s *rp);
-static bfa_boolean_t	bfa_rport_send_fwspeed(struct bfa_rport_s *rp);
-static void		__bfa_cb_rport_online(void *cbarg,
-							bfa_boolean_t complete);
-static void		__bfa_cb_rport_offline(void *cbarg,
-							bfa_boolean_t complete);
+static void bfa_rport_free(struct bfa_rport_s *rport);
+static bfa_boolean_t bfa_rport_send_fwcreate(struct bfa_rport_s *rp);
+static bfa_boolean_t bfa_rport_send_fwdelete(struct bfa_rport_s *rp);
+static bfa_boolean_t bfa_rport_send_fwspeed(struct bfa_rport_s *rp);
+static void __bfa_cb_rport_online(void *cbarg, bfa_boolean_t complete);
+static void __bfa_cb_rport_offline(void *cbarg, bfa_boolean_t complete);
 
 /**
  *  bfa_rport_sm BFA rport state machine

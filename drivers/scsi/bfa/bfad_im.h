@@ -116,7 +116,7 @@ struct bfad_fcp_binding {
 struct bfad_im_s {
 	struct bfad_s         *bfad;
 	struct workqueue_struct *drv_workq;
-	char            drv_workq_name[BFAD_KOBJ_NAME_LEN];
+	char   drv_workq_name[BFAD_KOBJ_NAME_LEN];
 };
 
 struct Scsi_Host *bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port,

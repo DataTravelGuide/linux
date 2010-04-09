@@ -49,6 +49,7 @@
 #define BFAD_DRIVER_VERSION    "2.1.2.1"
 #endif
 
+
 #define BFAD_IRQ_FLAGS IRQF_SHARED
 
 /*
@@ -61,10 +62,9 @@
 #define BFAD_HAL_START_DONE			0x00000010
 #define BFAD_PORT_ONLINE			0x00000020
 #define BFAD_RPORT_ONLINE			0x00000040
-#define BFAD_FCS_INIT_DONE			0x00000080
-#define BFAD_HAL_INIT_FAIL			0x00000100
-#define BFAD_FC4_PROBE_DONE			0x00000200
-
+#define BFAD_FCS_INIT_DONE                      0x00000080
+#define BFAD_HAL_INIT_FAIL                      0x00000100
+#define BFAD_FC4_PROBE_DONE                     0x00000200
 #define BFAD_PORT_DELETE			0x00000001
 
 /*
@@ -246,7 +246,7 @@ struct bfad_hal_comp {
 do {                                            	\
 	int j;                                  	\
 	(*x)--;    		                	\
-	for (j = 1; j < (sizeof(int) * 8); j <<= 1)	\
+	for (j = 1; j < (sizeof(int) * 8); j <<= 1)     \
 		(*x) = (*x) | (*x) >> j;        	\
 	(*x)++;                  	        	\
 	(*x) = (*x) >> 1;                       	\
@@ -281,8 +281,8 @@ void		bfad_drv_uninit(struct bfad_s *bfad);
 void		bfad_drv_log_level_set(struct bfad_s *bfad);
 bfa_status_t	bfad_fc4_module_init(void);
 void		bfad_fc4_module_exit(void);
+int		bfad_worker (void *ptr);
 
-int bfad_worker(void *ptr);
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);
 void bfad_os_rport_online_wait(struct bfad_s *bfad);

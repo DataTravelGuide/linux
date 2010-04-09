@@ -418,6 +418,4 @@ bfa_chip_reset(struct bfa_s *bfa)
 	bfa_ioc_ownership_reset(&bfa->ioc);
 	bfa_ioc_pll_init(&bfa->ioc);
 }
-
 #endif
-

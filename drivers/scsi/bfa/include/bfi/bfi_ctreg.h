@@ -453,8 +453,8 @@ enum {
 #define __PSS_SGM_IF_ERR                 0x00000004
 #define __PSS_LPU1_RAM_ERR               0x00000002
 #define __PSS_LPU0_RAM_ERR               0x00000001
-#define ERR_SET_REG                      0x00018818
-#define __PSS_ERR_STATUS_SET             0x003fffff
+#define ERR_SET_REG			 0x00018818
+#define __PSS_ERR_STATUS_SET		 0x003fffff
 #define HQM_QSET0_RXQ_DRBL_P0            0x00038000
 #define __RXQ0_ADD_VECTORS_P             0x80000000
 #define __RXQ0_STOP_P                    0x40000000
@@ -541,29 +541,29 @@ enum {
 #define RME_CI_PTR_Q(__n) \
 	(RME_CI_PTR_Q0 + (__n) * (RME_CI_PTR_Q1 - RME_CI_PTR_Q0))
 #define HQM_QSET_RXQ_DRBL_P0(__n) \
-	(HQM_QSET0_RXQ_DRBL_P0 +  \
-		(__n) * (HQM_QSET1_RXQ_DRBL_P0 - HQM_QSET0_RXQ_DRBL_P0))
+	(HQM_QSET0_RXQ_DRBL_P0 + (__n) * (HQM_QSET1_RXQ_DRBL_P0 - \
+	HQM_QSET0_RXQ_DRBL_P0))
 #define HQM_QSET_TXQ_DRBL_P0(__n) \
-	(HQM_QSET0_TXQ_DRBL_P0 +  \
-		(__n) * (HQM_QSET1_TXQ_DRBL_P0 - HQM_QSET0_TXQ_DRBL_P0))
+	(HQM_QSET0_TXQ_DRBL_P0 + (__n) * (HQM_QSET1_TXQ_DRBL_P0 - \
+	HQM_QSET0_TXQ_DRBL_P0))
 #define HQM_QSET_IB_DRBL_1_P0(__n) \
-	(HQM_QSET0_IB_DRBL_1_P0 +  \
-		(__n) * (HQM_QSET1_IB_DRBL_1_P0 - HQM_QSET0_IB_DRBL_1_P0))
+	(HQM_QSET0_IB_DRBL_1_P0 + (__n) * (HQM_QSET1_IB_DRBL_1_P0 - \
+	HQM_QSET0_IB_DRBL_1_P0))
 #define HQM_QSET_IB_DRBL_2_P0(__n) \
-	(HQM_QSET0_IB_DRBL_2_P0 +  \
-		(__n) * (HQM_QSET1_IB_DRBL_2_P0 - HQM_QSET0_IB_DRBL_2_P0))
+	(HQM_QSET0_IB_DRBL_2_P0 + (__n) * (HQM_QSET1_IB_DRBL_2_P0 - \
+	HQM_QSET0_IB_DRBL_2_P0))
 #define HQM_QSET_RXQ_DRBL_P1(__n) \
-	(HQM_QSET0_RXQ_DRBL_P1 +  \
-		(__n) * (HQM_QSET1_RXQ_DRBL_P1 - HQM_QSET0_RXQ_DRBL_P1))
+	(HQM_QSET0_RXQ_DRBL_P1 + (__n) * (HQM_QSET1_RXQ_DRBL_P1 - \
+	HQM_QSET0_RXQ_DRBL_P1))
 #define HQM_QSET_TXQ_DRBL_P1(__n) \
-	(HQM_QSET0_TXQ_DRBL_P1 +  \
-		(__n) * (HQM_QSET1_TXQ_DRBL_P1 - HQM_QSET0_TXQ_DRBL_P1))
+	(HQM_QSET0_TXQ_DRBL_P1 + (__n) * (HQM_QSET1_TXQ_DRBL_P1 - \
+	HQM_QSET0_TXQ_DRBL_P1))
 #define HQM_QSET_IB_DRBL_1_P1(__n) \
-	(HQM_QSET0_IB_DRBL_1_P1 +  \
-		(__n) * (HQM_QSET1_IB_DRBL_1_P1 - HQM_QSET0_IB_DRBL_1_P1))
+	(HQM_QSET0_IB_DRBL_1_P1 + (__n) * (HQM_QSET1_IB_DRBL_1_P1 - \
+	HQM_QSET0_IB_DRBL_1_P1))
 #define HQM_QSET_IB_DRBL_2_P1(__n) \
-	(HQM_QSET0_IB_DRBL_2_P1 +  \
-		(__n) * (HQM_QSET1_IB_DRBL_2_P1 - HQM_QSET0_IB_DRBL_2_P1))
+	(HQM_QSET0_IB_DRBL_2_P1 + (__n) * (HQM_QSET1_IB_DRBL_2_P1 - \
+	HQM_QSET0_IB_DRBL_2_P1))
 
 #define CPE_Q_NUM(__fn, __q)  (((__fn) << 2) + (__q))
 #define RME_Q_NUM(__fn, __q)  (((__fn) << 2) + (__q))
@@ -614,7 +614,7 @@ enum {
 #define __HFN_INT_MBOX_LPU1                0x00200000U
 #define __HFN_INT_MBOX1_LPU0               0x00400000U
 #define __HFN_INT_MBOX1_LPU1               0x00800000U
-#define __HFN_INT_LL_HALT                  0x01000000U
+#define __HFN_INT_LL_HALT		   0x01000000U
 #define __HFN_INT_CPE_MASK                 0x000000ffU
 #define __HFN_INT_RME_MASK                 0x0000ff00U
 

@@ -126,7 +126,7 @@ struct bfa_ioc_attr_s {
 	struct bfa_ioc_driver_attr_s 	driver_attr;	/*  driver attr    */
 	struct bfa_ioc_pci_attr_s	pci_attr;
 	u8				port_id;	/*  port number    */
-	u8				rsvd[7];	/*  64bit align    */
+	u8				rsvd[7];	/*!< 64bit align    */
 };
 
 /**
@@ -146,7 +146,7 @@ enum bfa_ioc_aen_event {
 struct bfa_ioc_aen_data_s {
 	wwn_t	pwwn;
 	s16 ioc_type;
-	struct mac_s	mac;
+	mac_t	mac;
 };
 
 #endif /* __BFA_DEFS_IOC_H__ */

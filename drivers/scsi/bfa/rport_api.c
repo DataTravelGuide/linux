@@ -37,7 +37,8 @@ BFA_TRC_FILE(FCS, RPORT_API);
  */
 bfa_status_t
 bfa_fcs_rport_add(struct bfa_fcs_port_s *port, wwn_t *pwwn,
-		struct bfa_fcs_rport_s *rport, struct bfad_rport_s *rport_drv)
+			struct bfa_fcs_rport_s *rport,
+			struct bfad_rport_s *rport_drv)
 {
 	bfa_trc(port->fcs, *pwwn);
 
@@ -104,9 +105,8 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	if (bfa_fcport_is_ratelim(port->fcs->bfa)) {
 		if ((rport->rpf.rpsc_speed == BFA_PPORT_SPEED_UNKNOWN) ||
 			(rport->rpf.rpsc_speed <
-				bfa_fcs_port_get_rport_max_speed(port))) {
+			bfa_fcs_port_get_rport_max_speed(port)))
 			rport_attr->trl_enforced = BFA_TRUE;
-		}
 	}
 
 	/*

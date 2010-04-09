@@ -26,7 +26,7 @@
 
 #define BFA_IOCFC_INTR_DELAY	1125
 #define BFA_IOCFC_INTR_LATENCY	225
-#define BFA_IOCFCOE_INTR_DELAY	25
+#define BFA_IOCFCOE_INTR_DELAY  25
 #define BFA_IOCFCOE_INTR_LATENCY 5
 
 /**
@@ -243,7 +243,7 @@ struct bfa_fw_fip_stats_s {
     u32    clrvlink_req;       /*  Clear virtual link req              */
     u32    op_unsupp;          /*  Unsupported FIP operation           */
     u32    untagged;           /*  Untagged frames (ignored)           */
-    u32    invalid_version;    /*  Invalid FIP version                 */
+    u32	   invalid_version;    /*!< Invalid FIP version           */
 };
 
 

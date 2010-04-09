@@ -27,7 +27,6 @@ static int msix_disable_cb;
 static int msix_disable_ct;
 module_param(msix_disable_cb, int, S_IRUGO | S_IWUSR);
 module_param(msix_disable_ct, int, S_IRUGO | S_IWUSR);
-
 /**
  * Line based interrupt handler.
  */
@@ -215,3 +214,5 @@ bfad_remove_intr(struct bfad_s *bfad)
 		free_irq(bfad->pcidev->irq, bfad);
 	}
 }
+
+

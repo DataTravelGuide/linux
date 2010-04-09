@@ -30,8 +30,8 @@ typedef void (*bfa_timer_cbfn_t)(void *);
 struct bfa_timer_s {
 	struct list_head	qe;
 	bfa_timer_cbfn_t timercb;
-	void		*arg;
-	int		timeout;	/**< in millisecs. */
+	void            *arg;
+	int             timeout;	/**< in millisecs. */
 };
 
 /**

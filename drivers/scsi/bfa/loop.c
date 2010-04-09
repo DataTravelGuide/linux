@@ -58,17 +58,16 @@ static const u8   port_loop_alpa_map[] = {
 /*
  * Local Functions
  */
-static bfa_status_t    bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port,
-					     u8 alpa);
+static bfa_status_t bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port,
+					u8 alpa);
 
-static void            bfa_fcs_port_loop_plogi_response(void *fcsarg,
-						 struct bfa_fcxp_s *fcxp,
-						 void *cbarg,
-						 bfa_status_t req_status,
-						 u32 rsp_len,
-						 u32 resid_len,
-						 struct fchs_s *rsp_fchs);
-
+static void bfa_fcs_port_loop_plogi_response(void *fcsarg,
+					struct bfa_fcxp_s *fcxp,
+					void *cbarg,
+					bfa_status_t req_status,
+					u32 rsp_len,
+					u32 resid_len,
+					struct fchs_s *rsp_fchs);
 /**
  *   Called by port to initializar in provate LOOP topology.
  */

@@ -66,8 +66,8 @@ bfa_msix_all(struct bfa_s *bfa, int vec)
 bfa_boolean_t
 bfa_intx(struct bfa_s *bfa)
 {
-	u32 intr, qintr;
-	int queue;
+	u32        intr, qintr;
+	int             queue;
 
 	intr = bfa_reg_read(bfa->iocfc.bfa_regs.intr_status);
 	if (!intr)
@@ -109,8 +109,8 @@ bfa_intx(struct bfa_s *bfa)
 void
 bfa_isr_enable(struct bfa_s *bfa)
 {
-	u32 intr_unmask;
-	int pci_func = bfa_ioc_pcifn(&bfa->ioc);
+	u32        intr_unmask;
+	int             pci_func = bfa_ioc_pcifn(&bfa->ioc);
 
 	bfa_trc(bfa, pci_func);
 
@@ -249,10 +249,10 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 			 * still called eventhough it is already masked out.
 			 */
 			curr_value = bfa_reg_read(
-					bfa->ioc.ioc_regs.pss_err_status_reg);
+				bfa->ioc.ioc_regs.pss_err_status_reg);
 			curr_value &= __PSS_ERR_STATUS_SET;
 			bfa_reg_write(bfa->ioc.ioc_regs.pss_err_status_reg,
-					curr_value);
+				curr_value);
 		}
 
 		bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, intr);

@@ -33,11 +33,11 @@
 #define BFA_AEN_MAX_APP         5
 
 enum bfa_aen_app {
-	bfa_aen_app_bcu = 0,	/* No thread for bcu */
+	bfa_aen_app_bcu = 0,    /* No thread for bcu */
 	bfa_aen_app_hcm = 1,
 	bfa_aen_app_cim = 2,
 	bfa_aen_app_snia = 3,
-	bfa_aen_app_test = 4,	/* To be removed after unit test */
+	bfa_aen_app_test = 4,   /* To be removed after unit test */
 };
 
 enum bfa_aen_category {

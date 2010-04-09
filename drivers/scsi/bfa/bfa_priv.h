@@ -88,7 +88,7 @@ struct bfa_s {
 	struct bfa_iocfc_s	iocfc;		/*  IOCFC module	    */
 	struct bfa_timer_mod_s	timer_mod;	/*  timer module	    */
 	struct bfa_modules_s	modules;	/*  BFA modules	    */
-	struct list_head		comp_q;	/*  pending completions    */
+	struct list_head	comp_q;		/*  pending completions    */
 	bfa_boolean_t		rme_process;	/*  RME processing enabled */
 	struct list_head		reqq_waitq[BFI_IOC_MAX_CQS];
 	bfa_boolean_t		fcs;		/*  FCS is attached to BFA */

@@ -28,8 +28,8 @@
  * PCI device information required by IOC
  */
 struct bfa_pcidev_s {
-	int		pci_slot;
-	u8		pci_func;
+	int             pci_slot;
+	u8         pci_func;
 	u16	device_id;
 	bfa_os_addr_t   pci_bar_kva;
 };
@@ -39,8 +39,8 @@ struct bfa_pcidev_s {
  * Address
  */
 struct bfa_dma_s {
-	void		*kva;	/* ! Kernel virtual address	*/
-	u64	pa;	/* ! Physical address		*/
+	void		*kva;	/*! Kernel virtual address	*/
+	u64	pa;	/*! Physical address		*/
 };
 
 #define BFA_DMA_ALIGN_SZ	256
@@ -101,7 +101,7 @@ struct bfa_ioc_regs_s {
  * IOC Mailbox structures
  */
 struct bfa_mbox_cmd_s {
-	struct list_head	qe;
+	struct list_head		qe;
 	u32	msg[BFI_IOC_MSGSZ];
 };
 
@@ -110,8 +110,8 @@ struct bfa_mbox_cmd_s {
  */
 typedef void (*bfa_ioc_mbox_mcfunc_t)(void *cbarg, struct bfi_mbmsg_s *m);
 struct bfa_ioc_mbox_mod_s {
-	struct list_head		cmd_q;	/*  pending mbox queue	*/
-	int			nmclass;	/*  number of handlers */
+	struct list_head	cmd_q;		/*  pending mbox queue	*/
+	int		nmclass;	/*  number of handlers */
 	struct {
 		bfa_ioc_mbox_mcfunc_t	cbfn;	/*  message handlers	*/
 		void			*cbarg;
@@ -179,22 +179,22 @@ struct bfa_ioc_s {
 	struct bfi_ioc_attr_s	*attr;
 	struct bfa_ioc_cbfn_s	*cbfn;
 	struct bfa_ioc_mbox_mod_s mbox_mod;
-	struct bfa_ioc_hwif_s	*ioc_hwif;
+	struct bfa_ioc_hwif_s   *ioc_hwif;
 };
 
 struct bfa_ioc_hwif_s {
-	bfa_status_t	(*ioc_pll_init)	(struct bfa_ioc_s *ioc);
-	bfa_boolean_t	(*ioc_firmware_lock)	(struct bfa_ioc_s *ioc);
-	void		(*ioc_firmware_unlock)	(struct bfa_ioc_s *ioc);
-	u32 *	(*ioc_fwimg_get_chunk)	(struct bfa_ioc_s *ioc,
+	bfa_status_t    (*ioc_pll_init) (struct bfa_ioc_s *ioc);
+	bfa_boolean_t   (*ioc_firmware_lock)    (struct bfa_ioc_s *ioc);
+	void            (*ioc_firmware_unlock)  (struct bfa_ioc_s *ioc);
+	u32 *   	(*ioc_fwimg_get_chunk)  (struct bfa_ioc_s *ioc,
 						u32 off);
-	u32	(*ioc_fwimg_get_size)	(struct bfa_ioc_s *ioc);
-	void		(*ioc_reg_init)	(struct bfa_ioc_s *ioc);
-	void		(*ioc_map_port)	(struct bfa_ioc_s *ioc);
-	void		(*ioc_isr_mode_set)	(struct bfa_ioc_s *ioc,
-					bfa_boolean_t msix);
-	void		(*ioc_notify_hbfail)	(struct bfa_ioc_s *ioc);
-	void		(*ioc_ownership_reset)	(struct bfa_ioc_s *ioc);
+	u32		(*ioc_fwimg_get_size)   (struct bfa_ioc_s *ioc);
+	void		(*ioc_reg_init) (struct bfa_ioc_s *ioc);
+	void		(*ioc_map_port) (struct bfa_ioc_s *ioc);
+	void		(*ioc_isr_mode_set)     (struct bfa_ioc_s *ioc,
+						bfa_boolean_t msix);
+	void            (*ioc_notify_hbfail)    (struct bfa_ioc_s *ioc);
+	void            (*ioc_ownership_reset)  (struct bfa_ioc_s *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -209,14 +209,14 @@ struct bfa_ioc_hwif_s {
 #define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\
 	BFI_ADAPTER_GETP(SPEED, (__ioc)->attr->adapter_prop)
-#define bfa_ioc_get_nports(__ioc)	\
+#define bfa_ioc_get_nports(__ioc)       \
 	BFI_ADAPTER_GETP(NPORTS, (__ioc)->attr->adapter_prop)
 
-#define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
-#define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
+#define bfa_ioc_stats(_ioc, _stats)     ((_ioc)->stats._stats++)
+#define BFA_IOC_FWIMG_MINSZ     (16 * 1024)
 
-#define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
-#define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
+#define BFA_IOC_FLASH_CHUNK_NO(off)             (off / BFI_FLASH_CHUNK_SZ_WORDS)
+#define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)      (off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
 
 /**
@@ -234,17 +234,14 @@ void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 /**
  * IOC interfaces
  */
-
 #define bfa_ioc_pll_init(__ioc) ((__ioc)->ioc_hwif->ioc_pll_init(__ioc))
-#define	bfa_ioc_isr_mode_set(__ioc, __msix)			\
+#define bfa_ioc_isr_mode_set(__ioc, __msix)                     \
 			((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix))
-#define	bfa_ioc_ownership_reset(__ioc)				\
+#define bfa_ioc_ownership_reset(__ioc)                          \
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
-
 
 void bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc);
 void bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc);
-
 void bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa,
 		struct bfa_ioc_cbfn_s *cbfn, struct bfa_timer_mod_s *timer_mod,
 		struct bfa_trc_mod_s *trcmod,
@@ -258,8 +255,7 @@ void bfa_ioc_enable(struct bfa_ioc_s *ioc);
 void bfa_ioc_disable(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_intx_claim(struct bfa_ioc_s *ioc);
 
-void bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type,
-		u32 boot_param);
+void bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_param);
 void bfa_ioc_isr(struct bfa_ioc_s *ioc, struct bfi_mbmsg_s *msg);
 void bfa_ioc_error_isr(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_is_operational(struct bfa_ioc_s *ioc);
@@ -273,7 +269,7 @@ void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver);
 void bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc_s *ioc, char *optrom_ver);
 void bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model);
 void bfa_ioc_get_adapter_manufacturer(struct bfa_ioc_s *ioc,
-		char *manufacturer);
+	char *manufacturer);
 void bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev);
 enum bfa_ioc_state bfa_ioc_get_state(struct bfa_ioc_s *ioc);
 
@@ -307,7 +303,8 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 wwn_t bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc);
 wwn_t bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc);
 wwn_t bfa_ioc_get_wwn_naa5(struct bfa_ioc_s *ioc, u16 inst);
-struct mac_s bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
+mac_t bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
 u64 bfa_ioc_get_adid(struct bfa_ioc_s *ioc);
 
 #endif /* __BFA_IOC_H__ */
+

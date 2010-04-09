@@ -58,7 +58,6 @@ static void bfa_lps_login_comp(struct bfa_lps_s *lps);
 static void bfa_lps_logout_comp(struct bfa_lps_s *lps);
 static void bfa_lps_cvl_event(struct bfa_lps_s *lps);
 
-
 /**
  *  lps_pvt BFA LPS private functions
  */
@@ -70,17 +69,17 @@ enum bfa_lps_event {
 	BFA_LPS_SM_RESUME	= 4,	/* space present in reqq queue	*/
 	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user		*/
 	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline		*/
-	BFA_LPS_SM_RX_CVL	= 7, 	/* Rx clear virtual link	*/
+	BFA_LPS_SM_RX_CVL       = 7,	/* Rx clear virtual link        */
 };
 
 static void bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event);
 static void bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event);
-static void bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event
-		event);
+static void bfa_lps_sm_loginwait(struct bfa_lps_s *lps,
+			enum bfa_lps_event event);
 static void bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event);
 static void bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event);
-static void bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event
-		event);
+static void bfa_lps_sm_logowait(struct bfa_lps_s *lps,
+			enum bfa_lps_event event);
 
 /**
  * Init state -- no login
@@ -100,13 +99,12 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 			bfa_sm_set_state(lps, bfa_lps_sm_login);
 			bfa_lps_send_login(lps);
 		}
-
 		if (lps->fdisc)
 			bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-				BFA_PL_EID_LOGIN, 0, "FDISC Request");
+			BFA_PL_EID_LOGIN, 0, "FDISC Request");
 		else
 			bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-				BFA_PL_EID_LOGIN, 0, "FLOGI Request");
+			BFA_PL_EID_LOGIN, 0, "FLOGI Request");
 		break;
 
 	case BFA_LPS_SM_LOGOUT:
@@ -122,8 +120,7 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	case BFA_LPS_SM_FWRSP:
-		/*
-		 * Could happen when fabric detects loopback and discards
+		/* Could happen when fabric detects loopback and discards
 		 * the lps request. Fw will eventually sent out the timeout
 		 * Just ignore
 		 */
@@ -149,20 +146,20 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 			bfa_sm_set_state(lps, bfa_lps_sm_online);
 			if (lps->fdisc)
 				bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-					BFA_PL_EID_LOGIN, 0, "FDISC Accept");
+				BFA_PL_EID_LOGIN, 0, "FDISC Accept");
 			else
 				bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-					BFA_PL_EID_LOGIN, 0, "FLOGI Accept");
+				BFA_PL_EID_LOGIN, 0, "FLOGI Accept");
 		} else {
 			bfa_sm_set_state(lps, bfa_lps_sm_init);
 			if (lps->fdisc)
 				bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-					BFA_PL_EID_LOGIN, 0,
-					"FDISC Fail (RJT or timeout)");
+				BFA_PL_EID_LOGIN, 0,
+				"FDISC Fail (RJT or timeout)");
 			else
 				bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
-					BFA_PL_EID_LOGIN, 0,
-					"FLOGI Fail (RJT or timeout)");
+				BFA_PL_EID_LOGIN, 0,
+				"FLOGI Fail (RJT or timeout)");
 		}
 		bfa_lps_login_comp(lps);
 		break;
@@ -308,8 +305,7 @@ bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
  * return memory requirement
  */
 static void
-bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
-	u32 *dm_len)
+bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len, u32 *dm_len)
 {
 	if (cfg->drvcfg.min_cfg)
 		*ndm_len += sizeof(struct bfa_lps_s) * BFA_LPS_MIN_LPORTS;
@@ -322,7 +318,7 @@ bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
  */
 static void
 bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-	struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 	struct bfa_lps_s	*lps;
@@ -454,8 +450,8 @@ bfa_lps_logout_rsp(struct bfa_s *bfa, struct bfi_lps_logout_rsp_s *rsp)
 static void
 bfa_lps_rx_cvl_event(struct bfa_s *bfa, struct bfi_lps_cvl_event_s *cvl)
 {
-	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
-	struct bfa_lps_s	*lps;
+	struct bfa_lps_mod_s    *mod = BFA_LPS_MOD(bfa);
+	struct bfa_lps_s        *lps;
 
 	lps = BFA_LPS_FROM_TAG(mod, cvl->lp_tag);
 
@@ -481,7 +477,6 @@ bfa_lps_free(struct bfa_lps_s *lps)
 {
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(lps->bfa);
 
-	lps->lp_pid = 0;
 	list_del(&lps->qe);
 	list_add_tail(&lps->qe, &mod->lps_free_q);
 }
@@ -498,7 +493,7 @@ bfa_lps_send_login(struct bfa_lps_s *lps)
 	bfa_assert(m);
 
 	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_LOGIN_REQ,
-		bfa_lpuid(lps->bfa));
+			bfa_lpuid(lps->bfa));
 
 	m->lp_tag	= lps->lp_tag;
 	m->alpa		= lps->alpa;
@@ -523,7 +518,7 @@ bfa_lps_send_logout(struct bfa_lps_s *lps)
 	bfa_assert(m);
 
 	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_LOGOUT_REQ,
-		bfa_lpuid(lps->bfa));
+			bfa_lpuid(lps->bfa));
 
 	m->lp_tag    = lps->lp_tag;
 	m->port_name = lps->pwwn;
@@ -554,8 +549,8 @@ static void
 bfa_lps_login_comp(struct bfa_lps_s *lps)
 {
 	if (!lps->bfa->fcs) {
-		bfa_cb_queue(lps->bfa, &lps->hcb_qe, bfa_lps_login_comp_cb,
-			lps);
+		bfa_cb_queue(lps->bfa, &lps->hcb_qe,
+				bfa_lps_login_comp_cb, lps);
 		return;
 	}
 
@@ -589,8 +584,8 @@ static void
 bfa_lps_logout_comp(struct bfa_lps_s *lps)
 {
 	if (!lps->bfa->fcs) {
-		bfa_cb_queue(lps->bfa, &lps->hcb_qe, bfa_lps_logout_comp_cb,
-			lps);
+		bfa_cb_queue(lps->bfa, &lps->hcb_qe,
+				bfa_lps_logout_comp_cb, lps);
 		return;
 	}
 	if (lps->fdisc)
@@ -605,7 +600,7 @@ bfa_lps_logout_comp(struct bfa_lps_s *lps)
 static void
 bfa_lps_cvl_event_cb(void *arg, bfa_boolean_t complete)
 {
-	struct bfa_lps_s *lps	= arg;
+	struct bfa_lps_s *lps   = arg;
 
 	if (!complete)
 		return;
@@ -624,7 +619,7 @@ bfa_lps_cvl_event(struct bfa_lps_s *lps)
 {
 	if (!lps->bfa->fcs) {
 		bfa_cb_queue(lps->bfa, &lps->hcb_qe, bfa_lps_cvl_event_cb,
-			lps);
+				lps);
 		return;
 	}
 
@@ -632,12 +627,6 @@ bfa_lps_cvl_event(struct bfa_lps_s *lps)
 	if (lps->fdisc)
 		bfa_cb_lps_cvl_event(lps->bfa->bfad, lps->uarg);
 }
-
-
-
-/**
- *  lps_public BFA LPS public functions
- */
 
 u32
 bfa_lps_get_max_vport(struct bfa_s *bfa)
@@ -647,6 +636,10 @@ bfa_lps_get_max_vport(struct bfa_s *bfa)
 	else
 		return BFA_LPS_MAX_VPORTS_SUPP_CB;
 }
+
+/**
+ *  lps_public BFA LPS public functions
+ */
 
 /**
  * Allocate a lport srvice tag.

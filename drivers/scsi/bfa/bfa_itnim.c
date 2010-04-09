@@ -218,7 +218,7 @@ bfa_itnim_sm_fwcreate(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 
 static void
 bfa_itnim_sm_fwcreate_qfull(struct bfa_itnim_s *itnim,
-					enum bfa_itnim_event event)
+			enum bfa_itnim_event event)
 {
 	bfa_trc(itnim->bfa, itnim->rport->rport_tag);
 	bfa_trc(itnim->bfa, event);
@@ -448,7 +448,7 @@ bfa_itnim_sm_fwdelete(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 
 static void
 bfa_itnim_sm_fwdelete_qfull(struct bfa_itnim_s *itnim,
-					enum bfa_itnim_event event)
+			enum bfa_itnim_event event)
 {
 	bfa_trc(itnim->bfa, itnim->rport->rport_tag);
 	bfa_trc(itnim->bfa, event);
@@ -565,7 +565,7 @@ bfa_itnim_sm_deleting(struct bfa_itnim_s *itnim, enum bfa_itnim_event event)
 
 static void
 bfa_itnim_sm_deleting_qfull(struct bfa_itnim_s *itnim,
-					enum bfa_itnim_event event)
+			enum bfa_itnim_event event)
 {
 	bfa_trc(itnim->bfa, itnim->rport->rport_tag);
 	bfa_trc(itnim->bfa, event);
