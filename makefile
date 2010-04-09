@@ -2,22 +2,19 @@ ifeq ($(filter rh-%,$(MAKECMDGOALS)),)
 	include Makefile
 endif
 
-# this section is needed in order to make O= and KBUILD_OUTPUT to work
-ifeq ($(KBUILD_OUTPUT),)
+_OUTPUT := "."
+# this section is needed in order to make O= to work
 ifeq ("$(origin O)", "command line")
-  KBUILD_OUTPUT := $(abspath $(O))
-endif
-ifeq ($(KBUILD_OUTPUT),)
-  KBUILD_OUTPUT := $(abspath .)
-endif
+  _OUTPUT := "$(abspath $(O))"
+  _EXTRA_ARGS := O=$(_OUTPUT)
 endif
 rh-%::
-	$(MAKE) -C redhat $(@) O=$(KBUILD_OUTPUT)
+	$(MAKE) -C redhat $(@) $(_EXTRA_ARGS)
 
 .PHONY: rhkey
 Makefile: rhkey
 rhkey:
-	@if [ ! -s $(KBUILD_OUTPUT)/kernel.pub -o ! -s $(KBUILD_OUTPUT)/kernel.sec -o ! -s $(KBUILD_OUTPUT)/crypto/signature/key.h ]; then \
-		$(MAKE) -C redhat rh-key O=${KBUILD_OUTPUT}; \
+	@if [ ! -s $(_OUTPUT)/kernel.pub -o ! -s $(_OUTPUT)/kernel.sec -o ! -s $(_OUTPUT)/crypto/signature/key.h ]; then \
+		$(MAKE) -C redhat rh-key $(_EXTRA_ARGS); \
 	fi;
 

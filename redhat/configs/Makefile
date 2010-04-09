@@ -1,9 +1,17 @@
 # Make rules for configuration files.
 #
 # $Id$
+# this section is needed in order to make O= to work
+
+OUTPUT := $(abspath ../..)
+
+ifeq ("$(origin O)", "command line")
+  _EXTRA_ARGS := O=$(O)
+  OUTPUT := $(O)
+endif
 
 CFG		= kernel-$(VERSION)
-CFG_DIR		= $(O)/configs
+CFG_DIR		= $(OUTPUT)/configs
 
 CONFIGFILES	= \
 	$(CFG)-i686.config $(CFG)-i686-debug.config \
@@ -38,19 +46,19 @@ clean ::
 clean-configs:
 	@rm -fv $(CONFIGFILES) $(TEMPFILES) temp-generic kernel-*config config-*-merged *.include
 
-configs-prep: configs
+configs-prep: clean configs
 	@mkdir -p $(CFG_DIR)
 	@rm -f $(CFG_DIR)/*
 	@cp $(CFG)* $(CFG_DIR)
 	@cd ../../ && \
 	for i in $(CFG_DIR)/*.config; do \
-		mv $$i $(O)/.config ; \
-		Arch=$$(head -1 $(O)/.config | cut -b 3-) ; \
+		mv $$i $(OUTPUT)/.config ; \
+		Arch=$$(head -1 $(OUTPUT)/.config | cut -b 3-) ; \
 		echo "Configuring $$i" ; \
-		make ARCH=$$Arch nonint_oldconfig O=$(O) > /dev/null || exit 1 ; \
+		make ARCH=$$Arch nonint_oldconfig $(_EXTRA_ARGS) > /dev/null || exit 1 ; \
 		echo "# $$Arch" > $$i ; \
-		cat $(O)/.config >> $$i ; \
-		rm $(O)/.config; \
+		cat $(OUTPUT)/.config >> $$i ; \
+		rm $(OUTPUT)/.config; \
 	done
 
 config-%-merged:

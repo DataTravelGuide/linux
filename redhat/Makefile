@@ -26,14 +26,11 @@ BUILDID:=.$(LOCALVERSION)
 $(info BUILDID is "$(BUILDID)". Update '$(shell dirname $(REDHAT))/localversion' to change.)
 endif
 
-# this section is needed in order to make O= and KBUILD_OUTPUT to work
-ifeq ($(KBUILD_OUTPUT),)
+# this section is needed in order to make O= to work
+_OUTPUT := ..
 ifeq ("$(origin O)", "command line")
-  KBUILD_OUTPUT := $(O)
-endif
-ifeq ($(KBUILD_OUTPUT),)
-  KBUILD_OUTPUT := $(REDHAT)/..
-endif
+  _OUTPUT := $(O)
+  _EXTRA_ARGS := O=$(_OUTPUT)
 endif
 
 default: rh-help
@@ -42,7 +39,7 @@ rh-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) configs
 
 rh-configs-prep:
-	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) O=$(KBUILD_OUTPUT) configs-prep
+	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) $(_EXTRA_ARGS) configs-prep
 
 rh-clean-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) clean
@@ -57,7 +54,7 @@ rh-pull-configs:
 
 rh-key:
 	echo "Creating a new module signing key...";
-	@cd $(KBUILD_OUTPUT); \
+	@cd $(_OUTPUT); \
 	/sbin/rngd -r /dev/urandom; \
 	gpg --homedir . --batch --gen-key $(REDHAT)/genkey; \
 	if [ -s $(REDHAT)/extrakeys.pub ]; then \
