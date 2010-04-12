@@ -1,3 +1,18 @@
+1 Release Date    : Thur.  Feb. 18, 2010 09:12:45 PST 2009 -
+                        (emaild-id:megaraidlinux@lsi.com)
+                        Bo Yang
+
+2 Current Version : 00.00.04.28-RH1
+3 Older Version   : 00.00.04.17
+
+1.      Add the CTIO support to the driver.
+
+2.      Add the ontime controller reset to the driver.
+
+3.      megaraid application will look at the device support flag to decide if application will
+        do the ontime device add/delete.
+
+4.      Fixed some issiues: OS hang during MSM create device.
 
 1 Release Date    : Mon.  Aug 31, 2009 10:12:45 PST 2009 -
 			(emaild-id:megaraidlinux@lsi.com)
