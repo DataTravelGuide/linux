@@ -2337,12 +2337,6 @@ L:	linuxppc-dev@ozlabs.org
 S:	Odd Fixes
 F:	drivers/char/hvc_*
 
-VIRTIO CONSOLE DRIVER
-M:	Amit Shah <amit.shah@redhat.com>
-L:	virtualization@lists.linux-foundation.org
-S:	Maintained
-F:	drivers/char/virtio_console.c
-
 GSPCA FINEPIX SUBDRIVER
 M:	Frank Zago <frank@zago.net>
 L:	linux-media@vger.kernel.org
@@ -5682,6 +5676,13 @@ M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
+
+VIRTIO CONSOLE DRIVER
+M:	Amit Shah <amit.shah@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/char/virtio_console.c
+F:	include/linux/virtio_console.h
 
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
