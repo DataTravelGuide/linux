@@ -15,7 +15,6 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/list.h>
-#include <linux/lockdep.h>
 #include <asm/atomic.h>
 
 struct kobject;
@@ -30,32 +29,7 @@ struct attribute {
 	const char		*name;
 	struct module		*owner;
 	mode_t			mode;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lock_class_key	*key;
-	struct lock_class_key	skey;
-#endif
 };
-
-/**
- *	sysfs_attr_init - initialize a dynamically allocated sysfs attribute
- *	@attr: struct attribute to initialize
- *
- *	Initialize a dynamically allocated struct attribute so we can
- *	make lockdep happy.  This is a new requirement for attributes
- *	and initially this is only needed when lockdep is enabled.
- *	Lockdep gives a nice error when your attribute is added to
- *	sysfs if you don't have this.
- */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-#define sysfs_attr_init(attr)				\
-do {							\
-	static struct lock_class_key __key;		\
-							\
-	(attr)->key = &__key;				\
-} while(0)
-#else
-#define sysfs_attr_init(attr) do {} while(0)
-#endif
 
 struct attribute_group {
 	const char		*name;
@@ -99,18 +73,6 @@ struct bin_attribute {
 	int (*mmap)(struct kobject *, struct bin_attribute *attr,
 		    struct vm_area_struct *vma);
 };
-
-/**
- *	sysfs_bin_attr_init - initialize a dynamically allocated bin_attribute
- *	@attr: struct bin_attribute to initialize
- *
- *	Initialize a dynamically allocated struct bin_attribute so we
- *	can make lockdep happy.  This is a new requirement for
- *	attributes and initially this is only needed when lockdep is
- *	enabled.  Lockdep gives a nice error when your attribute is
- *	added to sysfs if you don't have this.
- */
-#define sysfs_bin_attr_init(bin_attr) sysfs_attr_init(&bin_attr->attr)
 
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
