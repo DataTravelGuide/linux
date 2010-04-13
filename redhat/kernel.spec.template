@@ -1001,6 +1001,18 @@ done
 # get rid of unwanted files resulting from patch fuzz
 find . \( -name "*.orig" -o -name "*~" \) -exec rm -f {} \; >/dev/null
 
+%if %{signmodules}
+cp %{SOURCE19} .
+gpg --homedir . --batch --gen-key %{SOURCE11}
+# if there're external keys to be included
+if [ -s %{SOURCE19} ]; then
+	gpg --homedir . --no-default-keyring --keyring kernel.pub --import %{SOURCE19}
+fi
+gpg --homedir . --export --keyring ./kernel.pub Red > extract.pub
+gcc -o scripts/bin2c scripts/bin2c.c
+scripts/bin2c ksign_def_public_key __initdata <extract.pub >crypto/signature/key.h
+%endif
+
 cd ..
 
 ###
@@ -1299,18 +1311,6 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/boot
 
 cd linux-%{kversion}.%{_target_cpu}
-
-%if %{signmodules}
-cp %{SOURCE19} .
-gpg --homedir . --batch --gen-key %{SOURCE11}
-# if there're external keys to be included
-if [ -s %{SOURCE19} ]; then
-	gpg --homedir . --no-default-keyring --keyring kernel.pub --import %{SOURCE19}
-fi
-gpg --homedir . --export --keyring ./kernel.pub Red > extract.pub
-gcc -o scripts/bin2c scripts/bin2c.c
-scripts/bin2c ksign_def_public_key __initdata <extract.pub >crypto/signature/key.h
-%endif
 
 %if %{with_debug}
 BuildKernel %make_target %kernel_image debug
