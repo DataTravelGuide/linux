@@ -96,6 +96,14 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	fi)
 	@touch $(TESTPATCH)
 	@git diff --no-renames HEAD > $(TESTPATCH).tmp
+	@# 1) filterdiff will return crap from the patches it just filtered,
+	@#    that's why egrep is needed so if there're changes under redhat/
+	@#    but not everywhere else, it will be empty just like
+	@#    linux-kernel-test.patch
+	@# 2) egrep -v will return "1" if it sucessfully removed index and diff
+	@#    lines, which will be considered an error
+	@($(FILTERDIFF) $(TESTPATCH).tmp | egrep -v "^index|^diff" >$(TESTPATCH).tmp2; true)
+	@mv $(TESTPATCH).tmp2 $(TESTPATCH).tmp
 	@diff $(TESTPATCH).tmp $(TESTPATCH) > /dev/null || \
 		echo "WARNING: There are uncommitted changes in your tree or the changes are not in sync with the kernel-test.patch.  Either commit the changes or run 'make rh-test-patch'"
 	@rm $(TESTPATCH).tmp
@@ -108,9 +116,9 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 rh-sources: setup-source sources-rh
 
 rh-test-patch:
-	git diff --no-renames HEAD > $(TESTPATCH);
-	filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $(TESTPATCH) >$(TESTPATCH).tmp;
-	mv $(TESTPATCH).tmp $(TESTPATCH);
+	@git diff --no-renames HEAD > $(TESTPATCH);
+	@($(FILTERDIFF) $(TESTPATCH) | egrep -v "^index|^diff" >$(TESTPATCH).tmp; true)
+	@mv $(TESTPATCH).tmp $(TESTPATCH);
 
 rh-all-rpms: rh-sources
 	$(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" --target $(MACH) -ba $(RPM)/SOURCES/kernel.spec

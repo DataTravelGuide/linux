@@ -14,6 +14,7 @@ BUILD:=21
 TARFILE:=linux-$(KVERSION).tar.bz2
 TARBALL:=$(REDHAT)/$(TARFILE)
 TESTPATCH:=$(REDHAT)/linux-kernel-test.patch
+FILTERDIFF := filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile'
 
 SUBLEVEL := $(shell echo $(MARKER) | cut -f 3 -d '.' | cut -f 1 -d '-')
 RCREV := $(shell echo $(MARKER) | cut -f 2 -d '-' -s | sed -e "s/rc//")
