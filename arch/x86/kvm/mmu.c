@@ -488,7 +488,7 @@ out:
 	if (page_size == PAGE_SIZE) {
 		struct page *page = gfn_to_page(kvm, gfn);
 
-		if (!is_error_page(page) && PageTransHuge(page))
+		if (!is_error_page(page) && PageTransCompound(page))
 			page_size = KVM_HPAGE_SIZE(2);
 		kvm_release_page_clean(page);
 	}

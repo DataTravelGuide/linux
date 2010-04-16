@@ -404,8 +404,8 @@ static inline void __ClearPageTail(struct page *page)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline void ClearPageCompound(struct page *page)
 {
-	BUG_ON(page->flags & PG_head_tail_mask != (1 << PG_compound));
-	ClearPageCompound(page);
+	BUG_ON((page->flags & PG_head_tail_mask) != (1 << PG_compound));
+	clear_bit(PG_compound, &page->flags);
 }
 #endif
 

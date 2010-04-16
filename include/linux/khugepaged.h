@@ -57,7 +57,7 @@ static inline int khugepaged_enter(struct vm_area_struct *vma)
 {
 	return 0;
 }
-static inline int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
+static int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
 {
 	return 0;
 }

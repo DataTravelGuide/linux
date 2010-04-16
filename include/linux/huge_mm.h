@@ -75,21 +75,13 @@ extern int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 extern int handle_pte_fault(struct mm_struct *mm,
 			    struct vm_area_struct *vma, unsigned long address,
 			    pte_t *pte, pmd_t *pmd, unsigned int flags);
-extern void __split_huge_page_mm(struct mm_struct *mm, unsigned long address,
-				 pmd_t *pmd);
-extern void __split_huge_page_vma(struct vm_area_struct *vma, pmd_t *pmd);
 extern int split_huge_page(struct page *page);
-#define split_huge_page_mm(__mm, __addr, __pmd)				\
+extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
+#define split_huge_page_pmd(__mm, __pmd)				\
 	do {								\
 		pmd_t *____pmd = (__pmd);				\
 		if (unlikely(pmd_trans_huge(*____pmd)))			\
-			__split_huge_page_mm(__mm, __addr, ____pmd);	\
-	}  while (0)
-#define split_huge_page_vma(__vma, __pmd)				\
-	do {								\
-		pmd_t *____pmd = (__pmd);				\
-		if (unlikely(pmd_trans_huge(*____pmd)))			\
-			__split_huge_page_vma(__vma, ____pmd);		\
+			__split_huge_page_pmd(__mm, ____pmd);		\
 	}  while (0)
 #define wait_split_huge_page(__anon_vma, __pmd)				\
 	do {								\
@@ -131,10 +123,8 @@ static inline int split_huge_page(struct page *page)
 {
 	return 0;
 }
-#define split_huge_page_mm(__mm, __addr, __pmd)	\
-	do { }  while (0)
-#define split_huge_page_vma(__vma, __pmd)	\
-	do { }  while (0)
+#define split_huge_page_pmd(__mm, __pmd)	\
+	do { } while (0)
 #define wait_split_huge_page(__anon_vma, __pmd)	\
 	do { } while (0)
 #define PageTransHuge(page) 0

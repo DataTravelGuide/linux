@@ -99,7 +99,13 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 		goto out;
 
 	pmd = pmd_offset(pud, addr);
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	if (pmd_trans_huge(*pmd)) {
+		/* verify this pmd isn't mapping our old page */
+		BUG_ON(!pmd_present(*pmd));
+		BUG_ON(PageTransCompound(old));
+		BUG_ON(pmd_page(*pmd) == old);
+		goto out;
+	}
 	if (!pmd_present(*pmd))
 		goto out;
 
@@ -560,6 +566,9 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		/* page was freed from under us. So we are done. */
 		goto move_newpage;
 	}
+	if (unlikely(PageTransHuge(page)))
+		if (unlikely(split_huge_page(page)))
+			goto move_newpage;
 
 	/* prepare cgroup just returns 0 or -ENOMEM */
 	rc = -EAGAIN;
@@ -806,7 +815,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		if (!vma || !vma_migratable(vma))
 			goto set_status;
 
-		page = follow_page(vma, pp->addr, FOLL_GET);
+		page = follow_page(vma, pp->addr, FOLL_GET|FOLL_SPLIT);
 
 		err = PTR_ERR(page);
 		if (IS_ERR(page))

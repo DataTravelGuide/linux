@@ -383,6 +383,8 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		return NULL;
+	if (pmd_trans_huge(*pmd))
+		return NULL;
 
 	pte = pte_offset_map(pmd, address);
 	/* Make a quick check before getting the lock */

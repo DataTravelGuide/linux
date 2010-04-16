@@ -1364,6 +1364,11 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	 */
 	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
+	if (page_size != PAGE_SIZE) {
+		int i;
+		for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
+			css_get(&mem->css);
+	}
 done:
 	return 0;
 nomem:
@@ -1441,6 +1446,11 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 				res_counter_uncharge(&mem->memsw, page_size);
 		}
 		css_put(&mem->css);
+		if (page_size != PAGE_SIZE) {
+			int i;
+			for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
+				css_put(&mem->css);
+		}
 		return;
 	}
 
@@ -1916,8 +1926,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
 	/* at swapout, this memcg will be accessed to record to swap */
-	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
 		css_put(&mem->css);
+		if (page_size != PAGE_SIZE) {
+			int i;
+			for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
+				css_put(&mem->css);
+		}
+	}
 
 	return mem;
 
