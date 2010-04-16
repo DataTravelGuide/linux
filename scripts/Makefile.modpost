@@ -138,7 +138,7 @@ quiet_cmd_ld_ko_unsigned_o = LD [M]  $@
 $(modules:.ko=.ko.unsigned): %.ko.unsigned :%.o %.mod.o FORCE
 	$(call if_changed,ld_ko_unsigned_o)
 
-targets += $(modules)
+targets += $(modules:.ko=.ko.unsigned)
 
 # Step 7), sign the modules
 MODSECKEY = ./kernel.sec
