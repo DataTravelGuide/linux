@@ -61,6 +61,10 @@ static const struct e1000_info *igb_info_tbl[] = {
 };
 
 static struct pci_device_id igb_pci_tbl[] = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES), board_82575 },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SGMII), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_SERDES), board_82575 },
@@ -321,6 +325,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		}
 	case e1000_82575:
 	case e1000_82580:
+	case e1000_i350:
 	default:
 		for (; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i].reg_idx = rbase_offset + i;
@@ -461,6 +466,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		q_vector->eims_value = 1 << msix_vector;
 		break;
 	case e1000_82580:
+	case e1000_i350:
 		/* 82580 uses the same table-based approach as 82576 but has fewer
 		   entries as a result we carry over for queues greater than 4. */
 		if (rx_queue > IGB_N0_QUEUE) {
@@ -535,6 +541,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 
 	case e1000_82576:
 	case e1000_82580:
+	case e1000_i350:
 		/* Turn on MSI-X capability first, or our settings
 		 * won't stick.  And it will take days to debug. */
 		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
@@ -1241,6 +1248,7 @@ void igb_reset(struct igb_adapter *adapter)
 	 * To take effect CTRL.RST is required.
 	 */
 	switch (mac->type) {
+	case e1000_i350:
 	case e1000_82580:
 		pba = rd32(E1000_RXPBS);
 		pba = igb_rxpbs_adjust_82580(pba);
@@ -1817,6 +1825,7 @@ static void igb_init_hw_timer(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	switch (hw->mac.type) {
+	case e1000_i350:
 	case e1000_82580:
 		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
 		adapter->cycles.read = igb_read_clock;
@@ -2330,6 +2339,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		/* 82575 and 82576 supports 2 RSS queues for VMDq */
 		switch (hw->mac.type) {
+		case e1000_i350:
 		case e1000_82580:
 			num_rx_queues = 1;
 			shift = 0;
@@ -6017,19 +6027,25 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	/* replication is not supported for 82575 */
-	if (hw->mac.type == e1000_82575)
+	switch (hw->mac.type) {
+	case e1000_82575:
+	default:
+		/* replication is not supported for 82575 */
 		return;
-
-	/* enable replication vlan tag stripping */
-	reg = rd32(E1000_RPLOLR);
-	reg |= E1000_RPLOLR_STRVLAN;
-	wr32(E1000_RPLOLR, reg);
-
-	/* notify HW that the MAC is adding vlan tags */
-	reg = rd32(E1000_DTXCTL);
-	reg |= E1000_DTXCTL_VLAN_ADDED;
-	wr32(E1000_DTXCTL, reg);
+	case e1000_82576:
+		/* notify HW that the MAC is adding vlan tags */
+		reg = rd32(E1000_DTXCTL);
+		reg |= E1000_DTXCTL_VLAN_ADDED;
+		wr32(E1000_DTXCTL, reg);
+	case e1000_82580:
+		/* enable replication vlan tag stripping */
+		reg = rd32(E1000_RPLOLR);
+		reg |= E1000_RPLOLR_STRVLAN;
+		wr32(E1000_RPLOLR, reg);
+	case e1000_i350:
+		/* none of the above registers are supported by i350 */
+		break;
+	}
 
 	if (adapter->vfs_allocated_count) {
 		igb_vmdq_set_loopback_pf(hw, true);
