@@ -1069,6 +1069,15 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	/*
+	 * Can't support xvd's via pv-on-hvm yet;
+	 * need method to disable IDE & connect boot
+	 * device via xvd(a).
+	 */
+	if (xen_hvm_domain())
+		return -ENODEV;
+
+	printk("%s: register_blkdev major: %d \n", __FUNCTION__, XENVBD_MAJOR);
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {
 		printk(KERN_WARNING "xen_blk: can't get major %d with name %s\n",
 		       XENVBD_MAJOR, DEV_NAME);
