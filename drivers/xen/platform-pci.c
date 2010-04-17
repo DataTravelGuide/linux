@@ -215,23 +215,64 @@ static int check_platform_magic(void)
 	return 0;
 }
 
+int xen_pv_hvm_enable = 0;
+int xen_pv_hvm_smp = 0;
+
+static int __init xen_pv_hvm_setup(char *p)
+{
+	size_t len;
+
+	while (*p) {
+		if (!strncmp(p, "enable", 6)) {
+			len = 6;
+			xen_pv_hvm_enable = 1;
+		}
+		if (!strncmp(p, "smpon", 5)) {
+			xen_pv_hvm_smp = 1;
+			len = 5;
+		}
+		p = strpbrk(p, ",");
+		if (!p) break; /* no more to param */
+		p++; /* skip ',' */
+	}
+
+	/* right now, pv-hvm hangs on boot if vcpus > 1 */
+	/* enable workaround for test purposes */
+	if (!(xen_pv_hvm_smp) && (num_present_cpus() > 1)) {
+		 printk("Not enabling Xen PV-on-HVM; vcpus>1 \n");
+		 xen_pv_hvm_enable = 0;
+	}
+
+	if (xen_pv_hvm_enable)
+		 printk("Enabling Xen PV-on-HVM \n");
+
+	return 1;
+}
 static int __init platform_pci_module_init(void)
 {
 	int rc;
 
-	rc = check_platform_magic();
-	if (rc < 0)
-		return rc;
+	if (!xen_pv_hvm_enable)
+		printk("Xen pv-on-hvm disabled\n");
+	else {
+		printk("Xen pv-on-hvm enabled\n");
 
-	rc = pci_register_driver(&platform_driver);
-	if (rc) {
-		printk(KERN_INFO DRV_NAME
-	       		": No platform pci device model found\n");
-		return rc;
+		rc = check_platform_magic();
+		if (rc < 0)
+			return rc;
+
+		rc = pci_register_driver(&platform_driver);
+		if (rc) {
+			printk(KERN_INFO DRV_NAME
+		       		": No platform pci device model found\n");
+			return rc;
+		}
 	}
 
 	return 0;
 }
 
 module_init(platform_pci_module_init);
+
+__setup("xen_pv_hvm=", xen_pv_hvm_setup);
 
