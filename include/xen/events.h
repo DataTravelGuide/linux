@@ -56,4 +56,7 @@ void xen_poll_irq(int irq);
 /* Determine the IRQ which is bound to an event channel */
 unsigned irq_from_evtchn(unsigned int evtchn);
 
+void xen_evtchn_do_upcall(struct pt_regs *regs);
+void xen_hvm_evtchn_do_upcall(struct pt_regs *regs);
+
 #endif	/* _XEN_EVENTS_H */

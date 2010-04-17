@@ -51,6 +51,7 @@ struct gnttab_free_callback {
 	u16 count;
 };
 
+int gnttab_init(void);
 int gnttab_suspend(void);
 int gnttab_resume(void);
 

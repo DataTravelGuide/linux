@@ -33,9 +33,16 @@
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
+#include <xen/interface/memory.h>
+#include <xen/interface/hvm/hvm_op.h>
+#include <xen/interface/hvm/params.h>
+#include <xen/interface/platform_pci.h>
 #include <xen/features.h>
 #include <xen/page.h>
+#include <xen/hvm.h>
+#include <xen/events.h>
 #include <xen/hvc-console.h>
+#include <xen/xen.h>
 
 #include <asm/paravirt.h>
 #include <asm/apic.h>
@@ -73,6 +80,9 @@ EXPORT_SYMBOL_GPL(xen_start_info);
 struct shared_info xen_dummy_shared_info;
 
 void *xen_initial_gdt;
+
+int xen_have_vector_callback;
+static int unplug;
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -1222,3 +1232,144 @@ asmlinkage void __init xen_start_kernel(void)
 	x86_64_start_reservations((char *)__pa_symbol(&boot_params));
 #endif
 }
+
+static uint32_t xen_cpuid_base(void)
+{
+	uint32_t base, eax, ebx, ecx, edx;
+	char signature[13];
+
+	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
+		cpuid(base, &eax, &ebx, &ecx, &edx);
+		*(uint32_t*)(signature + 0) = ebx;
+		*(uint32_t*)(signature + 4) = ecx;
+		*(uint32_t*)(signature + 8) = edx;
+		signature[12] = 0;
+
+		if (!strcmp("XenVMMXenVMM", signature) && ((eax - base) >= 2))
+			return base;
+	}
+
+	return 0;
+}
+
+static int init_hvm_pv_info(int *major, int *minor)
+{
+	uint32_t eax, ebx, ecx, edx, pages, msr, base;
+	u64 pfn;
+
+	base = xen_cpuid_base();
+	if (!base)
+		return -EINVAL;
+
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+
+	*major = eax >> 16;
+	*minor = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", *major, *minor);
+
+	cpuid(base + 2, &pages, &msr, &ecx, &edx);
+
+	pfn = __pa(hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >>32));
+
+	xen_setup_features();
+
+	pv_info = xen_info;
+	pv_info.kernel_rpl = 0;
+
+	xen_domain_type = XEN_HVM_DOMAIN;
+
+	return 0;
+}
+
+static void __init init_shared_info(void)
+{
+	struct xen_add_to_physmap xatp;
+	struct shared_info *shared_info_page;
+
+	shared_info_page = (struct shared_info *) alloc_bootmem_pages(PAGE_SIZE);
+	xatp.domid = DOMID_SELF;
+	xatp.idx = 0;
+	xatp.space = XENMAPSPACE_shared_info;
+	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
+	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
+		BUG();
+
+	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
+
+	/* Don't do the full vcpu_info placement stuff until we have a
+	   possible map and a non-dummy shared_info. */
+	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+}
+
+int xen_set_callback_via(uint64_t via)
+{
+	struct xen_hvm_param a;
+
+	a.domid = DOMID_SELF;
+	a.index = HVM_PARAM_CALLBACK_IRQ;
+	a.value = via;
+	return HYPERVISOR_hvm_op(HVMOP_set_param, &a);
+}
+
+void do_hvm_pv_evtchn_intr(void)
+{
+	xen_hvm_evtchn_do_upcall(get_irq_regs());
+}
+
+void __init xen_guest_init(void)
+{
+	int r;
+	int major, minor;
+	uint64_t callback_via;
+
+	if (xen_pv_domain())
+		return;
+
+	r = init_hvm_pv_info(&major, &minor);
+	if (r < 0)
+		return;
+
+	init_shared_info();
+
+	if (xen_feature(XENFEAT_hvm_callback_vector)) {
+		callback_via = HVM_CALLBACK_VECTOR(X86_PLATFORM_IPI_VECTOR);
+		xen_set_callback_via(callback_via);
+		x86_platform_ipi_callback = do_hvm_pv_evtchn_intr;
+		xen_have_vector_callback = 1;
+	}
+
+	if (unplug) {
+		/* unplug emulated devices */
+		outw(UNPLUG_ALL, XEN_IOPORT_UNPLUG);
+	}
+
+	have_vcpu_info_placement = 0;
+	x86_init.irqs.intr_init = xen_init_IRQ;
+	machine_ops = xen_machine_ops;
+}
+
+static int __init parse_unplug(char *arg)
+{
+	char *p, *q;
+
+	for (p = arg; p; p = q) {
+		q = strchr(arg, ',');
+		if (q)
+			*q++ = '\0';
+		if (!strcmp(p, "all"))
+			unplug |= UNPLUG_ALL;
+		else if (!strcmp(p, "ide-disks"))
+			unplug |= UNPLUG_ALL_IDE_DISKS;
+		else if (!strcmp(p, "aux-ide-disks"))
+			unplug |= UNPLUG_AUX_IDE_DISKS;
+		else if (!strcmp(p, "nics"))
+			unplug |= UNPLUG_ALL_NICS;
+		else
+			printk(KERN_WARNING "unrecognised option '%s' "
+				"in module parameter 'dev_unplug'\n", p);
+	}
+	return 0;
+}
+
+early_param("xen_unplug", parse_unplug);
