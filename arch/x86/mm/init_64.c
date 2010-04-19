@@ -95,6 +95,37 @@ static int __init nonx32_setup(char *str)
 }
 __setup("noexec32=", nonx32_setup);
 
+
+/*
+ * When memory was added/removed make sure all the processes MM have
+ * suitable PGD entries in the local PGD level page.
+ * Caller must flush global TLBs if needed (old mapping changed)
+ */
+static void sync_global_pgds(unsigned long start, unsigned long end)
+{
+	unsigned long flags;
+	struct page *page;
+	unsigned long addr;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+	for (addr = start; addr < end; addr += PGDIR_SIZE) {
+		pgd_t *ref_pgd = pgd_offset_k(addr);
+		list_for_each_entry(page, &pgd_list, lru) {
+			pgd_t *pgd_base = page_address(page);
+			pgd_t *pgd = pgd_base + pgd_index(addr);
+
+			/*
+			 * When the state is the same in one other,
+			 * assume it's the same everywhere.
+			 */
+			if (pgd_base != init_mm.pgd &&
+			    !!pgd_none(*pgd) != !!pgd_none(*ref_pgd))
+				set_pgd(pgd, *ref_pgd);
+		}
+	}
+	spin_unlock_irqrestore(&pgd_lock, flags);
+}
+
 /*
  * NOTE: This function is marked __ref because it calls __init function
  * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
@@ -216,6 +247,9 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	int pgd_changed = 0;
+	unsigned long start = (unsigned long)__va(phys);
+	unsigned long end = (unsigned long)__va(phys + size);
 
 	BUG_ON((phys & ~PMD_MASK) || (size & ~PMD_MASK));
 	for (; size; phys += PMD_SIZE, size -= PMD_SIZE) {
@@ -224,6 +258,7 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 			pud = (pud_t *) spp_getpage();
 			set_pgd(pgd, __pgd(__pa(pud) | _KERNPG_TABLE |
 						_PAGE_USER));
+			pgd_changed = 1;
 		}
 		pud = pud_offset(pgd, (unsigned long)__va(phys));
 		if (pud_none(*pud)) {
@@ -234,6 +269,11 @@ static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 		pmd = pmd_offset(pud, phys);
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd(phys | pgprot_val(prot)));
+	}
+	if (pgd_changed) {
+		sync_global_pgds(start, end);
+		/* Might not be needed if the previous mapping was always zero*/
+		__flush_tlb_all();
 	}
 }
 
@@ -532,36 +572,41 @@ kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)
 {
-
+	int pgd_changed = 0;
 	unsigned long next, last_map_addr = end;
+	unsigned long addr;
 
 	start = (unsigned long)__va(start);
 	end = (unsigned long)__va(end);
 
-	for (; start < end; start = next) {
-		pgd_t *pgd = pgd_offset_k(start);
+	for (addr = start; addr < end; addr = next) {
+		pgd_t *pgd = pgd_offset_k(addr);
 		unsigned long pud_phys;
 		pud_t *pud;
 
-		next = (start + PGDIR_SIZE) & PGDIR_MASK;
+		next = (addr + PGDIR_SIZE) & PGDIR_MASK;
 		if (next > end)
 			next = end;
 
 		if (pgd_val(*pgd)) {
-			last_map_addr = phys_pud_update(pgd, __pa(start),
+			last_map_addr = phys_pud_update(pgd, __pa(addr),
 						 __pa(end), page_size_mask);
 			continue;
 		}
 
 		pud = alloc_low_page(&pud_phys);
-		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next),
+		last_map_addr = phys_pud_init(pud, __pa(addr), __pa(next),
 						 page_size_mask);
 		unmap_low_page(pud);
 
 		spin_lock(&init_mm.page_table_lock);
 		pgd_populate(&init_mm, pgd, __va(pud_phys));
 		spin_unlock(&init_mm.page_table_lock);
+		pgd_changed = 1;
 	}
+
+	if (pgd_changed)
+		sync_global_pgds(start, end);
 	__flush_tlb_all();
 
 	return last_map_addr;
@@ -895,35 +940,37 @@ static int __meminitdata node_start;
 int __meminit
 vmemmap_populate(struct page *start_page, unsigned long size, int node)
 {
-	unsigned long addr = (unsigned long)start_page;
+	unsigned long start = (unsigned long)start_page;
 	unsigned long end = (unsigned long)(start_page + size);
-	unsigned long next;
+	unsigned long addr, next;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
+	int err = -ENOMEM;
 
-	for (; addr < end; addr = next) {
+	for (addr = start; addr < end; addr = next) {
 		void *p = NULL;
 
+		err = -ENOMEM;
 		pgd = vmemmap_pgd_populate(addr, node);
 		if (!pgd)
-			return -ENOMEM;
+			break;
 
 		pud = vmemmap_pud_populate(pgd, addr, node);
 		if (!pud)
-			return -ENOMEM;
+			break;
 
 		if (!cpu_has_pse) {
 			next = (addr + PAGE_SIZE) & PAGE_MASK;
 			pmd = vmemmap_pmd_populate(pud, addr, node);
 
 			if (!pmd)
-				return -ENOMEM;
+				break;
 
 			p = vmemmap_pte_populate(pmd, addr, node);
 
 			if (!p)
-				return -ENOMEM;
+				break;
 
 			addr_end = addr + PAGE_SIZE;
 			p_end = p + PAGE_SIZE;
@@ -936,7 +983,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 
 				p = vmemmap_alloc_block(PMD_SIZE, node);
 				if (!p)
-					return -ENOMEM;
+					break;
 
 				entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
 						PAGE_KERNEL_LARGE);
@@ -957,9 +1004,15 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 			} else
 				vmemmap_verify((pte_t *)pmd, node, addr, next);
 		}
-
+		err = 0;
 	}
-	return 0;
+
+	if (!err) {
+		sync_global_pgds(start, end);
+		__flush_tlb_all();
+	}
+
+	return err;
 }
 
 void __meminit vmemmap_populate_print_last(void)
