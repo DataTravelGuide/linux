@@ -36,3 +36,5 @@ CONFIG_DRM_RADEON_KMS=y
 # CONFIG_ADB_PMU is not set
 # CONFIG_WINDFARM is not set
 # CONFIG_WINDFARM_PM112 is not set
+# CONFIG_CAPI_EICON is not set
+# CONFIG_SECCOMP is not set

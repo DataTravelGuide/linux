@@ -32,3 +32,4 @@ CONFIG_LOG_BUF_SHIFT=17
 # CONFIG_KVM is not set
 # CONFIG_GFS2_FS is not set
 # CONFIG_XFS_FS is not set
+# CONFIG_SECCOMP is not set
