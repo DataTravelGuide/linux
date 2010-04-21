@@ -2598,15 +2598,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
-	if (phba->pcidev->device == PCI_DEVICE_ID_HORNET) {
-		phba->menlo_flag |= HBA_MENLO_SUPPORT;
-		/* check for menlo minimum sg count */
-		if (phba->cfg_sg_seg_cnt < LPFC_DEFAULT_MENLO_SG_SEG_CNT) {
-			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
-			shost->sg_tablesize = phba->cfg_sg_seg_cnt;
-		}
-	}
-
 	error = scsi_add_host(shost, dev);
 	if (error)
 		goto out_put_shost;
@@ -3234,12 +3225,26 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 
 	if (!vport)
 		return NULL;
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (!ndlp)
-		return NULL;
 	phba = vport->phba;
 	if (!phba)
 		return NULL;
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp) {
+		/* Cannot find existing Fabric ndlp, so allocate a new one */
+		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
+		if (!ndlp)
+			return 0;
+		lpfc_nlp_init(vport, ndlp, Fabric_DID);
+		/* Set the node type */
+		ndlp->nlp_type |= NLP_FABRIC;
+		/* Put ndlp onto node list */
+		lpfc_enqueue_node(vport, ndlp);
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		/* re-setup ndlp without removing from node list */
+		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
+		if (!ndlp)
+			return 0;
+	}
 	if (phba->pport->port_state <= LPFC_FLOGI)
 		return NULL;
 	/* If virtual link is not yet instantiated ignore CVL */
@@ -3524,6 +3529,32 @@ lpfc_sli4_async_dcbx_evt(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_async_grp5_evt - Process the asynchronous group5 event
+ * @phba: pointer to lpfc hba data structure.
+ * @acqe_link: pointer to the async grp5 completion queue entry.
+ *
+ * This routine is to handle the SLI4 asynchronous grp5 event. A grp5 event
+ * is an asynchronous notified of a logical link speed change.  The Port
+ * reports the logical link speed in units of 10Mbps.
+ **/
+static void
+lpfc_sli4_async_grp5_evt(struct lpfc_hba *phba,
+			 struct lpfc_acqe_grp5 *acqe_grp5)
+{
+	uint16_t prev_ll_spd;
+
+	phba->fc_eventTag = acqe_grp5->event_tag;
+	phba->fcoe_eventtag = acqe_grp5->event_tag;
+	prev_ll_spd = phba->sli4_hba.link_state.logical_speed;
+	phba->sli4_hba.link_state.logical_speed =
+		(bf_get(lpfc_acqe_grp5_llink_spd, acqe_grp5));
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2789 GRP5 Async Event: Updating logical link speed "
+			"from %dMbps to %dMbps\n", (prev_ll_spd * 10),
+			(phba->sli4_hba.link_state.logical_speed*10));
+}
+
+/**
  * lpfc_sli4_async_event_proc - Process all the pending asynchronous event
  * @phba: pointer to lpfc hba data structure.
  *
@@ -3558,6 +3589,10 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		case LPFC_TRAILER_CODE_DCBX:
 			lpfc_sli4_async_dcbx_evt(phba,
 						 &cq_event->cqe.acqe_dcbx);
+			break;
+		case LPFC_TRAILER_CODE_GRP5:
+			lpfc_sli4_async_grp5_evt(phba,
+						 &cq_event->cqe.acqe_grp5);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -3820,6 +3855,13 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* Get all the module params for configuring this host */
 	lpfc_get_cfgparam(phba);
+	if (phba->pcidev->device == PCI_DEVICE_ID_HORNET) {
+		phba->menlo_flag |= HBA_MENLO_SUPPORT;
+		/* check for menlo minimum sg count */
+		if (phba->cfg_sg_seg_cnt < LPFC_DEFAULT_MENLO_SG_SEG_CNT)
+			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
+	}
+
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
