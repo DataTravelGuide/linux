@@ -16,7 +16,6 @@ CFG_DIR		= $(OUTPUT)/configs
 CONFIGFILES	= \
 	$(CFG)-i686.config $(CFG)-i686-debug.config \
 	$(CFG)-x86_64.config $(CFG)-x86_64-debug.config \
-	$(CFG)-i686-framepointer.config $(CFG)-x86_64-framepointer.config \
 	$(CFG)-s390x.config $(CFG)-s390x-debug.config \
 	$(CFG)-s390x-kdump.config \
 	$(CFG)-ppc64.config $(CFG)-ppc64-kdump.config $(CFG)-ppc64-debug.config
@@ -104,16 +103,10 @@ temp-i686-final: config-i686-merged temp-x86-generic
 kernel-$(VERSION)-i686.config: config-i686-merged temp-x86-generic
 	perl merge.pl $^ i386 > $@
 
-kernel-$(VERSION)-i686-framepointer.config: config-framepointer temp-i686-final
-	perl merge.pl $^ i386 > $@
-
 kernel-$(VERSION)-i686-debug.config: config-i686-merged temp-x86-debug-generic
 	perl merge.pl $^ i386 > $@
 
 kernel-$(VERSION)-x86_64.config: /dev/null temp-x86_64-generic
-	perl merge.pl $^ x86_64 > $@
-
-kernel-$(VERSION)-x86_64-framepointer.config: config-framepointer temp-x86_64-debug-generic
 	perl merge.pl $^ x86_64 > $@
 
 kernel-$(VERSION)-x86_64-debug.config: /dev/null temp-x86_64-debug-generic

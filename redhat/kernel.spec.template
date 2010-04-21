@@ -112,8 +112,6 @@ Summary: The Linux kernel
 %define with_vdso_install %{?_without_vdso_install: 0} %{?!_without_vdso_install: 1}
 # Use dracut instead of mkinitrd for initrd image generation
 %define with_dracut       %{?_without_dracut:       0} %{?!_without_dracut:       1}
-# Temporary variant: framepointer
-%define with_framepointer	%{?_with_framepointer:	1} %{?!_with_framepointer:	0}
 
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
@@ -245,14 +243,9 @@ Summary: The Linux kernel
 %define with_xen 0
 %define with_kdump 0
 %define with_perftool 0
-%define with_framepointer 0
 %endif
 
 %define all_x86 i386 i686
-
-%ifnarch %{all_x86} x86_64
-%define with_framepointer 0
-%endif
 
 %if %{with_vdso_install}
 # These arches install vdso/ directories.
@@ -777,12 +770,6 @@ on kernel bugs, as some of these options impact performance noticably.
 This package includes a kdump version of the Linux kernel. It is
 required only on machines which will use the kexec-based kernel crash dump
 mechanism.
-
-
-%define variant_summary The Linux kernel compiled with CONFIG_FRAME_POINTER
-%kernel_variant_package framepointer
-%description framepointer
-This is a TEMPORARY package with the CONFIG_FRAME_POINTER.
 
 
 %prep
@@ -1340,10 +1327,6 @@ BuildKernel vmlinux vmlinux kdump vmlinux
 %endif
 %endif
 
-%if %{with_framepointer}
-BuildKernel %make_target %kernel_image framepointer
-%endif
-
 %if %{with_doc}
 # Make the HTML and man pages.
 make -j1 htmldocs mandocs || %{doc_build_fail}
@@ -1560,11 +1543,6 @@ fi\
 %kernel_variant_post -v PAEdebug -r (kernel|kernel-smp|kernel-xen)
 %kernel_variant_preun PAEdebug
 
-%if %{with_framepointer}
-%kernel_variant_preun framepointer
-%kernel_variant_post -v framepointer
-%endif
-
 %ifarch s390x
 %postun kdump
     # Create softlink to latest remaining kdump kernel.
@@ -1710,7 +1688,6 @@ fi
 %else
 %kernel_variant_files -k vmlinux %{with_kdump} kdump
 %endif
-%kernel_variant_files %{with_framepointer} framepointer
 
 %changelog
 %%CHANGELOG%%
