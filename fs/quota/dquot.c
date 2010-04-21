@@ -80,8 +80,6 @@
 
 #include <asm/uaccess.h>
 
-#define __DQUOT_PARANOIA
-
 /*
  * There are three quota SMP locks. dq_list_lock protects all lists with quotas
  * and quota formats, dqstats structure containing statistics about the lists
@@ -224,6 +222,8 @@ static struct hlist_head *dquot_hash;
 
 struct dqstats dqstats;
 EXPORT_SYMBOL(dqstats);
+
+static qsize_t inode_get_rsv_space(struct inode *inode);
 
 static inline unsigned int
 hashfn(const struct super_block *sb, unsigned int id, int type)
@@ -637,7 +637,7 @@ void dqput(struct dquot *dquot)
 
 	if (!dquot)
 		return;
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	if (!atomic_read(&dquot->dq_count)) {
 		printk("VFS: dqput: trying to free free dquot\n");
 		printk("VFS: device %s, dquot of %s %d\n",
@@ -690,7 +690,7 @@ we_slept:
 		goto we_slept;
 	}
 	atomic_dec(&dquot->dq_count);
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	/* sanity check */
 	BUG_ON(!list_empty(&dquot->dq_free));
 #endif
@@ -787,7 +787,7 @@ we_slept:
 		dquot = NULL;
 		goto out;
 	}
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	BUG_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
 #endif
 out:
@@ -816,11 +816,18 @@ static int dqinit_needed(struct inode *inode, int type)
 static void add_dquot_ref(struct super_block *sb, int type)
 {
 	struct inode *inode, *old_inode = NULL;
+#ifdef CONFIG_QUOTA_DEBUG
+	int reserved = 0;
+#endif
 
 	spin_lock(&inode_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
 			continue;
+#ifdef CONFIG_QUOTA_DEBUG
+		if (unlikely(inode_get_rsv_space(inode) > 0))
+			reserved = 1;
+#endif
 		if (!atomic_read(&inode->i_writecount))
 			continue;
 		if (!dqinit_needed(inode, type))
@@ -841,6 +848,14 @@ static void add_dquot_ref(struct super_block *sb, int type)
 	}
 	spin_unlock(&inode_lock);
 	iput(old_inode);
+
+#ifdef CONFIG_QUOTA_DEBUG
+	if (reserved) {
+		printk(KERN_WARNING "VFS (%s): Writes happened before quota"
+			" was turned on thus quota information is probably "
+			"inconsistent. Please run quotacheck(8).\n", sb->s_id);
+	}
+#endif
 }
 
 /*
@@ -867,7 +882,7 @@ static int remove_inode_dquot_ref(struct inode *inode, int type,
 	inode->i_dquot[type] = NULL;
 	if (dquot) {
 		if (dqput_blocks(dquot)) {
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 			if (atomic_read(&dquot->dq_count) != 1)
 				printk(KERN_WARNING "VFS: Adding dquot with dq_count %d to dispose list.\n", atomic_read(&dquot->dq_count));
 #endif
@@ -954,10 +969,12 @@ static inline void dquot_resv_space(struct dquot *dquot, qsize_t number)
 /*
  * Claim reserved quota space
  */
-static void dquot_claim_reserved_space(struct dquot *dquot,
-						qsize_t number)
+static void dquot_claim_reserved_space(struct dquot *dquot, qsize_t number)
 {
-	WARN_ON(dquot->dq_dqb.dqb_rsvspace < number);
+	if (dquot->dq_dqb.dqb_rsvspace < number) {
+		WARN_ON_ONCE(1);
+		number = dquot->dq_dqb.dqb_rsvspace;
+	}
 	dquot->dq_dqb.dqb_curspace += number;
 	dquot->dq_dqb.dqb_rsvspace -= number;
 }
@@ -965,7 +982,12 @@ static void dquot_claim_reserved_space(struct dquot *dquot,
 static inline
 void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 {
-	dquot->dq_dqb.dqb_rsvspace -= number;
+	if (dquot->dq_dqb.dqb_rsvspace >= number)
+		dquot->dq_dqb.dqb_rsvspace -= number;
+	else {
+		WARN_ON_ONCE(1);
+		dquot->dq_dqb.dqb_rsvspace = 0;
+	}
 }
 
 static void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
@@ -1218,6 +1240,7 @@ static int info_bdq_free(struct dquot *dquot, qsize_t space)
 		return QUOTA_NL_BHARDBELOW;
 	return QUOTA_NL_NOWARN;
 }
+
 /*
  *	Initialize quota pointers in inode
  *	We do things in a bit complicated way but by that we avoid calling
@@ -1229,6 +1252,7 @@ int dquot_initialize(struct inode *inode, int type)
 	int cnt, ret = 0;
 	struct dquot *got[MAXQUOTAS] = { NULL, NULL };
 	struct super_block *sb = inode->i_sb;
+	qsize_t rsv;
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
@@ -1263,6 +1287,13 @@ int dquot_initialize(struct inode *inode, int type)
 		if (!inode->i_dquot[cnt]) {
 			inode->i_dquot[cnt] = got[cnt];
 			got[cnt] = NULL;
+			/*
+			 * Make quota reservation system happy if someone
+			 * did a write before quota was turned on
+			 */
+			rsv = inode_get_rsv_space(inode);
+			if (unlikely(rsv))
+				dquot_resv_space(inode->i_dquot[cnt], rsv);
 		}
 	}
 out_err:
@@ -1330,28 +1361,30 @@ static qsize_t *inode_reserved_space(struct inode * inode)
 	return inode->i_sb->dq_op->get_reserved_space(inode);
 }
 
-static void inode_add_rsv_space(struct inode *inode, qsize_t number)
+void inode_add_rsv_space(struct inode *inode, qsize_t number)
 {
 	spin_lock(&inode->i_lock);
 	*inode_reserved_space(inode) += number;
 	spin_unlock(&inode->i_lock);
 }
+EXPORT_SYMBOL(inode_add_rsv_space);
 
-
-static void inode_claim_rsv_space(struct inode *inode, qsize_t number)
+void inode_claim_rsv_space(struct inode *inode, qsize_t number)
 {
 	spin_lock(&inode->i_lock);
 	*inode_reserved_space(inode) -= number;
 	__inode_add_bytes(inode, number);
 	spin_unlock(&inode->i_lock);
 }
+EXPORT_SYMBOL(inode_claim_rsv_space);
 
-static void inode_sub_rsv_space(struct inode *inode, qsize_t number)
+void inode_sub_rsv_space(struct inode *inode, qsize_t number)
 {
 	spin_lock(&inode->i_lock);
 	*inode_reserved_space(inode) -= number;
 	spin_unlock(&inode->i_lock);
 }
+EXPORT_SYMBOL(inode_sub_rsv_space);
 
 static qsize_t inode_get_rsv_space(struct inode *inode)
 {
