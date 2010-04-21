@@ -998,6 +998,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				spin_unlock(&mmlist_lock);
 			}
 			dec_mm_counter(mm, anon_rss);
+			inc_mm_counter(mm, swap_usage);
 		} else if (PAGE_MIGRATION) {
 			/*
 			 * Store the pfn of the page in a special migration
