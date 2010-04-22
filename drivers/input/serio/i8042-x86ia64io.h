@@ -441,6 +441,13 @@ static struct dmi_system_id __initdata i8042_dmi_reset_table[] = {
 		},
 	},
 	{
+		.ident = "Medion Akoya E122X",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E122X"),
+		},
+	},
+	{
 		.ident = "Mivvy M310",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "VIOOO"),
