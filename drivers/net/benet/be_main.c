@@ -386,26 +386,48 @@ static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, len, hdr, len);
 }
 
+static void unmap_tx_frag(struct pci_dev *pdev, struct be_eth_wrb *wrb,
+		bool unmap_single)
+{
+	dma_addr_t dma;
+
+	be_dws_le_to_cpu(wrb, sizeof(*wrb));
+
+	dma = (u64)wrb->frag_pa_hi << 32 | (u64)wrb->frag_pa_lo;
+	if (dma != 0) {
+		if (unmap_single)
+			pci_unmap_single(pdev, dma, wrb->frag_len,
+				PCI_DMA_TODEVICE);
+		else
+			pci_unmap_page(pdev, dma, wrb->frag_len,
+				PCI_DMA_TODEVICE);
+	}
+}
 
 static int make_tx_wrbs(struct be_adapter *adapter,
 		struct sk_buff *skb, u32 wrb_cnt, bool dummy_wrb)
 {
-	u64 busaddr;
-	u32 i, copied = 0;
+	dma_addr_t busaddr;
+	int i, copied = 0;
 	struct pci_dev *pdev = adapter->pdev;
 	struct sk_buff *first_skb = skb;
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_eth_wrb *wrb;
 	struct be_eth_hdr_wrb *hdr;
+	bool map_single = false;
+	u16 map_head;
 
 	hdr = queue_head_node(txq);
-	atomic_add(wrb_cnt, &txq->used);
 	queue_head_inc(txq);
+	map_head = txq->head;
 
 	if (skb->len > skb->data_len) {
 		int len = skb->len - skb->data_len;
 		busaddr = pci_map_single(pdev, skb->data, len,
 					 PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, busaddr))
+			goto dma_err;
+		map_single = true;
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, len);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
@@ -419,6 +441,8 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 		busaddr = pci_map_page(pdev, frag->page,
 				       frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, busaddr))
+			goto dma_err;
 		wrb = queue_head_node(txq);
 		wrb_fill(wrb, busaddr, frag->size);
 		be_dws_cpu_to_le(wrb, sizeof(*wrb));
@@ -438,6 +462,16 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
 
 	return copied;
+dma_err:
+	txq->head = map_head;
+	while (copied) {
+		wrb = queue_head_node(txq);
+		unmap_tx_frag(pdev, wrb, map_single);
+		map_single = false;
+		copied -= wrb->frag_len;
+		queue_head_inc(txq);
+	}
+	return 0;
 }
 
 static netdev_tx_t be_xmit(struct sk_buff *skb,
@@ -462,6 +496,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 		 * *BEFORE* ringing the tx doorbell, so that we serialze the
 		 * tx compls of the current transmit which'll wake up the queue
 		 */
+		atomic_add(wrb_cnt, &txq->used);
 		if ((BE_MAX_TX_FRAG_COUNT + atomic_read(&txq->used)) >=
 								txq->len) {
 			netif_stop_queue(netdev);
@@ -808,7 +843,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			return;
 		}
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, vid);
 	} else {
 		netif_receive_skb(skb);
@@ -885,7 +920,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 
 		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
@@ -1013,35 +1048,26 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 	struct be_eth_wrb *wrb;
 	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
 	struct sk_buff *sent_skb;
-	u64 busaddr;
-	u16 cur_index, num_wrbs = 0;
+	u16 cur_index, num_wrbs = 1; /* account for hdr wrb */
+	bool unmap_skb_hdr = true;
 
-	cur_index = txq->tail;
-	sent_skb = sent_skbs[cur_index];
+	sent_skb = sent_skbs[txq->tail];
 	BUG_ON(!sent_skb);
-	sent_skbs[cur_index] = NULL;
-	wrb = queue_tail_node(txq);
-	be_dws_le_to_cpu(wrb, sizeof(*wrb));
-	busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
-	if (busaddr != 0) {
-		pci_unmap_single(adapter->pdev, busaddr,
-				 wrb->frag_len, PCI_DMA_TODEVICE);
-	}
-	num_wrbs++;
+	sent_skbs[txq->tail] = NULL;
+
+	/* skip header wrb */
 	queue_tail_inc(txq);
 
-	while (cur_index != last_index) {
+	do {
 		cur_index = txq->tail;
 		wrb = queue_tail_node(txq);
-		be_dws_le_to_cpu(wrb, sizeof(*wrb));
-		busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
-		if (busaddr != 0) {
-			pci_unmap_page(adapter->pdev, busaddr,
-				       wrb->frag_len, PCI_DMA_TODEVICE);
-		}
+		unmap_tx_frag(adapter->pdev, wrb, (unmap_skb_hdr &&
+					sent_skb->len > sent_skb->data_len));
+		unmap_skb_hdr = false;
+
 		num_wrbs++;
 		queue_tail_inc(txq);
-	}
+	} while (cur_index != last_index);
 
 	atomic_sub(num_wrbs, &txq->used);
 
@@ -1856,7 +1882,7 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 	p += crc_offset;
 
 	status = be_cmd_get_flash_crc(adapter, flashed_crc,
-			(img_start + image_size - 4));
+			(image_size - 4));
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 		"could not get crc from flash, not flashing redboot\n");
@@ -1992,7 +2018,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	struct flash_file_hdr_g3 *fhdr3;
 	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
-	int status, i = 0;
+	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
 	strcpy(fw_file, func);
@@ -2018,15 +2044,14 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	if ((adapter->generation == BE_GEN3) &&
 			(get_ufigen_type(fhdr) == BE_GEN3)) {
 		fhdr3 = (struct flash_file_hdr_g3 *) fw->data;
-		for (i = 0; i < fhdr3->num_imgs; i++) {
+		num_imgs = le32_to_cpu(fhdr3->num_imgs);
+		for (i = 0; i < num_imgs; i++) {
 			img_hdr_ptr = (struct image_hdr *) (fw->data +
 					(sizeof(struct flash_file_hdr_g3) +
-					i * sizeof(struct image_hdr)));
-			if (img_hdr_ptr->imageid == 1) {
-				status = be_flash_data(adapter, fw,
-						&flash_cmd, fhdr3->num_imgs);
-			}
-
+					 i * sizeof(struct image_hdr)));
+			if (le32_to_cpu(img_hdr_ptr->imageid) == 1)
+				status = be_flash_data(adapter, fw, &flash_cmd,
+							num_imgs);
 		}
 	} else if ((adapter->generation == BE_GEN2) &&
 			(get_ufigen_type(fhdr) == BE_GEN2)) {
