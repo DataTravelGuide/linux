@@ -30,6 +30,9 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/memory_hotplug.h>
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY_AUTO_ONLINE
+#include <linux/memory.h>
+#endif
 #include <acpi/acpi_drivers.h>
 
 #define ACPI_MEMORY_DEVICE_CLASS		"memory"
@@ -45,6 +48,11 @@ ACPI_MODULE_NAME("acpi_memhotplug");
 MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
 MODULE_DESCRIPTION("Hotplug Mem Driver");
 MODULE_LICENSE("GPL");
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY_AUTO_ONLINE
+static int mem_hotadd_auto = 1;
+module_param(mem_hotadd_auto, bool, 0444);
+MODULE_PARM_DESC(mem_hotadd_auto, "Disable automatic onlining of memory");
+#endif
 
 /* Memory Device States */
 #define MEMORY_INVALID_STATE	0
@@ -218,6 +226,9 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
 	int node;
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY_AUTO_ONLINE
+	u64 err_addr;
+#endif
 
 
 	/* Get the range from the _CRS */
@@ -252,6 +263,19 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		result = add_memory(node, info->start_addr, info->length);
 		if (result)
 			continue;
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY_AUTO_ONLINE
+		if (mem_hotadd_auto) {
+			err_addr = set_memory_state(info->start_addr >>
+						    PAGE_SHIFT,
+						    info->length >> PAGE_SHIFT,
+						    MEM_ONLINE, MEM_OFFLINE);
+			if (err_addr)
+				printk(KERN_ERR PREFIX "Memory online failed "
+				       "for 0x%llx - 0x%llx\n",
+				       err_addr << PAGE_SHIFT,
+				       info->start_addr + info->length);
+		}
+#endif
 		info->enabled = 1;
 		num_enabled++;
 	}

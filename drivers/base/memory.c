@@ -485,6 +485,41 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 }
 
 /*
+ * need an interface for the VM to mark sections on and offline when
+ * hot-swapping memory.
+ *
+ * Returns 0 on success, or the failing pfn on failure.
+ */
+u64 set_memory_state(unsigned long start_pfn, unsigned long nr_pages,
+		     unsigned long to_state, unsigned long from_state_req)
+{
+	struct mem_section *section;
+	struct memory_block *mem;
+	unsigned long start_sec, end_sec, i, current_pfn;
+	int ret = 0;
+
+	start_sec = pfn_to_section_nr(start_pfn);
+	end_sec = pfn_to_section_nr(start_pfn + nr_pages - 1);
+	for (i = start_sec; i <= end_sec; i++) {
+		if (valid_section_nr(i) && present_section_nr(i)) {
+			section = __nr_to_section(i);
+			mem = find_memory_block(section);
+			ret = memory_block_change_state(mem, to_state,
+							from_state_req);
+			if (ret) {
+				current_pfn = section_nr_to_pfn(start_sec);
+				printk(KERN_WARNING "memory (0x%0lx - 0x%0lx) "
+				       "online failed.", current_pfn,
+				       current_pfn + PAGES_PER_SECTION);
+				return current_pfn;
+			}
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(set_memory_state);
+
+/*
  * need an interface for the VM to add new memory regions,
  * but without onlining it.
  */
