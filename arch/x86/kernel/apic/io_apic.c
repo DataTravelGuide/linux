@@ -2472,6 +2472,13 @@ void irq_force_complete_move(int irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_cfg *cfg = desc->chip_data;
 
+	/*
+	 * RHEL6 PV guest on RHEL5 HV fix.  Xen irq's can have NULL
+	 * chip_data.  RHEL6 fix only.
+	 */
+	if (!cfg)
+		return;
+
 	__irq_complete_move(&desc, cfg->vector);
 }
 #else
