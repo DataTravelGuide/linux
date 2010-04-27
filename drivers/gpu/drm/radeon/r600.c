@@ -490,9 +490,9 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 
 void r600_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	r600_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r600_agp_enable(struct radeon_device *rdev)
@@ -2369,19 +2369,19 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(DC_HPD4_INT_CONTROL, tmp);
 		if (ASIC_IS_DCE32(rdev)) {
 			tmp = RREG32(DC_HPD5_INT_CONTROL) & DC_HPDx_INT_POLARITY;
-			WREG32(DC_HPD5_INT_CONTROL, 0);
+			WREG32(DC_HPD5_INT_CONTROL, tmp);
 			tmp = RREG32(DC_HPD6_INT_CONTROL) & DC_HPDx_INT_POLARITY;
-			WREG32(DC_HPD6_INT_CONTROL, 0);
+			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}
 	} else {
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
 		WREG32(DACB_AUTODETECT_INT_CONTROL, 0);
 		tmp = RREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, tmp);
 	}
 }
 
@@ -2803,14 +2803,14 @@ restart_ih:
 				break;
 			case 10:
 				if (disp_int_cont2 & DC_HPD5_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD5_INTERRUPT;
+					disp_int_cont2 &= ~DC_HPD5_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD5\n");
 				}
 				break;
 			case 12:
 				if (disp_int_cont2 & DC_HPD6_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD6_INTERRUPT;
+					disp_int_cont2 &= ~DC_HPD6_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD6\n");
 				}
