@@ -608,8 +608,6 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
 int radeon_debugfs_fence_init(struct radeon_device *rdev);
-int r100_debugfs_rbbm_init(struct radeon_device *rdev);
-int r100_debugfs_cp_init(struct radeon_device *rdev);
 
 
 /*
@@ -661,7 +659,7 @@ struct radeon_asic {
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
-	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
 	void (*hpd_init)(struct radeon_device *rdev);
 	void (*hpd_fini)(struct radeon_device *rdev);
@@ -749,6 +747,12 @@ union radeon_asic_config {
 	struct r600_asic	r600;
 	struct rv770_asic	rv770;
 };
+
+/*
+ * asic initizalization from radeon_asic.c
+ */
+void radeon_agp_disable(struct radeon_device *rdev);
+int radeon_asic_init(struct radeon_device *rdev);
 
 
 /*
@@ -1067,53 +1071,8 @@ extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
-struct r100_mc_save {
-	u32	GENMO_WT;
-	u32	CRTC_EXT_CNTL;
-	u32	CRTC_GEN_CNTL;
-	u32	CRTC2_GEN_CNTL;
-	u32	CUR_OFFSET;
-	u32	CUR2_OFFSET;
-};
-extern void r100_bm_disable(struct radeon_device *rdev);
-extern void r100_cp_disable(struct radeon_device *rdev);
-extern int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
-extern void r100_cp_fini(struct radeon_device *rdev);
-extern void r100_pci_gart_tlb_flush(struct radeon_device *rdev);
-extern int r100_pci_gart_init(struct radeon_device *rdev);
-extern void r100_pci_gart_fini(struct radeon_device *rdev);
-extern int r100_pci_gart_enable(struct radeon_device *rdev);
-extern void r100_pci_gart_disable(struct radeon_device *rdev);
-extern int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
-extern int r100_debugfs_mc_info_init(struct radeon_device *rdev);
-extern int r100_gui_wait_for_idle(struct radeon_device *rdev);
-extern void r100_ib_fini(struct radeon_device *rdev);
-extern int r100_ib_init(struct radeon_device *rdev);
-extern void r100_irq_disable(struct radeon_device *rdev);
-extern int r100_irq_set(struct radeon_device *rdev);
-extern void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
-extern void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save);
-extern void r100_vram_init_sizes(struct radeon_device *rdev);
-extern void r100_wb_disable(struct radeon_device *rdev);
-extern void r100_wb_fini(struct radeon_device *rdev);
-extern int r100_wb_init(struct radeon_device *rdev);
-extern int r100_cp_reset(struct radeon_device *rdev);
-extern void r100_vga_render_disable(struct radeon_device *rdev);
-extern int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
-						struct radeon_cs_packet *pkt,
-						struct radeon_bo *robj);
-extern int r100_cs_parse_packet0(struct radeon_cs_parser *p,
-				struct radeon_cs_packet *pkt,
-				const unsigned *auth, unsigned n,
-				radeon_packet0_check_t check);
-extern int r100_cs_packet_parse(struct radeon_cs_parser *p,
-				struct radeon_cs_packet *pkt,
-				unsigned idx);
-extern void r100_enable_bm(struct radeon_device *rdev);
-extern void r100_set_common_regs(struct radeon_device *rdev);
 extern void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
 extern bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
-
 /* rv200,rv250,rv280 */
 extern void r200_set_safe_registers(struct radeon_device *rdev);
 

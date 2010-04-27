@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
