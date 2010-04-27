@@ -596,17 +596,17 @@ static struct radeon_asic evergreen_asic = {
 	.fini = &evergreen_fini,
 	.suspend = &evergreen_suspend,
 	.resume = &evergreen_resume,
-	.cp_commit = NULL,
-	.asic_reset = &evergreen_asic_reset,
+	.cp_commit = &r600_cp_commit,
 	.gpu_is_lockup = &evergreen_gpu_is_lockup,
+	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
+	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = NULL,
-	.ring_ib_execute = NULL,
-	.irq_set = NULL,
-	.irq_process = NULL,
-	.get_vblank_counter = NULL,
+	.ring_test = &r600_ring_test,
+	.ring_ib_execute = &r600_ring_ib_execute,
+	.irq_set = &evergreen_irq_set,
+	.irq_process = &evergreen_irq_process,
+	.get_vblank_counter = &evergreen_get_vblank_counter,
 	.fence_ring_emit = NULL,
 	.cs_parse = NULL,
 	.copy_blit = NULL,
@@ -710,6 +710,16 @@ int radeon_asic_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP) {
 		rdev->asic->get_memory_clock = NULL;
 		rdev->asic->set_memory_clock = NULL;
+	}
+
+	/* set the number of crtcs */
+	if (rdev->flags & RADEON_SINGLE_CRTC)
+		rdev->num_crtc = 1;
+	else {
+		if (ASIC_IS_DCE4(rdev))
+			rdev->num_crtc = 6;
+		else
+			rdev->num_crtc = 2;
 	}
 
 	return 0;

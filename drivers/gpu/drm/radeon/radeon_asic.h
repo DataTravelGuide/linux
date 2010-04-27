@@ -156,6 +156,7 @@ extern int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t 
 extern uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 extern void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
+extern int rv370_get_pcie_lanes(struct radeon_device *rdev);
 
 /*
  * r420,r423,rv410
@@ -284,6 +285,7 @@ int rv770_resume(struct radeon_device *rdev);
 /*
  * evergreen
  */
+void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev);
 int evergreen_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 int evergreen_suspend(struct radeon_device *rdev);
@@ -296,4 +298,8 @@ void evergreen_hpd_fini(struct radeon_device *rdev);
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 				enum radeon_hpd_id hpd);
+u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc);
+int evergreen_irq_set(struct radeon_device *rdev);
+int evergreen_irq_process(struct radeon_device *rdev);
+
 #endif
