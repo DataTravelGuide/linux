@@ -119,18 +119,19 @@ int rv370_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
+	radeon_gart_restore(rdev);
 	/* discard memory request outside of configured range */
 	tmp = RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
-	WREG32_PCIE(RADEON_PCIE_TX_GART_START_LO, rdev->mc.gtt_location);
-	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - RADEON_GPU_PAGE_SIZE;
+	WREG32_PCIE(RADEON_PCIE_TX_GART_START_LO, rdev->mc.gtt_start);
+	tmp = rdev->mc.gtt_end & ~RADEON_GPU_PAGE_MASK;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_END_LO, tmp);
 	WREG32_PCIE(RADEON_PCIE_TX_GART_START_HI, 0);
 	WREG32_PCIE(RADEON_PCIE_TX_GART_END_HI, 0);
 	table_addr = rdev->gart.table_addr;
 	WREG32_PCIE(RADEON_PCIE_TX_GART_BASE, table_addr);
 	/* FIXME: setup default page */
-	WREG32_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_LO, rdev->mc.vram_location);
+	WREG32_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_LO, rdev->mc.vram_start);
 	WREG32_PCIE(RADEON_PCIE_TX_DISCARD_RD_ADDR_HI, 0);
 	/* Clear error */
 	WREG32_PCIE(0x18, 0);
@@ -443,14 +444,6 @@ int r300_asic_reset(struct radeon_device *rdev)
 	mdelay(1);
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
-	/* reset MC */
-	WREG32(R_0000F0_RBBM_SOFT_RESET, S_0000F0_SOFT_RESET_MC(1));
-	RREG32(R_0000F0_RBBM_SOFT_RESET);
-	mdelay(500);
-	WREG32(R_0000F0_RBBM_SOFT_RESET, 0);
-	mdelay(1);
-	status = RREG32(R_000E40_RBBM_STATUS);
-	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* restore PCI & busmastering */
 	pci_restore_state(rdev->pdev);
 	r100_enable_bm(rdev);
@@ -468,13 +461,13 @@ int r300_asic_reset(struct radeon_device *rdev)
 /*
  * r300,r350,rv350,rv380 VRAM info
  */
-void r300_vram_info(struct radeon_device *rdev)
+void r300_mc_init(struct radeon_device *rdev)
 {
-	uint32_t tmp;
+	u64 base;
+	u32 tmp;
 
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
-
 	tmp = RREG32(RADEON_MEM_CNTL);
 	tmp &= R300_MEM_NUM_CHANNELS_MASK;
 	switch (tmp) {
@@ -483,8 +476,14 @@ void r300_vram_info(struct radeon_device *rdev)
 	case 2: rdev->mc.vram_width = 256; break;
 	default:  rdev->mc.vram_width = 128; break;
 	}
-
 	r100_vram_init_sizes(rdev);
+	base = rdev->mc.aper_base;
+	if (rdev->flags & RADEON_IS_IGP)
+		base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	if (!(rdev->flags & RADEON_IS_AGP))
+		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
@@ -1395,12 +1394,15 @@ int r300_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r300_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
+	}
+	/* initialize memory controller */
+	r300_mc_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

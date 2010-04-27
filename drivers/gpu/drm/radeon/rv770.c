@@ -57,6 +57,7 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
+	radeon_gart_restore(rdev);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
 				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
@@ -865,7 +866,6 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 int rv770_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -902,51 +902,15 @@ int rv770_mc_init(struct radeon_device *rdev)
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	/* FIXME remove this once we support unmappable VRAM */
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
-
-	if (rdev->flags & RADEON_IS_AGP) {
-		/* gtt_size is setup by radeon_agp_init */
-		rdev->mc.gtt_location = rdev->mc.agp_base;
-		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
-		/* Try to put vram before or after AGP because we
-		 * we want SYSTEM_APERTURE to cover both VRAM and
-		 * AGP so that GPU can catch out of VRAM/AGP access
-		 */
-		if (rdev->mc.gtt_location > rdev->mc.mc_vram_size) {
-			/* Enough place before */
-			rdev->mc.vram_location = rdev->mc.gtt_location -
-							rdev->mc.mc_vram_size;
-		} else if (tmp > rdev->mc.mc_vram_size) {
-			/* Enough place after */
-			rdev->mc.vram_location = rdev->mc.gtt_location +
-							rdev->mc.gtt_size;
-		} else {
-			/* Try to setup VRAM then AGP might not
-			 * not work on some card
-			 */
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		}
-	} else {
-		rdev->mc.vram_location = 0x00000000UL;
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	}
-	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	r600_vram_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
+
 	return 0;
 }
 
@@ -1127,6 +1091,7 @@ int rv770_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	/* initialize AGP */
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r)
