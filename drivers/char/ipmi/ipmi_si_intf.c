@@ -106,6 +106,14 @@ enum si_type {
 };
 static char *si_to_str[] = { "kcs", "smic", "bt" };
 
+enum ipmi_addr_src {
+	SI_INVALID, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
+	SI_PCI, SI_DEVICETREE, SI_DEFAULT
+};
+static char *ipmi_addr_src_to_str[] = { NULL, "hotmod", "hardcoded", "SPMI",
+				        "ACPI", "SMBIOS", "PCI", "device-tree",
+					"default" };
+
 #define DEVICE_NAME "ipmi_si"
 
 static struct platform_driver ipmi_driver = {
@@ -187,7 +195,7 @@ struct smi_info {
 	int (*irq_setup)(struct smi_info *info);
 	void (*irq_cleanup)(struct smi_info *info);
 	unsigned int io_size;
-	char *addr_source; /* ACPI, PCI, SMBIOS, hardcode, default. */
+	enum ipmi_addr_src addr_source; /* ACPI, PCI, SMBIOS, hardcode, etc. */
 	void (*addr_source_cleanup)(struct smi_info *info);
 	void *addr_source_data;
 
@@ -1692,7 +1700,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				goto out;
 			}
 
-			info->addr_source = "hotmod";
+			info->addr_source = SI_HOTMOD;
 			info->si_type = si_type;
 			info->io.addr_data = addr;
 			info->io.addr_type = addr_space;
@@ -1750,7 +1758,7 @@ static __devinit void hardcode_find_bmc(void)
 		if (!info)
 			return;
 
-		info->addr_source = "hardcoded";
+		info->addr_source = SI_HARDCODED;
 
 		if (!si_type[i] || strcmp(si_type[i], "kcs") == 0) {
 			info->si_type = SI_KCS;
@@ -1940,7 +1948,7 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 		return -ENOMEM;
 	}
 
-	info->addr_source = "ACPI";
+	info->addr_source = SI_ACPI;
 
 	/* Figure out the interface type. */
 	switch (spmi->InterfaceType) {
@@ -2108,7 +2116,7 @@ static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 		return;
 	}
 
-	info->addr_source = "SMBIOS";
+	info->addr_source = SI_SMBIOS;
 
 	switch (ipmi_data->type) {
 	case 0x01: /* KCS */
@@ -2208,7 +2216,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	if (!info)
 		return -ENOMEM;
 
-	info->addr_source = "PCI";
+	info->addr_source = SI_PCI;
 
 	switch (class_type) {
 	case PCI_ERMC_CLASSCODE_TYPE_SMIC:
@@ -2351,7 +2359,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 	}
 
 	info->si_type		= (enum si_type) match->data;
-	info->addr_source	= "device-tree";
+	info->addr_source	= SI_DEVICETREE;
 	info->irq_setup		= std_irq_setup;
 
 	if (resource.flags & IORESOURCE_IO) {
@@ -2791,7 +2799,7 @@ static __devinit void default_find_bmc(void)
 		if (!info)
 			return;
 
-		info->addr_source = NULL;
+		info->addr_source = SI_DEFAULT;
 
 		info->si_type = ipmi_defaults[i].type;
 		info->io_setup = port_setup;
@@ -2834,16 +2842,14 @@ static int try_smi_init(struct smi_info *new_smi)
 	int rv;
 	int i;
 
-	if (new_smi->addr_source) {
-		printk(KERN_INFO "ipmi_si: Trying %s-specified %s state"
-		       " machine at %s address 0x%lx, slave address 0x%x,"
-		       " irq %d\n",
-		       new_smi->addr_source,
-		       si_to_str[new_smi->si_type],
-		       addr_space_to_str[new_smi->io.addr_type],
-		       new_smi->io.addr_data,
-		       new_smi->slave_addr, new_smi->irq);
-	}
+	printk(KERN_INFO "ipmi_si: Trying %s-specified %s state"
+	       " machine at %s address 0x%lx, slave address 0x%x,"
+	       " irq %d\n",
+	       ipmi_addr_src_to_str[new_smi->addr_source],
+	       si_to_str[new_smi->si_type],
+	       addr_space_to_str[new_smi->io.addr_type],
+	       new_smi->io.addr_data,
+	       new_smi->slave_addr, new_smi->irq);
 
 	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
