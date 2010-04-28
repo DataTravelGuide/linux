@@ -109,12 +109,12 @@ static inline char *blkg_path(struct blkio_group *blkg)
 {
 	return blkg->path;
 }
-void blkiocg_update_blkio_group_dequeue_stats(struct blkio_group *blkg,
+void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
 #else
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
-static inline void blkiocg_update_blkio_group_dequeue_stats(
-			struct blkio_group *blkg, unsigned long dequeue) {}
+static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
+						unsigned long dequeue) {}
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
@@ -127,6 +127,10 @@ extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 					unsigned long time);
+void blkiocg_update_request_dispatch_stats(struct blkio_group *blkg,
+						struct request *rq);
+void blkiocg_update_request_completion_stats(struct blkio_group *blkg,
+						struct request *rq);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
@@ -144,5 +148,9 @@ static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
 static inline void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 						unsigned long time) {}
+static inline void blkiocg_update_request_dispatch_stats(
+		struct blkio_group *blkg, struct request *rq) {}
+static inline void blkiocg_update_request_completion_stats(
+		struct blkio_group *blkg, struct request *rq) {}
 #endif
 #endif /* _BLK_CGROUP_H */

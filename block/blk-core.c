@@ -127,6 +127,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->tag = -1;
 	rq->ref_count = 1;
 	rq->start_time = jiffies;
+	set_start_time_ns(rq);
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -1860,6 +1861,7 @@ void blk_dequeue_request(struct request *rq)
 	 */
 	if (blk_account_rq(rq)) {
 		q->in_flight[rq_is_sync(rq)]++;
+		set_io_start_time_ns(rq);
 		/*
 		 * Mark this device as supporting hardware queuing, if
 		 * we have more IOs in flight than 4.
@@ -2508,4 +2510,3 @@ int __init blk_dev_init(void)
 
 	return 0;
 }
-
