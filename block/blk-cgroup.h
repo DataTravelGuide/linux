@@ -64,6 +64,7 @@ struct blkio_cgroup {
 	unsigned int weight;
 	spinlock_t lock;
 	struct hlist_head blkg_list;
+	struct list_head policy_list; /* list of blkio_policy_node */
 };
 
 struct blkio_group_stats {
@@ -115,6 +116,15 @@ struct blkio_group {
 
 extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
 extern void blkiocg_css_put(struct blkio_cgroup *blkcg);
+
+struct blkio_policy_node {
+	struct list_head node;
+	dev_t dev;
+	unsigned int weight;
+};
+
+extern unsigned int blkcg_get_weight(struct blkio_cgroup *blkcg,
+				     dev_t dev);
 
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
 typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
