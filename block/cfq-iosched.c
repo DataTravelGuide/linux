@@ -964,6 +964,7 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 	for_each_cfqg_st(cfqg, i, j, st)
 		*st = CFQ_RB_ROOT;
 	RB_CLEAR_NODE(&cfqg->rb_node);
+	blkio_group_init(&cfqg->blkg);
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -1880,7 +1881,8 @@ static void cfq_dispatch_insert(struct request_queue *q, struct request *rq)
 	elv_dispatch_sort(q, rq);
 
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]++;
-	blkiocg_update_request_dispatch_stats(&cfqq->cfqg->blkg, rq);
+	blkiocg_update_dispatch_stats(&cfqq->cfqg->blkg, blk_rq_bytes(rq),
+					rq_data_dir(rq), rq_is_sync(rq));
 }
 
 /*
@@ -3306,7 +3308,9 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	WARN_ON(!cfqq->dispatched);
 	cfqd->rq_in_driver--;
 	cfqq->dispatched--;
-	blkiocg_update_request_completion_stats(&cfqq->cfqg->blkg, rq);
+	blkiocg_update_completion_stats(&cfqq->cfqg->blkg, rq_start_time_ns(rq),
+			rq_io_start_time_ns(rq), rq_data_dir(rq),
+			rq_is_sync(rq));
 
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 
