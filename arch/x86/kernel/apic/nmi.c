@@ -76,7 +76,7 @@ void __cpuinit nmi_watchdog_default(void)
 	atomic_inc(&nmi_active);
 }
 #else
-void __init nmi_watchdog_default(void) { return; }
+void __cpuinit nmi_watchdog_default(void) { return; }
 #endif
 
 static inline unsigned int get_nmi_count(int cpu)
