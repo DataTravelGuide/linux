@@ -17,11 +17,36 @@
 
 #ifdef CONFIG_BLK_CGROUP
 
+enum io_type {
+	IO_READ = 0,
+	IO_WRITE,
+	IO_SYNC,
+	IO_ASYNC,
+	IO_TYPE_MAX
+};
+
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
 	spinlock_t lock;
 	struct hlist_head blkg_list;
+};
+
+struct blkio_group_stats {
+	/* total disk time and nr sectors dispatched by this group */
+	uint64_t time;
+	uint64_t sectors;
+	/* Total disk time used by IOs in ns */
+	uint64_t io_service_time[IO_TYPE_MAX];
+	uint64_t io_service_bytes[IO_TYPE_MAX]; /* Total bytes transferred */
+	/* Total IOs serviced, post merge */
+	uint64_t io_serviced[IO_TYPE_MAX];
+	/* Total time spent waiting in scheduler queue in ns */
+	uint64_t io_wait_time[IO_TYPE_MAX];
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	/* How many times this group has been removed from service tree */
+	unsigned long dequeue;
+#endif
 };
 
 struct blkio_group {
@@ -32,15 +57,13 @@ struct blkio_group {
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Store cgroup path */
 	char path[128];
-	/* How many times this group has been removed from service tree */
-	unsigned long dequeue;
 #endif
 	/* The device MKDEV(major, minor), this group has been created for */
 	dev_t   dev;
 
-	/* total disk time and nr sectors dispatched by this group */
-	unsigned long time;
-	unsigned long sectors;
+	/* Need to serialize the stats in the case of reset/update */
+	spinlock_t stats_lock;
+	struct blkio_group_stats stats;
 };
 
 extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
@@ -102,8 +125,8 @@ extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
-void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
-						unsigned long time);
+void blkiocg_update_timeslice_used(struct blkio_group *blkg,
+					unsigned long time);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *
@@ -119,7 +142,7 @@ blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
 
 static inline struct blkio_group *
 blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
-static inline void blkiocg_update_blkio_group_stats(struct blkio_group *blkg,
+static inline void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 						unsigned long time) {}
 #endif
 #endif /* _BLK_CGROUP_H */
