@@ -171,7 +171,7 @@ void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 				unsigned long dequeue);
 void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg);
 void blkiocg_update_idle_time_stats(struct blkio_group *blkg);
-void blkiocg_set_start_empty_time(struct blkio_group *blkg, bool ignore);
+void blkiocg_set_start_empty_time(struct blkio_group *blkg);
 
 #define BLKG_FLAG_FNS(name)						\
 static inline void blkio_mark_blkg_##name(				\
@@ -202,8 +202,7 @@ static inline void blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 static inline void blkiocg_update_set_idle_time_stats(struct blkio_group *blkg)
 {}
 static inline void blkiocg_update_idle_time_stats(struct blkio_group *blkg) {}
-static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg,
-						bool ignore) {}
+static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
