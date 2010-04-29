@@ -36,3 +36,4 @@
 # CONFIG_LATENCYTOP is not set
 # CONFIG_FSCACHE_OBJECT_LIST is not set
 # CONFIG_DRM_NOUVEAU_DEBUG is not set
+# CONFIG_EXT4_DEBUG is not set
