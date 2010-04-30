@@ -243,7 +243,7 @@ Summary: The Linux kernel
 
 %if %{with_vdso_install}
 # These arches install vdso/ directories.
-%define vdso_arches %{all_x86} x86_64 ppc ppc64
+%define vdso_arches %{all_x86} x86_64 ppc ppc64 s390 s390x
 %endif
 
 # Overrides for generic default options
