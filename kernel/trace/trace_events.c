@@ -28,8 +28,8 @@ DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
 
-int trace_define_field(struct ftrace_event_call *call, char *type,
-		       char *name, int offset, int size, int is_signed,
+int trace_define_field(struct ftrace_event_call *call, const char *type,
+		       const char *name, int offset, int size, int is_signed,
 		       int filter_type)
 {
 	struct ftrace_event_field *field;
@@ -957,9 +957,12 @@ static int __trace_add_event_call(struct ftrace_event_call *call)
 		return -ENOENT;
 
 	list_add(&call->list, &ftrace_events);
-	return event_create_dir(call, d_events, &ftrace_event_id_fops,
+	ret = event_create_dir(call, d_events, &ftrace_event_id_fops,
 				&ftrace_enable_fops, &ftrace_event_filter_fops,
 				&ftrace_event_format_fops);
+	if (ret < 0)
+		list_del(&call->list);
+	return ret;
 }
 
 /* Add an additional event_call dynamically */
@@ -998,6 +1001,9 @@ static void remove_subsystem_dir(const char *name)
 	}
 }
 
+/*
+ * Must be called under locking both of event_mutex and trace_event_mutex.
+ */
 static void __trace_remove_event_call(struct ftrace_event_call *call)
 {
 	ftrace_event_enable_disable(call, 0);
@@ -1014,7 +1020,9 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 void trace_remove_event_call(struct ftrace_event_call *call)
 {
 	mutex_lock(&event_mutex);
+	down_write(&trace_event_mutex);
 	__trace_remove_event_call(call);
+	up_write(&trace_event_mutex);
 	mutex_unlock(&event_mutex);
 }
 

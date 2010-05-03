@@ -399,12 +399,12 @@ static inline int ftrace_get_offsets_##call(				\
 									\
 static void ftrace_profile_##call(proto);				\
 									\
-static int ftrace_profile_enable_##call(void)				\
+static int ftrace_profile_enable_##call(struct ftrace_event_call *unused)\
 {									\
 	return register_trace_##call(ftrace_profile_##call);		\
 }									\
 									\
-static void ftrace_profile_disable_##call(void)				\
+static void ftrace_profile_disable_##call(struct ftrace_event_call *unused)\
 {									\
 	unregister_trace_##call(ftrace_profile_##call);			\
 }

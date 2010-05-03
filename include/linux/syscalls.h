@@ -101,23 +101,23 @@ struct perf_event_attr;
 
 #ifdef CONFIG_EVENT_PROFILE
 #define TRACE_SYS_ENTER_PROFILE(sname)					       \
-static int prof_sysenter_enable_##sname(void)				       \
+static int prof_sysenter_enable_##sname(struct ftrace_event_call *unused)      \
 {									       \
 	return reg_prof_syscall_enter("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysenter_disable_##sname(void)				       \
+static void prof_sysenter_disable_##sname(struct ftrace_event_call *unused)    \
 {									       \
 	unreg_prof_syscall_enter("sys"#sname);				       \
 }
 
 #define TRACE_SYS_EXIT_PROFILE(sname)					       \
-static int prof_sysexit_enable_##sname(void)				       \
+static int prof_sysexit_enable_##sname(struct ftrace_event_call *unused)       \
 {									       \
 	return reg_prof_syscall_exit("sys"#sname);			       \
 }									       \
 									       \
-static void prof_sysexit_disable_##sname(void)				       \
+static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 {                                                                              \
 	unreg_prof_syscall_exit("sys"#sname);				       \
 }

@@ -131,8 +131,8 @@ struct ftrace_event_call {
 	void			*data;
 
 	atomic_t		profile_count;
-	int			(*profile_enable)(void);
-	void			(*profile_disable)(void);
+	int			(*profile_enable)(struct ftrace_event_call *);
+	void			(*profile_disable)(struct ftrace_event_call *);
 };
 
 #define FTRACE_MAX_PROFILE_SIZE	2048
@@ -158,9 +158,9 @@ enum {
 };
 
 extern int trace_define_common_fields(struct ftrace_event_call *call);
-extern int trace_define_field(struct ftrace_event_call *call, char *type,
-			      char *name, int offset, int size, int is_signed,
-			      int filter_type);
+extern int trace_define_field(struct ftrace_event_call *call, const char *type,
+			      const char *name, int offset, int size,
+			      int is_signed, int filter_type);
 extern int trace_add_event_call(struct ftrace_event_call *call);
 extern void trace_remove_event_call(struct ftrace_event_call *call);
 
