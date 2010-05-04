@@ -97,7 +97,7 @@ struct vcpu_vmx {
 	} host_state;
 	struct {
 		int vm86_active;
-		u8 save_iopl;
+		ulong save_rflags;
 		struct kvm_save_segment {
 			u16 selector;
 			unsigned long base;
@@ -184,6 +184,8 @@ static struct kvm_vmx_segment_field {
 static u64 host_efer;
 
 static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
+
+#define RMODE_GUEST_OWNED_EFLAGS_BITS (~(X86_EFLAGS_IOPL | X86_EFLAGS_VM))
 
 /*
  * Keep MSR_K6_STAR at the end, as setup_msrs() will try to optimize it
@@ -767,18 +769,23 @@ static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 
 static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
-	unsigned long rflags;
+	unsigned long rflags, save_rflags;
 
 	rflags = vmcs_readl(GUEST_RFLAGS);
-	if (to_vmx(vcpu)->rmode.vm86_active)
-		rflags &= ~(unsigned long)(X86_EFLAGS_IOPL | X86_EFLAGS_VM);
+	if (to_vmx(vcpu)->rmode.vm86_active) {
+		rflags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
+		save_rflags = to_vmx(vcpu)->rmode.save_rflags;
+		rflags |= save_rflags & ~RMODE_GUEST_OWNED_EFLAGS_BITS;
+	}
 	return rflags;
 }
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
-	if (to_vmx(vcpu)->rmode.vm86_active)
+	if (to_vmx(vcpu)->rmode.vm86_active) {
+		to_vmx(vcpu)->rmode.save_rflags = rflags;
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
+	}
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
 
@@ -1412,8 +1419,8 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_TR_AR_BYTES, vmx->rmode.tr.ar);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
-	flags &= ~(X86_EFLAGS_IOPL | X86_EFLAGS_VM);
-	flags |= (vmx->rmode.save_iopl << IOPL_SHIFT);
+	flags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
+	flags |= vmx->rmode.save_rflags & ~RMODE_GUEST_OWNED_EFLAGS_BITS;
 	vmcs_writel(GUEST_RFLAGS, flags);
 
 	vmcs_writel(GUEST_CR4, (vmcs_readl(GUEST_CR4) & ~X86_CR4_VME) |
@@ -1486,8 +1493,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
-	vmx->rmode.save_iopl
-		= (flags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
+	vmx->rmode.save_rflags = flags;
 
 	flags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 
