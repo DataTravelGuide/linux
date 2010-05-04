@@ -783,6 +783,37 @@ ack:
 }
 
 static void
+nv50_display_unk20_dp_hack(struct drm_device *dev, struct dcb_entry *dcb)
+{
+	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
+	struct drm_encoder *encoder;
+	uint32_t tmp, unk0 = 0, unk1 = 0;
+
+	if (dcb->type != OUTPUT_DP)
+		return;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		if (nv_encoder->dcb == dcb) {
+			unk0 = nv_encoder->dp.unk0;
+			unk1 = nv_encoder->dp.unk1;
+			break;
+		}
+	}
+
+	if (unk0 || unk1) {
+		tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
+		tmp &= 0xfffffe03;
+		nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp | unk0);
+
+		tmp  = nv_rd32(dev, NV50_SOR_DP_UNK128(or, link));
+		tmp &= 0xfef080c0;
+		nv_wr32(dev, NV50_SOR_DP_UNK128(or, link), tmp | unk1);
+	}
+}
+
+static void
 nv50_display_unk20_handler(struct drm_device *dev)
 {
 	struct dcb_entry *dcbent;
@@ -804,6 +835,8 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	nv50_crtc_set_clock(dev, head, pclk);
 
 	nouveau_bios_run_display_table(dev, dcbent, script, pclk);
+
+	nv50_display_unk20_dp_hack(dev, dcbent);
 
 	tmp = nv_rd32(dev, NV50_PDISPLAY_CRTC_CLK_CTRL2(head));
 	tmp &= ~0x000000f;
@@ -945,6 +978,8 @@ nv50_display_irq_hotplug_bh(struct work_struct *work)
 	nv_wr32(dev, 0xe054, nv_rd32(dev, 0xe054));
 	if (dev_priv->chipset >= 0x90)
 		nv_wr32(dev, 0xe074, nv_rd32(dev, 0xe074));
+
+	drm_sysfs_hotplug_event(dev);
 }
 
 void

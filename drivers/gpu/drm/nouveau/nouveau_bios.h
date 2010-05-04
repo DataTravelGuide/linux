@@ -35,6 +35,7 @@
 #define DCB_LOC_ON_CHIP 0
 
 struct dcb_i2c_entry {
+	uint32_t entry;
 	uint8_t port_type;
 	uint8_t read, write;
 	struct nouveau_i2c_chan *chan;
@@ -49,6 +50,9 @@ struct dcb_gpio_entry {
 	enum dcb_gpio_tag tag;
 	int line;
 	bool invert;
+	uint32_t entry;
+	uint8_t state_default;
+	uint8_t state[2];
 };
 
 struct dcb_gpio_table {
