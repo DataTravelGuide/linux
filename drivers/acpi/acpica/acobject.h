@@ -284,7 +284,9 @@ struct acpi_object_buffer_field {
 struct acpi_object_notify_handler {
 	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *node;	/* Parent device */
 	acpi_notify_handler handler;
+	u32 handler_type;
 	void *context;
+	struct acpi_object_notify_handler *next;
 };
 
 struct acpi_object_addr_handler {
