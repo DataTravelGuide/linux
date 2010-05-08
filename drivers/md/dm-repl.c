@@ -915,7 +915,7 @@ device_ctr(enum ctr_call_type call_type, struct dm_target *ti,
 	 *
 	 * Dummy start/size sufficient here.
 	 */
-	r = dm_get_device(ti, replicator_path, 0, 1,
+	r = dm_get_device(ti, replicator_path,
 			  FMODE_WRITE, &dc->replicator_dev);
 	if (unlikely(r < 0)) {
 		ti_or_dmerr(call_type, ti,
@@ -1035,7 +1035,7 @@ _replicator_dev_ctr(enum ctr_call_type call_type, struct dm_target *ti,
 	 *
 	 * Dummy start/size sufficient here.
 	 */
-	r = dm_get_device(ti, replicator_path, 0, 1, FMODE_WRITE, &ctrl_dev);
+	r = dm_get_device(ti, replicator_path, FMODE_WRITE, &ctrl_dev);
 	if (unlikely(r < 0)) {
 		ti_or_dmerr(CTR_CALL, ti,
 			    "Can't access replicator control device");
@@ -1573,7 +1573,7 @@ replicator_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 *
 	 * Dummy start/size sufficient here.
 	 */
-	r = dm_get_device(ti, argv[2], 0, 1, FMODE_WRITE, &backing_dev);
+	r = dm_get_device(ti, argv[2], FMODE_WRITE, &backing_dev);
 	if (unlikely(r < 0)) {
 		ti->error = "Can't access replicator control device";
 		return r;

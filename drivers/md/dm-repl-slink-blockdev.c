@@ -996,7 +996,6 @@ try_dev_open(struct sdev *dev)
 	if (!DevOpen(dev)) {
 		/* Try getting device with limit checks. */
 		r = dm_get_device(dev->ti, dev->dev.params.path,
-				  0, dev->ti->len,
 				  dm_table_get_mode(dev->ti->table),
 				  &dev->dev.dm_dev);
 		if (r) {

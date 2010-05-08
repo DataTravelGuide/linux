@@ -2621,8 +2621,7 @@ replog_get(struct dm_repl_log *log, struct dm_target *ti,
 	struct dm_io_client *io_client;
 
 	/* Get device with major:minor or device path. */
-	r = dm_get_device(ti, path, params->dev.start, params->dev.size,
-			  FMODE_WRITE, &dm_dev);
+	r = dm_get_device(ti, path, FMODE_WRITE, &dm_dev);
 	if (r) {
 		DMERR("Failed to open replicator log device \"%s\" [%d]",
 		      path, r);
