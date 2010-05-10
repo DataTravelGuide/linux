@@ -305,6 +305,9 @@ struct pci_dev {
 	};
 	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
+	/* RHEL6: padding to add future features to the pci_dev struct */
+	void *rh_reserved1;
+	void *rh_reserved2;
 };
 
 extern struct pci_dev *alloc_pci_dev(void);
@@ -376,6 +379,8 @@ struct pci_bus {
 	struct bin_attribute	*legacy_io; /* legacy I/O for this bus */
 	struct bin_attribute	*legacy_mem; /* legacy mem */
 	unsigned int		is_added:1;
+	/* RHEL6: padding to add future features to the pci_bus struct */
+	void *rh_reserved;
 };
 
 #define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
@@ -498,6 +503,8 @@ struct pci_driver {
 	struct pci_error_handlers *err_handler;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
+	/* RHEL6: padding to add future features to the pci_driver struct */
+	void *rh_reserved;
 };
 
 #define	to_pci_driver(drv) container_of(drv, struct pci_driver, driver)
