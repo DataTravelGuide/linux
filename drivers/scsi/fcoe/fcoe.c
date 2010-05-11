@@ -73,6 +73,7 @@ static int fcoe_rcv(struct sk_buff *, struct net_device *,
 static int fcoe_percpu_receive_thread(void *);
 static void fcoe_clean_pending_queue(struct fc_lport *);
 static void fcoe_percpu_clean(struct fc_lport *);
+static int fcoe_link_speed_update(struct fc_lport *);
 static int fcoe_link_ok(struct fc_lport *);
 
 static struct fc_lport *fcoe_hostlist_lookup(const struct net_device *);
@@ -630,6 +631,8 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 	port->fcoe_pending_queue_active = 0;
 	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long)lport);
 
+	fcoe_link_speed_update(lport);
+
 	if (!lport->vport) {
 		/*
 		 * Use NAA 1&2 (FC-FS Rev. 2.0, Sec. 15) to generate WWNN/WWPN:
@@ -797,6 +800,12 @@ skip_oem:
 /**
  * fcoe_if_destroy() - Tear down a SW FCoE instance
  * @lport: The local port to be destroyed
+ *
+ * Locking: must be called with the RTNL mutex held and RTNL mutex
+ * needed to be dropped by this function since not dropping RTNL
+ * would cause circular locking warning on synchronous fip worker
+ * cancelling thru fcoe_interface_put invoked by this function.
+ *
  */
 static void fcoe_if_destroy(struct fc_lport *lport)
 {
@@ -819,7 +828,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
-	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_unicast_delete(netdev, port->data_src_addr);
 	rtnl_unlock();
@@ -842,6 +850,7 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 
 	/* Release the Scsi_Host */
 	scsi_host_put(lport->host);
+	module_put(THIS_MODULE);
 }
 
 /**
@@ -1828,6 +1837,9 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		FCOE_NETDEV_DBG(netdev, "Unknown event %ld "
 				"from netdev netlink\n", event);
 	}
+
+	fcoe_link_speed_update(lport);
+
 	if (link_possible && !fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 	else if (fcoe_ctlr_link_down(&fcoe->ctlr)) {
@@ -1895,7 +1907,12 @@ static int fcoe_disable(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1945,7 +1962,12 @@ static int fcoe_enable(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
@@ -1996,7 +2018,12 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 		goto out_nodev;
 	}
 
-	rtnl_lock();
+	if (!rtnl_trylock()) {
+		dev_put(netdev);
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
 		rtnl_unlock();
@@ -2005,9 +2032,8 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 	}
 	list_del(&fcoe->list);
 	fcoe_interface_cleanup(fcoe);
-	rtnl_unlock();
+	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(fcoe->ctlr.lp);
-	module_put(THIS_MODULE);
 
 out_putdev:
 	dev_put(netdev);
@@ -2026,6 +2052,8 @@ static void fcoe_destroy_work(struct work_struct *work)
 
 	port = container_of(work, struct fcoe_port, destroy_work);
 	mutex_lock(&fcoe_config_mutex);
+	rtnl_lock();
+	/* RTNL mutex is dropped by fcoe_if_destroy */
 	fcoe_if_destroy(port->lport);
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2047,6 +2075,12 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev;
 
 	mutex_lock(&fcoe_config_mutex);
+
+	if (!rtnl_trylock()) {
+		mutex_unlock(&fcoe_config_mutex);
+		return restart_syscall();
+	}
+
 #ifdef CONFIG_FCOE_MODULE
 	/*
 	 * Make sure the module has been initialized, and is not about to be
@@ -2055,7 +2089,7 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	 */
 	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
 		rc = -ENODEV;
-		goto out_nodev;
+		goto out_nomod;
 	}
 #endif
 
@@ -2064,7 +2098,6 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 		goto out_nomod;
 	}
 
-	rtnl_lock();
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		rc = -ENODEV;
@@ -2119,34 +2152,27 @@ out_free:
 out_putdev:
 	dev_put(netdev);
 out_nodev:
-	rtnl_unlock();
 	module_put(THIS_MODULE);
 out_nomod:
+	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
 
 /**
- * fcoe_link_ok() - Check if the link is OK for a local port
- * @lport: The local port to check link on
+ * fcoe_link_speed_update() - Update the supported and actual link speeds
+ * @lport: The local port to update speeds for
  *
- * Any permanently-disqualifying conditions have been previously checked.
- * This also updates the speed setting, which may change with link for 100/1000.
- *
- * This function should probably be checking for PAUSE support at some point
- * in the future. Currently Per-priority-pause is not determinable using
- * ethtool, so we shouldn't be restrictive until that problem is resolved.
- *
- * Returns: 0 if link is OK for use by FCoE.
- *
+ * Returns: 0 if the ethtool query was successful
+ *          -1 if the ethtool query failed
  */
-int fcoe_link_ok(struct fc_lport *lport)
+int fcoe_link_speed_update(struct fc_lport *lport)
 {
 	struct fcoe_port *port = lport_priv(lport);
 	struct net_device *netdev = port->fcoe->netdev;
 	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
 
-	if (netif_oper_up(netdev) && !dev_ethtool_get_settings(netdev, &ecmd)) {
+	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
 			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
@@ -2162,6 +2188,23 @@ int fcoe_link_ok(struct fc_lport *lport)
 
 		return 0;
 	}
+	return -1;
+}
+
+/**
+ * fcoe_link_ok() - Check if the link is OK for a local port
+ * @lport: The local port to check link on
+ *
+ * Returns: 0 if link is UP and OK, -1 if not
+ *
+ */
+int fcoe_link_ok(struct fc_lport *lport)
+{
+	struct fcoe_port *port = lport_priv(lport);
+	struct net_device *netdev = port->fcoe->netdev;
+
+	if (netif_oper_up(netdev))
+		return 0;
 	return -1;
 }
 

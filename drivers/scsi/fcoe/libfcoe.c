@@ -342,7 +342,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 
 	fcf = fip->sel_fcf;
 	lp = fip->lp;
-	if (!fcf || !fc_host_port_id(lp->host))
+	if (!fcf || !lp->port_id)
 		return;
 
 	len = sizeof(*kal) + ports * sizeof(*vn);
@@ -373,8 +373,8 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
 		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
 		memcpy(vn->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-		hton24(vn->fd_fc_id, fc_host_port_id(lp->host));
-		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
+		hton24(vn->fd_fc_id, lport->port_id);
+		put_unaligned_be64(lport->wwpn, &vn->fd_wwpn);
 	}
 	skb_put(skb, len);
 	skb->protocol = htons(ETH_P_FIP);
@@ -438,7 +438,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
 
 	mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-	memset(mac, 0, sizeof(mac));
+	memset(mac, 0, sizeof(*mac));
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
 	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
@@ -947,9 +947,8 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	u32	desc_mask;
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
-	if (!fcf)
-		return;
-	if (!fcf || !fc_host_port_id(lport->host))
+
+	if (!fcf || !lport->port_id)
 		return;
 
 	/*
@@ -987,8 +986,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (compare_ether_addr(vp->fd_mac,
 					       fip->get_src_addr(lport)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lport->wwpn &&
-			    ntoh24(vp->fd_fc_id) ==
-			    fc_host_port_id(lport->host))
+			    ntoh24(vp->fd_fc_id) == lport->port_id)
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
 			break;
 		default:
