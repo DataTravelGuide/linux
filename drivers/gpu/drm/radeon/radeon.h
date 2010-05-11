@@ -689,6 +689,12 @@ struct r100_asic {
 	unsigned		reg_safe_bm_size;
 	u32			hdp_cntl;
 	struct r100_gpu_lockup	lockup;
+	/* rn50 triple head servers */
+	bool                    triple_head_server;
+	u32                     tv_dac_cntl;
+	u32                     disp_hw_debug;
+	u32                     dac2_cntl;
+	u32                     crtc2_gen_cntl;
 };
 
 struct r300_asic {

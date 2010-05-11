@@ -1838,7 +1838,6 @@ int r100_asic_reset(struct radeon_device *rdev)
 void r100_set_common_regs(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
-	bool force_dac2 = false;
 	u32 tmp;
 
 	/* set these so they don't interfere with anything */
@@ -1855,61 +1854,75 @@ void r100_set_common_regs(struct radeon_device *rdev)
 	 * don't report it in the bios connector
 	 * table.
 	 */
-	switch (dev->pdev->device) {
-		/* RN50 */
-	case 0x515e:
-	case 0x5969:
-		force_dac2 = true;
-		break;
-		/* RV100*/
-	case 0x5159:
-	case 0x515a:
-		/* DELL triple head servers */
-		if ((dev->pdev->subsystem_vendor == 0x1028 /* DELL */) &&
-		    ((dev->pdev->subsystem_device == 0x016c) ||
-		     (dev->pdev->subsystem_device == 0x016d) ||
-		     (dev->pdev->subsystem_device == 0x016e) ||
-		     (dev->pdev->subsystem_device == 0x016f) ||
-		     (dev->pdev->subsystem_device == 0x0170) ||
-		     (dev->pdev->subsystem_device == 0x017d) ||
-		     (dev->pdev->subsystem_device == 0x017e) ||
-		     (dev->pdev->subsystem_device == 0x0183) ||
-		     (dev->pdev->subsystem_device == 0x018a) ||
-		     (dev->pdev->subsystem_device == 0x019a)))
-			force_dac2 = true;
-		break;
-	}
+	if (rdev->family <= CHIP_RS200) {
+		rdev->config.r100.triple_head_server = false;
+		switch (dev->pdev->device) {
+			/* RN50 */
+		case 0x515e:
+		case 0x5969:
+			rdev->config.r100.triple_head_server = true;
+			break;
+			/* RV100*/
+		case 0x5159:
+		case 0x515a:
+			/* DELL/HP triple head servers */
+			if ((dev->pdev->subsystem_vendor == 0x1028 /* DELL */) &&
+			    ((dev->pdev->subsystem_device == 0x016c) ||
+			     (dev->pdev->subsystem_device == 0x016d) ||
+			     (dev->pdev->subsystem_device == 0x016e) ||
+			     (dev->pdev->subsystem_device == 0x016f) ||
+			     (dev->pdev->subsystem_device == 0x0170) ||
+			     (dev->pdev->subsystem_device == 0x017d) ||
+			     (dev->pdev->subsystem_device == 0x017e) ||
+			     (dev->pdev->subsystem_device == 0x0183) ||
+			     (dev->pdev->subsystem_device == 0x018a) ||
+			     (dev->pdev->subsystem_device == 0x019a)))
+				rdev->config.r100.triple_head_server = true;
+			if ((dev->pdev->subsystem_vendor == 0x103c /* HP */) &&
+			    ((dev->pdev->subsystem_device == 0x31fb) ||
+			     (dev->pdev->subsystem_device == 0x1304)))
+				rdev->config.r100.triple_head_server = true;
+			break;
+		}
 
-	if (force_dac2) {
-		u32 disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
-		u32 tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
-		u32 dac2_cntl = RREG32(RADEON_DAC_CNTL2);
+		if (rdev->config.r100.triple_head_server) {
+			u32 disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
+			u32 tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
+			u32 dac2_cntl = RREG32(RADEON_DAC_CNTL2);
+			u32 crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
 
-		/* For CRT on DAC2, don't turn it on if BIOS didn't
-		   enable it, even it's detected.
-		*/
+			/* For CRT on DAC2, don't turn it on if BIOS didn't
+			   enable it, even it's detected.
+			*/
 
-		/* force it to crtc0 */
-		dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
-		dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-		disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
+			/* force it to crtc0 */
+			dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
+			dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
+			disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
 
-		/* set up the TV DAC */
-		tv_dac_cntl &= ~(RADEON_TV_DAC_PEDESTAL |
-				 RADEON_TV_DAC_STD_MASK |
-				 RADEON_TV_DAC_RDACPD |
-				 RADEON_TV_DAC_GDACPD |
-				 RADEON_TV_DAC_BDACPD |
-				 RADEON_TV_DAC_BGADJ_MASK |
+			/* set up the TV DAC */
+			tv_dac_cntl &= ~(RADEON_TV_DAC_PEDESTAL |
+					 RADEON_TV_DAC_STD_MASK |
+					 RADEON_TV_DAC_RDACPD |
+					 RADEON_TV_DAC_GDACPD |
+					 RADEON_TV_DAC_BDACPD |
+					 RADEON_TV_DAC_BGADJ_MASK |
 				 RADEON_TV_DAC_DACADJ_MASK);
-		tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
-				RADEON_TV_DAC_NHOLD |
-				RADEON_TV_DAC_STD_PS2 |
-				(0x58 << 16));
+			tv_dac_cntl |= (RADEON_TV_DAC_NBLANK |
+					RADEON_TV_DAC_NHOLD |
+					RADEON_TV_DAC_STD_PS2 |
+					(0x58 << 16));
 
-		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
-		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
+			rdev->config.r100.tv_dac_cntl = tv_dac_cntl;
+			rdev->config.r100.disp_hw_debug = disp_hw_debug;
+			rdev->config.r100.dac2_cntl = dac2_cntl;
+			rdev->config.r100.crtc2_gen_cntl = crtc2_gen_cntl;
+
+			WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
+			WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
+			WREG32(RADEON_DAC_CNTL2, dac2_cntl);
+			WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+		}
 	}
 
 	/* switch PM block to ACPI mode */

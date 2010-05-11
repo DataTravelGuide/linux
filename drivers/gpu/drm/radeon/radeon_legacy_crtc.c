@@ -971,11 +971,32 @@ static bool radeon_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static void rn50_set_triple_head_server_config(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+
+	switch (dev->pdev->device) {
+	case 0x515e:
+	case 0x5969:
+	case 0x5159:
+	case 0x515a:
+		if (rdev->config.r100.triple_head_server) {
+			WREG32(RADEON_TV_DAC_CNTL, rdev->config.r100.tv_dac_cntl);
+			WREG32(RADEON_DISP_HW_DEBUG, rdev->config.r100.disp_hw_debug);
+			WREG32(RADEON_DAC_CNTL2, rdev->config.r100.dac2_cntl);
+			WREG32(RADEON_CRTC2_GEN_CNTL, rdev->config.r100.crtc2_gen_cntl);
+		}
+		break;
+	}
+}
+
 static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 				 struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode,
 				 int x, int y, struct drm_framebuffer *old_fb)
 {
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 
 	/* TODO TV */
@@ -985,6 +1006,7 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 	radeon_overscan_setup(crtc, adjusted_mode);
 	if (radeon_crtc->crtc_id == 0) {
 		radeon_legacy_rmx_mode_set(crtc, adjusted_mode);
+		rn50_set_triple_head_server_config(rdev);
 	} else {
 		if (radeon_crtc->rmx_type != RMX_OFF) {
 			/* FIXME: only first crtc has rmx what should we
