@@ -486,8 +486,8 @@ static struct drm_display_mode drm_dmt_modes[] = {
 static const int drm_num_dmt_modes =
 	sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
 
-static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
-			int hsize, int vsize, int fresh)
+struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
+					   int hsize, int vsize, int fresh)
 {
 	int i;
 	struct drm_display_mode *ptr, *mode;
@@ -505,6 +505,7 @@ static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
 	}
 	return mode;
 }
+EXPORT_SYMBOL(drm_mode_find_dmt);
 
 /*
  * 0 is reserved.  The spec says 0x01 fill for unused timings.  Some old
@@ -572,7 +573,7 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 	}
 	mode = NULL;
 	/* check whether it can be found in default mode table */
-	mode = drm_find_dmt(dev, hsize, vsize, vrefresh_rate);
+	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate);
 	if (mode)
 		return mode;
 
