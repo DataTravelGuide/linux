@@ -820,12 +820,13 @@ ApplyOptionalPatch()
    make INSTALL_FW_PATH=$RPM_BUILD_ROOT/lib/firmware firmware_install \
    mv .config.firmware_save .config
 
-[ -f .shared-srctree ] && sharedirs=$(cat .shared-srctree)
-
-# Ok, first time we do a make prep.
-rm -f pax_global_header
+if [ ! -d kernel-%{kversion}/vanilla-%{kversion}/ ]; then
+	rm -f pax_global_header;
 %setup -q -n kernel-%{kversion} -c
-mv linux-%{kversion} vanilla-%{kversion}
+	mv linux-%{kversion} vanilla-%{kversion};
+else
+	cd kernel-%{kversion}/;
+fi
 
 if [ -d linux-%{kversion}.%{_target_cpu} ]; then
   # Just in case we ctrl-c'd a prep already
