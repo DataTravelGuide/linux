@@ -3317,6 +3317,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	enum qeth_card_states recover_flag;
 
 	BUG_ON(!card);
+	mutex_lock(&card->conf_mutex);
 	QETH_DBF_TEXT(SETUP, 2, "setonlin");
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
@@ -3324,17 +3325,20 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	rc = ccw_device_set_online(CARD_RDEV(card));
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
 	rc = ccw_device_set_online(CARD_WDEV(card));
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
 	rc = ccw_device_set_online(CARD_DDEV(card));
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
 
 	rc = qeth_core_hardsetup_card(card);
@@ -3361,7 +3365,8 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			dev_warn(&card->gdev->dev,
 				"The LAN is offline\n");
 			card->lan_online = 0;
-			return 0;
+			rc = 0;
+			goto out;
 		}
 		goto out_remove;
 	} else
@@ -3406,7 +3411,9 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
-	return 0;
+out:
+	mutex_unlock(&card->conf_mutex);
+	return rc;
 out_remove:
 	card->use_hard_stop = 1;
 	qeth_l3_stop_card(card, 0);
@@ -3417,6 +3424,7 @@ out_remove:
 		card->state = CARD_STATE_RECOVER;
 	else
 		card->state = CARD_STATE_DOWN;
+	mutex_unlock(&card->conf_mutex);
 	return -ENODEV;
 }
 
@@ -3432,6 +3440,7 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 	int rc = 0, rc2 = 0, rc3 = 0;
 	enum qeth_card_states recover_flag;
 
+	mutex_lock(&card->conf_mutex);
 	QETH_DBF_TEXT(SETUP, 3, "setoffl");
 	QETH_DBF_HEX(SETUP, 3, &card, sizeof(void *));
 
@@ -3450,6 +3459,7 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 		card->state = CARD_STATE_RECOVER;
 	/* let user_space know that device is offline */
 	kobject_uevent(&cgdev->dev.kobj, KOBJ_CHANGE);
+	mutex_unlock(&card->conf_mutex);
 	return 0;
 }
 
