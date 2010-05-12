@@ -57,8 +57,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.52.1-6"
-#define DRV_MODULE_RELDATE	"2010/02/16"
+#define DRV_MODULE_VERSION	"1.52.1-7"
+#define DRV_MODULE_RELDATE	"2010/02/28"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
@@ -893,7 +893,6 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 	u16 prod;
 	u16 cons;
 
-	barrier(); /* Tell compiler that prod and cons can change */
 	prod = fp->tx_bd_prod;
 	cons = fp->tx_bd_cons;
 
@@ -957,21 +956,34 @@ static int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	fp->tx_pkt_cons = sw_cons;
 	fp->tx_bd_cons = bd_cons;
 
+	/* Need to make the tx_bd_cons update visible to start_xmit()
+	 * before checking for netif_tx_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that
+	 * start_xmit() will miss it and cause the queue to be stopped
+	 * forever.
+	 */
+	smp_mb();
+
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
-
-		/* Need to make the tx_bd_cons update visible to start_xmit()
-		 * before checking for netif_tx_queue_stopped().  Without the
-		 * memory barrier, there is a small possibility that
-		 * start_xmit() will miss it and cause the queue to be stopped
-		 * forever.
+		/* Taking tx_lock() is needed to prevent reenabling the queue
+		 * while it's empty. This could have happen if rx_action() gets
+		 * suspended in bnx2x_tx_int() after the condition before
+		 * netif_tx_wake_queue(), while tx_action (bnx2x_start_xmit()):
+		 *
+		 * stops the queue->sees fresh tx_bd_cons->releases the queue->
+		 * sends some packets consuming the whole queue again->
+		 * stops the queue
 		 */
-		smp_mb();
+
+		__netif_tx_lock(txq, smp_processor_id());
 
 		if ((netif_tx_queue_stopped(txq)) &&
 		    (bp->state == BNX2X_STATE_OPEN) &&
 		    (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3))
 			netif_tx_wake_queue(txq);
+
+		__netif_tx_unlock(txq);
 	}
 	return 0;
 }
@@ -11422,9 +11434,12 @@ static netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(bnx2x_tx_avail(fp) < MAX_SKB_FRAGS + 3)) {
 		netif_tx_stop_queue(txq);
-		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod
-		   if we put Tx into XOFF state. */
+
+		/* paired memory barrier is in bnx2x_tx_int(), we have to keep
+		 * ordering of set_bit() in netif_tx_stop_queue() and read of
+		 * fp->bd_tx_cons */
 		smp_mb();
+
 		fp->eth_q_stats.driver_xoff++;
 		if (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3)
 			netif_tx_wake_queue(txq);
