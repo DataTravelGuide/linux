@@ -71,9 +71,10 @@ struct ad198x_spec {
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
-	unsigned int jack_present :1;
-	unsigned int inv_jack_detect:1;	/* inverted jack-detection */
-	unsigned int inv_eapd:1;	/* inverted EAPD implementation */
+	unsigned int jack_present: 1;
+	unsigned int inv_jack_detect: 1;/* inverted jack-detection */
+	unsigned int inv_eapd: 1;	/* inverted EAPD implementation */
+	unsigned int analog_beep: 1;	/* analog beep input present */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -165,6 +166,12 @@ static struct snd_kcontrol_new ad_beep_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new ad_beep2_mixer[] = {
+	HDA_CODEC_VOLUME("Digital Beep Playback Volume", 0, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP("Digital Beep Playback Switch", 0, 0, HDA_OUTPUT),
+	{ } /* end */
+};
+
 #define set_beep_amp(spec, nid, idx, dir) \
 	((spec)->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir)) /* mono */
 #else
@@ -203,7 +210,8 @@ static int ad198x_build_controls(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
 	if (spec->beep_amp) {
 		struct snd_kcontrol_new *knew;
-		for (knew = ad_beep_mixer; knew->name; knew++) {
+		knew = spec->analog_beep ? ad_beep2_mixer : ad_beep_mixer;
+		for ( ; knew->name; knew++) {
 			struct snd_kcontrol *kctl;
 			kctl = snd_ctl_new1(knew, codec);
 			if (!kctl)
@@ -441,6 +449,11 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void ad198x_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void ad198x_free_kctls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -454,6 +467,46 @@ static void ad198x_free_kctls(struct hda_codec *codec)
 	snd_array_free(&spec->kctls);
 }
 
+static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
+				hda_nid_t hp)
+{
+	struct ad198x_spec *spec = codec->spec;
+	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+			    !spec->inv_eapd ? 0x00 : 0x02);
+}
+
+static void ad198x_power_eapd(struct hda_codec *codec)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x11d41882:
+	case 0x11d4882a:
+	case 0x11d41884:
+	case 0x11d41984:
+	case 0x11d41883:
+	case 0x11d4184a:
+	case 0x11d4194a:
+	case 0x11d4194b:
+		ad198x_power_eapd_write(codec, 0x12, 0x11);
+		break;
+	case 0x11d41981:
+	case 0x11d41983:
+		ad198x_power_eapd_write(codec, 0x05, 0x06);
+		break;
+	case 0x11d41986:
+		ad198x_power_eapd_write(codec, 0x1b, 0x1a);
+		break;
+	case 0x11d41988:
+	case 0x11d4198b:
+	case 0x11d4989a:
+	case 0x11d4989b:
+		ad198x_power_eapd_write(codec, 0x29, 0x22);
+		break;
+	}
+}
+
 static void ad198x_free(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -461,10 +514,20 @@ static void ad198x_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	ad198x_shutup(codec);
 	ad198x_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
+
+#ifdef SND_HDA_NEEDS_RESUME
+static int ad198x_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	ad198x_shutup(codec);
+	ad198x_power_eapd(codec);
+	return 0;
+}
+#endif
 
 static struct hda_codec_ops ad198x_patch_ops = {
 	.build_controls = ad198x_build_controls,
@@ -474,6 +537,10 @@ static struct hda_codec_ops ad198x_patch_ops = {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = ad198x_check_power_status,
 #endif
+#ifdef SND_HDA_NEEDS_RESUME
+	.suspend = ad198x_suspend,
+#endif
+	.reboot_notify = ad198x_shutup,
 };
 
 
@@ -1828,6 +1895,14 @@ static int patch_ad1981(struct hda_codec *codec)
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
 		spec->input_mux = &ad1981_thinkpad_capture_source;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_TOSHIBA:
 		spec->mixers[0] = ad1981_hp_mixers;
@@ -3414,6 +3489,8 @@ static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x20, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("Docking Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("Docking Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
@@ -3455,6 +3532,8 @@ static struct hda_verb ad1984_thinkpad_init_verbs[] = {
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* docking mic boost */
 	{0x25, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	/* Analog PC Beeper - allow firmware/ACPI beeps */
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3) | 0x1a},
 	/* Analog mixer - docking mic; mute as default */
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* enable EAPD bit */
@@ -3587,6 +3666,7 @@ static int patch_ad1984(struct hda_codec *codec)
 		spec->input_mux = &ad1984_thinkpad_capture_source;
 		spec->mixers[0] = ad1984_thinkpad_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1984_thinkpad_init_verbs;
+		spec->analog_beep = 1;
 		break;
 	case AD1984_DELL_DESKTOP:
 		spec->multiout.dig_out_nid = 0;
