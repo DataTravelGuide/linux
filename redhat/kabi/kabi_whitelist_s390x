@@ -567,6 +567,7 @@
 	skb_recv_datagram
 	skb_trim
 	skb_unlink
+	skip_spaces
 	smp_call_function_single
 	snprintf
 	sock_alloc_send_skb

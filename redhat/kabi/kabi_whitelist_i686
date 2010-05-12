@@ -837,6 +837,7 @@
 	skb_recv_datagram
 	skb_trim
 	skb_unlink
+	skip_spaces
 	smp_call_function_single
 	snd_ac97_bus
 	snd_ac97_mixer
