@@ -5294,17 +5294,11 @@ void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring, int cleaned_count)
 
 		skb = buffer_info->skb;
 		if (!skb) {
-			skb = netdev_alloc_skb(netdev, bufsz + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_failed++;
 				goto no_buffers;
 			}
-
-			/* Make buffer alignment 2 beyond a 16 byte boundary
-			 * this will result in a 16 byte aligned IP header after
-			 * the 14 byte MAC header is removed
-			 */
-			skb_reserve(skb, NET_IP_ALIGN);
 
 			buffer_info->skb = skb;
 		}
