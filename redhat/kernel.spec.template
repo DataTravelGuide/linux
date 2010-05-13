@@ -122,7 +122,9 @@ Summary: The Linux kernel
 %endif
 
 # Control whether we perform a compat. check against published ABI.
-%define with_kabichk   %{?_without_kabichk:   0} %{?!_without_kabichk: 1}
+#%define with_kabichk   %{?_without_kabichk:   0} %{?!_without_kabichk: 1}
+# kABI check temporaly disabled until beta2
+%define with_kabichk 0
 # Control whether we perform a compat. check against published ABI.
 %define with_fips      %{?_without_fips:      0} %{?!_without_fips:      1}
 
