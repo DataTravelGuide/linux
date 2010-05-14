@@ -23,6 +23,7 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
+#include <acpi/button.h>
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_crtc_helper.h"
@@ -496,7 +497,10 @@ static enum drm_connector_status radeon_lvds_detect(struct drm_connector *connec
 				ret = connector_status_connected;
 		}
 	}
-	/* check acpi lid status ??? */
+#ifdef CONFIG_ACPI
+	if (!acpi_lid_open())
+		ret = connector_status_unknown;
+#endif
 
 	radeon_connector_update_scratch_regs(connector, ret);
 	return ret;
