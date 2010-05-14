@@ -5529,7 +5529,8 @@ EXPORT_SYMBOL(schedule);
  * Look out! "owner" is an entirely speculative pointer
  * access and not reliable.
  */
-int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
+int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner,
+			unsigned long timeout)
 {
 	unsigned int cpu;
 	struct rq *rq;
@@ -5565,7 +5566,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 
 	rq = cpu_rq(cpu);
 
-	for (;;) {
+	while (time_before(jiffies, timeout)) {
 		/*
 		 * Owner changed, break to re-assess state.
 		 */
