@@ -62,6 +62,15 @@ rh-key:
 	gcc -o scripts/bin2c $(REDHAT)/../scripts/bin2c.c; \
 	scripts/bin2c ksign_def_public_key __initdata < extract.pub >crypto/signature/key.h;
 
+rh-stub-key:
+	@echo "Copying pre-generated keys";
+	@echo "*** THIS IS NOT RECOMMENDED ***";
+	@echo "To be safe, keys should be created once for every build";
+	@echo "Use this option only for development builds";
+	@cp keys/*.{pub,sec,gpg} $(_OUTPUT)/;
+	@mkdir -p $(_OUTPUT)/crypto/signature/;
+	@cp keys/key.h $(_OUTPUT)/crypto/signature/;
+
 $(TARBALL):
 	@echo "Creating archive $(TARBALL)"
 	(cd ../; \
