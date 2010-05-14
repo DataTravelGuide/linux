@@ -952,14 +952,16 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
  *          The inode, if one has been found, in inode.
  */
 
-static u64 try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
-			   u64 skip)
+static int try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
+			   u64 skip, struct inode **inode)
 {
 	u32 goal = 0, block;
 	u64 no_addr;
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	unsigned int n;
+	int error = 0;
 
+	*inode = NULL;
 	for(;;) {
 		if (goal >= rgd->rd_data)
 			break;
@@ -979,7 +981,10 @@ static u64 try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
 		if (no_addr == skip)
 			continue;
 		*last_unlinked = no_addr;
-		return no_addr;
+		error = gfs2_unlinked_inode_lookup(rgd->rd_sbd->sd_vfs,
+						   no_addr, inode);
+		if (*inode || error)
+			return error;
 	}
 
 	rgd->rd_flags &= ~GFS2_RDF_CHECK;
@@ -1064,12 +1069,11 @@ static void forward_rgrp_set(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd)
  * Try to acquire rgrp in way which avoids contending with others.
  *
  * Returns: errno
- *          unlinked: the block address of an unlinked block to be reclaimed
  */
 
-static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
-			  u64 *last_unlinked)
+static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 {
+	struct inode *inode = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
 	struct gfs2_alloc *al = ip->i_alloc;
@@ -1078,7 +1082,6 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
 	int loops = 0;
 	int error, rg_locked;
 
-	*unlinked = 0;
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_goal);
 
 	while (rgd) {
@@ -1100,19 +1103,29 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
 			   because that would require an iput which can only
 			   happen after the rgrp is unlocked. */
 			if (!rg_locked && rgd->rd_flags & GFS2_RDF_CHECK)
-				*unlinked = try_rgrp_unlink(rgd, last_unlinked,
-							   ip->i_no_addr);
+				error = try_rgrp_unlink(rgd, last_unlinked,
+							ip->i_no_addr, &inode);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
-			if (*unlinked)
-				return -EAGAIN;
+			if (inode) {
+				if (error) {
+					if (inode->i_state & I_NEW)
+						iget_failed(inode);
+					else
+						iput(inode);
+					return ERR_PTR(error);
+				}
+				return inode;
+			}
+			if (error)
+				return ERR_PTR(error);
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = recent_rgrp_next(rgd);
 			break;
 
 		default:
-			return error;
+			return ERR_PTR(error);
 		}
 	}
 
@@ -1135,12 +1148,22 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (!rg_locked && rgd->rd_flags & GFS2_RDF_CHECK)
-				*unlinked = try_rgrp_unlink(rgd, last_unlinked,
-							    ip->i_no_addr);
+				error = try_rgrp_unlink(rgd, last_unlinked,
+							ip->i_no_addr, &inode);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
-			if (*unlinked)
-				return -EAGAIN;
+			if (inode) {
+				if (error) {
+					if (inode->i_state & I_NEW)
+						iget_failed(inode);
+					else
+						iput(inode);
+					return ERR_PTR(error);
+				}
+				return inode;
+			}
+			if (error)
+				return ERR_PTR(error);
 			break;
 
 		case GLR_TRYFAILED:
@@ -1148,7 +1171,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
 			break;
 
 		default:
-			return error;
+			return ERR_PTR(error);
 		}
 
 		rgd = gfs2_rgrpd_get_next(rgd);
@@ -1157,7 +1180,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *unlinked,
 
 		if (rgd == begin) {
 			if (++loops >= 3)
-				return -ENOSPC;
+				return ERR_PTR(-ENOSPC);
 			if (!skipped)
 				loops++;
 			flags = 0;
@@ -1177,7 +1200,7 @@ out:
 		forward_rgrp_set(sdp, rgd);
 	}
 
-	return 0;
+	return NULL;
 }
 
 /**
@@ -1193,7 +1216,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 	struct gfs2_alloc *al = ip->i_alloc;
 	struct inode *inode;
 	int error = 0;
-	u64 last_unlinked = NO_BLOCK, unlinked;
+	u64 last_unlinked = NO_BLOCK;
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
 		return -EINVAL;
@@ -1209,19 +1232,14 @@ try_again:
 	if (error)
 		return error;
 
-	error = get_local_rgrp(ip, &unlinked, &last_unlinked);
-	if (error) {
+	inode = get_local_rgrp(ip, &last_unlinked);
+	if (inode) {
 		if (ip != GFS2_I(sdp->sd_rindex))
 			gfs2_glock_dq_uninit(&al->al_ri_gh);
-		if (error != -EAGAIN)
-			return error;
-		error = gfs2_unlinked_inode_lookup(ip->i_inode.i_sb,
-						   unlinked, &inode);
-		if (inode)
-			iput(inode);
+		if (IS_ERR(inode))
+			return PTR_ERR(inode);
+		iput(inode);
 		gfs2_log_flush(sdp, NULL);
-		if (error == GLR_TRYFAILED)
-			error = 0;
 		goto try_again;
 	}
 
