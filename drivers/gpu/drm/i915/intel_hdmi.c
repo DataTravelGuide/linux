@@ -245,6 +245,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 	intel_output->type = INTEL_OUTPUT_HDMI;
 
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 	intel_output->crtc_mask = (1 << 0) | (1 << 1);

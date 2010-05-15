@@ -266,7 +266,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		}
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
-	drm_sysfs_hotplug_event(dev);
+	drm_helper_hpd_irq_event(dev);
 }
 
 static void i915_handle_rps_change(struct drm_device *dev)

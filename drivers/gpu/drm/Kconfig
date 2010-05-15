@@ -10,6 +10,7 @@ menuconfig DRM
 	select I2C
 	select I2C_ALGOBIT
 	select LIST_SORT
+	select SLOW_WORK
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select

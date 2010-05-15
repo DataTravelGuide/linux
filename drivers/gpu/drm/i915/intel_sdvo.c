@@ -2329,7 +2329,7 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 
 		encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 		connector->connector_type = DRM_MODE_CONNECTOR_DVID;
-
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 		if (intel_sdvo_get_supp_encode(intel_output,
 					       &sdvo_priv->encode) &&
 		    intel_sdvo_get_digital_encoding_mode(intel_output) &&
@@ -2357,6 +2357,7 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB0;
 		encoder->encoder_type = DRM_MODE_ENCODER_DAC;
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 					(1 << INTEL_ANALOG_CLONE_BIT);
 	} else if (flags & SDVO_OUTPUT_RGB1) {
@@ -2364,6 +2365,7 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB1;
 		encoder->encoder_type = DRM_MODE_ENCODER_DAC;
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 					(1 << INTEL_ANALOG_CLONE_BIT);
 	} else if (flags & SDVO_OUTPUT_CVBS0) {

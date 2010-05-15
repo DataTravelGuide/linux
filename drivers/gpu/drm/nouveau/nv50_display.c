@@ -29,6 +29,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_fb.h"
+#include "nouveau_fbcon.h"
 #include "drm_crtc_helper.h"
 
 static void
@@ -979,7 +980,7 @@ nv50_display_irq_hotplug_bh(struct work_struct *work)
 	if (dev_priv->chipset >= 0x90)
 		nv_wr32(dev, 0xe074, nv_rd32(dev, 0xe074));
 
-	drm_sysfs_hotplug_event(dev);
+	drm_helper_hpd_irq_event(dev);
 }
 
 void

@@ -1458,8 +1458,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
 
-	drm_helper_initial_config(dev);
-
+	intel_fbdev_init(dev);
+	drm_kms_helper_poll_init(dev);
 	return 0;
 
 destroy_ringbuffer:

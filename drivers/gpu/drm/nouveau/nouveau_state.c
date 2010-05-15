@@ -32,6 +32,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_fbcon.h"
 #include "nv50_display.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
@@ -487,8 +488,10 @@ nouveau_card_init(struct drm_device *dev)
 
 	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_helper_initial_config(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		nouveau_fbcon_init(dev);
+		drm_kms_helper_poll_init(dev);
+	}
 
 	return 0;
 
@@ -535,6 +538,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
 
 	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DOWN) {
+
 		nouveau_backlight_exit(dev);
 
 		if (dev_priv->channel) {
@@ -771,6 +775,8 @@ int nouveau_unload(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		drm_kms_helper_poll_fini(dev);
+		nouveau_fbcon_fini(dev);
 		if (dev_priv->card_type >= NV_50)
 			nv50_display_destroy(dev);
 		else

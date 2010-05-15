@@ -1319,6 +1319,8 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			   DRM_MODE_CONNECTOR_DisplayPort);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
 	if (output_reg == DP_A)
 		intel_output->type = INTEL_OUTPUT_EDP;
 	else
