@@ -178,6 +178,8 @@ static struct pci_driver platform_driver = {
 	id_table: platform_pci_tbl,
 };
 
+int xen_ide_unplug_unsupported = 0;
+
 static int check_platform_magic(void)
 {
 	short magic;
@@ -211,9 +213,11 @@ static int check_platform_magic(void)
 	return 0;
 
  no_dev:
+	xen_ide_unplug_unsupported = 1;
 	printk(KERN_WARNING DRV_NAME ": failed Xen IOPORT backend handshake: %s\n", err);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xen_ide_unplug_unsupported);
 
 int xen_pv_hvm_enable = 0;
 int xen_pv_hvm_smp = 0;
@@ -252,23 +256,27 @@ static int __init platform_pci_module_init(void)
 {
 	int rc;
 
-	if (!xen_pv_hvm_enable)
-		printk("Xen pv-on-hvm disabled\n");
-	else {
-		printk("Xen pv-on-hvm enabled\n");
-
-		rc = check_platform_magic();
-		if (rc < 0)
-			return rc;
-
-		rc = pci_register_driver(&platform_driver);
-		if (rc) {
-			printk(KERN_INFO DRV_NAME
-		       		": No platform pci device model found\n");
-			return rc;
+	if (xen_hvm_domain()) {
+		if (!xen_pv_hvm_enable) {
+			printk("Xen pv-on-hvm disabled\n");
+			goto out;
+		} else {
+			printk("Xen pv-on-hvm enabled\n");
 		}
 	}
 
+	rc = check_platform_magic();
+	if (rc < 0)
+		return rc;
+
+	rc = pci_register_driver(&platform_driver);
+	if (rc) {
+		printk(KERN_INFO DRV_NAME
+	       		": No platform pci device model found\n");
+		return rc;
+	}
+
+out:
 	return 0;
 }
 
