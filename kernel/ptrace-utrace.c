@@ -947,6 +947,9 @@ static int ptrace_resume(struct task_struct *tracee,
 	return 0;
 }
 
+extern int ptrace_regset(struct task_struct *task, int req, unsigned int type,
+			 struct iovec *kiov);
+
 int ptrace_request(struct task_struct *child, long request,
 		   long addr, long data)
 {
@@ -1005,6 +1008,25 @@ int ptrace_request(struct task_struct *child, long request,
 			ptrace_resume(child, engine, PTRACE_CONT, SIGKILL);
 		ret = 0;
 		break;
+
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET:
+	{
+		struct iovec kiov;
+		struct iovec __user *uiov = (struct iovec __user *) data;
+
+		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+			return -EFAULT;
+
+		if (__get_user(kiov.iov_base, &uiov->iov_base) ||
+		    __get_user(kiov.iov_len, &uiov->iov_len))
+			return -EFAULT;
+
+		ret = ptrace_regset(child, request, addr, &kiov);
+		if (!ret)
+			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+		break;
+	}
 
 	default:
 		ret = ptrace_resume(child, engine, request, data);
@@ -1069,6 +1091,31 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 			ret = ptrace_rw_siginfo(child, ptrace_context(engine),
 						&siginfo, true);
 		break;
+
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET:
+	{
+		struct iovec kiov;
+		struct compat_iovec __user *uiov =
+			(struct compat_iovec __user *) datap;
+		compat_uptr_t ptr;
+		compat_size_t len;
+
+		if (!access_ok(VERIFY_WRITE, uiov, sizeof(*uiov)))
+			return -EFAULT;
+
+		if (__get_user(ptr, &uiov->iov_base) ||
+		    __get_user(len, &uiov->iov_len))
+			return -EFAULT;
+
+		kiov.iov_base = compat_ptr(ptr);
+		kiov.iov_len = len;
+
+		ret = ptrace_regset(child, request, addr, &kiov);
+		if (!ret)
+			ret = __put_user(kiov.iov_len, &uiov->iov_len);
+		break;
+	}
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
