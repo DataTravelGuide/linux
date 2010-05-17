@@ -48,3 +48,7 @@ CONFIG_HOTPLUG_PCI_RPA=y
 # CONFIG_WINDFARM_PM121 is not set
 # CONFIG_PPC_ISERIES is not set
 # CONFIG_SECCOMP is not set
+# CONFIG_GFS2_FS is not set
+# CONFIG_GFS2_FS_LOCKING_DLM is not set
+# CONFIG_DLM is not set
+# CONFIG_DLM_DEBUG is not set
