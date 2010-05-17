@@ -3060,8 +3060,6 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err_stop_timer;
 	}
 
-	mutex_unlock(&smi_infos_lock);
-
 	printk(KERN_INFO "IPMI %s interface initialized\n",
 	       si_to_str[new_smi->si_type]);
 
@@ -3110,8 +3108,6 @@ static int try_smi_init(struct smi_info *new_smi)
 		platform_device_unregister(new_smi->pdev);
 		new_smi->dev_registered = 0;
 	}
-
-	mutex_unlock(&smi_infos_lock);
 
 	return rv;
 }
