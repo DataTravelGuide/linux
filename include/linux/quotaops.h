@@ -14,6 +14,9 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 	return &sb->s_dquot;
 }
 
+#define DQUOT_SPACE_WARN	0x1
+#define DQUOT_SPACE_RESERVE	0x2
+
 #if defined(CONFIG_QUOTA)
 
 /*
@@ -159,7 +162,7 @@ static inline int vfs_dq_prealloc_space_nodirty(struct inode *inode, qsize_t nr)
 {
 	if (sb_any_quota_active(inode->i_sb)) {
 		/* Used space is updated in alloc_space() */
-		if (inode->i_sb->dq_op->alloc_space(inode, nr, 1) == NO_QUOTA)
+		if (inode->i_sb->dq_op->alloc_space(inode, nr, DQUOT_SPACE_WARN) == NO_QUOTA)
 			return 1;
 	}
 	else
