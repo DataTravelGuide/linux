@@ -86,11 +86,6 @@ extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, struct dentry *, int);
 extern int cifs_flush(struct file *, fl_owner_t id);
-extern ssize_t cifs_file_splice_read(struct file *filp, loff_t *ppos,
-			struct pipe_inode_info *pipe, size_t count,
-			unsigned int flags);
-extern ssize_t cifs_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
 extern const struct file_operations cifs_dir_ops;
 extern int cifs_dir_open(struct inode *inode, struct file *file);
