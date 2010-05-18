@@ -52,6 +52,7 @@ struct vhost_virtqueue {
 	unsigned int num;
 	struct vring_desc __user *desc;
 	struct vring_avail __user *avail;
+	u16 __user *last_used;
 	struct vring_used __user *used;
 	struct file *kick;
 	struct file *call;
@@ -126,8 +127,6 @@ unsigned vhost_get_vq_desc(struct vhost_dev *, struct vhost_virtqueue *,
 			   struct vhost_log *log, unsigned int *log_num);
 void vhost_discard_vq_desc(struct vhost_virtqueue *);
 
-int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
-void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
 void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
 			       unsigned int head, int len);
 void vhost_disable_notify(struct vhost_virtqueue *);
@@ -148,6 +147,7 @@ void vhost_cleanup(void);
 enum {
 	VHOST_FEATURES = (1 << VIRTIO_F_NOTIFY_ON_EMPTY) |
 			 (1 << VIRTIO_RING_F_INDIRECT_DESC) |
+			 (1 << VIRTIO_RING_F_PUBLISH_USED) |
 			 (1 << VHOST_F_LOG_ALL) |
 			 (1 << VHOST_NET_F_VIRTIO_NET_HDR),
 };
