@@ -70,7 +70,7 @@ static void balloon_ack(struct virtqueue *vq)
 	struct virtio_balloon *vb;
 	unsigned int len;
 
-	vb = vq->vq_ops->get_buf(vq, &len);
+	vb = virtqueue_get_buf(vq, &len);
 	if (vb)
 		complete(&vb->acked);
 }
@@ -84,9 +84,9 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	init_completion(&vb->acked);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (vq->vq_ops->add_buf(vq, &sg, 1, 0, vb) < 0)
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb) < 0)
 		BUG();
-	vq->vq_ops->kick(vq);
+	virtqueue_kick(vq);
 
 	/* When host has read buffer, this completes via balloon_ack */
 	wait_for_completion(&vb->acked);
