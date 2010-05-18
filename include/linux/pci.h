@@ -218,6 +218,8 @@ struct pci_dev {
 	unsigned int	class;		/* 3 bytes: (base,sub,prog-if) */
 	u8		revision;	/* PCI revision, low byte of class word */
 	u8		hdr_type;	/* PCI header type (`multi' flag masked out) */
+	u8		pcie_cap;	/* PCI-E capability offset,
+					   unimplmented in RHEL6 */
 	u8		pcie_type;	/* PCI-E device/port type */
 	u8		rom_base_reg;	/* which config register controls the ROM */
 	u8		pin;  		/* which interrupt pin this device uses */
@@ -238,11 +240,13 @@ struct pci_dev {
 					   configuration space */
 	unsigned int	pme_support:5;	/* Bitmask of states from which PME#
 					   can be generated */
-	unsigned int	pme_interrupt:1;
+	unsigned int	pme_interrupt:1;/* unimplemented in RHEL6 */
 	unsigned int	d1_support:1;	/* Low power state D1 is supported */
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
 	unsigned int	no_d1d2:1;	/* Only allow D0 and D3 */
 	unsigned int	wakeup_prepared:1;
+	unsigned int	d3_delay;	/* D3->D0 transition time in ms,
+					   unimplemented in RHEL6 */
 
 #ifdef CONFIG_PCIEASPM
 	struct pcie_link_state	*link_state;	/* ASPM link state. */
@@ -349,6 +353,7 @@ struct pci_bus {
 	struct list_head slots;		/* list of slots on this bus */
 	struct resource	*resource[PCI_BUS_NUM_RESOURCES];
 					/* address space routed to this bus */
+	struct list_head resources;	/* unimplemented in RHEL6 */
 
 	struct pci_ops	*ops;		/* configuration access functions */
 	void		*sysdata;	/* hook for sys-specific extension */
@@ -358,6 +363,10 @@ struct pci_bus {
 	unsigned char	primary;	/* number of primary bridge */
 	unsigned char	secondary;	/* number of secondary bridge */
 	unsigned char	subordinate;	/* max number of subordinate buses */
+	unsigned char	max_bus_speed;	/* enum pci_bus_speed, unimplemented
+					   in RHEL6 */
+	unsigned char	cur_bus_speed;	/* enum pci_bus_speed, unimplemented
+					   in RHEL6 */
 
 	char		name[48];
 
