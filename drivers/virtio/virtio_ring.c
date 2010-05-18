@@ -21,6 +21,24 @@
 #include <linux/virtio_config.h>
 #include <linux/device.h>
 
+/* virtio guest is communicating with a virtual "device" that actually runs on
+ * a host processor.  Memory barriers are used to control SMP effects. */
+#ifdef CONFIG_SMP
+/* Where possible, use SMP barriers which are more lightweight than mandatory
+ * barriers, because mandatory barriers control MMIO effects on accesses
+ * through relaxed memory I/O windows (which virtio does not use). */
+#define virtio_mb() smp_mb()
+#define virtio_rmb() smp_rmb()
+#define virtio_wmb() smp_wmb()
+#else
+/* We must force memory ordering even if guest is UP since host could be
+ * running on another CPU, but SMP barriers are defined to barrier() in that
+ * configuration. So fall back to mandatory barriers instead. */
+#define virtio_mb() mb()
+#define virtio_rmb() rmb()
+#define virtio_wmb() wmb()
+#endif
+
 #ifdef DEBUG
 /* For development, we want to crash whenever the ring is screwed. */
 #define BAD_RING(_vq, fmt, args...)				\
@@ -36,10 +54,10 @@
 			panic("%s:in_use = %i\n",		\
 			      (_vq)->vq.name, (_vq)->in_use);	\
 		(_vq)->in_use = __LINE__;			\
-		mb();						\
+		virtio_mb();						\
 	} while (0)
 #define END_USE(_vq) \
-	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; mb(); } while(0)
+	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; virtio_mb(); } while(0)
 #else
 #define BAD_RING(_vq, fmt, args...)				\
 	do {							\
@@ -222,13 +240,13 @@ void virtqueue_kick(struct virtqueue *_vq)
 	START_USE(vq);
 	/* Descriptors and available array need to be set before we expose the
 	 * new available array entries. */
-	wmb();
+	virtio_wmb();
 
 	vq->vring.avail->idx += vq->num_added;
 	vq->num_added = 0;
 
 	/* Need to update avail index before checking if we should notify */
-	mb();
+	virtio_mb();
 
 	if (!(vq->vring.used->flags & VRING_USED_F_NO_NOTIFY))
 		/* Prod other side to tell it about changes. */
@@ -288,7 +306,7 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 	}
 
 	/* Only get used array entries after they have been exposed by host. */
-	rmb();
+	virtio_rmb();
 
 	i = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].id;
 	*len = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].len;
@@ -328,7 +346,7 @@ bool virtqueue_enable_cb(struct virtqueue *_vq)
 	/* We optimistically turn back on interrupts, then check if there was
 	 * more to do. */
 	vq->vring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-	mb();
+	virtio_mb();
 	if (unlikely(more_used(vq))) {
 		END_USE(vq);
 		return false;
