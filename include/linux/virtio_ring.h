@@ -29,6 +29,9 @@
 /* We support indirect buffer descriptors */
 #define VIRTIO_RING_F_INDIRECT_DESC	28
 
+/* The Guest publishes last-seen used index at the end of the avail ring. */
+#define VIRTIO_RING_F_PUBLISH_USED	29
+
 /* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
 struct vring_desc {
 	/* Address (guest-physical). */
@@ -69,6 +72,8 @@ struct vring {
 	struct vring_avail *avail;
 
 	struct vring_used *used;
+	/* Last used index seen by the Guest. */
+	__u16 *last_used_idx;
 };
 
 /* The standard layout for the ring is a continuous chunk of memory which looks
@@ -83,6 +88,7 @@ struct vring {
  *	__u16 avail_flags;
  *	__u16 avail_idx;
  *	__u16 available[num];
+ *	__u16 last_used_idx;
  *
  *	// Padding to the next align boundary.
  *	char pad[];
@@ -101,6 +107,12 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p,
 	vr->avail = p + num*sizeof(struct vring_desc);
 	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + align-1)
 			    & ~(align - 1));
+	/* We publish the last-seen used index at the end of the available ring.
+	 * It is at the end for backwards compatibility. */
+	vr->last_used_idx = &(vr)->avail->ring[num];
+	/* Verify that last used index does not spill over the used ring. */
+	BUG_ON((void *)vr->last_used_idx +
+	       sizeof *vr->last_used_idx > (void *)vr->used);
 }
 
 static inline unsigned vring_size(unsigned int num, unsigned long align)
