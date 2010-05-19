@@ -432,6 +432,8 @@ struct zone {
 	 * rarely used fields:
 	 */
 	const char		*name;
+
+	unsigned long padding[16];
 } ____cacheline_internodealigned_in_smp;
 
 typedef enum {
