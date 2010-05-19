@@ -84,7 +84,7 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
 #define wait_split_huge_page(__anon_vma, __pmd)				\
 	do {								\
 		pmd_t *____pmd = (__pmd);				\
-		spin_unlock_wait(&(__anon_vma)->lock);			\
+		spin_unlock_wait(&(__anon_vma)->root->lock);		\
 		/*							\
 		 * spin_unlock_wait() is just a loop in C and so the	\
 		 * CPU can reorder anything around it.			\

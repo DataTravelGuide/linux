@@ -1007,7 +1007,7 @@ static int __split_huge_page_splitting(struct page *page,
 		 * We can't temporarily set the pmd to null in order
 		 * to split it, the pmd must remain marked huge at all
 		 * times or the VM won't take the pmd_trans_huge paths
-		 * and it won't wait on the anon_vma->lock to
+		 * and it won't wait on the anon_vma->root->lock to
 		 * serialize against split_huge_page*.
 		 */
 		pmdp_splitting_flush_notify(vma, address, pmd);
@@ -1184,7 +1184,7 @@ static int __split_huge_page_map(struct page *page,
 	return ret;
 }
 
-/* must be called with anon_vma->lock hold */
+/* must be called with anon_vma->root->lock hold */
 static void __split_huge_page(struct page *page,
 			      struct anon_vma *anon_vma)
 {
@@ -1269,10 +1269,6 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
 	get_page(page);
 	spin_unlock(&mm->page_table_lock);
 
-	/*
-	 * The vma->anon_vma->lock is the wrong lock if the page is shared,
-	 * the anon_vma->lock pointed by page->mapping is the right one.
-	 */
 	split_huge_page(page);
 
 	put_page(page);
@@ -1635,14 +1631,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
 		goto out;
 
-	/*
-	 * Stop anon_vma rmap pagetable access. vma->anon_vma->lock is
-	 * enough for now (we don't need to check each anon_vma
-	 * pointed by each page->mapping) because collapse_huge_page
-	 * only works on not-shared anon pages (that are guaranteed to
-	 * belong to vma->anon_vma).
-	 */
-	spin_lock(&vma->anon_vma->lock);
+	anon_vma_lock(vma->anon_vma);
 
 	pte = pte_offset_map(pmd, address);
 	ptl = pte_lockptr(mm, pmd);
@@ -1662,7 +1651,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd_at(mm, address, pmd, _pmd);
 		spin_unlock(&mm->page_table_lock);
-		spin_unlock(&vma->anon_vma->lock);
+		anon_vma_unlock(vma->anon_vma);
 		mem_cgroup_uncharge_page(new_page);
 		goto out;
 	}
@@ -1671,7 +1660,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * All pages are isolated and locked so anon_vma rmap
 	 * can't run anymore.
 	 */
-	spin_unlock(&vma->anon_vma->lock);
+	anon_vma_unlock(vma->anon_vma);
 
 	__collapse_huge_page_copy(pte, new_page, vma, address, ptl);
 	__SetPageUptodate(new_page);
