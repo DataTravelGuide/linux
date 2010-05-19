@@ -26,6 +26,7 @@
  */
 struct anon_vma {
 	spinlock_t lock;	/* Serialize access to vma list */
+	struct anon_vma *root;	/* Root of this anon_vma tree */
 #ifdef CONFIG_KSM
 	atomic_t ksm_refcount;
 #endif
