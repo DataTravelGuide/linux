@@ -880,10 +880,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 		if (PageReserved(page) || PageKsm(page))
 			goto put_and_set;
 
-		if (unlikely(PageTransCompound(page)))
-			if (unlikely(split_huge_page(page)))
-				goto put_and_set;
-
 		pp->page = page;
 		err = page_to_nid(page);
 
