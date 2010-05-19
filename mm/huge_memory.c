@@ -1216,6 +1216,7 @@ static void __split_huge_page(struct page *page,
 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
 		struct vm_area_struct *vma = avc->vma;
 		unsigned long addr = vma_address(page, vma);
+		BUG_ON(is_vma_temporary_stack(vma));
 		if (addr == -EFAULT)
 			continue;
 		mapcount += __split_huge_page_splitting(page, vma, addr);
@@ -1241,6 +1242,7 @@ static void __split_huge_page(struct page *page,
 	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
 		struct vm_area_struct *vma = avc->vma;
 		unsigned long addr = vma_address(page, vma);
+		BUG_ON(is_vma_temporary_stack(vma));
 		if (addr == -EFAULT)
 			continue;
 		mapcount2 += __split_huge_page_map(page, vma, addr);
