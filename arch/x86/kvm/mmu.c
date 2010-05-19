@@ -1999,6 +1999,8 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	pfn_t pfn;
 	unsigned long mmu_seq;
 
+	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	smp_rmb();
 	level = mapping_level(vcpu, gfn);
 
 	/*
@@ -2010,8 +2012,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
 
-	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
 
 	/* mmio */
@@ -2214,12 +2214,12 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	if (r)
 		return r;
 
+	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	smp_rmb();
 	level = mapping_level(vcpu, gfn);
 
 	gfn &= ~(KVM_PAGES_PER_HPAGE(level) - 1);
 
-	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
 	if (is_error_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
