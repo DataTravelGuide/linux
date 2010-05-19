@@ -27,11 +27,17 @@
 struct anon_vma {
 	spinlock_t lock;	/* Serialize access to vma list */
 	struct anon_vma *root;	/* Root of this anon_vma tree */
-#ifdef CONFIG_KSM
-	atomic_t ksm_refcount;
-#endif
-#ifdef CONFIG_MIGRATION
-	atomic_t migrate_refcount;
+#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+
+	/*
+	 * The external_refcount is taken by either KSM or page migration
+	 * to take a reference to an anon_vma when there is no
+	 * guarantee that the vma of page tables will exist for
+	 * the duration of the operation. A caller that takes
+	 * the reference is responsible for clearing up the
+	 * anon_vma if they are the last user on release
+	 */
+	atomic_t external_refcount;
 #endif
 	/*
 	 * NOTE: the LSB of the head.next is set by
@@ -65,46 +71,26 @@ struct anon_vma_chain {
 };
 
 #ifdef CONFIG_MMU
-#ifdef CONFIG_KSM
-static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+#if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
+static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 {
-	atomic_set(&anon_vma->ksm_refcount, 0);
+	atomic_set(&anon_vma->external_refcount, 0);
 }
 
-static inline int ksm_refcount(struct anon_vma *anon_vma)
+static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
-	return atomic_read(&anon_vma->ksm_refcount);
+	return atomic_read(&anon_vma->external_refcount);
 }
 #else
-static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 {
 }
 
-static inline int ksm_refcount(struct anon_vma *anon_vma)
+static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
 	return 0;
 }
 #endif /* CONFIG_KSM */
-#ifdef CONFIG_MIGRATION
-static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-{
-	atomic_set(&anon_vma->migrate_refcount, 0);
-}
-
-static inline int migrate_refcount(struct anon_vma *anon_vma)
-{
-	return atomic_read(&anon_vma->migrate_refcount);
-}
-#else
-static inline void migrate_refcount_init(struct anon_vma *anon_vma)
-{
-}
-
-static inline int migrate_refcount(struct anon_vma *anon_vma)
-{
-	return 0;
-}
-#endif /* CONFIG_MIGRATE */
 
 static inline struct anon_vma *page_anon_vma(struct page *page)
 {
@@ -152,7 +138,7 @@ void anon_vma_free(struct anon_vma *);
 #ifdef CONFIG_KSM
 static inline void get_anon_vma(struct anon_vma *anon_vma)
 {
-	atomic_inc(&anon_vma->ksm_refcount);
+	atomic_inc(&anon_vma->external_refcount);
 }
 
 void drop_anon_vma(struct anon_vma *);
