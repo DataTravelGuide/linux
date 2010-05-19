@@ -29,6 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/ctype.h>
 #include <linux/aer.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -1816,6 +1817,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"LPSe12002-ML1-E", "PCIe",
 				"EmulexSecure Fibre"};
 		break;
+	case PCI_DEVICE_ID_BALIUS:
+		m = (typeof(m)){"LPVe12002", "PCIe Shared I/O",
+				"Fibre Channel Adapter"};
+		break;
 	default:
 		m = (typeof(m)){"Unknown", "", ""};
 		break;
@@ -2277,10 +2282,32 @@ static void
 lpfc_block_mgmt_io(struct lpfc_hba * phba)
 {
 	unsigned long iflag;
+	uint8_t actcmd = MBX_HEARTBEAT;
+	unsigned long timeout;
+
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
+	if (phba->sli.mbox_active)
+		actcmd = phba->sli.mbox_active->u.mb.mbxCommand;
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	/* Determine how long we might wait for the active mailbox
+	 * command to be gracefully completed by firmware.
+	 */
+	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, actcmd) * 1000) +
+			jiffies;
+	/* Wait for the outstnading mailbox command to complete */
+	while (phba->sli.mbox_active) {
+		/* Check active mailbox complete status every 2ms */
+		msleep(2);
+		if (time_after(jiffies, timeout)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2813 Mgmt IO is Blocked %x "
+				"- mbox cmd %x still active\n",
+				phba->sli.sli_flag, actcmd);
+			break;
+		}
+	}
 }
 
 /**
@@ -2598,7 +2625,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
-	error = scsi_add_host(shost, dev);
+	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
 		goto out_put_shost;
 
@@ -5527,9 +5554,12 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth > (phba->sli4_hba.max_cfg_param.max_xri))
+	if (phba->cfg_hba_queue_depth >
+		(phba->sli4_hba.max_cfg_param.max_xri -
+			lpfc_sli4_get_els_iocb_cnt(phba)))
 		phba->cfg_hba_queue_depth =
-				phba->sli4_hba.max_cfg_param.max_xri;
+			phba->sli4_hba.max_cfg_param.max_xri -
+				lpfc_sli4_get_els_iocb_cnt(phba);
 	return rc;
 }
 
@@ -8100,8 +8130,12 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	/* Initialize and populate the iocb list per host */
-	error = lpfc_init_iocb_list(phba,
-			phba->sli4_hba.max_cfg_param.max_xri);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"2821 initialize iocb list %d.\n",
+			phba->cfg_iocb_cnt*1024);
+	error = lpfc_init_iocb_list(phba, phba->cfg_iocb_cnt*1024);
+
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"1413 Failed to initialize iocb list.\n");
@@ -8791,6 +8825,8 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_SERVERENGINE, PCI_DEVICE_ID_TOMCAT,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_FALCON,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BALIUS,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };

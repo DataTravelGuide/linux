@@ -41,6 +41,7 @@ void lpfc_read_config(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_read_lnk_stat(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_reg_rpi(struct lpfc_hba *, uint16_t, uint32_t, uint8_t *,
 		 LPFC_MBOXQ_t *, uint32_t);
+void lpfc_set_var(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_unreg_login(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_unreg_did(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_reg_vpi(struct lpfc_vport *, LPFC_MBOXQ_t *);
@@ -402,3 +403,12 @@ int lpfc_bsg_request(struct fc_bsg_job *);
 int lpfc_bsg_timeout(struct fc_bsg_job *);
 int lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_iocbq *);
+void __lpfc_sli_ringtx_put(struct lpfc_hba *, struct lpfc_sli_ring *,
+	struct lpfc_iocbq *);
+struct lpfc_iocbq *lpfc_sli_ringtx_get(struct lpfc_hba *,
+	struct lpfc_sli_ring *);
+int __lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
+	struct lpfc_iocbq *, uint32_t);
+uint32_t lpfc_drain_txq(struct lpfc_hba *);
+
+
