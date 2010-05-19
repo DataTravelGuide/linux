@@ -524,27 +524,35 @@ module_init(hugepage_init)
 
 static int __init setup_transparent_hugepage(char *str)
 {
+	int ret = 0;
 	if (!str)
-		return 0;
-	transparent_hugepage_flags = simple_strtoul(str, &str, 0);
-	if (test_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags) &&
-	    test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-		     &transparent_hugepage_flags)) {
-		printk(KERN_WARNING
-		       "transparent_hugepage=%lu invalid parameter, disabling",
-		       transparent_hugepage_flags);
-		transparent_hugepage_flags = 0;
+		goto out;
+	if (!strcmp(str, "always")) {
+		set_bit(TRANSPARENT_HUGEPAGE_FLAG,
+			&transparent_hugepage_flags);
+		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+			  &transparent_hugepage_flags);
+		ret = 1;
+	} else if (!strcmp(str, "madvise")) {
+		clear_bit(TRANSPARENT_HUGEPAGE_FLAG,
+			  &transparent_hugepage_flags);
+		set_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+			&transparent_hugepage_flags);
+		ret = 1;
+	} else if (!strcmp(str, "never")) {
+		clear_bit(TRANSPARENT_HUGEPAGE_FLAG,
+			  &transparent_hugepage_flags);
+		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+			  &transparent_hugepage_flags);
+		ret = 1;
 	}
-	return 1;
+out:
+	if (!ret)
+		printk(KERN_WARNING
+		       "transparent_hugepage= cannot parse, ignored\n");
+	return ret;
 }
 __setup("transparent_hugepage=", setup_transparent_hugepage);
-
-static int __init setup_no_transparent_hugepage(char *str)
-{
-	transparent_hugepage_flags = 0;
-	return 1;
-}
-__setup("no_transparent_hugepage", setup_no_transparent_hugepage);
 
 static void prepare_pmd_huge_pte(pgtable_t pgtable,
 				 struct mm_struct *mm)
