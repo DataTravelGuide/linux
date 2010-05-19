@@ -131,7 +131,12 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		K(i.freeswap),
 		K(global_page_state(NR_FILE_DIRTY)),
 		K(global_page_state(NR_WRITEBACK)),
-		K(global_page_state(NR_ANON_PAGES)),
+		K(global_page_state(NR_ANON_PAGES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		  + global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+		  HPAGE_PMD_NR
+#endif
+		  ),
 		K(global_page_state(NR_FILE_MAPPED)),
 		K(global_page_state(NR_SHMEM)),
 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
