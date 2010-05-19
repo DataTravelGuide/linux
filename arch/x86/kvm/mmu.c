@@ -486,11 +486,12 @@ out:
 
 	/* check for transparent hugepages */
 	if (page_size == PAGE_SIZE) {
-		struct page *page = gfn_to_page(kvm, gfn);
+		pfn_t pfn = hva_to_pfn(kvm, addr);
 
-		if (!is_error_page(page) && PageTransCompound(page))
+		if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
+		    PageTransCompound(pfn_to_page(pfn)))
 			page_size = KVM_HPAGE_SIZE(2);
-		kvm_release_page_clean(page);
+		kvm_release_pfn_clean(pfn);
 	}
 
 	for (i = PT_PAGE_TABLE_LEVEL;

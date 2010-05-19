@@ -276,6 +276,7 @@ gfn_t unalias_gfn_instantiation(struct kvm *kvm, gfn_t gfn);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
+pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr);
 void kvm_release_page_clean(struct page *page);
 void kvm_release_page_dirty(struct page *page);
 void kvm_set_page_dirty(struct page *page);
