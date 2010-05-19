@@ -28,7 +28,6 @@
  */
 unsigned long transparent_hugepage_flags __read_mostly =
 	(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)|
-	(1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG)|
 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG);
 
 /* default scan 8*512 pte (or vmas) every 30 second */
@@ -97,10 +96,6 @@ static int set_recommended_min_free_kbytes(void)
 	if (!test_bit(TRANSPARENT_HUGEPAGE_FLAG,
 		      &transparent_hugepage_flags) &&
 	    !test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-		      &transparent_hugepage_flags) &&
-	    !test_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
-		      &transparent_hugepage_flags) &&
-	    !test_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG,
 		      &transparent_hugepage_flags))
 		return 0;
 
@@ -145,10 +140,6 @@ static int start_khugepaged(void)
 			khugepaged_thread = kthread_run(khugepaged, NULL,
 							"khugepaged");
 		if (unlikely(IS_ERR(khugepaged_thread))) {
-			clear_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
-				  &transparent_hugepage_flags);
-			clear_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG,
-				  &transparent_hugepage_flags);
 			printk(KERN_ERR
 			       "khugepaged: kthread_run(khugepaged) failed\n");
 			err = PTR_ERR(khugepaged_thread);
@@ -222,6 +213,12 @@ static ssize_t enabled_store(struct kobject *kobj,
 	ret = double_flag_store(kobj, attr, buf, count,
 				TRANSPARENT_HUGEPAGE_FLAG,
 				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
+
+	if (ret > 0) {
+		int err = start_khugepaged();
+		if (err)
+			ret = err;
+	}
 
 	if (ret > 0 &&
 	    (test_bit(TRANSPARENT_HUGEPAGE_FLAG,
@@ -412,33 +409,6 @@ static ssize_t full_scans_show(struct kobject *kobj,
 static struct kobj_attribute full_scans_attr =
 	__ATTR_RO(full_scans);
 
-static ssize_t khugepaged_enabled_show(struct kobject *kobj,
-				       struct kobj_attribute *attr, char *buf)
-{
-	return double_flag_show(kobj, attr, buf,
-				TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
-				TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG);
-}
-static ssize_t khugepaged_enabled_store(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					const char *buf, size_t count)
-{
-	ssize_t ret;
-
-	ret = double_flag_store(kobj, attr, buf, count,
-				TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
-				TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG);
-	if (ret > 0) {
-		int err = start_khugepaged();
-		if (err)
-			ret = err;
-	}
-	return ret;
-}
-static struct kobj_attribute khugepaged_enabled_attr =
-	__ATTR(enabled, 0644, khugepaged_enabled_show,
-	       khugepaged_enabled_store);
-
 static ssize_t khugepaged_defrag_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
 {
@@ -490,7 +460,6 @@ static struct kobj_attribute khugepaged_max_ptes_none_attr =
 	       khugepaged_max_ptes_none_store);
 
 static struct attribute *khugepaged_attr[] = {
-	&khugepaged_enabled_attr.attr,
 	&khugepaged_defrag_attr.attr,
 	&khugepaged_max_ptes_none_attr.attr,
 	&pages_to_scan_attr.attr,
@@ -560,15 +529,6 @@ static int __init setup_transparent_hugepage(char *str)
 	transparent_hugepage_flags = simple_strtoul(str, &str, 0);
 	if (test_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags) &&
 	    test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-		     &transparent_hugepage_flags)) {
-		printk(KERN_WARNING
-		       "transparent_hugepage=%lu invalid parameter, disabling",
-		       transparent_hugepage_flags);
-		transparent_hugepage_flags = 0;
-	}
-	if (test_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG,
-		     &transparent_hugepage_flags) &&
-	    test_bit(TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG,
 		     &transparent_hugepage_flags)) {
 		printk(KERN_WARNING
 		       "transparent_hugepage=%lu invalid parameter, disabling",

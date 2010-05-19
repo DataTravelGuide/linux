@@ -10,14 +10,14 @@ extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma);
 
 #define khugepaged_enabled()					       \
 	(transparent_hugepage_flags &				       \
-	 ((1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG) |		       \
-	  (1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG)))
+	 ((1<<TRANSPARENT_HUGEPAGE_FLAG) |		       \
+	  (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)))
 #define khugepaged_always()				\
 	(transparent_hugepage_flags &			\
-	 (1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_FLAG))
+	 (1<<TRANSPARENT_HUGEPAGE_FLAG))
 #define khugepaged_req_madv()					\
 	(transparent_hugepage_flags &				\
-	 (1<<TRANSPARENT_HUGEPAGE_KHUGEPAGED_REQ_MADV_FLAG))
+	 (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG))
 #define khugepaged_defrag()					\
 	(transparent_hugepage_flags &				\
 	 (1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG))
