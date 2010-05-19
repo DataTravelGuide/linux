@@ -145,7 +145,7 @@ config HUGETLBFS
 	  If unsure, say N.
 
 config HUGETLB_PAGE
-	def_bool HUGETLBFS
+	def_bool HUGETLBFS || TRANSPARENT_HUGEPAGE
 
 source "fs/configfs/Kconfig"
 
