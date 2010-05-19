@@ -169,14 +169,6 @@ out:
 
 #ifdef CONFIG_SYSFS
 
-static void wakeup_khugepaged(void)
-{
-	mutex_lock(&khugepaged_mutex);
-	if (khugepaged_thread)
-		wake_up_process(khugepaged_thread);
-	mutex_unlock(&khugepaged_mutex);
-}
-
 static ssize_t double_flag_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buf,
 				enum transparent_hugepage_flag enabled,
@@ -342,7 +334,7 @@ static ssize_t scan_sleep_millisecs_store(struct kobject *kobj,
 		return -EINVAL;
 
 	khugepaged_scan_sleep_millisecs = msecs;
-	wakeup_khugepaged();
+	wake_up_interruptible(&khugepaged_wait);
 
 	return count;
 }
@@ -369,7 +361,7 @@ static ssize_t alloc_sleep_millisecs_store(struct kobject *kobj,
 		return -EINVAL;
 
 	khugepaged_alloc_sleep_millisecs = msecs;
-	wakeup_khugepaged();
+	wake_up_interruptible(&khugepaged_wait);
 
 	return count;
 }
@@ -2001,10 +1993,14 @@ static struct page *khugepaged_alloc_hugepage(void)
 
 	do {
 		hpage = alloc_hugepage(khugepaged_defrag());
-		if (!hpage)
+		if (!hpage) {
+			DEFINE_WAIT(wait);
+			add_wait_queue(&khugepaged_wait, &wait);
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(
 					khugepaged_alloc_sleep_millisecs));
+			remove_wait_queue(&khugepaged_wait, &wait);
+		}
 	} while (unlikely(!hpage) &&
 		 likely(khugepaged_enabled()));
 	return hpage;
@@ -2023,11 +2019,14 @@ static void khugepaged_loop(void)
 		if (hpage)
 			put_page(hpage);
 		if (khugepaged_has_work()) {
+			DEFINE_WAIT(wait);
 			if (!khugepaged_scan_sleep_millisecs)
 				continue;
+			add_wait_queue(&khugepaged_wait, &wait);
 			schedule_timeout_interruptible(
 				msecs_to_jiffies(
 					khugepaged_scan_sleep_millisecs));
+			remove_wait_queue(&khugepaged_wait, &wait);
 		} else if (khugepaged_enabled())
 			wait_event_interruptible(khugepaged_wait,
 						 khugepaged_wait_event());
