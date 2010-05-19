@@ -53,8 +53,8 @@ EXPORT_SYMBOL(intel_agp_enabled);
 #define PCI_DEVICE_ID_INTEL_B43_IG          0x2E42
 #define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
 #define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
-#define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
-#define PCI_DEVICE_ID_INTEL_IGD_E_IG        0x2E02
+#define PCI_DEVICE_ID_INTEL_EAGLELAKE_HB        0x2E00
+#define PCI_DEVICE_ID_INTEL_EAGLELAKE_IG        0x2E02
 #define PCI_DEVICE_ID_INTEL_Q45_HB          0x2E10
 #define PCI_DEVICE_ID_INTEL_Q45_IG          0x2E12
 #define PCI_DEVICE_ID_INTEL_G45_HB          0x2E20
@@ -96,7 +96,10 @@ EXPORT_SYMBOL(intel_agp_enabled);
 #define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
-#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
+#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+
+#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
@@ -106,8 +109,7 @@ EXPORT_SYMBOL(intel_agp_enabled);
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+		IS_SNB)
 
 extern int agp_memory_reserved;
 
@@ -1207,6 +1209,9 @@ static void intel_i9xx_setup_flush(void)
 	if (intel_private.ifp_resource.start)
 		return;
 
+	if (IS_SNB)
+		return;
+
 	/* setup a resource for this object */
 	intel_private.ifp_resource.name = "Intel Flush Page";
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
@@ -1447,7 +1452,7 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
 	switch (agp_bridge->dev->device) {
 	case PCI_DEVICE_ID_INTEL_GM45_HB:
-	case PCI_DEVICE_ID_INTEL_IGD_E_HB:
+	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
 	case PCI_DEVICE_ID_INTEL_G41_HB:
@@ -2444,9 +2449,9 @@ static const struct intel_driver_description {
 	{ PCI_DEVICE_ID_INTEL_PINEVIEW_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_IG, 0, "GMA3150",
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
-	    "Mobile Intel® GM45 Express", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
-	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
+	    "GM45", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_HB, PCI_DEVICE_ID_INTEL_EAGLELAKE_IG, 0,
+	    "Eaglelake", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG, 0,
 	    "Q45/Q43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
@@ -2667,7 +2672,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),
 	ID(PCI_DEVICE_ID_INTEL_GM45_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGD_E_HB),
+	ID(PCI_DEVICE_ID_INTEL_EAGLELAKE_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G41_HB),
