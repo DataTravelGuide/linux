@@ -1221,16 +1221,17 @@ static void __split_huge_page(struct page *page,
 		mapcount += __split_huge_page_splitting(page, vma, addr);
 	}
 	/*
-	 * It is critical that new vmas are added to the tail of
-	 * sma_anon_vma list.  This will guarantee that if
-	 * copy_huge_pmd() runs and establishes a child pmd before
-	 * __split_huge_page_splitting freezes the parent pmd and
-	 * prevents copy_huge_pmd from running until the whole
-	 * split_huge_page is complete, we will still see the pmd of
-	 * the child later, and set it as pmd_trans_splitting as well.
+	 * It is critical that new vmas are added to the tail of the
+	 * anon_vma list. This guarantes that if copy_huge_pmd() runs
+	 * and establishes a child pmd before
+	 * __split_huge_page_splitting() freezes the parent pmd (so if
+	 * we fail to prevent copy_huge_pmd() from running until the
+	 * whole __split_huge_page() is complete), we will still see
+	 * the newly established pmd of the child later during the
+	 * walk, to be able to set it as pmd_trans_splitting too.
 	 */
 	if (mapcount != page_mapcount(page))
-		printk("mapcount %d page_mapcount %d\n",
+		printk(KERN_ERR "mapcount %d page_mapcount %d\n",
 		       mapcount, page_mapcount(page));
 	BUG_ON(mapcount != page_mapcount(page));
 
@@ -1245,7 +1246,7 @@ static void __split_huge_page(struct page *page,
 		mapcount2 += __split_huge_page_map(page, vma, addr);
 	}
 	if (mapcount != mapcount2)
-		printk("mapcount %d mapcount2 %d page_mapcount %d\n",
+		printk(KERN_ERR "mapcount %d mapcount2 %d page_mapcount %d\n",
 		       mapcount, mapcount2, page_mapcount(page));
 	BUG_ON(mapcount != mapcount2);
 }
@@ -1667,7 +1668,12 @@ static void collapse_huge_page(struct mm_struct *mm,
 	ptl = pte_lockptr(mm, pmd);
 
 	spin_lock(&mm->page_table_lock); /* probably unnecessary */
-	/* after this gup_fast can't run anymore */
+	/*
+	 * After this gup_fast can't run anymore. This also removes
+	 * any huge TLB entry from the CPU so we won't allow
+	 * huge and small TLB entries for the same virtual address
+	 * to avoid the risk of CPU bugs in that area.
+	 */
 	_pmd = pmdp_clear_flush_notify(vma, address, pmd);
 	spin_unlock(&mm->page_table_lock);
 
