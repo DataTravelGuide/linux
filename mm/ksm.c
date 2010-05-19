@@ -812,7 +812,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
 
 	page_remove_rmap(page);
-	put_page(page);
+	free_page_and_swap_cache(page);
 
 	pte_unmap_unlock(ptep, ptl);
 	err = 0;
@@ -858,7 +858,18 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 	 * ptes are necessarily already write-protected.  But in either
 	 * case, we need to lock and check page_count is not raised.
 	 */
-	if (write_protect_page(vma, page, &orig_pte) == 0) {
+	err = write_protect_page(vma, page, &orig_pte);
+
+	/*
+	 * After this mapping is wrprotected we don't need further
+	 * checks for PageSwapCache vs page_count unlock_page(page)
+	 * and we rely only on the pte_same() check run under PT lock
+	 * to ensure the pte didn't change since when we wrprotected
+	 * it under PG_lock.
+	 */
+	unlock_page(page);
+
+	if (!err) {
 		if (!kpage) {
 			/*
 			 * While we hold page lock, upgrade page from
@@ -867,22 +878,22 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
 			 */
 			set_page_stable_node(page, NULL);
 			mark_page_accessed(page);
-			err = 0;
 		} else if (pages_identical(page, kpage))
 			err = replace_page(vma, page, kpage, orig_pte);
-	}
+	} else
+		err = -EFAULT;
 
 	if ((vma->vm_flags & VM_LOCKED) && kpage && !err) {
+		lock_page(page);	/* for LRU manipulation */
 		munlock_vma_page(page);
+		unlock_page(page);
 		if (!PageMlocked(kpage)) {
-			unlock_page(page);
 			lock_page(kpage);
 			mlock_vma_page(kpage);
-			page = kpage;		/* for final unlock */
+			unlock_page(kpage);
 		}
 	}
 
-	unlock_page(page);
 out:
 	return err;
 }
