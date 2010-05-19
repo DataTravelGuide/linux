@@ -94,7 +94,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		ret = -ENOMEM;
 		goto out;
 	}
-	obj_priv = fbo->driver_private;
+	obj_priv = to_intel_bo(fbo);
 
 	mutex_lock(&dev->struct_mutex);
 
