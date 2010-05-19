@@ -126,6 +126,18 @@ int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
 void anon_vma_free(struct anon_vma *);
 
+#ifdef CONFIG_KSM
+static inline void get_anon_vma(struct anon_vma *anon_vma)
+{
+	atomic_inc(&anon_vma->ksm_refcount);
+}
+
+void drop_anon_vma(struct anon_vma *);
+#else
+#define get_anon_vma(x)		do {} while(0)
+#define drop_anon_vma(x)	do {} while(0)
+#endif
+
 static inline void anon_vma_merge(struct vm_area_struct *vma,
 				  struct vm_area_struct *next)
 {
