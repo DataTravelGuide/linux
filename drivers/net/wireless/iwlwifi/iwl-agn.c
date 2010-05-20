@@ -2559,10 +2559,21 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			return ret;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
-		return iwl_tx_agg_start(priv, sta->addr, tid, ssn);
+		ret = iwl_tx_agg_start(priv, sta->addr, tid, ssn);
+		if (ret == 0) {
+			priv->_agn.agg_tids_count++;
+			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
+				     priv->_agn.agg_tids_count);
+		}
+		return ret;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwl_tx_agg_stop(priv, sta->addr, tid);
+		if ((ret == 0) && (priv->_agn.agg_tids_count > 0)) {
+			priv->_agn.agg_tids_count--;
+			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
+				     priv->_agn.agg_tids_count);
+		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			return 0;
 		else

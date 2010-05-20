@@ -1206,6 +1206,16 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
+	union {
+		struct {
+			/*
+			 * reporting the number of tids has AGG on. 0 means
+			 * no AGGREGATION
+			 */
+			u8 agg_tids_count;
+		} _agn;
+	};
+
 	/*Added for 3945 */
 	void *shared_virt;
 	dma_addr_t shared_phys;
