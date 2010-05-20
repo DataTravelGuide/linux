@@ -206,7 +206,8 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 #endif
 
 	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
+	if (!priv->is_internal_short_scan)
+		priv->next_scan_jiffies = 0;
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
@@ -252,8 +253,11 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 			goto reschedule;
 	}
 
-	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
+	if (!priv->is_internal_short_scan)
+		priv->next_scan_jiffies = 0;
+	else
+		priv->last_internal_scan_jiffies = jiffies;
+
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
 	clear_bit(STATUS_SCANNING, &priv->status);
@@ -557,6 +561,8 @@ EXPORT_SYMBOL(iwl_mac_hw_scan);
  * internal short scan, this function should only been called while associated.
  * It will reset and tune the radio to prevent possible RF related problem
  */
+#define IWL_DELAY_NEXT_INTERNAL_SCAN (HZ*1)
+
 int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -576,6 +582,13 @@ int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 		ret = -EAGAIN;
 		goto out;
 	}
+	if (priv->last_internal_scan_jiffies &&
+	    time_after(priv->last_internal_scan_jiffies +
+		       IWL_DELAY_NEXT_INTERNAL_SCAN, jiffies)) {
+		IWL_DEBUG_SCAN(priv, "internal scan rejected\n");
+		goto out;
+	}
+
 	priv->scan_bands = 0;
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
