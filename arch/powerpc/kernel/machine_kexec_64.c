@@ -156,7 +156,7 @@ void kexec_copy_flush(struct kimage *image)
 #ifdef CONFIG_SMP
 
 static u8 kexec_all_irq_disabled;
-static u8 kexec_state[NR_CPUS];
+u8 kexec_state[NR_CPUS] = {0};
 
 static void kexec_smp_down(void *arg)
 {
