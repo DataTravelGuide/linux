@@ -153,88 +153,6 @@ xfs_do_force_shutdown(
 	}
 }
 
-
-/*
- * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call biodone
- * so that the proper iodone callbacks get called.
- */
-int
-xfs_bioerror(
-	xfs_buf_t *bp)
-{
-
-#ifdef XFSERRORDEBUG
-	ASSERT(XFS_BUF_ISREAD(bp) || bp->b_iodone);
-#endif
-
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 */
-	XFS_BUF_ERROR(bp, EIO);
-	/*
-	 * We're calling biodone, so delete B_DONE flag. Either way
-	 * we have to call the iodone callback, and calling biodone
-	 * probably is the best way since it takes care of
-	 * GRIO as well.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_UNDONE(bp);
-	XFS_BUF_STALE(bp);
-
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	xfs_biodone(bp);
-
-	return (EIO);
-}
-
-/*
- * Same as xfs_bioerror, except that we are releasing the buffer
- * here ourselves, and avoiding the biodone call.
- * This is meant for userdata errors; metadata bufs come with
- * iodone functions attached, so that we can track down errors.
- */
-int
-xfs_bioerror_relse(
-	xfs_buf_t *bp)
-{
-	int64_t fl;
-
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xfs_buf_iodone_callbacks);
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xlog_iodone);
-
-	fl = XFS_BUF_BFLAGS(bp);
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 *
-	 * chunkhold expects B_DONE to be set, whether
-	 * we actually finish the I/O or not. We don't want to
-	 * change that interface.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_DONE(bp);
-	XFS_BUF_STALE(bp);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	if (!(fl & XFS_B_ASYNC)) {
-		/*
-		 * Mark b_error and B_ERROR _both_.
-		 * Lot's of chunkcache code assumes that.
-		 * There's no reason to mark error for
-		 * ASYNC buffers.
-		 */
-		XFS_BUF_ERROR(bp, EIO);
-		XFS_BUF_FINISH_IOWAIT(bp);
-	} else {
-		xfs_buf_relse(bp);
-	}
-	return (EIO);
-}
-
 /*
  * Prints out an ALERT message about I/O error.
  */
@@ -301,37 +219,6 @@ xfs_read_buf(
 			 */
 			xfs_buf_relse(bp);
 		}
-	}
-	return (error);
-}
-
-/*
- * Wrapper around bwrite() so that we can trap
- * write errors, and act accordingly.
- */
-int
-xfs_bwrite(
-	struct xfs_mount *mp,
-	struct xfs_buf	 *bp)
-{
-	int	error;
-
-	/*
-	 * XXXsup how does this work for quotas.
-	 */
-	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
-	bp->b_mount = mp;
-	XFS_BUF_WRITE(bp);
-
-	if ((error = XFS_bwrite(bp))) {
-		ASSERT(mp);
-		/*
-		 * Cannot put a buftrace here since if the buffer is not
-		 * B_HOLD then we will brelse() the buffer before returning
-		 * from bwrite and we could be tracing a buffer that has
-		 * been reused.
-		 */
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	}
 	return (error);
 }
