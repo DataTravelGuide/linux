@@ -666,9 +666,24 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
 	}
 out:
-	pte = pte_alloc_map(mm, vma, pmd, address);
-	if (!pte)
+	/*
+	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+	 * run pte_offset_map on the pmd, if an huge pmd could
+	 * materialize from under us from a different thread.
+	 */
+	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
 		return VM_FAULT_OOM;
+	VM_BUG_ON(!pmd_present(*pmd));
+	/* if an huge pmd materialized from under us just retry later */
+	if (unlikely(pmd_trans_huge(*pmd)))
+		return 0;
+	/*
+	 * A regular pmd is established and it can't morph into a huge pmd
+	 * from under us anymore at this point because we hold the mmap_sem
+	 * read mode and khugepaged takes it in write mode. So now it's
+	 * safe to run pte_offset_map().
+	 */
+	pte = pte_offset_map(pmd, address);
 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
 }
 

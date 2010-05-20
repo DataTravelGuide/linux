@@ -1022,17 +1022,17 @@ static inline void pgtable_page_dtor(struct page *page)
 } while (0)
 
 #define pte_alloc_map(mm, vma, pmd, address)				\
-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, vma,	\
+	((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, vma,	\
 							pmd, address))?	\
 	 NULL: pte_offset_map(pmd, address))
 
 #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc(mm, NULL,	\
+	((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, NULL,	\
 							pmd, address))?	\
 		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
 
 #define pte_alloc_kernel(pmd, address)			\
-	((unlikely(!pmd_present(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
+	((unlikely(pmd_none(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
 		NULL: pte_offset_kernel(pmd, address))
 
 extern void free_area_init(unsigned long * zones_size);
