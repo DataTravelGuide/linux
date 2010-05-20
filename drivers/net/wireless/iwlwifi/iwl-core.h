@@ -548,6 +548,8 @@ void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);
 void iwl_free_isr_ict(struct iwl_priv *priv);
 irqreturn_t iwl_isr_ict(int irq, void *data);
+bool iwl_good_ack_health(struct iwl_priv *priv,
+			 struct iwl_rx_packet *pkt);
 
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
