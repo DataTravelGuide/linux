@@ -28,6 +28,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
+#include <linux/ftrace_event.h>
 
 #include <asm/irq_regs.h>
 
@@ -1658,6 +1659,8 @@ static struct perf_event_context *find_get_context(pid_t pid, int cpu)
 	return ERR_PTR(err);
 }
 
+static void perf_event_free_filter(struct perf_event *event);
+
 static void free_event_rcu(struct rcu_head *head)
 {
 	struct perf_event *event;
@@ -1665,6 +1668,7 @@ static void free_event_rcu(struct rcu_head *head)
 	event = container_of(head, struct perf_event, rcu_head);
 	if (event->ns)
 		put_pid_ns(event->ns);
+	perf_event_free_filter(event);
 	kfree(event);
 }
 
@@ -1995,7 +1999,8 @@ unlock:
 	return ret;
 }
 
-int perf_event_set_output(struct perf_event *event, int output_fd);
+static int perf_event_set_output(struct perf_event *event, int output_fd);
+static int perf_event_set_filter(struct perf_event *event, void __user *arg);
 
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -2022,6 +2027,9 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PERF_EVENT_IOC_SET_OUTPUT:
 		return perf_event_set_output(event, arg);
+
+	case PERF_EVENT_IOC_SET_FILTER:
+		return perf_event_set_filter(event, (void __user *)arg);
 
 	default:
 		return -ENOTTY;
@@ -3831,9 +3839,14 @@ static int perf_swevent_is_counting(struct perf_event *event)
 	return 1;
 }
 
+static int perf_tp_event_match(struct perf_event *event,
+				struct perf_sample_data *data);
+
 static int perf_swevent_match(struct perf_event *event,
 				enum perf_type_id type,
-				u32 event_id, struct pt_regs *regs)
+				u32 event_id,
+				struct perf_sample_data *data,
+				struct pt_regs *regs)
 {
 	if (!perf_swevent_is_counting(event))
 		return 0;
@@ -3851,6 +3864,10 @@ static int perf_swevent_match(struct perf_event *event,
 			return 0;
 	}
 
+	if (event->attr.type == PERF_TYPE_TRACEPOINT &&
+	    !perf_tp_event_match(event, data))
+		return 0;
+
 	return 1;
 }
 
@@ -3867,7 +3884,7 @@ static void perf_swevent_ctx_event(struct perf_event_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
-		if (perf_swevent_match(event, type, event_id, regs))
+		if (perf_swevent_match(event, type, event_id, data, regs))
 			perf_swevent_add(event, nr, nmi, data, regs);
 	}
 	rcu_read_unlock();
@@ -4134,6 +4151,7 @@ static const struct pmu perf_ops_task_clock = {
 };
 
 #ifdef CONFIG_EVENT_PROFILE
+
 void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
 			  int entry_size)
 {
@@ -4157,8 +4175,15 @@ void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
 }
 EXPORT_SYMBOL_GPL(perf_tp_event);
 
-extern int ftrace_profile_enable(int);
-extern void ftrace_profile_disable(int);
+static int perf_tp_event_match(struct perf_event *event,
+				struct perf_sample_data *data)
+{
+	void *record = data->raw->data;
+
+	if (likely(!event->filter) || filter_match_preds(event->filter, record))
+		return 1;
+	return 0;
+}
 
 static void tp_perf_event_destroy(struct perf_event *event)
 {
@@ -4183,12 +4208,53 @@ static const struct pmu *tp_perf_event_init(struct perf_event *event)
 
 	return &perf_ops_generic;
 }
+
+static int perf_event_set_filter(struct perf_event *event, void __user *arg)
+{
+	char *filter_str;
+	int ret;
+
+	if (event->attr.type != PERF_TYPE_TRACEPOINT)
+		return -EINVAL;
+
+	filter_str = strndup_user(arg, PAGE_SIZE);
+	if (IS_ERR(filter_str))
+		return PTR_ERR(filter_str);
+
+	ret = ftrace_profile_set_filter(event, event->attr.config, filter_str);
+
+	kfree(filter_str);
+	return ret;
+}
+
+static void perf_event_free_filter(struct perf_event *event)
+{
+	ftrace_profile_free_filter(event);
+}
+
 #else
+
+static int perf_tp_event_match(struct perf_event *event,
+				struct perf_sample_data *data)
+{
+	return 1;
+}
+
 static const struct pmu *tp_perf_event_init(struct perf_event *event)
 {
 	return NULL;
 }
-#endif
+
+static int perf_event_set_filter(struct perf_event *event, void __user *arg)
+{
+	return -ENOENT;
+}
+
+static void perf_event_free_filter(struct perf_event *event)
+{
+}
+
+#endif /* CONFIG_EVENT_PROFILE */
 
 atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
@@ -4234,6 +4300,8 @@ static const struct pmu *sw_perf_event_init(struct perf_event *event)
 	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
+	case PERF_COUNT_SW_ALIGNMENT_FAULTS:
+	case PERF_COUNT_SW_EMULATION_FAULTS:
 		if (!event->parent) {
 			atomic_inc(&perf_swevent_enabled[event_id]);
 			event->destroy = sw_perf_event_destroy;
@@ -4448,7 +4516,7 @@ err_size:
 	goto out;
 }
 
-int perf_event_set_output(struct perf_event *event, int output_fd)
+static int perf_event_set_output(struct perf_event *event, int output_fd)
 {
 	struct perf_event *output_event = NULL;
 	struct file *output_file = NULL;

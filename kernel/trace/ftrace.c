@@ -1656,60 +1656,6 @@ ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
 	return ret;
 }
 
-enum {
-	MATCH_FULL,
-	MATCH_FRONT_ONLY,
-	MATCH_MIDDLE_ONLY,
-	MATCH_END_ONLY,
-};
-
-/*
- * (static function - no need for kernel doc)
- *
- * Pass in a buffer containing a glob and this function will
- * set search to point to the search part of the buffer and
- * return the type of search it is (see enum above).
- * This does modify buff.
- *
- * Returns enum type.
- *  search returns the pointer to use for comparison.
- *  not returns 1 if buff started with a '!'
- *     0 otherwise.
- */
-static int
-ftrace_setup_glob(char *buff, int len, char **search, int *not)
-{
-	int type = MATCH_FULL;
-	int i;
-
-	if (buff[0] == '!') {
-		*not = 1;
-		buff++;
-		len--;
-	} else
-		*not = 0;
-
-	*search = buff;
-
-	for (i = 0; i < len; i++) {
-		if (buff[i] == '*') {
-			if (!i) {
-				*search = buff + 1;
-				type = MATCH_END_ONLY;
-			} else {
-				if (type == MATCH_END_ONLY)
-					type = MATCH_MIDDLE_ONLY;
-				else
-					type = MATCH_FRONT_ONLY;
-				buff[i] = 0;
-				break;
-			}
-		}
-	}
-
-	return type;
-}
-
 static int ftrace_match(char *str, char *regex, int len, int type)
 {
 	int matched = 0;
@@ -1758,7 +1704,7 @@ static void ftrace_match_records(char *buff, int len, int enable)
 	int not;
 
 	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	type = ftrace_setup_glob(buff, len, &search, &not);
+	type = filter_parse_regex(buff, len, &search, &not);
 
 	search_len = strlen(search);
 
@@ -1826,7 +1772,7 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 	}
 
 	if (strlen(buff)) {
-		type = ftrace_setup_glob(buff, strlen(buff), &search, &not);
+		type = filter_parse_regex(buff, strlen(buff), &search, &not);
 		search_len = strlen(search);
 	}
 
@@ -1991,7 +1937,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	int count = 0;
 	char *search;
 
-	type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+	type = filter_parse_regex(glob, strlen(glob), &search, &not);
 	len = strlen(search);
 
 	/* we do not support '!' for function probes */
@@ -2068,7 +2014,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	else if (glob) {
 		int not;
 
-		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+		type = filter_parse_regex(glob, strlen(glob), &search, &not);
 		len = strlen(search);
 
 		/* we do not support '!' for function probes */
@@ -2513,7 +2459,7 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 		return -ENODEV;
 
 	/* decode regex */
-	type = ftrace_setup_glob(buffer, strlen(buffer), &search, &not);
+	type = filter_parse_regex(buffer, strlen(buffer), &search, &not);
 	if (not)
 		return -EINVAL;
 
