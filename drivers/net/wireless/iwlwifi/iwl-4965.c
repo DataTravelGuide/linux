@@ -2366,6 +2366,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
 	.broken_powersave = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 /* Module firmware */

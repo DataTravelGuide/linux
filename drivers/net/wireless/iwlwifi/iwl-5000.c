@@ -1672,6 +1672,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_bg_cfg = {
@@ -1689,6 +1690,7 @@ struct iwl_cfg iwl5100_bg_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1706,6 +1708,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1724,6 +1727,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1742,6 +1746,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1760,6 +1765,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

@@ -176,6 +176,7 @@ struct iwl_cfg iwl6000h_2agn_cfg = {
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 /*
@@ -200,6 +201,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -221,6 +223,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -242,6 +245,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6050_3agn_cfg = {
@@ -263,6 +267,7 @@ struct iwl_cfg iwl6050_3agn_cfg = {
 	.shadow_ram_support = true,
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

@@ -109,6 +109,7 @@ struct iwl_debugfs {
 		struct dentry *file_chain_noise;
 		struct dentry *file_tx_power;
 		struct dentry *file_internal_scan;
+		struct dentry *file_plcp_delta;
 	} dbgfs_debug_files;
 	u32 sram_offset;
 	u32 sram_len;
