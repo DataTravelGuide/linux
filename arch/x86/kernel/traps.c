@@ -631,12 +631,6 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	if (condition & DR_STEP && kmemcheck_trap(regs))
 		return;
 
-	/*
-	 * The processor cleared BTF, so don't mark that we need it set.
-	 */
-	clear_tsk_thread_flag(tsk, TIF_DEBUGCTLMSR);
-	tsk->thread.debugctlmsr = 0;
-
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 						SIGTRAP) == NOTIFY_STOP)
 		return;
@@ -654,6 +648,10 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	if (regs->flags & X86_VM_MASK)
 		goto debug_vm86;
 #endif
+	/*
+	 * The processor cleared BTF, so don't mark that we need it set.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
 
 	/* Save debug status register where ptrace can see it */
 	tsk->thread.debugreg6 = condition;
