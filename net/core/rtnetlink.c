@@ -35,6 +35,7 @@
 #include <linux/security.h>
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -582,6 +583,22 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 };
 
+/* All VF info */
+static inline int rtnl_vfinfo_size(const struct net_device *dev)
+{
+	if (dev->dev.parent && dev_is_pci(dev->dev.parent)) {
+
+		int num_vfs = dev_num_vf(dev->dev.parent);
+		size_t size = nlmsg_total_size(sizeof(struct nlattr));
+		size += nlmsg_total_size(num_vfs * sizeof(struct nlattr));
+		size += num_vfs * (sizeof(struct ifla_vf_mac) +
+				  sizeof(struct ifla_vf_vlan) +
+				  sizeof(struct ifla_vf_tx_rate));
+		return size;
+	} else
+		return 0;
+}
+
 static inline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
@@ -599,6 +616,8 @@ static inline size_t if_nlmsg_size(const struct net_device *dev)
 	       + nla_total_size(4) /* IFLA_MASTER */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
+	       + nla_total_size(4) /* IFLA_NUM_VF */
+	       + rtnl_vfinfo_size(dev) /* IFLA_VFINFO_LIST */
 	       + rtnl_link_get_size(dev); /* IFLA_LINKINFO */
 }
 
@@ -667,6 +686,40 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	stats = dev_get_stats(dev);
 	copy_rtnl_link_stats(nla_data(attr), stats);
 
+	if (dev->netdev_ops->ndo_get_vf_config && dev->dev.parent) {
+		int i;
+
+		struct nlattr *vfinfo, *vf;
+		int num_vfs = dev_num_vf(dev->dev.parent);
+
+		NLA_PUT_U32(skb, IFLA_NUM_VF, num_vfs);
+		vfinfo = nla_nest_start(skb, IFLA_VFINFO_LIST);
+		if (!vfinfo)
+			goto nla_put_failure;
+		for (i = 0; i < num_vfs; i++) {
+			struct ifla_vf_info ivi;
+			struct ifla_vf_mac vf_mac;
+			struct ifla_vf_vlan vf_vlan;
+			struct ifla_vf_tx_rate vf_tx_rate;
+			if (dev->netdev_ops->ndo_get_vf_config(dev, i, &ivi))
+				break;
+			vf_mac.vf = vf_vlan.vf = vf_tx_rate.vf = ivi.vf;
+			memcpy(vf_mac.mac, ivi.mac, sizeof(ivi.mac));
+			vf_vlan.vlan = ivi.vlan;
+			vf_vlan.qos = ivi.qos;
+			vf_tx_rate.rate = ivi.tx_rate;
+			vf = nla_nest_start(skb, IFLA_VF_INFO);
+			if (!vf) {
+				nla_nest_cancel(skb, vfinfo);
+				goto nla_put_failure;
+			}
+			NLA_PUT(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac);
+			NLA_PUT(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan);
+			NLA_PUT(skb, IFLA_VF_TX_RATE, sizeof(vf_tx_rate), &vf_tx_rate);
+			nla_nest_end(skb, vf);
+		}
+		nla_nest_end(skb, vfinfo);
+	}
 	if (dev->rtnl_link_ops) {
 		if (rtnl_link_fill(skb, dev) < 0)
 			goto nla_put_failure;
@@ -716,11 +769,25 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
 	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
 	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
+	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
 	[IFLA_INFO_KIND]	= { .type = NLA_STRING },
 	[IFLA_INFO_DATA]	= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vfinfo_policy[IFLA_VF_INFO_MAX+1] = {
+	[IFLA_VF_INFO]		= { .type = NLA_NESTED },
+};
+
+static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
+	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_mac) },
+	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_tx_rate) },
 };
 
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
@@ -736,6 +803,52 @@ static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 	}
 
 	return 0;
+}
+
+static int do_setvfinfo(struct net_device *dev, struct nlattr *attr)
+{
+	int rem, err = -EINVAL;
+	struct nlattr *vf;
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	nla_for_each_nested(vf, attr, rem) {
+		switch (nla_type(vf)) {
+		case IFLA_VF_MAC: {
+			struct ifla_vf_mac *ivm;
+			ivm = nla_data(vf);
+			err = -EOPNOTSUPP;
+			if (ops->ndo_set_vf_mac)
+				err = ops->ndo_set_vf_mac(dev, ivm->vf,
+							  ivm->mac);
+			break;
+		}
+		case IFLA_VF_VLAN: {
+			struct ifla_vf_vlan *ivv;
+			ivv = nla_data(vf);
+			err = -EOPNOTSUPP;
+			if (ops->ndo_set_vf_vlan)
+				err = ops->ndo_set_vf_vlan(dev, ivv->vf,
+							   ivv->vlan,
+							   ivv->qos);
+			break;
+		}
+		case IFLA_VF_TX_RATE: {
+			struct ifla_vf_tx_rate *ivt;
+			ivt = nla_data(vf);
+			err = -EOPNOTSUPP;
+			if (ops->ndo_set_vf_tx_rate)
+				err = ops->ndo_set_vf_tx_rate(dev, ivt->vf,
+							      ivt->rate);
+			break;
+		}
+		default:
+			err = -EINVAL;
+			break;
+		}
+		if (err)
+			break;
+	}
+	return err;
 }
 
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
@@ -875,6 +988,18 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		write_unlock_bh(&dev_base_lock);
 	}
 
+	if (tb[IFLA_VFINFO_LIST]) {
+		struct nlattr *attr;
+		int rem;
+		nla_for_each_nested(attr, tb[IFLA_VFINFO_LIST], rem) {
+			if (nla_type(attr) != IFLA_VF_INFO)
+				goto errout;
+			err = do_setvfinfo(dev, attr);
+			if (err < 0)
+				goto errout;
+			modified = 1;
+		}
+	}
 	err = 0;
 
 errout:
