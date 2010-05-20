@@ -320,11 +320,6 @@ static int module_verify_canonicalise(struct module_verify_data *mvdata)
 		if (loop == mvdata->sig_index)
 			continue;
 
-		/* ignore gcc's build ID section as it seems to get modified by
-		 * the build process */
-		if (strcmp(sh_name, ".note.gnu.build-id") == 0)
-			continue;
-
 		/* we only need to canonicalise allocatable sections */
 		if (section->sh_flags & SHF_ALLOC)
 			mvdata->canonlist[canon++] = loop;

@@ -379,11 +379,6 @@ static void extract_elf64(void *buffer, size_t len, Elf64_Ehdr *hdr)
 			exit(3);
 		}
 
-		/* ignore gcc's build ID section as it seems to get modified by
-		 * the build process */
-		if (strcmp(sh_name, ".note.gnu.build-id") == 0)
-			continue;
-
 		/* we only need to canonicalise allocatable sections */
 		if (sh_flags & SHF_ALLOC)
 			canonlist[canon++] = loop;
@@ -739,11 +734,6 @@ static void extract_elf32(void *buffer, size_t len, Elf32_Ehdr *hdr)
 			fprintf(stderr, "Section goes beyond EOF\n");
 			exit(3);
 		}
-
-		/* ignore gcc's build ID section as it seems to get modified by
-		 * the build process */
-		if (strcmp(sh_name, ".note.gnu.build-id") == 0)
-			continue;
 
 		/* we only need to canonicalise allocatable sections */
 		if (sh_flags & SHF_ALLOC)
