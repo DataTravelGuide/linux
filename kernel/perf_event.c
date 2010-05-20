@@ -1884,10 +1884,10 @@ int perf_event_release_kernel(struct perf_event *event)
 	 *     to trigger the AB-BA case.
 	 */
 	mutex_lock_nested(&ctx->mutex, SINGLE_DEPTH_NESTING);
-	raw_spin_lock_irq(&ctx->lock);
+	spin_lock_irq(&ctx->lock);
 	list_del_event(event, ctx);
 	perf_destroy_group(event, ctx);
-	raw_spin_unlock_irq(&ctx->lock);
+	spin_unlock_irq(&ctx->lock);
 	mutex_unlock(&ctx->mutex);
 
 	mutex_lock(&event->owner->perf_event_mutex);
@@ -5603,7 +5603,6 @@ void __init perf_event_init(void)
 }
 
 static ssize_t perf_show_reserve_percpu(struct sysdev_class *class,
-					struct sysdev_class_attribute *attr,
 					char *buf)
 {
 	return sprintf(buf, "%d\n", perf_reserved_percpu);
@@ -5611,7 +5610,6 @@ static ssize_t perf_show_reserve_percpu(struct sysdev_class *class,
 
 static ssize_t
 perf_set_reserve_percpu(struct sysdev_class *class,
-			struct sysdev_class_attribute *attr,
 			const char *buf,
 			size_t count)
 {
@@ -5641,7 +5639,6 @@ perf_set_reserve_percpu(struct sysdev_class *class,
 }
 
 static ssize_t perf_show_overcommit(struct sysdev_class *class,
-				    struct sysdev_class_attribute *attr,
 				    char *buf)
 {
 	return sprintf(buf, "%d\n", perf_overcommit);
@@ -5649,7 +5646,6 @@ static ssize_t perf_show_overcommit(struct sysdev_class *class,
 
 static ssize_t
 perf_set_overcommit(struct sysdev_class *class,
-		    struct sysdev_class_attribute *attr,
 		    const char *buf, size_t count)
 {
 	unsigned long val;

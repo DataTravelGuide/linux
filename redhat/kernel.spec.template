@@ -558,6 +558,7 @@ Source3: ftp://ftp.kernel.org/pub/linux/kernel/v2.6/testing/incr/patch-2.6.%{ups
 %endif
 
 Source11: genkey
+Source13: perf-archive
 Source14: find-provides
 Source15: merge.pl
 Source16: perf
@@ -1312,6 +1313,8 @@ popd
 mkdir -p $RPM_BUILD_ROOT/usr/sbin/
 cp $RPM_SOURCE_DIR/perf $RPM_BUILD_ROOT/usr/sbin/perf
 chmod 0755 $RPM_BUILD_ROOT/usr/sbin/perf
+cp $RPM_SOURCE_DIR/perf-archive $RPM_BUILD_ROOT/usr/sbin/perf-archive
+chmod 0755 $RPM_BUILD_ROOT/usr/sbin/perf-archive
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/perf
 %endif
 
@@ -1508,6 +1511,7 @@ fi
 %defattr(-,root,root)
 %{_datadir}/doc/perf
 /usr/sbin/perf
+/usr/sbin/perf-archive
 %{_datadir}/man/man1/*
 %endif
 

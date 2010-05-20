@@ -301,9 +301,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "version",	cmd_version,	0 },
 		{ "trace",	cmd_trace,	0 },
 		{ "sched",	cmd_sched,	0 },
-		{ "probe",	cmd_probe,	0 },
 		{ "kmem",	cmd_kmem,	0 },
-		{ "lock",	cmd_lock,	0 },
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;

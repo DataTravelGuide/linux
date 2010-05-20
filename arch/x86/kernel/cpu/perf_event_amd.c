@@ -164,7 +164,7 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	 */
 	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (nb->owners[i] == event) {
-			cmpxchg(nb->owners+i, event, NULL);
+			(void)cmpxchg(nb->owners+i, event, NULL);
 			break;
 		}
 	}

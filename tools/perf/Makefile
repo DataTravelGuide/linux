@@ -461,7 +461,6 @@ BUILTIN_OBJS += builtin-top.o
 BUILTIN_OBJS += builtin-trace.o
 BUILTIN_OBJS += builtin-probe.o
 BUILTIN_OBJS += builtin-kmem.o
-BUILTIN_OBJS += builtin-lock.o
 
 PERFLIBS = $(LIB_FILE)
 
