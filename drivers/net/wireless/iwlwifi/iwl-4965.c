@@ -2343,6 +2343,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.temperature = iwl4965_temperature_calib,
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 static struct iwl_ops iwl4965_ops = {

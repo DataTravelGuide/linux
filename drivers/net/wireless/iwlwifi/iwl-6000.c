@@ -138,6 +138,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 static struct iwl_hcmd_utils_ops iwl6000_hcmd_utils = {

@@ -1580,6 +1580,7 @@ struct iwl_lib_ops iwl5000_lib = {
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -1633,6 +1634,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 struct iwl_ops iwl5000_ops = {

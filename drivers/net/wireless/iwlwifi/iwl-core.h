@@ -185,6 +185,9 @@ struct iwl_lib_ops {
 	struct iwl_temp_ops temp_ops;
 	/* recover from tx queue stall */
 	void (*recover_from_tx_stall)(unsigned long data);
+	/* recover from errors showed in statistics */
+	void (*recover_from_statistics)(struct iwl_priv *priv,
+					struct iwl_rx_packet *pkt);
 };
 
 struct iwl_ops {
@@ -398,6 +401,8 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
+void iwl_recover_from_statistics(struct iwl_priv *priv,
+				 struct iwl_rx_packet *pkt);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
