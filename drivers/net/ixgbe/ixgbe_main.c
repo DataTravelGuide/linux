@@ -820,6 +820,7 @@ static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb,
 
 struct ixgbe_rsc_cb {
 	dma_addr_t dma;
+	bool delay_unmap;
 };
 
 #define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
@@ -875,7 +876,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (rx_buffer_info->dma) {
 			if ((adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
 			    (!(staterr & IXGBE_RXD_STAT_EOP)) &&
-				 (!(skb->prev)))
+				 (!(skb->prev))) {
 				/*
 				 * When HWRSC is enabled, delay unmapping
 				 * of the first packet. It carries the
@@ -883,11 +884,14 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 				 * access the header after the writeback.
 				 * Only unmap it when EOP is reached
 				 */
+				IXGBE_RSC_CB(skb)->delay_unmap = true;
 				IXGBE_RSC_CB(skb)->dma = rx_buffer_info->dma;
-			else
-				pci_unmap_single(pdev, rx_buffer_info->dma,
+			} else {
+				pci_unmap_single(pdev,
+				                 rx_buffer_info->dma,
 				                 rx_ring->rx_buf_len,
 				                 PCI_DMA_FROMDEVICE);
+			}
 			rx_buffer_info->dma = 0;
 			skb_put(skb, len);
 		}
@@ -935,10 +939,13 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			if (skb->prev)
 				skb = ixgbe_transform_rsc_queue(skb, &(rx_ring->rsc_count));
 			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
-				if (IXGBE_RSC_CB(skb)->dma)
+				if (IXGBE_RSC_CB(skb)->delay_unmap) {
 					pci_unmap_single(pdev, IXGBE_RSC_CB(skb)->dma,
 					                 rx_ring->rx_buf_len,
 					                 PCI_DMA_FROMDEVICE);
+					IXGBE_RSC_CB(skb)->dma = 0;
+					IXGBE_RSC_CB(skb)->delay_unmap = false;
+				}
 				if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)
 					rx_ring->rsc_count += skb_shinfo(skb)->nr_frags;
 				else
@@ -3054,6 +3061,14 @@ void ixgbe_reinit_locked(struct ixgbe_adapter *adapter)
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		msleep(1);
 	ixgbe_down(adapter);
+	/*
+	 * If SR-IOV enabled then wait a bit before bringing the adapter
+	 * back up to give the VFs time to respond to the reset.  The
+	 * two second wait is based upon the watchdog timer cycle in
+	 * the VF driver.
+	 */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		msleep(2000);
 	ixgbe_up(adapter);
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 }
@@ -3126,10 +3141,13 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 			rx_buffer_info->skb = NULL;
 			do {
 				struct sk_buff *this = skb;
-				if (IXGBE_RSC_CB(this)->dma)
+				if (IXGBE_RSC_CB(this)->delay_unmap) {
 					pci_unmap_single(pdev, IXGBE_RSC_CB(this)->dma,
 					                 rx_ring->rx_buf_len,
 					                 PCI_DMA_FROMDEVICE);
+					IXGBE_RSC_CB(this)->dma = 0;
+					IXGBE_RSC_CB(skb)->delay_unmap = false;
+				}
 				skb = skb->prev;
 				dev_kfree_skb(this);
 			} while (skb);
@@ -5006,6 +5024,7 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	hw->mac.autotry_restart = false;
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
@@ -6368,6 +6387,16 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->sfp_timer);
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->sfp_task);
+	if (adapter->hw.phy.multispeed_fiber) {
+		struct ixgbe_hw *hw = &adapter->hw;
+		/*
+		 * Restart clause 37 autoneg, disable and re-enable
+		 * the tx laser, to clear & alert the link partner
+		 * that it needs to restart autotry
+		 */
+		hw->mac.autotry_restart = true;
+		hw->mac.ops.flap_tx_laser(hw);
+	}
 	cancel_work_sync(&adapter->multispeed_fiber_task);
 	cancel_work_sync(&adapter->sfp_config_module_task);
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
