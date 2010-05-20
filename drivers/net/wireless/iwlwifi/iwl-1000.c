@@ -136,7 +136,8 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
-	.recover_from_statistics = iwl_recover_from_statistics,
+	.check_plcp_health = iwl_good_plcp_health,
+	.check_ack_health = iwl_good_ack_health,
 };
 
 static struct iwl_ops iwl1000_ops = {
