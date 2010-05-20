@@ -633,6 +633,31 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev)
 		return 0;
 }
 
+static size_t rtnl_port_size(const struct net_device *dev)
+{
+	size_t port_size = nla_total_size(4)		/* PORT_VF */
+		+ nla_total_size(PORT_PROFILE_MAX)	/* PORT_PROFILE */
+		+ nla_total_size(sizeof(struct ifla_port_vsi))
+							/* PORT_VSI_TYPE */
+		+ nla_total_size(PORT_UUID_MAX)		/* PORT_INSTANCE_UUID */
+		+ nla_total_size(PORT_UUID_MAX)		/* PORT_HOST_UUID */
+		+ nla_total_size(1)			/* PROT_VDP_REQUEST */
+		+ nla_total_size(2);			/* PORT_VDP_RESPONSE */
+	size_t vf_ports_size = nla_total_size(sizeof(struct nlattr));
+	size_t vf_port_size = nla_total_size(sizeof(struct nlattr))
+		+ port_size;
+	size_t port_self_size = nla_total_size(sizeof(struct nlattr))
+		+ port_size;
+
+	if (!dev->netdev_ops->ndo_get_vf_port || !dev->dev.parent)
+		return 0;
+	if (dev_num_vf(dev->dev.parent))
+		return port_self_size + vf_ports_size +
+			vf_port_size * dev_num_vf(dev->dev.parent);
+	else
+		return port_self_size;
+}
+
 static inline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
@@ -653,7 +678,80 @@ static inline size_t if_nlmsg_size(const struct net_device *dev)
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(4) /* IFLA_NUM_VF */
 	       + rtnl_vfinfo_size(dev) /* IFLA_VFINFO_LIST */
+	       + rtnl_port_size(dev) /* IFLA_VF_PORTS + IFLA_PORT_SELF */
 	       + rtnl_link_get_size(dev); /* IFLA_LINKINFO */
+}
+
+static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
+{
+	struct nlattr *vf_ports;
+	struct nlattr *vf_port;
+	int vf;
+	int err;
+
+	vf_ports = nla_nest_start(skb, IFLA_VF_PORTS);
+	if (!vf_ports)
+		return -EMSGSIZE;
+
+	for (vf = 0; vf < dev_num_vf(dev->dev.parent); vf++) {
+		vf_port = nla_nest_start(skb, IFLA_VF_PORT);
+		if (!vf_port) {
+			nla_nest_cancel(skb, vf_ports);
+			return -EMSGSIZE;
+		}
+		NLA_PUT_U32(skb, IFLA_PORT_VF, vf);
+		err = dev->netdev_ops->ndo_get_vf_port(dev, vf, skb);
+		if (err) {
+nla_put_failure:
+			nla_nest_cancel(skb, vf_port);
+			continue;
+		}
+		nla_nest_end(skb, vf_port);
+	}
+
+	nla_nest_end(skb, vf_ports);
+
+	return 0;
+}
+
+static int rtnl_port_self_fill(struct sk_buff *skb, struct net_device *dev)
+{
+	struct nlattr *port_self;
+	int err;
+
+	port_self = nla_nest_start(skb, IFLA_PORT_SELF);
+	if (!port_self)
+		return -EMSGSIZE;
+
+	err = dev->netdev_ops->ndo_get_vf_port(dev, PORT_SELF_VF, skb);
+	if (err) {
+		nla_nest_cancel(skb, port_self);
+		return err;
+	}
+
+	nla_nest_end(skb, port_self);
+
+	return 0;
+}
+
+static int rtnl_port_fill(struct sk_buff *skb, struct net_device *dev)
+{
+	int err;
+
+	if (!dev->netdev_ops->ndo_get_vf_port || !dev->dev.parent)
+		return 0;
+
+	err = rtnl_port_self_fill(skb, dev);
+	if (err)
+		return err;
+
+	if (dev_num_vf(dev->dev.parent)) {
+		err = rtnl_vf_ports_fill(skb, dev);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
@@ -727,13 +825,15 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		goto nla_put_failure;
 	copy_rtnl_link_stats64(nla_data(attr), stats);
 
+	if (dev->dev.parent)
+		NLA_PUT_U32(skb, IFLA_NUM_VF, dev_num_vf(dev->dev.parent));
+
 	if (dev->netdev_ops->ndo_get_vf_config && dev->dev.parent) {
 		int i;
 
 		struct nlattr *vfinfo, *vf;
 		int num_vfs = dev_num_vf(dev->dev.parent);
 
-		NLA_PUT_U32(skb, IFLA_NUM_VF, num_vfs);
 		vfinfo = nla_nest_start(skb, IFLA_VFINFO_LIST);
 		if (!vfinfo)
 			goto nla_put_failure;
@@ -761,6 +861,10 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		}
 		nla_nest_end(skb, vfinfo);
 	}
+
+	if (rtnl_port_fill(skb, dev))
+		goto nla_put_failure;
+
 	if (dev->rtnl_link_ops) {
 		if (rtnl_link_fill(skb, dev) < 0)
 			goto nla_put_failure;
@@ -811,6 +915,8 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
 	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
 	[IFLA_VFINFO_LIST]	= {. type = NLA_NESTED },
+	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
+	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -829,6 +935,20 @@ static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 				    .len = sizeof(struct ifla_vf_vlan) },
 	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
 				    .len = sizeof(struct ifla_vf_tx_rate) },
+};
+
+static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
+	[IFLA_PORT_VF]		= { .type = NLA_U32 },
+	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
+				    .len = PORT_PROFILE_MAX },
+	[IFLA_PORT_VSI_TYPE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_port_vsi)},
+	[IFLA_PORT_INSTANCE_UUID] = { .type = NLA_BINARY,
+				      .len = PORT_UUID_MAX },
+	[IFLA_PORT_HOST_UUID]	= { .type = NLA_STRING,
+				    .len = PORT_UUID_MAX },
+	[IFLA_PORT_REQUEST]	= { .type = NLA_U8, },
+	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
 };
 
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
@@ -1040,6 +1160,53 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 				goto errout;
 			modified = 1;
 		}
+	}
+	err = 0;
+
+	if (tb[IFLA_VF_PORTS]) {
+		struct nlattr *port[IFLA_PORT_MAX+1];
+		struct nlattr *attr;
+		int vf;
+		int rem;
+
+		err = -EOPNOTSUPP;
+		if (!ops->ndo_set_vf_port)
+			goto errout;
+
+		nla_for_each_nested(attr, tb[IFLA_VF_PORTS], rem) {
+			if (nla_type(attr) != IFLA_VF_PORT)
+				continue;
+			err = nla_parse_nested(port, IFLA_PORT_MAX,
+				attr, ifla_port_policy);
+			if (err < 0)
+				goto errout;
+			if (!port[IFLA_PORT_VF]) {
+				err = -EOPNOTSUPP;
+				goto errout;
+			}
+			vf = nla_get_u32(port[IFLA_PORT_VF]);
+			err = ops->ndo_set_vf_port(dev, vf, port);
+			if (err < 0)
+				goto errout;
+			modified = 1;
+		}
+	}
+	err = 0;
+
+	if (tb[IFLA_PORT_SELF]) {
+		struct nlattr *port[IFLA_PORT_MAX+1];
+
+		err = nla_parse_nested(port, IFLA_PORT_MAX,
+			tb[IFLA_PORT_SELF], ifla_port_policy);
+		if (err < 0)
+			goto errout;
+
+		err = -EOPNOTSUPP;
+		if (ops->ndo_set_vf_port)
+			err = ops->ndo_set_vf_port(dev, PORT_SELF_VF, port);
+		if (err < 0)
+			goto errout;
+		modified = 1;
 	}
 	err = 0;
 
