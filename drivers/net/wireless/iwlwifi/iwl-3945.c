@@ -2895,6 +2895,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ht_greenfield_support = false,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2911,6 +2912,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ht_greenfield_support = false,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

@@ -183,6 +183,8 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
+	/* recover from tx queue stall */
+	void (*recover_from_tx_stall)(unsigned long data);
 };
 
 struct iwl_ops {
@@ -260,6 +262,8 @@ struct iwl_cfg {
 	const bool broken_powersave;
 	bool use_rts_for_ht;
 	u8 plcp_delta_threshold;
+	/* timer period for monitor the driver queues */
+	u32 monitor_recover_period;
 };
 
 /***************************
@@ -543,6 +547,9 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
+
+void iwl_bg_monitor_recover(unsigned long data);
+
 #ifdef CONFIG_PM
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
 int iwl_pci_resume(struct pci_dev *pdev);

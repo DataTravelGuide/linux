@@ -1755,6 +1755,13 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
+	if (priv->cfg->ops->lib->recover_from_tx_stall) {
+		/* Enable timer to monitor the driver queues */
+		mod_timer(&priv->monitor_recover,
+			jiffies +
+			msecs_to_jiffies(priv->cfg->monitor_recover_period));
+	}
+
 	if (iwl_is_rfkill(priv))
 		return;
 
@@ -2829,6 +2836,13 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl_bg_statistics_periodic;
 
+	if (priv->cfg->ops->lib->recover_from_tx_stall) {
+		init_timer(&priv->monitor_recover);
+		priv->monitor_recover.data = (unsigned long)priv;
+		priv->monitor_recover.function =
+			priv->cfg->ops->lib->recover_from_tx_stall;
+	}
+
 	if (!priv->cfg->use_isr_legacy)
 		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 			iwl_irq_tasklet, (unsigned long)priv);
@@ -2847,6 +2861,8 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
+	if (priv->cfg->ops->lib->recover_from_tx_stall)
+		del_timer_sync(&priv->monitor_recover);
 }
 
 static struct attribute *iwl_sysfs_entries[] = {

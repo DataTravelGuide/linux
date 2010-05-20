@@ -135,6 +135,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
 };
 
 static struct iwl_ops iwl1000_ops = {
@@ -163,5 +164,6 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 

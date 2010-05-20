@@ -1579,6 +1579,7 @@ struct iwl_lib_ops iwl5000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -1631,6 +1632,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.temperature = iwl5150_temperature,
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
 };
 
 struct iwl_ops iwl5000_ops = {
@@ -1673,6 +1675,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl5100_bg_cfg = {
@@ -1691,6 +1694,7 @@ struct iwl_cfg iwl5100_bg_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1709,6 +1713,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.need_pll_cfg = true,
 	.ht_greenfield_support = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1728,6 +1733,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1747,6 +1753,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1766,6 +1773,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ht_greenfield_support = true,
 	.use_rts_for_ht = true, /* use rts/cts protection */
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
