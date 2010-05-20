@@ -235,9 +235,13 @@ static int gfs2_acl_type(const char *name)
 static int gfs2_xattr_system_get(struct inode *inode, const char *name,
 				 void *buffer, size_t size)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct posix_acl *acl;
 	int type;
 	int error;
+
+	if (!sdp->sd_args.ar_posix_acl)
+		return -EOPNOTSUPP;
 
 	type = gfs2_acl_type(name);
 	if (type < 0)
