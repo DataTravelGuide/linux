@@ -40,11 +40,14 @@
 #define DRV_DESC		BE_NAME " " "Driver"
 
 #define BE_VENDOR_ID 		0x19A2
+/* DEVICE ID's for BE2 */
 #define BE_DEVICE_ID1		0x212
 #define OC_DEVICE_ID1		0x702
 #define OC_DEVICE_ID2		0x703
+
+/* DEVICE ID's for BE3 */
+#define BE_DEVICE_ID2		0x222
 #define OC_DEVICE_ID3		0x712
-#define OC_DEVICE_ID4		0x222
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
@@ -254,6 +257,11 @@ struct hba_parameters {
 	unsigned int num_sge;
 };
 
+struct invalidate_command_table {
+	unsigned short icd;
+	unsigned short cid;
+} __packed;
+
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -325,6 +333,9 @@ struct beiscsi_hba {
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
+	unsigned int generation;
+	struct invalidate_command_table inv_tbl[128];
+
 };
 
 struct beiscsi_session {
@@ -650,7 +661,6 @@ struct amap_iscsi_wrb {
 } __packed;
 
 struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
-
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 

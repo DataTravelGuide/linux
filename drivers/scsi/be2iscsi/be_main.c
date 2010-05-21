@@ -58,13 +58,130 @@ static int beiscsi_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
+static int beiscsi_eh_abort(struct scsi_cmnd *sc)
+{
+	struct iscsi_cls_session *cls_session;
+	struct iscsi_task *aborted_task = (struct iscsi_task *)sc->SCp.ptr;
+	struct beiscsi_io_task *aborted_io_task;
+	struct iscsi_conn *conn;
+	struct beiscsi_conn *beiscsi_conn;
+	struct beiscsi_hba *phba;
+	struct iscsi_session *session;
+	struct invalidate_command_table *inv_tbl;
+	unsigned int cid, tag, num_invalidate;
+
+	cls_session = starget_to_session(scsi_target(sc->device));
+	session = cls_session->dd_data;
+
+	spin_lock_bh(&session->lock);
+	if (!aborted_task || !aborted_task->sc) {
+		/* we raced */
+		spin_unlock_bh(&session->lock);
+		return SUCCESS;
+	}
+
+	aborted_io_task = aborted_task->dd_data;
+	if (!aborted_io_task->scsi_cmnd) {
+		/* raced or invalid command */
+		spin_unlock_bh(&session->lock);
+		return SUCCESS;
+	}
+	spin_unlock_bh(&session->lock);
+	conn = aborted_task->conn;
+	beiscsi_conn = conn->dd_data;
+	phba = beiscsi_conn->phba;
+
+	/* invalidate iocb */
+	cid = beiscsi_conn->beiscsi_conn_cid;
+	inv_tbl = phba->inv_tbl;
+	memset(inv_tbl, 0x0, sizeof(*inv_tbl));
+	inv_tbl->cid = cid;
+	inv_tbl->icd = aborted_io_task->psgl_handle->sgl_index;
+	num_invalidate = 1;
+	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate, cid);
+	if (!tag) {
+		shost_printk(KERN_WARNING, phba->shost,
+			     "mgmt_invalidate_icds could not be"
+			     " submitted\n");
+		return FAILED;
+	} else {
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+		free_mcc_tag(&phba->ctrl, tag);
+	}
+
+	return iscsi_eh_abort(sc);
+}
+
+static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
+{
+	struct iscsi_task *abrt_task;
+	struct beiscsi_io_task *abrt_io_task;
+	struct iscsi_conn *conn;
+	struct beiscsi_conn *beiscsi_conn;
+	struct beiscsi_hba *phba;
+	struct iscsi_session *session;
+	struct iscsi_cls_session *cls_session;
+	struct invalidate_command_table *inv_tbl;
+	unsigned int cid, tag, i, num_invalidate;
+	int rc = FAILED;
+
+	/* invalidate iocbs */
+	cls_session = starget_to_session(scsi_target(sc->device));
+	session = cls_session->dd_data;
+	spin_lock_bh(&session->lock);
+	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN)
+		goto unlock;
+
+	conn = session->leadconn;
+	beiscsi_conn = conn->dd_data;
+	phba = beiscsi_conn->phba;
+	cid = beiscsi_conn->beiscsi_conn_cid;
+	inv_tbl = phba->inv_tbl;
+	memset(inv_tbl, 0x0, sizeof(*inv_tbl) * BE2_CMDS_PER_CXN);
+	num_invalidate = 0;
+	for (i = 0; i < conn->session->cmds_max; i++) {
+		abrt_task = conn->session->cmds[i];
+		abrt_io_task = abrt_task->dd_data;
+		if (!abrt_task->sc || abrt_task->state == ISCSI_TASK_FREE)
+			continue;
+
+		if (abrt_task->sc->device->lun != abrt_task->sc->device->lun)
+			continue;
+
+		inv_tbl->cid = cid;
+		inv_tbl->icd = abrt_io_task->psgl_handle->sgl_index;
+		num_invalidate++;
+		inv_tbl++;
+	}
+	spin_unlock_bh(&session->lock);
+	inv_tbl = phba->inv_tbl;
+
+	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate, cid);
+	if (!tag) {
+		shost_printk(KERN_WARNING, phba->shost,
+			     "mgmt_invalidate_icds could not be"
+			     " submitted\n");
+		return FAILED;
+	} else {
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+		free_mcc_tag(&phba->ctrl, tag);
+	}
+
+	return iscsi_eh_device_reset(sc);
+unlock:
+	spin_unlock_bh(&session->lock);
+	return rc;
+}
+
 /*------------------- PCI Driver operations and data ----------------- */
 static DEFINE_PCI_DEVICE_TABLE(beiscsi_pci_id_table) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID3) },
-	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID4) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, beiscsi_pci_id_table);
@@ -74,12 +191,12 @@ static struct scsi_host_template beiscsi_sht = {
 	.name = "ServerEngines 10Gbe open-iscsi Initiator Driver",
 	.proc_name = DRV_NAME,
 	.queuecommand = iscsi_queuecommand,
-	.eh_abort_handler = iscsi_eh_abort,
 	.change_queue_depth = iscsi_change_queue_depth,
 	.slave_configure = beiscsi_slave_configure,
 	.target_alloc = iscsi_target_alloc,
-	.eh_device_reset_handler = iscsi_eh_device_reset,
-	.eh_target_reset_handler = iscsi_eh_target_reset,
+	.eh_abort_handler = beiscsi_eh_abort,
+	.eh_device_reset_handler = beiscsi_eh_device_reset,
+	.eh_target_reset_handler = iscsi_eh_session_reset,
 	.sg_tablesize = BEISCSI_SGLIST_ELEMENTS,
 	.can_queue = BE2_IO_DEPTH,
 	.this_id = -1,
@@ -143,6 +260,7 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 				struct pci_dev *pcidev)
 {
 	u8 __iomem *addr;
+	int pcicfg_reg;
 
 	addr = ioremap_nocache(pci_resource_start(pcidev, 2),
 			       pci_resource_len(pcidev, 2));
@@ -159,13 +277,19 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 	phba->db_va = addr;
 	phba->db_pa.u.a64.address =  pci_resource_start(pcidev, 4);
 
-	addr = ioremap_nocache(pci_resource_start(pcidev, 1),
-			       pci_resource_len(pcidev, 1));
+	if (phba->generation == BE_GEN2)
+		pcicfg_reg = 1;
+	else
+		pcicfg_reg = 0;
+
+	addr = ioremap_nocache(pci_resource_start(pcidev, pcicfg_reg),
+			       pci_resource_len(pcidev, pcicfg_reg));
+
 	if (addr == NULL)
 		goto pci_map_err;
 	phba->ctrl.pcicfg = addr;
 	phba->pci_va = addr;
-	phba->pci_pa.u.a64.address = pci_resource_start(pcidev, 1);
+	phba->pci_pa.u.a64.address = pci_resource_start(pcidev, pcicfg_reg);
 	return 0;
 
 pci_map_err:
@@ -492,15 +616,14 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	int ret, msix_vec, i = 0;
-	char *desc;
+	char desc[32];
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 
 	if (phba->msix_enabled) {
-		desc = kmalloc(32, GFP_KERNEL);
 		for (i = 0; i < phba->num_cpus; i++) {
-			sprintf(desc, "beiscsi_msix_%02x", i);
+			sprintf(desc, "beiscsi_msix_%04x", i);
 			msix_vec = phba->msix_entries[i].vector;
 			ret = request_irq(msix_vec, be_isr_msix, 0, desc,
 					  &phwi_context->be_eq[i]);
@@ -508,7 +631,6 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 		msix_vec = phba->msix_entries[i].vector;
 		ret = request_irq(msix_vec, be_isr_mcc, 0, "beiscsi_msix_mcc",
 				  &phwi_context->be_eq[i]);
-		kfree(desc);
 	} else {
 		ret = request_irq(pcidev->irq, be_isr, IRQF_SHARED,
 				  "beiscsi", phba);
@@ -941,24 +1063,24 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	case HWH_TYPE_IO:
 	case HWH_TYPE_IO_RD:
 		if ((task->hdr->opcode & ISCSI_OPCODE_MASK) ==
-		    ISCSI_OP_NOOP_OUT) {
+		     ISCSI_OP_NOOP_OUT)
 			be_complete_nopin_resp(beiscsi_conn, task, psol);
-		} else
+		else
 			be_complete_io(beiscsi_conn, task, psol);
 		break;
 
 	case HWH_TYPE_LOGOUT:
-		be_complete_logout(beiscsi_conn, task, psol);
+		if ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGOUT)
+			be_complete_logout(beiscsi_conn, task, psol);
+		else
+			be_complete_tmf(beiscsi_conn, task, psol);
+
 		break;
 
 	case HWH_TYPE_LOGIN:
 		SE_DEBUG(DBG_LVL_1,
 			 "\t\t No HWH_TYPE_LOGIN Expected in hwi_complete_cmd"
 			 "- Solicited path \n");
-		break;
-
-	case HWH_TYPE_TMF:
-		be_complete_tmf(beiscsi_conn, task, psol);
 		break;
 
 	case HWH_TYPE_NOP:
@@ -3068,14 +3190,18 @@ static unsigned char hwi_enable_intr(struct beiscsi_hba *phba)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 		SE_DEBUG(DBG_LVL_8, "reg =x%08x addr=%p \n", reg, addr);
 		iowrite32(reg, addr);
-		for (i = 0; i <= phba->num_cpus; i++) {
-			eq = &phwi_context->be_eq[i].q;
+		if (!phba->msix_enabled) {
+			eq = &phwi_context->be_eq[0].q;
 			SE_DEBUG(DBG_LVL_8, "eq->id=%d \n", eq->id);
 			hwi_ring_eq_db(phba, eq->id, 0, 0, 1, 1);
+		} else {
+			for (i = 0; i <= phba->num_cpus; i++) {
+				eq = &phwi_context->be_eq[i].q;
+				SE_DEBUG(DBG_LVL_8, "eq->id=%d \n", eq->id);
+				hwi_ring_eq_db(phba, eq->id, 0, 0, 1, 1);
+			}
 		}
-	} else
-		shost_printk(KERN_WARNING, phba->shost,
-			     "In hwi_enable_intr, Not Enabled \n");
+	}
 	return true;
 }
 
@@ -3432,11 +3558,11 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 		AMAP_SET_BITS(struct amap_pdu_data_out, final_bit,
 			      &io_task->cmd_bhs->iscsi_data_pdu, 1);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      INI_WR_CMD);
+			      INI_WR_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 1);
 	} else {
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-							INI_RD_CMD);
+			      INI_RD_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 0);
 	}
 	memcpy(&io_task->cmd_bhs->iscsi_data_pdu.
@@ -3471,19 +3597,13 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 
 static int beiscsi_mtask(struct iscsi_task *task)
 {
-	struct beiscsi_io_task *aborted_io_task, *io_task = task->dd_data;
+	struct beiscsi_io_task *io_task = task->dd_data;
 	struct iscsi_conn *conn = task->conn;
 	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
 	struct beiscsi_hba *phba = beiscsi_conn->phba;
-	struct iscsi_session *session;
 	struct iscsi_wrb *pwrb = NULL;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_wrb_context *pwrb_context;
-	struct wrb_handle *pwrb_handle;
 	unsigned int doorbell = 0;
-	unsigned int i, cid;
-	struct iscsi_task *aborted_task;
-	unsigned int tag;
+	unsigned int cid;
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
@@ -3498,14 +3618,14 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	switch (task->hdr->opcode & ISCSI_OPCODE_MASK) {
 	case ISCSI_OP_LOGIN:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      TGT_DM_CMD);
+			      TGT_DM_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb, 1);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_NOOP_OUT:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      INI_RD_CMD);
+			      INI_RD_CMD);
 		if (task->hdr->ttt == ISCSI_RESERVED_TAG)
 			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		else
@@ -3514,47 +3634,20 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		break;
 	case ISCSI_OP_TEXT:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      TGT_DM_CMD);
+			      TGT_DM_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
-		session = conn->session;
-		i = ((struct iscsi_tm *)task->hdr)->rtt;
-		phwi_ctrlr = phba->phwi_ctrlr;
-		pwrb_context = &phwi_ctrlr->wrb_context[cid -
-					    phba->fw_config.iscsi_cid_start];
-		pwrb_handle = pwrb_context->pwrb_handle_basestd[be32_to_cpu(i)
-								>> 16];
-		aborted_task = pwrb_handle->pio_handle;
-		 if (!aborted_task)
-			return 0;
-
-		aborted_io_task = aborted_task->dd_data;
-		if (!aborted_io_task->scsi_cmnd)
-			return 0;
-
-		tag = mgmt_invalidate_icds(phba,
-				     aborted_io_task->psgl_handle->sgl_index,
-				     cid);
-		if (!tag) {
-			shost_printk(KERN_WARNING, phba->shost,
-				     "mgmt_invalidate_icds could not be"
-				     " submitted\n");
-		} else {
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
-			free_mcc_tag(&phba->ctrl, tag);
-		}
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				      INI_TMF_CMD);
+			      INI_TMF_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_LOGOUT:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-				HWH_TYPE_LOGOUT);
+			      HWH_TYPE_LOGOUT);
 		hwi_write_buffer(pwrb, task);
 		break;
 
@@ -3580,17 +3673,12 @@ static int beiscsi_mtask(struct iscsi_task *task)
 
 static int beiscsi_task_xmit(struct iscsi_task *task)
 {
-	struct iscsi_conn *conn = task->conn;
 	struct beiscsi_io_task *io_task = task->dd_data;
 	struct scsi_cmnd *sc = task->sc;
-	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
 	struct scatterlist *sg;
 	int num_sg;
 	unsigned int  writedir = 0, xferlen = 0;
 
-	SE_DEBUG(DBG_LVL_4, "\n cid=%d In beiscsi_task_xmit task=%p conn=%p \t"
-		 "beiscsi_conn=%p \n", beiscsi_conn->beiscsi_conn_cid,
-		 task, conn, beiscsi_conn);
 	if (!sc)
 		return beiscsi_mtask(task);
 
@@ -3600,6 +3688,8 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 		SE_DEBUG(DBG_LVL_1, " scsi_dma_map Failed\n")
 		return num_sg;
 	}
+	SE_DEBUG(DBG_LVL_4, "xferlen=0x%08x scmd=%p num_sg=%d sernum=%lu\n",
+		  (scsi_bufflen(sc)), sc, num_sg, sc->serial_number);
 	xferlen = scsi_bufflen(sc);
 	sg = scsi_sglist(sc);
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
@@ -3692,6 +3782,20 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		dev_err(&pcidev->dev, "beiscsi_dev_probe-"
 			" Failed in beiscsi_hba_alloc \n");
 		goto disable_pci;
+	}
+
+	switch (pcidev->device) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+	case OC_DEVICE_ID2:
+		phba->generation = BE_GEN2;
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID3:
+		phba->generation = BE_GEN3;
+		break;
+	default:
+		phba->generation = 0;
 	}
 
 	if (enable_msix)
