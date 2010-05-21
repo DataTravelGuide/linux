@@ -983,11 +983,11 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
-	if (!xenbus_frontend.error)
-		return xenbus_frontend.error;
+	if (!xenbus_frontend.error) {
+		ready_to_wait_for_devices = 1;
+		wait_for_devices(NULL);
+	}
 
-	ready_to_wait_for_devices = 1;
-	wait_for_devices(NULL);
 	return 0;
 }
 
