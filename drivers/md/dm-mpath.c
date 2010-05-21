@@ -58,6 +58,7 @@ struct priority_group {
 
 /* Multipath context */
 struct multipath {
+	uint64_t features;
 	struct list_head list;
 	struct dm_target *ti;
 
