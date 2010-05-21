@@ -42,6 +42,7 @@ static const char version[] = "v0.028";
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
@@ -125,7 +126,9 @@ struct slink_c {
 enum replog_c_flags {
 	REPLOG_C_BLOCKED,
 	REPLOG_C_DEVEL_STATS,
-	REPLOG_C_IO_INFLIGHT
+	REPLOG_C_IO_INFLIGHT,
+	REPLOG_C_RESUME_TWICE,
+	REPLOG_C_DEV_RESUME_TWICE,
 };
 struct replog_c {
 	struct {
@@ -164,6 +167,8 @@ struct replog_c {
 DM_BITOPS(ReplBlocked, replog_c, REPLOG_C_BLOCKED);
 DM_BITOPS(ReplDevelStats, replog_c, REPLOG_C_DEVEL_STATS);
 DM_BITOPS(ReplIoInflight, replog_c, REPLOG_C_IO_INFLIGHT);
+DM_BITOPS(ReplResumeTwice, replog_c, REPLOG_C_RESUME_TWICE);
+DM_BITOPS(ReplDevResumeTwice, replog_c, REPLOG_C_DEV_RESUME_TWICE);
 
 /*
  * Per device replication context kept with any mapped device and
@@ -381,7 +386,6 @@ get_ctrl_dev(struct dm_target *ti)
 
 	dev = bdev->bd_dev;
 	bdput(bdev);
-	dm_put(md);
 	return dev;
 }
 
@@ -679,7 +683,6 @@ dc_set_bdi(struct device_c *dc)
 	/* Set congested function and data. */
 	bdi->congested_fn = repl_congested;
 	bdi->congested_data = dc;
-	dm_put(md);
 }
 
 /* Get device on slink and unlink it from the list of devices. */
@@ -834,7 +837,7 @@ static int
 device_ctr(enum ctr_call_type call_type, struct dm_target *ti,
 	   struct replog_c *replog_c,
 	   const char *replicator_path, unsigned dev_nr,
-	   unsigned argc, char **argv, int *args_used)
+	   unsigned argc, char **argv, unsigned *args_used)
 {
 	int dev_params, dirtylog_params, params, r, slink_nr;
 	struct dm_repl_slink *slink;	/* Site link handle. */
@@ -915,7 +918,7 @@ device_ctr(enum ctr_call_type call_type, struct dm_target *ti,
 	 *
 	 * Dummy start/size sufficient here.
 	 */
-	r = dm_get_device(ti, replicator_path,
+	r = dm_get_device(ti, replicator_path, 
 			  FMODE_WRITE, &dc->replicator_dev);
 	if (unlikely(r < 0)) {
 		ti_or_dmerr(call_type, ti,
@@ -1032,8 +1035,6 @@ _replicator_dev_ctr(enum ctr_call_type call_type, struct dm_target *ti,
 
 	/*
 	 * Get reference on replicator control device.
-	 *
-	 * Dummy start/size sufficient here.
 	 */
 	r = dm_get_device(ti, replicator_path, FMODE_WRITE, &ctrl_dev);
 	if (unlikely(r < 0)) {
@@ -1110,7 +1111,7 @@ err_args:
 	ti_or_dmerr(call_type, ti, "Not enough device arguments");
 	return -EINVAL;
 }
-
+//
 /* Constructor method. */
 static int
 replicator_dev_ctr(struct dm_target *ti, unsigned argc, char **argv)
@@ -1167,6 +1168,7 @@ replicator_dev_map(struct dm_target *ti, struct bio *bio,
 
 
 /* Replication device suspend/resume helper. */
+static void replicator_resume(struct dm_target *ti);
 enum suspend_resume_type { POSTSUSPEND, RESUME };
 static void
 _replicator_dev_suspend_resume(struct dm_target *ti,
@@ -1204,8 +1206,12 @@ _replicator_dev_suspend_resume(struct dm_target *ti,
 			slinks++;
 	}
 
-	if (type == RESUME && slinks)
+	if (type == RESUME && slinks) {
+		if (!TestSetReplDevResumeTwice(replog_c))
+			replicator_resume(replog_c->ti);
+
 		wake_do_repl(replog_c);
+	}
 }
 
 /* Replication device post suspend method. */
@@ -1378,6 +1384,15 @@ replicator_dtr(struct dm_target *ti)
 	_BUG_ON_PTR(replog_c);
 	replog = replog_c->replog;
 	_BUG_ON_PTR(replog);
+
+	/* Check if any devices still exist. */
+	if (!list_empty(&replog_c->lists.slink_c) &&
+	    !list_empty(&(list_first_entry(&replog_c->lists.slink_c,
+					   struct slink_c,
+					   lists.slink_c)->lists.dc))) {
+		DMERR("Destruction of replication log with devices rejected.");
+		return;
+	}
 
 	/* Pull out replog_c to process destruction cleanly. */
 	mutex_lock(&replog_c_list_mutex);
@@ -1676,6 +1691,10 @@ _replicator_suspend_resume(struct replog_c *replog_c,
 		replog->ops->postsuspend(replog, -1);
 		break;
 	case RESUME:
+		/* Initially avoid resuming and wait for second call. */
+		if (!TestSetReplResumeTwice(replog_c))
+			return;
+
 		replog->ops->resume(replog, -1);
 		ClearReplBlocked(replog_c);
 		wake_do_repl(replog_c);

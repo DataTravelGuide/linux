@@ -31,6 +31,8 @@
 #include <linux/dm-io.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 
 static const char version[] = "v0.028";
@@ -1446,9 +1448,11 @@ header_io(int rw, struct header_io_params *hio)
 	void *disk_header = io->alloc_disk(ring);
 	struct dev_io_params dio = {
 		&l->params.dev, hio->sector, io->size,
-		.mem.type = DM_IO_KMEM,
-		.mem.ptr.addr = disk_header,
-		.mem.offset = 0,
+		.mem = {
+			.type = DM_IO_KMEM,
+			.offset = 0,
+			.ptr.addr = disk_header,
+		},
 		.notify = { NULL, NULL}
 	};
 
@@ -2084,19 +2088,21 @@ ringbuffer_write_entry(struct repl_log *l, struct bio *bio)
 	struct dev_io_params dio[] = {
 		{ /* Data IO specs. */
 		  &l->params.dev, header->pos.data, bio->bi_size,
-		  .mem.type = DM_IO_BVEC,
-		  .mem.ptr.bvec = bio_iovec(bio),
-		  .mem.offset = bio_offset(bio),
-		  .notify.fn = data_endio,
-		  .notify.context = entry,
+		  .mem = {
+			.type = DM_IO_BVEC,
+			.offset = bio_offset(bio),
+			.ptr.bvec = bio_iovec(bio),
+		  },
+		  .notify = { data_endio, entry }
 		},
 		{ /* Header IO specs. */
 		  &l->params.dev, header->pos.header, DATA_HEADER_DISK_SIZE,
-		  .mem.type = DM_IO_KMEM,
-		  .mem.ptr.addr = disk_header,
-		  .mem.offset = 0,
-		  .notify.fn = header_endio,
-		  .notify.context = entry,
+		  .mem = {
+			.type = DM_IO_KMEM,
+			.offset = 0,
+			.ptr.addr = disk_header,
+		  },
+		  .notify = { header_endio, entry }
 		},
 	};
 
@@ -2160,11 +2166,12 @@ ringbuffer_read_bio_vec(struct repl_log *l,
 	struct dev_io_params dio = {
 		&l->params.dev,
 		entry->data.header->pos.data + offset, bio->bi_size,
-		.mem.type = DM_IO_BVEC,
-		.mem.ptr.bvec = bio_iovec(bio),
-		.mem.offset = bio_offset(bio),
-		.notify.fn = read_bio_vec_endio,
-		.notify.context = entry,
+		.mem = {
+			.type = DM_IO_BVEC,
+			.offset = bio_offset(bio),
+			.ptr.bvec = bio_iovec(bio),
+		},
+		.notify = { read_bio_vec_endio, entry }
 	};
 
 	DMDEBUG_LIMIT("in  %s %u", __func__, jiffies_to_msecs(jiffies));

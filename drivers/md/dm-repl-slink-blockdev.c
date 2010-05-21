@@ -31,6 +31,7 @@ static const char version[] = "v0.022";
 #include <linux/dm-kcopyd.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #define	DM_MSG_PREFIX	"dm-repl-slink-blockdev"
 #define	DAEMON		DM_MSG_PREFIX	"d"
@@ -863,8 +864,6 @@ static struct sdev *dev_get_by_bdev(struct slink *sl,
 	list_for_each_entry(dev, SLINK_DEVS_LIST(sl), lists[SDEV_SLINK]) {
 		struct mapped_device *md = dm_table_get_md(dev->ti->table);
 		struct gendisk *gd = dm_disk(md);
-
-		dm_put(md);
 
 		if (bdev->bd_disk == gd)
 			return dev_get(dev);
@@ -2382,11 +2381,8 @@ blockdev_dev_number(struct dm_repl_slink *slink, struct block_device *bdev)
 		md = dm_table_get_md(dev->ti->table);
 		if (bdev->bd_disk == dm_disk(md)) {
 			read_unlock(&sl->lock);
-			dm_put(md);
 			return dev->dev.number;
 		}
-
-		dm_put(md);
 	}
 
 	read_unlock(&sl->lock);
