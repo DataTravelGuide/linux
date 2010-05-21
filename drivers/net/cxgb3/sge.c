@@ -2288,7 +2288,7 @@ static int process_responses(struct adapter *adap, struct sge_qset *qs,
 
 		rmb();
 		eth = r->rss_hdr.opcode == CPL_RX_PKT;
-		rss_hi = *(const __be32 *)r,
+		rss_hi = *(const __be32 *)r;
 		rss_lo = r->rss_hdr.rss_hash_val;
 		flags = ntohl(r->flags);
 
