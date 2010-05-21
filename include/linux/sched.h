@@ -673,6 +673,8 @@ struct signal_struct {
 #endif
 
 	int oom_adj;	/* OOM kill score adjustment (bit shift) */
+	/* reserved for Red Hat */
+	unsigned long rh_reserved;
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */
@@ -1550,6 +1552,8 @@ struct task_struct {
 	unsigned long trace_recursion;
 #endif /* CONFIG_TRACING */
 	unsigned long stack_start;
+	/* reserved for Red Hat */
+	unsigned long rh_reserved[2];
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */

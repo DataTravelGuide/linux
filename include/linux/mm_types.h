@@ -297,7 +297,8 @@ struct mm_struct {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
-	void * pad1;
+	/* reserved for Red Hat */
+	unsigned long rh_reserved[2];
 };
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
