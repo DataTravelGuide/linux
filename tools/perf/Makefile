@@ -434,7 +434,6 @@ LIB_OBJS += util/trace-event-scripting.o
 LIB_OBJS += util/svghelper.o
 LIB_OBJS += util/sort.o
 LIB_OBJS += util/hist.o
-LIB_OBJS += util/probe-event.o
 LIB_OBJS += util/util.o
 LIB_OBJS += util/cpumap.o
 
@@ -459,7 +458,6 @@ BUILTIN_OBJS += builtin-stat.o
 BUILTIN_OBJS += builtin-timechart.o
 BUILTIN_OBJS += builtin-top.o
 BUILTIN_OBJS += builtin-trace.o
-BUILTIN_OBJS += builtin-probe.o
 BUILTIN_OBJS += builtin-kmem.o
 
 PERFLIBS = $(LIB_FILE)
@@ -503,14 +501,7 @@ else
 	msg := $(error No libelf.h/libelf found, please install libelf-dev/elfutils-libelf-devel and glibc-dev[el]);
 endif
 
-ifneq ($(shell sh -c "(echo '\#include <dwarf.h>'; echo '\#include <libdw.h>'; echo 'int main(void) { Dwarf *dbg; dbg = dwarf_begin(0, DWARF_C_READ); return (long)dbg; }') | $(CC) -x c - $(ALL_CFLAGS) -I/usr/include/elfutils -ldw -lelf -o $(BITBUCKET) $(ALL_LDFLAGS) $(EXTLIBS) "$(QUIET_STDERR)" && echo y"), y)
-	msg := $(warning No libdw.h found or old libdw.h found, disables dwarf support. Please install elfutils-devel/elfutils-dev);
 	BASIC_CFLAGS += -DNO_DWARF_SUPPORT
-else
-	BASIC_CFLAGS += -I/usr/include/elfutils
-	EXTLIBS += -lelf -ldw
-	LIB_OBJS += util/probe-finder.o
-endif
 
 ifndef NO_LIBPERL
 PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts 2>/dev/null`
