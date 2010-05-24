@@ -140,7 +140,6 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_resvport, "resvport" },
 	{ Opt_noresvport, "noresvport" },
 	{ Opt_fscache, "fsc" },
-	{ Opt_fscache_uniq, "fsc=%s" },
 	{ Opt_nofscache, "nofsc" },
 
 	{ Opt_port, "port=%s" },
@@ -170,6 +169,7 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_mountaddr, "mountaddr=%s" },
 
 	{ Opt_lookupcache, "lookupcache=%s" },
+	{ Opt_fscache_uniq, "fsc=%s" },
 
 	{ Opt_err, NULL }
 };
@@ -1053,14 +1053,6 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(mnt->fscache_uniq);
 			mnt->fscache_uniq = NULL;
 			break;
-		case Opt_fscache_uniq:
-			string = match_strdup(args);
-			if (!string)
-				goto out_nomem;
-			kfree(mnt->fscache_uniq);
-			mnt->fscache_uniq = string;
-			mnt->options |= NFS_OPTION_FSCACHE;
-			break;
 
 		/*
 		 * options that take numeric values
@@ -1390,6 +1382,14 @@ static int nfs_parse_mount_options(char *raw,
 							"lookupcache argument\n");
 					return 0;
 			};
+			break;
+		case Opt_fscache_uniq:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			kfree(mnt->fscache_uniq);
+			mnt->fscache_uniq = string;
+			mnt->options |= NFS_OPTION_FSCACHE;
 			break;
 
 		/*
