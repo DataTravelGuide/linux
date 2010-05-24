@@ -1335,10 +1335,9 @@ unsigned long long __init arch_default_crash_size(unsigned long long total_size)
 		return 0;
 	else {
 #ifdef CONFIG_64BIT
-		if (total_size > (1ULL<<37)) /* 128G */
-			return KEXEC_AUTO_RESERVED_SIZE
-				* ((1ULL<<37) / KEXEC_AUTO_THRESHOLD);
-		return 1ULL<<ilog2(roundup(total_size/32, 1ULL<<21));
+		return KEXEC_AUTO_RESERVED_SIZE +
+			roundup((total_size - KEXEC_AUTO_RESERVED_SIZE)
+				/ (1ULL<<23), 1ULL<<20); /* 1:8192 */
 #else
 		return KEXEC_AUTO_RESERVED_SIZE;
 #endif
