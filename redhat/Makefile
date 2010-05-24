@@ -46,6 +46,13 @@ rh-clean-sources:
 		rm -f $$i; \
 	done;
 
+rh-clean-rpmdirs:
+	@for i in $(RPM)/{BUILD,SRPMS,RPMS,SPECS}/*; do \
+		rm -rfv $$i; \
+	done;
+
+rh-clean: rh-clean-sources rh-clean-configs rh-clean-rpmdirs
+
 rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
 
@@ -93,7 +100,7 @@ setup-source: rh-clean-sources
 	@cp $(REDHAT)/$(SPECFILE).template $(SOURCES)/$(SPECFILE)
 
 sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
-	@cp $(TARBALL) $(SOURCES)/
+	@cp -l $(TARBALL) $(SOURCES)/ || cp $(TARBALL) $(SOURCES)/
 	@(if [ -n "$(RCREV)" ]; then \
 		cp $(RC_PATCH) $(SOURCES)/; \
 	fi)
@@ -160,8 +167,10 @@ rh-brew rh-koji: rh-%: rh-srpm
 
 rh-help:
 	@echo  'Cleaning targets:'
+	@echo  '  rh-clean            - Do rh-clean-sources, rh-clean-configs, & rh-clean-rpmdirs'
 	@echo  '  rh-clean-sources    - Clean the redhat/rpm/SOURCES/ directory'
 	@echo  '  rh-clean-configs    - Clean the redhat/configs/ directory'
+	@echo  '  rh-clean-rpmdirs    - Clean the redhat/rpm/{BUILD,SRPMS,RPMS,SPECS}/ directories'
 	@echo  ''
 	@echo  'Building targets:'
 	@echo  ' All RPM/SRPM files will be put under the redhat/rpm/ directory'
