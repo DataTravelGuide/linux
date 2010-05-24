@@ -2181,7 +2181,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	int error = -ENOMEM;
 
 	data = nfs_alloc_parsed_mount_data(3);
-	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
 
@@ -2256,7 +2256,7 @@ out:
 	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
-	kfree(mntfh);
+	nfs_free_fhandle(mntfh);
 	kfree(data);
 	return error;
 
@@ -2565,7 +2565,7 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 	};
 	int error = -ENOMEM;
 
-	mntfh = kzalloc(sizeof(*mntfh), GFP_KERNEL);
+	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
 
@@ -2623,7 +2623,7 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 out:
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
-	kfree(mntfh);
+	nfs_free_fhandle(mntfh);
 	return error;
 
 out_free:
