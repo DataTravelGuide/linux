@@ -772,7 +772,7 @@ TRACE_EVENT(mm_kernel_pagefault,
 
 	TP_printk("task=%lx, address=%lx, regs=%lx",
 		(unsigned long)__entry->task, (unsigned long)__entry->address,
-			__entry->regs)
+			(unsigned long)__entry->regs)
 	);
 #endif /* _TRACE_KMEM_H */
 
