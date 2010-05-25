@@ -315,7 +315,6 @@ struct uart_port {
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
-#define UIF_DSR_FLOW		((__force upf_t) (1 << 25))
 /* The exact UART type is known and should not be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
@@ -546,7 +545,7 @@ uart_handle_dsr_change(struct uart_port *uport, unsigned int status)
 	struct tty_port *port = &uport->state->port;
 
 	uport->icount.dsr++;
-	if (port->flags & UIF_DSR_FLOW)
+	if (port->flags & ASYNC_DSR_FLOW)
 		uart_handle_flow_control_change(uport, status);
 }
 

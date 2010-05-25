@@ -1885,7 +1885,7 @@ static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 			if ((up->port.flags & ASYNC_CTS_FLOW) &&
 			    (msr & UART_MSR_CTS))
 				break;
-			else if ((up->port.flags & UIF_DSR_FLOW) &&
+			else if ((up->port.flags & ASYNC_DSR_FLOW) &&
 				 (msr & UART_MSR_DSR))
 				break;
 

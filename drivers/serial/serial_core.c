@@ -194,7 +194,7 @@ static int uart_startup(struct uart_state *state, int init_hw)
 			spin_unlock_irq(&uport->lock);
 		}
 
-		if (port->flags & UIF_DSR_FLOW) {
+		if (port->flags & ASYNC_DSR_FLOW) {
 			spin_lock_irq(&uport->lock);
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_DSR))
 				port->tty->hw_stopped = 1;
@@ -456,9 +456,9 @@ uart_change_speed(struct uart_state *state, struct ktermios *old_termios)
 		clear_bit(ASYNCB_CTS_FLOW, &port->flags);
 
 	if (termios->c_cflag & CDTRDSR)
-		port->flags |= UIF_DSR_FLOW;
+		set_bit(ASYNCB_DSR_FLOW, &port->flags);
 	else
-		port->flags &= ~UIF_DSR_FLOW;
+		clear_bit(ASYNCB_DSR_FLOW, &port->flags);
 
 	if (termios->c_cflag & CLOCAL)
 		clear_bit(ASYNCB_CHECK_CD, &port->flags);
