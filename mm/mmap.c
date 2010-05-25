@@ -573,17 +573,6 @@ again:			remove_next = 1 + (end > next->vm_end);
 		}
 	}
 
-	/*
-	 * When changing only vma->vm_end, we don't really need anon_vma
-	 * lock. This is a fairly rare case by itself, but the anon_vma
-	 * lock may be shared between many sibling processes.  Skipping
-	 * the lock for brk adjustments makes a difference sometimes.
-	 */
-	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
-		anon_vma = vma->anon_vma;
-		anon_vma_lock(anon_vma);
-	}
-
 	if (file) {
 		mapping = file->f_mapping;
 		if (!(vma->vm_flags & VM_NONLINEAR))
@@ -607,6 +596,17 @@ again:			remove_next = 1 + (end > next->vm_end);
 			 */
 			__vma_link_file(insert);
 		}
+	}
+
+	/*
+	 * When changing only vma->vm_end, we don't really need anon_vma
+	 * lock. This is a fairly rare case by itself, but the anon_vma
+	 * lock may be shared between many sibling processes.  Skipping
+	 * the lock for brk adjustments makes a difference sometimes.
+	 */
+	if (vma->anon_vma && (insert || importer || start != vma->vm_start)) {
+		anon_vma = vma->anon_vma;
+		anon_vma_lock(anon_vma);
 	}
 
 	if (root) {
@@ -648,10 +648,10 @@ again:			remove_next = 1 + (end > next->vm_end);
 		__insert_vm_struct(mm, insert);
 	}
 
-	if (mapping)
-		spin_unlock(&mapping->i_mmap_lock);
 	if (anon_vma)
 		anon_vma_unlock(anon_vma);
+	if (mapping)
+		spin_unlock(&mapping->i_mmap_lock);
 
 	if (remove_next) {
 		if (file) {
