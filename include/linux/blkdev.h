@@ -47,6 +47,7 @@ struct request_list {
 	int elvpriv;
 	mempool_t *rq_pool;
 	wait_queue_head_t wait[2];
+	unsigned long rh_reserved;
 };
 
 /*
