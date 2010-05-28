@@ -725,7 +725,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	struct inode	*inode;
 	int		flags = O_RDONLY|O_LARGEFILE;
 	__be32		err;
-	int		host_err;
+	int		host_err = 0;
 
 	validate_process_creds();
 
@@ -762,7 +762,8 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	 * Check to see if there are any leases on this file.
 	 * This may block while leases are broken.
 	 */
-	host_err = break_lease(inode, O_NONBLOCK | ((access & NFSD_MAY_WRITE) ? FMODE_WRITE : 0));
+	if (!(access & NFSD_MAY_NOT_BREAK_LEASE))
+		host_err = break_lease(inode, O_NONBLOCK | ((access & NFSD_MAY_WRITE) ? O_WRONLY : 0));
 	if (host_err == -EWOULDBLOCK)
 		host_err = -ETIMEDOUT;
 	if (host_err) /* NOMEM or WOULDBLOCK */
@@ -1165,7 +1166,8 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if ((u64)count > ~(u64)offset)
 		return nfserr_inval;
 
-	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
+	err = nfsd_open(rqstp, fhp, S_IFREG,
+			NFSD_MAY_WRITE|NFSD_MAY_NOT_BREAK_LEASE, &file);
 	if (err)
 		return err;
 	if (EX_ISSYNC(fhp->fh_export)) {
