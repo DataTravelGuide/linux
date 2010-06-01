@@ -69,6 +69,9 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 	.nr_balance_failed	= 0,			\
 }
 
+extern int __node_distance(int, int);
+#define node_distance(a, b) __node_distance(a, b)
+
 extern void __init dump_numa_cpu_topology(void);
 
 extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
