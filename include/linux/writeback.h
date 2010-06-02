@@ -62,6 +62,9 @@ struct writeback_control {
 	 * so we use a single control to update them
 	 */
 	unsigned no_nrwrite_index_update:1;
+
+	/* reserved for Red Hat */
+	unsigned long rh_reserved[5];
 };
 
 /*
