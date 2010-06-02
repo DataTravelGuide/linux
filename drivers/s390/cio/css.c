@@ -1020,6 +1020,11 @@ static int __init channel_subsystem_init_sync(void)
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
 
+void channel_subsystem_reinit(void)
+{
+	chsc_enable_facility(CHSC_SDA_OC_MSS);
+}
+
 int sch_is_pseudo_sch(struct subchannel *sch)
 {
 	return sch == to_css(sch->dev.parent)->pseudo_subchannel;
