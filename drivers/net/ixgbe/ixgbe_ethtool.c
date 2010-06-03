@@ -2169,16 +2169,18 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	bool need_reset = false;
 
 	ethtool_op_set_flags(netdev, data);
-
-	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
-		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
 	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
 		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
+		need_reset = true;
+	}
+
+	if (need_reset) {
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else
