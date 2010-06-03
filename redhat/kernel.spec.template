@@ -1597,6 +1597,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jun 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-33.el6]
+- [netdrv] vlan: allow null VLAN ID to be used (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: Add boolean parameter to ixgbe_set_vmolr (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix bug when EITR=0 causing no writebacks (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: enable extremely low latency (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: added compat bits (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: dcb, do not tag tc_prio_control frames (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix ixgbe_tx_is_paused logic (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: always enable vlan strip/insert when DCB is enabled (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: remove some redundant code in setting FCoE FIP filter (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix wrong offset to fc_frame_header in ixgbe_fcoe_ddp (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix header len when unsplit packet overflows to data buffer (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix setting of promisc mode when using mac-vlans (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: Add support for VF MAC and VLAN configuration (Andy Gospodarek) [595555]
+- [netdrv] ixgbe: fix bug with vlan strip in promsic mode (Andy Gospodarek) [595555]
+- [virt] use unfair spinlock when running on hypervisor (Gleb Natapov) [599068]
+
 * Wed Jun 02 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-32.el6]
 - [kernel] sched: update normalized values on user updates via proc (Hendrik Brueckner) [590748]
 - [kernel] sched: Make tunable scaling style configurable (Hendrik Brueckner) [590748]
