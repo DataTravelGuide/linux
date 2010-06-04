@@ -284,8 +284,12 @@ static u8 * __init iommu_map_mmio_space(u64 address)
 {
 	u8 *ret;
 
-	if (!request_mem_region(address, MMIO_REGION_LENGTH, "amd_iommu"))
+	if (!request_mem_region(address, MMIO_REGION_LENGTH, "amd_iommu")) {
+		pr_err("AMD-Vi: Can not reserve memory region %llx for mmio\n",
+			address);
+		pr_err("AMD-Vi: This is a BIOS bug. Please complain to your hardware vendor\n");
 		return NULL;
+	}
 
 	ret = ioremap_nocache(address, MMIO_REGION_LENGTH);
 	if (ret != NULL)
