@@ -1196,6 +1196,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
+	r = -EINVAL;
+	if (npages > KVM_MEM_MAX_NR_PAGES)
+		goto out;
+
 	if (!npages)
 		mem->flags &= ~KVM_MEM_LOG_DIRTY_PAGES;
 
@@ -1804,13 +1808,10 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 	memslot = gfn_to_memslot_unaliased(kvm, gfn);
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
-		unsigned long *p = memslot->dirty_bitmap +
-					rel_gfn / BITS_PER_LONG;
-		int offset = rel_gfn % BITS_PER_LONG;
 
 		/* avoid RMW */
-		if (!test_bit(offset, p))
-			set_bit(offset, p);
+		if (!test_bit(rel_gfn, memslot->dirty_bitmap))
+			set_bit(rel_gfn, memslot->dirty_bitmap);
 	}
 }
 
