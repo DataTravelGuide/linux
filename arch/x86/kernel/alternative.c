@@ -51,6 +51,19 @@ static int __init setup_noreplace_smp(char *str)
 }
 __setup("noreplace-smp", setup_noreplace_smp);
 
+static enum {SL_DEFAULT, SL_TICKET, SL_UNFAIR} spinlock_type = SL_DEFAULT;
+
+static int __init setup_spinlock_type(char *str)
+{
+	if (!strcmp("ticket", str))
+		spinlock_type = SL_TICKET;
+	else if (!strcmp("unfair", str))
+		spinlock_type = SL_UNFAIR;
+
+	return 1;
+}
+__setup("spinlock-type=", setup_spinlock_type);
+
 #ifdef CONFIG_PARAVIRT
 static int __initdata_or_module noreplace_paravirt = 0;
 
@@ -429,6 +442,14 @@ void __init alternative_instructions(void)
 	   Other CPUs are not running. */
 	stop_nmi();
 
+	if (spinlock_type == SL_DEFAULT)
+	       	spinlock_type = boot_cpu_has(X86_FEATURE_HYPERVISOR) ?
+			SL_UNFAIR : SL_TICKET;
+
+	if (spinlock_type == SL_UNFAIR) {
+		printk(KERN_INFO "alternatives: switching to unfair spinlock\n");
+		setup_force_cpu_cap(X86_FEATURE_UNFAIR_SPINLOCK);
+	}
 	/*
 	 * Don't stop machine check exceptions while patching.
 	 * MCEs only happen when something got corrupted and in this

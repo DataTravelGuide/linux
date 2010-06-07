@@ -77,7 +77,7 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 		"movb %1, %b0\n\t"
 		/* don't need lfence here, because loads are in-order */
 		"jmp 2b\n",
-		"", X86_FEATURE_HYPERVISOR)"\n\t"
+		"", X86_FEATURE_UNFAIR_SPINLOCK)"\n\t"
 		"cmpw $0, %1\n\t"
 		"jne 3b\n\t"
 		"jmp 1b\n\t"
@@ -111,7 +111,7 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 	asm volatile(
 		ALTERNATIVE(UNLOCK_LOCK_PREFIX"incb (%0);"ASM_NOP3,
 			    UNLOCK_LOCK_ALT_PREFIX"movw $0, (%0)",
-			    X86_FEATURE_HYPERVISOR)
+			    X86_FEATURE_UNFAIR_SPINLOCK)
 		:
 		: "Q" (&lock->slock)
 		: "memory", "cc");
@@ -137,7 +137,7 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 		     ALTERNATIVE(
 		     "movzwl %1, %2\n\t"
 		     /* don't need lfence here, because loads are in-order */
-		     "jmp 2b\n\t", "", X86_FEATURE_HYPERVISOR)"\n\t"
+		     "jmp 2b\n\t", "", X86_FEATURE_UNFAIR_SPINLOCK)"\n\t"
 		     "cmp $0, %1\n\t"
 		     "jne 3b\n\t"
 		     "jmp 1b\n\t"
@@ -173,7 +173,7 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 {
 	asm volatile(ALTERNATIVE(UNLOCK_LOCK_PREFIX "incw (%0);"ASM_NOP3,
 				 UNLOCK_LOCK_ALT_PREFIX"movl $0, (%0)",
-				 X86_FEATURE_HYPERVISOR)
+				 X86_FEATURE_UNFAIR_SPINLOCK)
 		     :
 		     : "Q" (&lock->slock)
 		     : "memory", "cc");
