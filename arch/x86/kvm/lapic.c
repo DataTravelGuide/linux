@@ -390,6 +390,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			break;
 		}
 
+		if (!kvm_vcpu_is_bsp(apic->vcpu))
+			result = 0;
+
 		kvm_vcpu_kick(vcpu);
 		break;
 
