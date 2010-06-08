@@ -2867,6 +2867,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
