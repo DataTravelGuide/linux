@@ -124,6 +124,10 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	@cp $(SOURCES)/$(SPECFILE) $(SOURCES)/../SPECS
 	@cp $(TESTPATCH) $(SOURCES)/linux-kernel-test.patch
 	@cp configs/Makefile $(SOURCES)/Makefile.config
+	@# if the extrakeys.pub doesn't exist, create a empty one
+	@(if [ ! -f extrakeys.pub ]; then \
+		touch extrakeys.pub; \
+	fi)
 	@cp genkey perf perf-archive Makefile.common kabi/{find-provides,kabitool,check-kabi} kabi/Module.kabi_{i686,ppc64,s390x,x86_64} configs/{config-*,merge.pl} extrakeys.pub $(SOURCES)/
 
 rh-sources: setup-source sources-rh
