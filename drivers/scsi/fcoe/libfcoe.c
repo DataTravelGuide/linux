@@ -342,7 +342,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 
 	fcf = fip->sel_fcf;
 	lp = fip->lp;
-	if (!fcf || !lp->port_id)
+	if (!fcf || (ports && !lp->port_id))
 		return;
 
 	len = sizeof(*kal) + ports * sizeof(*vn);
@@ -702,7 +702,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				return -EINVAL;
-			continue;
+			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
 		rlen -= dlen;
@@ -884,7 +884,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				goto drop;
-			continue;
+			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
 		rlen -= dlen;
@@ -1231,8 +1231,11 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 	fip->reset_req = 0;
 	spin_unlock_bh(&fip->lock);
 
-	if (reset)
+	if (reset) {
 		fc_lport_reset(fip->lp);
+		/* restart things with a solicitation */
+		fcoe_ctlr_solicit(fip, NULL);
+	}
 
 	if (fip->send_ctlr_ka) {
 		fip->send_ctlr_ka = 0;
