@@ -204,20 +204,20 @@ int __init check_nmi_watchdog(void)
 
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
+	for_each_possible_cpu(cpu)
+		prev_nmi_count[cpu] = get_nmi_count(cpu);
 #ifdef CONFIG_SMP
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0);
 #endif
 
-	for_each_possible_cpu(cpu)
-		prev_nmi_count[cpu] = get_nmi_count(cpu);
 	local_irq_enable();
-	mdelay((20 * 1000) / nmi_hz); /* wait 20 ticks */
+	mdelay((40 * 1000) / nmi_hz); /* wait 40 ticks */
 
 	for_each_online_cpu(cpu) {
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
-		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5)
+		if (get_nmi_count(cpu) - prev_nmi_count[cpu] == 0)
 			report_broken_nmi(cpu, prev_nmi_count);
 	}
 	endflag = 1;
