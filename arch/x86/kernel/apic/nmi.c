@@ -167,7 +167,7 @@ static __init void nmi_cpu_busy(void *data)
 
 static void report_broken_nmi(int cpu, unsigned int *prev_nmi_count)
 {
-	struct hrtimer *hrtimer = &__get_cpu_var(nmi_watchdog_hrtimer);
+	struct hrtimer *hrtimer = &per_cpu(nmi_watchdog_hrtimer, cpu);
 
 	printk(KERN_CONT "\n");
 
