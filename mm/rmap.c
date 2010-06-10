@@ -281,7 +281,8 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
 
 	if (empty) {
 		/* We no longer need the root anon_vma */
-		drop_anon_vma(anon_vma->root);
+		if (anon_vma->root != anon_vma)
+			drop_anon_vma(anon_vma->root);
 		anon_vma_free(anon_vma);
 	}
 }
