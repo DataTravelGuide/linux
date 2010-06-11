@@ -214,7 +214,7 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
  */
 int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 {
-	struct anon_vma_chain *avc, *root_avc;
+	struct anon_vma_chain *avc;
 	struct anon_vma *anon_vma;
 
 	/* Don't bother if the parent process has no anon_vma here. */
@@ -236,14 +236,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	if (!avc)
 		goto out_error_free_anon_vma;
 
-	/*
-	 * Get the root anon_vma on the list by depending on the ordering
-	 * of the same_vma list setup by previous invocations of anon_vma_fork.
-	 * The root anon_vma will always be referenced by the last item
-	 * in the anon_vma_chain list.
-	 */
-	root_avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-	anon_vma->root = root_avc->anon_vma;
+	anon_vma->root = pvma->anon_vma->root;
 	/*
 	 * With KSM refcounts, an anon_vma can stay around longer than the
 	 * process it belongs to.  The root anon_vma needs to be pinned
@@ -787,15 +780,13 @@ static void __page_set_anon_rmap(struct page *page,
 	 * If the page isn't exclusively mapped into this vma,
 	 * we must use the _oldest_ possible anon_vma for the
 	 * page mapping!
-	 *
-	 * So take the last AVC chain entry in the vma, which is
-	 * the deepest ancestor, and use the anon_vma from that.
 	 */
 	if (!exclusive) {
-		struct anon_vma_chain *avc;
-		avc = list_entry(vma->anon_vma_chain.prev, struct anon_vma_chain, same_vma);
-		anon_vma = avc->anon_vma;
-	}
+		if (PageAnon(page))
+			return;
+		anon_vma = anon_vma->root;
+	} else
+		BUG_ON(PageAnon(page));
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
