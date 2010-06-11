@@ -1506,11 +1506,12 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
  */
 
 static int mem_cgroup_move_account(struct page_cgroup *pc,
-	struct mem_cgroup *from, struct mem_cgroup *to)
+	struct mem_cgroup *from, struct mem_cgroup *to, int page_size)
 {
 	struct mem_cgroup_per_zone *from_mz, *to_mz;
-	int nid, zid;
+	int nid, zid, i;
 	int ret = -EBUSY;
+	int pagenum = page_size/PAGE_SIZE;
 	struct page *page;
 	int cpu;
 	struct mem_cgroup_stat *stat;
@@ -1534,11 +1535,14 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		goto out;
 
 	if (!mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->res, PAGE_SIZE);
-	mem_cgroup_charge_statistics(from, pc, -PAGE_SIZE);
+		res_counter_uncharge(&from->res, page_size);
+	mem_cgroup_charge_statistics(from, pc, -page_size);
 
 	page = pc->page;
 	if (page_is_file_cache(page) && page_mapped(page)) {
+		/*
+		 * We don't tace care of page_size bacause the page is file cache.
+		 */
 		cpu = smp_processor_id();
 		/* Update mapped_file data for mem_cgroup "from" */
 		stat = &from->stat;
@@ -1554,12 +1558,20 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	}
 
 	if (do_swap_account && !mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->memsw, PAGE_SIZE);
+		res_counter_uncharge(&from->memsw, page_size);
 	css_put(&from->css);
+	if (page_size > PAGE_SIZE) {
+		for (i = 0; i < pagenum - 1; i++)
+			css_put(&from->css);
+	}
 
 	css_get(&to->css);
+	if (page_size > PAGE_SIZE) {
+		for (i = 0; i < pagenum - 1; i++)
+			css_get(&from->css);
+	}
 	pc->mem_cgroup = to;
-	mem_cgroup_charge_statistics(to, pc, PAGE_SIZE);
+	mem_cgroup_charge_statistics(to, pc, page_size);
 	ret = 0;
 out:
 	unlock_page_cgroup(pc);
@@ -1584,6 +1596,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	struct cgroup *cg = child->css.cgroup;
 	struct cgroup *pcg = cg->parent;
 	struct mem_cgroup *parent;
+	int page_size = PAGE_SIZE;
 	int ret;
 
 	/* Is ROOT ? */
@@ -1593,9 +1606,11 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 
 	parent = mem_cgroup_from_cont(pcg);
 
+	if (PageTransHuge(page))
+		page_size = PAGE_SIZE << compound_order(page);
 
 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
-				      PAGE_SIZE);
+				      page_size);
 	if (ret || !parent)
 		return ret;
 
@@ -1609,7 +1624,9 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	if (ret)
 		goto cancel;
 
-	ret = mem_cgroup_move_account(pc, child, parent);
+	compound_lock(page);
+	ret = mem_cgroup_move_account(pc, child, parent, page_size);
+	compound_unlock(page);
 
 	putback_lru_page(page);
 	if (!ret) {
@@ -1626,9 +1643,9 @@ uncharge:
 	css_put(&parent->css);
 	/* uncharge if move fails */
 	if (!mem_cgroup_is_root(parent)) {
-		res_counter_uncharge(&parent->res, PAGE_SIZE);
+		res_counter_uncharge(&parent->res, page_size);
 		if (do_swap_account)
-			res_counter_uncharge(&parent->memsw, PAGE_SIZE);
+			res_counter_uncharge(&parent->memsw, page_size);
 	}
 	return ret;
 }
