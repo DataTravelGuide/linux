@@ -1910,6 +1910,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			mmu_page_remove_parent_pte(child, sptep);
+			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %lx new %lx\n",
 				 spte_to_pfn(*sptep), pfn);
@@ -1971,6 +1973,16 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 				     level, gfn, pfn, false, true);
 			++vcpu->stat.pf_fixed;
 			break;
+		}
+
+		if (is_shadow_present_pte(*iterator.sptep) &&
+		    !is_large_pte(*iterator.sptep))
+			continue;
+
+		if (is_large_pte(*iterator.sptep)) {
+			rmap_remove(vcpu->kvm, iterator.sptep);
+			__set_spte(iterator.sptep, shadow_trap_nonpresent_pte);
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
 		if (*iterator.sptep == shadow_trap_nonpresent_pte) {
