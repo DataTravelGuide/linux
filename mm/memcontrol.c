@@ -1371,11 +1371,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	 */
 	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
-	if (page_size != PAGE_SIZE) {
-		int i;
-		for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
-			css_get(&mem->css);
-	}
 done:
 	return 0;
 nomem:
@@ -1453,11 +1448,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 				res_counter_uncharge(&mem->memsw, page_size);
 		}
 		css_put(&mem->css);
-		if (page_size != PAGE_SIZE) {
-			int i;
-			for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
-				css_put(&mem->css);
-		}
 		return;
 	}
 
@@ -1509,9 +1499,8 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	struct mem_cgroup *from, struct mem_cgroup *to, int page_size)
 {
 	struct mem_cgroup_per_zone *from_mz, *to_mz;
-	int nid, zid, i;
+	int nid, zid;
 	int ret = -EBUSY;
-	int pagenum = page_size/PAGE_SIZE;
 	struct page *page;
 	int cpu;
 	struct mem_cgroup_stat *stat;
@@ -1560,16 +1549,9 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	if (do_swap_account && !mem_cgroup_is_root(from))
 		res_counter_uncharge(&from->memsw, page_size);
 	css_put(&from->css);
-	if (page_size > PAGE_SIZE) {
-		for (i = 0; i < pagenum - 1; i++)
-			css_put(&from->css);
-	}
 
 	css_get(&to->css);
-	if (page_size > PAGE_SIZE) {
-		for (i = 0; i < pagenum - 1; i++)
-			css_get(&from->css);
-	}
+
 	pc->mem_cgroup = to;
 	mem_cgroup_charge_statistics(to, pc, page_size);
 	ret = 0;
@@ -1950,14 +1932,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
 	/* at swapout, this memcg will be accessed to record to swap */
-	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		css_put(&mem->css);
-		if (page_size != PAGE_SIZE) {
-			int i;
-			for (i = 1; i < (page_size >> PAGE_SHIFT); i++)
-				css_put(&mem->css);
-		}
-	}
 
 	return mem;
 
@@ -1982,7 +1958,53 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
 	VM_BUG_ON(page->mapping);
 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
 }
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+/*
+ * When a hugepage is charged, PCG_USED bit (see mem_cgroup_commit_charge())
+ * is set only onto the head of pages in hugepage. When we split it, we
+ * have to set all page_cgroups for all pages to have proper page_cgroup.
+ *
+ * The caller must guarantee all pages under splitting will never be used
+ * for other purpose than we currently use it now.
+ */
 
+void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
+{
+	struct mem_cgroup *mem;
+	struct page_cgroup *target, *origin;
+	struct mem_cgroup_per_zone *mz;
+
+	/* compound lock is held and we're safe */
+	origin = lookup_page_cgroup(head);
+	if (!origin)
+		return;
+	if (!origin || !PageCgroupUsed(origin))
+		return;
+	target = lookup_page_cgroup(tail);
+	BUG_ON(!target);
+	mem = origin->mem_cgroup;
+
+	BUG_ON(mem != origin->mem_cgroup);
+	/*
+  	 * Because css_get() is called only against the head, we need to
+ 	 * call this against tails
+ 	 */
+	css_get(&mem->css);
+	target->flags = 0;
+	target->mem_cgroup =  mem;
+	smp_wmb();
+	SetPageCgroupUsed(target);
+	/*
+	 * LRU accounting should be decremented, because it's updated when
+ 	 * the target is added to lru. we're under zone->lru_lock
+ 	 */
+	if (PageCgroupAcctLRU(origin)) {
+		mz = page_cgroup_zoneinfo(origin);
+		MEM_CGROUP_ZSTAT(mz, page_lru(head)) -= 1;
+	}
+}
+
+#endif
 #ifdef CONFIG_SWAP
 /*
  * called after __delete_from_swap_cache() and drop "page" account.
