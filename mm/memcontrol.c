@@ -495,20 +495,22 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *mem,
 
 static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
 					 struct page_cgroup *pc,
-					 bool charge)
+					 long size)
 {
-	int val = (charge) ? 1 : -1;
 	struct mem_cgroup_stat *stat = &mem->stat;
 	struct mem_cgroup_stat_cpu *cpustat;
+	long numpages = size >> PAGE_SHIFT;
 	int cpu = get_cpu();
 
 	cpustat = &stat->cpustat[cpu];
 	if (PageCgroupCache(pc))
-		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_CACHE, val);
+		__mem_cgroup_stat_add_safe(cpustat,
+			MEM_CGROUP_STAT_CACHE, numpages);
 	else
-		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_RSS, val);
+		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_RSS,
+			numpages);
 
-	if (charge)
+	if (numpages > 0)
 		__mem_cgroup_stat_add_safe(cpustat,
 				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
 	else
@@ -1477,7 +1479,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 		break;
 	}
 
-	mem_cgroup_charge_statistics(mem, pc, true);
+	mem_cgroup_charge_statistics(mem, pc, page_size);
 
 	unlock_page_cgroup(pc);
 }
@@ -1528,7 +1530,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 
 	if (!mem_cgroup_is_root(from))
 		res_counter_uncharge(&from->res, PAGE_SIZE);
-	mem_cgroup_charge_statistics(from, pc, false);
+	mem_cgroup_charge_statistics(from, pc, -PAGE_SIZE);
 
 	page = pc->page;
 	if (page_is_file_cache(page) && page_mapped(page)) {
@@ -1552,7 +1554,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 
 	css_get(&to->css);
 	pc->mem_cgroup = to;
-	mem_cgroup_charge_statistics(to, pc, true);
+	mem_cgroup_charge_statistics(to, pc, PAGE_SIZE);
 	ret = 0;
 out:
 	unlock_page_cgroup(pc);
@@ -1910,7 +1912,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	}
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		mem_cgroup_swap_statistics(mem, true);
-	mem_cgroup_charge_statistics(mem, pc, false);
+	mem_cgroup_charge_statistics(mem, pc, -page_size);
 
 	ClearPageCgroupUsed(pc);
 	/*
