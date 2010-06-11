@@ -635,6 +635,7 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
+	int numpages = 1;
 
 	if (mem_cgroup_disabled())
 		return;
@@ -647,8 +648,10 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
 	 * removed from global LRU.
 	 */
+	if (unlikely(PageTransHuge(page)))
+		numpages = 1 << compound_order(page);
 	mz = page_cgroup_zoneinfo(pc);
-	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+	MEM_CGROUP_ZSTAT(mz, lru) -= numpages;
 	if (mem_cgroup_is_root(pc->mem_cgroup))
 		return;
 	VM_BUG_ON(list_empty(&pc->lru));
@@ -686,6 +689,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
+	int numpages = 1;
 
 	if (mem_cgroup_disabled())
 		return;
@@ -698,9 +702,10 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	smp_rmb();
 	if (!PageCgroupUsed(pc))
 		return;
-
+	if (unlikely(PageTransHuge(page)))
+		numpages = 1 << compound_order(page);
 	mz = page_cgroup_zoneinfo(pc);
-	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+	MEM_CGROUP_ZSTAT(mz, lru) += numpages;
 	SetPageCgroupAcctLRU(pc);
 	if (mem_cgroup_is_root(pc->mem_cgroup))
 		return;
