@@ -1045,7 +1045,6 @@ static int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head,
 static void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	__u16 flags;
-	__u16 used;
 	/* Flush out used index updates. This is paired
 	 * with the barrier that the Guest executes when enabling
 	 * interrupts. */
