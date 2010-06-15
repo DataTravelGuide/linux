@@ -133,7 +133,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 					  u64 file_offset)
 {
 	struct rb_root *root = &tree->tree;
-	struct rb_node *prev;
+	struct rb_node *uninitialized_var(prev);
 	struct rb_node *ret;
 	struct btrfs_ordered_extent *entry;
 
