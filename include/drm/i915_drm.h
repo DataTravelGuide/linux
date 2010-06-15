@@ -27,6 +27,12 @@
 #ifndef _I915_DRM_H_
 #define _I915_DRM_H_
 
+/* RHEL6 include only.  The issue is that scripts/check_headers.pl does not
+ * look at locally included files.  This causes a bogus warning in the
+ * compile.  The real fix is to completely rewrite check_headers.pl to
+ * "do the right thing". */
+#include <linux/types.h>
+
 #include "drm.h"
 
 /* Please note that modifications to all structs defined here are
