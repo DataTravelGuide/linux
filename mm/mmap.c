@@ -2014,8 +2014,9 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		new->vm_ops->open(new);
 
 	if (new_below) {
-		unsigned long old_end = vma->vm_end;
+		unsigned long old_end;
 
+		old_end = vma->vm_end;
 		err = vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
 			((addr - new->vm_start) >> PAGE_SHIFT), new);
 		if (!err && vma->vm_flags & VM_EXEC)
