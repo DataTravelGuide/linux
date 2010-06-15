@@ -133,7 +133,7 @@ static struct irq_info mk_virq_info(unsigned short evtchn, unsigned short virq)
 			.cpu = 0, .u.virq = virq };
 }
 
-static struct irq_info mk_pirq_info(unsigned short evtchn,
+static __used struct irq_info mk_pirq_info(unsigned short evtchn,
 				    unsigned short gsi, unsigned short vector)
 {
 	return (struct irq_info) { .type = IRQT_PIRQ, .evtchn = evtchn,
@@ -179,7 +179,7 @@ static unsigned virq_from_irq(unsigned irq)
 	return info->u.virq;
 }
 
-static unsigned gsi_from_irq(unsigned irq)
+static __used unsigned gsi_from_irq(unsigned irq)
 {
 	struct irq_info *info = info_for_irq(irq);
 
@@ -189,7 +189,7 @@ static unsigned gsi_from_irq(unsigned irq)
 	return info->u.pirq.gsi;
 }
 
-static unsigned vector_from_irq(unsigned irq)
+static __used unsigned vector_from_irq(unsigned irq)
 {
 	struct irq_info *info = info_for_irq(irq);
 
