@@ -1597,6 +1597,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 15 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-34.el6]
+- [net] Revert "[net] bridge: make bridge support netpoll" (Herbert Xu) [602927]
+- [virt] always invalidate and flush on spte page size change (Andrea Arcangeli) [578134]
+- [mm] root anon vma bugchecks (Andrea Arcangeli) [578134]
+- [mm] resurrect the check in page_address_in_vma (Andrea Arcangeli) [578134]
+- [mm] root anon vma use root (Andrea Arcangeli) [578134]
+- [mm] avoid ksm hang (Andrea Arcangeli) [578134]
+- [mm] always add new vmas at the end (Andrea Arcangeli) [578134]
+- [mm] remove unnecessary lock from __vma_link (Andrea Arcangeli) [578134]
+- [mm] optimize hugepage tracking for memcgroup & handle splitting (Rik van Riel) [597108]
+- [mm] properly move a transparent hugepage between cgroups (Rik van Riel) [597081]
+- [mm] scale statistics if the page is a transparent hugepage (Rik van Riel) [597077]
+- [mm] enhance mem_cgroup_charge_statistics with a page_size argument (Rik van Riel) [597058]
+- [virt] add option to disable spinlock patching on hypervisor (Gleb Natapov) [599068]
+- [virt] xen: don't touch xsave in cr4 (Andrew Jones) [599069]
+- [drm] Update core to current drm-linus (Adam Jackson) [589547 589792 597022]
+- [mm] fix refcount bug in anon_vma code (Rik van Riel) [602739]
+
 * Thu Jun 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-33.el6]
 - [netdrv] vlan: allow null VLAN ID to be used (Andy Gospodarek) [595555]
 - [netdrv] ixgbe: Add boolean parameter to ixgbe_set_vmolr (Andy Gospodarek) [595555]
