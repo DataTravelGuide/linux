@@ -129,7 +129,7 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
-static struct virtio_driver virtio_rng = {
+static struct virtio_driver virtio_rng_driver = {
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
@@ -145,7 +145,7 @@ static int __init init(void)
 	if (!random_data)
 		return -ENOMEM;
 
-	err = register_virtio_driver(&virtio_rng);
+	err = register_virtio_driver(&virtio_rng_driver);
 	if (err)
 		kfree(random_data);
 	return err;
@@ -154,7 +154,7 @@ static int __init init(void)
 static void __exit fini(void)
 {
 	kfree(random_data);
-	unregister_virtio_driver(&virtio_rng);
+	unregister_virtio_driver(&virtio_rng_driver);
 }
 module_init(init);
 module_exit(fini);

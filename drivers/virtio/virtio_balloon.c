@@ -360,7 +360,7 @@ static unsigned int features[] = {
 	VIRTIO_BALLOON_F_STATS_VQ,
 };
 
-static struct virtio_driver virtio_balloon = {
+static struct virtio_driver virtio_balloon_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
@@ -373,12 +373,12 @@ static struct virtio_driver virtio_balloon = {
 
 static int __init init(void)
 {
-	return register_virtio_driver(&virtio_balloon);
+	return register_virtio_driver(&virtio_balloon_driver);
 }
 
 static void __exit fini(void)
 {
-	unregister_virtio_driver(&virtio_balloon);
+	unregister_virtio_driver(&virtio_balloon_driver);
 }
 module_init(init);
 module_exit(fini);
