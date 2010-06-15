@@ -2305,6 +2305,7 @@ done:
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(pci_msi_off);
 
 /**
  * __pci_reset_function - reset a PCI device function
