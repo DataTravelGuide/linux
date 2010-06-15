@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/tracepoint.h>
+#include <linux/mmzone.h>
 
 /*
  * The order of these masks is important. Matching masks will be seen
