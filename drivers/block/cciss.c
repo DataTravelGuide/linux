@@ -4550,7 +4550,6 @@ static void fail_all_cmds(unsigned long ctlr)
 	/* If we get here, the board is apparently dead. */
 	ctlr_info_t *h = hba[ctlr];
 	CommandList_struct *c;
-	unsigned long flags;
 
 	printk(KERN_WARNING "cciss%d: controller not responding.\n", h->ctlr);
 	h->alive = 0;		/* the controller apparently died... */
