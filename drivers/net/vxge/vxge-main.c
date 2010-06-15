@@ -4016,7 +4016,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	int high_dma = 0;
 	u64 vpath_mask = 0;
 	struct vxgedev *vdev;
-	struct vxge_config ll_config;
+	struct vxge_config *ll_config = NULL;
 	struct vxge_hw_device_config *device_config = NULL;
 	struct vxge_hw_device_attr attr;
 	int i, j, no_of_vpath = 0, max_vpath_supported = 0;
@@ -4068,17 +4068,24 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit0;
 	}
 
-	memset(&ll_config, 0, sizeof(struct vxge_config));
-	ll_config.tx_steering_type = TX_MULTIQ_STEERING;
-	ll_config.intr_type = MSI_X;
-	ll_config.napi_weight = NEW_NAPI_WEIGHT;
-	ll_config.rth_steering = RTH_STEERING;
+	ll_config = kzalloc(sizeof(*ll_config), GFP_KERNEL);
+	if (!ll_config) {
+		ret = -ENOMEM;
+		vxge_debug_init(VXGE_ERR,
+			"ll_config : malloc failed %s %d",
+			__FILE__, __LINE__);
+		goto _exit0;
+	}
+	ll_config->tx_steering_type = TX_MULTIQ_STEERING;
+	ll_config->intr_type = MSI_X;
+	ll_config->napi_weight = NEW_NAPI_WEIGHT;
+	ll_config->rth_steering = RTH_STEERING;
 
 	/* get the default configuration parameters */
 	vxge_hw_device_config_default_get(device_config);
 
 	/* initialize configuration parameters */
-	vxge_device_config_init(device_config, &ll_config.intr_type);
+	vxge_device_config_init(device_config, &ll_config->intr_type);
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -4131,7 +4138,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		(unsigned long long)pci_resource_start(pdev, 0));
 
 	status = vxge_hw_device_hw_info_get(attr.bar0,
-			&ll_config.device_hw_info);
+			&ll_config->device_hw_info);
 	if (status != VXGE_HW_OK) {
 		vxge_debug_init(VXGE_ERR,
 			"%s: Reading of hardware info failed."
@@ -4140,7 +4147,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit3;
 	}
 
-	if (ll_config.device_hw_info.fw_version.major !=
+	if (ll_config->device_hw_info.fw_version.major !=
 		VXGE_DRIVER_FW_VERSION_MAJOR) {
 		vxge_debug_init(VXGE_ERR,
 			"%s: Incorrect firmware version."
@@ -4150,7 +4157,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit3;
 	}
 
-	vpath_mask = ll_config.device_hw_info.vpath_mask;
+	vpath_mask = ll_config->device_hw_info.vpath_mask;
 	if (vpath_mask == 0) {
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s: No vpaths available in device", VXGE_DRIVER_NAME);
@@ -4171,7 +4178,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* Enable SRIOV mode, if firmware has SRIOV support and if it is a PF */
 	if ((VXGE_HW_FUNCTION_MODE_SRIOV ==
-		ll_config.device_hw_info.function_mode) &&
+		ll_config->device_hw_info.function_mode) &&
 		(max_config_dev > 1) && (pdev->is_physfn)) {
 			ret = pci_enable_sriov(pdev, max_config_dev - 1);
 			if (ret)
@@ -4183,7 +4190,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * Configure vpaths and get driver configured number of vpaths
 	 * which is less than or equal to the maximum vpaths per function.
 	 */
-	no_of_vpath = vxge_config_vpaths(device_config, vpath_mask, &ll_config);
+	no_of_vpath = vxge_config_vpaths(device_config, vpath_mask, ll_config);
 	if (!no_of_vpath) {
 		vxge_debug_ll_config(VXGE_ERR,
 			"%s: No more vpaths to configure", VXGE_DRIVER_NAME);
@@ -4218,21 +4225,21 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/* set private device info */
 	pci_set_drvdata(pdev, hldev);
 
-	ll_config.gro_enable = VXGE_GRO_ALWAYS_AGGREGATE;
-	ll_config.fifo_indicate_max_pkts = VXGE_FIFO_INDICATE_MAX_PKTS;
-	ll_config.addr_learn_en = addr_learn_en;
-	ll_config.rth_algorithm = RTH_ALG_JENKINS;
-	ll_config.rth_hash_type_tcpipv4 = VXGE_HW_RING_HASH_TYPE_TCP_IPV4;
-	ll_config.rth_hash_type_ipv4 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config.rth_hash_type_tcpipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config.rth_hash_type_ipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config.rth_hash_type_tcpipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config.rth_hash_type_ipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config.rth_bkt_sz = RTH_BUCKET_SIZE;
-	ll_config.tx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
-	ll_config.rx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
+	ll_config->gro_enable = VXGE_GRO_ALWAYS_AGGREGATE;
+	ll_config->fifo_indicate_max_pkts = VXGE_FIFO_INDICATE_MAX_PKTS;
+	ll_config->addr_learn_en = addr_learn_en;
+	ll_config->rth_algorithm = RTH_ALG_JENKINS;
+	ll_config->rth_hash_type_tcpipv4 = VXGE_HW_RING_HASH_TYPE_TCP_IPV4;
+	ll_config->rth_hash_type_ipv4 = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_hash_type_tcpipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_hash_type_ipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_hash_type_tcpipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_hash_type_ipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_bkt_sz = RTH_BUCKET_SIZE;
+	ll_config->tx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
+	ll_config->rx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 
-	if (vxge_device_register(hldev, &ll_config, high_dma, no_of_vpath,
+	if (vxge_device_register(hldev, ll_config, high_dma, no_of_vpath,
 		&vdev)) {
 		ret = -EINVAL;
 		goto _exit4;
@@ -4263,7 +4270,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		vdev->vpaths[j].vdev = vdev;
 		vdev->vpaths[j].max_mac_addr_cnt = max_mac_vpath;
 		memcpy((u8 *)vdev->vpaths[j].macaddr,
-				(u8 *)ll_config.device_hw_info.mac_addrs[i],
+				ll_config->device_hw_info.mac_addrs[i],
 				ETH_ALEN);
 
 		/* Initialize the mac address list header */
@@ -4284,18 +4291,18 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	macaddr = (u8 *)vdev->vpaths[0].macaddr;
 
-	ll_config.device_hw_info.serial_number[VXGE_HW_INFO_LEN - 1] = '\0';
-	ll_config.device_hw_info.product_desc[VXGE_HW_INFO_LEN - 1] = '\0';
-	ll_config.device_hw_info.part_number[VXGE_HW_INFO_LEN - 1] = '\0';
+	ll_config->device_hw_info.serial_number[VXGE_HW_INFO_LEN - 1] = '\0';
+	ll_config->device_hw_info.product_desc[VXGE_HW_INFO_LEN - 1] = '\0';
+	ll_config->device_hw_info.part_number[VXGE_HW_INFO_LEN - 1] = '\0';
 
 	vxge_debug_init(VXGE_TRACE, "%s: SERIAL NUMBER: %s",
-		vdev->ndev->name, ll_config.device_hw_info.serial_number);
+		vdev->ndev->name, ll_config->device_hw_info.serial_number);
 
 	vxge_debug_init(VXGE_TRACE, "%s: PART NUMBER: %s",
-		vdev->ndev->name, ll_config.device_hw_info.part_number);
+		vdev->ndev->name, ll_config->device_hw_info.part_number);
 
 	vxge_debug_init(VXGE_TRACE, "%s: Neterion %s Server Adapter",
-		vdev->ndev->name, ll_config.device_hw_info.product_desc);
+		vdev->ndev->name, ll_config->device_hw_info.product_desc);
 
 	vxge_debug_init(VXGE_TRACE,
 		"%s: MAC ADDR: %02X:%02X:%02X:%02X:%02X:%02X",
@@ -4307,11 +4314,11 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	vxge_debug_init(VXGE_TRACE,
 		"%s: Firmware version : %s Date : %s", vdev->ndev->name,
-		ll_config.device_hw_info.fw_version.version,
-		ll_config.device_hw_info.fw_date.date);
+		ll_config->device_hw_info.fw_version.version,
+		ll_config->device_hw_info.fw_date.date);
 
 	if (new_device) {
-		switch (ll_config.device_hw_info.function_mode) {
+		switch (ll_config->device_hw_info.function_mode) {
 		case VXGE_HW_FUNCTION_MODE_SINGLE_FUNCTION:
 			vxge_debug_init(VXGE_TRACE,
 			"%s: Single Function Mode Enabled", vdev->ndev->name);
@@ -4334,7 +4341,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	vxge_print_parm(vdev, vpath_mask);
 
 	/* Store the fw version for ethttool option */
-	strcpy(vdev->fw_version, ll_config.device_hw_info.fw_version.version);
+	strcpy(vdev->fw_version, ll_config->device_hw_info.fw_version.version);
 	memcpy(vdev->ndev->dev_addr, (u8 *)vdev->vpaths[0].macaddr, ETH_ALEN);
 	memcpy(vdev->ndev->perm_addr, vdev->ndev->dev_addr, ETH_ALEN);
 
@@ -4373,7 +4380,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * present to prevent such a failure.
 	 */
 
-	if (ll_config.device_hw_info.function_mode ==
+	if (ll_config->device_hw_info.function_mode ==
 		VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION)
 		if (vdev->config.intr_type == INTA)
 			vxge_hw_device_unmask_all(hldev);
@@ -4385,6 +4392,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	VXGE_COPY_DEBUG_INFO_TO_LL(vdev, vxge_hw_device_error_level_get(hldev),
 		vxge_hw_device_trace_level_get(hldev));
 
+	kfree(ll_config);
 	return 0;
 
 _exit5:
@@ -4402,6 +4410,7 @@ _exit2:
 _exit1:
 	pci_disable_device(pdev);
 _exit0:
+	kfree(ll_config);
 	kfree(device_config);
 	driver_config->config_dev_cnt--;
 	pci_set_drvdata(pdev, NULL);
