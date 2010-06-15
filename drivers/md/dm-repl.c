@@ -1736,7 +1736,8 @@ replicator_resume(struct dm_target *ti)
 static int
 _replicator_slink_message(struct dm_target *ti, int argc, char **argv)
 {
-	int args_used, r, tmp;
+	int args_used, tmp;
+	int r = -EINVAL;
 	unsigned slink_nr;
 	struct replog_c *replog_c = ti->private;
 	struct dm_repl_slink *slink;
