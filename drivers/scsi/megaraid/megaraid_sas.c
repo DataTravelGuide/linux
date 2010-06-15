@@ -2234,7 +2234,6 @@ process_fw_state_change_wq(struct work_struct *work)
 {
 	struct megasas_instance *instance =
 		container_of(work, struct megasas_instance, work_init);
-	u32 wait;
 	unsigned long flags;
 
 	if (instance->adprecovery != MEGASAS_ADPRESET_SM_INFAULT) {
