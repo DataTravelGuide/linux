@@ -2231,7 +2231,7 @@ static int hotkey_user_mask_set(const u32 mask)
  *
  * Can be called even if the hotkey subdriver is inactive
  */
-static int tpacpi_hotkey_driver_mask_set(const u32 mask)
+static __used int tpacpi_hotkey_driver_mask_set(const u32 mask)
 {
 	int rc;
 
