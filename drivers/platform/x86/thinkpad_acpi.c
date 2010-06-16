@@ -281,6 +281,7 @@ struct ibm_init_struct {
 	char param[32];
 
 	int (*init) (struct ibm_init_struct *);
+	mode_t base_procfs_mode;
 	struct ibm_struct *data;
 };
 
@@ -4611,6 +4612,10 @@ static int video_read(struct seq_file *m)
 		return 0;
 	}
 
+	/* Even reads can crash X.org, so... */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	status = video_outputsw_get();
 	if (status < 0)
 		return status;
@@ -4643,6 +4648,10 @@ static int video_write(char *buf)
 
 	if (video_supported == TPACPI_VIDEO_NONE)
 		return -ENODEV;
+
+	/* Even reads can crash X.org, let alone writes... */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	enable = 0;
 	disable = 0;
@@ -7878,9 +7887,10 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 		"%s installed\n", ibm->name);
 
 	if (ibm->read) {
-		mode_t mode;
+		mode_t mode = iibm->base_procfs_mode;
 
-		mode = S_IRUGO;
+		if (!mode)
+			mode = S_IRUGO;
 		if (ibm->write)
 			mode |= S_IWUSR;
 		entry = proc_create_data(ibm->name, mode, proc_dir,
@@ -8071,6 +8081,7 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 #ifdef CONFIG_THINKPAD_ACPI_VIDEO
 	{
 		.init = video_init,
+		.base_procfs_mode = S_IRUSR,
 		.data = &video_driver_data,
 	},
 #endif
