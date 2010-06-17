@@ -317,6 +317,26 @@ static inline void compound_unlock(struct page *page)
 #endif
 }
 
+static inline void compound_lock_irqsave(struct page *page,
+					 unsigned long *flagsp)
+{
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	unsigned long flags;
+	local_irq_save(flags);
+	compound_lock(page);
+	*flagsp = flags;
+#endif
+}
+
+static inline void compound_unlock_irqrestore(struct page *page,
+					      unsigned long flags)
+{
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	compound_unlock(page);
+	local_irq_restore(flags);
+#endif
+}
+
 static inline struct page *compound_head(struct page *page)
 {
 	if (unlikely(PageTail(page)))
