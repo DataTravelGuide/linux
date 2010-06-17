@@ -95,6 +95,7 @@ static void put_compound_page(struct page *page)
 		struct page *page_head = page->first_page;
 		smp_rmb();
 		if (likely(PageTail(page) && get_page_unless_zero(page_head))) {
+			unsigned long flags;
 			if (unlikely(!PageHead(page_head))) {
 				/* PageHead is cleared after PageTail */
 				smp_rmb();
@@ -108,10 +109,10 @@ static void put_compound_page(struct page *page)
 			 */
 			smp_mb();
 			/* page_head wasn't a dangling pointer */
-			compound_lock(page_head);
+			compound_lock_irqsave(page_head, &flags);
 			if (unlikely(!PageTail(page))) {
 				/* __split_huge_page_refcount run before us */
-				compound_unlock(page_head);
+				compound_unlock_irqrestore(page_head, flags);
 				VM_BUG_ON(PageHead(page_head));
 			out_put_head:
 				if (put_page_testzero(page_head))
@@ -134,7 +135,7 @@ static void put_compound_page(struct page *page)
 			VM_BUG_ON(atomic_read(&page->_count) <= 0);
 			atomic_dec(&page->_count);
 			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
-			compound_unlock(page_head);
+			compound_unlock_irqrestore(page_head, flags);
 			if (put_page_testzero(page_head))
 				__put_compound_page(page_head);
 		} else {
