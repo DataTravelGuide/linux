@@ -268,8 +268,10 @@ again:
 			 * PG_compound_lock on a page that could be
 			 * freed from under us.
 			 */
-			if (page != page_head)
+			if (page != page_head) {
 				get_page(page_head);
+				put_page(page);
+			}
 			local_irq_enable();
 		} else {
 			local_irq_enable();
@@ -278,26 +280,16 @@ again:
 	}
 #else
 	page_head = compound_head(page);
-	if (page != page_head)
+	if (page != page_head) {
 		get_page(page_head);
+		put_page(page);
+	}
 #endif
 
 	lock_page(page_head);
-	if (unlikely(page_head != page)) {
-		compound_lock(page_head);
-		if (unlikely(!PageTail(page))) {
-			compound_unlock(page_head);
-			unlock_page(page_head);
-			put_page(page_head);
-			put_page(page);
-			goto again;
-		}
-	}
 	if (!page_head->mapping) {
 		unlock_page(page_head);
-		if (page_head != page)
-			put_page(page_head);
-		put_page(page);
+		put_page(page_head);
 		goto again;
 	}
 
@@ -321,13 +313,7 @@ again:
 	get_futex_key_refs(key);
 
 	unlock_page(page_head);
-	if (page != page_head) {
-		VM_BUG_ON(!PageTail(page));
-		/* releasing compound_lock after page_lock won't matter */
-		compound_unlock(page_head);
-		put_page(page_head);
-	}
-	put_page(page);
+	put_page(page_head);
 	return 0;
 }
 
