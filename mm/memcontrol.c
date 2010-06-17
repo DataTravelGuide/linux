@@ -1580,6 +1580,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	struct mem_cgroup *parent;
 	int page_size = PAGE_SIZE;
 	int ret;
+	unsigned long flags;
 
 	/* Is ROOT ? */
 	if (!pcg)
@@ -1606,9 +1607,9 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	if (ret)
 		goto cancel;
 
-	compound_lock(page);
+	compound_lock_irqsave(page, &flags);
 	ret = mem_cgroup_move_account(pc, child, parent, page_size);
-	compound_unlock(page);
+	compound_unlock_irqrestore(page, flags);
 
 	putback_lru_page(page);
 	if (!ret) {
