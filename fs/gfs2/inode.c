@@ -171,7 +171,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 {
 	struct inode *inode;
 	struct gfs2_inode *ip;
-	struct gfs2_glock *io_gl;
+	struct gfs2_glock *io_gl = NULL;
 	int error;
 
 	inode = gfs2_iget(sb, no_addr);
@@ -200,6 +200,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb,
 		ip->i_iopen_gh.gh_gl->gl_object = ip;
 
 		gfs2_glock_put(io_gl);
+		io_gl = NULL;
 
 		if ((type == DT_UNKNOWN) && (no_formal_ino == 0))
 			goto gfs2_nfsbypass;
@@ -230,7 +231,8 @@ gfs2_nfsbypass:
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
-	gfs2_glock_put(io_gl);
+	if (io_gl)
+		gfs2_glock_put(io_gl);
 fail_put:
 	if (inode->i_state & I_NEW)
 		ip->i_gl->gl_object = NULL;
@@ -258,7 +260,7 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 {
 	struct gfs2_sbd *sdp;
 	struct gfs2_inode *ip;
-	struct gfs2_glock *io_gl;
+	struct gfs2_glock *io_gl = NULL;
 	int error;
 	struct gfs2_holder gh;
 	struct inode *inode;
@@ -295,6 +297,7 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 
 	ip->i_iopen_gh.gh_gl->gl_object = ip;
 	gfs2_glock_put(io_gl);
+	io_gl = NULL;
 
 	inode->i_mode = DT2IF(DT_UNKNOWN);
 
@@ -321,7 +324,8 @@ void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
-	gfs2_glock_put(io_gl);
+	if (io_gl)
+		gfs2_glock_put(io_gl);
 fail_put:
 	ip->i_gl->gl_object = NULL;
 	gfs2_glock_put(ip->i_gl);
