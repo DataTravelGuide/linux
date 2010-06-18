@@ -120,40 +120,49 @@ STA_OPS(last_seq_ctrl);
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
-	char buf[30 + STA_TID_NUM * 70], *p = buf;
+	char *buf, *p;
 	int i;
 	struct sta_info *sta = file->private_data;
+	const size_t bufsize = 30 + STA_TID_NUM * 70;
+	ssize_t retval;
+
+	buf = kmalloc(30 + STA_TID_NUM * 70, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	p = buf;
 
 	spin_lock_bh(&sta->lock);
-	p += scnprintf(p, sizeof(buf)+buf-p, "next dialog_token is %#02x\n",
+	p += scnprintf(p, bufsize+buf-p, "next dialog_token is %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
 	for (i = 0; i < STA_TID_NUM; i++) {
-		p += scnprintf(p, sizeof(buf)+buf-p, "TID %02d:", i);
-		p += scnprintf(p, sizeof(buf)+buf-p, " RX=%x",
+		p += scnprintf(p, bufsize+buf-p, "TID %02d:", i);
+		p += scnprintf(p, bufsize+buf-p, " RX=%x",
 				sta->ampdu_mlme.tid_state_rx[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/DTKN=%#.2x",
+		p += scnprintf(p, bufsize+buf-p, "/DTKN=%#.2x",
 				sta->ampdu_mlme.tid_state_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/SSN=%#.3x",
+		p += scnprintf(p, bufsize+buf-p, "/SSN=%#.3x",
 				sta->ampdu_mlme.tid_state_rx[i] ?
 				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
-		p += scnprintf(p, sizeof(buf)+buf-p, " TX=%x",
+		p += scnprintf(p, bufsize+buf-p, " TX=%x",
 				sta->ampdu_mlme.tid_state_tx[i]);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/DTKN=%#.2x",
+		p += scnprintf(p, bufsize+buf-p, "/DTKN=%#.2x",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/SSN=%#.3x",
+		p += scnprintf(p, bufsize+buf-p, "/SSN=%#.3x",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->ssn : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "/pending=%03d",
+		p += scnprintf(p, bufsize+buf-p, "/pending=%03d",
 				sta->ampdu_mlme.tid_state_tx[i] ?
 				skb_queue_len(&sta->ampdu_mlme.tid_tx[i]->pending) : 0);
-		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
+		p += scnprintf(p, bufsize+buf-p, "\n");
 	}
 	spin_unlock_bh(&sta->lock);
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	retval = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+	kfree(buf);
+	return retval;
 }
 STA_OPS(agg_status);
 
