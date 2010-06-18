@@ -1537,6 +1537,12 @@ get_unmapped_area_prot(struct file *file, unsigned long addr, unsigned long len,
 }
 EXPORT_SYMBOL(get_unmapped_area_prot);
 
+static bool should_randomize(void)
+{
+	return (current->flags & PF_RANDOMIZE) &&
+		!(current->personality & ADDR_NO_RANDOMIZE);
+}
+
 #define SHLIB_BASE	0x00110000
 
 unsigned long
@@ -1555,7 +1561,8 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 		return addr;
 
 	if (!addr)
-		addr = randomize_range(SHLIB_BASE, 0x01000000, len);
+		addr = !should_randomize() ? SHLIB_BASE :
+			randomize_range(SHLIB_BASE, 0x01000000, len);
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -1583,7 +1590,7 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 			 * Up until the brk area we randomize addresses
 			 * as much as possible:
 			 */
-			if (addr >= 0x01000000) {
+			if (addr >= 0x01000000 && should_randomize()) {
 				tmp = randomize_range(0x01000000,
 					PAGE_ALIGN(max(mm->start_brk,
 					(unsigned long)0x08000000)), len);
