@@ -730,11 +730,7 @@ int __must_check pci_set_mwi(struct pci_dev *dev);
 int pci_try_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
-#ifdef CONFIG_PCI_MSI
 void pci_msi_off(struct pci_dev *dev);
-#else
-static inline void pci_msi_off(struct pci_dev *dev) {}
-#endif
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size);
