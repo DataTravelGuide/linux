@@ -2137,6 +2137,7 @@ loop_again:
 		 */
 		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
 			break;
+		cond_resched();
 	}
 out:
 	/*
