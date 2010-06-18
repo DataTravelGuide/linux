@@ -235,8 +235,8 @@ static void extract_elf64_rela(const void *buffer, int secix, int targetix,
 		set32(&relocation.r_type, ELF64_R_TYPE(r_info));
 
 		if (ELF64_R_SYM(r_info) >= nsyms) {
-			fprintf(stderr, "Invalid symbol ID %lx in relocation %zu\n",
-				ELF64_R_SYM(r_info), loop);
+			fprintf(stderr, "Invalid symbol ID %zx in relocation %zu\n",
+				(size_t)ELF64_R_SYM(r_info), loop);
 			exit(1);
 		}
 
@@ -302,8 +302,8 @@ static void extract_elf64_rel(const void *buffer, int secix, int targetix,
 		set32(&relocation.r_type, ELF64_R_TYPE(r_info));
 
 		if (ELF64_R_SYM(r_info) >= nsyms) {
-			fprintf(stderr, "Invalid symbol ID %lx in relocation %zi\n",
-				ELF64_R_SYM(r_info), loop);
+			fprintf(stderr, "Invalid symbol ID %zx in relocation %zu\n",
+				(size_t)ELF64_R_SYM(r_info), loop);
 			exit(1);
 		}
 
