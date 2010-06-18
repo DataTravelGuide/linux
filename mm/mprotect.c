@@ -145,11 +145,13 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long oldflags = vma->vm_flags;
 	long nrpages = (end - start) >> PAGE_SHIFT;
-	unsigned long charged = 0, old_end = vma->vm_end;
+	unsigned long charged = 0;
+	unsigned long old_end;
 	pgoff_t pgoff;
 	int error;
 	int dirty_accountable = 0;
 
+	old_end = vma->vm_end;
 	if (newflags == oldflags) {
 		*pprev = vma;
 		return 0;
