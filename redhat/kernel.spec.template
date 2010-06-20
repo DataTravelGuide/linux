@@ -1597,6 +1597,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Jun 20 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-37.el6]
+- [virt] Disable transparent hugepages when running under Xen (Dor Laor) [605566]
+- [pci] fix compilation when CONFIG_PCI_MSI=n (Vivek Goyal) [589397]
+- [block] virtio_blk: support barriers without FLUSH feature (Christoph Hellwig) [602595]
+- [mm] make compound_lock irqsafe in put_page (Andrea Arcangeli) [605354]
+- [mm] remove compound_lock from futex (Andrea Arcangeli) [605354]
+- [mm] memcontrol compound_lock irqsafe (Andrea Arcangeli) [605354]
+- [mm] add compound_lock_irqsave/irqrestore (Andrea Arcangeli) [605354]
+
 * Wed Jun 16 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-36.el6]
 - [virt] virtio-pci: Disable MSI at startup (Vivek Goyal) [589397]
 - [mm] Reenable transparent hugepages (Aristeu Rozanski) [602436]
