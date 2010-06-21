@@ -57,9 +57,8 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 	req->outstanding_cmds[sp->handle] = NULL;
 	ctx = sp->ctx;
 	ctx->timeout(sp);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 	ctx->free(sp);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 void
@@ -113,14 +112,21 @@ qla2x00_async_logio_timeout(srb_t *sp)
 {
 	fc_port_t *fcport = sp->fcport;
 	struct srb_logio *lio = sp->ctx;
+	uint16_t data[2];
 
 	DEBUG2(printk(KERN_WARNING
 	    "scsi(%ld:%x): Async-%s timeout.\n",
 	    fcport->vha->host_no, sp->handle, lio->ctx.name));
 
 	fcport->flags &= ~FCF_ASYNC_SENT;
-	if (lio->ctx.type == SRB_LOGIN_CMD)
+	if (lio->ctx.type == SRB_LOGIN_CMD) {
 		qla2x00_post_async_logout_work(fcport->vha, fcport, NULL);
+		/* Retry as needed. */
+		data[0] = MBS_COMMAND_ERROR;
+		data[1] = lio->flags & SRB_LOGIN_RETRIED ?
+		    QLA_LOGIO_LOGIN_RETRIED: 0;
+		qla2x00_post_async_login_done_work(fcport->vha, fcport, data);
+	}
 }
 
 static void
@@ -290,10 +296,11 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		else
-			qla2x00_mark_device_lost(vha, fcport, 1, 0);
+			qla2x00_mark_device_lost(vha, fcport, 1, 1);
 		break;
 	case MBS_PORT_ID_USED:
 		fcport->loop_id = data[1];
+		qla2x00_post_async_logout_work(vha, fcport, NULL);
 		qla2x00_post_async_login_work(vha, fcport, NULL);
 		break;
 	case MBS_LOOP_ID_USED:
@@ -301,7 +308,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		rval = qla2x00_find_new_loop_id(vha, fcport);
 		if (rval != QLA_SUCCESS) {
 			fcport->flags &= ~FCF_ASYNC_SENT;
-			qla2x00_mark_device_lost(vha, fcport, 1, 0);
+			qla2x00_mark_device_lost(vha, fcport, 1, 1);
 			break;
 		}
 		qla2x00_post_async_login_work(vha, fcport, NULL);
@@ -333,7 +340,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	else
-		qla2x00_mark_device_lost(vha, fcport, 1, 0);
+		qla2x00_mark_device_lost(vha, fcport, 1, 1);
 
 	return QLA_SUCCESS;
 }
