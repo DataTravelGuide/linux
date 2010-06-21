@@ -34,7 +34,8 @@
 #include <scsi/scsi_bsg_fc.h>
 
 #include "qla_bsg.h"
-#define QLA2XXX_DRIVER_NAME  "qla2xxx"
+#define QLA2XXX_DRIVER_NAME	"qla2xxx"
+#define QLA2XXX_APIDEV		"ql2xapidev"
 
 /*
  * We have MAILBOX_REGISTER_COUNT sized arrays in a few places,
