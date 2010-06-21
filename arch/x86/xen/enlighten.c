@@ -28,7 +28,6 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include <linux/huge_mm.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
@@ -1132,12 +1131,6 @@ asmlinkage void __init xen_start_kernel(void)
 	 * if CONFIG_HIGHPTE is enabled.
 	 */
 	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
-
-	/*
-	 * Hugepages do not work in Xen's memory model, because even
-	 * contiguous "physical" pages may not be machine contiguous.
-	 */
-	disable_transparent_hugepages();
 
 #ifdef CONFIG_X86_64
 	/* Work out if we support NX */

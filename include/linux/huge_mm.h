@@ -66,11 +66,6 @@ extern pmd_t *page_check_address_pmd(struct page *page,
 #endif /* CONFIG_DEBUG_VM */
 
 extern unsigned long transparent_hugepage_flags;
-static inline void disable_transparent_hugepages(void)
-{
-	transparent_hugepage_flags = 0;
-}
-
 extern int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			  pmd_t *dst_pmd, pmd_t *src_pmd,
 			  struct vm_area_struct *vma,
@@ -120,11 +115,6 @@ static inline int PageTransCompound(struct page *page)
 #define HPAGE_PMD_SIZE ({ BUG(); 0; })
 
 #define transparent_hugepage_enabled(__vma) 0
-
-static inline void disable_transparent_hugepages(void)
-{
-	return;
-}
 
 #define transparent_hugepage_flags 0UL
 static inline int split_huge_page(struct page *page)

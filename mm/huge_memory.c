@@ -482,7 +482,15 @@ static int __init hugepage_init(void)
 	int err;
 #ifdef CONFIG_SYSFS
 	static struct kobject *hugepage_kobj;
+#endif
 
+	err = -EINVAL;
+	if (!has_transparent_hugepage()) {
+		transparent_hugepage_flags = 0;
+		goto out;
+	}
+
+#ifdef CONFIG_SYSFS
 	err = -ENOMEM;
 	hugepage_kobj = kobject_create_and_add("redhat_transparent_hugepage",
 					       mm_kobj);

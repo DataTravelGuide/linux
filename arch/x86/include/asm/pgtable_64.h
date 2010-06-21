@@ -199,6 +199,11 @@ static inline int pmd_trans_huge(pmd_t pmd)
 {
 	return pmd_val(pmd) & _PAGE_PSE;
 }
+
+static inline int has_transparent_hugepage(void)
+{
+	return cpu_has_pse;
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #define mk_pmd(page, pgprot)   pfn_pmd(page_to_pfn(page), (pgprot))
