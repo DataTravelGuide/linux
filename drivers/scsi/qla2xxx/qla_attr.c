@@ -318,7 +318,8 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
+		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)
+			|| IS_QLA81XX(ha))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
