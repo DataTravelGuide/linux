@@ -274,6 +274,12 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 			return count;
 		}
 
+		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+				"HBA not online, failing OptROM read.\n"));
+			return -EINVAL;
+		}
+
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Reading flash region -- 0x%x/0x%x.\n",
 		    ha->optrom_region_start, ha->optrom_region_size));
