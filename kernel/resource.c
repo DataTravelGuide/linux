@@ -169,6 +169,36 @@ static struct resource * __request_resource(struct resource *root, struct resour
 	}
 }
 
+static void __release_child_resources(struct resource *r)
+{
+	struct resource *tmp, *p;
+	resource_size_t size;
+
+	p = r->child;
+	r->child = NULL;
+	while (p) {
+		tmp = p;
+		p = p->sibling;
+
+		tmp->parent = NULL;
+		tmp->sibling = NULL;
+		__release_child_resources(tmp);
+
+		printk(KERN_DEBUG "release child resource %pR\n", tmp);
+		/* need to restore size, and keep flags */
+		size = tmp->end - tmp->start + 1;
+		tmp->start = 0;
+		tmp->end = size - 1;
+	}
+}
+
+void release_child_resources(struct resource *r)
+{
+	write_lock(&resource_lock);
+	__release_child_resources(r);
+	write_unlock(&resource_lock);
+}
+
 static int __release_resource(struct resource *old)
 {
 	struct resource *tmp, **p;
