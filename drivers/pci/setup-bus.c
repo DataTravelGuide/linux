@@ -126,23 +126,12 @@ void pci_setup_cardbus(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_setup_cardbus);
 
-/* Initialize bridges with base/limit values we have collected.
-   PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)
-   requires that if there is no I/O ports or memory behind the
-   bridge, corresponding range must be turned off by writing base
-   value greater than limit to the bridge's base/limit registers.
-
-   Note: care must be taken when updating I/O base/limit registers
-   of bridges which support 32-bit I/O. This update requires two
-   config space writes, so it's quite possible that an I/O window of
-   the bridge will have some undesirable address (e.g. 0) after the
-   first write. Ditto 64-bit prefetchable MMIO.  */
-static void pci_setup_bridge(struct pci_bus *bus)
+static void pci_setup_bridge_io(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct resource *res;
 	struct pci_bus_region region;
-	u32 l, bu, lu, io_upper16;
+	u32 l, io_upper16;
 
 	if (pci_is_enabled(bridge))
 		return;
@@ -161,8 +150,7 @@ static void pci_setup_bridge(struct pci_bus *bus)
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
-	}
-	else {
+	} else {
 		/* Clear upper 16 bits of I/O base/limit. */
 		io_upper16 = 0;
 		l = 0x00f0;
@@ -174,22 +162,35 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	pci_write_config_dword(bridge, PCI_IO_BASE, l);
 	/* Update upper 16 bits of I/O base/limit. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, io_upper16);
+}
 
-	/* Set up the top and bottom of the PCI Memory segment
-	   for this bus. */
+static void pci_setup_bridge_mmio(struct pci_bus *bus)
+{
+	struct pci_dev *bridge = bus->self;
+	struct resource *res;
+	struct pci_bus_region region;
+	u32 l;
+
+	/* Set up the top and bottom of the PCI Memory segment for this bus. */
 	res = bus->resource[1];
 	pcibios_resource_to_bus(bridge, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
-	}
-	else {
+	} else {
 		l = 0x0000fff0;
 		dev_info(&bridge->dev, "  bridge window [mem disabled]\n");
 	}
 	pci_write_config_dword(bridge, PCI_MEMORY_BASE, l);
+}
 
+static void pci_setup_bridge_mmio_pref(struct pci_bus *bus)
+{
+	struct pci_dev *bridge = bus->self;
+	struct resource *res;
+	struct pci_bus_region region;
+	u32 l, bu, lu;
 	/* Clear out the upper 32 bits of PREF limit.
 	   If PCI_PREF_BASE_UPPER32 was non-zero, this temporarily
 	   disables PREF range, which is ok. */
@@ -217,9 +218,47 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	/* Set the upper 32 bits of PREF base & limit. */
 	pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32, bu);
 	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, lu);
+}
 
+static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
+{
+	struct pci_dev *bridge = bus->self;
+
+	dev_info(&bridge->dev, "PCI bridge to [bus %02x-%02x]\n",
+		 bus->secondary, bus->subordinate);
+
+	if (type & IORESOURCE_IO)
+		pci_setup_bridge_io(bus);
+
+	if (type & IORESOURCE_MEM)
+		pci_setup_bridge_mmio(bus);
+
+	if (type & IORESOURCE_PREFETCH)
+		pci_setup_bridge_mmio_pref(bus);
+ 
 	pci_write_config_word(bridge, PCI_BRIDGE_CONTROL, bus->bridge_ctl);
 }
+ 
+/* Initialize bridges with base/limit values we have collected.
+   PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)
+   requires that if there is no I/O ports or memory behind the
+   bridge, corresponding range must be turned off by writing base
+   value greater than limit to the bridge's base/limit registers.
+
+   Note: care must be taken when updating I/O base/limit registers
+   of bridges which support 32-bit I/O. This update requires two
+   config space writes, so it's quite possible that an I/O window of
+   the bridge will have some undesirable address (e.g. 0) after the
+   first write. Ditto 64-bit prefetchable MMIO.  */
+static void pci_setup_bridge(struct pci_bus *bus)
+{
+	unsigned long type = IORESOURCE_IO | IORESOURCE_MEM |
+				  IORESOURCE_PREFETCH;
+
+	__pci_setup_bridge(bus, type);
+}
+
+
 
 /* Check whether the bridge supports optional I/O and
    prefetchable memory ranges. If not, the respective
