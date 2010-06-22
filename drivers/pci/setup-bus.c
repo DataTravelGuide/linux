@@ -71,37 +71,37 @@ static void free_failed_list(struct resource_list_x *head)
 	head->next = NULL;
 }
 
-static void pbus_assign_resources_sorted(const struct pci_bus *bus,
-					 struct resource_list_x *fail_head)
+static void __dev_sort_resources(struct pci_dev *dev,
+				 struct resource_list *head)
 {
-	struct pci_dev *dev;
-	struct resource *res;
-	struct resource_list head, *list, *tmp;
-	int idx;
+	u16 class = dev->class >> 8;
 
-	head.next = NULL;
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		u16 class = dev->class >> 8;
+	/* Don't touch classless devices or host bridges or ioapics.  */
+	if (class == PCI_CLASS_NOT_DEFINED || class == PCI_CLASS_BRIDGE_HOST)
+		return;
 
-		/* Don't touch classless devices or host bridges or ioapics.  */
-		if (class == PCI_CLASS_NOT_DEFINED ||
-		    class == PCI_CLASS_BRIDGE_HOST)
-			continue;
-
-		/* Don't touch ioapic devices already enabled by firmware */
-		if (class == PCI_CLASS_SYSTEM_PIC) {
-			u16 command;
-			pci_read_config_word(dev, PCI_COMMAND, &command);
-			if (command & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY))
-				continue;
-		}
-
-		pdev_sort_resources(dev, &head);
+	/* Don't touch ioapic devices already enabled by firmware */
+	if (class == PCI_CLASS_SYSTEM_PIC) {
+		u16 command;
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if (command & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY))
+			return;
 	}
 
-	for (list = head.next; list;) {
+	pdev_sort_resources(dev, head);
+}
+
+static void __assign_resources_sorted(struct resource_list *head,
+				 struct resource_list_x *fail_head)
+{
+	struct resource *res;
+	struct resource_list *list, *tmp;
+	int idx;
+
+	for (list = head->next; list;) {
 		res = list->res;
 		idx = res - &list->dev->resource[0];
+
 		if (pci_assign_resource(list->dev, idx)) {
 			if (fail_head && !pci_is_root_bus(list->dev->bus))
 				add_to_failed_list(fail_head, list->dev, res);
@@ -113,6 +113,19 @@ static void pbus_assign_resources_sorted(const struct pci_bus *bus,
 		list = list->next;
 		kfree(tmp);
 	}
+}
+
+static void pbus_assign_resources_sorted(const struct pci_bus *bus,
+					 struct resource_list_x *fail_head)
+{
+	struct pci_dev *dev;
+	struct resource_list head;
+
+	head.next = NULL;
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		__dev_sort_resources(dev, &head);
+
+	__assign_resources_sorted(&head, fail_head);
 }
 
 void pci_setup_cardbus(struct pci_bus *bus)
