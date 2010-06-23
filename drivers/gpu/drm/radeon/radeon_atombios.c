@@ -530,6 +530,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			}
 
 			/* look up gpio for ddc, hpd */
+			ddc_bus.valid = false;
+			hpd.hpd = RADEON_HPD_NONE;
 			if ((le16_to_cpu(path->usDeviceTag) &
 			     (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) == 0) {
 				for (j = 0; j < con_obj->ucNumberOfObjects; j++) {
@@ -585,9 +587,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						break;
 					}
 				}
-			} else {
-				hpd.hpd = RADEON_HPD_NONE;
-				ddc_bus.valid = false;
 			}
 
 			/* needed for aux chan transactions */
@@ -1183,7 +1182,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		lvds->native_mode.vtotal = lvds->native_mode.vdisplay +
 			le16_to_cpu(lvds_info->info.sLCDTiming.usVBlanking_Time);
 		lvds->native_mode.vsync_start = lvds->native_mode.vdisplay +
-			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
+			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncOffset);
 		lvds->native_mode.vsync_end = lvds->native_mode.vsync_start +
 			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
 		lvds->panel_pwr_delay =
@@ -1273,7 +1272,7 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 	switch (crev) {
 	case 1:
 		tv_info = (ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
-		if (index > MAX_SUPPORTED_TV_TIMING)
+		if (index >= MAX_SUPPORTED_TV_TIMING)
 			return false;
 
 		mode->crtc_htotal = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
@@ -1311,7 +1310,7 @@ bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
 		break;
 	case 2:
 		tv_info_v1_2 = (ATOM_ANALOG_TV_INFO_V1_2 *)(mode_info->atom_context->bios + data_offset);
-		if (index > MAX_SUPPORTED_TV_TIMING_V1_2)
+		if (index >= MAX_SUPPORTED_TV_TIMING_V1_2)
 			return false;
 
 		dtd_timings = &tv_info_v1_2->aModeTimings[index];

@@ -554,7 +554,7 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, (rdev->mc.mc_vram_size - 1) | 0x3FF);
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 16);
@@ -1169,11 +1169,11 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		ps_thread_count = 128;
 
 	sq_thread_resource_mgmt = NUM_PS_THREADS(ps_thread_count);
-	sq_thread_resource_mgmt |= NUM_VS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_GS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_ES_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 = NUM_HS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
+	sq_thread_resource_mgmt |= NUM_VS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_GS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_ES_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 = NUM_HS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
 
 	sq_stack_resource_mgmt_1 = NUM_PS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);
 	sq_stack_resource_mgmt_1 |= NUM_VS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);

@@ -668,6 +668,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
+	struct drm_connector *connector;
 	int r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
@@ -677,6 +678,11 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 		return 0;
 	}
 	rdev = dev->dev_private;
+
+	/* turn off display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+	}
 
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -708,6 +714,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* evict remaining vram memory */
 	radeon_bo_evict_vram(rdev);
 
+	radeon_agp_suspend(rdev);
+
 	pci_save_state(dev->pdev);
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
@@ -722,6 +730,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 int radeon_resume_kms(struct drm_device *dev)
 {
+	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
 	acquire_console_sem();
@@ -736,6 +745,12 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
+
+	/* turn on display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	}
+
 	radeon_fbdev_set_suspend(rdev, 0);
 	release_console_sem();
 
