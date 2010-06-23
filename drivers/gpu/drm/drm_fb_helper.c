@@ -240,18 +240,22 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
-bool drm_fb_helper_force_kernel_mode(void)
+bool drm_fb_helper_force_kernel_mode_locked(void)
 {
 	int i = 0;
 	bool ret, error = false;
 	struct drm_fb_helper *helper;
-
-	if (list_empty(&kernel_fb_helper_list))
-		return false;
+	struct drm_mode_set *mode_set;
+	struct drm_crtc *crtc;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
 		for (i = 0; i < helper->crtc_count; i++) {
-			struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
+			mode_set = &helper->crtc_info[i].mode_set;
+			crtc = helper->crtc_info[i].mode_set.crtc;
+
+			if (!crtc->enabled)
+				continue;
+
 			ret = drm_crtc_helper_set_config(mode_set);
 			if (ret)
 				error = true;
@@ -260,12 +264,37 @@ bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
+bool drm_fb_helper_force_kernel_mode(void)
+{
+	bool ret;
+	struct drm_device *dev;
+	struct drm_fb_helper *helper;
+	struct drm_mode_set *mode_set;
+
+	if (list_empty(&kernel_fb_helper_list)) {
+		DRM_DEBUG_KMS("no fb helper list??\n");
+		return false;
+	}
+
+	/* Get the DRM device */
+	helper = list_first_entry(&kernel_fb_helper_list,
+				  struct drm_fb_helper,
+				  kernel_fb_list);
+	mode_set = &helper->crtc_info[0].mode_set;
+	dev = mode_set->crtc->dev;
+
+	mutex_lock(&dev->mode_config.mutex);
+	ret = drm_fb_helper_force_kernel_mode_locked();
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
+
 int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
-	DRM_ERROR("panic occurred, switching back to text console\n");
-	return drm_fb_helper_force_kernel_mode();
-	return 0;
+	printk(KERN_ERR "panic occurred, switching back to text console\n");
+	return drm_fb_helper_force_kernel_mode_locked();
 }
 EXPORT_SYMBOL(drm_fb_helper_panic);
 
