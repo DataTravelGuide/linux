@@ -488,11 +488,18 @@ void __devinit e1000_check_options(struct e1000_adapter *adapter)
 				adapter->itr_setting = adapter->itr;
 				adapter->itr = 20000;
 				break;
+			case 4:
+				DPRINTK(PROBE, INFO,
+					"%s set to simplified "
+					"(2000-8000) ints mode\n", opt.name);
+				adapter->itr_setting = adapter->itr;
+				break;
 			default:
 				e1000_validate_option(&adapter->itr, &opt,
 				        adapter);
-				/* save the setting, because the dynamic bits change itr */
-				/* clear the lower two bits because they are
+				/* save the setting, because the dynamic bits
+				 * change itr.
+				 * clear the lower two bits because they are
 				 * used as control */
 				adapter->itr_setting = adapter->itr & ~3;
 				break;
