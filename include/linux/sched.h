@@ -1552,7 +1552,6 @@ struct task_struct {
 	/* bitmask of trace recursion */
 	unsigned long trace_recursion;
 #endif /* CONFIG_TRACING */
-	unsigned long stack_start;
 	/* reserved for Red Hat */
 	unsigned long rh_reserved[2];
 };
