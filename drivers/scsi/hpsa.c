@@ -3292,6 +3292,23 @@ static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 	return ARRAY_SIZE(products) - 1; /* generic unknown smart array */
 }
 
+static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
+	unsigned long *memory_bar)
+{
+	int i;
+
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++)
+		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM) {
+			/* addressing mode bits already removed */
+			*memory_bar = pci_resource_start(pdev, i);
+			dev_dbg(&pdev->dev, "memory BAR = %lx\n",
+				*memory_bar);
+			return 0;
+		}
+	dev_warn(&pdev->dev, "no memory BAR found\n");
+	return -ENODEV;
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 {
 	ushort command;
@@ -3334,21 +3351,9 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	 */
 	hpsa_interrupt_mode(h, pdev, h->board_id);
 
-	/* find the memory BAR */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM)
-			break;
-	}
-	if (i == DEVICE_COUNT_RESOURCE) {
-		dev_warn(&pdev->dev, "no memory BAR found\n");
-		err = -ENODEV;
+	err = hpsa_pci_find_memory_BAR(pdev, &h->paddr);
+	if (err)
 		goto err_out_free_res;
-	}
-
-	h->paddr = pci_resource_start(pdev, i); /* addressing mode bits
-						 * already removed
-						 */
-
 	h->vaddr = remap_pci_mem(h->paddr, 0x250);
 
 	/* Wait for the board to become ready.  */
