@@ -404,7 +404,7 @@ static void unmap_tx_frag(struct pci_dev *pdev, struct be_eth_wrb *wrb,
 	be_dws_le_to_cpu(wrb, sizeof(*wrb));
 
 	dma = (u64)wrb->frag_pa_hi << 32 | (u64)wrb->frag_pa_lo;
-	if (dma != 0) {
+	if (wrb->frag_len) {
 		if (unmap_single)
 			pci_unmap_single(pdev, dma, wrb->frag_len,
 				PCI_DMA_TODEVICE);
@@ -432,7 +432,7 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	map_head = txq->head;
 
 	if (skb->len > skb->data_len) {
-		int len = skb->len - skb->data_len;
+		int len = skb_headlen(skb);
 		busaddr = pci_map_single(pdev, skb->data, len,
 					 PCI_DMA_TODEVICE);
 		if (pci_dma_mapping_error(pdev, busaddr))
@@ -829,7 +829,6 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 
 done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
-	return;
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
@@ -886,8 +885,6 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	} else {
 		netif_receive_skb(skb);
 	}
-
-	return;
 }
 
 /* Process the RX completion indicated by rxcp when GRO is enabled */
@@ -967,7 +964,6 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	}
 
 	be_rx_stats_update(adapter, pkt_size, num_rcvd);
-	return;
 }
 
 static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
@@ -1061,8 +1057,6 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		/* Let be_worker replenish when memory is available */
 		adapter->rx_post_starved = true;
 	}
-
-	return;
 }
 
 static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
@@ -1100,7 +1094,7 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 		cur_index = txq->tail;
 		wrb = queue_tail_node(txq);
 		unmap_tx_frag(adapter->pdev, wrb, (unmap_skb_hdr &&
-					sent_skb->len > sent_skb->data_len));
+					skb_headlen(sent_skb)));
 		unmap_skb_hdr = false;
 
 		num_wrbs++;
@@ -1624,7 +1618,6 @@ static void be_msix_enable(struct be_adapter *adapter)
 		BE_NUM_MSIX_VECTORS);
 	if (status == 0)
 		adapter->msix_enabled = true;
-	return;
 }
 
 static void be_sriov_enable(struct be_adapter *adapter)
@@ -1636,7 +1629,6 @@ static void be_sriov_enable(struct be_adapter *adapter)
 		adapter->sriov_enabled = status ? false : true;
 	}
 #endif
-	return;
 }
 
 static void be_sriov_disable(struct be_adapter *adapter)
@@ -1743,7 +1735,44 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	be_free_irq(adapter, &adapter->rx_eq);
 done:
 	adapter->isr_registered = false;
-	return;
+}
+
+static int be_close(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_eq_obj *rx_eq = &adapter->rx_eq;
+	struct be_eq_obj *tx_eq = &adapter->tx_eq;
+	int vec;
+
+	cancel_delayed_work_sync(&adapter->work);
+
+	be_async_mcc_disable(adapter);
+
+	netif_stop_queue(netdev);
+	netif_carrier_off(netdev);
+	adapter->link_up = false;
+
+	be_intr_set(adapter, false);
+
+	if (adapter->msix_enabled) {
+		vec = be_msix_vec_get(adapter, tx_eq->q.id);
+		synchronize_irq(vec);
+		vec = be_msix_vec_get(adapter, rx_eq->q.id);
+		synchronize_irq(vec);
+	} else {
+		synchronize_irq(netdev->irq);
+	}
+	be_irq_unregister(adapter);
+
+	napi_disable(&rx_eq->napi);
+	napi_disable(&tx_eq->napi);
+
+	/* Wait for all pending tx completions to arrive so that
+	 * all tx skbs are freed.
+	 */
+	be_tx_compl_clean(adapter);
+
+	return 0;
 }
 
 static int be_open(struct net_device *netdev)
@@ -1776,27 +1805,29 @@ static int be_open(struct net_device *netdev)
 	/* Now that interrupts are on we can process async mcc */
 	be_async_mcc_enable(adapter);
 
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
+
 	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
 			&link_speed);
 	if (status)
-		goto ret_sts;
+		goto err;
 	be_link_status_update(adapter, link_up);
 
-	if (be_physfn(adapter))
-		status = be_vid_config(adapter);
-	if (status)
-		goto ret_sts;
-
 	if (be_physfn(adapter)) {
+		status = be_vid_config(adapter);
+		if (status)
+			goto err;
+
 		status = be_cmd_set_flow_control(adapter,
 				adapter->tx_fc, adapter->rx_fc);
 		if (status)
-			goto ret_sts;
+			goto err;
 	}
 
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
-ret_sts:
-	return status;
+	return 0;
+err:
+	be_close(adapter->netdev);
+	return -EIO;
 }
 
 static int be_setup_wol(struct be_adapter *adapter, bool enable)
@@ -1924,43 +1955,6 @@ static int be_clear(struct be_adapter *adapter)
 	return 0;
 }
 
-static int be_close(struct net_device *netdev)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *rx_eq = &adapter->rx_eq;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	int vec;
-
-	cancel_delayed_work_sync(&adapter->work);
-
-	be_async_mcc_disable(adapter);
-
-	netif_stop_queue(netdev);
-	netif_carrier_off(netdev);
-	adapter->link_up = false;
-
-	be_intr_set(adapter, false);
-
-	if (adapter->msix_enabled) {
-		vec = be_msix_vec_get(adapter, tx_eq->q.id);
-		synchronize_irq(vec);
-		vec = be_msix_vec_get(adapter, rx_eq->q.id);
-		synchronize_irq(vec);
-	} else {
-		synchronize_irq(netdev->irq);
-	}
-	be_irq_unregister(adapter);
-
-	napi_disable(&rx_eq->napi);
-	napi_disable(&tx_eq->napi);
-
-	/* Wait for all pending tx completions to arrive so that
-	 * all tx skbs are freed.
-	 */
-	be_tx_compl_clean(adapter);
-
-	return 0;
-}
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
 char flash_cookie[2][16] =	{"*** SE FLAS",
@@ -2330,6 +2324,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
+	init_completion(&adapter->flash_compl);
 	pci_save_state(adapter->pdev);
 	return 0;
 
@@ -2498,16 +2493,18 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		status = be_cmd_POST(adapter);
 		if (status)
 			goto ctrl_clean;
-
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			goto ctrl_clean;
 	}
 
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)
 		goto ctrl_clean;
+
+	if (be_physfn(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			goto ctrl_clean;
+	}
 
 	status = be_stats_init(adapter);
 	if (status)
@@ -2622,8 +2619,6 @@ static void be_shutdown(struct pci_dev *pdev)
 		be_setup_wol(adapter, true);
 
 	pci_disable_device(pdev);
-
-	return;
 }
 
 static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
@@ -2705,7 +2700,6 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	return;
 err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
-	return;
 }
 
 static struct pci_error_handlers be_eeh_handlers = {
