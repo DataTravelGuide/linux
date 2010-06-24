@@ -556,38 +556,44 @@ EXPORT_SYMBOL(fcoe_ctlr_els_send);
  *
  * Called with lock held and preemption disabled.
  *
- * An FCF is considered old if we have missed three advertisements.
- * That is, there have been no valid advertisement from it for three
- * times its keep-alive period including fuzz.
+ * An FCF is considered old if we have missed two advertisements.
+ * That is, there have been no valid advertisement from it for 2.5
+ * times its keep-alive period.
  *
  * In addition, determine the time when an FCF selection can occur.
  *
  * Also, increment the MissDiscAdvCount when no advertisement is received
  * for the corresponding FCF for 1.5 * FKA_ADV_PERIOD (FC-BB-5 LESB).
+ *
+ * Returns the time in jiffies for the next call.
  */
-static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
+static unsigned long fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *next;
+	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
+	unsigned long deadline;
 	unsigned long sel_time = 0;
-	unsigned long mda_time = 0;
 	struct fcoe_dev_stats *stats;
 
 	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
-		mda_time = fcf->fka_period + (fcf->fka_period >> 1);
-		if ((fip->sel_fcf == fcf) &&
-		    (time_after(jiffies, fcf->time + mda_time))) {
-			mod_timer(&fip->timer, jiffies + mda_time);
-			stats = per_cpu_ptr(fip->lp->dev_stats,
-					    smp_processor_id());
-			stats->MissDiscAdvCount++;
-			printk(KERN_INFO "libfcoe: host%d: Missing Discovery "
-			       "Advertisement for fab %16.16llx count %lld\n",
-			       fip->lp->host->host_no, fcf->fabric_name,
-			       stats->MissDiscAdvCount);
+		deadline = fcf->time + fcf->fka_period + fcf->fka_period / 2;
+		if (fip->sel_fcf == fcf) {
+			if (time_after(jiffies, deadline)) {
+				stats = per_cpu_ptr(fip->lp->dev_stats,
+						    smp_processor_id());
+				stats->MissDiscAdvCount++;
+				printk(KERN_INFO "libfcoe: host%d: "
+				       "Missing Discovery Advertisement "
+				       "for fab %16.16llx count %lld\n",
+				       fip->lp->host->host_no, fcf->fabric_name,
+				       stats->MissDiscAdvCount);
+			} else if (time_after(next_timer, deadline))
+				next_timer = deadline;
 		}
-		if (time_after(jiffies, fcf->time + fcf->fka_period * 3 +
-			       msecs_to_jiffies(FIP_FCF_FUZZ * 3))) {
+
+		deadline += fcf->fka_period;
+		if (time_after_eq(jiffies, deadline)) {
 			if (fip->sel_fcf == fcf)
 				fip->sel_fcf = NULL;
 			list_del(&fcf->list);
@@ -597,19 +603,20 @@ static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 			stats = per_cpu_ptr(fip->lp->dev_stats,
 					    smp_processor_id());
 			stats->VLinkFailureCount++;
-		} else if (fcoe_ctlr_mtu_valid(fcf) &&
-			   (!sel_time || time_before(sel_time, fcf->time))) {
-			sel_time = fcf->time;
+		} else {
+			if (time_after(next_timer, deadline))
+				next_timer = deadline;
+			if (fcoe_ctlr_mtu_valid(fcf) &&
+			    (!sel_time || time_before(sel_time, fcf->time)))
+				sel_time = fcf->time;
 		}
 	}
-	if (sel_time) {
+	if (sel_time && !fip->sel_fcf && !fip->sel_time) {
 		sel_time += msecs_to_jiffies(FCOE_CTLR_START_DELAY);
 		fip->sel_time = sel_time;
-		if (time_before(sel_time, fip->timer.expires))
-			mod_timer(&fip->timer, sel_time);
-	} else {
-		fip->sel_time = 0;
 	}
+
+	return next_timer;
 }
 
 /**
@@ -632,12 +639,19 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 	unsigned long t;
 	size_t rlen;
 	size_t dlen;
+	u32 desc_mask;
 
 	memset(fcf, 0, sizeof(*fcf));
 	fcf->fka_period = msecs_to_jiffies(FCOE_CTLR_DEF_FKA);
 
 	fiph = (struct fip_header *)skb->data;
 	fcf->flags = ntohs(fiph->fip_flags);
+
+	/*
+	 * mask of required descriptors. validating each one clears its bit.
+	 */
+	desc_mask = BIT(FIP_DT_PRI) | BIT(FIP_DT_MAC) | BIT(FIP_DT_NAME) |
+			BIT(FIP_DT_FAB) | BIT(FIP_DT_FKA);
 
 	rlen = ntohs(fiph->fip_dl_len) * 4;
 	if (rlen + sizeof(*fiph) > skb->len)
@@ -648,11 +662,19 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen < sizeof(*desc) || dlen > rlen)
 			return -EINVAL;
+		/* Drop Adv if there are duplicate critical descriptors */
+		if ((desc->fip_dtype < 32) &&
+		    !(desc_mask & 1U << desc->fip_dtype)) {
+			LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+					"Descriptors in FIP adv\n");
+			return -EINVAL;
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_PRI:
 			if (dlen != sizeof(struct fip_pri_desc))
 				goto len_err;
 			fcf->pri = ((struct fip_pri_desc *)desc)->fd_pri;
+			desc_mask &= ~BIT(FIP_DT_PRI);
 			break;
 		case FIP_DT_MAC:
 			if (dlen != sizeof(struct fip_mac_desc))
@@ -665,12 +687,14 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 						"in FIP adv\n");
 				return -EINVAL;
 			}
+			desc_mask &= ~BIT(FIP_DT_MAC);
 			break;
 		case FIP_DT_NAME:
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
 			fcf->switch_name = get_unaligned_be64(&wwn->fd_wwn);
+			desc_mask &= ~BIT(FIP_DT_NAME);
 			break;
 		case FIP_DT_FAB:
 			if (dlen != sizeof(struct fip_fab_desc))
@@ -679,6 +703,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			fcf->fabric_name = get_unaligned_be64(&fab->fd_wwn);
 			fcf->vfid = ntohs(fab->fd_vfid);
 			fcf->fc_map = ntoh24(fab->fd_map);
+			desc_mask &= ~BIT(FIP_DT_FAB);
 			break;
 		case FIP_DT_FKA:
 			if (dlen != sizeof(struct fip_fka_desc))
@@ -689,6 +714,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			t = ntohl(fka->fd_fka_period);
 			if (t >= FCOE_CTLR_MIN_FKA)
 				fcf->fka_period = msecs_to_jiffies(t);
+			desc_mask &= ~BIT(FIP_DT_FKA);
 			break;
 		case FIP_DT_MAP_OUI:
 		case FIP_DT_FCOE_SIZE:
@@ -711,6 +737,11 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 		return -EINVAL;
 	if (!fcf->switch_name || !fcf->fabric_name)
 		return -EINVAL;
+	if (desc_mask) {
+		LIBFCOE_FIP_DBG(fip, "adv missing descriptors mask %x\n",
+				desc_mask);
+		return -EINVAL;
+	}
 	return 0;
 
 len_err:
@@ -761,18 +792,21 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		list_add(&fcf->list, &fip->fcfs);
 	} else {
 		/*
-		 * Flags in advertisements are ignored once the FCF is
-		 * selected.  Flags in unsolicited advertisements are
-		 * ignored after a usable solicited advertisement
-		 * has been received.
+		 * Update the FCF's keep-alive descriptor flags.
+		 * Other flag changes from new advertisements are
+		 * ignored after a solicited advertisement is
+		 * received and the FCF is selectable (usable).
 		 */
-		if (fcf == fip->sel_fcf) {
+		fcf->fd_flags = new.fd_flags;
+		if (!fcoe_ctlr_fcf_usable(fcf))
+			fcf->flags = new.flags;
+
+		if (fcf == fip->sel_fcf && !fcf->fd_flags) {
 			fip->ctlr_ka_time -= fcf->fka_period;
 			fip->ctlr_ka_time += new.fka_period;
 			if (time_before(fip->ctlr_ka_time, fip->timer.expires))
 				mod_timer(&fip->timer, fip->ctlr_ka_time);
-		} else if (!fcoe_ctlr_fcf_usable(fcf))
-			fcf->flags = new.flags;
+		}
 		fcf->fka_period = new.fka_period;
 		memcpy(fcf->fcf_mac, new.fcf_mac, ETH_ALEN);
 	}
@@ -804,7 +838,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	 * If this is the first validated FCF, note the time and
 	 * set a timer to trigger selection.
 	 */
-	if (mtu_valid && !fip->sel_time && fcoe_ctlr_fcf_usable(fcf)) {
+	if (mtu_valid && !fip->sel_fcf && fcoe_ctlr_fcf_usable(fcf)) {
 		fip->sel_time = jiffies +
 			msecs_to_jiffies(FCOE_CTLR_START_DELAY);
 		if (!timer_pending(&fip->timer) ||
@@ -836,6 +870,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	size_t els_len = 0;
 	size_t rlen;
 	size_t dlen;
+	u32 desc_mask = 0;
+	u32 desc_cnt = 0;
 
 	fiph = (struct fip_header *)skb->data;
 	sub = fiph->fip_subcode;
@@ -848,11 +884,27 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 	desc = (struct fip_desc *)(fiph + 1);
 	while (rlen > 0) {
+		desc_cnt++;
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen < sizeof(*desc) || dlen > rlen)
 			goto drop;
+		/* Drop ELS if there are duplicate critical descriptors */
+		if (desc->fip_dtype < 32) {
+			if (desc_mask & 1U << desc->fip_dtype) {
+				LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+						"Descriptors in FIP ELS\n");
+				goto drop;
+			}
+			desc_mask |= (1 << desc->fip_dtype);
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
+			if (desc_cnt == 1) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
+
 			if (dlen != sizeof(struct fip_mac_desc))
 				goto len_err;
 			memcpy(granted_mac,
@@ -869,6 +921,11 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		case FIP_DT_FDISC:
 		case FIP_DT_LOGO:
 		case FIP_DT_ELP:
+			if (desc_cnt != 1) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
 			if (fh)
 				goto drop;
 			if (dlen < sizeof(*els) + sizeof(*fh) + 1)
@@ -884,6 +941,11 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				goto drop;
+			if (desc_cnt <= 2) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
 			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
@@ -898,6 +960,13 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	    fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
 	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac))
 		fip->flogi_oxid = FC_XID_UNKNOWN;
+
+	if ((desc_cnt == 0) || ((els_op != ELS_LS_RJT) &&
+	    (!(1U << FIP_DT_MAC & desc_mask)))) {
+		LIBFCOE_FIP_DBG(fip, "Missing critical descriptors "
+				"in FIP ELS\n");
+		goto drop;
+	}
 
 	/*
 	 * Convert skb into an fc_frame containing only the ELS.
@@ -944,7 +1013,9 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	size_t dlen;
 	struct fcoe_fcf *fcf = fip->sel_fcf;
 	struct fc_lport *lport = fip->lp;
-	u32	desc_mask;
+	struct fc_lport *vn_port = NULL;
+	u32 desc_mask;
+	int is_vn_port = 0;
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
@@ -962,6 +1033,13 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen > rlen)
 			return;
+		/* Drop CVL if there are duplicate critical descriptors */
+		if ((desc->fip_dtype < 32) &&
+		    !(desc_mask & 1U << desc->fip_dtype)) {
+			LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+					"Descriptors in FIP CVL\n");
+			return;
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
 			mp = (struct fip_mac_desc *)desc;
@@ -986,8 +1064,26 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (compare_ether_addr(vp->fd_mac,
 					       fip->get_src_addr(lport)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lport->wwpn &&
-			    ntoh24(vp->fd_fc_id) == lport->port_id)
+			    ntoh24(vp->fd_fc_id) == lport->port_id) {
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
+				break;
+			}
+			/* check if clr_vlink is for NPIV port */
+			mutex_lock(&lport->lp_mutex);
+			list_for_each_entry(vn_port, &lport->vports, list) {
+				if (compare_ether_addr(vp->fd_mac,
+				    fip->get_src_addr(vn_port)) == 0 &&
+				    (get_unaligned_be64(&vp->fd_wwpn)
+							== vn_port->wwpn) &&
+				    (ntoh24(vp->fd_fc_id) ==
+					    fc_host_port_id(vn_port->host))) {
+					desc_mask &= ~BIT(FIP_DT_VN_ID);
+					is_vn_port = 1;
+					break;
+				}
+			}
+			mutex_unlock(&lport->lp_mutex);
+
 			break;
 		default:
 			/* standard says ignore unknown descriptors >= 128 */
@@ -1008,14 +1104,18 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	} else {
 		LIBFCOE_FIP_DBG(fip, "performing Clear Virtual Link\n");
 
-		spin_lock_bh(&fip->lock);
-		per_cpu_ptr(lport->dev_stats,
-			    smp_processor_id())->VLinkFailureCount++;
-		fcoe_ctlr_reset(fip);
-		spin_unlock_bh(&fip->lock);
+		if (is_vn_port)
+			fc_lport_reset(vn_port);
+		else {
+			spin_lock_bh(&fip->lock);
+			per_cpu_ptr(lport->dev_stats,
+				    smp_processor_id())->VLinkFailureCount++;
+			fcoe_ctlr_reset(fip);
+			spin_unlock_bh(&fip->lock);
 
-		fc_lport_reset(fip->lp);
-		fcoe_ctlr_solicit(fip, NULL);
+			fc_lport_reset(fip->lp);
+			fcoe_ctlr_solicit(fip, NULL);
+		}
 	}
 }
 
@@ -1147,7 +1247,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	struct fcoe_ctlr *fip = (struct fcoe_ctlr *)arg;
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
-	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
+	unsigned long next_timer;
 
 	spin_lock_bh(&fip->lock);
 	if (fip->state == FIP_ST_DISABLED) {
@@ -1156,13 +1256,16 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	}
 
 	fcf = fip->sel_fcf;
-	fcoe_ctlr_age_fcfs(fip);
+	next_timer = fcoe_ctlr_age_fcfs(fip);
 
 	sel = fip->sel_fcf;
-	if (!sel && fip->sel_time && time_after_eq(jiffies, fip->sel_time)) {
-		fcoe_ctlr_select(fip);
-		sel = fip->sel_fcf;
-		fip->sel_time = 0;
+	if (!sel && fip->sel_time) {
+		if (time_after_eq(jiffies, fip->sel_time)) {
+			fcoe_ctlr_select(fip);
+			sel = fip->sel_fcf;
+			fip->sel_time = 0;
+		} else if (time_after(next_timer, fip->sel_time))
+			next_timer = fip->sel_time;
 	}
 
 	if (sel != fcf) {
@@ -1175,6 +1278,8 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 			fip->port_ka_time = jiffies +
 				msecs_to_jiffies(FIP_VN_KA_PERIOD);
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
+			if (time_after(next_timer, fip->ctlr_ka_time))
+				next_timer = fip->ctlr_ka_time;
 		} else {
 			printk(KERN_NOTICE "libfcoe: host%d: "
 			       "FIP Fibre-Channel Forwarder timed out.	"
@@ -1200,12 +1305,9 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		}
 		if (time_after(next_timer, fip->port_ka_time))
 			next_timer = fip->port_ka_time;
-		mod_timer(&fip->timer, next_timer);
-	} else if (fip->sel_time) {
-		next_timer = fip->sel_time +
-			msecs_to_jiffies(FCOE_CTLR_START_DELAY);
-		mod_timer(&fip->timer, next_timer);
 	}
+	if (!list_empty(&fip->fcfs))
+		mod_timer(&fip->timer, next_timer);
 	if (fip->send_ctlr_ka || fip->send_port_ka)
 		schedule_work(&fip->timer_work);
 	spin_unlock_bh(&fip->lock);

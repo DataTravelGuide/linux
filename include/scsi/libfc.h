@@ -104,7 +104,6 @@ enum fc_disc_event {
  * @RPORT_ST_LOGO:    Remote port logout (LOGO) sent
  * @RPORT_ST_ADISC:   Discover Address sent
  * @RPORT_ST_DELETE:  Remote port being deleted
- * @RPORT_ST_RESTART: Remote port being deleted and will restart
 */
 enum fc_rport_state {
 	RPORT_ST_INIT,
@@ -115,7 +114,6 @@ enum fc_rport_state {
 	RPORT_ST_LOGO,
 	RPORT_ST_ADISC,
 	RPORT_ST_DELETE,
-	RPORT_ST_RESTART,
 };
 
 /**
@@ -173,6 +171,7 @@ struct fc_rport_libfc_priv {
 	u16			   flags;
 	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
 	#define FC_RP_FLAGS_RETRY		(1 << 1)
+	#define FC_RP_STARTED			(1 << 2)
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
 };
@@ -185,11 +184,12 @@ struct fc_rport_libfc_priv {
  * @rp_state:       Enumeration that tracks progress of PLOGI, PRLI,
  *                  and RTV exchanges
  * @ids:            The remote port identifiers and roles
- * @flags:          REC and RETRY supported flags
+ * @flags:          STARTED, REC and RETRY_SUPPORTED flags
  * @max_seq:        Maximum number of concurrent sequences
  * @disc_id:        The discovery identifier
  * @maxframe_size:  The maximum frame size
  * @retries:        The retry count for the current state
+ * @major_retries:  The retry count for the entire PLOGI/PRLI state machine
  * @e_d_tov:        Error detect timeout value (in msec)
  * @r_a_tov:        Resource allocation timeout value (in msec)
  * @rp_mutex:       The mutex that protects the remote port
@@ -207,6 +207,7 @@ struct fc_rport_priv {
 	u16			    disc_id;
 	u16			    maxframe_size;
 	unsigned int	            retries;
+	unsigned int	            major_retries;
 	unsigned int	            e_d_tov;
 	unsigned int	            r_a_tov;
 	struct mutex                rp_mutex;

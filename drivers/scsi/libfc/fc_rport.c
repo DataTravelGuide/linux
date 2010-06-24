@@ -88,7 +88,6 @@ static const char *fc_rport_state_names[] = {
 	[RPORT_ST_LOGO] = "LOGO",
 	[RPORT_ST_ADISC] = "ADISC",
 	[RPORT_ST_DELETE] = "Delete",
-	[RPORT_ST_RESTART] = "Restart",
 };
 
 /**
@@ -245,7 +244,6 @@ static void fc_rport_work(struct work_struct *work)
 	struct fc_rport_operations *rport_ops;
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
-	int restart = 0;
 
 	mutex_lock(&rdata->rp_mutex);
 	event = rdata->event;
@@ -258,6 +256,7 @@ static void fc_rport_work(struct work_struct *work)
 	case RPORT_EV_READY:
 		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
+		rdata->major_retries = 0;
 		kref_get(&rdata->kref);
 		mutex_unlock(&rdata->rp_mutex);
 
@@ -297,24 +296,6 @@ static void fc_rport_work(struct work_struct *work)
 		port_id = rdata->ids.port_id;
 		mutex_unlock(&rdata->rp_mutex);
 
-		if (port_id != FC_FID_DIR_SERV) {
-			/*
-			 * We must drop rp_mutex before taking disc_mutex.
-			 * Re-evaluate state to allow for restart.
-			 * A transition to RESTART state must only happen
-			 * while disc_mutex is held and rdata is on the list.
-			 */
-			mutex_lock(&lport->disc.disc_mutex);
-			mutex_lock(&rdata->rp_mutex);
-			if (rdata->rp_state == RPORT_ST_RESTART)
-				restart = 1;
-			else
-				list_del(&rdata->peers);
-			rdata->event = RPORT_EV_NONE;
-			mutex_unlock(&rdata->rp_mutex);
-			mutex_unlock(&lport->disc.disc_mutex);
-		}
-
 		if (rport_ops && rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
@@ -335,13 +316,37 @@ static void fc_rport_work(struct work_struct *work)
 			mutex_unlock(&rdata->rp_mutex);
 			fc_remote_port_delete(rport);
 		}
-		if (restart) {
-			mutex_lock(&rdata->rp_mutex);
-			FC_RPORT_DBG(rdata, "work restart\n");
-			fc_rport_enter_plogi(rdata);
+
+		mutex_lock(&lport->disc.disc_mutex);
+		mutex_lock(&rdata->rp_mutex);
+		if (rdata->rp_state == RPORT_ST_DELETE) {
+			if (port_id == FC_FID_DIR_SERV) {
+				rdata->event = RPORT_EV_NONE;
+				mutex_unlock(&rdata->rp_mutex);
+			} else if ((rdata->flags & FC_RP_STARTED) &&
+				   rdata->major_retries <
+				   lport->max_rport_retry_count) {
+				rdata->major_retries++;
+				rdata->event = RPORT_EV_NONE;
+				FC_RPORT_DBG(rdata, "work restart\n");
+				fc_rport_enter_plogi(rdata);
+				mutex_unlock(&rdata->rp_mutex);
+			} else {
+				FC_RPORT_DBG(rdata, "work delete\n");
+				list_del(&rdata->peers);
+				mutex_unlock(&rdata->rp_mutex);
+				kref_put(&rdata->kref, lport->tt.rport_destroy);
+			}
+		} else {
+			/*
+			 * Re-open for events.  Reissue READY event if ready.
+			 */
+			rdata->event = RPORT_EV_NONE;
+			if (rdata->rp_state == RPORT_ST_READY)
+				fc_rport_enter_ready(rdata);
 			mutex_unlock(&rdata->rp_mutex);
-		} else
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
+		}
+		mutex_unlock(&lport->disc.disc_mutex);
 		break;
 
 	default:
@@ -366,16 +371,14 @@ int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
+	rdata->flags |= FC_RP_STARTED;
 	switch (rdata->rp_state) {
 	case RPORT_ST_READY:
 		FC_RPORT_DBG(rdata, "ADISC port\n");
 		fc_rport_enter_adisc(rdata);
 		break;
-	case RPORT_ST_RESTART:
-		break;
 	case RPORT_ST_DELETE:
 		FC_RPORT_DBG(rdata, "Restart deleted port\n");
-		fc_rport_state_enter(rdata, RPORT_ST_RESTART);
 		break;
 	default:
 		FC_RPORT_DBG(rdata, "Login to port\n");
@@ -430,15 +433,12 @@ int fc_rport_logoff(struct fc_rport_priv *rdata)
 
 	FC_RPORT_DBG(rdata, "Remove port\n");
 
+	rdata->flags &= ~FC_RP_STARTED;
 	if (rdata->rp_state == RPORT_ST_DELETE) {
 		FC_RPORT_DBG(rdata, "Port in Delete state, not removing\n");
 		goto out;
 	}
-
-	if (rdata->rp_state == RPORT_ST_RESTART)
-		FC_RPORT_DBG(rdata, "Port in Restart state, deleting\n");
-	else
-		fc_rport_enter_logo(rdata);
+	fc_rport_enter_logo(rdata);
 
 	/*
 	 * Change the state to Delete so that we discard
@@ -502,7 +502,6 @@ static void fc_rport_timeout(struct work_struct *work)
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 	case RPORT_ST_DELETE:
-	case RPORT_ST_RESTART:
 		break;
 	}
 
@@ -526,6 +525,7 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 	switch (rdata->rp_state) {
 	case RPORT_ST_PLOGI:
 	case RPORT_ST_LOGO:
+		rdata->flags &= ~FC_RP_STARTED;
 		fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
 		break;
 	case RPORT_ST_RTV:
@@ -536,7 +536,6 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 		fc_rport_enter_logo(rdata);
 		break;
 	case RPORT_ST_DELETE:
-	case RPORT_ST_RESTART:
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 		break;
@@ -1391,7 +1390,6 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		break;
 	case RPORT_ST_DELETE:
 	case RPORT_ST_LOGO:
-	case RPORT_ST_RESTART:
 		FC_RPORT_DBG(rdata, "Received PLOGI in state %s - send busy\n",
 			     fc_rport_state(rdata));
 		mutex_unlock(&rdata->rp_mutex);
@@ -1572,30 +1570,85 @@ drop:
  * fc_rport_recv_prlo_req() - Handler for process logout (PRLO) requests
  * @rdata: The remote port that sent the PRLO request
  * @sp:	   The sequence that the PRLO was on
- * @fp:	   The PRLO request frame
+ * @rx_fp: The PRLO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
  */
 static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 				   struct fc_seq *sp,
-				   struct fc_frame *fp)
+				   struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
-
 	struct fc_frame_header *fh;
+	struct fc_exch *ep;
+	struct fc_frame *fp;
+	struct {
+		struct fc_els_prlo prlo;
+		struct fc_els_spp spp;
+	} *pp;
+	struct fc_els_spp *rspp;	/* request service param page */
+	struct fc_els_spp *spp;		/* response spp */
+	unsigned int len;
+	unsigned int plen;
+	u32 f_ctl;
 	struct fc_seq_els_data rjt_data;
 
-	fh = fc_frame_header_get(fp);
+	rjt_data.fp = NULL;
+	fh = fc_frame_header_get(rx_fp);
 
 	FC_RPORT_DBG(rdata, "Received PRLO request while in state %s\n",
 		     fc_rport_state(rdata));
 
-	rjt_data.fp = NULL;
-	rjt_data.reason = ELS_RJT_UNAB;
-	rjt_data.explan = ELS_EXPL_NONE;
+	len = fr_len(rx_fp) - sizeof(*fh);
+	pp = fc_frame_payload_get(rx_fp, sizeof(*pp));
+	if (!pp)
+		goto reject_len;
+	plen = ntohs(pp->prlo.prlo_len);
+	if (plen != 20)
+		goto reject_len;
+	if (plen < len)
+		len = plen;
+
+	rspp = &pp->spp;
+
+	fp = fc_frame_alloc(lport, len);
+	if (!fp) {
+		rjt_data.reason = ELS_RJT_UNAB;
+		rjt_data.explan = ELS_EXPL_INSUF_RES;
+		goto reject;
+	}
+
+	sp = lport->tt.seq_start_next(sp);
+	WARN_ON(!sp);
+	pp = fc_frame_payload_get(fp, len);
+	WARN_ON(!pp);
+	memset(pp, 0, len);
+	pp->prlo.prlo_cmd = ELS_LS_ACC;
+	pp->prlo.prlo_obs = 0x10;
+	pp->prlo.prlo_len = htons(len);
+	spp = &pp->spp;
+	spp->spp_type = rspp->spp_type;
+	spp->spp_type_ext = rspp->spp_type_ext;
+	spp->spp_flags = FC_SPP_RESP_ACK;
+
+	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
+
+	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
+	f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
+	ep = fc_seq_exch(sp);
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
+		       FC_TYPE_ELS, f_ctl, 0);
+	lport->tt.seq_send(lport, sp, fp);
+	goto drop;
+
+reject_len:
+	rjt_data.reason = ELS_RJT_PROT;
+	rjt_data.explan = ELS_EXPL_INV_LEN;
+reject:
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
-	fc_frame_free(fp);
+drop:
+	fc_frame_free(rx_fp);
 }
 
 /**
@@ -1628,13 +1681,6 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 			     fc_rport_state(rdata));
 
 		fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
-
-		/*
-		 * If the remote port was created due to discovery, set state
-		 * to log back in.  It may have seen a stale RSCN about us.
-		 */
-		if (rdata->disc_id)
-			fc_rport_state_enter(rdata, RPORT_ST_RESTART);
 		mutex_unlock(&rdata->rp_mutex);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
