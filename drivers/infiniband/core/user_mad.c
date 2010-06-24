@@ -1147,8 +1147,9 @@ static void ib_umad_add_one(struct ib_device *device)
 	for (i = s; i <= e; ++i) {
 		umad_dev->port[i - s].umad_dev = umad_dev;
 
-		if (ib_umad_init_port(device, i, &umad_dev->port[i - s]))
-			goto err;
+		if (rdma_port_link_layer(device, i) == IB_LINK_LAYER_INFINIBAND)
+			if (ib_umad_init_port(device, i, &umad_dev->port[i - s]))
+				goto err;
 	}
 
 	ib_set_client_data(device, &umad_client, umad_dev);
@@ -1157,7 +1158,8 @@ static void ib_umad_add_one(struct ib_device *device)
 
 err:
 	while (--i >= s)
-		ib_umad_kill_port(&umad_dev->port[i - s]);
+		if (rdma_port_link_layer(device, i) == IB_LINK_LAYER_INFINIBAND)
+			ib_umad_kill_port(&umad_dev->port[i - s]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
@@ -1171,7 +1173,8 @@ static void ib_umad_remove_one(struct ib_device *device)
 		return;
 
 	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i)
-		ib_umad_kill_port(&umad_dev->port[i]);
+		if (rdma_port_link_layer(device, i + 1) == IB_LINK_LAYER_INFINIBAND)
+			ib_umad_kill_port(&umad_dev->port[i]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
