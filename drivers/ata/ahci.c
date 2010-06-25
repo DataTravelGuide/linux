@@ -1050,9 +1050,6 @@ static void ahci_start_engine(struct ata_port *ap)
 	tmp |= PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);
 	readl(port_mmio + PORT_CMD); /* flush */
-
-	if (!ata_dev_enabled(ap->link.device))
-		ahci_stop_engine(ap);
 }
 
 static void ahci_start_fis_rx(struct ata_port *ap)
@@ -2486,6 +2483,9 @@ static void ahci_error_handler(struct ata_port *ap)
 	}
 
 	sata_pmp_error_handler(ap);
+
+	if (!ata_dev_enabled(ap->link.device))
+		ahci_stop_engine(ap);
 }
 
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
