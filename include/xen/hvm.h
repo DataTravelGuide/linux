@@ -5,7 +5,7 @@
 #include <xen/interface/hvm/params.h>
 #include <asm/xen/hypercall.h>
 
-static inline unsigned long hvm_get_parameter(int idx)
+static inline int hvm_get_parameter(int idx, uint64_t *value)
 {
        struct xen_hvm_param xhv;
        int r;
@@ -16,9 +16,10 @@ static inline unsigned long hvm_get_parameter(int idx)
        if (r < 0) {
                printk(KERN_ERR "cannot get hvm parameter %d: %d.\n",
                       idx, r);
-               return 0;
+               return r;
        }
-       return xhv.value;
+       *value = xhv.value;
+       return r;
 }
 
 int xen_set_callback_via(uint64_t via);

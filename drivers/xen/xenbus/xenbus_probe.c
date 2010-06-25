@@ -828,12 +828,16 @@ int xenbus_probe_init(void)
 	} else {
 		xenstored_ready = 1;
 		if (xen_hvm_domain()) {
-			xen_store_evtchn =
-				hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
-			xen_store_mfn =
-				hvm_get_parameter(HVM_PARAM_STORE_PFN);
-			xen_store_interface =
-				ioremap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
+			uint64_t v = 0;
+			err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
+			if (err)
+				goto out_error;
+			xen_store_evtchn = (int)v;
+			err = hvm_get_parameter(HVM_PARAM_STORE_PFN, &v);
+			if (err)
+				goto out_error;
+			xen_store_mfn = (unsigned long)v;
+			xen_store_interface = ioremap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
 		} else {
 			xen_store_evtchn = xen_start_info->store_evtchn;
 			xen_store_mfn = xen_start_info->store_mfn;
