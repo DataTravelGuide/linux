@@ -1,40 +1,49 @@
-/******************************************************************************
- * platform-pci.h
- * 
- * Xen platform PCI device driver
- * Copyright (c) 2004, Intel Corporation. <xiaofeng.ling@intel.com>
- * Copyright (c) 2007, XenSource Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
- */
-
 #ifndef _XEN_PLATFORM_PCI_H
 #define _XEN_PLATFORM_PCI_H
 
-#include <linux/version.h>
-
 #define XEN_IOPORT_MAGIC_VAL 0x49d2
-#define XEN_IOPORT_LINUX_PRODNUM 0xffff
-#define XEN_IOPORT_LINUX_DRVVER  ((LINUX_VERSION_CODE << 8) + 0x0)
+#define XEN_IOPORT_LINUX_PRODNUM 0x0003
+#define XEN_IOPORT_LINUX_DRVVER  0x0001
 
-#ifdef CONFIG_XEN_PLATFORM_PCI
-unsigned long alloc_xen_mmio(unsigned long len);
+#define XEN_IOPORT_BASE 0x10
+
+#define XEN_IOPORT_PLATFLAGS	(XEN_IOPORT_BASE + 0) /* 1 byte access (R/W) */
+#define XEN_IOPORT_MAGIC	(XEN_IOPORT_BASE + 0) /* 2 byte access (R) */
+#define XEN_IOPORT_UNPLUG	(XEN_IOPORT_BASE + 0) /* 2 byte access (W) */
+#define XEN_IOPORT_DRVVER	(XEN_IOPORT_BASE + 0) /* 4 byte access (W) */
+
+#define XEN_IOPORT_SYSLOG	(XEN_IOPORT_BASE + 2) /* 1 byte access (W) */
+#define XEN_IOPORT_PROTOVER	(XEN_IOPORT_BASE + 2) /* 1 byte access (R) */
+#define XEN_IOPORT_PRODNUM	(XEN_IOPORT_BASE + 2) /* 2 byte access (W) */
+
+#define XEN_UNPLUG_ALL_IDE_DISKS 1
+#define XEN_UNPLUG_ALL_NICS 2
+#define XEN_UNPLUG_AUX_IDE_DISKS 4
+#define XEN_UNPLUG_ALL 7
+#define XEN_UNPLUG_IGNORE 8
+
+static inline int xen_must_unplug_nics(void) {
+#if (defined(CONFIG_XEN_NETDEV_FRONTEND) || \
+		defined(CONFIG_XEN_NETDEV_FRONTEND_MODULE)) && \
+		(defined(CONFIG_XEN_PLATFORM_PCI) || \
+		 defined(CONFIG_XEN_PLATFORM_PCI_MODULE))
+        return 1;
 #else
-static inline unsigned long alloc_xen_mmio(unsigned long len)
-{
-	return ~0UL;
-}
+        return 0;
 #endif
+}
+
+static inline int xen_must_unplug_disks(void) {
+#if (defined(CONFIG_XEN_BLKDEV_FRONTEND) || \
+		defined(CONFIG_XEN_BLKDEV_FRONTEND_MODULE)) && \
+		(defined(CONFIG_XEN_PLATFORM_PCI) || \
+		 defined(CONFIG_XEN_PLATFORM_PCI_MODULE))
+        return 1;
+#else
+        return 0;
+#endif
+}
+
+extern bool xen_platform_pci_enabled;
 
 #endif /* _XEN_PLATFORM_PCI_H */

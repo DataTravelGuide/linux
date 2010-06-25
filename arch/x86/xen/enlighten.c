@@ -29,21 +29,18 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/memory.h>
-#include <xen/interface/hvm/hvm_op.h>
-#include <xen/interface/hvm/params.h>
-#include <xen/interface/platform_pci.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/hvm.h>
-#include <xen/events.h>
 #include <xen/hvc-console.h>
-#include <xen/xen.h>
 
 #include <asm/paravirt.h>
 #include <asm/apic.h>
@@ -62,6 +59,7 @@
 #include <asm/tlbflush.h>
 #include <asm/reboot.h>
 #include <asm/stackprotector.h>
+#include <asm/hypervisor.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -84,8 +82,6 @@ void *xen_initial_gdt;
 
 __read_mostly int xen_have_vector_callback;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
-
-static int unplug;
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -1231,6 +1227,7 @@ asmlinkage void __init xen_start_kernel(void)
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
+		
 
 	xen_raw_console_write("about to get started...\n");
 
@@ -1251,9 +1248,9 @@ static uint32_t xen_cpuid_base(void)
 
 	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
 		cpuid(base, &eax, &ebx, &ecx, &edx);
-		*(uint32_t*)(signature + 0) = ebx;
-		*(uint32_t*)(signature + 4) = ecx;
-		*(uint32_t*)(signature + 8) = edx;
+		*(uint32_t *)(signature + 0) = ebx;
+		*(uint32_t *)(signature + 4) = ecx;
+		*(uint32_t *)(signature + 8) = edx;
 		signature[12] = 0;
 
 		if (!strcmp("XenVMMXenVMM", signature) && ((eax - base) >= 2))
@@ -1308,9 +1305,17 @@ static void __init init_shared_info(void)
 
 	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
 
-	/* Don't do the full vcpu_info placement stuff until we have a
-	   possible map and a non-dummy shared_info. */
-	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
+	 * page, we use it in the event channel upcall and in some pvclock
+	 * related functions. We don't need the vcpu_info placement
+	 * optimizations because we don't use any pv_mmu or pv_irq op on
+	 * HVM.
+	 * When xen_hvm_init_shared_info is run at boot time only vcpu 0 is
+	 * online but xen_hvm_init_shared_info is run at resume time too and
+	 * in that case multiple vcpus might be online. */
+	for_each_online_cpu(cpu) {
+		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+	}
 }
 
 static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
@@ -1331,7 +1336,7 @@ static struct notifier_block __cpuinitdata xen_hvm_cpu_notifier = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 
-void __init xen_guest_init(void)
+void __init xen_hvm_guest_init(void)
 {
 	int r;
 	int major, minor;
@@ -1348,32 +1353,7 @@ void __init xen_guest_init(void)
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
 	register_cpu_notifier(&xen_hvm_cpu_notifier);
+	xen_unplug_emulated_devices();
 	have_vcpu_info_placement = 0;
 	x86_init.irqs.intr_init = xen_init_IRQ;
-	machine_ops = xen_machine_ops;
 }
-
-static int __init parse_unplug(char *arg)
-{
-	char *p, *q;
-
-	for (p = arg; p; p = q) {
-		q = strchr(arg, ',');
-		if (q)
-			*q++ = '\0';
-		if (!strcmp(p, "all"))
-			unplug |= UNPLUG_ALL;
-		else if (!strcmp(p, "ide-disks"))
-			unplug |= UNPLUG_ALL_IDE_DISKS;
-		else if (!strcmp(p, "aux-ide-disks"))
-			unplug |= UNPLUG_AUX_IDE_DISKS;
-		else if (!strcmp(p, "nics"))
-			unplug |= UNPLUG_ALL_NICS;
-		else
-			printk(KERN_WARNING "unrecognised option '%s' "
-				"in module parameter 'dev_unplug'\n", p);
-	}
-	return 0;
-}
-
-early_param("xen_unplug", parse_unplug);

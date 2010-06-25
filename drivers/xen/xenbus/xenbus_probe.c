@@ -49,10 +49,13 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/page.h>
 
+#include <xen/platform_pci.h>
 #include <xen/hvm.h>
 
 #include "xenbus_comms.h"
@@ -792,24 +795,31 @@ void xenbus_probe(struct work_struct *unused)
 	/* Notify others that xenstore is up */
 	blocking_notifier_call_chain(&xenstore_chain, 0, NULL);
 }
+EXPORT_SYMBOL_GPL(xenbus_probe);
 
-static int __init __xenbus_probe_init(void)
+static int __init xenbus_probe_initcall(void)
 {
-	/* Delay initialization in the PV on HVM case */
-	if (xen_hvm_domain())
-		return 0;
-
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
-	return xenbus_probe_init();
+	if (xen_initial_domain() || xen_hvm_domain())
+		return 0;
+
+	xenbus_probe(NULL);
+	return 0;
 }
 
-int xenbus_probe_init(void)
+device_initcall(xenbus_probe_initcall);
+
+static int __init xenbus_init(void)
 {
 	int err = 0;
 
 	DPRINTK("");
+
+	err = -ENODEV;
+	if (!xen_domain())
+		goto out_error;
 
 	/* Register ourselves with the kernel bus subsystem */
 	xenbus_frontend.error = bus_register(&xenbus_frontend.bus);
@@ -853,9 +863,6 @@ int xenbus_probe_init(void)
 		goto out_unreg_back;
 	}
 
-	if (!xen_initial_domain())
-		xenbus_probe(NULL);
-
 #ifdef CONFIG_XEN_COMPAT_XENFS
 	/*
 	 * Create xenfs mountpoint in /proc for compatibility with
@@ -876,7 +883,7 @@ int xenbus_probe_init(void)
 	return err;
 }
 
-postcore_initcall(__xenbus_probe_init);
+postcore_initcall(xenbus_init);
 
 MODULE_LICENSE("GPL");
 

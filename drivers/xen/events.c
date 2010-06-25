@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
-#include <linux/slab.h>
 
 #include <asm/desc.h>
 #include <asm/ptrace.h>
@@ -674,7 +673,7 @@ static void __xen_evtchn_do_upcall(void)
 
 		count = __get_cpu_var(xed_nesting_count);
 		__get_cpu_var(xed_nesting_count) = 0;
-	} while(count != 1 || vcpu_info->evtchn_upcall_pending);
+	} while (count != 1 || vcpu_info->evtchn_upcall_pending);
 
 out:
 
@@ -694,7 +693,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void xen_hvm_evtchn_do_upcall()
+void xen_hvm_evtchn_do_upcall(void)
 {
 	__xen_evtchn_do_upcall();
 }
@@ -987,9 +986,9 @@ void smp_xen_hvm_callback_vector(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-/* the callback vector mechanism is a newer alternative way of receiving
- * event channel notifications from Xen: we can receive vector callbacks
- * on any vcpus and we don't need any PCI or IO APIC support */
+/* Vector callbacks are better than PCI interrupts to receive event
+ * channel notifications because we can receive vector callbacks on any
+ * vcpu and we don't need PCI support or APIC interactions. */
 void xen_callback_vector(void)
 {
 	int rc;
@@ -998,7 +997,8 @@ void xen_callback_vector(void)
 		callback_via = HVM_CALLBACK_VECTOR(XEN_HVM_EVTCHN_CALLBACK);
 		rc = xen_set_callback_via(callback_via);
 		if (rc) {
-			printk(KERN_ERR "request for callback vector failed\n");
+			printk(KERN_ERR "Request for Xen HVM callback vector"
+					" failed.\n");
 			xen_have_vector_callback = 0;
 			return;
 		}
