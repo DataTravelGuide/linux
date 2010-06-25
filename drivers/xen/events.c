@@ -697,6 +697,7 @@ void xen_hvm_evtchn_do_upcall(void)
 {
 	__xen_evtchn_do_upcall();
 }
+EXPORT_SYMBOL_GPL(xen_hvm_evtchn_do_upcall);
 
 /* Rebind a new event channel to an existing irq. */
 void rebind_evtchn_irq(int evtchn, int irq)
