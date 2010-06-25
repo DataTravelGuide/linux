@@ -32,6 +32,7 @@
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/hvm.h>
+#include <xen/xen-ops.h>
 
 #define DRV_NAME    "xen-platform-pci"
 
@@ -193,6 +194,9 @@ static struct pci_driver platform_driver = {
 	.name =           DRV_NAME,
 	.probe =          platform_pci_init,
 	.id_table =       platform_pci_tbl,
+#ifdef CONFIG_PM
+	.resume_early =   platform_pci_resume,
+#endif
 };
 
 static int __init platform_pci_module_init(void)
