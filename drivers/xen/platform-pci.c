@@ -81,7 +81,7 @@ static uint64_t get_callback_via(struct pci_dev *pdev)
 
 static irqreturn_t do_hvm_evtchn_intr(int irq, void *dev_id)
 {
-	xen_hvm_evtchn_do_upcall(get_irq_regs());
+	xen_hvm_evtchn_do_upcall();
 	return IRQ_HANDLED;
 }
 

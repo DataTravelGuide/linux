@@ -22,9 +22,6 @@ static inline int hvm_get_parameter(int idx, uint64_t *value)
        return r;
 }
 
-int xen_set_callback_via(uint64_t via);
-extern int xen_have_vector_callback;
-
 #define HVM_CALLBACK_VIA_TYPE_VECTOR 0x2
 #define HVM_CALLBACK_VIA_TYPE_SHIFT 56
 #define HVM_CALLBACK_VECTOR(x) (((uint64_t)HVM_CALLBACK_VIA_TYPE_VECTOR)<<\

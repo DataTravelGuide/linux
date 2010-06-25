@@ -11,6 +11,7 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -81,7 +82,9 @@ struct shared_info xen_dummy_shared_info;
 
 void *xen_initial_gdt;
 
-int xen_have_vector_callback;
+__read_mostly int xen_have_vector_callback;
+EXPORT_SYMBOL_GPL(xen_have_vector_callback);
+
 static int unplug;
 
 /*
@@ -1278,7 +1281,7 @@ static int init_hvm_pv_info(int *major, int *minor)
 	cpuid(base + 2, &pages, &msr, &ecx, &edx);
 
 	pfn = __pa(hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >>32));
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
 
 	xen_setup_features();
 
@@ -1310,26 +1313,28 @@ static void __init init_shared_info(void)
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
 }
 
-int xen_set_callback_via(uint64_t via)
+static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
+				    unsigned long action, void *hcpu)
 {
-	struct xen_hvm_param a;
-
-	a.domid = DOMID_SELF;
-	a.index = HVM_PARAM_CALLBACK_IRQ;
-	a.value = via;
-	return HYPERVISOR_hvm_op(HVMOP_set_param, &a);
+	int cpu = (long)hcpu;
+	switch (action) {
+	case CPU_UP_PREPARE:
+		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
 }
 
-void do_hvm_pv_evtchn_intr(void)
-{
-	xen_hvm_evtchn_do_upcall(get_irq_regs());
-}
+static struct notifier_block __cpuinitdata xen_hvm_cpu_notifier = {
+	.notifier_call	= xen_hvm_cpu_notify,
+};
 
 void __init xen_guest_init(void)
 {
 	int r;
 	int major, minor;
-	uint64_t callback_via;
 
 	if (xen_pv_domain())
 		return;
@@ -1340,18 +1345,9 @@ void __init xen_guest_init(void)
 
 	init_shared_info();
 
-	if (xen_feature(XENFEAT_hvm_callback_vector)) {
-		callback_via = HVM_CALLBACK_VECTOR(X86_PLATFORM_IPI_VECTOR);
-		xen_set_callback_via(callback_via);
-		x86_platform_ipi_callback = do_hvm_pv_evtchn_intr;
+	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
-	}
-
-	if (unplug) {
-		/* unplug emulated devices */
-		outw(UNPLUG_ALL, XEN_IOPORT_UNPLUG);
-	}
-
+	register_cpu_notifier(&xen_hvm_cpu_notifier);
 	have_vcpu_info_placement = 0;
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	machine_ops = xen_machine_ops;

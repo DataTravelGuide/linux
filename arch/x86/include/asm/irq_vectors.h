@@ -120,6 +120,11 @@
  */
 #define MCE_SELF_VECTOR			0xeb
 
+#ifdef CONFIG_XEN
+/* Xen vector callback to receive events in a HVM domain */
+#define XEN_HVM_EVTCHN_CALLBACK		0xe9
+#endif
+
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee) we
  * start at 0x31(0x41) to spread out vectors evenly between priority
