@@ -271,6 +271,7 @@ static void __init do_add_efi_memmap(void)
 			break;
 		}
 		e820_add_region(start, size, e820_type);
+		e820_saved_add_region(start, size, e820_type);
 	}
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }

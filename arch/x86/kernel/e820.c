@@ -33,9 +33,9 @@
  * and that is also registered with modifications in the kernel resource tree
  * with the iomem_resource as parent.
  *
- * The e820_saved is directly saved after the BIOS-provided memory map is
- * copied. It doesn't get modified afterwards. It's registered for the
- * /sys/firmware/memmap interface.
+ * The e820_saved is saved after the BIOS-provided memory map is copied as
+ * well as the optional add_efi_memmap entries are processed.  It doesn't get
+ * modified afterwards. It's registered for the /sys/firmware/memmap interface.
  *
  * That memory map is not modified and is used as base for kexec. The kexec'd
  * kernel should get the same memory map as the firmware provides. Then the
@@ -129,6 +129,11 @@ static void __init __e820_add_region(struct e820map *e820x, u64 start, u64 size,
 void __init e820_add_region(u64 start, u64 size, int type)
 {
 	__e820_add_region(&e820, start, size, type);
+}
+
+void __init e820_saved_add_region(u64 start, u64 size, int type)
+{
+	__e820_add_region(&e820_saved, start, size, type);
 }
 
 static void __init e820_print_type(u32 type)
