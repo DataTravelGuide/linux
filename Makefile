@@ -352,6 +352,22 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks
+
+ifneq (,$(filter $(ARCH), i386 x86_64))
+CPP_MAJOR       := $(shell $(CPP) -dumpversion 2>&1 | cut -d'.' -f1)
+CPP_MINOR       := $(shell $(CPP) -dumpversion 2>&1 | cut -d'.' -f2)
+CPP_PATCH       := $(shell $(CPP) -dumpversion 2>&1 | cut -d'.' -f3)
+# Assumes that major, minor, and patch cannot exceed 999
+CPP_VERS        := $(shell expr $(CPP_MAJOR) \* 1000000 + $(CPP_MINOR) \* 1000 \
+		   + $(CPP_PATCH))
+
+# GCC Bugzilla Bug 43949: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
+# add -Wno-array-bounds to remove bogus warnings.  This flag is present in
+# gcc version 4.4.4 .
+KBUILD_CFLAGS   += $(shell if [ $(CPP_VERS) -ge 4004004 ]; then \
+		   echo "-Wno-array-bounds -Werror"; else echo ""; fi)
+endif #(,$(filter $(ARCH), i386 x86_64))
+
 KBUILD_AFLAGS   := -D__ASSEMBLY__
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
