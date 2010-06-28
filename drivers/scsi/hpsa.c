@@ -3225,13 +3225,13 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * It means we're on one of those controllers which doesn't support
 	 * the doorbell reset method and on which the PCI power management reset
 	 * method doesn't work (P800, for example.)
-	 * In those cases, pretend the reset worked and hope for the best.
+	 * In those cases, don't pretend the reset worked.
 	 */
 	active_transport = readl(&cfgtable->TransportActive);
 	if (active_transport & PERFORMANT_MODE) {
 		dev_warn(&pdev->dev, "Unable to successfully reset controller,"
-			" proceeding anyway.\n");
-		rc = -ENOTSUPP;
+			" can't proceed.\n");
+		rc = -ENODEV;
 	}
 
 unmap_cfgtable:
