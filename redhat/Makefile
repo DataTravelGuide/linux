@@ -197,6 +197,7 @@ rh-help:
 	@echo  '  rh-test-patch - Create a diff against HEAD and put it in linux-kernel-test.patch.'
 	@echo  '                  Then linux-kernel-test.patch will be added to the kernel build'
 	@echo  '  rh-key	- Generate the required files for compiling with module signing enabled'
+	@echo  '  rh-stub-key	- Use pre generated keys to speed local test builds'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
