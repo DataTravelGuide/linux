@@ -185,6 +185,7 @@ static void __init xen_banner(void)
 
 static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
+static __read_mostly unsigned int cpuid_leaf81_edx_mask = ~0;
 
 static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		      unsigned int *cx, unsigned int *dx)
@@ -198,7 +199,7 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	 * unsupported kernel subsystems as possible.
 	 */
 	switch (*ax) {
-	case 1:
+	case 0x1:
 		maskecx = cpuid_leaf1_ecx_mask;
 		maskedx = cpuid_leaf1_edx_mask;
 		break;
@@ -206,6 +207,10 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	case 0xb:
 		/* Suppress extended topology stuff */
 		maskebx = 0;
+		break;
+
+	case 0x80000001:
+		maskedx = cpuid_leaf81_edx_mask;
 		break;
 	}
 
@@ -229,6 +234,8 @@ static __init void xen_init_cpuid_mask(void)
 		~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
 		  (1 << X86_FEATURE_MCA)  |  /* disable MCA */
 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
+
+	cpuid_leaf81_edx_mask = ~(1 << (X86_FEATURE_GBPAGES % 32));
 
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
