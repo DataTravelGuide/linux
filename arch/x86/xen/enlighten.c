@@ -231,15 +231,15 @@ static __init void xen_init_cpuid_mask(void)
 	unsigned int ax, bx, cx, dx;
 
 	cpuid_leaf1_edx_mask =
-		~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
-		  (1 << X86_FEATURE_MCA)  |  /* disable MCA */
-		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
+		~(1 << X86_FEATURE_ACC);   /* thermal monitoring */
 
 	cpuid_leaf81_edx_mask = ~(1 << (X86_FEATURE_GBPAGES % 32));
 
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
-			~((1 << X86_FEATURE_APIC) |  /* disable local APIC */
+			~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
+			  (1 << X86_FEATURE_MCA)  |  /* disable MCA */
+			  (1 << X86_FEATURE_APIC) |  /* disable local APIC */
 			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
 
 	ax = 1;
