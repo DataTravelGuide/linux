@@ -577,10 +577,6 @@ static enum page_references page_check_references(struct page *page,
 	referenced_ptes = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
 	referenced_page = TestClearPageReferenced(page);
 
-	/* Lumpy reclaim - ignore references */
-	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-		return PAGEREF_RECLAIM;
-
 	/*
 	 * Mlock lost the isolation race with us.  Let try_to_unmap()
 	 * move the page to the unevictable list.
