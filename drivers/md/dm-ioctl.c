@@ -1170,7 +1170,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		goto out;
 	}
 
-	/* Protect md->type against concurrent table loads. */
+	/* Protect md->type and md->queue against concurrent table loads. */
 	dm_lock_md_type(md);
 	if (dm_get_md_type(md) == DM_TYPE_NONE) {
 		/* initial table load, set md's type based on table's type */
@@ -1180,6 +1180,15 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		dm_table_destroy(t);
 		dm_unlock_md_type(md);
 		r = -EINVAL;
+		goto out;
+	}
+
+	/* setup md->queue to reflect md's type (may block) */
+	r = dm_setup_md_queue(md);
+	if (r) {
+		DMWARN("unable to setup device queue for this table.");
+		dm_table_destroy(t);
+		dm_unlock_md_type(md);
 		goto out;
 	}
 	dm_unlock_md_type(md);
