@@ -858,21 +858,9 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (force_wait)
 			work->args.sync_mode = args.sync_mode = WB_SYNC_ALL;
 
-		/*
-		 * If this isn't a data integrity operation, just notify
-		 * that we have seen this work and we are now starting it.
-		 */
-		if (!test_bit(WS_ONSTACK, &work->state))
-			wb_clear_pending(wb, work);
-
 		wrote += wb_writeback(wb, &args);
 
-		/*
-		 * This is a data integrity writeback, so only do the
-		 * notification when we have completed the work.
-		 */
-		if (test_bit(WS_ONSTACK, &work->state))
-			wb_clear_pending(wb, work);
+		wb_clear_pending(wb, work);
 	}
 	trace_mm_background_writeout(wrote);
 
