@@ -240,10 +240,16 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)
 {
+	int result;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	return __apic_accept_irq(apic, irq->delivery_mode, irq->vector,
+	result = __apic_accept_irq(apic, irq->delivery_mode, irq->vector,
 			irq->level, irq->trig_mode);
+
+	if (!kvm_vcpu_is_bsp(apic->vcpu) && !irq->trig_mode)
+		result = 0;
+
+	return result;
 }
 
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
@@ -389,9 +395,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 						"vector %d", vector);
 			break;
 		}
-
-		if (!kvm_vcpu_is_bsp(apic->vcpu))
-			result = 0;
 
 		kvm_vcpu_kick(vcpu);
 		break;
