@@ -505,6 +505,7 @@ struct drm_nouveau_private {
 		NOUVEAU_CARD_INIT_DONE,
 		NOUVEAU_CARD_INIT_FAILED
 	} init_state;
+	bool noaccel;
 
 	/* the card type, takes NV_* as values */
 	enum nouveau_card_type card_type;
