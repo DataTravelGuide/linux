@@ -1603,6 +1603,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 29 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-40.el6]
+- [infiniband] Add IBoE support (Doug Ledford) [571959]
+- [scsi] hpsa: don't pretend the reset works (Tomas Henzl) [598681]
+- [fs] revert "procfs: provide stack information for threads" and its fixup commits (George Beshers) [573095]
+- [x86] mce: Fix MSR_IA32_MCI_CTL2 CMCI threshold setup (John Villalovos) [593558]
+- [s390x] cio: use exception-save stsch (Hendrik Brueckner) [596333]
+- [s390x] cio: add hook to reenable mss after hibernation (Hendrik Brueckner) [596333]
+- [s390x] cio: allow enable_facility from outside init functions (Hendrik Brueckner) [596333]
+- [x86] wmi: Free the allocated acpi objects through wmi_get_event_data (Stanislaw Gruszka) [606736]
+- [mtd] UBI: fix volume creation input checking (Stanislaw Gruszka) [606736]
+- [mm] avoid THP expose VM bugs (Andrea Arcangeli) [606131]
+- [dm] discard support for the linear target (Mike Snitzer) [608280]
+- [block] fix DISCARD_BARRIER requests (Mike Snitzer) [608280]
+- [block] Don't count_vm_events for discard bio in submit_bio (Mike Snitzer) [608280]
+
 * Tue Jun 29 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-39.el6]
 - [x86] disable PentiumPro memory ordering errata workaround (Gleb Natapov) [605745 606054]
 - [net] Bluetooth: Keep a copy of each HID device's report descriptor (Mauro Carvalho Chehab) [565583]
