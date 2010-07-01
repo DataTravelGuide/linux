@@ -1603,6 +1603,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 30 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-42.el6]
+- [block] writeback: simplify the write back thread queue (Christoph Hellwig) [602595]
+
 * Tue Jun 29 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-41.el6]
 - [mm] Fix slabcache corruption (Larry Woodman) [602595]
 
