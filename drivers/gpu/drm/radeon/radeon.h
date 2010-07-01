@@ -154,7 +154,7 @@ struct radeon_clock {
  * Power management
  */
 int radeon_pm_init(struct radeon_device *rdev);
-
+void rs690_pm_info(struct radeon_device *rdev);
 /*
  * Fences.
  */
