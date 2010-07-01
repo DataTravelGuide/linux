@@ -800,24 +800,17 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 		}
 	}
 
-	spin_lock(&mm->page_table_lock);
-	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-		goto out_free_pages;
-	else
-		get_page(page);
-	spin_unlock(&mm->page_table_lock);
-
 	for (i = 0; i < HPAGE_PMD_NR; i++) {
 		copy_user_highpage(pages[i], page + i,
 				   haddr + PAGE_SHIFT*i, vma);
 		__SetPageUptodate(pages[i]);
 		cond_resched();
 	}
-	put_page(page);
 
 	spin_lock(&mm->page_table_lock);
 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
 		goto out_free_pages;
+	VM_BUG_ON(!PageHead(page));
 
 	pmdp_clear_flush_notify(vma, haddr, pmd);
 	/* leave pmd empty until pte is filled */
@@ -883,6 +876,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		ret |= VM_FAULT_WRITE;
 		goto out_unlock;
 	}
+	get_page(page);
 	spin_unlock(&mm->page_table_lock);
 
 	if (transparent_hugepage_enabled(vma) &&
@@ -895,11 +889,13 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(!new_page)) {
 		ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
 						   pmd, orig_pmd, page, haddr);
+		put_page(page);
 		goto out;
 	}
 
 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
 		put_page(new_page);
+		put_page(page);
 		ret |= VM_FAULT_OOM;
 		goto out;
 	}
@@ -907,11 +903,13 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	__SetPageUptodate(new_page);
 
 	spin_lock(&mm->page_table_lock);
+	put_page(page);
 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
 		mem_cgroup_uncharge_page(new_page);
 		put_page(new_page);
 	} else {
 		pmd_t entry;
+		VM_BUG_ON(!PageHead(page));
 		entry = mk_pmd(new_page, vma->vm_page_prot);
 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 		entry = pmd_mkhuge(entry);
