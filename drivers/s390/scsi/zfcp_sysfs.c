@@ -241,6 +241,7 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	LIST_HEAD(unit_remove_lh);
+	struct scsi_device *sdev;
 
 	mutex_lock(&zfcp_data.config_mutex);
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE) {
@@ -256,17 +257,28 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	read_lock_irq(&zfcp_data.config_lock);
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
 	read_unlock_irq(&zfcp_data.config_lock);
-	if (!unit || atomic_read(&unit->refcount)) {
+	if (!unit) {
 		mutex_unlock(&zfcp_data.config_mutex);
 		return -ENXIO;
 	}
 	zfcp_unit_get(unit);
 	mutex_unlock(&zfcp_data.config_mutex);
 
-	/* wait for possible timeout during SCSI probe */
-	flush_work(&unit->scsi_work);
+	sdev = scsi_device_lookup(port->adapter->scsi_host, 0,
+				  port->starget_id,
+				  scsilun_to_int((struct scsi_lun *)&fcp_lun));
+	if (sdev) {
+		scsi_remove_device(sdev);
+		scsi_device_put(sdev);
+	}
 
 	mutex_lock(&zfcp_data.config_mutex);
+	zfcp_unit_put(unit);
+	if (atomic_read(&unit->refcount)) {
+		mutex_unlock(&zfcp_data.config_mutex);
+		return -ENXIO;
+	}
+
 	write_lock_irq(&zfcp_data.config_lock);
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 	list_move(&unit->list, &unit_remove_lh);
@@ -275,7 +287,6 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 
 	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
 	zfcp_erp_wait(unit->port->adapter);
-	zfcp_unit_put(unit);
 	zfcp_unit_dequeue(unit);
 
 	return (ssize_t)count;
