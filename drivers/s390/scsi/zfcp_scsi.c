@@ -196,7 +196,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_fsf_req *old_req, *abrt_req;
 	unsigned long flags;
 	unsigned long old_reqid = (unsigned long) scpnt->host_scribble;
-	int retval = SUCCESS;
+	int retval = SUCCESS, ret;
 	int retry = 3;
 	char *dbf_tag;
 
@@ -223,7 +223,9 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 			break;
 
 		zfcp_erp_wait(adapter);
-		fc_block_scsi_eh(scpnt);
+		ret = fc_block_scsi_eh(scpnt);
+		if (ret)
+			return ret;
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
 			zfcp_dbf_scsi_abort("nres", adapter->dbf, scpnt, NULL,
@@ -254,7 +256,7 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_fsf_req *fsf_req = NULL;
-	int retval = SUCCESS;
+	int retval = SUCCESS, ret;
 	int retry = 3;
 
 	while (retry--) {
@@ -263,7 +265,10 @@ static int zfcp_task_mgmt_function(struct scsi_cmnd *scpnt, u8 tm_flags)
 			break;
 
 		zfcp_erp_wait(adapter);
-		fc_block_scsi_eh(scpnt);
+		ret = fc_block_scsi_eh(scpnt);
+		if (ret)
+			return ret;
+
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
 			zfcp_dbf_scsi_devreset("nres", tm_flags, unit, scpnt);
@@ -302,10 +307,13 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
 	struct zfcp_unit *unit = scpnt->device->hostdata;
 	struct zfcp_adapter *adapter = unit->port->adapter;
+	int ret;
 
 	zfcp_erp_adapter_reopen(adapter, 0, "schrh_1", scpnt);
 	zfcp_erp_wait(adapter);
-	fc_block_scsi_eh(scpnt);
+	ret = fc_block_scsi_eh(scpnt);
+	if (ret)
+		return ret;
 
 	return SUCCESS;
 }
