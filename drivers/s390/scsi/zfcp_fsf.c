@@ -640,7 +640,8 @@ static int zfcp_fsf_sbal_check(struct zfcp_qdio *qdio)
 	struct zfcp_qdio_queue *req_q = &qdio->req_q;
 
 	spin_lock_bh(&qdio->req_q_lock);
-	if (atomic_read(&req_q->count))
+	if (atomic_read(&req_q->count) ||
+	    !(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return 1;
 	spin_unlock_bh(&qdio->req_q_lock);
 	return 0;
@@ -654,8 +655,13 @@ static int zfcp_fsf_req_sbal_get(struct zfcp_qdio *qdio)
 	spin_unlock_bh(&qdio->req_q_lock);
 	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
 			       zfcp_fsf_sbal_check(qdio), 5 * HZ);
+
+	if (!(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
+		return -EIO;
+
 	if (ret > 0)
 		return 0;
+
 	if (!ret) {
 		atomic_inc(&qdio->req_q_full);
 		/* assume hanging outbound queue, try queue recovery */
@@ -751,11 +757,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 		req->qtcb->prefix.req_seq_no = adapter->fsf_req_seq_no;
 		sbale[1].addr = (void *) req->qtcb;
 		sbale[1].length = sizeof(struct fsf_qtcb);
-	}
-
-	if (!(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)) {
-		zfcp_fsf_req_free(req);
-		return ERR_PTR(-EIO);
 	}
 
 	return req;

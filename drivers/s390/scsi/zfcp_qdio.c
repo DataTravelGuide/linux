@@ -392,6 +392,8 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 	spin_unlock_bh(&qdio->req_q_lock);
 
+	wake_up(&qdio->req_q_wq);
+
 	qdio_shutdown(qdio->adapter->ccw_device,
 		      QDIO_FLAG_CLEANUP_USING_CLEAR);
 
