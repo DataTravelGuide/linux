@@ -3710,6 +3710,8 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 		return ret;
 	}
 
+	if (io->iocb)
+		aio_complete(io->iocb, io->result, 0);
 	/* clear the DIO AIO unwritten flag */
 	io->flag = 0;
 	return ret;
@@ -3792,6 +3794,8 @@ static ext4_io_end_t *ext4_init_io_end (struct inode *inode)
 		io->offset = 0;
 		io->size = 0;
 		io->error = 0;
+		io->iocb = NULL;
+		io->result = 0;
 		INIT_WORK(&io->work, ext4_end_aio_dio_work);
 		INIT_LIST_HEAD(&io->list);
 	}
@@ -3819,11 +3823,18 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	if (io_end->flag != DIO_AIO_UNWRITTEN){
 		ext4_free_io_end(io_end);
 		iocb->private = NULL;
-		goto out;
+out:
+		if (is_async)
+			aio_complete(iocb, ret, 0);
+		return;
 	}
 
 	io_end->offset = offset;
 	io_end->size = size;
+	if (is_async) {
+		io_end->iocb = iocb;
+		io_end->result = ret;
+	}
 	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
 
 	/* queue the work to convert unwritten extents to written */
@@ -3833,9 +3844,6 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	list_add_tail(&io_end->list,
 		 &EXT4_I(io_end->inode)->i_aio_dio_complete_list);
 	iocb->private = NULL;
-out:
-	if (is_async)
-		aio_complete(iocb, ret, 0);
 }
 /*
  * For ext4 extent files, ext4 will do direct-io write to holes,
