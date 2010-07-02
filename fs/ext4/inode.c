@@ -1415,6 +1415,43 @@ out:
 	return ret;
 }
 
+static int ext4_journalled_get_block(struct inode *inode, sector_t iblock,
+				     struct buffer_head *bh, int create)
+{
+	handle_t *handle = ext4_journal_current_handle();
+	int ret;
+
+	/* This function should ever be used only for real buffers */
+	BUG_ON(!bh->b_page);
+
+	ret = ext4_get_blocks(handle, inode, iblock, 1, bh,
+			      create ? EXT4_GET_BLOCKS_CREATE : 0);
+	if (ret > 0) {
+		if (buffer_new(bh)) {
+			struct page *page = bh->b_page;
+
+			/*
+			 * This is a terrible hack to avoid block_prepare_write
+			 * marking our buffer as dirty
+			 */
+			if (PageUptodate(page)) {
+				ret = ext4_journal_get_write_access(handle, bh);
+				if (ret < 0)
+					return ret;
+				unmap_underlying_metadata(bh->b_bdev,
+							  bh->b_blocknr);
+				clear_buffer_new(bh);
+				set_buffer_uptodate(bh);
+				ret = jbd2_journal_dirty_metadata(handle, bh);
+				if (ret < 0)
+					return ret;
+			}
+		}
+		ret = 0;
+	}
+	return ret;
+}
+
 /*
  * `handle' can be NULL if create is zero
  */
@@ -1621,11 +1658,14 @@ retry:
 	}
 	*pagep = page;
 
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				ext4_get_block);
-
-	if (!ret && ext4_should_journal_data(inode)) {
-		ret = walk_page_buffers(handle, page_buffers(page),
+	if (!ext4_should_journal_data(inode))
+		ret = block_write_begin(file, mapping, pos, len, flags, pagep,
+				fsdata, ext4_get_block);
+	else {
+		ret = block_write_begin(file, mapping, pos, len, flags, pagep,
+				fsdata, ext4_journalled_get_block);
+		if (!ret)
+			ret = walk_page_buffers(handle, page_buffers(page),
 				from, to, NULL, do_journal_get_write_access);
 	}
 
