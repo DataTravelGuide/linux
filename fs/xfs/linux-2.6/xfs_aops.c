@@ -264,8 +264,11 @@ xfs_end_io(
 		xfs_finish_ioend(ioend, 0);
 		/* ensure we don't spin on blocked ioends */
 		delay(1);
-	} else
+	} else {
+		if (ioend->io_iocb)
+			aio_complete(ioend->io_iocb, ioend->io_result, 0);
 		xfs_destroy_ioend(ioend);
+	}
 }
 
 /*
@@ -298,6 +301,8 @@ xfs_alloc_ioend(
 	atomic_inc(&XFS_I(ioend->io_inode)->i_iocount);
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
+	ioend->io_iocb = NULL;
+	ioend->io_result = 0;
 
 	INIT_WORK(&ioend->io_work, xfs_end_io);
 	return ioend;
@@ -1555,6 +1560,7 @@ xfs_end_io_direct(
 	bool		is_async)
 {
 	xfs_ioend_t	*ioend = iocb->private;
+	bool		complete_aio = is_async;
 
 	/*
 	 * Non-NULL private data means we need to issue a transaction to
@@ -1580,7 +1586,14 @@ xfs_end_io_direct(
 	if (ioend->io_type == IOMAP_READ) {
 		xfs_finish_ioend(ioend, 0);
 	} else if (private && size > 0) {
-		xfs_finish_ioend(ioend, is_sync_kiocb(iocb));
+		if (is_async) {
+			ioend->io_iocb = iocb;
+			ioend->io_result = ret;
+			complete_aio = false;
+			xfs_finish_ioend(ioend, 0);
+		} else {
+			xfs_finish_ioend(ioend, 1);
+		}
 	} else {
 		/*
 		 * A direct I/O write ioend starts it's life in unwritten
@@ -1599,7 +1612,7 @@ xfs_end_io_direct(
 	 */
 	iocb->private = NULL;
 
-	if (is_async)
+	if (complete_aio)
 		aio_complete(iocb, ret, 0);
 }
 
