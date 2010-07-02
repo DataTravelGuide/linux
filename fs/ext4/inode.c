@@ -3800,14 +3800,15 @@ static ext4_io_end_t *ext4_init_io_end (struct inode *inode)
 }
 
 static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
-			    ssize_t size, void *private)
+			    ssize_t size, void *private, int ret,
+			    bool is_async)
 {
         ext4_io_end_t *io_end = iocb->private;
 	struct workqueue_struct *wq;
 
 	/* if not async direct IO or dio with 0 bytes write, just return */
 	if (!io_end || !size)
-		return;
+		goto out;
 
 	ext_debug("ext4_end_io_dio(): io_end 0x%p"
 		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
@@ -3818,7 +3819,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	if (io_end->flag != DIO_AIO_UNWRITTEN){
 		ext4_free_io_end(io_end);
 		iocb->private = NULL;
-		return;
+		goto out;
 	}
 
 	io_end->offset = offset;
@@ -3832,6 +3833,9 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	list_add_tail(&io_end->list,
 		 &EXT4_I(io_end->inode)->i_aio_dio_complete_list);
 	iocb->private = NULL;
+out:
+	if (is_async)
+		aio_complete(iocb, ret, 0);
 }
 /*
  * For ext4 extent files, ext4 will do direct-io write to holes,
