@@ -2310,7 +2310,10 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 	inode = obj->filp->f_path.dentry->d_inode;
 	mapping = inode->i_mapping;
 	for (i = 0; i < page_count; i++) {
-		page = read_mapping_page(mapping, i, NULL);
+		page = read_cache_page_gfp(mapping, i,
+					   GFP_HIGHUSER |
+					   __GFP_COLD |
+					   gfpmask);
 		if (IS_ERR(page))
 			goto err_pages;
 
