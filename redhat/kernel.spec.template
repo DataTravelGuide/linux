@@ -1606,6 +1606,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 06 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-43.el6]
+- [x86] properly account for IRQ injected only into BSP (Gleb Natapov) [609082]
+
 * Wed Jun 30 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-42.el6]
 - [block] writeback: simplify the write back thread queue (Christoph Hellwig) [602595]
 
