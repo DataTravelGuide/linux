@@ -136,7 +136,7 @@ static void handle_tx(struct vhost_net *net)
 					 &out, &in,
 					 NULL, NULL);
 		/* On error, stop handling until the next kick. */
-		if (head < 0)
+		if (unlikely(head < 0))
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
@@ -233,7 +233,7 @@ static void handle_rx(struct vhost_net *net)
 					 &out, &in,
 					 vq_log, &log);
 		/* On error, stop handling until the next kick. */
-		if (head < 0)
+		if (unlikely(head < 0))
 			break;
 		/* OK, now we need to know about added descriptors. */
 		if (head == vq->num) {
