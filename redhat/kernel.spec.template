@@ -1395,9 +1395,9 @@ then\
 	NEWKERNARGS="--kernel-args=\"crashkernel=auto\""\
 fi\
 %if %{with_dracut}\
-/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --dracut --depmod --install %{KVERREL}%{?1:.%{1}} $NEWKERNARGS || exit $?\
+/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --dracut --depmod --update %{KVERREL}%{?1:.%{1}} $NEWKERNARGS || exit $?\
 %else\
-/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --depmod --install %{KVERREL}%{?1:.%{1}} $NEWKERNARGS || exit $?\
+/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --depmod --update %{KVERREL}%{?1:.%{1}} $NEWKERNARGS || exit $?\
 %endif}\
 /sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --rpmposttrans %{KVERREL}%{?1:.%{1}} || exit $?\
 %{nil}
@@ -1416,6 +1416,9 @@ if [ `uname -i` == "x86_64" -o `uname -i` == "i386" ] &&\
    [ -f /etc/sysconfig/kernel ]; then\
   /bin/sed -r -i -e 's/^DEFAULTKERNEL=%{-r*}$/DEFAULTKERNEL=kernel%{?-v:-%{-v*}}/' /etc/sysconfig/kernel || exit $?\
 fi}\
+%{expand:\
+/sbin/new-kernel-pkg --package kernel%{?-v:-%{-v*}} --install %{KVERREL}%{?-v:.%{-v*}} || exit $?\
+}\
 if [ -x /sbin/weak-modules ]\
 then\
     /sbin/weak-modules --add-kernel %{KVERREL}%{?-v:.%{-v*}} || exit $?\
