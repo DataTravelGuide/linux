@@ -158,7 +158,10 @@ static const struct pci_device_id pci_ids[] = { {
 	},
 	{ /* end: all zeroes */ }
 };
+#if 0
+/* Disable module autoloading while there's no power management support */
 MODULE_DEVICE_TABLE(pci, pci_ids);
+#endif
 
 /* pci driver glue; this is a "new style" PCI driver module */
 static struct pci_driver xhci_pci_driver = {
