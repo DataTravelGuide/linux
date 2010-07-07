@@ -393,13 +393,13 @@ void setup_apic_nmi_watchdog(void *unused)
 	case NMI_IO_APIC:
 		__get_cpu_var(wd_enabled) = 1;
 		atomic_inc(&nmi_active);
-	}
 
-	/* kick off hrtimers to use to determine if interrupts are working */
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = nmi_watchdog_timer_fn;
-	hrtimer_start(hrtimer, ns_to_ktime(get_sample_period()),
-		      HRTIMER_MODE_REL_PINNED);
+		/* kick off hrtimers to use to determine if interrupts are working */
+		hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer->function = nmi_watchdog_timer_fn;
+		hrtimer_start(hrtimer, ns_to_ktime(get_sample_period()),
+			      HRTIMER_MODE_REL_PINNED);
+	}
 }
 
 void stop_apic_nmi_watchdog(void *unused)
