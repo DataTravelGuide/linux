@@ -616,7 +616,7 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
 
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
-void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
 int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);
 unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu);

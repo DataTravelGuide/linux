@@ -449,29 +449,23 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
-void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (cr3 == vcpu->arch.cr3 && !pdptrs_changed(vcpu)) {
 		kvm_mmu_sync_roots(vcpu);
 		kvm_mmu_flush_tlb(vcpu);
-		return;
+		return 0;
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
+		if (cr3 & CR3_L_MODE_RESERVED_BITS)
+			return 1;
 	} else {
 		if (is_pae(vcpu)) {
-			if (cr3 & CR3_PAE_RESERVED_BITS) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
-			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3)) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
+			if (cr3 & CR3_PAE_RESERVED_BITS)
+				return 1;
+			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3))
+				return 1;
 		}
 		/*
 		 * We don't check reserved bits in nonpae mode, because
@@ -489,11 +483,10 @@ void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	 * to debug) behavior on the guest side.
 	 */
 	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
-		kvm_inject_gp(vcpu, 0);
-	else {
-		vcpu->arch.cr3 = cr3;
-		vcpu->arch.mmu.new_cr3(vcpu);
-	}
+		return 1;
+	vcpu->arch.cr3 = cr3;
+	vcpu->arch.mmu.new_cr3(vcpu);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
@@ -3714,7 +3707,7 @@ int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		vcpu->arch.cr2 = val;
 		break;
 	case 3:
-		kvm_set_cr3(vcpu, val);
+		res = kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
 		res = kvm_set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
