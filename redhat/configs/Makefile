@@ -40,10 +40,10 @@ verify-configs:
 
 # Augment the clean target to clean up our own cruft
 clean ::
-	@rm -fv $(CONFIGFILES) $(TEMPFILES) temp-generic kernel-*config config-*-merged *.include
+	@rm -fv $(CONFIGFILES) $(TEMPFILES) temp-generic kernel-*config config-*-merged *.include temp-i686-debug-final temp-i686-final
 
 clean-configs:
-	@rm -fv $(CONFIGFILES) $(TEMPFILES) temp-generic kernel-*config config-*-merged *.include
+	@rm -fv $(CONFIGFILES) $(TEMPFILES) temp-generic kernel-*config config-*-merged *.include temp-i686-debug-final temp-i686-final
 
 configs-prep: clean configs
 	@mkdir -p $(CFG_DIR)
@@ -100,16 +100,19 @@ temp-s390x-debug-generic: config-s390x-merged temp-debug-generic
 temp-i686-final: config-i686-merged temp-x86-generic
 	perl merge.pl $^ > $@
 
-kernel-$(VERSION)-i686.config: config-i686-merged temp-x86-generic
+temp-i686-debug-final: config-i686-merged temp-x86-debug-generic
+	perl merge.pl $^ > $@
+
+kernel-$(VERSION)-i686.config: config-i686-nodebug-merged temp-i686-final
 	perl merge.pl $^ i386 > $@
 
-kernel-$(VERSION)-i686-debug.config: config-i686-merged temp-x86-debug-generic
+kernel-$(VERSION)-i686-debug.config: config-i686-debug-merged temp-i686-debug-final
 	perl merge.pl $^ i386 > $@
 
-kernel-$(VERSION)-x86_64.config: /dev/null temp-x86_64-generic
+kernel-$(VERSION)-x86_64.config: config-x86_64-nodebug-merged temp-x86_64-generic
 	perl merge.pl $^ x86_64 > $@
 
-kernel-$(VERSION)-x86_64-debug.config: /dev/null temp-x86_64-debug-generic
+kernel-$(VERSION)-x86_64-debug.config: config-x86_64-debug-merged temp-x86_64-debug-generic
 	perl merge.pl $^ x86_64 > $@
 
 kernel-$(VERSION)-ppc64.config: config-powerpc64-merged temp-powerpc-generic

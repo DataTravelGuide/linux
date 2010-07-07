@@ -1,3 +1,5 @@
 *.bz2
 configs/kernel*.config
 configs/*-merged
+configs/temp-i686-debug-final
+configs/temp-i686-final
