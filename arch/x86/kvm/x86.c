@@ -423,36 +423,29 @@ void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
-void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = vcpu->arch.cr4;
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
 
-	if (cr4 & CR4_RESERVED_BITS) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr4 & CR4_RESERVED_BITS)
+		return 1;
 
 	if (is_long_mode(vcpu)) {
-		if (!(cr4 & X86_CR4_PAE)) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
+		if (!(cr4 & X86_CR4_PAE))
+			return 1;
 	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
 		   && ((cr4 ^ old_cr4) & pdptr_bits)
-		   && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+		   && !load_pdptrs(vcpu, vcpu->arch.cr3))
+		return 1;
 
-	if (cr4 & X86_CR4_VMXE) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr4 & X86_CR4_VMXE)
+		return 1;
 	kvm_x86_ops->set_cr4(vcpu, cr4);
 	vcpu->arch.cr4 = cr4;
 	vcpu->arch.mmu.base_role.cr4_pge = (cr4 & X86_CR4_PGE) && !tdp_enabled;
 	kvm_mmu_reset_context(vcpu);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
@@ -3724,7 +3717,7 @@ int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
-		kvm_set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
+		res = kvm_set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
 		break;
 	case 8:
 		kvm_set_cr8(vcpu, val & 0xfUL);
