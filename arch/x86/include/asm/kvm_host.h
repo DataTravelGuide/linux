@@ -588,7 +588,7 @@ void realmode_lmsw(struct kvm_vcpu *vcpu, unsigned long msw,
 		   unsigned long *rflags);
 
 unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr);
-void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long value,
+int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long value,
 		     unsigned long *rflags);
 void kvm_enable_efer_bits(u64);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *data);
@@ -615,7 +615,7 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
 
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
 
-void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
+int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
 void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);

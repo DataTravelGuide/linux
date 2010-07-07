@@ -381,44 +381,31 @@ out:
 	return changed;
 }
 
-void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
-	if (cr0 & CR0_RESERVED_BITS) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if (cr0 & CR0_RESERVED_BITS)
+		return 1;
 
-	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD))
+		return 1;
 
-	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE)) {
-		kvm_inject_gp(vcpu, 0);
-		return;
-	}
+	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE))
+		return 1;
 
 	if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
 #ifdef CONFIG_X86_64
 		if ((vcpu->arch.shadow_efer & EFER_LME)) {
 			int cs_db, cs_l;
 
-			if (!is_pae(vcpu)) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-			}
+			if (!is_pae(vcpu))
+				return 1;
 			kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-			if (cs_l) {
-				kvm_inject_gp(vcpu, 0);
-				return;
-
-			}
+			if (cs_l)
+				return 1;
 		} else
 #endif
-		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-			kvm_inject_gp(vcpu, 0);
-			return;
-		}
+		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.cr3))
+			return 1;
 
 	}
 
@@ -426,13 +413,13 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vcpu->arch.cr0 = cr0;
 
 	kvm_mmu_reset_context(vcpu);
-	return;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr0);
 
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
-	kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0eul) | (msw & 0x0f));
+	(void)kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0eul) | (msw & 0x0f));
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
@@ -3720,12 +3707,14 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 	return value;
 }
 
-void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
+int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		     unsigned long *rflags)
 {
+	int res = 0;
+
 	switch (cr) {
 	case 0:
-		kvm_set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
+		res = kvm_set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
 		*rflags = kvm_x86_ops->get_rflags(vcpu);
 		break;
 	case 2:
@@ -3743,6 +3732,7 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
 	}
+	return res;
 }
 
 static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
