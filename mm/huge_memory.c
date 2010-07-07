@@ -2084,7 +2084,11 @@ static int khugepaged(void *none)
 
 	set_user_nice(current, 19);
 
+	/* serialize with start_khugepaged() */
+	mutex_lock(&khugepaged_mutex);
+
 	for (;;) {
+		mutex_unlock(&khugepaged_mutex);
 		BUG_ON(khugepaged_thread != current);
 		khugepaged_loop();
 		BUG_ON(khugepaged_thread != current);
@@ -2092,7 +2096,6 @@ static int khugepaged(void *none)
 		mutex_lock(&khugepaged_mutex);
 		if (!khugepaged_enabled())
 			break;
-		mutex_unlock(&khugepaged_mutex);
 	}
 
 	spin_lock(&khugepaged_mm_lock);
