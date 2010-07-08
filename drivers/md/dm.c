@@ -1220,6 +1220,9 @@ static int __clone_and_map_discard(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
+	if (!(ti->type->features & DM_TARGET_SUPPORTS_DISCARDS))
+		return -EOPNOTSUPP;
+
 	max = max_io_len(ci->md, ci->sector, ti);
 
 	if (ci->sector_count > max)
