@@ -26,6 +26,7 @@
 #include <asm/div64.h>
 #include <asm/vmware.h>
 #include <asm/x86_init.h>
+#include <asm/nmi.h>
 
 #define CPUID_VMWARE_INFO_LEAF	0x40000000
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
@@ -76,6 +77,8 @@ void __init vmware_platform_setup(void)
 	else
 		printk(KERN_WARNING
 		       "Failed to get TSC freq from the hypervisor\n");
+	/* NMI watchdog uses perfctrs, but they are not present. */
+	nmi_watchdog = NMI_NONE;
 }
 
 /*
