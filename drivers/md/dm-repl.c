@@ -1636,8 +1636,11 @@ replicator_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	while (argc > 0) {
 		r = _replicator_slink_ctr(CTR_CALL, ti, replog_c,
 					  argc, argv, &args_used);
-		if (r)
+		if (r) {
+			/* Free all resources in case of error. */
+			replicator_dtr(ti);
 			break;
+		}
 
 		/* Take per site link reference out. */
 		replog_c_get(replog_c);
