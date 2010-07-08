@@ -1244,12 +1244,12 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 	return t->md;
 }
 
-static int device_discard_incapable(struct dm_target *ti, struct dm_dev *dev,
-				    sector_t start, sector_t len, void *data)
+static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
+				  sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return !q || !blk_queue_discard(q);
+	return q && blk_queue_discard(q);
 }
 
 bool dm_table_supports_discards(struct dm_table *t)
@@ -1261,7 +1261,7 @@ bool dm_table_supports_discards(struct dm_table *t)
 		return 0;
 
 	/*
-	 * Ensure underlying devices support discards.
+	 * Ensure that at least one underlying device supports discards.
 	 * t->devices includes internal dm devices such as mirror logs
 	 * so we need to use iterate_devices here, which targets
 	 * supporting discard must provide.
@@ -1269,12 +1269,12 @@ bool dm_table_supports_discards(struct dm_table *t)
 	while (i < dm_table_get_num_targets(t)) {
 		ti = dm_table_get_target(t, i++);
 
-		if (!ti->type->iterate_devices ||
-		    ti->type->iterate_devices(ti, device_discard_incapable, NULL))
-			return 0;
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti, device_discard_capable, NULL))
+			return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 EXPORT_SYMBOL(dm_vcalloc);
