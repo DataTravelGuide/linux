@@ -912,12 +912,6 @@ int dm_table_complete(struct dm_table *t)
 	int r = 0;
 	unsigned int leaf_nodes;
 
-	/*
-	 * We only support discards if there is exactly one underlying device.
-	 */
-	if (!list_is_singular(&t->devices))
-		t->discards_supported = 0;
-
 	/* how many indexes will the btree have ? */
 	leaf_nodes = dm_div_up(t->num_targets, KEYS_PER_NODE);
 	t->depth = 1 + int_log(leaf_nodes, CHILDREN_PER_NODE);
