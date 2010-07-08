@@ -632,8 +632,14 @@ static void dec_pending(struct dm_io *io, int error)
 			 * There can be just one barrier request so we use
 			 * a per-device variable for error reporting.
 			 * Note that you can't touch the bio after end_io_acct
+			 *
+			 * We ignore -EOPNOTSUPP for empty flush reported by
+			 * underlying devices. We assume that if the device
+			 * doesn't support empty barriers, it doesn't need
+			 * cache flushing commands.
 			 */
-			if (!md->barrier_error && io_error != -EOPNOTSUPP)
+			if (!md->barrier_error &&
+			    !(bio_empty_barrier(bio) && io_error == -EOPNOTSUPP))
 				md->barrier_error = io_error;
 			end_io_acct(io);
 			free_io(md, io);
