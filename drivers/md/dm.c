@@ -2300,7 +2300,12 @@ static void process_barrier(struct mapped_device *md, struct bio *bio)
 
 	if (!bio_empty_barrier(bio)) {
 		__split_and_process_bio(md, bio);
-		dm_flush(md);
+		/*
+		 * If the request isn't supported, don't waste time with
+		 * the second flush.
+		 */
+		if (md->barrier_error != -EOPNOTSUPP)
+			dm_flush(md);
 	}
 
 	if (md->barrier_error != DM_ENDIO_REQUEUE)
