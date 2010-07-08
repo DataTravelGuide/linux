@@ -1606,6 +1606,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 07 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-44.el6]
+- [mm] Prevent soft lockup - CPU#0 stuck for 61s! in kswapd0 (Larry Woodman) [596971]
+
 * Tue Jul 06 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-43.el6]
 - [x86] properly account for IRQ injected only into BSP (Gleb Natapov) [609082]
 
