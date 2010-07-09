@@ -1404,11 +1404,14 @@ fi\
 #	%%kernel_variant_posttrans [<subpackage>]
 # More text can follow to go at the end of this variant's %%post.
 #
+# grubby might be called during installation when a boot loader configuration
+# file is not present, so just drop any error messages. See BZ#610813 for
+# more details.
 %define kernel_variant_posttrans() \
 %{expand:%%posttrans %{?1}}\
 %{expand:\
 NEWKERNARGS=""\
-/sbin/grubby --info=`/sbin/grubby --default-kernel` | grep -q crashkernel\
+(/sbin/grubby --info=`/sbin/grubby --default-kernel`) 2>/dev/null | grep -q crashkernel\
 if [ $? -ne 0 ]\
 then\
 	NEWKERNARGS="--kernel-args=\"crashkernel=auto\""\
