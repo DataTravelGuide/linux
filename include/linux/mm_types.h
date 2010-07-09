@@ -187,8 +187,8 @@ struct vm_area_struct {
 #ifdef CONFIG_NUMA
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
-	void * pad1;
-	void * pad2;
+	/* reserved for Red Hat */
+	unsigned long rh_reserved[2];
 };
 
 struct core_thread {
