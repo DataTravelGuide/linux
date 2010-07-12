@@ -378,7 +378,7 @@ int __cpuinit cpu_up(unsigned int cpu)
 	}
 
 	if (pgdat->node_zonelists->_zonerefs->zone == NULL)
-		build_all_zonelists();
+		build_all_zonelists(NULL);
 #endif
 
 	cpu_maps_update_begin();
