@@ -1587,7 +1587,7 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	error = ath_init_softc(devid, sc, subsysid);
 	if (error != 0)
-		return error;
+		goto error_init;
 
 	/* get mac address from hardware and set in mac80211 */
 
@@ -1598,7 +1598,7 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 	error = ath_regd_init(&sc->common.regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
-		return error;
+		goto error_regd;
 
 	reg = &sc->common.regulatory;
 
@@ -1611,22 +1611,24 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 	/* initialize tx/rx engine */
 	error = ath_tx_init(sc, ATH_TXBUF);
 	if (error != 0)
-		goto error_attach;
+		goto error_tx;
 
 	error = ath_rx_init(sc, ATH_RXBUF);
 	if (error != 0)
-		goto error_attach;
+		goto error_rx;
 
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
 
 	error = ieee80211_register_hw(hw);
+	if (error)
+		goto error_register;
 
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
-			goto error_attach;
+			goto error_world;
 	}
 
 	/* Initialize LED control */
@@ -1636,7 +1638,15 @@ int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid)
 
 	return 0;
 
-error_attach:
+error_world:
+	ieee80211_unregister_hw(hw);
+error_register:
+	ath_rx_cleanup(sc);
+error_rx:
+	ath_tx_cleanup(sc);
+error_tx:
+	/* Nothing */
+error_regd:
 	/* cleanup tx queues */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
@@ -1645,7 +1655,7 @@ error_attach:
 	ath9k_hw_detach(sc->sc_ah);
 	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
-
+error_init:
 	return error;
 }
 
