@@ -3834,6 +3834,19 @@ static inline bool CISS_signature_present(ctlr_info_t *h)
 	return true;
 }
 
+static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
+{
+	int i = 0;
+	/* under certain very rare conditions, this can take awhile.
+	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
+	 * as we enter this code.) */
+	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		msleep(10);
+	}
+}
+
 /* Need to enable prefetch in the SCSI core for 6400 in x86 */
 static inline void cciss_enable_scsi_prefetch(ctlr_info_t *h)
 {
@@ -3930,18 +3943,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	/* Update the field, and then ring the doorbell */
 	writel(CFGTBL_Trans_Simple, &(c->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, c->vaddr + SA5_DOORBELL);
-
-	/* under certain very rare conditions, this can take awhile.
-	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
-	 * as we enter this code.) */
-	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
-		if (!(readl(c->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
-			break;
-		/* delay and try again */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(msecs_to_jiffies(1));
-	}
-
+	cciss_wait_for_mode_change_ack(c);
 #ifdef CCISS_DEBUG
 	printk(KERN_DEBUG "I counter got to %d %x\n", i,
 	       readl(c->vaddr + SA5_DOORBELL));
