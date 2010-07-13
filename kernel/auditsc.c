@@ -321,7 +321,7 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 
 static int audit_match_filetype(struct audit_context *ctx, int which)
 {
-        struct audit_names *n;
+	struct audit_names *n;
 	unsigned i = 0;
 	unsigned index = which & ~S_IFMT;
 	mode_t mode = which & S_IFMT;
@@ -332,21 +332,21 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
 	if (index >= ctx->name_count)
 		return 0;
 
-        list_for_each_entry(n, &ctx->names_list, list) {
+	list_for_each_entry(n, &ctx->names_list, list) {
 		if (i != index) {
 			i++;
 			continue;
 		}
 
-                if (n->ino == -1)
+		if (n->ino == -1)
 			return 0;
 		if ((n->mode ^ mode) & S_IFMT)
 			return 0;
 		return 1;
-        }
+	}
 
 	/* we should not get here since we should eventually hit i == index */
-        return 0;
+	return 0;
 }
 
 /*
@@ -750,7 +750,8 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
  */
 static int audit_filter_inode_name(struct task_struct *tsk,
 				   struct audit_names *n,
-				   struct audit_context *ctx) {
+				   struct audit_context *ctx)
+{
 	int word, bit;
 	int h = audit_hash_ino((u32)n->ino);
 	struct list_head *list = &audit_inode_hash[h];
@@ -1950,7 +1951,7 @@ void audit_putname(const char *name)
 			list_for_each_entry(n, &context->names_list, list)
 				printk(KERN_ERR "name[%d] = %p = %s\n", i,
 				       n->name, n->name ?: "(null)");
-			}
+		}
 #endif
 		__putname(name);
 	}
