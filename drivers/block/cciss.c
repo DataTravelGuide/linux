@@ -3812,6 +3812,16 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 	return 0;
 }
 
+/* Interrogate the hardware for some limits:
+ * max commands, max SG elements without chaining, and with chaining,
+ * SG chain block size, etc.
+ */
+static void __devinit cciss_find_board_params(ctlr_info_t *h)
+{
+	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
+	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	int i, prod_index, err;
@@ -3864,16 +3874,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	print_cfg_table(c->cfgtable);
 #endif				/* CCISS_DEBUG */
 
-	/* Some controllers support Zero Memory Raid (ZMR).
-	 * When configured in ZMR mode the number of supported
-	 * commands drops to 64. So instead of just setting an
-	 * arbitrary value we make the driver a little smarter.
-	 * We read the config table to tell us how many commands
-	 * are supported on the controller then subtract 4 to
-	 * leave a little room for ioctl calls.
-	 */
-	c->max_commands = readl(&(c->cfgtable->CmdsOutMax));
-	c->nr_cmds = c->max_commands - 4;
+	cciss_find_board_params(c);
 	if ((readb(&c->cfgtable->Signature[0]) != 'C') ||
 	    (readb(&c->cfgtable->Signature[1]) != 'I') ||
 	    (readb(&c->cfgtable->Signature[2]) != 'S') ||
