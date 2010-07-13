@@ -165,7 +165,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			int withirq, sector_t total_size,
 			unsigned int block_size, InquiryData_struct *inq_buff,
 				   drive_info_struct *drv);
-static void __devinit cciss_interrupt_mode(ctlr_info_t *, __u32);
+static void __devinit cciss_interrupt_mode(ctlr_info_t *);
 static void start_io(ctlr_info_t *h);
 static int sendcmd(__u8 cmd, int ctlr, void *buff, size_t size,
 		   __u8 page_code, unsigned char *scsi3addr, int cmd_type);
@@ -3681,7 +3681,7 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
  * controllers that are capable. If not, we use IO-APIC mode.
  */
 
-static void __devinit cciss_interrupt_mode(ctlr_info_t *c, __u32 board_id)
+static void __devinit cciss_interrupt_mode(ctlr_info_t *c)
 {
 #ifdef CONFIG_PCI_MSI
 	int err;
@@ -3690,9 +3690,8 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c, __u32 board_id)
 	};
 
 	/* Some boards advertise MSI but don't really support it */
-	if ((board_id == 0x40700E11) ||
-	    (board_id == 0x40800E11) ||
-	    (board_id == 0x40820E11) || (board_id == 0x40830E11))
+	if ((c->board_id == 0x40700E11) || (c->board_id == 0x40800E11) ||
+	    (c->board_id == 0x40820E11) || (c->board_id == 0x40830E11))
 		goto default_int_mode;
 
 	if (pci_find_capability(c->pdev, PCI_CAP_ID_MSIX)) {
@@ -3798,7 +3797,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 /* If the kernel supports MSI/MSI-X we will try to enable that functionality,
  * else we use the IO-APIC interrupt assigned to us by system ROM.
  */
-	cciss_interrupt_mode(c, c->board_id);
+	cciss_interrupt_mode(c);
 
 	/* find the memory BAR */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
