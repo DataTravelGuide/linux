@@ -3813,7 +3813,6 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
-	u32 trans_offset;
 	int rc;
 
 	rc = cciss_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
@@ -3894,7 +3893,7 @@ static inline void cciss_p600_dma_prefetch_quirk(ctlr_info_t *h)
 
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
-	int i, prod_index, err;
+	int prod_index, err;
 
 	prod_index = cciss_lookup_board_id(c->pdev, &c->board_id);
 	if (prod_index < 0)
