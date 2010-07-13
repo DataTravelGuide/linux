@@ -165,8 +165,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			int withirq, sector_t total_size,
 			unsigned int block_size, InquiryData_struct *inq_buff,
 				   drive_info_struct *drv);
-static void __devinit cciss_interrupt_mode(ctlr_info_t *, struct pci_dev *,
-					   __u32);
+static void __devinit cciss_interrupt_mode(ctlr_info_t *, __u32);
 static void start_io(ctlr_info_t *h);
 static int sendcmd(__u8 cmd, int ctlr, void *buff, size_t size,
 		   __u8 page_code, unsigned char *scsi3addr, int cmd_type);
@@ -3682,8 +3681,7 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
  * controllers that are capable. If not, we use IO-APIC mode.
  */
 
-static void __devinit cciss_interrupt_mode(ctlr_info_t *c,
-					   struct pci_dev *pdev, __u32 board_id)
+static void __devinit cciss_interrupt_mode(ctlr_info_t *c, __u32 board_id)
 {
 #ifdef CONFIG_PCI_MSI
 	int err;
@@ -3697,8 +3695,8 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c,
 	    (board_id == 0x40820E11) || (board_id == 0x40830E11))
 		goto default_int_mode;
 
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
-		err = pci_enable_msix(pdev, cciss_msix_entries, 4);
+	if (pci_find_capability(c->pdev, PCI_CAP_ID_MSIX)) {
+		err = pci_enable_msix(c->pdev, cciss_msix_entries, 4);
 		if (!err) {
 			c->intr[0] = cciss_msix_entries[0].vector;
 			c->intr[1] = cciss_msix_entries[1].vector;
@@ -3717,8 +3715,8 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c,
 			goto default_int_mode;
 		}
 	}
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSI)) {
-		if (!pci_enable_msi(pdev)) {
+	if (pci_find_capability(c->pdev, PCI_CAP_ID_MSI)) {
+		if (!pci_enable_msi(c->pdev)) {
 			c->msi_vector = 1;
 		} else {
 			printk(KERN_WARNING "cciss: MSI init failed\n");
@@ -3727,11 +3725,11 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c,
 default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-	c->intr[SIMPLE_MODE_INT] = pdev->irq;
+	c->intr[SIMPLE_MODE_INT] = c->pdev->irq;
 	return;
 }
 
-static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
+static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	ushort subsystem_vendor_id, subsystem_device_id, command;
 	__u32 board_id, scratchpad = 0;
@@ -3740,8 +3738,8 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	__u64 cfg_base_addr_index;
 	int i, prod_index, err;
 
-	subsystem_vendor_id = pdev->subsystem_vendor;
-	subsystem_device_id = pdev->subsystem_device;
+	subsystem_vendor_id = c->pdev->subsystem_vendor;
+	subsystem_device_id = c->pdev->subsystem_device;
 	board_id = (((__u32) (subsystem_device_id << 16) & 0xffff0000) |
 		    subsystem_vendor_id);
 
@@ -3751,7 +3749,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 	prod_index = i;
 	if (prod_index == ARRAY_SIZE(products)) {
-		dev_warn(&pdev->dev,
+		dev_warn(&c->pdev->dev,
 			"unrecognized board ID: 0x%08lx, ignoring.\n",
 			(unsigned long) board_id);
 		return -ENODEV;
@@ -3759,20 +3757,20 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 
 	/* check to see if controller has been disabled */
 	/* BEFORE trying to enable it */
-	(void)pci_read_config_word(pdev, PCI_COMMAND, &command);
+	(void)pci_read_config_word(c->pdev, PCI_COMMAND, &command);
 	if (!(command & 0x02)) {
 		printk(KERN_WARNING
 		       "cciss: controller appears to be disabled\n");
 		return -ENODEV;
 	}
 
-	err = pci_enable_device(pdev);
+	err = pci_enable_device(c->pdev);
 	if (err) {
 		printk(KERN_ERR "cciss: Unable to Enable PCI device\n");
 		return err;
 	}
 
-	err = pci_request_regions(pdev, "cciss");
+	err = pci_request_regions(c->pdev, "cciss");
 	if (err) {
 		printk(KERN_ERR "cciss: Cannot obtain PCI resources, "
 		       "aborting\n");
@@ -3780,19 +3778,19 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	}
 
 #ifdef CCISS_DEBUG
-	printk("command = %x\n", command);
-	printk("irq = %x\n", pdev->irq);
-	printk("board_id = %x\n", board_id);
+	printk(KERN_INFO "command = %x\n", command);
+	printk(KERN_INFO "irq = %x\n", c->pdev->irq);
+	printk(KERN_INFO "board_id = %x\n", board_id);
 #endif				/* CCISS_DEBUG */
 
 /* If the kernel supports MSI/MSI-X we will try to enable that functionality,
  * else we use the IO-APIC interrupt assigned to us by system ROM.
  */
-	cciss_interrupt_mode(c, pdev, board_id);
+	cciss_interrupt_mode(c, board_id);
 
 	/* find the memory BAR */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM)
+		if (pci_resource_flags(c->pdev, i) & IORESOURCE_MEM)
 			break;
 	}
 	if (i == DEVICE_COUNT_RESOURCE) {
@@ -3801,7 +3799,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		goto err_out_free_res;
 	}
 
-	c->paddr = pci_resource_start(pdev, i); /* addressing mode bits
+	c->paddr = pci_resource_start(c->pdev, i); /* addressing mode bits
 						 * already removed
 						 */
 
@@ -3831,7 +3829,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 #ifdef CCISS_DEBUG
 	printk("cfg base address = %x\n", cfg_base_addr);
 #endif				/* CCISS_DEBUG */
-	cfg_base_addr_index = find_PCI_BAR_index(pdev, cfg_base_addr);
+	cfg_base_addr_index = find_PCI_BAR_index(c->pdev, cfg_base_addr);
 #ifdef CCISS_DEBUG
 	printk("cfg base address index = %llx\n",
 		(unsigned long long)cfg_base_addr_index);
@@ -3846,9 +3844,8 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 #ifdef CCISS_DEBUG
 	printk("cfg offset = %llx\n", (unsigned long long)cfg_offset);
 #endif				/* CCISS_DEBUG */
-	c->cfgtable = remap_pci_mem(pci_resource_start(pdev,
-						       cfg_base_addr_index) +
-				    cfg_offset, sizeof(CfgTable_struct));
+	c->cfgtable = remap_pci_mem(pci_resource_start(c->pdev,
+		cfg_base_addr_index) + cfg_offset, sizeof(CfgTable_struct));
 	c->board_id = board_id;
 
 #ifdef CCISS_DEBUG
@@ -3896,9 +3893,11 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 		dma_prefetch = readl(c->vaddr + I2O_DMA1_CFG);
 		dma_prefetch |= 0x8000;
 		writel(dma_prefetch, c->vaddr + I2O_DMA1_CFG);
-		pci_read_config_dword(pdev, PCI_COMMAND_PARITY, &dma_refetch);
+		pci_read_config_dword(c->pdev, PCI_COMMAND_PARITY,
+			&dma_refetch);
 		dma_refetch |= 0x1;
-		pci_write_config_dword(pdev, PCI_COMMAND_PARITY, dma_refetch);
+		pci_write_config_dword(c->pdev, PCI_COMMAND_PARITY,
+			dma_refetch);
 	}
 
 #ifdef CCISS_DEBUG
@@ -3941,7 +3940,7 @@ err_out_free_res:
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
 	 */
-	pci_release_regions(pdev);
+	pci_release_regions(c->pdev);
 	return err;
 }
 
@@ -4222,17 +4221,17 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	if (i < 0)
 		return -1;
 
+	hba[i]->pdev = pdev;
 	hba[i]->busy_initializing = 1;
 	INIT_HLIST_HEAD(&hba[i]->cmpQ);
 	INIT_HLIST_HEAD(&hba[i]->reqQ);
 	mutex_init(&hba[i]->busy_shutting_down);
 
-	if (cciss_pci_init(hba[i], pdev) != 0)
+	if (cciss_pci_init(hba[i]) != 0)
 		goto clean_no_release_regions;
 
 	sprintf(hba[i]->devname, "cciss%d", i);
 	hba[i]->ctlr = i;
-	hba[i]->pdev = pdev;
 
 	init_completion(&hba[i]->scan_wait);
 
