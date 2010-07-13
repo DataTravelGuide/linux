@@ -83,6 +83,7 @@
 //Configuration Table
 #define CFGTBL_ChangeReq        0x00000001l
 #define CFGTBL_AccCmds          0x00000001l
+#define DOORBELL_CTLR_RESET     0x00000004l
 
 #define CFGTBL_Trans_Simple     0x00000002l
 
@@ -308,17 +309,28 @@ typedef struct _HostWrite_struct {
 } HostWrite_struct;
 
 typedef struct _CfgTable_struct {
-  BYTE             Signature[4];
-  DWORD            SpecValence;
-  DWORD            TransportSupport;
-  DWORD            TransportActive;
-  HostWrite_struct HostWrite;
-  DWORD            CmdsOutMax;
-  DWORD            BusTypes;
-  DWORD            Reserved; 
-  BYTE             ServerName[16];
-  DWORD            HeartBeat;
-  DWORD            SCSI_Prefetch;
+  BYTE			Signature[4];
+  DWORD			SpecValence;
+#define SIMPLE_MODE	0x02
+#define PERFORMANT_MODE 0x04
+#define MEMQ_MODE	0x08
+  DWORD			TransportSupport;
+  DWORD			TransportActive;
+  HostWrite_struct	HostWrite;
+  DWORD			CmdsOutMax;
+  DWORD			BusTypes;
+  DWORD			Reserved;
+  BYTE 			ServerName[16];
+  DWORD			HeartBeat;
+  DWORD			SCSI_Prefetch;
+  DWORD			MaxSGElements;
+  DWORD			MaxLogicalUnits;
+  DWORD			MaxPhysicalDrives;
+  DWORD			MaxPhysicalDrivesPerLogicalUnit;
+  DWORD			MaxPerformantModeCommands;
+  u8			reserved[0x78 - 0x58];
+  u32			misc_fw_support; /* offset 0x78 */
+#define MISC_FW_DOORBELL_RESET (0x02)
 } CfgTable_struct;
 #pragma pack()	 
 #endif // CCISS_CMD_H
