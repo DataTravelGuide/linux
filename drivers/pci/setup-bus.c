@@ -677,6 +677,7 @@ void pci_bus_assign_resources(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
+#if 0
 static void pci_bus_dump_res(struct pci_bus *bus)
 {
         int i;
@@ -709,6 +710,7 @@ static void pci_bus_dump_resources(struct pci_bus *bus)
 		pci_bus_dump_resources(b);
 	}
 }
+#endif
 
 static void pci_bridge_release_resources(struct pci_bus *bus,
 					  unsigned long type)
