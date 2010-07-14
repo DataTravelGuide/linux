@@ -230,6 +230,18 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	u64 err_addr;
 #endif
 
+#ifdef __i386__
+	/*
+	 * BZ 600435 -- disable physical Memory Hotplug (hot add) for
+	 * 32-bit kernel.  This code block must be removed if hot add is
+	 * re-enabled for 32-bit
+	 */
+
+	printk(KERN_WARNING PREFIX
+	       "Memory Hot Add is currently disabled for x86 32-bit.\n");
+	mem_device->state = MEMORY_INVALID_STATE;
+	return -EINVAL;
+#endif
 
 	/* Get the range from the _CRS */
 	result = acpi_memory_get_device_resources(mem_device);

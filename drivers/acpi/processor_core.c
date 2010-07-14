@@ -776,6 +776,18 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	int result = 0;
 	struct sys_device *sysdev;
 
+#ifdef __i386__
+	/*
+	 * BZ 600435 -- disable physical CPU Hotplug (hot add) for
+	 * 32-bit kernel.  This code block must be removed if hot add is
+	 * re-enabled for 32-bit
+	 */
+
+	printk(KERN_WARNING PREFIX
+	       "CPU Hot Add is currently disabled for x86 32-bit.\n");
+	return -EINVAL;
+#endif
+
 	pr = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
 	if (!pr)
 		return -ENOMEM;
