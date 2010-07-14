@@ -585,7 +585,7 @@ int __init dmar_table_init(void)
 static void warn_invalid_dmar(u64 addr, const char *message)
 {
 	WARN_TAINT(
-		1, TAINT_FIRMWARE_WORKAROUND,
+		1, TAINT_FIRMWARE_WORKAROUND, FW_WARN
 		"Your BIOS is broken; DMAR reported at address %llx%s!\n"
 		"BIOS vendor: %s; Ver: %s; Product Version: %s\n",
 		addr, message,
