@@ -341,7 +341,7 @@ extern enum system_states {
 #define TAINT_OVERRIDDEN_ACPI_TABLE	8
 #define TAINT_WARN			9
 #define TAINT_CRAP			10
-#define TAINT_FIRMWARE_WORKAROUND	11 /* currently not in RHEL6 */
+#define TAINT_FIRMWARE_WORKAROUND	11
 #define TAINT_12			12
 #define TAINT_13			13
 #define TAINT_14			14
