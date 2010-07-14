@@ -915,7 +915,7 @@ init_io_restrict_prog(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return -EINVAL;
+		return len;
 	}
 
 	configval = ROM32(bios->data[offset + 11 + config * 4]);
@@ -1017,7 +1017,7 @@ init_io_restrict_pll(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return -EINVAL;
+		return len;
 	}
 
 	freq = ROM16(bios->data[offset + 12 + config * 2]);
@@ -1189,7 +1189,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	dpe = nouveau_bios_dp_table(dev, dcb, &dummy);
 	if (!dpe) {
 		NV_ERROR(dev, "0x%04X: INIT_3A: no encoder table!!\n", offset);
-		return -EINVAL;
+		return 3;
 	}
 
 	switch (cond) {
@@ -1213,12 +1213,16 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		int ret;
 
 		auxch = nouveau_i2c_find(dev, bios->display.output->i2c_index);
-		if (!auxch)
-			return -ENODEV;
+		if (!auxch) {
+			NV_ERROR(dev, "0x%04X: couldn't get auxch\n", offset);
+			return 3;
+		}
 
 		ret = nouveau_dp_auxch(auxch, 9, 0xd, &cond, 1);
-		if (ret)
-			return ret;
+		if (ret) {
+			NV_ERROR(dev, "0x%04X: auxch rd fail: %d\n", offset, ret);
+			return 3;
+		}
 
 		if (cond & 1)
 			iexec->execute = false;
@@ -1387,7 +1391,7 @@ init_io_restrict_pll2(struct nvbios *bios, uint16_t offset,
 		NV_ERROR(bios->dev,
 			 "0x%04X: Config 0x%02X exceeds maximal bound 0x%02X\n",
 			 offset, config, count);
-		return -EINVAL;
+		return len;
 	}
 
 	freq = ROM32(bios->data[offset + 11 + config * 4]);
@@ -1447,6 +1451,7 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * "mask n" and OR it with "data n" before writing it back to the device
 	 */
 
+	struct drm_device *dev = bios->dev;
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
@@ -1461,9 +1466,11 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		      "Count: 0x%02X\n",
 		offset, i2c_index, i2c_address, count);
 
-	chan = init_i2c_device_find(bios->dev, i2c_index);
-	if (!chan)
-		return -ENODEV;
+	chan = init_i2c_device_find(dev, i2c_index);
+	if (!chan) {
+		NV_ERROR(dev, "0x%04X: i2c bus not found\n", offset);
+		return len;
+	}
 
 	for (i = 0; i < count; i++) {
 		uint8_t reg = bios->data[offset + 4 + i * 3];
@@ -1474,8 +1481,10 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
 				     I2C_SMBUS_READ, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			NV_ERROR(dev, "0x%04X: i2c rd fail: %d\n", offset, ret);
+			return len;
+		}
 
 		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, "
 			      "Mask: 0x%02X, Data: 0x%02X\n",
@@ -1489,8 +1498,10 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
 				     I2C_SMBUS_WRITE, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			NV_ERROR(dev, "0x%04X: i2c wr fail: %d\n", offset, ret);
+			return len;
+		}
 	}
 
 	return len;
@@ -1515,6 +1526,7 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * "DCB I2C table entry index", set the register to "data n"
 	 */
 
+	struct drm_device *dev = bios->dev;
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
@@ -1529,9 +1541,11 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		      "Count: 0x%02X\n",
 		offset, i2c_index, i2c_address, count);
 
-	chan = init_i2c_device_find(bios->dev, i2c_index);
-	if (!chan)
-		return -ENODEV;
+	chan = init_i2c_device_find(dev, i2c_index);
+	if (!chan) {
+		NV_ERROR(dev, "0x%04X: i2c bus not found\n", offset);
+		return len;
+	}
 
 	for (i = 0; i < count; i++) {
 		uint8_t reg = bios->data[offset + 4 + i * 2];
@@ -1548,8 +1562,10 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
 				     I2C_SMBUS_WRITE, reg,
 				     I2C_SMBUS_BYTE_DATA, &val);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			NV_ERROR(dev, "0x%04X: i2c wr fail: %d\n", offset, ret);
+			return len;
+		}
 	}
 
 	return len;
@@ -1572,6 +1588,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * address" on the I2C bus given by "DCB I2C table entry index"
 	 */
 
+	struct drm_device *dev = bios->dev;
 	uint8_t i2c_index = bios->data[offset + 1];
 	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
@@ -1579,7 +1596,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	struct nouveau_i2c_chan *chan;
 	struct i2c_msg msg;
 	uint8_t data[256];
-	int i;
+	int ret, i;
 
 	if (!iexec->execute)
 		return len;
@@ -1588,9 +1605,11 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		      "Count: 0x%02X\n",
 		offset, i2c_index, i2c_address, count);
 
-	chan = init_i2c_device_find(bios->dev, i2c_index);
-	if (!chan)
-		return -ENODEV;
+	chan = init_i2c_device_find(dev, i2c_index);
+	if (!chan) {
+		NV_ERROR(dev, "0x%04X: i2c bus not found\n", offset);
+		return len;
+	}
 
 	for (i = 0; i < count; i++) {
 		data[i] = bios->data[offset + 4 + i];
@@ -1603,8 +1622,11 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		msg.flags = 0;
 		msg.len = count;
 		msg.buf = data;
-		if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-			return -EIO;
+		ret = i2c_transfer(&chan->adapter, &msg, 1);
+		if (ret != 1) {
+			NV_ERROR(dev, "0x%04X: i2c wr fail: %d\n", offset, ret);
+			return len;
+		}
 	}
 
 	return len;
@@ -1628,6 +1650,7 @@ init_tmds(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * used -- see get_tmds_index_reg()
 	 */
 
+	struct drm_device *dev = bios->dev;
 	uint8_t mlv = bios->data[offset + 1];
 	uint32_t tmdsaddr = bios->data[offset + 2];
 	uint8_t mask = bios->data[offset + 3];
@@ -1642,8 +1665,10 @@ init_tmds(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		offset, mlv, tmdsaddr, mask, data);
 
 	reg = get_tmds_index_reg(bios->dev, mlv);
-	if (!reg)
-		return -EINVAL;
+	if (!reg) {
+		NV_ERROR(dev, "0x%04X: no tmds_index_reg\n", offset);
+		return 5;
+	}
 
 	bios_wr32(bios, reg,
 		  tmdsaddr | NV_PRAMDAC_FP_TMDS_CONTROL_WRITE_DISABLE);
@@ -1673,6 +1698,7 @@ init_zm_tmds_group(struct nvbios *bios, uint16_t offset,
 	 * register is used -- see get_tmds_index_reg()
 	 */
 
+	struct drm_device *dev = bios->dev;
 	uint8_t mlv = bios->data[offset + 1];
 	uint8_t count = bios->data[offset + 2];
 	int len = 3 + count * 2;
@@ -1686,8 +1712,10 @@ init_zm_tmds_group(struct nvbios *bios, uint16_t offset,
 		offset, mlv, count);
 
 	reg = get_tmds_index_reg(bios->dev, mlv);
-	if (!reg)
-		return -EINVAL;
+	if (!reg) {
+		NV_ERROR(dev, "0x%04X: no tmds_index_reg\n", offset);
+		return len;
+	}
 
 	for (i = 0; i < count; i++) {
 		uint8_t tmdsaddr = bios->data[offset + 3 + i * 2];
@@ -2795,7 +2823,7 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	if (dev_priv->card_type != NV_50) {
 		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
-		return -ENODEV;
+		return 1;
 	}
 
 	if (!iexec->execute)
@@ -2867,16 +2895,16 @@ init_ram_restrict_zm_reg_group(struct nvbios *bios, uint16_t offset,
 	uint8_t index;
 	int i;
 
-
-	if (!iexec->execute)
-		return len;
-
+	/* critical! to know the length of the opcode */;
 	if (!blocklen) {
 		NV_ERROR(bios->dev,
 			 "0x%04X: Zero block length - has the M table "
 			 "been parsed?\n", offset);
 		return -EINVAL;
 	}
+
+	if (!iexec->execute)
+		return len;
 
 	strap_ramcfg = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
 	index = bios->data[bios->ram_restrict_tbl_ptr + strap_ramcfg];
@@ -3059,14 +3087,14 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	if (!bios->display.output) {
 		NV_ERROR(dev, "INIT_AUXCH: no active output\n");
-		return -EINVAL;
+		return len;
 	}
 
 	auxch = init_i2c_device_find(dev, bios->display.output->i2c_index);
 	if (!auxch) {
 		NV_ERROR(dev, "INIT_AUXCH: couldn't get auxch %d\n",
 			 bios->display.output->i2c_index);
-		return -ENODEV;
+		return len;
 	}
 
 	if (!iexec->execute)
@@ -3079,7 +3107,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 9, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: rd auxch fail %d\n", ret);
-			return ret;
+			return len;
 		}
 
 		data &= bios->data[offset + 0];
@@ -3088,7 +3116,7 @@ init_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 8, addr, &data, 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_AUXCH: wr auxch fail %d\n", ret);
-			return ret;
+			return len;
 		}
 	}
 
@@ -3118,14 +3146,14 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	if (!bios->display.output) {
 		NV_ERROR(dev, "INIT_ZM_AUXCH: no active output\n");
-		return -EINVAL;
+		return len;
 	}
 
 	auxch = init_i2c_device_find(dev, bios->display.output->i2c_index);
 	if (!auxch) {
 		NV_ERROR(dev, "INIT_ZM_AUXCH: couldn't get auxch %d\n",
 			 bios->display.output->i2c_index);
-		return -ENODEV;
+		return len;
 	}
 
 	if (!iexec->execute)
@@ -3136,7 +3164,7 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		ret = nouveau_dp_auxch(auxch, 8, addr, &bios->data[offset], 1);
 		if (ret) {
 			NV_ERROR(dev, "INIT_ZM_AUXCH: wr auxch fail %d\n", ret);
-			return ret;
+			return len;
 		}
 	}
 
