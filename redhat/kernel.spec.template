@@ -1606,6 +1606,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 14 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-49.el6]
+- [edac] i7core_edac: Avoid doing multiple probes for the same card (Mauro Carvalho Chehab) [604564]
+- [edac] i7core_edac: Properly discover the first QPI device (Mauro Carvalho Chehab) [604564]
+- [usb] Disable XHCI (USB 3) HCD module autoloading (Matthew Garrett) [608343]
+- [fs] xfs: prevent swapext from operating on write-only files (Jiri Pirko) [605162] {CVE-2010-2226}
+- [powerpc] Add symbols to kernel to allow makedumpfile to filter on ppc64 (Neil Horman) [611710]
+- [net] netfilter: add CHECKSUM target (Michael S. Tsirkin) [605555]
+- [security] audit: dynamically allocate audit_names when not enough space is in the names array (Eric Paris) [586108]
+- [pci] iommu/intel: Disable IOMMU for graphics if BIOS is broken (Adam Jackson) [593516]
+- [virt] stop vpit before irq_routing freed (Gleb Natapov) [612648]
+- [netdrv] Allow for BCM5709S to dump vmcore via NFS (John Feeney) [577809]
+- [netdrv] igb: drop support for UDP hashing w/ RSS (Stefan Assmann) [613782]
+- [netdrv] mac80211: remove wep dependency (John Linville) [608704]
+- [mm] fix swapin race conditions (Andrea Arcangeli) [606131]
+- [crypto] authenc: Add EINPROGRESS check (Stanislaw Gruszka) [604611]
+- [fs] inotify: don't leak user struct on inotify release (Stanislaw Gruszka) [592399 604611]
+- [x86] amd: Check X86_FEATURE_OSVW bit before accessing OSVW MSRs (Stanislaw Gruszka) [604611]
+- [kernel] profile: fix stats and data leakage (Stanislaw Gruszka) [604611]
+- [sound] ice1724: Fix ESI Maya44 capture source control (Stanislaw Gruszka) [604611]
+- [mm] hugetlbfs: kill applications that use MAP_NORESERVE with SIGBUS instead of OOM-killer (Stanislaw Gruszka) [604611]
+- [dma] dma-mapping: fix dma_sync_single_range_* (Stanislaw Gruszka) [604611]
+- [hwmon] hp_accel: fix race in device removal (Stanislaw Gruszka) [604611]
+- [net] ipv4: udp: fix short packet and bad checksum logging (Stanislaw Gruszka) [604611]
+
 * Tue Jul 13 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-48.el6]
 - [scsi] SCSI: Retry commands with UNIT_ATTENTION sense codes to fix ext3/ext4 I/O error (Stanislaw Gruszka) [604610]
 - [scsi] Enable retries for SYNCRONIZE_CACHE commands to fix I/O error (Stanislaw Gruszka) [604610]
