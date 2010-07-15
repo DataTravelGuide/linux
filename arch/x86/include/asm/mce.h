@@ -128,7 +128,7 @@ extern int mce_p5_enabled;
 int mcheck_init(void);
 void mcheck_cpu_init(struct cpuinfo_x86 *c);
 #else
-static inline int mcheck_init(void) {}
+static inline int mcheck_init(void) { return 0; }
 static inline void mcheck_cpu_init(struct cpuinfo_x86 *c) {}
 #endif
 
