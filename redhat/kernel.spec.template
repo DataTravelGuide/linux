@@ -542,7 +542,6 @@ BuildConflicts: rhbuildsys(DiskFree) < 7Gb
 
 %if %{fancy_debuginfo}
 # Fancy new debuginfo generation introduced in Fedora 8.
-BuildRequires: rpm-build >= 4.4.2.1-4
 %define debuginfo_args --strict-build-id
 %endif
 
