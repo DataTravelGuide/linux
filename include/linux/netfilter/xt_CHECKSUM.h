@@ -6,13 +6,15 @@
  *
  * This software is distributed under GNU GPL v2, 1991
 */
-#ifndef _IPT_CHECKSUM_TARGET_H
-#define _IPT_CHECKSUM_TARGET_H
+#ifndef _XT_CHECKSUM_TARGET_H
+#define _XT_CHECKSUM_TARGET_H
+
+#include <linux/types.h>
 
 #define XT_CHECKSUM_OP_FILL	0x01	/* fill in checksum in IP header */
 
 struct xt_CHECKSUM_info {
-	u_int8_t operation;	/* bitset of operations */
+	__u8 operation;	/* bitset of operations */
 };
 
-#endif /* _IPT_CHECKSUM_TARGET_H */
+#endif /* _XT_CHECKSUM_TARGET_H */
