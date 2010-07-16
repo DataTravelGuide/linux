@@ -1206,6 +1206,8 @@ struct sched_entity {
 	/* rq "owned" by this entity/group: */
 	struct cfs_rq		*my_q;
 #endif
+	/* reserved for Red Hat */
+	unsigned long 		rh_reserved;
 };
 
 struct sched_rt_entity {
