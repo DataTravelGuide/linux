@@ -1355,7 +1355,14 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			continue;
 
 		if (!nr_retries--) {
-			if (oom) {
+			/*
+			 * Never OOM on a huge page from here.  Just
+			 * signal failure and let the fault handler
+			 * fall back to regular pages.  This allows
+			 * maxing out the group limits and prevents
+			 * premature OOM kills.
+			 */
+			if (oom && page_size == PAGE_SIZE) {
 				mutex_lock(&memcg_tasklist);
 				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
 				mutex_unlock(&memcg_tasklist);
