@@ -1605,6 +1605,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 15 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-50.el6]
+- [net] CHECKSUM: header export and fixup (Michael S. Tsirkin) [605555]
+- [pci] iommu/intel: Disable IOMMU for graphics if BIOS is broken (Adam Jackson) [593516]
+- [fs] xfs: remove block number from inode lookup code (Jiri Pirko) [607031]
+- [fs] xfs: rename XFS_IGET_BULKSTAT to XFS_IGET_UNTRUSTED (Jiri Pirko) [607031]
+- [fs] xfs: validate untrusted inode numbers during lookup (Jiri Pirko) [607031]
+- [fs] xfs: always use iget in bulkstat (Jiri Pirko) [607031]
+- [igb] avoid platform reset and MCE with DCA (Stefan Assmann) [572732 606687]
+- [drm] nouveau: downgrade severity of most init table parser errors (Ben Skeggs) [596679]
+- [drm] nouveau: INIT_CONFIGURE_PREINIT/CLK/MEM on newer BIOSes is not an error (Ben Skeggs) [596679]
+- [netdrv] enic: Replace LRO with GRO (Andy Gospodarek) [609635]
+- [net] decreasing real_num_tx_queues needs to flush qdisc (Andy Gospodarek) [609260]
+- [net] sched: qdisc_reset_all_tx is calling qdisc_reset without qdisc_lock (Andy Gospodarek) [609260]
+- [fs] inotify: send IN_UNMOUNT events (Eric Paris) [580825]
+- [fs] inotify: fix inotify oneshot support (Eric Paris) [614595]
+- [s390x] zfcp: Zero memory for gpn_ft and adisc requests (Hendrik Brueckner) [609537]
+- [s390x] zfcp: Do not escalate scsi eh after fast_io_fail_tmo fired (Hendrik Brueckner) [606365]
+- [s390x] zfcp: Remove SCSI device during unit_remove (Hendrik Brueckner) [589278]
+- [scsi] Allow FC LLD to fast-fail scsi eh by introducing new eh return (Hendrik Brueckner) [606365]
+- [s390x] zfcp: Do not wait for SBALs on stopped queue (Hendrik Brueckner) [606359]
+- [x86] efi: Fill all reserved memmap entries if add_efi_memmap specified (George Beshers) [607386]
+
 * Wed Jul 14 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-49.el6]
 - [edac] i7core_edac: Avoid doing multiple probes for the same card (Mauro Carvalho Chehab) [604564]
 - [edac] i7core_edac: Properly discover the first QPI device (Mauro Carvalho Chehab) [604564]
