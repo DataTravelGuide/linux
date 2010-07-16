@@ -982,6 +982,15 @@ static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
 	return false;
 }
 
+static bool mem_cgroup_check_room(struct mem_cgroup *mem, unsigned long room)
+{
+	if (!res_counter_check_room(&mem->res, room))
+		return false;
+	if (!do_swap_account)
+		return true;
+	return res_counter_check_room(&mem->memsw, room);
+}
+
 static unsigned int get_swappiness(struct mem_cgroup *memcg)
 {
 	struct cgroup *cgrp = memcg->css.cgroup;
@@ -1339,20 +1348,10 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		if (!(gfp_mask & __GFP_WAIT))
 			goto nomem;
 
-		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+		mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
 						gfp_mask, flags);
-		if (ret)
-			continue;
 
-		/*
-		 * try_to_free_mem_cgroup_pages() might not give us a full
-		 * picture of reclaim. Some pages are reclaimed and might be
-		 * moved to swap cache or just unmapped from the cgroup.
-		 * Check the limit again to see if the reclaim reduced the
-		 * current usage of the cgroup before giving up
-		 *
-		 */
-		if (mem_cgroup_check_under_limit(mem_over_limit))
+		if (mem_cgroup_check_room(mem_over_limit, page_size))
 			continue;
 
 		if (!nr_retries--) {
