@@ -439,7 +439,7 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	dev_priv->nfbdev = nfbdev;
 	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
-	drm_fb_helper_init(dev, &nfbdev->helper, 2, 4);
+	drm_fb_helper_init(dev, &nfbdev->helper, nv_two_heads(dev) ? 2 : 1, 4);
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
 	drm_fb_helper_initial_config(&nfbdev->helper, 32);
 	return 0;
