@@ -276,6 +276,7 @@ static struct notifier_block pci_dn_reconfig_nb = {
 
 static void __init pSeries_setup_arch(void)
 {
+	mark_hardware_unsupported("Power5 Processor");
 	/* Discover PIC type and setup ppc_md accordingly */
 	pseries_discover_pic();
 

@@ -734,4 +734,5 @@ struct sysinfo {
 # define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
 #endif
 
+extern void mark_hardware_unsupported(const char *msg);
 #endif

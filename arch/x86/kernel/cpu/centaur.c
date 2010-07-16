@@ -320,6 +320,7 @@ enum {
 
 static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
 {
+	mark_hardware_unsupported("Centaur Processor");
 	switch (c->x86) {
 #ifdef CONFIG_X86_32
 	case 5:
