@@ -1575,7 +1575,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		VM_BUG_ON(PageLRU(page));
 
 		/* If there is no mapped pte young don't collapse the page */
-		if (pte_young(pteval))
+		if (pte_young(pteval) || 1)
 			referenced = 1;
 	}
 	if (unlikely(!referenced))
@@ -1818,7 +1818,8 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 		/* cannot use mapcount: can't collapse if there's a gup pin */
 		if (page_count(page) != 1)
 			goto out_unmap;
-		if (pte_young(pteval))
+		/* we miss mmu_notifier_test_young so add || 1 */
+		if (pte_young(pteval) || 1)
 			referenced = 1;
 	}
 	if (referenced)
