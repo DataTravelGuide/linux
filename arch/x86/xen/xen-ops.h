@@ -105,4 +105,6 @@ void xen_sysret32(void);
 void xen_sysret64(void);
 void xen_adjust_exception_frame(void);
 
+extern int xen_panic_handler_init(void);
+
 #endif /* XEN_OPS_H */
