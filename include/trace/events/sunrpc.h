@@ -4,6 +4,7 @@
 #if !defined(_TRACE_SUNRPC_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SUNRPC_H
 
+struct rpc_task;
 #include <linux/tracepoint.h>
 
 DECLARE_EVENT_CLASS(rpc_task_status,
