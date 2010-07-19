@@ -161,6 +161,24 @@ static const struct tnt tnts[] = {
 	{ TAINT_OVERRIDDEN_ACPI_TABLE,	'A', ' ' },
 	{ TAINT_WARN,			'W', ' ' },
 	{ TAINT_CRAP,			'C', ' ' },
+	{ TAINT_FIRMWARE_WORKAROUND,	'I', ' ' }, /* not in RHEL6 */
+	{ TAINT_12,			'?', '-' },
+	{ TAINT_13,			'?', '-' },
+	{ TAINT_14,			'?', '-' },
+	{ TAINT_15,			'?', '-' },
+	{ TAINT_16,			'?', '-' },
+	{ TAINT_17,			'?', '-' },
+	{ TAINT_18,			'?', '-' },
+	{ TAINT_19,			'?', '-' },
+	{ TAINT_20,			'?', '-' },
+	{ TAINT_21,			'?', '-' },
+	{ TAINT_22,			'?', '-' },
+	{ TAINT_23,			'?', '-' },
+	{ TAINT_24,			'?', '-' },
+	{ TAINT_25,			'?', '-' },
+	{ TAINT_26,			'?', '-' },
+	{ TAINT_27,			'?', '-' },
+	{ TAINT_HARDWARE_UNSUPPORTED,	'H', ' ' },
 };
 
 /**
@@ -177,6 +195,8 @@ static const struct tnt tnts[] = {
  *  'A' - ACPI table overridden.
  *  'W' - Taint on warning.
  *  'C' - modules from drivers/staging are loaded.
+ *  'I' - Working around severe firmware bug, unusued in RHEL6
+ *  'H' - Hardware is unsupported.
  *
  *	The string is overwritten by the next call to print_tainted().
  */

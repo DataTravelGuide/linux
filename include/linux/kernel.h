@@ -334,7 +334,30 @@ extern enum system_states {
 #define TAINT_OVERRIDDEN_ACPI_TABLE	8
 #define TAINT_WARN			9
 #define TAINT_CRAP			10
-
+#define TAINT_FIRMWARE_WORKAROUND	11 /* currently not in RHEL6 */
+#define TAINT_12			12
+#define TAINT_13			13
+#define TAINT_14			14
+#define TAINT_15			15
+#define TAINT_16			16
+#define TAINT_17			17
+#define TAINT_18			18
+#define TAINT_19			19
+#define TAINT_20			20
+#define TAINT_21			21
+#define TAINT_22			22
+#define TAINT_23			23
+#define TAINT_24			24
+#define TAINT_25			25
+#define TAINT_26			26
+#define TAINT_27			27
+/* Reserving bits for vendor specific uses */
+#define TAINT_HARDWARE_UNSUPPORTED	28
+/* Bits 29 - 31 are reserved for Red Hat use only */
+#define TAINT_RESERVED29		29
+#define TAINT_RESERVED30		30
+#define TAINT_RESERVED31		31
+ 
 extern void dump_stack(void) __cold;
 
 enum {
