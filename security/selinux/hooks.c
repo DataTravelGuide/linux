@@ -1826,6 +1826,33 @@ static inline u32 file_to_av(struct file *file)
 	return av;
 }
 
+static inline u32 open_inode_to_av(struct inode *inode)
+{
+	if (selinux_policycap_openperm) {
+		mode_t mode = inode->i_mode;
+		/*
+		 * lnk files and socks do not really have an 'open'
+		 */
+		if (S_ISREG(mode))
+			return FILE__OPEN;
+		else if (S_ISCHR(mode))
+			return CHR_FILE__OPEN;
+		else if (S_ISBLK(mode))
+			return BLK_FILE__OPEN;
+		else if (S_ISFIFO(mode))
+			return FIFO_FILE__OPEN;
+		else if (S_ISDIR(mode))
+			return DIR__OPEN;
+		else if (S_ISSOCK(mode))
+			return SOCK_FILE__OPEN;
+		else
+			printk(KERN_ERR "SELinux: WARNING: inside %s with "
+				"unknown mode:%o\n", __func__, mode);
+	}
+
+	return 0;
+}
+
 /*
  * Convert a file to an access vector and include the correct open
  * open permission.
@@ -1834,27 +1861,8 @@ static inline u32 open_file_to_av(struct file *file)
 {
 	u32 av = file_to_av(file);
 
-	if (selinux_policycap_openperm) {
-		mode_t mode = file->f_path.dentry->d_inode->i_mode;
-		/*
-		 * lnk files and socks do not really have an 'open'
-		 */
-		if (S_ISREG(mode))
-			av |= FILE__OPEN;
-		else if (S_ISCHR(mode))
-			av |= CHR_FILE__OPEN;
-		else if (S_ISBLK(mode))
-			av |= BLK_FILE__OPEN;
-		else if (S_ISFIFO(mode))
-			av |= FIFO_FILE__OPEN;
-		else if (S_ISDIR(mode))
-			av |= DIR__OPEN;
-		else if (S_ISSOCK(mode))
-			av |= SOCK_FILE__OPEN;
-		else
-			printk(KERN_ERR "SELinux: WARNING: inside %s with "
-				"unknown mode:%o\n", __func__, mode);
-	}
+	av |= open_inode_to_av(file->f_path.dentry->d_inode);
+
 	return av;
 }
 
@@ -3228,6 +3236,24 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 	 * This check is not redundant - do not remove.
 	 */
 	return inode_has_perm(cred, inode, open_file_to_av(file), NULL);
+}
+
+/*
+ * This is a RHEL only hack to check the OPEN permission on all truncate()
+ * calls. See https://bugzilla.redhat.com/show_bug.cgi?id=578841 for the
+ * reason we have this hack.
+ */
+static int selinux_path_truncate(struct path *path, loff_t length,
+				 unsigned int time_attrs)
+{
+	const struct cred *cred = current_cred();
+	struct inode *inode = path->dentry->d_inode;
+	u32 av = open_inode_to_av(inode);
+
+	if (av)
+		return inode_has_perm(cred, inode, av, NULL);
+
+	return 0;
 }
 
 /* task security operations */
@@ -5531,6 +5557,8 @@ static struct security_operations selinux_ops = {
 	.file_receive =			selinux_file_receive,
 
 	.dentry_open =			selinux_dentry_open,
+
+	.path_truncate = 		selinux_path_truncate,
 
 	.task_create =			selinux_task_create,
 	.cred_alloc_blank =		selinux_cred_alloc_blank,

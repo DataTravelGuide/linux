@@ -441,6 +441,7 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 	return security_ops->path_rename(old_dir, old_dentry, new_dir,
 					 new_dentry);
 }
+#endif
 
 int security_path_truncate(struct path *path, loff_t length,
 			   unsigned int time_attrs)
@@ -449,7 +450,6 @@ int security_path_truncate(struct path *path, loff_t length,
 		return 0;
 	return security_ops->path_truncate(path, length, time_attrs);
 }
-#endif
 
 int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
 {
