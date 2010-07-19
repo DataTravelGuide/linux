@@ -93,6 +93,9 @@ static bool kvm_rebooting;
 
 static bool largepages_enabled = true;
 
+static struct page *fault_page;
+static pfn_t fault_pfn;
+
 #ifdef KVM_CAP_DEVICE_ASSIGNMENT
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
 						      int assigned_dev_id)
@@ -1454,15 +1457,21 @@ EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
 int is_error_page(struct page *page)
 {
-	return page == bad_page;
+	return page == bad_page || page == fault_page;
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
 int is_error_pfn(pfn_t pfn)
 {
-	return pfn == bad_pfn;
+	return pfn == bad_pfn || pfn == fault_pfn;
 }
 EXPORT_SYMBOL_GPL(is_error_pfn);
+
+int is_fault_pfn(pfn_t pfn)
+{
+	return pfn == fault_pfn;
+}
+EXPORT_SYMBOL_GPL(is_fault_pfn);
 
 static inline unsigned long bad_hva(void)
 {
@@ -1566,8 +1575,8 @@ pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
 			up_read(&current->mm->mmap_sem);
-			get_page(bad_page);
-			return page_to_pfn(bad_page);
+			get_page(fault_page);
+			return page_to_pfn(fault_page);
 		}
 
 		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -2889,6 +2898,15 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 
 	bad_pfn = page_to_pfn(bad_page);
 
+	fault_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+
+	if (fault_page == NULL) {
+		r = -ENOMEM;
+		goto out_free_0;
+	}
+
+	fault_pfn = page_to_pfn(fault_page);
+
 	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
 		goto out_free_0;
@@ -2962,6 +2980,9 @@ out_free_1:
 out_free_0a:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
+	if (fault_page)
+		__free_page(fault_page);
+
 	__free_page(bad_page);
 out:
 	kvm_arch_exit();

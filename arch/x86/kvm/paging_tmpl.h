@@ -428,7 +428,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (is_error_pfn(pfn)) {
 		pgprintk("gfn %lx is mmio\n", walker.gfn);
 		kvm_release_pfn_clean(pfn);
-		return 1;
+		return is_fault_pfn(pfn) ? -EFAULT : 1;
 	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);

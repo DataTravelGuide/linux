@@ -2038,7 +2038,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	/* mmio */
 	if (is_error_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
-		return 1;
+		return is_fault_pfn(pfn) ? -EFAULT : 1;
 	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
@@ -2249,7 +2249,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
 	if (is_error_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
-		return 1;
+		return is_fault_pfn(pfn) ? -EFAULT : 1;
 	}
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
