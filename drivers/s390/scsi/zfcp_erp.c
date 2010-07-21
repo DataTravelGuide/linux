@@ -1222,6 +1222,11 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		goto unlock;
 	}
 
+	if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
+		retval = ZFCP_ERP_FAILED;
+		goto check_target;
+	}
+
 	zfcp_erp_action_to_running(erp_action);
 
 	/* no lock to allow for blocking operations */
@@ -1256,6 +1261,7 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		goto unlock;
 	}
 
+check_target:
 	retval = zfcp_erp_strategy_check_target(erp_action, retval);
 	zfcp_erp_action_dequeue(erp_action);
 	retval = zfcp_erp_strategy_statechange(erp_action, retval);
