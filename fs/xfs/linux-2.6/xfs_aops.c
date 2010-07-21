@@ -1119,6 +1119,16 @@ xfs_page_state_convert(
 			continue;
 		}
 
+		/*
+		 * A hole may still be marked uptodate because discard_buffer
+		 * leaves the flag set.
+		 */
+		if (!buffer_mapped(bh) && buffer_uptodate(bh)) {
+			ASSERT(!buffer_dirty(bh));
+			iomap_valid = 0;
+			continue;
+		}
+
 		if (iomap_valid)
 			iomap_valid = xfs_iomap_valid(&iomap, offset);
 
