@@ -1828,6 +1828,10 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	if (prio == IDLE_WORKLOAD)
 		return false;
 
+	/* Don't idle if slice idling is disabled by the user */
+	if (cfqd->cfq_slice_idle == 0)
+		return false;
+
 	/* We do for queues that were marked with idle window flag. */
 	if (cfq_cfqq_idle_window(cfqq) &&
 	   !(blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag))
