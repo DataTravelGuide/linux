@@ -304,7 +304,7 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 
 	atomic_set(&unit->refcount, 0);
 	init_waitqueue_head(&unit->remove_wq);
-	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
+	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan_work);
 
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;

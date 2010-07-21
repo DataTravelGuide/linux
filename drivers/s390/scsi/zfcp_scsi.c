@@ -546,6 +546,20 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	}
 }
 
+static void zfcp_scsi_queue_unit_register(struct zfcp_port *port)
+{
+	struct zfcp_unit *unit;
+
+	read_lock_irq(&zfcp_data.config_lock);
+	list_for_each_entry(unit, &port->unit_list_head, list) {
+		zfcp_unit_get(unit);
+		if (scsi_queue_work(port->adapter->scsi_host,
+				    &unit->scsi_work) <= 0)
+			zfcp_unit_put(unit);
+	}
+	read_unlock_irq(&zfcp_data.config_lock);
+}
+
 static void zfcp_scsi_rport_register(struct zfcp_port *port)
 {
 	struct fc_rport_identifiers ids;
@@ -571,6 +585,8 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	rport->supported_classes = port->supported_classes;
 	port->rport = rport;
 	port->starget_id = rport->scsi_target_id;
+
+	zfcp_scsi_queue_unit_register(port);
 }
 
 static void zfcp_scsi_rport_block(struct zfcp_port *port)
@@ -630,21 +646,26 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 	zfcp_port_put(port);
 }
 
-
-void zfcp_scsi_scan(struct work_struct *work)
+/**
+ * zfcp_scsi_scan - Register LUN with SCSI midlayer
+ * @unit: The LUN/unit to register
+ */
+void zfcp_scsi_scan(struct zfcp_unit *unit)
 {
-	struct zfcp_unit *unit = container_of(work, struct zfcp_unit,
-					      scsi_work);
-	struct fc_rport *rport;
-
-	flush_work(&unit->port->rport_work);
-	rport = unit->port->rport;
+	struct fc_rport *rport = unit->port->rport;
 
 	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
 		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
 				 scsilun_to_int((struct scsi_lun *)
 						&unit->fcp_lun), 0);
+}
 
+void zfcp_scsi_scan_work(struct work_struct *work)
+{
+	struct zfcp_unit *unit = container_of(work, struct zfcp_unit,
+					      scsi_work);
+
+	zfcp_scsi_scan(unit);
 	zfcp_unit_put(unit);
 }
 
