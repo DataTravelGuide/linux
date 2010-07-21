@@ -1179,6 +1179,11 @@ xfs_fs_put_super(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	/*
+	 * Unregister the memory shrinker before we tear down the mount
+	 * structure so we don't have memory reclaim racing with us here.
+	 */
+	xfs_inode_shrinker_unregister(mp);
 	xfs_syncd_stop(mp);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -1208,7 +1213,6 @@ xfs_fs_put_super(
 
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
-	xfs_inode_shrinker_unregister(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
 	xfs_dmops_put(mp);
