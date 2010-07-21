@@ -295,33 +295,22 @@ static const struct drm_encoder_funcs nv50_sor_encoder_funcs = {
 };
 
 int
-nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
+nv50_sor_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder;
-	bool dum;
 	int type;
 
 	NV_DEBUG_KMS(dev, "\n");
 
 	switch (entry->type) {
 	case OUTPUT_TMDS:
-		NV_INFO(dev, "Detected a TMDS output\n");
+	case OUTPUT_DP:
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	case OUTPUT_LVDS:
-		NV_INFO(dev, "Detected a LVDS output\n");
 		type = DRM_MODE_ENCODER_LVDS;
-
-		if (nouveau_bios_parse_lvds_table(dev, 0, &dum, &dum)) {
-			NV_ERROR(dev, "Failed parsing LVDS table\n");
-			return -EINVAL;
-		}
-		break;
-	case OUTPUT_DP:
-		NV_INFO(dev, "Detected a DP output\n");
-		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	default:
 		return -EINVAL;
@@ -346,11 +335,7 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 		int or = nv_encoder->or, link = !(entry->dpconf.sor.link & 1);
 		uint32_t tmp;
 
-		if (dev_priv->chipset < 0x90 ||
-		    dev_priv->chipset == 0x92 || dev_priv->chipset == 0xa0)
-			tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(or));
-		else
-			tmp = nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(or));
+		tmp = nv_rd32(dev, 0x61c700 + (or * 0x800));
 
 		switch ((tmp & 0x00000f00) >> 8) {
 		case 8:
@@ -369,5 +354,6 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 			nv_encoder->dp.mc_unknown = 5;
 	}
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }
