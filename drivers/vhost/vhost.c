@@ -361,15 +361,14 @@ static int memory_access_ok(struct vhost_dev *d, struct vhost_memory *mem,
 	return 1;
 }
 
-static int vq_access_ok(struct vhost_dev *d, unsigned int num,
+static int vq_access_ok(unsigned int num,
 			struct vring_desc __user *desc,
 			struct vring_avail __user *avail,
 			struct vring_used __user *used)
 {
-	size_t s = vhost_has_feature(d, VIRTIO_RING_F_PUBLISH_USED) ? 2 : 0;
 	return access_ok(VERIFY_READ, desc, num * sizeof *desc) &&
 	       access_ok(VERIFY_READ, avail,
-			 sizeof *avail + num * sizeof *avail->ring + s) &&
+			 sizeof *avail + num * sizeof *avail->ring) &&
 	       access_ok(VERIFY_WRITE, used,
 			sizeof *used + num * sizeof *used->ring);
 }
@@ -396,7 +395,7 @@ static int vq_log_access_ok(struct vhost_virtqueue *vq, void __user *log_base)
 /* Caller should have vq mutex and device mutex */
 int vhost_vq_access_ok(struct vhost_virtqueue *vq)
 {
-	return vq_access_ok(vq->dev, vq->num, vq->desc, vq->avail, vq->used) &&
+	return vq_access_ok(vq->num, vq->desc, vq->avail, vq->used) &&
 		vq_log_access_ok(vq, vq->log_base);
 }
 
@@ -535,7 +534,7 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		 * If it is not, we don't as size might not have been setup.
 		 * We will verify when backend is configured. */
 		if (vq->private_data) {
-			if (!vq_access_ok(d, vq->num,
+			if (!vq_access_ok(vq->num,
 				(void __user *)(unsigned long)a.desc_user_addr,
 				(void __user *)(unsigned long)a.avail_user_addr,
 				(void __user *)(unsigned long)a.used_user_addr)) {
@@ -560,7 +559,6 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		vq->log_used = !!(a.flags & (0x1 << VHOST_VRING_F_LOG));
 		vq->desc = (void __user *)(unsigned long)a.desc_user_addr;
 		vq->avail = (void __user *)(unsigned long)a.avail_user_addr;
-		vq->last_used = (u16 __user *)&vq->avail->ring[vq->num];
 		vq->log_addr = a.log_guest_addr;
 		vq->used = (void __user *)(unsigned long)a.used_user_addr;
 		break;
@@ -1087,8 +1085,7 @@ void vhost_discard_vq_desc(struct vhost_virtqueue *vq)
 
 /* After we've used one of their buffers, we tell them about it.  We'll then
  * want to notify the guest, using eventfd. */
-static int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head,
-			  int len)
+int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 {
 	struct vring_used_elem *used;
 
@@ -1128,7 +1125,7 @@ static int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head,
 }
 
 /* This actually signals the guest, using eventfd. */
-static void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
+void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	__u16 flags;
 	/* Flush out used index updates. This is paired
@@ -1146,17 +1143,6 @@ static void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 	    (vq->avail_idx != vq->last_avail_idx ||
 	     !vhost_has_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY)))
 		return;
-
-	if (vhost_has_feature(dev, VIRTIO_RING_F_PUBLISH_USED)) {
-		__u16 used;
-		if (get_user(used, vq->last_used)) {
-			vq_err(vq, "Failed to get last used idx");
-			return;
-		}
-
-		if (used != (u16)(vq->last_used_idx - 1))
-			return;
-	}
 
 	/* Signal the Guest tell them we used something up. */
 	if (vq->call_ctx)
