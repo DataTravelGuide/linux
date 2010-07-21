@@ -89,6 +89,9 @@ struct vring_virtqueue
 	/* Number we've added since last sync. */
 	unsigned int num_added;
 
+	/* Last used index we've seen. */
+	u16 last_used_idx;
+
 	/* How to notify other side. FIXME: commonalize hcalls! */
 	void (*notify)(struct virtqueue *vq);
 
@@ -280,13 +283,12 @@ static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 
 static inline bool more_used(const struct vring_virtqueue *vq)
 {
-	return *vq->vring.last_used_idx != vq->vring.used->idx;
+	return vq->last_used_idx != vq->vring.used->idx;
 }
 
 void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
-	struct vring_used_elem *u;
 	void *ret;
 	unsigned int i;
 
@@ -306,9 +308,9 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 	/* Only get used array entries after they have been exposed by host. */
 	virtio_rmb();
 
-	u = &vq->vring.used->ring[*vq->vring.last_used_idx % vq->vring.num];
-	i = u->id;
-	*len = u->len;
+	i = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].id;
+	*len = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].len;
+
 	if (unlikely(i >= vq->vring.num)) {
 		BAD_RING(vq, "id %u out of range\n", i);
 		return NULL;
@@ -321,8 +323,7 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 	/* detach_buf clears data, so grab it now. */
 	ret = vq->data[i];
 	detach_buf(vq, i);
-	(*vq->vring.last_used_idx)++;
-
+	vq->last_used_idx++;
 	END_USE(vq);
 	return ret;
 }
@@ -345,8 +346,6 @@ bool virtqueue_enable_cb(struct virtqueue *_vq)
 	/* We optimistically turn back on interrupts, then check if there was
 	 * more to do. */
 	vq->vring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-	/* Besides flags write, this barrier also flushes out
-	 * last available index write. */
 	virtio_mb();
 	if (unlikely(more_used(vq))) {
 		END_USE(vq);
@@ -430,7 +429,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	vq->vq.name = name;
 	vq->notify = notify;
 	vq->broken = false;
-	*vq->vring.last_used_idx = 0;
+	vq->last_used_idx = 0;
 	vq->num_added = 0;
 	list_add_tail(&vq->vq.list, &vdev->vqs);
 #ifdef DEBUG
@@ -471,8 +470,6 @@ void vring_transport_features(struct virtio_device *vdev)
 	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++) {
 		switch (i) {
 		case VIRTIO_RING_F_INDIRECT_DESC:
-			break;
-		case VIRTIO_RING_F_PUBLISH_USED:
 			break;
 		default:
 			/* We don't understand this bit. */
