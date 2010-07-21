@@ -1171,10 +1171,11 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 		zfcp_unit_put(unit);
 		break;
 
-	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (result == ZFCP_ERP_SUCCEEDED)
 			zfcp_scsi_schedule_rport_register(port);
+		/* fall through */
+	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 		zfcp_port_put(port);
 		break;
 
