@@ -607,8 +607,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 			if (S_ISSOCK(inode->i_mode)) {
 				lo->file = file;
 				lo->sock = SOCKET_I(inode);
+				mutex_lock(&bdev->bd_mutex);
 				if (max_part > 0)
-					bdev->bd_invalidated = 1;
+					bdev->bd_disk->flags |= GENHD_FL_INVALIDATED;
+				mutex_unlock(&bdev->bd_mutex);
 				return 0;
 			} else {
 				fput(file);

@@ -519,7 +519,7 @@ void register_disk(struct gendisk *disk)
 	if (!bdev)
 		goto exit;
 
-	bdev->bd_invalidated = 1;
+	disk->flags |= GENHD_FL_INVALIDATED;
 	err = blkdev_get(bdev, FMODE_READ);
 	if (err < 0)
 		goto exit;
@@ -558,7 +558,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
 	check_disk_size_change(disk, bdev);
-	bdev->bd_invalidated = 0;
+	bdev->bd_disk->flags &= ~GENHD_FL_INVALIDATED;
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
 	if (IS_ERR(state))	/* I/O error reading the partition table */
@@ -609,7 +609,7 @@ try_scan:
 				if (capacity > get_capacity(disk)) {
 					set_capacity(disk, capacity);
 					check_disk_size_change(disk, bdev);
-					bdev->bd_invalidated = 0;
+					bdev->bd_disk->flags &= ~GENHD_FL_INVALIDATED;
 				}
 				goto try_scan;
 			} else {

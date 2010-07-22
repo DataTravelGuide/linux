@@ -662,7 +662,6 @@ struct block_device {
 	struct hd_struct *	bd_part;
 	/* number of times partitions within this device have been opened. */
 	unsigned		bd_part_count;
-	int			bd_invalidated;
 	struct gendisk *	bd_disk;
 	struct list_head	bd_list;
 	/*

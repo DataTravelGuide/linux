@@ -571,7 +571,6 @@ struct block_device *bdget(dev_t dev)
 		bdev->bd_inode = inode;
 		bdev->bd_block_size = (1 << inode->i_blkbits);
 		bdev->bd_part_count = 0;
-		bdev->bd_invalidated = 0;
 		inode->i_mode = S_IFBLK;
 		inode->i_rdev = dev;
 		inode->i_bdev = bdev;
@@ -1069,7 +1068,7 @@ static void flush_disk(struct block_device *bdev)
 	if (!bdev->bd_disk)
 		return;
 	if (disk_partitionable(bdev->bd_disk))
-		bdev->bd_invalidated = 1;
+		bdev->bd_disk->flags |= GENHD_FL_INVALIDATED;
 }
 
 /**
@@ -1245,7 +1244,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					bdi = &default_backing_dev_info;
 				bdev->bd_inode->i_data.backing_dev_info = bdi;
 			}
-			if (bdev->bd_invalidated)
+			if (bdev->bd_disk->flags & GENHD_FL_INVALIDATED)
 				rescan_partitions(disk, bdev);
 		} else {
 			struct block_device *whole;
@@ -1278,7 +1277,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				if (ret)
 					goto out_unlock_bdev;
 			}
-			if (bdev->bd_invalidated)
+			if (bdev->bd_disk->flags & GENHD_FL_INVALIDATED)
 				rescan_partitions(bdev->bd_disk, bdev);
 		}
 	}
