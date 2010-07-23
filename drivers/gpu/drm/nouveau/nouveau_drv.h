@@ -855,6 +855,7 @@ extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 #ifdef CONFIG_ACPI
 extern int nouveau_hybrid_setup(struct drm_device *dev);
 extern bool nouveau_dsm_probe(struct drm_device *dev);
+int nouveau_acpi_edid(struct drm_device *, struct drm_connector *);
 #else
 static inline int nouveau_hybrid_setup(struct drm_device *dev)
 {
@@ -864,6 +865,7 @@ static inline bool nouveau_dsm_probe(struct drm_device *dev)
 {
 	return false;
 }
+static inline int nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector) { return -EINVAL; }
 #endif
 
 /* nouveau_backlight.c */

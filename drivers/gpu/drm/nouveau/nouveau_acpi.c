@@ -2,6 +2,7 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/video.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -10,6 +11,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nv50_display.h"
+#include "nouveau_connector.h"
 
 #define NOUVEAU_DSM_SUPPORTED 0x00
 #define NOUVEAU_DSM_SUPPORTED_FUNCTIONS 0x00
@@ -122,4 +124,38 @@ bool nouveau_dsm_probe(struct drm_device *dev)
 		return false;
 
 	return true;
+}
+
+int
+nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct acpi_device *acpidev;
+	acpi_handle handle;
+	int type, ret;
+	void *edid;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+		type = ACPI_VIDEO_DISPLAY_LCD;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	if (!handle)
+		return -ENODEV;
+
+	ret = acpi_bus_get_device(handle, &acpidev);
+	if (ret)
+		return -ENODEV;
+
+	ret = acpi_video_get_edid(acpidev, type, -1, &edid);
+	if (ret < 0)
+		return ret;
+
+	nv_connector->edid = edid;
+	return 0;
 }
