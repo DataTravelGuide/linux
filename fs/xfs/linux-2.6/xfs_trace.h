@@ -103,7 +103,10 @@ TRACE_EVENT(name, \
 );
 
 DEFINE_PERAG_REF_EVENT(xfs_perag_get)
+DEFINE_PERAG_REF_EVENT(xfs_perag_get_reclaim);
 DEFINE_PERAG_REF_EVENT(xfs_perag_put)
+DEFINE_PERAG_REF_EVENT(xfs_perag_set_reclaim);
+DEFINE_PERAG_REF_EVENT(xfs_perag_clear_reclaim);
 
 #define DEFINE_ATTR_LIST_EVENT(name) \
 DEFINE_EVENT(xfs_attr_list_class, name, \
