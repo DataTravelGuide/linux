@@ -146,6 +146,7 @@ static MPT_EVHANDLER		 MptEvHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static MPT_RESETHANDLER		 MptResetHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static struct mpt_pci_driver 	*MptDeviceDriverHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 
+static char	MptCallbacksName[MPT_MAX_PROTOCOL_DRIVERS][50];
 
 /*
  *  Driver Callback Index's
@@ -212,7 +213,7 @@ static int	ProcessEventNotification(MPT_ADAPTER *ioc,
 static void	mpt_iocstatus_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
-static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info ,u8 cb_idx);
 static int	mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 static void	mpt_inactive_raid_list_free(MPT_ADAPTER *ioc);
 
@@ -489,7 +490,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 		else if (ioc->bus_type == SPI)
 			mpt_spi_log_info(ioc, log_info);
 		else if (ioc->bus_type == SAS)
-			mpt_sas_log_info(ioc, log_info);
+			mpt_sas_log_info(ioc, log_info, cb_idx);
 	}
 
 	if (ioc_stat & MPI_IOCSTATUS_MASK)
@@ -643,7 +644,7 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
  *	considered an error by the caller.
  */
 u8
-mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
+mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass, char *func_name)
 {
 	u8 cb_idx;
 	last_drv_idx = MPT_MAX_PROTOCOL_DRIVERS;
@@ -658,6 +659,8 @@ mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
 			MptDriverClass[cb_idx] = dclass;
 			MptEvHandlers[cb_idx] = NULL;
 			last_drv_idx = cb_idx;
+			memcpy(MptCallbacksName[cb_idx], func_name,
+			    strlen(func_name) > 50?50:strlen(func_name));
 			break;
 		}
 	}
@@ -7828,7 +7831,7 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
  *	Refer to lsi/mpi_log_sas.h.
  **/
 static void
-mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info)
+mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info, u8 cb_idx)
 {
 union loginfo_type {
 	u32	loginfo;
@@ -7882,21 +7885,22 @@ union loginfo_type {
 	if (sub_code_desc != NULL)
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code={%s},"
-			" SubCode={%s}\n",
+			" SubCode={%s} cb_idx %s\n",
 			ioc->name, log_info, originator_desc, code_desc,
-			sub_code_desc);
+			sub_code_desc, MptCallbacksName[cb_idx]);
 	else if (code_desc != NULL)
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code={%s},"
-			" SubCode(0x%04x)\n",
+			" SubCode(0x%04x) cb_idx %s\n",
 			ioc->name, log_info, originator_desc, code_desc,
-			sas_loginfo.dw.subcode);
+			sas_loginfo.dw.subcode, MptCallbacksName[cb_idx]);
 	else
 		printk(MYIOC_s_INFO_FMT
 			"LogInfo(0x%08x): Originator={%s}, Code=(0x%02x),"
-			" SubCode(0x%04x)\n",
+			" SubCode(0x%04x) cb_idx %s\n",
 			ioc->name, log_info, originator_desc,
-			sas_loginfo.dw.code, sas_loginfo.dw.subcode);
+			sas_loginfo.dw.code, sas_loginfo.dw.subcode,
+			MptCallbacksName[cb_idx]);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -8261,7 +8265,8 @@ fusion_init(void)
 	/*  Register ourselves (mptbase) in order to facilitate
 	 *  EventNotification handling.
 	 */
-	mpt_base_index = mpt_register(mptbase_reply, MPTBASE_DRIVER);
+	mpt_base_index = mpt_register(mptbase_reply, MPTBASE_DRIVER,
+	    "mptbase_reply");
 
 	/* Register for hard reset handling callbacks.
 	 */

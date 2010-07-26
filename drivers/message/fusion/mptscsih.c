@@ -661,13 +661,23 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		u16	 status;
 		u8	 scsi_state, scsi_status;
 		u32	 log_info;
+		u16 ioc_stat;
 
 		status = le16_to_cpu(pScsiReply->IOCStatus) & MPI_IOCSTATUS_MASK;
+
 		scsi_state = pScsiReply->SCSIState;
 		scsi_status = pScsiReply->SCSIStatus;
 		xfer_cnt = le32_to_cpu(pScsiReply->TransferCount);
 		scsi_set_resid(sc, scsi_bufflen(sc) - xfer_cnt);
 		log_info = le32_to_cpu(pScsiReply->IOCLogInfo);
+		vdevice = sc->device->hostdata;
+
+		ioc_stat = le16_to_cpu(pScsiReply->IOCStatus);
+		if (ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
+			printk("LSI Debug log info %x for channel %x id %x\n",
+			    log_info, vdevice->vtarget->channel,
+			    vdevice->vtarget->id);
+		}
 
 		/*
 		 *  if we get a data underrun indication, yet no data was
@@ -741,7 +751,18 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 				if (ioc_status & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
 					if ((log_info & SAS_LOGINFO_MASK)
 					    == SAS_LOGINFO_NEXUS_LOSS) {
-						sc->result = (DID_BUS_BUSY << 16);
+						VirtDevice *vdevice = sc->device->hostdata;
+
+						/* flag the device as being in device
+						removal delay so we can notify the midlayer
+						to hold off on timeout eh */
+						if (vdevice && vdevice->vtarget && 
+						    vdevice->vtarget->raidVolume)
+							printk(KERN_INFO "Skipping Raid Volume for inDMD\n" );
+						else if (vdevice && vdevice->vtarget)
+							vdevice->vtarget->inDMD = 1;
+
+						sc->result = (DID_TRANSPORT_DISRUPTED << 16);
 						break;
 					}
 				}
