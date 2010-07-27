@@ -2877,7 +2877,6 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 					   struct nls_table *nls_info)
 {
 	int rc = 0;
-	int first_time = 0;
 	struct TCP_Server_Info *server = pSesInfo->server;
 
 	/* what if server changes its buffer size after dropping the session? */
@@ -2898,7 +2897,6 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			spin_unlock(&GlobalMid_Lock);
 
 		}
-		first_time = 1;
 	}
 
 	if (rc)
@@ -2912,7 +2910,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 	cFYI(1, "Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 		 server->secMode, server->capabilities, server->timeAdj);
 
-	rc = CIFS_SessSetup(xid, pSesInfo, first_time, nls_info);
+	rc = CIFS_SessSetup(xid, pSesInfo, nls_info);
 	if (rc) {
 		cERROR(1, "Send error in SessSetup = %d", rc);
 	} else {
