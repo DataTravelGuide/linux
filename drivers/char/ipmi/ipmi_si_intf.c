@@ -301,6 +301,12 @@ struct smi_info {
 
 static int force_kipmid[SI_MAX_PARMS];
 static int num_force_kipmid;
+#ifdef CONFIG_PCI
+static int pci_registered;
+#endif
+#ifdef CONFIG_PPC_OF
+static int of_registered;
+#endif
 
 static unsigned int kipmid_max_busy_us[SI_MAX_PARMS];
 static int num_max_busy_us;
@@ -3232,6 +3238,8 @@ static __devinit int init_ipmi_si(void)
 		printk(KERN_ERR
 		       "init_ipmi_si: Unable to register PCI driver: %d\n",
 		       rv);
+	else
+		pci_registered = 1;
 #endif
 
 #ifdef CONFIG_DMI
@@ -3243,7 +3251,11 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 #ifdef CONFIG_PPC_OF
-	of_register_platform_driver(&ipmi_of_platform_driver);
+	rv = of_register_platform_driver(&ipmi_of_platform_driver);
+	if (rv)
+		printk(KERN_ERR PFX "Unable to register OF driver: %d\n", rv);
+	else
+		of_registered = 1;
 #endif
 
 	/* We prefer devices with interrupts, but in the case of a machine
@@ -3298,11 +3310,13 @@ static __devinit int init_ipmi_si(void)
 	if (unload_when_empty && list_empty(&smi_infos)) {
 		mutex_unlock(&smi_infos_lock);
 #ifdef CONFIG_PCI
-		pci_unregister_driver(&ipmi_pci_driver);
+		if (pci_registered)
+			pci_unregister_driver(&ipmi_pci_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF
-		of_unregister_platform_driver(&ipmi_of_platform_driver);
+		if (of_registered)
+			of_unregister_platform_driver(&ipmi_of_platform_driver);
 #endif
 		driver_unregister(&ipmi_driver.driver);
 		printk(KERN_WARNING
@@ -3394,11 +3408,13 @@ static __exit void cleanup_ipmi_si(void)
 		return;
 
 #ifdef CONFIG_PCI
-	pci_unregister_driver(&ipmi_pci_driver);
+	if (pci_registered)
+		pci_unregister_driver(&ipmi_pci_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF
-	of_unregister_platform_driver(&ipmi_of_platform_driver);
+	if (of_registered)
+		of_unregister_platform_driver(&ipmi_of_platform_driver);
 #endif
 
 	mutex_lock(&smi_infos_lock);
