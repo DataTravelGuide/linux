@@ -316,6 +316,7 @@ static int unload_when_empty = 1;
 static int add_smi(struct smi_info *smi);
 static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *to_clean);
+static void smi_timeout(unsigned long data);
 
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
 static int register_xaction_notifier(struct notifier_block *nb)
@@ -896,6 +897,7 @@ static void sender(void                *send_info,
 #endif
 
 	mod_timer(&smi_info->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
+	smi_timeout((unsigned long)smi_info);
 
 	if (smi_info->thread)
 		wake_up_process(smi_info->thread);
