@@ -5898,6 +5898,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	atomic_inc(&mddev->openers);
 	mutex_unlock(&mddev->open_mutex);
 
+	check_disk_size_change(mddev->gendisk, bdev);
  out:
 	return err;
 }
