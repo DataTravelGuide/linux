@@ -331,7 +331,7 @@ out_unfrozen:
 		deactivate_locked_super(sb);
 out_unlock:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
-	return 0;
+	return error;
 }
 EXPORT_SYMBOL(thaw_bdev);
 
