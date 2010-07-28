@@ -121,6 +121,20 @@ struct usb_hcd {
 	u64			rsrc_len;	/* memory/io resource length */
 	unsigned		power_budget;	/* in mA, 0 = no limit */
 
+	/* bandwidth_mutex should be taken before adding or removing
+	 * any new bus bandwidth constraints:
+	 *   1. Before adding a configuration for a new device.
+	 *   2. Before removing the configuration to put the device into
+	 *      the addressed state.
+	 *   3. Before selecting a different configuration.
+	 *   4. Before selecting an alternate interface setting.
+	 *
+	 * bandwidth_mutex should be dropped after a successful control message
+	 * to the device, or resetting the bandwidth after a failed attempt.
+	 */
+	struct mutex		bandwidth_mutex;
+
+
 #define HCD_BUFFER_POOLS	4
 	struct dma_pool		*pool [HCD_BUFFER_POOLS];
 
@@ -282,6 +296,7 @@ struct hc_driver {
 		 */
 	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
+	int	(*reset_device)(struct usb_hcd *, struct usb_device *);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
