@@ -1627,6 +1627,25 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 27 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-54.el6]
+- [block] Disable async multicore raid xor function (Doug Ledford) [596490]
+- [kernel] taint: Add mark_hardware_unsupported() (Prarit Bhargava) [600509]
+- [kernel] panic: Allow warnings to set different taint flags (Prarit Bhargava) [600509]
+- [kernel] taint: Add taint padding and TAINT_HARDWARE_UNSUPPORTED (Prarit Bhargava) [600509]
+- [mm] disable transparent hugepages by default on small systems (Rik van Riel) [618444]
+- [net] Kernel lockups with bonding and IPV6 (Shyam Iyer) [614240]
+- [x86] ACPI: Improve C3 residency (Matthew Garrett) [583792]
+- [x86] cpufreq: pcc driver should check for pcch method before calling _OSC (Matthew Garrett) [616908]
+- [x86] Add PCC Cpufreq driver (Matthew Garrett) [465354]
+- [x86] Disable IOMMU graphics on Cantiga chipset (John Villalovos) [602207]
+- [fs] vfsmount: pad for future fanotify support (Eric Paris) [320631]
+- [ipmi] Run a dummy command before submitting a new command (Matthew Garrett) [616089]
+- [block] mmc: Avoid hangs with mounted SD cards (Matthew Garrett) [615318]
+- [md] Fix md raid partition detection (Doug Ledford) [607477]
+- [ipmi] Make sure drivers were registered before unregistering them (Matthew Garrett) [601376]
+- [s390x] Enhanced qeth for new network device type support (Hendrik Brueckner) [599650]
+- [fs] cifs: fix security issue with dns_resolver upcall (David Howells) [612136] {CVE-2010-2524}
+
 * Mon Jul 26 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-53.el6]
 - [fs] xfs: track AGs with reclaimable inodes in per-ag radix tree (Dave Chinner) [617035]
 - [fs] xfs: convert inode shrinker to per-filesystem contexts (Dave Chinner) [617035]
