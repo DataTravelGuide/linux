@@ -94,12 +94,20 @@ unregister_memory(struct memory_block *memory, struct mem_section *section)
  * uses.
  */
 
-static ssize_t show_mem_phys_index(struct sys_device *dev,
+static ssize_t show_mem_start_phys_index(struct sys_device *dev,
 			struct sysdev_attribute *attr, char *buf)
 {
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);
-	return sprintf(buf, "%08lx\n", mem->phys_index);
+	return sprintf(buf, "%08lx\n", mem->start_phys_index);
+}
+
+static ssize_t show_mem_end_phys_index(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
+{
+	struct memory_block *mem =
+		container_of(dev, struct memory_block, sysdev);
+	return sprintf(buf, "%08lx\n", mem->end_phys_index);
 }
 
 /*
@@ -113,7 +121,7 @@ static ssize_t show_mem_removable(struct sys_device *dev,
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);
 
-	start_pfn = section_nr_to_pfn(mem->phys_index);
+	start_pfn = section_nr_to_pfn(mem->start_phys_index);
 	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
 	return sprintf(buf, "%d\n", ret);
 }
@@ -171,7 +179,7 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 	int ret;
 	int old_state = mem->state;
 
-	psection = mem->phys_index;
+	psection = mem->start_phys_index;
 	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
 
 	/*
@@ -244,7 +252,7 @@ store_mem_state(struct sys_device *dev,
 	int ret = -EINVAL;
 
 	mem = container_of(dev, struct memory_block, sysdev);
-	phys_section_nr = mem->phys_index;
+	phys_section_nr = mem->start_phys_index;
 
 	if (!present_section_nr(phys_section_nr))
 		goto out;
@@ -276,7 +284,8 @@ static ssize_t show_phys_device(struct sys_device *dev,
 	return sprintf(buf, "%d\n", mem->phys_device);
 }
 
-static SYSDEV_ATTR(phys_index, 0444, show_mem_phys_index, NULL);
+static SYSDEV_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+static SYSDEV_ATTR(end_phys_index, 0444, show_mem_end_phys_index, NULL);
 static SYSDEV_ATTR(state, 0644, show_mem_state, store_mem_state);
 static SYSDEV_ATTR(phys_device, 0444, show_phys_device, NULL);
 static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
@@ -446,7 +455,7 @@ static int add_memory_block(int nid, struct mem_section *section,
 	if (!mem)
 		return -ENOMEM;
 
-	mem->phys_index = __section_nr(section);
+	mem->start_phys_index = __section_nr(section);
 	mem->state = state;
 	mutex_init(&mem->state_mutex);
 	mem->phys_device = phys_device;
@@ -454,6 +463,8 @@ static int add_memory_block(int nid, struct mem_section *section,
 	ret = register_memory(mem, section);
 	if (!ret)
 		ret = mem_create_simple_file(mem, phys_index);
+	if (!ret)
+		ret = mem_create_simple_file(mem, end_phys_index);
 	if (!ret)
 		ret = mem_create_simple_file(mem, state);
 	if (!ret)
@@ -476,6 +487,7 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 	mem = find_memory_block(section);
 	unregister_mem_sect_under_nodes(mem);
 	mem_remove_simple_file(mem, phys_index);
+	mem_remove_simple_file(mem, end_phys_index);
 	mem_remove_simple_file(mem, state);
 	mem_remove_simple_file(mem, phys_device);
 	mem_remove_simple_file(mem, removable);
