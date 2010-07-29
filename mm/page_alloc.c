@@ -2531,8 +2531,11 @@ int numa_zonelist_order_handler(ctl_table *table, int write,
 			strncpy((char*)table->data, saved_string,
 				NUMA_ZONELIST_ORDER_LEN);
 			user_zonelist_order = oldval;
-		} else if (oldval != user_zonelist_order)
+		} else if (oldval != user_zonelist_order) {
+			mutex_lock(&zonelists_mutex);
 			build_all_zonelists(NULL);
+			mutex_unlock(&zonelists_mutex);
+		}
 	}
 	return 0;
 }
@@ -2855,6 +2858,13 @@ static void build_zonelist_cache(pg_data_t *pgdat)
 #endif	/* CONFIG_NUMA */
 
 static void setup_zone_pageset(struct zone *zone);
+
+/*
+ * Global mutex to protect against size modification of zonelists
+ * as well as to serialize pageset setup for the new populated zone.
+ */
+DEFINE_MUTEX(zonelists_mutex);
+
 /* return values int ....just for stop_machine() */
 static __init_refok int __build_all_zonelists(void *data)
 {
@@ -2881,6 +2891,10 @@ static __init_refok int __build_all_zonelists(void *data)
 	return 0;
 }
 
+/*
+ * Called with zonelists_mutex held always
+ * unless system_state == SYSTEM_BOOTING.
+ */
 void build_all_zonelists(void *data)
 {
 	set_zonelist_order();
