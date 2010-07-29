@@ -149,6 +149,7 @@ struct intel_crtc {
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
+	int fdi_lanes;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -175,6 +176,7 @@ extern void intel_dp_init(struct drm_device *dev, int dp_reg);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
+extern bool intel_pch_has_edp(struct drm_crtc *crtc);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
 
 
@@ -208,6 +210,9 @@ extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 extern void intel_init_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
+
+extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
+				      struct drm_gem_object *obj);
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,

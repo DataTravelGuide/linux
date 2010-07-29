@@ -1826,6 +1826,14 @@
 #define   DP_LINK_TRAIN_MASK		(3 << 28)
 #define   DP_LINK_TRAIN_SHIFT		28
 
+/* CPT Link training mode */
+#define   DP_LINK_TRAIN_PAT_1_CPT	(0 << 8)
+#define   DP_LINK_TRAIN_PAT_2_CPT	(1 << 8)
+#define   DP_LINK_TRAIN_PAT_IDLE_CPT	(2 << 8)
+#define   DP_LINK_TRAIN_OFF_CPT		(3 << 8)
+#define   DP_LINK_TRAIN_MASK_CPT	(7 << 8)
+#define   DP_LINK_TRAIN_SHIFT_CPT	8
+
 /* Signal voltages. These are mostly controlled by the other end */
 #define   DP_VOLTAGE_0_4		(0 << 25)
 #define   DP_VOLTAGE_0_6		(1 << 25)
@@ -1986,7 +1994,10 @@
 /* Display & cursor control */
 
 /* dithering flag on Ironlake */
-#define PIPE_ENABLE_DITHER	(1 << 4)
+#define PIPE_ENABLE_DITHER		(1 << 4)
+#define PIPE_DITHER_TYPE_MASK		(3 << 2)
+#define PIPE_DITHER_TYPE_SPATIAL	(0 << 2)
+#define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
 #define PIPEACONF		0x70008
@@ -2378,6 +2389,11 @@
 #define SDE_PORTB_HOTPLUG       (1 << 8)
 #define SDE_SDVOB_HOTPLUG       (1 << 6)
 #define SDE_HOTPLUG_MASK	(0xf << 8)
+/* CPT */
+#define SDE_CRT_HOTPLUG_CPT	(1 << 19)
+#define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
+#define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
+#define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
@@ -2469,6 +2485,17 @@
 #define PCH_SSC4_PARMS          0xc6210
 #define PCH_SSC4_AUX_PARMS      0xc6214
 
+#define PCH_DPLL_SEL		0xc7000
+#define  TRANSA_DPLL_ENABLE	(1<<3)
+#define	 TRANSA_DPLLB_SEL	(1<<0)
+#define	 TRANSA_DPLLA_SEL	0
+#define  TRANSB_DPLL_ENABLE	(1<<7)
+#define	 TRANSB_DPLLB_SEL	(1<<4)
+#define	 TRANSB_DPLLA_SEL	(0)
+#define  TRANSC_DPLL_ENABLE	(1<<11)
+#define	 TRANSC_DPLLB_SEL	(1<<8)
+#define	 TRANSC_DPLLA_SEL	(0)
+
 /* transcoder */
 
 #define TRANS_HTOTAL_A          0xe0000
@@ -2555,6 +2582,19 @@
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_1_5X (1<<22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_2X   (2<<22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_3X   (3<<22)
+/* ILK always use 400mV 0dB for voltage swing and pre-emphasis level.
+   SNB has different settings. */
+/* SNB A-stepping */
+#define  FDI_LINK_TRAIN_400MV_0DB_SNB_A		(0x38<<22)
+#define  FDI_LINK_TRAIN_400MV_6DB_SNB_A		(0x02<<22)
+#define  FDI_LINK_TRAIN_600MV_3_5DB_SNB_A	(0x01<<22)
+#define  FDI_LINK_TRAIN_800MV_0DB_SNB_A		(0x0<<22)
+/* SNB B-stepping */
+#define  FDI_LINK_TRAIN_400MV_0DB_SNB_B		(0x0<<22)
+#define  FDI_LINK_TRAIN_400MV_6DB_SNB_B		(0x3a<<22)
+#define  FDI_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
+#define  FDI_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
+#define  FDI_LINK_TRAIN_VOL_EMP_MASK		(0x3f<<22)
 #define  FDI_DP_PORT_WIDTH_X1           (0<<19)
 #define  FDI_DP_PORT_WIDTH_X2           (1<<19)
 #define  FDI_DP_PORT_WIDTH_X3           (2<<19)
@@ -2587,6 +2627,13 @@
 #define  FDI_RX_ENHANCE_FRAME_ENABLE    (1<<6)
 #define  FDI_SEL_RAWCLK                 (0<<4)
 #define  FDI_SEL_PCDCLK                 (1<<4)
+/* CPT */
+#define  FDI_AUTO_TRAINING			(1<<10)
+#define  FDI_LINK_TRAIN_PATTERN_1_CPT		(0<<8)
+#define  FDI_LINK_TRAIN_PATTERN_2_CPT		(1<<8)
+#define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2<<8)
+#define  FDI_LINK_TRAIN_NORMAL_CPT		(3<<8)
+#define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3<<8)
 
 #define FDI_RXA_MISC            0xf0010
 #define FDI_RXB_MISC            0xf1010
@@ -2658,6 +2705,9 @@
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
 
+/* PCH SDVOB multiplex with HDMIB */
+#define PCH_SDVOB	HDMIB
+
 #define HDMIC   0xe1150
 #define HDMID   0xe1160
 
@@ -2681,6 +2731,7 @@
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
+#define  PANEL_UNLOCK_REGS	(0xabcd << 16)
 #define  EDP_FORCE_VDD		(1 << 3)
 #define  EDP_BLC_ENABLE		(1 << 2)
 #define  PANEL_POWER_RESET	(1 << 1)
@@ -2714,5 +2765,43 @@
 #define PCH_DPD_AUX_CH_DATA3	0xe431c
 #define PCH_DPD_AUX_CH_DATA4	0xe4320
 #define PCH_DPD_AUX_CH_DATA5	0xe4324
+
+/* CPT */
+#define  PORT_TRANS_A_SEL_CPT	0
+#define  PORT_TRANS_B_SEL_CPT	(1<<29)
+#define  PORT_TRANS_C_SEL_CPT	(2<<29)
+#define  PORT_TRANS_SEL_MASK	(3<<29)
+
+#define TRANS_DP_CTL_A		0xe0300
+#define TRANS_DP_CTL_B		0xe1300
+#define TRANS_DP_CTL_C		0xe2300
+#define  TRANS_DP_OUTPUT_ENABLE	(1<<31)
+#define  TRANS_DP_PORT_SEL_B	(0<<29)
+#define  TRANS_DP_PORT_SEL_C	(1<<29)
+#define  TRANS_DP_PORT_SEL_D	(2<<29)
+#define  TRANS_DP_PORT_SEL_MASK	(3<<29)
+#define  TRANS_DP_AUDIO_ONLY	(1<<26)
+#define  TRANS_DP_ENH_FRAMING	(1<<18)
+#define  TRANS_DP_8BPC		(0<<9)
+#define  TRANS_DP_10BPC		(1<<9)
+#define  TRANS_DP_6BPC		(2<<9)
+#define  TRANS_DP_12BPC		(3<<9)
+#define  TRANS_DP_VSYNC_ACTIVE_HIGH	(1<<4)
+#define  TRANS_DP_VSYNC_ACTIVE_LOW	0
+#define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)
+#define  TRANS_DP_HSYNC_ACTIVE_LOW	0
+
+/* SNB eDP training params */
+/* SNB A-stepping */
+#define  EDP_LINK_TRAIN_400MV_0DB_SNB_A		(0x38<<22)
+#define  EDP_LINK_TRAIN_400MV_6DB_SNB_A		(0x02<<22)
+#define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_A	(0x01<<22)
+#define  EDP_LINK_TRAIN_800MV_0DB_SNB_A		(0x0<<22)
+/* SNB B-stepping */
+#define  EDP_LINK_TRAIN_400MV_0DB_SNB_B		(0x0<<22)
+#define  EDP_LINK_TRAIN_400MV_6DB_SNB_B		(0x3a<<22)
+#define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
+#define  EDP_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
+#define  EDP_LINK_TRAIN_VOL_EMP_MASK_SNB	(0x3f<<22)
 
 #endif /* _I915_REG_H_ */

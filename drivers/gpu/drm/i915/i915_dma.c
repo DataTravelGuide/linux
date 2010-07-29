@@ -1376,7 +1376,7 @@ static void i915_cleanup_compression(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	drm_mm_put_block(dev_priv->compressed_fb);
-	if (!IS_GM45(dev))
+	if (dev_priv->compressed_llb)
 		drm_mm_put_block(dev_priv->compressed_llb);
 }
 
@@ -1688,6 +1688,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
+
+	intel_detect_pch(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev, prealloc_start,
