@@ -774,7 +774,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	t->highs[t->num_targets++] = tgt->begin + tgt->len - 1;
 
-	if (!(tgt->type->features & DM_TARGET_SUPPORTS_DISCARDS))
+	if (!tgt->num_discard_requests)
 		t->discards_supported = 0;
 
 	return 0;

@@ -1231,7 +1231,13 @@ static int __clone_and_map_discard(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
-	if (!(ti->type->features & DM_TARGET_SUPPORTS_DISCARDS))
+	/*
+	 * Even though the device advertised discard support,
+	 * reconfiguration might have changed that since the
+	 * check was performed.
+	 */
+
+	if (!ti->num_discard_requests)
 		return -EOPNOTSUPP;
 
 	max = max_io_len(ci->md, ci->sector, ti);
