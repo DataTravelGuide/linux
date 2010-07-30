@@ -195,6 +195,7 @@ struct bfad_s {
 	bfa_boolean_t	ipfc_enabled;
 	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
+	atomic_t wq_reqcnt;
 };
 
 /*
