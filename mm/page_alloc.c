@@ -3074,7 +3074,9 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 	struct page *page;
 	unsigned long block_migratetype;
 	int reserve;
+	bool anyblock = false;
 
+retry:
 	/* Get the start pfn, end pfn and the number of blocks to reserve */
 	start_pfn = zone->zone_start_pfn;
 	end_pfn = start_pfn + zone->spanned_pages;
@@ -3112,11 +3114,13 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 		}
 
 		/* Suitable for reserving if this block is movable */
-		if (reserve > 0 && block_migratetype == MIGRATE_MOVABLE) {
-			set_pageblock_migratetype(page, MIGRATE_RESERVE);
-			move_freepages_block(zone, page, MIGRATE_RESERVE);
-			reserve--;
-			continue;
+		if (reserve > 0) {
+			if (anyblock || block_migratetype == MIGRATE_MOVABLE) {
+				set_pageblock_migratetype(page, MIGRATE_RESERVE);
+				move_freepages_block(zone, page, MIGRATE_RESERVE);
+				reserve--;
+				continue;
+			}
 		}
 
 		/*
@@ -3127,6 +3131,18 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 			move_freepages_block(zone, page, MIGRATE_MOVABLE);
 		}
+	}
+
+	/*
+	 * Ideally when selecting new MIGRATE_RESERVE blocks, an existing
+	 * movable block is used to maximise available pages in the reserve
+	 * block. Very early in boot, this is not an option so if the reserve
+	 * is not met first time around, try again but allow any block to be
+	 * used
+	 */
+	if (unlikely(reserve) && !anyblock) {
+		anyblock = true;
+		goto retry;
 	}
 }
 
