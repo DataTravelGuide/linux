@@ -1335,6 +1335,21 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}
+
+		/* Check if the ndlp is active */
+		if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+			rc = -IOCB_ERROR;
+			goto issue_ct_rsp_exit;
+		}
+
+		/* get a refernece count so the ndlp doesn't go away while
+		 * we respond
+		 */
+		if (!lpfc_nlp_get(ndlp)) {
+			rc = -IOCB_ERROR;
+			goto issue_ct_rsp_exit;
+		}
+
 		icmd->un.ulpWord[3] = ndlp->nlp_rpi;
 		/* The exchange is done, mark the entry as invalid */
 		phba->ct_ctx[tag].flags &= ~UNSOL_VALID;
