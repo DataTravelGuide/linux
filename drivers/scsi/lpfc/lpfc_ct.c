@@ -591,6 +591,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *ndlp;
 	int rc;
 
+	phba->ns_cnt--;
+
 	/* First save ndlp, before we overwrite it */
 	ndlp = cmdiocb->context_un.ndlp;
 
@@ -749,6 +751,8 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int did, rc, retry;
 	uint8_t fbits;
 	struct lpfc_nodelist *ndlp;
+
+	phba->ns_cnt--;
 
 	did = ((struct lpfc_sli_ct_request *) inp->virt)->un.gff.PortId;
 	did = be32_to_cpu(did);
@@ -935,6 +939,8 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
+	phba->ns_cnt--;
+
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
@@ -955,6 +961,8 @@ lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+
+	phba->ns_cnt--;
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
@@ -977,6 +985,8 @@ lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
+	phba->ns_cnt--;
+
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
@@ -998,6 +1008,8 @@ lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
+	phba->ns_cnt--;
+
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
 		struct lpfc_sli_ct_request *CTrsp;
@@ -1018,6 +1030,8 @@ lpfc_cmpl_ct_cmd_da_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 
+	phba->ns_cnt--;
+
 	/* even if it fails we will act as though it succeeded. */
 	vport->ct_flags = 0;
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
@@ -1030,6 +1044,8 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
+
+	phba->ns_cnt--;
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		struct lpfc_dmabuf *outp;
@@ -1265,6 +1281,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			"Issue CT cmd:    cmd:x%x did:x%x",
 			cmdcode, ndlp->nlp_DID, 0);
+		if (++phba->ns_cnt > phba->ns_max)
+			phba->ns_max = phba->ns_cnt;
 		return 0;
 	}
 	rc=6;

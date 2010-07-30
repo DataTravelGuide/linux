@@ -601,15 +601,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
 
 			/* Check if TXQ queue needs to be serviced */
-			if (pring->txq_cnt) {
-				spin_lock_irqsave(
-					&phba->pport->work_port_lock, iflag);
-				phba->pport->work_port_events |=
-					WORKER_SERVICE_TXQ;
+			if (pring->txq_cnt)
 				lpfc_worker_wake_up(phba);
-				spin_unlock_irqrestore(
-					&phba->pport->work_port_lock, iflag);
-			}
 		}
 	}
 
@@ -12878,10 +12871,6 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		}
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 	}
-
-	spin_lock_irqsave(&phba->pport->work_port_lock, iflags);
-	phba->pport->work_port_events &= ~WORKER_SERVICE_TXQ;
-	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflags);
 
 	/* Cancel all the IOCBs that cannot be issued */
 	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,

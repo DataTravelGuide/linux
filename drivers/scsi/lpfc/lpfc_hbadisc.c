@@ -587,7 +587,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 							(status &
 							 HA_RXMASK));
 		}
-		if (phba->pport->work_port_events & WORKER_SERVICE_TXQ)
+		if (pring->txq_cnt)
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
