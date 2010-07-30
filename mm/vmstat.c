@@ -292,7 +292,7 @@ EXPORT_SYMBOL(dec_zone_page_state);
  * with the global counters. These could cause remote node cache line
  * bouncing and will have to be only done when necessary.
  */
-void refresh_cpu_vm_stats(int cpu)
+void refresh_cpu_vm_stats(int cpu, bool can_resched)
 {
 	struct zone *zone;
 	int i;
@@ -319,7 +319,8 @@ void refresh_cpu_vm_stats(int cpu)
 				p->expire = 3;
 #endif
 			}
-		cond_resched();
+		if (can_resched)
+			cond_resched();
 #ifdef CONFIG_NUMA
 		/*
 		 * Deal with draining the remote pageset of this
@@ -972,19 +973,36 @@ static const struct file_operations proc_vmstat_file_operations = {
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
 int sysctl_stat_interval __read_mostly = HZ;
 
-static void vmstat_update(struct work_struct *w)
+static void vmstat_update_periodic(struct work_struct *w)
 {
-	refresh_cpu_vm_stats(smp_processor_id());
+	refresh_cpu_vm_stats(smp_processor_id(), true);
 	schedule_delayed_work(&__get_cpu_var(vmstat_work),
 		round_jiffies_relative(sysctl_stat_interval));
 }
 
+static void vmstat_update_immediate(void *arg)
+{
+	refresh_cpu_vm_stats(smp_processor_id(), false);
+}
+
+void refresh_all_vm_stats(void)
+{
+	/*
+	 * If called from the page allocator in IRQ context, we cannot send an
+	 * IPI to refresh stats
+	 */
+	if (irqs_disabled())
+		return;
+
+	on_each_cpu(vmstat_update_immediate, NULL, 1);
+}
+
 static void __cpuinit start_cpu_timer(int cpu)
 {
-	struct delayed_work *vmstat_work = &per_cpu(vmstat_work, cpu);
+	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
 
-	INIT_DELAYED_WORK_DEFERRABLE(vmstat_work, vmstat_update);
-	schedule_delayed_work_on(cpu, vmstat_work,
+	INIT_DELAYED_WORK_DEFERRABLE(work, vmstat_update_periodic);
+	schedule_delayed_work_on(cpu, work,
 				 __round_jiffies_relative(HZ, cpu));
 }
 

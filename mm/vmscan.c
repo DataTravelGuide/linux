@@ -2120,6 +2120,16 @@ loop_again:
 		total_reclaimed += sc.nr_reclaimed;
 		if (all_zones_ok)
 			break;		/* kswapd: all done */
+
+		/*
+		 * While kswapd is awake, actively keep the NR_FREE_PAGES
+		 * counters in sync with the buddy lists. On large systems
+		 * under load, the 1 second period timer can allow the min
+		 * watermark to be breached because NR_FREE_PAGES was higher
+		 * than reality
+		 */
+		refresh_all_vm_stats();
+
 		/*
 		 * OK, kswapd is getting into trouble.  Take a nap, then take
 		 * another pass across the zones.

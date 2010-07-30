@@ -2028,6 +2028,7 @@ nopage:
 			" order:%d, mode:0x%x\n",
 			p->comm, order, gfp_mask);
 		dump_stack();
+		refresh_all_vm_stats();
 		show_mem();
 	}
 	return page;
@@ -4654,7 +4655,7 @@ static int page_alloc_cpu_notify(struct notifier_block *self,
 		 * This is only okay since the processor is dead and cannot
 		 * race with what we are doing.
 		 */
-		refresh_cpu_vm_stats(cpu);
+		refresh_cpu_vm_stats(cpu, true);
 	}
 	return NOTIFY_OK;
 }
