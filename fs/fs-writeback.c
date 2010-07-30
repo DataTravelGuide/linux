@@ -26,6 +26,7 @@
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <trace/events/kmem.h>
+#include <linux/tracepoint.h>
 #include "internal.h"
 
 #define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
@@ -49,6 +50,14 @@ struct wb_writeback_work {
 	struct completion *done;	/* set if the caller waits */
 };
 
+/*
+ * Include the creation of the trace points after defining the
+ * wb_writeback_work structure so that the definition remains local to this
+ * file.
+ */
+#define CREATE_TRACE_POINTS
+#include <trace/events/writeback.h>
+
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
@@ -64,6 +73,8 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 static void bdi_queue_work(struct backing_dev_info *bdi,
 		struct wb_writeback_work *work)
 {
+	trace_writeback_queue(bdi, work);
+
 	spin_lock(&bdi->wb_lock);
 	list_add_tail(&work->list, &bdi->work_list);
 	spin_unlock(&bdi->wb_lock);
@@ -72,9 +83,10 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 	 * If the default thread isn't there, make sure we add it. When
 	 * it gets created and wakes up, we'll run this work.
 	 */
-	if (unlikely(list_empty_careful(&bdi->wb_list)))
+	if (unlikely(list_empty_careful(&bdi->wb_list))) {
+		 trace_writeback_nothread(bdi, work);
 		wake_up_process(default_backing_dev_info.wb.task);
-	else {
+	} else {
 		struct bdi_writeback *wb = &bdi->wb;
 
 		if (wb->task)
@@ -94,8 +106,10 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 	 */
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		if (bdi->wb.task)
+		if (bdi->wb.task) {
+			trace_writeback_nowork(bdi);
 			wake_up_process(bdi->wb.task);
+		}
 		return;
 	}
 
@@ -634,10 +648,13 @@ static long wb_writeback(struct bdi_writeback *wb,
 		wbc.more_io = 0;
 		wbc.nr_to_write = MAX_WRITEBACK_PAGES;
 		wbc.pages_skipped = 0;
+
+		trace_wbc_writeback_start(&wbc, wb->bdi);
 		if (work->sb)
 			__writeback_inodes_sb(work->sb, wb, &wbc);
 		else
 			writeback_inodes_wb(wb, &wbc);
+		trace_wbc_writeback_written(&wbc, wb->bdi);
 		work->nr_pages -= MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 		wrote += MAX_WRITEBACK_PAGES - wbc.nr_to_write;
 
@@ -665,6 +682,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		if (!list_empty(&wb->b_more_io))  {
 			inode = list_entry(wb->b_more_io.prev,
 						struct inode, i_list);
+			trace_wbc_writeback_wait(&wbc, wb->bdi);
 			inode_wait_for_writeback(inode);
 		}
 		spin_unlock(&inode_lock);
@@ -745,6 +763,8 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (force_wait)
 			work->sync_mode = WB_SYNC_ALL;
 
+		trace_writeback_exec(bdi, work);
+
 		wrote += wb_writeback(wb, work);
 
 		/*
@@ -776,8 +796,12 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 	unsigned long wait_jiffies = -1UL;
 	long pages_written;
 
+	trace_writeback_task_start(wb->bdi);
+
 	while (!kthread_should_stop()) {
 		pages_written = wb_do_writeback(wb, 0);
+
+		trace_writeback_pages_written(pages_written);
 
 		if (pages_written)
 			last_active = jiffies;
@@ -802,6 +826,8 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 
 		try_to_freeze();
 	}
+
+	trace_writeback_task_stop(wb->bdi);
 
 	return 0;
 }
