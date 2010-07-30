@@ -5338,13 +5338,15 @@ void
 lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 {
 	/*
-	 * If HBA is not running in FIP mode or if HBA does not support
-	 * FCoE or if FCF is not registered, do nothing.
+	 * If HBA is not running in FIP mode, if HBA does not support
+	 * FCoE, if FCF discovery is ongoing, or if FCF has not been
+	 * registered, do nothing.
 	 */
 	spin_lock_irq(&phba->hbalock);
 	if (!(phba->hba_flag & HBA_FCOE_SUPPORT) ||
 	    !(phba->fcf.fcf_flag & FCF_REGISTERED) ||
 	    !(phba->hba_flag & HBA_FIP_SUPPORT) ||
+	    (phba->fcf.fcf_flag & FCF_DISCOVERY) ||
 	    (phba->pport->port_state == LPFC_FLOGI)) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
