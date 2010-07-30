@@ -25,6 +25,8 @@ static void be_mcc_notify(struct be_adapter *adapter)
 
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
+
+	wmb();
 	iowrite32(val, adapter->db + DB_MCCQ_OFFSET);
 }
 
@@ -74,7 +76,8 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 						sizeof(resp->hw_stats));
 			netdev_stats_update(adapter);
 		}
-	} else if (compl_status != MCC_STATUS_NOT_SUPPORTED) {
+	} else if ((compl_status != MCC_STATUS_NOT_SUPPORTED) &&
+		   (compl->tag0 != OPCODE_COMMON_NTWK_MAC_QUERY)) {
 		extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
 				CQE_STATUS_EXTD_MASK;
 		dev_warn(&adapter->pdev->dev,
@@ -1690,6 +1693,74 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 
 	status = be_mcc_notify_wait(adapter);
 
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_get_phy_info(struct be_adapter *adapter, struct be_dma_mem *cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_phy_info *req;
+	struct be_sge *sge;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd->va;
+	sge = nonembedded_sgl(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+				OPCODE_COMMON_GET_PHY_DETAILS);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_GET_PHY_DETAILS,
+			sizeof(*req));
+
+	sge->pa_hi = cpu_to_le32(upper_32_bits(cmd->dma));
+	sge->pa_lo = cpu_to_le32(cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(cmd->size);
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_qos *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+				OPCODE_COMMON_SET_QOS);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_SET_QOS, sizeof(*req));
+
+	req->hdr.domain = domain;
+	req->valid_bits = BE_QOS_BITS_NIC;
+	req->max_bps_nic = bps;
+
+	status = be_mcc_notify_wait(adapter);
+
+err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
