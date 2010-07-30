@@ -25,6 +25,8 @@ struct stripe {
 
 struct stripe_c {
 	uint32_t stripes;
+	int stripes_shift;
+	sector_t stripes_mask;
 
 	/* The size of this target / num. stripes */
 	sector_t stripe_width;
@@ -162,16 +164,21 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Set pointer to dm target; used in trigger_event */
 	sc->ti = ti;
-
 	sc->stripes = stripes;
 	sc->stripe_width = width;
+
+	if (stripes & (stripes - 1))
+		sc->stripes_shift = -1;
+	else {
+		sc->stripes_shift = ffs(stripes) - 1;
+		sc->stripes_mask = ((sector_t) stripes) - 1;
+	}
+
 	ti->split_io = chunk_size;
 	ti->num_flush_requests = stripes;
 
+	sc->chunk_shift = ffs(chunk_size) - 1;
 	sc->chunk_mask = ((sector_t) chunk_size) - 1;
-	for (sc->chunk_shift = 0; chunk_size; sc->chunk_shift++)
-		chunk_size >>= 1;
-	sc->chunk_shift--;
 
 	/*
 	 * Get the stripe destinations.
@@ -212,14 +219,21 @@ static void stripe_map_sector(struct stripe_c *sc, sector_t sector,
 {
 	sector_t offset = dm_target_offset(sc->ti, sector);
 	sector_t chunk = offset >> sc->chunk_shift;
-	*stripe = sector_div(chunk, sc->stripes);
+
+	if (sc->stripes_shift < 0)
+		*stripe = sector_div(chunk, sc->stripes);
+	else {
+		*stripe = chunk & sc->stripes_mask;
+		chunk >>= sc->stripes_shift;
+	}
+
 	*result = (chunk << sc->chunk_shift) | (offset & sc->chunk_mask);
 }
 
 static int stripe_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
-	struct stripe_c *sc = (struct stripe_c *) ti->private;
+	struct stripe_c *sc = ti->private;
 	uint32_t stripe;
 	unsigned target_request_nr;
 
