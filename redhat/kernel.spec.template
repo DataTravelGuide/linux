@@ -1627,6 +1627,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 29 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-55.el6]
+- [kernel] Add -Werror and WAR for bogus array bounds warnings (Prarit Bhargava) [603733]
+- [pci] Remove pci_bus_dump_resources() (Prarit Bhargava) [613972]
+- [fs] CIFS: Compile fix for malicious redirect fix (David Howells) [612136] {CVE-2010-2524}
+
 * Tue Jul 27 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-54.el6]
 - [block] Disable async multicore raid xor function (Doug Ledford) [596490]
 - [kernel] taint: Add mark_hardware_unsupported() (Prarit Bhargava) [600509]
