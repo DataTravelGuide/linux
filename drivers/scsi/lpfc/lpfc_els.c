@@ -820,6 +820,11 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 						"FCF index:%d\n",
 						phba->fcf.current_rec.fcf_indx);
 			} else {
+				lpfc_printf_log(phba, KERN_INFO,
+						LOG_FIP | LOG_ELS,
+						"2794 FLOGI FCF round robin "
+						"failover to FCF index x%x\n",
+						fcf_index);
 				rc = lpfc_sli4_fcf_rr_read_fcf_rec(phba,
 								   fcf_index);
 				if (rc)

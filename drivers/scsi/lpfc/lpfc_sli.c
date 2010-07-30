@@ -12488,7 +12488,7 @@ lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
 }
 
 /**
- * lpfc_sli4_fcf_rr_index_set - Clear bmask from eligible fcf record index
+ * lpfc_sli4_fcf_rr_index_clear - Clear bmask from eligible fcf record index
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine clears the FCF record index from the eligible bmask for
@@ -12509,6 +12509,10 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 	}
 	/* Clear the eligible FCF record index bmask */
 	clear_bit(fcf_index, phba->fcf.fcf_rr_bmask);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+			"2791 Clear FCF index x%x from round robin failover "
+			"bmask\n", fcf_index);
 }
 
 /**
