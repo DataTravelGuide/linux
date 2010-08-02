@@ -27,6 +27,14 @@
 #include <asm/uaccess.h>
 
 #define MEMORY_CLASS_NAME	"memory"
+#define MIN_MEMORY_BLOCK_SIZE	(1 << SECTION_SIZE_BITS)
+
+static int sections_per_block;
+
+static inline int base_memory_block_id(int section_nr)
+{
+	return (section_nr / sections_per_block) * sections_per_block;
+}
 
 static struct sysdev_class memory_sysdev_class = {
 	.name = MEMORY_CLASS_NAME,
@@ -67,22 +75,21 @@ EXPORT_SYMBOL(unregister_memory_notifier);
  * register_memory - Setup a sysfs device for a memory block
  */
 static
-int register_memory(struct memory_block *memory, struct mem_section *section)
+int register_memory(struct memory_block *memory)
 {
 	int error;
 
 	memory->sysdev.cls = &memory_sysdev_class;
-	memory->sysdev.id = __section_nr(section);
+	memory->sysdev.id = memory->start_phys_index;
 
 	error = sysdev_register(&memory->sysdev);
 	return error;
 }
 
 static void
-unregister_memory(struct memory_block *memory, struct mem_section *section)
+unregister_memory(struct memory_block *memory)
 {
 	BUG_ON(memory->sysdev.cls != &memory_sysdev_class);
-	BUG_ON(memory->sysdev.id != __section_nr(section));
 
 	/* drop the ref. we got in remove_memory_block() */
 	kobject_put(&memory->sysdev.kobj);
@@ -116,13 +123,16 @@ static ssize_t show_mem_end_phys_index(struct sys_device *dev,
 static ssize_t show_mem_removable(struct sys_device *dev,
 			struct sysdev_attribute *attr, char *buf)
 {
-	unsigned long start_pfn;
-	int ret;
+	unsigned long i, pfn;
+	int ret = 1;
 	struct memory_block *mem =
 		container_of(dev, struct memory_block, sysdev);
 
-	start_pfn = section_nr_to_pfn(mem->start_phys_index);
-	ret = is_mem_section_removable(start_pfn, PAGES_PER_SECTION);
+	for (i = mem->start_phys_index; i <= mem->end_phys_index; i++) {
+		pfn = section_nr_to_pfn(i);
+		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
+	}
+
 	return sprintf(buf, "%d\n", ret);
 }
 
@@ -170,17 +180,14 @@ int memory_notify(unsigned long val, void *v)
  * OK to have direct references to sparsemem variables in here.
  */
 static int
-memory_block_action(struct memory_block *mem, unsigned long action)
+memory_section_action(unsigned long phys_index, unsigned long action)
 {
 	int i;
-	unsigned long psection;
 	unsigned long start_pfn, start_paddr;
 	struct page *first_page;
 	int ret;
-	int old_state = mem->state;
 
-	psection = mem->start_phys_index;
-	first_page = pfn_to_page(psection << PFN_SECTION_SHIFT);
+	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
 
 	/*
 	 * The probe routines leave the pages reserved, just
@@ -193,8 +200,8 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 				continue;
 
 			printk(KERN_WARNING "section number %ld page number %d "
-				"not reserved, was it already online? \n",
-				psection, i);
+				"not reserved, was it already online?\n",
+				phys_index, i);
 			return -EBUSY;
 		}
 	}
@@ -205,18 +212,13 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			ret = online_pages(start_pfn, PAGES_PER_SECTION);
 			break;
 		case MEM_OFFLINE:
-			mem->state = MEM_GOING_OFFLINE;
 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
 			ret = remove_memory(start_paddr,
 					    PAGES_PER_SECTION << PAGE_SHIFT);
-			if (ret) {
-				mem->state = old_state;
-				break;
-			}
 			break;
 		default:
-			WARN(1, KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
-					__func__, mem, action, action);
+			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+			     "%ld\n", __func__, phys_index, action, action);
 			ret = -EINVAL;
 	}
 
@@ -226,7 +228,7 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 static int memory_block_change_state(struct memory_block *mem,
 		unsigned long to_state, unsigned long from_state_req)
 {
-	int ret = 0;
+	int i, ret = 0;
 	mutex_lock(&mem->state_mutex);
 
 	if (mem->state != from_state_req) {
@@ -234,8 +236,21 @@ static int memory_block_change_state(struct memory_block *mem,
 		goto out;
 	}
 
-	ret = memory_block_action(mem, to_state);
-	if (!ret)
+	if (to_state == MEM_OFFLINE)
+		mem->state = MEM_GOING_OFFLINE;
+
+	for (i = mem->start_phys_index; i <= mem->end_phys_index; i++) {
+		ret = memory_section_action(i, to_state);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		for (i = mem->start_phys_index; i <= mem->end_phys_index; i++)
+			memory_section_action(i, from_state_req);
+
+		mem->state = from_state_req;
+	} else
 		mem->state = to_state;
 
 out:
@@ -248,20 +263,15 @@ store_mem_state(struct sys_device *dev,
 		struct sysdev_attribute *attr, const char *buf, size_t count)
 {
 	struct memory_block *mem;
-	unsigned int phys_section_nr;
 	int ret = -EINVAL;
 
 	mem = container_of(dev, struct memory_block, sysdev);
-	phys_section_nr = mem->start_phys_index;
-
-	if (!present_section_nr(phys_section_nr))
-		goto out;
 
 	if (!strncmp(buf, "online", min((int)count, 6)))
 		ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 	else if(!strncmp(buf, "offline", min((int)count, 7)))
 		ret = memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
-out:
+
 	if (ret)
 		return ret;
 	return count;
@@ -428,12 +438,13 @@ struct memory_block *find_memory_block(struct mem_section *section)
 	struct sys_device *sysdev;
 	struct memory_block *mem;
 	char name[sizeof(MEMORY_CLASS_NAME) + 9 + 1];
+	int block_id = base_memory_block_id(__section_nr(section));
 
 	/*
 	 * This only works because we know that section == sysdev->id
 	 * slightly redundant with sysdev_register()
 	 */
-	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, __section_nr(section));
+	sprintf(&name[0], "%s%d", MEMORY_CLASS_NAME, block_id);
 
 	kobj = kset_find_obj(&memory_sysdev_class.kset, name);
 	if (!kobj)
@@ -445,23 +456,25 @@ struct memory_block *find_memory_block(struct mem_section *section)
 	return mem;
 }
 
-static int add_memory_block(int nid, struct mem_section *section,
-			unsigned long state, int phys_device,
-			enum mem_add_context context)
+static int init_memory_block(struct memory_block **memory,
+			     struct mem_section *section, int phys_device,
+			     unsigned long state)
 {
-	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	struct memory_block *mem;
 	int ret = 0;
 
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
-	mem->start_phys_index = __section_nr(section);
+	mem->start_phys_index = base_memory_block_id(__section_nr(section));
+	mem->end_phys_index = mem->start_phys_index + sections_per_block - 1;
 	mem->state = state;
 	atomic_set(&mem->section_count, 1);
 	mutex_init(&mem->state_mutex);
 	mem->phys_device = phys_device;
 
-	ret = register_memory(mem, section);
+	ret = register_memory(mem);
 	if (!ret)
 		ret = mem_create_simple_file(mem, phys_index);
 	if (!ret)
@@ -472,8 +485,27 @@ static int add_memory_block(int nid, struct mem_section *section,
 		ret = mem_create_simple_file(mem, phys_device);
 	if (!ret)
 		ret = mem_create_simple_file(mem, removable);
+
+	*memory = mem;
+	return ret;
+}
+
+static int add_memory_section(int nid, struct mem_section *section,
+			unsigned long state, int phys_device, enum mem_add_context context)
+{
+	struct memory_block *mem;
+	int ret = 0;
+
+	mem = find_memory_block(section);
+	if (mem) {
+		atomic_inc(&mem->section_count);
+		kobject_put(&mem->sysdev.kobj);
+	} else
+		ret = init_memory_block(&mem, section, phys_device, state);
+
 	if (!ret) {
-		if (context == HOTPLUG)
+		if (context == HOTPLUG &&
+		    atomic_read(&mem->section_count) == sections_per_block)
 			ret = register_mem_sect_under_node(mem, nid);
 	}
 
@@ -494,8 +526,9 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 		mem_remove_simple_file(mem, state);
 		mem_remove_simple_file(mem, phys_device);
 		mem_remove_simple_file(mem, removable);
-		unregister_memory(mem, section);
-	}
+		unregister_memory(mem);
+	} else
+		kobject_put(&mem->sysdev.kobj);
 
 	return 0;
 }
@@ -541,7 +574,7 @@ EXPORT_SYMBOL(set_memory_state);
  */
 int register_new_memory(int nid, struct mem_section *section)
 {
-	return add_memory_block(nid, section, MEM_OFFLINE, 0, HOTPLUG);
+	return add_memory_section(nid, section, MEM_OFFLINE, 0, HOTPLUG);
 }
 
 int unregister_memory_section(struct mem_section *section)
@@ -552,6 +585,24 @@ int unregister_memory_section(struct mem_section *section)
 	return remove_memory_block(0, section, 0);
 }
 
+u32 __weak memory_block_size_bytes(void)
+{
+	return MIN_MEMORY_BLOCK_SIZE;
+}
+
+static u32 get_memory_block_size(void)
+{
+	u32 block_sz;
+
+	block_sz = memory_block_size_bytes();
+
+	/* Validate blk_sz is a power of 2 and not less than section size */
+	if ((block_sz & (block_sz - 1)) || (block_sz < MIN_MEMORY_BLOCK_SIZE))
+		block_sz = MIN_MEMORY_BLOCK_SIZE;
+
+	return block_sz;
+}
+
 /*
  * Initialize the sysfs support for memory devices...
  */
@@ -560,11 +611,15 @@ int __init memory_dev_init(void)
 	unsigned int i;
 	int ret;
 	int err;
+	int block_sz;
 
 	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
 	ret = sysdev_class_register(&memory_sysdev_class);
 	if (ret)
 		goto out;
+
+	block_sz = get_memory_block_size();
+	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
 
 	/*
 	 * Create entries for memory sections that were found
@@ -573,7 +628,7 @@ int __init memory_dev_init(void)
 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
 		if (!present_section_nr(i))
 			continue;
-		err = add_memory_block(0, __nr_to_section(i), MEM_ONLINE,
+		err = add_memory_section(0, __nr_to_section(i), MEM_ONLINE,
 					0, BOOT);
 		if (!ret)
 			ret = err;
