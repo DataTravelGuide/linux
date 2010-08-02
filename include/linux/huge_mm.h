@@ -109,10 +109,18 @@ static inline int PageTransCompound(struct page *page)
 {
 	return PageCompound(page);
 }
+static inline int hpage_nr_pages(struct page *page)
+{
+	if (unlikely(PageTransHuge(page)))
+		return HPAGE_PMD_NR;
+	return 1;
+}
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUG(); 0; })
 #define HPAGE_PMD_MASK ({ BUG(); 0; })
 #define HPAGE_PMD_SIZE ({ BUG(); 0; })
+
+#define hpage_nr_pages(x) 1
 
 #define transparent_hugepage_enabled(__vma) 0
 
