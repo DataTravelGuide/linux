@@ -457,6 +457,7 @@ static int add_memory_block(int nid, struct mem_section *section,
 
 	mem->start_phys_index = __section_nr(section);
 	mem->state = state;
+	atomic_set(&mem->section_count, 1);
 	mutex_init(&mem->state_mutex);
 	mem->phys_device = phys_device;
 
@@ -485,13 +486,16 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 	struct memory_block *mem;
 
 	mem = find_memory_block(section);
-	unregister_mem_sect_under_nodes(mem);
-	mem_remove_simple_file(mem, phys_index);
-	mem_remove_simple_file(mem, end_phys_index);
-	mem_remove_simple_file(mem, state);
-	mem_remove_simple_file(mem, phys_device);
-	mem_remove_simple_file(mem, removable);
-	unregister_memory(mem, section);
+
+	if (atomic_dec_and_test(&mem->section_count)) {
+		unregister_mem_sect_under_nodes(mem);
+		mem_remove_simple_file(mem, phys_index);
+		mem_remove_simple_file(mem, end_phys_index);
+		mem_remove_simple_file(mem, state);
+		mem_remove_simple_file(mem, phys_device);
+		mem_remove_simple_file(mem, removable);
+		unregister_memory(mem, section);
+	}
 
 	return 0;
 }
