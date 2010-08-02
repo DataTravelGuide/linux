@@ -159,7 +159,7 @@ rh-release: rh-clean-sources
 	@$(REDHAT)/scripts/update_changelog.sh $(KVERSION) $(shell echo $$[$(BUILD) + 1]) $(REDHAT) "$(STAMP_VERSION)-$(PREBUILD)$(shell echo $$[$(BUILD) + 1]).el6$(BUILDID)"
 rh-release-commit:
 	@git commit -s Makefile.common kernel.spec.template -m "[redhat] tagging $(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(BUILDID).el6"
-	@git tag kernel-$(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(BUILDID).el6
+	@git tag -a kernel-$(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(BUILDID).el6
 	@git log --max-count=1 --pretty=format:%H >$(REDHAT)/lastcommit;
 	@git commit -s lastcommit -m "[redhat] updating lastcommit for $(STAMP_VERSION)-$(PREBUILD)$(BUILD)$(BUILDID)"
 
