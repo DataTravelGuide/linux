@@ -1627,6 +1627,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 04 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-59.el6]
+- [virt] Revert "[virt] vhost: create a vhost thread per device" (Aristeu Rozanski) [615118]
+
 * Tue Aug 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-58.el6]
 - [scsi] Update lpfc version for 8.3.5.17 driver release (Rob Evers) [612235]
 - [scsi] Fix endian conversion for BlockGuard in IOCB response (Rob Evers) [612235]
