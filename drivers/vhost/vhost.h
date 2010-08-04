@@ -29,11 +29,10 @@ struct vhost_poll {
 	/* struct which will handle all actual work. */
 	struct work_struct        work;
 	unsigned long		  mask;
-	struct vhost_dev	 *dev;
 };
 
 void vhost_poll_init(struct vhost_poll *poll, work_func_t func,
-		     unsigned long mask, struct vhost_dev *dev);
+		     unsigned long mask);
 void vhost_poll_start(struct vhost_poll *poll, struct file *file);
 void vhost_poll_stop(struct vhost_poll *poll);
 void vhost_poll_flush(struct vhost_poll *poll);
@@ -112,7 +111,6 @@ struct vhost_dev {
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
-	struct workqueue_struct *wq;
 };
 
 long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
