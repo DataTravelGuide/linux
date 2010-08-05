@@ -41,6 +41,7 @@
 bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
 static void intel_update_watermarks(struct drm_device *dev);
 static void intel_increase_pllclock(struct drm_crtc *crtc, bool schedule);
+static void intel_crtc_update_cursor(struct drm_crtc *crtc);
 
 typedef struct {
     /* given values */
@@ -1401,15 +1402,13 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
 	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
-		I915_WRITE(dspbase, Offset);
-		I915_READ(dspbase);
 		I915_WRITE(dspsurf, Start);
-		I915_READ(dspsurf);
 		I915_WRITE(dsptileoff, (y << 16) | x);
+		I915_WRITE(dspbase, Offset);
 	} else {
 		I915_WRITE(dspbase, Start + Offset);
-		I915_READ(dspbase);
 	}
+	POSTING_READ(dspbase);
 
 	if ((IS_I965G(dev) || plane == 0))
 		intel_update_fbc(crtc, &crtc->mode);
@@ -1540,6 +1539,15 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, tries = 0;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1557,16 +1565,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	I915_READ(fdi_rx_reg);
 	udelay(150);
 
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
-	udelay(150);
-
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1576,14 +1575,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 				   temp | FDI_RX_BIT_LOCK);
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 1 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 1 fail!\n");
 
 	/* Train 2 */
 	temp = I915_READ(fdi_tx_reg);
@@ -1599,7 +1593,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 	tries = 0;
 
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1609,14 +1603,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 			DRM_DEBUG_KMS("FDI train 2 done.\n");
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 2 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 2 fail!\n");
 
 	DRM_DEBUG_KMS("FDI train done\n");
 }
@@ -1641,6 +1630,15 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, i;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1664,15 +1662,6 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	}
 	I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
 	I915_READ(fdi_rx_reg);
-	udelay(150);
-
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
 	udelay(150);
 
 	for (i = 0; i < 4; i++ ) {
@@ -1798,6 +1787,14 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			/* enable eDP PLL */
 			ironlake_enable_pll_edp(crtc);
 		} else {
+			/* unlock the FDI registers for retraining */
+			temp = I915_READ(fdi_tx_reg);
+			if (temp & FDI_TX_ENABLE)
+				I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_ENABLE);
+
+			temp = I915_READ(fdi_rx_reg);
+			if (temp & FDI_RX_ENABLE)
+				I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
 
 			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 			temp = I915_READ(fdi_rx_reg);
@@ -1923,11 +1920,15 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				int reg;
 
 				reg = I915_READ(trans_dp_ctl);
-				reg &= ~TRANS_DP_PORT_SEL_MASK;
-				reg = TRANS_DP_OUTPUT_ENABLE |
-				      TRANS_DP_ENH_FRAMING |
-				      TRANS_DP_VSYNC_ACTIVE_HIGH |
-				      TRANS_DP_HSYNC_ACTIVE_HIGH;
+				reg &= ~(TRANS_DP_PORT_SEL_MASK |
+					 TRANS_DP_SYNC_MASK);
+				reg |= (TRANS_DP_OUTPUT_ENABLE |
+					TRANS_DP_ENH_FRAMING);
+
+				if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+				      reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;
+				if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+				      reg |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 				switch (intel_trans_dp_port_sel(crtc)) {
 				case PCH_DP_B:
@@ -3243,6 +3244,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
+	/* Ensure that the cursor is valid for the new mode before changing... */
+	intel_crtc_update_cursor(crtc);
+
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
 		has_reduced_clock = limit->find_pll(limit, crtc,
 							    dev_priv->lvds_downclock,
@@ -3760,6 +3764,85 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
+/* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
+static void intel_crtc_update_cursor(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int x = intel_crtc->cursor_x;
+	int y = intel_crtc->cursor_y;
+	uint32_t base, pos;
+	bool visible;
+
+	pos = 0;
+
+	if (crtc->fb) {
+		base = intel_crtc->cursor_addr;
+		if (x > (int) crtc->fb->width)
+			base = 0;
+
+		if (y > (int) crtc->fb->height)
+			base = 0;
+	} else
+		base = 0;
+
+	if (x < 0) {
+		if (x + intel_crtc->cursor_width < 0)
+			base = 0;
+
+		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
+		x = -x;
+	}
+	pos |= x << CURSOR_X_SHIFT;
+
+	if (y < 0) {
+		if (y + intel_crtc->cursor_height < 0)
+			base = 0;
+
+		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
+		y = -y;
+	}
+	pos |= y << CURSOR_Y_SHIFT;
+
+	visible = base != 0;
+	if (!visible && !intel_crtc->cursor_visble)
+		return;
+
+	I915_WRITE(pipe == 0 ? CURAPOS : CURBPOS, pos);
+	if (intel_crtc->cursor_visble != visible) {
+		uint32_t cntl = I915_READ(pipe == 0 ? CURACNTR : CURBCNTR);
+		if (base) {
+			/* Hooray for CUR*CNTR differences */
+			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+				cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+				cntl |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+				cntl |= pipe << 28; /* Connect to correct pipe */
+			} else {
+				cntl &= ~(CURSOR_FORMAT_MASK);
+				cntl |= CURSOR_ENABLE;
+				cntl |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+			}
+		} else {
+			if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+				cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
+				cntl |= CURSOR_MODE_DISABLE;
+			} else {
+				cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
+			}
+		}
+		I915_WRITE(pipe == 0 ? CURACNTR : CURBCNTR, cntl);
+
+		intel_crtc->cursor_visble = visible;
+	}
+	/* and commit changes on next vblank */
+	I915_WRITE(pipe == 0 ? CURABASE : CURBBASE, base);
+
+	if (visible)
+		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
+}
+
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 struct drm_file *file_priv,
 				 uint32_t handle,
@@ -3770,11 +3853,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_gem_object *bo;
 	struct drm_i915_gem_object *obj_priv;
-	int pipe = intel_crtc->pipe;
-	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
-	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
-	uint32_t temp = I915_READ(control);
-	size_t addr;
+	uint32_t addr;
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
@@ -3782,12 +3861,6 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
 		DRM_DEBUG_KMS("cursor off\n");
-		if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-			temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			temp |= CURSOR_MODE_DISABLE;
-		} else {
-			temp &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-		}
 		addr = 0;
 		bo = NULL;
 		mutex_lock(&dev->struct_mutex);
@@ -3822,7 +3895,8 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		}
 		addr = obj_priv->gtt_offset;
 	} else {
-		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
+		ret = i915_gem_attach_phys_object(dev, bo,
+						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
 		if (ret) {
 			DRM_ERROR("failed to attach phys object\n");
 			goto fail_locked;
@@ -3833,21 +3907,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!IS_I9XX(dev))
 		I915_WRITE(CURSIZE, (height << 12) | width);
 
-	/* Hooray for CUR*CNTR differences */
-	if (IS_MOBILE(dev) || IS_I9XX(dev)) {
-		temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-		temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-		temp |= (pipe << 28); /* Connect to correct pipe */
-	} else {
-		temp &= ~(CURSOR_FORMAT_MASK);
-		temp |= CURSOR_ENABLE;
-		temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
-	}
-
  finish:
-	I915_WRITE(control, temp);
-	I915_WRITE(base, addr);
-
 	if (intel_crtc->cursor_bo) {
 		if (dev_priv->info->cursor_needs_physical) {
 			if (intel_crtc->cursor_bo != bo)
@@ -3861,6 +3921,10 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = bo;
+	intel_crtc->cursor_width = width;
+	intel_crtc->cursor_height = height;
+
+	intel_crtc_update_cursor(crtc);
 
 	return 0;
 fail_locked:
@@ -3872,34 +3936,12 @@ fail:
 
 static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_framebuffer *intel_fb;
-	int pipe = intel_crtc->pipe;
-	uint32_t temp = 0;
-	uint32_t adder;
 
-	if (crtc->fb) {
-		intel_fb = to_intel_framebuffer(crtc->fb);
-		intel_mark_busy(dev, intel_fb->obj);
-	}
+	intel_crtc->cursor_x = x;
+	intel_crtc->cursor_y = y;
 
-	if (x < 0) {
-		temp |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
-		x = -x;
-	}
-	if (y < 0) {
-		temp |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
-		y = -y;
-	}
-
-	temp |= x << CURSOR_X_SHIFT;
-	temp |= y << CURSOR_Y_SHIFT;
-
-	adder = intel_crtc->cursor_addr;
-	I915_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
-	I915_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
+	intel_crtc_update_cursor(crtc);
 
 	return 0;
 }
@@ -4707,18 +4749,25 @@ static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
+	bool dpd_is_edp = false;
 
-	intel_crt_init(dev);
-
-	/* Set up integrated LVDS */
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		intel_lvds_init(dev);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		int found;
+		dpd_is_edp = intel_dpd_is_edp(dev);
 
 		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
 			intel_dp_init(dev, DP_A);
+
+		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
+			intel_dp_init(dev, PCH_DP_D);
+	}
+
+	intel_crt_init(dev);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		int found;
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
@@ -4738,7 +4787,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C);
 
-		if (I915_READ(PCH_DP_D) & DP_DETECTED)
+		if (!dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
 			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {

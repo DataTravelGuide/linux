@@ -157,12 +157,19 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 adpa;
+	u32 adpa, temp;
 	bool ret;
+	bool turn_off_dac = false;
 
-	adpa = I915_READ(PCH_ADPA);
+	temp = adpa = I915_READ(PCH_ADPA);
+
+	if (HAS_PCH_SPLIT(dev))
+		turn_off_dac = true;
 
 	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+	if (turn_off_dac)
+		adpa &= ~ADPA_DAC_ENABLE;
+
 	/* disable HPD first */
 	I915_WRITE(PCH_ADPA, adpa);
 	(void)I915_READ(PCH_ADPA);
@@ -180,6 +187,11 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
 		;
+
+	if (turn_off_dac) {
+		I915_WRITE(PCH_ADPA, temp);
+		(void)I915_READ(PCH_ADPA);
+	}
 
 	/* Check the status to see if both blue and green are on now */
 	adpa = I915_READ(PCH_ADPA);
@@ -399,15 +411,15 @@ static enum drm_connector_status intel_crt_detect(struct drm_connector *connecto
 	int dpms_mode;
 	enum drm_connector_status status;
 
+	if (intel_crt_detect_ddc(connector))
+		return connector_status_connected;
+
 	if (IS_I9XX(dev) && !IS_I915G(dev) && !IS_I915GM(dev)) {
 		if (intel_crt_detect_hotplug(connector))
 			return connector_status_connected;
 		else
 			return connector_status_disconnected;
 	}
-
-	if (intel_crt_detect_ddc(connector))
-		return connector_status_connected;
 
 	/* for pre-945g platforms use load detect */
 	if (encoder->crtc && encoder->crtc->enabled) {
