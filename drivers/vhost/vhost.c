@@ -22,6 +22,7 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
+#include <linux/cgroup.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -35,8 +36,6 @@ enum {
 	VHOST_MEMORY_MAX_NREGIONS = 64,
 	VHOST_MEMORY_F_LOG = 0x1,
 };
-
-static struct workqueue_struct *vhost_workqueue;
 
 static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
@@ -56,18 +55,19 @@ static int vhost_poll_wakeup(wait_queue_t *wait, unsigned mode, int sync,
 	if (!((unsigned long)key & poll->mask))
 		return 0;
 
-	queue_work(vhost_workqueue, &poll->work);
+	queue_work(poll->dev->wq, &poll->work);
 	return 0;
 }
 
 /* Init poll structure */
 void vhost_poll_init(struct vhost_poll *poll, work_func_t func,
-		     unsigned long mask)
+		     unsigned long mask, struct vhost_dev *dev)
 {
 	INIT_WORK(&poll->work, func);
 	init_waitqueue_func_entry(&poll->wait, vhost_poll_wakeup);
 	init_poll_funcptr(&poll->table, vhost_poll_func);
 	poll->mask = mask;
+	poll->dev = dev;
 }
 
 /* Start polling a file. We add ourselves to file's wait queue. The caller must
@@ -96,7 +96,7 @@ void vhost_poll_flush(struct vhost_poll *poll)
 
 void vhost_poll_queue(struct vhost_poll *poll)
 {
-	queue_work(vhost_workqueue, &poll->work);
+	queue_work(poll->dev->wq, &poll->work);
 }
 
 static void vhost_vq_reset(struct vhost_dev *dev,
@@ -135,6 +135,7 @@ long vhost_dev_init(struct vhost_dev *dev,
 	dev->log_file = NULL;
 	dev->memory = NULL;
 	dev->mm = NULL;
+	dev->wq = NULL;
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		dev->vqs[i].dev = dev;
@@ -143,7 +144,7 @@ long vhost_dev_init(struct vhost_dev *dev,
 		if (dev->vqs[i].handle_kick)
 			vhost_poll_init(&dev->vqs[i].poll,
 					dev->vqs[i].handle_kick,
-					POLLIN);
+					POLLIN, dev);
 	}
 	return 0;
 }
@@ -155,15 +156,66 @@ long vhost_dev_check_owner(struct vhost_dev *dev)
 	return dev->mm == current->mm ? 0 : -EPERM;
 }
 
+struct vhost_attach_cgroups_struct {
+	struct work_struct work;
+	struct task_struct *owner;
+	int ret;
+};
+
+static void vhost_attach_cgroups_work(struct work_struct *work)
+{
+	struct vhost_attach_cgroups_struct *s;
+	s = container_of(work, struct vhost_attach_cgroups_struct, work);
+	s->ret = cgroup_attach_task_all(s->owner, current);
+}
+
+static int vhost_attach_cgroups(struct workqueue_struct *wq)
+{
+	struct vhost_attach_cgroups_struct attach;
+	attach.owner = current;
+	INIT_WORK(&attach.work, vhost_attach_cgroups_work);
+	queue_work(wq, &attach.work);
+	flush_work(&attach.work);
+	return attach.ret;
+}
+
 /* Caller should have device mutex */
 static long vhost_dev_set_owner(struct vhost_dev *dev)
 {
+	char vhost_name[20];
+	int err;
 	/* Is there an owner already? */
-	if (dev->mm)
-		return -EBUSY;
+	if (dev->mm) {
+		err = -EBUSY;
+		goto err;
+	}
 	/* No owner, become one */
 	dev->mm = get_task_mm(current);
+
+	/* Initialize the workqueue. */
+	snprintf(vhost_name, sizeof vhost_name, "vhost-%d", current->pid);
+	dev->wq = create_singlethread_workqueue(vhost_name);
+	if (!dev->wq) {
+		err = -ENOMEM;
+		goto err_wq;
+	}
+
+	err = vhost_attach_cgroups(dev->wq);
+	if (err)
+		goto err_cgroups;
+
 	return 0;
+
+err_cgroups:
+	destroy_workqueue(dev->wq);
+	dev->wq = NULL;
+
+err_wq:
+	if (dev->mm)
+		mmput(dev->mm);
+	dev->mm = NULL;
+err:
+	return err;
 }
 
 /* Caller should have device mutex */
@@ -216,6 +268,10 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 	if (dev->mm)
 		mmput(dev->mm);
 	dev->mm = NULL;
+
+	if (dev->wq)
+		destroy_workqueue(dev->wq);
+	dev->wq = NULL;
 }
 
 static int log_access_ok(void __user *log_base, u64 addr, unsigned long sz)
@@ -1130,13 +1186,9 @@ void vhost_disable_notify(struct vhost_virtqueue *vq)
 
 int vhost_init(void)
 {
-	vhost_workqueue = create_singlethread_workqueue("vhost");
-	if (!vhost_workqueue)
-		return -ENOMEM;
 	return 0;
 }
 
 void vhost_cleanup(void)
 {
-	destroy_workqueue(vhost_workqueue);
 }
