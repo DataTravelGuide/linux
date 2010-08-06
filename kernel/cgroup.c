@@ -1606,10 +1606,11 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 }
 
 /**
- * cgroup_attach_task_current_cg - attach task 'tsk' to current task's cgroup
+ * cgroup_attach_task_all - attach task 'tsk' to all cgroups of task 'from'
+ * @from: attach to all cgroups of a given task
  * @tsk: the task to be attached
  */
-int cgroup_attach_task_current_cg(struct task_struct *tsk)
+int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 {
 	struct cgroupfs_root *root;
 	struct cgroup *cur_cg;
@@ -1617,7 +1618,7 @@ int cgroup_attach_task_current_cg(struct task_struct *tsk)
 
 	cgroup_lock();
 	for_each_active_root(root) {
-		cur_cg = task_cgroup_from_root(current, root);
+		cur_cg = task_cgroup_from_root(from, root);
 		retval = cgroup_attach_task(cur_cg, tsk);
 		if (retval)
 			break;
@@ -1626,7 +1627,7 @@ int cgroup_attach_task_current_cg(struct task_struct *tsk)
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(cgroup_attach_task_current_cg);
+EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
 /*
  * Attach task with pid 'pid' to cgroup 'cgrp'. Call with cgroup_mutex
