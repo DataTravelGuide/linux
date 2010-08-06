@@ -195,9 +195,6 @@ __create_workqueue_key(const char *name, int singlethread,
 #define create_freezeable_workqueue(name) __create_workqueue((name), 1, 1, 0)
 #define create_singlethread_workqueue(name) __create_workqueue((name), 1, 0, 0)
 
-extern struct workqueue_struct *
-create_singlethread_workqueue_in_current_cg(char *name);
-
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
 extern int queue_work(struct workqueue_struct *wq, struct work_struct *work);

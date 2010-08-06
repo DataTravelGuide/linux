@@ -35,7 +35,6 @@
 #include <linux/lockdep.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
-#include <linux/cgroup.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -83,36 +82,6 @@ static const struct cpumask *cpu_singlethread_map __read_mostly;
  * than optimization.
  */
 static cpumask_var_t cpu_populated_map __read_mostly;
-
-static struct task_struct *get_singlethread_wq_task(struct workqueue_struct *wq)
-{
-	return (per_cpu_ptr(wq->cpu_wq, singlethread_cpu))->thread;
-}
-
-/* Create a singlethread workqueue and attach it's task to the current task's
- * cgroup and set it's cpumask to the current task's cpumask.
- */
-struct workqueue_struct *create_singlethread_workqueue_in_current_cg(char *name)
-{
-	struct workqueue_struct *wq;
-	struct task_struct *task;
-
-	wq = create_singlethread_workqueue(name);
-	if (!wq)
-		goto out;
-
-	task = get_singlethread_wq_task(wq);
-
-	if (cgroup_attach_task_current_cg(task))
-		goto err;
-out:
-	return wq;
-err:
-	destroy_workqueue(wq);
-	wq = NULL;
-	goto out;
-}
-EXPORT_SYMBOL_GPL(create_singlethread_workqueue_in_current_cg);
 
 /* If it's single threaded, it isn't in the list of workqueues. */
 static inline int is_wq_single_threaded(struct workqueue_struct *wq)
