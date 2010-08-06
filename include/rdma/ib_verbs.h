@@ -1200,6 +1200,15 @@ static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len
 }
 
 /**
+ * ib_sysfs_create_port_files - iterate over port sysfs directories
+ * @device: the IB device
+ * @create: a function to create sysfs files in each port directory
+ */
+int ib_sysfs_create_port_files(struct ib_device *device,
+			       int (*create)(struct ib_device *dev, u8 port_num,
+					     struct kobject *kobj));
+
+/**
  * ib_modify_qp_is_ok - Check that the supplied attribute mask
  * contains all required attributes and no attributes not allowed for
  * the given QP state transition.

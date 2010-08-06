@@ -872,3 +872,22 @@ void ib_sysfs_cleanup(void)
 {
 	class_unregister(&ib_class);
 }
+
+int ib_sysfs_create_port_files(struct ib_device *device,
+			       int (*create)(struct ib_device *dev, u8 port_num,
+					     struct kobject *kobj))
+{
+	struct kobject *p;
+	struct ib_port *port;
+	int ret = 0;
+
+	list_for_each_entry(p, &device->port_list, entry) {
+		port = container_of(p, struct ib_port, kobj);
+		ret = create(device, port->port_num, &port->kobj);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_sysfs_create_port_files);
