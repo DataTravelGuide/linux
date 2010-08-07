@@ -719,6 +719,7 @@ struct ext4_inode_info {
 
 	/* completed async DIOs that might need unwritten extents handling */
 	struct list_head i_aio_dio_complete_list;
+	spinlock_t i_completed_io_lock;
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
 
