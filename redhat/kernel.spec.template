@@ -1627,6 +1627,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 06 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-61.el6]
+- [netdrv] r8169: disable PCIe ASPM (Michal Schmidt) [619880]
+- [fusion] mptfusion: fix DMA boudary (Tomas Henzl) [618625]
+- [fusion] mptfusion: Bump version to 3.04.16 (Tomas Henzl) [618625]
+- [fusion] mptfusion: Added code for occationally SATA hotplug failure (Tomas Henzl) [618625]
+- [fusion] mptfusion: schedule_target_reset from all Reset context (Tomas Henzl) [618625]
+- [fusion] mptfusion: Added sanity to check B_T mapping for device before adding to OS (Tomas Henzl) [618625]
+- [fusion] mptfusion: Corrected declaration of device_missing_delay (Tomas Henzl) [618625]
+- [fusion] mptfusion: Set fw_events_off to 1 at driver load time (Tomas Henzl) [618625]
+- [net] s2io: fixing DBG_PRINT() macro (Danny Feng) [619097]
+- [trace] backport file writeback tracepoints from upstream to RHEL6 (Larry Woodman) [618305]
+- [virt] vhost: thread per device attached to owner cgroups (Alex Williamson) [615118]
+- [cgroups] fix API thinko (Alex Williamson) [615118]
+- [cgroup] Revert: "workqueue: API to create a workqueue in cgroup" (Alex Williamson) [615118]
+- [net] bonding: allow arp_ip_targets on separate vlans to use arp validation (Andy Gospodarek) [581657]
+- [x86] Revert "[x86] kernel performance optimization with CONFIG_DEBUG_RODATA" (Aristeu Rozanski)
+
 * Fri Aug 06 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-60.el6]
 - [security] selinux: convert the policy type_attr_map to flex_array (Eric Paris) [617255]
 - [net] bridge: Fix IGMPv3 report parsing (Herbert Xu) [621431]
