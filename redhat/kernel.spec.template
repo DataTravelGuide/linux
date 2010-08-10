@@ -1627,6 +1627,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Aug 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-62.el6]
+- [drm] Revert matroxfb support for G200EV chip (Peter Bogdanovic) [604830]
+- [drm] i915: more DP/eDP backport fixes (Dave Airlie) [615058]
+- [drm] correctly update connector DPMS status in drm_fb_helper (Dave Airlie) [615058]
+- [x86] ACPI/PM: Move ACPI video resume to a PM notifier (Dave Airlie) [615058]
+- [virt] x86: preset lpj values when on VMware (Zachary Amsden) [617390]
+- [virt] Revert "vhost-net: utilize PUBLISH_USED_IDX feature" (Michael S. Tsirkin)
+- [virt] Revert "virtio: put last seen used index into ring itself" (Michael S. Tsirkin) [616503]
+- [virt] Revert "virtio: net: Remove net-specific advertising of PUBLISH_USED feature" (Michael S. Tsirkin) [616503]
+- [virt] vhost: max s/g to match qemu (Michael S. Tsirkin) [619002]
+- [kernel] sched: Fix set_cpu_active() in cpu_down() (Danny Feng) [620807]
+- [dm] separate device deletion from dm_put (Mike Snitzer) [619199]
+- [dm] prevent access to md being deleted (Mike Snitzer) [619199]
+- [dm] ioctl: release _hash_lock between devices in remove_all (Mike Snitzer) [619199]
+
 * Fri Aug 06 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-61.el6]
 - [netdrv] r8169: disable PCIe ASPM (Michal Schmidt) [619880]
 - [fusion] mptfusion: fix DMA boudary (Tomas Henzl) [618625]
