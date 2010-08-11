@@ -364,8 +364,10 @@ CPP_VERS        := $(shell expr $(CPP_MAJOR) \* 1000000 + $(CPP_MINOR) \* 1000 \
 # GCC Bugzilla Bug 43949: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
 # add -Wno-array-bounds to remove bogus warnings.  This flag is present in
 # gcc version 4.4.4 .
+ifeq ($(KBUILD_EXTMOD),)
 KBUILD_CFLAGS   += $(shell if [ $(CPP_VERS) -ge 4004004 ]; then \
 		   echo "-Wno-array-bounds -Werror"; else echo ""; fi)
+endif ##($(KBUILD_EXTMOD),)
 endif #(,$(filter $(ARCH), i386 x86_64))
 
 KBUILD_AFLAGS   := -D__ASSEMBLY__
