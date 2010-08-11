@@ -1434,7 +1434,9 @@ _emodinst_:
 
 PHONY += _emodinst_post
 _emodinst_post: _emodinst_
+ifeq ($(INSTALL_MOD_PATH),)
 	$(call cmd,depmod)
+endif
 
 clean-dirs := $(addprefix _clean_,$(KBUILD_EXTMOD))
 
