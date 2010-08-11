@@ -37,6 +37,7 @@ static const struct mvs_chip_info mvs_chips[] = {
 };
 
 #define SOC_SAS_NUM 2
+#define SG_MX 64
 
 static struct scsi_host_template mvs_sht = {
 	.module			= THIS_MODULE,
@@ -53,7 +54,7 @@ static struct scsi_host_template mvs_sht = {
 	.can_queue		= 1,
 	.cmd_per_lun		= 1,
 	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
+	.sg_tablesize		= SG_MX,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler	= sas_eh_device_reset_handler,
