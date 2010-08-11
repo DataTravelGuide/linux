@@ -1627,6 +1627,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Aug 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-63.el6]
+- [fs] ext4: protect io completion lists with locking (Eric Sandeen) [621660]
+- [trace] Packport new mm tracepoint Documentation to RHEL6 (Larry Woodman) [618305]
+- [virt] KVM: Trace exception injection (Gleb Natapov) [616427]
+- [s390x] qeth: Clear mac_bits field when switching between l2/l3 (Hendrik Brueckner) [621333]
+- [net] ethtool: Fix potential kernel buffer overflow in ETHTOOL_GRXCLSRLALL (Jiri Pirko) [608953] {CVE-2010-2478}
+- [infiniband] Update QLogic QIB InfiniBand driver to version OFED 1.5.2 (Jay Fenlason) [572401]
+- [fs] update RWA_MASK, READA and SWRITE to match the corresponding BIO_RW_ bits (Jeff Moyer) [621693]
+
 * Tue Aug 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-62.el6]
 - [drm] Revert matroxfb support for G200EV chip (Peter Bogdanovic) [604830]
 - [drm] i915: more DP/eDP backport fixes (Dave Airlie) [615058]
