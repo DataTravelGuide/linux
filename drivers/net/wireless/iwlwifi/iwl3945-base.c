@@ -93,6 +93,7 @@ struct iwl_mod_params iwl3945_mod_params = {
 	.num_of_queues = IWL39_NUM_QUEUES, /* Not used */
 	.sw_crypto = 1,
 	.restart_fw = 1,
+	.disable_hw_scan = 1,
 	/* the rest are 0 by default */
 };
 
@@ -4270,7 +4271,7 @@ module_param_named(debug, iwl_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan, int, 0444);
-MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 1)");
 module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 
