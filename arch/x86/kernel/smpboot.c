@@ -546,6 +546,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
+	unsigned long flags;
 
 	maxlvt = lapic_get_maxlvt();
 
@@ -566,6 +567,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Send IPI
 	 */
+	local_irq_save(flags);
 	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
 		       phys_apicid);
 
@@ -582,6 +584,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
+	local_irq_restore(flags);
 
 	mb();
 	atomic_set(&init_deasserted, 1);
@@ -623,6 +626,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		/* Target chip */
 		/* Boot on the stack */
 		/* Kick the second */
+		local_irq_save(flags);
 		apic_icr_write(APIC_DM_STARTUP | (start_eip >> 12),
 			       phys_apicid);
 
@@ -635,6 +639,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 
 		pr_debug("Waiting for send to finish...\n");
 		send_status = safe_apic_wait_icr_idle();
+		local_irq_restore(flags);
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
