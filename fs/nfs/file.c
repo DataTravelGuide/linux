@@ -221,7 +221,7 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
 
 	/* Flush writes to the server and return any errors */
-	return vfs_fsync(file, 0);
+	return vfs_fsync(file, dentry, 0);
 }
 
 static ssize_t
@@ -631,7 +631,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
 	/* Return error values for O_SYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
-		int err = vfs_fsync(iocb->ki_filp, 0);
+		int err = vfs_fsync(iocb->ki_filp, dentry, 0);
 		if (err < 0)
 			result = err;
 	}
@@ -663,7 +663,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 
 	ret = generic_file_splice_write(pipe, filp, ppos, count, flags);
 	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
-		int err = vfs_fsync(filp, 0);
+		int err = vfs_fsync(filp, dentry, 0);
 		if (err < 0)
 			ret = err;
 	}
