@@ -1625,7 +1625,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 				char *name, int len, struct svc_fh *tfhp)
 {
 	struct dentry	*ddir, *dnew, *dold;
-	struct inode	*dirp, *dest;
+	struct inode	*dirp;
 	__be32		err;
 	int		host_err;
 
@@ -1653,7 +1653,6 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 		goto out_nfserr;
 
 	dold = tfhp->fh_dentry;
-	dest = dold->d_inode;
 
 	host_err = mnt_want_write(tfhp->fh_export->ex_path.mnt);
 	if (host_err) {
