@@ -2547,7 +2547,7 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 					(unsigned long long)discard_block,
 					entry->count);
 			ret = sb_issue_discard(sb, discard_block, entry->count);
-			if (ret == EOPNOTSUPP) {
+			if (ret == -EOPNOTSUPP) {
 				ext4_warning(sb,
 					"discard not supported, disabling");
 				clear_opt(EXT4_SB(sb)->s_mount_opt, DISCARD);
