@@ -105,9 +105,9 @@ again:
 		state = ctx->state;
 		if (state == NULL)
 			continue;
-		if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
-			continue;
 		if (memcmp(state->stateid.data, stateid->data, sizeof(state->stateid.data)) != 0)
+			continue;
+		if (!test_and_clear_bit(NFS_DELEGATED_STATE, &state->flags))
 			continue;
 		get_nfs_open_context(ctx);
 		spin_unlock(&inode->i_lock);
