@@ -1067,7 +1067,12 @@ out:
 	return err;
 }
 
-static __be32 nfsd_open_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+/*
+ * Read data from a file. count must contain the requested read count
+ * on entry. On return, *count contains the number of bytes actually read.
+ * N.B. After this call fhp needs an fh_put
+ */
+__be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
 	struct file *file;
@@ -1103,13 +1108,9 @@ static __be32 nfsd_open_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	return err;
 }
 
-/*
- * Read data from a file. count must contain the requested read count
- * on entry. On return, *count contains the number of bytes actually read.
- * N.B. After this call fhp needs an fh_put
- */
+/* As above, but use the provided file descriptor. */
 __be32
-nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
+nfsd_read_file(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		loff_t offset, struct kvec *vec, int vlen,
 		unsigned long *count)
 {
@@ -1121,8 +1122,8 @@ nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		if (err)
 			goto out;
 		err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
-	} else
-		err = nfsd_open_read(rqstp, fhp, offset, vec, vlen, count);
+	} else /* Note file may still be NULL in NFSv4 special stateid case: */
+		err = nfsd_read(rqstp, fhp, offset, vec, vlen, count);
 out:
 	return err;
 }
