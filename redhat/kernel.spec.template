@@ -1627,6 +1627,32 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 13 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-64.el6]
+- [kernel] Revert "[kernel] sched: Fix a race between ttwu() and migrate_task()" (Matthew Garrett) [620883]
+- [fs] btrfs: fix checks in BTRFS_IOC_CLONE_RANGE (Eugene Teo) [617003] {CVE-2010-2537 CVE-2010-2538}
+- [kernel] Makefile.build: make KBUILD_SYMTYPES work again (Don Zickus) [617749]
+- [netdrv] iwlwifi: disable hardware scanning by default (Stanislaw Gruszka) [593566]
+- [scsi] Revert: qla2xxx: Propogate transport disrupted status for cable pull conditions for faster failover (Chad Dupuis) [622041]
+- [drm] radeon: Don't limit vram size to aperture size (Matthew Garrett) [622039]
+- [fs] xfs: don't walk AGs that can't hold inodes (Dave Chinner) [621044]
+- [mmc] add Ricoh e822 support (Stanislaw Gruszka) [619900]
+- [scsi] mvsas: fix hot plug handling and IO issues (David Milburn) [616178]
+- [dm] mpath: enable discard support (Mike Snitzer) [619196]
+- [block] update request stacking methods to support discards (Mike Snitzer) [619196]
+- [dm] stripe: enable discard support (Mike Snitzer) [619196]
+- [dm] stripe: optimize sector division (Mike Snitzer) [619196]
+- [dm] stripe: move sector translation to a function (Mike Snitzer) [619196]
+- [dm] error: return error for discards (Mike Snitzer) [619196]
+- [dm] delay: enable discard support (Mike Snitzer) [619196]
+- [dm] zero: silently drop discards (Mike Snitzer) [619196]
+- [dm] split discard requests on target boundaries (Mike Snitzer) [619196]
+- [dm] use dm_target_offset macro (Mike Snitzer) [619196]
+- [dm] factor out max_io_len_target_boundary (Mike Snitzer) [619196]
+- [dm] use common __issue_target_request for flush and discard support (Mike Snitzer) [619196]
+- [dm] rename map_info flush_request to target_request_nr (Mike Snitzer) [619196]
+- [dm] remove the DM_TARGET_SUPPORTS_DISCARDS feature flag (Mike Snitzer) [619196]
+- [dm] introduce num_discard_requests in dm_target structure (Mike Snitzer) [619196]
+
 * Tue Aug 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-63.el6]
 - [fs] ext4: protect io completion lists with locking (Eric Sandeen) [621660]
 - [trace] Packport new mm tracepoint Documentation to RHEL6 (Larry Woodman) [618305]
