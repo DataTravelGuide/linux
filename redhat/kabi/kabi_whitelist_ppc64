@@ -753,14 +753,7 @@
 	nr_cpu_ids
 	ns_to_timeval
 	num_physpages
-	of_address_to_resource
-	of_get_property
-	of_node_put
-	of_platform_bus_type
-	of_register_driver
-	of_unregister_driver
 	on_each_cpu
-	paca
 	pagevec_lookup_tag
 	panic
 	panic_notifier_list
@@ -891,11 +884,9 @@
 	platform_driver_unregister
 	platform_get_irq
 	platform_get_resource
-	plpar_hcall_norets
 	pm_qos_add_requirement
 	pm_qos_remove_requirement
 	pm_qos_update_requirement
-	powerpc_firmware_features
 	ppc_pci_io
 	ppp_input
 	prepare_to_wait
@@ -1453,8 +1444,6 @@
 	video_ioctl2
 	video_register_device
 	video_unregister_device
-	vio_register_driver
-	vio_unregister_driver
 	vlan_dev_real_dev
 	vlan_dev_vlan_id
 	vlan_gro_frags
