@@ -1627,6 +1627,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 16 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-65.el6]
+- [fs] ext4: fix discard failure detection (Eric Sandeen) [608731]
+- [x86] Avoid potential NULL dereference in pcc-cpufreq (Matthew Garrett) [623768]
+- [scsi] bfa: vport create/delete fix (Rob Evers) [619226]
+- [net] tcp: fix crash in tcp_xmit_retransmit_queue (Jerome Marchand) [618386]
+- [build] Skip depmod when installing to non-standard INSTALL_MOD_PATH (Jon Masters) [609170]
+- [sound] disable NVIDIA HDMI PCI device for Lenovo T410 (Jaroslav Kysela) [605742]
+- [scsi] increase flush timeout (Mike Christie) [605322]
+- [x86] local_irq_save/restore when issuing IPI in early bootup (Prarit Bhargava) [602823]
+
 * Fri Aug 13 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-64.el6]
 - [kernel] Revert "[kernel] sched: Fix a race between ttwu() and migrate_task()" (Matthew Garrett) [620883]
 - [fs] btrfs: fix checks in BTRFS_IOC_CLONE_RANGE (Eugene Teo) [617003] {CVE-2010-2537 CVE-2010-2538}
