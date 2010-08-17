@@ -418,7 +418,6 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		task_unlock(current);
 		dump_stack();
 		mem_cgroup_print_oom_info(mem, p);
-		refresh_all_vm_stats();
 		show_mem();
 		if (sysctl_oom_dump_tasks)
 			dump_tasks(mem);

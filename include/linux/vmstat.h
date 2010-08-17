@@ -233,8 +233,7 @@ extern void __inc_zone_state(struct zone *, enum zone_stat_item);
 extern void dec_zone_state(struct zone *, enum zone_stat_item);
 extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 
-void refresh_cpu_vm_stats(int, bool);
-void refresh_all_vm_stats(void);
+void refresh_cpu_vm_stats(int);
 #else /* CONFIG_SMP */
 
 /*
@@ -280,7 +279,6 @@ static inline void __dec_zone_page_state(struct page *page,
 #define mod_zone_page_state __mod_zone_page_state
 
 static inline void refresh_cpu_vm_stats(int cpu) { }
-static inline void refresh_all_vm_stats(void) { }
 #endif
 
 #endif /* _LINUX_VMSTAT_H */
