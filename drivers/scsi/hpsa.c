@@ -3198,6 +3198,13 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	misc_fw_support = readl(&cfgtable->misc_fw_support);
 	use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
 
+	/* Don't use the doorbell reset.  Have seen too many cases of
+	 * Smart Array firmware locking up afterwards causing root FS
+	 * corruption during kdump.
+	 */
+
+	use_doorbell = 0;
+
 	rc = hpsa_controller_hard_reset(pdev, vaddr, use_doorbell);
 	if (rc)
 		goto unmap_cfgtable;
