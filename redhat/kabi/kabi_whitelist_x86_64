@@ -1327,9 +1327,11 @@
 	sysctl_tcp_dma_copybreak
 	sysctl_vfs_cache_pressure
 	sysfs_create_bin_file
+	sysfs_create_file
 	sysfs_create_group
 	sysfs_format_mac
 	sysfs_remove_bin_file
+	sysfs_remove_file
 	sysfs_remove_group
 	system_state
 	tasklet_init
