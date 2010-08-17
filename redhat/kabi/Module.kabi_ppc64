@@ -625,6 +625,7 @@
 0xcc7fa952	local_bh_enable_ip	vmlinux	EXPORT_SYMBOL
 0x3656bf5a	lock_kernel	vmlinux	EXPORT_SYMBOL
 0x0f048652	lock_sock_nested	vmlinux	EXPORT_SYMBOL
+0x93039322	lock_super	vmlinux	EXPORT_SYMBOL
 0x18fface7	lookup_one_len	vmlinux	EXPORT_SYMBOL
 0xe9d16828	lro_flush_all	vmlinux	EXPORT_SYMBOL
 0xeb7f9931	lro_receive_skb	vmlinux	EXPORT_SYMBOL

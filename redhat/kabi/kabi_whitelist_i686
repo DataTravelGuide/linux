@@ -682,6 +682,7 @@
 	local_bh_enable_ip
 	lock_kernel
 	lock_sock_nested
+	lock_super
 	lookup_one_len
 	lro_flush_all
 	lro_receive_skb
