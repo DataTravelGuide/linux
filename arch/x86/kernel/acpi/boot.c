@@ -1477,6 +1477,15 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
 		     },
 	 },
+	{
+	 .callback = disable_acpi_pci,
+	 .ident = "HP xw9300 Workstation",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "HP xw9300 Workstation"),
+		     },
+	 },
+
 	{}
 };
 
