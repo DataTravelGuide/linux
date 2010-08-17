@@ -93,6 +93,9 @@ extern int add_efi_memmap;
 extern void efi_reserve_early(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
+extern void efi_call_phys_prelog_in_physmode(void);
+extern void efi_call_phys_epilog_in_physmode(void);
+extern void efi_pagetable_init(void);
 
 #ifndef CONFIG_EFI
 /*
