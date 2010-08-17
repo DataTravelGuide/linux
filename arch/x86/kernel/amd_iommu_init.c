@@ -29,6 +29,7 @@
 #include <asm/amd_iommu.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
+#include <asm/dma.h>
 
 /*
  * definitions for the ACPI scanning code
@@ -1405,7 +1406,7 @@ void __init amd_iommu_detect(void)
 		 */
 		iommu_pass_through = amd_iommu_force_nopt ? 0 : 1;
 	
-		if (iommu_pass_through)
+		if (iommu_pass_through && max_pfn > MAX_DMA32_PFN)
 			swiotlb = 1;
 	}
 }
