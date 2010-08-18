@@ -1625,6 +1625,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Aug 17 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-66.el6]
+- [netdrv] be2net: maintain multicast packet count in driver (Ivan Vecera) [621287]
+- [scsi] hpsa: don't use doorbel reset (Tomas Henzl) [612486]
+- [x86] Fix the kdump kernel OOMs caused by passthrough mode setting (Bhavna Sarathy) [624059]
+- [acpi] Force "pci=noacpi" on HP xw9300 (Prarit Bhargava) [615276]
+- [mm] Revert mm-vmstat-Actively-update-vmstat-counters-in-low-memory-situations (Larry Woodman) [622328]
+- [x86] Run EFI in physical mode to enable kdump on EFI-booted system (Takao Indoh) [593111]
+- [fs] ext4: protect inode bitmap clearing w/ spinlock (Eric Sandeen) [623666]
+- [scsi] libfc: call fc_remote_port_chkready under the host lock (Mike Christie) [623786]
+- [x86] Ensure that we provide per-cpu ACPI support (Matthew Garrett) [623874]
+- [fs] ext4: consolidate in_range() definitions (Eric Sandeen) [621829]
+- [fs] ext4: fix NULL pointer dereference in tracing (Eric Sandeen) [619013]
+- [block] O_DIRECT: fix the splitting up of contiguous I/O (Jeff Moyer) [622504]
+
 * Mon Aug 16 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-65.el6]
 - [fs] ext4: fix discard failure detection (Eric Sandeen) [608731]
 - [x86] Avoid potential NULL dereference in pcc-cpufreq (Matthew Garrett) [623768]
