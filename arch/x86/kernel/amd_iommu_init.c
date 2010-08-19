@@ -138,6 +138,8 @@ bool amd_iommu_isolate = true;		/* if true, device isolation is
 static bool amd_iommu_force_nopt;       /* force isolation (no-pt) mode
 					   of iommu */
 
+static bool amd_iommu_enable;		/* enable AMD iommu */
+
 bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
 
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
@@ -1386,6 +1388,11 @@ void __init amd_iommu_detect(void)
 	if (swiotlb || no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return;
 
+	if (!amd_iommu_enable) {
+		printk(KERN_INFO "AMD-Vi disabled by default: pass amd_iommu=on to enable\n");
+		return;
+	}
+
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
 		iommu_detected = 1;
 		amd_iommu_detected = 1;
@@ -1438,6 +1445,8 @@ static int __init parse_amd_iommu_options(char *str)
 		}
 		if (strncmp(str, "fullflush", 9) == 0)
 			amd_iommu_unmap_flush = true;
+		if (strncmp(str, "on", 2) == 0)
+			amd_iommu_enable = true;
 	}
 
 	return 1;
