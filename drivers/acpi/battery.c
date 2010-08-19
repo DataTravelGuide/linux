@@ -519,7 +519,9 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 static int acpi_battery_update(struct acpi_battery *battery, bool get_info)
 {
 	int result, old_present = acpi_battery_present(battery);
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	int old_power_unit = battery->power_unit;
+#endif
 	result = acpi_battery_get_status(battery);
 	if (result)
 		return result;
@@ -835,7 +837,7 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 
 	if (!battery)
 		return;
-	acpi_battery_update(battery, (event = ACPI_BATTERY_NOTIFY_INFO ? true
+	acpi_battery_update(battery, ((event == ACPI_BATTERY_NOTIFY_INFO) ? true
 				      : false));
 	acpi_bus_generate_proc_event(device, event,
 				     acpi_battery_present(battery));
