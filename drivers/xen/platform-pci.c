@@ -200,6 +200,7 @@ static struct pci_driver platform_driver = {
 };
 
 int xen_pv_hvm_enable = 0;
+EXPORT_SYMBOL_GPL(xen_pv_hvm_enable);
 
 static int __init platform_pci_module_init(void)
 {
