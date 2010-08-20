@@ -1625,6 +1625,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 20 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-67.el6]
+- [x86] acpi: Update battery information on notification 0x81 (Matthew Garrett) [606388]
+- [mm] fix up some user-visible effects of the stack guard page (Mike Snitzer) [607859]
+- [mm] fix page table unmap for stack guard page properly (Mike Snitzer) [607859]
+- [x86] don't send SIGBUS for kernel page faults (Mike Snitzer) [607859]
+- [mm] fix missing page table unmap for stack guard page failure case (Mike Snitzer) [607859]
+- [mm] keep a guard page below a grow-down stack segment (Mike Snitzer) [607859]
+- [fs] xfs: fix untrusted inode number lookup (Dave Chinner) [624860]
+- [kernel] init, sched: Fix race between init and kthreadd (Gleb Natapov) [624329]
+- [net] Fix IGMP3 report parsing (Aristeu Rozanski) [621431]
+
 * Tue Aug 17 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-66.el6]
 - [netdrv] be2net: maintain multicast packet count in driver (Ivan Vecera) [621287]
 - [scsi] hpsa: don't use doorbel reset (Tomas Henzl) [612486]
