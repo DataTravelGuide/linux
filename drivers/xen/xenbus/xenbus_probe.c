@@ -61,6 +61,8 @@
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
+extern int xen_pv_hvm_enable;
+extern int xen_have_vector_callback;
 
 int xen_store_evtchn;
 EXPORT_SYMBOL(xen_store_evtchn);
@@ -818,7 +820,8 @@ static int __init xenbus_init(void)
 	DPRINTK("");
 
 	err = -ENODEV;
-	if (!xen_domain())
+	if (!xen_domain() || (xen_hvm_domain() && !xen_pv_hvm_enable &&
+				!xen_have_vector_callback))
 		goto out_error;
 
 	/* Register ourselves with the kernel bus subsystem */
