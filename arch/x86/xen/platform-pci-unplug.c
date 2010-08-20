@@ -27,6 +27,8 @@
 #include <xen/platform_pci.h>
 #include <xen/xen.h>
 
+extern int xen_pv_hvm_enable;
+
 /* boolean to signal that the platform pci device can be used */
 bool xen_platform_pci_enabled;
 EXPORT_SYMBOL_GPL(xen_platform_pci_enabled);
@@ -73,7 +75,7 @@ void __init xen_unplug_emulated_devices(void)
 	int r;
 
 	/* not valid unless in HVM case */
-	if (!(xen_hvm_domain()))
+	if (!xen_hvm_domain() || !xen_pv_hvm_enable)
 		return;
 
 	/* check the version of the xen platform PCI device */
