@@ -108,14 +108,11 @@
 	alloc_chrdev_region
 	alloc_disk
 	alloc_etherdev_mq
-	alloc_irdadev
 	alloc_netdev_mq
 	alloc_pages_current
 	alloc_tty_driver
 	async_schedule
 	async_synchronize_full
-	async_unwrap_char
-	async_wrap_skb
 	atomic_notifier_call_chain
 	atomic_notifier_chain_register
 	atomic_notifier_chain_unregister
@@ -165,9 +162,6 @@
 	blk_queue_io_opt
 	blk_queue_logical_block_size
 	blk_queue_make_request
-	blk_queue_max_hw_segments
-	blk_queue_max_phys_segments
-	blk_queue_max_sectors
 	blk_queue_max_segment_size
 	blk_queue_merge_bvec
 	blk_queue_ordered
@@ -580,13 +574,6 @@
 	iput
 	ipv6_chk_addr
 	ipv6_skip_exthdr
-	irda_device_set_media_busy
-	irda_init_max_qos_capabilies
-	irda_qos_bits_to_value
-	irda_register_dongle
-	irda_unregister_dongle
-	irlap_close
-	irlap_open
 	is_bad_inode
 	jiffies
 	jiffies_to_clock_t
@@ -601,7 +588,6 @@
 	kfree_skb
 	kill_block_super
 	kill_fasync
-	kmalloc_caches
 	kmem_cache_alloc
 	kmem_cache_alloc_node_notrace
 	kmem_cache_alloc_notrace
@@ -887,7 +873,6 @@
 	pm_qos_add_requirement
 	pm_qos_remove_requirement
 	pm_qos_update_requirement
-	ppc_pci_io
 	ppp_input
 	prepare_to_wait
 	print_hex_dump
@@ -1100,7 +1085,6 @@
 	simple_strtoull
 	single_open
 	single_release
-	sirdev_set_dtr_rts
 	sk_alloc
 	sk_free
 	skb_checksum
@@ -1111,8 +1095,6 @@
 	skb_copy_datagram_iovec
 	skb_copy_expand
 	skb_dequeue
-	skb_dma_map
-	skb_dma_unmap
 	skb_free_datagram
 	skb_make_writable
 	skb_pad
