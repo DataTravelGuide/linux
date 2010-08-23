@@ -1625,6 +1625,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 23 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-68.el6]
+- [virt] xen pvhvm: don't start xenbus w/out pvhvm (Andrew Jones) [624665]
+- [virt] xen pvhvm: don't unplug emulated devs w/out pvhvm (Andrew Jones) [625460]
+- [virt] xen pvhvm: export xen_pv_hvm_enable (Andrew Jones) [625460]
+- [fs] ext4: fix one more tracing oops (Eric Sandeen) [619013]
+- [drm] Provide for HDMI output on NVIDIA GPUs (John Feeney) [619877]
+- [netdrv] iwlwifi: disable aspm by default (John Linville) [611075]
+- [x86] acpi: Update battery information on notification 0x81 (Matthew Garrett) [606388]
+
 * Fri Aug 20 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-67.el6]
 - [x86] acpi: Update battery information on notification 0x81 (Matthew Garrett) [606388]
 - [mm] fix up some user-visible effects of the stack guard page (Mike Snitzer) [607859]
