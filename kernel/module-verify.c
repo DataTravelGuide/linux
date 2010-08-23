@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/fips.h>
 #include "module-verify.h"
 
 /*
@@ -36,6 +37,11 @@ int module_verify(const Elf_Ehdr *hdr, size_t size, int *_gpgsig_ok)
 	}
 
 	ret = module_verify_signature(&mvdata, _gpgsig_ok);
+#ifdef CONFIG_CRYPTO_FIPS
+	if (ret < 0 && fips_enabled)
+		panic("Module verification failed with error %d in FIPS mode\n",
+		      ret);
+#endif
 
 error:
 	kfree(mvdata.secsizes);
