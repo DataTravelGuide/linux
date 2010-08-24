@@ -1658,7 +1658,6 @@ struct iwl_mod_params iwl50_mod_params = {
 	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
-	.disable_hw_scan = 1,
 	/* the rest are 0 by default */
 };
 
