@@ -1625,6 +1625,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Aug 24 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-69.el6]
+- [mm] make stack guard page logic use vm_prev pointer (Mike Snitzer) [607859]
+- [mm] make the mlock() stack guard page checks stricter (Mike Snitzer) [607859]
+- [mm] make the vma list be doubly linked (Mike Snitzer) [607859]
+- [drm] nv50: insert a delay before fb change to prevent display engine hang (Ben Skeggs) [618225]
+- [mm] fix up some user-visible effects of the stack guard page (Mike Snitzer) [607859]
+- [net] sched: fix some kernel memory leaks (Jiri Pirko) [624637] {CVE-2010-2942}
+
 * Mon Aug 23 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-68.el6]
 - [virt] xen pvhvm: don't start xenbus w/out pvhvm (Andrew Jones) [624665]
 - [virt] xen pvhvm: don't unplug emulated devs w/out pvhvm (Andrew Jones) [625460]
