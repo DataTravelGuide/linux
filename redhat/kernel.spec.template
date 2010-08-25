@@ -1625,6 +1625,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 25 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-70.el6]
+- [x86] Disable AMD IOMMU by default (Matthew Garrett) [593787]
+- [netdrv] Revert "iwlwifi: disable hardware scanning by default" (Stanislaw Gruszka) [625981]
+- [s390x] kernel: fix tlb flushing vs. concurrent /proc accesses (Hendrik Brueckner) [587587]
+- [s390x] kernel: prepare mm_context_t for new tlb flush handling (Hendrik Brueckner) [587587]
+- [fs] NFS: Fix an Oops in the NFSv4 atomic open code (Jeff Layton) [625718]
+- [net] can: add limit for nframes and clean up signed/unsigned variables (Danny Feng) [625702] {CVE-2010-2959}
+- [fs] aio: bump i_count instead of using igrab (Jeff Moyer) [626595]
+- [fs] cifs: check for NULL session password (Jeff Layton) [625583]
+- [fs] cifs: fix NULL pointer dereference in cifs_find_smb_ses (Jeff Layton) [625583]
+
 * Tue Aug 24 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-69.el6]
 - [mm] make stack guard page logic use vm_prev pointer (Mike Snitzer) [607859]
 - [mm] make the mlock() stack guard page checks stricter (Mike Snitzer) [607859]
