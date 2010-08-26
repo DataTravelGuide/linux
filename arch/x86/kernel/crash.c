@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/pci.h>
 
 #include <asm/processor.h>
 #include <asm/hardirq.h>
@@ -75,6 +76,7 @@ static void kdump_nmi_shootdown_cpus(void)
 }
 #endif
 
+extern struct pci_dev *mcp55_rewrite;
 void native_machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* This function is only called after the system
@@ -101,6 +103,26 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 #if defined(CONFIG_X86_IO_APIC)
 	disable_IO_APIC();
 #endif
+	if (mcp55_rewrite) {
+		u32 cfg;
+		printk(KERN_CRIT "REWRITING MCP55 CFG REG\n");
+		/*
+		 * We have a mcp55 chip on board which has been
+		 * flagged as only sending legacy interrupts
+		 * to the BSP, and we are crashing on an AP
+		 * This is obviously bad, and we need to
+		 * fix it up.  To do this we write to the
+		 * flagged device, to the register at offset 0x74
+		 * and we make sure that bit 2 and bit 15 are clear
+		 * This forces legacy interrupts to be broadcast
+		 * to all cpus
+		 */
+		pci_read_config_dword(mcp55_rewrite, 0x74, &cfg);
+		cfg &= ~((1 << 2) | (1 << 15));
+		printk(KERN_CRIT "CFG = %x\n", cfg);
+		pci_write_config_dword(mcp55_rewrite, 0x74, cfg);
+	}
+
 #ifdef CONFIG_HPET_TIMER
 	hpet_disable();
 #endif
