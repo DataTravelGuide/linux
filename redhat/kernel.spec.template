@@ -575,7 +575,7 @@ Source33: Module.kabi_x86_64
 %%PATCH_LIST%%
 
 # empty final patch file to facilitate testing of kernel patches
-Patch99999: linux-kernel-test.patch
+Patch999999: linux-kernel-test.patch
 
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
 
