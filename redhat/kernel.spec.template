@@ -1625,6 +1625,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Sep 01 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-71.el6]
+- [fs] nfsd: initialize nfsd versions before creating svc (J. Bruce Fields) [628084]
+- [fs] nfsd: fix startup/shutdown order bug (J. Bruce Fields) [628084]
+- [security] KEYS: Fix bug in keyctl_session_to_parent() if parent has no session keyring (David Howells) [627808] {CVE-2010-2960}
+- [security] KEYS: Fix RCU no-lock warning in keyctl_session_to_parent() (David Howells) [627808] {CVE-2010-2960}
+
 * Wed Aug 25 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-70.el6]
 - [x86] Disable AMD IOMMU by default (Matthew Garrett) [593787]
 - [netdrv] Revert "iwlwifi: disable hardware scanning by default" (Stanislaw Gruszka) [625981]
