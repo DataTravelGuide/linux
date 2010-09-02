@@ -162,7 +162,7 @@ quiet_cmd_sign_ko_ko_unsigned = SIGN [M] $@
 		gpg --batch --no-greeting $(KEYFLAGS) -b $@.digest && \
 		sh $(SCRIPTS_DIR)/mod/modsign-note.sh $@.digest.sig | \
 		  $(CC) -x assembler-with-cpp $(c_flags) $(CFLAGS_MODULE) -c -o $@.note.o - && \
-		$(LD) -r -o $@ $< $@.note.o
+		$(LD) -r $(LDFLAGS) -o $@ $< $@.note.o
 else
 quiet_cmd_sign_ko_ko_unsigned = NO SIGN [M] $@
       cmd_sign_ko_ko_unsigned = \
