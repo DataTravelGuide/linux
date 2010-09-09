@@ -72,6 +72,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	int nodeid;
 
 	if (!strcmp(oem_id, "SGI")) {
+		usevirtefi = 1;		/* Use virtual EFI mode on SGI systems */
 		nodeid = early_get_nodeid();
 		x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
 		if (!strcmp(oem_table_id, "UVL"))
