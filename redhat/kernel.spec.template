@@ -1625,6 +1625,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Sep 13 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-72.el6]
+- [security] Make kernel panic in FIPS mode if modsign check fails (David Howells) [625914]
+- [virt] Guests on AMD with CPU type 6 and model >= 8 trigger errata read of MSR_K7_CLK_CTL (Jes Sorensen) [629066]
+- [x86] UV: use virtual efi on SGI systems (George Beshers) [627653]
+
 * Wed Sep 01 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-71.el6]
 - [fs] nfsd: initialize nfsd versions before creating svc (J. Bruce Fields) [628084]
 - [fs] nfsd: fix startup/shutdown order bug (J. Bruce Fields) [628084]
