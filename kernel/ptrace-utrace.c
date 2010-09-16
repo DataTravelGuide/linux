@@ -105,6 +105,19 @@ static struct utrace_engine *ptrace_lookup_engine(struct task_struct *tracee)
 					&ptrace_utrace_ops, NULL);
 }
 
+static int utrace_barrier_uninterruptible(struct task_struct *target,
+					struct utrace_engine *engine)
+{
+	for (;;) {
+		int err = utrace_barrier(target, engine);
+
+		if (err != -ERESTARTSYS)
+			return err;
+
+		schedule_timeout_uninterruptible(1);
+	}
+}
+
 static struct utrace_engine *
 ptrace_reuse_engine(struct task_struct *tracee)
 {
@@ -131,12 +144,16 @@ ptrace_reuse_engine(struct task_struct *tracee)
 		if (!err || err == -EINPROGRESS) {
 			ctx->resume = UTRACE_RESUME;
 			/* synchronize with ptrace_report_signal() */
-			err = utrace_barrier(tracee, engine);
+			err = utrace_barrier_uninterruptible(tracee, engine);
 		}
-		WARN_ON(!err != (engine->ops == &ptrace_utrace_ops));
 
-		if (!err)
+		if (!err) {
+			WARN_ON(engine->ops != &ptrace_utrace_ops &&
+				!tracee->exit_state);
 			return engine;
+		}
+
+		WARN_ON(engine->ops == &ptrace_utrace_ops);
 	}
 
 	utrace_engine_put(engine);
