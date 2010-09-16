@@ -69,6 +69,7 @@ struct ptrace_context {
 #define PT_UTRACED			0x00001000
 
 #define PTRACE_O_SYSEMU			0x100
+#define PTRACE_O_DETACHED		0x200
 
 #define PTRACE_EVENT_SYSCALL		(1 << 16)
 #define PTRACE_EVENT_SIGTRAP		(2 << 16)
@@ -130,7 +131,7 @@ ptrace_reuse_engine(struct task_struct *tracee)
 		return engine;
 
 	ctx = ptrace_context(engine);
-	if (unlikely(ctx->resume == UTRACE_DETACH)) {
+	if (unlikely(ctx->options == PTRACE_O_DETACHED)) {
 		/*
 		 * Try to reuse this self-detaching engine.
 		 * The only caller which can hit this case is ptrace_attach(),
@@ -266,12 +267,14 @@ static void ptrace_detach_task(struct task_struct *tracee, int sig)
 	bool voluntary = (sig >= 0);
 	struct utrace_engine *engine = ptrace_lookup_engine(tracee);
 	enum utrace_resume_action action = UTRACE_DETACH;
+	struct ptrace_context *ctx;
 
 	if (unlikely(IS_ERR(engine)))
 		return;
 
+	ctx = ptrace_context(engine);
+
 	if (sig) {
-		struct ptrace_context *ctx = ptrace_context(engine);
 
 		switch (get_stop_event(ctx)) {
 		case PTRACE_EVENT_SYSCALL:
@@ -289,6 +292,10 @@ static void ptrace_detach_task(struct task_struct *tracee, int sig)
 	}
 
 	ptrace_wake_up(tracee, engine, action, voluntary);
+
+	if (action != UTRACE_DETACH)
+		ctx->options = PTRACE_O_DETACHED;
+
 	utrace_engine_put(engine);
 }
 
@@ -763,7 +770,7 @@ void exit_ptrace(struct task_struct *tracer)
 static int ptrace_set_options(struct task_struct *tracee,
 				struct utrace_engine *engine, long data)
 {
-	BUILD_BUG_ON(PTRACE_O_MASK & PTRACE_O_SYSEMU);
+	BUILD_BUG_ON(PTRACE_O_MASK & (PTRACE_O_SYSEMU | PTRACE_O_DETACHED));
 
 	ptrace_set_events(tracee, engine, data & PTRACE_O_MASK);
 	return (data & ~PTRACE_O_MASK) ? -EINVAL : 0;
