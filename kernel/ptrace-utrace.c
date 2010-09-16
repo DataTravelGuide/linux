@@ -420,6 +420,11 @@ static u32 ptrace_report_syscall_entry(u32 action, struct utrace_engine *engine,
 	return UTRACE_SYSCALL_RUN | UTRACE_STOP;
 }
 
+static inline bool is_step_resume(enum utrace_resume_action resume)
+{
+	return resume == UTRACE_BLOCKSTEP || resume == UTRACE_SINGLESTEP;
+}
+
 static u32 ptrace_report_syscall_exit(u32 action, struct utrace_engine *engine,
 				      struct pt_regs *regs)
 {
@@ -428,10 +433,7 @@ static u32 ptrace_report_syscall_exit(u32 action, struct utrace_engine *engine,
 	if (ptrace_event_pending(ctx))
 		return UTRACE_STOP;
 
-	if (ctx->resume != UTRACE_RESUME) {
-		WARN_ON(ctx->resume != UTRACE_BLOCKSTEP &&
-			ctx->resume != UTRACE_SINGLESTEP);
-
+	if (is_step_resume(ctx->resume)) {
 		ctx->signr = SIGTRAP;
 		return UTRACE_INTERRUPT;
 	}
@@ -519,10 +521,7 @@ static u32 ptrace_report_signal(u32 action, struct utrace_engine *engine,
 		if (WARN_ON(ctx->siginfo))
 			ctx->siginfo = NULL;
 
-		if (resume != UTRACE_RESUME) {
-			WARN_ON(resume != UTRACE_BLOCKSTEP &&
-				resume != UTRACE_SINGLESTEP);
-
+		if (is_step_resume(resume)) {
 			set_stop_code(ctx, PTRACE_EVENT_SIGTRAP);
 			return UTRACE_STOP | UTRACE_SIGNAL_IGN;
 		}
