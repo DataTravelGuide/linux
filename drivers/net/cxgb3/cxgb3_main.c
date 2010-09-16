@@ -1285,7 +1285,7 @@ irq_err:
 /*
  * Release resources when all the ports and offloading have been stopped.
  */
-static void cxgb_down(struct adapter *adapter)
+static void cxgb_down(struct adapter *adapter, int on_wq)
 {
 	t3_sge_stop(adapter);
 	spin_lock_irq(&adapter->work_lock);	/* sync with PHY intr task */
@@ -1295,7 +1295,8 @@ static void cxgb_down(struct adapter *adapter)
 	free_irq_resources(adapter);
 	quiesce_rx(adapter);
 	t3_sge_stop(adapter);
-	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
+	if (!on_wq)
+		flush_workqueue(cxgb3_wq);/* wait for external IRQ handler */
 }
 
 static void schedule_chk_task(struct adapter *adap)
@@ -1373,7 +1374,7 @@ static int offload_close(struct t3cdev *tdev)
 	clear_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map);
 
 	if (!adapter->open_device_map)
-		cxgb_down(adapter);
+		cxgb_down(adapter, 0);
 
 	cxgb3_offload_deactivate(adapter);
 	return 0;
@@ -1408,7 +1409,7 @@ static int cxgb_open(struct net_device *dev)
 	return 0;
 }
 
-static int cxgb_close(struct net_device *dev)
+static int __cxgb_close(struct net_device *dev, int on_wq)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
@@ -1435,10 +1436,15 @@ static int cxgb_close(struct net_device *dev)
 		cancel_delayed_work_sync(&adapter->adap_check_task);
 
 	if (!adapter->open_device_map)
-		cxgb_down(adapter);
+		cxgb_down(adapter, on_wq);
 
 	cxgb3_event_notify(&adapter->tdev, OFFLOAD_PORT_DOWN, pi->port_id);
 	return 0;
+}
+
+static int cxgb_close(struct net_device *dev)
+{
+	return __cxgb_close(dev, 0);
 }
 
 static struct net_device_stats *cxgb_get_stats(struct net_device *dev)
@@ -2867,7 +2873,7 @@ void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
 	spin_unlock(&adapter->work_lock);
 }
 
-static int t3_adapter_error(struct adapter *adapter, int reset)
+static int t3_adapter_error(struct adapter *adapter, int reset, int on_wq)
 {
 	int i, ret = 0;
 
@@ -2882,7 +2888,7 @@ static int t3_adapter_error(struct adapter *adapter, int reset)
 		struct net_device *netdev = adapter->port[i];
 
 		if (netif_running(netdev))
-			cxgb_close(netdev);
+			__cxgb_close(netdev, on_wq);
 	}
 
 	/* Stop SGE timers */
@@ -2953,7 +2959,7 @@ static void fatal_error_task(struct work_struct *work)
 	int err = 0;
 
 	rtnl_lock();
-	err = t3_adapter_error(adapter, 1);
+	err = t3_adapter_error(adapter, 1, 1);
 	if (!err)
 		err = t3_reenable_adapter(adapter);
 	if (!err)
@@ -3003,7 +3009,7 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 
-	ret = t3_adapter_error(adapter, 0);
+	ret = t3_adapter_error(adapter, 0, 0);
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
