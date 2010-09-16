@@ -264,7 +264,7 @@ static void ptrace_detach_task(struct task_struct *tracee, int sig)
 	 * If true, the caller is PTRACE_DETACH, otherwise
 	 * the tracer detaches implicitly during exit.
 	 */
-	bool voluntary = (sig >= 0);
+	bool explicit = (sig >= 0);
 	struct utrace_engine *engine = ptrace_lookup_engine(tracee);
 	enum utrace_resume_action action = UTRACE_DETACH;
 	struct ptrace_context *ctx;
@@ -274,24 +274,46 @@ static void ptrace_detach_task(struct task_struct *tracee, int sig)
 
 	ctx = ptrace_context(engine);
 
-	if (sig) {
+	if (!explicit) {
+		int err;
 
+		/*
+		 * We are going to detach, the tracee can be running.
+		 * Ensure ptrace_report_signal() won't report a signal.
+		 */
+		ctx->resume = UTRACE_DETACH;
+		err = utrace_barrier_uninterruptible(tracee, engine);
+
+		if (!err && ctx->siginfo) {
+			/*
+			 * The tracee has already reported a signal
+			 * before utrace_barrier().
+			 *
+			 * Resume it like we do in PTRACE_EVENT_SIGNAL
+			 * case below. The difference is that we can race
+			 * with ptrace_report_signal() if the tracee is
+			 * running but this doesn't matter. In any case
+			 * UTRACE_SIGNAL_REPORT must be pending and it
+			 * can return nothing but UTRACE_DETACH.
+			 */
+			action = UTRACE_RESUME;
+		}
+
+	} else if (sig) {
 		switch (get_stop_event(ctx)) {
 		case PTRACE_EVENT_SYSCALL:
-			if (voluntary)
-				send_sig_info(sig, SEND_SIG_PRIV, tracee);
+			send_sig_info(sig, SEND_SIG_PRIV, tracee);
 			break;
 
 		case PTRACE_EVENT_SIGNAL:
-			if (voluntary)
-				ctx->signr = sig;
+			ctx->signr = sig;
 			ctx->resume = UTRACE_DETACH;
 			action = UTRACE_RESUME;
 			break;
 		}
 	}
 
-	ptrace_wake_up(tracee, engine, action, voluntary);
+	ptrace_wake_up(tracee, engine, action, explicit);
 
 	if (action != UTRACE_DETACH)
 		ctx->options = PTRACE_O_DETACHED;
@@ -555,6 +577,11 @@ static u32 ptrace_report_signal(u32 action, struct utrace_engine *engine,
 	}
 
 	WARN_ON(ctx->siginfo);
+
+	/* Raced with the exiting tracer ? */
+	if (resume == UTRACE_DETACH)
+		return action;
+
 	ctx->siginfo = info;
 	/*
 	 * ctx->siginfo points to the caller's stack.
