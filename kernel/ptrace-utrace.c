@@ -431,7 +431,6 @@ static u32 ptrace_report_syscall_exit(u32 action, struct utrace_engine *engine,
 	if (ctx->resume != UTRACE_RESUME) {
 		WARN_ON(ctx->resume != UTRACE_BLOCKSTEP &&
 			ctx->resume != UTRACE_SINGLESTEP);
-		ctx->resume = UTRACE_RESUME;
 
 		ctx->signr = SIGTRAP;
 		return UTRACE_INTERRUPT;
