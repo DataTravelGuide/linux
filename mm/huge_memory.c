@@ -169,11 +169,9 @@ static ssize_t double_flag_show(struct kobject *kobj,
 {
 	if (test_bit(enabled, &transparent_hugepage_flags)) {
 		VM_BUG_ON(test_bit(req_madv, &transparent_hugepage_flags));
-		return sprintf(buf, "[always] madvise never\n");
-	} else if (test_bit(req_madv, &transparent_hugepage_flags))
-		return sprintf(buf, "always [madvise] never\n");
-	else
-		return sprintf(buf, "always madvise [never]\n");
+		return sprintf(buf, "[always] never\n");
+	} else
+		return sprintf(buf, "always [never]\n");
 }
 static ssize_t double_flag_store(struct kobject *kobj,
 				 struct kobj_attribute *attr,
@@ -185,10 +183,6 @@ static ssize_t double_flag_store(struct kobject *kobj,
 		    min(sizeof("always")-1, count))) {
 		set_bit(enabled, &transparent_hugepage_flags);
 		clear_bit(req_madv, &transparent_hugepage_flags);
-	} else if (!memcmp("madvise", buf,
-			   min(sizeof("madvise")-1, count))) {
-		clear_bit(enabled, &transparent_hugepage_flags);
-		set_bit(req_madv, &transparent_hugepage_flags);
 	} else if (!memcmp("never", buf,
 			   min(sizeof("never")-1, count))) {
 		clear_bit(enabled, &transparent_hugepage_flags);
@@ -550,12 +544,6 @@ static int __init setup_transparent_hugepage(char *str)
 			&transparent_hugepage_flags);
 		clear_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
 			  &transparent_hugepage_flags);
-		ret = 1;
-	} else if (!strcmp(str, "madvise")) {
-		clear_bit(TRANSPARENT_HUGEPAGE_FLAG,
-			  &transparent_hugepage_flags);
-		set_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-			&transparent_hugepage_flags);
 		ret = 1;
 	} else if (!strcmp(str, "never")) {
 		clear_bit(TRANSPARENT_HUGEPAGE_FLAG,
