@@ -1625,6 +1625,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Sep 22 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-73.el6]
+- [x86] kernel: fix IA32 System Call Entry Point Vulnerability (Danny Feng) [634452] {CVE-2010-3301}
+- [kernel] compat: Make compat_alloc_user_space() incorporate the access_ok() (Danny Feng) [634466] {CVE-2010-3081}
+- [block] switch s390 tape_block and mg_disk to elevator_change() (Mike Snitzer) [632631]
+- [block] add function call to switch the IO scheduler from a driver (Mike Snitzer) [632631]
+
 * Mon Sep 13 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-72.el6]
 - [security] Make kernel panic in FIPS mode if modsign check fails (David Howells) [625914]
 - [virt] Guests on AMD with CPU type 6 and model >= 8 trigger errata read of MSR_K7_CLK_CTL (Jes Sorensen) [629066]
