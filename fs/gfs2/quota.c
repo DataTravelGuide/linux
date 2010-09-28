@@ -823,7 +823,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		goto out_alloc;
 
 	if (nalloc)
-		blocks += al->al_rgd->rd_length + nalloc * ind_blocks + RES_STATFS;
+		blocks += gfs2_rg_blocks(al) + nalloc * ind_blocks + RES_STATFS;
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
@@ -1593,6 +1593,7 @@ static int gfs2_xquota_set(struct super_block *sb, int type, qid_t id,
 		error = gfs2_inplace_reserve(ip);
 		if (error)
 			goto out_alloc;
+		blocks += gfs2_rg_blocks(al);
 	}
 
 	error = gfs2_trans_begin(sdp, blocks + RES_DINODE + 1, 0);
