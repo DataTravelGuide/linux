@@ -1625,6 +1625,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 30 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-74.el6]
+- [block] prevent merges of discard and write requests (Mike Snitzer) [637805]
+- [drm] nouveau: correct INIT_DP_CONDITION subcondition 5 (Ben Skeggs) [636678]
+- [drm] nouveau: enable enhanced framing only if DP display supports it (Ben Skeggs) [636678]
+- [drm] nouveau: fix required mode bandwidth calculation for DP (Ben Skeggs) [636678]
+- [drm] nouveau: disable hotplug detect around DP link training (Ben Skeggs) [636678]
+- [drm] nouveau: set DP display power state during DPMS (Ben Skeggs) [636678]
+- [mm] remove "madvise" from possible /sys/kernel/mm/redhat_transparent_hugepage/enabled options (Larry Woodman) [634500]
+- [netdrv] cxgb3: don't flush the workqueue if we are called from the workqueue (Doug Ledford) [631547]
+- [netdrv] cxgb3: deal with fatal parity error status in interrupt handler (Doug Ledford) [631547]
+- [netdrv] cxgb3: now that we define fatal parity errors, make sure they are cleared (Doug Ledford) [631547]
+- [netdrv] cxgb3: Add define for fatal parity error bit manipulation (Doug Ledford) [631547]
+- [virt] Emulate MSR_EBC_FREQUENCY_ID (Jes Sorensen) [629836]
+- [virt] Define MSR_EBC_FREQUENCY_ID (Jes Sorensen) [629836]
+- [kernel] initramfs: Fix initramfs size calculation (Hendrik Brueckner) [626956]
+- [kernel] initramfs: Generalize initramfs_data.xxx.S variants (Hendrik Brueckner) [626956]
+- [drm] radeon/kms: fix sideport detection on newer rs880 boards (Dave Airlie) [626454]
+
 * Wed Sep 22 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-73.el6]
 - [x86] kernel: fix IA32 System Call Entry Point Vulnerability (Danny Feng) [634452] {CVE-2010-3301}
 - [kernel] compat: Make compat_alloc_user_space() incorporate the access_ok() (Danny Feng) [634466] {CVE-2010-3081}
