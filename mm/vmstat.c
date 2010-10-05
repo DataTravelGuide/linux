@@ -737,9 +737,7 @@ static const char * const vmstat_text[] = {
 	"numa_local",
 	"numa_other",
 #endif
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	"nr_anon_transparent_hugepages",
-#endif
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 	"pgpgin",
