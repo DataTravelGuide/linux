@@ -112,14 +112,14 @@ static int ftrace_event_enable_disable(struct ftrace_event_call *call,
 
 	switch (enable) {
 	case 0:
-		if (call->enabled) {
-			call->enabled = 0;
+		if (call->flags & TRACE_EVENT_FL_ENABLED) {
+			call->flags &= ~TRACE_EVENT_FL_ENABLED;
 			tracing_stop_cmdline_record();
 			call->unregfunc(call);
 		}
 		break;
 	case 1:
-		if (!call->enabled) {
+		if (!(call->flags & TRACE_EVENT_FL_ENABLED)) {
 			tracing_start_cmdline_record();
 			ret = call->regfunc(call);
 			if (ret) {
@@ -128,7 +128,7 @@ static int ftrace_event_enable_disable(struct ftrace_event_call *call,
 					"%s\n", call->name);
 				break;
 			}
-			call->enabled = 1;
+			call->flags |= TRACE_EVENT_FL_ENABLED;
 		}
 		break;
 	}
@@ -316,7 +316,7 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 	(*pos)++;
 
 	list_for_each_entry_continue(call, &ftrace_events, list) {
-		if (call->enabled)
+		if (call->flags & TRACE_EVENT_FL_ENABLED)
 			return call;
 	}
 
@@ -375,7 +375,7 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	struct ftrace_event_call *call = filp->private_data;
 	char *buf;
 
-	if (call->enabled)
+	if (call->flags & TRACE_EVENT_FL_ENABLED)
 		buf = "1\n";
 	else
 		buf = "0\n";
@@ -449,7 +449,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		 * or if all events or cleared, or if we have
 		 * a mixture.
 		 */
-		set |= (1 << !!call->enabled);
+		set |= (1 << !!(call->flags & TRACE_EVENT_FL_ENABLED));
 
 		/*
 		 * If we have a mixture, no need to look further.
@@ -1389,7 +1389,7 @@ static __init void event_trace_self_tests(void)
 		 * If an event is already enabled, someone is using
 		 * it and the self test should not be on.
 		 */
-		if (call->enabled) {
+		if (call->flags & TRACE_EVENT_FL_ENABLED) {
 			pr_warning("Enabled event during self test!\n");
 			WARN_ON_ONCE(1);
 			continue;

@@ -113,12 +113,24 @@ void tracing_record_cmdline(struct task_struct *tsk);
 
 struct event_filter;
 
+enum {
+	TRACE_EVENT_FL_ENABLED_BIT,
+	TRACE_EVENT_FL_FILTERED_BIT,
+};
+
+enum {
+	TRACE_EVENT_FL_ENABLED	= (1 << TRACE_EVENT_FL_ENABLED_BIT),
+	TRACE_EVENT_FL_FILTERED	= (1 << TRACE_EVENT_FL_FILTERED_BIT),
+};
+
 struct ftrace_event_call {
 	struct list_head	list;
 	char			*name;
 	char			*system;
 	struct dentry		*dir;
 	struct trace_event	*event;
+	/* The enabled field was invalidated by flags field,
+	 * but is left here due to the KABI constrains. */
 	int			enabled;
 	int			(*regfunc)(struct ftrace_event_call *);
 	void			(*unregfunc)(struct ftrace_event_call *);
@@ -128,7 +140,25 @@ struct ftrace_event_call {
 					       struct trace_seq *);
 	int			(*define_fields)(struct ftrace_event_call *);
 	struct list_head	fields;
+#ifdef __GENKSYMS__
 	int			filter_active;
+#else
+	/*
+	 * 32 bit flags:
+	 *   bit 1:		enabled
+	 *   bit 2:		filter_active
+	 *
+	 * Changes to flags must hold the event_mutex.
+	 *
+	 * Note: Reads of flags do not hold the event_mutex since
+	 * they occur in critical sections. But the way flags
+	 * is currently used, these changes do no affect the code
+	 * except that when a change is made, it may have a slight
+	 * delay in propagating the changes to other CPUs due to
+	 * caching and such.
+	 */
+	unsigned int		flags;
+#endif
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
