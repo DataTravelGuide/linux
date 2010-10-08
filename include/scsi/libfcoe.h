@@ -180,4 +180,8 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
 }
 
 
+static inline void fcoe_ctlr_mode(struct fcoe_ctlr *fip, enum fip_state mode)
+{
+	fip->mode = mode;
+}
 #endif /* _LIBFCOE_H */
