@@ -93,6 +93,14 @@ struct elevator_queue
 	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
 	struct hlist_head *hash;
+	/*
+	 * struct elevator_queue:s are always allocated using
+	 * elevator_alloc, so it's safe to hang this bitfield off of
+	 * the end.
+	 */
+#ifndef __GENKSYMS__
+	unsigned int registered:1;
+#endif
 };
 
 /*
