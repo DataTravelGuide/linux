@@ -32,9 +32,6 @@
 #define XEN_PLATFORM_ERR_PROTOCOL -2
 #define XEN_PLATFORM_ERR_BLACKLIST -3
 
-int xen_pv_hvm_enable = 0;
-EXPORT_SYMBOL_GPL(xen_pv_hvm_enable);
-
 /* result of xen_emul_unplug stored in this variable */
 int xen_platform_pci_unplug;
 EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
@@ -81,7 +78,7 @@ void __init xen_unplug_emulated_devices(void)
 	int r;
 
 	/* not valid unless in HVM case or sysadmin explicit told not to unplug */
-	if (!xen_pv_hvm_enable || (xen_emul_unplug & XEN_UNPLUG_NEVER))
+	if (xen_emul_unplug & XEN_UNPLUG_NEVER)
 		return;
 
 	/* check the version of the xen platform PCI device */
@@ -157,22 +154,3 @@ static int __init parse_xen_emul_unplug(char *arg)
 	return 0;
 }
 early_param("xen_emul_unplug", parse_xen_emul_unplug);
-
-
-static int __init xen_pv_hvm_setup(char *p)
-{
-	if (!p)
-		return -EINVAL;
-
-	if (!strncmp(p, "enable", 6)) {
-		xen_pv_hvm_enable = 1;
-		printk("Enabling Xen PV-on-HVM \n");
-	} else {
-		printk(KERN_WARNING "Unrecognized value %s"
-			"to module parameter 'xen_pv_hvm'\n", p);
-	}
-
-	return 0;
-}
-early_param("xen_pv_hvm", xen_pv_hvm_setup);
-

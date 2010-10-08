@@ -202,15 +202,12 @@ static struct pci_driver platform_driver = {
 static int __init platform_pci_module_init(void)
 {
 	int rc;
-	extern int xen_pv_hvm_enable;
 
-	if (xen_pv_hvm_enable) {
-		rc = pci_register_driver(&platform_driver);
-		if (rc) {
-			printk(KERN_INFO DRV_NAME
-				": No platform pci device model found\n");
-			return rc;
-		}
+	rc = pci_register_driver(&platform_driver);
+	if (rc) {
+		printk(KERN_INFO DRV_NAME
+			": No platform pci device model found\n");
+		return rc;
 	}
 
 	return 0;

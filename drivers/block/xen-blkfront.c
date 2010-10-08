@@ -733,6 +733,8 @@ static int blkfront_probe(struct xenbus_device *dev,
 		extern int xen_ide_unplug_unsupported;
 		int major;
 		int cfg = 1;
+		char* type;
+		int len;
 
 		if (!VDEV_IS_EXTENDED(vdevice))
 			major = BLKIF_MAJOR(vdevice);
@@ -778,6 +780,16 @@ static int blkfront_probe(struct xenbus_device *dev,
 			__FUNCTION__, vdevice);
 			return -ENODEV;
 		}
+
+		/* do not create a PV cdrom device if we are an HVM guest */
+		type = xenbus_read(XBT_NIL, dev->nodename, "device-type", &len);
+		if (IS_ERR(type))
+			return -ENODEV;
+		if (strncmp(type, "cdrom", 5) == 0) {
+			kfree(type);
+			return -ENODEV;
+		}
+		kfree(type);
 	}
 
 

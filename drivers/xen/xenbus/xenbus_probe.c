@@ -61,9 +61,6 @@
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
-extern int xen_pv_hvm_enable;
-extern int xen_have_vector_callback;
-
 int xen_store_evtchn;
 EXPORT_SYMBOL(xen_store_evtchn);
 
@@ -190,11 +187,6 @@ static struct xen_bus_type xenbus_frontend = {
 	.levels = 2, 		/* device/type/<id> */
 	.get_bus_id = frontend_bus_id,
 	.probe = xenbus_probe_frontend,
-	/* 
-	 * to ensure loading pv-on-hvm drivers on FV guest
-	 * doesn't blow up trying to use uninit'd xenbus.
-	 */
-	.error = -ENODEV,
 	.bus = {
 		.name      = "xen",
 		.match     = xenbus_match,
@@ -359,9 +351,6 @@ int xenbus_register_driver_common(struct xenbus_driver *drv,
 				  struct module *owner,
 				  const char *mod_name)
 {
-	if (bus->error)
-		return bus->error;
-
 	drv->driver.name = drv->name;
 	drv->driver.bus = &bus->bus;
 	drv->driver.owner = owner;
@@ -497,9 +486,6 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 
 	enum xenbus_state state = xenbus_read_driver_state(nodename);
 
-	if (bus->error)
-		return bus->error;
-
 	if (state != XenbusStateInitialising) {
 		/* Device is not new, so ignore it.  This can happen if a
 		   device is going away after switching to Closed.  */
@@ -606,9 +592,6 @@ int xenbus_probe_devices(struct xen_bus_type *bus)
 	char **dir;
 	unsigned int i, dir_n;
 
-	if (bus->error)
-		return bus->error;
-
 	dir = xenbus_directory(XBT_NIL, bus->root, "", &dir_n);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
@@ -652,7 +635,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 	char type[XEN_BUS_ID_SIZE];
 	const char *p, *root;
 
-	if (bus->error || char_count(node, '/') < 2)
+	if (char_count(node, '/') < 2)
 		return;
 
 	exists = xenbus_exists(XBT_NIL, node, "");
@@ -820,13 +803,13 @@ static int __init xenbus_init(void)
 	DPRINTK("");
 
 	err = -ENODEV;
-	if (!xen_domain() || (xen_hvm_domain() && !xen_pv_hvm_enable &&
-				!xen_have_vector_callback))
+
+	if (!xen_domain())
 		goto out_error;
 
 	/* Register ourselves with the kernel bus subsystem */
-	xenbus_frontend.error = bus_register(&xenbus_frontend.bus);
-	if (xenbus_frontend.error)
+	err = bus_register(&xenbus_frontend.bus);
+	if (err)
 		goto out_error;
 
 	err = xenbus_backend_bus_register();
@@ -839,7 +822,6 @@ static int __init xenbus_init(void)
 	if (xen_initial_domain()) {
 		/* dom0 not yet supported */
 	} else {
-		xenstored_ready = 1;
 		if (xen_hvm_domain()) {
 			uint64_t v = 0;
 			err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
@@ -856,6 +838,7 @@ static int __init xenbus_init(void)
 			xen_store_mfn = xen_start_info->store_mfn;
 			xen_store_interface = mfn_to_virt(xen_store_mfn);
 		}
+		xenstored_ready = 1;
 	}
 
 	/* Initialize the interface to xenstore. */
@@ -915,9 +898,6 @@ static int is_device_connecting(struct device *dev, void *data)
 
 static int exists_connecting_device(struct device_driver *drv)
 {
-	if (xenbus_frontend.error)
-		return xenbus_frontend.error;
-
 	return bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
 				is_device_connecting);
 }
@@ -997,11 +977,11 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
-	if ((!xenbus_frontend.error && !xen_platform_pci_unplug)) {
-		ready_to_wait_for_devices = 1;
-		wait_for_devices(NULL);
-	}
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+		return -ENODEV;
 
+	ready_to_wait_for_devices = 1;
+	wait_for_devices(NULL);
 	return 0;
 }
 
