@@ -27,11 +27,13 @@
 #include <xen/platform_pci.h>
 #include <xen/xen.h>
 
-extern int xen_pv_hvm_enable;
 
 /* boolean to signal that the platform pci device can be used */
 bool xen_platform_pci_enabled;
 EXPORT_SYMBOL_GPL(xen_platform_pci_enabled);
+int xen_pv_hvm_enable = 0;
+EXPORT_SYMBOL_GPL(xen_pv_hvm_enable);
+
 static int xen_emul_unplug;
 
 static int __init check_platform_magic(void)
@@ -142,3 +144,22 @@ static int __init parse_xen_emul_unplug(char *arg)
 	return 0;
 }
 early_param("xen_emul_unplug", parse_xen_emul_unplug);
+
+
+static int __init xen_pv_hvm_setup(char *p)
+{
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "enable", 6)) {
+		xen_pv_hvm_enable = 1;
+		printk("Enabling Xen PV-on-HVM \n");
+	} else {
+		printk(KERN_WARNING "Unrecognized value %s"
+			"to module parameter 'xen_pv_hvm'\n", p);
+	}
+
+	return 0;
+}
+early_param("xen_pv_hvm", xen_pv_hvm_setup);
+
