@@ -1456,12 +1456,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	fh = fc_frame_header_get(fp);
 	did = ntoh24(fh->fh_d_id);
 
-	if (!did) {
-		FC_LPORT_DBG(lport, "Bad FLOGI response\n");
-		goto out;
-	}
-
-	if (fc_frame_payload_op(fp) == ELS_LS_ACC) {
+	if (fc_frame_payload_op(fp) == ELS_LS_ACC && did) {
 		flp = fc_frame_payload_get(fp, sizeof(*flp));
 		if (flp) {
 			mfs = ntohs(flp->fl_csp.sp_bb_data) &
@@ -1500,8 +1495,10 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				fc_lport_enter_dns(lport);
 			}
 		}
-	} else
+	} else {
+		FC_LPORT_DBG(lport, "FLOGI RJT or bad response\n");
 		fc_lport_error(lport, fp);
+	}
 
 out:
 	fc_frame_free(fp);
