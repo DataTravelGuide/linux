@@ -133,7 +133,7 @@ void dm_stripe_exit(void);
  * mapped_device operations
  */
 void dm_destroy(struct mapped_device *md);
-void dm_destroy_nowait(struct mapped_device *md);
+void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
 int dm_lock_for_deletion(struct mapped_device *md);
 

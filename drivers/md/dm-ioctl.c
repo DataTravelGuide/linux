@@ -277,7 +277,7 @@ retry:
 			if (likely(keep_open_devices))
 				dm_destroy(md);
 			else
-				dm_destroy_nowait(md);
+				dm_destroy_immediate(md);
 
 			/*
 			 * Some mapped devices may be using other mapped
@@ -1157,10 +1157,10 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 
 	/* Protect md->type and md->queue against concurrent table loads. */
 	dm_lock_md_type(md);
-	if (dm_get_md_type(md) == DM_TYPE_NONE) {
-		/* initial table load, set md's type based on table's type */
+	if (dm_get_md_type(md) == DM_TYPE_NONE)
+		/* Initial table load: acquire type of table. */
 		dm_set_md_type(md, dm_table_get_type(t));
-	} else if (dm_get_md_type(md) != dm_table_get_type(t)) {
+	else if (dm_get_md_type(md) != dm_table_get_type(t)) {
 		DMWARN("can't change device type after initial table load.");
 		dm_table_destroy(t);
 		dm_unlock_md_type(md);
@@ -1171,7 +1171,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	/* setup md->queue to reflect md's type (may block) */
 	r = dm_setup_md_queue(md);
 	if (r) {
-		DMWARN("unable to setup device queue for this table.");
+		DMWARN("unable to set up device queue for new table.");
 		dm_table_destroy(t);
 		dm_unlock_md_type(md);
 		goto out;

@@ -8,7 +8,6 @@
 #include "dm.h"
 #include "dm-uevent.h"
 
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -20,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/hdreg.h>
+#include <linux/delay.h>
 
 #include <trace/events/block.h>
 
@@ -2133,7 +2133,7 @@ int dm_setup_md_queue(struct mapped_device *md)
 {
 	if ((dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) &&
 	    !dm_init_request_based_queue(md)) {
-		DMWARN("Cannot initialize queue for Request-based dm");
+		DMWARN("Cannot initialize queue for request-based mapped device");
 		return -EINVAL;
 	}
 
@@ -2215,16 +2215,16 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	}
 
 	/*
-	 * Rare but there may be I/O requests still going to complete,
+	 * Rare, but there may be I/O requests still going to complete,
 	 * for example.  Wait for all references to disappear.
-	 * No one shouldn't increment the reference count of the mapped_device,
-	 * after the mapped_device becomes DMF_FREEING state.
+	 * No one should increment the reference count of the mapped_device,
+	 * after the mapped_device state becomes DMF_FREEING.
 	 */
-	if (wait) {
+	if (wait)
 		while (atomic_read(&md->holders))
 			msleep(1);
-	} else if (atomic_read(&md->holders))
-		DMWARN("%s: Deleting mapped_device still in use! (%d users)",
+	else if (atomic_read(&md->holders))
+		DMWARN("%s: Forcibly removing mapped_device still in use! (%d users)",
 		       dm_device_name(md), atomic_read(&md->holders));
 
 	dm_sysfs_exit(md);
@@ -2238,7 +2238,7 @@ void dm_destroy(struct mapped_device *md)
 	__dm_destroy(md, true);
 }
 
-void dm_destroy_nowait(struct mapped_device *md)
+void dm_destroy_immediate(struct mapped_device *md)
 {
 	__dm_destroy(md, false);
 }

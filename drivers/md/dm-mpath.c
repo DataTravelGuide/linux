@@ -1279,7 +1279,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 		 * Pass all discard request failures up.
 		 * FIXME: only fail_path if the discard failed due to a
 		 * transport problem.  This requires precise understanding
-		 * of the underlying failure.
+		 * of the underlying failure (e.g. the SCSI sense).
 		 */
 		return error;
 
