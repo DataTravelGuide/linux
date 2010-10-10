@@ -1626,6 +1626,7 @@ static long dm_compat_ctl_ioctl(struct file *file, uint command, ulong u)
 #endif
 
 static const struct file_operations _ctl_fops = {
+	.open = nonseekable_open,
 	.unlocked_ioctl	 = dm_ctl_ioctl,
 	.compat_ioctl = dm_compat_ctl_ioctl,
 	.owner	 = THIS_MODULE,
