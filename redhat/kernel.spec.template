@@ -1625,6 +1625,25 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Oct 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-75.el6]
+- [virt] KVM: Fix fs/gs reload oops with invalid ldt (Avi Kivity) [639885] {CVE-2010-3698}
+- [drm] i915: prevent arbitrary kernel memory write (Jerome Marchand) [637691] {CVE-2010-2962}
+- [scsi] libfc: adds flogi retry in case DID is zero in RJT (Mike Christie) [633907]
+- [kernel] prevent heap corruption in snd_ctl_new() (Jerome Marchand) [638486] {CVE-2010-3442}
+- [scsi] lpfc: lpfc driver oops during rhel6 installation with snapshot 12/13 and emulex FC (Rob Evers) [634703]
+- [fs] ext4: Always journal quota file modifications (Eric Sandeen) [624909]
+- [mm] fix split_huge_page error like mapcount 3 page_mapcount 2 (Andrea Arcangeli) [622327 640611]
+- [block] Fix pktcdvd ioctl dev_minor range check (Jerome Marchand) [638089] {CVE-2010-3437}
+- [drm] ttm: Fix two race conditions + fix busy codepaths (Dave Airlie) [640871]
+- [drm] Prune GEM vma entries (Dave Airlie) [640870]
+- [virt] ksm: fix bad user data when swapping (Andrea Arcangeli) [640579]
+- [virt] ksm: fix page_address_in_vma anon_vma oops (Andrea Arcangeli) [640576]
+- [net] sctp: Fix out-of-bounds reading in sctp_asoc_get_hmac() (Jiri Pirko) [640462] {CVE-2010-3705}
+- [mm] Move vma_stack_continue into mm.h (Mike Snitzer) [638525]
+- [net] sctp: Do not reset the packet during sctp_packet_config() (Jiri Pirko) [637682] {CVE-2010-3432}
+- [mm] vmstat incorrectly reports disk IO as swap in (Steve Best) [636978]
+- [scsi] fcoe: Fix NPIV (Neil Horman) [631246]
+
 * Thu Sep 30 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-74.el6]
 - [block] prevent merges of discard and write requests (Mike Snitzer) [637805]
 - [drm] nouveau: correct INIT_DP_CONDITION subcondition 5 (Ben Skeggs) [636678]
