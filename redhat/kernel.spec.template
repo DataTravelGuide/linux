@@ -1625,6 +1625,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 11 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-76.el6]
+- [scsi] fcoe: set default FIP mode as FIP_MODE_FABRIC (Mike Christie) [636233]
+
 * Sun Oct 10 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-75.el6]
 - [virt] KVM: Fix fs/gs reload oops with invalid ldt (Avi Kivity) [639885] {CVE-2010-3698}
 - [drm] i915: prevent arbitrary kernel memory write (Jerome Marchand) [637691] {CVE-2010-2962}
