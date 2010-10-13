@@ -196,16 +196,6 @@ struct video_code32 {
 	unsigned char	*data;
 };
 
-static int get_microcode32(struct video_code *kp, struct video_code32 __user *up)
-{
-	if (!access_ok(VERIFY_READ, up, sizeof(struct video_code32)) ||
-		copy_from_user(kp->loadwhat, up->loadwhat, sizeof(up->loadwhat)) ||
-		get_user(kp->datasize, &up->datasize) ||
-		copy_from_user(kp->data, up->data, up->datasize))
-			return -EFAULT;
-	return 0;
-}
-
 #define VIDIOCGTUNER32		_IOWR('v', 4, struct video_tuner32)
 #define VIDIOCSTUNER32		_IOW('v', 5, struct video_tuner32)
 #define VIDIOCGWIN32		_IOR('v', 9, struct video_window32)
@@ -214,7 +204,6 @@ static int get_microcode32(struct video_code *kp, struct video_code32 __user *up
 #define VIDIOCSFBUF32		_IOW('v', 12, struct video_buffer32)
 #define VIDIOCGFREQ32		_IOR('v', 14, u32)
 #define VIDIOCSFREQ32		_IOW('v', 15, u32)
-#define VIDIOCSMICROCODE32	_IOW('v', 27, struct video_code32)
 
 #define VIDIOCCAPTURE32		_IOW('v', 8, s32)
 #define VIDIOCSYNC32		_IOW('v', 18, s32)
@@ -768,7 +757,6 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case VIDIOCSFBUF32: cmd = VIDIOCSFBUF; break;
 	case VIDIOCGFREQ32: cmd = VIDIOCGFREQ; break;
 	case VIDIOCSFREQ32: cmd = VIDIOCSFREQ; break;
-	case VIDIOCSMICROCODE32: cmd = VIDIOCSMICROCODE; break;
 #endif
 	case VIDIOC_G_FMT32: cmd = VIDIOC_G_FMT; break;
 	case VIDIOC_S_FMT32: cmd = VIDIOC_S_FMT; break;
@@ -816,11 +804,6 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case VIDIOCGWIN:
 	case VIDIOCGFBUF:
 	case VIDIOCGFREQ:
-		compatible_arg = 0;
-		break;
-
-	case VIDIOCSMICROCODE:
-		err = get_microcode32(&karg.vc, up);
 		compatible_arg = 0;
 		break;
 
@@ -1001,7 +984,6 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOCSPLAYMODE:
 	case VIDIOCSWRITEMODE32:
 	case VIDIOCGPLAYINFO:
-	case VIDIOCSMICROCODE32:
 	case VIDIOCGVBIFMT:
 	case VIDIOCSVBIFMT:
 #endif
