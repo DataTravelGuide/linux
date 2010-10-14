@@ -164,7 +164,6 @@
 0x264565af	blk_queue_max_segment_size	vmlinux	EXPORT_SYMBOL
 0x8ccebc09	blk_queue_merge_bvec	vmlinux	EXPORT_SYMBOL
 0x7f99b669	blk_queue_ordered	vmlinux	EXPORT_SYMBOL
-0x61beb287	blk_queue_physical_block_size	vmlinux	EXPORT_SYMBOL
 0xcb6c108f	blk_queue_prep_rq	vmlinux	EXPORT_SYMBOL
 0xf7f92ad5	blk_queue_rq_timeout	vmlinux	EXPORT_SYMBOL_GPL
 0x3718a6f1	blk_queue_softirq_done	vmlinux	EXPORT_SYMBOL

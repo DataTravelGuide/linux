@@ -183,7 +183,6 @@
 	blk_queue_max_segments
 	blk_queue_merge_bvec
 	blk_queue_ordered
-	blk_queue_physical_block_size
 	blk_queue_prep_rq
 	blk_queue_rq_timeout
 	blk_queue_softirq_done
