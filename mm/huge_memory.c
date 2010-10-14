@@ -2098,8 +2098,8 @@ static void khugepaged_loop(void)
 					khugepaged_scan_sleep_millisecs));
 			remove_wait_queue(&khugepaged_wait, &wait);
 		} else if (khugepaged_enabled())
-			wait_event_interruptible(khugepaged_wait,
-						 khugepaged_wait_event());
+			wait_event_freezable(khugepaged_wait,
+					     khugepaged_wait_event());
 	}
 }
 
