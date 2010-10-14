@@ -712,12 +712,15 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 
 	ret = -EAGAIN;
 	pmd = *src_pmd;
-	if (unlikely(!pmd_trans_huge(pmd)))
+	if (unlikely(!pmd_trans_huge(pmd))) {
+		pte_free(dst_mm, pgtable);
 		goto out_unlock;
+	}
 	if (unlikely(pmd_trans_splitting(pmd))) {
 		/* split huge page running from under us */
 		spin_unlock(&src_mm->page_table_lock);
 		spin_unlock(&dst_mm->page_table_lock);
+		pte_free(dst_mm, pgtable);
 
 		wait_split_huge_page(vma->anon_vma, src_pmd); /* src_vma */
 		goto out;
