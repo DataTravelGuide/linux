@@ -28,12 +28,16 @@
 #include <xen/xen.h>
 
 
-/* boolean to signal that the platform pci device can be used */
-bool xen_platform_pci_enabled;
-EXPORT_SYMBOL_GPL(xen_platform_pci_enabled);
+#define XEN_PLATFORM_ERR_MAGIC -1
+#define XEN_PLATFORM_ERR_PROTOCOL -2
+#define XEN_PLATFORM_ERR_BLACKLIST -3
+
 int xen_pv_hvm_enable = 0;
 EXPORT_SYMBOL_GPL(xen_pv_hvm_enable);
 
+/* result of xen_emul_unplug stored in this variable */
+int xen_platform_pci_unplug;
+EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 static int xen_emul_unplug;
 
 static int __init check_platform_magic(void)
@@ -44,7 +48,7 @@ static int __init check_platform_magic(void)
 	magic = inw(XEN_IOPORT_MAGIC);
 	if (magic != XEN_IOPORT_MAGIC_VAL) {
 		printk(KERN_INFO "Xen Platform PCI: unrecognised magic value\n");
-		return -1;
+		return XEN_PLATFORM_ERR_MAGIC;
 	}
 
 	protocol = inb(XEN_IOPORT_PROTOVER);
@@ -58,12 +62,12 @@ static int __init check_platform_magic(void)
 		outl(XEN_IOPORT_LINUX_DRVVER, XEN_IOPORT_DRVVER);
 		if (inw(XEN_IOPORT_MAGIC) != XEN_IOPORT_MAGIC_VAL) {
 			printk(KERN_INFO "Xen Platform: blacklisted by host\n");
-			return -3;
+			return XEN_PLATFORM_ERR_BLACKLIST;
 		}
 		break;
 	default:
 		printk(KERN_WARNING "Xen Platform PCI: unknown I/O protocol version");
-		return -2;
+		return XEN_PLATFORM_ERR_PROTOCOL;
 	}
 
 	return 0;
@@ -76,25 +80,25 @@ void __init xen_unplug_emulated_devices(void)
 {
 	int r;
 
-	/* not valid unless in HVM case */
-	if (!xen_hvm_domain() || !xen_pv_hvm_enable)
+	/* not valid unless in HVM case or sysadmin explicit told not to unplug */
+	if (!xen_pv_hvm_enable || (xen_emul_unplug & XEN_UNPLUG_NEVER))
 		return;
 
 	/* check the version of the xen platform PCI device */
 	r = check_platform_magic();
 
-	if (!r)
-		xen_ide_unplug_unsupported = 0;
-
 	/* If the version matches enable the Xen platform PCI driver.
-	 * Also enable the Xen platform PCI driver if the version is really old
-	 * and the user told us to ignore it. */
-	if (!r || (r == -1 && (xen_emul_unplug & XEN_UNPLUG_IGNORE)))
-		xen_platform_pci_enabled = 1;
+	 * Also enable the Xen platform PCI driver if the host does
+	 * not support the unplug protocol (XEN_PLATFORM_ERR_MAGIC)
+	 * but the user told us that unplugging is unnecessary, i.e.,
+	 * the user has set the disk spec to vbd & vif spec to type=netfront */
+	if (r && !(r == XEN_PLATFORM_ERR_MAGIC &&
+			(xen_emul_unplug & XEN_UNPLUG_UNNECESSARY)))
+		return;
 	/* Set the default value of xen_emul_unplug depending on whether or
 	 * not the Xen PV frontends and the Xen platform PCI driver have
 	 * been compiled for this kernel (modules or built-in are both OK). */
-	if (xen_platform_pci_enabled && !xen_emul_unplug) {
+	if (!xen_emul_unplug) {
 		if (xen_must_unplug_nics()) {
 			printk(KERN_INFO "Netfront and the Xen platform PCI driver have "
 					"been compiled for this kernel: unplug emulated NICs.\n");
@@ -110,8 +114,15 @@ void __init xen_unplug_emulated_devices(void)
 		}
 	}
 	/* Now unplug the emulated devices */
-	if (xen_platform_pci_enabled && !(xen_emul_unplug & XEN_UNPLUG_IGNORE))
+	if (!(xen_emul_unplug & XEN_UNPLUG_UNNECESSARY))
 		outw(xen_emul_unplug, XEN_IOPORT_UNPLUG);
+	else
+		xen_ide_unplug_unsupported = 0;
+
+	if (xen_emul_unplug & XEN_UNPLUG_ALL_IDE_DISKS)
+		xen_ide_unplug_unsupported = 0;
+
+	xen_platform_pci_unplug = xen_emul_unplug;
 }
 
 static int __init parse_xen_emul_unplug(char *arg)
@@ -135,11 +146,13 @@ static int __init parse_xen_emul_unplug(char *arg)
 			xen_emul_unplug |= XEN_UNPLUG_AUX_IDE_DISKS;
 		else if (!strncmp(p, "nics", l))
 			xen_emul_unplug |= XEN_UNPLUG_ALL_NICS;
-		else if (!strncmp(p, "ignore", l))
-			xen_emul_unplug |= XEN_UNPLUG_IGNORE;
+		else if (!strncmp(p, "unnecessary", l))
+			xen_emul_unplug |= XEN_UNPLUG_UNNECESSARY;
+		else if (!strncmp(p, "never", l))
+			xen_emul_unplug |= XEN_UNPLUG_NEVER;
 		else
 			printk(KERN_WARNING "unrecognised option '%s' "
-				 "in module parameter 'xen_emul_unplug'\n", p);
+				 "in parameter 'xen_emul_unplug'\n", p);
 	}
 	return 0;
 }
