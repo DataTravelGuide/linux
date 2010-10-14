@@ -983,8 +983,8 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			page_remove_rmap(page);
 			VM_BUG_ON(page_mapcount(page) < 0);
 			add_mm_counter(tlb->mm, anon_rss, -HPAGE_PMD_NR);
-			spin_unlock(&tlb->mm->page_table_lock);
 			VM_BUG_ON(!PageHead(page));
+			spin_unlock(&tlb->mm->page_table_lock);
 			tlb_remove_page(tlb, page);
 			pte_free(tlb->mm, pgtable);
 			ret = 1;
