@@ -229,7 +229,16 @@ void vmalloc_sync_all(void)
 
 		spin_lock_irqsave(&pgd_lock, flags);
 		list_for_each_entry(page, &pgd_list, lru) {
-			if (!vmalloc_sync_one(page_address(page), address))
+			spinlock_t *pgt_lock;
+			pmd_t *ret;
+
+			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+
+			spin_lock(pgt_lock);
+			ret = vmalloc_sync_one(page_address(page), address);
+			spin_unlock(pgt_lock);
+
+			if (!ret)
 				break;
 		}
 		spin_unlock_irqrestore(&pgd_lock, flags);
@@ -341,11 +350,19 @@ void vmalloc_sync_all(void)
 		spin_lock_irqsave(&pgd_lock, flags);
 		list_for_each_entry(page, &pgd_list, lru) {
 			pgd_t *pgd;
+			spinlock_t *pgt_lock;
+
 			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+
+			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+			spin_lock(pgt_lock);
+
 			if (pgd_none(*pgd))
 				set_pgd(pgd, *pgd_ref);
 			else
 				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+
+			spin_unlock(pgt_lock);
 		}
 		spin_unlock_irqrestore(&pgd_lock, flags);
 	}
