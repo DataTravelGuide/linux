@@ -434,7 +434,7 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
  */
 static inline bool cfq_bio_sync(struct bio *bio)
 {
-	return bio_data_dir(bio) == READ || bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	return bio_data_dir(bio) == READ || (bio->bi_rw & REQ_SYNC);
 }
 
 /*
@@ -622,10 +622,10 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2, 
 		return rq1;
 	else if (rq_is_sync(rq2) && !rq_is_sync(rq1))
 		return rq2;
-	if ((rq1->cmd_flags & REQ_RW_META) && !(rq2->cmd_flags & REQ_RW_META))
+	if ((rq1->cmd_flags & REQ_META) && !(rq2->cmd_flags & REQ_META))
 		return rq1;
-	else if ((rq2->cmd_flags & REQ_RW_META) &&
-		 !(rq1->cmd_flags & REQ_RW_META))
+	else if ((rq2->cmd_flags & REQ_META) &&
+		 !(rq1->cmd_flags & REQ_META))
 		return rq2;
 
 	s1 = blk_rq_pos(rq1);
@@ -1466,7 +1466,7 @@ static void cfq_remove_request(struct request *rq)
 	cfqq->cfqd->rq_queued--;
 	blkiocg_update_io_remove_stats(&(RQ_CFQG(rq))->blkg, rq_data_dir(rq),
 						rq_is_sync(rq));
-	if (rq->cmd_flags & REQ_RW_META) {
+	if (rq->cmd_flags & REQ_META) {
 		WARN_ON(!cfqq->meta_pending);
 		cfqq->meta_pending--;
 	}
@@ -3170,7 +3170,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * So both queues are sync. Let the new request get disk time if
 	 * it's a metadata request and the current queue is doing regular IO.
 	 */
-	if ((rq->cmd_flags & REQ_RW_META) && !cfqq->meta_pending)
+	if ((rq->cmd_flags & REQ_META) && !cfqq->meta_pending)
 		return true;
 
 	/*
@@ -3224,7 +3224,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct cfq_io_context *cic = RQ_CIC(rq);
 
 	cfqd->rq_queued++;
-	if (rq->cmd_flags & REQ_RW_META)
+	if (rq->cmd_flags & REQ_META)
 		cfqq->meta_pending++;
 
 	cfq_update_io_thinktime(cfqd, cic);

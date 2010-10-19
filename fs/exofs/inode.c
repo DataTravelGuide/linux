@@ -522,7 +522,7 @@ static int write_exec(struct page_collect *pcol)
 
 	*pcol_copy = *pcol;
 
-	pcol_copy->bio->bi_rw |= (1 << BIO_RW); /* FIXME: bio_set_dir() */
+	pcol_copy->bio->bi_rw |= REQ_WRITE; /* FIXME: bio_set_dir() */
 	osd_req_write(or, &obj, i_start, pcol_copy->bio, pcol_copy->length);
 	ret = exofs_async_op(or, writepages_done, pcol_copy, oi->i_cred);
 	if (unlikely(ret)) {
