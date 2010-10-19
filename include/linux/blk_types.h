@@ -38,29 +38,18 @@
 #endif /* CONFIG_BLOCK */
 
 /*
- * Request flags.  For use in the cmd_flags field of struct request, and in
- * bi_rw of struct bio.  Note that some flags are only valid in either one.
+ * request type modified bits. first four bits match BIO_RW* bits, important
  */
 enum rq_flag_bits {
-	/* common flags */
-	__REQ_WRITE,		/* not set, read. set, write */
+	__REQ_WRITE,		/* was __REQ_RW, not set, read. set, write */
 	__REQ_FAILFAST_DEV,	/* no driver retries of device errors */
 	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
 	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
-
-	__REQ_HARDBARRIER,	/* may not be passed by drive either */
-	__REQ_SYNC,		/* request is sync (sync write or read) */
-	__REQ_META,		/* metadata io request */
+	/* above flags must match BIO_RW_* */
 	__REQ_DISCARD,		/* request to discard sectors */
-	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
-
-	/* bio only flags */
-	__REQ_UNPLUG,		/* unplug the immediately after submission */
-	__REQ_RAHEAD,		/* read ahead, can fail anytime */
-
-	/* request only flags */
 	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
+	__REQ_HARDBARRIER,	/* DEPRECATED: may not be passed by drive either */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_NOMERGE,		/* don't touch this for merging */
 	__REQ_STARTED,		/* drive already may have started this one */
@@ -70,22 +59,38 @@ enum rq_flag_bits {
 	__REQ_FAILED,		/* set if the request failed */
 	__REQ_QUIET,		/* don't worry about errors */
 	__REQ_PREEMPT,		/* set for "ide_preempt" requests */
+	__REQ_ORDERED_COLOR,	/* DEPRECATED: is before or after barrier */
+	__REQ_SYNC,		/* was __REQ_RW_SYNC, request is sync (sync write or read) */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
+	__REQ_META,		/* was __REQ_RW_META, metadata io request */
 	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
-	__REQ_FLUSH,		/* request for cache flush */
+	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
+	__REQ_FLUSH,		/* request for cache flush */
+
+	/* bio only flags */
+	__REQ_UNPLUG,		/* unplug the immediately after submission */
+	__REQ_RAHEAD,		/* read ahead, can fail anytime */
+
 	__REQ_NR_BITS,		/* stops here */
 };
 
 #define REQ_WRITE		(1 << __REQ_WRITE)
+#define REQ_RW			REQ_WRITE  /* DEPRECATED */
+
 #define REQ_FAILFAST_DEV	(1 << __REQ_FAILFAST_DEV)
 #define REQ_FAILFAST_TRANSPORT	(1 << __REQ_FAILFAST_TRANSPORT)
 #define REQ_FAILFAST_DRIVER	(1 << __REQ_FAILFAST_DRIVER)
 #define REQ_HARDBARRIER		(1 << __REQ_HARDBARRIER)
+
 #define REQ_SYNC		(1 << __REQ_SYNC)
+#define REQ_RW_SYNC		REQ_SYNC  /* DEPRECATED */
+
 #define REQ_META		(1 << __REQ_META)
+#define REQ_RW_META		REQ_META  /* DEPRECATED */
+
 #define REQ_DISCARD		(1 << __REQ_DISCARD)
 #define REQ_NOIDLE		(1 << __REQ_NOIDLE)
 
@@ -110,6 +115,7 @@ enum rq_flag_bits {
 #define REQ_FAILED		(1 << __REQ_FAILED)
 #define REQ_QUIET		(1 << __REQ_QUIET)
 #define REQ_PREEMPT		(1 << __REQ_PREEMPT)
+#define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)  /* DEPRECATED */
 #define REQ_ALLOCED		(1 << __REQ_ALLOCED)
 #define REQ_COPY_USER		(1 << __REQ_COPY_USER)
 #define REQ_INTEGRITY		(1 << __REQ_INTEGRITY)
