@@ -724,7 +724,7 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL);
+	blkdev_issue_flush(buftarg->bt_bdev, NULL);
 }
 
 STATIC void

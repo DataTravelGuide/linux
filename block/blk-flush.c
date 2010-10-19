@@ -212,7 +212,7 @@ static void bio_end_flush(struct bio *bio, int err)
 }
 
 /**
- * blkdev_issue_flush - queue a flush
+ * __blkdev_issue_flush - queue a flush
  * @bdev:	blockdev to issue flush for
  * @gfp_mask:	memory allocation flags (for bio_alloc)
  * @error_sector:	error sector
@@ -223,7 +223,7 @@ static void bio_end_flush(struct bio *bio, int err)
  *    wish to. If WAIT flag is not passed then caller may check only what
  *    request was pushed in some internal queue for later handling.
  */
-int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
+int __blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 		sector_t *error_sector)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
@@ -269,5 +269,11 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 
 	bio_put(bio);
 	return ret;
+}
+EXPORT_SYMBOL(__blkdev_issue_flush);
+
+int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
+{
+	return __blkdev_issue_flush(bdev, GFP_KERNEL, error_sector);
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
