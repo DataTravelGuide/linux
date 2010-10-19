@@ -136,25 +136,11 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !JBD2_HAS_INCOMPAT_FEATURE(journal,
-				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
-		ret = submit_bh(WRITE_SYNC_PLUG | WRITE_BARRIER, bh);
-		if (ret == -EOPNOTSUPP) {
-			printk(KERN_WARNING
-			       "JBD2: Disabling barriers on %s, "
-			       "not supported by device\n", journal->j_devname);
-			spin_lock(&journal->j_state_lock);
-			journal->j_flags &= ~JBD2_BARRIER;
-			spin_unlock(&journal->j_state_lock);
-
-			/* And try again, without the barrier */
-			lock_buffer(bh);
-			set_buffer_uptodate(bh);
-			clear_buffer_dirty(bh);
-			ret = submit_bh(WRITE_SYNC_PLUG, bh);
-		}
-	} else {
+				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT))
+		ret = submit_bh(WRITE_SYNC_PLUG | WRITE_FLUSH_FUA, bh);
+	else
 		ret = submit_bh(WRITE_SYNC_PLUG, bh);
-	}
+
 	*cbh = bh;
 	return ret;
 }
@@ -168,29 +154,8 @@ static int journal_wait_on_commit_record(journal_t *journal,
 {
 	int ret = 0;
 
-retry:
 	clear_buffer_dirty(bh);
 	wait_on_buffer(bh);
-	if (buffer_eopnotsupp(bh) && (journal->j_flags & JBD2_BARRIER)) {
-		printk(KERN_WARNING
-		       "JBD2: wait_on_commit_record: sync failed on %s - "
-		       "disabling barriers\n", journal->j_devname);
-		spin_lock(&journal->j_state_lock);
-		journal->j_flags &= ~JBD2_BARRIER;
-		spin_unlock(&journal->j_state_lock);
-
-		lock_buffer(bh);
-		clear_buffer_dirty(bh);
-		set_buffer_uptodate(bh);
-		bh->b_end_io = journal_end_buffer_io_sync;
-
-		ret = submit_bh(WRITE_SYNC_PLUG, bh);
-		if (ret) {
-			unlock_buffer(bh);
-			return ret;
-		}
-		goto retry;
-	}
 
 	if (unlikely(!buffer_uptodate(bh)))
 		ret = -EIO;
