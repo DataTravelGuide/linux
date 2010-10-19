@@ -669,7 +669,7 @@ static void mg_request_poll(struct request_queue *q)
 				break;
 		}
 
-		if (unlikely(!blk_fs_request(host->req))) {
+		if (unlikely(host->req->cmd_type != REQ_TYPE_FS)) {
 			mg_end_request_cur(host, -EIO);
 			continue;
 		}
@@ -755,7 +755,7 @@ static void mg_request(struct request_queue *q)
 			continue;
 		}
 
-		if (unlikely(!blk_fs_request(req))) {
+		if (unlikely(req->cmd_type != REQ_TYPE_FS)) {
 			mg_end_request_cur(host, -EIO);
 			continue;
 		}
