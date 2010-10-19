@@ -375,14 +375,14 @@ struct request_queue
 	struct blk_trace	*blk_trace;
 #endif
 	/*
-	 * for flush operations
+	 * DEPRECATED: please use "for flush operations" members below!
+	 * These members (through orig_bar_rq) are preserved purely
+	 * to maintain kABI.
 	 */
-	unsigned int		flush_flags;
-	unsigned int		flush_seq;
-	int			flush_err;
-	struct request		flush_rq;
-	struct request		*orig_flush_rq;
-	struct list_head	pending_flushes;
+	unsigned int		ordered, next_ordered, ordseq;
+	int			orderr, ordcolor;
+	struct request		pre_flush_rq, bar_rq, post_flush_rq;
+	struct request		*orig_bar_rq;
 
 	struct mutex		sysfs_lock;
 
@@ -391,6 +391,18 @@ struct request_queue
 #endif
 	/* For future extensions */
 	void	*pad;
+
+#ifndef __GENKSYMS__
+	/*
+	 * for flush operations
+	 */
+	unsigned int		flush_flags;
+	unsigned int		flush_seq;
+	int			flush_err;
+	struct request		flush_rq;
+	struct request		*orig_flush_rq;
+	struct list_head	pending_flushes;
+#endif
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
