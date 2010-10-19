@@ -63,8 +63,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio->bi_sector = sector;
 		bio->bi_end_io = blkdev_discard_end_io;
 		bio->bi_bdev = bdev;
-		if (flags & BLKDEV_IFL_WAIT)
-			bio->bi_private = &wait;
+		bio->bi_private = &wait;
 
 		if (nr_sects > max_discard_sectors) {
 			bio->bi_size = max_discard_sectors << 9;
@@ -78,8 +77,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio_get(bio);
 		submit_bio(type, bio);
 
-		if (flags & BLKDEV_IFL_WAIT)
-			wait_for_completion(&wait);
+		wait_for_completion(&wait);
 
 		if (bio_flagged(bio, BIO_EOPNOTSUPP))
 			ret = -EOPNOTSUPP;

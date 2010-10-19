@@ -2546,8 +2546,8 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 			trace_ext4_discard_blocks(sb,
 					(unsigned long long)discard_block,
 					entry->count);
-			ret = sb_issue_discard(sb, discard_block, entry->count, GFP_NOFS,
-					       BLKDEV_IFL_WAIT);
+			ret = sb_issue_discard(sb, discard_block, entry->count,
+					       GFP_NOFS, 0);
 			if (ret == -EOPNOTSUPP) {
 				ext4_warning(sb,
 					"discard not supported, disabling");

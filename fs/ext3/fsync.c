@@ -91,8 +91,7 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 	 * storage
 	 */
 	if (test_opt(inode->i_sb, BARRIER))
-		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
-				BLKDEV_IFL_WAIT);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 out:
 	return ret;
 }
