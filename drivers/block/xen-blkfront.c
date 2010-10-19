@@ -369,16 +369,22 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 static int xlvbd_barrier(struct blkfront_info *info)
 {
 	int err;
+	const char *barrier;
 
-	err = blk_queue_ordered(info->rq,
-				info->feature_barrier ? QUEUE_ORDERED_DRAIN : QUEUE_ORDERED_NONE);
+	switch (info->feature_barrier) {
+	case QUEUE_ORDERED_DRAIN:	barrier = "enabled (drain)"; break;
+	case QUEUE_ORDERED_TAG:		barrier = "enabled (tag)"; break;
+	case QUEUE_ORDERED_NONE:	barrier = "disabled"; break;
+	default:			return -EINVAL;
+	}
+
+	err = blk_queue_ordered(info->rq, info->feature_barrier);
 
 	if (err)
 		return err;
 
 	printk(KERN_INFO "blkfront: %s: barriers %s\n",
-	       info->gd->disk_name,
-	       info->feature_barrier ? "enabled" : "disabled");
+	       info->gd->disk_name, barrier);
 	return 0;
 }
 
@@ -453,8 +459,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	info->rq = gd->queue;
 	info->gd = gd;
 
-	if (info->feature_barrier)
-		xlvbd_barrier(info);
+	xlvbd_barrier(info);
 
 	if (vdisk_info & VDISK_READONLY)
 		set_disk_ro(gd, 1);
@@ -565,7 +570,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				printk(KERN_WARNING "blkfront: %s: write barrier op failed\n",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
-				info->feature_barrier = 0;
+				info->feature_barrier = QUEUE_ORDERED_NONE;
 				xlvbd_barrier(info);
 			}
 			/* fall through */
@@ -922,6 +927,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned long sector_size;
 	unsigned int binfo;
 	int err;
+	int barrier;
 
 	if ((info->connected == BLKIF_STATE_CONNECTED) ||
 	    (info->connected == BLKIF_STATE_SUSPENDED) )
@@ -943,10 +949,26 @@ static void blkfront_connect(struct blkfront_info *info)
 	}
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-barrier", "%lu", &info->feature_barrier,
+			    "feature-barrier", "%lu", &barrier,
 			    NULL);
+
+	/*
+	 * If there's no "feature-barrier" defined, then it means
+	 * we're dealing with a very old backend which writes
+	 * synchronously; draining will do what needs to get done.
+	 *
+	 * If there are barriers, then we can do full queued writes
+	 * with tagged barriers.
+	 *
+	 * If barriers are not supported, then there's no much we can
+	 * do, so just set ordering to NONE.
+	 */
 	if (err)
-		info->feature_barrier = 0;
+		info->feature_barrier = QUEUE_ORDERED_DRAIN;
+	else if (barrier)
+		info->feature_barrier = QUEUE_ORDERED_TAG;
+	else
+		info->feature_barrier = QUEUE_ORDERED_NONE;
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
