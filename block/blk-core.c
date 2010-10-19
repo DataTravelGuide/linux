@@ -524,6 +524,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	mutex_init(&q->sysfs_lock);
 	spin_lock_init(&q->__queue_lock);
 
+	/* Initialize DEPRECATED barrier members */
+	q->ordered = q->next_ordered = q->ordseq = 0;
+	q->orderr = q->ordcolor = 0;
+	q->orig_bar_rq = NULL;
+
 	return q;
 }
 EXPORT_SYMBOL(blk_alloc_queue_node);
