@@ -1625,6 +1625,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Oct 19 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-77.el6]
+- [net] Fix priv escalation in rds protocol (Neil Horman) [642900] {CVE-2010-3904}
+- [v4l] Remove compat code for VIDIOCSMICROCODE (Mauro Carvalho Chehab) [642473] {CVE-2010-2963}
+- [kernel] tracing: do not allow llseek to set_ftrace_filter (Jiri Olsa) [631626]
+- [virt] xen: hold mm->page_table_lock in vmalloc_sync (Andrew Jones) [643371]
+- [fs] xfs: properly account for reclaimed inodes (Dave Chinner) [641764]
+- [drm] fix ioctls infoleak (Danny Feng) [621437] {CVE-2010-2803}
+- [netdrv] wireless extensions: fix kernel heap content leak (John Linville) [628438] {CVE-2010-2955}
+- [netdrv] niu: buffer overflow for ETHTOOL_GRXCLSRLALL (Danny Feng) [632072] {CVE-2010-3084}
+- [mm] add debug checks for mapcount related invariants (Andrea Arcangeli) [622327 642570]
+- [mm] move VM_BUG_ON inside the page_table_lock of zap_huge_pmd (Andrea Arcangeli) [622327 642570]
+- [mm] compaction: handle active and inactive fairly in too_many_isolated (Andrea Arcangeli) [622327 642570]
+- [mm] start_khugepaged after setting transparent_hugepage_flags (Andrea Arcangeli) [622327 642570]
+- [mm] fix hibernate memory corruption (Andrea Arcangeli) [633344 642570]
+- [mm] ksmd wait_event_freezable (Andrea Arcangeli) [622327 642570]
+- [mm] khugepaged wait_event_freezable (Andrea Arcangeli) [622327 625875 642570]
+- [mm] unlink_anon_vmas in __split_vma in case of error (Andrea Arcangeli) [622327 642570]
+- [mm] fix memleak in copy_huge_pmd (Andrea Arcangeli) [622327 642570]
+- [mm] fix hang on anon_vma->root->lock (Andrea Arcangeli) [622327 642570]
+- [mm] avoid breaking huge pmd invariants in case of vma_adjust failures (Andrea Arcangeli) [622327 642570]
+
 * Mon Oct 11 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-76.el6]
 - [scsi] fcoe: set default FIP mode as FIP_MODE_FABRIC (Mike Christie) [636233]
 
