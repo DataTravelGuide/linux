@@ -36,13 +36,20 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
  *    Issue a discard request for the sectors in question.
  */
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
+		sector_t nr_sects, gfp_t gfp_mask, int flags)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = (1 << BIO_RW) | (1 << BIO_RW_DISCARD);
 	struct bio *bio;
 	int ret = 0;
+
+	/*
+	 * DEPRECATED support for DISCARD_FL_BARRIER which will
+	 * fail with -EOPNOTSUPP (due to implicit BIO_RW_BARRIER)
+	 */
+	if (flags & DISCARD_FL_BARRIER)
+		type = DISCARD_BARRIER;
 
 	if (!q)
 		return -ENXIO;

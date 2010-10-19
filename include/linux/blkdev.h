@@ -958,11 +958,14 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 
 extern int __blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
 extern int blkdev_issue_flush(struct block_device *, sector_t *);
+/* DEPRECATED preserving DISCARD_FL_* purely for compatibility */
+#define DISCARD_FL_WAIT		0x01	/* wait for completion */
+#define DISCARD_FL_BARRIER	0x02	/* issue DISCARD_BARRIER request */
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
+		sector_t nr_sects, gfp_t gfp_mask, int flags);
 
 static inline int sb_issue_discard(struct super_block *sb, sector_t block,
-		sector_t nr_blocks, gfp_t gfp_mask, unsigned long flags)
+		sector_t nr_blocks, gfp_t gfp_mask, int flags)
 {
 	return blkdev_issue_discard(sb->s_bdev, block << (sb->s_blocksize_bits - 9),
 				    nr_blocks << (sb->s_blocksize_bits - 9),
