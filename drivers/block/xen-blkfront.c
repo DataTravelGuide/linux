@@ -372,8 +372,7 @@ static int xlvbd_barrier(struct blkfront_info *info)
 	const char *barrier;
 
 	switch (info->feature_barrier) {
-	case QUEUE_ORDERED_DRAIN:	barrier = "enabled (drain)"; break;
-	case QUEUE_ORDERED_TAG:		barrier = "enabled (tag)"; break;
+	case QUEUE_ORDERED_DRAIN:	barrier = "enabled"; break;
 	case QUEUE_ORDERED_NONE:	barrier = "disabled"; break;
 	default:			return -EINVAL;
 	}
@@ -957,8 +956,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	 * we're dealing with a very old backend which writes
 	 * synchronously; draining will do what needs to get done.
 	 *
-	 * If there are barriers, then we can do full queued writes
-	 * with tagged barriers.
+	 * If there are barriers, then we use flush.
 	 *
 	 * If barriers are not supported, then there's no much we can
 	 * do, so just set ordering to NONE.
@@ -966,7 +964,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	if (err)
 		info->feature_barrier = QUEUE_ORDERED_DRAIN;
 	else if (barrier)
-		info->feature_barrier = QUEUE_ORDERED_TAG;
+		info->feature_barrier = QUEUE_ORDERED_DRAIN_FLUSH;
 	else
 		info->feature_barrier = QUEUE_ORDERED_NONE;
 
