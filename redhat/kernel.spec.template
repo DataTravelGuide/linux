@@ -1625,6 +1625,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 20 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-79.el6]
+- [block] fix a potential oops for callers of elevator_change (Jeff Moyer) [641408]
+
 * Tue Oct 19 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-78.el6]
 - [security] IMA: require command line option to enabled (Eric Paris) [643667]
 
