@@ -25,6 +25,7 @@
 #include "ima.h"
 
 int ima_initialized;
+int ima_enabled;
 
 char *ima_hash = "sha1";
 static int __init hash_setup(char *str)
@@ -34,6 +35,14 @@ static int __init hash_setup(char *str)
 	return 1;
 }
 __setup("ima_hash=", hash_setup);
+
+static int __init ima_enable(char *str)
+{
+	if (strncmp(str, "on", 2) == 0)
+		ima_enabled = 1;
+	return 1;
+}
+__setup("ima=", ima_enable);
 
 struct ima_imbalance {
 	struct hlist_node node;
@@ -147,7 +156,7 @@ void ima_counts_get(struct file *file)
 	struct ima_iint_cache *iint;
 	int rc;
 
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
+	if (!ima_enabled || !ima_initialized || !S_ISREG(inode->i_mode))
 		return;
 	iint = ima_iint_find_get(inode);
 	if (!iint)
@@ -212,7 +221,7 @@ void ima_file_free(struct file *file)
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ima_iint_cache *iint;
 
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
+	if (!ima_enabled || !ima_initialized || !S_ISREG(inode->i_mode))
 		return;
 	iint = ima_iint_find_get(inode);
 	if (!iint)
@@ -266,7 +275,7 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	int rc;
 
-	if (!file)
+	if (!ima_enabled || !file)
 		return 0;
 	if (prot & PROT_EXEC)
 		rc = process_measurement(file, file->f_dentry->d_name.name,
@@ -291,6 +300,9 @@ int ima_bprm_check(struct linux_binprm *bprm)
 {
 	int rc;
 
+	if (!ima_enabled)
+		return 0;
+
 	rc = process_measurement(bprm->file, bprm->filename,
 				 MAY_EXEC, BPRM_CHECK);
 	return 0;
@@ -310,6 +322,9 @@ int ima_file_check(struct file *file, int mask)
 {
 	int rc;
 
+	if (!ima_enabled)
+		return 0;
+
 	rc = process_measurement(file, file->f_dentry->d_name.name,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				 FILE_CHECK);
@@ -320,6 +335,9 @@ EXPORT_SYMBOL_GPL(ima_file_check);
 static int __init init_ima(void)
 {
 	int error;
+
+	if (!ima_enabled)
+		return 0;
 
 	error = ima_init();
 	ima_initialized = 1;

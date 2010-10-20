@@ -36,6 +36,7 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* set during initialization */
 extern int ima_initialized;
+extern int ima_enabled;
 extern int ima_used_chip;
 extern char *ima_hash;
 
