@@ -1,0 +1,405 @@
+
+	List of RHEL maintainers and how to submit kernel changes
+
+	OPTIONAL CC: the maintainers and mailing lists that are generated
+	by redhat/scripts/rh_get_maintainer.pl.  The results returned by the
+	script will be best if you have git installed and are making
+	your changes in a branch derived from the latest RHEL git tree.
+
+Descriptions of section entries:
+
+	P: Person (obsolete)
+	M: Mail patches to: FullName <address@domain>
+	L: Mailing list that is relevant to this area
+	W: Web-page with status/info
+	T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
+	S: Status, one of the following:
+	   Supported:	Someone is actually paid to look after this.
+	   Maintained:	Someone actually looks after it.
+	   Odd Fixes:	It has a maintainer but they don't have time to do
+			much other than throw the odd patch in. See below..
+	   Orphan:	No current maintainer [but maybe you could take the
+			role as you write your new code].
+	   Obsolete:	Old code. Something tagged obsolete generally means
+			it has been replaced by a better system and you
+			should be using that.
+	F: Files and directories with wildcard patterns.
+	   A trailing slash includes all files and subdirectory files.
+	   F:	drivers/net/	all files in and below drivers/net
+	   F:	drivers/net/*	all files in drivers/net, but not below
+	   F:	*/net/*		all files in "any top level directory"/net
+	   One pattern per line.  Multiple F: lines acceptable.
+	X: Files and directories that are NOT maintained, same rules as F:
+	   Files exclusions are tested before file matches.
+	   Can be useful for excluding a specific subdirectory, for instance:
+	   F:	net/
+	   X:	net/ipv6/
+	   matches all files in and below net excluding net/ipv6/
+	K: Keyword perl extended regex pattern to match content in a
+	   patch or file.  For instance:
+	   K: of_get_profile
+	      matches patches or files that contain "of_get_profile"
+	   K: \b(printk|pr_(info|err))\b
+	      matches patches or files that contain one or more of the words
+	      printk, pr_info or pr_err
+	   One regex pattern per line.  Multiple K: lines acceptable.
+
+Note: For the hard of thinking, this list is meant to remain in alphabetical
+order. If you could add yourselves to it in alphabetical order that would be
+so much easier [Ed]
+
+Red Hat Maintainers List (try to look for most precise areas first)
+
+		-----------------------------------
+
+8169 10/100/1000 GIGABIT ETHERNET DRIVER (r8169)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	drivers/net/r8169.c
+
+8139CP 10/100/1000 GIGABIT ETHERNET DRIVER (8139cp)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	drivers/net/8139cp.c
+
+8139TOO 10/100/1000 GIGABIT ETHERNET DRIVER (8139too)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	drivers/net/8139too.c
+
+ACPI SUBSYSTEM
+M:	Matthew Garrett <mjg@redhat.com>
+M:	Peter Martuccelli <peterm@redhat.com>
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	drivers/acpi/
+F:	drivers/pnp/pnpacpi/
+F:	include/linux/acpi.h
+F:	include/acpi/
+F:	arch/x86/kernel/acpi/
+
+ALSA SOUND DRIVER
+M:	John Feeney <jfeeney@redhat.com>
+M:	Jaroslav Kysela <jkysela@redhat.com>
+S:	Maintained
+
+ATHEROS ATH5K WIRELESS DRIVER
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/ath/ath5k/
+
+ATHEROS ATH9K WIRELESS DRIVER
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/ath/ath9k/
+
+ATL1E ETHERNET DRIVER (atl1e)
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	drivers/net/atl1e/
+
+BE2NET ETHERNET DRIVER (be2net)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	drivers/net/benet/
+
+BIOS ISSUES
+M:	Matthew Garrett <mjg@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+
+BNA ETHERNET DRIVER (bna)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+
+BROADCOM B44 10/100 ETHERNET DRIVER
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/b44.*
+
+BROADCOM BNX2 GIGABIT ETHERNET DRIVER (bnx2)
+M:	John Feeney <jfeeney@redhat.com>
+S:	Maintained
+F:	drivers/net/bnx2.*
+F:	drivers/net/bnx2_*
+
+BROADCOM BNX2X GIGABIT ETHERNET DRIVER (bnx2x)
+M:	Michal Schmidt <mschmidt@redhat.com>
+S:	Maintained
+F:	drivers/net/bnx2x.*
+F:	drivers/net/bnx2x_*
+
+BROADCOM TG3 GIGABIT ETHERNET DRIVER
+M:	John Feeney <jfeeney@redhat.com>
+S:	Maintained
+F:	drivers/net/tg3.*
+
+BONDING DRIVER
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	drivers/net/bonding/
+F:	include/linux/if_bonding.h
+
+CISCO VIC ETHERNET NIC DRIVER
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	drivers/net/enic/
+
+CPU FREQUENCY DRIVERS
+M:	Matthew Garrett <mjg@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	drivers/cpufreq/
+F:	arch/x86/kernel/cpu/cpufreq/
+
+CXGB3 ETHERNET DRIVER (cxgb3)
+M:	Doug Ledford <dledford@redhat.com>
+S:	Maintained
+F:	drivers/net/cxgb3/
+
+CXGB4 ETHERNET DRIVER (cxgb4)
+M:	Doug Ledford <dledford@redhat.com>
+S:	Maintained
+F:	drivers/net/cxgb4/
+
+EHEA ETHERNET DRIVER (ehea)
+M:	Ameet Paranjape <aparanja@redhat.com>
+S:	Maintained
+F:	drivers/net/ehea/
+
+FORCEDETH ETHERNET DRIVER (forcedeth)
+M:	Ivan Vecera <ivecera@redhat.com>
+S:	Maintained
+F:	drivers/net/forcedeth.c
+
+FIREWIRE SUBSYSTEM
+M:	Jay Fenlason <fenlason@redhat.com>
+S:	Maintained
+F:	drivers/firewire/
+F:	include/linux/firewire*.h
+
+INTEL E100 ETHERNET DRIVER (e100)
+M:	Dean Nelson <dnelson@redhat.com>
+S:	Maintained
+F:	drivers/net/e100.c
+
+INTEL E1000 ETHERNET DRIVER (e1000)
+M:	Dean Nelson <dnelson@redhat.com>
+S:	Maintained
+F:	drivers/net/e1000/
+
+INTEL E1000E ETHERNET DRIVER (e1000e)
+M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Dean Nelson <dnelson@redhat.com>
+S:	Maintained
+F:	drivers/net/e1000e/
+
+INTEL IGB ETHERNET DRIVERS (igb)
+M:	Stefan Assmann <stefan@redhat.com>
+S:	Maintained
+F:	drivers/net/igb/
+
+INTEL IGBVF ETHERNET DRIVERS (igbvf)
+M:	Stefan Assmann <stefan@redhat.com>
+S:	Maintained
+F:	drivers/net/igbvf/
+
+INTEL IXGBE ETHERNET DRIVER (ixgbe)
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	drivers/net/ixgbe/
+
+INTEL IXGBEVF ETHERNET DRIVER (ixgbevf)
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	drivers/net/ixgbevf/
+
+INTEL WIRELESS WIFI LINK (iwlwifi)
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/iwlwifi/
+
+HWMON SUBSYSTEM
+M:	Dean Nelson <dnelson@redhat.com>
+S:	Maintained
+F:	drivers/hwmon/
+
+HWPOISON MEMORY FAILURE HANDLING
+M:	Dean Nelson <dnelson@redhat.com>
+S:	Maintained
+F:	mm/memory-failure.c
+F:	mm/hwpoison-inject.c
+
+IBM IBMVETH ETHERNET DRIVER (ibmveth)
+M:	Brad Peters <bpeters@redhat.com>
+S:	Maintained
+F:	drivers/net/ibmveth.*
+
+INFINIBAND SUBSYSTEM
+M:	Doug Ledford <dledford@redhat.com>
+M:	Jay Fenlason <fenlason@redhat.com>
+S:	Maintained
+F:	drivers/infiniband/
+
+IPMI SUBSYSTEM
+M:	Peter Martuccelli <peterm@redhat.com>
+S:	Maintained
+
+MACHINE CHECK ERROR (MCE) SUBSYSTEM
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	arch/x86/kernel/cpu/mcheck/
+
+MEMORY MANAGEMENT
+M:	Larry Woodman <lwoodman@redhat.com>
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	include/linux/mm.h
+F:	mm/
+
+MEMORY HOTPLUG
+M:	Bob Picco <bpicco@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+
+MLX4 ETHERNET DRIVER (mlx4)
+M:	Doug Ledford <dledford@redhat.com>
+S:	Maintained
+F:	drivers/net/mlx4/
+
+MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/myri10ge/
+
+NETERION (S2IO) 10GbE DRIVER (xframe/vxge)
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	Documentation/networking/s2io.txt
+F:	drivers/net/s2io*
+
+NETWORKING [GENERAL]
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	net/
+F:	include/net/
+F:	include/linux/in.h
+F:	include/linux/net.h
+F:	include/linux/netdevice.h
+
+NETXEN (1/10) GbE SUPPORT
+M:	Chad Dupuis <cdupius@redhat.com>
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	drivers/net/netxen/
+
+NIU ETHERNET DRIVER (niu)
+M:	Stefan Assmann <stefan@redhat.com>
+S:	Maintained
+F:	drivers/net/niu/
+
+NON-MASKABLE INTERRUPT (NMI)
+M:	Don Zickus <dzickus@redhat.com>
+S:	Maintained
+
+PCI SUBSYSTEM
+M:	Prarit Bhargava <prarit@redhat.com>
+M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Bob Picco <bpicco@redhat.com>
+S:	Maintained
+F:	drivers/pci/
+
+PCI HOTPLUG
+M:	Bob Picco <bpicco@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	drivers/pci/hotplug/
+
+QLOGIC QLA2XXX FC-SCSI DRIVER
+M:	Chad Dupuis <cdupius@redhat.com>
+S:	Maintained
+F:	drivers/scsi/qla2xxx/
+
+QLOGIC QLA3XXX NETWORK DRIVER
+M:	Chad Dupuis <cdupius@redhat.com>
+S:	Maintained
+F:	Documentation/networking/LICENSE.qla3xxx
+F:	drivers/net/qla3xxx.*
+
+QLOGIC QLGE 10Gb ETHERNET DRIVER
+M:	Chad Dupuis <cdupius@redhat.com>
+S:	Maintained
+F:	drivers/net/qlge/
+
+RALINK RT2X00 WIRELESS LAN DRIVER
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/rt2x00/
+
+RFKILL
+M:	John Linville <linville@redhat.com>
+S:	Maintained
+F:	Documentation/rfkill.txt
+F:	net/rfkill/
+
+SCSI CORE SUBSYSTEM (NOT INDIVIDUAL DRIVERS)
+M:	David Milburn <dmilburn@redhat.com>
+M:	Doug Ledford <dledford@redhat.com>
+S:	Maintained
+F:	drivers/scsi/
+
+SERIAL ATA (SATA) SUBSYSTEM
+M:	David Milburn <dmilburn@redhat.com>
+M:	Jeff Garzik <jgarzik@redhat.com>
+S:	Maintained
+F:	drivers/ata/
+F:	include/linux/ata.h
+F:	include/linux/libata.h
+
+SFC NETWORK DRIVER
+M:	Michal Schmidt <mschmidt@redhat.com>
+S:	Maintained
+F:	drivers/net/sfc/
+
+SKGE 10/100/1000 GIGABIT ETHERNET DRIVER
+M:	Michal Schmidt <mschmidt@redhat.com>
+S:	Maintained
+F:	drivers/net/skge.*
+
+SKY2 10/100/1000 GIGABIT ETHERNET DRIVER
+M:	Andy Gospodarek <agospoda@redhat.com>
+S:	Maintained
+F:	drivers/net/sky2.*
+
+SOFTWARE RAID (Multiple Disks, MD) SUPPORT
+M:	Doug Ledford <dledford@redhat.com>
+S:	Maintained
+F:	drivers/md/
+
+SUSPEND/RESUME
+M:	Matthew Garrett <mjg@redhat.com>
+S:	Maintained
+
+X86 ARCHITECTURE (32-BIT AND 64-BIT)
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	arch/x86/
+
+USB SUBSYSTEM
+M:	Don Zickus <dzickus@redhat.com>
+S:	Maintained
+F:	drivers/usb/
+
+UVC WEBCAM DRIVER
+M:	Jay Fenlason <fenlason@redhat.com>
+S:	Maintained
+F:	drivers/media/video/uvc/
+
+WIRELESS DRIVERS
+M:	John Linville <linville@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/
+
+ZD1211RW WIRELESS DRIVER
+M:	Pete Zaitcev <zaitcev@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/zd1211rw/
