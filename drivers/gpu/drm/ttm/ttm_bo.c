@@ -540,12 +540,6 @@ retry:
 			list_del_init(&bo->ddestroy);
 			++put_count;
 		}
-		if (bo->mem.mm_node) {
-			bo->mem.mm_node->private = NULL;
-			drm_mm_put_block(bo->mem.mm_node);
-			bo->mem.mm_node = NULL;
-		}
-		spin_unlock(&glob->lru_lock);
 
 		ttm_bo_cleanup_memtype_use(bo);
 
