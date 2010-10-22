@@ -813,6 +813,59 @@ void blk_queue_flush(struct request_queue *q, unsigned int flush)
 }
 EXPORT_SYMBOL_GPL(blk_queue_flush);
 
+/**
+ * blk_queue_ordered - does this queue support ordered writes
+ * @q:        the request queue
+ * @ordered:  one of QUEUE_ORDERED_*
+ * @prepare_flush_fn: rq setup helper for cache flush ordered writes
+ *
+ * Description:
+ *   This is old method and has been retained for kABI compatibility. Any
+ *   new driver should be using and sticking to semantics of blk_queue_flush().
+ **/
+int blk_queue_ordered(struct request_queue *q, unsigned ordered,
+		      prepare_flush_fn *prepare_flush_fn)
+{
+	if (!prepare_flush_fn && (ordered & (QUEUE_ORDERED_DO_PREFLUSH |
+					     QUEUE_ORDERED_DO_POSTFLUSH))) {
+		printk(KERN_ERR "%s: prepare_flush_fn required\n", __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * Note: QUEUE_ORDERED_TAG* variants are not supported as it never
+	 * worked reliably.
+	 */
+
+	if (ordered != QUEUE_ORDERED_NONE &&
+	    ordered != QUEUE_ORDERED_DRAIN &&
+	    ordered != QUEUE_ORDERED_DRAIN_FLUSH &&
+	    ordered != QUEUE_ORDERED_DRAIN_FUA &&
+	    ordered != QUEUE_ORDERED_TAG &&
+	    ordered != QUEUE_ORDERED_TAG_FLUSH &&
+	    ordered != QUEUE_ORDERED_TAG_FUA) {
+		printk(KERN_ERR "blk_queue_ordered: bad value %d\n", ordered);
+		return -EINVAL;
+	}
+
+	q->ordered = ordered;
+	q->next_ordered = ordered;
+	q->prepare_flush_fn = prepare_flush_fn;
+
+	/* Map old queue values to new flush/fua capabilities */
+
+	if (ordered == QUEUE_ORDERED_DRAIN_FLUSH ||
+	    ordered == QUEUE_ORDERED_TAG_FLUSH)
+		q->flush_flags = REQ_FLUSH;
+
+	if (ordered == QUEUE_ORDERED_DRAIN_FUA ||
+	    ordered == QUEUE_ORDERED_TAG_FUA)
+		q->flush_flags = (REQ_FLUSH | REQ_FUA);
+
+	return 0;
+}
+EXPORT_SYMBOL(blk_queue_ordered);
+
 static int __init blk_settings_init(void)
 {
 	blk_max_low_pfn = max_low_pfn - 1;

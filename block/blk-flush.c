@@ -90,11 +90,22 @@ static void post_flush_end_io(struct request *rq, int error)
 	blk_flush_complete_seq_end_io(rq->q, QUEUE_FSEQ_POSTFLUSH, error);
 }
 
-static void init_flush_request(struct request *rq, struct gendisk *disk)
+static void init_flush_request(struct request_queue *q, struct request *rq,
+					struct gendisk *disk)
 {
-	rq->cmd_type = REQ_TYPE_FS;
-	rq->cmd_flags = WRITE_FLUSH;
 	rq->rq_disk = disk;
+
+	/*
+	 * For compatibility with drivers using old semantics of providing
+	 * a prepare_flush_fn and not parsing REQ_FLUSH flag.
+	 */
+	if (q->prepare_flush_fn) {
+		rq->cmd_flags = REQ_HARDBARRIER;
+		q->prepare_flush_fn(q, rq);
+	} else {
+		rq->cmd_type = REQ_TYPE_FS;
+		rq->cmd_flags = WRITE_FLUSH;
+	}
 }
 
 static struct request *queue_next_fseq(struct request_queue *q)
@@ -106,8 +117,8 @@ static struct request *queue_next_fseq(struct request_queue *q)
 
 	switch (blk_flush_cur_seq(q)) {
 	case QUEUE_FSEQ_PREFLUSH:
-		init_flush_request(rq, orig_rq->rq_disk);
 		rq->end_io = pre_flush_end_io;
+		init_flush_request(q, rq, orig_rq->rq_disk);
 		break;
 	case QUEUE_FSEQ_DATA:
 		init_request_from_bio(rq, orig_rq->bio);
@@ -123,8 +134,8 @@ static struct request *queue_next_fseq(struct request_queue *q)
 		rq->end_io = flush_data_end_io;
 		break;
 	case QUEUE_FSEQ_POSTFLUSH:
-		init_flush_request(rq, orig_rq->rq_disk);
 		rq->end_io = post_flush_end_io;
+		init_flush_request(q, rq, orig_rq->rq_disk);
 		break;
 	default:
 		BUG();

@@ -495,6 +495,59 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	__clear_bit(flag, &q->queue_flags);
 }
 
+/*
+ * Keeping old queue ordering semantics around so that old storage drivers
+ * can still specify their capabilites. These capabilities are remapped
+ * to new functions.
+ *
+ * Any driver which is recompiling against 6.1 onwards, should deprecate
+ * use of blk_queue_ordered() and following flags and should use
+ * blk_queue_flush() interface to register queue capabilities.
+ */
+enum {
+	/*
+	 * flush/fua is supported with one of the following methods.
+	 *
+	 * NONE		: no write cache. No flush/fua required. no ordering.
+	 * DRAIN	: ordering by drain. no write cache. no flush/fua req.
+	 * 		  mapped to q->flush_flags = 0
+	 * DRAIN_FLUSH	: ordering by draining w/ pre and post flushes
+	 * 		  mapped to q->flush_flags = REQ_FLUSH
+	 * DRAIN_FUA	: ordering by draining w/ pre flush and FUA write
+	 * 		  mapped to q->flush_flags = (REQ_FLUSH | REQ_FUA)
+	 *
+	 * TAG		: mapped to q->flush_flags = 0
+	 * TAG_FLUSH	: mapped to q->flush_flags = REQ_FLUSH
+	 * TAG_FUA	: mapped to q->flush_flags = (REQ_FLUSH | REQ_FUA)
+	 */
+	QUEUE_ORDERED_BY_DRAIN		= 0x01,
+	QUEUE_ORDERED_BY_TAG		= 0x02,
+	QUEUE_ORDERED_DO_PREFLUSH	= 0x10,
+	QUEUE_ORDERED_DO_BAR		= 0x20,
+	QUEUE_ORDERED_DO_POSTFLUSH	= 0x40,
+	QUEUE_ORDERED_DO_FUA		= 0x80,
+
+	QUEUE_ORDERED_NONE		= 0x00,
+
+	QUEUE_ORDERED_DRAIN		= QUEUE_ORDERED_BY_DRAIN |
+					  QUEUE_ORDERED_DO_BAR,
+	QUEUE_ORDERED_DRAIN_FLUSH	= QUEUE_ORDERED_DRAIN |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_POSTFLUSH,
+	QUEUE_ORDERED_DRAIN_FUA		= QUEUE_ORDERED_DRAIN |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_FUA,
+
+	QUEUE_ORDERED_TAG		= QUEUE_ORDERED_BY_TAG |
+					  QUEUE_ORDERED_DO_BAR,
+	QUEUE_ORDERED_TAG_FLUSH		= QUEUE_ORDERED_TAG |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_POSTFLUSH,
+	QUEUE_ORDERED_TAG_FUA		= QUEUE_ORDERED_TAG |
+					  QUEUE_ORDERED_DO_PREFLUSH |
+					  QUEUE_ORDERED_DO_FUA,
+};
+
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_queuing(q)	test_bit(QUEUE_FLAG_CQ, &(q)->queue_flags)
