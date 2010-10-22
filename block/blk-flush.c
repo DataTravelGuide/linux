@@ -104,7 +104,7 @@ static void init_flush_request(struct request_queue *q, struct request *rq,
 		q->prepare_flush_fn(q, rq);
 	} else {
 		rq->cmd_type = REQ_TYPE_FS;
-		rq->cmd_flags = WRITE_FLUSH;
+		rq->cmd_flags = REQ_WRITE_FLUSH;
 	}
 }
 

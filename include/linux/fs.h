@@ -121,7 +121,8 @@ struct inodes_stat_t {
  *			 block layer could (in theory) choose to ignore this
  *			request if it runs into resource problems.
  * WRITE		A normal async write. Device will be plugged.
- * SWRITE		Like WRITE, but a special case for ll_rw_block() that
+ * SWRITE		DEPRECATED; use write_dirty_buffer instead.
+ *			Like WRITE, but a special case for ll_rw_block() that
  *			tells it to lock the buffer first. Normally a buffer
  *			must be locked before doing IO.
  * WRITE_SYNC_PLUG	Synchronous write. Identical to WRITE, but passes down
@@ -135,8 +136,8 @@ struct inodes_stat_t {
  *			of READ_SYNC.
  * WRITE_ODIRECT_PLUG	Special case write for O_DIRECT only.
  * SWRITE_SYNC
- * SWRITE_SYNC_PLUG	Like WRITE_SYNC/WRITE_SYNC_PLUG, but locks the buffer.
- *			See SWRITE.
+ * SWRITE_SYNC_PLUG	DEPRECATED. Like WRITE_SYNC/WRITE_SYNC_PLUG, but locks
+ *			the buffer. See SWRITE.
  * WRITE_BARRIER	DEPRECATED. Always fails. Use FLUSH/FUA instead.
  * WRITE_FLUSH		Like WRITE_SYNC but with preceding cache flush.
  * WRITE_FUA		Like WRITE_SYNC but data is guaranteed to be on
@@ -147,29 +148,35 @@ struct inodes_stat_t {
  *
  */
 #define RW_MASK			REQ_WRITE
-#define RWA_MASK		REQ_RAHEAD
+#define RWA_MASK		(1 << BIO_RW_AHEAD)
 
 #define READ			0
 #define WRITE			1
 #define READA			RWA_MASK
 #define SWRITE			(WRITE | READA)
 
-#define READ_SYNC		(READ | REQ_SYNC | REQ_UNPLUG)
-#define READ_META		(READ | REQ_META)
-#define WRITE_SYNC_PLUG		(WRITE | REQ_SYNC | REQ_NOIDLE)
-#define WRITE_SYNC		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
-#define WRITE_ODIRECT_PLUG	(WRITE | REQ_SYNC)
-#define WRITE_META		(WRITE | REQ_META)
-#define WRITE_BARRIER		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_HARDBARRIER)
-#define WRITE_FLUSH		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_FLUSH)
-#define WRITE_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_FUA)
-#define WRITE_FLUSH_FUA		(WRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG | \
-				 REQ_FLUSH | REQ_FUA)
-#define SWRITE_SYNC_PLUG	(SWRITE | REQ_SYNC | REQ_NOIDLE)
-#define SWRITE_SYNC		(SWRITE | REQ_SYNC | REQ_NOIDLE | REQ_UNPLUG)
+#define READ_SYNC	(READ | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG))
+#define READ_META	(READ | (1 << BIO_RW_META))
+#define WRITE_SYNC_PLUG	(WRITE | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_NOIDLE))
+#define WRITE_SYNC	(WRITE_SYNC_PLUG | (1 << BIO_RW_UNPLUG))
+#define WRITE_ODIRECT_PLUG	(WRITE | (1 << BIO_RW_SYNCIO))
+#define WRITE_META	(WRITE | (1 << BIO_RW_META))
+#define SWRITE_SYNC_PLUG						\
+			(SWRITE | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_NOIDLE))
+#define SWRITE_SYNC	(SWRITE_SYNC_PLUG | (1 << BIO_RW_UNPLUG))
+#define WRITE_BARRIER	(WRITE_SYNC | (1 << BIO_RW_BARRIER))
+
+#define WRITE_FLUSH	(WRITE_SYNC | (1 << BIO_RW_FLUSH))
+#define WRITE_FUA	(WRITE_SYNC | (1 << BIO_RW_FUA))
+#define WRITE_FLUSH_FUA	(WRITE_FLUSH | WRITE_FUA)
+
+/*
+ * These aren't really reads or writes, they pass down information about
+ * parts of device that are now unused by the file system.
+ * DEPRECATED but preserved for compatibility.
+ */
+#define DISCARD_NOBARRIER (WRITE | (1 << BIO_RW_DISCARD))
+#define DISCARD_BARRIER (DISCARD_NOBARRIER | (1 << BIO_RW_BARRIER))
 
 #define SEL_IN		1
 #define SEL_OUT		2

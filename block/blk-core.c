@@ -1159,9 +1159,30 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
-	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
-	if (bio->bi_rw & REQ_RAHEAD)
+	/*
+	 * Inherit FAILFAST from bio (for read-ahead, and explicit
+	 * FAILFAST).  FAILFAST flags are identical for req and bio.
+	 */
+	if (bio_rw_flagged(bio, BIO_RW_AHEAD))
 		req->cmd_flags |= REQ_FAILFAST_MASK;
+	else
+		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
+
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD))
+		req->cmd_flags |= REQ_DISCARD;
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER))
+		req->cmd_flags |= REQ_HARDBARRIER;
+	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
+		req->cmd_flags |= REQ_RW_SYNC;
+	if (bio_rw_flagged(bio, BIO_RW_META))
+		req->cmd_flags |= REQ_RW_META;
+	if (bio_rw_flagged(bio, BIO_RW_NOIDLE))
+		req->cmd_flags |= REQ_NOIDLE;
+
+	if (bio_rw_flagged(bio, BIO_RW_FLUSH))
+		req->cmd_flags |= REQ_FLUSH;
+	if (bio_rw_flagged(bio, BIO_RW_FUA))
+		req->cmd_flags |= REQ_FUA;
 
 	req->errors = 0;
 	req->__sector = bio->bi_sector;
@@ -1184,14 +1205,14 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int el_ret;
 	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
-	const bool sync = (bio->bi_rw & REQ_SYNC);
-	const bool unplug = (bio->bi_rw & REQ_UNPLUG);
+	const bool sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const bool unplug = bio_rw_flagged(bio, BIO_RW_UNPLUG);
 	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int where = ELEVATOR_INSERT_SORT;
 	int rw_flags;
 
 	/* REQ_HARDBARRIER is no more */
-	if (WARN_ONCE(bio->bi_rw & REQ_HARDBARRIER,
+	if (WARN_ONCE(bio_rw_flagged(bio, BIO_RW_BARRIER),
 		"block: HARDBARRIER is deprecated, use FLUSH/FUA instead\n")) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
@@ -1206,7 +1227,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA)) {
 		where = ELEVATOR_INSERT_FRONT;
 		goto get_rq;
 	}
@@ -1478,7 +1499,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
+		if (unlikely(!bio_rw_flagged(bio, BIO_RW_DISCARD) &&
 			     nr_sectors > queue_max_hw_sectors(q))) {
 			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 			       bdevname(bio->bi_bdev, b),
@@ -1516,15 +1537,16 @@ static inline void __generic_make_request(struct bio *bio)
 		 * drivers without flush support don't have to worry
 		 * about them.
 		 */
-		if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) && !q->flush_flags) {
-			bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
+		if ((bio->bi_rw & (BIO_FLUSH | BIO_FUA)) && !q->flush_flags) {
+			bio->bi_rw &= ~(BIO_FLUSH | BIO_FUA);
 			if (!nr_sectors) {
 				err = 0;
 				goto end_io;
 			}
 		}
 
-		if ((bio->bi_rw & REQ_DISCARD) && !blk_queue_discard(q)) {
+		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+		    !blk_queue_discard(q)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
@@ -1612,7 +1634,7 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio) && !(rw & REQ_DISCARD)) {
+	if (bio_has_data(bio) && !(rw & (1 << BIO_RW_DISCARD))) {
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {

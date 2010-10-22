@@ -468,7 +468,7 @@ static int raid0_make_request(mddev_t *mddev, struct bio *bio)
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bio->bi_rw & BIO_FLUSH)) {
 		md_flush_request(mddev, bio);
 		return 0;
 	}

@@ -845,7 +845,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 		goto out_bmd;
 
 	if (!write_to_vm)
-		bio->bi_rw |= REQ_WRITE;
+		bio->bi_rw |= (1 << BIO_RW);
 
 	ret = 0;
 
@@ -1026,7 +1026,7 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	 * set data direction, and check if mapped pages need bouncing
 	 */
 	if (!write_to_vm)
-		bio->bi_rw |= REQ_WRITE;
+		bio->bi_rw |= (1 << BIO_RW);
 
 	bio->bi_bdev = bdev;
 	bio->bi_flags |= (1 << BIO_USER_MAPPED);

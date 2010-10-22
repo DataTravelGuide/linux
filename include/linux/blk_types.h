@@ -38,6 +38,57 @@
 #endif /* CONFIG_BLOCK */
 
 /*
+ * bio bi_rw flags
+ *
+ * bit 0 -- data direction
+ *	If not set, bio is a read from device. If set, it's a write to device.
+ * bit 1 -- fail fast device errors
+ * bit 2 -- fail fast transport errors
+ * bit 3 -- fail fast driver errors
+ * bit 4 -- rw-ahead when set
+ * bit 5 -- barrier
+ *	Insert a serialization point in the IO queue, forcing previously
+ *	submitted IO to be completed before this one is issued.
+ * bit 6 -- synchronous I/O hint.
+ * bit 7 -- Unplug the device immediately after submitting this bio.
+ * bit 8 -- metadata request
+ *	Used for tracing to differentiate metadata and data IO. May also
+ *	get some preferential treatment in the IO scheduler
+ * bit 9 -- discard sectors
+ *	Informs the lower level device that this range of sectors is no longer
+ *	used by the file system and may thus be freed by the device. Used
+ *	for flash based storage.
+ *	Don't want driver retries for any fast fail whatever the reason.
+ * bit 10 -- Tell the IO scheduler not to wait for more requests after this
+ *	one has been submitted, even if it is a SYNC request.
+ * bit 11 -- FLUSH
+ * bit 12 -- FUA
+ */
+enum bio_rw_flags {
+	BIO_RW,
+	BIO_RW_FAILFAST_DEV,
+	BIO_RW_FAILFAST_TRANSPORT,
+	BIO_RW_FAILFAST_DRIVER,
+	/* above flags must match REQ_* */
+	BIO_RW_AHEAD,
+	BIO_RW_BARRIER,
+	BIO_RW_SYNCIO,
+	BIO_RW_UNPLUG,
+	BIO_RW_META,
+	BIO_RW_DISCARD,
+	BIO_RW_NOIDLE,
+	/*
+	 * FLUSH and FUA are so bio-based drivers (DM/MD) and FS
+	 * have something to work with
+	 */
+	BIO_RW_FLUSH,
+	BIO_RW_FUA,
+};
+
+#define BIO_FLUSH		(1 << BIO_RW_FLUSH)
+#define BIO_FUA			(1 << BIO_RW_FUA)
+
+/*
  * request type modified bits. first four bits match BIO_RW* bits, important
  */
 enum rq_flag_bits {
@@ -69,11 +120,6 @@ enum rq_flag_bits {
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
 	__REQ_FLUSH,		/* request for cache flush */
-
-	/* bio only flags */
-	__REQ_UNPLUG,		/* unplug the immediately after submission */
-	__REQ_RAHEAD,		/* read ahead, can fail anytime */
-
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -101,9 +147,6 @@ enum rq_flag_bits {
 	 REQ_META | REQ_DISCARD | REQ_NOIDLE | REQ_FLUSH | REQ_FUA)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
 
-#define REQ_UNPLUG		(1 << __REQ_UNPLUG)
-#define REQ_RAHEAD		(1 << __REQ_RAHEAD)
-
 #define REQ_SORTED		(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER		(1 << __REQ_SOFTBARRIER)
 #define REQ_FUA			(1 << __REQ_FUA)
@@ -122,5 +165,7 @@ enum rq_flag_bits {
 #define REQ_FLUSH		(1 << __REQ_FLUSH)
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
+
+#define REQ_WRITE_FLUSH		(REQ_WRITE | REQ_SYNC | REQ_NOIDLE | REQ_FLUSH)
 
 #endif /* __LINUX_BLK_TYPES_H */

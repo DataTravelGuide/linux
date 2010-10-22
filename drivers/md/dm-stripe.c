@@ -271,13 +271,13 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 	uint32_t stripe;
 	unsigned target_request_nr;
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & BIO_FLUSH) {
 		target_request_nr = map_context->target_request_nr;
 		BUG_ON(target_request_nr >= sc->stripes);
 		bio->bi_bdev = sc->stripe[target_request_nr].dev->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
 		target_request_nr = map_context->target_request_nr;
 		BUG_ON(target_request_nr >= sc->stripes);
 		return stripe_map_discard(sc, bio, target_request_nr);
@@ -345,7 +345,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 	if (!error)
 		return 0; /* I/O complete */
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
+	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
 		return error;
 
 	if (error == -EOPNOTSUPP)

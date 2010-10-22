@@ -670,7 +670,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		if (bio->bi_rw & REQ_FLUSH) {
+		if (bio->bi_rw & BIO_FLUSH) {
 			bio_list_add(&sync, bio);
 			continue;
 		}
@@ -1203,7 +1203,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		if (!(bio->bi_rw & REQ_FLUSH))
+		if (!(bio->bi_rw & BIO_FLUSH))
 			dm_rh_dec(ms->rh, map_context->ll);
 		return error;
 	}
@@ -1211,7 +1211,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	if (error == -EOPNOTSUPP)
 		goto out;
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_rw & REQ_RAHEAD))
+	if ((error == -EWOULDBLOCK) && bio_rw_flagged(bio, BIO_RW_AHEAD))
 		goto out;
 
 	if (unlikely(error)) {

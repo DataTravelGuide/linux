@@ -40,7 +40,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
-	int type = REQ_WRITE | REQ_DISCARD;
+	int type = (1 << BIO_RW) | (1 << BIO_RW_DISCARD);
 	struct bio *bio;
 	int ret = 0;
 

@@ -59,7 +59,7 @@ static struct block_device *resume_bdev;
 static int submit(int rw, pgoff_t page_off, struct page *page,
 			struct bio **bio_chain)
 {
-	const int bio_rw = rw | REQ_SYNC | REQ_UNPLUG;
+	const int bio_rw = rw | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
 	struct bio *bio;
 
 	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);

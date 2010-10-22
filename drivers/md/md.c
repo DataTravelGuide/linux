@@ -343,7 +343,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		/* an empty barrier - all done */
 		bio_endio(bio, 0);
 	else {
-		bio->bi_rw &= ~REQ_FLUSH;
+		bio->bi_rw &= ~BIO_FLUSH;
 		if (mddev->pers->make_request(mddev, bio))
 			generic_make_request(bio);
 	}
@@ -647,8 +647,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	bio->bi_end_io = super_written;
 
 	atomic_inc(&mddev->pending_writes);
-	submit_bio(REQ_WRITE | REQ_SYNC | REQ_UNPLUG | REQ_FLUSH | REQ_FUA,
-		   bio);
+	submit_bio((WRITE_FLUSH_FUA & ~(1 << BIO_RW_NOIDLE)), bio);
 }
 
 void md_super_wait(mddev_t *mddev)
@@ -676,7 +675,7 @@ int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 	struct completion event;
 	int ret;
 
-	rw |= REQ_SYNC | REQ_UNPLUG;
+	rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
 
 	bio->bi_bdev = bdev;
 	bio->bi_sector = sector;

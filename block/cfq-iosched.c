@@ -434,7 +434,7 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
  */
 static inline bool cfq_bio_sync(struct bio *bio)
 {
-	return bio_data_dir(bio) == READ || (bio->bi_rw & REQ_SYNC);
+	return bio_data_dir(bio) == READ || bio_rw_flagged(bio, BIO_RW_SYNCIO);
 }
 
 /*

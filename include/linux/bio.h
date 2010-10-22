@@ -113,6 +113,11 @@ struct bio {
 	struct bio_vec		bi_inline_vecs[0];
 };
 
+static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
+{
+	return (bio->bi_rw & (1 << flag)) != 0;
+}
+
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
  */
@@ -136,10 +141,7 @@ struct bio {
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_empty_barrier(bio) \
-	((bio->bi_rw & REQ_HARDBARRIER) && \
-	 !bio_has_data(bio) && \
-	 !(bio->bi_rw & REQ_DISCARD))
+#define bio_empty_barrier(bio)	(bio_rw_flagged(bio, BIO_RW_BARRIER) && !bio_has_data(bio) && !bio_rw_flagged(bio, BIO_RW_DISCARD))
 
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {

@@ -290,7 +290,7 @@ static int linear_make_request (mddev_t *mddev, struct bio *bio)
 	dev_info_t *tmp_dev;
 	sector_t start_sector;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bio->bi_rw & BIO_FLUSH)) {
 		md_flush_request(mddev, bio);
 		return 0;
 	}

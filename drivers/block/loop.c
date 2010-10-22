@@ -478,12 +478,12 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 		struct file *file = lo->lo_backing_file;
 
 		/* REQ_HARDBARRIER is deprecated */
-		if (bio->bi_rw & REQ_HARDBARRIER) {
+		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
 			ret = -EOPNOTSUPP;
 			goto out;
 		}
 
-		if (bio->bi_rw & REQ_FLUSH) {
+		if (bio->bi_rw & BIO_FLUSH) {
 			ret = vfs_fsync(file, file->f_path.dentry, 0);
 			if (unlikely(ret && ret != -EINVAL)) {
 				ret = -EIO;
@@ -493,7 +493,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 		ret = lo_send(lo, bio, pos);
 
-		if ((bio->bi_rw & REQ_FUA) && !ret) {
+		if ((bio->bi_rw & BIO_FUA) && !ret) {
 			ret = vfs_fsync(file, file->f_path.dentry, 0);
 			if (unlikely(ret && ret != -EINVAL))
 				ret = -EIO;

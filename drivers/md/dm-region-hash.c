@@ -400,7 +400,7 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	region_t region = dm_rh_bio_to_region(rh, bio);
 	int recovering = 0;
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & BIO_FLUSH) {
 		rh->flush_failure = 1;
 		return;
 	}
@@ -526,7 +526,7 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 	struct bio *bio;
 
 	for (bio = bios->head; bio; bio = bio->bi_next) {
-		if (bio->bi_rw & REQ_FLUSH)
+		if (bio->bi_rw & BIO_FLUSH)
 			continue;
 		dm_rh_inc(rh, dm_rh_bio_to_region(rh, bio));
 	}

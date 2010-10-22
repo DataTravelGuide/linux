@@ -3888,7 +3888,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 	const int rw = bio_data_dir(bi);
 	int remaining;
 
-	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bi->bi_rw & BIO_FLUSH)) {
 		md_flush_request(mddev, bi);
 		return 0;
 	}
@@ -4007,7 +4007,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 			finish_wait(&conf->wait_for_overlap, &w);
 			set_bit(STRIPE_HANDLE, &sh->state);
 			clear_bit(STRIPE_DELAYED, &sh->state);
-			if ((bi->bi_rw & REQ_SYNC) &&
+			if (bio_rw_flagged(bi, BIO_RW_SYNCIO) &&
 			    !test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 				atomic_inc(&conf->preread_active_stripes);
 			release_stripe(sh);

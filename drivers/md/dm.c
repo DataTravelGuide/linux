@@ -615,12 +615,12 @@ static void dec_pending(struct dm_io *io, int error)
 		if (io_error == DM_ENDIO_REQUEUE)
 			return;
 
-		if ((bio->bi_rw & REQ_FLUSH) && bio->bi_size) {
+		if ((bio->bi_rw & BIO_FLUSH) && bio->bi_size) {
 			/*
 			 * Preflush done for flush with data, reissue
-			 * without REQ_FLUSH.
+			 * without BIO_FLUSH.
 			 */
-			bio->bi_rw &= ~REQ_FLUSH;
+			bio->bi_rw &= ~BIO_FLUSH;
 			queue_io(md, bio);
 		} else {
 			/* done with normal IO or empty flush */
@@ -1190,7 +1190,7 @@ static int __clone_and_map(struct clone_info *ci)
 	sector_t len = 0, max;
 	struct dm_target_io *tio;
 
-	if (unlikely(bio->bi_rw & REQ_DISCARD))
+	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD)))
 		return __clone_and_map_discard(ci);
 
 	ti = dm_table_find_target(ci->map, ci->sector);
@@ -1296,7 +1296,7 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	ci.idx = bio->bi_idx;
 
 	start_io_acct(ci.io);
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & BIO_FLUSH) {
 		ci.bio = &ci.md->flush_bio;
 		ci.sector_count = 0;
 		error = __clone_and_map_empty_flush(&ci);
