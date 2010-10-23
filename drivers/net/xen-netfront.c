@@ -51,7 +51,12 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/grant_table.h>
 
+#include <linux/pci.h>
+#include <net/net_namespace.h>
+#include <linux/if_arp.h>
+
 static const struct ethtool_ops xennet_ethtool_ops;
+static int print_once;
 
 struct netfront_cb {
 	struct page *page;
@@ -1192,6 +1197,28 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	return ERR_PTR(err);
 }
 
+static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
+{
+	char *s, *e, *macstr;
+	int i;
+
+	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
+	if (IS_ERR(macstr))
+		return PTR_ERR(macstr);
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		mac[i] = simple_strtoul(s, &e, 16);
+		if ((s == e) || (*e != ((i == ETH_ALEN-1) ? '\0' : ':'))) {
+			kfree(macstr);
+			return -ENOENT;
+		}
+		s = e+1;
+	}
+
+	kfree(macstr);
+	return 0;
+}
+
 /**
  * Entry point to this code when a new device is created.  Allocate the basic
  * structures and the ring buffers for communication with the backend, and
@@ -1202,7 +1229,50 @@ static int __devinit netfront_probe(struct xenbus_device *dev,
 {
 	int err;
 	struct net_device *netdev;
+	struct net_device *netdev_found=NULL;
 	struct netfront_info *info;
+	char mac_addr[ETH_ALEN];
+
+	/*
+	 * Before anything normal is done, check for the abnormal setup of xen tools
+	 * starting up a guest with an 8139 _and_ a xen-vnif with the same mac addr;
+	 * this makes network tools, like udev &/or NetworkManager have a nutty.
+	 * So, if this situation exists, don't register the xen-vnif, and print out
+	 * a message to change the xen guest configuration to add type=netfront
+	 * to the vif spec if xen-vnif is desired network configuration.
+	 */
+	err = xen_net_read_mac(dev, mac_addr);
+	if (err) {
+		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->nodename);
+		goto out;
+	}
+	rtnl_lock(); /* dev_getbyhwaddr() throws assert w/o this lock */
+	netdev_found = dev_getbyhwaddr(&init_net, ARPHRD_ETHER, mac_addr);
+	rtnl_unlock();
+	if (netdev_found) {
+		struct pci_dev *pdev_8139_in_netdev;
+		struct pci_dev *pdev_8139=NULL;
+		/* Now check if 8139 connected to PCI;
+		 * if so, check that it's the same one associated with net_dev
+		 * if so, 3 strikes, you're out... don't configure xen-vnif
+		 */
+		 pdev_8139 = pci_get_subsys(PCI_VENDOR_ID_REALTEK,
+		 			    PCI_DEVICE_ID_REALTEK_8139,
+					    PCI_VENDOR_ID_XEN,
+					    PCI_DEVICE_ID_XEN_PLATFORM,
+					    NULL);
+		if (pdev_8139) {
+			pdev_8139_in_netdev = to_pci_dev(netdev_found->dev.parent);
+			if ((pdev_8139_in_netdev == pdev_8139) && !print_once) {
+				printk("Xen: found realtek-8139 w/same mac-addr as xen-vnif; ");
+				printk(" skipping xen-vnif configuration \n");
+				printk(" Add 'type=netfront' to xen guest's vif config line so");
+				printk(" xen-vnif is only, primary network device\n");
+				print_once++;
+				return -ENODEV;
+			}
+		}
+	}
 
 	netdev = xennet_create_dev(dev);
 	if (IS_ERR(netdev)) {
@@ -1234,6 +1304,7 @@ static int __devinit netfront_probe(struct xenbus_device *dev,
  fail:
 	free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
+out:
 	return err;
 }
 
@@ -1280,28 +1351,6 @@ static int netfront_resume(struct xenbus_device *dev)
 	dev_dbg(&dev->dev, "%s\n", dev->nodename);
 
 	xennet_disconnect_backend(info);
-	return 0;
-}
-
-static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
-{
-	char *s, *e, *macstr;
-	int i;
-
-	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
-	if (IS_ERR(macstr))
-		return PTR_ERR(macstr);
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac[i] = simple_strtoul(s, &e, 16);
-		if ((s == e) || (*e != ((i == ETH_ALEN-1) ? '\0' : ':'))) {
-			kfree(macstr);
-			return -ENOENT;
-		}
-		s = e+1;
-	}
-
-	kfree(macstr);
 	return 0;
 }
 
