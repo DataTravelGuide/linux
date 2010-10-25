@@ -108,13 +108,8 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 		goto out;
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_trans_huge(*pmd)) {
-		/* verify this pmd isn't mapping our old page */
-		BUG_ON(!pmd_present(*pmd));
-		BUG_ON(PageTransCompound(old));
-		BUG_ON(pmd_page(*pmd) == old);
+	if (pmd_trans_huge(*pmd))
 		goto out;
-	}
 	if (!pmd_present(*pmd))
 		goto out;
 

@@ -679,7 +679,6 @@ out:
 	 */
 	if (unlikely(__pte_alloc(mm, vma, pmd, address)))
 		return VM_FAULT_OOM;
-	VM_BUG_ON(!pmd_present(*pmd));
 	/* if an huge pmd materialized from under us just retry later */
 	if (unlikely(pmd_trans_huge(*pmd)))
 		return 0;
