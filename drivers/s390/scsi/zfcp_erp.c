@@ -625,6 +625,7 @@ static void zfcp_erp_enqueue_ptp_port(struct zfcp_adapter *adapter)
 	if (IS_ERR(port)) /* error or port already attached */
 		return;
 	_zfcp_erp_port_reopen(port, 0, "ereptp1", NULL);
+	zfcp_port_put(port);
 }
 
 static int zfcp_erp_adapter_strat_fsf_xconf(struct zfcp_erp_action *erp_action)
