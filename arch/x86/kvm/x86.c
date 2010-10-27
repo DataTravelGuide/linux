@@ -419,6 +419,8 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if (cr0 & CR0_RESERVED_BITS)
 		return 1;
 
+	cr0 |= X86_CR0_ET;
+
 	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD))
 		return 1;
 
