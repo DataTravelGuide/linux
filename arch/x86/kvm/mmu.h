@@ -2,6 +2,7 @@
 #define __KVM_X86_MMU_H
 
 #include <linux/kvm_host.h>
+#include "kvm_cache_regs.h"
 
 #define PT64_PT_BITS 9
 #define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
@@ -80,7 +81,7 @@ static inline int is_pse(struct kvm_vcpu *vcpu)
 
 static inline int is_paging(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cr0 & X86_CR0_PG;
+	return kvm_read_cr0_bits(vcpu, X86_CR0_PG);
 }
 
 static inline int is_present_gpte(unsigned long pte)

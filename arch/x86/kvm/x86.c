@@ -452,7 +452,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cr0);
 
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
-	(void)kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0eul) | (msw & 0x0f));
+	(void)kvm_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~0x0eul) | (msw & 0x0f));
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
@@ -3120,7 +3120,7 @@ int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
 
 int emulate_clts(struct kvm_vcpu *vcpu)
 {
-	kvm_x86_ops->set_cr0(vcpu, vcpu->arch.cr0 & ~X86_CR0_TS);
+	kvm_x86_ops->set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
 	return X86EMUL_CONTINUE;
 }
 
@@ -3767,7 +3767,7 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 	switch (cr) {
 	case 0:
-		value = vcpu->arch.cr0;
+		value = kvm_read_cr0(vcpu);
 		break;
 	case 2:
 		value = vcpu->arch.cr2;
@@ -3796,7 +3796,7 @@ int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 
 	switch (cr) {
 	case 0:
-		res = kvm_set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
+		res = kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
 		*rflags = kvm_x86_ops->get_rflags(vcpu);
 		break;
 	case 2:
@@ -4405,7 +4405,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->gdt.base = dt.base;
 
 	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
-	sregs->cr0 = vcpu->arch.cr0;
+	sregs->cr0 = kvm_read_cr0(vcpu);
 	sregs->cr2 = vcpu->arch.cr2;
 	sregs->cr3 = vcpu->arch.cr3;
 	sregs->cr4 = vcpu->arch.cr4;
@@ -4592,7 +4592,7 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg)
 	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
 	int ret;
 
-	if (is_vm86_segment(vcpu, seg) || !(vcpu->arch.cr0 & X86_CR0_PE))
+	if (is_vm86_segment(vcpu, seg) || !(kvm_read_cr0_bits(vcpu, X86_CR0_PE)))
 		return kvm_load_realmode_segment(vcpu, selector, seg);
 
 	/* NULL selector is not valid for TR, CS and SS */
@@ -4994,7 +4994,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 					      &nseg_desc);
 	}
 
-	kvm_x86_ops->set_cr0(vcpu, vcpu->arch.cr0 | X86_CR0_TS);
+	kvm_x86_ops->set_cr0(vcpu, kvm_read_cr0(vcpu) | X86_CR0_TS);
 	seg_desct_to_kvm_desct(&nseg_desc, tss_selector, &tr_seg);
 	tr_seg.type = 11;
 	kvm_set_segment(vcpu, &tr_seg, VCPU_SREG_TR);
@@ -5031,7 +5031,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 
-	mmu_reset_needed |= vcpu->arch.cr0 != sregs->cr0;
+	mmu_reset_needed |= kvm_read_cr0(vcpu) != sregs->cr0;
 	kvm_x86_ops->set_cr0(vcpu, sregs->cr0);
 	vcpu->arch.cr0 = sregs->cr0;
 
@@ -5068,7 +5068,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	/* Older userspace won't unhalt the vcpu on reset. */
 	if (kvm_vcpu_is_bsp(vcpu) && kvm_rip_read(vcpu) == 0xfff0 &&
 	    sregs->cs.selector == 0xf000 && sregs->cs.base == 0xffff0000 &&
-	    !(vcpu->arch.cr0 & X86_CR0_PE))
+	    !(kvm_read_cr0_bits(vcpu, X86_CR0_PE)))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 	vcpu_put(vcpu);
