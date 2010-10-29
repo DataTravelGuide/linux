@@ -1625,6 +1625,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 28 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-81.el6]
+- [mm] remove false positive THP pmd_present BUG_ON (Andrea Arcangeli) [646384]
+
 * Tue Oct 26 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-80.el6]
 - [drm] ttm: fix regression introduced in dfb4a4250168008c5ac61e90ab2b86f074a83a6c (Dave Airlie) [644896]
 
