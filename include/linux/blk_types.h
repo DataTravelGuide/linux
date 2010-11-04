@@ -83,6 +83,11 @@ enum bio_rw_flags {
 	 */
 	BIO_RW_FLUSH,
 	BIO_RW_FUA,
+	/*
+	 * This bio has already been subjected to throttling rules. Don't
+	 * do it again.
+	 */
+	BIO_RW_THROTTLED,
 };
 
 #define BIO_FLUSH		(1 << BIO_RW_FLUSH)
