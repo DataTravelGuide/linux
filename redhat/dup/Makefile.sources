@@ -1,0 +1,20 @@
+
+# for all_dups target
+DUP_ALL="be2net"
+
+# be2net sources
+
+DUP_SOURCE_be2net= \
+drivers/net/benet/be_ethtool.c \
+drivers/net/benet/be_main.c \
+drivers/net/benet/Kconfig \
+drivers/net/benet/be_hw.h \
+drivers/net/benet/Makefile \
+drivers/net/benet/be_cmds.h \
+drivers/net/benet/be.h \
+drivers/net/benet/be_cmds.c
+
+DUP_MAKEFILE_be2net= \
+drivers/net/benet/Makefile
+
+DUP_VERSION_be2net="2.102.426r"

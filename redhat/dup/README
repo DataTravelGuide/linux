@@ -1,0 +1,195 @@
+
+RHEL6 Driver Update Program
+===========================
+
+The purpose of the $(KSRC)/redhat/dup is to provide an automated way of
+building DUP disks. This was done so far by ddiskit framework.
+
+
+Build
+=====
+
+The building of DUP disk consists of 2 stages. First stage is to create a driver's
+rpm. In the second stage you create the DUP disk using one or multiple disk
+rpms.
+
+
+  1st stage
+  ---------
+  In order to build driver's rpm run following command (for be2net driver):
+
+	make -f redhat/dup/Makefile DUP_DRIVER=be2net rpm
+
+  Above command prepares driver's RPM. The only thing you need to specify is the
+  driver name:
+
+		DUP_DRIVER
+			- driver name
+
+  You can specify and overload defaults for:
+
+		DUP_VERSION
+			- driver version
+			- is used in rpm 'Version' stanza
+
+		DUP_RELEASE
+			- rpm release
+			- is used in rpm 'Release' stanza
+
+  2nd stage
+  ---------
+  Once the rpm is ready, the DUP disk is created by following command:
+  (for be2net driver)
+
+	./redhat/dup/create_disk.sh ./kmod-be2net-rhel5u4-2.102.115r-1.x86_64.rpm
+
+  One or multiple rpms can be specified as parameters.
+
+  You can specify DUP_SRPMS variable to contain space-separated list of drivers source rpms.
+  Those will be placed inside the DUP disk for reference.
+
+
+  complete dup in one command
+  ---------------------------
+  Above stages are grouped in following command:
+
+	make -f redhat/dup/Makefile DUP_DRIVER=be2net
+
+
+  all the configured dups in one command
+  --------------------------------------
+  To build all configured dups run following command:
+
+	make -f redhat/dup/Makefile all_dups
+
+  This target depends on DUP_ALL variable, containing all configured
+  modules names separated by space. All DUP disks, together with build
+  log files, are then stored in directory specified by DUP_BUILD_DIR
+  variable (default ./dup-build).
+
+
+  driver version check
+  --------------------
+  Each driver comes with a version, which is define within Makefile.sources
+  (see below). There's a special target which allows to check all configured
+  DUP modules if their version is in sync with sources. The check itself is
+  following simple grep:
+
+     eg. for be2net driver:
+		grep $(DUP_VERSION_be2net) $(DUP_SOURCE_be2net)
+
+  If above grep finds any reference it is believed the version is in sync.
+  If the grep fails to find anything, the job stops and  DUP is not built.
+  The driver's configuration needs to be updated.
+
+  To check version of all configured DUP drivers without actual building, you
+  can use following target:
+
+	make -f redhat/dup/Makefile all_check_version
+
+  It displays status for each configured DUP driver.
+
+
+  multiple drivers in 1 disk
+  --------------------------
+  The DUP disk can carry multiple drivers inside. You can build such disk
+  using following command:
+
+	make -f redhat/dup/Makefile multi DUP_MULTI="be2net be2iscsi lpfc"
+
+  DUP multi variable specifies the driver names. All the specified names
+  have to be configured within the DUP framework already.
+
+  The disk file name for example above will be
+
+	dd-be2net-be2iscsi-lpfc-$(ARCH).iso
+
+
+Test
+====
+
+You can test the DUP disk by "redhat/dup/test_qemu.sh" script.
+The testing consists of 2 stages:
+
+   1st stage
+   ---------
+   RHEL6 installation with DUP disk (for be2net and x86_64 arch):
+
+	DIR_TMP=/tmp/krava ./redhat/dup/test_qemu.sh install -a x86_64 -d ./dd-be2net-2.102.348r-x86_64.iso
+
+   2nd stage
+   ---------
+   The test of DUP rpm being installed on the RHEL6 image (for be2net and x86_64 arch):
+
+	DIR_TMP=/tmp/krava ./redhat/dup/test_qemu.sh test -a x86_64 -d ./dd-be2net-2.102.348r-x86_64.iso
+
+
+
+Adding driver
+=============
+
+Before you can create a DUP disk for a driver it needs to be put inside the
+framework. This means updating/providing following info:
+
+	- driver's source
+	- driver's Makefile
+	- driver's patch
+	- driver's version
+
+Each driver has record within the redhat/dup/Makefile.source, which is the main
+source of driver's setup.
+
+  driver's source
+  ---------------
+  You need to define variable called DUP_SOURCE_<driver_name>. This variable
+  contains list of source files.
+
+   Example for be2net:
+
+	DUP_SOURCE_be2net= \
+	drivers/net/benet/be_cmds.c \
+	drivers/net/benet/be_cmds.h \
+	drivers/net/benet/be_ethtool.c \
+	drivers/net/benet/be.h \
+	drivers/net/benet/be_hw.h \
+	drivers/net/benet/be_main.c
+
+
+  driver's Makefile
+  -----------------
+  Driver's Makefile from kernel source is used to build the driver. It needs to
+  defined by variable called DUP_MAKEFILE_<driver_name>.
+
+   Example for be2net:
+
+	DUP_MAKEFILE_be2net= \
+	drivers/net/benet/Makefile
+
+
+  driver's patch
+  --------------
+  Current source of the driver might not build under the specific DUP kernel
+  version.  In this case you need to specify the patch, that is applied before
+  the source is packed and compiled. It needs to defined by variable called
+  DUP_PATCH_<driver_name>.
+
+   Example for be2net:
+
+	DUP_PATCH_be2net= \
+	redhat/dup/patch/be2net.patch
+
+
+  driver's version
+  ----------------
+  The driver's version is used in rpm 'Version' stanza. It could be overloaded
+  by DUP_VERSION variable.
+
+   Example for be2net:
+
+	DUP_VERSION_be2net="2.102.115r"
+
+
+Contact
+=======
+
+Jiri Olsa <jolsa@redhat.com>
