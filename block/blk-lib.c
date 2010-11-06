@@ -41,6 +41,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct request_queue *q = bdev_get_queue(bdev);
 	int type = (1 << BIO_RW) | (1 << BIO_RW_DISCARD);
+	unsigned int max_discard_sectors;
 	struct bio *bio;
 	int ret = 0;
 
@@ -57,10 +58,18 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
 
-	while (nr_sects && !ret) {
-		unsigned int max_discard_sectors =
-			min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	/*
+	 * Ensure that max_discard_sectors is of the proper
+	 * granularity
+	 */
+	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
+	if (q->limits.discard_granularity) {
+		unsigned int disc_sects = q->limits.discard_granularity >> 9;
 
+		max_discard_sectors &= ~(disc_sects - 1);
+	}
+
+	while (nr_sects && !ret) {
 		bio = bio_alloc(gfp_mask, 1);
 		if (!bio) {
 			ret = -ENOMEM;
