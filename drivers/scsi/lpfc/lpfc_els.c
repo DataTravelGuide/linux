@@ -1175,12 +1175,13 @@ lpfc_initial_flogi(struct lpfc_vport *vport)
 			return 0;
 	}
 
-	if (lpfc_issue_els_flogi(vport, ndlp, 0))
+	if (lpfc_issue_els_flogi(vport, ndlp, 0)) {
 		/* This decrement of reference count to node shall kick off
 		 * the release of the node.
 		 */
 		lpfc_nlp_put(ndlp);
-
+		return 0;
+	}
 	return 1;
 }
 
