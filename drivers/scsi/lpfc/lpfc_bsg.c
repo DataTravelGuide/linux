@@ -1732,7 +1732,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	struct lpfc_sli_ct_request *ctreq = NULL;
 	int ret_val = 0;
 	int time_left;
-	int iocb_stat;
+	int iocb_stat = 0;
 	unsigned long flags;
 
 	*txxri = 0;
