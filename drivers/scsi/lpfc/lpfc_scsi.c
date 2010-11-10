@@ -3067,7 +3067,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
-	fc_block_scsi_eh(cmnd);
+	ret = fc_block_scsi_eh(cmnd);
+	if (ret)
+		return ret;
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
 	BUG_ON(!lpfc_cmd);
 
@@ -3385,7 +3387,9 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 		return FAILED;
 	}
 	pnode = rdata->pnode;
-	fc_block_scsi_eh(cmnd);
+	status = fc_block_scsi_eh(cmnd);
+	if (status)
+		return status;
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3450,7 +3454,9 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 		return FAILED;
 	}
 	pnode = rdata->pnode;
-	fc_block_scsi_eh(cmnd);
+	status = fc_block_scsi_eh(cmnd);
+	if (status)
+		return status;
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3516,7 +3522,9 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
-	fc_block_scsi_eh(cmnd);
+	ret = fc_block_scsi_eh(cmnd);
+	if (ret)
+		return ret;
 
 	/*
 	 * Since the driver manages a single bus device, reset all
