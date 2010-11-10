@@ -1160,6 +1160,8 @@ void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
 	__ftrace_trace_stack(tr->buffer, flags, skip, pc);
 }
 
+static DEFINE_PER_CPU(int, user_stack_count);
+
 void
 ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 {
@@ -1178,6 +1180,18 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	if (unlikely(in_nmi()))
 		return;
 
+	/*
+	 * prevent recursion, since the user stack tracing may
+	 * trigger other kernel events.
+	 */
+	preempt_disable();
+	if (__get_cpu_var(user_stack_count))
+		goto out;
+
+	__get_cpu_var(user_stack_count)++;
+
+
+
 	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
 					  sizeof(*entry), flags, pc);
 	if (!event)
@@ -1195,6 +1209,11 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	save_stack_trace_user(&trace);
 	if (!filter_check_discard(call, entry, buffer, event))
 		ring_buffer_unlock_commit(buffer, event);
+
+	__get_cpu_var(user_stack_count)--;
+
+ out:
+	preempt_enable();
 }
 
 #ifdef UNUSED
