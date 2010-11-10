@@ -1747,7 +1747,8 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
-	    (phba->sli_rev == LPFC_SLI_REV4))
+	    (phba->sli_rev == LPFC_SLI_REV4) &&
+	    (pmb->u.mb.un.varUnregLogin.rsvd1 == 0x0))
 		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
 
 	/*
