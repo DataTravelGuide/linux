@@ -2109,13 +2109,11 @@ read_next_fcf:
 			 */
 
 			/*
-			 * Mark the initial FCF discovery completed and
-			 * the start of the first round of the roundrobin
+			 * Set stage for the first round of the roundrobin
 			 * FCF failover.
 			 */
 			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &=
-					~(FCF_INIT_DISC | FCF_REDISC_RRU);
+			phba->fcf.fcf_flag &= ~FCF_REDISC_RRU;
 			spin_unlock_irq(&phba->hbalock);
 			/*
 			 * Set up the initial registered FCF index for FLOGI
