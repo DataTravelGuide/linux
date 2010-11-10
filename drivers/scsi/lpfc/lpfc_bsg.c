@@ -1660,6 +1660,7 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
 
 	dmabuff = (struct lpfc_dmabuf *) mbox->context1;
 	mbox->context1 = NULL;
+	mbox->context2 = NULL;
 	status = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 
 	if ((status != MBX_SUCCESS) || (mbox->u.mb.mbxStatus)) {
