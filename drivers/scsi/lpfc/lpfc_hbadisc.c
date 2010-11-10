@@ -1855,30 +1855,29 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (phba->fcf.fcf_flag & FCF_IN_USE) {
 		if (lpfc_sli4_fcf_record_match(phba, &phba->fcf.current_rec,
 		    new_fcf_record, vlan_id)) {
-			phba->fcf.fcf_flag |= FCF_AVAILABLE;
-			if (phba->fcf.fcf_flag & FCF_REDISC_PEND)
-				/* Stop FCF redisc wait timer if pending */
-				__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
-			else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
-				/* If in fast failover, mark it's completed */
-				phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
-			spin_unlock_irq(&phba->hbalock);
 			if (bf_get(lpfc_fcf_record_fcf_index, new_fcf_record) ==
 			    phba->fcf.current_rec.fcf_indx) {
+				phba->fcf.fcf_flag |= FCF_AVAILABLE;
+				if (phba->fcf.fcf_flag & FCF_REDISC_PEND)
+					/* Stop FCF redisc wait timer */
+					__lpfc_sli4_stop_fcf_redisc_wait_timer(
+									phba);
+				else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
+					/* Fast failover, mark completed */
+					phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+				spin_unlock_irq(&phba->hbalock);
 				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 						"2836 New FCF matches in-use "
 						"FCF (x%x)\n",
 						phba->fcf.current_rec.fcf_indx);
 				goto out;
-			} else {
+			} else
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
 					"2863 New FCF (x%x) matches "
 					"property of in-use FCF (x%x)\n",
 					bf_get(lpfc_fcf_record_fcf_index,
 					       new_fcf_record),
 					phba->fcf.current_rec.fcf_indx);
-				goto read_next_fcf;
-			}
 		}
 		/*
 		 * Read next FCF record from HBA searching for the matching
