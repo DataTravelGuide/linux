@@ -600,6 +600,14 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+			/*
+			 * Driver needs to re-reg VPI in order for f/w
+			 * to update the MAC address.
+			 */
+			lpfc_register_new_vport(phba, vport, ndlp);
+			return 0;
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
@@ -6396,6 +6404,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else
 			vport->fc_flag |= FC_LOGO_RCVD_DID_CHNG;
 		spin_unlock_irq(shost->host_lock);
+	} else if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+		/*
+		 * Driver needs to re-reg VPI in order for f/w
+		 * to update the MAC address.
+		 */
+		lpfc_register_new_vport(phba, vport, ndlp);
+		return ;
 	}
 
 	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)
