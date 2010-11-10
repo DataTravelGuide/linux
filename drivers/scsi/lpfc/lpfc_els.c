@@ -6450,7 +6450,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * to update the MAC address.
 		 */
 		lpfc_register_new_vport(phba, vport, ndlp);
-		return ;
+		goto out;
 	}
 
 	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)
