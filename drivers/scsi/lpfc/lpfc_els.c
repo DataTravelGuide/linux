@@ -6093,8 +6093,12 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (mb->mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-				 "0915 Register VPI failed: 0x%x\n",
-				 mb->mbxStatus);
+				"0915 Register VPI failed : Status: x%x"
+				" upd bit: x%x \n", mb->mbxStatus,
+				 mb->un.varRegVpi.upd);
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+			mb->un.varRegVpi.upd)
+			goto mbox_err_exit ;
 
 		switch (mb->mbxStatus) {
 		case 0x11:	/* unsupported feature */
@@ -6159,7 +6163,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		} else
 			lpfc_do_scr_ns_plogi(phba, vport);
 	}
-
+mbox_err_exit:
 	/* Now, we decrement the ndlp reference count held for this
 	 * callback function
 	 */
