@@ -279,7 +279,21 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) &&
 	    (ndlp->nlp_state != NLP_STE_PRLI_ISSUE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
+}
 
+/**
+ * lpfc_sli4_post_dev_loss_tmo_handler - SLI4 post devloss timeout handler
+ * @phba: Pointer to hba context object.
+ *
+ * This function is called from the worker thread post invoking devloss
+ * timeout handler and release the reference for the ndlp with which the
+ * devloss timeout was handled for SLI4 device. For the last remote node
+ * devloss timeout, when this rountine is invoked, it should be guaranteed
+ * that none of the remote are in-use with the FCF.
+ **/
+static void
+lpfc_sli4_post_dev_loss_tmo_handler(struct lpfc_hba *phba)
+{
 	lpfc_unregister_unused_fcf(phba);
 }
 
@@ -433,6 +447,8 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			 * this queued work
 			 */
 			lpfc_nlp_put(ndlp);
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				lpfc_sli4_post_dev_loss_tmo_handler(phba);
 			break;
 		case LPFC_EVT_ONLINE:
 			if (phba->link_state < LPFC_LINK_DOWN)
