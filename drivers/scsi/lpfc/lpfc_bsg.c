@@ -1518,7 +1518,7 @@ lpfc_bsg_diag_mode(struct fc_bsg_job *job)
 	loopback_mode = (struct diag_mode_set *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
 	link_flags = loopback_mode->type;
-	timeout = loopback_mode->timeout;
+	timeout = loopback_mode->timeout * 100;
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 	    (psli->sli_flag & LPFC_BLOCK_MGMT_IO) ||
