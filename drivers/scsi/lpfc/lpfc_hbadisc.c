@@ -5095,6 +5095,7 @@ static void
 lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if (mboxq->u.mb.mbxStatus) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
@@ -5102,6 +5103,9 @@ lpfc_unregister_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			"HBA state x%x\n",
 			mboxq->u.mb.mbxStatus, vport->port_state);
 	}
+	spin_lock_irq(shost->host_lock);
+	phba->pport->fc_flag &= ~FC_VFI_REGISTERED;
+	spin_unlock_irq(shost->host_lock);
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
 }
