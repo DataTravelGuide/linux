@@ -2897,6 +2897,17 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 0;
 
 	if (retry) {
+		if ((cmd == ELS_CMD_PLOGI) || (cmd == ELS_CMD_FDISC)) {
+			/* Stop retrying PLOGI and FDISC if in FCF discovery */
+			if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+						 "2849 Stop retry ELS command "
+						 "x%x to remote NPORT x%x, "
+						 "Data: x%x x%x\n", cmd, did,
+						 cmdiocb->retry, delay);
+				return 0;
+			}
+		}
 
 		/* Retry ELS command <elsCmd> to remote NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
