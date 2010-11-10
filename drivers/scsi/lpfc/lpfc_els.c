@@ -523,12 +523,6 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_PUBLIC_LOOP;
 		spin_unlock_irq(shost->host_lock);
-	} else {
-		/*
-		 * If we are a N-port connected to a Fabric, fixup sparam's so
-		 * logins to devices on remote loops work.
-		 */
-		vport->fc_sparam.cmn.altBbCredit = 1;
 	}
 
 	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
@@ -1645,6 +1639,13 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 	pcmd += sizeof(uint32_t);
 	memcpy(pcmd, &vport->fc_sparam, sizeof(struct serv_parm));
 	sp = (struct serv_parm *) pcmd;
+
+	/*
+	 * If we are a N-port connected to a Fabric, fix-up paramm's so logins
+	 * to device on remote loops work.
+	 */
+	if ((vport->fc_flag & FC_FABRIC) && !(vport->fc_flag & FC_PUBLIC_LOOP))
+		sp->cmn.altBbCredit = 1;
 
 	if (sp->cmn.fcphLow < FC_PH_4_3)
 		sp->cmn.fcphLow = FC_PH_4_3;
