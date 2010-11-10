@@ -819,6 +819,8 @@ struct lpfc_hba {
 	uint32_t ns_cnt;
 	uint32_t ns_max;
 	atomic_t sdev_cnt;
+	uint8_t fips_spec_rev;
+	uint8_t fips_level;
 };
 
 static inline struct Scsi_Host *

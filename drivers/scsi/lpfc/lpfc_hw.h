@@ -2808,11 +2808,15 @@ typedef struct {
 	uint32_t rsvd6;           /* Reserved                             */
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t sec_err    : 9;   /* security crypto error                */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
 #else	/*  __LITTLE_ENDIAN */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t sec_err    : 9;   /* security crypto error                */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
 #endif
 
 } CONFIG_PORT_VAR;
