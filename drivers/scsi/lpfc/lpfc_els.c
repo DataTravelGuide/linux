@@ -809,9 +809,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on registered "
-					"FCF record fcf_index:%d, trying "
-					"to perform round robin failover\n",
-					phba->fcf.current_rec.fcf_indx);
+					"FCF record fcf_index(%d), status: "
+					"x%x/x%x, tmo:x%x, trying to perform "
+					"round robin failover\n",
+					phba->fcf.current_rec.fcf_indx,
+					irsp->ulpStatus, irsp->un.ulpWord[4],
+					irsp->ulpTimeout);
 			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
 			if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
 				/*
@@ -848,6 +851,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					goto out;
 			}
 		}
+
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				"2858 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				irsp->ulpStatus, irsp->un.ulpWord[4],
+				irsp->ulpTimeout);
 
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
