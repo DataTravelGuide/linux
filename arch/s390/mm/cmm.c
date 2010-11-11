@@ -24,7 +24,10 @@
 #include <asm/uaccess.h>
 #include <asm/diag.h>
 
-static char *sender = "VMRMSVM";
+#ifdef CONFIG_CMM_IUCV
+static char *cmm_default_sender = "VMRMSVM";
+#endif
+static char *sender;
 module_param(sender, charp, 0400);
 MODULE_PARM_DESC(sender,
 		 "Guest name that may send SMSG messages (default VMRMSVM)");
@@ -375,7 +378,7 @@ static struct ctl_table cmm_dir_table[] = {
 #ifdef CONFIG_CMM_IUCV
 #define SMSG_PREFIX "CMM"
 static void
-cmm_smsg_target(char *from, char *msg)
+cmm_smsg_target(const char *from, char *msg)
 {
 	long nr, seconds;
 
@@ -456,6 +459,15 @@ cmm_init (void)
 		goto out_sysctl;
 #endif
 #ifdef CONFIG_CMM_IUCV
+	/* convert sender to uppercase characters */
+	if (sender) {
+		int len = strlen(sender);
+		while (len--)
+			sender[len] = toupper(sender[len]);
+	} else {
+		sender = cmm_default_sender;
+	}
+
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 	if (rc < 0)
 		goto out_smsg;
