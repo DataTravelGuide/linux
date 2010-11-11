@@ -360,6 +360,7 @@ struct qdio_initialize {
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
+	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
 	unsigned long int_parm;
 	unsigned long flags;
 	void **input_sbal_addr_array;
@@ -382,6 +383,9 @@ extern int qdio_activate(struct ccw_device *);
 
 extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 		   int q_nr, unsigned int bufnr, unsigned int count);
+extern int qdio_start_irq(struct ccw_device *, int);
+extern int qdio_stop_irq(struct ccw_device *, int);
+extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
 extern int qdio_cleanup(struct ccw_device*, int);
 extern int qdio_shutdown(struct ccw_device*, int);
 extern int qdio_free(struct ccw_device *);
