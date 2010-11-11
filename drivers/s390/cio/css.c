@@ -1015,7 +1015,7 @@ static int css_settle(struct device_driver *drv, void *unused)
 	return 0;
 }
 
-static inline int css_complete_work(void)
+int css_complete_work(void)
 {
 	int ret;
 
