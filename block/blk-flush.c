@@ -37,6 +37,7 @@ static struct request *blk_flush_complete_seq(struct request_queue *q,
 
 	BUG_ON(q->flush_seq & seq);
 	q->flush_seq |= seq;
+	q->ordseq = q->flush_seq;
 
 	if (blk_flush_cur_seq(q) != QUEUE_FSEQ_DONE) {
 		/* not complete yet, queue the next flush sequence */
@@ -46,6 +47,7 @@ static struct request *blk_flush_complete_seq(struct request_queue *q,
 		__blk_end_request_all(q->orig_flush_rq, q->flush_err);
 		q->orig_flush_rq = NULL;
 		q->flush_seq = 0;
+		q->ordseq = q->flush_seq;
 
 		/* dispatch the next flush if there's one */
 		if (!list_empty(&q->pending_flushes)) {
@@ -184,6 +186,7 @@ struct request *blk_do_flush(struct request_queue *q, struct request *rq)
 	 */
 	q->flush_err = 0;
 	q->flush_seq |= QUEUE_FSEQ_STARTED;
+	q->ordseq = q->flush_seq;
 
 	/* adjust FLUSH/FUA of the original request and stash it away */
 	rq->cmd_flags &= ~REQ_FLUSH;
