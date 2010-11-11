@@ -1141,6 +1141,7 @@ static const struct mcidev_sysfs_attribute i7core_udimm_counters_attrs[] = {
 	ATTR_COUNTER(0),
 	ATTR_COUNTER(1),
 	ATTR_COUNTER(2),
+	{ } /* End of list */
 };
 
 static const struct mcidev_sysfs_group i7core_udimm_counters = {
