@@ -1481,8 +1481,21 @@ struct task_struct {
 #endif
 #ifdef CONFIG_CPUSETS
 	nodemask_t mems_allowed;	/* Protected by alloc_lock */
+#ifndef __GENKSYMS__
+	/*
+	 * This does not change the size of the struct_task(2+2+4=4+4)
+	 * so the offsets of the remaining fields are unchanged and 
+	 * therefore the kABI is preserved.  Only the kernel uses
+	 * cpuset_mem_spread_rotor and cpuset_slab_spread_rotor so
+	 * it is safe to change it to use shorts instead of ints.
+	 */   
+	unsigned short cpuset_mem_spread_rotor;
+	unsigned short cpuset_slab_spread_rotor;
+	int mems_allowed_change_disable;
+#else
 	int cpuset_mem_spread_rotor;
 	int cpuset_slab_spread_rotor;
+#endif
 #endif
 #ifdef CONFIG_CGROUPS
 	/* Control Group info protected by css_set_lock */
