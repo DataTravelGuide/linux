@@ -669,6 +669,7 @@ enum qeth_discipline_id {
 };
 
 struct qeth_discipline {
+	void (*start_poll)(struct ccw_device *, int, unsigned long);
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
 	int (*recover)(void *ptr);
@@ -694,6 +695,16 @@ struct qeth_skb_data {
 
 #define QETH_SKB_MAGIC 0x71657468
 #define QETH_SIGA_CC2_RETRIES 3
+
+struct qeth_rx {
+	int b_count;
+	int b_index;
+	struct qdio_buffer_element *b_element;
+	int e_offset;
+	int qdio_err;
+};
+
+#define QETH_NAPI_WEIGHT 128
 
 struct qeth_card {
 	struct list_head list;
@@ -740,6 +751,8 @@ struct qeth_card {
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
 	struct mutex conf_mutex;
+	struct napi_struct napi;
+	struct qeth_rx rx;
 };
 
 struct qeth_card_list_struct {
@@ -823,6 +836,10 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
+void qeth_qdio_start_poll(struct ccw_device *, int, unsigned long);
+void qeth_qdio_input_handler(struct ccw_device *,
+		unsigned int, unsigned int, int,
+		int, unsigned long);
 void qeth_qdio_output_handler(struct ccw_device *, unsigned int,
 			int, int, int, unsigned long);
 void qeth_clear_ipacmd_list(struct qeth_card *);
