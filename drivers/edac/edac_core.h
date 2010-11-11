@@ -343,7 +343,7 @@ struct csrow_info {
 
 struct mcidev_sysfs_group {
 	const char *name;				/* group name */
-	struct mcidev_sysfs_attribute *mcidev_attr;	/* group attributes */
+	const struct mcidev_sysfs_attribute *mcidev_attr; /* group attributes */
 };
 
 struct mcidev_sysfs_group_kobj {
@@ -351,7 +351,7 @@ struct mcidev_sysfs_group_kobj {
 
 	struct kobject kobj;		/* kobj for the group */
 
-	struct mcidev_sysfs_group *grp;	/* group description table */
+	const struct mcidev_sysfs_group *grp;	/* group description table */
 	struct mem_ctl_info *mci;	/* the parent */
 };
 
@@ -362,7 +362,7 @@ struct mcidev_sysfs_group_kobj {
 struct mcidev_sysfs_attribute {
 	/* It should use either attr or grp */
 	struct attribute attr;
-	struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
+	const struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
 
 	/* Ops for show/store values at the attribute - not used on group */
         ssize_t (*show)(struct mem_ctl_info *,char *);
@@ -455,7 +455,7 @@ struct mem_ctl_info {
 	 * If attributes are desired, then set to array of attributes
 	 * If no attributes are desired, leave NULL
 	 */
-	struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
+	const struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
 
 	/* work struct for this MC */
 	struct delayed_work work;
