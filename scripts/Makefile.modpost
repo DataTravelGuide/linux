@@ -149,6 +149,8 @@ KEYFLAGS += --default-key $(MODKEYNAME)
 endif
 
 ifeq ($(wildcard $(MODSECKEY))+$(wildcard $(MODPUBKEY)),$(MODSECKEY)+$(MODPUBKEY))
+# only sign if it's an in tree module
+ifeq ($(KBUILD_EXTMOD),)
 ifeq ($(KBUILD_SRC),)
 	# no O= is being used
 	SCRIPTS_DIR := scripts
@@ -167,6 +169,7 @@ else
 quiet_cmd_sign_ko_ko_unsigned = NO SIGN [M] $@
       cmd_sign_ko_ko_unsigned = \
 		cp $< $@
+endif
 endif
 
 $(modules): %.ko :%.ko.unsigned FORCE
