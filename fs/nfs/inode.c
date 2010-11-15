@@ -1519,6 +1519,10 @@ static int __init init_nfs_fs(void)
 {
 	int err;
 
+	err = nfs_idmap_init();
+	if (err < 0)
+		goto out9;
+
 	err = nfs_dns_resolver_init();
 	if (err < 0)
 		goto out8;
@@ -1583,6 +1587,8 @@ out6:
 out7:
 	nfs_dns_resolver_destroy();
 out8:
+	nfs_idmap_quit();
+out9:
 	return err;
 }
 
@@ -1595,6 +1601,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_destroy_nfspagecache();
 	nfs_fscache_unregister();
 	nfs_dns_resolver_destroy();
+	nfs_idmap_quit();
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister("nfs");
 #endif
