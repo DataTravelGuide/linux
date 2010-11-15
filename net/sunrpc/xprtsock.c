@@ -1655,18 +1655,6 @@ out:
 	return ERR_PTR(err);
 }
 
-static struct socket *xs_create_sock4(struct rpc_xprt *xprt,
-		struct sock_xprt *transport, int type, int protocol)
-{
-	return xs_create_sock(xprt, transport, PF_INET, type, protocol);
-}
-
-static struct socket *xs_create_sock6(struct rpc_xprt *xprt,
-		struct sock_xprt *transport, int type, int protocol)
-{
-	return xs_create_sock(xprt, transport, PF_INET6, type, protocol);
-}
-
 static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -1696,9 +1684,7 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	xs_udp_do_set_buffer_size(xprt);
 }
 
-static void xs_udp_setup_socket(struct sock_xprt *transport,
-		struct socket *(*create_sock)(struct rpc_xprt *,
-			struct sock_xprt *, int type, int protocol))
+static void xs_udp_setup_socket(struct sock_xprt *transport, int family)
 {
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
@@ -1709,7 +1695,7 @@ static void xs_udp_setup_socket(struct sock_xprt *transport,
 
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
-	sock = create_sock(xprt, transport, SOCK_DGRAM, IPPROTO_UDP);
+	sock = xs_create_sock(xprt, transport, family, SOCK_DGRAM, IPPROTO_UDP);
 	if (IS_ERR(sock))
 		goto out;
 
@@ -1738,7 +1724,7 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 
-	xs_udp_setup_socket(transport, xs_create_sock4);
+	xs_udp_setup_socket(transport, PF_INET);
 }
 
 /**
@@ -1753,7 +1739,7 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 
-	xs_udp_setup_socket(transport, xs_create_sock6);
+	xs_udp_setup_socket(transport, PF_INET6);
 }
 
 /*
@@ -1857,9 +1843,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_setup_socket(struct sock_xprt *transport,
-		struct socket *(*create_sock)(struct rpc_xprt *,
-			struct sock_xprt *, int type, int protocol))
+static void xs_tcp_setup_socket(struct sock_xprt *transport, int family)
 {
 	struct socket *sock = transport->sock;
 	struct rpc_xprt *xprt = &transport->xprt;
@@ -1870,7 +1854,7 @@ static void xs_tcp_setup_socket(struct sock_xprt *transport,
 
 	if (!sock) {
 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
-		sock = create_sock(xprt, transport, SOCK_STREAM, IPPROTO_TCP);
+		sock = xs_create_sock(xprt, transport, family, SOCK_STREAM, IPPROTO_TCP);
 		if (IS_ERR(sock)) {
 			status = PTR_ERR(sock);
 			goto out;
@@ -1941,7 +1925,7 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 
-	xs_tcp_setup_socket(transport, xs_create_sock4);
+	xs_tcp_setup_socket(transport, PF_INET);
 }
 
 /**
@@ -1955,7 +1939,7 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 
-	xs_tcp_setup_socket(transport, xs_create_sock6);
+	xs_tcp_setup_socket(transport, PF_INET6);
 }
 
 /**
