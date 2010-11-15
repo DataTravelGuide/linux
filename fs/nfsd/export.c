@@ -27,9 +27,6 @@
 typedef struct auth_domain	svc_client;
 typedef struct svc_export	svc_export;
 
-static void		exp_do_unexport(svc_export *unexp);
-static int		exp_verify_string(char *cp, int max);
-
 /*
  * We have two caches.
  * One maps client+vfsmnt+dentry to export options - the export map
@@ -810,6 +807,7 @@ exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
 	return ek;
 }
 
+#ifdef CONFIG_NFSD_DEPRECATED
 static int exp_set_key(svc_client *clp, int fsid_type, u32 *fsidv,
 		       struct svc_export *exp)
 {
@@ -860,6 +858,7 @@ exp_get_fsid_key(svc_client *clp, int fsid)
 
 	return exp_find_key(clp, FSID_NUM, fsidv, NULL);
 }
+#endif
 
 static svc_export *exp_get_by_name(svc_client *clp, const struct path *path,
 				     struct cache_req *reqp)
@@ -901,6 +900,7 @@ static struct svc_export *exp_parent(svc_client *clp, struct path *path)
 	return exp;
 }
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /*
  * Hashtable locking. Write locks are placed only by user processes
  * wanting to modify export information.
@@ -933,6 +933,19 @@ exp_writeunlock(void)
 {
 	up_write(&hash_sem);
 }
+#else
+
+/* hash_sem not needed once deprecated interface is removed */
+void exp_readlock(void) {}
+static inline void exp_writelock(void){}
+void exp_readunlock(void) {}
+static inline void exp_writeunlock(void){}
+
+#endif
+
+#ifdef CONFIG_NFSD_DEPRECATED
+static void		exp_do_unexport(svc_export *unexp);
+static int		exp_verify_string(char *cp, int max);
 
 static void exp_fsid_unhash(struct svc_export *exp)
 {
@@ -1155,6 +1168,7 @@ out_unlock:
 	exp_writeunlock();
 	return err;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /*
  * Obtain the root fh on behalf of a client.
@@ -1537,6 +1551,7 @@ const struct seq_operations nfs_exports_op = {
 	.show	= e_show,
 };
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /*
  * Add or modify a client.
  * Change requests may involve the list of host addresses. The list of
@@ -1626,6 +1641,7 @@ exp_verify_string(char *cp, int max)
 	printk(KERN_NOTICE "nfsd: couldn't validate string %s\n", cp);
 	return 0;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /*
  * Initialize the exports module.
