@@ -33,6 +33,7 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <net/net_namespace.h>
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -1530,7 +1531,7 @@ static const struct file_operations cache_flush_operations_procfs = {
 	.release	= release_flush_procfs,
 };
 
-static void remove_cache_proc_entries(struct cache_detail *cd)
+static void remove_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	if (cd->u.procfs.proc_ent == NULL)
 		return;
@@ -1545,7 +1546,7 @@ static void remove_cache_proc_entries(struct cache_detail *cd)
 }
 
 #ifdef CONFIG_PROC_FS
-static int create_cache_proc_entries(struct cache_detail *cd)
+static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	struct proc_dir_entry *p;
 
@@ -1580,11 +1581,11 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	}
 	return 0;
 out_nomem:
-	remove_cache_proc_entries(cd);
+	remove_cache_proc_entries(cd, net);
 	return -ENOMEM;
 }
 #else /* CONFIG_PROC_FS */
-static int create_cache_proc_entries(struct cache_detail *cd)
+static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	return 0;
 }
@@ -1595,22 +1596,32 @@ void __init cache_initialize(void)
 	INIT_DELAYED_WORK_DEFERRABLE(&cache_cleaner, do_cache_clean);
 }
 
-int cache_register(struct cache_detail *cd)
+int cache_register_net(struct cache_detail *cd, struct net *net)
 {
 	int ret;
 
 	sunrpc_init_cache_detail(cd);
-	ret = create_cache_proc_entries(cd);
+	ret = create_cache_proc_entries(cd, net);
 	if (ret)
 		sunrpc_destroy_cache_detail(cd);
 	return ret;
 }
+
+int cache_register(struct cache_detail *cd)
+{
+	return cache_register_net(cd, &init_net);
+}
 EXPORT_SYMBOL_GPL(cache_register);
+
+void cache_unregister_net(struct cache_detail *cd, struct net *net)
+{
+	remove_cache_proc_entries(cd, net);
+	sunrpc_destroy_cache_detail(cd);
+}
 
 void cache_unregister(struct cache_detail *cd)
 {
-	remove_cache_proc_entries(cd);
-	sunrpc_destroy_cache_detail(cd);
+	cache_unregister_net(cd, &init_net);
 }
 EXPORT_SYMBOL_GPL(cache_unregister);
 
