@@ -1532,7 +1532,7 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	xs_update_peer_port(xprt);
 }
 
-static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket *sock)
+static unsigned short xs_get_srcport(struct sock_xprt *transport)
 {
 	unsigned short port = transport->srcport;
 
@@ -1559,7 +1559,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 	};
 	struct sockaddr_in *sa;
 	int err, nloop = 0;
-	unsigned short port = xs_get_srcport(transport, sock);
+	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
 	sa = (struct sockaddr_in *)&transport->srcaddr;
@@ -1592,7 +1592,7 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 	};
 	struct sockaddr_in6 *sa;
 	int err, nloop = 0;
-	unsigned short port = xs_get_srcport(transport, sock);
+	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
 	sa = (struct sockaddr_in6 *)&transport->srcaddr;
