@@ -267,9 +267,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	xprt_rdma_free_addresses(xprt);
 
-	kfree(xprt->slot);
-	xprt->slot = NULL;
-	kfree(xprt);
+	xprt_free(xprt);
 
 	dprintk("RPC:       %s: returning\n", __func__);
 
@@ -417,8 +415,7 @@ out3:
 out2:
 	rpcrdma_ia_close(&new_xprt->rx_ia);
 out1:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ERR_PTR(rc);
 }
 
