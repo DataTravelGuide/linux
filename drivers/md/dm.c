@@ -1990,9 +1990,12 @@ static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	mutex_lock(&md->bdev->bd_inode->i_mutex);
+	/*
+	 * Only DM is allowed to change the size of a DM device.
+	 * i_size_write() is protected by the dm_swap_table() critical
+	 * section that uses md->suspend_lock.
+	 */
 	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
 /*
