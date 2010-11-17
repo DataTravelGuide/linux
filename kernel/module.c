@@ -2038,6 +2038,12 @@ static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
 #endif
 }
 
+static void dynamic_debug_remove(struct _ddebug *debug)
+{
+	if (debug)
+		ddebug_remove_module(debug->modname);
+}
+
 static void *module_alloc_update_bounds(unsigned long size)
 {
 	void *ret = module_alloc(size);
@@ -2099,6 +2105,8 @@ static noinline struct module *load_module(void __user *umod,
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
+	struct _ddebug *debug = NULL;
+	unsigned int num_debug = 0;
 	unsigned long symoffs, stroffs, *strmap;
 	int gpgsig_ok;
 
@@ -2470,9 +2478,6 @@ static noinline struct module *load_module(void __user *umod,
 	strmap = NULL;
 
 	if (!mod->taints) {
-		struct _ddebug *debug;
-		unsigned int num_debug;
-
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
 		if (debug)
@@ -2481,7 +2486,7 @@ static noinline struct module *load_module(void __user *umod,
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
-		goto cleanup;
+		goto ddebug;
 
 	/* flush the icache in correct context */
 	old_fs = get_fs();
@@ -2538,6 +2543,8 @@ static noinline struct module *load_module(void __user *umod,
 	list_del_rcu(&mod->list);
 	synchronize_sched();
 	module_arch_cleanup(mod);
+ ddebug:
+	dynamic_debug_remove(debug);
  cleanup:
 	free_modinfo(mod);
 	kobject_del(&mod->mkobj.kobj);
