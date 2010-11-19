@@ -177,8 +177,8 @@ void __init efi_pagetable_init(void)
 	memset(efi_pgd, 0, sizeof(efi_pgd));
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
-		if (!(md->type & EFI_RUNTIME_SERVICES_CODE) &&
-		    !(md->type & EFI_RUNTIME_SERVICES_DATA))
+		if ((md->type != EFI_RUNTIME_SERVICES_CODE) &&
+		    (md->type != EFI_RUNTIME_SERVICES_DATA))
 			continue;
 
 		start_pfn = md->phys_addr >> PAGE_SHIFT;
@@ -191,7 +191,7 @@ void __init efi_pagetable_init(void)
 			pud = fill_pud(pgd, vaddr);
 			pmd = fill_pmd(pud, vaddr);
 			pte = fill_pte(pmd, vaddr);
-			if (md->type & EFI_RUNTIME_SERVICES_CODE)
+			if (md->type == EFI_RUNTIME_SERVICES_CODE)
 				set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
 			else
 				set_pte(pte, pfn_pte(pfn, PAGE_KERNEL));
