@@ -716,8 +716,15 @@ static bool utrace_reset(struct task_struct *task, struct utrace *utrace)
 	/*
 	 * If no more engines want it stopped, wake it up.
 	 */
-	if (task_is_traced(task) && !(flags & ENGINE_STOP))
+	if (task_is_traced(task) && !(flags & ENGINE_STOP)) {
+		/*
+		 * It just resumes, so make sure single-step
+		 * is not left set.
+		 */
+		if (utrace->resume == UTRACE_RESUME)
+			user_disable_single_step(task);
 		utrace_wakeup(task, utrace);
+	}
 
 	/*
 	 * In theory spin_lock() doesn't imply rcu_read_lock().
@@ -1157,14 +1164,7 @@ int utrace_control(struct task_struct *target,
 		break;
 
 	case UTRACE_RESUME:
-		/*
-		 * This and all other cases imply resuming if stopped.
-		 * There might not be another report before it just
-		 * resumes, so make sure single-step is not left set.
-		 */
 		clear_engine_wants_stop(engine);
-		if (likely(reset))
-			user_disable_single_step(target);
 		break;
 
 	case UTRACE_BLOCKSTEP:
