@@ -1685,6 +1685,17 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 		goto cancel;
 
 	compound_lock_irqsave(page, &flags);
+	/* re-check under compound_lock because the page might be split */
+	if (unlikely(page_size != PAGE_SIZE && !PageTransHuge(page))) {
+		unsigned long extra = page_size - PAGE_SIZE;
+		/* uncharge extra charges from parent */
+		if (!mem_cgroup_is_root(parent)) {
+			res_counter_uncharge(&parent->res, extra);
+			if (do_swap_account)
+				res_counter_uncharge(&parent->memsw, extra);
+		}
+		page_size = PAGE_SIZE;
+	}
 	ret = mem_cgroup_move_account(pc, child, parent, page_size);
 	compound_unlock_irqrestore(page, flags);
 
