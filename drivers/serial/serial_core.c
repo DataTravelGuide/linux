@@ -1090,6 +1090,7 @@ static int uart_get_count(struct uart_state *state,
 	struct uart_icount cnow;
 	struct uart_port *uport = state->uart_port;
 
+	memset(&icount, 0, sizeof(struct serial_icounter_struct));
 	spin_lock_irq(&uport->lock);
 	memcpy(&cnow, &uport->icount, sizeof(struct uart_icount));
 	spin_unlock_irq(&uport->lock);
