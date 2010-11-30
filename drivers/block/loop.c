@@ -477,7 +477,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	if (bio_rw(bio) == WRITE) {
 		struct file *file = lo->lo_backing_file;
 
-		/* REQ_HARDBARRIER is deprecated */
+		/* BIO_RW_BARRIER is deprecated */
 		if (bio_rw_flagged(bio, BIO_RW_BARRIER)) {
 			ret = -EOPNOTSUPP;
 			goto out;

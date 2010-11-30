@@ -1217,9 +1217,9 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int where = ELEVATOR_INSERT_SORT;
 	int rw_flags;
 
-	/* REQ_HARDBARRIER is no more */
+	/* BIO_RW_BARRIER is deprecated */
 	if (WARN_ONCE(bio_rw_flagged(bio, BIO_RW_BARRIER),
-		"block: HARDBARRIER is deprecated, use FLUSH/FUA instead\n")) {
+		"block: BARRIER is deprecated, use FLUSH/FUA instead\n")) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
