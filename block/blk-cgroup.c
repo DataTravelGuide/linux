@@ -1439,10 +1439,6 @@ blkiocg_create(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 		goto done;
 	}
 
-	/* Currently we do not support hierarchy deeper than two level (0,1) */
-	if (parent != cgroup->top_cgroup)
-		return ERR_PTR(-EINVAL);
-
 	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
 	if (!blkcg)
 		return ERR_PTR(-ENOMEM);
