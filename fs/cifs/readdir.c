@@ -780,6 +780,17 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	if (pTcon == NULL)
 		return -EINVAL;
 
+	/*
+	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
+	 * '..'. Otherwise we won't be able to notify VFS in case of failure.
+	 */
+	if (file->private_data == NULL) {
+		rc = initiate_cifs_search(xid, file);
+		cFYI(1, "initiate cifs search rc %d", rc);
+		if (rc)
+			goto rddir2_exit;
+	}
+
 	switch ((int) file->f_pos) {
 	case 0:
 		if (filldir(direntry, ".", 1, file->f_pos,
@@ -803,14 +814,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			if it before then restart search
 			if after then keep searching till find it */
 
-		if (file->private_data == NULL) {
-			rc = initiate_cifs_search(xid, file);
-			cFYI(1, "initiate cifs search rc %d", rc);
-			if (rc) {
-				FreeXid(xid);
-				return rc;
-			}
-		}
 		if (file->private_data == NULL) {
 			rc = -EINVAL;
 			FreeXid(xid);
