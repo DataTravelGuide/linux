@@ -1625,6 +1625,48 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Dec 01 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-85.el6]
+- [fs] configs: enable CONFIG_PRINT_QUOTA_WARNING (Aristeu Rozanski) [579638]
+- [net] af_unix: limit unix_tot_inflight (Neil Horman) [656762]
+- [block] check for proper length of iov entries in blk_rq_map_user_iov() (Danny Feng) [652959] {CVE-2010-4163}
+- [net] Limit sendto()/recvfrom()/iovec total length to INT_MAX (Jiri Pirko) [651895] {CVE-2010-4160}
+- [netdrv] mlx4: Add OFED-1.5.2 patch to increase log_mtts_per_seg (Jay Fenlason) [637284]
+- [kernel] kbuild: fix external module compiling (Aristeu Rozanski) [655231]
+- [mm] Fix broken use of end variable in remap_file_pages() system call (Larry Woodman) [637049]
+- [virt] virtio: console: Disable lseek(2) for port file operations (Amit Shah) [635537]
+- [virt] virtio: console: Prevent userspace from submitting NULL buffers (Amit Shah) [635535]
+- [virt] virtio: console: Fix poll blocking even though there is data to read (Amit Shah) [634232]
+- [virt] virtio: console: Send SIGIO in case of port unplug (Amit Shah) [624628]
+- [virt] virtio: console: Send SIGIO on new data arrival on ports (Amit Shah) [624628]
+- [virt] virtio: console: Send SIGIO to processes that request it for host events (Amit Shah) [624628]
+- [block] cfq-iosched: blktrace print per slice sector stats (Vivek Goyal) [626989]
+- [block] cfq-iosched: Implement tunable group_idle (Vivek Goyal) [626989]
+- [block] cfq-iosched: Do group share accounting in IOPS when slice_idle=0 (Vivek Goyal) [626989]
+- [block] cfq-iosched: Fixed boot warning with BLK_CGROUP=y and CFQ_GROUP_IOSCHED=n (Vivek Goyal) [626989]
+- [block] blk-cgroup: Fix RCU correctness warning in cfq_init_queue() (Vivek Goyal) [626989]
+- [netdrv] ixgbe: add registers etc. printout code just before resetting adapters (Dean Nelson) [611696]
+- [netdrv] e1000e: suppress compile warnings on certain archs (Dean Nelson) [611696]
+- [netdrv] e1000e: add registers etc. printout code just before resetting adapters (Dean Nelson) [611696]
+- [net] bluetooth: Fix missing NULL check (Jarod Wilson) [655668]
+- [v4l] Fix garbled image with zc3xx-based webcam (Jay Fenlason) [590404]
+- [mm] Backport missing kmemleak check into kmem_cache_create() (Larry Woodman) [654761]
+- [x86] acpi: mark hardware unsupported on x86 32bit cpu hot add events (Prarit Bhargava) [625585]
+- [x86] UEFI/EFI x86_64 pagetable initialization (Bob Picco) [654665]
+- [kernel] add RSS and swap size information to /proc/sysvipc/shm (Jerome Marchand) [634994]
+- [kernel] fix integer overflow in groups_search (Jerome Marchand) [629629]
+- [kernel] ipc: initialize structure memory to zero for compat functions (Danny Feng) [648695] {CVE-2010-4073}
+- [kernel] shm: fix information leak to userland (Danny Feng) [648689] {CVE-2010-4072}
+- [kernel] Prevent panic caused by divide by zero in find_busiest_group() (Larry Woodman) [644903]
+- [kernel] Backport upstream fix for a race in pid generation that causes pids to be reused immediately (Larry Woodman) [646321]
+- [scsi] megaraid: fix make legacy i/o ports free (Tomas Henzl) [632558]
+- [net] ipv6: balance pernet_operations [de]registration (Neil Horman) [625173]
+- [kdump] kexec: accelerate vmcore copies by marking oldmem in /proc/vmcore as cached (Neil Horman) [641315]
+- [mm] use compaction for GFP_ATOMIC order > 0 (Andrea Arcangeli) [622327 642570]
+- [kernel] module: initialize module dynamic debug later (Jason Baron) [627648]
+- [kernel] dynamic debug: move ddebug_remove_module() down into free_module() (Jason Baron) [627648]
+- [md] dm: remove extra locking when changing device size (Mike Snitzer) [644380]
+- [block] read i_size with i_size_read() (Mike Snitzer) [644380]
+
 * Fri Nov 19 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-84.el6]
 - [scsi] lpfc: Update lpfc version for 8.3.5.25 driver release (Rob Evers) [645882]
 - [scsi] lpfc: Fix mailbox handling for UNREG_RPI_ALL case (Rob Evers) [645882]
