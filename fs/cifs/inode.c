@@ -28,6 +28,7 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "fscache.h"
 
 
 static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
@@ -775,6 +776,8 @@ retry_iget5_locked:
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
 		if (inode->i_state & I_NEW) {
 			inode->i_ino = hash;
+			/* initialize per-inode cache cookie pointer */
+			CIFS_I(inode)->fscache = NULL;
 			unlock_new_inode(inode);
 		}
 	}
@@ -1570,6 +1573,7 @@ cifs_invalidate_mapping(struct inode *inode)
 			cifs_i->write_behind_rc = rc;
 	}
 	invalidate_remote_inode(inode);
+	cifs_fscache_reset_inode_cookie(inode);
 }
 
 int cifs_revalidate_file(struct file *filp)
