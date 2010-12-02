@@ -1702,7 +1702,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	}
 #endif
 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
-		goto out;
+		goto out_put_page;
 
 	anon_vma_lock(vma->anon_vma);
 
@@ -1731,10 +1731,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		spin_unlock(&mm->page_table_lock);
 		anon_vma_unlock(vma->anon_vma);
 		mem_cgroup_uncharge_page(new_page);
-#ifdef CONFIG_NUMA
-		put_page(new_page);
-#endif
-		goto out;
+		goto out_put_page;
 	}
 
 	/*
@@ -1775,6 +1772,13 @@ static void collapse_huge_page(struct mm_struct *mm,
 	khugepaged_pages_collapsed++;
 out:
 	up_write(&mm->mmap_sem);
+	return;
+
+out_put_page:
+#ifdef CONFIG_NUMA
+	put_page(new_page);
+#endif
+	goto out;
 }
 
 static int khugepaged_scan_pmd(struct mm_struct *mm,
