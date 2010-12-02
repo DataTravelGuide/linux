@@ -583,7 +583,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
  * Returns: 0 on successful update, error code otherwise
  */
 
-static int gfs2_ri_update(struct gfs2_inode *ip)
+int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
@@ -609,46 +609,6 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		if (rgd->rd_data > max_data)
 			max_data = rgd->rd_data;
 	sdp->sd_max_rg_data = max_data;
-	sdp->sd_rindex_uptodate = 1;
-	return 0;
-}
-
-/**
- * gfs2_ri_update_special - Pull in a new resource index from the disk
- *
- * This is a special version that's safe to call from gfs2_inplace_reserve_i.
- * In this case we know that we don't have any resource groups in memory yet.
- *
- * @ip: pointer to the rindex inode
- *
- * Returns: 0 on successful update, error code otherwise
- */
-static int gfs2_ri_update_special(struct gfs2_inode *ip)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct inode *inode = &ip->i_inode;
-	struct file_ra_state ra_state;
-	struct gfs2_rgrpd *rgd;
-	unsigned int max_data = 0;
-	int error;
-
-	file_ra_state_init(&ra_state, inode->i_mapping);
-	for (sdp->sd_rgrps = 0;; sdp->sd_rgrps++) {
-		/* Ignore partials */
-		if ((sdp->sd_rgrps + 1) * sizeof(struct gfs2_rindex) >
-		    ip->i_disksize)
-			break;
-		error = read_rindex_entry(ip, &ra_state);
-		if (error) {
-			clear_rgrpdi(sdp);
-			return error;
-		}
-	}
-	list_for_each_entry(rgd, &sdp->sd_rindex_list, rd_list)
-		if (rgd->rd_data > max_data)
-			max_data = rgd->rd_data;
-	sdp->sd_max_rg_data = max_data;
-
 	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
@@ -1204,6 +1164,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, int hold_rindex,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
 	int error = 0;
+	int reload_rindex = 0;
 	u64 last_unlinked = NO_BLOCK, unlinked;
 
 	if (gfs2_assert_warn(sdp, al->al_requested))
@@ -1215,9 +1176,12 @@ try_again:
 		   the rindex itself, in which case it's already held. */
 		if (ip != GFS2_I(sdp->sd_rindex))
 			error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
-		else if (!sdp->sd_rgrps) /* We may not have the rindex read
-					    in, so: */
-			error = gfs2_ri_update_special(ip);
+		else if (!sdp->sd_rgrps || reload_rindex) {
+			/* We need more space, and the rindex is stale.
+			   reread it */
+			error = gfs2_ri_update(ip);
+			reload_rindex = 0;
+		}
 	}
 
 	if (error)
@@ -1231,6 +1195,10 @@ try_again:
 	if (error) {
 		if (hold_rindex && ip != GFS2_I(sdp->sd_rindex))
 			gfs2_glock_dq_uninit(&al->al_ri_gh);
+		else if (!sdp->sd_rindex_uptodate) {
+			reload_rindex = 1;
+			goto try_again;
+		}
 		if (error != -EAGAIN)
 			return error;
 
