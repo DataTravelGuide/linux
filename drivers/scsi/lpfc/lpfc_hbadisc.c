@@ -1130,7 +1130,7 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (vport->port_state != LPFC_FLOGI) {
 		phba->hba_flag |= FCF_RR_INPROG;
 		spin_unlock_irq(&phba->hbalock);
-		lpfc_initial_flogi(vport);
+		lpfc_issue_init_vfi(vport);
 		goto out;
 	}
 	spin_unlock_irq(&phba->hbalock);
@@ -1352,7 +1352,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 		if (phba->pport->port_state != LPFC_FLOGI) {
 			phba->hba_flag |= FCF_RR_INPROG;
 			spin_unlock_irq(&phba->hbalock);
-			lpfc_initial_flogi(phba->pport);
+			lpfc_issue_init_vfi(phba->pport);
 			return;
 		}
 		spin_unlock_irq(&phba->hbalock);
@@ -2330,7 +2330,7 @@ lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				phba->fcf.current_rec.fcf_indx, fcf_index);
 		/* Wait 500 ms before retrying FLOGI to current FCF */
 		msleep(500);
-		lpfc_initial_flogi(phba->pport);
+		lpfc_issue_init_vfi(phba->pport);
 		goto out;
 	}
 
@@ -2418,6 +2418,63 @@ lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 out:
 	lpfc_sli4_mbox_cmd_free(phba, mboxq);
+}
+
+/**
+ * lpfc_init_vfi_cmpl - Completion handler for init_vfi mbox command.
+ * @phba: pointer to lpfc hba data structure.
+ * @mboxq: pointer to mailbox data structure.
+ *
+ * This function handles completion of init vfi mailbox command.
+ */
+void
+lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	struct lpfc_vport *vport = mboxq->vport;
+
+	if (mboxq->u.mb.mbxStatus && (mboxq->u.mb.mbxStatus != 0x4002)) {
+		lpfc_printf_vlog(vport, KERN_ERR,
+				LOG_MBOX,
+				"2891 Init VFI mailbox failed 0x%x\n",
+				mboxq->u.mb.mbxStatus);
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+		return;
+	}
+	lpfc_initial_flogi(vport);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return;
+}
+
+/**
+ * lpfc_issue_init_vfi - Issue init_vfi mailbox command.
+ * @vport: pointer to lpfc_vport data structure.
+ *
+ * This function issue a init_vfi mailbox command to initialize the VFI and
+ * VPI for the physical port.
+ */
+void
+lpfc_issue_init_vfi(struct lpfc_vport *vport)
+{
+	LPFC_MBOXQ_t *mboxq;
+	int rc;
+	struct lpfc_hba *phba = vport->phba;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_vlog(vport, KERN_ERR,
+			LOG_MBOX, "2892 Failed to allocate "
+			"init_vfi mailbox\n");
+		return;
+	}
+	lpfc_init_vfi(mboxq, vport);
+	mboxq->mbox_cmpl = lpfc_init_vfi_cmpl;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_printf_vlog(vport, KERN_ERR,
+			LOG_MBOX, "2893 Failed to issue init_vfi mailbox\n");
+		mempool_free(mboxq, vport->phba->mbox_mem_pool);
+	}
 }
 
 /**
@@ -2581,8 +2638,18 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_unlock_irq(shost->host_lock);
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		lpfc_start_fdiscs(phba);
-		lpfc_do_scr_ns_plogi(phba, vport);
+		/* For private loop just start discovery and we are done. */
+		if ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
+		    (phba->alpa_map[0] == 0) &&
+		    !(vport->fc_flag & FC_PUBLIC_LOOP)) {
+			/* Use loop map to make discovery list */
+			lpfc_disc_list_loopmap(vport);
+			/* Start discovery */
+			lpfc_disc_start(vport);
+		} else {
+			lpfc_start_fdiscs(phba);
+			lpfc_do_scr_ns_plogi(phba, vport);
+		}
 	}
 fail_free_mem:
 	mempool_free(mboxq, phba->mbox_mem_pool);
@@ -4794,7 +4861,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 			}
 		}
 		if (vport->port_state != LPFC_FLOGI) {
-			lpfc_initial_flogi(vport);
+			if (phba->sli_rev <= LPFC_SLI_REV3)
+				lpfc_initial_flogi(vport);
+			else
+				lpfc_issue_init_vfi(vport);
 			return;
 		}
 		break;

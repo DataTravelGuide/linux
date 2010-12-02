@@ -832,6 +832,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
 
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 irsp->ulpTimeout);
+
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
@@ -843,13 +849,16 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (phba->alpa_map[0] == 0) {
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
+			if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
+			     (vport->fc_prevDID != vport->fc_myDID))) {
+				if (vport->fc_flag & FC_VFI_REGISTERED)
+					lpfc_sli4_unreg_all_rpis(vport);
+				lpfc_issue_reg_vfi(vport);
+				lpfc_nlp_put(ndlp);
+				goto out;
+			}
 		}
-
-		/* FLOGI failure */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4],
-				 irsp->ulpTimeout);
 		goto flogifail;
 	}
 	spin_lock_irq(shost->host_lock);
@@ -5482,7 +5491,7 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		    (memcmp(&phba->fc_fabparam.portName, &fp->FportName,
 			    sizeof(struct lpfc_name)))) {
 			/* This port has switched fabrics. FLOGI is required */
-			lpfc_initial_flogi(vport);
+			lpfc_issue_init_vfi(vport);
 		} else {
 			/* FAN verified - skip FLOGI */
 			vport->fc_myDID = vport->fc_prevDID;
@@ -6510,7 +6519,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_unlock_irq(shost->host_lock);
 			if (vport->port_type == LPFC_PHYSICAL_PORT
 				&& !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
-				lpfc_initial_flogi(vport);
+				lpfc_issue_init_vfi(vport);
 			else
 				lpfc_initial_fdisc(vport);
 			break;

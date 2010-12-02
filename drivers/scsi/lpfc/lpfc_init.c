@@ -649,22 +649,23 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 	mb = &pmb->u.mb;
 	pmb->vport = vport;
 
-	lpfc_init_link(phba, pmb, phba->cfg_topology,
-		phba->cfg_link_speed);
+	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	lpfc_set_loopback_flag(phba);
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-	if (rc != MBX_SUCCESS) {
+	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0498 Adapter failed to init, mbxCmd x%x "
 			"INIT_LINK, mbxStatus x%x\n",
 			mb->mbxCommand, mb->mbxStatus);
-		/* Clear all interrupt enable conditions */
-		writel(0, phba->HCregaddr);
-		readl(phba->HCregaddr); /* flush */
-		/* Clear all pending interrupts */
-		writel(0xffffffff, phba->HAregaddr);
-		readl(phba->HAregaddr); /* flush */
+		if (phba->sli_rev <= LPFC_SLI_REV3) {
+			/* Clear all interrupt enable conditions */
+			writel(0, phba->HCregaddr);
+			readl(phba->HCregaddr); /* flush */
+			/* Clear all pending interrupts */
+			writel(0xffffffff, phba->HAregaddr);
+			readl(phba->HAregaddr); /* flush */
+		}
 		phba->link_state = LPFC_HBA_ERROR;
 		if (rc != MBX_BUSY)
 			mempool_free(pmb, phba->mbox_mem_pool);

@@ -1935,11 +1935,14 @@ lpfc_init_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 	struct lpfc_mbx_init_vfi *init_vfi;
 
 	memset(mbox, 0, sizeof(*mbox));
+	mbox->vport = vport;
 	init_vfi = &mbox->u.mqe.un.init_vfi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_INIT_VFI);
 	bf_set(lpfc_init_vfi_vr, init_vfi, 1);
 	bf_set(lpfc_init_vfi_vt, init_vfi, 1);
+	bf_set(lpfc_init_vfi_vp, init_vfi, 1);
 	bf_set(lpfc_init_vfi_vfi, init_vfi, vport->vfi + vport->phba->vfi_base);
+	bf_set(lpfc_init_vpi_vpi, init_vfi, vport->vpi + vport->phba->vpi_base);
 	bf_set(lpfc_init_vfi_fcfi, init_vfi, vport->phba->fcf.fcfi);
 }
 

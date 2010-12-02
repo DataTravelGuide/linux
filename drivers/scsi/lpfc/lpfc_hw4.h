@@ -1444,10 +1444,16 @@ struct lpfc_mbx_init_vfi {
 #define lpfc_init_vfi_vf_SHIFT		29
 #define lpfc_init_vfi_vf_MASK		0x00000001
 #define lpfc_init_vfi_vf_WORD		word1
+#define lpfc_init_vfi_vp_SHIFT		28
+#define lpfc_init_vfi_vp_MASK		0x00000001
+#define lpfc_init_vfi_vp_WORD		word1
 #define lpfc_init_vfi_vfi_SHIFT		0
 #define lpfc_init_vfi_vfi_MASK		0x0000FFFF
 #define lpfc_init_vfi_vfi_WORD		word1
 	uint32_t word2;
+#define lpfc_init_vfi_vpi_SHIFT		16
+#define lpfc_init_vfi_vpi_MASK		0x0000FFFF
+#define lpfc_init_vfi_vpi_WORD		word2
 #define lpfc_init_vfi_fcfi_SHIFT	0
 #define lpfc_init_vfi_fcfi_MASK		0x0000FFFF
 #define lpfc_init_vfi_fcfi_WORD		word2
