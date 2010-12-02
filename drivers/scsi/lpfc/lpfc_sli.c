@@ -12854,6 +12854,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	struct lpfc_nodelist *act_mbx_ndlp = NULL;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	LIST_HEAD(mbox_cmd_list);
+	uint8_t restart_loop;
 
 	/* Clean up internally queued mailbox commands with the vport */
 	spin_lock_irq(&phba->hbalock);
@@ -12882,6 +12883,38 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
 		}
 	}
+	/* Cleanup any mailbox completions which are not yet processed */
+	do {
+		restart_loop = 0;
+		list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
+			/*
+			 * If this mailox is already processed or it is
+			 * for another vport ignore it.
+			 */
+			if ((mb->vport != vport) ||
+				(mb->mbox_flag & LPFC_MBX_IMED_UNREG))
+				continue;
+
+			if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) &&
+				(mb->u.mb.mbxCommand != MBX_REG_VPI))
+				continue;
+
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+				ndlp = (struct lpfc_nodelist *)mb->context2;
+				/* Unregister the RPI when mailbox complete */
+				mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
+				restart_loop = 1;
+				spin_unlock_irq(&phba->hbalock);
+				spin_lock(shost->host_lock);
+				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+				spin_unlock(shost->host_lock);
+				spin_lock_irq(&phba->hbalock);
+				break;
+			}
+		}
+	} while (restart_loop);
+
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Release the cleaned-up mailbox commands */

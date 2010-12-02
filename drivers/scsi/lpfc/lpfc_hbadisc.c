@@ -4171,6 +4171,16 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	}
 
 	spin_lock_irq(&phba->hbalock);
+	/* Cleanup REG_LOGIN completions which are not yet processed */
+	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
+		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
+			(ndlp != (struct lpfc_nodelist *) mb->context2))
+			continue;
+
+		mb->context2 = NULL;
+		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
+
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
