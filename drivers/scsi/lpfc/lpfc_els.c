@@ -3932,6 +3932,64 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 }
 
 /**
+ * lpfc_els_rsp_echo_acc - Issue echo acc response
+ * @vport: pointer to a virtual N_Port data structure.
+ * @data: pointer to echo data to return in the accept.
+ * @oldiocb: pointer to the original lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * Return code
+ *   0 - Successfully issued acc echo response
+ *   1 - Failed to issue acc echo response
+ **/
+static int
+lpfc_els_rsp_echo_acc(struct lpfc_vport *vport, uint8_t *data,
+		      struct lpfc_iocbq *oldiocb, struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_hba  *phba = vport->phba;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_sli *psli;
+	uint8_t *pcmd;
+	uint16_t cmdsize;
+	int rc;
+
+	psli = &phba->sli;
+	cmdsize = oldiocb->iocb.unsli3.rcvsli3.acc_len;
+
+	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
+				     ndlp->nlp_DID, ELS_CMD_ACC);
+	if (!elsiocb)
+		return 1;
+
+	elsiocb->iocb.ulpContext = oldiocb->iocb.ulpContext;	/* Xri */
+	/* Xmit ECHO ACC response tag <ulpIoTag> */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "2876 Xmit ECHO ACC response tag x%x xri x%x\n",
+			 elsiocb->iotag, elsiocb->iocb.ulpContext);
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	pcmd += sizeof(uint32_t);
+	memcpy(pcmd, data, cmdsize - sizeof(uint32_t));
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
+		"Issue ACC ECHO:  did:x%x flg:x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag, 0);
+
+	phba->fc_stat.elsXmitACC++;
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+	lpfc_nlp_put(ndlp);
+	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
+				    * it could be freed */
+
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
+	if (rc == IOCB_ERROR) {
+		lpfc_els_free_iocb(phba, elsiocb);
+		return 1;
+	}
+	return 0;
+}
+
+/**
  * lpfc_els_disc_adisc - Issue remaining adisc iocbs to npr nodes of a vport
  * @vport: pointer to a host virtual N_Port data structure.
  *
@@ -4686,6 +4744,30 @@ lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
 			NULL);
 	}
+	return 0;
+}
+
+/**
+ * lpfc_els_rcv_echo - Process an unsolicited echo iocb
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * Return code
+ *   0 - Successfully processed echo iocb (currently always return 0)
+ **/
+static int
+lpfc_els_rcv_echo(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
+		  struct lpfc_nodelist *ndlp)
+{
+	uint8_t *pcmd;
+
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) cmdiocb->context2)->virt);
+
+	/* skip over first word of echo command to find echo data */
+	pcmd += sizeof(uint32_t);
+
+	lpfc_els_rsp_echo_acc(vport, pcmd, cmdiocb, ndlp);
 	return 0;
 }
 
@@ -6037,6 +6119,16 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRRQ++;
 		lpfc_els_rcv_rrq(vport, elsiocb, ndlp);
+		if (newnode)
+			lpfc_nlp_put(ndlp);
+		break;
+	case ELS_CMD_ECHO:
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+			"RCV ECHO:        did:x%x/ste:x%x flg:x%x",
+			did, vport->port_state, ndlp->nlp_flag);
+
+		phba->fc_stat.elsRcvECHO++;
+		lpfc_els_rcv_echo(vport, elsiocb, ndlp);
 		if (newnode)
 			lpfc_nlp_put(ndlp);
 		break;
