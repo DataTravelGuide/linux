@@ -460,13 +460,15 @@ struct lpfc_register {
 	uint32_t word0;
 };
 
+/* The SLI4 INTF register offset is common to all if_type values. */
+#define LPFC_SLI_INTF			0x0058
+
+/* The following BAR0 Registers apply to SLI4 if_type 0 UCNAs. */
 #define LPFC_UERR_STATUS_HI		0x00A4
 #define LPFC_UERR_STATUS_LO		0x00A0
 #define LPFC_UE_MASK_HI			0x00AC
 #define LPFC_UE_MASK_LO			0x00A8
-#define LPFC_SLI_INTF			0x0058
 
-/* BAR0 Registers */
 #define LPFC_HST_STATE			0x00AC
 #define lpfc_hst_state_perr_SHIFT	31
 #define lpfc_hst_state_perr_MASK	0x1
@@ -490,6 +492,10 @@ struct lpfc_register {
 #define lpfc_hst_state_port_status_MASK		0xFFFF
 #define lpfc_hst_state_port_status_WORD		word0
 
+/*
+ * The following Port Status Values apply to SLI4, if_type 0 and 2
+ * UCNAs.
+ */
 #define LPFC_POST_STAGE_POWER_ON_RESET			0x0000
 #define LPFC_POST_STAGE_AWAITING_HOST_RDY		0x0001
 #define LPFC_POST_STAGE_HOST_RDY			0x0002
@@ -523,6 +529,64 @@ struct lpfc_register {
 #define LPFC_POST_STAGE_MAC_ADDRESS			0x0C00
 #define LPFC_POST_STAGE_ARMFW_READY			0xC000
 #define LPFC_POST_STAGE_ARMFW_UE 			0xF000
+
+
+/* The following BAR0 register sets are defined for if_type 2 UCNAs. */
+#define LPFC_SLIPORT_SEMAPHORE		0x0400
+#define lpfc_sliport_smphr_perr_SHIFT	31
+#define lpfc_sliport_smphr_perr_MASK	0x1
+#define lpfc_sliport_smphr_perr_WORD	word0
+#define lpfc_sliport_smphr_sfi_SHIFT	30
+#define lpfc_sliport_smphr_sfi_MASK	0x1
+#define lpfc_sliport_smphr_sfi_WORD	word0
+#define lpfc_sliport_smphr_nip_SHIFT	29
+#define lpfc_sliport_smphr_nip_MASK	0x1
+#define lpfc_sliport_smphr_nip_WORD	word0
+#define lpfc_sliport_smphr_ipc_SHIFT	28
+#define lpfc_sliport_smphr_ipc_MASK	0x1
+#define lpfc_sliport_smphr_ipc_WORD	word0
+#define lpfc_sliport_smphr_scr1_SHIFT	27
+#define lpfc_sliport_smphr_scr1_MASK	0x1
+#define lpfc_sliport_smphr_scr1_WORD	word0
+#define lpfc_sliport_smphr_scr2_SHIFT	26
+#define lpfc_sliport_smphr_scr2_MASK	0x1
+#define lpfc_sliport_smphr_scr2_WORD	word0
+#define lpfc_sliport_smphr_host_scratch_SHIFT	16
+#define lpfc_sliport_smphr_host_scratch_MASK	0xFF
+#define lpfc_sliport_smphr_host_scratch_WORD	word0
+#define lpfc_sliport_smphr_port_status_SHIFT	0
+#define lpfc_sliport_smphr_port_status_MASK	0xFFFF
+#define lpfc_sliport_smphr_port_status_WORD	word0
+
+#define LPFC_SLIPORT_STATUS		0x0404
+#define lpfc_sliport_status_err_SHIFT	31
+#define lpfc_sliport_status_err_MASK	0x1
+#define lpfc_sliport_status_err_WORD	word0
+#define lpfc_sliport_status_end_SHIFT	30
+#define lpfc_sliport_status_end_MASK	0x1
+#define lpfc_sliport_status_end_WORD	word0
+#define lpfc_sliport_status_oti_SHIFT	29
+#define lpfc_sliport_status_oti_MASK	0x1
+#define lpfc_sliport_status_oti_WORD	word0
+#define lpfc_sliport_status_rn_SHIFT	24
+#define lpfc_sliport_status_rn_MASK	0x1
+#define lpfc_sliport_status_rn_WORD	word0
+#define lpfc_sliport_status_rdy_SHIFT	23
+#define lpfc_sliport_status_rdy_MASK	0x1
+#define lpfc_sliport_status_rdy_WORD	word0
+
+#define LPFC_SLIPORT_CONTROL		0x0408
+#define lpfc_sliport_ctrl_end_SHIFT	30
+#define lpfc_sliport_ctrl_end_MASK	0x1
+#define lpfc_sliport_ctrl_end_WORD	word0
+#define LPFC_SLIPORT_LITTLE_ENDIAN 0
+#define LPFC_SLIPORT_BIG_ENDIAN	   1
+#define lpfc_sliport_ctrl_ip_SHIFT	27
+#define lpfc_sliport_ctrl_ip_MASK	0x1
+#define lpfc_sliport_ctrl_ip_WORD	word0
+
+#define LPFC_SLIPORT_ERROR_1		0x040C
+#define LPFC_SLIPORT_ERROR_2		0x0410
 
 /* BAR1 Registers */
 #define LPFC_IMR_MASK_ALL	0xFFFFFFFF
@@ -579,14 +643,21 @@ struct lpfc_register {
 #define LPFC_SLI4_INTR30		BIT30
 #define LPFC_SLI4_INTR31		BIT31
 
-/* BAR2 Registers */
+/*
+ * The Doorbell registers defined here exist in different BAR
+ * register sets depending on the UCNA Port's reported if_type
+ * value.  For UCNA ports running SLI4 and if_type 0, they reside in
+ * BAR2.  For UCNA ports running SLI4 and if_type 2, they reside in
+ * BAR0.  The offsets are the same so the driver must account for
+ * any base address difference.
+ */
 #define LPFC_RQ_DOORBELL		0x00A0
 #define lpfc_rq_doorbell_num_posted_SHIFT	16
 #define lpfc_rq_doorbell_num_posted_MASK	0x3FFF
 #define lpfc_rq_doorbell_num_posted_WORD	word0
 #define LPFC_RQ_POST_BATCH		8	/* RQEs to post at one time */
 #define lpfc_rq_doorbell_id_SHIFT		0
-#define lpfc_rq_doorbell_id_MASK		0x03FF
+#define lpfc_rq_doorbell_id_MASK		0xFFFF
 #define lpfc_rq_doorbell_id_WORD		word0
 
 #define LPFC_WQ_DOORBELL		0x0040
@@ -601,6 +672,11 @@ struct lpfc_register {
 #define lpfc_wq_doorbell_id_WORD		word0
 
 #define LPFC_EQCQ_DOORBELL		0x0120
+#define lpfc_eqcq_doorbell_se_SHIFT		31
+#define lpfc_eqcq_doorbell_se_MASK		0x0001
+#define lpfc_eqcq_doorbell_se_WORD		word0
+#define LPFC_EQCQ_SOLICIT_ENABLE_OFF	0
+#define LPFC_EQCQ_SOLICIT_ENABLE_ON	1
 #define lpfc_eqcq_doorbell_arm_SHIFT		29
 #define lpfc_eqcq_doorbell_arm_MASK		0x0001
 #define lpfc_eqcq_doorbell_arm_WORD		word0
@@ -638,7 +714,7 @@ struct lpfc_register {
 #define lpfc_mq_doorbell_num_posted_MASK	0x3FFF
 #define lpfc_mq_doorbell_num_posted_WORD	word0
 #define lpfc_mq_doorbell_id_SHIFT		0
-#define lpfc_mq_doorbell_id_MASK		0x03FF
+#define lpfc_mq_doorbell_id_MASK		0xFFFF
 #define lpfc_mq_doorbell_id_WORD		word0
 
 struct lpfc_sli4_cfg_mhdr {
