@@ -2079,6 +2079,7 @@ struct lpfc_mcqe {
 #define LPFC_TRAILER_CODE_FCOE	0x2
 #define LPFC_TRAILER_CODE_DCBX	0x3
 #define LPFC_TRAILER_CODE_GRP5	0x5
+#define LPFC_TRAILER_CODE_FC	0x10
 };
 
 struct lpfc_acqe_link {

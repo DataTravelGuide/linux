@@ -446,23 +446,25 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Get the default values for Model Name and Description */
 	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
-	if ((phba->cfg_link_speed > LINK_SPEED_10G)
-	    || ((phba->cfg_link_speed == LINK_SPEED_1G)
+	if ((phba->cfg_link_speed > LPFC_USER_LINK_SPEED_16G)
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_1G)
 		&& !(phba->lmt & LMT_1Gb))
-	    || ((phba->cfg_link_speed == LINK_SPEED_2G)
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_2G)
 		&& !(phba->lmt & LMT_2Gb))
-	    || ((phba->cfg_link_speed == LINK_SPEED_4G)
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_4G)
 		&& !(phba->lmt & LMT_4Gb))
-	    || ((phba->cfg_link_speed == LINK_SPEED_8G)
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_8G)
 		&& !(phba->lmt & LMT_8Gb))
-	    || ((phba->cfg_link_speed == LINK_SPEED_10G)
-		&& !(phba->lmt & LMT_10Gb))) {
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_10G)
+		&& !(phba->lmt & LMT_10Gb))
+	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G)
+		&& !(phba->lmt & LMT_16Gb))) {
 		/* Reset link speed to auto */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LINK_EVENT,
 			"1302 Invalid speed for this board: "
 			"Reset link speed to auto: x%x\n",
 			phba->cfg_link_speed);
-			phba->cfg_link_speed = LINK_SPEED_AUTO;
+			phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
 	}
 
 	phba->link_state = LPFC_LINK_DOWN;
@@ -1450,8 +1452,8 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	lpfc_els_flush_all_cmd(phba);
 
 	psli->slistat.link_event++;
-	lpfc_read_la(phba, pmb, mp);
-	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_la;
+	lpfc_read_topology(phba, pmb, mp);
+	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = vport;
 	/* Block ELS IOCBs until we have processed this mbox command */
 	phba->sli.ring[LPFC_ELS_RING].flag |= LPFC_STOP_IOCB_EVENT;
@@ -3048,20 +3050,20 @@ lpfc_sli4_parse_latt_type(struct lpfc_hba *phba,
 	switch (bf_get(lpfc_acqe_link_status, acqe_link)) {
 	case LPFC_ASYNC_LINK_STATUS_DOWN:
 	case LPFC_ASYNC_LINK_STATUS_LOGICAL_DOWN:
-		att_type = AT_LINK_DOWN;
+		att_type = LPFC_ATT_LINK_DOWN;
 		break;
 	case LPFC_ASYNC_LINK_STATUS_UP:
 		/* Ignore physical link up events - wait for logical link up */
-		att_type = AT_RESERVED;
+		att_type = LPFC_ATT_RESERVED;
 		break;
 	case LPFC_ASYNC_LINK_STATUS_LOGICAL_UP:
-		att_type = AT_LINK_UP;
+		att_type = LPFC_ATT_LINK_UP;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0399 Invalid link attention type: x%x\n",
 				bf_get(lpfc_acqe_link_status, acqe_link));
-		att_type = AT_RESERVED;
+		att_type = LPFC_ATT_RESERVED;
 		break;
 	}
 	return att_type;
@@ -3085,32 +3087,28 @@ lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
 
 	switch (bf_get(lpfc_acqe_link_speed, acqe_link)) {
 	case LPFC_ASYNC_LINK_SPEED_ZERO:
-		link_speed = LA_UNKNW_LINK;
-		break;
 	case LPFC_ASYNC_LINK_SPEED_10MBPS:
-		link_speed = LA_UNKNW_LINK;
-		break;
 	case LPFC_ASYNC_LINK_SPEED_100MBPS:
-		link_speed = LA_UNKNW_LINK;
+		link_speed = LPFC_LINK_SPEED_UNKNOWN;
 		break;
 	case LPFC_ASYNC_LINK_SPEED_1GBPS:
-		link_speed = LA_1GHZ_LINK;
+		link_speed = LPFC_LINK_SPEED_1GHZ;
 		break;
 	case LPFC_ASYNC_LINK_SPEED_10GBPS:
-		link_speed = LA_10GHZ_LINK;
+		link_speed = LPFC_LINK_SPEED_10GHZ;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0483 Invalid link-attention link speed: x%x\n",
 				bf_get(lpfc_acqe_link_speed, acqe_link));
-		link_speed = LA_UNKNW_LINK;
+		link_speed = LPFC_LINK_SPEED_UNKNOWN;
 		break;
 	}
 	return link_speed;
 }
 
 /**
- * lpfc_sli4_async_link_evt - Process the asynchronous link event
+ * lpfc_sli4_async_link_evt - Process the asynchronous FC or FCoE link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
@@ -3123,11 +3121,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
-	READ_LA_VAR *la;
+	struct lpfc_mbx_read_top *la;
 	uint8_t att_type;
+	int rc;
 
 	att_type = lpfc_sli4_parse_latt_type(phba, acqe_link);
-	if (att_type != AT_LINK_DOWN && att_type != AT_LINK_UP)
+	if (att_type != LPFC_ATT_LINK_DOWN && att_type != LPFC_ATT_LINK_UP)
 		return;
 	phba->fcoe_eventtag = acqe_link->event_tag;
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -3158,27 +3157,10 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	/* Update link event statistics */
 	phba->sli.slistat.link_event++;
 
-	/* Create pseudo lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_la(phba, pmb, mp);
+	/* Create lpfc_handle_latt mailbox command from link ACQE */
+	lpfc_read_topology(phba, pmb, mp);
+	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
-
-	/* Parse and translate status field */
-	mb = &pmb->u.mb;
-	mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba, acqe_link);
-
-	/* Parse and translate link attention fields */
-	la = (READ_LA_VAR *) &pmb->u.mb.un.varReadLA;
-	la->eventTag = acqe_link->event_tag;
-	la->attType = att_type;
-	la->UlnkSpeed = lpfc_sli4_parse_latt_link_speed(phba, acqe_link);
-
-	/* Fake the the following irrelvant fields */
-	la->topology = TOPOLOGY_PT_PT;
-	la->granted_AL_PA = 0;
-	la->il = 0;
-	la->pb = 0;
-	la->fa = 0;
-	la->mm = 0;
 
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
@@ -3193,9 +3175,42 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 				bf_get(lpfc_acqe_link_fault, acqe_link);
 	phba->sli4_hba.link_state.logical_speed =
 				bf_get(lpfc_acqe_qos_link_speed, acqe_link);
+	/*
+	 * For FC Mode: issue the READ_TOPOLOGY mailbox command to fetch
+	 * topology info. Note: Optional for non FC-AL ports.
+	 */
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED)
+			goto out_free_dmabuf;
+		return;
+	}
+	/*
+	 * For FCoE Mode: fill in all the topology information we need and call
+	 * the READ_TOPOLOGY completion routine to continue without actually
+	 * sending the READ_TOPOLOGY mailbox command to the port.
+	 */
+	/* Parse and translate status field */
+	mb = &pmb->u.mb;
+	mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba, acqe_link);
+
+	/* Parse and translate link attention fields */
+	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
+	la->eventTag = acqe_link->event_tag;
+	bf_set(lpfc_mbx_read_top_att_type, la, att_type);
+	bf_set(lpfc_mbx_read_top_link_spd, la,
+	       lpfc_sli4_parse_latt_link_speed(phba, acqe_link));
+
+	/* Fake the the following irrelvant fields */
+	bf_set(lpfc_mbx_read_top_topology, la, LPFC_TOPOLOGY_PT_PT);
+	bf_set(lpfc_mbx_read_top_alpa_granted, la, 0);
+	bf_set(lpfc_mbx_read_top_il, la, 0);
+	bf_set(lpfc_mbx_read_top_pb, la, 0);
+	bf_set(lpfc_mbx_read_top_fa, la, 0);
+	bf_set(lpfc_mbx_read_top_mm, la, 0);
 
 	/* Invoke the lpfc_handle_latt mailbox command callback function */
-	lpfc_mbx_cmpl_read_la(phba, pmb);
+	lpfc_mbx_cmpl_read_topology(phba, pmb);
 
 	return;
 
@@ -3284,15 +3299,15 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_async_fcoe_evt - Process the asynchronous fcoe event
+ * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
  *
  * This routine is to handle the SLI4 asynchronous fcoe event.
  **/
 static void
-lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
-			 struct lpfc_acqe_fcoe *acqe_fcoe)
+lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
+			struct lpfc_acqe_fcoe *acqe_fcoe)
 {
 	uint8_t event_type = bf_get(lpfc_acqe_fcoe_event_type, acqe_fcoe);
 	int rc;
@@ -3594,12 +3609,13 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		/* Process the asynchronous event */
 		switch (bf_get(lpfc_trailer_code, &cq_event->cqe.mcqe_cmpl)) {
 		case LPFC_TRAILER_CODE_LINK:
+		case LPFC_TRAILER_CODE_FC:
 			lpfc_sli4_async_link_evt(phba,
 						 &cq_event->cqe.acqe_link);
 			break;
 		case LPFC_TRAILER_CODE_FCOE:
-			lpfc_sli4_async_fcoe_evt(phba,
-						 &cq_event->cqe.acqe_fcoe);
+			lpfc_sli4_async_fip_evt(phba,
+						&cq_event->cqe.acqe_fcoe);
 			break;
 		case LPFC_TRAILER_CODE_DCBX:
 			lpfc_sli4_async_dcbx_evt(phba,

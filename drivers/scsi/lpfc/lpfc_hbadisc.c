@@ -1064,7 +1064,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mempool_free(pmb, phba->mbox_mem_pool);
 
-	if (phba->fc_topology == TOPOLOGY_LOOP &&
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP &&
 	    vport->fc_flag & FC_PUBLIC_LOOP &&
 	    !(vport->fc_flag & FC_LBIT)) {
 			/* Need to wait for FAN - use discovery timer
@@ -2527,7 +2527,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 						     FC_VPORT_FAILED);
 				continue;
 			}
-			if (phba->fc_topology == TOPOLOGY_LOOP) {
+			if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				lpfc_vport_set_state(vports[i],
 						     FC_VPORT_LINKDOWN);
 				continue;
@@ -2563,7 +2563,7 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			 "2018 REG_VFI mbxStatus error x%x "
 			 "HBA state x%x\n",
 			 mboxq->u.mb.mbxStatus, vport->port_state);
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/* FLOGI failed, use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
 			/* Start discovery */
@@ -2642,7 +2642,7 @@ out:
 }
 
 static void
-lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
+lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 {
 	struct lpfc_vport *vport = phba->pport;
 	LPFC_MBOXQ_t *sparam_mbox, *cfglink_mbox = NULL;
@@ -2652,31 +2652,24 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	struct fcf_record *fcf_record;
 
 	spin_lock_irq(&phba->hbalock);
-	switch (la->UlnkSpeed) {
-	case LA_1GHZ_LINK:
-		phba->fc_linkspeed = LA_1GHZ_LINK;
-		break;
-	case LA_2GHZ_LINK:
-		phba->fc_linkspeed = LA_2GHZ_LINK;
-		break;
-	case LA_4GHZ_LINK:
-		phba->fc_linkspeed = LA_4GHZ_LINK;
-		break;
-	case LA_8GHZ_LINK:
-		phba->fc_linkspeed = LA_8GHZ_LINK;
-		break;
-	case LA_10GHZ_LINK:
-		phba->fc_linkspeed = LA_10GHZ_LINK;
+	switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
+	case LPFC_LINK_SPEED_1GHZ:
+	case LPFC_LINK_SPEED_2GHZ:
+	case LPFC_LINK_SPEED_4GHZ:
+	case LPFC_LINK_SPEED_8GHZ:
+	case LPFC_LINK_SPEED_10GHZ:
+	case LPFC_LINK_SPEED_16GHZ:
+		phba->fc_linkspeed = bf_get(lpfc_mbx_read_top_link_spd, la);
 		break;
 	default:
-		phba->fc_linkspeed = LA_UNKNW_LINK;
+		phba->fc_linkspeed = LPFC_LINK_SPEED_UNKNOWN;
 		break;
 	}
 
-	phba->fc_topology = la->topology;
+	phba->fc_topology = bf_get(lpfc_mbx_read_top_topology, la);
 	phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
 		/* if npiv is enabled and this adapter supports npiv log
@@ -2687,11 +2680,11 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
 				/* Get Loop Map information */
-		if (la->il)
+		if (bf_get(lpfc_mbx_read_top_il, la))
 			vport->fc_flag |= FC_LBIT;
 
-		vport->fc_myDID = la->granted_AL_PA;
-		i = la->un.lilpBde64.tus.f.bdeSize;
+		vport->fc_myDID = bf_get(lpfc_mbx_read_top_alpa_granted, la);
+		i = la->lilpBde64.tus.f.bdeSize;
 
 		if (i == 0) {
 			phba->alpa_map[0] = 0;
@@ -2762,7 +2755,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		goto out;
 	}
 
-	if (!(phba->hba_flag & HBA_FCOE_SUPPORT)) {
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
 		cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!cfglink_mbox)
 			goto out;
@@ -2872,17 +2865,17 @@ lpfc_mbx_issue_link_down(struct lpfc_hba *phba)
 
 
 /*
- * This routine handles processing a READ_LA mailbox
+ * This routine handles processing a READ_TOPOLOGY mailbox
  * command upon completion. It is setup in the LPFC_MBOXQ
  * as the completion routine when the command is
  * handed off to the SLI layer.
  */
 void
-lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	READ_LA_VAR *la;
+	struct lpfc_mbx_read_top *la;
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 
@@ -2895,15 +2888,15 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				mb->mbxStatus, vport->port_state);
 		lpfc_mbx_issue_link_down(phba);
 		phba->link_state = LPFC_HBA_ERROR;
-		goto lpfc_mbx_cmpl_read_la_free_mbuf;
+		goto lpfc_mbx_cmpl_read_topology_free_mbuf;
 	}
 
-	la = (READ_LA_VAR *) &pmb->u.mb.un.varReadLA;
+	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
 	spin_lock_irq(shost->host_lock);
-	if (la->pb)
+	if (bf_get(lpfc_mbx_read_top_pb, la))
 		vport->fc_flag |= FC_BYPASSED_MODE;
 	else
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
@@ -2912,41 +2905,48 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if ((phba->fc_eventTag  < la->eventTag) ||
 	    (phba->fc_eventTag == la->eventTag)) {
 		phba->fc_stat.LinkMultiEvent++;
-		if (la->attType == AT_LINK_UP)
+		if (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)
 			if (phba->fc_eventTag != 0)
 				lpfc_linkdown(phba);
 	}
 
 	phba->fc_eventTag = la->eventTag;
 	spin_lock_irq(&phba->hbalock);
-	if (la->mm)
+	if (bf_get(lpfc_mbx_read_top_mm, la))
 		phba->sli.sli_flag |= LPFC_MENLO_MAINT;
 	else
 		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
 	spin_unlock_irq(&phba->hbalock);
 
 	phba->link_events++;
-	if (la->attType == AT_LINK_UP && (!la->mm)) {
+	if ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP) &&
+	    (!bf_get(lpfc_mbx_read_top_mm, la))) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 					"1306 Link Up Event in loop back mode "
 					"x%x received Data: x%x x%x x%x x%x\n",
 					la->eventTag, phba->fc_eventTag,
-					la->granted_AL_PA, la->UlnkSpeed,
+					bf_get(lpfc_mbx_read_top_alpa_granted,
+					       la),
+					bf_get(lpfc_mbx_read_top_link_spd, la),
 					phba->alpa_map[0]);
 		} else {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 					"1303 Link Up Event x%x received "
 					"Data: x%x x%x x%x x%x x%x x%x %d\n",
 					la->eventTag, phba->fc_eventTag,
-					la->granted_AL_PA, la->UlnkSpeed,
+					bf_get(lpfc_mbx_read_top_alpa_granted,
+					       la),
+					bf_get(lpfc_mbx_read_top_link_spd, la),
 					phba->alpa_map[0],
-					la->mm, la->fa,
+					bf_get(lpfc_mbx_read_top_mm, la),
+					bf_get(lpfc_mbx_read_top_fa, la),
 					phba->wait_4_mlo_maint_flg);
 		}
 		lpfc_mbx_process_link_up(phba, la);
-	} else if (la->attType == AT_LINK_DOWN) {
+	} else if (bf_get(lpfc_mbx_read_top_att_type, la) ==
+		   LPFC_ATT_LINK_DOWN) {
 		phba->fc_stat.LinkDown++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -2962,11 +2962,13 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				"Data: x%x x%x x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag,
-				la->mm, la->fa);
+				bf_get(lpfc_mbx_read_top_mm, la),
+				bf_get(lpfc_mbx_read_top_fa, la));
 		}
 		lpfc_mbx_issue_link_down(phba);
 	}
-	if (la->mm && la->attType == AT_LINK_UP) {
+	if ((bf_get(lpfc_mbx_read_top_mm, la)) &&
+	    (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)) {
 		if (phba->link_state != LPFC_LINK_DOWN) {
 			phba->fc_stat.LinkDown++;
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -2994,14 +2996,15 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 
-	if (la->fa) {
-		if (la->mm)
+	if (bf_get(lpfc_mbx_read_top_fa, la)) {
+		if (bf_get(lpfc_mbx_read_top_mm, la))
 			lpfc_issue_clear_la(phba, vport);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
-				"1311 fa %d\n", la->fa);
+				"1311 fa %d\n",
+				bf_get(lpfc_mbx_read_top_fa, la));
 	}
 
-lpfc_mbx_cmpl_read_la_free_mbuf:
+lpfc_mbx_cmpl_read_topology_free_mbuf:
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -3331,7 +3334,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		kfree(mp);
 		mempool_free(pmb, phba->mbox_mem_pool);
 
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/* FLOGI failed, use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
 
@@ -3411,7 +3414,7 @@ out:
 		/* If no other thread is using the ndlp, free it */
 		lpfc_nlp_not_used(ndlp);
 
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			/*
 			 * RegLogin failed, use loop map to make discovery
 			 * list
@@ -4434,7 +4437,7 @@ lpfc_disc_list_loopmap(struct lpfc_vport *vport)
 	if (!lpfc_is_link_up(phba))
 		return;
 
-	if (phba->fc_topology != TOPOLOGY_LOOP)
+	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP)
 		return;
 
 	/* Check for loop map present or not */
@@ -5548,7 +5551,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	 * registered, do nothing.
 	 */
 	spin_lock_irq(&phba->hbalock);
-	if (!(phba->hba_flag & HBA_FCOE_SUPPORT) ||
+	if (!(phba->hba_flag & HBA_FCOE_MODE) ||
 	    !(phba->fcf.fcf_flag & FCF_REGISTERED) ||
 	    !(phba->hba_flag & HBA_FIP_SUPPORT) ||
 	    (phba->fcf.fcf_flag & FCF_DISCOVERY) ||
