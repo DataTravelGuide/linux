@@ -517,6 +517,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.edtovResolution)	/* E_D_TOV ticks are in nanoseconds */
 		phba->fc_edtov = (phba->fc_edtov + 999999) / 1000000;
 
+	phba->fc_edtovResol = sp->cmn.edtovResolution;
 	phba->fc_ratov = (be32_to_cpu(sp->cmn.w2.r_a_tov) + 999) / 1000;
 
 	if (phba->fc_topology == TOPOLOGY_LOOP) {
@@ -5020,10 +5021,8 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		 struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_hba *phba = vport->phba;
-	uint32_t *lp;
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_dmabuf *pcmd;
-	struct RLS *rls;
 	struct ls_rjt stat;
 
 	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
@@ -5032,8 +5031,6 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		goto reject_out;
 
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
-	lp = (uint32_t *) pcmd->virt;
-	rls = (struct RLS *) lp;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
@@ -5064,7 +5061,93 @@ reject_out:
 }
 
 /**
- * lpfc_els_rcv_rps - Process an unsolicited rps iocb
+ * lpfc_els_rcv_rtv - Process an unsolicited rtv iocb
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * This routine processes Read Timout Value (RTV) IOCB received as an
+ * ELS unsolicited event. It first checks the remote port state. If the
+ * remote port is not in NLP_STE_UNMAPPED_NODE state or NLP_STE_MAPPED_NODE
+ * state, it invokes the lpfc_els_rsl_reject() routine to send the reject
+ * response. Otherwise, it sends the Accept(ACC) response to a Read Timeout
+ * Value (RTV) unsolicited IOCB event.
+ *
+ * Note that, in lpfc_prep_els_iocb() routine, the reference count of ndlp
+ * will be incremented by 1 for holding the ndlp and the reference to ndlp
+ * will be stored into the context1 field of the IOCB for the completion
+ * callback function to the RPS Accept Response ELS IOCB command.
+ *
+ * Return codes
+ *   0 - Successfully processed rtv iocb (currently always return 0)
+ **/
+static int
+lpfc_els_rcv_rtv(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
+		 struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct ls_rjt stat;
+	struct RTV_RSP *rtv_rsp;
+	uint8_t *pcmd;
+	struct lpfc_iocbq *elsiocb;
+	uint32_t cmdsize;
+
+
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))
+		/* reject the unsolicited RPS request and done with it */
+		goto reject_out;
+
+	cmdsize = sizeof(struct RTV_RSP) + sizeof(uint32_t);
+	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
+				     lpfc_max_els_tries, ndlp,
+				     ndlp->nlp_DID, ELS_CMD_ACC);
+
+	if (!elsiocb)
+		return 1;
+
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	pcmd += sizeof(uint32_t); /* Skip past command */
+
+	/* use the command's xri in the response */
+	elsiocb->iocb.ulpContext = cmdiocb->iocb.ulpContext;
+
+	rtv_rsp = (struct RTV_RSP *)pcmd;
+
+	/* populate RTV payload */
+	rtv_rsp->ratov = cpu_to_be32(phba->fc_ratov * 1000); /* report msecs */
+	rtv_rsp->edtov = cpu_to_be32(phba->fc_edtov);
+	bf_set(qtov_edtovres, rtv_rsp, phba->fc_edtovResol ? 1 : 0);
+	bf_set(qtov_rttov, rtv_rsp, 0); /* Field is for FC ONLY */
+	rtv_rsp->qtov = cpu_to_be32(rtv_rsp->qtov);
+
+	/* Xmit ELS RLS ACC response tag <ulpIoTag> */
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ELS,
+			 "2875 Xmit ELS RTV ACC response tag x%x xri x%x, "
+			 "did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x, "
+			 "Data: x%x x%x x%x\n",
+			 elsiocb->iotag, elsiocb->iocb.ulpContext,
+			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
+			 ndlp->nlp_rpi,
+			rtv_rsp->ratov, rtv_rsp->edtov, rtv_rsp->qtov);
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+	phba->fc_stat.elsXmitACC++;
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) == IOCB_ERROR)
+		lpfc_els_free_iocb(phba, elsiocb);
+	return 0;
+
+reject_out:
+	/* issue rejection response */
+	stat.un.b.lsRjtRsvd0 = 0;
+	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+	stat.un.b.vendorUnique = 0;
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
+	return 0;
+}
+
+/* lpfc_els_rcv_rps - Process an unsolicited rps iocb
  * @vport: pointer to a host virtual N_Port data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
  * @ndlp: pointer to a node-list data structure.
@@ -6109,6 +6192,15 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvRNID++;
 		lpfc_els_rcv_rnid(vport, elsiocb, ndlp);
+		if (newnode)
+			lpfc_nlp_put(ndlp);
+		break;
+	case ELS_CMD_RTV:
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+			"RCV RTV:        did:x%x/ste:x%x flg:x%x",
+			did, vport->port_state, ndlp->nlp_flag);
+		phba->fc_stat.elsRcvRTV++;
+		lpfc_els_rcv_rtv(vport, elsiocb, ndlp);
 		if (newnode)
 			lpfc_nlp_put(ndlp);
 		break;
