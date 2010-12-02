@@ -4741,6 +4741,89 @@ lpfc_els_rcv_rrq(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 }
 
 /**
+ * lpfc_els_rsp_rls_acc - Completion callbk func for MBX_READ_LNK_STAT mbox cmd
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ *
+ * This routine is the completion callback function for the MBX_READ_LNK_STAT
+ * mailbox command. This callback function is to actually send the Accept
+ * (ACC) response to a Read Port Status (RPS) unsolicited IOCB event. It
+ * collects the link statistics from the completion of the MBX_READ_LNK_STAT
+ * mailbox command, constructs the RPS response with the link statistics
+ * collected, and then invokes the lpfc_sli_issue_iocb() routine to send ACC
+ * response to the RPS.
+ *
+ * Note that, in lpfc_prep_els_iocb() routine, the reference count of ndlp
+ * will be incremented by 1 for holding the ndlp and the reference to ndlp
+ * will be stored into the context1 field of the IOCB for the completion
+ * callback function to the RPS Accept Response ELS IOCB command.
+ *
+ **/
+static void
+lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	IOCB_t *icmd;
+	struct RLS_RSP *rls_rsp;
+	uint8_t *pcmd;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_nodelist *ndlp;
+	uint16_t xri;
+	uint32_t cmdsize;
+
+	mb = &pmb->u.mb;
+
+	ndlp = (struct lpfc_nodelist *) pmb->context2;
+	xri = (uint16_t) ((unsigned long)(pmb->context1));
+	pmb->context1 = NULL;
+	pmb->context2 = NULL;
+
+	if (mb->mbxStatus) {
+		mempool_free(pmb, phba->mbox_mem_pool);
+		return;
+	}
+
+	cmdsize = sizeof(struct RLS_RSP) + sizeof(uint32_t);
+	mempool_free(pmb, phba->mbox_mem_pool);
+	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
+				     lpfc_max_els_tries, ndlp,
+				     ndlp->nlp_DID, ELS_CMD_ACC);
+
+	/* Decrement the ndlp reference count from previous mbox command */
+	lpfc_nlp_put(ndlp);
+
+	if (!elsiocb)
+		return;
+
+	icmd = &elsiocb->iocb;
+	icmd->ulpContext = xri;
+
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	pcmd += sizeof(uint32_t); /* Skip past command */
+	rls_rsp = (struct RLS_RSP *)pcmd;
+
+	rls_rsp->linkFailureCnt = cpu_to_be32(mb->un.varRdLnk.linkFailureCnt);
+	rls_rsp->lossSyncCnt = cpu_to_be32(mb->un.varRdLnk.lossSyncCnt);
+	rls_rsp->lossSignalCnt = cpu_to_be32(mb->un.varRdLnk.lossSignalCnt);
+	rls_rsp->primSeqErrCnt = cpu_to_be32(mb->un.varRdLnk.primSeqErrCnt);
+	rls_rsp->invalidXmitWord = cpu_to_be32(mb->un.varRdLnk.invalidXmitWord);
+	rls_rsp->crcCnt = cpu_to_be32(mb->un.varRdLnk.crcCnt);
+
+	/* Xmit ELS RLS ACC response tag <ulpIoTag> */
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ELS,
+			 "2874 Xmit ELS RLS ACC response tag x%x xri x%x, "
+			 "did x%x, nlp_flag x%x, nlp_state x%x, rpi x%x\n",
+			 elsiocb->iotag, elsiocb->iocb.ulpContext,
+			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
+			 ndlp->nlp_rpi);
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+	phba->fc_stat.elsXmitACC++;
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) == IOCB_ERROR)
+		lpfc_els_free_iocb(phba, elsiocb);
+}
+
+/**
  * lpfc_els_rsp_rps_acc - Completion callbk func for MBX_READ_LNK_STAT mbox cmd
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
@@ -4830,6 +4913,72 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) == IOCB_ERROR)
 		lpfc_els_free_iocb(phba, elsiocb);
 	return;
+}
+
+/**
+ * lpfc_els_rcv_rls - Process an unsolicited rls iocb
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * This routine processes Read Port Status (RPL) IOCB received as an
+ * ELS unsolicited event. It first checks the remote port state. If the
+ * remote port is not in NLP_STE_UNMAPPED_NODE state or NLP_STE_MAPPED_NODE
+ * state, it invokes the lpfc_els_rsl_reject() routine to send the reject
+ * response. Otherwise, it issue the MBX_READ_LNK_STAT mailbox command
+ * for reading the HBA link statistics. It is for the callback function,
+ * lpfc_els_rsp_rls_acc(), set to the MBX_READ_LNK_STAT mailbox command
+ * to actually sending out RPL Accept (ACC) response.
+ *
+ * Return codes
+ *   0 - Successfully processed rls iocb (currently always return 0)
+ **/
+static int
+lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
+		 struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_hba *phba = vport->phba;
+	uint32_t *lp;
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_dmabuf *pcmd;
+	struct RLS *rls;
+	struct ls_rjt stat;
+
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))
+		/* reject the unsolicited RPS request and done with it */
+		goto reject_out;
+
+	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	lp = (uint32_t *) pcmd->virt;
+	rls = (struct RLS *) lp;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
+	if (mbox) {
+		lpfc_read_lnk_stat(phba, mbox);
+		mbox->context1 =
+		    (void *)((unsigned long) cmdiocb->iocb.ulpContext);
+		mbox->context2 = lpfc_nlp_get(ndlp);
+		mbox->vport = vport;
+		mbox->mbox_cmpl = lpfc_els_rsp_rls_acc;
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
+			!= MBX_NOT_FINISHED)
+			/* Mbox completion will send ELS Response */
+			return 0;
+		/* Decrement reference count used for the failed mbox
+		 * command.
+		 */
+		lpfc_nlp_put(ndlp);
+		mempool_free(mbox, phba->mbox_mem_pool);
+	}
+reject_out:
+	/* issue rejection response */
+	stat.un.b.lsRjtRsvd0 = 0;
+	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+	stat.un.b.vendorUnique = 0;
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
+	return 0;
 }
 
 /**
@@ -5023,7 +5172,6 @@ lpfc_els_rcv_rpl(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 	rpl = (RPL *) (lp + 1);
-
 	maxsize = be32_to_cpu(rpl->maxsize);
 
 	/* We support only one port */
@@ -5839,6 +5987,16 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvLIRR++;
 		lpfc_els_rcv_lirr(vport, elsiocb, ndlp);
+		if (newnode)
+			lpfc_nlp_put(ndlp);
+		break;
+	case ELS_CMD_RLS:
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
+			"RCV RLS:         did:x%x/ste:x%x flg:x%x",
+			did, vport->port_state, ndlp->nlp_flag);
+
+		phba->fc_stat.elsRcvRLS++;
+		lpfc_els_rcv_rls(vport, elsiocb, ndlp);
 		if (newnode)
 			lpfc_nlp_put(ndlp);
 		break;
