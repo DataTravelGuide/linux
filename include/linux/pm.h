@@ -415,7 +415,7 @@ struct dev_pm_info {
 	unsigned int		should_wakeup:1;
 	unsigned		async_suspend:1;
 	enum dpm_state		status;		/* Owned by the PM core */
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_PPC_PSERIES)
 	struct list_head	entry;
 	struct completion	completion;
 #endif
@@ -439,6 +439,14 @@ struct dev_pm_info {
 	int			runtime_error;
 #endif
 };
+
+#ifdef CONFIG_PPC_PSERIES
+struct dev_pm_info_entry {
+	struct device		*dev;
+	struct list_head	entry;
+	struct completion	completion;
+};
+#endif /* CONFIG_PPC_PSERIES */
 
 /*
  * The PM_EVENT_ messages are also used by drivers implementing the legacy

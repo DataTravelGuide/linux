@@ -919,6 +919,11 @@ int device_add(struct device *dev)
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
+	/* Allocate PM struct if required */
+	error = device_pm_pre_add(dev);
+	if (error)
+		goto pm_pre;
+
 	parent = get_device(dev->parent);
 	setup_parent(dev, parent);
 
@@ -1016,6 +1021,8 @@ done:
 	cleanup_device_parent(dev);
 	if (parent)
 		put_device(parent);
+pm_pre:
+	device_pm_pre_add_cleanup(dev);
 name_error:
 	kfree(dev->p);
 	dev->p = NULL;
