@@ -1625,6 +1625,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Dec 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-86.el6]
+- [kernel] posix-cpu-timers: workaround to suppress the problems with mt exec (Oleg Nesterov) [656268]
+- [fs] bio: take care not overflow page count when mapping/copying user data (Danny Feng) [652531] {CVE-2010-4162}
+- [net] can-bcm: fix minor heap overflow (Danny Feng) [651847] {CVE-2010-3874}
+- [net] filter: make sure filters dont read uninitialized memory (Jiri Pirko) [651705] {CVE-2010-4158}
+- [net] inet_diag: Make sure we actually run the same bytecode we audited (Jiri Pirko) [651269]
+- [v4l] ivtvfb: prevent reading uninitialized stack memory (Mauro Carvalho Chehab) [648833] {CVE-2010-4079}
+- [drm] via/ioctl.c: prevent reading uninitialized stack memory (Dave Airlie) [648719] {CVE-2010-4082}
+- [char] nozomi: clear data before returning to userspace on TIOCGICOUNT (Mauro Carvalho Chehab) [648706] {CVE-2010-4077}
+- [serial] clean data before filling it on TIOCGICOUNT (Mauro Carvalho Chehab) [648703] {CVE-2010-4075}
+
 * Wed Dec 01 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-85.el6]
 - [fs] configs: enable CONFIG_PRINT_QUOTA_WARNING (Aristeu Rozanski) [579638]
 - [net] af_unix: limit unix_tot_inflight (Neil Horman) [656762]
