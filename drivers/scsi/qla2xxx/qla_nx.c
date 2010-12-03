@@ -1840,15 +1840,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 
 		if (RD_REG_DWORD(&reg->host_int)) {
 			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_PAUSED) {
-				if (pci_channel_offline(ha->pdev))
-					break;
-
-				qla_printk(KERN_INFO, ha, "RISC paused\n");
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-				qla2xxx_wake_dpc(vha);
-				break;
-			} else if ((stat & HSRX_RISC_INT) == 0)
+			if ((stat & HSRX_RISC_INT) == 0)
 				break;
 
 			switch (stat & 0xff) {
@@ -1924,15 +1916,7 @@ qla82xx_msix_default(int irq, void *dev_id)
 	do {
 		if (RD_REG_DWORD(&reg->host_int)) {
 			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_PAUSED) {
-				if (pci_channel_offline(ha->pdev))
-					break;
-
-				qla_printk(KERN_INFO, ha, "RISC paused\n");
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-				qla2xxx_wake_dpc(vha);
-				break;
-			} else if ((stat & HSRX_RISC_INT) == 0)
+			if ((stat & HSRX_RISC_INT) == 0)
 				break;
 
 			switch (stat & 0xff) {
