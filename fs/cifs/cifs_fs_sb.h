@@ -16,6 +16,7 @@
  *
  */
 #include <linux/radix-tree.h>
+#include <linux/workqueue.h>
 
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
@@ -56,5 +57,6 @@ struct cifs_sb_info {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	char   *mountdata; /* mount options received at mount time */
 #endif
+	struct delayed_work prune_tlinks;
 };
 #endif				/* _CIFS_FS_SB_H */

@@ -22,6 +22,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/slow-work.h>
+#include <linux/workqueue.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
 /*
@@ -769,5 +770,6 @@ GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
 GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
+extern struct workqueue_struct *cifsiod_workqueue;
 
 #endif	/* _CIFS_GLOB_H */

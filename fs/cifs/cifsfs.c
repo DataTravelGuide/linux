@@ -84,6 +84,8 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
+struct workqueue_struct *cifsiod_workqueue;
+
 static int
 cifs_read_super(struct super_block *sb, void *data,
 		const char *devname, int silent)
@@ -965,8 +967,16 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_resolver_key;
 
+	cifsiod_workqueue = create_singlethread_workqueue("cifsiod");
+	if (cifsiod_workqueue == NULL) {
+		rc = -ENOMEM;
+		goto out_unregister_slow_work;
+	}
+
 	return 0;
 
+out_unregister_slow_work:
+	slow_work_unregister_user(THIS_MODULE);
 out_unregister_resolver_key:
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_exit_dns_resolver();
@@ -994,6 +1004,7 @@ static void __exit
 exit_cifs(void)
 {
 	cFYI(DBG2, "exit_cifs");
+	destroy_workqueue(cifsiod_workqueue);
 	cifs_proc_clean();
 	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
