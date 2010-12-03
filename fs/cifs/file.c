@@ -1165,9 +1165,15 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 }
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
+struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
+					bool fsuid_only)
 {
 	struct cifsFileInfo *open_file = NULL;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_inode->vfs_inode.i_sb);
+
+	/* only filter by fsuid on multiuser mounts */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
+		fsuid_only = false;
 
 	read_lock(&GlobalSMBSeslock);
 	/* we could simply get the first_list_entry since write-only entries
@@ -1175,6 +1181,8 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
 	   have a close pending, we go through the whole list */
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
+			continue;
+		if (fsuid_only && open_file->uid != current_fsuid())
 			continue;
 		if (open_file->pfile && ((open_file->pfile->f_flags & O_RDWR) ||
 		    (open_file->pfile->f_flags & O_RDONLY))) {
@@ -1195,9 +1203,11 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
 }
 #endif
 
-struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
+struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
+					bool fsuid_only)
 {
 	struct cifsFileInfo *open_file;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_inode->vfs_inode.i_sb);
 	bool any_available = false;
 	int rc;
 
@@ -1211,13 +1221,19 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		return NULL;
 	}
 
+	/* only filter by fsuid on multiuser mounts */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
+		fsuid_only = false;
+
 	read_lock(&GlobalSMBSeslock);
 refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
-		if (open_file->closePend ||
-		    (!any_available && open_file->pid != current->tgid))
+		if (open_file->closePend)
 			continue;
-
+		if (!any_available && open_file->pid != current->tgid)
+			continue;
+		if (fsuid_only && open_file->uid != current_fsuid())
+			continue;
 		if (open_file->pfile &&
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
@@ -1312,7 +1328,7 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	if (mapping->host->i_size - offset < (loff_t)to)
 		to = (unsigned)(mapping->host->i_size - offset);
 
-	open_file = find_writable_file(CIFS_I(mapping->host));
+	open_file = find_writable_file(CIFS_I(mapping->host), false);
 	if (open_file) {
 		bytes_written = cifs_write(open_file->pfile, write_data,
 					   to-from, &offset);
@@ -1385,7 +1401,7 @@ static int cifs_writepages(struct address_space *mapping,
 	 * but it'll at least handle the return. Maybe it should be
 	 * a BUG() instead?
 	 */
-	open_file = find_writable_file(CIFS_I(mapping->host));
+	open_file = find_writable_file(CIFS_I(mapping->host), false);
 	if (!open_file) {
 		kfree(iov);
 		return generic_writepages(mapping, wbc);
@@ -1503,7 +1519,8 @@ retry:
 				break;
 		}
 		if (n_iov) {
-			open_file = find_writable_file(CIFS_I(mapping->host));
+			open_file = find_writable_file(CIFS_I(mapping->host),
+							false);
 			if (!open_file) {
 				cERROR(1, "No writable handles for inode");
 				rc = -EBADF;
