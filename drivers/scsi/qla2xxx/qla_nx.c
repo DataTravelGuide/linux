@@ -1472,12 +1472,6 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 	off0[1] = 0;
 	sz[1] = size - sz[0];
 
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
-
 	for (i = 0; i < loop; i++) {
 		temp = off8 + (i << shift_amount);
 		qla82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_ADDR_LO, temp);
@@ -1509,11 +1503,6 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 			word[i] |= ((uint64_t)temp << (32 * (k & 1)));
 		}
 	}
-
-	/*
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	 * write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	 */
 
 	if (j >= MAX_CTL_CHECK)
 		return -1;
@@ -1609,11 +1598,6 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		word[startword+1] |= tmpw >> (sz[0] * 8);
 	}
 
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
 	for (i = 0; i < loop; i++) {
 		temp = off8 + (i << shift_amount);
 		qla82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_ADDR_LO, temp);
