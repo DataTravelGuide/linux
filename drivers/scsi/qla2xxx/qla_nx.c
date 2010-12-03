@@ -3268,7 +3268,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 		"%s(%ld): TRYING TO SET QLA82XX_CRB_DEV_STATE\n",
 		__func__, vha->host_no);
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-	if (dev_state != QLA82XX_DEV_INITIALIZING) {
+	if (dev_state == QLA82XX_DEV_READY) {
 		qla_printk(KERN_INFO, ha, "HW State: NEED RESET\n");
 		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			QLA82XX_DEV_NEED_RESET);
