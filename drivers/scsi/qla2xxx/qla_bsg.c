@@ -274,7 +274,7 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 
 	if (!vha->flags.online) {
 		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "host not online\n"));
+		"host not online\n"));
 		rval = -EIO;
 		goto done;
 	}
@@ -374,7 +374,7 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 
 	req_sg_cnt =
 		dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-			bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 	if (!req_sg_cnt) {
 		rval = -ENOMEM;
 		goto done;
@@ -509,8 +509,8 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	}
 
 	elreq.req_sg_cnt = dma_map_sg(&ha->pdev->dev,
-		bsg_job->request_payload.sg_list, bsg_job->request_payload.sg_cnt,
-		DMA_TO_DEVICE);
+		bsg_job->request_payload.sg_list,
+		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 
 	if (!elreq.req_sg_cnt)
 		return -ENOMEM;
@@ -524,7 +524,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 		goto done_unmap_req_sg;
 	}
 
-	if ((elreq.req_sg_cnt !=  bsg_job->request_payload.sg_cnt) ||
+	if ((elreq.req_sg_cnt != bsg_job->request_payload.sg_cnt) ||
 		(elreq.rsp_sg_cnt != bsg_job->reply_payload.sg_cnt)) {
 		DEBUG2(printk(KERN_INFO
 			"dma mapping resulted in different sg counts "
@@ -584,17 +584,17 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	} else {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
 		DEBUG2(qla_printk(KERN_INFO, ha,
-		    "scsi(%ld) bsg rqst type: %s\n", vha->host_no, type));
+			"scsi(%ld) bsg rqst type: %s\n", vha->host_no, type));
 		command_sent = INT_DEF_LB_ECHO_CMD;
 		rval = qla2x00_echo_test(vha, &elreq, response);
 	}
 
 	if (rval) {
 		DEBUG2(qla_printk(KERN_WARNING, ha, "scsi(%ld) Vendor "
-		    "request %s failed\n", vha->host_no, type));
+			"request %s failed\n", vha->host_no, type));
 
 		fw_sts_ptr = ((uint8_t *)bsg_job->req->sense) +
-		    sizeof(struct fc_bsg_reply);
+			sizeof(struct fc_bsg_reply);
 
 		memcpy(fw_sts_ptr, response, sizeof(response));
 		fw_sts_ptr += sizeof(response);
@@ -633,8 +633,8 @@ done_unmap_sg:
 	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
 done_unmap_req_sg:
 	dma_unmap_sg(&ha->pdev->dev,
-	    bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+		bsg_job->request_payload.sg_list,
+		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 	return rval;
 }
 
@@ -860,7 +860,7 @@ qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
 		data_len = bsg_job->reply_payload.payload_len;
 
 		mgmt_b = dma_alloc_coherent(&ha->pdev->dev, data_len,
-		    &mgmt_dma, GFP_KERNEL);
+			&mgmt_dma, GFP_KERNEL);
 		if (!mgmt_b) {
 			DEBUG2(printk(KERN_ERR "%s: dma alloc for mgmt_b "
 				"failed for host=%lu\n",
@@ -1174,16 +1174,16 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 					&& (sp_bsg->bsg_job == bsg_job)) {
 					if (ha->isp_ops->abort_command(sp)) {
 						DEBUG2(qla_printk(KERN_INFO, ha,
-						    "scsi(%ld): mbx "
-						    "abort_command failed\n",
-						    vha->host_no));
+							"scsi(%ld): mbx "
+							"abort_command failed\n",
+							vha->host_no));
 						bsg_job->req->errors =
 						bsg_job->reply->result = -EIO;
 					} else {
 						DEBUG2(qla_printk(KERN_INFO, ha,
-						    "scsi(%ld): mbx "
-						    "abort_command success\n",
-						    vha->host_no));
+							"scsi(%ld): mbx "
+							"abort_command success\n",
+							vha->host_no));
 						bsg_job->req->errors =
 						bsg_job->reply->result = 0;
 					}

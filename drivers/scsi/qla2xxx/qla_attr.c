@@ -40,7 +40,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
 
-	if (off != 0)
+	if (off != 0 || IS_QLA82XX(ha))
 		return (0);
 
 	reading = simple_strtol(buf, NULL, 10);
@@ -319,7 +319,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
 		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)
-			|| IS_QLA81XX(ha))
+			|| IS_QLA8XXX_TYPE(ha))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
@@ -842,7 +842,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(vha->hw))
+		if (iter->is4GBp_only == 3 && !(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -866,7 +866,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(ha))
+		if (iter->is4GBp_only == 3 && !!(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -1242,7 +1242,7 @@ qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
@@ -1254,7 +1254,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1931,7 +1931,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		speed = FC_PORTSPEED_10GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
