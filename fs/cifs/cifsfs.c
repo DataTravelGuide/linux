@@ -101,6 +101,9 @@ cifs_read_super(struct super_block *sb, void *data,
 	if (cifs_sb == NULL)
 		return -ENOMEM;
 
+	spin_lock_init(&cifs_sb->tlink_tree_lock);
+	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
 	/* BB: should we move this after the mount so we
