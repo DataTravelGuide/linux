@@ -583,6 +583,10 @@
 #define	QLA82XX_DRVST_RST_RDY		1
 #define QLA82XX_DRVST_QSNT_RDY		2
 
+/* Different drive active state */
+#define QLA82XX_DRV_NOT_ACTIVE		0
+#define	QLA82XX_DRV_ACTIVE		1
+
 /*
  * The PCI VendorID and DeviceID for our board.
  */
@@ -781,7 +785,6 @@ struct qla82xx_legacy_intr_set {
 #define QLA82XX_BDINFO_MAGIC	0x12345678
 #define FW_SIZE_OFFSET		(0x3e840c)
 
-#define QLA82XX_IS_REVISION_P3PLUS(_rev_)	((_rev_) >= 0x50)
 #define MIU_TEST_AGT_WRDATA_UPPER_LO		(0x0b0)
 #define	MIU_TEST_AGT_WRDATA_UPPER_HI		(0x0b4)
 

@@ -1360,11 +1360,6 @@ int qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 			continue;
 		}
 
-		if (off == (QLA82XX_CRB_PEG_NET_1 + 0x18)) {
-			if (!QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision))
-				buf[i].data = 0x1020;
-		}
-
 		qla82xx_wr_32(ha, off, buf[i].data);
 
 		/* ISP requires much bigger delay to settle down,
@@ -1441,12 +1436,8 @@ qla82xx_fw_load_from_flash(struct qla_hw_data *ha)
 	}
 	udelay(100);
 	read_lock(&ha->hw_lock);
-	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-		qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x18, 0x1020);
-		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
-	} else {
-		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001d);
-	}
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x18, 0x1020);
+	qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
 	read_unlock(&ha->hw_lock);
 	return 0;
 }
@@ -1473,17 +1464,10 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 			    off, data, size);
 	}
 
-	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-		off8 = off & 0xfffffff0;
-		off0[0] = off & 0xf;
-		sz[0] = (size < (16 - off0[0])) ? size : (16 - off0[0]);
-		shift_amount = 4;
-	} else {
-		off8 = off & 0xfffffff8;
-		off0[0] = off & 0x7;
-		sz[0] = (size < (8 - off0[0])) ? size : (8 - off0[0]);
-		shift_amount = 4;
-	}
+	off8 = off & 0xfffffff0;
+	off0[0] = off & 0xf;
+	sz[0] = (size < (16 - off0[0])) ? size : (16 - off0[0]);
+	shift_amount = 4;
 	loop = ((off0[0] + size - 1) >> shift_amount) + 1;
 	off0[1] = 0;
 	sz[1] = size - sz[0];
@@ -1563,7 +1547,7 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		u64 off, void *data, int size)
 {
 	int i, j, ret = 0, loop, sz[2], off0;
-	int scale, shift_amount, p3p, startword;
+	int scale, shift_amount, startword;
 	uint32_t temp;
 	uint64_t off8, mem_crb, tmpw, word[2] = {0, 0};
 
@@ -1583,23 +1567,13 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 	sz[0] = (size < (8 - off0)) ? size : (8 - off0);
 	sz[1] = size - sz[0];
 
-	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-		off8 = off & 0xfffffff0;
-		loop = (((off & 0xf) + size - 1) >> 4) + 1;
-		shift_amount = 4;
-		scale = 2;
-		p3p = 1;
-		startword = (off & 0xf)/8;
-	} else {
-		off8 = off & 0xfffffff8;
-		loop = ((off0 + size - 1) >> 3) + 1;
-		shift_amount = 3;
-		scale = 1;
-		p3p = 0;
-		startword = 0;
-	}
+	off8 = off & 0xfffffff0;
+	loop = (((off & 0xf) + size - 1) >> 4) + 1;
+	shift_amount = 4;
+	scale = 2;
+	startword = (off & 0xf)/8;
 
-	if (p3p || (size != 8) || (off0 != 0)) {
+	if ((size != 8) || (off0 != 0)) {
 		for (i = 0; i < loop; i++) {
 			if (qla82xx_pci_mem_read_2M(ha, off8 +
 			    (i << shift_amount), &word[i * scale], 8))
@@ -1623,26 +1597,16 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		break;
 	}
 
-	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-		if (sz[0] == 8) {
-			word[startword] = tmpw;
-		} else {
-			word[startword] &=
-				~((~(~0ULL << (sz[0] * 8))) << (off0 * 8));
-			word[startword] |= tmpw << (off0 * 8);
-		}
-		if (sz[1] != 0) {
-			word[startword+1] &= ~(~0ULL << (sz[1] * 8));
-			word[startword+1] |= tmpw >> (sz[0] * 8);
-		}
+	if (sz[0] == 8) {
+		word[startword] = tmpw;
 	} else {
-		word[startword] &= ~((~(~0ULL << (sz[0] * 8))) << (off0 * 8));
+		word[startword] &=
+			~((~(~0ULL << (sz[0] * 8))) << (off0 * 8));
 		word[startword] |= tmpw << (off0 * 8);
-
-		if (loop == 2) {
-			word[1] &= ~(~0ULL << (sz[1] * 8));
-			word[1] |= tmpw >> (sz[0] * 8);
-		}
+	}
+	if (sz[1] != 0) {
+		word[startword+1] &= ~(~0ULL << (sz[1] * 8));
+		word[startword+1] |= tmpw >> (sz[0] * 8);
 	}
 
 	/*
@@ -1659,14 +1623,12 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		qla82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_WRDATA_LO, temp);
 		temp = (word[i * scale] >> 32) & 0xffffffff;
 		qla82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_WRDATA_HI, temp);
-		if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-			temp = word[i*scale + 1] & 0xffffffff;
-			qla82xx_wr_32(ha, mem_crb +
-			    MIU_TEST_AGT_WRDATA_UPPER_LO, temp);
-			temp = (word[i*scale + 1] >> 32) & 0xffffffff;
-			qla82xx_wr_32(ha, mem_crb +
-			    MIU_TEST_AGT_WRDATA_UPPER_HI, temp);
-		}
+		temp = word[i*scale + 1] & 0xffffffff;
+		qla82xx_wr_32(ha, mem_crb +
+		    MIU_TEST_AGT_WRDATA_UPPER_LO, temp);
+		temp = (word[i*scale + 1] >> 32) & 0xffffffff;
+		qla82xx_wr_32(ha, mem_crb +
+		    MIU_TEST_AGT_WRDATA_UPPER_HI, temp);
 
 		temp = MIU_TA_CTL_ENABLE | MIU_TA_CTL_WRITE;
 		qla82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_CTRL, temp);
@@ -1912,12 +1874,8 @@ int qla82xx_fw_load_from_blob(struct qla_hw_data *ha)
 	 * ready for firmware to initialize.
 	 */
 	qla82xx_wr_32(ha, QLA82XX_CAM_RAM(0x1fc), 0x12345678);
-
-	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
-		qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x18, 0x1020);
-		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
-	} else
-		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001d);
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x18, 0x1020);
+	qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
 	return 0;
 }
 
@@ -2371,10 +2329,11 @@ qla82xx_set_drv_active(scsi_qla_host_t *vha)
 
 	/* If reset value is all FF's, initialize DRV_ACTIVE */
 	if (drv_active == 0xffffffff) {
-		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_ACTIVE, 0);
+		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_ACTIVE,
+			QLA82XX_DRV_NOT_ACTIVE);
 		drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
 	}
-	drv_active |= (1 << (ha->portnum * 4));
+	drv_active |= (QLA82XX_DRV_ACTIVE << (ha->portnum * 4));
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_ACTIVE, drv_active);
 }
 
@@ -2384,7 +2343,7 @@ qla82xx_clear_drv_active(struct qla_hw_data *ha)
 	uint32_t drv_active;
 
 	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
-	drv_active &= ~(1 << (ha->portnum * 4));
+	drv_active &= ~(QLA82XX_DRV_ACTIVE << (ha->portnum * 4));
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_ACTIVE, drv_active);
 }
 
@@ -2395,7 +2354,7 @@ qla82xx_need_reset(struct qla_hw_data *ha)
 	int rval;
 
 	drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
-	rval = drv_state & (1 << (ha->portnum * 4));
+	rval = drv_state & (QLA82XX_DRVST_RST_RDY << (ha->portnum * 4));
 	return rval;
 }
 
@@ -2409,7 +2368,7 @@ qla82xx_set_rst_ready(struct qla_hw_data *ha)
 
 	/* If reset value is all FF's, initialize DRV_STATE */
 	if (drv_state == 0xffffffff) {
-		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, 0);
+		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, QLA82XX_DRVST_NOT_RDY);
 		drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 	}
 	drv_state |= (QLA82XX_DRVST_RST_RDY << (ha->portnum * 4));
