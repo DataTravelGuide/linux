@@ -2388,6 +2388,17 @@ qla82xx_clear_drv_active(struct qla_hw_data *ha)
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_ACTIVE, drv_active);
 }
 
+static inline int
+qla82xx_need_reset(struct qla_hw_data *ha)
+{
+	uint32_t drv_state;
+	int rval;
+
+	drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
+	rval = drv_state & (1 << (ha->portnum * 4));
+	return rval;
+}
+
 static inline void
 qla82xx_set_rst_ready(struct qla_hw_data *ha)
 {
@@ -3232,9 +3243,29 @@ qla82xx_start_iocbs(srb_t *sp)
 static int
 qla82xx_device_bootstrap(scsi_qla_host_t *vha)
 {
-	int rval;
+	int rval, i, timeout;
+	uint32_t old_count, count;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (qla82xx_need_reset(ha))
+		goto dev_initialize;
+
+	old_count = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
+
+	for (i = 0; i < 10; i++) {
+		timeout = msleep_interruptible(200);
+		if (timeout) {
+			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+				QLA82XX_DEV_FAILED);
+			return QLA_FUNCTION_FAILED;
+		}
+
+		count = qla82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
+		if (count != old_count)
+			goto dev_ready;
+	}
+
+dev_initialize:
 	/* set to DEV_INITIALIZING */
 	qla_printk(KERN_INFO, ha, "HW State: INITIALIZING\n");
 	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_INITIALIZING);
@@ -3253,8 +3284,10 @@ qla82xx_device_bootstrap(scsi_qla_host_t *vha)
 		return rval;
 	}
 
+dev_ready:
 	qla_printk(KERN_INFO, ha, "HW State: READY\n");
 	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_READY);
+
 	return QLA_SUCCESS;
 }
 
