@@ -2488,6 +2488,17 @@ qla82xx_start_scsi(srb_t *sp)
 
 sufficient_dsds:
 		req_cnt = 1;
+		if (req->cnt < (req_cnt + 2)) {
+			cnt = (uint16_t)RD_REG_DWORD_RELAXED(
+			    &reg->req_q_out[0]);
+			if (req->ring_index < cnt)
+				req->cnt = cnt - req->ring_index;
+			else
+				req->cnt = req->length -
+					(req->ring_index - cnt);
+		}
+		if (req->cnt < (req_cnt + 2))
+			goto queuing_error;
 
 		ctx = sp->ctx = mempool_alloc(ha->ctx_mempool, GFP_ATOMIC);
 		if (!sp->ctx) {
