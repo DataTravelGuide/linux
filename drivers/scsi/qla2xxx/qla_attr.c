@@ -40,7 +40,13 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
 
-	if (off != 0 || IS_QLA82XX(ha))
+	if (IS_QLA82XX(ha)) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+			"Firmware dump not supported for ISP82xx\n"));
+		return count;
+        }
+
+	if (off != 0)
 		return (0);
 
 	reading = simple_strtol(buf, NULL, 10);
