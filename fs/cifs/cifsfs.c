@@ -102,7 +102,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		return -ENOMEM;
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+	cifs_sb->tlink_tree = RB_ROOT;
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
