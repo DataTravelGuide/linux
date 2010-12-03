@@ -1005,6 +1005,7 @@ exit_cifs(void)
 {
 	cFYI(DBG2, "exit_cifs");
 	destroy_workqueue(cifsiod_workqueue);
+	slow_work_unregister_user(THIS_MODULE);
 	cifs_proc_clean();
 	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
