@@ -558,7 +558,7 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 	int xid, rc;
 
 	xid = GetXid();
-	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
+	rc = CIFSSMBGetCIFSACL(xid, cifs_sb_tcon(cifs_sb), fid, &pntsd, pacllen);
 	FreeXid(xid);
 
 
@@ -576,7 +576,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 
 	xid = GetXid();
 
-	rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN, READ_CONTROL, 0,
+	rc = CIFSSMBOpen(xid, cifs_sb_tcon(cifs_sb), path, FILE_OPEN, READ_CONTROL, 0,
 			 &fid, &oplock, NULL, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
@@ -584,10 +584,10 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 		goto out;
 	}
 
-	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
+	rc = CIFSSMBGetCIFSACL(xid, cifs_sb_tcon(cifs_sb), fid, &pntsd, pacllen);
 	cFYI(1, "GetCIFSACL rc = %d ACL len %d", rc, *pacllen);
 
-	CIFSSMBClose(xid, cifs_sb->tcon, fid);
+	CIFSSMBClose(xid, cifs_sb_tcon(cifs_sb), fid);
  out:
 	FreeXid(xid);
 	return pntsd;
@@ -617,7 +617,7 @@ static int set_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb, __u16 fid,
 	int xid, rc;
 
 	xid = GetXid();
-	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb_tcon(cifs_sb), fid, pnntsd, acllen);
 	FreeXid(xid);
 
 	cFYI(DBG2, "SetCIFSACL rc = %d", rc);
@@ -633,7 +633,7 @@ static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
 
 	xid = GetXid();
 
-	rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN, WRITE_DAC, 0,
+	rc = CIFSSMBOpen(xid, cifs_sb_tcon(cifs_sb), path, FILE_OPEN, WRITE_DAC, 0,
 			 &fid, &oplock, NULL, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
@@ -641,10 +641,10 @@ static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
 		goto out;
 	}
 
-	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb_tcon(cifs_sb), fid, pnntsd, acllen);
 	cFYI(DBG2, "SetCIFSACL rc = %d", rc);
 
-	CIFSSMBClose(xid, cifs_sb->tcon, fid);
+	CIFSSMBClose(xid, cifs_sb_tcon(cifs_sb), fid);
  out:
 	FreeXid(xid);
 	return rc;
