@@ -1607,6 +1607,14 @@ qla82xx_config_rings(struct scsi_qla_host *vha)
 	WRT_REG_DWORD((unsigned long  __iomem *)&reg->rsp_q_out[0], 0);
 }
 
+void qla82xx_reset_adapter(struct scsi_qla_host *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	vha->flags.online = 0;
+	qla2x00_try_to_stop_firmware(vha);
+	ha->isp_ops->disable_intrs(ha);
+}
+
 static int
 qla82xx_fw_load_from_blob(struct qla_hw_data *ha)
 {
@@ -3284,6 +3292,39 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 
 	if (rval == QLA_SUCCESS)
 		qla82xx_restart_isp(vha);
+
+	if (rval) {
+		vha->flags.online = 1;
+		if (test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
+			if (ha->isp_abort_cnt == 0) {
+				qla_printk(KERN_WARNING, ha,
+				    "ISP error recovery failed - "
+				    "board disabled\n");
+				/*
+				 * The next call disables the board
+				 * completely.
+				 */
+				ha->isp_ops->reset_adapter(vha);
+				vha->flags.online = 0;
+				clear_bit(ISP_ABORT_RETRY,
+				    &vha->dpc_flags);
+				rval = QLA_SUCCESS;
+			} else { /* schedule another ISP abort */
+				ha->isp_abort_cnt--;
+				DEBUG(qla_printk(KERN_INFO, ha,
+				    "qla%ld: ISP abort - retry remaining %d\n",
+				    vha->host_no, ha->isp_abort_cnt));
+				rval = QLA_FUNCTION_FAILED;
+			}
+		} else {
+			ha->isp_abort_cnt = MAX_RETRIES_OF_ISP_ABORT;
+			DEBUG(qla_printk(KERN_INFO, ha,
+			    "(%ld): ISP error recovery - retrying (%d) "
+			    "more times\n", vha->host_no, ha->isp_abort_cnt));
+			set_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+			rval = QLA_FUNCTION_FAILED;
+		}
+	}
 	return rval;
 }
 
