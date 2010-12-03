@@ -939,6 +939,24 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 	return status;
 }
 
+void qla82xx_wait_for_pending_commands(scsi_qla_host_t *vha)
+{
+	int cnt;
+	srb_t *sp;
+	struct req_que *req = vha->req;
+
+	DEBUG2(qla_printk(KERN_INFO, vha->hw,
+		"Waiting for pending commands\n"));
+	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+		sp = req->outstanding_cmds[cnt];
+		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+			sp, WAIT_HOST) == QLA_SUCCESS) {
+			DEBUG2(qla_printk(KERN_INFO, vha->hw,
+				"Done wait for pending commands\n"));
+		}
+	}
+}
+
 static char *reset_errors[] = {
 	"HBA not online",
 	"HBA not ready",
@@ -1125,6 +1143,14 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		if (qla2x00_vp_abort_isp(vha))
 			goto eh_host_reset_lock;
 	} else {
+		if (IS_QLA82XX(vha->hw)) {
+			if (!qla82xx_fcoe_ctx_reset(vha)) {
+				/* Ctx reset success */
+				ret = SUCCESS;
+				goto eh_host_reset_lock;
+			}
+			/* fall thru if ctx reset failed */
+		}
 		if (ha->wq)
 			flush_workqueue(ha->wq);
 
@@ -3174,6 +3200,31 @@ qla2x00_do_dpc(void *data)
 				qla82xx_device_state_handler(base_vha);
 				continue;
 			}
+
+			if (test_and_clear_bit(FCOE_CTX_RESET_NEEDED,
+				&base_vha->dpc_flags)) {
+
+				DEBUG(printk(KERN_INFO
+					"scsi(%ld): dpc: sched "
+					"qla82xx_fcoe_ctx_reset ha = %p\n",
+					base_vha->host_no, ha));
+				if (!(test_and_set_bit(ABORT_ISP_ACTIVE,
+					&base_vha->dpc_flags))) {
+					if (qla82xx_fcoe_ctx_reset(base_vha)) {
+						/* FCoE-ctx reset failed.
+						 * Escalate to chip-reset
+						 */
+						set_bit(ISP_ABORT_NEEDED,
+							&base_vha->dpc_flags);
+					}
+					clear_bit(ABORT_ISP_ACTIVE,
+						&base_vha->dpc_flags);
+				}
+
+				DEBUG(printk("scsi(%ld): dpc:"
+					" qla82xx_fcoe_ctx_reset end\n",
+					base_vha->host_no));
+			}
 		}
 
 		if (test_and_clear_bit(ISP_ABORT_NEEDED,
@@ -3500,6 +3551,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	    start_dpc ||
 	    test_bit(RESET_MARKER_NEEDED, &vha->dpc_flags) ||
 	    test_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags) ||
+	    test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) ||
+	    test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) ||
 	    test_bit(VP_DPC_NEEDED, &vha->dpc_flags) ||
 	    test_bit(RELOGIN_NEEDED, &vha->dpc_flags)))
 		qla2xxx_wake_dpc(vha);

@@ -2745,6 +2745,7 @@ typedef struct scsi_qla_host {
 #define UNLOADING		15
 #define NPIV_CONFIG_NEEDED	16
 #define ISP_UNRECOVERABLE	17
+#define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0

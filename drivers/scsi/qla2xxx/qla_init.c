@@ -3694,6 +3694,8 @@ void
 qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *vp, *base_vha = pci_get_drvdata(ha->pdev);
+	struct scsi_qla_host *tvp;
 
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
@@ -3711,11 +3713,17 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 		atomic_set(&vha->loop_state, LOOP_DOWN);
 		qla2x00_mark_all_devices_lost(vha, 0);
+		list_for_each_entry_safe(vp, tvp, &base_vha->hw->vp_list, list)
+			qla2x00_mark_all_devices_lost(vp, 0);
 	} else {
 		if (!atomic_read(&vha->loop_down_timer))
 			atomic_set(&vha->loop_down_timer,
 			    LOOP_DOWN_TIME);
 	}
+
+	/* Make sure for ISP 82XX IO DMA is complete */
+	if (IS_QLA82XX(ha))
+		qla82xx_wait_for_pending_commands(vha);
 
 	/* Requeue all commands in outstanding command list. */
 	qla2x00_abort_all_cmds(vha, DID_RESET << 16);

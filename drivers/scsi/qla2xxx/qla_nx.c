@@ -3525,3 +3525,73 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 		qla82xx_restart_isp(vha);
 	return rval;
 }
+
+/*
+ *  qla82xx_fcoe_ctx_reset
+ *      Perform a quick reset and aborts all outstanding commands.
+ *      This will only perform an FCoE context reset and avoids a full blown
+ *      chip reset.
+ *
+ * Input:
+ *      ha = adapter block pointer.
+ *      is_reset_path = flag for identifying the reset path.
+ *
+ * Returns:
+ *      0 = success
+ */
+int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *vha)
+{
+	int rval = QLA_FUNCTION_FAILED;
+
+	if (vha->flags.online) {
+		/* Abort all outstanding commands, so as to be requeued later */
+		qla2x00_abort_isp_cleanup(vha);
+	}
+
+	/* Stop currently executing firmware.
+	 * This will destroy existing FCoE context at the F/W end.
+	 */
+	qla2x00_try_to_stop_firmware(vha);
+
+	/* Restart. Creates a new FCoE context on INIT_FIRMWARE. */
+	rval = qla82xx_restart_isp(vha);
+
+	return rval;
+}
+
+/*
+ * qla2x00_wait_for_fcoe_ctx_reset
+ *    Wait till the FCoE context is reset.
+ *
+ * Note:
+ *    Does context switching here.
+ *    Release SPIN_LOCK (if any) before calling this routine.
+ *
+ * Return:
+ *    Success (fcoe_ctx reset is done) : 0
+ *    Failed  (fcoe_ctx reset not completed within max loop timout ) : 1
+ */
+int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *vha)
+{
+	int status = QLA_FUNCTION_FAILED;
+	unsigned long wait_reset;
+
+	wait_reset = jiffies + (MAX_LOOP_TIMEOUT * HZ);
+	while ((test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) ||
+	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+	    && time_before(jiffies, wait_reset)) {
+
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ);
+
+		if (!test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags) &&
+		    !test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) {
+			status = QLA_SUCCESS;
+			break;
+		}
+	}
+	DEBUG2(printk(KERN_INFO
+	    "%s status=%d\n", __func__, status));
+
+	return status;
+}

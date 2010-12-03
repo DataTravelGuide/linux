@@ -149,6 +149,7 @@ extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);
 extern int qla2x00_wait_for_chip_reset(scsi_qla_host_t *);
+extern int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *);
 
 extern void qla2xxx_wake_dpc(struct scsi_qla_host *);
 extern void qla2x00_alert_all_vps(struct rsp_que *, uint16_t *);
@@ -557,6 +558,8 @@ extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
 extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
 extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 extern void qla82xx_start_iocbs(srb_t *);
+extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
+extern void qla82xx_wait_for_pending_commands(scsi_qla_host_t *);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);
