@@ -688,7 +688,8 @@ static int qla82xx_pci_mem_read_direct(struct qla_hw_data *ha,
 	if ((start == -1UL) ||
 		(qla82xx_pci_is_same_window(ha, off + size - 1) == 0)) {
 		write_unlock_irqrestore(&ha->hw_lock, flags);
-		printk(KERN_ERR"%s out of bound pci memory access. "
+		qla_printk(KERN_ERR, ha,
+			"%s out of bound pci memory access. "
 			"offset is 0x%llx\n", QLA2XXX_DRIVER_NAME, off);
 		return -1;
 	}
@@ -760,7 +761,8 @@ qla82xx_pci_mem_write_direct(struct qla_hw_data *ha,
 	if ((start == -1UL) ||
 		(qla82xx_pci_is_same_window(ha, off + size - 1) == 0)) {
 		write_unlock_irqrestore(&ha->hw_lock, flags);
-		printk(KERN_ERR"%s out of bound pci memory access. "
+		qla_printk(KERN_ERR, ha,
+			"%s out of bound pci memory access. "
 			"offset is 0x%llx\n", QLA2XXX_DRIVER_NAME, off);
 		return -1;
 	}
@@ -885,8 +887,9 @@ qla82xx_wrmem(struct qla_hw_data *ha, u64 off, void *data, int size)
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk(KERN_WARNING"%s: Fail to write through agent\n",
-			     QLA2XXX_DRIVER_NAME);
+			qla_printk(KERN_WARNING, ha,
+				"%s: Fail to write through agent\n",
+				QLA2XXX_DRIVER_NAME);
 			ret = -1;
 			break;
 		}
@@ -1036,7 +1039,7 @@ qla82xx_wait_rom_busy(struct qla_hw_data *ha)
 		done &= 4;
 		timeout++;
 		if (timeout >= rom_max_timeout) {
-			DEBUG(printk(KERN_INFO
+			DEBUG(qla_printk(KERN_INFO, ha,
 				"%s: Timeout reached waiting for rom busy",
 				QLA2XXX_DRIVER_NAME));
 			return -1;
@@ -1056,7 +1059,7 @@ qla82xx_wait_rom_done(struct qla_hw_data *ha)
 		done &= 2;
 		timeout++;
 		if (timeout >= rom_max_timeout) {
-			DEBUG(printk(KERN_INFO
+			DEBUG(qla_printk(KERN_INFO, ha,
 				"%s: Timeout reached  waiting for rom done",
 				QLA2XXX_DRIVER_NAME));
 			return -1;
@@ -1074,8 +1077,9 @@ qla82xx_do_rom_fast_read(struct qla_hw_data *ha, int addr, int *valp)
 	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_INSTR_OPCODE, 0xb);
 	qla82xx_wait_rom_busy(ha);
 	if (qla82xx_wait_rom_done(ha)) {
-		printk("%s: Error waiting for rom done\n",
-		    QLA2XXX_DRIVER_NAME);
+		qla_printk(KERN_WARNING, ha,
+			"%s: Error waiting for rom done\n",
+			QLA2XXX_DRIVER_NAME);
 		return -1;
 	}
 	/* Reset abyte_cnt and dummy_byte_cnt */
@@ -1936,9 +1940,9 @@ int qla82xx_check_cmdpeg_state(struct qla_hw_data *ha)
 		default:
 			break;
 		}
-		DEBUG3(printk(KERN_INFO
-		    "CRB_CMDPEG_STATE: 0x%x and retries: 0x%x\n",
-		    val, retries));
+		qla_printk(KERN_WARNING, ha,
+			"CRB_CMDPEG_STATE: 0x%x and retries: 0x%x\n",
+			val, retries);
 
 		msleep(500);
 
@@ -1975,16 +1979,16 @@ int qla82xx_check_rcvpeg_state(struct qla_hw_data *ha)
 			break;
 		}
 
-		DEBUG3(printk(KERN_INFO
-		    "CRB_RCVPEG_STATE: 0x%x and retries: 0x%x\n",
-		    val, retries));
+		qla_printk(KERN_WARNING, ha,
+			"CRB_RCVPEG_STATE: 0x%x and retries: 0x%x\n",
+			val, retries);
 
 		msleep(500);
 
 	} while (--retries);
 
 	qla_printk(KERN_INFO, ha,
-	    "Rcv Peg initialization failed: 0x%x.\n", val);
+		"Rcv Peg initialization failed: 0x%x.\n", val);
 	read_lock(&ha->hw_lock);
 	qla82xx_wr_32(ha, CRB_RCVPEG_STATE, PHAN_INITIALIZE_FAILED);
 	read_unlock(&ha->hw_lock);
@@ -2068,7 +2072,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
 		printk(KERN_INFO
-		    "%s(): NULL response queue pointer\n", __func__);
+			"%s(): NULL response queue pointer\n", __func__);
 		return IRQ_NONE;
 	}
 	ha = rsp->hw;
@@ -2170,7 +2174,7 @@ qla82xx_msix_default(int irq, void *dev_id)
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
 		printk(KERN_INFO
-		    "%s(): NULL response queue pointer\n", __func__);
+			"%s(): NULL response queue pointer\n", __func__);
 		return IRQ_NONE;
 	}
 	ha = rsp->hw;
@@ -2249,7 +2253,7 @@ qla82xx_msix_rsp_q(int irq, void *dev_id)
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
 		printk(KERN_INFO
-		    "%s(): NULL response queue pointer\n", __func__);
+			"%s(): NULL response queue pointer\n", __func__);
 		return IRQ_NONE;
 	}
 
@@ -2278,7 +2282,7 @@ qla82xx_poll(int irq, void *dev_id)
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
 		printk(KERN_INFO
-		    "%s(): NULL response queue pointer\n", __func__);
+			"%s(): NULL response queue pointer\n", __func__);
 		return;
 	}
 	ha = rsp->hw;
@@ -2309,8 +2313,8 @@ qla82xx_poll(int irq, void *dev_id)
 			break;
 		default:
 			DEBUG2(printk("scsi(%ld): Unrecognized interrupt type "
-			    "(%d).\n",
-			    vha->host_no, stat & 0xff));
+				"(%d).\n",
+				vha->host_no, stat & 0xff));
 			break;
 		}
 	}
@@ -2398,7 +2402,9 @@ qla82xx_set_rst_ready(struct qla_hw_data *ha)
 		drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 	}
 	drv_state |= (QLA82XX_DRVST_RST_RDY << (ha->portnum * 4));
-	printk("%s(%ld):drv_state = 0x%x\n", __func__, vha->host_no, drv_state);
+	qla_printk(KERN_INFO, ha,
+		"%s(%ld):drv_state = 0x%x\n",
+		__func__, vha->host_no, drv_state);
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, drv_state);
 }
 
@@ -2455,11 +2461,11 @@ int qla82xx_load_fw(scsi_qla_host_t *vha)
 		goto try_blob_fw;
 
 	qla_printk(KERN_INFO, ha,
-	    "Attempting to load firmware from flash\n");
+		"Attempting to load firmware from flash\n");
 
 	if (qla82xx_fw_load_from_flash(ha) == QLA_SUCCESS) {
 		qla_printk(KERN_ERR, ha,
-		    "Firmware loaded successfully from flash\n");
+			"Firmware loaded successfully from flash\n");
 		return QLA_SUCCESS;
 	}
 try_blob_fw:
@@ -2470,7 +2476,7 @@ try_blob_fw:
 	blob = ha->hablob = qla2x00_request_firmware(vha);
 	if (!blob) {
 		qla_printk(KERN_ERR, ha,
-		    "Firmware image not present.\n");
+			"Firmware image not present.\n");
 		goto fw_load_failed;
 	}
 
@@ -3087,8 +3093,8 @@ qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
 		    &optrom_dma, GFP_KERNEL);
 		if (!optrom) {
 			qla_printk(KERN_DEBUG, ha,
-			    "Unable to allocate memory for optrom burst write "
-			    "(%x KB).\n", OPTROM_BURST_SIZE / 1024);
+				"Unable to allocate memory for optrom burst write "
+				"(%x KB).\n", OPTROM_BURST_SIZE / 1024);
 		}
 	}
 
@@ -3098,7 +3104,7 @@ qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
 	ret = qla82xx_unprotect_flash(ha);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
-		    "Unable to unprotect flash for update.\n");
+			"Unable to unprotect flash for update.\n");
 		goto write_done;
 	}
 
@@ -3305,7 +3311,8 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 
 	while (drv_state != drv_active) {
 		if (time_after_eq(jiffies, reset_timeout)) {
-			printk("%s: RESET TIMEOUT!\n", QLA2XXX_DRIVER_NAME);
+			qla_printk(KERN_INFO, ha,
+				"%s: RESET TIMEOUT!\n", QLA2XXX_DRIVER_NAME);
 			break;
 		}
 		qla82xx_idc_unlock(ha);
@@ -3414,7 +3421,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	while (1) {
 
 		if (time_after_eq(jiffies, dev_init_timeout)) {
-			DEBUG(printk(KERN_INFO
+			DEBUG(qla_printk(KERN_INFO, ha,
 				"%s: device init failed!\n",
 				QLA2XXX_DRIVER_NAME));
 			rval = QLA_FUNCTION_FAILED;
@@ -3502,6 +3509,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 {
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t dev_state;
 
 	if (vha->device_flags & DFLG_DEV_FAILED) {
 		qla_printk(KERN_WARNING, ha,
@@ -3511,8 +3519,16 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 	}
 
 	qla82xx_idc_lock(ha);
-	qla_printk(KERN_INFO, ha, "HW State: NEED RESET\n");
-	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_NEED_RESET);
+	qla_printk(KERN_INFO, ha,
+		"%s(%ld): TRYING TO SET QLA82XX_CRB_DEV_STATE\n",
+		__func__, vha->host_no);
+	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	if (dev_state != QLA82XX_DEV_INITIALIZING) {
+		qla_printk(KERN_INFO, ha, "HW State: NEED RESET\n");
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			QLA82XX_DEV_NEED_RESET);
+	} else
+		qla_printk(KERN_INFO, ha, "HW State: DEVICE INITIALIZING\n");
 	qla82xx_idc_unlock(ha);
 
 	rval = qla82xx_device_state_handler(vha);
