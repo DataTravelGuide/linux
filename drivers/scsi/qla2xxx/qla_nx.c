@@ -3466,9 +3466,9 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 
 	/* don't poll if reset is going on */
-	if (!test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
+	if (!(test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
 		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
+		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags))) {
 		if (dev_state == QLA82XX_DEV_NEED_RESET) {
 			qla_printk(KERN_WARNING, ha,
 				"%s(): Adapter reset needed!\n", __func__);
