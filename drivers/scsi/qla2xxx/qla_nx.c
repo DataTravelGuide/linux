@@ -1827,12 +1827,6 @@ void qla82xx_config_rings(struct scsi_qla_host *vha)
 	icb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
 	icb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
 
-	icb->version = 1;
-	icb->frame_payload_size = 2112;
-	icb->execution_throttle = 8;
-	icb->exchange_count = 128;
-	icb->login_retry_count = 8;
-
 	WRT_REG_DWORD((unsigned long  __iomem *)&reg->req_q_out[0], 0);
 	WRT_REG_DWORD((unsigned long  __iomem *)&reg->rsp_q_in[0], 0);
 	WRT_REG_DWORD((unsigned long  __iomem *)&reg->rsp_q_out[0], 0);
