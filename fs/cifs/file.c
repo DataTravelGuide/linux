@@ -280,7 +280,7 @@ int cifs_open(struct inode *inode, struct file *file)
 
 			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
 							file->f_path.mnt,
-							tcon, oflags, oplock);
+							tlink, oflags, oplock);
 			if (pCifsFile == NULL) {
 				CIFSSMBClose(xid, tcon, netfid);
 				rc = -ENOMEM;
@@ -373,7 +373,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 
 	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
-					tcon, file->f_flags, oplock);
+					tlink, file->f_flags, oplock);
 	if (pCifsFile == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -465,7 +465,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	}
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	tcon = pCifsFile->tcon;
+	tcon = tlink_tcon(pCifsFile->tlink);
 
 /* can not grab rename sem here because various ops, including
    those that already have the rename sem can end up causing writepage
@@ -579,7 +579,7 @@ int cifs_close(struct inode *inode, struct file *file)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = pSMBFile->tcon;
+	pTcon = tlink_tcon(pSMBFile->tlink);
 	if (pSMBFile) {
 		struct cifsLockInfo *li, *tmp;
 		write_lock(&GlobalSMBSeslock);
@@ -657,7 +657,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 	xid = GetXid();
 
 	if (pCFileStruct) {
-		struct cifsTconInfo *pTcon = pCFileStruct->tcon;
+		struct cifsTconInfo *pTcon = tlink_tcon(pCFileStruct->tlink);
 
 		cFYI(1, "Freeing private data in close dir");
 		write_lock(&GlobalSMBSeslock);
@@ -681,6 +681,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 			else
 				cifs_buf_release(ptmp);
 		}
+		cifs_put_tlink(pCFileStruct->tlink);
 		kfree(file->private_data);
 		file->private_data = NULL;
 	}
@@ -767,7 +768,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		cFYI(1, "Unknown type of lock");
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	tcon = ((struct cifsFileInfo *)file->private_data)->tcon;
+	tcon = tlink_tcon(((struct cifsFileInfo *)file->private_data)->tlink);
 
 	if (file->private_data == NULL) {
 		rc = -EBADF;
@@ -967,7 +968,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 		return -EBADF;
 
 	open_file = file->private_data;
-	pTcon = open_file->tcon;
+	pTcon = tlink_tcon(open_file->tlink);
 
 	rc = generic_write_checks(file, poffset, &write_size, 0);
 	if (rc)
@@ -1068,7 +1069,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	if (file->private_data == NULL)
 		return -EBADF;
 	open_file = file->private_data;
-	pTcon = open_file->tcon;
+	pTcon = tlink_tcon(open_file->tlink);
 
 	xid = GetXid();
 
@@ -1390,7 +1391,7 @@ static int cifs_writepages(struct address_space *mapping,
 		return generic_writepages(mapping, wbc);
 	}
 
-	tcon = open_file->tcon;
+	tcon = tlink_tcon(open_file->tlink);
 	if (!experimEnabled && tcon->ses->server->secMode &
 			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		cifsFileInfo_put(open_file);
@@ -1670,7 +1671,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	if (rc == 0) {
 		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
-		tcon = smbfile->tcon;
+		tcon = tlink_tcon(smbfile->tlink);
 		if (!rc && tcon && smbfile &&
 		   !(CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
 			rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
@@ -1762,7 +1763,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 		return rc;
 	}
 	open_file = file->private_data;
-	pTcon = open_file->tcon;
+	pTcon = tlink_tcon(open_file->tlink);
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1843,7 +1844,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		return rc;
 	}
 	open_file = file->private_data;
-	pTcon = open_file->tcon;
+	pTcon = tlink_tcon(open_file->tlink);
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1979,7 +1980,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	}
 	open_file = file->private_data;
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	pTcon = open_file->tcon;
+	pTcon = tlink_tcon(open_file->tlink);
 
 	/*
 	 * Reads as many pages as possible from fscache. Returns -ENOBUFS
@@ -2346,8 +2347,8 @@ cifs_oplock_break(struct slow_work *work)
 	 * disconnected since oplock already released by the server
 	 */
 	if (!cfile->closePend && !cfile->oplock_break_cancelled) {
-		rc = CIFSSMBLock(0, cfile->tcon, cfile->netfid, 0, 0, 0, 0,
-				 LOCKING_ANDX_OPLOCK_RELEASE, false);
+		rc = CIFSSMBLock(0, tlink_tcon(cfile->tlink), cfile->netfid, 0,
+				 0, 0, 0, LOCKING_ANDX_OPLOCK_RELEASE, false);
 		cFYI(1, "Oplock release rc = %d", rc);
 	}
 }
