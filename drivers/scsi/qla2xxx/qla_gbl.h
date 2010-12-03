@@ -489,22 +489,15 @@ extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 
 /* PCI related functions */
 extern int qla82xx_pci_config(struct scsi_qla_host *);
-extern int qla82xx_pci_mem_read_2M(struct qla_hw_data *, u64, void *, int);
-extern int qla82xx_pci_mem_write_2M(struct qla_hw_data *, u64, void *, int);
 extern char *qla82xx_pci_info_str(struct scsi_qla_host *, char *);
-extern int qla82xx_pci_region_offset(struct pci_dev *, int);
-extern int qla82xx_pci_region_len(struct pci_dev *, int);
 extern int qla82xx_iospace_config(struct qla_hw_data *);
 
 /* Initialization related functions */
 extern void qla82xx_reset_chip(struct scsi_qla_host *);
 extern void qla82xx_config_rings(struct scsi_qla_host *);
-extern int qla82xx_nvram_config(struct scsi_qla_host *);
-extern int qla82xx_pinit_from_rom(scsi_qla_host_t *);
-extern int qla82xx_load_firmware(scsi_qla_host_t *);
-extern int qla82xx_reset_hw(scsi_qla_host_t *);
-extern int qla82xx_load_risc_blob(scsi_qla_host_t *, uint32_t *);
 extern void qla82xx_watchdog(scsi_qla_host_t *);
+extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
+    size_t, char *);
 
 /* Firmware and flash related functions */
 extern int qla82xx_load_risc(scsi_qla_host_t *, uint32_t *);
@@ -516,36 +509,25 @@ extern int qla82xx_write_optrom_data(struct scsi_qla_host *, uint8_t *,
 /* Mailbox related functions */
 extern int qla82xx_abort_isp(scsi_qla_host_t *);
 extern int qla82xx_restart_isp(scsi_qla_host_t *);
+extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
+extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 
 /* IOCB related functions */
 extern int qla82xx_start_scsi(srb_t *);
+extern void qla82xx_start_iocbs(srb_t *);
 
 /* Interrupt related */
 extern irqreturn_t qla82xx_intr_handler(int, void *);
-extern irqreturn_t qla82xx_msi_handler(int, void *);
 extern irqreturn_t qla82xx_msix_default(int, void *);
 extern irqreturn_t qla82xx_msix_rsp_q(int, void *);
 extern void qla82xx_enable_intrs(struct qla_hw_data *);
 extern void qla82xx_disable_intrs(struct qla_hw_data *);
-extern void qla82xx_mbx_completion(scsi_qla_host_t *, uint16_t);
 extern void qla82xx_poll(int, void *);
 extern void qla82xx_init_flags(struct qla_hw_data *);
 
 /* ISP 8021 hardware related */
-extern int qla82xx_crb_win_lock(struct qla_hw_data *);
-extern void qla82xx_crb_win_unlock(struct qla_hw_data *);
-extern int qla82xx_pci_get_crb_addr_2M(struct qla_hw_data *, ulong *);
 extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
-extern int qla82xx_rdmem(struct qla_hw_data *, u64, void *, int);
-extern int qla82xx_wrmem(struct qla_hw_data *, u64, void *, int);
-extern int qla82xx_check_for_bad_spd(struct qla_hw_data *);
-extern int qla82xx_load_fw(scsi_qla_host_t *);
-extern int qla82xx_rom_lock(struct qla_hw_data *);
-extern void qla82xx_rom_unlock(struct qla_hw_data *);
-extern int qla82xx_rom_fast_read(struct qla_hw_data *, int , int *);
-extern int qla82xx_do_rom_fast_read(struct qla_hw_data *, int, int *);
-extern unsigned long qla82xx_decode_crb_addr(unsigned long);
 
 /* ISP 8021 IDC */
 extern void qla82xx_clear_drv_active(struct qla_hw_data *);
@@ -553,11 +535,7 @@ extern int qla82xx_idc_lock(struct qla_hw_data *);
 extern void qla82xx_idc_unlock(struct qla_hw_data *);
 extern int qla82xx_device_state_handler(scsi_qla_host_t *);
 
-extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
-    size_t, char *);
-extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
-extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
-extern void qla82xx_start_iocbs(srb_t *);
+/* Reset related */
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
 extern void qla82xx_wait_for_pending_commands(scsi_qla_host_t *);
 
