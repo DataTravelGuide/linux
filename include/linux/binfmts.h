@@ -57,6 +57,12 @@ struct linux_binprm{
 	unsigned interp_flags;
 	unsigned interp_data;
 	unsigned long loader, exec;
+
+#ifndef __GENKSYMS__
+#ifdef CONFIG_MMU
+	unsigned long vma_pages;
+#endif
+#endif
 };
 
 #define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0
