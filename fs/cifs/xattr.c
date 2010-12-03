@@ -46,9 +46,10 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 #ifdef CONFIG_CIFS_XATTR
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct super_block *sb;
-	char *full_path;
+	char *full_path = NULL;
 
 	if (direntry == NULL)
 		return -EIO;
@@ -57,16 +58,19 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	sb = direntry->d_inode->i_sb;
 	if (sb == NULL)
 		return -EIO;
-	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto remove_ea_exit;
 	}
 	if (ea_name == NULL) {
 		cFYI(1, "Null xattr names not supported");
@@ -90,6 +94,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 remove_ea_exit:
 	kfree(full_path);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 #endif
 	return rc;
 }
@@ -101,6 +106,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 #ifdef CONFIG_CIFS_XATTR
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct super_block *sb;
 	char *full_path;
@@ -112,16 +118,19 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 	sb = direntry->d_inode->i_sb;
 	if (sb == NULL)
 		return -EIO;
-	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto set_ea_exit;
 	}
 	/* return dos attributes as pseudo xattr */
 	/* return alt name if available as pseudo attr */
@@ -131,9 +140,8 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 		returns as xattrs */
 	if (value_size > MAX_EA_VALUE_SIZE) {
 		cFYI(1, "size of EA value too large");
-		kfree(full_path);
-		FreeXid(xid);
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto set_ea_exit;
 	}
 
 	if (ea_name == NULL) {
@@ -197,6 +205,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 set_ea_exit:
 	kfree(full_path);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 #endif
 	return rc;
 }
@@ -208,6 +217,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 #ifdef CONFIG_CIFS_XATTR
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct super_block *sb;
 	char *full_path;
@@ -220,16 +230,18 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 	if (sb == NULL)
 		return -EIO;
 
-	xid = GetXid();
-
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
+
+	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto get_ea_exit;
 	}
 	/* return dos attributes as pseudo xattr */
 	/* return alt name if available as pseudo attr */
@@ -322,6 +334,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 get_ea_exit:
 	kfree(full_path);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 #endif
 	return rc;
 }
@@ -332,6 +345,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 #ifdef CONFIG_CIFS_XATTR
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct super_block *sb;
 	char *full_path;
@@ -345,18 +359,20 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 		return -EIO;
 
 	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb_tcon(cifs_sb);
-
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 		return -EOPNOTSUPP;
+
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+	pTcon = tlink_tcon(tlink);
 
 	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto list_ea_exit;
 	}
 	/* return dos attributes as pseudo xattr */
 	/* return alt name if available as pseudo attr */
@@ -369,8 +385,10 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
+list_ea_exit:
 	kfree(full_path);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 #endif
 	return rc;
 }
