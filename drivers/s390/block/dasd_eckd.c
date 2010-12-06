@@ -1115,7 +1115,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
 	struct dasd_uid temp_uid;
-	int is_known, rc;
+	int is_known, rc, i;
+	unsigned long value;
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -1149,6 +1150,18 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	rc = dasd_eckd_read_conf(device);
 	if (rc)
 		goto out_err1;
+
+	/* set default timeout */
+	device->default_expires = DASD_EXPIRES;
+	if (private->gneq) {
+		value = 1;
+		for (i = 0; i < private->gneq->timeout.value; i++)
+			value = 10 * value;
+		value = value * private->gneq->timeout.number;
+		/* do not accept useless values */
+		if (value != 0 && value <= DASD_EXPIRES_MAX)
+			device->default_expires = value;
+	}
 
 	/* Generate device unique id */
 	rc = dasd_eckd_generate_uid(device);
@@ -1964,7 +1977,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();
@@ -2141,7 +2154,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();
@@ -2389,7 +2402,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = startdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->lpm = private->path_data.ppm;
 	cqr->retries = 256;
 	cqr->buildclk = get_clock();

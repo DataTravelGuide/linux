@@ -163,6 +163,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		return rc;
 	}
 
+	device->default_expires = DASD_EXPIRES;
+
 	dev_info(&device->cdev->dev,
 		 "New FBA DASD %04X/%02X (CU %04X/%02X) with %d MB "
 		 "and %d B/blk\n",
@@ -365,7 +367,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->startdev = memdev;
 	cqr->memdev = memdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->retries = 32;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
