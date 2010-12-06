@@ -719,6 +719,8 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 	write_lock_irq(&zfcp_data.config_lock);
 	list_del(&port->list);
 	write_unlock_irq(&zfcp_data.config_lock);
+	if (cancel_work_sync(&port->gid_pn_work))
+		zfcp_port_put(port);
 	if (cancel_work_sync(&port->rport_work))
 		zfcp_port_put(port);
 	if (cancel_work_sync(&port->test_link_work))
