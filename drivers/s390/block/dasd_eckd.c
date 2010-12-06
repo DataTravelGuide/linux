@@ -1472,6 +1472,7 @@ static int dasd_eckd_ready_to_online(struct dasd_device *device)
 
 static int dasd_eckd_online_to_ready(struct dasd_device *device)
 {
+	cancel_work_sync(&device->reload_device);
 	return dasd_alias_remove_device(device);
 };
 
@@ -1730,10 +1731,27 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 {
 	char mask;
 	char *sense = NULL;
+	struct dasd_eckd_private *private;
 
+	private = (struct dasd_eckd_private *) device->private;
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
 	if ((scsw_dstat(&irb->scsw) & mask) == mask) {
+		/* for alias only and not in offline processing*/
+		if (!device->block && private->lcu &&
+		    !test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			/*
+			 * the state change could be caused by an alias
+			 * reassignment remove device from alias handling
+			 * to prevent new requests from being scheduled on
+			 * the wrong alias device
+			 */
+			dasd_alias_remove_device(device);
+
+			/* schedule worker to reload device */
+			dasd_reload_device(device);
+		}
+
 		dasd_generic_handle_state_change(device);
 		return;
 	}
@@ -3304,7 +3322,7 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		dasd_eckd_dump_sense_ccw(device, req, irb);
 }
 
-int dasd_eckd_pm_freeze(struct dasd_device *device)
+static int dasd_eckd_pm_freeze(struct dasd_device *device)
 {
 	/*
 	 * the device should be disconnected from our LCU structure
@@ -3317,7 +3335,7 @@ int dasd_eckd_pm_freeze(struct dasd_device *device)
 	return 0;
 }
 
-int dasd_eckd_restore_device(struct dasd_device *device)
+static int dasd_eckd_restore_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_eckd_characteristics temp_rdc_data;
@@ -3382,6 +3400,51 @@ out_err:
 	return -1;
 }
 
+static int dasd_eckd_reload_device(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int rc, old_base;
+	char uid[60];
+
+	private = (struct dasd_eckd_private *) device->private;
+	old_base = private->uid.base_unit_addr;
+	/* Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err;
+
+	rc = dasd_eckd_generate_uid(device);
+	if (rc)
+		goto out_err;
+
+	/*
+	 * update unit address configuration and
+	 * add device to alias management
+	 */
+	dasd_alias_update_add_device(device);
+
+	if (old_base != private->uid.base_unit_addr) {
+		if (strlen(private->uid.vduit) > 0)
+			snprintf(uid, 60, "%s.%s.%04x.%02x.%s",
+				 private->uid.vendor, private->uid.serial,
+				 private->uid.ssid, private->uid.base_unit_addr,
+				 private->uid.vduit);
+		else
+			snprintf(uid, 60, "%s.%s.%04x.%02x",
+				 private->uid.vendor, private->uid.serial,
+				 private->uid.ssid,
+				 private->uid.base_unit_addr);
+
+		dev_info(&device->cdev->dev,
+			 "An Alias device was reassigned to a new base device "
+			 "with UID: %s\n", uid);
+	}
+	return 0;
+
+out_err:
+	return -1;
+}
+
 static struct ccw_driver dasd_eckd_driver = {
 	.name	     = "dasd-eckd",
 	.owner	     = THIS_MODULE,
@@ -3436,6 +3499,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.freeze = dasd_eckd_pm_freeze,
 	.restore = dasd_eckd_restore_device,
 	.get_uid = dasd_eckd_get_uid,
+	.reload = dasd_eckd_reload_device,
 };
 
 static int __init
