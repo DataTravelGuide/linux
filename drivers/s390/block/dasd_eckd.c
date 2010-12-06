@@ -3457,6 +3457,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
+	.uc_handler  = dasd_generic_uc_handler,
 };
 
 /*
