@@ -137,6 +137,7 @@ struct globals {
 
 /* standard header definitions */
 #define DUMP_MAGIC_NUMBER	0xa8190173618f23edULL  /* dump magic number  */
+#define DUMP_MAGIC_NUMBER_ASM	0x733339302d64756dULL
 #define DUMP_VERSION_NUMBER	0x8      /* dump version number             */
 #define DUMP_PANIC_LEN		0x100    /* dump panic string length        */
 
@@ -185,6 +186,18 @@ struct dump_hdr_lkcd {
 #define DH_ARCH_ID_S390  1
 
 /*
+ * s390 LKCD asm header
+ */
+struct dump_hdr_lkcd_asm {
+	__u64	magic_number;
+	__u32	version;
+	__u32	hdr_size;
+	__u16	cpu_cnt;
+	__u16	real_cpu_cnt;
+	__u32	lc_vec[512];
+} __attribute__((packed));
+
+/*
  * This is the header used by zcore
  */
 struct dump_hdr_s390 {
@@ -201,7 +214,17 @@ struct dump_hdr_s390 {
 	__u64 tod;
 	__u64 cpu_id;
 	__u32 arch_id;
-	__u32 build_arch_id;
+	__u32 volnr;
+	__u32 build_arch;
+	__u64 rmem_size;
+	__u8 mvdump;
+	__u16 cpu_cnt;
+	__u16 real_cpu_cnt;
+	__u8 end_pad1[0x200-0x061];
+	__u64 mvdump_sign;
+	__u64 mvdump_zipl_time;
+	__u8 end_pad2[0x800-0x210];
+	__u32 lc_vec[512];
 } __attribute__((packed));
 
 /*

@@ -648,6 +648,25 @@ static void s390_to_lkcd_hdr(struct dump_hdr_s390 *s390_dh,
 }
 
 /*
+ * Convert s390 standalone dump header to lkcd asm dump header
+ * Parameter: s390_dh - s390 dump header (in)
+ *            dh_asm  - lkcd asm dump header (out)
+ */
+static void s390_to_lkcd_hdr_asm(struct dump_hdr_s390 *s390_dh,
+			         struct dump_hdr_lkcd_asm *dh_asm)
+{
+	unsigned int i;
+
+	dh_asm->magic_number = DUMP_MAGIC_NUMBER_ASM;
+	dh_asm->version = 0;
+	dh_asm->hdr_size = sizeof(*dh_asm);
+	dh_asm->cpu_cnt = s390_dh->cpu_cnt;
+	dh_asm->real_cpu_cnt = s390_dh->real_cpu_cnt;
+	for (i = 0; i < dh_asm->cpu_cnt; i++)
+		dh_asm->lc_vec[i] = s390_dh->lc_vec[i];
+}
+
+/*
  * Write progress information to screen
  * Parameter: written - So many bytes have been written to the dump
  *            max     - This is the whole memory to be written
@@ -679,6 +698,7 @@ static int create_dump(void)
 {
 	struct stat stat_buf;
 	struct dump_hdr_lkcd dh;
+	struct dump_hdr_lkcd_asm dh_asm;
 	struct dump_hdr_s390 s390_dh;
 	compress_fn_t compress_fn;
 	struct dump_page dp;
@@ -806,6 +826,8 @@ static int create_dump(void)
 	}
 
 	s390_to_lkcd_hdr(&s390_dh, &dh);
+	if (s390_dh.version >= 5)
+		s390_to_lkcd_hdr_asm(&s390_dh, &dh_asm);
 
 	if (strcmp(g.parm_compress, PARM_COMP_GZIP) == 0) {
 #ifdef GZIP_SUPPORT
@@ -830,6 +852,7 @@ static int create_dump(void)
 
 	memset(page_buf, 0, PAGE_SIZE);
 	memcpy(page_buf, &dh, sizeof(dh));
+	memcpy(page_buf + sizeof(dh), &dh_asm, sizeof(dh_asm));
 	if (lseek(fout, 0L, SEEK_SET) < 0) {
 		PRINT_ERR("lseek() failed\n");
 		rc = -1;
