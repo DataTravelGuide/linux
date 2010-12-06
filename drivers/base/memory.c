@@ -442,6 +442,10 @@ static inline int memory_fail_init(void)
  * differentiation between which *physical* devices each
  * section belongs to...
  */
+int __weak arch_get_memory_phys_device(unsigned long start_pfn)
+{
+	return 0;
+}
 
 struct memory_block *find_memory_block_hinted(struct mem_section *section,
 					      struct memory_block *hint)
@@ -484,10 +488,10 @@ struct memory_block *find_memory_block(struct mem_section *section)
 }
 
 static int init_memory_block(struct memory_block **memory,
-			     struct mem_section *section, int phys_device,
-			     unsigned long state)
+			     struct mem_section *section, unsigned long state)
 {
 	struct memory_block *mem;
+	unsigned long start_pfn;
 	int ret = 0;
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
@@ -499,7 +503,8 @@ static int init_memory_block(struct memory_block **memory,
 	mem->state = state;
 	atomic_set(&mem->section_count, 1);
 	mutex_init(&mem->state_mutex);
-	mem->phys_device = phys_device;
+	start_pfn = section_nr_to_pfn(mem->start_phys_index);
+	mem->phys_device = arch_get_memory_phys_device(start_pfn);
 
 	ret = register_memory(mem);
 	if (!ret)
@@ -518,7 +523,7 @@ static int init_memory_block(struct memory_block **memory,
 }
 
 static int add_memory_section(int nid, struct mem_section *section,
-			unsigned long state, int phys_device, enum mem_add_context context)
+			unsigned long state, enum mem_add_context context)
 {
 	struct memory_block *mem;
 	int ret = 0;
@@ -528,7 +533,7 @@ static int add_memory_section(int nid, struct mem_section *section,
 		atomic_inc(&mem->section_count);
 		kobject_put(&mem->sysdev.kobj);
 	} else
-		ret = init_memory_block(&mem, section, phys_device, state);
+		ret = init_memory_block(&mem, section, state);
 
 	if (!ret) {
 		if (context == HOTPLUG &&
@@ -601,7 +606,7 @@ EXPORT_SYMBOL(set_memory_state);
  */
 int register_new_memory(int nid, struct mem_section *section)
 {
-	return add_memory_section(nid, section, MEM_OFFLINE, 0, HOTPLUG);
+	return add_memory_section(nid, section, MEM_OFFLINE, HOTPLUG);
 }
 
 int unregister_memory_section(struct mem_section *section)
@@ -656,7 +661,7 @@ int __init memory_dev_init(void)
 		if (!present_section_nr(i))
 			continue;
 		err = add_memory_section(0, __nr_to_section(i), MEM_ONLINE,
-					0, BOOT);
+					 BOOT);
 		if (!ret)
 			ret = err;
 	}
