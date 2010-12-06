@@ -429,6 +429,30 @@ struct zfcp_latencies {
 	spinlock_t lock;
 };
 
+/**
+ * struct zfcp_fc_event - FC HBAAPI event for internal queueing from irq context
+ * @code: Event code
+ * @data: Event data
+ * @list: list_head for zfcp_fc_events list
+ */
+struct zfcp_fc_event {
+        enum fc_host_event_code code;
+        u32 data;
+        struct list_head list;
+};
+
+/**
+ * struct zfcp_fc_events - Infrastructure for posting FC events from irq context
+ * @list: List for queueing of events from irq context to workqueue
+ * @list_lock: Lock for event list
+ * @work: work_struct for forwarding events in workqueue
+ */
+struct zfcp_fc_events {
+        struct list_head list;
+        spinlock_t list_lock;
+        struct work_struct work;
+};
+
 /** struct zfcp_qdio - basic QDIO data structure
  * @resp_q: response queue
  * @req_q: request queue
@@ -501,6 +525,7 @@ struct zfcp_adapter {
 	struct work_struct	scan_work;
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
+	struct zfcp_fc_events events;
 };
 
 struct zfcp_port {
