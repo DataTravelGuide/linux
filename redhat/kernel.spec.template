@@ -1625,6 +1625,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Dec 05 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-87.el6]
+- [block] cfq: fix recursive call in cfq_blkiocg_update_completion_stats() (Vivek Goyal) [626989]
+
 * Fri Dec 03 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-86.el6]
 - [kernel] posix-cpu-timers: workaround to suppress the problems with mt exec (Oleg Nesterov) [656268]
 - [fs] bio: take care not overflow page count when mapping/copying user data (Danny Feng) [652531] {CVE-2010-4162}
