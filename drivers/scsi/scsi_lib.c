@@ -2424,17 +2424,18 @@ scsi_internal_device_unblock(struct scsi_device *sdev)
 {
 	struct request_queue *q = sdev->request_queue; 
 	unsigned long flags;
-	
+	int err;
+
 	/* 
 	 * Try to transition the scsi device to SDEV_RUNNING
 	 * and goose the device queue if successful.  
 	 */
-	if (sdev->sdev_state == SDEV_BLOCK)
-		sdev->sdev_state = SDEV_RUNNING;
-	else if (sdev->sdev_state == SDEV_CREATED_BLOCK)
-		sdev->sdev_state = SDEV_CREATED;
-	else
-		return -EINVAL;
+	err = scsi_device_set_state(sdev, SDEV_RUNNING);
+	if (err) {
+		err = scsi_device_set_state(sdev, SDEV_CREATED);
+		if (err)
+			return err;
+	}
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_start_queue(q);
