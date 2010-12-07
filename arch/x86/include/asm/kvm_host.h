@@ -393,7 +393,7 @@ struct kvm_mem_aliases {
 struct kvm_arch {
 	struct kvm_mem_aliases *aliases;
 
-	unsigned int n_free_mmu_pages;
+	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
 	unsigned int n_max_mmu_pages;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
