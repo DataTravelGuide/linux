@@ -1555,7 +1555,7 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 {
 	int used_pages;
 
-	used_pages = kvm->arch.n_alloc_mmu_pages - kvm->arch.n_free_mmu_pages;
+	used_pages = kvm->arch.n_alloc_mmu_pages - kvm_mmu_available_pages(kvm);
 	used_pages = max(0, used_pages);
 
 	/*
@@ -2820,7 +2820,7 @@ EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
 
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
-	while (vcpu->kvm->arch.n_free_mmu_pages < KVM_REFILL_PAGES &&
+	while (kvm_mmu_available_pages(vcpu->kvm) < KVM_REFILL_PAGES &&
 	       !list_empty(&vcpu->kvm->arch.active_mmu_pages)) {
 		struct kvm_mmu_page *sp;
 
@@ -3003,7 +3003,7 @@ static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
 		npages = kvm->arch.n_alloc_mmu_pages -
-			 kvm->arch.n_free_mmu_pages;
+			 kvm_mmu_available_pages(kvm);
 		cache_count += npages;
 		if (!kvm_freed && nr_to_scan > 0 && npages > 0) {
 			kvm_mmu_remove_one_alloc_mmu_page(kvm);
