@@ -923,6 +923,8 @@ extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
 extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush(struct request_queue *q, unsigned int flush);
+/* blk_queue_ordered is deprecated. Use blk_queue_flush() instead. */
+extern int blk_queue_ordered(struct request_queue *q, unsigned ordered, prepare_flush_fn *prepare_flush_fn) __deprecated;
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
