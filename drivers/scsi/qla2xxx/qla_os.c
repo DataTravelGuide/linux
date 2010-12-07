@@ -155,6 +155,12 @@ MODULE_PARM_DESC(ql2xdontresethba,
 	" 0 (Default) -- Reset on failure.\n"
 	" 1 -- Do not reset on failure.\n");
 
+int ql2xasynctmfenable;
+module_param(ql2xasynctmfenable, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xasynctmfenable,
+	"Enables issue of TM IOCBs asynchronously via IOCB mechanism"
+	"Default is 0 - Issue TM IOCBs via mailbox mechanism.");
+
 int ql2xtargetreset = 1;
 module_param(ql2xtargetreset, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xtargetreset,
