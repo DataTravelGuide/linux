@@ -1625,6 +1625,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 07 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-89.el6]
+- [netdrv] igb: only use vlan_gro_receive if vlans are registered (Stefan Assmann) [660192] {CVE-2010-4263}
+
 * Tue Dec 07 2010 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-88.el6]
 - [net] core: neighbour update Oops (Jiri Pirko) [658518]
 - [scsi] lpfc: Update lpfc version for 8.3.5.28 driver release (Rob Evers) [655935]
