@@ -231,6 +231,10 @@ struct dasd_ccw_req {
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
 #define DASD_CQR_FLAGS_FAILFAST  1	/* FAILFAST */
+#define DASD_CQR_ALLOW_SLOCK     3      /* Try this request even when lock was
+					 * stolen. Should not be combined with
+					 * DASD_CQR_FLAGS_USE_ERP
+					 */
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
@@ -325,9 +329,9 @@ struct dasd_discipline {
 	void (*dump_sense) (struct dasd_device *, struct dasd_ccw_req *,
 			    struct irb *);
 	void (*dump_sense_dbf) (struct dasd_device *, struct irb *, char *);
-
-	void (*handle_unsolicited_interrupt) (struct dasd_device *,
-					      struct irb *);
+	void (*check_for_device_change) (struct dasd_device *,
+					 struct dasd_ccw_req *,
+					 struct irb *);
 
         /* i/o control functions. */
 	int (*fill_geometry) (struct dasd_block *, struct hd_geometry *);
@@ -452,6 +456,9 @@ struct dasd_block {
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
 #define DASD_FLAG_EER_SNSS	4	/* A SNSS is required */
 #define DASD_FLAG_EER_IN_USE	5	/* A SNSS request is running */
+#define DASD_FLAG_IS_RESERVED	7	/* The device is reserved */
+#define DASD_FLAG_LOCK_STOLEN	8	/* The device lock was stolen */
+
 
 void dasd_put_device_wake(struct dasd_device *);
 
