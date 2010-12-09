@@ -144,12 +144,7 @@ client_can_cache:
 		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
 					 xid, NULL);
 
-	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-		pCifsInode->clientCanCacheAll = true;
-		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p", inode);
-	} else if ((oplock & 0xF) == OPLOCK_READ)
-		pCifsInode->clientCanCacheRead = true;
+	cifs_set_oplock_level(inode, oplock);
 
 	return rc;
 }
@@ -251,12 +246,7 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 		list_add_tail(&pCifsFile->flist, &pCifsInode->openFileList);
 	spin_unlock(&cifs_file_list_lock);
 
-	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-		pCifsInode->clientCanCacheAll = true;
-		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock inode %p", inode);
-	} else if ((oplock & 0xF) == OPLOCK_READ)
-		pCifsInode->clientCanCacheRead = true;
+	cifs_set_oplock_level(inode, oplock);
 
 	file->private_data = pCifsFile;
 	return pCifsFile;
@@ -269,8 +259,9 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
  */
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
+	struct inode *inode = cifs_file->dentry->d_inode;
 	struct cifsTconInfo *tcon = tlink_tcon(cifs_file->tlink);
-	struct cifsInodeInfo *cifsi = CIFS_I(cifs_file->dentry->d_inode);
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	struct cifsLockInfo *li, *tmp;
 
 	spin_lock(&cifs_file_list_lock);
@@ -286,8 +277,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	if (list_empty(&cifsi->openFileList)) {
 		cFYI(1, "closing last open instance for inode %p",
 			cifs_file->dentry->d_inode);
-		cifsi->clientCanCacheRead = false;
-		cifsi->clientCanCacheAll  = false;
+		cifs_set_oplock_level(inode, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);
 
@@ -605,8 +595,6 @@ reopen_success:
 		rc = filemap_write_and_wait(inode->i_mapping);
 		mapping_set_error(inode->i_mapping, rc);
 
-		pCifsInode->clientCanCacheAll = false;
-		pCifsInode->clientCanCacheRead = false;
 		if (tcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&inode,
 				full_path, inode->i_sb, xid);
@@ -620,18 +608,9 @@ reopen_success:
 	     invalidate the current end of file on the server
 	     we can not go to the server to get the new inod
 	     info */
-	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-		pCifsInode->clientCanCacheAll = true;
-		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p",
-			 pCifsFile->dentry->d_inode);
-	} else if ((oplock & 0xF) == OPLOCK_READ) {
-		pCifsInode->clientCanCacheRead = true;
-		pCifsInode->clientCanCacheAll = false;
-	} else {
-		pCifsInode->clientCanCacheRead = false;
-		pCifsInode->clientCanCacheAll = false;
-	}
+
+	cifs_set_oplock_level(inode, oplock);
+
 	cifs_relock_file(pCifsFile);
 
 reopen_error_exit:
