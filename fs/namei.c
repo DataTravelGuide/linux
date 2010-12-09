@@ -1704,6 +1704,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		if (filp == NULL)
 			return ERR_PTR(-ENFILE);
 		nd.intent.open.file = filp;
+		filp->f_flags = open_flag;
 		nd.intent.open.flags = flag;
 		nd.intent.open.create_mode = 0;
 		error = do_path_lookup(dfd, pathname,
@@ -1749,6 +1750,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (filp == NULL)
 		goto exit_parent;
 	nd.intent.open.file = filp;
+	filp->f_flags = open_flag;
 	nd.intent.open.flags = flag;
 	nd.intent.open.create_mode = mode;
 	dir = nd.path.dentry;
@@ -1789,7 +1791,7 @@ do_last:
 			mnt_drop_write(nd.path.mnt);
 			goto exit;
 		}
-		filp = nameidata_to_filp(&nd, open_flag);
+		filp = nameidata_to_filp(&nd);
 		mnt_drop_write(nd.path.mnt);
 		if (nd.root.mnt)
 			path_put(&nd.root);
@@ -1852,7 +1854,7 @@ ok:
 			mnt_drop_write(nd.path.mnt);
 		goto exit;
 	}
-	filp = nameidata_to_filp(&nd, open_flag);
+	filp = nameidata_to_filp(&nd);
 	if (!IS_ERR(filp)) {
 		error = ima_file_check(filp, acc_mode);
 		if (error) {
