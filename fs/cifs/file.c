@@ -1139,8 +1139,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 			continue;
 		if (fsuid_only && open_file->uid != current_fsuid())
 			continue;
-		if (open_file->pfile && ((open_file->pfile->f_flags & O_RDWR) ||
-		    (open_file->pfile->f_flags & O_RDONLY))) {
+		if (OPEN_FMODE(open_file->f_flags) & FMODE_READ) {
 			if (!open_file->invalidHandle) {
 				/* found a good file */
 				/* lock it so it will not be closed on us */
@@ -1189,9 +1188,7 @@ refind_writable:
 			continue;
 		if (fsuid_only && open_file->uid != current_fsuid())
 			continue;
-		if (open_file->pfile &&
-		    ((open_file->pfile->f_flags & O_RDWR) ||
-		     (open_file->pfile->f_flags & O_WRONLY))) {
+		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
 			cifsFileInfo_get(open_file);
 
 			if (!open_file->invalidHandle) {
@@ -2156,9 +2153,7 @@ static int is_inode_writable(struct cifsInodeInfo *cifs_inode)
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
 			continue;
-		if (open_file->pfile &&
-		    ((open_file->pfile->f_flags & O_RDWR) ||
-		     (open_file->pfile->f_flags & O_WRONLY))) {
+		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
 			read_unlock(&GlobalSMBSeslock);
 			return 1;
 		}
