@@ -279,7 +279,6 @@ int cifs_open(struct inode *inode, struct file *file)
 			}
 
 			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
-							file->f_path.mnt,
 							tlink, oflags, oplock);
 			if (pCifsFile == NULL) {
 				CIFSSMBClose(xid, tcon, netfid);
@@ -372,8 +371,8 @@ int cifs_open(struct inode *inode, struct file *file)
 	if (rc != 0)
 		goto out;
 
-	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
-					tlink, file->f_flags, oplock);
+	pCifsFile = cifs_new_fileinfo(inode, netfid, file, tlink,
+					file->f_flags, oplock);
 	if (pCifsFile == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -2372,7 +2371,7 @@ cifs_oplock_break_get(struct slow_work *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
-	mntget(cfile->mnt);
+	cifs_sb_active(cfile->dentry->d_sb);
 	cifsFileInfo_get(cfile);
 	return 0;
 }
@@ -2382,8 +2381,10 @@ cifs_oplock_break_put(struct slow_work *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
-	mntput(cfile->mnt);
+	struct super_block *sb = cfile->dentry->d_sb;
+
 	cifsFileInfo_put(cfile);
+	cifs_sb_deactive(sb);
 }
 
 const struct slow_work_ops cifs_oplock_break_ops = {
