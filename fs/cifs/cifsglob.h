@@ -674,7 +674,7 @@ require use of the stronger protocol */
  *  GlobalMid_Lock protects:
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
- *  GlobalSMBSesLock protects:
+ *  cifs_file_list_lock protects:
  *	list operations on tcp and SMB session lists and tCon lists
  *  f_owner.lock protects certain per file struct operations
  *  mapping->page_lock protects certain per page operations
@@ -717,7 +717,7 @@ GLOBAL_EXTERN rwlock_t		cifs_tcp_ses_lock;
  * If cifs_tcp_ses_lock and the lock below are both needed to be held, then
  * the cifs_tcp_ses_lock must be grabbed first and released last.
  */
-GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;
+GLOBAL_EXTERN spinlock_t	cifs_file_list_lock;
 
 /* Outstanding dir notify requests */
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList;

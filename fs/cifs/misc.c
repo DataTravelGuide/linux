@@ -561,7 +561,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				continue;
 
 			cifs_stats_inc(&tcon->num_oplock_brks);
-			read_lock(&GlobalSMBSeslock);
+			spin_lock(&cifs_file_list_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
@@ -573,7 +573,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				 * closed anyway.
 				 */
 				if (netfile->closePend) {
-					read_unlock(&GlobalSMBSeslock);
+					spin_unlock(&cifs_file_list_lock);
 					read_unlock(&cifs_tcp_ses_lock);
 					return true;
 				}
@@ -590,11 +590,11 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				} else {
 					netfile->oplock_break_cancelled = false;
 				}
-				read_unlock(&GlobalSMBSeslock);
+				spin_unlock(&cifs_file_list_lock);
 				read_unlock(&cifs_tcp_ses_lock);
 				return true;
 			}
-			read_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			read_unlock(&cifs_tcp_ses_lock);
 			cFYI(1, "No matching file for oplock break");
 			return true;
