@@ -2331,7 +2331,7 @@ cifs_oplock_break(struct slow_work *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
-	struct inode *inode = cfile->pInode;
+	struct inode *inode = cfile->dentry->d_inode;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	int rc, waitrc = 0;
 
