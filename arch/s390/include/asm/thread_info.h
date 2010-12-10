@@ -50,6 +50,9 @@ struct thread_info {
 	struct restart_block	restart_block;
 	__u64			user_timer;
 	__u64			system_timer;
+#ifndef __GENKSYMS__
+	unsigned long		last_break;	/* last breaking-event-address. */
+#endif
 };
 
 /*
