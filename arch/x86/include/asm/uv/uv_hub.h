@@ -184,6 +184,8 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 
 #define UV_APIC_PNODE_SHIFT	6
 
+#define UV_APICID_HIBIT_MASK	0xffff0000
+
 /* Local Bus from cpu's perspective */
 #define LOCAL_BUS_BASE		0x1c00000
 #define LOCAL_BUS_SIZE		(4 * 1024 * 1024)
@@ -476,8 +478,10 @@ static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 	}
 }
 
+extern unsigned int uv_apicid_hibits;
 static unsigned long uv_hub_ipi_value(int apicid, int vector, int mode)
 {
+	apicid |= uv_apicid_hibits;
 	return (1UL << UVH_IPI_INT_SEND_SHFT) |
 			((apicid) << UVH_IPI_INT_APIC_ID_SHFT) |
 			(mode << UVH_IPI_INT_DELIVERY_MODE_SHFT) |
