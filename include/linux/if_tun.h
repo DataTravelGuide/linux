@@ -48,6 +48,8 @@
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNGETSNDBUF   _IOR('T', 211, int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+#define TUNGETVNETHDRSZ _IOR('T', 215, int)
+#define TUNSETVNETHDRSZ _IOW('T', 216, int)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
