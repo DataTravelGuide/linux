@@ -1095,6 +1095,7 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 		res->bus = cfgtew->u.cfgte->res_addr.bus;
 		res->target = cfgtew->u.cfgte->res_addr.target;
 		res->lun = cfgtew->u.cfgte->res_addr.lun;
+		res->lun_wwn = get_unaligned_be64(cfgtew->u.cfgte->lun_wwn);
 	}
 
 	ipr_update_ata_class(res, proto);
@@ -1141,7 +1142,7 @@ static char *ipr_format_res_path(u8 *res_path, char *buffer, size_t len)
 	int i;
 	char *p = buffer;
 
-	res_path[0] = '\0';
+	*p = '\0';
 	p += snprintf(p, buffer + len - p, "%02X", res_path[0]);
 	for (i = 1; res_path[i] != 0xff && ((i * 3) < len); i++)
 		p += snprintf(p, buffer + len - p, "-%02X", res_path[i]);
@@ -4088,6 +4089,7 @@ static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
 /**
  * ipr_show_adapter_handle - Show the adapter's resource handle for this device
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4121,6 +4123,7 @@ static struct device_attribute ipr_adapter_handle_attr = {
  * ipr_show_resource_path - Show the resource path or the resource address for
  *			    this device.
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4158,8 +4161,45 @@ static struct device_attribute ipr_resource_path_attr = {
 };
 
 /**
+ * ipr_show_device_id - Show the device_id for this device.
+ * @dev:	device struct
+ * @attr:	device attribute structure
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_device_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
+	struct ipr_resource_entry *res;
+	unsigned long lock_flags = 0;
+	ssize_t len = -ENXIO;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	res = (struct ipr_resource_entry *)sdev->hostdata;
+	if (res && ioa_cfg->sis64)
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->dev_id);
+	else if (res)
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->lun_wwn);
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+static struct device_attribute ipr_device_id_attr = {
+	.attr = {
+		.name =		"device_id",
+		.mode =		S_IRUGO,
+	},
+	.show = ipr_show_device_id
+};
+
+/**
  * ipr_show_resource_type - Show the resource type for this device.
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4194,6 +4234,7 @@ static struct device_attribute ipr_resource_type_attr = {
 static struct device_attribute *ipr_dev_attrs[] = {
 	&ipr_adapter_handle_attr,
 	&ipr_resource_path_attr,
+	&ipr_device_id_attr,
 	&ipr_resource_type_attr,
 	NULL,
 };
