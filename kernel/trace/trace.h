@@ -282,6 +282,9 @@ struct tracer {
 	struct tracer		*next;
 	int			print_max;
 	struct tracer_flags	*flags;
+#ifndef __GENKSYMS__
+	int			use_max_tr;
+#endif
 };
 
 
