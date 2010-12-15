@@ -315,9 +315,10 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern void usb_hcd_reset_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
-extern int usb_hcd_check_bandwidth(struct usb_device *udev,
+extern int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_host_config *new_config,
-		struct usb_interface *new_intf);
+		struct usb_host_interface *old_alt,
+		struct usb_host_interface *new_alt);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
