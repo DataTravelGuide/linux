@@ -40,6 +40,7 @@
 #include <asm/atomic.h>
 #include <asm/time.h>
 #include <asm/mmu.h>
+#include <asm/topology.h>
 
 struct rtas_t rtas = {
 	.lock = __RAW_SPIN_LOCK_UNLOCKED
@@ -756,6 +757,7 @@ static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_d
 	unsigned long msr_save;
 	int cpu;
 
+	stop_topology_update();
 	atomic_inc(&data->working);
 
 	/* really need to ensure MSR.EE is off for H_JOIN */
@@ -787,6 +789,7 @@ static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_d
 		/* Ensure data->done is seen on all CPUs that are about to wake up
 		 as a result of the H_PROD below */
 		mb();
+		start_topology_update();
 
 		/* This cpu did the suspend or got an error; in either case,
 		 * we need to prod all other other cpus out of join state.
