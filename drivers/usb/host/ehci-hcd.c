@@ -32,11 +32,10 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
-
-#include "../core/hcd.h"
 
 #include <asm/byteorder.h>
 #include <asm/io.h>

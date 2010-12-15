@@ -14,12 +14,12 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <asm/unaligned.h>
 
-#include "../core/hcd.h"
 #include "isp1760-hcd.h"
 
 static struct kmem_cache *qtd_cachep;
