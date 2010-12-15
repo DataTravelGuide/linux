@@ -51,7 +51,7 @@ struct pci_dev *mcp55_rewrite = NULL;
 static void __devinit check_mcp55_legacy_irq_routing(struct pci_dev *dev)
 {
 	u32 cfg;
-	printk(KERN_CRIT "FOUND MCP55 CHIP\n");
+	printk(KERN_WARNING "FOUND MCP55 CHIP\n");
 	/*
 	 *Some MCP55 chips have a legacy irq routing config register, and most
 	 *BIOS engineers have set it so that legacy interrupts are only routed
@@ -76,7 +76,8 @@ static void __devinit check_mcp55_legacy_irq_routing(struct pci_dev *dev)
 		 * Either bit 2 or 15 wasn't clear, so we need to
 		 * rewrite this cfg register when starting kexec
 		 */
-		printk(KERN_CRIT "DETECTED RESTRICTED ROUTING ON MCP55!  FLAGGING\n");
+		printk(KERN_WARNING
+			"DETECTED RESTRICTED ROUTING ON MCP55!  FLAGGING\n");
 		mcp55_rewrite = dev;
 	}
 }
