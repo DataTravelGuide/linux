@@ -127,7 +127,11 @@
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#ifndef __GENKSYMS__
 #include <trace/events/napi.h>
+#include <trace/events/net.h>
+#include <trace/events/skb.h>
+#endif
 
 #include "net-sysfs.h"
 
@@ -1780,6 +1784,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb_dst_drop(skb);
 
 		rc = ops->ndo_start_xmit(skb, dev);
+		trace_net_dev_xmit(skb, rc);
 		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
 		/*
@@ -1806,6 +1811,7 @@ gso:
 		skb->next = nskb->next;
 		nskb->next = NULL;
 		rc = ops->ndo_start_xmit(nskb, dev);
+		trace_net_dev_xmit(nskb, rc);
 		if (unlikely(rc != NETDEV_TX_OK)) {
 			nskb->next = skb->next;
 			skb->next = nskb;
@@ -1983,6 +1989,7 @@ gso:
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_EGRESS);
 #endif
+	trace_net_dev_queue(skb);
 	if (q->enqueue) {
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
@@ -2241,6 +2248,7 @@ int netif_rx(struct sk_buff *skb)
 	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
+	trace_netif_rx(skb);
 	cpu = get_rps_cpu(skb->dev, skb);
 	if (cpu < 0)
 		cpu = smp_processor_id();
@@ -2280,6 +2288,7 @@ static void net_tx_action(struct softirq_action *h)
 			clist = clist->next;
 
 			WARN_ON(atomic_read(&skb->users));
+			trace_kfree_skb(skb, net_tx_action);
 			__kfree_skb(skb);
 		}
 	}
@@ -2494,6 +2503,7 @@ int __netif_receive_skb(struct sk_buff *skb)
 	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
+	trace_netif_receive_skb(skb);
 	if (vlan_tx_tag_present(skb) && vlan_hwaccel_do_receive(skb))
 		return NET_RX_SUCCESS;
 
