@@ -62,6 +62,9 @@
 #define NEEDED_RMEM (4*1024*1024)
 #define CONN_HASH_SIZE 32
 
+/* Number of messages to send before rescheduling */
+#define MAX_SEND_MSG_COUNT 25
+
 struct cbuf {
 	unsigned int base;
 	unsigned int len;
@@ -1317,6 +1320,7 @@ static void send_to_sock(struct connection *con)
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
 	int len, offset;
+	int count = 0;
 
 	mutex_lock(&con->sock_mutex);
 	if (con->sock == NULL)
@@ -1354,8 +1358,12 @@ static void send_to_sock(struct connection *con)
 			if (ret <= 0)
 				goto send_error;
 		}
-			/* Don't starve people filling buffers */
+
+		/* Don't starve people filling buffers */
+		if (++count >= MAX_SEND_MSG_COUNT) {
 			cond_resched();
+			count = 0;
+		}
 
 		spin_lock(&con->writequeue_lock);
 		e->offset += ret;
