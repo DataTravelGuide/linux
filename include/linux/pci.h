@@ -1437,5 +1437,16 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt);
 int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
 			      unsigned int len, const char *kw);
 
+/**
+ * pci_is_pcie - check if the PCI device is PCI Express capable
+ * @dev: PCI device
+ *
+ * Retrun true if the PCI device is PCI Express capable, false otherwise.
+ */
+static inline bool pci_is_pcie(struct pci_dev *dev)
+{
+	return !!pci_pcie_cap(dev);
+}
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
