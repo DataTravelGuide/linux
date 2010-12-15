@@ -472,7 +472,9 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
 
-	ieee80211_request_internal_scan(sdata, ifibss->ssid, ifibss->ssid_len);
+	ieee80211_request_internal_scan(sdata,
+			ifibss->ssid, ifibss->ssid_len,
+			ifibss->fixed_channel ? ifibss->channel : NULL);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -577,8 +579,9 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->dev->name);
 
-		ieee80211_request_internal_scan(sdata, ifibss->ssid,
-						ifibss->ssid_len);
+		ieee80211_request_internal_scan(sdata,
+				ifibss->ssid, ifibss->ssid_len,
+				ifibss->fixed_channel ? ifibss->channel : NULL);
 	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
