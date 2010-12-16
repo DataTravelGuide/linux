@@ -1029,6 +1029,11 @@ static void ibmvfc_get_host_port_state(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
+static void ibmvfc_set_host_def_dev_loss_tmo(struct Scsi_Host *shost)
+{
+	fc_host_def_dev_loss_tmo(shost) = dev_loss_tmo;
+}
+
 /**
  * ibmvfc_set_rport_dev_loss_tmo - Set rport's device loss timeout
  * @rport:		rport struct
@@ -2813,7 +2818,6 @@ static int ibmvfc_target_alloc(struct scsi_target *starget)
 static int ibmvfc_slave_configure(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
-	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -2825,8 +2829,6 @@ static int ibmvfc_slave_configure(struct scsi_device *sdev)
 		scsi_activate_tcq(sdev, sdev->queue_depth);
 	} else
 		scsi_deactivate_tcq(sdev, sdev->queue_depth);
-
-	rport->dev_loss_tmo = dev_loss_tmo;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return 0;
 }
@@ -4915,6 +4917,8 @@ static struct fc_function_template ibmvfc_transport_functions = {
 
 	.get_host_speed = ibmvfc_get_host_speed,
 	.show_host_speed = 1,
+
+	.get_host_def_dev_loss_tmo = ibmvfc_set_host_def_dev_loss_tmo,
 
 	.issue_fc_host_lip = ibmvfc_issue_fc_host_lip,
 	.terminate_rport_io = ibmvfc_terminate_rport_io,
