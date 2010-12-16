@@ -420,6 +420,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
  */
 static int __remove_mapping(struct address_space *mapping, struct page *page)
 {
+	struct inode *inode = mapping->host;
+
 	BUG_ON(!PageLocked(page));
 	BUG_ON(mapping != page_mapping(page));
 
@@ -463,9 +465,10 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
 		spin_unlock_irq(&mapping->tree_lock);
 		swapcache_free(swap, page);
 	} else {
-		void (*freepage)(struct page *);
+		void (*freepage)(struct page *) = NULL;
 
-		freepage = mapping->a_ops->freepage;
+		if (IS_AOP_EXT(inode))
+			freepage = EXT_AOPS(mapping->a_ops)->freepage;
 
 		__remove_from_page_cache(page);
 		spin_unlock_irq(&mapping->tree_lock);

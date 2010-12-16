@@ -245,6 +245,7 @@ struct inodes_stat_t {
 #define S_NOCMTIME	128	/* Do not update file c/mtime */
 #define S_SWAPFILE	256	/* Do not truncate: swapon got its bmaps */
 #define S_PRIVATE	512	/* Inode is fs-internal */
+#define S_AOP_EXT	16384 /* fs supports extended aops */
 
 /*
  * Note that nosuid etc flags are inode-specific: setting some file-system
@@ -279,6 +280,7 @@ struct inodes_stat_t {
 #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
 #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
 #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
+#define IS_AOP_EXT(inode)	((inode)->i_flags & S_AOP_EXT)
 
 /* the read-only stuff doesn't really belong here, but any other place is
    probably as bad and I don't want to create yet another include file. */
@@ -605,7 +607,6 @@ struct address_space_operations {
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, gfp_t);
-	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	int (*get_xip_mem)(struct address_space *, pgoff_t, int,
@@ -618,6 +619,19 @@ struct address_space_operations {
 					unsigned long);
 	int (*error_remove_page)(struct address_space *, struct page *);
 };
+
+struct address_space_operations_ext {
+	struct address_space_operations orig_aops;
+
+	/* if S_AOP_EXT is set then these are there */
+	void (*freepage)(struct page *);
+	void (*dummy[5]);		/* padding for ABI compatibility */
+};
+static inline struct address_space_operations_ext *
+EXT_AOPS(const struct address_space_operations *ops)
+{
+	return container_of(ops, struct address_space_operations_ext, orig_aops);
+}
 
 /*
  * pagecache_write_begin/pagecache_write_end must be used by general code
@@ -883,6 +897,12 @@ static inline unsigned iminor(const struct inode *inode)
 static inline unsigned imajor(const struct inode *inode)
 {
 	return MAJOR(inode->i_rdev);
+}
+static inline void set_ext_aops(struct address_space *mapping,
+		const struct address_space_operations_ext *ops)
+{
+	mapping->a_ops = (struct address_space_operations *)ops;
+	mapping->host->i_flags |= S_AOP_EXT;
 }
 
 extern struct block_device *I_BDEV(struct inode *inode);

@@ -83,7 +83,7 @@ const struct inode_operations nfs_dir_inode_operations = {
 	.setattr	= nfs_setattr,
 };
 
-const struct address_space_operations nfs_dir_aops = {
+const struct address_space_operations_ext nfs_dir_aops = {
 	.freepage = nfs_readdir_clear_array,
 };
 

@@ -144,11 +144,14 @@ void __remove_from_page_cache(struct page *page)
 void remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
-	void (*freepage)(struct page *);
+	void (*freepage)(struct page *) = NULL;
+	struct inode *inode = mapping->host;
 
 	BUG_ON(!PageLocked(page));
 
-	freepage = mapping->a_ops->freepage;
+	if (IS_AOP_EXT(inode))
+		freepage = EXT_AOPS(mapping->a_ops)->freepage;
+
 	spin_lock_irq(&mapping->tree_lock);
 	__remove_from_page_cache(page);
 	spin_unlock_irq(&mapping->tree_lock);

@@ -370,6 +370,9 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
 static int
 invalidate_complete_page2(struct address_space *mapping, struct page *page)
 {
+	struct inode *inode = mapping->host;
+	void (*freepage)(struct page *);
+
 	if (page->mapping != mapping)
 		return 0;
 
@@ -386,8 +389,11 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	spin_unlock_irq(&mapping->tree_lock);
 	mem_cgroup_uncharge_cache_page(page);
 
-	if (mapping->a_ops->freepage)
-		mapping->a_ops->freepage(page);
+	if (IS_AOP_EXT(inode)) {
+		freepage = EXT_AOPS(mapping->a_ops)->freepage;
+		if (freepage != NULL)
+			freepage(page);
+	}
 
 	page_cache_release(page);	/* pagecache ref */
 	return 1;
