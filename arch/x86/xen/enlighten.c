@@ -76,6 +76,7 @@ EXPORT_SYMBOL_GPL(xen_domain_type);
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
 
+static struct shared_info *shared_info_page;
 struct shared_info xen_dummy_shared_info;
 
 void *xen_initial_gdt;
@@ -1314,10 +1315,7 @@ void xen_hvm_init_shared_info(void)
 {
 	int cpu;
 	struct xen_add_to_physmap xatp;
-	static struct shared_info *shared_info_page = 0;
 
-	if (!shared_info_page)
-		shared_info_page = (struct shared_info *) alloc_bootmem_pages(PAGE_SIZE);
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
@@ -1369,6 +1367,9 @@ void __init xen_hvm_guest_init(void)
 	r = init_hvm_pv_info(&major, &minor);
 	if (r < 0)
 		return;
+
+	shared_info_page = (struct shared_info *)
+		extend_brk(PAGE_SIZE, PAGE_SIZE);
 
 	xen_hvm_init_shared_info();
 
