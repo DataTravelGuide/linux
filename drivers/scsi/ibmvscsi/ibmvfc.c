@@ -1029,11 +1029,6 @@ static void ibmvfc_get_host_port_state(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
-static void ibmvfc_set_host_def_dev_loss_tmo(struct Scsi_Host *shost)
-{
-	fc_host_def_dev_loss_tmo(shost) = dev_loss_tmo;
-}
-
 /**
  * ibmvfc_set_rport_dev_loss_tmo - Set rport's device loss timeout
  * @rport:		rport struct
@@ -4773,6 +4768,8 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if ((rc = scsi_add_host(shost, dev)))
 		goto release_event_pool;
 
+	fc_host_dev_loss_tmo(shost) = dev_loss_tmo;
+
 	if ((rc = ibmvfc_create_trace_file(&shost->shost_dev.kobj,
 					   &ibmvfc_trace_attr))) {
 		dev_err(dev, "Failed to create trace file. rc=%d\n", rc);
@@ -4917,8 +4914,6 @@ static struct fc_function_template ibmvfc_transport_functions = {
 
 	.get_host_speed = ibmvfc_get_host_speed,
 	.show_host_speed = 1,
-
-	.get_host_def_dev_loss_tmo = ibmvfc_set_host_def_dev_loss_tmo,
 
 	.issue_fc_host_lip = ibmvfc_issue_fc_host_lip,
 	.terminate_rport_io = ibmvfc_terminate_rport_io,
