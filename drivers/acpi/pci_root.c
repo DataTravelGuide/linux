@@ -32,7 +32,6 @@
 #include <linux/pm.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
-#include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -558,14 +557,6 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 		flags |= OSC_MSI_SUPPORT;
 	if (flags != base_flags)
 		acpi_pci_osc_support(root, flags);
-
-	flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL;
-	status = acpi_pci_osc_control_set(root->device->handle, &flags, flags);
-
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_INFO "Unable to assume PCIe control: Disabling ASPM\n");
-		pcie_no_aspm();
-	}
 
 	return 0;
 
