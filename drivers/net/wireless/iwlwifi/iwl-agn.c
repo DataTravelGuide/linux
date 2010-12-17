@@ -3412,7 +3412,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		hw->wiphy->interface_modes |= ctx->exclusive_interface_modes;
 	}
 
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
+	hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
 
 	/*
