@@ -3838,9 +3838,12 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
 	.hw_scan = iwl_mac_hw_scan,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
+};
+
+static struct ieee80211_ops2 iwl3945_hw_ops2 = {
 	.sta_add = iwl3945_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
-	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)
@@ -3968,7 +3971,11 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* mac80211 allocates memory for this device instance, including
 	 *   space for this driver's private structure */
+#if 0 /* Not in RHEL6... */
 	hw = iwl_alloc_all(cfg, &iwl3945_hw_ops);
+#else
+	hw = iwl_alloc_all(cfg, &iwl3945_hw_ops, &iwl3945_hw_ops2);
+#endif
 	if (hw == NULL) {
 		pr_err("Can not allocate network device\n");
 		err = -ENOMEM;

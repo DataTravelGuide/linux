@@ -196,8 +196,8 @@ static inline int drv_sta_add(struct ieee80211_local *local,
 
 	might_sleep();
 
-	if (local->ops->sta_add)
-		ret = local->ops->sta_add(&local->hw, &sdata->vif, sta);
+	if (local->ops2 && local->ops2->sta_add)
+		ret = local->ops2->sta_add(&local->hw, &sdata->vif, sta);
 	else if (local->ops->sta_notify)
 		local->ops->sta_notify(&local->hw, &sdata->vif,
 					STA_NOTIFY_ADD, sta);
@@ -213,8 +213,8 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 {
 	might_sleep();
 
-	if (local->ops->sta_remove)
-		local->ops->sta_remove(&local->hw, &sdata->vif, sta);
+	if (local->ops2 && local->ops2->sta_remove)
+		local->ops2->sta_remove(&local->hw, &sdata->vif, sta);
 	else if (local->ops->sta_notify)
 		local->ops->sta_notify(&local->hw, &sdata->vif,
 					STA_NOTIFY_REMOVE, sta);

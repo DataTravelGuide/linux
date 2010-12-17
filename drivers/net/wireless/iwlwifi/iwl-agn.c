@@ -4077,9 +4077,12 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.ampdu_action = iwl_mac_ampdu_action,
 	.hw_scan = iwl_mac_hw_scan,
 	.sta_notify = iwl_mac_sta_notify,
+	.tx_last_beacon = iwl_mac_tx_last_beacon,
+};
+
+static struct ieee80211_ops2 iwl_hw_ops2 = {
 	.sta_add = iwlagn_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
-	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
 static void iwl_hw_detect(struct iwl_priv *priv)
@@ -4151,7 +4154,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_hw_ops.hw_scan = NULL;
 	}
 
+#if 0 /* Not in RHEL6... */
 	hw = iwl_alloc_all(cfg, &iwl_hw_ops);
+#else
+	hw = iwl_alloc_all(cfg, &iwl_hw_ops, &iwl_hw_ops2);
+#endif
 	if (!hw) {
 		err = -ENOMEM;
 		goto out;

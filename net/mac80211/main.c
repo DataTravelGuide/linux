@@ -744,6 +744,24 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
 
+struct ieee80211_hw *ieee80211_alloc_hw2(size_t priv_data_len,
+					 const struct ieee80211_ops *ops,
+					 const struct ieee80211_ops2 *ops2)
+{
+	struct ieee80211_hw *hw;
+	struct ieee80211_local *local;
+
+	hw = ieee80211_alloc_hw(priv_data_len, ops);
+
+	if (hw) {
+		local = hw_to_local(hw);
+		local->ops2 = ops2;
+	}
+
+	return hw;
+}
+EXPORT_SYMBOL(ieee80211_alloc_hw2);
+
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);

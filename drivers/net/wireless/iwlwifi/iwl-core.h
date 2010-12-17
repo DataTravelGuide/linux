@@ -392,8 +392,14 @@ struct iwl_cfg {
  *   L i b                 *
  ***************************/
 
+#if 0 /* Not in RHEL6... */
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
+#else
+struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
+		struct ieee80211_ops *hw_ops,
+		struct ieee80211_ops2 *hw_ops2);
+#endif
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw);

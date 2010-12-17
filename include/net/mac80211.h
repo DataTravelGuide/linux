@@ -1427,12 +1427,6 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *
- * @sta_add: Notifies low level driver about addition of an associated station,
- *	AP, IBSS/WDS/mesh peer etc. This callback can sleep.
- *
- * @sta_remove: Notifies low level driver about removal of an associated
- *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
- *
  * @sta_notify: Notifies low level driver about power state transition of an
  *	associated station, AP,  IBSS/WDS/mesh peer etc. Must be atomic.
  *
@@ -1514,10 +1508,6 @@ struct ieee80211_ops {
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
-	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
@@ -1539,6 +1529,27 @@ struct ieee80211_ops {
 };
 
 /**
+ * struct ieee80211_ops2 - more callbacks from mac80211 to the driver
+ *
+ * This structure contains various callbacks that the driver may
+ * handle or, in some cases, must handle, for example to configure
+ * the hardware to a new channel or to transmit a frame.
+ *
+ * @sta_add: Notifies low level driver about addition of an associated station,
+ *	AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ * @sta_remove: Notifies low level driver about removal of an associated
+ *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ */
+struct ieee80211_ops2 {
+	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
+};
+
+/**
  * ieee80211_alloc_hw -  Allocate a new hardware device
  *
  * This must be called once for each hardware device. The returned pointer
@@ -1552,6 +1563,20 @@ struct ieee80211_ops {
  */
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops);
+
+/**
+ * ieee80211_alloc_hw2 -  Allocate a new hardware device
+ *
+ * This alternative to ieee80211_alloc_hw includes support for the
+ * newer sta_add and sta_remove operations.
+ *
+ * @priv_data_len: length of private data
+ * @ops: callbacks for this device
+ * @ops2: more callbacks for this device
+ */
+struct ieee80211_hw *ieee80211_alloc_hw2(size_t priv_data_len,
+					 const struct ieee80211_ops *ops,
+					 const struct ieee80211_ops2 *ops2);
 
 /**
  * ieee80211_register_hw - Register hardware device

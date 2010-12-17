@@ -629,6 +629,7 @@ struct ieee80211_local {
 	struct ieee80211_hw hw;
 
 	const struct ieee80211_ops *ops;
+	const struct ieee80211_ops2 *ops2;
 
 	/*
 	 * private workqueue to mac80211. mac80211 makes this accessible
