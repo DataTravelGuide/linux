@@ -794,7 +794,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 		       tx_cmd->supp_rates[1], tx_cmd->supp_rates[0]);
 }
 
-static u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate)
+u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate)
 {
 	unsigned long flags_spin;
 	struct iwl_station_entry *station;
@@ -2307,8 +2307,8 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
 
-static int iwl3945_add_bssid_station(struct iwl_priv *priv,
-				     const u8 *addr, u8 *sta_id_r)
+int iwl3945_add_bssid_station(struct iwl_priv *priv,
+			      const u8 *addr, u8 *sta_id_r)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	int ret;
@@ -2332,29 +2332,6 @@ static int iwl3945_add_bssid_station(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return 0;
-}
-static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
-				       struct ieee80211_vif *vif, bool add)
-{
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-	int ret;
-
-	if (add) {
-		ret = iwl3945_add_bssid_station(priv, vif->bss_conf.bssid,
-						&vif_priv->ibss_bssid_sta_id);
-		if (ret)
-			return ret;
-
-		iwl3945_sync_sta(priv, vif_priv->ibss_bssid_sta_id,
-				 (priv->band == IEEE80211_BAND_5GHZ) ?
-				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP);
-		iwl3945_rate_scale_init(priv->hw, vif_priv->ibss_bssid_sta_id);
-
-		return 0;
-	}
-
-	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
-				  vif->bss_conf.bssid);
 }
 
 /**
@@ -2725,7 +2702,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
-	.manage_ibss_station = iwl3945_manage_ibss_station,
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl3945_good_plcp_health,
 

@@ -3356,9 +3356,14 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		break;
+
 	case NL80211_IFTYPE_ADHOC:
+
+		iwlagn_add_bssid_station(priv, ctx, priv->bssid, NULL);
 		iwl_send_beacon_cmd(priv);
+
 		break;
+
 	default:
 		IWL_ERR(priv, "%s Should not be called in %d mode\n",
 			  __func__, vif->type);

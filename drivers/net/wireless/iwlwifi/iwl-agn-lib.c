@@ -38,7 +38,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
-#include "iwl-sta.h"
 
 static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 {
@@ -1602,19 +1601,6 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 
 	if (priv->cfg->ops->hcmd->set_pan_params)
 		priv->cfg->ops->hcmd->set_pan_params(priv);
-}
-
-int iwlagn_manage_ibss_station(struct iwl_priv *priv,
-			       struct ieee80211_vif *vif, bool add)
-{
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-
-	if (add)
-		return iwlagn_add_bssid_station(priv, vif_priv->ctx,
-						vif->bss_conf.bssid,
-						&vif_priv->ibss_bssid_sta_id);
-	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
-				  vif->bss_conf.bssid);
 }
 
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,

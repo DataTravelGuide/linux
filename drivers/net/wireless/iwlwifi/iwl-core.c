@@ -1710,15 +1710,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			iwl_set_no_assoc(priv, vif);
 	}
 
-	if (changes & BSS_CHANGED_IBSS) {
-		ret = priv->cfg->ops->lib->manage_ibss_station(priv, vif,
-							bss_conf->ibss_joined);
-		if (ret)
-			IWL_ERR(priv, "failed to %s IBSS station %pM\n",
-				bss_conf->ibss_joined ? "add" : "remove",
-				bss_conf->bssid);
-	}
-
 	if (changes & BSS_CHANGED_IDLE &&
 	    priv->cfg->ops->hcmd->set_pan_params) {
 		if (priv->cfg->ops->hcmd->set_pan_params(priv))

@@ -2257,7 +2257,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.temp_ops = {
 		.temperature = iwl4965_temperature_calib,
 	},
-	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,

@@ -53,8 +53,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   const u8 *addr, bool is_ap,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
-int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
-		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 

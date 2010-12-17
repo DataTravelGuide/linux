@@ -3114,9 +3114,19 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	case NL80211_IFTYPE_STATION:
 		iwl3945_rate_scale_init(priv->hw, IWL_AP_ID);
 		break;
+
 	case NL80211_IFTYPE_ADHOC:
+
+		iwl3945_add_bssid_station(priv, priv->bssid, NULL);
+		iwl3945_sync_sta(priv, IWL_STA_ID,
+				(priv->band == IEEE80211_BAND_5GHZ) ?
+				IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP);
+		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
+
 		iwl3945_send_beacon_cmd(priv);
+
 		break;
+
 	default:
 		IWL_ERR(priv, "%s Should not be called in %d mode\n",
 			__func__, vif->type);
