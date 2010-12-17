@@ -1650,7 +1650,13 @@ typedef struct {
 	uint8_t port_name[WWN_SIZE];
 	uint8_t fabric_port_name[WWN_SIZE];
 	uint16_t fp_speed;
+	uint8_t fc4_type;
 } sw_info_t;
+
+/* FCP-4 types */
+#define FC4_TYPE_FCP_SCSI	0x08
+#define FC4_TYPE_OTHER		0x0
+#define FC4_TYPE_UNKNOWN	0xff
 
 /*
  * Fibre channel port type.
@@ -1698,6 +1704,7 @@ typedef struct fc_port {
 	unsigned long last_ramp_up;
 
 	uint16_t vp_idx;
+	uint8_t fc4_type;
 } fc_port_t;
 
 /*
@@ -1780,6 +1787,9 @@ typedef struct fc_port {
 #define	GPSC_REQ_SIZE	(16 + 8)
 #define	GPSC_RSP_SIZE	(16 + 2 + 2)
 
+#define GFF_ID_CMD	0x011F
+#define GFF_ID_REQ_SIZE	(16 + 4)
+#define GFF_ID_RSP_SIZE (16 + 128)
 
 /*
  * HBA attribute types.
@@ -1981,6 +1991,11 @@ struct ct_sns_req {
 		struct {
 			uint8_t port_name[8];
 		} gpsc;
+
+		struct {
+			uint8_t reserved;
+			uint8_t port_name[3];
+		} gff_id;
 	} req;
 };
 
@@ -2053,6 +2068,11 @@ struct ct_sns_rsp {
 			uint16_t speeds;
 			uint16_t speed;
 		} gpsc;
+
+#define GFF_FCP_SCSI_OFFSET	7
+		struct {
+			uint8_t fc4_features[128];
+		} gff_id;
 	} rsp;
 };
 
