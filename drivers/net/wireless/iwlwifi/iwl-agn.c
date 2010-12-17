@@ -3412,14 +3412,16 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		hw->wiphy->interface_modes |= ctx->exclusive_interface_modes;
 	}
 
-	hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
+	hw->wiphy->custom_regulatory = true;
+
+	/* Firmware does not support this */
+	hw->wiphy->disable_beacon_hints = true;
 
 	/*
 	 * For now, disable PS by default because it affects
 	 * RX performance significantly.
 	 */
-	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+	hw->wiphy->ps_default = false;
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 	/* we create the 802.11 header and a zero-length SSID element */
