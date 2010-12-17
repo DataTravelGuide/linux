@@ -2121,15 +2121,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		 IWL_UCODE_SERIAL(priv->ucode_ver),
 		 buildstr);
 
-	snprintf(priv->hw->wiphy->fw_version,
-		 sizeof(priv->hw->wiphy->fw_version),
-		 "%u.%u.%u.%u%s",
-		 IWL_UCODE_MAJOR(priv->ucode_ver),
-		 IWL_UCODE_MINOR(priv->ucode_ver),
-		 IWL_UCODE_API(priv->ucode_ver),
-		 IWL_UCODE_SERIAL(priv->ucode_ver),
-		 buildstr);
-
 	/*
 	 * For any of the failures below (before allocating pci memory)
 	 * we will try to load a version with a smaller API -- maybe the
