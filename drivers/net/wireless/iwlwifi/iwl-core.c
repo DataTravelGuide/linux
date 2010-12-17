@@ -1565,15 +1565,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (changes & BSS_CHANGED_QOS) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		ctx->qos_data.qos_active = bss_conf->qos;
-		iwl_update_qos(priv, ctx);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-
 	if (changes & BSS_CHANGED_BEACON_ENABLED) {
 		/*
 		 * the add_interface code must make sure we only ever
@@ -1995,6 +1986,17 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		for_each_context(priv, ctx)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+
+	if (changed & IEEE80211_CONF_CHANGE_QOS) {
+		bool qos_active = !!(conf->flags & IEEE80211_CONF_QOS);
+
+		spin_lock_irqsave(&priv->lock, flags);
+		for_each_context(priv, ctx) {
+			ctx->qos_data.qos_active = qos_active;
+			iwl_update_qos(priv, ctx);
+		}
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
