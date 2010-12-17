@@ -229,7 +229,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
-	.txfifo_flush = iwlagn_txfifo_flush,
 	.tt_ops = {
 		.lower_power_detection = iwl_tt_is_low_power_state,
 		.tt_power_mode = iwl_tt_current_power_mode,
