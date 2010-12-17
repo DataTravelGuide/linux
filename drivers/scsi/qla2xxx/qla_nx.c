@@ -1840,8 +1840,6 @@ qla82xx_intr_handler(int irq, void *dev_id)
 
 		if (RD_REG_DWORD(&reg->host_int)) {
 			stat = RD_REG_DWORD(&reg->host_status);
-			if ((stat & HSRX_RISC_INT) == 0)
-				break;
 
 			switch (stat & 0xff) {
 			case 0x1:
@@ -1916,8 +1914,6 @@ qla82xx_msix_default(int irq, void *dev_id)
 	do {
 		if (RD_REG_DWORD(&reg->host_int)) {
 			stat = RD_REG_DWORD(&reg->host_status);
-			if ((stat & HSRX_RISC_INT) == 0)
-				break;
 
 			switch (stat & 0xff) {
 			case 0x1:
@@ -2170,12 +2166,6 @@ qla82xx_load_fw(scsi_qla_host_t *vha)
 	struct fw_blob *blob;
 	struct qla_hw_data *ha = vha->hw;
 
-	/* Put both the PEG CMD and RCV PEG to default state
-	 * of 0 before resetting the hardware
-	 */
-	qla82xx_wr_32(ha, CRB_CMDPEG_STATE, 0);
-	qla82xx_wr_32(ha, CRB_RCVPEG_STATE, 0);
-
 	if (qla82xx_pinit_from_rom(vha) != QLA_SUCCESS) {
 		qla_printk(KERN_ERR, ha,
 			"%s: Error during CRB Initialization\n", __func__);
@@ -2243,6 +2233,12 @@ qla82xx_start_firmware(scsi_qla_host_t *vha)
 
 	/* scrub dma mask expansion register */
 	qla82xx_wr_32(ha, CRB_DMA_SHIFT, QLA82XX_DMA_SHIFT_VALUE);
+
+	/* Put both the PEG CMD and RCV PEG to default state
+	 * of 0 before resetting the hardware
+	 */
+	qla82xx_wr_32(ha, CRB_CMDPEG_STATE, 0);
+	qla82xx_wr_32(ha, CRB_RCVPEG_STATE, 0);
 
 	/* Overwrite stale initialization register values */
 	qla82xx_wr_32(ha, QLA82XX_PEG_HALT_STATUS1, 0);

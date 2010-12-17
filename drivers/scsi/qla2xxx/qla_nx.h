@@ -856,7 +856,7 @@ struct ct6_dsd {
 	struct list_head dsd_list;
 };
 
-#define MBC_TOGGLE_INTR		0x10
+#define MBC_TOGGLE_INTERRUPT	0x10
 
 /* Flash  offset */
 #define FLT_REG_BOOTLOAD_82XX	0x72
