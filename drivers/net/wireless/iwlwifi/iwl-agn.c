@@ -3568,20 +3568,37 @@ void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	 * clear sta table, add BCAST sta... */
 }
 
+#if 0 /* Not in RHEL6... */
 static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_key_conf *keyconf,
 				    struct ieee80211_sta *sta,
 				    u32 iv32, u16 *phase1key)
+#else
+static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
+			struct ieee80211_key_conf *keyconf, const u8 *addr,
+			u32 iv32, u16 *phase1key)
+#endif
 {
 
 	struct iwl_priv *priv = hw->priv;
+#if 0 /* Not in RHEL6... */
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+#else
+	struct ieee80211_sta *sta;
+#endif
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
+#if 0 /* Not in RHEL6... */
 	iwl_update_tkip_key(priv, vif_priv->ctx, keyconf, sta,
 			    iv32, phase1key);
+#else
+	sta = ieee80211_find_sta(hw, addr);
+	iwl_update_tkip_key(priv, &priv->contexts[IWL_RXON_CTX_BSS],
+			    keyconf, sta,
+			    iv32, phase1key);
+#endif
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
@@ -3655,7 +3672,9 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 
 static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
+#if 0 /* Not in RHEL6... */
 				struct ieee80211_vif *vif,
+#endif
 				enum ieee80211_ampdu_mlme_action action,
 				struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
@@ -3681,7 +3700,13 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			return ret;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
+#if 0 /* Not in RHEL6... */
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
+#else
+		ret = iwlagn_tx_agg_start(priv,
+					  priv->contexts[IWL_RXON_CTX_BSS].vif,
+					  sta, tid, ssn);
+#endif
 		if (ret == 0) {
 			priv->_agn.agg_tids_count++;
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
@@ -3690,7 +3715,13 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		return ret;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
+#if 0 /* Not in RHEL6... */
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
+#else
+		ret = iwlagn_tx_agg_stop(priv,
+					 priv->contexts[IWL_RXON_CTX_BSS].vif,
+					 sta, tid);
+#endif
 		if ((ret == 0) && (priv->_agn.agg_tids_count > 0)) {
 			priv->_agn.agg_tids_count--;
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
@@ -3708,8 +3739,13 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 
 			sta_priv->lq_sta.lq.general_params.flags &=
 				~LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
+#if 0 /* Not in RHEL6... */
 			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
 					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+#else
+			iwl_send_lq_cmd(priv, &priv->contexts[IWL_RXON_CTX_BSS],
+					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+#endif
 		}
 		return ret;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
@@ -3725,8 +3761,13 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 
 			sta_priv->lq_sta.lq.general_params.flags |=
 				LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
+#if 0 /* Not in RHEL6... */
 			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
 					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+#else
+			iwl_send_lq_cmd(priv, &priv->contexts[IWL_RXON_CTX_BSS],
+					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+#endif
 		}
 		break;
 	}

@@ -1529,7 +1529,11 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (!priv->is_internal_short_scan) {
 		cmd_len = iwl_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
+#if 0 /* Not in RHEL6... */
 					vif->addr,
+#else
+					priv->mac_addr,
+#endif
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
@@ -1779,6 +1783,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 {
+#if 0 /* Not in RHEL6...(is this right?) */
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, bt_traffic_change_work);
 	struct iwl_rxon_context *ctx;
@@ -1817,6 +1822,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&priv->mutex);
+#endif
 }
 
 static void iwlagn_print_uartmsg(struct iwl_priv *priv,
@@ -1987,8 +1993,12 @@ void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv)
 
 static bool is_single_rx_stream(struct iwl_priv *priv)
 {
+#if 0 /* Not in RHEL6... */
 	return priv->current_ht_config.smps == IEEE80211_SMPS_STATIC ||
 	       priv->current_ht_config.single_chain_sufficient;
+#else
+	return priv->current_ht_config.single_chain_sufficient;
+#endif
 }
 
 #define IWL_NUM_RX_CHAINS_MULTIPLE	3
@@ -2031,6 +2041,7 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
  */
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 {
+#if 0 /* Not in RHEL6... */
 	/* # Rx chains when idling, depending on SMPS mode */
 	switch (priv->current_ht_config.smps) {
 	case IEEE80211_SMPS_STATIC:
@@ -2043,6 +2054,9 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 		     priv->current_ht_config.smps);
 		return active_cnt;
 	}
+#else
+	return active_cnt;
+#endif
 }
 
 /* up to 4 chains */

@@ -897,7 +897,11 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	ctx->staging.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
 					RXON_FLG_CHANNEL_MODE_PURE_40);
 	if (ctx->vif)
+#if 0 /* Not in RHEL6... */
 		memcpy(ctx->staging.node_addr, ctx->vif->addr, ETH_ALEN);
+#else
+		memcpy(ctx->staging.node_addr, priv->mac_addr, ETH_ALEN);
+#endif
 
 	ctx->staging.ofdm_ht_single_stream_basic_rates = 0xff;
 	ctx->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
@@ -1449,7 +1453,11 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		rcu_read_lock();
+#if 0 /* Not in RHEL6... */
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
+#else
+		sta = ieee80211_find_sta(priv->hw, bss_conf->bssid);
+#endif
 		if (sta) {
 			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 			int maxstreams;
@@ -1716,14 +1724,27 @@ static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	return iwlcore_commit_rxon(priv, ctx);
 }
 
+#if 0 /* Not in RHEL6... */
 int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+#else
+int iwl_mac_add_interface(struct ieee80211_hw *hw,
+			struct ieee80211_if_init_conf *conf)
+#endif
 {
 	struct iwl_priv *priv = hw->priv;
+#if 0 /* Not in RHEL6... */
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+#else
+	struct iwl_vif_priv *vif_priv = (void *)conf->vif->drv_priv;
+#endif
 	struct iwl_rxon_context *tmp, *ctx = NULL;
 	int err = 0;
 
+#if 0 /* Not in RHEL6... */
 	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
+#else
+	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", conf->type);
+#endif
 
 	mutex_lock(&priv->mutex);
 
@@ -1747,8 +1768,13 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			continue;
 		}
 
+#if 0 /* Not in RHEL6... */
 		if (!(possible_modes & BIT(vif->type)))
 			continue;
+#else
+		if (!(possible_modes & BIT(conf->type)))
+			continue;
+#endif
 
 		/* have maybe usable context w/o interface */
 		ctx = tmp;
@@ -1761,20 +1787,35 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	vif_priv->ctx = ctx;
+#if 0 /* Not in RHEL6... */
 	ctx->vif = vif;
+#else
+	ctx->vif = conf->vif;
+#endif
 	/*
 	 * This variable will be correct only when there's just
 	 * a single context, but all code using it is for hardware
 	 * that supports only one context.
 	 */
+#if 0 /* Not in RHEL6... */
 	priv->iw_mode = vif->type;
+#else
+	priv->iw_mode = conf->type;
+#endif
 
 	ctx->is_active = true;
 
+#if 0 /* Not in RHEL6... */
 	IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
 	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 
 	err = iwl_set_mode(priv, vif);
+#else
+	IWL_DEBUG_MAC80211(priv, "Set %pM\n", conf->mac_addr);
+	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+
+	err = iwl_set_mode(priv, conf->vif);
+#endif
 	if (err) {
 		if (!ctx->always_active)
 			ctx->is_active = false;
@@ -1783,7 +1824,11 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist &&
+#if 0 /* Not in RHEL6... */
 	    vif->type == NL80211_IFTYPE_ADHOC) {
+#else
+	    conf->type == NL80211_IFTYPE_ADHOC) {
+#endif
 		/*
 		 * pretend to have high BT traffic as long as we
 		 * are operating in IBSS mode, as this will cause
@@ -1805,10 +1850,18 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(iwl_mac_add_interface);
 
+#if 0 /* Not in RHEL6... */
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
+#else
+void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+			struct ieee80211_if_init_conf *conf)
+#endif
 {
 	struct iwl_priv *priv = hw->priv;
+#if 1 /* Only in RHEL6... */
+	struct ieee80211_vif *vif = conf->vif;
+#endif
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");

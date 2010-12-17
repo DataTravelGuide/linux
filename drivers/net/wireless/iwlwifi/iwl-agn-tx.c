@@ -1023,7 +1023,11 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
+#if 0 /* Not in RHEL6... */
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+#else
+		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, sta->addr, tid);
+#endif
 	} else {
 		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
@@ -1105,7 +1109,11 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 						   tx_fifo_id);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+#if 0 /* Not in RHEL6... */
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+#else
+	ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, sta->addr, tid);
+#endif
 
 	return 0;
 }
@@ -1134,7 +1142,11 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
+#if 0 /* Not in RHEL6... */
 			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
+#else
+			ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+#endif
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1142,7 +1154,11 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		if (tid_data->tfds_in_queue == 0) {
 			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
+#if 0 /* Not in RHEL6... */
 			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
+#else
+			ieee80211_start_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+#endif
 		}
 		break;
 	}
@@ -1157,7 +1173,11 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct iwl_tx_info *tx_info)
 	struct iwl_station_priv *sta_priv;
 
 	rcu_read_lock();
+#if 0 /* Not in RHEL6... */
 	sta = ieee80211_find_sta(tx_info->ctx->vif, hdr->addr1);
+#else
+	sta = ieee80211_find_sta(priv->hw, hdr->addr1);
+#endif
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
 		/* avoid atomic ops if this isn't a client */
@@ -1267,8 +1287,13 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
+#if 0 /* Not in RHEL6... */
 	info->status.ampdu_ack_len = successes;
 	info->status.ampdu_len = agg->frame_count;
+#else
+	info->status.ampdu_ack_map = successes;
+	info->status.ampdu_ack_len = agg->frame_count;
+#endif
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);

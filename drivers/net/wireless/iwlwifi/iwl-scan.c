@@ -398,9 +398,13 @@ static int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	return 0;
 }
 
+#if 0 /* Not in RHEL6... */
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req)
+#else
+int iwl_mac_hw_scan(struct ieee80211_hw *hw, struct cfg80211_scan_request *req)
+#endif
 {
 	struct iwl_priv *priv = hw->priv;
 	int ret;
@@ -421,7 +425,11 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 
 	/* mac80211 will only ask for one band at a time */
 	priv->scan_request = req;
+#if 0 /* Not in RHEL6... */
 	priv->scan_vif = vif;
+#else
+	priv->scan_vif = priv->contexts[IWL_RXON_CTX_BSS].vif;
+#endif
 
 	/*
 	 * If an internal scan is in progress, just set
@@ -431,8 +439,13 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		IWL_DEBUG_SCAN(priv, "SCAN request during internal scan\n");
 		ret = 0;
 	} else
+#if 0 /* Not in RHEL6... */
 		ret = iwl_scan_initiate(priv, vif, false,
 					req->channels[0]->band);
+#else
+		ret = iwl_scan_initiate(priv, priv->scan_vif, false,
+					req->channels[0]->band);
+#endif
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 

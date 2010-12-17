@@ -387,7 +387,11 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	if (load > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
+#if 0 /* Not in RHEL6... */
 		ret = ieee80211_start_tx_ba_session(sta, tid);
+#else
+		ret = ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+#endif
 		if (ret == -EAGAIN) {
 			/*
 			 * driver and mac80211 is out of sync
@@ -396,7 +400,13 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 			 */
 			IWL_ERR(priv, "Fail start Tx agg on tid: %d\n",
 				tid);
+#if 0 /* Not in RHEL6... */
 			ieee80211_stop_tx_ba_session(sta, tid);
+#else
+			ieee80211_stop_tx_ba_session(priv->hw,
+						sta->addr, tid,
+						WLAN_BACK_INITIATOR);
+#endif
 		}
 	} else {
 		IWL_ERR(priv, "Aggregation not enabled for tid %d "
@@ -988,15 +998,27 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		tx_rate = le32_to_cpu(table->rs_table[0].rate_n_flags);
 		rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type,
 				&rs_index);
+#if 0 /* Not in RHEL6... */
 		rs_collect_tx_data(curr_tbl, rs_index,
 				   info->status.ampdu_len,
 				   info->status.ampdu_ack_len);
+#else
+		rs_collect_tx_data(curr_tbl, rs_index,
+				   info->status.ampdu_ack_len,
+				   info->status.ampdu_ack_map);
+#endif
 
 		/* Update success/fail counts if not searching for new mode */
 		if (lq_sta->stay_in_tbl) {
+#if 0 /* Not in RHEL6... */
 			lq_sta->total_success += info->status.ampdu_ack_len;
 			lq_sta->total_failed += (info->status.ampdu_len -
 					info->status.ampdu_ack_len);
+#else
+			lq_sta->total_success += info->status.ampdu_ack_map;
+			lq_sta->total_failed += (info->status.ampdu_ack_len -
+					info->status.ampdu_ack_map);
+#endif
 		}
 	} else {
 	/*

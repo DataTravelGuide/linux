@@ -276,7 +276,11 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
+#if 0 /* Not in RHEL6... */
 	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
+#else
+	dtimper = 1;
+#endif
 
 	if (priv->cfg->base_params->broken_powersave)
 		iwl_power_sleep_cam_cmd(priv, &cmd);
