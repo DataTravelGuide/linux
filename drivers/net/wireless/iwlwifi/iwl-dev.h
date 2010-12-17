@@ -425,7 +425,7 @@ struct iwl_tid_data {
 };
 
 struct iwl_hw_key {
-	u32 cipher;
+	enum ieee80211_key_alg alg;
 	int keylen;
 	u8 keyidx;
 	u8 key[32];
