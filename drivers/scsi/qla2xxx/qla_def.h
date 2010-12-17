@@ -2974,6 +2974,14 @@ typedef struct scsi_qla_host {
 #define OPTROM_BURST_SIZE	0x1000
 #define OPTROM_BURST_DWORDS	(OPTROM_BURST_SIZE / 4)
 
+#define CMD_SP(Cmnd)           ((Cmnd)->SCp.ptr)
+
+enum nexus_wait_type {
+	WAIT_HOST = 0,
+	WAIT_TARGET,
+	WAIT_LUN,
+};
+
 #define QLA_DSDS_PER_IOCB	37
 
 #include "qla_gbl.h"
