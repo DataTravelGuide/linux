@@ -3010,6 +3010,8 @@ typedef struct scsi_qla_host {
 
 #define CMD_SP(Cmnd)           ((Cmnd)->SCp.ptr)
 
+#define QLA_SG_ALL     1024
+
 enum nexus_wait_type {
 	WAIT_HOST = 0,
 	WAIT_TARGET,
