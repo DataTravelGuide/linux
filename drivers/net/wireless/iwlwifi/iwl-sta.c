@@ -30,7 +30,6 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
-#include <linux/lockdep.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -150,10 +149,8 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	if (flags & CMD_ASYNC)
 		cmd.callback = iwl_add_sta_callback;
-	else {
+	else
 		cmd.flags |= CMD_WANT_SKB;
-		might_sleep();
-	}
 
 	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
 	ret = iwl_send_cmd(priv, &cmd);

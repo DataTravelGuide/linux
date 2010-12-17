@@ -3660,7 +3660,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_priv *priv = hw->priv;
-	int ret = -EINVAL;
+	int ret;
 
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
@@ -3668,19 +3668,17 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	if (!(priv->cfg->sku & IWL_SKU_N))
 		return -EACCES;
 
-	mutex_lock(&priv->mutex);
-
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT(priv, "start Rx\n");
-		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
-		break;
+		return iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT(priv, "stop Rx\n");
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			ret = 0;
-		break;
+			return 0;
+		else
+			return ret;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
@@ -3689,7 +3687,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
 				     priv->_agn.agg_tids_count);
 		}
-		break;
+		return ret;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
@@ -3713,7 +3711,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
 					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
 		}
-		break;
+		return ret;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		if (priv->cfg->ht_params &&
 		    priv->cfg->ht_params->use_rts_for_aggregation) {
@@ -3730,12 +3728,10 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
 					&sta_priv->lq_sta.lq, CMD_ASYNC, false);
 		}
-		ret = 0;
 		break;
 	}
-	mutex_unlock(&priv->mutex);
 
-	return ret;
+	return 0;
 }
 
 static void iwl_mac_sta_notify(struct ieee80211_hw *hw,

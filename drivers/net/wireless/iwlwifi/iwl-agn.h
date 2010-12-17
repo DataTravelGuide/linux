@@ -280,7 +280,7 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 			 struct iwl_rxon_context *ctx,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
-int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
+void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
