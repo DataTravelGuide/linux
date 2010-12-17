@@ -1913,7 +1913,8 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 			}
 		} else {
 			/* Mailbox cmd failed. Timeout on min_wait. */
-			if (time_after_eq(jiffies, mtime))
+			if (time_after_eq(jiffies, mtime) ||
+			    (IS_QLA82XX(ha) && ha->flags.fw_hung))
 				break;
 		}
 
