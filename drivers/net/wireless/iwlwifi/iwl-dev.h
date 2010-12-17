@@ -1284,9 +1284,6 @@ struct iwl_priv {
 	/* max number of station keys */
 	u8 sta_key_max_num;
 
-	/* EEPROM MAC addresses */
-	struct mac_address addresses[2];
-
 	/* uCode images, save to reload in case of failure */
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
