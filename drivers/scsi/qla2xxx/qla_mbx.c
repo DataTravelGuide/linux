@@ -3821,8 +3821,6 @@ qla2x00_loopback_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq, uint16_t *
 
 	/* Copy mailbox information */
 	memcpy( mresp, mcp->mb, 64);
-	mresp[3] = mcp->mb[18];
-	mresp[4] = mcp->mb[19];
 	return rval;
 }
 
@@ -3882,9 +3880,10 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq, uint16_t *mres
 	}
 
 	/* Copy mailbox information */
-	memcpy( mresp, mcp->mb, 32);
+	memcpy(mresp, mcp->mb, 64);
 	return rval;
 }
+
 int
 qla84xx_reset_chip(scsi_qla_host_t *ha, uint16_t enable_diagnostic)
 {
