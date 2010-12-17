@@ -148,6 +148,8 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 	    priv->cfg->ht_params->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
+			     (priv->cfg->base_params->sm_ps_mode << 2));
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.ht40_channel & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
@@ -1890,23 +1892,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
 	}
 
-	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
-		       IEEE80211_CONF_CHANGE_CHANNEL)) {
-		/* mac80211 uses static for non-HT which is what we want */
-		priv->current_ht_config.smps = conf->smps_mode;
-
-		/*
-		 * Recalculate chain counts.
-		 *
-		 * If monitor mode is enabled then mac80211 will
-		 * set up the SM PS mode to OFF if an HT channel is
-		 * configured.
-		 */
-		if (priv->cfg->ops->hcmd->set_rxon_chain)
-			for_each_context(priv, ctx)
-				priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
-	}
-
 	/* during scanning mac80211 will delay channel setting until
 	 * scan finish with changed = 0
 	 */
@@ -2005,6 +1990,11 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		iwl_set_tx_power(priv, conf->power_level, false);
 	}
+
+	/* call to ensure that 4965 rx_chain is set properly in monitor mode */
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		for_each_context(priv, ctx)
+			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");

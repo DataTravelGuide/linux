@@ -256,6 +256,7 @@ struct iwl_mod_params {
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
+ * @sm_ps_mode: spatial multiplexing power save mode
  * @support_wimax_coexist: support wimax/wifi co-exist
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
@@ -289,6 +290,7 @@ struct iwl_base_params {
 	const bool supports_idle;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
+	u8 sm_ps_mode;
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;

@@ -464,7 +464,6 @@ union iwl_ht_rate_supp {
 
 struct iwl_ht_config {
 	bool single_chain_sufficient;
-	enum ieee80211_smps_mode smps; /* current smps mode */
 };
 
 /* QoS structures */
