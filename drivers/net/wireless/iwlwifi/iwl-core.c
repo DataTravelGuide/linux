@@ -810,10 +810,10 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 }
 EXPORT_SYMBOL(iwl_set_rxon_channel);
 
-void iwl_set_flags_for_band(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx,
-			    enum ieee80211_band band,
-			    struct ieee80211_vif *vif)
+static void iwl_set_flags_for_band(struct iwl_priv *priv,
+				   struct iwl_rxon_context *ctx,
+				   enum ieee80211_band band,
+				   struct ieee80211_vif *vif)
 {
 	if (band == IEEE80211_BAND_5GHZ) {
 		ctx->staging.flags &=
@@ -832,7 +832,6 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 		ctx->staging.flags &= ~RXON_FLG_CCK_MSK;
 	}
 }
-EXPORT_SYMBOL(iwl_set_flags_for_band);
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -906,7 +905,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_connection_init_rx_config);
 
-void iwl_set_rate(struct iwl_priv *priv)
+static void iwl_set_rate(struct iwl_priv *priv)
 {
 	const struct ieee80211_supported_band *hw = NULL;
 	struct ieee80211_rate *rate;
@@ -937,27 +936,6 @@ void iwl_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 	}
 }
-EXPORT_SYMBOL(iwl_set_rate);
-
-void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
-{
-	/*
-	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
-	 */
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (priv->switch_rxon.switch_in_progress) {
-		ieee80211_chswitch_done(ctx->vif, is_success);
-		mutex_lock(&priv->mutex);
-		priv->switch_rxon.switch_in_progress = false;
-		mutex_unlock(&priv->mutex);
-	}
-}
-EXPORT_SYMBOL(iwl_chswitch_done);
 
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
@@ -977,12 +955,11 @@ void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			ctx->staging.channel = csa->channel;
 			IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
 			      le16_to_cpu(csa->channel));
-			iwl_chswitch_done(priv, true);
-		} else {
+		} else
 			IWL_ERR(priv, "CSA notif (fail) : channel %d\n",
 			      le16_to_cpu(csa->channel));
-			iwl_chswitch_done(priv, false);
-		}
+
+		priv->switch_rxon.switch_in_progress = false;
 	}
 }
 EXPORT_SYMBOL(iwl_rx_csa);
@@ -2000,6 +1977,23 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if (priv->cfg->ops->lib->update_bcast_stations)
 			ret = priv->cfg->ops->lib->update_bcast_stations(priv);
 
+		if (iwl_is_associated(priv, IWL_RXON_CTX_BSS) &&
+		    (le16_to_cpu(ctx->active.channel) != ch) &&
+		    priv->cfg->ops->lib->set_channel_switch) {
+			iwl_set_rate(priv);
+			/*
+			 * at this point, staging_rxon has the
+			 * configuration for channel switch
+			 */
+			ret = priv->cfg->ops->lib->set_channel_switch(priv,
+				ch);
+			if (!ret) {
+				iwl_print_rx_config_cmd(priv,
+					&priv->contexts[IWL_RXON_CTX_BSS]);
+				goto out;
+			}
+			priv->switch_rxon.switch_in_progress = false;
+		}
  set_ch_out:
 		/* The list of supported rates and rate mask can be different
 		 * for each band; since the band may have changed, reset

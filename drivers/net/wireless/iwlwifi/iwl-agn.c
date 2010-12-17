@@ -130,7 +130,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	    (priv->switch_rxon.channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
 		      le16_to_cpu(priv->switch_rxon.channel));
-		iwl_chswitch_done(priv, false);
+		priv->switch_rxon.switch_in_progress = false;
 	}
 
 	/* If we don't need to send a full RXON, we can use
@@ -3840,104 +3840,6 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void iwl_mac_channel_switch(struct ieee80211_hw *hw,
-				   struct ieee80211_channel_switch *ch_switch)
-{
-	struct iwl_priv *priv = hw->priv;
-	const struct iwl_channel_info *ch_info;
-	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = ch_switch->channel;
-	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
-	/*
-	 * MULTI-FIXME
-	 * When we add support for multiple interfaces, we need to
-	 * revisit this. The channel switch command in the device
-	 * only affects the BSS context, but what does that really
-	 * mean? And what if we get a CSA on the second interface?
-	 * This needs a lot of work.
-	 */
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	u16 ch;
-	unsigned long flags = 0;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (iwl_is_rfkill(priv))
-		goto out_exit;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
-	    test_bit(STATUS_SCANNING, &priv->status))
-		goto out_exit;
-
-	if (!iwl_is_associated_ctx(ctx))
-		goto out_exit;
-
-	/* channel switch in progress */
-	if (priv->switch_rxon.switch_in_progress == true)
-		goto out_exit;
-
-	mutex_lock(&priv->mutex);
-	if (priv->cfg->ops->lib->set_channel_switch) {
-
-		ch = channel->hw_value;
-		if (le16_to_cpu(ctx->active.channel) != ch) {
-			ch_info = iwl_get_channel_info(priv,
-						       channel->band,
-						       ch);
-			if (!is_channel_valid(ch_info)) {
-				IWL_DEBUG_MAC80211(priv, "invalid channel\n");
-				goto out;
-			}
-			spin_lock_irqsave(&priv->lock, flags);
-
-			priv->current_ht_config.smps = conf->smps_mode;
-
-			/* Configure HT40 channels */
-			ctx->ht.enabled = conf_is_ht(conf);
-			if (ctx->ht.enabled) {
-				if (conf_is_ht40_minus(conf)) {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-					ctx->ht.is_40mhz = true;
-				} else if (conf_is_ht40_plus(conf)) {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-					ctx->ht.is_40mhz = true;
-				} else {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_NONE;
-					ctx->ht.is_40mhz = false;
-				}
-			} else
-				ctx->ht.is_40mhz = false;
-
-			if ((le16_to_cpu(ctx->staging.channel) != ch))
-				ctx->staging.flags = 0;
-
-			iwl_set_rxon_channel(priv, channel, ctx);
-			iwl_set_rxon_ht(priv, ht_conf);
-			iwl_set_flags_for_band(priv, ctx, channel->band,
-					       ctx->vif);
-			spin_unlock_irqrestore(&priv->lock, flags);
-
-			iwl_set_rate(priv);
-			/*
-			 * at this point, staging_rxon has the
-			 * configuration for channel switch
-			 */
-			if (priv->cfg->ops->lib->set_channel_switch(priv,
-								    ch_switch))
-				priv->switch_rxon.switch_in_progress = false;
-		}
-	}
-out:
-	mutex_unlock(&priv->mutex);
-out_exit:
-	if (!priv->switch_rxon.switch_in_progress)
-		ieee80211_chswitch_done(ctx->vif, false);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-}
-
 static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 				    unsigned int changed_flags,
 				    unsigned int *total_flags,
@@ -4170,7 +4072,6 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.sta_notify = iwl_mac_sta_notify,
 	.sta_add = iwlagn_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
-	.channel_switch = iwl_mac_channel_switch,
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
 
