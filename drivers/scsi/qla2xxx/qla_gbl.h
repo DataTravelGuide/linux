@@ -508,6 +508,7 @@ extern int qla82xx_iospace_config(struct qla_hw_data *);
 extern void qla82xx_reset_chip(struct scsi_qla_host *);
 extern void qla82xx_config_rings(struct scsi_qla_host *);
 extern void qla82xx_watchdog(scsi_qla_host_t *);
+extern int qla82xx_start_firmware(scsi_qla_host_t *);
 extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
     size_t, char *);
 
@@ -538,6 +539,7 @@ extern void qla82xx_poll(int, void *);
 extern void qla82xx_init_flags(struct qla_hw_data *);
 
 /* ISP 8021 hardware related */
+extern void qla82xx_set_drv_active(scsi_qla_host_t *);
 extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
 
