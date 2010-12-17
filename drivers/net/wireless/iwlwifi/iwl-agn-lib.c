@@ -1571,18 +1571,9 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	/* set scan bit here for PAN params */
 	set_bit(STATUS_SCAN_HW, &priv->status);
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
-
 	ret = iwl_send_cmd_sync(priv, &cmd);
-	if (ret) {
+	if (ret)
 		clear_bit(STATUS_SCAN_HW, &priv->status);
-		if (priv->cfg->ops->hcmd->set_pan_params)
-			priv->cfg->ops->hcmd->set_pan_params(priv);
-	}
 
 	return ret;
 }
@@ -1598,9 +1589,6 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 	for_each_context(priv, ctx)
 		if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 			iwlagn_commit_rxon(priv, ctx);
-
-	if (priv->cfg->ops->hcmd->set_pan_params)
-		priv->cfg->ops->hcmd->set_pan_params(priv);
 }
 
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
