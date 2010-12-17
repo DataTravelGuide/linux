@@ -1503,30 +1503,6 @@ static ssize_t iwl_dbgfs_force_reset_write(struct file *file,
 	return ret ? ret : count;
 }
 
-static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int flush;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &flush) != 1)
-		return -EINVAL;
-
-	if (iwl_is_rfkill(priv))
-		return -EFAULT;
-
-	priv->cfg->ops->lib->dev_txfifo_flush(priv, IWL_DROP_ALL);
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -1687,7 +1663,6 @@ DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
 DEBUGFS_READ_FILE_OPS(rxon_flags);
 DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
-DEBUGFS_WRITE_FILE_OPS(txfifo_flush);
 DEBUGFS_READ_FILE_OPS(ucode_bt_stats);
 DEBUGFS_WRITE_FILE_OPS(monitor_period);
 DEBUGFS_READ_FILE_OPS(bt_traffic);
@@ -1751,8 +1726,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
-	if (priv->cfg->ops->lib->dev_txfifo_flush)
-		DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
 
 	if (priv->cfg->base_params->sensitivity_calib_by_driver)
