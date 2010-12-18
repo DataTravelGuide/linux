@@ -1912,9 +1912,6 @@ static void update_avg(u64 *avg, u64 sample)
 static void
 enqueue_task(struct rq *rq, struct task_struct *p, int wakeup, bool head)
 {
-	if (wakeup)
-		p->se.start_runtime = p->se.sum_exec_runtime;
-
 	sched_info_queued(p);
 	p->sched_class->enqueue_task(rq, p, wakeup, head);
 	p->se.on_rq = 1;
@@ -1922,17 +1919,11 @@ enqueue_task(struct rq *rq, struct task_struct *p, int wakeup, bool head)
 
 static void dequeue_task(struct rq *rq, struct task_struct *p, int sleep)
 {
-	if (sleep) {
-		if (p->se.last_wakeup) {
-			update_avg(&p->se.avg_overlap,
-				p->se.sum_exec_runtime - p->se.last_wakeup);
-			p->se.last_wakeup = 0;
-		} else {
-			update_avg(&p->se.avg_wakeup,
-				sysctl_sched_wakeup_granularity);
-		}
+	if (sleep && p->se.last_wakeup) {
+		update_avg(&p->se.avg_overlap,
+			p->se.sum_exec_runtime - p->se.last_wakeup);
+		p->se.last_wakeup = 0;
 	}
-
 	sched_info_dequeued(p);
 	p->sched_class->dequeue_task(rq, p, sleep);
 	p->se.on_rq = 0;
@@ -2469,13 +2460,6 @@ out_activate:
 	 */
 	if (!in_interrupt()) {
 		struct sched_entity *se = &current->se;
-		u64 sample = se->sum_exec_runtime;
-
-		if (se->last_wakeup)
-			sample -= se->last_wakeup;
-		else
-			sample -= se->start_runtime;
-		update_avg(&se->avg_wakeup, sample);
 
 		se->last_wakeup = se->sum_exec_runtime;
 	}
@@ -2543,8 +2527,6 @@ static void __sched_fork(struct task_struct *p)
 	p->se.nr_migrations		= 0;
 	p->se.last_wakeup		= 0;
 	p->se.avg_overlap		= 0;
-	p->se.start_runtime		= 0;
-	p->se.avg_wakeup		= sysctl_sched_wakeup_granularity;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start			= 0;
