@@ -177,37 +177,51 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
 }
 
 /**
- * assign_interrupt_mode - choose interrupt mode for PCI Express port services
- *                         (INTx, MSI-X, MSI) and set up vectors
+ * init_service_irqs - initialize irqs for PCI Express port services
  * @dev: PCI Express port to handle
- * @vectors: Array of interrupt vectors to populate
+ * @irqs: Array of irqs to populate
  * @mask: Bitmask of port capabilities returned by get_port_device_capability()
  *
  * Return value: Interrupt mode associated with the port
  */
-static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
+static int init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 {
-	int irq, interrupt_mode = PCIE_PORT_NO_IRQ;
-	int i;
+	int i, irq = -1;
+
+	/*
+	 * We have to use INTx if MSI cannot be used for PCIe PME.
+	 * RHEL6: pcie_pme_no_msi() not implemented, use 'false' instead
+	 */
+	if ((mask & PCIE_PORT_SERVICE_PME) && (false)) {
+		if (dev->pin)
+			irq = dev->irq;
+		goto no_msi;
+	}
 
 	/* Try to use MSI-X if supported */
-	if (!pcie_port_enable_msix(dev, vectors, mask))
-		return PCIE_PORT_MSIX_MODE;
+	if (!pcie_port_enable_msix(dev, irqs, mask))
+		return 0;
 
 	/* We're not going to use MSI-X, so try MSI and fall back to INTx */
-	if (!pci_enable_msi(dev))
-		interrupt_mode = PCIE_PORT_MSI_MODE;
+	if (!pci_enable_msi(dev) || dev->pin)
+		irq = dev->irq;
 
-	if (interrupt_mode == PCIE_PORT_NO_IRQ && dev->pin)
-		interrupt_mode = PCIE_PORT_INTx_MODE;
-
-	irq = interrupt_mode != PCIE_PORT_NO_IRQ ? dev->irq : -1;
+ no_msi:
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
-		vectors[i] = irq;
+		irqs[i] = irq;
+	irqs[PCIE_PORT_SERVICE_VC_SHIFT] = -1;
 
-	vectors[PCIE_PORT_SERVICE_VC_SHIFT] = -1;
+	if (irq < 0)
+		return -ENODEV;
+	return 0;
+}
 
-	return interrupt_mode;
+static void cleanup_service_irqs(struct pci_dev *dev)
+{
+	if (dev->msix_enabled)
+		pci_disable_msix(dev);
+	else if (dev->msi_enabled)
+		pci_disable_msi(dev);
 }
 
 /**
@@ -249,16 +263,14 @@ static int get_port_device_capability(struct pci_dev *dev)
  * pcie_device_init - initialize PCI Express port service device
  * @dev: Port service device to initialize
  * @parent: PCI Express port to associate the service device with
- * @port_type: Type of the port
  * @service_type: Type of service to associate with the service device
  * @irq: Interrupt vector to associate with the service device
  */
-static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev, 
-	int service_type, int irq)
+static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
+			     int service_type, int irq)
 {
-	struct pcie_port_data *port_data = pci_get_drvdata(parent);
 	struct device *device;
-	int port_type = port_data->port_type;
+	struct pci_dev *pdev;
 
 	dev->port = parent;
 	dev->irq = irq;
@@ -271,15 +283,16 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	device->driver = NULL;
 	dev_set_drvdata(device, NULL);
 	device->release = release_pcie_device;	/* callback to free pcie dev */
+	pdev = to_pci_dev(device);
 	dev_set_name(device, "%s:pcie%02x",
-		 pci_name(parent), get_descriptor_id(port_type, service_type));
+		 pci_name(parent),
+		 get_descriptor_id(pdev->pcie_type, service_type));
 	device->parent = &parent->dev;
 }
 
 /**
  * alloc_pcie_device - allocate PCI Express port service device structure
  * @parent: PCI Express port to associate the service device with
- * @port_type: Type of the port
  * @service_type: Type of service to associate with the service device
  * @irq: Interrupt vector to associate with the service device
  */
@@ -297,27 +310,6 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 }
 
 /**
- * pcie_port_device_probe - check if device is a PCI Express port
- * @dev: Device to check
- */
-int pcie_port_device_probe(struct pci_dev *dev)
-{
-	int pos, type;
-	u16 reg;
-
-	if (!(pos = pci_find_capability(dev, PCI_CAP_ID_EXP)))
-		return -ENODEV;
-
-	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg);
-	type = (reg >> 4) & PORT_TYPE_MASK;
-	if (	type == PCIE_RC_PORT || type == PCIE_SW_UPSTREAM_PORT ||
-		type == PCIE_SW_DOWNSTREAM_PORT )
-		return 0;
-
-	return -ENODEV;
-}
-
-/**
  * pcie_port_device_register - register PCI Express port
  * @dev: PCI Express port to register
  *
@@ -326,45 +318,29 @@ int pcie_port_device_probe(struct pci_dev *dev)
  */
 int pcie_port_device_register(struct pci_dev *dev)
 {
-	struct pcie_port_data *port_data;
-	int status, capabilities, irq_mode, i, nr_serv;
-	int vectors[PCIE_PORT_DEVICE_MAXSERVICES];
-	u16 reg16;
+	int status, capabilities, i, nr_serv;
+	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
 
-	port_data = kzalloc(sizeof(*port_data), GFP_KERNEL);
-	if (!port_data)
-		return -ENOMEM;
-	pci_set_drvdata(dev, port_data);
-
-	/* Get port type */
-	pci_read_config_word(dev,
-		pci_find_capability(dev, PCI_CAP_ID_EXP) +
-		PCIE_CAPABILITIES_REG, &reg16);
-	port_data->port_type = (reg16 >> 4) & PORT_TYPE_MASK;
-
+	/* Get and check PCI Express port services */
 	capabilities = get_port_device_capability(dev);
-	/* Root ports are capable of generating PME too */
-	if (port_data->port_type == PCIE_RC_PORT)
-		capabilities |= PCIE_PORT_SERVICE_PME;
-
-	irq_mode = assign_interrupt_mode(dev, vectors, capabilities);
-	if (irq_mode == PCIE_PORT_NO_IRQ) {
-		/*
-		 * Don't use service devices that require interrupts if there is
-		 * no way to generate them.
-		 */
-		if (!(capabilities & PCIE_PORT_SERVICE_VC)) {
-			status = -ENODEV;
-			goto Error;
-		}
-		capabilities = PCIE_PORT_SERVICE_VC;
-	}
-	port_data->port_irq_mode = irq_mode;
+	if (!capabilities)
+		return -ENODEV;
 
 	status = pci_enable_device(dev);
 	if (status)
-		goto Error;
+		return status;
 	pci_set_master(dev);
+
+	/*
+	 * Initialize service irqs. Don't use service devices that
+	 * require interrupts if there is no way to generate them.
+	 */
+	status = init_service_irqs(dev, irqs, capabilities);
+	if (status) {
+		capabilities &= PCIE_PORT_SERVICE_VC;
+		if (!capabilities)
+			goto error_disable;
+	}
 
 	/* Allocate child services if any */
 	for (i = 0, nr_serv = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
@@ -374,7 +350,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 		if (!(capabilities & service))
 			continue;
 
-		child = alloc_pcie_device(dev, service, vectors[i]);
+		child = alloc_pcie_device(dev, service, irqs[i]);
 		if (!child)
 			continue;
 
@@ -390,13 +366,15 @@ int pcie_port_device_register(struct pci_dev *dev)
 	if (!nr_serv) {
 		pci_disable_device(dev);
 		status = -ENODEV;
-		goto Error;
+		goto error_cleanup_irqs;
 	}
 
 	return 0;
 
- Error:
-	kfree(port_data);
+error_cleanup_irqs:
+	cleanup_service_irqs(dev);
+error_disable:
+	pci_disable_device(dev);
 	return status;
 }
 
@@ -464,21 +442,9 @@ static int remove_iter(struct device *dev, void *data)
  */
 void pcie_port_device_remove(struct pci_dev *dev)
 {
-	struct pcie_port_data *port_data = pci_get_drvdata(dev);
-
 	device_for_each_child(&dev->dev, NULL, remove_iter);
+	cleanup_service_irqs(dev);
 	pci_disable_device(dev);
-
-	switch (port_data->port_irq_mode) {
-	case PCIE_PORT_MSIX_MODE:
-		pci_disable_msix(dev);
-		break;
-	case PCIE_PORT_MSI_MODE:
-		pci_disable_msi(dev);
-		break;
-	}
-
-	kfree(port_data);
 }
 
 /**
