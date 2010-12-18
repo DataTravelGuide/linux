@@ -3846,11 +3846,8 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 	unsigned int balance_cpu = -1, first_idle_cpu = 0;
 	unsigned long avg_load_per_task = 0;
 
-	if (local_group) {
+	if (local_group)
 		balance_cpu = group_first_cpu(group);
-		if (balance_cpu == this_cpu)
-			update_group_power(sd, this_cpu);
-	}
 
 	/* Tally up the load of all CPUs in the group */
 	max_cpu_load = 0;
@@ -3895,6 +3892,8 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 		*balance = 0;
 		return;
 	}
+
+	update_group_power(sd, this_cpu);
 
 	/* Adjust by relative CPU power of the group */
 	sgs->avg_load = (sgs->group_load * SCHED_LOAD_SCALE) / group->cpu_power;
