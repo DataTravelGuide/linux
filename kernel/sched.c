@@ -1853,6 +1853,7 @@ static void cfs_rq_set_shares(struct cfs_rq *cfs_rq, unsigned long shares)
 
 static void calc_load_account_active(struct rq *this_rq);
 static void update_sysctl(void);
+static void update_cpu_load(struct rq *this_rq);
 static int get_update_sysctl_factor(void);
 static void update_cpu_load(struct rq *this_rq);
 
@@ -5100,6 +5101,9 @@ static void run_rebalance_domains(struct softirq_action *h)
 			rebalance_domains(balance_cpu, CPU_IDLE);
 
 			rq = cpu_rq(balance_cpu);
+			spin_lock_irq(&rq->lock);
+			update_cpu_load(rq);
+			spin_unlock_irq(&rq->lock);
 			if (time_after(this_rq->next_balance, rq->next_balance))
 				this_rq->next_balance = rq->next_balance;
 		}
