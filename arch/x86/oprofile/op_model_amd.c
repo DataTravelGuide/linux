@@ -22,6 +22,7 @@
 #include <asm/ptrace.h>
 #include <asm/msr.h>
 #include <asm/nmi.h>
+#include <asm/apic.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"
@@ -43,8 +44,6 @@
 
 static unsigned long reset_value[NUM_VIRT_COUNTERS];
 
-#ifdef CONFIG_OPROFILE_IBS
-
 #define IBS_FETCH_SIZE			6
 #define IBS_OP_SIZE			12
 
@@ -60,8 +59,6 @@ struct op_ibs_config {
 };
 
 static struct op_ibs_config ibs_config;
-
-#endif
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
@@ -150,8 +147,6 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 }
 
-#ifdef CONFIG_OPROFILE_IBS
-
 static inline void
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
@@ -237,15 +232,6 @@ static void op_amd_stop_ibs(void)
 		wrmsrl(MSR_AMD64_IBSOPCTL, 0);
 }
 
-#else
-
-static inline void op_amd_handle_ibs(struct pt_regs * const regs,
-				    struct op_msrs const * const msrs) { }
-static inline void op_amd_start_ibs(void) { }
-static inline void op_amd_stop_ibs(void) { }
-
-#endif
-
 static int op_amd_check_ctrs(struct pt_regs * const regs,
 			     struct op_msrs const * const msrs)
 {
@@ -319,8 +305,6 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
 }
-
-#ifdef CONFIG_OPROFILE_IBS
 
 static u8 ibs_eilvt_off;
 
@@ -461,19 +445,6 @@ static void op_amd_exit(void)
 {
 	ibs_exit();
 }
-
-#else
-
-/* no IBS support */
-
-static int op_amd_init(struct oprofile_operations *ops)
-{
-	return 0;
-}
-
-static void op_amd_exit(void) {}
-
-#endif /* CONFIG_OPROFILE_IBS */
 
 struct op_x86_model_spec op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
