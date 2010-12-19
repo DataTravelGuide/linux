@@ -71,8 +71,14 @@ static u64 ibs_op_ctl;
  * bit 0 is used to indicate the existence of IBS.
  */
 #define IBS_CAPS_AVAIL			(1U<<0)
+#define IBS_CAPS_FETCHSAM		(1U<<1)
+#define IBS_CAPS_OPSAM			(1U<<2)
 #define IBS_CAPS_RDWROPCNT		(1U<<3)
 #define IBS_CAPS_OPCNT			(1U<<4)
+
+#define IBS_CAPS_DEFAULT		(IBS_CAPS_AVAIL		\
+					 | IBS_CAPS_FETCHSAM	\
+					 | IBS_CAPS_OPSAM)
 
 /*
  * IBS APIC setup
@@ -99,12 +105,12 @@ static u32 get_ibs_caps(void)
 	/* check IBS cpuid feature flags */
 	max_level = cpuid_eax(0x80000000);
 	if (max_level < IBS_CPUID_FEATURES)
-		return IBS_CAPS_AVAIL;
+		return IBS_CAPS_DEFAULT;
 
 	ibs_caps = cpuid_eax(IBS_CPUID_FEATURES);
 	if (!(ibs_caps & IBS_CAPS_AVAIL))
 		/* cpuid flags not valid */
-		return IBS_CAPS_AVAIL;
+		return IBS_CAPS_DEFAULT;
 
 	return ibs_caps;
 }
@@ -635,22 +641,26 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	ibs_config.op_enabled = 0;
 	ibs_config.dispatched_ops = 0;
 
-	dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
-	oprofilefs_create_ulong(sb, dir, "enable",
-				&ibs_config.fetch_enabled);
-	oprofilefs_create_ulong(sb, dir, "max_count",
-				&ibs_config.max_cnt_fetch);
-	oprofilefs_create_ulong(sb, dir, "rand_enable",
-				&ibs_config.rand_en);
+	if (ibs_caps & IBS_CAPS_FETCHSAM) {
+		dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
+		oprofilefs_create_ulong(sb, dir, "enable",
+					&ibs_config.fetch_enabled);
+		oprofilefs_create_ulong(sb, dir, "max_count",
+					&ibs_config.max_cnt_fetch);
+		oprofilefs_create_ulong(sb, dir, "rand_enable",
+					&ibs_config.rand_en);
+	}
 
-	dir = oprofilefs_mkdir(sb, root, "ibs_op");
-	oprofilefs_create_ulong(sb, dir, "enable",
-				&ibs_config.op_enabled);
-	oprofilefs_create_ulong(sb, dir, "max_count",
-				&ibs_config.max_cnt_op);
-	if (ibs_caps & IBS_CAPS_OPCNT)
-		oprofilefs_create_ulong(sb, dir, "dispatched_ops",
-					&ibs_config.dispatched_ops);
+	if (ibs_caps & IBS_CAPS_OPSAM) {
+		dir = oprofilefs_mkdir(sb, root, "ibs_op");
+		oprofilefs_create_ulong(sb, dir, "enable",
+					&ibs_config.op_enabled);
+		oprofilefs_create_ulong(sb, dir, "max_count",
+					&ibs_config.max_cnt_op);
+		if (ibs_caps & IBS_CAPS_OPCNT)
+			oprofilefs_create_ulong(sb, dir, "dispatched_ops",
+						&ibs_config.dispatched_ops);
+	}
 
 	return 0;
 }
