@@ -61,6 +61,7 @@ struct op_ibs_config {
 };
 
 static struct op_ibs_config ibs_config;
+static u64 ibs_op_ctl;
 
 /*
  * IBS cpuid feature detection
@@ -73,7 +74,15 @@ static struct op_ibs_config ibs_config;
  * bit 0 is used to indicate the existence of IBS.
  */
 #define IBS_CAPS_AVAIL			(1LL<<0)
+#define IBS_CAPS_RDWROPCNT		(1LL<<3)
 #define IBS_CAPS_OPCNT			(1LL<<4)
+
+/*
+ * IBS randomization macros
+ */
+#define IBS_RANDOM_BITS			12
+#define IBS_RANDOM_MASK			((1ULL << IBS_RANDOM_BITS) - 1)
+#define IBS_RANDOM_MAXCNT_OFFSET	(1ULL << (IBS_RANDOM_BITS - 5))
 
 static u32 get_ibs_caps(void)
 {
@@ -206,6 +215,38 @@ static unsigned int lfsr_random(void)
 	return lfsr_value;
 }
 
+/*
+ * IBS software randomization
+ *
+ * The IBS periodic op counter is randomized in software. The lower 12
+ * bits of the 20 bit counter are randomized. IbsOpCurCnt is
+ * initialized with a 12 bit random value.
+ */
+static inline u64 op_amd_randomize_ibs_op(u64 val)
+{
+	unsigned int random = lfsr_random();
+
+	if (!(ibs_caps & IBS_CAPS_RDWROPCNT))
+		/*
+		 * Work around if the hw can not write to IbsOpCurCnt
+		 *
+		 * Randomize the lower 8 bits of the 16 bit
+		 * IbsOpMaxCnt [15:0] value in the range of -128 to
+		 * +127 by adding/subtracting an offset to the
+		 * maximum count (IbsOpMaxCnt).
+		 *
+		 * To avoid over or underflows and protect upper bits
+		 * starting at bit 16, the initial value for
+		 * IbsOpMaxCnt must fit in the range from 0x0081 to
+		 * 0xff80.
+		 */
+		val += (s8)(random >> 4);
+	else
+		val |= (u64)(random & IBS_RANDOM_MASK) << 32;
+
+	return val;
+}
+
 static inline void
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
@@ -255,8 +296,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			ctl &= ~IBS_OP_VAL & 0xFFFFFFFF;
-			ctl |= IBS_OP_ENABLE;
+			ctl = op_amd_randomize_ibs_op(ibs_op_ctl);
 			wrmsrl(MSR_AMD64_IBSOPCTL, ctl);
 		}
 	}
@@ -277,9 +317,26 @@ static inline void op_amd_start_ibs(void)
 	}
 
 	if (ibs_config.op_enabled) {
-		val = (ibs_config.max_cnt_op >> 4) & IBS_OP_MAX_CNT;
-		val |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
-		val |= IBS_OP_ENABLE;
+		ibs_op_ctl = ibs_config.max_cnt_op >> 4;
+		if (!(ibs_caps & IBS_CAPS_RDWROPCNT)) {
+			/*
+			 * IbsOpCurCnt not supported.  See
+			 * op_amd_randomize_ibs_op() for details.
+			 */
+			ibs_op_ctl = clamp(ibs_op_ctl, 0x0081ULL, 0xFF80ULL);
+		} else {
+			/*
+			 * The start value is randomized with a
+			 * positive offset, we need to compensate it
+			 * with the half of the randomized range. Also
+			 * avoid underflows.
+			 */
+			ibs_op_ctl = min(ibs_op_ctl + IBS_RANDOM_MAXCNT_OFFSET,
+					 IBS_OP_MAX_CNT);
+		}
+		ibs_op_ctl |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
+		ibs_op_ctl |= IBS_OP_ENABLE;
+		val = op_amd_randomize_ibs_op(ibs_op_ctl);
 		wrmsrl(MSR_AMD64_IBSOPCTL, val);
 	}
 }
