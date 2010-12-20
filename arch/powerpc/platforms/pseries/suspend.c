@@ -68,7 +68,7 @@ static int pseries_suspend_begin(suspend_state_t state)
  * Makes the H_JOIN call to suspend the CPU
  *
  **/
-static int pseries_suspend_cpu(void)
+int pseries_suspend_cpu(void)
 {
 	if (suspending)
 		return rtas_suspend_cpu(&suspend_data);
@@ -213,7 +213,6 @@ static int __init pseries_suspend_init(void)
 	if ((rc = pseries_suspend_sysfs_register(&suspend_sysdev)))
 		return rc;
 
-	ppc_md.suspend_disable_cpu = pseries_suspend_cpu;
 	suspend_set_ops(&pseries_suspend_ops);
 	return 0;
 }

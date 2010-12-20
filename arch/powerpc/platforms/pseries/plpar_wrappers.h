@@ -279,4 +279,10 @@ static inline long plpar_xirr(unsigned long *xirr_ret)
 	return rc;
 }
 
+#ifdef CONFIG_SUSPEND
+int pseries_suspend_cpu(void);
+#else
+static inline int pseries_suspend_cpu(void) {return 0;}
+#endif
+
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */
