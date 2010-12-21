@@ -322,15 +322,14 @@ static inline void compound_unlock(struct page *page)
 #endif
 }
 
-static inline void compound_lock_irqsave(struct page *page,
-					 unsigned long *flagsp)
+static inline unsigned long compound_lock_irqsave(struct page *page)
 {
+	unsigned long uninitialized_var(flags);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	unsigned long flags;
 	local_irq_save(flags);
 	compound_lock(page);
-	*flagsp = flags;
 #endif
+	return flags;
 }
 
 static inline void compound_unlock_irqrestore(struct page *page,

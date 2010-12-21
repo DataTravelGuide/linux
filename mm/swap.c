@@ -109,7 +109,7 @@ static void put_compound_page(struct page *page)
 			 */
 			smp_mb();
 			/* page_head wasn't a dangling pointer */
-			compound_lock_irqsave(page_head, &flags);
+			flags = compound_lock_irqsave(page_head);
 			if (unlikely(!PageTail(page))) {
 				/* __split_huge_page_refcount run before us */
 				compound_unlock_irqrestore(page_head, flags);

@@ -1684,7 +1684,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	if (ret)
 		goto cancel;
 
-	compound_lock_irqsave(page, &flags);
+	flags = compound_lock_irqsave(page);
 	/* re-check under compound_lock because the page might be split */
 	if (unlikely(page_size != PAGE_SIZE && !PageTransHuge(page))) {
 		unsigned long extra = page_size - PAGE_SIZE;
