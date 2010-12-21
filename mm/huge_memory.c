@@ -105,7 +105,7 @@ static int set_recommended_min_free_kbytes(void)
 		nr_zones++;
 
 	/* Make sure at least 2 hugepages are free for MIGRATE_RESERVE */
-	recommended_min = HPAGE_PMD_NR * nr_zones * 2;
+	recommended_min = pageblock_nr_pages * nr_zones * 2;
 
 	/*
 	 * Make sure that on average at least two pageblocks are almost free
@@ -113,17 +113,17 @@ static int set_recommended_min_free_kbytes(void)
 	 * second to avoid subsequent fallbacks of other types There are 3
 	 * MIGRATE_TYPES we care about.
 	 */
-	recommended_min += HPAGE_PMD_NR * nr_zones * 3 * 3;
+	recommended_min += pageblock_nr_pages * nr_zones *
+			   MIGRATE_PCPTYPES * MIGRATE_PCPTYPES;
 
 	/* don't ever allow to reserve more than 5% of the lowmem */
 	recommended_min = min(recommended_min,
 			      (unsigned long) nr_free_buffer_pages() / 20);
 	recommended_min <<= (PAGE_SHIFT-10);
 
-	if (recommended_min > min_free_kbytes) {
+	if (recommended_min > min_free_kbytes)
 		min_free_kbytes = recommended_min;
-		setup_per_zone_wmarks();
-	}
+	setup_per_zone_wmarks();
 	return 0;
 }
 late_initcall(set_recommended_min_free_kbytes);
