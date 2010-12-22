@@ -376,43 +376,60 @@ out:
 EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
 
 /**
- * acpi_pci_osc_control_set - commit requested control to Firmware
- * @handle: acpi_handle for the target ACPI object
- * @flags: driver's requested control bits
+ * acpi_pci_osc_control_set - Request control of PCI root _OSC features.
+ * @handle: ACPI handle of a PCI root bridge (or PCIe Root Complex).
+ * @mask: Mask of _OSC bits to request control of, place to store control mask.
+ * @req: Mask of _OSC bits the control of is essential to the caller.
  *
- * Attempt to take control from Firmware on requested control bits.
+ * Run _OSC query for @mask and if that is successful, compare the returned
+ * mask of control bits with @req.  If all of the @req bits are set in the
+ * returned mask, run _OSC request for it.
+ *
+ * The variable at the @mask address may be modified regardless of whether or
+ * not the function returns success.  On success it will contain the mask of
+ * _OSC bits the BIOS has granted control of, but its contents are meaningless
+ * on failure.
  **/
-acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
+acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 {
-	acpi_status status;
-	u32 control_req, result, capbuf[3];
-	acpi_handle tmp;
 	struct acpi_pci_root *root;
+	acpi_status status;
+	u32 ctrl, capbuf[3];
+	acpi_handle tmp;
 
-	status = acpi_get_handle(handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
+	if (!mask)
+		return AE_BAD_PARAMETER;
 
-	control_req = (flags & OSC_PCI_CONTROL_MASKS);
-	if (!control_req)
+	ctrl = *mask & OSC_PCI_CONTROL_MASKS;
+	if ((ctrl & req) != req)
 		return AE_TYPE;
 
 	root = acpi_pci_find_root(handle);
 	if (!root)
 		return AE_NOT_EXIST;
 
+	status = acpi_get_handle(handle, "_OSC", &tmp);
+	if (ACPI_FAILURE(status))
+		return status;
+
 	mutex_lock(&osc_lock);
+
+	*mask = ctrl | root->osc_control_set;
 	/* No need to evaluate _OSC if the control was already granted. */
-	if ((root->osc_control_set & control_req) == control_req)
+	if ((root->osc_control_set & ctrl) == ctrl)
 		goto out;
 
-	/* Need to query controls first before requesting them */
-	if (!root->osc_queried) {
-		status = acpi_pci_query_osc(root, root->osc_support_set, NULL);
+	/* Need to check the available controls bits before requesting them. */
+	while (*mask) {
+		status = acpi_pci_query_osc(root, root->osc_support_set, mask);
 		if (ACPI_FAILURE(status))
 			goto out;
+		if (ctrl == *mask)
+			break;
+		ctrl = *mask;
 	}
-	if ((root->osc_control_qry & control_req) != control_req) {
+
+	if ((ctrl & req) != req) {
 		printk(KERN_DEBUG
 		       "Firmware did not grant requested _OSC control\n");
 		status = AE_SUPPORT;
@@ -421,10 +438,10 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 
 	capbuf[OSC_QUERY_TYPE] = 0;
 	capbuf[OSC_SUPPORT_TYPE] = root->osc_support_set;
-	capbuf[OSC_CONTROL_TYPE] = root->osc_control_set | control_req;
-	status = acpi_pci_run_osc(handle, capbuf, &result);
+	capbuf[OSC_CONTROL_TYPE] = ctrl;
+	status = acpi_pci_run_osc(handle, capbuf, mask);
 	if (ACPI_SUCCESS(status))
-		root->osc_control_set = result;
+		root->osc_control_set = *mask;
 out:
 	mutex_unlock(&osc_lock);
 	return status;
@@ -542,8 +559,8 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	if (flags != base_flags)
 		acpi_pci_osc_support(root, flags);
 
-	status = acpi_pci_osc_control_set(root->device->handle,
-					  OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+	flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL;
+	status = acpi_pci_osc_control_set(root->device->handle, &flags, flags);
 
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_INFO "Unable to assume PCIe control: Disabling ASPM\n");
