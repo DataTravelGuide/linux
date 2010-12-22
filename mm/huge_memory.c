@@ -898,7 +898,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		ret |= VM_FAULT_OOM;
 		goto out;
 	}
-	copy_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+
+	copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
 	__SetPageUptodate(new_page);
 
 	spin_lock(&mm->page_table_lock);
