@@ -2332,6 +2332,9 @@ retry_avoidcopy:
 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
 	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
 		/* Break COW */
+		mmu_notifier_invalidate_range_start(mm,
+			address & huge_page_mask(h),
+			(address & huge_page_mask(h)) + huge_page_size(h));
 		huge_ptep_clear_flush(vma, address, ptep);
 		set_huge_pte_at(mm, address, ptep,
 				make_huge_pte(vma, new_page, 1));
@@ -2339,6 +2342,9 @@ retry_avoidcopy:
 		hugepage_add_anon_rmap(new_page, vma, address);
 		/* Make the old page be freed below */
 		new_page = old_page;
+		mmu_notifier_invalidate_range_end(mm,
+			address & huge_page_mask(h),
+			(address & huge_page_mask(h)) + huge_page_size(h));
 	}
 	page_cache_release(new_page);
 	page_cache_release(old_page);
