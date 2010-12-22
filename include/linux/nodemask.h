@@ -255,10 +255,9 @@ static inline void init_nodemask_of_node(nodemask_t *mask, int node)
 ({									\
 	typeof(_unused_nodemask_arg_) m;				\
 	if (sizeof(m) == sizeof(unsigned long)) {			\
-		m.bits[0] = 1UL<<(node);				\
+		m.bits[0] = 1UL << (node);				\
 	} else {							\
-		nodes_clear(m);						\
-		node_set((node), m);					\
+		init_nodemask_of_node(&m, (node));			\
 	}								\
 	m;								\
 })
