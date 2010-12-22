@@ -2880,6 +2880,8 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 	hugetlb_acct_memory(h, -(chg - freed));
 }
 
+#ifdef CONFIG_MEMORY_FAILURE
+
 /* Should be called in hugetlb_lock */
 static int is_hugepage_on_freelist(struct page *hpage)
 {
@@ -2894,7 +2896,6 @@ static int is_hugepage_on_freelist(struct page *hpage)
 	return 0;
 }
 
-#ifdef CONFIG_MEMORY_FAILURE
 /*
  * This function is called from memory failure code.
  * Assume the caller holds page lock of the head page.
