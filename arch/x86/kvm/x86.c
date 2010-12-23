@@ -1936,6 +1936,7 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->interrupt.injected = vcpu->arch.interrupt.pending;
 	events->interrupt.nr = vcpu->arch.interrupt.nr;
 	events->interrupt.soft = vcpu->arch.interrupt.soft;
+	events->interrupt.pad = 0;
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
 	events->nmi.pending = vcpu->arch.nmi_pending;
