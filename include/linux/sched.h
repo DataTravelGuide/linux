@@ -1005,7 +1005,9 @@ struct sched_domain {
 	char *name;
 #endif
 
+#ifndef __GENKSYMS__
 	unsigned int span_weight;
+#endif
 	/*
 	 * Span of all CPUs in this domain.
 	 *
@@ -1083,8 +1085,14 @@ struct sched_domain;
 struct sched_class {
 	const struct sched_class *next;
 
+#ifndef __GENKSYMS__
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int flags);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int flags);
+#else
+	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
+	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
+#endif
+
 	void (*yield_task) (struct rq *rq);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
@@ -1093,9 +1101,12 @@ struct sched_class {
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);
 
 #ifdef CONFIG_SMP
+#ifndef __GENKSYMS__
 	int  (*select_task_rq)(struct rq *rq, struct task_struct *p,
 			       int sd_flag, int flags);
-
+#else
+	int  (*select_task_rq)(struct task_struct *p, int sd_flag, int flags);
+#endif
 	unsigned long (*load_balance) (struct rq *this_rq, int this_cpu,
 			struct rq *busiest, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
@@ -1106,9 +1117,12 @@ struct sched_class {
 			      enum cpu_idle_type idle);
 	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	void (*post_schedule) (struct rq *this_rq);
+#ifndef __GENKSYMS__
 	void (*task_waking) (struct rq *this_rq, struct task_struct *task);
 	void (*task_woken) (struct rq *this_rq, struct task_struct *task);
-
+#else
+	void (*task_wake_up) (struct rq *this_rq, struct task_struct *task);
+#endif
 	void (*set_cpus_allowed)(struct task_struct *p,
 				 const struct cpumask *newmask);
 
@@ -1118,20 +1132,29 @@ struct sched_class {
 
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
+#ifndef __GENKSYMS__
 	void (*task_fork) (struct task_struct *p);
-
+#else
+	void (*task_new) (struct rq *rq, struct task_struct *p);
+#endif
 	void (*switched_from) (struct rq *this_rq, struct task_struct *task,
 			       int running);
 	void (*switched_to) (struct rq *this_rq, struct task_struct *task,
 			     int running);
 	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
 			     int oldprio, int running);
-
+#ifndef __GENKSYMS__
 	unsigned int (*get_rr_interval) (struct rq *rq,
 					 struct task_struct *task);
-
+#else
+	unsigned int (*get_rr_interval) (struct task_struct *task);
+#endif
 #ifdef CONFIG_FAIR_GROUP_SCHED
+#ifndef __GENKSYMS__
 	void (*moved_group) (struct task_struct *p, int on_rq);
+#else
+	void (*moved_group) (struct task_struct *p);
+#endif
 #endif
 };
 
@@ -1160,7 +1183,15 @@ struct sched_entity {
 	u64			vruntime;
 	u64			prev_sum_exec_runtime;
 
+	u64			last_wakeup;	/* unused */
+	u64			avg_overlap;	/* unused */
+
 	u64			nr_migrations;
+
+	u64			start_runtime;	/* unused */
+	u64			avg_wakeup;	/* unused */
+
+	u64			avg_running;	/* unused */
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
@@ -1184,6 +1215,7 @@ struct sched_entity {
 	u64			nr_failed_migrations_running;
 	u64			nr_failed_migrations_hot;
 	u64			nr_forced_migrations;
+	u64			nr_forced2_migrations;	/* unused */
 
 	u64			nr_wakeups;
 	u64			nr_wakeups_sync;

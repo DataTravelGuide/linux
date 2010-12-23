@@ -538,15 +538,24 @@ struct rq {
 	unsigned long last_load_update_tick;
 #endif
 #ifdef CONFIG_NO_HZ
+#ifndef __GENKSYMS__
 	unsigned char nohz_balance_kick;
+#else
+	unsigned long last_tick_seen;
+	unsigned char in_nohz_recently;
 #endif
-	unsigned int skip_clock_update;
+#endif
 
+#ifndef __GENKSYMS__
+	unsigned int skip_clock_update;
+#endif
 	/* capture load from *all* tasks on this cpu: */
 	struct load_weight load;
 	unsigned long nr_load_updates;
 	u64 nr_switches;
-
+#ifdef __GENKSYMS__
+	u64 nr_migrations_in;
+#endif
 	struct cfs_rq cfs;
 	struct rt_rq rt;
 
