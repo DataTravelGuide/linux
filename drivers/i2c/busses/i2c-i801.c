@@ -43,6 +43,7 @@
   ICH10                 0x3a60     32     hard     yes     yes     yes
   3400/5 Series (PCH)   0x3b30     32     hard     yes     yes     yes
   Cougar Point (PCH)    0x1c22     32     hard     yes     yes     yes
+  Patsburg (PCH)        0x1d22     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -582,6 +583,7 @@ static struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH10_5) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PCH_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CPT_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS) },
 	{ 0, }
 };
 

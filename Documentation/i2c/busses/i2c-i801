@@ -17,6 +17,7 @@ Supported adapters:
   * Intel 82801JI (ICH10)
   * Intel 3400/5 Series (PCH)
   * Intel Cougar Point (PCH)
+  * Intel Patsburg (PCH)
    Datasheets: Publicly available at the Intel website
 
 Authors: 
