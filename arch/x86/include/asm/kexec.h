@@ -23,7 +23,6 @@
 
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <asm-generic/kexec.h>
 
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
