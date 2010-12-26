@@ -4897,7 +4897,8 @@ out:
 
 static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
 		       u16 old_tss_sel, u32 old_tss_base,
-		       struct desc_struct *nseg_desc)
+		       struct desc_struct *nseg_desc,
+		       bool has_error_code, u32 error_code)
 {
 	struct tss_segment_32 tss_segment_32;
 	int ret = 0;
@@ -4930,11 +4931,34 @@ static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
 		goto out;
 
 	ret = 1;
+
+	if (has_error_code) {
+		/* put error on a stack of the new task */
+		gva_t sp = kvm_register_read(vcpu, VCPU_REGS_RSP) - 4, lsp;
+		u32 limit, err;
+		struct kvm_segment ss;
+		int r;
+
+		kvm_get_segment(vcpu, &ss, VCPU_SREG_SS);
+		limit = (ss.g ? (ss.limit << 12) | 0xfff : ss.limit) + 1;
+		lsp = sp + ss.base;
+		if (limit)
+			lsp %= limit;
+		r = kvm_write_guest_virt(lsp, &error_code, 4, vcpu, &err);
+		if (r == X86EMUL_PROPAGATE_FAULT)
+			kvm_inject_page_fault(vcpu, lsp, err);
+		else if (r == X86EMUL_UNHANDLEABLE)
+			ret = 0;
+		else
+			kvm_register_write(vcpu, VCPU_REGS_RSP, sp);
+	}
+
 out:
 	return ret;
 }
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
+		    bool has_error_code, u32 error_code)
 {
 	struct kvm_segment tr_seg;
 	struct desc_struct cseg_desc;
@@ -4991,7 +5015,8 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 
 	if (nseg_desc.type & 8)
 		ret = kvm_task_switch_32(vcpu, tss_selector, old_tss_sel,
-					 old_tss_base, &nseg_desc);
+					 old_tss_base, &nseg_desc,
+					 has_error_code, error_code);
 	else
 		ret = kvm_task_switch_16(vcpu, tss_selector, old_tss_sel,
 					 old_tss_base, &nseg_desc);
