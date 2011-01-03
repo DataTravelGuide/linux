@@ -113,6 +113,14 @@ struct cpuinfo_x86 {
 	u16			cpu_index;
 #endif
 	unsigned int		x86_hyper_vendor;
+#ifndef __GENKSYMS__
+	/* RHEL6:
+	   There are only 4 bytes of space before the end of this struct. */
+#ifdef CONFIG_SMP
+	/* Compute unit id */
+	u8			compute_unit_id;
+#endif /* CONFIG_SMP */
+#endif /* !__GENKSYMS__ */
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define X86_VENDOR_INTEL	0
