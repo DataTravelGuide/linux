@@ -356,7 +356,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 	/*
 	 * Initialize FIP.
 	 */
-	fcoe_ctlr_init(&fcoe->ctlr);
+	fcoe_ctlr_init(&fcoe->ctlr, FIP_MODE_AUTO);
 	fcoe_ctlr_mode(&fcoe->ctlr, FIP_ST_ENABLED);
 	fcoe->ctlr.send = fcoe_fip_send;
 	fcoe->ctlr.update_mac = fcoe_update_src_mac;
