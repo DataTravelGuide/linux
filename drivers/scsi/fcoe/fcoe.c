@@ -314,7 +314,11 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 	dev_unicast_add(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_unicast_add(netdev, fip->ctl_src_addr);
-	dev_mc_add(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+	if (fip->mode == FIP_MODE_VN2VN) {
+		dev_mc_add(netdev, FIP_ALL_VN2VN_MACS, ETH_ALEN, 0);
+		dev_mc_add(netdev, FIP_ALL_P2P_MACS, ETH_ALEN, 0);
+	} else
+		dev_mc_add(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 
 	/*
 	 * setup the receive function from ethernet driver
@@ -401,7 +405,11 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	dev_unicast_delete(netdev, flogi_maddr);
 	if (fip->spma)
 		dev_unicast_delete(netdev, fip->ctl_src_addr);
-	dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+	if (fip->mode == FIP_MODE_VN2VN) {
+		dev_mc_delete(netdev, FIP_ALL_VN2VN_MACS, ETH_ALEN, 0);
+		dev_mc_delete(netdev, FIP_ALL_P2P_MACS, ETH_ALEN, 0);
+	} else
+		dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
@@ -985,7 +993,7 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 	}
 
 	/* Initialize the library */
-	rc = fcoe_libfc_config(lport, &fcoe_libfc_fcn_templ);
+	rc = fcoe_libfc_config(lport, &fcoe->ctlr, &fcoe_libfc_fcn_templ, 1);
 	if (rc) {
 		FCOE_NETDEV_DBG(netdev, "Could not configure libfc for the "
 				"interface\n");
@@ -2550,6 +2558,8 @@ static struct fc_seq *fcoe_elsct_send(struct fc_lport *lport, u32 did,
 	switch (op) {
 	case ELS_FLOGI:
 	case ELS_FDISC:
+		if (lport->point_to_multipoint)
+			break;
 		return fc_elsct_send(lport, did, fp, op, fcoe_flogi_resp,
 				     fip, timeout);
 	case ELS_LOGO:
