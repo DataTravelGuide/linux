@@ -191,6 +191,7 @@ struct netif_rx_stats
 	unsigned dropped;
 	unsigned time_squeeze;
 	unsigned cpu_collision;
+	unsigned received_rps;
 };
 
 DECLARE_PER_CPU(struct netif_rx_stats, netdev_rx_stat);
@@ -512,6 +513,24 @@ struct netdev_queue {
 	unsigned long		tx_dropped;
 } ____cacheline_aligned_in_smp;
 
+/*
+ * This structure holds an RPS map which can be of variable length.  The
+ * map is an array of CPUs.
+ */
+struct rps_map {
+	unsigned int len;
+	struct rcu_head rcu;
+	u16 cpus[0];
+};
+#define RPS_MAP_SIZE(_num) (sizeof(struct rps_map) + (_num * sizeof(u16)))
+
+/* This structure contains an instance of an RX queue. */
+struct netdev_rx_queue {
+	struct rps_map *rps_map;
+	struct kobject kobj;
+	struct netdev_rx_queue *first;
+	atomic_t count;
+} ____cacheline_aligned_in_smp;
 
 /*
  * This structure defines the management hooks for network devices.
@@ -973,6 +992,14 @@ struct net_device
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
+#ifndef __GENKSYMS__
+	struct kset             *queues_kset;
+
+	struct netdev_rx_queue  *_rx;
+
+	/* Number of RX queues allocated at alloc_netdev_mq() time  */
+	unsigned int            num_rx_queues;
+#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1272,14 +1299,16 @@ static inline int unregister_gifconf(unsigned int family)
 struct softnet_data
 {
 	struct Qdisc		*output_queue;
-	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
 
+	/* Elements below can be accessed between CPUs for RPS */
+	struct call_single_data	csd ____cacheline_aligned_in_smp;
+	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 };
 
-DECLARE_PER_CPU(struct softnet_data,softnet_data);
+DECLARE_PER_CPU_ALIGNED(struct softnet_data, softnet_data);
 
 #define HAVE_NETIF_QUEUE
 

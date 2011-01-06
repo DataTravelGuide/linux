@@ -1823,7 +1823,7 @@ out_kfree_skb:
 	return NETDEV_TX_OK;
 }
 
-static u32 skb_tx_hashrnd;
+static u32 hashrnd __read_mostly;
 
 /*
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
@@ -1846,7 +1846,7 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 	else
 		hash = skb->protocol;
 
-	hash = jhash_1word(hash, skb_tx_hashrnd);
+	hash = jhash_1word(hash, hashrnd);
 
 	return (u16) (((u64) hash * num_tx_queues) >> 32);
 }
@@ -2050,6 +2050,172 @@ int weight_p __read_mostly = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
+/*
+ * get_rps_cpu is called from netif_receive_skb and returns the target
+ * CPU from the RPS map of the receiving queue for a given skb.
+ */
+static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
+{
+	struct ipv6hdr *ip6;
+	struct iphdr *ip;
+	struct netdev_rx_queue *rxqueue;
+	struct rps_map *map;
+	int cpu = -1;
+	u8 ip_proto;
+	u32 addr1, addr2, ports, ihl;
+
+	rcu_read_lock();
+
+	if (skb_rx_queue_recorded(skb)) {
+		u16 index = skb_get_rx_queue(skb);
+		if (unlikely(index >= dev->num_rx_queues)) {
+			if (net_ratelimit()) {
+				netdev_warn(dev, "received packet on queue "
+				    "%u, but number of RX queues is %u\n",
+				     index, dev->num_rx_queues);
+			}
+			goto done;
+		}
+		rxqueue = dev->_rx + index;
+	} else
+		rxqueue = dev->_rx;
+
+	if (!rxqueue->rps_map)
+		goto done;
+
+	if (skb->rxhash)
+		goto got_hash; /* Skip hash computation on packet header */
+
+	switch (skb->protocol) {
+	case __constant_htons(ETH_P_IP):
+		if (!pskb_may_pull(skb, sizeof(*ip)))
+			goto done;
+
+		ip = (struct iphdr *) skb->data;
+		ip_proto = ip->protocol;
+		addr1 = ip->saddr;
+		addr2 = ip->daddr;
+		ihl = ip->ihl;
+		break;
+	case __constant_htons(ETH_P_IPV6):
+		if (!pskb_may_pull(skb, sizeof(*ip6)))
+			goto done;
+
+		ip6 = (struct ipv6hdr *) skb->data;
+		ip_proto = ip6->nexthdr;
+		addr1 = ip6->saddr.s6_addr32[3];
+		addr2 = ip6->daddr.s6_addr32[3];
+		ihl = (40 >> 2);
+		break;
+	default:
+		goto done;
+	}
+	ports = 0;
+	switch (ip_proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+	case IPPROTO_DCCP:
+	case IPPROTO_ESP:
+	case IPPROTO_AH:
+	case IPPROTO_SCTP:
+	case IPPROTO_UDPLITE:
+		if (pskb_may_pull(skb, (ihl * 4) + 4))
+			ports = *((u32 *) (skb->data + (ihl * 4)));
+		break;
+
+	default:
+		break;
+	}
+
+	skb->rxhash = jhash_3words(addr1, addr2, ports, hashrnd) >> 16;
+	if (!skb->rxhash)
+		skb->rxhash = 1;
+
+got_hash:
+	map = rcu_dereference(rxqueue->rps_map);
+	if (map) {
+		u16 tcpu = map->cpus[((u32) (skb->rxhash * map->len)) >> 16];
+
+		if (cpu_online(tcpu)) {
+			cpu = tcpu;
+			goto done;
+		}
+	}
+
+done:
+	rcu_read_unlock();
+	return cpu;
+}
+
+/*
+ * This structure holds the per-CPU mask of CPUs for which IPIs are scheduled
+ * to be sent to kick remote softirq processing.  There are two masks since
+ * the sending of IPIs must be done with interrupts enabled.  The select field
+ * indicates the current mask that enqueue_backlog uses to schedule IPIs.
+ * select is flipped before net_rps_action is called while still under lock,
+ * net_rps_action then uses the non-selected mask to send the IPIs and clears
+ * it without conflicting with enqueue_backlog operation.
+ */
+struct rps_remote_softirq_cpus {
+	cpumask_t mask[2];
+	int select;
+};
+static DEFINE_PER_CPU(struct rps_remote_softirq_cpus, rps_remote_softirq_cpus);
+
+/* Called from hardirq (IPI) context */
+static void trigger_softirq(void *data)
+{
+	struct softnet_data *queue = data;
+	__napi_schedule(&queue->backlog);
+	__get_cpu_var(netdev_rx_stat).received_rps++;
+}
+
+/*
+ * enqueue_to_backlog is called to queue an skb to a per CPU backlog
+ * queue (may be a remote CPU queue).
+ */
+static int enqueue_to_backlog(struct sk_buff *skb, int cpu)
+{
+	struct softnet_data *queue;
+	unsigned long flags;
+
+	queue = &per_cpu(softnet_data, cpu);
+
+	local_irq_save(flags);
+	__get_cpu_var(netdev_rx_stat).total++;
+
+	spin_lock(&queue->input_pkt_queue.lock);
+	if (queue->input_pkt_queue.qlen <= netdev_max_backlog) {
+		if (queue->input_pkt_queue.qlen) {
+enqueue:
+			__skb_queue_tail(&queue->input_pkt_queue, skb);
+			spin_unlock_irqrestore(&queue->input_pkt_queue.lock,
+			    flags);
+			return NET_RX_SUCCESS;
+		}
+
+		/* Schedule NAPI for backlog device */
+		if (napi_schedule_prep(&queue->backlog)) {
+			if (cpu != smp_processor_id()) {
+				struct rps_remote_softirq_cpus *rcpus =
+				    &__get_cpu_var(rps_remote_softirq_cpus);
+
+				cpu_set(cpu, rcpus->mask[rcpus->select]);
+				__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+			} else
+				__napi_schedule(&queue->backlog);
+		}
+		goto enqueue;
+	}
+
+	spin_unlock(&queue->input_pkt_queue.lock);
+
+	__get_cpu_var(netdev_rx_stat).dropped++;
+	local_irq_restore(flags);
+
+	kfree_skb(skb);
+	return NET_RX_DROP;
+}
 
 /**
  *	netif_rx	-	post buffer to the network code
@@ -2068,8 +2234,7 @@ DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
 int netif_rx(struct sk_buff *skb)
 {
-	struct softnet_data *queue;
-	unsigned long flags;
+	int cpu;
 
 	/* if netpoll wants it, pretend we never saw it */
 	if (netpoll_rx(skb))
@@ -2078,31 +2243,11 @@ int netif_rx(struct sk_buff *skb)
 	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
-	/*
-	 * The code is rearranged so that the path is the most
-	 * short when CPU is congested, but is still operating.
-	 */
-	local_irq_save(flags);
-	queue = &__get_cpu_var(softnet_data);
+	cpu = get_rps_cpu(skb->dev, skb);
+	if (cpu < 0)
+		cpu = smp_processor_id();
 
-	__get_cpu_var(netdev_rx_stat).total++;
-	if (queue->input_pkt_queue.qlen <= netdev_max_backlog) {
-		if (queue->input_pkt_queue.qlen) {
-enqueue:
-			__skb_queue_tail(&queue->input_pkt_queue, skb);
-			local_irq_restore(flags);
-			return NET_RX_SUCCESS;
-		}
-
-		napi_schedule(&queue->backlog);
-		goto enqueue;
-	}
-
-	__get_cpu_var(netdev_rx_stat).dropped++;
-	local_irq_restore(flags);
-
-	kfree_skb(skb);
-	return NET_RX_DROP;
+	return enqueue_to_backlog(skb, cpu);
 }
 EXPORT_SYMBOL(netif_rx);
 
@@ -2339,22 +2484,7 @@ void netif_nit_deliver(struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-/**
- *	netif_receive_skb - process receive buffer from network
- *	@skb: buffer to process
- *
- *	netif_receive_skb() is the main receive data processing function.
- *	It always succeeds. The buffer may be dropped during processing
- *	for congestion control or by the protocol layers.
- *
- *	This function may only be called from softirq context and interrupts
- *	should be enabled.
- *
- *	Return values (usually ignored):
- *	NET_RX_SUCCESS: no congestion
- *	NET_RX_DROP: packet was dropped
- */
-int netif_receive_skb(struct sk_buff *skb)
+int __netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
 	struct net_device *orig_dev;
@@ -2474,6 +2604,33 @@ ncls:
 out:
 	rcu_read_unlock();
 	return ret;
+}
+
+/**
+ *	netif_receive_skb - process receive buffer from network
+ *	@skb: buffer to process
+ *
+ *	netif_receive_skb() is the main receive data processing function.
+ *	It always succeeds. The buffer may be dropped during processing
+ *	for congestion control or by the protocol layers.
+ *
+ *	This function may only be called from softirq context and interrupts
+ *	should be enabled.
+ *
+ *	Return values (usually ignored):
+ *	NET_RX_SUCCESS: no congestion
+ *	NET_RX_DROP: packet was dropped
+ */
+int netif_receive_skb(struct sk_buff *skb)
+{
+	int cpu;
+
+	cpu = get_rps_cpu(skb->dev, skb);
+
+	if (cpu < 0)
+		return __netif_receive_skb(skb);
+	else
+		return enqueue_to_backlog(skb, cpu);
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
@@ -2834,16 +2991,16 @@ static int process_backlog(struct napi_struct *napi, int quota)
 	do {
 		struct sk_buff *skb;
 
-		local_irq_disable();
+		spin_lock_irq(&queue->input_pkt_queue.lock);
 		skb = __skb_dequeue(&queue->input_pkt_queue);
 		if (!skb) {
 			__napi_complete(napi);
-			local_irq_enable();
+			spin_unlock_irq(&queue->input_pkt_queue.lock);
 			break;
 		}
-		local_irq_enable();
+		spin_unlock_irq(&queue->input_pkt_queue.lock);
 
-		netif_receive_skb(skb);
+		__netif_receive_skb(skb);
 	} while (++work < quota && jiffies == start_time);
 
 	return work;
@@ -2932,6 +3089,22 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
+/*
+ * net_rps_action sends any pending IPI's for rps.  This is only called from
+ * softirq and interrupts must be enabled.
+ */
+static void net_rps_action(cpumask_t *mask)
+{
+	int cpu;
+
+	/* Send pending IPI's to kick RPS processing on remote cpus. */
+	for_each_cpu_mask_nr(cpu, *mask) {
+		struct softnet_data *queue = &per_cpu(softnet_data, cpu);
+		if (cpu_online(cpu))
+			__smp_call_function_single(cpu, &queue->csd, 0);
+	}
+	cpus_clear(*mask);
+}
 
 static void net_rx_action(struct softirq_action *h)
 {
@@ -2939,6 +3112,8 @@ static void net_rx_action(struct softirq_action *h)
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
+	int select;
+	struct rps_remote_softirq_cpus *rcpus;
 
 	local_irq_disable();
 
@@ -3001,7 +3176,13 @@ static void net_rx_action(struct softirq_action *h)
 		netpoll_poll_unlock(have);
 	}
 out:
+	rcpus = &__get_cpu_var(rps_remote_softirq_cpus);
+	select = rcpus->select;
+	rcpus->select ^= 1;
+
 	local_irq_enable();
+
+	net_rps_action(&rcpus->mask[select]);
 
 #ifdef CONFIG_NET_DMA
 	/*
@@ -3245,10 +3426,10 @@ static int softnet_seq_show(struct seq_file *seq, void *v)
 {
 	struct netif_rx_stats *s = v;
 
-	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	seq_printf(seq, "%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n",
 		   s->total, s->dropped, s->time_squeeze, 0,
 		   0, 0, 0, 0, /* was fastroute */
-		   s->cpu_collision);
+		   s->cpu_collision, s->received_rps);
 	return 0;
 }
 
@@ -4910,6 +5091,23 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+	if (!dev->num_rx_queues) {
+		/*
+		 * Allocate a single RX queue if driver never called
+		 * alloc_netdev_mq
+		 */
+
+		dev->_rx = kzalloc(sizeof(struct netdev_rx_queue), GFP_KERNEL);
+		if (!dev->_rx) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		dev->_rx->first = dev->_rx;
+		atomic_set(&dev->_rx->count, 1);
+		dev->num_rx_queues = 1;
+	}
+
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5267,9 +5465,11 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	struct netdev_queue *tx;
+	struct netdev_rx_queue *rx;
 	struct net_device *dev;
 	size_t alloc_size;
 	struct net_device *p;
+	int i;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -5295,11 +5495,27 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
+	rx = kcalloc(queue_count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
+	if (!rx) {
+		printk(KERN_ERR "alloc_netdev: Unable to allocate "
+		       "rx queues.\n");
+		goto free_tx;
+	}
+
+	atomic_set(&rx->count, queue_count);
+
+	/*
+	 * Set a pointer to first element in the array which holds the
+	 * reference count.
+	 */
+	for (i = 0; i < queue_count; i++)
+		rx[i].first = rx;
+
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
 
 	if (dev_addr_init(dev))
-		goto free_tx;
+		goto free_rx;
 
 	dev_unicast_init(dev);
 
@@ -5308,6 +5524,9 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev->_tx = tx;
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
+
+	dev->_rx = rx;
+	dev->num_rx_queues = queue_count;
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 
@@ -5319,9 +5538,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	strcpy(dev->name, name);
 	return dev;
 
+free_rx:
+	kfree(rx);
 free_tx:
 	kfree(tx);
-
 free_p:
 	kfree(p);
 	return NULL;
@@ -5792,6 +6012,10 @@ static int __init net_dev_init(void)
 		queue->completion_queue = NULL;
 		INIT_LIST_HEAD(&queue->poll_list);
 
+		queue->csd.func = trigger_softirq;
+		queue->csd.info = queue;
+		queue->csd.flags = 0;
+
 		queue->backlog.poll = process_backlog;
 		queue->backlog.weight = weight_p;
 		queue->backlog.gro_list = NULL;
@@ -5830,7 +6054,7 @@ subsys_initcall(net_dev_init);
 
 static int __init initialize_hashrnd(void)
 {
-	get_random_bytes(&skb_tx_hashrnd, sizeof(skb_tx_hashrnd));
+	get_random_bytes(&hashrnd, sizeof(hashrnd));
 	return 0;
 }
 

@@ -392,7 +392,9 @@ struct sk_buff {
 	};
 
 	__u16			vlan_tci;
-
+#ifndef __GENKSYMS__
+	__u16			rxhash;
+#endif
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
 	sk_buff_data_t		mac_header;
