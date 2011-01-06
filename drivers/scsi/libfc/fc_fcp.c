@@ -1819,11 +1819,11 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		fsp->req_flags = FC_SRB_READ;
 		stats->InputRequests++;
-		stats->InputMegabytes = fsp->data_len;
+		stats->InputMegabytes += fsp->data_len;
 	} else if (sc_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		fsp->req_flags = FC_SRB_WRITE;
 		stats->OutputRequests++;
-		stats->OutputMegabytes = fsp->data_len;
+		stats->OutputMegabytes += fsp->data_len;
 	} else {
 		fsp->req_flags = 0;
 		stats->ControlRequests++;
