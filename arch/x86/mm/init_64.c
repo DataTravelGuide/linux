@@ -49,6 +49,7 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 #include <asm/init.h>
+#include <asm/uv/uv.h>
 
 static unsigned long dma_reserve __initdata;
 
@@ -966,6 +967,20 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 		return "[vsyscall]";
 	return NULL;
 }
+
+#ifdef CONFIG_X86_UV
+#define MIN_MEMORY_BLOCK_SIZE   (1 << SECTION_SIZE_BITS)
+
+u32 memory_block_size_bytes(void)
+{
+	if (is_uv_system()) {
+		printk("UV: memory block size 2GB\n");
+		return 2UL * 1024 * 1024 * 1024;
+	}
+	return MIN_MEMORY_BLOCK_SIZE;
+}
+#endif
+
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*

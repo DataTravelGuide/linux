@@ -630,7 +630,7 @@ int __init memory_dev_init(void)
 	unsigned int i;
 	int ret;
 	int err;
-	int block_sz;
+	u32 block_sz;
 
 	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
 	ret = sysdev_class_register(&memory_sysdev_class);
