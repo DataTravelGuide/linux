@@ -1149,8 +1149,9 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	setup_timer(&fsp->timer, fc_fcp_timeout, (unsigned long)fsp);
 
-	if (fsp->tgt_flags & FC_RP_FLAGS_REC_SUPPORTED)
+	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
 		fc_fcp_timer_set(fsp, rec_tov);
+
 unlock:
 	fc_fcp_unlock_pkt(fsp);
 	return rc;
@@ -1865,8 +1866,6 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 		stats->ControlRequests++;
 	}
 	put_cpu();
-
-	fsp->tgt_flags = rpriv->flags;
 
 	init_timer(&fsp->timer);
 	fsp->timer.data = (unsigned long)fsp;
