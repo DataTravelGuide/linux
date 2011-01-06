@@ -745,9 +745,8 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	struct fc_els_flogi *flp;
 	struct fc_rport_priv *rdata;
 	struct fc_frame *fp = rx_fp;
-	struct fc_exch *ep;
 	struct fc_seq_els_data rjt_data;
-	u32 sid, f_ctl;
+	u32 sid;
 
 	rjt_data.fp = NULL;
 	sid = fc_frame_sid(fp);
@@ -812,7 +811,6 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		rjt_data.explan = ELS_EXPL_NONE;
 		goto reject;
 	}
-	fc_frame_free(rx_fp);
 
 	fp = fc_frame_alloc(lport, sizeof(*flp));
 	if (!fp)
@@ -823,11 +821,8 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	flp = fc_frame_payload_get(fp, sizeof(*flp));
 	flp->fl_cmd = ELS_LS_ACC;
 
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-	ep = fc_seq_exch(sp);
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 
 	if (rdata->ids.port_name < lport->wwpn)
 		fc_rport_enter_plogi(rdata);
@@ -836,12 +831,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 out:
 	mutex_unlock(&rdata->rp_mutex);
 	mutex_unlock(&disc->disc_mutex);
+	fc_frame_free(rx_fp);
 	return;
 
 reject:
 	mutex_unlock(&disc->disc_mutex);
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
-	fc_frame_free(fp);
+	fc_frame_free(rx_fp);
 }
 
 /**
@@ -1309,10 +1305,8 @@ static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
-	struct fc_exch *ep = fc_seq_exch(sp);
 	struct fc_els_adisc *adisc;
 	struct fc_seq_els_data rjt_data;
-	u32 f_ctl;
 
 	FC_RPORT_DBG(rdata, "Received ADISC request\n");
 
@@ -1331,11 +1325,8 @@ static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
 	fc_adisc_fill(lport, fp);
 	adisc = fc_frame_payload_get(fp, sizeof(*adisc));
 	adisc->adisc_cmd = ELS_LS_ACC;
-	sp = lport->tt.seq_start_next(sp);
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, in_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 drop:
 	fc_frame_free(in_fp);
 }
@@ -1355,13 +1346,11 @@ static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
-	struct fc_exch *ep = fc_seq_exch(sp);
 	struct fc_els_rls *rls;
 	struct fc_els_rls_resp *rsp;
 	struct fc_els_lesb *lesb;
 	struct fc_seq_els_data rjt_data;
 	struct fc_host_statistics *hst;
-	u32 f_ctl;
 
 	FC_RPORT_DBG(rdata, "Received RLS request while in state %s\n",
 		     fc_rport_state(rdata));
@@ -1398,11 +1387,8 @@ static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
 		lesb->lesb_inv_crc = htonl(hst->invalid_crc_count);
 	}
 
-	sp = lport->tt.seq_start_next(sp);
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ;
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 	goto out;
 
 out_rjt:
@@ -1548,10 +1534,9 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	struct fc_disc *disc;
 	struct fc_rport_priv *rdata;
 	struct fc_frame *fp = rx_fp;
-	struct fc_exch *ep;
 	struct fc_els_flogi *pl;
 	struct fc_seq_els_data rjt_data;
-	u32 sid, f_ctl;
+	u32 sid;
 
 	rjt_data.fp = NULL;
 	sid = fc_frame_sid(fp);
@@ -1631,27 +1616,21 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	 * Get session payload size from incoming PLOGI.
 	 */
 	rdata->maxframe_size = fc_plogi_get_maxframe(pl, lport->mfs);
-	fc_frame_free(rx_fp);
 
 	/*
 	 * Send LS_ACC.	 If this fails, the originator should retry.
 	 */
-	sp = lport->tt.seq_start_next(sp);
-	if (!sp)
-		goto out;
 	fp = fc_frame_alloc(lport, sizeof(*pl));
 	if (!fp)
 		goto out;
 
 	fc_plogi_fill(lport, fp, ELS_LS_ACC);
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-	ep = fc_seq_exch(sp);
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 	fc_rport_enter_prli(rdata);
 out:
 	mutex_unlock(&rdata->rp_mutex);
+	fc_frame_free(rx_fp);
 	return;
 
 reject:
@@ -1672,7 +1651,6 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 				   struct fc_seq *sp, struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_exch *ep;
 	struct fc_frame *fp;
 	struct {
 		struct fc_els_prli prli;
@@ -1684,7 +1662,6 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	unsigned int plen;
 	enum fc_els_spp_resp resp;
 	struct fc_seq_els_data rjt_data;
-	u32 f_ctl;
 	u32 fcp_parm;
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 
@@ -1713,8 +1690,6 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 		rjt_data.explan = ELS_EXPL_INSUF_RES;
 		goto reject;
 	}
-	sp = lport->tt.seq_start_next(sp);
-	WARN_ON(!sp);
 	pp = fc_frame_payload_get(fp, len);
 	WARN_ON(!pp);
 	memset(pp, 0, len);
@@ -1767,12 +1742,8 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	/*
 	 * Send LS_ACC.	 If this fails, the originator should retry.
 	 */
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
-	f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-	ep = fc_seq_exch(sp);
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_PRLI:
@@ -1816,7 +1787,6 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 	struct fc_els_spp *spp;		/* response spp */
 	unsigned int len;
 	unsigned int plen;
-	u32 f_ctl;
 	struct fc_seq_els_data rjt_data;
 
 	rjt_data.fp = NULL;
@@ -1858,11 +1828,9 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 
 	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 
-	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
-	f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
 	ep = fc_seq_exch(sp);
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, f_ctl, 0);
+		       FC_TYPE_ELS, FC_FCTL_RESP, 0);
 	lport->tt.seq_send(lport, sp, fp);
 	goto drop;
 
