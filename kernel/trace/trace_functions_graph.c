@@ -166,7 +166,7 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 	return ret;
 }
 
-static int __trace_graph_entry(struct trace_array *tr,
+int __trace_graph_entry(struct trace_array *tr,
 				struct ftrace_graph_ent *trace,
 				unsigned long flags,
 				int pc)
@@ -230,7 +230,36 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	return ret;
 }
 
-static void __trace_graph_return(struct trace_array *tr,
+static void
+__trace_graph_function(struct trace_array *tr,
+		unsigned long ip, unsigned long flags, int pc)
+{
+	u64 time = trace_clock_local();
+	struct ftrace_graph_ent ent = {
+		.func  = ip,
+		.depth = 0,
+	};
+	struct ftrace_graph_ret ret = {
+		.func     = ip,
+		.depth    = 0,
+		.calltime = time,
+		.rettime  = time,
+	};
+
+	__trace_graph_entry(tr, &ent, flags, pc);
+	__trace_graph_return(tr, &ret, flags, pc);
+}
+
+void
+trace_graph_function(struct trace_array *tr,
+		unsigned long ip, unsigned long parent_ip,
+		unsigned long flags, int pc)
+{
+	__trace_graph_function(tr, parent_ip, flags, pc);
+	__trace_graph_function(tr, ip, flags, pc);
+}
+
+void __trace_graph_return(struct trace_array *tr,
 				struct ftrace_graph_ret *trace,
 				unsigned long flags,
 				int pc)
@@ -943,7 +972,7 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 
 
 enum print_line_t
-print_graph_function_flags(struct trace_iterator *iter, u32 flags)
+__print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 {
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *s = &iter->seq;
@@ -966,6 +995,11 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 		trace_assign_type(field, entry);
 		return print_graph_return(&field->ret, s, entry, iter, flags);
 	}
+	case TRACE_STACK:
+	case TRACE_FN:
+		/* dont trace stack and functions as comments */
+		return TRACE_TYPE_UNHANDLED;
+
 	default:
 		return print_graph_comment(s, entry, iter, flags);
 	}
@@ -976,7 +1010,18 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 static enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
-	return print_graph_function_flags(iter, tracer_flags.val);
+	return __print_graph_function_flags(iter, tracer_flags.val);
+}
+
+enum print_line_t print_graph_function_flags(struct trace_iterator *iter,
+					     u32 flags)
+{
+	if (trace_flags & TRACE_ITER_LATENCY_FMT)
+		flags |= TRACE_GRAPH_PRINT_DURATION;
+	else
+		flags |= TRACE_GRAPH_PRINT_ABS_TIME;
+
+	return __print_graph_function_flags(iter, flags);
 }
 
 static enum print_line_t
@@ -1007,7 +1052,7 @@ static void print_lat_header(struct seq_file *s, u32 flags)
 	seq_printf(s, "#%.*s|||| /                     \n", size, spaces);
 }
 
-void print_graph_headers_flags(struct seq_file *s, u32 flags)
+static void __print_graph_headers_flags(struct seq_file *s, u32 flags)
 {
 	int lat = trace_flags & TRACE_ITER_LATENCY_FMT;
 
@@ -1043,12 +1088,29 @@ void print_graph_headers_flags(struct seq_file *s, u32 flags)
 	seq_printf(s, "               |   |   |   |\n");
 }
 
-static void print_graph_headers(struct seq_file *s)
+void print_graph_headers(struct seq_file *s)
 {
 	print_graph_headers_flags(s, tracer_flags.val);
 }
 
-static void graph_trace_open(struct trace_iterator *iter)
+void print_graph_headers_flags(struct seq_file *s, u32 flags)
+{
+	struct trace_iterator *iter = s->private;
+
+	if (trace_flags & TRACE_ITER_LATENCY_FMT) {
+		/* print nothing if the buffers are empty */
+		if (trace_empty(iter))
+			return;
+
+		print_trace_header(s, iter);
+		flags |= TRACE_GRAPH_PRINT_DURATION;
+	} else
+		flags |= TRACE_GRAPH_PRINT_ABS_TIME;
+
+	__print_graph_headers_flags(s, flags);
+}
+
+void graph_trace_open(struct trace_iterator *iter)
 {
 	/* pid and depth on the last trace processed */
 	struct fgraph_data *data = alloc_percpu(struct fgraph_data);
@@ -1067,7 +1129,7 @@ static void graph_trace_open(struct trace_iterator *iter)
 	iter->private = data;
 }
 
-static void graph_trace_close(struct trace_iterator *iter)
+void graph_trace_close(struct trace_iterator *iter)
 {
 	free_percpu(iter->private);
 }
