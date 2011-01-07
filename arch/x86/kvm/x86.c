@@ -1185,6 +1185,12 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		 * the need to ignore the workaround.
 		 */
 		break;
+	case MSR_IA32_BBL_CR_CTL3:
+		/* Drop writes to this undocumented MSR -- see rdmsr
+		 * counterpart for further detail.
+		 */
+		pr_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n", msr, data);
+		break;
 	default:
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
@@ -1375,6 +1381,19 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		 * the rdmsr failing.
 		 */
 		data = 0x20000000;
+		break;
+	case MSR_IA32_BBL_CR_CTL3:
+		/* This legacy MSR exists but isn't documented in current
+		 * silicon.  It is however accessed by winxp in certain
+		 * scenarios where it sets bit #19, itself documented as
+		 * a "reserved" bit.  Best effort attempt to source coherent
+		 * read data here should the balance of the register be
+		 * interpreted by the guest:
+		 *
+		 * L2 cache control register 3: 64GB range, 256KB size,
+		 * enabled, latency 0x1, configured
+		 */ 
+		data = 0xbe702111;
 		break;
 	default:
 		if (!ignore_msrs) {
