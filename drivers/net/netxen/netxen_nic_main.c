@@ -176,7 +176,7 @@ netxen_alloc_sds_rings(struct netxen_recv_context *recv_ctx, int count)
 
 	recv_ctx->sds_rings = kzalloc(size, GFP_KERNEL);
 
-	return (recv_ctx->sds_rings == NULL);
+	return recv_ctx->sds_rings == NULL;
 }
 
 static void
