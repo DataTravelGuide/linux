@@ -1411,14 +1411,13 @@ bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 	return false;
 }
 EXPORT_SYMBOL(printk_timed_ratelimit);
-#endif
 
 static DEFINE_SPINLOCK(dump_list_lock);
 static LIST_HEAD(dump_list);
 
 /**
  * kmsg_dump_register - register a kernel log dumper.
- * @dump: pointer to the kmsg_dumper structure
+ * @dumper: pointer to the kmsg_dumper structure
  *
  * Adds a kernel log dumper to the system. The dump callback in the
  * structure will be called when the kernel oopses or panics and must be
@@ -1448,7 +1447,7 @@ EXPORT_SYMBOL_GPL(kmsg_dump_register);
 
 /**
  * kmsg_dump_unregister - unregister a kmsg dumper.
- * @dump: pointer to the kmsg_dumper structure
+ * @dumper: pointer to the kmsg_dumper structure
  *
  * Removes a dump device from the system. Returns zero on success and
  * %-EINVAL otherwise.
@@ -1531,3 +1530,4 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		dumper->dump(dumper, reason, s1, l1, s2, l2);
 	spin_unlock_irqrestore(&dump_list_lock, flags);
 }
+#endif
