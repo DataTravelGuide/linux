@@ -45,6 +45,16 @@
 #include <linux/kdebug.h>
 #include <linux/memory.h>
 
+/*
+ * Need this inlcude for ftrace_text_reserved, but it breaks
+ * KABI by defining struct ftrace_ret_stack, which is used
+ * inside struct task_struct .
+ */
+#ifndef __GENKSYMS__
+#include <linux/ftrace.h>
+#endif
+
+
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
@@ -703,7 +713,8 @@ int __kprobes register_kprobe(struct kprobe *p)
 
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
-	    in_kprobes_functions((unsigned long) p->addr)) {
+	    in_kprobes_functions((unsigned long) p->addr) ||
+	    ftrace_text_reserved(p->addr, p->addr)) {
 		preempt_enable();
 		return -EINVAL;
 	}
