@@ -10,7 +10,6 @@
 #include <linux/eventfd.h>
 #include <linux/vhost.h>
 #include <linux/virtio_net.h>
-#include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -138,7 +137,6 @@ static void handle_tx(struct vhost_net *net)
 		return;
 	}
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 
@@ -203,7 +201,6 @@ static void handle_tx(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 static int peek_head_len(struct sock *sk)
@@ -308,7 +305,6 @@ static void handle_rx_big(struct vhost_net *net)
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 	hdr_size = vq->vhost_hlen;
@@ -387,7 +383,6 @@ static void handle_rx_big(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 /* Expects to be always run from workqueue - which acts as
@@ -419,7 +414,6 @@ static void handle_rx_mergeable(struct vhost_net *net)
 	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
 		return;
 
-	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 	vhost_hlen = vq->vhost_hlen;
@@ -496,7 +490,6 @@ static void handle_rx_mergeable(struct vhost_net *net)
 	}
 
 	mutex_unlock(&vq->mutex);
-	unuse_mm(net->dev.mm);
 }
 
 static void handle_rx(struct vhost_net *net)
