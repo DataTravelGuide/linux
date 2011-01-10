@@ -5,15 +5,27 @@
 #include <linux/vhost.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
 #include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/skbuff.h>
 #include <linux/uio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
+#include <asm/atomic.h>
 
 struct vhost_device;
+
+struct vhost_work;
+typedef void (*vhost_work_fn_t)(struct vhost_work *work);
+
+struct vhost_work {
+	struct list_head	  node;
+	vhost_work_fn_t		  fn;
+	wait_queue_head_t	  done;
+	int			  flushing;
+	unsigned		  queue_seq;
+	unsigned		  done_seq;
+};
 
 /* Poll a file (eventfd or socket) */
 /* Note: there's nothing vhost specific about this structure. */
@@ -21,13 +33,12 @@ struct vhost_poll {
 	poll_table                table;
 	wait_queue_head_t        *wqh;
 	wait_queue_t              wait;
-	/* struct which will handle all actual work. */
-	struct work_struct        work;
+	struct vhost_work	  work;
 	unsigned long		  mask;
 	struct vhost_dev	 *dev;
 };
 
-void vhost_poll_init(struct vhost_poll *poll, work_func_t func,
+void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
 		     unsigned long mask, struct vhost_dev *dev);
 void vhost_poll_start(struct vhost_poll *poll, struct file *file);
 void vhost_poll_stop(struct vhost_poll *poll);
@@ -59,7 +70,7 @@ struct vhost_virtqueue {
 	struct vhost_poll poll;
 
 	/* The routine to call when the Guest pings us, or timeout. */
-	work_func_t handle_kick;
+	vhost_work_fn_t handle_kick;
 
 	/* Last available index we saw. */
 	u16 last_avail_idx;
@@ -87,11 +98,11 @@ struct vhost_virtqueue {
 	size_t sock_hlen;
 	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
-	 * All readers access it from workqueue, which makes it possible to
-	 * flush the workqueue instead of synchronize_rcu. Therefore readers do
+	 * All readers access it from worker, which makes it possible to
+	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
 	 * not need to call rcu_read_lock/rcu_read_unlock: the beginning of
-	 * work item execution acts instead of rcu_read_lock() and the end of
-	 * work item execution acts instead of rcu_read_lock().
+	 * vhost_work execution acts instead of rcu_read_lock() and the end of
+	 * vhost_work execution acts instead of rcu_read_lock().
 	 * Writers use virtqueue mutex. */
 	void *private_data;
 	/* Log write descriptors */
@@ -111,7 +122,9 @@ struct vhost_dev {
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
-	struct workqueue_struct *wq;
+	spinlock_t work_lock;
+	struct list_head work_list;
+	struct task_struct *worker;
 };
 
 long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
@@ -141,9 +154,6 @@ bool vhost_enable_notify(struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len);
-
-int vhost_init(void);
-void vhost_cleanup(void);
 
 #define vq_err(vq, fmt, ...) do {                                  \
 		pr_debug(pr_fmt(fmt), ##__VA_ARGS__);       \
