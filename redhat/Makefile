@@ -32,6 +32,14 @@ endif
 
 default: rh-help
 
+rh-check-kabi:
+	@if [ ! -e $(REDHAT)/../Module.symvers ]; then \
+		echo "ERROR: You must compile the kernel and modules first";\
+		exit 1;\
+	fi
+	@$(REDHAT)/kabi/check-kabi -k $(REDHAT)/kabi/Module.kabi_$(MACH) \
+	 -s $(REDHAT)/../Module.symvers
+
 rh-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) configs
 
@@ -196,6 +204,7 @@ rh-help:
 	@echo  '  rh-prep	- Setup the redhat/rpm/BUILD/ directory with the kernel source'
 	@echo  '  rh-test-patch - Create a diff against HEAD and put it in linux-kernel-test.patch.'
 	@echo  '                  Then linux-kernel-test.patch will be added to the kernel build'
+	@echo  '  rh-check-kabi - Run check-kabi script on a pre-compiled tree.'
 	@echo  '  rh-key	- Generate the required files for compiling with module signing enabled'
 	@echo  '  rh-stub-key	- Use pre generated keys to speed local test builds'
 	@echo  ''
