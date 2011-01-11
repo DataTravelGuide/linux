@@ -7863,7 +7863,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Disable HW interrupts, NAPI and Tx */
 	bnx2x_netif_stop(bp, 1);
-	netif_carrier_off(bp->dev);
 
 	del_timer_sync(&bp->timer);
 	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
@@ -8024,6 +8023,8 @@ unload_error:
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
+
+	netif_carrier_off(bp->dev);
 
 	return 0;
 }
@@ -12204,9 +12205,6 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
-	/* Make sure RESET task is not scheduled before continuing */
-	flush_scheduled_work();
-
 	kfree(bp->init_ops_offsets);
 	kfree(bp->init_ops);
 	kfree(bp->init_data);
@@ -12298,7 +12296,6 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 
 	bnx2x_netif_stop(bp, 0);
-	netif_carrier_off(bp->dev);
 
 	del_timer_sync(&bp->timer);
 	bp->stats_state = STATS_STATE_DISABLED;
@@ -12324,6 +12321,8 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
+
+	netif_carrier_off(bp->dev);
 
 	return 0;
 }
