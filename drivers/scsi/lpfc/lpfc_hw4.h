@@ -2355,7 +2355,7 @@ struct wqe_common {
 #define wqe_rcvoxid_WORD      word9
 	uint32_t word10;
 #define wqe_ebde_cnt_SHIFT    0
-#define wqe_ebde_cnt_MASK     0x00000007
+#define wqe_ebde_cnt_MASK     0x0000000f
 #define wqe_ebde_cnt_WORD     word10
 #define wqe_lenloc_SHIFT      7
 #define wqe_lenloc_MASK       0x00000003
@@ -2547,7 +2547,6 @@ struct xmit_seq64_wqe {
 	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl;
 	struct wqe_common wqe_com; /* words 6-11 */
-	/* Note: word10 different REVISIT */
 	uint32_t xmit_len;
 	uint32_t rsvd_12_15[3];
 };
