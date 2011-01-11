@@ -30,6 +30,7 @@ void xen_hvm_post_suspend(int suspend_cancelled)
 {
 	xen_hvm_init_shared_info();
 	xen_callback_vector();
+	xen_unplug_emulated_devices();
 }
 
 void xen_post_suspend(int suspend_cancelled)

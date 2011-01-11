@@ -73,7 +73,7 @@ static int __init check_platform_magic(void)
 int xen_ide_unplug_unsupported = 1;
 EXPORT_SYMBOL_GPL(xen_ide_unplug_unsupported);
 
-void __init xen_unplug_emulated_devices(void)
+void xen_unplug_emulated_devices(void)
 {
 	int r;
 
