@@ -2362,8 +2362,8 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		switch (scsi_status) {
 		case SAM_STAT_GOOD:
 		case SAM_STAT_CHECK_CONDITION:
-			/* Fabric dropped a data frame. Fail any successful 
-			 * command in which we detected dropped frames. 
+			/* Fabric dropped a data frame. Fail any successful
+			 * command in which we detected dropped frames.
 			 * A status of good or some check conditions could
 			 * be considered a successful command.
 			 */
