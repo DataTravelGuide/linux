@@ -871,11 +871,9 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	if (piocbq->iocb_flag &  LPFC_IO_FCP) {
 		lpfc_cmd = (struct lpfc_scsi_buf *) piocbq->context1;
 		ndlp = lpfc_cmd->rdata->pnode;
-	} else  if (piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR)
+	} else  if ((piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) &&
+			!(piocbq->iocb_flag & LPFC_IO_LIBDFC))
 		ndlp = piocbq->context_un.ndlp;
-	else if (piocbq->iocb.ulpCommand == CMD_XMIT_BLS_RSP64_CX)
-		ndlp = lpfc_findnode_did(piocbq->vport,
-					piocbq->iocb.ulpContext);
 	else
 		ndlp = piocbq->context1;
 
@@ -11969,6 +11967,7 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = ndlp->nlp_rpi;
+	ctiocb->context1 = ndlp;
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
