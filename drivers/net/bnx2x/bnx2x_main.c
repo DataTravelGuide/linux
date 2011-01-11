@@ -6554,7 +6554,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->mrrs = mrrs;
 
 	bp->tx_ring_size = MAX_TX_AVAIL;
-	bp->rx_ring_size = MAX_RX_AVAIL;
 
 	bp->rx_csum = 1;
 
