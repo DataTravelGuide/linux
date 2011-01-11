@@ -735,8 +735,11 @@ void ieee80211_scan_work(struct work_struct *work)
 		rc = __ieee80211_start_scan(sdata, req);
 		mutex_unlock(&local->scan_mtx);
 
-		if (rc)
+		if (rc) {
+			/* need to complete scan in cfg80211 */
+			local->scan_req = req;
 			__ieee80211_scan_completed(&local->hw, true);
+		}
 		return;
 	}
 
