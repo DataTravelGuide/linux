@@ -11499,10 +11499,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 			struct mac_configuration_cmd *config =
 						bnx2x_sp(bp, mcast_config);
 
-			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < netdev_mc_count(dev));
-			     i++, mclist = mclist->next) {
-
+			i = 0;
+			netdev_for_each_mc_addr(mclist, dev) {
 				config->config_table[i].
 					cam_entry.msb_mac_addr =
 					swab16(*(u16 *)&mclist->dmi_addr[0]);
@@ -11530,6 +11528,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 						cam_entry.middle_mac_addr,
 				   config->config_table[i].
 						cam_entry.lsb_mac_addr);
+				i++;
 			}
 			old = config->hdr.length;
 			if (old > i) {
@@ -11571,10 +11570,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
-			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < netdev_mc_count(dev));
-			     i++, mclist = mclist->next) {
-
+			netdev_for_each_mc_addr(mclist, dev) {
 				DP(NETIF_MSG_IFUP, "Adding mcast MAC: %pM\n",
 				   mclist->dmi_addr);
 
