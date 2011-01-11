@@ -3848,12 +3848,6 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
 
-	/* Turn off parity checking and serr during the physical reset */
-	pci_read_config_word(phba->pcidev, PCI_COMMAND, &cfg_value);
-	pci_write_config_word(phba->pcidev, PCI_COMMAND,
-			      (cfg_value &
-			      ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
-
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
 	phba->fcf.fcf_flag = 0;
@@ -3873,8 +3867,17 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	/* Now physically reset the device */
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"0389 Performing PCI function reset!\n");
+
+	/* Turn off parity checking and serr during the physical reset */
+	pci_read_config_word(phba->pcidev, PCI_COMMAND, &cfg_value);
+	pci_write_config_word(phba->pcidev, PCI_COMMAND, (cfg_value &
+			      ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
+
 	/* Perform FCoE PCI function reset */
 	lpfc_pci_function_reset(phba);
+
+	/* Restore PCI cmd register */
+	pci_write_config_word(phba->pcidev, PCI_COMMAND, cfg_value);
 
 	return 0;
 }
