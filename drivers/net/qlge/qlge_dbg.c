@@ -1235,12 +1235,8 @@ static void ql_get_core_dump(struct ql_adapter *qdev)
 			  "Force Coredump can only be done from interface that is up.\n");
 		return;
 	}
-
-	if (ql_mb_sys_err(qdev)) {
-		netif_err(qdev, ifup, qdev->ndev,
-			  "Fail force coredump with ql_mb_sys_err().\n");
-		return;
-	}
+	/* Start the firmware dump and reset. */
+	queue_delayed_work(qdev->workqueue, &qdev->mpi_reset_work, 0);
 }
 
 void ql_gen_reg_dump(struct ql_adapter *qdev,

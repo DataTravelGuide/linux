@@ -606,23 +606,6 @@ end:
 	return status;
 }
 
-int ql_mb_sys_err(struct ql_adapter *qdev)
-{
-	struct mbox_params mbc;
-	struct mbox_params *mbcp = &mbc;
-	int status;
-
-	memset(mbcp, 0, sizeof(struct mbox_params));
-
-	mbcp->in_count = 1;
-	mbcp->out_count = 0;
-
-	mbcp->mbox_in[0] = MB_CMD_MAKE_SYS_ERR;
-
-	status = ql_mailbox_command(qdev, mbcp);
-	return status;
-}
-
 /* Get MPI firmware version. This will be used for
  * driver banner and for ethtool info.
  * Returns zero on success.
@@ -1043,8 +1026,8 @@ int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control)
 		return status;
 
 	if (mbcp->mbox_out[0] == MB_CMD_STS_INVLD_CMD) {
-		netif_err(qdev, drv, qdev->ndev,
-			  "Command not supported by firmware.\n");
+		 netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+			  "Command not supported by firmware version.\n");
 		status = -EINVAL;
 	} else if (mbcp->mbox_out[0] == MB_CMD_STS_ERR) {
 		/* This indicates that the firmware is
@@ -1082,8 +1065,8 @@ static int ql_mb_get_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 *control)
 	}
 
 	if (mbcp->mbox_out[0] == MB_CMD_STS_INVLD_CMD) {
-		netif_err(qdev, drv, qdev->ndev,
-			  "Command not supported by firmware.\n");
+		 netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+			  "Command not supported by firmware version.\n");
 		status = -EINVAL;
 	} else if (mbcp->mbox_out[0] == MB_CMD_STS_ERR) {
 		netif_err(qdev, drv, qdev->ndev,
