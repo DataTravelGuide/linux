@@ -267,11 +267,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	info->fix.mmio_len = pci_resource_len(pdev, 1);
 
 	/* Set aperture base/size for vesafb takeover */
-	info->apertures = dev_priv->apertures;
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
+	info->aperture_base = dev_priv->apertures->ranges[1].base;
+	info->aperture_size = dev_priv->apertures->ranges[1].size;
 
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;

@@ -864,13 +864,16 @@ struct fb_info {
 	/* we need the PCI or similiar aperture base/size not
 	   smem_start/size as smem_start may just be an object
 	   allocated inside the aperture so may not actually overlap */
-	struct apertures_struct {
-		unsigned int count;
-		struct aperture {
-			resource_size_t base;
-			resource_size_t size;
-		} ranges[0];
-	} *apertures;
+	resource_size_t aperture_base;
+	resource_size_t aperture_size;
+};
+
+struct apertures_struct {
+	unsigned int count;
+	struct aperture {
+		resource_size_t base;
+		resource_size_t size;
+	} ranges[0];
 };
 
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {

@@ -1316,11 +1316,6 @@ static int __init vga16fb_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto err_fb_alloc;
 	}
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
 
 	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
 	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS, 0);
@@ -1369,8 +1364,8 @@ static int __init vga16fb_probe(struct platform_device *dev)
 
 	vga16fb_update_fix(info);
 
-	info->apertures->ranges[0].base = VGA_FB_PHYS;
-	info->apertures->ranges[0].size = VGA_FB_PHYS_LEN;
+	info->aperture_base = VGA_FB_PHYS;
+	info->aperture_size = VGA_FB_PHYS_LEN;
 
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "vga16fb: unable to register framebuffer\n");
