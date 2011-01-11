@@ -1825,14 +1825,19 @@ out_kfree_skb:
 
 static u32 skb_tx_hashrnd;
 
-u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
+/*
+ * Returns a Tx hash based on the given packet descriptor a Tx queues' number
+ * to be used as a distribution range.
+ */
+u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
+		  unsigned int num_tx_queues)
 {
 	u32 hash;
 
 	if (skb_rx_queue_recorded(skb)) {
 		hash = skb_get_rx_queue(skb);
-		while (unlikely(hash >= dev->real_num_tx_queues))
-			hash -= dev->real_num_tx_queues;
+		while (unlikely(hash >= num_tx_queues))
+			hash -= num_tx_queues;
 		return hash;
 	}
 
@@ -1843,7 +1848,17 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 
 	hash = jhash_1word(hash, skb_tx_hashrnd);
 
-	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
+	return (u16) (((u64) hash * num_tx_queues) >> 32);
+}
+EXPORT_SYMBOL(__skb_tx_hash);
+
+/*
+ * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
+ * as a distribution range limit for the returned value.
+ */
+u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
+{
+	return __skb_tx_hash(dev, skb, dev->real_num_tx_queues);
 }
 EXPORT_SYMBOL(skb_tx_hash);
 
