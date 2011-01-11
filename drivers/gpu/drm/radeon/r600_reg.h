@@ -86,6 +86,7 @@
 #define R600_HDP_NONSURFACE_BASE                                0x2c04
 
 #define R600_BUS_CNTL                                           0x5420
+#       define R600_BIOS_ROM_DIS                                (1 << 1)
 #define R600_CONFIG_CNTL                                        0x5424
 #define R600_CONFIG_MEMSIZE                                     0x5428
 #define R600_CONFIG_F0_BASE                                     0x542C
@@ -187,7 +188,6 @@
 #define R600_HDMI_AUDIO_DEBUG_1         0xe4
 #define R600_HDMI_AUDIO_DEBUG_2         0xe8
 #define R600_HDMI_AUDIO_DEBUG_3         0xec
-
 
 /* HDMI additional config base register addresses */
 #define R600_HDMI_CONFIG1                 0x7600

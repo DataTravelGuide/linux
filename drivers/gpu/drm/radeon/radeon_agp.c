@@ -134,12 +134,10 @@ int radeon_agp_init(struct radeon_device *rdev)
 	int ret;
 
 	/* Acquire AGP. */
-	if (!rdev->ddev->agp->acquired) {
-		ret = drm_agp_acquire(rdev->ddev);
-		if (ret) {
-			DRM_ERROR("Unable to acquire AGP: %d\n", ret);
-			return ret;
-		}
+	ret = drm_agp_acquire(rdev->ddev);
+	if (ret) {
+		DRM_ERROR("Unable to acquire AGP: %d\n", ret);
+		return ret;
 	}
 
 	ret = drm_agp_info(rdev->ddev, &info);
@@ -158,7 +156,13 @@ int radeon_agp_init(struct radeon_device *rdev)
 	}
 
 	mode.mode = info.mode;
-	agp_status = (RREG32(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode.mode;
+	/* chips with the agp to pcie bridge don't have the AGP_STATUS register
+	 * Just use the whatever mode the host sets up.
+	 */
+	if (rdev->family <= CHIP_RV350)
+		agp_status = (RREG32(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode.mode;
+	else
+		agp_status = mode.mode;
 	is_v3 = !!(agp_status & RADEON_AGPv3_MODE);
 
 	if (is_v3) {

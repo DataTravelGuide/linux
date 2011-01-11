@@ -435,14 +435,19 @@ static void radeon_init_pipes(struct drm_device *dev)
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R420) {
 		gb_pipe_sel = RADEON_READ(R400_GB_PIPE_SELECT);
 		dev_priv->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+		/* SE cards have 1 pipe */
+		if ((dev->pdev->device == 0x5e4c) ||
+		    (dev->pdev->device == 0x5e4f))
+			dev_priv->num_gb_pipes = 1;
 	} else {
 		/* R3xx */
 		if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R300 &&
 		     dev->pdev->device != 0x4144) ||
-		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350)) {
+		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350 &&
+		     dev->pdev->device != 0x4148)) {
 			dev_priv->num_gb_pipes = 2;
 		} else {
-			/* RV3xx/R300 AD */
+			/* RV3xx/R300 AD/R350 AH */
 			dev_priv->num_gb_pipes = 1;
 		}
 	}
@@ -2115,8 +2120,8 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
 
-	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
-			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
+	ret = drm_addmap(dev, pci_resource_start(dev->pdev, 2),
+			 pci_resource_len(dev->pdev, 2), _DRM_REGISTERS,
 			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
 	if (ret != 0)
 		return ret;
@@ -2189,9 +2194,9 @@ int radeon_driver_firstopen(struct drm_device *dev)
 
 	dev_priv->gart_info.table_size = RADEON_PCIGART_TABLE_SIZE;
 
-	dev_priv->fb_aper_offset = drm_get_resource_start(dev, 0);
+	dev_priv->fb_aper_offset = pci_resource_start(dev->pdev, 0);
 	ret = drm_addmap(dev, dev_priv->fb_aper_offset,
-			 drm_get_resource_len(dev, 0), _DRM_FRAME_BUFFER,
+			 pci_resource_len(dev->pdev, 0), _DRM_FRAME_BUFFER,
 			 _DRM_WRITE_COMBINING, &map);
 	if (ret != 0)
 		return ret;

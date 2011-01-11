@@ -30,7 +30,6 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
-#include <linux/slab.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -279,6 +278,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 
 	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
+		case NV_C0:
+			break;
 		case NV_50:
 			nv50_fbcon_accel_init(info);
 			info->fbops = &nv50_fbcon_ops;
@@ -332,7 +333,7 @@ nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 	drm_fb_helper_hotplug_event(&dev_priv->nfbdev->helper);
 }
 
-int
+static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 {
 	struct nouveau_framebuffer *nouveau_fb = &nfbdev->nouveau_fb;
@@ -348,10 +349,8 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 
 	if (nouveau_fb->nvbo) {
 		nouveau_bo_unmap(nouveau_fb->nvbo);
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(nouveau_fb->nvbo->gem);
+		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
-		mutex_unlock(&dev->struct_mutex);
 	}
 	drm_fb_helper_fini(&nfbdev->helper);
 	drm_framebuffer_cleanup(&nouveau_fb->base);
@@ -378,6 +377,7 @@ int nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fbdev *nfbdev;
+	int ret;
 
 	nfbdev = kzalloc(sizeof(struct nouveau_fbdev), GFP_KERNEL);
 	if (!nfbdev)
@@ -387,7 +387,13 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	dev_priv->nfbdev = nfbdev;
 	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
-	drm_fb_helper_init(dev, &nfbdev->helper, nv_two_heads(dev) ? 2 : 1, 4);
+	ret = drm_fb_helper_init(dev, &nfbdev->helper,
+				 nv_two_heads(dev) ? 2 : 1, 4);
+	if (ret) {
+		kfree(nfbdev);
+		return ret;
+	}
+
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
 	drm_fb_helper_initial_config(&nfbdev->helper, 32);
 	return 0;

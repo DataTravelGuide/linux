@@ -24,8 +24,8 @@
  *     David Airlie
  */
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/fb.h>
-#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -35,6 +35,8 @@
 #include "radeon.h"
 
 #include "drm_fb_helper.h"
+
+#include <linux/vga_switcheroo.h>
 
 /* object hierarchy -
    this contains a helper + a radeon fb
@@ -92,6 +94,7 @@ static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 	ret = radeon_bo_reserve(rbo, false);
 	if (likely(ret == 0)) {
 		radeon_bo_kunmap(rbo);
+		radeon_bo_unpin(rbo);
 		radeon_bo_unreserve(rbo);
 	}
 	drm_gem_object_unreference_unlocked(gobj);
@@ -116,7 +119,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
-				       false, ttm_bo_type_kernel,
+				       false, true,
 				       &gobj);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
@@ -318,8 +321,6 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 {
 	struct fb_info *info;
 	struct radeon_framebuffer *rfb = &rfbdev->rfb;
-	struct radeon_bo *rbo;
-	int r;
 
 	if (rfbdev->helper.fbdev) {
 		info = rfbdev->helper.fbdev;
@@ -331,14 +332,8 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 	}
 
 	if (rfb->obj) {
-		rbo = rfb->obj->driver_private;
-		r = radeon_bo_reserve(rbo, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rbo);
-			radeon_bo_unpin(rbo);
-			radeon_bo_unreserve(rbo);
-		}
-		drm_gem_object_unreference_unlocked(rfb->obj);
+		radeonfb_destroy_pinned_object(rfb->obj);
+		rfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
 	drm_framebuffer_cleanup(&rfb->base);
@@ -356,6 +351,7 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 {
 	struct radeon_fbdev *rfbdev;
 	int bpp_sel = 32;
+	int ret;
 
 	/* select 8 bpp console on RN50 or 16MB cards */
 	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
@@ -369,9 +365,14 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	rdev->mode_info.rfbdev = rfbdev;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 
-	drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
-			   rdev->num_crtc,
-			   RADEONFB_CONN_LIMIT);
+	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
+				 rdev->num_crtc,
+				 RADEONFB_CONN_LIMIT);
+	if (ret) {
+		kfree(rfbdev);
+		return ret;
+	}
+
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;

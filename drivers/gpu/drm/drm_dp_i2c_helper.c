@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -160,7 +159,7 @@ i2c_algo_dp_aux_xfer(struct i2c_adapter *adapter,
 	if (ret >= 0)
 		ret = num;
 	i2c_algo_dp_aux_stop(adapter, reading);
-	DRM_DEBUG("dp_aux_xfer return %d\n", ret);
+	DRM_DEBUG_KMS("dp_aux_xfer return %d\n", ret);
 	return ret;
 }
 

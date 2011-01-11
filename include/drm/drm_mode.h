@@ -27,9 +27,6 @@
 #ifndef _DRM_MODE_H
 #define _DRM_MODE_H
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-
 #define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
 #define DRM_DISPLAY_MODE_LEN	32
@@ -77,6 +74,7 @@
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1
+#define DRM_MODE_DITHERING_AUTO 2
 
 /* Dirty info options */
 #define DRM_MODE_DIRTY_OFF      0
@@ -88,7 +86,7 @@ struct drm_mode_modeinfo {
 	__u16 hdisplay, hsync_start, hsync_end, htotal, hskew;
 	__u16 vdisplay, vsync_start, vsync_end, vtotal, vscan;
 
-	__u32 vrefresh; /* vertical refresh * 1000 */
+	__u32 vrefresh;
 
 	__u32 flags;
 	__u32 type;

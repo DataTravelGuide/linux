@@ -200,7 +200,7 @@ int r600_page_table_init(struct drm_device *dev)
 						 entry->pagelist[i], 0,
 						 PAGE_SIZE,
 						 PCI_DMA_BIDIRECTIONAL);
-		if (entry->busaddr[i] == 0) {
+		if (pci_dma_mapping_error(dev->pdev, entry->busaddr[i])) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			r600_page_table_cleanup(dev, gart_info);
 			goto done;
@@ -877,6 +877,17 @@ static void r600_gfx_init(struct drm_device *dev,
 	RADEON_WRITE(R600_GB_TILING_CONFIG,      gb_tiling_config);
 	RADEON_WRITE(R600_DCP_TILING_CONFIG,    (gb_tiling_config & 0xffff));
 	RADEON_WRITE(R600_HDP_TILING_CONFIG,    (gb_tiling_config & 0xffff));
+	if (gb_tiling_config & 0xc0) {
+		dev_priv->r600_group_size = 512;
+	} else {
+		dev_priv->r600_group_size = 256;
+	}
+	dev_priv->r600_npipes = 1 << ((gb_tiling_config >> 1) & 0x7);
+	if (gb_tiling_config & 0x30) {
+		dev_priv->r600_nbanks = 8;
+	} else {
+		dev_priv->r600_nbanks = 4;
+	}
 
 	RADEON_WRITE(R600_CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	RADEON_WRITE(R600_CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
@@ -1523,13 +1534,27 @@ static void r700_gfx_init(struct drm_device *dev,
 	RADEON_WRITE(R600_GB_TILING_CONFIG,      gb_tiling_config);
 	RADEON_WRITE(R600_DCP_TILING_CONFIG,    (gb_tiling_config & 0xffff));
 	RADEON_WRITE(R600_HDP_TILING_CONFIG,    (gb_tiling_config & 0xffff));
+	if (gb_tiling_config & 0xc0) {
+		dev_priv->r600_group_size = 512;
+	} else {
+		dev_priv->r600_group_size = 256;
+	}
+	dev_priv->r600_npipes = 1 << ((gb_tiling_config >> 1) & 0x7);
+	if (gb_tiling_config & 0x30) {
+		dev_priv->r600_nbanks = 8;
+	} else {
+		dev_priv->r600_nbanks = 4;
+	}
 
 	RADEON_WRITE(R600_CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	RADEON_WRITE(R600_CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
+	RADEON_WRITE(R600_GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	RADEON_WRITE(R700_CC_SYS_RB_BACKEND_DISABLE, cc_rb_backend_disable);
 	RADEON_WRITE(R700_CGTS_SYS_TCC_DISABLE, 0);
 	RADEON_WRITE(R700_CGTS_TCC_DISABLE, 0);
+	RADEON_WRITE(R700_CGTS_USER_SYS_TCC_DISABLE, 0);
+	RADEON_WRITE(R700_CGTS_USER_TCC_DISABLE, 0);
 
 	num_qd_pipes =
 		R7XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & R600_INACTIVE_QD_PIPES_MASK) >> 8);
@@ -2613,4 +2638,13 @@ out:
 	cs->cs_id = cs_id;
 	mutex_unlock(&dev_priv->cs_mutex);
 	return r;
+}
+
+void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, u32 *nbanks, u32 *group_size)
+{
+	struct drm_radeon_private *dev_priv = dev->dev_private;
+
+	*npipes = dev_priv->r600_npipes;
+	*nbanks = dev_priv->r600_nbanks;
+	*group_size = dev_priv->r600_group_size;
 }

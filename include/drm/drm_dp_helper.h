@@ -22,6 +22,10 @@
 
 #ifndef _DRM_DP_HELPER_H_
 #define _DRM_DP_HELPER_H_
+
+#include <linux/types.h>
+#include <linux/i2c.h>
+
 /* From the VESA DisplayPort spec */
 
 #define AUX_NATIVE_WRITE	0x8
@@ -176,4 +180,4 @@ struct i2c_algo_dp_aux_data {
 int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
 
-#endif /* DRM_DP_HELPER */
+#endif /* _DRM_DP_HELPER_H_ */

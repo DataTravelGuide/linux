@@ -292,8 +292,10 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 
 	if (!radeon_encoder->hdmi_audio_workaround ||
 		r600_hdmi_is_audio_buffer_filled(encoder)) {
+
 		/* disable audio workaround */
 		WREG32_P(offset+R600_HDMI_CNTL, 0x00000001, ~0x00001001);
+
 	} else {
 		/* enable audio workaround */
 		WREG32_P(offset+R600_HDMI_CNTL, 0x00001001, ~0x00001001);
@@ -309,6 +311,9 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+
+	if (ASIC_IS_DCE4(rdev))
+		return;
 
 	if (!offset)
 		return;
@@ -430,7 +435,8 @@ static int r600_hdmi_find_free_block(struct drm_device *dev)
 		}
 	}
 
-	if (rdev->family == CHIP_RS600 || rdev->family == CHIP_RS690) {
+	if (rdev->family == CHIP_RS600 || rdev->family == CHIP_RS690 ||
+	    rdev->family == CHIP_RS740) {
 		return free_blocks[0] ? R600_HDMI_BLOCK1 : 0;
 	} else if (rdev->family >= CHIP_R600) {
 		if (free_blocks[0])
@@ -461,7 +467,8 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 		if (ASIC_IS_DCE32(rdev))
 			radeon_encoder->hdmi_config_offset = dig->dig_encoder ?
 				R600_HDMI_CONFIG2 : R600_HDMI_CONFIG1;
-	} else if (rdev->family >= CHIP_R600) {
+	} else if (rdev->family >= CHIP_R600 || rdev->family == CHIP_RS600 ||
+		   rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) {
 		radeon_encoder->hdmi_offset = r600_hdmi_find_free_block(dev);
 	}
 }
@@ -475,6 +482,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
+
+	if (ASIC_IS_DCE4(rdev))
+		return;
 
 	if (!radeon_encoder->hdmi_offset) {
 		r600_hdmi_assign_block(encoder);
@@ -532,6 +542,9 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
+
+	if (ASIC_IS_DCE4(rdev))
+		return;
 
 	offset = radeon_encoder->hdmi_offset;
 	if (!offset) {

@@ -32,8 +32,6 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 
-#define MULTIPLE_ENCODERS(e) (e & (e - 1))
-
 static void
 nv04_display_store_initial_head_owner(struct drm_device *dev)
 {
@@ -41,7 +39,7 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 
 	if (dev_priv->chipset != 0x11) {
 		dev_priv->crtc_owner = NVReadVgaCrtc(dev, 0, NV_CIO_CRE_44);
-		goto ownerknown;
+		return;
 	}
 
 	/* reading CR44 is broken on nv11, so we attempt to infer it */
@@ -51,8 +49,6 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 		uint8_t slaved_on_A, slaved_on_B;
 		bool tvA = false;
 		bool tvB = false;
-
-		NVLockVgaCrtcs(dev, false);
 
 		slaved_on_B = NVReadVgaCrtc(dev, 1, NV_CIO_CRE_PIXEL_INDEX) &
 									0x80;
@@ -66,8 +62,6 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 			tvA = !(NVReadVgaCrtc(dev, 0, NV_CIO_CRE_LCD__INDEX) &
 					MASK(NV_CIO_CRE_LCD_LCD_SELECT));
 
-		NVLockVgaCrtcs(dev, true);
-
 		if (slaved_on_A && !tvA)
 			dev_priv->crtc_owner = 0x0;
 		else if (slaved_on_B && !tvB)
@@ -79,14 +73,40 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 		else
 			dev_priv->crtc_owner = 0x0;
 	}
+}
 
-ownerknown:
-	NV_INFO(dev, "Initial CRTC_OWNER is %d\n", dev_priv->crtc_owner);
+int
+nv04_display_early_init(struct drm_device *dev)
+{
+	/* Make the I2C buses accessible. */
+	if (!nv_gf4_disp_arch(dev)) {
+		uint32_t pmc_enable = nv_rd32(dev, NV03_PMC_ENABLE);
 
-	/* we need to ensure the heads are not tied henceforth, or reading any
-	 * 8 bit reg on head B will fail
-	 * setting a single arbitrary head solves that */
-	NVSetOwner(dev, 0);
+		if (!(pmc_enable & 1))
+			nv_wr32(dev, NV03_PMC_ENABLE, pmc_enable | 1);
+	}
+
+	/* Unlock the VGA CRTCs. */
+	NVLockVgaCrtcs(dev, false);
+
+	/* Make sure the CRTCs aren't in slaved mode. */
+	if (nv_two_heads(dev)) {
+		nv04_display_store_initial_head_owner(dev);
+		NVSetOwner(dev, 0);
+	}
+
+	return 0;
+}
+
+void
+nv04_display_late_takedown(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (nv_two_heads(dev))
+		NVSetOwner(dev, dev_priv->crtc_owner);
+
+	NVLockVgaCrtcs(dev, true);
 }
 
 int
@@ -101,8 +121,6 @@ nv04_display_create(struct drm_device *dev)
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	if (nv_two_heads(dev))
-		nv04_display_store_initial_head_owner(dev);
 	nouveau_hw_save_vga_fonts(dev, 1);
 
 	drm_mode_config_init(dev);
@@ -170,8 +188,6 @@ nv04_display_create(struct drm_device *dev)
 	}
 
 	/* Save previous state */
-	NVLockVgaCrtcs(dev, false);
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->save(crtc);
 
@@ -202,8 +218,6 @@ nv04_display_destroy(struct drm_device *dev)
 	}
 
 	/* Restore state */
-	NVLockVgaCrtcs(dev, false);
-
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct drm_encoder_helper_funcs *func = encoder->helper_private;
 
@@ -218,14 +232,11 @@ nv04_display_destroy(struct drm_device *dev)
 	nouveau_hw_save_vga_fonts(dev, 0);
 }
 
-void
-nv04_display_restore(struct drm_device *dev)
+int
+nv04_display_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
-
-	NVLockVgaCrtcs(dev, false);
 
 	/* meh.. modeset apparently doesn't setup all the regs and depends
 	 * on pre-existing state, for now load the state of the card *before*
@@ -244,12 +255,6 @@ nv04_display_restore(struct drm_device *dev)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->restore(crtc);
 
-	if (nv_two_heads(dev)) {
-		NV_INFO(dev, "Restoring CRTC_OWNER to %d.\n",
-			dev_priv->crtc_owner);
-		NVSetOwner(dev, dev_priv->crtc_owner);
-	}
-
-	NVLockVgaCrtcs(dev, true);
+	return 0;
 }
 
