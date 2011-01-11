@@ -318,10 +318,12 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 	was_hw_scan = test_bit(SCAN_HW_SCANNING, &local->scanning);
 	if (was_hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
-		ieee80211_queue_delayed_work(&local->hw,
-					     &local->scan_work, 0);
-		mutex_unlock(&local->scan_mtx);
-		return;
+		int rc = drv_hw_scan(local, local->hw_scan_req);
+		if (rc == 0) {
+			mutex_unlock(&local->scan_mtx);
+			return;
+		}
+		aborted = true;
 	}
 
 	kfree(local->hw_scan_req);
@@ -714,14 +716,6 @@ void ieee80211_scan_work(struct work_struct *work)
 	mutex_lock(&local->scan_mtx);
 	if (!sdata || !local->scan_req) {
 		mutex_unlock(&local->scan_mtx);
-		return;
-	}
-
-	if (local->hw_scan_req) {
-		int rc = drv_hw_scan(local, local->hw_scan_req);
-		mutex_unlock(&local->scan_mtx);
-		if (rc)
-			__ieee80211_scan_completed(&local->hw, true);
 		return;
 	}
 
