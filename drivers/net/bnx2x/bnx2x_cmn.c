@@ -28,6 +28,7 @@
 
 #include "bnx2x_init.h"
 
+static int bnx2x_setup_irqs(struct bnx2x *bp);
 
 /* free skb in the packet ring at pos idx
  * return idx of last bd freed
@@ -2207,7 +2208,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 }
 
 
-int bnx2x_setup_irqs(struct bnx2x *bp)
+static int bnx2x_setup_irqs(struct bnx2x *bp)
 {
 	int rc = 0;
 	if (bp->flags & USING_MSIX_FLAG) {
