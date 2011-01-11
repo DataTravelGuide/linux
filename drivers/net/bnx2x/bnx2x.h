@@ -54,6 +54,7 @@
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
 #include "bnx2x_link.h"
+#include "bnx2x_dcb.h"
 #include "bnx2x_stats.h"
 
 /* error/debug prints */
@@ -824,6 +825,8 @@ struct bnx2x_slowpath {
 
 	u32				wb_comp;
 	u32				wb_data[4];
+	/* pfc configuration for DCBX ramrod */
+	struct flow_control_configuration pfc_config;
 };
 
 #define bnx2x_sp(bp, var)		(&bp->slowpath->var)
@@ -1189,6 +1192,18 @@ struct bnx2x {
 #define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
 
 	const struct firmware	*firmware;
+	/* LLDP params */
+	struct bnx2x_config_lldp_params		lldp_config_params;
+
+	/* DCBX params */
+	struct bnx2x_config_dcbx_params		dcbx_config_params;
+
+	struct bnx2x_dcbx_port_params		dcbx_port_params;
+	int					dcb_version;
+
+	/* DCBX Negotation results */
+	struct dcbx_features			dcbx_local_feat;
+	u32					dcbx_error;
 };
 
 /**
