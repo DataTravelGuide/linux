@@ -628,6 +628,9 @@ static void ieee80211_restart_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, restart_work);
 
+	/* wait for scan work complete */
+	flush_workqueue(local->workqueue);
+
 	rtnl_lock();
 	ieee80211_reconfig(local);
 	rtnl_unlock();
