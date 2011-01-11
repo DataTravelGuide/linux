@@ -368,8 +368,12 @@ CPP_VERS        := $(shell expr $(CPP_MAJOR) \* 1000000 + $(CPP_MINOR) \* 1000 \
 # gcc version 4.4.4 .
 ifeq ($(KBUILD_EXTMOD),)
 KBUILD_CFLAGS   += $(shell if [ $(CPP_VERS) -ge 4004004 ]; then \
-		   echo "-Wno-array-bounds -Werror"; else echo ""; fi)
+		   echo "-Wno-array-bounds"; else echo ""; fi)
 endif ##($(KBUILD_EXTMOD),)
+
+# enable -Werror on RHEL6
+KBUILD_CFLAGS   += $(shell if [ ! -z "$(shell cat /etc/redhat-release |grep Santiago)" ] ; then \
+		   echo "-Werror"; else echo ""; fi)
 endif #(,$(filter $(ARCH), i386 x86_64))
 
 KBUILD_AFLAGS   := -D__ASSEMBLY__
