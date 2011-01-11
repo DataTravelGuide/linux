@@ -36,6 +36,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
+#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -298,6 +299,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 						nvbo->bo.offset, nvbo);
 
 	mutex_unlock(&dev->struct_mutex);
+	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unref:

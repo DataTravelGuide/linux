@@ -25,6 +25,7 @@
  */
 #include <linux/module.h>
 #include <linux/fb.h>
+#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -261,6 +262,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	DRM_INFO("fb depth is %d\n", fb->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitch);
 
+	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;
 
 out_unref:

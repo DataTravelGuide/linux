@@ -120,6 +120,21 @@ struct radeon_device;
 /*
  * BIOS.
  */
+#define ATRM_BIOS_PAGE 4096
+
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_atrm_supported(struct pci_dev *pdev);
+int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len);
+#else
+static inline bool radeon_atrm_supported(struct pci_dev *pdev)
+{
+	return false;
+}
+
+static inline int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len){
+	return -EINVAL;
+}
+#endif
 bool radeon_get_bios(struct radeon_device *rdev);
 
 
@@ -896,6 +911,8 @@ struct radeon_device {
 	int			audio_bits_per_sample;
 	uint8_t			audio_status_bits;
 	uint8_t			audio_category_code;
+
+	bool powered_down;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1110,6 +1127,8 @@ extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
+extern int radeon_resume_kms(struct drm_device *dev);
+extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 extern void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_cp *cp);

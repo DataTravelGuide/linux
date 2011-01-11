@@ -615,7 +615,6 @@ struct drm_nouveau_private {
 	} susres;
 
 	struct backlight_device *backlight;
-	bool acpi_dsm;
 
 	struct nouveau_channel *evo;
 	struct {
@@ -692,6 +691,9 @@ extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
 extern int nouveau_override_conntype;
+
+extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
+extern int nouveau_pci_resume(struct pci_dev *pdev);
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);
@@ -867,6 +869,14 @@ static inline bool nouveau_dsm_probe(struct drm_device *dev)
 	return false;
 }
 static inline int nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector) { return -EINVAL; }
+#endif
+
+#if defined(CONFIG_VGA_SWITCHEROO)
+void nouveau_register_dsm_handler(void);
+void nouveau_unregister_dsm_handler(void);
+#else
+static inline void nouveau_register_dsm_handler(void) {}
+static inline void nouveau_unregister_dsm_handler(void) {}
 #endif
 
 /* nouveau_backlight.c */

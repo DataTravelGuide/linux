@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
+#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -172,6 +173,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 
 	mutex_unlock(&dev->struct_mutex);
+	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unpin:

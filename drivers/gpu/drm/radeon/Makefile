@@ -58,5 +58,6 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	evergreen.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
+radeon-$(CONFIG_VGA_SWITCHEROO) += radone_atpx_handler.o
 
 obj-$(CONFIG_DRM_RADEON)+= radeon.o
