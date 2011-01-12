@@ -392,6 +392,7 @@ static void ehea_refill_rq1(struct ehea_port_res *pr, int index, int nr_of_wqes)
 			skb_arr_rq1[index] = netdev_alloc_skb(dev,
 							      EHEA_L_PKT_SIZE);
 			if (!skb_arr_rq1[index]) {
+				ehea_info("Unable to allocate enough skb in the array\n");
 				pr->rq1_skba.os_skbs = fill_wqes - i;
 				break;
 			}
@@ -414,13 +415,20 @@ static void ehea_init_fill_rq1(struct ehea_port_res *pr, int nr_rq1a)
 	struct net_device *dev = pr->port->netdev;
 	int i;
 
-	for (i = 0; i < pr->rq1_skba.len; i++) {
+	if (nr_rq1a > pr->rq1_skba.len){
+		ehea_error("NR_RQ1A bigger than skb array len\n");
+		return;
+	}
+
+	for (i = 0; i < nr_rq1a; i++) {
 		skb_arr_rq1[i] = netdev_alloc_skb(dev, EHEA_L_PKT_SIZE);
-		if (!skb_arr_rq1[i])
+		if (!skb_arr_rq1[i]){
+			ehea_info("No enough memory to allocate skb array\n");
 			break;
+		}
 	}
 	/* Ring doorbell */
-	ehea_update_rq1a(pr->qp, nr_rq1a);
+	ehea_update_rq1a(pr->qp, i);
 }
 
 static int ehea_refill_rq_def(struct ehea_port_res *pr,
@@ -714,12 +722,14 @@ static int ehea_proc_rwqes(struct net_device *dev,
 							  wqe_index);
 				if (unlikely(!skb)) {
 					if (netif_msg_rx_err(port))
-						ehea_error("LL rq1: skb=NULL");
+						ehea_info("LL rq1: skb=NULL");
 
 					skb = netdev_alloc_skb(dev,
 							       EHEA_L_PKT_SIZE);
-					if (!skb)
+					if (!skb){
+						ehea_error("Not enough memory to allocate skb\n");
 						break;
+					}
 				}
 				skb_copy_to_linear_data(skb, ((char *)cqe) + 64,
 						 cqe->num_bytes_transfered - 4);
