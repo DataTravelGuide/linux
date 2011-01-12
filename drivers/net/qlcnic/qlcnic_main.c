@@ -1449,7 +1449,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	err = register_netdev(netdev);
 	if (err) {
