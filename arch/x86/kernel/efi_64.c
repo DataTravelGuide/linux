@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/efi.h>
+#include <linux/dmi.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/reboot.h>
@@ -163,6 +164,44 @@ static pte_t *fill_pte(pmd_t *pmd, unsigned long vaddr)
 	return pte_offset_kernel(pmd, vaddr);
 }
 
+static int __init dell_efi_quirk(const struct dmi_system_id *d)
+{
+	u64 vaddr;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	/*
+	* Some UEFI run time implementations (DELL) require physical page
+	* zero to be mapped. This location is used during EfiResetSystem
+	* when ResetType is EfiResetWarm (reboot=warm). UEFI writes to
+	* a BIOS physical address of 0x472 for the reboot mode. The reason
+	* for this hasn't been revealed by the UEFI developers.
+	*/
+	printk(KERN_INFO
+	       "%s series board detected. Applying quirk for"
+	       " page 0 UEFI firmware access.\n", d->ident);
+	vaddr = 0UL;
+	pgd = efi_pgd + pgd_index(vaddr);
+	pud = fill_pud(pgd, vaddr);
+	pmd = fill_pmd(pud, vaddr);
+	pte = fill_pte(pmd, vaddr);
+	set_pte(pte, pfn_pte(0UL, PAGE_KERNEL));
+	return 0;
+}
+
+static struct dmi_system_id __initdata efi_quirk_table[] = {
+	{	/* Dell systems in EFI mode need special handling for resets */
+		.callback = dell_efi_quirk,
+		.ident = "Dell PowerEdge",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+		},
+	},
+	{ }
+};
+
 void __init efi_pagetable_init(void)
 {
 	efi_memory_desc_t *md;
@@ -175,6 +214,9 @@ void __init efi_pagetable_init(void)
 	pte_t *pte;
 
 	memset(efi_pgd, 0, sizeof(efi_pgd));
+
+	dmi_check_system(efi_quirk_table);
+
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
 		if ((md->type != EFI_RUNTIME_SERVICES_CODE) &&
