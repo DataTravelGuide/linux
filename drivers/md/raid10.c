@@ -600,7 +600,7 @@ static void unplug_slaves(mddev_t *mddev)
 	int i;
 
 	rcu_read_lock();
-	for (i=0; i<mddev->raid_disks; i++) {
+	for (i=0; i < conf->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
@@ -634,7 +634,7 @@ static int raid10_congested(void *data, int bits)
 	if (mddev_congested(mddev, bits))
 		return 1;
 	rcu_read_lock();
-	for (i = 0; i < mddev->raid_disks && ret == 0; i++) {
+	for (i = 0; i < conf->raid_disks && ret == 0; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
@@ -1124,7 +1124,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int mirror;
 	mirror_info_t *p;
 	int first = 0;
-	int last = mddev->raid_disks - 1;
+	int last = conf->raid_disks - 1;
 
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
@@ -2132,7 +2132,7 @@ raid10_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	conf_t *conf = mddev->private;
 
 	if (!raid_disks)
-		raid_disks = mddev->raid_disks;
+		raid_disks = conf->raid_disks;
 	if (!sectors)
 		sectors = mddev->dev_sectors;
 
@@ -2243,7 +2243,7 @@ static int run(mddev_t *mddev)
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		disk_idx = rdev->raid_disk;
-		if (disk_idx >= mddev->raid_disks
+		if (disk_idx >= conf->raid_disks
 		    || disk_idx < 0)
 			continue;
 		disk = conf->mirrors + disk_idx;
@@ -2304,8 +2304,8 @@ static int run(mddev_t *mddev)
 		       mdname(mddev));
 	printk(KERN_INFO
 		"raid10: raid set %s active with %d out of %d devices\n",
-		mdname(mddev), mddev->raid_disks - mddev->degraded,
-		mddev->raid_disks);
+		mdname(mddev), conf->raid_disks - mddev->degraded,
+		conf->raid_disks);
 	/*
 	 * Ok, everything is just fine now
 	 */
@@ -2328,7 +2328,7 @@ static int run(mddev_t *mddev)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
 	}
 
-	if (conf->near_copies < mddev->raid_disks)
+	if (conf->near_copies < conf->raid_disks)
 		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 	md_integrity_register(mddev);
 	return 0;
