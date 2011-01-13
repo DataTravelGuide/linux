@@ -722,8 +722,8 @@ static void bi_complete(struct bio *bio, int error)
 	complete((struct completion*)bio->bi_private);
 }
 
-int sync_page_io(struct block_device *bdev, sector_t sector, int size,
-		   struct page *page, int rw)
+int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
+		 struct page *page, int rw)
 {
 	struct bio *bio = bio_alloc(GFP_NOIO, 1);
 	struct completion event;
@@ -731,7 +731,7 @@ int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 
 	rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
 
-	bio->bi_bdev = bdev;
+	bio->bi_bdev = rdev->bdev;
 	bio->bi_sector = sector;
 	bio_add_page(bio, page, size, 0);
 	init_completion(&event);
@@ -757,7 +757,7 @@ static int read_disk_sb(mdk_rdev_t * rdev, int size)
 		return 0;
 
 
-	if (!sync_page_io(rdev->bdev, rdev->sb_start, size, rdev->sb_page, READ))
+	if (!sync_page_io(rdev, rdev->sb_start, size, rdev->sb_page, READ))
 		goto fail;
 	rdev->sb_loaded = 1;
 	return 0;
