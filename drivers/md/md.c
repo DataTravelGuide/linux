@@ -66,6 +66,8 @@ static DEFINE_SPINLOCK(pers_lock);
 static void md_print_devices(void);
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
+static struct workqueue_struct *md_wq;
+static struct workqueue_struct *md_misc_wq;
 
 #define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 
@@ -301,7 +303,7 @@ static void md_end_flush(struct bio *bio, int err)
 
 	if (atomic_dec_and_test(&mddev->flush_pending)) {
 		/* The pre-request flush has finished */
-		schedule_work(&mddev->flush_work);
+		queue_work(md_wq, &mddev->flush_work);
 	}
 	bio_put(bio);
 }
@@ -369,7 +371,7 @@ void md_flush_request(mddev_t *mddev, struct bio *bio)
 	spin_unlock_irq(&mddev->write_lock);
 
 	INIT_WORK(&mddev->flush_work, submit_flushes);
-	schedule_work(&mddev->flush_work);
+	queue_work(md_wq, &mddev->flush_work);
 }
 EXPORT_SYMBOL(md_flush_request);
 
@@ -436,14 +438,13 @@ static void mddev_put(mddev_t *mddev)
 		 * so destroy it */
 		list_del(&mddev->all_mddevs);
 		if (mddev->gendisk) {
-			/* we did a probe so need to clean up.
-			 * Call schedule_work inside the spinlock
-			 * so that flush_scheduled_work() after
-			 * mddev_find will succeed in waiting for the
-			 * work to be done.
+			/* We did a probe so need to clean up.  Call
+			 * queue_work inside the spinlock so that
+			 * flush_workqueue() after mddev_find will
+			 * succeed in waiting for the work to be done.
 			 */
 			INIT_WORK(&mddev->del_work, mddev_delayed_delete);
-			schedule_work(&mddev->del_work);
+			queue_work(md_misc_wq, &mddev->del_work);
 		} else
 			kfree(mddev);
 	}
@@ -1849,7 +1850,7 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 	synchronize_rcu();
 	INIT_WORK(&rdev->del_work, md_delayed_delete);
 	kobject_get(&rdev->kobj);
-	schedule_work(&rdev->del_work);
+	queue_work(md_misc_wq, &rdev->del_work);
 }
 
 /*
@@ -4193,10 +4194,10 @@ static int md_alloc(dev_t dev, char *name)
 	shift = partitioned ? MdpMinorShift : 0;
 	unit = MINOR(mddev->unit) >> shift;
 
-	/* wait for any previous instance if this device
-	 * to be completed removed (mddev_delayed_delete).
+	/* wait for any previous instance of this device to be
+	 * completely removed (mddev_delayed_delete).
 	 */
-	flush_scheduled_work();
+	flush_workqueue(md_misc_wq);
 
 	mutex_lock(&disks_mutex);
 	error = -EEXIST;
@@ -5897,7 +5898,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 		 */
 		mddev_put(mddev);
 		/* Wait until bdev->bd_disk is definitely gone */
-		flush_scheduled_work();
+		flush_workqueue(md_misc_wq);
 		/* Then retry the open from the top */
 		return -ERESTARTSYS;
 	}
@@ -6053,7 +6054,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 	if (mddev->event_work.func)
-		schedule_work(&mddev->event_work);
+		queue_work(md_misc_wq, &mddev->event_work);
 	md_new_event_inintr(mddev);
 }
 
@@ -7213,12 +7214,23 @@ static void md_geninit(void)
 
 static int __init md_init(void)
 {
-	if (register_blkdev(MD_MAJOR, "md"))
-		return -1;
-	if ((mdp_major=register_blkdev(0, "mdp"))<=0) {
-		unregister_blkdev(MD_MAJOR, "md");
-		return -1;
-	}
+	int ret = -ENOMEM;
+
+	md_wq = create_workqueue("md");
+	if (!md_wq)
+		goto err_wq;
+
+	md_misc_wq = create_workqueue("md_misc");
+	if (!md_misc_wq)
+		goto err_misc_wq;
+
+	if ((ret = register_blkdev(MD_MAJOR, "md")) < 0)
+		goto err_md;
+
+	if ((ret = register_blkdev(0, "mdp")) < 0)
+		goto err_mdp;
+	mdp_major = ret;
+
 	blk_register_region(MKDEV(MD_MAJOR, 0), 1UL<<MINORBITS, THIS_MODULE,
 			    md_probe, NULL, NULL);
 	blk_register_region(MKDEV(mdp_major, 0), 1UL<<MINORBITS, THIS_MODULE,
@@ -7229,8 +7241,16 @@ static int __init md_init(void)
 
 	md_geninit();
 	return 0;
-}
 
+err_mdp:
+	unregister_blkdev(MD_MAJOR, "md");
+err_md:
+	destroy_workqueue(md_misc_wq);
+err_misc_wq:
+	destroy_workqueue(md_wq);
+err_wq:
+	return ret;
+}
 
 #ifndef MODULE
 
@@ -7317,6 +7337,8 @@ static __exit void md_exit(void)
 		export_array(mddev);
 		mddev->hold_active = 0;
 	}
+	destroy_workqueue(md_misc_wq);
+	destroy_workqueue(md_wq);
 }
 
 subsys_initcall(md_init);
