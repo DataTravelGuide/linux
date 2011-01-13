@@ -24,7 +24,6 @@ __license__ = "GPL"
 import getopt
 import os
 import re
-import sha
 import string
 import sys
 
