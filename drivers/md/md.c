@@ -4703,7 +4703,6 @@ out:
  */
 static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 {
-	int err = 0, revalidate = 0;
 	struct gendisk *disk = mddev->gendisk;
 	mdk_rdev_t *rdev;
 
@@ -4711,9 +4710,11 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	if (atomic_read(&mddev->openers) > is_open ||
 	    mddev->sysfs_active) {
 		printk("md: %s still in use.\n",mdname(mddev));
-		err = -EBUSY;
-	} else if (mddev->pers) {
+		mutex_unlock(&mddev->open_mutex);
+		return -EBUSY;
+	}
 
+	if (mddev->pers) {
 		if (mddev->ro)
 			set_disk_ro(disk, 0);
 
@@ -4734,24 +4735,17 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			}
 
 		set_capacity(disk, 0);
-		revalidate = 1;
+		mutex_unlock(&mddev->open_mutex);
+		revalidate_disk(disk);
 
 		if (mddev->ro)
 			mddev->ro = 0;
-		
-		err = 0;
-	}
-	mutex_unlock(&mddev->open_mutex);
-	if (err)
-		return err;
-	if (revalidate)
-		revalidate_disk(disk);
-
+	} else
+		mutex_unlock(&mddev->open_mutex);
 	/*
 	 * Free resources if final stop
 	 */
 	if (mode == 0) {
-
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
 
 		bitmap_destroy(mddev);
@@ -4768,13 +4762,11 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 		if (mddev->hold_active == UNTIL_STOP)
 			mddev->hold_active = 0;
-
 	}
-	err = 0;
 	blk_integrity_unregister(disk);
 	md_new_event(mddev);
 	sysfs_notify_dirent_safe(mddev->sysfs_state);
-	return err;
+	return 0;
 }
 
 #ifndef MODULE
