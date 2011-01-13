@@ -187,6 +187,7 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
 	int nid;
+	unsigned long cache_alias_offset;
 
 	if (!end)
 		return;
@@ -206,9 +207,16 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	start_pfn = start >> PAGE_SHIFT;
 	last_pfn = end >> PAGE_SHIFT;
 
-	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size,
+	/*
+	 * Allocate an extra cacheline per node to reduce cacheline
+	 * aliasing when scanning all node's node_data.
+	 */
+	cache_alias_offset = nodeid * SMP_CACHE_BYTES;
+	node_data[nodeid] = cache_alias_offset +
+			    early_node_mem(nodeid, start, end,
+					   pgdat_size + cache_alias_offset,
 					   SMP_CACHE_BYTES);
-	if (node_data[nodeid] == NULL)
+	if (node_data[nodeid] == (void *)cache_alias_offset)
 		return;
 	nodedata_phys = __pa(node_data[nodeid]);
 	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n", nodedata_phys,
