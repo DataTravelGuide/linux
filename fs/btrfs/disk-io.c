@@ -482,8 +482,11 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	end_io_wq->work.flags = 0;
 
 	if (bio->bi_rw & (1 << BIO_RW)) {
-		if (end_io_wq->metadata)
+		if (end_io_wq->metadata == 1)
 			btrfs_queue_worker(&fs_info->endio_meta_write_workers,
+					   &end_io_wq->work);
+		else if (end_io_wq->metadata == 2)
+			btrfs_queue_worker(&fs_info->endio_freespace_worker,
 					   &end_io_wq->work);
 		else
 			btrfs_queue_worker(&fs_info->endio_write_workers,
@@ -498,6 +501,13 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	}
 }
 
+/*
+ * For the metadata arg you want
+ *
+ * 0 - if data
+ * 1 - if normal metadta
+ * 2 - if writing to the free space cache area
+ */
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			int metadata)
 {
@@ -1783,6 +1793,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
 			   fs_info->thread_pool_size,
 			   &fs_info->generic_worker);
+	btrfs_init_workers(&fs_info->endio_freespace_worker, "freespace-write",
+			   1, &fs_info->generic_worker);
 
 	/*
 	 * endios are largely parallel and should have a very
@@ -1803,6 +1815,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_start_workers(&fs_info->endio_meta_workers, 1);
 	btrfs_start_workers(&fs_info->endio_meta_write_workers, 1);
 	btrfs_start_workers(&fs_info->endio_write_workers, 1);
+	btrfs_start_workers(&fs_info->endio_freespace_worker, 1);
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
@@ -2037,6 +2050,7 @@ fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
+	btrfs_stop_workers(&fs_info->endio_freespace_worker);
 	btrfs_stop_workers(&fs_info->submit_workers);
 fail_iput:
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
@@ -2459,6 +2473,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->endio_meta_workers);
 	btrfs_stop_workers(&fs_info->endio_meta_write_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
+	btrfs_stop_workers(&fs_info->endio_freespace_worker);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
 	btrfs_close_devices(fs_info->fs_devices);
