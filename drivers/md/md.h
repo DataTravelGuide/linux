@@ -320,6 +320,8 @@ struct mddev_s
 	struct list_head		all_mddevs;
 
 	struct attribute_group		*to_remove;
+	struct plug_handle		*plug; /* if used by personality */
+
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
 	 * the rest of the request (without the REQ_FLUSH flag).
