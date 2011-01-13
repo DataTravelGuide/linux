@@ -127,7 +127,7 @@ kernel-$(VERSION)-ppc64-debug.config: config-powerpc64-merged temp-powerpc-debug
 kernel-$(VERSION)-s390x.config: config-s390x-merged temp-s390x-generic
 	perl merge.pl $^ s390 > $@
 
-kernel-$(VERSION)-s390x-debug.config: config-s390x-merged temp-s390x-debug-generic
+kernel-$(VERSION)-s390x-debug.config: config-s390x-debug-merged temp-s390x-debug-generic
 	perl merge.pl $^ s390 > $@
 
 kernel-$(VERSION)-s390x-kdump.config: config-s390x-kdump-merged kernel-$(VERSION)-s390x.config
