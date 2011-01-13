@@ -307,6 +307,7 @@ struct mddev_s
 	struct bio *flush_bio;
 	atomic_t flush_pending;
 	struct work_struct flush_work;
+	struct work_struct event_work;	/* used by dm to report failure event */
 };
 
 
