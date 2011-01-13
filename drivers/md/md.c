@@ -264,7 +264,7 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
  * Once ->stop is called and completes, the module will be completely
  * unused.
  */
-static void mddev_suspend(mddev_t *mddev)
+void mddev_suspend(mddev_t *mddev)
 {
 	BUG_ON(mddev->suspended);
 	mddev->suspended = 1;
@@ -272,13 +272,15 @@ static void mddev_suspend(mddev_t *mddev)
 	wait_event(mddev->sb_wait, atomic_read(&mddev->active_io) == 0);
 	mddev->pers->quiesce(mddev, 1);
 }
+EXPORT_SYMBOL_GPL(mddev_suspend);
 
-static void mddev_resume(mddev_t *mddev)
+void mddev_resume(mddev_t *mddev)
 {
 	mddev->suspended = 0;
 	wake_up(&mddev->sb_wait);
 	mddev->pers->quiesce(mddev, 0);
 }
+EXPORT_SYMBOL_GPL(mddev_resume);
 
 int mddev_congested(mddev_t *mddev, int bits)
 {
@@ -403,7 +405,7 @@ static void mddev_put(mddev_t *mddev)
 	spin_unlock(&all_mddevs_lock);
 }
 
-static void mddev_init(mddev_t *mddev)
+void mddev_init(mddev_t *mddev)
 {
 	mutex_init(&mddev->open_mutex);
 	mutex_init(&mddev->reconfig_mutex);
@@ -423,6 +425,7 @@ static void mddev_init(mddev_t *mddev)
 	mddev->resync_max = MaxSector;
 	mddev->level = LEVEL_NONE;
 }
+EXPORT_SYMBOL_GPL(mddev_init);
 
 static mddev_t * mddev_find(dev_t unit)
 {
@@ -4271,7 +4274,7 @@ static void md_safemode_timeout(unsigned long data)
 
 static int start_dirty_degraded;
 
-static int md_run(mddev_t *mddev)
+int md_run(mddev_t *mddev)
 {
 	int err;
 	mdk_rdev_t *rdev;
@@ -4474,6 +4477,7 @@ static int md_run(mddev_t *mddev)
 	sysfs_notify(&mddev->kobj, NULL, "degraded");
 	return 0;
 }
+EXPORT_SYMBOL_GPL(md_run);
 
 static int do_md_run(mddev_t *mddev)
 {
@@ -4582,7 +4586,7 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.max_write_behind = 0;
 }
 
-static void md_stop_writes(mddev_t *mddev)
+void md_stop_writes(mddev_t *mddev)
 {
 	if (mddev->sync_thread) {
 		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
@@ -4602,11 +4606,10 @@ static void md_stop_writes(mddev_t *mddev)
 		md_update_sb(mddev, 1);
 	}
 }
+EXPORT_SYMBOL_GPL(md_stop_writes);
 
-static void md_stop(mddev_t *mddev)
+void md_stop(mddev_t *mddev)
 {
-	md_stop_writes(mddev);
-
 	mddev->pers->stop(mddev);
 	if (mddev->pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
@@ -4614,6 +4617,7 @@ static void md_stop(mddev_t *mddev)
 	mddev->pers = NULL;
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 }
+EXPORT_SYMBOL_GPL(md_stop);
 
 static int md_set_readonly(mddev_t *mddev, int is_open)
 {
@@ -4660,6 +4664,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		if (mddev->ro)
 			set_disk_ro(disk, 0);
 
+		md_stop_writes(mddev);
 		md_stop(mddev);
 		mddev->queue->merge_bvec_fn = NULL;
 		mddev->queue->unplug_fn = NULL;
