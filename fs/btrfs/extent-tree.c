@@ -2998,8 +2998,7 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	rcu_read_unlock();
 }
 
-static int should_alloc_chunk(struct btrfs_space_info *sinfo,
-			      u64 alloc_bytes)
+static int should_alloc_chunk(struct btrfs_space_info *sinfo, u64 alloc_bytes)
 {
 	u64 num_bytes = sinfo->total_bytes - sinfo->bytes_readonly;
 
@@ -3009,6 +3008,10 @@ static int should_alloc_chunk(struct btrfs_space_info *sinfo,
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved +
 	    alloc_bytes < div_factor(num_bytes, 8))
+		return 0;
+
+	if (num_bytes > 256 * 1024 * 1024 &&
+	    sinfo->bytes_used < div_factor(num_bytes, 3))
 		return 0;
 
 	return 1;
