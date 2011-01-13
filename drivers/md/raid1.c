@@ -1990,7 +1990,6 @@ static int run(mddev_t *mddev)
 	init_waitqueue_head(&conf->wait_barrier);
 
 	bio_list_init(&conf->pending_bio_list);
-	bio_list_init(&conf->flushing_bio_list);
 
 
 	mddev->degraded = 0;
