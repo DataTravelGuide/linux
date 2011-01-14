@@ -160,7 +160,6 @@ struct iscsi_cls_conn {
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
 
-	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 };
 
