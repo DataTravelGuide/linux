@@ -87,7 +87,7 @@ static void __init uv_set_apicid_hibit(void)
 	uv_apicid_hibits = apicid_mask.s.bit_enables & UV_APICID_HIBIT_MASK;
 }
 
-static int __init early_get_apic_pnode_shift(void)
+static void __init early_get_apic_pnode_shift(void)
 {
 	unsigned long *mmr;
 
@@ -99,8 +99,6 @@ static int __init early_get_apic_pnode_shift(void)
 		 * Old bios, use default value
 		 */
 		uvh_apicid.s.pnode_shift = UV_APIC_PNODE_SHIFT;
-
-	return uvh_apicid.s.pnode_shift;
 }
 
 static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
@@ -110,6 +108,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (!strcmp(oem_id, "SGI")) {
 		usevirtefi = 1;		/* Use virtual EFI mode on SGI systems */
 		nodeid = early_get_nodeid();
+		early_get_apic_pnode_shift();
 		x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
 		if (!strcmp(oem_table_id, "UVL"))
 			uv_system_type = UV_LEGACY_APIC;
@@ -117,7 +116,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 			uv_system_type = UV_X2APIC;
 		else if (!strcmp(oem_table_id, "UVH")) {
 			__get_cpu_var(x2apic_extra_bits) =
-				nodeid << (early_get_apic_pnode_shift() - 1);
+				nodeid << (uvh_apicid.s.pnode_shift - 1);
 			uv_system_type = UV_NON_UNIQUE_APIC;
 			uv_set_apicid_hibit();
 			return 1;
