@@ -2518,6 +2518,17 @@ int ext4_mb_release(struct super_block *sb)
 	return 0;
 }
 
+static inline int ext4_issue_discard(struct super_block *sb,
+		ext4_group_t block_group, ext4_grpblk_t block, int count)
+{
+	ext4_fsblk_t discard_block;
+
+	discard_block = block + ext4_group_first_block_no(sb, block_group);
+	trace_ext4_discard_blocks(sb,
+			(unsigned long long) discard_block, count);
+	return sb_issue_discard(sb, discard_block, count, GFP_NOFS, 0);
+}
+
 /*
  * This function is called by the jbd2 layer once the commit has finished,
  * so we know we can free the blocks that were released with that commit.
@@ -2539,18 +2550,11 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 
 		if (test_opt(sb, DISCARD)) {
 			int ret;
-			ext4_fsblk_t discard_block;
-
-			discard_block = entry->start_blk +
-				ext4_group_first_block_no(sb, entry->group);
-			trace_ext4_discard_blocks(sb,
-					(unsigned long long)discard_block,
-					entry->count);
-			ret = sb_issue_discard(sb, discard_block, entry->count,
-					       GFP_NOFS, 0);
-			if (ret == -EOPNOTSUPP) {
-				ext4_warning(sb,
-					"discard not supported, disabling");
+			ret = ext4_issue_discard(sb, entry->group,
+					entry->start_blk, entry->count);
+			if (unlikely(ret == -EOPNOTSUPP)) {
+				ext4_warning(sb, "discard not supported, "
+						 "disabling");
 				clear_opt(EXT4_SB(sb)->s_mount_opt, DISCARD);
 			}
 		}
