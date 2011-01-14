@@ -27,6 +27,8 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
+#include <linux/irqnr.h>
 
 #include <asm/desc.h>
 #include <asm/ptrace.h>
@@ -93,11 +95,9 @@ struct irq_info
 	} u;
 };
 
-static struct irq_info irq_info[NR_IRQS];
+static struct irq_info *irq_info;
 
-static int evtchn_to_irq[NR_EVENT_CHANNELS] = {
-	[0 ... NR_EVENT_CHANNELS-1] = -1
-};
+static int *evtchn_to_irq;
 struct cpu_evtchn_s {
 	unsigned long bits[NR_EVENT_CHANNELS/BITS_PER_LONG];
 };
@@ -1068,7 +1068,12 @@ void __init xen_init_IRQ(void)
 
 	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
 				    GFP_KERNEL);
-	BUG_ON(cpu_evtchn_mask_p == NULL);
+	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
+
+	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
+				    GFP_KERNEL);
+	for (i = 0; i < NR_EVENT_CHANNELS; i++)
+		evtchn_to_irq[i] = -1;
 
 	init_evtchn_cpu_bindings();
 
