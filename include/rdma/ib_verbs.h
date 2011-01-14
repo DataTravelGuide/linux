@@ -142,6 +142,7 @@ struct ib_device_attr {
 	int			max_qp_init_rd_atom;
 	int			max_ee_init_rd_atom;
 	enum ib_atomic_cap	atomic_cap;
+	enum ib_atomic_cap	masked_atomic_cap;
 	int			max_ee;
 	int			max_rdd;
 	int			max_mw;
@@ -474,6 +475,8 @@ enum ib_wc_opcode {
 	IB_WC_LSO,
 	IB_WC_LOCAL_INV,
 	IB_WC_FAST_REG_MR,
+	IB_WC_MASKED_COMP_SWAP,
+	IB_WC_MASKED_FETCH_ADD,
 /*
  * Set value of IB_WC_RECV so consumers can test if a completion is a
  * receive by testing (opcode & IB_WC_RECV).
@@ -696,6 +699,8 @@ enum ib_wr_opcode {
 	IB_WR_RDMA_READ_WITH_INV,
 	IB_WR_LOCAL_INV,
 	IB_WR_FAST_REG_MR,
+	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
+	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 };
 
 enum ib_send_flags {
@@ -738,6 +743,8 @@ struct ib_send_wr {
 			u64	remote_addr;
 			u64	compare_add;
 			u64	swap;
+			u64	compare_add_mask;
+			u64	swap_mask;
 			u32	rkey;
 		} atomic;
 		struct {
