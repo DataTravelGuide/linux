@@ -371,7 +371,17 @@ enum gro_result {
 	GRO_NORMAL,
 	GRO_DROP,
 };
-typedef enum gro_result gro_result_t;
+/*
+ * Make gro_result_t a separate type for the sparse checker.
+ * This helps avoid confusion between napi_gro_frags{,_gr}
+ * and similar function pairs we have in RHEL.
+ */
+typedef enum gro_result __bitwise__ gro_result_t;
+#define GRO_MERGED	((__force gro_result_t) GRO_MERGED)
+#define GRO_MERGED_FREE	((__force gro_result_t) GRO_MERGED_FREE)
+#define GRO_HELD	((__force gro_result_t) GRO_HELD)
+#define GRO_NORMAL	((__force gro_result_t) GRO_NORMAL)
+#define GRO_DROP	((__force gro_result_t) GRO_DROP)
 
 extern void __napi_schedule(struct napi_struct *n);
 
