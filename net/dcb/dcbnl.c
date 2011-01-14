@@ -22,6 +22,7 @@
 #include <net/netlink.h>
 #include <net/rtnetlink.h>
 #include <linux/dcbnl.h>
+#include <net/dcbevent.h>
 #include <linux/rtnetlink.h>
 #include <net/sock.h>
 
@@ -1459,6 +1460,7 @@ u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 out:
 	spin_unlock(&dcb_lock);
+	call_dcbevent_notifiers(DCB_APP_EVENT, new);
 	return 0;
 }
 EXPORT_SYMBOL(dcb_setapp);
