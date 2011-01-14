@@ -1793,9 +1793,9 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 				      NULL, 0);
 	if (!task) {
 		spin_unlock_bh(&session->lock);
+		iscsi_conn_printk(KERN_ERR, conn, "Could not send TMF.\n");
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		spin_lock_bh(&session->lock);
-		ISCSI_DBG_EH(session, "tmf exec failure\n");
 		return -EPERM;
 	}
 	conn->tmfcmd_pdus_cnt++;
@@ -2200,7 +2200,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		goto success_unlocked;
 	case TMF_TIMEDOUT:
 		spin_unlock_bh(&session->lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 		goto failed_unlocked;
 	case TMF_NOT_FOUND:
 		if (!sc->SCp.ptr) {
@@ -2287,7 +2287,7 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 		break;
 	case TMF_TIMEDOUT:
 		spin_unlock_bh(&session->lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 		goto done;
 	default:
 		conn->tmf_state = TMF_INITIAL;
@@ -2368,7 +2368,7 @@ failed:
 	 * we drop the lock here but the leadconn cannot be destoyed while
 	 * we are in the scsi eh
 	 */
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 
 	ISCSI_DBG_EH(session, "wait for relogin\n");
 	wait_event_interruptible(conn->ehwait,
@@ -2450,7 +2450,7 @@ int iscsi_eh_target_reset(struct scsi_cmnd *sc)
 		break;
 	case TMF_TIMEDOUT:
 		spin_unlock_bh(&session->lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		iscsi_conn_failure(conn, ISCSI_ERR_SCSI_EH_SESSION_RST);
 		goto done;
 	default:
 		conn->tmf_state = TMF_INITIAL;
