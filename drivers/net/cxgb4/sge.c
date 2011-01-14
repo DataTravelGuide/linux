@@ -1508,7 +1508,7 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		   const struct cpl_rx_pkt *pkt)
 {
-	int ret;
+	gro_result_t ret;
 	struct sk_buff *skb;
 
 	skb = napi_get_frags(&rxq->rspq.napi);
@@ -1531,12 +1531,12 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 
 		rxq->stats.vlan_ex++;
 		if (likely(grp)) {
-			ret = vlan_gro_frags(&rxq->rspq.napi, grp,
-					     ntohs(pkt->vlan));
+			ret = vlan_gro_frags_gr(&rxq->rspq.napi, grp,
+						ntohs(pkt->vlan));
 			goto stats;
 		}
 	}
-	ret = napi_gro_frags(&rxq->rspq.napi);
+	ret = napi_gro_frags_gr(&rxq->rspq.napi);
 stats:	if (ret == GRO_HELD)
 		rxq->stats.lro_pkts++;
 	else if (ret == GRO_MERGED || ret == GRO_MERGED_FREE)
