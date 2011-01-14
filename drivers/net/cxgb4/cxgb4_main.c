@@ -2420,23 +2420,17 @@ EXPORT_SYMBOL(cxgb4_unregister_uld);
  */
 static int cxgb_up(struct adapter *adap)
 {
-	int err = 0;
+	int err;
 
-	if (!(adap->flags & FULL_INIT_DONE)) {
-		err = setup_sge_queues(adap);
-		if (err)
-			goto out;
-		err = setup_rss(adap);
-		if (err) {
-			t4_free_sge_resources(adap);
-			goto out;
-		}
-		if (adap->flags & USING_MSIX)
-			name_msix_vecs(adap);
-		adap->flags |= FULL_INIT_DONE;
-	}
+	err = setup_sge_queues(adap);
+	if (err)
+		goto out;
+	err = setup_rss(adap);
+	if (err)
+		goto freeq;
 
 	if (adap->flags & USING_MSIX) {
+		name_msix_vecs(adap);
 		err = request_irq(adap->msix_info[0].vec, t4_nondata_intr, 0,
 				  adap->msix_info[0].desc, adap);
 		if (err)
@@ -2457,11 +2451,14 @@ static int cxgb_up(struct adapter *adap)
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
+	adap->flags |= FULL_INIT_DONE;
 	notify_ulds(adap, CXGB4_STATE_UP);
  out:
 	return err;
  irq_err:
 	dev_err(adap->pdev_dev, "request_irq failed, err %d\n", err);
+ freeq:
+	t4_free_sge_resources(adap);
 	goto out;
 }
 
@@ -2477,6 +2474,9 @@ static void cxgb_down(struct adapter *adapter)
 	} else
 		free_irq(adapter->pdev->irq, adapter);
 	quiesce_rx(adapter);
+	t4_sge_stop(adapter);
+	t4_free_sge_resources(adapter);
+	adapter->flags &= ~FULL_INIT_DONE;
 }
 
 /*
@@ -2488,11 +2488,13 @@ static int cxgb_open(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
-		return err;
+	if (!(adapter->flags & FULL_INIT_DONE)) {
+		err = cxgb_up(adapter);
+		if (err < 0)
+			return err;
+	}
 
 	dev->real_num_tx_queues = pi->nqsets;
-	set_bit(pi->tx_chan, &adapter->open_device_map);
 	link_start(dev);
 	netif_tx_start_all_queues(dev);
 	return 0;
@@ -2500,19 +2502,12 @@ static int cxgb_open(struct net_device *dev)
 
 static int cxgb_close(struct net_device *dev)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	ret = t4_enable_vi(adapter, 0, pi->viid, false, false);
-
-	clear_bit(pi->tx_chan, &adapter->open_device_map);
-
-	if (!adapter->open_device_map)
-		cxgb_down(adapter);
-	return 0;
+	return t4_enable_vi(adapter, 0, pi->viid, false, false);
 }
 
 static struct net_device_stats *cxgb_get_stats(struct net_device *dev)
@@ -3341,8 +3336,8 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		if (adapter->debugfs_root)
 			debugfs_remove_recursive(adapter->debugfs_root);
 
-		t4_sge_stop(adapter);
-		t4_free_sge_resources(adapter);
+		if (adapter->flags & FULL_INIT_DONE)
+			cxgb_down(adapter);
 		t4_free_mem(adapter->l2t);
 		t4_free_mem(adapter->tids.tid_tab);
 		disable_msi(adapter);
