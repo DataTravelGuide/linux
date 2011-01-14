@@ -505,7 +505,7 @@ xfs_write(
 	struct inode		*inode = mapping->host;
 	unsigned long		segs = nsegs;
 	xfs_mount_t		*mp;
-	ssize_t			ret = 0, error = 0;
+	ssize_t			ret = 0;
 	xfs_fsize_t		isize, new_size;
 	int			iolock;
 	int			eventsent = 0;
@@ -515,9 +515,9 @@ xfs_write(
 
 	XFS_STATS_INC(xs_write_calls);
 
-	error = generic_segment_checks(iovp, &segs, &ocount, VERIFY_READ);
-	if (error)
-		return error;
+	ret = generic_segment_checks(iovp, &segs, &ocount, VERIFY_READ);
+	if (ret)
+		return ret;
 
 	count = ocount;
 	pos = *offset;
@@ -545,9 +545,9 @@ relock:
 	xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
 
 start:
-	error = -generic_write_checks(file, &pos, &count,
+	ret = generic_write_checks(file, &pos, &count,
 					S_ISBLK(inode->i_mode));
-	if (error) {
+	if (ret) {
 		xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 		goto out_unlock_mutex;
 	}
@@ -560,11 +560,10 @@ start:
 			dmflags |= DM_FLAGS_IMUX;
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
-		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, xip,
+		ret = -XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, xip,
 				      pos, count, dmflags, &iolock);
-		if (error) {
+		if (ret)
 			goto out_unlock_internal;
-		}
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
 		eventsent = 1;
 
@@ -616,8 +615,8 @@ start:
 	 */
 
 	if (pos > xip->i_size) {
-		error = xfs_zero_eof(xip, pos, xip->i_size);
-		if (error) {
+		ret = -xfs_zero_eof(xip, pos, xip->i_size);
+		if (ret) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL);
 			goto out_unlock_internal;
 		}
@@ -635,10 +634,10 @@ start:
 	    ((xip->i_d.di_mode & (S_ISGID | S_IXGRP)) ==
 		(S_ISGID | S_IXGRP))) &&
 	     !capable(CAP_FSETID)) {
-		error = xfs_write_clear_setuid(xip);
-		if (likely(!error))
-			error = -file_remove_suid(file);
-		if (unlikely(error)) {
+		ret = -xfs_write_clear_setuid(xip);
+		if (likely(!ret))
+			ret = file_remove_suid(file);
+		if (unlikely(ret)) {
 			goto out_unlock_internal;
 		}
 	}
@@ -649,10 +648,10 @@ start:
 	if ((ioflags & IO_ISDIRECT)) {
 		if (mapping->nrpages) {
 			WARN_ON(need_i_mutex == 0);
-			error = xfs_flushinval_pages(xip,
+			ret = -xfs_flushinval_pages(xip,
 					(pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
-			if (error)
+			if (ret)
 				goto out_unlock_internal;
 		}
 
@@ -685,24 +684,22 @@ start:
 		}
 	} else {
 		int enospc = 0;
-		ssize_t ret2 = 0;
 
 write_retry:
 		trace_xfs_file_buffered_write(xip, count, *offset, ioflags);
-		ret2 = generic_file_buffered_write(iocb, iovp, segs,
+		ret = generic_file_buffered_write(iocb, iovp, segs,
 				pos, offset, count, ret);
 		/*
 		 * if we just got an ENOSPC, flush the inode now we
 		 * aren't holding any page locks and retry *once*
 		 */
-		if (ret2 == -ENOSPC && !enospc) {
-			error = xfs_flush_pages(xip, 0, -1, 0, FI_NONE);
-			if (error)
+		if (ret == -ENOSPC && !enospc) {
+			ret = -xfs_flush_pages(xip, 0, -1, 0, FI_NONE);
+			if (ret)
 				goto out_unlock_internal;
 			enospc = 1;
 			goto write_retry;
 		}
-		ret = ret2;
 	}
 
 	current->backing_dev_info = NULL;
@@ -723,18 +720,17 @@ write_retry:
 		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, xip,
+		ret = -XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, xip,
 				DM_RIGHT_NULL, xip, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_ilock(xip, iolock);
-		if (error)
+		if (ret)
 			goto out_unlock_internal;
 		goto start;
 	}
 
-	error = -ret;
 	if (ret <= 0)
 		goto out_unlock_internal;
 
@@ -743,22 +739,22 @@ write_retry:
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
-		int error2;
+		int error, error2;
 
 		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
 
-		error2 = filemap_write_and_wait_range(mapping, pos, end);
-		if (!error)
-			error = error2;
+		error = filemap_write_and_wait_range(mapping, pos, end);
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_ilock(xip, iolock);
 
-		error2 = xfs_fsync(xip);
-		if (!error)
-			error = error2;
+		error2 = -xfs_fsync(xip);
+		if (error)
+			ret = error;
+		else if (error2)
+			ret = error2;
 	}
 
  out_unlock_internal:
@@ -780,7 +776,7 @@ write_retry:
  out_unlock_mutex:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);
-	return -error;
+	return ret;
 }
 
 /*
