@@ -25,7 +25,7 @@
 #include <linux/err.h>
 #include <linux/log2.h>
 #include <linux/uaccess.h>
-#include <linux/kfifo.h>
+#include <linux/kfifo-new.h>
 
 /*
  * internal helper to calculate the unused elements in a fifo

@@ -33,7 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/slab.h>
-#include <linux/kfifo.h>
+#include <linux/kfifo-new.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/genalloc.h>
