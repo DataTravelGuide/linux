@@ -121,8 +121,14 @@ extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 extern int vlan_hwaccel_do_receive(struct sk_buff *skb);
 extern int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 			    unsigned int vlan_tci, struct sk_buff *skb);
+extern gro_result_t
+vlan_gro_receive_gr(struct napi_struct *napi, struct vlan_group *grp,
+		    unsigned int vlan_tci, struct sk_buff *skb);
 extern int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 			  unsigned int vlan_tci);
+extern gro_result_t
+vlan_gro_frags_gr(struct napi_struct *napi, struct vlan_group *grp,
+		  unsigned int vlan_tci);
 
 #else
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
@@ -156,10 +162,24 @@ static inline int vlan_gro_receive(struct napi_struct *napi,
 	return NET_RX_DROP;
 }
 
+static inline gro_result_t
+vlan_gro_receive_gr(struct napi_struct *napi, struct vlan_group *grp,
+		    unsigned int vlan_tci, struct sk_buff *skb)
+{
+	return GRO_DROP;
+}
+
 static inline int vlan_gro_frags(struct napi_struct *napi,
 				 struct vlan_group *grp, unsigned int vlan_tci)
 {
 	return NET_RX_DROP;
+}
+
+static inline gro_result_t
+vlan_gro_frags_gr(struct napi_struct *napi, struct vlan_group *grp,
+		  unsigned int vlan_tci)
+{
+	return GRO_DROP;
 }
 #endif
 

@@ -106,32 +106,65 @@ drop:
 	return GRO_DROP;
 }
 
-int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-		     unsigned int vlan_tci, struct sk_buff *skb)
+static inline gro_result_t __vlan_gro_receive_gr(struct napi_struct *napi,
+				                 struct vlan_group *grp,
+				                 unsigned int vlan_tci,
+						 struct sk_buff *skb)
 {
 	if (netpoll_rx_on(skb))
-		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci);
+		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci)
+			? GRO_DROP : GRO_NORMAL;
 
 	skb_gro_reset_offset(skb);
 
 	return napi_skb_finish(vlan_gro_common(napi, grp, vlan_tci, skb), skb);
 }
+
+gro_result_t vlan_gro_receive_gr(struct napi_struct *napi,
+				 struct vlan_group *grp,
+				 unsigned int vlan_tci, struct sk_buff *skb)
+{
+	return __vlan_gro_receive_gr(napi, grp, vlan_tci, skb);
+}
+EXPORT_SYMBOL(vlan_gro_receive_gr);
+
+int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
+		     unsigned int vlan_tci, struct sk_buff *skb)
+{
+	return __vlan_gro_receive_gr(napi, grp, vlan_tci, skb) == GRO_DROP
+		? NET_RX_DROP : NET_RX_SUCCESS;
+}
 EXPORT_SYMBOL(vlan_gro_receive);
 
-int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-		   unsigned int vlan_tci)
+static inline gro_result_t __vlan_gro_frags_gr(struct napi_struct *napi,
+					       struct vlan_group *grp,
+					       unsigned int vlan_tci)
 {
 	struct sk_buff *skb = napi_frags_skb(napi);
 
 	if (!skb)
-		return NET_RX_DROP;
+		return GRO_DROP;
 
 	if (netpoll_rx_on(skb)) {
 		skb->protocol = eth_type_trans(skb, skb->dev);
-		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci);
+		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci)
+			? GRO_DROP : GRO_NORMAL;
 	}
 
 	return napi_frags_finish(napi, skb,
 				 vlan_gro_common(napi, grp, vlan_tci, skb));
+}
+gro_result_t vlan_gro_frags_gr(struct napi_struct *napi,
+			       struct vlan_group *grp, unsigned int vlan_tci)
+{
+	return __vlan_gro_frags_gr(napi, grp, vlan_tci);
+}
+EXPORT_SYMBOL(vlan_gro_frags_gr);
+
+int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
+		   unsigned int vlan_tci)
+{
+	return __vlan_gro_frags_gr(napi, grp, vlan_tci) == GRO_DROP
+		? NET_RX_DROP : NET_RX_SUCCESS;
 }
 EXPORT_SYMBOL(vlan_gro_frags);
