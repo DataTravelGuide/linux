@@ -3495,6 +3495,12 @@ static int __devinit init_one(struct pci_dev *pdev,
 		adapter->params.offload = 0;
 	}
 
+	/* See what interrupts we'll be using */
+	if (msi > 1 && enable_msix(adapter) == 0)
+		adapter->flags |= USING_MSIX;
+	else if (msi > 0 && pci_enable_msi(pdev) == 0)
+		adapter->flags |= USING_MSI;
+
 	/*
 	 * The card is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole card but rather proceed only
@@ -3530,12 +3536,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		setup_debugfs(adapter);
 	}
 
-	/* See what interrupts we'll be using */
-	if (msi > 1 && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
-	else if (msi > 0 && pci_enable_msi(pdev) == 0)
-		adapter->flags |= USING_MSI;
-
 	if (is_offload(adapter))
 		attach_ulds(adapter);
 
@@ -3559,6 +3559,7 @@ sriov:
 			free_netdev(adapter->port[i]);
 	if (adapter->flags & FW_OK)
 		t4_fw_bye(adapter, 0);
+	disable_msi(adapter);
  out_unmap_bar:
 	iounmap(adapter->regs);
  out_free_adapter:
