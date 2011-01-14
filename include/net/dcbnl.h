@@ -71,6 +71,11 @@ struct dcbnl_rtnl_ops {
 	int (*ieee_setpfc) (struct net_device *, struct ieee_pfc *);
 	int (*ieee_getapp) (struct net_device *, struct dcb_app *);
 	int (*ieee_setapp) (struct net_device *, struct dcb_app *);
+
+	/* DCBX configuration */
+	u8   (*getdcbx)(struct net_device *);
+	u8   (*setdcbx)(struct net_device *, u8);
+
 #endif
 };
 
