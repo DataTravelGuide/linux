@@ -2891,16 +2891,21 @@ static int write_cache_pages_da(struct address_space *mapping,
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	long nr_to_write = wbc->nr_to_write;
+	int tag;
 
 	pagevec_init(&pvec, 0);
 	index = wbc->range_start >> PAGE_CACHE_SHIFT;
 	end = wbc->range_end >> PAGE_CACHE_SHIFT;
 
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		tag = PAGECACHE_TAG_TOWRITE;
+	else
+		tag = PAGECACHE_TAG_DIRTY;
+
 	while (!done && (index <= end)) {
 		int i;
 
-		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-			      PAGECACHE_TAG_DIRTY,
+		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
 			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
 		if (nr_pages == 0)
 			break;
@@ -3005,6 +3010,7 @@ static int ext4_da_writepages(struct address_space *mapping,
 	long desired_nr_to_write, nr_to_writebump = 0;
 	loff_t range_start = wbc->range_start;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
+	pgoff_t end;
 
 	trace_ext4_da_writepages(inode, wbc);
 
@@ -3040,8 +3046,11 @@ static int ext4_da_writepages(struct address_space *mapping,
 		wbc->range_start = index << PAGE_CACHE_SHIFT;
 		wbc->range_end  = LLONG_MAX;
 		wbc->range_cyclic = 0;
-	} else
+		end = -1;
+	} else {
 		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+		end = wbc->range_end >> PAGE_CACHE_SHIFT;
+	}
 
 	/*
 	 * This works around two forms of stupidity.  The first is in
@@ -3082,6 +3091,9 @@ static int ext4_da_writepages(struct address_space *mapping,
 	pages_skipped = wbc->pages_skipped;
 
 retry:
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		tag_pages_for_writeback(mapping, index, end);
+
 	while (!ret && wbc->nr_to_write > 0) {
 
 		/*
