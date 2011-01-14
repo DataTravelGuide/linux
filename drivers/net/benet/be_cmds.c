@@ -71,10 +71,11 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	if (compl_status == MCC_STATUS_SUCCESS) {
 		if (compl->tag0 == OPCODE_ETH_GET_STATISTICS) {
 			struct be_cmd_resp_get_stats *resp =
-						adapter->stats.cmd.va;
+						adapter->stats_cmd.va;
 			be_dws_le_to_cpu(&resp->hw_stats,
 						sizeof(resp->hw_stats));
 			netdev_stats_update(adapter);
+			adapter->stats_ioctl_sent = false;
 		}
 	} else if ((compl_status != MCC_STATUS_NOT_SUPPORTED) &&
 		   (compl->tag0 != OPCODE_COMMON_NTWK_MAC_QUERY)) {
@@ -95,11 +96,62 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 		evt->port_link_status == ASYNC_EVENT_LINK_UP);
 }
 
+/* Grp5 CoS Priority evt */
+static void be_async_grp5_cos_priority_process(struct be_adapter *adapter,
+		struct be_async_event_grp5_cos_priority *evt)
+{
+	if (evt->valid) {
+		adapter->vlan_prio_bmap = evt->available_priority_bmap;
+		adapter->recommended_prio =
+			evt->reco_default_priority << VLAN_PRIO_SHIFT;
+	}
+}
+
+/* Grp5 QOS Speed evt */
+static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
+		struct be_async_event_grp5_qos_link_speed *evt)
+{
+	if (evt->physical_port == adapter->port_num) {
+		/* qos_link_speed is in units of 10 Mbps */
+		adapter->link_speed = evt->qos_link_speed * 10;
+	}
+}
+
+static void be_async_grp5_evt_process(struct be_adapter *adapter,
+		u32 trailer, struct be_mcc_compl *evt)
+{
+	u8 event_type = 0;
+
+	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
+		ASYNC_TRAILER_EVENT_TYPE_MASK;
+
+	switch (event_type) {
+	case ASYNC_EVENT_COS_PRIORITY:
+		be_async_grp5_cos_priority_process(adapter,
+		(struct be_async_event_grp5_cos_priority *)evt);
+	break;
+	case ASYNC_EVENT_QOS_SPEED:
+		be_async_grp5_qos_speed_process(adapter,
+		(struct be_async_event_grp5_qos_link_speed *)evt);
+	break;
+	default:
+		dev_warn(&adapter->pdev->dev, "Unknown grp5 event!\n");
+		break;
+	}
+}
+
 static inline bool is_link_state_evt(u32 trailer)
+{
+	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		ASYNC_TRAILER_EVENT_CODE_MASK) ==
+				ASYNC_EVENT_CODE_LINK_STATE;
+}
+
+static inline bool is_grp5_evt(u32 trailer)
 {
 	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
 		ASYNC_TRAILER_EVENT_CODE_MASK) ==
-				ASYNC_EVENT_CODE_LINK_STATE);
+				ASYNC_EVENT_CODE_GRP_5);
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
@@ -142,6 +194,9 @@ int be_process_mcc(struct be_adapter *adapter, int *status)
 			if (is_link_state_evt(compl->flags))
 				be_async_link_state_process(adapter,
 				(struct be_async_event_link_state *) compl);
+			else if (is_grp5_evt(compl->flags))
+				be_async_grp5_evt_process(adapter,
+				compl->flags, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				*status = be_mcc_compl_process(adapter, compl);
 				atomic_dec(&mcc_obj->q.used);
@@ -204,6 +259,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 
 		if (msecs > 4000) {
 			dev_err(&adapter->pdev->dev, "mbox poll timed out\n");
+			be_detect_dump_ue(adapter);
 			return -1;
 		}
 
@@ -267,7 +323,12 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 
 static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 {
-	u32 sem = ioread32(adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
+	u32 sem;
+
+	if (lancer_chip(adapter))
+		sem  = ioread32(adapter->db + MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET);
+	else
+		sem  = ioread32(adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
 
 	*stage = sem & EP_SEMAPHORE_POST_STAGE_MASK;
 	if ((sem >> EP_SEMAPHORE_POST_ERR_SHIFT) & EP_SEMAPHORE_POST_ERR_MASK)
@@ -629,16 +690,36 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 		OPCODE_COMMON_CQ_CREATE, sizeof(*req));
 
 	req->num_pages =  cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
+	if (lancer_chip(adapter)) {
+		req->hdr.version = 1;
+		req->page_size = 1; /* 1 for 4K */
+		AMAP_SET_BITS(struct amap_cq_context_lancer, coalescwm, ctxt,
+								coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, nodelay, ctxt,
+								no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, count, ctxt,
+						__ilog2_u32(cq->len/256));
+		AMAP_SET_BITS(struct amap_cq_context_lancer, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, eventable,
+								ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, eqid,
+								ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_lancer, armed, ctxt, 1);
+	} else {
+		AMAP_SET_BITS(struct amap_cq_context_be, coalescwm, ctxt,
+								coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_be, nodelay,
+								ctxt, no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_be, count, ctxt,
+						__ilog2_u32(cq->len/256));
+		AMAP_SET_BITS(struct amap_cq_context_be, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_be, solevent,
+								ctxt, sol_evts);
+		AMAP_SET_BITS(struct amap_cq_context_be, eventable, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_be, eqid, ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_be, armed, ctxt, 1);
+	}
 
-	AMAP_SET_BITS(struct amap_cq_context, coalescwm, ctxt, coalesce_wm);
-	AMAP_SET_BITS(struct amap_cq_context, nodelay, ctxt, no_delay);
-	AMAP_SET_BITS(struct amap_cq_context, count, ctxt,
-			__ilog2_u32(cq->len/256));
-	AMAP_SET_BITS(struct amap_cq_context, valid, ctxt, 1);
-	AMAP_SET_BITS(struct amap_cq_context, solevent, ctxt, sol_evts);
-	AMAP_SET_BITS(struct amap_cq_context, eventable, ctxt, 1);
-	AMAP_SET_BITS(struct amap_cq_context, eqid, ctxt, eq->id);
-	AMAP_SET_BITS(struct amap_cq_context, armed, ctxt, 1);
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -681,18 +762,33 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	ctxt = &req->context;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
-			OPCODE_COMMON_MCC_CREATE);
+			OPCODE_COMMON_MCC_CREATE_EXT);
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			OPCODE_COMMON_MCC_CREATE, sizeof(*req));
+			OPCODE_COMMON_MCC_CREATE_EXT, sizeof(*req));
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
+	if (lancer_chip(adapter)) {
+		req->hdr.version = 1;
+		req->cq_id = cpu_to_le16(cq->id);
 
-	AMAP_SET_BITS(struct amap_mcc_context, valid, ctxt, 1);
-	AMAP_SET_BITS(struct amap_mcc_context, ring_size, ctxt,
-		be_encoded_q_len(mccq->len));
-	AMAP_SET_BITS(struct amap_mcc_context, cq_id, ctxt, cq->id);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, ring_size, ctxt,
+						be_encoded_q_len(mccq->len));
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_id,
+								ctxt, cq->id);
+		AMAP_SET_BITS(struct amap_mcc_context_lancer, async_cq_valid,
+								 ctxt, 1);
 
+	} else {
+		AMAP_SET_BITS(struct amap_mcc_context_be, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_mcc_context_be, ring_size, ctxt,
+						be_encoded_q_len(mccq->len));
+		AMAP_SET_BITS(struct amap_mcc_context_be, cq_id, ctxt, cq->id);
+	}
+
+	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
+	req->async_event_bitmap[0] = cpu_to_le32(0x00000022);
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -759,7 +855,7 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 /* Uses mbox */
 int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_queue_info *rxq, u16 cq_id, u16 frag_size,
-		u16 max_frame_size, u32 if_id, u32 rss)
+		u16 max_frame_size, u32 if_id, u32 rss, u8 *rss_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_eth_rx_create *req;
@@ -791,6 +887,7 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_cmd_resp_eth_rx_create *resp = embedded_payload(wrb);
 		rxq->id = le16_to_cpu(resp->id);
 		rxq->created = true;
+		*rss_id = resp->rss_id;
 	}
 
 	mutex_unlock(&adapter->mbox_lock);
@@ -959,6 +1056,7 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	sge->len = cpu_to_le32(nonemb_cmd->size);
 
 	be_mcc_notify(adapter);
+	adapter->stats_ioctl_sent = true;
 
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
@@ -1268,7 +1366,8 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *cap)
+int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
+		u32 *mode, u32 *caps)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -1290,7 +1389,8 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *cap)
 	if (!status) {
 		struct be_cmd_resp_query_fw_cfg *resp = embedded_payload(wrb);
 		*port_num = le32_to_cpu(resp->phys_port);
-		*cap = le32_to_cpu(resp->function_cap);
+		*mode = le32_to_cpu(resp->function_mode);
+		*caps = le32_to_cpu(resp->function_caps);
 	}
 
 	mutex_unlock(&adapter->mbox_lock);
@@ -1315,6 +1415,38 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 
 	be_cmd_hdr_prepare(req, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
+
+	status = be_mbox_notify_wait(adapter);
+
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_rss_config *req;
+	u32 myhash[10];
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+		OPCODE_ETH_RSS_CONFIG);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
+		OPCODE_ETH_RSS_CONFIG, sizeof(*req));
+
+	req->if_id = cpu_to_le32(adapter->if_handle);
+	req->enable_rss = cpu_to_le16(RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4);
+	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
+	memcpy(req->cpu_table, rsstable, table_size);
+	memcpy(req->hash, myhash, sizeof(myhash));
+	be_dws_cpu_to_le(req->hash, sizeof(req->hash));
 
 	status = be_mbox_notify_wait(adapter);
 
@@ -1386,42 +1518,6 @@ int be_cmd_get_beacon_state(struct be_adapter *adapter, u8 port_num, u32 *state)
 		struct be_cmd_resp_get_beacon_state *resp =
 						embedded_payload(wrb);
 		*state = resp->beacon_state;
-	}
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	return status;
-}
-
-/* Uses sync mcc */
-int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
-				u8 *connector)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_port_type *req;
-	int status;
-
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
-
-	be_wrb_hdr_prepare(wrb, sizeof(struct be_cmd_resp_port_type), true, 0,
-			OPCODE_COMMON_READ_TRANSRECV_DATA);
-
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_READ_TRANSRECV_DATA, sizeof(*req));
-
-	req->port = cpu_to_le32(port);
-	req->page_num = cpu_to_le32(TR_PAGE_A0);
-	status = be_mcc_notify_wait(adapter);
-	if (!status) {
-		struct be_cmd_resp_port_type *resp = embedded_payload(wrb);
-			*connector = resp->data.connector;
 	}
 
 err:
