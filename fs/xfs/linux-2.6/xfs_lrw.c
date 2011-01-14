@@ -491,6 +491,24 @@ out_lock:
 	return error;
 }
 
+/*
+ * Notes about direct IO locking for write:
+ *
+ * If there are cached pages or we're extending the file, we need IOLOCK_EXCL
+ * until we're sure the bytes at the new EOF have been zeroed and/or the cached
+ * pages are flushed out.
+ *
+ * In most cases the direct IO writes will be done holding IOLOCK_SHARED
+ * allowing them to be done in parallel with reads and other direct IO writes.
+ * However, if the IO is not aligned to filesystem blocks, the direct IO layer
+ * needs to do sub-block zeroing and that requires serialisation against other
+ * direct IOs to the same block. In this case we need to serialise the
+ * submission of the unaligned IOs so that we don't get racing block zeroing in
+ * the dio layer.  To avoid the problem with aio, we also need to wait for
+ * outstanding IOs to complete so that unwritten extent conversion is completed
+ * before we try to map the overlapping block. This is currently implemented by
+ * hitting it with a big hammer (i.e. xfs_ioend_wait()).
+ */
 ssize_t				/* bytes written, or (-) error */
 xfs_write(
 	struct xfs_inode	*xip,
@@ -512,6 +530,7 @@ xfs_write(
 	size_t			ocount = 0, count;
 	loff_t			pos;
 	int			need_i_mutex;
+	int			unaligned_io = 0;
 
 	XFS_STATS_INC(xs_write_calls);
 
@@ -532,8 +551,11 @@ xfs_write(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
+	if ((ioflags & IO_ISDIRECT) &&
+	    ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask)))
+		unaligned_io = 1;
 relock:
-	if (ioflags & IO_ISDIRECT) {
+	if ((ioflags & IO_ISDIRECT) && !unaligned_io) {
 		iolock = XFS_IOLOCK_SHARED;
 		need_i_mutex = 0;
 	} else {
@@ -655,7 +677,13 @@ start:
 				goto out_unlock_internal;
 		}
 
-		if (need_i_mutex) {
+		/*
+		 * If we are doing unaligned IO, wait for all other IO to drain,
+		 * otherwise demote the lock if we had to flush cached pages
+		 */
+		if (unaligned_io)
+			xfs_ioend_wait(xip);
+		else if (need_i_mutex) {
 			/* demote the lock now the cached pages are gone */
 			xfs_ilock_demote(xip, XFS_IOLOCK_EXCL);
 			mutex_unlock(&inode->i_mutex);
@@ -680,6 +708,8 @@ start:
 
 			ioflags &= ~IO_ISDIRECT;
 			xfs_iunlock(xip, iolock);
+			if (need_i_mutex)
+				mutex_unlock(&inode->i_mutex);
 			goto relock;
 		}
 	} else {
