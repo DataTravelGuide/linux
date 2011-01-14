@@ -1296,7 +1296,7 @@ int nes_destroy_cqp(struct nes_device *nesdev)
 /**
  * nes_init_1g_phy
  */
-int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
+static int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 {
 	u32 counter = 0;
 	u16 phy_data;
@@ -1350,7 +1350,7 @@ int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 /**
  * nes_init_2025_phy
  */
-int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
+static int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 {
 	u32 temp_phy_data = 0;
 	u32 temp_phy_data2 = 0;
