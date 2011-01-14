@@ -365,7 +365,7 @@ static int find_unbound_irq(void)
 	if (WARN_ON(desc == NULL))
 		return -1;
 
-	dynamic_irq_init(irq);
+	dynamic_irq_init_keep_chip_data(irq);
 
 	return irq;
 }
