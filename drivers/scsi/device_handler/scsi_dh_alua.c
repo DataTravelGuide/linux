@@ -731,6 +731,7 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"Pillar", "Axiom" },
 	{"Intel", "Multi-Flex"},
 	{"NETAPP", "LUN"},
+	{"NETAPP", "LUN C-Mode"},
 	{"Promise", "VTrak"},
 	{NULL, NULL}
 };
