@@ -1025,21 +1025,6 @@ int xen_set_callback_via(uint64_t via)
 }
 EXPORT_SYMBOL_GPL(xen_set_callback_via);
 
-void smp_xen_hvm_callback_vector(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	exit_idle();
-
-	irq_enter();
-
-	__xen_evtchn_do_upcall();
-
-	irq_exit();
-
-	set_irq_regs(old_regs);
-}
-
 /* Vector callbacks are better than PCI interrupts to receive event
  * channel notifications because we can receive vector callbacks on any
  * vcpu and we don't need PCI support or APIC interactions. */
@@ -1058,7 +1043,9 @@ void xen_callback_vector(void)
 		}
 		printk(KERN_INFO "Xen HVM callback vector for event delivery is "
 				"enabled\n");
-		alloc_intr_gate(XEN_HVM_EVTCHN_CALLBACK, xen_hvm_callback_vector);
+		/* in the restore case the vector has already been allocated */
+		if (!test_bit(XEN_HVM_EVTCHN_CALLBACK, used_vectors))
+			alloc_intr_gate(XEN_HVM_EVTCHN_CALLBACK, xen_hvm_callback_vector);
 	}
 }
 
