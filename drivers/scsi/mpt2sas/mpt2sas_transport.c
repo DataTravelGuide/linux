@@ -396,7 +396,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	    sizeof(struct rep_manu_reply), data_out_dma +
 	    sizeof(struct rep_manu_request));
 
-	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "report_manufacture - "
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "report_manufacture - "
 	    "send to sas_addr(0x%016llx)\n", ioc->name,
 	    (unsigned long long)sas_address));
 	mpt2sas_base_put_smid_default(ioc, smid);
@@ -414,7 +414,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 		goto issue_host_reset;
 	}
 
-	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "report_manufacture - "
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "report_manufacture - "
 	    "complete\n", ioc->name));
 
 	if (ioc->transport_cmds.status & MPT2_CMD_REPLY_VALID) {
@@ -422,7 +422,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 
 		mpi_reply = ioc->transport_cmds.reply;
 
-		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
 		    "report_manufacture - reply data transfer size(%d)\n",
 		    ioc->name, le16_to_cpu(mpi_reply->ResponseDataLength)));
 
@@ -448,7 +448,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 			    manufacture_reply->component_revision_id;
 		}
 	} else
-		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
 		    "report_manufacture - no reply\n", ioc->name));
 
  issue_host_reset:
@@ -1860,7 +1860,7 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	ioc->base_add_sg_single(psge, sgl_flags | (blk_rq_bytes(rsp) + 4),
 	    dma_addr_in);
 
-	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s - "
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "%s - "
 	    "sending smp request\n", ioc->name, __func__));
 
 	mpt2sas_base_put_smid_default(ioc, smid);
@@ -1878,14 +1878,14 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		goto issue_host_reset;
 	}
 
-	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s - "
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "%s - "
 	    "complete\n", ioc->name, __func__));
 
 	if (ioc->transport_cmds.status & MPT2_CMD_REPLY_VALID) {
 
 		mpi_reply = ioc->transport_cmds.reply;
 
-		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
 		    "%s - reply data transfer size(%d)\n",
 		    ioc->name, __func__,
 		    le16_to_cpu(mpi_reply->ResponseDataLength)));
@@ -1896,7 +1896,7 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		rsp->resid_len -=
 		    le16_to_cpu(mpi_reply->ResponseDataLength);
 	} else {
-		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
 		    "%s - no reply\n", ioc->name, __func__));
 		rc = -ENXIO;
 	}
