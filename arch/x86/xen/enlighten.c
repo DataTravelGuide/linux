@@ -1202,6 +1202,15 @@ asmlinkage void __init xen_start_kernel(void)
 
 	xen_smp_init();
 
+#ifdef CONFIG_ACPI_NUMA
+	/*
+	 * The pages we from Xen are not related to machine pages, so
+	 * any NUMA information the kernel tries to get from ACPI will
+	 * be meaningless.  Prevent it from trying.
+	 */
+	acpi_numa = -1;
+#endif
+
 	pgd = (pgd_t *)xen_start_info->pt_base;
 
 	/* Don't do the full vcpu_info placement stuff until we have a
