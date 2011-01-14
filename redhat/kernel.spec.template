@@ -1099,11 +1099,12 @@ hwcap 0 nosegneg"
     # create the kABI metadata for use in packaging
     echo "**** GENERATING kernel ABI metadata ****"
     gzip -c9 < Module.symvers > $RPM_BUILD_ROOT/boot/symvers-$KernelVer.gz
+
+%if %{with_kabichk}
     chmod 0755 %_sourcedir/kabitool
     rm -f %{_tmppath}/kernel-$KernelVer-kabideps
     %_sourcedir/kabitool -s Module.symvers -o %{_tmppath}/kernel-$KernelVer-kabideps
 
-%if %{with_kabichk}
     echo "**** kABI checking is enabled in kernel SPEC file. ****"
     chmod 0755 $RPM_SOURCE_DIR/check-kabi
     if [ -e $RPM_SOURCE_DIR/Module.kabi_%{_target_cpu}$Flavour ]; then
@@ -1114,6 +1115,9 @@ hwcap 0 nosegneg"
         echo "**** NOTE: Cannot find reference Module.kabi file. ****"
     fi
 %endif
+    # Ensure the kabideps file always exists for the RPM ProvReq scripts
+    touch %{_tmppath}/kernel-$KernelVer-kabideps
+
     # then drop all but the needed Makefiles/Kconfig files
     rm -rf $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/Documentation
     rm -rf $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/scripts
