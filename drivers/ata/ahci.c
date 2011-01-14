@@ -905,6 +905,7 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	void __iomem *mmio = ap->host->iomap[AHCI_PCI_BAR];
 	void __iomem *em_mmio = mmio + hpriv->em_loc;
+	const unsigned char *msg_buf = buf;
 	u32 em_ctl, msg;
 	unsigned long flags;
 	int i;
@@ -924,8 +925,8 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 	}
 
 	for (i = 0; i < size; i += 4) {
-		msg = buf[i] | buf[i + 1] << 8 |
-		      buf[i + 2] << 16 | buf[i + 3] << 24;
+		msg = msg_buf[i] | msg_buf[i + 1] << 8 |
+		      msg_buf[i + 2] << 16 | msg_buf[i + 3] << 24;
 		writel(msg, em_mmio + i);
 	}
 
