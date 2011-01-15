@@ -36,7 +36,6 @@
 
 #include <asm/mach_traps.h>
 
-int unknown_nmi_panic;
 int nmi_watchdog_enabled;
 
 static cpumask_t backtrace_mask __read_mostly;
@@ -558,13 +557,6 @@ static void disable_ioapic_nmi_watchdog(void)
 {
 	on_each_cpu(stop_apic_nmi_watchdog, NULL, 1);
 }
-
-static int __init setup_unknown_nmi_panic(char *str)
-{
-	unknown_nmi_panic = 1;
-	return 1;
-}
-__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 {
