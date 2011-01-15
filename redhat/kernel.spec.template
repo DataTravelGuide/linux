@@ -100,8 +100,6 @@ Summary: The Linux kernel
 %define with_headers   %{?_without_headers:   0} %{?!_without_headers:   1}
 # kernel-firmware
 %define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
-# tools/perf
-%define with_perftool  %{?_without_perftool:  0} %{?!_without_perftool:  1}
 # perf noarch subpkg
 %define with_perf      %{?_without_perf:      0} %{?!_without_perf:      1}
 # kernel-debuginfo
@@ -234,7 +232,7 @@ Summary: The Linux kernel
 %define with_pae 0
 %define with_xen 0
 %define with_kdump 0
-%define with_perftool 0
+%define with_perf 0
 %endif
 
 %define all_x86 i386 i686
@@ -265,13 +263,13 @@ Summary: The Linux kernel
 # only package docs noarch
 %ifnarch noarch
 %define with_doc 0
-%define with_perf 0
 %endif
 
 # don't build noarch kernels or headers (duh)
 %ifarch noarch
 %define with_up 0
 %define with_headers 0
+%define with_perf 0
 %define all_arch_configs kernel-%{version}-*.config
 %define with_firmware  %{?_without_firmware:  0} %{?!_without_firmware:  1}
 %endif
@@ -339,7 +337,7 @@ Summary: The Linux kernel
 %define make_target image
 %define kernel_image arch/sparc/boot/image
 %define image_install_path boot
-%define with_perftool 0
+%define with_perf 0
 %endif
 
 %ifarch ppc
@@ -403,7 +401,7 @@ Summary: The Linux kernel
 %define with_pae 0
 %define with_kdump 0
 %define with_debuginfo 0
-%define with_perftool 0
+%define with_perf 0
 %define _enable_debug_packages 0
 %endif
 
@@ -512,15 +510,12 @@ BuildRequires: module-init-tools, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
 BuildRequires: gcc >= 3.4.2, binutils >= 2.12, redhat-rpm-config
 BuildRequires: net-tools, patchutils, rpm-build >= 4.8.0-7
-%if %{with_doc}
-BuildRequires: xmlto
-BuildRequires: asciidoc
-%endif
+BuildRequires: xmlto, asciidoc
 %if %{with_sparse}
 BuildRequires: sparse >= 0.4.1
 %endif
-%if %{with_perftool}
-BuildRequires: elfutils-libelf-devel zlib-devel binutils-devel
+%if %{with_perf}
+BuildRequires: elfutils-libelf-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed)
 %endif
 %if %{signmodules}
 BuildRequires: gnupg
@@ -644,13 +639,17 @@ Group: Development/Debug
 This package is required by %{name}-debuginfo subpackages.
 It provides the kernel source files common to all builds.
 
+%if %{with_perf}
 %package -n perf
 Summary: Performance monitoring for the Linux kernel
 Group: Development/System
 License: GPLv2
+Provides: perl(Perf::Trace::Context) = 0.01
+Provides: perl(Perf::Trace::Core) = 0.01
+Provides: perl(Perf::Trace::Util) = 0.01
 %description -n perf
-This package provides the supporting documentation for the perf tool
-shipped in each kernel image subpackage.
+This package provides the perf tool and the supporting documentation.
+%endif
 
 #
 # This macro creates a kernel-<subpackage>-debuginfo package.
@@ -997,16 +996,6 @@ BuildKernel() {
         make -s ARCH=$Arch V=1 %{?_smp_mflags} modules %{?sparse_mflags} || exit 1
     fi
 
-%if %{with_perftool}
-    pushd tools/perf
-# make sure the scripts are executable... won't be in tarball until 2.6.31 :/
-    chmod +x util/generate-cmdlist.sh util/PERF-VERSION-GEN
-    make -s V=1 %{?_smp_mflags} NO_DEMANGLE=1 perf
-    mkdir -p $RPM_BUILD_ROOT/usr/libexec/
-    install -m 755 perf $RPM_BUILD_ROOT/usr/libexec/perf.$KernelVer
-    popd
-%endif
-
     # Start installing the results
 %if %{with_debuginfo}
     mkdir -p $RPM_BUILD_ROOT%{debuginfodir}/boot
@@ -1260,10 +1249,11 @@ chmod -R a=rX Documentation
 find Documentation -type d | xargs chmod u+w
 %endif
 
+%global perf_make \
+  make %{?_smp_mflags} -C tools/perf -s V=1 HAVE_CPLUS_DEMANGLE=1 NO_DWARF=1 prefix=%{_prefix}
 %if %{with_perf}
-pushd tools/perf
-make %{?_smp_mflags} man || %{doc_build_fail}
-popd
+%{perf_make} all
+%{perf_make} man || %{doc_build_fail}
 %endif
 
 ###
@@ -1314,29 +1304,12 @@ xargs -0 --no-run-if-empty %{__install} -m 444 -t $man9dir $m
 ls $man9dir | grep -q '' || > $man9dir/BROKEN
 %endif # with_doc
 
-# perf docs
 %if %{with_perf}
-mandir=$RPM_BUILD_ROOT%{_datadir}/man
-man1dir=$mandir/man1
-pushd tools/perf/Documentation
-make install-man mandir=$mandir
-popd
+# perf tool binary and supporting scripts/binaries
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install
 
-pushd $man1dir
-for d in *.1; do
- gzip $d;
-done
-popd
-%endif # with_perf
-
-# perf shell wrapper
-%if %{with_perf}
-mkdir -p $RPM_BUILD_ROOT/usr/sbin/
-cp $RPM_SOURCE_DIR/perf $RPM_BUILD_ROOT/usr/sbin/perf
-chmod 0755 $RPM_BUILD_ROOT/usr/sbin/perf
-cp $RPM_SOURCE_DIR/perf-archive $RPM_BUILD_ROOT/usr/sbin/perf-archive
-chmod 0755 $RPM_BUILD_ROOT/usr/sbin/perf-archive
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/perf
+# # perf man pages (note: implicit rpm magic compresses them later)
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install-man || %{doc_build_fail}
 %endif
 
 %if %{with_headers}
@@ -1542,10 +1515,10 @@ fi
 %if %{with_perf}
 %files -n perf
 %defattr(-,root,root)
-%{_datadir}/doc/perf
-/usr/sbin/perf
-/usr/sbin/perf-archive
-%{_datadir}/man/man1/*
+%{_bindir}/perf
+%dir %{_libexecdir}/perf-core
+%{_libexecdir}/perf-core/*
+%{_mandir}/man[1-8]/*
 %endif
 
 # This is %{image_install_path} on an arch where that includes ELF files,
@@ -1567,9 +1540,6 @@ fi
 %endif \
 /boot/System.map-%{KVERREL}%{?2:.%{2}}\
 /boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
-%if %{with_perftool}\
-/usr/libexec/perf.%{KVERREL}%{?2:.%{2}}\
-%endif\
 #/boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
 /boot/config-%{KVERREL}%{?2:.%{2}}\
 %dir /lib/modules/%{KVERREL}%{?2:.%{2}}\
