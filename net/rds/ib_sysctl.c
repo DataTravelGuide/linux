@@ -61,7 +61,7 @@ static unsigned long rds_ib_sysctl_max_unsig_wr_max = 64;
  */
 unsigned int rds_ib_sysctl_flow_control = 0;
 
-ctl_table rds_ib_sysctl_table[] = {
+static ctl_table rds_ib_sysctl_table[] = {
 	{
 		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "max_send_wr",
