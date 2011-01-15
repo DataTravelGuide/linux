@@ -387,6 +387,48 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 	((f)->feed.ts.is_filtering) &&					\
 	(((f)->ts_type & (TS_PACKET | TS_DEMUX)) == TS_PACKET))
 
+/* shadow struct operations, necessary to retain kabi compliance */
+static LIST_HEAD(demux_shadow_list);
+
+/* called to find or allocate dvb_demux shadow struct as needed */
+static struct dvb_demux_shadow *demux_shadow(struct dvb_demux *demux)
+{
+	struct dvb_demux_shadow *shdemux;
+
+	list_for_each_entry(shdemux, &demux_shadow_list, shadow_node) {
+		if (shdemux->demux == demux)
+			return shdemux;
+	}
+
+	shdemux = kzalloc(sizeof(*shdemux), GFP_KERNEL);
+	if (!shdemux)
+		return NULL;
+
+	shdemux->demux = demux;
+	INIT_LIST_HEAD(&shdemux->shadow_node);
+	list_add(&shdemux->shadow_node, &demux_shadow_list);
+
+	return shdemux;
+}
+
+/* called to release dvb_demux shadow struct as needed */
+static void demux_shadow_release(struct dvb_demux *demux)
+{
+	struct dvb_demux_shadow *shdemux = NULL, *shtmp;
+
+	list_for_each_entry(shtmp, &demux_shadow_list, shadow_node) {
+		if (shtmp->demux == demux) {
+			shdemux = shtmp;
+			break;
+		}
+	}
+	if (!shdemux)
+		return;
+
+	list_del(&shdemux->shadow_node);
+	kfree(shdemux);
+}
+
 static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 {
 	struct dvb_demux_feed *feed;
@@ -396,18 +438,22 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 	if (dvb_demux_speedcheck) {
 		struct timespec cur_time, delta_time;
 		u64 speed_bytes, speed_timedelta;
+		struct dvb_demux_shadow *shdemux = demux_shadow(demux);
 
-		demux->speed_pkts_cnt++;
+		if (!shdemux)
+			goto no_speedcheck;
+
+		shdemux->speed_pkts_cnt++;
 
 		/* show speed every SPEED_PKTS_INTERVAL packets */
-		if (!(demux->speed_pkts_cnt % SPEED_PKTS_INTERVAL)) {
+		if (!(shdemux->speed_pkts_cnt % SPEED_PKTS_INTERVAL)) {
 			cur_time = current_kernel_time();
 
-			if (demux->speed_last_time.tv_sec != 0 &&
-					demux->speed_last_time.tv_nsec != 0) {
+			if (shdemux->speed_last_time.tv_sec != 0 &&
+					shdemux->speed_last_time.tv_nsec != 0) {
 				delta_time = timespec_sub(cur_time,
-						demux->speed_last_time);
-				speed_bytes = (u64)demux->speed_pkts_cnt
+						shdemux->speed_last_time);
+				speed_bytes = (u64)shdemux->speed_pkts_cnt
 					* 188 * 8;
 				/* convert to 1024 basis */
 				speed_bytes = 1000 * div64_u64(speed_bytes,
@@ -421,11 +467,12 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 							speed_timedelta));
 			};
 
-			demux->speed_last_time = cur_time;
-			demux->speed_pkts_cnt = 0;
+			shdemux->speed_last_time = cur_time;
+			shdemux->speed_pkts_cnt = 0;
 		};
 	};
 
+no_speedcheck:
 	if (demux->cnt_storage && dvb_demux_tscheck) {
 		/* check pkt counter */
 		if (pid < MAX_PID) {
@@ -1294,6 +1341,7 @@ EXPORT_SYMBOL(dvb_dmx_init);
 
 void dvb_dmx_release(struct dvb_demux *dvbdemux)
 {
+	demux_shadow_release(dvbdemux);
 	vfree(dvbdemux->cnt_storage);
 	vfree(dvbdemux->filter);
 	vfree(dvbdemux->feed);

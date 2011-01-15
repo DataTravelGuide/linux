@@ -133,9 +133,16 @@ struct dvb_demux {
 	spinlock_t lock;
 
 	uint8_t *cnt_storage; /* for TS continuity check */
+};
+
+struct dvb_demux_shadow {
+#ifndef __GENKSYMS__
+	struct dvb_demux *demux;
+	struct list_head shadow_node;
 
 	struct timespec speed_last_time; /* for TS speed check */
 	uint32_t speed_pkts_cnt; /* for TS speed check */
+#endif
 };
 
 int dvb_dmx_init(struct dvb_demux *dvbdemux);
