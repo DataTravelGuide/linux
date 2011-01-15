@@ -482,6 +482,7 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 		.net		= &init_net,
 		.address	= (struct sockaddr *) &conn->cb_addr,
 		.addrsize	= conn->cb_addrlen,
+		.saddress	= (struct sockaddr *) &conn->cb_saddr,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
 		.version	= 0,
