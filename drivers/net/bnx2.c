@@ -4716,7 +4716,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		val = BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
 		      BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP;
 
-		pci_write_config_dword(bp->pdev, BNX2_PCICFG_MISC_CONFIG, val);
+		REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
 
 	} else {
 		val = BNX2_PCICFG_MISC_CONFIG_CORE_RST_REQ |
@@ -7960,15 +7960,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_release;
 	}
 
+	bnx2_set_power_state(bp, PCI_D0);
+
 	/* Configure byte swap and enable write to the reg_window registers.
 	 * Rely on CPU to do target byte swapping on big endian systems
 	 * The chip's target access swapping will not swap all accesses
 	 */
-	pci_write_config_dword(bp->pdev, BNX2_PCICFG_MISC_CONFIG,
-			       BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
-			       BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP);
-
-	bnx2_set_power_state(bp, PCI_D0);
+	REG_WR(bp, BNX2_PCICFG_MISC_CONFIG,
+		   BNX2_PCICFG_MISC_CONFIG_REG_WINDOW_ENA |
+		   BNX2_PCICFG_MISC_CONFIG_TARGET_MB_WORD_SWAP);
 
 	bp->chip_id = REG_RD(bp, BNX2_MISC_ID);
 
