@@ -8435,7 +8435,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
 
-	flush_scheduled_work();
+	cancel_work_sync(&bp->reset_task);
 
 	unregister_netdev(dev);
 
@@ -8473,7 +8473,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
-	flush_scheduled_work();
+	cancel_work_sync(&bp->reset_task);
 	bnx2_netif_stop(bp, true);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
