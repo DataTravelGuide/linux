@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -30,6 +30,7 @@
 
 /* Device IDs */
 #define IXGBE_DEV_ID_82599_VF           0x10ED
+#define IXGBE_DEV_ID_X540_VF            0x1515
 
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
 #define IXGBE_VF_MAX_TX_QUEUES          1
@@ -41,11 +42,13 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_1GB_FULL       0x0020
 #define IXGBE_LINK_SPEED_10GB_FULL      0x0080
 
-#define IXGBE_CTRL_RST          0x04000000 /* Reset (SW) */
-#define IXGBE_RXDCTL_ENABLE     0x02000000 /* Enable specific Rx Queue */
-#define IXGBE_TXDCTL_ENABLE     0x02000000 /* Enable specific Tx Queue */
-#define IXGBE_LINKS_UP          0x40000000
-#define IXGBE_LINKS_SPEED       0x20000000
+#define IXGBE_CTRL_RST              0x04000000 /* Reset (SW) */
+#define IXGBE_RXDCTL_ENABLE         0x02000000 /* Enable specific Rx Queue */
+#define IXGBE_TXDCTL_ENABLE         0x02000000 /* Enable specific Tx Queue */
+#define IXGBE_LINKS_UP              0x40000000
+#define IXGBE_LINKS_SPEED_82599     0x30000000
+#define IXGBE_LINKS_SPEED_10G_82599 0x30000000
+#define IXGBE_LINKS_SPEED_1G_82599  0x20000000
 
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE  8
