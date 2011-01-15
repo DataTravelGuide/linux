@@ -49,10 +49,13 @@ struct v4l2_device {
 	/* notify callback called by some sub-devices. */
 	void (*notify)(struct v4l2_subdev *sd,
 			unsigned int notification, void *arg);
+#ifndef __GENKSYMS__
 	/* The control handler. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
+
 	/* BKL replacement mutex. Temporary solution only. */
 	struct mutex ioctl_lock;
+#endif
 };
 
 /* Initialize v4l2_dev and make dev->driver_data point to v4l2_dev.

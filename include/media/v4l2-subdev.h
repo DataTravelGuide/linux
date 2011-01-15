@@ -142,8 +142,6 @@ struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*s_config)(struct v4l2_subdev *sd, int irq, void *platform_data);
-	int (*s_io_pin_config)(struct v4l2_subdev *sd, size_t n,
-				      struct v4l2_subdev_io_pin_config *pincfg);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	int (*load_fw)(struct v4l2_subdev *sd);
 	int (*reset)(struct v4l2_subdev *sd, u32 val);
@@ -161,9 +159,13 @@ struct v4l2_subdev_core_ops {
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 #endif
+#ifndef __GENKSYMS__
+	int (*s_io_pin_config)(struct v4l2_subdev *sd, size_t n,
+				      struct v4l2_subdev_io_pin_config *pincfg);
 	int (*s_power)(struct v4l2_subdev *sd, int on);
 	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
 						u32 status, bool *handled);
+#endif
 };
 
 /* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
@@ -185,6 +187,7 @@ struct v4l2_subdev_tuner_ops {
 	int (*s_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
 	int (*s_config)(struct v4l2_subdev *sd, const struct v4l2_priv_tun_config *config);
+	int (*s_standby)(struct v4l2_subdev *sd);
 };
 
 /* s_clock_freq: set the frequency (in Hz) of the audio clock output.
@@ -211,7 +214,9 @@ struct v4l2_subdev_audio_ops {
 	int (*s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_i2s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
+#ifndef __GENKSYMS__
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
+#endif
 };
 
 /*
@@ -252,10 +257,18 @@ struct v4l2_subdev_audio_ops {
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 	int (*s_crystal_freq)(struct v4l2_subdev *sd, u32 freq, u32 flags);
+	int (*decode_vbi_line)(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi_line);
+	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);
+	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
+	int (*g_sliced_vbi_cap)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_cap *cap);
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
 	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
+	int (*enum_fmt)(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmtdesc);
+	int (*g_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*try_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
 	int (*cropcap)(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
 	int (*g_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
 	int (*s_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
@@ -263,6 +276,7 @@ struct v4l2_subdev_video_ops {
 	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
+#ifndef __GENKSYMS__
 	int (*enum_dv_presets) (struct v4l2_subdev *sd,
 			struct v4l2_dv_enum_preset *preset);
 	int (*s_dv_preset)(struct v4l2_subdev *sd,
@@ -281,6 +295,7 @@ struct v4l2_subdev_video_ops {
 			    struct v4l2_mbus_framefmt *fmt);
 	int (*s_mbus_fmt)(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *fmt);
+#endif
 };
 
 /*
@@ -317,9 +332,27 @@ struct v4l2_subdev_vbi_ops {
 	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_sliced_vbi_cap)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_cap *cap);
+	/* These are all currently unused, but retained for kabi checking reasons... */
+	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
+	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
+	int (*s_stream)(struct v4l2_subdev *sd, int enable);
+	int (*enum_fmt)(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmtdesc);
+	int (*g_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*try_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*cropcap)(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
+	int (*g_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
+	int (*s_crop)(struct v4l2_subdev *sd, struct v4l2_crop *crop);
+	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
+	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
+	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
+	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
+#ifndef __GENKSYMS__
 	int (*s_raw_fmt)(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
 	int (*g_sliced_fmt)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
 	int (*s_sliced_fmt)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
+#endif
 };
 
 /**
@@ -410,9 +443,11 @@ struct v4l2_subdev_ops {
 	const struct v4l2_subdev_tuner_ops	*tuner;
 	const struct v4l2_subdev_audio_ops	*audio;
 	const struct v4l2_subdev_video_ops	*video;
+#ifndef __GENKSYMS__
 	const struct v4l2_subdev_vbi_ops	*vbi;
 	const struct v4l2_subdev_ir_ops		*ir;
 	const struct v4l2_subdev_sensor_ops	*sensor;
+#endif
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
@@ -431,15 +466,20 @@ struct v4l2_subdev {
 	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
-	/* The control handler of this subdev. May be NULL. */
-	struct v4l2_ctrl_handler *ctrl_handler;
 	/* name must be unique */
 	char name[V4L2_SUBDEV_NAME_SIZE];
 	/* can be used to group similar subdevs, value is driver-specific */
 	u32 grp_id;
 	/* pointer to private data */
+	/* note: priv is deprecated, but retained for kabi */
+	void *priv;
+#ifndef __GENKSYMS__
+	/* The control handler of this subdev. May be NULL. */
+	struct v4l2_ctrl_handler *ctrl_handler;
+
 	void *dev_priv;
 	void *host_priv;
+#endif
 };
 
 static inline void v4l2_set_subdevdata(struct v4l2_subdev *sd, void *p)

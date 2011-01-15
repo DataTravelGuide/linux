@@ -232,6 +232,11 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_enum_frameintervals) (struct file *file, void *fh,
 					   struct v4l2_frmivalenum *fival);
 
+	/* For other private ioctls */
+	long (*vidioc_default)	       (struct file *file, void *fh,
+					int cmd, void *arg);
+
+#ifndef __GENKSYMS__
 	/* DV Timings IOCTLs */
 	int (*vidioc_enum_dv_presets) (struct file *file, void *fh,
 				       struct v4l2_dv_enum_preset *preset);
@@ -251,10 +256,7 @@ struct v4l2_ioctl_ops {
 					struct v4l2_event_subscription *sub);
 	int (*vidioc_unsubscribe_event)(struct v4l2_fh *fh,
 					struct v4l2_event_subscription *sub);
-
-	/* For other private ioctls */
-	long (*vidioc_default)	       (struct file *file, void *fh,
-					int cmd, void *arg);
+#endif
 };
 
 

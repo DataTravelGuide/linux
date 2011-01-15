@@ -840,8 +840,12 @@ struct v4l2_input {
 	__u32        tuner;             /*  Associated tuner */
 	v4l2_std_id  std;
 	__u32	     status;
+#ifndef __GENKSYMS__
 	__u32	     capabilities;
 	__u32	     reserved[3];
+#else
+	__u32	     reserved[4];
+#endif
 };
 
 /*  Values for the 'type' field */
@@ -887,8 +891,12 @@ struct v4l2_output {
 	__u32	     audioset;		/*  Associated audios (bitfield) */
 	__u32	     modulator;         /*  Associated modulator */
 	v4l2_std_id  std;
+#ifndef __GENKSYMS__
 	__u32	     capabilities;
 	__u32	     reserved[3];
+#else
+	__u32	     reserved[4];
+#endif
 };
 /*  Values for the 'type' field */
 #define V4L2_OUTPUT_TYPE_MODULATOR		1
@@ -1399,8 +1407,12 @@ struct v4l2_hw_freq_seek {
 	enum v4l2_tuner_type  type;
 	__u32		      seek_upward;
 	__u32		      wrap_around;
+#ifndef __GENKSYMS__
 	__u32		      spacing;
 	__u32		      reserved[7];
+#else
+	__u32		      reserved[8];
+#endif
 };
 
 /*
