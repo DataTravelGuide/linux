@@ -480,7 +480,8 @@ struct adapter {
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned long registered_device_map;
-	unsigned long flags;
+	unsigned int fn;
+	unsigned int flags;
 
 	const char *name;
 	int msg_enable;
