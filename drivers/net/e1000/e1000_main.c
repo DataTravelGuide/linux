@@ -2545,8 +2545,6 @@ set_itr_now:
 		adapter->itr = new_itr;
 		ew32(ITR, 1000000000 / (new_itr * 256));
 	}
-
-	return;
 }
 
 #define E1000_TX_FLAGS_CSUM		0x00000001
