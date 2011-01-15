@@ -73,10 +73,6 @@ struct mlx4_dev_cap {
 	int max_pkeys[MLX4_MAX_PORTS + 1];
 	u64 def_mac[MLX4_MAX_PORTS + 1];
 	u16 eth_mtu[MLX4_MAX_PORTS + 1];
-	int trans_type[MLX4_MAX_PORTS + 1];
-	int vendor_oui[MLX4_MAX_PORTS + 1];
-	u16 wavelength[MLX4_MAX_PORTS + 1];
-	u64 trans_code[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	int loopback_support;
 	u32 flags;
@@ -104,7 +100,6 @@ struct mlx4_dev_cap {
 	int dmpt_entry_sz;
 	int cmpt_entry_sz;
 	int mtt_entry_sz;
-	int inline_cfg;
 	int resize_srq;
 	u32 bmme_flags;
 	u32 reserved_lkey;
