@@ -385,7 +385,7 @@ static int cxusb_d680_dmb_streaming_ctrl(
 
 static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	u8 ircode[4];
 	int i;
 
@@ -394,10 +394,10 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[2] &&
 		    rc5_data(&keymap[i]) == ircode[3]) {
-			*event = keymap[i].keycode;
+			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -410,7 +410,7 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 				    int *state)
 {
-	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	u8 ircode[4];
 	int i;
 	struct i2c_msg msg = { .addr = 0x6b, .flags = I2C_M_RD,
@@ -422,10 +422,10 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 	if (cxusb_i2c_xfer(&d->i2c_adap, &msg, 1) != 1)
 		return 0;
 
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[1] &&
 		    rc5_data(&keymap[i]) == ircode[2]) {
-			*event = keymap[i].keycode;
+			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -438,7 +438,7 @@ static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
 static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 		int *state)
 {
-	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
 	u8 ircode[2];
 	int i;
 
@@ -448,10 +448,10 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	if (cxusb_ctrl_msg(d, 0x10, NULL, 0, ircode, 2) < 0)
 		return 0;
 
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].keycode;
+			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
 			return 0;
@@ -461,7 +461,7 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	return 0;
 }
 
-static struct rc_map_table rc_map_dvico_mce_table[] = {
+static struct dvb_usb_rc_key rc_map_dvico_mce_table[] = {
 	{ 0xfe02, KEY_TV },
 	{ 0xfe0e, KEY_MP3 },
 	{ 0xfe1a, KEY_DVD },
@@ -509,7 +509,7 @@ static struct rc_map_table rc_map_dvico_mce_table[] = {
 	{ 0xfe4e, KEY_POWER },
 };
 
-static struct rc_map_table rc_map_dvico_portable_table[] = {
+static struct dvb_usb_rc_key rc_map_dvico_portable_table[] = {
 	{ 0xfc02, KEY_SETUP },       /* Profile */
 	{ 0xfc43, KEY_POWER2 },
 	{ 0xfc06, KEY_EPG },
@@ -548,7 +548,7 @@ static struct rc_map_table rc_map_dvico_portable_table[] = {
 	{ 0xfc00, KEY_UNKNOWN },    /* HD */
 };
 
-static struct rc_map_table rc_map_d680_dmb_table[] = {
+static struct dvb_usb_rc_key rc_map_d680_dmb_table[] = {
 	{ 0x0038, KEY_UNKNOWN },	/* TV/AV */
 	{ 0x080c, KEY_ZOOM },
 	{ 0x0800, KEY_0 },
@@ -923,7 +923,7 @@ static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
 		return -EIO;
 
 	/* try to determine if there is no IR decoder on the I2C bus */
-	for (i = 0; adap->dev->props.rc.legacy.rc_map_table != NULL && i < 5; i++) {
+	for (i = 0; adap->dev->props.rc_key_map != NULL && i < 5; i++) {
 		msleep(20);
 		if (cxusb_i2c_xfer(&adap->dev->i2c_adap, &msg, 1) != 1)
 			goto no_IR;
@@ -931,7 +931,7 @@ static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
 			continue;
 		if (ircode[2] + ircode[3] != 0xff) {
 no_IR:
-			adap->dev->props.rc.legacy.rc_map_table = NULL;
+			adap->dev->props.rc_key_map = NULL;
 			info("No IR receiver detected on this device.");
 			break;
 		}
@@ -1451,12 +1451,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_portable_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_portable_table),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1504,12 +1502,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc.legacy = {
-		.rc_interval      = 150,
-		.rc_map_table     = rc_map_dvico_mce_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_mce_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 150,
+	.rc_key_map       = rc_map_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_mce_table),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1565,12 +1561,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_portable_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_portable_table),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 	.num_device_descs = 1,
@@ -1617,12 +1611,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_portable_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_portable_table),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
@@ -1668,12 +1660,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_mce_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_mce_table),
-		.rc_query         = cxusb_bluebird2_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_mce_table),
+	.rc_query         = cxusb_bluebird2_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1718,12 +1708,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_portable_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_query         = cxusb_bluebird2_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_portable_table),
+	.rc_query         = cxusb_bluebird2_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1770,12 +1758,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_portable_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_portable_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_portable_table),
+	.rc_query         = cxusb_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1863,12 +1849,10 @@ struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_dvico_mce_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_dvico_mce_table),
-		.rc_query         = cxusb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_dvico_mce_table),
+	.rc_query         = cxusb_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1913,12 +1897,10 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_d680_dmb_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_d680_dmb_table),
-		.rc_query         = cxusb_d680_dmb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_d680_dmb_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_d680_dmb_table),
+	.rc_query         = cxusb_d680_dmb_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -1964,12 +1946,10 @@ static struct dvb_usb_device_properties cxusb_mygica_d689_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_d680_dmb_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_d680_dmb_table),
-		.rc_query         = cxusb_d680_dmb_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_d680_dmb_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_d680_dmb_table),
+	.rc_query         = cxusb_d680_dmb_rc_query,
 
 	.num_device_descs = 1,
 	.devices = {

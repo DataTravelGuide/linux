@@ -766,21 +766,21 @@ static void af9015_set_remote_config(struct usb_device *udev,
 	u16 pid = le16_to_cpu(udev->descriptor.idProduct);
 
 	/* try to load remote based module param */
-	props->rc.core.rc_codes = af9015_rc_setup_match(
+	props->rc_core.rc_codes = af9015_rc_setup_match(
 		dvb_usb_af9015_remote, af9015_rc_setup_modparam);
 
 	/* try to load remote based eeprom hash */
-	if (!props->rc.core.rc_codes)
-		props->rc.core.rc_codes = af9015_rc_setup_match(
+	if (!props->rc_core.rc_codes)
+		props->rc_core.rc_codes = af9015_rc_setup_match(
 			af9015_config.eeprom_sum, af9015_rc_setup_hashes);
 
 	/* try to load remote based USB ID */
-	if (!props->rc.core.rc_codes)
-		props->rc.core.rc_codes = af9015_rc_setup_match(
+	if (!props->rc_core.rc_codes)
+		props->rc_core.rc_codes = af9015_rc_setup_match(
 			(vid << 16) + pid, af9015_rc_setup_usbids);
 
 	/* try to load remote based USB iManufacturer string */
-	if (!props->rc.core.rc_codes && vid == USB_VID_AFATECH) {
+	if (!props->rc_core.rc_codes && vid == USB_VID_AFATECH) {
 		/* Check USB manufacturer and product strings and try
 		   to determine correct remote in case of chip vendor
 		   reference IDs are used.
@@ -792,15 +792,15 @@ static void af9015_set_remote_config(struct usb_device *udev,
 		if (!strcmp("MSI", manufacturer)) {
 			/* iManufacturer 1 MSI
 			   iProduct      2 MSI K-VOX */
-			props->rc.core.rc_codes = af9015_rc_setup_match(
+			props->rc_core.rc_codes = af9015_rc_setup_match(
 				AF9015_REMOTE_MSI_DIGIVOX_MINI_II_V3,
 				af9015_rc_setup_modparam);
 		}
 	}
 
 	/* finally load "empty" just for leaving IR receiver enabled */
-	if (!props->rc.core.rc_codes)
-		props->rc.core.rc_codes = RC_MAP_EMPTY;
+	if (!props->rc_core.rc_codes)
+		props->rc_core.rc_codes = RC_MAP_EMPTY;
 
 	return;
 }
@@ -829,7 +829,7 @@ static int af9015_read_config(struct usb_device *udev)
 	deb_info("%s: IR mode:%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED)
-			af9015_properties[i].rc.core.rc_codes = NULL;
+			af9015_properties[i].rc_core.rc_codes = NULL;
 		else
 			af9015_set_remote_config(udev, &af9015_properties[i]);
 	}
@@ -1343,7 +1343,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc.core = {
+		.rc_core = {
 			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
@@ -1471,7 +1471,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc.core = {
+		.rc_core = {
 			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
@@ -1583,7 +1583,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.identify_state = af9015_identify_state,
 
-		.rc.core = {
+		.rc_core = {
 			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,

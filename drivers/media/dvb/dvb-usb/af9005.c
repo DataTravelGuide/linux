@@ -1025,12 +1025,10 @@ static struct dvb_usb_device_properties af9005_properties = {
 
 	.i2c_algo = &af9005_i2c_algo,
 
-	.rc.legacy = {
-		.rc_interval = 200,
-		.rc_map_table = NULL,
-		.rc_map_size = 0,
-		.rc_query = af9005_rc_query,
-	},
+	.rc_interval = 200,
+	.rc_key_map = NULL,
+	.rc_key_map_size = 0,
+	.rc_query = af9005_rc_query,
 
 	.generic_bulk_ctrl_endpoint          = 2,
 	.generic_bulk_ctrl_endpoint_response = 1,
@@ -1074,10 +1072,10 @@ static int __init af9005_usb_module_init(void)
 	rc_keys_size = symbol_request(rc_map_af9005_table_size);
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
 		err("af9005_rc_decode function not found, disabling remote");
-		af9005_properties.rc.legacy.rc_query = NULL;
+		af9005_properties.rc_query = NULL;
 	} else {
-		af9005_properties.rc.legacy.rc_map_table = rc_keys;
-		af9005_properties.rc.legacy.rc_map_size = *rc_keys_size;
+		af9005_properties.rc_key_map = rc_keys;
+		af9005_properties.rc_key_map_size = *rc_keys_size;
 	}
 
 	return 0;

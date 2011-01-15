@@ -499,7 +499,7 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 rc_type)
 		return ret;
 	}
 
-	d->props.rc.core.protocol = rc_type;
+	d->props.rc_core.protocol = rc_type;
 
 	return ret;
 }
@@ -561,7 +561,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		 poll_reply->data, poll_reply->not_data,
 		 purb->actual_length);
 
-	switch (d->props.rc.core.protocol) {
+	switch (d->props.rc_core.protocol) {
 	case RC_TYPE_NEC:
 		toggle = 0;
 
@@ -669,9 +669,9 @@ static int dib0700_probe(struct usb_interface *intf,
 
 			/* Disable polling mode on newer firmwares */
 			if (st->fw_version >= 0x10200)
-				dev->props.rc.core.bulk_mode = true;
+				dev->props.rc_core.bulk_mode = true;
 			else
-				dev->props.rc.core.bulk_mode = false;
+				dev->props.rc_core.bulk_mode = false;
 
 			dib0700_rc_setup(dev);
 

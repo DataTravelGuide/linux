@@ -474,7 +474,7 @@ static struct dvb_usb_device_properties anysee_properties = {
 		}
 	},
 
-	.rc.core = {
+	.rc_core = {
 		.rc_codes         = RC_MAP_ANYSEE,
 		.protocol         = RC_TYPE_OTHER,
 		.module_name      = "anysee",

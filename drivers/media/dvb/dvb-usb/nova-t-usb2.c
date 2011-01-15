@@ -21,7 +21,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define deb_ee(args...) dprintk(debug,0x02,args)
 
 /* Hauppauge NOVA-T USB2 keys */
-static struct rc_map_table rc_map_haupp_table[] = {
+static struct dvb_usb_rc_key rc_map_haupp_table[] = {
 	{ 0x1e00, KEY_0 },
 	{ 0x1e01, KEY_1 },
 	{ 0x1e02, KEY_2 },
@@ -98,7 +98,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					deb_rc("c: %x, d: %x\n", rc5_data(&rc_map_haupp_table[i]),
 								 rc5_custom(&rc_map_haupp_table[i]));
 
-					*event = rc_map_haupp_table[i].keycode;
+					*event = rc_map_haupp_table[i].event;
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
 						if (st->last_repeat_count++ < 2)
@@ -195,12 +195,10 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.power_ctrl       = dibusb2_0_power_ctrl,
 	.read_mac_address = nova_t_read_mac_address,
 
-	.rc.legacy = {
-		.rc_interval      = 100,
-		.rc_map_table     = rc_map_haupp_table,
-		.rc_map_size      = ARRAY_SIZE(rc_map_haupp_table),
-		.rc_query         = nova_t_rc_query,
-	},
+	.rc_interval      = 100,
+	.rc_key_map       = rc_map_haupp_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_haupp_table),
+	.rc_query         = nova_t_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
 

@@ -99,7 +99,7 @@ static int vp7045_power_ctrl(struct dvb_usb_device *d, int onoff)
 
 /* The keymapping struct. Somehow this should be loaded to the driver, but
  * currently it is hardcoded. */
-static struct rc_map_table rc_map_vp7045_table[] = {
+static struct dvb_usb_rc_key rc_map_vp7045_table[] = {
 	{ 0x0016, KEY_POWER },
 	{ 0x0010, KEY_MUTE },
 	{ 0x0003, KEY_1 },
@@ -168,7 +168,7 @@ static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < ARRAY_SIZE(rc_map_vp7045_table); i++)
 		if (rc5_data(&rc_map_vp7045_table[i]) == key) {
 			*state = REMOTE_KEY_PRESSED;
-			*event = rc_map_vp7045_table[i].keycode;
+			*event = rc_map_vp7045_table[i].event;
 			break;
 		}
 	return 0;
@@ -259,12 +259,10 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.power_ctrl       = vp7045_power_ctrl,
 	.read_mac_address = vp7045_read_mac_addr,
 
-	.rc.legacy = {
-		.rc_interval      = 400,
-		.rc_map_table       = rc_map_vp7045_table,
-		.rc_map_size  = ARRAY_SIZE(rc_map_vp7045_table),
-		.rc_query         = vp7045_rc_query,
-	},
+	.rc_interval      = 400,
+	.rc_key_map       = rc_map_vp7045_table,
+	.rc_key_map_size  = ARRAY_SIZE(rc_map_vp7045_table),
+	.rc_query         = vp7045_rc_query,
 
 	.num_device_descs = 2,
 	.devices = {

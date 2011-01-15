@@ -373,7 +373,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 
 	.size_of_priv = sizeof(struct ttusb2_state),
 
-	.rc.core = {
+	.rc_core = {
 		.rc_interval      = 150, /* Less than IR_KEYPRESS_TIMEOUT */
 		.rc_codes         = RC_MAP_TT_1500,
 		.rc_query         = tt3650_rc_query,
