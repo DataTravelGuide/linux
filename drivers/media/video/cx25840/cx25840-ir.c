@@ -116,7 +116,7 @@ struct cx25840_ir_state {
 	atomic_t rxclk_divider;
 	atomic_t rx_invert;
 
-	struct kfifo rx_kfifo;
+	struct kfifo *rx_kfifo;
 	spinlock_t rx_kfifo_lock; /* protect Rx data kfifo */
 
 	struct v4l2_subdev_ir_parameters tx_params;
@@ -525,7 +525,6 @@ int cx25840_ir_irq_handler(struct v4l2_subdev *sd, u32 status, bool *handled)
 	struct cx25840_state *state = to_state(sd);
 	struct cx25840_ir_state *ir_state = to_ir_state(sd);
 	struct i2c_client *c = NULL;
-	unsigned long flags;
 
 	union cx25840_ir_fifo_rec rx_data[FIFO_RX_DEPTH];
 	unsigned int i, j, k;
@@ -611,9 +610,8 @@ int cx25840_ir_irq_handler(struct v4l2_subdev *sd, u32 status, bool *handled)
 			if (i == 0)
 				break;
 			j = i * sizeof(union cx25840_ir_fifo_rec);
-			k = kfifo_in_locked(&ir_state->rx_kfifo,
-					    (unsigned char *) rx_data, j,
-					    &ir_state->rx_kfifo_lock);
+			k = kfifo_put(ir_state->rx_kfifo,
+					    (unsigned char *) rx_data, j);
 			if (k != j)
 				kror++; /* rx_kfifo over run */
 		}
@@ -649,10 +647,8 @@ int cx25840_ir_irq_handler(struct v4l2_subdev *sd, u32 status, bool *handled)
 		cx25840_write4(c, CX25840_IR_CNTRL_REG, cntrl);
 		*handled = true;
 	}
-	spin_lock_irqsave(&ir_state->rx_kfifo_lock, flags);
-	if (kfifo_len(&ir_state->rx_kfifo) >= CX25840_IR_RX_KFIFO_SIZE / 2)
+	if (kfifo_len(ir_state->rx_kfifo) >= CX25840_IR_RX_KFIFO_SIZE / 2)
 		events |= V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ;
-	spin_unlock_irqrestore(&ir_state->rx_kfifo_lock, flags);
 
 	if (events)
 		v4l2_subdev_notify(sd, V4L2_SUBDEV_IR_RX_NOTIFY, &events);
@@ -683,8 +679,7 @@ static int cx25840_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		return 0;
 	}
 
-	n = kfifo_out_locked(&ir_state->rx_kfifo, buf, n,
-			     &ir_state->rx_kfifo_lock);
+	n = kfifo_get(ir_state->rx_kfifo, buf, n);
 
 	n /= sizeof(union cx25840_ir_fifo_rec);
 	*num = n * sizeof(union cx25840_ir_fifo_rec);
@@ -836,11 +831,7 @@ static int cx25840_ir_rx_s_parameters(struct v4l2_subdev *sd,
 	o->interrupt_enable = p->interrupt_enable;
 	o->enable = p->enable;
 	if (p->enable) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ir_state->rx_kfifo_lock, flags);
-		kfifo_reset(&ir_state->rx_kfifo);
-		spin_unlock_irqrestore(&ir_state->rx_kfifo_lock, flags);
+		kfifo_reset(ir_state->rx_kfifo);
 		if (p->interrupt_enable)
 			irqenable_rx(sd, IRQEN_RSE | IRQEN_RTE | IRQEN_ROE);
 		control_rx_enable(c, p->enable);
@@ -1234,8 +1225,9 @@ int cx25840_ir_probe(struct v4l2_subdev *sd)
 		return -ENOMEM;
 
 	spin_lock_init(&ir_state->rx_kfifo_lock);
-	if (kfifo_alloc(&ir_state->rx_kfifo,
-			CX25840_IR_RX_KFIFO_SIZE, GFP_KERNEL)) {
+	ir_state->rx_kfifo = kfifo_alloc(CX25840_IR_RX_KFIFO_SIZE, GFP_KERNEL,
+				      &ir_state->rx_kfifo_lock);
+	if (IS_ERR(ir_state->rx_kfifo)) {
 		kfree(ir_state);
 		return -ENOMEM;
 	}
@@ -1273,7 +1265,7 @@ int cx25840_ir_remove(struct v4l2_subdev *sd)
 	cx25840_ir_rx_shutdown(sd);
 	cx25840_ir_tx_shutdown(sd);
 
-	kfifo_free(&ir_state->rx_kfifo);
+	kfifo_free(ir_state->rx_kfifo);
 	kfree(ir_state);
 	state->ir_state = NULL;
 	return 0;

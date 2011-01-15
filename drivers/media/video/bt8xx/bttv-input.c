@@ -404,7 +404,7 @@ void __devinit init_bttv_i2c_ir(struct bttv *btv)
 		 * That's why we probe 0x1a (~0x34) first. CB
 		 */
 
-		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
+		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list);
 		return;
 	}
 

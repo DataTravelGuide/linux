@@ -28,19 +28,15 @@ struct lirc_buffer {
 	unsigned int size; /* in chunks */
 	/* Using chunks instead of bytes pretends to simplify boundary checking
 	 * And should allow for some performance fine tunning later */
-	struct kfifo fifo;
+	struct kfifo *fifo;
 	u8 fifo_initialized;
 };
 
 static inline void lirc_buffer_clear(struct lirc_buffer *buf)
 {
-	unsigned long flags;
-
-	if (buf->fifo_initialized) {
-		spin_lock_irqsave(&buf->fifo_lock, flags);
-		kfifo_reset(&buf->fifo);
-		spin_unlock_irqrestore(&buf->fifo_lock, flags);
-	} else
+	if (buf->fifo)
+		kfifo_reset(buf->fifo);
+	else
 		WARN(1, "calling %s on an uninitialized lirc_buffer\n",
 		     __func__);
 }
@@ -49,25 +45,23 @@ static inline int lirc_buffer_init(struct lirc_buffer *buf,
 				    unsigned int chunk_size,
 				    unsigned int size)
 {
-	int ret;
-
 	init_waitqueue_head(&buf->wait_poll);
 	spin_lock_init(&buf->fifo_lock);
 	buf->chunk_size = chunk_size;
 	buf->size = size;
-	ret = kfifo_alloc(&buf->fifo, size * chunk_size, GFP_KERNEL);
-	if (ret == 0)
-		buf->fifo_initialized = 1;
+	buf->fifo = kfifo_alloc(size * chunk_size, GFP_KERNEL,
+				&buf->fifo_lock);
+	if (IS_ERR(buf->fifo))
+		return IS_ERR(buf->fifo);
 
-	return ret;
+	return 0;
 }
 
 static inline void lirc_buffer_free(struct lirc_buffer *buf)
 {
-	if (buf->fifo_initialized) {
-		kfifo_free(&buf->fifo);
-		buf->fifo_initialized = 0;
-	} else
+	if (buf->fifo)
+		kfifo_free(buf->fifo);
+	else
 		WARN(1, "calling %s on an uninitialized lirc_buffer\n",
 		     __func__);
 }
@@ -75,11 +69,8 @@ static inline void lirc_buffer_free(struct lirc_buffer *buf)
 static inline int lirc_buffer_len(struct lirc_buffer *buf)
 {
 	int len;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buf->fifo_lock, flags);
-	len = kfifo_len(&buf->fifo);
-	spin_unlock_irqrestore(&buf->fifo_lock, flags);
+	len = kfifo_len(buf->fifo);
 
 	return len;
 }
@@ -102,24 +93,19 @@ static inline int lirc_buffer_available(struct lirc_buffer *buf)
 static inline unsigned int lirc_buffer_read(struct lirc_buffer *buf,
 					    unsigned char *dest)
 {
-	unsigned int ret = 0;
-
 	if (lirc_buffer_len(buf) >= buf->chunk_size)
-		ret = kfifo_out_locked(&buf->fifo, dest, buf->chunk_size,
-				       &buf->fifo_lock);
-	return ret;
+		kfifo_get(buf->fifo, dest, buf->chunk_size);
+
+	return 0;
 
 }
 
 static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
 					     unsigned char *orig)
 {
-	unsigned int ret;
+	kfifo_put(buf->fifo, orig, buf->chunk_size);
 
-	ret = kfifo_in_locked(&buf->fifo, orig, buf->chunk_size,
-			      &buf->fifo_lock);
-
-	return ret;
+	return 0;
 }
 
 struct lirc_driver {

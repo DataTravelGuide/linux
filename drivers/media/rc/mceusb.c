@@ -1161,7 +1161,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	if (!ir)
 		goto mem_alloc_fail;
 
-	ir->buf_in = usb_alloc_coherent(dev, maxp, GFP_ATOMIC, &ir->dma_in);
+	ir->buf_in = usb_buffer_alloc(dev, maxp, GFP_ATOMIC, &ir->dma_in);
 	if (!ir->buf_in)
 		goto buf_in_alloc_fail;
 
@@ -1227,7 +1227,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 rc_dev_fail:
 	usb_free_urb(ir->urb_in);
 urb_in_alloc_fail:
-	usb_free_coherent(dev, maxp, ir->buf_in, ir->dma_in);
+	usb_buffer_free(dev, maxp, ir->buf_in, ir->dma_in);
 buf_in_alloc_fail:
 	kfree(ir);
 mem_alloc_fail:
@@ -1251,7 +1251,7 @@ static void __devexit mceusb_dev_disconnect(struct usb_interface *intf)
 	rc_unregister_device(ir->rc);
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
-	usb_free_coherent(dev, ir->len_in, ir->buf_in, ir->dma_in);
+	usb_buffer_free(dev, ir->len_in, ir->buf_in, ir->dma_in);
 
 	kfree(ir);
 }

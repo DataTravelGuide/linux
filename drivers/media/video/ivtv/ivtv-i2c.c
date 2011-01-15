@@ -186,7 +186,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 			return -1;
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, type, I2C_NAME_SIZE);
-		return i2c_new_probed_device(adap, &info, addr_list, NULL)
+		return i2c_new_probed_device(adap, &info, addr_list)
 							   == NULL ? -1 : 0;
 	}
 
@@ -231,7 +231,7 @@ static int ivtv_i2c_new_ir(struct ivtv *itv, u32 hw, const char *type, u8 addr)
 	info.platform_data = init_data;
 	strlcpy(info.type, type, I2C_NAME_SIZE);
 
-	return i2c_new_probed_device(adap, &info, addr_list, NULL) == NULL ?
+	return i2c_new_probed_device(adap, &info, addr_list) == NULL ?
 	       -1 : 0;
 }
 
@@ -258,7 +258,7 @@ struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-	return i2c_new_probed_device(&itv->i2c_adap, &info, addr_list, NULL);
+	return i2c_new_probed_device(&itv->i2c_adap, &info, addr_list);
 }
 
 int ivtv_i2c_register(struct ivtv *itv, unsigned idx)

@@ -1524,7 +1524,6 @@ static const struct file_operations dvb_video_fops = {
 	.open		= dvb_video_open,
 	.release	= dvb_video_release,
 	.poll		= dvb_video_poll,
-	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_video = {
@@ -1543,7 +1542,6 @@ static const struct file_operations dvb_audio_fops = {
 	.open		= dvb_audio_open,
 	.release	= dvb_audio_release,
 	.poll		= dvb_audio_poll,
-	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_audio = {

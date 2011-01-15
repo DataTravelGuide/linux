@@ -354,7 +354,8 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 	} else
 		printk(KERN_WARNING "%s: i2c bus %d register FAILED\n",
 			dev->name, bus->nr);
-
+#if 0
+	/* This probe function won't work on older devices */
 	/* Instantiate the IR receiver device, if present */
 	if (0 == bus->i2c_rc) {
 		struct i2c_board_info info;
@@ -369,7 +370,7 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list,
 				      i2c_probe_func_quick_read);
 	}
-
+#endif
 	return bus->i2c_rc;
 }
 

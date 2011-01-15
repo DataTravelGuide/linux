@@ -2033,8 +2033,7 @@ static const struct file_operations dvb_frontend_fops = {
 	.unlocked_ioctl	= dvb_generic_ioctl,
 	.poll		= dvb_frontend_poll,
 	.open		= dvb_frontend_open,
-	.release	= dvb_frontend_release,
-	.llseek		= noop_llseek,
+	.release	= dvb_frontend_release
 };
 
 int dvb_register_frontend(struct dvb_adapter* dvb,

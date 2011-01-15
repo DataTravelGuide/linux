@@ -213,7 +213,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		goto error;
 	}
 
-	buffer = usb_alloc_coherent(dev, buffer_len,
+	buffer = usb_buffer_alloc(dev, buffer_len,
 				GFP_KERNEL, &urb->transfer_dma);
 	if (!buffer) {
 		ret = -ENOMEM;
@@ -233,7 +233,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	return ret;
 
 error_submit:
-	usb_free_coherent(dev,
+	usb_buffer_free(dev,
 			  urb->transfer_buffer_length,
 			  urb->transfer_buffer,
 			  urb->transfer_dma);
@@ -273,7 +273,7 @@ static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
 	if (urb) {
 		gspca_dev->int_urb = NULL;
 		usb_kill_urb(urb);
-		usb_free_coherent(gspca_dev->dev,
+		usb_buffer_free(gspca_dev->dev,
 				  urb->transfer_buffer_length,
 				  urb->transfer_buffer,
 				  urb->transfer_dma);
@@ -574,7 +574,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 		gspca_dev->urb[i] = NULL;
 		usb_kill_urb(urb);
 		if (urb->transfer_buffer != NULL)
-			usb_free_coherent(gspca_dev->dev,
+			usb_buffer_free(gspca_dev->dev,
 					  urb->transfer_buffer_length,
 					  urb->transfer_buffer,
 					  urb->transfer_dma);
@@ -727,13 +727,13 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
-		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
+		urb->transfer_buffer = usb_buffer_alloc(gspca_dev->dev,
 						bsize,
 						GFP_KERNEL,
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			err("usb_alloc_coherent failed");
+			err("usb_buffer_alloc failed");
 			return -ENOMEM;
 		}
 		urb->dev = gspca_dev->dev;

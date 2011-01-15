@@ -26,6 +26,7 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/errno.h>
@@ -158,7 +159,6 @@ static const struct file_operations vfd_fops = {
 	.open		= &display_open,
 	.write		= &vfd_write,
 	.release	= &display_close,
-	.llseek		= noop_llseek,
 };
 
 /* lcd character device file operations */
@@ -167,7 +167,6 @@ static const struct file_operations lcd_fops = {
 	.open		= &display_open,
 	.write		= &lcd_write,
 	.release	= &display_close,
-	.llseek		= noop_llseek,
 };
 
 enum {

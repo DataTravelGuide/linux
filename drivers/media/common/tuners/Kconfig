@@ -45,7 +45,7 @@ config MEDIA_TUNER_CUSTOMISE
 	  If unsure say N.
 
 menu "Customize TV tuners"
-	visible if MEDIA_TUNER_CUSTOMISE
+	depends on MEDIA_TUNER_CUSTOMISE
 
 config MEDIA_TUNER_SIMPLE
 	tristate "Simple tuner support"

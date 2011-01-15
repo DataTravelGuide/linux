@@ -13,7 +13,7 @@ config DVB_FE_CUSTOMISE
 	  If unsure say N.
 
 menu "Customise DVB Frontends"
-	visible if DVB_FE_CUSTOMISE
+	depends on DVB_FE_CUSTOMISE
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE

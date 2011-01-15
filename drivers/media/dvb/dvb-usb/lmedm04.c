@@ -288,7 +288,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	if (lme_int->lme_urb == NULL)
 			return -ENOMEM;
 
-	lme_int->buffer = usb_alloc_coherent(adap->dev->udev, 5000, GFP_ATOMIC,
+	lme_int->buffer = usb_buffer_alloc(adap->dev->udev, 5000, GFP_ATOMIC,
 					&lme_int->lme_urb->transfer_dma);
 
 	if (lme_int->buffer == NULL)
@@ -1058,7 +1058,7 @@ void *lme2510_exit_int(struct dvb_usb_device *d)
 		st->signal_sn = 0;
 		buffer = st->usb_buffer;
 		usb_kill_urb(st->lme_urb);
-		usb_free_coherent(d->udev, 5000, st->buffer,
+		usb_buffer_free(d->udev, 5000, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interupt Service Stopped");
 		rc_unregister_device(d->rc_dev);

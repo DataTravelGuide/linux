@@ -453,7 +453,7 @@ static int poseidon_probe(struct usb_interface *interface,
 	device_init_wakeup(&udev->dev, 1);
 #ifdef CONFIG_PM
 	pd->udev->autosuspend_delay = HZ * PM_SUSPEND_DELAY;
-	usb_enable_autosuspend(pd->udev);
+	pd->udev->autosuspend_disabled = 0;
 
 	if (in_hibernation(pd)) {
 		INIT_WORK(&pd->pm_work, hibernation_resume);

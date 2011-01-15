@@ -162,7 +162,6 @@ static struct file_operations lirc_dev_fops = {
 #endif
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
-	.llseek		= noop_llseek,
 };
 
 static int lirc_cdev_add(struct irctl *ir)

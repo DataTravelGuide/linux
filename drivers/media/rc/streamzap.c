@@ -400,7 +400,7 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 	}
 
 	/* Allocate the USB buffer and IRQ URB */
-	sz->buf_in = usb_alloc_coherent(usbdev, maxp, GFP_ATOMIC, &sz->dma_in);
+	sz->buf_in = usb_buffer_alloc(usbdev, maxp, GFP_ATOMIC, &sz->dma_in);
 	if (!sz->buf_in)
 		goto free_sz;
 
@@ -464,7 +464,7 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 rc_dev_fail:
 	usb_free_urb(sz->urb_in);
 free_buf_in:
-	usb_free_coherent(usbdev, maxp, sz->buf_in, sz->dma_in);
+	usb_buffer_free(usbdev, maxp, sz->buf_in, sz->dma_in);
 free_sz:
 	kfree(sz);
 
@@ -495,7 +495,7 @@ static void streamzap_disconnect(struct usb_interface *interface)
 	rc_unregister_device(sz->rdev);
 	usb_kill_urb(sz->urb_in);
 	usb_free_urb(sz->urb_in);
-	usb_free_coherent(usbdev, sz->buf_in_len, sz->buf_in, sz->dma_in);
+	usb_buffer_free(usbdev, sz->buf_in_len, sz->buf_in, sz->dma_in);
 
 	kfree(sz);
 }

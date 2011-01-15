@@ -1819,7 +1819,7 @@ static int uvc_probe(struct usb_interface *intf,
 	}
 
 	uvc_trace(UVC_TRACE_PROBE, "UVC device initialized.\n");
-	usb_enable_autosuspend(udev);
+	udev->autosuspend_disabled = 0;
 	return 0;
 
 error:

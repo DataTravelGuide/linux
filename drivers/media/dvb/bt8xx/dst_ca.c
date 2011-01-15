@@ -695,8 +695,7 @@ static const struct file_operations dst_ca_fops = {
 	.open = dst_ca_open,
 	.release = dst_ca_release,
 	.read = dst_ca_read,
-	.write = dst_ca_write,
-	.llseek = noop_llseek,
+	.write = dst_ca_write
 };
 
 static struct dvb_device dvbdev_ca = {

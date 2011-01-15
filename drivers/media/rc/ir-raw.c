@@ -44,7 +44,7 @@ static int ir_raw_event_thread(void *data)
 	while (!kthread_should_stop()) {
 
 		spin_lock_irq(&raw->lock);
-		retval = kfifo_out(&raw->kfifo, &ev, sizeof(ev));
+		retval = __kfifo_get(raw->kfifo, (void *)&ev, sizeof(ev));
 
 		if (!retval) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -90,7 +90,7 @@ int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev)
 	IR_dprintk(2, "sample: (%05dus %s)\n",
 		   TO_US(ev->duration), TO_STR(ev->pulse));
 
-	if (kfifo_in(&dev->raw->kfifo, ev, sizeof(*ev)) != sizeof(*ev))
+	if (__kfifo_put(dev->raw->kfifo, (void *)ev, sizeof(*ev)) != sizeof(*ev))
 		return -ENOMEM;
 
 	return 0;
@@ -259,11 +259,11 @@ int ir_raw_event_register(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->raw->enabled_protocols = ~0;
-	rc = kfifo_alloc(&dev->raw->kfifo,
-			 sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE,
-			 GFP_KERNEL);
-	if (rc < 0)
+	dev->raw->kfifo = kfifo_alloc(sizeof(s64) * MAX_IR_EVENT_SIZE, GFP_KERNEL, NULL);
+	if (IS_ERR(dev->raw->kfifo)) {
+		rc = IS_ERR(dev->raw->kfifo);
 		goto out;
+	}
 
 	spin_lock_init(&dev->raw->lock);
 	dev->raw->thread = kthread_run(ir_raw_event_thread, dev->raw,
@@ -305,7 +305,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 			handler->raw_unregister(dev);
 	mutex_unlock(&ir_raw_handler_lock);
 
-	kfifo_free(&dev->raw->kfifo);
+	kfifo_free(dev->raw->kfifo);
 	kfree(dev->raw);
 	dev->raw = NULL;
 }

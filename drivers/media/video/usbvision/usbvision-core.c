@@ -2396,7 +2396,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		}
 		usbvision->sbuf[buf_idx].urb = urb;
 		usbvision->sbuf[buf_idx].data =
-			usb_alloc_coherent(usbvision->dev,
+			usb_buffer_alloc(usbvision->dev,
 					   sb_size,
 					   GFP_KERNEL,
 					   &urb->transfer_dma);
@@ -2455,7 +2455,7 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	for (buf_idx = 0; buf_idx < USBVISION_NUMSBUF; buf_idx++) {
 		usb_kill_urb(usbvision->sbuf[buf_idx].urb);
 		if (usbvision->sbuf[buf_idx].data) {
-			usb_free_coherent(usbvision->dev,
+			usb_buffer_free(usbvision->dev,
 					  sb_size,
 					  usbvision->sbuf[buf_idx].data,
 					  usbvision->sbuf[buf_idx].urb->transfer_dma);
