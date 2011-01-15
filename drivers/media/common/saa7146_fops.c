@@ -487,6 +487,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 			    char *name, int type)
 {
 	struct video_device *vfd;
+	struct video_device_shadow *shvfd;
 	int err;
 	int i;
 
@@ -497,10 +498,14 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	if (vfd == NULL)
 		return -ENOMEM;
 
+	shvfd = video_device_shadow_get(vfd);
+	if (shvfd == NULL)
+		return -ENOMEM;
+
 	vfd->fops = &video_fops;
 	vfd->ioctl_ops = &dev->ext_vv_data->ops;
 	vfd->release = video_device_release;
-	vfd->lock = &dev->v4l2_lock;
+	shvfd->lock = &dev->v4l2_lock;
 	vfd->tvnorms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;

@@ -50,20 +50,22 @@ EXPORT_SYMBOL_GPL(v4l2_fh_init);
 void v4l2_fh_add(struct v4l2_fh *fh)
 {
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-	list_add(&fh->list, &fh->vdev->fh_list);
-	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
+	list_add(&fh->list, &shvdev->fh_list);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_add);
 
 void v4l2_fh_del(struct v4l2_fh *fh)
 {
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
 	list_del_init(&fh->list);
-	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_del);
 

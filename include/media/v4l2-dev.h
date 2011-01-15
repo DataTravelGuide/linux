@@ -67,9 +67,6 @@ struct video_device
 	struct device *parent;		/* device parent */
 	struct v4l2_device *v4l2_dev;	/* v4l2_device parent */
 
-	/* Control handler associated with this device node. May be NULL. */
-	struct v4l2_ctrl_handler *ctrl_handler;
-
 	/* device info */
 	char name[32];
 	int vfl_type;
@@ -80,10 +77,6 @@ struct video_device
 	unsigned long flags;
 	/* attribute to differentiate multiple indices on one physical device */
 	int index;
-
-	/* V4L2 file handles */
-	spinlock_t		fh_lock; /* Lock for all v4l2_fhs */
-	struct list_head	fh_list; /* List of struct v4l2_fh */
 
 	int debug;			/* Activates debug level*/
 
@@ -97,12 +90,30 @@ struct video_device
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
 
+};
+
+struct video_device_shadow {
+#ifndef __GENKSYMS__
+	struct video_device *vdev;
+	struct list_head shadow_node;
+
+	/* Control handler associated with this device node. May be NULL. */
+	struct v4l2_ctrl_handler *ctrl_handler;
+
+	/* V4L2 file handles */
+	spinlock_t		fh_lock; /* Lock for all v4l2_fhs */
+	struct list_head	fh_list; /* List of struct v4l2_fh */
+
 	/* serialization lock */
 	struct mutex *lock;
+#endif
 };
 
 /* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
+
+struct video_device_shadow *video_device_shadow_get(struct video_device *vdev);
+void video_device_shadow_release(struct video_device *vdev);
 
 /* Register video devices. Note that if video_register_device fails,
    the release() callback of the video_device structure is *not* called, so

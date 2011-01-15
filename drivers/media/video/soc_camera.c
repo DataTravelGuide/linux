@@ -946,6 +946,7 @@ static int soc_camera_probe(struct device *dev)
 	struct device *control = NULL;
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_framefmt mf;
+	struct video_device_shadow *shvdev;
 	int ret;
 
 	dev_info(dev, "Probing %s\n", dev_name(dev));
@@ -1007,7 +1008,8 @@ static int soc_camera_probe(struct device *dev)
 
 	icd->field = V4L2_FIELD_ANY;
 
-	icd->vdev->lock = &icd->video_lock;
+	shvdev = video_device_shadow_get(icd->vdev);
+	shvdev->lock = &icd->video_lock;
 
 	/*
 	 * ..._video_start() will create a device node, video_register_device()

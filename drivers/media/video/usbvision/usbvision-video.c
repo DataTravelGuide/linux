@@ -1294,6 +1294,7 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 {
 	struct usb_device *usb_dev = usbvision->dev;
 	struct video_device *vdev;
+	struct video_device_shadow *shvdev;
 
 	if (usb_dev == NULL) {
 		dev_err(&usbvision->dev->dev,
@@ -1304,8 +1305,11 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	vdev = video_device_alloc();
 	if (NULL == vdev)
 		return NULL;
+	shvdev = video_device_shadow_get(vdev);
+	if (NULL == shvdev)
+		return NULL;
 	*vdev = *vdev_template;
-	vdev->lock = &usbvision->v4l2_lock;
+	shvdev->lock = &usbvision->v4l2_lock;
 	vdev->v4l2_dev = &usbvision->v4l2_dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);

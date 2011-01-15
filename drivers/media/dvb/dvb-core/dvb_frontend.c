@@ -1610,11 +1610,12 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_adapter_shadow *shadap = dvb_adapter_shadow_get(fe->dvb);
 	int cb_err, err = -EOPNOTSUPP;
 
-	if (fe->dvb->fe_ioctl_override) {
-		cb_err = fe->dvb->fe_ioctl_override(fe, cmd, parg,
-						    DVB_FE_IOCTL_PRE);
+	if (shadap && shadap->fe_ioctl_override) {
+		cb_err = shadap->fe_ioctl_override(fe, cmd, parg,
+						   DVB_FE_IOCTL_PRE);
 		if (cb_err < 0)
 			return cb_err;
 		if (cb_err > 0)
@@ -1887,9 +1888,9 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 		break;
 	};
 
-	if (fe->dvb->fe_ioctl_override) {
-		cb_err = fe->dvb->fe_ioctl_override(fe, cmd, parg,
-						    DVB_FE_IOCTL_POST);
+	if (shadap && shadap->fe_ioctl_override) {
+		cb_err = shadap->fe_ioctl_override(fe, cmd, parg,
+						   DVB_FE_IOCTL_POST);
 		if (cb_err < 0)
 			return cb_err;
 	}

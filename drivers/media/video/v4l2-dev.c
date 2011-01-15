@@ -92,6 +92,52 @@ static inline unsigned long *devnode_bits(int vfl_type)
 }
 #endif
 
+
+/* shadow struct operations, necessary to retain kabi compliance */
+static LIST_HEAD(vdev_shadow_list);
+
+/* called to find or allocate video_device shadow struct as needed */
+struct video_device_shadow *video_device_shadow_get(struct video_device *vdev)
+{
+	struct video_device_shadow *shvdev;
+
+	list_for_each_entry(shvdev, &vdev_shadow_list, shadow_node) {
+		if (shvdev->vdev == vdev)
+			return shvdev;
+	}
+
+	shvdev = kzalloc(sizeof(*shvdev), GFP_KERNEL);
+	if (!shvdev)
+		return NULL;
+
+	shvdev->vdev = vdev;
+	INIT_LIST_HEAD(&shvdev->shadow_node);
+	list_add(&shvdev->shadow_node, &vdev_shadow_list);
+
+	return shvdev;
+}
+EXPORT_SYMBOL(video_device_shadow_get);
+
+/* called to release video_device shadow struct as needed */
+void video_device_shadow_release(struct video_device *vdev)
+{
+	struct video_device_shadow *shvdev = NULL, *shtmp;
+
+	list_for_each_entry(shtmp, &vdev_shadow_list, shadow_node) {
+		if (shtmp->vdev == vdev) {
+			shvdev = shtmp;
+			break;
+		}
+	}
+	if (!shvdev)
+		return;
+
+	list_del(&shvdev->shadow_node);
+	kfree(shvdev);
+}
+EXPORT_SYMBOL(video_device_shadow_release);
+
+
 /* Mark device node number vdev->num as used */
 static inline void devnode_set(struct video_device *vdev)
 {
@@ -118,6 +164,7 @@ EXPORT_SYMBOL(video_device_alloc);
 
 void video_device_release(struct video_device *vdev)
 {
+	video_device_shadow_release(vdev);
 	kfree(vdev);
 }
 EXPORT_SYMBOL(video_device_release);
@@ -186,16 +233,17 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = -ENODEV;
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (shvdev && shvdev->lock && mutex_lock_interruptible(shvdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->read(filp, buf, sz, off);
-	if (vdev->lock)
-		mutex_unlock(vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_unlock(shvdev->lock);
 	return ret;
 }
 
@@ -203,32 +251,34 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = -ENODEV;
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (shvdev && shvdev->lock && mutex_lock_interruptible(shvdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->write(filp, buf, sz, off);
-	if (vdev->lock)
-		mutex_unlock(vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_unlock(shvdev->lock);
 	return ret;
 }
 
 static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = POLLERR | POLLHUP;
 
 	if (!vdev->fops->poll)
 		return DEFAULT_POLLMASK;
-	if (vdev->lock)
-		mutex_lock(vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_lock(shvdev->lock);
 	if (video_is_registered(vdev))
 		ret = vdev->fops->poll(filp, poll);
-	if (vdev->lock)
-		mutex_unlock(vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_unlock(shvdev->lock);
 	return ret;
 }
 
@@ -252,15 +302,16 @@ static unsigned long v4l2_get_unmapped_area(struct file *filp,
 static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+		if (shvdev && shvdev->lock && mutex_lock_interruptible(shvdev->lock))
 			return -ERESTARTSYS;
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
-		if (vdev->lock)
-			mutex_unlock(vdev->lock);
+		if (shvdev && shvdev->lock)
+			mutex_unlock(shvdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* This code path is a replacement for the BKL. It is a major
 		 * hack but it will have to do for those drivers that are not
@@ -303,16 +354,17 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = -ENODEV;
 
 	if (!vdev->fops->mmap)
 		return ret;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (shvdev && shvdev->lock && mutex_lock_interruptible(shvdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->mmap(filp, vm);
-	if (vdev->lock)
-		mutex_unlock(vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_unlock(shvdev->lock);
 	return ret;
 }
 
@@ -320,6 +372,7 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 static int v4l2_open(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev;
+	struct video_device_shadow *shvdev;
 	int ret = 0;
 
 	/* Check if the video device is available */
@@ -330,11 +383,12 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 		mutex_unlock(&videodev_lock);
 		return -ENODEV;
 	}
+	shvdev = video_device_shadow_get(vdev);
 	/* and increase the device refcount */
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
 	if (vdev->fops->open) {
-		if (vdev->lock && mutex_lock_interruptible(vdev->lock)) {
+		if (shvdev && shvdev->lock && mutex_lock_interruptible(shvdev->lock)) {
 			ret = -ERESTARTSYS;
 			goto err;
 		}
@@ -342,8 +396,8 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 			ret = vdev->fops->open(filp);
 		else
 			ret = -ENODEV;
-		if (vdev->lock)
-			mutex_unlock(vdev->lock);
+		if (shvdev && shvdev->lock)
+			mutex_unlock(shvdev->lock);
 	}
 
 err:
@@ -357,14 +411,15 @@ err:
 static int v4l2_release(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	int ret = 0;
 
 	if (vdev->fops->release) {
-		if (vdev->lock)
-			mutex_lock(vdev->lock);
+		if (shvdev && shvdev->lock)
+			mutex_lock(shvdev->lock);
 		vdev->fops->release(filp);
-		if (vdev->lock)
-			mutex_unlock(vdev->lock);
+		if (shvdev && shvdev->lock)
+			mutex_unlock(shvdev->lock);
 	}
 
 	/* decrease the refcount unconditionally since the release()
@@ -459,6 +514,7 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	int minor_cnt = VIDEO_NUM_DEVICES;
 	const char *name_base;
 	void *priv = vdev->dev.p;
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 
 	/* A minor value of -1 marks this video device as never
 	   having been registered */
@@ -469,9 +525,12 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	if (!vdev->release)
 		return -EINVAL;
 
+	if (!shvdev)
+		return -ENOMEM;
+
 	/* v4l2_fh support */
-	spin_lock_init(&vdev->fh_lock);
-	INIT_LIST_HEAD(&vdev->fh_list);
+	spin_lock_init(&shvdev->fh_lock);
+	INIT_LIST_HEAD(&shvdev->fh_list);
 
 	/* Part 1: check device type */
 	switch (type) {
@@ -495,8 +554,8 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	if (vdev->v4l2_dev) {
 		if (vdev->v4l2_dev->dev)
 			vdev->parent = vdev->v4l2_dev->dev;
-		if (vdev->ctrl_handler == NULL)
-			vdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
+		if (shvdev->ctrl_handler == NULL)
+			shvdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
 	}
 
 	/* Part 2: find a free minor, device node number and device index. */

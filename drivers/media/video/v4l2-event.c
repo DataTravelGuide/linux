@@ -51,8 +51,9 @@ int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
 {
 	struct v4l2_events *events = fh->events;
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	if (!events) {
+	if (!events || !shvdev) {
 		WARN_ON(1);
 		return -ENOMEM;
 	}
@@ -64,10 +65,10 @@ int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
 		if (kev == NULL)
 			return -ENOMEM;
 
-		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+		spin_lock_irqsave(&shvdev->fh_lock, flags);
 		list_add_tail(&kev->list, &events->free);
 		events->nallocated++;
-		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+		spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 	}
 
 	return 0;
@@ -103,11 +104,15 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 	struct v4l2_events *events = fh->events;
 	struct v4l2_kevent *kev;
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	if (!shvdev)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
 
 	if (list_empty(&events->available)) {
-		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+		spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 		return -ENOENT;
 	}
 
@@ -120,7 +125,7 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 	kev->event.pending = events->navailable;
 	*event = kev->event;
 
-	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 
 	return 0;
 }
@@ -130,13 +135,14 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 {
 	struct v4l2_events *events = fh->events;
 	int ret;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
 	if (nonblocking)
 		return __v4l2_event_dequeue(fh, event);
 
 	/* Release the vdev lock while waiting */
-	if (fh->vdev->lock)
-		mutex_unlock(fh->vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_unlock(shvdev->lock);
 
 	do {
 		ret = wait_event_interruptible(events->wait,
@@ -147,8 +153,8 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 		ret = __v4l2_event_dequeue(fh, event);
 	} while (ret == -ENOENT);
 
-	if (fh->vdev->lock)
-		mutex_lock(fh->vdev->lock);
+	if (shvdev && shvdev->lock)
+		mutex_lock(shvdev->lock);
 
 	return ret;
 }
@@ -160,8 +166,10 @@ static struct v4l2_subscribed_event *v4l2_event_subscribed(
 {
 	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	assert_spin_locked(&fh->vdev->fh_lock);
+	BUG_ON(!shvdev);
+	assert_spin_locked(&shvdev->fh_lock);
 
 	list_for_each_entry(sev, &events->subscribed, list) {
 		if (sev->type == type)
@@ -176,12 +184,16 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 	struct v4l2_fh *fh;
 	unsigned long flags;
 	struct timespec timestamp;
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 
 	ktime_get_ts(&timestamp);
 
-	spin_lock_irqsave(&vdev->fh_lock, flags);
+	if (!shvdev)
+		return;
 
-	list_for_each_entry(fh, &vdev->fh_list, list) {
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
+
+	list_for_each_entry(fh, &shvdev->fh_list, list) {
 		struct v4l2_events *events = fh->events;
 		struct v4l2_kevent *kev;
 
@@ -209,7 +221,7 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 		wake_up_all(&events->wait);
 	}
 
-	spin_unlock_irqrestore(&vdev->fh_lock, flags);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(v4l2_event_queue);
 
@@ -225,8 +237,9 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
-	if (fh->events == NULL) {
+	if (fh->events == NULL || !shvdev) {
 		WARN_ON(1);
 		return -ENOMEM;
 	}
@@ -235,7 +248,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	if (!sev)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
 
 	if (v4l2_event_subscribed(fh, sub->type) == NULL) {
 		INIT_LIST_HEAD(&sev->list);
@@ -245,7 +258,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 		sev = NULL;
 	}
 
-	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 
 	kfree(sev);
 
@@ -258,17 +271,21 @@ static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
+
+	if (!shvdev)
+		return;
 
 	do {
 		sev = NULL;
 
-		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+		spin_lock_irqsave(&shvdev->fh_lock, flags);
 		if (!list_empty(&events->subscribed)) {
 			sev = list_first_entry(&events->subscribed,
 				       struct v4l2_subscribed_event, list);
 			list_del(&sev->list);
 		}
-		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+		spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 		kfree(sev);
 	} while (sev);
 }
@@ -278,19 +295,23 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 {
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
+	struct video_device_shadow *shvdev = video_device_shadow_get(fh->vdev);
 
 	if (sub->type == V4L2_EVENT_ALL) {
 		v4l2_event_unsubscribe_all(fh);
 		return 0;
 	}
 
-	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	if (!shvdev)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&shvdev->fh_lock, flags);
 
 	sev = v4l2_event_subscribed(fh, sub->type);
 	if (sev != NULL)
 		list_del(&sev->list);
 
-	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	spin_unlock_irqrestore(&shvdev->fh_lock, flags);
 
 	kfree(sev);
 

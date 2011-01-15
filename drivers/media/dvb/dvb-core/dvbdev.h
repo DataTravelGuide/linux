@@ -94,9 +94,17 @@ struct dvb_adapter {
 	 */
 #define DVB_FE_IOCTL_PRE 0
 #define DVB_FE_IOCTL_POST 1
+};
+
+struct dvb_adapter_shadow {
+#ifndef __GENKSYMS__
+	struct dvb_adapter *adapter;
+	struct list_head shadow_node;
+
 	int (*fe_ioctl_override)(struct dvb_frontend *fe,
 				 unsigned int cmd, void *parg,
 				 unsigned int stage);
+#endif
 };
 
 
@@ -122,6 +130,9 @@ struct dvb_device {
 	void *priv;
 };
 
+
+extern struct dvb_adapter_shadow *dvb_adapter_shadow_get(struct dvb_adapter *adapter);
+extern void dvb_adapter_shadow_release(struct dvb_adapter *adapter);
 
 extern int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
 				struct module *module, struct device *device,

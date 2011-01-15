@@ -145,6 +145,7 @@ static int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 					unsigned int, void *, unsigned int))
 {
 	int result;
+	struct dvb_adapter_shadow *shadap;
 
 	mutex_init(&fe->lock);
 
@@ -157,7 +158,9 @@ static int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 	}
 	fe->adapter.priv = adapter_priv;
 	fe->adapter.mfe_shared = mfe_shared;
-	fe->adapter.fe_ioctl_override = fe_ioctl_override;
+
+	shadap = dvb_adapter_shadow_get(&fe->adapter);
+	shadap->fe_ioctl_override = fe_ioctl_override;
 
 	return result;
 }

@@ -1691,8 +1691,13 @@ static int s2255_open(struct file *file)
 	struct s2255_fh *fh;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int state;
+	struct video_device_shadow *shvdev = video_device_shadow_get(vdev);
 	dprintk(1, "s2255: open called (dev=%s)\n",
 		video_device_node_name(vdev));
+
+	if (!shvdev)
+		return -ENOMEM;
+
 	/*
 	 * open lock necessary to prevent multiple instances
 	 * of v4l-conf (or other programs) from simultaneously
@@ -1793,7 +1798,7 @@ static int s2255_open(struct file *file)
 				    fh->type,
 				    V4L2_FIELD_INTERLACED,
 				    sizeof(struct s2255_buffer),
-				    fh, vdev->lock);
+				    fh, shvdev->lock);
 	return 0;
 }
 
@@ -1932,6 +1937,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 	int i;
 	int cur_nr = video_nr;
 	struct s2255_channel *channel;
+	struct video_device_shadow *shvdev;
 	ret = v4l2_device_register(&dev->interface->dev, &dev->v4l2_dev);
 	if (ret)
 		return ret;
@@ -1942,8 +1948,9 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		INIT_LIST_HEAD(&channel->vidq.active);
 		channel->vidq.dev = dev;
 		/* register 4 video devices */
+		shvdev = video_device_shadow_get(&channel->vdev);
 		channel->vdev = template;
-		channel->vdev.lock = &dev->lock;
+		shvdev->lock = &dev->lock;
 		channel->vdev.v4l2_dev = &dev->v4l2_dev;
 		video_set_drvdata(&channel->vdev, channel);
 		if (video_nr == -1)

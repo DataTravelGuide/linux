@@ -2402,16 +2402,21 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 					const char *type_name)
 {
 	struct video_device *vfd;
+	struct video_device_shadow *shvfd;
 
 	vfd = video_device_alloc();
 	if (NULL == vfd)
+		return NULL;
+
+	shvfd = video_device_shadow_get(vfd);
+	if (NULL == shvfd)
 		return NULL;
 
 	*vfd		= *template;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->release	= video_device_release;
 	vfd->debug	= video_debug;
-	vfd->lock	= &dev->lock;
+	shvfd->lock	= &dev->lock;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev->name, type_name);
