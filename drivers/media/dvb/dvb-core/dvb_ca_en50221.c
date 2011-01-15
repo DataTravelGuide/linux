@@ -1181,7 +1181,7 @@ static int dvb_ca_en50221_thread(void *data)
  *
  * @return 0 on success, <0 on error.
  */
-static int dvb_ca_en50221_io_do_ioctl(struct file *file,
+static int dvb_ca_en50221_io_do_ioctl(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1255,10 +1255,10 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
  *
  * @return 0 on success, <0 on error.
  */
-static long dvb_ca_en50221_io_ioctl(struct file *file,
+static int dvb_ca_en50221_io_ioctl(struct inode *inode, struct file *file,
 				    unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(file, cmd, arg, dvb_ca_en50221_io_do_ioctl);
+	return dvb_usercopy(inode, file, cmd, arg, dvb_ca_en50221_io_do_ioctl);
 }
 
 
@@ -1617,7 +1617,7 @@ static const struct file_operations dvb_ca_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_ca_en50221_io_read,
 	.write = dvb_ca_en50221_io_write,
-	.unlocked_ioctl = dvb_ca_en50221_io_ioctl,
+	.ioctl = dvb_ca_en50221_io_ioctl,
 	.open = dvb_ca_en50221_io_open,
 	.release = dvb_ca_en50221_io_release,
 	.poll = dvb_ca_en50221_io_poll,

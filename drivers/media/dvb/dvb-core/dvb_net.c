@@ -1338,7 +1338,7 @@ static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 	return 0;
 }
 
-static int dvb_net_do_ioctl(struct file *file,
+static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		  unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1440,10 +1440,10 @@ static int dvb_net_do_ioctl(struct file *file,
 	return 0;
 }
 
-static long dvb_net_ioctl(struct file *file,
+static int dvb_net_ioctl(struct inode *inode, struct file *file,
 	      unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(file, cmd, arg, dvb_net_do_ioctl);
+	return dvb_usercopy(inode, file, cmd, arg, dvb_net_do_ioctl);
 }
 
 static int dvb_net_close(struct inode *inode, struct file *file)
@@ -1464,7 +1464,7 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 
 static const struct file_operations dvb_net_fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = dvb_net_ioctl,
+	.ioctl = dvb_net_ioctl,
 	.open =	dvb_generic_open,
 	.release = dvb_net_close,
 };

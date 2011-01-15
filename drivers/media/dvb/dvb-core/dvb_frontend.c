@@ -701,7 +701,7 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 
 	kthread_stop(fepriv->thread);
 
-	sema_init(&fepriv->sem, 1);
+	init_MUTEX(&fepriv->sem);
 	fepriv->state = FESTATE_IDLE;
 
 	/* paranoia check in case a signal arrived */
@@ -1195,14 +1195,14 @@ static void dtv_property_cache_submit(struct dvb_frontend *fe)
 	}
 }
 
-static int dvb_frontend_ioctl_legacy(struct file *file,
+static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg);
-static int dvb_frontend_ioctl_properties(struct file *file,
+static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg);
 
 static int dtv_property_process_get(struct dvb_frontend *fe,
 				    struct dtv_property *tvp,
-				    struct file *file)
+				    struct inode *inode, struct file *file)
 {
 	int r = 0;
 
@@ -1335,6 +1335,7 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 
 static int dtv_property_process_set(struct dvb_frontend *fe,
 				    struct dtv_property *tvp,
+				    struct inode *inode,
 				    struct file *file)
 {
 	int r = 0;
@@ -1365,7 +1366,7 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		dprintk("%s() Finalised property cache\n", __func__);
 		dtv_property_cache_submit(fe);
 
-		r |= dvb_frontend_ioctl_legacy(file, FE_SET_FRONTEND,
+		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
 			&fepriv->parameters);
 		break;
 	case DTV_FREQUENCY:
@@ -1397,12 +1398,12 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_VOLTAGE:
 		fe->dtv_property_cache.voltage = tvp->u.data;
-		r = dvb_frontend_ioctl_legacy(file, FE_SET_VOLTAGE,
+		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_VOLTAGE,
 			(void *)fe->dtv_property_cache.voltage);
 		break;
 	case DTV_TONE:
 		fe->dtv_property_cache.sectone = tvp->u.data;
-		r = dvb_frontend_ioctl_legacy(file, FE_SET_TONE,
+		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_TONE,
 			(void *)fe->dtv_property_cache.sectone);
 		break;
 	case DTV_CODE_RATE_HP:
@@ -1486,7 +1487,7 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	return r;
 }
 
-static int dvb_frontend_ioctl(struct file *file,
+static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1508,17 +1509,17 @@ static int dvb_frontend_ioctl(struct file *file,
 		return -ERESTARTSYS;
 
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
-		err = dvb_frontend_ioctl_properties(file, cmd, parg);
+		err = dvb_frontend_ioctl_properties(inode, file, cmd, parg);
 	else {
 		fe->dtv_property_cache.state = DTV_UNDEFINED;
-		err = dvb_frontend_ioctl_legacy(file, cmd, parg);
+		err = dvb_frontend_ioctl_legacy(inode, file, cmd, parg);
 	}
 
 	up(&fepriv->sem);
 	return err;
 }
 
-static int dvb_frontend_ioctl_properties(struct file *file,
+static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1554,7 +1555,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++) {
-			(tvp + i)->result = dtv_property_process_set(fe, tvp + i, file);
+			(tvp + i)->result = dtv_property_process_set(fe, tvp + i, inode, file);
 			err |= (tvp + i)->result;
 		}
 
@@ -1586,7 +1587,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++) {
-			(tvp + i)->result = dtv_property_process_get(fe, tvp + i, file);
+			(tvp + i)->result = dtv_property_process_get(fe, tvp + i, inode, file);
 			err |= (tvp + i)->result;
 		}
 
@@ -1603,7 +1604,7 @@ out:
 	return err;
 }
 
-static int dvb_frontend_ioctl_legacy(struct file *file,
+static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -2030,7 +2031,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 static const struct file_operations dvb_frontend_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= dvb_generic_ioctl,
+	.ioctl		= dvb_generic_ioctl,
 	.poll		= dvb_frontend_poll,
 	.open		= dvb_frontend_open,
 	.release	= dvb_frontend_release
@@ -2060,7 +2061,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	}
 	fepriv = fe->frontend_priv;
 
-	sema_init(&fepriv->sem, 1);
+	init_MUTEX(&fepriv->sem);
 	init_waitqueue_head (&fepriv->wait_queue);
 	init_waitqueue_head (&fepriv->events.wait_queue);
 	mutex_init(&fepriv->events.mtx);

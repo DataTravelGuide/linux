@@ -154,7 +154,7 @@ int dvb_generic_release(struct inode *inode, struct file *file)
 EXPORT_SYMBOL(dvb_generic_release);
 
 
-long dvb_generic_ioctl(struct file *file,
+int dvb_generic_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -165,7 +165,7 @@ long dvb_generic_ioctl(struct file *file,
 	if (!dvbdev->kernel_ioctl)
 		return -EINVAL;
 
-	return dvb_usercopy(file, cmd, arg, dvbdev->kernel_ioctl);
+	return dvb_usercopy(inode, file, cmd, arg, dvbdev->kernel_ioctl);
 }
 EXPORT_SYMBOL(dvb_generic_ioctl);
 
@@ -377,9 +377,9 @@ EXPORT_SYMBOL(dvb_unregister_adapter);
    define this as video_usercopy(). this will introduce a dependecy
    to the v4l "videodev.o" module, which is unnecessary for some
    cards (ie. the budget dvb-cards don't need the v4l module...) */
-int dvb_usercopy(struct file *file,
+int dvb_usercopy(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg,
-		     int (*func)(struct file *file,
+		     int (*func)(struct inode *inode, struct file *file,
 		     unsigned int cmd, void *arg))
 {
 	char    sbuf[128];
@@ -417,7 +417,7 @@ int dvb_usercopy(struct file *file,
 
 	/* call driver */
 	mutex_lock(&dvbdev_mutex);
-	if ((err = func(file, cmd, parg)) == -ENOIOCTLCMD)
+	if ((err = func(inode, file, cmd, parg)) == -ENOIOCTLCMD)
 		err = -EINVAL;
 	mutex_unlock(&dvbdev_mutex);
 
