@@ -2733,6 +2733,7 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, u16 index)
 	}
 
 	rx_buf->skb = skb;
+	rx_buf->desc = (struct l2_fhdr *) skb->data;
 	pci_unmap_addr_set(rx_buf, mapping, mapping);
 
 	rxbd->rx_bd_haddr_hi = (u64) mapping >> 32;
@@ -2955,6 +2956,7 @@ bnx2_reuse_rx_skb(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr,
 	rxr->rx_prod_bseq += bp->rx_buf_use_size;
 
 	prod_rx_buf->skb = skb;
+	prod_rx_buf->desc = (struct l2_fhdr *) skb->data;
 
 	if (cons == prod)
 		return;
@@ -3088,6 +3090,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	u16 hw_cons, sw_cons, sw_ring_cons, sw_prod, sw_ring_prod;
 	struct l2_fhdr *rx_hdr;
 	int rx_pkt = 0, pg_ring_used = 0;
+	struct pci_dev *pdev = bp->pdev;
 
 	hw_cons = bnx2_get_hw_rx_cons(bnapi);
 	sw_cons = rxr->rx_cons;
@@ -3100,7 +3103,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	while (sw_cons != hw_cons) {
 		unsigned int len, hdr_len;
 		u32 status;
-		struct sw_bd *rx_buf;
+		struct sw_bd *rx_buf, *next_rx_buf;
 		struct sk_buff *skb;
 		dma_addr_t dma_addr;
 		u16 vtag = 0;
@@ -3111,7 +3114,14 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		rx_buf = &rxr->rx_buf_ring[sw_ring_cons];
 		skb = rx_buf->skb;
+		prefetchw(skb);
 
+		if (!get_dma_ops(&pdev->dev)->sync_single_for_cpu) {
+			next_rx_buf =
+				&rxr->rx_buf_ring[
+					RX_RING_IDX(NEXT_RX_BD(sw_cons))];
+			prefetch(next_rx_buf->desc);
+		}
 		rx_buf->skb = NULL;
 
 		dma_addr = pci_unmap_addr(rx_buf, mapping);
@@ -3120,7 +3130,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 			BNX2_RX_OFFSET + BNX2_RX_COPY_THRESH,
 			PCI_DMA_FROMDEVICE);
 
-		rx_hdr = (struct l2_fhdr *) skb->data;
+		rx_hdr = rx_buf->desc;
 		len = rx_hdr->l2_fhdr_pkt_len;
 		status = rx_hdr->l2_fhdr_status;
 
@@ -5779,7 +5789,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	rx_buf = &rxr->rx_buf_ring[rx_start_idx];
 	rx_skb = rx_buf->skb;
 
-	rx_hdr = (struct l2_fhdr *) rx_skb->data;
+	rx_hdr = rx_buf->desc;
 	skb_reserve(rx_skb, BNX2_RX_OFFSET);
 
 	pci_dma_sync_single_for_cpu(bp->pdev,
