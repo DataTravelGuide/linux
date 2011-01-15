@@ -8,6 +8,7 @@ perf-bench			mainporcelain common
 perf-buildid-cache		mainporcelain common
 perf-buildid-list		mainporcelain common
 perf-diff			mainporcelain common
+perf-inject			mainporcelain common
 perf-list			mainporcelain common
 perf-sched			mainporcelain common
 perf-record			mainporcelain common
@@ -17,3 +18,5 @@ perf-timechart			mainporcelain common
 perf-top			mainporcelain common
 perf-trace			mainporcelain common
 perf-kmem			mainporcelain common
+perf-kvm			mainporcelain common	
+perf-test			mainporcelain common
