@@ -906,6 +906,7 @@ static int __init kernel_init(void * unused)
 
 	do_pre_smp_initcalls();
 	start_boot_trace();
+	lockup_detector_init();
 
 	smp_init();
 	sched_init_smp();
