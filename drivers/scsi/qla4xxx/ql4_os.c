@@ -1203,7 +1203,7 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 
 	/* Initialization not yet finished. Don't do anything yet. */
 	if (!test_bit(AF_INIT_DONE, &ha->flags))
-		return;
+		goto do_dpc_exit;
 
 	/* HBA is in the process of being permanently disabled.
 	 * Don't process anything */
@@ -1342,6 +1342,8 @@ dpc_post_reset_ha:
 			}
 		}
 	}
+
+do_dpc_exit:
 	clear_bit(AF_DPC_SCHEDULED, &ha->flags);
 }
 
