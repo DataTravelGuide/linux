@@ -319,7 +319,12 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 				    "changed. The Linux SCSI layer does not "
 				    "automatically adjust these parameters.\n");
 
-		return NEEDS_RETRY;
+		/*
+		 * Pass the UA upwards for a determination in the completion
+		 * functions.
+		 */
+		return SUCCESS;
+
 		/* these three are not supported */
 	case COPY_ABORTED:
 	case VOLUME_OVERFLOW:
