@@ -773,10 +773,6 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	int index;
 
 	dev = container_of(handler, struct mcast_device, event_handler);
-	if (rdma_port_link_layer(dev->device, event->element.port_num) !=
-	    IB_LINK_LAYER_INFINIBAND)
-		return;
-
 	index = event->element.port_num - dev->start_port;
 
 	switch (event->event) {
@@ -799,12 +795,11 @@ static void mcast_add_one(struct ib_device *device)
 	struct mcast_device *dev;
 	struct mcast_port *port;
 	int i;
-	int count = 0;
 
 	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
 		return;
 
-	dev = kzalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
+	dev = kmalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
 		      GFP_KERNEL);
 	if (!dev)
 		return;
@@ -817,9 +812,6 @@ static void mcast_add_one(struct ib_device *device)
 	}
 
 	for (i = 0; i <= dev->end_port - dev->start_port; i++) {
-		if (rdma_port_link_layer(device, dev->start_port + i) !=
-		    IB_LINK_LAYER_INFINIBAND)
-			continue;
 		port = &dev->port[i];
 		port->dev = dev;
 		port->port_num = dev->start_port + i;
@@ -827,12 +819,6 @@ static void mcast_add_one(struct ib_device *device)
 		port->table = RB_ROOT;
 		init_completion(&port->comp);
 		atomic_set(&port->refcount, 1);
-		++count;
-	}
-
-	if (!count) {
-		kfree(dev);
-		return;
 	}
 
 	dev->device = device;
@@ -856,12 +842,9 @@ static void mcast_remove_one(struct ib_device *device)
 	flush_workqueue(mcast_wq);
 
 	for (i = 0; i <= dev->end_port - dev->start_port; i++) {
-		if (rdma_port_link_layer(device, dev->start_port + i) ==
-		    IB_LINK_LAYER_INFINIBAND) {
-			port = &dev->port[i];
-			deref_port(port);
-			wait_for_completion(&port->comp);
-		}
+		port = &dev->port[i];
+		deref_port(port);
+		wait_for_completion(&port->comp);
 	}
 
 	kfree(dev);

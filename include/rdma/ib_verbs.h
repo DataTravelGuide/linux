@@ -75,12 +75,6 @@ enum rdma_transport_type {
 enum rdma_transport_type
 rdma_node_get_transport(enum rdma_node_type node_type) __attribute_const__;
 
-enum rdma_link_layer {
-	IB_LINK_LAYER_UNSPECIFIED,
-	IB_LINK_LAYER_INFINIBAND,
-	IB_LINK_LAYER_ETHERNET,
-};
-
 enum ib_device_cap_flags {
 	IB_DEVICE_RESIZE_MAX_WR		= 1,
 	IB_DEVICE_BAD_PKEY_CNTR		= (1<<1),
@@ -305,7 +299,6 @@ struct ib_port_attr {
 	u8			active_width;
 	u8			active_speed;
 	u8                      phys_state;
-	enum rdma_link_layer	link_layer;
 };
 
 enum ib_device_modify_flags {
@@ -1017,8 +1010,6 @@ struct ib_device {
 	int		           (*query_port)(struct ib_device *device,
 						 u8 port_num,
 						 struct ib_port_attr *port_attr);
-	enum rdma_link_layer	   (*get_link_layer)(struct ib_device *device,
-						     u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
 						u8 port_num, int index,
 						union ib_gid *gid);
@@ -1146,11 +1137,6 @@ struct ib_device {
 						  struct ib_grh *in_grh,
 						  struct ib_mad *in_mad,
 						  struct ib_mad *out_mad);
-	int			   (*get_eth_l2_addr)(struct ib_device *device,
-						      u8 port,
-						      union ib_gid *dgid,
-						      int sgid_idx, u8 *mac,
-						      u16 *vlan_id);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -1244,9 +1230,6 @@ int ib_query_device(struct ib_device *device,
 
 int ib_query_port(struct ib_device *device,
 		  u8 port_num, struct ib_port_attr *port_attr);
-
-enum rdma_link_layer rdma_port_link_layer(struct ib_device *device,
-					  u8 port_num);
 
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
@@ -2070,17 +2053,5 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
  * @lid: Multicast group LID in host byte order.
  */
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
-
-/**
-  * ib_get_eth_l2_addr - get the mac and vlan id for the specified gid
-  * @device: IB device used for traffic
-  * @port: port number used.
-  * @gid: gid to be resolved into mac
-  * @sgid_idx: index to port's gid table for the corresponding address vector
-  * @mac: mac of the port bearing this gid
-  * @vlan_id: vlan to be used to reach this gid
-  */
-int ib_get_eth_l2_addr(struct ib_device *device, u8 port, union ib_gid *gid,
-		       int sgid_idx, u8 *mac, __u16 *vlan_id);
 
 #endif /* IB_VERBS_H */
