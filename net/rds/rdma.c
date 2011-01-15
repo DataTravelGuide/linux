@@ -651,14 +651,14 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	struct rds_rdma_op *op;
 
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args)) ||
-	    rm->m_rdma_op)
+	    rm->rdma.m_rdma_op)
 		return -EINVAL;
 
 	op = rds_rdma_prepare(rs, CMSG_DATA(cmsg));
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 	rds_stats_inc(s_send_rdma);
-	rm->m_rdma_op = op;
+	rm->rdma.m_rdma_op = op;
 	return 0;
 }
 
@@ -687,6 +687,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 	 */
 	r_key = rds_rdma_cookie_key(rm->m_rdma_cookie);
 
+
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr)
@@ -697,7 +698,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 
 	if (mr) {
 		mr->r_trans->sync_mr(mr->r_trans_private, DMA_TO_DEVICE);
-		rm->m_rdma_mr = mr;
+		rm->rdma.m_rdma_mr = mr;
 	}
 	return err;
 }
@@ -715,5 +716,5 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 	 || rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
-	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->m_rdma_mr);
+	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.m_rdma_mr);
 }
