@@ -607,7 +607,7 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	if (ndev) {
 		rdma_get_mcast_mac((struct in6_addr *)gid, mac);
 		rtnl_lock();
-		dev_mc_add(mdev->iboe.netdevs[mqp->port - 1], mac);
+		dev_mc_add(mdev->iboe.netdevs[mqp->port - 1], mac, 6, 0);
 		ret = 1;
 		rtnl_unlock();
 		dev_put(ndev);
@@ -679,7 +679,8 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		rdma_get_mcast_mac((struct in6_addr *)gid, mac);
 		if (ndev) {
 			rtnl_lock();
-			dev_mc_del(mdev->iboe.netdevs[ge->port - 1], mac);
+			dev_mc_delete(mdev->iboe.netdevs[ge->port - 1],
+				      mac, 6, 0);
 			rtnl_unlock();
 			dev_put(ndev);
 		}
