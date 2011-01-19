@@ -8,6 +8,7 @@
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
+#include <linux/audit.h>
 #include <asm/uaccess.h>
 
 /**
@@ -279,6 +280,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 	if (!(flags & MAP_ANONYMOUS)) {
 		if (unlikely(flags & MAP_HUGETLB))
 			return -EINVAL;
+		audit_mmap_fd(fd, flags);
 		file = fget(fd);
 		if (!file)
 			goto out;
