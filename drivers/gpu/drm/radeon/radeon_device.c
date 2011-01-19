@@ -223,6 +223,12 @@ int radeon_wb_init(struct radeon_device *rdev)
 			if (rdev->family >= CHIP_R600)
 				rdev->wb.use_event = true;
 		}
+		/* boot hangs on RN50 in IB tests with WB enabled */
+#ifdef __powerpc__
+		if (ASIC_IS_RN50(rdev)) {
+			rdev->wb.enabled = false;
+		}
+#endif
 	}
 
 	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");
