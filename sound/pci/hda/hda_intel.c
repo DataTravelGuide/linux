@@ -2680,10 +2680,12 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	if (dmi_name_in_vendors("LENOVO") && dmi_name_in_vendors("25223FG")) {
+	if (dmi_name_in_vendors("LENOVO") &&
+	    (dmi_name_in_vendors("ThinkPad T410") ||
+	     dmi_name_in_vendors("ThinkPad T510"))) {
 		if (pci_id->driver_data == AZX_DRIVER_NVIDIA &&
 		    probe_mask[dev] < 0) {
-			printk(KERN_ERR SFX "Detected LENOVO 25223FG (T410) system and NVidia PCI HDMI device.\n");
+			printk(KERN_ERR SFX "Detected LENOVO ThinkPad T410/T510 system and NVidia PCI HDMI device.\n");
 			printk(KERN_ERR SFX "Device is not activated. Use probe_mask=0xff to manually enable.\n");
 			dev++;
 			return -ENOENT;
