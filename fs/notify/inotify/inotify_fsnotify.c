@@ -35,7 +35,7 @@
 static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	struct fsnotify_mark_entry *entry;
-	struct inotify_inode_mark_entry *ientry;
+	struct inotify_inode_mark *ientry;
 	struct inode *to_tell;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
@@ -49,8 +49,8 @@ static int inotify_handle_event(struct fsnotify_group *group, struct fsnotify_ev
 	/* race with watch removal?  We already passes should_send */
 	if (unlikely(!entry))
 		return 0;
-	ientry = container_of(entry, struct inotify_inode_mark_entry,
-			      fsn_entry);
+	ientry = container_of(entry, struct inotify_inode_mark,
+			      fsn_mark);
 	wd = ientry->wd;
 
 	event_priv = kmem_cache_alloc(event_priv_cachep, GFP_KERNEL);
@@ -119,7 +119,7 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 static int idr_callback(int id, void *p, void *data)
 {
 	struct fsnotify_mark_entry *entry;
-	struct inotify_inode_mark_entry *ientry;
+	struct inotify_inode_mark *ientry;
 	static bool warned = false;
 
 	if (warned)
@@ -127,7 +127,7 @@ static int idr_callback(int id, void *p, void *data)
 
 	warned = true;
 	entry = p;
-	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
+	ientry = container_of(entry, struct inotify_inode_mark, fsn_mark);
 
 	WARN(1, "inotify closing but id=%d for entry=%p in group=%p still in "
 		"idr.  Probably leaking memory\n", id, p, data);

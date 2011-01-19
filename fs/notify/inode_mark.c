@@ -284,6 +284,22 @@ struct fsnotify_mark_entry *fsnotify_find_mark_entry(struct fsnotify_group *grou
 }
 
 /*
+ * given a group and inode, find the mark associated with that combination.
+ * if found take a reference to that mark and return it, else return NULL
+ */
+struct fsnotify_mark_entry *fsnotify_find_inode_mark(struct fsnotify_group *group,
+					       struct inode *inode)
+{
+	struct fsnotify_mark_entry *mark;
+
+	spin_lock(&inode->i_lock);
+	mark = fsnotify_find_mark_entry(group, inode);
+	spin_unlock(&inode->i_lock);
+
+	return mark;
+}
+
+/*
  * Nothing fancy, just initialize lists and locks and counters.
  */
 void fsnotify_init_mark(struct fsnotify_mark_entry *entry,

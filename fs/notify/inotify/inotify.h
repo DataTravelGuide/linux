@@ -9,9 +9,9 @@ struct inotify_event_private_data {
 	int wd;
 };
 
-struct inotify_inode_mark_entry {
+struct inotify_inode_mark {
 	/* fsnotify_mark_entry MUST be the first thing */
-	struct fsnotify_mark_entry fsn_entry;
+	struct fsnotify_mark_entry fsn_mark;
 	int wd;
 };
 
