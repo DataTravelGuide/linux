@@ -686,11 +686,17 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 			error = __vfs_follow_link(nd, s);
 		else if (nd->last_type == LAST_BIND) {
 			error = force_reval_path(&nd->path, nd);
-			if (error)
+			if (error) {
+				if (unlikely(!audit_dummy_context()))
+					audit_inode(NULL, path->dentry);
 				path_put(&nd->path);
+			}
 		}
 		if (dentry->d_inode->i_op->put_link)
 			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
+	} else {
+		if (unlikely(!audit_dummy_context()))
+			audit_inode(NULL, path->dentry);
 	}
 	path_put(path);
 
@@ -1068,6 +1074,8 @@ out_dput:
 		path_put_conditional(&next, nd);
 		break;
 	}
+	if (unlikely(!audit_dummy_context()) && nd->path.dentry->d_inode)
+		audit_inode(name, nd->path.dentry);
 	path_put(&nd->path);
 return_err:
 	return err;
