@@ -219,8 +219,7 @@ void __init efi_pagetable_init(void)
 
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
-		if ((md->type != EFI_RUNTIME_SERVICES_CODE) &&
-		    (md->type != EFI_RUNTIME_SERVICES_DATA))
+		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 
 		start_pfn = md->phys_addr >> PAGE_SHIFT;
@@ -228,15 +227,21 @@ void __init efi_pagetable_init(void)
 		end_pfn = PFN_UP(md->phys_addr + size);
 
 		for (pfn = start_pfn; pfn <= end_pfn; pfn++) {
+			unsigned long val;
+
 			vaddr = pfn << PAGE_SHIFT;
 			pgd = efi_pgd + pgd_index(vaddr);
 			pud = fill_pud(pgd, vaddr);
 			pmd = fill_pmd(pud, vaddr);
 			pte = fill_pte(pmd, vaddr);
 			if (md->type == EFI_RUNTIME_SERVICES_CODE)
-				set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+				val = __PAGE_KERNEL_EXEC;
 			else
-				set_pte(pte, pfn_pte(pfn, PAGE_KERNEL));
+				val = __PAGE_KERNEL;
+
+			if (!(md->attribute & EFI_MEMORY_WB))
+				val |= _PAGE_CACHE_UC_MINUS;
+			set_pte(pte, pfn_pte(pfn, __pgprot(val)));
 		}
 	}
 	pgd = efi_pgd + pgd_index(PAGE_OFFSET);
