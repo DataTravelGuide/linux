@@ -2188,12 +2188,13 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 
 		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
 		if (ab) {
-			audit_log_format(ab, "login pid=%d uid=%u "
-				"old auid=%u new auid=%u"
-				" old ses=%u new ses=%u",
-				task->pid, task_uid(task),
-				task->loginuid, loginuid,
-				task->sessionid, sessionid);
+			audit_log_format(ab, "pid=%d uid=%u", task->pid,
+					 task_uid(task));
+			audit_log_task_context(ab);
+			audit_log_format(ab, " old auid=%u new auid=%u "
+					 "old ses=%u new ses=%u",
+					 task->loginuid, loginuid,
+					 task->sessionid, sessionid);
 			audit_log_end(ab);
 		}
 	}
