@@ -273,6 +273,13 @@ out:
 	return err;
 }
 
+static int nfsd_break_lease(struct inode *inode)
+{
+	if (!S_ISREG(inode->i_mode))
+		return 0;
+	return break_lease(inode, O_WRONLY | O_NONBLOCK);
+}
+
 /*
  * Commit metadata changes to stable storage.
  */
@@ -426,7 +433,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 
 	err = nfserr_notsync;
 	if (!check_guard || guardtime == inode->i_ctime.tv_sec) {
-		host_err = break_lease(inode, O_WRONLY | O_NONBLOCK);
+		host_err = nfsd_break_lease(inode);
 		if (host_err)
 			goto out_nfserr;
 		fh_lock(fhp);
@@ -1666,6 +1673,12 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 		err = nfserrno(host_err);
 		goto out_dput;
 	}
+	err = nfserr_noent;
+	if (!dold->d_inode)
+		goto out_drop_write;
+	host_err = nfsd_break_lease(dold->d_inode);
+	if (host_err)
+		goto out_drop_write;
 	host_err = vfs_link(dold, dirp, dnew);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
@@ -1677,6 +1690,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 		else
 			err = nfserrno(host_err);
 	}
+out_drop_write:
 	mnt_drop_write(tfhp->fh_export->ex_path.mnt);
 out_dput:
 	dput(dnew);
@@ -1765,15 +1779,17 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if (host_err)
 		goto out_dput_new;
 
+	host_err = nfsd_break_lease(odentry->d_inode);
+	if (host_err)
+		goto out_drop_write;
 	host_err = vfs_rename(fdir, odentry, tdir, ndentry);
 	if (!host_err) {
 		host_err = commit_metadata(tfhp);
 		if (!host_err)
 			host_err = commit_metadata(ffhp);
 	}
-
+out_drop_write:
 	mnt_drop_write(ffhp->fh_export->ex_path.mnt);
-
  out_dput_new:
 	dput(ndentry);
  out_dput_old:
@@ -1836,7 +1852,10 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (host_err)
 		goto out_nfserr;
 
-	if (type != S_IFDIR) { /* It's UNLINK */
+	host_err = nfsd_break_lease(rdentry->d_inode);
+	if (host_err)
+		goto out_put;
+	if (type != S_IFDIR) {
 #ifdef MSNFS
 		if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
 			(atomic_read(&rdentry->d_count) > 1)) {
@@ -1848,6 +1867,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		host_err = vfs_rmdir(dirp, rdentry);
 	}
 
+out_put:
 	dput(rdentry);
 
 	if (!host_err)
