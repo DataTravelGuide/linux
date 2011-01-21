@@ -3331,7 +3331,91 @@ struct device_attribute *mptscsih_host_attrs[] = {
 	NULL,
 };
 
+/* device attributes */
+
+/**
+ * mptscsih_device_sas_address_show - sas address
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is the sas address for the target
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+mptscsih_device_sas_address_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	VirtDevice *vdevice = sdev->hostdata;
+
+	if (vdevice && vdevice->vtarget) {
+		return snprintf(buf, PAGE_SIZE, "0x%016llx\n",
+	    		(unsigned long long)vdevice->vtarget->sas_address);
+	} else
+		return snprintf(buf, PAGE_SIZE, "0x0\n");
+}
+static DEVICE_ATTR(sas_address, S_IRUGO, mptscsih_device_sas_address_show,
+ 			NULL);
+
+/**
+ * mptscsih_device_handle_show - device handle
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is the firmware assigned device handle
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+mptscsih_device_handle_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	VirtDevice *vdevice = sdev->hostdata;
+
+	if (vdevice && vdevice->vtarget)
+		return snprintf(buf, PAGE_SIZE, "0x%04x\n",
+		    vdevice->vtarget->handle);
+	else
+		return snprintf(buf, PAGE_SIZE, "0x0\n");
+}
+static DEVICE_ATTR(sas_device_handle, S_IRUGO, mptscsih_device_handle_show,
+ 		NULL);
+/**
+ * mptscsih_fw_id_show - device handle
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is the firmware assigned id.
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+mptscsih_device_fw_id_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	VirtDevice *vdevice = sdev->hostdata;
+
+	if (vdevice && vdevice->vtarget)
+		return snprintf(buf, PAGE_SIZE, "0x%04x\n",
+		    vdevice->vtarget->id);
+	else
+		return snprintf(buf, PAGE_SIZE, "0x0\n");
+}
+static DEVICE_ATTR(fw_id, S_IRUGO, mptscsih_device_fw_id_show,
+ 		NULL);
+
+struct device_attribute *mptscsih_dev_attrs[] = {
+	&dev_attr_sas_address,
+	&dev_attr_sas_device_handle,
+	&dev_attr_fw_id,
+	NULL,
+};
+
 EXPORT_SYMBOL(mptscsih_host_attrs);
+EXPORT_SYMBOL(mptscsih_dev_attrs);
 
 EXPORT_SYMBOL(mptscsih_remove);
 EXPORT_SYMBOL(mptscsih_shutdown);

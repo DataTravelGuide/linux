@@ -399,6 +399,8 @@ typedef struct _VirtTarget {
 	u8			inDMD;         /* currently in the device
 						removal delay timer */
 	u32			 num_luns;
+	u64     		 sas_address;
+	u16     		 handle;
 } VirtTarget;
 
 typedef struct _VirtDevice {

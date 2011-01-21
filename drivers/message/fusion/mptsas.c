@@ -1757,6 +1757,9 @@ mptsas_target_alloc(struct scsi_target *starget)
 			id = p->phy_info[i].attached.id;
 			channel = p->phy_info[i].attached.channel;
 			mptsas_set_starget(&p->phy_info[i], starget);
+			vtarget->handle = p->phy_info[i].attached.handle;
+			vtarget->sas_address =  p->phy_info[i].
+						attached.sas_address;
 
 			/*
 			 * Exposing hidden raid components
@@ -1978,6 +1981,7 @@ static struct scsi_host_template mptsas_driver_template = {
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mptscsih_host_attrs,
+	.sdev_attrs			= mptscsih_dev_attrs,
 };
 
 static int mptsas_get_linkerrors(struct sas_phy *phy)
