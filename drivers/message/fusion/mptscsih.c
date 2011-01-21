@@ -2361,6 +2361,8 @@ mptscsih_slave_destroy(struct scsi_device *sdev)
 	starget = scsi_target(sdev);
 	vtarget = starget->hostdata;
 	vdevice = sdev->hostdata;
+	if (!vdevice)
+		return;
 
 	mptscsih_search_running_cmds(hd, vdevice);
 	vtarget->num_luns--;

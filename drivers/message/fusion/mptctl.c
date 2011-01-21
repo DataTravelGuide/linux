@@ -1337,6 +1337,8 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	if (ioc->sh) {
 		shost_for_each_device(sdev, ioc->sh) {
 			vdevice = sdev->hostdata;
+			if (vdevice == NULL || vdevice->vtarget == NULL)
+				continue;
 			if (vdevice->vtarget->tflags &
 			    MPT_TARGET_FLAGS_RAID_COMPONENT)
 				continue;
@@ -1458,6 +1460,8 @@ mptctl_gettargetinfo (unsigned long arg)
 			if (!maxWordsLeft)
 				continue;
 			vdevice = sdev->hostdata;
+			if (vdevice == NULL || vdevice->vtarget == NULL)
+				continue;
 			if (vdevice->vtarget->tflags &
 			    MPT_TARGET_FLAGS_RAID_COMPONENT)
 				continue;
@@ -1985,6 +1989,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			shost_for_each_device(sdev, ioc->sh) {
 				struct scsi_target *starget = scsi_target(sdev);
 				VirtTarget *vtarget = starget->hostdata;
+
+				if (vtarget == NULL)
+					continue;
 
 				if ((pScsiReq->TargetID == vtarget->id) &&
 				    (pScsiReq->Bus == vtarget->channel) &&
