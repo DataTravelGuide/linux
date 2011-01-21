@@ -126,8 +126,6 @@ static int mfcounter = 0;
  *  Public data...
  */
 
-static struct proc_dir_entry *mpt_proc_root_dir;
-
 #define WHOINIT_UNKNOWN		0xAA
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -378,6 +376,9 @@ mpt_fault_reset_work(struct work_struct *work)
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 }
 
+#ifdef CONFIG_PROC_FS
+static struct proc_dir_entry 	*mpt_proc_root_dir;
+#endif
 
 /*
  *  Process turbo (context) reply...
