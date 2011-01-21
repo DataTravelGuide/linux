@@ -1943,7 +1943,8 @@ static enum blk_eh_timer_return mptsas_eh_timed_out(struct scsi_cmnd *sc)
 	}
 
 	vdevice = sc->device->hostdata;
-	if (vdevice && vdevice->vtarget && vdevice->vtarget->inDMD) {
+	if (vdevice && vdevice->vtarget && (vdevice->vtarget->inDMD
+		|| vdevice->vtarget->deleted)) {
 		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT ": %s: target removed "
 		    "or in device removal delay (sc=%p)\n",
 		    ioc->name, __func__, sc ));
