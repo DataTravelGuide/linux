@@ -102,7 +102,6 @@ trace_kernel(struct pt_regs *regs, struct trace_array *tr,
 	     struct trace_array_cpu *data)
 {
 	struct backtrace_info info;
-	unsigned long bp;
 	char *stack;
 
 	info.tr = tr;
@@ -110,15 +109,8 @@ trace_kernel(struct pt_regs *regs, struct trace_array *tr,
 	info.pos = 1;
 
 	__trace_special(info.tr, info.data, 1, regs->ip, 0);
-
 	stack = ((char *)regs + sizeof(struct pt_regs));
-#ifdef CONFIG_FRAME_POINTER
-	bp = regs->bp;
-#else
-	bp = 0;
-#endif
-
-	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, &info);
+	dump_trace(NULL, regs, (void *)stack, &backtrace_ops, &info);
 
 	return info.pos;
 }

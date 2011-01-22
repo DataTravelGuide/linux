@@ -227,7 +227,7 @@ void show_regs(struct pt_regs *regs)
 {
 	printk(KERN_INFO "CPU %d:", smp_processor_id());
 	__show_regs(regs, 1);
-	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
+	show_trace(NULL, regs, (void *)(regs + 1));
 }
 
 void release_thread(struct task_struct *dead_task)

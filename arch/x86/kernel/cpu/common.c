@@ -13,7 +13,6 @@
 #include <linux/io.h>
 
 #include <asm/stackprotector.h>
-#include <asm/perf_event.h>
 #include <asm/mmu_context.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -888,7 +887,6 @@ void __init identify_boot_cpu(void)
 #else
 	vgetcpu_set_mode();
 #endif
-	init_hw_perf_events();
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
