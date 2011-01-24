@@ -208,8 +208,8 @@ void device_pm_remove(struct device *dev)
 		dev_WARN(dev, "Not found on PM device list");
 		goto out;
 	}
-	kfree(pm_entry);
 	list_del_init(&pm_entry->entry);
+	kfree(pm_entry);
 out:
 #else  /* !CONFIG_PPC_PSERIES */
 	list_del_init(&dev->power.entry);
