@@ -38,6 +38,7 @@
 #include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <linux/idr.h>
 
 #include <asm/system.h>
 
