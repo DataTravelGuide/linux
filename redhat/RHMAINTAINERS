@@ -318,6 +318,21 @@ M:	Bob Picco <bpicco@redhat.com>
 S:	Maintained
 F:	drivers/net/netxen/
 
+NETWORK LOCK MANAGER (lockd)
+M:	Red Hat NFS Team <nfs-team@redhat.com>
+S:	Maintained
+F:	fs/lockd/
+
+NFS FILE SYSTEM (nfs)
+M:	Red Hat NFS Team <nfs-team@redhat.com>
+S:	Maintained
+F:	fs/nfs/
+
+NFS SERVER (nfsd)
+M:	Red Hat NFS Team <nfs-team@redhat.com>
+S:	Maintained
+F:	fs/nfsd/
+
 NIU ETHERNET DRIVER (niu)
 M:	Stefan Assmann <stefan@redhat.com>
 S:	Maintained
@@ -400,6 +415,11 @@ SOFTWARE RAID (Multiple Disks, MD) SUPPORT
 M:	Doug Ledford <dledford@redhat.com>
 S:	Maintained
 F:	drivers/md/
+
+SUN REMOTE PROCEDURE CALL (sunrpc)
+M:	Red Hat NFS Team <nfs-team@redhat.com>
+S:	Maintained
+F:	net/sunrpc/
 
 SUSPEND/RESUME
 M:	Matthew Garrett <mjg@redhat.com>
