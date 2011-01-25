@@ -715,7 +715,25 @@ int chsc_determine_base_channel_path_desc(struct chp_id chpid,
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, chsc_resp);
 	if (ret)
 		goto out_free;
-	memcpy(desc, &chsc_resp->data, chsc_resp->length);
+	memcpy(desc, &chsc_resp->data, sizeof(*desc));
+out_free:
+	kfree(chsc_resp);
+	return ret;
+}
+
+int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt1 *desc)
+{
+	struct chsc_response_struct *chsc_resp;
+	int ret;
+
+	chsc_resp = kzalloc(sizeof(*chsc_resp), GFP_KERNEL);
+	if (!chsc_resp)
+		return -ENOMEM;
+	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, chsc_resp);
+	if (ret)
+		goto out_free;
+	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out_free:
 	kfree(chsc_resp);
 	return ret;
