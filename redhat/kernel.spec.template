@@ -1629,6 +1629,396 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 25 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-105.el6]
+- [ppc] Export memstart_addr and kernstart_addr on ppc64 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] fix compiling problem with i386 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4: add ConnectX-3 PCI IDs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4: fix mc usage after IBoE addition (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3/t3_hw.c: use new hex_to_bin() method (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] uverbs: Handle large number of entries in poll CQ (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix MAC address hash filter (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Fix information leak in marshalling code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] pack: Remove some unused code added by the IBoE patches (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Fix IBoE link state (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Fix IBoE reported link rate (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_core: Workaround firmware bug in query dev cap (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Fix memory ordering of VLAN insertion control bits (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Integer overflow in RDS cmsg handling (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Fix rds message leak in rds_message_map_pages (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Remove kfreed tcp conn from list (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Lost locking in loop connection freeing (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: remove call to stop TX queues at load time (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: remove call to stop TX queues at load time (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Let rds_message_alloc_sgs() return NULL (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Copy rds_iovecs into kernel memory instead of rereading from userspace (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Clean up error handling in rds_cmsg_rdma_args (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Return -EINVAL if rds_rdma_pages returns an error (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] fix rds_iovec page count overflow (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: Fix panic in free_tx_desc() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: fix crash due to manipulating queues before registration (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [kernel] kernel.h: add {min,max}3 macros (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: clean up properly if pci_set_consistent_dma_mask() fails (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Allow driver to load if PCIe AER fails (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Fix uninitialized pointer if CONFIG_PCI_MSI not set (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Fix extra log level in qib_early_err() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Remove unnecessary KERN_<level> use (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Remove unnecessary KERN_<level> use (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fix out of bounds array access (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: fix device opening error path (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Add link layer type information to sysfs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Add VLAN support for IBoE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Add VLAN support for IBoE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Add support for IBoE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Change multicast promiscuous mode to support IBoE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_core: Update data structures and constants for IBoE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_core: Allow protocol drivers to find corresponding interfaces (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] uverbs: Return link layer type to userspace for query port operation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Sync buffer before posting send (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Use list_first_entry() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Reduce number of BUSY conditions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Eliminate two forward declarations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix crash due to manipulating queues before registration (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4: make functions local and remove dead code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Signal node desc changes to SM by using FW to generate trap 144 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Replace EXTRA_CFLAGS with ccflags-y (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [kernel] kernel.h: add BUILD_BUG_ON_NOT_POWER_OF_2() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ucma: Allow tuning the max listen backlog (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Set dev_id field of net_device (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Implement SRP_CRED_REQ and SRP_AER_REQ (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Preparation for transmit ring response allocation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Process RDMA WRITE ONLY with IMMEDIATE properly (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: When a user QP is marked in error, also mark the CQs in error (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Use cxgb4 service for packet gl to skb (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Export T4 TCP MIB (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: function namespace cleanup (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: make local functions/variables static (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: function namespace cleanup (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] fix mlx4 kconfig dependency warning (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] pack: IBoE UD packet packing support (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cm: Add RDMA CM support for IBoE devices (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mad: IBoE supports only QP1 (no QP0) (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Skip IBoE ports (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] iwcm: Fix hang in uninterruptible wait on cm_id destroy (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Use simple_read_from_buffer() for debugfs handlers (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Add default_llseek to debugfs files (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Limit size of fast registration WRs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Turn carrier off on ifdown (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Report correct port state if interface is down (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ehca: Fix driver on relocatable kernel (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: remove a bogus PCI function number check (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] umad: Make user_mad semaphore a real one (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] amso1100: Remove KERN_<level> from pr_<level> use (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Remove unneeded variable (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Set pkt_type correctly for multicast packets (fix IGMP breakage) (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Fastreg NSMR fixes (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Don't set completion flag for read requests (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Set the default TCP send window to 128KB (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Use a mutex for QP and EP state transitions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Support on-chip SQs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Centralize the wait logic (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: debugfs files for dumping active stags (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Log HW lack-of-resource errors (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Handle CPL_RDMA_TERMINATE messages (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Ignore TERMINATE CQEs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Ignore positive return values from cxgb4_*_send() functions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Zero out ISGL padding (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Don't use null ep ptr (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix cast-to-pointer warnings on 32-bit (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Add link layer property to ports (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Revert "[infiniband] Add IBoE support" (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Revert "[infiniband] mlx4: enable IBoE feature" (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Fix warnings about casts to/from pointers of different sizes (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Turn off RX coalescing for iWARP connections (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] fix a lockdep splat (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove unnecessary casts of private_data (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: spin_lock_irq() is not nestable (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: double unlock in rds_ib_cm_handle_connect() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: signedness bug (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3/cxgb3_main.c: prevent reading uninitialized stack memory (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: remove undefined operations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Implement masked atomic operations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] print string constants in more places (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: cancel connection work structs as we shut down (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: don't call rds_conn_shutdown() from rds_conn_destroy() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: have sockets get transport module references (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: remove old rs_transport comment (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: lock rds_conn_count decrement in rds_conn_destroy() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] protect the list of IB devices (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] print IB event strings as well as their number (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: flush fmrs before allocating new ones (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: properly use sg_init_table (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] track signaled sends (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: remove __init and __exit annotation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Use SLAB_HWCACHE_ALIGN flag for kmem_cache_create() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] always process recv completions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: return to a single-threaded krdsd (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] create a work queue for FMR flushing (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] destroy connections on rmmod (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] wait for IB dev freeing work to finish during rmmod (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Make ib_recv_refill return void (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Remove unused XLIST_PTR_TAIL and xlist_protect() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: whitespace (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: use delayed work for the FMR flushes (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: more FMRs are faster (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: recycle FMRs through lockless lists (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: fix rds_send_xmit() serialization (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: block ints when acquiring c_lock in rds_conn_message_info() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: remove unused rds_send_acked_before() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: use friendly gfp masks for prefill (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Add caching of frags and incs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove ib_recv_unmap_page() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Assume recv->r_frag is always NULL in refill_one() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Use page_remainder_alloc() for recv bufs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] disconnect when IB devices are removed (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: introduce rds_conn_connect_if_down() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] add refcount tracking to struct rds_ib_device (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] get the xmit max_sge from the RDS IB device on the connection (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] rds_ib_cm_handle_connect() forgot to unlock c_cm_lock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Fix reference counting on the for xmit_atomic and xmit_rdma (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: use RCU to protect the connection hash (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: use locking on the connection hash list (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Fix RDMA message reference counting (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: don't let RDS shutdown a connection while senders are present (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Use RCU for the bind lookup searches (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] add _to_node() macros for numa and use {k, v}malloc_node() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove unused variable in ib_remove_addr() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: rcu-ize rds_ib_get_device() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: per-rm flush_wait waitq (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: switch to rwlock on bind_lock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Update comments in rds_send_xmit() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Use a generation counter to avoid rds_send_xmit loop (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Get pong working again (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Do wait_event_interruptible instead of wait_event (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Remove send_quota from send_xmit() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Move atomic stats from general to ib-specific area (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: rds_message_unmapped() doesn't need to check if queue active (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix locking in send on m_rs_lock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Use NOWAIT in message_map_pages() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Bypass workqueue when queueing cong updates (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Call rds_send_xmit() directly from sendmsg() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: rds_send_xmit() locking/irq fixes (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Change send lock from a mutex to a spinlock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Refill recv ring directly from tasklet (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Stop supporting old cong map sending method (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Do not wait for send ring to be empty on conn shutdown (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Perform unmapping ops in stages (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Make sure cmsgs aren't used in improper ways (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Add flag for silent ops. Do atomic op before RDMA (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Move some variables around for consistency (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: queue failure notifications for dropped atomic ops (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Add a warning if trying to allocate 0 sgs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Do not set op_active in r_m_copy_from_user() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Rewrite rds_send_xmit (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Rename data op members prefix from m_ to op_ (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Remove struct rds_rdma_op (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: purge atomic resources too in rds_message_purge() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Inline rdma_prepare into cmsg_rdma_args (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Implement silent atomics (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Move loop-only function to loop.c (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Make all flow control code conditional on i_flowctl (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Remove unsignaled_bytes sysctl (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: rewrite rds_ib_xmit (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove ib_[header/data]_sge() functions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove dead code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Disallow connections less than RDS 3.1 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] eliminate duplicate code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: inc_purge() transport function unused - remove it (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Whitespace (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Do not mask address when pinning pages (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Base init_depth and responder_resources on hw values (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Implement atomic operations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Clear up some confusing code in send_remove_from_sock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: make sure all sgs alloced are initialized (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: make m_rdma_op a member of rds_message (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: fold rdma.h into rds.h (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Explicitly allocate rm in sendmsg() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: cleanup/fix rds_rdma_unuse (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: break out rdma and data ops into nested structs in rds_message (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: cleanup: remove "== NULL"s and "!= NULL"s in ptr comparisons (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: move rds_shutdown_worker impl. to rds_conn_shutdown (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix locking in send on m_rs_lock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Rewrite rds_send_drop_to() for clarity (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix corrupted rds_mrs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix BUG_ONs to not fire when in a tasklet (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix hang with modified FIN handling on A0 cards (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Change state to closing after FIN (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix double CLOSE event indication crash (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Write correct register write to set TX pause param (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fixed Ethtool statistics report (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Consider napi_get_frags() failure (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Don't exceed the max HW CQ depth (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4: use bitmap library (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fix build warning in mlx4_en_create_rx_ring (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: updated driver version (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Moving to work with GRO (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: reconfiguring mac address (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: get/set ringsize uses actual ring size (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fixing report in Ethtool get_settings (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Added self diagnostics test implementation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Validate port up prior to transmitting (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Reporting link state with KERN_INFO (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fixed MAX_TX_RINGS definition (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: performing CLOSE_PORT at the end of tear-down process (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Setting dev->perm_addr field (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Setting actual RX ring size (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: Fixed incorrect unmapping on RX flow (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: update PCI ids (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix setting of the function number in transmit descriptors (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: support eeprom read/write on functions other than 0 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: handle Rx/Tx queue ranges not starting at 0 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4: remove num_lro parameter (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: fix a leak of kernel memory (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] Convert unbounded kzalloc calls to kcalloc (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Obtain RDMA QID ranges from LLD/FW (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Add missing <linux/slab.h> include (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ehca: Drop unnecessary NULL test (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix confusing if statement indentation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: do not use PCI resources before pci_enable_device() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix misindented code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix showing wqm_quanta (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Get rid of "set but not used" variables (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Read firmware version from correct place (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Export req_lim via sysfs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Make receive buffer handling more robust (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] srp: Use print_hex_dump() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Rename RAW_ETY to RAW_ETHERTYPE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix two sparse warnings (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Make needlessly global iwch_l2t_send() static (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Add timeouts when waiting for FW responses (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Fix race between qib_error_qp() and receive packet processing (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Limit the number of packets processed per interrupt (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Allow writes to the diag_counters to be able to clear them (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Set cfgctxts to number of CPUs by default (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Set/reset the EP timer inside EP lock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Use correct control txq (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Fix race in fini path (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: update driver version (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: add new PCI IDs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix wrong shift direction (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: support running the driver on PCI functions besides 0 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: advertise NETIF_F_TSO_ECN (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: get on-chip queue info from FW and create a memory window for them (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix TSO descriptors (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: don't offload Rx checksums for IPv6 fragments (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: disable an interrupt that is neither used nor serviced (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cm: Check LAP state before sending an MRA (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix hangs on ifdown (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Store and print eeprom version (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Convert pci_table entries to PCI_VDEVICE (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Allow PSM to select from multiple port assignment algorithms (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Turn off IB latency mode (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Use generic_file_llseek (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Support variable sized work requests (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Clean up signed check of unsigned variable (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Remove dependency on __GFP_NOFAIL (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Add module option to tweak delayed ack (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ipath: Fix probe failure path (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Remove unnecessary casts of private_data (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Avoid variable-length array (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Remove unneeded NULL check (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Remove unneeded assignment (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Rewrite expression to avoid undefined semantics (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] umad: Remove unused-but-set variable 'already_dead' (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: exclude registers with read side effects from register dumps (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: avoid duplicating some resource freeing code (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: move the choice of interrupt type before net_device registration (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Use request_firmware() to load SD7220 firmware (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: Use kfree_skb for skb pointers (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Fix world-writable child interface control sysfs attributes (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Clean up properly if qib_init() fails (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Completion queue callback needs to be single threaded (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Update 7322 serdes tables (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Clear 6120 hardware error register (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Clear eager buffer memory for each new process (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Mask hardware error during link reset (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Don't mark VL15 bufs as WC to avoid a rare 7322 chip problem (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Derive smac_idx from port viid (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Avoid false GTS CIDX_INC overflows (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Don't call abort_connection() for active connect failures (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4vf: Add code to provision T4 PCI-E SR-IOV Virtual Functions with hardware resources (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4vf: Add new macros and definitions for hardware constants (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4vf: update to latest T4 firmware API file (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4vf: small changes to message processing structures/macros (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: request 7.10 firmware (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: minor cleanup (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: update FW definitions (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: add a missing error interrupt (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: propagate link initialization errors to .ndo_open's callers (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: set dev_id to the port number (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: implement EEH (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: rearrange initialization code in preparation for EEH (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: dynamically determine flash size and FW image location (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] fix the deadlock in qib_fs (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_en: use net_device dev_id to indicate port number (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb3: Use memdup_user (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: Add missing mutex_unlock (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Remove DCA support until feature is finished (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ehca: convert cpu notifier to return encapsulate errno value (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Use a single txselect module parameter for serdes tuning (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Don't rely on (undefined) order of function parameter evaluation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ucm: Use memdup_user() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Fix undefined symbol error when CONFIG_PCI_MSI=n (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Fix incorrect unlock in nes_process_mac_intr() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Async event for closed QP causes crash (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Have ethtool read hardware registers for rx/tx stats (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Only insert sq qid in lookup table (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Support IB_WR_READ_WITH_INV opcode (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Set fence flag for inv-local-stag work requests (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Update some HW limits (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Don't limit fastreg page list depth (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Return proper errors in fastreg mr/pbl allocation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Fix overflow bug in CQ arm (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Optimize CQ overflow detection (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: CQ size must be IQ size - 2 (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Register RDMA provider based on LLD state_change events (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Detach from the LLD after unregistering RDMA device (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ipath: Remove support for QLogic PCIe QLE devices (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] qib: Add new qib driver for QLogic PCIe InfiniBand adapters (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mad: Make needlessly global mad_sendq_size/mad_recvq_size static (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Allow device-specific per-port sysfs files (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_core: Clean up mlx4_alloc_icm() a bit (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] mlx4_core: Fix possible chunk sg list overflow in mlx4_alloc_icm() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: notify upper drivers if the device is already up when they load (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: keep interrupts available when the ports are brought down (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: fix initial addition of MAC address (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Use kmemdup() instead of kmalloc()+memcpy() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: report GRO stats with ethtool -S (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: configure HW VLAN extraction through FW (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] MAINTAINERS: Add cxgb4 and iw_cxgb4 entries (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Shrink .text with compile-time init of handlers arrays (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: increase serial number length (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: Make unnecessarily global functions static (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [netdrv] cxgb4: Use ntohs() on __be16 value instead of htons() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Allow disabling/enabling TSO on the fly through ethtool (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] mlx4: Add support for masked atomic operations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] core: Add support for masked atomic operations (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cma: Randomize local port allocation (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Make unnecessarily global functions static (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] nes: Make nesadapter->phy_lock usage consistent (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [kernel] Enable the new kfifo API (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [kernel] kfifo: add the new generic kfifo API (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb4: Add driver for Chelsio T4 RNIC (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] cxgb3: Don't free skbs on NET_XMIT_* indications from LLD (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Explicitly rule out llseek to avoid BKL in default_llseek() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] rds: cleanup: remove unneeded variable (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ipoib: remove addrlen check for mc addresses (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] convert multiple drivers to use netdev_for_each_mc_addr (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Enable per-cpu workqueue threads (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Do not call set_page_dirty() with irqs off (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Properly unmap when getting a remote access error (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: only put sockets that have seen congestion on the poll_waitq (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix locking in rds_send_drop_to() (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Turn down alarming reconnect messages (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Workaround for in-use MRs on close causing crash (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix send locking issue (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Fix congestion issues for loopback (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS/TCP: Wait to wake thread when write space available (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: update copy_to_user state in tcp transport (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: sendmsg() should check sndtimeo, not rcvtimeo (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [net] RDS: Do not BUG() on error returned from ib_post_send (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] Fix typos in comments (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+- [infiniband] ib_qib: back out driver entirely (Doug Ledford) [607396 633157 633329 633875 635914 660674 660680] {CVE-2010-3296}
+
 * Tue Jan 25 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-104.el6]
 - [ppc] fix oops in device_pm_remove (Steve Best) [632683]
 - [fs] Allow gfs2 to update quota usage through the quotactl interface (Steven Whitehouse) [671267]
