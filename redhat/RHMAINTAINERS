@@ -218,6 +218,15 @@ M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
 F:	drivers/net/wireless/iwlwifi/
 
+KERNEL-BASED VIRTUAL MACHINE (kvm)
+M:	Avi Kivity <avi@redhat.com>
+M:	Marcelo Tosatti <mtosatti@redhat.com>
+S:	Maintained
+F:	arch/x86/include/asm/kvm*.h
+F:	arch/x86/kvm/
+F:	include/linux/kvm*.h
+F:	virt/kvm/
+
 HWMON SUBSYSTEM
 M:	Dean Nelson <dnelson@redhat.com>
 S:	Maintained
