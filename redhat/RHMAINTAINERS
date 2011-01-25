@@ -78,6 +78,12 @@ F:	include/linux/acpi.h
 F:	include/acpi/
 F:	arch/x86/kernel/acpi/
 
+AIO
+M:	Jeff Moyer <jmoyer@redhat.com>
+S:	Maintained
+F:	fs/aio.c
+F:	include/linux/*aio*.h
+
 ALSA SOUND DRIVER
 M:	John Feeney <jfeeney@redhat.com>
 M:	Jaroslav Kysela <jkysela@redhat.com>
@@ -106,6 +112,12 @@ F:	drivers/net/benet/
 BIOS ISSUES
 M:	Matthew Garrett <mjg@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
+
+BLOCK LAYER
+M:	Jeff Moyer <jmoyer@redhat.com>
+M:	Vivek Goyal <vgoyal@redhat.com>
+S:	Maintained
+F:	block/
 
 BNA ETHERNET DRIVER (bna)
 M:	Ivan Vecera <ivecera@redhat.com>
@@ -160,6 +172,11 @@ CXGB4 ETHERNET DRIVER (cxgb4)
 M:	Doug Ledford <dledford@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb4/
+
+DIRECT IO
+M:	Jeff Moyer <jmoyer@redhat.com>
+S:	Maintained
+F:	fs/direct-io.c
 
 EHEA ETHERNET DRIVER (ehea)
 M:	Ameet Paranjape <aparanja@redhat.com>
