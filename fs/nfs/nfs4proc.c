@@ -5303,6 +5303,12 @@ nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
 	if (nfs4_setup_sequence(server, &lgp->args.seq_args,
 				&lgp->res.seq_res, 0, task))
 		return;
+	if (pnfs_choose_layoutget_stateid(&lgp->args.stateid,
+					  NFS_I(lgp->args.inode)->layout,
+					  lgp->args.ctx->state)) {
+		rpc_exit(task, NFS4_OK);
+		return;
+	}
 	rpc_call_start(task);
 }
 
@@ -5337,7 +5343,6 @@ static void nfs4_layoutget_release(void *calldata)
 	struct nfs4_layoutget *lgp = calldata;
 
 	dprintk("--> %s\n", __func__);
-	put_layout_hdr(lgp->args.inode);
 	if (lgp->res.layout.buf != NULL)
 		free_page((unsigned long) lgp->res.layout.buf);
 	put_nfs_open_context(lgp->args.ctx);
