@@ -4301,6 +4301,7 @@ fi
 - [netdrv] cxgb3: Add define for fatal parity error bit manipulation (Doug Ledford) [631547]
 - [virt] Emulate MSR_EBC_FREQUENCY_ID (Jes Sorensen) [629836]
 - [virt] Define MSR_EBC_FREQUENCY_ID (Jes Sorensen) [629836]
+- [redhat] s390x: kdump: allow zfcpdump to mount and write to ext4 file systems [628676]
 - [kernel] initramfs: Fix initramfs size calculation (Hendrik Brueckner) [626956]
 - [kernel] initramfs: Generalize initramfs_data.xxx.S variants (Hendrik Brueckner) [626956]
 - [drm] radeon/kms: fix sideport detection on newer rs880 boards (Dave Airlie) [626454]
