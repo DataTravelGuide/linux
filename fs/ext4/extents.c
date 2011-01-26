@@ -3272,9 +3272,10 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		 * that this IO needs to convertion to written when IO is
 		 * completed
 		 */
-		if (io)
+		if (io && (io->flag != DIO_AIO_UNWRITTEN)) {
 			io->flag = DIO_AIO_UNWRITTEN;
-		else
+			atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+		} else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		goto out;
 	}
@@ -3567,9 +3568,10 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 * that we need to perform convertion when IO is done.
 		 */
 		if (flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
-			if (io)
+			if (io && (io->flag != DIO_AIO_UNWRITTEN)) {
 				io->flag = DIO_AIO_UNWRITTEN;
-			else
+				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+			} else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}

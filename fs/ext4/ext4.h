@@ -799,6 +799,8 @@ struct ext4_inode_info {
 	spinlock_t i_completed_io_lock;
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
+	atomic_t i_aiodio_unwritten; /* Number of inflight conversions pending */
+	struct mutex i_aio_mutex; /* big hammer for unaligned AIO */
 
 	/*
 	 * Transactions that contain inode's metadata needed to complete
@@ -1935,6 +1937,11 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 }
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
+
+#define WQ_HASH_SZ             37
+extern wait_queue_head_t aio_wq[];
+#define to_aio_wq(v) (&aio_wq[((unsigned long)v) % WQ_HASH_SZ])
+extern void ext4_aio_wait(struct inode *inode);
 
 #endif	/* __KERNEL__ */
 
