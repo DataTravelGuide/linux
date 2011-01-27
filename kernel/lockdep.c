@@ -3223,7 +3223,7 @@ void lock_release(struct lockdep_map *lock, int nested,
 {
 	unsigned long flags;
 
-	trace_lock_release(lock, nested, ip);
+	trace_lock_release(lock, ip);
 
 	if (unlikely(current->lockdep_recursion))
 		return;
