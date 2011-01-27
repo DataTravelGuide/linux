@@ -4748,12 +4748,13 @@ int perf_swevent_get_recursion_context(void)
 }
 EXPORT_SYMBOL_GPL(perf_swevent_get_recursion_context);
 
-void inline perf_swevent_put_recursion_context(int rctx)
+void perf_swevent_put_recursion_context(int rctx)
 {
 	struct swevent_htable *swhash = &__get_cpu_var(swevent_htable);
 
 	put_recursion_context(swhash->recursion, rctx);
 }
+EXPORT_SYMBOL_GPL(perf_swevent_put_recursion_context);
 
 void __perf_sw_event(u32 event_id, u64 nr, int nmi,
 			    struct pt_regs *regs, u64 addr)
@@ -5019,7 +5020,6 @@ void perf_tp_event(int event_id, u64 addr, u64 count,
 	perf_sample_data_init(&data, addr);
 	data.raw = &raw;
 
-	/* Trace events already protected against recursion */
 	do_perf_sw_event(PERF_TYPE_TRACEPOINT, event_id, count, 1,
 			&data, regs);
 }

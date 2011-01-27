@@ -876,7 +876,9 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			    proto)					\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	extern void perf_tp_event(int, u64, u64, void *, int);	\
+	extern void perf_tp_event(int, u64, u64, void *, int);		\
+	extern int perf_swevent_get_recursion_context(void);		\
+	extern void perf_swevent_put_recursion_context(int);		\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
@@ -886,6 +888,7 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 	char *raw_data;							\
 	int __cpu;							\
 	int pc;								\
+	int rctx;							\
 									\
 	pc = preempt_count();						\
 									\
@@ -896,6 +899,10 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 									\
 	if (WARN_ONCE(__entry_size > FTRACE_MAX_PROFILE_SIZE,		\
 		      "profile buffer not large enough"))		\
+		return;							\
+									\
+	rctx = perf_swevent_get_recursion_context();			\
+	if (rctx == -1)							\
 		return;							\
 									\
 	local_irq_save(irq_flags);					\
@@ -923,6 +930,7 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 									\
 	perf_tp_event(event_call->id, __addr, __count, entry,		\
 			     __entry_size);				\
+	perf_swevent_put_recursion_context(rctx);			\
 									\
 end:									\
 	local_irq_restore(irq_flags);					\

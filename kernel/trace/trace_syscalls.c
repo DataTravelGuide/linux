@@ -391,6 +391,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	int syscall_nr;
 	int size;
 	int cpu;
+	int rctx;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
@@ -407,6 +408,10 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 
 	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
 		      "profile buffer not large enough"))
+		return;
+
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx == -1)
 		return;
 
 	/* Protect the per cpu buffer, begin the rcu read side */
@@ -434,6 +439,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
 	perf_tp_event(sys_data->enter_id, 0, 1, rec, size);
+	perf_swevent_put_recursion_context(rctx);
 
 end:
 	local_irq_restore(flags);
@@ -487,6 +493,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	char *raw_data;
 	int size;
 	int cpu;
+	int rctx;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
@@ -506,6 +513,10 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	 */
 	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
 		"exit event has grown above profile buffer size"))
+		return;
+
+	rctx = perf_swevent_get_recursion_context();
+	if (rctx == -1)
 		return;
 
 	/* Protect the per cpu buffer, begin the rcu read side */
@@ -533,6 +544,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	rec->ret = syscall_get_return_value(current, regs);
 
 	perf_tp_event(sys_data->exit_id, 0, 1, rec, size);
+	perf_swevent_put_recursion_context(rctx);
 
 end:
 	local_irq_restore(flags);
