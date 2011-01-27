@@ -270,6 +270,13 @@ IPMI SUBSYSTEM
 M:	Peter Martuccelli <peterm@redhat.com>
 S:	Maintained
 
+IPV4/IPV6 PROTOCOLS
+M:	Neil Horman <nhorman@redhat.com>
+S:	Maintained
+F:	net/ipv4
+F:	net/ipv6
+F:	include/net
+
 MACHINE CHECK ERROR (MCE) SUBSYSTEM
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
@@ -305,6 +312,7 @@ F:	drivers/net/s2io*
 
 NETWORKING [GENERAL]
 M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	net/
 F:	include/net/
@@ -387,6 +395,12 @@ M:	David Milburn <dmilburn@redhat.com>
 M:	Doug Ledford <dledford@redhat.com>
 S:	Maintained
 F:	drivers/scsi/
+
+SCTP PROTOCOL
+M:	Neil Horman <nhorman@redhat.com>
+S:	Maintained
+F:	net/sctp
+F:	include/net/sctp/
 
 SERIAL ATA (SATA) SUBSYSTEM
 M:	David Milburn <dmilburn@redhat.com>
