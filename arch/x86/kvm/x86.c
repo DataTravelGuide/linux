@@ -742,10 +742,10 @@ static inline u64 get_kernel_ns(void)
 	return timespec_to_ns(&ts);
 }
 
-static inline u64 nsec_to_cycles(u64 nsec)
+static inline u64 nsec_to_cycles(struct kvm *kvm, u64 nsec)
 {
-	WARN_ON(preemptible());
-	return (nsec * __get_cpu_var(cpu_tsc_khz)) / USEC_PER_SEC;
+	return pvclock_scale_delta(nsec, kvm->arch.virtual_tsc_mult,
+				   kvm->arch.virtual_tsc_shift);
 }
 
 static void kvm_arch_set_tsc_khz(struct kvm *kvm, u32 this_tsc_khz)
@@ -772,6 +772,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	u64 offset, ns, elapsed;
 	unsigned long flags;
 	s64 sdiff;
+	u64 delta;
 
 	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = data - native_read_tsc();
@@ -782,29 +783,34 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 		sdiff = -sdiff;
 
 	/*
-	 * Special case: close write to TSC within 5 seconds of
-	 * another CPU is interpreted as an attempt to synchronize
-	 * The 5 seconds is to accomodate host load / swapping as
-	 * well as any reset of TSC during the boot process.
+	 * Special case: TSC write with a small delta (1 second) of virtual
+	 * cycle time against real time is interpreted as an attempt
+	 * to synchronize the CPU.
 	 *
-	 * In that case, for a reliable TSC, we can match TSC offsets,
-	 * or make a best guest using elapsed value.
+	 * For a reliable TSC, we can match TSC offsets, and for an
+	 * unstable TSC, we will write the update, but ignore elapsed time
+	 * in this computation. The reason for this is that unstable TSC
+	 * will be compensated by the catchup code, and guest loops which
+	 * continually write the TSC could end up overshooting the TSC if
+	 * the elapsed time is factored in.
 	 */
-	if (sdiff < nsec_to_cycles(5ULL * NSEC_PER_SEC) &&
-	    elapsed < 5ULL * NSEC_PER_SEC) {
+	delta = nsec_to_cycles(kvm, elapsed);
+	sdiff -= delta;
+	if (sdiff < 0)
+		sdiff = -sdiff;
+	if (sdiff < nsec_to_cycles(kvm, 1 * NSEC_PER_SEC) ) {
 		if (!check_tsc_unstable()) {
 			offset = kvm->arch.last_tsc_offset;
 			pr_debug("kvm: matched tsc offset for %llu\n", data);
 		} else {
-			u64 delta = nsec_to_cycles(elapsed);
-			offset += delta;
-			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
+			/* Unstable write; don't add elapsed time */
+			pr_debug("kvm: matched write on unstable tsc\n");
 		}
-		ns = kvm->arch.last_tsc_nsec;
+	} else {
+		kvm->arch.last_tsc_nsec = ns;
+		kvm->arch.last_tsc_write = data;
+		kvm->arch.last_tsc_offset = offset;
 	}
-	kvm->arch.last_tsc_nsec = ns;
-	kvm->arch.last_tsc_write = data;
-	kvm->arch.last_tsc_offset = offset;
 	kvm_x86_ops->write_tsc_offset(vcpu, offset);
 	spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
