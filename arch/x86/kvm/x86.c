@@ -726,14 +726,61 @@ static void kvm_set_time_scale(uint32_t tsc_khz, struct pvclock_vcpu_time_info *
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 
+static inline u64 get_kernel_ns(void)
+{
+	struct timespec ts;
+
+	WARN_ON(preemptible());
+	ktime_get_ts(&ts);
+	monotonic_to_bootbased(&ts);
+	return timespec_to_ns(&ts);
+}
+
+static inline u64 nsec_to_cycles(u64 nsec)
+{
+	WARN_ON(preemptible());
+	return (nsec * __get_cpu_var(cpu_tsc_khz)) / USEC_PER_SEC;
+}
+
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
-	u64 offset;
+	u64 offset, ns, elapsed;
 	unsigned long flags;
+	s64 sdiff;
 
 	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = data - native_read_tsc();
+	ns = get_kernel_ns();
+	elapsed = ns - kvm->arch.last_tsc_nsec;
+	sdiff = data - kvm->arch.last_tsc_write;
+	if (sdiff < 0)
+		sdiff = -sdiff;
+
+	/*
+	 * Special case: close write to TSC within 5 seconds of
+	 * another CPU is interpreted as an attempt to synchronize
+	 * The 5 seconds is to accomodate host load / swapping as
+	 * well as any reset of TSC during the boot process.
+	 *
+	 * In that case, for a reliable TSC, we can match TSC offsets,
+	 * or make a best guest using elapsed value.
+	 */
+	if (sdiff < nsec_to_cycles(5ULL * NSEC_PER_SEC) &&
+	    elapsed < 5ULL * NSEC_PER_SEC) {
+		if (!check_tsc_unstable()) {
+			offset = kvm->arch.last_tsc_offset;
+			pr_debug("kvm: matched tsc offset for %llu\n", data);
+		} else {
+			u64 delta = nsec_to_cycles(elapsed);
+			offset += delta;
+			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
+		}
+		ns = kvm->arch.last_tsc_nsec;
+	}
+	kvm->arch.last_tsc_nsec = ns;
+	kvm->arch.last_tsc_write = data;
+	kvm->arch.last_tsc_offset = offset;
 	kvm_x86_ops->write_tsc_offset(vcpu, offset);
 	spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
@@ -744,11 +791,11 @@ EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
 static int kvm_write_guest_time(struct kvm_vcpu *v)
 {
-	struct timespec ts;
 	unsigned long flags;
 	struct kvm_vcpu_arch *vcpu = &v->arch;
 	void *shared_kaddr;
 	unsigned long this_tsc_khz;
+	s64 kernel_ns;
 
 	if ((!vcpu->time_page))
 		return 0;
@@ -756,8 +803,7 @@ static int kvm_write_guest_time(struct kvm_vcpu *v)
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
 	kvm_get_msr(v, MSR_IA32_TSC, &vcpu->hv_clock.tsc_timestamp);
-	ktime_get_ts(&ts);
-	monotonic_to_bootbased(&ts);
+	kernel_ns = get_kernel_ns();
 	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	local_irq_restore(flags);
 
@@ -772,9 +818,7 @@ static int kvm_write_guest_time(struct kvm_vcpu *v)
 	}
 
 	/* With all the info we got, fill in the values */
-	vcpu->hv_clock.system_time = ts.tv_nsec +
-				     (NSEC_PER_SEC * (u64)ts.tv_sec) + v->kvm->arch.kvmclock_offset;
-
+	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->hv_clock.flags = 0;
 
 	/*
@@ -2784,7 +2828,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_CLOCK: {
-		struct timespec now;
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 		s64 delta;
@@ -2798,20 +2841,21 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 
 		r = 0;
-		ktime_get_ts(&now);
-		now_ns = timespec_to_ns(&now);
+		local_irq_disable();
+		now_ns = get_kernel_ns();
 		delta = user_ns.clock - now_ns;
+		local_irq_enable();
 		kvm->arch.kvmclock_offset = delta;
 		break;
 	}
 	case KVM_GET_CLOCK: {
-		struct timespec now;
 		struct kvm_clock_data user_ns;
 		u64 now_ns;
 
-		ktime_get_ts(&now);
-		now_ns = timespec_to_ns(&now);
+		local_irq_disable();
+		now_ns = get_kernel_ns();
 		user_ns.clock = kvm->arch.kvmclock_offset + now_ns;
+		local_irq_enable();
 		user_ns.flags = 0;
 		memset(&user_ns.pad, 0, sizeof(user_ns.pad));
 
