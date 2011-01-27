@@ -359,6 +359,7 @@ struct kvm_vcpu_arch {
 	u64 last_kernel_ns;
 	u64 last_tsc_nsec;
 	u64 last_tsc_write;
+	u64 tsc_offset_adjustment;
 	bool tsc_catchup;
 
 	bool singlestep; /* guest is single stepped by KVM */
