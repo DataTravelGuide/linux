@@ -827,17 +827,17 @@ else
 	cd kernel-%{kversion}/;
 fi
 
-if [ -d linux-%{kversion}.%{_target_cpu} ]; then
+if [ -d linux-%{KVERREL} ]; then
   # Just in case we ctrl-c'd a prep already
   rm -rf deleteme.%{_target_cpu}
   # Move away the stale away, and delete in background.
-  mv linux-%{kversion}.%{_target_cpu} deleteme.%{_target_cpu}
+  mv linux-%{KVERREL} deleteme.%{_target_cpu}
   rm -rf deleteme.%{_target_cpu} &
 fi
 
-cp -rl vanilla-%{kversion} linux-%{kversion}.%{_target_cpu}
+cp -rl vanilla-%{kversion} linux-%{KVERREL}
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 
 # Drop some necessary files from the source dir into the buildroot
 cp $RPM_SOURCE_DIR/config-* .
@@ -1210,7 +1210,7 @@ hwcap 0 nosegneg"
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/boot
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 
 %if %{with_debug}
 BuildKernel %make_target %kernel_image debug
@@ -1287,7 +1287,7 @@ if [ -z "$RPM_BUILD_ROOT" ]; then
 	export RPM_BUILD_ROOT="%{buildroot}";
 fi
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 
 %if %{with_doc}
 docdir=$RPM_BUILD_ROOT%{_datadir}/doc/kernel-doc-%{rpmversion}
@@ -1492,7 +1492,7 @@ fi
 %files firmware
 %defattr(-,root,root)
 /lib/firmware/*
-%doc linux-%{kversion}.%{_target_cpu}/firmware/WHENCE
+%doc linux-%{KVERREL}/firmware/WHENCE
 %endif
 
 %if %{with_bootwrapper}

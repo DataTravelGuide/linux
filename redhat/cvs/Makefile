@@ -193,7 +193,7 @@ update-spec:
 	@# updating the tarball
 	@make SPECFILE=$(DETAILED_SPEC) prep
 	@(cd kernel-$(VERSION)/; \
-	  mv linux-$(VERSION).noarch/ linux-$(VERSION)-$(internal_release)/; \
+	  mv linux-$(VERSION)-$(internal_release).noarch/ linux-$(VERSION)-$(internal_release)/; \
 	  cd linux-$(VERSION)-$(internal_release)/; \
 	  make mrproper; \
 	  rm -Rf configs *.config config-* perf; \
