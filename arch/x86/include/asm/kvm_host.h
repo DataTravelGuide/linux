@@ -274,7 +274,6 @@ struct kvm_mmu {
 };
 
 struct kvm_vcpu_arch {
-	u64 host_tsc;
 	/*
 	 * rip and regs accesses must go through
 	 * kvm_{register,rip}_{read,write} functions.
@@ -352,9 +351,10 @@ struct kvm_vcpu_arch {
 
 	gpa_t time;
 	struct pvclock_vcpu_time_info hv_clock;
-	unsigned int hv_clock_tsc_khz;
+	unsigned int hw_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
+	u64 last_host_tsc;
 
 	bool singlestep; /* guest is single stepped by KVM */
 	bool nmi_pending;
@@ -544,6 +544,7 @@ struct kvm_x86_ops {
 	bool (*gb_page_enable)(void);
 
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
+	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment);
 
 	const struct trace_print_flags *exit_reasons_str;
 };
