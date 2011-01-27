@@ -37,6 +37,7 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 #include <linux/cpufreq.h>
+#include <linux/cpu.h>
 #include <linux/user-return-notifier.h>
 #include <linux/srcu.h>
 #include <trace/events/kvm.h>
@@ -725,7 +726,7 @@ static void kvm_set_time_scale(uint32_t tsc_khz, struct pvclock_vcpu_time_info *
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 
-static void kvm_write_guest_time(struct kvm_vcpu *v)
+static int kvm_write_guest_time(struct kvm_vcpu *v)
 {
 	struct timespec ts;
 	unsigned long flags;
@@ -734,24 +735,27 @@ static void kvm_write_guest_time(struct kvm_vcpu *v)
 	unsigned long this_tsc_khz;
 
 	if ((!vcpu->time_page))
-		return;
-
-	this_tsc_khz = get_cpu_var(cpu_tsc_khz);
-	if (unlikely(vcpu->hv_clock_tsc_khz != this_tsc_khz)) {
-		kvm_set_time_scale(this_tsc_khz, &vcpu->hv_clock);
-		vcpu->hv_clock_tsc_khz = this_tsc_khz;
-	}
-	put_cpu_var(cpu_tsc_khz);
+		return 0;
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
 	kvm_get_msr(v, MSR_IA32_TSC, &vcpu->hv_clock.tsc_timestamp);
 	ktime_get_ts(&ts);
 	monotonic_to_bootbased(&ts);
+	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	local_irq_restore(flags);
 
-	/* With all the info we got, fill in the values */
+	if (unlikely(this_tsc_khz == 0)) {
+		set_bit(KVM_REQ_KVMCLOCK_UPDATE, &v->requests);
+		return 1;
+	}
 
+	if (unlikely(vcpu->hv_clock_tsc_khz != this_tsc_khz)) {
+		kvm_set_time_scale(this_tsc_khz, &vcpu->hv_clock);
+		vcpu->hv_clock_tsc_khz = this_tsc_khz;
+	}
+
+	/* With all the info we got, fill in the values */
 	vcpu->hv_clock.system_time = ts.tv_nsec +
 				     (NSEC_PER_SEC * (u64)ts.tv_sec) + v->kvm->arch.kvmclock_offset;
 
@@ -772,6 +776,7 @@ static void kvm_write_guest_time(struct kvm_vcpu *v)
 	kunmap_atomic(shared_kaddr, KM_USER0);
 
 	mark_page_dirty(v->kvm, vcpu->time >> PAGE_SHIFT);
+	return 0;
 }
 
 static int kvm_request_guest_time_update(struct kvm_vcpu *v)
@@ -3538,13 +3543,24 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
 
-static void bounce_off(void *info)
+static void tsc_bad(void *info)
 {
-	/* nothing */
+	__get_cpu_var(cpu_tsc_khz) = 0;
 }
 
-static unsigned int  ref_freq;
-static unsigned long tsc_khz_ref;
+static void tsc_khz_changed(void *data)
+{
+	struct cpufreq_freqs *freq = data;
+	unsigned long khz = 0;
+
+	if (data)
+		khz = freq->new;
+	else if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		khz = cpufreq_quick_get(raw_smp_processor_id());
+	if (!khz)
+		khz = tsc_khz;
+	__get_cpu_var(cpu_tsc_khz) = khz;
+}
 
 static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				     void *data)
@@ -3554,14 +3570,51 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 	struct kvm_vcpu *vcpu;
 	int i, send_ipi = 0;
 
-	if (!ref_freq)
-		ref_freq = freq->old;
+	/*
+	 * We allow guests to temporarily run on slowing clocks,
+	 * provided we notify them after, or to run on accelerating
+	 * clocks, provided we notify them before.  Thus time never
+	 * goes backwards.
+	 *
+	 * However, we have a problem.  We can't atomically update
+	 * the frequency of a given CPU from this function; it is
+	 * merely a notifier, which can be called from any CPU.
+	 * Changing the TSC frequency at arbitrary points in time
+	 * requires a recomputation of local variables related to
+	 * the TSC for each VCPU.  We must flag these local variables
+	 * to be updated and be sure the update takes place with the
+	 * new frequency before any guests proceed.
+	 *
+	 * Unfortunately, the combination of hotplug CPU and frequency
+	 * change creates an intractable locking scenario; the order
+	 * of when these callouts happen is undefined with respect to
+	 * CPU hotplug, and they can race with each other.  As such,
+	 * merely setting per_cpu(cpu_tsc_khz) = X during a hotadd is
+	 * undefined; you can actually have a CPU frequency change take
+	 * place in between the computation of X and the setting of the
+	 * variable.  To protect against this problem, all updates of
+	 * the per_cpu tsc_khz variable are done in an interrupt
+	 * protected IPI, and all callers wishing to update the value
+	 * must wait for a synchronous IPI to complete (which is trivial
+	 * if the caller is on the CPU already).  This establishes the
+	 * necessary total order on variable updates.
+	 *
+	 * Note that because a guest time update may take place
+	 * anytime after the setting of the VCPU's request bit, the
+	 * correct TSC value must be set before the request.  However,
+	 * to ensure the update actually makes it to any guest which
+	 * starts running in hardware virtualization between the set
+	 * and the acquisition of the spinlock, we must also ping the
+	 * CPU after setting the request bit.
+	 *
+	 */
 
 	if (val == CPUFREQ_PRECHANGE && freq->old > freq->new)
 		return 0;
 	if (val == CPUFREQ_POSTCHANGE && freq->old < freq->new)
 		return 0;
-	per_cpu(cpu_tsc_khz, freq->cpu) = cpufreq_scale(tsc_khz_ref, ref_freq, freq->new);
+
+	smp_call_function_single(freq->cpu, tsc_khz_changed, freq, 1);
 
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list) {
@@ -3571,7 +3624,7 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 			if (!kvm_request_guest_time_update(vcpu))
 				continue;
 			if (vcpu->cpu != smp_processor_id())
-				send_ipi++;
+				send_ipi = 1;
 		}
 	}
 	spin_unlock(&kvm_lock);
@@ -3589,18 +3642,55 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 		 * guest context is entered kvmclock will be updated,
 		 * so the guest will not see stale values.
 		 */
-		smp_call_function_single(freq->cpu, bounce_off, NULL, 1);
+		smp_call_function_single(freq->cpu, tsc_khz_changed, freq, 1);
 	}
 	return 0;
 }
 
 static struct notifier_block kvmclock_cpufreq_notifier_block = {
-        .notifier_call  = kvmclock_cpufreq_notifier
+	.notifier_call  = kvmclock_cpufreq_notifier
 };
+
+static int kvmclock_cpu_notifier(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+
+	switch (action) {
+		case CPU_ONLINE:
+		case CPU_DOWN_FAILED:
+			smp_call_function_single(cpu, tsc_khz_changed, NULL, 1);
+			break;
+		case CPU_DOWN_PREPARE:
+			smp_call_function_single(cpu, tsc_bad, NULL, 1);
+			break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block kvmclock_cpu_notifier_block = {
+	.notifier_call  = kvmclock_cpu_notifier,
+	.priority = -INT_MAX
+};
+
+static void kvm_timer_init(void)
+{
+	int cpu;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	register_hotcpu_notifier(&kvmclock_cpu_notifier_block);
+#endif
+	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
+		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
+					  CPUFREQ_TRANSITION_NOTIFIER);
+	}
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, tsc_khz_changed, NULL, 1);
+}
 
 int kvm_arch_init(void *opaque)
 {
-	int r, cpu;
+	int r;
 	struct kvm_x86_ops *ops = (struct kvm_x86_ops *)opaque;
 
 	if (kvm_x86_ops) {
@@ -3632,13 +3722,7 @@ int kvm_arch_init(void *opaque)
 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
 			PT_DIRTY_MASK, PT64_NX_MASK, 0);
 
-	for_each_possible_cpu(cpu)
-		per_cpu(cpu_tsc_khz, cpu) = tsc_khz;
-	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
-		tsc_khz_ref = tsc_khz;
-		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
-					  CPUFREQ_TRANSITION_NOTIFIER);
-	}
+	kvm_timer_init();
 
 	return 0;
 
@@ -3651,6 +3735,9 @@ void kvm_arch_exit(void)
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		cpufreq_unregister_notifier(&kvmclock_cpufreq_notifier_block,
 					    CPUFREQ_TRANSITION_NOTIFIER);
+#ifdef CONFIG_HOTPLUG_CPU
+	unregister_hotcpu_notifier(&kvmclock_cpu_notifier_block);
+#endif
 	kvm_x86_ops = NULL;
 	kvm_mmu_module_exit();
 }
@@ -4056,8 +4143,11 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (vcpu->requests) {
 		if (test_and_clear_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests))
 			__kvm_migrate_timers(vcpu);
-		if (test_and_clear_bit(KVM_REQ_KVMCLOCK_UPDATE, &vcpu->requests))
-			kvm_write_guest_time(vcpu);
+		if (test_and_clear_bit(KVM_REQ_KVMCLOCK_UPDATE, &vcpu->requests)) {
+			r = kvm_write_guest_time(vcpu);
+			if (unlikely(r))
+				goto out;
+		}
 		if (test_and_clear_bit(KVM_REQ_MMU_SYNC, &vcpu->requests))
 			kvm_mmu_sync_roots(vcpu);
 		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
@@ -5329,7 +5419,15 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 
 int kvm_arch_hardware_enable(void *garbage)
 {
+	struct kvm *kvm;
+	struct kvm_vcpu *vcpu;
+	int i;
+ 
 	kvm_shared_msr_cpu_online();
+	list_for_each_entry(kvm, &vm_list, vm_list)
+		kvm_for_each_vcpu(i, vcpu, kvm)
+			if (vcpu->cpu == smp_processor_id())
+				kvm_request_guest_time_update(vcpu);
 	return kvm_x86_ops->hardware_enable(garbage);
 }
 
@@ -5435,8 +5533,6 @@ struct  kvm *kvm_arch_create_vm(void)
 
 	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
 	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
-
-	rdtscll(kvm->arch.vm_init_tsc);
 
 	return kvm;
 }

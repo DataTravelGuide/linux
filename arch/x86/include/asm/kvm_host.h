@@ -419,7 +419,6 @@ struct kvm_arch {
 	gpa_t ept_identity_map_addr;
 
 	unsigned long irq_sources_bitmap;
-	u64 vm_init_tsc;
 	s64 kvmclock_offset;
 };
 

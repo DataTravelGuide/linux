@@ -1368,15 +1368,17 @@ static void free_kvm_area(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu)
+	for_each_possible_cpu(cpu) {
 		free_vmcs(per_cpu(vmxarea, cpu));
+		per_cpu(vmxarea, cpu) = NULL;
+	}
 }
 
 static __init int alloc_kvm_area(void)
 {
 	int cpu;
 
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct vmcs *vmcs;
 
 		vmcs = alloc_vmcs_cpu(cpu);
@@ -2314,7 +2316,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
 	u32 host_sysenter_cs, msr_low, msr_high;
 	u32 junk;
-	u64 host_pat, tsc_this, tsc_base;
+	u64 host_pat, tsc_this;
 	unsigned long a;
 	struct descriptor_table dt;
 	int i;
@@ -2445,12 +2447,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
-	tsc_base = vmx->vcpu.kvm->arch.vm_init_tsc;
-	rdtscll(tsc_this);
-	if (tsc_this < vmx->vcpu.kvm->arch.vm_init_tsc)
-		tsc_base = tsc_this;
-
-	guest_write_tsc(0, tsc_base);
+	tsc_this = native_read_tsc();
+	guest_write_tsc(0, tsc_this);
 
 	return 0;
 }
