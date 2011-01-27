@@ -18,5 +18,6 @@ perf-timechart			mainporcelain common
 perf-top			mainporcelain common
 perf-trace			mainporcelain common
 perf-kmem			mainporcelain common
+perf-lock			mainporcelain common
 perf-kvm			mainporcelain common	
 perf-test			mainporcelain common
