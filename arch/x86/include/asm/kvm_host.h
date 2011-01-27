@@ -420,6 +420,7 @@ struct kvm_arch {
 
 	unsigned long irq_sources_bitmap;
 	s64 kvmclock_offset;
+	spinlock_t tsc_write_lock;
 };
 
 struct kvm_vm_stat {
@@ -538,6 +539,8 @@ struct kvm_x86_ops {
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	bool (*gb_page_enable)(void);
+
+	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	const struct trace_print_flags *exit_reasons_str;
 };
