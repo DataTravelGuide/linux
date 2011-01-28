@@ -201,12 +201,12 @@ S:	Maintained
 F:	drivers/net/e1000e/
 
 INTEL IGB ETHERNET DRIVERS (igb)
-M:	Stefan Assmann <stefan@redhat.com>
+M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/igb/
 
 INTEL IGBVF ETHERNET DRIVERS (igbvf)
-M:	Stefan Assmann <stefan@redhat.com>
+M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/igbvf/
 
@@ -327,7 +327,7 @@ S:	Maintained
 F:	fs/nfsd/
 
 NIU ETHERNET DRIVER (niu)
-M:	Stefan Assmann <stefan@redhat.com>
+M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/niu/
 
