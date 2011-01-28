@@ -86,7 +86,7 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	mutex_lock(&iov->dev->sriov->lock);
 	virtfn->bus = virtfn_add_bus(dev->bus, virtfn_bus(dev, id));
 	if (!virtfn->bus) {
-		kfree(virtfn);
+		kfree_pci_dev(virtfn);
 		mutex_unlock(&iov->dev->sriov->lock);
 		return -ENOMEM;
 	}

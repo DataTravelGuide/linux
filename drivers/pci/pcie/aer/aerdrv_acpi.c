@@ -77,6 +77,7 @@ static void aer_set_firmware_first(struct pci_dev *pci_dev)
 		.pci_dev	= pci_dev,
 		.firmware_first	= 0,
 	};
+	struct pci_dev_rh1 *pdr = pci_dev->rh_reserved1;
 
 	rc = apei_hest_parse(aer_hest_parse, &info);
 
@@ -84,12 +85,15 @@ static void aer_set_firmware_first(struct pci_dev *pci_dev)
 		pci_dev->aer_firmware_first = 0;
 	else
 		pci_dev->aer_firmware_first = info.firmware_first;
-	pci_dev->aer_firmware_first_valid = 1;
+	if (pdr)
+		pdr->__aer_firmware_first_valid = 1;
 }
 
 int pcie_aer_get_firmware_first(struct pci_dev *dev)
 {
-	if (!dev->aer_firmware_first_valid)
+	struct pci_dev_rh1 *pdr = dev->rh_reserved1;
+
+	if (pdr && !pdr->__aer_firmware_first_valid)
 		aer_set_firmware_first(dev);
 	return dev->aer_firmware_first;
 }

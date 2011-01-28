@@ -136,7 +136,9 @@ extern bool aer_acpi_firmware_first(void);
 #else
 static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 {
-	if (pci_dev->aer_firmware_first_valid)
+	struct pci_dev_rh1 *pdr = pci_dev->rh_reserved1;
+
+	if (pdr && pdr->__aer_firmware_first_valid)
 		return pci_dev->aer_firmware_first;
 	return 0;
 }
@@ -147,7 +149,10 @@ static inline bool aer_acpi_firmware_first(void) { return false; }
 static inline void pcie_aer_force_firmware_first(struct pci_dev *pci_dev,
 						 int enable)
 {
+	struct pci_dev_rh1 *pdr = pci_dev->rh_reserved1;
+
 	pci_dev->aer_firmware_first = !!enable;
-	pci_dev->aer_firmware_first_valid = 1;
+	if (pdr)
+		pdr->__aer_firmware_first_valid = 1;
 }
 #endif /* _AERDRV_H_ */

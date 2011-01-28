@@ -285,9 +285,6 @@ struct pci_dev {
 	unsigned int	reset_fn:1;
 	unsigned int    is_hotplug_bridge:1;
 	unsigned int	aer_firmware_first:1;
-#ifndef __GENKSYMS__
-	unsigned int    aer_firmware_first_valid:1;
-#endif
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -309,11 +306,16 @@ struct pci_dev {
 	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
 	/* RHEL6: padding to add future features to the pci_dev struct */
-	void *rh_reserved1;
+	void *rh_reserved1;	/* used -- see pci_dev_rh1 */
 	void *rh_reserved2;
 };
 
+struct pci_dev_rh1 {
+	unsigned int    __aer_firmware_first_valid:1;
+};
+
 extern struct pci_dev *alloc_pci_dev(void);
+extern void kfree_pci_dev(struct pci_dev *);
 
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
