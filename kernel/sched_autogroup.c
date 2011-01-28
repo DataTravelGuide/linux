@@ -193,12 +193,12 @@ void sched_autogroup_exit(struct signal_struct *sig)
 
 static int __init setup_autogroup(char *str)
 {
-	sysctl_sched_autogroup_enabled = 0;
+	sysctl_sched_autogroup_enabled = 1;
 
 	return 1;
 }
 
-__setup("noautogroup", setup_autogroup);
+__setup("autogroup", setup_autogroup);
 
 #ifdef CONFIG_PROC_FS
 
