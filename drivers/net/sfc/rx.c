@@ -64,7 +64,7 @@
  *   rx_alloc_method = (rx_alloc_level > RX_ALLOC_LEVEL_GRO ?
  *                      RX_ALLOC_METHOD_PAGE : RX_ALLOC_METHOD_SKB)
  */
-static int rx_alloc_method = RX_ALLOC_METHOD_PAGE;
+static int rx_alloc_method = RX_ALLOC_METHOD_AUTO;
 
 #define RX_ALLOC_LEVEL_GRO 0x2000
 #define RX_ALLOC_LEVEL_MAX 0x3000
@@ -608,7 +608,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 	EFX_BUG_ON_PARANOID(!skb);
 
 	/* Set the SKB flags */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* Pass the packet up */
 	netif_receive_skb(skb);
