@@ -435,7 +435,8 @@ static int ir_getkeycode(struct input_dev *idev,
 	index = ir_lookup_by_scancode(rc_map, scancode);
 
 	if (index >= rc_map->len) {
-		retval = -EINVAL;
+		*keycode = KEY_RESERVED;
+		retval = 0;
 		goto out;
 	}
 
