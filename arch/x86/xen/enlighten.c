@@ -1378,7 +1378,7 @@ void __init xen_hvm_guest_init(void)
 		return;
 
 	shared_info_page = (struct shared_info *)
-		extend_brk(PAGE_SIZE, PAGE_SIZE);
+		alloc_bootmem_pages(PAGE_SIZE);
 
 	xen_hvm_init_shared_info();
 
