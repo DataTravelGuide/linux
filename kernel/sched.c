@@ -2055,6 +2055,13 @@ static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 				       int oldprio, int running)
 {
 	if (prev_class != p->sched_class) {
+		/*
+		 * If autogroup is enabled, it might happen that a task changed
+		 * class from SCHED_OTHER to SCHED_RR or SCHED_FIFO and became
+		 * RT task. In that case, move the group.
+		 */
+		sched_autogroup_move_task(p);
+
 		if (prev_class->switched_from)
 			prev_class->switched_from(rq, p, running);
 		p->sched_class->switched_to(rq, p, running);
@@ -6652,7 +6659,8 @@ recheck:
 		 * assigned.
 		 */
 		if (rt_bandwidth_enabled() && rt_policy(policy) &&
-				task_group(p)->rt_bandwidth.rt_runtime == 0)
+				task_group(p)->rt_bandwidth.rt_runtime == 0 &&
+				!task_group_is_autogroup(task_group(p)))
 			return -EPERM;
 #endif
 
@@ -10448,14 +10456,12 @@ void sched_destroy_group(struct task_group *tg)
  *	by now. This function just updates tsk->se.cfs_rq and tsk->se.parent to
  *	reflect its new group.
  */
-void sched_move_task(struct task_struct *tsk)
+void __sched_move_task(struct task_struct *tsk)
 {
 	int on_rq, running;
-	unsigned long flags;
 	struct rq *rq;
 
-	rq = task_rq_lock(tsk, &flags);
-
+	rq = task_rq(tsk);
 	running = task_current(rq, tsk);
 	on_rq = tsk->se.on_rq;
 
@@ -10475,7 +10481,15 @@ void sched_move_task(struct task_struct *tsk)
 		tsk->sched_class->set_curr_task(rq);
 	if (on_rq)
 		enqueue_task(rq, tsk, 0);
+}
 
+void sched_move_task(struct task_struct *tsk)
+{
+	unsigned long flags;
+	struct rq *rq;
+
+	rq = task_rq_lock(tsk, &flags);
+	__sched_move_task(tsk);
 	task_rq_unlock(rq, &flags);
 }
 #endif /* CONFIG_GROUP_SCHED */

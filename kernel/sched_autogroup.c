@@ -106,6 +106,11 @@ task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 	return true;
 }
 
+static inline bool task_group_is_autogroup(struct task_group *tg)
+{
+	return tg != &root_task_group && tg->autogroup;
+}
+
 static inline struct task_group *
 autogroup_task_group(struct task_struct *p, struct task_group *tg)
 {
@@ -142,6 +147,21 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	unlock_task_sighand(p, &flags);
 	autogroup_kref_put(prev);
 }
+
+/*
+ * A task in autogroup might have changed it scheduler policy and should
+ * not be in autogroup run queues any more and should be moved out to
+ * root group. This function does that.
+ *
+ * This function assumes task rq lock is held.
+ */
+void sched_autogroup_move_task(struct task_struct *p)
+{
+	int enabled = ACCESS_ONCE(sysctl_sched_autogroup_enabled);
+	if (enabled)
+		__sched_move_task(p);
+}
+
 
 /* Allocates GFP_KERNEL, cannot be called under any spinlock */
 void sched_autogroup_create_attach(struct task_struct *p)
