@@ -1340,12 +1340,15 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 
 	ctrl = ref->ctrl;
 	memset(qc, 0, sizeof(*qc));
-	qc->id = ctrl->id;
+	if (id >= V4L2_CID_PRIVATE_BASE)
+		qc->id = id;
+	else
+		qc->id = ctrl->id;
 	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
 	qc->minimum = ctrl->minimum;
 	qc->maximum = ctrl->maximum;
 	qc->default_value = ctrl->default_value;
-	if (qc->type == V4L2_CTRL_TYPE_MENU)
+	if (ctrl->type == V4L2_CTRL_TYPE_MENU)
 		qc->step = 1;
 	else
 		qc->step = ctrl->step;
@@ -1819,6 +1822,9 @@ static int set_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 	struct v4l2_ctrl *master = ctrl->cluster[0];
 	int ret;
 	int i;
+
+	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
+		return -EACCES;
 
 	v4l2_ctrl_lock(ctrl);
 
