@@ -89,16 +89,6 @@ M:	John Feeney <jfeeney@redhat.com>
 M:	Jaroslav Kysela <jkysela@redhat.com>
 S:	Maintained
 
-ATHEROS ATH5K WIRELESS DRIVER
-M:	Stanislaw Gruszka <sgruszka@redhat.com>
-S:	Maintained
-F:	drivers/net/wireless/ath/ath5k/
-
-ATHEROS ATH9K WIRELESS DRIVER
-M:	Stanislaw Gruszka <sgruszka@redhat.com>
-S:	Maintained
-F:	drivers/net/wireless/ath/ath9k/
-
 ATL1E ETHERNET DRIVER (atl1e)
 M:	Bob Picco <bpicco@redhat.com>
 S:	Maintained
@@ -229,11 +219,6 @@ INTEL IXGBEVF ETHERNET DRIVER (ixgbevf)
 M:	Andy Gospodarek <agospoda@redhat.com>
 S:	Maintained
 F:	drivers/net/ixgbevf/
-
-INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Stanislaw Gruszka <sgruszka@redhat.com>
-S:	Maintained
-F:	drivers/net/wireless/iwlwifi/
 
 KERNEL-BASED VIRTUAL MACHINE (kvm)
 M:	Avi Kivity <avi@redhat.com>
@@ -454,12 +439,10 @@ M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/media/video/uvc/
 
-WIRELESS DRIVERS
+WIRELESS DRIVERS AND STACK
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
 S:	Maintained
 F:	drivers/net/wireless/
-
-ZD1211RW WIRELESS DRIVER
-M:	Pete Zaitcev <zaitcev@redhat.com>
-S:	Maintained
-F:	drivers/net/wireless/zd1211rw/
+F:	net/mac80211/
+F:	net/wireless/
