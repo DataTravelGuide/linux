@@ -49,6 +49,7 @@ static unsigned char vmcoreinfo_data[VMCOREINFO_BYTES];
 u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
 size_t vmcoreinfo_size;
 size_t vmcoreinfo_max_size = sizeof(vmcoreinfo_data);
+int kexec_load_disabled;
 
 /* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
@@ -945,6 +946,9 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 
 	/* We only trust the superuser with rebooting the system. */
 	if (!capable(CAP_SYS_BOOT))
+		return -EPERM;
+
+	if (kexec_load_disabled)
 		return -EPERM;
 
 	/*

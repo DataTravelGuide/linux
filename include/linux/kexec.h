@@ -195,6 +195,8 @@ extern struct kimage *kexec_crash_image;
 #define VMCOREINFO_NOTE_SIZE       (KEXEC_NOTE_HEAD_BYTES*2 + VMCOREINFO_BYTES \
 				    + VMCOREINFO_NOTE_NAME_BYTES)
 
+extern int kexec_load_disabled;
+
 /* Location of a reserved region to hold the crash kernel.
  */
 extern struct resource crashk_res;
