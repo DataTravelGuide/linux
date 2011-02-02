@@ -304,6 +304,41 @@ struct sock {
 };
 
 /*
+ * To prevent KABI-breakage, struct sock_extended is added here to extend
+ * the original struct sock. Also two helpers are added:
+ * sk_alloc_size
+ *     - is used to adjust prot->obj_size
+ * sk_extended
+ *     - should be used to access items in struct sock_extended
+ */
+
+struct sock_extended {
+
+	/*
+	 * Expansion for the sock common structure
+	 */
+	struct {
+	} sock_extensions;
+
+	/*
+	 * Expansion space for proto specific sock types
+	 */
+	union {
+		struct {
+			__u32 rxhash;
+		} inet_sock_extended;
+	};
+};
+
+#define SOCK_EXTENDED_SIZE ALIGN(sizeof(struct sock_extended), sizeof(long))
+static inline struct sock_extended *sk_extended(const struct sock *sk);
+
+static inline unsigned int sk_alloc_size(unsigned int prot_sock_size)
+{
+	return ALIGN(prot_sock_size, sizeof(long)) + SOCK_EXTENDED_SIZE;
+}
+
+/*
  * Hashed lists helper routines
  */
 static inline struct sock *__sk_head(const struct hlist_head *head)
@@ -579,6 +614,25 @@ static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	return sk->sk_backlog_rcv(sk, skb);
 }
 
+static inline void sock_rps_reset_flow(const struct sock *sk)
+{
+	struct rps_sock_flow_table *sock_flow_table;
+
+	rcu_read_lock();
+	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	rps_reset_sock_flow(sock_flow_table, sk_extended(sk)->inet_sock_extended.rxhash);
+	rcu_read_unlock();
+}
+
+
+static inline void sock_rps_save_rxhash(struct sock *sk, u32 rxhash)
+{
+	if (unlikely(sk_extended(sk)->inet_sock_extended.rxhash != rxhash)) {
+		sock_rps_reset_flow(sk);
+		sk_extended(sk)->inet_sock_extended.rxhash = rxhash;
+	}
+}
+
 #define sk_wait_event(__sk, __timeo, __condition)			\
 	({	int __rc;						\
 		release_sock(__sk);					\
@@ -703,6 +757,14 @@ struct proto {
 	atomic_t		socks;
 #endif
 };
+
+static inline struct sock_extended *sk_extended(const struct sock *sk)
+{
+	unsigned int obj_size = sk->sk_prot_creator->obj_size;
+	unsigned int extended_offset = obj_size - SOCK_EXTENDED_SIZE;
+
+	return (struct sock_extended *) (((char *) sk) + extended_offset);
+}
 
 extern int proto_register(struct proto *prot, int alloc_slab);
 extern void proto_unregister(struct proto *prot);

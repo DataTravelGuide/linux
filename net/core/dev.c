@@ -2057,17 +2057,35 @@ int weight_p __read_mostly = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
+/* Called with irq disabled */
+static inline void ____napi_schedule(struct softnet_data *sd,
+					struct napi_struct *napi)
+{
+	list_add_tail(&napi->poll_list, &sd->poll_list);
+	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+}
+
+
+/* One global table that all flow-based protocols share. */
+struct rps_sock_flow_table *rps_sock_flow_table;
+EXPORT_SYMBOL(rps_sock_flow_table);
+
+
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
  */
-static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
+static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
+		       struct rps_dev_flow **rflowp)
 {
 	struct ipv6hdr *ip6;
 	struct iphdr *ip;
 	struct netdev_rx_queue *rxqueue;
 	struct rps_map *map;
+	struct rps_dev_flow_table *flow_table;
+	struct rps_sock_flow_table *sock_flow_table;
 	int cpu = -1;
+	int tcpu;
 	u8 ip_proto;
 	u32 addr1, addr2, ports, ihl;
 
@@ -2085,7 +2103,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 	} else
 		rxqueue = dev->_rx;
 
-	if (!rxqueue->rps_map)
+	if (!rxqueue->rps_map && !rxqueue->rps_flow_table)
 		goto done;
 
 	if (skb->rxhash)
@@ -2137,9 +2155,48 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb)
 		skb->rxhash = 1;
 
 got_hash:
+	flow_table = rcu_dereference(rxqueue->rps_flow_table);
+	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	if (flow_table && sock_flow_table) {
+		u16 next_cpu;
+		struct rps_dev_flow *rflow;
+
+		rflow = &flow_table->flows[skb->rxhash & flow_table->mask];
+		tcpu = rflow->cpu;
+
+		next_cpu = sock_flow_table->ents[skb->rxhash &
+		    sock_flow_table->mask];
+
+		/*
+		 * If the desired CPU (where last recvmsg was done) is
+		 * different from current CPU (one in the rx-queue flow
+		 * table entry), switch if one of the following holds:
+		 *   - Current CPU is unset (equal to RPS_NO_CPU).
+		 *   - Current CPU is offline.
+		 *   - The current CPU's queue tail has advanced beyond the
+		 *     last packet that was enqueued using this table entry.
+		 *     This guarantees that all previous packets for the flow
+		 *     have been dequeued, thus preserving in order delivery.
+		 */
+		if (unlikely(tcpu != next_cpu) &&
+		    (tcpu == RPS_NO_CPU || !cpu_online(tcpu) ||
+		     ((int)(per_cpu(softnet_data, tcpu).input_queue_head -
+		      rflow->last_qtail)) >= 0)) {
+			tcpu = rflow->cpu = next_cpu;
+			if (tcpu != RPS_NO_CPU)
+				rflow->last_qtail = per_cpu(softnet_data,
+				    tcpu).input_queue_head;
+		}
+		if (tcpu != RPS_NO_CPU && cpu_online(tcpu)) {
+			*rflowp = rflow;
+			cpu = tcpu;
+			goto done;
+		}
+	}
+
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		u16 tcpu = map->cpus[((u32) (skb->rxhash * map->len)) >> 16];
+		tcpu = map->cpus[((u64) skb->rxhash * map->len) >> 32];
 
 		if (cpu_online(tcpu)) {
 			cpu = tcpu;
@@ -2170,8 +2227,8 @@ static DEFINE_PER_CPU(struct rps_remote_softirq_cpus, rps_remote_softirq_cpus);
 /* Called from hardirq (IPI) context */
 static void trigger_softirq(void *data)
 {
-	struct softnet_data *queue = data;
-	__napi_schedule(&queue->backlog);
+	struct softnet_data *sd = data;
+	____napi_schedule(sd, &sd->backlog);
 	__get_cpu_var(netdev_rx_stat).received_rps++;
 }
 
@@ -2179,7 +2236,8 @@ static void trigger_softirq(void *data)
  * enqueue_to_backlog is called to queue an skb to a per CPU backlog
  * queue (may be a remote CPU queue).
  */
-static int enqueue_to_backlog(struct sk_buff *skb, int cpu)
+static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
+			      unsigned int *qtail)
 {
 	struct softnet_data *queue;
 	unsigned long flags;
@@ -2194,6 +2252,9 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu)
 		if (queue->input_pkt_queue.qlen) {
 enqueue:
 			__skb_queue_tail(&queue->input_pkt_queue, skb);
+			*qtail = queue->input_queue_head +
+				 queue->input_pkt_queue.qlen;
+
 			spin_unlock_irqrestore(&queue->input_pkt_queue.lock,
 			    flags);
 			return NET_RX_SUCCESS;
@@ -2208,7 +2269,7 @@ enqueue:
 				cpu_set(cpu, rcpus->mask[rcpus->select]);
 				__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 			} else
-				__napi_schedule(&queue->backlog);
+				____napi_schedule(queue, &queue->backlog);
 		}
 		goto enqueue;
 	}
@@ -2239,6 +2300,7 @@ enqueue:
 
 int netif_rx(struct sk_buff *skb)
 {
+	struct rps_dev_flow voidflow, *rflow = &voidflow;
 	int cpu;
 
 	/* if netpoll wants it, pretend we never saw it */
@@ -2249,11 +2311,11 @@ int netif_rx(struct sk_buff *skb)
 		net_timestamp(skb);
 
 	trace_netif_rx(skb);
-	cpu = get_rps_cpu(skb->dev, skb);
+	cpu = get_rps_cpu(skb->dev, skb, &rflow);
 	if (cpu < 0)
 		cpu = smp_processor_id();
 
-	return enqueue_to_backlog(skb, cpu);
+	return enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 }
 EXPORT_SYMBOL(netif_rx);
 
@@ -2631,14 +2693,17 @@ out:
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
-	int cpu;
+	struct rps_dev_flow voidflow, *rflow = &voidflow;
+	int cpu, ret;
 
-	cpu = get_rps_cpu(skb->dev, skb);
+	cpu = get_rps_cpu(skb->dev, skb, &rflow);
 
-	if (cpu < 0)
-		return __netif_receive_skb(skb);
+	if (cpu >= 0)
+		ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 	else
-		return enqueue_to_backlog(skb, cpu);
+		ret = __netif_receive_skb(skb);
+
+	return ret;
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
@@ -2653,6 +2718,7 @@ static void flush_backlog(void *arg)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &queue->input_pkt_queue);
 			kfree_skb(skb);
+			incr_input_queue_head(queue);
 		}
 }
 
@@ -2992,21 +3058,31 @@ EXPORT_SYMBOL(napi_gro_frags);
 static int process_backlog(struct napi_struct *napi, int quota)
 {
 	int work = 0;
-	struct softnet_data *queue = &__get_cpu_var(softnet_data);
+	struct softnet_data *sd = container_of(napi, struct softnet_data, backlog);
 	unsigned long start_time = jiffies;
 
 	napi->weight = weight_p;
 	do {
 		struct sk_buff *skb;
 
-		spin_lock_irq(&queue->input_pkt_queue.lock);
-		skb = __skb_dequeue(&queue->input_pkt_queue);
+		spin_lock_irq(&sd->input_pkt_queue.lock);
+		skb = __skb_dequeue(&sd->input_pkt_queue);
 		if (!skb) {
-			__napi_complete(napi);
-			spin_unlock_irq(&queue->input_pkt_queue.lock);
+			/*
+			 * Inline a custom version of __napi_complete().
+			 * only current cpu owns and manipulates this napi,
+			 * and NAPI_STATE_SCHED is the only possible flag set on backlog.
+			 * we can use a plain write instead of clear_bit(),
+			 * and we dont need an smp_mb() memory barrier.
+			 */
+			list_del(&napi->poll_list);
+			napi->state = 0;
+
+			spin_unlock_irq(&sd->input_pkt_queue.lock);
 			break;
 		}
-		spin_unlock_irq(&queue->input_pkt_queue.lock);
+		incr_input_queue_head(sd);
+		spin_unlock_irq(&sd->input_pkt_queue.lock);
 
 		__netif_receive_skb(skb);
 	} while (++work < quota && jiffies == start_time);
@@ -3025,8 +3101,7 @@ void __napi_schedule(struct napi_struct *n)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	list_add_tail(&n->poll_list, &__get_cpu_var(softnet_data).poll_list);
-	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+	____napi_schedule(&__get_cpu_var(softnet_data), n);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(__napi_schedule);
@@ -5817,8 +5892,10 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	local_irq_enable();
 
 	/* Process offline CPU's input_pkt_queue */
-	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue)))
+	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
+		incr_input_queue_head(oldsd);
+	}
 
 	return NOTIFY_OK;
 }
