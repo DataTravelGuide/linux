@@ -141,6 +141,11 @@ S:	Maintained
 F:	drivers/net/bonding/
 F:	include/linux/if_bonding.h
 
+CIFS FILESYSTEM
+M:	Jeff Layton <jlayton@redhat.com>
+S:	Maintained
+F:	fs/cifs/
+
 CISCO VIC ETHERNET NIC DRIVER
 M:	Andy Gospodarek <agospoda@redhat.com>
 S:	Maintained
