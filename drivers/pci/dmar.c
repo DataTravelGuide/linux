@@ -1347,7 +1347,7 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 	return ret;
 }
 
-int __init enable_drhd_fault_handling(void)
+int __cpuinit enable_drhd_fault_handling(void)
 {
 	struct dmar_drhd_unit *drhd;
 
