@@ -1599,6 +1599,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-113.el6]
+- [fs] include missing header in fs.h (Aristeu Rozanski) [675102]
+
 * Wed Feb 02 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-112.el6]
 - [sched] Replace kernel command line option "noautogroup" with "autogroup" (Vivek Goyal) [656042]
 - [sched] autogroup: Fix CONFIG_RT_GROUP_SCHED sched_setscheduler() failure (Vivek Goyal) [656042]
