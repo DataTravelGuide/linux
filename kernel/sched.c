@@ -405,7 +405,11 @@ struct cfs_rq {
 	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
+#ifdef __GENKSYMS__
+	struct sched_entity *curr, *next, *last;
+#else
 	struct sched_entity *curr, *next, *last, *skip;
+#endif
 
 	unsigned int nr_spread_over;
 

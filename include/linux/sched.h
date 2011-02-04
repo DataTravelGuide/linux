@@ -1105,7 +1105,6 @@ struct sched_class {
 #endif
 
 	void (*yield_task) (struct rq *rq);
-	bool (*yield_to_task) (struct rq *rq, struct task_struct *p, bool preempt);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
 
@@ -1167,6 +1166,10 @@ struct sched_class {
 #else
 	void (*moved_group) (struct task_struct *p);
 #endif
+#endif
+
+#ifndef __GENKSYMS__
+	bool (*yield_to_task) (struct rq *rq, struct task_struct *p, bool preempt);
 #endif
 };
 
