@@ -1594,6 +1594,8 @@ static int gfs2_xquota_set(struct super_block *sb, int type, qid_t id,
 					  &alloc_required);
 	if (error)
 		goto out_i;
+	if (gfs2_is_stuffed(ip))
+		alloc_required = 1;
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
 		if (al == NULL)
@@ -1607,7 +1609,9 @@ static int gfs2_xquota_set(struct super_block *sb, int type, qid_t id,
 		blocks += gfs2_rg_blocks(al);
 	}
 
-	error = gfs2_trans_begin(sdp, blocks + RES_DINODE + 1, 0);
+	/* Some quotas span block boundaries and can update two blocks,
+	   adding an extra block to the transaction to handle such quotas */
+	error = gfs2_trans_begin(sdp, blocks + RES_DINODE + 2, 0);
 	if (error)
 		goto out_release;
 
