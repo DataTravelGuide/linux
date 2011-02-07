@@ -50,8 +50,9 @@ obj-$(CONFIG_MN10300) += setup-bus.o
 
 #
 # ACPI Related PCI FW Functions
+# ACPI _DSM provided firmware instance and string name
 #
-obj-$(CONFIG_ACPI)    += pci-acpi.o
+obj-$(CONFIG_ACPI)    += pci-acpi.o pci-label.o
 
 # SMBIOS provided firmware instance and labels
 obj-$(CONFIG_DMI)    += pci-label.o
