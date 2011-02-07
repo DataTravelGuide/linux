@@ -973,20 +973,28 @@ static void crypt_encode_key(char *hex, u8 *key, unsigned int size)
 
 static int crypt_set_key(struct crypt_config *cc, char *key)
 {
+	int r = -EINVAL;
+	int key_string_len = strlen(key);
+
 	/* The key size may not be changed. */
-	if (cc->key_size != (strlen(key) >> 1))
-		return -EINVAL;
+	if (cc->key_size != (key_string_len >> 1))
+		goto out;
 
 	/* Hyphen (which gives a key_size of zero) means there is no key. */
 	if (!cc->key_size && strcmp(key, "-"))
-		return -EINVAL;
+		goto out;
 
 	if (cc->key_size && crypt_decode_key(cc->key, key, cc->key_size) < 0)
-		return -EINVAL;
+		goto out;
 
-	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+	r = crypto_ablkcipher_setkey(cc->tfm, cc->key, cc->key_size);
+	if (!r)
+		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+out:
+	/* Hex key string not needed after here, so wipe it. */
+	memset(key, '0', key_string_len);
 
-	return crypto_ablkcipher_setkey(cc->tfm, cc->key, cc->key_size);
+	return r;
 }
 
 static int crypt_wipe_key(struct crypt_config *cc)
