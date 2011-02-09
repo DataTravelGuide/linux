@@ -323,6 +323,7 @@
 	filemap_fdatawait
 	filemap_fdatawrite
 	filemap_write_and_wait
+	filemap_write_and_wait_range
 	filp_close
 	filp_open
 	filter_current_check_discard
@@ -607,6 +608,7 @@
 	param_set_uint
 	param_set_ulong
 	param_set_ushort
+	path_lookup
 	per_cpu__ftrace_event_seq
 	perf_tp_event
 	pfifo_qdisc_ops
