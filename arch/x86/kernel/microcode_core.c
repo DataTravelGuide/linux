@@ -438,17 +438,8 @@ static int mc_sysdev_resume(struct sys_device *dev)
 	int cpu = dev->id;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	if (!cpu_online(cpu))
+	if (cpu != smp_processor_id())
 		return 0;
-
-	/*
-	 * All non-bootup cpus are still disabled,
-	 * so only CPU 0 will apply ucode here.
-	 *
-	 * Moreover, there can be no concurrent
-	 * updates from any other places at this point.
-	 */
-	WARN_ON(cpu != 0);
 
 	if (uci->valid && uci->mc)
 		microcode_ops->apply_microcode(cpu);
