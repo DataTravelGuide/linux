@@ -1103,6 +1103,7 @@
 	skb_copy_expand
 	skb_dequeue
 	skb_free_datagram
+	skb_gso_segment
 	skb_make_writable
 	skb_pad
 	skb_pull

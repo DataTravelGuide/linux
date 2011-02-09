@@ -840,6 +840,7 @@
 0x52e271b3	skb_copy_expand	vmlinux	EXPORT_SYMBOL
 0xc25580c6	skb_dequeue	vmlinux	EXPORT_SYMBOL
 0x5ce5a4da	skb_free_datagram	vmlinux	EXPORT_SYMBOL
+0x4a646a5b	skb_gso_segment	vmlinux	EXPORT_SYMBOL
 0xe7daf00b	skb_make_writable	vmlinux	EXPORT_SYMBOL
 0xc8eb1d41	skb_pad	vmlinux	EXPORT_SYMBOL
 0x3ecbc534	skb_pull	vmlinux	EXPORT_SYMBOL
