@@ -128,6 +128,7 @@
 	blk_queue_alignment_offset
 	blk_queue_bounce_limit
 	blk_queue_end_tag
+	blk_queue_flush
 	blk_queue_free_tags
 	blk_queue_init_tags
 	blk_queue_io_min

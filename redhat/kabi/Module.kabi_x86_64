@@ -176,6 +176,7 @@
 0xb8a7a752	blk_queue_alignment_offset	vmlinux	EXPORT_SYMBOL
 0xeb40cd13	blk_queue_bounce_limit	vmlinux	EXPORT_SYMBOL
 0x63decdb8	blk_queue_end_tag	vmlinux	EXPORT_SYMBOL
+0x5eb3bf66	blk_queue_flush	vmlinux	EXPORT_SYMBOL_GPL
 0x8deeca98	blk_queue_free_tags	vmlinux	EXPORT_SYMBOL
 0xd3565ac3	blk_queue_init_tags	vmlinux	EXPORT_SYMBOL
 0x5800115d	blk_queue_io_min	vmlinux	EXPORT_SYMBOL
