@@ -164,7 +164,9 @@
 	blocking_notifier_chain_unregister
 	boot_tvec_bases
 	bus_register
+	bus_register_notifier
 	bus_unregister
+	bus_unregister_notifier
 	byte_rev_table
 	call_rcu
 	call_usermodehelper_exec

@@ -209,7 +209,9 @@
 	boot_cpu_data
 	boot_tvec_bases
 	bus_register
+	bus_register_notifier
 	bus_unregister
+	bus_unregister_notifier
 	byte_rev_table
 	call_rcu
 	call_usermodehelper_exec
@@ -1430,12 +1432,14 @@
 	usb_driver_release_interface
 	usb_driver_set_configuration
 	usb_find_interface
+	usb_free_urb
 	usb_get_current_frame_number
 	usb_get_descriptor
 	usb_get_dev
 	usb_get_from_anchor
 	usb_get_intf
 	usb_get_status
+	usb_get_urb
 	usb_ifnum_to_if
 	usb_interrupt_msg
 	usb_kill_anchored_urbs
@@ -1448,6 +1452,7 @@
 	usb_put_intf
 	usb_queue_reset_device
 	usb_register_dev
+	usb_register_driver
 	usb_reset_configuration
 	usb_reset_device
 	usb_reset_endpoint
