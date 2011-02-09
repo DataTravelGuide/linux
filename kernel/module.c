@@ -2899,6 +2899,8 @@ static char *module_flags(struct module *mod, char *buf)
 			buf[bx++] = 'F';
 		if (mod->taints & (1 << TAINT_CRAP))
 			buf[bx++] = 'C';
+		if (mod->taints & (1 << TAINT_TECH_PREVIEW))
+			buf[bx++] = 'T';
 		/*
 		 * TAINT_FORCED_RMMOD: could be added.
 		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't

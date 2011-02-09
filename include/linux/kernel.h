@@ -372,8 +372,8 @@ extern enum system_states {
 #define TAINT_27			27
 /* Reserving bits for vendor specific uses */
 #define TAINT_HARDWARE_UNSUPPORTED	28
-/* Bits 29 - 31 are reserved for Red Hat use only */
-#define TAINT_RESERVED29		29
+#define TAINT_TECH_PREVIEW		29
+/* Bits 30 - 31 are reserved for Red Hat use only */
 #define TAINT_RESERVED30		30
 #define TAINT_RESERVED31		31
  
@@ -823,5 +823,8 @@ struct sysinfo {
 # define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
 #endif
 
-extern void mark_hardware_unsupported(const char *msg);
+struct module;
+
+void mark_hardware_unsupported(const char *msg);
+void mark_tech_preview(const char *msg, struct module *mod);
 #endif

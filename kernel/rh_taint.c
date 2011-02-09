@@ -13,3 +13,26 @@ void mark_hardware_unsupported(const char *msg)
 		   "bugs, panics, oopses, etc., on this hardware.\n");
 }
 EXPORT_SYMBOL(mark_hardware_unsupported);
+
+/* Mark parts of the kernel as 'Tech Preview', to make it clear to our 
+ * support organization and customers what we do not fully support yet.
+ * NOTE: this will TAINT the kernel to signify the machine is running
+ * code that is not fully supported.  Use with caution.
+ */
+void mark_tech_preview(const char *msg, struct module *mod)
+{
+	const char *str = NULL;
+
+	if (msg)
+		str = msg;
+	else if (mod && mod->name)
+		str = mod->name;
+	
+	pr_warning("TECH PREVIEW: %s may not be fully supported.\n"
+		   "Please review provided documentation for limitations.\n",
+		   (str ? str : "kernel"));
+	add_taint(TAINT_TECH_PREVIEW);
+	if (mod)
+        	mod->taints |= (1U << TAINT_TECH_PREVIEW);
+}
+EXPORT_SYMBOL(mark_tech_preview);

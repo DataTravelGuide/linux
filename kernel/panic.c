@@ -182,6 +182,7 @@ static const struct tnt tnts[] = {
 	{ TAINT_26,			'?', '-' },
 	{ TAINT_27,			'?', '-' },
 	{ TAINT_HARDWARE_UNSUPPORTED,	'H', ' ' },
+	{ TAINT_TECH_PREVIEW,		'T', ' ' },
 };
 
 /**
