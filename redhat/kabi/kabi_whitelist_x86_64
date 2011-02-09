@@ -131,6 +131,7 @@
 	alloc_pages_current
 	alloc_tty_driver
 	apic
+	arp_send
 	async_schedule
 	async_synchronize_full
 	atomic_notifier_call_chain
@@ -994,6 +995,7 @@
 	register_filesystem
 	register_framebuffer
 	register_ftrace_event
+	register_inet6addr_notifier
 	register_inetaddr_notifier
 	register_ip_vs_scheduler
 	register_kprobe
@@ -1393,6 +1395,7 @@
 	unregister_die_notifier
 	unregister_filesystem
 	unregister_framebuffer
+	unregister_inet6addr_notifier
 	unregister_inetaddr_notifier
 	unregister_ip_vs_scheduler
 	unregister_kprobe

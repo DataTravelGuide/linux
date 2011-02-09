@@ -85,6 +85,7 @@
 	alloc_etherdev_mq
 	alloc_netdev_mq
 	alloc_tty_driver
+	arp_send
 	async_schedule
 	async_synchronize_full
 	atomic_notifier_call_chain
@@ -680,6 +681,7 @@
 	register_die_notifier
 	register_filesystem
 	register_ftrace_event
+	register_inet6addr_notifier
 	register_inetaddr_notifier
 	register_ip_vs_scheduler
 	register_kprobe
@@ -999,6 +1001,7 @@
 	unregister_cpu_notifier
 	unregister_die_notifier
 	unregister_filesystem
+	unregister_inet6addr_notifier
 	unregister_inetaddr_notifier
 	unregister_ip_vs_scheduler
 	unregister_kprobe
