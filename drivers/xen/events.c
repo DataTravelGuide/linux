@@ -991,11 +991,12 @@ void xen_irq_resume(void)
 	}
 
 	/*
-	 * Unmask any IRQF_NO_SUSPEND IRQs which are enabled. These
-	 * are not handled by the IRQ core.
+	 * Unmask any IRQF_TIMER or IRQF_NO_SUSPEND IRQs which are enabled.
+	 * These are not handled by the IRQ core.
 	 */
 	for_each_irq_desc(irq, desc) {
-		if (!desc->action || !(desc->action->flags & IRQF_NO_SUSPEND))
+		if (!desc->action ||
+		    !(desc->action->flags & (IRQF_TIMER|IRQF_NO_SUSPEND)))
 			continue;
 		if (desc->status & IRQ_DISABLED)
 			continue;
