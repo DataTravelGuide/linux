@@ -1318,6 +1318,7 @@
 0x0f8ee4a9	sysfs_remove_bin_file	vmlinux	EXPORT_SYMBOL_GPL
 0x8ba328c7	sysfs_remove_file	vmlinux	EXPORT_SYMBOL_GPL
 0x7910f33e	sysfs_remove_group	vmlinux	EXPORT_SYMBOL_GPL
+0x5c90256a	sysfs_schedule_callback	vmlinux	EXPORT_SYMBOL_GPL
 0x2288378f	system_state	vmlinux	EXPORT_SYMBOL
 0xa5808bbf	tasklet_init	vmlinux	EXPORT_SYMBOL
 0x79ad224b	tasklet_kill	vmlinux	EXPORT_SYMBOL

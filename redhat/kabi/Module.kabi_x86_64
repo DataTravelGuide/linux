@@ -1323,6 +1323,7 @@
 0x7eee367a	sysfs_remove_bin_file	vmlinux	EXPORT_SYMBOL_GPL
 0x38f63f73	sysfs_remove_file	vmlinux	EXPORT_SYMBOL_GPL
 0x47024ac3	sysfs_remove_group	vmlinux	EXPORT_SYMBOL_GPL
+0x433390f4	sysfs_schedule_callback	vmlinux	EXPORT_SYMBOL_GPL
 0x2288378f	system_state	vmlinux	EXPORT_SYMBOL
 0xa5808bbf	tasklet_init	vmlinux	EXPORT_SYMBOL
 0x79ad224b	tasklet_kill	vmlinux	EXPORT_SYMBOL

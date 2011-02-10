@@ -1252,6 +1252,7 @@
 	sysfs_remove_bin_file
 	sysfs_remove_file
 	sysfs_remove_group
+	sysfs_schedule_callback
 	system_state
 	tasklet_init
 	tasklet_kill

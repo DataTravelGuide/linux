@@ -932,6 +932,7 @@
 0x1c930447	sysfs_remove_bin_file	vmlinux	EXPORT_SYMBOL_GPL
 0xa2b0bb68	sysfs_remove_file	vmlinux	EXPORT_SYMBOL_GPL
 0xcbf966a7	sysfs_remove_group	vmlinux	EXPORT_SYMBOL_GPL
+0x3f679de9	sysfs_schedule_callback	vmlinux	EXPORT_SYMBOL_GPL
 0x2288378f	system_state	vmlinux	EXPORT_SYMBOL
 0xa5808bbf	tasklet_init	vmlinux	EXPORT_SYMBOL
 0x79ad224b	tasklet_kill	vmlinux	EXPORT_SYMBOL
