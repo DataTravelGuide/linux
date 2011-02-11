@@ -11,6 +11,9 @@ endif
 rh-%::
 	$(MAKE) -C redhat $(@) $(_EXTRA_ARGS)
 
+rhg-%::
+	$(MAKE) -C redhat $(@) $(_EXTRA_ARGS)
+
 .PHONY: rhkey
 Makefile: rhkey
 rhkey:

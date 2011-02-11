@@ -23,6 +23,9 @@ BUILDID:=.test
 endif
 $(info BUILDID is "$(BUILDID)". Update '$(shell dirname $(REDHAT))/localversion' to change.)
 
+RHGITURL:=$(shell git config remote.origin.url)
+RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)
+
 # this section is needed in order to make O= to work
 _OUTPUT := ..
 ifeq ("$(origin O)", "command line")
@@ -177,8 +180,14 @@ rh-release-commit:
 .PHONY: rh-brew rh-koji
 rh-brew : BUILD_FLAGS ?= $(BREW_FLAGS) $(TEST_FLAGS)
 rh-koji : BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
+rhg-brew: BUILD_FLAGS ?= $(BREW_FLAGS) $(TEST_FLAGS)
+rhg-koji: BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
+
 rh-brew rh-koji: rh-%: rh-srpm
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
+
+rhg-brew rhg-koji: rhg-%:
+	$* build $(BUILD_FLAGS) $(BUILD_TARGET) "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
 
 rh-help:
 	@echo  'Cleaning targets:'
@@ -193,6 +202,8 @@ rh-help:
 	@echo  '  rh-srpm	- Create a source RPM and put it into the redhat/rpm/SRPMS/ directory'
 	@echo  '  rh-brew	- Create a kernel SRPM and then call brew to build the created SRPM'
 	@echo  '  rh-koji	- Create a kernel SRPM and then call koji to build the created SRPM'
+	@echo  '  rhg-brew	- Pass a commit hash to brew to build an RPM set'
+	@echo  '  rhg-koji	- Pass a commit hash to koji to build an RPM set'
 	@echo  '  rh-test	- Pass in brew task number, TASK=1234 make rh-test, to use for an RHTS test'
 	@echo  '		  setup ./tests to use a test from redhat/tests (minus the .xml)'
 	@echo  '		  uses a known stable RHEL6 distro as the default'

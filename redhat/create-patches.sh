@@ -227,20 +227,15 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 
 # strip all redhat/ code
 if [ $STRIP_REDHAT = 1 ]; then
-	which filterdiff >/dev/null 2>&1;
-	if [ ! $? = 0 ]; then
-		echo "patchutils is required (filterdiff)" >&2;
-		exit 1;
-	fi
-	which lsdiff >/dev/null 2>&1;
-	if [ ! $? = 0 ]; then
-		echo "patchutils is required (lsdiff)" >&2;
+	if [ ! -x /usr/bin/filterdiff -o ! -x /usr/bin/lsdiff ]
+	then
+		echo "patchutils is required" >&2;
 		exit 1;
 	fi
 	for patch in $(find $SOURCES/ -name \*.patch); do
-		filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $patch >$SOURCES/.tmp;
+		/usr/bin/filterdiff -x '*redhat/*' -x '*/.gitignore' -x '*/makefile' $patch >$SOURCES/.tmp;
 		mv $SOURCES/.tmp $patch;
-		if [ -z "$(lsdiff $patch)" ]; then
+		if [ -z "$(/usr/bin/lsdiff $patch)" ]; then
 			grep -v -e "^Patch.*: $(basename $patch)$" $PATCHF >$SOURCES/.tmp;
 			mv $SOURCES/.tmp $PATCHF;
 			grep -v -e "^ApplyPatch $(basename $patch)$" $patchf >$SOURCES/.tmp;
