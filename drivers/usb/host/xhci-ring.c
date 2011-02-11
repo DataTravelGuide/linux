@@ -2451,7 +2451,7 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (!printk_ratelimit())
+		if (printk_ratelimit())
 			dev_dbg(&urb->dev->dev, "Driver uses different interval"
 					" (%d microframe%s) than xHCI "
 					"(%d microframe%s)\n",
@@ -3079,7 +3079,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * to set the polling interval (once the API is added).
 	 */
 	if (xhci_interval != ep_interval) {
-		if (!printk_ratelimit())
+		if (printk_ratelimit())
 			dev_dbg(&urb->dev->dev, "Driver uses different interval"
 					" (%d microframe%s) than xHCI "
 					"(%d microframe%s)\n",
