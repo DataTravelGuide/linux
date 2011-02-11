@@ -114,6 +114,9 @@ struct usb_hcd {
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
+#ifndef __GENKSYMS__
+	unsigned		msix_enabled:1;	/* driver has MSI-X enabled? */
+#endif
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
