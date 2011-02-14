@@ -37,8 +37,9 @@ extern int check_for_xstate(struct i387_fxsave_struct __user *buf,
 			    void __user *fpstate,
 			    struct _fpx_sw_bytes *sw);
 
-static inline int xrstor_checking(struct xsave_struct *fx)
+static inline int fpu_xrstor_checking(struct fpu *fpu)
 {
+	struct xsave_struct *fx = &fpu->state->xsave;
 	int err;
 
 	asm volatile("1: .byte " REX_PREFIX "0x0f,0xae,0x2f\n\t"
@@ -120,7 +121,7 @@ static inline void xsave_state(struct xsave_struct *fx, u64 mask)
 		     :   "memory");
 }
 
-static inline void xsave(struct task_struct *tsk)
+static inline void fpu_xsave(struct fpu *fpu)
 {
 	/* This, however, we can work around by forcing the compiler to select
 	   an addressing mode that doesn't require extended registers. */
@@ -128,7 +129,7 @@ static inline void xsave(struct task_struct *tsk)
 		".byte " REX_PREFIX "0x0f,0xae,0x27",
 		".byte " REX_PREFIX "0x0f,0xae,0x37",
 		X86_FEATURE_XSAVEOPT,
-		[fx] "D" (&tsk->thread.xstate->xsave), "a" (-1), "d" (-1) :
+		[fx] "D" (&(fpu->state->xsave)), "a" (-1), "d" (-1) :
 		"memory");
 }
 #endif

@@ -181,7 +181,6 @@ int save_i387_xstate(void __user *buf)
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	} else {
-		sanitize_i387_state(tsk);
 		if (__copy_to_user(buf, &tsk->thread.xstate->fxsave,
 				   xstate_size))
 			return -1;
