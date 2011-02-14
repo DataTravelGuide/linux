@@ -166,8 +166,19 @@ void sched_autogroup_move_task(struct task_struct *p)
 /* Allocates GFP_KERNEL, cannot be called under any spinlock */
 void sched_autogroup_create_attach(struct task_struct *p)
 {
-	struct autogroup *ag = autogroup_create();
+	struct autogroup *ag;
+	int enabled = ACCESS_ONCE(sysctl_sched_autogroup_enabled);
 
+	/*
+	 * If autogroups are not enabled, don't create additional new
+	 * autogroups and let the task be in default autogroup. If
+	 * autogroup feature is enabled later, then only newly launched
+	 * tasks with setsid() will go into a separate autogroup and
+	 * not the existing ones.
+	 */
+	if (!enabled)
+		return;
+	ag = autogroup_create();
 	autogroup_move_group(p, ag);
 	/* drop extra refrence added by autogroup_create() */
 	autogroup_kref_put(ag);
