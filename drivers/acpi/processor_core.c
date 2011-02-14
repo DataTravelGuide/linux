@@ -762,8 +762,14 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	if (action == CPU_ONLINE && pr) {
 		acpi_processor_ppc_has_changed(pr);
 		acpi_processor_cst_has_changed(pr);
+		acpi_processor_reevaluate_tstate(pr, action);
 		acpi_processor_tstate_has_changed(pr);
 	}
+	if (action == CPU_DEAD && pr) {
+		/* invalidate the flag.throttling after one CPU is offline */
+		acpi_processor_reevaluate_tstate(pr, action);
+	}
+
 	return NOTIFY_OK;
 }
 
