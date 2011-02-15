@@ -203,8 +203,10 @@ struct x86_pmu {
 	void		(*disable)(struct perf_event *);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
-	unsigned	eventsel;
-	unsigned	perfctr;
+	unsigned int	eventsel;
+	unsigned int	perfctr;
+	unsigned int	*eventsel_map;
+	unsigned int	*perfctr_map;
 	u64		(*event_map)(int);
 	int		max_events;
 	int		num_counters;
@@ -324,11 +326,17 @@ again:
 
 static inline unsigned int x86_pmu_config_addr(int index)
 {
+	if (x86_pmu.eventsel_map)
+		return x86_pmu.eventsel_map[index];
+
 	return x86_pmu.eventsel + index;
 }
 
 static inline unsigned int x86_pmu_event_addr(int index)
 {
+	if (x86_pmu.perfctr_map)
+		return x86_pmu.perfctr_map[index];
+
 	return x86_pmu.perfctr + index;
 }
 
