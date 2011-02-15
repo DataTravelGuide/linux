@@ -22,7 +22,8 @@ SUBLEVEL="$(echo $MARKER | cut -f 3 -d '.' | cut -f 1 -d '-')";
 #SUBLEVEL="$(echo $MARKER | cut -f 3 -d '.')";
 RCREV=$(echo $MARKER | cut -f 2 -d '-' -s | sed -e "s/rc//")
 GITREV=$(echo $MARKER | cut -f 3 -d '-' -s | sed -e "s/git//")
-LASTCOMMIT=$(cat lastcommit);
+#can't use git rev-parse here because lastcommit might be a tag object
+LASTCOMMIT=$(git log -1 --format=format:%H `cat lastcommit`);
 STAMP=$(echo $MARKER | cut -f 1 -d '-' | sed -e "s/v//");
 QUICK_BUILD="$(echo "$BUILD_OPTIONS"|grep -q "Q" && echo "Q" || echo "")"
 SINGLE_TARBALL="$(echo "$BUILD_OPTIONS"|grep -q "S" && echo "S" || echo "")"

@@ -6,7 +6,7 @@ KVERSION:=2.6.32
 MARKER:=v2.6.32
 SPECFILE:=kernel.spec
 REDHAT:=$(shell pwd)
-LASTCOMMIT:=$(shell cat $(REDHAT)/lastcommit)
+LASTCOMMIT:=$(shell git log -1 --format=format:%H `cat $(REDHAT)/lastcommit`)
 CMARKER:=$(MARKER)
 RPM:=$(REDHAT)/rpm
 SRPMS:=$(RPM)/SRPMS
