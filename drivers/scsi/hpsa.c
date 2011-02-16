@@ -4130,9 +4130,7 @@ clean_up:
  */
 static int __init hpsa_init(void)
 {
-	int err;
-	err = pci_register_driver(&hpsa_pci_driver);
-	return err;
+	return pci_register_driver(&hpsa_pci_driver);
 }
 
 static void __exit hpsa_cleanup(void)
