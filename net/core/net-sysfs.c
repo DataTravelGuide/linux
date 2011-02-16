@@ -715,7 +715,8 @@ static void rx_queue_release(struct kobject *kobj)
 
 	if (atomic_dec_and_test(&first->count))
 		kfree(first);
-	memset(kobj, 0, sizeof(*kobj));
+	else
+		memset(kobj, 0, sizeof(*kobj));
 }
 
 static struct kobj_type rx_queue_ktype = {
