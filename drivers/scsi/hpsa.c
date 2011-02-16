@@ -1144,6 +1144,10 @@ static void complete_scsi_command(struct CommandList *cp,
 		cmd->result = DID_TIME_OUT << 16;
 		dev_warn(&h->pdev->dev, "cp %p timedout\n", cp);
 		break;
+	case CMD_UNABORTABLE:
+		cmd->result = DID_ERROR << 16;
+		dev_warn(&h->pdev->dev, "Command unabortable\n");
+		break;
 	default:
 		cmd->result = DID_ERROR << 16;
 		dev_warn(&h->pdev->dev, "cp %p returned unknown status %x\n",
@@ -1308,6 +1312,9 @@ static void hpsa_scsi_interpret_error(struct CommandList *cp)
 		break;
 	case CMD_TIMEOUT:
 		dev_warn(d, "cp %p timed out\n", cp);
+		break;
+	case CMD_UNABORTABLE:
+		dev_warn(d, "Command unabortable\n");
 		break;
 	default:
 		dev_warn(d, "cp %p returned unknown status %x\n", cp,
