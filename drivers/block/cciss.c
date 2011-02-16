@@ -209,6 +209,8 @@ static void cciss_procinit(ctlr_info_t *h)
 static int cciss_compat_ioctl(struct block_device *, fmode_t,
 			      unsigned, unsigned long);
 #endif
+static void cciss_sysfs_stat_inquiry(ctlr_info_t *h, int logvol,
+			drive_info_struct *drv);
 
 static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
@@ -1998,6 +2000,7 @@ static void cciss_update_drive_info(ctlr_info_t *h, int drv_index,
 	++h->num_luns;
 	disk = h->gendisk[drv_index];
 	set_capacity(disk, h->drv[drv_index]->nr_blocks);
+	cciss_sysfs_stat_inquiry(h, drv_index, h->drv[drv_index]);
 
 	/* If it's not disk 0 (drv_index != 0)
 	 * or if it was disk 0, but there was previously
@@ -4902,6 +4905,47 @@ static void __exit cciss_cleanup(void)
 	kthread_stop(cciss_scan_thread);
 	remove_proc_entry("driver/cciss", NULL);
 	bus_unregister(&cciss_bus_type);
+}
+
+static void cciss_sysfs_stat_inquiry(ctlr_info_t *h, int logvol,
+			drive_info_struct *drv)
+{
+	int return_code;
+	InquiryData_struct *inq_buff;
+	unsigned char scsi3addr[8];
+
+	/* If there are no heads then this is the controller disk and
+	 * not a valid logical drive so don't query it.
+	 */
+	if (!drv->heads)
+		return;
+
+	inq_buff = kzalloc(sizeof(InquiryData_struct), GFP_KERNEL);
+	if (!inq_buff) {
+		dev_err(&h->pdev->dev, "out of memory\n");
+		goto err;
+	}
+	log_unit_to_scsi3addr(h, scsi3addr, logvol);
+	return_code = sendcmd_withirq(h, CISS_INQUIRY, inq_buff,
+		sizeof(*inq_buff), 0, scsi3addr, TYPE_CMD);
+	if (return_code == IO_OK) {
+		memcpy(drv->vendor, &inq_buff->data_byte[8], 8);
+		drv->vendor[8] = '\0';
+		memcpy(drv->model, &inq_buff->data_byte[16], 16);
+		drv->model[16] = '\0';
+		memcpy(drv->rev, &inq_buff->data_byte[32], 4);
+		drv->rev[4] = '\0';
+	} else { /* Get geometry failed */
+		dev_warn(&h->pdev->dev, "inquiry for VPD page 0 failed\n");
+	}
+	kfree(inq_buff);
+	cciss_get_serial_no(h, logvol, drv->serial_no, sizeof(drv->serial_no));
+
+err:
+	drv->vendor[8] = '\0';
+	drv->model[16] = '\0';
+	drv->rev[4] = '\0';
+
 }
 
 module_init(cciss_init);
