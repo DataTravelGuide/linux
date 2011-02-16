@@ -161,7 +161,7 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
 /* performant mode helper functions */
 static void calc_bucket_map(int *bucket, int num_buckets,
 	int nsgs, int *bucket_map);
-static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h);
+static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h);
 static inline u32 next_command(struct ctlr_info *h);
 static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
@@ -3928,7 +3928,7 @@ static void  calc_bucket_map(int bucket[], int num_buckets,
 	}
 }
 
-static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
+static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
 	u64 trans_offset;
