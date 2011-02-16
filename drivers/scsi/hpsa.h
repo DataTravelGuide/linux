@@ -1,15 +1,3 @@
-/************************ inventory ***************************
-   This file is part of an export that includes these revisions:
-
-File sbe/src/2.6/hpsa/.gitignore is new; hpsa_1_1_1_2010_04_14 revision 1.1.2.1
-File sbe/src/2.6/hpsa/drivers/scsi/Makefile is new; hpsa_1_1_1_2010_04_14 revision 1.1.2.1
-File sbe/src/2.6/hpsa/drivers/scsi/hpsa.c is new; hpsa_1_1_1_2010_04_14 revision 1.57.2.150
-File sbe/src/2.6/hpsa/drivers/scsi/hpsa.h is new; hpsa_1_1_1_2010_04_14 revision 1.19.2.32
-File sbe/src/2.6/hpsa/drivers/scsi/hpsa_cmd.h is new; hpsa_1_1_1_2010_04_14 revision 1.12.2.21
-File sbe/src/2.6/hpsa/kernel_patches/hpsa_kernel_config.patch is new; hpsa_1_1_1_2010_04_14 revision 1.1
-
-**************************************************************/
-
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
  *    Copyright 2000, 2009 Hewlett-Packard Development Company, L.P.
