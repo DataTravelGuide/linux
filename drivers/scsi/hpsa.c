@@ -3303,8 +3303,7 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
  * controllers that are capable. If not, we use IO-APIC mode.
  */
 
-static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
-					   u32 board_id)
+static void __devinit hpsa_interrupt_mode(struct ctlr_info *h)
 {
 #ifdef CONFIG_PCI_MSI
 	int err;
@@ -3313,9 +3312,8 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
 	};
 
 	/* Some boards advertise MSI but don't really support it */
-	if ((board_id == 0x40700E11) ||
-	    (board_id == 0x40800E11) ||
-	    (board_id == 0x40820E11) || (board_id == 0x40830E11))
+	if ((h->board_id == 0x40700E11) || (h->board_id == 0x40800E11) ||
+	    (h->board_id == 0x40820E11) || (h->board_id == 0x40830E11))
 		goto default_int_mode;
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
 		dev_info(&h->pdev->dev, "MSIX\n");
@@ -3444,11 +3442,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 			"cannot obtain PCI resources, aborting\n");
 		return err;
 	}
-
-	/* If the kernel supports MSI/MSI-X we will try to enable that,
-	 * else we use the IO-APIC interrupt assigned to us by system ROM.
-	 */
-	hpsa_interrupt_mode(h, h->board_id);
+	hpsa_interrupt_mode(h);
 
 	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
