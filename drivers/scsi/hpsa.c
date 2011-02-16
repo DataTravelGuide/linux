@@ -3426,12 +3426,35 @@ static int __devinit hpsa_wait_for_board_ready(struct ctlr_info *h)
 	return -ENODEV;
 }
 
-static int __devinit hpsa_pci_init(struct ctlr_info *h)
+static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 {
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	u32 trans_offset;
+	int rc;
+
+	rc = hpsa_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
+		&cfg_base_addr_index, &cfg_offset);
+	if (rc)
+		return rc;
+	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
+				cfg_base_addr_index) + cfg_offset,
+				sizeof(*h->cfgtable));
+	if (!h->cfgtable)
+		return -ENOMEM;
+	/* Find performant mode table. */
+	trans_offset = readl(&h->cfgtable->TransMethodOffset);
+	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
+				cfg_base_addr_index)+cfg_offset+trans_offset,
+				sizeof(*h->transtable));
+	if (!h->transtable)
+		return -ENOMEM;
+	return 0;
+}
+
+static int __devinit hpsa_pci_init(struct ctlr_info *h)
+{
 	int i, prod_index, err;
 
 	prod_index = hpsa_lookup_board_id(h->pdev, &h->board_id);
@@ -3467,20 +3490,9 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	if (err)
 		goto err_out_free_res;
 
-	err = hpsa_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
-		&cfg_base_addr_index, &cfg_offset);
+	err = hpsa_find_cfgtables(h);
 	if (err)
 		goto err_out_free_res;
-
-	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
-			       cfg_base_addr_index) + cfg_offset,
-				sizeof(h->cfgtable));
-	/* Find performant mode table. */
-	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
-	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
-				cfg_base_addr_index)+cfg_offset+trans_offset,
-				sizeof(*h->transtable));
-
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
 
