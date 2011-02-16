@@ -65,6 +65,10 @@ MODULE_DESCRIPTION("Driver for HP Smart Array Controllers");
 MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
 MODULE_VERSION("3.6.26");
 MODULE_LICENSE("GPL");
+static int cciss_tape_cmds = 6;
+module_param(cciss_tape_cmds, int, 0644);
+MODULE_PARM_DESC(cciss_tape_cmds,
+	"number of commands to allocate for tape devices (default: 6)");
 
 #include "cciss_cmd.h"
 #include "cciss.h"
@@ -3761,7 +3765,8 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 static void __devinit cciss_find_board_params(ctlr_info_t *h)
 {
 	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
-	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
+	h->nr_cmds =
+		h->max_commands - 4 - cciss_tape_cmds;
 }
 
 static inline bool CISS_signature_present(ctlr_info_t *h)
@@ -4316,6 +4321,11 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	INIT_HLIST_HEAD(&hba[i]->cmpQ);
 	INIT_HLIST_HEAD(&hba[i]->reqQ);
 	mutex_init(&hba[i]->busy_shutting_down);
+
+	if (cciss_tape_cmds < 2)
+		cciss_tape_cmds = 2;
+	if (cciss_tape_cmds > 16)
+		cciss_tape_cmds = 16;
 
 	if (cciss_pci_init(hba[i]) != 0)
 		goto clean_no_release_regions;
