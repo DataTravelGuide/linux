@@ -75,6 +75,10 @@ static int hpsa_allow_any;
 module_param(hpsa_allow_any, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(hpsa_allow_any,
 		"Allow hpsa driver to access unknown HP Smart Array hardware");
+static int hpsa_simple_mode;
+module_param(hpsa_simple_mode, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(hpsa_simple_mode,
+	"Use 'simple mode' rather than 'performant mode'");
 
 #ifndef PCI_DEVICE_ID_HP_CISSF
 #define PCI_DEVICE_ID_HP_CISSF 0x333F
@@ -4066,6 +4070,9 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h)
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
+
+	if (hpsa_simple_mode)
+		return;
 
 	trans_support = readl(&(h->cfgtable->TransportSupport));
 	if (!(trans_support & PERFORMANT_MODE))
