@@ -3349,8 +3349,8 @@ static inline int interrupt_pending(ctlr_info_t *h)
 
 static inline long interrupt_not_for_us(ctlr_info_t *h)
 {
-	return (((h->access.intr_pending(h) == 0) ||
-		 (h->interrupts_enabled == 0)));
+	return (h->access.intr_pending(h) == 0 ||
+		h->interrupts_enabled == 0);
 }
 
 static inline int bad_tag(ctlr_info_t *h, u32 tag_index,
@@ -3442,10 +3442,6 @@ static irqreturn_t do_cciss_intx(int irq, void *dev_id)
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
-	/*
-	 * If there are completed commands in the completion queue,
-	 * we had better do something about it.
-	 */
 	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
 	while (interrupt_pending(h)) {
 		raw_tag = get_next_completion(h);
@@ -3456,7 +3452,6 @@ static irqreturn_t do_cciss_intx(int irq, void *dev_id)
 				raw_tag = process_nonindexed_cmd(h, raw_tag);
 		}
 	}
-
 	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
 	return IRQ_HANDLED;
 }
@@ -3470,12 +3465,6 @@ static irqreturn_t do_cciss_msix_intr(int irq, void *dev_id)
 	unsigned long flags;
 	u32 raw_tag;
 
-	if (interrupt_not_for_us(h))
-		return IRQ_NONE;
-	/*
-	 * If there are completed commands in the completion queue,
-	 * we had better do something about it.
-	 */
 	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
 	raw_tag = get_next_completion(h);
 	while (raw_tag != FIFO_EMPTY) {
