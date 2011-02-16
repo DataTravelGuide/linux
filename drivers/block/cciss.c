@@ -2644,6 +2644,10 @@ static int process_sendcmd_error(ctlr_info_t *h, CommandList_struct *c)
 			c->Request.CDB[0]);
 		return_status = IO_NEEDS_RETRY;
 		break;
+	case CMD_UNABORTABLE:
+		dev_warn(&h->pdev->dev, "cmd unabortable\n");
+		return_status = IO_ERROR;
+		break;
 	default:
 		dev_warn(&h->pdev->dev, "cmd 0x%02x returned "
 		       "unknown status %x\n", c->Request.CDB[0],
@@ -3088,6 +3092,13 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 		break;
 	case CMD_TIMEOUT:
 		dev_warn(&h->pdev->dev, "cmd %p timedout\n", cmd);
+		rq->errors = make_status_bytes(SAM_STAT_GOOD,
+			cmd->err_info->CommandStatus, DRIVER_OK,
+			(cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+				DID_PASSTHROUGH : DID_ERROR);
+		break;
+	case CMD_UNABORTABLE:
+		dev_warn(&h->pdev->dev, "cmd unabortable\n");
 		rq->errors = make_status_bytes(SAM_STAT_GOOD,
 			cmd->err_info->CommandStatus, DRIVER_OK,
 			(cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
