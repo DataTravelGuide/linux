@@ -70,6 +70,8 @@ module_param(cciss_tape_cmds, int, 0644);
 MODULE_PARM_DESC(cciss_tape_cmds,
 	"number of commands to allocate for tape devices (default: 6)");
 
+static struct proc_dir_entry *proc_cciss;
+
 #include "cciss_cmd.h"
 #include "cciss.h"
 #include <linux/cciss_ioctl.h>
@@ -359,8 +361,6 @@ static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 #define ENG_GIG 1000000000
 #define ENG_GIG_FACTOR (ENG_GIG/512)
 #define ENGAGE_SCSI	"engage scsi"
-
-static struct proc_dir_entry *proc_cciss;
 
 static void cciss_seq_show_header(struct seq_file *seq)
 {
@@ -4779,7 +4779,8 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 	mutex_lock(&h->busy_shutting_down);
 
 	remove_from_scan_list(h);
-	remove_proc_entry(h->devname, proc_cciss);
+	if (proc_cciss)
+		remove_proc_entry(h->devname, proc_cciss);
 	unregister_blkdev(h->major, h->devname);
 
 	/* remove it from the disk list */
