@@ -91,12 +91,16 @@ static struct scsi_host_template cciss_driver_template = {
 };
 
 #pragma pack(1)
+
+#define SCSI_PAD_32 8
+#define SCSI_PAD_64 8
+
 struct cciss_scsi_cmd_stack_elem_t {
 	CommandList_struct cmd;
 	ErrorInfo_struct Err;
 	__u32 busaddr;
 	int cmdindex;
-	unsigned char pad[0];
+	unsigned char pad[IS_32_BIT * SCSI_PAD_32 + IS_64_BIT * SCSI_PAD_64];
 };
 
 struct cciss_scsi_cmd_stack_t {
@@ -204,7 +208,8 @@ scsi_cmd_stack_setup(int ctlr, struct cciss_scsi_adapter_data_t *sa)
 	size = sizeof(struct cciss_scsi_cmd_stack_elem_t) * stk->nelems;
 
 	/* Check alignment, see cciss_cmd.h near CommandList_struct def. */
-	BUILD_BUG_ON((sizeof(struct cciss_scsi_cmd_stack_elem_t) % 8) != 0);
+	BUILD_BUG_ON(sizeof(struct cciss_scsi_cmd_stack_elem_t) %
+			COMMANDLIST_ALIGNMENT);
 	// pci_alloc_consistent guarantees 32-bit DMA address will
 	// be used
 	stk->pool = (struct cciss_scsi_cmd_stack_elem_t *)
