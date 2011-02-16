@@ -3405,9 +3405,16 @@ static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	return 0;
 }
 
+static inline bool hpsa_board_disabled(struct pci_dev *pdev)
+{
+	u16 command;
+
+	(void) pci_read_config_word(pdev, PCI_COMMAND, &command);
+	return ((command & PCI_COMMAND_MEMORY) == 0);
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
-	ushort command;
 	u32 scratchpad = 0;
 	u64 cfg_offset;
 	u32 cfg_base_addr;
@@ -3421,15 +3428,10 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 
-	/* check to see if controller has been disabled
-	 * BEFORE trying to enable it
-	 */
-	(void)pci_read_config_word(h->pdev, PCI_COMMAND, &command);
-	if (!(command & 0x02)) {
+	if (hpsa_board_disabled(h->pdev)) {
 		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
 		return -ENODEV;
 	}
-
 	err = pci_enable_device(h->pdev);
 	if (err) {
 		dev_warn(&h->pdev->dev, "unable to enable PCI device\n");
