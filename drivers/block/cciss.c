@@ -2239,7 +2239,6 @@ freeret:
 	return -1;
 mem_msg:
 	printk(KERN_ERR "cciss: out of memory\n");
-	h->busy_configuring = 0;
 	goto freeret;
 }
 
