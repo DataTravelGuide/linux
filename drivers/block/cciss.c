@@ -1200,6 +1200,20 @@ static int cciss_getpciinfo(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getintinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_coalint_struct intinfo;
+
+	if (!argp)
+		return -EINVAL;
+	intinfo.delay = readl(&h->cfgtable->HostWrite.CoalIntDelay);
+	intinfo.count = readl(&h->cfgtable->HostWrite.CoalIntCount);
+	if (copy_to_user
+	    (argp, &intinfo, sizeof(cciss_coalint_struct)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1214,19 +1228,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_GETPCIINFO:
 		return cciss_getpciinfo(h, argp);
 	case CCISS_GETINTINFO:
-		{
-			cciss_coalint_struct intinfo;
-			if (!arg)
-				return -EINVAL;
-			intinfo.delay =
-			    readl(&h->cfgtable->HostWrite.CoalIntDelay);
-			intinfo.count =
-			    readl(&h->cfgtable->HostWrite.CoalIntCount);
-			if (copy_to_user
-			    (argp, &intinfo, sizeof(cciss_coalint_struct)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getintinfo(h, argp);
 	case CCISS_SETINTINFO:
 		{
 			cciss_coalint_struct intinfo;
