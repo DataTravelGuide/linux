@@ -1245,6 +1245,20 @@ static int cciss_setintinfo(ctlr_info_t *h, void __user *argp)
 	return 0;
 }
 
+static int cciss_getnodename(ctlr_info_t *h, void __user *argp)
+{
+	NodeName_type NodeName;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	for (i = 0; i < 16; i++)
+		NodeName[i] = readb(&h->cfgtable->ServerName[i]);
+	if (copy_to_user(argp, NodeName, sizeof(NodeName_type)))
+		return -EFAULT;
+	return 0;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
@@ -1263,19 +1277,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_SETINTINFO:
 		return cciss_setintinfo(h, argp);
 	case CCISS_GETNODENAME:
-		{
-			NodeName_type NodeName;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			for (i = 0; i < 16; i++)
-				NodeName[i] =
-				    readb(&h->cfgtable->ServerName[i]);
-			if (copy_to_user(argp, NodeName, sizeof(NodeName_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getnodename(h, argp);
 	case CCISS_SETNODENAME:
 		{
 			NodeName_type NodeName;
