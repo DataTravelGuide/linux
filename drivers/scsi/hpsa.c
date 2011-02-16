@@ -340,7 +340,7 @@ static ssize_t host_show_transport_mode(struct device *dev,
 
 	h = shost_to_hba(shost);
 	return snprintf(buf, 20, "%s\n",
-		h->transMethod == CFGTBL_Trans_Performant ?
+		h->transMethod & CFGTBL_Trans_Performant ?
 			"performant" : "simple");
 }
 
@@ -354,7 +354,7 @@ static inline u32 next_command(struct ctlr_info *h)
 {
 	u32 a;
 
-	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
 		return h->access.command_completed(h);
 
 	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
@@ -378,7 +378,7 @@ static inline u32 next_command(struct ctlr_info *h)
  */
 static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 {
-	if (likely(h->transMethod == CFGTBL_Trans_Performant))
+	if (likely(h->transMethod & CFGTBL_Trans_Performant))
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
 }
 
@@ -2935,7 +2935,7 @@ static inline u32 hpsa_tag_discard_error_bits(struct ctlr_info *h, u32 tag)
 {
 #define HPSA_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
 #define HPSA_SIMPLE_ERROR_BITS 0x03
-	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
 		return tag & ~HPSA_SIMPLE_ERROR_BITS;
 	return tag & ~HPSA_PERF_ERROR_BITS;
 }
@@ -3653,6 +3653,7 @@ static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
 			"unable to get board into simple mode\n");
 		return -ENODEV;
 	}
+	h->transMethod = CFGTBL_Trans_Simple;
 	return 0;
 }
 
@@ -4040,7 +4041,8 @@ static void  calc_bucket_map(int bucket[], int num_buckets,
 	}
 }
 
-static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h)
+static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
+	u32 use_short_tags)
 {
 	int i;
 	unsigned long register_value;
@@ -4088,7 +4090,7 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h)
 	writel(0, &h->transtable->RepQCtrAddrHigh32);
 	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
 	writel(0, &h->transtable->RepQAddr0High32);
-	writel(CFGTBL_Trans_Performant,
+	writel(CFGTBL_Trans_Performant | use_short_tags,
 		&(h->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	hpsa_wait_for_mode_change_ack(h);
@@ -4098,6 +4100,9 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h)
 					" performant mode\n");
 		return;
 	}
+	/* Change the access methods to the performant access methods */
+	h->access = SA5_performant_access;
+	h->transMethod = CFGTBL_Trans_Performant;
 }
 
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
@@ -4126,12 +4131,8 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 		|| (h->blockFetchTable == NULL))
 		goto clean_up;
 
-	hpsa_enter_performant_mode(h);
-
-	/* Change the access methods to the performant access methods */
-	h->access = SA5_performant_access;
-	h->transMethod = CFGTBL_Trans_Performant;
-
+	hpsa_enter_performant_mode(h,
+		trans_support & CFGTBL_Trans_use_short_tags);
 	return;
 
 clean_up:
