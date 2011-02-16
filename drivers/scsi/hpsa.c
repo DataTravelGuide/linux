@@ -3142,6 +3142,22 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 	return 0;
 }
 
+static int __devinit hpsa_wait_for_board_ready(struct pci_dev *pdev,
+	void __iomem *vaddr)
+{
+	int i;
+	u32 scratchpad;
+
+	for (i = 0; i < HPSA_BOARD_READY_ITERATIONS; i++) {
+		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (scratchpad == HPSA_FIRMWARE_READY)
+			return 0;
+		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
+	}
+	dev_warn(&pdev->dev, "board not ready, timed out.\n");
+	return -ENODEV;
+}
+
 /* This does a hard reset of the controller using PCI power management
  * states or the using the doorbell register.
  */
@@ -3248,6 +3264,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	/* Some devices (notably the HP Smart Array 5i Controller)
 	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
+	(void) hpsa_wait_for_board_ready(pdev, vaddr);
 
 	/* Controller should be in simple mode at this point.  If it's not,
 	 * It means we're on one of those controllers which doesn't support
@@ -3459,21 +3476,6 @@ static inline bool hpsa_board_disabled(struct pci_dev *pdev)
 	return ((command & PCI_COMMAND_MEMORY) == 0);
 }
 
-static int __devinit hpsa_wait_for_board_ready(struct ctlr_info *h)
-{
-	int i;
-	u32 scratchpad;
-
-	for (i = 0; i < HPSA_BOARD_READY_ITERATIONS; i++) {
-		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == HPSA_FIRMWARE_READY)
-			return 0;
-		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
-	}
-	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
-	return -ENODEV;
-}
-
 static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 {
 	u64 cfg_offset;
@@ -3649,7 +3651,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		err = -ENOMEM;
 		goto err_out_free_res;
 	}
-	err = hpsa_wait_for_board_ready(h);
+	err = hpsa_wait_for_board_ready(h->pdev, h->vaddr);
 	if (err)
 		goto err_out_free_res;
 
