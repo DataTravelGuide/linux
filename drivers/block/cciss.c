@@ -155,12 +155,11 @@ static int rebuild_lun_table(ctlr_info_t *h, int first_time, int via_ioctl);
 static int deregister_disk(ctlr_info_t *h, int drv_index,
 			   int clear_all, int via_ioctl);
 
-static void cciss_read_capacity(int ctlr, int logvol, int withirq,
-			sector_t *total_size, unsigned int *block_size);
-static void cciss_read_capacity_16(int ctlr, int logvol, int withirq,
-			sector_t *total_size, unsigned int *block_size);
-static void cciss_geometry_inquiry(int ctlr, int logvol,
-			int withirq, sector_t total_size,
+static void cciss_read_capacity(int ctlr, int logvol, sector_t *total_size,
+			unsigned int *block_size);
+static void cciss_read_capacity_16(int ctlr, int logvol, sector_t *total_size,
+			unsigned int *block_size);
+static void cciss_geometry_inquiry(int ctlr, int logvol, sector_t total_size,
 			unsigned int block_size, InquiryData_struct *inq_buff,
 				   drive_info_struct *drv);
 static void __devinit cciss_interrupt_mode(ctlr_info_t *);
@@ -1684,8 +1683,8 @@ static inline void log_unit_to_scsi3addr(ctlr_info_t *h,
  * via the inquiry page 0.  Model, vendor, and rev are set to empty strings if
  * they cannot be read.
  */
-static void cciss_get_device_descr(int ctlr, int logvol, int withirq,
-				   char *vendor, char *model, char *rev)
+static void cciss_get_device_descr(int ctlr, int logvol, char *vendor,
+	char *model, char *rev)
 {
 	int rc;
 	InquiryData_struct *inq_buf;
@@ -1700,12 +1699,7 @@ static void cciss_get_device_descr(int ctlr, int logvol, int withirq,
 		return;
 
 	log_unit_to_scsi3addr(hba[ctlr], scsi3addr, logvol);
-	if (withirq)
-		rc = sendcmd_withirq(CISS_INQUIRY, ctlr, inq_buf,
-			     sizeof(InquiryData_struct), 0,
-				scsi3addr, TYPE_CMD);
-	else
-		rc = sendcmd(CISS_INQUIRY, ctlr, inq_buf,
+	rc = sendcmd_withirq(CISS_INQUIRY, ctlr, inq_buf,
 			     sizeof(InquiryData_struct), 0,
 				scsi3addr, TYPE_CMD);
 	if (rc == IO_OK) {
@@ -1726,8 +1720,8 @@ static void cciss_get_device_descr(int ctlr, int logvol, int withirq,
  * number cannot be had, for whatever reason, 16 bytes of 0xff
  * are returned instead.
  */
-static void cciss_get_serial_no(int ctlr, int logvol, int withirq,
-				unsigned char *serial_no, int buflen)
+static void cciss_get_serial_no(int ctlr, int logvol,
+			unsigned char *serial_no, int buflen)
 {
 #define PAGE_83_INQ_BYTES 64
 	int rc;
@@ -1742,12 +1736,8 @@ static void cciss_get_serial_no(int ctlr, int logvol, int withirq,
 		return;
 	memset(serial_no, 0, buflen);
 	log_unit_to_scsi3addr(hba[ctlr], scsi3addr, logvol);
-	if (withirq)
-		rc = sendcmd_withirq(CISS_INQUIRY, ctlr, buf,
-			PAGE_83_INQ_BYTES, 0x83, scsi3addr, TYPE_CMD);
-	else
-		rc = sendcmd(CISS_INQUIRY, ctlr, buf,
-			PAGE_83_INQ_BYTES, 0x83, scsi3addr, TYPE_CMD);
+	rc = sendcmd_withirq(CISS_INQUIRY, ctlr, buf,
+		PAGE_83_INQ_BYTES, 0x83, scsi3addr, TYPE_CMD);
 	if (rc == IO_OK)
 		memcpy(serial_no, &buf[8], buflen);
 	kfree(buf);
@@ -1832,18 +1822,18 @@ static void cciss_update_drive_info(int ctlr, int drv_index, int first_time,
 
 	/* testing to see if 16-byte CDBs are already being used */
 	if (h->cciss_read == CCISS_READ_16) {
-		cciss_read_capacity_16(h->ctlr, drv_index, 1,
+		cciss_read_capacity_16(h->ctlr, drv_index,
 			&total_size, &block_size);
 
 	} else {
-		cciss_read_capacity(ctlr, drv_index, 1,
+		cciss_read_capacity(ctlr, drv_index,
 				    &total_size, &block_size);
 
 		/* if read_capacity returns all F's this volume is >2TB */
 		/* in size so we switch to 16-byte CDB's for all */
 		/* read/write ops */
 		if (total_size == 0xFFFFFFFFULL) {
-			cciss_read_capacity_16(ctlr, drv_index, 1,
+			cciss_read_capacity_16(ctlr, drv_index,
 			&total_size, &block_size);
 			h->cciss_read = CCISS_READ_16;
 			h->cciss_write = CCISS_WRITE_16;
@@ -1853,15 +1843,15 @@ static void cciss_update_drive_info(int ctlr, int drv_index, int first_time,
 		}
 	}
 
-	cciss_geometry_inquiry(ctlr, drv_index, 1, total_size, block_size,
+	cciss_geometry_inquiry(ctlr, drv_index, total_size, block_size,
 			       inq_buff, drvinfo);
 	drvinfo->block_size = block_size;
 	drvinfo->nr_blocks = total_size + 1;
 
-	cciss_get_device_descr(ctlr, drv_index, 1, drvinfo->vendor,
+	cciss_get_device_descr(ctlr, drv_index, drvinfo->vendor,
 				drvinfo->model, drvinfo->rev);
-	cciss_get_serial_no(ctlr, drv_index, 1, drvinfo->serial_no,
-			sizeof(drvinfo->serial_no));
+	cciss_get_serial_no(ctlr, drv_index, drvinfo->serial_no,
+		sizeof(drvinfo->serial_no));
 	/* Save the lunid in case we deregister the disk, below. */
 	memcpy(drvinfo->LunID, h->drv[drv_index]->LunID,
 		sizeof(drvinfo->LunID));
@@ -2650,8 +2640,7 @@ static int sendcmd_withirq(__u8 cmd, int ctlr, void *buff, size_t size,
 	return return_status;
 }
 
-static void cciss_geometry_inquiry(int ctlr, int logvol,
-				   int withirq, sector_t total_size,
+static void cciss_geometry_inquiry(int ctlr, int logvol, sector_t total_size,
 				   unsigned int block_size,
 				   InquiryData_struct *inq_buff,
 				   drive_info_struct *drv)
@@ -2662,14 +2651,8 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 
 	memset(inq_buff, 0, sizeof(InquiryData_struct));
 	log_unit_to_scsi3addr(hba[ctlr], scsi3addr, logvol);
-	if (withirq)
-		return_code = sendcmd_withirq(CISS_INQUIRY, ctlr,
-					      inq_buff, sizeof(*inq_buff),
-					      0xC1, scsi3addr, TYPE_CMD);
-	else
-		return_code = sendcmd(CISS_INQUIRY, ctlr, inq_buff,
-				      sizeof(*inq_buff), 0xC1, scsi3addr,
-				      TYPE_CMD);
+	return_code = sendcmd_withirq(CISS_INQUIRY, ctlr,
+		inq_buff, sizeof(*inq_buff), 0xC1, scsi3addr, TYPE_CMD);
 	if (return_code == IO_OK) {
 		if (inq_buff->data_byte[8] == 0xFF) {
 			printk(KERN_WARNING
@@ -2702,7 +2685,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 }
 
 static void
-cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
+cciss_read_capacity(int ctlr, int logvol, sector_t *total_size,
 		    unsigned int *block_size)
 {
 	ReadCapdata_struct *buf;
@@ -2716,14 +2699,9 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 	}
 
 	log_unit_to_scsi3addr(hba[ctlr], scsi3addr, logvol);
-	if (withirq)
-		return_code = sendcmd_withirq(CCISS_READ_CAPACITY,
-				ctlr, buf, sizeof(ReadCapdata_struct),
-					0, scsi3addr, TYPE_CMD);
-	else
-		return_code = sendcmd(CCISS_READ_CAPACITY,
-				ctlr, buf, sizeof(ReadCapdata_struct),
-					0, scsi3addr, TYPE_CMD);
+	return_code = sendcmd_withirq(CCISS_READ_CAPACITY,
+		ctlr, buf, sizeof(ReadCapdata_struct),
+			0, scsi3addr, TYPE_CMD);
 	if (return_code == IO_OK) {
 		*total_size = be32_to_cpu(*(__be32 *) buf->total_size);
 		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
@@ -2736,7 +2714,8 @@ cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 }
 
 static void
-cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 				unsigned int *block_size)
+cciss_read_capacity_16(int ctlr, int logvol, sector_t *total_size,
+	unsigned int *block_size)
 {
 	ReadCapdata_struct_16 *buf;
 	int return_code;
@@ -2749,16 +2728,9 @@ cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 
 	}
 
 	log_unit_to_scsi3addr(hba[ctlr], scsi3addr, logvol);
-	if (withirq) {
-		return_code = sendcmd_withirq(CCISS_READ_CAPACITY_16,
-			ctlr, buf, sizeof(ReadCapdata_struct_16),
-				0, scsi3addr, TYPE_CMD);
-	}
-	else {
-		return_code = sendcmd(CCISS_READ_CAPACITY_16,
-			ctlr, buf, sizeof(ReadCapdata_struct_16),
-				0, scsi3addr, TYPE_CMD);
-	}
+	return_code = sendcmd_withirq(CCISS_READ_CAPACITY_16,
+		ctlr, buf, sizeof(ReadCapdata_struct_16),
+			0, scsi3addr, TYPE_CMD);
 	if (return_code == IO_OK) {
 		*total_size = be64_to_cpu(*(__be64 *) buf->total_size);
 		*block_size = be32_to_cpu(*(__be32 *) buf->block_size);
@@ -2799,13 +2771,13 @@ static int cciss_revalidate(struct gendisk *disk)
 		return 1;
 	}
 	if (h->cciss_read == CCISS_READ_10) {
-		cciss_read_capacity(h->ctlr, logvol, 1,
+		cciss_read_capacity(h->ctlr, logvol,
 					&total_size, &block_size);
 	} else {
-		cciss_read_capacity_16(h->ctlr, logvol, 1,
+		cciss_read_capacity_16(h->ctlr, logvol,
 					&total_size, &block_size);
 	}
-	cciss_geometry_inquiry(h->ctlr, logvol, 1, total_size, block_size,
+	cciss_geometry_inquiry(h->ctlr, logvol, total_size, block_size,
 			       inq_buff, drv);
 
 	blk_queue_logical_block_size(drv->queue, drv->block_size);
