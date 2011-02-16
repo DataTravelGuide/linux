@@ -3645,9 +3645,9 @@ static int check_for_unit_attention(ctlr_info_t *h, CommandList_struct *c)
  *   the io functions.
  *   This is for debug only.
  */
-#ifdef CCISS_DEBUG
 static void print_cfg_table(CfgTable_struct *tb)
 {
+#ifdef CCISS_DEBUG
 	int i;
 	char temp_name[17];
 
@@ -3676,8 +3676,8 @@ static void print_cfg_table(CfgTable_struct *tb)
 	temp_name[16] = '\0';
 	printk("   Server Name = %s\n", temp_name);
 	printk("   Heartbeat Counter = 0x%x\n\n\n", readl(&(tb->HeartBeat)));
-}
 #endif				/* CCISS_DEBUG */
+}
 
 static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
 {
@@ -3779,6 +3779,7 @@ cciss_put_controller_into_performant_mode(ctlr_info_t *h)
 
 	BUILD_BUG_ON(28 > MAXSGENTRIES + 4);
 
+	dev_dbg(&h->pdev->dev, "Trying to put board into Performant mode\n");
 	/* Attempt to put controller into performant mode if supported */
 	/* Does board support performant mode? */
 	trans_support = readl(&(h->cfgtable->TransportSupport));
@@ -4144,10 +4145,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	err = cciss_find_cfgtables(c);
 	if (err)
 		goto err_out_free_res;
-#ifdef CCISS_DEBUG
 	print_cfg_table(c->cfgtable);
-#endif				/* CCISS_DEBUG */
-
 	cciss_find_board_params(c);
 	if (!CISS_signature_present(c)) {
 		err = -ENODEV;
