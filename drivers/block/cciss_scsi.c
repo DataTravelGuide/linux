@@ -709,8 +709,7 @@ cciss_scsi_setup(int cntl_num)
 	struct cciss_scsi_adapter_data_t * shba;
 
 	ccissscsi[cntl_num].ndevices = 0;
-	shba = (struct cciss_scsi_adapter_data_t *)
-		kmalloc(sizeof(*shba), GFP_KERNEL);	
+	shba = kmalloc(sizeof(*shba), GFP_KERNEL);
 	if (shba == NULL)
 		return;
 	shba->scsi_host = NULL;
