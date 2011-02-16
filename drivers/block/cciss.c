@@ -3602,8 +3602,13 @@ static int check_for_unit_attention(ctlr_info_t *h, CommandList_struct *c)
 	break;
 	case REPORT_LUNS_CHANGED:
 		dev_warn(&h->pdev->dev, "report LUN data changed\n");
+		/* Don't bother rescanning, the UNIT ATTN/LUN DATA ChANGED
+		 * is not a reliable indicator -- we don't always get it.
+		 */
+#if 0
 		add_to_scan_list(h);
 		wake_up_process(cciss_scan_thread);
+#endif
 		return 1;
 	break;
 	case POWER_OR_RESET:
