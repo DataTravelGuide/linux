@@ -56,14 +56,14 @@
 #include <linux/kthread.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
-#define DRIVER_NAME "HP CISS Driver (v 3.6.26-RH1)"
-#define DRIVER_VERSION CCISS_DRIVER_VERSION(3, 6, 26)
+#define DRIVER_NAME "HP CISS Driver (v 3.6.28-RH1)"
+#define DRIVER_VERSION CCISS_DRIVER_VERSION(3, 6, 28)
 
 /* Embedded module documentation macros - see modules.h */
 MODULE_AUTHOR("Hewlett-Packard Company");
 MODULE_DESCRIPTION("Driver for HP Smart Array Controllers");
 MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
-MODULE_VERSION("3.6.26");
+MODULE_VERSION("3.6.28");
 MODULE_LICENSE("GPL");
 static int cciss_tape_cmds = 6;
 module_param(cciss_tape_cmds, int, 0644);
