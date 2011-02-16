@@ -184,7 +184,8 @@ scsi_cmd_free(ctlr_info_t *h, CommandList_struct *cmd)
 	sa = (struct cciss_scsi_adapter_data_t *) h->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 	if (stk->top >= stk->nelems) {
-		printk("cciss: scsi_cmd_free called too many times.\n");
+		dev_err(&h->pdev->dev,
+			"scsi_cmd_free called too many times.\n");
 		BUG();
 	}
 	stk->top++;
@@ -249,10 +250,9 @@ scsi_cmd_stack_free(int ctlr)
 	sa = (struct cciss_scsi_adapter_data_t *) hba[ctlr]->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 	if (stk->top != stk->nelems-1) {
-		printk( "cciss: %d scsi commands are still outstanding.\n",
+		dev_warn(&hba[ctlr]->pdev->dev,
+			"bug: %d scsi commands are still outstanding.\n",
 			stk->nelems - stk->top);
-		// BUG();
-		printk("WE HAVE A BUG HERE!!! stk=0x%p\n", stk);
 	}
 	size = sizeof(struct cciss_scsi_cmd_stack_elem_t) * stk->nelems;
 
@@ -386,8 +386,8 @@ cciss_scsi_add_entry(int ctlr, int hostno,
 	unsigned char addr1[8], addr2[8];
 
 	if (n >= CCISS_MAX_SCSI_DEVS_PER_HBA) {
-		printk("cciss%d: Too many devices, "
-			"some will be inaccessible.\n", ctlr);
+		dev_warn(&hba[ctlr]->pdev->dev, "Too many devices, "
+			"some will be inaccessible.\n");
 		return -1;
 	}
 
@@ -443,8 +443,8 @@ cciss_scsi_add_entry(int ctlr, int hostno,
 	   know our hostno and we don't want to print anything first 
 	   time anyway (the scsi layer's inquiries will show that info) */
 	if (hostno != -1)
-		printk("cciss%d: %s device c%db%dt%dl%d added.\n", 
-			ctlr, scsi_device_type(sd->devtype), hostno,
+		dev_info(&hba[ctlr]->pdev->dev, "%s device c%db%dt%dl%d added.\n",
+			scsi_device_type(sd->devtype), hostno,
 			sd->bus, sd->target, sd->lun);
 	return 0;
 }
@@ -466,8 +466,8 @@ cciss_scsi_remove_entry(int ctlr, int hostno, int entry,
 	for (i=entry;i<ccissscsi[ctlr].ndevices-1;i++)
 		ccissscsi[ctlr].dev[i] = ccissscsi[ctlr].dev[i+1];
 	ccissscsi[ctlr].ndevices--;
-	printk("cciss%d: %s device c%db%dt%dl%d removed.\n",
-		ctlr, scsi_device_type(sd.devtype), hostno,
+	dev_info(&hba[ctlr]->pdev->dev, "%s device c%db%dt%dl%d removed.\n",
+		scsi_device_type(sd.devtype), hostno,
 			sd.bus, sd.target, sd.lun);
 }
 
@@ -540,8 +540,8 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 			GFP_KERNEL);
 
 	if (!added || !removed) {
-		printk(KERN_WARNING "cciss%d: Out of memory in "
-			"adjust_cciss_scsi_table\n", ctlr);
+		dev_warn(&hba[ctlr]->pdev->dev,
+			"Out of memory in adjust_cciss_scsi_table\n");
 		goto free_and_out;
 	}
 
@@ -573,16 +573,14 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 
 		if (found == 0) { /* device no longer present. */ 
 			changes++;
-			/* printk("cciss%d: %s device c%db%dt%dl%d removed.\n",
-				ctlr, scsi_device_type(csd->devtype), hostno,
-					csd->bus, csd->target, csd->lun); */
 			cciss_scsi_remove_entry(ctlr, hostno, i,
 				removed, &nremoved);
 			/* remove ^^^, hence i not incremented */
 		} else if (found == 1) { /* device is different in some way */
 			changes++;
-			printk("cciss%d: device c%db%dt%dl%d has changed.\n",
-				ctlr, hostno, csd->bus, csd->target, csd->lun);
+			dev_info(&hba[ctlr]->pdev->dev,
+				"device c%db%dt%dl%d has changed.\n",
+				hostno, csd->bus, csd->target, csd->lun);
 			cciss_scsi_remove_entry(ctlr, hostno, i,
 				removed, &nremoved);
 			/* remove ^^^, hence i not incremented */
@@ -627,8 +625,8 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 		} else if (found == 1) {
 			/* should never happen... */
 			changes++;
-			printk(KERN_WARNING "cciss%d: device "
-				"unexpectedly changed\n", ctlr);
+			dev_warn(&hba[ctlr]->pdev->dev,
+				"device unexpectedly changed\n");
 			/* but if it does happen, we just ignore that device */
 		}
 	}
@@ -652,9 +650,9 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 			/* We don't expect to get here. */
 			/* future cmds to this device will get selection */
 			/* timeout as if the device was gone. */
-			printk(KERN_WARNING "cciss%d: didn't find "
+			dev_warn(&hba[ctlr]->pdev->dev, "didn't find "
 				"c%db%dt%dl%d\n for removal.",
-				ctlr, hostno, removed[i].bus,
+				hostno, removed[i].bus,
 				removed[i].target, removed[i].lun);
 		}
 	}
@@ -666,10 +664,9 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 			added[i].target, added[i].lun);
 		if (rc == 0)
 			continue;
-		printk(KERN_WARNING "cciss%d: scsi_add_device "
+		dev_warn(&hba[ctlr]->pdev->dev, "scsi_add_device "
 			"c%db%dt%dl%d failed, device not added.\n",
-			ctlr, hostno,
-			added[i].bus, added[i].target, added[i].lun);
+			hostno, added[i].bus, added[i].target, added[i].lun);
 		/* now we have to remove it from ccissscsi, */
 		/* since it didn't get added to scsi mid layer */
 		fixup_botched_add(ctlr, added[i].scsi3addr);
@@ -792,7 +789,7 @@ complete_scsi_command( CommandList_struct *cp, int timeout, __u32 tag)
 			case CMD_DATA_UNDERRUN: /* let mid layer handle it. */
 			break;
 			case CMD_DATA_OVERRUN:
-				printk(KERN_WARNING "cciss: cp %p has"
+				dev_warn(&ctlr->pdev->dev, "%p has"
 					" completed with data overrun "
 					"reported\n", cp);
 			break;
@@ -808,43 +805,41 @@ complete_scsi_command( CommandList_struct *cp, int timeout, __u32 tag)
 				}
 			break;
 			case CMD_PROTOCOL_ERR:
-                                printk(KERN_WARNING "cciss: cp %p has "
-					"protocol error \n", cp);
+				dev_warn(&ctlr->pdev->dev,
+					"%p has protocol error\n", cp);
                         break;
 			case CMD_HARDWARE_ERR:
 				cmd->result = DID_ERROR << 16;
-                                printk(KERN_WARNING "cciss: cp %p had " 
-                                        " hardware error\n", cp);
+				dev_warn(&ctlr->pdev->dev,
+					"%p had hardware error\n", cp);
                         break;
 			case CMD_CONNECTION_LOST:
 				cmd->result = DID_ERROR << 16;
-				printk(KERN_WARNING "cciss: cp %p had "
-					"connection lost\n", cp);
+				dev_warn(&ctlr->pdev->dev,
+					"%p had connection lost\n", cp);
 			break;
 			case CMD_ABORTED:
 				cmd->result = DID_ABORT << 16;
-				printk(KERN_WARNING "cciss: cp %p was "
-					"aborted\n", cp);
+				dev_warn(&ctlr->pdev->dev, "%p was aborted\n", cp);
 			break;
 			case CMD_ABORT_FAILED:
 				cmd->result = DID_ERROR << 16;
-				printk(KERN_WARNING "cciss: cp %p reports "
-					"abort failed\n", cp);
+				dev_warn(&ctlr->pdev->dev,
+					"%p reports abort failed\n", cp);
 			break;
 			case CMD_UNSOLICITED_ABORT:
 				cmd->result = DID_ABORT << 16;
-				printk(KERN_WARNING "cciss: cp %p aborted "
-					"do to an unsolicited abort\n", cp);
+				dev_warn(&ctlr->pdev->dev, "%p aborted do to an "
+					"unsolicited abort\n", cp);
 			break;
 			case CMD_TIMEOUT:
 				cmd->result = DID_TIME_OUT << 16;
-				printk(KERN_WARNING "cciss: cp %p timedout\n",
-					cp);
+				dev_warn(&ctlr->pdev->dev, "%p timedout\n", cp);
 			break;
 			default:
 				cmd->result = DID_ERROR << 16;
-				printk(KERN_WARNING "cciss: cp %p returned "
-					"unknown status %x\n", cp, 
+				dev_warn(&ctlr->pdev->dev,
+					"%p returned unknown status %x\n", cp,
 						ei->CommandStatus); 
 		}
 	}
@@ -963,7 +958,7 @@ cciss_scsi_do_simple_cmd(ctlr_info_t *c,
 }
 
 static void 
-cciss_scsi_interpret_error(CommandList_struct *cp)
+cciss_scsi_interpret_error(ctlr_info_t *h, CommandList_struct *cp)
 {
 	ErrorInfo_struct *ei;
 
@@ -971,32 +966,31 @@ cciss_scsi_interpret_error(CommandList_struct *cp)
 	switch(ei->CommandStatus)
 	{
 		case CMD_TARGET_STATUS:
-			printk(KERN_WARNING "cciss: cmd %p has "
-				"completed with errors\n", cp);
-			printk(KERN_WARNING "cciss: cmd %p "
-				"has SCSI Status = %x\n",
-					cp,  
-					ei->ScsiStatus);
+			dev_warn(&h->pdev->dev,
+				"cmd %p has completed with errors\n", cp);
+			dev_warn(&h->pdev->dev,
+				"cmd %p has SCSI Status = %x\n",
+				cp, ei->ScsiStatus);
 			if (ei->ScsiStatus == 0)
-				printk(KERN_WARNING 
-				"cciss:SCSI status is abnormally zero.  "
+				dev_warn(&h->pdev->dev,
+				"SCSI status is abnormally zero.  "
 				"(probably indicates selection timeout "
 				"reported incorrectly due to a known "
 				"firmware bug, circa July, 2001.)\n");
 		break;
 		case CMD_DATA_UNDERRUN: /* let mid layer handle it. */
-			printk("UNDERRUN\n");
+			dev_info(&h->pdev->dev, "UNDERRUN\n");
 		break;
 		case CMD_DATA_OVERRUN:
-			printk(KERN_WARNING "cciss: cp %p has"
+			dev_warn(&h->pdev->dev, "%p has"
 				" completed with data overrun "
 				"reported\n", cp);
 		break;
 		case CMD_INVALID: {
 			/* controller unfortunately reports SCSI passthru's */
 			/* to non-existent targets as invalid commands. */
-			printk(KERN_WARNING "cciss: cp %p is "
-				"reported invalid (probably means "
+			dev_warn(&h->pdev->dev,
+				"%p is reported invalid (probably means "
 				"target device no longer present)\n", 
 				cp); 
 			/* print_bytes((unsigned char *) cp, sizeof(*cp), 1, 0);
@@ -1004,38 +998,33 @@ cciss_scsi_interpret_error(CommandList_struct *cp)
 			}
 		break;
 		case CMD_PROTOCOL_ERR:
-			printk(KERN_WARNING "cciss: cp %p has "
-				"protocol error \n", cp);
+			dev_warn(&h->pdev->dev, "%p has protocol error\n", cp);
 		break;
 		case CMD_HARDWARE_ERR:
 			/* cmd->result = DID_ERROR << 16; */
-			printk(KERN_WARNING "cciss: cp %p had " 
-				" hardware error\n", cp);
+			dev_warn(&h->pdev->dev, "%p had hardware error\n", cp);
 		break;
 		case CMD_CONNECTION_LOST:
-			printk(KERN_WARNING "cciss: cp %p had "
-				"connection lost\n", cp);
+			dev_warn(&h->pdev->dev, "%p had connection lost\n", cp);
 		break;
 		case CMD_ABORTED:
-			printk(KERN_WARNING "cciss: cp %p was "
-				"aborted\n", cp);
+			dev_warn(&h->pdev->dev, "%p was aborted\n", cp);
 		break;
 		case CMD_ABORT_FAILED:
-			printk(KERN_WARNING "cciss: cp %p reports "
-				"abort failed\n", cp);
+			dev_warn(&h->pdev->dev,
+				"%p reports abort failed\n", cp);
 		break;
 		case CMD_UNSOLICITED_ABORT:
-			printk(KERN_WARNING "cciss: cp %p aborted "
-				"do to an unsolicited abort\n", cp);
+			dev_warn(&h->pdev->dev,
+				"%p aborted do to an unsolicited abort\n", cp);
 		break;
 		case CMD_TIMEOUT:
-			printk(KERN_WARNING "cciss: cp %p timedout\n",
-				cp);
+			dev_warn(&h->pdev->dev, "%p timedout\n", cp);
 		break;
 		default:
-			printk(KERN_WARNING "cciss: cp %p returned "
-				"unknown status %x\n", cp, 
-					ei->CommandStatus); 
+			dev_warn(&h->pdev->dev,
+				"%p returned unknown status %x\n",
+				cp, ei->CommandStatus);
 	}
 }
 
@@ -1055,7 +1044,7 @@ cciss_scsi_do_inquiry(ctlr_info_t *c, unsigned char *scsi3addr,
 	spin_unlock_irqrestore(CCISS_LOCK(c->ctlr), flags);
 
 	if (cp == NULL) {			/* trouble... */
-		printk("cmd_alloc returned NULL!\n");
+		dev_warn(&c->pdev->dev, "cmd_alloc returned NULL!\n");
 		return -1;
 	}
 
@@ -1074,7 +1063,7 @@ cciss_scsi_do_inquiry(ctlr_info_t *c, unsigned char *scsi3addr,
 
 	if (ei->CommandStatus != 0 && 
 	    ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		cciss_scsi_interpret_error(cp);
+		cciss_scsi_interpret_error(c, cp);
 		rc = -1;
 	}
 	spin_lock_irqsave(CCISS_LOCK(c->ctlr), flags);
@@ -1117,7 +1106,7 @@ cciss_scsi_do_report_phys_luns(ctlr_info_t *c,
 	cp = scsi_cmd_alloc(c);
 	spin_unlock_irqrestore(CCISS_LOCK(c->ctlr), flags);
 	if (cp == NULL) {			/* trouble... */
-		printk("cmd_alloc returned NULL!\n");
+		dev_warn(&c->pdev->dev, "cmd_alloc returned NULL!\n");
 		return -1;
 	}
 
@@ -1145,7 +1134,7 @@ cciss_scsi_do_report_phys_luns(ctlr_info_t *c,
 	ei = cp->err_info; 
 	if (ei->CommandStatus != 0 && 
 	    ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		cciss_scsi_interpret_error(cp);
+		cciss_scsi_interpret_error(c, cp);
 		rc = -1;
 	}
 	spin_lock_irqsave(CCISS_LOCK(c->ctlr), flags);
@@ -1202,7 +1191,7 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 	currentsd = kzalloc(sizeof(*currentsd) *
 			(CCISS_MAX_SCSI_DEVS_PER_HBA+1), GFP_KERNEL);
 	if (ld_buff == NULL || inq_buff == NULL || currentsd == NULL) {
-		printk(KERN_ERR "cciss: out of memory\n");
+		dev_err(&c->pdev->dev, "out of memory\n");
 		goto out;
 	}
 	this_device = &currentsd[CCISS_MAX_SCSI_DEVS_PER_HBA];
@@ -1210,15 +1199,15 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 		ch = &ld_buff->LUNListLength[0];
 		num_luns = ((ch[0]<<24) | (ch[1]<<16) | (ch[2]<<8) | ch[3]) / 8;
 		if (num_luns > CISS_MAX_PHYS_LUN) {
-			printk(KERN_WARNING 
-				"cciss: Maximum physical LUNs (%d) exceeded.  "
+			dev_warn(&c->pdev->dev,
+				"Maximum physical LUNs (%d) exceeded.  "
 				"%d LUNs ignored.\n", CISS_MAX_PHYS_LUN, 
 				num_luns - CISS_MAX_PHYS_LUN);
 			num_luns = CISS_MAX_PHYS_LUN;
 		}
 	}
 	else {
-		printk(KERN_ERR  "cciss: Report physical LUNs failed.\n");
+		dev_err(&c->pdev->dev, "Report physical LUNs failed.\n");
 		goto out;
 	}
 
@@ -1468,7 +1457,7 @@ cciss_scsi_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd 
 	cp = scsi_cmd_alloc(c);
 	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 	if (cp == NULL) {			/* trouble... */
-		printk("scsi_cmd_alloc returned NULL!\n");
+		dev_warn(&c->pdev->dev, "scsi_cmd_alloc returned NULL!\n");
 		/* FIXME: next 3 lines are -> BAD! <- */
 		cmd->result = DID_NO_CONNECT << 16;
 		done(cmd);
@@ -1518,7 +1507,7 @@ cciss_scsi_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd 
 		break;
 
 	  default: 
-		printk("cciss: unknown data direction: %d\n", 
+		dev_warn(&c->pdev->dev, "unknown data direction: %d\n",
 			cmd->sc_data_direction);
 		BUG();
 		break;
@@ -1571,7 +1560,7 @@ cciss_engage_scsi(int ctlr)
 	stk = &sa->cmd_stack; 
 
 	if (sa->registered) {
-		printk("cciss%d: SCSI subsystem already engaged.\n", ctlr);
+		dev_info(&hba[ctlr]->pdev->dev, "SCSI subsystem already engaged.\n");
 		spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 		return -ENXIO;
 	}
@@ -1604,8 +1593,8 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 
 	c = cmd_alloc(h, 1);
 	if (!c) {
-		printk(KERN_WARNING "cciss%d: out of memory in "
-			"wait_for_device_to_become_ready.\n", h->ctlr);
+		dev_warn(&h->pdev->dev, "out of memory in "
+			"wait_for_device_to_become_ready.\n");
 		return IO_ERROR;
 	}
 
@@ -1649,16 +1638,16 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 			}
 		}
 retry_tur:
-		printk(KERN_WARNING "cciss%d: Waiting %d secs "
+		dev_warn(&h->pdev->dev, "Waiting %d secs "
 			"for device to become ready.\n",
-			h->ctlr, waittime / HZ);
+			waittime / HZ);
 		rc = 1; /* device not ready. */
 	}
 
 	if (rc)
-		printk("cciss%d: giving up on device.\n", h->ctlr);
+		dev_warn(&h->pdev->dev, "giving up on device.\n");
 	else
-		printk(KERN_WARNING "cciss%d: device is ready.\n", h->ctlr);
+		dev_warn(&h->pdev->dev, "device is ready.\n");
 
 	cmd_free(h, c, 1);
 	return rc;
@@ -1688,7 +1677,7 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	if (c == NULL) /* paranoia */
 		return FAILED;
 	ctlr = c->ctlr;
-	printk(KERN_WARNING "cciss%d: resetting tape drive or medium changer.\n", ctlr);
+	dev_warn(&c->pdev->dev, "resetting tape drive or medium changer.\n");
 	/* find the command that's giving us trouble */
 	cmd_in_trouble = (CommandList_struct *) scsicmd->host_scribble;
 	if (cmd_in_trouble == NULL) /* paranoia */
@@ -1699,7 +1688,7 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 		TYPE_MSG);
 	if (rc == 0 && wait_for_device_to_become_ready(c, lunaddr) == 0)
 		return SUCCESS;
-	printk(KERN_WARNING "cciss%d: resetting device failed.\n", ctlr);
+	dev_warn(&c->pdev->dev, "resetting device failed.\n");
 	return FAILED;
 }
 
@@ -1716,7 +1705,7 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 	if (c == NULL) /* paranoia */
 		return FAILED;
 	ctlr = c->ctlr;
-	printk(KERN_WARNING "cciss%d: aborting tardy SCSI cmd\n", ctlr);
+	dev_warn(&c->pdev->dev, "aborting tardy SCSI cmd\n");
 
 	/* find the command to be aborted */
 	cmd_to_abort = (CommandList_struct *) scsicmd->host_scribble;
