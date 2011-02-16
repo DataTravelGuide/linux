@@ -183,6 +183,12 @@ static void cciss_hba_release(struct device *dev);
 static void cciss_device_release(struct device *dev);
 static void cciss_free_gendisk(ctlr_info_t *h, int drv_index);
 static void cciss_free_drive_info(ctlr_info_t *h, int drv_index);
+
+/* performant mode helper functions */
+static void  calc_bucket_map(int *bucket, int num_buckets, int nsgs,
+				int *bucket_map);
+static void cciss_put_controller_into_performant_mode(ctlr_info_t *h);
+
 static int __devinit cciss_find_cfg_addrs(struct pci_dev *pdev,
 	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
 	u64 *cfg_offset);
@@ -240,10 +246,22 @@ static inline void removeQ(CommandList_struct *c)
 	hlist_del_init(&c->list);
 }
 
+/* set_performant_mode: Modify the tag for cciss performant
+ * set bit 0 for pull model, bits 3-1 for block fetch
+ * register number
+ */
+static void set_performant_mode(ctlr_info_t *h, CommandList_struct *c)
+{
+	if (likely(h->transMethod == CFGTBL_Trans_Performant))
+		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
+}
+
 static void enqueue_cmd_and_start_io(ctlr_info_t *h,
 	CommandList_struct *c)
 {
 	unsigned long flags;
+
+	set_performant_mode(h, c);
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
@@ -360,7 +378,7 @@ static void cciss_seq_show_header(struct seq_file *seq)
 		h->product_name,
 		(unsigned long)h->board_id,
 		h->firm_ver[0], h->firm_ver[1], h->firm_ver[2],
-		h->firm_ver[3], (unsigned int)h->intr[SIMPLE_MODE_INT],
+		h->firm_ver[3], (unsigned int)h->intr[PERF_MODE_INT],
 		h->num_luns,
 		h->Qdepth, h->commands_outstanding,
 		h->maxQsinceinit, h->max_outstanding, h->maxSG);
@@ -3119,20 +3137,23 @@ after_error_processing:
 
 static inline u32 cciss_tag_contains_index(u32 tag)
 {
-#define DIRECT_LOOKUP_BIT 0x04
+#define DIRECT_LOOKUP_BIT 0x10
 	return tag & DIRECT_LOOKUP_BIT;
 }
 
 static inline u32 cciss_tag_to_index(u32 tag)
 {
-#define DIRECT_LOOKUP_SHIFT 3
+#define DIRECT_LOOKUP_SHIFT 5
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
-static inline u32 cciss_tag_discard_error_bits(u32 tag)
+static inline u32 cciss_tag_discard_error_bits(ctlr_info_t *h, u32 tag)
 {
-#define CCISS_ERROR_BITS 0x03
-	return tag & ~CCISS_ERROR_BITS;
+#define CCISS_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
+#define CCISS_SIMPLE_ERROR_BITS 0x03
+	if (likely(h->transMethod == CFGTBL_Trans_Performant))
+		return tag & ~CCISS_PERF_ERROR_BITS;
+	return tag & ~CCISS_SIMPLE_ERROR_BITS;
 }
 
 static inline void cciss_mark_tag_indexed(u32 *tag)
@@ -3254,10 +3275,13 @@ static void do_cciss_request(struct request_queue *q)
 	       blk_rq_sectors(creq), seg, chained);
 #endif				/* CCISS_DEBUG */
 
-	c->Header.SGList = c->Header.SGTotal = seg + chained;
-
-	if (seg > h->max_cmd_sgentries)
+	c->Header.SGTotal = seg + chained;
+	if (seg <= h->max_cmd_sgentries)
+		c->Header.SGList = c->Header.SGTotal;
+	else
 		c->Header.SGList = h->max_cmd_sgentries;
+	set_performant_mode(h, c);
+
 	if (likely(creq->cmd_type == REQ_TYPE_FS)) {
 		if(h->cciss_read == CCISS_READ_10) {
 			c->Request.CDB[1] = 0;
@@ -3353,6 +3377,28 @@ static inline void finish_cmd(ctlr_info_t *h, CommandList_struct *c,
 #endif
 }
 
+static inline u32 next_command(ctlr_info_t *h)
+{
+	u32 a;
+
+	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+		return h->access.command_completed(h);
+
+	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
+		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
+		(h->reply_pool_head)++;
+		h->commands_outstanding--;
+	} else {
+		a = FIFO_EMPTY;
+	}
+	/* Check for wraparound */
+	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
+		h->reply_pool_head = h->reply_pool;
+		h->reply_pool_wraparound ^= 1;
+	}
+	return a;
+}
+
 /* process completion of an indexed ("direct lookup") command */
 static inline u32 process_indexed_cmd(ctlr_info_t *h, u32 raw_tag)
 {
@@ -3361,10 +3407,10 @@ static inline u32 process_indexed_cmd(ctlr_info_t *h, u32 raw_tag)
 
 	tag_index = cciss_tag_to_index(raw_tag);
 	if (bad_tag(h, tag_index, raw_tag))
-		return get_next_completion(h);
+		return next_command(h);
 	c = h->cmd_pool + tag_index;
 	finish_cmd(h, c, raw_tag);
-	return get_next_completion(h);
+	return next_command(h);
 }
 
 /* process completion of a non-indexed command */
@@ -3375,17 +3421,17 @@ static inline u32 process_nonindexed_cmd(ctlr_info_t *h, u32 raw_tag)
 	struct hlist_node *tmp;
 	__u32 busaddr_masked, tag_masked;
 
-	tag = cciss_tag_discard_error_bits(raw_tag);
+	tag = cciss_tag_discard_error_bits(h, raw_tag);
 	hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
-		busaddr_masked = cciss_tag_discard_error_bits(c->busaddr);
-		tag_masked = cciss_tag_discard_error_bits(tag);
+		busaddr_masked = cciss_tag_discard_error_bits(h, c->busaddr);
+		tag_masked = cciss_tag_discard_error_bits(h, tag);
 		if (busaddr_masked == tag_masked) {
 			finish_cmd(h, c, raw_tag);
-			return get_next_completion(h);
+			return next_command(h);
 		}
 	}
 	bad_tag(h, h->nr_cmds + 1, raw_tag);
-	return get_next_completion(h);
+	return next_command(h);
 }
 
 static irqreturn_t do_cciss_intx(int irq, void *dev_id)
@@ -3678,6 +3724,157 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
 	return -1;
 }
 
+/* Fill in bucket_map[], given nsgs (the max number of
+ * scatter gather elements supported) and bucket[],
+ * which is an array of 8 integers.  The bucket[] array
+ * contains 8 different DMA transfer sizes (in 16
+ * byte increments) which the controller uses to fetch
+ * commands.  This function fills in bucket_map[], which
+ * maps a given number of scatter gather elements to one of
+ * the 8 DMA transfer sizes.  The point of it is to allow the
+ * controller to only do as much DMA as needed to fetch the
+ * command, with the DMA transfer size encoded in the lower
+ * bits of the command address.
+ */
+static void  calc_bucket_map(int bucket[], int num_buckets,
+	int nsgs, int *bucket_map)
+{
+	int i, j, b, size;
+
+	/* even a command with 0 SGs requires 4 blocks */
+#define MINIMUM_TRANSFER_BLOCKS 4
+#define NUM_BUCKETS 8
+	/* Note, bucket_map must have nsgs+1 entries. */
+	for (i = 0; i <= nsgs; i++) {
+		/* Compute size of a command with i SG entries */
+		size = i + MINIMUM_TRANSFER_BLOCKS;
+		b = num_buckets; /* Assume the biggest bucket */
+		/* Find the bucket that is just big enough */
+		for (j = 0; j < 8; j++) {
+			if (bucket[j] >= size) {
+				b = j;
+				break;
+			}
+		}
+		/* for a command with i SG entries, use bucket b. */
+		bucket_map[i] = b;
+	}
+}
+
+static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
+{
+	int i = 0;
+	/* under certain very rare conditions, this can take awhile.
+	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
+	 * as we enter this code.) */
+	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		msleep(10);
+	}
+}
+
+static void
+cciss_put_controller_into_performant_mode(ctlr_info_t *h)
+{
+	__u32 trans_support;
+	__u32 trans_offset;
+			/*
+			 *  5 = 1 s/g entry or 4k
+			 *  6 = 2 s/g entry or 8k
+			 *  8 = 4 s/g entry or 16k
+			 * 10 = 6 s/g entry or 24k
+			 */
+	int bft[8] = { 5, 6, 8, 10, 12, 20, 28, MAXSGENTRIES + 4};
+	unsigned long register_value;
+
+	BUILD_BUG_ON(28 > MAXSGENTRIES + 4);
+
+	/* Attempt to put controller into performant mode if supported */
+	/* Does board support performant mode? */
+	trans_support = readl(&(h->cfgtable->TransportSupport));
+	if (!(trans_support & PERFORMANT_MODE))
+		return;
+
+	printk(KERN_WARNING "cciss%d: Placing controller into "
+				"performant mode\n", h->ctlr);
+	/* Performant mode demands commands on a 32 byte boundary
+	 * pci_alloc_consistent aligns on page boundarys already.
+	 * Just need to check if divisible by 32
+	 */
+	if ((sizeof(CommandList_struct) % 32) != 0) {
+		printk(KERN_WARNING "%s %d %s\n",
+			"cciss info: command size[",
+			(int)sizeof(CommandList_struct),
+			"] not divisible by 32, no performant mode..\n");
+		return;
+	}
+
+	/* Performant mode ring buffer and supporting data structures */
+	h->reply_pool = (__u64 *)pci_alloc_consistent(
+		h->pdev, h->max_commands * sizeof(__u64),
+		&(h->reply_pool_dhandle));
+
+	/* Need a block fetch table for performant mode */
+	h->blockFetchTable = kmalloc(((h->maxsgentries+1) *
+		sizeof(__u32)), GFP_KERNEL);
+
+	if ((h->reply_pool == NULL) || (h->blockFetchTable == NULL))
+		goto clean_up;
+
+	h->reply_pool_wraparound = 1; /* spec: init to 1 */
+
+	/* Controller spec: zero out this buffer. */
+	memset(h->reply_pool, 0, h->max_commands * sizeof(__u64));
+	h->reply_pool_head = h->reply_pool;
+
+	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	calc_bucket_map(bft, ARRAY_SIZE(bft), h->maxsgentries,
+				h->blockFetchTable);
+	writel(bft[0], &h->transtable->BlockFetch0);
+	writel(bft[1], &h->transtable->BlockFetch1);
+	writel(bft[2], &h->transtable->BlockFetch2);
+	writel(bft[3], &h->transtable->BlockFetch3);
+	writel(bft[4], &h->transtable->BlockFetch4);
+	writel(bft[5], &h->transtable->BlockFetch5);
+	writel(bft[6], &h->transtable->BlockFetch6);
+	writel(bft[7], &h->transtable->BlockFetch7);
+
+	/* size of controller ring buffer */
+	writel(h->max_commands, &h->transtable->RepQSize);
+	writel(1, &h->transtable->RepQCount);
+	writel(0, &h->transtable->RepQCtrAddrLow32);
+	writel(0, &h->transtable->RepQCtrAddrHigh32);
+	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
+	writel(0, &h->transtable->RepQAddr0High32);
+	writel(CFGTBL_Trans_Performant,
+			&(h->cfgtable->HostWrite.TransportRequest));
+
+	h->transMethod = CFGTBL_Trans_Performant;
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	cciss_wait_for_mode_change_ack(h);
+	register_value = readl(&(h->cfgtable->TransportActive));
+	if (!(register_value & CFGTBL_Trans_Performant)) {
+		printk(KERN_WARNING "cciss: unable to get board into"
+					" performant mode\n");
+		return;
+	}
+
+	/* Change the access methods to the performant access methods */
+	h->access = SA5_performant_access;
+
+	return;
+clean_up:
+	kfree(h->blockFetchTable);
+	if (h->reply_pool)
+		pci_free_consistent(h->pdev,
+				h->max_commands * sizeof(__u64),
+				h->reply_pool,
+				h->reply_pool_dhandle);
+	return;
+
+} /* cciss_put_controller_into_performant_mode */
+
 /* If MSI/MSI-X is supported by the kernel we will try to enable it on
  * controllers that are capable. If not, we use IO-APIC mode.
  */
@@ -3725,7 +3922,7 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c)
 default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-	c->intr[SIMPLE_MODE_INT] = c->pdev->irq;
+	c->intr[PERF_MODE_INT] = c->pdev->irq;
 	return;
 }
 
@@ -3809,6 +4006,7 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
+	u32 trans_offset;
 	int rc;
 
 	rc = cciss_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
@@ -3819,6 +4017,13 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 		cfg_base_addr_index) + cfg_offset, sizeof(h->cfgtable));	
 	if (!h->cfgtable)
 		return -ENOMEM;
+	/* Find performant mode table. */
+	trans_offset = readl(&h->cfgtable->TransMethodOffset);
+	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
+				cfg_base_addr_index)+cfg_offset+trans_offset,
+				sizeof(*h->transtable));
+	if (!h->transtable)
+		return -ENOMEM;
 	return 0;
 }
 
@@ -3828,9 +4033,24 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
  */
 static void __devinit cciss_find_board_params(ctlr_info_t *h)
 {
-	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
 	h->nr_cmds =
 		h->max_commands - 4 - cciss_tape_cmds;
+	h->maxsgentries = readl(&(h->cfgtable->MaxSGElements));
+	/*
+	 * Limit native command to 32 s/g elements to save dma'able memory.
+	 * Howvever spec says if 0, use 31
+	 */
+
+	h->max_cmd_sgentries = 31;
+	if (h->maxsgentries > 512) {
+		h->max_cmd_sgentries = 32;
+		h->chainsize = h->maxsgentries - h->max_cmd_sgentries + 1;
+		h->maxsgentries -= 1;   /* account for chain pointer */
+	} else {
+		h->maxsgentries = 31;   /* Default to traditional value */
+		h->chainsize = 0;       /* traditional */
+	}
 }
 
 static inline bool CISS_signature_present(ctlr_info_t *h)
@@ -3843,19 +4063,6 @@ static inline bool CISS_signature_present(ctlr_info_t *h)
 		return false;
 	}
 	return true;
-}
-
-static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
-{
-	int i = 0;
-	/* under certain very rare conditions, this can take awhile.
-	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
-	 * as we enter this code.) */
-	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
-		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
-			break;
-		msleep(10);
-	}
 }
 
 /* Need to enable prefetch in the SCSI core for 6400 in x86 */
@@ -3947,46 +4154,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	}
 	cciss_enable_scsi_prefetch(c);
 	cciss_p600_dma_prefetch_quirk(c);
-#ifdef CCISS_DEBUG
-	printk("Trying to put board into Simple mode\n");
-#endif				/* CCISS_DEBUG */
-	c->max_commands = readl(&(c->cfgtable->CmdsOutMax));
-
-	c->maxsgentries = readl(&(c->cfgtable->MaxSGElements));
-
-	/*
-	 * Limit native command to 32 s/g elements to save dma'able memory.
-	 * Howvever spec says if 0, use 31
-	 */
-
-	c->max_cmd_sgentries = 31;
-	if (c->maxsgentries > 512) {
-		c->max_cmd_sgentries = 32;
-		c->chainsize = c->maxsgentries - c->max_cmd_sgentries + 1;
-		c->maxsgentries -= 1;   /* account for chain pointer */
-	} else {
-		c->maxsgentries = 31;   /* Default to traditional value */
-		c->chainsize = 0;       /* traditional */
-	}
-
-	/* Update the field, and then ring the doorbell */
-	writel(CFGTBL_Trans_Simple, &(c->cfgtable->HostWrite.TransportRequest));
-	writel(CFGTBL_ChangeReq, c->vaddr + SA5_DOORBELL);
-	cciss_wait_for_mode_change_ack(c);
-#ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "I counter got to %d %x\n", i,
-	       readl(c->vaddr + SA5_DOORBELL));
-#endif				/* CCISS_DEBUG */
-#ifdef CCISS_DEBUG
-	print_cfg_table(c->cfgtable);
-#endif				/* CCISS_DEBUG */
-
-	if (!(readl(&(c->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
-		printk(KERN_WARNING "cciss: unable to get board into"
-		       " simple mode\n");
-		err = -ENODEV;
-		goto err_out_free_res;
-	}
+	cciss_put_controller_into_performant_mode(c);
 	return 0;
 
 err_out_free_res:
@@ -4433,25 +4601,25 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	/* make sure the board interrupts are off */
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_OFF);
 	if (hba[i]->msi_vector || hba[i]->msix_vector) {
-		if (request_irq(hba[i]->intr[SIMPLE_MODE_INT],
+		if (request_irq(hba[i]->intr[PERF_MODE_INT],
 				do_cciss_msix_intr,
 				IRQF_DISABLED, hba[i]->devname, hba[i])) {
 			printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
-			       hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
+			       hba[i]->intr[PERF_MODE_INT], hba[i]->devname);
 			goto clean2;
 		}
 	} else {
-		if (request_irq(hba[i]->intr[SIMPLE_MODE_INT], do_cciss_intx,
+		if (request_irq(hba[i]->intr[PERF_MODE_INT], do_cciss_intx,
 				IRQF_DISABLED, hba[i]->devname, hba[i])) {
 			printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
-			       hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
+			       hba[i]->intr[PERF_MODE_INT], hba[i]->devname);
 			goto clean2;
 		}
 	}
 
 	printk(KERN_INFO "%s: <0x%x> at PCI %s IRQ %d%s using DAC\n",
 	       hba[i]->devname, pdev->device, pci_name(pdev),
-	       hba[i]->intr[SIMPLE_MODE_INT], dac ? "" : " not");
+	       hba[i]->intr[PERF_MODE_INT], dac ? "" : " not");
 
 	hba[i]->cmd_pool_bits =
 	    kmalloc(DIV_ROUND_UP(hba[i]->nr_cmds, BITS_PER_LONG)
@@ -4561,7 +4729,7 @@ clean4:
 				    hba[i]->nr_cmds * sizeof(ErrorInfo_struct),
 				    hba[i]->errinfo_pool,
 				    hba[i]->errinfo_pool_dhandle);
-	free_irq(hba[i]->intr[SIMPLE_MODE_INT], hba[i]);
+	free_irq(hba[i]->intr[PERF_MODE_INT], hba[i]);
 clean2:
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
 clean1:
@@ -4607,7 +4775,7 @@ static void cciss_shutdown(struct pci_dev *pdev)
 		printk(KERN_WARNING "Error flushing cache on controller %d\n",
 			h->ctlr);
 	h->access.set_intr_mask(h, CCISS_INTR_OFF);
-	free_irq(h->intr[2], h);
+	free_irq(h->intr[PERF_MODE_INT], h);
 }
 
 static void __devexit cciss_remove_one(struct pci_dev *pdev)
@@ -4706,8 +4874,7 @@ static int __init cciss_init(void)
 	 * boundary. Given that we use pci_alloc_consistent() to allocate an
 	 * array of them, the size must be a multiple of 8 bytes.
 	 */
-	BUILD_BUG_ON(sizeof(CommandList_struct) % 8);
-
+	BUILD_BUG_ON(sizeof(CommandList_struct) % COMMANDLIST_ALIGNMENT);
 	printk(KERN_INFO DRIVER_NAME "\n");
 
 	err = bus_register(&cciss_bus_type);
