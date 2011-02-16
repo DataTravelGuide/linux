@@ -2883,10 +2883,13 @@ static inline u32 hpsa_tag_to_index(u32 tag)
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
-static inline u32 hpsa_tag_discard_error_bits(u32 tag)
+static inline u32 hpsa_tag_discard_error_bits(struct ctlr_info *h, u32 tag)
 {
-#define HPSA_ERROR_BITS 0x03
-	return tag & ~HPSA_ERROR_BITS;
+#define HPSA_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
+#define HPSA_SIMPLE_ERROR_BITS 0x03
+	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+		return tag & ~HPSA_SIMPLE_ERROR_BITS;
+	return tag & ~HPSA_PERF_ERROR_BITS;
 }
 
 /* process completion of an indexed ("direct lookup") command */
@@ -2912,7 +2915,7 @@ static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
 	struct CommandList *c = NULL;
 	struct hlist_node *tmp;
 
-	tag = hpsa_tag_discard_error_bits(raw_tag);
+	tag = hpsa_tag_discard_error_bits(h, raw_tag);
 	hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
 		if ((c->busaddr & 0xFFFFFFE0) == (tag & 0xFFFFFFE0)) {
 			finish_cmd(c, raw_tag);
@@ -2963,7 +2966,10 @@ static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Send a message CDB to the firmware. */
+/* Send a message CDB to the firmware.  Careful, this only works
+ * in simple mode, not performant mode due to the tag lookup.
+ * We only ever use this immediately after a controller reset.
+ */
 static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 						unsigned char type)
 {
@@ -3031,7 +3037,7 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 
 	for (i = 0; i < HPSA_MSG_SEND_RETRY_LIMIT; i++) {
 		tag = readl(vaddr + SA5_REPLY_PORT_OFFSET);
-		if (hpsa_tag_discard_error_bits(tag) == paddr32)
+		if ((tag & ~HPSA_SIMPLE_ERROR_BITS) == paddr32)
 			break;
 		msleep(HPSA_MSG_SEND_RETRY_INTERVAL_MSECS);
 	}
@@ -3060,7 +3066,6 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 	return 0;
 }
 
-#define hpsa_soft_reset_controller(p) hpsa_message(p, 1, 0)
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
 static __devinit int hpsa_reset_msi(struct pci_dev *pdev)
