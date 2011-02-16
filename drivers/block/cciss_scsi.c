@@ -202,9 +202,10 @@ scsi_cmd_stack_setup(int ctlr, struct cciss_scsi_adapter_data_t *sa)
 	stk = &sa->cmd_stack; 
 	size = sizeof(struct cciss_scsi_cmd_stack_elem_t) * CMD_STACK_SIZE;
 
+	/* Check alignment, see cciss_cmd.h near CommandList_struct def. */
+	BUILD_BUG_ON((sizeof(struct cciss_scsi_cmd_stack_elem_t) % 8) != 0);
 	// pci_alloc_consistent guarantees 32-bit DMA address will
 	// be used
-
 	stk->pool = (struct cciss_scsi_cmd_stack_elem_t *)
 		pci_alloc_consistent(hba[ctlr]->pdev, size, &stk->cmd_pool_handle);
 
