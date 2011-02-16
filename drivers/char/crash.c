@@ -32,7 +32,7 @@
 #include <asm/types.h>
 #include <asm/crash.h>
 
-#define CRASH_VERSION   "1.0"
+#define CRASH_VERSION   "1.1"
 
 /*
  *  These are the file operation functions that allow crash utility
@@ -86,10 +86,17 @@ crash_read(struct file *file, char *buf, size_t count, loff_t *poff)
 	return read;
 }
 
+static int 
+crash_open(struct inode * inode, struct file * filp)
+{
+        return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
+}
+
 static struct file_operations crash_fops = {
 	.owner = THIS_MODULE,
 	.llseek = crash_llseek,
 	.read = crash_read,
+	.open = crash_open,
 };
 
 static struct miscdevice crash_dev = {
