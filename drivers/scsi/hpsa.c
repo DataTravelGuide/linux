@@ -3501,6 +3501,20 @@ static inline void hpsa_enable_scsi_prefetch(struct ctlr_info *h)
 #endif
 }
 
+/* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result
+ * in a prefetch beyond physical memory.
+ */
+static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
+{
+	u32 dma_prefetch;
+
+	if (h->board_id != 0x3225103C)
+		return;
+	dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
+	dma_prefetch |= 0x8000;
+	writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
 	int i, prod_index, err;
@@ -3566,6 +3580,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		msleep(10);
 	}
 	hpsa_enable_scsi_prefetch(h);
+	hpsa_p600_dma_prefetch_quirk(h);
 
 #ifdef HPSA_DEBUG
 	print_cfg_table(&h->pdev->dev, h->cfgtable);
