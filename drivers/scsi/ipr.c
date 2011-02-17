@@ -1139,12 +1139,12 @@ static int ipr_is_same_device(struct ipr_resource_entry *res,
 static char *ipr_format_res_path(u8 *res_path, char *buffer, size_t len)
 {
 	int i;
-	char *p = buffer;
+	char *p = buffer, *end = buffer + len;
 
 	*p = '\0';
-	p += snprintf(p, buffer + len - p, "%02X", res_path[0]);
+	p += snprintf(p, len, "%02X", res_path[0]);
 	for (i = 1; res_path[i] != 0xff && ((i * 3) < len); i++)
-		p += snprintf(p, buffer + len - p, "-%02X", res_path[i]);
+		p += snprintf(p, end - p, "-%02X", res_path[i]);
 
 	return buffer;
 }
