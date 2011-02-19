@@ -224,7 +224,7 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu)
+static void create_counter(int counter, int cpu, bool forks)
 {
 	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
@@ -293,6 +293,9 @@ static void create_counter(int counter, int cpu)
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
+
+	if (forks)
+		attr->enable_on_exec = 1;
 
 	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
@@ -408,13 +411,13 @@ try_again:
 	}
 }
 
-static void open_counters(int cpu)
+static void open_counters(int cpu, bool forks)
 {
 	int counter;
 
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu);
+		create_counter(counter, cpu, forks);
 
 	nr_cpu++;
 }
@@ -633,10 +636,10 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide && no_inherit && !cpu_list) {
-		open_counters(-1);
+		open_counters(-1, forks);
 	} else {
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i]);
+			open_counters(cpumap[i], forks);
 	}
 
 	if (pipe_output) {
