@@ -1348,6 +1348,10 @@ void mem_cgroup_update_file_mapped(struct page *page, int val)
 	cpustat = &stat->cpustat[cpu];
 
 	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_FILE_MAPPED, val);
+	if (val > 0)
+		SetPageCgroupFileMapped(pc);
+	else if (!page_mapped(page)) /* page could have been remapped */
+		ClearPageCgroupFileMapped(pc);
 done:
 	unlock_page_cgroup(pc);
 }
@@ -1575,7 +1579,6 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	struct mem_cgroup_per_zone *from_mz, *to_mz;
 	int nid, zid;
 	int ret = -EBUSY;
-	struct page *page;
 	int cpu;
 	struct mem_cgroup_stat *stat;
 	struct mem_cgroup_stat_cpu *cpustat;
@@ -1601,8 +1604,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		res_counter_uncharge(&from->res, page_size);
 	mem_cgroup_charge_statistics(from, pc, -page_size);
 
-	page = pc->page;
-	if (!PageAnon(page) && page_mapped(page)) {
+	if (PageCgroupFileMapped(pc)) {
 		/*
 		 * We don't tace care of page_size bacause the page is file cache.
 		 */
