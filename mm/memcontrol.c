@@ -1657,8 +1657,13 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 
 	parent = mem_cgroup_from_cont(pcg);
 
-	if (PageTransHuge(page))
-		page_size = PAGE_SIZE << compound_order(page);
+	if (PageTransHuge(page)) {
+		/*
+		 * Do not use compound_order(), the page may be split
+		 * concurrently.
+		 */
+		page_size = HPAGE_SIZE;
+	}
 
 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
 				      page_size);
