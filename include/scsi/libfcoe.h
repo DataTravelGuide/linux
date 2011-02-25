@@ -331,8 +331,4 @@ struct fcoe_netdev_mapping {
 int fcoe_transport_attach(struct fcoe_transport *ft);
 int fcoe_transport_detach(struct fcoe_transport *ft);
 
-static inline void fcoe_ctlr_mode(struct fcoe_ctlr *fip, enum fip_state mode)
-{
-	fip->mode = mode;
-}
 #endif /* _LIBFCOE_H */
