@@ -32,13 +32,13 @@ MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FIP discovery protocol and FCoE transport for FCoE HBAs");
 MODULE_LICENSE("GPL v2");
 
-static int fcoe_transport_create(const char *, struct kernel_param *);
-static int fcoe_transport_destroy(const char *, struct kernel_param *);
+int fcoe_transport_create(const char *, struct kernel_param *);
+int fcoe_transport_destroy(const char *, struct kernel_param *);
 static int fcoe_transport_show(char *buffer, struct kernel_param *kp);
 static struct fcoe_transport *fcoe_transport_lookup(struct net_device *device);
 static struct fcoe_transport *fcoe_netdev_map_lookup(struct net_device *device);
-static int fcoe_transport_enable(const char *, struct kernel_param *);
-static int fcoe_transport_disable(const char *, struct kernel_param *);
+int fcoe_transport_enable(const char *, struct kernel_param *);
+int fcoe_transport_disable(const char *, struct kernel_param *);
 static int libfcoe_device_notification(struct notifier_block *notifier,
 				    ulong event, void *ptr);
 
@@ -523,7 +523,7 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
+int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -591,6 +591,7 @@ out_nodev:
 	else
 		return rc;
 }
+EXPORT_SYMBOL_GPL(fcoe_transport_create);
 
 /**
  * fcoe_transport_destroy() - Destroy a FCoE interface
@@ -602,7 +603,7 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
+int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -651,6 +652,7 @@ out_nodev:
 	else
 		return rc;
 }
+EXPORT_SYMBOL_GPL(fcoe_transport_destroy);
 
 /**
  * fcoe_transport_disable() - Disables a FCoE interface
@@ -661,7 +663,7 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
+int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -700,6 +702,7 @@ out_nodev:
 	else
 		return rc;
 }
+EXPORT_SYMBOL_GPL(fcoe_transport_disable);
 
 /**
  * fcoe_transport_enable() - Enables a FCoE interface
@@ -710,7 +713,7 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
+int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -748,6 +751,7 @@ out_nodev:
 	else
 		return rc;
 }
+EXPORT_SYMBOL_GPL(fcoe_transport_enable);
 
 /**
  * libfcoe_init() - Initialization routine for libfcoe.ko

@@ -44,10 +44,29 @@
 #include <scsi/libfcoe.h>
 
 #include "fcoe.h"
+#include "fcoe_compat.h"
 
 MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FCoE");
 MODULE_LICENSE("GPL v2");
+
+/* RHEL compat - upstream this moved from the fcoe module to libfcoe */
+module_param_call(create, fcoe_transport_create, NULL,
+		  (void *)FIP_MODE_FABRIC, S_IWUSR);
+__MODULE_PARM_TYPE(create, "string");
+MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
+
+module_param_call(destroy, fcoe_transport_destroy, NULL, NULL, S_IWUSR);
+__MODULE_PARM_TYPE(destroy, "string");
+MODULE_PARM_DESC(destroy, " Destroys fcoe instance on a ethernet interface");
+
+module_param_call(enable, fcoe_transport_enable, NULL, NULL, S_IWUSR);
+__MODULE_PARM_TYPE(enable, "string");
+MODULE_PARM_DESC(enable, " Enables fcoe on a ethernet interface.");
+
+module_param_call(disable, fcoe_transport_disable, NULL, NULL, S_IWUSR);
+__MODULE_PARM_TYPE(disable, "string");
+MODULE_PARM_DESC(disable, " Disables fcoe on a ethernet interface.");
 
 /* Performance tuning parameters for fcoe */
 static unsigned int fcoe_ddp_min;
