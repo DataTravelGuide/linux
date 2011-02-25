@@ -822,11 +822,11 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 	struct eth_rx_bd *rx_bd = &fp->rx_desc_ring[index];
 	dma_addr_t mapping;
 
-	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, fp->rx_buf_size);
 	if (unlikely(skb == NULL))
 		return -ENOMEM;
 
-	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_size,
+	mapping = pci_map_single(bp->pdev, skb->data, fp->rx_buf_size,
 				 PCI_DMA_FROMDEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
@@ -892,7 +892,7 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 		if (fp->tpa_state[i] == BNX2X_TPA_START)
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
+					 fp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 		dev_kfree_skb(skb);
 		rx_buf->skb = NULL;
