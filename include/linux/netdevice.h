@@ -588,8 +588,7 @@ struct netdev_rx_queue {
 	struct rps_map *rps_map;
 	struct rps_dev_flow_table *rps_flow_table;
 	struct kobject kobj;
-	struct netdev_rx_queue *first;
-	atomic_t count;
+	struct net_device *dev;
 } ____cacheline_aligned_in_smp;
 
 /*

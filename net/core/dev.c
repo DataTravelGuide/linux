@@ -5135,6 +5135,25 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 }
 EXPORT_SYMBOL(netdev_fix_features);
 
+static int netif_alloc_rx_queues(struct net_device *dev)
+{
+	unsigned int i, count = dev->num_rx_queues;
+	struct netdev_rx_queue *rx;
+
+	BUG_ON(count < 1);
+
+	rx = kcalloc(count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
+	if (!rx) {
+		pr_err("netdev: Unable to allocate %u rx queues.\n", count);
+		return -ENOMEM;
+	}
+	dev->_rx = rx;
+
+	for (i = 0; i < count; i++)
+		rx[i].dev = dev;
+	return 0;
+}
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -5179,16 +5198,10 @@ int register_netdevice(struct net_device *dev)
 		 * Allocate a single RX queue if driver never called
 		 * alloc_netdev_mq
 		 */
-
-		dev->_rx = kzalloc(sizeof(struct netdev_rx_queue), GFP_KERNEL);
-		if (!dev->_rx) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		dev->_rx->first = dev->_rx;
-		atomic_set(&dev->_rx->count, 1);
 		dev->num_rx_queues = 1;
+		ret = netif_alloc_rx_queues(dev);
+		if (ret)
+			goto out;
 	}
 
 	/* Init, if this function is available */
@@ -5548,11 +5561,9 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	struct netdev_queue *tx;
-	struct netdev_rx_queue *rx;
 	struct net_device *dev;
 	size_t alloc_size;
 	struct net_device *p;
-	int i;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -5578,24 +5589,16 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
-	rx = kcalloc(queue_count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
-	if (!rx) {
+	dev = PTR_ALIGN(p, NETDEV_ALIGN);
+	dev->padded = (char *)dev - (char *)p;
+
+
+	dev->num_rx_queues = queue_count;
+	if (netif_alloc_rx_queues(dev)) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "rx queues.\n");
 		goto free_tx;
 	}
-
-	atomic_set(&rx->count, queue_count);
-
-	/*
-	 * Set a pointer to first element in the array which holds the
-	 * reference count.
-	 */
-	for (i = 0; i < queue_count; i++)
-		rx[i].first = rx;
-
-	dev = PTR_ALIGN(p, NETDEV_ALIGN);
-	dev->padded = (char *)dev - (char *)p;
 
 	if (dev_addr_init(dev))
 		goto free_rx;
@@ -5608,8 +5611,6 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
 
-	dev->_rx = rx;
-	dev->num_rx_queues = queue_count;
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 
@@ -5622,7 +5623,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	return dev;
 
 free_rx:
-	kfree(rx);
+	kfree(dev->_rx);
 free_tx:
 	kfree(tx);
 free_p:
@@ -5646,6 +5647,7 @@ void free_netdev(struct net_device *dev)
 	release_net(dev_net(dev));
 
 	kfree(dev->_tx);
+	kfree(dev->_rx);
 
 	/* Flush device addresses */
 	dev_addr_flush(dev);
