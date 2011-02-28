@@ -1824,6 +1824,7 @@ fi
 - [block] zram: Remove need for explicit device initialization (Jerome Marchand) [661293]
 - [block] zram: Replace ioctls with sysfs interface (Jerome Marchand) [661293]
 - [block] zram: fix build errors, depends on BLOCK (Jerome Marchand) [661293]
+- [fs] Revert "inotify: rework inotify locking to prevent double free use when free in inotify" [674880 675299]
 
 * Tue Feb 08 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-115.el6]
 - [s390x] Fix hang on s390x while running LTP (Larry Woodman) [675294]
