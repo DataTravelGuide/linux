@@ -11,9 +11,6 @@
 /* The full zone was compacted */
 #define COMPACT_COMPLETE	3
 
-#define COMPACT_MODE_DIRECT_RECLAIM	0
-#define COMPACT_MODE_KSWAPD		1
-
 #ifdef CONFIG_COMPACTION
 extern int sysctl_compact_memory;
 extern int sysctl_compaction_handler(struct ctl_table *table, int write,
@@ -25,7 +22,7 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern unsigned long compact_zone_order(struct zone *zone,
 					int order, gfp_t gfp_mask,
-					bool sync, int compact_mode);
+					bool sync);
 extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *mask,
 			bool sync);
@@ -69,7 +66,7 @@ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
 
 static inline unsigned long compact_zone_order(struct zone *zone,
 					       int order, gfp_t gfp_mask,
-					       bool sync, int compact_mode)
+					       bool sync)
 {
 	return COMPACT_CONTINUE;
 }
