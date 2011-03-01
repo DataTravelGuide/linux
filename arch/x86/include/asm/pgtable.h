@@ -28,8 +28,6 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 extern spinlock_t pgd_lock;
 extern struct list_head pgd_list;
 
-extern struct mm_struct *pgd_page_get_mm(struct page *page);
-
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else  /* !CONFIG_PARAVIRT */
@@ -82,6 +80,9 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 #define arch_end_context_switch(prev)	do {} while(0)
 
 #endif	/* CONFIG_PARAVIRT */
+
+#define pgd_page_get_mm(__page) \
+	((struct mm_struct *)(xen_pv_domain() ? (__page)->index : 0))
 
 /*
  * The following only work if pte_present() is true.
