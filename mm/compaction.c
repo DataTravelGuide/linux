@@ -237,6 +237,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
 					struct compact_control *cc)
 {
 	unsigned long low_pfn, end_pfn;
+	unsigned long last_pageblock_nr = 0, pageblock_nr;
 	struct list_head *migratelist = &cc->migratepages;
 
 	/* Do not scan outside zone boundaries */
@@ -274,6 +275,20 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		page = pfn_to_page(low_pfn);
 		if (PageBuddy(page))
 			continue;
+
+		/*
+		 * For async migration, also only scan in MOVABLE blocks. Async
+		 * migration is optimistic to see if the minimum amount of work
+		 * satisfies the allocation
+		 */
+		pageblock_nr = low_pfn >> pageblock_order;
+		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
+				get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
+			low_pfn += pageblock_nr_pages;
+			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
+			last_pageblock_nr = pageblock_nr;
+			continue;
+		}
 
 		if (!PageLRU(page))
 			continue;
