@@ -47,8 +47,7 @@
 #define KVM_VM_CR0_ALWAYS_ON						\
 	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
 #define KVM_GUEST_CR4_MASK						\
-	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE \
-		| X86_CR4_OSXSAVE)
+	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
 #define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
 
@@ -321,8 +320,7 @@ struct kvm_vcpu_arch {
 		unsigned long mmu_seq;
 	} update_pte;
 
-	struct fpu guest_fpu;
-	u64 xcr0;
+	struct i387_fxsave_struct guest_fx_image;
 
 	gva_t mmio_fault_cr2;
 	struct kvm_pio_request pio;
@@ -642,7 +640,6 @@ void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);
 unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
-int kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
@@ -741,6 +738,21 @@ static inline unsigned long read_msr(unsigned long msr)
 	return value;
 }
 #endif
+
+static inline void kvm_fx_save(struct i387_fxsave_struct *image)
+{
+	asm("fxsave (%0)":: "r" (image));
+}
+
+static inline void kvm_fx_restore(struct i387_fxsave_struct *image)
+{
+	asm("fxrstor (%0)":: "r" (image));
+}
+
+static inline void kvm_fx_finit(void)
+{
+	asm("finit");
+}
 
 static inline u32 get_rdx_init_val(void)
 {
