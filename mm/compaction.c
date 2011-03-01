@@ -150,7 +150,6 @@ static void isolate_freepages(struct zone *zone,
 	 * pages on cc->migratepages. We stop searching if the migrate
 	 * and free page scanners meet or enough free pages are isolated.
 	 */
-	spin_lock_irqsave(&zone->lock, flags);
 	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
 					pfn -= pageblock_nr_pages) {
 		unsigned long isolated;
@@ -173,9 +172,19 @@ static void isolate_freepages(struct zone *zone,
 		if (!suitable_migration_target(page))
 			continue;
 
-		/* Found a block suitable for isolating free pages from */
-		isolated = isolate_freepages_block(zone, pfn, freelist);
-		nr_freepages += isolated;
+		/*
+		 * Found a block suitable for isolating free pages from. Now
+		 * we disabled interrupts, double check things are ok and
+		 * isolate the pages. This is to minimise the time IRQs
+		 * are disabled
+		 */
+		isolated = 0;
+		spin_lock_irqsave(&zone->lock, flags);
+		if (suitable_migration_target(page)) {
+			isolated = isolate_freepages_block(zone, pfn, freelist);
+			nr_freepages += isolated;
+		}
+		spin_unlock_irqrestore(&zone->lock, flags);
 
 		/*
 		 * Record the highest PFN we isolated pages from. When next
@@ -185,7 +194,6 @@ static void isolate_freepages(struct zone *zone,
 		if (isolated)
 			high_pfn = max(high_pfn, pfn);
 	}
-	spin_unlock_irqrestore(&zone->lock, flags);
 
 	/* split_free_page does not map the pages */
 	list_for_each_entry(page, freelist, lru) {
