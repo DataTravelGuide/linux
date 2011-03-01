@@ -643,7 +643,7 @@ static inline struct page *alloc_hugepage_vma(int defrag,
 #ifndef CONFIG_NUMA
 static inline struct page *alloc_hugepage(int defrag)
 {
-	return alloc_pages(alloc_hugepage_gfpmask(defrag),
+	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
 			   HPAGE_PMD_ORDER);
 }
 #endif
