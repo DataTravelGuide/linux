@@ -60,6 +60,7 @@ struct vm_area_struct;
 #endif
 
 #define __GFP_NO_KSWAPD	((__force gfp_t)0x400000u)
+#define __GFP_OTHER_NODE ((__force gfp_t)0x800000u)
 
 /*
  * This may seem redundant, but it's a way of annotating false positives vs.
