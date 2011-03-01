@@ -1771,12 +1771,15 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	int migratetype, unsigned long *did_some_progress)
 {
 	struct page *page;
+	struct task_struct *p = current;
 
 	if (!order || compaction_deferred(preferred_zone))
 		return NULL;
 
+	p->flags |= PF_MEMALLOC;
 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
 								nodemask);
+	p->flags &= ~PF_MEMALLOC;
 	if (*did_some_progress != COMPACT_SKIPPED) {
 
 		/* Page migration frees to the PCP lists but we want merging */
