@@ -2150,6 +2150,7 @@ loop_again:
 				compact_zone_order(zone,
 						   order,
 						   sc.gfp_mask,
+						   false,
 						   COMPACT_MODE_KSWAPD);
 				compaction = 1;
 			}
