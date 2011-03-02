@@ -1599,6 +1599,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-119.el6]
+- [ib] cm: Bump reference count on cm_id before invoking callback (Doug Ledford) [676191]
+- [rdma] cm: Fix crash in request handlers (Doug Ledford) [676191]
+- [virt] Revert "kvm: Allow XSAVE/XRSTOR for a guest" series (Dor Laor) [464271]
+- [x86] perf: Add support for AMD family 15h core counters (Frank Arnold) [635671]
+- [x86] perf: Store perfctr msr addresses in config_base/event_base (Frank Arnold) [635671]
+- [x86] perf: P4 PMU - Fix unflagged overflows handling (Frank Arnold) [635671]
+- [x86] perf: Add new AMD family 15h msrs to perfctr reservation code (Frank Arnold) [635671]
+- [x86] perf: Calculate perfctr msr addresses in helper functions (Frank Arnold) [635671]
+- [x86] perf: Use helper function in x86_pmu_enable_all() (Frank Arnold) [635671]
+
 * Mon Feb 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-118.el6]
 - [netdrv] Keep all bnx2 firmware files (John Feeney) [678429]
 - [crypto] sha-s390: Reset index after processing partial block (Herbert Xu) [626515]
