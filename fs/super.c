@@ -305,13 +305,13 @@ void generic_shutdown_super(struct super_block *sb)
 		sb->s_flags &= ~MS_ACTIVE;
 
 		/* bad name - it should be evict_inodes() */
-		invalidate_inodes(sb);
+		invalidate_inodes(sb, true);
 
 		if (sop->put_super)
 			sop->put_super(sb);
 
 		/* Forget any remaining inodes */
-		if (invalidate_inodes(sb)) {
+		if (invalidate_inodes(sb, true)) {
 			printk("VFS: Busy inodes after unmount of %s. "
 			   "Self-destruct in 5 seconds.  Have a nice day...\n",
 			   sb->s_id);

@@ -1237,7 +1237,7 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
-	invalidate_inodes(sb);
+	invalidate_inodes(sb, true);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 fail_sys:
