@@ -1264,25 +1264,6 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 }
 
 static int
-qla82xx_check_for_bad_spd(struct qla_hw_data *ha)
-{
-	u32 val = 0;
-	val = qla82xx_rd_32(ha, BOOT_LOADER_DIMM_STATUS);
-	val &= QLA82XX_BOOT_LOADER_MN_ISSUE;
-	if (val & QLA82XX_PEG_TUNE_MN_SPD_ZEROED) {
-		qla_printk(KERN_INFO, ha,
-			"Memory DIMM SPD not programmed. "
-			" Assumed valid.\n");
-		return 1;
-	} else if (val) {
-		qla_printk(KERN_INFO, ha,
-			"Memory DIMM type incorrect.Info:%08X.\n", val);
-		return 2;
-	}
-	return 0;
-}
-
-static int
 qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 		u64 off, void *data, int size)
 {
@@ -1892,7 +1873,6 @@ qla82xx_check_cmdpeg_state(struct qla_hw_data *ha)
 	qla_printk(KERN_INFO, ha,
 	    "Cmd Peg initialization failed: 0x%x.\n", val);
 
-	qla82xx_check_for_bad_spd(ha);
 	val = qla82xx_rd_32(ha, QLA82XX_ROMUSB_GLB_PEGTUNE_DONE);
 	read_lock(&ha->hw_lock);
 	qla82xx_wr_32(ha, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
