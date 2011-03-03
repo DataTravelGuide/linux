@@ -39,6 +39,7 @@ static int qla2x00_find_new_loop_id(scsi_qla_host_t *, fc_port_t *);
 static struct qla_chip_state_84xx *qla84xx_get_chip(struct scsi_qla_host *);
 static int qla84xx_init_chip(scsi_qla_host_t *);
 static int qla25xx_init_queues(struct qla_hw_data *);
+int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
 
 /* SRB Extensions ---------------------------------------------------------- */
 
@@ -2929,6 +2930,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
+	qla24xx_update_fcport_fcp_prio(vha, fcport);
 	qla2x00_reg_remote_port(vha, fcport);
 	atomic_set(&fcport->state, FCS_ONLINE);
 }
@@ -5475,7 +5477,7 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
  *	the tag (priority) value is returned.
  *
  * Input:
- *	ha = adapter block po
+ *	vha = scsi host structure pointer.
  *	fcport = port structure pointer.
  *
  * Return:
@@ -5569,7 +5571,7 @@ qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
  *	Activates fcp priority for the logged in fc port
  *
  * Input:
- *	ha = adapter block pointer.
+ *	vha = scsi host structure pointer.
  *	fcp = port structure pointer.
  *
  * Return:
@@ -5579,25 +5581,24 @@ qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
  *	Kernel context.
  */
 int
-qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *ha, fc_port_t *fcport)
+qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
 	int ret;
 	uint8_t priority;
 	uint16_t mb[5];
 
-	if (atomic_read(&fcport->state) == FCS_UNCONFIGURED ||
-		fcport->port_type != FCT_TARGET ||
-		fcport->loop_id == FC_NO_LOOP_ID)
+	if (fcport->port_type != FCT_TARGET ||
+	    fcport->loop_id == FC_NO_LOOP_ID)
 		return QLA_FUNCTION_FAILED;
 
-	priority = qla24xx_get_fcp_prio(ha, fcport);
-	ret = qla24xx_set_fcp_prio(ha, fcport->loop_id, priority, mb);
+	priority = qla24xx_get_fcp_prio(vha, fcport);
+	ret = qla24xx_set_fcp_prio(vha, fcport->loop_id, priority, mb);
 	if (ret == QLA_SUCCESS)
 		fcport->fcp_prio = priority;
 	else
 		DEBUG2(printk(KERN_WARNING
 			"scsi(%ld): Unable to activate fcp priority, "
-			" ret=0x%x\n", ha->host_no, ret));
+			" ret=0x%x\n", vha->host_no, ret));
 
 	return  ret;
 }
