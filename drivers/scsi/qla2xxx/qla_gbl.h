@@ -558,6 +558,7 @@ extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 
 /* Reset related */
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
+extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);
