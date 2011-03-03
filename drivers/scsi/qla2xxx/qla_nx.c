@@ -3691,7 +3691,9 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			QLA82XX_DEV_NEED_RESET);
 	} else
-		qla_printk(KERN_INFO, ha, "HW State: DEVICE INITIALIZING\n");
+		qla_printk(KERN_INFO, ha, "HW State: %s\n",
+		    dev_state < MAX_DEV_STATES ?
+		    qdev_state[dev_state] : "Unknown");
 	qla82xx_idc_unlock(ha);
 
 	rval = qla82xx_device_state_handler(vha);
