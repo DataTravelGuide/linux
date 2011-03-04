@@ -24,6 +24,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
+#include "efx_ioctl.h"
 
 #include "mcdi.h"
 #include "workarounds.h"
@@ -1582,6 +1583,16 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 	struct mii_ioctl_data *data = if_mii(ifr);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
+
+	if (cmd == SIOCEFX) {
+		struct efx_sock_ioctl __user *user_data =
+			(struct efx_sock_ioctl __user *)ifr->ifr_data;
+		u16 efx_cmd;
+
+		if (copy_from_user(&efx_cmd, &user_data->cmd, sizeof(efx_cmd)))
+			return -EFAULT;
+		return efx_private_ioctl(efx, efx_cmd, &user_data->u);
+	}
 
 	/* Convert phy_id from older PRTAD/DEVAD format */
 	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&

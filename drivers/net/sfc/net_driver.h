@@ -864,6 +864,8 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
+ * @reset_world_flags: Flags for additional components covered by
+ *	reset method RESET_TYPE_WORLD
  */
 struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
@@ -905,6 +907,7 @@ struct efx_nic_type {
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
 	unsigned long offload_features;
+	u32 reset_world_flags;
 };
 
 /**************************************************************************

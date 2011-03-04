@@ -85,6 +85,7 @@ extern int efx_reconfigure_port(struct efx_nic *efx);
 extern int __efx_reconfigure_port(struct efx_nic *efx);
 
 /* Ethtool support */
+extern int efx_ethtool_reset(struct net_device *net_dev, u32 *flags);
 extern const struct ethtool_ops efx_ethtool_ops;
 
 /* Reset handling */

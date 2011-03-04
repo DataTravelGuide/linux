@@ -1751,6 +1751,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM,
+	.reset_world_flags = ETH_RESET_IRQ,
 };
 
 struct efx_nic_type falcon_b0_nic_type = {
@@ -1800,5 +1801,6 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM,
+	.reset_world_flags = ETH_RESET_IRQ,
 };
 

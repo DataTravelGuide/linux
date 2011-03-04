@@ -837,8 +837,7 @@ static int efx_ethtool_set_wol(struct net_device *net_dev,
 	return efx->type->set_wol(efx, wol->wolopts);
 }
 
-#if 0 /* not in RHEL6 */
-static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
+int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	enum reset_type method;
@@ -866,7 +865,6 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 
 	return efx_reset(efx, method);
 }
-#endif
 
 #if 0 /* not in RHEL6 */
 static int
