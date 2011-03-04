@@ -571,9 +571,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 	struct efx_nic *efx = channel->efx;
 	struct sk_buff *skb;
 
-	rx_buf->data += efx->type->rx_buffer_hash_size;
-	rx_buf->len -= efx->type->rx_buffer_hash_size;
-
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
 	 */
@@ -586,7 +583,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 	if (rx_buf->skb) {
 		prefetch(skb_shinfo(rx_buf->skb));
 
-		skb_reserve(rx_buf->skb, efx->type->rx_buffer_hash_size);
 		skb_put(rx_buf->skb, rx_buf->len);
 
 		/* Move past the ethernet header. rx_buf->data still points
