@@ -1863,6 +1863,7 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 				  A, A, 8, 1024),
 	REGISTER_TABLE_DIMENSIONS(BUF_FULL_TBL, FR_BZ_BUF_FULL_TBL,
 				  B, Z, 8, 1024),
+	/* RX_FILTER_TBL{0,1} is huge and not used by this driver */
 	REGISTER_TABLE_CZ(RX_MAC_FILTER_TBL0),
 	REGISTER_TABLE_BB_CZ(TIMER_TBL),
 	REGISTER_TABLE_BB_CZ(TX_PACE_TBL),
@@ -1872,7 +1873,6 @@ static const struct efx_nic_reg_table efx_nic_reg_tables[] = {
 	REGISTER_TABLE_CZ(MC_TREG_SMEM),
 	/* MSIX_PBA_TABLE is not mapped */
 	/* SRM_DBG is not mapped (and is redundant with BUF_FLL_TBL) */
-	REGISTER_TABLE_BZ(RX_FILTER_TBL0),
 };
 
 size_t efx_nic_get_regs_len(struct efx_nic *efx)
