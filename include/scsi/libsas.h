@@ -404,6 +404,19 @@ static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 	phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 }
 
+/* Before returning from ->scan_finished() an LLDD calls this routine to
+ * ensure that all port notifications have been promoted to domain
+ * discovery events, and that initial domain discovery has completed
+ */
+static inline void sas_flush_discovery(struct Scsi_Host *shost)
+{
+	/* flush port events */
+	scsi_flush_work(shost);
+
+	/* flush domain discovery events queued by the port events */
+	scsi_flush_work(shost);
+}
+
 /* ---------- Tasks ---------- */
 /*
       service_response |  SAS_TASK_COMPLETE  |  SAS_TASK_UNDELIVERED |

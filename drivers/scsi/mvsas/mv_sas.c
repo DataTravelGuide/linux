@@ -442,7 +442,7 @@ int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	if (time < HZ)
 		return 0;
 	/* Wait for discovery to finish */
-	scsi_flush_work(shost);
+	sas_flush_discovery(shost);
 	return 1;
 }
 
