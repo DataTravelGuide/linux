@@ -16,7 +16,6 @@
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
-#include "filter.h"
 #include "nic.h"
 
 struct ethtool_string {
