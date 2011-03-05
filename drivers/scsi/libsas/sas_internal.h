@@ -61,7 +61,7 @@ int  sas_init_queue(struct sas_ha_struct *sas_ha);
 int  sas_init_events(struct sas_ha_struct *sas_ha);
 void sas_shutdown_queue(struct sas_ha_struct *sas_ha);
 
-void sas_deform_port(struct asd_sas_phy *phy);
+void sas_deform_port(struct asd_sas_phy *phy, int gone);
 
 void sas_porte_bytes_dmaed(struct work_struct *work);
 void sas_porte_broadcast_rcvd(struct work_struct *work);
@@ -71,6 +71,7 @@ void sas_porte_hard_reset(struct work_struct *work);
 
 int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);
+void sas_device_gone(struct domain_device *dev);
 
 int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 			enum phy_func phy_func, struct sas_phy_linkrates *);
