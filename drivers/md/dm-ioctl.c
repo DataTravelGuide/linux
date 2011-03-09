@@ -1611,13 +1611,14 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	 * Copy the parameters into kernel space.
 	 */
 	r = copy_params(user, &param);
-	input_param_size = param->data_size;
-	wipe_buffer = param->flags & DM_SECURE_DATA_FLAG;
 
 	current->flags &= ~PF_MEMALLOC;
 
 	if (r)
 		return r;
+
+	input_param_size = param->data_size;
+	wipe_buffer = param->flags & DM_SECURE_DATA_FLAG;
 
 	r = validate_params(cmd, param);
 	if (r)
