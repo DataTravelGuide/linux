@@ -34,11 +34,15 @@
 #include <linux/acpi.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
+#include <asm/uv/uv.h>
 #endif
 #include <linux/pci.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/dmi.h>
+#ifndef __GENKSYMS__
+#include <linux/crash_dump.h>
+#endif
 
 #include "internal.h"
 
@@ -500,6 +504,17 @@ static void acpi_bus_osc_support(void)
 #endif
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
 		return;
+
+	if (is_uv_system() && is_kdump_kernel()) {
+		/*
+		 * There is no need to parse the OS Capabilities table
+		 * in the crash kernel. And it should not be done, as
+		 * that parsing includes destructive writes to io ports to
+		 * initialize UV system controller interrupts.
+		 */
+		return;
+	}
+
 	if (ACPI_SUCCESS(acpi_run_osc(handle, &context)))
 		kfree(context.ret.pointer);
 	/* do we need to check the returned cap? Sounds no */
