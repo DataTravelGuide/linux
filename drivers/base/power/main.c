@@ -114,9 +114,11 @@ int device_pm_pre_add(struct device *dev)
 	if (!pm_entry)
 		return -ENOMEM;
 
+	mutex_lock(&dpm_list_mtx);
 	pm_entry->dev = dev;
 
 	list_add(&pm_entry->entry, &dpm_unregistered_list);
+	mutex_unlock(&dpm_list_mtx);
 	return 0;
 }
 
@@ -133,11 +135,13 @@ void device_pm_pre_add_cleanup(struct device *dev)
 {
 	struct dev_pm_info_entry *pm_entry;
 
+	mutex_lock(&dpm_list_mtx);
 	pm_entry = get_dev_pm_info_entry(dev, &dpm_unregistered_list);
 	if (pm_entry) {
 		list_del_init(&pm_entry->entry);
 		kfree(pm_entry);
 	}
+	mutex_unlock(&dpm_list_mtx);
 }
 #endif /* CONFIG_PPC_PSERIES */
 
