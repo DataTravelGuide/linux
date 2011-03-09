@@ -1599,6 +1599,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Mar 09 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-121.el6]
+- [x86] watchdog, nmi: Allow hardlockup to panic by default (Don Zickus) [677532]
+- [mm] Avoid possible bogus TLB entries (Larry Woodman) [681024]
+- [net] udp: lockless transmit path (Thomas Graf) [680549]
+- [mm] memcg: fix race at move_parent around compound_order() (Johannes Weiner) [679025]
+- [mm] memcg: correctly order reading PCG_USED and pc->mem_cgroup (Johannes Weiner) [679025]
+- [mm] memcg: fix race in mapped file accounting (Johannes Weiner) [679025]
+- [mm] memcg: make memcg's file mapped consistent with global VM (Johannes Weiner) [679021]
+- [net] fix rx queue refcounting (Neil Horman) [677786]
+- [kernel] /proc/vmcore: speed up access to vmcore file (Neil Horman) [672937]
+- [mm] ksm: drain pagevecs to lru (Andrea Arcangeli) [670063]
+- [mm] memcg: fix charged shmem swapcache migration (Johannes Weiner) [663223]
+- [mm] memcg: race-free migration of charged file pages (Johannes Weiner) [663223]
+- [virt] KVM: SVM: check for progress after IRET interception (Avi Kivity) [612436]
+- [virt] KVM: Fix race between nmi injection and enabling nmi window (Avi Kivity) [612436]
+- [net] ipv6: Implement Any-IP support for IPv6 (Neal Kim) [591335]
+- [net] netfilter: fix TPROXY IPv6 support build dependency (Andrew Jones) [591335]
+- [x86] hpwdt: Include hpwdt in rh-configs by default (Tony Camuso) [462945]
+- [x86] hpwdt and ipmi: use DIE_NMIUNKNOWN (Tony Camuso) [462945]
+- [netdrv] cnic: Fix big endian bug (Steve Best) [676640]
+
 * Mon Mar 07 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-120.el6]
 - [scsi] libfcoe: check buffer length before write (Tomas Henzl) [635898 668114]
 - [scsi] fcoe: add modparm compat interface (Mike Christie) [635898 668114]
