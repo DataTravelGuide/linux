@@ -545,6 +545,8 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		 return -EINVAL;
 	}
 
+	mdelay(50);
+
 	nv_crtc->fb.offset = fb->nvbo->bo.offset - dev_priv->vm_vram_base;
 	nv_crtc->fb.tile_flags = nouveau_bo_tile_layout(fb->nvbo);
 	nv_crtc->fb.cpp = drm_fb->bits_per_pixel / 8;
