@@ -52,6 +52,7 @@
 #include <linux/slow-work.h>
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
+#include <linux/kmod.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -728,6 +729,11 @@ static struct ctl_table kern_table[] = {
 		.procname	= "random",
 		.mode		= 0555,
 		.child		= random_table,
+	},
+	{
+		.procname	= "usermodehelper",
+		.mode		= 0555,
+		.child		= usermodehelper_table,
 	},
 	{
 		.ctl_name	= KERN_OVERFLOWUID,
