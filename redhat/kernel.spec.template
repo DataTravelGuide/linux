@@ -1618,6 +1618,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Mar 09 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-122.el6]
+- [kernel] capabilites: allow the application of capability limits to usermode helpers (Eric Paris) [665080]
+- [kernel] allow kernel-debuginfo-common to be biarch installable (Jason Baron) [682012]
+- [mm] fix pgd_lock deadlock (Andrea Arcangeli) [671477]
+- [net] Fix BUG halt in RDS when cong map len is returned to rds_send_xmit (Neil Horman) [680200] {CVE-2011-1023}
+
 * Wed Mar 09 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-121.el6]
 - [x86] watchdog, nmi: Allow hardlockup to panic by default (Don Zickus) [677532]
 - [mm] Avoid possible bogus TLB entries (Larry Woodman) [681024]
