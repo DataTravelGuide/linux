@@ -1363,8 +1363,7 @@ static void empty_write_end(struct page *page, unsigned from,
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
 
-	page_zero_new_buffers(page, from, to);
-	flush_dcache_page(page);
+	zero_user(page, from, to-from);
 	mark_page_accessed(page);
 
 	if (!gfs2_is_writeback(ip))
@@ -1373,37 +1372,43 @@ static void empty_write_end(struct page *page, unsigned from,
 	block_commit_write(page, from, to);
 }
 
+static int needs_empty_write(sector_t block, struct inode *inode)
+{
+	int error;
+	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
+
+	bh_map.b_size = 1 << inode->i_blkbits;
+	error = gfs2_block_map(inode, block, &bh_map, 0);
+	if (unlikely(error))
+		return error;
+	return !buffer_mapped(&bh_map);
+}
 
 static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 {
-	unsigned start, end, next;
-	struct buffer_head *bh, *head;
-	int error;
+	struct inode *inode = page->mapping->host;
+	unsigned start, end, next, blksize;
+	sector_t block = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	int ret;
 
-	if (!page_has_buffers(page)) {
-		error = block_prepare_write(page, from, to, gfs2_block_map);
-		if (unlikely(error))
-			return error;
-
-		empty_write_end(page, from, to);
-		return 0;
-	}
-
-	bh = head = page_buffers(page);
+	blksize = 1 << inode->i_blkbits;
 	next = end = 0;
 	while (next < from) {
-		next += bh->b_size;
-		bh = bh->b_this_page;
+		next += blksize;
+		block++;
 	}
 	start = next;
 	do {
-		next += bh->b_size;
-		if (buffer_mapped(bh)) {
+		next += blksize;
+		ret = needs_empty_write(block, inode);
+		if (unlikely(ret < 0))
+			return ret;
+		if (ret == 0) {
 			if (end) {
-				error = block_prepare_write(page, start, end,
-							    gfs2_block_map);
-				if (unlikely(error))
-					return error;
+				ret = block_prepare_write(page, start, end,
+							  gfs2_block_map);
+				if (unlikely(ret))
+					return ret;
 				empty_write_end(page, start, end);
 				end = 0;
 			}
@@ -1411,13 +1416,13 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 		}
 		else
 			end = next;
-		bh = bh->b_this_page;
+		block++;
 	} while (next < to);
 
 	if (end) {
-		error = block_prepare_write(page, start, end, gfs2_block_map);
-		if (unlikely(error))
-			return error;
+		ret = block_prepare_write(page, start, end, gfs2_block_map);
+		if (unlikely(ret))
+			return ret;
 		empty_write_end(page, start, end);
 	}
 
