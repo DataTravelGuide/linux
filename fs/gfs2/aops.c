@@ -713,6 +713,7 @@ out:
 	if (error == 0)
 		return 0;
 
+	unlock_page(page);
 	page_cache_release(page);
 	if (pos + len > ip->i_inode.i_size)
 		vmtruncate(&ip->i_inode, ip->i_inode.i_size);
