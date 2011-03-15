@@ -1974,13 +1974,22 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
 		vn_max_rate = 0;
 
 	} else {
+		u32 maxCfg = bnx2x_extract_max_cfg(bp, vn_cfg);
+
 		vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
 				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		/* If min rate is zero - set it to 1 */
+		/* If fairness is enabled (not all min rates are zeroes) and
+		   if current min rate is zero - set it to 1.
+		   This is a requirement of the algorithm. */
 		if (bp->vn_weight_sum && (vn_min_rate == 0))
 			vn_min_rate = DEF_MIN_RATE;
-		vn_max_rate = ((vn_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
-				FUNC_MF_CFG_MAX_BW_SHIFT) * 100;
+
+		if (IS_MF_SI(bp))
+			/* maxCfg in percents of linkspeed */
+			vn_max_rate = (bp->link_vars.line_speed * maxCfg) / 100;
+		else
+			/* maxCfg is absolute in 100Mb units */
+			vn_max_rate = maxCfg * 100;
 	}
 
 	DP(NETIF_MSG_IFUP,
@@ -2006,7 +2015,8 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
 		m_fair_vn.vn_credit_delta =
 			max_t(u32, (vn_min_rate * (T_FAIR_COEF /
 						   (8 * bp->vn_weight_sum))),
-			      (bp->cmng.fair_vars.fair_threshold * 2));
+			      (bp->cmng.fair_vars.fair_threshold +
+							MIN_ABOVE_THRESH));
 		DP(NETIF_MSG_IFUP, "m_fair_vn.vn_credit_delta %d\n",
 		   m_fair_vn.vn_credit_delta);
 	}
@@ -2418,10 +2428,8 @@ static inline u16 bnx2x_get_cl_flags(struct bnx2x *bp,
 	flags |= QUEUE_FLG_HC;
 	flags |= IS_MF_SD(bp) ? QUEUE_FLG_OV : 0;
 
-#ifdef BCM_VLAN
 	flags |= QUEUE_FLG_VLAN;
 	DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
-#endif
 
 	if (!fp->disable_tpa)
 		flags |= QUEUE_FLG_TPA;
@@ -3123,7 +3131,8 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 				bnx2x_pmf_update(bp);
 
 			if (bp->port.pmf &&
-			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS))
+			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS) &&
+				bp->dcbx_enabled > 0)
 				/* start dcbx state machine */
 				bnx2x_dcbx_set_params(bp,
 					BNX2X_DCBX_STATE_NEG_RECEIVED);
@@ -3167,7 +3176,6 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 #define LOAD_COUNTER_MASK	(((u32)0x1 << LOAD_COUNTER_BITS) - 1)
 #define RESET_DONE_FLAG_MASK	(~LOAD_COUNTER_MASK)
 #define RESET_DONE_FLAG_SHIFT	LOAD_COUNTER_BITS
-#define CHIP_PARITY_SUPPORTED(bp)   (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp))
 
 /*
  * should be run under rtnl lock
@@ -3542,7 +3550,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	   try to handle this event */
 	bnx2x_acquire_alr(bp);
 
-	if (bnx2x_chk_parity_attn(bp)) {
+	if (CHIP_PARITY_ENABLED(bp) && bnx2x_chk_parity_attn(bp)) {
 		bp->recovery_state = BNX2X_RECOVERY_INIT;
 		bnx2x_set_reset_in_progress(bp);
 		schedule_delayed_work(&bp->reset_task, 0);
@@ -4302,9 +4310,12 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		def_q_filters |= BNX2X_ACCEPT_UNICAST | BNX2X_ACCEPT_BROADCAST |
 				BNX2X_ACCEPT_MULTICAST;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id,
+						  BNX2X_ACCEPT_UNICAST |
+						  BNX2X_ACCEPT_MULTICAST);
+		}
 #endif
 		break;
 
@@ -4312,18 +4323,29 @@ void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		def_q_filters |= BNX2X_ACCEPT_UNICAST | BNX2X_ACCEPT_BROADCAST |
 				BNX2X_ACCEPT_ALL_MULTICAST;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		/*
+		 *  Prevent duplication of multicast packets by configuring FCoE
+		 *  L2 Client to receive only matched unicast frames.
+		 */
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id,
+						  BNX2X_ACCEPT_UNICAST);
+		}
 #endif
 		break;
 
 	case BNX2X_RX_MODE_PROMISC:
 		def_q_filters |= BNX2X_PROMISCUOUS_MODE;
 #ifdef BCM_CNIC
-		cl_id = bnx2x_fcoe(bp, cl_id);
-		bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_UNICAST |
-					  BNX2X_ACCEPT_MULTICAST);
+		/*
+		 *  Prevent packets duplication by configuring DROP_ALL for FCoE
+		 *  L2 Client.
+		 */
+		if (!NO_FCOE(bp)) {
+			cl_id = bnx2x_fcoe(bp, cl_id);
+			bnx2x_rxq_set_mac_filters(bp, cl_id, BNX2X_ACCEPT_NONE);
+		}
 #endif
 		/* pass management unicast packets as well */
 		llh_mask |= NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST;
@@ -4774,7 +4796,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	return 0; /* OK */
 }
 
-static void enable_blocks_attention(struct bnx2x *bp)
+static void bnx2x_enable_blocks_attention(struct bnx2x *bp)
 {
 	REG_WR(bp, PXP_REG_PXP_INT_MASK_0, 0);
 	if (CHIP_IS_E2(bp))
@@ -4828,52 +4850,8 @@ static void enable_blocks_attention(struct bnx2x *bp)
 	REG_WR(bp, CDU_REG_CDU_INT_MASK, 0);
 	REG_WR(bp, DMAE_REG_DMAE_INT_MASK, 0);
 /*	REG_WR(bp, MISC_REG_MISC_INT_MASK, 0); */
-	REG_WR(bp, PBF_REG_PBF_INT_MASK, 0X18);		/* bit 3,4 masked */
+	REG_WR(bp, PBF_REG_PBF_INT_MASK, 0x18);		/* bit 3,4 masked */
 }
-
-static const struct {
-	u32 addr;
-	u32 mask;
-} bnx2x_parity_mask[] = {
-	{PXP_REG_PXP_PRTY_MASK,		0x3ffffff},
-	{PXP2_REG_PXP2_PRTY_MASK_0,	0xffffffff},
-	{PXP2_REG_PXP2_PRTY_MASK_1,	0x7f},
-	{HC_REG_HC_PRTY_MASK,		0x7},
-	{MISC_REG_MISC_PRTY_MASK,	0x1},
-	{QM_REG_QM_PRTY_MASK,		0x0},
-	{DORQ_REG_DORQ_PRTY_MASK,	0x0},
-	{GRCBASE_UPB + PB_REG_PB_PRTY_MASK, 0x0},
-	{GRCBASE_XPB + PB_REG_PB_PRTY_MASK, 0x0},
-	{SRC_REG_SRC_PRTY_MASK,		0x4}, /* bit 2 */
-	{CDU_REG_CDU_PRTY_MASK,		0x0},
-	{CFC_REG_CFC_PRTY_MASK,		0x0},
-	{DBG_REG_DBG_PRTY_MASK,		0x0},
-	{DMAE_REG_DMAE_PRTY_MASK,	0x0},
-	{BRB1_REG_BRB1_PRTY_MASK,	0x0},
-	{PRS_REG_PRS_PRTY_MASK,		(1<<6)},/* bit 6 */
-	{TSDM_REG_TSDM_PRTY_MASK,	0x18},	/* bit 3,4 */
-	{CSDM_REG_CSDM_PRTY_MASK,	0x8},	/* bit 3 */
-	{USDM_REG_USDM_PRTY_MASK,	0x38},  /* bit 3,4,5 */
-	{XSDM_REG_XSDM_PRTY_MASK,	0x8},	/* bit 3 */
-	{TSEM_REG_TSEM_PRTY_MASK_0,	0x0},
-	{TSEM_REG_TSEM_PRTY_MASK_1,	0x0},
-	{USEM_REG_USEM_PRTY_MASK_0,	0x0},
-	{USEM_REG_USEM_PRTY_MASK_1,	0x0},
-	{CSEM_REG_CSEM_PRTY_MASK_0,	0x0},
-	{CSEM_REG_CSEM_PRTY_MASK_1,	0x0},
-	{XSEM_REG_XSEM_PRTY_MASK_0,	0x0},
-	{XSEM_REG_XSEM_PRTY_MASK_1,	0x0}
-};
-
-static void enable_blocks_parity(struct bnx2x *bp)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bnx2x_parity_mask); i++)
-		REG_WR(bp, bnx2x_parity_mask[i].addr,
-			bnx2x_parity_mask[i].mask);
-}
-
 
 static void bnx2x_reset_common(struct bnx2x *bp)
 {
@@ -5102,7 +5080,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 		memset(&ilt_cli, 0, sizeof(struct ilt_client_info));
 		memset(&ilt, 0, sizeof(struct bnx2x_ilt));
 
-		/* initalize dummy TM client */
+		/* initialize dummy TM client */
 		ilt_cli.start = 0;
 		ilt_cli.end = ILT_NUM_PAGE_ENTRIES - 1;
 		ilt_cli.client_num = ILT_CLIENT_TM;
@@ -5361,18 +5339,14 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 		}
 	}
 
-	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base,
-						       bp->common.shmem2_base);
-
 	bnx2x_setup_fan_failure_detection(bp);
 
 	/* clear PXP2 attentions */
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);
 
-	enable_blocks_attention(bp);
-	if (CHIP_PARITY_SUPPORTED(bp))
-		enable_blocks_parity(bp);
+	bnx2x_enable_blocks_attention(bp);
+	if (CHIP_PARITY_ENABLED(bp))
+		bnx2x_enable_blocks_parity(bp);
 
 	if (!BP_NOMCP(bp)) {
 		/* In E2 2-PORT mode, same ext phy is used for the two paths */
@@ -5568,9 +5542,6 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, MCP_BLOCK, init_stage);
 	bnx2x_init_block(bp, DMAE_BLOCK, init_stage);
-	bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-						       bp->common.shmem_base,
-						       bp->common.shmem2_base);
 	if (bnx2x_fan_failure_det_req(bp, bp->common.shmem_base,
 				      bp->common.shmem2_base, port)) {
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
@@ -6229,7 +6200,7 @@ static int bnx2x_func_stop(struct bnx2x *bp)
  * @param cam_offset offset in a CAM to use
  * @param is_bcast is the set MAC a broadcast address (for E1 only)
  */
-static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, u8 *mac,
+static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, const u8 *mac,
 				   u32 cl_bit_vec, u8 cam_offset,
 				   u8 is_bcast)
 {
@@ -6420,7 +6391,9 @@ void bnx2x_set_eth_mac(struct bnx2x *bp, int set)
 
 	if (CHIP_IS_E1(bp)) {
 		/* broadcast MAC */
-		u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+		static const u8 bcast[ETH_ALEN] = {
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+		};
 		bnx2x_set_mac_addr_gen(bp, set, bcast, 0, cam_offset + 1, 1);
 	}
 }
@@ -8513,6 +8486,17 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		 (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
 		bp->mdio.prtad =
 			XGXS_EXT_PHY_ADDR(ext_phy_config);
+
+	/*
+	 * Check if hw lock is required to access MDC/MDIO bus to the PHY(s)
+	 * In MF mode, it is set to cover self test cases
+	 */
+	if (IS_MF(bp))
+		bp->port.need_hw_lock = 1;
+	else
+		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
+							bp->common.shmem_base,
+							bp->common.shmem2_base);
 }
 
 #ifdef BCM_CNIC
@@ -8807,6 +8791,70 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	return rc;
 }
 
+static void __devinit bnx2x_read_fwinfo(struct bnx2x *bp)
+{
+	int cnt, i, block_end, rodi;
+	char vpd_data[BNX2X_VPD_LEN+1];
+	char str_id_reg[VENDOR_ID_LEN+1];
+	char str_id_cap[VENDOR_ID_LEN+1];
+	u8 len;
+
+	cnt = pci_read_vpd(bp->pdev, 0, BNX2X_VPD_LEN, vpd_data);
+	memset(bp->fw_ver, 0, sizeof(bp->fw_ver));
+
+	if (cnt < BNX2X_VPD_LEN)
+		goto out_not_found;
+
+	i = pci_vpd_find_tag(vpd_data, 0, BNX2X_VPD_LEN,
+			     PCI_VPD_LRDT_RO_DATA);
+	if (i < 0)
+		goto out_not_found;
+
+
+	block_end = i + PCI_VPD_LRDT_TAG_SIZE +
+		    pci_vpd_lrdt_size(&vpd_data[i]);
+
+	i += PCI_VPD_LRDT_TAG_SIZE;
+
+	if (block_end > BNX2X_VPD_LEN)
+		goto out_not_found;
+
+	rodi = pci_vpd_find_info_keyword(vpd_data, i, block_end,
+				   PCI_VPD_RO_KEYWORD_MFR_ID);
+	if (rodi < 0)
+		goto out_not_found;
+
+	len = pci_vpd_info_field_size(&vpd_data[rodi]);
+
+	if (len != VENDOR_ID_LEN)
+		goto out_not_found;
+
+	rodi += PCI_VPD_INFO_FLD_HDR_SIZE;
+
+	/* vendor specific info */
+	snprintf(str_id_reg, VENDOR_ID_LEN + 1, "%04x", PCI_VENDOR_ID_DELL);
+	snprintf(str_id_cap, VENDOR_ID_LEN + 1, "%04X", PCI_VENDOR_ID_DELL);
+	if (!strncmp(str_id_reg, &vpd_data[rodi], VENDOR_ID_LEN) ||
+	    !strncmp(str_id_cap, &vpd_data[rodi], VENDOR_ID_LEN)) {
+
+		rodi = pci_vpd_find_info_keyword(vpd_data, i, block_end,
+						PCI_VPD_RO_KEYWORD_VENDOR0);
+		if (rodi >= 0) {
+			len = pci_vpd_info_field_size(&vpd_data[rodi]);
+
+			rodi += PCI_VPD_INFO_FLD_HDR_SIZE;
+
+			if (len < 32 && (len + rodi) <= BNX2X_VPD_LEN) {
+				memcpy(bp->fw_ver, &vpd_data[rodi], len);
+				bp->fw_ver[len] = ' ';
+			}
+		}
+		return;
+	}
+out_not_found:
+	return;
+}
+
 static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func;
@@ -8832,6 +8880,8 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	if (!rc)
 		rc = bnx2x_alloc_mem_bp(bp);
 
+	bnx2x_read_fwinfo(bp);
+
 	func = BP_FUNC(bp);
 
 	/* need to reset chip if undi was active */
@@ -8845,13 +8895,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		dev_err(&bp->pdev->dev, "MCP disabled, "
 					"must load devices in order!\n");
 
-	/* Set multi queue mode */
-	if ((multi_mode != ETH_RSS_MODE_DISABLED) &&
-	    ((int_mode == INT_MODE_INTx) || (int_mode == INT_MODE_MSI))) {
-		dev_err(&bp->pdev->dev, "Multi disabled since int_mode "
-					"requested is not MSI-X\n");
-		multi_mode = ETH_RSS_MODE_DISABLED;
-	}
 	bp->multi_mode = multi_mode;
 	bp->int_mode = int_mode;
 
@@ -8890,6 +8933,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2x_timer;
 
+	bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
 	bnx2x_dcbx_init_params(bp);
 
 	return rc;
@@ -9255,9 +9299,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_do_ioctl		= bnx2x_ioctl,
 	.ndo_change_mtu		= bnx2x_change_mtu,
 	.ndo_tx_timeout		= bnx2x_tx_timeout,
-#ifdef BCM_VLAN
 	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
@@ -9389,9 +9431,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->features |= NETIF_F_TSO6;
-#ifdef BCM_VLAN
 	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-	bp->flags |= (HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
 
 	dev->vlan_features |= NETIF_F_SG;
 	dev->vlan_features |= NETIF_F_HW_CSUM;
@@ -9399,6 +9439,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->vlan_features |= NETIF_F_HIGHDMA;
 	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->vlan_features |= NETIF_F_TSO6;
+
+#ifdef BCM_DCB
+	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
 #endif
 
 	/* get_port_hwinfo() will set prtad and mmds properly */
@@ -9809,8 +9852,14 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	/* Delete all NAPI objects */
 	bnx2x_del_all_napi(bp);
 
+	/* Power on: we can't let PCI layer write to us while we are in D3 */
+	bnx2x_set_power_state(bp, PCI_D0);
+
 	/* Disable MSI/MSI-X */
 	bnx2x_disable_msi(bp);
+
+	/* Power off */
+	bnx2x_set_power_state(bp, PCI_D3hot);
 
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->reset_task);

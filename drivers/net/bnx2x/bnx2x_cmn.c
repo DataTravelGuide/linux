@@ -16,15 +16,12 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
 #include <linux/firmware.h>
 #include "bnx2x_cmn.h"
-
-#ifdef BCM_VLAN
-#include <linux/if_vlan.h>
-#endif
 
 #include "bnx2x_init.h"
 
@@ -262,10 +259,44 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 #endif
 }
 
+/* Timestamp option length allowed for TPA aggregation:
+ *
+ *		nop nop kind length echo val
+ */
+#define TPA_TSTAMP_OPT_LEN	12
+/**
+ * Calculate the approximate value of the MSS for this
+ * aggregation using the first packet of it.
+ *
+ * @param bp
+ * @param parsing_flags Parsing flags from the START CQE
+ * @param len_on_bd Total length of the first packet for the
+ *		     aggregation.
+ */
+static inline u16 bnx2x_set_lro_mss(struct bnx2x *bp, u16 parsing_flags,
+				    u16 len_on_bd)
+{
+	/* TPA arrgregation won't have an IP options and TCP options
+	 * other than timestamp.
+	 */
+	u16 hdrs_len = ETH_HLEN + sizeof(struct iphdr) + sizeof(struct tcphdr);
+
+
+	/* Check if there was a TCP timestamp, if there is it's will
+	 * always be 12 bytes length: nop nop kind length echo val.
+	 *
+	 * Otherwise FW would close the aggregation.
+	 */
+	if (parsing_flags & PARSING_FLAGS_TIME_STAMP_EXIST_FLAG)
+		hdrs_len += TPA_TSTAMP_OPT_LEN;
+
+	return len_on_bd - hdrs_len;
+}
+
 static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			       struct sk_buff *skb,
 			       struct eth_fast_path_rx_cqe *fp_cqe,
-			       u16 cqe_idx)
+			       u16 cqe_idx, u16 parsing_flags)
 {
 	struct sw_rx_page *rx_pg, old_rx_pg;
 	u16 len_on_bd = le16_to_cpu(fp_cqe->len_on_bd);
@@ -278,8 +309,8 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 	/* This is needed in order to enable forwarding support */
 	if (frag_size)
-		skb_shinfo(skb)->gso_size = min((u32)SGE_PAGE_SIZE,
-					       max(frag_size, (u32)len_on_bd));
+		skb_shinfo(skb)->gso_size = bnx2x_set_lro_mss(bp, parsing_flags,
+							      len_on_bd);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (pages > min_t(u32, 8, MAX_SKB_FRAGS)*SGE_PAGE_SIZE*PAGES_PER_SGE) {
@@ -346,13 +377,8 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
 		/* (no need to map the new skb) */
-#ifdef BCM_VLAN
-		int is_vlan_cqe =
-			(le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
-			 PARSING_FLAGS_VLAN);
-		int is_not_hwaccel_vlan_cqe =
-			(is_vlan_cqe && (!(bp->flags & HW_VLAN_RX_FLAG)));
-#endif
+		u16 parsing_flags =
+			le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags);
 
 		prefetch(skb);
 		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
@@ -377,27 +403,19 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct iphdr *iph;
 
 			iph = (struct iphdr *)skb->data;
-#ifdef BCM_VLAN
-			/* If there is no Rx VLAN offloading -
-			   take VLAN tag into an account */
-			if (unlikely(is_not_hwaccel_vlan_cqe))
-				iph = (struct iphdr *)((u8 *)iph + VLAN_HLEN);
-#endif
 			iph->check = 0;
 			iph->check = ip_fast_csum((u8 *)iph, iph->ihl);
 		}
 
 		if (!bnx2x_fill_frag_skb(bp, fp, skb,
-					 &cqe->fast_path_cqe, cqe_idx)) {
-#ifdef BCM_VLAN
+					 &cqe->fast_path_cqe, cqe_idx,
+					 parsing_flags)) {
 			if ((bp->vlgrp != NULL) &&
-				(le16_to_cpu(cqe->fast_path_cqe.
-				pars_flags.flags) & PARSING_FLAGS_VLAN))
+				(parsing_flags & PARSING_FLAGS_VLAN))
 				vlan_gro_receive(&fp->napi, bp->vlgrp,
 						 le16_to_cpu(cqe->fast_path_cqe.
 							     vlan_tag), skb);
 			else
-#endif
 				napi_gro_receive(&fp->napi, skb);
 		} else {
 			DP(NETIF_MSG_RX_STATUS, "Failed to allocate new pages"
@@ -635,14 +653,12 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->index);
 
-#ifdef BCM_VLAN
-		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
+		if ((bp->vlgrp != NULL) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
 		     PARSING_FLAGS_VLAN))
 			vlan_gro_receive(&fp->napi, bp->vlgrp,
 				le16_to_cpu(cqe->fast_path_cqe.vlan_tag), skb);
 		else
-#endif
 			napi_gro_receive(&fp->napi, skb);
 
 
@@ -728,19 +744,20 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
 {
 	u16 line_speed = bp->link_vars.line_speed;
 	if (IS_MF(bp)) {
-		u16 maxCfg = (bp->mf_config[BP_VN(bp)] &
-						FUNC_MF_CFG_MAX_BW_MASK) >>
-						FUNC_MF_CFG_MAX_BW_SHIFT;
-		/* Calculate the current MAX line speed limit for the DCC
-		 * capable devices
+		u16 maxCfg = bnx2x_extract_max_cfg(bp,
+						   bp->mf_config[BP_VN(bp)]);
+
+		/* Calculate the current MAX line speed limit for the MF
+		 * devices
 		 */
-		if (IS_MF_SD(bp)) {
+		if (IS_MF_SI(bp))
+			line_speed = (line_speed * maxCfg) / 100;
+		else { /* SD mode */
 			u16 vn_max_rate = maxCfg * 100;
 
 			if (vn_max_rate < line_speed)
 				line_speed = vn_max_rate;
-		} else /* IS_MF_SI(bp)) */
-			line_speed = (line_speed * maxCfg) / 100;
+		}
 	}
 
 	return line_speed;
@@ -2150,14 +2167,12 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   "sending pkt %u @%p  next_idx %u  bd %u @%p\n",
 	   pkt_prod, tx_buf, fp->tx_pkt_prod, bd_prod, tx_start_bd);
 
-#ifdef BCM_VLAN
 	if (vlan_tx_tag_present(skb)) {
 		tx_start_bd->vlan_or_ethertype =
 		    cpu_to_le16(vlan_tx_tag_get(skb));
 		tx_start_bd->bd_flags.as_bitfield |=
 		    (X_ETH_OUTBAND_VLAN << ETH_TX_BD_FLAGS_VLAN_MODE_SHIFT);
 	} else
-#endif
 		tx_start_bd->vlan_or_ethertype = cpu_to_le16(pkt_prod);
 
 	/* turn on parsing and get a BD */
@@ -2450,7 +2465,6 @@ void bnx2x_tx_timeout(struct net_device *dev)
 	schedule_delayed_work(&bp->reset_task, 0);
 }
 
-#ifdef BCM_VLAN
 /* called with rtnl_lock */
 void bnx2x_vlan_rx_register(struct net_device *dev,
 				   struct vlan_group *vlgrp)
@@ -2460,7 +2474,6 @@ void bnx2x_vlan_rx_register(struct net_device *dev,
 	bp->vlgrp = vlgrp;
 }
 
-#endif
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 {

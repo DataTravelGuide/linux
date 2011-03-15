@@ -22,19 +22,17 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.62.00-2"
-#define DRV_MODULE_RELDATE      "2010/12/13"
+#define DRV_MODULE_VERSION      "1.62.00-6"
+#define DRV_MODULE_RELDATE      "2011/01/30"
 #define BNX2X_BC_VER            0x040200
-
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define BCM_VLAN			1
-#endif
 
 #define BNX2X_MULTI_QUEUE
 
 #define BNX2X_NEW_NAPI
 
-
+#if defined(CONFIG_DCB)
+#define BCM_DCB
+#endif
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
 #include "../cnic_if.h"
@@ -645,6 +643,7 @@ struct bnx2x_common {
 
 #define CHIP_METAL(bp)			(bp->common.chip_id & 0x00000ff0)
 #define CHIP_BOND_ID(bp)		(bp->common.chip_id & 0x0000000f)
+#define CHIP_PARITY_ENABLED(bp)	(CHIP_IS_E1(bp) || CHIP_IS_E1H(bp))
 
 	int			flash_size;
 #define NVRAM_1MB_SIZE			0x20000	/* 1M bit in bytes */
@@ -919,9 +918,7 @@ struct bnx2x {
 
 	int			tx_ring_size;
 
-#ifdef BCM_VLAN
 	struct vlan_group	*vlgrp;
-#endif
 
 	u32			rx_csum;
 /* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
@@ -986,8 +983,6 @@ struct bnx2x {
 #define NO_MCP_FLAG			0x100
 #define DISABLE_MSI_FLAG		0x200
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
-#define HW_VLAN_TX_FLAG			0x400
-#define HW_VLAN_RX_FLAG			0x800
 #define MF_FUNC_DIS			0x1000
 #define FCOE_MACS_SET			0x2000
 #define NO_FCOE_FLAG			0x4000
@@ -1202,11 +1197,25 @@ struct bnx2x {
 #define INIT_CSEM_INT_TABLE_DATA(bp)	(bp->csem_int_table_data)
 #define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
 
+	char			fw_ver[32];
 	const struct firmware	*firmware;
 	/* LLDP params */
 	struct bnx2x_config_lldp_params		lldp_config_params;
 
-	/* DCBX params */
+	/* DCB support on/off */
+	u16 dcb_state;
+#define BNX2X_DCB_STATE_OFF			0
+#define BNX2X_DCB_STATE_ON			1
+
+	/* DCBX engine mode */
+	int dcbx_enabled;
+#define BNX2X_DCBX_ENABLED_OFF			0
+#define BNX2X_DCBX_ENABLED_ON_NEG_OFF		1
+#define BNX2X_DCBX_ENABLED_ON_NEG_ON		2
+#define BNX2X_DCBX_ENABLED_INVALID		(-1)
+
+	bool dcbx_mode_uset;
+
 	struct bnx2x_config_dcbx_params		dcbx_config_params;
 
 	struct bnx2x_dcbx_port_params		dcbx_port_params;
@@ -1419,12 +1428,12 @@ struct bnx2x_func_init_params {
 		else
 
 /* skip rx queue
- * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
 #define skip_rx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
 /* skip tx queue
- * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ * if FCOE l2 support is disabled and this is the fcoe L2 queue
  */
 #define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
@@ -1623,19 +1632,23 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_BTR			4
 #define MAX_SPQ_PENDING			8
 
-
-/* CMNG constants
-   derived from lab experiments, and not from system spec calculations !!! */
-#define DEF_MIN_RATE			100
+/* CMNG constants, as derived from system spec calculations */
+/* default MIN rate in case VNIC min rate is configured to zero - 100Mbps */
+#define DEF_MIN_RATE					100
 /* resolution of the rate shaping timer - 100 usec */
-#define RS_PERIODIC_TIMEOUT_USEC	100
-/* resolution of fairness algorithm in usecs -
-   coefficient for calculating the actual t fair */
-#define T_FAIR_COEF			10000000
+#define RS_PERIODIC_TIMEOUT_USEC			100
 /* number of bytes in single QM arbitration cycle -
-   coefficient for calculating the fairness timer */
-#define QM_ARB_BYTES			40000
-#define FAIR_MEM			2
+ * coefficient for calculating the fairness timer */
+#define QM_ARB_BYTES					160000
+/* resolution of Min algorithm 1:100 */
+#define MIN_RES						100
+/* how many bytes above threshold for the minimal credit of Min algorithm*/
+#define MIN_ABOVE_THRESH				32768
+/* Fairness algorithm integration time coefficient -
+ * for calculating the actual Tfair */
+#define T_FAIR_COEF	((MIN_ABOVE_THRESH +  QM_ARB_BYTES) * 8 * MIN_RES)
+/* Memory of fairness algorithm . 2 cycles */
+#define FAIR_MEM					2
 
 
 #define ATTN_NIG_FOR_FUNC		(1L << 8)
@@ -1771,6 +1784,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #ifndef ETH_MAX_RX_CLIENTS_E2
 #define ETH_MAX_RX_CLIENTS_E2		ETH_MAX_RX_CLIENTS_E1H
 #endif
+
+#define BNX2X_VPD_LEN			128
+#define VENDOR_ID_LEN			4
 
 /* Congestion management fairness mode */
 #define CMNG_FNS_NONE		0
