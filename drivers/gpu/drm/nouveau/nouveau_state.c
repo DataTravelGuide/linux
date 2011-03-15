@@ -617,7 +617,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	if (nouveau_noaccel)
+	if (dev_priv->noaccel)
 		engine->graph.accel_blocked = true;
 	else {
 		/* PGRAPH */
@@ -673,10 +673,10 @@ out_irq:
 out_display:
 	engine->display.destroy(dev);
 out_fifo:
-	if (!nouveau_noaccel)
+	if (!dev_priv->noaccel)
 		engine->fifo.takedown(dev);
 out_graph:
-	if (!nouveau_noaccel)
+	if (!dev_priv->noaccel)
 		engine->graph.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
@@ -717,7 +717,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		dev_priv->channel = NULL;
 	}
 
-	if (!nouveau_noaccel) {
+	if (!dev_priv->noaccel) {
 		engine->fifo.takedown(dev);
 		engine->graph.takedown(dev);
 	}
@@ -925,6 +925,24 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		goto err_mmio;
 
 	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
+	if (nouveau_noaccel == -1) {
+		switch (dev_priv->chipset) {
+		case 0xa3:
+		case 0xa5:
+		case 0xa8:
+		case 0xaf:
+			dev_priv->noaccel = true;
+			break;
+		default:
+			dev_priv->noaccel = false;
+			break;
+		}
+	} else {
+		dev_priv->noaccel = (nouveau_noaccel != 0);
+	}
+
+	/* map larger RAMIN aperture on NV40 cards */
+	dev_priv->ramin  = NULL;
 	if (dev_priv->card_type >= NV_40) {
 		int ramin_bar = 2;
 		if (pci_resource_len(dev->pdev, ramin_bar) == 0)

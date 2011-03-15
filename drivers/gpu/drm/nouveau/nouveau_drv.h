@@ -561,6 +561,7 @@ enum nouveau_card_type {
 
 struct drm_nouveau_private {
 	struct drm_device *dev;
+	bool noaccel;
 
 	/* the card type, takes NV_* as values */
 	enum nouveau_card_type card_type;
