@@ -1156,6 +1156,7 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 	new_node->bytenr = dest->node->start;
 	new_node->level = node->level;
 	new_node->lowest = node->lowest;
+	new_node->checked = 1;
 	new_node->root = dest;
 
 	if (!node->lowest) {
@@ -2027,6 +2028,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 
 	while (1) {
 		trans = btrfs_start_transaction(root, 0);
+		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = rc->block_rsv;
 
 		ret = btrfs_block_rsv_check(trans, root, rc->block_rsv,
@@ -2146,6 +2148,12 @@ again:
 	}
 
 	trans = btrfs_join_transaction(rc->extent_root, 1);
+	if (IS_ERR(trans)) {
+		if (!err)
+			btrfs_block_rsv_release(rc->extent_root,
+						rc->block_rsv, num_bytes);
+		return PTR_ERR(trans);
+	}
 
 	if (!err) {
 		if (num_bytes != rc->merging_rsv_size) {
@@ -3221,6 +3229,7 @@ truncate:
 	trans = btrfs_join_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		btrfs_free_path(path);
+		ret = PTR_ERR(trans);
 		goto out;
 	}
 
@@ -3627,6 +3636,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 	set_reloc_control(rc);
 
 	trans = btrfs_join_transaction(rc->extent_root, 1);
+	BUG_ON(IS_ERR(trans));
 	btrfs_commit_transaction(trans, rc->extent_root);
 	return 0;
 }
@@ -3643,6 +3653,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	u32 item_size;
 	int ret;
 	int err = 0;
+	int progress = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -3655,8 +3666,10 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	}
 
 	while (1) {
+		progress++;
 		trans = btrfs_start_transaction(rc->extent_root, 0);
-
+		BUG_ON(IS_ERR(trans));
+restart:
 		if (update_backref_cache(trans, &rc->backref_cache)) {
 			btrfs_end_transaction(trans, rc->extent_root);
 			continue;
@@ -3769,6 +3782,15 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 			}
 		}
 	}
+	if (trans && progress && err == -ENOSPC) {
+		ret = btrfs_force_chunk_alloc(trans, rc->extent_root,
+					      rc->block_group->flags);
+		if (ret == 0) {
+			err = 0;
+			progress = 0;
+			goto restart;
+		}
+	}
 
 	btrfs_release_path(rc->extent_root, path);
 	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY,
@@ -3803,7 +3825,10 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 
 	/* get rid of pinned extents */
 	trans = btrfs_join_transaction(rc->extent_root, 1);
-	btrfs_commit_transaction(trans, rc->extent_root);
+	if (IS_ERR(trans))
+		err = PTR_ERR(trans);
+	else
+		btrfs_commit_transaction(trans, rc->extent_root);
 out_free:
 	btrfs_free_block_rsv(rc->extent_root, rc->block_rsv);
 	btrfs_free_path(path);
@@ -4021,6 +4046,7 @@ static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)
 	int ret;
 
 	trans = btrfs_start_transaction(root->fs_info->tree_root, 0);
+	BUG_ON(IS_ERR(trans));
 
 	memset(&root->root_item.drop_progress, 0,
 		sizeof(root->root_item.drop_progress));
@@ -4124,6 +4150,11 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 	set_reloc_control(rc);
 
 	trans = btrfs_join_transaction(rc->extent_root, 1);
+	if (IS_ERR(trans)) {
+		unset_reloc_control(rc);
+		err = PTR_ERR(trans);
+		goto out_free;
+	}
 
 	rc->merge_reloc_tree = 1;
 
@@ -4153,9 +4184,13 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 	unset_reloc_control(rc);
 
 	trans = btrfs_join_transaction(rc->extent_root, 1);
-	btrfs_commit_transaction(trans, rc->extent_root);
-out:
+	if (IS_ERR(trans))
+		err = PTR_ERR(trans);
+	else
+		btrfs_commit_transaction(trans, rc->extent_root);
+out_free:
 	kfree(rc);
+out:
 	while (!list_empty(&reloc_roots)) {
 		reloc_root = list_entry(reloc_roots.next,
 					struct btrfs_root, root_list);
