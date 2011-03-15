@@ -1679,7 +1679,9 @@ static void collapse_huge_page(struct mm_struct *mm,
 #endif
 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
 		up_read(&mm->mmap_sem);
+#ifdef CONFIG_NUMA
 		put_page(new_page);
+#endif
 		return;
 	}
 
