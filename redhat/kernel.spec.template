@@ -1618,6 +1618,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-123.el6]
+- [net] gro: reset dev and skb_iff on skb reuse (Andy Gospodarek) [681970]
+- [netdrv] ixgbe: limit VF access to network traffic (Andy Gospodarek) [678717]
+- [netdrv] ixgbe: work around for DDP last buffer size (Andy Gospodarek) [678717]
+- [x86] mtrr: Assume SYS_CFG[Tom2ForceMemTypeWB] exists on all future AMD CPUs (Frank Arnold) [652208 662238]
+
 * Wed Mar 09 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-122.el6]
 - [kernel] capabilites: allow the application of capability limits to usermode helpers (Eric Paris) [665080]
 - [kernel] allow kernel-debuginfo-common to be biarch installable (Jason Baron) [682012]
