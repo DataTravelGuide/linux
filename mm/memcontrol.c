@@ -1731,9 +1731,16 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	struct page_cgroup *pc;
 	int ret;
 	int page_size = PAGE_SIZE;
+	bool oom = true;
 
-	if (PageTransHuge(page))
+	if (PageTransHuge(page)) {
 		page_size <<= compound_order(page);
+		/*
+		 * Never OOM-kill a process for a huge page.  The
+		 * fault handler will fall back to regular pages.
+		 */
+		oom = false;
+	}
 
 	pc = lookup_page_cgroup(page);
 	/* can happen at boot */
@@ -1742,7 +1749,7 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	prefetchw(pc);
 
 	mem = memcg;
-	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true, page,
+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, oom, page,
 				      page_size);
 	if (ret || !mem)
 		return ret;
