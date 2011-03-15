@@ -193,6 +193,59 @@ static void __init dmi_save_type(const struct dmi_header *dm, int slot, int inde
 	dmi_ident[slot] = s;
 }
 
+static void __init dmi_save_smbios_ver(int slot)
+{
+	u8 *buf = NULL;
+	int fp, smbios_present = 0;
+	unsigned long smbios_addr;
+	char *s = NULL;
+
+	if (dmi_ident[slot])
+		return;
+
+	/*
+	 * The SMBIOS version is not in the DMI region.  We're just
+	 * abusing the DMI code for now.
+	 */
+
+	if (efi_enabled) {
+		if (efi.smbios == EFI_INVALID_TABLE_ADDR)
+			goto error;
+		smbios_addr = efi.smbios;
+	} else {
+		/* "Legacy" SMBIOS is mapped @ 0xF0000 */
+		smbios_addr = 0xF0000;
+	}
+	buf = early_ioremap(smbios_addr, 0x10000);
+	if (!buf)
+		goto error;
+
+	/* Find the entry point */
+	for (fp = 0; fp <= 0xFFF0; fp += 0x10)
+		if (!memcmp(buf + fp, "_SM_", 4)) {
+			printk("SMBIOS version %u.%u @ 0x%lX\n",
+			       buf[fp + 0x6], buf[fp + 0x7], smbios_addr + fp);
+			smbios_present = 1;
+			break;
+		}
+
+	/* Continue DMI abuse ... */
+	s = dmi_alloc(8);
+	if (!s) {
+		early_iounmap(buf, 0x10000);
+		return;
+	}
+	sprintf(s, "%u.%u", buf[fp + 0x6], buf[fp + 0x7]);
+	dmi_ident[slot] = s;
+
+	early_iounmap(buf, 0x10000);
+error:
+	if (!smbios_present)
+		printk("SMBIOS not found.");
+
+	return;
+}
+
 static void __init dmi_save_one_device(int type, const char *name)
 {
 	struct dmi_device *dev;
@@ -328,6 +381,11 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 	case 0:		/* BIOS Information */
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
+		/*
+		 * This is grotesque hack for RHEL6 to make biosdevname
+		 * happy.  My apologies to anyone who has to see this.
+		 */
+		dmi_save_smbios_ver(DMI_SMBIOS_VERSION);
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
 		break;
 	case 1:		/* System Information */

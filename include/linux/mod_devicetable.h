@@ -431,6 +431,9 @@ enum dmi_field {
 	DMI_CHASSIS_VERSION,
 	DMI_CHASSIS_SERIAL,
 	DMI_CHASSIS_ASSET_TAG,
+#ifndef __GENKSYMS__
+	DMI_SMBIOS_VERSION, /* RH - must not be used in dmi_match search */
+#endif
 	DMI_STRING_MAX,
 };
 
