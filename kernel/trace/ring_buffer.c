@@ -1979,11 +1979,19 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	int ret;
 
 	if (unlikely(*delta > (1ULL << 59) && !once++)) {
+		int local_clock_stable = 1;
+#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+		local_clock_stable = sched_clock_stable;
+#endif
 		printk(KERN_WARNING "Delta way too big! %llu"
-		       " ts=%llu write stamp = %llu\n",
+		       " ts=%llu write stamp = %llu\n%s",
 		       (unsigned long long)*delta,
 		       (unsigned long long)*ts,
-		       (unsigned long long)cpu_buffer->write_stamp);
+		       (unsigned long long)cpu_buffer->write_stamp,
+		       local_clock_stable ? "" :
+		       "If you just came from a suspend/resume,\n"
+		       "please switch to the trace global clock:\n"
+		       "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
 		WARN_ON(1);
 	}
 
