@@ -1618,6 +1618,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-124.el6]
+- [mm] thp: add extra_gfp in alloc_hugepage non NUMA (Andrea Arcangeli) [674147]
+- [mm] thp: Use GFP_OTHER_NODE for transparent huge pages (Andrea Arcangeli) [674147]
+- [mm] thp: Add __GFP_OTHER_NODE flag (Andrea Arcangeli) [674147]
+- [mm] thp: Use correct numa policy node for transparent hugepages (Andrea Arcangeli) [674147]
+- [mm] thp: Preserve original node for transparent huge page copies (Andrea Arcangeli) [674147]
+- [mm] thp: Add alloc_page_vma_node (Andrea Arcangeli) [674147]
+- [mm] thp: Change alloc_pages_vma to pass down the policy node for local policy (Andrea Arcangeli) [674147]
+- [mm] thp: Fix interleaving for transparent hugepages (Andrea Arcangeli) [674147]
+- [mm] compaction: fix high compaction latencies and remove compaction-kswapd (Andrea Arcangeli) [674147]
+- [mm] compaction: Minimise the time IRQs are disabled while isolating free pages (Andrea Arcangeli) [674147]
+- [mm] thp: prevent hugepages during args/env copying into the user stack (Andrea Arcangeli) [674147]
+- [mm] memcg: fix leak of accounting at failure path of hugepage collapsing (Andrea Arcangeli) [674147]
+- [mm] vmscan: kswapd should not free an excessive number of pages when balancing small zones (Andrea Arcangeli) [674147]
+- [mm] optimistic migration limited to movable pageblocks (Andrea Arcangeli) [674147]
+- [mm] migrate_pages api bool (Andrea Arcangeli) [674147]
+- [mm] migration: allow migration to operate asynchronously and avoid synchronous compaction in the faster path (Andrea Arcangeli) [674147]
+- [mm] add compound_trans_head helper (Andrea Arcangeli) [674147]
+- [mm] compaction: Avoid a potential deadlock due to lock_page() during direct compaction (Andrea Arcangeli) [674147]
+- [mm] hugetlbfs fix hugepage migration in the same way (Andrea Arcangeli) [674147]
+- [mm] fix migration hangs on anon_vma lock (Andrea Arcangeli) [674147]
+
 * Tue Mar 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-123.el6]
 - [net] gro: reset dev and skb_iff on skb reuse (Andy Gospodarek) [681970]
 - [netdrv] ixgbe: limit VF access to network traffic (Andy Gospodarek) [678717]
