@@ -2208,6 +2208,8 @@ static inline const char *netdev_name(const struct net_device *dev)
 	netdev_printk(KERN_NOTICE, dev, format, ##args)
 #define netdev_info(dev, format, args...)			\
 	netdev_printk(KERN_INFO, dev, format, ##args)
+#define MODULE_ALIAS_NETDEV(device)				\
+	MODULE_ALIAS("netdev-" device)
 
 #if defined(DEBUG)
 #define netdev_dbg(__dev, format, args...)			\
