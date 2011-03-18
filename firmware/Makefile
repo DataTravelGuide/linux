@@ -36,11 +36,11 @@ fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-5.2.13.0.fw bnx2x-e1h-5.2.13.0.fw
 fw-shipped-$(CONFIG_BNX2X) += bnx2x/bnx2x-e1-6.2.5.0.fw \
 			      bnx2x/bnx2x-e1h-6.2.5.0.fw \
 			      bnx2x/bnx2x-e2-6.2.5.0.fw
-fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-6.0.17.fw \
-			   bnx2/bnx2-rv2p-09-6.0.17.fw \
-			   bnx2/bnx2-rv2p-09ax-6.0.17.fw \
-			   bnx2/bnx2-mips-06-6.0.15.fw \
-			   bnx2/bnx2-rv2p-06-6.0.15.fw
+fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-6.2.1a.fw \
+			     bnx2/bnx2-rv2p-09-6.0.17.fw \
+			     bnx2/bnx2-rv2p-09ax-6.0.17.fw \
+			     bnx2/bnx2-mips-06-6.2.1.fw \
+			     bnx2/bnx2-rv2p-06-6.0.15.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
 fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \

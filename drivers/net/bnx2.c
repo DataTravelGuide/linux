@@ -1,6 +1,6 @@
 /* bnx2.c: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004-2010 Broadcom Corporation
+ * Copyright (c) 2004-2011 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,11 +59,11 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.0.17"
-#define DRV_MODULE_RELDATE	"July 18, 2010"
-#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.0.15.fw"
+#define DRV_MODULE_VERSION	"2.1.6"
+#define DRV_MODULE_RELDATE	"Mar 7, 2011"
+#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.1.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
-#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.0.17.fw"
+#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1a.fw"
 #define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-6.0.17.fw"
 #define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-6.0.17.fw"
 
@@ -438,7 +438,7 @@ bnx2_cnic_stop(struct bnx2 *bp)
 	struct cnic_ctl_info info;
 
 	mutex_lock(&bp->cnic_lock);
-	c_ops = bp->cnic_ops;
+	c_ops = rcu_dereference(bp->cnic_ops);
 	if (c_ops) {
 		info.cmd = CNIC_CTL_STOP_CMD;
 		c_ops->cnic_ctl(bp->cnic_data, &info);
@@ -453,7 +453,7 @@ bnx2_cnic_start(struct bnx2 *bp)
 	struct cnic_ctl_info info;
 
 	mutex_lock(&bp->cnic_lock);
-	c_ops = bp->cnic_ops;
+	c_ops = rcu_dereference(bp->cnic_ops);
 	if (c_ops) {
 		if (!(bp->flags & BNX2_FLAG_USING_MSIX)) {
 			struct bnx2_napi *bnapi = &bp->bnx2_napi[0];
@@ -7998,11 +7998,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 		/* AER (Advanced Error Reporting) hooks */
 		err = pci_enable_pcie_error_reporting(pdev);
-		if (err) {
-			dev_err(&pdev->dev, "pci_enable_pcie_error_reporting "
-					    "failed 0x%x\n", err);
-			/* non-fatal, continue */
-		}
+		if (!err)
+			bp->flags |= BNX2_FLAG_AER_ENABLED;
 
 	} else {
 		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
@@ -8265,8 +8262,10 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	return 0;
 
 err_out_unmap:
-	if (bp->flags & BNX2_FLAG_PCIE)
+	if (bp->flags & BNX2_FLAG_AER_ENABLED) {
 		pci_disable_pcie_error_reporting(pdev);
+		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
+	}
 
 	if (bp->regview) {
 		iounmap(bp->regview);
@@ -8460,8 +8459,10 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	kfree(bp->temp_stats_blk);
 
-	if (bp->flags & BNX2_FLAG_PCIE)
+	if (bp->flags & BNX2_FLAG_AER_ENABLED) {
 		pci_disable_pcie_error_reporting(pdev);
+		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
+	}
 
 	free_netdev(dev);
 
@@ -8577,7 +8578,7 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 	}
 	rtnl_unlock();
 
-	if (!(bp->flags & BNX2_FLAG_PCIE))
+	if (!(bp->flags & BNX2_FLAG_AER_ENABLED))
 		return result;
 
 	err = pci_cleanup_aer_uncorrect_error_status(pdev);
