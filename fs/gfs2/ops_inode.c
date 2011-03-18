@@ -1358,18 +1358,51 @@ static int gfs2_removexattr(struct dentry *dentry, const char *name)
 	return ret;
 }
 
-static void empty_write_end(struct page *page, unsigned from,
-			   unsigned to)
+static int empty_write_end(struct page *page, unsigned from,
+			   unsigned to, int mode)
 {
-	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
+	struct inode *inode = page->mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct buffer_head *bh;
+	unsigned offset, blksize = 1 << inode->i_blkbits;
+	pgoff_t end_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
 
 	zero_user(page, from, to-from);
 	mark_page_accessed(page);
 
-	if (!gfs2_is_writeback(ip))
-		gfs2_page_add_databufs(ip, page, from, to);
+	if (page->index < end_index || !(mode & FALLOC_FL_KEEP_SIZE)) {
+		if (!gfs2_is_writeback(ip))
+			gfs2_page_add_databufs(ip, page, from, to);
 
-	block_commit_write(page, from, to);
+		block_commit_write(page, from, to);
+		return 0;
+	}
+
+	offset = 0;
+	bh = page_buffers(page);
+	while (offset < to) {
+		if (offset >= from) {
+			set_buffer_uptodate(bh);
+			mark_buffer_dirty(bh);
+			clear_buffer_new(bh);
+			write_dirty_buffer(bh, WRITE);
+		}
+		offset += blksize;
+		bh = bh->b_this_page;
+	}
+
+	offset = 0;
+	bh = page_buffers(page);
+	while (offset < to) {
+		if (offset >= from) {
+			wait_on_buffer(bh);
+			if (!buffer_uptodate(bh))
+				return -EIO;
+		}
+		offset += blksize;
+		bh = bh->b_this_page;
+	}
+	return 0;
 }
 
 static int needs_empty_write(sector_t block, struct inode *inode)
@@ -1384,7 +1417,8 @@ static int needs_empty_write(sector_t block, struct inode *inode)
 	return !buffer_mapped(&bh_map);
 }
 
-static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
+static int write_empty_blocks(struct page *page, unsigned from, unsigned to,
+			      int mode)
 {
 	struct inode *inode = page->mapping->host;
 	unsigned start, end, next, blksize;
@@ -1409,7 +1443,9 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 							  gfs2_block_map);
 				if (unlikely(ret))
 					return ret;
-				empty_write_end(page, start, end);
+				ret = empty_write_end(page, start, end, mode);
+				if (unlikely(ret))
+					return ret;
 				end = 0;
 			}
 			start = next;
@@ -1423,7 +1459,9 @@ static int write_empty_blocks(struct page *page, unsigned from, unsigned to)
 		ret = block_prepare_write(page, start, end, gfs2_block_map);
 		if (unlikely(ret))
 			return ret;
-		empty_write_end(page, start, end);
+		ret = empty_write_end(page, start, end, mode);
+		if (unlikely(ret))
+			return ret;
 	}
 
 	return 0;
@@ -1473,7 +1511,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 
 		if (curr == end)
 			to = end_offset;
-		error = write_empty_blocks(page, from, to);
+		error = write_empty_blocks(page, from, to, mode);
 		if (!error && offset + to > inode->i_size &&
 		    !(mode & FALLOC_FL_KEEP_SIZE)) {
 			i_size_write(inode, offset + to);
