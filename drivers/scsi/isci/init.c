@@ -114,8 +114,36 @@ int isci_si_rev = ISCI_SI_REVA2;
 #else
 int isci_si_rev = ISCI_SI_REVB0;
 #endif
-module_param(isci_si_rev, int, S_IRUGO | S_IWUSR);
+module_param(isci_si_rev, int, 0);
 MODULE_PARM_DESC(isci_si_rev, "override default si rev (0: A0 1: A2 2: B0)");
+
+unsigned char no_outbound_task_to = 20;
+module_param(no_outbound_task_to, byte, 0);
+MODULE_PARM_DESC(no_outbound_task_to, "No Outbound Task Timeout (1us incr)");
+
+u16 ssp_max_occ_to = 20;
+module_param(ssp_max_occ_to, ushort, 0);
+MODULE_PARM_DESC(ssp_max_occ_to, "SSP Max occupancy timeout (100us incr)");
+
+u16 stp_max_occ_to = 5;
+module_param(stp_max_occ_to, ushort, 0);
+MODULE_PARM_DESC(stp_max_occ_to, "STP Max occupancy timeout (100us incr)");
+
+u16 ssp_inactive_to = 5;
+module_param(ssp_inactive_to, ushort, 0);
+MODULE_PARM_DESC(ssp_inactive_to, "SSP inactivity timeout (100us incr)");
+
+u16 stp_inactive_to = 5;
+module_param(stp_inactive_to, ushort, 0);
+MODULE_PARM_DESC(stp_inactive_to, "STP inactivity timeout (100us incr)");
+
+unsigned char phy_gen = 3;
+module_param(phy_gen, byte, 0);
+MODULE_PARM_DESC(phy_gen, "PHY generation (1: 1.5Gbps 2: 3.0Gbps 3: 6.0Gbps)");
+
+unsigned char max_concurr_spinup = 1;
+module_param(max_concurr_spinup, byte, 0);
+MODULE_PARM_DESC(max_concurr_spinup, "Max concurrent device spinup");
 
 static struct scsi_host_template isci_sht = {
 
@@ -470,6 +498,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	struct isci_host *isci_host;
 	const struct firmware *fw = NULL;
 	struct isci_orom *orom;
+	char *source = "(platform)";
 
 	check_si_rev(pdev);
 
@@ -484,6 +513,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		orom = isci_request_oprom(pdev);
 
 	if (!orom) {
+		source = "(firmware)";
 		orom = isci_request_firmware(pdev, fw);
 		if (!orom) {
 			/* TODO convert this to WARN_TAINT_ONCE once the
@@ -500,9 +530,9 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 
 	if (orom)
 		dev_info(&pdev->dev,
-			 "OEM SAS parameters (version: %u.%u) loaded\n",
+			 "OEM SAS parameters (version: %u.%u) loaded %s\n",
 			 (orom->hdr.version & 0xf0) >> 4,
-			 (orom->hdr.version & 0xf));
+			 (orom->hdr.version & 0xf), source);
 
 	pci_info->orom = orom;
 

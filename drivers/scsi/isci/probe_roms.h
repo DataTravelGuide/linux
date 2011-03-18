@@ -96,11 +96,15 @@ struct isci_oem_hdr {
 #define ISCI_ROM_SIG		"ISCUOEMB"
 #define ISCI_ROM_SIG_SIZE	8
 
+#define ISCI_PREBOOT_SOURCE_INIT     (0x00)
+#define ISCI_PREBOOT_SOURCE_OROM     (0x80)
+#define ISCI_PREBOOT_SOURCE_EFI      (0x81)
+
 #define ISCI_EFI_VENDOR_GUID	\
 	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, \
 			0x1a, 0x04, 0xc6)
 #define ISCI_EFI_ATTRIBUTES	0
-#define ISCI_EFI_VAR_NAME	"RST_SCU_OEM"
+#define ISCI_EFI_VAR_NAME	"RstScuO"
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
@@ -112,8 +116,8 @@ struct isci_oem_hdr {
  * being assigned is sufficient to declare manual PORT configuration.
  */
 enum SCIC_PORT_CONFIGURATION_MODE {
-	SCIC_PORT_MANUAL_CONFIGURATION_MODE = 0,
-	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE = 1
+	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE = 0,
+	SCIC_PORT_MANUAL_CONFIGURATION_MODE = 1
 };
 
 struct sci_bios_oem_param_block_hdr {

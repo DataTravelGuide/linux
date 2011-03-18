@@ -595,6 +595,7 @@ void scic_sds_controller_enable_port_task_scheduler(
  */
 void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 {
+	const struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
 	u32 afe_status;
 	u32 phy_id;
 
@@ -632,6 +633,8 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 	}
 
 	for (phy_id = 0; phy_id < SCI_MAX_PHYS; phy_id++) {
+		const struct sci_phy_oem_params *oem_phy = &oem->phys[phy_id];
+
 		if (is_b0()) {
 			 /* Configure transmitter SSC parameters */
 			scu_afe_txreg_write(scic, phy_id, afe_tx_ssc_control, 0x00030000);
@@ -691,16 +694,16 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, 0x000E7C03);
+		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control1, 0x000E7C03);
+		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control1);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control2, 0x000E7C03);
+		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control3, 0x000E7C03);
+		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control3);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
@@ -2027,6 +2030,7 @@ void scic_sds_controller_release_frame(
  */
 static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
 {
+	struct isci_host *ihost = sci_object_get_association(scic);
 	u16 index;
 
 	/* Default to APC mode. */
@@ -2058,7 +2062,7 @@ static void scic_sds_controller_set_default_config_parameters(struct scic_sds_co
 		 * is worked around by having the upper 32-bits of SAS address
 		 * with a value greater then the Vitesse company identifier.
 		 * Hence, usage of 0x5FCFFFFF. */
-		scic->oem_parameters.sds1.phys[index].sas_address.low = 0x00000001;
+		scic->oem_parameters.sds1.phys[index].sas_address.low = 0x1 + ihost->id;
 		scic->oem_parameters.sds1.phys[index].sas_address.high = 0x5FCFFFFF;
 	}
 
@@ -2544,41 +2548,46 @@ enum sci_status scic_user_parameters_set(
 	struct scic_sds_controller *scic,
 	union scic_user_parameters *scic_parms)
 {
-	if (
-		(scic->parent.state_machine.current_state_id
-		 == SCI_BASE_CONTROLLER_STATE_RESET)
-		|| (scic->parent.state_machine.current_state_id
-		    == SCI_BASE_CONTROLLER_STATE_INITIALIZING)
-		|| (scic->parent.state_machine.current_state_id
-		    == SCI_BASE_CONTROLLER_STATE_INITIALIZED)
-		) {
+	u32 state = scic->parent.state_machine.current_state_id;
+
+	if (state == SCI_BASE_CONTROLLER_STATE_RESET ||
+	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZING ||
+	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
 		u16 index;
 
 		/*
 		 * Validate the user parameters.  If they are not legal, then
-		 * return a failure. */
+		 * return a failure.
+		 */
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			if (!(scic_parms->sds1.phys[index].max_speed_generation
-			     <= SCIC_SDS_PARM_MAX_SPEED
-			     && scic_parms->sds1.phys[index].max_speed_generation
-			     > SCIC_SDS_PARM_NO_SPEED))
+			struct sci_phy_user_params *user_phy;
+
+			user_phy = &scic_parms->sds1.phys[index];
+
+			if (!((user_phy->max_speed_generation <=
+						SCIC_SDS_PARM_MAX_SPEED) &&
+			      (user_phy->max_speed_generation >
+						SCIC_SDS_PARM_NO_SPEED)))
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
-			if (scic_parms->sds1.phys[index].in_connection_align_insertion_frequency < 3)
+			if (user_phy->in_connection_align_insertion_frequency <
+					3)
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-			if (
-			    (scic_parms->sds1.phys[index].in_connection_align_insertion_frequency < 3) ||
-			    (scic_parms->sds1.phys[index].align_insertion_frequency == 0) ||
-			    (scic_parms->sds1.phys[index].notify_enable_spin_up_insertion_frequency == 0)
-			    )
+
+			if ((user_phy->in_connection_align_insertion_frequency <
+						3) ||
+			    (user_phy->align_insertion_frequency == 0) ||
+			    (user_phy->
+				notify_enable_spin_up_insertion_frequency ==
+						0))
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 		}
 
 		if ((scic_parms->sds1.stp_inactivity_timeout == 0) ||
-		   (scic_parms->sds1.ssp_inactivity_timeout == 0) ||
-		   (scic_parms->sds1.stp_max_occupancy_timeout == 0) ||
-		   (scic_parms->sds1.ssp_max_occupancy_timeout == 0) ||
-		   (scic_parms->sds1.no_outbound_task_timeout == 0))
+		    (scic_parms->sds1.ssp_inactivity_timeout == 0) ||
+		    (scic_parms->sds1.stp_max_occupancy_timeout == 0) ||
+		    (scic_parms->sds1.ssp_max_occupancy_timeout == 0) ||
+		    (scic_parms->sds1.no_outbound_task_timeout == 0))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		memcpy(&scic->user_parameters, scic_parms, sizeof(*scic_parms));
@@ -2604,14 +2613,11 @@ enum sci_status scic_oem_parameters_set(
 	struct scic_sds_controller *scic,
 	union scic_oem_parameters *scic_parms)
 {
-	if (
-		(scic->parent.state_machine.current_state_id
-		 == SCI_BASE_CONTROLLER_STATE_RESET)
-		|| (scic->parent.state_machine.current_state_id
-		    == SCI_BASE_CONTROLLER_STATE_INITIALIZING)
-		|| (scic->parent.state_machine.current_state_id
-		    == SCI_BASE_CONTROLLER_STATE_INITIALIZED)
-		) {
+	u32 state = scic->parent.state_machine.current_state_id;
+
+	if (state == SCI_BASE_CONTROLLER_STATE_RESET ||
+	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZING ||
+	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
 		u16 index;
 		u8  combined_phy_mask = 0;
 
@@ -2619,39 +2625,38 @@ enum sci_status scic_oem_parameters_set(
 		 * Validate the oem parameters.  If they are not legal, then
 		 * return a failure. */
 		for (index = 0; index < SCI_MAX_PORTS; index++) {
-			if (scic_parms->sds1.ports[index].phy_mask > SCIC_SDS_PARM_PHY_MASK_MAX) {
+			if (scic_parms->sds1.ports[index].phy_mask > SCIC_SDS_PARM_PHY_MASK_MAX)
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-			}
 		}
 
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			if (
-				scic_parms->sds1.phys[index].sas_address.high == 0
-				&& scic_parms->sds1.phys[index].sas_address.low  == 0
-				) {
+			if ((scic_parms->sds1.phys[index].sas_address.high == 0) &&
+			    (scic_parms->sds1.phys[index].sas_address.low == 0))
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-			}
 		}
 
-		if (scic_parms->sds1.controller.mode_type == SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE) {
+		if (scic_parms->sds1.controller.mode_type ==
+				SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE) {
 			for (index = 0; index < SCI_MAX_PHYS; index++) {
 				if (scic_parms->sds1.ports[index].phy_mask != 0)
 					return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 			}
-		} else if (scic_parms->sds1.controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
+		} else if (scic_parms->sds1.controller.mode_type ==
+				SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
 			for (index = 0; index < SCI_MAX_PHYS; index++)
 				combined_phy_mask |= scic_parms->sds1.ports[index].phy_mask;
 
 			if (combined_phy_mask == 0)
 				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		} else {
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		}
-
-		if (scic_parms->sds1.controller.max_concurrent_dev_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+		} else
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
-		memcpy(&scic->oem_parameters, scic_parms, sizeof(*scic_parms));
+		if (scic_parms->sds1.controller.max_concurrent_dev_spin_up >
+				MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+		scic->oem_parameters.sds1 = scic_parms->sds1;
+
 		return SCI_SUCCESS;
 	}
 
