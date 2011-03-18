@@ -49,7 +49,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
-	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+	if (!skb->deliver_no_wcard)
+		br_fdb_update(br, p, eth_hdr(skb)->h_source);
 
 	if (is_multicast_ether_addr(dest) &&
 	    br_multicast_rcv(br, p, skb))
@@ -110,7 +111,7 @@ static int br_handle_local_finish(struct sk_buff *skb)
 {
 	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
 
-	if (p)
+	if (p && !skb->deliver_no_wcard)
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 	return 0;	 /* process further */
 }
