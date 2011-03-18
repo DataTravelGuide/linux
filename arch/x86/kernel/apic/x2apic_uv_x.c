@@ -148,6 +148,9 @@ EXPORT_SYMBOL_GPL(is_uv_system);
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
+DEFINE_PER_CPU(struct uv_hub_info_extra_s, __uv_hub_info_extra);
+EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info_extra);
+
 struct uv_blade_info *uv_blade_info;
 EXPORT_SYMBOL_GPL(uv_blade_info);
 
@@ -768,7 +771,9 @@ void __init uv_system_init(void)
 		 * apic_pnode_shift must be set before calling uv_apicid_to_pnode();
 		 */
 		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
-		uv_cpu_hub_info(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
+		uv_cpu_hub_info_extra(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
+		for (i = 0; i < UV_HUB_INFO_EXTRA_FIELDS; i++)
+			uv_cpu_hub_info_extra(cpu)->future[i] = 0;
 		pnode = uv_apicid_to_pnode(apicid);
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;

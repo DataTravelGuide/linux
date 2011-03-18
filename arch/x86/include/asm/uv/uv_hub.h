@@ -149,12 +149,22 @@ struct uv_hub_info_s {
 	unsigned char		m_val;
 	unsigned char		n_val;
 	struct uv_scir_s	scir;
-	unsigned char		apic_pnode_shift;
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
+
+#define UV_HUB_INFO_EXTRA_FIELDS	L1_CACHE_BYTES-2
+struct uv_hub_info_extra_s {
+	unsigned char	apic_pnode_shift;
+	unsigned char	hub_type;
+	unsigned char	future[UV_HUB_INFO_EXTRA_FIELDS];
+};
+
+DECLARE_PER_CPU(struct uv_hub_info_extra_s, __uv_hub_info_extra);
+#define uv_hub_info_extra		(&__get_cpu_var(__uv_hub_info_extra))
+#define uv_cpu_hub_info_extra(cpu)	(&per_cpu(__uv_hub_info_extra, cpu))
 
 union uvh_apicid {
     unsigned long       v;
@@ -297,7 +307,7 @@ static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
  */
 static inline int uv_apicid_to_pnode(int apicid)
 {
-	return (apicid >> uv_hub_info->apic_pnode_shift);
+	return (apicid >> uv_hub_info_extra->apic_pnode_shift);
 }
 
 /*
