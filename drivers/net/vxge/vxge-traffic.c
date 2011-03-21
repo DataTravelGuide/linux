@@ -233,6 +233,8 @@ void vxge_hw_channel_msix_mask(struct __vxge_hw_channel *channel, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 		&channel->common_reg->set_msix_mask_vect[msix_id%4]);
+
+	return;
 }
 
 /**
@@ -251,6 +253,8 @@ vxge_hw_channel_msix_unmask(struct __vxge_hw_channel *channel, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 		&channel->common_reg->clear_msix_mask_vect[msix_id%4]);
+
+	return;
 }
 
 /**
@@ -325,6 +329,8 @@ void vxge_hw_device_intr_enable(struct __vxge_hw_device *hldev)
 	val64 = readq(&hldev->common_reg->titan_general_int_status);
 
 	vxge_hw_device_unmask_all(hldev);
+
+	return;
 }
 
 /**
@@ -356,6 +362,8 @@ void vxge_hw_device_intr_disable(struct __vxge_hw_device *hldev)
 		vxge_hw_vpath_intr_disable(
 			VXGE_HW_VIRTUAL_PATH_HANDLE(&hldev->virtual_paths[i]));
 	}
+
+	return;
 }
 
 /**
@@ -375,6 +383,8 @@ void vxge_hw_device_mask_all(struct __vxge_hw_device *hldev)
 
 	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32),
 				&hldev->common_reg->titan_mask_all_int);
+
+	return;
 }
 
 /**
@@ -394,6 +404,8 @@ void vxge_hw_device_unmask_all(struct __vxge_hw_device *hldev)
 
 	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32),
 			&hldev->common_reg->titan_mask_all_int);
+
+	return;
 }
 
 /**
@@ -635,6 +647,8 @@ void vxge_hw_device_clear_tx_rx(struct __vxge_hw_device *hldev)
 				 hldev->tim_int_mask1[VXGE_HW_VPATH_INTR_RX]),
 				&hldev->common_reg->tim_int_status1);
 	}
+
+	return;
 }
 
 /*
@@ -2241,6 +2255,8 @@ vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vp, int *tim_msix_id,
 				VXGE_HW_ONE_SHOT_VECT3_EN_ONE_SHOT_VECT3_EN,
 				0, 32), &vp_reg->one_shot_vect3_en);
 	}
+
+	return;
 }
 
 /**
@@ -2262,6 +2278,8 @@ vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32) vxge_bVALn(vxge_mBIT(msix_id  >> 2), 0, 32),
 		&hldev->common_reg->set_msix_mask_vect[msix_id % 4]);
+
+	return;
 }
 
 /**
@@ -2292,6 +2310,8 @@ vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
 				&hldev->common_reg->
 					clear_msix_mask_vect[msix_id%4]);
 	}
+
+	return;
 }
 
 /**
@@ -2313,6 +2333,8 @@ vxge_hw_vpath_msix_unmask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 			&hldev->common_reg->clear_msix_mask_vect[msix_id%4]);
+
+	return;
 }
 
 /**
@@ -2329,6 +2351,8 @@ vxge_hw_vpath_msix_mask_all(struct __vxge_hw_vpath_handle *vp)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32)vxge_bVALn(vxge_mBIT(vp->vpath->vp_id), 0, 32),
 		&vp->vpath->hldev->common_reg->set_msix_mask_all_vect);
+
+	return;
 }
 
 /**
@@ -2367,6 +2391,8 @@ void vxge_hw_vpath_inta_mask_tx_rx(struct __vxge_hw_vpath_handle *vp)
 			tim_int_mask1[VXGE_HW_VPATH_INTR_RX] | val64),
 			&hldev->common_reg->tim_int_mask1);
 	}
+
+	return;
 }
 
 /**
@@ -2403,6 +2429,8 @@ void vxge_hw_vpath_inta_unmask_tx_rx(struct __vxge_hw_vpath_handle *vp)
 			  tim_int_mask1[VXGE_HW_VPATH_INTR_RX])) & val64,
 			&hldev->common_reg->tim_int_mask1);
 	}
+
+	return;
 }
 
 /**
