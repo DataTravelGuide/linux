@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/pcieport_if.h>
+#include <linux/pci-aspm.h>
 
 #include "../pci.h"
 #include "portdrv.h"
@@ -239,22 +240,41 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0, pos;
 	u16 reg16;
 	u32 reg32;
+	int cap_mask;
+	int err;
+
+	err = pcie_port_platform_notify(dev, &cap_mask);
+	if (pcie_ports_auto) {
+		if (err) {
+			pcie_no_aspm();
+			return 0;
+		}
+	} else {
+		cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
+				| PCIE_PORT_SERVICE_VC;
+		if (pci_aer_available())
+			cap_mask |= PCIE_PORT_SERVICE_AER;
+	}
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 	/* Hot-Plug Capable */
-	if (reg16 & PORT_TO_SLOT_MASK) {
+	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PORT_TO_SLOT_MASK)) {
 		pci_read_config_dword(dev, 
 			pos + PCIE_SLOT_CAPABILITIES_REG, &reg32);
 		if (reg32 & SLOT_HP_CAPABLE_MASK)
 			services |= PCIE_PORT_SERVICE_HP;
 	}
 	/* AER capable */
-	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR))
+	if ((cap_mask & PCIE_PORT_SERVICE_AER)
+	    && (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR)))
 		services |= PCIE_PORT_SERVICE_AER;
 	/* VC support */
 	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
 		services |= PCIE_PORT_SERVICE_VC;
+	if ((cap_mask & PCIE_PORT_SERVICE_PME)
+	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+		services |= PCIE_PORT_SERVICE_PME;
 
 	return services;
 }
