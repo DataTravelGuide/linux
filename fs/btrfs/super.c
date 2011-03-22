@@ -890,6 +890,8 @@ static int __init init_btrfs_fs(void)
 {
 	int err;
 
+	mark_tech_preview(NULL, THIS_MODULE);
+
 	err = btrfs_init_sysfs();
 	if (err)
 		return err;

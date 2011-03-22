@@ -832,6 +832,8 @@ static int __init ecryptfs_init(void)
 {
 	int rc;
 
+	mark_tech_preview(NULL, THIS_MODULE);
+
 	if (ECRYPTFS_DEFAULT_EXTENT_SIZE > PAGE_CACHE_SIZE) {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_ERR, "The eCryptfs extent size is "

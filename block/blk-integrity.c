@@ -321,8 +321,14 @@ static struct kobj_type integrity_ktype = {
 int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 {
 	struct blk_integrity *bi;
+	static bool seen = false;
 
 	BUG_ON(disk == NULL);
+
+	if (!seen) {
+		mark_tech_preview("DIF/DIX support", NULL);
+		seen = true;
+	}
 
 	if (disk->integrity == NULL) {
 		bi = kmem_cache_alloc(integrity_cachep,
