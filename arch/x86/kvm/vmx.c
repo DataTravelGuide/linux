@@ -130,7 +130,6 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
 
-static int init_rmode(struct kvm *kvm);
 static u64 construct_eptp(unsigned long root_hpa);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
@@ -1552,7 +1551,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 continue_rmode:
 	kvm_mmu_reset_context(vcpu);
-	init_rmode(vcpu->kvm);
 }
 
 static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
@@ -2441,22 +2439,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	return 0;
 }
 
-static int init_rmode(struct kvm *kvm)
-{
-	int idx, ret = 0;
-
-	idx = srcu_read_lock(&kvm->srcu);
-	if (!init_rmode_tss(kvm))
-		goto exit;
-	if (!init_rmode_identity_map(kvm))
-		goto exit;
-
-	ret = 1;
-exit:
-	srcu_read_unlock(&kvm->srcu, idx);
-	return ret;
-}
-
 static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2464,10 +2446,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	int ret;
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
-	if (!init_rmode(vmx->vcpu.kvm)) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	vmx->rmode.vm86_active = 0;
 
@@ -2570,7 +2548,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	/* HACK: Don't enable emulation on guest boot/reset */
 	vmx->emulation_required = 0;
 
-out:
 	return ret;
 }
 
@@ -2727,6 +2704,9 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	if (ret)
 		return ret;
 	kvm->arch.tss_addr = addr;
+	if (!init_rmode_tss(kvm))
+		return  -ENOMEM;
+
 	return 0;
 }
 
@@ -3931,7 +3911,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		if (!kvm->arch.ept_identity_map_addr)
 			kvm->arch.ept_identity_map_addr =
 				VMX_EPT_IDENTITY_PAGETABLE_ADDR;
+		err = -ENOMEM;
 		if (alloc_identity_pagetable(kvm) != 0)
+			goto free_vmcs;
+		if (!init_rmode_identity_map(kvm))
 			goto free_vmcs;
 	}
 
