@@ -31,15 +31,25 @@ OPTIONS
 	event (eventsel+umask) in the form of rNNN where NNN is a
 	hexadecimal event descriptor.
 
+--filter=<filter>::
+        Event filter.
+
 -a::
-        System-wide collection.
+--all-cpus::
+        System-wide collection from all CPUs.
 
 -l::
         Scale counter values.
 
 -p::
 --pid=::
-	Record events on existing pid.
+        Record events on existing process ID.
+
+-t::
+--tid=::
+        Record events on existing thread ID.
+
+
 
 -r::
 --realtime=::
@@ -101,8 +111,8 @@ Collect raw sample records from all opened counters (default for tracepoint coun
 
 -C::
 --cpu::
-Collect samples only on the list of cpus provided. Multiple CPUs can be provided as a
-comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
