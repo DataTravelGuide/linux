@@ -95,7 +95,7 @@ static int init_vmlinux(void)
 		goto out;
 
 	if (machine__create_kernel_maps(&machine) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_debug("machine__create_kernel_maps() failed.\n");
 		goto out;
 	}
 out:
@@ -149,7 +149,8 @@ static int open_vmlinux(const char *module)
 {
 	const char *path = kernel_get_module_path(module);
 	if (!path) {
-		pr_err("Failed to find path of %s module", module ?: "kernel");
+		pr_err("Failed to find path of %s module.\n",
+		       module ?: "kernel");
 		return -ENOENT;
 	}
 	pr_debug("Try to open %s\n", path);
@@ -226,7 +227,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		pr_warning("Warning: No dwarf info found in the vmlinux - "
 			"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
 		if (!need_dwarf) {
-			pr_debug("Trying to use symbols.\nn");
+			pr_debug("Trying to use symbols.\n");
 			return 0;
 		}
 	}
@@ -466,7 +467,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 
 	fd = open_vmlinux(module);
 	if (fd < 0) {
-		pr_warning("Failed to open debuginfo file.\n");
+		pr_warning("Failed to open debug information file.\n");
 		return fd;
 	}
 
@@ -699,39 +700,40 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 
 	/* Exclusion check */
 	if (pp->lazy_line && pp->line) {
-		semantic_error("Lazy pattern can't be used with line number.");
+		semantic_error("Lazy pattern can't be used with"
+			       " line number.\n");
 		return -EINVAL;
 	}
 
 	if (pp->lazy_line && pp->offset) {
-		semantic_error("Lazy pattern can't be used with offset.");
+		semantic_error("Lazy pattern can't be used with offset.\n");
 		return -EINVAL;
 	}
 
 	if (pp->line && pp->offset) {
-		semantic_error("Offset can't be used with line number.");
+		semantic_error("Offset can't be used with line number.\n");
 		return -EINVAL;
 	}
 
 	if (!pp->line && !pp->lazy_line && pp->file && !pp->function) {
 		semantic_error("File always requires line number or "
-			       "lazy pattern.");
+			       "lazy pattern.\n");
 		return -EINVAL;
 	}
 
 	if (pp->offset && !pp->function) {
-		semantic_error("Offset requires an entry function.");
+		semantic_error("Offset requires an entry function.\n");
 		return -EINVAL;
 	}
 
 	if (pp->retprobe && !pp->function) {
-		semantic_error("Return probe requires an entry function.");
+		semantic_error("Return probe requires an entry function.\n");
 		return -EINVAL;
 	}
 
 	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe) {
 		semantic_error("Offset/Line/Lazy pattern can't be used with "
-			       "return probe.");
+			       "return probe.\n");
 		return -EINVAL;
 	}
 
@@ -1005,7 +1007,7 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 
 	return tmp - buf;
 error:
-	pr_debug("Failed to synthesize perf probe argument: %s",
+	pr_debug("Failed to synthesize perf probe argument: %s\n",
 		 strerror(-ret));
 	return ret;
 }
@@ -1055,7 +1057,7 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 
 	return buf;
 error:
-	pr_debug("Failed to synthesize perf probe point: %s",
+	pr_debug("Failed to synthesize perf probe point: %s\n",
 		 strerror(-ret));
 	if (buf)
 		free(buf);
@@ -1796,7 +1798,7 @@ static int del_trace_probe_event(int fd, const char *group,
 
 	ret = e_snprintf(buf, 128, "%s:%s", group, event);
 	if (ret < 0) {
-		pr_err("Failed to copy event.");
+		pr_err("Failed to copy event.\n");
 		return ret;
 	}
 
