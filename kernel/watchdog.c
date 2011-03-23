@@ -357,6 +357,14 @@ static int watchdog_nmi_enable(int cpu)
 	struct perf_event_attr *wd_attr;
 	struct perf_event *event = per_cpu(watchdog_ev, cpu);
 
+	/*
+ 	 * People like the simple clean cpu node info
+ 	 * on boot.  Simplify the noise from the watchdog
+ 	 * by only printing messages that are different than
+ 	 * what cpu0 displayed
+ 	 */
+	static unsigned long err0 = 0;
+
 	if (!hardlockup_enable)
 		return 0;
 
@@ -372,11 +380,21 @@ static int watchdog_nmi_enable(int cpu)
 	wd_attr = &wd_hw_attr;
 	wd_attr->sample_period = hw_nmi_get_sample_period();
 	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback);
+
+	/* save cpu0 error for future comparison */
+	if (!cpu)
+		err0 = (IS_ERR(event) ? PTR_ERR(event) : 0);
+
 	if (!IS_ERR(event)) {
-		printk(KERN_INFO "NMI watchdog enabled, takes one hw-pmu counter.\n");
+		/* only print for cpu0 or different than cpu0 */
+		if (!cpu || err0)
+			printk(KERN_INFO "NMI watchdog enabled, takes one hw-pmu counter.\n");
 		goto out_save;
 	}
 
+	/* skip displaying the same error again */
+	if ((PTR_ERR(event) == err0) && cpu)
+		return PTR_ERR(event);
 
 	/* vary the KERN level based on the returned errno */
 	if (PTR_ERR(event) == -EOPNOTSUPP)
