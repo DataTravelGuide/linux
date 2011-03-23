@@ -203,6 +203,22 @@ config HARDLOCKUP_DETECTOR
 	  chance to run.  The current stack trace is displayed upon detection
 	  and the system will stay locked up.
 
+config BOOTPARAM_HARDLOCKUP_ENABLED
+	bool "Enable Hard Lockups on Boot"
+	depends on HARDLOCKUP_DETECTOR
+	help
+	  Say Y here to enable the hardlockup detector on boot.
+
+	  Say N to compile the hardlockup detector but leave it
+	  disabled on boot.
+
+config BOOTPARAM_HARDLOCKUP_ENABLED_VALUE
+	int
+	depends on HARDLOCKUP_DETECTOR
+	range 0 1
+	default 0 if !BOOTPARAM_HARDLOCKUP_ENABLED
+	default 1 if BOOTPARAM_HARDLOCKUP_ENABLED
+
 config BOOTPARAM_HARDLOCKUP_PANIC
 	bool "Panic (Reboot) On Hard Lockups"
 	depends on LOCKUP_DETECTOR

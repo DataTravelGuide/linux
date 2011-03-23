@@ -50,6 +50,8 @@ static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 static int hardlockup_panic = 
 			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
+static int hardlockup_enable = 
+			CONFIG_BOOTPARAM_HARDLOCKUP_ENABLED_VALUE;
 
 static int __init hardlockup_panic_setup(char *str)
 {
@@ -59,6 +61,12 @@ static int __init hardlockup_panic_setup(char *str)
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
 		watchdog_enabled = 0;
+	else if (!strncmp(str, "1", 1) ||
+		 !strncmp(str, "2", 1))
+		hardlockup_enable = 1;
+	else if (!strncmp(str, "lapic", 5) ||
+		 !strncmp(str, "ioapic", 6))
+		hardlockup_enable = 1;
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
@@ -349,6 +357,9 @@ static int watchdog_nmi_enable(int cpu)
 	struct perf_event_attr *wd_attr;
 	struct perf_event *event = per_cpu(watchdog_ev, cpu);
 
+	if (!hardlockup_enable)
+		return 0;
+
 	/* is it already setup and enabled? */
 	if (event && event->state > PERF_EVENT_STATE_OFF)
 		goto out;
@@ -472,6 +483,10 @@ static void watchdog_enable_all_cpus(void)
 
 	watchdog_enabled = 0;
 
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+	/* user is explicitly enabling this */
+	hardlockup_enable = 1;
+#endif
 	for_each_online_cpu(cpu)
 		if (!watchdog_enable(cpu))
 			/* if any cpu succeeds, watchdog is considered
