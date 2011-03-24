@@ -534,21 +534,35 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	uint16_t adj_xri;
 	struct lpfc_node_rrq *rrq;
 	int empty;
+	uint32_t did = 0;
 
+
+	if (!ndlp)
+		return -EINVAL;
+
+	if (!phba->cfg_enable_rrq)
+		return -EINVAL;
 
 	if (phba->pport->load_flag & FC_UNLOADING) {
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
-		return -EINVAL;
+		goto out;
 	}
+	did = ndlp->nlp_DID;
 
 	/*
 	 * set the active bit even if there is no mem available.
 	 */
 	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-	if (!ndlp)
-		return -EINVAL;
+
+	if (NLP_CHK_FREE_REQ(ndlp))
+		goto out;
+
+	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
+		goto out;
+
 	if (test_and_set_bit(adj_xri, ndlp->active_rrqs.xri_bitmap))
-		return -EINVAL;
+		goto out;
+
 	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
 	if (rrq) {
 		rrq->send_rrq = send_rrq;
@@ -559,14 +573,7 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		rrq->vport = ndlp->vport;
 		rrq->rxid = rxid;
 		empty = list_empty(&phba->active_rrq_list);
-		if (phba->cfg_enable_rrq && send_rrq)
-			/*
-			 * We need the xri before we can add this to the
-			 * phba active rrq list.
-			 */
-			rrq->send_rrq = send_rrq;
-		else
-			rrq->send_rrq = 0;
+		rrq->send_rrq = send_rrq;
 		list_add_tail(&rrq->list, &phba->active_rrq_list);
 		if (!(phba->hba_flag & HBA_RRQ_ACTIVE)) {
 			phba->hba_flag |= HBA_RRQ_ACTIVE;
@@ -575,7 +582,12 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		}
 		return 0;
 	}
-	return -ENOMEM;
+out:
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2921 Can't set rrq active xri:0x%x rxid:0x%x"
+			" DID:0x%x Send:%d\n",
+			xritag, rxid, did, send_rrq);
+	return -EINVAL;
 }
 
 /**
@@ -593,7 +605,7 @@ lpfc_clr_rrq_active(struct lpfc_hba *phba,
 	uint16_t adj_xri;
 	struct lpfc_nodelist *ndlp = NULL;
 
-	if (rrq->vport)
+	if ((rrq->vport) && NLP_CHK_NODE_ACT(rrq->ndlp))
 		ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
 
 	/* The target DID could have been swapped (cable swap)
@@ -719,6 +731,10 @@ lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
+	if (!ndlp) {
+		lpfc_sli4_vport_delete_els_xri_aborted(vport);
+		lpfc_sli4_vport_delete_fcp_xri_aborted(vport);
+	}
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list)
 		if ((rrq->vport == vport) && (!ndlp  || rrq->ndlp == ndlp))

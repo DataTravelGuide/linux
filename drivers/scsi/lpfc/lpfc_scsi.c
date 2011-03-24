@@ -609,6 +609,32 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 }
 
 /**
+ * lpfc_sli4_vport_delete_fcp_xri_aborted -Remove all ndlp references for vport
+ * @vport: pointer to lpfc vport data structure.
+ *
+ * This routine is invoked by the vport cleanup for deletions and the cleanup
+ * for an ndlp on removal.
+ **/
+void
+lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_scsi_buf *psb, *next_psb;
+	unsigned long iflag = 0;
+
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
+	list_for_each_entry_safe(psb, next_psb,
+				&phba->sli4_hba.lpfc_abts_scsi_buf_list, list) {
+		if (psb->rdata && psb->rdata->pnode
+			&& psb->rdata->pnode->vport == vport)
+			psb->rdata = NULL;;
+	}
+	spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+}
+
+/**
  * lpfc_sli4_fcp_xri_aborted - Fast-path process of fcp xri abort
  * @phba: pointer to lpfc hba data structure.
  * @axri: pointer to the fcp xri abort wcqe structure.
@@ -640,7 +666,11 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			psb->status = IOSTAT_SUCCESS;
 			spin_unlock(
 				&phba->sli4_hba.abts_scsi_buf_list_lock);
-			ndlp = psb->rdata->pnode;
+			if (psb->rdata && psb->rdata->pnode)
+				ndlp = psb->rdata->pnode;
+			else
+				ndlp = NULL;
+
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
 			if (ndlp)
@@ -2492,14 +2522,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				}
 			}
 			if ((lpfc_cmd->status == IOSTAT_REMOTE_STOP)
-				&& (phba->sli_rev == LPFC_SLI_REV4)) {
+				&& (phba->sli_rev == LPFC_SLI_REV4)
+				&& (pnode && NLP_CHK_NODE_ACT(pnode))) {
 				/* This IO was aborted by the target, we don't
 				 * know the rxid and because we did not send the
 				 * ABTS we cannot generate and RRQ.
 				 */
 				lpfc_set_rrq_active(phba, pnode,
-					lpfc_cmd->cur_iocbq.sli4_xritag,
-					0, 0);
+						lpfc_cmd->cur_iocbq.sli4_xritag,
+						0, 0);
 			}
 
 		/* else: fall through */

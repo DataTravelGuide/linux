@@ -4290,7 +4290,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	list_del_init(&ndlp->els_retry_evt.evt_listp);
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
-
+	lpfc_cleanup_vports_rrqs(vport, ndlp);
 	lpfc_unreg_rpi(vport, ndlp);
 
 	return 0;

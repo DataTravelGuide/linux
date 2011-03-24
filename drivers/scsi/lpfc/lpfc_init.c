@@ -937,17 +937,13 @@ static void
 lpfc_rrq_timeout(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
-	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	phba = (struct lpfc_hba *)ptr;
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	tmo_posted = phba->hba_flag & HBA_RRQ_ACTIVE;
-	if (!tmo_posted)
-		phba->hba_flag |= HBA_RRQ_ACTIVE;
+	phba->hba_flag |= HBA_RRQ_ACTIVE;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
-	if (!tmo_posted)
-		lpfc_worker_wake_up(phba);
+	lpfc_worker_wake_up(phba);
 }
 
 /**
@@ -2206,7 +2202,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 
 	if (phba->link_state > LPFC_LINK_DOWN)
 		lpfc_port_link_failure(vport);
-	lpfc_cleanup_vports_rrqs(vport, NULL);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp)) {
@@ -2272,6 +2267,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		/* Wait for any activity on ndlps to settle */
 		msleep(10);
 	}
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 }
 
 /**
