@@ -35,7 +35,9 @@
 #include <linux/blkdev.h>
 #include <linux/mempool.h>
 #include <linux/hash.h>
+#ifndef __GENKSYMS__
 #include <linux/compat.h>
+#endif
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
