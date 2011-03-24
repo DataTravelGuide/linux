@@ -6258,7 +6258,6 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
-			sgl->word2 = cpu_to_le32(sgl->word2);
 			/* swap the size field back to the cpu so we
 			 * can assign it to the sgl.
 			 */
@@ -6278,6 +6277,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				bf_set(lpfc_sli4_sge_offset, sgl, offset);
 				offset += bde.tus.f.bdeSize;
 			}
+			sgl->word2 = cpu_to_le32(sgl->word2);
 			bpl++;
 			sgl++;
 		}
@@ -6523,9 +6523,9 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		numBdes = iocbq->iocb.un.genreq64.bdl.bdeSize /
 			sizeof(struct ulp_bde64);
 		for (i = 0; i < numBdes; i++) {
-			if (bpl[i].tus.f.bdeFlags != BUFF_TYPE_BDE_64)
-				break;
 			bde.tus.w = le32_to_cpu(bpl[i].tus.w);
+			if (bde.tus.f.bdeFlags != BUFF_TYPE_BDE_64)
+				break;
 			xmit_len += bde.tus.f.bdeSize;
 		}
 		/* word3 iocb=IO_TAG wqe=request_payload_len */
