@@ -11203,7 +11203,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	if (!mbox)
 		return -ENOMEM;
 	length = (sizeof(struct lpfc_mbx_rq_destroy) -
-		  sizeof(struct mbox_header));
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_RQ_DESTROY,
 			 length, LPFC_SLI4_MBX_EMBED);
@@ -11293,7 +11293,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
 			sizeof(struct lpfc_mbx_post_sgl_pages) -
-			sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			sizeof(struct lpfc_sli4_cfg_mhdr), LPFC_SLI4_MBX_EMBED);
 
 	post_sgl_pages = (struct lpfc_mbx_post_sgl_pages *)
 				&mbox->u.mqe.un.post_sgl_pages;
@@ -12415,7 +12415,8 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE,
 			 sizeof(struct lpfc_mbx_post_hdr_tmpl) -
-			 sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			 sizeof(struct lpfc_sli4_cfg_mhdr),
+			 LPFC_SLI4_MBX_EMBED);
 	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
 	       hdr_tmpl, rpi_page->page_count);
 	bf_set(lpfc_mbx_post_hdr_tmpl_rpi_offset, hdr_tmpl,
