@@ -622,10 +622,14 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	int status = 0;
 	int cnt = 0;
 	int i;
+	int rc;
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_OFFLINE_PREP);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -651,7 +655,10 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	}
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl, type);
+	rc = lpfc_workq_post_event(phba, &status, &online_compl, type);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -681,6 +688,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
 	int status = 0;
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EIO;
@@ -691,8 +699,11 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 		return status;
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -817,8 +828,10 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
-		lpfc_workq_post_event(phba, &status, &online_compl,
+		rc = lpfc_workq_post_event(phba, &status, &online_compl,
 				      LPFC_EVT_ONLINE);
+		if (rc == 0)
+			return -ENOMEM;
 		wait_for_completion(&online_compl);
 	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
 		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
@@ -1812,6 +1825,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	int stat1=0, stat2=0;
 	unsigned int i, j, cnt=count;
 	u8 wwpn[8];
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
@@ -1863,7 +1877,11 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 				"0463 lpfc_soft_wwpn attribute set failed to "
 				"reinit adapter - %d\n", stat1);
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &stat2, &online_compl, LPFC_EVT_ONLINE);
+	rc = lpfc_workq_post_event(phba, &stat2, &online_compl,
+				   LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 	if (stat2)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
