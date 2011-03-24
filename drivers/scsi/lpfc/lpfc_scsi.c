@@ -2471,6 +2471,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			lpfc_worker_wake_up(phba);
 			break;
 		case IOSTAT_LOCAL_REJECT:
+		case IOSTAT_REMOTE_STOP:
 			if (lpfc_cmd->result == IOERR_INVALID_RPI ||
 			    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 			    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
@@ -2496,6 +2497,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 							"9031 non-zero BGSTAT "
 							"on unprotected cmd\n");
 				}
+			}
+			if ((lpfc_cmd->status == IOSTAT_REMOTE_STOP)
+				&& (phba->sli_rev == LPFC_SLI_REV4)) {
+				/* This IO was aborted by the target, we don't
+				 * know the rxid and because we did not send the
+				 * ABTS we cannot generate and RRQ.
+				 */
+				lpfc_set_rrq_active(phba, pnode,
+					lpfc_cmd->cur_iocbq.sli4_xritag,
+					0, 0);
 			}
 
 		/* else: fall through */

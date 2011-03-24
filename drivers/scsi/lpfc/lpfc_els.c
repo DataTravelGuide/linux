@@ -2816,9 +2816,18 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	switch (irsp->ulpStatus) {
 	case IOSTAT_FCP_RSP_ERROR:
-	case IOSTAT_REMOTE_STOP:
 		break;
-
+	case IOSTAT_REMOTE_STOP:
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			/* This IO was aborted by the target, we don't
+			 * know the rxid and because we did not send the
+			 * ABTS we cannot generate and RRQ.
+			 */
+			lpfc_set_rrq_active(phba, ndlp,
+					cmdiocb->sli4_xritag,
+					0, 0);
+		}
+		break;
 	case IOSTAT_LOCAL_REJECT:
 		switch ((irsp->un.ulpWord[4] & 0xff)) {
 		case IOERR_LOOP_OPEN_FAILURE:
