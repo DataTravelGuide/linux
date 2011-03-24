@@ -1692,7 +1692,7 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
  * @mbox: pointer to lpfc mbox command.
  * @subsystem: The sli4 config sub mailbox subsystem.
  * @opcode: The sli4 config sub mailbox command opcode.
- * @length: Length of the sli4 config mailbox command.
+ * @length: Length of the sli4 config mailbox command (including sub-header).
  *
  * This routine sets up the header fields of SLI4 specific mailbox command
  * for sending IOCTL command.
@@ -1723,14 +1723,14 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	if (emb) {
 		/* Set up main header fields */
 		bf_set(lpfc_mbox_hdr_emb, &sli4_config->header.cfg_mhdr, 1);
-		sli4_config->header.cfg_mhdr.payload_length =
-					LPFC_MBX_CMD_HDR_LENGTH + length;
+		sli4_config->header.cfg_mhdr.payload_length = length;
 		/* Set up sub-header fields following main header */
 		bf_set(lpfc_mbox_hdr_opcode,
 			&sli4_config->header.cfg_shdr.request, opcode);
 		bf_set(lpfc_mbox_hdr_subsystem,
 			&sli4_config->header.cfg_shdr.request, subsystem);
-		sli4_config->header.cfg_shdr.request.request_length = length;
+		sli4_config->header.cfg_shdr.request.request_length =
+			length - LPFC_MBX_CMD_HDR_LENGTH;
 		return length;
 	}
 
