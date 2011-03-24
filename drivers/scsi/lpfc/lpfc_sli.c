@@ -579,17 +579,16 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 }
 
 /**
- * __lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
+ * lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @xritag: xri used in this exchange.
  * @rrq: The RRQ to be cleared.
  *
- * This function is called with hbalock held. This function
  **/
-static void
-__lpfc_clr_rrq_active(struct lpfc_hba *phba,
-			uint16_t xritag,
-			struct lpfc_node_rrq *rrq)
+void
+lpfc_clr_rrq_active(struct lpfc_hba *phba,
+		    uint16_t xritag,
+		    struct lpfc_node_rrq *rrq)
 {
 	uint16_t adj_xri;
 	struct lpfc_nodelist *ndlp = NULL;
@@ -638,34 +637,34 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long next_time;
 	unsigned long iflags;
+	LIST_HEAD(send_rrq);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	next_time = jiffies + HZ * (phba->fc_ratov + 1);
 	list_for_each_entry_safe(rrq, nextrrq,
-			&phba->active_rrq_list, list) {
-		if (time_after(jiffies, rrq->rrq_stop_time)) {
-			list_del(&rrq->list);
-			if (!rrq->send_rrq)
-				/* this call will free the rrq */
-				__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-			else {
-			/* if we send the rrq then the completion handler
-			 *  will clear the bit in the xribitmap.
-			 */
-				spin_unlock_irqrestore(&phba->hbalock, iflags);
-				if (lpfc_send_rrq(phba, rrq)) {
-					lpfc_clr_rrq_active(phba, rrq->xritag,
-								 rrq);
-				}
-				spin_lock_irqsave(&phba->hbalock, iflags);
-			}
-		} else if  (time_before(rrq->rrq_stop_time, next_time))
+				 &phba->active_rrq_list, list) {
+		if (time_after(jiffies, rrq->rrq_stop_time))
+			list_move(&rrq->list, &send_rrq);
+		else if (time_before(rrq->rrq_stop_time, next_time))
 			next_time = rrq->rrq_stop_time;
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if (!list_empty(&phba->active_rrq_list))
 		mod_timer(&phba->rrq_tmr, next_time);
+	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
+		list_del(&rrq->list);
+		if (!rrq->send_rrq)
+			/* this call will free the rrq */
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+		else if (lpfc_send_rrq(phba, rrq)) {
+			/* if we send the rrq then the completion handler
+			*  will clear the bit in the xribitmap.
+			*/
+			lpfc_clr_rrq_active(phba, rrq->xritag,
+					    rrq);
+		}
+	}
 }
 
 /**
@@ -716,18 +715,20 @@ lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_node_rrq *rrq;
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long iflags;
+	LIST_HEAD(rrq_list);
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list) {
-		if ((rrq->vport == vport) &&
-				(!ndlp  || rrq->ndlp == ndlp)) {
-			list_del(&rrq->list);
-			__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-		}
-	}
+	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list)
+		if ((rrq->vport == vport) && (!ndlp  || rrq->ndlp == ndlp))
+			list_move(&rrq->list, &rrq_list);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	list_for_each_entry_safe(rrq, nextrrq, &rrq_list, list) {
+		list_del(&rrq->list);
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+	}
 }
 
 /**
@@ -745,17 +746,20 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long next_time;
 	unsigned long iflags;
+	LIST_HEAD(rrq_list);
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	next_time = jiffies + HZ * (phba->fc_ratov * 2);
-	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list) {
-		list_del(&rrq->list);
-		__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-	}
+	list_splice_init(&phba->active_rrq_list, &rrq_list);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	list_for_each_entry_safe(rrq, nextrrq, &rrq_list, list) {
+		list_del(&rrq->list);
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+	}
 	if (!list_empty(&phba->active_rrq_list))
 		mod_timer(&phba->rrq_tmr, next_time);
 }
@@ -812,27 +816,6 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	ret = __lpfc_set_rrq_active(phba, ndlp, xritag, rxid, send_rrq);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return ret;
-}
-
-/**
- * lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
- * @phba: Pointer to HBA context object.
- * @xritag: xri used in this exchange.
- * @rrq: The RRQ to be cleared.
- *
- * This function is takes the hbalock.
- **/
-void
-lpfc_clr_rrq_active(struct lpfc_hba *phba,
-			uint16_t xritag,
-			struct lpfc_node_rrq *rrq)
-{
-	unsigned long iflags;
-
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	__lpfc_clr_rrq_active(phba, xritag, rrq);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	return;
 }
 
 /**
