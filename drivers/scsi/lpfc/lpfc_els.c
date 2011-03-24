@@ -4023,13 +4023,14 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	uint8_t *pcmd;
 	struct RRQ *rrq;
 	uint16_t rxid;
+	uint16_t xri;
 	struct lpfc_node_rrq *prrq;
 
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) iocb->context2)->virt);
 	pcmd += sizeof(uint32_t);
 	rrq = (struct RRQ *)pcmd;
-	rxid = bf_get(rrq_oxid, rrq);
+	rxid = bf_get(rrq_rxid, rrq);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
@@ -4042,9 +4043,13 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
-	prrq = lpfc_get_active_rrq(vport, rxid, ndlp->nlp_DID);
+	if (vport->fc_myDID == bf_get(rrq_did, rrq))
+		xri = bf_get(rrq_oxid, rrq);
+	else
+		xri = rxid;
+	prrq = lpfc_get_active_rrq(vport, xri, ndlp->nlp_DID);
 	if (prrq)
-		lpfc_clr_rrq_active(phba, rxid, prrq);
+		lpfc_clr_rrq_active(phba, xri, prrq);
 	return;
 }
 
