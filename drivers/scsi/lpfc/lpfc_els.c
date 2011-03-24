@@ -2203,6 +2203,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
 	struct lpfc_sli *psli;
+	struct lpfcMboxq *mbox;
 
 	psli = &phba->sli;
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
@@ -2260,6 +2261,21 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					NLP_EVT_CMPL_LOGO);
 out:
 	lpfc_els_free_iocb(phba, cmdiocb);
+	/* If we are in pt2pt mode, we could rcv new S_ID on PLOGI */
+	if ((vport->fc_flag & FC_PT2PT) &&
+		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
+		phba->pport->fc_myDID = 0;
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (mbox) {
+			lpfc_config_link(phba, mbox);
+			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			mbox->vport = vport;
+			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) ==
+				MBX_NOT_FINISHED) {
+				mempool_free(mbox, phba->mbox_mem_pool);
+			}
+		}
+	}
 	return;
 }
 
