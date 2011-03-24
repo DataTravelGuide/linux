@@ -808,8 +808,8 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
 		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
-		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
-		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
+		    !((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+		     (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on FCF (x%x), "
 					"status:x%x/x%x, tmo:x%x, perform "
