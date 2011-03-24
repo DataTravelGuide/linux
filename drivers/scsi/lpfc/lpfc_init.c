@@ -2206,6 +2206,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 
 	if (phba->link_state > LPFC_LINK_DOWN)
 		lpfc_port_link_failure(vport);
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp)) {
@@ -2346,6 +2347,10 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
 	del_timer_sync(&phba->hb_tmofunc);
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		del_timer_sync(&phba->rrq_tmr);
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+	}
 	phba->hb_outstanding = 0;
 
 	switch (phba->pci_dev_grp) {

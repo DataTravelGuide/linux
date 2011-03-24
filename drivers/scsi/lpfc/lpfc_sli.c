@@ -535,6 +535,12 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	struct lpfc_node_rrq *rrq;
 	int empty;
 
+
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+		return -EINVAL;
+	}
+
 	/*
 	 * set the active bit even if there is no mem available.
 	 */
@@ -586,16 +592,20 @@ __lpfc_clr_rrq_active(struct lpfc_hba *phba,
 			struct lpfc_node_rrq *rrq)
 {
 	uint16_t adj_xri;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp = NULL;
 
-	ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
+	if (rrq->vport)
+		ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
 
 	/* The target DID could have been swapped (cable swap)
 	 * we should use the ndlp from the findnode if it is
 	 * available.
 	 */
-	if (!ndlp)
+	if ((!ndlp) && rrq->ndlp)
 		ndlp = rrq->ndlp;
+
+	if (!ndlp)
+		goto out;
 
 	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
 	if (test_and_clear_bit(adj_xri, ndlp->active_rrqs.xri_bitmap)) {
@@ -603,6 +613,7 @@ __lpfc_clr_rrq_active(struct lpfc_hba *phba,
 		rrq->xritag = 0;
 		rrq->rrq_stop_time = 0;
 	}
+out:
 	mempool_free(rrq, phba->rrq_pool);
 }
 
@@ -692,12 +703,13 @@ lpfc_get_active_rrq(struct lpfc_vport *vport, uint16_t xri, uint32_t did)
 /**
  * lpfc_cleanup_vports_rrqs - Remove and clear the active RRQ for this vport.
  * @vport: Pointer to vport context object.
- *
- * Remove all active RRQs for this vport from the phba->active_rrq_list and
- * clear the rrq.
+ * @ndlp: Pointer to the lpfc_node_list structure.
+ * If ndlp is NULL Remove all active RRQs for this vport from the
+ * phba->active_rrq_list and clear the rrq.
+ * If ndlp is not NULL then only remove rrqs for this vport & this ndlp.
  **/
 void
-lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport)
+lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -709,7 +721,8 @@ lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport)
 		return;
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list) {
-		if (rrq->vport == vport) {
+		if ((rrq->vport == vport) &&
+				(!ndlp  || rrq->ndlp == ndlp)) {
 			list_del(&rrq->list);
 			__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
 		}
