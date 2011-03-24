@@ -822,6 +822,7 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
 	int status=0;
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
