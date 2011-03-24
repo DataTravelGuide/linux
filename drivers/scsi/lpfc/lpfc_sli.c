@@ -762,7 +762,7 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
 
 
 /**
- * __lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
+ * lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @ndlp: Targets nodelist pointer for this exchange.
  * @xritag the xri in the bitmap to test.
@@ -771,8 +771,8 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
  * returns 0 = rrq not active for this xri
  *         1 = rrq is valid for this xri.
  **/
-static int
-__lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+int
+lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			uint16_t  xritag)
 {
 	uint16_t adj_xri;
@@ -835,31 +835,6 @@ lpfc_clr_rrq_active(struct lpfc_hba *phba,
 	return;
 }
 
-
-
-/**
- * lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
- * @phba: Pointer to HBA context object.
- * @ndlp: Targets nodelist pointer for this exchange.
- * @xritag the xri in the bitmap to test.
- *
- * This function takes the hbalock.
- * returns 0 = rrq not active for this xri
- *         1 = rrq is valid for this xri.
- **/
-int
-lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-			uint16_t  xritag)
-{
-	int ret;
-	unsigned long iflags;
-
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	ret = __lpfc_test_rrq_active(phba, ndlp, xritag);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	return ret;
-}
-
 /**
  * __lpfc_sli_get_sglq - Allocates an iocb object from sgl pool
  * @phba: Pointer to HBA context object.
@@ -897,7 +872,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 			return NULL;
 		adj_xri = sglq->sli4_xritag -
 				phba->sli4_hba.max_cfg_param.xri_base;
-		if (__lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
+		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
 			/* This xri has an rrq outstanding for this DID.
 			 * put it back in the list and get another xri.
 			 */

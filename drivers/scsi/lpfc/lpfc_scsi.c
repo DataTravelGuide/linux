@@ -964,36 +964,29 @@ lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 static struct lpfc_scsi_buf*
 lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
-	struct  lpfc_scsi_buf *lpfc_cmd = NULL;
-	struct  lpfc_scsi_buf *start_lpfc_cmd = NULL;
-	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
+	struct lpfc_scsi_buf *lpfc_cmd ;
 	unsigned long iflag = 0;
 	int found = 0;
 
 	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
-	list_remove_head(scsi_buf_list, lpfc_cmd, struct lpfc_scsi_buf, list);
-	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
-	while (!found && lpfc_cmd) {
+	list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list,
+							list) {
 		if (lpfc_test_rrq_active(phba, ndlp,
-					 lpfc_cmd->cur_iocbq.sli4_xritag)) {
-			lpfc_release_scsi_buf_s4(phba, lpfc_cmd);
-			spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
-			list_remove_head(scsi_buf_list, lpfc_cmd,
-					 struct lpfc_scsi_buf, list);
-			spin_unlock_irqrestore(&phba->scsi_buf_list_lock,
-						 iflag);
-			if (lpfc_cmd == start_lpfc_cmd) {
-				lpfc_cmd = NULL;
-				break;
-			} else
-				continue;
-		}
+					 lpfc_cmd->cur_iocbq.sli4_xritag))
+			continue;
+		list_del(&lpfc_cmd->list);
 		found = 1;
 		lpfc_cmd->seg_cnt = 0;
 		lpfc_cmd->nonsg_phys = 0;
 		lpfc_cmd->prot_seg_cnt = 0;
+		break;
 	}
-	return  lpfc_cmd;
+	spin_unlock_irqrestore(&phba->scsi_buf_list_lock,
+						 iflag);
+	if (!found)
+		return NULL;
+	else
+		return  lpfc_cmd;
 }
 /**
  * lpfc_get_scsi_buf - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
