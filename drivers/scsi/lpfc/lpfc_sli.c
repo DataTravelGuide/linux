@@ -982,7 +982,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		} else {
 			sglq->state = SGL_FREED;
 			sglq->ndlp = NULL;
-			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
+			list_add_tail(&sglq->list,
+				&phba->sli4_hba.lpfc_sgl_list);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)
