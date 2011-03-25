@@ -522,7 +522,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	u32 dummy;
 	void __iomem *virt_addr;
 
-	virt_addr = ioremap(phys_addr, width);
+	virt_addr = ioremap(phys_addr, width / 8);
 	if (!value)
 		value = &dummy;
 
@@ -550,7 +550,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
 	void __iomem *virt_addr;
 
-	virt_addr = ioremap(phys_addr, width);
+	virt_addr = ioremap(phys_addr, width / 8);
 
 	switch (width) {
 	case 8:
