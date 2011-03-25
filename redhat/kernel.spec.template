@@ -653,7 +653,6 @@ This package provides the perf tool and the supporting documentation.
 %package -n perf-debuginfo
 Summary: Debug information for package perf
 Group: Development/Debug
-Requires: %{name}-debuginfo-common-%{_target_cpu} = %{version}-%{release}
 AutoReqProv: no
 %description -n perf-debuginfo
 This package provides debug information for package perf.
