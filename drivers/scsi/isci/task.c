@@ -84,7 +84,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 
 	disposition = isci_perform_normal_io_completion;
 	disposition = isci_task_set_completion_status(task, response, status,
-						      disposition, completed);
+						      disposition);
 
 	/* Tasks aborted specifically by a call to the lldd_abort_task
 	 * function should not be completed to the host in the regular path.

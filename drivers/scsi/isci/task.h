@@ -293,23 +293,19 @@ static inline void isci_task_all_done(
 */
 static inline enum isci_completion_selection
 isci_task_set_completion_status(
-	struct sas_task                *task,
-	enum service_response          response,
-	enum exec_status               status,
-	enum isci_completion_selection task_notification_selection,
-	enum isci_request_status       request_status)
+	struct sas_task *task,
+	enum service_response response,
+	enum exec_status status,
+	enum isci_completion_selection task_notification_selection)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 
-	/* Only let an I/O into the error path for reset purposes
-	 * if it's not already being aborted; if "completed", and if a device
-	 * reset is being indicated, make sure the I/O is in the error path.
-	 */
-	if (request_status == completed &&
-	    (task->task_state_flags & SAS_TASK_NEED_DEV_RESET)) {
-
+	/* If a device reset is being indicated, make sure the I/O
+	* is in the error path.
+	*/
+	if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET) {
 		/* Fail the I/O to make sure it goes into the error path. */
 		response = SAS_TASK_UNDELIVERED;
 		status = SAM_STAT_TASK_ABORTED;
