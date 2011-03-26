@@ -356,6 +356,33 @@ int isci_request_alloc_tmf(
 }
 
 /**
+ * isci_request_signal_device_reset() - This function will set the "device
+ *    needs target reset" flag in the given sas_tasks' task_state_flags, and
+ *    then cause the task to be added into the SCSI error handler queue which
+ *    will eventually be escalated to a target reset.
+ *
+ *
+ */
+static void isci_request_signal_device_reset(
+	struct isci_request *isci_request)
+{
+	unsigned long flags;
+	struct sas_task *task = isci_request_access_task(isci_request);
+
+	dev_dbg(&isci_request->isci_host->pdev->dev,
+		"%s: request=%p, task=%p\n", __func__, isci_request, task);
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	/* Cause this task to be scheduled in the SCSI error handler
+	 * thread.
+	 */
+	sas_task_abort(task);
+}
+
+/**
  * isci_request_execute() - This function allocates the isci_request object,
  *    all fills in some common fields.
  * @isci_host: This parameter specifies the ISCI host object
@@ -408,8 +435,7 @@ int isci_request_execute(
 			);
 
 		if (status == SCI_SUCCESS ||
-		    (status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED &&
-		     task->task_proto != SAS_PROTOCOL_SMP)) {
+		    status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 
 			/* Either I/O started OK, or the core has signaled that
 			 * the device needs a target reset.
@@ -427,12 +453,6 @@ int isci_request_execute(
 				/* Save the tag for possible task mgmt later. */
 				request->io_tag = scic_io_request_get_io_tag(
 						     request->sci_request_handle);
-			} else {
-				/* The request did not really start in the
-				 * hardware, so clear the request handle
-				 * here so no terminations will be done.
-				*/
-				request->sci_request_handle = NULL;
 			}
 		} else
 			dev_warn(&isci_host->pdev->dev,
@@ -441,28 +461,14 @@ int isci_request_execute(
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
-		if (status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED &&
-		    task->task_proto != SAS_PROTOCOL_SMP) {
-
-			dev_dbg(&request->isci_host->pdev->dev,
-				"%s: request=%p, task=%p\n",
-				__func__, request, task);
-
+		if (status ==
+		    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 			/* Signal libsas that we need the SCSI error
 			* handler thread to work on this I/O and that
 			* we want a device reset.
 			*/
-			spin_lock_irqsave(&task->task_state_lock, flags);
-			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
-			spin_unlock_irqrestore(&task->task_state_lock, flags);
+			isci_request_signal_device_reset(request);
 
-			if (task->task_proto & SAS_PROTOCOL_SSP) {
-
-				/* Cause this task to be scheduled in the SCSI
-				 * error handler thread.
-				 */
-				sas_task_abort(task);
-			}
 			/* Change the status, since we are holding
 			* the I/O until it is managed by the SCSI
 			* error handler.

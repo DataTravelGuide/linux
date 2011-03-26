@@ -332,39 +332,21 @@ static void isci_host_completion_routine(unsigned long data)
 
 		task = isci_request_access_task(request);
 
+		/* Use sas_task_abort */
+		dev_warn(&isci_host->pdev->dev,
+			 "%s: Error - request/task = %p/%p\n",
+			 __func__,
+			 request,
+			 task);
+
 		if (task != NULL) {
 
-			if (task->task_proto & (SAS_PROTOCOL_SATA
-					      | SAS_PROTOCOL_SMP
-					      | SAS_PROTOCOL_STP)) {
-				/* SATA/STP and SMP tasks are not put into the
-				 * error path because of those protocols'
-				 * discovery implementation in libsas.
-				 *
-				 * The only thing that can be done now is to
-				 * let the I/O timeout so that the abort
-				 * task interface will be called.
-				 */
-				dev_warn(&isci_host->pdev->dev,
-					 "%s: Error - SMP/SATA/STP (%x) "
-					 "request/task = %p/%p is being left"
-					 "to time out!\n",
-					 __func__, task->task_proto, request,
-					 task);
+			/* Put the task into the abort path if it's not there
+			 * already.
+			 */
+			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED))
+				sas_task_abort(task);
 
-			} else {
-				/* Use sas_task_abort */
-				dev_warn(&isci_host->pdev->dev,
-					 "%s: Error - request/task = %p/%p\n",
-					 __func__, request, task);
-
-				/* Put the task into the abort path if it's
-				 * not there already.
-				*/
-				if (!(task->task_state_flags
-				     & SAS_TASK_STATE_ABORTED))
-					sas_task_abort(task);
-			}
 		} else {
 			/* This is a case where the request has completed with a
 			 * status such that it needed further target servicing,
