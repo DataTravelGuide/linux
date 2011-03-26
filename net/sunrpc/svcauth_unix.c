@@ -407,8 +407,7 @@ struct auth_domain *auth_unix_lookup(struct net *net, struct in6_addr *addr)
 		return NULL;
 
 	if ((ipm->m_client->addr_changes - ipm->m_add_change) >0) {
-		if (test_and_set_bit(CACHE_NEGATIVE, &ipm->h.flags) == 0)
-			auth_domain_put(&ipm->m_client->h);
+		sunrpc_invalidate(&ipm->h, &ip_map_cache);
 		rv = NULL;
 	} else {
 		rv = &ipm->m_client->h;
