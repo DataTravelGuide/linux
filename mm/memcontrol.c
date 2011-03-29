@@ -1449,6 +1449,28 @@ bypass:
 }
 
 /*
+ * Somemtimes we have to undo a charge we got by try_charge().
+ * This function is for that and do uncharge, put css's refcnt.
+ * gotten by try_charge().
+ */
+static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem,
+							unsigned long count)
+{
+	if (!mem_cgroup_is_root(mem)) {
+		res_counter_uncharge(&mem->res, PAGE_SIZE * count);
+		if (do_swap_account)
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE * count);
+	}
+}
+
+static void mem_cgroup_cancel_charge(struct mem_cgroup *mem,
+				     int page_size)
+{
+	__mem_cgroup_cancel_charge(mem, page_size >> PAGE_SHIFT);
+	css_put(&mem->css);
+}
+
+/*
  * A helper function to get mem_cgroup from ID. must be called under
  * rcu_read_lock(). The caller must check css_is_removed() or some if
  * it's concern. (dropping refcnt from swap can be called against removed
@@ -1512,12 +1534,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	lock_page_cgroup(pc);
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
-		if (!mem_cgroup_is_root(mem)) {
-			res_counter_uncharge(&mem->res, page_size);
-			if (do_swap_account)
-				res_counter_uncharge(&mem->memsw, page_size);
-		}
-		css_put(&mem->css);
+		mem_cgroup_cancel_charge(mem, page_size);
 		return;
 	}
 
@@ -1683,13 +1700,9 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	flags = compound_lock_irqsave(page);
 	/* re-check under compound_lock because the page might be split */
 	if (unlikely(page_size != PAGE_SIZE && !PageTransHuge(page))) {
-		unsigned long extra = page_size - PAGE_SIZE;
+		unsigned long extra = (page_size - PAGE_SIZE) >> PAGE_SHIFT;
 		/* uncharge extra charges from parent */
-		if (!mem_cgroup_is_root(parent)) {
-			res_counter_uncharge(&parent->res, extra);
-			if (do_swap_account)
-				res_counter_uncharge(&parent->memsw, extra);
-		}
+		__mem_cgroup_cancel_charge(parent, extra);
 		page_size = PAGE_SIZE;
 	}
 	ret = mem_cgroup_move_account(pc, child, parent, page_size);
@@ -1706,14 +1719,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 cancel:
 	put_page(page);
 uncharge:
-	/* drop extra refcnt by try_charge() */
-	css_put(&parent->css);
-	/* uncharge if move fails */
-	if (!mem_cgroup_is_root(parent)) {
-		res_counter_uncharge(&parent->res, page_size);
-		if (do_swap_account)
-			res_counter_uncharge(&parent->memsw, page_size);
-	}
+	mem_cgroup_cancel_charge(parent, page_size);
 	return ret;
 }
 
@@ -1940,12 +1946,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 		return;
 	if (!mem)
 		return;
-	if (!mem_cgroup_is_root(mem)) {
-		res_counter_uncharge(&mem->res, PAGE_SIZE);
-		if (do_swap_account)
-			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-	}
-	css_put(&mem->css);
+	mem_cgroup_cancel_charge(mem, PAGE_SIZE);
 }
 
 
