@@ -1618,6 +1618,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 28 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-128.el6]
+- [netdrv] spec: add phy drivers to initrd (Andy Gospodarek) [650907]
+
 * Mon Mar 28 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-127.el6]
 - [x86] export SMBIOS version via sysfs (Prarit Bhargava) [684329]
 - [fs] aio: fix up kabi breakage (Jeff Moyer) [690224]
