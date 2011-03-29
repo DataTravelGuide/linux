@@ -1585,28 +1585,15 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 static int mem_cgroup_move_account(struct page_cgroup *pc,
 	struct mem_cgroup *from, struct mem_cgroup *to, int page_size)
 {
-	struct mem_cgroup_per_zone *from_mz, *to_mz;
-	int nid, zid;
-	int ret = -EBUSY;
-	int cpu;
-	struct mem_cgroup_stat *stat;
-	struct mem_cgroup_stat_cpu *cpustat;
+	int ret;
 
 	VM_BUG_ON(from == to);
 	VM_BUG_ON(PageLRU(pc->page));
 
-	nid = page_cgroup_nid(pc);
-	zid = page_cgroup_zid(pc);
-	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
-	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
+	lock_page_cgroup(pc);
 
-	if (!trylock_page_cgroup(pc))
-		return ret;
-
-	if (!PageCgroupUsed(pc))
-		goto out;
-
-	if (pc->mem_cgroup != from)
+	ret = -EINVAL;
+	if (!PageCgroupUsed(pc) || pc->mem_cgroup != from)
 		goto out;
 
 	if (!mem_cgroup_is_root(from))
@@ -1614,6 +1601,9 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 	mem_cgroup_charge_statistics(from, pc, -page_size);
 
 	if (PageCgroupFileMapped(pc)) {
+		struct mem_cgroup_stat_cpu *cpustat;
+		struct mem_cgroup_stat *stat;
+		int cpu;
 		/*
 		 * We don't tace care of page_size bacause the page is file cache.
 		 */
@@ -1671,8 +1661,11 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	if (!pcg)
 		return -EINVAL;
 
-
-	parent = mem_cgroup_from_cont(pcg);
+	ret = -EBUSY;
+	if (!get_page_unless_zero(page))
+		goto out;
+	if (isolate_lru_page(page))
+		goto put;
 
 	if (PageTransHuge(page)) {
 		/*
@@ -1682,20 +1675,11 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 		page_size = HPAGE_SIZE;
 	}
 
+	parent = mem_cgroup_from_cont(pcg);
 	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false, page,
 				      page_size);
 	if (ret || !parent)
-		return ret;
-
-	if (!get_page_unless_zero(page)) {
-		ret = -EBUSY;
-		goto uncharge;
-	}
-
-	ret = isolate_lru_page(page);
-
-	if (ret)
-		goto cancel;
+		goto put_back;
 
 	flags = compound_lock_irqsave(page);
 	/* re-check under compound_lock because the page might be split */
@@ -1708,18 +1692,15 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	ret = mem_cgroup_move_account(pc, child, parent, page_size);
 	compound_unlock_irqrestore(page, flags);
 
+	if (!ret)
+		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
+	else
+		mem_cgroup_cancel_charge(parent, page_size); /* does css_put */
+put_back:
 	putback_lru_page(page);
-	if (!ret) {
-		put_page(page);
-		/* drop extra refcnt by try_charge() */
-		css_put(&parent->css);
-		return 0;
-	}
-
-cancel:
+put:
 	put_page(page);
-uncharge:
-	mem_cgroup_cancel_charge(parent, page_size);
+out:
 	return ret;
 }
 
