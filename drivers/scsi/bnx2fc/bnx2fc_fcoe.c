@@ -677,10 +677,11 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 
 		if (ecmd.speed == SPEED_1000)
 			lport->link_speed = FC_PORTSPEED_1GBIT;
-		if (ecmd.speed == SPEED_10000)
+		else if (ecmd.speed == SPEED_2500)
+			lport->link_speed = FC_PORTSPEED_2GBIT;
+		else if (ecmd.speed == SPEED_10000)
 			lport->link_speed = FC_PORTSPEED_10GBIT;
 	}
-	return;
 }
 static int bnx2fc_link_ok(struct fc_lport *lport)
 {
