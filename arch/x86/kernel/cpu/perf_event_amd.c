@@ -404,28 +404,6 @@ static __initconst const struct x86_pmu amd_pmu = {
 #define AMD_EVENT_NB		0x000000E0ULL ... 0x000000F0ULL
 
 /*
- * AMD family 15h PMC/MSR address mapping:
- */
-
-unsigned int eventsel_f15h[] = {
-	MSR_F15H_PERF_CTL,
-	MSR_F15H_PERF_CTL + 2,
-	MSR_F15H_PERF_CTL + 4,
-	MSR_F15H_PERF_CTL + 6,
-	MSR_F15H_PERF_CTL + 8,
-	MSR_F15H_PERF_CTL + 10,
-};
-
-unsigned int perfctr_f15h[] = {
-	MSR_F15H_PERF_CTR,
-	MSR_F15H_PERF_CTR + 2,
-	MSR_F15H_PERF_CTR + 4,
-	MSR_F15H_PERF_CTR + 6,
-	MSR_F15H_PERF_CTR + 8,
-	MSR_F15H_PERF_CTR + 10,
-};
-
-/*
  * AMD family 15h event code/PMC mappings:
  *
  * type = event_code & 0x0F0:
@@ -544,11 +522,11 @@ static __initconst const struct x86_pmu amd_pmu_f15h = {
 	.disable		= x86_pmu_disable_event,
 	.hw_config		= amd_pmu_hw_config,
 	.schedule_events	= x86_schedule_events,
-	.eventsel_map		= eventsel_f15h,
-	.perfctr_map		= perfctr_f15h,
+	.eventsel		= MSR_F15H_PERF_CTL,
+	.perfctr		= MSR_F15H_PERF_CTR,
 	.event_map		= amd_pmu_event_map,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
-	.num_counters		= ARRAY_SIZE(eventsel_f15h),
+	.num_counters		= 6,
 	.cntval_bits		= 48,
 	.cntval_mask		= (1ULL << 48) - 1,
 	.apic			= 1,
@@ -571,11 +549,19 @@ static __init int amd_pmu_init(void)
 	if (boot_cpu_data.x86 < 6)
 		return -ENODEV;
 
+	/*
+	 * If core performance counter extensions exists, it must be
+	 * family 15h, otherwise fail. See x86_pmu_addr_offset().
+	 */
 	switch (boot_cpu_data.x86) {
 	case 0x15:
+		if (!cpu_has_perfctr_core)
+			return -ENODEV;
 		x86_pmu = amd_pmu_f15h;
 		break;
 	default:
+		if (cpu_has_perfctr_core)
+			return -ENODEV;
 		x86_pmu = amd_pmu;
 		break;
 	}

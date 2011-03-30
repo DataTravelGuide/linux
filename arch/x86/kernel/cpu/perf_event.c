@@ -203,10 +203,8 @@ struct x86_pmu {
 	void		(*disable)(struct perf_event *);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
-	unsigned int	eventsel;
-	unsigned int	perfctr;
-	unsigned int	*eventsel_map;
-	unsigned int	*perfctr_map;
+	unsigned	eventsel;
+	unsigned	perfctr;
 	u64		(*event_map)(int);
 	int		max_events;
 	int		num_counters;
@@ -324,20 +322,22 @@ again:
 	return new_raw_count;
 }
 
+/* using X86_FEATURE_PERFCTR_CORE to later implement ALTERNATIVE() here */
+static inline int x86_pmu_addr_offset(int index)
+{
+	if (boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
+		return index << 1;
+	return index;
+}
+
 static inline unsigned int x86_pmu_config_addr(int index)
 {
-	if (x86_pmu.eventsel_map)
-		return x86_pmu.eventsel_map[index];
-
-	return x86_pmu.eventsel + index;
+	return x86_pmu.eventsel + x86_pmu_addr_offset(index);
 }
 
 static inline unsigned int x86_pmu_event_addr(int index)
 {
-	if (x86_pmu.perfctr_map)
-		return x86_pmu.perfctr_map[index];
-
-	return x86_pmu.perfctr + index;
+	return x86_pmu.perfctr + x86_pmu_addr_offset(index);
 }
 
 static atomic_t active_events;
