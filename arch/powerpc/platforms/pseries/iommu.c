@@ -683,7 +683,7 @@ static void remove_ddw(struct device_node *np)
 		pr_warning("%s failed to clear tces in window.\n",
 			 np->full_name);
 	else
-		pr_warning("%s successfully cleared tces in window.\n",
+		pr_debug("%s successfully cleared tces in window.\n",
 			 np->full_name);
 
 	ret = rtas_call(ddr_avail[2], 1, 1, NULL, liobn);
@@ -692,7 +692,7 @@ static void remove_ddw(struct device_node *np)
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np->full_name, ret, ddr_avail[2], liobn);
 	else
-		pr_warning("%s: successfully removed direct window: rtas returned "
+		pr_debug("%s: successfully removed direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np->full_name, ret, ddr_avail[2], liobn);
 }
@@ -704,7 +704,7 @@ static int dupe_ddw_if_already_created(struct pci_dev *dev, struct device_node *
 	struct pci_dn *pcidn;
 	struct direct_window *window;
 	const struct dynamic_dma_window_prop *direct64;
-	u64 dma_addr;
+	u64 dma_addr = 0;
 
 	dn = pci_device_to_OF_node(dev);
 	pcidn = PCI_DN(dn);
@@ -729,7 +729,7 @@ static u64 dupe_ddw_if_kexec(struct pci_dev *dev, struct device_node *pdn)
 	int len;
 	struct direct_window *window;
 	const struct dynamic_dma_window_prop *direct64;
-	u64 dma_addr;
+	u64 dma_addr = 0;
 
 	dn = pci_device_to_OF_node(dev);
 	pcidn = PCI_DN(dn);
@@ -761,7 +761,7 @@ static int query_ddw(struct pci_dev *dev, const u32 *ddr_avail,
 	int ret;
 
 	/*
-	 * Get the config address and phb build of the PE window.
+	 * Get the config address and phb buid of the PE window.
 	 * Rely on eeh to retrieve this for us.
 	 * Retrieve them from the pci device, not the node with the
 	 * dma-window property
@@ -791,7 +791,7 @@ static int create_ddw(struct pci_dev *dev, const u32 *ddr_avail,
 	int ret;
 
 	/*
-	 * Get the config address and phb build of the PE window.
+	 * Get the config address and phb buid of the PE window.
 	 * Rely on eeh to retrieve this for us.
 	 * Retrieve them from the pci device, not the node with the
 	 * dma-window property
@@ -863,7 +863,7 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	if (!ddr_avail || len < 3 * sizeof(u32))
 		goto out_unlock;
 
-	/*
+       /*
 	 * Query if there is a second window of size to map the
 	 * whole partition.  Query returns number of windows, largest
 	 * block assigned to PE (partition endpoint), and two bitmasks
@@ -956,7 +956,6 @@ static u64 enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 	spin_unlock(&direct_window_list_lock);
 
 	dma_addr = of_read_number(&create.addr_hi, 2);
-	set_dma_offset(&dev->dev, dma_addr);
 	goto out_unlock;
 
 out_clear_window:
