@@ -3620,7 +3620,6 @@ qla82xx_watchdog(scsi_qla_host_t *vha)
 			set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		} else {
-			qla82xx_check_fw_alive(vha);
 			if (qla82xx_check_fw_alive(vha)) {
 				halt_status = qla82xx_rd_32(ha,
 				    QLA82XX_PEG_HALT_STATUS1);
