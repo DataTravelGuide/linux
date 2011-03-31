@@ -161,6 +161,13 @@ MODULE_PARM_DESC(ql2xdbwr,
 	" 0 -- Regular doorbell.\n"
 	" 1 -- CAMRAM doorbell (faster).\n");
 
+int ql2xdontresethba;
+module_param(ql2xdontresethba, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xdontresethba,
+	"Option to specify reset behaviour\n"
+	" 0 (Default) -- Reset on failure.\n"
+	" 1 -- Do not reset on failure.\n");
+
 int ql2xasynctmfenable;
 module_param(ql2xasynctmfenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xasynctmfenable,
