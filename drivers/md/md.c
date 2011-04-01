@@ -2478,6 +2478,10 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			if (rdev2->raid_disk == slot)
 				return -EEXIST;
 
+		if (slot >= rdev->mddev->raid_disks &&
+		    slot >= rdev->mddev->raid_disks + rdev->mddev->delta_disks)
+			return -ENOSPC;
+
 		rdev->raid_disk = slot;
 		if (test_bit(In_sync, &rdev->flags))
 			rdev->saved_raid_disk = slot;
@@ -2495,7 +2499,8 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			/* failure here is OK */;
 		/* don't wakeup anyone, leave that to userspace. */
 	} else {
-		if (slot >= rdev->mddev->raid_disks)
+		if (slot >= rdev->mddev->raid_disks &&
+		    slot >= rdev->mddev->raid_disks + rdev->mddev->delta_disks)
 			return -ENOSPC;
 		rdev->raid_disk = slot;
 		/* assume it is working */
