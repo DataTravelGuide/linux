@@ -5587,6 +5587,8 @@ static int update_raid_disks(mddev_t *mddev, int raid_disks)
 	mddev->delta_disks = raid_disks - mddev->raid_disks;
 
 	rv = mddev->pers->check_reshape(mddev);
+	if (rv < 0)
+		mddev->delta_disks = 0;
 	return rv;
 }
 
