@@ -183,7 +183,7 @@ static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok)
 {
-	static int delay[] = {
+	static const int delay[] = {
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
 	};
 
@@ -330,33 +330,9 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
-#define VPD_ENTRY(name, len) \
-	u8 name##_kword[2]; u8 name##_len; u8 name##_data[len]
-
-/*
- * Partial EEPROM Vital Product Data structure.  Includes only the ID and
- * VPD-R sections.
- */
-struct t4_vpd {
-	u8  id_tag;
-	u8  id_len[2];
-	u8  id_data[ID_LEN];
-	u8  vpdr_tag;
-	u8  vpdr_len[2];
-	VPD_ENTRY(pn, 16);                     /* part number */
-	VPD_ENTRY(ec, EC_LEN);                 /* EC level */
-	VPD_ENTRY(sn, SERNUM_LEN);             /* serial number */
-	VPD_ENTRY(na, 12);                     /* MAC address base */
-	VPD_ENTRY(port_type, 8);               /* port types */
-	VPD_ENTRY(gpio, 14);                   /* GPIO usage */
-	VPD_ENTRY(cclk, 6);                    /* core clock */
-	VPD_ENTRY(port_addr, 8);               /* port MDIO addresses */
-	VPD_ENTRY(rv, 1);                      /* csum */
-	u32 pad;                  /* for multiple-of-4 sizing and alignment */
-};
-
 #define EEPROM_STAT_ADDR   0x7bfc
 #define VPD_BASE           0
+#define VPD_LEN            512
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -381,16 +357,49 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	int ret;
-	struct t4_vpd vpd;
-	u8 *q = (u8 *)&vpd, csum;
+	int i, ret;
+	int ec, sn;
+	u8 vpd[VPD_LEN], csum;
+	unsigned int vpdr_len, kw_offset, id_len;
 
-	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), &vpd);
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), vpd);
 	if (ret < 0)
 		return ret;
 
-	for (csum = 0; q <= vpd.rv_data; q++)
-		csum += *q;
+	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
+		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
+		return -EINVAL;
+	}
+
+	id_len = pci_vpd_lrdt_size(vpd);
+	if (id_len > ID_LEN)
+		id_len = ID_LEN;
+
+	i = pci_vpd_find_tag(vpd, 0, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
+	if (i < 0) {
+		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
+		return -EINVAL;
+	}
+
+	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
+	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
+	if (vpdr_len + kw_offset > VPD_LEN) {
+		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
+		return -EINVAL;
+	}
+
+#define FIND_VPD_KW(var, name) do { \
+	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
+	if (var < 0) { \
+		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
+		return -EINVAL; \
+	} \
+	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
+} while (0)
+
+	FIND_VPD_KW(i, "RV");
+	for (csum = 0; i >= 0; i--)
+		csum += vpd[i];
 
 	if (csum) {
 		dev_err(adapter->pdev_dev,
@@ -398,12 +407,16 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		return -EINVAL;
 	}
 
-	p->cclk = simple_strtoul(vpd.cclk_data, NULL, 10);
-	memcpy(p->id, vpd.id_data, sizeof(vpd.id_data));
+	FIND_VPD_KW(ec, "EC");
+	FIND_VPD_KW(sn, "SN");
+#undef FIND_VPD_KW
+
+	memcpy(p->id, vpd + PCI_VPD_LRDT_TAG_SIZE, id_len);
 	strim(p->id);
-	memcpy(p->ec, vpd.ec_data, sizeof(vpd.ec_data));
+	memcpy(p->ec, vpd + ec, EC_LEN);
 	strim(p->ec);
-	memcpy(p->sn, vpd.sn_data, sizeof(vpd.sn_data));
+	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
+	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
 	return 0;
 }
@@ -905,7 +918,7 @@ static int t4_handle_intr_status(struct adapter *adapter, unsigned int reg,
  */
 static void pcie_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info sysbus_intr_info[] = {
+	static const struct intr_info sysbus_intr_info[] = {
 		{ RNPP, "RXNP array parity error", -1, 1 },
 		{ RPCP, "RXPC array parity error", -1, 1 },
 		{ RCIP, "RXCIF array parity error", -1, 1 },
@@ -913,7 +926,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{ RFTP, "RXFT array parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info pcie_port_intr_info[] = {
+	static const struct intr_info pcie_port_intr_info[] = {
 		{ TPCP, "TXPC array parity error", -1, 1 },
 		{ TNPP, "TXNP array parity error", -1, 1 },
 		{ TFTP, "TXFT array parity error", -1, 1 },
@@ -925,7 +938,7 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{ TDUE, "Tx uncorrectable data error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info pcie_intr_info[] = {
+	static const struct intr_info pcie_intr_info[] = {
 		{ MSIADDRLPERR, "MSI AddrL parity error", -1, 1 },
 		{ MSIADDRHPERR, "MSI AddrH parity error", -1, 1 },
 		{ MSIDATAPERR, "MSI data parity error", -1, 1 },
@@ -977,7 +990,7 @@ static void pcie_intr_handler(struct adapter *adapter)
  */
 static void tp_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info tp_intr_info[] = {
+	static const struct intr_info tp_intr_info[] = {
 		{ 0x3fffffff, "TP parity error", -1, 1 },
 		{ FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1 },
 		{ 0 }
@@ -994,7 +1007,7 @@ static void sge_intr_handler(struct adapter *adapter)
 {
 	u64 v;
 
-	static struct intr_info sge_intr_info[] = {
+	static const struct intr_info sge_intr_info[] = {
 		{ ERR_CPL_EXCEED_IQE_SIZE,
 		  "SGE received CPL exceeding IQE size", -1, 1 },
 		{ ERR_INVALID_CIDX_INC,
@@ -1039,7 +1052,7 @@ static void sge_intr_handler(struct adapter *adapter)
  */
 static void cim_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info cim_intr_info[] = {
+	static const struct intr_info cim_intr_info[] = {
 		{ PREFDROPINT, "CIM control register prefetch drop", -1, 1 },
 		{ OBQPARERR, "CIM OBQ parity error", -1, 1 },
 		{ IBQPARERR, "CIM IBQ parity error", -1, 1 },
@@ -1049,7 +1062,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ TIEQOUTPARERRINT, "CIM TIEQ incoming parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info cim_upintr_info[] = {
+	static const struct intr_info cim_upintr_info[] = {
 		{ RSVDSPACEINT, "CIM reserved space access", -1, 1 },
 		{ ILLTRANSINT, "CIM illegal transaction", -1, 1 },
 		{ ILLWRINT, "CIM illegal write", -1, 1 },
@@ -1096,7 +1109,7 @@ static void cim_intr_handler(struct adapter *adapter)
  */
 static void ulprx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info ulprx_intr_info[] = {
+	static const struct intr_info ulprx_intr_info[] = {
 		{ 0x1800000, "ULPRX context error", -1, 1 },
 		{ 0x7fffff, "ULPRX parity error", -1, 1 },
 		{ 0 }
@@ -1111,7 +1124,7 @@ static void ulprx_intr_handler(struct adapter *adapter)
  */
 static void ulptx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info ulptx_intr_info[] = {
+	static const struct intr_info ulptx_intr_info[] = {
 		{ PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds", -1,
 		  0 },
 		{ PBL_BOUND_ERR_CH2, "ULPTX channel 2 PBL out of bounds", -1,
@@ -1133,7 +1146,7 @@ static void ulptx_intr_handler(struct adapter *adapter)
  */
 static void pmtx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info pmtx_intr_info[] = {
+	static const struct intr_info pmtx_intr_info[] = {
 		{ PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large", -1, 1 },
 		{ PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large", -1, 1 },
 		{ PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large", -1, 1 },
@@ -1155,7 +1168,7 @@ static void pmtx_intr_handler(struct adapter *adapter)
  */
 static void pmrx_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info pmrx_intr_info[] = {
+	static const struct intr_info pmrx_intr_info[] = {
 		{ ZERO_E_CMD_ERROR, "PMRX 0-length pcmd", -1, 1 },
 		{ PMRX_FRAMING_ERROR, "PMRX framing error", -1, 1 },
 		{ OCSPI_PAR_ERROR, "PMRX ocspi parity error", -1, 1 },
@@ -1174,7 +1187,7 @@ static void pmrx_intr_handler(struct adapter *adapter)
  */
 static void cplsw_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info cplsw_intr_info[] = {
+	static const struct intr_info cplsw_intr_info[] = {
 		{ CIM_OP_MAP_PERR, "CPLSW CIM op_map parity error", -1, 1 },
 		{ CIM_OVFL_ERROR, "CPLSW CIM overflow", -1, 1 },
 		{ TP_FRAMING_ERROR, "CPLSW TP framing error", -1, 1 },
@@ -1193,7 +1206,7 @@ static void cplsw_intr_handler(struct adapter *adapter)
  */
 static void le_intr_handler(struct adapter *adap)
 {
-	static struct intr_info le_intr_info[] = {
+	static const struct intr_info le_intr_info[] = {
 		{ LIPMISS, "LE LIP miss", -1, 0 },
 		{ LIP0, "LE 0 LIP error", -1, 0 },
 		{ PARITYERR, "LE parity error", -1, 1 },
@@ -1211,11 +1224,11 @@ static void le_intr_handler(struct adapter *adap)
  */
 static void mps_intr_handler(struct adapter *adapter)
 {
-	static struct intr_info mps_rx_intr_info[] = {
+	static const struct intr_info mps_rx_intr_info[] = {
 		{ 0xffffff, "MPS Rx parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_tx_intr_info[] = {
+	static const struct intr_info mps_tx_intr_info[] = {
 		{ TPFIFO, "MPS Tx TP FIFO parity error", -1, 1 },
 		{ NCSIFIFO, "MPS Tx NC-SI FIFO parity error", -1, 1 },
 		{ TXDATAFIFO, "MPS Tx data FIFO parity error", -1, 1 },
@@ -1225,25 +1238,25 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ FRMERR, "MPS Tx framing error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_trc_intr_info[] = {
+	static const struct intr_info mps_trc_intr_info[] = {
 		{ FILTMEM, "MPS TRC filter parity error", -1, 1 },
 		{ PKTFIFO, "MPS TRC packet FIFO parity error", -1, 1 },
 		{ MISCPERR, "MPS TRC misc parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_sram_intr_info[] = {
+	static const struct intr_info mps_stat_sram_intr_info[] = {
 		{ 0x1fffff, "MPS statistics SRAM parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_tx_intr_info[] = {
+	static const struct intr_info mps_stat_tx_intr_info[] = {
 		{ 0xfffff, "MPS statistics Tx FIFO parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_stat_rx_intr_info[] = {
+	static const struct intr_info mps_stat_rx_intr_info[] = {
 		{ 0xffffff, "MPS statistics Rx FIFO parity error", -1, 1 },
 		{ 0 }
 	};
-	static struct intr_info mps_cls_intr_info[] = {
+	static const struct intr_info mps_cls_intr_info[] = {
 		{ MATCHSRAM, "MPS match SRAM parity error", -1, 1 },
 		{ MATCHTCAM, "MPS match TCAM parity error", -1, 1 },
 		{ HASHSRAM, "MPS hash SRAM parity error", -1, 1 },
@@ -1342,7 +1355,7 @@ static void ma_intr_handler(struct adapter *adap)
  */
 static void smb_intr_handler(struct adapter *adap)
 {
-	static struct intr_info smb_intr_info[] = {
+	static const struct intr_info smb_intr_info[] = {
 		{ MSTTXFIFOPARINT, "SMB master Tx FIFO parity error", -1, 1 },
 		{ MSTRXFIFOPARINT, "SMB master Rx FIFO parity error", -1, 1 },
 		{ SLVFIFOPARINT, "SMB slave FIFO parity error", -1, 1 },
@@ -1358,7 +1371,7 @@ static void smb_intr_handler(struct adapter *adap)
  */
 static void ncsi_intr_handler(struct adapter *adap)
 {
-	static struct intr_info ncsi_intr_info[] = {
+	static const struct intr_info ncsi_intr_info[] = {
 		{ CIM_DM_PRTY_ERR, "NC-SI CIM parity error", -1, 1 },
 		{ MPS_DM_PRTY_ERR, "NC-SI MPS parity error", -1, 1 },
 		{ TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error", -1, 1 },
@@ -1396,7 +1409,7 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
  */
 static void pl_intr_handler(struct adapter *adap)
 {
-	static struct intr_info pl_intr_info[] = {
+	static const struct intr_info pl_intr_info[] = {
 		{ FATALPERR, "T4 fatal parity error", -1, 1 },
 		{ PERRVFID, "PL VFID_MAP parity error", -1, 1 },
 		{ 0 }
@@ -2787,8 +2800,11 @@ int __devinit t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 	u8 addr[6];
 	int ret, i, j = 0;
 	struct fw_port_cmd c;
+	struct fw_rss_vi_config_cmd rvc;
 
 	memset(&c, 0, sizeof(c));
+	memset(&rvc, 0, sizeof(rvc));
+
 
 	for_each_port(adap, i) {
 		unsigned int rss_size;
@@ -2824,6 +2840,15 @@ int __devinit t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 			FW_PORT_CMD_MDIOADDR_GET(ret) : -1;
 		p->port_type = FW_PORT_CMD_PTYPE_GET(ret);
 		p->mod_type = FW_PORT_MOD_TYPE_NA;
+
+		rvc.op_to_viid = htonl(FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
+					FW_CMD_REQUEST | FW_CMD_READ |
+					FW_RSS_VI_CONFIG_CMD_VIID(p->viid));
+		rvc.retval_len16 = htonl(FW_LEN16(rvc));
+		ret = t4_wr_mbox(adap, mbox, &rvc, sizeof(rvc), &rvc);
+		if (ret)
+			return ret;
+		p->rss_mode = ntohl(rvc.u.basicvirtual.defaultq_to_udpen);
 
 		init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 		j++;

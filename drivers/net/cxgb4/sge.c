@@ -230,7 +230,6 @@ out_err:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_NEED_DMA_MAP_STATE
 static void unmap_skb(struct device *dev, const struct sk_buff *skb,
 		      const dma_addr_t *addr)
 {
@@ -257,7 +256,25 @@ static void deferred_unmap_destructor(struct sk_buff *skb)
 {
 	unmap_skb(skb->dev->dev.parent, skb, (dma_addr_t *)skb->head);
 }
-#endif
+
+/**
+ *	need_skb_unmap - does the platform need unmapping of sk_buffs?
+ *
+ *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
+ *	optimizes away unecessary code if this returns true.
+ */
+static inline int need_skb_unmap(void)
+{
+	/*
+	 * This structure is used to tell if the platfrom needs buffer
+	 * unmapping by checking if DECLARE_PCI_UNMAP_ADDR defines anything.
+	 */
+	struct dummy {
+		DECLARE_PCI_UNMAP_ADDR(addr);
+	};
+
+	return sizeof(struct dummy) != 0;
+}
 
 static void unmap_sgl(struct device *dev, const struct sk_buff *skb,
 		      const struct ulptx_sgl *sgl, const struct sge_txq *q)
@@ -335,10 +352,12 @@ static void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 	unsigned int cidx = q->cidx;
 	struct device *dev = adap->pdev_dev;
 
+	const int need_unmap = need_skb_unmap() && unmap;
+
 	d = &q->sdesc[cidx];
 	while (n--) {
 		if (d->skb) {                       /* an SGL is present */
-			if (unmap)
+			if (need_unmap)
 				unmap_sgl(dev, d->skb, d->sgl, q);
 			kfree_skb(d->skb);
 			d->skb = NULL;
@@ -1281,10 +1300,12 @@ static void service_ofldq(struct sge_ofld_txq *q)
 			write_sgl(skb, &q->q, (void *)pos + hdr_len,
 				  pos + flits, hdr_len,
 				  (dma_addr_t *)skb->head);
-#ifdef CONFIG_NEED_DMA_MAP_STATE
-			skb->dev = q->adap->port[0];
-			skb->destructor = deferred_unmap_destructor;
-#endif
+
+			if (need_skb_unmap()) {
+				skb->dev = q->adap->port[0];
+				skb->destructor = deferred_unmap_destructor;
+			}
+
 			last_desc = q->q.pidx + ndesc - 1;
 			if (last_desc >= q->q.size)
 				last_desc -= q->q.size;
@@ -1600,7 +1621,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(pkt->vlan_ex)) {
 		struct vlan_group *grp = pi->vlan_grp;
@@ -2022,6 +2043,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 
 		flsz = fl->size / 8 + STAT_LEN / sizeof(struct tx_desc);
 		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN |
+					    FW_IQ_CMD_FL0FETCHRO(1) |
+					    FW_IQ_CMD_FL0DATARO(1) |
 					    FW_IQ_CMD_FL0PADEN);
 		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN(2) |
 				FW_IQ_CMD_FL0FBMAX(3));
@@ -2114,6 +2137,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	c.viid_pkd = htonl(FW_EQ_ETH_CMD_VIID(pi->viid));
 	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
 				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_ETH_CMD_FETCHRO(1) |
 				   FW_EQ_ETH_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN(2) |
 				  FW_EQ_ETH_CMD_FBMAX(3) |
@@ -2166,6 +2190,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	c.physeqid_pkd = htonl(0);
 	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE(2) |
 				   FW_EQ_CTRL_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_CTRL_CMD_FETCHRO |
 				   FW_EQ_CTRL_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN(2) |
 				  FW_EQ_CTRL_CMD_FBMAX(3) |
@@ -2215,6 +2240,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
 				   FW_EQ_OFLD_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_OFLD_CMD_FETCHRO(1) |
 				   FW_EQ_OFLD_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN(2) |
 				  FW_EQ_OFLD_CMD_FBMAX(3) |

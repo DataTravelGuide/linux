@@ -294,7 +294,9 @@ struct port_info {
 	u8     rx_offload;            /* CSO, etc */
 	u8     nqsets;                /* # of qsets */
 	u8     first_qset;            /* index of first qset */
+	u8     rss_mode;
 	struct link_config link_cfg;
+	u16   *rss;
 };
 
 /* port_info.rx_offload flags */
@@ -481,11 +483,9 @@ struct adapter {
 	void __iomem *regs;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
-	unsigned long registered_device_map;
 	unsigned int fn;
 	unsigned int flags;
 
-	const char *name;
 	int msg_enable;
 
 	struct adapter_params params;
@@ -496,7 +496,7 @@ struct adapter {
 
 	struct {
 		unsigned short vec;
-		char desc[14];
+		char desc[IFNAMSIZ + 10];
 	} msix_info[MAX_INGQ + 1];
 
 	struct sge sge;
