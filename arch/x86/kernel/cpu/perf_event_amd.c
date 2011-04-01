@@ -102,6 +102,7 @@ static const u64 amd_perfmon_event_map[] =
   [PERF_COUNT_HW_CACHE_MISSES]		= 0x0081,
   [PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c2,
   [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c3,
+  [PERF_COUNT_HW_NMI_WATCHDOG]		= 0x0076,
 };
 
 static u64 amd_pmu_event_map(int hw_event)

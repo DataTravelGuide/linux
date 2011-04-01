@@ -12,6 +12,7 @@ static const u64 p6_perfmon_event_map[] =
   [PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c4,
   [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
   [PERF_COUNT_HW_BUS_CYCLES]		= 0x0062,
+  [PERF_COUNT_HW_NMI_WATCHDOG]		= 0x0079,
 };
 
 static u64 p6_pmu_event_map(int hw_event)
