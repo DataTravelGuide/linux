@@ -603,6 +603,8 @@ static void *raid0_takeover_raid45(mddev_t *mddev)
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->raid_disks--;
 	mddev->delta_disks = -1;
+	mddev->degraded = 0;
+	mddev->plug = NULL;
 	/* make sure it will be not marked as dirty */
 	mddev->recovery_cp = MaxSector;
 
