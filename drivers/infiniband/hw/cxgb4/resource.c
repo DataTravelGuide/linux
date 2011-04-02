@@ -33,7 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/slab.h>
-#include <linux/kfifo-new.h>
+#include <linux/kfifo.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/genalloc.h>
@@ -41,7 +41,7 @@
 
 #define RANDOM_SIZE 16
 
-static int __c4iw_init_resource_fifo(struct kfifo *fifo,
+static int __c4iw_init_resource_fifo(struct kfifo **fifo,
 				   spinlock_t *fifo_lock,
 				   u32 nr, u32 skip_low,
 				   u32 skip_high,
@@ -52,11 +52,12 @@ static int __c4iw_init_resource_fifo(struct kfifo *fifo,
 	u32 rarray[16];
 	spin_lock_init(fifo_lock);
 
-	if (kfifo_alloc(fifo, nr * sizeof(u32), GFP_KERNEL))
+	*fifo = kfifo_alloc(nr * sizeof(u32), GFP_KERNEL, fifo_lock);
+	if (IS_ERR(*fifo))
 		return -ENOMEM;
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		kfifo_in(fifo, (unsigned char *) &entry, sizeof(u32));
+		__kfifo_put(*fifo, (unsigned char *) &entry, sizeof(u32));
 	if (random) {
 		j = 0;
 		random_bytes = random32();
@@ -68,35 +69,34 @@ static int __c4iw_init_resource_fifo(struct kfifo *fifo,
 				random_bytes = random32();
 			}
 			idx = (random_bytes >> (j * 2)) & 0xF;
-			kfifo_in(fifo,
+			__kfifo_put(*fifo,
 				(unsigned char *) &rarray[idx],
 				sizeof(u32));
 			rarray[idx] = i;
 			j++;
 		}
 		for (i = 0; i < RANDOM_SIZE; i++)
-			kfifo_in(fifo,
+			__kfifo_put(*fifo,
 				(unsigned char *) &rarray[i],
 				sizeof(u32));
 	} else
 		for (i = skip_low; i < nr - skip_high; i++)
-			kfifo_in(fifo, (unsigned char *) &i, sizeof(u32));
+			__kfifo_put(*fifo, (unsigned char *) &i, sizeof(u32));
 
 	for (i = 0; i < skip_low + skip_high; i++)
-		if (kfifo_out_locked(fifo, (unsigned char *) &entry,
-				     sizeof(u32), fifo_lock))
+		if (kfifo_get(*fifo, (unsigned char *) &entry, sizeof(u32)))
 			break;
 	return 0;
 }
 
-static int c4iw_init_resource_fifo(struct kfifo *fifo, spinlock_t * fifo_lock,
+static int c4iw_init_resource_fifo(struct kfifo **fifo, spinlock_t * fifo_lock,
 				   u32 nr, u32 skip_low, u32 skip_high)
 {
 	return __c4iw_init_resource_fifo(fifo, fifo_lock, nr, skip_low,
 					  skip_high, 0);
 }
 
-static int c4iw_init_resource_fifo_random(struct kfifo *fifo,
+static int c4iw_init_resource_fifo_random(struct kfifo **fifo,
 				   spinlock_t *fifo_lock,
 				   u32 nr, u32 skip_low, u32 skip_high)
 {
@@ -110,14 +110,15 @@ static int c4iw_init_qid_fifo(struct c4iw_rdev *rdev)
 
 	spin_lock_init(&rdev->resource.qid_fifo_lock);
 
-	if (kfifo_alloc(&rdev->resource.qid_fifo, rdev->lldi.vr->qp.size *
-			sizeof(u32), GFP_KERNEL))
+	rdev->resource.qid_fifo = kfifo_alloc(rdev->lldi.vr->qp.size *
+			sizeof(u32), GFP_KERNEL, &rdev->resource.qid_fifo_lock);
+	if (IS_ERR(rdev->resource.qid_fifo))
 		return -ENOMEM;
 
 	for (i = rdev->lldi.vr->qp.start;
 	     i < rdev->lldi.vr->qp.start + rdev->lldi.vr->qp.size; i++)
 		if (!(i & rdev->qpmask))
-			kfifo_in(&rdev->resource.qid_fifo,
+			__kfifo_put(rdev->resource.qid_fifo,
 				    (unsigned char *) &i, sizeof(u32));
 	return 0;
 }
@@ -141,9 +142,9 @@ int c4iw_init_resource(struct c4iw_rdev *rdev, u32 nr_tpt, u32 nr_pdid)
 		goto pdid_err;
 	return 0;
 pdid_err:
-	kfifo_free(&rdev->resource.qid_fifo);
+	kfifo_free(rdev->resource.qid_fifo);
 qid_err:
-	kfifo_free(&rdev->resource.tpt_fifo);
+	kfifo_free(rdev->resource.tpt_fifo);
 tpt_err:
 	return -ENOMEM;
 }
@@ -151,19 +152,19 @@ tpt_err:
 /*
  * returns 0 if no resource available
  */
-u32 c4iw_get_resource(struct kfifo *fifo, spinlock_t *lock)
+u32 c4iw_get_resource(struct kfifo *fifo)
 {
 	u32 entry;
-	if (kfifo_out_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock))
+	if (kfifo_get(fifo, (unsigned char *) &entry, sizeof(u32)))
 		return entry;
 	else
 		return 0;
 }
 
-void c4iw_put_resource(struct kfifo *fifo, u32 entry, spinlock_t *lock)
+void c4iw_put_resource(struct kfifo *fifo, u32 entry)
 {
 	PDBG("%s entry 0x%x\n", __func__, entry);
-	kfifo_in_locked(fifo, (unsigned char *) &entry, sizeof(u32), lock);
+	kfifo_put(fifo, (unsigned char *) &entry, sizeof(u32));
 }
 
 u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
@@ -180,8 +181,7 @@ u32 c4iw_get_cqid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		qid = entry->qid;
 		kfree(entry);
 	} else {
-		qid = c4iw_get_resource(&rdev->resource.qid_fifo,
-					&rdev->resource.qid_fifo_lock);
+		qid = c4iw_get_resource(rdev->resource.qid_fifo);
 		if (!qid)
 			goto out;
 		for (i = qid+1; i & rdev->qpmask; i++) {
@@ -244,8 +244,7 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx)
 		qid = entry->qid;
 		kfree(entry);
 	} else {
-		qid = c4iw_get_resource(&rdev->resource.qid_fifo,
-					&rdev->resource.qid_fifo_lock);
+		qid = c4iw_get_resource(rdev->resource.qid_fifo);
 		if (!qid)
 			goto out;
 		for (i = qid+1; i & rdev->qpmask; i++) {
@@ -296,9 +295,9 @@ void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 
 void c4iw_destroy_resource(struct c4iw_resource *rscp)
 {
-	kfifo_free(&rscp->tpt_fifo);
-	kfifo_free(&rscp->qid_fifo);
-	kfifo_free(&rscp->pdid_fifo);
+	kfifo_free(rscp->tpt_fifo);
+	kfifo_free(rscp->qid_fifo);
+	kfifo_free(rscp->pdid_fifo);
 }
 
 /*

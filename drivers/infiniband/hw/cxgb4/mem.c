@@ -131,8 +131,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	stag_idx = (*stag) >> 8;
 
 	if ((!reset_tpt_entry) && (*stag == T4_STAG_UNSET)) {
-		stag_idx = c4iw_get_resource(&rdev->resource.tpt_fifo,
-					     &rdev->resource.tpt_fifo_lock);
+		stag_idx = c4iw_get_resource(rdev->resource.tpt_fifo);
 		if (!stag_idx)
 			return -ENOMEM;
 		*stag = (stag_idx << 8) | (atomic_inc_return(&key) & 0xff);
@@ -166,8 +165,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 				sizeof(tpt), &tpt);
 
 	if (reset_tpt_entry)
-		c4iw_put_resource(&rdev->resource.tpt_fifo, stag_idx,
-				  &rdev->resource.tpt_fifo_lock);
+		c4iw_put_resource(rdev->resource.tpt_fifo, stag_idx);
 	return err;
 }
 

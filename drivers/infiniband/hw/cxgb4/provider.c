@@ -195,8 +195,7 @@ static int c4iw_deallocate_pd(struct ib_pd *pd)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	PDBG("%s ibpd %p pdid 0x%x\n", __func__, pd, php->pdid);
-	c4iw_put_resource(&rhp->rdev.resource.pdid_fifo, php->pdid,
-			  &rhp->rdev.resource.pdid_fifo_lock);
+	c4iw_put_resource(rhp->rdev.resource.pdid_fifo, php->pdid);
 	kfree(php);
 	return 0;
 }
@@ -211,14 +210,12 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 
 	PDBG("%s ibdev %p\n", __func__, ibdev);
 	rhp = (struct c4iw_dev *) ibdev;
-	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_fifo,
-				  &rhp->rdev.resource.pdid_fifo_lock);
+	pdid =  c4iw_get_resource(rhp->rdev.resource.pdid_fifo);
 	if (!pdid)
 		return ERR_PTR(-EINVAL);
 	php = kzalloc(sizeof(*php), GFP_KERNEL);
 	if (!php) {
-		c4iw_put_resource(&rhp->rdev.resource.pdid_fifo, pdid,
-				  &rhp->rdev.resource.pdid_fifo_lock);
+		c4iw_put_resource(rhp->rdev.resource.pdid_fifo, pdid);
 		return ERR_PTR(-ENOMEM);
 	}
 	php->pdid = pdid;
