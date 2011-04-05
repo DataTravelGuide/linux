@@ -411,8 +411,10 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L)
+		if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
+			wacom->features->type == WACOM_21UX2) {
 			t = (t << 1) | (data[1] & 1);
+		}
 		wacom_report_abs(wcombo, ABS_PRESSURE, t);
 		wacom_report_abs(wcombo, ABS_TILT_X,
 				((data[7] << 1) & 0x7e) | (data[8] >> 7));
