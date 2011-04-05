@@ -310,7 +310,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			case 0x823: /* Intuos3 Grip Pen */
 			case 0x813: /* Intuos3 Classic Pen */
 			case 0x885: /* Intuos3 Marker Pen */
-			case 0x802: /* Intuos4 Grip Pen Eraser */
+			case 0x802: /* Intuos4 General Pen Eraser */
 			case 0x804: /* Intuos4 Marker Pen */
 			case 0x40802: /* Intuos4 Classic Pen */
 			case 0x022:
@@ -341,7 +341,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			case 0x81b: /* Intuos3 Classic Pen Eraser */
 			case 0x91b: /* Intuos3 Airbrush Eraser */
 			case 0x80c: /* Intuos4 Marker Pen Eraser */
-			case 0x80a: /* Intuos4 Grip Pen Eraser */
+			case 0x80a: /* Intuos4 General Pen Eraser */
 			case 0x4080a: /* Intuos4 Classic Pen Eraser */
 			case 0x90a: /* Intuos4 Airbrush Eraser */
 				wacom->tool[idx] = BTN_TOOL_RUBBER;
@@ -358,6 +358,11 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 		}
 		return 1;
 	}
+
+	/* older I4 styli don't work with new Cintiqs */
+	if (!((wacom->id[idx] >> 20) & 0x01) &&
+			(wacom->features->type == WACOM_21UX2))
+		return 1;
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
@@ -473,21 +478,43 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_abs(wcombo, ABS_MISC, 0);
 			}
 		} else {
-			wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
-			wacom_report_key(wcombo, BTN_1, (data[5] & 0x02));
-			wacom_report_key(wcombo, BTN_2, (data[5] & 0x04));
-			wacom_report_key(wcombo, BTN_3, (data[5] & 0x08));
-			wacom_report_key(wcombo, BTN_4, (data[6] & 0x01));
-			wacom_report_key(wcombo, BTN_5, (data[6] & 0x02));
-			wacom_report_key(wcombo, BTN_6, (data[6] & 0x04));
-			wacom_report_key(wcombo, BTN_7, (data[6] & 0x08));
-			wacom_report_key(wcombo, BTN_8, (data[5] & 0x10));
-			wacom_report_key(wcombo, BTN_9, (data[6] & 0x10));
+			if (wacom->features->type == WACOM_21UX2) {
+				wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
+				wacom_report_key(wcombo, BTN_1, (data[6] & 0x01));
+				wacom_report_key(wcombo, BTN_2, (data[6] & 0x02));
+				wacom_report_key(wcombo, BTN_3, (data[6] & 0x04));
+				wacom_report_key(wcombo, BTN_4, (data[6] & 0x08));
+				wacom_report_key(wcombo, BTN_5, (data[6] & 0x10));
+				wacom_report_key(wcombo, BTN_6, (data[6] & 0x20));
+				wacom_report_key(wcombo, BTN_7, (data[6] & 0x40));
+				wacom_report_key(wcombo, BTN_8, (data[6] & 0x80));
+				wacom_report_key(wcombo, BTN_9, (data[7] & 0x01));
+				wacom_report_key(wcombo, BTN_A, (data[8] & 0x01));
+				wacom_report_key(wcombo, BTN_B, (data[8] & 0x02));
+				wacom_report_key(wcombo, BTN_C, (data[8] & 0x04));
+				wacom_report_key(wcombo, BTN_X, (data[8] & 0x08));
+				wacom_report_key(wcombo, BTN_Y, (data[8] & 0x10));
+				wacom_report_key(wcombo, BTN_Z, (data[8] & 0x20));
+				wacom_report_key(wcombo, BTN_BASE, (data[8] & 0x40));
+				wacom_report_key(wcombo, BTN_BASE2, (data[8] & 0x80));
+			} else {
+				wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
+				wacom_report_key(wcombo, BTN_1, (data[5] & 0x02));
+				wacom_report_key(wcombo, BTN_2, (data[5] & 0x04));
+				wacom_report_key(wcombo, BTN_3, (data[5] & 0x08));
+				wacom_report_key(wcombo, BTN_4, (data[6] & 0x01));
+				wacom_report_key(wcombo, BTN_5, (data[6] & 0x02));
+				wacom_report_key(wcombo, BTN_6, (data[6] & 0x04));
+				wacom_report_key(wcombo, BTN_7, (data[6] & 0x08));
+				wacom_report_key(wcombo, BTN_8, (data[5] & 0x10));
+				wacom_report_key(wcombo, BTN_9, (data[6] & 0x10));
+			}
 			wacom_report_abs(wcombo, ABS_RX, ((data[1] & 0x1f) << 8) | data[2]);
 			wacom_report_abs(wcombo, ABS_RY, ((data[3] & 0x1f) << 8) | data[4]);
 
 			if ((data[5] & 0x1f) | (data[6] & 0x1f) | (data[1] & 0x1f) |
-				data[2] | (data[3] & 0x1f) | data[4]) {
+				data[2] | (data[3] & 0x1f) | data[4] | data[8] |
+				(data[7] & 0x01)) {
 				wacom_report_key(wcombo, wacom->tool[1], 1);
 				wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
 			} else {
@@ -748,6 +775,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case INTUOS4L:
 		case CINTIQ:
 		case WACOM_BEE:
+		case WACOM_21UX2:
 			return wacom_intuos_irq(wacom_wac, wcombo);
 
 		case TABLETPC:
@@ -770,6 +798,9 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 		case GRAPHIRE:
 			input_dev_g(input_dev, wacom_wac);
 			break;
+		case WACOM_21UX2:
+			input_dev_c21ux2(input_dev, wacom_wac);
+			/* fall through */
 		case WACOM_BEE:
 			input_dev_bee(input_dev, wacom_wac);
 		case INTUOS3:
@@ -856,10 +887,12 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos4 6x9",   10, 44704, 27940, 2047, 63, INTUOS4 },
 	{ "Wacom Intuos4 8x13",  10, 65024, 40640, 2047, 63, INTUOS4L },
 	{ "Wacom Intuos4 12x19", 10, 97536, 60960, 2047, 63, INTUOS4L },
+	{ "Wacom Intuos4 WL",    10, 40840, 25400, 2047, 63, INTUOS4 },
 	{ "Wacom Cintiq 21UX",   10, 87200, 65600, 1023, 63, CINTIQ },
 	{ "Wacom Cintiq 20WSX",  10, 86680, 54180, 1023, 63, WACOM_BEE },
 	{ "Wacom Cintiq 12WX",   10, 53020, 33440, 1023, 63, WACOM_BEE },
 	{ "Wacom DTU1931",        8, 37832, 30305,  511,  0, PL },
+	{ "Wacom Cintiq 21UX2",  10, 87200, 65600, 2047, 63, WACOM_21UX2 },
 	{ "Wacom ISDv4 90",       8, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom ISDv4 93",       8, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom ISDv4 9A",       8, 26202, 16325,  255,  0, TABLETPC },
@@ -920,10 +953,12 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xB9) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xBA) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xBB) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xBC) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x3F) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC5) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC6) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC7) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xCC) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x90) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x93) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x9A) },
