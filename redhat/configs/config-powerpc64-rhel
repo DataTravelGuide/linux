@@ -54,3 +54,5 @@ CONFIG_PSERIES_ENERGY=m
 # CONFIG_DLM is not set
 # CONFIG_DLM_DEBUG is not set
 # CONFIG_SPARSEMEM_VMEMMAP is not set
+# CONFIG_ZRAM is not set
+# CONFIG_ZRAM_DEBUG is not set
