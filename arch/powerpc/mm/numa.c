@@ -1356,7 +1356,8 @@ int start_topology_update(void)
 {
 	int rc = 0;
 
-	if (firmware_has_feature(FW_FEATURE_VPHN)) {
+	/* Disabled until races with load balancing are fixed */
+	if (0 && firmware_has_feature(FW_FEATURE_VPHN)) {
 		vphn_enabled = 1;
 		setup_cpu_associativity_change_counters();
 		init_timer_deferrable(&topology_timer);
