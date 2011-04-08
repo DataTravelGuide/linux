@@ -956,7 +956,7 @@ export AFTER_LINK=\
 
 cp_vmlinux()
 {
-  eu-strip --remove-comment -o "$2" "$1"
+  strip -R .note -R .comment -o "$2" "$1"
 }
 
 BuildKernel() {
