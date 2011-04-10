@@ -1798,17 +1798,6 @@ static int fcoe_disable(struct net_device *netdev)
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
 
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
@@ -1820,7 +1809,6 @@ static int fcoe_disable(struct net_device *netdev)
 	} else
 		rc = -ENODEV;
 
-out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1839,17 +1827,6 @@ static int fcoe_enable(struct net_device *netdev)
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
@@ -1859,7 +1836,6 @@ static int fcoe_enable(struct net_device *netdev)
 	else if (!fcoe_link_ok(fcoe->ctlr.lp))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 
-out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1878,17 +1854,6 @@ static int fcoe_destroy(struct net_device *netdev)
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
@@ -1952,18 +1917,6 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 
 	mutex_lock(&fcoe_config_mutex);
 	rtnl_lock();
-
-#ifdef CONFIG_FCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module paramter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
-#endif
 
 	/* look for existing lport */
 	if (fcoe_hostlist_lookup(netdev)) {
