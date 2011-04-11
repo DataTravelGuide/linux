@@ -234,6 +234,7 @@ static void dtl_disable(struct dtl *dtl)
 	kfree(dtl->buf);
 	dtl->buf = NULL;
 	dtl->buf_entries = 0;
+	spin_unlock(&dtl->lock);
 }
 
 /* file interface */
