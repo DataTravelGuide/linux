@@ -1441,6 +1441,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 0;
 
+	vmcs_write16(GUEST_TR_SELECTOR, vmx->rmode.tr.selector);
 	vmcs_writel(GUEST_TR_BASE, vmx->rmode.tr.base);
 	vmcs_write32(GUEST_TR_LIMIT, vmx->rmode.tr.limit);
 	vmcs_write32(GUEST_TR_AR_BYTES, vmx->rmode.tr.ar);
@@ -1526,6 +1527,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	}
 
+	vmx->rmode.tr.selector = vmcs_read16(GUEST_TR_SELECTOR);
 	vmx->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
 
