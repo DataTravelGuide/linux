@@ -807,9 +807,12 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 			/* fall through */
 		case WACOM_BEE:
 			input_dev_bee(input_dev, wacom_wac);
+                        /* fall through */
+                case CINTIQ:
+                        input_dev_cintiq(input_dev, wacom_wac);
+                        break;
 		case INTUOS3:
 		case INTUOS3L:
-		case CINTIQ:
 			input_dev_i3(input_dev, wacom_wac);
 			/* fall through */
 		case INTUOS3S:
