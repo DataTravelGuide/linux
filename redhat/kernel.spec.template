@@ -1629,6 +1629,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Apr 11 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-131.el6]
+- [tracing] t_start: reset FTRACE_ITER_HASH in case of seek/pread (Jiri Olsa) [631626] {CVE-2010-3079}
+- [scsi] scsi_dh_rdac: fix for lun_table update for rdac (Rob Evers) [687878]
+- [usb] EHCI: unlink unused QHs when the controller is stopped (Don Zickus) [680987]
+- [fs] Revert "[fs] sunrpc: Use static const char arrays" (Steve Dickson) [690754]
+- [fs] sunrpc: Propagate errors from xs_bind() through xs_create_sock() (Steve Dickson) [689777]
+- [net] netfilter: ipt_CLUSTERIP: fix buffer overflow (Jiri Pirko) [689342]
+- [net] ipv6: netfilter: ip6_tables: fix infoleak to userspace (Jiri Pirko) [689351] {CVE-2011-1172}
+- [net] netfilter: ip_tables: fix infoleak to userspace (Jiri Pirko) [689334] {CVE-2011-1171}
+- [net] netfilter: arp_tables: fix infoleak to userspace (Jiri Pirko) [689325] {CVE-2011-1170}
+- [kernel] remove kernel-debuginfo-common requires from perf-debuginfo (Jason Baron) [682012]
+- [drm] radeon/kms: check AA resolve registers on r300 + regression fix (Dave Airlie) [680002] {CVE-2011-1016}
+- [net] fix ebtables stack infoleak (Eugene Teo) [681323] {CVE-2011-1080}
+- [drm] fix unsigned vs signed comparison issue in modeset ctl ioctl (Don Howard) [679928] {CVE-2011-1013}
+- [fs] svcrpc: take advantage of tcp autotuning (J. Bruce Fields) [629030]
+- [fs] SUNRPC: Don't wait for full record to receive tcp data (J. Bruce Fields) [629030]
+- [net] svcrpc: copy cb reply instead of pages (J. Bruce Fields) [629030]
+- [fs] svcrpc: close connection if client sends short packet (J. Bruce Fields) [629030]
+- [fs] svcrpc: note network-order types in svc_process_calldir (J. Bruce Fields) [629030]
+- [fs] SUNRPC: svc_tcp_recvfrom cleanup (J. Bruce Fields) [629030]
+- [fs] SUNRPC: requeue tcp socket less frequently (J. Bruce Fields) [629030]
+- [fs] rpc: move sk_bc_xprt to svc_xprt (J. Bruce Fields) [629030]
+- [acpi] ACPICA: Truncate I/O addresses to 16 bits for Windows compatibility (Frank Arnold) [593766]
+
 * Tue Apr 05 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-130.el6]
 - [kernel] kcore: restrict access to the whole memory (Amerigo Wang) [663864]
 - [scsi] libsas: flush initial device discovery before completing ->scan_finished (David Milburn) [682265]
