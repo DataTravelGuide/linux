@@ -1399,22 +1399,10 @@ fi\
 %{expand:%%posttrans %{?1}}\
 %{expand:\
 NEWKERNARGS=""\
-CRASHKERNELARGS=""\
-AVAILMEM="$(free -m | awk '/^Mem:/{print $2}')"\
-%ifarch %{all_x86} x86_64\
-RESERVEDMEM="$((128+${AVAILMEM}/8192))"\
-CRASHKERNELARGS="crashkernel=4G-:${RESERVEDMEM}M"\
-%endif\
-%ifarch ppc64\
-power(){ local p=1;for((;p<$1;p*=2));do :;done;echo $p;}\
-RESERVEDMEM="$((${AVAILMEM}/32))"\
-RESERVEDMEM="$(power $RESERVEDMEM)"\
-CRASHKERNELARGS="crashkernel=8G-128G:${RESERVEDMEM}M,128G-:4G"\
-%endif\
 (/sbin/grubby --info=`/sbin/grubby --default-kernel`) 2>/dev/null | grep -q crashkernel\
 if [ $? -ne 0 ]\
 then\
-	NEWKERNARGS="--kernel-args=\"${CRASHKERNELARGS}\""\
+	NEWKERNARGS="--kernel-args=\"crashkernel=auto\""\
 fi\
 %if %{with_dracut}\
 /sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --dracut --depmod --update %{KVERREL}%{?1:.%{1}} $NEWKERNARGS || exit $?\
