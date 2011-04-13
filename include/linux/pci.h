@@ -312,6 +312,8 @@ struct pci_dev {
 
 struct pci_dev_rh1 {
 	unsigned int    __aer_firmware_first_valid:1;
+	unsigned int	__pcie_osc_capabilities_valid:1;
+	unsigned int	pcie_osc_capabilities;
 };
 
 extern struct pci_dev *alloc_pci_dev(void);

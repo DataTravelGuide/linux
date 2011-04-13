@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
@@ -235,13 +236,17 @@ static void cleanup_service_irqs(struct pci_dev *dev)
  *
  * Return value: Bitmask of discovered port capabilities
  */
-static int get_port_device_capability(struct pci_dev *dev)
+int pcie_get_port_device_capability(struct pci_dev *dev)
 {
 	int services = 0, pos;
 	u16 reg16;
 	u32 reg32;
 	int cap_mask;
 	int err;
+	struct pci_dev_rh1 *rh1_pci = dev->rh_reserved1;
+
+	if (rh1_pci->__pcie_osc_capabilities_valid)
+		return rh1_pci->pcie_osc_capabilities;
 
 	err = pcie_port_platform_notify(dev, &cap_mask);
 	if (pcie_ports_auto) {
@@ -275,6 +280,9 @@ static int get_port_device_capability(struct pci_dev *dev)
 	if ((cap_mask & PCIE_PORT_SERVICE_PME)
 	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
 		services |= PCIE_PORT_SERVICE_PME;
+
+	rh1_pci->pcie_osc_capabilities = services;
+	rh1_pci->__pcie_osc_capabilities_valid = 1;
 
 	return services;
 }
@@ -342,7 +350,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	int irqs[PCIE_PORT_DEVICE_MAXSERVICES];
 
 	/* Get and check PCI Express port services */
-	capabilities = get_port_device_capability(dev);
+	capabilities = pcie_get_port_device_capability(dev);
 	if (!capabilities)
 		return -ENODEV;
 
