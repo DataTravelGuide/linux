@@ -257,6 +257,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
                                struct ixgbe_dcb_config *dcb_config)
 {
 	u32 i, reg, rx_pba_size;
+	u8 pfc_en = 0;
 
 	/* If PFC is disabled globally then fall back to LFC. */
 	if (!dcb_config->pfc_mode_enable) {
@@ -298,12 +299,22 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 
 	/*
 	 * Enable Receive PFC
-	 * We will always honor XOFF frames we receive when
-	 * we are in PFC mode.
+	 * 82599 will always honor XOFF frames we receive when
+	 * we are in PFC mode however X540 only honors enabled
+		 * traffic classes.
 	 */
+
+	/* ripped from upstream ixgbe_dcb_unpack_pfc */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+		pfc_en |= (dcb_config->tc_config[i].dcb_pfc & 0xF) << i;
+
 	reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 	reg &= ~IXGBE_MFLCN_RFCE;
 	reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
+
+	if (hw->mac.type == ixgbe_mac_X540)
+		reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
+
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 out:
 	return 0;
