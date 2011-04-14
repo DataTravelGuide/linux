@@ -519,6 +519,18 @@ static void mce_report_event(struct pt_regs *regs)
 #endif
 }
 
+static int westmere;
+
+static int
+mce_quirk(int bank, struct mce *m)
+{
+	if (westmere && bank == 6 && ((m->status >> 16) & 0xffff) == 0x2000) {
+		mce_wrmsrl(MSR_IA32_MCx_STATUS(6), 0);
+		return 1;
+	}
+	return 0;
+}
+
 DEFINE_PER_CPU(unsigned, mce_poll_count);
 
 /*
@@ -558,6 +570,9 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		barrier();
 		m.status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if (!(m.status & MCI_STATUS_VAL))
+			continue;
+
+		if (mce_quirk(i, &m))
 			continue;
 
 		/*
@@ -1357,6 +1372,12 @@ static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		 */
 		if (c->x86 == 6 && c->x86_model <= 13 && mce_bootlog < 0)
 			mce_bootlog = 0;
+
+		/*
+		 * Westmere-EX systems can report spurious corrected errors
+		 */
+		if (c->x86 == 6 && c->x86_model == 47)
+			westmere = 1;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
