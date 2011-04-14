@@ -335,7 +335,7 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
 {
-	set_bit(KVM_REQ_NMI, &vcpu->requests);
+	vcpu->arch.nmi_pending = 1;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_nmi);
 
@@ -4360,8 +4360,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			vcpu->fpu_active = 0;
 			kvm_x86_ops->fpu_deactivate(vcpu);
 		}
-		if (test_and_clear_bit(KVM_REQ_NMI, &vcpu->requests))
-			vcpu->arch.nmi_pending = true;
 	}
 
 	preempt_disable();
