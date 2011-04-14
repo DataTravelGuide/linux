@@ -37,6 +37,7 @@
 #define IXGBE_82598_RAR_ENTRIES   16
 #define IXGBE_82598_MC_TBL_SIZE  128
 #define IXGBE_82598_VFT_TBL_SIZE 128
+#define IXGBE_82598_RX_PB_SIZE	 512
 
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
@@ -203,6 +204,8 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 	s32 ret_val = 0;
 
 	ret_val = ixgbe_start_hw_generic(hw);
+
+	hw->mac.rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 
 	/* set the completion timeout for interface */
 	if (ret_val == 0)
