@@ -244,6 +244,13 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
+	/* gracefully handle 82576 NICs reporting an invalid EEPROM size */
+	if ((hw->mac.type == e1000_82576) && (size > 15)) {
+		printk(KERN_ERR
+		       "igb: The NVM size is not valid, defaulting to 16K\n");
+		size = 14;
+	}
+
 	nvm->word_size = 1 << size;
 	if (nvm->word_size == (1 << 15))
 		nvm->page_size = 128;
