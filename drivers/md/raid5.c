@@ -5241,6 +5241,7 @@ static int stop(mddev_t *mddev)
 	plugger_flush(&conf->plug); /* the unplug fn references 'conf'*/
 	free_conf(conf);
 	mddev->private = NULL;
+	mddev->plug = NULL;
 	mddev->to_remove = &raid5_attrs_group;
 	return 0;
 }
