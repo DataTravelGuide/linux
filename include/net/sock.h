@@ -328,6 +328,13 @@ struct sock_extended {
 			__u32 rxhash;
 		} inet_sock_extended;
 	};
+
+	/*
+	 * Expansion space for sock backlog length
+	 */
+	struct {
+		int len;
+	} sk_backlog;
 };
 
 #define SOCK_EXTENDED_SIZE ALIGN(sizeof(struct sock_extended), sizeof(long))
@@ -597,8 +604,8 @@ static inline int sk_stream_memory_free(struct sock *sk)
 	return sk->sk_wmem_queued < sk->sk_sndbuf;
 }
 
-/* The per-socket spinlock must be held here. */
-static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
+/* OOB backlog add */
+static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	if (!sk->sk_backlog.tail) {
 		sk->sk_backlog.head = sk->sk_backlog.tail = skb;
@@ -607,6 +614,28 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 		sk->sk_backlog.tail = skb;
 	}
 	skb->next = NULL;
+}
+
+/*
+ * Take into account size of receive queue and backlog queue
+ */
+static inline bool sk_rcvqueues_full(const struct sock *sk, const struct sk_buff *skb)
+{
+	unsigned int qsize = sk_extended(sk)->sk_backlog.len +
+			     atomic_read(&sk->sk_rmem_alloc);
+
+	return qsize + skb->truesize > sk->sk_rcvbuf;
+}
+
+/* The per-socket spinlock must be held here. */
+static inline __must_check int sk_add_backlog(struct sock *sk, struct sk_buff *skb)
+{
+	if (sk_rcvqueues_full(sk, skb))
+		return -ENOBUFS;
+
+	__sk_add_backlog(sk, skb);
+	sk_extended(sk)->sk_backlog.len += skb->truesize;
+	return 0;
 }
 
 static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
