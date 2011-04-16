@@ -332,11 +332,10 @@ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
 }
 
 static struct mem_cgroup_per_zone *
-page_cgroup_zoneinfo(struct page_cgroup *pc)
+page_cgroup_zoneinfo(struct mem_cgroup *mem, struct page *page)
 {
-	struct mem_cgroup *mem = pc->mem_cgroup;
-	int nid = page_cgroup_nid(pc);
-	int zid = page_cgroup_zid(pc);
+	int nid = page_to_nid(page);
+	int zid = page_zonenum(page);
 
 	return mem_cgroup_zoneinfo(mem, nid, zid);
 }
@@ -691,7 +690,7 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 	 */
 	if (unlikely(PageTransHuge(page)))
 		numpages = 1 << compound_order(page);
-	mz = page_cgroup_zoneinfo(pc);
+	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	MEM_CGROUP_ZSTAT(mz, lru) -= numpages;
 	if (mem_cgroup_is_root(pc->mem_cgroup))
 		return;
@@ -721,7 +720,7 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
 	smp_rmb();
 	if (mem_cgroup_is_root(pc->mem_cgroup))
 		return;
-	mz = page_cgroup_zoneinfo(pc);
+	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	list_move(&pc->lru, &mz->lists[lru]);
 }
 
@@ -739,7 +738,7 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 		return;
 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
 	smp_rmb();
-	mz = page_cgroup_zoneinfo(pc);
+	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	if (unlikely(PageTransHuge(page)))
 		numpages = 1 << compound_order(page);
 	MEM_CGROUP_ZSTAT(mz, lru) += numpages;
@@ -938,7 +937,7 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 		return NULL;
 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
 	smp_rmb();
-	mz = page_cgroup_zoneinfo(pc);
+	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	if (!mz)
 		return NULL;
 
@@ -2028,7 +2027,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
-	struct mem_cgroup_per_zone *mz;
 	int page_size = PAGE_SIZE;
 
 	if (PageTransHuge(page))
@@ -2089,8 +2087,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	 * to be reused (freed soon). Exception is SwapCache, it's handled by
 	 * special functions.
 	 */
-
-	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
 
 	if (mem_cgroup_soft_limit_check(mem))
@@ -2163,7 +2159,7 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
  	 * the target is added to lru. we're under zone->lru_lock
  	 */
 	if (PageCgroupAcctLRU(origin)) {
-		mz = page_cgroup_zoneinfo(origin);
+		mz = page_cgroup_zoneinfo(origin->mem_cgroup, head);
 		MEM_CGROUP_ZSTAT(mz, page_lru(head)) -= 1;
 	}
 }
