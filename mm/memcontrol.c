@@ -972,9 +972,11 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		if (scan >= nr_to_scan)
 			break;
 
-		page = pc->page;
 		if (unlikely(!PageCgroupUsed(pc)))
 			continue;
+
+		page = pc->page;
+
 		if (unlikely(!PageLRU(page)))
 			continue;
 
@@ -1655,6 +1657,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 
 /**
  * mem_cgroup_move_account - move account of the page
+ * @page: the page
  * @pc:	page_cgroup of the page.
  * @from: mem_cgroup which the page is moved from.
  * @to:	mem_cgroup which the page is moved to. @from != @to.
@@ -1672,16 +1675,14 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
  * If @uncharge is true, this function does "uncharge" from @from,
  * otherwise this is up to the caller as well.
  */
-
-static int mem_cgroup_move_account(struct page_cgroup *pc,
-				   struct mem_cgroup *from,
-				   struct mem_cgroup *to,
+static int mem_cgroup_move_account(struct page *page, struct page_cgroup *pc,
+				   struct mem_cgroup *from, struct mem_cgroup *to,
 				   int page_size, bool uncharge)
 {
 	int ret;
 
 	VM_BUG_ON(from == to);
-	VM_BUG_ON(PageLRU(pc->page));
+	VM_BUG_ON(PageLRU(page));
 
 	lock_page_cgroup(pc);
 
@@ -1735,11 +1736,11 @@ out:
  * move charges to its parent.
  */
 
-static int mem_cgroup_move_parent(struct page_cgroup *pc,
+static int mem_cgroup_move_parent(struct page *page,
+				  struct page_cgroup *pc,
 				  struct mem_cgroup *child,
 				  gfp_t gfp_mask)
 {
-	struct page *page = pc->page;
 	struct cgroup *cg = child->css.cgroup;
 	struct cgroup *pcg = cg->parent;
 	struct mem_cgroup *parent;
@@ -1779,7 +1780,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 		__mem_cgroup_cancel_charge(parent, extra);
 		page_size = PAGE_SIZE;
 	}
-	ret = mem_cgroup_move_account(pc, child, parent, page_size, true);
+	ret = mem_cgroup_move_account(page, pc, child, parent, page_size, true);
 	compound_unlock_irqrestore(page, flags);
 
 	if (ret)
@@ -2680,6 +2681,8 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
 	loop += 256;
 	busy = NULL;
 	while (loop--) {
+		struct page *page;
+
 		ret = 0;
 		spin_lock_irqsave(&zone->lru_lock, flags);
 		if (list_empty(list)) {
@@ -2695,7 +2698,9 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
 		}
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 
-		ret = mem_cgroup_move_parent(pc, mem, GFP_KERNEL);
+		page = pc->page;
+
+		ret = mem_cgroup_move_parent(page, pc, mem, GFP_KERNEL);
 		if (ret == -ENOMEM)
 			break;
 
@@ -3948,8 +3953,8 @@ retry:
 			if (isolate_lru_page(page))
 				goto put;
 			pc = lookup_page_cgroup(page);
-			if (!mem_cgroup_move_account(pc, mc.from, mc.to,
-							PAGE_SIZE, false)) {
+			if (!mem_cgroup_move_account(page, pc, mc.from, mc.to,
+						     PAGE_SIZE, false)) {
 				mc.precharge--;
 				/* we uncharge from mc.from later. */
 				mc.moved_charge++;
