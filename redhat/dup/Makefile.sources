@@ -14,7 +14,4 @@ drivers/net/benet/be_cmds.h \
 drivers/net/benet/be.h \
 drivers/net/benet/be_cmds.c
 
-DUP_MAKEFILE_be2net= \
-drivers/net/benet/Makefile
-
 DUP_VERSION_be2net="2.102.426r"

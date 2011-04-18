@@ -55,7 +55,6 @@ endif
 
 SOURCES=$(DUP_SOURCE_$(DUP_DRIVER))
 SOURCES_DIR=$(DUP_DRIVER)-$(DUP_VERSION)
-MAKEFILE=$(DUP_MAKEFILE_$(DUP_DRIVER))
 PATCH=$(DUP_PATCH_$(DUP_DRIVER))
 
 # no dashes in the rpm Version tag
@@ -64,10 +63,6 @@ DUP_VERSION=`echo $(DUP_VERSION_REAL) | sed 's/-/_/g'`
 
 ifeq ($(SOURCES),)
 $(error No source specified for '$(DUP_DRIVER)' driver, edit Makefile.sources))
-endif
-
-ifeq ($(MAKEFILE),)
-$(error No build specified for '$(DUP_DRIVER)' driver, edit Makefile.sources))
 endif
 
 endif # not all_dups or all_check_version
@@ -83,7 +78,7 @@ check_version:
 	fi; \
 	echo "OK"
 
-all: check_version rh-dup-rpm copy_output
+all: rh-dup-rpm copy_output
 	DUP_SRPMS="$(DUP_COPY)/*src.rpm" ./redhat/dup/create_disk.sh $(DUP_COPY)/kmod*.rpm
 	mkdir -p $(DUP_BUILD_DIR); \
 	mv dd.iso $(DUP_BUILD_DIR)/dd-$(DUP_DRIVER)-$(DUP_VERSION)-$(ARCH).iso
@@ -130,7 +125,6 @@ create_tmp:
 
 sources_tar_copy:
 	cp $(SOURCES) $(TMP_DIR)/$(SOURCES_DIR)
-	cp $(MAKEFILE) $(TMP_DIR)/$(SOURCES_DIR)
 
 sources_tar_patch:
 	(cd $(TMP_DIR)/$(SOURCES_DIR); \
