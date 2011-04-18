@@ -99,15 +99,11 @@ static int			cpu_missing;
 ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
 EXPORT_SYMBOL_GPL(x86_mce_decoder_chain);
 
-#define CORRECTED 1
-
 static int default_decode_mce(struct notifier_block *nb, unsigned long val,
 			       void *data)
 {
-	if (val != CORRECTED) { 
-		pr_emerg(HW_ERR "No human readable MCE decoding support on this CPU type.\n");
-		pr_emerg(HW_ERR "Run the message through 'mcelog --ascii' to decode.\n");
-	}
+	pr_emerg(HW_ERR "No human readable MCE decoding support on this CPU type.\n");
+	pr_emerg(HW_ERR "Run the message through 'mcelog --ascii' to decode.\n");
 
 	return NOTIFY_STOP;
 }
@@ -587,8 +583,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 */
 		if (!(flags & MCP_DONTLOG) && !mce_dont_log_ce) {
 			mce_log(&m);
-			atomic_notifier_call_chain(&x86_mce_decoder_chain, 
-						   CORRECTED, &m);
+			atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, &m);
 			add_taint(TAINT_MACHINE_CHECK);
 		}
 
