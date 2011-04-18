@@ -1629,6 +1629,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Apr 18 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-133.el6]
+- [virt] x86: better fix for race between nmi injection and enabling nmi window (Marcelo Tosatti) [684719]
+- [virt] x86: revert "fix race between nmi injection and enabling nmi window" (Marcelo Tosatti) [684719]
+
 * Tue Apr 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-132.el6]
 - [mm] pdpte registers are not flushed when PGD entry is changed in x86 PAE mode (Larry Woodman) [691310]
 - [drm] i915: backports from stable to fix some regressions (Dave Airlie) [690865]
