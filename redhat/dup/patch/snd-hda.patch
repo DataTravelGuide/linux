@@ -1,0 +1,35 @@
+diff --git a/dup.h b/dup.h
+new file mode 100644
+index 0000000..f5ab93f
+--- /dev/null
++++ b/dup.h
+@@ -0,0 +1,5 @@
++#ifndef DUP_H
++
++#define TLV_DB_SCALE_MUTE       0x10000
++
++#endif /* DUP_H */
+diff --git a/hda_codec.c b/hda_codec.c
+index 98b6d02..7b2df9c 100644
+--- a/hda_codec.c
++++ b/hda_codec.c
+@@ -32,6 +32,7 @@
+ #include "hda_local.h"
+ #include "hda_beep.h"
+ #include <sound/hda_hwdep.h>
++#include "dup.h"
+ 
+ /*
+  * vendor / preset table
+diff --git a/patch_sigmatel.c b/patch_sigmatel.c
+index 6131a92..aed6ac9 100644
+--- a/patch_sigmatel.c
++++ b/patch_sigmatel.c
+@@ -36,6 +36,7 @@
+ #include "hda_codec.h"
+ #include "hda_local.h"
+ #include "hda_beep.h"
++#include "dup.h"
+ 
+ enum {
+ 	STAC_VREF_EVENT	= 1,

@@ -1,6 +1,6 @@
 
 # for all_dups target
-DUP_ALL="be2net hpwdt"
+DUP_ALL="be2net hpwdt snd-hda"
 
 # be2net sources
 
@@ -26,3 +26,51 @@ DUP_VERSION_hpwdt="1.2.0"
 
 DUP_PATCH_hpwdt= \
 redhat/dup/patch/hpwdt.patch
+
+
+# hda sources
+
+DUP_SOURCE_snd-hda= \
+sound/pci/hda/hda_codec.h \
+sound/pci/hda/patch_ca0110.c \
+sound/pci/hda/patch_cirrus.c \
+sound/pci/hda/patch_conexant.c \
+sound/pci/hda/hda_intel.c \
+sound/pci/hda/patch_realtek.c \
+sound/pci/hda/hda_hwdep.c \
+sound/pci/hda/patch_hdmi.c \
+sound/pci/hda/hda_codec.c \
+sound/pci/hda/patch_si3054.c \
+sound/pci/hda/hda_beep.c \
+sound/pci/hda/patch_cmedia.c \
+sound/pci/hda/hda_proc.c \
+sound/pci/hda/Kconfig \
+sound/pci/hda/hda_eld.c \
+sound/pci/hda/hda_beep.h \
+sound/pci/hda/patch_analog.c \
+sound/pci/hda/Makefile \
+sound/pci/hda/hda_generic.c \
+sound/pci/hda/patch_nvhdmi.c \
+sound/pci/hda/patch_intelhdmi.c \
+sound/pci/hda/patch_via.c \
+sound/pci/hda/hda_local.h \
+sound/pci/hda/patch_sigmatel.c \
+sound/pci/hda/patch_atihdmi.c
+
+DUP_VERSION_snd-hda="1.0"
+
+DUP_MODULES_snd-hda=\
+snd-hda-intel \
+snd-hda-codec \
+snd-hda-codec-analog \
+snd-hda-codec-ca0110 \
+snd-hda-codec-cirrus \
+snd-hda-codec-cmedia \
+snd-hda-codec-conexant \
+snd-hda-codec-idt \
+snd-hda-codec-realtek \
+snd-hda-codec-si3054 \
+snd-hda-codec-via \
+
+DUP_PATCH_snd-hda= \
+redhat/dup/patch/snd-hda.patch
