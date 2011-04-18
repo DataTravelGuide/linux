@@ -189,6 +189,26 @@ source of driver's setup.
 	DUP_VERSION_be2net="2.102.115r"
 
 
+
+Multiple driver rpm
+===================
+
+It's possible to create an kmod rpm containing multiple drivers. Such rpm is
+not to be used within an DUP disp, since there's no anaconda support. It's
+meant to be used for distribution of multiple drivers, which are not needed
+during the installation, eg sound drivers.
+
+Example for rpm called snd-hda rpm containing 2 drivers
+snd-hda-intel, snd-hda-codec:
+
+	DUP_MODULES_snd-hda=\
+		snd-hda-intel \
+		snd-hda-codec
+
+The rest of the configuration stays as before, with using 'snd-hda' as the
+drivers name, eg DUP_SOURCE_snd-hda.
+
+
 Contact
 =======
 

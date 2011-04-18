@@ -53,6 +53,12 @@ ifeq ($(DUP_COPY),)
 DUP_COPY=$(TMP_DIR)/copy
 endif
 
+# multiple modules within the build
+DUP_MODULES=$(DUP_MODULES_$(DUP_DRIVER))
+ifeq ($(DUP_MODULES),)
+DUP_MODULES=$(DUP_DRIVER)
+endif
+
 SOURCES=$(DUP_SOURCE_$(DUP_DRIVER))
 SOURCES_DIR=$(DUP_DRIVER)-$(DUP_VERSION)
 PATCH=$(DUP_PATCH_$(DUP_DRIVER))
@@ -142,9 +148,12 @@ dotfiles:
 	redhat/dup/template.files > $(TMP_DIR)/SOURCES/$(DUP_DRIVER).files
 
 dotconf:
-	$(PROG_M4) \
-	-D DUP_KMOD_NAME=$(DUP_DRIVER) \
-	redhat/dup/template.conf > $(TMP_DIR)/SOURCES/$(DUP_DRIVER).conf
+	for mod in `echo $(DUP_MODULES)`; \
+	do \
+		$(PROG_M4) \
+		-D DUP_KMOD_NAME1=$$mod -D DUP_KMOD_NAME2=$(DUP_DRIVER) \
+		redhat/dup/template.conf >> $(TMP_DIR)/SOURCES/$(DUP_DRIVER).conf; \
+	done;
 
 spec:
 	$(PROG_M4) \
