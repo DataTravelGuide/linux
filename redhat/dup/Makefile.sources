@@ -1,6 +1,6 @@
 
 # for all_dups target
-DUP_ALL="be2net"
+DUP_ALL="be2net hpwdt"
 
 # be2net sources
 
@@ -15,3 +15,14 @@ drivers/net/benet/be.h \
 drivers/net/benet/be_cmds.c
 
 DUP_VERSION_be2net="2.102.426r"
+
+
+# hpwdt sources
+
+DUP_SOURCE_hpwdt= \
+drivers/watchdog/hpwdt.c
+
+DUP_VERSION_hpwdt="1.2.0"
+
+DUP_PATCH_hpwdt= \
+redhat/dup/patch/hpwdt.patch
