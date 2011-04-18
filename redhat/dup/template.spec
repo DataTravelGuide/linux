@@ -20,6 +20,7 @@ License:	GPLv2
 URL:		http://www.kernel.org/
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildRequires:	%kernel_module_package_buildreqs
+ExclusiveArch:  i686 x86_64
 
 # Uncomment to build "debug" packages
 #kernel_module_package -f %{SOURCE1} default debug
