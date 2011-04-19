@@ -3180,7 +3180,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pmd)
 		return VM_FAULT_OOM;
 	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
-		if (!vma->vm_ops)
+		if (!vma->vm_ops && !vma->vm_file)
 			return do_huge_pmd_anonymous_page(mm, vma, address,
 							  pmd, flags);
 	} else {
