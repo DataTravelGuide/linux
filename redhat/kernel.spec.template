@@ -1629,6 +1629,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Apr 18 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-134.el6]
+- [net] sctp: fix the INIT/INIT-ACK chunk length calculation (Thomas Graf) [690743] {CVE-2011-1573}
+- [kernel] sched: Fix granularity of task_u/stime() (Jerome Marchand) [690998]
+- [pci] Call PCIe _OSC methods earlier (Matthew Garrett) [693974]
+- [fs] nfs: use unstable writes for groups of small DIO writes (Jeff Layton) [694309]
+- [net] CAN: Use inode instead of kernel address for /proc file (Danny Feng) [664561] {CVE-2010-4565}
+- [x86] mce: reject CEs on Westmere EX MCE bank 6 (Prarit Bhargava) [694891]
+- [scsi] libfcoe: Incorrect CVL handling for NPIV ports (Mike Christie) [694906]
+- [x86] perf: Complain louder about BIOSen corrupting CPU/PMU state and continue (Don Zickus) [694913]
+- [fs] inotify: fix double free/corruption of stuct user (Eric Paris) [656832] {CVE-2010-4250}
+- [netdrv] netxen: limit skb frags for non tso packet (Chad Dupuis) [695478]
+- [fs] nfsd4: fix oops on lock failure (J. Bruce Fields) [696376]
+- [netdrv] Return bnx2 firmware files to Makefile (John Feeney) [696365]
+- [scsi] be2iscsi: fix be2iscsi rmmod (Mike Christie) [695585]
+- [netdrv] qlcnic: limit skb frags for non tso packet (Bob Picco) [695488]
+- [md] Cleanup after raid45->raid0 takeover (Dean Nelson) [694106]
+- [md] revert "Cleanup after raid45->raid0 takeover patch" (Dean Nelson) [694106]
+- [net] bonding: fix incorrect tx queue offset (Andy Gospodarek) [695548] {CVE-2011-1581}
+- [netdrv] igb: for 82576 EEPROMs reporting invalid size default to 16kB (Stefan Assmann) [695751]
+- [pci] return correct value when writing to the "reset" attribute (Alex Williamson) [690291]
+- [kernel] Initalize call_single_queue during boot to handle left over ipi (Neil Horman) [680478]
+
 * Mon Apr 18 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-133.el6]
 - [virt] x86: better fix for race between nmi injection and enabling nmi window (Marcelo Tosatti) [684719]
 - [virt] x86: revert "fix race between nmi injection and enabling nmi window" (Marcelo Tosatti) [684719]
