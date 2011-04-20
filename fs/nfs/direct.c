@@ -870,18 +870,9 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	dreq = nfs_direct_req_alloc();
 	if (!dreq)
 		goto out;
+	nfs_alloc_commit_data(dreq);
 
-	if (count > wsize || nr_segs > 1)
-		nfs_alloc_commit_data(dreq);
-	else
-		dreq->commit_data = NULL;
-
-	/*
-	 * If we couldn't allocate commit data, or we'll just be doing a
-	 * single write, then make this a NFS_FILE_SYNC write and do away
-	 * with the commit.
-	 */
-	if (dreq->commit_data == NULL)
+	if (dreq->commit_data == NULL || count <= wsize)
 		sync = NFS_FILE_SYNC;
 
 	dreq->inode = inode;
