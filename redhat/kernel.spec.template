@@ -1629,6 +1629,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Apr 20 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-137.el6]
+- [net] bonding: fix jiffy comparison issues (Andy Gospodarek) [696337]
+
 * Wed Apr 20 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-136.el6]
 - [kernel] perf: add script command help (Jiri Olsa) [693050]
 - [drm] radeon/kms: make radeon i2c put/get bytes less noisy (Frank Arnold) [693829]
