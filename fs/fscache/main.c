@@ -48,8 +48,6 @@ static int __init fscache_init(void)
 {
 	int ret;
 
-	mark_tech_preview(NULL, THIS_MODULE);
-
 	ret = slow_work_register_user(THIS_MODULE);
 	if (ret < 0)
 		goto error_slow_work;
