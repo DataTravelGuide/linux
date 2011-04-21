@@ -1629,6 +1629,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Apr 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-138.el6]
+- [virt] x86: better fix for race between nmi injection and enabling nmi window (Aristeu Rozanski)
+- [virt] x86: revert "fix race between nmi injection and enabling nmi window" (Aristeu Rozanski)
+
 * Wed Apr 20 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-137.el6]
 - [net] bonding: fix jiffy comparison issues (Andy Gospodarek) [696337]
 
