@@ -188,11 +188,12 @@ bfad_im_info(struct Scsi_Host *shost)
 		"Brocade FCOE Adapter, " "model: %s hwpath: %s driver: %s",
 		 model, bfad->pci_name, BFAD_DRIVER_VERSION);
 		mark_tech_preview("Brocade FCOE Adapter", THIS_MODULE);
-	} else
+	} else {
 		snprintf(bfa_buf, sizeof(bfa_buf),
 		"Brocade FC Adapter, " "model: %s hwpath: %s driver: %s",
 		model, bfad->pci_name, BFAD_DRIVER_VERSION);
-
+		mark_tech_preview("Brocade FC Adapter", THIS_MODULE);
+	}
 	return bfa_buf;
 }
 

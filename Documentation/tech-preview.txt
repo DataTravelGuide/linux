@@ -21,7 +21,7 @@ LIST (provide full path)
 ========================
 DIF/DIX			block/blk-integrity.c
 bna			drivers/net/bna/bnad.c
-bfa (FCoE)		drivers/scsi/bfa/bfad_im.c
+bfa			drivers/scsi/bfa/bfad_im.c
 btrfs			fs/btrfs/super.c
 ecryptfs		fs/ecryptfs/main.c
 fscache			fs/fscache/main.c
