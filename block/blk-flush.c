@@ -219,7 +219,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 	 * request_fn may confuse the driver.  Always use kblockd.
 	 */
 	if (queued && was_empty)
-		__blk_run_queue(q, true);
+		blk_run_queue_async(q);
 }
 
 /**
@@ -276,7 +276,7 @@ static void flush_data_end_io(struct request *rq, int error)
 	 * the comment in flush_end_io().
 	 */
 	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error) && was_empty)
-		__blk_run_queue(q, true);
+		blk_run_queue_async(q);
 }
 
 /**
