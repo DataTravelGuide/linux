@@ -1259,6 +1259,7 @@ struct blk_integrity {
 	struct kobject		kobj;
 };
 
+extern bool blk_integrity_is_initialized(struct gendisk *);
 extern int blk_integrity_register(struct gendisk *, struct blk_integrity *);
 extern void blk_integrity_unregister(struct gendisk *);
 extern int blk_integrity_compare(struct gendisk *, struct gendisk *);
@@ -1294,6 +1295,7 @@ static inline int blk_integrity_rq(struct request *rq)
 #define blk_integrity_compare(a, b)		(0)
 #define blk_integrity_register(a, b)		(0)
 #define blk_integrity_unregister(a)		do { } while (0);
+#define blk_integrity_is_initialized(a)		(0)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
