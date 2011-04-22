@@ -134,8 +134,6 @@ EXPORT_SYMBOL(blk_rq_init);
 static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, int error)
 {
-	struct request_queue *q = rq->q;
-
 	if (error)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
@@ -157,11 +155,8 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 		bio_integrity_advance(bio, nbytes);
 
 	/* don't actually finish bio if it's part of flush sequence */
-	if (!(rq->cmd_flags & REQ_FLUSH_SEQ)) {
-		if (bio->bi_size == 0)
-			bio_endio(bio, error);
-	} else if (error && !q->flush_err)
-		q->flush_err = error;
+	if (bio->bi_size == 0 && !(rq->cmd_flags & REQ_FLUSH_SEQ))
+		bio_endio(bio, error);
 }
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
@@ -518,7 +513,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	init_timer(&q->unplug_timer);
 	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
 	INIT_LIST_HEAD(&q->timeout_list);
-	INIT_LIST_HEAD(&q->pending_flushes);
+	INIT_LIST_HEAD(&q->flush_queue[0]);
+	INIT_LIST_HEAD(&q->flush_queue[1]);
+	INIT_LIST_HEAD(&q->flush_data_in_flight);
 	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	kobject_init(&q->kobj, &blk_queue_ktype);
@@ -1230,7 +1227,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	spin_lock_irq(q->queue_lock);
 
 	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA)) {
-		where = ELEVATOR_INSERT_FRONT;
+		where = ELEVATOR_INSERT_FLUSH;
 		goto get_rq;
 	}
 
