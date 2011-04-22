@@ -771,7 +771,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 					unsigned long haddr)
 {
 	pgtable_t pgtable;
-	pmd_t _pmd;
+	pmd_t _pmd = {0};
 	int ret = 0, i;
 	struct page **pages;
 
@@ -1177,7 +1177,7 @@ static int __split_huge_page_map(struct page *page,
 				 unsigned long address)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	pmd_t *pmd, _pmd;
+	pmd_t *pmd, _pmd = {0};
 	int ret = 0, i;
 	pgtable_t pgtable;
 	unsigned long haddr;
