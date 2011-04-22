@@ -1777,12 +1777,6 @@ int md_integrity_register(mddev_t *mddev)
 			continue;
 		if (rdev->raid_disk < 0)
 			continue;
-		/*
-		 * If at least one rdev is not integrity capable, we can not
-		 * enable data integrity for the md device.
-		 */
-		if (!bdev_get_integrity(rdev->bdev))
-			return -EINVAL;
 		if (!reference) {
 			/* Use the first rdev as the reference */
 			reference = rdev;
@@ -1793,6 +1787,8 @@ int md_integrity_register(mddev_t *mddev)
 				rdev->bdev->bd_disk) < 0)
 			return -EINVAL;
 	}
+	if (!reference || !bdev_get_integrity(reference->bdev))
+		return 0;
 	/*
 	 * All component devices are integrity capable and have matching
 	 * profiles, register the common profile for the md device.
@@ -1803,8 +1799,12 @@ int md_integrity_register(mddev_t *mddev)
 			mdname(mddev));
 		return -EINVAL;
 	}
-	printk(KERN_NOTICE "md: data integrity on %s enabled\n",
-		mdname(mddev));
+	printk(KERN_NOTICE "md: data integrity enabled on %s\n", mdname(mddev));
+	if (bioset_integrity_create(mddev->bio_set, BIO_POOL_SIZE)) {
+		printk(KERN_ERR "md: failed to create integrity pool for %s\n",
+		       mdname(mddev));
+		return -EINVAL;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(md_integrity_register);
