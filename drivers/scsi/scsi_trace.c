@@ -252,35 +252,33 @@ scsi_trace_misc(struct trace_seq *p, unsigned char *cdb, int len)
 }
 
 const char *
-scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len, char type)
+scsi_trace_parse_cdb(struct trace_seq *p, unsigned char *cdb, int len)
 {
-	if (type == TYPE_DISK) {
-		switch (cdb[0]) {
-		case READ_6:
-		case WRITE_6:
-			return scsi_trace_rw6(p, cdb, len);
-		case READ_10:
-		case VERIFY:
-		case WRITE_10:
-		case WRITE_SAME:
-			return scsi_trace_rw10(p, cdb, len);
-		case READ_12:
-		case VERIFY_12:
-		case WRITE_12:
-			return scsi_trace_rw12(p, cdb, len);
-		case READ_16:
-		case VERIFY_16:
-		case WRITE_16:
-		case WRITE_SAME_16:
-			return scsi_trace_rw16(p, cdb, len);
-		case UNMAP:
-			return scsi_trace_unmap(p, cdb, len);
-		case SERVICE_ACTION_IN:
-			return scsi_trace_service_action_in(p, cdb, len);
-		case VARIABLE_LENGTH_CMD:
-			return scsi_trace_varlen(p, cdb, len);
-		}
+	switch (cdb[0]) {
+	case READ_6:
+	case WRITE_6:
+		return scsi_trace_rw6(p, cdb, len);
+	case READ_10:
+	case VERIFY:
+	case WRITE_10:
+	case WRITE_SAME:
+		return scsi_trace_rw10(p, cdb, len);
+	case READ_12:
+	case VERIFY_12:
+	case WRITE_12:
+		return scsi_trace_rw12(p, cdb, len);
+	case READ_16:
+	case VERIFY_16:
+	case WRITE_16:
+	case WRITE_SAME_16:
+		return scsi_trace_rw16(p, cdb, len);
+	case UNMAP:
+		return scsi_trace_unmap(p, cdb, len);
+	case SERVICE_ACTION_IN:
+		return scsi_trace_service_action_in(p, cdb, len);
+	case VARIABLE_LENGTH_CMD:
+		return scsi_trace_varlen(p, cdb, len);
+	default:
+		return scsi_trace_misc(p, cdb, len);
 	}
-
-	return scsi_trace_misc(p, cdb, len);
 }
