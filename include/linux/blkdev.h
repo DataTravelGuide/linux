@@ -413,6 +413,10 @@ struct request_queue
 	/* Throttle data */
 	struct throtl_data *td;
 #endif
+	/*
+	 * Delayed queue handling
+	 */
+	struct delayed_work	delay_work;
 #endif /* __GENKSYMS__ */
 };
 
