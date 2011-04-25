@@ -1629,6 +1629,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Apr 25 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-139.el6]
+- [scsi] mark bfa fc adapters tech preview (Rob Evers) [698384]
+- [virt] Revert pdpte registers are not flushed when PGD entry is changed in x86 PAE mode (Aristeu Rozanski) [691310]
+- [i686] nmi watchdog: Enable panic on hardlockup (Don Zickus) [677532]
+- [netdrv] Adding Chelsio Firmware for cxgb4 (Neil Horman) [691929]
+
 * Thu Apr 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-138.el6]
 - [virt] x86: better fix for race between nmi injection and enabling nmi window (Aristeu Rozanski)
 - [virt] x86: revert "fix race between nmi injection and enabling nmi window" (Aristeu Rozanski)
