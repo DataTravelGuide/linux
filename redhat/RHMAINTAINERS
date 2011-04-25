@@ -119,7 +119,7 @@ S:	Maintained
 F:	drivers/net/b44.*
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER (bnx2)
-M:	John Feeney <jfeeney@redhat.com>
+M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/net/bnx2.*
 F:	drivers/net/bnx2_*
@@ -159,12 +159,12 @@ F:	drivers/cpufreq/
 F:	arch/x86/kernel/cpu/cpufreq/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
-M:	Doug Ledford <dledford@redhat.com>
+M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb3/
 
 CXGB4 ETHERNET DRIVER (cxgb4)
-M:	Doug Ledford <dledford@redhat.com>
+M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb4/
 
