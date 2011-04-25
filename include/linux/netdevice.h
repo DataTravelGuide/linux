@@ -850,6 +850,8 @@ struct net_device
 #define NETIF_F_FCOE_CRC	(1 << 24) /* FCoE CRC32 */
 #define NETIF_F_SCTP_CSUM	(1 << 25) /* SCTP checksum offload */
 #define NETIF_F_FCOE_MTU	(1 << 26) /* Supports max FCoE MTU, 2158 bytes*/
+#define NETIF_F_NTUPLE		(1 << 27) /* N-tuple filters supported */
+#define NETIF_F_RXHASH		(1 << 28) /* Receive hashing offload */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
