@@ -444,6 +444,27 @@ M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/media/video/uvc/
 
+VIRTIO CONSOLE DRIVER
+M:	Amit Shah <amit.shah@redhat.com>
+S:	Maintained
+F:	drivers/char/virtio_console.c
+F:	include/linux/virtio_console.h
+
+VIRTIO CORE, NET AND BLOCK DRIVERS
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+M:	Amit Shah <amit.shah@redhat.com>
+S:	Maintained
+F:	drivers/virtio/
+F:	drivers/net/virtio_net.c
+F:	drivers/block/virtio_blk.c
+F:	include/linux/virtio_*.h
+
+VIRTIO HOST (VHOST)
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+S:	Maintained
+F:	drivers/vhost/
+F:	include/linux/vhost.h
+
 WIRELESS DRIVERS AND STACK
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
