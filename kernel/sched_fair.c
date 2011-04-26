@@ -143,6 +143,24 @@ static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 	return cfs_rq->tg->cfs_rq[this_cpu];
 }
 
+static inline void list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
+{
+	if (!cfs_rq->on_list) {
+		list_add_rcu(&cfs_rq->leaf_cfs_rq_list,
+			     &rq_of(cfs_rq)->leaf_cfs_rq_list);
+
+		cfs_rq->on_list = 1;
+	}
+}
+
+static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
+{
+	if (cfs_rq->on_list) {
+		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
+		cfs_rq->on_list = 0;
+	}
+}
+
 /* Iterate thr' all leaf cfs_rq's on a runqueue */
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
 	list_for_each_entry_rcu(cfs_rq, &rq->leaf_cfs_rq_list, leaf_cfs_rq_list)
@@ -244,6 +262,14 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 {
 	return &cpu_rq(this_cpu)->cfs;
+}
+
+static inline void list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
+{
+}
+
+static inline void list_del_leaf_cfs_rq(struct cfs_rq *cfs_rq)
+{
 }
 
 #define for_each_leaf_cfs_rq(rq, cfs_rq) \
@@ -647,7 +673,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 #if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
-static void update_cfs_load(struct cfs_rq *cfs_rq)
+static void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
 {
 	u64 period = sched_avg_period();
 	u64 now, delta;
@@ -671,6 +697,11 @@ static void update_cfs_load(struct cfs_rq *cfs_rq)
 		asm("" : "+rm" (cfs_rq->load_period));
 		cfs_rq->load_period /= 2;
 		cfs_rq->load_avg /= 2;
+	}
+
+	if (lb && !cfs_rq->nr_running) {
+		if (cfs_rq->load_avg < (period / 8))
+			list_del_leaf_cfs_rq(cfs_rq);
 	}
 }
 
@@ -718,7 +749,7 @@ static void update_cfs_shares(struct cfs_rq *cfs_rq)
 	reweight_entity(cfs_rq_of(se), se, shares);
 }
 #else /* CONFIG_FAIR_GROUP_SCHED */
-static inline void update_cfs_load(struct cfs_rq *cfs_rq)
+static inline void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
 {
 }
 
@@ -848,7 +879,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
-	update_cfs_load(cfs_rq);
+	update_cfs_load(cfs_rq, 0);
 	account_entity_enqueue(cfs_rq, se);
 	update_cfs_shares(cfs_rq);
 
@@ -862,6 +893,9 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if (se != cfs_rq->curr)
 		__enqueue_entity(cfs_rq, se);
 	se->on_rq = 1;
+
+	if (cfs_rq->nr_running == 1)
+		list_add_leaf_cfs_rq(cfs_rq);
 }
 
 static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -906,7 +940,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	se->on_rq = 0;
-	update_cfs_load(cfs_rq);
+	update_cfs_load(cfs_rq, 0);
 	account_entity_dequeue(cfs_rq, se);
 	update_min_vruntime(cfs_rq);
 	update_cfs_shares(cfs_rq);
@@ -1140,7 +1174,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
        for_each_sched_entity(se) {
 	       struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-               update_cfs_load(cfs_rq);
+               update_cfs_load(cfs_rq, 0);
                update_cfs_shares(cfs_rq);
        }
 
@@ -1170,7 +1204,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-		update_cfs_load(cfs_rq);
+		update_cfs_load(cfs_rq, 0);
 		update_cfs_shares(cfs_rq);
 	}
 
