@@ -1629,6 +1629,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Apr 26 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-140.el6]
+- [net] limit socket backlog add operation to prevent possible DoS (Jiri Pirko) [694396] {CVE-2010-4251}
+- [scsi] mpt2sas: prevent heap overflows and unchecked (Tomas Henzl) [694023] {CVE-2011-1494 CVE-2011-1495}
+- [fs] epoll: prevent creating circular epoll structures (Don Howard) [681683] {CVE-2011-1082}
+- [mm] Prevent page_fault at do_mm_track_pte+0xc when Stratus dirty page tracking is active (Larry Woodman) [693786]
+- [fs] GFS2 causes kernel panic in spectator mode (Steven Whitehouse) [696535]
+- [net] bonding: interface doesn't issue IGMP report on slave interface during failover (Flavio Leitner) [640690]
+- [scsi] isci: validate oem parameters early, and fallback (David Milburn) [698016]
+- [scsi] isci: fix oem parameter header definition (David Milburn) [698016]
+
 * Mon Apr 25 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-139.el6]
 - [scsi] mark bfa fc adapters tech preview (Rob Evers) [698384]
 - [virt] Revert pdpte registers are not flushed when PGD entry is changed in x86 PAE mode (Aristeu Rozanski) [691310]
