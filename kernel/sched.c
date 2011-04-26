@@ -4575,7 +4575,9 @@ static void idle_balance(int this_cpu, struct rq *this_rq)
 	if (this_rq->avg_idle < sysctl_sched_migration_cost)
 		return;
 
+	spin_unlock(&this_rq->lock);
 	update_shares(this_cpu);
+	spin_lock(&this_rq->lock);
 
 	for_each_domain(this_cpu, sd) {
 		unsigned long interval;
