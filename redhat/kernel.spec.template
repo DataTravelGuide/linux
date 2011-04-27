@@ -1629,6 +1629,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Apr 27 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-141.el6]
+- [netdrv] cnic: fix hang due to rtnl_lock (Mike Christie) [694874]
+- [netdrv] firmware: re-add the recently deleted bnx2x fw 6.2.5.0 (Michal Schmidt) [690470]
+- [netdrv] firmware/bnx2x: add 6.2.9.0 fw, remove unused fw (Michal Schmidt) [690470]
+- [netdrv] bnx2x, cnic: Disable iSCSI if DCBX negotiation is successful (Michal Schmidt) [690470]
+- [netdrv] bnx2x: don't write dcb/llfc fields in STORM memory (Michal Schmidt) [690470]
+- [netdrv] bnx2x: Update firmware to 6.2.9 (Michal Schmidt) [690470]
+
 * Tue Apr 26 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-140.el6]
 - [net] limit socket backlog add operation to prevent possible DoS (Jiri Pirko) [694396] {CVE-2010-4251}
 - [scsi] mpt2sas: prevent heap overflows and unchecked (Tomas Henzl) [694023] {CVE-2011-1494 CVE-2011-1495}
