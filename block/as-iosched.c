@@ -142,9 +142,9 @@ enum arq_state {
 	AS_RQ_POSTSCHED,	/* when they shouldn't be */
 };
 
-#define RQ_IOC(rq)	((struct io_context *) (rq)->elevator_private)
-#define RQ_STATE(rq)	((enum arq_state)(rq)->elevator_private2)
-#define RQ_SET_STATE(rq, state)	((rq)->elevator_private2 = (void *) state)
+#define RQ_IOC(rq)	((struct io_context *) (rq)->elevator_private[0])
+#define RQ_STATE(rq)	((enum arq_state)(rq)->elevator_private[1])
+#define RQ_SET_STATE(rq, state)	((rq)->elevator_private[1] = (void *) state)
 
 static DEFINE_PER_CPU(unsigned long, as_ioc_count);
 static struct completion *ioc_gone;
@@ -1192,7 +1192,7 @@ static void as_add_request(struct request_queue *q, struct request *rq)
 
 	data_dir = rq_is_sync(rq);
 
-	rq->elevator_private = as_get_io_context(q->node);
+	rq->elevator_private[0] = as_get_io_context(q->node);
 
 	if (RQ_IOC(rq)) {
 		as_update_iohist(ad, RQ_IOC(rq)->aic, rq);
