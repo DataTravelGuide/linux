@@ -100,7 +100,7 @@ void show_regs_common(void)
 	/* Board Name is optional */
 	board = dmi_get_system_info(DMI_BOARD_NAME);
 
-	printk("\n");
+	printk(KERN_CONT "\n");
 	printk(KERN_DEFAULT "Pid: %d, comm: %.20s %s %s %.*s",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
