@@ -258,8 +258,9 @@ struct task_group {
 	/* runqueue "owned" by this group on each cpu */
 	struct cfs_rq **cfs_rq;
 	unsigned long shares;
-
+#ifndef __GENKSYMS__
 	atomic_t load_weight;
+#endif
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -419,7 +420,9 @@ struct cfs_rq {
 	 * leaf_cfs_rq_list ties together list of leaf cfs_rq's in a cpu. This
 	 * list is used during load balance.
 	 */
+#ifndef __GENKSYMS__
 	int on_list;
+#endif
 	struct list_head leaf_cfs_rq_list;
 	struct task_group *tg;	/* group that "owns" this runqueue */
 
@@ -436,6 +439,7 @@ struct cfs_rq {
 	 * this group.
 	 */
 	unsigned long h_load;
+#ifndef __GENKSYMS__
 	/*
 	 * Maintaining per-cpu shares distribution for group scheduling
 	 *
@@ -448,6 +452,17 @@ struct cfs_rq {
 	u64 load_stamp, load_last, load_unacc_exec_time;
 
 	unsigned long load_contribution;
+#else
+	/*
+	 * this cpu's part of tg->shares
+	 */
+	unsigned long shares;
+
+	/*
+	 * load.weight at the time we set shares
+ 	*/
+	unsigned long rq_weight;
+#endif
 #endif
 #endif
 };
