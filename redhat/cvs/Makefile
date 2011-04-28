@@ -204,6 +204,7 @@ update-spec:
 		sed -e "/Patch:/,/^$$/d; /^ApplyPatch\ /,/^$$/d" | \
 		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-$(internal_release)," | \
 		sed -e "s,ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2,$(FULL_TARBALL),">$(DEFAULT_SPEC);
+	@md5sum linux-$(VERSION).tar.bz2 >sources;
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
 full-srpm:
