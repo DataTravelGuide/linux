@@ -1252,7 +1252,9 @@ static int pf_interception(struct vcpu_svm *svm)
 	trace_kvm_page_fault(fault_address, error_code);
 	if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
 		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
-	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
+	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code,
+				  svm->vmcb->control.insn_bytes,
+				  svm->vmcb->control.insn_len);
 }
 
 static int db_interception(struct vcpu_svm *svm)

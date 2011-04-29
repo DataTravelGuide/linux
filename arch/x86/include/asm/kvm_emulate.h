@@ -191,7 +191,8 @@ struct x86_emulate_ctxt {
 #endif
 
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
-		    struct x86_emulate_ops *ops);
+		    struct x86_emulate_ops *ops,
+		    void *insn, int insn_len);
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
 		     struct x86_emulate_ops *ops);
 

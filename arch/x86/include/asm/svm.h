@@ -83,7 +83,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u64 lbr_ctl;
 	u64 reserved_5;
 	u64 next_rip;
-	u8 reserved_6[816];
+	u8 insn_len;
+	u8 insn_bytes[15];
+	u8 reserved_6[800];
 };
 
 

@@ -911,7 +911,8 @@ done:
 }
 
 int
-x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops,
+		void *insn, int insn_len)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
@@ -924,6 +925,12 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	c->eip = c->eip_orig = kvm_rip_read(ctxt->vcpu);
 	ctxt->cs_base = seg_base(ctxt, VCPU_SREG_CS);
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
+
+	if (insn_len > 0) {
+		c->fetch.start = c->eip;
+		c->fetch.end = c->fetch.start + insn_len;
+		memcpy(c->fetch.data, insn, insn_len);
+	}
 
 	switch (mode) {
 	case X86EMUL_MODE_REAL:

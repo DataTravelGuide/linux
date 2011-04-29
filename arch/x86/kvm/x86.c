@@ -3466,7 +3466,9 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 
 int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
-			int emulation_type)
+			int emulation_type,
+			void *insn,
+			int insn_len)
 {
 	int r, shadow_mask;
 	struct decode_cache *c;
@@ -3498,7 +3500,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			? X86EMUL_MODE_PROT64 :	cs_db
 			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
 
-		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops,
+				    insn, insn_len);
 
 		/* Only allow emulation of specific instructions on #UD
 		 * (namely VMMCALL, sysenter, sysexit, syscall)*/
@@ -4627,7 +4630,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = x86_emulate_instruction(vcpu, vcpu->arch.mmio_fault_cr2,
-					EMULTYPE_NO_DECODE);
+					EMULTYPE_NO_DECODE, NULL, 0);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		if (r == EMULATE_DO_MMIO) {
 			/*
