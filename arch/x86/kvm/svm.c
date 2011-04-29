@@ -154,6 +154,7 @@ enum {
 	VMCB_INTR,       /* int_ctl, int_vector */
 	VMCB_NPT,        /* npt_en, nCR3, gPAT */
 	VMCB_CR,         /* CR0, CR3, CR4, EFER */
+	VMCB_DR,         /* DR6, DR7 */
 	VMCB_DIRTY_MAX,
 };
 
@@ -1177,6 +1178,7 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
 	else
 		svm->vmcb->save.dr7 = vcpu->arch.dr7;
+	mark_dirty(svm->vmcb, VMCB_DR);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
 		svm->vmcb->save.rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
@@ -1276,6 +1278,7 @@ static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 			svm->vmcb->save.dr7 = vcpu->arch.dr7;
 			vcpu->arch.switch_db_regs = (value & DR7_BP_EN_MASK);
 		}
+		mark_dirty(svm->vmcb, VMCB_DR);
 		return;
 	default:
 		/* FIXME: Possible case? */
