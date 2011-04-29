@@ -1256,7 +1256,7 @@ setup_err:
 static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 				  struct device *parent, int npiv)
 {
-	struct fc_lport		*lport = NULL;
+	struct fc_lport		*lport, *n_port;
 	struct fcoe_port	*port;
 	struct Scsi_Host	*shost;
 	struct fc_vport		*vport = dev_to_vport(parent);
@@ -1270,13 +1270,10 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 		return NULL;
 	}
 
-	if (!npiv) {
-		lport = libfc_host_alloc(&bnx2fc_shost_template,
-					  sizeof(struct fcoe_port));
-	} else {
-		lport = libfc_vport_create(vport,
-					   sizeof(struct fcoe_port));
-	}
+	if (!npiv)
+		lport = libfc_host_alloc(&bnx2fc_shost_template, sizeof(*port));
+	else
+		lport = libfc_vport_create(vport, sizeof(*port));
 
 	if (!lport) {
 		printk(KERN_ERR PFX "could not allocate scsi host structure\n");
@@ -1294,7 +1291,6 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 		goto lp_config_err;
 
 	if (npiv) {
-		vport = dev_to_vport(parent);
 		printk(KERN_ERR PFX "Setting vport names, 0x%llX 0x%llX\n",
 			vport->node_name, vport->port_name);
 		fc_set_wwnn(lport, vport->node_name);
@@ -1323,12 +1319,17 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	fc_host_port_type(lport->host) = FC_PORTTYPE_UNKNOWN;
 
 	/* Allocate exchange manager */
-	if (!npiv) {
+	if (!npiv)
 		rc = bnx2fc_em_config(lport);
-		if (rc) {
-			printk(KERN_ERR PFX "Error on bnx2fc_em_config\n");
-			goto shost_err;
-		}
+	else {
+		shost = vport_to_shost(vport);
+		n_port = shost_priv(shost);
+		rc = fc_exch_mgr_list_clone(n_port, lport);
+	}
+
+	if (rc) {
+		printk(KERN_ERR PFX "Error on bnx2fc_em_config\n");
+		goto shost_err;
 	}
 
 	bnx2fc_interface_get(hba);
