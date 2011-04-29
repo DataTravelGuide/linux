@@ -150,6 +150,7 @@ enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
 	                    pause filter count */
 	VMCB_PERM_MAP,   /* IOPM Base and MSRPM Base */
+	VMCB_ASID,       /* ASID */
 	VMCB_DIRTY_MAX,
 };
 
@@ -1202,6 +1203,8 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *svm_data)
 
 	svm->asid_generation = svm_data->asid_generation;
 	svm->vmcb->control.asid = svm_data->next_asid++;
+
+	mark_dirty(svm->vmcb, VMCB_ASID);
 }
 
 static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
