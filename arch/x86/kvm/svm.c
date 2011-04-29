@@ -147,6 +147,8 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
 
 enum {
+	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
+	                    pause filter count */
 	VMCB_DIRTY_MAX,
 };
 
@@ -614,6 +616,7 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	}
 
 	svm->vmcb->control.tsc_offset = offset + g_tsc_offset;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
@@ -621,6 +624,7 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.tsc_offset += adjustment;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 	if (is_nested(svm))
 		svm->nested.hsave->control.tsc_offset += adjustment;
 }
@@ -904,11 +908,13 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 static void svm_set_vintr(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.intercept |= 1ULL << INTERCEPT_VINTR;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static void svm_clear_vintr(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VINTR);
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static struct vmcb_seg *svm_seg(struct kvm_vcpu *vcpu, int seg)
@@ -1145,6 +1151,8 @@ static void update_db_intercept(struct kvm_vcpu *vcpu)
 				1 << BP_VECTOR;
 	} else
 		vcpu->guest_debug = 0;
+
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
@@ -1342,6 +1350,7 @@ static int nm_interception(struct vcpu_svm *svm)
 	else
 		svm->vmcb->save.cr0 |= X86_CR0_TS;
 	svm->vcpu.fpu_active = 1;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
 	return 1;
 }
@@ -2202,6 +2211,7 @@ static int iret_interception(struct vcpu_svm *svm)
 {
 	++svm->vcpu.stat.nmi_window_exits;
 	svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 	svm->vcpu.arch.hflags |= HF_IRET_MASK;
 	svm->nmi_iret_rip = kvm_rip_read(&svm->vcpu);
 	return 1;
@@ -2331,6 +2341,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	r = cr_interception(svm);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
 		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
+		mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 		return r;
 	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
@@ -2711,6 +2722,7 @@ static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 	svm->vmcb->control.event_inj = SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_NMI;
 	vcpu->arch.hflags |= HF_NMI_MASK;
 	svm->vmcb->control.intercept |= (1UL << INTERCEPT_IRET);
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 	++vcpu->stat.nmi_injections;
 }
 
@@ -2745,8 +2757,10 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	if (irr == -1)
 		return;
 
-	if (tpr >= irr)
+	if (tpr >= irr) {
 		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
+		mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	}
 }
 
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
@@ -2775,6 +2789,7 @@ static void svm_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 		svm->vcpu.arch.hflags &= ~HF_NMI_MASK;
 		svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
 	}
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
@@ -3191,6 +3206,7 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 
 	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
 	svm->vmcb->save.cr0 |= X86_CR0_TS;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static struct kvm_x86_ops svm_x86_ops = {
