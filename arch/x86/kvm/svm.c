@@ -2189,6 +2189,77 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
+#define CR_VALID (1ULL << 63)
+
+static int cr_interception(struct vcpu_svm *svm)
+{
+	int reg, cr;
+	unsigned long val;
+	int err;
+
+	if (!svm_has(SVM_FEATURE_DECODE_ASSIST))
+		return emulate_on_interception(svm);
+
+	if (unlikely((svm->vmcb->control.exit_info_1 & CR_VALID) == 0))
+		return emulate_on_interception(svm);
+
+	reg = svm->vmcb->control.exit_info_1 & SVM_EXITINFO_REG_MASK;
+	cr = svm->vmcb->control.exit_code - SVM_EXIT_READ_CR0;
+
+	err = 0;
+	if (cr >= 16) { /* mov to cr */
+		cr -= 16;
+		val = kvm_register_read(&svm->vcpu, reg);
+		switch (cr) {
+		case 0:
+			kvm_set_cr0(&svm->vcpu, val);
+			break;
+		case 3:
+			kvm_set_cr3(&svm->vcpu, val);
+			break;
+		case 4:
+			kvm_set_cr4(&svm->vcpu, val);
+			break;
+		case 8:
+			err = kvm_set_cr8(&svm->vcpu, val);
+			if (err)
+			kvm_inject_gp(&svm->vcpu, 0);
+			break;
+		default:
+			WARN(1, "unhandled write to CR%d", cr);
+			kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+			return 1;
+		}
+	} else { /* mov from cr */
+		switch (cr) {
+		case 0:
+			val = svm->vcpu.arch.cr0;
+			break;
+		case 2:
+			val = svm->vcpu.arch.cr2;
+			break;
+		case 3:
+			val = svm->vcpu.arch.cr3;
+			break;
+		case 4:
+			val = svm->vcpu.arch.cr4;
+			break;
+		case 8:
+			val = kvm_get_cr8(&svm->vcpu);
+			break;
+		default:
+			WARN(1, "unhandled read from CR%d", cr);
+			kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+			return 1;
+		}
+		kvm_register_write(&svm->vcpu, reg, val);
+	}
+	if (!err)
+		skip_emulated_instruction(&svm->vcpu);
+
+	return 1;
+}
+
 static int cr8_write_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
@@ -2196,13 +2267,13 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
-	r = emulate_instruction(&svm->vcpu, 0);
+	r = cr_interception(svm);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
 		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
-		return r == EMULATE_DONE;
+		return r;
 	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
-		return r == EMULATE_DONE;
+		return r;
 	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
 	return 0;
 }
@@ -2416,14 +2487,14 @@ static int pause_interception(struct vcpu_svm *svm)
 }
 
 static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
-	[SVM_EXIT_READ_CR0]           		= emulate_on_interception,
-	[SVM_EXIT_READ_CR3]           		= emulate_on_interception,
-	[SVM_EXIT_READ_CR4]           		= emulate_on_interception,
-	[SVM_EXIT_READ_CR8]           		= emulate_on_interception,
+	[SVM_EXIT_READ_CR0]           		= cr_interception,
+	[SVM_EXIT_READ_CR3]           		= cr_interception,
+	[SVM_EXIT_READ_CR4]           		= cr_interception,
+	[SVM_EXIT_READ_CR8]           		= cr_interception,
 	/* for now: */
-	[SVM_EXIT_WRITE_CR0]          		= emulate_on_interception,
-	[SVM_EXIT_WRITE_CR3]          		= emulate_on_interception,
-	[SVM_EXIT_WRITE_CR4]          		= emulate_on_interception,
+	[SVM_EXIT_WRITE_CR0]          		= cr_interception,
+	[SVM_EXIT_WRITE_CR3]          		= cr_interception,
+	[SVM_EXIT_WRITE_CR4]          		= cr_interception,
 	[SVM_EXIT_WRITE_CR8]          		= cr8_write_interception,
 	[SVM_EXIT_READ_DR0] 			= emulate_on_interception,
 	[SVM_EXIT_READ_DR1]			= emulate_on_interception,
