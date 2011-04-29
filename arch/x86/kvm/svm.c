@@ -152,6 +152,7 @@ enum {
 	VMCB_PERM_MAP,   /* IOPM Base and MSRPM Base */
 	VMCB_ASID,       /* ASID */
 	VMCB_INTR,       /* int_ctl, int_vector */
+	VMCB_NPT,        /* npt_en, nCR3, gPAT */
 	VMCB_DIRTY_MAX,
 };
 
@@ -3092,6 +3093,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	if (npt_enabled) {
 		svm->vmcb->control.nested_cr3 = root;
+		mark_dirty(svm->vmcb, VMCB_NPT);
 		force_new_asid(vcpu);
 		return;
 	}
