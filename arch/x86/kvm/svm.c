@@ -2177,8 +2177,13 @@ static int iret_interception(struct vcpu_svm *svm)
 
 static int invlpg_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0) != EMULATE_DONE)
-		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
+	if (svm_has(SVM_FEATURE_DECODE_ASSIST)) {
+		kvm_mmu_invlpg(&svm->vcpu, svm->vmcb->control.exit_info_1);
+		skip_emulated_instruction(&svm->vcpu);
+	} else {
+		if (emulate_instruction(&svm->vcpu, 0) != EMULATE_DONE)
+			pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
+	}
 	return 1;
 }
 
