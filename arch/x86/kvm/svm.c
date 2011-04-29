@@ -155,6 +155,7 @@ enum {
 	VMCB_NPT,        /* npt_en, nCR3, gPAT */
 	VMCB_CR,         /* CR0, CR3, CR4, EFER */
 	VMCB_DR,         /* DR6, DR7 */
+	VMCB_DT,         /* GDT, IDT */
 	VMCB_DIRTY_MAX,
 };
 
@@ -1035,6 +1036,7 @@ static void svm_set_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 
 	svm->vmcb->save.idtr.limit = dt->limit;
 	svm->vmcb->save.idtr.base = dt->base ;
+	mark_dirty(svm->vmcb, VMCB_DT);
 }
 
 static void svm_get_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
@@ -1051,6 +1053,7 @@ static void svm_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 
 	svm->vmcb->save.gdtr.limit = dt->limit;
 	svm->vmcb->save.gdtr.base = dt->base ;
+	mark_dirty(svm->vmcb, VMCB_DT);
 }
 
 static void svm_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
