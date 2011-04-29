@@ -2774,7 +2774,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 * Cause the #SS fault with 0 error code in VM86 mode.
 	 */
 	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
-		if (emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE)
+		if (emulate_instruction(vcpu, 0) == EMULATE_DONE)
 			return 1;
 	/*
 	 * Forward all other exceptions that are valid in real mode.
@@ -2871,7 +2871,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	}
 
 	if (is_invalid_opcode(intr_info)) {
-		er = emulate_instruction(vcpu, 0, 0, EMULTYPE_TRAP_UD);
+		er = emulate_instruction(vcpu, EMULTYPE_TRAP_UD);
 		if (er != EMULATE_DONE)
 			kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
@@ -2960,7 +2960,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	string = (exit_qualification & 16) != 0;
 
 	if (string) {
-		if (emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DO_MMIO)
+		if (emulate_instruction(vcpu, 0) == EMULATE_DO_MMIO)
 			return 0;
 		return 1;
 	}
@@ -3274,7 +3274,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	offset = exit_qualification & 0xffful;
 
-	er = emulate_instruction(vcpu, 0, 0, 0);
+	er = emulate_instruction(vcpu, 0);
 
 	if (er !=  EMULATE_DONE) {
 		printk(KERN_ERR
@@ -3485,7 +3485,7 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	preempt_enable();
 
 	while (!guest_state_valid(vcpu)) {
-		err = emulate_instruction(vcpu, 0, 0, 0);
+		err = emulate_instruction(vcpu, 0);
 
 		if (err == EMULATE_DO_MMIO)
 			break;

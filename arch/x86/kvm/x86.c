@@ -3464,9 +3464,8 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 	return false;
 }
 
-int emulate_instruction(struct kvm_vcpu *vcpu,
+int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
-			u16 error_code,
 			int emulation_type)
 {
 	int r, shadow_mask;
@@ -3579,7 +3578,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 	return EMULATE_DONE;
 }
-EXPORT_SYMBOL_GPL(emulate_instruction);
+EXPORT_SYMBOL_GPL(x86_emulate_instruction);
 
 static int pio_copy_data(struct kvm_vcpu *vcpu)
 {
@@ -4627,7 +4626,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->mmio_needed = 0;
 
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = emulate_instruction(vcpu, vcpu->arch.mmio_fault_cr2, 0,
+		r = x86_emulate_instruction(vcpu, vcpu->arch.mmio_fault_cr2,
 					EMULTYPE_NO_DECODE);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		if (r == EMULATE_DO_MMIO) {

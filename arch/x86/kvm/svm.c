@@ -299,7 +299,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		svm->next_rip = svm->vmcb->control.next_rip;
 
 	if (!svm->next_rip) {
-		if (emulate_instruction(vcpu, 0, 0, EMULTYPE_SKIP) !=
+		if (emulate_instruction(vcpu, EMULTYPE_SKIP) !=
 				EMULATE_DONE)
 			printk(KERN_DEBUG "%s: NOP\n", __func__);
 		return;
@@ -1299,7 +1299,7 @@ static int ud_interception(struct vcpu_svm *svm)
 {
 	int er;
 
-	er = emulate_instruction(&svm->vcpu, 0, 0, EMULTYPE_TRAP_UD);
+	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
 	if (er != EMULATE_DONE)
 		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 	return 1;
@@ -1414,8 +1414,7 @@ static int io_interception(struct vcpu_svm *svm)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 
 	if (string) {
-		if (emulate_instruction(&svm->vcpu,
-					0, 0, 0) == EMULATE_DO_MMIO)
+		if (emulate_instruction(&svm->vcpu, 0) == EMULATE_DO_MMIO)
 			return 0;
 		return 1;
 	}
@@ -2177,14 +2176,14 @@ static int iret_interception(struct vcpu_svm *svm)
 
 static int invlpg_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
+	if (emulate_instruction(&svm->vcpu, 0) != EMULATE_DONE)
 		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
 	return 1;
 }
 
 static int emulate_on_interception(struct vcpu_svm *svm)
 {
-	if (emulate_instruction(&svm->vcpu, 0, 0, 0) != EMULATE_DONE)
+	if (emulate_instruction(&svm->vcpu, 0) != EMULATE_DONE)
 		pr_unimpl(&svm->vcpu, "%s: failed\n", __func__);
 	return 1;
 }
@@ -2196,7 +2195,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
-	r = emulate_instruction(&svm->vcpu, 0, 0, 0);
+	r = emulate_instruction(&svm->vcpu, 0);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
 		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
 		return r == EMULATE_DONE;
