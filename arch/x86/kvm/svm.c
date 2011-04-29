@@ -156,6 +156,7 @@ enum {
 	VMCB_CR,         /* CR0, CR3, CR4, EFER */
 	VMCB_DR,         /* DR6, DR7 */
 	VMCB_DT,         /* GDT, IDT */
+	VMCB_SEG,        /* CS, DS, SS, ES, CPL */
 	VMCB_DIRTY_MAX,
 };
 
@@ -778,6 +779,7 @@ static int svm_vcpu_reset(struct kvm_vcpu *vcpu)
 		kvm_rip_write(vcpu, 0);
 		svm->vmcb->save.cs.base = svm->vcpu.arch.sipi_vector << 12;
 		svm->vmcb->save.cs.selector = svm->vcpu.arch.sipi_vector << 8;
+		mark_dirty(svm->vmcb, VMCB_SEG);
 	}
 	vcpu->arch.regs_avail = ~0;
 	vcpu->arch.regs_dirty = ~0;
@@ -1142,6 +1144,7 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 			= (svm->vmcb->save.cs.attrib
 			   >> SVM_SELECTOR_DPL_SHIFT) & 3;
 
+	mark_dirty(svm->vmcb, VMCB_SEG);
 }
 
 static void update_db_intercept(struct kvm_vcpu *vcpu)
