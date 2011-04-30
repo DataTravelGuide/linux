@@ -63,14 +63,6 @@ static const struct {
 #define VGA_MEM 0xA0000 /* VGA buffer */
 #define VGA_SIZE 0x20000 /* 128kB */
 
-#ifdef CONFIG_ACPI
-static int __init acpi_find_ibft(struct acpi_table_header *header)
-{
-	ibft_addr = (struct acpi_table_ibft *)header;
-	return 0;
-}
-#endif /* CONFIG_ACPI */
-
 static int __init find_ibft_in_mem(void)
 {
 	unsigned long pos;
@@ -109,19 +101,9 @@ done:
  */
 unsigned long __init find_ibft_region(unsigned long *sizep)
 {
-	int i;
 	ibft_addr = NULL;
 
-#ifdef CONFIG_ACPI
-	for (i = 0; i < ARRAY_SIZE(ibft_signs) && !ibft_addr; i++)
-		acpi_table_parse(ibft_signs[i].sign, acpi_find_ibft);
-#endif /* CONFIG_ACPI */
-
-	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
-	 * only use ACPI for this */
-
-	if (!ibft_addr && !efi_enabled)
-		find_ibft_in_mem();
+	find_ibft_in_mem();
 
 	if (ibft_addr) {
 		*sizep = PAGE_ALIGN(ibft_addr->header.length);
