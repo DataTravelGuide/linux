@@ -1134,7 +1134,7 @@ static const struct rpc_call_ops nfs_write_full_ops = {
 /*
  * This function is called when the WRITE call is complete.
  */
-int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
+void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct nfs_writeargs	*argp = &data->args;
 	struct nfs_writeres	*resp = &data->res;
@@ -1153,7 +1153,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	 */
 	status = NFS_PROTO(data->inode)->write_done(task, data);
 	if (status != 0)
-		return status;
+		return;
 	nfs_add_stats(data->inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -1198,7 +1198,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 				argp->stable = NFS_FILE_SYNC;
 			}
 			nfs_restart_rpc(task, server->nfs_client);
-			return -EAGAIN;
+			return;
 		}
 		if (time_before(complain, jiffies)) {
 			printk(KERN_WARNING
@@ -1209,7 +1209,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		/* Can't do anything about it except throw an error. */
 		task->tk_status = -EIO;
 	}
-	return 0;
+	return;
 }
 
 
