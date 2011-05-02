@@ -255,12 +255,13 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 		case -NFS4ERR_OPENMODE:
 			if (state == NULL)
 				break;
-			nfs4_state_mark_reclaim_nograce(clp, state);
-			goto do_state_recovery;
+			nfs4_schedule_stateid_recovery(server, state);
+			goto wait_on_recovery;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
-			goto do_state_recovery;
+			nfs4_schedule_lease_recovery(clp);
+			goto wait_on_recovery;
 #if defined(CONFIG_NFS_V4_1)
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
@@ -271,7 +272,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR: %d Reset session\n", __func__,
 				errorcode);
-			nfs4_schedule_state_recovery(clp);
+			nfs4_schedule_session_recovery(clp->cl_session);
 			exception->retry = 1;
 			break;
 #endif /* defined(CONFIG_NFS_V4_1) */
@@ -294,8 +295,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 	}
 	/* We failed to handle the error */
 	return nfs4_map_errors(ret);
-do_state_recovery:
-	nfs4_schedule_state_recovery(clp);
+wait_on_recovery:
 	ret = nfs4_wait_clnt_recover(clp);
 	if (ret == 0)
 		exception->retry = 1;
@@ -1254,14 +1254,13 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
-				nfs4_schedule_state_recovery(
-					server->nfs_client);
+				nfs4_schedule_session_recovery(server->nfs_client->cl_session);
 				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
 				/* Don't recall a delegation if it was lost */
-				nfs4_schedule_state_recovery(server->nfs_client);
+				nfs4_schedule_lease_recovery(server->nfs_client);
 				goto out;
 			case -ERESTARTSYS:
 				/*
@@ -1270,7 +1269,7 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 				 */
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
-				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
+				nfs4_schedule_stateid_recovery(server, state);
 			case -EKEYEXPIRED:
 				/*
 				 * User RPCSEC_GSS context has expired.
@@ -1586,7 +1585,7 @@ static int nfs4_recover_expired_lease(struct nfs_server *server)
 		if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) &&
 		    !test_bit(NFS4CLNT_CHECK_LEASE,&clp->cl_state))
 			break;
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_state_manager(clp);
 		ret = -EIO;
 	}
 	return ret;
@@ -3172,7 +3171,7 @@ static void nfs4_renew_done(struct rpc_task *task, void *calldata)
 	if (task->tk_status < 0) {
 		/* Unless we're shutting down, schedule state recovery! */
 		if (test_bit(NFS_CS_RENEWD, &clp->cl_res_state) != 0)
-			nfs4_schedule_state_recovery(clp);
+			nfs4_schedule_lease_recovery(clp);
 		return;
 	}
 	do_renew_lease(clp, timestamp);
@@ -3497,12 +3496,13 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 		case -NFS4ERR_OPENMODE:
 			if (state == NULL)
 				break;
-			nfs4_state_mark_reclaim_nograce(clp, state);
-			goto do_state_recovery;
+			nfs4_schedule_stateid_recovery(server, state);
+			goto wait_on_recovery;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
-			goto do_state_recovery;
+			nfs4_schedule_lease_recovery(clp);
+			goto wait_on_recovery;
 #if defined(CONFIG_NFS_V4_1)
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
@@ -3513,7 +3513,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 		case -NFS4ERR_SEQ_MISORDERED:
 			dprintk("%s ERROR %d, Reset session\n", __func__,
 				task->tk_status);
-			nfs4_schedule_state_recovery(clp);
+			nfs4_schedule_session_recovery(clp->cl_session);
 			task->tk_status = 0;
 			return -EAGAIN;
 #endif /* CONFIG_NFS_V4_1 */
@@ -3530,9 +3530,8 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 	}
 	task->tk_status = nfs4_map_errors(task->tk_status);
 	return 0;
-do_state_recovery:
+wait_on_recovery:
 	rpc_sleep_on(&clp->cl_rpcwaitq, task, NULL);
-	nfs4_schedule_state_recovery(clp);
 	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &clp->cl_state) == 0)
 		rpc_wake_up_queued_task(&clp->cl_rpcwaitq, task);
 	task->tk_status = 0;
@@ -4392,12 +4391,14 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 			case -NFS4ERR_EXPIRED:
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
+				nfs4_schedule_lease_recovery(server->nfs_client);
+				goto out;
 			case -NFS4ERR_BADSESSION:
 			case -NFS4ERR_BADSLOT:
 			case -NFS4ERR_BAD_HIGH_SLOT:
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 			case -NFS4ERR_DEADSESSION:
-				nfs4_schedule_state_recovery(server->nfs_client);
+				nfs4_schedule_session_recovery(server->nfs_client->cl_session);
 				goto out;
 			case -ERESTARTSYS:
 				/*
@@ -4407,7 +4408,7 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
 			case -NFS4ERR_OPENMODE:
-				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
+				nfs4_schedule_stateid_recovery(server, state);
 				err = 0;
 				goto out;
 			case -EKEYEXPIRED:
@@ -5141,7 +5142,7 @@ static int nfs41_sequence_handle_errors(struct rpc_task *task, struct nfs_client
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
 		return -EAGAIN;
 	default:
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_lease_recovery(clp);
 	}
 	return 0;
 }
@@ -5287,7 +5288,7 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
 		return -EAGAIN;
 	default:
-		nfs4_schedule_state_recovery(clp);
+		nfs4_schedule_lease_recovery(clp);
 	}
 	return 0;
 }
