@@ -1617,6 +1617,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun May 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-143.el6]
+- [scsi] beiscsi: update version (Mike Christie) [674340]
+- [scsi] be2iscsi: fix chip cleanup (Mike Christie) [674340]
+- [scsi] be2iscsi: fix boot hang due to interrupts not getting rearmed (Mike Christie) [674340]
+- [scsi] bnx2fc: fix regression due to incorrect setup of em for npiv port (Mike Christie) [700672]
+- [ppc] pseries: Use a kmem cache for DTL buffers (Steve Best) [695678]
+
 * Fri Apr 29 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-142.el6]
 - [kdump] revert commit 8f4ec27fc to keep crashkernel=auto (Amerigo Wang) [605786]
 - [kernel] sched: Drop rq->lock from idle_balance() (Larry Woodman) [623712]
