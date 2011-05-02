@@ -954,7 +954,7 @@ void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 	nfs4_schedule_state_manager(clp);
 }
 
-int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
+static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
 {
 
 	set_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);
@@ -968,7 +968,7 @@ int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *st
 	return 1;
 }
 
-int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state)
+static int nfs4_state_mark_reclaim_nograce(struct nfs_client *clp, struct nfs4_state *state)
 {
 	set_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags);
 	clear_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);
