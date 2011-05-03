@@ -790,6 +790,8 @@ static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, ip4_addr, spec);
 }
 
+int kptr_restrict = 1;
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -814,6 +816,7 @@ static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
  *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
  * - 'I6c' for IPv6 addresses printed as specified by
  *       http://www.ietf.org/id/draft-kawamura-ipv6-text-representation-03.txt
+ * - 'K' For a kernel pointer that should be hidden from unprivileged users
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
  * pointer to the real address.
@@ -853,6 +856,25 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			return ip4_addr_string(buf, end, ptr, spec, fmt);
 		}
 		break;
+	case 'K':
+		/*
+		 * %pK cannot be used in IRQ context because its test
+		 * for CAP_SYS_ADMIN would be meaningless.
+		 */
+		if (in_irq() || in_softirq() || in_nmi()) {
+			if (spec.field_width == -1)
+				spec.field_width = 2 * sizeof(void *);
+			return string(buf, end, "pK-error", spec);
+		} else if ((kptr_restrict == 0) ||
+			 (kptr_restrict == 1 &&
+			  has_capability_noaudit(current, CAP_SYS_ADMIN)))
+			break;
+
+		if (spec.field_width == -1) {
+			spec.field_width = 2 * sizeof(void *);
+			spec.flags |= ZEROPAD;
+		}
+		return number(buf, end, 0, spec);
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
