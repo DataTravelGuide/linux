@@ -1617,6 +1617,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 02 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-144.el6]
+- [scsi] hpsa: fix lost command problem (Tomas Henzl) [700430]
+- [scsi] cciss: fix lost command problem (Tomas Henzl) [700430]
+- [scsi] ibft: fix oops during boot (Mike Christie) [698737]
+
 * Sun May 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-143.el6]
 - [scsi] beiscsi: update version (Mike Christie) [674340]
 - [scsi] be2iscsi: fix chip cleanup (Mike Christie) [674340]
