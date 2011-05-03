@@ -824,7 +824,7 @@ int kptr_restrict = 1;
 static char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			struct printf_spec spec)
 {
-	if (!ptr)
+	if (!ptr && *fmt != 'K')
 		return string(buf, end, "(null)", spec);
 
 	switch (*fmt) {
