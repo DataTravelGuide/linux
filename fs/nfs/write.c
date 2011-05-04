@@ -1287,6 +1287,7 @@ static void nfs_commitdata_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
+	put_lseg(wdata->lseg);
 	put_nfs_open_context(wdata->args.context);
 	nfs_commit_free(wdata);
 }
@@ -1330,7 +1331,8 @@ static int nfs_initiate_commit(struct nfs_write_data *data, struct rpc_clnt *cln
  * Set up the argument/result storage required for the RPC call.
  */
 static void nfs_init_commit(struct nfs_write_data *data,
-			    struct list_head *head)
+			    struct list_head *head,
+			    struct pnfs_layout_segment *lseg)
 {
 	struct nfs_page *first = nfs_list_entry(head->next);
 	struct inode *inode = first->wb_context->path.dentry->d_inode;
@@ -1342,6 +1344,7 @@ static void nfs_init_commit(struct nfs_write_data *data,
 
 	data->inode	  = inode;
 	data->cred	  = first->wb_context->cred;
+	data->lseg	  = lseg; /* reference transferred */
 	data->mds_ops     = &nfs_commit_ops;
 
 	data->args.fh     = NFS_FH(data->inode);
@@ -1385,7 +1388,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		goto out_bad;
 
 	/* Set up the argument struct */
-	nfs_init_commit(data, head);
+	nfs_init_commit(data, head, NULL);
 	return nfs_initiate_commit(data, NFS_CLIENT(inode), data->mds_ops, how);
  out_bad:
 	nfs_retry_commit(head, NULL);
