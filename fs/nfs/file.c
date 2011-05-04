@@ -323,7 +323,7 @@ nfs_file_fsync(struct file *file, struct dentry *dentry, int datasync)
 		ret = status;
 	if (!ret && !datasync)
 		/* application has asked for meta-data sync */
-		ret = pnfs_layoutcommit_inode(inode, 1);
+		ret = pnfs_layoutcommit_inode(inode, true);
 	return ret;
 }
 

@@ -983,7 +983,7 @@ pnfs_set_layoutcommit(struct nfs_write_data *wdata)
 EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
 
 int
-pnfs_layoutcommit_inode(struct inode *inode, int sync)
+pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
 	struct nfs4_layoutcommit_data *data;
 	struct nfs_inode *nfsi = NFS_I(inode);
