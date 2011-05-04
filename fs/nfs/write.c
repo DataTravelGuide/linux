@@ -97,6 +97,7 @@ void nfs_writedata_free(struct nfs_write_data *p)
 
 static void nfs_writedata_release(struct nfs_write_data *wdata)
 {
+	put_lseg(wdata->lseg);
 	put_nfs_open_context(wdata->args.context);
 	nfs_writedata_free(wdata);
 }
@@ -842,6 +843,7 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 		struct nfs_write_data *data,
 		const struct rpc_call_ops *call_ops,
 		unsigned int count, unsigned int offset,
+		struct pnfs_layout_segment *lseg,
 		int how)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
@@ -852,6 +854,7 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->req = req;
 	data->inode = inode = req->wb_context->path.dentry->d_inode;
 	data->cred = req->wb_context->cred;
+	data->lseg = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -932,7 +935,7 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 		if (nbytes < wsize)
 			wsize = nbytes;
 		ret2 = nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
-				   wsize, offset, how);
+					  wsize, offset, lseg, how);
 		if (ret == 0)
 			ret = ret2;
 		offset += wsize;
@@ -980,7 +983,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	req = nfs_list_entry(data->pages.next);
 
 	/* Set up the argument struct */
-	return nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, how);
+	return nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, lseg, how);
  out_bad:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
