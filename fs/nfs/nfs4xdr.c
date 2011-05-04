@@ -2738,19 +2738,20 @@ static int nfs4_xdr_enc_layoutget(struct rpc_rqst *req, uint32_t *p,
 /*
  *  Encode LAYOUTCOMMIT request
  */
-static int nfs4_xdr_enc_layoutcommit(struct rpc_rqst *req,
-				     struct xdr_stream *xdr,
+static int nfs4_xdr_enc_layoutcommit(struct rpc_rqst *req, uint32_t *p,
 				     struct nfs4_layoutcommit_args *args)
 {
+	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
 
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, NFS_FH(args->inode), &hdr);
-	encode_layoutcommit(xdr, args, &hdr);
-	encode_getfattr(xdr, args->bitmask, &hdr);
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_sequence(&xdr, &args->seq_args, &hdr);
+	encode_putfh(&xdr, NFS_FH(args->inode), &hdr);
+	encode_layoutcommit(&xdr, args, &hdr);
+	encode_getfattr(&xdr, args->bitmask, &hdr);
 	encode_nops(&hdr);
 	return 0;
 }
@@ -6267,26 +6268,27 @@ out:
 /*
  * Decode LAYOUTCOMMIT response
  */
-static int nfs4_xdr_dec_layoutcommit(struct rpc_rqst *rqstp,
-				     struct xdr_stream *xdr,
+static int nfs4_xdr_dec_layoutcommit(struct rpc_rqst *rqstp, uint32_t *p,
 				     struct nfs4_layoutcommit_res *res)
 {
+	struct xdr_stream xdr;
 	struct compound_hdr hdr;
 	int status;
 
-	status = decode_compound_hdr(xdr, &hdr);
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
 	if (status)
 		goto out;
-	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	status = decode_sequence(&xdr, &res->seq_res, rqstp);
 	if (status)
 		goto out;
-	status = decode_putfh(xdr);
+	status = decode_putfh(&xdr);
 	if (status)
 		goto out;
-	status = decode_layoutcommit(xdr, rqstp, res);
+	status = decode_layoutcommit(&xdr, rqstp, res);
 	if (status)
 		goto out;
-	decode_getfattr(xdr, res->fattr, res->server,
+	decode_getfattr(&xdr, res->fattr, res->server,
 			!RPC_IS_ASYNC(rqstp->rq_task));
 out:
 	return status;
