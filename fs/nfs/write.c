@@ -59,6 +59,7 @@ struct nfs_write_data *nfs_commitdata_alloc(void)
 	}
 	return p;
 }
+EXPORT_SYMBOL_GPL(nfs_commitdata_alloc);
 
 void nfs_commit_free(struct nfs_write_data *p)
 {
@@ -66,6 +67,7 @@ void nfs_commit_free(struct nfs_write_data *p)
 		kfree(p->pagevec);
 	mempool_free(p, nfs_commit_mempool);
 }
+EXPORT_SYMBOL_GPL(nfs_commit_free);
 
 struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 {
@@ -1275,15 +1277,15 @@ static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
 	return (ret < 0) ? ret : 1;
 }
 
-static void nfs_commit_clear_lock(struct nfs_inode *nfsi)
+void nfs_commit_clear_lock(struct nfs_inode *nfsi)
 {
 	clear_bit(NFS_INO_COMMIT, &nfsi->flags);
 	smp_mb__after_clear_bit();
 	wake_up_bit(&nfsi->flags, NFS_INO_COMMIT);
 }
+EXPORT_SYMBOL_GPL(nfs_commit_clear_lock);
 
-
-static void nfs_commitdata_release(void *data)
+void nfs_commitdata_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
@@ -1291,8 +1293,9 @@ static void nfs_commitdata_release(void *data)
 	put_nfs_open_context(wdata->args.context);
 	nfs_commit_free(wdata);
 }
+EXPORT_SYMBOL_GPL(nfs_commitdata_release);
 
-static int nfs_initiate_commit(struct nfs_write_data *data, struct rpc_clnt *clnt,
+int nfs_initiate_commit(struct nfs_write_data *data, struct rpc_clnt *clnt,
 			const struct rpc_call_ops *call_ops,
 			int how)
 {
@@ -1326,11 +1329,12 @@ static int nfs_initiate_commit(struct nfs_write_data *data, struct rpc_clnt *cln
 	rpc_put_task(task);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_initiate_commit);
 
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-static void nfs_init_commit(struct nfs_write_data *data,
+void nfs_init_commit(struct nfs_write_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg)
 {
@@ -1357,8 +1361,9 @@ static void nfs_init_commit(struct nfs_write_data *data,
 	data->res.verf    = &data->verf;
 	nfs_fattr_init(&data->fattr);
 }
+EXPORT_SYMBOL_GPL(nfs_init_commit);
 
-static void nfs_retry_commit(struct list_head *page_list,
+void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg)
 {
 	struct nfs_page *req;
@@ -1373,6 +1378,7 @@ static void nfs_retry_commit(struct list_head *page_list,
 		nfs_clear_page_tag_locked(req);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_retry_commit);
 
 /*
  * Commit dirty pages
@@ -1411,7 +1417,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		return;
 }
 
-static void nfs_commit_release_pages(struct nfs_write_data *data)
+void nfs_commit_release_pages(struct nfs_write_data *data)
 {
 	struct nfs_page	*req;
 	int status = data->task.tk_status;
@@ -1448,6 +1454,7 @@ static void nfs_commit_release_pages(struct nfs_write_data *data)
 		nfs_clear_page_tag_locked(req);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_commit_release_pages);
 
 static void nfs_commit_release(void *calldata)
 {
