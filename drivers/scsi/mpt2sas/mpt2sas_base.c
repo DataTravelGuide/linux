@@ -1549,7 +1549,6 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  * care of 32 bit environment where its not quarenteed to send the entire word
  * in one transfer.
  */
-#ifndef writeq
 static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
     spinlock_t *writeq_lock)
 {
@@ -1561,13 +1560,6 @@ static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
 	writel((u32)(data_out >> 32), (addr + 4));
 	spin_unlock_irqrestore(writeq_lock, flags);
 }
-#else
-static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
-    spinlock_t *writeq_lock)
-{
-	writeq(cpu_to_le64(b), addr);
-}
-#endif
 
 /**
  * mpt2sas_base_put_smid_scsi_io - send SCSI_IO request to firmware
