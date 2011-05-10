@@ -536,21 +536,12 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  */
 static u8 ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
-	u8 rval = 0;
+	struct dcb_app app = {
+				.selector = idtype,
+				.protocol = id,
+			     };
 
-	switch (idtype) {
-	case DCB_APP_IDTYPE_ETHTYPE:
-#ifdef IXGBE_FCOE
-		if (id == ETH_P_FCOE)
-			rval = ixgbe_fcoe_getapp(netdev_priv(netdev));
-#endif
-		break;
-	case DCB_APP_IDTYPE_PORTNUM:
-		break;
-	default:
-		break;
-	}
-	return rval;
+	return dcb_getapp(netdev, &app);
 }
 
 /**
@@ -566,6 +557,13 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
                              u8 idtype, u16 id, u8 up)
 {
 	u8 rval = 1;
+	struct dcb_app app = {
+			      .selector = idtype,
+			      .protocol = id,
+			      .priority = up
+			     };
+
+	rval = dcb_setapp(netdev, &app);
 
 	switch (idtype) {
 	case DCB_APP_IDTYPE_ETHTYPE:
