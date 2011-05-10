@@ -1617,6 +1617,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 10 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-146.el6]
+- [scsi] hpsa: fix reading a write only register causes a hang (Rob Evers) [703262]
+- [scsi] mpt2sas: remove the use of writeq, since writeq is not atomic (Tomas Henzl) [701947]
+
 * Wed May 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-145.el6]
 - [kernel] sched: resched proper CPU on yield_to (Rik van Riel) [464276]
 - [virt] sched: avoid kABI breakage (Rik van Riel) [464276]
