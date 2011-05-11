@@ -1617,6 +1617,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 10 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-147.el6]
+- [build] disable Werr for external modules (Aristeu Rozanski) [703504]
+
 * Tue May 10 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-146.el6]
 - [scsi] hpsa: fix reading a write only register causes a hang (Rob Evers) [703262]
 - [scsi] mpt2sas: remove the use of writeq, since writeq is not atomic (Tomas Henzl) [701947]
