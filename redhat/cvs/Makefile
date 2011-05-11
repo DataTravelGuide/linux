@@ -196,7 +196,7 @@ update-spec:
 	  mv linux-$(VERSION)-$(internal_release).noarch/ linux-$(VERSION)-$(internal_release)/; \
 	  cd linux-$(VERSION)-$(internal_release)/; \
 	  make mrproper; \
-	  rm -Rf configs *.config config-* perf; \
+	  rm -Rf configs *.config config-* perf check-kabi *.pub *.pub~ *.sec merge.pl *.gpg temp-* .gitignore crypto/signature/key.h random_seed; \
 	  cd ../; \
 	  tar cfj ../$(FULL_TARBALL) linux-$(VERSION)-$(internal_release)/)
 	@# updating the spec
