@@ -2655,34 +2655,35 @@ static int __init pppol2tp_init(void)
 {
 	int err;
 
-	err = proto_register(&pppol2tp_sk_proto, 0);
+	err = register_pernet_gen_device(&pppol2tp_net_id, &pppol2tp_net_ops);
 	if (err)
 		goto out;
+
+	err = proto_register(&pppol2tp_sk_proto, 0);
+	if (err)
+		goto out_unregister_pernet_dev;
+
 	err = register_pppox_proto(PX_PROTO_OL2TP, &pppol2tp_proto);
 	if (err)
 		goto out_unregister_pppol2tp_proto;
-
-	err = register_pernet_gen_device(&pppol2tp_net_id, &pppol2tp_net_ops);
-	if (err)
-		goto out_unregister_pppox_proto;
 
 	printk(KERN_INFO "PPPoL2TP kernel driver, %s\n",
 	       PPPOL2TP_DRV_VERSION);
 
 out:
 	return err;
-out_unregister_pppox_proto:
-	unregister_pppox_proto(PX_PROTO_OL2TP);
 out_unregister_pppol2tp_proto:
 	proto_unregister(&pppol2tp_sk_proto);
+out_unregister_pernet_dev:
+	unregister_pernet_gen_device(pppol2tp_net_id, &pppol2tp_net_ops);
 	goto out;
 }
 
 static void __exit pppol2tp_exit(void)
 {
 	unregister_pppox_proto(PX_PROTO_OL2TP);
-	unregister_pernet_gen_device(pppol2tp_net_id, &pppol2tp_net_ops);
 	proto_unregister(&pppol2tp_sk_proto);
+	unregister_pernet_gen_device(pppol2tp_net_id, &pppol2tp_net_ops);
 }
 
 module_init(pppol2tp_init);
