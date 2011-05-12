@@ -2241,11 +2241,10 @@ static inline void release_proto_idx(struct proto *prot)
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
+	/* Adjust obj_size first */
+	prot->obj_size = sk_alloc_size(prot->obj_size);
+
 	if (alloc_slab) {
-
-		/* Adjust obj_size first */
-		prot->obj_size = sk_alloc_size(prot->obj_size);
-
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
 					SLAB_HWCACHE_ALIGN | prot->slab_flags,
 					NULL);
