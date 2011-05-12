@@ -1617,6 +1617,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu May 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-148.el6]
+- [net] dccp: handle invalid feature options length (Jiri Pirko) [703013] {CVE-2011-1770}
+- [fs] cifs: check for private_data before trying to put it (Jeff Layton) [702642] {CVE-2011-1771}
+- [net] can: add missing socket check in can/raw and can/bcm release (Jiri Pirko) [698483] {CVE-2011-1598 CVE-2011-1748}
+- [netdrv] ixgbe: do not clear FCoE DDP error status for received ABTS (Andy Gospodarek) [695966]
+- [netdrv] ixgbe: DCB remove ixgbe_fcoe_getapp routine (Andy Gospodarek) [694358]
+- [fs] setup_arg_pages: diagnose excessive argument size (Oleg Nesterov) [645229] {CVE-2010-3858}
+- [scsi] bfa: change tech-preview to cover all cases (Rob Evers) [703251]
+- [scsi] bfa: driver version update (Rob Evers) [703265]
+- [scsi] bfa: kdump fix (Rob Evers) [703265]
+- [scsi] bfa: firmware download fix (Rob Evers) [703265]
+- [netdrv] bna: fix memory leak during RX path cleanup (Ivan Vecera) [698625]
+- [netdrv] bna: fix for clean fw re-initialization (Ivan Vecera) [698625]
+
 * Tue May 10 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-147.el6]
 - [build] disable Werr for external modules (Aristeu Rozanski) [703504]
 
