@@ -1617,6 +1617,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri May 13 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-149.el6]
+- [x86] MCE: Drop the default decoding notifier (Prarit Bhargava) [688281]
+- [x86] MCE: Do not taint when handling correctable errors (Prarit Bhargava) [688281]
+- [kernel] printk: use pK for /proc/kallsyms and /proc/modules (Phillip Lougher) [679262]
+- [kernel] timer debug: Hide kernel addresses via pK in /proc/timer_list (Phillip Lougher) [679262]
+- [drm] do not leak kernel addresses via /proc/dri/*/vma (Phillip Lougher) [679262]
+- [kernel] kptr_restrict for hiding kernel pointers from unprivileged users (Phillip Lougher) [679262]
+- [net] fix netns vs proto registration ordering (Wade Mealing) [702306] {CVE-2011-1767 CVE-2011-1768}
+
 * Thu May 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-148.el6]
 - [net] dccp: handle invalid feature options length (Jiri Pirko) [703013] {CVE-2011-1770}
 - [fs] cifs: check for private_data before trying to put it (Jeff Layton) [702642] {CVE-2011-1771}
