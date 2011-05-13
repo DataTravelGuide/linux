@@ -1510,7 +1510,9 @@ void netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 		return;
 	if (dev->num_tc)
 		netif_setup_tc(dev, txq);
-	if (txq < real_num) {
+	if (txq > real_num)
+		dev->real_num_tx_queues = txq;
+	else if (txq < real_num) {
 		dev->real_num_tx_queues = txq;
 		qdisc_reset_all_tx_gt(dev, txq);
 	}
