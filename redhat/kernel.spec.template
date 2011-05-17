@@ -1617,6 +1617,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 16 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-150.el6]
+- [scsi] megaraid_sas: Driver only report tape drive, JBOD and logic drives (Tomas Henzl) [619422]
+- [kernel] lib/vsprintf.c: add pU to print UUID/GUIDs (Stefan Assmann) [700299]
+
 * Fri May 13 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-149.el6]
 - [x86] MCE: Drop the default decoding notifier (Prarit Bhargava) [688281]
 - [x86] MCE: Do not taint when handling correctable errors (Prarit Bhargava) [688281]
