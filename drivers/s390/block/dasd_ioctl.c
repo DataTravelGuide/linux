@@ -212,9 +212,10 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
 		return -ENODEV;
-	if (base->features & DASD_FEATURE_READONLY) {
+	if (base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
 		dasd_put_device(base);
- 		return -EROFS;
+		return -EROFS;
 	}
 	if (copy_from_user(&fdata, argp, sizeof(struct format_data_t))) {
 		dasd_put_device(base);
@@ -372,6 +373,10 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 	base = dasd_device_from_gendisk(bdev->bd_disk);
 	if (!base)
 		return -ENODEV;
+	if (!intval && test_bit(DASD_FLAG_DEVICE_RO, &base->flags)) {
+		dasd_put_device(base);
+		return -EROFS;
+	}
 	set_disk_ro(bdev->bd_disk, intval);
 	rc = dasd_set_feature(base->cdev, DASD_FEATURE_READONLY, intval);
 	dasd_put_device(base);
