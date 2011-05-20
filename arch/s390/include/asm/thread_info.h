@@ -120,6 +120,12 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_31BIT		(1<<TIF_31BIT)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
 
+#ifdef CONFIG_64BIT
+#define is_32bit_task()		(test_thread_flag(TIF_31BIT))
+#else
+#define is_32bit_task()		(1)
+#endif
+
 #endif /* __KERNEL__ */
 
 #define PREEMPT_ACTIVE		0x4000000
