@@ -62,7 +62,7 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 	temp |= 0x0008;
 	/* Bits 6:5 - no TTs in root ports */
 	/* Bit  7 - no port indicators */
-	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(temp);
+	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
 static unsigned int xhci_port_speed(unsigned int port_status)
@@ -227,7 +227,7 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 }
 
 static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
-		u32 __iomem *addr, u32 port_status)
+		__le32 __iomem *addr, u32 port_status)
 {
 	/* Don't allow the USB core to disable SuperSpeed ports. */
 	if (xhci->port_array[wIndex] == 0x03) {
@@ -244,7 +244,7 @@ static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
 }
 
 static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
-		u16 wIndex, u32 __iomem *addr, u32 port_status)
+		u16 wIndex, __le32 __iomem *addr, u32 port_status)
 {
 	char *port_change_bit;
 	u32 status;
@@ -289,7 +289,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long flags;
 	u32 temp, temp1, status;
 	int retval = 0;
-	u32 __iomem *addr;
+	__le32 __iomem *addr;
 	int slot_id;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
@@ -543,7 +543,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
-	u32 __iomem *addr;
+	__le32 __iomem *addr;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
@@ -601,7 +601,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	xhci->bus_suspended = 0;
 	while (port--) {
 		/* suspend the port if the port is not suspended */
-		u32 __iomem *addr;
+		__le32 __iomem *addr;
 		u32 t1, t2;
 		int slot_id;
 
@@ -639,7 +639,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 
 		if (DEV_HIGHSPEED(t1)) {
 			/* enable remote wake up for USB 2.0 */
-			u32 __iomem *addr;
+			__le32 __iomem *addr;
 			u32 tmp;
 
 			addr = &xhci->op_regs->port_power_base +
@@ -682,7 +682,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	while (port--) {
 		/* Check whether need resume ports. If needed
 		   resume port and disable remote wakeup */
-		u32 __iomem *addr;
+		__le32 __iomem *addr;
 		u32 temp;
 		int slot_id;
 
@@ -724,7 +724,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 
 		if (DEV_HIGHSPEED(temp)) {
 			/* disable remote wake up for USB 2.0 */
-			u32 __iomem *addr;
+			__le32 __iomem *addr;
 			u32 tmp;
 
 			addr = &xhci->op_regs->port_power_base +
