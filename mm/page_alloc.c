@@ -187,30 +187,6 @@ static inline void watermark_check_zone(struct zone *zone)
 		wake_up_interruptible(&watermark_wq);
 }
 
-/**
- * watermark_wait - Wait for watermark to go above low
- * @timeout: Wait until watermark is reached or this timeout is reached
- *
- * Waits for up to @timeout jiffies for watermark on a zone to be reached
- */
-static long watermark_wait(long timeout)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(&watermark_wq, &wait, TASK_INTERRUPTIBLE);
-
-	/*
-	 * The use of io_schedule_timeout() here means that it gets
-	 * accounted for as IO waiting. This may or may not be the case
-	 * but at least this way it gets picked up by vmstat
-	 */
-	ret = io_schedule_timeout(timeout);
-	finish_wait(&watermark_wq, &wait);
-
-	return ret;
-}
-
 static void set_pageblock_migratetype(struct page *page, int migratetype)
 {
 
@@ -1895,8 +1871,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
 			preferred_zone, migratetype);
 
 		if (!page && gfp_mask & __GFP_NOFAIL) {
-			/* If still failing, wait for pressure on zone to relieve */
-			watermark_wait(HZ/50);
+			wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 		}
 	} while (!page && (gfp_mask & __GFP_NOFAIL));
 
@@ -2089,7 +2064,7 @@ rebalance:
 	pages_reclaimed += did_some_progress;
 	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
 		/* Too much pressure, back off a bit at let reclaimers do work */
-		watermark_wait(HZ/50);
+		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 		goto rebalance;
 	}
 
