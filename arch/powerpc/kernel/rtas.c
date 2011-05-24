@@ -41,6 +41,7 @@
 #include <asm/time.h>
 #include <asm/mmu.h>
 #include <asm/topology.h>
+#include <asm/pSeries_reconfig.h>
 
 struct rtas_t rtas = {
 	.lock = __RAW_SPIN_LOCK_UNLOCKED
@@ -790,6 +791,7 @@ static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_d
 		 as a result of the H_PROD below */
 		mb();
 		start_topology_update();
+		pSeries_coalesce_init();
 
 		/* This cpu did the suspend or got an error; in either case,
 		 * we need to prod all other other cpus out of join state.
