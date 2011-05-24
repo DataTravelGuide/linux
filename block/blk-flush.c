@@ -264,6 +264,16 @@ static bool blk_kick_flush(struct request_queue *q)
 	blk_rq_init(q, &q->flush_rq);
 	q->flush_rq.cmd_type = REQ_TYPE_FS;
 	q->flush_rq.cmd_flags = REQ_WRITE_FLUSH | REQ_FLUSH_SEQ;
+
+	/*
+	 * For compatibility with drivers using old semantics of providing
+	 * a prepare_flush_fn and not parsing REQ_FLUSH flag.
+	 */
+	if (unlikely(q->prepare_flush_fn)) {
+		q->flush_rq.cmd_flags = REQ_HARDBARRIER | REQ_FLUSH_SEQ;
+		q->prepare_flush_fn(q, &q->flush_rq);
+	}
+
 	q->flush_rq.rq_disk = first_rq->rq_disk;
 	q->flush_rq.end_io = flush_end_io;
 
