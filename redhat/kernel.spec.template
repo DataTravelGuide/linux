@@ -1617,6 +1617,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 23 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-153.el6]
+- [net] ipv6: Add GSO support on forwarding path (Thomas Graf) [683455]
+- [net] ipv6/udp: fix the wrong headroom check (Thomas Graf) [698170]
+- [net] dcbnl: potential risk in code in getapp handling (John Villalovos) [694354]
+- [net] Fix netif_set_real_num_tx_queues (Neil Horman) [702742]
+- [net] sock: adjust prot->obj_size always (Jiri Pirko) [704231]
+- [net] dccp: Fix a few bugs in module loading (Neil Horman) [702183]
+- [fs] GFS2: resource group bitmap corruption resulting in panics and withdraws (Robert S Peterson) [702057]
+- [ppc] Add pgprot_writecombine (Steve Best) [694595]
+- [input] xen-kbdfront: advertise either absolute or relative coordinates (Igor Mammedov) [703474]
+
 * Fri May 20 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-152.el6]
 - [cpuidle] Ensure poll_idle_init() is called (Matthew Garrett) [696850]
 - [x86] intel_idle: add Sandy Bridge support (Matthew Garrett) [696172]
