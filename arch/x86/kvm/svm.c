@@ -48,6 +48,7 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_LBRV           (1 <<  1)
 #define SVM_FEATURE_SVML           (1 <<  2)
 #define SVM_FEATURE_NRIP           (1 <<  3)
+#define SVM_FEATURE_DECODE_ASSIST  (1 <<  7)
 #define SVM_FEATURE_PAUSE_FILTER   (1 << 10)
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
