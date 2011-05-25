@@ -18,6 +18,7 @@ Supported adapters:
   * Intel 3400/5 Series (PCH)
   * Intel Cougar Point (PCH)
   * Intel Patsburg (PCH)
+  * Intel Panther Point (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
