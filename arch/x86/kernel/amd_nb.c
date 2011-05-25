@@ -68,7 +68,7 @@ int amd_cache_northbridges(void)
 			next_northbridge(misc, amd_nb_misc_ids);
 		node_to_amd_nb(i)->link = link =
 			next_northbridge(link, amd_nb_link_ids);
-        }
+	}
 
 	/* some CPU families (e.g. family 0x11) do not support GART */
 	if (boot_cpu_data.x86 == 0xf || boot_cpu_data.x86 == 0x10 ||
@@ -174,20 +174,20 @@ static int amd_cache_gart(void)
 {
 	u16 i;
 
-       if (!amd_nb_has_feature(AMD_NB_GART))
-               return 0;
+	if (!amd_nb_has_feature(AMD_NB_GART))
+		return 0;
 
-       flush_words = kmalloc(amd_nb_num() * sizeof(u32), GFP_KERNEL);
-       if (!flush_words) {
-               amd_northbridges.flags &= ~AMD_NB_GART;
-               return -ENOMEM;
-       }
+	flush_words = kmalloc(amd_nb_num() * sizeof(u32), GFP_KERNEL);
+	if (!flush_words) {
+		amd_northbridges.flags &= ~AMD_NB_GART;
+		return -ENOMEM;
+	}
 
-       for (i = 0; i != amd_nb_num(); i++)
-               pci_read_config_dword(node_to_amd_nb(i)->misc, 0x9c,
-                                     &flush_words[i]);
+	for (i = 0; i != amd_nb_num(); i++)
+		pci_read_config_dword(node_to_amd_nb(i)->misc, 0x9c,
+				      &flush_words[i]);
 
-       return 0;
+	return 0;
 }
 
 void amd_flush_garts(void)
