@@ -9,6 +9,8 @@ extern int early_is_amd_nb(u32 value);
 extern int amd_cache_northbridges(void);
 extern void amd_flush_garts(void);
 extern int amd_scan_nodes(unsigned long start, unsigned long end);
+extern int amd_get_subcaches(int);
+extern int amd_set_subcaches(int, int);
 
 struct amd_northbridge {
 	struct pci_dev *misc;
@@ -24,6 +26,7 @@ extern struct amd_northbridge_info amd_northbridges;
 
 #define AMD_NB_GART			0x1
 #define AMD_NB_L3_INDEX_DISABLE		0x2
+#define AMD_NB_L3_PARTITIONING		0x4
 
 #ifdef CONFIG_AMD_NB
 
