@@ -81,7 +81,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 event_inj_err;
 	u64 nested_cr3;
 	u64 lbr_ctl;
-	u64 reserved_5;
+	u32 clean;
+	u32 reserved_5;
 	u64 next_rip;
 	u8 insn_len;
 	u8 insn_bytes[15];

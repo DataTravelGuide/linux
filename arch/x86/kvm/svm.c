@@ -146,6 +146,28 @@ static int nested_svm_vmexit(struct vcpu_svm *svm);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
 
+enum {
+	VMCB_DIRTY_MAX,
+};
+
+#define VMCB_ALWAYS_DIRTY_MASK 0U
+
+static inline void mark_all_dirty(struct vmcb *vmcb)
+{
+	vmcb->control.clean = 0;
+}
+
+static inline void mark_all_clean(struct vmcb *vmcb)
+{
+	vmcb->control.clean = ((1 << VMCB_DIRTY_MAX) - 1)
+		               & ~VMCB_ALWAYS_DIRTY_MASK;
+}
+
+static inline void mark_dirty(struct vmcb *vmcb, int bit)
+{
+	vmcb->control.clean &= ~(1 << bit);
+}
+
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_svm, vcpu);
@@ -728,6 +750,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 		control->intercept |= (1ULL << INTERCEPT_PAUSE);
 	}
 
+	mark_all_dirty(svm->vmcb);
+
 	enable_gif(svm);
 }
 
@@ -836,8 +860,10 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int i;
 
-	if (unlikely(cpu != vcpu->cpu))
+	if (unlikely(cpu != vcpu->cpu)) {
 		svm->asid_generation = 0;
+		mark_all_dirty(svm->vmcb);
+	}
 
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
@@ -1808,6 +1834,8 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	/* Exit nested SVM mode */
 	svm->nested.vmcb = 0;
 
+	mark_all_dirty(svm->vmcb);
+
 	nested_svm_unmap(nested_vmcb, KM_USER0);
 
 	kvm_mmu_reset_context(&svm->vcpu);
@@ -1963,6 +1991,8 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	nested_svm_unmap(nested_vmcb, KM_USER0);
 
 	enable_gif(svm);
+
+	mark_all_dirty(svm->vmcb);
 
 	return true;
 }
@@ -3025,6 +3055,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(svm->vmcb->control.exit_code ==
 		     SVM_EXIT_EXCP_BASE + MC_VECTOR))
 		svm_handle_mce(svm);
+
+	mark_all_clean(svm->vmcb);
 }
 
 #undef R
