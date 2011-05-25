@@ -555,11 +555,11 @@ static void enable_gart_translations(void)
 {
 	int i;
 
-	if (!amd_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	for (i = 0; i < amd_northbridges.num; i++) {
-		struct pci_dev *dev = amd_northbridges.nb_misc[i];
+	for (i = 0; i < amd_nb_num(); i++) {
+		struct pci_dev *dev = node_to_amd_nb(i)->misc;
 
 		enable_gart_translation(dev, __pa(agp_gatt_table));
 	}
@@ -587,7 +587,7 @@ static int gart_resume(struct sys_device *dev)
 {
 	printk(KERN_INFO "PCI-DMA: Resuming GART IOMMU\n");
 
-	if (!amd_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return 0;
 
 	if (fix_up_north_bridges) {
@@ -595,8 +595,8 @@ static int gart_resume(struct sys_device *dev)
 
 		printk(KERN_INFO "PCI-DMA: Restoring GART aperture settings\n");
 
-		for (i = 0; i < amd_northbridges.num; i++) {
-			struct pci_dev *dev = amd_northbridges.nb_misc[i];
+		for (i = 0; i < amd_nb_num(); i++) {
+			struct pci_dev *dev = node_to_amd_nb(i)->misc;
 
 			/*
 			 * Don't enable translations just yet.  That is the next
@@ -645,8 +645,8 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 	printk(KERN_INFO "PCI-DMA: Disabling AGP.\n");
 	aper_size = aper_base = info->aper_size = 0;
 	dev = NULL;
-	for (i = 0; i < amd_northbridges.num; i++) {
-		dev = amd_northbridges.nb_misc[i];
+	for (i = 0; i < amd_nb_num(); i++) {
+		dev = node_to_amd_nb(i)->misc;
 		new_aper_base = read_aperture(dev, &new_aper_size);
 		if (!new_aper_base)
 			goto nommu;
@@ -711,13 +711,13 @@ void gart_iommu_shutdown(void)
 	if (no_agp && (dma_ops != &gart_dma_ops))
 		return;
 
-	if (!amd_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
-	for (i = 0; i < amd_northbridges.num; i++) {
+	for (i = 0; i < amd_nb_num(); i++) {
 		u32 ctl;
 
-		dev = amd_northbridges.nb_misc[i];
+		dev = node_to_amd_nb(i)->misc;
 		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
 
 		ctl &= ~GARTEN;
@@ -735,7 +735,7 @@ void __init gart_iommu_init(void)
 	unsigned long scratch;
 	long i;
 
-	if (!amd_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
 #ifndef CONFIG_AGP_AMD64

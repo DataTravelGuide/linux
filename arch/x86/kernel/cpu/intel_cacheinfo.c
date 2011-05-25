@@ -330,7 +330,7 @@ static void __cpuinit amd_calc_l3_indices(struct amd_l3_cache *l3)
 static struct amd_l3_cache * __cpuinit amd_init_l3_cache(int node)
 {
 	struct amd_l3_cache *l3;
-	struct pci_dev *dev = node_to_amd_nb_misc(node);
+	struct pci_dev *dev = node_to_amd_nb(node)->misc;
 
 	l3 = kzalloc(sizeof(struct amd_l3_cache), GFP_ATOMIC);
 	if (!l3) {
@@ -367,7 +367,7 @@ static void __cpuinit amd_check_l3_disable(struct _cpuid4_info_regs *this_leaf,
 			return;
 
 	/* not in virtualized environments */
-	if (amd_northbridges.num == 0)
+	if (amd_nb_num() == 0)
 		return;
 
 	/*
@@ -375,7 +375,7 @@ static void __cpuinit amd_check_l3_disable(struct _cpuid4_info_regs *this_leaf,
 	 * never freed but this is done only on shutdown so it doesn't matter.
 	 */
 	if (!l3_caches) {
-		int size = amd_northbridges.num * sizeof(struct amd_l3_cache *);
+		int size = amd_nb_num() * sizeof(struct amd_l3_cache *);
 
 		l3_caches = kzalloc(size, GFP_ATOMIC);
 		if (!l3_caches)
