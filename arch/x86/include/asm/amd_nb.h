@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_K8_H
-#define _ASM_X86_K8_H
+#ifndef _ASM_X86_AMD_NB_H
+#define _ASM_X86_AMD_NB_H
 
 #include <linux/pci.h>
 
@@ -17,7 +17,7 @@ struct k8_northbridge_info {
 };
 extern struct k8_northbridge_info k8_northbridges;
 
-#ifdef CONFIG_K8_NB
+#ifdef CONFIG_AMD_NB
 static inline struct pci_dev *node_to_k8_nb_misc(int node)
 {
 	return (node < k8_northbridges.num) ? k8_northbridges.nb_misc[node] : NULL;
@@ -30,4 +30,4 @@ static inline struct pci_dev *node_to_k8_nb_misc(int node)
 #endif
 
 
-#endif /* _ASM_X86_K8_H */
+#endif /* _ASM_X86_AMD_NB_H */

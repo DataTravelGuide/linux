@@ -27,7 +27,7 @@
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 int gart_iommu_aperture;
 int gart_iommu_aperture_disabled __initdata;
