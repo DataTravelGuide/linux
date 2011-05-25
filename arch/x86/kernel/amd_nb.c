@@ -41,7 +41,7 @@ static struct pci_dev *next_northbridge(struct pci_dev *dev,
 
 int amd_cache_northbridges(void)
 {
-	int i = 0;
+	u16 i = 0;
 	struct amd_northbridge *nb;
 	struct pci_dev *misc, *link;
 
@@ -96,17 +96,19 @@ int amd_cache_northbridges(void)
 }
 EXPORT_SYMBOL_GPL(amd_cache_northbridges);
 
-/* Ignores subdevice/subvendor but as far as I can figure out
-   they're useless anyways */
-int __init early_is_amd_nb(u32 device)
+/*
+ * Ignores subdevice/subvendor but as far as I can figure out
+ * they're useless anyways
+ */
+bool __init early_is_amd_nb(u32 device)
 {
 	struct pci_device_id *id;
 	u32 vendor = device & 0xffff;
 	device >>= 16;
 	for (id = amd_nb_misc_ids; id->vendor; id++)
 		if (vendor == id->vendor && device == id->device)
-			return 1;
-	return 0;
+			return true;
+	return false;
 }
 
 int amd_get_subcaches(int cpu)
@@ -168,9 +170,9 @@ int amd_set_subcaches(int cpu, int mask)
 	return 0;
 }
 
-int amd_cache_gart(void)
+static int amd_cache_gart(void)
 {
-       int i;
+	u16 i;
 
        if (!amd_nb_has_feature(AMD_NB_GART))
                return 0;
