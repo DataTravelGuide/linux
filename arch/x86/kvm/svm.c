@@ -153,6 +153,7 @@ enum {
 	VMCB_ASID,       /* ASID */
 	VMCB_INTR,       /* int_ctl, int_vector */
 	VMCB_NPT,        /* npt_en, nCR3, gPAT */
+	VMCB_CR,         /* CR0, CR3, CR4, EFER */
 	VMCB_DIRTY_MAX,
 };
 
@@ -275,6 +276,7 @@ static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
 	vcpu->arch.shadow_efer = efer;
+	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
 }
 
 static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
@@ -1091,6 +1093,7 @@ set:
 	 */
 	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
 	svm->vmcb->save.cr0 = cr0;
+	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
 }
 
 static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
@@ -1106,6 +1109,7 @@ static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		cr4 |= X86_CR4_PAE;
 	cr4 |= host_cr4_mce;
 	to_svm(vcpu)->vmcb->save.cr4 = cr4;
+	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
 }
 
 static void svm_set_segment(struct kvm_vcpu *vcpu,
@@ -1358,6 +1362,7 @@ static int nm_interception(struct vcpu_svm *svm)
 		svm->vmcb->save.cr0 |= X86_CR0_TS;
 	svm->vcpu.fpu_active = 1;
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	mark_dirty(svm->vmcb, VMCB_CR);
 
 	return 1;
 }
@@ -1840,6 +1845,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	} else {
 		(void)kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
 	}
+	mark_dirty(svm->vmcb, VMCB_CR);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, hsave->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, hsave->save.rsp);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RIP, hsave->save.rip);
@@ -1941,6 +1947,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 		(void)kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
 		kvm_mmu_reset_context(&svm->vcpu);
 	}
+	mark_dirty(svm->vmcb, VMCB_CR);
 	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = nested_vmcb->save.cr2;
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, nested_vmcb->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, nested_vmcb->save.rsp);
@@ -2966,8 +2973,10 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	ldt_selector = kvm_read_ldt();
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 	/* required for live migration with NPT */
-	if (npt_enabled)
+	if (npt_enabled) {
 		svm->vmcb->save.cr3 = vcpu->arch.cr3;
+		mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
+	}
 
 	clgi();
 
@@ -3099,6 +3108,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	}
 
 	svm->vmcb->save.cr3 = root;
+	mark_dirty(svm->vmcb, VMCB_CR);
 	force_new_asid(vcpu);
 }
 
@@ -3219,6 +3229,7 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
 	svm->vmcb->save.cr0 |= X86_CR0_TS;
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	mark_dirty(svm->vmcb, VMCB_CR);
 }
 
 static struct kvm_x86_ops svm_x86_ops = {
