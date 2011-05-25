@@ -12,6 +12,7 @@ extern int amd_scan_nodes(unsigned long start, unsigned long end);
 
 struct amd_northbridge {
 	struct pci_dev *misc;
+	struct pci_dev *link;
 };
 
 struct amd_northbridge_info {
