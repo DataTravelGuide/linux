@@ -554,8 +554,8 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn)
 	nodes_clear(node_online_map);
 #endif
 
-#ifdef CONFIG_K8_NUMA
-	if (!numa_off && !k8_scan_nodes(start_pfn<<PAGE_SHIFT,
+#ifdef CONFIG_AMD_NUMA
+	if (!numa_off && !amd_scan_nodes(start_pfn<<PAGE_SHIFT,
 					last_pfn<<PAGE_SHIFT))
 		return;
 	nodes_clear(node_possible_map);

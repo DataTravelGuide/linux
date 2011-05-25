@@ -1,8 +1,8 @@
 /*
- * AMD K8 NUMA support.
+ * AMD NUMA support.
  * Discover the memory map and associated nodes.
  *
- * This version reads it directly from the K8 northbridge.
+ * This version reads it directly from the AMD northbridge.
  *
  * Copyright 2002,2003 Andi Kleen, SuSE Labs.
  */
@@ -52,7 +52,7 @@ static __init void early_get_boot_cpu_id(void)
 {
 	/*
 	 * need to get boot_cpu_id so can use that to create apicid_to_node
-	 * in k8_scan_nodes()
+	 * in amd_scan_nodes()
 	 */
 	/*
 	 * Find possible boot-time SMP configuration:
@@ -76,7 +76,7 @@ static __init void early_get_boot_cpu_id(void)
 	early_init_lapic_mapping();
 }
 
-int __init k8_scan_nodes(unsigned long start, unsigned long end)
+int __init amd_scan_nodes(unsigned long start, unsigned long end)
 {
 	unsigned numnodes, cores, bits, apicid_base;
 	unsigned long prevbase;
