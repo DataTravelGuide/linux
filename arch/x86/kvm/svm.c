@@ -48,6 +48,7 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_LBRV           (1 <<  1)
 #define SVM_FEATURE_SVML           (1 <<  2)
 #define SVM_FEATURE_NRIP           (1 <<  3)
+#define SVM_FEATURE_FLUSH_ASID     (1 <<  6)
 #define SVM_FEATURE_DECODE_ASSIST  (1 <<  7)
 #define SVM_FEATURE_PAUSE_FILTER   (1 << 10)
 
@@ -2727,7 +2728,6 @@ static void pre_svm_run(struct vcpu_svm *svm)
 
 	struct svm_cpu_data *svm_data = per_cpu(svm_data, cpu);
 
-	svm->vmcb->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
 	/* FIXME: handle wraparound of asid_generation */
 	if (svm->asid_generation != svm_data->asid_generation)
 		new_asid(svm, svm_data);
@@ -2861,7 +2861,12 @@ static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	to_svm(vcpu)->asid_generation--;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (svm_has(SVM_FEATURE_FLUSH_ASID))
+		svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ASID;
+	else
+		svm->asid_generation--;
 }
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
@@ -3079,6 +3084,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	sync_cr8_to_lapic(vcpu);
 
 	svm->next_rip = 0;
+
+	svm->vmcb->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
 
 	if (npt_enabled) {
 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
