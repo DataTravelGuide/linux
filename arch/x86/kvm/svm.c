@@ -264,11 +264,6 @@ static inline void invlpga(unsigned long addr, u32 asid)
 	asm volatile (__ex(SVM_INVLPGA) :: "a"(addr), "c"(asid));
 }
 
-static inline void force_new_asid(struct kvm_vcpu *vcpu)
-{
-	to_svm(vcpu)->asid_generation--;
-}
-
 static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	if (!npt_enabled && !(efer & EFER_LMA))
@@ -751,7 +746,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		save->cr3 = 0;
 		save->cr4 = 0;
 	}
-	force_new_asid(&svm->vcpu);
+	svm->asid_generation = 0;
 
 	svm->nested.vmcb = 0;
 	svm->vcpu.arch.hflags = 0;
@@ -1105,7 +1100,7 @@ static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	unsigned long old_cr4 = to_svm(vcpu)->vmcb->save.cr4;
 
 	if (npt_enabled && ((old_cr4 ^ cr4) & X86_CR4_PGE))
-		force_new_asid(vcpu);
+		svm_flush_tlb(vcpu);
 
 	vcpu->arch.cr4 = cr4;
 	if (!npt_enabled)
@@ -1991,7 +1986,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->nested.intercept_exceptions = nested_vmcb->control.intercept_exceptions;
 	svm->nested.intercept            = nested_vmcb->control.intercept;
 
-	force_new_asid(&svm->vcpu);
+	svm_flush_tlb(&svm->vcpu);
 	svm->vmcb->control.exit_int_info = nested_vmcb->control.exit_int_info;
 	svm->vmcb->control.exit_int_info_err = nested_vmcb->control.exit_int_info_err;
 	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
@@ -2866,7 +2861,7 @@ static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	force_new_asid(vcpu);
+	to_svm(vcpu)->asid_generation--;
 }
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
@@ -3110,13 +3105,13 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	if (npt_enabled) {
 		svm->vmcb->control.nested_cr3 = root;
 		mark_dirty(svm->vmcb, VMCB_NPT);
-		force_new_asid(vcpu);
+		svm_flush_tlb(vcpu);
 		return;
 	}
 
 	svm->vmcb->save.cr3 = root;
 	mark_dirty(svm->vmcb, VMCB_CR);
-	force_new_asid(vcpu);
+	svm_flush_tlb(vcpu);
 }
 
 static int is_disabled(void)
