@@ -285,11 +285,11 @@ static int netpoll_owner_active(struct net_device *dev)
 	return 0;
 }
 
-void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
+void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
+			     struct net_device *dev)
 {
 	int status = NETDEV_TX_BUSY;
 	unsigned long tries;
-	struct net_device *dev = np->dev;
 	const struct net_device_ops *ops = dev->netdev_ops;
 	struct netpoll_info *npinfo = np->dev->npinfo;
 
@@ -875,7 +875,7 @@ void netpoll_set_trap(int trap)
 		atomic_dec(&trapped);
 }
 
-EXPORT_SYMBOL(netpoll_send_skb);
+EXPORT_SYMBOL(netpoll_send_skb_on_dev);
 EXPORT_SYMBOL(netpoll_set_trap);
 EXPORT_SYMBOL(netpoll_trap);
 EXPORT_SYMBOL(netpoll_print_options);
