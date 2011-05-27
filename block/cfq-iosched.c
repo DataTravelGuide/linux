@@ -287,7 +287,9 @@ struct cfq_data {
 
 	/* List of cfq groups being managed on this device*/
 	struct hlist_head cfqg_list;
-	struct rcu_head rcu;
+
+	/* Number of groups which are on blkcg->blkg_list */
+	unsigned int nr_blkcg_linked_grps;
 };
 
 static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
@@ -1034,6 +1036,7 @@ static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
 		cfq_blkiocg_add_blkio_group(blkcg, &cfqg->blkg, (void *)cfqd,
 					0);
 
+	cfqd->nr_blkcg_linked_grps++;
 	cfqg->weight = blkcg_get_weight(blkcg, cfqg->blkg.dev);
 
 	/* Add group on cfqd list */
@@ -3788,15 +3791,11 @@ static void cfq_put_async_queues(struct cfq_data *cfqd)
 		cfq_put_queue(cfqd->async_idle_cfqq);
 }
 
-static void cfq_cfqd_free(struct rcu_head *head)
-{
-	kfree(container_of(head, struct cfq_data, rcu));
-}
-
 static void cfq_exit_queue(struct elevator_queue *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
 	struct request_queue *q = cfqd->queue;
+	bool wait = false;
 
 	cfq_shutdown_timer_wq(cfqd);
 
@@ -3815,14 +3814,32 @@ static void cfq_exit_queue(struct elevator_queue *e)
 
 	cfq_put_async_queues(cfqd);
 	cfq_release_cfq_groups(cfqd);
-	cfq_blkiocg_del_blkio_group(&cfqd->root_group.blkg);
+
+	/*
+	 * If there are groups which we could not unlink from blkcg list,
+	 * wait for a rcu period for them to be freed.
+	 */
+	if (cfqd->nr_blkcg_linked_grps)
+		wait = true;
 
 	spin_unlock_irq(q->queue_lock);
 
 	cfq_shutdown_timer_wq(cfqd);
 
-	/* Wait for cfqg->blkg->key accessors to exit their grace periods. */
-	call_rcu(&cfqd->rcu, cfq_cfqd_free);
+	/*
+	 * Wait for cfqg->blkg->key accessors to exit their grace periods.
+	 * Do this wait only if there are other unlinked groups out
+	 * there. This can happen if cgroup deletion path claimed the
+	 * responsibility of cleaning up a group before queue cleanup code
+	 * get to the group.
+	 *
+	 * Do not call synchronize_rcu() unconditionally as there are drivers
+	 * which create/delete request queue hundreds of times during scan/boot
+	 * and synchronize_rcu() can take significant time and slow down boot.
+	 */
+	if (wait)
+		synchronize_rcu();
+	kfree(cfqd);
 }
 
 static void *cfq_init_queue(struct request_queue *q)
@@ -3854,14 +3871,21 @@ static void *cfq_init_queue(struct request_queue *q)
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 	/*
-	 * Take a reference to root group which we never drop. This is just
-	 * to make sure that cfq_put_cfqg() does not try to kfree root group
+	 * Set root group reference to 2. One reference will be dropped when
+	 * all groups on cfqd->cfqg_list are being deleted during queue exit.
+	 * Other reference will remain there as we don't want to delete this
+	 * group as it is statically allocated and gets destroyed when
+	 * throtl_data goes away.
 	 */
-	cfqg->ref = 1;
+	cfqg->ref = 2;
 	rcu_read_lock();
 	cfq_blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg,
 					(void *)cfqd, 0);
 	rcu_read_unlock();
+	cfqd->nr_blkcg_linked_grps++;
+
+	/* Add group on cfqd->cfqg_list */
+	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
 #endif
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
@@ -3908,7 +3932,6 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * second, in order to have larger depth for async operations.
 	 */
 	cfqd->last_delayed_sync = jiffies - HZ;
-	INIT_RCU_HEAD(&cfqd->rcu);
 	return cfqd;
 }
 
