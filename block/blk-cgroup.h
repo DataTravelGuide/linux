@@ -151,9 +151,6 @@ struct blkio_group {
 	struct blkio_group_stats stats;
 };
 
-extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
-extern void blkiocg_css_put(struct blkio_cgroup *blkcg);
-
 struct blkio_policy_node {
 	struct list_head node;
 	dev_t dev;

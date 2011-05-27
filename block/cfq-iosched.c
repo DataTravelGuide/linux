@@ -995,10 +995,6 @@ static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
 	struct backing_dev_info *bdi = &cfqd->queue->backing_dev_info;
 	unsigned int major, minor;
 
-	/* Do we need to take this reference */
-	if (!blkiocg_css_tryget(blkcg))
-		return NULL;;
-
 	cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, key));
 	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
 		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
@@ -1044,7 +1040,6 @@ static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
 	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
 
 done:
-	blkiocg_css_put(blkcg);
 	return cfqg;
 }
 

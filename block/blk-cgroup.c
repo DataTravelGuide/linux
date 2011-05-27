@@ -33,20 +33,6 @@ static LIST_HEAD(blkio_list);
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
-bool blkiocg_css_tryget(struct blkio_cgroup *blkcg)
-{
-	if (!css_tryget(&blkcg->css))
-		return false;
-	return true;
-}
-EXPORT_SYMBOL_GPL(blkiocg_css_tryget);
-
-void blkiocg_css_put(struct blkio_cgroup *blkcg)
-{
-	css_put(&blkcg->css);
-}
-EXPORT_SYMBOL_GPL(blkiocg_css_put);
-
 static inline void blkio_policy_insert_node(struct blkio_cgroup *blkcg,
 					    struct blkio_policy_node *pn)
 {
