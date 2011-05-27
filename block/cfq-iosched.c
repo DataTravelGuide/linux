@@ -196,7 +196,7 @@ struct cfq_group {
 	struct blkio_group blkg;
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 	struct hlist_node cfqd_node;
-	atomic_t ref;
+	int ref;
 #endif
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
@@ -1022,7 +1022,7 @@ static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
 	 * elevator which will be dropped by either elevator exit
 	 * or cgroup deletion path depending on who is exiting first.
 	 */
-	atomic_set(&cfqg->ref, 1);
+	cfqg->ref = 1;
 
 	/*
 	 * Add group onto cgroup list. It might happen that bdi->dev is
@@ -1068,7 +1068,7 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
 
 static inline struct cfq_group *cfq_ref_get_cfqg(struct cfq_group *cfqg)
 {
-	atomic_inc(&cfqg->ref);
+	cfqg->ref++;
 	return cfqg;
 }
 
@@ -1080,7 +1080,7 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 
 	cfqq->cfqg = cfqg;
 	/* cfqq reference on cfqg */
-	atomic_inc(&cfqq->cfqg->ref);
+	cfqq->cfqg->ref++;
 }
 
 static void cfq_put_cfqg(struct cfq_group *cfqg)
@@ -1088,8 +1088,9 @@ static void cfq_put_cfqg(struct cfq_group *cfqg)
 	struct cfq_rb_root *st;
 	int i, j;
 
-	BUG_ON(atomic_read(&cfqg->ref) <= 0);
-	if (!atomic_dec_and_test(&cfqg->ref))
+	BUG_ON(cfqg->ref <= 0);
+	cfqg->ref--;
+	if (cfqg->ref)
 		return;
 	for_each_cfqg_st(cfqg, i, j, st)
 		BUG_ON(!RB_EMPTY_ROOT(&st->rb) || st->active != NULL);
@@ -1197,7 +1198,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			cfq_group_notify_queue_del(cfqd, cfqq->cfqg);
 		cfqq->orig_cfqg = cfqq->cfqg;
 		cfqq->cfqg = &cfqd->root_group;
-		atomic_inc(&cfqd->root_group.ref);
+		cfqd->root_group.ref++;
 		group_changed = 1;
 	} else if (!cfqd->cfq_group_isolation
 		   && cfqq_type(cfqq) == SYNC_WORKLOAD && cfqq->orig_cfqg) {
@@ -3686,11 +3687,12 @@ new_queue:
 	cfqq->allocated[rw]++;
 	cfqq->ref++;
 
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	rq->elevator_private[0] = cic;
 	rq->elevator_private[1] = cfqq;
 	rq->elevator_private[2] = cfq_ref_get_cfqg(cfqq->cfqg);
+
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
 	return 0;
 
 queue_fail:
@@ -3860,7 +3862,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * Take a reference to root group which we never drop. This is just
 	 * to make sure that cfq_put_cfqg() does not try to kfree root group
 	 */
-	atomic_set(&cfqg->ref, 1);
+	cfqg->ref = 1;
 	rcu_read_lock();
 	cfq_blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg,
 					(void *)cfqd, 0);
