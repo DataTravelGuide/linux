@@ -2232,7 +2232,6 @@ static int bond_release_all(struct net_device *bond_dev)
 
 	netdev_bonding_change(bond_dev, NETDEV_BONDING_DESLAVE);
 
-	block_netpoll_tx();
 	write_lock_bh(&bond->lock);
 
 	netif_carrier_off(bond_dev);
@@ -2337,8 +2336,6 @@ static int bond_release_all(struct net_device *bond_dev)
 
 out:
 	write_unlock_bh(&bond->lock);
-	unblock_netpoll_tx();
-
 	return 0;
 }
 
