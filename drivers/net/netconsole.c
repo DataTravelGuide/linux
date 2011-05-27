@@ -666,7 +666,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 	bool stopped = false;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||
-	      event == NETDEV_BONDING_DESLAVE || event == NETDEV_JOIN))
+	      event == NETDEV_RELEASE || event == NETDEV_JOIN))
 		goto done;
 
 	spin_lock_irqsave(&target_list_lock, flags);
@@ -677,7 +677,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 			case NETDEV_CHANGENAME:
 				strlcpy(nt->np.dev_name, dev->name, IFNAMSIZ);
 				break;
-			case NETDEV_BONDING_DESLAVE:
+			case NETDEV_RELEASE:
 			case NETDEV_JOIN:
 			case NETDEV_UNREGISTER:
 				netpoll_cleanup(&nt->np);
@@ -697,7 +697,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 		case NETDEV_UNREGISTER:
 			printk(KERN_CONT "unregistered\n");
 			break;
-		case NETDEV_BONDING_DESLAVE:
+		case NETDEV_RELEASE:
 			printk(KERN_CONT "released slaves\n");
 			break;
 		case NETDEV_JOIN:

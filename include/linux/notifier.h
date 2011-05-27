@@ -204,7 +204,7 @@ static inline int notifier_to_errno(int ret)
 #define NETDEV_PRE_UP		0x000D
 #define NETDEV_BONDING_OLDTYPE  0x000E
 #define NETDEV_BONDING_NEWTYPE  0x000F
-#define NETDEV_BONDING_DESLAVE  0x0010
+#define NETDEV_RELEASE		0x0010
 #define NETDEV_NOTIFY_PEERS	0x0013
 #define NETDEV_JOIN		0x0014
 
