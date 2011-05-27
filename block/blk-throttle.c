@@ -76,8 +76,8 @@ struct throtl_grp {
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
 
-	/* > 0 value signifies that throttle limit got updated for the group */
-	atomic_t limits_changed;
+	/* Some throttle limits got updated for the group */
+	bool limits_changed;
 };
 
 struct throtl_data
@@ -201,7 +201,6 @@ static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
 	bio_list_init(&tg->bio_lists[1]);
-	atomic_set(&tg->limits_changed, 0);
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -752,20 +751,19 @@ static void throtl_process_limit_change(struct throtl_data *td)
 	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
 
 	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
-		if (throtl_tg_on_rr(tg)) {
-			if (!atomic_add_unless(&tg->limits_changed, -1, 0))
-				continue;
-			/*
-			 * Make sure if tg->limits_changed was non zero, then
-			 * any updates to bps/iops limits are visible
-			 */
-			smp_mb__after_atomic_inc();
+		/*
+		 * Do I need an smp_rmb() here to make sure tg->limits_changed
+		 * update is visible. I am relying on smp_rmb() at the
+		 * beginning of function and not putting a new one here.
+		 */
 
+		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
 			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
 				" riops=%u wiops=%u", tg->bps[READ],
 				tg->bps[WRITE], tg->iops[READ],
 				tg->iops[WRITE]);
 			tg_update_disptime(td, tg);
+			tg->limits_changed = false;
 		}
 	}
 
@@ -918,12 +916,11 @@ static void throtl_update_blkio_group_read_bps(void *key,
 				struct blkio_group *blkg, u64 read_bps)
 {
 	struct throtl_data *td = key;
-	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg->bps[READ] = read_bps;
+	tg_of_blkg(blkg)->bps[READ] = read_bps;
 	/* Make sure read_bps is updated before setting limits_changed */
-	smp_mb__before_atomic_inc();
-	atomic_inc(&tg->limits_changed);
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
 
 	/* Make sure tg->limits_changed is updated before td->limits_changed */
 	smp_mb__before_atomic_inc();
@@ -938,13 +935,10 @@ static void throtl_update_blkio_group_write_bps(void *key,
 				struct blkio_group *blkg, u64 write_bps)
 {
 	struct throtl_data *td = key;
-	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg->bps[WRITE] = write_bps;
-
-	smp_mb__before_atomic_inc();
-	atomic_inc(&tg->limits_changed);
-
+	tg_of_blkg(blkg)->bps[WRITE] = write_bps;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
@@ -955,13 +949,10 @@ static void throtl_update_blkio_group_read_iops(void *key,
 			struct blkio_group *blkg, unsigned int read_iops)
 {
 	struct throtl_data *td = key;
-	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg->iops[READ] = read_iops;
-
-	smp_mb__before_atomic_inc();
-	atomic_inc(&tg->limits_changed);
-
+	tg_of_blkg(blkg)->iops[READ] = read_iops;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
@@ -972,13 +963,10 @@ static void throtl_update_blkio_group_write_iops(void *key,
 			struct blkio_group *blkg, unsigned int write_iops)
 {
 	struct throtl_data *td = key;
-	struct throtl_grp *tg = tg_of_blkg(blkg);
 
-	tg->iops[WRITE] = write_iops;
-
-	smp_mb__before_atomic_inc();
-	atomic_inc(&tg->limits_changed);
-
+	tg_of_blkg(blkg)->iops[WRITE] = write_iops;
+	smp_wmb();
+	tg_of_blkg(blkg)->limits_changed = true;
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
@@ -1026,8 +1014,14 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 		/*
 		 * There is already another bio queued in same dir. No
 		 * need to update dispatch time.
+		 * Still update the disptime if rate limits on this group
+		 * were changed.
 		 */
-		update_disptime = false;
+		if (!tg->limits_changed)
+			update_disptime = false;
+		else
+			tg->limits_changed = false;
+
 		goto queue_bio;
 	}
 
@@ -1077,7 +1071,6 @@ int blk_throtl_init(struct request_queue *q)
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
 	bio_list_init(&tg->bio_lists[1]);
-	atomic_set(&tg->limits_changed, 0);
 
 	/* Practically unlimited BW */
 	tg->bps[0] = tg->bps[1] = -1;
