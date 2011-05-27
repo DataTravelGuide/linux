@@ -986,7 +986,7 @@ void cfq_update_blkio_group_weight(void *key, struct blkio_group *blkg,
 }
 
 static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
-		struct blkio_cgroup *blkcg, int create)
+		struct blkio_cgroup *blkcg)
 {
 	struct cfq_group *cfqg = NULL;
 	void *key = cfqd;
@@ -1001,7 +1001,7 @@ static struct cfq_group * cfq_find_alloc_cfqg(struct cfq_data *cfqd,
 		cfqg->blkg.dev = MKDEV(major, minor);
 		goto done;
 	}
-	if (cfqg || !create)
+	if (cfqg)
 		goto done;
 
 	cfqg = kzalloc_node(sizeof(*cfqg), GFP_ATOMIC, cfqd->queue->node);
@@ -1044,18 +1044,18 @@ done:
 }
 
 /*
- * Search for the cfq group current task belongs to. If create = 1, then also
- * create the cfq group if it does not exist. request_queue lock must be held.
+ * Search for the cfq group current task belongs to. request_queue lock must
+ * be held.
  */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 {
 	struct blkio_cgroup *blkcg;
 	struct cfq_group *cfqg = NULL;
 
 	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
-	cfqg = cfq_find_alloc_cfqg(cfqd, blkcg, create);
-	if (!cfqg && create)
+	cfqg = cfq_find_alloc_cfqg(cfqd, blkcg);
+	if (!cfqg)
 		cfqg = &cfqd->root_group;
 	rcu_read_unlock();
 	return cfqg;
@@ -1147,7 +1147,7 @@ void cfq_unlink_blkio_group(void *key, struct blkio_group *blkg)
 }
 
 #else /* GROUP_IOSCHED */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd, int create)
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 {
 	return &cfqd->root_group;
 }
@@ -2895,7 +2895,7 @@ cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 	struct cfq_group *cfqg;
 
 retry:
-	cfqg = cfq_get_cfqg(cfqd, 1);
+	cfqg = cfq_get_cfqg(cfqd);
 	cic = cfq_cic_lookup(cfqd, ioc);
 	/* cic always exists here */
 	cfqq = cic_to_cfqq(cic, is_sync);
