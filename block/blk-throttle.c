@@ -737,11 +737,12 @@ static void throtl_process_limit_change(struct throtl_data *td)
 {
 	struct throtl_grp *tg;
 	struct hlist_node *pos, *n;
+	int ret;
 
 	if (!td->limits_changed)
 		return;
 
-	xchg(&td->limits_changed, false);
+	ret = xchg(&td->limits_changed, false);
 
 	throtl_log(td, "limits changed");
 
@@ -905,8 +906,10 @@ void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
 static void throtl_update_blkio_group_common(struct throtl_data *td,
 				struct throtl_grp *tg)
 {
-	xchg(&tg->limits_changed, true);
-	xchg(&td->limits_changed, true);
+	int ret;
+
+	ret = xchg(&tg->limits_changed, true);
+	ret = xchg(&td->limits_changed, true);
 	/* Schedule a work now to process the limit change */
 	throtl_schedule_delayed_work(td, 0);
 }
