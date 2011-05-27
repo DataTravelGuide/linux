@@ -70,7 +70,6 @@ F:	drivers/net/8139too.c
 ACPI SUBSYSTEM
 M:	Matthew Garrett <mjg@redhat.com>
 M:	Peter Martuccelli <peterm@redhat.com>
-M:	Bob Picco <bpicco@redhat.com>
 S:	Maintained
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -89,8 +88,8 @@ M:	John Feeney <jfeeney@redhat.com>
 M:	Jaroslav Kysela <jkysela@redhat.com>
 S:	Maintained
 
-ATL1E ETHERNET DRIVER (atl1e)
-M:	Bob Picco <bpicco@redhat.com>
+ATL1E/ATL1C ETHERNET DRIVER (atl1e/atl1c)
+M:	Dean Nelson <dnelson@redhat.com>
 S:	Maintained
 F:	drivers/net/atl1e/
 
@@ -274,13 +273,11 @@ F:	arch/x86/kernel/cpu/mcheck/
 
 MEMORY MANAGEMENT
 M:	Larry Woodman <lwoodman@redhat.com>
-M:	Bob Picco <bpicco@redhat.com>
 S:	Maintained
 F:	include/linux/mm.h
 F:	mm/
 
 MEMORY HOTPLUG
-M:	Bob Picco <bpicco@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 
@@ -294,12 +291,6 @@ M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
 F:	drivers/net/myri10ge/
 
-NETERION (S2IO) 10GbE DRIVER (xframe/vxge)
-M:	Bob Picco <bpicco@redhat.com>
-S:	Maintained
-F:	Documentation/networking/s2io.txt
-F:	drivers/net/s2io*
-
 NETWORKING [GENERAL]
 M:	Andy Gospodarek <agospoda@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
@@ -312,7 +303,7 @@ F:	include/linux/netdevice.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Chad Dupuis <cdupius@redhat.com>
-M:	Bob Picco <bpicco@redhat.com>
+M:	Tony Camuso <tcamuso@redhat.com>
 S:	Maintained
 F:	drivers/net/netxen/
 
@@ -343,12 +334,10 @@ S:	Maintained
 PCI SUBSYSTEM
 M:	Prarit Bhargava <prarit@redhat.com>
 M:	Andy Gospodarek <agospoda@redhat.com>
-M:	Bob Picco <bpicco@redhat.com>
 S:	Maintained
 F:	drivers/pci/
 
 PCI HOTPLUG
-M:	Bob Picco <bpicco@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	drivers/pci/hotplug/
@@ -433,6 +422,14 @@ X86 ARCHITECTURE (32-BIT AND 64-BIT)
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	arch/x86/
+
+UNIVERSAL EXTENSIBLE FIRMWARE INTERFACE (UEFI/EFI)
+M:	Matthew Garrett <mjg@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+M:	Myron Stowe <mstowe@redhat.com>
+S:	Maintained
+F:	arch/x86/kernel/efi*
+F:	include/linux/efi.h
 
 USB SUBSYSTEM
 M:	Don Zickus <dzickus@redhat.com>
