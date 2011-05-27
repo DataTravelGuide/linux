@@ -876,6 +876,12 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 }
 EXPORT_SYMBOL(blk_queue_ordered);
 
+void blk_queue_flush_queueable(struct request_queue *q, bool queueable)
+{
+	q->flush_not_queueable = !queueable;
+}
+EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
+
 static int __init blk_settings_init(void)
 {
 	blk_max_low_pfn = max_low_pfn - 1;
