@@ -170,7 +170,12 @@ struct scsi_device {
 
 	struct scsi_dh_data	*scsi_dh_data;
 	enum scsi_device_state sdev_state;
+#ifdef __GENKSYMS__
 	unsigned long		sdev_data[0];
+#else
+	struct work_struct	requeue_work;
+	unsigned long		sdev_data[0];
+#endif
 } __attribute__((aligned(sizeof(unsigned long))));
 
 struct scsi_dh_devlist {
