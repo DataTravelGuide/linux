@@ -406,17 +406,7 @@ void __blk_run_queue(struct request_queue *q)
 	if (elv_queue_empty(q))
 		return;
 
-	/*
-	 * Only recurse once to avoid overrunning the stack, let the unplug
-	 * handling reinvoke the handler shortly if we already got there.
-	 */
-	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
-		q->request_fn(q);
-		queue_flag_clear(QUEUE_FLAG_REENTER, q);
-	} else {
-		queue_flag_set(QUEUE_FLAG_PLUGGED, q);
-		kblockd_schedule_work(q, &q->unplug_work);
-	}
+	q->request_fn(q);
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -433,6 +423,7 @@ void blk_run_queue_async(struct request_queue *q)
 	if (likely(!blk_queue_stopped(q)))
 		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
 }
+EXPORT_SYMBOL(blk_run_queue_async);
 
 /**
  * blk_run_queue - run a single device queue
