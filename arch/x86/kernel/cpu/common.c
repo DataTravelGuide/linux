@@ -38,6 +38,8 @@
 #include <asm/uv/uv.h>
 #endif
 
+#include <xen/xen.h>
+
 #include "cpu.h"
 
 /* all of these masks are initialized in setup_cpu_local_masks() */
@@ -299,6 +301,23 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		       "CPU: CPU feature %s disabled, no CPUID level 0x%x\n",
 				x86_cap_flags[df->feature], df->level);
 	}
+
+	/* RHEL Xen HVM guests must filter additional features. BZ#703055 */
+	if (xen_cpuid_base() == 0)
+		return;
+
+	if (warn && cpu_has(c, X86_FEATURE_GBPAGES))
+		printk(KERN_WARNING
+		       "CPU: CPU feature %s disabled\n",
+				x86_cap_flags[X86_FEATURE_GBPAGES]);
+
+	if (warn && cpu_has(c, X86_FEATURE_RDTSCP))
+		printk(KERN_WARNING
+		       "CPU: CPU feature %s disabled\n",
+				x86_cap_flags[X86_FEATURE_RDTSCP]);
+
+	clear_cpu_cap(c, X86_FEATURE_GBPAGES);
+	clear_cpu_cap(c, X86_FEATURE_RDTSCP);
 }
 
 /*

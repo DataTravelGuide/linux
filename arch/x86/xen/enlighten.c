@@ -1277,7 +1277,7 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-static uint32_t xen_cpuid_base(void)
+uint32_t xen_cpuid_base(void)
 {
 	uint32_t base, eax, ebx, ecx, edx;
 	char signature[13];
