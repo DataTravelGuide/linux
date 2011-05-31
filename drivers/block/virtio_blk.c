@@ -74,6 +74,8 @@ static void blk_done(struct virtqueue *vq)
 			vbr->req->sense_len = vbr->in_hdr.sense_len;
 			vbr->req->errors = vbr->in_hdr.errors;
 		}
+		if (vbr->req->cmd_type == REQ_TYPE_SPECIAL)
+			vbr->req->errors = (error != 0);
 
 		__blk_end_request_all(vbr->req, error);
 		list_del(&vbr->list);
@@ -109,6 +111,11 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 			break;
 		case REQ_TYPE_BLOCK_PC:
 			vbr->out_hdr.type = VIRTIO_BLK_T_SCSI_CMD;
+			vbr->out_hdr.sector = 0;
+			vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
+			break;
+		case REQ_TYPE_SPECIAL:
+			vbr->out_hdr.type = VIRTIO_BLK_T_GET_ID;
 			vbr->out_hdr.sector = 0;
 			vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
 			break;
@@ -180,6 +187,29 @@ static void do_virtblk_request(struct request_queue *q)
 
 	if (issued)
 		virtqueue_kick(vblk->vq);
+}
+
+/* return id (s/n) string for *disk to *id_str
+ */
+static int virtblk_get_id(struct gendisk *disk, char *id_str)
+{
+	struct virtio_blk *vblk = disk->private_data;
+	struct request *req;
+	struct bio *bio;
+
+	bio = bio_map_kern(vblk->disk->queue, id_str, VIRTIO_BLK_ID_BYTES,
+			   GFP_KERNEL);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	req = blk_make_request(vblk->disk->queue, bio, GFP_KERNEL);
+	if (IS_ERR(req)) {
+		bio_put(bio);
+		return PTR_ERR(req);
+	}
+
+	req->cmd_type = REQ_TYPE_SPECIAL;
+	return blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
 }
 
 static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
