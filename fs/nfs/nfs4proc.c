@@ -290,6 +290,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			ret = nfs4_delay(server->client, &exception->timeout);
 			if (ret != 0)
 				break;
+		case -NFS4ERR_RETRY_UNCACHED_REP:
 		case -NFS4ERR_OLD_STATEID:
 			exception->retry = 1;
 	}
@@ -3589,6 +3590,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			rpc_delay(task, NFS4_POLL_RETRY_MAX);
 			task->tk_status = 0;
 			return -EAGAIN;
+		case -NFS4ERR_RETRY_UNCACHED_REP:
 		case -NFS4ERR_OLD_STATEID:
 			task->tk_status = 0;
 			return -EAGAIN;
@@ -4707,6 +4709,8 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 		dprintk("%s Retry: tk_status %d\n", __func__, task->tk_status);
 		rpc_delay(task, NFS4_POLL_RETRY_MIN);
 		task->tk_status = 0;
+		/* fall through */
+	case -NFS4ERR_RETRY_UNCACHED_REP:
 		nfs_restart_rpc(task, data->clp);
 		return;
 	}
@@ -5342,6 +5346,8 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 		break;
 	case -NFS4ERR_DELAY:
 		rpc_delay(task, NFS4_POLL_RETRY_MAX);
+		/* fall through */
+	case -NFS4ERR_RETRY_UNCACHED_REP:
 		return -EAGAIN;
 	default:
 		nfs4_schedule_lease_recovery(clp);
