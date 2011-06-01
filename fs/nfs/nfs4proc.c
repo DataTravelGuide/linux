@@ -5483,8 +5483,6 @@ static void nfs4_layoutget_release(void *calldata)
 	struct nfs4_layoutget *lgp = calldata;
 
 	dprintk("--> %s\n", __func__);
-	if (lgp->res.layout.buf != NULL)
-		free_page((unsigned long) lgp->res.layout.buf);
 	put_nfs_open_context(lgp->args.ctx);
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
@@ -5516,12 +5514,7 @@ int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
 
 	dprintk("--> %s\n", __func__);
 
-	lgp->res.layout.buf = (void *)__get_free_page(GFP_NOFS);
-	if (lgp->res.layout.buf == NULL) {
-		nfs4_layoutget_release(lgp);
-		return -ENOMEM;
-	}
-
+	lgp->res.layoutp = &lgp->args.layout;
 	lgp->res.seq_res.sr_slot = NULL;
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
