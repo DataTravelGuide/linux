@@ -186,6 +186,7 @@ static void __init xen_banner(void)
 static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf81_edx_mask = ~0;
+static __read_mostly unsigned int cpuid_leaf87_edx_mask = 0;
 
 static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		      unsigned int *cx, unsigned int *dx)
@@ -211,6 +212,10 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 	case 0x80000001:
 		maskedx = cpuid_leaf81_edx_mask;
+		break;
+
+	case 0x80000007:
+		maskedx = cpuid_leaf87_edx_mask;
 		break;
 	}
 
