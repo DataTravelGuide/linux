@@ -229,7 +229,7 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(struct perf_evsel *evsel, int cpu, bool forks)
+static void create_counter(struct perf_evsel *evsel, int cpu)
 {
 	char *filter = evsel->filter;
 	struct perf_event_attr *attr = &evsel->attr;
@@ -322,9 +322,6 @@ static void create_counter(struct perf_evsel *evsel, int cpu, bool forks)
 	}
 retry_sample_id:
 	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
-
-	if (forks)
-		attr->enable_on_exec = 1;
 
 	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 try_again:
@@ -452,14 +449,14 @@ try_again:
 		sample_type = attr->sample_type;
 }
 
-static void open_counters(int cpu, bool forks)
+static void open_counters(int cpu)
 {
 	struct perf_evsel *pos;
 
 	group_fd = -1;
 
 	list_for_each_entry(pos, &evsel_list, node)
-		create_counter(pos, cpu, forks);
+		create_counter(pos, cpu);
 
 	nr_cpu++;
 }
@@ -677,10 +674,10 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide && no_inherit && !cpu_list) {
-		open_counters(-1, forks);
+		open_counters(-1);
 	} else {
 		for (i = 0; i < cpus->nr; i++)
-			open_counters(cpus->map[i], forks);
+			open_counters(cpus->map[i]);
 	}
 
 	perf_session__set_sample_type(session, sample_type);
