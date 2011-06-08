@@ -6,6 +6,7 @@
 #include "string.h"
 #include "strlist.h"
 #include "thread.h"
+#include "thread_map.h"
 
 static const char *event__name[] = {
 	[0]			 = "TOTAL",
