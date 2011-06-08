@@ -6,6 +6,7 @@
 #include "../../../include/linux/perf_event.h"
 #include "types.h"
 #include "xyarray.h"
+#include "hist.h"
  
 struct perf_counts_values {
 	union {
@@ -50,6 +51,7 @@ struct perf_evsel {
 	struct xyarray		*id;
 	struct perf_counts	*counts;
 	int			idx;
+	struct hists		hists;
 	char			*name;
 	void			*priv;
 };
