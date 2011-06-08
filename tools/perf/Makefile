@@ -327,6 +327,7 @@ BUILTIN_OBJS += $(OUTPUT)bench/sched-pipe.o
 BUILTIN_OBJS += $(OUTPUT)bench/mem-memcpy.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-diff.o
+BUILTIN_OBJS += $(OUTPUT)builtin-evlist.o
 BUILTIN_OBJS += $(OUTPUT)builtin-help.o
 BUILTIN_OBJS += $(OUTPUT)builtin-sched.o
 BUILTIN_OBJS += $(OUTPUT)builtin-buildid-list.o
