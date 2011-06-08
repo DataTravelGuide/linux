@@ -85,6 +85,7 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
+	free(evsel->name);
 	free(evsel);
 }
 
