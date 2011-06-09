@@ -1617,6 +1617,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 06 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-156.el6]
+- [virt] xenpv: zero all x86 power feature bits from cpuid (Andrew Jones) [709856]
+
 * Tue May 31 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-155.el6]
 - [mm] Prevent Disk IO throughput degradation due to memory allocation stalls (Larry Woodman) [679526]
 - [x86] Add support for newer Thinkpads to thinkpad_acpi (Matthew Garrett) [682789]
