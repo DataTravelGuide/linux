@@ -32,6 +32,12 @@ EXPORT_SYMBOL(copy_user_generic);
 EXPORT_SYMBOL(__copy_user_nocache);
 EXPORT_SYMBOL(copy_from_user);
 EXPORT_SYMBOL(copy_to_user);
+
+__must_check long __copy_from_user_inatomic(void *dst, const void __user *src,
+					    unsigned size)
+{
+	return copy_user_generic(dst, (__force const void *)src, size);
+}
 EXPORT_SYMBOL(__copy_from_user_inatomic);
 
 EXPORT_SYMBOL(copy_page);
