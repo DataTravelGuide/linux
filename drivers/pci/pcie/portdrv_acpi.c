@@ -50,10 +50,14 @@ int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 
 	if (pci_aer_available()) {
 		if (aer_acpi_firmware_first()) {
-			dev_info(&port->dev, "PCIe errors handled by BIOS.\n");
+			dev_info(&port->dev,
+				 "PCIe error reporting handled by BIOS "
+				 "for this device.\n");
 		 } else {
 			flags |= OSC_PCI_EXPRESS_AER_CONTROL;
-			dev_info(&port->dev, "PCIe errors handled by OS.\n");
+			dev_info(&port->dev,
+				 "PCIe error reporting handled by OS "
+				 "for this device\n");
 		}
 	}
 
