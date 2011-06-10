@@ -5162,7 +5162,8 @@ static void double_rq_lock(struct rq *rq1, struct rq *rq2)
 {
 	BUG_ON(!irqs_disabled());
 	BUG_ON(rq1 != rq2);
-	raw_spin_lock(&rq1->lock);
+	preempt_disable();
+	__acquire(rq1->lock);
 	__acquire(rq2->lock);	/* Fake it out ;) */
 }
 
@@ -5177,8 +5178,9 @@ static void double_rq_unlock(struct rq *rq1, struct rq *rq2)
 	__releases(rq2->lock)
 {
 	BUG_ON(rq1 != rq2);
-	raw_spin_unlock(&rq1->lock);
+	__release(rq1->lock);
 	__release(rq2->lock);
+	preempt_enable();
 }
 
 /*
