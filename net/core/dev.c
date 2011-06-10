@@ -3244,6 +3244,7 @@ EXPORT_SYMBOL(netif_napi_del);
  */
 static void net_rps_action(cpumask_t *mask)
 {
+#ifdef CONFIG_SMP
 	int cpu;
 
 	/* Send pending IPI's to kick RPS processing on remote cpus. */
@@ -3252,6 +3253,7 @@ static void net_rps_action(cpumask_t *mask)
 		if (cpu_online(cpu))
 			__smp_call_function_single(cpu, &queue->csd, 0);
 	}
+#endif
 	cpus_clear(*mask);
 }
 
