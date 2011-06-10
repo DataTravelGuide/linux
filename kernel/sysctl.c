@@ -454,6 +454,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#if !defined CONFIG_PPC_PSERIES
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "exec-shield",
@@ -462,6 +463,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#endif
 	{
 		.ctl_name	= KERN_CORE_USES_PID,
 		.procname	= "core_uses_pid",
