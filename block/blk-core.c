@@ -1257,6 +1257,28 @@ static inline bool queue_should_plug(struct request_queue *q)
 	return !(blk_queue_nonrot(q) && blk_queue_queuing(q));
 }
 
+static void blk_account_io_front_merge(struct request *req, sector_t newsector)
+{
+	if (blk_do_io_stat(req)) {
+		struct hd_struct *oldpart, *newpart;
+		int cpu;
+
+		cpu = part_stat_lock();
+		if (!is_same_part(req->rq_disk, req->__sector, newsector,
+				  &oldpart, &newpart)) {
+			if (oldpart) {
+				part_round_stats(cpu, oldpart);
+				oldpart->in_flight[rq_data_dir(req)]--;
+			}
+			if (newpart) {
+				part_round_stats(cpu, newpart);
+				newpart->in_flight[rq_data_dir(req)]++;
+			}
+		}
+		part_stat_unlock();
+	}
+}
+
 static int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
@@ -1341,6 +1363,11 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		 * not touch req->buffer either...
 		 */
 		req->buffer = bio_data(bio);
+		/*
+		 * The merge may happen accross partitions
+		 * We must update in_flight value accordingly
+		 */
+		blk_account_io_front_merge(req, bio->bi_sector);
 		req->__sector = bio->bi_sector;
 		req->__data_len += bytes;
 		req->ioprio = ioprio_best(req->ioprio, prio);

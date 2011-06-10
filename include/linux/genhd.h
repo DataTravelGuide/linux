@@ -234,6 +234,8 @@ extern void disk_part_iter_exit(struct disk_part_iter *piter);
 
 extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 					     sector_t sector);
+extern int is_same_part(struct gendisk *, sector_t, sector_t,
+			struct hd_struct **, struct hd_struct **);
 
 /*
  * Macros to operate on percpu disk statistics:
