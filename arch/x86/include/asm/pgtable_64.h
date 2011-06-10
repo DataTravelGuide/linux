@@ -64,27 +64,16 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
-	mm_track_pte(xp);
 #ifdef CONFIG_SMP
+	mm_track_pte(xp);
 	return native_make_pte(xchg(&xp->pte, 0));
 #else
 	/* native_local_ptep_get_and_clear,
 	   but duplicated because of cyclic dependency */
-	pte_t ret = *xp;
+	pte_t ret;
+	mm_track_pte(xp);
+	ret = *xp;
 	native_pte_clear(NULL, 0, xp);
-	return ret;
-#endif
-}
-
-static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
-{
-#ifdef CONFIG_SMP
-	return native_make_pmd(xchg(&xp->pmd, 0));
-#else
-	/* native_local_pmdp_get_and_clear,
-	   but duplicated because of cyclic dependency */
-	pmd_t ret = *xp;
-	native_pmd_clear(NULL, 0, xp);
 	return ret;
 #endif
 }
@@ -98,6 +87,19 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 static inline void native_pmd_clear(pmd_t *pmd)
 {
 	native_set_pmd(pmd, native_make_pmd(0));
+}
+
+static inline pmd_t native_pmdp_get_and_clear(pmd_t *xp)
+{
+#ifdef CONFIG_SMP
+	return native_make_pmd(xchg(&xp->pmd, 0));
+#else
+	/* native_local_pmdp_get_and_clear,
+	   but duplicated because of cyclic dependency */
+	pmd_t ret = *xp;
+	native_pmd_clear(xp);
+	return ret;
+#endif
 }
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
