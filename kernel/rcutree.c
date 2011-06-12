@@ -103,6 +103,7 @@ void rcu_sched_qs(int cpu)
 	rdp->passed_quiesc = 1;
 	rcu_preempt_note_context_switch(cpu);
 }
+EXPORT_SYMBOL_GPL(rcu_sched_qs);
 
 void rcu_bh_qs(int cpu)
 {
