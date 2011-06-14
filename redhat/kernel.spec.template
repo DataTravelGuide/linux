@@ -1617,6 +1617,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 14 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-158.el6]
+- [net] vlan: remove multiqueue ability from vlan device (Neil Horman) [703245]
+- [kernel] cgroupfs: use init_cred when populating new cgroupfs mount (Eric Paris) [700538]
+
 * Sun Jun 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-157.el6]
 - [block] don't delay blk_run_queue_async (Mike Snitzer) [708542]
 - [scsi] remove performance regression due to async queue run (Mike Snitzer) [708542]
