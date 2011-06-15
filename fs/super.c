@@ -532,30 +532,6 @@ rescan:
 	return NULL;
 }
 
-SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
-{
-        struct super_block *s;
-        struct ustat tmp;
-        struct kstatfs sbuf;
-	int err = -EINVAL;
-
-        s = user_get_super(new_decode_dev(dev));
-        if (s == NULL)
-                goto out;
-	err = vfs_statfs(s->s_root, &sbuf);
-	drop_super(s);
-	if (err)
-		goto out;
-
-        memset(&tmp,0,sizeof(struct ustat));
-        tmp.f_tfree = sbuf.f_bfree;
-        tmp.f_tinode = sbuf.f_ffree;
-
-        err = copy_to_user(ubuf,&tmp,sizeof(struct ustat)) ? -EFAULT : 0;
-out:
-	return err;
-}
-
 /**
  *	do_remount_sb - asks filesystem to change mount options.
  *	@sb:	superblock in question
