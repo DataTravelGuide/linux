@@ -1012,6 +1012,7 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+		refresh_zone_stat_thresholds();
 		start_cpu_timer(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
