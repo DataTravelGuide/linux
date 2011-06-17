@@ -369,8 +369,7 @@ CPP_VERS        := $(shell expr $(CPP_MAJOR) \* 1000000 + $(CPP_MINOR) \* 1000 \
 ifeq ($(KBUILD_EXTMOD),)
 KBUILD_CFLAGS   += $(shell if [ $(CPP_VERS) -ge 4004004 ]; then \
 		   echo "-Wno-array-bounds"; else echo ""; fi)
-# enable -Werror on RHEL6 only for in tree modules
-KBUILD_CFLAGS   += $(shell if [ ! -z "$(shell cat /etc/redhat-release |grep Santiago)" ] ; then \
+KBUILD_CFLAGS   += $(shell if [ $(CPP_MAJOR) -eq 4 -a $(CPP_MINOR) -eq 4  ] ; then \
 		   echo "-Werror"; else echo ""; fi)
 endif ##($(KBUILD_EXTMOD),)
 endif #(,$(filter $(ARCH), i386 x86_64))
