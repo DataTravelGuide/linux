@@ -4852,12 +4852,17 @@ static int cciss_kdump_soft_reset(ctlr_info_t *h)
 	}
 
 	dev_info(&h->pdev->dev, "Waiting for board to soft reset.\n");
-	while (cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_NOT_READY))
-		dev_warn(&h->pdev->dev, "Waiting for board to soft reset.\n");
+	if (cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_NOT_READY)) {
+		dev_warn(&h->pdev->dev, "Soft reset had no effect.\n");
+		return -1;
+	}
 
 	dev_info(&h->pdev->dev, "Board reset, awaiting READY status.\n");
-	while (cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY))
-		dev_warn(&h->pdev->dev, "Still awaiting READY status.\n");
+	if (cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY)) {
+		dev_warn(&h->pdev->dev, "Board failed to become ready "
+			"after soft reset.\n");
+		return -1;
+	}
 
 	return 0;
 }
