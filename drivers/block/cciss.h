@@ -211,6 +211,7 @@ struct ctlr_info
 #define CCISS_POST_RESET_PAUSE_MSECS (3000)
 #define CCISS_POST_RESET_NOOP_INTERVAL_MSECS (4000)
 #define CCISS_POST_RESET_NOOP_RETRIES (12)
+#define CCISS_POST_RESET_NOOP_TIMEOUT_MSECS (10000)
 
 /* 
 	Send the command to the hardware 
