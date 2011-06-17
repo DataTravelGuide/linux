@@ -181,6 +181,8 @@ typedef struct _ReadCapdata_struct_16
 #define BMIC_CACHE_FLUSH 0xc2
 #define CCISS_CACHE_FLUSH 0x01	//C2 was already being used by CCISS
 
+#define CCISS_RESET_TYPE_CONTROLLER 0x00
+
 //Command List Structure
 typedef union _SCSI3Addr_struct {
    struct {
