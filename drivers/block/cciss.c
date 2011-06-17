@@ -4629,6 +4629,7 @@ static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
 		else
 			dev_warn(&pdev->dev, "no-op failed%s\n",
 					(i < 11 ? "; re-trying" : ""));
+		msleep(CCISS_POST_RESET_NOOP_INTERVAL_MSECS);
 	}
 	return 0;
 }
