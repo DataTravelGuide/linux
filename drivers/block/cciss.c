@@ -2492,7 +2492,7 @@ static int deregister_disk(ctlr_info_t *h, int drv_index,
 	return 0;
 }
 
-static int cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
+static int __devinit cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
 	u8 reset_type)
 {
 	CommandList_struct *c;
@@ -4844,7 +4844,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 	return -1;
 }
 
-static int cciss_kdump_soft_reset(ctlr_info_t *h)
+static int __devinit cciss_kdump_soft_reset(ctlr_info_t *h)
 {
 	if (cciss_send_reset(h, CTLR_LUNID, CCISS_RESET_TYPE_CONTROLLER)) {
 		dev_warn(&h->pdev->dev, "Resetting array controller failed.\n");
