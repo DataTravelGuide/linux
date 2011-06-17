@@ -2498,7 +2498,7 @@ static int cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
 	CommandList_struct *c;
 	int return_status;
 
-	c = cmd_special_alloc(h);
+	c = cmd_alloc(h);
 	if (!c)
 		return -ENOMEM;
 	return_status = fill_cmd(h, c, CCISS_RESET_MSG, NULL, 0, 0,
@@ -2510,9 +2510,11 @@ static int cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
 	}
 	c->waiting = NULL;
 	enqueue_cmd_and_start_io(h, c);
-	/* Don't wait for completion, the reset won't complete */
-	cmd_special_free(h, c);
-	return return_status;
+	/* Don't wait for completion, the reset won't complete.  Don't free
+	 * the command either.  This is the last command we will send before
+	 * re-initializing everything, so it doesn't matter and won't leak.
+	 */
+	return 0;
 }
 
 static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
