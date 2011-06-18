@@ -1369,6 +1369,12 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (error)
 		goto out_truncate;
 
+	if (test_bit(GIF_INVALID, &ip->i_flags)) {
+		error = gfs2_inode_refresh(ip);
+		if (error)
+			goto out_truncate;
+	}
+
 	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 	gfs2_glock_dq_wait(&ip->i_iopen_gh);
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &ip->i_iopen_gh);
