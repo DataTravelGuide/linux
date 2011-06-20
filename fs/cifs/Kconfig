@@ -4,6 +4,7 @@ config CIFS
 	select NLS
 	select SLOW_WORK
 	select CRYPTO
+	select CRYPTO_MD4
 	select CRYPTO_MD5
 	select CRYPTO_HMAC
 	select CRYPTO_ARC4
