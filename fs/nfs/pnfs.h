@@ -160,12 +160,20 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 
+void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
+
+/* nfs4_deviceid_flags */
+enum {
+	NFS_DEVICEID_INVALID = 0,       /* set when MDS clientid recalled */
+};
+
 /* pnfs_dev.c */
 struct nfs4_deviceid_node {
 	struct hlist_node		node;
 	struct hlist_node		tmpnode;
 	const struct pnfs_layoutdriver_type *ld;
 	const struct nfs_client		*nfs_client;
+	unsigned long 			flags;
 	struct nfs4_deviceid		deviceid;
 	atomic_t			ref;
 };

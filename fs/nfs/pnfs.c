@@ -374,6 +374,9 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 	struct pnfs_layout_hdr *lo;
 	LIST_HEAD(tmp_list);
 
+	nfs4_deviceid_mark_client_invalid(clp);
+	nfs4_deviceid_purge_client(clp);
+
 	spin_lock(&clp->cl_lock);
 	list_splice_init(&clp->cl_layouts, &tmp_list);
 	spin_unlock(&clp->cl_lock);
