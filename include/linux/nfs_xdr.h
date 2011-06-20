@@ -46,6 +46,7 @@ struct nfs_fattr {
 	} du;
 	struct nfs_fsid		fsid;
 	__u64			fileid;
+	__u64			mounted_on_fileid;
 	struct timespec		atime;
 	struct timespec		mtime;
 	struct timespec		ctime;
@@ -78,6 +79,7 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_CHANGE		(1U << 17)
 #define NFS_ATTR_FATTR_PRECHANGE	(1U << 18)
 #define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
+#define NFS_ATTR_FATTR_MOUNTED_ON_FILEID		(1U << 21)
 
 #define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
 		| NFS_ATTR_FATTR_MODE \
