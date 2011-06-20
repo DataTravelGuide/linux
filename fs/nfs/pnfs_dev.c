@@ -176,6 +176,7 @@ nfs4_init_deviceid_node(struct nfs4_deviceid_node *d,
 			const struct nfs4_deviceid *id)
 {
 	INIT_HLIST_NODE(&d->node);
+	INIT_HLIST_NODE(&d->tmpnode);
 	d->ld = ld;
 	d->nfs_client = nfs_client;
 	d->deviceid = *id;
@@ -240,24 +241,28 @@ static void
 _deviceid_purge_client(const struct nfs_client *clp, long hash)
 {
 	struct nfs4_deviceid_node *d;
-	struct hlist_node *n, *next;
+	struct hlist_node *n;
 	HLIST_HEAD(tmp);
 
+	spin_lock(&nfs4_deviceid_lock);
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[hash], node)
 		if (d->nfs_client == clp && atomic_read(&d->ref)) {
 			hlist_del_init_rcu(&d->node);
-			hlist_add_head(&d->node, &tmp);
+			hlist_add_head(&d->tmpnode, &tmp);
 		}
 	rcu_read_unlock();
+	spin_unlock(&nfs4_deviceid_lock);
 
 	if (hlist_empty(&tmp))
 		return;
 
 	synchronize_rcu();
-	hlist_for_each_entry_safe(d, n, next, &tmp, node)
+	while (!hlist_empty(&tmp)) {
 		if (atomic_dec_and_test(&d->ref))
 			d->ld->free_deviceid_node(d);
+		hlist_del_init(&d->tmpnode);
+	}
 }
 
 void
@@ -265,8 +270,6 @@ nfs4_deviceid_purge_client(const struct nfs_client *clp)
 {
 	long h;
 
-	spin_lock(&nfs4_deviceid_lock);
 	for (h = 0; h < NFS4_DEVICE_ID_HASH_SIZE; h++)
 		_deviceid_purge_client(clp, h);
-	spin_unlock(&nfs4_deviceid_lock);
 }

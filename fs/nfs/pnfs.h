@@ -163,6 +163,7 @@ int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 /* pnfs_dev.c */
 struct nfs4_deviceid_node {
 	struct hlist_node		node;
+	struct hlist_node		tmpnode;
 	const struct pnfs_layoutdriver_type *ld;
 	const struct nfs_client		*nfs_client;
 	struct nfs4_deviceid		deviceid;
