@@ -1638,7 +1638,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->hostname = extract_hostname(volume_info->UNC);
 	if (IS_ERR(tcp_ses->hostname)) {
 		rc = PTR_ERR(tcp_ses->hostname);
-		goto out_err2;
+		goto out_err_crypto_release;
 	}
 
 	tcp_ses->noblocksnd = volume_info->noblocksnd;
@@ -1682,7 +1682,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 	if (rc < 0) {
 		cERROR(1, "Error connecting to socket. Aborting operation");
-		goto out_err2;
+		goto out_err_crypto_release;
 	}
 
 	/*
@@ -1696,7 +1696,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		rc = PTR_ERR(tcp_ses->tsk);
 		cERROR(1, "error %d create cifsd thread", rc);
 		module_put(THIS_MODULE);
-		goto out_err2;
+		goto out_err_crypto_release;
 	}
 
 	/* thread spawned, put it on the list */
@@ -1708,7 +1708,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	return tcp_ses;
 
-out_err2:
+out_err_crypto_release:
 	cifs_crypto_shash_release(tcp_ses);
 
 out_err:
