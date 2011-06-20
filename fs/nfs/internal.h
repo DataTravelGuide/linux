@@ -26,7 +26,7 @@ static inline int nfs4_has_session(const struct nfs_client *clp)
 #ifdef CONFIG_NFS_V4_1
 	if (clp->cl_session)
 		return 1;
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_NFS_V4_1 */ 
 	return 0;
 }
 
@@ -37,6 +37,15 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 		return (clp->cl_session->flags & SESSION4_PERSIST);
 #endif /* CONFIG_NFS_V4_1 */
 	return 0;
+}
+
+static inline int nfs_attr_use_mounted_on_fileid(struct nfs_fattr *fattr)
+{
+	if (((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) == 0) ||
+	     ((fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) == 0))
+
+	fattr->fileid = fattr->mounted_on_fileid;
+	return 1;
 }
 
 struct nfs_clone_mount {
