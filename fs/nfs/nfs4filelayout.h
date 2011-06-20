@@ -59,9 +59,7 @@ struct nfs4_pnfs_ds {
 #define NFS4_DEVICE_ID_NEG_ENTRY	0x00000001
 
 struct nfs4_file_layout_dsaddr {
-	struct hlist_node		node;
-	struct nfs4_deviceid		deviceid;
-	atomic_t			ref;
+	struct nfs4_deviceid_node	id_node;
 	unsigned long			flags;
 	u32				stripe_count;
 	u8				*stripe_indices;
