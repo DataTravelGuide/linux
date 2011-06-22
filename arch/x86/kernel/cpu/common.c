@@ -265,6 +265,37 @@ struct cpuid_dependent_feature {
 	u32 level;
 };
 
+static const u32
+xen_dangerous_cpuid_features[] = {
+	/* Mask out GBPAGES & RDTSCP for Xen BZ#703055 */
+	X86_FEATURE_GBPAGES,
+	X86_FEATURE_RDTSCP,
+	/* Mask out features masked by BZ#712131 */
+	X86_FEATURE_MWAIT,
+	/* Mask out features masked by BZ#711317 */
+	X86_FEATURE_CONSTANT_TSC,
+	X86_FEATURE_NONSTOP_TSC,
+	0
+};
+
+static void __cpuinit fltr_xen_cpuid_features(struct cpuinfo_x86 *c, bool warn)
+{
+	const u32 *df;
+
+	for (df = xen_dangerous_cpuid_features; *df; df++) {
+		if (!cpu_has(c, *df))
+			continue;
+
+		clear_cpu_cap(c, *df);
+
+		if (!warn)
+			continue;
+
+		pr_warning("CPU: CPU feature %s disabled on xen guest\n",
+				x86_cap_flags[*df]);
+	}
+}
+
 static const struct cpuid_dependent_feature __cpuinitconst
 cpuid_dependent_features[] = {
 	{ X86_FEATURE_MWAIT,		0x00000005 },
@@ -302,22 +333,12 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 				x86_cap_flags[df->feature], df->level);
 	}
 
-	/* RHEL Xen HVM guests must filter additional features. BZ#703055 */
-	if (xen_cpuid_base() == 0)
-		return;
-
-	if (warn && cpu_has(c, X86_FEATURE_GBPAGES))
-		printk(KERN_WARNING
-		       "CPU: CPU feature %s disabled\n",
-				x86_cap_flags[X86_FEATURE_GBPAGES]);
-
-	if (warn && cpu_has(c, X86_FEATURE_RDTSCP))
-		printk(KERN_WARNING
-		       "CPU: CPU feature %s disabled\n",
-				x86_cap_flags[X86_FEATURE_RDTSCP]);
-
-	clear_cpu_cap(c, X86_FEATURE_GBPAGES);
-	clear_cpu_cap(c, X86_FEATURE_RDTSCP);
+	/*
+	 * RHEL Xen HVM guests must filter out additional not masked
+	 * by old kernel-xen features, to avoid crashes.
+	 */
+	if (xen_cpuid_base() != 0)
+		fltr_xen_cpuid_features(c, warn);
 }
 
 /*
