@@ -489,6 +489,7 @@ static ssize_t nfs_direct_read_schedule_single_io(struct nfs_direct_req *dreq,
 	data->cred = msg.rpc_cred;
 	data->args.fh = NFS_FH(inode);
 	data->args.context = ctx;
+	data->args.lock_context = dreq->l_ctx;
 	data->args.offset = pos;
 	data->args.pgbase = pgbase;
 	data->args.pages = data->pagevec;
@@ -551,6 +552,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 		pos += vec->iov_len;
 	}
 
+out:
 	/*
 	 * If no bytes were started, return the error, and let the
 	 * generic layer handle the completion.
@@ -559,7 +561,6 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
-out:
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
 	return 0;
@@ -1032,6 +1033,7 @@ static ssize_t nfs_direct_write_schedule_single_io(struct nfs_direct_req *dreq,
 	data->cred = msg.rpc_cred;
 	data->args.fh = NFS_FH(inode);
 	data->args.context = ctx;
+	data->args.lock_context = dreq->l_ctx;
 	data->args.offset = pos;
 	data->args.pgbase = pgbase;
 	data->args.pages = data->pagevec;
@@ -1096,6 +1098,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		pos += vec->iov_len;
 	}
 
+out:
 	/*
 	 * If no bytes were started, return the error, and let the
 	 * generic layer handle the completion.
@@ -1105,7 +1108,6 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		return result < 0 ? result : -EIO;
 	}
 
-out:
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq, dreq->inode);
 	return 0;
