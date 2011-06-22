@@ -4008,7 +4008,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_slice_idle = cfq_slice_idle;
 	cfqd->cfq_group_idle = cfq_group_idle;
 	cfqd->cfq_latency = 1;
-	cfqd->cfq_group_isolation = 0;
+	cfqd->cfq_group_isolation = 1;
 	cfqd->hw_tag = -1;
 	/*
 	 * we optimistically start assuming sync ops weren't delayed in last
