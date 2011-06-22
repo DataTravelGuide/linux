@@ -1617,7 +1617,7 @@ fi
 
 %changelog
 %%CHANGELOG%%
-* Wed Jun 22 2011  <> [2.6.32-161.el6]
+* Wed Jun 22 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-161.el6]
 - [kernel] perf evlist: Fix per thread mmap setup (Jiri Olsa) [691343]
 - [kernel] perf tools: Honour the cpu list parameter when also monitoring a thread list (Jiri Olsa) [691343]
 - [kernel] perf evsel: Fix use of inherit (Jiri Olsa) [691343]
