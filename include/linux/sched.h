@@ -670,9 +670,6 @@ struct signal_struct {
 #endif
 
 	int oom_adj;		/* OOM kill score adjustment (bit shift) */
-	int oom_score_adj;	/* OOM kill score adjustment */
-	int oom_score_adj_min;	/* OOM kill score adjustment minimum value.
-				 * Only settable by CAP_SYS_RESOURCE. */
 	/* reserved for Red Hat */
 	unsigned long rh_reserved;
 
@@ -680,6 +677,12 @@ struct signal_struct {
 #ifndef __GENKSYMS__
 	struct autogroup *autogroup;
 #endif
+#endif
+
+#ifndef __GENKSYMS__
+	int oom_score_adj;	/* OOM kill score adjustment */
+	int oom_score_adj_min;	/* OOM kill score adjustment minimum value.
+				 * Only settable by CAP_SYS_RESOURCE. */
 #endif
 };
 
