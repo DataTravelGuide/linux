@@ -453,4 +453,11 @@ config INTEL_IPS
 	  functionality.  If in doubt, say Y here; it will only load on
 	  supported platforms.
 
+config MXM_WMI
+       tristate "WMI support for MXM Laptop Graphics"
+       depends on ACPI_WMI
+       ---help---
+          MXM is a standard for laptop graphics cards, the WMI interface
+	  is required for switchable nvidia graphics machines
+
 endif # X86_PLATFORM_DEVICES
