@@ -139,8 +139,9 @@ static int nouveau_nv50_backlight_init(struct drm_device *dev)
 	return 0;
 }
 
-int nouveau_backlight_init(struct drm_device *dev)
+int nouveau_backlight_init(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 #ifdef CONFIG_ACPI
@@ -163,8 +164,9 @@ int nouveau_backlight_init(struct drm_device *dev)
 	return 0;
 }
 
-void nouveau_backlight_exit(struct drm_device *dev)
+void nouveau_backlight_exit(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->backlight) {

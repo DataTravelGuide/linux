@@ -63,10 +63,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd mode_cmd;
-	struct drm_gem_object *fbo = NULL;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	struct device *device = &dev->pdev->dev;
-	int size, ret, mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	int size, ret;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -76,23 +75,22 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mode_cmd.height = sizes->surface_height;
 
 	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 1) / 8), 64);
+	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
 	mode_cmd.depth = sizes->surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
-	fbo = i915_gem_alloc_object(dev, size);
-	if (!fbo) {
+	obj = i915_gem_alloc_object(dev, size);
+	if (!obj) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;
 		goto out;
 	}
-	obj_priv = to_intel_bo(fbo);
 
 	mutex_lock(&dev->struct_mutex);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(dev, fbo, false);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -106,7 +104,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->par = ifbdev;
 
-	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
 	if (ret)
 		goto out_unpin;
 
@@ -120,6 +118,11 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &intelfb_ops;
 
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unpin;
+	}
 	/* setup aperture base/size for vesafb takeover */
 	info->aperture_base = dev->mode_config.fb_base;
 	if (!IS_GEN2(dev))
@@ -127,19 +130,12 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	else
 		info->aperture_size = pci_resource_len(dev->pdev, 0);
 
-	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
+	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
 	info->fix.smem_len = size;
 
-	info->screen_base = ioremap_wc(dev->agp->base + obj_priv->gtt_offset,
-				       size);
+	info->screen_base = ioremap_wc(dev->agp->base + obj->gtt_offset, size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
-		goto out_unpin;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
 		goto out_unpin;
 	}
 	info->screen_size = size;
@@ -149,10 +145,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
-	/* FIXME: we really shouldn't expose mmio space at all */
-	info->fix.mmio_start = pci_resource_start(dev->pdev, mmio_bar);
-	info->fix.mmio_len = pci_resource_len(dev->pdev, mmio_bar);
-
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;
@@ -161,7 +153,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height,
-		      obj_priv->gtt_offset, fbo);
+		      obj->gtt_offset, obj);
 
 
 	mutex_unlock(&dev->struct_mutex);
@@ -169,9 +161,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(fbo);
+	i915_gem_object_unpin(obj);
 out_unref:
-	drm_gem_object_unreference(fbo);
+	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
@@ -218,7 +210,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj) {
-		drm_gem_object_unreference_unlocked(ifb->obj);
+		drm_gem_object_unreference_unlocked(&ifb->obj->base);
 		ifb->obj = NULL;
 	}
 }
@@ -265,4 +257,14 @@ void intel_fb_output_poll_changed(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
+}
+
+void intel_fb_restore_mode(struct drm_device *dev)
+{
+	int ret;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	ret = drm_fb_helper_restore_fbdev_mode(&dev_priv->fbdev->helper);
+	if (ret)
+		DRM_DEBUG("failed to restore crtc mode\n");
 }
