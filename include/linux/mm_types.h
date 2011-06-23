@@ -298,10 +298,17 @@ struct mm_struct {
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
 	/* reserved for Red Hat */
+#ifdef __GENKSYMS__
 	unsigned long rh_reserved[2];
-
+#else
 	/* How many tasks sharing this mm are OOM_DISABLE */
-	atomic_t oom_disable_count;
+	union {
+		unsigned long rh_reserved_aux;
+		atomic_t oom_disable_count;
+	};
+
+	unsigned long rh_reserved;
+#endif
 };
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
