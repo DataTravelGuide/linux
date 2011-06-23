@@ -367,9 +367,12 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 		return;
 	}
 
+	task_lock(p);
 	if (!p->mm) {
 		WARN_ON(1);
-		printk(KERN_WARNING "tried to kill an mm-less task!\n");
+		printk(KERN_WARNING "tried to kill an mm-less task %d (%s)!\n",
+			task_pid_nr(p), p->comm);
+		task_unlock(p);
 		return;
 	}
 
@@ -380,6 +383,7 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 				K(p->mm->total_vm),
 				K(get_mm_counter(p->mm, anon_rss)),
 				K(get_mm_counter(p->mm, file_rss)));
+	task_unlock(p);
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
