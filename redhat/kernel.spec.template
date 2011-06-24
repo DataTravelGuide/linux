@@ -1617,6 +1617,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jun 24 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-162.el6]
+- [virt] xen: bump memory limit for x86_64 domU PV guest to 128Gb (Igor Mammedov) [669739]
+
 * Wed Jun 22 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-161.el6]
 - [kernel] perf evlist: Fix per thread mmap setup (Jiri Olsa) [691343]
 - [kernel] perf tools: Honour the cpu list parameter when also monitoring a thread list (Jiri Olsa) [691343]
