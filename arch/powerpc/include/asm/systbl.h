@@ -352,3 +352,4 @@ SYSCALL_SPU(ni_syscall)		/* name_to_handle_at */
 SYSCALL_SPU(ni_syscall)		/* open_by_handle_at */
 SYSCALL_SPU(ni_syscall)		/* clock_adjtime */
 SYSCALL_SPU(syncfs)
+COMPAT_SYS_SPU(sendmmsg)
