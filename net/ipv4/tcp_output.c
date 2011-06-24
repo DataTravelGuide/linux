@@ -222,8 +222,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	if (mss > (1 << *rcv_wscale)) {
 		int init_cwnd = rfc3390_bytes_to_packets(mss);
 
-		if (*rcv_wnd > init_cwnd * mss)
-			*rcv_wnd = init_cwnd * mss;
+		*rcv_wnd = min(*rcv_wnd, init_cwnd * mss);
 	}
 
 	/* Set the clamp no higher than max representable value */
