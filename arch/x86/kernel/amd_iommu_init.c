@@ -1497,16 +1497,12 @@ static int __init early_amd_iommu_detect(struct acpi_table_header *table)
 
 void __init amd_iommu_detect(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	if (c->x86_vendor != X86_VENDOR_AMD)
-		return;
-
 	if (swiotlb || no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return;
 
 	if (!amd_iommu_enable) {
-		printk(KERN_INFO "AMD-Vi disabled by default: pass amd_iommu=on to enable\n");
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+			printk(KERN_INFO "AMD-Vi disabled by default: pass amd_iommu=on to enable\n");
 		return;
 	}
 
