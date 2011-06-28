@@ -1617,6 +1617,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 28 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-164.el6]
+- [fs] nfs: set lock context and fix error handling in new DIO functions (Jeff Layton) [694309]
+- [net] ipv6: Fix tcp_v6_send_response transport header setting (Jiri Olsa) [702508]
+- [netdrv] iwlwifi: fix general 11n instability (Stanislaw Gruszka) [714590]
+- [netdrv] ehea: Fix memory hotplug oops (Steve Best) [702036]
+- [netdrv] tun: do not put self in waitq if doing a nonblock read (Amos Kong) [713612]
+- [fs] ext4: check for a good block group before loading buddy pages (Eric Sandeen) [652262]
+- [fs] Bouncing locks in a cluster is slow in GFS2 (Robert S Peterson) [663356]
+- [fs] NFSv4.1: do not use deviceids after MDS clientid invalidation (Steve Dickson) [714740]
+- [fs] NFSv4.1: Fix a refcounting issue in the pNFS device id cache (Steve Dickson) [714740]
+- [fs] NFSv4.1: deprecate headerpadsz in CREATE_SESSION (Steve Dickson) [714740]
+- [fs] NFSv4.1: allow zero fh array in filelayout decode layout (Steve Dickson) [714740]
+- [fs] NFSv4.1: allow nfs_fhget to succeed with mounted on fileid (Steve Dickson) [714740]
+- [fs] NFS: fix umount of pnfs filesystems (Steve Dickson) [714740]
+- [fs] NFSv4.1: use layout driver in global device cache (Steve Dickson) [714740]
+- [fs] pnfs: CB_NOTIFY_DEVICEID (Steve Dickson) [714740]
+- [fs] NFSv4.1: purge deviceid cache on nfs_free_client (Steve Dickson) [714740]
+- [fs] NFSv4.1: make deviceid cache global (Steve Dickson) [714740]
+- [fs] NFSv4.1: Correct offset for LAYOUTCOMMIT (Steve Dickson) [714740]
+- [fs] NFSv4: Ensure we request the ordinary fileid when doing readdirplus (Steve Dickson) [714740]
+- [net] TCP: increase default initial receive window. (Thomas Graf) [664725]
+- [net] tcp: Bug fix in initialization of receive window. (Thomas Graf) [664725]
+- [net] tcp: update also tcp_output with regard to RFC 5681 (Thomas Graf) [664725]
+
 * Fri Jun 24 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-163.el6]
 - [net] Fix memory leak/corruption on VLAN GRO_DROP (Herbert Xu) [695176] {CVE-2011-1576}
 - [block] cfq-iosched: Set group_isolation=1 by default (Vivek Goyal) [707757]
