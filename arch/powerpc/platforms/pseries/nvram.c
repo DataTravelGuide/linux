@@ -24,8 +24,6 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 
-/* Max bytes to read/write in one go */
-#define NVRW_CNT 0x20
 
 static unsigned int nvram_size;
 static int nvram_fetch, nvram_store;
@@ -59,7 +57,7 @@ static struct nvram_os_partition oops_log_partition = {
 	.index = -1
 };
 
-static const char *pseries_nvram_os_partitions[] = {
+static const char *const pseries_nvram_os_partitions[] = {
 	"ibm,rtas-log",
 	"lnx,oops-log",
 	NULL
@@ -209,7 +207,7 @@ int nvram_write_os_partition(struct nvram_os_partition *part, char * buff,
 	loff_t tmp_index;
 	struct err_log_info info;
 	
-	if (part->index == -1) {
+	if (part->index < 0) {
 		return -ESPIPE;
 	}
 
@@ -258,7 +256,7 @@ int nvram_read_error_log(char * buff, int length,
 	loff_t tmp_index;
 	struct err_log_info info;
 	
-	if (rtas_log_partition.index == -1)
+	if (rtas_log_partition.index < 0)
 		return -1;
 
 	if (length > rtas_log_partition.size)
@@ -293,7 +291,7 @@ int nvram_clear_error_log(void)
 	int clear_word = ERR_FLAG_ALREADY_LOGGED;
 	int rc;
 
-	if (rtas_log_partition.index == -1)
+	if (rtas_log_partition.index < 0)
 		return -1;
 
 	tmp_index = rtas_log_partition.index;
@@ -321,7 +319,7 @@ int nvram_clear_error_log(void)
  * OS partitions and try again.
  * 4.) Will first try getting a chunk that will satisfy the requested size.
  * 5.) If a chunk of the requested size cannot be allocated, then try finding
- * a chunk that will satisfy the minum needed.
+ * a chunk that will satisfy the minimum needed.
  *
  * Returns 0 on success, else -1.
  */
@@ -335,7 +333,7 @@ static int __init pseries_nvram_init_os_partition(struct nvram_os_partition
 	nvram_scan_partitions();
 
 	/* Look for ours */
-	p = nvram_find_partition(part->name, NVRAM_SIG_OS, &size);
+	p = nvram_find_partition2(part->name, NVRAM_SIG_OS, &size);
 
 	/* Found one but too small, remove it */
 	if (p && size < part->min_size) {
@@ -487,6 +485,6 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 
 	text_len = capture_last_msgs(old_msgs, old_len, new_msgs, new_len,
 					oops_buf, oops_log_partition.size);
-	(void) nvram_write_os_partition(&oops_log_partition, oops_buf,
-		(int) text_len, ERR_TYPE_KERNEL_PANIC, ++oops_count);
+	nvram_write_os_partition(&oops_log_partition, oops_buf, text_len,
+				ERR_TYPE_KERNEL_PANIC, ++oops_count);
 }

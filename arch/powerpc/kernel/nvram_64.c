@@ -31,26 +31,9 @@
 #include <asm/rtas.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/pgtable.h>
 
 #undef DEBUG_NVRAM
-
-#define NVRAM_HEADER_LEN	sizeof(struct nvram_header)
-#define NVRAM_BLOCK_LEN		NVRAM_HEADER_LEN
-
-/* If change this size, then change the size of NVNAME_LEN */
-struct nvram_header {
-	unsigned char signature;
-	unsigned char checksum;
-	unsigned short length;
-	/* Terminating null required only for names < 12 chars. */
-	char name[12];
-};
-
-struct nvram_partition {
-	struct list_head partition;
-	struct nvram_header header;
-	unsigned int index;
-};
 
 static LIST_HEAD(nvram_partitions);
 
@@ -202,7 +185,7 @@ static void __init nvram_print_partitions(char * label)
 	printk(KERN_WARNING "--------%s---------\n", label);
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
 	list_for_each_entry(tmp_part, &nvram_partitions, partition) {
-		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%12s\n",
+		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%.12s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
 		       tmp_part->header.name);
@@ -237,12 +220,37 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
 	return c_sum;
 }
 
+
+/*
+ * Find an nvram partition, sig can be 0 for any
+ * partition or name can be NULL for any name, else
+ * tries to match both
+ *
+ * Note: nvram_find_partition2() is used internally, but nvram_find_partition()
+ * is exported, so we keep it to preserve the kABI.
+ */
+struct nvram_partition *nvram_find_partition(int sig, const char *name)
+{
+	struct nvram_partition * part;
+
+	list_for_each_entry(part, &nvram_partitions, partition) {
+		if (sig && part->header.signature != sig)
+			continue;
+		if (name && 0 != strncmp(name, part->header.name, 12))
+			continue;
+		return part;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(nvram_find_partition);
+
+
 /*
  * Per the criteria passed via nvram_remove_partition(), should this
  * partition be removed?  1=remove, 0=keep
  */
 static int nvram_can_remove_partition(struct nvram_partition *part,
-		const char *name, int sig, const char *exceptions[])
+		const char *name, int sig, const char *const exceptions[])
 {
 	if (part->header.signature != sig)
 		return 0;
@@ -250,7 +258,7 @@ static int nvram_can_remove_partition(struct nvram_partition *part,
 		if (strncmp(name, part->header.name, 12))
 			return 0;
 	} else if (exceptions) {
-		const char **except;
+		const char *const *except;
 		for (except = exceptions; *except; except++) {
 			if (!strncmp(*except, part->header.name, 12))
 				return 0;
@@ -265,11 +273,11 @@ static int nvram_can_remove_partition(struct nvram_partition *part,
  *        signature only match
  * @sig: signature of the partition(s) to remove
  * @exceptions: When removing all partitions with a matching signature,
- *        leave these alone.
+ * 	leave these alone.
  */
 
 int __init nvram_remove_partition(const char *name, int sig,
-						const char *exceptions[])
+					const char *const exceptions[])
 {
 	struct nvram_partition *part, *prev, *tmp;
 	int rc;
@@ -280,7 +288,7 @@ int __init nvram_remove_partition(const char *name, int sig,
 
 		/* Make partition a free partition */
 		part->header.signature = NVRAM_SIG_FREE;
-		strncpy(part->header.name, "wwwwwwwwwwww", 12);
+		memcpy(part->header.name, "wwwwwwwwwwww", 12);
 		part->header.checksum = nvram_checksum(&part->header);
 		rc = nvram_write_header(part);
 		if (rc <= 0) {
@@ -332,7 +340,6 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	struct nvram_partition *part;
 	struct nvram_partition *new_part;
 	struct nvram_partition *free_part = NULL;
-	static char nv_init_vals[16];
 	loff_t tmp_index;
 	long size = 0;
 	int rc;
@@ -414,7 +421,8 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	for (tmp_index = new_part->index + NVRAM_HEADER_LEN;
 	     tmp_index <  ((size - 1) * NVRAM_BLOCK_LEN);
 	     tmp_index += NVRAM_BLOCK_LEN) {
-		rc = ppc_md.nvram_write(nv_init_vals, NVRAM_BLOCK_LEN, &tmp_index);
+		rc = ppc_md.nvram_write((char*) empty_zero_page,
+						NVRAM_BLOCK_LEN, &tmp_index);
 		if (rc <= 0) {
 			pr_err("nvram_create_partition: nvram_write failed (%d)\n", rc);
 			return rc;
@@ -443,12 +451,12 @@ int nvram_get_partition_size(loff_t data_index)
 
 
 /**
- * nvram_find_partition - Find an nvram partition by signature and name
+ * nvram_find_partition2 - Find an nvram partition by signature and name
  * @name: Name of the partition or NULL for any name
  * @sig: Signature to test against
  * @out_size: if non-NULL, returns the size of the data part of the partition
  */
-loff_t nvram_find_partition(const char *name, int sig, int *out_size)
+loff_t nvram_find_partition2(const char *name, int sig, int *out_size)
 {
 	struct nvram_partition *p;
 
