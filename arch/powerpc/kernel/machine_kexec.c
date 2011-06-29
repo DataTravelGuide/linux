@@ -134,6 +134,15 @@ void __init reserve_crashkernel(void)
 
 	crashk_res.start = KDUMP_KERNELBASE;
 #else
+	if (!crashk_res.start) {
+		/*
+		 * unspecified address, choose a region of specified size
+		 * can overlap with initrd (ignoring corruption when retained)
+		 * ppc64 requires kernel and some stacks to be in first segment
+		 */
+		crashk_res.start = KDUMP_KERNELBASE;
+	}
+
 	crash_base = PAGE_ALIGN(crashk_res.start);
 	if (crash_base != crashk_res.start) {
 		printk("Crash kernel base must be aligned to 0x%lx\n",
