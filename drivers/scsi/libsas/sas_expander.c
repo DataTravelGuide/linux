@@ -1725,27 +1725,13 @@ out:
 	return res;
 }
 
-/* FIXME: delete this routine when/if sas_ata stops submitting tasks
- * with host_lock held
- */
-void sas_device_gone(struct domain_device *dev)
-{
-	struct sas_rphy *rphy = dev->rphy;
-	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
-
-	/* take the lock to synchronize against incoming sata i/o */
-	spin_lock_irq(shost->host_lock);
-	dev->gone = 1;
-	spin_unlock_irq(shost->host_lock);
-}
-
 static void sas_unregister_ex_tree(struct domain_device *dev)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct domain_device *child, *n;
 
 	list_for_each_entry_safe(child, n, &ex->children, siblings) {
-		sas_device_gone(child);
+		child->gone = 1;
 		if (child->dev_type == EDGE_DEV ||
 		    child->dev_type == FANOUT_DEV)
 			sas_unregister_ex_tree(child);
@@ -1766,7 +1752,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			&ex_dev->children, siblings) {
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
-				sas_device_gone(child);
+				child->gone = 1;
 				if (child->dev_type == EDGE_DEV ||
 				    child->dev_type == FANOUT_DEV)
 					sas_unregister_ex_tree(child);
@@ -1775,7 +1761,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 				break;
 			}
 		}
-		sas_device_gone(parent);
+		parent->gone = 1;
 		sas_disable_routing(parent, phy->attached_sas_addr);
 	}
 	memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
