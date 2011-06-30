@@ -686,7 +686,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 				(1ULL << INTERCEPT_SKINIT) |
 				(1ULL << INTERCEPT_WBINVD) |
 				(1ULL << INTERCEPT_MONITOR) |
-				(1ULL << INTERCEPT_MWAIT);
+				(1ULL << INTERCEPT_MWAIT) |
+				(1ULL << INTERCEPT_XSETBV);
 
 	control->iopm_base_pa = iopm_base;
 	control->msrpm_base_pa = __pa(svm->msrpm);
@@ -2152,6 +2153,19 @@ static int invlpga_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
+static int xsetbv_interception(struct vcpu_svm *svm)
+{
+	u64 new_bv = kvm_read_edx_eax(&svm->vcpu);
+	u32 index = kvm_register_read(&svm->vcpu, VCPU_REGS_RCX);
+
+	if (kvm_set_xcr(&svm->vcpu, index, new_bv) == 0) {
+		svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
+		skip_emulated_instruction(&svm->vcpu);
+	}
+
+	return 1;
+}
+
 static int invalid_op_interception(struct vcpu_svm *svm)
 {
 	kvm_queue_exception(&svm->vcpu, UD_VECTOR);
@@ -2636,6 +2650,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_WBINVD]                       = emulate_on_interception,
 	[SVM_EXIT_MONITOR]			= invalid_op_interception,
 	[SVM_EXIT_MWAIT]			= invalid_op_interception,
+	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= pf_interception,
 };
 
@@ -3216,6 +3231,7 @@ static const struct trace_print_flags svm_exit_reasons_str[] = {
 	{ SVM_EXIT_WBINVD,			"wbinvd" },
 	{ SVM_EXIT_MONITOR,			"monitor" },
 	{ SVM_EXIT_MWAIT,			"mwait" },
+	{ SVM_EXIT_XSETBV,			"xsetbv" },
 	{ SVM_EXIT_NPF,				"npf" },
 	{ -1, NULL }
 };
