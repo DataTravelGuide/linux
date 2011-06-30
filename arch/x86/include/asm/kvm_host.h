@@ -322,6 +322,7 @@ struct kvm_vcpu_arch {
 	} update_pte;
 
 	struct fpu guest_fpu;
+	u64 xcr0;
 
 	gva_t mmio_fault_cr2;
 	struct kvm_pio_request pio;
@@ -649,6 +650,7 @@ int kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);
 unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
+int kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
