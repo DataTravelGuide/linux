@@ -550,8 +550,10 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	if (cr4 & CR4_RESERVED_BITS)
 		return 1;
 
-	if (!guest_cpuid_has_xsave(vcpu) && (cr4 & X86_CR4_OSXSAVE))
+	if (!guest_cpuid_has_xsave(vcpu) && (cr4 & X86_CR4_OSXSAVE)) {
+		kvm_inject_gp(vcpu, 0);
 		return 1;
+	}
 
 	if (!guest_cpuid_has_smep(vcpu) && (cr4 & X86_CR4_SMEP))
 		return 1;
