@@ -448,6 +448,12 @@ struct kvm_ioeventfd {
 #ifdef __KVM_HAVE_VCPU_EVENTS
 #define KVM_CAP_VCPU_EVENTS 41
 #endif
+#ifdef __KVM_HAVE_XSAVE
+#define KVM_CAP_XSAVE 55
+#endif
+#ifdef __KVM_HAVE_XCRS
+#define KVM_CAP_XCRS 56
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -642,6 +648,12 @@ struct kvm_debug_guest {
 
 #define KVM_GET_PIT2   _IOR(KVMIO,   0x9f, struct kvm_pit_state2)
 #define KVM_SET_PIT2   _IOW(KVMIO,   0xa0, struct kvm_pit_state2)
+/* Available with KVM_CAP_XSAVE */
+#define KVM_GET_XSAVE		  _IOR(KVMIO,  0xa4, struct kvm_xsave)
+#define KVM_SET_XSAVE		  _IOW(KVMIO,  0xa5, struct kvm_xsave)
+/* Available with KVM_CAP_XCRS */
+#define KVM_GET_XCRS		  _IOR(KVMIO,  0xa6, struct kvm_xcrs)
+#define KVM_SET_XCRS		  _IOW(KVMIO,  0xa7, struct kvm_xcrs)
 
 #define KVM_TRC_INJ_VIRQ         (KVM_TRC_HANDLER + 0x02)
 #define KVM_TRC_REDELIVER_EVT    (KVM_TRC_HANDLER + 0x03)
