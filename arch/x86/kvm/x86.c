@@ -2388,6 +2388,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	int r;
 	struct kvm_lapic_state *lapic = NULL;
+	struct kvm_xsave *xsave = NULL;
+	struct kvm_xcrs *xcrs = NULL;
 
 	switch (ioctl) {
 	case KVM_GET_LAPIC: {
@@ -2562,8 +2564,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_XSAVE: {
-		struct kvm_xsave *xsave;
-
 		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!xsave)
@@ -2578,8 +2578,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_XSAVE: {
-		struct kvm_xsave *xsave;
-
 		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!xsave)
@@ -2593,8 +2591,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_XCRS: {
-		struct kvm_xcrs *xcrs;
-
 		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!xcrs)
@@ -2610,8 +2606,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_XCRS: {
-		struct kvm_xcrs *xcrs;
-
 		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!xcrs)
@@ -2630,6 +2624,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 out:
 	kfree(lapic);
+	kfree(xsave);
+	kfree(xcrs);
 	return r;
 }
 
