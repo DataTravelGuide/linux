@@ -1,9 +1,11 @@
 # Makefile for source rpm: kernel
-# $Id: Makefile,v 1.55 2010/09/02 14:48:48 arozansk Exp $
+# $Id: Makefile,v 1.105 2011/06/28 18:37:22 kmcmarti Exp $
 NAME     := kernel
 DEFAULT_SPEC := kernel.spec
 DETAILED_SPEC := kernel.spec.full
 DETAILED_TEMP_SPEC := kernel-full.spec
+KSB_SPEC := kernel.spec.ksb
+KSB_TEMP_SPEC := kernel-ksb.spec
 
 ifeq ($(SPECFILE),)
 # if we're called without specifying the spec file, erase the temporary spec
@@ -204,6 +206,7 @@ update-spec:
 		sed -e "/Patch:/,/^$$/d; /^ApplyPatch\ /,/^$$/d" | \
 		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-$(internal_release)," | \
 		sed -e "s,ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2,$(FULL_TARBALL),">$(DEFAULT_SPEC);
+	@make update-ksb-spec
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
@@ -214,6 +217,27 @@ full-srpm:
 	@make SPECFILE=$(DETAILED_TEMP_SPEC) test-srpm
 	@rm -f $(DETAILED_TEMP_SPEC);
 	@echo "*** DO NOT distribute this SRPM ***"
+
+update-ksb-spec:
+	@# KSB needs a 6.0GA (-71) tarball and individual patches after that
+	@echo "Updating KSB spec file"
+	@cat $(DETAILED_SPEC) | \
+		sed -e "/^Patch:\ /,/^Patch3807:\ /d" | \
+		sed -e "/^ApplyPatch\ Fedora-redhat-introduce-nonint_oldconfig-target.patch/,/^ApplyPatch\ fs-nfsd-initialize-nfsd-versions-before-creating-svc.patch/d" | \
+		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-71.el6," | \
+		sed -e "s,ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2,linux-2.6.32-71.el6.tar.bz2,">$(KSB_SPEC);
+
+$(KSB_SPEC):
+	@make update-ksb-spec;
+
+ksb-srpm: $(KSB_SPEC)
+	@if [ -z "`grep 2.6.32-71 sources`" ]; then\
+		echo "c761eb05631f8ce888fd361883324d9c  linux-2.6.32-71.el6.tar.bz2" >>sources; \
+	fi
+	@cp $(KSB_SPEC) $(KSB_TEMP_SPEC);
+	@make SPECFILE=$(KSB_TEMP_SPEC) test-srpm;
+	@rm -f $(KSB_TEMP_SPEC);
+	@echo "*** DO NOT distribute this SRPM ***";
 
 tarball-upload:
 	@make FILES=$(FULL_TARBALL) upload
