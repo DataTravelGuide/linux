@@ -260,16 +260,6 @@ static void as_put_io_context(struct request *rq)
  */
 #define RQ_RB_ROOT(ad, rq)	(&(ad)->sort_list[rq_is_sync((rq))])
 
-static void as_add_rq_rb(struct as_data *ad, struct request *rq)
-{
-	struct request *alias;
-
-	while ((unlikely(alias = elv_rb_add(RQ_RB_ROOT(ad, rq), rq)))) {
-		as_move_to_dispatch(ad, alias);
-		as_antic_stop(ad);
-	}
-}
-
 static inline void as_del_rq_rb(struct as_data *ad, struct request *rq)
 {
 	elv_rb_del(RQ_RB_ROOT(ad, rq), rq);
@@ -1199,7 +1189,7 @@ static void as_add_request(struct request_queue *q, struct request *rq)
 		atomic_inc(&RQ_IOC(rq)->aic->nr_queued);
 	}
 
-	as_add_rq_rb(ad, rq);
+	elv_rb_add(RQ_RB_ROOT(ad, rq), rq);
 
 	/*
 	 * set expire time and add to fifo list
@@ -1270,7 +1260,7 @@ static void as_merged_request(struct request_queue *q, struct request *req,
 	 */
 	if (type == ELEVATOR_FRONT_MERGE) {
 		as_del_rq_rb(ad, req);
-		as_add_rq_rb(ad, req);
+		elv_rb_add(RQ_RB_ROOT(ad, req), req);
 		/*
 		 * Note! At this stage of this and the next function, our next
 		 * request may not be optimal - eg the request may have "grown"
