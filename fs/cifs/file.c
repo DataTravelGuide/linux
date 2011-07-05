@@ -1085,7 +1085,6 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	return total_written;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 					bool fsuid_only)
 {
@@ -1119,7 +1118,6 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 	spin_unlock(&cifs_file_list_lock);
 	return NULL;
 }
-#endif
 
 struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 					bool fsuid_only)

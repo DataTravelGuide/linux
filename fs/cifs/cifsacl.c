@@ -29,8 +29,6 @@
 #include "cifs_debug.h"
 
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-
 static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
 	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
@@ -773,4 +771,3 @@ int mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode)
 
 	return rc;
 }
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
