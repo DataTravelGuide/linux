@@ -574,7 +574,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->capabilities & CAP_EXTENDED_SECURITY) &&
 				(pSMBr->EncryptionKeyLength == 0)) {
 		/* decode security blob */
-		count = pSMBr->ByteCount;
+		count = get_bcc(&pSMBr->hdr);
 		if (count < 16) {
 			rc = -EIO;
 			goto neg_err_exit;
@@ -731,7 +731,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	smb->hdr.Tid = 0xffff;
 	smb->hdr.WordCount = 1;
 	put_unaligned_le16(1, &smb->EchoCount);
-	put_bcc_le(1, &smb->hdr);
+	put_bcc(1, &smb->hdr);
 	smb->Data[0] = 'a';
 	inc_rfc1001_len(smb, 3);
 
@@ -1074,7 +1074,7 @@ PsxCreat:
 	cFYI(1, "copying inode info");
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-	if (rc || (pSMBr->ByteCount < sizeof(OPEN_PSX_RSP))) {
+	if (rc || get_bcc(&pSMBr->hdr) < sizeof(OPEN_PSX_RSP)) {
 		rc = -EIO;	/* bad smb */
 		goto psx_create_err;
 	}
@@ -1095,7 +1095,7 @@ PsxCreat:
 		pRetData->Type = cpu_to_le32(-1); /* unknown */
 		cFYI(DBG2, "unknown type");
 	} else {
-		if (pSMBr->ByteCount < sizeof(OPEN_PSX_RSP)
+		if (get_bcc(&pSMBr->hdr) < sizeof(OPEN_PSX_RSP)
 					+ sizeof(FILE_UNIX_BASIC_INFO)) {
 			cERROR(1, "Open response data too small");
 			pRetData->Type = cpu_to_le32(-1);
@@ -1860,7 +1860,7 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 		__u16 data_count;
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < sizeof(struct cifs_posix_lock))) {
+		if (rc || get_bcc(&pSMBr->hdr) < sizeof(*parm_data)) {
 			rc = -EIO;      /* bad smb */
 			goto plk_err_exit;
 		}
@@ -2487,7 +2487,7 @@ querySymLinkRetry:
 
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		/* BB also check enough total bytes returned */
-		if (rc || (pSMBr->ByteCount < 2))
+		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			rc = -EIO;
 		else {
 			bool is_unicode;
@@ -2569,14 +2569,14 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 	} else {		/* decode response */
 		__u32 data_offset = le32_to_cpu(pSMBr->DataOffset);
 		__u32 data_count = le32_to_cpu(pSMBr->DataCount);
-		if ((pSMBr->ByteCount < 2) || (data_offset > 512)) {
-		/* BB also check enough total bytes returned */
+		if (get_bcc(&pSMBr->hdr) < 2 || data_offset > 512) {
+			/* BB also check enough total bytes returned */
 			rc = -EIO;	/* bad smb */
 			goto qreparse_out;
 		}
 		if (data_count && (data_count < 2048)) {
 			char *end_of_smb = 2 /* sizeof byte count */ +
-				pSMBr->ByteCount + (char *)&pSMBr->ByteCount;
+			       get_bcc(&pSMBr->hdr) + (char *)&pSMBr->ByteCount;
 
 			struct reparse_data *reparse_buf =
 						(struct reparse_data *)
@@ -2834,8 +2834,8 @@ queryAclRetry:
 		/* decode response */
 
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-		if (rc || (pSMBr->ByteCount < 2))
 		/* BB also check enough total bytes returned */
+		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			rc = -EIO;      /* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -2984,8 +2984,8 @@ GetExtAttrRetry:
 	} else {
 		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-		if (rc || (pSMBr->ByteCount < 2))
 		/* BB also check enough total bytes returned */
+		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			/* If rc should we check for EOPNOSUPP and
 			   disable the srvino flag? or in caller? */
 			rc = -EIO;      /* bad smb */
@@ -3060,6 +3060,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 	char *end_of_smb;
 	__u32 data_count, data_offset, parm_count, parm_offset;
 	struct smb_com_ntransact_rsp *pSMBr;
+	u16 bcc;
 
 	*pdatalen = 0;
 	*pparmlen = 0;
@@ -3069,8 +3070,8 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 
 	pSMBr = (struct smb_com_ntransact_rsp *)buf;
 
-	/* ByteCount was converted from little endian in SendReceive */
-	end_of_smb = 2 /* sizeof byte count */ + pSMBr->ByteCount +
+	bcc = get_bcc(&pSMBr->hdr);
+	end_of_smb = 2 /* sizeof byte count */ + bcc +
 			(char *)&pSMBr->ByteCount;
 
 	data_offset = le32_to_cpu(pSMBr->DataOffset);
@@ -3096,7 +3097,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 			*ppdata, data_count, (data_count + *ppdata),
 			end_of_smb, pSMBr);
 		return -EINVAL;
-	} else if (parm_count + data_count > pSMBr->ByteCount) {
+	} else if (parm_count + data_count > bcc) {
 		cFYI(1, "parm count and data count larger than SMB");
 		return -EINVAL;
 	}
@@ -3382,7 +3383,7 @@ QFileInfoRetry:
 
 		if (rc) /* BB add auto retry on EOPNOTSUPP? */
 			rc = -EIO;
-		else if (pSMBr->ByteCount < 40)
+		else if (get_bcc(&pSMBr->hdr) < 40)
 			rc = -EIO;	/* bad smb */
 		else if (pFindData) {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -3470,9 +3471,9 @@ QPathInfoRetry:
 
 		if (rc) /* BB add auto retry on EOPNOTSUPP? */
 			rc = -EIO;
-		else if (!legacy && (pSMBr->ByteCount < 40))
+		else if (!legacy && get_bcc(&pSMBr->hdr) < 40)
 			rc = -EIO;	/* bad smb */
-		else if (legacy && (pSMBr->ByteCount < 24))
+		else if (legacy && get_bcc(&pSMBr->hdr) < 24)
 			rc = -EIO;  /* 24 or 26 expected but we do not read
 					last field */
 		else if (pFindData) {
@@ -3548,7 +3549,7 @@ UnixQFileInfoRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < sizeof(FILE_UNIX_BASIC_INFO))) {
+		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
 			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response.\n"
 				   "Unix Extensions can be disabled on mount "
 				   "by specifying the nosfu mount option.");
@@ -3634,7 +3635,7 @@ UnixQPathInfoRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < sizeof(FILE_UNIX_BASIC_INFO))) {
+		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
 			cERROR(1, "Malformed FILE_UNIX_BASIC_INFO response.\n"
 				   "Unix Extensions can be disabled on mount "
 				   "by specifying the nosfu mount option.");
@@ -4039,8 +4040,8 @@ GetInodeNumberRetry:
 	} else {
 		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-		if (rc || (pSMBr->ByteCount < 2))
 		/* BB also check enough total bytes returned */
+		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			/* If rc should we check for EOPNOSUPP and
 			disable the srvino flag? or in caller? */
 			rc = -EIO;      /* bad smb */
@@ -4265,13 +4266,13 @@ getDFSRetry:
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 	/* BB Also check if enough total bytes returned? */
-	if (rc || (pSMBr->ByteCount < 17)) {
+	if (rc || get_bcc(&pSMBr->hdr) < 17) {
 		rc = -EIO;      /* bad smb */
 		goto GetDFSRefExit;
 	}
 
 	cFYI(1, "Decoding GetDFSRefer response BCC: %d  Offset %d",
-				pSMBr->ByteCount,
+				get_bcc(&pSMBr->hdr),
 				le16_to_cpu(pSMBr->t2.DataOffset));
 
 	/* parse returned result into more usable form */
@@ -4337,12 +4338,12 @@ oldQFSInfoRetry:
 	} else {                /* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 18))
+		if (rc || get_bcc(&pSMBr->hdr) < 18)
 			rc = -EIO;      /* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			cFYI(1, "qfsinf resp BCC: %d  Offset %d",
-				 pSMBr->ByteCount, data_offset);
+				 get_bcc(&pSMBr->hdr), data_offset);
 
 			response_data = (FILE_SYSTEM_ALLOC_INFO *)
 				(((char *) &pSMBr->hdr.Protocol) + data_offset);
@@ -4416,7 +4417,7 @@ QFSInfoRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 24))
+		if (rc || get_bcc(&pSMBr->hdr) < 24)
 			rc = -EIO;	/* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4496,7 +4497,7 @@ QFSAttributeRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 13)) {
+		if (rc || get_bcc(&pSMBr->hdr) < 13) {
 			/* BB also check if enough bytes returned */
 			rc = -EIO;	/* bad smb */
 		} else {
@@ -4567,7 +4568,8 @@ QFSDeviceRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < sizeof(FILE_SYSTEM_DEVICE_INFO)))
+		if (rc || get_bcc(&pSMBr->hdr) <
+			  sizeof(FILE_SYSTEM_DEVICE_INFO))
 			rc = -EIO;	/* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4636,7 +4638,7 @@ QFSUnixRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 13)) {
+		if (rc || get_bcc(&pSMBr->hdr) < 13) {
 			rc = -EIO;	/* bad smb */
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4781,7 +4783,7 @@ QFSPosixRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 13)) {
+		if (rc || get_bcc(&pSMBr->hdr) < 13) {
 			rc = -EIO;	/* bad smb */
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -5513,7 +5515,7 @@ QAllEAsRetry:
 	of these trans2 responses */
 
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-	if (rc || (pSMBr->ByteCount < 4)) {
+	if (rc || get_bcc(&pSMBr->hdr) < 4) {
 		rc = -EIO;	/* bad smb */
 		goto QAllEAsOut;
 	}
