@@ -633,7 +633,6 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek_unlocked(file, offset, origin);
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 {
 	/* note that this is called by vfs setlease with the BKL held
@@ -663,7 +662,6 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 	else
 		return -EAGAIN;
 }
-#endif
 
 struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
@@ -740,10 +738,7 @@ const struct file_operations cifs_file_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.setlease = cifs_setlease,
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
 const struct file_operations cifs_file_direct_ops = {
@@ -762,9 +757,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.setlease = cifs_setlease,
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 const struct file_operations cifs_file_nobrl_ops = {
 	.read = do_sync_read,
@@ -781,10 +774,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 #ifdef CONFIG_CIFS_POSIX
 	.unlocked_ioctl	= cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
-
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.setlease = cifs_setlease,
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
 const struct file_operations cifs_file_direct_nobrl_ops = {
@@ -801,9 +791,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.unlocked_ioctl  = cifs_ioctl,
 #endif /* CONFIG_CIFS_POSIX */
 	.llseek = cifs_llseek,
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.setlease = cifs_setlease,
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
 const struct file_operations cifs_dir_ops = {
