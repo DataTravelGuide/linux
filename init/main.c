@@ -184,13 +184,20 @@ static int __init set_reset_devices(char *str)
 
 __setup("reset_devices", set_reset_devices);
 
-unsigned int usevirtefi;
+unsigned int usevirtefi = 1;
 static int __init set_virt_efi(char *str)
 {
 	usevirtefi = 1;
 	return 1;
 }
 __setup("virtefi", set_virt_efi);
+
+static int __init set_phys_efi(char *str)
+{
+	usevirtefi = 0;
+	return 1;
+}
+__setup("physefi", set_phys_efi);
 
 static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };

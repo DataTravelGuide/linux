@@ -2021,6 +2021,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	pg.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
+	physefi		[X86] Run EFI in physical mode rather than virtual
+			mode.
+
 	pirq=		[SMP,APIC] Manual mp-table setup
 			See Documentation/x86/i386/IO-APIC.txt.
 
