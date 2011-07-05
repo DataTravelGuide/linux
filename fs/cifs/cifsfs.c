@@ -177,12 +177,12 @@ cifs_read_super(struct super_block *sb, void *data,
 		goto out_no_root;
 	}
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
+#ifdef CIFS_NFSD_EXPORT
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cFYI(1, "export ops supported");
 		sb->s_export_op = &cifs_export_ops;
 	}
-#endif /* EXPERIMENTAL */
+#endif /* CIFS_NFSD_EXPORT */
 
 	return 0;
 
