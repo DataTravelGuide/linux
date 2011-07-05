@@ -997,6 +997,13 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_ibft_region();
 
+	/*
+	 * The EFI specification says that boot service code won't be called
+	 * after ExitBootServices(). This is, in fact, a lie.
+	 */
+	if (efi_enabled)
+		efi_reserve_boot_services();
+
 	reserve_crashkernel();
 
 #ifdef CONFIG_X86_64

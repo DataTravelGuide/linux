@@ -45,22 +45,7 @@ static DEFINE_PER_CPU(unsigned long, efi_flags);
 static DEFINE_PER_CPU(unsigned long, save_cr3);
 static pgd_t efi_pgd[PTRS_PER_PGD] __page_aligned_bss;
 
-static void __init early_mapping_set_exec(unsigned long start,
-					  unsigned long end,
-					  int executable)
-{
-	unsigned long num_pages;
-
-	start &= PMD_MASK;
-	end = (end + PMD_SIZE - 1) & PMD_MASK;
-	num_pages = (end - start) >> PAGE_SHIFT;
-	if (executable)
-		set_memory_x((unsigned long)__va(start), num_pages);
-	else
-		set_memory_nx((unsigned long)__va(start), num_pages);
-}
-
-static void __init early_runtime_code_mapping_set_exec(int executable)
+static void __init early_code_mapping_set_exec(int executable)
 {
 	efi_memory_desc_t *md;
 	void *p;
@@ -71,10 +56,9 @@ static void __init early_runtime_code_mapping_set_exec(int executable)
 	/* Make EFI runtime service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
-		if (md->type == EFI_RUNTIME_SERVICES_CODE) {
-			unsigned long end;
-			end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
-			early_mapping_set_exec(md->phys_addr, end, executable);
+		if (md->type == EFI_RUNTIME_SERVICES_CODE ||
+		    md->type == EFI_BOOT_SERVICES_CODE) {
+			efi_set_executable(md, executable);
 		}
 	}
 }
@@ -83,7 +67,7 @@ void __init efi_call_phys_prelog(void)
 {
 	unsigned long vaddress;
 
-	early_runtime_code_mapping_set_exec(1);
+	early_code_mapping_set_exec(1);
 	local_irq_save(get_cpu_var(efi_flags));
 	vaddress = (unsigned long)__va(0x0UL);
 	save_pgd = *pgd_offset_k(0x0UL);
@@ -99,7 +83,7 @@ void __init efi_call_phys_epilog(void)
 	set_pgd(pgd_offset_k(0x0UL), save_pgd);
 	__flush_tlb_all();
 	local_irq_restore(get_cpu_var(efi_flags));
-	early_runtime_code_mapping_set_exec(0);
+	early_code_mapping_set_exec(0);
 }
 
 void efi_call_phys_prelog_in_physmode(void)
