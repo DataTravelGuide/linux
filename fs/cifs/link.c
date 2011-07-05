@@ -238,7 +238,7 @@ CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
 	if (rc != 0)
 		return rc;
 
-	if (file_info.EndOfFile != CIFS_MF_SYMLINK_FILE_SIZE) {
+	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
 		CIFSSMBClose(xid, tcon, netfid);
 		/* it's not a symlink */
 		return -EINVAL;
@@ -315,7 +315,7 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	if (rc != 0)
 		goto out;
 
-	if (file_info.EndOfFile != CIFS_MF_SYMLINK_FILE_SIZE) {
+	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
 		CIFSSMBClose(xid, pTcon, netfid);
 		/* it's not a symlink */
 		goto out;
