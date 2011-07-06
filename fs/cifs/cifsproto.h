@@ -22,6 +22,7 @@
 #define _CIFSPROTO_H
 #include <linux/nls.h>
 #include <linux/writeback.h>
+#include <linux/slow-work.h>
 
 struct statfs;
 struct smb_vol;
@@ -439,7 +440,7 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 struct cifs_writedata {
 	struct kref			refcount;
 	enum writeback_sync_modes	sync_mode;
-	struct work_struct		work;
+	struct slow_work		work;
 	struct cifsFileInfo		*cfile;
 	__u64				offset;
 	unsigned int			bytes;

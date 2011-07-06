@@ -1638,11 +1638,10 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	}
 
 	mapping_set_error(inode->i_mapping, rc);
-	kref_put(&wdata->refcount, cifs_writedata_release);
 }
 
 static void
-cifs_writev_complete(struct work_struct *work)
+cifs_writev_complete(struct slow_work *work)
 {
 	struct cifs_writedata *wdata = container_of(work,
 						struct cifs_writedata, work);
@@ -1667,8 +1666,19 @@ cifs_writev_complete(struct work_struct *work)
 	}
 	if (wdata->result != -EAGAIN)
 		mapping_set_error(inode->i_mapping, wdata->result);
+}
+
+static void cifs_writedata_put(struct slow_work *work)
+{
+	struct cifs_writedata *wdata = container_of(work,
+					struct cifs_writedata, work);
 	kref_put(&wdata->refcount, cifs_writedata_release);
 }
+
+const struct slow_work_ops cifs_writev_complete_ops = {
+	.put_ref =	cifs_writedata_put,
+	.execute =	cifs_writev_complete
+};
 
 struct cifs_writedata *
 cifs_writedata_alloc(unsigned int nr_pages)
@@ -1685,7 +1695,7 @@ cifs_writedata_alloc(unsigned int nr_pages)
 	wdata = kzalloc(sizeof(*wdata) +
 			sizeof(struct page *) * (nr_pages - 1), GFP_NOFS);
 	if (wdata != NULL) {
-		INIT_WORK(&wdata->work, cifs_writev_complete);
+		slow_work_init(&wdata->work, &cifs_writev_complete_ops);
 		kref_init(&wdata->refcount);
 	}
 	return wdata;
@@ -1735,7 +1745,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 		break;
 	}
 
-	queue_work(system_nrt_wq, &wdata->work);
+	slow_work_enqueue(&wdata->work);
 	DeleteMidQEntry(mid);
 	atomic_dec(&tcon->ses->server->inFlight);
 	wake_up(&tcon->ses->server->request_q);
