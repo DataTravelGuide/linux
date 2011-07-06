@@ -133,6 +133,7 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 	/^From / { if (TYPE=="PATCHJUNK") {
 			COMMIT=substr($0, 6, 40);
 			TYPE="HEADER";
+			LASTHDR="NEW";
 			close(OUTF);
 			next;
 		} }
@@ -160,7 +161,9 @@ BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 		    }
 	    }
 	/^Date: / {if (TYPE=="HEADER") {DATELINE=$0; next; } }
-	/^Subject: / { if (TYPE=="HEADER") {SUBJECTLINE=$0; next; } }
+	/^Subject: / { if (TYPE=="HEADER") {SUBJECTLINE=$0; LASTHDR="SUBJ"; next; } }
+	# partially attempt to deal with RFC2822 continuation lines in headers
+	/^\ / { if (TYPE=="HEADER") { if (LASTHDR=="SUBJ") { SUBJECTLINE=(SUBJECTLINE $0); } next; } }
 	/^Bugzilla: / { if (TYPE=="META") {BZ=$0; } }
 	/^CVE: / { if (TYPE=="META") {CVE=$0; } }
 
