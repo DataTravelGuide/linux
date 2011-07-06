@@ -899,7 +899,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 }
 
 /* update the file size (if needed) after a write */
-static void
+void
 cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 		      unsigned int bytes_written)
 {
