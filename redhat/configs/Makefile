@@ -13,17 +13,25 @@ endif
 CFG		= kernel-$(VERSION)
 CFG_DIR		= $(OUTPUT)/configs
 
-CONFIGFILES	= \
-	$(CFG)-i686.config $(CFG)-i686-debug.config \
-	$(CFG)-x86_64.config $(CFG)-x86_64-debug.config \
-	$(CFG)-s390x.config $(CFG)-s390x-debug.config \
-	$(CFG)-s390x-kdump.config \
-	$(CFG)-ppc64.config $(CFG)-ppc64-kdump.config $(CFG)-ppc64-debug.config
+X86_64CONFIGFILES = $(CFG)-x86_64.config $(CFG)-x86_64-debug.config
+
+X86CONFIGFILES	= $(CFG)-i686.config $(CFG)-i686-debug.config
+
+S390CONFIGFILES = $(CFG)-s390x.config $(CFG)-s390x-debug.config \
+		   $(CFG)-s390x-kdump.config
+
+PPCCONFIGFILES = $(CFG)-ppc64.config $(CFG)-ppc64-kdump.config \
+		  $(CFG)-ppc64-debug.config
+
+CONFIGFILES = $(X86_64CONFIGFILES) $(X86CONFIGFILES) $(S390CONFIGFILES) \
+	      $(PPCCONFIGFILES)
+
+ARCHCONFIG =
 
 PLATFORMS	= x86 x86_64 powerpc64 s390
 TEMPFILES	= $(addprefix temp-, $(addsuffix -generic, $(PLATFORMS)))
 
-configs: clean-configs $(CONFIGFILES)
+configs: clean-configs $($(ARCHCONFIG)CONFIGFILES)
 	@rm -f $(TEMPFILES)
 	@rm -f temp-generic temp-*-generic temp-*-generic-tmp *-merged
 

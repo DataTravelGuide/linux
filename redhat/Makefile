@@ -33,6 +33,8 @@ ifeq ("$(origin O)", "command line")
   _EXTRA_ARGS := O=$(_OUTPUT)
 endif
 
+ARCHCONFIG := $(shell uname -m | sed -e s/x86_64/X86_64/ -e  s/i.86/X86/ \
+				     -e s/s390x/S390/ -e s/ppc.*/PPC/ )
 default: rh-help
 
 rh-check-kabi:
@@ -48,6 +50,9 @@ rh-configs:
 
 rh-configs-prep:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) $(_EXTRA_ARGS) configs-prep
+
+rh-configs-arch-prep:
+	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) $(_EXTRA_ARGS) ARCHCONFIG=$(ARCHCONFIG) configs-prep
 
 rh-clean-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) clean
@@ -224,11 +229,12 @@ rh-help:
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
-	@echo  '  rh-configs-prep   Creates config files for RHEL 6 architectures, cleans them'
+	@echo  '  rh-configs-prep - Creates config files for RHEL 6 architectures, cleans them'
 	@echo  '		    by running make nonint_oldconfig, and copies them to'
 	@echo  '		    configs/ directory. This is the target to use for a config!'
 	@echo  '		    Copy the config file you want from the configs/ directory'
 	@echo  '		    to .config'
+	@echo  '  rh-configs-arch-prep - Executes rh-configs-prep for local architecture only '
 	@echo  ''
 	@echo  ' Most developers will NOT use the following config targets.'
 	@echo  ' See the redhat/README file for more info'
