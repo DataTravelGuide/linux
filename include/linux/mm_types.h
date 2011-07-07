@@ -299,6 +299,9 @@ struct mm_struct {
 #endif
 	/* reserved for Red Hat */
 	unsigned long rh_reserved[2];
+
+	/* How many tasks sharing this mm are OOM_DISABLE */
+	atomic_t oom_disable_count;
 };
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
