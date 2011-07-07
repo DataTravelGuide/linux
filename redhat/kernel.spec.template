@@ -1617,6 +1617,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 06 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-166.el6]
+- [x86] efi: Default to virtual mode (Matthew Garrett) [695859]
+- [x86] Backport upstream EFI fixups (Matthew Garrett) [695859]
+- [x86] bootmem: Add free_bootmem_late() (Matthew Garrett) [695859]
+- [x86] UV: warnings on slowpath (George Beshers) [699763]
+- [scsi] cxgb3i: fix EEH error on ppc due to invalid page size computation (Neil Horman) [714325]
+- [block] elevator: fix O_DIRECT I/O starving readers (Jeff Moyer) [587402]
+- [fs] NFS: Fix NFSv3 exclusive open semantics (Jeff Layton) [694210]
+- [fs] GFS2: Incorrect inode state during deallocation (Steven Whitehouse) [712139]
+- [net] tcp: Increase the initial congestion window to 10. (Thomas Graf) [667754]
+- [net] TCP: update initial windows according to RFC 5681 (Thomas Graf) [667754]
+- [net] tcp/dccp: Consolidate common code for RFC 3390 conversion (Thomas Graf) [667754]
+
 * Fri Jul 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-165.el6]
 - [v4l] Remove the old V4L1 v4lgrab.c file (Don Zickus) [714183]
 - [scsi] libfc, fcoe: Remove usage of the Scsi_Host's host_lock (Rob Evers) [695542]
