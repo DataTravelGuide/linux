@@ -451,7 +451,7 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
 
-	ls->ls_rsbtbl = kmalloc(sizeof(struct dlm_rsbtable) * size, GFP_NOFS);
+	ls->ls_rsbtbl = vmalloc(sizeof(struct dlm_rsbtable) * size);
 	if (!ls->ls_rsbtbl)
 		goto out_lsfree;
 	for (i = 0; i < size; i++) {
@@ -463,7 +463,7 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	size = dlm_config.ci_lkbtbl_size;
 	ls->ls_lkbtbl_size = size;
 
-	ls->ls_lkbtbl = kmalloc(sizeof(struct dlm_lkbtable) * size, GFP_NOFS);
+	ls->ls_lkbtbl = vmalloc(sizeof(struct dlm_lkbtable) * size);
 	if (!ls->ls_lkbtbl)
 		goto out_rsbfree;
 	for (i = 0; i < size; i++) {
@@ -475,7 +475,7 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	size = dlm_config.ci_dirtbl_size;
 	ls->ls_dirtbl_size = size;
 
-	ls->ls_dirtbl = kmalloc(sizeof(struct dlm_dirtable) * size, GFP_NOFS);
+	ls->ls_dirtbl = vmalloc(sizeof(struct dlm_dirtable) * size);
 	if (!ls->ls_dirtbl)
 		goto out_lkbfree;
 	for (i = 0; i < size; i++) {
@@ -591,11 +591,11 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	spin_unlock(&lslist_lock);
 	kfree(ls->ls_recover_buf);
  out_dirfree:
-	kfree(ls->ls_dirtbl);
+	vfree(ls->ls_dirtbl);
  out_lkbfree:
-	kfree(ls->ls_lkbtbl);
+	vfree(ls->ls_lkbtbl);
  out_rsbfree:
-	kfree(ls->ls_rsbtbl);
+	vfree(ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
 		kobject_put(&ls->ls_kobj);
@@ -709,7 +709,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 */
 
 	dlm_dir_clear(ls);
-	kfree(ls->ls_dirtbl);
+	vfree(ls->ls_dirtbl);
 
 	/*
 	 * Free all lkb's on lkbtbl[] lists.
@@ -733,7 +733,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	}
 	dlm_astd_resume();
 
-	kfree(ls->ls_lkbtbl);
+	vfree(ls->ls_lkbtbl);
 
 	/*
 	 * Free all rsb's on rsbtbl[] lists
@@ -758,7 +758,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 		}
 	}
 
-	kfree(ls->ls_rsbtbl);
+	vfree(ls->ls_rsbtbl);
 
 	/*
 	 * Free structures on any other lists
