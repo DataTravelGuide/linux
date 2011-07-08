@@ -462,12 +462,28 @@ void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
+static inline u32 bit(int bitno)
+{
+	return 1 << (bitno & 31);
+}
+
+static bool guest_cpuid_has_smep(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 7, 0);
+	return best && (best->ebx & bit(X86_FEATURE_SMEP));
+}
+
 int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = vcpu->arch.cr4;
-	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
-
+	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE |
+				   X86_CR4_PAE | X86_CR4_SMEP;
 	if (cr4 & CR4_RESERVED_BITS)
+		return 1;
+
+	if (!guest_cpuid_has_smep(vcpu) && (cr4 & X86_CR4_SMEP))
 		return 1;
 
 	if (is_long_mode(vcpu)) {
@@ -550,11 +566,6 @@ unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu)
 		return vcpu->arch.cr8;
 }
 EXPORT_SYMBOL_GPL(kvm_get_cr8);
-
-static inline u32 bit(int bitno)
-{
-	return 1 << (bitno & 31);
-}
 
 /*
  * List of msr numbers which we expose to userspace through KVM_GET_MSRS
