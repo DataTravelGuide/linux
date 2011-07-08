@@ -1837,6 +1837,10 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(3DNOWPREFETCH) | 0 /* OSVW */ | 0 /* IBS */ | F(XOP) |
 		0 /* SKINIT */ | 0 /* WDT */;
 
+	/* cpuid 7.0.ebx */
+	const u32 kvm_supported_word9_x86_features =
+		F(SMEP);
+
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
 	do_cpuid_1_ent(entry, function, index);
@@ -1871,7 +1875,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
-	/* function 4 and 0xb have additional index. */
+	/* function 4 has additional index. */
 	case 4: {
 		int i, cache_type;
 
@@ -1888,6 +1892,20 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
+	case 7: {
+		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+		/* Mask ebx against host capbability word 9 */
+		if (index == 0) {
+			entry->ebx &= kvm_supported_word9_x86_features;
+			cpuid_mask(&entry->ebx, 9);
+		} else
+			entry->ebx = 0;
+		entry->eax = 0;
+		entry->ecx = 0;
+		entry->edx = 0;
+		break;
+	}
+	/* function 0xb has additional index. */
 	case 0xb: {
 		int i, level_type;
 
