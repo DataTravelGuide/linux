@@ -197,6 +197,12 @@ walk:
 				is_long_mode(vcpu))) {
 			int lvl = walker->level;
 
+			/* check if the kernel is fetching from user page */
+			if ((pte_access & PT_USER_MASK) &&
+			    (read_cr4() & X86_CR4_SMEP))
+				if (fetch_fault && !user_fault)
+					goto access_error;
+
 			walker->gfn = gpte_to_gfn_lvl(pte, lvl);
 			walker->gfn += (addr & PT_LVL_OFFSET_MASK(lvl))
 					>> PAGE_SHIFT;
@@ -244,7 +250,7 @@ err:
 		walker->error_code |= PFERR_WRITE_MASK;
 	if (user_fault)
 		walker->error_code |= PFERR_USER_MASK;
-	if (fetch_fault)
+	if (fetch_fault && (read_cr4() & X86_CR4_SMEP))
 		walker->error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
 		walker->error_code |= PFERR_RSVD_MASK;
