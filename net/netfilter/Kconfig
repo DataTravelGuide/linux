@@ -551,6 +551,18 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
 	  TCP options from TCP packets.
 
+config NETFILTER_XT_SET
+	tristate 'set target and match support'
+	depends on IP_SET
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds the "SET" target and "set" match.
+
+	  Using this target and match, you can add/delete and match
+	  elements in the sets created by ipset(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
 	depends on NF_CONNTRACK

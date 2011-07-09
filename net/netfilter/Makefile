@@ -42,6 +42,9 @@ obj-$(CONFIG_NETFILTER_TPROXY) += nf_tproxy_core.o
 # generic X tables 
 obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
 
+# combos
+obj-$(CONFIG_NETFILTER_XT_SET) += xt_set.o
+
 # targets
 obj-$(CONFIG_NETFILTER_XT_TARGET_AUDIT) += xt_AUDIT.o
 obj-$(CONFIG_NETFILTER_XT_TARGET_CHECKSUM) += xt_CHECKSUM.o
