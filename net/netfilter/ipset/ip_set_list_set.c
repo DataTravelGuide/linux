@@ -456,8 +456,7 @@ list_set_gc(unsigned long ul_set)
 	struct list_set *map = set->data;
 	struct set_telem *e;
 	u32 i;
-	
-	/* nfnl_lock should be called */
+
 	write_lock_bh(&set->lock);
 	for (i = 0; i < map->size; i++) {
 		e = list_set_telem(map, i);
