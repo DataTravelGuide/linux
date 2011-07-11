@@ -1149,20 +1149,18 @@ static void igmp_group_dropped(struct ip_mc_list *im)
 
 	if (!in_dev->dead) {
 		if (IGMP_V1_SEEN(in_dev))
-			goto done;
+			return;
 		if (IGMP_V2_SEEN(in_dev)) {
 			if (reporter)
 				igmp_send_report(in_dev, im, IGMP_HOST_LEAVE_MESSAGE);
-			goto done;
+			return;
 		}
 		/* IGMPv3 */
 		igmpv3_add_delrec(in_dev, im);
 
 		igmp_ifc_event(in_dev);
 	}
-done:
 #endif
-	ip_mc_clear_src(im);
 }
 
 static void igmp_group_added(struct ip_mc_list *im)
@@ -1298,6 +1296,7 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 				in_dev->mc_count--;
 				write_unlock_bh(&in_dev->mc_list_lock);
 				igmp_group_dropped(i);
+				ip_mc_clear_src(i);
 
 				if (!in_dev->dead)
 					ip_rt_multicast_event(in_dev);
@@ -1408,7 +1407,9 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 		in_dev->mc_list = i->next;
 		in_dev->mc_count--;
 		write_unlock_bh(&in_dev->mc_list_lock);
-		igmp_group_dropped(i);
+
+		/* We've dropped the groups in ip_mc_down already */
+		ip_mc_clear_src(i);
 		ip_ma_put(i);
 
 		write_lock_bh(&in_dev->mc_list_lock);
