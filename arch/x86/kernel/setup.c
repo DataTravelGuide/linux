@@ -307,6 +307,20 @@ static void __init reserve_brk(void)
 	_brk_start = 0;
 }
 
+static unsigned long __init reserve_log_buf(unsigned long len)
+{
+	unsigned long end_of_lowmem = max_low_pfn_mapped << PAGE_SHIFT;
+	unsigned long addr = end_of_lowmem - len;
+	unsigned long mem;
+
+	mem = find_e820_area(addr, end_of_lowmem, len, PAGE_SIZE);
+	if (mem == -1ULL)
+		return 0ULL;
+
+	reserve_early(mem, mem + len, "LOG BUF");
+	return mem;
+}
+
 #ifdef CONFIG_BLK_DEV_INITRD
 
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
@@ -961,6 +975,8 @@ void __init setup_arch(char **cmdline_p)
 	if (init_ohci1394_dma_early)
 		init_ohci1394_dma_on_all_controllers();
 #endif
+	/* Allocate bigger log buffer as early as possible */
+	setup_log_buf(reserve_log_buf);
 
 	reserve_initrd();
 

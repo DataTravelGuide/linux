@@ -17,6 +17,7 @@
 #include <linux/typecheck.h>
 #include <linux/ratelimit.h>
 #include <linux/dynamic_debug.h>
+#include <linux/init.h>
 #include <asm/byteorder.h>
 #include <asm/bug.h>
 
@@ -323,6 +324,8 @@ static inline void log_buf_kexec_setup(void)
 {
 }
 #endif
+
+void __init setup_log_buf(unsigned long (*alloc_fn)(unsigned long len));
 
 extern int printk_needs_cpu(int cpu);
 extern void printk_tick(void);
