@@ -859,6 +859,12 @@ qla82xx_rom_lock(struct qla_hw_data *ha)
 	return 0;
 }
 
+static void
+qla82xx_rom_unlock(struct qla_hw_data *ha)
+{
+	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+}
+
 static int
 qla82xx_wait_rom_busy(struct qla_hw_data *ha)
 {
@@ -939,7 +945,7 @@ qla82xx_rom_fast_read(struct qla_hw_data *ha, int addr, int *valp)
 		return -1;
 	}
 	ret = qla82xx_do_rom_fast_read(ha, addr, valp);
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 	return ret;
 }
 
@@ -1071,7 +1077,7 @@ qla82xx_write_flash_dword(struct qla_hw_data *ha, uint32_t flashaddr,
 	ret = qla82xx_flash_wait_write_finish(ha);
 
 done_write:
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 	return ret;
 }
 
@@ -1154,7 +1160,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	qla82xx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
 	msleep(20);
 
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 
 	/* Read the signature value from the flash.
 	 * Offset 0: Contain signature (0xcafecafe)
@@ -2996,7 +3002,7 @@ qla82xx_unprotect_flash(struct qla_hw_data *ha)
 		qla_printk(KERN_WARNING, ha, "Write disable failed\n");
 
 done_unprotect:
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 	return ret;
 }
 
@@ -3025,7 +3031,7 @@ qla82xx_protect_flash(struct qla_hw_data *ha)
 	if (qla82xx_write_disable_flash(ha) != 0)
 		qla_printk(KERN_WARNING, ha, "Write disable failed\n");
 done_protect:
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 	return ret;
 }
 
@@ -3053,7 +3059,7 @@ qla82xx_erase_sector(struct qla_hw_data *ha, int addr)
 	}
 	ret = qla82xx_flash_wait_write_finish(ha);
 done:
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 	return ret;
 }
 
@@ -3232,7 +3238,7 @@ void qla82xx_rom_lock_recovery(struct qla_hw_data *ha)
 	 * else died while holding it.
 	 * In either case, unlock.
 	 */
-	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
+	qla82xx_rom_unlock(ha);
 }
 
 /*
