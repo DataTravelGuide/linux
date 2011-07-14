@@ -995,13 +995,19 @@ and is between 256 and 4096 characters. It is defined in the file
 			bypassed by not enabling DMAR with this option. In
 			this case, gfx device will use physical address for
 			DMA.
+		pt64 [Default Off]
+			Enable 64 bit pass through mode if the kernel has the
+			capability.  Also disables forcedac, unless that option
+			follows this option.
 		forcedac [x86_64]
 			With this option iommu will not optimize to look
 			for io virtual address below 32 bit forcing dual
 			address cycle on pci bus for cards supporting greater
 			than 32 bit addressing. The default is to look
 			for translation below 32 bit and if not available
-			then look in the higher range.
+			then look in the higher range.  Note that pt64 disables
+			this option, so this must follow that option to be
+			effective.
 		strict [Default Off]
 			With this option on every unmap_single operation will
 			result in a hardware IOTLB flush operation as opposed

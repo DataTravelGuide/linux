@@ -374,6 +374,11 @@ static int __init intel_iommu_setup(char *str)
 			printk(KERN_INFO
 				"Intel-IOMMU: disable batched IOTLB flush\n");
 			intel_iommu_strict = 1;
+		} else if (!strncmp(str, "pt64", 6)) {
+			pr_info("Intel-IOMMU: enable 64bit passthrough mode, "
+				"disable Forcing DAC for PCI devices\n");
+			iommu_pass_through = 1;
+			dmar_forcedac = 0;
 		}
 
 		str += strcspn(str, ",");
