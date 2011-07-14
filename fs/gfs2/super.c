@@ -1214,6 +1214,7 @@ static void gfs2_clear_inode(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 
 	ip->i_gl->gl_object = NULL;
+	gfs2_glock_add_to_lru(ip->i_gl);
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;
 	if (ip->i_iopen_gh.gh_gl) {
