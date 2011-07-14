@@ -1429,7 +1429,20 @@ out:
 	return error;
 }
 
-/*
+/**
+ * gfs2_delete_inode - Remove an inode from cache
+ * @inode: The inode to evict
+ *
+ * There are three cases to consider:
+ * 1. i_nlink == 0, we are final opener (and must deallocate)
+ * 2. i_nlink == 0, we are not the final opener (and cannot deallocate)
+ * 3. i_nlink > 0
+ *
+ * If the fs is read only, then we have to treat all cases as per #3
+ * since we are unable to do any deallocation. The inode will be
+ * deallocated by the next read/write node to attempt an allocation
+ * in the same resource group
+ *
  * We have to (at the moment) hold the inodes main lock to cover
  * the gap between unlocking the shared lock on the iopen lock and
  * taking the exclusive lock. I'd rather do a shared -> exclusive
@@ -1472,6 +1485,8 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (error)
 		goto out_truncate;
 
+	/* Case 1 starts here */
+
 	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_diskflags & GFS2_DIF_EXHASH)) {
 		error = gfs2_dir_exhash_dealloc(ip);
@@ -1498,13 +1513,17 @@ out_truncate:
 	gfs2_log_flush(sdp, ip->i_gl);
 	write_inode_now(inode, 1);
 	gfs2_ail_flush(ip->i_gl);
+
+	/* Case 2 starts here */
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;
-	gfs2_final_release_pages(ip);
+	/* Needs to be done before glock release & also in a transaction */
+	truncate_inode_pages(&inode->i_data, 0);
 	gfs2_trans_end(sdp);
 
 out_unlock:
+	/* Error path for case 1 */
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
 		gfs2_glock_dq(&ip->i_iopen_gh);
 	gfs2_holder_uninit(&ip->i_iopen_gh);
@@ -1512,6 +1531,7 @@ out_unlock:
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_delete_inode: %d\n", error);
 out:
+	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
 }
