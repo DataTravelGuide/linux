@@ -816,10 +816,6 @@ EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
 int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0, /* metadata-only; caller takes care of data */
-	};
 	struct inode *inode = dentry->d_inode;
 	int err;
 	int ret;
@@ -830,7 +826,7 @@ int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		return ret;
 
-	err = sync_inode(inode, &wbc);
+	err = sync_inode_metadata(inode, 1);
 	if (ret == 0)
 		ret = err;
 	return ret;
