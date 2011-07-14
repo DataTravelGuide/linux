@@ -1087,6 +1087,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		return 0;
 
 	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
 	head = bh = page_buffers(page);
 	do {
 		if (atomic_read(&bh->b_count))
@@ -1098,6 +1099,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		gfs2_assert_warn(sdp, !buffer_dirty(bh));
 		bh = bh->b_this_page;
 	} while(bh != head);
+	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
 
 	head = bh = page_buffers(page);
@@ -1126,6 +1128,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 
 	return try_to_free_buffers(page);
 cannot_release:
+	spin_unlock(&sdp->sd_ail_lock);
 	gfs2_log_unlock(sdp);
 	return 0;
 }

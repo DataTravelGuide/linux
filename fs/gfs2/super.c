@@ -724,13 +724,17 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct timespec atime;
 	struct gfs2_dinode *di;
 	int ret = -EAGAIN;
+	int unlock_required = 0;
 
 	/* Skip timestamp update, if this is from a memalloc */
 	if (current->flags & PF_MEMALLOC)
 		goto do_flush;
-	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (ret)
-		goto do_flush;
+	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
+		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+		if (ret)
+			goto do_flush;
+		unlock_required = 1;
+	}
 	ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (ret)
 		goto do_unlock;
@@ -747,7 +751,8 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 	gfs2_trans_end(sdp);
 do_unlock:
-	gfs2_glock_dq_uninit(&gh);
+	if (unlock_required)
+		gfs2_glock_dq_uninit(&gh);
 do_flush:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
@@ -1490,6 +1495,9 @@ static void gfs2_delete_inode(struct inode *inode)
 	goto out_unlock;
 
 out_truncate:
+	gfs2_log_flush(sdp, ip->i_gl);
+	write_inode_now(inode, 1);
+	gfs2_ail_flush(ip->i_gl);
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;

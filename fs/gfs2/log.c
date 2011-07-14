@@ -877,6 +877,7 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 			break;
 		msleep(10);
 	}
+	gfs2_log_flush(sdp, NULL);
 }
 
 
