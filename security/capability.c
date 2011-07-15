@@ -817,7 +817,8 @@ static int cap_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 
 static int cap_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
-	return -EOPNOTSUPP;
+	*secid = 0;
+	return 0;
 }
 
 static void cap_release_secctx(char *secdata, u32 seclen)
