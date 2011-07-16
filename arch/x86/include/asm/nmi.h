@@ -5,7 +5,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#ifdef CONFIG_X86_LOCAL_APIC
 
 /**
  * do_nmi_callback

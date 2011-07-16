@@ -22,8 +22,6 @@ u64 hw_nmi_get_sample_period(void)
 	return (u64)(cpu_khz) * 1000 * 60;
 }
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
-
 /* For reliability, we're prepared to waste bits here. */
 static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
 
@@ -90,7 +88,6 @@ static int __init register_trigger_all_cpu_backtrace(void)
 	return 0;
 }
 early_initcall(register_trigger_all_cpu_backtrace);
-#endif
 
 /* STUB calls to mimic old nmi_watchdog behaviour */
 #if defined(CONFIG_X86_LOCAL_APIC)
