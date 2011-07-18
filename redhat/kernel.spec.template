@@ -1617,6 +1617,31 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jul 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-169.el6]
+- [x86] apic: Fix spurious error interrupts triggering on all non-boot APs (Prarit Bhargava) [712286]
+- [x86] apic: Print verbose error interrupt reason on apic=debug (Prarit Bhargava) [712286]
+- [mm] fix negative commitlimit when gigantic hugepages are allocated (Andrea Arcangeli) [704511]
+- [mm] migrate: dont account swapcache as shmem (Andrea Arcangeli) [712260]
+- [mm] compaction: Ensure that the compaction free scanner does not move to the next zone (Andrea Arcangeli) [712258]
+- [mm] vmscan: correctly check if reclaimer should schedule during shrink_slab (Andrea Arcangeli) [712252]
+- [virt] ksm: fix race between ksmd and exiting task (Andrea Arcangeli) [710341]
+- [mm] thp: fix build with !SMP (Andrea Arcangeli) [711636]
+- [kernel] !SMP build quirks fixes (Andrea Arcangeli) [711636]
+- [kernel] allow sched.c to build with !SMP (Andrea Arcangeli) [711636]
+- [net] dev.c: allow build when !SMP (Andrea Arcangeli) [711636]
+- [virt] xen-netfront: send gARP after backend moved to XenbusStateConnected (Laszlo Ersek) [713585]
+- [x86] UV: add_smp_affinity_list (George Beshers) [696422]
+- [pci] aer-inject: Override PCIe AER Mask Registers (Prarit Bhargava) [719373]
+- [kernel] proc: signedness issue in next_pidmap() (Jerome Marchand) [697825] {CVE-2011-1593}
+- [net] bluetooth: Prevent buffer overflow in l2cap config request (Jiri Pirko) [716810] {CVE-2011-2497}
+- [netdrv] cnic: Move indexing function pointers to struct kcq_info (Mike Christie) [696757]
+- [netdrv] cnic, bnx2: Check iSCSI support early in bnx2_init_one() (Mike Christie) [696757]
+- [netdrv] cnic: Improve NETDEV_UP event handling (Mike Christie) [696757]
+- [netdrv] cnic: Randomize initial TCP port for iSCSI connections (Mike Christie) [696757]
+- [netdrv] cnic: Fix race conditions with firmware (Mike Christie) [696757]
+- [netdrv] cnic: Fix interrupt logic (Mike Christie) [696757]
+- [netdrv] Add appropriate <linux/prefetch.h> include for prefetch users (Mike Christie) [696757]
+
 * Tue Jul 12 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-168.el6]
 - [fs] NFS41: do not update isize if inode needs layoutcommit (Steve Dickson) [714740]
 - [fs] NFSv4.1: Clean ups for the device id cache (Steve Dickson) [714740]
