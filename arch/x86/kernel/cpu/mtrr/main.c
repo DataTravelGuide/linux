@@ -66,7 +66,7 @@ static struct mtrr_ops *mtrr_ops[X86_VENDOR_NUM];
 struct mtrr_ops *mtrr_if;
 
 static void set_mtrr(unsigned int reg, unsigned long base,
-		     unsigned long size, mtrr_type type);
+		     unsigned long size, mtrr_type type, bool force);
 
 void set_mtrr_ops(struct mtrr_ops *ops)
 {
@@ -241,7 +241,7 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  * becomes nops.
  */
 static void
-set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type type)
+set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type type, bool force)
 {
 	struct set_mtrr_data data;
 	unsigned long flags;
@@ -292,14 +292,24 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 
 	/*
 	 * HACK!
-	 * We use this same function to initialize the mtrrs on boot.
-	 * The state of the boot cpu's mtrrs has been saved, and we want
-	 * to replicate across all the APs.
-	 * If we're doing that @reg is set to something special...
+	 *
+	 * We use this same function to initialize the mtrrs during boot,
+	 * resume, runtime cpu online and on an explicit request to set a
+	 * specific MTRR.
+	 *
+	 * During boot or suspend, the state of the boot cpu's mtrrs has been
+	 * saved, and we want to replicate that across all the cpus that come
+	 * online (either at the end of boot or resume or during a runtime cpu
+	 * online). If we're doing that, @reg is set to something special and on
+	 * this cpu we still do mtrr_if->set_all(). During boot/resume, this
+	 * is unnecessary if at this point we are still on the cpu that started
+	 * the boot/resume sequence. But there is no guarantee that we are still
+	 * on the same cpu. So we do mtrr_if->set_all() on this cpu aswell to be
+	 * sure that we are in sync with everyone else.
 	 */
 	if (reg != ~0U)
 		mtrr_if->set(reg, base, size, type);
-	else if (!mtrr_aps_delayed_init)
+	else if (!mtrr_aps_delayed_init || force)
 		mtrr_if->set_all();
 
 	/* Wait for the others */
@@ -440,7 +450,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/* Search for an empty MTRR */
 	i = mtrr_if->get_free_region(base, size, replace);
 	if (i >= 0) {
-		set_mtrr(i, base, size, type);
+		set_mtrr(i, base, size, type, false);
 		if (likely(replace < 0)) {
 			mtrr_usage_table[i] = 1;
 		} else {
@@ -448,7 +458,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 			if (increment)
 				mtrr_usage_table[i]++;
 			if (unlikely(replace != i)) {
-				set_mtrr(replace, 0, 0, 0);
+				set_mtrr(replace, 0, 0, 0, false);
 				mtrr_usage_table[replace] = 0;
 			}
 		}
@@ -575,7 +585,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		goto out;
 	}
 	if (--mtrr_usage_table[reg] < 1)
-		set_mtrr(reg, 0, 0, 0);
+		set_mtrr(reg, 0, 0, 0, false);
 	error = reg;
  out:
 	mutex_unlock(&mtrr_mutex);
@@ -650,7 +660,8 @@ static int mtrr_restore(struct sys_device *sysdev)
 		if (mtrr_value[i].lsize) {
 			set_mtrr(i, mtrr_value[i].lbase,
 				    mtrr_value[i].lsize,
-				    mtrr_value[i].ltype);
+				    mtrr_value[i].ltype,
+				    true);
 		}
 	}
 	return 0;
@@ -773,7 +784,7 @@ void mtrr_ap_init(void)
 	 *   2. cpu hotadd time. We let mtrr_add/del_page hold cpuhotplug
 	 *      lock to prevent mtrr entry changes
 	 */
-	set_mtrr(~0U, 0, 0, 0);
+	set_mtrr(~0U, 0, 0, 0, false);
 }
 
 /**
@@ -800,7 +811,7 @@ void mtrr_aps_init(void)
 	if (!use_intel())
 		return;
 
-	set_mtrr(~0U, 0, 0, 0);
+	set_mtrr(~0U, 0, 0, 0, false);
 	mtrr_aps_delayed_init = false;
 }
 
