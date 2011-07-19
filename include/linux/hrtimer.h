@@ -251,6 +251,11 @@ static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
 struct clock_event_device;
 
 extern void clock_was_set(void);
+#ifdef CONFIG_TIMERFD
+extern void timerfd_clock_was_set(void);
+#else
+static inline void timerfd_clock_was_set(void) { }
+#endif
 extern void hres_timers_resume(void);
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
@@ -312,6 +317,7 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 
 extern ktime_t ktime_get(void);
 extern ktime_t ktime_get_real(void);
+extern ktime_t ktime_get_monotonic_offset(void);
 
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
