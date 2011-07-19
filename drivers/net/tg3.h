@@ -143,6 +143,7 @@
 #define  CHIPREV_ID_5717_A0		 0x05717000
 #define  CHIPREV_ID_57765_A0		 0x57785000
 #define  CHIPREV_ID_5719_A0		 0x05719000
+#define  CHIPREV_ID_5720_A0		 0x05720000
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -1197,6 +1198,7 @@
 #define HOSTCC_STATS_BLK_NIC_ADDR	0x00003c40
 #define HOSTCC_STATUS_BLK_NIC_ADDR	0x00003c44
 #define HOSTCC_FLOW_ATTN		0x00003c48
+#define HOSTCC_FLOW_ATTN_MBUF_LWM	 0x00000040
 /* 0x3c4c --> 0x3c50 unused */
 #define HOSTCC_JUMBO_CON_IDX		0x00003c50
 #define HOSTCC_STD_CON_IDX		0x00003c54
@@ -2588,6 +2590,7 @@ struct tg3_hw_stats {
 	tg3_stat64_t			dma_write_prioq_full;
 	tg3_stat64_t			rxbds_empty;
 	tg3_stat64_t			rx_discards;
+	tg3_stat64_t			mbuf_lwm_thresh_hit;
 	tg3_stat64_t			rx_errors;
 	tg3_stat64_t			rx_threshold_hit;
 
