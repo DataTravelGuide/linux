@@ -160,6 +160,8 @@ struct iscsi_cls_conn {
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
+	struct mutex ep_mutex;
+	struct iscsi_endpoint *ep;
 
 	struct device dev;		/* sysfs transport/container device */
 };
@@ -221,6 +223,7 @@ struct iscsi_endpoint {
 	void *dd_data;			/* LLD private data */
 	struct device dev;
 	uint64_t id;
+	struct iscsi_cls_conn *conn;
 };
 
 /*
