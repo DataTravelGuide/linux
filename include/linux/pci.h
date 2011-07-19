@@ -781,6 +781,13 @@ int pci_back_from_sleep(struct pci_dev *dev);
 void pci_enable_ido(struct pci_dev *dev, unsigned long type);
 void pci_disable_ido(struct pci_dev *dev, unsigned long type);
 
+enum pci_obff_signal_type {
+	PCI_EXP_OBFF_SIGNAL_L0,
+	PCI_EXP_OBFF_SIGNAL_ALWAYS,
+};
+int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
+void pci_disable_obff(struct pci_dev *dev);
+
 /* Functions for PCI Hotplug drivers to use */
 int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap);
 #ifdef CONFIG_HOTPLUG
@@ -1140,6 +1147,15 @@ static inline void pci_enable_ido(struct pci_dev *dev, unsigned long type)
 }
 
 static inline void pci_disable_ido(struct pci_dev *dev, unsigned long type)
+{
+}
+
+static inline int pci_enable_obff(struct pci_dev *dev, unsigned long type)
+{
+	return 0;
+}
+
+static inline void pci_disable_obff(struct pci_dev *dev)
 {
 }
 
