@@ -774,10 +774,20 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 	if (pdata->core_data[indx] && pdata->core_data[indx]->cpu == cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
-	/* Online the HT version of this core, if any */
+	/*
+	 * If a core is taken offline, but a HT sibling of the same core is
+	 * still online, register the alternate sibling. This ensures that
+	 * exactly one set of attributes is provided as long as at least one
+	 * HT sibling of a core is online.
+	 */
 	for_each_sibling(i, cpu) {
 		if (i != cpu) {
 			get_core_online(i);
+			/*
+			 * Display temperature sensor data for one HT sibling
+			 * per core only, so abort the loop after one such
+			 * sibling has been found.
+			 */
 			break;
 		}
 	}
