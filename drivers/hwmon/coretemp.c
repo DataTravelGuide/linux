@@ -775,10 +775,10 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
 	/*
-	 * If a core is taken offline, but a HT sibling of the same core is
-	 * still online, register the alternate sibling. This ensures that
-	 * exactly one set of attributes is provided as long as at least one
-	 * HT sibling of a core is online.
+	 * If a HT sibling of a core is taken offline, but another HT sibling
+	 * of the same core is still online, register the alternate sibling.
+	 * This ensures that exactly one set of attributes is provided as long
+	 * as at least one HT sibling of a core is online.
 	 */
 	for_each_sibling(i, cpu) {
 		if (i != cpu) {
