@@ -4463,15 +4463,19 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 
 	schedstat_inc(sd, lb_count[CPU_NEWLY_IDLE]);
 redo:
+	/* Unlock to reduce rq lock contention, leaving irqs disabled */
+	spin_unlock(&this_rq->lock);
 	group = find_busiest_group(sd, this_cpu, &imbalance, CPU_NEWLY_IDLE,
 				   &sd_idle, cpus, NULL);
 	if (!group) {
+		spin_lock(&this_rq->lock);
 		schedstat_inc(sd, lb_nobusyg[CPU_NEWLY_IDLE]);
 		goto out_balanced;
 	}
 
 	busiest = find_busiest_queue(sd, group, CPU_NEWLY_IDLE, imbalance, cpus);
 	if (!busiest) {
+		spin_lock(&this_rq->lock);
 		schedstat_inc(sd, lb_nobusyq[CPU_NEWLY_IDLE]);
 		goto out_balanced;
 	}
@@ -4481,6 +4485,7 @@ redo:
 	schedstat_add(sd, lb_imbalance[CPU_NEWLY_IDLE], imbalance);
 
 	ld_moved = 0;
+	spin_lock(&this_rq->lock);
 	if (busiest->nr_running > 1) {
 		/* Attempt to move tasks */
 		double_lock_balance(this_rq, busiest);
