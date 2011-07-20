@@ -79,6 +79,15 @@ struct dcbnl_rtnl_ops {
 	/* CEE std */
 	u8   (*getfeatcfg)(struct net_device *, int, u8 *);
 	u8   (*setfeatcfg)(struct net_device *, int, u8);
+
+	/* IEEE 802.1Qaz std */
+	int (*ieee_peer_getets) (struct net_device *, struct ieee_ets *);
+	int (*ieee_peer_getpfc) (struct net_device *, struct ieee_pfc *);
+
+	/* peer apps */
+	int (*peer_getappinfo)(struct net_device *, struct dcb_peer_app_info *,
+			       u16 *);
+	int (*peer_getapptable)(struct net_device *, struct dcb_app *);
 #endif
 };
 
