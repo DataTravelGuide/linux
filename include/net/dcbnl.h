@@ -31,6 +31,7 @@ struct dcb_app_type {
 u8 dcb_setapp(struct net_device *, struct dcb_app *);
 u8 dcb_getapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
+int dcb_ieee_delapp(struct net_device *, struct dcb_app *);
 
 int dcbnl_notify(struct net_device *dev, int event, int cmd, u32 seq, u32 pid);
 
@@ -84,6 +85,7 @@ struct dcbnl_rtnl_ops {
 	u8   (*setfeatcfg)(struct net_device *, int, u8);
 
 	/* IEEE 802.1Qaz std */
+	int (*ieee_delapp) (struct net_device *, struct dcb_app *);
 	int (*ieee_peer_getets) (struct net_device *, struct ieee_ets *);
 	int (*ieee_peer_getpfc) (struct net_device *, struct ieee_pfc *);
 
