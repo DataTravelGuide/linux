@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2009 Intel Corporation.
+  Copyright(c) 2007-2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -244,11 +244,13 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
-	/* gracefully handle 82576 NICs reporting an invalid EEPROM size */
+	/*
+	 * Check for invalid size
+	 */
 	if ((hw->mac.type == e1000_82576) && (size > 15)) {
-		printk(KERN_ERR
-		       "igb: The NVM size is not valid, defaulting to 16K\n");
-		size = 14;
+		printk("igb: The NVM size is not valid, "
+			"defaulting to 32K.\n");
+		size = 15;
 	}
 
 	nvm->word_size = 1 << size;
@@ -1155,10 +1157,13 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl_ext, ctrl_reg, reg;
 	bool pcs_autoneg;
+	s32 ret_val = E1000_SUCCESS;
+	u16 data;
 
 	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
 	    !igb_sgmii_active_82575(hw))
-		return 0;
+		return ret_val;
+
 
 	/*
 	 * On the 82575, SerDes loopback mode persists until it is
@@ -1202,6 +1207,18 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = false;
 	default:
+		if (hw->mac.type == e1000_82575 ||
+		    hw->mac.type == e1000_82576) {
+			ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &data);
+			if (ret_val) {
+				printk(KERN_DEBUG "NVM Read Error\n\n");
+				return ret_val;
+			}
+
+			if (data & E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT)
+				pcs_autoneg = false;
+		}
+
 		/*
 		 * non-SGMII modes only supports a speed of 1000/Full for the
 		 * link so it is best to just force the MAC and let the pcs
@@ -1249,7 +1266,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	if (!igb_sgmii_active_82575(hw))
 		igb_force_mac_fc(hw);
 
-	return 0;
+	return ret_val;
 }
 
 /**
@@ -1734,6 +1751,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 		ctrl |= E1000_CTRL_RST;
 
 	wr32(E1000_CTRL, ctrl);
+	wrfl();
 
 	/* Add delay to insure DEV_RST has time to complete */
 	if (global_device_reset)
@@ -1884,7 +1902,7 @@ static s32 igb_validate_nvm_checksum_82580(struct e1000_hw *hw)
 	}
 
 	if (nvm_data & NVM_COMPATIBILITY_BIT_MASK) {
-		/* if chekcsums compatibility bit is set validate checksums
+		/* if checksums compatibility bit is set validate checksums
 		 * for all 4 ports. */
 		eeprom_regions_count = 4;
 	}
@@ -1995,6 +2013,7 @@ static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw)
 out:
 	return ret_val;
 }
+
 /**
  *  igb_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
