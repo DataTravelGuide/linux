@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -35,6 +36,7 @@
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/rtnetlink.h>
+#include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 
 #include "cq_enet_desc.h"
@@ -151,12 +153,12 @@ static inline unsigned int enic_legacy_notify_intr(void)
 
 static inline unsigned int enic_msix_rq_intr(struct enic *enic, unsigned int rq)
 {
-	return rq;
+	return enic->cq[enic_cq_rq(enic, rq)].interrupt_offset;
 }
 
 static inline unsigned int enic_msix_wq_intr(struct enic *enic, unsigned int wq)
 {
-	return enic->rq_count + wq;
+	return enic->cq[enic_cq_wq(enic, wq)].interrupt_offset;
 }
 
 static inline unsigned int enic_msix_err_intr(struct enic *enic)
@@ -180,10 +182,10 @@ static int enic_get_settings(struct net_device *netdev,
 	ecmd->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(netdev)) {
-		ecmd->speed = vnic_dev_port_speed(enic->vdev);
+		ethtool_cmd_speed_set(ecmd, vnic_dev_port_speed(enic->vdev));
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -332,12 +334,10 @@ static int enic_set_coalesce(struct net_device *netdev,
 	u32 rx_coalesce_usecs;
 	unsigned int i, intr;
 
-	tx_coalesce_usecs = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		ecmd->tx_coalesce_usecs);
-	rx_coalesce_usecs = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		ecmd->rx_coalesce_usecs);
+	tx_coalesce_usecs = min_t(u32, ecmd->tx_coalesce_usecs,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
+	rx_coalesce_usecs = min_t(u32, ecmd->rx_coalesce_usecs,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
@@ -346,26 +346,26 @@ static int enic_set_coalesce(struct net_device *netdev,
 
 		intr = enic_legacy_io_intr();
 		vnic_intr_coalescing_timer_set(&enic->intr[intr],
-			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+			tx_coalesce_usecs);
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
 		if (tx_coalesce_usecs != rx_coalesce_usecs)
 			return -EINVAL;
 
 		vnic_intr_coalescing_timer_set(&enic->intr[0],
-			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+			tx_coalesce_usecs);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		for (i = 0; i < enic->wq_count; i++) {
 			intr = enic_msix_wq_intr(enic, i);
 			vnic_intr_coalescing_timer_set(&enic->intr[intr],
-				INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+				tx_coalesce_usecs);
 		}
 
 		for (i = 0; i < enic->rq_count; i++) {
 			intr = enic_msix_rq_intr(enic, i);
 			vnic_intr_coalescing_timer_set(&enic->intr[intr],
-				INTR_COALESCE_USEC_TO_HW(rx_coalesce_usecs));
+				rx_coalesce_usecs);
 		}
 
 		break;
@@ -481,11 +481,18 @@ static void enic_mtu_check(struct enic *enic)
 
 	if (mtu && mtu != enic->port_mtu) {
 		enic->port_mtu = mtu;
-		if (mtu < netdev->mtu)
-			netdev_warn(netdev,
-				"interface MTU (%d) set higher "
-				"than switch port MTU (%d)\n",
-				netdev->mtu, mtu);
+		if (enic_is_dynamic(enic)) {
+			mtu = max_t(int, ENIC_MIN_MTU,
+				min_t(int, ENIC_MAX_MTU, mtu));
+			if (mtu != netdev->mtu)
+				schedule_work(&enic->change_mtu_work);
+		} else {
+			if (mtu < netdev->mtu)
+				netdev_warn(netdev,
+					"interface MTU (%d) set higher "
+					"than switch port MTU (%d)\n",
+					netdev->mtu, mtu);
+		}
 	}
 }
 
@@ -1618,7 +1625,7 @@ static void enic_notify_timer_start(struct enic *enic)
 	default:
 		/* Using intr for notification for INTx/MSI-X */
 		break;
-	};
+	}
 }
 
 /* rtnl lock is held, process context */
@@ -1746,6 +1753,9 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 	if (new_mtu < ENIC_MIN_MTU || new_mtu > ENIC_MAX_MTU)
 		return -EINVAL;
 
+	if (enic_is_dynamic(enic))
+		return -EOPNOTSUPP;
+
 	if (running)
 		enic_stop(netdev);
 
@@ -1762,6 +1772,55 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+static void enic_change_mtu_work(struct work_struct *work)
+{
+	struct enic *enic = container_of(work, struct enic, change_mtu_work);
+	struct net_device *netdev = enic->netdev;
+	int new_mtu = vnic_dev_mtu(enic->vdev);
+	int err;
+	unsigned int i;
+
+	new_mtu = max_t(int, ENIC_MIN_MTU, min_t(int, ENIC_MAX_MTU, new_mtu));
+
+	rtnl_lock();
+
+	/* Stop RQ */
+	del_timer_sync(&enic->notify_timer);
+
+	for (i = 0; i < enic->rq_count; i++)
+		napi_disable(&enic->napi[i]);
+
+	vnic_intr_mask(&enic->intr[0]);
+	enic_synchronize_irqs(enic);
+	err = vnic_rq_disable(&enic->rq[0]);
+	if (err) {
+		netdev_err(netdev, "Unable to disable RQ.\n");
+		return;
+	}
+	vnic_rq_clean(&enic->rq[0], enic_free_rq_buf);
+	vnic_cq_clean(&enic->cq[0]);
+	vnic_intr_clean(&enic->intr[0]);
+
+	/* Fill RQ with new_mtu-sized buffers */
+	netdev->mtu = new_mtu;
+	vnic_rq_fill(&enic->rq[0], enic_rq_alloc_buf);
+	/* Need at least one buffer on ring to get going */
+	if (vnic_rq_desc_used(&enic->rq[0]) == 0) {
+		netdev_err(netdev, "Unable to alloc receive buffers.\n");
+		return;
+	}
+
+	/* Start RQ */
+	vnic_rq_enable(&enic->rq[0]);
+	napi_enable(&enic->napi[0]);
+	vnic_intr_unmask(&enic->intr[0]);
+	enic_notify_timer_start(enic);
+
+	rtnl_unlock();
+
+	netdev_info(netdev, "interface MTU set as %d\n", netdev->mtu);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void enic_poll_controller(struct net_device *netdev)
 {
@@ -1776,8 +1835,12 @@ static void enic_poll_controller(struct net_device *netdev)
 			enic_isr_msix_rq(enic->msix_entry[intr].vector,
 				&enic->napi[i]);
 		}
-		intr = enic_msix_wq_intr(enic, i);
-		enic_isr_msix_wq(enic->msix_entry[intr].vector, enic);
+
+		for (i = 0; i < enic->wq_count; i++) {
+			intr = enic_msix_wq_intr(enic, i);
+			enic_isr_msix_wq(enic->msix_entry[intr].vector, enic);
+		}
+
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
 		enic_isr_msi(enic->pdev->irq, enic);
@@ -2170,6 +2233,14 @@ static int enic_dev_init(struct enic *enic)
 	unsigned int i;
 	int err;
 
+	/* Get interrupt coalesce timer info */
+	err = enic_dev_intr_coal_timer_info(enic);
+	if (err) {
+		dev_warn(dev, "Using default conversion factor for "
+			"interrupt coalesce timer\n");
+		vnic_dev_intr_coal_timer_info_default(enic->vdev);
+	}
+
 	/* Get vNIC configuration
 	 */
 
@@ -2403,6 +2474,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	enic->notify_timer.data = (unsigned long)enic;
 
 	INIT_WORK(&enic->reset, enic_reset);
+	INIT_WORK(&enic->change_mtu_work, enic_change_mtu_work);
 
 	for (i = 0; i < enic->wq_count; i++)
 		spin_lock_init(&enic->wq_lock[i]);
@@ -2442,8 +2514,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (ENIC_SETTING(enic, TSO))
 		netdev->features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
-	if (ENIC_SETTING(enic, LRO))
-		netdev->features |= NETIF_F_GRO;
+
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
@@ -2484,6 +2555,7 @@ static void __devexit enic_remove(struct pci_dev *pdev)
 		struct enic *enic = netdev_priv(netdev);
 
 		cancel_work_sync(&enic->reset);
+		cancel_work_sync(&enic->change_mtu_work);
 		unregister_netdev(netdev);
 		enic_dev_deinit(enic);
 		vnic_dev_close(enic->vdev);
