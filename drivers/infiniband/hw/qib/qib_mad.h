@@ -187,6 +187,8 @@ struct ib_vl_weight_elem {
 #define IB_PMA_CLASS_CAP_EXT_WIDTH      cpu_to_be16(1 << 9)
 #define IB_PMA_CLASS_CAP_XMIT_WAIT      cpu_to_be16(1 << 12)
 
+#define IB_PMA_CLASS_CAP_PORT_CONGS     cpu_to_be32(3 << 30)
+
 #define IB_PMA_CLASS_PORT_INFO          cpu_to_be16(0x0001)
 #define IB_PMA_PORT_SAMPLES_CONTROL     cpu_to_be16(0x0010)
 #define IB_PMA_PORT_SAMPLES_RESULT      cpu_to_be16(0x0011)
@@ -214,8 +216,7 @@ struct ib_pma_classportinfo {
 	u8 base_version;
 	u8 class_version;
 	__be16 cap_mask;
-	u8 reserved[3];
-	u8 resp_time_value;     /* only lower 5 bits */
+	__be32 cap_mask2_resp_time_value; /* 27, 5 bits respectively */
 	union ib_gid redirect_gid;
 	__be32 redirect_tc_sl_fl;       /* 8, 4, 20 bits respectively */
 	__be16 redirect_lid;
