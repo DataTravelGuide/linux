@@ -544,16 +544,6 @@ int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
 	struct fcoe_transport *ft = NULL;
 	enum fip_state fip_mode = (enum fip_state)(long)kp->arg;
 
-#ifdef CONFIG_LIBFCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module parameter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE)
-		goto out_nodev;
-#endif
-
 	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
@@ -619,16 +609,6 @@ int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
-#ifdef CONFIG_LIBFCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module parameter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE)
-		goto out_nodev;
-#endif
-
 	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
@@ -674,16 +654,6 @@ int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
-#ifdef CONFIG_LIBFCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module parameter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE)
-		goto out_nodev;
-#endif
-
 	mutex_lock(&ft_mutex);
 
 	netdev = fcoe_if_to_netdev(buffer);
@@ -722,16 +692,6 @@ int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
-
-#ifdef CONFIG_LIBFCOE_MODULE
-	/*
-	 * Make sure the module has been initialized, and is not about to be
-	 * removed.  Module parameter sysfs files are writable before the
-	 * module_init function is called and after module_exit.
-	 */
-	if (THIS_MODULE->state != MODULE_STATE_LIVE)
-		goto out_nodev;
-#endif
 
 	mutex_lock(&ft_mutex);
 
