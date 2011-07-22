@@ -11,6 +11,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+#include <linux/hid.h>
 #include "wacom.h"
 #include "wacom_wac.h"
 
@@ -148,6 +149,39 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 	wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
 	wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
 	wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
+	return 1;
+}
+
+static int wacom_dtu_irq(struct wacom_wac *wacom, void *wcombo)
+{
+	struct wacom_features *features = wacom->features;
+	char *data = wacom->data;
+	int prox = data[1] & 0x20, pressure;
+
+	dbg("wacom_dtu_irq: received report #%d", data[0]);
+
+	if (prox) {
+		/* Going into proximity select tool */
+		wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+		if (wacom->tool[0] == BTN_TOOL_PEN)
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		else
+			wacom->id[0] = ERASER_DEVICE_ID;
+	}
+	wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
+	wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
+	wacom_report_abs(wcombo, ABS_X, le16_to_cpup((__le16 *)&data[2]));
+	wacom_report_abs(wcombo, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
+	pressure = ((data[7] & 0x01) << 8) | data[6];
+	if (pressure < 0)
+		pressure = features->pressure_max + pressure + 1;
+	wacom_report_abs(wcombo, ABS_PRESSURE, pressure);
+	wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x05);
+	if (!prox) /* out-prox */
+		wacom->id[0] = 0;
+	wacom_report_key(wcombo, wacom->tool[0], prox);
+	wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
+	wacom_input_sync(wcombo);
 	return 1;
 }
 
@@ -770,6 +804,9 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case PTU:
 			return wacom_ptu_irq(wacom_wac, wcombo);
 
+		case DTU:
+			return wacom_dtu_irq(wacom_wac, wcombo);
+
 		case INTUOS:
 		case INTUOS3S:
 		case INTUOS3:
@@ -828,6 +865,7 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 			break;
 		case PL:
 		case PTU:
+		case DTU:
 		case TABLETPC:
 			input_dev_pl(input_dev, wacom_wac);
 			/* fall through */
@@ -904,9 +942,14 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom ISDv4 93",       8, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom ISDv4 9A",       8, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom Intuos2 6x8",   10, 20320, 16240, 1023, 31, INTUOS },
+	{ "Wacom DTU2231",        8, 47864, 27011,  511,  0, DTU },
+	{ "Wacom DTU1631",        8, 34623, 19553,  511,  0, DTU },
 	{ }
 };
 
+#define USB_DEVICE_DETAILED(prod, class, sub, proto)			\
+	USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_WACOM, prod, class, \
+			      sub, proto),
 static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x00) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x10) },
@@ -970,6 +1013,14 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x93) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x9A) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x47) },
+	/*
+	 * DTU-2231 has two interfaces on the same configuration, only one is
+ 	 * used
+ 	 */
+	{ USB_DEVICE_DETAILED(0xCE, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xF0) },
 	{ }
 };
 
