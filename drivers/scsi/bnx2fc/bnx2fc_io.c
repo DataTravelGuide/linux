@@ -1775,7 +1775,6 @@ int bnx2fc_queuecommand(struct scsi_cmnd *sc_cmd,
 	int rc = 0;
 	int rval;
 
-	spin_unlock_irq(host->host_lock);
 	sc_cmd->scsi_done = done;
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
@@ -1814,7 +1813,6 @@ int bnx2fc_queuecommand(struct scsi_cmnd *sc_cmd,
 		goto exit_qcmd;
 	}
 exit_qcmd:
-	spin_lock_irq(host->host_lock);
 	return rc;
 }
 
