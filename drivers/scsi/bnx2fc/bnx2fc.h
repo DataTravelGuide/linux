@@ -142,6 +142,9 @@
 
 #define BNX2FC_RNID_HBA			0x7
 
+#define SRR_RETRY_COUNT			5
+#define REC_RETRY_COUNT			1
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
@@ -358,6 +361,8 @@ struct bnx2fc_els_cb_arg {
 	struct bnx2fc_cmd *aborted_io_req;
 	struct bnx2fc_cmd *io_req;
 	u16 l2_oxid;
+	u32 offset;
+	enum fc_rctl r_ctl;
 };
 
 /* bnx2fc command structure */
@@ -385,6 +390,7 @@ struct bnx2fc_cmd {
 	struct completion tm_done;
 	int wait_for_comp;
 	u16 xid;
+	struct fcoe_err_report_entry err_entry;
 	struct fcoe_task_ctx_entry *task;
 	struct io_bdt *bd_tbl;
 	struct fcp_rsp *rsp;
@@ -401,6 +407,12 @@ struct bnx2fc_cmd {
 #define BNX2FC_FLAG_IO_COMPL		0x9
 #define BNX2FC_FLAG_ELS_DONE		0xa
 #define BNX2FC_FLAG_ELS_TIMEOUT		0xb
+#define BNX2FC_FLAG_CMD_LOST		0xc
+#define BNX2FC_FLAG_SRR_SENT		0xd
+	u8 rec_retry;
+	u8 srr_retry;
+	u32 srr_offset;
+	u8 srr_rctl;
 	u32 fcp_resid;
 	u32 fcp_rsp_len;
 	u32 fcp_sns_len;
@@ -431,6 +443,7 @@ struct bnx2fc_unsol_els {
 
 
 
+struct bnx2fc_cmd *bnx2fc_cmd_alloc(struct bnx2fc_rport *tgt);
 struct bnx2fc_cmd *bnx2fc_elstm_alloc(struct bnx2fc_rport *tgt, int type);
 void bnx2fc_cmd_release(struct kref *ref);
 int bnx2fc_queuecommand(struct scsi_cmnd *sc_cmd,
@@ -522,6 +535,9 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 				   unsigned char *buf,
 				   u32 frame_len, u16 l2_oxid);
 int bnx2fc_send_stat_req(struct bnx2fc_hba *hba);
+int bnx2fc_post_io_req(struct bnx2fc_rport *tgt, struct bnx2fc_cmd *io_req);
+int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req);
+int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl);
 void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnup_req,
 				      struct fcoe_task_ctx_entry *task,
 				      u8 rx_state);
