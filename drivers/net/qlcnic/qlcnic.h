@@ -116,7 +116,6 @@
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 
 #define NUM_RCV_DESC_RINGS	3
-#define NUM_STS_DESC_RINGS	4
 
 #define RCV_RING_NORMAL 0
 #define RCV_RING_JUMBO	1
@@ -869,7 +868,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
-#define MSIX_ENTRIES_PER_ADAPTER	NUM_STS_DESC_RINGS
+#define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
+#define QLCNIC_MIN_NUM_RSS_RINGS	2
 #define QLCNIC_MSIX_TBL_SPACE		8192
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
 #define QLCNIC_MSIX_TBL_PGSIZE		4096
@@ -985,7 +985,7 @@ struct qlcnic_adapter {
 	void __iomem	*crb_int_state_reg;
 	void __iomem	*isr_int_vec;
 
-	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
+	struct msix_entry *msix_entries;
 
 	struct delayed_work fw_work;
 
