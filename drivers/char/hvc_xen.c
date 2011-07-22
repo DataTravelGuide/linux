@@ -72,7 +72,8 @@ static int __write_console(const char *data, int len)
 	wmb();			/* write ring before updating pointer */
 	intf->out_prod = prod;
 
-	notify_daemon();
+	if (sent)
+		notify_daemon();
 	return sent;
 }
 
