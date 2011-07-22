@@ -371,6 +371,7 @@ struct bnx2fc_cmd {
 #define BNX2FC_ABTS			3
 #define BNX2FC_ELS			4
 #define BNX2FC_CLEANUP			5
+#define BNX2FC_SEQ_CLEANUP		6
 	u8 io_req_flags;
 	struct kref refcount;
 	struct fcoe_port *port;
@@ -468,6 +469,10 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req);
 void bnx2fc_init_cleanup_task(struct bnx2fc_cmd *io_req,
 			      struct fcoe_task_ctx_entry *task,
 			      u16 orig_xid);
+void bnx2fc_init_seq_cleanup_task(struct bnx2fc_cmd *seq_clnup_req,
+				  struct fcoe_task_ctx_entry *task,
+				  struct bnx2fc_cmd *orig_io_req,
+				  u32 offset);
 void bnx2fc_init_mp_task(struct bnx2fc_cmd *io_req,
 			 struct fcoe_task_ctx_entry *task);
 void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
@@ -517,5 +522,10 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 				   unsigned char *buf,
 				   u32 frame_len, u16 l2_oxid);
 int bnx2fc_send_stat_req(struct bnx2fc_hba *hba);
+void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnup_req,
+				      struct fcoe_task_ctx_entry *task,
+				      u8 rx_state);
+int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
+				enum fc_rctl r_ctl);
 
 #endif
