@@ -518,6 +518,8 @@ static int macvtap_skb_to_vnet_hdr(const struct sk_buff *skb,
 		vnet_hdr->csum_start = skb->csum_start -
 					skb_headroom(skb);
 		vnet_hdr->csum_offset = skb->csum_offset;
+	} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		vnet_hdr->flags = VIRTIO_NET_HDR_F_DATA_VALID;
 	} /* else everything is zero */
 
 	return 0;
