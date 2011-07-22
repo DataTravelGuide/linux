@@ -477,6 +477,13 @@ static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static void netxen_vlan_rx_register(struct net_device *netdev,
+				struct vlan_group *grp)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	adapter->vlgrp = grp;
+}
+
 static void netxen_set_multicast_list(struct net_device *dev)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
@@ -497,6 +504,7 @@ static const struct net_device_ops netxen_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = netxen_nic_poll_controller,
 #endif
+	.ndo_vlan_rx_register   = netxen_vlan_rx_register,
 };
 
 static void
@@ -1225,6 +1233,8 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_FVLANTX)
 		netdev->features |= (NETIF_F_HW_VLAN_TX);
+
+	netdev->features |= (NETIF_F_HW_VLAN_RX);
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
 		netdev->features |= NETIF_F_LRO;

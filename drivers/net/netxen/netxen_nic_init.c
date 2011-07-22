@@ -25,6 +25,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/if_vlan.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
 
@@ -1509,7 +1510,9 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
 	struct nx_host_rds_ring *rds_ring;
+	struct ethhdr *eth_hdr;
 	int index, length, cksum, pkt_offset;
+	u16 vid = 0xffff;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -1539,9 +1542,20 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	if (pkt_offset)
 		skb_pull(skb, pkt_offset);
 
+	if (adapter->vlgrp) {
+		if (!__vlan_get_tag(skb, &vid)) {
+			eth_hdr = (struct ethhdr *) skb->data;
+			memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
+			skb_pull(skb, VLAN_HLEN);
+		}
+	}
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	napi_gro_receive(&sds_ring->napi, skb);
+	if (vid != 0xffff)
+		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
+	else
+		napi_gro_receive(&sds_ring->napi, skb);
 
 	adapter->stats.rx_pkts++;
 	adapter->stats.rxbytes += length;
@@ -1565,11 +1579,13 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	struct nx_host_rds_ring *rds_ring;
 	struct iphdr *iph;
 	struct tcphdr *th;
+	struct ethhdr *eth_hdr;
 	bool push, timestamp;
 	int l2_hdr_offset, l4_hdr_offset;
 	int index;
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
+	u16 vid = 0xffff;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1601,6 +1617,15 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	skb_put(skb, lro_length + data_offset);
 
 	skb_pull(skb, l2_hdr_offset);
+
+	if (adapter->vlgrp) {
+		if (!__vlan_get_tag(skb, &vid)) {
+			eth_hdr = (struct ethhdr *) skb->data;
+			memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
+			skb_pull(skb, VLAN_HLEN);
+		}
+	}
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	iph = (struct iphdr *)skb->data;
@@ -1615,7 +1640,10 @@ netxen_process_lro(struct netxen_adapter *adapter,
 
 	length = skb->len;
 
-	netif_receive_skb(skb);
+	if ((vid != 0xffff))
+		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
+	else
+		netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
 	adapter->stats.rxbytes += length;

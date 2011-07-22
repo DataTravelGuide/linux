@@ -1212,6 +1212,7 @@ struct netxen_adapter {
 
 	u8 mac_addr[ETH_ALEN];
 
+	struct vlan_group *vlgrp;
 	struct netxen_adapter_stats stats;
 
 	struct netxen_recv_context recv_ctx;
