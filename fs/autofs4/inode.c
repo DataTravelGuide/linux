@@ -364,10 +364,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_dput;
 	}
 
-	if (autofs_type_trigger(sbi->type)) {
-		root->d_op = &autofs4_mount_dentry_operations;
+	if (autofs_type_trigger(sbi->type))
 		__managed_dentry_set_managed(root);
-	}
 
 	root_inode->i_fop = &autofs4_root_operations;
 	root_inode->i_op = &autofs4_dir_inode_operations;
