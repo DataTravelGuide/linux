@@ -167,10 +167,8 @@ struct cpu_hw_events {
 /*
  * Constraint on the Event code + UMask
  */
-#define INTEL_UEVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 #define PEBS_EVENT_CONSTRAINT(c, n)	\
-	INTEL_UEVENT_CONSTRAINT(c, n)
+	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 
 #define EVENT_CONSTRAINT_END		\
 	EVENT_CONSTRAINT(0, 0, 0)
@@ -301,7 +299,7 @@ x86_perf_event_update(struct perf_event *event)
 	 */
 again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	rdmsrl(hwc->event_base, new_raw_count);
+	rdmsrl(hwc->event_base + idx, new_raw_count);
 
 	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 					new_raw_count) != prev_raw_count)
@@ -324,24 +322,6 @@ again:
 	return new_raw_count;
 }
 
-/* using X86_FEATURE_PERFCTR_CORE to later implement ALTERNATIVE() here */
-static inline int x86_pmu_addr_offset(int index)
-{
-	if (boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
-		return index << 1;
-	return index;
-}
-
-static inline unsigned int x86_pmu_config_addr(int index)
-{
-	return x86_pmu.eventsel + x86_pmu_addr_offset(index);
-}
-
-static inline unsigned int x86_pmu_event_addr(int index)
-{
-	return x86_pmu.perfctr + x86_pmu_addr_offset(index);
-}
-
 static atomic_t active_events;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
@@ -352,12 +332,12 @@ static bool reserve_pmc_hardware(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (!reserve_perfctr_nmi(x86_pmu_event_addr(i)))
+		if (!reserve_perfctr_nmi(x86_pmu.perfctr + i))
 			goto perfctr_fail;
 	}
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (!reserve_evntsel_nmi(x86_pmu_config_addr(i)))
+		if (!reserve_evntsel_nmi(x86_pmu.eventsel + i))
 			goto eventsel_fail;
 	}
 
@@ -365,13 +345,13 @@ static bool reserve_pmc_hardware(void)
 
 eventsel_fail:
 	for (i--; i >= 0; i--)
-		release_evntsel_nmi(x86_pmu_config_addr(i));
+		release_evntsel_nmi(x86_pmu.eventsel + i);
 
 	i = x86_pmu.num_counters;
 
 perfctr_fail:
 	for (i--; i >= 0; i--)
-		release_perfctr_nmi(x86_pmu_event_addr(i));
+		release_perfctr_nmi(x86_pmu.perfctr + i);
 
 	return false;
 }
@@ -381,8 +361,8 @@ static void release_pmc_hardware(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		release_perfctr_nmi(x86_pmu_event_addr(i));
-		release_evntsel_nmi(x86_pmu_config_addr(i));
+		release_perfctr_nmi(x86_pmu.perfctr + i);
+		release_evntsel_nmi(x86_pmu.eventsel + i);
 	}
 }
 
@@ -403,7 +383,7 @@ static bool check_hw_exists(void)
 	 * complain and bail.
 	 */
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		reg = x86_pmu_config_addr(i);
+		reg = x86_pmu.eventsel + i;
 		ret = rdmsrl_safe(reg, &val);
 		if (ret)
 			goto msr_fail;
@@ -428,25 +408,20 @@ static bool check_hw_exists(void)
 	 * that don't trap on the MSR access and always return 0s.
 	 */
 	val = 0xabcdUL;
-	ret = checking_wrmsrl(x86_pmu_event_addr(0), val);
-	ret |= rdmsrl_safe(x86_pmu_event_addr(0), &val_new);
+	ret = checking_wrmsrl(x86_pmu.perfctr, val);
+	ret |= rdmsrl_safe(x86_pmu.perfctr, &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
 
 	return true;
 
 bios_fail:
-	/*
-	 * We still allow the PMU driver to operate:
-	 */
-	printk(KERN_CONT "Broken BIOS detected, complain to your hardware vendor.\n");
+	printk(KERN_CONT "Broken BIOS detected, using software events only.\n");
 	printk(KERN_ERR FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n", reg, val);
-
-	return true;
+	return false;
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
-
 	return false;
 }
 
@@ -643,11 +618,11 @@ static void x86_pmu_disable_all(void)
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		rdmsrl(x86_pmu_config_addr(idx), val);
+		rdmsrl(x86_pmu.eventsel + idx, val);
 		if (!(val & ARCH_PERFMON_EVENTSEL_ENABLE))
 			continue;
 		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
-		wrmsrl(x86_pmu_config_addr(idx), val);
+		wrmsrl(x86_pmu.eventsel + idx, val);
 	}
 }
 
@@ -668,24 +643,21 @@ static void x86_pmu_disable(struct pmu *pmu)
 	x86_pmu.disable_all();
 }
 
-static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
-					  u64 enable_mask)
-{
-	wrmsrl(hwc->config_base, hwc->config | enable_mask);
-}
-
 static void x86_pmu_enable_all(int added)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		struct hw_perf_event *hwc = &cpuc->events[idx]->hw;
+		struct perf_event *event = cpuc->events[idx];
+		u64 val;
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
-		__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
+		val = event->hw.config;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
+		wrmsrl(x86_pmu.eventsel + idx, val);
 	}
 }
 
@@ -850,10 +822,15 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 		hwc->event_base	= 0;
 	} else if (hwc->idx >= X86_PMC_IDX_FIXED) {
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
-		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0;
+		/*
+		 * We set it so that event_base + idx in wrmsr/rdmsr maps to
+		 * MSR_ARCH_PERFMON_FIXED_CTR0 ... CTR2:
+		 */
+		hwc->event_base =
+			MSR_ARCH_PERFMON_FIXED_CTR0 - X86_PMC_IDX_FIXED;
 	} else {
-		hwc->config_base = x86_pmu_config_addr(hwc->idx);
-		hwc->event_base  = x86_pmu_event_addr(hwc->idx);
+		hwc->config_base = x86_pmu.eventsel;
+		hwc->event_base  = x86_pmu.perfctr;
 	}
 }
 
@@ -939,11 +916,17 @@ static void x86_pmu_enable(struct pmu *pmu)
 	x86_pmu.enable_all(added);
 }
 
+static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
+					  u64 enable_mask)
+{
+	wrmsrl(hwc->config_base + hwc->idx, hwc->config | enable_mask);
+}
+
 static inline void x86_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	wrmsrl(hwc->config_base, hwc->config);
+	wrmsrl(hwc->config_base + hwc->idx, hwc->config);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
@@ -996,7 +979,7 @@ x86_perf_event_set_period(struct perf_event *event)
 	 */
 	local64_set(&hwc->prev_count, (u64)-left);
 
-	wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
+	wrmsrl(hwc->event_base + idx, (u64)(-left) & x86_pmu.cntval_mask);
 
 	/*
 	 * Due to erratum on certan cpu we need
@@ -1004,7 +987,7 @@ x86_perf_event_set_period(struct perf_event *event)
 	 * is updated properly
 	 */
 	if (x86_pmu.perfctr_second_write) {
-		wrmsrl(hwc->event_base,
+		wrmsrl(hwc->event_base + idx,
 			(u64)(-left) & x86_pmu.cntval_mask);
 	}
 
@@ -1132,8 +1115,8 @@ void perf_event_print_debug(void)
 	pr_info("CPU#%d: active:     %016llx\n", cpu, *(u64 *)cpuc->active_mask);
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		rdmsrl(x86_pmu_config_addr(idx), pmc_ctrl);
-		rdmsrl(x86_pmu_event_addr(idx), pmc_count);
+		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);
+		rdmsrl(x86_pmu.perfctr  + idx, pmc_count);
 
 		prev_left = per_cpu(pmc_prev_left[idx], cpu);
 

@@ -557,7 +557,6 @@ static __initconst const u64 p4_hw_cache_event_ids
 };
 
 static u64 p4_general_events[PERF_COUNT_HW_MAX] = {
-
   /* non-halted CPU clocks */
   [PERF_COUNT_HW_CPU_CYCLES] =
 	p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_GLOBAL_POWER_EVENTS)		|
@@ -608,20 +607,6 @@ static u64 p4_general_events[PERF_COUNT_HW_MAX] = {
 		P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DRDY_DRV)		|
 		P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DRDY_OWN))	|
 	p4_config_pack_cccr(P4_CCCR_EDGE | P4_CCCR_COMPARE),
-
-  /* we use that named non-sleeping calls */
-  [PERF_COUNT_HW_NMI_WATCHDOG] =
-	p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_EXECUTION_EVENT)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS0)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS1)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS2)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS3)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS0)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS1)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS2)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS3))		|
-	p4_config_pack_cccr(P4_CCCR_THRESHOLD(15) | P4_CCCR_COMPLEMENT		|
-		P4_CCCR_COMPARE),
 };
 
 static struct p4_event_bind *p4_config_get_bind(u64 config)
@@ -771,12 +756,12 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	int overflow = 0;
 	u32 low, high;
 
-	rdmsr(hwc->config_base, low, high);
+	rdmsr(hwc->config_base + hwc->idx, low, high);
 
 	/* we need to check high bit for unflagged overflows */
 	if ((low & P4_CCCR_OVF) || !(high & (1 << 31))) {
 		overflow = 1;
-		(void)checking_wrmsrl(hwc->config_base,
+		(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 			((u64)low) & ~P4_CCCR_OVF);
 	}
 
@@ -815,7 +800,7 @@ static inline void p4_pmu_disable_event(struct perf_event *event)
 	 * state we need to clear P4_CCCR_OVF, otherwise interrupt get
 	 * asserted again and again
 	 */
-	(void)checking_wrmsrl(hwc->config_base,
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 		(u64)(p4_config_unpack_cccr(hwc->config)) &
 			~P4_CCCR_ENABLE & ~P4_CCCR_OVF & ~P4_CCCR_RESERVED);
 }
@@ -885,7 +870,7 @@ static void p4_pmu_enable_event(struct perf_event *event)
 	p4_pmu_enable_pebs(hwc->config);
 
 	(void)checking_wrmsrl(escr_addr, escr_conf);
-	(void)checking_wrmsrl(hwc->config_base,
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 				(cccr & ~P4_CCCR_RESERVED) | P4_CCCR_ENABLE);
 }
 
