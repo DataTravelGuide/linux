@@ -106,6 +106,8 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 	 NETIF_MSG_RX_ERR	| \
 	 NETIF_MSG_TX_ERR)
 
+#define TG3_GRC_LCLCTL_PWRSW_DELAY	100
+
 /* length of time before we decide the hardware is borked,
  * and dev->tx_timeout() should be called to fix the problem
  */
@@ -2164,6 +2166,118 @@ out:
 	return 0;
 }
 
+static inline int tg3_pwrsrc_switch_to_vmain(struct tg3 *tp)
+{
+	if (!tg3_flag(tp, IS_NIC))
+		return 0;
+
+	tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl,
+		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+	return 0;
+}
+
+static void tg3_pwrsrc_die_with_vmain(struct tg3 *tp)
+{
+	u32 grc_local_ctrl;
+
+	if (!tg3_flag(tp, IS_NIC) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)
+		return;
+
+	grc_local_ctrl = tp->grc_local_ctrl | GRC_LCLCTRL_GPIO_OE1;
+
+	tw32_wait_f(GRC_LOCAL_CTRL,
+		    grc_local_ctrl | GRC_LCLCTRL_GPIO_OUTPUT1,
+		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+	tw32_wait_f(GRC_LOCAL_CTRL,
+		    grc_local_ctrl,
+		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+	tw32_wait_f(GRC_LOCAL_CTRL,
+		    grc_local_ctrl | GRC_LCLCTRL_GPIO_OUTPUT1,
+		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+}
+
+static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
+{
+	if (!tg3_flag(tp, IS_NIC))
+		return;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701) {
+		tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
+			    (GRC_LCLCTRL_GPIO_OE0 |
+			     GRC_LCLCTRL_GPIO_OE1 |
+			     GRC_LCLCTRL_GPIO_OE2 |
+			     GRC_LCLCTRL_GPIO_OUTPUT0 |
+			     GRC_LCLCTRL_GPIO_OUTPUT1),
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+	} else if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761 ||
+		   tp->pdev->device == TG3PCI_DEVICE_TIGON3_5761S) {
+		/* The 5761 non-e device swaps GPIO 0 and GPIO 2. */
+		u32 grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
+				     GRC_LCLCTRL_GPIO_OE1 |
+				     GRC_LCLCTRL_GPIO_OE2 |
+				     GRC_LCLCTRL_GPIO_OUTPUT0 |
+				     GRC_LCLCTRL_GPIO_OUTPUT1 |
+				     tp->grc_local_ctrl;
+		tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+		grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT2;
+		tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+		grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT0;
+		tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+	} else {
+		u32 no_gpio2;
+		u32 grc_local_ctrl = 0;
+
+		/* Workaround to prevent overdrawing Amps. */
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
+			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
+			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
+				    grc_local_ctrl,
+				    TG3_GRC_LCLCTL_PWRSW_DELAY);
+		}
+
+		/* On 5753 and variants, GPIO2 cannot be used. */
+		no_gpio2 = tp->nic_sram_data_cfg &
+			   NIC_SRAM_DATA_CFG_NO_GPIO2;
+
+		grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
+				  GRC_LCLCTRL_GPIO_OE1 |
+				  GRC_LCLCTRL_GPIO_OE2 |
+				  GRC_LCLCTRL_GPIO_OUTPUT1 |
+				  GRC_LCLCTRL_GPIO_OUTPUT2;
+		if (no_gpio2) {
+			grc_local_ctrl &= ~(GRC_LCLCTRL_GPIO_OE2 |
+					    GRC_LCLCTRL_GPIO_OUTPUT2);
+		}
+		tw32_wait_f(GRC_LOCAL_CTRL,
+			    tp->grc_local_ctrl | grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+		grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT0;
+
+		tw32_wait_f(GRC_LOCAL_CTRL,
+			    tp->grc_local_ctrl | grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+		if (!no_gpio2) {
+			grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT2;
+			tw32_wait_f(GRC_LOCAL_CTRL,
+				    tp->grc_local_ctrl | grc_local_ctrl,
+				    TG3_GRC_LCLCTL_PWRSW_DELAY);
+		}
+	}
+}
+
 static void tg3_frob_aux_power(struct tg3 *tp)
 {
 	bool need_vaux = false;
@@ -2200,86 +2314,10 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 	if (tg3_flag(tp, WOL_ENABLE) || tg3_flag(tp, ENABLE_ASF))
 		need_vaux = true;
 
-	if (need_vaux) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701) {
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-				    (GRC_LCLCTRL_GPIO_OE0 |
-				     GRC_LCLCTRL_GPIO_OE1 |
-				     GRC_LCLCTRL_GPIO_OE2 |
-				     GRC_LCLCTRL_GPIO_OUTPUT0 |
-				     GRC_LCLCTRL_GPIO_OUTPUT1),
-				    100);
-		} else if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761 ||
-			   tp->pdev->device == TG3PCI_DEVICE_TIGON3_5761S) {
-			/* The 5761 non-e device swaps GPIO 0 and GPIO 2. */
-			u32 grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
-					     GRC_LCLCTRL_GPIO_OE1 |
-					     GRC_LCLCTRL_GPIO_OE2 |
-					     GRC_LCLCTRL_GPIO_OUTPUT0 |
-					     GRC_LCLCTRL_GPIO_OUTPUT1 |
-					     tp->grc_local_ctrl;
-			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
-
-			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT2;
-			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
-
-			grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT0;
-			tw32_wait_f(GRC_LOCAL_CTRL, grc_local_ctrl, 100);
-		} else {
-			u32 no_gpio2;
-			u32 grc_local_ctrl = 0;
-
-			/* Workaround to prevent overdrawing Amps. */
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
-			    ASIC_REV_5714) {
-				grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
-				tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-					    grc_local_ctrl, 100);
-			}
-
-			/* On 5753 and variants, GPIO2 cannot be used. */
-			no_gpio2 = tp->nic_sram_data_cfg &
-				    NIC_SRAM_DATA_CFG_NO_GPIO2;
-
-			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
-					 GRC_LCLCTRL_GPIO_OE1 |
-					 GRC_LCLCTRL_GPIO_OE2 |
-					 GRC_LCLCTRL_GPIO_OUTPUT1 |
-					 GRC_LCLCTRL_GPIO_OUTPUT2;
-			if (no_gpio2) {
-				grc_local_ctrl &= ~(GRC_LCLCTRL_GPIO_OE2 |
-						    GRC_LCLCTRL_GPIO_OUTPUT2);
-			}
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-						    grc_local_ctrl, 100);
-
-			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OUTPUT0;
-
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-						    grc_local_ctrl, 100);
-
-			if (!no_gpio2) {
-				grc_local_ctrl &= ~GRC_LCLCTRL_GPIO_OUTPUT2;
-				tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-					    grc_local_ctrl, 100);
-			}
-		}
-	} else {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700 &&
-		    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-				    (GRC_LCLCTRL_GPIO_OE1 |
-				     GRC_LCLCTRL_GPIO_OUTPUT1), 100);
-
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-				    GRC_LCLCTRL_GPIO_OE1, 100);
-
-			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
-				    (GRC_LCLCTRL_GPIO_OE1 |
-				     GRC_LCLCTRL_GPIO_OUTPUT1), 100);
-		}
-	}
+	if (need_vaux)
+		tg3_pwrsrc_switch_to_vaux(tp);
+	else
+		tg3_pwrsrc_die_with_vmain(tp);
 }
 
 static int tg3_5700_link_polarity(struct tg3 *tp, u32 speed)
@@ -2624,8 +2662,7 @@ static int tg3_power_up(struct tg3 *tp)
 	pci_set_power_state(tp->pdev, PCI_D0);
 
 	/* Switch out of Vaux if it is a NIC */
-	if (tg3_flag(tp, IS_NIC))
-		tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl, 100);
+	tg3_pwrsrc_switch_to_vmain(tp);
 
 	return 0;
 }
@@ -7715,6 +7752,9 @@ static void tg3_rings_reset(struct tg3 *tp)
 
 	/* Disable interrupts */
 	tw32_mailbox_f(tp->napi[0].int_mbox, 1);
+	tp->napi[0].chk_msi_cnt = 0;
+	tp->napi[0].last_rx_cons = 0;
+	tp->napi[0].last_tx_cons = 0;
 
 	/* Zero mailbox registers. */
 	if (tg3_flag(tp, SUPPORT_MSIX)) {
@@ -7725,6 +7765,9 @@ static void tg3_rings_reset(struct tg3 *tp)
 				tw32_mailbox(tp->napi[i].prodmbox, 0);
 			tw32_rx_mbox(tp->napi[i].consmbox, 0);
 			tw32_mailbox_f(tp->napi[i].int_mbox, 1);
+			tp->napi[0].chk_msi_cnt = 0;
+			tp->napi[i].last_rx_cons = 0;
+			tp->napi[i].last_tx_cons = 0;
 		}
 		if (!tg3_flag(tp, ENABLE_TSS))
 			tw32_mailbox(tp->napi[0].prodmbox, 0);
@@ -8780,6 +8823,30 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 	TG3_STAT_ADD32(&sp->rx_errors, RCVLPC_IN_ERRORS_CNT);
 }
 
+static void tg3_chk_missed_msi(struct tg3 *tp)
+{
+	u32 i;
+
+	for (i = 0; i < tp->irq_cnt; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tg3_has_work(tnapi)) {
+			if (tnapi->last_rx_cons == tnapi->rx_rcb_ptr &&
+			    tnapi->last_tx_cons == tnapi->tx_cons) {
+				if (tnapi->chk_msi_cnt < 1) {
+					tnapi->chk_msi_cnt++;
+					return;
+				}
+				tw32_mailbox(tnapi->int_mbox,
+					     tnapi->last_tag << 24);
+			}
+		}
+		tnapi->chk_msi_cnt = 0;
+		tnapi->last_rx_cons = tnapi->rx_rcb_ptr;
+		tnapi->last_tx_cons = tnapi->tx_cons;
+	}
+}
+
 static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
@@ -8788,6 +8855,10 @@ static void tg3_timer(unsigned long __opaque)
 		goto restart_timer;
 
 	spin_lock(&tp->lock);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
+		tg3_chk_missed_msi(tp);
 
 	if (!tg3_flag(tp, TAGGED_STATUS)) {
 		/* All of this garbage is because when using non-tagged
@@ -9257,7 +9328,9 @@ static int tg3_open(struct net_device *dev)
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_free_rings(tp);
 	} else {
-		if (tg3_flag(tp, TAGGED_STATUS))
+		if (tg3_flag(tp, TAGGED_STATUS) &&
+			GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5717 &&
+			GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_57765)
 			tp->timer_offset = HZ;
 		else
 			tp->timer_offset = HZ / 10;
@@ -10463,6 +10536,9 @@ error:
 #define NVRAM_SELFBOOT_FORMAT1_0_SIZE	0x14
 #define NVRAM_SELFBOOT_FORMAT1_2_SIZE	0x18
 #define NVRAM_SELFBOOT_FORMAT1_3_SIZE	0x1c
+#define NVRAM_SELFBOOT_FORMAT1_4_SIZE	0x20
+#define NVRAM_SELFBOOT_FORMAT1_5_SIZE	0x24
+#define NVRAM_SELFBOOT_FORMAT1_6_SIZE	0x4c
 #define NVRAM_SELFBOOT_HW_SIZE 0x20
 #define NVRAM_SELFBOOT_DATA_SIZE 0x1c
 
@@ -10493,8 +10569,17 @@ static int tg3_test_nvram(struct tg3 *tp)
 			case TG3_EEPROM_SB_REVISION_3:
 				size = NVRAM_SELFBOOT_FORMAT1_3_SIZE;
 				break;
+			case TG3_EEPROM_SB_REVISION_4:
+				size = NVRAM_SELFBOOT_FORMAT1_4_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_5:
+				size = NVRAM_SELFBOOT_FORMAT1_5_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_6:
+				size = NVRAM_SELFBOOT_FORMAT1_6_SIZE;
+				break;
 			default:
-				return 0;
+				return -EIO;
 			}
 		} else
 			return 0;
