@@ -927,7 +927,7 @@ static void follow_mount(struct path *path)
 /* no need for dcache_lock, as serialization is taken care in
  * namespace.c
  */
-int follow_down_one(struct path *path)
+int follow_down(struct path *path)
 {
 	struct vfsmount *mounted;
 
@@ -950,7 +950,7 @@ int follow_down_one(struct path *path)
  * Care must be taken as namespace_sem may be held (indicated by mounting_here
  * being true).
  */
-int follow_down(struct path *path, bool mounting_here)
+int __follow_down(struct path *path, bool mounting_here)
 {
 	unsigned managed;
 	int ret;
@@ -3160,8 +3160,8 @@ const struct inode_operations page_symlink_inode_operations = {
 };
 
 EXPORT_SYMBOL(user_path_at);
-EXPORT_SYMBOL(follow_down_one);
 EXPORT_SYMBOL(follow_down);
+EXPORT_SYMBOL(__follow_down);
 EXPORT_SYMBOL(follow_up);
 EXPORT_SYMBOL(get_write_access); /* binfmt_aout */
 EXPORT_SYMBOL(getname);

@@ -52,7 +52,7 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 
 	path_get(&path);
 
-	if (!follow_down_one(&path))
+	if (!follow_down(&path))
 		goto done;
 
 	if (is_autofs4_dentry(path.dentry)) {

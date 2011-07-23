@@ -88,7 +88,7 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 			    .dentry = dget(dentry)};
 	int err = 0;
 
-	err = follow_down(&path, false);
+	err = __follow_down(&path, false);
 	if (err < 0)
 		goto out;
 

@@ -78,8 +78,8 @@ extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry *lookup_one_noperm(const char *, struct dentry *);
 
-extern int follow_down_one(struct path *);
-extern int follow_down(struct path *, bool);
+extern int follow_down(struct path *);
+extern int __follow_down(struct path *, bool);
 extern int follow_up(struct path *);
 
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
