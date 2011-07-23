@@ -26,6 +26,8 @@ static int autofs4_dir_mkdir(struct inode *,struct dentry *,int);
 static int autofs4_root_ioctl(struct inode *, struct file *,unsigned int,unsigned long);
 static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
+static struct vfsmount *autofs4_d_automount(struct path *);
+static int autofs4_d_manage(struct dentry *, bool);
 
 const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
@@ -50,6 +52,18 @@ const struct inode_operations autofs4_dir_inode_operations = {
 	.symlink	= autofs4_dir_symlink,
 	.mkdir		= autofs4_dir_mkdir,
 	.rmdir		= autofs4_dir_rmdir,
+};
+
+/* For dentries that don't initiate mounting */
+const struct dentry_operations autofs4_dentry_operations = {
+	.d_release	= autofs4_dentry_release,
+};
+
+/* For dentries that do initiate mounting */
+const struct dentry_operations autofs4_mount_dentry_operations = {
+	.d_automount	= autofs4_d_automount,
+	.d_manage	= autofs4_d_manage,
+	.d_release	= autofs4_dentry_release,
 };
 
 static void autofs4_add_active(struct dentry *dentry)
@@ -142,18 +156,6 @@ void autofs4_dentry_release(struct dentry *de)
 		autofs4_free_ino(inf);
 	}
 }
-
-/* For dentries of directories in the root dir */
-static const struct dentry_operations autofs4_root_dentry_operations = {
-	.d_release	= autofs4_dentry_release,
-};
-
-/* For other dentries */
-static const struct dentry_operations autofs4_dentry_operations = {
-	.d_automount	= autofs4_d_automount,
-	.d_manage	= autofs4_d_manage,
-	.d_release	= autofs4_dentry_release,
-};
 
 static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 {
@@ -322,7 +324,7 @@ static struct dentry *autofs4_mountpoint_changed(struct path *path)
 	return path->dentry;
 }
 
-struct vfsmount *autofs4_d_automount(struct path *path)
+static struct vfsmount *autofs4_d_automount(struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
@@ -444,7 +446,7 @@ done:
 	return NULL;
 }
 
-int autofs4_d_manage(struct dentry *dentry, bool mounting_here)
+static int autofs4_d_manage(struct dentry *dentry, bool mounting_here)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
@@ -490,7 +492,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	if (active)
 		return active;
 	else {
-		dentry->d_op = &autofs4_root_dentry_operations;
+		dentry->d_op = &autofs4_dentry_operations;
 
 		/*
 		 * A dentry that is not within the root can never trigger
@@ -503,7 +505,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 
 		/* Mark entries in the root as mount triggers */
 		if (IS_ROOT(dentry->d_parent)) {
-			dentry->d_op = &autofs4_dentry_operations;
+			dentry->d_op = &autofs4_mount_dentry_operations;
 			__managed_dentry_set_managed(dentry);
 		}
 
@@ -562,6 +564,8 @@ static int autofs4_dir_symlink(struct inode *dir,
 		return -ENOMEM;
 	}
 	d_add(dentry, inode);
+
+	dentry->d_op = &autofs4_dentry_operations;
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);
@@ -757,7 +761,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 int is_autofs4_dentry(struct dentry *dentry)
 {
 	return dentry && dentry->d_inode &&
-		(dentry->d_op == &autofs4_root_dentry_operations ||
+		(dentry->d_op == &autofs4_mount_dentry_operations ||
 		 dentry->d_op == &autofs4_dentry_operations) &&
 		dentry->d_fsdata != NULL;
 }
