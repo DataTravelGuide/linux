@@ -254,32 +254,6 @@ static struct vfsmount *cifs_dfs_do_refmount(struct cifs_sb_info *cifs_sb,
 
 }
 
-static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
-				struct list_head *mntlist)
-{
-	/* stolen from afs code */
-	int err;
-
-	mntget(newmnt);
-	err = do_add_mount(newmnt, &nd->path, nd->path.mnt->mnt_flags | MNT_SHRINKABLE, mntlist);
-	switch (err) {
-	case 0:
-		path_put(&nd->path);
-		nd->path.mnt = newmnt;
-		nd->path.dentry = dget(newmnt->mnt_root);
-		schedule_delayed_work(&cifs_dfs_automount_task,
-				      cifs_dfs_mountpoint_expiry_timeout);
-		break;
-	case -EBUSY:
-		/* someone else made a mount here whilst we were busy */
-		err = follow_down(&nd->path, false);
-	default:
-		mntput(newmnt);
-		break;
-	}
-	return err;
-}
-
 static void dump_referral(const struct dfs_info3_param *ref)
 {
 	cFYI(1, "DFS: ref path: %s", ref->path_name);
@@ -290,26 +264,37 @@ static void dump_referral(const struct dfs_info3_param *ref)
 }
 
 
-static void*
-cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
+/*
+ * Create a vfsmount that we can automount
+ */
+static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 {
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsSesInfo *ses;
-	char *full_path = NULL;
+	char *full_path;
 	int xid, i;
-	int rc = 0;
-	struct vfsmount *mnt = ERR_PTR(-ENOENT);
+	int rc;
+	struct vfsmount *mnt;
 	struct tcon_link *tlink;
 
 	cFYI(1, "in %s", __func__);
-	BUG_ON(IS_ROOT(dentry));
+	BUG_ON(IS_ROOT(mntpt));
 
 	xid = GetXid();
 
-	dput(nd->path.dentry);
-	nd->path.dentry = dget(dentry);
+	cifs_sb = CIFS_SB(mntpt->d_inode->i_sb);
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		mnt = ERR_CAST(tlink);
+		goto free_xid;
+	}
+
+	mnt = ERR_PTR(-EINVAL);
+	ses = tlink_tcon(tlink)->ses;
+	if (!ses)
+		goto free_xid;
 
 	/*
 	 * The MSDFS spec states that paths in DFS referral requests and
@@ -317,19 +302,10 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	 * the double backslashes usually used in the UNC. This function
 	 * gives us the latter, so we must adjust the result.
 	 */
-	full_path = build_path_from_dentry(dentry);
-	if (full_path == NULL) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
-
-	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
-		rc = PTR_ERR(tlink);
-		goto out_err;
-	}
-	ses = tlink_tcon(tlink)->ses;
+	mnt = ERR_PTR(-ENOMEM);
+	full_path = build_path_from_dentry(mntpt);
+	if (full_path == NULL)
+		goto free_xid;
 
 	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
@@ -337,16 +313,17 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 
 	cifs_put_tlink(tlink);
 
+	mnt = ERR_PTR(-ENOENT);
 	for (i = 0; i < num_referrals; i++) {
 		int len;
-		dump_referral(referrals+i);
+		dump_referral(referrals + i);
 		/* connect to a node */
 		len = strlen(referrals[i].node_name);
 		if (len < 2) {
 			cERROR(1, "%s: Net Address path too short: %s",
 					__func__, referrals[i].node_name);
-			rc = -EINVAL;
-			goto out_err;
+			mnt = ERR_PTR(-EINVAL);
+			break;
 		}
 		mnt = cifs_dfs_do_refmount(cifs_sb,
 				full_path, referrals + i);
@@ -355,28 +332,60 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 
 		/* complete mount procedure if we accured submount */
 		if (!IS_ERR(mnt))
-			break;
+			goto success;
 	}
 
-	/* we need it cause for() above could exit without valid submount */
-	rc = PTR_ERR(mnt);
-	if (IS_ERR(mnt))
-		goto out_err;
+	/* no valid submounts were found; return error from get_dfs_path
+	 * preference */
+	if (rc != 0)
+		mnt = ERR_PTR(rc);
 
-	rc = add_mount_helper(mnt, nd, &cifs_dfs_automount_list);
-
-out:
-	FreeXid(xid);
+success:
 	free_dfs_info_array(referrals, num_referrals);
 	kfree(full_path);
+free_xid:
+	FreeXid(xid);
 	cFYI(1, "leaving %s" , __func__);
-	return ERR_PTR(rc);
-out_err:
-	path_put(&nd->path);
-	goto out;
+	return mnt;
+}
+
+/*
+ * Attempt to automount the referral
+ */
+struct vfsmount *cifs_dfs_d_automount(struct path *path)
+{
+	struct vfsmount *newmnt;
+	int err;
+
+	cFYI(1, "in %s", __func__);
+
+	newmnt = cifs_dfs_do_automount(path->dentry);
+	if (IS_ERR(newmnt)) {
+		cFYI(1, "leaving %s [automount failed]" , __func__);
+		return newmnt;
+	}
+
+	mntget(newmnt);
+	err = do_add_mount(newmnt, path, MNT_SHRINKABLE,
+			   &cifs_dfs_automount_list);
+	switch (err) {
+	case 0:
+		schedule_delayed_work(&cifs_dfs_automount_task,
+				      cifs_dfs_mountpoint_expiry_timeout);
+		cFYI(1, "leaving %s [ok]" , __func__);
+		return newmnt;
+	case -EBUSY:
+		/* someone else made a mount here whilst we were busy */
+		mntput(newmnt);
+		cFYI(1, "leaving %s [EBUSY]" , __func__);
+		return NULL;
+	default:
+		mntput(newmnt);
+		cFYI(1, "leaving %s [error %d]" , __func__, err);
+		return ERR_PTR(err);
+	}
 }
 
 const struct inode_operations cifs_dfs_referral_inode_operations = {
-	.follow_link = cifs_dfs_follow_mountpoint,
 };
 
