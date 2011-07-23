@@ -312,7 +312,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 		/*
 		* ioremap checks to ensure this is in reserved space
 		*/
-		return ioremap((unsigned long)phys, size);
+		return ioremap_cache((unsigned long)phys, size);
 	else
 		return __acpi_map_table((unsigned long)phys, size);
 }
@@ -537,7 +537,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	u32 dummy;
 	void __iomem *virt_addr;
 
-	virt_addr = ioremap(phys_addr, width / 8);
+	virt_addr = ioremap_cache(phys_addr, width / 8);
 	if (!value)
 		value = &dummy;
 
@@ -565,7 +565,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
 	void __iomem *virt_addr;
 
-	virt_addr = ioremap(phys_addr, width / 8);
+	virt_addr = ioremap_cache(phys_addr, width / 8);
 
 	switch (width) {
 	case 8:
