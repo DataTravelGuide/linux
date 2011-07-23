@@ -1674,6 +1674,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 			int mnt_flags, char *name, void *data)
 {
 	struct vfsmount *mnt;
+	int err;
 
 	if (!type)
 		return -EINVAL;
@@ -1688,7 +1689,10 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	return do_add_mount(mnt, path, mnt_flags);
+	err = do_add_mount(mnt, path, mnt_flags);
+	if (err)
+		mntput(mnt);
+	return err;
 }
 
 int finish_automount(struct vfsmount *m, struct path *path)
@@ -1707,18 +1711,10 @@ int finish_automount(struct vfsmount *m, struct path *path)
 		return -ELOOP;
 	}
 
-	/* We need to add the mountpoint to the parent.  The filesystem may
-	 * have placed it on an expiry list, and so we need to make sure it
-	 * won't be expired under us if do_add_mount() fails (do_add_mount()
-	 * will eat a reference unconditionally).
-	 */
-	mntget(m);
 	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
 	if (err) {
 		mnt_clear_expiry(m);
 		mntput(m);
-		mntput(m);
-	} else {
 		mntput(m);
 	}
 	return err;
@@ -1726,7 +1722,6 @@ int finish_automount(struct vfsmount *m, struct path *path)
 
 /*
  * add a mount into a namespace's mount tree
- * - this unconditionally eats one of the caller's references to newmnt.
  */
 int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 {
@@ -1761,7 +1756,6 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 
 unlock:
 	up_write(&namespace_sem);
-	mntput(newmnt);
 	return err;
 }
 
