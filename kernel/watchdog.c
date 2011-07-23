@@ -199,7 +199,7 @@ static int is_softlockup(unsigned long touch_ts)
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 static struct perf_event_attr wd_hw_attr = {
 	.type		= PERF_TYPE_HARDWARE,
-	.config		= PERF_COUNT_HW_NMI_WATCHDOG,
+	.config		= PERF_COUNT_HW_CPU_CYCLES,
 	.size		= sizeof(struct perf_event_attr),
 	.pinned		= 1,
 	.disabled	= 1,

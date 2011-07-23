@@ -52,7 +52,6 @@ enum perf_hw_id {
 	PERF_COUNT_HW_BRANCH_INSTRUCTIONS	= 4,
 	PERF_COUNT_HW_BRANCH_MISSES		= 5,
 	PERF_COUNT_HW_BUS_CYCLES		= 6,
-	PERF_COUNT_HW_NMI_WATCHDOG		= 7,
 
 	PERF_COUNT_HW_MAX,			/* non-ABI */
 };
@@ -482,6 +481,10 @@ struct perf_guest_info_callbacks {
 	unsigned long (*get_guest_ip) (void);
 };
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+#include <asm/hw_breakpoint.h>
+#endif
+
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rculist.h>
@@ -493,6 +496,8 @@ struct perf_guest_info_callbacks {
 #include <linux/workqueue.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
+#include <linux/irq_work.h>
+#include <linux/jump_label_ref.h>
 #include <asm/atomic.h>
 #include <asm/local.h>
 
@@ -689,11 +694,6 @@ struct perf_buffer {
 	void				*data_pages[0];
 };
 
-struct perf_pending_entry {
-	struct perf_pending_entry *next;
-	void (*func)(struct perf_pending_entry *);
-};
-
 struct perf_sample_data;
 
 typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
@@ -815,7 +815,7 @@ struct perf_event {
 	int				pending_wakeup;
 	int				pending_kill;
 	int				pending_disable;
-	struct perf_pending_entry	pending;
+	struct irq_work			pending;
 
 	atomic_t			event_limit;
 
@@ -846,15 +846,13 @@ enum perf_event_context_type {
  * Used as a container for task events and CPU events as well:
  */
 struct perf_event_context {
-#ifndef __GENKSYMS__ /* kabi tool is crap */
 	enum perf_event_context_type	type;
 	struct pmu			*pmu;
-#endif
 	/*
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
 	 */
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	/*
 	 * Protect the list of events.  Locking either mutex or lock
 	 * is sufficient to ensure the list doesn't change; to change
@@ -869,9 +867,7 @@ struct perf_event_context {
 	int				nr_active;
 	int				is_active;
 	int				nr_stat;
-#ifndef __GENKSYMS__ /* kabi tool is crap */
 	int				rotate_disable;
-#endif
 	atomic_t			refcount;
 	struct task_struct		*task;
 
@@ -935,8 +931,6 @@ extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
 extern void perf_event_delayed_put(struct task_struct *task);
-extern void set_perf_event_pending(void);
-extern void perf_event_do_pending(void);
 extern void perf_event_print_debug(void);
 extern void perf_pmu_disable(struct pmu *pmu);
 extern void perf_pmu_enable(struct pmu *pmu);
@@ -1035,9 +1029,10 @@ perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 {
 	struct pt_regs hot_regs;
 
-	if (likely(!atomic_read(&perf_swevent_enabled[event_id])))
-		return;
+	JUMP_LABEL(&perf_swevent_enabled[event_id], have_event);
+	return;
 
+have_event:
 	if (!regs) {
 		perf_fetch_caller_regs(&hot_regs);
 		regs = &hot_regs;
@@ -1049,10 +1044,7 @@ extern atomic_t perf_task_events;
 
 static inline void perf_event_task_sched_in(struct task_struct *task)
 {
-	if (likely(!atomic_read(&perf_task_events)))
-		return;
-
-	__perf_event_task_sched_in(task);
+	COND_STMT(&perf_task_events, __perf_event_task_sched_in(task));
 }
 
 static inline
@@ -1060,7 +1052,7 @@ void perf_event_task_sched_out(struct task_struct *task, struct task_struct *nex
 {
 	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
 
-	__perf_event_task_sched_out(task, next);
+	COND_STMT(&perf_task_events, __perf_event_task_sched_out(task, next));
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
@@ -1107,8 +1099,9 @@ static inline bool perf_paranoid_kernel(void)
 }
 
 extern void perf_event_init(void);
-extern void perf_tp_event(int event_id, u64 addr, u64 count, 
-		void *record, int entry_size);
+extern void perf_tp_event(u64 addr, u64 count, void *record,
+			  int entry_size, struct pt_regs *regs,
+			  struct hlist_head *head, int rctx);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags
@@ -1138,7 +1131,6 @@ static inline int perf_event_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
 static inline void perf_event_delayed_put(struct task_struct *task)	{ }
-static inline void perf_event_do_pending(void)				{ }
 static inline void perf_event_print_debug(void)				{ }
 static inline int perf_event_task_disable(void)				{ return -EINVAL; }
 static inline int perf_event_task_enable(void)				{ return -EINVAL; }
@@ -1174,7 +1166,7 @@ static inline void perf_event_task_tick(void)				{ }
 #define perf_cpu_notifier(fn)					\
 do {								\
 	static struct notifier_block fn##_nb __cpuinitdata =	\
-		{ .notifier_call = fn, .priority = 20 };	\
+		{ .notifier_call = fn, .priority = CPU_PRI_PERF }; \
 	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,		\
 		(void *)(unsigned long)smp_processor_id());	\
 	fn(&fn##_nb, (unsigned long)CPU_STARTING,		\
