@@ -139,6 +139,7 @@ struct dentry_operations {
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
+	struct vfsmount *(*d_automount)(struct path *);
 };
 
 /* the dentry parameter passed to d_hash and d_compare is the parent
@@ -157,6 +158,7 @@ d_compare:	no		yes		yes      no
 d_delete:	no		yes		no       no
 d_release:	no		no		no       yes
 d_iput:		no		no		no       yes
+d_automount:	no		no		no	 yes
  */
 
 /* d_flags entries */
@@ -203,7 +205,10 @@ d_iput:		no		no		no       yes
 #define DCACHE_FSNOTIFY_PARENT_WATCHED 0x0080
      /* Parent inode is watched by some fsnotify listener */
 
-#define DCACHE_MOUNTED		0x0400	/* is a mountpoint */
+#define DCACHE_MOUNTED		0x10000	/* is a mountpoint */
+#define DCACHE_NEED_AUTOMOUNT	0x20000	/* handle automount on this dir */
+#define DCACHE_MANAGED_DENTRY \
+	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT)
 
 extern spinlock_t dcache_lock;
 extern seqlock_t rename_lock;

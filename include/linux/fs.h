@@ -252,6 +252,7 @@ struct inodes_stat_t {
 #define S_NOCMTIME	128	/* Do not update file c/mtime */
 #define S_SWAPFILE	256	/* Do not truncate: swapon got its bmaps */
 #define S_PRIVATE	512	/* Inode is fs-internal */
+#define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
 #define S_AOP_EXT	16384 /* fs supports extended aops */
 
 /*
@@ -287,6 +288,7 @@ struct inodes_stat_t {
 #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
 #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
 #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
+#define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
 #define IS_AOP_EXT(inode)	((inode)->i_flags & S_AOP_EXT)
 
 /* the read-only stuff doesn't really belong here, but any other place is
