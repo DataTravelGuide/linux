@@ -273,7 +273,6 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 	/* No point expiring a pending mount */
 	if (ino->flags & AUTOFS_INF_PENDING)
 		goto out;
-	managed_dentry_set_transit(root);
 	if (!autofs4_direct_busy(mnt, root, timeout, do_now)) {
 		struct autofs_info *ino = autofs4_dentry_ino(root);
 		ino->flags |= AUTOFS_INF_EXPIRING;
@@ -281,7 +280,6 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 		spin_unlock(&sbi->fs_lock);
 		return root;
 	}
-	managed_dentry_clear_transit(root);
 out:
 	spin_unlock(&sbi->fs_lock);
 	dput(root);
@@ -336,8 +334,7 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		ino = autofs4_dentry_ino(dentry);
 		/* No point expiring a pending mount */
 		if (ino->flags & AUTOFS_INF_PENDING)
-			goto cont;
-		managed_dentry_set_transit(dentry);
+			goto next;
 
 		/*
 		 * Case 1: (i) indirect mount or top level pseudo direct mount
@@ -397,8 +394,6 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 			}
 		}
 next:
-		managed_dentry_clear_transit(dentry);
-cont:
 		spin_unlock(&sbi->fs_lock);
 		dput(dentry);
 		spin_lock(&dcache_lock);
@@ -479,8 +474,6 @@ int autofs4_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs4_dentry_ino(dentry);
 	ino->flags &= ~AUTOFS_INF_EXPIRING;
-	if (!d_unhashed(dentry))
-		managed_dentry_clear_transit(dentry);
 	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 
@@ -508,9 +501,7 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
 		spin_lock(&dentry->d_lock);
-		if (ret)
-			__managed_dentry_clear_transit(dentry);
-		else {
+		if (!ret) {
 			if ((IS_ROOT(dentry) ||
 			    (autofs_type_indirect(sbi->type) &&
 			     IS_ROOT(dentry->d_parent))) &&
