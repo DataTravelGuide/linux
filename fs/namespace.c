@@ -1666,7 +1666,7 @@ out:
 	return err;
 }
 
-static int do_add_mount(struct vfsmount *, struct path *, int);
+static int __do_add_mount(struct vfsmount *, struct path *, int);
 
 /*
  * create a new mount for userspace and request it to be added into the
@@ -1691,7 +1691,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	err = do_add_mount(mnt, path, mnt_flags);
+	err = __do_add_mount(mnt, path, mnt_flags);
 	if (err)
 		mntput(mnt);
 	return err;
@@ -1711,7 +1711,7 @@ int finish_automount(struct vfsmount *m, struct path *path)
 		goto fail;
 	}
 
-	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	err = __do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
 	if (!err)
 		return 0;
 fail:
@@ -1731,11 +1731,10 @@ fail:
 /*
  * add a mount into a namespace's mount tree
  */
-static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+static int do_add_mount_unlocked(struct vfsmount *newmnt, struct path *path, int mnt_flags)
 {
 	int err;
 
-	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
 	err = __follow_down(path, true);
 	if (err < 0)
@@ -1759,9 +1758,39 @@ static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flag
 	err = graft_tree(newmnt, path);
 
 unlock:
+	return err;
+}
+
+/*
+ * add a mount into a namespace's mount tree
+ */
+static int __do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+{
+	int err;
+
+	down_write(&namespace_sem);
+	err = do_add_mount_unlocked(newmnt, path, mnt_flags);
 	up_write(&namespace_sem);
 	return err;
 }
+
+int do_add_mount(struct vfsmount *newmnt, struct path *path,
+		 int mnt_flags, struct list_head *fslist)
+{
+	int err;
+
+	down_write(&namespace_sem);
+	err = do_add_mount_unlocked(newmnt, path, mnt_flags);
+	if (!err) {
+		if (fslist) /* add to the specified expiration list */
+			list_add_tail(&newmnt->mnt_expire, fslist);
+	}
+	up_write(&namespace_sem);
+	if (err)
+		mntput(newmnt);
+	return err;
+}
+EXPORT_SYMBOL_GPL(do_add_mount);
 
 /**
  * mnt_set_expiry - Put a mount on an expiration list
