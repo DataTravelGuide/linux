@@ -16,7 +16,7 @@ struct er_account {
  * This used to coordinate shared registers for HT threads.
  */
 struct intel_percore {
-	raw_spinlock_t		lock;		/* protect structure */
+	spinlock_t		lock;		/* protect structure */
 	struct er_account	regs[MAX_EXTRA_REGS];
 	int			refcnt;		/* number of threads */
 	unsigned		core_id;
@@ -880,7 +880,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
-		if (!__this_cpu_read(cpu_hw_events.enabled))
+		if (!percpu_read(cpu_hw_events.enabled))
 			return;
 
 		intel_pmu_enable_bts(hwc->config);
@@ -910,7 +910,7 @@ static int intel_pmu_save_and_restart(struct perf_event *event)
 
 static void intel_pmu_reset(void)
 {
-	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
+	struct debug_store *ds = percpu_read(cpu_hw_events.ds);
 	unsigned long flags;
 	int idx;
 
@@ -1063,7 +1063,7 @@ intel_percore_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 		if (!pc)
 			break;
 		c = &emptyconstraint;
-		raw_spin_lock(&pc->lock);
+		spin_lock(&pc->lock);
 		free_slot = -1;
 		found = 0;
 		for (i = 0; i < MAX_EXTRA_REGS; i++) {
@@ -1091,7 +1091,7 @@ intel_percore_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 			hwc->extra_alloc = 1;
 			c = NULL;
 		}
-		raw_spin_unlock(&pc->lock);
+		spin_unlock(&pc->lock);
 		return c;
 	}
 
@@ -1135,7 +1135,7 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 			continue;
 
 		pc = cpuc->per_core;
-		raw_spin_lock(&pc->lock);
+		spin_lock(&pc->lock);
 		for (i = 0; i < MAX_EXTRA_REGS; i++) {
 			era = &pc->regs[i];
 			if (era->ref > 0 &&
@@ -1151,7 +1151,7 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 			allref += pc->regs[i].ref;
 		if (allref == 0)
 			cpuc->percore_used = 0;
-		raw_spin_unlock(&pc->lock);
+		spin_unlock(&pc->lock);
 		break;
 	}
 }
@@ -1243,7 +1243,7 @@ static int intel_pmu_cpu_prepare(int cpu)
 	if (!cpuc->per_core)
 		return NOTIFY_BAD;
 
-	raw_spin_lock_init(&cpuc->per_core->lock);
+	spin_lock_init(&cpuc->per_core->lock);
 	cpuc->per_core->core_id = -1;
 	return NOTIFY_OK;
 }

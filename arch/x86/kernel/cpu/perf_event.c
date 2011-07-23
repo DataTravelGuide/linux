@@ -1094,9 +1094,12 @@ x86_perf_event_set_period(struct perf_event *event)
 
 static void x86_pmu_enable_event(struct perf_event *event)
 {
-	if (__this_cpu_read(cpu_hw_events.enabled))
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+
+	if (cpuc->enabled) {
 		__x86_pmu_enable_event(&event->hw,
 				       ARCH_PERFMON_EVENTSEL_ENABLE);
+	}
 }
 
 /*
@@ -1393,10 +1396,11 @@ perf_event_nmi_handler(struct notifier_block *self,
 
 	switch (cmd) {
 	case DIE_NMI:
+	case DIE_NMI_IPI:
 		break;
 	case DIE_NMIUNKNOWN:
 		this_nmi = percpu_read(irq_stat.__nmi_count);
-		if (this_nmi != __this_cpu_read(pmu_nmi.marked))
+		if (this_nmi != percpu_read(pmu_nmi.marked))
 			/* let the kernel handle the unknown nmi */
 			return NOTIFY_DONE;
 		/*
@@ -1418,8 +1422,8 @@ perf_event_nmi_handler(struct notifier_block *self,
 	this_nmi = percpu_read(irq_stat.__nmi_count);
 	if ((handled > 1) ||
 		/* the next nmi could be a back-to-back nmi */
-	    ((__this_cpu_read(pmu_nmi.marked) == this_nmi) &&
-	     (__this_cpu_read(pmu_nmi.handled) > 1))) {
+	    ((percpu_read(pmu_nmi.marked) == this_nmi) &&
+	     (percpu_read(pmu_nmi.handled) > 1))) {
 		/*
 		 * We could have two subsequent back-to-back nmis: The
 		 * first handles more than one counter, the 2nd
@@ -1430,8 +1434,8 @@ perf_event_nmi_handler(struct notifier_block *self,
 		 * handling more than one counter. We will mark the
 		 * next (3rd) and then drop it if unhandled.
 		 */
-		__this_cpu_write(pmu_nmi.marked, this_nmi + 1);
-		__this_cpu_write(pmu_nmi.handled, handled);
+		percpu_write(pmu_nmi.marked, this_nmi + 1);
+		percpu_write(pmu_nmi.handled, handled);
 	}
 
 	return NOTIFY_STOP;
@@ -1440,7 +1444,7 @@ perf_event_nmi_handler(struct notifier_block *self,
 static __read_mostly struct notifier_block perf_event_nmi_notifier = {
 	.notifier_call		= perf_event_nmi_handler,
 	.next			= NULL,
-	.priority		= NMI_LOCAL_LOW_PRIOR,
+	.priority		= 1,
 };
 
 static struct event_constraint unconstrained;
@@ -1606,9 +1610,11 @@ static inline void x86_pmu_read(struct perf_event *event)
  */
 static void x86_pmu_start_txn(struct pmu *pmu)
 {
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+
 	perf_pmu_disable(pmu);
-	__this_cpu_or(cpu_hw_events.group_flag, PERF_EVENT_TXN);
-	__this_cpu_write(cpu_hw_events.n_txn, 0);
+	cpuc->group_flag |= PERF_EVENT_TXN;
+	cpuc->n_txn = 0;
 }
 
 /*
@@ -1618,12 +1624,14 @@ static void x86_pmu_start_txn(struct pmu *pmu)
  */
 static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
-	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+
+	cpuc->group_flag &= ~PERF_EVENT_TXN;
 	/*
 	 * Truncate the collected events.
 	 */
-	__this_cpu_sub(cpu_hw_events.n_added, __this_cpu_read(cpu_hw_events.n_txn));
-	__this_cpu_sub(cpu_hw_events.n_events, __this_cpu_read(cpu_hw_events.n_txn));
+	cpuc->n_added -= cpuc->n_txn;
+	cpuc->n_events -= cpuc->n_txn;
 	perf_pmu_enable(pmu);
 }
 
@@ -1821,7 +1829,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	perf_callchain_store(entry, regs->ip);
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	dump_trace(NULL, regs, NULL, &backtrace_ops, entry);
 }
 
 #ifdef CONFIG_COMPAT
