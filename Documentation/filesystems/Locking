@@ -17,6 +17,7 @@ prototypes:
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 	struct vfsmount *(*d_automount)(struct path *path);
+	int (*d_manage)(struct dentry *, bool);
 
 locking rules:
 	none have BKL
@@ -29,6 +30,7 @@ d_release:	no		no		no		yes
 d_iput:		no		no		no		yes
 d_dname:	no		no		no		no
 d_automount:	no		no		no		yes
+d_manage:	no		no		no		yes
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
