@@ -415,6 +415,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto put_back;
 
+	call_netdevice_notifiers(NETDEV_JOIN, dev);
+
 	err = kobject_init_and_add(&p->kobj, &brport_ktype, &(dev->dev.kobj),
 				   SYSFS_BRIDGE_PORT_ATTR);
 	if (err)
