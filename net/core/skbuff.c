@@ -698,6 +698,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	if (skb_tx(skb)->dev_zerocopy) {
 		if (skb_copy_ubufs(skb, gfp_mask))
 			return NULL;
+		skb_tx(skb)->dev_zerocopy = 0;
 	}
 
 	n = skb + 1;
@@ -834,6 +835,7 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 				kfree(n);
 				goto out;
 			}
+			skb_tx(skb)->dev_zerocopy = 0;
 		}
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
@@ -920,6 +922,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		if (skb_tx(skb)->dev_zerocopy) {
 			if (skb_copy_ubufs(skb, gfp_mask))
 				goto nofrags;
+			skb_tx(skb)->dev_zerocopy = 0;
 		}
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 			get_page(skb_shinfo(skb)->frags[i].page);
