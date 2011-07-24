@@ -74,12 +74,13 @@ int br_forward_finish(struct sk_buff *skb)
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	struct net_bridge *br = to->br;
+	struct net_device *old_dev = NULL;
 	if (unlikely(netpoll_tx_running(to->dev))) {
 		struct netpoll *np;
 		if (skb->dev->npinfo) {
 			to->dev->npinfo = skb->dev->npinfo;
 			np = skb->dev->npinfo->netpoll;
+			old_dev = np->dev;
 			np->real_dev = np->dev = to->dev;
 			to->dev->priv_flags |= IFF_IN_NETPOLL;
 		} else {
@@ -92,7 +93,7 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 			br_forward_finish);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	if (skb->dev->npinfo) {
-		skb->dev->npinfo->netpoll->dev = br->dev;
+		skb->dev->npinfo->netpoll->dev = old_dev;
 		skb->dev->npinfo = NULL;
 	}
 #endif
