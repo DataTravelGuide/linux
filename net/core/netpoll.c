@@ -700,7 +700,7 @@ int netpoll_setup(struct netpoll *np)
 {
 	struct net_device *ndev = NULL;
 	struct in_device *in_dev;
-	struct netpoll_info *npinfo;
+	struct netpoll_info *npinfo = NULL;
 	unsigned long flags;
 	int err;
 
@@ -710,6 +710,13 @@ int netpoll_setup(struct netpoll *np)
 		printk(KERN_ERR "%s: %s doesn't exist, aborting.\n",
 		       np->name, np->dev_name);
 		return -ENODEV;
+	}
+
+	if ((ndev->priv_flags & IFF_BRIDGE_PORT) || (ndev->flags & IFF_SLAVE)) {
+		printk(KERN_ERR "%s: %s is a slave device, aborting.\n",
+		       np->name, np->dev_name);
+		err = -EBUSY;
+		goto release;
 	}
 
 	np->dev = ndev;

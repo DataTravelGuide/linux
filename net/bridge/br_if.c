@@ -148,6 +148,8 @@ static void del_nbp(struct net_bridge_port *p)
 
 	rcu_assign_pointer(dev->br_port, NULL);
 
+	dev->priv_flags &= ~IFF_BRIDGE_PORT;
+
 	br_multicast_del_port(p);
 
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
@@ -428,6 +430,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	rcu_assign_pointer(dev->br_port, p);
 	dev_disable_lro(dev);
+
+	dev->priv_flags |= IFF_BRIDGE_PORT;
 
 	list_add_rcu(&p->list, &br->port_list);
 
