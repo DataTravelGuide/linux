@@ -112,6 +112,11 @@ static inline void netpoll_poll_unlock(void *have)
 	rcu_read_unlock();
 }
 
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return irqs_disabled();
+}
+
 #else
 static inline int netpoll_rx(struct sk_buff *skb)
 {
@@ -134,6 +139,10 @@ static inline void netpoll_poll_unlock(void *have)
 }
 static inline void netpoll_netdev_init(struct net_device *dev)
 {
+}
+static inline int netpoll_tx_running(struct net_device *dev)
+{
+	return 0;
 }
 #endif
 

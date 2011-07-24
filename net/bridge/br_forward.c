@@ -51,7 +51,7 @@ int br_dev_queue_push_xmit(struct sk_buff *skb)
 			skb_push(skb, ETH_HLEN);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-			if (unlikely(skb->dev->priv_flags & IFF_IN_NETPOLL)) {
+			if (unlikely(netpoll_tx_running(skb->dev))) {
 				netpoll_send_skb(skb->dev->npinfo->netpoll, skb);
 				skb->dev->priv_flags &= ~IFF_IN_NETPOLL;
 			} else
@@ -74,7 +74,7 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct net_bridge *br = to->br;
-	if (unlikely(br->dev->priv_flags & IFF_IN_NETPOLL)) {
+	if (unlikely(netpoll_tx_running(to->dev))) {
 		struct netpoll *np;
 		to->dev->npinfo = skb->dev->npinfo;
 		np = skb->dev->npinfo->netpoll;
