@@ -2681,8 +2681,8 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	job->reply->reply_payload_rcv_len = 0;
 
 	/* check if requested extended data lengths are valid */
-	if ((mbox_req->inExtWLen > MAILBOX_EXT_SIZE) ||
-		(mbox_req->outExtWLen > MAILBOX_EXT_SIZE)) {
+	if ((mbox_req->inExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t)) ||
+	    (mbox_req->outExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t))) {
 		rc = -ERANGE;
 		goto job_done;
 	}
