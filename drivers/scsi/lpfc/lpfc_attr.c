@@ -1223,7 +1223,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	if (val & ENABLE_FCP_RING_POLLING) {
 		if ((val & DISABLE_FCP_RING_INT) &&
 		    !(old_val & DISABLE_FCP_RING_INT)) {
-			creg_val = readl(phba->HCregaddr);
+			if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+				spin_unlock_irq(&phba->hbalock);
+				return -EINVAL;
+			}
 			creg_val &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
 			writel(creg_val, phba->HCregaddr);
 			readl(phba->HCregaddr); /* flush */
@@ -1241,7 +1244,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 		spin_unlock_irq(&phba->hbalock);
 		del_timer(&phba->fcp_poll_timer);
 		spin_lock_irq(&phba->hbalock);
-		creg_val = readl(phba->HCregaddr);
+		if (lpfc_readl(phba->HCregaddr, &creg_val)) {
+			spin_unlock_irq(&phba->hbalock);
+			return -EINVAL;
+		}
 		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
 		writel(creg_val, phba->HCregaddr);
 		readl(phba->HCregaddr); /* flush */
