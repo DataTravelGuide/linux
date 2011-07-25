@@ -1286,6 +1286,18 @@ struct lpfc_id_range {
 #define lpfc_mbx_rsrc_id_word4_1_WORD	word5
 };
 
+/* struct lpfc_mbx_get_alloc_rsrc_extent:
+ * A mbox is generically 256 bytes long. An SLI4_CONFIG mailbox requires
+ * 6 words of header + 4 words of shared subcommand header +
+ * 1 words of Extent-Opcode-specific header = 11 words or 44 bytes total.
+ *
+ * An embedded version of SLI4_CONFIG therefore has 256 - 44 = 212 bytes
+ * for extents payload.
+ *
+ * 212/2 (bytes per extent) = 106 extents.
+ * 106/2 (extents per word) = 53 words.
+ * lpfc_id_range id is statically size to 53.
+ */
 struct lpfc_mbx_get_alloc_rsrc_extents {
 	struct mbox_header header;
 	union {
@@ -1300,7 +1312,7 @@ struct lpfc_mbx_get_alloc_rsrc_extents {
 #define lpfc_mbx_rsrc_cnt_SHIFT	0
 #define lpfc_mbx_rsrc_cnt_MASK	0x0000FFFF
 #define lpfc_mbx_rsrc_cnt_WORD	word4
-			struct lpfc_id_range id[60];
+			struct lpfc_id_range id[53];
 		} rsp;
 	} u;
 };
