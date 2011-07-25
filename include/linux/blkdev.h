@@ -1000,6 +1000,8 @@ extern int blkdev_issue_flush(struct block_device *, sector_t *);
 #define DISCARD_FL_BARRIER	0x02	/* issue DISCARD_BARRIER request */
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, int flags);
+extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask);
 
 static inline int sb_issue_discard(struct super_block *sb, sector_t block,
 		sector_t nr_blocks, gfp_t gfp_mask, int flags)
