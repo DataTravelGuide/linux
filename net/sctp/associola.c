@@ -1484,7 +1484,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
 	if (asoc->rwnd >= len) {
 		asoc->rwnd -= len;
 		if (over) {
-			asoc->rwnd_press = asoc->rwnd;
+			asoc->rwnd_press += asoc->rwnd;
 			asoc->rwnd = 0;
 		}
 	} else {
