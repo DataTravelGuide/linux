@@ -850,4 +850,11 @@ ia32_sys_call_table:
 	.quad compat_sys_rt_tgsigqueueinfo	/* 335 */
 	.quad sys_perf_event_open
 	.quad compat_sys_recvmmsg
+	.quad quiet_ni_syscall		/* sys_fanotify_init */
+	.quad quiet_ni_syscall		/* sys32_fanotify_mark */
+	.quad quiet_ni_syscall		/* sys_prlimit64  340 */
+	.quad quiet_ni_syscall		/* sys_name_to_handle_at */
+	.quad quiet_ni_syscall		/* compat_sys_open_by_handle_at */
+	.quad quiet_ni_syscall		/* compat_sys_clock_adjtime */
+	.quad sys_syncfs
 ia32_syscall_end:
