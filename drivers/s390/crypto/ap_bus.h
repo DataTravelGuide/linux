@@ -73,7 +73,7 @@ struct ap_queue_status {
 	unsigned int int_enabled	: 1;
 	unsigned int response_code	: 8;
 	unsigned int pad2		: 16;
-};
+} __packed;
 
 #define AP_QUEUE_STATUS_INVALID \
 		{ 1, 1, 1, 0xF, 1, 0xFF, 0xFFFF }
