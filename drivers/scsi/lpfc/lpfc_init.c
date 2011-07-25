@@ -4329,19 +4329,12 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			goto out_free_bsmbx;
 		}
 	}
-
-	/* Read the port's SLI4 Parameters capabilities if supported. */
-	if (phba->sli4_hba.pc_sli4_params.supported) {
-		rc = lpfc_pc_sli4_params_get(phba, mboxq);
-		if (rc) {
-			rc = -EIO;
-			mempool_free(mboxq, phba->mbox_mem_pool);
-			goto out_free_bsmbx;
-		}
-	}
-
+	/*
+	 * Get sli4 parameters that override parameters from Port capabilities.
+	 * If this call fails it is not a critical error so continue loading.
+	 */
+	lpfc_get_sli4_parameters(phba, mboxq);
 	mempool_free(mboxq, phba->mbox_mem_pool);
-
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
 	if (rc)
