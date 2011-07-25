@@ -91,6 +91,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 			(unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
 			(unsigned long)peer);
+	setup_timer(&peer->proto_unreach_timer,
+		    sctp_generate_proto_unreach_event, (unsigned long)peer);
 
 	init_timer(&peer->proto_unreach_timer);
         peer->proto_unreach_timer.function = sctp_generate_proto_unreach_event;
