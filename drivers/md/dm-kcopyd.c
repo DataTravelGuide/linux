@@ -36,7 +36,6 @@
  * pages for kcopyd io.
  *---------------------------------------------------------------*/
 struct dm_kcopyd_client {
-	spinlock_t lock;
 	struct page_list *pages;
 	unsigned int nr_pages;
 	unsigned int nr_free_pages;
@@ -106,11 +105,8 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 {
 	struct page_list *pl;
 
-	spin_lock(&kc->lock);
-	if (kc->nr_free_pages < nr) {
-		spin_unlock(&kc->lock);
+	if (kc->nr_free_pages < nr)
 		return -ENOMEM;
-	}
 
 	kc->nr_free_pages -= nr;
 	for (*pages = pl = kc->pages; --nr; pl = pl->next)
@@ -119,8 +115,6 @@ static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 	kc->pages = pl->next;
 	pl->next = NULL;
 
-	spin_unlock(&kc->lock);
-
 	return 0;
 }
 
@@ -128,14 +122,12 @@ static void kcopyd_put_pages(struct dm_kcopyd_client *kc, struct page_list *pl)
 {
 	struct page_list *cursor;
 
-	spin_lock(&kc->lock);
 	for (cursor = pl; cursor->next; cursor = cursor->next)
 		kc->nr_free_pages++;
 
 	kc->nr_free_pages++;
 	cursor->next = kc->pages;
 	kc->pages = pl;
-	spin_unlock(&kc->lock);
 }
 
 /*
@@ -668,7 +660,6 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 	if (!kc)
 		return -ENOMEM;
 
-	spin_lock_init(&kc->lock);
 	spin_lock_init(&kc->job_lock);
 	INIT_LIST_HEAD(&kc->complete_jobs);
 	INIT_LIST_HEAD(&kc->io_jobs);
