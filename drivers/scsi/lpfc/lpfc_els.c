@@ -4110,13 +4110,13 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 	pcmd += sizeof(uint32_t);
 	rrq = (struct RRQ *)pcmd;
 	rrq->rrq_exchg = be32_to_cpu(rrq->rrq_exchg);
-	rxid = be16_to_cpu(bf_get(rrq_rxid, rrq));
+	rxid = bf_get(rrq_rxid, rrq);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			"2883 Clear RRQ for SID:x%x OXID:x%x RXID:x%x"
 			" x%x x%x\n",
 			be32_to_cpu(bf_get(rrq_did, rrq)),
-			be16_to_cpu(bf_get(rrq_oxid, rrq)),
+			bf_get(rrq_oxid, rrq),
 			rxid,
 			iocb->iotag, iocb->iocb.ulpContext);
 
@@ -4124,7 +4124,7 @@ lpfc_els_clear_rrq(struct lpfc_vport *vport,
 		"Clear RRQ:  did:x%x flg:x%x exchg:x%.08x",
 		ndlp->nlp_DID, ndlp->nlp_flag, rrq->rrq_exchg);
 	if (vport->fc_myDID == be32_to_cpu(bf_get(rrq_did, rrq)))
-		xri = be16_to_cpu(bf_get(rrq_oxid, rrq));
+		xri = bf_get(rrq_oxid, rrq);
 	else
 		xri = rxid;
 	prrq = lpfc_get_active_rrq(vport, xri, ndlp->nlp_DID);
