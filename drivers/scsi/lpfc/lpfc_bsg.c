@@ -2920,7 +2920,7 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	}
 
 	/* before dma descriptor setup */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, nemb_tp, mbox_rd, dma_mbox,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, nemb_tp, mbox_rd, dma_mbox,
 					sta_pre_addr, dmabuf, ext_buf_cnt);
 
 	/* reject non-embedded mailbox command with none external buffer */
@@ -2966,7 +2966,7 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	}
 
 	/* after dma descriptor setup */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, nemb_tp, mbox_rd, dma_mbox,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, nemb_tp, mbox_rd, dma_mbox,
 					sta_pos_addr, dmabuf, ext_buf_cnt);
 
 	/* construct base driver mbox command */
@@ -3085,7 +3085,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	}
 
 	/* before dma buffer descriptor setup */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, nemb_tp, mbox_wr, dma_mbox,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, nemb_tp, mbox_wr, dma_mbox,
 					sta_pre_addr, dmabuf, ext_buf_cnt);
 
 	if (ext_buf_cnt == 0)
@@ -3095,7 +3095,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf);
 
 	/* after dma descriptor setup */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, nemb_tp, mbox_wr, dma_mbox,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, nemb_tp, mbox_wr, dma_mbox,
 					sta_pos_addr, dmabuf, ext_buf_cnt);
 
 	/* log for looking forward */
@@ -3342,7 +3342,7 @@ lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	list_del_init(&dmabuf->list);
 
 	/* after dma buffer descriptor setup */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
 					mbox_rd, dma_ebuf, sta_pos_addr,
 					dmabuf, index);
 
@@ -3420,7 +3420,7 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	}
 
 	/* pre write dma buffer */
-	lpfc_idiag_bsg_mbxacc_dump_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
 					mbox_wr, dma_ebuf, sta_pos_addr,
 					dmabuf, index);
 

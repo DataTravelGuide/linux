@@ -2426,7 +2426,7 @@ lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
 	struct lpfc_debug *debug = file->private_data;
-	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt;
+	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
 	int rc;
 
 	/* This is a user write operation */
@@ -2440,6 +2440,7 @@ lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 	mbx_dump_map = idiag.cmd.data[0];
 	mbx_dump_cnt = idiag.cmd.data[1];
 	mbx_word_cnt = idiag.cmd.data[2];
+	mbx_mbox_cmd = idiag.cmd.data[3];
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_MBXACC_DP) {
 		if (!(mbx_dump_map & LPFC_MBX_DMP_ALL))
@@ -2448,7 +2449,14 @@ lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 			goto error_out;
 		if (mbx_word_cnt == 0)
 			goto error_out;
-		if (mbx_dump_cnt > (BSG_MBOX_SIZE)/4)
+		if ((mbx_dump_map & LPFC_BSG_MBX_DMP_ALL) &&
+		    (mbx_dump_cnt > (BSG_MBOX_SIZE)/4))
+			goto error_out;
+		if ((mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX) &&
+		    (mbx_dump_cnt > sizeof(MAILBOX_t)))
+			goto error_out;
+		if ((mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX) &&
+		    (mbx_mbox_cmd & ~0xff))
 			goto error_out;
 		/* as condition for stop mailbox dump */
 		if (mbx_dump_cnt == 0)
@@ -2599,7 +2607,7 @@ static const struct file_operations lpfc_idiag_op_mbxAcc = {
 
 #endif
 
-/* lpfc_idiag_bsg_mbxacc_dump_mbox - idiag debugfs dump bsg mailbox from dmabuf
+/* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
  * @phba: Pointer to HBA context object.
  * @dmabuf: Pointer to a DMA buffer descriptor.
  *
@@ -2608,7 +2616,7 @@ static const struct file_operations lpfc_idiag_op_mbxAcc = {
  * external buffer.
  **/
 void
-lpfc_idiag_bsg_mbxacc_dump_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
+lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 				enum mbox_type mbox_tp, enum dma_type dma_tp,
 				enum sta_type sta_tp,
 				struct lpfc_dmabuf *dmabuf, uint32_t ext_buf)
@@ -2683,6 +2691,65 @@ lpfc_idiag_bsg_mbxacc_dump_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 			printk(KERN_ERR "%s\n", line_buf);
 		(*mbx_dump_cnt)--;
 	}
+
+	/* Clean out command structure on reaching dump count */
+	if (*mbx_dump_cnt == 0)
+		memset(&idiag, 0, sizeof(idiag));
+	return;
+#endif
+}
+
+/* lpfc_idiag_mbxacc_dump_issue_mbox - idiag debugfs dump issue mailbox command
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * Description:
+ * This routine dump a pass-through non-embedded mailbox command from issue
+ * mailbox command.
+ **/
+void
+lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
+{
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt, *mbx_mbox_cmd;
+	char line_buf[128];
+	int len = 0;
+	uint32_t *pword;
+	uint32_t i;
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+		return;
+
+	mbx_dump_map = &idiag.cmd.data[0];
+	mbx_dump_cnt = &idiag.cmd.data[1];
+	mbx_word_cnt = &idiag.cmd.data[2];
+	mbx_mbox_cmd = &idiag.cmd.data[3];
+
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX) ||
+	    (*mbx_dump_cnt == 0) ||
+	    (*mbx_word_cnt == 0))
+		return;
+
+	if ((*mbx_mbox_cmd != 0xff) && (*mbx_mbox_cmd != pmbox->mbxCommand))
+		return;
+
+	/* dump buffer content */
+	printk(KERN_ERR "Mailbox command:0x%x\n", pmbox->mbxCommand);
+	pword = (uint32_t *)pmbox;
+	for (i = 0; i < *mbx_word_cnt; i++) {
+		if (!(i % 8)) {
+			if (i != 0)
+				printk(KERN_ERR "%s\n", line_buf);
+			len = 0;
+			len += snprintf(line_buf+len, 128-len, "%03d: ", i);
+		}
+		len += snprintf(line_buf+len, 128-len, "%08x ", *pword);
+		pword++;
+	}
+	if ((i - 1) % 8)
+		printk(KERN_ERR "%s\n", line_buf);
+	printk(KERN_ERR "\n");
+	(*mbx_dump_cnt)--;
 
 	/* Clean out command structure on reaching dump count */
 	if (*mbx_dump_cnt == 0)

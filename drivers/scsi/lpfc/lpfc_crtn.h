@@ -435,6 +435,7 @@ void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
 void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
 	uint32_t);
-void lpfc_idiag_bsg_mbxacc_dump_mbox(struct lpfc_hba *, enum nemb_type,
+void lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *, enum nemb_type,
 	enum mbox_type, enum dma_type, enum sta_type,
 	struct lpfc_dmabuf *, uint32_t);
+void lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *, MAILBOX_t *);

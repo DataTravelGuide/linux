@@ -6736,6 +6736,9 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	unsigned long iflags;
 	int rc;
 
+	/* dump from issue mailbox command if setup */
+	lpfc_idiag_mbxacc_dump_issue_mbox(phba, &mboxq->u.mb);
+
 	rc = lpfc_mbox_dev_check(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
