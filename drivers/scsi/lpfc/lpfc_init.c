@@ -4331,16 +4331,18 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 	/*
 	 * Get sli4 parameters that override parameters from Port capabilities.
-	 * If this call fails it is not a critical error so continue loading.
+	 * If this call fails, it isn't critical unless the SLI4 parameters come
+	 * back in conflict.
 	 */
 	rc = lpfc_get_sli4_parameters(phba, mboxq);
 	if (rc) {
 		if (phba->sli4_hba.extents_in_use &&
-		    phba->sli4_hba.rpi_hdrs_in_use)
+		    phba->sli4_hba.rpi_hdrs_in_use) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2999 Unsupported SLI4 Parameters "
 				"Extents and RPI headers enabled.\n");
-		goto out_free_bsmbx;
+			goto out_free_bsmbx;
+		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	/* Create all the SLI4 queues */
