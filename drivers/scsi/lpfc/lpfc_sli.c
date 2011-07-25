@@ -4954,8 +4954,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		return -ENOMEM;
 
 	rc = lpfc_sli4_cfg_post_extnts(phba, &rsrc_cnt, type, &emb, mbox);
-	if (unlikely(rc))
-		return -EIO;
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto err_exit;
+	}
 
 	/*
 	 * Figure out where the response is located.  Then get local pointers
@@ -5269,7 +5271,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	}
 
  err_exit:
-	mempool_free(mbox, phba->mbox_mem_pool);
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return rc;
 }
 
@@ -5391,7 +5393,7 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 }
 
 /**
- * lpfc_sli4_alloc_rsrc_extents - Allocate all SLI4 resource extents.
+ * lpfc_sli4_alloc_resource_identifiers - Allocate all SLI4 resource extents.
  * @phba: Pointer to HBA context object.
  *
  * This function allocates all SLI4 resource identifiers.
