@@ -677,13 +677,14 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
  *
  * Notes:
  * Assumes any error from lpfc_do_offline() will be negative.
+ * Do not make this function static.
  *
  * Returns:
  * lpfc_do_offline() return code if not zero
  * -EIO reset not configured or error posting the event
  * zero for success
  **/
-static int
+int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
@@ -1292,6 +1293,28 @@ lpfc_fips_rev_show(struct device *dev,  struct device_attribute *attr,
 }
 
 /**
+ * lpfc_dss_show - Return the current state of dss and the configured state
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_dss_show(struct device *dev, struct device_attribute *attr,
+	      char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%s - %sOperational\n",
+			(phba->cfg_enable_dss) ? "Enabled" : "Disabled",
+			(phba->sli3_options & LPFC_SLI3_DSS_ENABLED) ?
+				"" : "Not ");
+}
+
+/**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
  * Description:
@@ -1731,7 +1754,7 @@ static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
 static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
 static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
 static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
-
+static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
@@ -3468,6 +3491,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_txcmplq_hw,
 	&dev_attr_lpfc_fips_level,
 	&dev_attr_lpfc_fips_rev,
+	&dev_attr_lpfc_dss,
 	NULL,
 };
 
@@ -4669,6 +4693,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_aer_support_init(phba, lpfc_aer_support);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
+	phba->cfg_enable_dss = 1;
 	return;
 }
 
