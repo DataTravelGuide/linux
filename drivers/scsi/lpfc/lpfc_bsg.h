@@ -211,6 +211,16 @@ struct lpfc_sli_config_subcmnd {
 #define lpfc_subcmnd_subsys_SHIFT	8
 #define lpfc_subcmnd_subsys_MASK	0xff
 #define lpfc_subcmnd_subsys_WORD	word6
+/* Subsystem COMN (0x01) OpCodes */
+#define SLI_CONFIG_SUBSYS_COMN		0x01
+#define COMN_OPCODE_READ_OBJECT		0xAB
+#define COMN_OPCODE_WRITE_OBJECT	0xAC
+#define COMN_OPCODE_READ_OBJECT_LIST	0xAD
+#define COMN_OPCODE_DELETE_OBJECT	0xAE
+/* Subsystem FCOE (0x0C) OpCodes */
+#define SLI_CONFIG_SUBSYS_FCOE		0x0C
+#define FCOE_OPCODE_READ_FCF		0x08
+#define FCOE_OPCODE_ADD_FCF		0x09
 	uint32_t timeout;
 	uint32_t request_length;
 	uint32_t word9;
