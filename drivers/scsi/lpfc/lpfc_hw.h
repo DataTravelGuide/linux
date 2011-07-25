@@ -3023,7 +3023,7 @@ typedef struct {
 #define MAILBOX_EXT_SIZE	(MAILBOX_EXT_WSIZE * sizeof(uint32_t))
 #define MAILBOX_HBA_EXT_OFFSET  0x100
 /* max mbox xmit size is a page size for sysfs IO operations */
-#define MAILBOX_MAX_XMIT_SIZE   PAGE_SIZE
+#define MAILBOX_SYSFS_MAX	4096
 
 typedef union {
 	uint32_t varWords[MAILBOX_CMD_WSIZE - 1]; /* first word is type/

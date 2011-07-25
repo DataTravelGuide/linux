@@ -3953,7 +3953,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 		.name = "mbox",
 		.mode = S_IRUSR | S_IWUSR,
 	},
-	.size = MAILBOX_CMD_SIZE,
+	.size = MAILBOX_SYSFS_MAX,
 	.read = sysfs_mbox_read,
 	.write = sysfs_mbox_write,
 };
