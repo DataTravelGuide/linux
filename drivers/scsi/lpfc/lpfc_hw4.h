@@ -1325,6 +1325,19 @@ struct lpfc_mbx_alloc_rsrc_extents {
 	} u;
 };
 
+/*
+ * This is the non-embedded version of ALLOC or GET RSRC_EXTENTS. Word4 in this
+ * structure shares the same SHIFT/MASK/WORD defines provided in the
+ * mbx_alloc_rsrc_extents and mbx_get_alloc_rsrc_extents, word4, provided in
+ * the structures defined above.  This non-embedded structure provides for the
+ * maximum number of extents supported by the port.
+ */
+struct lpfc_mbx_nembed_rsrc_extent {
+	union  lpfc_sli4_cfg_shdr cfg_shdr;
+	uint32_t word4;
+	struct lpfc_id_range id;
+};
+
 struct lpfc_mbx_dealloc_rsrc_extents {
 	struct mbox_header header;
 	struct {
@@ -2338,7 +2351,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_rq_destroy rq_destroy;
 		struct lpfc_mbx_get_rsrc_extent_info rsrc_extent_info;
 		struct lpfc_mbx_alloc_rsrc_extents alloc_rsrc_extents;
-		struct lpfc_mbx_dealloc_rsrc_extents dealloc_rscr_extents;
+		struct lpfc_mbx_dealloc_rsrc_extents dealloc_rsrc_extents;
 		struct lpfc_mbx_post_sgl_pages post_sgl_pages;
 		struct lpfc_mbx_nembed_cmd nembed_cmd;
 		struct lpfc_mbx_read_rev read_rev;

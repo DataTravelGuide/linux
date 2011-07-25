@@ -1753,7 +1753,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
 	/* Allocate record for keeping SGE virtual addresses */
-	mbox->sge_array = kmalloc(sizeof(struct lpfc_mbx_nembed_sge_virt),
+	mbox->sge_array = kzalloc(sizeof(struct lpfc_mbx_nembed_sge_virt),
 				  GFP_KERNEL);
 	if (!mbox->sge_array) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
@@ -1803,8 +1803,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 	/* The sub-header is in DMA memory, which needs endian converstion */
 	if (cfg_shdr)
 		lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
-			      sizeof(union  lpfc_sli4_cfg_shdr));
-
+				      sizeof(union  lpfc_sli4_cfg_shdr));
 	return alloc_len;
 }
 
@@ -1812,68 +1811,65 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
  * lpfc_sli4_mbox_rsrc_extent - Initialize the opcode resource extent.
  * @phba: pointer to lpfc hba data structure.
  * @mbox: pointer to an allocated lpfc mbox resource.
- * @version: version compatibility specification.
  * @exts_count: the number of extents, if required, to allocate.
  * @rsrc_type: the resource extent type.
+ * @emb: true if LPFC_SLI4_MBX_EMBED. false if LPFC_SLI4_MBX_NEMBED.
  *
- * This routine sets up the resource extent mailbox command for Gen-2
- * SLI4 ports.  The caller must pass an allocated mailbox and the
- * attributes required to initialize the mailbox correctly.  For
- * the current implementation, the timeout and version arguments are
- * ignored by this routine.  They are provided in the calling function
- * prototype for future considerations.
- *
- * For commands LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT and
- * LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT, the caller is expected
- * to call LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO and use the
- * response data to correctly set the length argument to
- * reflect the desired number of extents.  This routine
- * will allocated the memory resources needed to complete
- * the transaction.
+ * This routine completes the subcommand header for SLI4 resource extent
+ * mailbox commands.  It is called after lpfc_sli4_config.  The caller must
+ * pass an allocated mailbox and the attributes required to initialize the
+ * mailbox correctly.
  *
  * Return: the actual length of the mbox command allocated.
  **/
 int
 lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
-			   uint8_t version, uint16_t exts_count,
-			   uint16_t rsrc_type)
+			   uint16_t exts_count, uint16_t rsrc_type, bool emb)
 {
 	uint8_t opcode = 0;
-	struct lpfc_mbx_get_rsrc_extent_info *rsrc_extent;
+	struct lpfc_mbx_nembed_rsrc_extent *n_rsrc_extnt = NULL;
+	void *virtaddr = NULL;
 
-	rsrc_extent = &mbox->u.mqe.un.rsrc_extent_info;
-
-	/*
-	 * The driver issues resource extent requests for its locality only.
-	 * Retrieving other localities is not supported.
-	 */
-	bf_set(lpfc_mbox_hdr_pf_num, &rsrc_extent->header.cfg_shdr.request,
-	       LPFC_EXTENT_LOCAL);
-	bf_set(lpfc_mbox_hdr_vh_num, &rsrc_extent->header.cfg_shdr.request,
-	       LPFC_EXTENT_LOCAL);
-
-	/* Default the timeout and version fields for now. */
-	bf_set(lpfc_mbox_hdr_version,
-	       &rsrc_extent->header.cfg_shdr.request,
-	       LPFC_EXTENT_VERSION_DEFAULT);
-	rsrc_extent->header.cfg_shdr.request.timeout = 0;
+	/* Set up SLI4 ioctl command header fields */
+	if (emb == LPFC_SLI4_MBX_NEMBED) {
+		/* Get the first SGE entry from the non-embedded DMA memory */
+		virtaddr = mbox->sge_array->addr[0];
+		if (virtaddr == NULL)
+			return 1;
+		n_rsrc_extnt = (struct lpfc_mbx_nembed_rsrc_extent *) virtaddr;
+	}
 
 	/*
-	 * Tell the port what resource is requested, how many of that
-	 * resource and how many bytes are available for the response.
+	 * The resource type is common to all extent Opcodes and resides in the
+	 * same position.
 	 */
-	bf_set(lpfc_mbx_get_rsrc_extent_info_type,
-	       &rsrc_extent->u.req,
-	       rsrc_type);
+	if (emb == LPFC_SLI4_MBX_EMBED)
+		bf_set(lpfc_mbx_alloc_rsrc_extents_type,
+		       &mbox->u.mqe.un.alloc_rsrc_extents.u.req,
+		       rsrc_type);
+	else {
+		/* This is DMA data.  Byteswap is required. */
+		bf_set(lpfc_mbx_alloc_rsrc_extents_type,
+		       n_rsrc_extnt, rsrc_type);
+		lpfc_sli_pcimem_bcopy(&n_rsrc_extnt->word4,
+				      &n_rsrc_extnt->word4,
+				      sizeof(uint32_t));
+	}
+
+	/* Complete the initialization for the particular Opcode. */
 	opcode = lpfc_sli4_mbox_opcode_get(phba, mbox);
 	switch (opcode) {
 	case LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT:
-		bf_set(lpfc_mbx_alloc_rsrc_extents_cnt,
-		       &rsrc_extent->u.req,
-		       exts_count);
+		if (emb == LPFC_SLI4_MBX_EMBED)
+			bf_set(lpfc_mbx_alloc_rsrc_extents_cnt,
+			       &mbox->u.mqe.un.alloc_rsrc_extents.u.req,
+			       exts_count);
+		else
+			bf_set(lpfc_mbx_alloc_rsrc_extents_cnt,
+			       n_rsrc_extnt, exts_count);
 		break;
-	case LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO:
 	case LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT:
+	case LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO:
 	case LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT:
 		/* Initialization is complete.*/
 		break;
@@ -1883,6 +1879,7 @@ lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				"unsupported\n", opcode);
 		return 1;
 	}
+
 	return 0;
 }
 

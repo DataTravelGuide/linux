@@ -4741,8 +4741,9 @@ lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
 			 LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO,
 			 length, LPFC_SLI4_MBX_EMBED);
 
-	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
-					0, type);
+	/* Send an extents count of 0 - the GET doesn't use it. */
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, 0, type,
+					LPFC_SLI4_MBX_EMBED);
 	if (unlikely(rc)) {
 		rc = -EIO;
 		goto err_exit;
@@ -4830,6 +4831,76 @@ lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
 
 	if (curr_ext_cnt != rsrc_ext_cnt || size_diff != 0)
 		rc = 1;
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_cfg_post_extnts -
+ * @phba: Pointer to HBA context object.
+ * @extnt_cnt - number of available extents.
+ * @type - the extent type (rpi, xri, vfi, vpi).
+ * @emb - buffer to hold either MBX_EMBED or MBX_NEMBED operation.
+ * @mbox - pointer to the caller's allocated mailbox structure.
+ *
+ * This function calculates the mailbox payload required to allocate the
+ * specified number of extents available in the port for any particular extent
+ * type.
+ **/
+static int
+lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
+			  uint16_t type, bool *emb, LPFC_MBOXQ_t *mbox)
+{
+	int rc = 0;
+	uint32_t req_len;
+	uint32_t emb_len;
+	uint32_t alloc_len, mbox_tmo;
+
+	/* Calculate the total requested length of the dma memory */
+	req_len = *extnt_cnt * sizeof(uint16_t);
+
+	/*
+	 * Calculate the size of an embedded mailbox.  The uint32_t
+	 * accounts for extents-specific word.
+	 */
+	emb_len = sizeof(MAILBOX_t) - sizeof(struct mbox_header) -
+		sizeof(uint32_t);
+
+	/*
+	 * Presume the allocation and response will fit into an embedded
+	 * mailbox.  If not true, reconfigure to a non-embedded mailbox.
+	 */
+	*emb = LPFC_SLI4_MBX_EMBED;
+	if (req_len > emb_len) {
+		req_len = *extnt_cnt * sizeof(uint16_t) +
+			sizeof(union lpfc_sli4_cfg_shdr) +
+			sizeof(uint32_t);
+		*emb = LPFC_SLI4_MBX_NEMBED;
+	}
+
+	alloc_len = lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+				     LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT,
+				     req_len, *emb);
+	if (alloc_len < req_len) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"9000 Allocated DMA memory size (x%x) is "
+			"less than the requested DMA memory "
+			"size (x%x)\n", alloc_len, req_len);
+		return -ENOMEM;
+	}
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, *extnt_cnt, type, *emb);
+	if (unlikely(rc))
+		return -EIO;
+
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	}
+
+	if (unlikely(rc))
+		rc = -EIO;
 	return rc;
 }
 
@@ -4844,13 +4915,18 @@ lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
 static int
 lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 {
+	bool emb = false;
 	uint16_t rsrc_id_cnt, rsrc_cnt, rsrc_size;
 	uint16_t rsrc_id, rsrc_start, j, k;
-	int i, rc, longs;
-	struct lpfc_mbx_alloc_rsrc_extents *alloc_rsrc;
+	int i, rc;
+	unsigned long longs;
 	struct lpfc_rsrc_blks *rsrc_blks;
 	LPFC_MBOXQ_t *mbox;
-	uint32_t length, mbox_tmo;
+	uint32_t length;
+	struct lpfc_id_range *id_array = NULL;
+	void *virtaddr = NULL;
+	struct lpfc_mbx_nembed_rsrc_extent *n_rsrc;
+	struct lpfc_mbx_alloc_rsrc_extents *rsrc_ext;
 
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_blk_list);
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_xri_blk_list);
@@ -4872,10 +4948,6 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		return -ENOMEM;
 	}
 
-	longs = ((rsrc_cnt * rsrc_size) + BITS_PER_LONG - 1) /
-		BITS_PER_LONG;
-	rsrc_id_cnt = rsrc_cnt * rsrc_size;
-
 	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT,
 			"2903 Available Resource Extents "
 			"for resource type 0x%x: Count: 0x%x, "
@@ -4885,26 +4957,30 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
-	length = (sizeof(struct lpfc_mbx_alloc_rsrc_extents) -
-		  sizeof(struct lpfc_sli4_cfg_mhdr));
-	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
-			 LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT,
-			 length, LPFC_SLI4_MBX_EMBED);
-	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
-					rsrc_cnt, type);
+
+	rc = lpfc_sli4_cfg_post_extnts(phba, &rsrc_cnt, type, &emb, mbox);
 	if (unlikely(rc))
 		return -EIO;
 
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	/*
+	 * Figure out where the response is located.  Then get local pointers
+	 * to the response data.  The port does not guarantee to respond to
+	 * all extents counts request so update the local variable with the
+	 * allocated count from the port.
+	 */
+	if (emb == LPFC_SLI4_MBX_EMBED) {
+		rsrc_ext = &mbox->u.mqe.un.alloc_rsrc_extents;
+		id_array = &rsrc_ext->u.rsp.id[0];
+		rsrc_cnt = bf_get(lpfc_mbx_rsrc_cnt, &rsrc_ext->u.rsp);
+	} else {
+		virtaddr = mbox->sge_array->addr[0];
+		n_rsrc = (struct lpfc_mbx_nembed_rsrc_extent *) virtaddr;
+		rsrc_cnt = bf_get(lpfc_mbx_rsrc_cnt, n_rsrc);
+		id_array = &n_rsrc->id;
 	}
-	if (unlikely(rc)) {
-		rc = -EIO;
-		goto err_exit;
-	}
+
+	longs = ((rsrc_cnt * rsrc_size) + BITS_PER_LONG - 1) / BITS_PER_LONG;
+	rsrc_id_cnt = rsrc_cnt * rsrc_size;
 
 	/*
 	 * Based on the resource size and count, correct the base and max
@@ -4916,7 +4992,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	 * from word4_1 and the odd entries are pulled from work4_0.
 	 * This will be fixed once the Lancer FW team pushes a fix.
 	 */
-	alloc_rsrc = &mbox->u.mqe.un.alloc_rsrc_extents;
+	length = sizeof(struct lpfc_rsrc_blks);
 	switch (type) {
 	case LPFC_RSC_TYPE_FCOE_RPI:
 		phba->sli4_hba.rpi_bmask = kzalloc(longs *
@@ -4941,11 +5017,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		 * into the array and manages the available ids.  The array
 		 * just stores the ids communicated to the port via the wqes.
 		 */
-		length = sizeof(struct lpfc_rsrc_blks);
 		for (i = 0, j = 0, k = 0 ; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					rc = -ENOMEM;
@@ -4965,7 +5040,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 				}
 			} else {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					rc = -ENOMEM;
@@ -5013,7 +5088,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					kfree(phba->vpi_bmask);
@@ -5033,7 +5108,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 				}
 			} else {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					kfree(phba->vpi_bmask);
@@ -5081,7 +5156,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					rc = -ENOMEM;
@@ -5104,7 +5179,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 				}
 			} else {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					rc = -ENOMEM;
@@ -5152,7 +5227,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					kfree(phba->sli4_hba.vfi_bmask);
@@ -5172,7 +5247,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 				}
 			} else {
 				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &alloc_rsrc->u.rsp.id[k]);
+						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
 					kfree(phba->sli4_hba.vfi_bmask);
@@ -5217,20 +5292,26 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	int rc;
 	uint32_t length, mbox_tmo = 0;
 	LPFC_MBOXQ_t *mbox;
-	struct lpfc_mbx_get_rsrc_extent_info *rsrc_info;
+	struct lpfc_mbx_dealloc_rsrc_extents *dealloc_rsrc;
 
 	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
 
-	/* Release all resource extents of this type. */
-	length = (sizeof(struct lpfc_mbx_get_rsrc_extent_info) -
+	/*
+	 * This function sends an embedded mailbox because it only sends the
+	 * the resource type.  All extents of this type are released by the
+	 * port.
+	 */
+	length = (sizeof(struct lpfc_mbx_dealloc_rsrc_extents) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT,
 			 length, LPFC_SLI4_MBX_EMBED);
-	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
-					0, type);
+
+	/* Send an extents count of 0 - the dealloc doesn't use it. */
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, 0, type,
+					LPFC_SLI4_MBX_EMBED);
 	if (unlikely(rc)) {
 		rc = -EIO;
 		goto out_free_mbox;
@@ -5245,18 +5326,19 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 		rc = -EIO;
 		goto out_free_mbox;
 	}
-	rsrc_info = &mbox->u.mqe.un.rsrc_extent_info;
+
+	dealloc_rsrc = &mbox->u.mqe.un.dealloc_rsrc_extents;
 	if (bf_get(lpfc_mbox_hdr_status,
-		   &rsrc_info->header.cfg_shdr.response)) {
+		   &dealloc_rsrc->header.cfg_shdr.response)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
 				"2919 Failed to release resource extents "
 				"for type %d - Status 0x%x Add'l Status 0x%x. "
 				"Resource memory not released.\n",
 				type,
 				bf_get(lpfc_mbox_hdr_status,
-				       &rsrc_info->header.cfg_shdr.response),
+				    &dealloc_rsrc->header.cfg_shdr.response),
 				bf_get(lpfc_mbox_hdr_add_status,
-				       &rsrc_info->header.cfg_shdr.response));
+				    &dealloc_rsrc->header.cfg_shdr.response));
 		rc = -EIO;
 		goto out_free_mbox;
 	}
