@@ -2569,7 +2569,7 @@ struct lpfc_bmbx_create {
 #define SGL_ALIGN_SZ 64
 #define SGL_PAGE_SIZE 4096
 /* align SGL addr on a size boundary - adjust address up */
-#define NO_XRI  ((uint16_t)-1)
+#define NO_XRI  0xffff
 
 struct wqe_common {
 	uint32_t word6;

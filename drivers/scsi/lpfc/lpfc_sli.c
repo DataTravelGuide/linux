@@ -12460,7 +12460,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
  * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
  * 	LPFC_RPI_ALLOC_ERROR if no rpis are available.
  **/
-int
+uint16_t
 lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 {
 	unsigned long xri;
@@ -12474,7 +12474,7 @@ lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 				 phba->sli4_hba.max_cfg_param.max_xri, 0);
 	if (xri >= phba->sli4_hba.max_cfg_param.max_xri) {
 		spin_unlock_irq(&phba->hbalock);
-		return -1;
+		return NO_XRI;
 	} else {
 		set_bit(xri, phba->sli4_hba.xri_bmask);
 		phba->sli4_hba.max_cfg_param.xri_used++;
@@ -12532,7 +12532,7 @@ lpfc_sli4_next_xritag(struct lpfc_hba *phba)
 	uint16_t xri_index;
 
 	xri_index = lpfc_sli4_alloc_xri(phba);
-	if (xri_index != (uint16_t) -1)
+	if (xri_index != NO_XRI)
 		return xri_index;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
