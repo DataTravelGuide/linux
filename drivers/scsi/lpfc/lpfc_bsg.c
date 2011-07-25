@@ -2535,16 +2535,18 @@ lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 					job->reply_payload.sg_cnt,
 					pmb_buf, size);
 		job->reply->result = 0;
-
+		/* need to hold the lock until we set job->dd_data to NULL
+		 * to hold off the timeout handler returning to the mid-layer
+		 * while we are still processing the job.
+		 */
 		job->dd_data = NULL;
+		dd_data->context_un.mbox.set_job = NULL;
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 		job->job_done(job);
+	} else {
+		dd_data->context_un.mbox.set_job = NULL;
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 	}
-	dd_data->context_un.mbox.set_job = NULL;
-	/* need to hold the lock until we call job done to hold off
-	 * the timeout handler returning to the midlayer while
-	 * we are stillprocessing the job
-	 */
-	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 	mempool_free(dd_data->context_un.mbox.pmboxq, phba->mbox_mem_pool);
 	if (dd_data->context_un.mbox.dmabuffers)
