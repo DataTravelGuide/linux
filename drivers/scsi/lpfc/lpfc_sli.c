@@ -4992,7 +4992,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_DOWN;
 	spin_unlock_irq(&phba->hbalock);
-	rc = phba->lpfc_hba_init_link(phba);
+	if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK)
+		rc = phba->lpfc_hba_init_link(phba);
 out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	if (rc)
