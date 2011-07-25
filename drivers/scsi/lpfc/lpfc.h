@@ -53,6 +53,8 @@ struct lpfc_sli2_slim;
 
 #define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
 					   collection. */
+
+#define CONFIG_SCSI_LPFC_DEBUG_FS 1;
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
@@ -848,6 +850,10 @@ struct lpfc_hba {
 	struct dentry *idiag_drb_acc;
 	struct dentry *idiag_ctl_acc;
 	struct dentry *idiag_mbx_acc;
+	/* Extents debugfs entries. */
+	struct dentry *debug_ext_drv;
+	struct dentry *debug_ext_avail;
+	struct dentry *debug_ext_alloc;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */
