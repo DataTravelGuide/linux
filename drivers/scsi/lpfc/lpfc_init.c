@@ -3926,6 +3926,10 @@ lpfc_enable_pci_dev(struct lpfc_hba *phba)
 	pci_try_set_mwi(pdev);
 	pci_save_state(pdev);
 
+	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
+	if (pci_find_capability(pdev, PCI_CAP_ID_EXP))
+		pdev->needs_freset = 1;
+
 	return 0;
 
 out_disable_device:
