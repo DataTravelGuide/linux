@@ -1125,9 +1125,12 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
 /*
  * iDiag PCI config space register access methods:
  *
- * Both the read access and write access to the SLI4 PCI config space registers
- * are provided. In proper SLI4 PCI function's debugfs iDiag directory,
- * 	/sys/kernel/debug/lpfc/fn<#>/iDiag
+ * The PCI config space register accessees of read, write, read-modify-write
+ * for set bits, and read-modify-write for clear bits to SLI4 PCI functions
+ * are provided. In the proper SLI4 PCI function's debugfs iDiag directory,
+ *
+ *      /sys/kernel/debug/lpfc/fn<#>/iDiag
+ *
  * the access is through the debugfs entry pciCfg:
  *
  * 1. For PCI config space register read access, there are two read methods:
@@ -1189,16 +1192,15 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
  *
  * 2. For PCI config space register write access, it supports a single PCI
  *    config space register write in the size of a byte (8 bits), a word
- *    (8 bits), a word (16 bits), or a dword (32 bits). The command syntax
- *    is,
+ *    (16 bits), or a dword (32 bits). The command syntax is,
  *
  *        echo 2 <where> <count> <value> > pciCfg
  *
  *    where, 2 is the iDiag command for PCI config space write, <where> is
  *    the offset from the beginning of the device's PCI config space to write
  *    into, <count> is the size of data to write into the PCI config space,
- *    it will be 1 for reading a byte (8 bits), 2 for reading a word (16 bits
- *    or 2 bytes), or 4 for reading a dword (32 bits or 4 bytes), and <value>
+ *    it will be 1 for writing a byte (8 bits), 2 for writing a word (16 bits
+ *    or 2 bytes), or 4 for writing a dword (32 bits or 4 bytes), and <value>
  *    is the data to be written into the PCI config space register at the
  *    offset.
  *
@@ -1218,21 +1220,59 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
  *
  *           echo 2 4 2 <cmd> > pciCfg
  *
- * Note, for both single register read or write, the offset (<where>) must
- * be aligned with the size of the data:
+ * 3. For PCI config space register set bits access, it supports a single PCI
+ *    config space register set bits in the size of a byte (8 bits), a word
+ *    (16 bits), or a dword (32 bits). The command syntax is,
+ *
+ *        echo 3 <where> <count> <bitmask> > pciCfg
+ *
+ *    where, 3 is the iDiag command for PCI config space set bits, <where> is
+ *    the offset from the beginning of the device's PCI config space to set
+ *    bits into, <count> is the size of the bitmask to set into the PCI config
+ *    space, it will be 1 for setting a byte (8 bits), 2 for setting a word
+ *    (16 bits or 2 bytes), or 4 for setting a dword (32 bits or 4 bytes), and
+ *    <bitmask> is the bitmask, indicating the bits to be set into the PCI
+ *    config space register at the offset. The logic performed to the content
+ *    of the PCI config space register, regval, is,
+ *
+ *        regval |= <bitmask>
+ *
+ * 4. For PCI config space register clear bits access, it supports a single
+ *    PCI config space register clear bits in the size of a byte (8 bits),
+ *    a word (16 bits), or a dword (32 bits). The command syntax is,
+ *
+ *        echo 4 <where> <count> <bitmask> > pciCfg
+ *
+ *    where, 4 is the iDiag command for PCI config space clear bits, <where>
+ *    is the offset from the beginning of the device's PCI config space to
+ *    clear bits from, <count> is the size of the bitmask to set into the PCI
+ *    config space, it will be 1 for setting a byte (8 bits), 2 for setting
+ *    a word(16 bits or 2 bytes), or 4 for setting a dword (32 bits or 4
+ *    bytes), and <bitmask> is the bitmask, indicating the bits to be cleared
+ *    from the PCI config space register at the offset. the logic performed
+ *    to the content of the PCI config space register, regval, is,
+ *
+ *        regval &= ~<bitmask>
+ *
+ * Note, for all single register read, write, set bits, or clear bits access,
+ * the offset (<where>) must be aligned with the size of the data:
  *
  * For data size of byte (8 bits), the offset must be aligned to the byte
  * boundary; for data size of word (16 bits), the offset must be aligned
  * to the word boundary; while for data size of dword (32 bits), the offset
  * must be aligned to the dword boundary. Otherwise, the interface will
- * return the error "-bash: echo: write error: Invalid argument". For
- * example:
+ * return the error:
+ *
+ *     "-bash: echo: write error: Invalid argument".
+ *
+ * For example:
  *
  *     echo 1 2 4 > pciCfg
  *     -bash: echo: write error: Invalid argument
  *
- * Note also, all of the numbers in the command fields for both read and
- * write PCI config space register command can be either decimal or hex.
+ * Note also, all of the numbers in the command fields for all read, write,
+ * set bits, and clear bits PCI config space register command fields can be
+ * either decimal or hex.
  *
  * For example,
  *     echo 1 0 4096 > pciCfg
@@ -1351,7 +1391,7 @@ lpfc_idiag_pcicfg_release(struct inode *inode, struct file *file)
 
 	/* Read PCI config register, if not read all, clear command fields */
 	if ((debug->op == LPFC_IDIAG_OP_RD) &&
-	    (idiag.cmd.opcode == LPFC_IDIAG_CMD_OPCODE_PCICFG_RD))
+	    (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD))
 		if ((idiag.cmd.data[1] == sizeof(uint8_t)) ||
 		    (idiag.cmd.data[1] == sizeof(uint16_t)) ||
 		    (idiag.cmd.data[1] == sizeof(uint32_t)))
@@ -1359,7 +1399,7 @@ lpfc_idiag_pcicfg_release(struct inode *inode, struct file *file)
 
 	/* Write PCI config register, clear command fields */
 	if ((debug->op == LPFC_IDIAG_OP_WR) &&
-	    (idiag.cmd.opcode == LPFC_IDIAG_CMD_OPCODE_PCICFG_WR))
+	    (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR))
 		memset(&idiag, 0, sizeof(idiag));
 
 	/* Free the buffers to the file operation */
@@ -1417,7 +1457,7 @@ lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
 	if (*ppos)
 		return 0;
 
-	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_OPCODE_PCICFG_RD) {
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD) {
 		where = idiag.cmd.data[0];
 		count = idiag.cmd.data[1];
 	} else
@@ -1508,6 +1548,9 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 	struct lpfc_debug *debug = file->private_data;
 	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
 	uint32_t where, value, count;
+	uint32_t u32val;
+	uint16_t u16val;
+	uint8_t u8val;
 	struct pci_dev *pdev;
 	int rc;
 
@@ -1522,7 +1565,7 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 	if (rc)
 		return rc;
 
-	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_OPCODE_PCICFG_RD) {
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD) {
 		/* Read command from PCI config space, set up command fields */
 		where = idiag.cmd.data[0];
 		count = idiag.cmd.data[1];
@@ -1551,7 +1594,9 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 			if (where % sizeof(uint32_t))
 				goto error_out;
 		}
-	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_OPCODE_PCICFG_WR) {
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
 		/* Write command to PCI config space, read-modify-write */
 		where = idiag.cmd.data[0];
 		count = idiag.cmd.data[1];
@@ -1566,21 +1611,76 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 				goto error_out;
 			if (where % sizeof(uint8_t))
 				goto error_out;
-			pci_write_config_byte(pdev, where, (uint8_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_byte(pdev, where,
+						      (uint8_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_byte(pdev, where, &u8val);
+				if (!rc) {
+					u8val |= (uint8_t)value;
+					pci_write_config_byte(pdev, where,
+							      u8val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_byte(pdev, where, &u8val);
+				if (!rc) {
+					u8val &= (uint8_t)(~value);
+					pci_write_config_byte(pdev, where,
+							      u8val);
+				}
+			}
 		}
 		if (count == sizeof(uint16_t)) {
 			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint16_t))
 				goto error_out;
 			if (where % sizeof(uint16_t))
 				goto error_out;
-			pci_write_config_word(pdev, where, (uint16_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_word(pdev, where,
+						      (uint16_t)value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_word(pdev, where, &u16val);
+				if (!rc) {
+					u16val |= (uint16_t)value;
+					pci_write_config_word(pdev, where,
+							      u16val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_word(pdev, where, &u16val);
+				if (!rc) {
+					u16val &= (uint16_t)(~value);
+					pci_write_config_word(pdev, where,
+							      u16val);
+				}
+			}
 		}
 		if (count == sizeof(uint32_t)) {
 			if (where > LPFC_PCI_CFG_SIZE - sizeof(uint32_t))
 				goto error_out;
 			if (where % sizeof(uint32_t))
 				goto error_out;
-			pci_write_config_dword(pdev, where, value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_WR)
+				pci_write_config_dword(pdev, where, value);
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_ST) {
+				rc = pci_read_config_dword(pdev, where,
+							   &u32val);
+				if (!rc) {
+					u32val |= value;
+					pci_write_config_dword(pdev, where,
+							       u32val);
+				}
+			}
+			if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_CL) {
+				rc = pci_read_config_dword(pdev, where,
+							   &u32val);
+				if (!rc) {
+					u32val &= ~value;
+					pci_write_config_dword(pdev, where,
+							       u32val);
+				}
+			}
 		}
 	} else
 		/* All other opecodes are illegal for now */
