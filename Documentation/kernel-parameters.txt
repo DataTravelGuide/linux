@@ -2123,6 +2123,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format:
 			<io>,<mss_io>,<mss_irq>,<mss_dma>,<mpu_io>,<mpu_irq>
 
+	pstore.backend=	Specify the name of the pstore backend to use
+
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
