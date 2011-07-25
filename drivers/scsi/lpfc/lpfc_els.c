@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -522,9 +522,12 @@ lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
 	 * Word 1 Bit 31 in FLOGI response is clean address bit
 	 *
 	 * If fabric parameter is changed and clean address bit is
-	 * cleared delay nport discovery.
+	 * cleared delay nport discovery if
+	 * - vport->fc_prevDID != 0 (not initial discovery) OR
+	 * - lpfc_delay_discovery module parameter is set.
 	 */
-	if (fabric_param_changed && !sp->cmn.clean_address_bit) {
+	if (fabric_param_changed && !sp->cmn.clean_address_bit &&
+	    (vport->fc_prevDID || lpfc_delay_discovery)) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_DISC_DELAYED;
 		spin_unlock_irq(shost->host_lock);
@@ -6254,6 +6257,11 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (vport->load_flag & FC_UNLOADING)
 		goto dropit;
 
+	/* If NPort discovery is delayed drop incoming ELS */
+	if ((vport->fc_flag & FC_DISC_DELAYED) &&
+			(cmd != ELS_CMD_PLOGI))
+		goto dropit;
+
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
 		/* Cannot find existing Fabric ndlp, so allocate a new one */
@@ -6306,6 +6314,12 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
 
 		lpfc_send_els_event(vport, ndlp, payload);
+
+		/* If Nport discovery is delayed, reject PLOGIs */
+		if (vport->fc_flag & FC_DISC_DELAYED) {
+			rjt_err = LSRJT_UNABLE_TPC;
+			break;
+		}
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
@@ -6692,7 +6706,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	 * discovery.
 	 */
 	spin_lock_irq(shost->host_lock);
-	if (lpfc_delay_discovery && vport->fc_flag & FC_DISC_DELAYED) {
+	if (vport->fc_flag & FC_DISC_DELAYED) {
 		spin_unlock_irq(shost->host_lock);
 		mod_timer(&vport->delayed_disc_tmo,
 			jiffies + HZ * phba->fc_ratov);
