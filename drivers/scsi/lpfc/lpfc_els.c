@@ -7292,8 +7292,10 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
-	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	struct Scsi_Host *shost;
 
+	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
+	shost = lpfc_shost_from_vport(vport);
 	irsp = &rspiocb->iocb;
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
@@ -7304,6 +7306,19 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Trigger the release of the ndlp after logo */
 	lpfc_nlp_put(ndlp);
+
+	/* NPIV LOGO completes to NPort <nlp_DID> */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "2928 NPIV LOGO completes to NPort x%x "
+			 "Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
+			 irsp->ulpTimeout, vport->num_disc_nodes);
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag &= ~FC_FABRIC;
+		spin_unlock_irq(shost->host_lock);
+	}
 }
 
 /**
