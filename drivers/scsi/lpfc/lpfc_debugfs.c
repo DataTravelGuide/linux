@@ -1338,7 +1338,7 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 }
 
 /**
- * lpfc_idiag_pcicfg_open - idiag open pcicfg debugfs
+ * lpfc_idiag_open - idiag open debugfs
  * @inode: The inode pointer that contains a pointer to phba.
  * @file: The file pointer to attach the file operation.
  *
@@ -1355,7 +1355,7 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
  * negative error value.
  **/
 static int
-lpfc_idiag_pcicfg_open(struct inode *inode, struct file *file)
+lpfc_idiag_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_debug *debug;
 
@@ -1371,21 +1371,45 @@ lpfc_idiag_pcicfg_open(struct inode *inode, struct file *file)
 }
 
 /**
- * lpfc_idiag_pcicfg_release - Release idiag pcicfc access file operation
+ * lpfc_idiag_release - Release idiag access file operation
+ * @inode: The inode pointer that contains a vport pointer. (unused)
+ * @file: The file pointer that contains the buffer to release.
+ *
+ * Description:
+ * This routine is the generic release routine for the idiag access file
+ * operation, it frees the buffer that was allocated when the debugfs file
+ * was opened.
+ *
+ * Returns:
+ * This function returns zero.
+ **/
+static int
+lpfc_idiag_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	/* Free the buffers to the file operation */
+	kfree(debug->buffer);
+	kfree(debug);
+
+	return 0;
+}
+
+/**
+ * lpfc_idiag_cmd_release - Release idiag cmd access file operation
  * @inode: The inode pointer that contains a vport pointer. (unused)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
  * This routine frees the buffer that was allocated when the debugfs file
  * was opened. It also reset the fields in the idiag command struct in the
- * case the command is not browsing the entire extended 4K PCI config space
- * registers.
+ * case the command is not continuous browsing of the data structure.
  *
  * Returns:
  * This function returns zero.
  **/
 static int
-lpfc_idiag_pcicfg_release(struct inode *inode, struct file *file)
+lpfc_idiag_cmd_release(struct inode *inode, struct file *file)
 {
 	struct lpfc_debug *debug = file->private_data;
 
@@ -1692,6 +1716,178 @@ error_out:
 	return -EINVAL;
 }
 
+/**
+ * lpfc_idiag_queinfo_read - idiag debugfs read queue information
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba SLI4 PCI function queue information,
+ * and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
+			loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	int len = 0, fcp_qidx;
+	char *pbuffer;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	/* Get slow-path event queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path EQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], EQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n\n",
+			phba->sli4_hba.sp_eq->queue_id,
+			phba->sli4_hba.sp_eq->entry_count,
+			phba->sli4_hba.sp_eq->host_index,
+			phba->sli4_hba.sp_eq->hba_index);
+
+	/* Get fast-path event queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path EQ information:\n");
+	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tID [%02d], EQE-COUNT [%04d], "
+				"HOST-INDEX [%04x], PORT-INDEX [%04x]\n",
+				phba->sli4_hba.fp_eq[fcp_qidx]->queue_id,
+				phba->sli4_hba.fp_eq[fcp_qidx]->entry_count,
+				phba->sli4_hba.fp_eq[fcp_qidx]->host_index,
+				phba->sli4_hba.fp_eq[fcp_qidx]->hba_index);
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get mailbox complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Mailbox CQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\t\tAssociated EQ-ID [%02d]:\n",
+			phba->sli4_hba.mbx_cq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], CQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n\n",
+			phba->sli4_hba.mbx_cq->queue_id,
+			phba->sli4_hba.mbx_cq->entry_count,
+			phba->sli4_hba.mbx_cq->host_index,
+			phba->sli4_hba.mbx_cq->hba_index);
+
+	/* Get slow-path complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path CQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\t\tAssociated EQ-ID [%02d]:\n",
+			phba->sli4_hba.els_cq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], CQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n\n",
+			phba->sli4_hba.els_cq->queue_id,
+			phba->sli4_hba.els_cq->entry_count,
+			phba->sli4_hba.els_cq->host_index,
+			phba->sli4_hba.els_cq->hba_index);
+
+	/* Get fast-path complete queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path CQ information:\n");
+	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\t\tAssociated EQ-ID [%02d]:\n",
+				phba->sli4_hba.fcp_cq[fcp_qidx]->assoc_qid);
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		"\tID [%02d], EQE-COUNT [%04d], "
+		"HOST-INDEX [%04x], PORT-INDEX [%04x]\n",
+		phba->sli4_hba.fcp_cq[fcp_qidx]->queue_id,
+		phba->sli4_hba.fcp_cq[fcp_qidx]->entry_count,
+		phba->sli4_hba.fcp_cq[fcp_qidx]->host_index,
+		phba->sli4_hba.fcp_cq[fcp_qidx]->hba_index);
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get mailbox queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Mailbox MQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\t\tAssociated CQ-ID [%02d]:\n",
+			phba->sli4_hba.mbx_wq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], MQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n\n",
+			phba->sli4_hba.mbx_wq->queue_id,
+			phba->sli4_hba.mbx_wq->entry_count,
+			phba->sli4_hba.mbx_wq->host_index,
+			phba->sli4_hba.mbx_wq->hba_index);
+
+	/* Get slow-path work queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path WQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\t\tAssociated CQ-ID [%02d]:\n",
+			phba->sli4_hba.els_wq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], WQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n\n",
+			phba->sli4_hba.els_wq->queue_id,
+			phba->sli4_hba.els_wq->entry_count,
+			phba->sli4_hba.els_wq->host_index,
+			phba->sli4_hba.els_wq->hba_index);
+
+	/* Get fast-path work queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Fast-path WQ information:\n");
+	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count; fcp_qidx++) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\t\tAssociated CQ-ID [%02d]:\n",
+				phba->sli4_hba.fcp_wq[fcp_qidx]->assoc_qid);
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				"\tID [%02d], WQE-COUNT [%04d], "
+				"HOST-INDEX [%04x], PORT-INDEX [%04x]\n",
+				phba->sli4_hba.fcp_wq[fcp_qidx]->queue_id,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_count,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->host_index,
+				phba->sli4_hba.fcp_wq[fcp_qidx]->hba_index);
+	}
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+
+	/* Get receive queue information */
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"Slow-path RQ information:\n");
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\t\tAssociated CQ-ID [%02d]:\n",
+			phba->sli4_hba.hdr_rq->assoc_qid);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], RHQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n",
+			phba->sli4_hba.hdr_rq->queue_id,
+			phba->sli4_hba.hdr_rq->entry_count,
+			phba->sli4_hba.hdr_rq->host_index,
+			phba->sli4_hba.hdr_rq->hba_index);
+	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			"\tID [%02d], RDQE-COUNT [%04d], "
+			"HOST-INDEX [%04x], PORT-INDEX [%04x]\n",
+			phba->sli4_hba.dat_rq->queue_id,
+			phba->sli4_hba.dat_rq->entry_count,
+			phba->sli4_hba.dat_rq->host_index,
+			phba->sli4_hba.dat_rq->hba_index);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
 #undef lpfc_debugfs_op_disc_trc
 static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
@@ -1772,14 +1968,22 @@ static atomic_t lpfc_debugfs_hba_count;
 /*
  * File operations for the iDiag debugfs
  */
-#undef lpfc_debugfs_op_rdPciCfg
+#undef lpfc_idiag_op_pciCfg
 static const struct file_operations lpfc_idiag_op_pciCfg = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_idiag_pcicfg_open,
+	.open =         lpfc_idiag_open,
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_idiag_pcicfg_read,
 	.write =        lpfc_idiag_pcicfg_write,
-	.release =      lpfc_idiag_pcicfg_release,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_queInfo
+static const struct file_operations lpfc_idiag_op_queInfo = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.read =         lpfc_idiag_queinfo_read,
+	.release =      lpfc_idiag_release,
 };
 
 #endif
@@ -2044,6 +2248,19 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		idiag.offset.last_rd = 0;
 	}
 
+	/* iDiag get PCI function queue information */
+	snprintf(name, sizeof(name), "queInfo");
+	if (!phba->idiag_que_info) {
+		phba->idiag_que_info =
+			debugfs_create_file(name, S_IFREG|S_IRUGO,
+			phba->idiag_root, phba, &lpfc_idiag_op_queInfo);
+		if (!phba->idiag_que_info) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2924 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
 debug_failed:
 	return;
 #endif
@@ -2122,6 +2339,11 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		 * iDiag release
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
+			if (phba->idiag_que_info) {
+				/* iDiag queInfo */
+				debugfs_remove(phba->idiag_que_info);
+				phba->idiag_que_info = NULL;
+			}
 			if (phba->idiag_pci_cfg) {
 				/* iDiag pciCfg */
 				debugfs_remove(phba->idiag_pci_cfg);

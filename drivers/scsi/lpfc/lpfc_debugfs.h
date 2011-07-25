@@ -44,6 +44,9 @@
 #define LPFC_PCI_CFG_RD_BUF_SIZE (LPFC_PCI_CFG_SIZE/2)
 #define LPFC_PCI_CFG_RD_SIZE (LPFC_PCI_CFG_SIZE/4)
 
+/* queue info output buffer size */
+#define LPFC_QUE_INFO_GET_BUF_SIZE 2048
+
 #define SIZE_U8  sizeof(uint8_t)
 #define SIZE_U16 sizeof(uint16_t)
 #define SIZE_U32 sizeof(uint32_t)

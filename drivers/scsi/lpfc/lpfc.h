@@ -799,6 +799,7 @@ struct lpfc_hba {
 	/* iDiag debugfs sub-directory */
 	struct dentry *idiag_root;
 	struct dentry *idiag_pci_cfg;
+	struct dentry *idiag_que_info;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */

@@ -10477,6 +10477,7 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->type = type;
 	cq->subtype = subtype;
 	cq->queue_id = bf_get(lpfc_mbx_cq_create_q_id, &cq_create->u.response);
+	cq->assoc_qid = eq->queue_id;
 	cq->host_index = 0;
 	cq->hba_index = 0;
 
@@ -10671,6 +10672,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 		goto out;
 	}
 	mq->type = LPFC_MQ;
+	mq->assoc_qid = cq->queue_id;
 	mq->subtype = subtype;
 	mq->host_index = 0;
 	mq->hba_index = 0;
@@ -10758,6 +10760,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		goto out;
 	}
 	wq->type = LPFC_WQ;
+	wq->assoc_qid = cq->queue_id;
 	wq->subtype = subtype;
 	wq->host_index = 0;
 	wq->hba_index = 0;
@@ -10875,6 +10878,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		goto out;
 	}
 	hrq->type = LPFC_HRQ;
+	hrq->assoc_qid = cq->queue_id;
 	hrq->subtype = subtype;
 	hrq->host_index = 0;
 	hrq->hba_index = 0;
@@ -10935,6 +10939,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		goto out;
 	}
 	drq->type = LPFC_DRQ;
+	drq->assoc_qid = cq->queue_id;
 	drq->subtype = subtype;
 	drq->host_index = 0;
 	drq->hba_index = 0;
