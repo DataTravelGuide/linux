@@ -2879,12 +2879,30 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	if (nemb_tp == nemb_mse) {
 		ext_buf_cnt = bsg_bf_get(lpfc_mbox_hdr_mse_cnt,
 			&sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr);
+		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_MSE) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2945 Handled SLI_CONFIG(mse) rd, "
+					"ext_buf_cnt(%d) out of range(%d)\n",
+					ext_buf_cnt,
+					LPFC_MBX_SLI_CONFIG_MAX_MSE);
+			rc = -ERANGE;
+			goto job_error;
+		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2941 Handled SLI_CONFIG(mse) rd, "
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
 	} else {
 		/* nemb_tp == nemb_hbd */
 		ext_buf_cnt = sli_cfg_mbx->un.sli_config_emb1_subsys.hbd_count;
+		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_HBD) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2946 Handled SLI_CONFIG(hbd) rd, "
+					"ext_buf_cnt(%d) out of range(%d)\n",
+					ext_buf_cnt,
+					LPFC_MBX_SLI_CONFIG_MAX_HBD);
+			rc = -ERANGE;
+			goto job_error;
+		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2942 Handled SLI_CONFIG(hbd) rd, "
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
@@ -3016,12 +3034,28 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	if (nemb_tp == nemb_mse) {
 		ext_buf_cnt = bsg_bf_get(lpfc_mbox_hdr_mse_cnt,
 			&sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr);
+		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_MSE) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2953 Handled SLI_CONFIG(mse) wr, "
+					"ext_buf_cnt(%d) out of range(%d)\n",
+					ext_buf_cnt,
+					LPFC_MBX_SLI_CONFIG_MAX_MSE);
+			return -ERANGE;
+		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2949 Handled SLI_CONFIG(mse) wr, "
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
 	} else {
 		/* nemb_tp == nemb_hbd */
 		ext_buf_cnt = sli_cfg_mbx->un.sli_config_emb1_subsys.hbd_count;
+		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_HBD) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2954 Handled SLI_CONFIG(hbd) wr, "
+					"ext_buf_cnt(%d) out of range(%d)\n",
+					ext_buf_cnt,
+					LPFC_MBX_SLI_CONFIG_MAX_HBD);
+			return -ERANGE;
+		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2950 Handled SLI_CONFIG(hbd) wr, "
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
