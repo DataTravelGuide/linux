@@ -5834,7 +5834,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 * to read FCoE param config regions
 	 */
 	if (lpfc_sli4_read_fcoe_params(phba, mboxq))
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
 			"2570 Failed to read FCoE parameters\n");
 
 	/* Issue READ_REV to collect vpd and FW information. */
@@ -6853,10 +6853,15 @@ lpfc_sli4_post_sync_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	lpfc_sli_pcimem_bcopy(&mbox_rgn->mcqe, &mboxq->mcqe,
 			      sizeof(struct lpfc_mcqe));
 	mcqe_status = bf_get(lpfc_mcqe_status, &mbox_rgn->mcqe);
-
-	/* Prefix the mailbox status with range x4000 to note SLI4 status. */
+	/*
+	 * When the CQE status indicates a failure and the mailbox status
+	 * indicates success then copy the CQE status into the mailbox status
+	 * (and prefix it with x4000).
+	 */
 	if (mcqe_status != MB_CQE_STATUS_SUCCESS) {
-		bf_set(lpfc_mqe_status, mb, LPFC_MBX_ERROR_RANGE | mcqe_status);
+		if (bf_get(lpfc_mqe_status, mb) == MBX_SUCCESS)
+			bf_set(lpfc_mqe_status, mb,
+			       (LPFC_MBX_ERROR_RANGE | mcqe_status));
 		rc = MBXERR_ERROR;
 	} else
 		lpfc_sli4_swap_str(phba, mboxq);
@@ -6928,7 +6933,7 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 		else
 			rc = -EIO;
 		if (rc != MBX_SUCCESS)
-			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
 					"(%d):2541 Mailbox command x%x "
 					"(x%x) cannot issue Data: x%x x%x\n",
 					mboxq->vport ? mboxq->vport->vpi : 0,
