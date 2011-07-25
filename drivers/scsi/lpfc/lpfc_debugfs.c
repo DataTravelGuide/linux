@@ -3540,7 +3540,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				 vport, &lpfc_debugfs_op_nodelist);
 	if (!vport->debug_nodelist) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "9006 Cant create debugfs nodelist\n");
+				 "2985 Can't create debugfs nodelist\n");
 		goto debug_failed;
 	}
 
@@ -3553,7 +3553,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					    phba, &lpfc_debugfs_op_ext_drv);
 		if (!phba->debug_ext_drv) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"9007 Cant create debugfs drv_extents\n");
+				"2986 Cant create debugfs drv_extents\n");
 			goto debug_failed;
 		}
 		snprintf(name, sizeof(name), "avail_extents");

@@ -4886,7 +4886,7 @@ lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
 				     req_len, *emb);
 	if (alloc_len < req_len) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"9000 Allocated DMA memory size (x%x) is "
+			"2982 Allocated DMA memory size (x%x) is "
 			"less than the requested DMA memory "
 			"size (x%x)\n", alloc_len, req_len);
 		return -ENOMEM;
@@ -5729,7 +5729,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 				     req_len, emb);
 	if (alloc_len < req_len) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"9001 Allocated DMA memory size (x%x) is "
+			"2983 Allocated DMA memory size (x%x) is "
 			"less than the requested DMA memory "
 			"size (x%x)\n", alloc_len, req_len);
 		rc = -ENOMEM;
@@ -5777,7 +5777,7 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 	*extnt_cnt = curr_blks;
 	if (bf_get(lpfc_mbox_hdr_status, &shdr->response)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
-			"9005 Failed to read allocated resources "
+			"2984 Failed to read allocated resources "
 			"for type %d - Status 0x%x Add'l Status 0x%x.\n",
 			type,
 			bf_get(lpfc_mbox_hdr_status, &shdr->response),
