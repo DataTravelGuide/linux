@@ -5116,46 +5116,32 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	 * array just stores the ids communicated to the port via the wqes.
 	 */
 	for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
-		if ((i % 2) == 0) {
+		if ((i % 2) == 0)
 			rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
 					 &id_array[k]);
-			rsrc_blks = kzalloc(length, GFP_KERNEL);
-			if (unlikely(!rsrc_blks)) {
-				rc = -ENOMEM;
-				kfree(bmask);
-				kfree(ids);
-				goto err_exit;
-			}
-			rsrc_blks->rsrc_start = rsrc_id;
-			rsrc_blks->rsrc_size = rsrc_size;
-			list_add_tail(&rsrc_blks->list, ext_blk_list);
-			rsrc_start = rsrc_id;
-			while (rsrc_id < (rsrc_start + rsrc_size)) {
-				ids[j] = rsrc_id;
-				rsrc_id++;
-				j++;
-			}
-		} else {
+		else
 			rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
 					 &id_array[k]);
-			rsrc_blks = kzalloc(length, GFP_KERNEL);
-			if (unlikely(!rsrc_blks)) {
-				kfree(bmask);
-				kfree(ids);
-				rc = -ENOMEM;
-				goto err_exit;
-			}
-			rsrc_blks->rsrc_start = rsrc_id;
-			rsrc_blks->rsrc_size = rsrc_size;
-			list_add_tail(&rsrc_blks->list, ext_blk_list);
-			rsrc_start = rsrc_id;
-			while (rsrc_id < (rsrc_start + rsrc_size)) {
-				ids[j] = rsrc_id;
-				rsrc_id++;
-				j++;
-			}
-			k++;
+
+		rsrc_blks = kzalloc(length, GFP_KERNEL);
+		if (unlikely(!rsrc_blks)) {
+			rc = -ENOMEM;
+			kfree(bmask);
+			kfree(ids);
+			goto err_exit;
 		}
+		rsrc_blks->rsrc_start = rsrc_id;
+		rsrc_blks->rsrc_size = rsrc_size;
+		list_add_tail(&rsrc_blks->list, ext_blk_list);
+		rsrc_start = rsrc_id;
+		while (rsrc_id < (rsrc_start + rsrc_size)) {
+			ids[j] = rsrc_id;
+			rsrc_id++;
+			j++;
+		}
+		/* Entire word processed.  Get next word.*/
+		if ((i % 2) == 1)
+			k++;
 	}
  err_exit:
 	lpfc_sli4_mbox_cmd_free(phba, mbox);
