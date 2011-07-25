@@ -485,6 +485,56 @@ fail:
 }
 
 /**
+ * lpfc_check_clean_addr_bit - Check whether assigned FCID is clean.
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @sp: pointer to service parameter data structure.
+ *
+ * This routine is called from FLOGI/FDISC completion handler functions.
+ * lpfc_check_clean_addr_bit return 1 when FCID/Fabric portname/ Fabric
+ * node nodename is changed in the completion service parameter else return
+ * 0. This function also set flag in the vport data structure to delay
+ * NP_Port discovery after the FLOGI/FDISC completion if Clean address bit
+ * in FLOGI/FDISC response is cleared and FCID/Fabric portname/ Fabric
+ * node nodename is changed in the completion service parameter.
+ *
+ * Return code
+ *   0 - FCID and Fabric Nodename and Fabric portname is not changed.
+ *   1 - FCID or Fabric Nodename or Fabric portname is changed.
+ *
+ **/
+static uint8_t
+lpfc_check_clean_addr_bit(struct lpfc_vport *vport,
+		struct serv_parm *sp)
+{
+	uint8_t fabric_param_changed = 0;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	if ((vport->fc_prevDID != vport->fc_myDID) ||
+		memcmp(&vport->fabric_portname, &sp->portName,
+			sizeof(struct lpfc_name)) ||
+		memcmp(&vport->fabric_nodename, &sp->nodeName,
+			sizeof(struct lpfc_name)))
+		fabric_param_changed = 1;
+
+	/*
+	 * Word 1 Bit 31 in common service parameter is overloaded.
+	 * Word 1 Bit 31 in FLOGI request is multiple NPort request
+	 * Word 1 Bit 31 in FLOGI response is clean address bit
+	 *
+	 * If fabric parameter is changed and clean address bit is
+	 * cleared delay nport discovery.
+	 */
+	if (fabric_param_changed && !sp->cmn.clean_address_bit) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_DISC_DELAYED;
+		spin_unlock_irq(shost->host_lock);
+	}
+
+	return fabric_param_changed;
+}
+
+
+/**
  * lpfc_cmpl_els_flogi_fabric - Completion function for flogi to a fabric port
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: pointer to a node-list data structure.
@@ -512,6 +562,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *np;
 	struct lpfc_nodelist *next_np;
+	uint8_t fabric_param_changed;
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_FABRIC;
@@ -544,6 +595,12 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe = ((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 				sp->cmn.bbRcvSizeLsb;
+
+	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
+	memcpy(&vport->fabric_portname, &sp->portName,
+			sizeof(struct lpfc_name));
+	memcpy(&vport->fabric_nodename, &sp->nodeName,
+			sizeof(struct lpfc_name));
 	memcpy(&phba->fc_fabparam, sp, sizeof(struct serv_parm));
 
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
@@ -565,7 +622,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 	}
 
-	if ((vport->fc_prevDID != vport->fc_myDID) &&
+	if (fabric_param_changed &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
 
 		/* If our NportID changed, we need to ensure all
@@ -6627,6 +6684,21 @@ void
 lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp, *ndlp_fdmi;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	/*
+	 * If lpfc_delay_discovery parameter is set and the clean address
+	 * bit is cleared and fc fabric parameters chenged, delay FC NPort
+	 * discovery.
+	 */
+	spin_lock_irq(shost->host_lock);
+	if (lpfc_delay_discovery && vport->fc_flag & FC_DISC_DELAYED) {
+		spin_unlock_irq(shost->host_lock);
+		mod_timer(&vport->delayed_disc_tmo,
+			jiffies + HZ * phba->fc_ratov);
+		return;
+	}
+	spin_unlock_irq(shost->host_lock);
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
 	if (!ndlp) {
@@ -6969,6 +7041,9 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *next_np;
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_iocbq *piocb;
+	struct lpfc_dmabuf *pcmd = cmdiocb->context2, *prsp;
+	struct serv_parm *sp;
+	uint8_t fabric_param_changed;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0123 FDISC completes. x%x/x%x prevDID: x%x\n",
@@ -7012,7 +7087,14 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
 	lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
-	if ((vport->fc_prevDID != vport->fc_myDID) &&
+	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
+	sp = prsp->virt + sizeof(uint32_t);
+	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
+	memcpy(&vport->fabric_portname, &sp->portName,
+		sizeof(struct lpfc_name));
+	memcpy(&vport->fabric_nodename, &sp->nodeName,
+		sizeof(struct lpfc_name));
+	if (fabric_param_changed &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
 		/* If our NportID changed, we need to ensure all
 		 * remaining NPORTs get unreg_login'ed so we can
