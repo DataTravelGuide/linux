@@ -12463,7 +12463,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 int
 lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 {
-	uint16_t xri;
+	unsigned long xri;
 
 	/*
 	 * Fetch the next logical xri.  Because this index is logical,
@@ -12472,9 +12472,9 @@ lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	xri = find_next_zero_bit(phba->sli4_hba.xri_bmask,
 				 phba->sli4_hba.max_cfg_param.max_xri, 0);
-	if (xri == -1) {
+	if (xri >= phba->sli4_hba.max_cfg_param.max_xri) {
 		spin_unlock_irq(&phba->hbalock);
-		return xri;
+		return -1;
 	} else {
 		set_bit(xri, phba->sli4_hba.xri_bmask);
 		phba->sli4_hba.max_cfg_param.xri_used++;
@@ -13864,7 +13864,7 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 int
 lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 {
-	int rpi;
+	unsigned long rpi;
 	uint16_t max_rpi, rpi_limit;
 	uint16_t rpi_remaining, lrpi = 0;
 	struct lpfc_rpi_hdr *rpi_hdr;
