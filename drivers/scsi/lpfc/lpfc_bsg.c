@@ -2772,7 +2772,7 @@ lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	/* free base driver mailbox structure memory */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 
-	if (rc)
+	if (rc || phba->mbox_ext_buf_ctx.numBuf == 1)
 		lpfc_bsg_mbox_ext_session_reset(phba);
 
 	return;
