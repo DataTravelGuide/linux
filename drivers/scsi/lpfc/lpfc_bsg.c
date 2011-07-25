@@ -3555,6 +3555,13 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	mbox_req =
 	    (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
 
+	/* sanity check to protect driver */
+	if (job->reply_payload.payload_len > BSG_MBOX_SIZE ||
+	    job->request_payload.payload_len > BSG_MBOX_SIZE) {
+		rc = -ERANGE;
+		goto job_done;
+	}
+
 	/* check if requested extended data lengths are valid */
 	if ((mbox_req->inExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t)) ||
 	    (mbox_req->outExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t))) {
