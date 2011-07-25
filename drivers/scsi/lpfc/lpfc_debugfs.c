@@ -2027,7 +2027,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 		}
 		goto error_out;
 		break;
-	case LPFC_IDIAG_WQ:
+	case LPFC_IDIAG_MQ:
 		/* MBX work queue */
 		if (phba->sli4_hba.mbx_wq->queue_id == queid) {
 			/* Sanity check */
@@ -2038,6 +2038,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			idiag.ptr_private = phba->sli4_hba.mbx_wq;
 			goto pass_check;
 		}
+		break;
+	case LPFC_IDIAG_WQ:
 		/* ELS work queue */
 		if (phba->sli4_hba.els_wq->queue_id == queid) {
 			/* Sanity check */

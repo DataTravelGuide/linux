@@ -59,8 +59,9 @@
 
 #define LPFC_IDIAG_EQ 1
 #define LPFC_IDIAG_CQ 2
-#define LPFC_IDIAG_WQ 3
-#define LPFC_IDIAG_RQ 4
+#define LPFC_IDIAG_MQ 3
+#define LPFC_IDIAG_WQ 4
+#define LPFC_IDIAG_RQ 5
 
 /* doorbell acc */
 #define LPFC_DRB_ACC_ALL 0xffff
