@@ -1607,7 +1607,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tEQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
 			phba->sli4_hba.sp_eq->queue_id,
 			phba->sli4_hba.sp_eq->entry_count,
 			phba->sli4_hba.sp_eq->entry_size,
@@ -1621,7 +1621,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tEQID[%02d], "
 				"QE-COUNT[%04d], QE-SIZE[%04d], "
-				"HOST-INDEX[%04x], PORT-INDEX[%04x]\n",
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
 				phba->sli4_hba.fp_eq[fcp_qidx]->queue_id,
 				phba->sli4_hba.fp_eq[fcp_qidx]->entry_count,
 				phba->sli4_hba.fp_eq[fcp_qidx]->entry_size,
@@ -1639,7 +1639,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tCQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
 			phba->sli4_hba.mbx_cq->queue_id,
 			phba->sli4_hba.mbx_cq->entry_count,
 			phba->sli4_hba.mbx_cq->entry_size,
@@ -1655,7 +1655,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tCQID [%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
 			phba->sli4_hba.els_cq->queue_id,
 			phba->sli4_hba.els_cq->entry_count,
 			phba->sli4_hba.els_cq->entry_size,
@@ -1672,7 +1672,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tCQID[%02d], "
 				"QE-COUNT[%04d], QE-SIZE[%04d], "
-				"HOST-INDEX[%04x], PORT-INDEX[%04x]\n",
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
 				phba->sli4_hba.fcp_cq[fcp_qidx]->queue_id,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_count,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_size,
@@ -1690,7 +1690,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tWQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
 			phba->sli4_hba.mbx_wq->queue_id,
 			phba->sli4_hba.mbx_wq->entry_count,
 			phba->sli4_hba.mbx_wq->entry_size,
@@ -1706,7 +1706,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tWQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
 			phba->sli4_hba.els_wq->queue_id,
 			phba->sli4_hba.els_wq->entry_count,
 			phba->sli4_hba.els_wq->entry_size,
@@ -1723,7 +1723,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tWQID[%02d], "
 				"QE-COUNT[%04d], WQE-SIZE[%04d], "
-				"HOST-INDEX[%04x], PORT-INDEX[%04x]\n",
+				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
 				phba->sli4_hba.fcp_wq[fcp_qidx]->queue_id,
 				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_count,
 				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_size,
@@ -1741,7 +1741,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tHQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
 			phba->sli4_hba.hdr_rq->queue_id,
 			phba->sli4_hba.hdr_rq->entry_count,
 			phba->sli4_hba.hdr_rq->entry_size,
@@ -1750,7 +1750,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tDQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04x], PORT-INDEX[%04x]\n",
+			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
 			phba->sli4_hba.dat_rq->queue_id,
 			phba->sli4_hba.dat_rq->entry_count,
 			phba->sli4_hba.dat_rq->entry_size,
