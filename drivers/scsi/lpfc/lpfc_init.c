@@ -4878,6 +4878,8 @@ lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
 		return rc;
 	}
+	if (phba->sli4_hba.extents_in_use)
+		return -EIO;
 
 	rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 	if (!rpi_hdr) {
@@ -4919,7 +4921,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		return NULL;
 	if (phba->sli4_hba.extents_in_use)
-		return -EIO;
+		return NULL;
 
 	/* The limit on the logical index is just the max_rpi count. */
 	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
