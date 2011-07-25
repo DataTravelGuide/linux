@@ -5263,24 +5263,22 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 
 	/* Release kernel memory resources for the specific type. */
 	switch (type) {
-	case LPFC_RSC_TYPE_FCOE_RPI:
-		lpfc_sli4_remove_rpis(phba);
-		break;
 	case LPFC_RSC_TYPE_FCOE_VPI:
 		kfree(phba->vpi_bmask);
-		kfree(phba->vpi_bmask);
+		kfree(phba->vpi_ids);
 		bf_set(lpfc_vpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		break;
 	case LPFC_RSC_TYPE_FCOE_XRI:
 		kfree(phba->sli4_hba.xri_bmask);
-		kfree(phba->sli4_hba.xri_bmask);
+		kfree(phba->sli4_hba.xri_ids);
 		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		break;
 	case LPFC_RSC_TYPE_FCOE_VFI:
 		kfree(phba->sli4_hba.vfi_bmask);
-		kfree(phba->sli4_hba.vfi_bmask);
+		kfree(phba->sli4_hba.vfi_ids);
 		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		break;
+	case LPFC_RSC_TYPE_FCOE_RPI:
 	default:
 		break;
 	}
@@ -12824,19 +12822,20 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
 					 &shdr->response);
-		if (rc != MBX_TIMEOUT)
-			lpfc_sli4_mbox_cmd_free(phba, mbox);
 		if (shdr_status || shdr_add_status || rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"2935 POST_SGL_BLOCK mailbox command "
 					"failed status x%x add_status x%x "
 					"mbx status x%x\n",
 					shdr_status, shdr_add_status, rc);
-			rc = -ENXIO;
+			if (rc != MBX_TIMEOUT)
+				lpfc_sli4_mbox_cmd_free(phba, mbox);
+			return -ENXIO;
 		}
 		if (xri_count == phba->sli4_hba.scsi_xri_max)
 			break;
 	}
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return rc;
 }
 
