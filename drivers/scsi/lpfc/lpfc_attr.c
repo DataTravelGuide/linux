@@ -745,7 +745,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 	int status = -EINVAL;
 
 	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
-		status = lpfc_selective_reset(phba);
+		status = phba->lpfc_selective_reset(phba);
 
 	if (status == 0)
 		return strlen(buf);
