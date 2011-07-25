@@ -1903,6 +1903,7 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 
 	/* Set up host requested features. */
 	bf_set(lpfc_mbx_rq_ftr_rq_fcpi, &mboxq->u.mqe.un.req_ftrs, 1);
+	bf_set(lpfc_mbx_rq_ftr_rq_perfh, &mboxq->u.mqe.un.req_ftrs, 1);
 
 	/* Enable DIF (block guard) only if configured to do so. */
 	if (phba->cfg_enable_bg)
@@ -2160,17 +2161,16 @@ lpfc_supported_pages(struct lpfcMboxq *mbox)
 }
 
 /**
- * lpfc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params
- *                    mailbox command.
+ * lpfc_pc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params mbox cmd.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
  * The PORT_CAPABILITIES SLI4 parameters mailbox command is issued to
  * retrieve the particular SLI4 features supported by the port.
  **/
 void
-lpfc_sli4_params(struct lpfcMboxq *mbox)
+lpfc_pc_sli4_params(struct lpfcMboxq *mbox)
 {
-	struct lpfc_mbx_sli4_params *sli4_params;
+	struct lpfc_mbx_pc_sli4_params *sli4_params;
 
 	memset(mbox, 0, sizeof(*mbox));
 	sli4_params = &mbox->u.mqe.un.sli4_params;
