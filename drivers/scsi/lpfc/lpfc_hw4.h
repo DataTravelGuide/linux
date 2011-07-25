@@ -2629,7 +2629,11 @@ struct xmit_els_rsp64_wqe {
 	uint32_t rsvd4;
 	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t word12;
+#define wqe_rsp_temp_rpi_SHIFT    0
+#define wqe_rsp_temp_rpi_MASK     0x0000FFFF
+#define wqe_rsp_temp_rpi_WORD     word12
+	uint32_t rsvd_13_15[3];
 };
 
 struct xmit_bls_rsp64_wqe {
