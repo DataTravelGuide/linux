@@ -850,10 +850,7 @@ struct lpfc_hba {
 	struct dentry *idiag_drb_acc;
 	struct dentry *idiag_ctl_acc;
 	struct dentry *idiag_mbx_acc;
-	/* Extents debugfs entries. */
-	struct dentry *debug_ext_drv;
-	struct dentry *debug_ext_avail;
-	struct dentry *debug_ext_alloc;
+	struct dentry *idiag_ext_acc;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */

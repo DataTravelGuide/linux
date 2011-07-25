@@ -122,6 +122,17 @@
 #define LPFC_MBX_DMP_ALL (LPFC_BSG_MBX_DMP_ALL | \
 			  LPFC_MBX_DMP_ISSUE_MBX_ALL)
 
+/* extents access */
+#define LPFC_EXT_ACC_CMD_ARG 1
+#define LPFC_EXT_ACC_BUF_SIZE 4096
+
+#define LPFC_EXT_ACC_AVAIL 0x1
+#define LPFC_EXT_ACC_ALLOC 0x2
+#define LPFC_EXT_ACC_DRIVR 0x4
+#define LPFC_EXT_ACC_ALL   (LPFC_EXT_ACC_DRIVR | \
+			    LPFC_EXT_ACC_AVAIL | \
+			    LPFC_EXT_ACC_ALLOC)
+
 #define SIZE_U8  sizeof(uint8_t)
 #define SIZE_U16 sizeof(uint16_t)
 #define SIZE_U32 sizeof(uint32_t)
@@ -171,7 +182,10 @@ struct lpfc_idiag_cmd {
 #define LPFC_IDIAG_CMD_CTLACC_ST 0x00000033
 #define LPFC_IDIAG_CMD_CTLACC_CL 0x00000034
 
-#define LPFC_IDIAG_CMD_MBXACC_DP 0x00000040
+#define LPFC_IDIAG_CMD_MBXACC_DP 0x00000041
+
+#define LPFC_IDIAG_CMD_EXTACC_RD 0x00000051
+
 	uint32_t data[LPFC_IDIAG_CMD_DATA_SIZE];
 };
 

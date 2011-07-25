@@ -1022,220 +1022,6 @@ out:
 }
 
 /**
- * lpfc_debugfs_ext_drv_read -
- * @inode: The inode pointer that contains a vport pointer.
- * @file: The file pointer to attach the log output.
- *
- * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
- *
- * Returns:
- * This function returns zero if successful. On error it will return an negative
- * error value.
- **/
-static ssize_t
-lpfc_debugfs_ext_drv_read(struct file *file, char __user *buf, size_t nbytes,
-			  loff_t *ppos)
-{
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
-	char *pbuffer;
-	int len, index;
-	struct lpfc_rsrc_blks *rsrc_blks;
-
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
-		return 0;
-
-	debug->len = LPFC_QUE_INFO_GET_BUF_SIZE;
-	pbuffer = debug->buffer;
-	len = 0;
-	index = 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"VPI extents:\n");
-	list_for_each_entry(rsrc_blks, &phba->lpfc_vpi_blk_list, list) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-				"Block %d Start %d Count %d\n",
-				index, rsrc_blks->rsrc_start,
-				rsrc_blks->rsrc_size);
-		index++;
-	}
-	index = 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"\nVFI extents:\n");
-	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_vfi_blk_list,
-			    list) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-				"Block %d Start %d Count %d\n",
-				index, rsrc_blks->rsrc_start,
-				rsrc_blks->rsrc_size);
-		index++;
-	}
-	index = 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"\nRPI extents:\n");
-	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_rpi_blk_list,
-			    list) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-				"Block %d Start %d Count %d\n",
-				index, rsrc_blks->rsrc_start,
-				rsrc_blks->rsrc_size);
-		index++;
-	}
-	index = 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"\nXRI extents:\n");
-	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_xri_blk_list,
-			    list) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-				"Block %d Start %d Count %d\n",
-				index, rsrc_blks->rsrc_start,
-				rsrc_blks->rsrc_size);
-		index++;
-	}
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n\n");
-	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer, len);
-}
-
-/**
- * lpfc_debugfs_ext_avail_read -
- * @inode: The inode pointer that contains a vport pointer.
- * @file: The file pointer to attach the log output.
- *
- * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
- *
- * Returns:
- * This function returns zero if successful. On error it will return an negative
- * error value.
- **/
-static ssize_t
-lpfc_debugfs_ext_avail_read(struct file *file, char __user *buf, size_t nbytes,
-			    loff_t *ppos)
-{
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
-	char *pbuffer;
-	int len;
-	uint16_t ext_cnt, ext_size;
-
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
-		return 0;
-
-	debug->len = LPFC_QUE_INFO_GET_BUF_SIZE;
-	pbuffer = debug->buffer;
-	len = 0;
-	ext_cnt = 0;
-	ext_size = 0;
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port Available VPI extents: ");
-	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VPI, &ext_cnt,
-				       &ext_size);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Cnt %d Sz %d\n", ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port Available VFI extents: ");
-	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VFI, &ext_cnt,
-				       &ext_size);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Cnt %d Sz %d\n", ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port Available RPI extents: ");
-	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_RPI, &ext_cnt,
-				       &ext_size);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Cnt %d Sz %d\n", ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port Available XRI extents: ");
-	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_XRI, &ext_cnt,
-				       &ext_size);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Cnt %d Sz %d\n", ext_cnt, ext_size);
-	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer, len);
-}
-
-/**
- * lpfc_debugfs_ext_alloc_read -
- * @inode: The inode pointer that contains a vport pointer.
- * @file: The file pointer to attach the log output.
- *
- * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
- *
- * Returns:
- * This function returns zero if successful. On error it will return an negative
- * error value.
- **/
-static ssize_t
-lpfc_debugfs_ext_alloc_read(struct file *file, char __user *buf, size_t nbytes,
-			    loff_t *ppos)
-{
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
-	uint16_t ext_cnt, ext_size;
-	char *pbuffer;
-	int len, rc;
-
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
-		return 0;
-
-	debug->len = LPFC_QUE_INFO_GET_BUF_SIZE;
-		pbuffer = debug->buffer;
-	len = 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Host Allocated VPI extents: ");
-	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VPI,
-					    &ext_cnt, &ext_size);
-	if (rc)
-		return 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port %d Ext: %d Sz %d\n",
-			phba->brd_no, ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Host Allocated VFI extents: ");
-	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VFI,
-					    &ext_cnt, &ext_size);
-	if (rc)
-		return 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port %d Ext %d Sz %d\n",
-			phba->brd_no, ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Host Allocated RPI extents: ");
-	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_RPI,
-					    &ext_cnt, &ext_size);
-	if (rc)
-		return 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port %d Ext %d Sz %d\n",
-			phba->brd_no, ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Host Allocated XRI extents: ");
-	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_XRI,
-					    &ext_cnt, &ext_size);
-	if (rc)
-		return 0;
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Port %d Ext %d Size %d\n",
-			phba->brd_no, ext_cnt, ext_size);
-
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
-	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer, len);
-}
-
-/**
  * lpfc_debugfs_lseek - Seek through a debugfs file
  * @file: The file pointer to seek through.
  * @off: The offset to seek to or the amount to seek by.
@@ -1297,38 +1083,6 @@ lpfc_debugfs_read(struct file *file, char __user *buf,
 
 	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer,
 				       debug->len);
-}
-
-/**
- * lpfc_debugfs_open - Open and initialize a debugfs entry.
- * @inode: The inode pointer that contains a vport pointer.
- * @file: The file pointer that contains the buffer to release.
- *
- * Description:
- * This routine allocates the buffer used to process a debugfs data reqeust.
- *
- * Returns:
- * This function returns zero.
- **/
-static int
-lpfc_debugfs_open(struct inode *inode, struct file *file)
-{
-	struct lpfc_debug *debug;
-
-	debug = kmalloc(sizeof(struct lpfc_debug), GFP_KERNEL);
-	if (!debug)
-		return -ENOMEM;
-
-	/*
-	 * Store the private data (vport) and the debug pointer for
-	 * the data handler.  The buffer is allocated and filled
-	 * in by the handler directly.
-	 */
-	debug->i_private = inode->i_private;
-	debug->buffer = NULL;
-	file->private_data = debug;
-
-	return 0;
 }
 
 /**
@@ -2715,7 +2469,7 @@ lpfc_idiag_ctlacc_write(struct file *file, const char __user *buf,
 {
 	struct lpfc_debug *debug = file->private_data;
 	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
-	uint32_t ctl_reg_id, value, reg_val;
+	uint32_t ctl_reg_id, value, reg_val = 0;
 	void __iomem *ctl_reg;
 	int rc;
 
@@ -2960,6 +2714,294 @@ error_out:
 	return -EINVAL;
 }
 
+/**
+ * lpfc_idiag_extacc_avail_get - get the available extents information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the available extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_avail_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	uint16_t ext_cnt, ext_size;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nAvailable Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available VPI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VPI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available VFI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_VFI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available RPI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_RPI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tPort Available XRI extents: ");
+	lpfc_sli4_get_avail_extnt_rsrc(phba, LPFC_RSC_TYPE_FCOE_XRI,
+				       &ext_cnt, &ext_size);
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"Count %3d, Size %3d\n", ext_cnt, ext_size);
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_alloc_get - get the allocated extents information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the allocated extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_alloc_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	uint16_t ext_cnt, ext_size;
+	int rc;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nAllocated Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated VPI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VPI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated VFI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_VFI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated RPI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_RPI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tHost Allocated XRI extents: ");
+	rc = lpfc_sli4_get_allocated_extnts(phba, LPFC_RSC_TYPE_FCOE_XRI,
+					    &ext_cnt, &ext_size);
+	if (!rc)
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"Port %d Extent %3d, Size %3d\n",
+				phba->brd_no, ext_cnt, ext_size);
+	else
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"N/A\n");
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_drivr_get - get driver extent information
+ * @phba: pointer to lpfc hba data structure.
+ * @pbuffer: pointer to internal buffer.
+ * @len: length into the internal buffer data has been copied.
+ *
+ * Description:
+ * This routine is to get the driver extent information.
+ *
+ * Returns:
+ * overall lenth of the data read into the internal buffer.
+ **/
+static int
+lpfc_idiag_extacc_drivr_get(struct lpfc_hba *phba, char *pbuffer, int len)
+{
+	struct lpfc_rsrc_blks *rsrc_blks;
+	int index;
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\nDriver Extents Information:\n");
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tVPI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->lpfc_vpi_blk_list, list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tVFI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_vfi_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tRPI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_rpi_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+			"\tXRI extents:\n");
+	index = 0;
+	list_for_each_entry(rsrc_blks, &phba->sli4_hba.lpfc_xri_blk_list,
+			    list) {
+		len += snprintf(pbuffer+len, LPFC_EXT_ACC_BUF_SIZE-len,
+				"\t\tBlock %3d: Start %4d, Count %4d\n",
+				index, rsrc_blks->rsrc_start,
+				rsrc_blks->rsrc_size);
+		index++;
+	}
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_extacc_write - Syntax check and set up idiag extacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for extent information access commands and sets
+ * up the necessary states in the idiag command struct accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_extacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	uint32_t ext_map;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	ext_map = idiag.cmd.data[0];
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
+		goto error_out;
+	if (rc != LPFC_EXT_ACC_CMD_ARG)
+		goto error_out;
+	if (!(ext_map & LPFC_EXT_ACC_ALL))
+		goto error_out;
+
+	return nbytes;
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_extacc_read - idiag debugfs read access to extent information
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the proper extent information according to
+ * the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *pbuffer;
+	uint32_t ext_map;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_EXT_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+	if (*ppos)
+		return 0;
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
+		return 0;
+
+	ext_map = idiag.cmd.data[0];
+	if (ext_map & LPFC_EXT_ACC_AVAIL)
+		len = lpfc_idiag_extacc_avail_get(phba, pbuffer, len);
+	if (ext_map & LPFC_EXT_ACC_ALLOC)
+		len = lpfc_idiag_extacc_alloc_get(phba, pbuffer, len);
+	if (ext_map & LPFC_EXT_ACC_DRIVR)
+		len = lpfc_idiag_extacc_drivr_get(phba, pbuffer, len);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
 #undef lpfc_debugfs_op_disc_trc
 static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
@@ -3034,33 +3076,6 @@ static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 	.release =      lpfc_debugfs_release,
 };
 
-#undef lpfc_debugfs_op_ext_drv
-static const struct file_operations lpfc_debugfs_op_ext_drv = {
-	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_ext_drv_read,
-	.release =      lpfc_debugfs_release,
-};
-
-#undef lpfc_debugfs_op_ext_avail
-static const struct file_operations lpfc_debugfs_op_ext_avail = {
-	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_ext_avail_read,
-	.release =      lpfc_debugfs_release,
-};
-
-#undef lpfc_debugfs_op_ext_alloc
-static const struct file_operations lpfc_debugfs_op_ext_alloc = {
-	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_ext_alloc_read,
-	.release =      lpfc_debugfs_release,
-};
-
 static struct dentry *lpfc_debugfs_root = NULL;
 static atomic_t lpfc_debugfs_hba_count;
 
@@ -3085,7 +3100,7 @@ static const struct file_operations lpfc_idiag_op_queInfo = {
 	.release =      lpfc_idiag_release,
 };
 
-#undef lpfc_idiag_op_queacc
+#undef lpfc_idiag_op_queAcc
 static const struct file_operations lpfc_idiag_op_queAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
@@ -3095,7 +3110,7 @@ static const struct file_operations lpfc_idiag_op_queAcc = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
-#undef lpfc_idiag_op_drbacc
+#undef lpfc_idiag_op_drbAcc
 static const struct file_operations lpfc_idiag_op_drbAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
@@ -3105,7 +3120,7 @@ static const struct file_operations lpfc_idiag_op_drbAcc = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
-#undef lpfc_idiag_op_ctlacc
+#undef lpfc_idiag_op_ctlAcc
 static const struct file_operations lpfc_idiag_op_ctlAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
@@ -3115,13 +3130,23 @@ static const struct file_operations lpfc_idiag_op_ctlAcc = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
-#undef lpfc_idiag_op_mbxacc
+#undef lpfc_idiag_op_mbxAcc
 static const struct file_operations lpfc_idiag_op_mbxAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_idiag_mbxacc_read,
 	.write =        lpfc_idiag_mbxacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_extAcc
+static const struct file_operations lpfc_idiag_op_extAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_extacc_read,
+	.write =        lpfc_idiag_extacc_write,
 	.release =      lpfc_idiag_cmd_release,
 };
 
@@ -3544,40 +3569,6 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		goto debug_failed;
 	}
 
-	/* Extents must be supported by an SLI4 port. */
-	if (phba->sli4_hba.extents_in_use) {
-		snprintf(name, sizeof(name), "drv_extents");
-		phba->debug_ext_drv =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_ext_drv);
-		if (!phba->debug_ext_drv) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"2986 Cant create debugfs drv_extents\n");
-			goto debug_failed;
-		}
-		snprintf(name, sizeof(name), "avail_extents");
-		phba->debug_ext_avail =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_ext_avail);
-		if (!phba->debug_ext_avail) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"9008 Cant create debugfs avail_extents\n");
-			goto debug_failed;
-		}
-		snprintf(name, sizeof(name), "alloc_extents");
-		phba->debug_ext_alloc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_ext_alloc);
-		if (!phba->debug_ext_alloc) {
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				"9009 Cant create debugfs alloc_extents\n");
-			goto debug_failed;
-		}
-	}
-
 	/*
 	 * iDiag debugfs root entry points for SLI4 device only
 	 */
@@ -3676,6 +3667,23 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
+	/* iDiag extents access commands */
+	if (phba->sli4_hba.extents_in_use) {
+		snprintf(name, sizeof(name), "extAcc");
+		if (!phba->idiag_ext_acc) {
+			phba->idiag_ext_acc =
+				debugfs_create_file(name,
+						    S_IFREG|S_IRUGO|S_IWUSR,
+						    phba->idiag_root, phba,
+						    &lpfc_idiag_op_extAcc);
+			if (!phba->idiag_ext_acc) {
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+						"2986 Cant create "
+						"idiag debugfs\n");
+				goto debug_failed;
+			}
+		}
+	}
 
 debug_failed:
 	return;
@@ -3749,28 +3757,16 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 			debugfs_remove(phba->debug_slow_ring_trc);
 			phba->debug_slow_ring_trc = NULL;
 		}
-		if (phba->sli4_hba.extents_in_use) {
-			if (phba->debug_ext_drv) {
-				/* driver extents in use. */
-				debugfs_remove(phba->debug_ext_drv);
-				phba->debug_ext_drv = NULL;
-			}
-			if (phba->debug_ext_avail) {
-				/* avail extents from port. */
-				debugfs_remove(phba->debug_ext_avail);
-				phba->debug_ext_avail = NULL;
-			}
-			if (phba->debug_ext_alloc) {
-				/* allocated extents from port. */
-				debugfs_remove(phba->debug_ext_alloc);
-				phba->debug_ext_alloc = NULL;
-			}
-		}
 
 		/*
 		 * iDiag release
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
+			if (phba->idiag_ext_acc) {
+				/* iDiag extAcc */
+				debugfs_remove(phba->idiag_ext_acc);
+				phba->idiag_ext_acc = NULL;
+			}
 			if (phba->idiag_mbx_acc) {
 				/* iDiag mbxAcc */
 				debugfs_remove(phba->idiag_mbx_acc);
