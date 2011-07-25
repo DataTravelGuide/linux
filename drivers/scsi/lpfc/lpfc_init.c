@@ -5484,7 +5484,8 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
-				bf_get(lpfc_sliport_status_err, &reg_data)) {
+				(bf_get(lpfc_sliport_status_err, &reg_data) &&
+				 !bf_get(lpfc_sliport_status_rn, &reg_data))) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
