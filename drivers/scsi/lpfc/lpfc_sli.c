@@ -4858,7 +4858,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		return -EIO;
 
 	if ((rsrc_cnt == 0) || (rsrc_size == 0)) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT,
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
 			"3008 No available Resource Extents "
 			"for resource type 0x%x: Count: 0x%x, "
 			"Size 0x%x\n", type, rsrc_cnt,
@@ -4870,7 +4870,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		BITS_PER_LONG;
 	rsrc_id_cnt = rsrc_cnt * rsrc_size;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT,
 			"2903 Available Resource Extents "
 			"for resource type 0x%x: Count: 0x%x, "
 			"Size 0x%x\n", type, rsrc_cnt,
@@ -5784,7 +5784,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Register SCSI SGL pool to the device */
 	rc = lpfc_sli4_repost_scsi_sgl_list(phba);
 	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 				"0383 Error %d during scsi sgl post "
 				"operation\n", rc);
 		/* Some Scsi buffers were moved to the abort scsi list */
