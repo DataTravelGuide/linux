@@ -248,7 +248,7 @@ nvc0_graph_object_new(struct nouveau_channel *chan, int engine,
 }
 
 static int
-nvc0_graph_fini(struct drm_device *dev, int engine)
+nvc0_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	return 0;
 }
@@ -682,7 +682,7 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xc4:
 		break;
 	default:
-		NV_ERROR(dev, "PGRAPH: unsupported chipset, please report!\n");
+		NV_INFO(dev, "PGRAPH: unsupported chipset, please report!\n");
 		return 0;
 	}
 

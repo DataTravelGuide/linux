@@ -135,13 +135,14 @@ static void load_vbios_pramin(struct drm_device *dev, uint8_t *data)
 	int i;
 
 	if (dev_priv->card_type >= NV_50) {
-		uint32_t vbios_vram = (nv_rd32(dev, 0x619f04) & ~0xff) << 8;
-
-		if (!vbios_vram)
-			vbios_vram = (nv_rd32(dev, 0x1700) << 16) + 0xf0000;
+		u64 addr = (u64)(nv_rd32(dev, 0x619f04) & 0xffffff00) << 8;
+		if (!addr) {
+			addr  = (u64)nv_rd32(dev, 0x1700) << 16;
+			addr += 0xf0000;
+		}
 
 		old_bar0_pramin = nv_rd32(dev, 0x1700);
-		nv_wr32(dev, 0x1700, vbios_vram >> 16);
+		nv_wr32(dev, 0x1700, addr >> 16);
 	}
 
 	/* bail if no rom signature */
@@ -5186,7 +5187,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	load_table_ptr = ROM16(bios->data[bitentry->offset]);
 
 	if (load_table_ptr == 0x0) {
-		NV_ERROR(dev, "Pointer to BIT loadval table invalid\n");
+		NV_DEBUG(dev, "Pointer to BIT loadval table invalid\n");
 		return -EINVAL;
 	}
 
