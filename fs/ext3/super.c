@@ -44,6 +44,9 @@
 #include "acl.h"
 #include "namei.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ext3.h>
+
 #ifdef CONFIG_EXT3_DEFAULTS_TO_ORDERED
   #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_ORDERED_DATA
 #else
@@ -2514,6 +2517,7 @@ static int ext3_sync_fs(struct super_block *sb, int wait)
 {
 	tid_t target;
 
+	trace_ext3_sync_fs(sb, wait);
 	if (journal_start_commit(EXT3_SB(sb)->s_journal, &target)) {
 		if (wait)
 			log_wait_commit(EXT3_SB(sb)->s_journal, target);
