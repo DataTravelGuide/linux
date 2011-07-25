@@ -628,7 +628,7 @@ lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *vport)
 				&phba->sli4_hba.lpfc_abts_scsi_buf_list, list) {
 		if (psb->rdata && psb->rdata->pnode
 			&& psb->rdata->pnode->vport == vport)
-			psb->rdata = NULL;;
+			psb->rdata = NULL;
 	}
 	spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
