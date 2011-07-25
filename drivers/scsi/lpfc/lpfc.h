@@ -488,22 +488,22 @@ struct unsol_rcv_ct_ctx {
 #define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
 
 enum nemb_type {
-	nemb_mse,
+	nemb_mse = 1,
 	nemb_hbd
 };
 
 enum mbox_type {
-	mbox_rd,
+	mbox_rd = 1,
 	mbox_wr
 };
 
 enum dma_type {
-	dma_mbox,
+	dma_mbox = 1,
 	dma_ebuf
 };
 
 enum sta_type {
-	sta_pre_addr,
+	sta_pre_addr = 1,
 	sta_pos_addr
 };
 
