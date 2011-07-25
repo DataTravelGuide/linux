@@ -1059,6 +1059,11 @@ struct rq_context {
 #define lpfc_rq_context_rqe_size_SHIFT	8		/* Version 1 Only */
 #define lpfc_rq_context_rqe_size_MASK	0x0000000F
 #define lpfc_rq_context_rqe_size_WORD	word0
+#define LPFC_RQE_SIZE_8		2
+#define LPFC_RQE_SIZE_16	3
+#define LPFC_RQE_SIZE_32	4
+#define LPFC_RQE_SIZE_64	5
+#define LPFC_RQE_SIZE_128	6
 #define lpfc_rq_context_page_size_SHIFT	0		/* Version 1 Only */
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
