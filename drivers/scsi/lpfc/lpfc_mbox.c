@@ -610,7 +610,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 	mb->un.varRdSparm.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRdSparm.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRdSparm.un.sp64.addrLow = putPaddrLow(mp->phys);
-	mb->un.varRdSparm.vpi = vpi + phba->vpi_base;
+	mb->un.varRdSparm.vpi = phba->vpi_ids[vpi];
 
 	/* save address for completion */
 	pmb->context1 = mp;
@@ -643,9 +643,10 @@ lpfc_unreg_did(struct lpfc_hba * phba, uint16_t vpi, uint32_t did,
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varUnregDID.did = did;
-	if (vpi != 0xffff)
-		vpi += phba->vpi_base;
 	mb->un.varUnregDID.vpi = vpi;
+	if ((vpi != 0xffff) &&
+	    (phba->sli_rev == LPFC_SLI_REV4))
+		mb->un.varUnregDID.vpi = phba->vpi_ids[vpi];
 
 	mb->mbxCommand = MBX_UNREG_D_ID;
 	mb->mbxOwner = OWN_HOST;
@@ -738,12 +739,10 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varRegLogin.rpi = 0;
-	if (phba->sli_rev == LPFC_SLI_REV4) {
-		mb->un.varRegLogin.rpi = rpi;
-		if (mb->un.varRegLogin.rpi == LPFC_RPI_ALLOC_ERROR)
-			return 1;
-	}
-	mb->un.varRegLogin.vpi = vpi + phba->vpi_base;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		mb->un.varRegLogin.rpi = phba->sli4_hba.rpi_ids[rpi];
+
+	mb->un.varRegLogin.vpi = phba->vpi_ids[vpi];
 	mb->un.varRegLogin.did = did;
 	mb->mbxOwner = OWN_HOST;
 	/* Get a buffer to hold NPorts Service Parameters */
@@ -757,7 +756,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 				"0302 REG_LOGIN: no buffers, VPI:%d DID:x%x, "
 				"rpi x%x\n", vpi, did, rpi);
-		return (1);
+		return 1;
 	}
 	INIT_LIST_HEAD(&mp->list);
 	sparam = mp->virt;
@@ -773,7 +772,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	mb->un.varRegLogin.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRegLogin.un.sp64.addrLow = putPaddrLow(mp->phys);
 
-	return (0);
+	return 0;
 }
 
 /**
@@ -789,6 +788,9 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
  *
  * This routine prepares the mailbox command for unregistering remote port
  * login.
+ *
+ * For SLI4 ports, the rpi passed to this function must be the physical
+ * rpi value, not the logical index.
  **/
 void
 lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
@@ -799,9 +801,9 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
 	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	mb->un.varUnregLogin.rpi = (uint16_t) rpi;
+	mb->un.varUnregLogin.rpi = rpi;
 	mb->un.varUnregLogin.rsvd1 = 0;
-	mb->un.varUnregLogin.vpi = vpi + phba->vpi_base;
+	mb->un.varUnregLogin.vpi = phba->vpi_ids[vpi];
 
 	mb->mbxCommand = MBX_UNREG_LOGIN;
 	mb->mbxOwner = OWN_HOST;
@@ -825,9 +827,16 @@ lpfc_sli4_unreg_all_rpis(struct lpfc_vport *vport)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
-		lpfc_unreg_login(phba, vport->vpi,
-			vport->vpi + phba->vpi_base, mbox);
-		mbox->u.mb.un.varUnregLogin.rsvd1 = 0x4000 ;
+		/*
+		 * For SLI4 functions, the rpi field is overloaded for
+		 * the vport context unreg all.  This routine passes
+		 * 0 for the rpi field in lpfc_unreg_login for compatibility
+		 * with SLI3 and then overrides the rpi field with the
+		 * expected value for SLI4.
+		 */
+		lpfc_unreg_login(phba, vport->vpi, phba->vpi_ids[vport->vpi],
+				 mbox);
+		mbox->u.mb.un.varUnregLogin.rsvd1 = 0x4000;
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->context1 = NULL;
@@ -865,9 +874,13 @@ lpfc_reg_vpi(struct lpfc_vport *vport, LPFC_MBOXQ_t *pmb)
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
 		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI))
 		mb->un.varRegVpi.upd = 1;
-	mb->un.varRegVpi.vpi = vport->vpi + vport->phba->vpi_base;
+
+	mb->un.varRegVpi.vpi = phba->vpi_ids[vport->vpi];
 	mb->un.varRegVpi.sid = vport->fc_myDID;
-	mb->un.varRegVpi.vfi = vport->vfi + vport->phba->vfi_base;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		mb->un.varRegVpi.vfi = phba->sli4_hba.vfi_ids[vport->vfi];
+	else
+		mb->un.varRegVpi.vfi = vport->vfi + vport->phba->vfi_base;
 	memcpy(mb->un.varRegVpi.wwn, &vport->fc_portname,
 	       sizeof(struct lpfc_name));
 	mb->un.varRegVpi.wwn[0] = cpu_to_le32(mb->un.varRegVpi.wwn[0]);
@@ -902,9 +915,9 @@ lpfc_unreg_vpi(struct lpfc_hba *phba, uint16_t vpi, LPFC_MBOXQ_t *pmb)
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	if (phba->sli_rev < LPFC_SLI_REV4)
-		mb->un.varUnregVpi.vpi = vpi + phba->vpi_base;
+		mb->un.varUnregVpi.vpi = phba->vpi_ids[vpi];
 	else
-		mb->un.varUnregVpi.sli4_vpi = vpi + phba->vpi_base;
+		mb->un.varUnregVpi.sli4_vpi = phba->vpi_ids[vpi];
 
 	mb->mbxCommand = MBX_UNREG_VPI;
 	mb->mbxOwner = OWN_HOST;
@@ -1735,7 +1748,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 		return length;
 	}
 
-	/* Setup for the none-embedded mbox command */
+	/* Setup for the non-embedded mbox command */
 	pcount = (PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
@@ -1793,6 +1806,84 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 			      sizeof(union  lpfc_sli4_cfg_shdr));
 
 	return alloc_len;
+}
+
+/**
+ * lpfc_sli4_mbox_rsrc_extent - Initialize the opcode resource extent.
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to an allocated lpfc mbox resource.
+ * @version: version compatibility specification.
+ * @exts_count: the number of extents, if required, to allocate.
+ * @rsrc_type: the resource extent type.
+ *
+ * This routine sets up the resource extent mailbox command for Gen-2
+ * SLI4 ports.  The caller must pass an allocated mailbox and the
+ * attributes required to initialize the mailbox correctly.  For
+ * the current implementation, the timeout and version arguments are
+ * ignored by this routine.  They are provided in the calling function
+ * prototype for future considerations.
+ *
+ * For commands LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT and
+ * LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT, the caller is expected
+ * to call LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO and use the
+ * response data to correctly set the length argument to
+ * reflect the desired number of extents.  This routine
+ * will allocated the memory resources needed to complete
+ * the transaction.
+ *
+ * Return: the actual length of the mbox command allocated.
+ **/
+int
+lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
+			   uint8_t version, uint16_t exts_count,
+			   uint16_t rsrc_type)
+{
+	uint8_t opcode = 0;
+	struct lpfc_mbx_get_rsrc_extent_info *rsrc_extent;
+
+	rsrc_extent = &mbox->u.mqe.un.rsrc_extent_info;
+
+	/*
+	 * The driver issues resource extent requests for its locality only.
+	 * Retrieving other localities is not supported.
+	 */
+	bf_set(lpfc_mbox_hdr_pf_num, &rsrc_extent->header.cfg_shdr.request,
+	       LPFC_EXTENT_LOCAL);
+	bf_set(lpfc_mbox_hdr_vh_num, &rsrc_extent->header.cfg_shdr.request,
+	       LPFC_EXTENT_LOCAL);
+
+	/* Default the timeout and version fields for now. */
+	bf_set(lpfc_mbox_hdr_version,
+	       &rsrc_extent->header.cfg_shdr.request,
+	       LPFC_EXTENT_VERSION_DEFAULT);
+	rsrc_extent->header.cfg_shdr.request.timeout = 0;
+
+	/*
+	 * Tell the port what resource is requested, how many of that
+	 * resource and how many bytes are available for the response.
+	 */
+	bf_set(lpfc_mbx_get_rsrc_extent_info_type,
+	       &rsrc_extent->u.req,
+	       rsrc_type);
+	opcode = lpfc_sli4_mbox_opcode_get(phba, mbox);
+	switch (opcode) {
+	case LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT:
+		bf_set(lpfc_mbx_alloc_rsrc_extents_cnt,
+		       &rsrc_extent->u.req,
+		       exts_count);
+		break;
+	case LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO:
+	case LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT:
+	case LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT:
+		/* Initialization is complete.*/
+		break;
+	default:
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2929 Resource Extent Opcode x%x is "
+				"unsupported\n", opcode);
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -1939,9 +2030,12 @@ lpfc_init_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 	bf_set(lpfc_init_vfi_vr, init_vfi, 1);
 	bf_set(lpfc_init_vfi_vt, init_vfi, 1);
 	bf_set(lpfc_init_vfi_vp, init_vfi, 1);
-	bf_set(lpfc_init_vfi_vfi, init_vfi, vport->vfi + vport->phba->vfi_base);
-	bf_set(lpfc_init_vpi_vpi, init_vfi, vport->vpi + vport->phba->vpi_base);
-	bf_set(lpfc_init_vfi_fcfi, init_vfi, vport->phba->fcf.fcfi);
+	bf_set(lpfc_init_vfi_vfi, init_vfi,
+	       vport->phba->sli4_hba.vfi_ids[vport->vfi]);
+	bf_set(lpfc_init_vpi_vpi, init_vfi,
+	       vport->phba->vpi_ids[vport->vpi]);
+	bf_set(lpfc_init_vfi_fcfi, init_vfi,
+	       vport->phba->fcf.fcfi);
 }
 
 /**
@@ -1964,9 +2058,10 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	reg_vfi = &mbox->u.mqe.un.reg_vfi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_VFI);
 	bf_set(lpfc_reg_vfi_vp, reg_vfi, 1);
-	bf_set(lpfc_reg_vfi_vfi, reg_vfi, vport->vfi + vport->phba->vfi_base);
+	bf_set(lpfc_reg_vfi_vfi, reg_vfi,
+	       vport->phba->sli4_hba.vfi_ids[vport->vfi]);
 	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, vport->phba->fcf.fcfi);
-	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->vpi + vport->phba->vpi_base);
+	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->phba->vpi_ids[vport->vpi]);
 	memcpy(reg_vfi->wwn, &vport->fc_portname, sizeof(struct lpfc_name));
 	reg_vfi->wwn[0] = cpu_to_le32(reg_vfi->wwn[0]);
 	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
@@ -1997,9 +2092,9 @@ lpfc_init_vpi(struct lpfc_hba *phba, struct lpfcMboxq *mbox, uint16_t vpi)
 	memset(mbox, 0, sizeof(*mbox));
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_INIT_VPI);
 	bf_set(lpfc_init_vpi_vpi, &mbox->u.mqe.un.init_vpi,
-	       vpi + phba->vpi_base);
+	       phba->vpi_ids[vpi]);
 	bf_set(lpfc_init_vpi_vfi, &mbox->u.mqe.un.init_vpi,
-	       phba->pport->vfi + phba->vfi_base);
+	       phba->sli4_hba.vfi_ids[phba->pport->vfi]);
 }
 
 /**
@@ -2019,7 +2114,7 @@ lpfc_unreg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 	memset(mbox, 0, sizeof(*mbox));
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_UNREG_VFI);
 	bf_set(lpfc_unreg_vfi_vfi, &mbox->u.mqe.un.unreg_vfi,
-	       vport->vfi + vport->phba->vfi_base);
+	       vport->phba->sli4_hba.vfi_ids[vport->vfi]);
 }
 
 /**
@@ -2131,12 +2226,14 @@ lpfc_unreg_fcfi(struct lpfcMboxq *mbox, uint16_t fcfi)
 void
 lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
 {
+	struct lpfc_hba *phba = ndlp->phba;
 	struct lpfc_mbx_resume_rpi *resume_rpi;
 
 	memset(mbox, 0, sizeof(*mbox));
 	resume_rpi = &mbox->u.mqe.un.resume_rpi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_RESUME_RPI);
-	bf_set(lpfc_resume_rpi_index, resume_rpi, ndlp->nlp_rpi);
+	bf_set(lpfc_resume_rpi_index, resume_rpi,
+	       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 	bf_set(lpfc_resume_rpi_ii, resume_rpi, RESUME_INDEX_RPI);
 	resume_rpi->event_tag = ndlp->phba->fc_eventTag;
 }

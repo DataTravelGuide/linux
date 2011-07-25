@@ -65,8 +65,13 @@ static struct lpfc_iocbq *lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *,
 							 struct lpfc_iocbq *);
 static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
-static IOCB_t *
-lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
+static int lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *, uint16_t);
+static int lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *, uint16_t,
+					  uint16_t *, uint16_t *);
+static uint16_t lpfc_sli4_xri_inrange(struct lpfc_hba *, uint16_t);
+static int lpfc_sli4_alloc_extent(struct lpfc_hba *, uint16_t);
+static int lpfc_sli4_dealloc_extent(struct lpfc_hba *, uint16_t);
+static IOCB_t *lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 {
 	return &iocbq->iocb;
 }
@@ -456,7 +461,6 @@ __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 	struct lpfc_iocbq * iocbq = NULL;
 
 	list_remove_head(lpfc_iocb_list, iocbq, struct lpfc_iocbq, list);
-
 	if (iocbq)
 		phba->iocb_cnt++;
 	if (phba->iocb_cnt > phba->iocb_max)
@@ -479,13 +483,10 @@ __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 static struct lpfc_sglq *
 __lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 {
-	uint16_t adj_xri;
 	struct lpfc_sglq *sglq;
-	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-	if (adj_xri > phba->sli4_hba.max_cfg_param.max_xri)
-		return NULL;
-	sglq = phba->sli4_hba.lpfc_sglq_active_list[adj_xri];
-	phba->sli4_hba.lpfc_sglq_active_list[adj_xri] = NULL;
+
+	sglq = phba->sli4_hba.lpfc_sglq_active_list[xritag];
+	phba->sli4_hba.lpfc_sglq_active_list[xritag] = NULL;
 	return sglq;
 }
 
@@ -504,12 +505,9 @@ __lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 struct lpfc_sglq *
 __lpfc_get_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 {
-	uint16_t adj_xri;
 	struct lpfc_sglq *sglq;
-	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-	if (adj_xri > phba->sli4_hba.max_cfg_param.max_xri)
-		return NULL;
-	sglq =  phba->sli4_hba.lpfc_sglq_active_list[adj_xri];
+
+	sglq =  phba->sli4_hba.lpfc_sglq_active_list[xritag];
 	return sglq;
 }
 
@@ -532,7 +530,6 @@ static int
 __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		uint16_t xritag, uint16_t rxid, uint16_t send_rrq)
 {
-	uint16_t adj_xri;
 	struct lpfc_node_rrq *rrq;
 	int empty;
 	uint32_t did = 0;
@@ -553,21 +550,19 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	/*
 	 * set the active bit even if there is no mem available.
 	 */
-	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-
 	if (NLP_CHK_FREE_REQ(ndlp))
 		goto out;
 
 	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
 		goto out;
 
-	if (test_and_set_bit(adj_xri, ndlp->active_rrqs.xri_bitmap))
+	if (test_and_set_bit(xritag, ndlp->active_rrqs.xri_bitmap))
 		goto out;
 
 	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
 	if (rrq) {
 		rrq->send_rrq = send_rrq;
-		rrq->xritag = xritag;
+		rrq->xritag = phba->sli4_hba.xri_ids[xritag];
 		rrq->rrq_stop_time = jiffies + HZ * (phba->fc_ratov + 1);
 		rrq->ndlp = ndlp;
 		rrq->nlp_DID = ndlp->nlp_DID;
@@ -603,7 +598,6 @@ lpfc_clr_rrq_active(struct lpfc_hba *phba,
 		    uint16_t xritag,
 		    struct lpfc_node_rrq *rrq)
 {
-	uint16_t adj_xri;
 	struct lpfc_nodelist *ndlp = NULL;
 
 	if ((rrq->vport) && NLP_CHK_NODE_ACT(rrq->ndlp))
@@ -619,8 +613,7 @@ lpfc_clr_rrq_active(struct lpfc_hba *phba,
 	if (!ndlp)
 		goto out;
 
-	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-	if (test_and_clear_bit(adj_xri, ndlp->active_rrqs.xri_bitmap)) {
+	if (test_and_clear_bit(xritag, ndlp->active_rrqs.xri_bitmap)) {
 		rrq->send_rrq = 0;
 		rrq->xritag = 0;
 		rrq->rrq_stop_time = 0;
@@ -796,12 +789,9 @@ int
 lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			uint16_t  xritag)
 {
-	uint16_t adj_xri;
-
-	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
 	if (!ndlp)
 		return 0;
-	if (test_bit(adj_xri, ndlp->active_rrqs.xri_bitmap))
+	if (test_bit(xritag, ndlp->active_rrqs.xri_bitmap))
 			return 1;
 	else
 		return 0;
@@ -841,7 +831,7 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
  * @piocb: Pointer to the iocbq.
  *
  * This function is called with hbalock held. This function
- * Gets a new driver sglq object from the sglq list. If the
+ * gets a new driver sglq object from the sglq list. If the
  * list is not empty then it is successful, it returns pointer to the newly
  * allocated sglq object else it returns NULL.
  **/
@@ -851,7 +841,6 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	struct list_head *lpfc_sgl_list = &phba->sli4_hba.lpfc_sgl_list;
 	struct lpfc_sglq *sglq = NULL;
 	struct lpfc_sglq *start_sglq = NULL;
-	uint16_t adj_xri;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	struct lpfc_nodelist *ndlp;
 	int found = 0;
@@ -870,8 +859,6 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	while (!found) {
 		if (!sglq)
 			return NULL;
-		adj_xri = sglq->sli4_xritag -
-				phba->sli4_hba.max_cfg_param.xri_base;
 		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
 			/* This xri has an rrq outstanding for this DID.
 			 * put it back in the list and get another xri.
@@ -888,7 +875,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 		}
 		sglq->ndlp = ndlp;
 		found = 1;
-		phba->sli4_hba.lpfc_sglq_active_list[adj_xri] = sglq;
+		phba->sli4_hba.lpfc_sglq_active_list[sglq->sli4_lxritag] = sglq;
 		sglq->state = SGL_ALLOCATED;
 	}
 	return sglq;
@@ -944,7 +931,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	if (iocbq->sli4_xritag == NO_XRI)
 		sglq = NULL;
 	else
-		sglq = __lpfc_clear_active_sglq(phba, iocbq->sli4_xritag);
+		sglq = __lpfc_clear_active_sglq(phba, iocbq->sli4_lxritag);
+
 	if (sglq)  {
 		if ((iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) &&
 			(sglq->state != SGL_XRI_ABORTED)) {
@@ -971,6 +959,7 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	 * Clean all volatile data fields, preserve iotag and node struct.
 	 */
 	memset((char *)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
+	iocbq->sli4_lxritag = NO_XRI;
 	iocbq->sli4_xritag = NO_XRI;
 	list_add_tail(&iocbq->list, &phba->lpfc_iocb_list);
 }
@@ -2113,7 +2102,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
 		rpi = pmb->u.mb.un.varWords[0];
-		vpi = pmb->u.mb.un.varRegLogin.vpi - phba->vpi_base;
+		vpi = pmb->u.mb.un.varRegLogin.vpi;
 		lpfc_unreg_login(phba, vpi, rpi, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
@@ -4318,6 +4307,7 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 			continue;
 		} else if (rc)
 			break;
+
 		phba->link_state = LPFC_INIT_MBX_CMDS;
 		lpfc_config_port(phba, pmb);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
@@ -4421,7 +4411,8 @@ int
 lpfc_sli_hba_setup(struct lpfc_hba *phba)
 {
 	uint32_t rc;
-	int  mode = 3;
+	int  mode = 3, i;
+	int longs;
 
 	switch (lpfc_sli_mode) {
 	case 2:
@@ -4490,6 +4481,36 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
+
+	/* Initialize VPIs. */
+	if ((phba->sli_rev == LPFC_SLI_REV3) &&
+	    (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
+		/*
+		 * The VPI bitmask and physical ID array are allocated
+		 * and initialized once only - at driver load.  A port
+		 * reset doesn't need to reinitialize this memory.
+		 */
+		if ((phba->vpi_bmask == NULL) && (phba->vpi_ids == NULL)) {
+			longs = (phba->max_vpi + BITS_PER_LONG) / BITS_PER_LONG;
+			phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long),
+						  GFP_KERNEL);
+			if (!phba->vpi_bmask) {
+				rc = -ENOMEM;
+				goto lpfc_sli_hba_setup_error;
+			}
+
+			phba->vpi_ids = kzalloc(
+					(phba->max_vpi+1) * sizeof(uint16_t),
+					GFP_KERNEL);
+			if (!phba->vpi_ids) {
+				kfree(phba->vpi_bmask);
+				rc = -ENOMEM;
+				goto lpfc_sli_hba_setup_error;
+			}
+			for (i = 0; i < phba->max_vpi; i++)
+				phba->vpi_ids[i] = i;
+		}
+	}
 
 	/* Init HBQs */
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
@@ -4687,6 +4708,827 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_get_avail_extnt_rsrc - Get available resource extent count.
+ * @phba: Pointer to HBA context object.
+ * @type: The resource extent type.
+ *
+ * This function allocates all SLI4 resource identifiers.
+ **/
+static int
+lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
+			       uint16_t *extnt_count, uint16_t *extnt_size)
+{
+	int rc = 0;
+	uint32_t length;
+	uint32_t mbox_tmo;
+	struct lpfc_mbx_get_rsrc_extent_info *rsrc_info;
+	LPFC_MBOXQ_t *mbox;
+
+	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+
+	/* Find out how many extents are available for this resource type */
+	length = (sizeof(struct lpfc_mbx_get_rsrc_extent_info) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
+					0, type);
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto err_exit;
+	}
+
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	}
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto err_exit;
+	}
+
+	rsrc_info = &mbox->u.mqe.un.rsrc_extent_info;
+	if (bf_get(lpfc_mbox_hdr_status,
+		   &rsrc_info->header.cfg_shdr.response)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+				"2930 Failed to get resource extents "
+				"Status 0x%x Add'l Status 0x%x\n",
+				bf_get(lpfc_mbox_hdr_status,
+				       &rsrc_info->header.cfg_shdr.response),
+				bf_get(lpfc_mbox_hdr_add_status,
+				       &rsrc_info->header.cfg_shdr.response));
+		rc = -EIO;
+		goto err_exit;
+	}
+
+	*extnt_count = bf_get(lpfc_mbx_get_rsrc_extent_info_cnt,
+			      &rsrc_info->u.rsp);
+	*extnt_size = bf_get(lpfc_mbx_get_rsrc_extent_info_size,
+			     &rsrc_info->u.rsp);
+ err_exit:
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return rc;
+}
+
+/**
+ * lpfc_sli4_chk_avail_extnt_rsrc - Check for available SLI4 resource extents.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function allocates all SLI4 resource identifiers.
+ **/
+static int
+lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
+{
+	uint16_t curr_ext_cnt, rsrc_ext_cnt;
+	uint16_t size_diff, rsrc_ext_size;
+	int rc = 0;
+	struct lpfc_rsrc_blks *rsrc_entry;
+	struct list_head *rsrc_blk_list = NULL;
+
+	size_diff = 0;
+	curr_ext_cnt = 0;
+	rc = lpfc_sli4_get_avail_extnt_rsrc(phba, type,
+					    &rsrc_ext_cnt,
+					    &rsrc_ext_size);
+	if (unlikely(rc))
+		return -EIO;
+
+	switch (type) {
+	case LPFC_RSC_TYPE_FCOE_RPI:
+		rsrc_blk_list = &phba->sli4_hba.lpfc_rpi_blk_list;
+		break;
+	case LPFC_RSC_TYPE_FCOE_VPI:
+		rsrc_blk_list = &phba->lpfc_vpi_blk_list;
+		break;
+	case LPFC_RSC_TYPE_FCOE_XRI:
+		rsrc_blk_list = &phba->sli4_hba.lpfc_xri_blk_list;
+		break;
+	case LPFC_RSC_TYPE_FCOE_VFI:
+		rsrc_blk_list = &phba->sli4_hba.lpfc_vfi_blk_list;
+		break;
+	default:
+		break;
+	}
+
+	list_for_each_entry(rsrc_entry, rsrc_blk_list, list) {
+		curr_ext_cnt++;
+		if (rsrc_entry->rsrc_size != rsrc_ext_size)
+			size_diff++;
+	}
+
+	if (curr_ext_cnt != rsrc_ext_cnt || size_diff != 0)
+		rc = 1;
+	return rc;
+}
+
+/**
+ * lpfc_sli4_alloc_extent - Allocate an SLI4 resource extent.
+ * @phba: Pointer to HBA context object.
+ * @type:  The resource extent type to allocate.
+ *
+ * This function allocates the number of elements for the specified
+ * resource type.
+ **/
+static int
+lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
+{
+	uint16_t rsrc_id_cnt, rsrc_cnt, rsrc_size;
+	uint16_t rsrc_id, rsrc_start, j, k;
+	int i, rc, longs;
+	struct lpfc_mbx_alloc_rsrc_extents *alloc_rsrc;
+	struct lpfc_rsrc_blks *rsrc_blks;
+	LPFC_MBOXQ_t *mbox;
+	uint32_t length, mbox_tmo;
+
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_blk_list);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_xri_blk_list);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_vfi_blk_list);
+	INIT_LIST_HEAD(&phba->lpfc_vpi_blk_list);
+
+	rc = lpfc_sli4_get_avail_extnt_rsrc(phba, type,
+					    &rsrc_cnt,
+					    &rsrc_size);
+	if (unlikely(rc))
+		return -EIO;
+
+	if ((rsrc_cnt == 0) || (rsrc_size == 0)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_INIT,
+			"3008 No available Resource Extents "
+			"for resource type 0x%x: Count: 0x%x, "
+			"Size 0x%x\n", type, rsrc_cnt,
+			rsrc_size);
+		return -ENOMEM;
+	}
+
+	longs = ((rsrc_cnt * rsrc_size) + BITS_PER_LONG - 1) /
+		BITS_PER_LONG;
+	rsrc_id_cnt = rsrc_cnt * rsrc_size;
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+			"2903 Available Resource Extents "
+			"for resource type 0x%x: Count: 0x%x, "
+			"Size 0x%x\n", type, rsrc_cnt,
+			rsrc_size);
+
+	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_alloc_rsrc_extents) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT,
+			 length, LPFC_SLI4_MBX_EMBED);
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
+					rsrc_cnt, type);
+	if (unlikely(rc))
+		return -EIO;
+
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	}
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto err_exit;
+	}
+
+	/*
+	 * Based on the resource size and count, correct the base and max
+	 * resource values.
+	 */
+
+	/*&&&PAE. 3/29/11 - There is a work around for a resource start
+	 * endianess issue in FW.  Note that the even indices are pulled
+	 * from word4_1 and the odd entries are pulled from work4_0.
+	 * This will be fixed once the Lancer FW team pushes a fix.
+	 */
+	alloc_rsrc = &mbox->u.mqe.un.alloc_rsrc_extents;
+	switch (type) {
+	case LPFC_RSC_TYPE_FCOE_RPI:
+		phba->sli4_hba.rpi_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		phba->sli4_hba.rpi_ids = kzalloc(rsrc_id_cnt *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.rpi_ids)) {
+			kfree(phba->sli4_hba.rpi_bmask);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+
+		/*
+		 * Initialize the rpi_ids array with the allocated ids
+		 * assigned to this function.  The bitmask serves as an index
+		 * into the array and manages the available ids.  The array
+		 * just stores the ids communicated to the port via the wqes.
+		 */
+		length = sizeof(struct lpfc_rsrc_blks);
+		for (i = 0, j = 0, k = 0 ; i < rsrc_cnt; i++) {
+			if ((i % 2) == 0) {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					rc = -ENOMEM;
+					kfree(phba->sli4_hba.rpi_bmask);
+					kfree(phba->sli4_hba.rpi_ids);
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_rpi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.rpi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+			} else {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					rc = -ENOMEM;
+					kfree(phba->sli4_hba.rpi_bmask);
+					kfree(phba->sli4_hba.rpi_ids);
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_rpi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.rpi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+				k++;
+			}
+		}
+		break;
+	case LPFC_RSC_TYPE_FCOE_VPI:
+		phba->vpi_bmask = kzalloc(longs *
+					  sizeof(unsigned long),
+					  GFP_KERNEL);
+		if (unlikely(!phba->vpi_bmask)) {
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		phba->vpi_ids = kzalloc(rsrc_id_cnt *
+					 sizeof(uint16_t),
+					 GFP_KERNEL);
+		if (unlikely(!phba->vpi_ids)) {
+			kfree(phba->vpi_bmask);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+
+		/*
+		 * Initialize the vpi_ids array with the allocated ids
+		 * assigned to this function.  The bitmask serves as an index
+		 * into the array and manages the available ids.  The array
+		 * just stores the ids communicated to the port via the wqes.
+		 */
+		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
+			if ((i % 2) == 0) {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					kfree(phba->vpi_bmask);
+					kfree(phba->vpi_ids);
+					rc = -ENOMEM;
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->lpfc_vpi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->vpi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+			} else {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					kfree(phba->vpi_bmask);
+					kfree(phba->vpi_ids);
+					rc = -ENOMEM;
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->lpfc_vpi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->vpi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+				k++;
+			}
+		}
+		break;
+	case LPFC_RSC_TYPE_FCOE_XRI:
+		phba->sli4_hba.xri_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.xri_bmask)) {
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		phba->sli4_hba.xri_ids = kzalloc(rsrc_id_cnt *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.xri_ids)) {
+			kfree(phba->sli4_hba.xri_bmask);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+
+		/*
+		 * Initialize the xri_ids array with the allocated ids
+		 * assigned to this function.  The bitmask serves as an index
+		 * into the array and manages the available ids.  The array
+		 * just stores the ids communicated to the port via the wqes.
+		 */
+		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
+			if ((i % 2) == 0) {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					rc = -ENOMEM;
+					kfree(phba->sli4_hba.xri_bmask);
+					kfree(phba->sli4_hba.xri_ids);
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_xri_blk_list);
+				if (i == 0)
+					phba->sli4_hba.next_xri = rsrc_id;
+
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.xri_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+			} else {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					rc = -ENOMEM;
+					kfree(phba->sli4_hba.xri_bmask);
+					kfree(phba->sli4_hba.xri_ids);
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_xri_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.xri_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+				k++;
+			}
+		}
+		break;
+	case LPFC_RSC_TYPE_FCOE_VFI:
+		phba->sli4_hba.vfi_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		phba->sli4_hba.vfi_ids = kzalloc(rsrc_id_cnt *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.vfi_ids)) {
+			kfree(phba->sli4_hba.vfi_bmask);
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+
+		/*
+		 * Initialize the vfi_ids array with the allocated ids
+		 * assigned to this function.  The bitmask serves as an index
+		 * into the array and manages the available ids.  The array
+		 * just stores the ids communicated to the port via the wqes.
+		 */
+		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
+			if ((i % 2) == 0) {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					kfree(phba->sli4_hba.vfi_bmask);
+					kfree(phba->sli4_hba.vfi_ids);
+					rc = -ENOMEM;
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_vfi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.vfi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+			} else {
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+						 &alloc_rsrc->u.rsp.id[k]);
+				rsrc_blks = kzalloc(length, GFP_KERNEL);
+				if (unlikely(!rsrc_blks)) {
+					kfree(phba->sli4_hba.vfi_bmask);
+					kfree(phba->sli4_hba.vfi_ids);
+					rc = -ENOMEM;
+					goto err_exit;
+				}
+				rsrc_blks->rsrc_start = rsrc_id;
+				rsrc_blks->rsrc_size = rsrc_size;
+				list_add_tail(&rsrc_blks->list,
+					&phba->sli4_hba.lpfc_vfi_blk_list);
+				rsrc_start = rsrc_id;
+				while (rsrc_id < (rsrc_start + rsrc_size)) {
+					phba->sli4_hba.vfi_ids[j] = rsrc_id;
+					rsrc_id++;
+					j++;
+				}
+				k++;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+ err_exit:
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return rc;
+}
+
+/**
+ * lpfc_sli4_dealloc_extent - Deallocate an SLI4 resource extent.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function deallocates all extents of a particular resource type.
+ * SLI4 does not allow for deallocating a particular extent range.  It
+ * is the caller's responsibility to release all kernel memory resources.
+ **/
+static int
+lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
+{
+	int rc;
+	uint32_t length, mbox_tmo = 0;
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_mbx_get_rsrc_extent_info *rsrc_info;
+
+	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+
+	/* Release all resource extents of this type. */
+	length = (sizeof(struct lpfc_mbx_get_rsrc_extent_info) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT,
+			 length, LPFC_SLI4_MBX_EMBED);
+	rc = lpfc_sli4_mbox_rsrc_extent(phba, mbox, LPFC_EXTENT_VERSION_DEFAULT,
+					0, type);
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto out_free_mbox;
+	}
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, mbox_tmo);
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	}
+	if (unlikely(rc)) {
+		rc = -EIO;
+		goto out_free_mbox;
+	}
+	rsrc_info = &mbox->u.mqe.un.rsrc_extent_info;
+	if (bf_get(lpfc_mbox_hdr_status,
+		   &rsrc_info->header.cfg_shdr.response)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
+				"2919 Failed to release resource extents "
+				"for type %d - Status 0x%x Add'l Status 0x%x. "
+				"Resource memory not released.\n",
+				type,
+				bf_get(lpfc_mbox_hdr_status,
+				       &rsrc_info->header.cfg_shdr.response),
+				bf_get(lpfc_mbox_hdr_add_status,
+				       &rsrc_info->header.cfg_shdr.response));
+		rc = -EIO;
+		goto out_free_mbox;
+	}
+
+	/* Release kernel memory resources for the specific type. */
+	switch (type) {
+	case LPFC_RSC_TYPE_FCOE_RPI:
+		lpfc_sli4_remove_rpis(phba);
+		break;
+	case LPFC_RSC_TYPE_FCOE_VPI:
+		kfree(phba->vpi_bmask);
+		kfree(phba->vpi_bmask);
+		bf_set(lpfc_vpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		break;
+	case LPFC_RSC_TYPE_FCOE_XRI:
+		kfree(phba->sli4_hba.xri_bmask);
+		kfree(phba->sli4_hba.xri_bmask);
+		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		break;
+	case LPFC_RSC_TYPE_FCOE_VFI:
+		kfree(phba->sli4_hba.vfi_bmask);
+		kfree(phba->sli4_hba.vfi_bmask);
+		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		break;
+	default:
+		break;
+	}
+
+	bf_set(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+
+ out_free_mbox:
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return rc;
+}
+
+/**
+ * lpfc_sli4_alloc_rsrc_extents - Allocate all SLI4 resource extents.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function allocates all SLI4 resource identifiers.
+ **/
+int
+lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
+{
+	int i, rc, error = 0;
+	uint16_t count, base;
+	unsigned long longs;
+
+	if (phba->sli4_hba.extents_in_use) {
+		/*
+		 * The port supports resource extents. The XRI, VPI, VFI, RPI
+		 * resource extent count must be read and allocated before
+		 * provisioning the resource id arrays.
+		 */
+		if (bf_get(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags) ==
+		    LPFC_IDX_RSRC_RDY) {
+			/*
+			 * Extent-based resources are set - the driver could
+			 * be in a port reset. Figure out if any corrective
+			 * actions need to be taken.
+			 */
+			rc = lpfc_sli4_chk_avail_extnt_rsrc(phba,
+						 LPFC_RSC_TYPE_FCOE_VFI);
+			if (rc != 0)
+				error++;
+			rc = lpfc_sli4_chk_avail_extnt_rsrc(phba,
+						 LPFC_RSC_TYPE_FCOE_VPI);
+			if (rc != 0)
+				error++;
+			rc = lpfc_sli4_chk_avail_extnt_rsrc(phba,
+						 LPFC_RSC_TYPE_FCOE_XRI);
+			if (rc != 0)
+				error++;
+			rc = lpfc_sli4_chk_avail_extnt_rsrc(phba,
+						 LPFC_RSC_TYPE_FCOE_RPI);
+			if (rc != 0)
+				error++;
+
+			/*
+			 * It's possible that the number of resources
+			 * provided to this port instance changed between
+			 * resets.  Detect this condition and reallocate
+			 * resources.  Otherwise, there is no action.
+			 */
+			if (error) {
+				lpfc_printf_log(phba, KERN_INFO,
+						LOG_MBOX | LOG_INIT,
+						"2931 Detected extent resource "
+						"change.  Reallocating all "
+						"extents.\n");
+				rc = lpfc_sli4_dealloc_extent(phba,
+						 LPFC_RSC_TYPE_FCOE_VFI);
+				rc = lpfc_sli4_dealloc_extent(phba,
+						 LPFC_RSC_TYPE_FCOE_VPI);
+				rc = lpfc_sli4_dealloc_extent(phba,
+						 LPFC_RSC_TYPE_FCOE_XRI);
+				rc = lpfc_sli4_dealloc_extent(phba,
+						 LPFC_RSC_TYPE_FCOE_RPI);
+			} else
+				return 0;
+		}
+
+		rc = lpfc_sli4_alloc_extent(phba, LPFC_RSC_TYPE_FCOE_VFI);
+		if (unlikely(rc))
+			goto err_exit;
+
+		rc = lpfc_sli4_alloc_extent(phba, LPFC_RSC_TYPE_FCOE_VPI);
+		if (unlikely(rc))
+			goto err_exit;
+
+		rc = lpfc_sli4_alloc_extent(phba, LPFC_RSC_TYPE_FCOE_RPI);
+		if (unlikely(rc))
+			goto err_exit;
+
+		rc = lpfc_sli4_alloc_extent(phba, LPFC_RSC_TYPE_FCOE_XRI);
+		if (unlikely(rc))
+			goto err_exit;
+		bf_set(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+		       LPFC_IDX_RSRC_RDY);
+		return rc;
+	} else {
+		/*
+		 * The port does not support resource extents.  The XRI, VPI,
+		 * VFI, RPI resource ids were determined from READ_CONFIG.
+		 * Just allocate the bitmasks and provision the resource id
+		 * arrays.  If a port reset is active, the resources don't
+		 * need any action - just exit.
+		 */
+		if (bf_get(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags) ==
+		    LPFC_IDX_RSRC_RDY)
+			return 0;
+
+		/* RPIs. */
+		count = phba->sli4_hba.max_cfg_param.max_rpi;
+		base = phba->sli4_hba.max_cfg_param.rpi_base;
+		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+		phba->sli4_hba.rpi_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.rpi_bmask)) {
+			rc = -ENOMEM;
+			goto err_exit;
+		}
+		phba->sli4_hba.rpi_ids = kzalloc(count *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.rpi_ids)) {
+			rc = -ENOMEM;
+			goto free_rpi_bmask;
+		}
+
+		for (i = 0; i < count; i++)
+			phba->sli4_hba.rpi_ids[i] = base + i;
+
+		/* VPIs. */
+		count = phba->sli4_hba.max_cfg_param.max_vpi;
+		base = phba->sli4_hba.max_cfg_param.vpi_base;
+		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+		phba->vpi_bmask = kzalloc(longs *
+					  sizeof(unsigned long),
+					  GFP_KERNEL);
+		if (unlikely(!phba->vpi_bmask)) {
+			rc = -ENOMEM;
+			goto free_rpi_ids;
+		}
+		phba->vpi_ids = kzalloc(count *
+					sizeof(uint16_t),
+					GFP_KERNEL);
+		if (unlikely(!phba->vpi_ids)) {
+			rc = -ENOMEM;
+			goto free_vpi_bmask;
+		}
+
+		for (i = 0; i < count; i++)
+			phba->vpi_ids[i] = base + i;
+
+		/* XRIs. */
+		count = phba->sli4_hba.max_cfg_param.max_xri;
+		base = phba->sli4_hba.max_cfg_param.xri_base;
+		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+		phba->sli4_hba.xri_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.xri_bmask)) {
+			rc = -ENOMEM;
+			goto free_vpi_ids;
+		}
+		phba->sli4_hba.xri_ids = kzalloc(count *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.xri_ids)) {
+			rc = -ENOMEM;
+			goto free_xri_bmask;
+		}
+
+		for (i = 0; i < count; i++)
+			phba->sli4_hba.xri_ids[i] = base + i;
+
+		/* VFIs. */
+		count = phba->sli4_hba.max_cfg_param.max_vfi;
+		base = phba->sli4_hba.max_cfg_param.vfi_base;
+		longs = (count + BITS_PER_LONG - 1) / BITS_PER_LONG;
+		phba->sli4_hba.vfi_bmask = kzalloc(longs *
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.vfi_bmask)) {
+			rc = -ENOMEM;
+			goto free_xri_ids;
+		}
+		phba->sli4_hba.vfi_ids = kzalloc(count *
+						 sizeof(uint16_t),
+						 GFP_KERNEL);
+		if (unlikely(!phba->sli4_hba.vfi_ids)) {
+			rc = -ENOMEM;
+			goto free_vfi_bmask;
+		}
+
+		for (i = 0; i < count; i++)
+			phba->sli4_hba.vfi_ids[i] = base + i;
+
+		/*
+		 * Mark all resources ready.  An HBA reset doesn't need
+		 * to reset the initialization.
+		 */
+		bf_set(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+		       LPFC_IDX_RSRC_RDY);
+		return 0;
+	}
+
+ free_vfi_bmask:
+	kfree(phba->sli4_hba.vfi_bmask);
+ free_xri_ids:
+	kfree(phba->sli4_hba.xri_ids);
+ free_xri_bmask:
+	kfree(phba->sli4_hba.xri_bmask);
+ free_vpi_ids:
+	kfree(phba->vpi_ids);
+ free_vpi_bmask:
+	kfree(phba->vpi_bmask);
+ free_rpi_ids:
+	kfree(phba->sli4_hba.rpi_ids);
+ free_rpi_bmask:
+	kfree(phba->sli4_hba.rpi_bmask);
+ err_exit:
+	return rc;
+}
+
+/**
+ * lpfc_sli4_dealloc_resource_identifiers - Deallocate all SLI4 resource extents.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function allocates the number of elements for the specified
+ * resource type.
+ **/
+int
+lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *phba)
+{
+	if (phba->sli4_hba.extents_in_use) {
+		lpfc_sli4_dealloc_extent(phba, LPFC_RSC_TYPE_FCOE_VPI);
+		lpfc_sli4_dealloc_extent(phba, LPFC_RSC_TYPE_FCOE_RPI);
+		lpfc_sli4_dealloc_extent(phba, LPFC_RSC_TYPE_FCOE_XRI);
+		lpfc_sli4_dealloc_extent(phba, LPFC_RSC_TYPE_FCOE_VFI);
+	} else {
+		kfree(phba->vpi_bmask);
+		kfree(phba->vpi_ids);
+		bf_set(lpfc_vpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		kfree(phba->sli4_hba.xri_bmask);
+		kfree(phba->sli4_hba.xri_ids);
+		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		kfree(phba->sli4_hba.vfi_bmask);
+		kfree(phba->sli4_hba.vfi_ids);
+		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		bf_set(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+	}
+	return 0;
+}
+
+/**
  * lpfc_sli4_hba_setup - SLI4 device intialization PCI function
  * @phba: Pointer to HBA context object.
  *
@@ -4708,10 +5550,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_dmabuf *mp;
 
-	/*
-	 * TODO:  Why does this routine execute these task in a different
-	 * order from probe?
-	 */
 	/* Perform a PCI function reset to start from clean */
 	rc = lpfc_pci_function_reset(phba);
 	if (unlikely(rc))
@@ -4872,6 +5710,18 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	phba->sli3_options |= (LPFC_SLI3_NPIV_ENABLED | LPFC_SLI3_HBQ_ENABLED);
 	spin_unlock_irq(&phba->hbalock);
+
+	/*
+	 * Allocate all resources (xri,rpi,vpi,vfi) now.  Subsequent
+	 * calls depends on these resources to complete port setup.
+	 */
+	rc = lpfc_sli4_alloc_resource_identifiers(phba);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+				"2920 Failed to alloc Resource IDs "
+				"rc = x%x\n", rc);
+		goto out_free_mbox;
+	}
 
 	/* Read the port's service parameters. */
 	rc = lpfc_read_sparam(phba, mboxq, vport->vpi);
@@ -6474,7 +7324,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			els_id = ((iocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK)
 					>> LPFC_FIP_ELS_ID_SHIFT);
 		}
-		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com, ndlp->nlp_rpi);
+		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com,
+		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 		bf_set(wqe_dbde, &wqe->els_req.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->els_req.wqe_com, LPFC_WQE_IOD_READ);
@@ -6623,14 +7474,15 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		       iocbq->iocb.ulpContext);
 		if (!iocbq->iocb.ulpCt_h && iocbq->iocb.ulpCt_l)
 			bf_set(wqe_ctxt_tag, &wqe->xmit_els_rsp.wqe_com,
-			       iocbq->vport->vpi + phba->vpi_base);
+			       phba->vpi_ids[iocbq->vport->vpi]);
 		bf_set(wqe_dbde, &wqe->xmit_els_rsp.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->xmit_els_rsp.wqe_com, LPFC_WQE_IOD_WRITE);
 		bf_set(wqe_qosd, &wqe->xmit_els_rsp.wqe_com, 1);
 		bf_set(wqe_lenloc, &wqe->xmit_els_rsp.wqe_com,
 		       LPFC_WQE_LENLOC_WORD3);
 		bf_set(wqe_ebde_cnt, &wqe->xmit_els_rsp.wqe_com, 0);
-		bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp, ndlp->nlp_rpi);
+		bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp,
+		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 		command_type = OTHER_COMMAND;
 	break;
 	case CMD_CLOSE_XRI_CN:
@@ -6729,6 +7581,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		return IOCB_ERROR;
 	break;
 	}
+
 	bf_set(wqe_xri_tag, &wqe->generic.wqe_com, xritag);
 	bf_set(wqe_reqtag, &wqe->generic.wqe_com, iocbq->iotag);
 	wqe->generic.wqe_com.abort_tag = abort_tag;
@@ -6776,7 +7629,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 					return IOCB_BUSY;
 				}
 			} else {
-			sglq = __lpfc_sli_get_sglq(phba, piocb);
+				sglq = __lpfc_sli_get_sglq(phba, piocb);
 				if (!sglq) {
 					if (!(flag & SLI_IOCB_RET_IOCB)) {
 						__lpfc_sli_ringtx_put(phba,
@@ -6789,11 +7642,11 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			}
 		}
 	} else if (piocb->iocb_flag &  LPFC_IO_FCP) {
-		sglq = NULL; /* These IO's already have an XRI and
-			      * a mapped sgl.
-			      */
+		/* These IO's already have an XRI and a mapped sgl. */
+		sglq = NULL;
 	} else {
-		/* This is a continuation of a commandi,(CX) so this
+		/*
+		 * This is a continuation of a commandi,(CX) so this
 		 * sglq is on the active list
 		 */
 		sglq = __lpfc_get_active_sglq(phba, piocb->sli4_xritag);
@@ -6802,8 +7655,8 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	}
 
 	if (sglq) {
+		piocb->sli4_lxritag = sglq->sli4_lxritag;
 		piocb->sli4_xritag = sglq->sli4_xritag;
-
 		if (NO_XRI == lpfc_sli4_bpl2sgl(phba, piocb, sglq))
 			return IOCB_ERROR;
 	}
@@ -11446,6 +12299,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	LPFC_MBOXQ_t *mbox;
 	int rc;
 	uint32_t shdr_status, shdr_add_status;
+	uint32_t mbox_tmo;
 	union lpfc_sli4_cfg_shdr *shdr;
 
 	if (xritag == NO_XRI) {
@@ -11479,8 +12333,10 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 				cpu_to_le32(putPaddrHigh(pdma_phys_addr1));
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+	}
 	/* The IOCTL status is embedded in the mailbox subheader. */
 	shdr = (union lpfc_sli4_cfg_shdr *) &post_sgl_pages->header.cfg_shdr;
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
@@ -11498,6 +12354,75 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_alloc_xri - Get an available rpi in the device's range
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to post rpi header templates to the
+ * HBA consistent with the SLI-4 interface spec.  This routine
+ * posts a SLI4_PAGE_SIZE memory region to the port to hold up to
+ * SLI4_PAGE_SIZE modulo 64 rpi context headers.
+ *
+ * Returns
+ * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
+ * 	LPFC_RPI_ALLOC_ERROR if no rpis are available.
+ **/
+int
+lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
+{
+	uint16_t xri;
+
+	/*
+	 * Fetch the next logical xri.  Because this index is logical,
+	 * the driver starts at 0 each time.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	xri = find_next_zero_bit(phba->sli4_hba.xri_bmask,
+				 phba->sli4_hba.max_cfg_param.max_xri, 0);
+	if (xri == -1) {
+		spin_unlock_irq(&phba->hbalock);
+		return xri;
+	} else {
+		set_bit(xri, phba->sli4_hba.xri_bmask);
+		phba->sli4_hba.max_cfg_param.xri_used++;
+		phba->sli4_hba.xri_count++;
+	}
+
+	spin_unlock_irq(&phba->hbalock);
+	return xri;
+}
+
+/**
+ * lpfc_sli4_free_xri - Release an xri for reuse.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to release an xri to the pool of
+ * available rpis maintained by the driver.
+ **/
+void
+__lpfc_sli4_free_xri(struct lpfc_hba *phba, int xri)
+{
+	if (test_and_clear_bit(xri, phba->sli4_hba.xri_bmask)) {
+		phba->sli4_hba.xri_count--;
+		phba->sli4_hba.max_cfg_param.xri_used--;
+	}
+}
+
+/**
+ * lpfc_sli4_free_xri - Release an xri for reuse.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to release an xri to the pool of
+ * available rpis maintained by the driver.
+ **/
+void
+lpfc_sli4_free_xri(struct lpfc_hba *phba, int xri)
+{
+	spin_lock_irq(&phba->hbalock);
+	__lpfc_sli4_free_xri(phba, xri);
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
  * lpfc_sli4_next_xritag - Get an xritag for the io
  * @phba: Pointer to HBA context object.
  *
@@ -11510,26 +12435,19 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 uint16_t
 lpfc_sli4_next_xritag(struct lpfc_hba *phba)
 {
-	uint16_t xritag;
+	uint16_t xri_index;
 
-	spin_lock_irq(&phba->hbalock);
-	xritag = phba->sli4_hba.next_xri;
-	if ((xritag != (uint16_t) -1) && xritag <
-		(phba->sli4_hba.max_cfg_param.max_xri
-			+ phba->sli4_hba.max_cfg_param.xri_base)) {
-		phba->sli4_hba.next_xri++;
-		phba->sli4_hba.max_cfg_param.xri_used++;
-		spin_unlock_irq(&phba->hbalock);
-		return xritag;
-	}
-	spin_unlock_irq(&phba->hbalock);
-	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+	xri_index = lpfc_sli4_alloc_xri(phba);
+	if (xri_index != (uint16_t) -1)
+		return xri_index;
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"2004 Failed to allocate XRI.last XRITAG is %d"
 			" Max XRI is %d, Used XRI is %d\n",
-			phba->sli4_hba.next_xri,
+			xri_index,
 			phba->sli4_hba.max_cfg_param.max_xri,
 			phba->sli4_hba.max_cfg_param.xri_used);
-	return -1;
+	return NO_XRI;
 }
 
 /**
@@ -11551,7 +12469,7 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *mbox;
 	uint32_t reqlen, alloclen, pg_pairs;
 	uint32_t mbox_tmo;
-	uint16_t xritag_start = 0;
+	uint16_t xritag_start = 0, lxri = 0;
 	int els_xri_cnt, rc = 0;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
@@ -11596,6 +12514,21 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 
 	for (pg_pairs = 0; pg_pairs < els_xri_cnt; pg_pairs++) {
 		sglq_entry = phba->sli4_hba.lpfc_els_sgl_array[pg_pairs];
+
+		/*
+		 * Assign the sglq a physical xri only if the driver has not
+		 * initialized those resources.  A port reset only needs
+		 * the sglq's posted.
+		 */
+		if (bf_get(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
+		    LPFC_XRI_RSRC_RDY) {
+			lxri = lpfc_sli4_next_xritag(phba);
+			if (lxri == NO_XRI)
+				return -ENOMEM;
+			sglq_entry->sli4_lxritag = lxri;
+			sglq_entry->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
+		}
+
 		/* Set up the sge entry */
 		sgl_pg_pairs->sgl_pg0_addr_lo =
 				cpu_to_le32(putPaddrLow(sglq_entry->phys));
@@ -11605,16 +12538,26 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 				cpu_to_le32(putPaddrLow(0));
 		sgl_pg_pairs->sgl_pg1_addr_hi =
 				cpu_to_le32(putPaddrHigh(0));
+
 		/* Keep the first xritag on the list */
 		if (pg_pairs == 0)
 			xritag_start = sglq_entry->sli4_xritag;
 		sgl_pg_pairs++;
 	}
+	/*
+	 * Complete the SGL Post initialization.  The starting XRI needs to be
+	 * the physical XRI, not the logical.
+	 */
 	bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
 	bf_set(lpfc_post_sgl_pages_xricnt, sgl, els_xri_cnt);
+
+	if (bf_get(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
+	    LPFC_XRI_RSRC_RDY) {
+		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+		       LPFC_XRI_RSRC_RDY);
+	}
 	/* Perform endian conversion if necessary */
 	sgl->word0 = cpu_to_le32(sgl->word0);
-
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	else {
@@ -11693,6 +12636,7 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 		return -ENOMEM;
 	}
+
 	/* Get the first SGE entry from the non-embedded DMA memory */
 	viraddr = mbox->sge_array->addr[0];
 
@@ -11743,6 +12687,144 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 				"status x%x add_status x%x mbx status x%x\n",
 				shdr_status, shdr_add_status, rc);
 		rc = -ENXIO;
+	}
+	return rc;
+}
+
+/**
+ * lpfc_sli4_post_scsi_sgl_blk_ext - post a block of scsi sgl list to firmware
+ * @phba: pointer to lpfc hba data structure.
+ * @sblist: pointer to scsi buffer list.
+ * @count: number of scsi buffers on the list.
+ *
+ * This routine is invoked to post a block of @count scsi sgl pages from a
+ * SCSI buffer list @sblist to the HBA using non-embedded mailbox command.
+ * No Lock is held.
+ *
+ **/
+int
+lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
+				int cnt)
+{
+	struct lpfc_scsi_buf *psb = NULL;
+	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
+	struct sgl_page_pairs *sgl_pg_pairs;
+	void *viraddr;
+	LPFC_MBOXQ_t *mbox;
+	uint32_t reqlen, alloclen, pg_pairs;
+	uint32_t mbox_tmo;
+	uint16_t xritag_start = 0;
+	int rc = 0;
+	uint32_t shdr_status, shdr_add_status;
+	dma_addr_t pdma_phys_bpl1;
+	union lpfc_sli4_cfg_shdr *shdr;
+	struct lpfc_rsrc_blks *rsrc_blk_entry;
+	uint32_t xri_count = 0;
+
+	/* Calculate the total requested length of the dma memory */
+	reqlen = cnt * sizeof(struct sgl_page_pairs) +
+		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
+	if (reqlen > SLI4_PAGE_SIZE) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"2932 Block sgl registration required DMA "
+				"size (%d) great than a page\n", reqlen);
+		return -ENOMEM;
+	}
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2933 Failed to allocate mbox cmd memory\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * The use of extents requires the driver to post the sgl headers
+	 * in multiple postings to meet the contiguous resource assignment.
+	 */
+	psb = list_prepare_entry(psb, sblist, list);
+	list_for_each_entry(rsrc_blk_entry, &phba->sli4_hba.lpfc_xri_blk_list,
+			    list) {
+		reqlen = rsrc_blk_entry->rsrc_size *
+			sizeof(struct sgl_page_pairs) +
+			sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
+
+		/*
+		 * Allocate DMA memory and set up the non-embedded mailbox
+		 * command.
+		 */
+		alloclen = lpfc_sli4_config(phba, mbox,
+					LPFC_MBOX_SUBSYSTEM_FCOE,
+					LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
+					reqlen,
+					LPFC_SLI4_MBX_NEMBED);
+
+		if (alloclen < reqlen) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2934 Allocated DMA memory size (%d) "
+					"is less than the requested DMA memory "
+					"size (%d)\n", alloclen, reqlen);
+			lpfc_sli4_mbox_cmd_free(phba, mbox);
+			return -ENOMEM;
+		}
+
+		/* Get the first SGE entry from the non-embedded DMA memory */
+		viraddr = mbox->sge_array->addr[0];
+
+		/* Set up the SGL pages in the non-embedded DMA pages */
+		sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
+		sgl_pg_pairs = &sgl->sgl_pg_pairs;
+
+		pg_pairs = 0;
+		list_for_each_entry_continue(psb, sblist, list) {
+			/* Set up the sge entry */
+			sgl_pg_pairs->sgl_pg0_addr_lo =
+				cpu_to_le32(putPaddrLow(psb->dma_phys_bpl));
+			sgl_pg_pairs->sgl_pg0_addr_hi =
+				cpu_to_le32(putPaddrHigh(psb->dma_phys_bpl));
+			if (phba->cfg_sg_dma_buf_size > SGL_PAGE_SIZE)
+				pdma_phys_bpl1 = psb->dma_phys_bpl +
+					SGL_PAGE_SIZE;
+			else
+				pdma_phys_bpl1 = 0;
+			sgl_pg_pairs->sgl_pg1_addr_lo =
+				cpu_to_le32(putPaddrLow(pdma_phys_bpl1));
+			sgl_pg_pairs->sgl_pg1_addr_hi =
+				cpu_to_le32(putPaddrHigh(pdma_phys_bpl1));
+			/* Keep the first xritag on the list */
+			if (pg_pairs == 0)
+				xritag_start = psb->cur_iocbq.sli4_xritag;
+			sgl_pg_pairs++;
+			pg_pairs++;
+			xri_count++;
+			if (pg_pairs == rsrc_blk_entry->rsrc_size)
+				break;
+		}
+		bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
+		bf_set(lpfc_post_sgl_pages_xricnt, sgl, pg_pairs);
+		/* Perform endian conversion if necessary */
+		sgl->word0 = cpu_to_le32(sgl->word0);
+		if (!phba->sli4_hba.intr_enable)
+			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+		else {
+			mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+			rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+		}
+		shdr = (union lpfc_sli4_cfg_shdr *) &sgl->cfg_shdr;
+		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+					 &shdr->response);
+		if (rc != MBX_TIMEOUT)
+			lpfc_sli4_mbox_cmd_free(phba, mbox);
+		if (shdr_status || shdr_add_status || rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2935 POST_SGL_BLOCK mailbox command "
+					"failed status x%x add_status x%x "
+					"mbx status x%x\n",
+					shdr_status, shdr_add_status, rc);
+			rc = -ENXIO;
+		}
+		if (xri_count == phba->sli4_hba.scsi_xri_max)
+			break;
 	}
 	return rc;
 }
@@ -12137,6 +13219,28 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_sli4_xri_inrange - check xri is in range of xris owned by driver.
+ * @phba: Pointer to HBA context object.
+ * @xri: xri id in transaction.
+ *
+ * This function validates the xri maps to the known range of XRIs allocated an
+ * used by the driver.
+ **/
+static uint16_t
+lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
+		      uint16_t xri)
+{
+	int i;
+
+	for (i = 0; i < phba->sli4_hba.max_cfg_param.max_xri; i++) {
+		if (xri == phba->sli4_hba.xri_ids[i])
+			return i;
+	}
+	return NO_XRI;
+}
+
+
+/**
  * lpfc_sli4_seq_abort_rsp - bls rsp to sequence abort
  * @phba: Pointer to HBA context object.
  * @fc_hdr: pointer to a FC frame header.
@@ -12169,9 +13273,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 				"SID:x%x\n", oxid, sid);
 		return;
 	}
-	if (rxid >= phba->sli4_hba.max_cfg_param.xri_base
-		&& rxid <= (phba->sli4_hba.max_cfg_param.max_xri
-		+ phba->sli4_hba.max_cfg_param.xri_base))
+	if (lpfc_sli4_xri_inrange(phba, rxid))
 		lpfc_set_rrq_active(phba, ndlp, rxid, oxid, 0);
 
 	/* Allocate buffer for rsp iocb */
@@ -12194,12 +13296,13 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	icmd->ulpBdeCount = 0;
 	icmd->ulpLe = 1;
 	icmd->ulpClass = CLASS3;
-	icmd->ulpContext = ndlp->nlp_rpi;
+	icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 	ctiocb->context1 = ndlp;
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
 	ctiocb->iocb_cmpl = lpfc_sli4_seq_abort_rsp_cmpl;
+	ctiocb->sli4_lxritag = NO_XRI;
 	ctiocb->sli4_xritag = NO_XRI;
 
 	/* If the oxid maps to the FCP XRI range or if it is out of range,
@@ -12380,8 +13483,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		first_iocbq->iocb.ulpStatus = IOSTAT_SUCCESS;
 		first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_SEQ64_CX;
 		first_iocbq->iocb.ulpContext = be16_to_cpu(fc_hdr->fh_ox_id);
-		first_iocbq->iocb.unsli3.rcvsli3.vpi =
-					vport->vpi + vport->phba->vpi_base;
+		/* iocbq is prepped for internal consumption.  Logical vpi. */
+		first_iocbq->iocb.unsli3.rcvsli3.vpi = vport->vpi;
 		/* put the first buffer into the first IOCBq */
 		first_iocbq->context2 = &seq_dmabuf->dbuf;
 		first_iocbq->context3 = NULL;
@@ -12461,7 +13564,7 @@ lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *vport,
 				      &phba->sli.ring[LPFC_ELS_RING],
 				      iocbq, fc_hdr->fh_r_ctl,
 				      fc_hdr->fh_type))
-		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2540 Ring %d handler: unexpected Rctl "
 				"x%x Type x%x received\n",
 				LPFC_ELS_RING,
@@ -12558,9 +13661,18 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 {
 	struct lpfc_rpi_hdr *rpi_page;
 	uint32_t rc = 0;
+	uint16_t lrpi = 0;
 
-	/* Post all rpi memory regions to the port. */
 	list_for_each_entry(rpi_page, &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
+		/*
+		 * Assign the rpi headers a physical rpi only if the driver
+		 * has not initialized those resources.  A port reset only
+		 * needs the headers posted.
+		 */
+		if (bf_get(lpfc_rpi_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
+		    LPFC_RPI_RSRC_RDY)
+			rpi_page->start_rpi = phba->sli4_hba.rpi_ids[lrpi];
+
 		rc = lpfc_sli4_post_rpi_hdr(phba, rpi_page);
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -12571,6 +13683,8 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 		}
 	}
 
+	bf_set(lpfc_rpi_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+	       LPFC_RPI_RSRC_RDY);
 	return rc;
 }
 
@@ -12594,7 +13708,6 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mbx_post_hdr_tmpl *hdr_tmpl;
 	uint32_t rc = 0;
-	uint32_t mbox_tmo;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
@@ -12609,16 +13722,19 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 
 	/* Post all rpi memory regions to the port. */
 	hdr_tmpl = &mboxq->u.mqe.un.hdr_tmpl;
-	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE,
 			 sizeof(struct lpfc_mbx_post_hdr_tmpl) -
 			 sizeof(struct lpfc_sli4_cfg_mhdr),
 			 LPFC_SLI4_MBX_EMBED);
-	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
-	       hdr_tmpl, rpi_page->page_count);
+
+
+	/* Post the physical rpi to the port for this rpi header. */
 	bf_set(lpfc_mbx_post_hdr_tmpl_rpi_offset, hdr_tmpl,
 	       rpi_page->start_rpi);
+	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
+	       hdr_tmpl, rpi_page->page_count);
+
 	hdr_tmpl->rpi_paddr_lo = putPaddrLow(rpi_page->dmabuf->phys);
 	hdr_tmpl->rpi_paddr_hi = putPaddrHigh(rpi_page->dmabuf->phys);
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
@@ -12654,21 +13770,20 @@ int
 lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 {
 	int rpi;
-	uint16_t max_rpi, rpi_base, rpi_limit;
-	uint16_t rpi_remaining;
+	uint16_t max_rpi, rpi_limit;
+	uint16_t rpi_remaining, lrpi = 0;
 	struct lpfc_rpi_hdr *rpi_hdr;
 
 	max_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
-	rpi_base = phba->sli4_hba.max_cfg_param.rpi_base;
 	rpi_limit = phba->sli4_hba.next_rpi;
 
 	/*
-	 * The valid rpi range is not guaranteed to be zero-based.  Start
-	 * the search at the rpi_base as reported by the port.
+	 * Fetch the next logical rpi.  Because this index is logical,
+	 * the  driver starts at 0 each time.
 	 */
 	spin_lock_irq(&phba->hbalock);
-	rpi = find_next_zero_bit(phba->sli4_hba.rpi_bmask, rpi_limit, rpi_base);
-	if (rpi >= rpi_limit || rpi < rpi_base)
+	rpi = find_next_zero_bit(phba->sli4_hba.rpi_bmask, rpi_limit, 0);
+	if (rpi >= rpi_limit)
 		rpi = LPFC_RPI_ALLOC_ERROR;
 	else {
 		set_bit(rpi, phba->sli4_hba.rpi_bmask);
@@ -12678,10 +13793,16 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 
 	/*
 	 * Don't try to allocate more rpi header regions if the device limit
-	 * on available rpis max has been exhausted.
+	 * has been exhausted.
 	 */
 	if ((rpi == LPFC_RPI_ALLOC_ERROR) &&
 	    (phba->sli4_hba.rpi_count >= max_rpi)) {
+		spin_unlock_irq(&phba->hbalock);
+		return rpi;
+	}
+
+	/*&&&PAE. This code works, but need to rework the error condition. */
+	if (phba->sli4_hba.next_rpi + 1 == max_rpi) {
 		spin_unlock_irq(&phba->hbalock);
 		return rpi;
 	}
@@ -12692,8 +13813,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 * it represents how many are actually in use whereas max_rpi notes
 	 * how many are supported max by the device.
 	 */
-	rpi_remaining = phba->sli4_hba.next_rpi - rpi_base -
-		phba->sli4_hba.rpi_count;
+	rpi_remaining = phba->sli4_hba.next_rpi - phba->sli4_hba.rpi_count;
 	spin_unlock_irq(&phba->hbalock);
 	if (rpi_remaining < LPFC_RPI_LOW_WATER_MARK) {
 		rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
@@ -12702,6 +13822,8 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 					"2002 Error Could not grow rpi "
 					"count\n");
 		} else {
+			lrpi = rpi_hdr->start_rpi;
+			rpi_hdr->start_rpi = phba->sli4_hba.rpi_ids[lrpi];
 			lpfc_sli4_post_rpi_hdr(phba, rpi_hdr);
 		}
 	}
@@ -12751,6 +13873,8 @@ void
 lpfc_sli4_remove_rpis(struct lpfc_hba *phba)
 {
 	kfree(phba->sli4_hba.rpi_bmask);
+	kfree(phba->sli4_hba.rpi_ids);
+	bf_set(lpfc_rpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 }
 
 /**
@@ -13644,7 +14768,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 				 * never happen
 				 */
 				sglq = __lpfc_clear_active_sglq(phba,
-						 sglq->sli4_xritag);
+						 sglq->sli4_lxritag);
 				spin_unlock_irqrestore(&phba->hbalock, iflags);
 				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"2823 txq empty and txq_cnt is %d\n ",
@@ -13656,6 +14780,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		/* The xri and iocb resources secured,
 		 * attempt to issue request
 		 */
+		piocbq->sli4_lxritag = sglq->sli4_lxritag;
 		piocbq->sli4_xritag = sglq->sli4_xritag;
 		if (NO_XRI == lpfc_sli4_bpl2sgl(phba, piocbq, sglq))
 			fail_msg = "to convert bpl to sgl";
