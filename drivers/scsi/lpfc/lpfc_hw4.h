@@ -1286,7 +1286,8 @@ struct lpfc_id_range {
 #define lpfc_mbx_rsrc_id_word4_1_WORD	word5
 };
 
-/* struct lpfc_mbx_get_alloc_rsrc_extent:
+/*
+ * struct lpfc_mbx_alloc_rsrc_extents:
  * A mbox is generically 256 bytes long. An SLI4_CONFIG mailbox requires
  * 6 words of header + 4 words of shared subcommand header +
  * 1 words of Extent-Opcode-specific header = 11 words or 44 bytes total.
@@ -1297,26 +1298,11 @@ struct lpfc_id_range {
  * 212/2 (bytes per extent) = 106 extents.
  * 106/2 (extents per word) = 53 words.
  * lpfc_id_range id is statically size to 53.
+ *
+ * This mailbox definition is used for ALLOC or GET_ALLOCATED
+ * extent ranges.  For ALLOC, the type and cnt are required.
+ * For GET_ALLOCATED, only the type is required.
  */
-struct lpfc_mbx_get_alloc_rsrc_extents {
-	struct mbox_header header;
-	union {
-		struct {
-			uint32_t word4;
-#define lpfc_mbx_get_alloc_rsrc_extent_info_type_SHIFT	0
-#define lpfc_mbx_get_alloc_rsrc_extent_info_type_MASK	0x0000FFFF
-#define lpfc_mbx_get_alloc_rsrc_extent_info_type_WORD	word4
-		} req;
-		struct {
-			uint32_t word4;
-#define lpfc_mbx_rsrc_cnt_SHIFT	0
-#define lpfc_mbx_rsrc_cnt_MASK	0x0000FFFF
-#define lpfc_mbx_rsrc_cnt_WORD	word4
-			struct lpfc_id_range id[53];
-		} rsp;
-	} u;
-};
-
 struct lpfc_mbx_alloc_rsrc_extents {
 	struct mbox_header header;
 	union {
@@ -1334,7 +1320,7 @@ struct lpfc_mbx_alloc_rsrc_extents {
 #define lpfc_mbx_rsrc_cnt_SHIFT	0
 #define lpfc_mbx_rsrc_cnt_MASK	0x0000FFFF
 #define lpfc_mbx_rsrc_cnt_WORD	word4
-			struct lpfc_id_range id[60];
+			struct lpfc_id_range id[53];
 		} rsp;
 	} u;
 };
@@ -2351,7 +2337,6 @@ struct lpfc_mqe {
 		struct lpfc_mbx_wq_destroy wq_destroy;
 		struct lpfc_mbx_rq_destroy rq_destroy;
 		struct lpfc_mbx_get_rsrc_extent_info rsrc_extent_info;
-		struct lpfc_mbx_get_alloc_rsrc_extents avail_rsrc_extents;
 		struct lpfc_mbx_alloc_rsrc_extents alloc_rsrc_extents;
 		struct lpfc_mbx_dealloc_rsrc_extents dealloc_rscr_extents;
 		struct lpfc_mbx_post_sgl_pages post_sgl_pages;
