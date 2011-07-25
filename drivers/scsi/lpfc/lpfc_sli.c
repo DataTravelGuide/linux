@@ -4928,11 +4928,6 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	struct lpfc_mbx_nembed_rsrc_extent *n_rsrc;
 	struct lpfc_mbx_alloc_rsrc_extents *rsrc_ext;
 
-	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_blk_list);
-	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_xri_blk_list);
-	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_vfi_blk_list);
-	INIT_LIST_HEAD(&phba->lpfc_vpi_blk_list);
-
 	rc = lpfc_sli4_get_avail_extnt_rsrc(phba, type,
 					    &rsrc_cnt,
 					    &rsrc_size);
