@@ -6401,6 +6401,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	uint32_t els_id = LPFC_ELS_ID_DEFAULT;
 	int numBdes, i;
 	struct ulp_bde64 bde;
+	struct lpfc_nodelist *ndlp;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
 	/* The fcp commands will set command type */
@@ -6445,9 +6446,8 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	cmnd = iocbq->iocb.ulpCommand;
 
 	switch (iocbq->iocb.ulpCommand) {
-	case CMD_ELS_REQUEST64_CR: {
-		struct lpfc_nodelist *ndlp =
-				(struct lpfc_nodelist *)iocbq->context1;
+	case CMD_ELS_REQUEST64_CR:
+		ndlp = (struct lpfc_nodelist *)iocbq->context1;
 		if (!iocbq->iocb.ulpLe) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2007 Only Limited Edition cmd Format"
