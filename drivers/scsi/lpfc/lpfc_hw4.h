@@ -2277,6 +2277,12 @@ struct lpfc_sli4_parameters {
 #define cfg_fcoe_SHIFT				0
 #define cfg_fcoe_MASK				0x00000001
 #define cfg_fcoe_WORD				word12
+#define cfg_ext_SHIFT				1
+#define cfg_ext_MASK				0x00000001
+#define cfg_ext_WORD				word12
+#define cfg_hdrr_SHIFT				2
+#define cfg_hdrr_MASK				0x00000001
+#define cfg_hdrr_WORD				word12
 #define cfg_phwq_SHIFT				15
 #define cfg_phwq_MASK				0x00000001
 #define cfg_phwq_WORD				word12

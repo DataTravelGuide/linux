@@ -4333,7 +4333,15 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * Get sli4 parameters that override parameters from Port capabilities.
 	 * If this call fails it is not a critical error so continue loading.
 	 */
-	lpfc_get_sli4_parameters(phba, mboxq);
+	rc = lpfc_get_sli4_parameters(phba, mboxq);
+	if (rc) {
+		if (phba->sli4_hba.extents_in_use &&
+		    phba->sli4_hba.rpi_hdrs_in_use)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2999 Unsupported SLI4 Parameters "
+				"Extents and RPI headers enabled.\n");
+		goto out_free_bsmbx;
+	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
@@ -4866,7 +4874,7 @@ lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 	 * required.  Set the expected maximum count and let the actual value
 	 * get set when extents are fully allocated.
 	 */
-	if (phba->sli4_hba.extents_in_use) {
+	if (!phba->sli4_hba.rpi_hdrs_in_use) {
 		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
 		return rc;
 	}
@@ -4908,8 +4916,10 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * required.  Set the expected maximum count and let the actual value
 	 * get set when extents are fully allocated.
 	 */
-	if (phba->sli4_hba.extents_in_use)
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		return NULL;
+	if (phba->sli4_hba.extents_in_use)
+		return -EIO;
 
 	/* The limit on the logical index is just the max_rpi count. */
 	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
@@ -5004,7 +5014,7 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 {
 	struct lpfc_rpi_hdr *rpi_hdr, *next_rpi_hdr;
 
-	if (phba->sli4_hba.extents_in_use)
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		goto exit;
 
 	list_for_each_entry_safe(rpi_hdr, next_rpi_hdr,
@@ -7933,6 +7943,13 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	int length;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 
+	/*
+	 * By default, the driver assumes the SLI4 port requires RPI
+	 * header postings.  The SLI4_PARAM response will correct this
+	 * assumption.
+	 */
+	phba->sli4_hba.rpi_hdrs_in_use = 1;
+
 	/* Read the port's SLI4 Config Parameters */
 	length = (sizeof(struct lpfc_mbx_get_sli4_parameters) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
@@ -7969,6 +7986,8 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					    mbx_sli4_parameters);
 	sli4_params->sgl_pp_align = bf_get(cfg_sgl_pp_align,
 					   mbx_sli4_parameters);
+	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
+	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
 	return 0;
 }
 

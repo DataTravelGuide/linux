@@ -13826,8 +13826,10 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 	uint16_t lrpi = 0;
 
 	/* SLI4 ports that support extents do not require RPI headers. */
-	if (phba->sli4_hba.extents_in_use)
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		goto exit;
+	if (phba->sli4_hba.extents_in_use)
+		return -EIO;
 
 	list_for_each_entry(rpi_page, &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
 		/*
@@ -13879,8 +13881,10 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	union lpfc_sli4_cfg_shdr *shdr;
 
 	/* SLI4 ports that support extents do not require RPI headers. */
-	if (phba->sli4_hba.extents_in_use)
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		return rc;
+	if (phba->sli4_hba.extents_in_use)
+		return -EIO;
 
 	/* The port is notified of the header region via a mailbox command. */
 	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -13976,7 +13980,7 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 	 * RPI header postings are not required for SLI4 ports capable of
 	 * extents.
 	 */
-	if (phba->sli4_hba.extents_in_use) {
+	if (!phba->sli4_hba.rpi_hdrs_in_use) {
 		spin_unlock_irq(&phba->hbalock);
 		return rpi;
 	}

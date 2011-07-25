@@ -444,6 +444,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_bmbx bmbx;
 	struct lpfc_max_cfg_param max_cfg_param;
 	uint16_t extents_in_use; /* must allocate resource extents. */
+	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
 	uint16_t scsi_xri_max;
