@@ -11391,8 +11391,8 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	bf_set(lpfc_mbox_hdr_version, &shdr->request,
 	       phba->sli4_hba.pc_sli4_params.cqv);
 	if (phba->sli4_hba.pc_sli4_params.cqv == LPFC_Q_CREATE_VERSION_2) {
-		bf_set(lpfc_mbx_cq_create_page_size, &cq_create->u.request,
-		       (PAGE_SIZE/SLI4_PAGE_SIZE));
+		/* FW only supports 1. Should be PAGE_SIZE/SLI4_PAGE_SIZE */
+		bf_set(lpfc_mbx_cq_create_page_size, &cq_create->u.request, 1);
 		bf_set(lpfc_cq_eq_id_2, &cq_create->u.request.context,
 		       eq->queue_id);
 	} else {

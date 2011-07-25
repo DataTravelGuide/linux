@@ -2210,6 +2210,8 @@ struct lpfc_mbx_pc_sli4_params {
 #define sgl_pp_align_WORD			word12
 	uint32_t rsvd_13_63[51];
 };
+#define SLI4_PAGE_ALIGN(addr) (((addr)+((SLI4_PAGE_SIZE)-1)) \
+			       &(~((SLI4_PAGE_SIZE)-1)))
 
 struct lpfc_sli4_parameters {
 	uint32_t word0;
