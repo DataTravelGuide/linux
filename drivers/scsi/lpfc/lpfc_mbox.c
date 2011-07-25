@@ -610,7 +610,8 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 	mb->un.varRdSparm.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRdSparm.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRdSparm.un.sp64.addrLow = putPaddrLow(mp->phys);
-	mb->un.varRdSparm.vpi = phba->vpi_ids[vpi];
+	if (phba->sli_rev >= LPFC_SLI_REV3)
+		mb->un.varRdSparm.vpi = phba->vpi_ids[vpi];
 
 	/* save address for completion */
 	pmb->context1 = mp;
@@ -741,8 +742,8 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	mb->un.varRegLogin.rpi = 0;
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		mb->un.varRegLogin.rpi = phba->sli4_hba.rpi_ids[rpi];
-
-	mb->un.varRegLogin.vpi = phba->vpi_ids[vpi];
+	if (phba->sli_rev >= LPFC_SLI_REV3)
+		mb->un.varRegLogin.vpi = phba->vpi_ids[vpi];
 	mb->un.varRegLogin.did = did;
 	mb->mbxOwner = OWN_HOST;
 	/* Get a buffer to hold NPorts Service Parameters */
@@ -803,7 +804,8 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
 
 	mb->un.varUnregLogin.rpi = rpi;
 	mb->un.varUnregLogin.rsvd1 = 0;
-	mb->un.varUnregLogin.vpi = phba->vpi_ids[vpi];
+	if (phba->sli_rev >= LPFC_SLI_REV3)
+		mb->un.varUnregLogin.vpi = phba->vpi_ids[vpi];
 
 	mb->mbxCommand = MBX_UNREG_LOGIN;
 	mb->mbxOwner = OWN_HOST;
@@ -914,9 +916,9 @@ lpfc_unreg_vpi(struct lpfc_hba *phba, uint16_t vpi, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	if (phba->sli_rev < LPFC_SLI_REV4)
+	if (phba->sli_rev == LPFC_SLI_REV3)
 		mb->un.varUnregVpi.vpi = phba->vpi_ids[vpi];
-	else
+	else if (phba->sli_rev >= LPFC_SLI_REV4)
 		mb->un.varUnregVpi.sli4_vpi = phba->vpi_ids[vpi];
 
 	mb->mbxCommand = MBX_UNREG_VPI;

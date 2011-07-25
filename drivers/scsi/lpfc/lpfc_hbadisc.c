@@ -4661,7 +4661,8 @@ lpfc_disc_start(struct lpfc_vport *vport)
 		return;
 
 	/* Register the VPI for SLI3, NON-NPIV only. */
-	if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
+	if ((phba->sli_rev == LPFC_SLI_REV3) &&
+	    !(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE) &&
 	    (phba->sli_rev < LPFC_SLI_REV4)) {
