@@ -1066,7 +1066,7 @@ out:
 static int action_dev(struct multipath *m, struct dm_dev *dev,
 		      action_fn action)
 {
-	int r = 0;
+	int r = -EINVAL;
 	struct pgpath *pgpath;
 	struct priority_group *pg;
 
@@ -1670,7 +1670,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
