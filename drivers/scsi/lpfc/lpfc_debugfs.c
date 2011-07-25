@@ -48,6 +48,7 @@
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
 #include "lpfc_debugfs.h"
+#include "lpfc_bsg.h"
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 /*
@@ -2329,6 +2330,145 @@ error_out:
 	return -EINVAL;
 }
 
+/**
+ * lpfc_idiag_mbxacc_get_setup - idiag debugfs get mailbox access setup
+ * @phba: Pointer to HBA context object.
+ * @pbuffer: Pointer to data buffer.
+ *
+ * Description:
+ * This routine gets the driver mailbox access debugfs setup information.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static int
+lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
+{
+	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt;
+	int len = 0;
+
+	mbx_dump_map = idiag.cmd.data[0];
+	mbx_dump_cnt = idiag.cmd.data[1];
+	mbx_word_cnt = idiag.cmd.data[2];
+
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_dump_map: 0x%08x\n", mbx_dump_map);
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_dump_cnt: %04d\n", mbx_dump_cnt);
+	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
+			"mbx_word_cnt: %04d\n", mbx_word_cnt);
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_mbxacc_read - idiag debugfs read on mailbox access
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba driver mailbox access debugfs setup
+ * information.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_mbxacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_MBX_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+		return 0;
+
+	len = lpfc_idiag_mbxacc_get_setup(phba, pbuffer);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_mbxacc_write - Syntax check and set up idiag mbxacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for driver mailbox command (dump) and sets up the
+ * necessary states in the idiag command struct accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	mbx_dump_map = idiag.cmd.data[0];
+	mbx_dump_cnt = idiag.cmd.data[1];
+	mbx_word_cnt = idiag.cmd.data[2];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_MBXACC_DP) {
+		if (!(mbx_dump_map & LPFC_MBX_DMP_ALL))
+			goto error_out;
+		if (mbx_dump_map & ~LPFC_MBX_DMP_ALL)
+			goto error_out;
+		if (mbx_word_cnt == 0)
+			goto error_out;
+		if (mbx_dump_cnt > (BSG_MBOX_SIZE)/4)
+			goto error_out;
+		/* as condition for stop mailbox dump */
+		if (mbx_dump_cnt == 0)
+			goto reset_out;
+	} else
+		goto error_out;
+
+	return nbytes;
+
+reset_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
 #undef lpfc_debugfs_op_disc_trc
 static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
@@ -2447,7 +2587,109 @@ static const struct file_operations lpfc_idiag_op_drbAcc = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
+#undef lpfc_idiag_op_mbxacc
+static const struct file_operations lpfc_idiag_op_mbxAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_mbxacc_read,
+	.write =        lpfc_idiag_mbxacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
 #endif
+
+/* lpfc_idiag_bsg_mbxacc_dump_mbox - idiag debugfs dump bsg mailbox from dmabuf
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * Description:
+ * This routine dump a bsg pass-through non-embedded mailbox command with
+ * external buffer.
+ **/
+void
+lpfc_idiag_bsg_mbxacc_dump_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
+				enum mbox_type mbox_tp, enum dma_type dma_tp,
+				enum sta_type sta_tp,
+				struct lpfc_dmabuf *dmabuf, uint32_t ext_buf)
+{
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint32_t *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt;
+	char line_buf[128];
+	int len = 0;
+	uint32_t do_dump = 0;
+	uint32_t *pword;
+	uint32_t i;
+
+	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+		return;
+
+	mbx_dump_map = &idiag.cmd.data[0];
+	mbx_dump_cnt = &idiag.cmd.data[1];
+	mbx_word_cnt = &idiag.cmd.data[2];
+
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_ALL) || (*mbx_dump_cnt == 0) ||
+	    (*mbx_word_cnt == 0))
+		return;
+
+	if ((mbox_tp == mbox_rd) && (dma_tp == dma_mbox)) {
+		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_RD_MBX) {
+			do_dump |= LPFC_BSG_MBX_DMP_RD_MBX;
+			printk(KERN_ERR "\nRead mbox command (x%x), "
+			       "nemb:0x%x, extbuf_cnt:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_rd) && (dma_tp == dma_ebuf)) {
+		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_RD_BUF) {
+			do_dump |= LPFC_BSG_MBX_DMP_RD_BUF;
+			printk(KERN_ERR "\nRead mbox buffer (x%x), "
+			       "nemb:0x%x, extbuf_seq:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_wr) && (dma_tp == dma_mbox)) {
+		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_WR_MBX) {
+			do_dump |= LPFC_BSG_MBX_DMP_WR_MBX;
+			printk(KERN_ERR "\nWrite mbox command (x%x), "
+			       "nemb:0x%x, extbuf_cnt:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+	if ((mbox_tp == mbox_wr) && (dma_tp == dma_ebuf)) {
+		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_WR_BUF) {
+			do_dump |= LPFC_BSG_MBX_DMP_WR_MBX;
+			printk(KERN_ERR "\nWrite mbox buffer (x%x), "
+			       "nemb:0x%x, extbuf_seq:%d:\n",
+			       sta_tp, nemb_tp, ext_buf);
+		}
+	}
+
+	/* dump buffer content */
+	if (do_dump) {
+		pword = (uint32_t *)dmabuf->virt;
+		for (i = 0; i < *mbx_word_cnt; i++) {
+			if (!(i % 8)) {
+				if (i != 0)
+					printk(KERN_ERR "%s\n", line_buf);
+				len = 0;
+				len += snprintf(line_buf+len,
+						128-len, "%03d: ", i);
+			}
+			len += snprintf(line_buf+len, 128-len, "%08x ", *pword);
+			pword++;
+		}
+		if ((i - 1) % 8)
+			printk(KERN_ERR "%s\n", line_buf);
+		(*mbx_dump_cnt)--;
+	}
+
+	/* Clean out command structure on reaching dump count */
+	if (*mbx_dump_cnt == 0)
+		memset(&idiag, 0, sizeof(idiag));
+	return;
+#endif
+}
 
 /**
  * lpfc_debugfs_initialize - Initialize debugfs for a vport
@@ -2748,6 +2990,20 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
+	/* iDiag access mbox commands */
+	snprintf(name, sizeof(name), "mbxAcc");
+	if (!phba->idiag_mbx_acc) {
+		phba->idiag_mbx_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_mbxAcc);
+		if (!phba->idiag_mbx_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					"2980 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+
 debug_failed:
 	return;
 #endif
@@ -2826,6 +3082,11 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		 * iDiag release
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
+			if (phba->idiag_mbx_acc) {
+				/* iDiag mbxAcc */
+				debugfs_remove(phba->idiag_mbx_acc);
+				phba->idiag_mbx_acc = NULL;
+			}
 			if (phba->idiag_drb_acc) {
 				/* iDiag drbAcc */
 				debugfs_remove(phba->idiag_drb_acc);

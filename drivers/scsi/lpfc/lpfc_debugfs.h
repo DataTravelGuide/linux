@@ -76,6 +76,19 @@
 
 #define LPFC_DRB_MAX  4
 
+/* mailbox access */
+#define LPFC_MBX_ACC_BUF_SIZE 256
+
+#define LPFC_BSG_MBX_DMP_RD_MBX 1
+#define LPFC_BSG_MBX_DMP_RD_BUF 2
+#define LPFC_BSG_MBX_DMP_WR_MBX 4
+#define LPFC_BSG_MBX_DMP_WR_BUF 8
+
+#define LPFC_MBX_DMP_ALL (LPFC_BSG_MBX_DMP_RD_MBX | \
+			  LPFC_BSG_MBX_DMP_RD_BUF | \
+			  LPFC_BSG_MBX_DMP_WR_MBX | \
+			  LPFC_BSG_MBX_DMP_WR_BUF)
+
 #define SIZE_U8  sizeof(uint8_t)
 #define SIZE_U16 sizeof(uint16_t)
 #define SIZE_U32 sizeof(uint32_t)
@@ -119,6 +132,8 @@ struct lpfc_idiag_cmd {
 #define LPFC_IDIAG_CMD_DRBACC_WR 0x00000022
 #define LPFC_IDIAG_CMD_DRBACC_ST 0x00000023
 #define LPFC_IDIAG_CMD_DRBACC_CL 0x00000024
+
+#define LPFC_IDIAG_CMD_MBXACC_DP 0x00000030
 	uint32_t data[LPFC_IDIAG_CMD_DATA_SIZE];
 };
 

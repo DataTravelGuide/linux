@@ -495,6 +495,16 @@ enum mbox_type {
 	mbox_wr
 };
 
+enum dma_type {
+	dma_mbox,
+	dma_ebuf
+};
+
+enum sta_type {
+	sta_pre_addr,
+	sta_pos_addr
+};
+
 struct lpfc_mbox_ext_buf_ctx {
 	uint32_t state;
 #define LPFC_BSG_MBOX_IDLE		0
@@ -836,6 +846,7 @@ struct lpfc_hba {
 	struct dentry *idiag_que_info;
 	struct dentry *idiag_que_acc;
 	struct dentry *idiag_drb_acc;
+	struct dentry *idiag_mbx_acc;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */
