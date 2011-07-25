@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -83,6 +83,7 @@ enum e1e_registers {
 	E1000_EXTCNF_CTRL  = 0x00F00, /* Extended Configuration Control */
 	E1000_EXTCNF_SIZE  = 0x00F08, /* Extended Configuration Size */
 	E1000_PHY_CTRL     = 0x00F10, /* PHY Control Register in CSR */
+#define E1000_POEMB	E1000_PHY_CTRL	/* PHY OEM Bits */
 	E1000_PBA      = 0x01000, /* Packet Buffer Allocation - RW */
 	E1000_PBS      = 0x01008, /* Packet Buffer Size */
 	E1000_EEMNGCTL = 0x01010, /* MNG EEprom Control */
@@ -101,7 +102,7 @@ enum e1e_registers {
 	E1000_RDTR     = 0x02820, /* Rx Delay Timer - RW */
 	E1000_RXDCTL_BASE = 0x02828, /* Rx Descriptor Control - RW */
 #define E1000_RXDCTL(_n)   (E1000_RXDCTL_BASE + (_n << 8))
-	E1000_RADV     = 0x0282C, /* RX Interrupt Absolute Delay Timer - RW */
+	E1000_RADV     = 0x0282C, /* Rx Interrupt Absolute Delay Timer - RW */
 
 /* Convenience macros
  *
@@ -245,6 +246,7 @@ enum e1e_registers {
 #define BM_WUC_ENABLE_REG		17
 #define BM_WUC_ENABLE_BIT		(1 << 2)
 #define BM_WUC_HOST_WU_BIT		(1 << 4)
+#define BM_WUC_ME_WU_BIT		(1 << 5)
 
 #define BM_WUC	PHY_REG(BM_WUC_PAGE, 1)
 #define BM_WUFC PHY_REG(BM_WUC_PAGE, 2)
@@ -311,6 +313,7 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
+#define E1000_KMRNCTRLSTA_IBIST_DISABLE	0x0200 /* Kumeran IBIST Disable */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE	0x0002
@@ -775,7 +778,21 @@ struct e1000_mac_operations {
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
-/* Function pointers for the PHY. */
+/*
+ * When to use various PHY register access functions:
+ *
+ *                 Func   Caller
+ *   Function      Does   Does    When to use
+ *   ~~~~~~~~~~~~  ~~~~~  ~~~~~~  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *   X_reg         L,P,A  n/a     for simple PHY reg accesses
+ *   X_reg_locked  P,A    L       for multiple accesses of different regs
+ *                                on different pages
+ *   X_reg_page    A      L,P     for multiple accesses of different regs
+ *                                on the same page
+ *
+ * Where X=[read|write], L=locking, P=sets page, A=register access
+ *
+ */
 struct e1000_phy_operations {
 	s32  (*acquire)(struct e1000_hw *);
 	s32  (*cfg_on_link_up)(struct e1000_hw *);
@@ -786,14 +803,17 @@ struct e1000_phy_operations {
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_info)(struct e1000_hw *);
+	s32  (*set_page)(struct e1000_hw *, u16);
 	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
 	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_page)(struct e1000_hw *, u32, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
 	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_page)(struct e1000_hw *, u32, u16);
 	void (*power_up)(struct e1000_hw *);
 	void (*power_down)(struct e1000_hw *);
 };
@@ -811,9 +831,8 @@ struct e1000_nvm_operations {
 
 struct e1000_mac_info {
 	struct e1000_mac_operations ops;
-
-	u8 addr[6];
-	u8 perm_addr[6];
+	u8 addr[ETH_ALEN];
+	u8 perm_addr[ETH_ALEN];
 
 	enum e1000_mac_type type;
 
