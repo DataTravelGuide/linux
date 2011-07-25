@@ -6227,8 +6227,10 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	phba->sli4_hba.mbx_cq = NULL;
 
 	/* Release FCP response complete queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
+	fcp_qidx = 0;
+	do
 		lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
+	while (++fcp_qidx < phba->cfg_fcp_eq_count);
 	kfree(phba->sli4_hba.fcp_cq);
 	phba->sli4_hba.fcp_cq = NULL;
 
@@ -6351,16 +6353,24 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path FCP Response Complete Queue */
-	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++) {
+	fcp_cqidx = 0;
+	do {
 		if (!phba->sli4_hba.fcp_cq[fcp_cqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0526 Fast-path FCP CQ (%d) not "
 					"allocated\n", fcp_cqidx);
 			goto out_destroy_fcp_cq;
 		}
-		rc = lpfc_cq_create(phba, phba->sli4_hba.fcp_cq[fcp_cqidx],
-				    phba->sli4_hba.fp_eq[fcp_cqidx],
-				    LPFC_WCQ, LPFC_FCP);
+		if (phba->cfg_fcp_eq_count)
+			rc = lpfc_cq_create(phba,
+					    phba->sli4_hba.fcp_cq[fcp_cqidx],
+					    phba->sli4_hba.fp_eq[fcp_cqidx],
+					    LPFC_WCQ, LPFC_FCP);
+		else
+			rc = lpfc_cq_create(phba,
+					    phba->sli4_hba.fcp_cq[fcp_cqidx],
+					    phba->sli4_hba.sp_eq,
+					    LPFC_WCQ, LPFC_FCP);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0527 Failed setup of fast-path FCP "
@@ -6369,12 +6379,15 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		}
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"2588 FCP CQ setup: cq[%d]-id=%d, "
-				"parent eq[%d]-id=%d\n",
+				"parent %seq[%d]-id=%d\n",
 				fcp_cqidx,
 				phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id,
+				(phba->cfg_fcp_eq_count) ? "" : "sp_",
 				fcp_cqidx,
-				phba->sli4_hba.fp_eq[fcp_cqidx]->queue_id);
-	}
+				(phba->cfg_fcp_eq_count) ?
+				   phba->sli4_hba.fp_eq[fcp_cqidx]->queue_id :
+				   phba->sli4_hba.sp_eq->queue_id);
+	} while (++fcp_cqidx < phba->cfg_fcp_eq_count);
 
 	/*
 	 * Set up all the Work Queues (WQs)
@@ -6443,7 +6456,9 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				fcp_cq_index,
 				phba->sli4_hba.fcp_cq[fcp_cq_index]->queue_id);
 		/* Round robin FCP Work Queue's Completion Queue assignment */
-		fcp_cq_index = ((fcp_cq_index + 1) % phba->cfg_fcp_eq_count);
+		if (phba->cfg_fcp_eq_count)
+			fcp_cq_index = ((fcp_cq_index + 1) %
+					phba->cfg_fcp_eq_count);
 	}
 
 	/*
@@ -7413,11 +7428,15 @@ enable_msix_vectors:
 	/*
 	 * Assign MSI-X vectors to interrupt handlers
 	 */
-
-	/* The first vector must associated to slow-path handler for MQ */
-	rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
-			 &lpfc_sli4_sp_intr_handler, IRQF_SHARED,
-			 LPFC_SP_DRIVER_HANDLER_NAME, phba);
+	if (vectors > 1)
+		rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
+				 &lpfc_sli4_sp_intr_handler, IRQF_SHARED,
+				 LPFC_SP_DRIVER_HANDLER_NAME, phba);
+	else
+		/* All Interrupts need to be handled by one EQ */
+		rc = request_irq(phba->sli4_hba.msix_entries[0].vector,
+				 &lpfc_sli4_intr_handler, IRQF_SHARED,
+				 LPFC_DRIVER_NAME, phba);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0485 MSI-X slow-path request_irq failed "
@@ -8586,6 +8605,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int error;
 	uint32_t cfg_mode, intr_mode;
 	int mcnt;
+	int adjusted_fcp_eq_count;
+	int fcp_qidx;
 
 	/* Allocate memory for HBA structure */
 	phba = lpfc_hba_alloc(pdev);
@@ -8683,11 +8704,25 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 			error = -ENODEV;
 			goto out_free_sysfs_attr;
 		}
-		/* Default to single FCP EQ for non-MSI-X */
+		/* Default to single EQ for non-MSI-X */
 		if (phba->intr_type != MSIX)
-			phba->cfg_fcp_eq_count = 1;
-		else if (phba->sli4_hba.msix_vec_nr < phba->cfg_fcp_eq_count)
-			phba->cfg_fcp_eq_count = phba->sli4_hba.msix_vec_nr - 1;
+			adjusted_fcp_eq_count = 0;
+		else if (phba->sli4_hba.msix_vec_nr <
+					phba->cfg_fcp_eq_count + 1)
+			adjusted_fcp_eq_count = phba->sli4_hba.msix_vec_nr - 1;
+		else
+			adjusted_fcp_eq_count = phba->cfg_fcp_eq_count;
+		/* Free unused EQs */
+		for (fcp_qidx = adjusted_fcp_eq_count;
+		     fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++) {
+			lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
+			/* do not delete the first fcp_cq */
+			if (fcp_qidx)
+				lpfc_sli4_queue_free(
+					phba->sli4_hba.fcp_cq[fcp_qidx]);
+		}
+		phba->cfg_fcp_eq_count = adjusted_fcp_eq_count;
 		/* Set up SLI-4 HBA */
 		if (lpfc_sli4_hba_setup(phba)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,

@@ -65,6 +65,8 @@ static struct lpfc_iocbq *lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *,
 							 struct lpfc_iocbq *);
 static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
+static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
+				    struct lpfc_cqe *);
 static int lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *, uint16_t);
 static int lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *, uint16_t,
 					  uint16_t *, uint16_t *);
@@ -3870,8 +3872,10 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	list_del_init(&phba->sli4_hba.els_cq->list);
 	for (qindx = 0; qindx < phba->cfg_fcp_wq_count; qindx++)
 		list_del_init(&phba->sli4_hba.fcp_wq[qindx]->list);
-	for (qindx = 0; qindx < phba->cfg_fcp_eq_count; qindx++)
+	qindx = 0;
+	do
 		list_del_init(&phba->sli4_hba.fcp_cq[qindx]->list);
+	while (++qindx < phba->cfg_fcp_eq_count);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Now physically reset the device */
@@ -4698,9 +4702,11 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
-	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
+	fcp_eqidx = 0;
+	do
 		lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
 				     LPFC_QUEUE_REARM);
+	while (++fcp_eqidx < phba->cfg_fcp_eq_count);
 	lpfc_sli4_eq_release(phba->sli4_hba.sp_eq, LPFC_QUEUE_REARM);
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
 		lpfc_sli4_eq_release(phba->sli4_hba.fp_eq[fcp_eqidx],
@@ -10652,7 +10658,12 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 		break;
 	case LPFC_WCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			workposted |= lpfc_sli4_sp_handle_cqe(phba, cq, cqe);
+			if (cq->subtype == LPFC_FCP)
+				workposted |= lpfc_sli4_fp_handle_wcqe(phba, cq,
+								       cqe);
+			else
+				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
+								      cqe);
 			if (!(++ecount % LPFC_GET_QE_REL_INT))
 				lpfc_sli4_cq_release(cq, LPFC_QUEUE_NOARM);
 		}
