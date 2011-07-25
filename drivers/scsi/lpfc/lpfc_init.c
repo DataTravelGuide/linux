@@ -5379,6 +5379,8 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	int i, port_error = 0;
 	uint32_t if_type;
 
+	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
+	memset(&reg_data, 0, sizeof(reg_data));
 	if (!phba->sli4_hba.PSMPHRregaddr)
 		return -ENODEV;
 
