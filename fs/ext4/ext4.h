@@ -1509,12 +1509,6 @@ extern struct proc_dir_entry *ext4_proc_root;
  */
 struct ext4_lazy_init {
 	unsigned long		li_state;
-
-	wait_queue_head_t	li_wait_daemon;
-	wait_queue_head_t	li_wait_task;
-	struct timer_list	li_timer;
-	struct task_struct	*li_task;
-
 	struct list_head	li_request_list;
 	struct mutex		li_list_mtx;
 };
