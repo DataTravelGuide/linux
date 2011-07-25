@@ -1046,8 +1046,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
-		ti->error = "Cannot allocate snapshot context private "
-		    "structure";
+		ti->error = "Cannot allocate private snapshot structure";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -1406,7 +1405,7 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	 */
 	dm_insert_exception(&s->complete, e);
 
- out:
+out:
 	dm_remove_exception(&pe->e);
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
@@ -1471,8 +1470,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
-	dm_kcopyd_copy(s->kcopyd_client,
-		    &src, 1, &dest, 0, copy_callback, pe);
+	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, copy_callback, pe);
 }
 
 static struct dm_snap_pending_exception *
@@ -1619,9 +1617,9 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		map_context->ptr = track_chunk(s, chunk);
 	}
 
- out_unlock:
+out_unlock:
 	up_write(&s->lock);
- out:
+out:
 	return r;
 }
 
@@ -1965,7 +1963,7 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 			pe_to_start_now = pe;
 		}
 
- next_snapshot:
+next_snapshot:
 		up_write(&snap->lock);
 
 		if (pe_to_start_now) {
