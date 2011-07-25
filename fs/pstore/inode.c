@@ -73,9 +73,13 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	struct pstore_private *p = dentry->d_inode->i_private;
 
 	p->erase(p->id);
-	kfree(p);
 
 	return simple_unlink(dir, dentry);
+}
+
+static void pstore_clear_inode(struct inode *inode)
+{
+	kfree(inode->i_private);
 }
 
 static const struct inode_operations pstore_dir_inode_operations = {
@@ -109,6 +113,7 @@ static struct inode *pstore_get_inode(struct super_block *sb,
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
+	.clear_inode	= pstore_clear_inode,
 	.show_options	= generic_show_options,
 };
 
