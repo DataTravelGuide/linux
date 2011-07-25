@@ -4998,10 +4998,8 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 		kfree(rpi_hdr->dmabuf);
 		kfree(rpi_hdr);
 	}
-
 	/* Reset the next_rpi to 0 - the first logical index. */
 	phba->sli4_hba.next_rpi = 0;
-	memset(phba->sli4_hba.rpi_bmask, 0, sizeof(*phba->sli4_hba.rpi_bmask));
 }
 
 /**
