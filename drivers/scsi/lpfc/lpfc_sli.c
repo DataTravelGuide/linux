@@ -5022,6 +5022,13 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			goto err_exit;
 		}
 
+		/*
+		 * The next_rpi was initialized with the maximum available
+		 * count but the port may allocate a smaller number.  Catch
+		 * that case and update the next_rpi.
+		 */
+		phba->sli4_hba.next_rpi = rsrc_id_cnt;
+
 		/* Initialize local ptrs for common extent processing later. */
 		bmask = phba->sli4_hba.rpi_bmask;
 		ids = phba->sli4_hba.rpi_ids;
@@ -13818,6 +13825,10 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 	uint32_t rc = 0;
 	uint16_t lrpi = 0;
 
+	/* SLI4 ports that support extents do not require RPI headers. */
+	if (phba->sli4_hba.extents_in_use)
+		goto exit;
+
 	list_for_each_entry(rpi_page, &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
 		/*
 		 * Assign the rpi headers a physical rpi only if the driver
@@ -13838,6 +13849,7 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
 		}
 	}
 
+ exit:
 	bf_set(lpfc_rpi_rsrc_rdy, &phba->sli4_hba.sli4_flags,
 	       LPFC_RPI_RSRC_RDY);
 	return rc;
@@ -13865,6 +13877,10 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	uint32_t rc = 0;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
+
+	/* SLI4 ports that support extents do not require RPI headers. */
+	if (phba->sli4_hba.extents_in_use)
+		return rc;
 
 	/* The port is notified of the header region via a mailbox command. */
 	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -13956,8 +13972,11 @@ lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
 		return rpi;
 	}
 
-	/*&&&PAE. This code works, but need to rework the error condition. */
-	if (phba->sli4_hba.next_rpi + 1 == max_rpi) {
+	/*
+	 * RPI header postings are not required for SLI4 ports capable of
+	 * extents.
+	 */
+	if (phba->sli4_hba.extents_in_use) {
 		spin_unlock_irq(&phba->hbalock);
 		return rpi;
 	}

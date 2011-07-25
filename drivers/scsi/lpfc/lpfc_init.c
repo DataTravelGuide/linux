@@ -4845,17 +4845,14 @@ out_free_mem:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to post rpi header templates to the
- * HBA consistent with the SLI-4 interface spec.  This routine
+ * port for those SLI4 ports that do not support extents.  This routine
  * posts a PAGE_SIZE memory region to the port to hold up to
- * PAGE_SIZE modulo 64 rpi context headers.
- * No locks are held here because this is an initialization routine
- * called only from probe or lpfc_online when interrupts are not
- * enabled and the driver is reinitializing the device.
+ * PAGE_SIZE modulo 64 rpi context headers.  This is an initialization routine
+ * and should be called only when interrupts are disabled.
  *
  * Return codes
  * 	0 - sucessful
- * 	-ENOMEM - No availble memory
- *      -EIO - The mailbox failed to complete successfully.
+ * 	-ERROR - otherwise.
  **/
 int
 lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
@@ -4864,6 +4861,15 @@ lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 	struct lpfc_rpi_hdr *rpi_hdr;
 
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_hdr_list);
+	/*
+	 * If the SLI4 port supports extents, posting the rpi header isn't
+	 * required.  Set the expected maximum count and let the actual value
+	 * get set when extents are fully allocated.
+	 */
+	if (phba->sli4_hba.extents_in_use) {
+		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
+		return rc;
+	}
 
 	rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
 	if (!rpi_hdr) {
@@ -4896,6 +4902,14 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	struct lpfc_dmabuf *dmabuf;
 	struct lpfc_rpi_hdr *rpi_hdr;
 	uint32_t rpi_count;
+
+	/*
+	 * If the SLI4 port supports extents, posting the rpi header isn't
+	 * required.  Set the expected maximum count and let the actual value
+	 * get set when extents are fully allocated.
+	 */
+	if (phba->sli4_hba.extents_in_use)
+		return NULL;
 
 	/* The limit on the logical index is just the max_rpi count. */
 	rpi_limit = phba->sli4_hba.max_cfg_param.rpi_base +
@@ -4951,9 +4965,6 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	if (!rpi_hdr)
 		goto err_free_coherent;
 
-	/*&&&PAE.  Once RPI Extent Count and Size are finalized in FW, need
-	 * to make sure that a rpi hdrs align with extent count and size.
-	 */
 	rpi_hdr->dmabuf = dmabuf;
 	rpi_hdr->len = LPFC_HDR_TEMPLATE_SIZE;
 	rpi_hdr->page_count = 1;
@@ -4984,14 +4995,17 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to remove all memory resources allocated
- * to support rpis. This routine presumes the caller has released all
- * rpis consumed by fabric or port logins and is prepared to have
- * the header pages removed.
+ * to support rpis for SLI4 ports not supporting extents. This routine
+ * presumes the caller has released all rpis consumed by fabric or port
+ * logins and is prepared to have the header pages removed.
  **/
 void
 lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 {
 	struct lpfc_rpi_hdr *rpi_hdr, *next_rpi_hdr;
+
+	if (phba->sli4_hba.extents_in_use)
+		goto exit;
 
 	list_for_each_entry_safe(rpi_hdr, next_rpi_hdr,
 				 &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
@@ -5001,7 +5015,8 @@ lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *phba)
 		kfree(rpi_hdr->dmabuf);
 		kfree(rpi_hdr);
 	}
-	/* Reset the next_rpi to 0 - the first logical index. */
+ exit:
+	/* There are no rpis available to the port now. */
 	phba->sli4_hba.next_rpi = 0;
 }
 
