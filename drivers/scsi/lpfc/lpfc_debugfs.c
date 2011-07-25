@@ -2123,6 +2123,208 @@ error_out:
 	return -EINVAL;
 }
 
+/**
+ * lpfc_idiag_drbacc_read_reg - idiag debugfs read a doorbell register
+ * @phba: The pointer to hba structure.
+ * @pbuffer: The pointer to the buffer to copy the data to.
+ * @len: The lenght of bytes to copied.
+ * @drbregid: The id to doorbell registers.
+ *
+ * Description:
+ * This routine reads a doorbell register and copies its content to the
+ * user buffer pointed to by @pbuffer.
+ *
+ * Returns:
+ * This function returns the amount of data that was copied into @pbuffer.
+ **/
+static int
+lpfc_idiag_drbacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
+			   int len, uint32_t drbregid)
+{
+
+	if (!pbuffer)
+		return 0;
+
+	switch (drbregid) {
+	case LPFC_DRB_EQCQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"EQCQ-DRB-REG: 0x%08x\n",
+				readl(phba->sli4_hba.EQCQDBregaddr));
+		break;
+	case LPFC_DRB_MQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"MQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.MQDBregaddr));
+		break;
+	case LPFC_DRB_WQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"WQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.WQDBregaddr));
+		break;
+	case LPFC_DRB_RQ:
+		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"RQ-DRB-REG:   0x%08x\n",
+				readl(phba->sli4_hba.RQDBregaddr));
+		break;
+	default:
+		break;
+	}
+
+	return len;
+}
+
+/**
+ * lpfc_idiag_drbacc_read - idiag debugfs read port doorbell
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba device doorbell register according
+ * to the idiag command, and copies to user @buf. Depending on the doorbell
+ * register read command setup, it does either a single doorbell register
+ * read or dump all doorbell registers.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_drbacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t drb_reg_id, i;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_DRB_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_RD)
+		drb_reg_id = idiag.cmd.data[0];
+	else
+		return 0;
+
+	if (drb_reg_id == LPFC_DRB_ACC_ALL)
+		for (i = 1; i <= LPFC_DRB_MAX; i++)
+			len = lpfc_idiag_drbacc_read_reg(phba,
+							 pbuffer, len, i);
+	else
+		len = lpfc_idiag_drbacc_read_reg(phba,
+						 pbuffer, len, drb_reg_id);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_drbacc_write - Syntax check and set up idiag drbacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for port doorbell register read (dump) or write
+ * (set) command accordingly. In the case of port queue read command, it sets
+ * up the command in the idiag command struct for the following debugfs read
+ * operation. In the case of port doorbell register write operation, it
+ * executes the write operation into the port doorbell register accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t drb_reg_id, value, reg_val;
+	void __iomem *drb_reg;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	drb_reg_id = idiag.cmd.data[0];
+	value = idiag.cmd.data[1];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+		if (rc != LPFC_DRB_ACC_WR_CMD_ARG)
+			goto error_out;
+		if (drb_reg_id > LPFC_DRB_MAX)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_RD) {
+		if (rc != LPFC_DRB_ACC_RD_CMD_ARG)
+			goto error_out;
+		if ((drb_reg_id > LPFC_DRB_MAX) &&
+		    (drb_reg_id != LPFC_DRB_ACC_ALL))
+			goto error_out;
+	} else
+		goto error_out;
+
+	/* Perform the write access operation */
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+		switch (drb_reg_id) {
+		case LPFC_DRB_EQCQ:
+			drb_reg = phba->sli4_hba.EQCQDBregaddr;
+			break;
+		case LPFC_DRB_MQ:
+			drb_reg = phba->sli4_hba.MQDBregaddr;
+			break;
+		case LPFC_DRB_WQ:
+			drb_reg = phba->sli4_hba.WQDBregaddr;
+			break;
+		case LPFC_DRB_RQ:
+			drb_reg = phba->sli4_hba.RQDBregaddr;
+			break;
+		default:
+			goto error_out;
+		}
+
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR)
+			reg_val = value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST) {
+			reg_val = readl(drb_reg);
+			reg_val |= value;
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
+			reg_val = readl(drb_reg);
+			reg_val &= ~value;
+		}
+		writel(reg_val, drb_reg);
+		readl(drb_reg); /* flush */
+	}
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
 #undef lpfc_debugfs_op_disc_trc
 static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
@@ -2228,6 +2430,16 @@ static const struct file_operations lpfc_idiag_op_queAcc = {
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_idiag_queacc_read,
 	.write =        lpfc_idiag_queacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_drbacc
+static const struct file_operations lpfc_idiag_op_drbAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_drbacc_read,
+	.write =        lpfc_idiag_drbacc_write,
 	.release =      lpfc_idiag_cmd_release,
 };
 
@@ -2506,15 +2718,28 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
-	/* iDiag dump PCI function queue */
+	/* iDiag access PCI function queue */
 	snprintf(name, sizeof(name), "queAcc");
-	if (!phba->idiag_que_dump) {
-		phba->idiag_que_dump =
+	if (!phba->idiag_que_acc) {
+		phba->idiag_que_acc =
 			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_queAcc);
-		if (!phba->idiag_que_dump) {
+		if (!phba->idiag_que_acc) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 					 "2926 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
+	/* iDiag access PCI function doorbell registers */
+	snprintf(name, sizeof(name), "drbAcc");
+	if (!phba->idiag_drb_acc) {
+		phba->idiag_drb_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_drbAcc);
+		if (!phba->idiag_drb_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2927 Can't create idiag debugfs\n");
 			goto debug_failed;
 		}
 	}
@@ -2597,10 +2822,15 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		 * iDiag release
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
-			if (phba->idiag_que_dump) {
+			if (phba->idiag_drb_acc) {
+				/* iDiag drbAcc */
+				debugfs_remove(phba->idiag_drb_acc);
+				phba->idiag_drb_acc = NULL;
+			}
+			if (phba->idiag_que_acc) {
 				/* iDiag queAcc */
-				debugfs_remove(phba->idiag_que_dump);
-				phba->idiag_que_dump = NULL;
+				debugfs_remove(phba->idiag_que_acc);
+				phba->idiag_que_acc = NULL;
 			}
 			if (phba->idiag_que_info) {
 				/* iDiag queInfo */

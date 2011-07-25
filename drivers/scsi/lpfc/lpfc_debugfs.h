@@ -39,7 +39,7 @@
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
 
-/* rdPciConf output buffer size */
+/* pciConf */
 #define LPFC_PCI_CFG_BROWSE 0xffff
 #define LPFC_PCI_CFG_RD_CMD_ARG 2
 #define LPFC_PCI_CFG_WR_CMD_ARG 3
@@ -47,10 +47,10 @@
 #define LPFC_PCI_CFG_RD_BUF_SIZE (LPFC_PCI_CFG_SIZE/2)
 #define LPFC_PCI_CFG_RD_SIZE (LPFC_PCI_CFG_SIZE/4)
 
-/* queue info output buffer size */
+/* queue info */
 #define LPFC_QUE_INFO_GET_BUF_SIZE 4096
 
-/* queue dump output buffer size */
+/* queue acc */
 #define LPFC_QUE_ACC_BROWSE 0xffff
 #define LPFC_QUE_ACC_RD_CMD_ARG 4
 #define LPFC_QUE_ACC_WR_CMD_ARG 6
@@ -61,6 +61,19 @@
 #define LPFC_IDIAG_CQ 2
 #define LPFC_IDIAG_WQ 3
 #define LPFC_IDIAG_RQ 4
+
+/* doorbell acc */
+#define LPFC_DRB_ACC_ALL 0xffff
+#define LPFC_DRB_ACC_RD_CMD_ARG 1
+#define LPFC_DRB_ACC_WR_CMD_ARG 2
+#define LPFC_DRB_ACC_BUF_SIZE 256
+
+#define LPFC_DRB_EQCQ 1
+#define LPFC_DRB_MQ   2
+#define LPFC_DRB_WQ   3
+#define LPFC_DRB_RQ   4
+
+#define LPFC_DRB_MAX  4
 
 #define SIZE_U8  sizeof(uint8_t)
 #define SIZE_U16 sizeof(uint16_t)
@@ -101,6 +114,10 @@ struct lpfc_idiag_cmd {
 #define LPFC_IDIAG_CMD_QUEACC_ST 0x00000013
 #define LPFC_IDIAG_CMD_QUEACC_CL 0x00000014
 
+#define LPFC_IDIAG_CMD_DRBACC_RD 0x00000021
+#define LPFC_IDIAG_CMD_DRBACC_WR 0x00000022
+#define LPFC_IDIAG_CMD_DRBACC_ST 0x00000023
+#define LPFC_IDIAG_CMD_DRBACC_CL 0x00000024
 	uint32_t data[LPFC_IDIAG_CMD_DATA_SIZE];
 };
 
