@@ -704,10 +704,11 @@ int page_referenced(struct page *page,
 								vm_flags);
 		if (we_locked)
 			unlock_page(page);
+
+		if (page_test_and_clear_young(page))
+			referenced++;
 	}
 out:
-	if (page_test_and_clear_young(page))
-		referenced++;
 
 	return referenced;
 }
