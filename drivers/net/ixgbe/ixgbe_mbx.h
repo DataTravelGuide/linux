@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,9 +35,6 @@
 
 #define IXGBE_VFMAILBOX             0x002FC
 #define IXGBE_VFMBMEM               0x00200
-
-#define IXGBE_PFMAILBOX(x)          (0x04B00 + (4 * x))
-#define IXGBE_PFMBMEM(vfn)          (0x13000 + (64 * vfn))
 
 #define IXGBE_PFMAILBOX_STS   0x00000001 /* Initiate message send to VF */
 #define IXGBE_PFMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */
@@ -87,7 +84,9 @@ s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
 s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
 s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
+#ifdef CONFIG_PCI_IOV
 void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
+#endif /* CONFIG_PCI_IOV */
 
 extern struct ixgbe_mbx_operations mbx_ops_generic;
 

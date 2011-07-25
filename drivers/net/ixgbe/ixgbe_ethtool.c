@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -27,6 +27,7 @@
 
 /* ethtool support for ixgbe */
 
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -83,6 +84,7 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"hw_rsc_flushed", IXGBE_STAT(rsc_total_flush)},
 	{"fdir_match", IXGBE_STAT(stats.fdirmatch)},
 	{"fdir_miss", IXGBE_STAT(stats.fdirmiss)},
+	{"fdir_overflow", IXGBE_STAT(fdir_overflow)},
 	{"rx_fifo_errors", IXGBE_NETDEV_STAT(stats.rx_fifo_errors)},
 	{"rx_missed_errors", IXGBE_NETDEV_STAT(stats.rx_missed_errors)},
 	{"tx_aborted_errors", IXGBE_NETDEV_STAT(stats.tx_aborted_errors)},
@@ -101,6 +103,10 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
 	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
+	{"os2bmc_rx_by_bmc", IXGBE_STAT(stats.o2bgptc)},
+	{"os2bmc_tx_by_bmc", IXGBE_STAT(stats.b2ospc)},
+	{"os2bmc_tx_by_host", IXGBE_STAT(stats.o2bspc)},
+	{"os2bmc_rx_by_host", IXGBE_STAT(stats.b2ogprc)},
 #ifdef IXGBE_FCOE
 	{"fcoe_bad_fccrc", IXGBE_STAT(stats.fccrc)},
 	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},
@@ -151,20 +157,35 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
+		switch (hw->mac.type) {
+		case ixgbe_mac_X540:
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			break;
+		default:
+			break;
+		}
+
 		ecmd->advertising = ADVERTISED_Autoneg;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
-			ecmd->advertising |= ADVERTISED_10000baseT_Full;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
-		/*
-		 * It's possible that phy.autoneg_advertised may not be
-		 * set yet.  If so display what the default would be -
-		 * both 1G and 10G supported.
-		 */
-		if (!(ecmd->advertising & (ADVERTISED_1000baseT_Full |
-					   ADVERTISED_10000baseT_Full)))
+		if (hw->phy.autoneg_advertised) {
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_100_FULL)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_10GB_FULL)
+				ecmd->advertising |= ADVERTISED_10000baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_1GB_FULL)
+				ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		} else {
+			/*
+			 * Default advertised modes in case
+			 * phy.autoneg_advertised isn't set.
+			 */
 			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
 					      ADVERTISED_1000baseT_Full);
+			if (hw->mac.type == ixgbe_mac_X540)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 
 		if (hw->phy.media_type == ixgbe_media_type_copper) {
 			ecmd->supported |= SUPPORTED_TP;
@@ -270,11 +291,22 @@ static int ixgbe_get_settings(struct net_device *netdev,
 
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up) {
-		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-		               SPEED_10000 : SPEED_1000;
+		switch (link_speed) {
+		case IXGBE_LINK_SPEED_10GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_10000);
+			break;
+		case IXGBE_LINK_SPEED_1GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
+			break;
+		case IXGBE_LINK_SPEED_100_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
+			break;
+		default:
+			break;
+		}
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -305,6 +337,9 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		if (ecmd->advertising & ADVERTISED_1000baseT_Full)
 			advertised |= IXGBE_LINK_SPEED_1GB_FULL;
 
+		if (ecmd->advertising & ADVERTISED_100baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_100_FULL;
+
 		if (old == advertised)
 			return err;
 		/* this sets the link speed and restarts auto-neg */
@@ -316,15 +351,15 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		}
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
+		u32 speed = ethtool_cmd_speed(ecmd);
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
 		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
-		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
+		    (speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}
 
 	return err;
 }
-
 static void ixgbe_get_pauseparam(struct net_device *netdev,
                                  struct ethtool_pauseparam *pause)
 {
@@ -405,19 +440,66 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
+static void ixgbe_do_reset(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (netif_running(netdev))
+		ixgbe_reinit_locked(adapter);
+	else
+		ixgbe_reset(adapter);
+}
+
 static u32 ixgbe_get_rx_csum(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
 }
 
+static void ixgbe_set_rsc(struct ixgbe_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct ixgbe_ring *ring = adapter->rx_ring[i];
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+			set_ring_rsc_enabled(ring);
+			ixgbe_configure_rscctl(adapter, ring);
+		} else {
+			ixgbe_clear_rscctl(adapter, ring);
+		}
+	}
+}
+
 static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	if (data)
+	bool need_reset = false;
+
+	if (data) {
 		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-	else
+	} else {
 		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
+			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
+			netdev->features &= ~NETIF_F_LRO;
+		}
+
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_X540:
+			ixgbe_set_rsc(adapter);
+			break;
+		case ixgbe_mac_82599EB:
+			need_reset = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (need_reset)
+		ixgbe_do_reset(netdev);
 
 	return 0;
 }
@@ -816,11 +898,8 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	for (i = 0; i < eeprom_len; i++) {
-		if ((ret_val = hw->eeprom.ops.read(hw, first_word + i,
-		    &eeprom_buff[i])))
-			break;
-	}
+	ret_val = hw->eeprom.ops.read_buffer(hw, first_word, eeprom_len,
+					     eeprom_buff);
 
 	/* Device's eeprom is always little-endian, word addressable */
 	for (i = 0; i < eeprom_len; i++)
@@ -1198,45 +1277,61 @@ static const struct ixgbe_reg_test reg_test_82598[] = {
 	{ 0, 0, 0, 0 }
 };
 
-static const u32 register_test_patterns[] = {
-	0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF
-};
+static bool reg_pattern_test(struct ixgbe_adapter *adapter, u64 *data, int reg,
+			     u32 mask, u32 write)
+{
+	u32 pat, val, before;
+	static const u32 test_pattern[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 
-#define REG_PATTERN_TEST(R, M, W)                                             \
-{                                                                             \
-	u32 pat, val, before;                                                 \
-	for (pat = 0; pat < ARRAY_SIZE(register_test_patterns); pat++) {      \
-		before = readl(adapter->hw.hw_addr + R);                      \
-		writel((register_test_patterns[pat] & W),                     \
-		       (adapter->hw.hw_addr + R));                            \
-		val = readl(adapter->hw.hw_addr + R);                         \
-		if (val != (register_test_patterns[pat] & W & M)) {           \
-			e_err(drv, "pattern test reg %04X failed: got "       \
-			      "0x%08X expected 0x%08X\n",                     \
-			      R, val, (register_test_patterns[pat] & W & M)); \
-			*data = R;                                            \
-			writel(before, adapter->hw.hw_addr + R);              \
-			return 1;                                             \
-		}                                                             \
-		writel(before, adapter->hw.hw_addr + R);                      \
-	}                                                                     \
+	for (pat = 0; pat < ARRAY_SIZE(test_pattern); pat++) {
+		before = readl(adapter->hw.hw_addr + reg);
+		writel((test_pattern[pat] & write),
+		       (adapter->hw.hw_addr + reg));
+		val = readl(adapter->hw.hw_addr + reg);
+		if (val != (test_pattern[pat] & write & mask)) {
+			e_err(drv, "pattern test reg %04X failed: got "
+			      "0x%08X expected 0x%08X\n",
+			      reg, val, (test_pattern[pat] & write & mask));
+			*data = reg;
+			writel(before, adapter->hw.hw_addr + reg);
+			return 1;
+		}
+		writel(before, adapter->hw.hw_addr + reg);
+	}
+	return 0;
 }
 
-#define REG_SET_AND_CHECK(R, M, W)                                            \
-{                                                                             \
-	u32 val, before;                                                      \
-	before = readl(adapter->hw.hw_addr + R);                              \
-	writel((W & M), (adapter->hw.hw_addr + R));                           \
-	val = readl(adapter->hw.hw_addr + R);                                 \
-	if ((W & M) != (val & M)) {                                           \
-		e_err(drv, "set/check reg %04X test failed: got 0x%08X "  \
-		      "expected 0x%08X\n", R, (val & M), (W & M));        \
-		*data = R;                                                    \
-		writel(before, (adapter->hw.hw_addr + R));                    \
-		return 1;                                                     \
-	}                                                                     \
-	writel(before, (adapter->hw.hw_addr + R));                            \
+static bool reg_set_and_check(struct ixgbe_adapter *adapter, u64 *data, int reg,
+			      u32 mask, u32 write)
+{
+	u32 val, before;
+	before = readl(adapter->hw.hw_addr + reg);
+	writel((write & mask), (adapter->hw.hw_addr + reg));
+	val = readl(adapter->hw.hw_addr + reg);
+	if ((write & mask) != (val & mask)) {
+		e_err(drv, "set/check reg %04X test failed: got 0x%08X "
+		      "expected 0x%08X\n", reg, (val & mask), (write & mask));
+		*data = reg;
+		writel(before, (adapter->hw.hw_addr + reg));
+		return 1;
+	}
+	writel(before, (adapter->hw.hw_addr + reg));
+	return 0;
 }
+
+#define REG_PATTERN_TEST(reg, mask, write)				      \
+	do {								      \
+		if (reg_pattern_test(adapter, data, reg, mask, write))	      \
+			return 1;					      \
+	} while (0)							      \
+
+
+#define REG_SET_AND_CHECK(reg, mask, write)				      \
+	do {								      \
+		if (reg_set_and_check(adapter, data, reg, mask, write))	      \
+			return 1;					      \
+	} while (0)							      \
 
 static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 {
@@ -1288,13 +1383,13 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 			switch (test->test_type) {
 			case PATTERN_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 0x40),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case SET_READ_TEST:
 				REG_SET_AND_CHECK(test->reg + (i * 0x40),
-						test->mask,
-						test->write);
+						  test->mask,
+						  test->write);
 				break;
 			case WRITE_NO_TEST:
 				writel(test->write,
@@ -1303,18 +1398,18 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 				break;
 			case TABLE32_TEST:
 				REG_PATTERN_TEST(test->reg + (i * 4),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case TABLE64_TEST_LO:
 				REG_PATTERN_TEST(test->reg + (i * 8),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			case TABLE64_TEST_HI:
 				REG_PATTERN_TEST((test->reg + 4) + (i * 8),
-						test->mask,
-						test->write);
+						 test->mask,
+						 test->write);
 				break;
 			}
 		}
@@ -1466,9 +1561,7 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	reg_ctl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	reg_ctl &= ~IXGBE_RXCTRL_RXEN;
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_ctl);
-	reg_ctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rx_ring->reg_idx));
-	reg_ctl &= ~IXGBE_RXDCTL_ENABLE;
-	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rx_ring->reg_idx), reg_ctl);
+	ixgbe_disable_rx_queue(adapter, rx_ring);
 
 	/* now Tx */
 	reg_ctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(tx_ring->reg_idx));
@@ -1559,6 +1652,13 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reg_data;
+
+	/* X540 needs to set the MACC.FLU bit to force link up */
+	if (adapter->hw.mac.type == ixgbe_mac_X540) {
+		reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_MACC);
+		reg_data |= IXGBE_MACC_FLU;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_MACC, reg_data);
+	}
 
 	/* right now we only support MAC loopback in the driver */
 	reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_HLREG0);
@@ -2167,12 +2267,8 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	 * correctly w.r.t stopping tx, and changing TXDCTL.WTHRESH settings
 	 * also locks in RSC enable/disable which requires reset
 	 */
-	if (need_reset) {
-		if (netif_running(netdev))
-			ixgbe_reinit_locked(adapter);
-		else
-			ixgbe_reset(adapter);
-	}
+	if (need_reset)
+		ixgbe_do_reset(netdev);
 
 	return 0;
 }
@@ -2182,6 +2278,10 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	bool need_reset = false;
 	int rc;
+
+	if ((data & ETH_FLAG_RXHASH) &&
+	    !(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		return -EOPNOTSUPP;
 
 	rc = ethtool_op_set_flags(netdev, data);
 	if (rc)
@@ -2199,24 +2299,11 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 		} else {
 			adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
 			switch (adapter->hw.mac.type) {
+			case ixgbe_mac_X540:
+				ixgbe_set_rsc(adapter);
+				break;
 			case ixgbe_mac_82599EB:
 				need_reset = true;
-				break;
-			case ixgbe_mac_X540: {
-				int i;
-				for (i = 0; i < adapter->num_rx_queues; i++) {
-					struct ixgbe_ring *ring =
-					                  adapter->rx_ring[i];
-					if (adapter->flags2 &
-					    IXGBE_FLAG2_RSC_ENABLED) {
-						ixgbe_configure_rscctl(adapter,
-						                       ring);
-					} else {
-						ixgbe_clear_rscctl(adapter,
-						                   ring);
-					}
-				}
-			}
 				break;
 			default:
 				break;
@@ -2224,14 +2311,48 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 		}
 	}
 
-	if (need_reset) {
-		if (netif_running(netdev))
-			ixgbe_reinit_locked(adapter);
-		else
-			ixgbe_reset(adapter);
+	/*
+	 * Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+		/* turn off ATR, enable perfect filters and reset */
+		if (data & ETH_FLAG_NTUPLE) {
+			adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+			need_reset = true;
+		}
+	} else if (!(data & ETH_FLAG_NTUPLE)) {
+		/* turn off Flow Director, set ATR and reset */
+		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+		if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
+		    !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		need_reset = true;
 	}
+
+	if (need_reset)
+		ixgbe_do_reset(netdev);
 	return 0;
 
+}
+
+static int ixgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			   void *rule_locs)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_queues;
+		ret = 0;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static const struct ethtool_ops ixgbe_ethtool_ops = {
@@ -2269,6 +2390,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_coalesce           = ixgbe_set_coalesce,
 	.get_flags              = ethtool_op_get_flags,
 	.set_flags              = ixgbe_set_flags,
+	.get_rxnfc		= ixgbe_get_rxnfc,
 };
 
 void ixgbe_set_ethtool_ops(struct net_device *netdev)
