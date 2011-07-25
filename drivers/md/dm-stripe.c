@@ -277,7 +277,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		bio->bi_bdev = sc->stripe[target_request_nr].dev->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
+	if (unlikely(bio->bi_rw & BIO_DISCARD)) {
 		target_request_nr = map_context->target_request_nr;
 		BUG_ON(target_request_nr >= sc->stripes);
 		return stripe_map_discard(sc, bio, target_request_nr);

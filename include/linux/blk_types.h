@@ -93,6 +93,7 @@ enum bio_rw_flags {
 
 #define BIO_FLUSH		(1 << BIO_RW_FLUSH)
 #define BIO_FUA			(1 << BIO_RW_FUA)
+#define BIO_DISCARD		(1 << BIO_RW_DISCARD)
 
 /*
  * request type modified bits. first four bits match BIO_RW* bits, important

@@ -635,8 +635,8 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 		.client = ms->io_client,
 	};
 
-	if (bio_rw_flagged(bio, BIO_RW_DISCARD)) {
-		io_req.bi_rw |= (1 << BIO_RW_DISCARD);
+	if (bio->bi_rw & BIO_DISCARD) {
+		io_req.bi_rw |= BIO_DISCARD;
 		io_req.mem.type = DM_IO_KMEM;
 		io_req.mem.ptr.addr = NULL;
 	}
@@ -675,7 +675,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 
 	while ((bio = bio_list_pop(writes))) {
 		if ((bio->bi_rw & BIO_FLUSH) ||
-		    bio_rw_flagged(bio, BIO_RW_DISCARD)) {
+		    (bio->bi_rw & BIO_DISCARD)) {
 			bio_list_add(&sync, bio);
 			continue;
 		}

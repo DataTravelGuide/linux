@@ -1192,7 +1192,7 @@ static int __clone_and_map(struct clone_info *ci)
 	sector_t len = 0, max;
 	struct dm_target_io *tio;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD)))
+	if (unlikely(bio->bi_rw & BIO_DISCARD))
 		return __clone_and_map_discard(ci);
 
 	ti = dm_table_find_target(ci->map, ci->sector);
