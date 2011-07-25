@@ -2331,6 +2331,230 @@ error_out:
 }
 
 /**
+ * lpfc_idiag_ctlacc_read_reg - idiag debugfs read a control registers
+ * @phba: The pointer to hba structure.
+ * @pbuffer: The pointer to the buffer to copy the data to.
+ * @len: The lenght of bytes to copied.
+ * @drbregid: The id to doorbell registers.
+ *
+ * Description:
+ * This routine reads a control register and copies its content to the
+ * user buffer pointed to by @pbuffer.
+ *
+ * Returns:
+ * This function returns the amount of data that was copied into @pbuffer.
+ **/
+static int
+lpfc_idiag_ctlacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
+			   int len, uint32_t ctlregid)
+{
+
+	if (!pbuffer)
+		return 0;
+
+	switch (ctlregid) {
+	case LPFC_CTL_PORT_SEM:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port SemReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_SEM_OFFSET));
+		break;
+	case LPFC_CTL_PORT_STA:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port StaReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_STA_OFFSET));
+		break;
+	case LPFC_CTL_PORT_CTL:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port CtlReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_CTL_OFFSET));
+		break;
+	case LPFC_CTL_PORT_ER1:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port Er1Reg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_ER1_OFFSET));
+		break;
+	case LPFC_CTL_PORT_ER2:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"Port Er2Reg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PORT_ER2_OFFSET));
+		break;
+	case LPFC_CTL_PDEV_CTL:
+		len += snprintf(pbuffer+len, LPFC_CTL_ACC_BUF_SIZE-len,
+				"PDev CtlReg:   0x%08x\n",
+				readl(phba->sli4_hba.conf_regs_memmap_p +
+				      LPFC_CTL_PDEV_CTL_OFFSET));
+		break;
+	default:
+		break;
+	}
+	return len;
+}
+
+/**
+ * lpfc_idiag_ctlacc_read - idiag debugfs read port and device control register
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba port and device registers according
+ * to the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_ctlacc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t ctl_reg_id, i;
+	char *pbuffer;
+	int len = 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_CTL_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_RD)
+		ctl_reg_id = idiag.cmd.data[0];
+	else
+		return 0;
+
+	if (ctl_reg_id == LPFC_CTL_ACC_ALL)
+		for (i = 1; i <= LPFC_CTL_MAX; i++)
+			len = lpfc_idiag_ctlacc_read_reg(phba,
+							 pbuffer, len, i);
+	else
+		len = lpfc_idiag_ctlacc_read_reg(phba,
+						 pbuffer, len, ctl_reg_id);
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_ctlacc_write - Syntax check and set up idiag ctlacc commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and then
+ * perform the syntax check for port and device control register read (dump)
+ * or write (set) command accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ **/
+static ssize_t
+lpfc_idiag_ctlacc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t ctl_reg_id, value, reg_val;
+	void __iomem *ctl_reg;
+	int rc;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	/* Sanity check on command line arguments */
+	ctl_reg_id = idiag.cmd.data[0];
+	value = idiag.cmd.data[1];
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+		if (rc != LPFC_CTL_ACC_WR_CMD_ARG)
+			goto error_out;
+		if (ctl_reg_id > LPFC_CTL_MAX)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_RD) {
+		if (rc != LPFC_CTL_ACC_RD_CMD_ARG)
+			goto error_out;
+		if ((ctl_reg_id > LPFC_CTL_MAX) &&
+		    (ctl_reg_id != LPFC_CTL_ACC_ALL))
+			goto error_out;
+	} else
+		goto error_out;
+
+	/* Perform the write access operation */
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST ||
+	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+		switch (ctl_reg_id) {
+		case LPFC_CTL_PORT_SEM:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_SEM_OFFSET;
+			break;
+		case LPFC_CTL_PORT_STA:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_STA_OFFSET;
+			break;
+		case LPFC_CTL_PORT_CTL:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_CTL_OFFSET;
+			break;
+		case LPFC_CTL_PORT_ER1:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_ER1_OFFSET;
+			break;
+		case LPFC_CTL_PORT_ER2:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PORT_ER2_OFFSET;
+			break;
+		case LPFC_CTL_PDEV_CTL:
+			ctl_reg = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_CTL_PDEV_CTL_OFFSET;
+			break;
+		default:
+			goto error_out;
+		}
+
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR)
+			reg_val = value;
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST) {
+			reg_val = readl(ctl_reg);
+			reg_val |= value;
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_CL) {
+			reg_val = readl(ctl_reg);
+			reg_val &= ~value;
+		}
+		writel(reg_val, ctl_reg);
+		readl(ctl_reg); /* flush */
+	}
+	return nbytes;
+
+error_out:
+	/* Clean out command structure on command error out */
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
  * lpfc_idiag_mbxacc_get_setup - idiag debugfs get mailbox access setup
  * @phba: Pointer to HBA context object.
  * @pbuffer: Pointer to data buffer.
@@ -2363,7 +2587,7 @@ lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
 	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
 			"mbx_word_cnt: %04d\n", mbx_word_cnt);
 	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
-			"mbx_mbox_cmd: %0x02x\n", mbx_mbox_cmd);
+			"mbx_mbox_cmd: 0x%02x\n", mbx_mbox_cmd);
 
 	return len;
 }
@@ -2605,6 +2829,16 @@ static const struct file_operations lpfc_idiag_op_drbAcc = {
 	.llseek =       lpfc_debugfs_lseek,
 	.read =         lpfc_idiag_drbacc_read,
 	.write =        lpfc_idiag_drbacc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
+#undef lpfc_idiag_op_ctlacc
+static const struct file_operations lpfc_idiag_op_ctlAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_ctlacc_read,
+	.write =        lpfc_idiag_ctlacc_write,
 	.release =      lpfc_idiag_cmd_release,
 };
 
@@ -3109,6 +3343,19 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 	}
 
+	/* iDiag access PCI function control registers */
+	snprintf(name, sizeof(name), "ctlAcc");
+	if (!phba->idiag_ctl_acc) {
+		phba->idiag_ctl_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_ctlAcc);
+		if (!phba->idiag_ctl_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					 "2981 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+	}
+
 	/* iDiag access mbox commands */
 	snprintf(name, sizeof(name), "mbxAcc");
 	if (!phba->idiag_mbx_acc) {
@@ -3205,6 +3452,11 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 				/* iDiag mbxAcc */
 				debugfs_remove(phba->idiag_mbx_acc);
 				phba->idiag_mbx_acc = NULL;
+			}
+			if (phba->idiag_ctl_acc) {
+				/* iDiag ctlAcc */
+				debugfs_remove(phba->idiag_ctl_acc);
+				phba->idiag_ctl_acc = NULL;
 			}
 			if (phba->idiag_drb_acc) {
 				/* iDiag drbAcc */

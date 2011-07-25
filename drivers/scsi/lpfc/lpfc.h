@@ -846,6 +846,7 @@ struct lpfc_hba {
 	struct dentry *idiag_que_info;
 	struct dentry *idiag_que_acc;
 	struct dentry *idiag_drb_acc;
+	struct dentry *idiag_ctl_acc;
 	struct dentry *idiag_mbx_acc;
 #endif
 

@@ -63,7 +63,7 @@
 #define LPFC_IDIAG_WQ 4
 #define LPFC_IDIAG_RQ 5
 
-/* doorbell acc */
+/* doorbell register acc */
 #define LPFC_DRB_ACC_ALL 0xffff
 #define LPFC_DRB_ACC_RD_CMD_ARG 1
 #define LPFC_DRB_ACC_WR_CMD_ARG 2
@@ -75,6 +75,28 @@
 #define LPFC_DRB_RQ   4
 
 #define LPFC_DRB_MAX  4
+
+/* control register acc */
+#define LPFC_CTL_ACC_ALL 0xffff
+#define LPFC_CTL_ACC_RD_CMD_ARG 1
+#define LPFC_CTL_ACC_WR_CMD_ARG 2
+#define LPFC_CTL_ACC_BUF_SIZE 256
+
+#define LPFC_CTL_PORT_SEM  1
+#define LPFC_CTL_PORT_STA  2
+#define LPFC_CTL_PORT_CTL  3
+#define LPFC_CTL_PORT_ER1  4
+#define LPFC_CTL_PORT_ER2  5
+#define LPFC_CTL_PDEV_CTL  6
+
+#define LPFC_CTL_MAX  6
+
+#define LPFC_CTL_PORT_SEM_OFFSET  0x400
+#define LPFC_CTL_PORT_STA_OFFSET  0x404
+#define LPFC_CTL_PORT_CTL_OFFSET  0x408
+#define LPFC_CTL_PORT_ER1_OFFSET  0x40C
+#define LPFC_CTL_PORT_ER2_OFFSET  0x410
+#define LPFC_CTL_PDEV_CTL_OFFSET  0x414
 
 /* mailbox access */
 #define LPFC_BSG_MBX_DMP_CMD_ARG 	3
@@ -144,7 +166,12 @@ struct lpfc_idiag_cmd {
 #define LPFC_IDIAG_CMD_DRBACC_ST 0x00000023
 #define LPFC_IDIAG_CMD_DRBACC_CL 0x00000024
 
-#define LPFC_IDIAG_CMD_MBXACC_DP 0x00000030
+#define LPFC_IDIAG_CMD_CTLACC_RD 0x00000031
+#define LPFC_IDIAG_CMD_CTLACC_WR 0x00000032
+#define LPFC_IDIAG_CMD_CTLACC_ST 0x00000033
+#define LPFC_IDIAG_CMD_CTLACC_CL 0x00000034
+
+#define LPFC_IDIAG_CMD_MBXACC_DP 0x00000040
 	uint32_t data[LPFC_IDIAG_CMD_DATA_SIZE];
 };
 
