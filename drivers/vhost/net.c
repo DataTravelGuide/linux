@@ -370,8 +370,10 @@ static void handle_rx(struct vhost_net *net)
 	int err, headcount, mergeable;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
+
 	struct socket *sock = rcu_dereference(vq->private_data);
-	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
+
+	if (!sock)
 		return;
 
 	mutex_lock(&vq->mutex);
