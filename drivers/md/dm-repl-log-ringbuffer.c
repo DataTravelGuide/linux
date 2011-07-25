@@ -2735,7 +2735,7 @@ replog_get(struct dm_repl_log *log, struct dm_target *ti,
 	 *
 	 * The io_client needs to be setup before we can call log_init below.
 	 */
-	io_client = dm_io_client_create(DEFAULT_BIOS * (1 + BIO_MAX_PAGES));
+	io_client = dm_io_client_create();
 	if (unlikely(IS_ERR(io_client))) {
 		DMERR("dm_io_client_create failed!");
 		r = PTR_ERR(io_client);

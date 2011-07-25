@@ -659,14 +659,14 @@ slink_create(struct dm_repl_slink *slink,
 		slink->context = sl;
 
 		/* Create kcopyd client for data copies to slinks. */
-		r = dm_kcopyd_client_create(COPY_PAGES, &io->kcopyd_client);
-		if (unlikely(r < 0)) {
+		io->kcopyd_client = dm_kcopyd_client_create();
+		if (unlikely(IS_ERR(io->kcopyd_client))) {
 			io->kcopyd_client = NULL;
 			goto bad;
 		}
 
 		/* Create dm-io client context for test I/Os on slinks. */
-		io->dm_io_client = dm_io_client_create(1);
+		io->dm_io_client = dm_io_client_create();
 		if (unlikely(IS_ERR(io->dm_io_client))) {
 			r = PTR_ERR(io->dm_io_client);
 			io->dm_io_client = NULL;
@@ -718,21 +718,6 @@ slink_create(struct dm_repl_slink *slink,
 bad:
 	slink_destroy(sl);
 	return ERR_PTR(r);
-}
-
-/* Return slink count. */
-static unsigned
-slink_count(struct slink *sl)
-{
-	unsigned count = 0;
-	struct slink *sl_cur;
-
-	_BUG_ON_PTR(sl);
-
-	list_for_each_entry(sl_cur, &sl->repl_slinks->list, lists[SLINK_REPLOG])
-		count++;
-
-	return count;
 }
 
 /* Return number of regions for device. */
@@ -1412,9 +1397,8 @@ dev_create(struct slink *sl, struct dm_target *ti,
 	 * Only needed for remote devices and hence slinks > 0.
 	 */
 	if (sl->number) {
-		r = dm_kcopyd_client_create(RESYNC_PAGES,
-					    &dev->io.kcopyd_client);
-		if (unlikely(r < 0))
+		dev->io.kcopyd_client = dm_kcopyd_client_create();
+		if (IS_ERR(dev->io.kcopyd_client))
 			goto bad_kcopyd_client;
 	}
 
@@ -1753,7 +1737,7 @@ blockdev_dev_add(struct dm_repl_slink *slink, int dev_number,
 		 struct dm_target *ti, unsigned argc, char **argv)
 {
 	int r;
-	unsigned dev_params, params, sl_count;
+	unsigned dev_params, params;
 	long long tmp;
 	struct slink *sl;
 	struct sdev *dev;
@@ -1809,13 +1793,7 @@ blockdev_dev_add(struct dm_repl_slink *slink, int dev_number,
 		goto bad_unlock;
 
 	write_unlock(&sl->lock);
-
-	sl_count = slink_count(sl);
 	write_unlock(&sl->repl_slinks->lock);
-
-	/* Ignore any resize problem and live with what we got. */
-	if (sl_count > 1)
-		dm_io_client_resize(sl_count, sl->io.dm_io_client);
 
 	DMDEBUG("%s added device=%u to slink=%u",
 		__func__, dev_number, sl->number);
@@ -1835,7 +1813,6 @@ static int
 blockdev_dev_del(struct dm_repl_slink *slink, int dev_number)
 {
 	int i;
-	unsigned sl_count;
 	struct slink *sl;
 	struct sdev *dev;
 
@@ -1875,9 +1852,6 @@ blockdev_dev_del(struct dm_repl_slink *slink, int dev_number)
 	/* Destroy device. */
 	dev_destroy(dev);
 
-	/* Ignore any resize problem. */
-	sl_count = slink_count(sl);
-	dm_io_client_resize(sl_count ? sl_count : 1, sl->io.dm_io_client);
 	DMDEBUG("%s deleted device=%u from slink=%u",
 		__func__, dev_number, sl->number);
 	return 0;
