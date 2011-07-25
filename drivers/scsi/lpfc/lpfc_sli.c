@@ -4789,8 +4789,17 @@ lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
 /**
  * lpfc_sli4_chk_avail_extnt_rsrc - Check for available SLI4 resource extents.
  * @phba: Pointer to HBA context object.
+ * @type: The extent type to check.
  *
- * This function allocates all SLI4 resource identifiers.
+ * This function reads the current available extents from the port and checks
+ * if the extent count or extent size has changed since the last access.
+ * Callers use this routine post port reset to understand if there is a
+ * extent reprovisioning requirement.
+ *
+ * Returns:
+ *   -Error: error indicates problem.
+ *   1: Extent count or size has changed.
+ *   0: No changes.
  **/
 static int
 lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
@@ -4846,9 +4855,14 @@ lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type)
  * @emb - buffer to hold either MBX_EMBED or MBX_NEMBED operation.
  * @mbox - pointer to the caller's allocated mailbox structure.
  *
- * This function calculates the mailbox payload required to allocate the
- * specified number of extents available in the port for any particular extent
- * type.
+ * This function executes the extents allocation request.  It also
+ * takes care of the amount of memory needed to allocate or get the
+ * allocated extents. It is the caller's responsibility to evaluate
+ * the response.
+ *
+ * Returns:
+ *   -Error:  Error value describes the condition found.
+ *   0: if successful
  **/
 static int
 lpfc_sli4_cfg_post_extnts(struct lpfc_hba *phba, uint16_t *extnt_cnt,
@@ -4921,8 +4935,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	bool emb = false;
 	uint16_t rsrc_id_cnt, rsrc_cnt, rsrc_size;
 	uint16_t rsrc_id, rsrc_start, j, k;
+	uint16_t *ids;
 	int i, rc;
 	unsigned long longs;
+	unsigned long *bmask;
 	struct lpfc_rsrc_blks *rsrc_blks;
 	LPFC_MBOXQ_t *mbox;
 	uint32_t length;
@@ -4930,6 +4946,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	void *virtaddr = NULL;
 	struct lpfc_mbx_nembed_rsrc_extent *n_rsrc;
 	struct lpfc_mbx_alloc_rsrc_extents *rsrc_ext;
+	struct list_head *ext_blk_list;
 
 	rc = lpfc_sli4_get_avail_extnt_rsrc(phba, type,
 					    &rsrc_cnt,
@@ -5005,56 +5022,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			goto err_exit;
 		}
 
-		/*
-		 * Initialize the rpi_ids array with the allocated ids
-		 * assigned to this function.  The bitmask serves as an index
-		 * into the array and manages the available ids.  The array
-		 * just stores the ids communicated to the port via the wqes.
-		 */
-		for (i = 0, j = 0, k = 0 ; i < rsrc_cnt; i++) {
-			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					rc = -ENOMEM;
-					kfree(phba->sli4_hba.rpi_bmask);
-					kfree(phba->sli4_hba.rpi_ids);
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_rpi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.rpi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					rc = -ENOMEM;
-					kfree(phba->sli4_hba.rpi_bmask);
-					kfree(phba->sli4_hba.rpi_ids);
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_rpi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.rpi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-				k++;
-			}
-		}
+		/* Initialize local ptrs for common extent processing later. */
+		bmask = phba->sli4_hba.rpi_bmask;
+		ids = phba->sli4_hba.rpi_ids;
+		ext_blk_list = &phba->sli4_hba.lpfc_rpi_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_VPI:
 		phba->vpi_bmask = kzalloc(longs *
@@ -5073,56 +5044,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			goto err_exit;
 		}
 
-		/*
-		 * Initialize the vpi_ids array with the allocated ids
-		 * assigned to this function.  The bitmask serves as an index
-		 * into the array and manages the available ids.  The array
-		 * just stores the ids communicated to the port via the wqes.
-		 */
-		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
-			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					kfree(phba->vpi_bmask);
-					kfree(phba->vpi_ids);
-					rc = -ENOMEM;
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->lpfc_vpi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->vpi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					kfree(phba->vpi_bmask);
-					kfree(phba->vpi_ids);
-					rc = -ENOMEM;
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->lpfc_vpi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->vpi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-				k++;
-			}
-		}
+		/* Initialize local ptrs for common extent processing later. */
+		bmask = phba->vpi_bmask;
+		ids = phba->vpi_ids;
+		ext_blk_list = &phba->lpfc_vpi_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_XRI:
 		phba->sli4_hba.xri_bmask = kzalloc(longs *
@@ -5141,58 +5066,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			goto err_exit;
 		}
 
-		/*
-		 * Initialize the xri_ids array with the allocated ids
-		 * assigned to this function.  The bitmask serves as an index
-		 * into the array and manages the available ids.  The array
-		 * just stores the ids communicated to the port via the wqes.
-		 */
-		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
-			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					rc = -ENOMEM;
-					kfree(phba->sli4_hba.xri_bmask);
-					kfree(phba->sli4_hba.xri_ids);
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_xri_blk_list);
-				if (i == 0)
-					phba->sli4_hba.next_xri = rsrc_id;
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.xri_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					rc = -ENOMEM;
-					kfree(phba->sli4_hba.xri_bmask);
-					kfree(phba->sli4_hba.xri_ids);
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_xri_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.xri_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-				k++;
-			}
-		}
+		/* Initialize local ptrs for common extent processing later. */
+		bmask = phba->sli4_hba.xri_bmask;
+		ids = phba->sli4_hba.xri_ids;
+		ext_blk_list = &phba->sli4_hba.lpfc_xri_blk_list;
 		break;
 	case LPFC_RSC_TYPE_FCOE_VFI:
 		phba->sli4_hba.vfi_bmask = kzalloc(longs *
@@ -5211,61 +5088,68 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 			goto err_exit;
 		}
 
-		/*
-		 * Initialize the vfi_ids array with the allocated ids
-		 * assigned to this function.  The bitmask serves as an index
-		 * into the array and manages the available ids.  The array
-		 * just stores the ids communicated to the port via the wqes.
-		 */
-		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
-			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					rc = -ENOMEM;
-					kfree(phba->sli4_hba.vfi_bmask);
-					kfree(phba->sli4_hba.vfi_ids);
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_vfi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.vfi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
-						 &id_array[k]);
-				rsrc_blks = kzalloc(length, GFP_KERNEL);
-				if (unlikely(!rsrc_blks)) {
-					kfree(phba->sli4_hba.vfi_bmask);
-					kfree(phba->sli4_hba.vfi_ids);
-					rc = -ENOMEM;
-					goto err_exit;
-				}
-				rsrc_blks->rsrc_start = rsrc_id;
-				rsrc_blks->rsrc_size = rsrc_size;
-				list_add_tail(&rsrc_blks->list,
-					&phba->sli4_hba.lpfc_vfi_blk_list);
-				rsrc_start = rsrc_id;
-				while (rsrc_id < (rsrc_start + rsrc_size)) {
-					phba->sli4_hba.vfi_ids[j] = rsrc_id;
-					rsrc_id++;
-					j++;
-				}
-				k++;
-			}
-		}
+		/* Initialize local ptrs for common extent processing later. */
+		bmask = phba->sli4_hba.vfi_bmask;
+		ids = phba->sli4_hba.vfi_ids;
+		ext_blk_list = &phba->sli4_hba.lpfc_vfi_blk_list;
 		break;
 	default:
-		break;
+		/* Unsupported Opcode.  Fail call. */
+		id_array = NULL;
+		bmask = NULL;
+		ids = NULL;
+		ext_blk_list = NULL;
+		goto err_exit;
 	}
 
+	/*
+	 * Complete initializing the extent configuration with the
+	 * allocated ids assigned to this function.  The bitmask serves
+	 * as an index into the array and manages the available ids.  The
+	 * array just stores the ids communicated to the port via the wqes.
+	 */
+	for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
+		if ((i % 2) == 0) {
+			rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+					 &id_array[k]);
+			rsrc_blks = kzalloc(length, GFP_KERNEL);
+			if (unlikely(!rsrc_blks)) {
+				rc = -ENOMEM;
+				kfree(bmask);
+				kfree(ids);
+				goto err_exit;
+			}
+			rsrc_blks->rsrc_start = rsrc_id;
+			rsrc_blks->rsrc_size = rsrc_size;
+			list_add_tail(&rsrc_blks->list, ext_blk_list);
+			rsrc_start = rsrc_id;
+			while (rsrc_id < (rsrc_start + rsrc_size)) {
+				ids[j] = rsrc_id;
+				rsrc_id++;
+				j++;
+			}
+		} else {
+			rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+					 &id_array[k]);
+			rsrc_blks = kzalloc(length, GFP_KERNEL);
+			if (unlikely(!rsrc_blks)) {
+				kfree(bmask);
+				kfree(ids);
+				rc = -ENOMEM;
+				goto err_exit;
+			}
+			rsrc_blks->rsrc_start = rsrc_id;
+			rsrc_blks->rsrc_size = rsrc_size;
+			list_add_tail(&rsrc_blks->list, ext_blk_list);
+			rsrc_start = rsrc_id;
+			while (rsrc_id < (rsrc_start + rsrc_size)) {
+				ids[j] = rsrc_id;
+				rsrc_id++;
+				j++;
+			}
+			k++;
+		}
+	}
  err_exit:
 	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return rc;
@@ -5274,6 +5158,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 /**
  * lpfc_sli4_dealloc_extent - Deallocate an SLI4 resource extent.
  * @phba: Pointer to HBA context object.
+ * @type: the extent's type.
  *
  * This function deallocates all extents of a particular resource type.
  * SLI4 does not allow for deallocating a particular extent range.  It
