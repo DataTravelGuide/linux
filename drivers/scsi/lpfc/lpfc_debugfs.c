@@ -93,7 +93,7 @@ MODULE_PARM_DESC(lpfc_debugfs_max_disc_trc,
 
 /* This MUST be a power of 2 */
 static int lpfc_debugfs_max_slow_ring_trc;
-module_param(lpfc_debugfs_max_slow_ring_trc, int, S_IRUGO0);
+module_param(lpfc_debugfs_max_slow_ring_trc, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_debugfs_max_slow_ring_trc,
 	"Set debugfs slow ring trace depth");
 
