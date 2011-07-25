@@ -485,6 +485,32 @@ struct unsol_rcv_ct_ctx {
 				     (1 << LPFC_USER_LINK_SPEED_AUTO))
 #define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
 
+enum nemb_type {
+	nemb_mse,
+	nemb_hbd
+};
+
+enum mbox_type {
+	mbox_rd,
+	mbox_wr
+};
+
+struct lpfc_mbox_ext_buf_ctx {
+	uint32_t state;
+#define LPFC_BSG_MBOX_IDLE		0
+#define LPFC_BSG_MBOX_HOST              1
+#define LPFC_BSG_MBOX_PORT		2
+#define LPFC_BSG_MBOX_DONE		3
+#define LPFC_BSG_MBOX_ABTS		4
+	enum nemb_type nembType;
+	enum mbox_type mboxType;
+	uint32_t numBuf;
+	uint32_t mbxTag;
+	uint32_t seqNum;
+	struct lpfc_dmabuf *mbx_dmabuf;
+	struct lpfc_dmabuf *ext_dmabuf;
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -588,6 +614,7 @@ struct lpfc_hba {
 
 	MAILBOX_t *mbox;
 	uint32_t *mbox_ext;
+	struct lpfc_mbox_ext_buf_ctx mbox_ext_buf_ctx;
 	uint32_t ha_copy;
 	struct _PCB *pcb;
 	struct _IOCB *IOCBs;

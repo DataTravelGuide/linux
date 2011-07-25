@@ -4152,6 +4152,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fcf.redisc_wait.data = (unsigned long)phba;
 
 	/*
+	 * Control structure for handling external multi-buffer mailbox
+	 * command pass-through.
+	 */
+	memset((uint8_t *)&phba->mbox_ext_buf_ctx, 0,
+		sizeof(struct lpfc_mbox_ext_buf_ctx));
+
+	/*
 	 * We need to do a READ_CONFIG mailbox command here before
 	 * calling lpfc_get_cfgparam. For VFs this will report the
 	 * MAX_XRI, MAX_VPI, MAX_RPI, MAX_IOCB, and MAX_VFI settings.

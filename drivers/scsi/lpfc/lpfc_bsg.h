@@ -92,6 +92,8 @@ struct get_mgmt_rev_reply {
 };
 
 #define BSG_MBOX_SIZE 4096 /* mailbox command plus extended data */
+
+/* BSG mailbox request header */
 struct dfc_mbox_req {
 	uint32_t command;
 	uint32_t mbOffset;
@@ -173,7 +175,7 @@ struct lpfc_sli_config_mse {
 #define lpfc_mbox_sli_config_mse_len_WORD	buf_len
 };
 
-struct lpfc_sli_config_subcmd_hbd {
+struct lpfc_sli_config_hbd {
 	uint32_t buf_len;
 #define lpfc_mbox_sli_config_ecmn_hbd_len_SHIFT	0
 #define lpfc_mbox_sli_config_ecmn_hbd_len_MASK	0xffffff
@@ -196,31 +198,39 @@ struct lpfc_sli_config_hdr {
 	uint32_t reserved5;
 };
 
-struct lpfc_sli_config_generic {
+struct lpfc_sli_config_emb0_subsys {
 	struct lpfc_sli_config_hdr	sli_config_hdr;
 #define LPFC_MBX_SLI_CONFIG_MAX_MSE     19
 	struct lpfc_sli_config_mse	mse[LPFC_MBX_SLI_CONFIG_MAX_MSE];
+	uint32_t padding;
+	uint32_t word64;
+#define lpfc_emb0_subcmnd_opcode_SHIFT	0
+#define lpfc_emb0_subcmnd_opcode_MASK	0xff
+#define lpfc_emb0_subcmnd_opcode_WORD	word64
+#define lpfc_emb0_subcmnd_subsys_SHIFT	8
+#define lpfc_emb0_subcmnd_subsys_MASK	0xff
+#define lpfc_emb0_subcmnd_subsys_WORD	word64
+/* Subsystem FCOE (0x0C) OpCodes */
+#define SLI_CONFIG_SUBSYS_FCOE		0x0C
+#define FCOE_OPCODE_READ_FCF		0x08
+#define FCOE_OPCODE_ADD_FCF		0x09
 };
 
-struct lpfc_sli_config_subcmnd {
+struct lpfc_sli_config_emb1_subsys {
 	struct lpfc_sli_config_hdr	sli_config_hdr;
 	uint32_t word6;
-#define lpfc_subcmnd_opcode_SHIFT	0
-#define lpfc_subcmnd_opcode_MASK	0xff
-#define lpfc_subcmnd_opcode_WORD	word6
-#define lpfc_subcmnd_subsys_SHIFT	8
-#define lpfc_subcmnd_subsys_MASK	0xff
-#define lpfc_subcmnd_subsys_WORD	word6
+#define lpfc_emb1_subcmnd_opcode_SHIFT	0
+#define lpfc_emb1_subcmnd_opcode_MASK	0xff
+#define lpfc_emb1_subcmnd_opcode_WORD	word6
+#define lpfc_emb1_subcmnd_subsys_SHIFT	8
+#define lpfc_emb1_subcmnd_subsys_MASK	0xff
+#define lpfc_emb1_subcmnd_subsys_WORD	word6
 /* Subsystem COMN (0x01) OpCodes */
 #define SLI_CONFIG_SUBSYS_COMN		0x01
 #define COMN_OPCODE_READ_OBJECT		0xAB
 #define COMN_OPCODE_WRITE_OBJECT	0xAC
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
 #define COMN_OPCODE_DELETE_OBJECT	0xAE
-/* Subsystem FCOE (0x0C) OpCodes */
-#define SLI_CONFIG_SUBSYS_FCOE		0x0C
-#define FCOE_OPCODE_READ_FCF		0x08
-#define FCOE_OPCODE_ADD_FCF		0x09
 	uint32_t timeout;
 	uint32_t request_length;
 	uint32_t word9;
@@ -234,8 +244,8 @@ struct lpfc_sli_config_subcmnd {
 	uint32_t rd_offset;
 	uint32_t obj_name[26];
 	uint32_t hbd_count;
-#define LPFC_MBX_SLI_CONFIG_MAX_HBD	10
-	struct lpfc_sli_config_subcmd_hbd   hbd[LPFC_MBX_SLI_CONFIG_MAX_HBD];
+#define LPFC_MBX_SLI_CONFIG_MAX_HBD	8
+	struct lpfc_sli_config_hbd	hbd[LPFC_MBX_SLI_CONFIG_MAX_HBD];
 };
 
 struct lpfc_sli_config_mbox {
@@ -247,7 +257,11 @@ struct lpfc_sli_config_mbox {
 #define lpfc_mqe_command_MASK		0x000000FF
 #define lpfc_mqe_command_WORD		word0
 	union {
-		struct lpfc_sli_config_generic	sli_config_generic;
-		struct lpfc_sli_config_subcmnd	sli_config_subcmnd;
+		struct lpfc_sli_config_emb0_subsys sli_config_emb0_subsys;
+		struct lpfc_sli_config_emb1_subsys sli_config_emb1_subsys;
 	} un;
 };
+
+/* driver only */
+#define SLI_CONFIG_NOT_HANDLED		0
+#define SLI_CONFIG_HANDLED		1

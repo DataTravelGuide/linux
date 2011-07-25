@@ -2486,7 +2486,7 @@ job_error:
 }
 
 /**
- * lpfc_bsg_wake_mbox_wait - lpfc_bsg_issue_mbox mbox completion handler
+ * lpfc_bsg_issue_mbox_cmpl - lpfc_bsg_issue_mbox mbox completion handler
  * @phba: Pointer to HBA context object.
  * @pmboxq: Pointer to mailbox command.
  *
@@ -2497,7 +2497,7 @@ job_error:
  * of the mailbox.
  **/
 void
-lpfc_bsg_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
+lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
 	struct fc_bsg_job *job;
@@ -2640,6 +2640,868 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_bsg_mbox_ext_cleanup - clean up context of multi-buffer mbox session
+ * @phba: Pointer to HBA context object.
+ *
+ * This is routine clean up and reset BSG handling of multi-buffer mbox
+ * command session.
+ **/
+static void
+lpfc_bsg_mbox_ext_session_reset(struct lpfc_hba *phba)
+{
+	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE)
+		return;
+	/* free all memory, including dma buffers */
+	lpfc_bsg_dma_page_free(phba, phba->mbox_ext_buf_ctx.ext_dmabuf);
+	phba->mbox_ext_buf_ctx.ext_dmabuf = NULL;
+	lpfc_bsg_dma_page_free(phba, phba->mbox_ext_buf_ctx.mbx_dmabuf);
+	phba->mbox_ext_buf_ctx.mbx_dmabuf = NULL;
+	/* multi-buffer write mailbox command pass-through complete */
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_IDLE;
+
+	return;
+}
+
+/**
+ * lpfc_bsg_issue_mbox_ext_handle_job - job handler for multi-buffer mbox cmpl
+ * @phba: Pointer to HBA context object.
+ * @pmboxq: Pointer to mailbox command.
+ *
+ * This is routine handles BSG job for mailbox commands completions with
+ * multiple external buffers.
+ **/
+static int
+lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
+{
+	struct bsg_job_data *dd_data;
+	struct fc_bsg_job *job;
+	uint8_t *pmb, *pmb_buf;
+	unsigned long flags;
+	uint32_t size;
+	int rc = 0;
+
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
+	dd_data = pmboxq->context1;
+	/* has the job already timed out? */
+	if (!dd_data) {
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
+		rc = -ENXIO;
+		goto job_done_out;
+	}
+
+	/*
+	 * The outgoing buffer is readily referred from the dma buffer,
+	 * just need to get header part from mailboxq structure.
+	 */
+	pmb = (uint8_t *)&pmboxq->u.mb;
+	pmb_buf = (uint8_t *)dd_data->context_un.mbox.mb;
+	memcpy(pmb_buf, pmb, sizeof(MAILBOX_t));
+
+	if (pmboxq->u.mb.mbxStatus)
+		rc = -EIO;
+
+	job = dd_data->context_un.mbox.set_job;
+	if (job) {
+		size = job->reply_payload.payload_len;
+		job->reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(job->reply_payload.sg_list,
+					    job->reply_payload.sg_cnt,
+					    pmb_buf, size);
+		/* result for successful */
+		job->reply->result = 0;
+		job->dd_data = NULL;
+		/* need to hold the lock util we set job->dd_data to NULL
+		 * to hold off the timeout handler from midlayer to take
+		 * any action.
+		 */
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2937 SLI_CONFIG ext-buffer maibox command "
+				"(x%x/x%x) complete bsg job done, bsize:%d\n",
+				phba->mbox_ext_buf_ctx.nembType,
+				phba->mbox_ext_buf_ctx.mboxType, size);
+		job->job_done(job);
+	} else {
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
+		rc = -EINVAL;
+	}
+
+job_done_out:
+	if (rc)
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"2938 SLI_CONFIG ext-buffer maibox "
+				"command (x%x/x%x) failure, rc:x%x\n",
+				phba->mbox_ext_buf_ctx.nembType,
+				phba->mbox_ext_buf_ctx.mboxType, rc);
+	/* state change */
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_DONE;
+	kfree(dd_data);
+
+	return rc;
+}
+
+/**
+ * lpfc_bsg_issue_read_mbox_ext_cmpl - compl handler for multi-buffer read mbox
+ * @phba: Pointer to HBA context object.
+ * @pmboxq: Pointer to mailbox command.
+ *
+ * This is completion handler function for mailbox read commands with multiple
+ * external buffers.
+ **/
+static void
+lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
+{
+	int rc;
+
+	/* handle the BSG job with mailbox command */
+	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_ABTS)
+		pmboxq->u.mb.mbxStatus = MBXERR_ERROR;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"2939 SLI_CONFIG ext-buffer rd maibox command "
+			"complete, ctxState:x%x, mbxStatus:x%x\n",
+			phba->mbox_ext_buf_ctx.state, pmboxq->u.mb.mbxStatus);
+	rc = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
+
+	/* free base driver mailbox structure memory */
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+
+	if (rc)
+		lpfc_bsg_mbox_ext_session_reset(phba);
+
+	return;
+}
+
+/**
+ * lpfc_bsg_issue_write_mbox_ext_cmpl - cmpl handler for multi-buffer write mbox
+ * @phba: Pointer to HBA context object.
+ * @pmboxq: Pointer to mailbox command.
+ *
+ * This is completion handler function for mailbox write commands with multiple
+ * external buffers.
+ **/
+static void
+lpfc_bsg_issue_write_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
+{
+	int rc;
+
+	/* handle the BSG job with the mailbox command */
+	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_ABTS)
+		pmboxq->u.mb.mbxStatus = MBXERR_ERROR;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"2940 SLI_CONFIG ext-buffer wr maibox command "
+			"complete, ctxState:x%x, mbxStatus:x%x\n",
+			phba->mbox_ext_buf_ctx.state, pmboxq->u.mb.mbxStatus);
+	rc = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
+
+	/* free all memory, including dma buffers */
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+	lpfc_bsg_mbox_ext_session_reset(phba);
+
+	return;
+}
+
+static void
+lpfc_bsg_sli_cfg_dma_desc_setup(struct lpfc_hba *phba, enum nemb_type nemb_tp,
+				uint32_t index, struct lpfc_dmabuf *dmabuf)
+{
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+
+	/* pointer to the start of mailbox command */
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+
+	if (nemb_tp == nemb_mse) {
+		sli_cfg_mbx->un.sli_config_emb0_subsys.mse[index].pa_hi =
+			putPaddrHigh(dmabuf->phys + sizeof(MAILBOX_t));
+		sli_cfg_mbx->un.sli_config_emb0_subsys.mse[index].pa_lo =
+			putPaddrLow(dmabuf->phys + sizeof(MAILBOX_t));
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2943 SLI_CONFIG(mse), buf[%d]-length:%d\n",
+				index,
+				sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[index].buf_len);
+	} else {
+		sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[index].pa_hi =
+			putPaddrHigh(dmabuf->phys + sizeof(MAILBOX_t));
+		sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[index].pa_lo =
+			putPaddrLow(dmabuf->phys + sizeof(MAILBOX_t));
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2944 SLI_CONFIG(hbd), buf[%d]-length:%d\n",
+				index,
+				bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
+				&sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index]));
+	}
+	return;
+}
+
+/**
+ * lpfc_bsg_sli_cfg_mse_read_cmd_ext - sli_config non-embedded mailbox cmd read
+ * @phba: Pointer to HBA context object.
+ * @mb: Pointer to a BSG mailbox object.
+ * @nemb_tp: Enumerate of non-embedded mailbox command type.
+ * @dmabuff: Pointer to a DMA buffer descriptor.
+ *
+ * This routine performs SLI_CONFIG (0x9B) read mailbox command operation with
+ * non-embedded external bufffers.
+ **/
+static int
+lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			      enum nemb_type nemb_tp,
+			      struct lpfc_dmabuf *dmabuf)
+{
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	struct dfc_mbox_req *mbox_req;
+	struct lpfc_dmabuf *curr_dmabuf, *next_dmabuf;
+	uint32_t ext_buf_cnt, ext_buf_index;
+	struct lpfc_dmabuf *dmabuffers = NULL;
+	struct bsg_job_data *dd_data = NULL;
+	LPFC_MBOXQ_t *pmboxq = NULL;
+	MAILBOX_t *pmb;
+	uint8_t *pmbx;
+	int rc;
+
+	mbox_req =
+	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
+
+	/* pointer to the start of mailbox command */
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+
+	if (nemb_tp == nemb_mse) {
+		ext_buf_cnt = bsg_bf_get(lpfc_mbox_hdr_mse_cnt,
+			&sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2941 Handled SLI_CONFIG(mse) rd, "
+				"ext_buf_cnt:%d\n", ext_buf_cnt);
+	} else {
+		/* nemb_tp == nemb_hbd */
+		ext_buf_cnt = sli_cfg_mbx->un.sli_config_emb1_subsys.hbd_count;
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2942 Handled SLI_CONFIG(hbd) rd, "
+				"ext_buf_cnt:%d\n", ext_buf_cnt);
+	}
+
+	/* reject non-embedded mailbox command with none external buffer */
+	if (ext_buf_cnt == 0) {
+		rc = -EPERM;
+		goto job_error;
+	} else if (ext_buf_cnt > 1) {
+		/* additional external read buffers */
+		dmabuffers = lpfc_bsg_dma_page_alloc(phba, ext_buf_cnt - 1);
+		if (!dmabuffers) {
+			rc = -ENOMEM;
+			goto job_error;
+		}
+	}
+
+	/* bsg tracking structure */
+	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	if (!dd_data) {
+		rc = -ENOMEM;
+		goto job_error;
+	}
+
+	/* mailbox command structure for base driver */
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq) {
+		rc = -ENOMEM;
+		goto job_error;
+	}
+	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
+
+	/* for the first external buffer */
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf);
+
+	/* for the rest of external buffer descriptors if any */
+	if (ext_buf_cnt > 1) {
+		ext_buf_index = 1;
+		list_for_each_entry_safe(curr_dmabuf, next_dmabuf,
+					 &dmabuffers->list, list) {
+			lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp,
+					 ext_buf_index, curr_dmabuf);
+			ext_buf_index++;
+		}
+	}
+
+	/* construct base driver mbox command */
+	pmb = &pmboxq->u.mb;
+	pmbx = (uint8_t *)dmabuf->virt;
+	memcpy(pmb, pmbx, sizeof(*pmb));
+	pmb->mbxOwner = OWN_HOST;
+	pmboxq->vport = phba->pport;
+
+	/* multi-buffer handling context */
+	phba->mbox_ext_buf_ctx.nembType = nemb_tp;
+	phba->mbox_ext_buf_ctx.mboxType = mbox_rd;
+	phba->mbox_ext_buf_ctx.numBuf = ext_buf_cnt;
+	phba->mbox_ext_buf_ctx.mbxTag = mbox_req->extMboxTag;
+	phba->mbox_ext_buf_ctx.seqNum = mbox_req->extSeqNum;
+	phba->mbox_ext_buf_ctx.mbx_dmabuf = dmabuf;
+	phba->mbox_ext_buf_ctx.ext_dmabuf = dmabuffers;
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
+
+	/* callback for multi-buffer read mailbox command */
+	pmboxq->mbox_cmpl = lpfc_bsg_issue_read_mbox_ext_cmpl;
+
+	/* context fields to callback function */
+	pmboxq->context1 = dd_data;
+	dd_data->type = TYPE_MBOX;
+	dd_data->context_un.mbox.pmboxq = pmboxq;
+	dd_data->context_un.mbox.mb = (MAILBOX_t *)pmbx;
+	dd_data->context_un.mbox.set_job = job;
+	job->dd_data = dd_data;
+
+	rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+	if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2947 Issued SLI_CONFIG ext-buffer "
+				"maibox command, rc:x%x\n", rc);
+		/* state change */
+		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+		return 1;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+			"2948 Failed to issue SLI_CONFIG ext-buffer "
+			"maibox command, rc:x%x\n", rc);
+	rc = -EPIPE;
+
+job_error:
+	if (pmboxq)
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+	if (dmabuffers)
+		lpfc_bsg_dma_page_free(phba, dmabuffers);
+	kfree(dd_data);
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_IDLE;
+	return rc;
+}
+
+/**
+ * lpfc_bsg_sli_cfg_write_cmd_ext - sli_config non-embedded mailbox cmd write
+ * @phba: Pointer to HBA context object.
+ * @mb: Pointer to a BSG mailbox object.
+ * @dmabuff: Pointer to a DMA buffer descriptor.
+ *
+ * This routine performs SLI_CONFIG (0x9B) write mailbox command operation with
+ * non-embedded external bufffers.
+ **/
+static int
+lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			       enum nemb_type nemb_tp,
+			       struct lpfc_dmabuf *dmabuf)
+{
+	struct dfc_mbox_req *mbox_req;
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	uint32_t ext_buf_cnt;
+	struct bsg_job_data *dd_data = NULL;
+	LPFC_MBOXQ_t *pmboxq = NULL;
+	MAILBOX_t *pmb;
+	uint8_t *mbx;
+	int rc = 0, i;
+
+	mbox_req =
+	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
+
+	/* pointer to the start of mailbox command */
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+
+	if (nemb_tp == nemb_mse) {
+		ext_buf_cnt = bsg_bf_get(lpfc_mbox_hdr_mse_cnt,
+			&sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2949 Handled SLI_CONFIG(mse) wr, "
+				"ext_buf_cnt:%d\n", ext_buf_cnt);
+	} else {
+		/* nemb_tp == nemb_hbd */
+		ext_buf_cnt = sli_cfg_mbx->un.sli_config_emb1_subsys.hbd_count;
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2950 Handled SLI_CONFIG(hbd) wr, "
+				"ext_buf_cnt:%d\n", ext_buf_cnt);
+	}
+
+	if (ext_buf_cnt == 0)
+		return -EPERM;
+
+	/* for the first external buffer */
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf);
+
+	/* log for looking forward */
+	for (i = 1; i < ext_buf_cnt; i++) {
+		if (nemb_tp == nemb_mse)
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2951 SLI_CONFIG(mse), buf[%d]-length:%d\n",
+				i, sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[i].buf_len);
+		else
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2952 SLI_CONFIG(hbd), buf[%d]-length:%d\n",
+				i, bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
+				&sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[i]));
+	}
+
+	/* multi-buffer handling context */
+	phba->mbox_ext_buf_ctx.nembType = nemb_tp;
+	phba->mbox_ext_buf_ctx.mboxType = mbox_wr;
+	phba->mbox_ext_buf_ctx.numBuf = ext_buf_cnt;
+	phba->mbox_ext_buf_ctx.mbxTag = mbox_req->extMboxTag;
+	phba->mbox_ext_buf_ctx.seqNum = mbox_req->extSeqNum;
+	phba->mbox_ext_buf_ctx.mbx_dmabuf = dmabuf;
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
+
+	if (ext_buf_cnt == 1) {
+		/* bsg tracking structure */
+		dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+		if (!dd_data) {
+			rc = -ENOMEM;
+			goto job_error;
+		}
+
+		/* mailbox command structure for base driver */
+		pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!pmboxq) {
+			rc = -ENOMEM;
+			goto job_error;
+		}
+		memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
+		pmb = &pmboxq->u.mb;
+		mbx = (uint8_t *)dmabuf->virt;
+		memcpy(pmb, mbx, sizeof(*pmb));
+		pmb->mbxOwner = OWN_HOST;
+		pmboxq->vport = phba->pport;
+
+		/* callback for multi-buffer read mailbox command */
+		pmboxq->mbox_cmpl = lpfc_bsg_issue_write_mbox_ext_cmpl;
+
+		/* context fields to callback function */
+		pmboxq->context1 = dd_data;
+		dd_data->type = TYPE_MBOX;
+		dd_data->context_un.mbox.pmboxq = pmboxq;
+		dd_data->context_un.mbox.mb = (MAILBOX_t *)mbx;
+		dd_data->context_un.mbox.set_job = job;
+		job->dd_data = dd_data;
+
+		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+		if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2955 Issued SLI_CONFIG ext-buffer "
+					"maibox command, rc:x%x\n", rc);
+			/* state change */
+			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+			return 1;
+		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"2956 Failed to issue SLI_CONFIG ext-buffer "
+				"maibox command, rc:x%x\n", rc);
+		rc = -EPIPE;
+	}
+
+job_error:
+	if (pmboxq)
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+	kfree(dd_data);
+
+	return rc;
+}
+
+/**
+ * lpfc_bsg_handle_sli_cfg_mbox - handle sli-cfg mailbox cmd with ext buffer
+ * @phba: Pointer to HBA context object.
+ * @mb: Pointer to a BSG mailbox object.
+ * @dmabuff: Pointer to a DMA buffer descriptor.
+ *
+ * This routine handles SLI_CONFIG (0x9B) mailbox command with non-embedded
+ * external bufffers, including both 0x9B with non-embedded MSEs and 0x9B
+ * with embedded sussystem 0x1 and opcodes with external HBDs.
+ **/
+static int
+lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			     struct lpfc_dmabuf *dmabuf)
+{
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	uint32_t subsys;
+	uint32_t opcode;
+	int rc = SLI_CONFIG_NOT_HANDLED;
+
+	/* state change */
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
+
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+
+	if (!bsg_bf_get(lpfc_mbox_hdr_emb,
+	    &sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr)) {
+		subsys = bsg_bf_get(lpfc_emb0_subcmnd_subsys,
+				    &sli_cfg_mbx->un.sli_config_emb0_subsys);
+		opcode = bsg_bf_get(lpfc_emb0_subcmnd_opcode,
+				    &sli_cfg_mbx->un.sli_config_emb0_subsys);
+		if (subsys == SLI_CONFIG_SUBSYS_FCOE) {
+			switch (opcode) {
+			case FCOE_OPCODE_READ_FCF:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2957 Handled SLI_CONFIG "
+						"subsys_fcoe, opcode:x%x\n",
+						opcode);
+				rc = lpfc_bsg_sli_cfg_read_cmd_ext(phba, job,
+							nemb_mse, dmabuf);
+				break;
+			case FCOE_OPCODE_ADD_FCF:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2958 Handled SLI_CONFIG "
+						"subsys_fcoe, opcode:x%x\n",
+						opcode);
+				rc = lpfc_bsg_sli_cfg_write_cmd_ext(phba, job,
+							nemb_mse, dmabuf);
+				break;
+			default:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2959 Not handled SLI_CONFIG "
+						"subsys_fcoe, opcode:x%x\n",
+						opcode);
+				rc = SLI_CONFIG_NOT_HANDLED;
+				break;
+			}
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2977 Handled SLI_CONFIG "
+					"subsys:x%d, opcode:x%x\n",
+					subsys, opcode);
+			rc = SLI_CONFIG_NOT_HANDLED;
+		}
+	} else {
+		subsys = bsg_bf_get(lpfc_emb1_subcmnd_subsys,
+				    &sli_cfg_mbx->un.sli_config_emb1_subsys);
+		opcode = bsg_bf_get(lpfc_emb1_subcmnd_opcode,
+				    &sli_cfg_mbx->un.sli_config_emb1_subsys);
+		if (subsys == SLI_CONFIG_SUBSYS_COMN) {
+			switch (opcode) {
+			case COMN_OPCODE_READ_OBJECT:
+			case COMN_OPCODE_READ_OBJECT_LIST:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2960 Handled SLI_CONFIG "
+						"subsys_comn, opcode:x%x\n",
+						opcode);
+				rc = lpfc_bsg_sli_cfg_read_cmd_ext(phba, job,
+							nemb_hbd, dmabuf);
+				break;
+			case COMN_OPCODE_WRITE_OBJECT:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2961 Handled SLI_CONFIG "
+						"subsys_comn, opcode:x%x\n",
+						opcode);
+				rc = lpfc_bsg_sli_cfg_write_cmd_ext(phba, job,
+							nemb_hbd, dmabuf);
+				break;
+			default:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"2962 Not handled SLI_CONFIG "
+						"subsys_comn, opcode:x%x\n",
+						opcode);
+				rc = SLI_CONFIG_NOT_HANDLED;
+				break;
+			}
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2978 Handled SLI_CONFIG "
+					"subsys:x%d, opcode:x%x\n",
+					subsys, opcode);
+			rc = SLI_CONFIG_NOT_HANDLED;
+		}
+	}
+	return rc;
+}
+
+/**
+ * lpfc_bsg_mbox_ext_abort_req - request to abort mbox command with ext buffers
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine is for requesting to abort a pass-through mailbox command with
+ * multiple external buffers due to error condition.
+ **/
+static void
+lpfc_bsg_mbox_ext_abort(struct lpfc_hba *phba)
+{
+	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_PORT)
+		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_ABTS;
+	else
+		lpfc_bsg_mbox_ext_session_reset(phba);
+	return;
+}
+
+/**
+ * lpfc_bsg_read_ebuf_get - get the next mailbox read external buffer
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * This routine extracts the next mailbox read external buffer back to
+ * user space through BSG.
+ **/
+static int
+lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
+{
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	struct lpfc_dmabuf *dmabuf;
+	uint8_t *pbuf;
+	uint32_t size;
+	uint32_t indx;
+
+	indx = phba->mbox_ext_buf_ctx.seqNum;
+	phba->mbox_ext_buf_ctx.seqNum++;
+
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)
+			phba->mbox_ext_buf_ctx.mbx_dmabuf->virt;
+
+	if (phba->mbox_ext_buf_ctx.nembType == nemb_mse) {
+		size = bsg_bf_get(lpfc_mbox_sli_config_mse_len,
+			&sli_cfg_mbx->un.sli_config_emb0_subsys.mse[indx]);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2963 SLI_CONFIG (mse) ext-buffer rd get "
+				"buffer[%d], size:%d\n",
+				phba->mbox_ext_buf_ctx.seqNum, size);
+	} else {
+		size = bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
+			&sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[indx]);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2964 SLI_CONFIG (hbd) ext-buffer rd get "
+				"buffer[%d], size:%d\n",
+				phba->mbox_ext_buf_ctx.seqNum, size);
+	}
+	dmabuf = phba->mbox_ext_buf_ctx.ext_dmabuf;
+	list_del_init(&dmabuf->list);
+	pbuf = (uint8_t *)dmabuf->virt;
+	job->reply->reply_payload_rcv_len =
+		sg_copy_from_buffer(job->reply_payload.sg_list,
+				    job->reply_payload.sg_cnt,
+				    pbuf, size);
+	job->reply->result = 0;
+	job->job_done(job);
+
+	if (phba->mbox_ext_buf_ctx.seqNum == phba->mbox_ext_buf_ctx.numBuf) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2965 SLI_CONFIG (hbd) ext-buffer rd mbox "
+				"command session done\n");
+		lpfc_bsg_mbox_ext_session_reset(phba);
+	}
+
+	return 0;
+}
+
+/**
+ * lpfc_bsg_write_ebuf_set - set the next mailbox write external buffer
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to a DMA buffer descriptor.
+ *
+ * This routine sets up the next mailbox read external buffer obtained
+ * from user space through BSG.
+ **/
+static int
+lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			struct lpfc_dmabuf *dmabuf)
+{
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	struct bsg_job_data *dd_data = NULL;
+	LPFC_MBOXQ_t *pmboxq = NULL;
+	MAILBOX_t *pmb;
+	enum nemb_type nemb_tp;
+	uint8_t *pbuf;
+	uint32_t size;
+	uint32_t index;
+	int rc;
+
+	index = phba->mbox_ext_buf_ctx.seqNum;
+	phba->mbox_ext_buf_ctx.seqNum++;
+	nemb_tp = phba->mbox_ext_buf_ctx.nembType;
+
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)
+			phba->mbox_ext_buf_ctx.mbx_dmabuf->virt;
+
+	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	if (!dd_data) {
+		rc = -ENOMEM;
+		goto job_error;
+	}
+
+	pbuf = (uint8_t *)dmabuf->virt;
+	size = job->request_payload.payload_len;
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt,
+			  pbuf, size);
+
+	if (phba->mbox_ext_buf_ctx.nembType == nemb_mse) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2966 SLI_CONFIG (mse) ext-buffer wr set "
+				"buffer[%d], size:%d\n",
+				phba->mbox_ext_buf_ctx.seqNum, size);
+
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2967 SLI_CONFIG (hbd) ext-buffer wr set "
+				"buffer[%d], size:%d\n",
+				phba->mbox_ext_buf_ctx.seqNum, size);
+
+	}
+
+	/* set up external buffer descriptor and add to external buffer list */
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, index, dmabuf);
+	list_add_tail(&dmabuf->list, &phba->mbox_ext_buf_ctx.ext_dmabuf->list);
+
+	if (phba->mbox_ext_buf_ctx.seqNum == phba->mbox_ext_buf_ctx.numBuf) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2968 SLI_CONFIG ext-buffer wr all %d "
+				"ebuffers received\n",
+				phba->mbox_ext_buf_ctx.numBuf);
+		/* mailbox command structure for base driver */
+		pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!pmboxq) {
+			rc = -ENOMEM;
+			goto job_error;
+		}
+		memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
+		pbuf = (uint8_t *)phba->mbox_ext_buf_ctx.mbx_dmabuf->virt;
+		pmb = &pmboxq->u.mb;
+		memcpy(pmb, pbuf, sizeof(*pmb));
+		pmb->mbxOwner = OWN_HOST;
+		pmboxq->vport = phba->pport;
+
+		/* callback for multi-buffer write mailbox command */
+		pmboxq->mbox_cmpl = lpfc_bsg_issue_write_mbox_ext_cmpl;
+
+		/* context fields to callback function */
+		pmboxq->context1 = dd_data;
+		dd_data->type = TYPE_MBOX;
+		dd_data->context_un.mbox.pmboxq = pmboxq;
+		dd_data->context_un.mbox.mb = (MAILBOX_t *)pbuf;
+		dd_data->context_un.mbox.set_job = job;
+		job->dd_data = dd_data;
+		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+		if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2969 Issued SLI_CONFIG ext-buffer "
+					"maibox command, rc:x%x\n", rc);
+			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+			return 1;
+		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"2970 Failed to issue SLI_CONFIG ext-buffer "
+				"maibox command, rc:x%x\n", rc);
+		rc = -EPIPE;
+		goto job_error;
+	}
+
+	/* wait for additoinal external buffers */
+	job->reply->result = 0;
+	job->job_done(job);
+	return 0;
+
+job_error:
+	if (dmabuf)
+		lpfc_bsg_dma_page_free(phba, dmabuf);
+	kfree(dd_data);
+
+	return rc;
+}
+
+/**
+ * lpfc_bsg_handle_sli_cfg_ebuf - handle ext buffer with sli-cfg mailbox cmd
+ * @phba: Pointer to HBA context object.
+ * @mb: Pointer to a BSG mailbox object.
+ * @dmabuff: Pointer to a DMA buffer descriptor.
+ *
+ * This routine handles the external buffer with SLI_CONFIG (0x9B) mailbox
+ * command with multiple non-embedded external buffers.
+ **/
+static int
+lpfc_bsg_handle_sli_cfg_ebuf(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			     struct lpfc_dmabuf *dmabuf)
+{
+	int rc;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"2971 SLI_CONFIG buffer (type:x%x)\n",
+			phba->mbox_ext_buf_ctx.mboxType);
+
+	if (phba->mbox_ext_buf_ctx.mboxType == mbox_rd) {
+		if (phba->mbox_ext_buf_ctx.state != LPFC_BSG_MBOX_DONE) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2972 SLI_CONFIG rd buffer state "
+					"mismatch:x%x\n",
+					phba->mbox_ext_buf_ctx.state);
+			lpfc_bsg_mbox_ext_abort(phba);
+			return -EPIPE;
+		}
+		rc = lpfc_bsg_read_ebuf_get(phba, job);
+	} else { /* phba->mbox_ext_buf_ctx.mboxType == mbox_wr */
+		if (phba->mbox_ext_buf_ctx.state != LPFC_BSG_MBOX_HOST) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+					"2973 SLI_CONFIG wr buffer state "
+					"mismatch:x%x\n",
+					phba->mbox_ext_buf_ctx.state);
+			lpfc_bsg_mbox_ext_abort(phba);
+			return -EPIPE;
+		}
+		rc = lpfc_bsg_write_ebuf_set(phba, job, dmabuf);
+	}
+	return rc;
+}
+
+/**
+ * lpfc_bsg_handle_sli_cfg_ext - handle sli-cfg mailbox with external buffer
+ * @phba: Pointer to HBA context object.
+ * @mb: Pointer to a BSG mailbox object.
+ * @dmabuff: Pointer to a DMA buffer descriptor.
+ *
+ * This routine checkes and handles non-embedded multi-buffer SLI_CONFIG
+ * (0x9B) mailbox commands and external buffers.
+ **/
+static int
+lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
+			    struct lpfc_dmabuf *dmabuf)
+{
+	struct dfc_mbox_req *mbox_req;
+	int rc;
+
+	mbox_req =
+	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
+
+	/* mbox command with/without single external buffer */
+	if (mbox_req->extMboxTag == 0 && mbox_req->extSeqNum == 0)
+		return SLI_CONFIG_NOT_HANDLED;
+
+	/* mbox command and first external buffer */
+	if ((phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE) &&
+	    (mbox_req->extSeqNum == 1)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2974 SLI_CONFIG mailbox: tag:%d, seq:%d\n",
+				mbox_req->extMboxTag, mbox_req->extSeqNum);
+		rc = lpfc_bsg_handle_sli_cfg_mbox(phba, job, dmabuf);
+		return rc;
+	}
+
+	/* additional external buffer */
+	if ((phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_HOST) &&
+	    (mbox_req->extMboxTag == phba->mbox_ext_buf_ctx.mbxTag) &&
+	    (mbox_req->extSeqNum <= phba->mbox_ext_buf_ctx.numBuf) &&
+	    (mbox_req->extSeqNum == phba->mbox_ext_buf_ctx.seqNum + 1)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2975 SLI_CONFIG mailbox external buffer: "
+				"tag:%d, seq:%d\n",
+				mbox_req->extMboxTag, mbox_req->extSeqNum);
+		rc = lpfc_bsg_handle_sli_cfg_ebuf(phba, job, dmabuf);
+		return rc;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+			"2976 SLI_CONFIG mailbox broken pipe: "
+			"ctxSta:x%x, ctxNumBuf:%d "
+			"ctxTag:%d, ctxSeq:%d, tag:%d, seq:%d\n",
+			phba->mbox_ext_buf_ctx.state,
+			phba->mbox_ext_buf_ctx.numBuf,
+			phba->mbox_ext_buf_ctx.mbxTag,
+			phba->mbox_ext_buf_ctx.seqNum,
+			mbox_req->extMboxTag, mbox_req->extSeqNum);
+	/* all other cases, broken pipe */
+	return -EPIPE;
+}
+
+/**
  * lpfc_bsg_issue_mbox - issues a mailbox command on behalf of an app
  * @phba: Pointer to HBA context object.
  * @mb: Pointer to a mailbox object.
@@ -2659,26 +3521,33 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	LPFC_MBOXQ_t *pmboxq = NULL; /* internal mailbox queue */
 	MAILBOX_t *pmb; /* shortcut to the pmboxq mailbox */
 	/* a 4k buffer to hold the mb and extended data from/to the bsg */
-	MAILBOX_t *mb = NULL;
+	uint8_t *pmbx = NULL;
 	struct bsg_job_data *dd_data = NULL; /* bsg data tracking structure */
 	struct lpfc_dmabuf *dmabuf = NULL;
 	struct dfc_mbox_req *mbox_req;
 	struct READ_EVENT_LOG_VAR *rdEventLog;
 	uint32_t transmit_length, receive_length, mode;
-	struct lpfc_mbx_nembed_cmd *nembed_sge;
-	struct lpfc_mbx_sli4_config *sli4_config;
-	struct mbox_header *header;
 	struct ulp_bde64 *bde;
 	uint8_t *ext = NULL;
 	int rc = 0;
 	uint8_t *from;
 	uint32_t size;
 
-	mbox_req =
-	    (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
 
 	/* in case no data is transferred */
 	job->reply->reply_payload_rcv_len = 0;
+
+	/*
+	 * Don't allow mailbox commands to be sent when blocked or when in
+	 * the middle of discovery
+	 */
+	 if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
+		rc = -EAGAIN;
+		goto job_done;
+	}
+
+	mbox_req =
+	    (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
 
 	/* check if requested extended data lengths are valid */
 	if ((mbox_req->inExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t)) ||
@@ -2686,6 +3555,32 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		rc = -ERANGE;
 		goto job_done;
 	}
+
+	dmabuf = lpfc_bsg_dma_page_alloc(phba, 1);
+	if (!dmabuf || !dmabuf->virt) {
+		rc = -ENOMEM;
+		goto job_done;
+	}
+
+	/* Get the mailbox command or external buffer from BSG */
+	pmbx = (uint8_t *)dmabuf->virt;
+	size = job->request_payload.payload_len;
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt, pmbx, size);
+
+	/* Handle possible SLI_CONFIG with non-embedded payloads */
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		rc = lpfc_bsg_handle_sli_cfg_ext(phba, job, dmabuf);
+		if (rc == SLI_CONFIG_HANDLED)
+			goto job_cont;
+		if (rc)
+			goto job_done;
+		/* SLI_CONFIG_NOT_HANDLED for other mailbox commands */
+	}
+
+	rc = lpfc_bsg_check_cmd_access(phba, (MAILBOX_t *)pmbx, vport);
+	if (rc != 0)
+		goto job_done; /* must be negative */
 
 	/* allocate our bsg tracking structure */
 	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
@@ -2696,13 +3591,6 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		goto job_done;
 	}
 
-	dmabuf = lpfc_bsg_dma_page_alloc(phba, 1);
-	if (!dmabuf || !dmabuf->virt) {
-		rc = -ENOMEM;
-		goto job_done;
-	}
-	mb = (MAILBOX_t *)dmabuf->virt;
-
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq) {
 		rc = -ENOMEM;
@@ -2710,17 +3598,8 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	}
 	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 
-	size = job->request_payload.payload_len;
-	sg_copy_to_buffer(job->request_payload.sg_list,
-			job->request_payload.sg_cnt,
-			mb, size);
-
-	rc = lpfc_bsg_check_cmd_access(phba, mb, vport);
-	if (rc != 0)
-		goto job_done; /* must be negative */
-
 	pmb = &pmboxq->u.mb;
-	memcpy(pmb, mb, sizeof(*pmb));
+	memcpy(pmb, pmbx, sizeof(*pmb));
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->vport = vport;
 
@@ -2737,19 +3616,11 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				"0x%x while in stopped state.\n",
 				pmb->mbxCommand);
 
-	/* Don't allow mailbox commands to be sent when blocked
-	 * or when in the middle of discovery
-	 */
-	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
-		rc = -EAGAIN;
-		goto job_done;
-	}
-
 	/* extended mailbox commands will need an extended buffer */
 	if (mbox_req->inExtWLen || mbox_req->outExtWLen) {
 		/* any data for the device? */
 		if (mbox_req->inExtWLen) {
-			from = (uint8_t *)mb;
+			from = pmbx;
 			ext = from + sizeof(MAILBOX_t);
 		}
 		pmboxq->context2 = ext;
@@ -2815,8 +3686,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			/* receive length cannot be greater than mailbox
 			 * extension size
 			 */
-			if ((receive_length == 0) ||
-				(receive_length > MAILBOX_EXT_SIZE)) {
+			if (receive_length == 0) {
 				rc = -ERANGE;
 				goto job_done;
 			}
@@ -2837,49 +3707,19 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 						+ sizeof(MAILBOX_t));
 			bde->addrLow = putPaddrLow(dmabuf->phys
 						+ sizeof(MAILBOX_t));
-		} else if (pmb->mbxCommand == MBX_SLI4_CONFIG) {
-			/* Handling non-embedded SLI_CONFIG mailbox command */
-			sli4_config = &pmboxq->u.mqe.un.sli4_config;
-			if (!bf_get(lpfc_mbox_hdr_emb,
-			    &sli4_config->header.cfg_mhdr)) {
-				/* rebuild the command for sli4 using our
-				 * own buffers like we do for biu diags
-				 */
-				header = (struct mbox_header *)
-						&pmb->un.varWords[0];
-				nembed_sge = (struct lpfc_mbx_nembed_cmd *)
-						&pmb->un.varWords[0];
-				receive_length = nembed_sge->sge[0].length;
-
-				/* receive length cannot be greater than
-				 * mailbox extension size
-				 */
-				if ((receive_length == 0) ||
-				    (receive_length > MAILBOX_EXT_SIZE)) {
-					rc = -ERANGE;
-					goto job_done;
-				}
-
-				nembed_sge->sge[0].pa_hi =
-						putPaddrHigh(dmabuf->phys
-						   + sizeof(MAILBOX_t));
-				nembed_sge->sge[0].pa_lo =
-						putPaddrLow(dmabuf->phys
-						   + sizeof(MAILBOX_t));
-			}
 		}
 	}
 
 	dd_data->context_un.mbox.dmabuffers = dmabuf;
 
 	/* setup wake call as IOCB callback */
-	pmboxq->mbox_cmpl = lpfc_bsg_wake_mbox_wait;
+	pmboxq->mbox_cmpl = lpfc_bsg_issue_mbox_cmpl;
 
 	/* setup context field to pass wait_queue pointer to wake function */
 	pmboxq->context1 = dd_data;
 	dd_data->type = TYPE_MBOX;
 	dd_data->context_un.mbox.pmboxq = pmboxq;
-	dd_data->context_un.mbox.mb = mb;
+	dd_data->context_un.mbox.mb = (MAILBOX_t *)pmbx;
 	dd_data->context_un.mbox.set_job = job;
 	dd_data->context_un.mbox.ext = ext;
 	dd_data->context_un.mbox.mbOffset = mbox_req->mbOffset;
@@ -2896,11 +3736,11 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		}
 
 		/* job finished, copy the data */
-		memcpy(mb, pmb, sizeof(*pmb));
+		memcpy(pmbx, pmb, sizeof(*pmb));
 		job->reply->reply_payload_rcv_len =
 			sg_copy_from_buffer(job->reply_payload.sg_list,
 					    job->reply_payload.sg_cnt,
-					    mb, size);
+					    pmbx, size);
 		/* not waiting mbox already done */
 		rc = 0;
 		goto job_done;
@@ -2918,6 +3758,7 @@ job_done:
 		lpfc_bsg_dma_page_free(phba, dmabuf);
 	kfree(dd_data);
 
+job_cont:
 	return rc;
 }
 
@@ -3413,6 +4254,8 @@ lpfc_bsg_timeout(struct fc_bsg_job *job)
 		/* the mbox completion handler can now be run */
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 		job->job_done(job);
+		if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_PORT)
+			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_ABTS;
 		break;
 	case TYPE_MENLO:
 		menlo = &dd_data->context_un.menlo;
