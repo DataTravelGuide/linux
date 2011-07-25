@@ -2666,6 +2666,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct READ_EVENT_LOG_VAR *rdEventLog;
 	uint32_t transmit_length, receive_length, mode;
 	struct lpfc_mbx_nembed_cmd *nembed_sge;
+	struct lpfc_mbx_sli4_config *sli4_config;
 	struct mbox_header *header;
 	struct ulp_bde64 *bde;
 	uint8_t *ext = NULL;
@@ -2837,27 +2838,35 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			bde->addrLow = putPaddrLow(dmabuf->phys
 						+ sizeof(MAILBOX_t));
 		} else if (pmb->mbxCommand == MBX_SLI4_CONFIG) {
-			/* rebuild the command for sli4 using our own buffers
-			* like we do for biu diags
-			*/
-			header = (struct mbox_header *)&pmb->un.varWords[0];
-			nembed_sge = (struct lpfc_mbx_nembed_cmd *)
-				&pmb->un.varWords[0];
-			receive_length = nembed_sge->sge[0].length;
+			/* Handling non-embedded SLI_CONFIG mailbox command */
+			sli4_config = &pmboxq->u.mqe.un.sli4_config;
+			if (!bf_get(lpfc_mbox_hdr_emb,
+			    &sli4_config->header.cfg_mhdr)) {
+				/* rebuild the command for sli4 using our
+				 * own buffers like we do for biu diags
+				 */
+				header = (struct mbox_header *)
+						&pmb->un.varWords[0];
+				nembed_sge = (struct lpfc_mbx_nembed_cmd *)
+						&pmb->un.varWords[0];
+				receive_length = nembed_sge->sge[0].length;
 
-			/* receive length cannot be greater than mailbox
-			 * extension size
-			 */
-			if ((receive_length == 0) ||
-				(receive_length > MAILBOX_EXT_SIZE)) {
-				rc = -ERANGE;
-				goto job_done;
+				/* receive length cannot be greater than
+				 * mailbox extension size
+				 */
+				if ((receive_length == 0) ||
+				    (receive_length > MAILBOX_EXT_SIZE)) {
+					rc = -ERANGE;
+					goto job_done;
+				}
+
+				nembed_sge->sge[0].pa_hi =
+						putPaddrHigh(dmabuf->phys
+						   + sizeof(MAILBOX_t));
+				nembed_sge->sge[0].pa_lo =
+						putPaddrLow(dmabuf->phys
+						   + sizeof(MAILBOX_t));
 			}
-
-			nembed_sge->sge[0].pa_hi = putPaddrHigh(dmabuf->phys
-						   + sizeof(MAILBOX_t));
-			nembed_sge->sge[0].pa_lo = putPaddrLow(dmabuf->phys
-						   + sizeof(MAILBOX_t));
 		}
 	}
 
