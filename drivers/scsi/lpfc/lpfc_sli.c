@@ -4986,12 +4986,6 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 	 * Based on the resource size and count, correct the base and max
 	 * resource values.
 	 */
-
-	/*&&&PAE. 3/29/11 - There is a work around for a resource start
-	 * endianess issue in FW.  Note that the even indices are pulled
-	 * from word4_1 and the odd entries are pulled from work4_0.
-	 * This will be fixed once the Lancer FW team pushes a fix.
-	 */
 	length = sizeof(struct lpfc_rsrc_blks);
 	switch (type) {
 	case LPFC_RSC_TYPE_FCOE_RPI:
@@ -5019,7 +5013,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		 */
 		for (i = 0, j = 0, k = 0 ; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5039,7 +5033,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 					j++;
 				}
 			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5087,7 +5081,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		 */
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5107,7 +5101,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 					j++;
 				}
 			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5155,7 +5149,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		 */
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5177,7 +5171,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 					j++;
 				}
 			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5225,7 +5219,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		 */
 		for (i = 0, j = 0, k = 0; i < rsrc_cnt; i++) {
 			if ((i % 2) == 0) {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
@@ -5245,7 +5239,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 					j++;
 				}
 			} else {
-				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_0,
+				rsrc_id = bf_get(lpfc_mbx_rsrc_id_word4_1,
 						 &id_array[k]);
 				rsrc_blks = kzalloc(length, GFP_KERNEL);
 				if (unlikely(!rsrc_blks)) {
