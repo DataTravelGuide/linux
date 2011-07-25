@@ -804,6 +804,7 @@ struct lpfc_hba {
 	struct dentry *idiag_root;
 	struct dentry *idiag_pci_cfg;
 	struct dentry *idiag_que_info;
+	struct dentry *idiag_que_dump;
 #endif
 
 	/* Used for deferred freeing of ELS data buffers */
