@@ -2679,7 +2679,7 @@ lpfc_bsg_mbox_ext_session_reset(struct lpfc_hba *phba)
  * This is routine handles BSG job for mailbox commands completions with
  * multiple external buffers.
  **/
-static int
+static struct fc_bsg_job *
 lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	struct bsg_job_data *dd_data;
@@ -2694,7 +2694,7 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	/* has the job already timed out? */
 	if (!dd_data) {
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-		rc = -ENXIO;
+		job = NULL;
 		goto job_done_out;
 	}
 
@@ -2705,9 +2705,6 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	pmb = (uint8_t *)&pmboxq->u.mb;
 	pmb_buf = (uint8_t *)dd_data->context_un.mbox.mb;
 	memcpy(pmb_buf, pmb, sizeof(MAILBOX_t));
-
-	if (pmboxq->u.mb.mbxStatus)
-		rc = -EIO;
 
 	job = dd_data->context_un.mbox.set_job;
 	if (job) {
@@ -2729,14 +2726,11 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 				"(x%x/x%x) complete bsg job done, bsize:%d\n",
 				phba->mbox_ext_buf_ctx.nembType,
 				phba->mbox_ext_buf_ctx.mboxType, size);
-		job->job_done(job);
-	} else {
+	} else
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-		rc = -EINVAL;
-	}
 
 job_done_out:
-	if (rc)
+	if (!job)
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"2938 SLI_CONFIG ext-buffer maibox "
 				"command (x%x/x%x) failure, rc:x%x\n",
@@ -2746,7 +2740,7 @@ job_done_out:
 	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_DONE;
 	kfree(dd_data);
 
-	return rc;
+	return job;
 }
 
 /**
@@ -2760,7 +2754,7 @@ job_done_out:
 static void
 lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
-	int rc;
+	struct fc_bsg_job *job;
 
 	/* handle the BSG job with mailbox command */
 	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_ABTS)
@@ -2770,13 +2764,18 @@ lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 			"2939 SLI_CONFIG ext-buffer rd maibox command "
 			"complete, ctxState:x%x, mbxStatus:x%x\n",
 			phba->mbox_ext_buf_ctx.state, pmboxq->u.mb.mbxStatus);
-	rc = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
+
+	job = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
+
+	if (pmboxq->u.mb.mbxStatus || phba->mbox_ext_buf_ctx.numBuf == 1)
+		lpfc_bsg_mbox_ext_session_reset(phba);
 
 	/* free base driver mailbox structure memory */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 
-	if (rc || phba->mbox_ext_buf_ctx.numBuf == 1)
-		lpfc_bsg_mbox_ext_session_reset(phba);
+	/* complete the bsg job if we have it */
+	if (job)
+		job->job_done(job);
 
 	return;
 }
@@ -2792,7 +2791,7 @@ lpfc_bsg_issue_read_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 static void
 lpfc_bsg_issue_write_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
-	int rc;
+	struct fc_bsg_job *job;
 
 	/* handle the BSG job with the mailbox command */
 	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_ABTS)
@@ -2802,11 +2801,16 @@ lpfc_bsg_issue_write_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 			"2940 SLI_CONFIG ext-buffer wr maibox command "
 			"complete, ctxState:x%x, mbxStatus:x%x\n",
 			phba->mbox_ext_buf_ctx.state, pmboxq->u.mb.mbxStatus);
-	rc = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
+
+	job = lpfc_bsg_issue_mbox_ext_handle_job(phba, pmboxq);
 
 	/* free all memory, including dma buffers */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	lpfc_bsg_mbox_ext_session_reset(phba);
+
+	/* complete the bsg job if we have it */
+	if (job)
+		job->job_done(job);
 
 	return;
 }
