@@ -460,6 +460,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 /*
  * success: return IRQ number (>=0)
