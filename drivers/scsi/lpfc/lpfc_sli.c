@@ -5288,6 +5288,7 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	uint32_t length, mbox_tmo = 0;
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_mbx_dealloc_rsrc_extents *dealloc_rsrc;
+	struct lpfc_rsrc_blks *rsrc_blk, *rsrc_blk_next;
 
 	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
@@ -5344,18 +5345,40 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 		kfree(phba->vpi_bmask);
 		kfree(phba->vpi_ids);
 		bf_set(lpfc_vpi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		list_for_each_entry_safe(rsrc_blk, rsrc_blk_next,
+				    &phba->lpfc_vpi_blk_list, list) {
+			list_del_init(&rsrc_blk->list);
+			kfree(rsrc_blk);
+		}
 		break;
 	case LPFC_RSC_TYPE_FCOE_XRI:
 		kfree(phba->sli4_hba.xri_bmask);
 		kfree(phba->sli4_hba.xri_ids);
 		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		list_for_each_entry_safe(rsrc_blk, rsrc_blk_next,
+				    &phba->sli4_hba.lpfc_xri_blk_list, list) {
+			list_del_init(&rsrc_blk->list);
+			kfree(rsrc_blk);
+		}
 		break;
 	case LPFC_RSC_TYPE_FCOE_VFI:
 		kfree(phba->sli4_hba.vfi_bmask);
 		kfree(phba->sli4_hba.vfi_ids);
 		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
+		list_for_each_entry_safe(rsrc_blk, rsrc_blk_next,
+				    &phba->sli4_hba.lpfc_vfi_blk_list, list) {
+			list_del_init(&rsrc_blk->list);
+			kfree(rsrc_blk);
+		}
 		break;
 	case LPFC_RSC_TYPE_FCOE_RPI:
+		/* RPI bitmask and physical id array are cleaned up earlier. */
+		list_for_each_entry_safe(rsrc_blk, rsrc_blk_next,
+				    &phba->sli4_hba.lpfc_rpi_blk_list, list) {
+			list_del_init(&rsrc_blk->list);
+			kfree(rsrc_blk);
+		}
+		break;
 	default:
 		break;
 	}
@@ -5606,6 +5629,7 @@ lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *phba)
 		bf_set(lpfc_vfi_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 		bf_set(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags, 0);
 	}
+
 	return 0;
 }
 
