@@ -347,6 +347,18 @@ static void skb_release_data(struct sk_buff *skb)
 				put_page(skb_shinfo(skb)->frags[i].page);
 		}
 
+		/*
+		 * If skb buf is from userspace, we need to notify the caller
+		 * the lower device DMA has done;
+		 */
+		if (skb_tx(skb)->dev_zerocopy) {
+			struct ubuf_info *uarg;
+
+			uarg = skb_shinfo(skb)->destructor_arg;
+			if (uarg->callback)
+				uarg->callback(uarg);
+		}
+
 		if (skb_has_frags(skb))
 			skb_drop_fraglist(skb);
 
@@ -494,6 +506,9 @@ int skb_recycle_check(struct sk_buff *skb, int skb_size)
 {
 	struct skb_shared_info *shinfo;
 
+	if (skb_tx(skb)->dev_zerocopy)
+		return 0;
+
 	if (skb_is_nonlinear(skb) || skb->fclone != SKB_FCLONE_UNAVAILABLE)
 		return 0;
 
@@ -617,6 +632,51 @@ struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src)
 }
 EXPORT_SYMBOL_GPL(skb_morph);
 
+/* skb frags copy userspace buffers to kernel */
+static int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
+{
+	int i;
+	int num_frags = skb_shinfo(skb)->nr_frags;
+	struct page *page, *head = NULL;
+	struct ubuf_info *uarg = skb_shinfo(skb)->destructor_arg;
+
+	for (i = 0; i < num_frags; i++) {
+		u8 *vaddr;
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+
+		page = alloc_page(GFP_ATOMIC);
+		if (!page) {
+			while (head) {
+				struct page *next = (struct page *)head->private;
+				put_page(head);
+				head = next;
+			}
+			return -ENOMEM;
+		}
+		vaddr = kmap_skb_frag(&skb_shinfo(skb)->frags[i]);
+		memcpy(page_address(page),
+		       vaddr + f->page_offset, f->size);
+		kunmap_skb_frag(vaddr);
+		page->private = (unsigned long)head;
+		head = page;
+	}
+
+	/* skb frags release userspace buffers */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+		put_page(skb_shinfo(skb)->frags[i].page);
+
+	uarg->callback(uarg);
+
+	/* skb frags point to kernel buffers */
+	for (i = skb_shinfo(skb)->nr_frags; i > 0; i--) {
+		skb_shinfo(skb)->frags[i - 1].page_offset = 0;
+		skb_shinfo(skb)->frags[i - 1].page = head;
+		head = (struct page *)head->private;
+	}
+	return 0;
+}
+
+
 /**
  *	skb_clone	-	duplicate an sk_buff
  *	@skb: buffer to clone
@@ -634,6 +694,11 @@ EXPORT_SYMBOL_GPL(skb_morph);
 struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	struct sk_buff *n;
+
+	if (skb_tx(skb)->dev_zerocopy) {
+		if (skb_copy_ubufs(skb, gfp_mask))
+			return NULL;
+	}
 
 	n = skb + 1;
 	if (skb->fclone == SKB_FCLONE_ORIG &&
@@ -764,6 +829,12 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 	if (skb_shinfo(skb)->nr_frags) {
 		int i;
 
+		if (skb_tx(skb)->dev_zerocopy) {
+			if (skb_copy_ubufs(skb, gfp_mask)) {
+				kfree(n);
+				goto out;
+			}
+		}
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_shinfo(n)->frags[i] = skb_shinfo(skb)->frags[i];
 			get_page(skb_shinfo(n)->frags[i].page);
@@ -839,13 +910,17 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		fastpath = true;
 	else {
 		int delta = skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1;
-
 		fastpath = atomic_read(&skb_shinfo(skb)->dataref) == delta;
 	}
 
 	if (fastpath) {
 		kfree(skb->head);
 	} else {
+		/* copy this zero copy skb frags */
+		if (skb_tx(skb)->dev_zerocopy) {
+			if (skb_copy_ubufs(skb, gfp_mask))
+				goto nofrags;
+		}
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 			get_page(skb_shinfo(skb)->frags[i].page);
 
@@ -877,6 +952,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
 	return 0;
 
+nofrags:
+	kfree(data);
 nodata:
 	return -ENOMEM;
 }
@@ -1377,6 +1454,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		}
 		start = end;
 	}
+
 	if (!len)
 		return 0;
 

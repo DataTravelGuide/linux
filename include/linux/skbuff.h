@@ -175,6 +175,9 @@ struct skb_shared_hwtstamps {
  * @software:		generate software time stamp
  * @in_progress:	device driver is going to provide
  *			hardware time stamp
+ * @reserved:		SKBTX_DRV_NEEDS_SK_REF upstream: used to make
+ *			the memory layout bit-for-bit upstream compatible
+ * @dev_zerocopy:	device driver supports tx zero-copy buffers
  * @flags:		all shared_tx flags
  *
  * These flags are attached to packets as part of the
@@ -184,9 +187,22 @@ union skb_shared_tx {
 	struct {
 		__u8	hardware:1,
 			software:1,
-			in_progress:1;
+			in_progress:1,
+			reserved:1,
+			dev_zerocopy:1;
 	};
 	__u8 flags;
+};
+
+/*
+ * The callback notifies userspace to release buffers when skb DMA is done in
+ * lower device, the skb last reference should be 0 when calling this.
+ * The desc is used to track userspace buffer index.
+ */
+struct ubuf_info {
+	void (*callback)(void *);
+	void *arg;
+	unsigned long desc;
 };
 
 /* This data is invariant across clones and lives at
@@ -2112,5 +2128,6 @@ static inline void skb_checksum_none_assert(struct sk_buff *skb)
 }
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */
