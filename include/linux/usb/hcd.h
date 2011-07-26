@@ -96,6 +96,8 @@ struct usb_hcd {
 #define HCD_FLAG_HW_ACCESSIBLE	1
 #define HCD_FLAG_SAW_IRQ	2
 #define HCD_FLAG_RH_POLLABLE	3
+#define HCD_FLAG_POLL_RH		4	/* poll for rh status? */
+#define HCD_FLAG_POLL_PENDING		5	/* status has changed? */
 
 	/* The flags can be tested using these macros; they are likely to
 	 * be slightly faster than test_bit().
@@ -103,14 +105,15 @@ struct usb_hcd {
 #define HCD_HW_ACCESSIBLE(hcd)	((hcd)->flags & (1U << HCD_FLAG_HW_ACCESSIBLE))
 #define HCD_SAW_IRQ(hcd)	((hcd)->flags & (1U << HCD_FLAG_SAW_IRQ))
 #define HCD_RH_POLLABLE(hcd)	((hcd)->flags & (1U << HCD_FLAG_RH_POLLABLE))
+#define HCD_POLL_RH(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_RH))
+#define HCD_POLL_PENDING(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_PENDING))
 
+	/* Flags that get set only during HCD registration or removal. */
 	unsigned		rh_registered:1;/* is root hub registered? */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */
 	unsigned		uses_new_polling:1;
-	unsigned		poll_rh:1;	/* poll for rh status? */
-	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
 	unsigned		has_tt:1;	/* Integrated TT in root hub */

@@ -404,7 +404,6 @@ int xhci_run(struct usb_hcd *hcd)
 	void (*doorbell)(struct xhci_hcd *) = NULL;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	xhci_dbg(xhci, "xhci_run\n");
 	/* unregister the legacy interrupt */
@@ -979,7 +978,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	slot_id = urb->dev->slot_id;
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		if (!in_interrupt())
 			xhci_dbg(xhci, "urb submitted during PCI suspend\n");
 		ret = -ESHUTDOWN;
