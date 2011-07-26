@@ -5350,6 +5350,17 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
+		/*
+		 * IF the CVL_RCVD bit is not set then we have sent the
+		 * flogi.
+		 * If dev_loss fires while we are waiting we do not want to
+		 * unreg the fcf.
+		 */
+		if (!(vports[i]->fc_flag & FC_VPORT_CVL_RCVD)) {
+			spin_unlock_irq(shost->host_lock);
+			ret =  1;
+			goto out;
+		}
 		list_for_each_entry(ndlp, &vports[i]->fc_nodes, nlp_listp) {
 			if (NLP_CHK_NODE_ACT(ndlp) && ndlp->rport &&
 			  (ndlp->rport->roles & FC_RPORT_ROLE_FCP_TARGET)) {
