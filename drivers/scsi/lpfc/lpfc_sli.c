@@ -4956,7 +4956,7 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 
 	if ((rsrc_cnt == 0) || (rsrc_size == 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
-			"3008 No available Resource Extents "
+			"3009 No available Resource Extents "
 			"for resource type 0x%x: Count: 0x%x, "
 			"Size 0x%x\n", type, rsrc_cnt,
 			rsrc_size);

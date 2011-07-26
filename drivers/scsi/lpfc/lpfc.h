@@ -520,7 +520,7 @@ struct lpfc_mbox_ext_buf_ctx {
 	uint32_t mbxTag;
 	uint32_t seqNum;
 	struct lpfc_dmabuf *mbx_dmabuf;
-	struct lpfc_dmabuf *ext_dmabuf;
+	struct list_head ext_dmabuf_list;
 };
 
 struct lpfc_hba {

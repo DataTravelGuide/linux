@@ -4161,6 +4161,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 	memset((uint8_t *)&phba->mbox_ext_buf_ctx, 0,
 		sizeof(struct lpfc_mbox_ext_buf_ctx));
+	INIT_LIST_HEAD(&phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 
 	/*
 	 * We need to do a READ_CONFIG mailbox command here before

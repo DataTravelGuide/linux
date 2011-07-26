@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/list.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -1857,79 +1858,83 @@ err_get_xri_exit:
 }
 
 /**
- * lpfc_bsg_dma_page_free - free a list of bsg mbox page sized dma buffers
- * @phba: Pointer to HBA context object.
- * @dmabuffers: Pointer to a list of bsg mbox page sized dma buffer descriptors.
+ * lpfc_bsg_dma_page_alloc - allocate a bsg mbox page sized dma buffers
+ * @phba: Pointer to HBA context object
  *
- * This routine just simply frees all dma buffers and their associated buffer
- * descriptors referred by @dmabuffers.
+ * This function allocates BSG_MBOX_SIZE (4KB) page size dma buffer and.
+ * retruns the pointer to the buffer.
+ **/
+static struct lpfc_dmabuf *
+lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba)
+{
+	struct lpfc_dmabuf *dmabuf;
+	struct pci_dev *pcidev = phba->pcidev;
+
+	/* allocate dma buffer struct */
+	dmabuf = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (!dmabuf)
+		return NULL;
+
+	INIT_LIST_HEAD(&dmabuf->list);
+
+	/* now, allocate dma buffer */
+	dmabuf->virt = dma_alloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
+					  &(dmabuf->phys), GFP_KERNEL);
+
+	if (!dmabuf->virt) {
+		kfree(dmabuf);
+		return NULL;
+	}
+	memset((uint8_t *)dmabuf->virt, 0, BSG_MBOX_SIZE);
+
+	return dmabuf;
+}
+
+/**
+ * lpfc_bsg_dma_page_free - free a bsg mbox page sized dma buffer
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: Pointer to the bsg mbox page sized dma buffer descriptor.
+ *
+ * This routine just simply frees a dma buffer and its associated buffer
+ * descriptor referred by @dmabuf.
  **/
 static void
-lpfc_bsg_dma_page_free(struct lpfc_hba *phba, struct lpfc_dmabuf *dmabuffers)
+lpfc_bsg_dma_page_free(struct lpfc_hba *phba, struct lpfc_dmabuf *dmabuf)
 {
 	struct pci_dev *pcidev = phba->pcidev;
-	struct lpfc_dmabuf *dmabuf, *next_dmabuf;
 
-	if (!dmabuffers)
+	if (!dmabuf)
 		return;
 
-	list_for_each_entry_safe(dmabuf, next_dmabuf, &dmabuffers->list, list) {
-		list_del_init(&dmabuf->list);
-		if (dmabuf->virt)
-			dma_free_coherent(&pcidev->dev, BSG_MBOX_SIZE,
-					  dmabuf->virt, dmabuf->phys);
-		kfree(dmabuf);
-	}
+	if (dmabuf->virt)
+		dma_free_coherent(&pcidev->dev, BSG_MBOX_SIZE,
+				  dmabuf->virt, dmabuf->phys);
+	kfree(dmabuf);
 	return;
 }
 
 /**
- * lpfc_bsg_dma_page_alloc - allocate a list of bsg mbox page sized dma buffers
- * @phba: Pointer to HBA context object
- * @number: number of dma buffers to be allocated
+ * lpfc_bsg_dma_page_list_free - free a list of bsg mbox page sized dma buffers
+ * @phba: Pointer to HBA context object.
+ * @dmabuf_list: Pointer to a list of bsg mbox page sized dma buffer descs.
  *
- * This function allocates BSG_MBOX_SIZE (4KB) page size dma buffers and
- * retruns a chained list of such buffers.
+ * This routine just simply frees all dma buffers and their associated buffer
+ * descriptors referred by @dmabuf_list.
  **/
-static struct lpfc_dmabuf *
-lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba, uint32_t number)
+static void
+lpfc_bsg_dma_page_list_free(struct lpfc_hba *phba,
+			    struct list_head *dmabuf_list)
 {
-	struct lpfc_dmabuf *dmabuffers = NULL;
-	struct lpfc_dmabuf *dmabuf;
-	struct pci_dev *pcidev = phba->pcidev;
-	uint32_t i;
+	struct lpfc_dmabuf *dmabuf, *next_dmabuf;
 
-	if (number == 0)
-		return NULL;
+	if (list_empty(dmabuf_list))
+		return;
 
-	for (i = 0; i < number; i++) {
-		/* allocate dma buffer struct */
-		dmabuf = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-		if (!dmabuf)
-			goto fail_out;
-
-		INIT_LIST_HEAD(&dmabuf->list);
-
-		/* put on a dma buffer linked list */
-		if (!dmabuffers)
-			dmabuffers = dmabuf;
-		else
-			list_add_tail(&dmabuf->list, &dmabuffers->list);
-
-		/* now, allocate dma buffer */
-		dmabuf->virt = dma_alloc_coherent(&pcidev->dev, BSG_MBOX_SIZE,
-						  &(dmabuf->phys), GFP_KERNEL);
-
-		if (!dmabuf->virt)
-			goto fail_out;
-
-		memset((uint8_t *)dmabuf->virt, 0, BUF_SZ_4K);
+	list_for_each_entry_safe(dmabuf, next_dmabuf, dmabuf_list, list) {
+		list_del_init(&dmabuf->list);
+		lpfc_bsg_dma_page_free(phba, dmabuf);
 	}
-	return dmabuffers;
-
-fail_out:
-	lpfc_bsg_dma_page_free(phba, dmabuffers);
-	return NULL;
+	return;
 }
 
 /**
@@ -2533,9 +2538,8 @@ lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 		size = job->reply_payload.payload_len;
 		job->reply->reply_payload_rcv_len =
 			sg_copy_from_buffer(job->reply_payload.sg_list,
-					job->reply_payload.sg_cnt,
-					pmb_buf, size);
-		job->reply->result = 0;
+					    job->reply_payload.sg_cnt,
+					    pmb_buf, size);
 		/* need to hold the lock until we set job->dd_data to NULL
 		 * to hold off the timeout handler returning to the mid-layer
 		 * while we are still processing the job.
@@ -2543,18 +2547,19 @@ lpfc_bsg_issue_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 		job->dd_data = NULL;
 		dd_data->context_un.mbox.set_job = NULL;
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-		job->job_done(job);
 	} else {
 		dd_data->context_un.mbox.set_job = NULL;
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 	}
 
 	mempool_free(dd_data->context_un.mbox.pmboxq, phba->mbox_mem_pool);
-	if (dd_data->context_un.mbox.dmabuffers)
-		lpfc_bsg_dma_page_free(phba,
-				       dd_data->context_un.mbox.dmabuffers);
+	lpfc_bsg_dma_page_free(phba, dd_data->context_un.mbox.dmabuffers);
 	kfree(dd_data);
 
+	if (job) {
+		job->reply->result = 0;
+		job->job_done(job);
+	}
 	return;
 }
 
@@ -2660,13 +2665,15 @@ lpfc_bsg_mbox_ext_session_reset(struct lpfc_hba *phba)
 {
 	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE)
 		return;
+
 	/* free all memory, including dma buffers */
-	lpfc_bsg_dma_page_free(phba, phba->mbox_ext_buf_ctx.ext_dmabuf);
-	phba->mbox_ext_buf_ctx.ext_dmabuf = NULL;
+	lpfc_bsg_dma_page_list_free(phba,
+				    &phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 	lpfc_bsg_dma_page_free(phba, phba->mbox_ext_buf_ctx.mbx_dmabuf);
-	phba->mbox_ext_buf_ctx.mbx_dmabuf = NULL;
 	/* multi-buffer write mailbox command pass-through complete */
-	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_IDLE;
+	memset((char *)&phba->mbox_ext_buf_ctx, 0,
+	       sizeof(struct lpfc_mbox_ext_buf_ctx));
+	INIT_LIST_HEAD(&phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 
 	return;
 }
@@ -2817,34 +2824,93 @@ lpfc_bsg_issue_write_mbox_ext_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 
 static void
 lpfc_bsg_sli_cfg_dma_desc_setup(struct lpfc_hba *phba, enum nemb_type nemb_tp,
-				uint32_t index, struct lpfc_dmabuf *dmabuf)
+				uint32_t index, struct lpfc_dmabuf *mbx_dmabuf,
+				struct lpfc_dmabuf *ext_dmabuf)
 {
 	struct lpfc_sli_config_mbox *sli_cfg_mbx;
 
 	/* pointer to the start of mailbox command */
-	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)mbx_dmabuf->virt;
 
 	if (nemb_tp == nemb_mse) {
-		sli_cfg_mbx->un.sli_config_emb0_subsys.mse[index].pa_hi =
-			putPaddrHigh(dmabuf->phys + sizeof(MAILBOX_t));
-		sli_cfg_mbx->un.sli_config_emb0_subsys.mse[index].pa_lo =
-			putPaddrLow(dmabuf->phys + sizeof(MAILBOX_t));
-		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-				"2943 SLI_CONFIG(mse), buf[%d]-length:%d\n",
-				index,
-				sli_cfg_mbx->un.sli_config_emb0_subsys.
-				mse[index].buf_len);
+		if (index == 0) {
+			sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[index].pa_hi =
+				putPaddrHigh(mbx_dmabuf->phys +
+					     sizeof(MAILBOX_t));
+			sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[index].pa_lo =
+				putPaddrLow(mbx_dmabuf->phys +
+					    sizeof(MAILBOX_t));
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2943 SLI_CONFIG(mse)[%d], "
+					"bufLen:%d, addrHi:x%x, addrLo:x%x\n",
+					index,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].buf_len,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].pa_hi,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].pa_lo);
+		} else {
+			sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[index].pa_hi =
+				putPaddrHigh(ext_dmabuf->phys);
+			sli_cfg_mbx->un.sli_config_emb0_subsys.
+				mse[index].pa_lo =
+				putPaddrLow(ext_dmabuf->phys);
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2944 SLI_CONFIG(mse)[%d], "
+					"bufLen:%d, addrHi:x%x, addrLo:x%x\n",
+					index,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].buf_len,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].pa_hi,
+					sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[index].pa_lo);
+		}
 	} else {
-		sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[index].pa_hi =
-			putPaddrHigh(dmabuf->phys + sizeof(MAILBOX_t));
-		sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[index].pa_lo =
-			putPaddrLow(dmabuf->phys + sizeof(MAILBOX_t));
-		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-				"2944 SLI_CONFIG(hbd), buf[%d]-length:%d\n",
+		if (index == 0) {
+			sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_hi =
+				putPaddrHigh(mbx_dmabuf->phys +
+					     sizeof(MAILBOX_t));
+			sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_lo =
+				putPaddrLow(mbx_dmabuf->phys +
+					    sizeof(MAILBOX_t));
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3007 SLI_CONFIG(hbd)[%d], "
+					"bufLen:%d, addrHi:x%x, addrLo:x%x\n",
 				index,
 				bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
-				&sli_cfg_mbx->un.sli_config_emb1_subsys.
-				hbd[index]));
+				&sli_cfg_mbx->un.
+				sli_config_emb1_subsys.hbd[index]),
+				sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_hi,
+				sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_lo);
+
+		} else {
+			sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_hi =
+				putPaddrHigh(ext_dmabuf->phys);
+			sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_lo =
+				putPaddrLow(ext_dmabuf->phys);
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3008 SLI_CONFIG(hbd)[%d], "
+					"bufLen:%d, addrHi:x%x, addrLo:x%x\n",
+				index,
+				bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
+				&sli_cfg_mbx->un.
+				sli_config_emb1_subsys.hbd[index]),
+				sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_hi,
+				sli_cfg_mbx->un.sli_config_emb1_subsys.
+				hbd[index].pa_lo);
+		}
 	}
 	return;
 }
@@ -2868,12 +2934,12 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct dfc_mbox_req *mbox_req;
 	struct lpfc_dmabuf *curr_dmabuf, *next_dmabuf;
 	uint32_t ext_buf_cnt, ext_buf_index;
-	struct lpfc_dmabuf *dmabuffers = NULL;
+	struct lpfc_dmabuf *ext_dmabuf = NULL;
 	struct bsg_job_data *dd_data = NULL;
 	LPFC_MBOXQ_t *pmboxq = NULL;
 	MAILBOX_t *pmb;
 	uint8_t *pmbx;
-	int rc;
+	int rc, i;
 
 	mbox_req =
 	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
@@ -2929,10 +2995,14 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		goto job_error;
 	} else if (ext_buf_cnt > 1) {
 		/* additional external read buffers */
-		dmabuffers = lpfc_bsg_dma_page_alloc(phba, ext_buf_cnt - 1);
-		if (!dmabuffers) {
-			rc = -ENOMEM;
-			goto job_error;
+		for (i = 1; i < ext_buf_cnt; i++) {
+			ext_dmabuf = lpfc_bsg_dma_page_alloc(phba);
+			if (!ext_dmabuf) {
+				rc = -ENOMEM;
+				goto job_error;
+			}
+			list_add_tail(&ext_dmabuf->list,
+				      &phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 		}
 	}
 
@@ -2952,15 +3022,16 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 
 	/* for the first external buffer */
-	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf);
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf, dmabuf);
 
 	/* for the rest of external buffer descriptors if any */
 	if (ext_buf_cnt > 1) {
 		ext_buf_index = 1;
 		list_for_each_entry_safe(curr_dmabuf, next_dmabuf,
-					 &dmabuffers->list, list) {
+				&phba->mbox_ext_buf_ctx.ext_dmabuf_list, list) {
 			lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp,
-					 ext_buf_index, curr_dmabuf);
+						ext_buf_index, dmabuf,
+						curr_dmabuf);
 			ext_buf_index++;
 		}
 	}
@@ -2983,8 +3054,6 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	phba->mbox_ext_buf_ctx.mbxTag = mbox_req->extMboxTag;
 	phba->mbox_ext_buf_ctx.seqNum = mbox_req->extSeqNum;
 	phba->mbox_ext_buf_ctx.mbx_dmabuf = dmabuf;
-	phba->mbox_ext_buf_ctx.ext_dmabuf = dmabuffers;
-	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
 
 	/* callback for multi-buffer read mailbox command */
 	pmboxq->mbox_cmpl = lpfc_bsg_issue_read_mbox_ext_cmpl;
@@ -2997,13 +3066,14 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	dd_data->context_un.mbox.set_job = job;
 	job->dd_data = dd_data;
 
+	/* state change */
+	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+
 	rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 	if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2947 Issued SLI_CONFIG ext-buffer "
 				"maibox command, rc:x%x\n", rc);
-		/* state change */
-		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
 		return 1;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
@@ -3014,8 +3084,8 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 job_error:
 	if (pmboxq)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
-	if (dmabuffers)
-		lpfc_bsg_dma_page_free(phba, dmabuffers);
+	lpfc_bsg_dma_page_list_free(phba,
+				    &phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 	kfree(dd_data);
 	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_IDLE;
 	return rc;
@@ -3092,7 +3162,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		return -EPERM;
 
 	/* for the first external buffer */
-	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf);
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, 0, dmabuf, dmabuf);
 
 	/* after dma descriptor setup */
 	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, nemb_tp, mbox_wr, dma_mbox,
@@ -3120,7 +3190,6 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	phba->mbox_ext_buf_ctx.mbxTag = mbox_req->extMboxTag;
 	phba->mbox_ext_buf_ctx.seqNum = mbox_req->extSeqNum;
 	phba->mbox_ext_buf_ctx.mbx_dmabuf = dmabuf;
-	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
 
 	if (ext_buf_cnt == 1) {
 		/* bsg tracking structure */
@@ -3154,13 +3223,14 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		dd_data->context_un.mbox.set_job = job;
 		job->dd_data = dd_data;
 
+		/* state change */
+		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 		if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"2955 Issued SLI_CONFIG ext-buffer "
 					"maibox command, rc:x%x\n", rc);
-			/* state change */
-			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
 			return 1;
 		}
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
@@ -3328,17 +3398,18 @@ lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
 			&sli_cfg_mbx->un.sli_config_emb0_subsys.mse[index]);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2963 SLI_CONFIG (mse) ext-buffer rd get "
-				"buffer[%d], size:%d\n",
-				phba->mbox_ext_buf_ctx.seqNum, size);
+				"buffer[%d], size:%d\n", index, size);
 	} else {
 		size = bsg_bf_get(lpfc_mbox_sli_config_ecmn_hbd_len,
 			&sli_cfg_mbx->un.sli_config_emb1_subsys.hbd[index]);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2964 SLI_CONFIG (hbd) ext-buffer rd get "
-				"buffer[%d], size:%d\n",
-				phba->mbox_ext_buf_ctx.seqNum, size);
+				"buffer[%d], size:%d\n", index, size);
 	}
-	dmabuf = phba->mbox_ext_buf_ctx.ext_dmabuf;
+	if (list_empty(&phba->mbox_ext_buf_ctx.ext_dmabuf_list))
+		return -EPIPE;
+	dmabuf = list_first_entry(&phba->mbox_ext_buf_ctx.ext_dmabuf_list,
+				  struct lpfc_dmabuf, list);
 	list_del_init(&dmabuf->list);
 
 	/* after dma buffer descriptor setup */
@@ -3351,8 +3422,8 @@ lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		sg_copy_from_buffer(job->reply_payload.sg_list,
 				    job->reply_payload.sg_cnt,
 				    pbuf, size);
-	job->reply->result = 0;
-	job->job_done(job);
+
+	lpfc_bsg_dma_page_free(phba, dmabuf);
 
 	if (phba->mbox_ext_buf_ctx.seqNum == phba->mbox_ext_buf_ctx.numBuf) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
@@ -3361,7 +3432,10 @@ lpfc_bsg_read_ebuf_get(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		lpfc_bsg_mbox_ext_session_reset(phba);
 	}
 
-	return 0;
+	job->reply->result = 0;
+	job->job_done(job);
+
+	return SLI_CONFIG_HANDLED;
 }
 
 /**
@@ -3425,8 +3499,10 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 					dmabuf, index);
 
 	/* set up external buffer descriptor and add to external buffer list */
-	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, index, dmabuf);
-	list_add_tail(&dmabuf->list, &phba->mbox_ext_buf_ctx.ext_dmabuf->list);
+	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, index,
+					phba->mbox_ext_buf_ctx.mbx_dmabuf,
+					dmabuf);
+	list_add_tail(&dmabuf->list, &phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 
 	if (phba->mbox_ext_buf_ctx.seqNum == phba->mbox_ext_buf_ctx.numBuf) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
@@ -3456,12 +3532,15 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		dd_data->context_un.mbox.mb = (MAILBOX_t *)pbuf;
 		dd_data->context_un.mbox.set_job = job;
 		job->dd_data = dd_data;
+
+		/* state change */
+		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 		if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"2969 Issued SLI_CONFIG ext-buffer "
 					"maibox command, rc:x%x\n", rc);
-			phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
 			return 1;
 		}
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
@@ -3474,11 +3553,10 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	/* wait for additoinal external buffers */
 	job->reply->result = 0;
 	job->job_done(job);
-	return 0;
+	return SLI_CONFIG_HANDLED;
 
 job_error:
-	if (dmabuf)
-		lpfc_bsg_dma_page_free(phba, dmabuf);
+	lpfc_bsg_dma_page_free(phba, dmabuf);
 	kfree(dd_data);
 
 	return rc;
@@ -3513,6 +3591,8 @@ lpfc_bsg_handle_sli_cfg_ebuf(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			return -EPIPE;
 		}
 		rc = lpfc_bsg_read_ebuf_get(phba, job);
+		if (rc == SLI_CONFIG_HANDLED)
+			lpfc_bsg_dma_page_free(phba, dmabuf);
 	} else { /* phba->mbox_ext_buf_ctx.mboxType == mbox_wr */
 		if (phba->mbox_ext_buf_ctx.state != LPFC_BSG_MBOX_HOST) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
@@ -3551,27 +3631,40 @@ lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		return SLI_CONFIG_NOT_HANDLED;
 
 	/* mbox command and first external buffer */
-	if ((phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE) &&
-	    (mbox_req->extSeqNum == 1)) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-				"2974 SLI_CONFIG mailbox: tag:%d, seq:%d\n",
-				mbox_req->extMboxTag, mbox_req->extSeqNum);
-		rc = lpfc_bsg_handle_sli_cfg_mbox(phba, job, dmabuf);
-		return rc;
+	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE) {
+		if (mbox_req->extSeqNum == 1) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"2974 SLI_CONFIG mailbox: tag:%d, "
+					"seq:%d\n", mbox_req->extMboxTag,
+					mbox_req->extSeqNum);
+			rc = lpfc_bsg_handle_sli_cfg_mbox(phba, job, dmabuf);
+			return rc;
+		} else
+			goto sli_cfg_ext_error;
 	}
 
-	/* additional external buffer */
-	if ((phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_HOST) &&
-	    (mbox_req->extMboxTag == phba->mbox_ext_buf_ctx.mbxTag) &&
-	    (mbox_req->extSeqNum <= phba->mbox_ext_buf_ctx.numBuf) &&
-	    (mbox_req->extSeqNum == phba->mbox_ext_buf_ctx.seqNum + 1)) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-				"2975 SLI_CONFIG mailbox external buffer: "
-				"tag:%d, seq:%d\n",
-				mbox_req->extMboxTag, mbox_req->extSeqNum);
-		rc = lpfc_bsg_handle_sli_cfg_ebuf(phba, job, dmabuf);
-		return rc;
-	}
+	/*
+	 * handle additional external buffers
+	 */
+
+	/* check broken pipe conditions */
+	if (mbox_req->extMboxTag != phba->mbox_ext_buf_ctx.mbxTag)
+		goto sli_cfg_ext_error;
+	if (mbox_req->extSeqNum > phba->mbox_ext_buf_ctx.numBuf)
+		goto sli_cfg_ext_error;
+	if (mbox_req->extSeqNum != phba->mbox_ext_buf_ctx.seqNum + 1)
+		goto sli_cfg_ext_error;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"2975 SLI_CONFIG mailbox external buffer: "
+			"extSta:x%x, tag:%d, seq:%d\n",
+			phba->mbox_ext_buf_ctx.state, mbox_req->extMboxTag,
+			mbox_req->extSeqNum);
+	rc = lpfc_bsg_handle_sli_cfg_ebuf(phba, job, dmabuf);
+	return rc;
+
+sli_cfg_ext_error:
+	/* all other cases, broken pipe */
 	lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 			"2976 SLI_CONFIG mailbox broken pipe: "
 			"ctxSta:x%x, ctxNumBuf:%d "
@@ -3581,7 +3674,9 @@ lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			phba->mbox_ext_buf_ctx.mbxTag,
 			phba->mbox_ext_buf_ctx.seqNum,
 			mbox_req->extMboxTag, mbox_req->extSeqNum);
-	/* all other cases, broken pipe */
+
+	lpfc_bsg_mbox_ext_session_reset(phba);
+
 	return -EPIPE;
 }
 
@@ -3647,7 +3742,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		goto job_done;
 	}
 
-	dmabuf = lpfc_bsg_dma_page_alloc(phba, 1);
+	dmabuf = lpfc_bsg_dma_page_alloc(phba);
 	if (!dmabuf || !dmabuf->virt) {
 		rc = -ENOMEM;
 		goto job_done;
@@ -3845,8 +3940,7 @@ job_done:
 	/* common exit for error or job completed inline */
 	if (pmboxq)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
-	if (dmabuf)
-		lpfc_bsg_dma_page_free(phba, dmabuf);
+	lpfc_bsg_dma_page_free(phba, dmabuf);
 	kfree(dd_data);
 
 job_cont:
