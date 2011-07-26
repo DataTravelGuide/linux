@@ -1229,9 +1229,6 @@ asmlinkage void __init xen_start_kernel(void)
 	xen_raw_console_write("mapping kernel into physical memory\n");
 	pgd = xen_setup_kernel_pagetable(pgd, xen_start_info->nr_pages);
 
-	/* Allocate and initialize top and mid mfn levels for p2m structure */
-	xen_build_mfn_list_list();
-
 	init_mm.pgd = pgd;
 
 	/* keep using Xen gdt for now; no urgent need to change it */
@@ -1329,7 +1326,7 @@ static int init_hvm_pv_info(int *major, int *minor)
 	return 0;
 }
 
-void __ref xen_hvm_init_shared_info(void)
+void xen_hvm_init_shared_info(void)
 {
 	int cpu;
 	struct xen_add_to_physmap xatp;
