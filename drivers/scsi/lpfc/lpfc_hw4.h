@@ -3125,3 +3125,6 @@ struct lpfc_grp_hdr {
 #define ELS_COMMAND_FIP 0xD
 #define OTHER_COMMAND 0x8
 
+#define LPFC_FW_DUMP	1
+#define LPFC_FW_RESET	2
+#define LPFC_DV_RESET	3
