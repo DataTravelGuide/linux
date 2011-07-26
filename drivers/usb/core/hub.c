@@ -378,15 +378,6 @@ static int hub_port_status(struct usb_hub *hub, int port1,
 		*status = le16_to_cpu(hub->status->port.wPortStatus);
 		*change = le16_to_cpu(hub->status->port.wPortChange);
 
-		if ((hub->hdev->parent != NULL) &&
-				hub_is_superspeed(hub->hdev)) {
-			/* Translate the USB 3 port status */
-			u16 tmp = *status & USB_SS_PORT_STAT_MASK;
-			if (*status & USB_SS_PORT_STAT_POWER)
-				tmp |= USB_PORT_STAT_POWER;
-			*status = tmp;
-		}
-
 		ret = 0;
 	}
 	mutex_unlock(&hub->status_mutex);
@@ -2147,11 +2138,40 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 	return status;
 }
 
+/* Check if a port is power on */
+static int port_is_power_on(struct usb_hub *hub, unsigned portstatus)
+{
+	int ret = 0;
+
+	if (hub_is_superspeed(hub->hdev)) {
+		if (portstatus & USB_SS_PORT_STAT_POWER)
+			ret = 1;
+	} else {
+		if (portstatus & USB_PORT_STAT_POWER)
+			ret = 1;
+	}
+
+	return ret;
+}
+
 #ifdef	CONFIG_PM
 
-#define MASK_BITS	(USB_PORT_STAT_POWER | USB_PORT_STAT_CONNECTION | \
-				USB_PORT_STAT_SUSPEND)
-#define WANT_BITS	(USB_PORT_STAT_POWER | USB_PORT_STAT_CONNECTION)
+/* Check if a port is suspended(USB2.0 port) or in U3 state(USB3.0 port) */
+static int port_is_suspended(struct usb_hub *hub, unsigned portstatus)
+{
+	int ret = 0;
+
+	if (hub_is_superspeed(hub->hdev)) {
+		if ((portstatus & USB_PORT_STAT_LINK_STATE)
+				== USB_SS_PORT_LS_U3)
+			ret = 1;
+	} else {
+		if (portstatus & USB_PORT_STAT_SUSPEND)
+			ret = 1;
+	}
+
+	return ret;
+}
 
 /* Determine whether the device on a port is ready for a normal resume,
  * is ready for a reset-resume, or should be disconnected.
@@ -2161,7 +2181,9 @@ static int check_port_resume_type(struct usb_device *udev,
 		int status, unsigned portchange, unsigned portstatus)
 {
 	/* Is the device still present? */
-	if (status || (portstatus & MASK_BITS) != WANT_BITS) {
+	if (status || port_is_suspended(hub, portstatus) ||
+			!port_is_power_on(hub, portstatus) ||
+			!(portstatus & USB_PORT_STAT_CONNECTION)) {
 		if (status >= 0)
 			status = -ENODEV;
 	}
@@ -2410,7 +2432,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
 	status = hub_port_status(hub, port1, &portstatus, &portchange);
-	if (status == 0 && !(portstatus & USB_PORT_STAT_SUSPEND))
+	if (status == 0 && !port_is_suspended(hub, portstatus))
 		goto SuspendCleared;
 
 	// dev_dbg(hub->intfdev, "resume port %d\n", port1);
@@ -3123,7 +3145,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 
 		/* maybe switch power back on (e.g. root hub was reset) */
 		if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2
-				&& !(portstatus & (1 << USB_PORT_FEAT_POWER)))
+				&& !port_is_power_on(hub, portstatus))
 			set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
 
 		if (portstatus & USB_PORT_STAT_ENABLE)
