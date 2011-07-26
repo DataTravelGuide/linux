@@ -791,9 +791,8 @@ struct proto {
 static inline struct sock_extended *sk_extended(const struct sock *sk)
 {
 	unsigned int obj_size = sk->sk_prot_creator->obj_size;
-	unsigned int extended_offset = obj_size - SOCK_EXTENDED_SIZE;
 
-	return (struct sock_extended *) (((char *) sk) + extended_offset);
+	return (struct sock_extended *) (((char *) sk) + obj_size);
 }
 
 extern int proto_register(struct proto *prot, int alloc_slab);

@@ -973,7 +973,8 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 	BUILD_BUG_ON(offsetof(struct sock, sk_copy_start) !=
 		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt));
 	memcpy(&nsk->sk_copy_start, &osk->sk_copy_start,
-	       osk->sk_prot->obj_size - offsetof(struct sock, sk_copy_start));
+	       sk_alloc_size(osk->sk_prot->obj_size) -
+	       offsetof(struct sock, sk_copy_start));
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
 	security_sk_clone(osk, nsk);
@@ -1000,12 +1001,13 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 			if (offsetof(struct sock, sk_node.next) != 0)
 				memset(sk, 0, offsetof(struct sock, sk_node.next));
 			memset(&sk->sk_node.pprev, 0,
-			       prot->obj_size - offsetof(struct sock,
-							 sk_node.pprev));
+			       sk_alloc_size(prot->obj_size) -
+			       offsetof(struct sock,
+			       sk_node.pprev));
 		}
 	}
 	else
-		sk = kmalloc(prot->obj_size, priority);
+		sk = kmalloc(sk_alloc_size(prot->obj_size), priority);
 
 	if (sk != NULL) {
 		kmemcheck_annotate_bitfield(sk, flags);
@@ -2246,11 +2248,9 @@ static inline void release_proto_idx(struct proto *prot)
 
 int proto_register(struct proto *prot, int alloc_slab)
 {
-	/* Adjust obj_size first */
-	prot->obj_size = sk_alloc_size(prot->obj_size);
-
 	if (alloc_slab) {
-		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
+		prot->slab = kmem_cache_create(prot->name,
+					sk_alloc_size(prot->obj_size), 0,
 					SLAB_HWCACHE_ALIGN | prot->slab_flags,
 					NULL);
 
@@ -2269,7 +2269,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 
 			sprintf(prot->rsk_prot->slab_name, mask, prot->name);
 			prot->rsk_prot->slab = kmem_cache_create(prot->rsk_prot->slab_name,
-								 prot->rsk_prot->obj_size, 0,
+								 sk_alloc_size(prot->rsk_prot->obj_size), 0,
 								 SLAB_HWCACHE_ALIGN, NULL);
 
 			if (prot->rsk_prot->slab == NULL) {
@@ -2290,7 +2290,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 			sprintf(prot->twsk_prot->twsk_slab_name, mask, prot->name);
 			prot->twsk_prot->twsk_slab =
 				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
-						  prot->twsk_prot->twsk_obj_size,
+						  sk_alloc_size(prot->twsk_prot->twsk_obj_size),
 						  0,
 						  SLAB_HWCACHE_ALIGN |
 							prot->slab_flags,
