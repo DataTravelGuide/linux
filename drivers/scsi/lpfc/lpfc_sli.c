@@ -4485,8 +4485,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		goto lpfc_sli_hba_setup_error;
 
 	/* Initialize VPIs. */
-	if ((phba->sli_rev == LPFC_SLI_REV3) &&
-	    (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
+	if (phba->sli_rev == LPFC_SLI_REV3) {
 		/*
 		 * The VPI bitmask and physical ID array are allocated
 		 * and initialized once only - at driver load.  A port
