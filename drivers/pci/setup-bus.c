@@ -577,7 +577,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	}
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), 4096);
-	size1 = !add_size ? size0 :
+	size1 = (!add_head || (add_head && !add_size)) ? size0 :
 		calculate_iosize(size, min_size+add_size, size1,
 			resource_size(b_res), 4096);
 	if (!size0 && !size1) {
