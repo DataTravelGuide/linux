@@ -652,6 +652,9 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 	if (!*str)
 		return 0;
 
+	if (*str == ',')
+		return 0;
+
 	if (*str++ != ':')
 		return -1;
 
