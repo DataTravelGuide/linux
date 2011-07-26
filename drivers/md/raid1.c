@@ -551,20 +551,18 @@ static void raid1_unplug(struct request_queue *q)
 	md_wakeup_thread(mddev->thread);
 }
 
-static int raid1_congested(void *data, int bits)
+int md_raid1_congested(mddev_t *mddev, int bits)
 {
-	mddev_t *mddev = data;
 	conf_t *conf = mddev->private;
 	int i, ret = 0;
-
-	if (mddev_congested(mddev, bits))
-		return 1;
 
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
+
+			BUG_ON(!q);
 
 			/* Note the '|| 1' - when read_balance prefers
 			 * non-congested targets, it can be removed
@@ -578,7 +576,15 @@ static int raid1_congested(void *data, int bits)
 	rcu_read_unlock();
 	return ret;
 }
+EXPORT_SYMBOL_GPL(md_raid1_congested);
 
+static int raid1_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+
+	return mddev_congested(mddev, bits) ||
+		md_raid1_congested(mddev, bits);
+}
 
 static int flush_pending_writes(conf_t *conf)
 {
@@ -2025,6 +2031,8 @@ static int run(mddev_t *mddev)
 		return PTR_ERR(conf);
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (!mddev->gendisk)
+			continue;
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
 		/* as we don't honour merge_bvec_fn, we must never risk
@@ -2066,9 +2074,11 @@ static int run(mddev_t *mddev)
 
 	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
-	mddev->queue->unplug_fn = raid1_unplug;
-	mddev->queue->backing_dev_info.congested_fn = raid1_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
+	if (mddev->queue) {
+		mddev->queue->unplug_fn = raid1_unplug;
+		mddev->queue->backing_dev_info.congested_fn = raid1_congested;
+		mddev->queue->backing_dev_info.congested_data = mddev;
+	}
 	return md_integrity_register(mddev);
 }
 
