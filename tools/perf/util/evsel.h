@@ -6,6 +6,7 @@
 #include "../../../include/linux/perf_event.h"
 #include "types.h"
 #include "xyarray.h"
+#include "cgroup.h"
 #include "hist.h"
  
 struct perf_counts_values {
@@ -59,6 +60,7 @@ struct perf_evsel {
 		void		*priv;
 		off_t		id_offset;
 	};
+	struct cgroup_sel	*cgrp;
 };
 
 struct cpu_map;
