@@ -2257,7 +2257,7 @@ lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
 {
 	struct lpfc_debug *debug = file->private_data;
 	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
-	uint32_t drb_reg_id, value, reg_val;
+	uint32_t drb_reg_id, value, reg_val = 0;
 	void __iomem *drb_reg;
 	int rc;
 
