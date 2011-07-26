@@ -1201,7 +1201,9 @@ typedef struct {
 #define PCI_DEVICE_ID_BALIUS        0xe131
 #define PCI_DEVICE_ID_PROTEUS_PF    0xe180
 #define PCI_DEVICE_ID_LANCER_FC     0xe200
+#define PCI_DEVICE_ID_LANCER_FC_VF  0xe208
 #define PCI_DEVICE_ID_LANCER_FCOE   0xe260
+#define PCI_DEVICE_ID_LANCER_FCOE_VF 0xe268
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
