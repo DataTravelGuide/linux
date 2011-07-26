@@ -3706,6 +3706,9 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	struct dfc_mbox_req *mbox_req;
 	struct READ_EVENT_LOG_VAR *rdEventLog;
 	uint32_t transmit_length, receive_length, mode;
+	struct lpfc_mbx_sli4_config *sli4_config;
+	struct lpfc_mbx_nembed_cmd *nembed_sge;
+	struct mbox_header *header;
 	struct ulp_bde64 *bde;
 	uint8_t *ext = NULL;
 	int rc = 0;
@@ -3893,6 +3896,36 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 						+ sizeof(MAILBOX_t));
 			bde->addrLow = putPaddrLow(dmabuf->phys
 						+ sizeof(MAILBOX_t));
+		} else if (pmb->mbxCommand == MBX_SLI4_CONFIG) {
+			/* Handling non-embedded SLI_CONFIG mailbox command */
+			sli4_config = &pmboxq->u.mqe.un.sli4_config;
+			if (!bf_get(lpfc_mbox_hdr_emb,
+			    &sli4_config->header.cfg_mhdr)) {
+				/* rebuild the command for sli4 using our
+				 * own buffers like we do for biu diags
+				 */
+				header = (struct mbox_header *)
+						&pmb->un.varWords[0];
+				nembed_sge = (struct lpfc_mbx_nembed_cmd *)
+						&pmb->un.varWords[0];
+				receive_length = nembed_sge->sge[0].length;
+
+				/* receive length cannot be greater than
+				 * mailbox extension size
+				 */
+				if ((receive_length == 0) ||
+				    (receive_length > MAILBOX_EXT_SIZE)) {
+					rc = -ERANGE;
+					goto job_done;
+				}
+
+				nembed_sge->sge[0].pa_hi =
+						putPaddrHigh(dmabuf->phys
+						   + sizeof(MAILBOX_t));
+				nembed_sge->sge[0].pa_lo =
+						putPaddrLow(dmabuf->phys
+						   + sizeof(MAILBOX_t));
+			}
 		}
 	}
 
@@ -3956,37 +3989,28 @@ lpfc_bsg_mbox_cmd(struct fc_bsg_job *job)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
+	struct dfc_mbox_req *mbox_req;
 	int rc = 0;
 
-	/* in case no data is transferred */
+	/* mix-and-match backward compatibility */
 	job->reply->reply_payload_rcv_len = 0;
 	if (job->request_len <
 	    sizeof(struct fc_bsg_request) + sizeof(struct dfc_mbox_req)) {
-		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2737 Received MBOX_REQ request below "
-				"minimum size\n");
-		rc = -EINVAL;
-		goto job_out;
-	}
-
-	if (job->request_payload.payload_len != BSG_MBOX_SIZE) {
-		rc = -EINVAL;
-		goto job_out;
-	}
-
-	if (job->reply_payload.payload_len != BSG_MBOX_SIZE) {
-		rc = -EINVAL;
-		goto job_out;
-	}
-
-	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
-		rc = -EAGAIN;
-		goto job_out;
+		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+				"2737 Mix-and-match backward compability "
+				"between MBOX_REQ old size:%d and "
+				"new request size:%d\n",
+				(int)(job->request_len -
+				      sizeof(struct fc_bsg_request)),
+				(int)sizeof(struct dfc_mbox_req));
+		mbox_req = (struct dfc_mbox_req *)
+				job->request->rqst_data.h_vendor.vendor_cmd;
+		mbox_req->extMboxTag = 0;
+		mbox_req->extSeqNum = 0;
 	}
 
 	rc = lpfc_bsg_issue_mbox(phba, job, vport);
 
-job_out:
 	if (rc == 0) {
 		/* job done */
 		job->reply->result = 0;
