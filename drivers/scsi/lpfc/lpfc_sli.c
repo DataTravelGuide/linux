@@ -5133,6 +5133,10 @@ lpfc_sli4_alloc_extent(struct lpfc_hba *phba, uint16_t type)
 		rsrc_blks->rsrc_size = rsrc_size;
 		list_add_tail(&rsrc_blks->list, ext_blk_list);
 		rsrc_start = rsrc_id;
+		if ((type == LPFC_RSC_TYPE_FCOE_XRI) && (j == 0))
+			phba->sli4_hba.scsi_xri_start = rsrc_start +
+				lpfc_sli4_get_els_iocb_cnt(phba);
+
 		while (rsrc_id < (rsrc_start + rsrc_size)) {
 			ids[j] = rsrc_id;
 			rsrc_id++;
@@ -5891,13 +5895,24 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 
 	/* Register SGL pool to the device using non-embedded mailbox command */
-	rc = lpfc_sli4_post_sgl_list(phba);
-	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-				"0582 Error %d during sgl post operation\n",
-					rc);
-		rc = -ENODEV;
-		goto out_free_mbox;
+	if (!phba->sli4_hba.extents_in_use) {
+		rc = lpfc_sli4_post_els_sgl_list(phba);
+		if (unlikely(rc)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"0582 Error %d during els sgl post "
+					"operation\n", rc);
+			rc = -ENODEV;
+			goto out_free_mbox;
+		}
+	} else {
+		rc = lpfc_sli4_post_els_sgl_list_ext(phba);
+		if (unlikely(rc)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"2560 Error %d during els sgl post "
+					"operation\n", rc);
+			rc = -ENODEV;
+			goto out_free_mbox;
+		}
 	}
 
 	/* Register SCSI SGL pool to the device */
@@ -12585,7 +12600,7 @@ lpfc_sli4_next_xritag(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_post_sgl_list - post a block of sgl list to the firmware.
+ * lpfc_sli4_post_els_sgl_list - post a block of ELS sgls to the port.
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to post a block of driver's sgl pages to the
@@ -12594,7 +12609,7 @@ lpfc_sli4_next_xritag(struct lpfc_hba *phba)
  * stopped.
  **/
 int
-lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
+lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba)
 {
 	struct lpfc_sglq *sglq_entry;
 	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
@@ -12620,11 +12635,8 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 		return -ENOMEM;
 	}
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2560 Failed to allocate mbox cmd memory\n");
+	if (!mbox)
 		return -ENOMEM;
-	}
 
 	/* Allocate DMA memory and set up the non-embedded mailbox command */
 	alloclen = lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
@@ -12639,10 +12651,8 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 		lpfc_sli4_mbox_cmd_free(phba, mbox);
 		return -ENOMEM;
 	}
-	/* Get the first SGE entry from the non-embedded DMA memory */
-	viraddr = mbox->sge_array->addr[0];
-
 	/* Set up the SGL pages in the non-embedded DMA pages */
+	viraddr = mbox->sge_array->addr[0];
 	sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
 	sgl_pg_pairs = &sgl->sgl_pg_pairs;
 
@@ -12657,8 +12667,10 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 		if (bf_get(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
 		    LPFC_XRI_RSRC_RDY) {
 			lxri = lpfc_sli4_next_xritag(phba);
-			if (lxri == NO_XRI)
+			if (lxri == NO_XRI) {
+				lpfc_sli4_mbox_cmd_free(phba, mbox);
 				return -ENOMEM;
+			}
 			sglq_entry->sli4_lxritag = lxri;
 			sglq_entry->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 		}
@@ -12678,19 +12690,10 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 			xritag_start = sglq_entry->sli4_xritag;
 		sgl_pg_pairs++;
 	}
-	/*
-	 * Complete the SGL Post initialization.  The starting XRI needs to be
-	 * the physical XRI, not the logical.
-	 */
+
+	/* Complete initialization and perform endian conversion. */
 	bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
 	bf_set(lpfc_post_sgl_pages_xricnt, sgl, els_xri_cnt);
-
-	if (bf_get(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags) !=
-	    LPFC_XRI_RSRC_RDY) {
-		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
-		       LPFC_XRI_RSRC_RDY);
-	}
-	/* Perform endian conversion if necessary */
 	sgl->word0 = cpu_to_le32(sgl->word0);
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
@@ -12710,6 +12713,181 @@ lpfc_sli4_post_sgl_list(struct lpfc_hba *phba)
 				shdr_status, shdr_add_status, rc);
 		rc = -ENXIO;
 	}
+
+	if (rc == 0)
+		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+		       LPFC_XRI_RSRC_RDY);
+	return rc;
+}
+
+/**
+ * lpfc_sli4_post_els_sgl_list_ext - post a block of ELS sgls to the port.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to post a block of driver's sgl pages to the
+ * HBA using non-embedded mailbox command. No Lock is held. This routine
+ * is only called when the driver is loading and after all IO has been
+ * stopped.
+ **/
+int
+lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
+{
+	struct lpfc_sglq *sglq_entry;
+	struct lpfc_mbx_post_uembed_sgl_page1 *sgl;
+	struct sgl_page_pairs *sgl_pg_pairs;
+	void *viraddr;
+	LPFC_MBOXQ_t *mbox;
+	uint32_t reqlen, alloclen, index;
+	uint32_t mbox_tmo;
+	uint16_t rsrc_start, rsrc_size, els_xri_cnt;
+	uint16_t xritag_start = 0, lxri = 0;
+	struct lpfc_rsrc_blks *rsrc_blk;
+	int cnt, ttl_cnt, rc = 0;
+	int loop_cnt;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+
+	/* The number of sgls to be posted */
+	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
+
+	reqlen = els_xri_cnt * sizeof(struct sgl_page_pairs) +
+		 sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
+	if (reqlen > SLI4_PAGE_SIZE) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"2989 Block sgl registration required DMA "
+				"size (%d) great than a page\n", reqlen);
+		return -ENOMEM;
+	}
+
+	cnt = 0;
+	ttl_cnt = 0;
+	list_for_each_entry(rsrc_blk, &phba->sli4_hba.lpfc_xri_blk_list,
+			    list) {
+		rsrc_start = rsrc_blk->rsrc_start;
+		rsrc_size = rsrc_blk->rsrc_size;
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3014 Working ELS Extent start %d, cnt %d\n",
+				rsrc_start, rsrc_size);
+
+		loop_cnt=min(els_xri_cnt, rsrc_size);
+		if (ttl_cnt + loop_cnt >= els_xri_cnt) {
+			loop_cnt = els_xri_cnt - ttl_cnt;
+			ttl_cnt = els_xri_cnt;
+		}
+
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!mbox)
+			return -ENOMEM;
+		/*
+		 * Allocate DMA memory and set up the non-embedded mailbox
+		 * command.
+		 */
+		alloclen = lpfc_sli4_config(phba, mbox,
+					LPFC_MBOX_SUBSYSTEM_FCOE,
+					LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
+					reqlen, LPFC_SLI4_MBX_NEMBED);
+		if (alloclen < reqlen) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2987 Allocated DMA memory size (%d) "
+					"is less than the requested DMA memory "
+					"size (%d)\n", alloclen, reqlen);
+			lpfc_sli4_mbox_cmd_free(phba, mbox);
+			return -ENOMEM;
+		}
+
+		/* Set up the SGL pages in the non-embedded DMA pages */
+		viraddr = mbox->sge_array->addr[0];
+		sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
+		sgl_pg_pairs = &sgl->sgl_pg_pairs;
+
+		/*
+		 * The starting resource may not begin at zero. Control
+		 * the loop variants via the block resource parameters,
+		 * but handle the sge pointers with a zero-based index
+		 * that doesn't get reset per loop pass.
+		 */
+		for (index = rsrc_start;
+		     index < rsrc_start + loop_cnt;
+		     index++) {
+			sglq_entry = phba->sli4_hba.lpfc_els_sgl_array[cnt];
+
+			/*
+			 * Assign the sglq a physical xri only if the driver
+			 * has not initialized those resources.  A port reset
+			 * only needs the sglq's posted.
+			 */
+			if (bf_get(lpfc_xri_rsrc_rdy,
+				   &phba->sli4_hba.sli4_flags) !=
+				   LPFC_XRI_RSRC_RDY) {
+				lxri = lpfc_sli4_next_xritag(phba);
+				if (lxri == NO_XRI) {
+					lpfc_sli4_mbox_cmd_free(phba, mbox);
+					rc = -ENOMEM;
+					goto err_exit;
+				}
+				sglq_entry->sli4_lxritag = lxri;
+				sglq_entry->sli4_xritag =
+						phba->sli4_hba.xri_ids[lxri];
+			}
+
+			/* Set up the sge entry */
+			sgl_pg_pairs->sgl_pg0_addr_lo =
+				cpu_to_le32(putPaddrLow(sglq_entry->phys));
+			sgl_pg_pairs->sgl_pg0_addr_hi =
+				cpu_to_le32(putPaddrHigh(sglq_entry->phys));
+			sgl_pg_pairs->sgl_pg1_addr_lo =
+				cpu_to_le32(putPaddrLow(0));
+			sgl_pg_pairs->sgl_pg1_addr_hi =
+				cpu_to_le32(putPaddrHigh(0));
+
+			/* Track the starting physical XRI for the mailbox. */
+			if (index == rsrc_start)
+				xritag_start = sglq_entry->sli4_xritag;
+			sgl_pg_pairs++;
+			cnt++;
+		}
+
+		/* Complete initialization and perform endian conversion. */
+		rsrc_blk->rsrc_used += loop_cnt;
+		bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
+		bf_set(lpfc_post_sgl_pages_xricnt, sgl, loop_cnt);
+		sgl->word0 = cpu_to_le32(sgl->word0);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3015 Post ELS Extent SGL, start %d, "
+				"cnt %d, used %d\n",
+				xritag_start, loop_cnt, rsrc_blk->rsrc_used);
+		if (!phba->sli4_hba.intr_enable)
+			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+		else {
+			mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+			rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
+		}
+		shdr = (union lpfc_sli4_cfg_shdr *) &sgl->cfg_shdr;
+		shdr_status = bf_get(lpfc_mbox_hdr_status,
+				     &shdr->response);
+		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+					 &shdr->response);
+		if (rc != MBX_TIMEOUT)
+			lpfc_sli4_mbox_cmd_free(phba, mbox);
+		if (shdr_status || shdr_add_status || rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2988 POST_SGL_BLOCK mailbox "
+					"command failed status x%x "
+					"add_status x%x mbx status x%x\n",
+					shdr_status, shdr_add_status, rc);
+			rc = -ENXIO;
+			goto err_exit;
+		}
+		if (ttl_cnt >= els_xri_cnt)
+			break;
+	}
+
+ err_exit:
+	if (rc == 0)
+		bf_set(lpfc_xri_rsrc_rdy, &phba->sli4_hba.sli4_flags,
+		       LPFC_XRI_RSRC_RDY);
 	return rc;
 }
 
@@ -12826,7 +13004,7 @@ lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *phba, struct list_head *sblist,
 }
 
 /**
- * lpfc_sli4_post_scsi_sgl_blk_ext - post a block of scsi sgl list to firmware
+ * lpfc_sli4_post_scsi_sgl_blk_ext - post a block of scsi sgls to the port.
  * @phba: pointer to lpfc hba data structure.
  * @sblist: pointer to scsi buffer list.
  * @count: number of scsi buffers on the list.
@@ -12847,13 +13025,14 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 	LPFC_MBOXQ_t *mbox;
 	uint32_t reqlen, alloclen, pg_pairs;
 	uint32_t mbox_tmo;
-	uint16_t xritag_start = 0;
-	int rc = 0;
+	uint16_t xri_start = 0, scsi_xri_start;
+	uint16_t rsrc_range;
+	int rc = 0, avail_cnt;
 	uint32_t shdr_status, shdr_add_status;
 	dma_addr_t pdma_phys_bpl1;
 	union lpfc_sli4_cfg_shdr *shdr;
-	struct lpfc_rsrc_blks *rsrc_blk_entry;
-	uint32_t xri_count = 0;
+	struct lpfc_rsrc_blks *rsrc_blk;
+	uint32_t xri_cnt = 0;
 
 	/* Calculate the total requested length of the dma memory */
 	reqlen = cnt * sizeof(struct sgl_page_pairs) +
@@ -12864,34 +13043,43 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 				"size (%d) great than a page\n", reqlen);
 		return -ENOMEM;
 	}
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mbox) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2933 Failed to allocate mbox cmd memory\n");
-		return -ENOMEM;
-	}
 
 	/*
 	 * The use of extents requires the driver to post the sgl headers
 	 * in multiple postings to meet the contiguous resource assignment.
 	 */
 	psb = list_prepare_entry(psb, sblist, list);
-	list_for_each_entry(rsrc_blk_entry, &phba->sli4_hba.lpfc_xri_blk_list,
+	scsi_xri_start = phba->sli4_hba.scsi_xri_start;
+	list_for_each_entry(rsrc_blk, &phba->sli4_hba.lpfc_xri_blk_list,
 			    list) {
-		reqlen = rsrc_blk_entry->rsrc_size *
-			sizeof(struct sgl_page_pairs) +
-			sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
+		rsrc_range = rsrc_blk->rsrc_start + rsrc_blk->rsrc_size;
+		if (rsrc_range < scsi_xri_start)
+			continue;
+		else if (rsrc_blk->rsrc_used >= rsrc_blk->rsrc_size)
+			continue;
+		else
+			avail_cnt = rsrc_blk->rsrc_size - rsrc_blk->rsrc_used;
 
+		reqlen = (avail_cnt * sizeof(struct sgl_page_pairs)) +
+			sizeof(union lpfc_sli4_cfg_shdr) + sizeof(uint32_t);
 		/*
 		 * Allocate DMA memory and set up the non-embedded mailbox
-		 * command.
+		 * command. The mbox is used to post an SGL page per loop
+		 * but the DMA memory has a use-once semantic so the mailbox
+		 * is used and freed per loop pass.
 		 */
+		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!mbox) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2933 Failed to allocate mbox cmd "
+					"memory\n");
+			return -ENOMEM;
+		}
 		alloclen = lpfc_sli4_config(phba, mbox,
 					LPFC_MBOX_SUBSYSTEM_FCOE,
 					LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
 					reqlen,
 					LPFC_SLI4_MBX_NEMBED);
-
 		if (alloclen < reqlen) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2934 Allocated DMA memory size (%d) "
@@ -12908,6 +13096,7 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 		sgl = (struct lpfc_mbx_post_uembed_sgl_page1 *)viraddr;
 		sgl_pg_pairs = &sgl->sgl_pg_pairs;
 
+		/* pg_pairs tracks posted SGEs per loop iteration. */
 		pg_pairs = 0;
 		list_for_each_entry_continue(psb, sblist, list) {
 			/* Set up the sge entry */
@@ -12924,17 +13113,29 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 				cpu_to_le32(putPaddrLow(pdma_phys_bpl1));
 			sgl_pg_pairs->sgl_pg1_addr_hi =
 				cpu_to_le32(putPaddrHigh(pdma_phys_bpl1));
-			/* Keep the first xritag on the list */
+			/* Keep the first xri for this extent. */
 			if (pg_pairs == 0)
-				xritag_start = psb->cur_iocbq.sli4_xritag;
+				xri_start = psb->cur_iocbq.sli4_xritag;
 			sgl_pg_pairs++;
 			pg_pairs++;
-			xri_count++;
-			if (pg_pairs == rsrc_blk_entry->rsrc_size)
+			xri_cnt++;
+
+			/*
+			 * Track two exit conditions - the loop has constructed
+			 * all of the caller's SGE pairs or all available
+			 * resource IDs in this extent are consumed.
+			 */
+			if ((xri_cnt == cnt) || (pg_pairs >= avail_cnt))
 				break;
 		}
-		bf_set(lpfc_post_sgl_pages_xri, sgl, xritag_start);
+		rsrc_blk->rsrc_used += pg_pairs;
+		bf_set(lpfc_post_sgl_pages_xri, sgl, xri_start);
 		bf_set(lpfc_post_sgl_pages_xricnt, sgl, pg_pairs);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3016 Post SCSI Extent SGL, start %d, cnt %d "
+				"blk use %d\n",
+				xri_start, pg_pairs, rsrc_blk->rsrc_used);
 		/* Perform endian conversion if necessary */
 		sgl->word0 = cpu_to_le32(sgl->word0);
 		if (!phba->sli4_hba.intr_enable)
@@ -12947,20 +13148,21 @@ lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *phba, struct list_head *sblist,
 		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
 					 &shdr->response);
+		if (rc != MBX_TIMEOUT)
+			lpfc_sli4_mbox_cmd_free(phba, mbox);
 		if (shdr_status || shdr_add_status || rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"2935 POST_SGL_BLOCK mailbox command "
 					"failed status x%x add_status x%x "
 					"mbx status x%x\n",
 					shdr_status, shdr_add_status, rc);
-			if (rc != MBX_TIMEOUT)
-				lpfc_sli4_mbox_cmd_free(phba, mbox);
 			return -ENXIO;
 		}
-		if (xri_count == phba->sli4_hba.scsi_xri_max)
+
+		/* Post only what is requested. */
+		if (xri_cnt >= cnt)
 			break;
 	}
-	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return rc;
 }
 

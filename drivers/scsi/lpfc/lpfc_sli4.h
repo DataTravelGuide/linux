@@ -449,6 +449,7 @@ struct lpfc_sli4_hba {
 	uint16_t next_rpi;
 	uint16_t scsi_xri_max;
 	uint16_t scsi_xri_cnt;
+	uint16_t scsi_xri_start;
 	struct list_head lpfc_free_sgl_list;
 	struct list_head lpfc_sgl_list;
 	struct lpfc_sglq **lpfc_els_sgl_array;
@@ -520,6 +521,7 @@ struct lpfc_rsrc_blks {
 	struct list_head list;
 	uint16_t rsrc_start;
 	uint16_t rsrc_size;
+	uint16_t rsrc_used;
 };
 
 /*
@@ -561,7 +563,8 @@ int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
-int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
 int lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *, struct list_head *,
 				    int);

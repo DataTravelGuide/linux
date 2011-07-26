@@ -745,12 +745,12 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 		/* Now, post the SCSI buffer list sgls as a block */
 		if (!phba->sli4_hba.extents_in_use)
 			status = lpfc_sli4_post_scsi_sgl_block(phba,
-							       &sblist,
-							       bcnt);
+							&sblist,
+							bcnt);
 		else
 			status = lpfc_sli4_post_scsi_sgl_blk_ext(phba,
-								 &sblist,
-								 bcnt);
+							&sblist,
+							bcnt);
 		/* Reset SCSI buffer count for next round of posting */
 		bcnt = 0;
 		while (!list_empty(&sblist)) {
@@ -927,12 +927,19 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 	if (bcnt) {
 		if (!phba->sli4_hba.extents_in_use)
 			status = lpfc_sli4_post_scsi_sgl_block(phba,
-							       &sblist,
-							       bcnt);
+								&sblist,
+								bcnt);
 		else
 			status = lpfc_sli4_post_scsi_sgl_blk_ext(phba,
-								 &sblist,
-								 bcnt);
+								&sblist,
+								bcnt);
+
+		if (status) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"3021 SCSI SGL post error %d\n",
+					status);
+			bcnt = 0;
+		}
 		/* Reset SCSI buffer count for next round of posting */
 		while (!list_empty(&sblist)) {
 			list_remove_head(&sblist, psb, struct lpfc_scsi_buf,
