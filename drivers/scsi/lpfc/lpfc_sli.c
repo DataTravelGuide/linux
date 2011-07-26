@@ -5641,11 +5641,6 @@ lpfc_sli4_get_allocated_extnts(struct lpfc_hba *phba, uint16_t type,
 		*extnt_cnt = bf_get(lpfc_mbx_rsrc_cnt, n_rsrc);
 	}
 
-	/*&&&PAE.  April 18.
-	 * FW does not respond to GET_ALLOCATED correctly.
-	 * Fix up the extnt count for now.
-	 */
-	*extnt_cnt = curr_blks;
 	if (bf_get(lpfc_mbox_hdr_status, &shdr->response)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
 			"2984 Failed to read allocated resources "
