@@ -38,6 +38,7 @@ obj-$(CONFIG_DM_SNAPSHOT)	+= dm-snapshot.o
 obj-$(CONFIG_DM_MIRROR)		+= dm-mirror.o dm-log.o dm-region-hash.o
 obj-$(CONFIG_DM_LOG_USERSPACE)	+= dm-log-userspace.o
 obj-$(CONFIG_DM_ZERO)		+= dm-zero.o
+obj-$(CONFIG_DM_RAID)		+= dm-raid.o
 obj-$(CONFIG_DM_RAID45)		+= dm-raid45.o dm-log.o dm-memcache.o \
 				   dm-region-hash.o
 obj-$(CONFIG_DM_REPLICATOR)	+= dm-replicator.o \
