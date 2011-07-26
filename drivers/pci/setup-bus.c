@@ -404,6 +404,43 @@ static struct resource *find_free_bus_resource(struct pci_bus *bus, unsigned lon
 	return NULL;
 }
 
+static resource_size_t calculate_iosize(resource_size_t size,
+		resource_size_t min_size,
+		resource_size_t size1,
+		resource_size_t old_size,
+		resource_size_t align)
+{
+	if (size < min_size)
+		size = min_size;
+	if (old_size == 1)
+		old_size = 0;
+	/* To be fixed in 2.5: we should have sort of HAVE_ISA
+	   flag in the struct pci_bus. */
+#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
+	size = (size & 0xff) + ((size & ~0xffUL) << 2);
+#endif
+	size = ALIGN(size + size1, align);
+	if (size < old_size)
+		size = old_size;
+	return size;
+}
+
+static resource_size_t calculate_memsize(resource_size_t size,
+		resource_size_t min_size,
+		resource_size_t size1,
+		resource_size_t old_size,
+		resource_size_t align)
+{
+	if (size < min_size)
+		size = min_size;
+	if (old_size == 1)
+		old_size = 0;
+	if (size < old_size)
+		size = old_size;
+	size = ALIGN(size + size1, align);
+	return size;
+}
+
 /* Sizing the IO windows of the PCI-PCI bridge is trivial,
    since these windows have 4K granularity and the IO ranges
    of non-bridge PCI devices are limited to 256 bytes.
@@ -435,14 +472,8 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size)
 				size1 += r_size;
 		}
 	}
-	if (size < min_size)
-		size = min_size;
-/* To be fixed in 2.5: we should have sort of HAVE_ISA
-   flag in the struct pci_bus. */
-#if defined(CONFIG_ISA) || defined(CONFIG_EISA)
-	size = (size & 0xff) + ((size & ~0xffUL) << 2);
-#endif
-	size = ALIGN(size + size1, 4096);
+	size = calculate_iosize(size, min_size, size1,
+			resource_size(b_res), 4096);
 	if (!size) {
 		b_res->flags = 0;
 		return;
@@ -506,9 +537,6 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			mem64_mask &= r->flags & IORESOURCE_MEM_64;
 		}
 	}
-	if (size < min_size)
-		size = min_size;
-
 	align = 0;
 	min_align = 0;
 	for (order = 0; order <= max_order; order++) {
@@ -522,7 +550,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			min_align = align1 >> 1;
 		align += aligns[order];
 	}
-	size = ALIGN(size, min_align);
+	size = calculate_memsize(size, min_size, 0, resource_size(b_res), align);
 	if (!size) {
 		b_res->flags = 0;
 		return 1;
