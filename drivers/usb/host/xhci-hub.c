@@ -419,6 +419,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		wIndex--;
 		status = 0;
 		temp = xhci_readl(xhci, port_array[wIndex]);
+		if (temp == 0xffffffff) {
+			retval = -ENODEV;
+			break;
+		}
 		xhci_dbg(xhci, "get port status, actual port %d status  = 0x%x\n", wIndex, temp);
 
 		/* FIXME - should we return a port status value like the USB
@@ -493,6 +497,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
+		if (temp == 0xffffffff) {
+			retval = -ENODEV;
+			break;
+		}
 		temp = xhci_port_state_to_neutral(temp);
 		/* FIXME: What new port features do we need to support? */
 		switch (wValue) {
@@ -563,6 +571,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
+		if (temp == 0xffffffff) {
+			retval = -ENODEV;
+			break;
+		}
 		/* FIXME: What new port features do we need to support? */
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
@@ -678,6 +690,10 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	/* For each port, did anything change?  If so, set that bit in buf. */
 	for (i = 0; i < ports; i++) {
 		temp = xhci_readl(xhci, port_array[i]);
+		if (temp == 0xffffffff) {
+			retval = -ENODEV;
+			break;
+		}
 		if ((temp & mask) != 0 ||
 			(bus_state->port_c_suspend & 1 << i) ||
 			(bus_state->resume_done[i] && time_after_eq(
