@@ -1300,7 +1300,7 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	/* note: this is a positive sum as runtime_remaining <= 0 */
 	min_amount = sched_cfs_bandwidth_slice() - cfs_rq->runtime_remaining;
 
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	if (cfs_b->quota == RUNTIME_INF)
 		amount = min_amount;
 	else {
@@ -1322,7 +1322,7 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 		}
 	}
 	expires = cfs_b->runtime_expires;
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 
 	cfs_rq->runtime_remaining += amount;
 	/*
@@ -1489,9 +1489,9 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 
 	cfs_rq->throttled = 1;
 	cfs_rq->throttled_timestamp = rq->clock;
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	list_add_tail_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 }
 
 /*
@@ -1542,10 +1542,10 @@ static void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 	se = cfs_rq->tg->se[cpu_of(rq_of(cfs_rq))];
 
 	cfs_rq->throttled = 0;
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	cfs_b->throttled_time += rq->clock - cfs_rq->throttled_timestamp;
 	list_del_rcu(&cfs_rq->throttled_list);
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 	cfs_rq->throttled_timestamp = 0;
 
 	update_rq_clock(rq);
@@ -1588,7 +1588,7 @@ static u64 distribute_cfs_runtime(struct cfs_bandwidth *cfs_b,
 				throttled_list) {
 		struct rq *rq = rq_of(cfs_rq);
 
-		raw_spin_lock(&rq->lock);
+		spin_lock(&rq->lock);
 		if (!cfs_rq_throttled(cfs_rq))
 			goto next;
 
@@ -1605,7 +1605,7 @@ static u64 distribute_cfs_runtime(struct cfs_bandwidth *cfs_b,
 			unthrottle_cfs_rq(cfs_rq);
 
 next:
-		raw_spin_unlock(&rq->lock);
+		spin_unlock(&rq->lock);
 
 		if (!remaining)
 			break;
@@ -1626,7 +1626,7 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	u64 runtime, runtime_expires;
 	int idle = 1, throttled;
 
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	/* no need to continue the timer with no bandwidth constraint */
 	if (cfs_b->quota == RUNTIME_INF)
 		goto out_unlock;
@@ -1667,11 +1667,11 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	 * group trying to acquire new bandwidth from the global pool.
 	 */
 	while (throttled && runtime > 0) {
-		raw_spin_unlock(&cfs_b->lock);
+		spin_unlock(&cfs_b->lock);
 		/* we can't nest cfs_b->lock while distributing bandwidth */
 		runtime = distribute_cfs_runtime(cfs_b, runtime,
 						 runtime_expires);
-		raw_spin_lock(&cfs_b->lock);
+		spin_lock(&cfs_b->lock);
 
 		throttled = !list_empty(&cfs_b->throttled_cfs_rq);
 	}
@@ -1688,7 +1688,7 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 out_unlock:
 	if (idle)
 		cfs_b->timer_active = 0;
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 
 	return idle;
 }
@@ -1742,7 +1742,7 @@ static void return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	if (slack_runtime <= 0)
 		return;
 
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	if (cfs_b->quota != RUNTIME_INF &&
 	    cfs_rq->runtime_expires == cfs_b->runtime_expires) {
 		cfs_b->runtime += slack_runtime;
@@ -1752,7 +1752,7 @@ static void return_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 		    !list_empty(&cfs_b->throttled_cfs_rq))
 			start_cfs_slack_bandwidth(cfs_b);
 	}
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 
 	/* even if it's not valid for return we don't want to try again */
 	cfs_rq->runtime_remaining -= slack_runtime;
@@ -1771,23 +1771,23 @@ static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 	if (runtime_refresh_within(cfs_b, min_bandwidth_expiration))
 		return;
 
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	if (cfs_b->quota != RUNTIME_INF && cfs_b->runtime > slice) {
 		runtime = cfs_b->runtime;
 		cfs_b->runtime = 0;
 	}
 	expires = cfs_b->runtime_expires;
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 
 	if (!runtime)
 		return;
 
 	runtime = distribute_cfs_runtime(cfs_b, runtime, expires);
 
-	raw_spin_lock(&cfs_b->lock);
+	spin_lock(&cfs_b->lock);
 	if (expires == cfs_b->runtime_expires)
 		cfs_b->runtime = runtime;
-	raw_spin_unlock(&cfs_b->lock);
+	spin_unlock(&cfs_b->lock);
 }
 
 #else

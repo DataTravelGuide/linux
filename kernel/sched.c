@@ -247,7 +247,7 @@ static LIST_HEAD(task_groups);
 
 struct cfs_bandwidth {
 #ifdef CONFIG_CFS_BANDWIDTH
-	raw_spinlock_t lock;
+	spinlock_t lock;
 	ktime_t period;
 	u64 quota, runtime;
 	s64 hierarchal_quota;
@@ -545,7 +545,7 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 
 static void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 {
-	raw_spin_lock_init(&cfs_b->lock);
+	spin_lock_init(&cfs_b->lock);
 	cfs_b->runtime = 0;
 	cfs_b->quota = RUNTIME_INF;
 	cfs_b->period = ns_to_ktime(default_cfs_period());
@@ -573,11 +573,11 @@ static void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	 * terminates).  In either case we ensure that it's re-programmed
 	 */
 	while (unlikely(hrtimer_active(&cfs_b->period_timer))) {
-		raw_spin_unlock(&cfs_b->lock);
+		spin_unlock(&cfs_b->lock);
 		/* ensure cfs_b->lock is available while we wait */
 		hrtimer_cancel(&cfs_b->period_timer);
 
-		raw_spin_lock(&cfs_b->lock);
+		spin_lock(&cfs_b->lock);
 		/* if someone else restarted the timer then we're done */
 		if (cfs_b->timer_active)
 			return;
@@ -11101,7 +11101,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 		goto out_unlock;
 
 	runtime_enabled = quota != RUNTIME_INF;
-	raw_spin_lock_irq(&cfs_b->lock);
+	spin_lock_irq(&cfs_b->lock);
 	cfs_b->period = ns_to_ktime(period);
 	cfs_b->quota = quota;
 
@@ -11112,19 +11112,19 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 		cfs_b->timer_active = 0;
 		__start_cfs_bandwidth(cfs_b);
 	}
-	raw_spin_unlock_irq(&cfs_b->lock);
+	spin_unlock_irq(&cfs_b->lock);
 
 	for_each_possible_cpu(i) {
 		struct cfs_rq *cfs_rq = tg->cfs_rq[i];
 		struct rq *rq = rq_of(cfs_rq);
 
-		raw_spin_lock_irq(&rq->lock);
+		spin_lock_irq(&rq->lock);
 		cfs_rq->runtime_enabled = runtime_enabled;
 		cfs_rq->runtime_remaining = 0;
 
 		if (cfs_rq_throttled(cfs_rq))
 			unthrottle_cfs_rq(cfs_rq);
-		raw_spin_unlock_irq(&rq->lock);
+		spin_unlock_irq(&rq->lock);
 	}
 out_unlock:
 	mutex_unlock(&cfs_constraints_mutex);
