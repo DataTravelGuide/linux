@@ -744,7 +744,6 @@ struct lpfc_hba {
 	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 
 	int brd_no;			/* FC board number */
-
 	char SerialNumber[32];		/* adapter Serial Number */
 	char OptionROMVersion[32];	/* adapter BIOS / Fcode version */
 	char ModelDesc[256];		/* Model Description */

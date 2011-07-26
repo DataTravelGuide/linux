@@ -24,15 +24,17 @@
  * These are the vendor unique structures passed in using the bsg
  * FC_BSG_HST_VENDOR message code type.
  */
-#define LPFC_BSG_VENDOR_SET_CT_EVENT	1
-#define LPFC_BSG_VENDOR_GET_CT_EVENT	2
-#define LPFC_BSG_VENDOR_SEND_MGMT_RESP	3
-#define LPFC_BSG_VENDOR_DIAG_MODE	4
-#define LPFC_BSG_VENDOR_DIAG_TEST	5
-#define LPFC_BSG_VENDOR_GET_MGMT_REV	6
-#define LPFC_BSG_VENDOR_MBOX		7
-#define LPFC_BSG_VENDOR_MENLO_CMD	8
-#define LPFC_BSG_VENDOR_MENLO_DATA	9
+#define LPFC_BSG_VENDOR_SET_CT_EVENT		1
+#define LPFC_BSG_VENDOR_GET_CT_EVENT		2
+#define LPFC_BSG_VENDOR_SEND_MGMT_RESP		3
+#define LPFC_BSG_VENDOR_DIAG_MODE		4
+#define LPFC_BSG_VENDOR_DIAG_RUN_LOOPBACK	5
+#define LPFC_BSG_VENDOR_GET_MGMT_REV		6
+#define LPFC_BSG_VENDOR_MBOX			7
+#define LPFC_BSG_VENDOR_MENLO_CMD		8
+#define LPFC_BSG_VENDOR_MENLO_DATA		9
+#define LPFC_BSG_VENDOR_DIAG_MODE_END		10
+#define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
 
 struct set_ct_event {
 	uint32_t command;
@@ -67,8 +69,23 @@ struct diag_mode_set {
 	uint32_t timeout;
 };
 
+struct sli4_link_diag {
+	uint32_t command;
+	uint32_t timeout;
+	uint32_t test_id;
+	uint32_t loops;
+	uint32_t test_version;
+	uint32_t error_action;
+};
+
 struct diag_mode_test {
 	uint32_t command;
+};
+
+struct diag_status {
+	uint32_t mbox_status;
+	uint32_t shdr_status;
+	uint32_t shdr_add_status;
 };
 
 #define LPFC_WWNN_TYPE		0

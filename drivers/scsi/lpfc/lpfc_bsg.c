@@ -1470,11 +1470,91 @@ send_mgmt_rsp_exit:
 }
 
 /**
- * lpfc_bsg_diag_mode - process a LPFC_BSG_VENDOR_DIAG_MODE bsg vendor command
+ * lpfc_bsg_diag_mode_enter - process preparing into device diag loopback mode
+ * @phba: Pointer to HBA context object.
  * @job: LPFC_BSG_VENDOR_DIAG_MODE
  *
- * This function is responsible for placing a port into diagnostic loopback
- * mode in order to perform a diagnostic loopback test.
+ * This function is responsible for preparing driver for diag loopback
+ * on device.
+ */
+static int
+lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba, struct fc_bsg_job *job)
+{
+	struct lpfc_vport **vports;
+	struct Scsi_Host *shost;
+	struct lpfc_sli *psli;
+	struct lpfc_sli_ring *pring;
+	int i = 0;
+
+	psli = &phba->sli;
+	if (!psli)
+		return -ENODEV;
+
+	pring = &psli->ring[LPFC_FCP_RING];
+	if (!pring)
+		return -ENODEV;
+
+	if ((phba->link_state == LPFC_HBA_ERROR) ||
+	    (psli->sli_flag & LPFC_BLOCK_MGMT_IO) ||
+	    (!(psli->sli_flag & LPFC_SLI_ACTIVE)))
+		return -EACCES;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports) {
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			scsi_block_requests(shost);
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+	} else {
+		shost = lpfc_shost_from_vport(phba->pport);
+		scsi_block_requests(shost);
+	}
+
+	while (pring->txcmplq_cnt) {
+		if (i++ > 500)  /* wait up to 5 seconds */
+			break;
+		msleep(10);
+	}
+	return 0;
+}
+
+/**
+ * lpfc_bsg_diag_mode_exit - exit process from device diag loopback mode
+ * @phba: Pointer to HBA context object.
+ * @job: LPFC_BSG_VENDOR_DIAG_MODE
+ *
+ * This function is responsible for driver exit processing of setting up
+ * diag loopback mode on device.
+ */
+static void
+lpfc_bsg_diag_mode_exit(struct lpfc_hba *phba)
+{
+	struct Scsi_Host *shost;
+	struct lpfc_vport **vports;
+	int i;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports) {
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			scsi_unblock_requests(shost);
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+	} else {
+		shost = lpfc_shost_from_vport(phba->pport);
+		scsi_unblock_requests(shost);
+	}
+	return;
+}
+
+/**
+ * lpfc_sli3_bsg_diag_loopback_mode - process an sli3 bsg vendor command
+ * @phba: Pointer to HBA context object.
+ * @job: LPFC_BSG_VENDOR_DIAG_MODE
+ *
+ * This function is responsible for placing an sli3  port into diagnostic
+ * loopback mode in order to perform a diagnostic loopback test.
  * All new scsi requests are blocked, a small delay is used to allow the
  * scsi requests to complete then the link is brought down. If the link is
  * is placed in loopback mode then scsi requests are again allowed
@@ -1482,17 +1562,11 @@ send_mgmt_rsp_exit:
  * All of this is done in-line.
  */
 static int
-lpfc_bsg_diag_mode(struct fc_bsg_job *job)
+lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 {
-	struct Scsi_Host *shost = job->shost;
-	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
-	struct lpfc_hba *phba = vport->phba;
 	struct diag_mode_set *loopback_mode;
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_FCP_RING];
 	uint32_t link_flags;
 	uint32_t timeout;
-	struct lpfc_vport **vports;
 	LPFC_MBOXQ_t *pmboxq;
 	int mbxstatus;
 	int i = 0;
@@ -1501,53 +1575,33 @@ lpfc_bsg_diag_mode(struct fc_bsg_job *job)
 	/* no data to return just the return code */
 	job->reply->reply_payload_rcv_len = 0;
 
-	if (job->request_len <
-	    sizeof(struct fc_bsg_request) + sizeof(struct diag_mode_set)) {
+	if (job->request_len < sizeof(struct fc_bsg_request) +
+	    sizeof(struct diag_mode_set)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
-				"2738 Received DIAG MODE request below minimum "
-				"size\n");
+				"2738 Received DIAG MODE request size:%d "
+				"below the minimum size:%d\n",
+				job->request_len,
+				(int)(sizeof(struct fc_bsg_request) +
+				sizeof(struct diag_mode_set)));
 		rc = -EINVAL;
 		goto job_error;
 	}
 
+	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	if (rc)
+		goto job_error;
+
+	/* bring the link to diagnostic mode */
 	loopback_mode = (struct diag_mode_set *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
 	link_flags = loopback_mode->type;
 	timeout = loopback_mode->timeout * 100;
 
-	if ((phba->link_state == LPFC_HBA_ERROR) ||
-	    (psli->sli_flag & LPFC_BLOCK_MGMT_IO) ||
-	    (!(psli->sli_flag & LPFC_SLI_ACTIVE))) {
-		rc = -EACCES;
-		goto job_error;
-	}
-
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq) {
 		rc = -ENOMEM;
-		goto job_error;
+		goto loopback_mode_exit;
 	}
-
-	vports = lpfc_create_vport_work_array(phba);
-	if (vports) {
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
-			shost = lpfc_shost_from_vport(vports[i]);
-			scsi_block_requests(shost);
-		}
-
-		lpfc_destroy_vport_work_array(phba, vports);
-	} else {
-		shost = lpfc_shost_from_vport(phba->pport);
-		scsi_block_requests(shost);
-	}
-
-	while (pring->txcmplq_cnt) {
-		if (i++ > 500)	/* wait up to 5 seconds */
-			break;
-
-		msleep(10);
-	}
-
 	memset((void *)pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 	pmboxq->u.mb.mbxCommand = MBX_DOWN_LINK;
 	pmboxq->u.mb.mbxOwner = OWN_HOST;
@@ -1601,23 +1655,415 @@ lpfc_bsg_diag_mode(struct fc_bsg_job *job)
 		rc = -ENODEV;
 
 loopback_mode_exit:
-	vports = lpfc_create_vport_work_array(phba);
-	if (vports) {
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
-			shost = lpfc_shost_from_vport(vports[i]);
-			scsi_unblock_requests(shost);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-	} else {
-		shost = lpfc_shost_from_vport(phba->pport);
-		scsi_unblock_requests(shost);
-	}
+	lpfc_bsg_diag_mode_exit(phba);
 
 	/*
 	 * Let SLI layer release mboxq if mbox command completed after timeout.
 	 */
 	if (mbxstatus != MBX_TIMEOUT)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
+
+job_error:
+	/* make error code available to userspace */
+	job->reply->result = rc;
+	/* complete the job back to userspace if no error */
+	if (rc == 0)
+		job->job_done(job);
+	return rc;
+}
+
+/**
+ * lpfc_sli4_bsg_set_link_diag_state - set sli4 link diag state
+ * @phba: Pointer to HBA context object.
+ * @diag: Flag for set link to diag or nomral operation state.
+ *
+ * This function is responsible for issuing a sli4 mailbox command for setting
+ * link to either diag state or normal operation state.
+ */
+static int
+lpfc_sli4_bsg_set_link_diag_state(struct lpfc_hba *phba, uint32_t diag)
+{
+	LPFC_MBOXQ_t *pmboxq;
+	struct lpfc_mbx_set_link_diag_state *link_diag_state;
+	uint32_t req_len, alloc_len;
+	int mbxstatus = MBX_SUCCESS, rc;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq)
+		return -ENOMEM;
+
+	req_len = (sizeof(struct lpfc_mbx_set_link_diag_state) -
+		   sizeof(struct lpfc_sli4_cfg_mhdr));
+	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+				LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE,
+				req_len, LPFC_SLI4_MBX_EMBED);
+	if (alloc_len != req_len) {
+		rc = -ENOMEM;
+		goto link_diag_state_set_out;
+	}
+	link_diag_state = &pmboxq->u.mqe.un.link_diag_state;
+	bf_set(lpfc_mbx_set_diag_state_link_num, &link_diag_state->u.req,
+	       phba->sli4_hba.link_state.number);
+	bf_set(lpfc_mbx_set_diag_state_link_type, &link_diag_state->u.req,
+	       phba->sli4_hba.link_state.type);
+	if (diag)
+		bf_set(lpfc_mbx_set_diag_state_diag,
+		       &link_diag_state->u.req, 1);
+	else
+		bf_set(lpfc_mbx_set_diag_state_diag,
+		       &link_diag_state->u.req, 0);
+
+	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO);
+
+	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->u.mb.mbxStatus == 0))
+		rc = 0;
+	else
+		rc = -ENODEV;
+
+link_diag_state_set_out:
+	if (pmboxq && (mbxstatus != MBX_TIMEOUT))
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_bsg_diag_loopback_mode - process an sli4 bsg vendor command
+ * @phba: Pointer to HBA context object.
+ * @job: LPFC_BSG_VENDOR_DIAG_MODE
+ *
+ * This function is responsible for placing an sli4 port into diagnostic
+ * loopback mode in order to perform a diagnostic loopback test.
+ */
+static int
+lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
+{
+	struct diag_mode_set *loopback_mode;
+	uint32_t link_flags, timeout, req_len, alloc_len;
+	struct lpfc_mbx_set_link_diag_loopback *link_diag_loopback;
+	LPFC_MBOXQ_t *pmboxq = NULL;
+	int mbxstatus, i, rc = 0;
+
+	/* no data to return just the return code */
+	job->reply->reply_payload_rcv_len = 0;
+
+	if (job->request_len < sizeof(struct fc_bsg_request) +
+	    sizeof(struct diag_mode_set)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3011 Received DIAG MODE request size:%d "
+				"below the minimum size:%d\n",
+				job->request_len,
+				(int)(sizeof(struct fc_bsg_request) +
+				sizeof(struct diag_mode_set)));
+		rc = -EINVAL;
+		goto job_error;
+	}
+
+	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	if (rc)
+		goto job_error;
+
+	/* bring the link to diagnostic mode */
+	loopback_mode = (struct diag_mode_set *)
+		job->request->rqst_data.h_vendor.vendor_cmd;
+	link_flags = loopback_mode->type;
+	timeout = loopback_mode->timeout * 100;
+
+	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
+	if (rc)
+		goto loopback_mode_exit;
+
+	/* wait for link down before proceeding */
+	i = 0;
+	while (phba->link_state != LPFC_LINK_DOWN) {
+		if (i++ > timeout) {
+			rc = -ETIMEDOUT;
+			goto loopback_mode_exit;
+		}
+		msleep(10);
+	}
+	/* set up loopback mode */
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq) {
+		rc = -ENOMEM;
+		goto loopback_mode_exit;
+	}
+	req_len = (sizeof(struct lpfc_mbx_set_link_diag_loopback) -
+		   sizeof(struct lpfc_sli4_cfg_mhdr));
+	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+				LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK,
+				req_len, LPFC_SLI4_MBX_EMBED);
+	if (alloc_len != req_len) {
+		rc = -ENOMEM;
+		goto loopback_mode_exit;
+	}
+	link_diag_loopback = &pmboxq->u.mqe.un.link_diag_loopback;
+	bf_set(lpfc_mbx_set_diag_state_link_num,
+	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.number);
+	bf_set(lpfc_mbx_set_diag_state_link_type,
+	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.type);
+	if (link_flags == INTERNAL_LOOP_BACK)
+		bf_set(lpfc_mbx_set_diag_lpbk_type,
+		       &link_diag_loopback->u.req,
+		       LPFC_DIAG_LOOPBACK_TYPE_INTERNAL);
+	else
+		bf_set(lpfc_mbx_set_diag_lpbk_type,
+		       &link_diag_loopback->u.req,
+		       LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL);
+
+	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO);
+	if ((mbxstatus != MBX_SUCCESS) || (pmboxq->u.mb.mbxStatus))
+		rc = -ENODEV;
+	else {
+		phba->link_flag |= LS_LOOPBACK_MODE;
+		/* wait for the link attention interrupt */
+		msleep(100);
+		i = 0;
+		while (phba->link_state != LPFC_HBA_READY) {
+			if (i++ > timeout) {
+				rc = -ETIMEDOUT;
+				break;
+			}
+			msleep(10);
+		}
+	}
+
+loopback_mode_exit:
+	lpfc_bsg_diag_mode_exit(phba);
+
+	/*
+	 * Let SLI layer release mboxq if mbox command completed after timeout.
+	 */
+	if (pmboxq && (mbxstatus != MBX_TIMEOUT))
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+
+job_error:
+	/* make error code available to userspace */
+	job->reply->result = rc;
+	/* complete the job back to userspace if no error */
+	if (rc == 0)
+		job->job_done(job);
+	return rc;
+}
+
+/**
+ * lpfc_bsg_diag_loopback_mode - bsg vendor command for diag loopback mode
+ * @job: LPFC_BSG_VENDOR_DIAG_MODE
+ *
+ * This function is responsible for responding to check and dispatch bsg diag
+ * command from the user to proper driver action routines.
+ */
+static int
+lpfc_bsg_diag_loopback_mode(struct fc_bsg_job *job)
+{
+	struct Scsi_Host *shost;
+	struct lpfc_vport *vport;
+	struct lpfc_hba *phba;
+	int rc;
+
+	shost = job->shost;
+	if (!shost)
+		return -ENODEV;
+	vport = (struct lpfc_vport *)job->shost->hostdata;
+	if (!vport)
+		return -ENODEV;
+	phba = vport->phba;
+	if (!phba)
+		return -ENODEV;
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		rc = lpfc_sli3_bsg_diag_loopback_mode(phba, job);
+	else if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+		 LPFC_SLI_INTF_IF_TYPE_2)
+		rc = lpfc_sli4_bsg_diag_loopback_mode(phba, job);
+	else
+		rc = -ENODEV;
+
+	return rc;
+
+}
+
+/**
+ * lpfc_sli4_bsg_diag_mode_end - sli4 bsg vendor command for ending diag mode
+ * @job: LPFC_BSG_VENDOR_DIAG_MODE_END
+ *
+ * This function is responsible for responding to check and dispatch bsg diag
+ * command from the user to proper driver action routines.
+ */
+static int
+lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
+{
+	struct Scsi_Host *shost;
+	struct lpfc_vport *vport;
+	struct lpfc_hba *phba;
+	int rc;
+
+	shost = job->shost;
+	if (!shost)
+		return -ENODEV;
+	vport = (struct lpfc_vport *)job->shost->hostdata;
+	if (!vport)
+		return -ENODEV;
+	phba = vport->phba;
+	if (!phba)
+		return -ENODEV;
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return -ENODEV;
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_2)
+		return -ENODEV;
+
+	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 0);
+
+	if (!rc)
+		rc = phba->lpfc_hba_init_link(phba);
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_bsg_link_diag_test - sli4 bsg vendor command for diag link test
+ * @job: LPFC_BSG_VENDOR_DIAG_LINK_TEST
+ *
+ * This function is to perform SLI4 diag link test request from the user
+ * applicaiton.
+ */
+static int
+lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
+{
+	struct Scsi_Host *shost;
+	struct lpfc_vport *vport;
+	struct lpfc_hba *phba;
+	LPFC_MBOXQ_t *pmboxq;
+	struct sli4_link_diag *link_diag_test_cmd;
+	uint32_t req_len, alloc_len;
+	uint32_t timeout;
+	struct lpfc_mbx_run_link_diag_test *run_link_diag_test;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	struct diag_status *diag_status_reply;
+	int mbxstatus, rc = 0;
+
+	shost = job->shost;
+	if (!shost) {
+		rc = -ENODEV;
+		goto job_error;
+	}
+	vport = (struct lpfc_vport *)job->shost->hostdata;
+	if (!vport) {
+		rc = -ENODEV;
+		goto job_error;
+	}
+	phba = vport->phba;
+	if (!phba) {
+		rc = -ENODEV;
+		goto job_error;
+	}
+
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		rc = -ENODEV;
+		goto job_error;
+	}
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		rc = -ENODEV;
+		goto job_error;
+	}
+
+	if (job->request_len < sizeof(struct fc_bsg_request) +
+	    sizeof(struct sli4_link_diag)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3013 Received LINK DIAG TEST request "
+				" size:%d below the minimum size:%d\n",
+				job->request_len,
+				(int)(sizeof(struct fc_bsg_request) +
+				sizeof(struct sli4_link_diag)));
+		rc = -EINVAL;
+		goto job_error;
+	}
+
+	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	if (rc)
+		goto job_error;
+
+	link_diag_test_cmd = (struct sli4_link_diag *)
+			 job->request->rqst_data.h_vendor.vendor_cmd;
+	timeout = link_diag_test_cmd->timeout * 100;
+
+	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
+
+	if (rc)
+		goto job_error;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq) {
+		rc = -ENOMEM;
+		goto link_diag_test_exit;
+	}
+
+	req_len = (sizeof(struct lpfc_mbx_set_link_diag_state) -
+		   sizeof(struct lpfc_sli4_cfg_mhdr));
+	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+				     LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_STATE,
+				     req_len, LPFC_SLI4_MBX_EMBED);
+	if (alloc_len != req_len) {
+		rc = -ENOMEM;
+		goto link_diag_test_exit;
+	}
+	run_link_diag_test = &pmboxq->u.mqe.un.link_diag_test;
+	bf_set(lpfc_mbx_run_diag_test_link_num, &run_link_diag_test->u.req,
+	       phba->sli4_hba.link_state.number);
+	bf_set(lpfc_mbx_run_diag_test_link_type, &run_link_diag_test->u.req,
+	       phba->sli4_hba.link_state.type);
+	bf_set(lpfc_mbx_run_diag_test_test_id, &run_link_diag_test->u.req,
+	       link_diag_test_cmd->test_id);
+	bf_set(lpfc_mbx_run_diag_test_loops, &run_link_diag_test->u.req,
+	       link_diag_test_cmd->loops);
+	bf_set(lpfc_mbx_run_diag_test_test_ver, &run_link_diag_test->u.req,
+	       link_diag_test_cmd->test_version);
+	bf_set(lpfc_mbx_run_diag_test_err_act, &run_link_diag_test->u.req,
+	       link_diag_test_cmd->error_action);
+
+	mbxstatus = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || mbxstatus) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"3010 Run link diag test mailbox failed with "
+				"mbx_status x%x status x%x, add_status x%x\n",
+				mbxstatus, shdr_status, shdr_add_status);
+	}
+
+	diag_status_reply = (struct diag_status *)
+			    job->reply->reply_data.vendor_reply.vendor_rsp;
+
+	if (job->reply_len <
+	    sizeof(struct fc_bsg_request) + sizeof(struct diag_status)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3012 Received Run link diag test reply "
+				"below minimum size (%d): reply_len:%d\n",
+				(int)(sizeof(struct fc_bsg_request) +
+				sizeof(struct diag_status)),
+				job->reply_len);
+		rc = -EINVAL;
+		goto job_error;
+	}
+
+	diag_status_reply->mbox_status = mbxstatus;
+	diag_status_reply->shdr_status = shdr_status;
+	diag_status_reply->shdr_add_status = shdr_add_status;
+
+link_diag_test_exit:
+	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 0);
+
+	if (pmboxq)
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+
+	lpfc_bsg_diag_mode_exit(phba);
 
 job_error:
 	/* make error code available to userspace */
@@ -2154,7 +2600,7 @@ err_post_rxbufs_exit:
 }
 
 /**
- * lpfc_bsg_diag_test - with a port in loopback issues a Ct cmd to itself
+ * lpfc_bsg_diag_loopback_run - run loopback on a port by issue ct cmd to itself
  * @job: LPFC_BSG_VENDOR_DIAG_TEST fc_bsg_job
  *
  * This function receives a user data buffer to be transmitted and received on
@@ -2173,7 +2619,7 @@ err_post_rxbufs_exit:
  * of loopback mode.
  **/
 static int
-lpfc_bsg_diag_test(struct fc_bsg_job *job)
+lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)job->shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
@@ -4341,10 +4787,16 @@ lpfc_bsg_hst_vendor(struct fc_bsg_job *job)
 		rc = lpfc_bsg_send_mgmt_rsp(job);
 		break;
 	case LPFC_BSG_VENDOR_DIAG_MODE:
-		rc = lpfc_bsg_diag_mode(job);
+		rc = lpfc_bsg_diag_loopback_mode(job);
 		break;
-	case LPFC_BSG_VENDOR_DIAG_TEST:
-		rc = lpfc_bsg_diag_test(job);
+	case LPFC_BSG_VENDOR_DIAG_MODE_END:
+		rc = lpfc_sli4_bsg_diag_mode_end(job);
+		break;
+	case LPFC_BSG_VENDOR_DIAG_RUN_LOOPBACK:
+		rc = lpfc_bsg_diag_loopback_run(job);
+		break;
+	case LPFC_BSG_VENDOR_LINK_DIAG_TEST:
+		rc = lpfc_sli4_bsg_link_diag_test(job);
 		break;
 	case LPFC_BSG_VENDOR_GET_MGMT_REV:
 		rc = lpfc_bsg_get_dfc_rev(job);
