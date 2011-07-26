@@ -1918,6 +1918,16 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 #endif
 }
 
+static void inc_nr_running(struct rq *rq)
+{
+	rq->nr_running++;
+}
+
+static void dec_nr_running(struct rq *rq)
+{
+	rq->nr_running--;
+}
+
 #include "sched_stats.h"
 #include "sched_idletask.c"
 #include "sched_fair.c"
@@ -1931,15 +1941,6 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 #define for_each_class(class) \
    for (class = sched_class_highest; class; class = class->next)
 
-static void inc_nr_running(struct rq *rq)
-{
-	rq->nr_running++;
-}
-
-static void dec_nr_running(struct rq *rq)
-{
-	rq->nr_running--;
-}
 
 static void set_load_weight(struct task_struct *p)
 {
