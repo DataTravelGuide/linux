@@ -286,6 +286,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	unsigned topidx, idx;
 
+	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
+		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
+		return true;
+	}
+
 	if (unlikely(pfn >= xen_max_p2m_pfn)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
@@ -306,11 +311,6 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
-	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap))) {
-		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
-		return;
-	}
-
 	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
 		alloc_p2m(pfn);
 
