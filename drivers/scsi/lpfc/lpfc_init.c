@@ -7924,6 +7924,10 @@ lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->sgl_pages_max = bf_get(sgl_pages, &mqe->un.sli4_params);
 	sli4_params->sgl_pp_align = bf_get(sgl_pp_align, &mqe->un.sli4_params);
 
+	/* Make sure that sge_supp_len can be handled by the driver */
+	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
+		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
 	return rc;
 }
 
@@ -7993,6 +7997,11 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
+
+	/* Make sure that sge_supp_len can be handled by the driver */
+	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
+		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
 	return 0;
 }
 
