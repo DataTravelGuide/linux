@@ -303,8 +303,9 @@ struct task_group {
 	struct autogroup *autogroup;
 #endif
 #endif
-
+#ifndef __GENKSYMS__
 	struct cfs_bandwidth cfs_bandwidth;
+#endif
 };
 
 #ifdef CONFIG_USER_SCHED
@@ -413,7 +414,10 @@ static inline struct task_group *task_group(struct task_struct *p)
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
 	struct load_weight load;
-	unsigned long nr_running, h_nr_running;
+	unsigned long nr_running;
+#ifndef __GENKSYMS__
+	unsigned long h_nr_running;
+#endif
 
 	u64 exec_clock;
 	u64 min_vruntime;
@@ -491,6 +495,7 @@ struct cfs_rq {
 	unsigned long rq_weight;
 #endif
 #endif
+#ifndef __GENKSYMS__
 #ifdef CONFIG_CFS_BANDWIDTH
 	int runtime_enabled;
 	u64 runtime_expires;
@@ -499,6 +504,7 @@ struct cfs_rq {
 	u64 throttled_timestamp;
 	int throttled, throttle_count;
 	struct list_head throttled_list;
+#endif
 #endif
 #endif
 };
