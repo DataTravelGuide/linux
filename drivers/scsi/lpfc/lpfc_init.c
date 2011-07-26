@@ -4417,6 +4417,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2759 Failed allocate memory for FCF round "
 				"robin failover bmask\n");
+		rc = -ENOMEM;
 		goto out_remove_rpi_hdrs;
 	}
 
@@ -4426,6 +4427,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2572 Failed allocate memory for fast-path "
 				"per-EQ handle array\n");
+		rc = -ENOMEM;
 		goto out_free_fcf_rr_bmask;
 	}
 
@@ -4435,10 +4437,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2573 Failed allocate memory for msi-x "
 				"interrupt vector entries\n");
+		rc = -ENOMEM;
 		goto out_free_fcp_eq_hdl;
 	}
 
-	return rc;
+	return 0;
 
 out_free_fcp_eq_hdl:
 	kfree(phba->sli4_hba.fcp_eq_hdl);
