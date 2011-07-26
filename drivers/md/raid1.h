@@ -58,6 +58,8 @@ struct r1_private_data_s {
 	mempool_t *r1bio_pool;
 	mempool_t *r1buf_pool;
 
+	struct plug_handle      plug;
+
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */

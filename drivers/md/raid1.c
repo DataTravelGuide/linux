@@ -531,6 +531,10 @@ static void unplug_slaves(mddev_t *mddev)
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
 
+			if (!r_queue) {
+				printk("FIXME: No queue on device\n");
+				continue;
+			}
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
 
@@ -543,12 +547,25 @@ static void unplug_slaves(mddev_t *mddev)
 	rcu_read_unlock();
 }
 
-static void raid1_unplug(struct request_queue *q)
+void md_raid1_unplug_device(conf_t *conf)
 {
-	mddev_t *mddev = q->queuedata;
+	mddev_t *mddev = conf->mddev;
 
 	unplug_slaves(mddev);
 	md_wakeup_thread(mddev->thread);
+}
+EXPORT_SYMBOL_GPL(md_raid1_unplug_device);
+
+static void raid1_unplug(struct plug_handle *plug)
+{
+	conf_t *conf = container_of(plug, conf_t, plug);
+	md_raid1_unplug_device(conf);
+}
+
+static void raid1_unplug_queue(struct request_queue *q)
+{
+	mddev_t *mddev = q->queuedata;
+	md_raid1_unplug_device(mddev->private);
 }
 
 int md_raid1_congested(mddev_t *mddev, int bits)
@@ -650,7 +667,7 @@ static void raise_barrier(conf_t *conf)
 	/* Wait until no block IO is waiting */
 	wait_event_lock_irq(conf->wait_barrier, !conf->nr_waiting,
 			    conf->resync_lock,
-			    raid1_unplug(conf->mddev->queue));
+			    md_raid1_unplug_device(conf));
 
 	/* block any new IO from starting */
 	conf->barrier++;
@@ -659,7 +676,7 @@ static void raise_barrier(conf_t *conf)
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock,
-			    raid1_unplug(conf->mddev->queue));
+			    md_raid1_unplug_device(conf));
 
 	spin_unlock_irq(&conf->resync_lock);
 }
@@ -681,7 +698,7 @@ static void wait_barrier(conf_t *conf)
 		conf->nr_waiting++;
 		wait_event_lock_irq(conf->wait_barrier, !conf->barrier,
 				    conf->resync_lock,
-				    raid1_unplug(conf->mddev->queue));
+				    md_raid1_unplug_device(conf));
 		conf->nr_waiting--;
 	}
 	conf->nr_pending++;
@@ -718,7 +735,7 @@ static void freeze_array(conf_t *conf)
 			    conf->nr_pending == conf->nr_queued+1,
 			    conf->resync_lock,
 			    ({ flush_pending_writes(conf);
-			       raid1_unplug(conf->mddev->queue); }));
+			       md_raid1_unplug_device(conf); }));
 	spin_unlock_irq(&conf->resync_lock);
 }
 static void unfreeze_array(conf_t *conf)
@@ -2074,8 +2091,10 @@ static int run(mddev_t *mddev)
 
 	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
+	plugger_init(&conf->plug, raid1_unplug);
+	mddev->plug = &conf->plug;
 	if (mddev->queue) {
-		mddev->queue->unplug_fn = raid1_unplug;
+		mddev->queue->unplug_fn = raid1_unplug_queue;
 		mddev->queue->backing_dev_info.congested_fn = raid1_congested;
 		mddev->queue->backing_dev_info.congested_data = mddev;
 	}
@@ -2101,7 +2120,7 @@ static int stop(mddev_t *mddev)
 
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
+	plugger_flush(&conf->plug);
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);
