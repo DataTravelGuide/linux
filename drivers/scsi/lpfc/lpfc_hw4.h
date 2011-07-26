@@ -831,6 +831,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT	0x9B
 #define LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT	0x9C
 #define LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT	0x9D
+#define LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG	0xA4
 #define LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS	0xB5
 
 /* FCoE Opcodes */
@@ -2391,6 +2392,66 @@ struct lpfc_mbx_get_sli4_parameters {
 	struct lpfc_sli4_parameters sli4_parameters;
 };
 
+struct lpfc_rscr_desc_generic {
+#define LPFC_RSRC_DESC_WSIZE			18
+	uint32_t desc[LPFC_RSRC_DESC_WSIZE];
+};
+
+struct lpfc_rsrc_desc_pcie {
+	uint32_t word0;
+#define lpfc_rsrc_desc_pcie_type_SHIFT		0
+#define lpfc_rsrc_desc_pcie_type_MASK		0x000000ff
+#define lpfc_rsrc_desc_pcie_type_WORD		word0
+#define LPFC_RSRC_DESC_TYPE_PCIE		0x40
+	uint32_t word1;
+#define lpfc_rsrc_desc_pcie_pfnum_SHIFT		0
+#define lpfc_rsrc_desc_pcie_pfnum_MASK		0x000000ff
+#define lpfc_rsrc_desc_pcie_pfnum_WORD		word1
+	uint32_t reserved;
+	uint32_t word3;
+#define lpfc_rsrc_desc_pcie_sriov_sta_SHIFT	0
+#define lpfc_rsrc_desc_pcie_sriov_sta_MASK	0x000000ff
+#define lpfc_rsrc_desc_pcie_sriov_sta_WORD	word3
+#define lpfc_rsrc_desc_pcie_pf_sta_SHIFT	8
+#define lpfc_rsrc_desc_pcie_pf_sta_MASK		0x000000ff
+#define lpfc_rsrc_desc_pcie_pf_sta_WORD		word3
+#define lpfc_rsrc_desc_pcie_pf_type_SHIFT	16
+#define lpfc_rsrc_desc_pcie_pf_type_MASK	0x000000ff
+#define lpfc_rsrc_desc_pcie_pf_type_WORD	word3
+	uint32_t word4;
+#define lpfc_rsrc_desc_pcie_nr_virtfn_SHIFT	0
+#define lpfc_rsrc_desc_pcie_nr_virtfn_MASK	0x0000ffff
+#define lpfc_rsrc_desc_pcie_nr_virtfn_WORD	word4
+
+};
+
+struct lpfc_prof_cfg {
+#define LPFC_RSRC_DESC_MAX_NUM			2
+	uint32_t rsrc_desc_count;
+	struct lpfc_rscr_desc_generic desc[LPFC_RSRC_DESC_MAX_NUM];
+};
+
+struct lpfc_mbx_get_prof_cfg {
+	struct mbox_header header;
+#define LPFC_CFG_TYPE_PERSISTENT_OVERRIDE	0x0
+#define LPFC_CFG_TYPE_FACTURY_DEFAULT		0x1
+#define LPFC_CFG_TYPE_CURRENT_ACTIVE		0x2
+	union {
+		struct {
+			uint32_t word10;
+#define lpfc_mbx_get_prof_cfg_prof_id_SHIFT	0
+#define lpfc_mbx_get_prof_cfg_prof_id_MASK	0x000000ff
+#define lpfc_mbx_get_prof_cfg_prof_id_WORD	word10
+#define lpfc_mbx_get_prof_cfg_prof_tp_SHIFT	8
+#define lpfc_mbx_get_prof_cfg_prof_tp_MASK	0x00000003
+#define lpfc_mbx_get_prof_cfg_prof_tp_WORD	word10
+		} request;
+		struct {
+			struct lpfc_prof_cfg prof_cfg;
+		} response;
+	} u;
+};
+
 /* Mailbox Completion Queue Error Messages */
 #define MB_CQE_STATUS_SUCCESS 			0x0
 #define MB_CQE_STATUS_INSUFFICIENT_PRIVILEGES	0x1
@@ -2451,6 +2512,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_set_link_diag_state link_diag_state;
 		struct lpfc_mbx_set_link_diag_loopback link_diag_loopback;
 		struct lpfc_mbx_run_link_diag_test link_diag_test;
+		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_nop nop;
 	} un;
 };

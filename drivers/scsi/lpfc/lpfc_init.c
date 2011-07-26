@@ -4025,6 +4025,36 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli_probe_sriov_nr_virtfn - Enable a number of sr-iov virtual functions
+ * @phba: pointer to lpfc hba data structure.
+ * @nr_vfn: number of virtual functions to be enabled.
+ *
+ * This function enables the PCI SR-IOV virtual functions to a physical
+ * function. It invokes the PCI SR-IOV api with the @nr_vfn provided to
+ * enable the number of virtual functions to the physical function. As
+ * not all devices support SR-IOV, the return code from the pci_enable_sriov()
+ * API call does not considered as an error condition for most of the device.
+ **/
+int
+lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *phba, int nr_vfn)
+{
+	struct pci_dev *pdev = phba->pcidev;
+	int rc;
+
+	rc = pci_enable_sriov(pdev, nr_vfn);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"2806 Failed to enable sriov on this device "
+				"with vfn number nr_vf:%d, rc:%d\n",
+				nr_vfn, rc);
+	} else
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"2807 Successful enable sriov on this device "
+				"with vfn number nr_vf:%d\n", nr_vfn);
+	return rc;
+}
+
+/**
  * lpfc_sli_driver_resource_setup - Setup driver internal resources for SLI3 dev.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -4039,6 +4069,7 @@ static int
 lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli;
+	int rc;
 
 	/*
 	 * Initialize timers used by driver
@@ -4112,6 +4143,23 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	/* Allocate device driver memory */
 	if (lpfc_mem_alloc(phba, BPL_ALIGN_SZ))
 		return -ENOMEM;
+
+	/*
+	 * Enable sr-iov virtual functions if supported and configured
+	 * through the module parameter.
+	 */
+	if (phba->cfg_sriov_nr_virtfn > 0) {
+		rc = lpfc_sli_probe_sriov_nr_virtfn(phba,
+						 phba->cfg_sriov_nr_virtfn);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"2808 Requested number of SR-IOV "
+					"virtual functions (%d) is not "
+					"supported\n",
+					phba->cfg_sriov_nr_virtfn);
+			phba->cfg_sriov_nr_virtfn = 0;
+		}
+	}
 
 	return 0;
 }
@@ -4439,6 +4487,23 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 				"interrupt vector entries\n");
 		rc = -ENOMEM;
 		goto out_free_fcp_eq_hdl;
+	}
+
+	/*
+	 * Enable sr-iov virtual functions if supported and configured
+	 * through the module parameter.
+	 */
+	if (phba->cfg_sriov_nr_virtfn > 0) {
+		rc = lpfc_sli_probe_sriov_nr_virtfn(phba,
+						 phba->cfg_sriov_nr_virtfn);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"3020 Requested number of SR-IOV "
+					"virtual functions (%d) is not "
+					"supported\n",
+					phba->cfg_sriov_nr_virtfn);
+			phba->cfg_sriov_nr_virtfn = 0;
+		}
 	}
 
 	return 0;
@@ -7845,6 +7910,7 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 {
 	int wait_cnt = 0;
 	LPFC_MBOXQ_t *mboxq;
+	struct pci_dev *pdev = phba->pcidev;
 
 	lpfc_stop_hba_timers(phba);
 	phba->sli4_hba.intr_enable = 0;
@@ -7883,6 +7949,10 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 
 	/* Disable PCI subsystem interrupt */
 	lpfc_sli4_disable_intr(phba);
+
+	/* Disable SR-IOV if enabled */
+	if (phba->cfg_sriov_nr_virtfn)
+		pci_disable_sriov(pdev);
 
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
@@ -8271,6 +8341,10 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_debugfs_terminate(vport);
+
+	/* Disable SR-IOV if enabled */
+	if (phba->cfg_sriov_nr_virtfn)
+		pci_disable_sriov(pdev);
 
 	/* Disable interrupt */
 	lpfc_sli_disable_intr(phba);

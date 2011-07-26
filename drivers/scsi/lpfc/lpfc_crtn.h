@@ -444,3 +444,6 @@ void lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *, enum nemb_type,
 	enum mbox_type, enum dma_type, enum sta_type,
 	struct lpfc_dmabuf *, uint32_t);
 void lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *, MAILBOX_t *);
+/* functions to support SR-IOV */
+int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);
+
