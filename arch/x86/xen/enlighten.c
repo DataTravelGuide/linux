@@ -774,7 +774,6 @@ static void set_xen_basic_apic_ops(void)
 
 #endif
 
-
 static void xen_clts(void)
 {
 	struct multicall_space mcs;
