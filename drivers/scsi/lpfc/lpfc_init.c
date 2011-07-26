@@ -6972,6 +6972,8 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			if (rdy_chk < 1000)
 				break;
 		}
+		/* delay driver action following IF_TYPE_2 function reset */
+		msleep(100);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
