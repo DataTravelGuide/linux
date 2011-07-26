@@ -162,6 +162,7 @@ DEFINE_PER_CPU(unsigned long, xen_current_cr3);	 /* actual vcpu cr3 */
  */
 #define USER_LIMIT	((STACK_TOP_MAX + PGDIR_SIZE - 1) & PGDIR_MASK)
 
+unsigned long xen_max_p2m_pfn __read_mostly = MAX_DOMAIN_PAGES;
 
 #define P2M_ENTRIES_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long))
 #define TOP_ENTRIES		(MAX_DOMAIN_PAGES / P2M_ENTRIES_PER_PAGE)
@@ -214,7 +215,7 @@ void xen_setup_mfn_list_list(void)
 
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 		virt_to_mfn(p2m_top_mfn_list);
-	HYPERVISOR_shared_info->arch.max_pfn = xen_start_info->nr_pages;
+	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
 }
 
 /* Set up p2m_top to point to the domain-builder provided p2m pages */
@@ -223,6 +224,8 @@ void __init xen_build_dynamic_phys_to_machine(void)
 	unsigned long *mfn_list = (unsigned long *)xen_start_info->mfn_list;
 	unsigned long max_pfn = min(MAX_DOMAIN_PAGES, xen_start_info->nr_pages);
 	unsigned pfn;
+
+	xen_max_p2m_pfn = max_pfn;
 
 	for (pfn = 0; pfn < max_pfn; pfn += P2M_ENTRIES_PER_PAGE) {
 		unsigned topidx = p2m_top_index(pfn);
@@ -237,7 +240,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 {
 	unsigned topidx, idx;
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES))
+	if (unlikely(pfn >= xen_max_p2m_pfn))
 		return INVALID_P2M_ENTRY;
 
 	topidx = p2m_top_index(pfn);
@@ -283,7 +286,7 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	unsigned topidx, idx;
 
-	if (unlikely(pfn >= MAX_DOMAIN_PAGES)) {
+	if (unlikely(pfn >= xen_max_p2m_pfn)) {
 		BUG_ON(mfn != INVALID_P2M_ENTRY);
 		return true;
 	}
