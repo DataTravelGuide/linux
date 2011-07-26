@@ -2104,6 +2104,15 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 		dev_dbg (dev, "hcd alloc failed\n");
 		return NULL;
 	}
+	hcd->bandwidth_mutex = kmalloc(sizeof(*hcd->bandwidth_mutex),
+			GFP_KERNEL);
+	if (!hcd->bandwidth_mutex) {
+		kfree(hcd);
+		dev_dbg(dev, "hcd bandwidth mutex alloc failed\n");
+		return NULL;
+	}
+	mutex_init(hcd->bandwidth_mutex);
+
 	dev_set_drvdata(dev, hcd);
 	kref_init(&hcd->kref);
 
@@ -2118,7 +2127,6 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 #ifdef CONFIG_PM
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif
-	mutex_init(&hcd->bandwidth_mutex);
 
 	hcd->driver = driver;
 	hcd->product_desc = (driver->product_desc) ? driver->product_desc :
@@ -2131,6 +2139,7 @@ static void hcd_release (struct kref *kref)
 {
 	struct usb_hcd *hcd = container_of (kref, struct usb_hcd, kref);
 
+	kfree(hcd->bandwidth_mutex);
 	kfree(hcd);
 }
 
