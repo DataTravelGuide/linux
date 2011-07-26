@@ -97,11 +97,15 @@ void xhci_quiesce(struct xhci_hcd *xhci)
  */
 int xhci_halt(struct xhci_hcd *xhci)
 {
+	int ret;
 	xhci_dbg(xhci, "// Halt the HC\n");
 	xhci_quiesce(xhci);
 
-	return handshake(xhci, &xhci->op_regs->status,
+	ret = handshake(xhci, &xhci->op_regs->status,
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
+	if (!ret)
+		xhci->xhc_state |= XHCI_STATE_HALTED;
+	return ret;
 }
 
 /*
@@ -128,6 +132,8 @@ static int xhci_start(struct xhci_hcd *xhci)
 		xhci_err(xhci, "Host took too long to start, "
 				"waited %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
+	if (!ret)
+		xhci->xhc_state &= ~XHCI_STATE_HALTED;
 	return ret;
 }
 
@@ -1211,7 +1217,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (ret || !urb->hcpriv)
 		goto done;
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
-	if (temp == 0xffffffff) {
+	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "HW died, freeing TD.\n");
 		urb_priv = urb->hcpriv;
 
