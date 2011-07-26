@@ -1441,6 +1441,10 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG,
 			 length, LPFC_SLI4_MBX_EMBED);
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	bf_set(lpfc_mbox_hdr_pf_num, &shdr->request,
+	       phba->sli4_hba.iov.pf_number + 1);
 
 	get_prof_cfg = &mboxq->u.mqe.un.get_prof_cfg;
 	bf_set(lpfc_mbx_get_prof_cfg_prof_tp, &get_prof_cfg->u.request,
@@ -1451,8 +1455,6 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 
 	if (rc != MBX_TIMEOUT) {
 		/* check return status */
-		shdr = (union lpfc_sli4_cfg_shdr *)
-			&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
 		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
 					 &shdr->response);

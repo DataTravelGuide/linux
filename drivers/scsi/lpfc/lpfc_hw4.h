@@ -850,6 +850,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_GET_ALLOC_RSRC_EXTENT	0x9B
 #define LPFC_MBOX_OPCODE_ALLOC_RSRC_EXTENT	0x9C
 #define LPFC_MBOX_OPCODE_DEALLOC_RSRC_EXTENT	0x9D
+#define LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG    0xA0
 #define LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG	0xA4
 #define LPFC_MBOX_OPCODE_WRITE_OBJECT		0xAC
 #define LPFC_MBOX_OPCODE_GET_SLI4_PARAMETERS	0xB5
@@ -2442,7 +2443,86 @@ struct lpfc_rsrc_desc_pcie {
 #define lpfc_rsrc_desc_pcie_nr_virtfn_SHIFT	0
 #define lpfc_rsrc_desc_pcie_nr_virtfn_MASK	0x0000ffff
 #define lpfc_rsrc_desc_pcie_nr_virtfn_WORD	word4
+};
 
+struct lpfc_rsrc_desc_fcfcoe {
+	uint32_t word0;
+#define lpfc_rsrc_desc_fcfcoe_type_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_type_MASK		0x000000ff
+#define lpfc_rsrc_desc_fcfcoe_type_WORD		word0
+#define LPFC_RSRC_DESC_TYPE_FCFCOE		0x43
+	uint32_t word1;
+#define lpfc_rsrc_desc_fcfcoe_vfnum_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_vfnum_MASK	0x000000ff
+#define lpfc_rsrc_desc_fcfcoe_vfnum_WORD	word1
+#define lpfc_rsrc_desc_fcfcoe_pfnum_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_pfnum_MASK        0x000007ff
+#define lpfc_rsrc_desc_fcfcoe_pfnum_WORD        word1
+	uint32_t word2;
+#define lpfc_rsrc_desc_fcfcoe_rpi_cnt_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_rpi_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_rpi_cnt_WORD	word2
+#define lpfc_rsrc_desc_fcfcoe_xri_cnt_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_xri_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_xri_cnt_WORD	word2
+	uint32_t word3;
+#define lpfc_rsrc_desc_fcfcoe_wq_cnt_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_wq_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_wq_cnt_WORD	word3
+#define lpfc_rsrc_desc_fcfcoe_rq_cnt_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_rq_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_rq_cnt_WORD	word3
+	uint32_t word4;
+#define lpfc_rsrc_desc_fcfcoe_cq_cnt_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_cq_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_cq_cnt_WORD	word4
+#define lpfc_rsrc_desc_fcfcoe_vpi_cnt_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_vpi_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_vpi_cnt_WORD	word4
+	uint32_t word5;
+#define lpfc_rsrc_desc_fcfcoe_fcfi_cnt_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_fcfi_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_fcfi_cnt_WORD	word5
+#define lpfc_rsrc_desc_fcfcoe_vfi_cnt_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_vfi_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_vfi_cnt_WORD	word5
+	uint32_t word6;
+	uint32_t word7;
+	uint32_t word8;
+	uint32_t word9;
+	uint32_t word10;
+	uint32_t word11;
+	uint32_t word12;
+	uint32_t word13;
+#define lpfc_rsrc_desc_fcfcoe_lnk_nr_SHIFT	0
+#define lpfc_rsrc_desc_fcfcoe_lnk_nr_MASK	0x0000003f
+#define lpfc_rsrc_desc_fcfcoe_lnk_nr_WORD	word13
+#define lpfc_rsrc_desc_fcfcoe_lnk_tp_SHIFT      6
+#define lpfc_rsrc_desc_fcfcoe_lnk_tp_MASK	0x00000003
+#define lpfc_rsrc_desc_fcfcoe_lnk_tp_WORD	word13
+#define lpfc_rsrc_desc_fcfcoe_lmc_SHIFT		8
+#define lpfc_rsrc_desc_fcfcoe_lmc_MASK		0x00000001
+#define lpfc_rsrc_desc_fcfcoe_lmc_WORD		word13
+#define lpfc_rsrc_desc_fcfcoe_lld_SHIFT		9
+#define lpfc_rsrc_desc_fcfcoe_lld_MASK		0x00000001
+#define lpfc_rsrc_desc_fcfcoe_lld_WORD		word13
+#define lpfc_rsrc_desc_fcfcoe_eq_cnt_SHIFT	16
+#define lpfc_rsrc_desc_fcfcoe_eq_cnt_MASK	0x0000ffff
+#define lpfc_rsrc_desc_fcfcoe_eq_cnt_WORD	word13
+};
+
+struct lpfc_func_cfg {
+#define LPFC_RSRC_DESC_MAX_NUM			2
+	uint32_t rsrc_desc_count;
+	struct lpfc_rscr_desc_generic desc[LPFC_RSRC_DESC_MAX_NUM];
+};
+
+struct lpfc_mbx_get_func_cfg {
+	struct mbox_header header;
+#define LPFC_CFG_TYPE_PERSISTENT_OVERRIDE	0x0
+#define LPFC_CFG_TYPE_FACTURY_DEFAULT		0x1
+#define LPFC_CFG_TYPE_CURRENT_ACTIVE		0x2
+	struct lpfc_func_cfg func_cfg;
 };
 
 struct lpfc_prof_cfg {
@@ -2555,6 +2635,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_set_link_diag_state link_diag_state;
 		struct lpfc_mbx_set_link_diag_loopback link_diag_loopback;
 		struct lpfc_mbx_run_link_diag_test link_diag_test;
+		struct lpfc_mbx_get_func_cfg get_func_cfg;
 		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_nop nop;
 		struct lpfc_mbx_wr_object wr_object;

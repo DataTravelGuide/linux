@@ -5871,7 +5871,12 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmb;
 	struct lpfc_mbx_read_config *rd_config;
-	uint32_t rc = 0;
+	union  lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	struct lpfc_mbx_get_func_cfg *get_func_cfg;
+	struct lpfc_rsrc_desc_fcfcoe *desc;
+	uint32_t desc_count;
+	int length, i, rc = 0;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -5947,7 +5952,9 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_rpi,
 				phba->sli4_hba.max_cfg_param.max_fcfi);
 	}
-	mempool_free(pmb, phba->mbox_mem_pool);
+
+	if (rc)
+		goto read_cfg_out;
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
 	if (phba->cfg_hba_queue_depth >
@@ -5956,6 +5963,65 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->cfg_hba_queue_depth =
 			phba->sli4_hba.max_cfg_param.max_xri -
 				lpfc_sli4_get_els_iocb_cnt(phba);
+
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_2)
+		goto read_cfg_out;
+
+	/* get the pf# and vf# for SLI4 if_type 2 port */
+	length = (sizeof(struct lpfc_mbx_get_func_cfg) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, pmb, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+	shdr = (union lpfc_sli4_cfg_shdr *)
+				&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (rc || shdr_status || shdr_add_status) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3026 Mailbox failed , mbxCmd x%x "
+				"GET_FUNCTION_CONFIG, mbxStatus x%x\n",
+				bf_get(lpfc_mqe_command, &pmb->u.mqe),
+				bf_get(lpfc_mqe_status, &pmb->u.mqe));
+		rc = -EIO;
+		goto read_cfg_out;
+	}
+
+	/* search for fc_fcoe resrouce descriptor */
+	get_func_cfg = &pmb->u.mqe.un.get_func_cfg;
+	desc_count = get_func_cfg->func_cfg.rsrc_desc_count;
+
+	for (i = 0; i < LPFC_RSRC_DESC_MAX_NUM; i++) {
+		desc = (struct lpfc_rsrc_desc_fcfcoe *)
+			&get_func_cfg->func_cfg.desc[i];
+		if (LPFC_RSRC_DESC_TYPE_FCFCOE ==
+		    bf_get(lpfc_rsrc_desc_pcie_type, desc)) {
+			phba->sli4_hba.iov.pf_number =
+				bf_get(lpfc_rsrc_desc_fcfcoe_pfnum, desc);
+			phba->sli4_hba.iov.vf_number =
+				bf_get(lpfc_rsrc_desc_fcfcoe_vfnum, desc);
+			break;
+		}
+	}
+
+	if (i < LPFC_RSRC_DESC_MAX_NUM)
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"3027 GET_FUNCTION_CONFIG: pf_number:%d, "
+				"vf_number:%d\n", phba->sli4_hba.iov.pf_number,
+				phba->sli4_hba.iov.vf_number);
+	else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3028 GET_FUNCTION_CONFIG: failed to find "
+				"Resrouce Descriptor:x%x\n",
+				LPFC_RSRC_DESC_TYPE_FCFCOE);
+		rc = -EIO;
+	}
+
+read_cfg_out:
+	mempool_free(pmb, phba->mbox_mem_pool);
 	return rc;
 }
 
