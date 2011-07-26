@@ -98,6 +98,9 @@ struct usb_hcd {
 #define HCD_FLAG_RH_POLLABLE	3
 #define HCD_FLAG_POLL_RH		4	/* poll for rh status? */
 #define HCD_FLAG_POLL_PENDING		5	/* status has changed? */
+#define HCD_FLAG_WAKEUP_PENDING		6	/* root hub is resuming? */
+#define HCD_FLAG_RH_RUNNING		7	/* root hub is running? */
+#define HCD_FLAG_DEAD			8	/* controller has died? */
 
 	/* The flags can be tested using these macros; they are likely to
 	 * be slightly faster than test_bit().
@@ -107,6 +110,9 @@ struct usb_hcd {
 #define HCD_RH_POLLABLE(hcd)	((hcd)->flags & (1U << HCD_FLAG_RH_POLLABLE))
 #define HCD_POLL_RH(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_RH))
 #define HCD_POLL_PENDING(hcd)	((hcd)->flags & (1U << HCD_FLAG_POLL_PENDING))
+#define HCD_WAKEUP_PENDING(hcd)	((hcd)->flags & (1U << HCD_FLAG_WAKEUP_PENDING))
+#define HCD_RH_RUNNING(hcd)	((hcd)->flags & (1U << HCD_FLAG_RH_RUNNING))
+#define HCD_DEAD(hcd)		((hcd)->flags & (1U << HCD_FLAG_DEAD))
 
 	/* Flags that get set only during HCD registration or removal. */
 	unsigned		rh_registered:1;/* is root hub registered? */
