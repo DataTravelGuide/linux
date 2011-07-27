@@ -1617,6 +1617,40 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 26 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-172.el6]
+- [netdrv] be2net: remove certain cmd failure logging (Ivan Vecera) [719304]
+- [netdrv] enic driver update (Stefan Assmann) [695882]
+- [net] nl80211: missing check for valid SSID size in scan operation (Stanislaw Gruszka) [718158] {CVE-2011-2517}
+- [net] bluetooth: l2cap and rfcomm: fix 1 byte infoleak to userspace. (Thomas Graf) [703023] {CVE-2011-2492}
+- [net] inet_diag: fix validation of user data in inet_diag_bc_audit() (Thomas Graf) [714541] {CVE-2011-2213}
+- [fs] proc: restrict access to /proc/PID/io (Oleg Nesterov) [716830] {CVE-2011-2495}
+- [fs] validate size of EFI GUID partition entries (Anton Arapov) [703030] {CVE-2011-1776}
+- [fs] GFS2: Print warning rather than calling assert during direct I/O page invalidation race (Steven Whitehouse) [697019]
+- [fs] ext4: Fix max file size and logical block counting of extent format file (Lukas Czerner) [722569] {CVE-2011-2695}
+- [netdrv] e1000: remove unnecessary code (Dean Nelson) [694233]
+- [netdrv] e1000: Add appropriate <linux/prefetch.h> include for prefetch users (Dean Nelson) [694233]
+- [netdrv] e1000: more robust ethtool duplex/speed configuration (Dean Nelson) [694233]
+- [netdrv] e1000: ethtool: cosmetic: Use ethtool ethtool_cmd_speed API (Dean Nelson) [694233]
+- [netdrv] e1000: ethtool: Use full 32 bit speed range in ethtool's set_settings (Dean Nelson) [694233]
+- [netdrv] e1000: fix sparse warning (Dean Nelson) [694233]
+- [netdrv] e1000: add support for Marvell Alaska M88E1118R PHY (Dean Nelson) [694233]
+- [netdrv] e1000: drivers/net: avoid some skb->ip_summed initializations (Dean Nelson) [694233]
+- [fs] SUNRPC: Fix use of static variable in rpcb_getport_async (Steve Dickson) [723650]
+- [fs] NFSv4.1: update nfs4_fattr_bitmap_maxsz (Steve Dickson) [723650]
+- [fs] SUNRPC: Fix a race between work-queue and rpc_killall_tasks (Steve Dickson) [723650]
+- [fs] SUNRPC: Ensure we always run the tk_callback before tk_action (Steve Dickson) [723650]
+- [netdrv] e100: net: remove interrupt.h inclusion from netdevice.h (Dean Nelson) [694236]
+- [netdrv] e100: fix build warning (Dean Nelson) [694236]
+- [netdrv] e100: ethtool: Use full 32 bit speed range in ethtool's set_settings (Dean Nelson) [694236]
+- [netdrv] e100: ethtool: cosmetic: Use ethtool ethtool_cmd_speed API (Dean Nelson) [694236]
+- [netdrv] e100: ethtool: Call ethtool's get/set_settings callbacks with cleaned data (Dean Nelson) [694236]
+- [netdrv] bna: Separate handling of irq type flags variable from the irq_flags request_irq variable (Ivan Vecera) [717011]
+- [netdrv] Fix call trace when interrupts are disabled while sleeping function kzalloc is called (Ivan Vecera) [717011]
+- [netdrv] Additional tg3 bug fixes (John Feeney) [695996 696004 696068 698308 705492 716693]
+- [netdrv] Update tg3 to version 3.119 (John Feeney) [695996 696004 696068 698308 705492 716693]
+- [netdrv] Update tg3 to version 3.118 (John Feeney) [695996 696004 696068 698308 705492 716693]
+- [netdrv] Update tg3 to version 3.117 (John Feeney) [695996 696004 696068 698308 705492 716693]
+
 * Thu Jul 21 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-171.el6]
 - [virt] kvm: Disable device assignment without interrupt remapping (Alex Williamson) [711504] {CVE-2011-1898}
 - [virt] iommu-api: Extension to check for interrupt remapping (Alex Williamson) [711504] {CVE-2011-1898}
