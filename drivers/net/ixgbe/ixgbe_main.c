@@ -3713,7 +3713,7 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 		for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 			u8 msb = 0;
-			u8 cnt = adapter->netdev->tc_to_txq[i].count;
+			u8 cnt = netdev_extended(adapter->netdev)->qos_data.tc_to_txq[i].count;
 
 			while (cnt >>= 1)
 				msb++;
@@ -4462,8 +4462,8 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 					&adapter->ring_feature[RING_F_FCOE];
 
 		tc = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
-		f->indices = dev->tc_to_txq[tc].count;
-		f->mask = dev->tc_to_txq[tc].offset;
+		f->indices = netdev_extended(dev)->qos_data.tc_to_txq[tc].count;
+		f->mask = netdev_extended(dev)->qos_data.tc_to_txq[tc].offset;
 	}
 #endif
 
@@ -4678,7 +4678,7 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 
 	for (i = 0, k = 0; i < num_tcs; i++) {
 		unsigned int tx_s, rx_s;
-		u16 count = dev->tc_to_txq[i].count;
+		u16 count = netdev_extended(dev)->qos_data.tc_to_txq[i].count;
 
 		ixgbe_get_first_reg_idx(adapter, i, &tx_s, &rx_s);
 		for (j = 0; j < count; j++, k++) {

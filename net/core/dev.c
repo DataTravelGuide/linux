@@ -1472,14 +1472,15 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 void netif_setup_tc(struct net_device *dev, unsigned int txq)
 {
 	int i;
-	struct netdev_tc_txq *tc = &dev->tc_to_txq[0];
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
+	struct netdev_tc_txq *tc = &qos->tc_to_txq[0];
 
 	/* If TC0 is invalidated disable TC mapping */
 	if (tc->offset + tc->count > txq) {
 		pr_warning("Number of in use tx queues changed "
 			   "invalidating tc mappings. Priority "
 			   "traffic classification disabled!\n");
-		dev->num_tc = 0;
+		qos->num_tc = 0;
 		return;
 	}
 
@@ -1487,7 +1488,7 @@ void netif_setup_tc(struct net_device *dev, unsigned int txq)
 	for (i = 1; i < TC_BITMASK + 1; i++) {
 		int q = netdev_get_prio_tc_map(dev, i);
 
-		tc = &dev->tc_to_txq[q];
+		tc = &qos->tc_to_txq[q];
 		if (tc->offset + tc->count > txq) {
 			pr_warning("Number of in use tx queues "
 				   "changed. Priority %i to tc "
@@ -1516,7 +1517,7 @@ void netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 
 		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
 						  txq);
-		if (dev->num_tc)
+		if (netdev_extended(dev)->qos_data.num_tc)
 			netif_setup_tc(dev, txq);
 
 		if (txq < dev->real_num_tx_queues)
@@ -1898,6 +1899,7 @@ static u32 hashrnd __read_mostly;
 u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		  unsigned int num_tx_queues)
 {
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
 	u32 hash;
 	u16 qoffset = 0;
 	u16 qcount = num_tx_queues;
@@ -1909,10 +1911,10 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		return hash;
 	}
 
-	if (dev->num_tc) {
+	if (qos->num_tc) {
 		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
-		qoffset = dev->tc_to_txq[tc].offset;
-		qcount = dev->tc_to_txq[tc].count;
+		qoffset = qos->tc_to_txq[tc].offset;
+		qcount = qos->tc_to_txq[tc].count;
 	}
 
 	if (skb->sk && skb->sk->sk_hash)
@@ -2222,6 +2224,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	struct rps_map *map;
 	struct rps_dev_flow_table *flow_table;
 	struct rps_sock_flow_table *sock_flow_table;
+	struct netdev_rps_info *rpinfo = &netdev_extended(dev)->rps_data;
 	int cpu = -1;
 	int tcpu;
 	u8 ip_proto;
@@ -2231,15 +2234,15 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
-		if (unlikely(index >= dev->num_rx_queues)) {
-			WARN_ONCE(dev->num_rx_queues > 1, "%s received packet "
+		if (unlikely(index >= rpinfo->num_rx_queues)) {
+			WARN_ONCE(rpinfo->num_rx_queues > 1, "%s received packet "
 				"on queue %u, but number of RX queues is %u\n",
-				dev->name, index, dev->num_rx_queues);
+				dev->name, index, rpinfo->num_rx_queues);
 			goto done;
 		}
-		rxqueue = dev->_rx + index;
+		rxqueue = rpinfo->_rx + index;
 	} else
-		rxqueue = dev->_rx;
+		rxqueue = rpinfo->_rx;
 
 	if (!rxqueue->rps_map && !rxqueue->rps_flow_table)
 		goto done;
@@ -5290,7 +5293,7 @@ EXPORT_SYMBOL(netdev_fix_features);
 
 static int netif_alloc_rx_queues(struct net_device *dev)
 {
-	unsigned int i, count = dev->num_rx_queues;
+	unsigned int i, count = netdev_extended(dev)->rps_data.num_rx_queues;
 	struct netdev_rx_queue *rx;
 
 	BUG_ON(count < 1);
@@ -5300,7 +5303,7 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 		pr_err("netdev: Unable to allocate %u rx queues.\n", count);
 		return -ENOMEM;
 	}
-	dev->_rx = rx;
+	netdev_extended(dev)->rps_data._rx = rx;
 
 	for (i = 0; i < count; i++)
 		rx[i].dev = dev;
@@ -5346,12 +5349,12 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
-	if (!dev->num_rx_queues) {
+	if (!netdev_extended(dev)->rps_data.num_rx_queues) {
 		/*
 		 * Allocate a single RX queue if driver never called
 		 * alloc_netdev_mq
 		 */
-		dev->num_rx_queues = 1;
+		netdev_extended(dev)->rps_data.num_rx_queues = 1;
 		ret = netif_alloc_rx_queues(dev);
 		if (ret)
 			goto out;
@@ -5774,7 +5777,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev_ext_frozen->dev_ext = (struct net_device_extended *)
 				  ((char *) dev + NET_DEVICE_SIZE + sizeof_priv);
 
-	dev->num_rx_queues = queue_count;
+	netdev_extended(dev)->rps_data.num_rx_queues = queue_count;
 	if (netif_alloc_rx_queues(dev)) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "rx queues.\n");
@@ -5805,7 +5808,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	return dev;
 
 free_rx:
-	kfree(dev->_rx);
+	kfree(netdev_extended(dev)->rps_data._rx);
 free_tx_ext:
 	kfree(tx_ext);
 free_tx:
@@ -5832,7 +5835,7 @@ void free_netdev(struct net_device *dev)
 
 	kfree(netdev_extended(dev)->_tx_ext);
 	kfree(dev->_tx);
-	kfree(dev->_rx);
+	kfree(netdev_extended(dev)->rps_data._rx);
 
 	/* Flush device addresses */
 	dev_addr_flush(dev);

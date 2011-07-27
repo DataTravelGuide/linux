@@ -1085,18 +1085,6 @@ struct net_device
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
-#ifndef __GENKSYMS__
-	struct kset             *queues_kset;
-
-	struct netdev_rx_queue  *_rx;
-
-	/* Number of RX queues allocated at alloc_netdev_mq() time  */
-	unsigned int            num_rx_queues;
-
-	u8 num_tc;
-	struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
-	u8 prio_tc_map[TC_BITMASK + 1];
-#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1126,10 +1114,25 @@ struct netdev_tx_queue_extended {
 	struct kobject		kobj;
 };
 
+struct netdev_rps_info {
+	struct kset	*queues_kset;
+	struct netdev_rx_queue	*_rx;
+	/* Number of RX queues allocated at alloc_netdev_mq() time  */
+	unsigned int	num_rx_queues;
+};
+
+struct netdev_qos_info {
+	u8 num_tc;
+	struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
+	u8 prio_tc_map[TC_BITMASK + 1];
+};
+
 /* Only append, do not change existing! */
 struct net_device_extended {
 	struct xps_dev_maps			*xps_maps;
 	struct netdev_tx_queue_extended		*_tx_ext;
+	struct netdev_rps_info			rps_data;
+	struct netdev_qos_info			qos_data;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1167,35 +1170,38 @@ netdev_extended(const struct net_device *dev)
 static inline
 int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)
 {
-	return dev->prio_tc_map[prio & TC_BITMASK];
+	return netdev_extended(dev)->qos_data.prio_tc_map[prio & TC_BITMASK];
 }
 
 static inline
 int netdev_set_prio_tc_map(struct net_device *dev, u8 prio, u8 tc)
 {
-	if (tc >= dev->num_tc)
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
+	if (tc >= qos->num_tc)
 		return -EINVAL;
 
-	dev->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
+	qos->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
 	return 0;
 }
 
 static inline
 void netdev_reset_tc(struct net_device *dev)
 {
-	dev->num_tc = 0;
-	memset(dev->tc_to_txq, 0, sizeof(dev->tc_to_txq));
-	memset(dev->prio_tc_map, 0, sizeof(dev->prio_tc_map));
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
+	qos->num_tc = 0;
+	memset(qos->tc_to_txq, 0, sizeof(qos->tc_to_txq));
+	memset(qos->prio_tc_map, 0, sizeof(qos->prio_tc_map));
 }
 
 static inline
 int netdev_set_tc_queue(struct net_device *dev, u8 tc, u16 count, u16 offset)
 {
-	if (tc >= dev->num_tc)
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
+	if (tc >= qos->num_tc)
 		return -EINVAL;
 
-	dev->tc_to_txq[tc].count = count;
-	dev->tc_to_txq[tc].offset = offset;
+	qos->tc_to_txq[tc].count = count;
+	qos->tc_to_txq[tc].offset = offset;
 	return 0;
 }
 
@@ -1205,14 +1211,14 @@ int netdev_set_num_tc(struct net_device *dev, u8 num_tc)
 	if (num_tc > TC_MAX_QUEUE)
 		return -EINVAL;
 
-	dev->num_tc = num_tc;
+	netdev_extended(dev)->qos_data.num_tc = num_tc;
 	return 0;
 }
 
 static inline
 int netdev_get_num_tc(struct net_device *dev)
 {
-	return dev->num_tc;
+	return netdev_extended(dev)->qos_data.num_tc;
 }
 
 static inline

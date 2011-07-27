@@ -724,11 +724,12 @@ static struct kobj_type rx_queue_ktype = {
 
 static int rx_queue_add_kobject(struct net_device *net, int index)
 {
-	struct netdev_rx_queue *queue = net->_rx + index;
+	struct netdev_rx_queue *queue = netdev_extended(net)->rps_data._rx +
+					index;
 	struct kobject *kobj = &queue->kobj;
 	int error = 0;
 
-	kobj->kset = net->queues_kset;
+	kobj->kset = netdev_extended(net)->rps_data.queues_kset;
 	error = kobject_init_and_add(kobj, &rx_queue_ktype, NULL,
 	    "rx-%u", index);
 	if (error) {
@@ -1052,7 +1053,7 @@ static int netdev_queue_add_kobject(struct net_device *net, int index)
 	struct kobject *kobj = &queue_ext->kobj;
 	int error = 0;
 
-	kobj->kset = net->queues_kset;
+	kobj->kset = netdev_extended(net)->rps_data.queues_kset;
 	error = kobject_init_and_add(kobj, &netdev_queue_ktype, NULL,
 	    "tx-%u", index);
 	if (error) {
@@ -1091,11 +1092,11 @@ static int register_queue_kobjects(struct net_device *net)
 	int error = 0, txq = 0;
 	int i;
 
-	net->queues_kset = kset_create_and_add("queues",
-	    NULL, &net->dev.kobj);
-	if (!net->queues_kset)
+	netdev_extended(net)->rps_data.queues_kset =
+	    kset_create_and_add("queues", NULL, &net->dev.kobj);
+	if (!netdev_extended(net)->rps_data.queues_kset)
 		return -ENOMEM;
-	for (i = 0; i < net->num_rx_queues; i++) {
+	for (i = 0; i < netdev_extended(net)->rps_data.num_rx_queues; i++) {
 		error = rx_queue_add_kobject(net, i);
 		if (error)
 			goto error;
@@ -1112,7 +1113,7 @@ static int register_queue_kobjects(struct net_device *net)
 error:
 	netdev_queue_update_kobjects(net, txq, 0);
 	while (--i >= 0)
-		kobject_put(&net->_rx[i].kobj);
+		kobject_put(&netdev_extended(net)->rps_data._rx[i].kobj);
 
 	return error;
 }
@@ -1121,10 +1122,10 @@ static void remove_queue_kobjects(struct net_device *net)
 {
 	int i;
 
-	for (i = 0; i < net->num_rx_queues; i++)
-		kobject_put(&net->_rx[i].kobj);
+	for (i = 0; i < netdev_extended(net)->rps_data.num_rx_queues; i++)
+		kobject_put(&netdev_extended(net)->rps_data._rx[i].kobj);
 	netdev_queue_update_kobjects(net, net->real_num_tx_queues, 0);
-	kset_unregister(net->queues_kset);
+	kset_unregister(netdev_extended(net)->rps_data.queues_kset);
 }
 
 #endif /* CONFIG_SYSFS */
