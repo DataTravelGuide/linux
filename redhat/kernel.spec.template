@@ -1617,6 +1617,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 27 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-173.el6]
+- [mm] hold the page lock until after set_page_stable_node (Andrea Arcangeli) [683658]
+
 * Tue Jul 26 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-172.el6]
 - [netdrv] be2net: remove certain cmd failure logging (Ivan Vecera) [719304]
 - [netdrv] enic driver update (Stefan Assmann) [695882]
