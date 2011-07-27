@@ -832,7 +832,8 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 
 		if (skb_tx(skb)->dev_zerocopy) {
 			if (skb_copy_ubufs(skb, gfp_mask)) {
-				kfree(n);
+				kfree_skb(n);
+				n = NULL;
 				goto out;
 			}
 			skb_tx(skb)->dev_zerocopy = 0;
