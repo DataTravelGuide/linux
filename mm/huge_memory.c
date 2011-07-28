@@ -1042,19 +1042,25 @@ int move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	    (old_addr + HPAGE_PMD_SIZE) > old_end)
 		goto out;
 
-	/* if the new area is all for our destination it must be unmapped */
-	VM_BUG_ON(!pmd_none(*new_pmd));
-	/* mostly to remember this locking isn't enough with filebacked vma */
-	VM_BUG_ON(vma->vm_file);
+	/*
+	 * The destination pmd shouldn't be established, free_pgtables()
+	 * should have release it.
+	 */
+	if (!pmd_none(*new_pmd)) {
+		WARN_ON(1);
+		VM_BUG_ON(pmd_trans_huge(*new_pmd));
+		goto out;
+	}
 
 	spin_lock(&mm->page_table_lock);
 	if (likely(pmd_trans_huge(*old_pmd))) {
 		if (pmd_trans_splitting(*old_pmd)) {
-			spin_unlock(&vma->vm_mm->page_table_lock);
+			spin_unlock(&mm->page_table_lock);
 			wait_split_huge_page(vma->anon_vma, old_pmd);
 			ret = -1;
 		} else {
 			pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
+			VM_BUG_ON(!pmd_none(*new_pmd));
 			set_pmd_at(mm, new_addr, new_pmd, pmd);
 			spin_unlock(&mm->page_table_lock);
 			ret = 1;

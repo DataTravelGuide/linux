@@ -65,8 +65,6 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 		return NULL;
 
 	VM_BUG_ON(pmd_trans_huge(*pmd));
-	if (pmd_none(*pmd) && __pte_alloc(mm, vma, pmd, addr))
-		return NULL;
 
 	return pmd;
 }
@@ -142,7 +140,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
 		next = (old_addr + PMD_SIZE) & PMD_MASK;
-		if (next - 1 > old_end)
+		if (next > old_end)
 			next = old_end;
 		extent = next - old_addr;
 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
@@ -151,18 +149,23 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
 		if (!new_pmd)
 			break;
-		need_flush = true;
 		if (pmd_trans_huge(*old_pmd)) {
-			int err = move_huge_pmd(vma, old_addr, new_addr,
-						old_end, old_pmd, new_pmd);
+			int err = 0;
+			if (extent == HPAGE_PMD_SIZE)
+				err = move_huge_pmd(vma, old_addr,
+						    new_addr, old_end,
+						    old_pmd, new_pmd);
 			if (err > 0) {
-				old_addr += HPAGE_PMD_SIZE;
-				new_addr += HPAGE_PMD_SIZE;
+				need_flush = true;
 				continue;
 			} else if (!err)
 				split_huge_page_pmd(vma->vm_mm, old_pmd);
 			VM_BUG_ON(pmd_trans_huge(*old_pmd));
 		}
+		if (pmd_none(*new_pmd) && __pte_alloc(new_vma->vm_mm, new_vma,
+						      new_pmd,
+						      new_addr))
+			break;
 		next = (new_addr + PMD_SIZE) & PMD_MASK;
 		if (extent > next - new_addr)
 			extent = next - new_addr;
@@ -170,6 +173,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			extent = LATENCY_LIMIT;
 		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
 				new_vma, new_pmd, new_addr);
+		need_flush = true;
 	}
 	if (likely(need_flush))
 		flush_tlb_range(vma, old_end-len, old_addr);
