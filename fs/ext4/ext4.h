@@ -1528,6 +1528,11 @@ struct ext4_li_request {
 	unsigned long		lr_timeout;
 };
 
+struct ext4_features {
+	struct kobject f_kobj;
+	struct completion f_kobj_unregister;
+};
+
 /*
  * Function prototypes
  */

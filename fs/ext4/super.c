@@ -57,6 +57,7 @@ struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
 struct ext4_lazy_init *ext4_li_info;
 struct mutex ext4_li_mtx;
+struct ext4_features *ext4_feat;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -639,6 +640,8 @@ static void ext4_put_super(struct super_block *sb)
 	struct ext4_super_block *es = sbi->s_es;
 	int i, err;
 
+	ext4_unregister_li_request(sb);
+
 	flush_workqueue(sbi->dio_unwritten_wq);
 	destroy_workqueue(sbi->dio_unwritten_wq);
 
@@ -655,7 +658,6 @@ static void ext4_put_super(struct super_block *sb)
 				   "Couldn't clean up the journal");
 	}
 
-	ext4_unregister_li_request(sb);
 	ext4_release_system_zone(sb);
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
@@ -2326,6 +2328,7 @@ static struct ext4_attr ext4_attr_##_name = {			\
 #define EXT4_ATTR(name, mode, show, store) \
 static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
 
+#define EXT4_INFO_ATTR(name) EXT4_ATTR(name, 0444, NULL, NULL)
 #define EXT4_RO_ATTR(name) EXT4_ATTR(name, 0444, name##_show, NULL)
 #define EXT4_RW_ATTR(name) EXT4_ATTR(name, 0644, name##_show, name##_store)
 #define EXT4_RW_ATTR_SBI_UI(name, elname)	\
@@ -2362,6 +2365,14 @@ static struct attribute *ext4_attrs[] = {
 	NULL,
 };
 
+/* Features this copy of ext4 supports */
+EXT4_INFO_ATTR(lazy_itable_init);
+
+static struct attribute *ext4_feat_attrs[] = {
+	ATTR_LIST(lazy_itable_init),
+	NULL,
+};
+
 static ssize_t ext4_attr_show(struct kobject *kobj,
 			      struct attribute *attr, char *buf)
 {
@@ -2390,7 +2401,6 @@ static void ext4_sb_release(struct kobject *kobj)
 	complete(&sbi->s_kobj_unregister);
 }
 
-
 static const struct sysfs_ops ext4_attr_ops = {
 	.show	= ext4_attr_show,
 	.store	= ext4_attr_store,
@@ -2400,6 +2410,17 @@ static struct kobj_type ext4_ktype = {
 	.default_attrs	= ext4_attrs,
 	.sysfs_ops	= &ext4_attr_ops,
 	.release	= ext4_sb_release,
+};
+
+static void ext4_feat_release(struct kobject *kobj)
+{
+	complete(&ext4_feat->f_kobj_unregister);
+}
+
+static struct kobj_type ext4_feat_ktype = {
+	.default_attrs	= ext4_feat_attrs,
+	.sysfs_ops	= &ext4_attr_ops,
+	.release	= ext4_feat_release,
 };
 
 /*
@@ -4510,6 +4531,37 @@ static struct file_system_type ext4_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
+static int __init ext4_init_feat_adverts(void)
+{
+	struct ext4_features *ef;
+	int ret = -ENOMEM;
+
+	ef = kzalloc(sizeof(struct ext4_features), GFP_KERNEL);
+	if (!ef)
+		goto out;
+
+	ef->f_kobj.kset = ext4_kset;
+	init_completion(&ef->f_kobj_unregister);
+	ret = kobject_init_and_add(&ef->f_kobj, &ext4_feat_ktype, NULL,
+				   "features");
+	if (ret) {
+		kfree(ef);
+		goto out;
+	}
+
+	ext4_feat = ef;
+	ret = 0;
+out:
+	return ret;
+}
+
+static void ext4_exit_feat_adverts(void)
+{
+	kobject_put(&ext4_feat->f_kobj);
+	wait_for_completion(&ext4_feat->f_kobj_unregister);
+	kfree(ext4_feat);
+}
+
 static int __init init_ext4_fs(void)
 {
 	int err;
@@ -4526,6 +4578,9 @@ static int __init init_ext4_fs(void)
 	if (!ext4_kset)
 		goto out4;
 	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
+
+	err = ext4_init_feat_adverts();
+
 	err = init_ext4_mballoc();
 	if (err)
 		goto out3;
@@ -4550,6 +4605,7 @@ out1:
 out2:
 	exit_ext4_mballoc();
 out3:
+	ext4_exit_feat_adverts();
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
 out4:
@@ -4564,6 +4620,7 @@ static void __exit exit_ext4_fs(void)
 	destroy_inodecache();
 	exit_ext4_xattr();
 	exit_ext4_mballoc();
+	ext4_exit_feat_adverts();
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
 	exit_ext4_system_zone();
