@@ -5705,6 +5705,7 @@ CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 	char *temp_ptr;
 	char *end_of_smb;
 	__u16 params, byte_count, data_offset;
+	unsigned int ea_name_len;
 
 	cFYI(1, "In Query All EAs path %s", searchName);
 QAllEAsRetry:
@@ -5799,6 +5800,10 @@ QAllEAsRetry:
 	list_len -= 4;
 	temp_fea = ea_response_data->list;
 	temp_ptr = (char *)temp_fea;
+
+	if (ea_name)
+		ea_name_len = strlen(ea_name);
+
 	while (list_len > 0) {
 		unsigned int name_len;
 		__u16 value_len;
@@ -5822,7 +5827,8 @@ QAllEAsRetry:
 		}
 
 		if (ea_name) {
-			if (strncmp(ea_name, temp_ptr, name_len) == 0) {
+			if (ea_name_len == name_len &&
+			    strncmp(ea_name, temp_ptr, name_len) == 0) {
 				temp_ptr += name_len + 1;
 				rc = value_len;
 				if (buf_size == 0)
