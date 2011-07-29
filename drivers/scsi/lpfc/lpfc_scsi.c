@@ -1621,8 +1621,8 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		memset(pde7, 0, sizeof(struct lpfc_pde7));
 		bf_set(pde7_type, pde7, LPFC_PDE7_DESCRIPTOR);
 
-		pde7->addrHigh = le32_to_cpu(putPaddrLow(protphysaddr));
-		pde7->addrLow = le32_to_cpu(putPaddrHigh(protphysaddr));
+		pde7->addrHigh = le32_to_cpu(putPaddrHigh(protphysaddr));
+		pde7->addrLow = le32_to_cpu(putPaddrLow(protphysaddr));
 
 		protgrp_blks = protgroup_len / 8;
 		protgrp_bytes = protgrp_blks * blksize;
@@ -1632,7 +1632,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			protgroup_remainder = 0x1000 - (pde7->addrLow & 0xfff);
 			protgroup_offset += protgroup_remainder;
 			protgrp_blks = protgroup_remainder / 8;
-			protgrp_bytes = protgroup_remainder * blksize;
+			protgrp_bytes = protgrp_blks * blksize;
 		} else {
 			protgroup_offset = 0;
 			curr_prot++;
