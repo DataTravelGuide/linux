@@ -1090,11 +1090,14 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			/* Set the fcfi to the fcfi we registered with */
 			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
 		}
-	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-		sp->cmn.request_multiple_Nport = 1;
-		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
-		icmd->ulpCt_h = 1;
-		icmd->ulpCt_l = 0;
+	} else {
+		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+			sp->cmn.request_multiple_Nport = 1;
+			/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
+			icmd->ulpCt_h = 1;
+			icmd->ulpCt_l = 0;
+		} else
+			sp->cmn.request_multiple_Nport = 0;
 	}
 
 	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
