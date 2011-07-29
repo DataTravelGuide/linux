@@ -754,6 +754,47 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sli4_pdev_status_reg_wait - Wait for pdev status register for readyness
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * SLI4 interface type-2 device to wait on the sliport status register for
+ * the readyness after performing a firmware reset.
+ *
+ * Returns:
+ * zero for success
+ **/
+static int
+lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
+{
+	struct lpfc_register portstat_reg;
+	int i;
+
+
+	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+		   &portstat_reg.word0);
+
+	/* wait for the SLI port firmware ready after firmware reset */
+	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
+		msleep(10);
+		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			   &portstat_reg.word0);
+		if (!bf_get(lpfc_sliport_status_err, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rn, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rdy, &portstat_reg))
+			continue;
+		break;
+	}
+
+	if (i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT)
+		return 0;
+	else
+		return -EIO;
+}
+
+/**
  * lpfc_sli4_pdev_reg_request - Request physical dev to perform a register acc
  * @phba: lpfc_hba pointer.
  *
@@ -804,7 +845,10 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	readl(phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
 
 	/* delay driver action following IF_TYPE_2 reset */
-	msleep(100);
+	rc = lpfc_sli4_pdev_status_reg_wait(phba);
+
+	if (rc)
+		return -EIO;
 
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
