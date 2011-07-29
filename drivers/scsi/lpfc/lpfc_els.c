@@ -647,21 +647,15 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		lpfc_cleanup_pending_mbox(vport);
 
-		if (phba->sli_rev == LPFC_SLI_REV4)
+		if (phba->sli_rev == LPFC_SLI_REV4) {
 			lpfc_sli4_unreg_all_rpis(vport);
-
-		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			spin_unlock_irq(shost->host_lock);
-		}
-		/*
-		 * If VPI is unreged, driver need to do INIT_VPI
-		 * before re-registering
-		 */
-		if (phba->sli_rev == LPFC_SLI_REV4) {
-			spin_lock_irq(shost->host_lock);
+			/*
+			* If VPI is unreged, driver need to do INIT_VPI
+			* before re-registering
+			*/
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
