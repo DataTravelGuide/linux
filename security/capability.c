@@ -59,6 +59,11 @@ static int cap_sb_copy_data(char *orig, char *copy)
 	return 0;
 }
 
+static int cap_sb_remount(struct super_block *sb, void *data)
+{
+	return 0;
+}
+
 static int cap_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return 0;
@@ -928,6 +933,7 @@ void security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_alloc_security);
 	set_to_cap_if_null(ops, sb_free_security);
 	set_to_cap_if_null(ops, sb_copy_data);
+	set_to_cap_if_null(ops, sb_remount);
 	set_to_cap_if_null(ops, sb_kern_mount);
 	set_to_cap_if_null(ops, sb_show_options);
 	set_to_cap_if_null(ops, sb_statfs);

@@ -271,6 +271,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@mnt contains the vfsmount for device being mounted.
  *	@path contains the path for the mount point.
  *	Return 0 if permission is granted.
+ * @sb_remount:
+ *	Extracts security system specifc mount options and verifys no changes
+ *	are being made to those options.
+ *	@sb superblock being remounted
+ *	@data contains the filesystem-specific data.
+ *	Return 0 if permission is granted.
  * @sb_umount:
  *	Check permission before the @mnt file system is unmounted.
  *	@mnt contains the mounted file system.
@@ -1459,6 +1465,7 @@ struct security_operations {
 	int (*sb_alloc_security) (struct super_block *sb);
 	void (*sb_free_security) (struct super_block *sb);
 	int (*sb_copy_data) (char *orig, char *copy);
+	int (*sb_remount) (struct super_block *sb, void *data);
 	int (*sb_kern_mount) (struct super_block *sb, int flags, void *data);
 	int (*sb_show_options) (struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs) (struct dentry *dentry);
@@ -1756,6 +1763,7 @@ int security_bprm_secureexec(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
 int security_sb_copy_data(char *orig, char *copy);
+int security_sb_remount(struct super_block *sb, void *data);
 int security_sb_kern_mount(struct super_block *sb, int flags, void *data);
 int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
@@ -2054,6 +2062,11 @@ static inline void security_sb_free(struct super_block *sb)
 { }
 
 static inline int security_sb_copy_data(char *orig, char *copy)
+{
+	return 0;
+}
+
+static inline int security_sb_remount(struct super_block *sb, void *data)
 {
 	return 0;
 }
