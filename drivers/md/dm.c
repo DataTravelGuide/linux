@@ -1816,7 +1816,6 @@ static void dm_init_md_queue(struct mapped_device *md)
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
-	blk_queue_flush(md->queue, REQ_FLUSH | REQ_FUA);
 }
 
 /*
