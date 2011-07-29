@@ -55,7 +55,6 @@ struct lpfc_sli2_slim;
 #define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
 					   collection. */
 
-#define CONFIG_SCSI_LPFC_DEBUG_FS 1;
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
