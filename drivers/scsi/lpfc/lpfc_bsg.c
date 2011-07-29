@@ -3520,7 +3520,7 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 				"2947 Issued SLI_CONFIG ext-buffer "
 				"maibox command, rc:x%x\n", rc);
-		return 1;
+		return SLI_CONFIG_HANDLED;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 			"2948 Failed to issue SLI_CONFIG ext-buffer "
@@ -3558,7 +3558,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	LPFC_MBOXQ_t *pmboxq = NULL;
 	MAILBOX_t *pmb;
 	uint8_t *mbx;
-	int rc = 0, i;
+	int rc = SLI_CONFIG_NOT_HANDLED, i;
 
 	mbox_req =
 	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
@@ -3677,13 +3677,18 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"2955 Issued SLI_CONFIG ext-buffer "
 					"maibox command, rc:x%x\n", rc);
-			return 1;
+			return SLI_CONFIG_HANDLED;
 		}
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"2956 Failed to issue SLI_CONFIG ext-buffer "
 				"maibox command, rc:x%x\n", rc);
 		rc = -EPIPE;
 	}
+
+	/* wait for additoinal external buffers */
+	job->reply->result = 0;
+	job->job_done(job);
+	return SLI_CONFIG_HANDLED;
 
 job_error:
 	if (pmboxq)
@@ -3987,7 +3992,7 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"2969 Issued SLI_CONFIG ext-buffer "
 					"maibox command, rc:x%x\n", rc);
-			return 1;
+			return SLI_CONFIG_HANDLED;
 		}
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"2970 Failed to issue SLI_CONFIG ext-buffer "
@@ -4067,14 +4072,14 @@ lpfc_bsg_handle_sli_cfg_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			    struct lpfc_dmabuf *dmabuf)
 {
 	struct dfc_mbox_req *mbox_req;
-	int rc;
+	int rc = SLI_CONFIG_NOT_HANDLED;
 
 	mbox_req =
 	   (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
 
 	/* mbox command with/without single external buffer */
 	if (mbox_req->extMboxTag == 0 && mbox_req->extSeqNum == 0)
-		return SLI_CONFIG_NOT_HANDLED;
+		return rc;
 
 	/* mbox command and first external buffer */
 	if (phba->mbox_ext_buf_ctx.state == LPFC_BSG_MBOX_IDLE) {
