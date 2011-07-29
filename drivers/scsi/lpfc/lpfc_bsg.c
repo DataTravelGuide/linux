@@ -4277,7 +4277,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		 * mailbox extension size
 		 */
 		if ((transmit_length > receive_length) ||
-			(transmit_length > MAILBOX_EXT_SIZE)) {
+			(transmit_length > BSG_MBOX_SIZE - sizeof(MAILBOX_t))) {
 			rc = -ERANGE;
 			goto job_done;
 		}
@@ -4300,7 +4300,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		/* receive length cannot be greater than mailbox
 		 * extension size
 		 */
-		if (receive_length > MAILBOX_EXT_SIZE) {
+		if (receive_length > BSG_MBOX_SIZE - sizeof(MAILBOX_t)) {
 			rc = -ERANGE;
 			goto job_done;
 		}
@@ -4334,7 +4334,8 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			bde = (struct ulp_bde64 *)&pmb->un.varWords[4];
 
 			/* bde size cannot be greater than mailbox ext size */
-			if (bde->tus.f.bdeSize > MAILBOX_EXT_SIZE) {
+			if (bde->tus.f.bdeSize >
+			    BSG_MBOX_SIZE - sizeof(MAILBOX_t)) {
 				rc = -ERANGE;
 				goto job_done;
 			}
@@ -4360,7 +4361,8 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				 * mailbox extension size
 				 */
 				if ((receive_length == 0) ||
-				    (receive_length > MAILBOX_EXT_SIZE)) {
+				    (receive_length >
+				     BSG_MBOX_SIZE - sizeof(MAILBOX_t))) {
 					rc = -ERANGE;
 					goto job_done;
 				}
