@@ -447,4 +447,4 @@ void lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *, MAILBOX_t *);
 int lpfc_wr_object(struct lpfc_hba *, struct list_head *, uint32_t, uint32_t *);
 /* functions to support SR-IOV */
 int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);
-
+uint16_t lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *);
