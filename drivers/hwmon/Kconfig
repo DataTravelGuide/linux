@@ -307,7 +307,7 @@ config SENSORS_I5K_AMB
 
 config SENSORS_F71805F
 	tristate "Fintek F71805F/FG, F71806F/FG and F71872F/FG"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && !PPC
 	help
 	  If you say yes here you get support for hardware monitoring
 	  features of the Fintek F71805F/FG, F71806F/FG and F71872F/FG
@@ -318,7 +318,7 @@ config SENSORS_F71805F
 
 config SENSORS_F71882FG
 	tristate "Fintek F71858FG, F71862FG, F71882FG and F8000"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && !PPC
 	help
 	  If you say yes here you get support for hardware monitoring
 	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG
@@ -422,6 +422,7 @@ config SENSORS_IBMPEX
 
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
+	depends on !PPC
 	select HWMON_VID
 	help
 	  If you say yes here you get support for ITE IT8705F, IT8712F,
@@ -637,6 +638,7 @@ config SENSORS_MAX6650
 
 config SENSORS_PC87360
 	tristate "National Semiconductor PC87360 family"
+	depends on !PPC
 	select HWMON_VID
 	help
 	  If you say yes here you get access to the hardware monitoring
@@ -650,7 +652,7 @@ config SENSORS_PC87360
 
 config SENSORS_PC87427
 	tristate "National Semiconductor PC87427"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && !PPC
 	help
 	  If you say yes here you get access to the hardware monitoring
 	  functions of the National Semiconductor PC87427 Super-I/O chip.
@@ -714,7 +716,7 @@ config SENSORS_SIS5595
 
 config SENSORS_DME1737
 	tristate "SMSC DME1737, SCH311x and compatibles"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C && EXPERIMENTAL && !PPC
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware monitoring
@@ -726,6 +728,7 @@ config SENSORS_DME1737
 
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
+	depends on !PPC
 	help
 	  If you say yes here you get support for the integrated fan
 	  monitoring and control capabilities of the SMSC LPC47B27x,
@@ -759,7 +762,7 @@ config SENSORS_SMSC47M192
 
 config SENSORS_SMSC47B397
 	tristate "SMSC LPC47B397-NC"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && !PPC
 	help
 	  If you say yes here you get support for the SMSC LPC47B397-NC
 	  sensor chip.
@@ -827,7 +830,7 @@ config SENSORS_VIA686A
 
 config SENSORS_VT1211
 	tristate "VIA VT1211"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && !PPC
 	select HWMON_VID
 	help
 	  If you say yes here then you get support for hardware monitoring
@@ -912,6 +915,7 @@ config SENSORS_W83L786NG
 
 config SENSORS_W83627HF
 	tristate "Winbond W83627HF, W83627THF, W83637HF, W83687THF, W83697HF"
+	depends on !PPC
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W836X7 series
@@ -923,6 +927,7 @@ config SENSORS_W83627HF
 
 config SENSORS_W83627EHF
 	tristate "Winbond W83627EHF/EHG/DHG, W83667HG"
+	depends on !PPC
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware
