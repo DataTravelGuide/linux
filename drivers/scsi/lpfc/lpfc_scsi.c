@@ -2006,16 +2006,21 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 	if (lpfc_bgs_get_hi_water_mark_present(bgstat)) {
 		/*
 		 * setup sense data descriptor 0 per SPC-4 as an information
-		 * field, and put the failing LBA in it
+		 * field, and put the failing LBA in it.
+		 * This code assumes there was also a guard/app/ref tag error
+		 * indication.
 		 */
-		cmd->sense_buffer[8] = 0;     /* Information */
-		cmd->sense_buffer[9] = 0xa;   /* Add. length */
+		cmd->sense_buffer[7] = 0xc;   /* Additional sense length */
+		cmd->sense_buffer[8] = 0;     /* Information descriptor type */
+		cmd->sense_buffer[9] = 0xa;   /* Additional descriptor length */
+		cmd->sense_buffer[10] = 0x80; /* Validity bit */
 		bghm /= cmd->device->sector_size;
 
 		failing_sector = scsi_get_lba(cmd);
 		failing_sector += bghm;
 
-		put_unaligned_be64(failing_sector, &cmd->sense_buffer[10]);
+		/* Descriptor Information */
+		put_unaligned_be64(failing_sector, &cmd->sense_buffer[12]);
 	}
 
 	if (!ret) {
