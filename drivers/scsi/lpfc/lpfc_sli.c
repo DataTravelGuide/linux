@@ -3357,6 +3357,7 @@ lpfc_sli_handle_slow_ring_event_s4(struct lpfc_hba *phba,
 							   irspiocbq);
 			break;
 		case CQE_CODE_RECEIVE:
+		case CQE_CODE_RECEIVE_V1:
 			dmabuf = container_of(cq_event, struct hbq_dmabuf,
 					      cq_event);
 			lpfc_sli4_handle_received_buffer(phba, dmabuf);
@@ -10640,10 +10641,14 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	struct lpfc_queue *hrq = phba->sli4_hba.hdr_rq;
 	struct lpfc_queue *drq = phba->sli4_hba.dat_rq;
 	struct hbq_dmabuf *dma_buf;
-	uint32_t status;
+	uint32_t status, rq_id;
 	unsigned long iflags;
 
-	if (bf_get(lpfc_rcqe_rq_id, rcqe) != hrq->queue_id)
+	if (bf_get(lpfc_cqe_code, rcqe) == CQE_CODE_RECEIVE_V1)
+		rq_id = bf_get(lpfc_rcqe_rq_id_v1, rcqe);
+	else
+		rq_id = bf_get(lpfc_rcqe_rq_id, rcqe);
+	if (rq_id != hrq->queue_id)
 		goto out;
 
 	status = bf_get(lpfc_rcqe_status, rcqe);
@@ -10722,6 +10727,7 @@ lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				(struct sli4_wcqe_xri_aborted *)&cqevt);
 		break;
 	case CQE_CODE_RECEIVE:
+	case CQE_CODE_RECEIVE_V1:
 		/* Process the RQ event */
 		phba->last_completion_time = jiffies;
 		workposted = lpfc_sli4_sp_handle_rcqe(phba,
@@ -13945,7 +13951,13 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 		lpfc_in_buf_free(phba, &dmabuf->dbuf);
 		return;
 	}
-	fcfi = bf_get(lpfc_rcqe_fcf_id, &dmabuf->cq_event.cqe.rcqe_cmpl);
+	if ((bf_get(lpfc_cqe_code,
+		    &dmabuf->cq_event.cqe.rcqe_cmpl) == CQE_CODE_RECEIVE_V1))
+		fcfi = bf_get(lpfc_rcqe_fcf_id_v1,
+			      &dmabuf->cq_event.cqe.rcqe_cmpl);
+	else
+		fcfi = bf_get(lpfc_rcqe_fcf_id,
+			      &dmabuf->cq_event.cqe.rcqe_cmpl);
 	vport = lpfc_fc_frame_to_vport(phba, fc_hdr, fcfi);
 	if (!vport || !(vport->vpi_state & LPFC_VPI_REGISTERED)) {
 		/* throw out the frame */
