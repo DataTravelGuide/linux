@@ -1015,7 +1015,8 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			kfree_skb(skb);
 			return;
 		}
-		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, rxcp->vid);
+		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
+					rxcp->vlan_tag);
 	} else {
 		netif_receive_skb(skb);
 	}
@@ -1075,7 +1076,8 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	if (likely(!rxcp->vlanf))
 		napi_gro_frags(&eq_obj->napi);
 	else
-		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, rxcp->vid);
+		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp,
+				rxcp->vlan_tag);
 }
 
 static void be_parse_rx_compl_v1(struct be_adapter *adapter,
@@ -1104,9 +1106,9 @@ static void be_parse_rx_compl_v1(struct be_adapter *adapter,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, rxcp);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm,
-				compl);
-		rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag,
-				compl);
+					  compl);
+		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag,
+					       compl);
 	}
 }
 
@@ -1136,9 +1138,9 @@ static void be_parse_rx_compl_v0(struct be_adapter *adapter,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, rxcp);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm,
-				compl);
-		rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag,
-				compl);
+					  compl);
+		rxcp->vlan_tag = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag,
+					       compl);
 	}
 }
 
@@ -1168,10 +1170,11 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 			rxcp->vlanf = 0;
 
 		if (!lancer_chip(adapter))
-			rxcp->vid = swab16(rxcp->vid);
+			rxcp->vlan_tag = swab16(rxcp->vlan_tag);
 
-		if ((adapter->pvid == rxcp->vid) &&
-			!adapter->vlan_tag[rxcp->vid])
+		if (((adapter->pvid & VLAN_VID_MASK) ==
+		     (rxcp->vlan_tag & VLAN_VID_MASK)) &&
+		    !adapter->vlan_tag[rxcp->vlan_tag])
 			rxcp->vlanf = 0;
 	}
 
