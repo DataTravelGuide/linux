@@ -1002,7 +1002,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	if (likely(adapter->rx_csum && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
@@ -2626,14 +2626,16 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_rx_obj *rxo;
 	int i;
 
-	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
-		NETIF_F_GRO | NETIF_F_TSO6;
+	netdev->features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
+		NETIF_F_HW_VLAN_FILTER;
 
 	if (be_multi_rxq(adapter))
 		netdev->features |= NETIF_F_RXHASH;
 
-	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
+	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	if (lancer_chip(adapter))
 		netdev->vlan_features |= NETIF_F_TSO6;
