@@ -2839,6 +2839,9 @@ static int be_get_config(struct be_adapter *adapter)
 	else
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
 
+	status = be_cmd_get_cntl_attributes(adapter);
+	if (status)
+		return status;
 
 	be_cmd_check_native_mode(adapter);
 	return 0;
