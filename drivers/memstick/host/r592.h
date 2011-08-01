@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/kfifo.h>
+#include <linux/kfifo-new.h>
 #include <linux/ctype.h>
 
 /* write to this reg (number,len) triggers TPC execution */
