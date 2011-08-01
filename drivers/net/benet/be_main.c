@@ -47,7 +47,7 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
 /* UE Status Low CSR */
-static char *ue_status_low_desc[] = {
+static const char * const ue_status_low_desc[] = {
 	"CEV",
 	"CTX",
 	"DBUF",
@@ -82,7 +82,7 @@ static char *ue_status_low_desc[] = {
 	"MPU_INTPEND"
 };
 /* UE Status High CSR */
-static char *ue_status_hi_desc[] = {
+static const char * const ue_status_hi_desc[] = {
 	"LPCMEMHOST",
 	"MGMT_MAC",
 	"PCS0ONLINE",
@@ -106,7 +106,7 @@ static char *ue_status_hi_desc[] = {
 	"HOST7",
 	"HOST8",
 	"HOST9",
-	"NETC"
+	"NETC",
 	"Unknown",
 	"Unknown",
 	"Unknown",
