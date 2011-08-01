@@ -3400,6 +3400,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	}
 
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
+	/* By default all priorities are enabled.
+	 * Needed in case of no GRP5 evt support
+	 */
+	adapter->vlan_prio_bmap = 0xff;
+
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 
