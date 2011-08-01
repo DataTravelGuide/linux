@@ -2527,6 +2527,8 @@ static int be_setup(struct be_adapter *adapter)
 	int status;
 	u8 mac[ETH_ALEN];
 
+	be_cmd_req_native_mode(adapter);
+
 	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED |
 				BE_IF_FLAGS_BROADCAST |
 				BE_IF_FLAGS_MULTICAST;
@@ -2633,6 +2635,8 @@ static int be_clear(struct be_adapter *adapter)
 					vf + 1);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
+
+	adapter->be3_native = 0;
 
 	/* tell fw we're done with firing cmds */
 	be_cmd_fw_clean(adapter);
@@ -3232,8 +3236,6 @@ static int be_get_config(struct be_adapter *adapter)
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
 		return status;
-
-	be_cmd_check_native_mode(adapter);
 
 	if ((num_vfs && adapter->sriov_enabled) ||
 		(adapter->function_mode & 0x400) ||
