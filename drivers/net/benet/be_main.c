@@ -116,11 +116,6 @@ static char *ue_status_hi_desc[] = {
 	"Unknown"
 };
 
-static inline bool be_multi_rxq(struct be_adapter *adapter)
-{
-	return (adapter->num_rx_qs > 1);
-}
-
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
@@ -1011,6 +1006,9 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
+	if (adapter->netdev->features & NETIF_F_RXHASH)
+		skb->rxhash = rxcp->rss_hash;
+
 
 	if (unlikely(rxcp->vlanf)) {
 		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
@@ -1071,6 +1069,8 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	skb->data_len = rxcp->pkt_size;
 	skb->truesize += rxcp->pkt_size;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (adapter->netdev->features & NETIF_F_RXHASH)
+		skb->rxhash = rxcp->rss_hash;
 
 	if (likely(!rxcp->vlanf))
 		napi_gro_frags(&eq_obj->napi);
@@ -1100,6 +1100,8 @@ static void be_parse_rx_compl_v1(struct be_adapter *adapter,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, numfrags, compl);
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, cast_enc, compl);
+	rxcp->rss_hash =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, rxcp);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm,
 				compl);
@@ -1130,6 +1132,8 @@ static void be_parse_rx_compl_v0(struct be_adapter *adapter,
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, numfrags, compl);
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, cast_enc, compl);
+	rxcp->rss_hash =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, rxcp);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm,
 				compl);
@@ -2612,6 +2616,9 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
 		NETIF_F_GRO | NETIF_F_TSO6;
+
+	if (be_multi_rxq(adapter))
+		netdev->features |= NETIF_F_RXHASH;
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 
