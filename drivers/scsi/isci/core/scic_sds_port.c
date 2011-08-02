@@ -63,6 +63,7 @@
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "scic_sds_request.h"
+#include "registers.h"
 #include "timers.h"
 #include "scic_sds_controller_registers.h"
 
