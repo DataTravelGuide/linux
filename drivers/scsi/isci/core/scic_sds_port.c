@@ -680,7 +680,7 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 				  bool do_notify_user)
 {
 	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_port *iport = sci_port->iport;
 	struct isci_host *ihost = scic->ihost;
 	struct isci_phy *iphy = sci_phy->iphy;
 
@@ -1640,7 +1640,7 @@ static void scic_sds_port_resume_port_task_scheduler(
  */
 static void scic_sds_port_ready_substate_waiting_enter(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	scic_sds_port_set_ready_state_handlers(
 		sci_port, SCIC_SDS_PORT_READY_SUBSTATE_WAITING
@@ -1671,11 +1671,11 @@ static void scic_sds_port_ready_substate_waiting_enter(void *object)
 static void scic_sds_port_ready_substate_operational_enter(void *object)
 {
 	u32 index;
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_port *iport = sci_port->iport;
 
 	scic_sds_port_set_ready_state_handlers(
 			sci_port,
@@ -1711,11 +1711,11 @@ static void scic_sds_port_ready_substate_operational_enter(void *object)
  */
 static void scic_sds_port_ready_substate_operational_exit(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_port *iport = sci_port->iport;
 
 	/*
 	 * Kill the dummy task for this port if it has not yet posted
@@ -1742,11 +1742,11 @@ static void scic_sds_port_ready_substate_operational_exit(void *object)
  */
 static void scic_sds_port_ready_substate_configuring_enter(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 	struct scic_sds_controller *scic =
 		scic_sds_port_get_controller(sci_port);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_port *iport = sci_port->iport;
 
 	scic_sds_port_set_ready_state_handlers(
 			sci_port,
@@ -1766,7 +1766,7 @@ static void scic_sds_port_ready_substate_configuring_enter(void *object)
 
 static void scic_sds_port_ready_substate_configuring_exit(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	scic_sds_port_suspend_port_task_scheduler(sci_port);
 }
@@ -2266,9 +2266,7 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci
  */
 static void scic_sds_port_stopped_state_enter(void *object)
 {
-	struct scic_sds_port *sci_port;
-
-	sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	scic_sds_port_set_base_state_handlers(
 		sci_port, SCI_BASE_PORT_STATE_STOPPED
@@ -2296,9 +2294,7 @@ static void scic_sds_port_stopped_state_enter(void *object)
  */
 static void scic_sds_port_stopped_state_exit(void *object)
 {
-	struct scic_sds_port *sci_port;
-
-	sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	/* Enable and suspend the port task scheduler */
 	scic_sds_port_enable_port_task_scheduler(sci_port);
@@ -2316,15 +2312,14 @@ static void scic_sds_port_stopped_state_exit(void *object)
 static void scic_sds_port_ready_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
-	struct scic_sds_port *sci_port;
+	struct scic_sds_port *sci_port = object;
 	struct isci_port *iport;
 	struct isci_host *ihost;
 	u32 prev_state;
 
-	sci_port = container_of(object, typeof(*sci_port), parent);
 	scic = scic_sds_port_get_controller(sci_port);
 	ihost = scic->ihost;
-	iport = sci_object_get_association(sci_port);
+	iport = sci_port->iport;
 
 	/* Put the ready state handlers in place though they will not be there long */
 	scic_sds_port_set_base_state_handlers(sci_port, SCI_BASE_PORT_STATE_READY);
@@ -2344,9 +2339,8 @@ static void scic_sds_port_ready_state_enter(void *object)
 
 static void scic_sds_port_ready_state_exit(void *object)
 {
-	struct scic_sds_port *sci_port;
+	struct scic_sds_port *sci_port = object;
 
-	sci_port = container_of(object, typeof(*sci_port), parent);
 	sci_base_state_machine_stop(&sci_port->ready_substate_machine);
 	scic_sds_port_invalidate_dummy_remote_node(sci_port);
 }
@@ -2361,9 +2355,7 @@ static void scic_sds_port_ready_state_exit(void *object)
  */
 static void scic_sds_port_resetting_state_enter(void *object)
 {
-	struct scic_sds_port *sci_port;
-
-	sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	scic_sds_port_set_base_state_handlers(
 		sci_port, SCI_BASE_PORT_STATE_RESETTING
@@ -2380,7 +2372,7 @@ static void scic_sds_port_resetting_state_enter(void *object)
  */
 static inline void scic_sds_port_resetting_state_exit(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	isci_timer_stop(sci_port->timer_handle);
 }
@@ -2396,9 +2388,7 @@ static inline void scic_sds_port_resetting_state_exit(void *object)
  */
 static void scic_sds_port_stopping_state_enter(void *object)
 {
-	struct scic_sds_port *sci_port;
-
-	sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	scic_sds_port_set_base_state_handlers(
 		sci_port, SCI_BASE_PORT_STATE_STOPPING
@@ -2416,7 +2406,7 @@ static void scic_sds_port_stopping_state_enter(void *object)
 static inline void
 scic_sds_port_stopping_state_exit(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = object;
 
 	isci_timer_stop(sci_port->timer_handle);
 
@@ -2434,8 +2424,8 @@ scic_sds_port_stopping_state_exit(void *object)
  */
 static void scic_sds_port_failed_state_enter(void *object)
 {
-	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
-	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct scic_sds_port *sci_port = object;
+	struct isci_port *iport = sci_port->iport;
 
 	scic_sds_port_set_base_state_handlers(sci_port,
 					      SCI_BASE_PORT_STATE_FAILED);
@@ -2472,16 +2462,15 @@ void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
 {
 	u32 index;
 
-	sci_port->parent.private = NULL;
 	sci_base_state_machine_construct(&sci_port->state_machine,
-					 &sci_port->parent,
+					 sci_port,
 					 scic_sds_port_state_table,
 					 SCI_BASE_PORT_STATE_STOPPED);
 
 	sci_base_state_machine_start(&sci_port->state_machine);
 
 	sci_base_state_machine_construct(&sci_port->ready_substate_machine,
-					 &sci_port->parent,
+					 sci_port,
 					 scic_sds_port_ready_substate_table,
 					 SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
 
