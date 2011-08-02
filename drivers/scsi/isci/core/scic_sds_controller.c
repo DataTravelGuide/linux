@@ -433,11 +433,20 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 	scu_afe_register_write(scic, afe_dfx_master_control0, 0x0081000f);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
+	if (is_b0()) {
+		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
+		 * Timer, PM Stagger Timer */
+		writel(0x0007BFFF, &scic->scu_registers->afe.afe_pmsn_master_control2);
+		udelay(AFE_REGISTER_WRITE_DELAY);
+	}
+
 	/* Configure bias currents to normal */
 	if (is_a0())
 		scu_afe_register_write(scic, afe_bias_control, 0x00005500);
-	else
+	else if (is_a2())
 		scu_afe_register_write(scic, afe_bias_control, 0x00005A00);
+	else if (is_b0())
+		writel(0x00005F00, &scic->scu_registers->afe.afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
@@ -456,7 +465,7 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
-	if (is_b0()) {
+	if (is_a0() || is_a2()) {
 		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
 		scu_afe_register_write(scic, afe_pmsn_master_control0, 0x7bcc96ad);
 		udelay(AFE_REGISTER_WRITE_DELAY);
