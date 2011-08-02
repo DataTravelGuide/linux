@@ -214,7 +214,7 @@ static void scic_sds_controller_power_control_timer_handler(
 
 static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	scic->power_control.timer = isci_timer_create(ihost,
 						      scic,
 					scic_sds_controller_power_control_timer_handler);
@@ -572,7 +572,7 @@ static void scic_sds_controller_transition_to_ready(
 	struct scic_sds_controller *scic,
 	enum sci_status status)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	if (scic->state_machine.current_state_id ==
 	    SCI_BASE_CONTROLLER_STATE_STARTING) {
@@ -590,7 +590,7 @@ static void scic_sds_controller_transition_to_ready(
 static void scic_sds_controller_timeout_handler(void *_scic)
 {
 	struct scic_sds_controller *scic = _scic;
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	struct sci_base_state_machine *sm = &scic->state_machine;
 
 	if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STARTING)
@@ -758,7 +758,7 @@ static void scic_sds_controller_phy_startup_timeout_handler(void *_scic)
 
 static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 
 	scic->phy_startup_timer = isci_timer_create(ihost,
 						    scic,
@@ -1780,7 +1780,7 @@ void scic_sds_controller_release_frame(
  */
 static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost = scic->ihost;
 	u16 index;
 
 	/* Default to APC mode. */
@@ -2647,7 +2647,7 @@ enum sci_status scic_controller_initialize(
 	}
 
 
-	ihost = sci_object_get_association(scic);
+	ihost = scic->ihost;
 
 	sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_INITIALIZING);
 
@@ -2835,7 +2835,7 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	/* Assign all the task entries to scic physical function */
 	scic_sds_controller_assign_task_entries(scic);
 
-	/* Now initialze the completion queue */
+	/* Now initialize the completion queue */
 	scic_sds_controller_initialize_completion_queue(scic);
 
 	/* Initialize the unsolicited frame queue for use */
@@ -2868,14 +2868,12 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
  *
  * This method implements the actions taken by the struct scic_sds_controller on entry
  * to the SCI_BASE_CONTROLLER_STATE_INITIAL. - Set the state handlers to the
- * controllers initial state. none This function should initialze the
+ * controllers initial state. none This function should initialize the
  * controller object.
  */
 static void scic_sds_controller_initial_state_enter(void *object)
 {
-	struct scic_sds_controller *scic;
-
-	scic = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	sci_base_state_machine_change_state(&scic->state_machine,
 			SCI_BASE_CONTROLLER_STATE_RESET);
@@ -2892,7 +2890,7 @@ static void scic_sds_controller_initial_state_enter(void *object)
  */
 static inline void scic_sds_controller_starting_state_exit(void *object)
 {
-	struct scic_sds_controller *scic = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	isci_timer_stop(scic->timeout_timer);
 }
@@ -2908,9 +2906,7 @@ static inline void scic_sds_controller_starting_state_exit(void *object)
  */
 static void scic_sds_controller_ready_state_enter(void *object)
 {
-	struct scic_sds_controller *scic;
-
-	scic = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	/* set the default interrupt coalescence number and timeout value. */
 	scic_controller_set_interrupt_coalescence(
@@ -2927,9 +2923,7 @@ static void scic_sds_controller_ready_state_enter(void *object)
  */
 static void scic_sds_controller_ready_state_exit(void *object)
 {
-	struct scic_sds_controller *scic;
-
-	scic = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	/* disable interrupt coalescence. */
 	scic_controller_set_interrupt_coalescence(scic, 0, 0);
@@ -2947,9 +2941,7 @@ static void scic_sds_controller_ready_state_exit(void *object)
  */
 static void scic_sds_controller_stopping_state_enter(void *object)
 {
-	struct scic_sds_controller *scic;
-
-	scic = (struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	/* Stop all of the components for this controller */
 	scic_sds_controller_stop_phys(scic);
@@ -2962,23 +2954,21 @@ static void scic_sds_controller_stopping_state_enter(void *object)
  * @object: This is the object which is cast to a struct
  * scic_sds_controller object.
  *
- * This funciton implements the actions taken by the struct scic_sds_controller
+ * This function implements the actions taken by the struct scic_sds_controller
  * on exit from the SCI_BASE_CONTROLLER_STATE_STOPPING. -
  * This function stops the controller stopping timeout timer.
  */
 static inline void scic_sds_controller_stopping_state_exit(void *object)
 {
-	struct scic_sds_controller *scic =
-		(struct scic_sds_controller *)object;
+	struct scic_sds_controller *scic = object;
 
 	isci_timer_stop(scic->timeout_timer);
 }
 
 static void scic_sds_controller_resetting_state_enter(void *object)
 {
-	struct scic_sds_controller *scic;
+	struct scic_sds_controller *scic = object;
 
-	scic = container_of(object, typeof(*scic), parent);
 	scic_sds_controller_reset_hardware(scic);
 	sci_base_state_machine_change_state(&scic->state_machine,
 					    SCI_BASE_CONTROLLER_STATE_RESET);
@@ -3032,7 +3022,7 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
 	u8 i;
 
 	sci_base_state_machine_construct(&scic->state_machine,
-		&scic->parent, scic_sds_controller_state_table,
+		scic, scic_sds_controller_state_table,
 		SCI_BASE_CONTROLLER_STATE_INITIAL);
 
 	sci_base_state_machine_start(&scic->state_machine);
