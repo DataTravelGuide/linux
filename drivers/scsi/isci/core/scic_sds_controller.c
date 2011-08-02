@@ -215,7 +215,7 @@ static void scic_sds_controller_power_control_timer_handler(
 
 static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	scic->power_control.timer = isci_timer_create(ihost,
 						      scic,
 					scic_sds_controller_power_control_timer_handler);
@@ -573,7 +573,7 @@ static void scic_sds_controller_transition_to_ready(
 	struct scic_sds_controller *scic,
 	enum sci_status status)
 {
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	if (scic->state_machine.current_state_id ==
 	    SCI_BASE_CONTROLLER_STATE_STARTING) {
@@ -591,7 +591,7 @@ static void scic_sds_controller_transition_to_ready(
 static void scic_sds_controller_timeout_handler(void *_scic)
 {
 	struct scic_sds_controller *scic = _scic;
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	struct sci_base_state_machine *sm = &scic->state_machine;
 
 	if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STARTING)
@@ -759,7 +759,7 @@ static void scic_sds_controller_phy_startup_timeout_handler(void *_scic)
 
 static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	scic->phy_startup_timer = isci_timer_create(ihost,
 						    scic,
@@ -1759,7 +1759,7 @@ void scic_sds_controller_release_frame(
  */
 static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
 {
-	struct isci_host *ihost = scic->ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u16 index;
 
 	/* Default to APC mode. */
@@ -2604,17 +2604,12 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 }
 
 
-struct scic_sds_controller *scic_controller_alloc(struct device *dev)
-{
-	return devm_kzalloc(dev, sizeof(struct scic_sds_controller), GFP_KERNEL);
-}
 
-enum sci_status scic_controller_initialize(
-	struct scic_sds_controller *scic)
+enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 {
 	struct sci_base_state_machine *sm = &scic->state_machine;
 	enum sci_status result = SCI_SUCCESS;
-	struct isci_host *ihost;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u32 index, state;
 
 	if (scic->state_machine.current_state_id !=
@@ -2624,9 +2619,6 @@ enum sci_status scic_controller_initialize(
 			 "in invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
 	}
-
-
-	ihost = scic->ihost;
 
 	sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_INITIALIZING);
 
