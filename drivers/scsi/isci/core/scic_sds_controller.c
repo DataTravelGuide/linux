@@ -611,9 +611,10 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 	u32 index;
 	enum sci_status port_status;
 	enum sci_status status = SCI_SUCCESS;
+	struct isci_host *ihost = scic_to_ihost(scic);
 
 	for (index = 0; index < scic->logical_port_entries; index++) {
-		struct scic_sds_port *sci_port = &scic->port_table[index];
+		struct scic_sds_port *sci_port = &ihost->ports[index].sci;
 		scic_sds_port_handler_t stop;
 
 		stop = sci_port->state_handlers->stop_handler;
@@ -2667,7 +2668,7 @@ enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 		     (result == SCI_SUCCESS);
 		     index++) {
 			result = scic_sds_port_initialize(
-				&scic->port_table[index],
+				&ihost->ports[index].sci,
 				&scic->scu_registers->peg0.ptsg.port[index],
 				&scic->scu_registers->peg0.ptsg.protocol_engine,
 				&scic->scu_registers->peg0.viit[index]);
@@ -2690,8 +2691,9 @@ enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 }
 
 enum sci_status scic_controller_start(struct scic_sds_controller *scic,
-		u32 timeout)
+				      u32 timeout)
 {
+	struct isci_host *ihost = scic_to_ihost(scic);
 	enum sci_status result;
 	u16 index;
 
@@ -2733,10 +2735,9 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 
 	/* Start all of the ports on this controller */
 	for (index = 0; index < scic->logical_port_entries; index++) {
-		struct scic_sds_port *sci_port = &scic->port_table[index];
+		struct scic_sds_port *sci_port = &ihost->ports[index].sci;
 
-		result = sci_port->state_handlers->start_handler(
-				sci_port);
+		result = sci_port->state_handlers->start_handler(sci_port);
 		if (result)
 			return result;
 	}
@@ -2925,14 +2926,14 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
 
 	/* Construct the ports for this controller */
 	for (i = 0; i < SCI_MAX_PORTS; i++)
-		scic_sds_port_construct(&scic->port_table[i], i, scic);
-	scic_sds_port_construct(&scic->port_table[i], SCIC_SDS_DUMMY_PORT, scic);
+		scic_sds_port_construct(&ihost->ports[i].sci, i, scic);
+	scic_sds_port_construct(&ihost->ports[i].sci, SCIC_SDS_DUMMY_PORT, scic);
 
 	/* Construct the phys for this controller */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		/* Add all the PHYs to the dummy port */
 		scic_sds_phy_construct(&ihost->phys[i].sci,
-				       &scic->port_table[SCI_MAX_PORTS], i);
+				       &ihost->ports[SCI_MAX_PORTS].sci, i);
 	}
 
 	scic->invalid_phy_mask = 0;
