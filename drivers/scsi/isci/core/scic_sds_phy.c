@@ -1535,14 +1535,14 @@ static const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_ha
 
 /**
  * scic_sds_phy_starting_initial_substate_enter -
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL. - The initial state
  * handlers are put in place for the struct scic_sds_phy object. - The state is
  * changed to the wait phy type event notification. none
  */
-static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_object *object)
+static void scic_sds_phy_starting_initial_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1558,14 +1558,13 @@ static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_object 
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_PHY_TYPE_EN. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
-static void scic_sds_phy_starting_await_ossp_en_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_ossp_en_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1578,14 +1577,14 @@ static void scic_sds_phy_starting_await_ossp_en_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SPEED_EN. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
 static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
-	struct sci_base_object *object)
+		void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1598,14 +1597,13 @@ static void scic_sds_phy_starting_await_sas_speed_en_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
-static void scic_sds_phy_starting_await_iaf_uf_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_iaf_uf_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1618,15 +1616,14 @@ static void scic_sds_phy_starting_await_iaf_uf_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER. - Set the
  * struct scic_sds_phy object state handlers for this state. - Add this phy object to
  * the power control queue none
  */
-static void scic_sds_phy_starting_await_sas_power_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sas_power_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1644,14 +1641,13 @@ static void scic_sds_phy_starting_await_sas_power_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on exiting
  * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER. - Remove the
  * struct scic_sds_phy object from the power control queue. none
  */
-static void scic_sds_phy_starting_await_sas_power_substate_exit(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sas_power_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1664,15 +1660,14 @@ static void scic_sds_phy_starting_await_sas_power_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER. - Set the
  * struct scic_sds_phy object state handlers for this state. - Add this phy object to
  * the power control queue none
  */
-static void scic_sds_phy_starting_await_sata_power_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sata_power_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1690,14 +1685,13 @@ static void scic_sds_phy_starting_await_sata_power_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on exiting
  * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER. - Remove the
  * struct scic_sds_phy object from the power control queue. none
  */
-static void scic_sds_phy_starting_await_sata_power_substate_exit(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sata_power_substate_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1711,15 +1705,13 @@ static void scic_sds_phy_starting_await_sata_power_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
-static void scic_sds_phy_starting_await_sata_phy_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sata_phy_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
@@ -1733,8 +1725,7 @@ static void scic_sds_phy_starting_await_sata_phy_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy
  * on exiting
@@ -1742,7 +1733,7 @@ static void scic_sds_phy_starting_await_sata_phy_substate_enter(
  * that was started on entry to await sata phy event notification none
  */
 static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
-	struct sci_base_object *object)
+		void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
@@ -1751,14 +1742,13 @@ static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
-static void scic_sds_phy_starting_await_sata_speed_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sata_speed_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
@@ -1772,8 +1762,7 @@ static void scic_sds_phy_starting_await_sata_speed_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This function will perform the actions required by the
  * struct scic_sds_phy on exiting
@@ -1781,7 +1770,7 @@ static void scic_sds_phy_starting_await_sata_speed_substate_enter(
  * that was started on entry to await sata phy event notification none
  */
 static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
@@ -1790,8 +1779,7 @@ static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Set the
@@ -1799,8 +1787,7 @@ static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
  * - Start the SIGNATURE FIS
  * timeout timer none
  */
-static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(void *object)
 {
 	bool continue_to_ready_state;
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
@@ -1830,8 +1817,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This function will perform the actions required by the
  * struct scic_sds_phy on exiting
@@ -1839,7 +1825,7 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(
  * FIS timeout timer. none
  */
 static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
-	struct sci_base_object *object)
+	void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -1850,14 +1836,14 @@ static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. - Set the struct scic_sds_phy
  * object state handlers for this state. - Change base state machine to the
  * ready state. none
  */
-static void scic_sds_phy_starting_final_substate_enter(struct sci_base_object *object)
+static void scic_sds_phy_starting_final_substate_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2178,14 +2164,13 @@ static void scu_link_layer_tx_hard_reset(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
  * handlers for the phy object base state machine initial state. none
  */
-static void scic_sds_phy_initial_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_initial_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2196,15 +2181,14 @@ static void scic_sds_phy_initial_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
  * handlers for the phy object base state machine initial state. - The SCU
  * hardware is requested to stop the protocol engine. none
  */
-static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
+static void scic_sds_phy_stopped_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
@@ -2238,7 +2222,7 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_STARTING. - This function sets the state
@@ -2248,8 +2232,7 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
  * state then the struct scic_sds_controller is informed that the phy has gone link
  * down. none
  */
-static void scic_sds_phy_starting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2279,7 +2262,7 @@ static void scic_sds_phy_starting_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_READY. - This function sets the state
@@ -2287,8 +2270,7 @@ static void scic_sds_phy_starting_state_enter(
  * hardware protocol engine is resumed. - The struct scic_sds_controller is informed
  * that the phy object has gone link up. none
  */
-static void scic_sds_phy_ready_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_ready_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2305,14 +2287,13 @@ static void scic_sds_phy_ready_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on exiting
  * the SCI_BASE_PHY_STATE_INITIAL. This function suspends the SCU hardware
  * protocol engine represented by this struct scic_sds_phy object. none
  */
-static void scic_sds_phy_ready_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_phy_ready_state_exit(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2323,14 +2304,13 @@ static void scic_sds_phy_ready_state_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_RESETTING. - This function sets the state
  * handlers for the phy object base state machine resetting state. none
  */
-static void scic_sds_phy_resetting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_resetting_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 
@@ -2359,14 +2339,13 @@ static void scic_sds_phy_resetting_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_FINAL. - This function sets the state
  * handlers for the phy object base state machine final state. none
  */
-static void scic_sds_phy_final_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_final_state_enter(void *object)
 {
 	struct scic_sds_phy *sci_phy;
 

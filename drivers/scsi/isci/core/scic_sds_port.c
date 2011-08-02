@@ -1631,15 +1631,14 @@ static void scic_sds_port_resume_port_task_scheduler(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCIC_SDS_PORT_READY_SUBSTATE_WAITING. This function checks the
  * port for any ready phys.  If there is at least one phy in a ready state then
  * the port transitions to the ready operational substate. none
  */
-static void scic_sds_port_ready_substate_waiting_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_substate_waiting_enter(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
@@ -1662,16 +1661,14 @@ static void scic_sds_port_ready_substate_waiting_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This function will perform the actions required by the struct scic_sds_port
  * on entering the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function sets
  * the state handlers for the port object, notifies the SCI User that the port
  * is ready, and resumes port operations. none
  */
-static void scic_sds_port_ready_substate_operational_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_substate_operational_enter(void *object)
 {
 	u32 index;
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
@@ -1706,14 +1703,13 @@ static void scic_sds_port_ready_substate_operational_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * exiting the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function reports
  * the port not ready and suspends the port task scheduler. none
  */
-static void scic_sds_port_ready_substate_operational_exit(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_substate_operational_exit(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct scic_sds_controller *scic =
@@ -1738,15 +1734,13 @@ static void scic_sds_port_ready_substate_operational_exit(
 
 /**
  * scic_sds_port_ready_substate_configuring_enter() -
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * exiting the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function reports
  * the port not ready and suspends the port task scheduler. none
  */
-static void scic_sds_port_ready_substate_configuring_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_substate_configuring_enter(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct scic_sds_controller *scic =
@@ -1770,8 +1764,7 @@ static void scic_sds_port_ready_substate_configuring_enter(
 				SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
 }
 
-static void scic_sds_port_ready_substate_configuring_exit(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_substate_configuring_exit(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
@@ -2264,15 +2257,14 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_STOPPED. This function sets the stopped
  * state handlers for the struct scic_sds_port object and disables the port task
  * scheduler in the hardware. none
  */
-static void scic_sds_port_stopped_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_stopped_state_enter(void *object)
 {
 	struct scic_sds_port *sci_port;
 
@@ -2296,14 +2288,13 @@ static void scic_sds_port_stopped_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * exiting the SCI_BASE_STATE_STOPPED. This function enables the SCU hardware
  * port task scheduler. none
  */
-static void scic_sds_port_stopped_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_port_stopped_state_exit(void *object)
 {
 	struct scic_sds_port *sci_port;
 
@@ -2315,14 +2306,14 @@ static void scic_sds_port_stopped_state_exit(
 
 /**
  * scic_sds_port_ready_state_enter -
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_READY. This function sets the ready state
  * handlers for the struct scic_sds_port object, reports the port object as
  * not ready and starts the ready substate machine. none
  */
-static void scic_sds_port_ready_state_enter(struct sci_base_object *object)
+static void scic_sds_port_ready_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
 	struct scic_sds_port *sci_port;
@@ -2351,7 +2342,7 @@ static void scic_sds_port_ready_state_enter(struct sci_base_object *object)
 	sci_base_state_machine_start(&sci_port->ready_substate_machine);
 }
 
-static void scic_sds_port_ready_state_exit(struct sci_base_object *object)
+static void scic_sds_port_ready_state_exit(void *object)
 {
 	struct scic_sds_port *sci_port;
 
@@ -2362,14 +2353,13 @@ static void scic_sds_port_ready_state_exit(struct sci_base_object *object)
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_RESETTING. This function sets the resetting
  * state handlers for the struct scic_sds_port object. none
  */
-static void scic_sds_port_resetting_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_resetting_state_enter(void *object)
 {
 	struct scic_sds_port *sci_port;
 
@@ -2382,15 +2372,13 @@ static void scic_sds_port_resetting_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This function will perform the actions required by the
  * struct scic_sds_port on
  * exiting the SCI_BASE_STATE_RESETTING. This function does nothing. none
  */
-static inline void scic_sds_port_resetting_state_exit(
-	struct sci_base_object *object)
+static inline void scic_sds_port_resetting_state_exit(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
@@ -2399,14 +2387,14 @@ static inline void scic_sds_port_resetting_state_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the void object which is cast to a
+ * struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_STOPPING. This function sets the stopping
  * state handlers for the struct scic_sds_port object. none
  */
-static void scic_sds_port_stopping_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_stopping_state_enter(void *object)
 {
 	struct scic_sds_port *sci_port;
 
@@ -2419,15 +2407,14 @@ static void scic_sds_port_stopping_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This function will perform the actions required by the
  * struct scic_sds_port on
  * exiting the SCI_BASE_STATE_STOPPING. This function does nothing. none
  */
 static inline void
-scic_sds_port_stopping_state_exit(struct sci_base_object *object)
+scic_sds_port_stopping_state_exit(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
@@ -2438,15 +2425,14 @@ scic_sds_port_stopping_state_exit(struct sci_base_object *object)
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a
- * struct scic_sds_port object.
+ * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This function will perform the actions required by the
  * struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_STOPPING. This function sets the stopping
  * state handlers for the struct scic_sds_port object. none
  */
-static void scic_sds_port_failed_state_enter(struct sci_base_object *object)
+static void scic_sds_port_failed_state_enter(void *object)
 {
 	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 	struct isci_port *iport = sci_object_get_association(sci_port);

@@ -2871,8 +2871,7 @@ enum sci_status scic_controller_start(struct scic_sds_controller *scic,
  * controllers initial state. none This function should initialze the
  * controller object.
  */
-static void scic_sds_controller_initial_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_controller_initial_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
 
@@ -2884,15 +2883,14 @@ static void scic_sds_controller_initial_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_controller
+ * @object: This is the object which is cast to a struct scic_sds_controller
  *    object.
  *
  * This method implements the actions taken by the struct scic_sds_controller on exit
  * from the SCI_BASE_CONTROLLER_STATE_STARTING. - This function stops the
  * controller starting timeout timer. none
  */
-static inline void scic_sds_controller_starting_state_exit(
-	struct sci_base_object *object)
+static inline void scic_sds_controller_starting_state_exit(void *object)
 {
 	struct scic_sds_controller *scic = (struct scic_sds_controller *)object;
 
@@ -2901,15 +2899,14 @@ static inline void scic_sds_controller_starting_state_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_controller
+ * @object: This is the object which is cast to a struct scic_sds_controller
  *    object.
  *
  * This method implements the actions taken by the struct scic_sds_controller on entry
  * to the SCI_BASE_CONTROLLER_STATE_READY. - Set the state handlers to the
  * controllers ready state. none
  */
-static void scic_sds_controller_ready_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_controller_ready_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
 
@@ -2922,14 +2919,13 @@ static void scic_sds_controller_ready_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_controller
+ * @object: This is the object which is cast to a struct scic_sds_controller
  *    object.
  *
  * This method implements the actions taken by the struct scic_sds_controller on exit
  * from the SCI_BASE_CONTROLLER_STATE_READY. - This function does nothing. none
  */
-static void scic_sds_controller_ready_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_controller_ready_state_exit(void *object)
 {
 	struct scic_sds_controller *scic;
 
@@ -2941,7 +2937,7 @@ static void scic_sds_controller_ready_state_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_controller
+ * @object: This is the object which is cast to a struct scic_sds_controller
  *    object.
  *
  * This method implements the actions taken by the struct scic_sds_controller on entry
@@ -2949,8 +2945,7 @@ static void scic_sds_controller_ready_state_exit(
  * controllers ready state. - Stop the phys on this controller - Stop the ports
  * on this controller - Stop all of the remote devices on this controller none
  */
-static void scic_sds_controller_stopping_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_controller_stopping_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
 
@@ -2964,15 +2959,14 @@ static void scic_sds_controller_stopping_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct
+ * @object: This is the object which is cast to a struct
  * scic_sds_controller object.
  *
  * This funciton implements the actions taken by the struct scic_sds_controller
  * on exit from the SCI_BASE_CONTROLLER_STATE_STOPPING. -
  * This function stops the controller stopping timeout timer.
  */
-static inline void scic_sds_controller_stopping_state_exit(
-	struct sci_base_object *object)
+static inline void scic_sds_controller_stopping_state_exit(void *object)
 {
 	struct scic_sds_controller *scic =
 		(struct scic_sds_controller *)object;
@@ -2980,7 +2974,7 @@ static inline void scic_sds_controller_stopping_state_exit(
 	isci_timer_stop(scic->timeout_timer);
 }
 
-static void scic_sds_controller_resetting_state_enter(struct sci_base_object *object)
+static void scic_sds_controller_resetting_state_enter(void *object)
 {
 	struct scic_sds_controller *scic;
 
