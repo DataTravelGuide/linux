@@ -53,10 +53,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "scic_controller.h"
+#include "host.h"
 #include "scic_phy.h"
 #include "scic_port.h"
-#include "scic_sds_controller.h"
 #include "scic_sds_phy.h"
 #include "scic_sds_phy_registers.h"
 #include "scic_sds_port.h"
@@ -64,7 +63,6 @@
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "scic_sds_request.h"
-#include "sci_environment.h"
 #include "timers.h"
 #include "scic_sds_controller_registers.h"
 

@@ -54,9 +54,7 @@
  */
 
 #include <scsi/sas.h>
-#include "scic_controller.h"
 #include "scic_io_request.h"
-#include "scic_sds_controller.h"
 #include "scic_sds_controller_registers.h"
 #include "scic_sds_pci.h"
 #include "scic_sds_port.h"
@@ -65,7 +63,6 @@
 #include "scic_sds_smp_request.h"
 #include "scic_sds_stp_request.h"
 #include "scic_sds_unsolicited_frame_control.h"
-#include "sci_environment.h"
 #include "sci_util.h"
 #include "scu_completion_codes.h"
 #include "scu_task_context.h"
