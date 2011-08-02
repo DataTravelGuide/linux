@@ -54,9 +54,7 @@
  */
 
 #include "host.h"
-#include "scic_phy.h"
 #include "scic_port.h"
-#include "scic_sds_phy.h"
 #include "scic_sds_phy_registers.h"
 #include "scic_sds_port.h"
 #include "scic_sds_port_registers.h"
