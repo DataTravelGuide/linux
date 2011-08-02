@@ -66,7 +66,6 @@
  */
 
 #include "sci_pool.h"
-#include "sci_controller_constants.h"
 #include "sci_base_state.h"
 #include "sci_base_state_machine.h"
 #include "scic_config_parameters.h"
@@ -75,7 +74,6 @@
 #include "remote_node_table.h"
 #include "remote_device.h"
 #include "scu_registers.h"
-#include "scu_constants.h"
 #include "scu_task_context.h"
 #include "scu_unsolicited_frame.h"
 #include "scic_sds_unsolicited_frame_control.h"

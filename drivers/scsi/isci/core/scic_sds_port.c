@@ -65,6 +65,7 @@
 #include "remote_node_context.h"
 #include "scic_sds_request.h"
 #include "sci_environment.h"
+#include "timers.h"
 #include "scic_sds_controller_registers.h"
 
 #define SCIC_SDS_PORT_MIN_TIMER_COUNT  (SCI_MAX_PORTS)
