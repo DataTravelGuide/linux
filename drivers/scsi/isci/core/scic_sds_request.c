@@ -254,8 +254,7 @@ static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
  */
 void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 {
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_request *isci_request = sds_request->ireq;
 	struct isci_host *isci_host = isci_request->isci_host;
 	struct sas_task *task = isci_request_access_task(isci_request);
 	struct scatterlist *sg = NULL;
@@ -360,8 +359,7 @@ static void scic_sds_io_request_build_ssp_command_iu(
 	struct sci_ssp_command_iu *command_frame;
 	u32 cdb_length;
 	u32 *cdb_buffer;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_request *isci_request = sds_request->ireq;
 
 	command_frame =
 		(struct sci_ssp_command_iu *)sds_request->command_buffer;
@@ -404,8 +402,7 @@ static void scic_sds_task_request_build_ssp_task_iu(
 	struct scic_sds_request *sds_request)
 {
 	struct sci_ssp_task_iu *command_frame;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_request *isci_request = sds_request->ireq;
 
 	command_frame =
 		(struct sci_ssp_task_iu *)sds_request->command_buffer;
@@ -701,8 +698,7 @@ u32 scic_io_request_get_object_size(void)
 enum sci_status scic_io_request_construct_basic_ssp(
 	struct scic_sds_request *sci_req)
 {
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sci_req);
+	struct isci_request *isci_request = sci_req->ireq;
 
 	sci_req->protocol = SCIC_SSP_PROTOCOL;
 
@@ -745,8 +741,7 @@ enum sci_status scic_io_request_construct_basic_sata(
 	u32 len;
 	enum dma_data_direction dir;
 	bool copy = false;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sci_req);
+	struct isci_request *isci_request = sci_req->ireq;
 	struct sas_task *task = isci_request_access_task(isci_request);
 
 	stp_req = container_of(sci_req, typeof(*stp_req), parent);
@@ -773,8 +768,7 @@ enum sci_status scic_task_request_construct_sata(
 {
 	enum sci_status status;
 	u8 sat_protocol;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sci_req);
+	struct isci_request *isci_request = sci_req->ireq;
 
 	sat_protocol = isci_sata_get_sat_protocol(isci_request);
 
@@ -1003,8 +997,7 @@ void scic_sds_io_request_copy_response(struct scic_sds_request *sds_request)
 	u32 user_response_length;
 	u32 core_response_length;
 	struct sci_ssp_response_iu *ssp_response;
-	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+	struct isci_request *isci_request = sds_request->ireq;
 
 	ssp_response =
 		(struct sci_ssp_response_iu *)sds_request->response_buffer;
@@ -1524,7 +1517,7 @@ static const struct scic_sds_io_request_state_handler scic_sds_request_state_han
  */
 static void scic_sds_request_initial_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1543,7 +1536,7 @@ static void scic_sds_request_initial_state_enter(void *object)
  */
 static void scic_sds_request_constructed_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1563,7 +1556,7 @@ static void scic_sds_request_constructed_state_enter(void *object)
  */
 static void scic_sds_request_started_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1590,7 +1583,7 @@ static void scic_sds_request_started_state_enter(void *object)
  */
 static void scic_sds_request_started_state_exit(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	if (sci_req->has_started_substate_machine == true)
 		sci_base_state_machine_stop(&sci_req->started_substate_machine);
@@ -1610,11 +1603,11 @@ static void scic_sds_request_started_state_exit(void *object)
  */
 static void scic_sds_request_completed_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 	struct scic_sds_controller *scic =
 		scic_sds_request_get_controller(sci_req);
 	struct isci_host *ihost = scic->ihost;
-	struct isci_request *ireq = sci_object_get_association(sci_req);
+	struct isci_request *ireq = sci_req->ireq;
 
 	SET_STATE_HANDLER(sci_req,
 			  scic_sds_request_state_handler_table,
@@ -1640,7 +1633,7 @@ static void scic_sds_request_completed_state_enter(void *object)
  */
 static void scic_sds_request_aborting_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	/* Setting the abort bit in the Task Context is required by the silicon. */
 	sci_req->task_context_buffer->abort = 1;
@@ -1663,7 +1656,7 @@ static void scic_sds_request_aborting_state_enter(void *object)
  */
 static void scic_sds_request_final_state_enter(void *object)
 {
-	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = object;
 
 	SET_STATE_HANDLER(
 		sci_req,
@@ -1700,8 +1693,7 @@ static void scic_sds_general_request_construct(struct scic_sds_controller *scic,
 					       void *user_io_request_object,
 					       struct scic_sds_request *sci_req)
 {
-	sci_req->parent.private = NULL;
-	sci_base_state_machine_construct(&sci_req->state_machine, &sci_req->parent,
+	sci_base_state_machine_construct(&sci_req->state_machine, sci_req,
 			scic_sds_request_state_table, SCI_BASE_REQUEST_STATE_INITIAL);
 	sci_base_state_machine_start(&sci_req->state_machine);
 
@@ -1791,7 +1783,7 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 		/* Construct the started sub-state machine. */
 		sci_base_state_machine_construct(
 			&sci_req->started_substate_machine,
-			&sci_req->parent,
+			sci_req,
 			scic_sds_io_request_started_task_mgmt_substate_table,
 			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
 			);
