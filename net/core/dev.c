@@ -1505,18 +1505,20 @@ void netif_setup_tc(struct net_device *dev, unsigned int txq)
  */
 void netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
-	unsigned int real_num = dev->real_num_tx_queues;
-
-	if (unlikely(txq > dev->num_tx_queues))
+	if (txq < 1 || txq > dev->num_tx_queues)
 		return;
-	if (dev->num_tc)
-		netif_setup_tc(dev, txq);
-	if (txq > real_num)
-		dev->real_num_tx_queues = txq;
-	else if (txq < real_num) {
-		dev->real_num_tx_queues = txq;
-		qdisc_reset_all_tx_gt(dev, txq);
+
+	if (dev->reg_state == NETREG_REGISTERED) {
+		ASSERT_RTNL();
+
+		if (dev->num_tc)
+			netif_setup_tc(dev, txq);
+
+		if (txq < dev->real_num_tx_queues)
+			qdisc_reset_all_tx_gt(dev, txq);
 	}
+
+	dev->real_num_tx_queues = txq;
 }
 EXPORT_SYMBOL(netif_set_real_num_tx_queues);
 
