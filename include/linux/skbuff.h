@@ -398,7 +398,9 @@ struct sk_buff {
 #else
 	__u8			deliver_no_wcard:1;
 #endif
+#ifndef __GENKSYMS__
 	__u8			ooo_okay:1;
+#endif
 	kmemcheck_bitfield_end(flags2);
 
 	/* 0/13 bit hole */

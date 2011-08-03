@@ -1957,7 +1957,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 	int queue_index = -1;
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps);
+	dev_maps = rcu_dereference(netdev_extended(dev)->xps_maps);
 	if (dev_maps) {
 		map = rcu_dereference(
 		    dev_maps->cpu_map[raw_smp_processor_id()]);
@@ -5719,18 +5719,29 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	struct netdev_queue *tx;
+	struct netdev_tx_queue_extended *tx_ext;
 	struct net_device *dev;
+	struct net_device_extended_frozen *dev_ext_frozen;
 	size_t alloc_size;
-	struct net_device *p;
+	struct net_device_extended_frozen *p;
+	int i;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
-	alloc_size = sizeof(struct net_device);
+	/*
+	 * allocate memory for extended frozen structure in front of
+	 * net_device structure
+	 */
+	alloc_size = NET_DEVICE_EXTENDED_FROZEN_SIZE;
+	alloc_size += NET_DEVICE_SIZE;
+
 	if (sizeof_priv) {
-		/* ensure 32-byte alignment of private area */
-		alloc_size = ALIGN(alloc_size, NETDEV_ALIGN);
+		sizeof_priv = ALIGN(sizeof_priv, NETDEV_ALIGN);
 		alloc_size += sizeof_priv;
 	}
+	/* allocate memory for extended strcucture after priv */
+	alloc_size += NET_DEVICE_EXTENDED_SIZE;
+
 	/* ensure 32-byte alignment of whole construct */
 	alloc_size += NETDEV_ALIGN - 1;
 
@@ -5747,15 +5758,27 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
-	dev = PTR_ALIGN(p, NETDEV_ALIGN);
-	dev->padded = (char *)dev - (char *)p;
+	tx_ext = kcalloc(queue_count, sizeof(struct netdev_tx_queue_extended),
+			 GFP_KERNEL);
+	if (!tx_ext) {
+		printk(KERN_ERR "alloc_netdev: Unable to allocate "
+		       "extensions for tx qdiscs.\n");
+		goto free_tx;
+	}
+	for (i = 0; i < queue_count; i++)
+		tx_ext[i].q = &tx[i];
 
+	dev_ext_frozen = PTR_ALIGN(p, NETDEV_ALIGN);
+	dev = netdev_extended_frozen_get_dev(dev_ext_frozen);
+	dev->padded = (char *)dev_ext_frozen - (char *)p;
+	dev_ext_frozen->dev_ext = (struct net_device_extended *)
+				  ((char *) dev + NET_DEVICE_SIZE + sizeof_priv);
 
 	dev->num_rx_queues = queue_count;
 	if (netif_alloc_rx_queues(dev)) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "rx queues.\n");
-		goto free_tx;
+		goto free_tx_ext;
 	}
 
 	if (dev_addr_init(dev))
@@ -5766,6 +5789,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev_net_set(dev, &init_net);
 
 	dev->_tx = tx;
+	netdev_extended(dev)->_tx_ext = tx_ext;
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
 
@@ -5782,6 +5806,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 free_rx:
 	kfree(dev->_rx);
+free_tx_ext:
+	kfree(tx_ext);
 free_tx:
 	kfree(tx);
 free_p:
@@ -5804,6 +5830,7 @@ void free_netdev(struct net_device *dev)
 
 	release_net(dev_net(dev));
 
+	kfree(netdev_extended(dev)->_tx_ext);
 	kfree(dev->_tx);
 	kfree(dev->_rx);
 
@@ -5815,7 +5842,10 @@ void free_netdev(struct net_device *dev)
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {
-		kfree((char *)dev - dev->padded);
+		struct net_device_extended_frozen *dev_ext_frozen;
+
+		dev_ext_frozen = netdev_extended_frozen(dev);
+		kfree((char *)dev_ext_frozen - dev->padded);
 		return;
 	}
 

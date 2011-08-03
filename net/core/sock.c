@@ -972,8 +972,7 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 	void *sptr = nsk->sk_security;
 #endif
 	BUILD_BUG_ON(offsetof(struct sock, sk_copy_start) !=
-		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt) +
-		     sizeof(osk->sk_tx_queue_mapping));
+		     sizeof(osk->sk_node) + sizeof(osk->sk_refcnt));
 	memcpy(&nsk->sk_copy_start, &osk->sk_copy_start,
 	       sk_alloc_size(osk->sk_prot->obj_size) -
 	       offsetof(struct sock, sk_copy_start));
@@ -1019,6 +1018,11 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 
 		if (!try_module_get(prot->owner))
 			goto out_free_sec;
+		/*
+		 * assign sk_prot_creator earlier here. It's needed by
+		 * sk_extended called from sk_tx_queue_clear
+		 */
+		sk->sk_prot_creator = prot;
 		sk_tx_queue_clear(sk);
 	}
 

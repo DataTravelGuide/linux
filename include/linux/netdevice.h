@@ -499,7 +499,6 @@ struct netdev_queue {
 	struct Qdisc		*qdisc;
 	unsigned long		state;
 	struct Qdisc		*qdisc_sleeping;
-	struct kobject		kobj;
 /*
  * write mostly part
  */
@@ -1007,9 +1006,6 @@ struct net_device
 
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
-
-	struct xps_dev_maps	*xps_maps;
-
 /*
  * One part is mostly used on xmit path (device)
  */
@@ -1105,6 +1101,68 @@ struct net_device
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
+#define NET_DEVICE_SIZE \
+	ALIGN(sizeof(struct net_device), NETDEV_ALIGN)
+
+/*
+ * To prevent KABI-breakage, few structs are added to extend the original
+ * struct net_device. Also few helpers are added:
+ * netdev_extended_frozen_get_dev
+ *     - used to get pointer to net_device from frozen extend pointer
+ * netdev_extended_frozen-
+ *     - should be used to access items in struct net_device_extended_frozen
+ * netdev_extended
+ *     - should be used to access items in struct net_device_extended
+ *
+ * Structures are supposed to be located in memory in following way:
+ * struct net_device_extended_frozen - for storing pointer to extension
+ * struct net_device - original struct
+ * driver priv
+ * struct net_device_extended - extend to store additional values.
+ */
+
+struct netdev_tx_queue_extended {
+	struct netdev_queue	*q;
+	struct kobject		kobj;
+};
+
+/* Only append, do not change existing! */
+struct net_device_extended {
+	struct xps_dev_maps			*xps_maps;
+	struct netdev_tx_queue_extended		*_tx_ext;
+};
+
+#define NET_DEVICE_EXTENDED_SIZE \
+	ALIGN(sizeof(struct net_device_extended), NETDEV_ALIGN)
+
+/* Do not add anything here! */
+struct net_device_extended_frozen {
+	struct net_device_extended *dev_ext; /* Pointer to net_device extension */
+};
+
+#define NET_DEVICE_EXTENDED_FROZEN_SIZE \
+	ALIGN(sizeof(struct net_device_extended_frozen), NETDEV_ALIGN)
+
+static inline struct net_device *
+netdev_extended_frozen_get_dev(const struct net_device_extended_frozen *dev_ext_frozen)
+{
+	return (struct net_device *)
+			(((char *) dev_ext_frozen) +
+			 NET_DEVICE_EXTENDED_FROZEN_SIZE);
+}
+
+static inline struct net_device_extended_frozen *
+netdev_extended_frozen(const struct net_device *dev)
+{
+	return (struct net_device_extended_frozen *)
+			(((char *) dev) - NET_DEVICE_EXTENDED_FROZEN_SIZE);
+}
+
+static inline struct net_device_extended *
+netdev_extended(const struct net_device *dev)
+{
+	return netdev_extended_frozen(dev)->dev_ext;
+}
 
 static inline
 int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)

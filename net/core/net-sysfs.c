@@ -755,7 +755,8 @@ struct netdev_queue_attribute {
 #define to_netdev_queue_attr(_attr) container_of(_attr,		\
     struct netdev_queue_attribute, attr)
 
-#define to_netdev_queue(obj) container_of(obj, struct netdev_queue, kobj)
+#define to_netdev_queue(obj) \
+	container_of(obj, struct netdev_tx_queue_extended, kobj)->q
 
 static ssize_t netdev_queue_attr_show(struct kobject *kobj,
 				      struct attribute *attr, char *buf)
@@ -818,7 +819,7 @@ static ssize_t show_xps_map(struct netdev_queue *queue,
 	index = get_netdev_queue_index(queue);
 
 	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps);
+	dev_maps = rcu_dereference(netdev_extended(dev)->xps_maps);
 	if (dev_maps) {
 		for_each_possible_cpu(i) {
 			struct xps_map *map =
@@ -899,7 +900,7 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 
 	mutex_lock(&xps_map_mutex);
 
-	dev_maps = dev->xps_maps;
+	dev_maps = netdev_extended(dev)->xps_maps;
 
 	for_each_possible_cpu(cpu) {
 		new_map = map = dev_maps ? dev_maps->cpu_map[cpu] : NULL;
@@ -952,10 +953,11 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 	}
 
 	if (nonempty)
-		rcu_assign_pointer(dev->xps_maps, new_dev_maps);
+		rcu_assign_pointer(netdev_extended(dev)->xps_maps,
+				   new_dev_maps);
 	else {
 		kfree(new_dev_maps);
-		rcu_assign_pointer(dev->xps_maps, NULL);
+		rcu_assign_pointer(netdev_extended(dev)->xps_maps, NULL);
 	}
 
 	if (dev_maps)
@@ -997,7 +999,7 @@ static void netdev_queue_release(struct kobject *kobj)
 	index = get_netdev_queue_index(queue);
 
 	mutex_lock(&xps_map_mutex);
-	dev_maps = dev->xps_maps;
+	dev_maps = netdev_extended(dev)->xps_maps;
 
 	if (dev_maps) {
 		for_each_possible_cpu(i) {
@@ -1025,7 +1027,7 @@ static void netdev_queue_release(struct kobject *kobj)
 		}
 
 		if (!nonempty) {
-			rcu_assign_pointer(dev->xps_maps, NULL);
+			rcu_assign_pointer(netdev_extended(dev)->xps_maps, NULL);
 			call_rcu(&dev_maps->rcu, xps_dev_maps_release);
 		}
 	}
@@ -1045,7 +1047,9 @@ static struct kobj_type netdev_queue_ktype = {
 static int netdev_queue_add_kobject(struct net_device *net, int index)
 {
 	struct netdev_queue *queue = net->_tx + index;
-	struct kobject *kobj = &queue->kobj;
+	struct netdev_tx_queue_extended *queue_ext =
+				netdev_extended(net)->_tx_ext + index;
+	struct kobject *kobj = &queue_ext->kobj;
 	int error = 0;
 
 	kobj->kset = net->queues_kset;
@@ -1077,7 +1081,7 @@ netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 	}
 
 	while (--i >= new_num)
-		kobject_put(&net->_tx[i].kobj);
+		kobject_put(&netdev_extended(net)->_tx_ext[i].kobj);
 
 	return error;
 }
@@ -1156,11 +1160,13 @@ exit:
 static void netdev_release(struct device *d)
 {
 	struct net_device *dev = to_net_dev(d);
+	struct net_device_extended_frozen *dev_ext_frozen;
 
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
 	kfree(dev->ifalias);
-	kfree((char *)dev - dev->padded);
+	dev_ext_frozen = netdev_extended_frozen(dev);
+	kfree((char *)dev_ext_frozen - dev->padded);
 }
 
 static struct class net_class = {

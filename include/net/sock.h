@@ -107,7 +107,6 @@ struct net;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_nulls_node: main hash linkage for UDP/UDP-Lite protocol
  *	@skc_refcnt: reference count
- *	@skc_tx_queue_mapping: tx queue number for this connection
  *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_family: network address family
  *	@skc_state: Connection state
@@ -129,7 +128,6 @@ struct sock_common {
 		struct hlist_nulls_node skc_nulls_node;
 	};
 	atomic_t		skc_refcnt;
-	int			skc_tx_queue_mapping;
 
 	unsigned int		skc_hash;
 	unsigned short		skc_family;
@@ -217,7 +215,6 @@ struct sock {
 #define sk_node			__sk_common.skc_node
 #define sk_nulls_node		__sk_common.skc_nulls_node
 #define sk_refcnt		__sk_common.skc_refcnt
-#define sk_tx_queue_mapping	__sk_common.skc_tx_queue_mapping
 
 #define sk_copy_start		__sk_common.skc_hash
 #define sk_hash			__sk_common.skc_hash
@@ -319,9 +316,11 @@ struct sock_extended {
 
 	/*
 	 * Expansion for the sock common structure
+	 *	@skc_tx_queue_mapping: tx queue number for this connection
 	 */
 	struct {
-	} sock_extensions;
+		int			skc_tx_queue_mapping;
+	} __sk_common_extended;
 
 	/*
 	 * Expansion space for proto specific sock types
@@ -339,6 +338,9 @@ struct sock_extended {
 		int len;
 	} sk_backlog;
 };
+
+#define __sk_tx_queue_mapping(sk) \
+	sk_extended(sk)->__sk_common_extended.skc_tx_queue_mapping
 
 #define SOCK_EXTENDED_SIZE ALIGN(sizeof(struct sock_extended), sizeof(long))
 static inline struct sock_extended *sk_extended(const struct sock *sk);
@@ -1197,17 +1199,17 @@ extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 
 static inline void sk_tx_queue_set(struct sock *sk, int tx_queue)
 {
-	sk->sk_tx_queue_mapping = tx_queue;
+	__sk_tx_queue_mapping(sk) = tx_queue;
 }
 
 static inline void sk_tx_queue_clear(struct sock *sk)
 {
-	sk->sk_tx_queue_mapping = -1;
+	__sk_tx_queue_mapping(sk) = -1;
 }
 
 static inline int sk_tx_queue_get(const struct sock *sk)
 {
-	return sk ? sk->sk_tx_queue_mapping : -1;
+	return sk ? __sk_tx_queue_mapping(sk) : -1;
 }
 
 static inline void sk_set_socket(struct sock *sk, struct socket *sock)
