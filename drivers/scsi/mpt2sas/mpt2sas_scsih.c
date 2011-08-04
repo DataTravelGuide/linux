@@ -103,6 +103,11 @@ static int max_lun = MPT2SAS_MAX_LUN;
 module_param(max_lun, int, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
+static int host_lock_less = -1;
+module_param(host_lock_less, int, 0);
+MODULE_PARM_DESC(host_lock_less, " Enable host_lock_less mode (default=0). "
+	"Valid value is 1. This is an experimental option - only for testing");
+
 /**
  * struct sense_info - common structure for obtaining sense keys
  * @skey: sense key
@@ -7090,6 +7095,16 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	return 1;
 }
 
+static int
+_scsih_qcmd_preempt_disable(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
+{
+	int ret;
+	preempt_disable();
+	ret = _scsih_qcmd(scmd, done);
+	preempt_enable();
+	return ret;
+}
+
 /* shost template */
 static struct scsi_host_template scsih_driver_template = {
 	.module				= THIS_MODULE,
@@ -7504,6 +7519,12 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct MPT2SAS_ADAPTER *ioc;
 	struct Scsi_Host *shost;
+
+	if (host_lock_less == 1) {
+		scsih_driver_template.lockless = 1;
+		scsih_driver_template.queuecommand  = _scsih_qcmd_preempt_disable;
+		printk(KERN_WARNING "mpt2sas; lockless mode active - to use only for testing\n");
+	}
 
 	shost = scsi_host_alloc(&scsih_driver_template,
 	    sizeof(struct MPT2SAS_ADAPTER));
