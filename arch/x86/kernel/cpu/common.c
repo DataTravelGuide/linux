@@ -605,8 +605,8 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
 
-		if (eax > 0)
-			rh->x86_capability[0] = ebx;
+		/* write into "word 9" of the rh extended capability area */
+		rh->x86_capability[9 - NCAPINTS] = ebx;
 	}
 
 	/* AMD-defined flags: level 0x80000001 */
