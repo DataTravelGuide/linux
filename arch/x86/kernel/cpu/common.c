@@ -369,8 +369,8 @@ static const char *__cpuinit table_lookup_model(struct cpuinfo_x86 *c)
 	return NULL;		/* Not found */
 }
 
-__u32 cpu_caps_cleared[NCAPINTS] __cpuinitdata;
-__u32 cpu_caps_set[NCAPINTS] __cpuinitdata;
+__u32 cpu_caps_cleared[RHNCAPINTS] __cpuinitdata;
+__u32 cpu_caps_set[RHNCAPINTS] __cpuinitdata;
 
 void load_percpu_segment(int cpu)
 {
@@ -598,6 +598,17 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[4] = excap;
 	}
 
+	/* Additional Intel-defined flags: level 0x00000007 */
+	if (c->cpuid_level >= 0x00000007) {
+		u32 eax, ebx, ecx, edx;
+		struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
+
+		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
+
+		if (eax > 0)
+			rh->x86_capability[0] = ebx;
+	}
+
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
 	c->extended_cpuid_level = xlvl;
@@ -662,6 +673,8 @@ static void __cpuinit identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
+	struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
+
 #ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
 	c->x86_phys_bits = 36;
@@ -674,6 +687,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_cache_alignment = c->x86_clflush_size;
 
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	memset(&rh->x86_capability, 0, sizeof rh->x86_capability);
 	c->extended_cpuid_level = 0;
 
 	if (!have_cpuid_p())
@@ -781,6 +795,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
+	struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
 
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = -1;
@@ -802,6 +817,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #endif
 	c->x86_cache_alignment = c->x86_clflush_size;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	memset(&rh->x86_capability, 0, sizeof rh->x86_capability);
 
 	generic_identify(c);
 
@@ -812,6 +828,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	for (i = 0; i < NCAPINTS; i++) {
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
+	}
+	for (i = NCAPINTS; i < RHNCAPINTS; i++) {
+		rh->x86_capability[i - NCAPINTS] &= ~cpu_caps_cleared[i];
+		rh->x86_capability[i - NCAPINTS] |= cpu_caps_set[i];
 	}
 
 #ifdef CONFIG_X86_64
@@ -882,6 +902,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
 	}
+	for (i = NCAPINTS; i < RHNCAPINTS; i++) {
+		rh->x86_capability[i - NCAPINTS] &= ~cpu_caps_cleared[i];
+		rh->x86_capability[i - NCAPINTS] |= cpu_caps_set[i];
+	}
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
@@ -893,6 +917,9 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		/* AND the already accumulated flags with these */
 		for (i = 0; i < NCAPINTS; i++)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
+		for (i = 0; i < (RHNCAPINTS - NCAPINTS); i++)
+			boot_cpu_data_rh.x86_capability[i] &=
+							  rh->x86_capability[i];
 	}
 
 #ifdef CONFIG_X86_MCE
@@ -1028,7 +1055,7 @@ static __init int setup_disablecpuid(char *arg)
 {
 	int bit;
 
-	if (get_option(&arg, &bit) && bit < NCAPINTS*32)
+	if (get_option(&arg, &bit) && bit < RHNCAPINTS*32)
 		setup_clear_cpu_cap(bit);
 	else
 		return 0;

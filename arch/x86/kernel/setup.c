@@ -174,9 +174,14 @@ static struct resource bss_resource = {
 #ifdef CONFIG_X86_32
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __cpuinitdata = {0, 0, 0, 0, -1, 1, 0, 0, -1};
+struct cpuinfo_x86_rh new_cpu_data_rh __cpuinitdata;
 /* common cpu data for all cpus */
 struct cpuinfo_x86 boot_cpu_data __read_mostly = {0, 0, 0, 0, -1, 1, 0, 0, -1};
+/* This symbol should not be on kabi whitelists */
+struct cpuinfo_x86_rh boot_cpu_data_rh __cpuinitdata;
 EXPORT_SYMBOL(boot_cpu_data);
+EXPORT_SYMBOL(boot_cpu_data_rh);
+
 static void set_mca_bus(int x)
 {
 #ifdef CONFIG_MCA
@@ -206,7 +211,10 @@ struct ist_info ist_info;
 struct cpuinfo_x86 boot_cpu_data __read_mostly = {
 	.x86_phys_bits = MAX_PHYSMEM_BITS,
 };
+/* This symbol should not be on kabi whitelists */
+struct cpuinfo_x86_rh boot_cpu_data_rh __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
+EXPORT_SYMBOL(boot_cpu_data_rh);
 #endif
 
 

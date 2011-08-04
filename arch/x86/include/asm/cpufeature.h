@@ -7,6 +7,12 @@
 #include <asm/required-features.h>
 
 #define NCAPINTS	9	/* N 32-bit words worth of info */
+/*
+ * KABI prevents us from extending NCAPINTS.  Instead use RH_EXT_NCAPINTS and
+ *  extend the array in the non-whitelisted cpuinfo_x86_rh structure.
+ */
+#define RH_EXT_NCAPINTS 1
+#define RHNCAPINTS	(NCAPINTS + RH_EXT_NCAPINTS)
 
 /*
  * Note: If the comment begins with a quoted string, that string is used
@@ -163,7 +169,7 @@
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various
- * CPUID levels like 0x6, 0xA etc
+ * CPUID levels like 0x6, 0xA etc, word 7
  */
 #define X86_FEATURE_IDA		(7*32+ 0) /* Intel Dynamic Acceleration */
 #define X86_FEATURE_ARAT	(7*32+ 1) /* Always Running APIC Timer */
@@ -174,7 +180,7 @@
 #define X86_FEATURE_PTS		(7*32+ 6) /* Intel Package Thermal Status */
 #define X86_FEATURE_DTS		(7*32+ 7) /* Digital Thermal Sensor */
 
-/* Virtualization flags: Linux defined */
+/* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW  (8*32+ 0) /* Intel TPR Shadow */
 #define X86_FEATURE_VNMI        (8*32+ 1) /* Intel Virtual NMI */
 #define X86_FEATURE_FLEXPRIORITY (8*32+ 2) /* Intel FlexPriority */
@@ -185,16 +191,41 @@
 #define X86_FEATURE_SVML	(8*32+7)  /* "svm_lock" AMD SVM locking MSR */
 #define X86_FEATURE_NRIPS	(8*32+8)  /* "nrip_save" AMD SVM next_rip save */
 
+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ebx), word 9 */
+#define X86_FEATURE_FSGSBASE	(9*32+0)  /* {RD/WR}{FS/GS}BASE instructions*/
+
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
 #include <asm/asm.h>
 #include <linux/bitops.h>
 
-extern const char * const x86_cap_flags[NCAPINTS*32];
+extern const char * const x86_cap_flags[RHNCAPINTS*32];
 extern const char * const x86_power_flags[32];
 
-#define test_cpu_cap(c, bit)						\
-	 test_bit(bit, (unsigned long *)((c)->x86_capability))
+ /* start of RH extended capabilities word 9, bit 0 */
+#define RH_EXT_CAP_BIT0 (9*32+0)
+
+/*
+ * RHEL: If the bit is in the cpuinfo_x86 struct (ie, is word 8 or less),
+ * then just use the bit like it always has been.  If it is in the new
+ * extended struct, cpuinfo_x86_rh, then check to see if the cpuinfo_x86
+ * struct was the boot_cpu_data struct.  If it was the boot_cpu_data
+ * struct then use boot_cpu_data_rh, o/w use the cpu_data_rh per_cpu data
+ */
+#define _cpu_cap_fn(func, c, bit)					\
+	((bit < RH_EXT_CAP_BIT0) ?					\
+	 func##_bit(bit, (unsigned long *)((c)->x86_capability)) :	\
+	 ((c == &boot_cpu_data) ?					\
+	  func##_bit(bit - RH_EXT_CAP_BIT0,				\
+		     (unsigned long *)boot_cpu_data_rh.x86_capability):	\
+	  func##_bit(bit - RH_EXT_CAP_BIT0,				\
+		 (unsigned long *)cpu_data_rh((c)->cpu_index).x86_capability)\
+	 )								\
+	)
+
+#define test_cpu_cap(c, bit) _cpu_cap_fn(test, c, bit)
+#define set_cpu_cap(c, bit) _cpu_cap_fn(set, c, bit)
+#define clear_cpu_cap(c, bit) _cpu_cap_fn(clear, c, bit)
 
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) &&					\
@@ -205,14 +236,14 @@ extern const char * const x86_power_flags[32];
 	   (((bit)>>5)==4 && (1UL<<((bit)&31) & REQUIRED_MASK4)) ||	\
 	   (((bit)>>5)==5 && (1UL<<((bit)&31) & REQUIRED_MASK5)) ||	\
 	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
-	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) )	\
+	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) ||	\
+	   (((bit)>>5)==8 && (1UL<<((bit)&31) & REQUIRED_MASK8)) ||	\
+	   (((bit)>>5)==9 && (1UL<<((bit)&31) & REQUIRED_MASK9)) )	\
 	  ? 1 :								\
 	 test_cpu_cap(c, bit))
 
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
-#define set_cpu_cap(c, bit)	set_bit(bit, (unsigned long *)((c)->x86_capability))
-#define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
 #define setup_clear_cpu_cap(bit) do { \
 	clear_cpu_cap(&boot_cpu_data, bit);	\
 	set_bit(bit, (unsigned long *)cpu_caps_cleared); \

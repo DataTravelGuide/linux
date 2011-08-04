@@ -113,6 +113,10 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
+/* Per CPU RH extended parameters */
+DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86_rh, cpu_info_rh);
+EXPORT_PER_CPU_SYMBOL(cpu_info_rh);
+
 atomic_t init_deasserted;
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)

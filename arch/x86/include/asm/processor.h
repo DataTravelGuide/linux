@@ -123,6 +123,11 @@ struct cpuinfo_x86 {
 #endif /* !__GENKSYMS__ */
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
+/* This struct never should be on a kabi whitelist. */
+struct cpuinfo_x86_rh {
+	__u32			x86_capability[RH_EXT_NCAPINTS];
+} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+
 #define X86_VENDOR_INTEL	0
 #define X86_VENDOR_CYRIX	1
 #define X86_VENDOR_AMD		2
@@ -141,16 +146,21 @@ struct cpuinfo_x86 {
  * capabilities of CPUs
  */
 extern struct cpuinfo_x86	boot_cpu_data;
+extern struct cpuinfo_x86_rh	boot_cpu_data_rh;
 extern struct cpuinfo_x86	new_cpu_data;
+extern struct cpuinfo_x86_rh	new_cpu_data_rh;
 
 extern struct tss_struct	doublefault_tss;
-extern __u32			cpu_caps_cleared[NCAPINTS];
-extern __u32			cpu_caps_set[NCAPINTS];
+extern __u32			cpu_caps_cleared[RHNCAPINTS];
+extern __u32			cpu_caps_set[RHNCAPINTS];
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86_rh, cpu_info_rh);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
 #define current_cpu_data	__get_cpu_var(cpu_info)
+#define cpu_data_rh(cpu)	per_cpu(cpu_info_rh, cpu)
+#define current_cpu_data_rh	__get_cpu_var(cpu_info_rh)
 #else
 #define cpu_data(cpu)		boot_cpu_data
 #define current_cpu_data	boot_cpu_data
