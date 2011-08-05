@@ -1904,8 +1904,9 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 	struct qib_ctxtdata *rcd;
 	unsigned ctxt;
 	int ret = 0;
+	unsigned long flags;
 
-	spin_lock(&ppd->dd->uctxt_lock);
+	spin_lock_irqsave(&ppd->dd->uctxt_lock, flags);
 	for (ctxt = ppd->dd->first_user_ctxt; ctxt < ppd->dd->cfgctxts;
 	     ctxt++) {
 		rcd = ppd->dd->rcd[ctxt];
@@ -1924,7 +1925,7 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 		ret = 1;
 		break;
 	}
-	spin_unlock(&ppd->dd->uctxt_lock);
+	spin_unlock_irqrestore(&ppd->dd->uctxt_lock, flags);
 
 	return ret;
 }
