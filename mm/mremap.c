@@ -140,7 +140,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
 		next = (old_addr + PMD_SIZE) & PMD_MASK;
-		if (next > old_end)
+		if (next - 1 > old_end)
 			next = old_end;
 		extent = next - old_addr;
 		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
