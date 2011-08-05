@@ -378,7 +378,6 @@ static int crash_shutdown_cpu = -1;
 
 static int handle_fault(struct pt_regs *regs)
 {
-	longjmp(crash_shutdown_buf, 1);
 	if (crash_shutdown_cpu == smp_processor_id())
 		longjmp(crash_shutdown_buf, 1);
 	return 0;
