@@ -2174,9 +2174,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	bond_deinit(bond_dev);
 	bond_destroy_sysfs_entry(bond);
 
-	if (bond->wq)
-		destroy_workqueue(bond->wq);
-
 	netif_addr_lock_bh(bond_dev);
 	bond_mc_list_destroy(bond);
 	netif_addr_unlock_bh(bond_dev);
@@ -4859,6 +4856,14 @@ static const struct net_device_ops bond_netdev_ops = {
 #endif
 };
 
+static void bond_destructor(struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	if (bond->wq)
+		destroy_workqueue(bond->wq);
+	free_netdev(bond_dev);
+}
+
 static void bond_setup(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -4879,7 +4884,7 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 	bond_set_mode_ops(bond, bond->params.mode);
 
-	bond_dev->destructor = free_netdev;
+	bond_dev->destructor = bond_destructor;
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -5445,8 +5450,8 @@ int bond_create(const char *name)
 	if (name && __dev_get_by_name(&init_net, name)) {
 		pr_err(DRV_NAME ": cannot add bond %s; already exists\n",
 		       name);
-		res = -EEXIST;
-		goto out_rtnl;
+		rtnl_unlock();
+		return -EEXIST;
 	}
 
 	bond_dev = alloc_netdev_mq(sizeof(struct bonding), name ? name : "",
@@ -5454,8 +5459,8 @@ int bond_create(const char *name)
 	if (!bond_dev) {
 		pr_err(DRV_NAME ": %s: eek! can't alloc netdev!\n",
 		       name);
-		res = -ENOMEM;
-		goto out_rtnl;
+		rtnl_unlock();
+		return -ENOMEM;
 	}
 
 	if (!name) {
@@ -5480,9 +5485,8 @@ out_unreg:
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
-	free_netdev(bond_dev);
-out_rtnl:
 	rtnl_unlock();
+	bond_destructor(bond_dev);
 	return res;
 }
 
