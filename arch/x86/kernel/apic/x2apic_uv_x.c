@@ -79,12 +79,12 @@ static bool uv_is_untracked_pat_range(u64 start, u64 end)
 static int __init early_get_pnodeid(void)
 {
 	union uvh_node_id_u node_id;
-	union uvh_si_addr_map_config_u m_n_config;
+	union uvh_rh_gam_config_mmr_u m_n_config;
 	int pnode;
 
 	/* Currently, all blades have same revision number */
 	node_id.v = uv_early_read_mmr(UVH_NODE_ID);
-	m_n_config.v = uv_early_read_mmr(UVH_SI_ADDR_MAP_CONFIG);
+	m_n_config.v = uv_early_read_mmr(UVH_RH_GAM_CONFIG_MMR);
 	uv_min_hub_revision_id = node_id.s.revision;
 
 	pnode = (node_id.s.node_id >> 1) & ((1 << m_n_config.s.n_skt) - 1);
@@ -416,14 +416,14 @@ struct redir_addr {
 #define DEST_SHIFT UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR_DEST_BASE_SHFT
 
 static __initdata struct redir_addr redir_addrs[] = {
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR, UVH_SI_ALIAS0_OVERLAY_CONFIG},
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_1_MMR, UVH_SI_ALIAS1_OVERLAY_CONFIG},
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_2_MMR, UVH_SI_ALIAS2_OVERLAY_CONFIG},
+	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR},
+	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_1_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR},
+	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_2_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR},
 };
 
 static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 {
-	union uvh_si_alias0_overlay_config_u alias;
+	union uvh_rh_gam_alias210_overlay_config_2_mmr_u alias;
 	union uvh_rh_gam_alias210_redirect_config_2_mmr_u redirect;
 	int i;
 
@@ -726,7 +726,7 @@ void uv_nmi_init(void)
 
 void __init uv_system_init(void)
 {
-	union uvh_si_addr_map_config_u m_n_config;
+	union uvh_rh_gam_config_mmr_u  m_n_config;
 	union uvh_rh_gam_mmioh_overlay_config_mmr_u mmioh;
 	union uvh_node_id_u node_id;
 	unsigned long gnode_upper, lowmem_redir_base, lowmem_redir_size;
@@ -737,7 +737,7 @@ void __init uv_system_init(void)
 
 	map_low_mmrs();
 
-	m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
+	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
 	m_val = m_n_config.s.m_skt;
 	n_val = m_n_config.s.n_skt;
 	mmioh.v = uv_read_local_mmr(UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR);
