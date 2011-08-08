@@ -48,6 +48,9 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 
 	BUG_ON(sd->s_sibling);
 
+	if (sysfs_type(sd) == SYSFS_DIR)
+		parent_sd->s_dir.subdirs++;
+
 	/* Store directory entries in order by ino.  This allows
 	 * readdir to properly restart without having to add a
 	 * cursor into the s_dir.children list.
@@ -73,6 +76,9 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent **pos;
+
+	if (sysfs_type(sd) == SYSFS_DIR)
+		sd->s_parent->s_dir.subdirs--;
 
 	for (pos = &sd->s_parent->s_dir.children; *pos;
 	     pos = &(*pos)->s_sibling) {
