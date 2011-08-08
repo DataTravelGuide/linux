@@ -46,6 +46,9 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 	struct sysfs_dirent *parent_sd = sd->s_parent;
 	struct sysfs_dirent **pos;
 
+	struct rb_node **p;
+	struct rb_node *parent;
+
 	BUG_ON(sd->s_sibling);
 
 	if (sysfs_type(sd) == SYSFS_DIR)
@@ -61,6 +64,26 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 	}
 	sd->s_sibling = *pos;
 	*pos = sd;
+
+	p = &parent_sd->s_dir.name_tree.rb_node;
+	parent = NULL;
+	while (*p) {
+		int c;
+		parent = *p;
+#define node	rb_entry(parent, struct sysfs_dirent, name_node)
+		c = strcmp(sd->s_name, node->s_name);
+		if (c < 0) {
+			p = &node->name_node.rb_left;
+		} else if (c > 0) {
+			p = &node->name_node.rb_right;
+		} else {
+			printk(KERN_CRIT "sysfs: inserting duplicate filename '%s'\n", sd->s_name);
+			BUG();
+		}
+#undef node
+	}
+	rb_link_node(&sd->name_node, parent, p);
+	rb_insert_color(&sd->name_node, &parent_sd->s_dir.name_tree);
 }
 
 /**
@@ -88,6 +111,8 @@ static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 			break;
 		}
 	}
+
+	rb_erase(&sd->name_node, &sd->s_parent->s_dir.name_tree);
 }
 
 /**
@@ -640,12 +665,23 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 				       const unsigned char *name)
 {
-	struct sysfs_dirent *sd;
+	struct rb_node *p = parent_sd->s_dir.name_tree.rb_node;
 
-	for (sd = parent_sd->s_dir.children; sd; sd = sd->s_sibling)
-		if (!strcmp(sd->s_name, name))
-			return sd;
-	return NULL;
+	while (p) {
+		int c;
+#define node	rb_entry(p, struct sysfs_dirent, name_node)
+		c = strcmp(name, node->s_name);
+		if (c < 0) {
+			p = node->name_node.rb_left;
+		} else if (c > 0) {
+			p = node->name_node.rb_right;
+		} else {
+			return node;
+		}
+#undef node
+ 	}
+
+ 	return NULL;
 }
 
 /**

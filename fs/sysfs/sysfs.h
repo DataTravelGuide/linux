@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/rbtree.h>
 
 struct sysfs_open_dirent;
 
@@ -20,6 +21,7 @@ struct sysfs_elem_dir {
 
 #ifndef __GENKSYMS__
 	unsigned long		subdirs;
+	struct rb_root		name_tree;
 #endif
 };
 
@@ -57,6 +59,10 @@ struct sysfs_dirent {
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
+
+#ifndef __GENKSYMS__
+	struct rb_node		name_node;
+#endif
 
 	union {
 		struct sysfs_elem_dir		s_dir;
