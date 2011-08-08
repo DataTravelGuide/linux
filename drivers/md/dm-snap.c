@@ -45,7 +45,7 @@ struct dm_exception_table {
 };
 
 struct dm_snapshot {
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	struct rw_semaphore lock;
 
 	struct dm_dev *origin;

@@ -40,7 +40,7 @@
  */
 
 struct dm_table {
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	struct mapped_device *md;
 	atomic_t holders;
 	unsigned type;

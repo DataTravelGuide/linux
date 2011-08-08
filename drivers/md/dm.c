@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(dm_get_rq_mapinfo);
  * Work processed by per-device workqueue.
  */
 struct mapped_device {
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	struct rw_semaphore io_lock;
 	struct mutex suspend_lock;
 	rwlock_t map_lock;

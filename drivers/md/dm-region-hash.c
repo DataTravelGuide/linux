@@ -55,7 +55,7 @@
  *   context, so all other uses will have to suspend local irqs.
  *---------------------------------------------------------------*/
 struct dm_region_hash {
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	uint32_t region_size;
 	unsigned region_shift;
 

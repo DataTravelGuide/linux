@@ -39,7 +39,7 @@ struct dm_exception {
  */
 struct dm_exception_store;
 struct dm_exception_store_type {
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	const char *name;
 	struct module *module;
 

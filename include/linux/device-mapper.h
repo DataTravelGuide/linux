@@ -128,6 +128,10 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d);
  */
 
 struct target_type {
+	/*
+	 * 3rd party driver must initialize 'features' to zero or
+	 * set to any of the Target features listed below.
+	 */
 	uint64_t features;
 	const char *name;
 	struct module *module;
@@ -170,6 +174,7 @@ struct target_type {
 		((type)->features & DM_TARGET_ALWAYS_WRITEABLE)
 
 struct dm_target {
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 	struct dm_table *table;
 	struct target_type *type;
 

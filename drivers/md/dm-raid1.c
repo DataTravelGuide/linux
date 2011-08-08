@@ -50,7 +50,7 @@ struct mirror_set {
 	struct dm_target *ti;
 	struct list_head list;
 
-	uint64_t features;
+	uint64_t features;	/* 3rd party driver must initialize to zero */
 
 	spinlock_t lock;	/* protects the lists */
 	struct bio_list reads;
