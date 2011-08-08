@@ -62,6 +62,11 @@ struct sysfs_dirent {
 
 #ifndef __GENKSYMS__
 	struct rb_node		name_node;
+
+	union {
+		struct completion	*completion;
+		struct sysfs_dirent	*removed_list;
+	} u;
 #endif
 
 	union {

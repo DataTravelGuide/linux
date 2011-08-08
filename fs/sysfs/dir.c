@@ -196,7 +196,6 @@ static struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
  */
 static void sysfs_put_active(struct sysfs_dirent *sd)
 {
-	struct completion *cmpl;
 	int v;
 
 	if (unlikely(!sd))
@@ -207,10 +206,9 @@ static void sysfs_put_active(struct sysfs_dirent *sd)
 		return;
 
 	/* atomic_dec_return() is a mb(), we'll always see the updated
-	 * sd->s_sibling.
+	 * sd->u.completion.
 	 */
-	cmpl = (void *)sd->s_sibling;
-	complete(cmpl);
+	complete(sd->u.completion);
 }
 
 /**
@@ -263,18 +261,16 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int v;
 
-	BUG_ON(sd->s_sibling || !(sd->s_flags & SYSFS_FLAG_REMOVED));
-	sd->s_sibling = (void *)&wait;
+	BUG_ON(!(sd->s_flags & SYSFS_FLAG_REMOVED));
+	sd->u.completion = (void *)&wait;
 
 	/* atomic_add_return() is a mb(), put_active() will always see
-	 * the updated sd->s_sibling.
+	 * the updated sd->u.completion.
 	 */
 	v = atomic_add_return(SD_DEACTIVATED_BIAS, &sd->s_active);
 
 	if (v != SD_DEACTIVATED_BIAS)
 		wait_for_completion(&wait);
-
-	sd->s_sibling = NULL;
 }
 
 static int sysfs_alloc_ino(ino_t *pino)
@@ -548,7 +544,7 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	sysfs_unlink_sibling(sd);
 
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
-	sd->s_sibling = acxt->removed;
+	sd->u.removed_list = acxt->removed;
 	acxt->removed = sd;
 
 	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
@@ -639,8 +635,7 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 	while (acxt->removed) {
 		struct sysfs_dirent *sd = acxt->removed;
 
-		acxt->removed = sd->s_sibling;
-		sd->s_sibling = NULL;
+		acxt->removed = sd->u.removed_list;
 
 		sysfs_drop_dentry(sd);
 		sysfs_deactivate(sd);
