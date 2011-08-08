@@ -4219,13 +4219,20 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		num_vfs = vxge_get_num_vfs(function_mode) - 1;
 
 	/* Enable SRIOV mode, if firmware has SRIOV support and if it is a PF */
-	if (is_sriov(function_mode) && !is_sriov_initialized(pdev) &&
-	   (ll_config->intr_type != INTA)) {
-		ret = pci_enable_sriov(pdev, num_vfs);
-		if (ret)
-			vxge_debug_ll_config(VXGE_ERR,
-				"Failed in enabling SRIOV mode: %d\n", ret);
+	if (is_sriov(function_mode) && ll_config->intr_type != INTA) {
+		int initialized = is_sriov_initialized(pdev);
+		if (initialized && pci_num_vf(pdev) != num_vfs) {
+			pci_disable_sriov(pdev);
+			initialized = 0;
+		}
+		if (!initialized) {
+			ret = pci_enable_sriov(pdev, num_vfs);
+			if (ret)
+				vxge_debug_ll_config(VXGE_ERR,
+					"Failed in enabling SRIOV mode: %d\n",
+					ret);
 			/* No need to fail out, as an error here is non-fatal */
+		}
 	}
 
 	/*
@@ -4441,7 +4448,6 @@ _exit5:
 
 	vxge_device_unregister(hldev);
 _exit4:
-	pci_disable_sriov(pdev);
 	vxge_hw_device_terminate(hldev);
 _exit3:
 	iounmap(attr.bar0);
