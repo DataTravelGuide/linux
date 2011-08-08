@@ -551,7 +551,8 @@ void macvlan_common_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
-	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;
+	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	netdev_extended(dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops		= &macvlan_netdev_ops;
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &macvlan_hard_header_ops,

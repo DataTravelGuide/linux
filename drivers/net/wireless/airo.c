@@ -2824,6 +2824,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->wireless_data = &ai->wireless_data;
 	dev->irq = irq;
 	dev->base_addr = port;
+	netdev_extended(dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	SET_NETDEV_DEV(dev, dmdev);
 

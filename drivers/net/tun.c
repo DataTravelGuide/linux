@@ -470,6 +470,7 @@ static void tun_net_init(struct net_device *dev)
 		dev->netdev_ops = &tap_netdev_ops;
 		/* Ethernet TAP Device */
 		ether_setup(dev);
+		netdev_extended(dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 
 		random_ether_addr(dev->dev_addr);
 

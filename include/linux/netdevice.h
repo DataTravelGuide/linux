@@ -1134,6 +1134,7 @@ struct net_device_extended {
 	struct netdev_tx_queue_extended		*_tx_ext;
 	struct netdev_rps_info			rps_data;
 	struct netdev_qos_info			qos_data;
+	unsigned long				ext_priv_flags;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
