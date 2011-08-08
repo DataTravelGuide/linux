@@ -7523,7 +7523,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (host_lock_less == 1) {
 		scsih_driver_template.lockless = 1;
 		scsih_driver_template.queuecommand  = _scsih_qcmd_preempt_disable;
-		printk(KERN_WARNING "mpt2sas; lockless mode active - to use only for testing\n");
+		mark_hardware_unsupported("mpt2sas; lockless mode active - to use only for testing\n");
 	}
 
 	shost = scsi_host_alloc(&scsih_driver_template,
