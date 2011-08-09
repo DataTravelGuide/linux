@@ -16,11 +16,14 @@ struct sysfs_open_dirent;
 /* type-specific structures for sysfs_dirent->s_* union members */
 struct sysfs_elem_dir {
 	struct kobject		*kobj;
-	/* children list starts here and goes through sd->s_sibling */
+#ifdef __GENKSYMS__
 	struct sysfs_dirent	*children;
+#endif
 
 #ifndef __GENKSYMS__
 	unsigned long		subdirs;
+
+	struct rb_root		inode_tree;
 	struct rb_root		name_tree;
 #endif
 };
@@ -57,10 +60,13 @@ struct sysfs_dirent {
 	atomic_t		s_count;
 	atomic_t		s_active;
 	struct sysfs_dirent	*s_parent;
+#ifdef __GENKSYMS__
 	struct sysfs_dirent	*s_sibling;
+#endif
 	const char		*s_name;
 
 #ifndef __GENKSYMS__
+	struct rb_node		inode_node;
 	struct rb_node		name_node;
 
 	union {
