@@ -178,7 +178,7 @@ struct cpuinfo_x86_rh new_cpu_data_rh __cpuinitdata;
 /* common cpu data for all cpus */
 struct cpuinfo_x86 boot_cpu_data __read_mostly = {0, 0, 0, 0, -1, 1, 0, 0, -1};
 /* This symbol should not be on kabi whitelists */
-struct cpuinfo_x86_rh boot_cpu_data_rh __cpuinitdata;
+struct cpuinfo_x86_rh boot_cpu_data_rh;
 EXPORT_SYMBOL(boot_cpu_data);
 EXPORT_SYMBOL(boot_cpu_data_rh);
 
