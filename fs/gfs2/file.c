@@ -567,6 +567,8 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 		ret = sync_inode_metadata(inode, 1);
 		if (ret)
 			return ret;
+		if (gfs2_is_jdata(ip))
+			filemap_write_and_wait(inode->i_mapping);
 		gfs2_ail_flush(ip->i_gl);
 	}
 
