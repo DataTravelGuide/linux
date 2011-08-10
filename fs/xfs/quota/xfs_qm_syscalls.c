@@ -472,7 +472,7 @@ xfs_qm_scall_setqlim(
 	xfs_qcnt_t		hard, soft;
 
 	if (newlim->d_fieldmask & ~XFS_DQ_MASK)
-		return -EINVAL;
+		return EINVAL;
 	if ((newlim->d_fieldmask & XFS_DQ_MASK) == 0)
 		return 0;
 
