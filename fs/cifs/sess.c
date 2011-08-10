@@ -427,8 +427,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 		if (!ses->server->session_estab)
-			flags |= NTLMSSP_NEGOTIATE_KEY_XCH |
-				NTLMSSP_NEGOTIATE_EXTENDED_SEC;
+			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
@@ -464,10 +463,11 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->secMode &
-	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+	    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if (ses->server->secMode & SECMODE_SIGN_REQUIRED)
-		flags |= NTLMSSP_NEGOTIATE_ALWAYS_SIGN;
+		if (!ses->server->session_estab)
+			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
+	}
 
 	tmp = pbuffer + sizeof(AUTHENTICATE_MESSAGE);
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
