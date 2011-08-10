@@ -516,6 +516,7 @@ xfs_vn_fallocate(
 	loff_t		new_size = 0;
 	xfs_flock64_t	bf;
 	xfs_inode_t	*ip = XFS_I(inode);
+	int		attr_flags = XFS_ATTR_NOLOCK;
 
 	if (mode & ~FALLOC_FL_KEEP_SIZE)
 		return -EOPNOTSUPP;
@@ -540,8 +541,15 @@ xfs_vn_fallocate(
 			goto out_unlock;
 	}
 
-	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				       0, XFS_ATTR_NOLOCK);
+	/*
+	 * RHEL6 porting note: mainline only does sync preallocations here on
+	 * O_SYNC files as it is passed a filp and can check this. For RHEL6,
+	 * just default to the old "always sync" behaviour as we cannot work
+	 * out if we are operating in a sync context or not.
+	 */
+	attr_flags |= XFS_ATTR_SYNC;
+
+	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf, 0, attr_flags);
 	if (error)
 		goto out_unlock;
 
