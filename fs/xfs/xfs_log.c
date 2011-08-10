@@ -1076,7 +1076,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		}
 	}
 	log->l_sectBBsize = 1 << log2_size;
-	log->l_sectbb_mask = log->l_sectBBsize - 1;
 
 	xlog_get_iclog_buffer_size(mp, log);
 
