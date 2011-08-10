@@ -199,8 +199,7 @@ xfs_inode_ag_iterator(
 	ag = 0;
 	while ((pag = xfs_inode_ag_iter_next_pag(mp, &ag, tag))) {
 
-		if (pag->pag_ici_init)
-			error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
+		error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
 							exclusive, &nr);
 		xfs_perag_put(pag);
 		if (error) {
@@ -922,8 +921,7 @@ xfs_reclaim_inode_shrink(
 	ag = 0;
 	while ((pag = xfs_inode_ag_iter_next_pag(mp, &ag,
 					XFS_ICI_RECLAIM_TAG))) {
-		if (pag->pag_ici_init)
-			reclaimable += pag->pag_ici_reclaimable;
+		reclaimable += pag->pag_ici_reclaimable;
 		xfs_perag_put(pag);
 	}
 	return reclaimable;
