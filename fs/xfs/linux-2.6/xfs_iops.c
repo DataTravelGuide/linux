@@ -517,6 +517,9 @@ xfs_vn_fallocate(
 	xfs_flock64_t	bf;
 	xfs_inode_t	*ip = XFS_I(inode);
 
+	if (mode & ~FALLOC_FL_KEEP_SIZE)
+		return -EOPNOTSUPP;
+
 	/* preallocation on directories not yet supported */
 	error = -ENODEV;
 	if (S_ISDIR(inode->i_mode))
