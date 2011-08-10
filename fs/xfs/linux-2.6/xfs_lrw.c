@@ -651,18 +651,9 @@ start:
 	 * by root.  This keeps people from modifying setuid and
 	 * setgid binaries.
 	 */
-
-	if (((xip->i_d.di_mode & S_ISUID) ||
-	    ((xip->i_d.di_mode & (S_ISGID | S_IXGRP)) ==
-		(S_ISGID | S_IXGRP))) &&
-	     !capable(CAP_FSETID)) {
-		ret = -xfs_write_clear_setuid(xip);
-		if (likely(!ret))
-			ret = file_remove_suid(file);
-		if (unlikely(ret)) {
-			goto out_unlock_internal;
-		}
-	}
+	ret = file_remove_suid(file);
+	if (unlikely(ret))
+		goto out_unlock_internal;
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
