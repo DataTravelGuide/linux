@@ -364,6 +364,9 @@ static inline u16 bnx2x_set_lro_mss(struct bnx2x *bp, u16 parsing_flags,
 	else /* IPv4 */
 		hdrs_len += sizeof(struct iphdr);
 
+	/* There is VLAN on data, take into an account */
+	if ((bp->vlgrp == NULL) && (parsing_flags & PARSING_FLAGS_VLAN))
+		hdrs_len += VLAN_HLEN;
 
 	/* Check if there was a TCP timestamp, if there is it's will
 	 * always be 12 bytes length: nop nop kind length echo val.
@@ -3200,15 +3203,76 @@ void bnx2x_tx_timeout(struct net_device *dev)
 	schedule_delayed_work(&bp->sp_rtnl_task, 0);
 }
 
-/* called with rtnl_lock */
-void bnx2x_vlan_rx_register(struct net_device *dev,
-				   struct vlan_group *vlgrp)
+static int bnx2x_set_vlan_stripping(struct bnx2x *bp, bool set)
 {
-	struct bnx2x *bp = netdev_priv(dev);
+	struct bnx2x_queue_state_params q_params = {0};
+	struct bnx2x_queue_update_params *update_params =
+		&q_params.params.update;
+	int i, rc;
 
-	bp->vlgrp = vlgrp;
+	/* We want to wait for completion in this context */
+	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
+
+	/* Set the command */
+	q_params.cmd = BNX2X_Q_CMD_UPDATE;
+
+	/* Enable VLAN stripping if requested */
+	if (set)
+		__set_bit(BNX2X_Q_UPDATE_IN_VLAN_REM,
+			  &update_params->update_flags);
+
+	/* Indicate that VLAN stripping configuration has changed */
+	__set_bit(BNX2X_Q_UPDATE_IN_VLAN_REM_CHNG,
+		  &update_params->update_flags);
+
+	for_each_rx_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		/* Set the appropriate Queue object */
+		q_params.q_obj = &fp->q_obj;
+
+		/* Update the Queue state */
+		rc = bnx2x_queue_state_change(bp, &q_params);
+		if (rc) {
+			BNX2X_ERR("Failed to configure VLAN stripping "
+				  "for Queue %d\n", i);
+			return rc;
+		}
+	}
+
+	return 0;
 }
 
+/* called with rtnl_lock */
+void bnx2x_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int rc = 0;
+
+	/*
+	 * Configure VLAN stripping if NIC is up.
+	 * Otherwise just set the bp->vlgrp and stripping will be
+	 * configured in bnx2x_nic_load().
+	 */
+	if (bp->state == BNX2X_STATE_OPEN) {
+		bool set = (vlgrp != NULL);
+		rc = bnx2x_set_vlan_stripping(bp, set);
+		if (rc) {
+			netdev_err(dev, "Failed to %s HW VLAN stripping\n",
+			           set ? "set" : "clear");
+			if (set)
+				bnx2x_set_vlan_stripping(bp, false);
+		}
+	}
+
+	/*
+	 * If we failed to configure VLAN stripping we don't
+	 * want to use HW accelerated flow in bnx2x_rx_int().
+	 * Thus we will leave bp->vlgrp to be equal to NULL to
+	 * disable it.
+	 */
+	bp->vlgrp = rc ? NULL : vlgrp;
+}
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 {
