@@ -1504,9 +1504,26 @@ xfs_vm_write_begin(
 	struct page		**pagep,
 	void			**fsdata)
 {
+	int			ret;
+
+	/*
+	 * RHEL6 porting note: Mainline changed to the block_write_begin()
+	 * prototype to match block_write_begin_newtrunc() and
+	 * block_write_begin_newtrunc() was removed. In RHEL6 we cannot change
+	 * block_write_begin() due ot KABI reasons, so here we switch to
+	 * block_write_begin_newtrunc() and do the correct truncate sequence
+	 * here ourselves.
+	 */
 	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags | AOP_FLAG_NOFS,
-				 pagep, fsdata, xfs_get_blocks);
+	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags | AOP_FLAG_NOFS,
+				pagep, fsdata, xfs_get_blocks);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 STATIC sector_t
