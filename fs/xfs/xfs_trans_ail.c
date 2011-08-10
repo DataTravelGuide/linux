@@ -246,7 +246,7 @@ xfsaild_push(
 {
 	long		tout = 0;
 	xfs_lsn_t	last_pushed_lsn = *last_lsn;
-	xfs_lsn_t	target =  ailp->xa_target;
+	xfs_lsn_t	target;
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
 	int		flush_log, count, stuck;
@@ -255,6 +255,7 @@ xfsaild_push(
 	int		push_xfsbufd = 0;
 
 	spin_lock(&ailp->xa_lock);
+	target = ailp->xa_target;
 	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_trans_ail_cursor_first(ailp, cur, *last_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {

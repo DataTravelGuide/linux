@@ -825,7 +825,7 @@ xfsaild_wakeup(
 {
 	/* only ever move the target forwards */
 	if (XFS_LSN_CMP(threshold_lsn, ailp->xa_target) > 0) {
-		ailp->xa_target = threshold_lsn;
+		xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
 		wake_up_process(ailp->xa_task);
 	}
 }
