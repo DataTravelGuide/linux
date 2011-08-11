@@ -90,7 +90,7 @@ static int __init early_get_pnodeid(void)
 	if (node_id.s.part_number == UV2_HUB_PART_NUMBER)
 		uv_min_hub_revision_id += UV2_HUB_REVISION_BASE - 1;
 
-	uv_hub_info->hub_revision = uv_min_hub_revision_id;
+	uv_hub_info_hub_revision = uv_min_hub_revision_id;
 	pnode = (node_id.s.node_id >> 1) & ((1 << m_n_config.s.n_skt) - 1);
 	return pnode;
 }
@@ -131,7 +131,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	is_uv2 = !strcmp(oem_id, "SGI2");
 	if (is_uv1 || is_uv2) {
 		usevirtefi = 1;		/* Use virtual EFI mode on SGI systems */
-		uv_hub_info->hub_revision =
+		uv_hub_info_hub_revision =
 			is_uv1 ? UV1_HUB_REVISION_BASE : UV2_HUB_REVISION_BASE;
 		pnodeid = early_get_pnodeid();
 		early_get_apic_pnode_shift();
@@ -828,8 +828,8 @@ void __init uv_system_init(void)
 		 * apic_pnode_shift must be set before calling uv_apicid_to_pnode();
 		 */
 		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
-		uv_cpu_hub_info_extra(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
-		uv_cpu_hub_info(cpu)->hub_revision = uv_hub_info->hub_revision;
+		uv_cpu_hub_info_apic_pnode_shift(cpu) = uvh_apicid.s.pnode_shift;
+		uv_cpu_hub_info_hub_revision(cpu) = uv_hub_info_hub_revision;
 
 		for (i = 0; i < UV_HUB_INFO_EXTRA_FIELDS; i++)
 			uv_cpu_hub_info_extra(cpu)->future[i] = 0;

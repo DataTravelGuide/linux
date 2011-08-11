@@ -139,8 +139,13 @@ struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
 	unsigned long		gpa_mask;
 	unsigned int		gnode_extra;
+	/*
+	 * The following breaks the KABI. The fields exist in holes
+	 * in the original structure. They are accessed thru
+	 * macros that use casting hacks.
 	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
+	*/
 	unsigned long		gnode_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
@@ -153,6 +158,43 @@ struct uv_hub_info_s {
 	unsigned char		n_val;
 	struct uv_scir_s	scir;
 };
+
+/* ---------------------- BEGIN UGLY HACK --------------------------*/
+/* Temp hacks to prevent breaking the KABI. Use casting macros
+ * to access unused space in the original definition of uv_hub_info_s.
+ */
+struct uv_hub_info_k {
+	unsigned long		global_mmr_base;
+	unsigned long		gpa_mask;
+	unsigned int		gnode_extra;
+	unsigned char		hub_revision;		/* breaks kABI */
+	unsigned char		apic_pnode_shift;	/* breaks kABI */
+	unsigned long		gnode_upper;
+	unsigned long		lowmem_remap_top;
+	unsigned long		lowmem_remap_base;
+	unsigned short		pnode;
+	unsigned short		pnode_mask;
+	unsigned short		coherency_domain_number;
+	unsigned short		numa_blade_id;
+	unsigned char		blade_processor_id;
+	unsigned char		m_val;
+	unsigned char		n_val;
+	struct uv_scir_s	scir;
+};
+
+#define uv_cpu_hub_info_hub_revision(c)				\
+		(((struct uv_hub_info_k *)uv_cpu_hub_info(c))->hub_revision)
+
+#define uv_cpu_hub_info_apic_pnode_shift(c)				\
+		(((struct uv_hub_info_k *)uv_cpu_hub_info(c))->apic_pnode_shift)
+
+#define uv_hub_info_hub_revision				\
+		(((struct uv_hub_info_k *)uv_hub_info)->hub_revision)
+
+#define uv_hub_info_apic_pnode_shift				\
+		(((struct uv_hub_info_k *)uv_hub_info)->apic_pnode_shift)
+
+/* ---------------------- END   UGLY HACK --------------------------*/
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
@@ -169,12 +211,17 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 
 static inline int is_uv1_hub(void)
 {
-	return uv_hub_info->hub_revision < UV2_HUB_REVISION_BASE;
+	if (uv_hub_info_hub_revision == 0)
+		return 1;
+	return uv_hub_info_hub_revision < UV2_HUB_REVISION_BASE;
 }
 
 static inline int is_uv2_hub(void)
 {
-	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
+	if (uv_hub_info_hub_revision == 0)
+		return 0;
+	return uv_hub_info_hub_revision >= UV2_HUB_REVISION_BASE;
+
 }
 
 #define UV_HUB_INFO_EXTRA_FIELDS	L1_CACHE_BYTES-2
@@ -343,7 +390,7 @@ static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
  */
 static inline int uv_apicid_to_pnode(int apicid)
 {
-	return (apicid >> uv_hub_info_extra->apic_pnode_shift);
+	return (apicid >> uv_hub_info_apic_pnode_shift);
 }
 
 /*
@@ -352,7 +399,7 @@ static inline int uv_apicid_to_pnode(int apicid)
 static inline int uv_apicid_to_socket(int apicid)
 {
 	if (is_uv1_hub())
-		return (apicid >> (uv_hub_info->apic_pnode_shift - 1)) & 1;
+		return (apicid >> (uv_hub_info_apic_pnode_shift - 1)) & 1;
 	else
 		return 0;
 }
@@ -582,7 +629,9 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
  */
 static inline int uv_get_min_hub_revision_id(void)
 {
-	return uv_hub_info->hub_revision;
+	if (uv_hub_info_hub_revision == 0)
+		return 2;
+	return uv_hub_info_hub_revision;
 }
 
 #endif /* CONFIG_X86_64 */
