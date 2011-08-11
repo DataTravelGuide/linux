@@ -403,7 +403,8 @@ static void fd_emulate_sync_cache(struct se_task *task)
 			end = LLONG_MAX;
 	}
 
-	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
+	ret = vfs_fsync_range(fd_dev->fd_file, fd_dev->fd_file->f_path.dentry,
+			      start, end, 1);
 	if (ret != 0)
 		printk(KERN_ERR "FILEIO: vfs_fsync_range() failed: %d\n", ret);
 
@@ -453,7 +454,8 @@ static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
 	DEBUG_FD_CACHE("FILEIO: FUA WRITE LBA: %llu, bytes: %u\n",
 			task->task_lba, task->task_size);
 
-	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
+	ret = vfs_fsync_range(fd_dev->fd_file, fd_dev->fd_file->f_path.dentry,
+			      start, end, 1);
 	if (ret != 0)
 		printk(KERN_ERR "FILEIO: vfs_fsync_range() failed: %d\n", ret);
 }
