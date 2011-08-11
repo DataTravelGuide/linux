@@ -3134,6 +3134,8 @@ static int __init target_core_init_configfs(void)
 	struct t10_alua_lu_gp *lu_gp;
 	int ret;
 
+	mark_tech_preview("FCOE Target support", NULL);
+
 	printk(KERN_INFO "TARGET_CORE[0]: Loading Generic Kernel Storage"
 		" Engine: %s on %s/%s on %s\n",
 	       TARGET_CORE_VERSION, utsname()->sysname, utsname()->machine,
