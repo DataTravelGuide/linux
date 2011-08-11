@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
-#include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -454,8 +453,8 @@ static ssize_t ft_wwn_show_attr_version(
 	struct target_fabric_configfs *tf,
 	char *page)
 {
-	return sprintf(page, "TCM FC " FT_VERSION " on %s/%s on "
-		""UTS_RELEASE"\n",  utsname()->sysname, utsname()->machine);
+	return sprintf(page, "TCM FC " FT_VERSION " on %s/%s on %s\n",
+		       utsname()->sysname, utsname()->machine, utsname()->release);
 }
 
 TF_WWN_ATTR_RO(ft, version);
