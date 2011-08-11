@@ -292,13 +292,16 @@ static int tcm_loop_change_queue_depth(
  * from Linux/SCSI subsystem for SCSI low level device drivers (LLDs)
  */
 static int tcm_loop_queuecommand(
-	struct Scsi_Host *sh,
-	struct scsi_cmnd *sc)
+	struct scsi_cmnd *sc,
+	void (* done)(struct scsi_cmnd *))
 {
 	struct se_cmd *se_cmd;
 	struct se_portal_group *se_tpg;
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
+
+	BUG_ON(!done);
+	sc->scsi_done = done;
 
 	TL_CDB_DEBUG("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
 		" scsi_buf_len: %u\n", sc->device->host->host_no,
