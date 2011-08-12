@@ -720,7 +720,7 @@ static int __init ib_core_init(void)
 {
 	int ret;
 
-	ib_wq = alloc_workqueue("infiniband", 0, 0);
+	ib_wq = create_workqueue("infiniband");
 	if (!ib_wq)
 		return -ENOMEM;
 

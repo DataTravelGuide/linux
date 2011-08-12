@@ -828,7 +828,7 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 {
 	struct net_device *ndev = dev->iboe.netdevs[port - 1];
 	struct update_gid_work *work;
-	struct net_device *tmp;
+	struct net_device *tmp, *prev_dev;
 	int i;
 	u8 *hits;
 	int ret;
@@ -848,8 +848,7 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 		goto out;
 	}
 
-	rcu_read_lock();
-	for_each_netdev_rcu(&init_net, tmp) {
+	for_each_netdev_safe(&init_net, tmp, prev_dev) {
 		if (ndev && (tmp == ndev || rdma_vlan_dev_real_dev(tmp) == ndev)) {
 			gid.global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 			vid = rdma_vlan_dev_vlan_id(tmp);
@@ -884,7 +883,6 @@ static int update_ipv6_gids(struct mlx4_ib_dev *dev, int port, int clear)
 			}
 		}
 	}
-	rcu_read_unlock();
 
 	for (i = 0; i < 128; ++i)
 		if (!hits[i]) {

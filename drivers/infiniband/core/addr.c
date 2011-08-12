@@ -103,7 +103,7 @@ EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
-	struct net_device *dev;
+	struct net_device *dev, *prev_dev;
 	int ret = -EADDRNOTAVAIL;
 
 	if (dev_addr->bound_dev_if) {
@@ -129,8 +129,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
-		rcu_read_lock();
-		for_each_netdev_rcu(&init_net, dev) {
+		for_each_netdev_safe(&init_net, dev, prev_dev) {
 			if (ipv6_chk_addr(&init_net,
 					  &((struct sockaddr_in6 *) addr)->sin6_addr,
 					  dev, 1)) {
@@ -138,7 +137,6 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 				break;
 			}
 		}
-		rcu_read_unlock();
 		break;
 #endif
 	}
