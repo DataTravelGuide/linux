@@ -1106,6 +1106,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	struct flowi fl;
 	struct neighbour *neigh;
 	int rc = arpindex;
+	struct net_device *netdev;
 	struct nes_adapter *nesadapter = nesvnic->nesdev->nesadapter;
 
 	memset(&fl, 0, sizeof fl);
@@ -1116,7 +1117,12 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		return rc;
 	}
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, nesvnic->netdev);
+	if (nesvnic->netdev->master)
+		netdev = nesvnic->netdev->master;
+	else
+		netdev = nesvnic->netdev;
+
+	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, netdev);
 	if (neigh) {
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
