@@ -132,6 +132,7 @@ struct rdma_id_private {
 	u32			seq_num;
 	u32			qkey;
 	u32			qp_num;
+	pid_t			owner;
 	u8			srq;
 	u8			tos;
 	u8			reuseaddr;
@@ -419,6 +420,7 @@ struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 	if (!id_priv)
 		return ERR_PTR(-ENOMEM);
 
+	id_priv->owner = task_pid_nr(current);
 	id_priv->state = RDMA_CM_IDLE;
 	id_priv->id.context = context;
 	id_priv->id.event_handler = event_handler;
@@ -2745,6 +2747,9 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 	int ret;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
+
+	id_priv->owner = task_pid_nr(current);
+
 	if (!cma_comp(id_priv, RDMA_CM_CONNECT))
 		return -EINVAL;
 
@@ -3384,6 +3389,7 @@ static int cma_get_id_stats(struct sk_buff *skb, struct netlink_callback *cb)
 				}
 			}
 
+			id_stats->pid		= id_priv->owner;
 			id_stats->port_space	= id->ps;
 			id_stats->cm_state	= id_priv->state;
 			id_stats->qp_num	= id_priv->qp_num;
