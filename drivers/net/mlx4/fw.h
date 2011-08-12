@@ -75,6 +75,7 @@ struct mlx4_dev_cap {
 	u16 eth_mtu[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	int loopback_support;
+	int wol;
 	u32 flags;
 	int reserved_uars;
 	int uar_size;

@@ -246,6 +246,7 @@ struct mlx4_caps {
 	u32			reserved_lkey;
 	u16			stat_rate_support;
 	int			loopback_support;
+	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
@@ -529,5 +530,8 @@ int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
 int mlx4_assign_eq(struct mlx4_dev *dev, char* name , int* vector);
 void mlx4_release_eq(struct mlx4_dev *dev, int vec);
+
+int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
+int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
 
 #endif /* MLX4_DEVICE_H */
