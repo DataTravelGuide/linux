@@ -1136,15 +1136,12 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 
 	spin_lock_irqsave(&target->lock, flags);
 	iu = __srp_get_tx_iu(target, SRP_IU_CMD);
-	if (iu) {
-		req = list_first_entry(&target->free_reqs, struct srp_request,
-				      list);
-		list_del(&req->list);
-	}
-	spin_unlock_irqrestore(&target->lock, flags);
-
 	if (!iu)
-		goto err;
+		goto err_unlock;
+
+	req = list_first_entry(&target->free_reqs, struct srp_request, list);
+	list_del(&req->list);
+	spin_unlock_irqrestore(&target->lock, flags);
 
 	dev = target->srp_host->srp_dev->dev;
 	ib_dma_sync_single_for_cpu(dev, iu->dma, srp_max_iu_len,
@@ -1189,6 +1186,8 @@ err_iu:
 
 	spin_lock_irqsave(&target->lock, flags);
 	list_add(&req->list, &target->free_reqs);
+
+err_unlock:
 	spin_unlock_irqrestore(&target->lock, flags);
 
 err:
