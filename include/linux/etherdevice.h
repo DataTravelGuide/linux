@@ -48,6 +48,8 @@ extern int eth_validate_addr(struct net_device *dev);
 
 
 
+extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+					     unsigned int rxqs);
 extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
 

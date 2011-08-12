@@ -5721,6 +5721,27 @@ static void netdev_init_queues(struct net_device *dev)
 struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
+	return alloc_netdev_mqs(sizeof_priv, name, setup, queue_count,
+				queue_count);
+}
+EXPORT_SYMBOL(alloc_netdev_mq);
+
+/**
+ *	alloc_netdev_mqs - allocate network device
+ *	@sizeof_priv:	size of private data to allocate space for
+ *	@name:		device name format string
+ *	@setup:		callback to initialize device
+ *	@txqs:		the number of TX subqueues to allocate
+ *	@rxqs:		the number of RX subqueues to allocate
+ *
+ *	Allocates a struct net_device with private data area for driver use
+ *	and performs basic initialization.  Also allocates subquue structs
+ *	for each queue on the device.
+ */
+struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
+		void (*setup)(struct net_device *),
+		unsigned int txqs, unsigned int rxqs)
+{
 	struct netdev_queue *tx;
 	struct netdev_tx_queue_extended *tx_ext;
 	struct net_device *dev;
@@ -5730,6 +5751,18 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	int i;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
+
+	if (txqs < 1) {
+		pr_err("alloc_netdev: Unable to allocate device "
+		       "with zero tx queues.\n");
+		return NULL;
+	}
+
+	if (rxqs < 1) {
+		pr_err("alloc_netdev: Unable to allocate device "
+		       "with zero rx queues.\n");
+		return NULL;
+	}
 
 	/*
 	 * allocate memory for extended frozen structure in front of
@@ -5754,21 +5787,21 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		return NULL;
 	}
 
-	tx = kcalloc(queue_count, sizeof(struct netdev_queue), GFP_KERNEL);
+	tx = kcalloc(txqs, sizeof(struct netdev_queue), GFP_KERNEL);
 	if (!tx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "tx qdiscs.\n");
 		goto free_p;
 	}
 
-	tx_ext = kcalloc(queue_count, sizeof(struct netdev_tx_queue_extended),
+	tx_ext = kcalloc(txqs, sizeof(struct netdev_tx_queue_extended),
 			 GFP_KERNEL);
 	if (!tx_ext) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "extensions for tx qdiscs.\n");
 		goto free_tx;
 	}
-	for (i = 0; i < queue_count; i++)
+	for (i = 0; i < txqs; i++)
 		tx_ext[i].q = &tx[i];
 
 	dev_ext_frozen = PTR_ALIGN(p, NETDEV_ALIGN);
@@ -5777,7 +5810,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev_ext_frozen->dev_ext = (struct net_device_extended *)
 				  ((char *) dev + NET_DEVICE_SIZE + sizeof_priv);
 
-	netdev_extended(dev)->rps_data.num_rx_queues = queue_count;
+	netdev_extended(dev)->rps_data.num_rx_queues = rxqs;
 	if (netif_alloc_rx_queues(dev)) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "rx queues.\n");
@@ -5793,8 +5826,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev->_tx = tx;
 	netdev_extended(dev)->_tx_ext = tx_ext;
-	dev->num_tx_queues = queue_count;
-	dev->real_num_tx_queues = queue_count;
+	dev->num_tx_queues = txqs;
+	dev->real_num_tx_queues = txqs;
 
 
 	dev->gso_max_size = GSO_MAX_SIZE;
@@ -5817,7 +5850,7 @@ free_p:
 	kfree(p);
 	return NULL;
 }
-EXPORT_SYMBOL(alloc_netdev_mq);
+EXPORT_SYMBOL(alloc_netdev_mqs);
 
 /**
  *	free_netdev - free network device
