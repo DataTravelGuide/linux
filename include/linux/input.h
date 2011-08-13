@@ -665,11 +665,12 @@ struct input_absinfo {
 #define ABS_MT_TOOL_TYPE	0x37	/* Type of touching device */
 #define ABS_MT_BLOB_ID		0x38	/* Group a set of packets as a blob */
 #define ABS_MT_TRACKING_ID	0x39	/* Unique ID of initiated contact */
+#define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 
 #ifdef __KERNEL__
 /* Implementation details, userspace should not care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
-#define ABS_MT_LAST		ABS_MT_TRACKING_ID
+#define ABS_MT_LAST		ABS_MT_PRESSURE
 #endif
 
 #define ABS_MAX			0x3f
@@ -775,6 +776,7 @@ struct input_absinfo {
  */
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
+#define MT_TOOL_MAX		1
 
 /*
  * Values describing the status of a force-feedback effect
@@ -1010,14 +1012,6 @@ struct ff_effect {
 #include <linux/mod_devicetable.h>
 
 /**
- * struct input_mt_slot - represents the state of an input MT slot
- * @abs: holds current values of ABS_MT axes for this slot
- */
-struct input_mt_slot {
-	int abs[ABS_MT_LAST - ABS_MT_FIRST + 1];
-};
-
-/**
  * struct input_dev - represents an input device
  * @name: name of the device
  * @phys: physical path to the device in the system hierarchy
@@ -1052,6 +1046,7 @@ struct input_mt_slot {
  *	of tracked contacts
  * @mtsize: number of MT slots the device uses
  * @slot: MT slot currently being transmitted
+ * @trkid: stores MT tracking ID for the current contact
  * @key: reflects current state of device's keys/buttons
  * @led: reflects current state of device's LEDs
  * @snd: reflects current state of sound effects
@@ -1129,6 +1124,7 @@ struct input_dev {
 	struct input_mt_slot *mt;
 	int mtsize;
 	int slot;
+	int trkid;
 
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long led[BITS_TO_LONGS(LED_CNT)];
@@ -1365,11 +1361,6 @@ static inline void input_sync(struct input_dev *dev)
 static inline void input_mt_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
-}
-
-static inline void input_mt_slot(struct input_dev *dev, int slot)
-{
-	input_event(dev, EV_ABS, ABS_MT_SLOT, slot);
 }
 
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
