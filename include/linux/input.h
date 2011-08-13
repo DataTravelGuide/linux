@@ -1121,11 +1121,6 @@ struct input_dev {
 	int abs[ABS_MAX + 1];
 	int rep[REP_MAX + 1];
 
-	struct input_mt_slot *mt;
-	int mtsize;
-	int slot;
-	int trkid;
-
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long led[BITS_TO_LONGS(LED_CNT)];
 	unsigned long snd[BITS_TO_LONGS(SND_CNT)];
@@ -1154,6 +1149,14 @@ struct input_dev {
 
 	struct list_head	h_list;
 	struct list_head	node;
+
+#ifndef __GENKSYMS__
+	/* Currently used only by the synaptics driver */
+	struct input_mt_slot *mt;
+	int mtsize;
+	int slot;
+	int trkid;
+#endif
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
 
