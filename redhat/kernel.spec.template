@@ -1191,7 +1191,7 @@ hwcap 1 nosegneg"
     }
 
     collect_modules_list networking \
-			 'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register'
+			 'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register|register_netdevice'
     collect_modules_list block \
     			 'ata_scsi_ioctl|scsi_add_host|scsi_add_host_with_dma|blk_init_queue|register_mtd_blktrans|scsi_esp_register|scsi_register_device_handler'
     collect_modules_list drm \
