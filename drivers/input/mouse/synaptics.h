@@ -108,5 +108,6 @@ struct synaptics_data {
 int synaptics_detect(struct psmouse *psmouse, bool set_properties);
 int synaptics_init(struct psmouse *psmouse);
 void synaptics_reset(struct psmouse *psmouse);
+bool synaptics_supported(void);
 
 #endif /* _SYNAPTICS_H */
