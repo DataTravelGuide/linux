@@ -662,6 +662,16 @@ This package provides debug information for package perf.
 # the leading .*, because of find-debuginfo.sh's buggy handling
 # of matching the pattern against the symlinks file.
 %{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|XXX' -o perf-debuginfo.list}
+
+%package -n python-perf
+Summary: Python bindings for apps which will manipulate perf events
+Group: Development/Libraries
+%description -n python-perf
+The python-perf package contains a module that permits applications
+written in the Python programming language to use the interface
+to manipulate perf events.
+
+%{!?python_sitearch: %global python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
 %endif
 
 #
@@ -1320,6 +1330,7 @@ ls $man9dir | grep -q '' || > $man9dir/BROKEN
 %if %{with_perf}
 # perf tool binary and supporting scripts/binaries
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install-python_ext
 
 # # perf man pages (note: implicit rpm magic compresses them later)
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install-man || %{doc_build_fail}
@@ -1540,6 +1551,10 @@ fi
 %files -f perf-debuginfo.list -n perf-debuginfo
 %defattr(-,root,root)
 %endif
+
+%files -n python-perf
+%defattr(-,root,root)
+%{python_sitearch}
 %endif
 
 # This is %{image_install_path} on an arch where that includes ELF files,
