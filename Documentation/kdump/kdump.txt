@@ -282,9 +282,17 @@ Or you can use:
 if you have enough memory. The threshold is 4G on ia64 and x86, 2G on powerpc,
 below which this won't work.
 
-The automatically reserved memory size would be 128M on x86_32, 128M or 256M
-on ppc, 1/32 of your physical memory size on x86_64 and ppc64 (but it will not
-grow if you have more than 128G memory). IA64 has its own policy, shown below:
+
+The automatically reserved memory size varies based on architecture. For i386
+and x86_64, base memory reserved is 128M and this memory is scaled based on
+physical memory present in the system. Currently dump filtering utility
+(makedumpfile) requires 2bits per 4K page of memory in its user space. So
+memory reserved is scaled accordingly. That means on top of 128MB, we reserve
+additional 2bit per 4K page of physical memory in the system.
+
+It will be 128M or 256M on ppc, 1/32 of your physical memory size on ppc64
+(but it will not grow if you have more than 128G memory). IA64 has its own
+policy, shown below:
 
 	Memory size	Reserved memory
 	===========	===============

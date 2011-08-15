@@ -1344,13 +1344,14 @@ unsigned long long __init arch_default_crash_size(unsigned long long total_size)
 	if (total_size < KEXEC_AUTO_THRESHOLD)
 		return 0;
 	else {
-#ifdef CONFIG_64BIT
+		/*
+		 * Filtering logic in kdump initrd requires 2bits per 4K page.
+		 * Hence reserve 2bits per 4K of RAM (or 1byte per 16K of RAM)
+		 * on top of base of 128M (KEXEC_AUTO_RESERVED_SIZE).
+		 */
 		return KEXEC_AUTO_RESERVED_SIZE +
 			roundup((total_size - KEXEC_AUTO_RESERVED_SIZE)
-				/ (1ULL<<23), 1ULL<<20); /* 1:8192 */
-#else
-		return KEXEC_AUTO_RESERVED_SIZE;
-#endif
+				/ (1ULL<<14), 1ULL<<20);
 	}
 }
 #define arch_default_crash_size arch_default_crash_size
