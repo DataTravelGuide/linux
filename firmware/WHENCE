@@ -902,7 +902,7 @@ Found in hex form in kernel source.
 
 Driver: netxen_nic - NetXen Multi port (1/10) Gigabit Ethernet NIC
 
-File: phanfw.bin
+File: phanfw-4.0.550.bin
 Info: v4.0.550
 
 Licence:
