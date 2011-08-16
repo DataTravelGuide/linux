@@ -143,8 +143,8 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	struct resource *res;
 	struct pci_bus_region region;
 
-	dev_info(&bridge->dev, "CardBus bridge, secondary bus %04x:%02x\n",
-		 pci_domain_nr(bus), bus->number);
+	dev_info(&bridge->dev, "CardBus bridge to [bus %02x-%02x]\n",
+		 bus->secondary, bus->subordinate);
 
 	res = bus->resource[0];
 	pcibios_resource_to_bus(bridge, &region, res);
@@ -202,8 +202,8 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 	if (pci_is_enabled(bridge))
 		return;
 
-	dev_info(&bridge->dev, "PCI bridge, secondary bus %04x:%02x\n",
-		 pci_domain_nr(bus), bus->number);
+	dev_info(&bridge->dev, "PCI bridge to [bus %02x-%02x]\n",
+		 bus->secondary, bus->subordinate);
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	res = bus->resource[0];
@@ -441,6 +441,10 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size)
 #endif
 	size = ALIGN(size + size1, 4096);
 	if (!size) {
+		if (b_res->start || b_res->end)
+			dev_info(&bus->self->dev, "disabling bridge window "
+				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
+				 bus->secondary, bus->subordinate);
 		b_res->flags = 0;
 		return;
 	}
@@ -486,8 +490,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			align = pci_resource_alignment(dev, r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				dev_warn(&dev->dev, "BAR %d: bad alignment %llx: "
-					 "%pR\n", i, (unsigned long long)align, r);
+				dev_warn(&dev->dev, "disabling BAR %d: %pR "
+					 "(bad alignment %#llx)\n", i, r,
+					 (unsigned long long) align);
 				r->flags = 0;
 				continue;
 			}
@@ -521,6 +526,10 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	}
 	size = ALIGN(size, min_align);
 	if (!size) {
+		if (b_res->start || b_res->end)
+			dev_info(&bus->self->dev, "disabling bridge window "
+				 "%pR to [bus %02x-%02x] (unused)\n", b_res,
+				 bus->secondary, bus->subordinate);
 		b_res->flags = 0;
 		return 1;
 	}
