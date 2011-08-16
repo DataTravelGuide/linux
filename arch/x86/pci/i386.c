@@ -173,9 +173,11 @@ static void __init pcibios_allocate_resources(int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
+					struct pci_dev_rh1 *rh1_pci_dev = dev->rh_reserved1;
 					dev_info(&dev->dev,
 						 "can't reserve %pR\n", r);
 					/* We'll assign a new address later */
+					rh1_pci_dev->fw_addr[idx] = r->start;
 					r->end -= r->start;
 					r->start = 0;
 				}
