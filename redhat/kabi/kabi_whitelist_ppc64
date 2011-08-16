@@ -105,6 +105,8 @@
 	add_uevent_var
 	add_wait_queue
 	add_wait_queue_exclusive
+	aio_complete
+	aio_put_req
 	alloc_chrdev_region
 	alloc_disk
 	alloc_etherdev_mq
@@ -833,6 +835,7 @@
 	pci_request_regions
 	pci_request_selected_regions
 	pci_request_selected_regions_exclusive
+	pci_reset_function
 	pci_restore_state
 	pci_save_state
 	pci_scan_slot
