@@ -2474,11 +2474,29 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
  * For Intel 82576 SR-IOV NIC, if BIOS doesn't allocate resources for the
  * SR-IOV BARs, zero the Flash BAR and program the SR-IOV BARs to use the
  * old Flash Memory Space.
+ *
+ * RHEL6: Production systems should not require this quirk.  If you find
+ * that you need this quirk on certified production hardware, please contact
+ * your hardware vendor for a BIOS update.
+ *
+ * The problem is that this quirk reprograms *all* SR-IOV Flash BARs to the old
+ * Flash BAR address, even on those production systems that have a correct
+ * Flash BAR address.  This then causes the Flash SR-IOV on those NICs to
+ * not initialize and/or function correctly.
  */
+static int enable_quirk_i82576_sriov;
+
 static void __devinit quirk_i82576_sriov(struct pci_dev *dev)
 {
 	int pos, flags;
 	u32 bar, start, size;
+
+	if (!enable_quirk_i82576_sriov)
+		return;
+
+	dev_info(&dev->dev, "i82576 quirk for SR-IOV BARs\n");
+	dev_info(&dev->dev,
+	         "If this is production hardware please contact your vendor for a BIOS update.\n");
 
 	if (PAGE_SIZE > 0x10000)
 		return;
@@ -2517,6 +2535,13 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e8, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150a, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150d, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1518, quirk_i82576_sriov);
+
+static int __init _quirk_i82576_sriov(char *str)
+{
+	enable_quirk_i82576_sriov = 1;
+	return 1;
+}
+__setup("quirk_i82576_sriov", _quirk_i82576_sriov);
 
 #endif	/* CONFIG_PCI_IOV */
 
