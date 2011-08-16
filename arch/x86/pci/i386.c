@@ -75,9 +75,6 @@ pcibios_align_resource(void *data, struct resource *res,
 			start = (start + 0x3ff) & ~0x3ff;
 			res->start = start;
 		}
-	} else if (res->flags & IORESOURCE_MEM) {
-		if (res->start < BIOS_END)
-			res->start = BIOS_END;
 	}
 }
 EXPORT_SYMBOL(pcibios_align_resource);
