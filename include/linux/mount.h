@@ -116,6 +116,8 @@ extern struct vfsmount *vfs_kern_mount(struct file_system_type *type,
 				      int flags, const char *name,
 				      void *data);
 
+struct nameidata;
+
 struct path;
 extern int do_add_mount(struct vfsmount *newmnt, struct path *path,
 			int mnt_flags, struct list_head *fslist);
