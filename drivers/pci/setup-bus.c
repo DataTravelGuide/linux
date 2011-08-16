@@ -140,53 +140,50 @@ static void pbus_assign_resources_sorted(const struct pci_bus *bus,
 void pci_setup_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
+	struct resource *res;
 	struct pci_bus_region region;
 
 	dev_info(&bridge->dev, "CardBus bridge, secondary bus %04x:%02x\n",
 		 pci_domain_nr(bus), bus->number);
 
-	pcibios_resource_to_bus(bridge, &region, bus->resource[0]);
-	if (bus->resource[0]->flags & IORESOURCE_IO) {
+	res = bus->resource[0];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_IO) {
 		/*
 		 * The IO resource is allocated a range twice as large as it
 		 * would normally need.  This allows us to set both IO regs.
 		 */
-		dev_info(&bridge->dev, "  IO window: %#08lx-%#08lx\n",
-		       (unsigned long)region.start,
-		       (unsigned long)region.end);
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_0,
 					region.start);
 		pci_write_config_dword(bridge, PCI_CB_IO_LIMIT_0,
 					region.end);
 	}
 
-	pcibios_resource_to_bus(bridge, &region, bus->resource[1]);
-	if (bus->resource[1]->flags & IORESOURCE_IO) {
-		dev_info(&bridge->dev, "  IO window: %#08lx-%#08lx\n",
-		       (unsigned long)region.start,
-		       (unsigned long)region.end);
+	res = bus->resource[1];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_IO) {
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_1,
 					region.start);
 		pci_write_config_dword(bridge, PCI_CB_IO_LIMIT_1,
 					region.end);
 	}
 
-	pcibios_resource_to_bus(bridge, &region, bus->resource[2]);
-	if (bus->resource[2]->flags & IORESOURCE_MEM) {
-		dev_info(&bridge->dev, "  PREFETCH window: %#08lx-%#08lx\n",
-		       (unsigned long)region.start,
-		       (unsigned long)region.end);
+	res = bus->resource[2];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_MEM) {
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_0,
 					region.start);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_LIMIT_0,
 					region.end);
 	}
 
-	pcibios_resource_to_bus(bridge, &region, bus->resource[3]);
-	if (bus->resource[3]->flags & IORESOURCE_MEM) {
-		dev_info(&bridge->dev, "  MEM window: %#08lx-%#08lx\n",
-		       (unsigned long)region.start,
-		       (unsigned long)region.end);
+	res = bus->resource[3];
+	pcibios_resource_to_bus(bridge, &region, res);
+	if (res->flags & IORESOURCE_MEM) {
+		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_1,
 					region.start);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_LIMIT_1,
@@ -490,7 +487,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			order = __ffs(align) - 20;
 			if (order > 11) {
 				dev_warn(&dev->dev, "BAR %d: bad alignment %llx: "
-					 "%pRt\n", i, (unsigned long long)align, r);
+					 "%pR\n", i, (unsigned long long)align, r);
 				r->flags = 0;
 				continue;
 			}
@@ -688,7 +685,7 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res || !res->end)
                         continue;
 
-		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pRt\n", i, res);
+		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
         }
 }
 
