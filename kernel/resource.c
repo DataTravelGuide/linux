@@ -357,6 +357,10 @@ int __weak page_is_ram(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(page_is_ram);
 
+void __weak arch_remove_reservations(struct resource *avail)
+{
+}
+
 static void simple_align_resource(void *data,
 				  struct resource *avail,
 				  resource_size_t size,
@@ -391,6 +395,7 @@ static int find_resource(struct resource *root, struct resource *new,
 	struct resource *this = root->child;
 	struct resource tmp = *new, avail, alloc;
 
+	tmp.flags = new->flags;
 	tmp.start = root->start;
 	/*
 	 * Skip past an allocated resource that starts at 0, since the assignment
@@ -407,6 +412,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			tmp.end = root->end;
 
 		resource_clip(&tmp, min, max);
+		arch_remove_reservations(&tmp);
 
 		/* Check for overflow after ALIGN() */
 		avail = *new;
