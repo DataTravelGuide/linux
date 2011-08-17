@@ -332,6 +332,7 @@ M:	Don Zickus <dzickus@redhat.com>
 S:	Maintained
 
 PCI SUBSYSTEM
+M:	Myron Stowe <mstowe@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 M:	Andy Gospodarek <agospoda@redhat.com>
 S:	Maintained
