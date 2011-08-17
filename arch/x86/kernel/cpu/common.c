@@ -38,7 +38,9 @@
 #include <asm/uv/uv.h>
 #endif
 
+#ifdef CONFIG_XEN
 #include <xen/xen.h>
+#endif
 
 #include "cpu.h"
 
@@ -284,6 +286,7 @@ struct cpuid_dependent_feature {
 	u32 level;
 };
 
+#ifdef CONFIG_XEN
 static const u32
 xen_dangerous_cpuid_features[] = {
 	/* Mask out GBPAGES & RDTSCP for Xen BZ#703055 */
@@ -316,6 +319,7 @@ static void __cpuinit fltr_xen_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 				x86_cap_flags[*df]);
 	}
 }
+#endif /* CONFIG_XEN */
 
 static const struct cpuid_dependent_feature __cpuinitconst
 cpuid_dependent_features[] = {
@@ -354,12 +358,14 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 				x86_cap_flags[df->feature], df->level);
 	}
 
+#ifdef CONFIG_XEN
 	/*
 	 * RHEL Xen HVM guests must filter out additional not masked
 	 * by old kernel-xen features, to avoid crashes.
 	 */
 	if (xen_cpuid_base() != 0)
 		fltr_xen_cpuid_features(c, warn);
+#endif /* CONFIG_XEN */
 }
 
 /*
