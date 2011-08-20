@@ -81,6 +81,7 @@ struct mb_cache {
 	const char			*c_name;
 	struct mb_cache_op		c_op;
 	atomic_t			c_entry_count;
+	int				c_max_entries;
 	int				c_bucket_bits;
 #ifndef MB_CACHE_INDEXES_COUNT
 	int				c_indexes_count;
@@ -297,6 +298,12 @@ mb_cache_create(const char *name, struct mb_cache_op *cache_op,
 	if (!cache->c_entry_cache)
 		goto fail;
 
+	/*
+	 * Set an upper limit on the number of cache entries so that the hash
+	 * chains won't grow too long.
+	 */
+	cache->c_max_entries = bucket_count << 4;
+
 	spin_lock(&mb_cache_spinlock);
 	list_add(&cache->c_cache_list, &mb_cache_list);
 	spin_unlock(&mb_cache_spinlock);
@@ -390,7 +397,6 @@ mb_cache_destroy(struct mb_cache *cache)
 	kfree(cache);
 }
 
-
 /*
  * mb_cache_entry_alloc()
  *
@@ -402,17 +408,29 @@ mb_cache_destroy(struct mb_cache *cache)
 struct mb_cache_entry *
 mb_cache_entry_alloc(struct mb_cache *cache, gfp_t gfp_flags)
 {
-	struct mb_cache_entry *ce;
+	struct mb_cache_entry *ce = NULL;
 
-	ce = kmem_cache_alloc(cache->c_entry_cache, gfp_flags);
-	if (ce) {
+	if (atomic_read(&cache->c_entry_count) >= cache->c_max_entries) {
+		spin_lock(&mb_cache_spinlock);
+		if (!list_empty(&mb_cache_lru_list)) {
+			ce = list_entry(mb_cache_lru_list.next,
+					struct mb_cache_entry, e_lru_list);
+			list_del_init(&ce->e_lru_list);
+			__mb_cache_entry_unhash(ce);
+		}
+		spin_unlock(&mb_cache_spinlock);
+	}
+	if (!ce) {
+		ce = kmem_cache_alloc(cache->c_entry_cache, gfp_flags);
+		if (!ce)
+			return NULL;
 		atomic_inc(&cache->c_entry_count);
 		INIT_LIST_HEAD(&ce->e_lru_list);
 		INIT_LIST_HEAD(&ce->e_block_list);
 		ce->e_cache = cache;
-		ce->e_used = 1 + MB_CACHE_WRITER;
 		ce->e_queued = 0;
 	}
+	ce->e_used = 1 + MB_CACHE_WRITER;
 	return ce;
 }
 
