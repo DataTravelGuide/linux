@@ -47,6 +47,7 @@ HPSA specific entries in /sys
   /sys/class/scsi_host/host*/firmware_revision
   /sys/class/scsi_host/host*/resettable
   /sys/class/scsi_host/host*/transport_mode
+  /sys/class/scsi_host/host*/heartbeat
 
   the host "rescan" attribute is a write only attribute.  Writing to this
   attribute will cause the driver to scan for new, changed, or removed devices
@@ -77,6 +78,13 @@ HPSA specific entries in /sys
   remaining on the controller from the previous kernel.  This attribute enables
   kexec tools to warn the user if they attempt to designate a device which is
   unable to honor the reset_devices kernel parameter as a dump device.
+
+  The "heartbeat" read-only attribute returns the value of a heartbeat
+  counter register on a Smart Array controller as a 32 bit unsigned
+  hexadecimal integer (e.g: "0x12345678").  The value should change
+  periodically, not less than once per second.  If this value fails to
+  change for a period longer than one second, it means something has
+  gone wrong (e.g. Smart Array controller firmware has locked up.)
 
   HPSA specific disk attributes:
   ------------------------------

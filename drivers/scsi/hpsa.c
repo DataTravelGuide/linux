@@ -346,6 +346,21 @@ static ssize_t host_show_resettable(struct device *dev,
 	return snprintf(buf, 20, "%d\n", ctlr_is_resettable(h->board_id));
 }
 
+static ssize_t host_show_heartbeat(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct ctlr_info *h;
+	struct Scsi_Host *shost = class_to_shost(dev);
+	u32 heartbeat;
+	unsigned long flags;
+
+	h = shost_to_hba(shost);
+	spin_lock_irqsave(&h->lock, flags);
+	heartbeat = readl(&h->cfgtable->HeartBeat);
+	spin_unlock_irqrestore(&h->lock, flags);
+	return snprintf(buf, 20, "0x%08x\n", heartbeat);
+}
+
 static inline int is_logical_dev_addr_mode(unsigned char scsi3addr[])
 {
 	return (scsi3addr[3] & 0xC0) == 0x40;
@@ -454,6 +469,8 @@ static DEVICE_ATTR(transport_mode, S_IRUGO,
 	host_show_transport_mode, NULL);
 static DEVICE_ATTR(resettable, S_IRUGO,
 	host_show_resettable, NULL);
+static DEVICE_ATTR(heartbeat, S_IRUGO,
+	host_show_heartbeat, NULL);
 
 static struct device_attribute *hpsa_sdev_attrs[] = {
 	&dev_attr_raid_level,
@@ -468,6 +485,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_commands_outstanding,
 	&dev_attr_transport_mode,
 	&dev_attr_resettable,
+	&dev_attr_heartbeat,
 	NULL,
 };
 
