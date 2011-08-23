@@ -1635,6 +1635,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Aug 23 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-192.el6]
+- [build] spec: add more drivers to initrd (Andy Gospodarek) [714883]
+- [target] add to tech-preview.txt and call mark_tech_preview (Andy Grover) [638007]
+- [x86] ucode-amd: Don't warn when no ucode is available for a CPU revision (Anton Arapov) [731409]
+- [scsi] isci: remove core/scic_sds_port_configuration_agent.c (David Milburn) [730136]
+- [scsi] qla4xxx: export iface name (Mike Christie) [730599]
+- [s390x] config: switch on CONFIG_DEBUG_PAGEALLOC on s390x-debug kernel (Hendrik Brueckner) [702405]
+- [char] tpm: Fix uninitialized usage of data buffer (Stanislaw Gruszka) [684675] {CVE-2011-1160}
+- [ata] libata: remove SCSI host lock (David Milburn) [732062]
+- [scsi] scsi_dh_rdac: decide on whether to send mode select or not (Tomas Henzl) [683613]
+- [scsi] scsi_dh_rdac: Detect the different RDAC operating modes (Tomas Henzl) [683613]
+- [scsi] scsi_dh_rdac: Add definitions for different RDAC operating modes (Tomas Henzl) [683613]
+- [target] modify rhel config for tcm (Andy Grover) [638007]
+- [target] backport to old queuecommand interface (Andy Grover) [638007]
+- [target] fixup file backstore for vfs_fsync_range api change (Andy Grover) [638007]
+- [target] fixes for iblock backport (Andy Grover) [638007]
+- [scsi] add ACA_TAG definition to scsi/scsi_tcq.h (Andy Grover) [638007]
+- [scsi] Add missing SPC-4 CDB and MAINTENANCE_[IN, OUT] service action definitions (Andy Grover) [638007]
+- [target] Fix UTS_RELEASE build errors (Andy Grover) [638007]
+- [scsi] tcm_fc: Fixing reference counting problem which was causing ft_sess to be deleted (Andy Grover) [638007]
+- [scsi] Add FCoE Target support (Andy Grover) [638007]
+- [block] cfq-iosched: Reduce linked group count upon group destruction (Vivek Goyal) [726099]
+- [kdump] x86: Fix crashkernel=auto to take into account memory needed by filtering utility (Vivek Goyal) [730077]
+
 * Wed Aug 17 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-191.el6]
 - [drm] radeon: post-3.0 fixes (Jerome Glisse) [730838]
 - [netdrv] netxen-firmware: rename firmware files (Andy Gospodarek) [693743]
