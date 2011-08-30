@@ -160,7 +160,7 @@ static int get_irq_server(unsigned int virq, cpumask_t cpumask,
 	if (!distribute_irqs)
 		return default_server;
 
-	if (!cpus_equal(cpumask, CPU_MASK_ALL)) {
+	if (!cpus_subset(cpu_possible_map, cpumask)) {
 		cpus_and(tmp, cpu_online_map, cpumask);
 
 		server = first_cpu(tmp);
