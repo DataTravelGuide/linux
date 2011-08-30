@@ -771,6 +771,7 @@
 	ns_to_timeval
 	num_physpages
 	on_each_cpu
+	paca
 	pagevec_lookup_tag
 	panic
 	panic_notifier_list
