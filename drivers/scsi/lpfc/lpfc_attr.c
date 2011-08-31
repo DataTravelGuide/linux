@@ -774,7 +774,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 static int
 lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 {
-	struct lpfc_register portstat_reg;
+	struct lpfc_register portstat_reg = {0};
 	int i;
 
 	msleep(100);
