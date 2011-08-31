@@ -827,9 +827,6 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	     LPFC_SLI_INTF_IF_TYPE_2))
 		return -EPERM;
 
-	if (!pdev->is_physfn)
-		return -EPERM;
-
 	/* Disable SR-IOV virtual functions if enabled */
 	if (phba->cfg_sriov_nr_virtfn) {
 		pci_disable_sriov(pdev);
