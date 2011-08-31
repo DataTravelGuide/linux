@@ -848,6 +848,26 @@ static void ack_dynirq(unsigned int irq)
 		clear_evtchn(evtchn);
 }
 
+static void mask_ack_dynirq(unsigned int irq)
+{
+	/*
+	 * Upstream has irq_move_irq and uses it in ack_dynirq; we do not.
+	 * However, we know that in ack_dynirq the interrupt will never be
+	 * masked (see mask_ack_irq and handle_edge_irq in kernel/irq/chip.c).
+	 * So, use the same code twice except with move_native_irq there and
+	 * move_masked_irq here.
+	 */
+
+	int evtchn = evtchn_from_irq(irq);
+
+	disable_dynirq(irq);
+
+	move_masked_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		clear_evtchn(evtchn);
+}
+
 static int retrigger_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
@@ -1014,6 +1034,7 @@ static struct irq_chip xen_dynamic_chip __read_mostly = {
 	.unmask		= enable_dynirq,
 
 	.ack		= ack_dynirq,
+	.mask_ack	= mask_ack_dynirq,
 	.set_affinity	= set_affinity_irq,
 	.retrigger	= retrigger_dynirq,
 };
