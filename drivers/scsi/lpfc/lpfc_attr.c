@@ -770,9 +770,14 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	struct lpfc_register portstat_reg;
 	int i;
 
-
+	msleep(100);
 	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 		   &portstat_reg.word0);
+
+	/* verify if privilaged for the request operation */
+	if (!bf_get(lpfc_sliport_status_rn, &portstat_reg) &&
+	    !bf_get(lpfc_sliport_status_err, &portstat_reg))
+		return -EPERM;
 
 	/* wait for the SLI port firmware ready after firmware reset */
 	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
@@ -848,7 +853,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	rc = lpfc_sli4_pdev_status_reg_wait(phba);
 
 	if (rc)
-		return -EIO;
+		return rc;
 
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
@@ -970,7 +975,7 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	if (!status)
 		return strlen(buf);
 	else
-		return -EIO;
+		return status;
 }
 
 /**
