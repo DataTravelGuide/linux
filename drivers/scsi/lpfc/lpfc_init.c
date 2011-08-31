@@ -8863,16 +8863,17 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 	uint32_t offset = 0, temp_offset = 0;
 
 	INIT_LIST_HEAD(&dma_buffer_list);
-	if ((image->magic_number != LPFC_GROUP_OJECT_MAGIC_NUM) ||
-	    (bf_get(lpfc_grp_hdr_file_type, image) != LPFC_FILE_TYPE_GROUP) ||
-	    (bf_get(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
-	    (image->size != fw->size)) {
+	if ((be32_to_cpu(image->magic_number) != LPFC_GROUP_OJECT_MAGIC_NUM) ||
+	    (bf_get_be32(lpfc_grp_hdr_file_type, image) !=
+	     LPFC_FILE_TYPE_GROUP) ||
+	    (bf_get_be32(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
+	    (be32_to_cpu(image->size) != fw->size)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3022 Invalid FW image found. "
-				"Magic:%d Type:%x ID:%x\n",
-				image->magic_number,
-				bf_get(lpfc_grp_hdr_file_type, image),
-				bf_get(lpfc_grp_hdr_id, image));
+				"Magic:%x Type:%x ID:%x\n",
+				be32_to_cpu(image->magic_number),
+				bf_get_be32(lpfc_grp_hdr_file_type, image),
+				bf_get_be32(lpfc_grp_hdr_id, image));
 		return -EINVAL;
 	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
@@ -8902,11 +8903,11 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 		while (offset < fw->size) {
 			temp_offset = offset;
 			list_for_each_entry(dmabuf, &dma_buffer_list, list) {
-				if (offset + SLI4_PAGE_SIZE > fw->size) {
-					temp_offset += fw->size - offset;
+				if (temp_offset + SLI4_PAGE_SIZE > fw->size) {
 					memcpy(dmabuf->virt,
 					       fw->data + temp_offset,
-					       fw->size - offset);
+					       fw->size - temp_offset);
+					temp_offset = fw->size;
 					break;
 				}
 				temp_offset += SLI4_PAGE_SIZE;
