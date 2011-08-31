@@ -699,7 +699,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
-		return -EIO;
+		return -EACCES;
 
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
@@ -827,7 +827,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
-		return -EIO;
+		return -EACCES;
 
 	if ((phba->sli_rev < LPFC_SLI_REV4) ||
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
