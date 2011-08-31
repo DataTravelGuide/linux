@@ -51,6 +51,13 @@
 #define LPFC_MIN_DEVLOSS_TMO 1
 #define LPFC_MAX_DEVLOSS_TMO 255
 
+/*
+ * Write key size should be multiple of 4. If write key is changed
+ * make sure that library write key is also changed.
+ */
+#define LPFC_REG_WRITE_KEY_SIZE	4
+#define LPFC_REG_WRITE_KEY	"EMLX"
+
 /**
  * lpfc_jedec_to_ascii - Hex to ascii convertor according to JEDEC rules
  * @incr: integer to convert.
@@ -3852,18 +3859,23 @@ sysfs_ctlreg_write(struct file *filp, struct kobject *kobj,
 	if ((off + count) > FF_REG_AREA_SIZE)
 		return -ERANGE;
 
-	if (count == 0) return 0;
+	if (count <= LPFC_REG_WRITE_KEY_SIZE)
+		return 0;
 
 	if (off % 4 || count % 4 || (unsigned long)buf % 4)
 		return -EINVAL;
 
-	if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
+	/* This is to protect HBA registers from accidental writes. */
+	if (memcmp(buf, LPFC_REG_WRITE_KEY, LPFC_REG_WRITE_KEY_SIZE))
+		return -EINVAL;
+
+	if (!(vport->fc_flag & FC_OFFLINE_MODE))
 		return -EPERM;
-	}
 
 	spin_lock_irq(&phba->hbalock);
-	for (buf_off = 0; buf_off < count; buf_off += sizeof(uint32_t))
-		writel(*((uint32_t *)(buf + buf_off)),
+	for (buf_off = 0; buf_off < count - LPFC_REG_WRITE_KEY_SIZE;
+			buf_off += sizeof(uint32_t))
+		writel(*((uint32_t *)(buf + buf_off + LPFC_REG_WRITE_KEY_SIZE)),
 		       phba->ctrl_regs_memmap_p + off + buf_off);
 
 	spin_unlock_irq(&phba->hbalock);
