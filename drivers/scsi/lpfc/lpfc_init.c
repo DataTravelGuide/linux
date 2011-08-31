@@ -1472,15 +1472,18 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			return;
 		}
 		if (bf_get(lpfc_sliport_status_rn, &portstat_reg)) {
-			/*
-			 * TODO: Attempt port recovery via a port reset.
-			 * When fully implemented, the driver should
-			 * attempt to recover the port here and return.
-			 * For now, log an error and take the port offline.
-			 */
+			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2887 Port Error: Attempting "
 					"Port Recovery\n");
+			lpfc_offline_prep(phba);
+			lpfc_offline(phba);
+			lpfc_sli_brdrestart(phba);
+			if (lpfc_online(phba) == 0) {
+				lpfc_unblock_mgmt_io(phba);
+				return;
+			}
+			/* fall through for not able to recover */
 		}
 		lpfc_sli4_offline_eratt(phba);
 		break;
