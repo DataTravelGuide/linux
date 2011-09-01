@@ -123,6 +123,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 {
 	struct pci_dev *dev;
 	const char *type;
+	struct pci_slot *slot;
 
 	dev = alloc_pci_dev();
 	if (!dev)
@@ -140,6 +141,10 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 	dev->needs_freset = 0;		/* pcie fundamental reset required */
+
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
 
 	dev->vendor = get_int_prop(node, "vendor-id", 0xffff);
 	dev->device = get_int_prop(node, "device-id", 0xffff);
