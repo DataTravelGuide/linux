@@ -439,6 +439,7 @@
 	ip_route_output_key
 	iput
 	ipv6_chk_addr
+	ipv6_ext_hdr
 	ipv6_skip_exthdr
 	is_bad_inode
 	jiffies
@@ -494,7 +495,9 @@
 	lock_super
 	lookup_one_len
 	lro_flush_all
+	lro_receive_frags
 	lro_receive_skb
+	lro_vlan_hwaccel_receive_frags
 	lro_vlan_hwaccel_receive_skb
 	make_bad_inode
 	malloc_sizes
