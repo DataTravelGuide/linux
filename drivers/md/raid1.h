@@ -129,5 +129,6 @@ struct r1bio_s {
 #define	R1BIO_Returned 6
 
 extern int md_raid1_congested(mddev_t *mddev, int bits);
+extern void md_raid1_unplug_device(conf_t *conf);
 
 #endif

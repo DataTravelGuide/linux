@@ -560,7 +560,10 @@ static void raid_unplug(struct dm_target_callbacks *cb)
 {
 	struct raid_set *rs = container_of(cb, struct raid_set, callbacks);
 
-	md_raid5_unplug_device(rs->md.private);
+	if (rs->raid_type->level == 1)
+		md_raid1_unplug_device(rs->md.private);
+	else
+		md_raid5_unplug_device(rs->md.private);
 }
 
 /*
