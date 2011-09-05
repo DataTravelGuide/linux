@@ -1635,6 +1635,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Sep 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-195.el6]
+- [drm] radeon/kms: set a default max_pixel_clock (Dave Airlie) [729545]
+- [pci] pciehp: change wait time for valid configuration access (Myron Stowe) [727720]
+- [pci] ACPI: Report ASPM support to BIOS if not disabled from command line (Myron Stowe) [732501]
+- [ppc] pci: Add calls to set_pcie_port_type() and set_pcie_hotplug_bridge() (Steve Best) [734192]
+- [ppc] pci: Add missing hookup to pci_slot (Steve Best) [734192]
+- [ppc] pci: Add missing call to header fixup (Steve Best) [734192]
+- [virt] xen events: implement mask_ack (Andrew Jones) [733672]
+- [virt] Revert "[virt] xen/events: change to using fasteoi" (Andrew Jones) [733672]
+- [scsi] be2iscsi: Add pci_disable device (Mike Christie) [688076]
+- [scsi] be2iscsi: Adding a shutdown Routine (Mike Christie) [688076]
+- [net] ipv6: make fragment identifications less predictable (Jiri Pirko) [723433] {CVE-2011-2699}
+- [fs] Ecryptfs: Add mount option to check uid of device being mounted = expect uid (Eric Sandeen) [731176] {CVE-2011-1833}
+
 * Thu Sep 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-194.el6]
 - [md] raid5: fix FUA request handling in ops_run_io() (Mike Snitzer) [733527]
 - [md] raid5: fix errant REQ_FUA that should be BIO_FUA (Mike Snitzer) [733527]
