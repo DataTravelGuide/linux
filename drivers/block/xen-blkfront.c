@@ -996,9 +996,28 @@ static void blkfront_connect(struct blkfront_info *info)
 	int err;
 	int barrier;
 
-	if ((info->connected == BLKIF_STATE_CONNECTED) ||
-	    (info->connected == BLKIF_STATE_SUSPENDED) )
+	switch (info->connected) {
+	case BLKIF_STATE_CONNECTED:
+		/*
+		 * Potentially, the back-end may be signalling
+		 * a capacity change; update the capacity.
+		 */
+		err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
+				   "sectors", "%Lu", &sectors);
+		if (XENBUS_EXIST_ERR(err))
+			return;
+		printk(KERN_INFO "Setting capacity to %Lu\n",
+		       sectors);
+		set_capacity(info->gd, sectors);
+		revalidate_disk(info->gd);
+
+		/* fall through */
+	case BLKIF_STATE_SUSPENDED:
 		return;
+	default:
+		/* keep gcc quiet; ISO C99 6.8.4.2p5, 6.8.3p6 */
+		;
+	}
 
 	dev_dbg(&info->xbdev->dev, "%s:%s.\n",
 		__func__, info->xbdev->otherend);
