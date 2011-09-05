@@ -995,6 +995,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned int binfo;
 	int err;
 	int barrier;
+	dev_t devt;
 
 	switch (info->connected) {
 	case BLKIF_STATE_CONNECTED:
@@ -1006,8 +1007,12 @@ static void blkfront_connect(struct blkfront_info *info)
 				   "sectors", "%Lu", &sectors);
 		if (XENBUS_EXIST_ERR(err))
 			return;
-		printk(KERN_INFO "Setting capacity to %Lu\n",
-		       sectors);
+
+		devt = disk_devt(info->gd);
+		printk(KERN_INFO "Changing capacity of (%u, %u) to %Lu "
+		       "sectors\n", (unsigned)MAJOR(devt),
+		       (unsigned)MINOR(devt), sectors);
+
 		set_capacity(info->gd, sectors);
 		revalidate_disk(info->gd);
 
