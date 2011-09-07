@@ -205,7 +205,7 @@ update-spec:
 	@cat $(DETAILED_SPEC) | \
 		sed -e "/Patch:/,/^$$/d; /^ApplyPatch\ /,/^$$/d" | \
 		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-$(internal_release)," | \
-		sed -e "s,ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2,$(FULL_TARBALL),">$(DEFAULT_SPEC);
+		sed -e "s,linux-2.6.32.tar.bz2,$(FULL_TARBALL),">$(DEFAULT_SPEC);
 	@make update-ksb-spec
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
@@ -225,7 +225,7 @@ update-ksb-spec:
 		sed -e "/^Patch:\ /,/^Patch3807:\ /d" | \
 		sed -e "/^ApplyPatch\ Fedora-redhat-introduce-nonint_oldconfig-target.patch/,/^ApplyPatch\ fs-nfsd-initialize-nfsd-versions-before-creating-svc.patch/d" | \
 		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-71.el6," | \
-		sed -e "s,ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2,linux-2.6.32-71.el6.tar.bz2,">$(KSB_SPEC);
+		sed -e "s,linux-2.6.32.tar.bz2,linux-2.6.32-71.el6.tar.bz2,">$(KSB_SPEC);
 
 $(KSB_SPEC):
 	@make update-ksb-spec;

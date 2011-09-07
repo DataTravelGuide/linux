@@ -538,7 +538,7 @@ BuildConflicts: rhbuildsys(DiskFree) < 7Gb
 %define debuginfo_args --strict-build-id
 %endif
 
-Source0: ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2
+Source0: linux-2.6.32.tar.bz2
 
 Source1: Makefile.common
 
