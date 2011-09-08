@@ -660,6 +660,11 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 	if (likely(!bt))
 		return;
 
+	if (rq->cmd_flags & REQ_SYNC)
+		rw |= (1 << BIO_RW_SYNCIO);
+	if (rq->cmd_flags & REQ_META)
+		rw |= (1 << BIO_RW_META);
+
 	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= BIO_DISCARD;
 	if (rq->cmd_flags & REQ_FLUSH)
@@ -1766,6 +1771,11 @@ void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
 {
 	int rw = rq->cmd_flags & 0x03;
 	int bytes;
+
+	if (rq->cmd_flags & REQ_SYNC)
+		rw |= (1 << BIO_RW_SYNCIO);
+	if (rq->cmd_flags & REQ_META)
+		rw |= (1 << BIO_RW_META);
 
 	if (rq->cmd_flags & REQ_DISCARD)
 		rw |= BIO_DISCARD;
