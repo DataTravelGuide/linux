@@ -3,7 +3,6 @@
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
-#include <xen/xen.h>
 
 #define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
 
@@ -91,8 +90,12 @@ static inline void pgd_list_del(pgd_t *pgd)
 static void pgd_set_mm(pgd_t *pgd, struct mm_struct *mm)
 {
 	BUILD_BUG_ON(sizeof(virt_to_page(pgd)->index) < sizeof(mm));
-	if (xen_pv_domain())
-		virt_to_page(pgd)->index = (pgoff_t)mm;
+	virt_to_page(pgd)->index = (pgoff_t)mm;
+}
+
+struct mm_struct *pgd_page_get_mm(struct page *page)
+{
+	return (struct mm_struct *)page->index;
 }
 
 static void pgd_ctor(struct mm_struct *mm, pgd_t *pgd)
