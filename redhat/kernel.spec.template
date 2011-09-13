@@ -3487,7 +3487,7 @@ fi
 - [kernel] misc: add support for IB700 module (Don Zickus) [667090]
 - [x86] ACPI: Use ioremap_cache() (George Beshers) [635860]
 - [x86] ACPI: introduce "acpi_rsdp=" parameter for kdump (Takao Indoh) [723670]
-- [x86] UV: Kernel log overflows on boot on large systems (George Beshers) [696420]
+- [x86] UV: Kernel log overflows on boot on large systems (George Beshers) [696287]
 - [x86] amd-iommu: Fix 3 possible endless loops (Frank Arnold) [713517]
 - [x86] amd-iommu: Use only per-device dma_ops (Frank Arnold) [712369]
 - [x86] setup: Fix EDD3.0 data verification (Gleb Natapov) [704128]
