@@ -1179,7 +1179,9 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	netdev->netdev_ops	= &xennet_netdev_ops;
 
 	netif_napi_add(netdev, &np->napi, xennet_poll, 64);
-	netdev->features        = NETIF_F_IP_CSUM;
+
+	/* Assume all features and let xennet_set_features fix up.  */
+	netdev->features        = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO;
 
 	SET_ETHTOOL_OPS(netdev, &xennet_ethtool_ops);
 	SET_NETDEV_DEV(netdev, &dev->dev);
@@ -1526,50 +1528,62 @@ again:
 
 static int xennet_set_sg(struct net_device *dev, u32 data)
 {
+	int val, rc;
+
 	if (data) {
 		struct netfront_info *np = netdev_priv(dev);
-		int val;
-
 		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend, "feature-sg",
 				 "%d", &val) < 0)
 			val = 0;
-		if (!val)
-			return -ENOSYS;
-	} else if (dev->mtu > ETH_DATA_LEN)
-		dev->mtu = ETH_DATA_LEN;
+	} else
+		val = 0;
 
-	return ethtool_op_set_sg(dev, data);
+	rc = ethtool_op_set_sg(dev, val);
+	if (rc == 0 && !val) {
+		if (dev->mtu > ETH_DATA_LEN)
+			dev->mtu = ETH_DATA_LEN;
+		if (data)
+			rc = -ENOSYS;
+	}
+	return rc;
 }
 
 static int xennet_set_tso(struct net_device *dev, u32 data)
 {
+	int val, rc;
+
 	if (data) {
 		struct netfront_info *np = netdev_priv(dev);
-		int val;
-
 		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
 				 "feature-gso-tcpv4", "%d", &val) < 0)
 			val = 0;
-		if (!val)
-			return -ENOSYS;
-	}
+	} else
+		val = 0;
 
-	return ethtool_op_set_tso(dev, data);
+	rc = ethtool_op_set_tso(dev, val);
+	if (rc == 0 && !val && data)
+		rc = -ENOSYS;
+	return rc;
 }
 
 static void xennet_set_features(struct net_device *dev)
 {
-	/* Turn off all GSO bits except ROBUST. */
-	dev->features &= ~NETIF_F_GSO_MASK;
-	dev->features |= NETIF_F_GSO_ROBUST;
-	xennet_set_sg(dev, 0);
+	/* Set ROBUST, turn off all other GSO bits except TSO. */
+	dev->features =
+		(dev->features & NETIF_F_TSO) |
+		(dev->features & ~NETIF_F_GSO_MASK) |
+		NETIF_F_GSO_ROBUST;
 
-	/* We need checksum offload to enable scatter/gather and TSO. */
-	if (!(dev->features & NETIF_F_IP_CSUM))
-		return;
-
-	if (!xennet_set_sg(dev, 1))
-		xennet_set_tso(dev, 1);
+	/*
+	 * We need checksum offload to enable scatter/gather, and
+	 * scatter/gather to enable TSO.  Calling xennet_set_sg and
+	 * xennet_set_tso ensures that Xenstore is probed for feature
+	 * support in the backend.
+	 */
+	xennet_set_sg(dev, ((dev->features & (NETIF_F_IP_CSUM | NETIF_F_SG)) ==
+			    (NETIF_F_IP_CSUM | NETIF_F_SG)));
+	xennet_set_tso(dev, ((dev->features & (NETIF_F_SG | NETIF_F_TSO)) ==
+			     (NETIF_F_SG | NETIF_F_TSO)));
 }
 
 static int xennet_connect(struct net_device *dev)
