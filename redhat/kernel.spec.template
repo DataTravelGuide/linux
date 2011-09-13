@@ -1635,6 +1635,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Sep 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-197.el6]
+- [block] blktrace: fix handling of requests with SYNC and META flags (Mike Snitzer) [726437]
+- [block] blktrace: add FLUSH/FUA support (Mike Snitzer) [726437]
+- [kernel] Restore max mqueue message size to its previous RHEL 5 value (Doug Ledford) [730632]
+
 * Wed Sep 07 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-196.el6]
 - [scsi] qla4xxx: updated device id check for BFS (Chad Dupuis) [732622]
 - [fs] nfsd4: return nfserr_symlink on v4 OPEN of non-regular file (J. Bruce Fields) [697659]
