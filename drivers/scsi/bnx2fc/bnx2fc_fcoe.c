@@ -780,11 +780,13 @@ static void bnx2fc_destroy_timer(unsigned long data)
  *
  * @context:	adapter structure pointer
  * @event:	event type
+ * @vlan_id:	vlan_id - associated vlan id with this event
  *
  * Handles NETDEV_UP, NETDEV_DOWN, NETDEV_GOING_DOWN,NETDEV_CHANGE and
  * NETDEV_CHANGE_MTU events
  */
-static void bnx2fc_indicate_netevent(void *context, unsigned long event)
+static void bnx2fc_indicate_netevent(void *context, unsigned long event,
+				     u16 vlan_id)
 {
 	struct bnx2fc_hba *hba = (struct bnx2fc_hba *)context;
 	struct fc_lport *lport;
@@ -792,6 +794,10 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event)
 	struct bnx2fc_interface *interface;
 	int wait_for_upload = 0;
 	u32 link_possible = 1;
+
+	/* Ignore vlans for now */
+	if (vlan_id != 0)
+		return;
 
 	switch (event) {
 	case NETDEV_UP:
