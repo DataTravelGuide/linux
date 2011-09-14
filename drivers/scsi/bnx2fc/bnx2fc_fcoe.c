@@ -1195,7 +1195,7 @@ static void bnx2fc_interface_release(struct kref *kref)
 	struct net_device *netdev;
 
 	interface = container_of(kref, struct bnx2fc_interface, kref);
-	BNX2FC_HBA_DBG(interface->ctlr.lp, "Interface is being released\n");
+	BNX2FC_MISC_DBG("Interface is being released\n");
 
 	netdev = interface->netdev;
 
