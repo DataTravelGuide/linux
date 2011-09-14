@@ -147,10 +147,12 @@ EXPORT_SYMBOL_GPL(fcoe_validate_vport_create);
  */
 int fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 {
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	const struct net_device_ops *ops = netdev->netdev_ops;
 
 	if (ops->ndo_fcoe_get_wwn)
 		return ops->ndo_fcoe_get_wwn(netdev, wwn, type);
+#endif
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(fcoe_get_wwn);
