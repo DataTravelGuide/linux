@@ -3259,7 +3259,8 @@ bnad_module_init(void)
 
 	mark_tech_preview(NULL, THIS_MODULE);
 
-	pr_info("Brocade 10G Ethernet driver\n");
+	pr_info("Brocade 10G Ethernet driver - version: %s\n",
+			BNAD_VERSION);
 
 	bfa_nw_ioc_auto_recover(bnad_ioc_auto_recover);
 
