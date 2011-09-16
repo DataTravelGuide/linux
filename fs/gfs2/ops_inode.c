@@ -21,6 +21,7 @@
 #include <linux/swap.h>
 #include <linux/falloc.h>
 #include <asm/uaccess.h>
+#include <linux/writeback.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1396,6 +1397,7 @@ static int empty_write_end(struct page *page, unsigned from,
 			gfs2_page_add_databufs(ip, page, from, to);
 
 		block_commit_write(page, from, to);
+		balance_dirty_pages_ratelimited(page->mapping);
 		return 0;
 	}
 
