@@ -26,8 +26,13 @@
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
 
+/* DMAR Flags */
+#define DMAR_INTR_REMAP		0x1
+#define DMAR_X2APIC_OPT_OUT	0x2
+
 struct intel_iommu;
 #if defined(CONFIG_DMAR) || defined(CONFIG_INTR_REMAP)
+extern struct acpi_table_header *dmar_tbl;
 struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
 	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
@@ -109,7 +114,7 @@ struct irte {
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
 extern int intr_remapping_supported(void);
-extern int enable_intr_remapping(int);
+extern int enable_intr_remapping(void);
 extern void disable_intr_remapping(void);
 extern int reenable_intr_remapping(int);
 
@@ -178,11 +183,27 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 }
 
 #define irq_remapped(irq)		(0)
-#define enable_intr_remapping(mode)	(-1)
-#define disable_intr_remapping()	(0)
-#define reenable_intr_remapping(mode)	(0)
 #define intr_remapping_enabled		(0)
+
+static inline int enable_intr_remapping(void)
+{
+	return -1;
+}
+
+static inline void disable_intr_remapping(void)
+{
+}
+
+static inline int reenable_intr_remapping(int eim)
+{
+	return 0;
+}
 #endif
+
+enum {
+	IRQ_REMAP_XAPIC_MODE,
+	IRQ_REMAP_X2APIC_MODE,
+};
 
 /* Can't use the common MSI interrupt functions
  * since DMAR is not a pci device

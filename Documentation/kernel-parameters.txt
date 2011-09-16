@@ -1008,10 +1008,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			to batching them for performance.
 
 	intremap=	[X86-64, Intel-IOMMU]
-			Format: { on (default) | off | nosid }
 			on	enable Interrupt Remapping (default)
 			off	disable Interrupt Remapping
 			nosid	disable Source ID checking
+			no_x2apic_optout
+				BIOS x2APIC opt-out request will be ignored
 
 	inttest=	[IA64]
 
