@@ -1274,13 +1274,12 @@ bfa_ioc_lpu_stop(struct bfa_ioc *ioc)
 void
 bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 {
-	u32	pgnum, pgoff;
+	u32	pgnum;
 	u32	loff = 0;
 	int		i;
 	u32	*fwsig = (u32 *) fwhdr;
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
-	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr) / sizeof(u32));
@@ -1514,7 +1513,7 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 		    u32 boot_env)
 {
 	u32 *fwimg;
-	u32 pgnum, pgoff;
+	u32 pgnum;
 	u32 loff = 0;
 	u32 chunkno = 0;
 	u32 i;
@@ -1527,7 +1526,6 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
-	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
