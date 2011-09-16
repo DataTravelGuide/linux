@@ -1344,9 +1344,6 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	unsigned offset;
 	int err;
 
-	BR_INPUT_SKB_CB(skb)->igmp = 0;
-	BR_INPUT_SKB_CB(skb)->mrouters_only = 0;
-
 	/* We treat OOM as packet loss for now. */
 	if (!pskb_may_pull(skb, sizeof(*iph)))
 		return -EINVAL;
@@ -1447,9 +1444,6 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	unsigned len;
 	int offset;
 	int err;
-
-	BR_INPUT_SKB_CB(skb)->igmp = 0;
-	BR_INPUT_SKB_CB(skb)->mrouters_only = 0;
 
 	if (!pskb_may_pull(skb, sizeof(*ip6h)))
 		return -EINVAL;
@@ -1566,6 +1560,9 @@ out:
 int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 		     struct sk_buff *skb)
 {
+	BR_INPUT_SKB_CB(skb)->igmp = 0;
+	BR_INPUT_SKB_CB(skb)->mrouters_only = 0;
+
 	if (br->multicast_disabled)
 		return 0;
 
