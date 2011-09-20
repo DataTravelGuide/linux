@@ -1219,7 +1219,6 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		ep_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(max_packet));
 		/* dig out max burst from ep companion desc */
 		if (!ep->ss_ep_comp) {
-			xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
 			max_packet = 0;
 		} else {
 			max_packet = ep->ss_ep_comp->desc.bMaxBurst;
