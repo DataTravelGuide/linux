@@ -152,10 +152,11 @@ static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 		desc->bmAttributes = 2;
 	}
 	if (usb_endpoint_xfer_isoc(&ep->desc)) {
-		max_tx = ep->desc.wMaxPacketSize * (desc->bMaxBurst + 1) *
-			(desc->bmAttributes + 1);
+		max_tx = (desc->bMaxBurst + 1) * (desc->bmAttributes + 1) *
+			le16_to_cpu(ep->desc.wMaxPacketSize);
 	} else if (usb_endpoint_xfer_int(&ep->desc)) {
-		max_tx = ep->desc.wMaxPacketSize * (desc->bMaxBurst + 1);
+		max_tx = le16_to_cpu(ep->desc.wMaxPacketSize) *
+			(desc->bMaxBurst + 1);
 	} else {
 		goto valid;
 	}
@@ -164,10 +165,10 @@ static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 				"config %d interface %d altsetting %d ep %d: "
 				"setting to %d\n",
 				usb_endpoint_xfer_isoc(&ep->desc) ? "Isoc" : "Int",
-				desc->wBytesPerInterval,
+				le16_to_cpu(desc->wBytesPerInterval),
 				cfgno, inum, asnum, ep->desc.bEndpointAddress,
 				max_tx);
-		desc->wBytesPerInterval = max_tx;
+		desc->wBytesPerInterval = cpu_to_le16(max_tx);
 	}
 valid:
 	return retval;
