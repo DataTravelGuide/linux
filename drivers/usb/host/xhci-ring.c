@@ -1725,6 +1725,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		frame->status = -EOVERFLOW;
 		skip_td = true;
 		break;
+	case COMP_DEV_ERR:
 	case COMP_STALL:
 		frame->status = -EPROTO;
 		skip_td = true;
@@ -2000,6 +2001,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
 		goto cleanup;
+	case COMP_DEV_ERR:
+		xhci_warn(xhci, "WARN: detect an incompatible device");
+		status = -EPROTO;
+		break;
 	case COMP_MISSED_INT:
 		/*
 		 * When encounter missed service error, one or more isoc tds
