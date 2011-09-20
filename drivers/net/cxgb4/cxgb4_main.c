@@ -198,7 +198,7 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
 	{ 0, }
 };
 
-#define FW_FNAME "cxgb4/t4fw.bin"
+#define FW_FNAME "cxgb4/t4fw-1.3.10.0.bin"
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
