@@ -975,6 +975,7 @@
 	rfkill_destroy
 	rfkill_register
 	rfkill_unregister
+	rh_kabi_6_2
 	ring_buffer_event_data
 	round_jiffies
 	round_jiffies_relative
