@@ -44,6 +44,14 @@ struct modversion_info
 	char name[MODULE_NAME_LEN];
 };
 
+struct rheldata
+{
+	/* These two u8's make up the X.Y release tag */
+	u8 rhel_major;
+	u8 rhel_minor;
+	u16 pad; /* we may one day need to add additional release info */
+};
+
 struct module;
 
 struct module_attribute {

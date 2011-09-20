@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
+#include "../../include/linux/version.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 int modversions = 0;
@@ -1850,6 +1851,16 @@ static void add_srcversion(struct buffer *b, struct module *mod)
 	}
 }
 
+static void add_rheldata(struct buffer *b, struct module *mod)
+{
+	buf_printf(b, "\n");
+	buf_printf(b, "static const struct rheldata _rheldata __used\n");
+	buf_printf(b, "__attribute__((section(\".rheldata\"))) = {\n");
+	buf_printf(b, "	.rhel_major = %d,\n", RHEL_MAJOR);
+	buf_printf(b, "	.rhel_minor = %d,\n", RHEL_MINOR);
+	buf_printf(b, "};\n");
+}
+
 static void write_if_changed(struct buffer *b, const char *fname)
 {
 	char *tmp;
@@ -2169,6 +2180,7 @@ int main(int argc, char **argv)
 		add_depends(&buf, mod, modules);
 		add_moddevtable(&buf, mod);
 		add_srcversion(&buf, mod);
+		add_rheldata(&buf, mod);
 
 		sprintf(fname, "%s.mod.c", mod->name);
 		write_if_changed(&buf, fname);

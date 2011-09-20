@@ -216,12 +216,15 @@ static void *text_poke_early(void *addr, const void *opcode, size_t len);
    Tough. Make sure you disable such features by hand. */
 
 void __init_or_module apply_alternatives(struct alt_instr *start,
-					 struct alt_instr *end)
+					 struct alt_instr *end,
+					 int fixup)
 {
 	struct alt_instr *a;
 	u8 insnbuf[MAX_PATCH_LEN];
+	int count = 0;
 
-	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
+	DPRINTK("%s: alt table %p -> %p fixup = %d\n", __func__, start, end,
+		fixup);
 	/*
 	 * The scan order should be from start to end. A later scanned
 	 * alternative code can overwrite a previous scanned alternative code.
@@ -233,6 +236,19 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 	 */
 	for (a = start; a < end; a++) {
 		u8 *instr = a->instr;
+
+		DPRINTK("#%d: cpuid = %d instrlen = %d replacementlen = %d\n",
+			count, a->cpuid, a->instrlen, a->replacementlen);
+		if (fixup) {
+			DPRINTK("#%d: cpuid = %d instrlen = %d replacementlen = %d\n",
+				count, 0x00ff & a->cpuid,
+				(0xff00 & a->cpuid) >> 8, a->instrlen);
+			a->replacementlen = a->instrlen;
+			a->instrlen = (0xff00 & a->cpuid) >> 8;
+			a->cpuid = 0x00ff & a->cpuid;
+		}
+		count++;
+
 		BUG_ON(a->replacementlen > a->instrlen);
 		BUG_ON(a->instrlen > sizeof(insnbuf));
 		if (!boot_cpu_has(a->cpuid))
@@ -491,7 +507,7 @@ void __init alternative_instructions(void)
 	 * patching.
 	 */
 
-	apply_alternatives(__alt_instructions, __alt_instructions_end);
+	apply_alternatives(__alt_instructions, __alt_instructions_end, 0);
 
 	/* switch to patch-once-at-boottime-only mode and free the
 	 * tables in case we know the number of CPUs will never ever

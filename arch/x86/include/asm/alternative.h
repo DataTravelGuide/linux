@@ -54,7 +54,8 @@ struct alt_instr {
 };
 
 extern void alternative_instructions(void);
-extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
+extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
+			       int fixup);
 
 struct module;
 
