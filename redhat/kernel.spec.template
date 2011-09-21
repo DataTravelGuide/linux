@@ -1635,6 +1635,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Sep 20 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-201.el6]
+- [x86] Add rh_kabi.c and protect struct alt_instr under KABI (Prarit Bhargava) [737753]
+- [x86] Fix module alt_instr KABI breakage (Prarit Bhargava) [737753]
+
 * Mon Sep 19 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-200.el6]
 - [build] Makefile: update RHEL_MINOR to 2 (Aristeu Rozanski)
 - [scsi] scsi_lib: pause between error retries (Rob Evers) [736812]
