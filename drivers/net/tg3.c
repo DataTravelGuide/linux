@@ -15276,6 +15276,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_apeunmap;
 	}
 
+	/* RHEL: Set an initial value for operstate, after registration */
+	netif_carrier_off(dev);
+
 	netdev_info(dev, "Tigon3 [partno(%s) rev %04x] (%s) MAC address %pM\n",
 		    tp->board_part_number,
 		    tp->pci_chip_rev_id,
