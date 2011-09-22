@@ -70,28 +70,29 @@ int ext4_check_dir_entry(const char *function, struct inode *dir,
 	const int rlen = ext4_rec_len_from_disk(de->rec_len,
 						dir->i_sb->s_blocksize);
 
-	if (rlen < EXT4_DIR_REC_LEN(1))
+	if (unlikely(rlen < EXT4_DIR_REC_LEN(1)))
 		error_msg = "rec_len is smaller than minimal";
-	else if (rlen % 4 != 0)
+	else if (unlikely(rlen % 4 != 0))
 		error_msg = "rec_len % 4 != 0";
-	else if (rlen < EXT4_DIR_REC_LEN(de->name_len))
+	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
-	else if (((char *) de - bh->b_data) + rlen > dir->i_sb->s_blocksize)
+	else if (unlikely(((char *) de - bh->b_data) + rlen > dir->i_sb->s_blocksize))
 		error_msg = "directory entry across blocks";
-	else if (le32_to_cpu(de->inode) >
-			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count))
+	else if (unlikely(le32_to_cpu(de->inode) >
+			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
+	else
+		return 1;
 
-	if (error_msg != NULL)
-		__ext4_error(dir->i_sb, function,
-			"bad entry in directory #%lu: %s - block=%llu"
-			"offset=%u(%u), inode=%u, rec_len=%d, name_len=%d",
-			dir->i_ino, error_msg, 
-			(unsigned long long) bh->b_blocknr,     
-			(unsigned) (offset%bh->b_size), offset,
-			le32_to_cpu(de->inode),
-			rlen, de->name_len);
-	return error_msg == NULL ? 1 : 0;
+	__ext4_error(dir->i_sb, function,
+		"bad entry in directory #%lu: %s - block=%llu"
+		"offset=%u(%u), inode=%u, rec_len=%d, name_len=%d",
+		dir->i_ino, error_msg, 
+		(unsigned long long) bh->b_blocknr,     
+		(unsigned) (offset%bh->b_size), offset,
+		le32_to_cpu(de->inode),
+		rlen, de->name_len);
+	return 0;
 }
 
 static int ext4_readdir(struct file *filp,
