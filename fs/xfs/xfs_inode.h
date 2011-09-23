@@ -503,7 +503,7 @@ int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
 int		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
 int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
-				     xfs_fsize_t, int, int);
+				     xfs_fsize_t, int);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);

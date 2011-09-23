@@ -300,16 +300,8 @@ xfs_setattr(
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		} else if (iattr->ia_size <= ip->i_size ||
 			   (iattr->ia_size == 0 && ip->i_d.di_nextents)) {
-			/*
-			 * signal a sync transaction unless
-			 * we're truncating an already unlinked
-			 * file on a wsync filesystem
-			 */
 			code = xfs_itruncate_finish(&tp, ip, iattr->ia_size,
-					    XFS_DATA_FORK,
-					    ((ip->i_d.di_nlink != 0 ||
-					      !(mp->m_flags & XFS_MOUNT_WSYNC))
-					     ? 1 : 0));
+						    XFS_DATA_FORK);
 			if (code)
 				goto abort_return;
 			/*
@@ -658,10 +650,8 @@ xfs_free_eofblocks(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip);
 
-		error = xfs_itruncate_finish(&tp, ip,
-					     ip->i_size,
-					     XFS_DATA_FORK,
-					     0);
+		error = xfs_itruncate_finish(&tp, ip, ip->i_size,
+					     XFS_DATA_FORK);
 		/*
 		 * If we get an error at this point we
 		 * simply don't bother truncating the file.
@@ -1114,16 +1104,7 @@ xfs_inactive(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip);
 
-		/*
-		 * normally, we have to run xfs_itruncate_finish sync.
-		 * But if filesystem is wsync and we're in the inactive
-		 * path, then we know that nlink == 0, and that the
-		 * xaction that made nlink == 0 is permanently committed
-		 * since xfs_remove runs as a synchronous transaction.
-		 */
-		error = xfs_itruncate_finish(&tp, ip, 0, XFS_DATA_FORK,
-				(!(mp->m_flags & XFS_MOUNT_WSYNC) ? 1 : 0));
-
+		error = xfs_itruncate_finish(&tp, ip, 0, XFS_DATA_FORK);
 		if (error) {
 			xfs_trans_cancel(tp,
 				XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);

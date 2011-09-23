@@ -1391,27 +1391,6 @@ xfs_itruncate_start(
  * indicates the fork which is to be truncated.  For the attribute fork we only
  * support truncation to size 0.
  *
- * We use the sync parameter to indicate whether or not the first transaction
- * we perform might have to be synchronous.  For the attr fork, it needs to be
- * so if the unlink of the inode is not yet known to be permanent in the log.
- * This keeps us from freeing and reusing the blocks of the attribute fork
- * before the unlink of the inode becomes permanent.
- *
- * For the data fork, we normally have to run synchronously if we're being
- * called out of the inactive path or we're being called out of the create path
- * where we're truncating an existing file.  Either way, the truncate needs to
- * be sync so blocks don't reappear in the file with altered data in case of a
- * crash.  wsync filesystems can run the first case async because anything that
- * shrinks the inode has to run sync so by the time we're called here from
- * inactive, the inode size is permanently set to 0.
- *
- * Calls from the truncate path always need to be sync unless we're in a wsync
- * filesystem and the file has already been unlinked.
- *
- * The caller is responsible for correctly setting the sync parameter.  It gets
- * too hard for us to guess here which path we're being called out of just
- * based on inode state.
- *
  * If we get an error, we must return with the inode locked and linked into the
  * current transaction. This keeps things simple for the higher level code,
  * because it always knows that the inode is locked and held in the transaction
@@ -1423,8 +1402,7 @@ xfs_itruncate_finish(
 	xfs_trans_t	**tp,
 	xfs_inode_t	*ip,
 	xfs_fsize_t	new_size,
-	int		fork,
-	int		sync)
+	int		fork)
 {
 	xfs_fsblock_t	first_block;
 	xfs_fileoff_t	first_unmap_block;
@@ -1470,46 +1448,6 @@ xfs_itruncate_finish(
 	 * don't, then we'd end up with garbage in the blocks being freed.
 	 * As long as we make the new_size permanent before actually
 	 * freeing any blocks it doesn't matter if they get written to.
-	 *
-	 * The callers must signal into us whether or not the size
-	 * setting here must be synchronous.  There are a few cases
-	 * where it doesn't have to be synchronous.  Those cases
-	 * occur if the file is unlinked and we know the unlink is
-	 * permanent or if the blocks being truncated are guaranteed
-	 * to be beyond the inode eof (regardless of the link count)
-	 * and the eof value is permanent.  Both of these cases occur
-	 * only on wsync-mounted filesystems.  In those cases, we're
-	 * guaranteed that no user will ever see the data in the blocks
-	 * that are being truncated so the truncate can run async.
-	 * In the free beyond eof case, the file may wind up with
-	 * more blocks allocated to it than it needs if we crash
-	 * and that won't get fixed until the next time the file
-	 * is re-opened and closed but that's ok as that shouldn't
-	 * be too many blocks.
-	 *
-	 * However, we can't just make all wsync xactions run async
-	 * because there's one call out of the create path that needs
-	 * to run sync where it's truncating an existing file to size
-	 * 0 whose size is > 0.
-	 *
-	 * It's probably possible to come up with a test in this
-	 * routine that would correctly distinguish all the above
-	 * cases from the values of the function parameters and the
-	 * inode state but for sanity's sake, I've decided to let the
-	 * layers above just tell us.  It's simpler to correctly figure
-	 * out in the layer above exactly under what conditions we
-	 * can run async and I think it's easier for others read and
-	 * follow the logic in case something has to be changed.
-	 * cscope is your friend -- rcc.
-	 *
-	 * The attribute fork is much simpler.
-	 *
-	 * For the attribute fork we allow the caller to tell us whether
-	 * the unlink of the inode that led to this call is yet permanent
-	 * in the on disk log.  If it is not and we will be freeing extents
-	 * in this inode then we make the first transaction synchronous
-	 * to make sure that the unlink is permanent by the time we free
-	 * the blocks.
 	 */
 	if (fork == XFS_DATA_FORK) {
 		if (ip->i_d.di_nextents > 0) {
@@ -1528,15 +1466,7 @@ xfs_itruncate_finish(
 				xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 			}
 		}
-	} else if (sync) {
-		ASSERT(!(mp->m_flags & XFS_MOUNT_WSYNC));
-		if (ip->i_d.di_anextents > 0)
-			xfs_trans_set_sync(ntp);
 	}
-	ASSERT(fork == XFS_DATA_FORK ||
-		(fork == XFS_ATTR_FORK &&
-			((sync && !(mp->m_flags & XFS_MOUNT_WSYNC)) ||
-			 (sync == 0 && (mp->m_flags & XFS_MOUNT_WSYNC)))));
 
 	/*
 	 * Since it is possible for space to become allocated beyond
@@ -1559,15 +1489,7 @@ xfs_itruncate_finish(
 		/*
 		 * Free up up to XFS_ITRUNC_MAX_EXTENTS.  xfs_bunmapi()
 		 * will tell us whether it freed the entire range or
-		 * not.  If this is a synchronous mount (wsync),
-		 * then we can tell bunmapi to keep all the
-		 * transactions asynchronous since the unlink
-		 * transaction that made this inode inactive has
-		 * already hit the disk.  There's no danger of
-		 * the freed blocks being reused, there being a
-		 * crash, and the reused blocks suddenly reappearing
-		 * in this file with garbage in them once recovery
-		 * runs.
+		 * not.
 		 */
 		xfs_bmap_init(&free_list, &first_block);
 		error = xfs_bunmapi(ntp, ip,
