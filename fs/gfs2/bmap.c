@@ -668,6 +668,30 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	return ret;
 }
 
+static void gfs2_metapath_ra(struct gfs2_glock *gl,
+			     const struct buffer_head *bh, const __be64 *pos)
+{
+	struct buffer_head *rabh;
+	const __be64 *endp = (const __be64 *)(bh->b_data + bh->b_size);
+	const __be64 *t;
+
+	for (t = pos; t < endp; t++) {
+		if (!*t)
+			continue;
+
+		rabh = gfs2_getbuf(gl, be64_to_cpu(*t), CREATE);
+		if (trylock_buffer(rabh)) {
+			if (!buffer_uptodate(rabh)) {
+				rabh->b_end_io = end_buffer_read_sync;
+				submit_bh(READA | REQ_META, rabh);
+				continue;
+			}
+			unlock_buffer(rabh);
+		}
+		brelse(rabh);
+	}
+}
+
 /**
  * recursive_scan - recursively scan through the end of a file
  * @ip: the inode
@@ -720,7 +744,8 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (error)
 		goto out;
 
-	if (height < ip->i_height - 1)
+	if (height < ip->i_height - 1) {
+		gfs2_metapath_ra(ip->i_gl, bh, top);
 		for (; top < bottom; top++, first = 0) {
 			if (!*top)
 				continue;
@@ -732,7 +757,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			if (error)
 				break;
 		}
-
+	}
 out:
 	brelse(bh);
 	return error;
