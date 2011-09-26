@@ -1514,7 +1514,7 @@ static void gfs2_delete_inode(struct inode *inode)
 out_truncate:
 	gfs2_log_flush(sdp, ip->i_gl);
 	write_inode_now(inode, 1);
-	gfs2_ail_flush(ip->i_gl);
+	gfs2_ail_flush(ip->i_gl, 0);
 
 	/* Case 2 starts here */
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
