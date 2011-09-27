@@ -1635,6 +1635,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Sep 27 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-203.el6]
+- [fs] xfs: avoid direct I/O write vs buffered I/O race (Dave Chinner) [732976]
+- [fs] xfs: don't serialise adjacent concurrent direct IO appending writes (Dave Chinner) [732976]
+- [fs] xfs: don't serialise direct IO reads on page cache checks (Dave Chinner) [732976]
+- [fs] gfs2: Ignore buffers with wrong state during fsync (Abhijith Das) [740066]
+- [fs] GFS2: balance pages on gfs2_fallocate. (Benjamin Marzinski) [737989]
+- [fs] xfs: avoid synchronous transactions when deleting attr blocks (Dave Chinner) [740312]
+- [fs] GFS2: large file delete/unlink is slow (Robert S Peterson) [739987]
+- [fs] ext4: optimize ext4_check_dir_entry() (Eric Sandeen) [714007]
+- [fs] Fix do_lookup false negative. (David Howells) [693841]
+- [netdrv] tg3: Fix VLAN creation problem (John Feeney) [731268 732769]
+- [netdrv] ixgbe: fix improper check of dma address for NULL (Neil Horman) [683611]
+- [netdrv] e1000: don't enable dma receives until after dma address has been setup (Dean Nelson) [703357]
+- [net] sctp: deal with multiple COOKIE_ECHO chunks (Max Matveev) [729220]
+
 * Wed Sep 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-202.el6]
 - [net] br_multicast: Ensure to initialize BR_INPUT_SKB_CB(skb)->mrouters_only. (Herbert Xu) [738110]
 
