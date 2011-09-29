@@ -1563,8 +1563,13 @@ static int bnx2x_execute_vlan_mac(struct bnx2x *bp,
 				idx++;
 		}
 
-		/* Commit the data writes towards the memory */
-		mb();
+		/*
+		 *  No need for an explicit memory barrier here as long we would
+		 *  need to ensure the ordering of writing to the SPQ element
+		 *  and updating of the SPQ producer which involves a memory
+		 *  read and we will have to put a full memory barrier there
+		 *  (inside bnx2x_sp_post()).
+		 */
 
 		rc = bnx2x_sp_post(bp, o->ramrod_cmd, r->cid,
 				   U64_HI(r->rdata_mapping),
@@ -1683,6 +1688,12 @@ int bnx2x_config_vlan_mac(
 	 */
 	if (!bnx2x_exe_queue_empty(&o->exe_queue))
 		rc = 1;
+
+	if (test_bit(RAMROD_DRV_CLR_ONLY, ramrod_flags))  {
+		DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: "
+				 "clearing a pending bit.\n");
+		raw->clear_pending(raw);
+	}
 
 	/* Execute commands if required */
 	if (cont || test_bit(RAMROD_EXEC, ramrod_flags) ||
@@ -2224,8 +2235,13 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 			 data->header.rule_cnt, p->rx_accept_flags,
 			 p->tx_accept_flags);
 
-	/* Commit writes towards the memory before sending a ramrod */
-	mb();
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	/* Send a ramrod */
 	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_FILTER_RULES, p->cid,
@@ -2918,16 +2934,22 @@ static int bnx2x_mcast_setup_e2(struct bnx2x *bp,
 	if (!o->total_pending_num)
 		bnx2x_mcast_refresh_registry_e2(bp, o);
 
-	/* Commit writes towards the memory before sending a ramrod */
-	mb();
-
-	/* If CLEAR_ONLY was requested - don't send a ramrod and clear
+	/*
+	 * If CLEAR_ONLY was requested - don't send a ramrod and clear
 	 * RAMROD_PENDING status immediately.
 	 */
 	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags)) {
 		raw->clear_pending(raw);
 		return 0;
 	} else {
+		/*
+		 *  No need for an explicit memory barrier here as long we would
+		 *  need to ensure the ordering of writing to the SPQ element
+		 *  and updating of the SPQ producer which involves a memory
+		 *  read and we will have to put a full memory barrier there
+		 *  (inside bnx2x_sp_post()).
+		 */
+
 		/* Send a ramrod */
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_MULTICAST_RULES,
 				   raw->cid, U64_HI(raw->rdata_mapping),
@@ -3404,16 +3426,22 @@ static int bnx2x_mcast_setup_e1(struct bnx2x *bp,
 	if (rc)
 		return rc;
 
-	/* Commit writes towards the memory before sending a ramrod */
-	mb();
-
-	/* If CLEAR_ONLY was requested - don't send a ramrod and clear
+	/*
+	 * If CLEAR_ONLY was requested - don't send a ramrod and clear
 	 * RAMROD_PENDING status immediately.
 	 */
 	if (test_bit(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags)) {
 		raw->clear_pending(raw);
 		return 0;
 	} else {
+		/*
+		 *  No need for an explicit memory barrier here as long we would
+		 *  need to ensure the ordering of writing to the SPQ element
+		 *  and updating of the SPQ producer which involves a memory
+		 *  read and we will have to put a full memory barrier there
+		 *  (inside bnx2x_sp_post()).
+		 */
+
 		/* Send a ramrod */
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, raw->cid,
 				   U64_HI(raw->rdata_mapping),
@@ -4038,8 +4066,13 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 		data->capabilities |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
 	}
 
-	/* Commit writes towards the memory before sending a ramrod */
-	mb();
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	/* Send a ramrod */
 	rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_RSS_UPDATE, r->cid,
@@ -4240,7 +4273,7 @@ static void bnx2x_q_fill_setup_data_e2(struct bnx2x *bp,
 	/* Rx data */
 
 	/* IPv6 TPA supported for E2 and above only */
-	data->rx.tpa_en |= test_bit(BNX2X_Q_FLG_TPA, &params->flags) *
+	data->rx.tpa_en |= test_bit(BNX2X_Q_FLG_TPA_IPV6, &params->flags) *
 				CLIENT_INIT_RX_DATA_TPA_EN_IPV6;
 }
 
@@ -4505,7 +4538,13 @@ static inline int bnx2x_q_send_setup_e1x(struct bnx2x *bp,
 	/* Fill the ramrod data */
 	bnx2x_q_fill_setup_data_cmn(bp, params, rdata);
 
-	mb();
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	return bnx2x_sp_post(bp, ramrod, o->cids[BNX2X_PRIMARY_CID_INDEX],
 			     U64_HI(data_mapping),
@@ -4528,6 +4567,13 @@ static inline int bnx2x_q_send_setup_e2(struct bnx2x *bp,
 	bnx2x_q_fill_setup_data_cmn(bp, params, rdata);
 	bnx2x_q_fill_setup_data_e2(bp, params, rdata);
 
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	return bnx2x_sp_post(bp, ramrod, o->cids[BNX2X_PRIMARY_CID_INDEX],
 			     U64_HI(data_mapping),
@@ -4665,7 +4711,13 @@ static inline int bnx2x_q_send_update(struct bnx2x *bp,
 	/* Fill the ramrod data */
 	bnx2x_q_fill_update_data(bp, o, update_params, rdata);
 
-	mb();
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_CLIENT_UPDATE,
 			     o->cids[cid_index], U64_HI(data_mapping),
@@ -4874,6 +4926,22 @@ static int bnx2x_queue_chk_transition(struct bnx2x *bp,
 		 &params->params.update;
 	u8 next_tx_only = o->num_tx_only;
 
+	/*
+	 * Forget all pending for completion commands if a driver only state
+	 * transition has been requested.
+	 */
+	if (test_bit(RAMROD_DRV_CLR_ONLY, &params->ramrod_flags)) {
+		o->pending = 0;
+		o->next_state = BNX2X_Q_STATE_MAX;
+	}
+
+	/*
+	 * Don't allow a next state transition if we are in the middle of
+	 * the previous one.
+	 */
+	if (o->pending)
+		return -EBUSY;
+
 	switch (state) {
 	case BNX2X_Q_STATE_RESET:
 		if (cmd == BNX2X_Q_CMD_INIT)
@@ -5053,6 +5121,21 @@ void bnx2x_queue_set_cos_cid(struct bnx2x *bp,
 }
 
 /********************** Function state object *********************************/
+enum bnx2x_func_state bnx2x_func_get_state(struct bnx2x *bp,
+					   struct bnx2x_func_sp_obj *o)
+{
+	/* in the middle of transaction - return INVALID state */
+	if (o->pending)
+		return BNX2X_F_STATE_MAX;
+
+	/*
+	 * unsure the order of reading of o->pending and o->state
+	 * o->pending should be read first
+	 */
+	rmb();
+
+	return o->state;
+}
 
 static int bnx2x_func_wait_comp(struct bnx2x *bp,
 				struct bnx2x_func_sp_obj *o,
@@ -5143,6 +5226,22 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 	enum bnx2x_func_state state = o->state, next_state = BNX2X_F_STATE_MAX;
 	enum bnx2x_func_cmd cmd = params->cmd;
 
+	/*
+	 * Forget all pending for completion commands if a driver only state
+	 * transition has been requested.
+	 */
+	if (test_bit(RAMROD_DRV_CLR_ONLY, &params->ramrod_flags)) {
+		o->pending = 0;
+		o->next_state = BNX2X_F_STATE_MAX;
+	}
+
+	/*
+	 * Don't allow a next state transition if we are in the middle of
+	 * the previous one.
+	 */
+	if (o->pending)
+		return -EBUSY;
+
 	switch (state) {
 	case BNX2X_F_STATE_RESET:
 		if (cmd == BNX2X_F_CMD_HW_INIT)
@@ -5160,6 +5259,13 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 	case BNX2X_F_STATE_STARTED:
 		if (cmd == BNX2X_F_CMD_STOP)
 			next_state = BNX2X_F_STATE_INITIALIZED;
+		else if (cmd == BNX2X_F_CMD_TX_STOP)
+			next_state = BNX2X_F_STATE_TX_STOPPED;
+
+		break;
+	case BNX2X_F_STATE_TX_STOPPED:
+		if (cmd == BNX2X_F_CMD_TX_START)
+			next_state = BNX2X_F_STATE_STARTED;
 
 		break;
 	default:
@@ -5430,7 +5536,13 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->path_id       = BP_PATH(bp);
 	rdata->network_cos_mode = start_params->network_cos_mode;
 
-	mb();
+	/*
+	 *  No need for an explicit memory barrier here as long we would
+	 *  need to ensure the ordering of writing to the SPQ element
+	 *  and updating of the SPQ producer which involves a memory
+	 *  read and we will have to put a full memory barrier there
+	 *  (inside bnx2x_sp_post()).
+	 */
 
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_START, 0,
 			     U64_HI(data_mapping),
@@ -5442,6 +5554,38 @@ static inline int bnx2x_func_send_stop(struct bnx2x *bp,
 {
 	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_STOP, 0, 0, 0,
 			     NONE_CONNECTION_TYPE);
+}
+
+static inline int bnx2x_func_send_tx_stop(struct bnx2x *bp,
+				       struct bnx2x_func_state_params *params)
+{
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STOP_TRAFFIC, 0, 0, 0,
+			     NONE_CONNECTION_TYPE);
+}
+static inline int bnx2x_func_send_tx_start(struct bnx2x *bp,
+				       struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct flow_control_configuration *rdata =
+		(struct flow_control_configuration *)o->rdata;
+	dma_addr_t data_mapping = o->rdata_mapping;
+	struct bnx2x_func_tx_start_params *tx_start_params =
+		&params->params.tx_start;
+	int i;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	rdata->dcb_enabled = tx_start_params->dcb_enabled;
+	rdata->dcb_version = tx_start_params->dcb_version;
+	rdata->dont_add_pri_0_en = tx_start_params->dont_add_pri_0_en;
+
+	for (i = 0; i < ARRAY_SIZE(rdata->traffic_type_to_priority_cos); i++)
+		rdata->traffic_type_to_priority_cos[i] =
+			tx_start_params->traffic_type_to_priority_cos[i];
+
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_START_TRAFFIC, 0,
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
 }
 
 static int bnx2x_func_send_cmd(struct bnx2x *bp,
@@ -5456,6 +5600,10 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 		return bnx2x_func_send_stop(bp, params);
 	case BNX2X_F_CMD_HW_RESET:
 		return bnx2x_func_hw_reset(bp, params);
+	case BNX2X_F_CMD_TX_STOP:
+		return bnx2x_func_send_tx_stop(bp, params);
+	case BNX2X_F_CMD_TX_START:
+		return bnx2x_func_send_tx_start(bp, params);
 	default:
 		BNX2X_ERR("Unknown command: %d\n", params->cmd);
 		return -EINVAL;

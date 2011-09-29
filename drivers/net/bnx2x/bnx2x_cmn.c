@@ -63,8 +63,9 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	fp->disable_tpa = ((bp->flags & TPA_ENABLE_FLAG) == 0);
 
 #ifdef BCM_CNIC
-	/* We don't want TPA on FCoE, FWD and OOO L2 rings */
-	bnx2x_fcoe(bp, disable_tpa) = 1;
+	/* We don't want TPA on an FCoE L2 ring */
+	if (IS_FCOE_FP(fp))
+		fp->disable_tpa = 1;
 #endif
 }
 
@@ -546,14 +547,12 @@ drop:
 static inline void bnx2x_set_skb_rxhash(struct bnx2x *bp, union eth_rx_cqe *cqe,
 					struct sk_buff *skb)
 {
-#if 0 /* rxhash not in RHEL */
 	/* Set Toeplitz hash from CQE */
 	if ((bp->dev->features & NETIF_F_RXHASH) &&
 	    (cqe->fast_path_cqe.status_flags &
 	     ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
 		skb->rxhash =
 		le32_to_cpu(cqe->fast_path_cqe.rss_hash_result);
-#endif
 }
 
 int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
@@ -684,7 +683,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			/* non TPA */
 			len = le16_to_cpu(cqe_fp->pkt_len);
 			pad = cqe_fp->placement_offset;
-			dma_sync_single_for_device(&bp->pdev->dev,
+			dma_sync_single_for_cpu(&bp->pdev->dev,
 					pci_unmap_addr(rx_buf, mapping),
 						       pad + RX_COPY_THRESH,
 						       DMA_FROM_DEVICE);
@@ -1413,11 +1412,10 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-#ifdef BCM_CNIC
 	struct bnx2x *bp = netdev_priv(dev);
-	if (NO_FCOE(bp))
-		return skb_tx_hash(dev, skb);
-	else {
+
+#ifdef BCM_CNIC
+	if (!NO_FCOE(bp)) {
 		struct ethhdr *hdr = (struct ethhdr *)skb->data;
 		u16 ether_type = ntohs(hdr->h_proto);
 
@@ -1434,8 +1432,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
 			return bnx2x_fcoe_tx(bp, txq_index);
 	}
 #endif
-	/* Select a none-FCoE queue:  if FCoE is enabled, exclude FCoE L2 ring
-	 */
+	/* select a non-FCoE queue */
 	return __skb_tx_hash(dev, skb, BNX2X_NUM_ETH_QUEUES(bp));
 }
 
@@ -1458,6 +1455,28 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 	bp->num_queues += NON_ETH_CONTEXT_USE;
 }
 
+/**
+ * bnx2x_set_real_num_queues - configure netdev->real_num_[tx,rx]_queues
+ *
+ * @bp:		Driver handle
+ *
+ * We currently support for at most 16 Tx queues for each CoS thus we will
+ * allocate a multiple of 16 for ETH L2 rings according to the value of the
+ * bp->max_cos.
+ *
+ * If there is an FCoE L2 queue the appropriate Tx queue will have the next
+ * index after all ETH L2 indices.
+ *
+ * If the actual number of Tx queues (for each CoS) is less than 16 then there
+ * will be the holes at the end of each group of 16 ETh L2 indices (0..15,
+ * 16..31,...) with indicies that are not coupled with any real Tx queue.
+ *
+ * The proper configuration of skb->queue_mapping is handled by
+ * bnx2x_select_queue() and __skb_tx_hash().
+ *
+ * bnx2x_setup_tc() takes care of the proper TC mappings so that __skb_tx_hash()
+ * will return a proper Tx index if TC is enabled (netdev->num_tc > 0).
+ */
 static inline int bnx2x_set_real_num_queues(struct bnx2x *bp)
 {
 	int tx;
@@ -1819,6 +1838,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_func_start(bp);
 	if (rc) {
 		BNX2X_ERR("Function start failed!\n");
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
 		LOAD_ERROR_EXIT(bp, load_error3);
 	}
 
@@ -1979,16 +1999,22 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		return -EINVAL;
 	}
 
-#ifdef BCM_CNIC
-	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
-#endif
+	/*
+	 * It's important to set the bp->state to the value different from
+	 * BNX2X_STATE_OPEN and only then stop the Tx. Otherwise bnx2x_tx_int()
+	 * may restart the Tx from the NAPI context (see bnx2x_tx_int()).
+	 */
 	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
 	smp_mb();
 
-	bp->rx_mode = BNX2X_RX_MODE_NONE;
-
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
+
+#ifdef BCM_CNIC
+	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
+#endif
+
+	bp->rx_mode = BNX2X_RX_MODE_NONE;
 
 	del_timer_sync(&bp->timer);
 
@@ -2031,6 +2057,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	 * the queueable objects here in case they failed to get cleaned so far.
 	 */
 	bnx2x_squeeze_objects(bp);
+
+	/* There should be no more pending SP commands at this stage */
+	bp->sp_state = 0;
 
 	bp->port.pmf = 0;
 

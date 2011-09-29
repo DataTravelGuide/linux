@@ -32,7 +32,11 @@
 /* [R 1] ATC initalization done */
 #define ATC_REG_ATC_INIT_DONE					 0x1100bc
 /* [RC 6] Interrupt register #0 read clear */
-#define ATC_REG_ATC_INT_STS_CLR				 0x1101c0
+#define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
+/* [RW 5] Parity mask register #0 read/write */
+#define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [RC 5] Parity register #0 read clear */
+#define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
 #define BRB1_REG_BRB1_INT_MASK					 0x60128
 /* [R 19] Interrupt register #0 read */
@@ -367,7 +371,7 @@
    mechanism. The fields are: [5:0] - message length; [12:6] - message
    pointer; 18:13] - next pointer. */
 #define CCM_REG_XX_DESCR_TABLE					 0xd0300
-#define CCM_REG_XX_DESCR_TABLE_SIZE				 36
+#define CCM_REG_XX_DESCR_TABLE_SIZE				 24
 /* [R 7] Used to read the value of XX protection Free counter. */
 #define CCM_REG_XX_FREE 					 0xd0184
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -2676,8 +2680,12 @@
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
 #define PGLUE_B_REG_PGLUE_B_INT_STS_CLR			 0x929c
+/* [RW 2] Parity mask register #0 read/write */
+#define PGLUE_B_REG_PGLUE_B_PRTY_MASK				 0x92b4
 /* [R 2] Parity register #0 read */
 #define PGLUE_B_REG_PGLUE_B_PRTY_STS				 0x92a8
+/* [RC 2] Parity register #0 read clear */
+#define PGLUE_B_REG_PGLUE_B_PRTY_STS_CLR			 0x92ac
 /* [R 13] Details of first request received with error. [2:0] - PFID. [3] -
  * VF_VALID. [9:4] - VFID. [11:10] - Error Code - 0 - Indicates Completion
  * Timeout of a User Tx non-posted request. 1 - unsupported request. 2 -
@@ -2999,11 +3007,27 @@
 /* [R 6] Debug only: Number of used entries in the data FIFO */
 #define PXP2_REG_HST_DATA_FIFO_STATUS				 0x12047c
 /* [R 7] Debug only: Number of used entries in the header FIFO */
-#define PXP2_REG_HST_HEADER_FIFO_STATUS 			 0x120478
-#define PXP2_REG_PGL_ADDR_88_F0 				 0x120534
-#define PXP2_REG_PGL_ADDR_8C_F0 				 0x120538
-#define PXP2_REG_PGL_ADDR_90_F0 				 0x12053c
-#define PXP2_REG_PGL_ADDR_94_F0 				 0x120540
+#define PXP2_REG_HST_HEADER_FIFO_STATUS				 0x120478
+#define PXP2_REG_PGL_ADDR_88_F0					 0x120534
+/* [R 32] GRC address for configuration access to PCIE config address 0x88.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_88_F1					 0x120544
+#define PXP2_REG_PGL_ADDR_8C_F0					 0x120538
+/* [R 32] GRC address for configuration access to PCIE config address 0x8c.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_8C_F1					 0x120548
+#define PXP2_REG_PGL_ADDR_90_F0					 0x12053c
+/* [R 32] GRC address for configuration access to PCIE config address 0x90.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_90_F1					 0x12054c
+#define PXP2_REG_PGL_ADDR_94_F0					 0x120540
+/* [R 32] GRC address for configuration access to PCIE config address 0x94.
+ * any write to this PCIE address will cause a GRC write access to the
+ * address that's in t this register */
+#define PXP2_REG_PGL_ADDR_94_F1					 0x120550
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
 #define PXP2_REG_PGL_DEBUG					 0x120520
@@ -4218,7 +4242,7 @@
    mechanism. The fields are: [5:0] - length of the message; 15:6] - message
    pointer; 20:16] - next pointer. */
 #define TCM_REG_XX_DESCR_TABLE					 0x50280
-#define TCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define TCM_REG_XX_DESCR_TABLE_SIZE				 29
 /* [R 6] Use to read the value of XX protection Free counter. */
 #define TCM_REG_XX_FREE 					 0x50178
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -4746,7 +4770,7 @@
    mechanism. The fields are:[5:0] - message length; 14:6] - message
    pointer; 19:15] - next pointer. */
 #define UCM_REG_XX_DESCR_TABLE					 0xe0280
-#define UCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define UCM_REG_XX_DESCR_TABLE_SIZE				 27
 /* [R 6] Use to read the XX protection Free counter. */
 #define UCM_REG_XX_FREE 					 0xe016c
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -4763,9 +4787,11 @@
    The fields are: [4:0] - tail pointer; 10:5] - Link List size; 15:11] -
    header pointer. */
 #define UCM_REG_XX_TABLE					 0xe0300
+#define UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE			 (0x1<<28)
 #define UMAC_COMMAND_CONFIG_REG_LOOP_ENA			 (0x1<<15)
 #define UMAC_COMMAND_CONFIG_REG_NO_LGTH_CHECK			 (0x1<<24)
 #define UMAC_COMMAND_CONFIG_REG_PAD_EN				 (0x1<<5)
+#define UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE			 (0x1<<8)
 #define UMAC_COMMAND_CONFIG_REG_PROMIS_EN			 (0x1<<4)
 #define UMAC_COMMAND_CONFIG_REG_RX_ENA				 (0x1<<1)
 #define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
@@ -5614,8 +5640,9 @@
 #define EMAC_MDIO_COMM_START_BUSY				 (1L<<29)
 #define EMAC_MDIO_MODE_AUTO_POLL				 (1L<<4)
 #define EMAC_MDIO_MODE_CLAUSE_45				 (1L<<31)
-#define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3fL<<16)
+#define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3ffL<<16)
 #define EMAC_MDIO_MODE_CLOCK_CNT_BITSHIFT			 16
+#define EMAC_MDIO_STATUS_10MB					 (1L<<1)
 #define EMAC_MODE_25G_MODE					 (1L<<5)
 #define EMAC_MODE_HALF_DUPLEX					 (1L<<1)
 #define EMAC_MODE_PORT_GMII					 (2L<<2)
@@ -5626,6 +5653,7 @@
 #define EMAC_REG_EMAC_MAC_MATCH 				 0x10
 #define EMAC_REG_EMAC_MDIO_COMM 				 0xac
 #define EMAC_REG_EMAC_MDIO_MODE 				 0xb4
+#define EMAC_REG_EMAC_MDIO_STATUS				 0xb0
 #define EMAC_REG_EMAC_MODE					 0x0
 #define EMAC_REG_EMAC_RX_MODE					 0xc8
 #define EMAC_REG_EMAC_RX_MTU_SIZE				 0x9c
@@ -5686,8 +5714,13 @@
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
 #define MISC_REGISTERS_RESET_REG_2_MSTAT1			 (0x1<<25)
+#define MISC_REGISTERS_RESET_REG_2_PGLC				 (0x1<<19)
+#define MISC_REGISTERS_RESET_REG_2_RST_ATC			 (0x1<<17)
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
+#define MISC_REGISTERS_RESET_REG_2_RST_BMAC1			 (0x1<<1)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC0			 (0x1<<2)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE		 (0x1<<14)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC1			 (0x1<<3)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE		 (0x1<<15)
 #define MISC_REGISTERS_RESET_REG_2_RST_GRC			 (0x1<<4)
 #define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B	 (0x1<<6)
@@ -5700,6 +5733,7 @@
 #define MISC_REGISTERS_RESET_REG_2_RST_RBCN			 (0x1<<9)
 #define MISC_REGISTERS_RESET_REG_2_SET				 0x594
 #define MISC_REGISTERS_RESET_REG_2_UMAC0			 (0x1<<20)
+#define MISC_REGISTERS_RESET_REG_2_UMAC1			 (0x1<<21)
 #define MISC_REGISTERS_RESET_REG_2_XMAC				 (0x1<<22)
 #define MISC_REGISTERS_RESET_REG_2_XMAC_SOFT			 (0x1<<23)
 #define MISC_REGISTERS_RESET_REG_3_CLEAR			 0x5a8

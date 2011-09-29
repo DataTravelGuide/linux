@@ -970,6 +970,8 @@ struct bnx2x_slowpath {
 
 	union {
 		struct function_start_data	func_start;
+		/* pfc configuration for DCBX ramrod */
+		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
 	/* used by dmae command executer */
@@ -984,8 +986,6 @@ struct bnx2x_slowpath {
 
 	u32				wb_comp;
 	u32				wb_data[4];
-	/* pfc configuration for DCBX ramrod */
-	struct flow_control_configuration pfc_config;
 };
 
 #define bnx2x_sp(bp, var)		(&bp->slowpath->var)
@@ -1108,7 +1108,7 @@ struct bnx2x {
 #define BP_VN(bp)			(BP_E1HVN(bp)) /*remove when approved*/
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
 #define BP_FW_MB_IDX(bp)		(BP_PORT(bp) +\
-					 BP_VN(bp) * (CHIP_IS_E1x(bp) ? 2  : 1))
+	  BP_VN(bp) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -1423,9 +1423,6 @@ struct bnx2x {
 #define PHY_FW_VER_LEN			20
 	char			fw_ver[32];
 	const struct firmware	*firmware;
-
-	/* LLDP params */
-	struct bnx2x_config_lldp_params		lldp_config_params;
 
 	/* DCB support on/off */
 	u16 dcb_state;
@@ -1929,6 +1926,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY | \
 		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY | \
 		AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY)
+
+#define HW_PRTY_ASSERT_SET_4 (AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR | \
+			      AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR)
 
 #define RSS_FLAGS(bp) \
 		(TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY | \
