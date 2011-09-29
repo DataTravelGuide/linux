@@ -1636,6 +1636,7 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
 	u16 vid = 0xffff;
+	u8 vhdr_len = 0;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1674,12 +1675,15 @@ netxen_process_lro(struct netxen_adapter *adapter,
 			memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
 			skb_pull(skb, VLAN_HLEN);
 		}
+	} else {
+		if (skb->protocol == htons(ETH_P_8021Q))
+			vhdr_len = VLAN_HLEN;
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
-	iph = (struct iphdr *)skb->data;
-	th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+	iph = (struct iphdr *)(skb->data + vhdr_len);
+	th = (struct tcphdr *)((skb->data + vhdr_len) + (iph->ihl << 2));
 
 	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
 	iph->tot_len = htons(length);

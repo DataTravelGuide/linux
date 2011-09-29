@@ -90,7 +90,7 @@ static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
-static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
+static void netxen_restore_indev_addr(struct net_device *dev, unsigned long);
 static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
@@ -1538,7 +1538,7 @@ static int netxen_nic_attach_func(struct pci_dev *pdev)
 		if (err)
 			goto err_out_detach;
 
-		netxen_config_indev_addr(netdev, NETDEV_UP);
+		netxen_restore_indev_addr(netdev, NETDEV_UP);
 	}
 
 	netif_device_attach(netdev);
@@ -2349,7 +2349,7 @@ netxen_attach_work(struct work_struct *work)
 			goto done;
 		}
 
-		netxen_config_indev_addr(netdev, NETDEV_UP);
+		netxen_restore_indev_addr(netdev, NETDEV_UP);
 	}
 
 	netif_device_attach(netdev);
@@ -2823,10 +2823,10 @@ netxen_destip_supported(struct netxen_adapter *adapter)
 }
 
 static void
-netxen_config_indev_addr(struct net_device *dev, unsigned long event)
+netxen_config_indev_addr(struct netxen_adapter *adapter,
+		struct net_device *dev, unsigned long event)
 {
 	struct in_device *indev;
-	struct netxen_adapter *adapter = netdev_priv(dev);
 
 	if (!netxen_destip_supported(adapter))
 		return;
@@ -2853,11 +2853,33 @@ netxen_config_indev_addr(struct net_device *dev, unsigned long event)
 	in_dev_put(indev);
 }
 
+static void
+netxen_restore_indev_addr(struct net_device *netdev, unsigned long event)
+
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct net_device *dev;
+	u16 vid;
+
+	netxen_config_indev_addr(adapter, netdev, event);
+
+	if (!adapter->vlgrp)
+		return;
+
+	for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		dev = vlan_group_get_device(adapter->vlgrp, vid);
+		if (!dev)
+			continue;
+		netxen_config_indev_addr(adapter, dev, event);
+	}
+}
+
 static int netxen_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct netxen_adapter *adapter;
 	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *orig_dev = dev;
 
 recheck:
 	if (dev == NULL)
@@ -2879,7 +2901,7 @@ recheck:
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		goto done;
 
-	netxen_config_indev_addr(dev, event);
+	netxen_config_indev_addr(adapter, orig_dev, event);
 done:
 	return NOTIFY_DONE;
 }
@@ -2896,7 +2918,7 @@ netxen_inetaddr_event(struct notifier_block *this,
 	dev = ifa->ifa_dev ? ifa->ifa_dev->dev : NULL;
 
 recheck:
-	if (dev == NULL || !netif_running(dev))
+	if (dev == NULL)
 		goto done;
 
 	if (dev->priv_flags & IFF_802_1Q_VLAN) {
@@ -2939,7 +2961,10 @@ static struct notifier_block netxen_inetaddr_cb = {
 };
 #else
 static void
-netxen_config_indev_addr(struct net_device *dev, unsigned long event)
+netxen_restore_indev_addr(struct net_device *dev, unsigned long event)
+{ }
+static void
+netxen_free_vlan_ip_list(struct netxen_adapter *adapter)
 { }
 #endif
 
