@@ -1282,7 +1282,7 @@ void netxen_free_dummy_dma(struct netxen_adapter *adapter)
 
 			if (--i == 0)
 				break;
-		};
+		}
 	}
 
 	if (i) {
