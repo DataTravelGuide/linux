@@ -1201,16 +1201,14 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		skb->rxhash = rxcp->rss_hash;
 
 
-	if (unlikely(rxcp->vlanf)) {
-		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
-			kfree_skb(skb);
-			return;
-		}
+	if (unlikely(rxcp->vlanf) && unlikely(!adapter->vlan_grp))
+		__vlan_put_tag(skb, rxcp->vlan_tag);
+
+	if (unlikely(rxcp->vlanf) && adapter->vlan_grp)
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
 					rxcp->vlan_tag);
-	} else {
+	else
 		netif_receive_skb(skb);
-	}
 }
 
 /* Process the RX completion indicated by rxcp when GRO is enabled */
@@ -1264,11 +1262,14 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
-	if (likely(!rxcp->vlanf))
-		napi_gro_frags(&eq_obj->napi);
-	else
+	if (unlikely(rxcp->vlanf) && unlikely(!adapter->vlan_grp))
+		__vlan_put_tag(skb, rxcp->vlan_tag);
+
+	if (unlikely(rxcp->vlanf) && adapter->vlan_grp)
 		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp,
 				rxcp->vlan_tag);
+	else
+		napi_gro_frags(&eq_obj->napi);
 }
 
 static void be_parse_rx_compl_v1(struct be_adapter *adapter,
