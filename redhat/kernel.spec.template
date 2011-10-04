@@ -1635,6 +1635,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Oct 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-206.el6]
+- [ppc] ibmveth: Fix leak when recycling skb and hypervisor returns error (Steve Best) [740548]
+- [fs] nfs: Do not allow multiple mounts on same mountpoint when using -o noac (Sachin Prabhu) [584768]
+- [scsi] megaraid: fix FastPath and update to v5.40 (Tomas Henzl) [726225]
+- [acpi] APEI: set enable bit for OSC call (Matthew Garrett) [734509]
+- [block] Whitelist symbols for dm-switch multipathing driver (Shyam Iyer) [714992]
+- [x86] Missing "unregister_cpu_notifier" in powernow-k8.c (Prarit Bhargava) [741302]
+- [virt] xen-netfront: fix MTU reset after migration (Paolo Bonzini) [733651]
+
 * Mon Oct 03 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-205.el6]
 - [mm] add extra free kbytes tunable (Rik van Riel) [696395]
 - [build] Makefile: include RHEL_RELEASE in version.h (Aristeu Rozanski)
