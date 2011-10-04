@@ -281,7 +281,7 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 
 	if (!((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
 			is_vm_hugetlb_page(vma) ||
-			vma == get_gate_vma(current))) {
+			vma == get_gate_vma(current->mm))) {
 
 		__mlock_vma_pages_range(vma, start, end);
 
@@ -381,7 +381,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 
 	if ((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
 			is_vm_hugetlb_page(vma) ||
-			vma == get_gate_vma(current)) {
+			vma == get_gate_vma(current->mm)) {
 		if (lock)
 			make_pages_present(start, end);
 		goto out;	/* don't set VM_LOCKED,  don't count */
