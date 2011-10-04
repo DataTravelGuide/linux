@@ -204,10 +204,7 @@ static int proc_root_link(struct inode *inode, struct path *path)
 	return result;
 }
 
-/*
- * Return zero if current may access user memory in @task, -error if not.
- */
-static int check_mem_permission(struct task_struct *task)
+static int __check_mem_permission(struct task_struct *task)
 {
 	/*
 	 * A task can always look at itself, in case it chooses
@@ -233,6 +230,27 @@ static int check_mem_permission(struct task_struct *task)
 	 * Noone else is allowed.
 	 */
 	return -EPERM;
+}
+
+/*
+ * Return zero if current may access user memory in @task, -error if not.
+ */
+static int check_mem_permission(struct task_struct *task)
+{
+	int err;
+
+	/*
+	 * Avoid racing if task exec's as we might get a new mm but validate
+	 * against old credentials.
+	 */
+	err = mutex_lock_killable(&task->cred_guard_mutex);
+	if (err)
+		return err;
+
+	err = __check_mem_permission(task);
+	mutex_unlock(&task->cred_guard_mutex);
+
+	return err;
 }
 
 struct mm_struct *mm_for_maps(struct task_struct *task)
