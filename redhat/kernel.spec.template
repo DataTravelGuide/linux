@@ -1635,6 +1635,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 03 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-205.el6]
+- [mm] add extra free kbytes tunable (Rik van Riel) [696395]
+- [build] Makefile: include RHEL_RELEASE in version.h (Aristeu Rozanski)
+- [ppc] Fix bogus it_blocksize in VIO iommu code (Steve Best) [738449]
+- [ppc] hvcs: Ensure page aligned partner info buffer (Steve Best) [739749]
+- [virt] KVM: Enable RDRAND feature support for KVM (Don Dugger) [721131]
+- [virt] x86, cpu: Add CPU flags for F16C and RDRND (Don Dugger) [721131]
+- [mm] zram: prevent accessing an unallocated table when init fails early (Jerome Marchand) [732707]
+- [mm] zram: fix zram locking (Jerome Marchand) [732707]
+- [ppc] eeh: Display eeh error location for bus and device (Steve Best) [707843]
+- [ppc] pseries/eeh: Handle functional reset on non-PCIe device (Steve Best) [707843]
+- [ppc] pseries/eeh: Propagate needs_freset flag to device at PE (Steve Best) [707843]
+- [ppc] eeh: Add support for ibm, configure-pe RTAS call (Steve Best) [707843]
+- [scsi] isci: initial sgpio write support (David Milburn) [735318]
+- [scsi] isci: fix sgpio register definitions (David Milburn) [735318]
+- [scsi] libsas: sgpio write support (David Milburn) [735318]
+- [drm] i915: set GFX_MODE to pre-Ivybridge default value even on Ivybridge (Adam Jackson) [695793]
+
 * Mon Oct 03 2011 Kyle McMartin <kmcmarti@redhat.com> [2.6.32-204.el6]
 - [netdrv] firmware: add bnx2x FW 7.0.23 (Michal Schmidt) [733693]
 - [netdrv] bnx2x: Add new PHY BCM54616 (Michal Schmidt) [733888]
