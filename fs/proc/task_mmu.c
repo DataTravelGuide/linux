@@ -758,7 +758,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out;
 
 	ret = -EACCES;
-	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+	mm = mm_for_maps(task);
+	if (!mm)
 		goto out_task;
 
 	ret = -EINVAL;
@@ -770,11 +771,6 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	if (!count)
 		goto out_task;
-
-	mm = get_task_mm(task);
-	if (!mm)
-		goto out_task;
-
 
 	uaddr = (unsigned long)buf & PAGE_MASK;
 	uend = (unsigned long)(buf + count);
