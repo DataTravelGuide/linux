@@ -163,6 +163,9 @@ struct uv_hub_info_s {
 /* Temp hacks to prevent breaking the KABI. Use casting macros
  * to access unused space in the original definition of uv_hub_info_s.
  */
+#define uv_hub_info_base       (void *)(&uv_hub_info->global_mmr_base)
+#define uv_cpu_hub_info_base(c)        (void *)(&uv_cpu_hub_info(c)->global_mmr_base)
+
 struct uv_hub_info_k {
 	unsigned long		global_mmr_base;
 	unsigned long		gpa_mask;
