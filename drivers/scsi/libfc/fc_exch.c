@@ -620,6 +620,7 @@ static int fc_exch_abort_locked(struct fc_exch *ep,
 	/*
 	 * Send an abort for the sequence that timed out.
 	 */
+	spin_unlock_bh(&ep->ex_lock);
 	fp = fc_frame_alloc(ep->lp, 0);
 	if (fp) {
 		fc_fill_fc_hdr(fp, FC_RCTL_BA_ABTS, ep->did, ep->sid,
@@ -627,6 +628,8 @@ static int fc_exch_abort_locked(struct fc_exch *ep,
 		error = fc_seq_send(ep->lp, sp, fp);
 	} else
 		error = -ENOBUFS;
+
+	spin_lock_bh(&ep->ex_lock);
 	return error;
 }
 
