@@ -2035,7 +2035,7 @@ bnad_rx_coalescing_timeo_set(struct bnad *bnad)
 /*
  * Called with bnad->bna_lock held
  */
-static int
+int
 bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr)
 {
 	int ret;
@@ -2055,7 +2055,7 @@ bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr)
 }
 
 /* Should be called with conf_lock held */
-static int
+int
 bnad_enable_default_bcast(struct bnad *bnad)
 {
 	struct bnad_rx_info *rx_info = &bnad->rx_info[0];
@@ -2081,7 +2081,7 @@ bnad_enable_default_bcast(struct bnad *bnad)
 }
 
 /* Called with mutex_lock(&bnad->conf_mutex) held */
-static void
+void
 bnad_restore_vlans(struct bnad *bnad, u32 rx_id)
 {
 	u16 vlan_id;
@@ -2840,7 +2840,7 @@ bnad_get_stats(struct net_device *netdev)
 	return stats;
 }
 
-static void
+void
 bnad_set_rx_mode(struct net_device *netdev)
 {
 	struct bnad *bnad = netdev_priv(netdev);
