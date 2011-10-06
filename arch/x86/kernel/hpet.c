@@ -587,8 +587,8 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 				      NSEC_PER_SEC, evt->shift);
 	/* Calculate the max delta */
 	evt->max_delta_ns = clockevent_delta2ns(0x7FFFFFFF, evt);
-	/* 5 usec minimum reprogramming delta. */
-	evt->min_delta_ns = 5000;
+	/* Setup minimum reprogramming delta. */
+	evt->min_delta_ns = clockevent_delta2ns(HPET_MIN_PROG_DELTA, evt);
 
 	evt->cpumask = cpumask_of(hdev->cpu);
 	clockevents_register_device(evt);
