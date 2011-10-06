@@ -37,12 +37,12 @@
 #define BNAD_TXQ_DEPTH		2048
 #define BNAD_RXQ_DEPTH		2048
 
-#define BNAD_MAX_TXS		1
+#define BNAD_MAX_TX		1
 #define BNAD_MAX_TXQ_PER_TX	8	/* 8 priority queues */
 #define BNAD_TXQ_NUM		1
 
-#define BNAD_MAX_RXS		1
-#define BNAD_MAX_RXPS_PER_RX	16
+#define BNAD_MAX_RX		1
+#define BNAD_MAX_RXP_PER_RX	16
 #define BNAD_MAX_RXQ_PER_RXP	2
 
 /*
@@ -189,7 +189,7 @@ struct bnad_tx_info {
 struct bnad_rx_info {
 	struct bna_rx *rx; /* 1:1 between rx_info & rx */
 
-	struct bnad_rx_ctrl rx_ctrl[BNAD_MAX_RXPS_PER_RX];
+	struct bnad_rx_ctrl rx_ctrl[BNAD_MAX_RXP_PER_RX];
 	u32 rx_id;
 } ____cacheline_aligned;
 
@@ -233,8 +233,8 @@ struct bnad {
 	struct net_device	*netdev;
 
 	/* Data path */
-	struct bnad_tx_info tx_info[BNAD_MAX_TXS];
-	struct bnad_rx_info rx_info[BNAD_MAX_RXS];
+	struct bnad_tx_info tx_info[BNAD_MAX_TX];
+	struct bnad_rx_info rx_info[BNAD_MAX_RX];
 
 	struct vlan_group	*vlan_grp;
 	/*
@@ -254,8 +254,8 @@ struct bnad {
 	u8			tx_coalescing_timeo;
 	u8			rx_coalescing_timeo;
 
-	struct bna_rx_config rx_config[BNAD_MAX_RXS];
-	struct bna_tx_config tx_config[BNAD_MAX_TXS];
+	struct bna_rx_config rx_config[BNAD_MAX_RX];
+	struct bna_tx_config tx_config[BNAD_MAX_TX];
 
 	u32		rx_csum;
 
@@ -284,8 +284,8 @@ struct bnad {
 	/* Control path resources, memory & irq */
 	struct bna_res_info res_info[BNA_RES_T_MAX];
 	struct bna_res_info mod_res_info[BNA_MOD_RES_T_MAX];
-	struct bnad_tx_res_info tx_res_info[BNAD_MAX_TXS];
-	struct bnad_rx_res_info rx_res_info[BNAD_MAX_RXS];
+	struct bnad_tx_res_info tx_res_info[BNAD_MAX_TX];
+	struct bnad_rx_res_info rx_res_info[BNAD_MAX_RX];
 
 	struct bnad_completion bnad_completions;
 
