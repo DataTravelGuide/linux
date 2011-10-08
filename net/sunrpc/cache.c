@@ -592,7 +592,7 @@ static void cache_wait_req(struct cache_req *req, struct cache_head *item)
 	setup_deferral(dreq, item, 0);
 
 	if (!test_bit(CACHE_PENDING, &item->flags) ||
-	    wait_for_completion_interruptible_timeout(
+	    (long)wait_for_completion_interruptible_timeout(
 		    &sleeper.completion, req->thread_wait) <= 0) {
 		/* The completion wasn't completed, so we need
 		 * to clean up
