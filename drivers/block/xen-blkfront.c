@@ -53,6 +53,11 @@
 
 #include <asm/xen/hypervisor.h>
 
+static int sda_is_xvda;
+module_param(sda_is_xvda, bool, 0);
+MODULE_PARM_DESC(sda_is_xvda,
+		 "sdX in guest config translates to xvdX, not xvd(X+4)");
+
 enum blkif_state {
 	BLKIF_STATE_DISCONNECTED,
 	BLKIF_STATE_CONNECTED,
@@ -118,10 +123,12 @@ static DEFINE_SPINLOCK(blkif_io_lock);
 #define BLKIF_MINOR_EXT(dev) ((dev)&(~EXTENDED))
 #define EMULATED_HD_DISK_MINOR_OFFSET (0)
 #define EMULATED_HD_DISK_NAME_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET / 256)
-#define EMULATED_SD_DISK_MINOR_OFFSET (EMULATED_HD_DISK_MINOR_OFFSET + (4 * 16))
-#define EMULATED_SD_DISK_NAME_OFFSET (EMULATED_HD_DISK_NAME_OFFSET + 4)
 
 #define DEV_NAME	"xvd"	/* name in /dev */
+
+/* module settings dependent on the "sda_is_xvda" module parameter */
+static int emulated_sd_disk_minor_offset = EMULATED_HD_DISK_MINOR_OFFSET + (4 * 16);
+static int emulated_sd_disk_name_offset = EMULATED_HD_DISK_NAME_OFFSET + 4;
 
 static int get_id_from_freelist(struct blkfront_info *info)
 {
@@ -395,8 +402,8 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 				EMULATED_HD_DISK_MINOR_OFFSET;
 			break;
 		case XEN_SCSI_DISK0_MAJOR:
-			*offset = (*minor / PARTS_PER_DISK) + EMULATED_SD_DISK_NAME_OFFSET;
-			*minor = *minor + EMULATED_SD_DISK_MINOR_OFFSET;
+			*offset = (*minor / PARTS_PER_DISK) + emulated_sd_disk_name_offset;
+			*minor = *minor + emulated_sd_disk_minor_offset;
 			break;
 		case XEN_SCSI_DISK1_MAJOR:
 		case XEN_SCSI_DISK2_MAJOR:
@@ -407,10 +414,10 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 		case XEN_SCSI_DISK7_MAJOR:
 			*offset = (*minor / PARTS_PER_DISK) + 
 				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16) +
-				EMULATED_SD_DISK_NAME_OFFSET;
+				emulated_sd_disk_name_offset;
 			*minor = *minor +
 				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16 * PARTS_PER_DISK) +
-				EMULATED_SD_DISK_MINOR_OFFSET;
+				emulated_sd_disk_minor_offset;
 			break;
 		case XEN_SCSI_DISK8_MAJOR:
 		case XEN_SCSI_DISK9_MAJOR:
@@ -422,10 +429,10 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 		case XEN_SCSI_DISK15_MAJOR:
 			*offset = (*minor / PARTS_PER_DISK) + 
 				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16) +
-				EMULATED_SD_DISK_NAME_OFFSET;
+				emulated_sd_disk_name_offset;
 			*minor = *minor +
 				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16 * PARTS_PER_DISK) +
-				EMULATED_SD_DISK_MINOR_OFFSET;
+				emulated_sd_disk_minor_offset;
 			break;
 		case XENVBD_MAJOR:
 			*offset = *minor / PARTS_PER_DISK;
@@ -1244,6 +1251,11 @@ static int __init xlblk_init(void)
 		printk(KERN_WARNING "xen_blk: can't get major %d with name %s\n",
 		       XENVBD_MAJOR, DEV_NAME);
 		return -ENODEV;
+	}
+
+	if (sda_is_xvda) {
+		emulated_sd_disk_minor_offset = 0;
+		emulated_sd_disk_name_offset = emulated_sd_disk_minor_offset / 256;
 	}
 
 	ret = xenbus_register_frontend(&blkfront);
