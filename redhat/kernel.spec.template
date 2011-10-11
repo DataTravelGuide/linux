@@ -1635,6 +1635,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Oct 11 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-208.el6]
+- [net] fix net_dev_xmit tracepoint use of freed skb (Jiri Pirko) [705253]
+- [block] kabi: symbols missing for FusionIO iomemory-vsl driver (Jiri Olsa) [735227]
+- [netdrv] kabi: symbols missing for Emulex be2net driver (Jiri Olsa) [735229]
+- [virt] xen: use maximum reservation to limit amount of usable RAM (Igor Mammedov) [743590]
+- [usb] additional regression fix for device removal (Don Zickus) [744154]
+- [usb] fix regression occurring during device removal (Don Zickus) [744154]
+- [usb] Lower USB storage settling delay to something more reasonable (Don Zickus) [743959]
+
 * Mon Oct 10 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-207.el6]
 - [netdrv] bna: Multiple Definition and Interface Setup Fix (Ivan Vecera) [743347]
 - [netdrv] bna: Driver Version changed to 3.0.2.2 (Ivan Vecera) [743347]
