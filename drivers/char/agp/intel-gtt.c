@@ -923,6 +923,9 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 {
 	int ret = -EINVAL;
 
+	if (intel_private.base.do_idle_maps)
+		return -ENODEV;
+
 	if (intel_private.clear_fake_agp) {
 		int start = intel_private.base.stolen_size / PAGE_SIZE;
 		int end = intel_private.base.gtt_mappable_entries;
@@ -984,6 +987,9 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 {
 	if (mem->page_count == 0)
 		return 0;
+
+	if (intel_private.base.do_idle_maps)
+		return -ENODEV;
 
 	intel_gtt_clear_range(pg_start, mem->page_count);
 
@@ -1177,6 +1183,29 @@ static void gen6_cleanup(void)
 {
 }
 
+/* Certain Gen5 chipsets require require idling the GPU before
+ * unmapping anything from the GTT when VT-d is enabled.
+ */
+static inline int needs_idle_maps(void)
+{
+	u16 gmch_ctrl;
+	const unsigned short gpu_devid = intel_private.pcidev->device;
+
+	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL,
+			     &gmch_ctrl);
+
+	/* Check if BIOS has enabled GTT w/VT-d. It may create some false
+	 * positives, but VT-d shouldn't be enabled unless this is set.
+	 */
+	if ((gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB ||
+	     gpu_devid == PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG) &&
+	     (gmch_ctrl & G4x_GMCH_SIZE_VT_EN) &&
+	     USE_PCI_DMA_API)
+		return 1;
+
+	return 0;
+}
+
 static int i9xx_setup(void)
 {
 	u32 reg_addr;
@@ -1210,6 +1239,9 @@ static int i9xx_setup(void)
 		}
 		intel_private.gtt_bus_addr = reg_addr + gtt_offset;
 	}
+
+	if (needs_idle_maps());
+		intel_private.base.do_idle_maps = 1;
 
 	intel_i9xx_setup_flush();
 

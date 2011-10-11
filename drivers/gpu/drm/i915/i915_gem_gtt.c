@@ -49,6 +49,34 @@ static unsigned int cache_level_to_agp_type(struct drm_device *dev,
 	}
 }
 
+static bool do_idling(struct drm_i915_private *dev_priv)
+{
+	bool ret = dev_priv->mm.interruptible;
+
+	if (dev_priv->mm.gtt->do_idle_maps) {
+		dev_priv->mm.interruptible = false;
+		if (i915_gpu_idle(dev_priv->dev))
+			DRM_ERROR("couldn't idle GPU %d\n", ret);
+	}
+
+	return ret;
+}
+
+static void undo_idling(struct drm_i915_private *dev_priv, bool idle)
+{
+	int ret;
+	if (!dev_priv->mm.gtt->do_idle_maps)
+		return;
+
+	/*NB: since GTT mappings don't actually touch the GPU, this is not
+	 * strictly necessary.
+	 */
+	ret = i915_gpu_idle(dev_priv->dev);
+	if (ret)
+		DRM_ERROR("couldn't idle GPU %d\n", ret);
+	dev_priv->mm.interruptible = idle;
+}
+
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -112,6 +140,12 @@ int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
 
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool idle;
+
+	idle = do_idling(dev_priv);
+
 	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
 			      obj->base.size >> PAGE_SHIFT);
 
@@ -119,4 +153,6 @@ void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 		intel_gtt_unmap_memory(obj->sg_list, obj->num_sg);
 		obj->sg_list = NULL;
 	}
+
+	undo_idling(dev_priv, idle);
 }
