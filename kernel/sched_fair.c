@@ -750,7 +750,7 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 	unsigned long load = cfs_rq->load.weight;
 
 
-	if (!cfs_rq)
+	if (cfs_rq->tg == &root_task_group)
 		return;
 
 	if (cfs_rq->tg == &root_task_group || throttled_hierarchy(cfs_rq))
@@ -815,9 +815,6 @@ static void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta)
 	struct task_group *tg;
 	struct sched_entity *se;
 	long load_weight, load, shares;
-
-	if (!cfs_rq)
-		return;
 
 	tg = cfs_rq->tg;
 	se = tg->se[cpu_of(rq_of(cfs_rq))];
