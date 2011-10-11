@@ -3126,6 +3126,8 @@ static int __init pci_setup(char *str)
 				pci_hotplug_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "hpmemsize=", 10)) {
 				pci_hotplug_mem_size = memparse(str + 10, &str);
+			} else if (!strncmp(str, "nosriov", 7)) {
+				pci_sriov_enabled = 0;
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);

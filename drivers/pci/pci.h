@@ -220,6 +220,9 @@ resource_size_t pci_specified_resource_alignment(struct pci_dev *dev);
 extern void pci_disable_bridge_window(struct pci_dev *dev);
 #endif
 
+/* Use "pci=nosriov" to disable SRIOV */
+extern unsigned int pci_sriov_enabled;
+
 /* Single Root I/O Virtualization */
 struct pci_sriov {
 	int pos;		/* capability position */
