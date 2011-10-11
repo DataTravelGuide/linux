@@ -406,7 +406,11 @@ static void sriov_disable(struct pci_dev *dev)
 	iov->nr_virtfn = 0;
 }
 
+#ifndef CONFIG_PPC
 unsigned int pci_sriov_enabled = 1;
+#else
+unsigned int pci_sriov_enabled = 0;
+#endif
 
 static int sriov_init(struct pci_dev *dev, int pos)
 {
