@@ -2404,17 +2404,25 @@ fc_remove_host(struct Scsi_Host *shost)
 		fc_queue_work(shost, &vport->vport_delete_work);
 
 	/* Remove any remote ports */
+	list_for_each_entry(rport, &fc_host->rports, peers) {
+		rport->port_state = FC_PORTSTATE_DELETED;
+		fc_queue_work(shost, &rport->rport_terminate_io_work);
+	}
+
+	list_for_each_entry(rport, &fc_host->rport_bindings, peers) {
+		rport->port_state = FC_PORTSTATE_DELETED;
+		fc_queue_work(shost, &rport->rport_terminate_io_work);
+	}
+
 	list_for_each_entry_safe(rport, next_rport,
 			&fc_host->rports, peers) {
 		list_del(&rport->peers);
-		rport->port_state = FC_PORTSTATE_DELETED;
 		fc_queue_work(shost, &rport->rport_delete_work);
 	}
 
 	list_for_each_entry_safe(rport, next_rport,
 			&fc_host->rport_bindings, peers) {
 		list_del(&rport->peers);
-		rport->port_state = FC_PORTSTATE_DELETED;
 		fc_queue_work(shost, &rport->rport_delete_work);
 	}
 
@@ -2456,6 +2464,14 @@ static void fc_terminate_rport_io(struct fc_rport *rport)
 	scsi_target_unblock(&rport->dev);
 }
 
+static void fc_terminate_io_work(struct work_struct *work)
+{
+	struct fc_rport *rport =
+		container_of(work, struct fc_rport, rport_terminate_io_work);
+
+	fc_terminate_rport_io(rport);
+}
+
 /**
  * fc_starget_delete - called to delete the scsi decendents of an rport
  * @work:	remote port to be operated on.
@@ -2488,6 +2504,8 @@ fc_rport_final_delete(struct work_struct *work)
 	unsigned long flags;
 	int do_callback = 0;
 
+	fc_terminate_rport_io(rport);
+
 	/*
 	 * if a scan is pending, flush the SCSI Host work_q so that
 	 * that we can reclaim the rport scan work element.
@@ -2495,7 +2513,6 @@ fc_rport_final_delete(struct work_struct *work)
 	if (rport->flags & FC_RPORT_SCAN_PENDING)
 		scsi_flush_work(shost);
 
-	fc_terminate_rport_io(rport);
 
 	/*
 	 * Cancel any outstanding timers. These should really exist
@@ -2596,6 +2613,7 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	INIT_WORK(&rport->scan_work, fc_scsi_scan_rport);
 	INIT_WORK(&rport->stgt_delete_work, fc_starget_delete);
 	INIT_WORK(&rport->rport_delete_work, fc_rport_final_delete);
+	INIT_WORK(&rport->rport_terminate_io_work, fc_terminate_io_work);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
