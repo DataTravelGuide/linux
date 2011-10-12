@@ -1635,6 +1635,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 12 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-209.el6]
+- [pci] edd: Treat "XPRS" host bus type the same as "PCI" (Mike Christie) [742059]
+- [scsi] be2iscsi: Move driver Version (Mike Christie) [738163 738934]
+- [scsi] be2iscsi: memset wrb for ring create (Mike Christie) [738163 738934]
+- [scsi] be2iscsi: Fix for case where task->sc was cleanedup earlier (Mike Christie) [738163 738934]
+- [scsi] be2iscsi: Fix for wrong dmsg setting in wrb (Mike Christie) [738163 738934]
+- [scsi] be2iscsi: Fix for kdump failure (Mike Christie) [738163 738934]
+- [sched] wait_for_completion_interruptible_timeout() should return signed long (J. Bruce Fields) [738379]
+
 * Tue Oct 11 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-208.el6]
 - [net] fix net_dev_xmit tracepoint use of freed skb (Jiri Pirko) [705253]
 - [block] kabi: symbols missing for FusionIO iomemory-vsl driver (Jiri Olsa) [735227]
