@@ -781,7 +781,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	}
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) &&
-	    (adapter->hw.phy.type == e1000_phy_igp_3))
+	    (adapter->hw.phy.type != e1000_phy_ife))
 		adapter->flags |= FLAG_LSC_GIG_SPEED_DROP;
 
 	return 0;
@@ -1280,16 +1280,20 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 
 		if (mac_reg & E1000_PHY_CTRL_D0A_LPLU)
 			oem_reg |= HV_OEM_BITS_LPLU;
+
+		/* Set Restart auto-neg to activate the bits */
+		if (!e1000_check_reset_block(hw))
+			oem_reg |= HV_OEM_BITS_RESTART_AN;
 	} else {
-		if (mac_reg & E1000_PHY_CTRL_NOND0A_GBE_DISABLE)
+		if (mac_reg & (E1000_PHY_CTRL_GBE_DISABLE |
+			       E1000_PHY_CTRL_NOND0A_GBE_DISABLE))
 			oem_reg |= HV_OEM_BITS_GBE_DIS;
 
-		if (mac_reg & E1000_PHY_CTRL_NOND0A_LPLU)
+		if (mac_reg & (E1000_PHY_CTRL_D0A_LPLU |
+			       E1000_PHY_CTRL_NOND0A_LPLU))
 			oem_reg |= HV_OEM_BITS_LPLU;
 	}
-	/* Restart auto-neg to activate the bits */
-	if (!e1000_check_reset_block(hw))
-		oem_reg |= HV_OEM_BITS_RESTART_AN;
+
 	ret_val = hw->phy.ops.write_reg_locked(hw, HV_OEM_BITS, oem_reg);
 
 out:
@@ -3591,15 +3595,14 @@ void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
  *  LPLU, Gig disable, MDIC PHY reset):
  *    1) Set Kumeran Near-end loopback
  *    2) Clear Kumeran Near-end loopback
- *  Should only be called for ICH8[m] devices with IGP_3 Phy.
+ *  Should only be called for ICH8[m] devices with any 1G Phy.
  **/
 void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 reg_data;
 
-	if ((hw->mac.type != e1000_ich8lan) ||
-	    (hw->phy.type != e1000_phy_igp_3))
+	if ((hw->mac.type != e1000_ich8lan) || (hw->phy.type == e1000_phy_ife))
 		return;
 
 	ret_val = e1000e_read_kmrn_reg(hw, E1000_KMRNCTRLSTA_DIAG_OFFSET,
@@ -3635,8 +3638,12 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 	phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU | E1000_PHY_CTRL_GBE_DISABLE;
 	ew32(PHY_CTRL, phy_ctrl);
 
+	if (hw->mac.type == e1000_ich8lan)
+		e1000e_gig_downshift_workaround_ich8lan(hw);
+
 	if (hw->mac.type >= e1000_pchlan) {
 		e1000_oem_bits_config_ich8lan(hw, false);
+		e1000_phy_hw_reset_ich8lan(hw);
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
 			return;
