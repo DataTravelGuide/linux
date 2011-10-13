@@ -9234,7 +9234,7 @@ static bool tg3_enable_msix(struct tg3 *tp)
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
-	tp->dev->real_num_tx_queues = 1;
+	netif_set_real_num_tx_queues(tp->dev, 1);
 	if (tp->irq_cnt > 1) {
 		tg3_flag_set(tp, ENABLE_RSS);
 
@@ -9275,7 +9275,7 @@ defcfg:
 	if (!tg3_flag(tp, USING_MSIX)) {
 		tp->irq_cnt = 1;
 		tp->napi[0].irq_vec = tp->pdev->irq;
-		tp->dev->real_num_tx_queues = 1;
+		netif_set_real_num_tx_queues(tp->dev, 1);
 	}
 }
 
