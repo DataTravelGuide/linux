@@ -565,6 +565,7 @@
 0xb0be2e40	netif_receive_skb	vmlinux	EXPORT_SYMBOL
 0xd6b1d082	netif_rx	vmlinux	EXPORT_SYMBOL
 0x7f403acb	netif_rx_ni	vmlinux	EXPORT_SYMBOL
+0x1e55546b	netif_set_real_num_tx_queues	vmlinux	EXPORT_SYMBOL
 0x337107be	netlink_broadcast	vmlinux	EXPORT_SYMBOL
 0xa5fb7962	netlink_kernel_create	vmlinux	EXPORT_SYMBOL
 0x60c50dc7	netlink_kernel_release	vmlinux	EXPORT_SYMBOL

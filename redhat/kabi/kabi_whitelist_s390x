@@ -575,6 +575,7 @@
 	netif_receive_skb
 	netif_rx
 	netif_rx_ni
+	netif_set_real_num_tx_queues
 	netlink_broadcast
 	netlink_kernel_create
 	netlink_kernel_release

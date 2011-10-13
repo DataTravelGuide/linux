@@ -778,6 +778,7 @@
 	netif_receive_skb
 	netif_rx
 	netif_rx_ni
+	netif_set_real_num_tx_queues
 	netlink_broadcast
 	netlink_kernel_create
 	netlink_kernel_release
@@ -876,6 +877,7 @@
 	pci_find_bus
 	pci_find_capability
 	pci_find_device
+	pci_find_ext_capability
 	pci_get_bus_and_slot
 	pci_get_device
 	pci_get_slot
