@@ -33,7 +33,7 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.05.40-rh1"
+#define MEGASAS_VERSION				"00.00.05.40-rh2"
 #define MEGASAS_RELDATE				"Aug. 4, 2011"
 #define MEGASAS_EXT_VERSION			"Thu. Aug. 4 17:00:00 PDT 2011"
 
@@ -138,6 +138,7 @@
 #define MFI_CMD_ABORT				0x06
 #define MFI_CMD_SMP				0x07
 #define MFI_CMD_STP				0x08
+#define MFI_CMD_INVALID				0xff
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
