@@ -955,8 +955,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
 				le64_to_cpu(ep_ctx->deq));
 		if (xhci_trb_virt_to_dma(dev->eps[ep_index].queued_deq_seg,
-					dev->eps[ep_index].queued_deq_ptr) ==
-				(ep_ctx->deq & ~(EP_CTX_CYCLE_MASK))) {
+					 dev->eps[ep_index].queued_deq_ptr) ==
+		    (le64_to_cpu(ep_ctx->deq) & ~(EP_CTX_CYCLE_MASK))) {
 			/* Update the ring's dequeue segment and dequeue pointer
 			 * to reflect the new position.
 			 */

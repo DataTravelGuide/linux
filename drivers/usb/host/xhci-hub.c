@@ -781,7 +781,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 
@@ -865,7 +865,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	u32 temp;
 	unsigned long flags;
