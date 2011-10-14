@@ -3369,6 +3369,11 @@ void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 #define UCODE_READY_TIMEOUT	(4 * HZ)
 
+module_param_named(auto_agg, iwlagn_mod_params.auto_agg,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(auto_agg,
+		 "enable agg w/o check traffic load (default: enable)");
+
 /*
  * Not a mac80211 entry point function, but it fits in with all the
  * other mac80211 functions grouped here.

@@ -246,6 +246,7 @@ struct iwl_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 	bool plcp_check;	/* def: true = enable plcp health check */
 	bool ack_check;		/* def: false = disable ack health check */
+	bool auto_agg;		/* def: true = enable agg. without check */
 };
 
 /*

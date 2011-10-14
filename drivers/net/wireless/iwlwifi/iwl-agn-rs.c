@@ -384,7 +384,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 
 	load = rs_tl_get_load(lq_data, tid);
 
-	if (load > IWL_AGG_LOAD_THRESHOLD) {
+	if ((iwlagn_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
 #if 0 /* Not in RHEL6... */

@@ -603,6 +603,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	.plcp_check = true,
+	.auto_agg = true,
 	/* the rest are 0 by default */
 };
 
