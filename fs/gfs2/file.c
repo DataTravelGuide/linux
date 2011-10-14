@@ -354,7 +354,14 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int alloc_required = 0;
 	struct gfs2_holder gh;
 	struct gfs2_alloc *al;
+	loff_t size;
 	int ret;
+
+	/* Wait if fs is frozen. This is racy so we check again later on
+	 * and retry if the fs has been frozen after the page lock has
+	 * been acquired
+	 */
+	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
@@ -365,8 +372,18 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
 	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
-	if (ret || !alloc_required)
+	if (ret)
 		goto out_unlock;
+
+	if (!alloc_required) {
+		lock_page(page);
+		if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
+			ret = -EAGAIN;
+			unlock_page(page);
+		}
+		goto out_unlock;
+	}
+
 	ret = -ENOMEM;
 	al = gfs2_alloc_get(ip);
 	if (al == NULL)
@@ -394,21 +411,29 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	lock_page(page);
 	ret = -EINVAL;
-	last_index = ip->i_inode.i_size >> PAGE_CACHE_SHIFT;
-	if (page->index > last_index)
-		goto out_unlock_page;
-	ret = 0;
-	if (!PageUptodate(page) || page->mapping != ip->i_inode.i_mapping)
-		goto out_unlock_page;
-	if (gfs2_is_stuffed(ip)) {
-		ret = gfs2_unstuff_dinode(ip, page);
-		if (ret)
-			goto out_unlock_page;
-	}
-	ret = gfs2_allocate_page_backing(page);
+	size = i_size_read(inode);
+	last_index = (size - 1) >> PAGE_CACHE_SHIFT;
+	/* Check page index against inode size */
+	if (size == 0 || (page->index > last_index))
+		goto out_trans_end;
 
-out_unlock_page:
-	unlock_page(page);
+	ret = -EAGAIN;
+	/* If truncated, we must retry the operation, we may have raced
+	 * with the glock demotion code.
+	 */
+	if (!PageUptodate(page) || page->mapping != inode->i_mapping)
+		goto out_trans_end;
+
+	/* Unstuff, if required, and allocate backing blocks for page */
+	ret = 0;
+	if (gfs2_is_stuffed(ip))
+		ret = gfs2_unstuff_dinode(ip, page);
+	if (ret == 0)
+		ret = gfs2_allocate_page_backing(page);
+
+out_trans_end:
+	if (ret)
+		unlock_page(page);
 	gfs2_trans_end(sdp);
 out_trans_fail:
 	gfs2_inplace_release(ip);
@@ -420,11 +445,17 @@ out_unlock:
 	gfs2_glock_dq(&gh);
 out:
 	gfs2_holder_uninit(&gh);
-	if (ret == -ENOMEM)
-		ret = VM_FAULT_OOM;
-	else if (ret)
-		ret = VM_FAULT_SIGBUS;
-	return ret;
+	if (ret == 0) {
+		set_page_dirty(page);
+		/* This check must be post dropping of transaction lock */
+		if (inode->i_sb->s_frozen == SB_UNFROZEN) {
+			wait_on_page_writeback(page);
+		} else {
+			ret = -EAGAIN;
+			unlock_page(page);
+		}
+	}
+	return block_page_mkwrite_return(ret);
 }
 
 static const struct vm_operations_struct gfs2_vm_ops = {
