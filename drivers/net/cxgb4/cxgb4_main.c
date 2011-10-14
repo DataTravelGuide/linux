@@ -2600,7 +2600,6 @@ static int cxgb_open(struct net_device *dev)
 			return err;
 	}
 
-	netif_set_real_num_tx_queues(dev, pi->nqsets);
 	err = link_start(dev);
 	if (!err)
 		netif_tx_start_all_queues(dev);
