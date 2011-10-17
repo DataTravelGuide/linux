@@ -4506,14 +4506,21 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_remove_rpi_hdrs;
 	}
 
-	phba->sli4_hba.fcp_eq_hdl = kzalloc((sizeof(struct lpfc_fcp_eq_hdl) *
+	/*
+	 * The cfg_fcp_eq_count can be zero whenever there is exactly one
+	 * interrupt vector.  This is not an error
+	 */
+	if (phba->cfg_fcp_eq_count) {
+		phba->sli4_hba.fcp_eq_hdl =
+				kzalloc((sizeof(struct lpfc_fcp_eq_hdl) *
 				    phba->cfg_fcp_eq_count), GFP_KERNEL);
-	if (!phba->sli4_hba.fcp_eq_hdl) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2572 Failed allocate memory for fast-path "
-				"per-EQ handle array\n");
-		rc = -ENOMEM;
-		goto out_free_fcf_rr_bmask;
+		if (!phba->sli4_hba.fcp_eq_hdl) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2572 Failed allocate memory for "
+					"fast-path per-EQ handle array\n");
+			rc = -ENOMEM;
+			goto out_free_fcf_rr_bmask;
+		}
 	}
 
 	phba->sli4_hba.msix_entries = kzalloc((sizeof(struct msix_entry) *
@@ -6249,14 +6256,20 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	}
 	phba->sli4_hba.sp_eq = qdesc;
 
-	/* Create fast-path FCP Event Queue(s) */
-	phba->sli4_hba.fp_eq = kzalloc((sizeof(struct lpfc_queue *) *
-			       phba->cfg_fcp_eq_count), GFP_KERNEL);
-	if (!phba->sli4_hba.fp_eq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2576 Failed allocate memory for fast-path "
-				"EQ record array\n");
-		goto out_free_sp_eq;
+	/*
+	 * Create fast-path FCP Event Queue(s).  The cfg_fcp_eq_count can be
+	 * zero whenever there is exactly one interrupt vector.  This is not
+	 * an error.
+	 */
+	if (phba->cfg_fcp_eq_count) {
+		phba->sli4_hba.fp_eq = kzalloc((sizeof(struct lpfc_queue *) *
+				       phba->cfg_fcp_eq_count), GFP_KERNEL);
+		if (!phba->sli4_hba.fp_eq) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2576 Failed allocate memory for "
+					"fast-path EQ record array\n");
+			goto out_free_sp_eq;
+		}
 	}
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++) {
 		qdesc = lpfc_sli4_queue_alloc(phba, phba->sli4_hba.eq_esize,
