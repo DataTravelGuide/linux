@@ -11123,6 +11123,8 @@ lpfc_sli4_sp_intr_handler(int irq, void *dev_id)
 
 	/* Get to the EQ struct associated with this vector */
 	speq = phba->sli4_hba.sp_eq;
+	if (unlikely(!speq))
+		return IRQ_NONE;
 
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
@@ -11199,6 +11201,8 @@ lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
 	fcp_eqidx = fcp_eq_hdl->idx;
 
 	if (unlikely(!phba))
+		return IRQ_NONE;
+	if (unlikely(!phba->sli4_hba.fp_eq))
 		return IRQ_NONE;
 
 	/* Get to the EQ struct associated with this vector */
