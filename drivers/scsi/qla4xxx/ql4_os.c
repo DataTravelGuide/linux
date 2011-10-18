@@ -1160,7 +1160,6 @@ static int qla4xxx_conn_start(struct iscsi_cls_conn *cls_conn)
 		      ddb_entry->fw_ddb_device_state));
 
 exit_set_param:
-	iscsi_conn_start(cls_conn);
 	ret = 0;
 
 exit_conn_start:
