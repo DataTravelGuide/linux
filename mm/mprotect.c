@@ -55,7 +55,12 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		if (pte_present(oldpte)) {
 			pte_t ptent;
 
-			ptent = ptep_modify_prot_start(mm, addr, pte);
+#ifdef CONFIG_PARAVIRT
+			if (likely(!paravirt_enabled()))
+				ptent = __ptep_modify_prot_start(mm, addr, pte);
+			else
+#endif
+				ptent = ptep_modify_prot_start(mm, addr, pte);
 			ptent = pte_modify(ptent, newprot);
 
 			/*
@@ -65,7 +70,12 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 			if (dirty_accountable && pte_dirty(ptent))
 				ptent = pte_mkwrite(ptent);
 
-			ptep_modify_prot_commit(mm, addr, pte, ptent);
+#ifdef CONFIG_PARAVIRT
+			if (likely(!paravirt_enabled()))
+				__ptep_modify_prot_commit(mm, addr, pte, ptent);
+			else
+#endif
+				ptep_modify_prot_commit(mm, addr, pte, ptent);
 		} else if (PAGE_MIGRATION && !pte_file(oldpte)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);
 

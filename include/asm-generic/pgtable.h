@@ -346,7 +346,12 @@ static inline void __ptep_modify_prot_commit(struct mm_struct *mm,
 	 * The pte is non-present, so there's no hardware state to
 	 * preserve.
 	 */
-	set_pte_at(mm, addr, ptep, pte);
+#ifdef CONFIG_PARAVIRT
+	if (likely(!paravirt_enabled()))
+		native_set_pte_at(mm, addr, ptep, pte);
+	else
+#endif
+		set_pte_at(mm, addr, ptep, pte);
 }
 
 #ifndef __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
