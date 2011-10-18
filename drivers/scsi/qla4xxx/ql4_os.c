@@ -2784,7 +2784,7 @@ static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
 	ql4_printk(KERN_INFO, ha, "%s: Get FW boot info for 0x%x func %d\n",
 		   __func__, ha->pdev->device, func_num);
 
-	if (is_qla4010(ha) || is_qla4022(ha) || is_qla4032(ha)) {
+	if (is_qla40XX(ha)) {
 		if (func_num == 1) {
 			addr = NVRAM_PORT0_BOOT_MODE;
 			pri_addr = NVRAM_PORT0_BOOT_PRI_TGT;
