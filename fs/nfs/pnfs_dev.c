@@ -239,9 +239,10 @@ _deviceid_purge_client(const struct nfs_client *clp, long hash)
 
 	synchronize_rcu();
 	while (!hlist_empty(&tmp)) {
+		d = hlist_entry(tmp.first, struct nfs4_deviceid_node, tmpnode);
+		hlist_del(&d->tmpnode);
 		if (atomic_dec_and_test(&d->ref))
 			d->ld->free_deviceid_node(d);
-		hlist_del_init(&d->tmpnode);
 	}
 }
 
