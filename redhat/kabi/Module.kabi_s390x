@@ -196,6 +196,7 @@
 0x430b350e	class_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0xe6b91017	clear_inode	vmlinux	EXPORT_SYMBOL
 0xdcf9eaa7	clear_page_dirty_for_io	vmlinux	EXPORT_SYMBOL
+0xbffde8ec	compat_alloc_user_space	vmlinux	EXPORT_SYMBOL_GPL
 0xd12282cc	complete	vmlinux	EXPORT_SYMBOL
 0x0d161444	complete_all	vmlinux	EXPORT_SYMBOL
 0xb5226160	complete_and_exit	vmlinux	EXPORT_SYMBOL

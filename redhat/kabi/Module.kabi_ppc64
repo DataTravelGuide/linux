@@ -227,6 +227,7 @@
 0x0c4e9004	class_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0x4982947a	clear_inode	vmlinux	EXPORT_SYMBOL
 0xac3fd128	clear_page_dirty_for_io	vmlinux	EXPORT_SYMBOL
+0xbffde8ec	compat_alloc_user_space	vmlinux	EXPORT_SYMBOL_GPL
 0x2581543c	complete	vmlinux	EXPORT_SYMBOL
 0xa2d4c119	complete_all	vmlinux	EXPORT_SYMBOL
 0x69b4208d	complete_and_exit	vmlinux	EXPORT_SYMBOL

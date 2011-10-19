@@ -197,6 +197,7 @@
 	class_unregister
 	clear_inode
 	clear_page_dirty_for_io
+	compat_alloc_user_space
 	complete
 	complete_all
 	complete_and_exit
