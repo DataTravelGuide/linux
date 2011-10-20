@@ -181,7 +181,7 @@ static const struct tnt tnts[] = {
 	{ TAINT_24,			'?', '-' },
 	{ TAINT_25,			'?', '-' },
 	{ TAINT_26,			'?', '-' },
-	{ TAINT_27,			'?', '-' },
+	{ TAINT_BIT_BY_ZOMBIE,		'Z', ' ' },
 	{ TAINT_HARDWARE_UNSUPPORTED,	'H', ' ' },
 	{ TAINT_TECH_PREVIEW,		'T', ' ' },
 };

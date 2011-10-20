@@ -1832,6 +1832,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			waiting for the ACK, so if this is set too high
 			interrupts *may* be lost!
 
+	OMGZOMBIES	BRRRAAAAAAIIIIINNNNNSSSSSSSS
+
 	opl3=		[HW,OSS]
 			Format: <io>
 
@@ -2863,7 +2865,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
-
 ______________________________________________________________________
 
 TODO:

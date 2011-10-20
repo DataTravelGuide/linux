@@ -803,6 +803,13 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 					emit_log_char(*tp);
 				printed_len += tlen;
 			}
+			if (test_taint(TAINT_BIT_BY_ZOMBIE)) {
+				/* len is 21 */
+				char tbuf[] = "[BRRAAIIIINNNSSSSS!] ";
+				char *tp;
+				for (tp = tbuf; tp < tbuf + 21; tp++)
+					emit_log_char(*tp);
+			}
 
 			if (!*p)
 				break;

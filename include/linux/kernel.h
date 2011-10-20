@@ -401,7 +401,7 @@ extern enum system_states {
 #define TAINT_24			24
 #define TAINT_25			25
 #define TAINT_26			26
-#define TAINT_27			27
+#define TAINT_BIT_BY_ZOMBIE		27
 /* Reserving bits for vendor specific uses */
 #define TAINT_HARDWARE_UNSUPPORTED	28
 #define TAINT_TECH_PREVIEW		29
