@@ -499,8 +499,8 @@ pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
 unlock_free:
-	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	radeon_fence_unref(&fence);
 	kfree(work);
 
