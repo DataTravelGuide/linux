@@ -32,6 +32,7 @@
 #include <linux/nsproxy.h>
 #include <linux/pid.h>
 #include <linux/ipc_namespace.h>
+#include <linux/vmalloc.h>
 
 #include <net/sock.h>
 #include "util.h"
@@ -161,7 +162,11 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 			u->mq_bytes += mq_bytes;
 			spin_unlock(&mq_lock);
 
-			info->messages = kmalloc(mq_msg_tblsz, GFP_KERNEL);
+			if (mq_msg_tblsz > KMALLOC_MAX_SIZE)
+				info->messages = vmalloc(mq_msg_tblsz);
+			else
+				info->messages = kmalloc(mq_msg_tblsz,
+							 GFP_KERNEL);
 			if (!info->messages) {
 				spin_lock(&mq_lock);
 				u->mq_bytes -= mq_bytes;
@@ -261,7 +266,10 @@ static void mqueue_delete_inode(struct inode *inode)
 	spin_lock(&info->lock);
 	for (i = 0; i < info->attr.mq_curmsgs; i++)
 		free_msg(info->messages[i]);
-	kfree(info->messages);
+	if (info->attr.mq_maxmsg * sizeof(struct msg_msg *) > KMALLOC_MAX_SIZE)
+		vfree(info->messages);
+	else
+		kfree(info->messages);
 	spin_unlock(&info->lock);
 
 	clear_inode(inode);
