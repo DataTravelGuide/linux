@@ -1635,6 +1635,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Oct 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-212.el6]
+- [net] bridge: fix use after free in __br_deliver() (Amerigo Wang) [730756] {CVE-2011-2942}
+- [scsi] Update lpfc version for 8.3.5.45.4p driver release (Rob Evers) [746668]
+- [scsi] Fix crash when cfg_fcp_eq_count is zero (Rob Evers) [746668]
+- [scsi] Fix kernel crash during boot with SLI4 card installed (Rob Evers) [746668]
+- [scsi] Properly clean up EQ and CQ child lists to prevent kernel crash (Rob Evers) [746668]
+- [kabi] add missing symbols for Emulex be2net driver (Jiri Olsa) [745712]
+- [netdrv] netxen-firmware: Install the 4.0.579 firmware (Kyle McMartin) [741776]
+- [perf] symbols: Treat all memory maps without dso file as loaded (Jiri Olsa) [726582]
+- [debug] increase MAX_STACK_TRACE_ENTRIES (Kyle McMartin) [645777]
+- [fs] cifs: add fallback in is_path_accessible for old servers (Jeff Layton) [692709] {CVE-2011-3363}
+- [tpm] Zero buffer after copying to userspace (Jiri Benc) [732633] {CVE-2011-1161 CVE-2011-1162}
+- [pci] intel-iommu: IOTLB hang workaround (Dave Airlie) [728476]
+- [drm] i915: Fix hang on Ironlake mobile GPU with VT-d (Dave Airlie) [728476]
+- [drm] i915: Remove early exit on i915_gpu_idle (Dave Airlie) [728476]
+- [drm] nv50/bios: fixup mpll programming from the init table parser (Ben Skeggs) [744992]
+- [drm] nv50/vram: fix incorrect detection of bank count on newer chipsets (Ben Skeggs) [744992]
+- [drm] radeon: fix llano output setup + memory corruption (Dave Airlie) [747292]
+- [drm] radeon caicos enablement fixes (Dave Airlie) [747291]
+- [pci] Disable SRIOV on powerpc (Prarit Bhargava) [742089]
+- [pci] Add pci=nosriov to disable SRIOV (Prarit Bhargava) [742089]
+- [x86] apic: ack all pending irqs when crashed/on kexec (Takao Indoh) [704142]
+
 * Tue Oct 18 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-211.el6]
 - [scsi] libsas: fix warnings when checking sata/stp protocol (David Milburn) [695950]
 - [scsi] libsas: disable scanning lun > 0 on ata devices (David Milburn) [695950]
