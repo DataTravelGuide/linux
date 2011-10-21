@@ -4537,7 +4537,7 @@ static int niu_alloc_channels(struct niu *np)
 	num_rx_rings = parent->rxchan_per_port[port];
 	num_tx_rings = parent->txchan_per_port[port];
 
-	np->dev->real_num_tx_queues = np->num_tx_rings;
+	netif_set_real_num_tx_queues(np->dev, num_tx_rings);
 
 	rx_rings = kcalloc(num_rx_rings, sizeof(struct rx_ring_info),
 			   GFP_KERNEL);
