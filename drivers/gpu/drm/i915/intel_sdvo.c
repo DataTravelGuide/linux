@@ -1080,8 +1080,16 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		}
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
-	if (intel_crtc->pipe == 1)
+
+	if (intel_sdvo->sdvo_reg == PCH_SDVOB) {
+	    if (HAS_PCH_IBX(dev))
+		sdvox |= TRANSCODER(intel_crtc->pipe);
+	    else
+		sdvox |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
+	} else if (intel_crtc->pipe == 1) {
 		sdvox |= SDVO_PIPE_B_SELECT;
+	}
+
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
