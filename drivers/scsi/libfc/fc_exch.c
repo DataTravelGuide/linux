@@ -39,6 +39,7 @@ EXPORT_SYMBOL(fc_cpu_mask);
 static u16	fc_cpu_order;	/* 2's power to represent total possible cpus */
 static struct kmem_cache *fc_em_cachep;	       /* cache for exchanges */
 static struct workqueue_struct *fc_exch_workqueue;
+static void fc_exch_mgr_destroy(struct kref *kref);
 
 /*
  * Structure and function definitions for managing Fibre Channel Exchanges
@@ -1819,10 +1820,12 @@ void fc_exch_mgr_reset(struct fc_lport *lport, u32 sid, u32 did)
 	unsigned int cpu;
 
 	list_for_each_entry(ema, &lport->ema_list, ema_list) {
+		kref_get(&ema->mp->kref);
 		for_each_possible_cpu(cpu)
 			fc_exch_pool_reset(lport,
 					   per_cpu_ptr(ema->mp->pool, cpu),
 					   sid, did);
+		kref_put(&ema->mp->kref, fc_exch_mgr_destroy);
 	}
 }
 EXPORT_SYMBOL(fc_exch_mgr_reset);
