@@ -1635,6 +1635,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 24 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-213.el6]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in niu.c (Neil Horman) [742117]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in myri10ge.c (Neil Horman) [742117]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in igb_main.c (Neil Horman) [742117]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in cxgb4_main.c (Neil Horman) [742117]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in cxgb3_main.c (Neil Horman) [742117]
+- [netdrv] Fixing use of netif_set_real_num_tx_queues in bnx2.c (Neil Horman) [742117]
+- [ppc] kabi: add symbol 'paca' to ppc KABI (Jiri Olsa) [737466]
+- [fs] proc: fix oops on invalid /proc/pid/maps access (Johannes Weiner) [746613] {CVE-2011-3637}
+- [nfs] fix pNFS hang and oops on umounts (Steve Dickson) [746861]
+- [scsi] qla4xxx: export address/port of connection (Mike Christie) [728156]
+- [netdrv] Fix pktgen to not oops on unsupported drivers (Neil Horman) [678794]
+- [kernel] tracing: Update the comm field in the right variable in update_max_tr (Jiri Olsa) [736955]
+- [kernel] kabi: Add missing compat_alloc_user_space symbol to kABI (Jiri Olsa) [747047]
+- [kernel] fix taskstats io infoleak (Jerome Marchand) [716848] {CVE-2011-2494}
+- [x86] ACPI, APEI, HEST: Detect duplicated hardware error source ID (Don Zickus) [737189]
+- [netdrv] Add latest cxgb3 firmware (Neil Horman) [742011]
+
 * Fri Oct 21 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-212.el6]
 - [net] bridge: fix use after free in __br_deliver() (Amerigo Wang) [730756] {CVE-2011-2942}
 - [scsi] Update lpfc version for 8.3.5.45.4p driver release (Rob Evers) [746668]
