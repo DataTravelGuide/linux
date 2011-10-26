@@ -1635,6 +1635,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Oct 25 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-214.el6]
+- [dm] table: add immutable feature (Mike Snitzer) [747438]
+- [mm] reduce overhead on paravirt functions (Larry Woodman) [743554]
+
 * Mon Oct 24 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-213.el6]
 - [netdrv] Fixing use of netif_set_real_num_tx_queues in niu.c (Neil Horman) [742117]
 - [netdrv] Fixing use of netif_set_real_num_tx_queues in myri10ge.c (Neil Horman) [742117]
