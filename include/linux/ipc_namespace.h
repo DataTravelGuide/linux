@@ -56,6 +56,8 @@ struct ipc_namespace {
 	unsigned int    mq_msg_max;      /* initialized to DFLT_MSGMAX */
 	unsigned int    mq_msgsize_max;  /* initialized to DFLT_MSGSIZEMAX */
 
+	unsigned int    mq_msg_default;
+	unsigned int    mq_msgsize_default;
 };
 
 extern struct ipc_namespace init_ipc_ns;
