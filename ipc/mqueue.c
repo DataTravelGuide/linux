@@ -162,7 +162,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 			u->mq_bytes += mq_bytes;
 			spin_unlock(&mq_lock);
 
-			if (mq_msg_tblsz > KMALLOC_MAX_SIZE)
+			if (mq_msg_tblsz > PAGE_SIZE)
 				info->messages = vmalloc(mq_msg_tblsz);
 			else
 				info->messages = kmalloc(mq_msg_tblsz,
@@ -266,7 +266,7 @@ static void mqueue_delete_inode(struct inode *inode)
 	spin_lock(&info->lock);
 	for (i = 0; i < info->attr.mq_curmsgs; i++)
 		free_msg(info->messages[i]);
-	if (info->attr.mq_maxmsg * sizeof(struct msg_msg *) > KMALLOC_MAX_SIZE)
+	if (is_vmalloc_addr(info->messages))
 		vfree(info->messages);
 	else
 		kfree(info->messages);
