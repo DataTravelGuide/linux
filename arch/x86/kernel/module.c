@@ -237,7 +237,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 		if (!rhel) {
 			/* modules older than 6.2 do not have .rheldata */
-			printk("Module is older than RHEL 6.2 ... applying fixups\n");
+			printk("%s module is older than RHEL 6.2 ... applying fixups\n",
+			       me->name);
 			fixup = 1;
 		}
 
