@@ -720,7 +720,7 @@ static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
 			qla4xxx_destroy_ipv6_iface(ha);
 		}
 		break;
-	case ISCSI_NET_PARAM_VLAN_ID:
+	case ISCSI_NET_PARAM_VLAN_TAG:
 		if (iface_param->len != sizeof(init_fw_cb->ipv6_vlan_tag))
 			break;
 		init_fw_cb->ipv6_vlan_tag =
@@ -792,7 +792,7 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 			qla4xxx_destroy_ipv4_iface(ha);
 		}
 		break;
-	case ISCSI_NET_PARAM_VLAN_ID:
+	case ISCSI_NET_PARAM_VLAN_TAG:
 		if (iface_param->len != sizeof(init_fw_cb->ipv4_vlan_tag))
 			break;
 		init_fw_cb->ipv4_vlan_tag =
