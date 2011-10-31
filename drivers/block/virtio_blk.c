@@ -6,14 +6,10 @@
 #include <linux/virtio_blk.h>
 #include <linux/scatterlist.h>
 #include <linux/string_helpers.h>
-#include <linux/idr.h>
 
 #define PART_BITS 4
 
-static int major;
-static DEFINE_SPINLOCK(vd_index_lock);
-static DEFINE_IDA(vd_index_ida);
-
+static int major, index;
 struct workqueue_struct *virtblk_wq;
 
 struct virtio_blk
@@ -25,7 +21,6 @@ struct virtio_blk
 
 	/* The disk structure for the kernel. */
 	struct gendisk *disk;
-	u32 index;
 
 	/* Request tracking. */
 	struct list_head reqs;
@@ -340,26 +335,12 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	struct request_queue *q;
 	int err;
 	u64 cap;
-	u32 v, blk_size, sg_elems, opt_io_size, index;
+	u32 v, blk_size, sg_elems, opt_io_size;
 	u16 min_io_size;
 	u8 physical_block_exp, alignment_offset;
 
-	do {
-		if (!ida_pre_get(&vd_index_ida, GFP_KERNEL))
-			return -ENOMEM;
-
-		spin_lock(&vd_index_lock);
-		err = ida_get_new(&vd_index_ida, &index);
-		spin_unlock(&vd_index_lock);
-	} while (err == -EAGAIN);
-
-	if (err)
-		return err;
-
-	if (index_to_minor(index) >= 1 << MINORBITS) {
-		err =  -ENOSPC;
-		goto out_free_index;
-	}
+	if (index_to_minor(index) >= 1 << MINORBITS)
+		return -ENOSPC;
 
 	/* We need to know how many segments before we allocate. */
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
@@ -430,7 +411,7 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->private_data = vblk;
 	vblk->disk->fops = &virtblk_fops;
 	vblk->disk->driverfs_dev = &vdev->dev;
-	vblk->index = index;
+	index++;
 
 	/* configure queue flush support */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
@@ -525,10 +506,6 @@ out_free_vq:
 	vdev->config->del_vqs(vdev);
 out_free_vblk:
 	kfree(vblk);
-out_free_index:
-	spin_lock(&vd_index_lock);
-	ida_remove(&vd_index_ida, index);
-	spin_unlock(&vd_index_lock);
 out:
 	return err;
 }
@@ -551,10 +528,6 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vqs(vdev);
 	kfree(vblk);
-
-	spin_lock(&vd_index_lock);
-	ida_remove(&vd_index_ida, vblk->index);
-	spin_unlock(&vd_index_lock);
 }
 
 static struct virtio_device_id id_table[] = {
