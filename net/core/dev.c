@@ -5775,6 +5775,36 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	alloc_size += NET_DEVICE_SIZE;
 
 	if (sizeof_priv) {
+		/*
+		 * HACK
+		 *
+ 		 * Workaround ABI breakage in 6.1.  RHEL6.1 added the fields
+		 * below to struct net_device. This broke ABI because
+		 * netdev_priv() pointing to the private driver buffer is
+		 * declared inline and uses sizeof(struct net_device) thus
+		 * hardcoding the offset in each driver.
+		 *
+		 * In order to fix ABI breakage the fields have been removed
+		 * again in 6.2. This of course would break all drivers
+		 * compiled against 6.1. Therefore the private data buffer
+		 * space is extended by the size of these fields to avoid a
+		 * buffer overrun for drivers compiled against 6.1
+ 		 */
+		struct {
+			struct kset             *queues_kset;
+			struct netdev_rx_queue  *_rx;
+			unsigned int            num_rx_queues;
+			u8 num_tc;
+			struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
+			u8 prio_tc_map[TC_BITMASK + 1];
+		} padding;
+
+		/*
+		 * Account for the 4 bytes alignment gap which existed between
+		 * the last net_device field and the fields temporarily added.
+		 */
+		sizeof_priv += 4 + sizeof(padding);
+
 		sizeof_priv = ALIGN(sizeof_priv, NETDEV_ALIGN);
 		alloc_size += sizeof_priv;
 	}
