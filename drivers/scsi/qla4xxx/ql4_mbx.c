@@ -41,6 +41,16 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		return status;
 	}
 
+	if (is_qla40XX(ha)) {
+		if (test_bit(AF_HA_REMOVAL, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
+					  "prematurely completing mbx cmd as "
+					  "adapter removal detected\n",
+					  ha->host_no, __func__));
+			return status;
+		}
+	}
+
 	if (is_qla8022(ha)) {
 		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
 			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "

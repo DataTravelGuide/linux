@@ -10,7 +10,6 @@
 
 struct iscsi_cls_conn;
 
-void ql4_destroy_fw_ddb_session(struct scsi_qla_host *ha);
 int qla4xxx_hw_reset(struct scsi_qla_host *ha);
 int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a);
 int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb *srb);
@@ -188,6 +187,7 @@ int qla4xxx_bsg_request(struct bsg_job *bsg_job);
 int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job);
 
 void qla4xxx_arm_relogin_timer(struct ddb_entry *ddb_entry);
+int qla4xxx_host_reset(struct scsi_qla_host *ha, int reset_type);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

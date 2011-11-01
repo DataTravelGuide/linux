@@ -605,10 +605,20 @@ struct addr_ctrl_blk {
 	uint8_t res14[140];	/* 274-2FF */
 };
 
+#define IP_ADDR_COUNT	4 /* Total 4 IP address supported in one interface
+			   * One IPv4, one IPv6 link local and 2 IPv6
+			   */
+
+#define IP_STATE_MASK	0x0F000000
+#define IP_STATE_SHIFT	24
+
 struct init_fw_ctrl_blk {
 	struct addr_ctrl_blk pri;
 	struct addr_ctrl_blk sec;
 };
+
+#define PRIMARI_ACB		0
+#define SECONDARY_ACB		1
 
 struct addr_ctrl_blk_def {
 	uint8_t reserved1[1];	/* 00 */

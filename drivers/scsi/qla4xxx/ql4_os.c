@@ -1084,7 +1084,7 @@ static int qla4xxx_match_fwdb_session(struct scsi_qla_host *ha,
 		break;
 	}
 
-	if (idx == MAX_DDB_ENTRIES)
+	if (idx == max_ddbs)
 		return QLA_ERROR;
 
 	DEBUG2(ql4_printk(KERN_INFO, ha,
@@ -3717,9 +3717,10 @@ static int qla4xxx_is_flash_ddb_exists(struct scsi_qla_host *ha,
 
 	list_for_each_entry_safe(nt_ddb_idx, nt_ddb_idx_tmp, list_nt, list) {
 		qla4xxx_convert_param_ddb(&nt_ddb_idx->fw_ddb, tmp_tddb);
-		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb))
+		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb)) {
 			ret = QLA_SUCCESS; /* found */
 			goto exit_check;
+		}
 	}
 
 exit_check:
@@ -3805,6 +3806,51 @@ static void qla4xxx_setup_flash_ddb_entry(struct scsi_qla_host *ha,
 		le16_to_cpu(ddb_entry->fw_ddb_entry.iscsi_def_time2wait);
 }
 
+static void qla4xxx_wait_for_ip_configuration(struct scsi_qla_host *ha)
+{
+	uint32_t idx = 0;
+	uint32_t ip_idx[IP_ADDR_COUNT] = {0, 1, 2, 3}; /* 4 IP interfaces */
+	uint32_t sts[MBOX_REG_COUNT];
+	uint32_t ip_state;
+	unsigned long wtime;
+	int ret;
+
+	wtime = jiffies + (HZ * IP_CONFIG_TOV);
+	do {
+		for (idx = 0; idx < IP_ADDR_COUNT; idx++) {
+			if (ip_idx[idx] == -1)
+				continue;
+
+			ret = qla4xxx_get_ip_state(ha, 0, ip_idx[idx], sts);
+
+			if (ret == QLA_ERROR) {
+				ip_idx[idx] = -1;
+				continue;
+			}
+
+			ip_state = (sts[1] & IP_STATE_MASK) >> IP_STATE_SHIFT;
+
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "Waiting for IP state for idx = %d, state = 0x%x\n",
+					  ip_idx[idx], ip_state));
+			if (ip_state == IP_ADDRSTATE_UNCONFIGURED ||
+			    ip_state == IP_ADDRSTATE_INVALID ||
+			    ip_state == IP_ADDRSTATE_PREFERRED ||
+			    ip_state == IP_ADDRSTATE_DISABLING)
+				ip_idx[idx] = -1;
+
+		}
+
+		/* Break if all IP states checked */
+		if ((ip_idx[0] == -1) &&
+		    (ip_idx[1] == -1) &&
+		    (ip_idx[2] == -1) &&
+		    (ip_idx[3] == -1))
+			break;
+		schedule_timeout_uninterruptible(HZ);
+	} while (time_after(wtime, jiffies));
+}
+
 void qla4xxx_build_ddb_list(struct scsi_qla_host *ha, int is_reset)
 {
 	int max_ddbs;
@@ -3868,6 +3914,11 @@ continue_next_st:
 			break;
 	}
 
+	/* Before issuing conn open mbox, ensure all IPs states are configured
+	 * Note, conn open fails if IPs are not configured
+	 */
+	if (is_reset == INIT_ADAPTER)
+		qla4xxx_wait_for_ip_configuration(ha);
 	/* Go thru the STs and fire the sendtargets by issuing conn open mbx */
 	list_for_each_entry_safe(st_ddb_idx, st_ddb_idx_tmp, &list_st, list) {
 		qla4xxx_conn_open(ha, st_ddb_idx->fw_ddb_idx);
@@ -4100,6 +4151,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	mutex_init(&ha->mbox_sem);
 	mutex_init(&ha->chap_sem);
 	init_completion(&ha->mbx_intr_comp);
+	init_completion(&ha->disable_acb_comp);
 
 	spin_lock_init(&ha->hardware_lock);
 
@@ -4298,7 +4350,7 @@ static void qla4xxx_prevent_other_port_reinit(struct scsi_qla_host *ha)
 	}
 }
 
-void ql4_destroy_fw_ddb_session(struct scsi_qla_host *ha)
+static void qla4xxx_destroy_fw_ddb_session(struct scsi_qla_host *ha)
 {
 	struct ddb_entry *ddb_entry;
 	int options;
@@ -4349,7 +4401,7 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 	if ((!ql4xdisablesysfsboot) && ha->boot_kset)
 		iscsi_boot_destroy_kset(ha->boot_kset);
 
-	ql4_destroy_fw_ddb_session(ha);
+	qla4xxx_destroy_fw_ddb_session(ha);
 
 	scsi_remove_host(ha->host);
 
@@ -4768,6 +4820,109 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		   return_status == FAILED ? "FAILED" : "SUCCEEDED");
 
 	return return_status;
+}
+
+static int qla4xxx_context_reset(struct scsi_qla_host *ha)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	struct addr_ctrl_blk_def *acb = NULL;
+	uint32_t acb_len = sizeof(struct addr_ctrl_blk_def);
+	int rval = QLA_SUCCESS;
+	dma_addr_t acb_dma;
+
+	acb = dma_alloc_coherent(&ha->pdev->dev,
+				 sizeof(struct addr_ctrl_blk_def),
+				 &acb_dma, GFP_KERNEL);
+	if (!acb) {
+		ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
+			   __func__);
+		rval = -ENOMEM;
+		goto exit_port_reset;
+	}
+
+	memset(acb, 0, acb_len);
+
+	rval = qla4xxx_get_acb(ha, acb_dma, PRIMARI_ACB, acb_len);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+	rval = qla4xxx_disable_acb(ha);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+	wait_for_completion_timeout(&ha->disable_acb_comp,
+				    DISABLE_ACB_TOV * HZ);
+
+	rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], acb_dma);
+	if (rval != QLA_SUCCESS) {
+		rval = -EIO;
+		goto exit_free_acb;
+	}
+
+exit_free_acb:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk_def),
+			  acb, acb_dma);
+exit_port_reset:
+	DEBUG2(ql4_printk(KERN_INFO, ha, "%s %s\n", __func__,
+			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));
+	return rval;
+}
+
+int qla4xxx_host_reset(struct scsi_qla_host *ha, int reset_type)
+{
+	int rval = QLA_SUCCESS;
+
+	if (ql4xdontresethba) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Don't Reset HBA\n",
+				  __func__));
+		rval = -EPERM;
+		goto exit_host_reset;
+	}
+
+	rval = qla4xxx_wait_for_hba_online(ha);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unable to reset host "
+				  "adapter\n", __func__));
+		rval = -EIO;
+		goto exit_host_reset;
+	}
+
+	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
+		goto recover_adapter;
+
+	switch (reset_type) {
+		case QL4_SCSI_ADAPTER_RESET:
+			set_bit(DPC_RESET_HA, &ha->dpc_flags);
+			break;
+		case QL4_SCSI_FIRMWARE_RESET:
+			if (!test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
+				if (is_qla8022(ha))
+					/* set firmware context reset */
+					set_bit(DPC_RESET_HA_FW_CONTEXT,
+						&ha->dpc_flags);
+				else {
+					rval = qla4xxx_context_reset(ha);
+					goto exit_host_reset;
+				}
+			}
+			break;
+	}
+
+recover_adapter:
+	rval = qla4xxx_recover_adapter(ha);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: recover adapter fail\n",
+				  __func__));
+		rval = -EIO;
+	}
+
+exit_host_reset:
+	return rval;
 }
 
 /* PCI AER driver recovers from all correctable errors w/o

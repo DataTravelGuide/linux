@@ -150,6 +150,9 @@
 #define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
 						/* recovery timeout */
 
+#define QL4_SCSI_ADAPTER_RESET		1
+#define QL4_SCSI_FIRMWARE_RESET		2
+
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -173,6 +176,8 @@
 #define ISNS_DEREG_TOV			5
 #define HBA_ONLINE_TOV			30
 #define LOGIN_TOV			12
+#define DISABLE_ACB_TOV			30
+#define IP_CONFIG_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
 
@@ -269,7 +274,7 @@ struct qla_ddb_index {
 	struct dev_db_entry fw_ddb;
 };
 
-#define DDB_IPADDR_LEN 32
+#define DDB_IPADDR_LEN 64
 
 struct ql4_tuple_ddb {
 	int port;
@@ -666,6 +671,7 @@ struct scsi_qla_host {
 #define DDB_DMA_BLOCK_SIZE 512
 	uint16_t pri_ddb_idx;
 	uint16_t sec_ddb_idx;
+	struct completion disable_acb_comp;
 };
 
 struct ql4_task_data {

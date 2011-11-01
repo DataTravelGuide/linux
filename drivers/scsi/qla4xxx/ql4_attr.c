@@ -119,6 +119,39 @@ qla4xxx_hba_model_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n", ha->model_name);
 }
 
+static int qla4xxx_check_reset_type(char *str)
+{
+	if (strncmp(str, "adapter", 10) == 0)
+		return QL4_SCSI_ADAPTER_RESET;
+	else if (strncmp(str, "firmware", 10) == 0)
+		return QL4_SCSI_FIRMWARE_RESET;
+	else
+		return 0;
+}
+
+static ssize_t
+qla4xxx_store_host_reset(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
+	int ret = -EINVAL;
+	char str[10];
+	int type;
+
+	sscanf(buf, "%s", str);
+	type = qla4xxx_check_reset_type(str);
+
+	if (!type)
+		goto exit_store_host_reset;
+
+	ret = qla4xxx_host_reset(ha, type);
+
+exit_store_host_reset:
+	if (ret == 0)
+		ret = count;
+	return ret;
+}
+
 static DEVICE_ATTR(fw_version, S_IRUGO, qla4xxx_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla4xxx_serial_num_show, NULL);
 static DEVICE_ATTR(iscsi_version, S_IRUGO, qla4xxx_iscsi_version_show, NULL);
@@ -129,6 +162,7 @@ static DEVICE_ATTR(phy_port_cnt, S_IRUGO, qla4xxx_phy_port_cnt_show, NULL);
 static DEVICE_ATTR(phy_port_num, S_IRUGO, qla4xxx_phy_port_num_show, NULL);
 static DEVICE_ATTR(iscsi_func_cnt, S_IRUGO, qla4xxx_iscsi_func_cnt_show, NULL);
 static DEVICE_ATTR(hba_model, S_IRUGO, qla4xxx_hba_model_show, NULL);
+static DEVICE_ATTR(host_reset, S_IWUSR, NULL, qla4xxx_store_host_reset);
 
 struct device_attribute *qla4xxx_host_attrs[] = {
 	&dev_attr_fw_version,
@@ -141,5 +175,6 @@ struct device_attribute *qla4xxx_host_attrs[] = {
 	&dev_attr_phy_port_num,
 	&dev_attr_iscsi_func_cnt,
 	&dev_attr_hba_model,
+	&dev_attr_host_reset,
 	NULL,
 };
