@@ -622,7 +622,7 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 	/* Additional Intel-defined flags: level 0x00000007 */
 	if (c->cpuid_level >= 0x00000007) {
 		u32 eax, ebx, ecx, edx;
-		struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
+		struct cpuinfo_x86_rh *rh = get_cpuinfo_x86_rh(c);
 
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
 
@@ -693,7 +693,7 @@ static void __cpuinit identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
-	struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
+	struct cpuinfo_x86_rh *rh = get_cpuinfo_x86_rh(c);
 
 #ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
@@ -820,7 +820,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
-	struct cpuinfo_x86_rh *rh = &cpu_data_rh(c->cpu_index);
+	struct cpuinfo_x86_rh *rh = get_cpuinfo_x86_rh(c);
 
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = -1;

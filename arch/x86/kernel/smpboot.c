@@ -359,6 +359,12 @@ static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
 }
 #endif /* CONFIG_CPUMASK_OFFSTACK */
 
+static inline void copy_cpuinfo_x86_rh(struct cpuinfo_x86_rh *dst,
+				       const struct cpuinfo_x86_rh *src)
+{
+	*dst = *src;
+}
+
 /*
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU
@@ -367,8 +373,10 @@ static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
 void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
+	struct cpuinfo_x86_rh *rh = &cpu_data_rh(id);
 
 	copy_cpuinfo_x86(c, &boot_cpu_data);
+	copy_cpuinfo_x86_rh(rh, &boot_cpu_data_rh);
 	c->cpu_index = id;
 	if (id != 0)
 		identify_secondary_cpu(c);
