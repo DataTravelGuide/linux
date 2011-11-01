@@ -1635,6 +1635,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-216.el6]
+- [scsi] lockless queuecommand dispatch fixup (Rob Evers) [749018]
+- [scsi] iscsi class: export pid of process that created session (Mike Christie) [747696]
+- [scsi] qla4xxx: Autologin persisted target entries (Mike Christie) [747696]
+- [netdrv] iwlagn: enable 11n aggregation without checking traffic load (John Linville) [744361]
+- [s390x] qdio: EQBS retry after CCQ 96 (Hendrik Brueckner) [747578]
+- [s390x] dasd: fix UID readout for z/VM (Hendrik Brueckner) [746000]
+- [x86] PCI: irq and pci_ids patch for Intel Panther Point DeviceIDs (Prarit Bhargava) [747638]
+- [netdrv] Help 6.1 out of tree drivers cope with ABI breakage (Thomas Graf) [746570]
+- [mm] shmem: let shared anonymous be nonlinear again (Larry Woodman) [690129]
+- [fs] ext4: fix BUG_ON() in ext4_ext_insert_extent() (Lukas Czerner) [742091] {CVE-2011-3638}
+- [ipc] mqueue: separate mqueue default value from maximum value (Motohiro Kosaki) [746606]
+- [ipc] mqueue: don't use kmalloc with KMALLOC_MAX_SIZE (Motohiro Kosaki) [746606]
+- [ipc] mqueue: revert bump up DFLT_*MAX (Motohiro Kosaki) [746606]
+- [kernel] ipc/mqueue: Up the hard limit on message queues per namespace (Doug Ledford) [746606]
+- [kernel] ipc/mqueue: update maximums for the mqueue subsystem (Doug Ledford) [746606]
+- [kernel] ipc/mqueue: enforce hard limits (Doug Ledford) [746606]
+- [kernel] ipc/mqueue: switch back to using non-max values on create (Doug Ledford) [746606 746898]
+- [kernel] ipc/mqueue: cleanup definition names and locations (Doug Ledford) [746606]
+- [kernel] Revert "Restore max mqueue message size to its previous RHEL 5 value" (Doug Ledford) [746606]
+
 * Fri Oct 28 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-215.el6]
 - [virt] index of virtio disk is not decremented when removed (Mark Wu) [692767]
 - [edac] i7core_edac: Initialize memory name with cpu, channel, bank (Mauro Carvalho Chehab) [712957]
