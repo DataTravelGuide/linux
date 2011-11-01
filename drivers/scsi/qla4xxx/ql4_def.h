@@ -172,6 +172,7 @@
 #define RELOGIN_TOV			18
 #define ISNS_DEREG_TOV			5
 #define HBA_ONLINE_TOV			30
+#define LOGIN_TOV			12
 
 #define MAX_RESET_HA_RETRIES		2
 
@@ -239,6 +240,45 @@ struct ddb_entry {
 
 	uint16_t fw_ddb_index;	/* DDB firmware index */
 	uint32_t fw_ddb_device_state; /* F/W Device State  -- see ql4_fw.h */
+	uint16_t ddb_type;
+#define FLASH_DDB 0x01
+
+	struct dev_db_entry fw_ddb_entry;
+	int (*unblock_sess)(struct iscsi_cls_session *cls_session);
+	int (*ddb_change)(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+			  struct ddb_entry *ddb_entry, uint32_t state);
+
+	/* Driver Re-login  */
+	unsigned long flags;		  /* DDB Flags */
+	uint16_t default_relogin_timeout; /*  Max time to wait for
+					   *  relogin to complete */
+	atomic_t retry_relogin_timer;	  /* Min Time between relogins
+					   * (4000 only) */
+	atomic_t relogin_timer;		  /* Max Time to wait for
+					   * relogin to complete */
+	atomic_t relogin_retry_count;	  /* Num of times relogin has been
+					   * retried */
+	uint32_t default_time2wait;	  /* Default Min time between
+					   * relogins (+aens) */
+
+};
+
+struct qla_ddb_index {
+	struct list_head list;
+	uint16_t fw_ddb_idx;
+	struct dev_db_entry fw_ddb;
+};
+
+#define DDB_IPADDR_LEN 32
+
+struct ql4_tuple_ddb {
+	int port;
+	int tpgt;
+	char ip_addr[DDB_IPADDR_LEN];
+	char iscsi_name[ISCSI_NAME_SIZE];
+	uint16_t options;
+#define DDB_OPT_IPV6 0x0e0e
+#define DDB_OPT_IPV4 0x0f0f
 };
 
 /*
@@ -603,6 +643,7 @@ struct scsi_qla_host {
 	uint16_t bootload_minor;
 	uint16_t bootload_patch;
 	uint16_t bootload_build;
+	uint16_t def_timeout; /* Default login timeout */
 
 	uint32_t flash_state;
 #define	QLFLASH_WAITING		0
@@ -621,6 +662,10 @@ struct scsi_qla_host {
 	uint16_t phy_port_cnt;
 	uint16_t iscsi_pci_func_cnt;
 	uint8_t model_name[16];
+	struct dma_pool *fw_ddb_dma_pool;
+#define DDB_DMA_BLOCK_SIZE 512
+	uint16_t pri_ddb_idx;
+	uint16_t sec_ddb_idx;
 };
 
 struct ql4_task_data {
@@ -833,6 +878,10 @@ static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
 /*---------------------------------------------------------------------------*/
 
 /* Defines for qla4xxx_initialize_adapter() and qla4xxx_recover_adapter() */
+
+#define INIT_ADAPTER    0
+#define RESET_ADAPTER   1
+
 #define PRESERVE_DDB_LIST	0
 #define REBUILD_DDB_LIST	1
 
