@@ -645,12 +645,6 @@ static int __scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
  */
 static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 {
-	/*
-	 * scsi_done was called just after the command timed out and before
-	 * we had a chance to process it. (db)
-	 */
-	if (scmd->serial_number == 0)
-		return SUCCESS;
 	return __scsi_try_to_abort_cmd(scmd);
 }
 
