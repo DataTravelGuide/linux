@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/kdebug.h>
 #include <linux/crash_dump.h>
+#include <linux/nmi.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -41,7 +42,6 @@
 #define UVH_NMI_MMR				UVH_SCRATCH5
 #define UVH_NMI_MMR_CLEAR			(UVH_NMI_MMR + 8)
 #define UV_NMI_PENDING_MASK			(1UL << 63)
-DEFINE_PER_CPU(unsigned long, cpu_last_nmi_count);
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
 
@@ -171,6 +171,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info_extra);
 
 struct uv_blade_info *uv_blade_info;
 EXPORT_SYMBOL_GPL(uv_blade_info);
+static struct uv_blade_info_nmi *uv_blade_info_nmi;
 
 short *uv_node_to_blade;
 EXPORT_SYMBOL_GPL(uv_node_to_blade);
@@ -675,6 +676,7 @@ int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 {
 	unsigned long real_uv_nmi;
 	int bid;
+	int cnt = 0;
 
 	if (reason != DIE_NMIUNKNOWN)
 		return NOTIFY_OK;
@@ -690,28 +692,57 @@ int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 	 * cause each cpu on the blade to notice a new NMI.
 	 */
 	bid = uv_numa_blade_id();
+	spin_lock(&uv_blade_info_nmi[bid].nmi_lock);
+
 	real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
-
 	if (unlikely(real_uv_nmi)) {
-		spin_lock(&uv_blade_info[bid].nmi_lock);
-		real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
-		if (real_uv_nmi) {
-			uv_blade_info[bid].nmi_count++;
+		uv_blade_info_nmi[bid].nmi_count++;
+		if (uv_blade_info_nmi[bid].nmi_count ==
+		    uv_blade_info[bid].nr_online_cpus) {
 			uv_write_local_mmr(UVH_NMI_MMR_CLEAR, UV_NMI_PENDING_MASK);
+			uv_blade_info_nmi[bid].nmi_count = 0;
 		}
-		spin_unlock(&uv_blade_info[bid].nmi_lock);
 	}
-
-	if (likely(__get_cpu_var(cpu_last_nmi_count) == uv_blade_info[bid].nmi_count))
-		return NOTIFY_DONE;
-
-	__get_cpu_var(cpu_last_nmi_count) = uv_blade_info[bid].nmi_count;
+	spin_unlock(&uv_blade_info_nmi[bid].nmi_lock);
+	if (likely(! real_uv_nmi))
+		return NOTIFY_OK;
 
 	/*
 	 * Use a lock so only one cpu prints at a time.
 	 * This prevents intermixed output.
+	 *
+	 * On large systems (> 1024 cpus) the time required to dump all the
+	 * the stacks exceeds the threshold for the nmi_watchdog() which can
+	 * then trigger another round of NMIs garbling the output and bringing
+	 * the system to its knees.
+	 *
+	 * Since we only reach this code from 'power nmi' at the CMC of the
+	 * UV system, and we only expect that sequence from a customer in
+	 * response to a machine which is seriously hung, this code's
+	 * performance is not a concern.
+	 *
+	 * So, we just want each cpu waiting for the lock to disable its own
+	 * watchdog timer until it has printed its own stack.  Currently,
+	 * touch_nmi_watchdog() loops over active CPUs but Don is trying to
+	 * push a change in that behavior upstream.
+	 *
+	 * Since performance is not a concern, we just loop about 5 seconds,
+	 * using udelay(1) accounts for variation in processor speed.
+	 * Usually we will grab the lock and exit the loop.  On a large
+	 * system some cpus will reach the timeout and reset the nmi watchdog
+	 * timers.
+	 *
+	 * Note: the timeout upstream is 10secs and the timeout in RHEL is
+	 * 60secs.
 	 */
-	spin_lock(&uv_nmi_lock);
+
+	while (!spin_trylock(&uv_nmi_lock)) {
+		udelay(1);
+		if (++cnt > 5000000) {
+			touch_nmi_watchdog();
+			cnt = 0;
+		}
+	}
 	pr_info("UV NMI stack dump cpu %u:\n", smp_processor_id());
 	dump_stack();
 	spin_unlock(&uv_nmi_lock);
@@ -783,6 +814,9 @@ void __init uv_system_init(void)
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
 	uv_blade_info = kzalloc(bytes, GFP_KERNEL);
 	BUG_ON(!uv_blade_info);
+	bytes = sizeof(struct uv_blade_info_nmi) * uv_num_possible_blades();
+	uv_blade_info_nmi = kzalloc(bytes, GFP_KERNEL);
+	BUG_ON(!uv_blade_info_nmi);
 
 	for (blade = 0; blade < uv_num_possible_blades(); blade++)
 		uv_blade_info[blade].memory_nid = -1;
@@ -809,7 +843,8 @@ void __init uv_system_init(void)
 			uv_blade_info[blade].pnode = pnode;
 			uv_blade_info[blade].nr_possible_cpus = 0;
 			uv_blade_info[blade].nr_online_cpus = 0;
-			spin_lock_init(&uv_blade_info[blade].nmi_lock);
+			spin_lock_init(&uv_blade_info_nmi[blade].nmi_lock);
+			uv_blade_info_nmi[blade].nmi_count = 0;
 			max_pnode = max(pnode, max_pnode);
 			blade++;
 		}

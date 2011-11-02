@@ -505,6 +505,14 @@ struct uv_blade_info {
 	unsigned short	nr_online_cpus;
 	unsigned short	pnode;
 	short		memory_nid;
+};
+
+/*
+ * Upstream this is part of uv_blade_info, but that broke KABI for SGI modules,
+ * so we have a parallel data structure.
+ */
+
+struct uv_blade_info_nmi {
 	spinlock_t	nmi_lock;
 	unsigned long	nmi_count;
 };
