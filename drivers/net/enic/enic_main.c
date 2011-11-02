@@ -2514,7 +2514,8 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (ENIC_SETTING(enic, TSO))
 		netdev->features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
-
+	if (ENIC_SETTING(enic, LRO))
+		netdev->features |= NETIF_F_GRO;
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
