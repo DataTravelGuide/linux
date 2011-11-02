@@ -71,6 +71,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
+#include <linux/clocksource.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
@@ -7448,6 +7449,7 @@ void show_state_filter(unsigned long state_filter)
 	} while_each_thread(g, p);
 
 	touch_all_softlockup_watchdogs();
+	clocksource_touch_watchdog();
 
 #ifdef CONFIG_SCHED_DEBUG
 	sysrq_sched_debug_show();
