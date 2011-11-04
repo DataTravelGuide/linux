@@ -4238,3 +4238,42 @@ qla82xx_mbx_intr_disable(scsi_qla_host_t *vha)
 
 	return rval;
 }
+
+int
+qla2x00_port_logout(scsi_qla_host_t *vha, struct fc_port *fcport)
+{
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		DEBUG2_3_11(qla_printk(KERN_WARNING, ha,
+		    "scsi(%ld): Implicit LOGO Unsupported.\n", vha->host_no));
+		return QLA_FUNCTION_FAILED;
+	}
+
+
+	DEBUG2_3_11(qla_printk(KERN_INFO, ha,
+	    "scsi(%ld): Done %s.\n", vha->host_no, __func__));
+
+	/* Perform Implicit LOGO. */
+	mcp->mb[0] = MBC_PORT_LOGOUT;
+	mcp->mb[1] = fcport->loop_id;
+	mcp->mb[10] = BIT_15;
+	mcp->out_mb = MBX_10|MBX_1|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(qla_printk(KERN_WARNING, ha,
+		    "scsi(%ld): Failed=%x mb[0]=%x.\n", vha->host_no,  rval,
+		    mcp->mb[0]));
+	} else {
+                DEBUG2_3_11(qla_printk(KERN_INFO, ha,
+		    "scsi(%ld): Done %s.\n", vha->host_no, __func__));
+	}
+
+	return rval;
+}

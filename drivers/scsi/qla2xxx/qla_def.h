@@ -653,6 +653,7 @@ typedef struct {
 #define MBC_ENHANCED_GET_PORT_DATABASE	0x47	/* Get port database + login */
 #define MBC_RESET_LINK_STATUS		0x52	/* Reset Link Error Status */
 #define MBC_IOCB_COMMAND_A64		0x54	/* Execute IOCB command (64) */
+#define MBC_PORT_LOGOUT			0x56	/* Port Logout request */
 #define MBC_SEND_RNID_ELS		0x57	/* Send RNID ELS request */
 #define MBC_SET_RNID_PARAMS		0x59	/* Set RNID parameters */
 #define MBC_GET_RNID_PARAMS		0x5a	/* Data Rate */
