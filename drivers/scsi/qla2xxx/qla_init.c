@@ -1896,8 +1896,8 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 
 	rval = QLA_SUCCESS;
 
-	/* 20 seconds for loop down. */
-	min_wait = 20;
+	/* 60 seconds for loop down. */
+	min_wait = 60;
 
 	/*
 	 * Firmware should take at most one RATOV to login, plus 5 seconds for
