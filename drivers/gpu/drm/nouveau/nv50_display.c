@@ -205,7 +205,7 @@ nv50_display_init(struct drm_device *dev)
 	return 0;
 }
 
-static int nv50_display_disable(struct drm_device *dev)
+int nv50_display_disable(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);

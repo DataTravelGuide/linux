@@ -119,6 +119,9 @@ MODULE_PARM_DESC(msi, "Enable MSI (default: off)\n");
 int nouveau_msi;
 module_param_named(msi, nouveau_msi, int, 0400);
 
+int nouveau_suspenddispshutdown = 1;
+module_param_named(suspenddispshutdown, nouveau_suspenddispshutdown, int, 0400);
+
 int nouveau_fbpercrtc;
 #if 0
 module_param_named(fbpercrtc, nouveau_fbpercrtc, int, 0400);
@@ -156,6 +159,8 @@ nouveau_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+int nv50_display_disable(struct drm_device *dev);
+
 int
 nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 {
@@ -175,6 +180,11 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 	NV_INFO(dev, "Disabling fbcon acceleration...\n");
 	nouveau_fbcon_save_disable_accel(dev);
+
+	if (dev_priv->card_type >= NV_50 && nouveau_suspenddispshutdown) {
+		NV_INFO(dev, "Shutting down display...\n");
+		nv50_display_disable(dev);
+	}
 
 	NV_INFO(dev, "Unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
