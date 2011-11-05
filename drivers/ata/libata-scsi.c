@@ -3188,7 +3188,7 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
  *	ATA and ATAPI devices appearing as SCSI devices.
  *
  *	LOCKING:
- *	ATA port lock
+ *	Releases scsi-layer-held lock, and obtains host lock.
  *
  *	RETURNS:
  *	Return value from __ata_scsi_queuecmd() if @cmd can be queued,
@@ -3201,11 +3201,11 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	struct scsi_device *scsidev = cmd->device;
 	struct Scsi_Host *shost = scsidev->host;
 	int rc = 0;
-	unsigned long irq_flags;
 
 	ap = ata_shost_to_port(shost);
 
-	spin_lock_irqsave(ap->lock, irq_flags);
+	spin_unlock(shost->host_lock);
+	spin_lock(ap->lock);
 
 	ata_scsi_dump_cdb(ap, cmd);
 
@@ -3217,7 +3217,8 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		done(cmd);
 	}
 
-	spin_unlock_irqrestore(ap->lock, irq_flags);
+	spin_unlock(ap->lock);
+	spin_lock(shost->host_lock);
 	return rc;
 }
 
