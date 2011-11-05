@@ -56,17 +56,6 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
-static inline void get_huge_page_tail(struct page *page)
-{
-	/*
-	 * __split_huge_page_refcount() cannot run
-	 * from under us.
-	 */
-	VM_BUG_ON(page_mapcount(page) < 0);
-	VM_BUG_ON(atomic_read(&page->_count) != 0);
-	atomic_inc(&page->_mapcount);
-}
-
 static noinline int gup_huge_pte(pte_t *ptep, struct hstate *hstate,
 				 unsigned long *addr, unsigned long end,
 				 int write, struct page **pages, int *nr)

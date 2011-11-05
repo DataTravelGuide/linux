@@ -746,6 +746,17 @@ static inline int page_mapcount(struct page *page)
 	return atomic_read(&(page)->_mapcount) + 1;
 }
 
+static inline void get_huge_page_tail(struct page *page)
+{
+	/*
+	 * __split_huge_page_refcount() cannot run
+	 * from under us.
+	 */
+	VM_BUG_ON(page_mapcount(page) < 0);
+	VM_BUG_ON(atomic_read(&page->_count) != 0);
+	atomic_inc(&page->_mapcount);
+}
+
 /*
  * Return true if this page is mapped into pagetables.
  */
