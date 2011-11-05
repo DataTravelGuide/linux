@@ -97,7 +97,7 @@ static noinline int gup_huge_pte(pte_t *ptep, struct hstate *hstate,
 	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
 		/* Could be optimized better */
 		while (*nr) {
-			put_page(page);
+			put_page(head);
 			(*nr)--;
 		}
 	}
