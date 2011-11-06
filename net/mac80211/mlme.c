@@ -2435,6 +2435,22 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	int i, err;
 
 	mutex_lock(&ifmgd->mtx);
+	if (ifmgd->associated) {
+		if (!req->prev_bssid ||
+		    memcmp(req->prev_bssid, ifmgd->associated->cbss.bssid,
+			   ETH_ALEN)) {
+			/*
+			 * We are already associated and the request was not a
+			 * reassociation request from the current BSS, so
+			 * reject it.
+			 */
+			err = -EALREADY;
+			goto out;
+		}
+
+		/* Trying to reassociate - clear previous association state */
+		ieee80211_set_disassoc(sdata);
+	}
 
 	wk = kzalloc(sizeof(*wk) + req->ie_len, GFP_KERNEL);
 	if (!wk) {
