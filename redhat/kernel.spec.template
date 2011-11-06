@@ -1635,6 +1635,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Nov 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-217.el6]
+- [fs] GFS2: rewrite fallocate code to write blocks directly (Benjamin Marzinski) [750208] {CVE-2011-4098}
+- [netdrv] bnx2x: link fixes for 57810 (Andy Gospodarek) [749421]
+- [netdrv] enic: fix accidental GRO off by default (Stefan Assmann) [749390]
+- [scsi] qla2xxx: Correct inadvertent clearing of RISC_INTR status (Chad Dupuis) [748978]
+- [debug] lockdep: double MAX_LOCKDEP_ENTRIES (Kyle McMartin) [748941]
+- [x86] Add missing KERN_DEBUG to x86 module printk (Prarit Bhargava) [747837]
+- [x86] Update module alternatives message (Prarit Bhargava) [745596]
+- [x86] UV: KABI breakage in uv_blade_info (George Beshers) [745253]
+- [net] vlan: fix panic when handling priority tagged frames (Andy Gospodarek) [714936] {CVE-2011-3593}
+- [scsi] qla4xxx: Autologin persisted target entries update (Mike Christie) [747696]
+- [mm] oom: fix integer overflow of points in oom_badness (Frantisek Hrbata) [741207] {CVE-2011-4097}
+
 * Tue Nov 01 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-216.el6]
 - [scsi] lockless queuecommand dispatch fixup (Rob Evers) [749018]
 - [scsi] iscsi class: export pid of process that created session (Mike Christie) [747696]
