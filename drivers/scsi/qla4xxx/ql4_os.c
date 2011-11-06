@@ -39,8 +39,6 @@ MODULE_PARM_DESC(ql4xdisablesysfsboot,
 		" 0 - Export boot targets\n"
 		" 1 - Do not export boot targets (Default)");
 
-/* TODO : bring back ql4xsess_recovery_tmo */
-
 int ql4xdontresethba = 0;
 module_param(ql4xdontresethba, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xdontresethba,
@@ -73,7 +71,7 @@ static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
 module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(ql4xsess_recovery_tmo,
 		"Target Session Recovery Timeout.\n"
-		" Default: 30 sec.");
+		" Default: 120 sec.");
 
 static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha);
 /*
@@ -424,7 +422,7 @@ static int qla4xxx_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 	qla_ep = ep->dd_data;
 	ha = to_qla_host(qla_ep->host);
 
-	if (adapter_up(ha))
+	if (adapter_up(ha) && !test_bit(AF_BUILD_DDB_LIST, &ha->flags))
 		ret = 1;
 
 	return ret;
@@ -2800,8 +2798,12 @@ dpc_post_reset_ha:
 			 * fatal error recovery.  Therefore, the driver must
 			 * manually relogin to devices when recovering from
 			 * connection failures, logouts, expired KATO, etc. */
-
-			qla4xxx_relogin_all_devices(ha);
+			if (test_and_clear_bit(AF_BUILD_DDB_LIST, &ha->flags)) {
+				qla4xxx_build_ddb_list(ha, ha->is_reset);
+				iscsi_host_for_each_session(ha->host,
+						qla4xxx_login_flash_ddb);
+			} else
+				qla4xxx_relogin_all_devices(ha);
 		}
 	}
 }
@@ -3879,6 +3881,7 @@ static void qla4xxx_wait_for_ip_configuration(struct scsi_qla_host *ha)
 			if (ip_state == IP_ADDRSTATE_UNCONFIGURED ||
 			    ip_state == IP_ADDRSTATE_INVALID ||
 			    ip_state == IP_ADDRSTATE_PREFERRED ||
+			    ip_state == IP_ADDRSTATE_DEPRICATED ||
 			    ip_state == IP_ADDRSTATE_DISABLING)
 				ip_idx[idx] = -1;
 
@@ -3916,6 +3919,11 @@ void qla4xxx_build_ddb_list(struct scsi_qla_host *ha, int is_reset)
 	unsigned long wtime;
 	struct qla_ddb_index  *nt_ddb_idx;
 
+	if (!test_bit(AF_LINK_UP, &ha->flags)) {
+		set_bit(AF_BUILD_DDB_LIST, &ha->flags);
+		ha->is_reset = is_reset;
+		return;
+	}
 	max_ddbs =  is_qla40XX(ha) ? MAX_DEV_DB_ENTRIES_40XX :
 				     MAX_DEV_DB_ENTRIES;
 
@@ -3960,8 +3968,8 @@ continue_next_st:
 	/* Before issuing conn open mbox, ensure all IPs states are configured
 	 * Note, conn open fails if IPs are not configured
 	 */
-	if (is_reset == INIT_ADAPTER)
-		qla4xxx_wait_for_ip_configuration(ha);
+	qla4xxx_wait_for_ip_configuration(ha);
+
 	/* Go thru the STs and fire the sendtargets by issuing conn open mbx */
 	list_for_each_entry_safe(st_ddb_idx, st_ddb_idx_tmp, &list_st, list) {
 		qla4xxx_conn_open(ha, st_ddb_idx->fw_ddb_idx);
@@ -4328,10 +4336,8 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 		ql4_printk(KERN_ERR, ha, "%s:ISCSI boot info setup failed\n",
 			   __func__);
 
-	/* Perform the build ddb list */
+		/* Perform the build ddb list and login to each */
 	qla4xxx_build_ddb_list(ha, INIT_ADAPTER);
-
-	/* Perform login */
 	iscsi_host_for_each_session(ha->host, qla4xxx_login_flash_ddb);
 
 	qla4xxx_create_chap_list(ha);

@@ -966,6 +966,7 @@ int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 
 	switch (old_fw_ddb_device_state) {
 	case DDB_DS_LOGIN_IN_PROCESS:
+	case DDB_DS_NO_CONNECTION_ACTIVE:
 		switch (state) {
 		case DDB_DS_SESSION_ACTIVE:
 			ddb_entry->unblock_sess(ddb_entry->sess);
@@ -973,7 +974,6 @@ int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 			status = QLA_SUCCESS;
 			break;
 		case DDB_DS_SESSION_FAILED:
-		case DDB_DS_NO_CONNECTION_ACTIVE:
 			iscsi_block_session(ddb_entry->sess);
 			if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
 				qla4xxx_arm_relogin_timer(ddb_entry);
@@ -984,7 +984,6 @@ int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 	case DDB_DS_SESSION_ACTIVE:
 		switch (state) {
 		case DDB_DS_SESSION_FAILED:
-		case DDB_DS_NO_CONNECTION_ACTIVE:
 			iscsi_block_session(ddb_entry->sess);
 			if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
 				qla4xxx_arm_relogin_timer(ddb_entry);
@@ -1072,6 +1071,9 @@ void qla4xxx_login_flash_ddb(struct iscsi_cls_session *cls_session)
 	sess = cls_session->dd_data;
 	ddb_entry = sess->dd_data;
 	ha =  ddb_entry->ha;
+
+	if (!test_bit(AF_LINK_UP, &ha->flags))
+		return;
 
 	if (ddb_entry->ddb_type != FLASH_DDB) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,

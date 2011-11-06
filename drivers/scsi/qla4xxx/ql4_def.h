@@ -147,7 +147,7 @@
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
 
-#define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
+#define QL4_SESS_RECOVERY_TMO		120	/* iSCSI session */
 						/* recovery timeout */
 
 #define QL4_SCSI_ADAPTER_RESET		1
@@ -455,7 +455,7 @@ struct scsi_qla_host {
 #define AF_FW_RECOVERY			19 /* 0x00080000 */
 #define AF_EEH_BUSY			20 /* 0x00100000 */
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
-
+#define AF_BUILD_DDB_LIST		22 /* 0x00400000 */
 	unsigned long dpc_flags;
 
 #define DPC_RESET_HA			1 /* 0x00000002 */
@@ -672,6 +672,7 @@ struct scsi_qla_host {
 	uint16_t pri_ddb_idx;
 	uint16_t sec_ddb_idx;
 	struct completion disable_acb_comp;
+	int is_reset;
 };
 
 struct ql4_task_data {
