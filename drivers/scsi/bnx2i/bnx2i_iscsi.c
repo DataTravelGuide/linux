@@ -2212,7 +2212,6 @@ static struct scsi_host_template bnx2i_host_template = {
 	.name			= "Broadcom Offload iSCSI Initiator",
 	.proc_name		= "bnx2i",
 	.queuecommand		= iscsi_queuecommand,
-	.lockless		= 1,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,

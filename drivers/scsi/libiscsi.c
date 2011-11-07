@@ -504,7 +504,6 @@ static void iscsi_free_task(struct iscsi_task *task)
 	struct iscsi_conn *conn = task->conn;
 	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = task->sc;
-	int oldstate = task->state;
 
 	ISCSI_DBG_SESSION(session, "freeing task itt 0x%x state %d sc %p\n",
 			  task->itt, task->state, task->sc);
@@ -525,10 +524,10 @@ static void iscsi_free_task(struct iscsi_task *task)
 		/* SCSI eh reuses commands to verify us */
 		sc->SCp.ptr = NULL;
 		/*
-		 * queue command may call this to free the task, so
-		 * it will decide how to return sc to scsi-ml.
+		 * queue command may call this to free the task, but
+		 * not have setup the sc callback
 		 */
-		if (oldstate != ISCSI_TASK_REQUEUE_SCSIQ)
+		if (sc->scsi_done)
 			sc->scsi_done(sc);
 	}
 }
@@ -572,8 +571,7 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 			  task->itt, task->state, task->sc);
 	if (task->state == ISCSI_TASK_COMPLETED ||
 	    task->state == ISCSI_TASK_ABRT_TMF ||
-	    task->state == ISCSI_TASK_ABRT_SESS_RECOV ||
-	    task->state == ISCSI_TASK_REQUEUE_SCSIQ)
+	    task->state == ISCSI_TASK_ABRT_SESS_RECOV)
 		return;
 	WARN_ON_ONCE(task->state == ISCSI_TASK_FREE);
 	task->state = state;
@@ -1615,10 +1613,11 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 
 	host = sc->device->host;
 	ihost = shost_priv(host);
+	spin_unlock(host->host_lock);
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
-	spin_lock_bh(&session->lock);
+	spin_lock(&session->lock);
 
 	reason = iscsi_session_chkready(cls_session);
 	if (reason) {
@@ -1704,21 +1703,25 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	}
 
 	session->queued_cmdsn++;
-	spin_unlock_bh(&session->lock);
+	spin_unlock(&session->lock);
+	spin_lock(host->host_lock);
 	return 0;
 
 prepd_reject:
-	iscsi_complete_task(task, ISCSI_TASK_REQUEUE_SCSIQ);
+	sc->scsi_done = NULL;
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
 reject:
-	spin_unlock_bh(&session->lock);
+	spin_unlock(&session->lock);
 	ISCSI_DBG_SESSION(session, "cmd 0x%x rejected (%d)\n",
 			  sc->cmnd[0], reason);
+	spin_lock(host->host_lock);
 	return SCSI_MLQUEUE_TARGET_BUSY;
 
 prepd_fault:
-	iscsi_complete_task(task, ISCSI_TASK_REQUEUE_SCSIQ);
+	sc->scsi_done = NULL;
+	iscsi_complete_task(task, ISCSI_TASK_COMPLETED);
 fault:
-	spin_unlock_bh(&session->lock);
+	spin_unlock(&session->lock);
 	ISCSI_DBG_SESSION(session, "iscsi: cmd 0x%x is not queued (%d)\n",
 			  sc->cmnd[0], reason);
 	if (!scsi_bidi_cmnd(sc))
@@ -1727,7 +1730,8 @@ fault:
 		scsi_out(sc)->resid = scsi_out(sc)->length;
 		scsi_in(sc)->resid = scsi_in(sc)->length;
 	}
-	sc->scsi_done(sc);
+	done(sc);
+	spin_lock(host->host_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_queuecommand);

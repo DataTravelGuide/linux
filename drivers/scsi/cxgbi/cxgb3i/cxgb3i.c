@@ -87,7 +87,6 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.proc_name	= DRV_MODULE_NAME,
 	.can_queue	= CXGB3I_SCSI_HOST_QDEPTH,
 	.queuecommand	= iscsi_queuecommand,
-	.lockless	= 1,
 	.change_queue_depth = iscsi_change_queue_depth,
 	.sg_tablesize	= SG_ALL,
 	.max_sectors	= 0xFFFF,

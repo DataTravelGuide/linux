@@ -395,7 +395,6 @@ static struct scsi_host_template beiscsi_sht = {
 	.name = "ServerEngines 10Gbe open-iscsi Initiator Driver",
 	.proc_name = DRV_NAME,
 	.queuecommand = iscsi_queuecommand,
-	.lockless = 1,
 	.change_queue_depth = iscsi_change_queue_depth,
 	.slave_configure = beiscsi_slave_configure,
 	.target_alloc = iscsi_target_alloc,
