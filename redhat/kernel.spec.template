@@ -1635,6 +1635,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Nov 06 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-218.el6]
+- [netdrv] benet: remove bogus "unlikely" on vlan check (Ivan Vecera) [736429] {CVE-2011-3347}
+- [netdrv] be2net: non-member vlan pkts not received in promiscous mode (Ivan Vecera) [736429] {CVE-2011-3347}
+- [netdrv] be2net: fix crash receiving non-member VLAN packets (Ivan Vecera) [736429] {CVE-2011-3347}
+- [mm] fix race between mremap and removing migration entry (Andrea Arcangeli) [751084]
+
 * Fri Nov 04 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-217.el6]
 - [fs] GFS2: rewrite fallocate code to write blocks directly (Benjamin Marzinski) [750208] {CVE-2011-4098}
 - [netdrv] bnx2x: link fixes for 57810 (Andy Gospodarek) [749421]
