@@ -1635,6 +1635,31 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 08 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-219.el6]
+- [kernel] KEYS: Fix a NULL pointer deref in the user-defined key type (David Howells) [751190] {CVE-2011-4110}
+- [scsi] fc class: fix building of Fibre Channel DUP drivers in 6.2 (Mike Christie) [750268]
+- [fs] nfs: don't call __mark_inode_dirty while holding i_lock (Steve Dickson) [747391]
+- [netdrv] vxge: allow rebinding the driver with a different number of SR-IOV VFs (Michal Schmidt) [694742]
+- [netdrv] vxge: fix crash of VF when unloading PF (Michal Schmidt) [694742]
+- [ata] revert libata: remove SCSI host lock (David Milburn) [751426]
+- [crypto] ansi_cprng: enforce key != seed in fips mode (Jarod Wilson) [751198]
+- [net] mac80211: Fix reassociation processing within ESS roaming (John Linville) [750350]
+- [net] nl80211: Allow association to change channels during reassociation (John Linville) [750350]
+- [net] mac80211: let cfg80211 manage auth state (John Linville) [750350]
+- [net] cfg80211: avoid sending spurious deauth to userspace (John Linville) [750350]
+- [net] mac80211: recalculate idle later in MLME (John Linville) [750350]
+- [net] mac80211: avoid spurious deauth frames/messages (John Linville) [750350]
+- [net] cfg80211: Allow reassociation in associated state (John Linville) [750350]
+- [net] cfg80211: remove warning in deauth case (John Linville) [750350]
+- [net] netfilter: fix nf_conntrack refcount leak in l4proto->error() (Thomas Graf) [745472]
+- [scsi] qla2xxx: Remove check for null fcport from host reset handler (Chad Dupuis) [744741]
+- [scsi] qla2xxx: Perform implicit logout during rport tear-down (Chad Dupuis) [744741]
+- [scsi] Revert "qla2xxx: Remove host_lock in queuecommand function" (Chad Dupuis) [744741]
+- [drm] nv50/disp: shutdown display on suspend/hibernate (Ben Skeggs) [740857]
+- [edac] Add sb_edac driver into the Red Hat Building system (Mauro Carvalho Chehab) [647700]
+- [edac] Fix incorrect edac mode reporting in sb_edac (Mauro Carvalho Chehab) [647700]
+- [edac] Add an experimental new driver to support Sandy Bridge CPU's (Mauro Carvalho Chehab) [647700]
+
 * Sun Nov 06 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-218.el6]
 - [netdrv] benet: remove bogus "unlikely" on vlan check (Ivan Vecera) [736429] {CVE-2011-3347}
 - [netdrv] be2net: non-member vlan pkts not received in promiscous mode (Ivan Vecera) [736429] {CVE-2011-3347}
