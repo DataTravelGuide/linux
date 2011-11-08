@@ -53,28 +53,21 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 {
 	bool ret = dev_priv->mm.interruptible;
 
-	if (dev_priv->mm.gtt->do_idle_maps) {
+	if (unlikely(dev_priv->mm.gtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev))
+		if (i915_gem_gpu_idle(dev_priv->dev, true)) {
 			DRM_ERROR("couldn't idle GPU %d\n", ret);
+			udelay(10);
+		}
 	}
 
 	return ret;
 }
 
-static void undo_idling(struct drm_i915_private *dev_priv, bool idle)
+static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 {
-	int ret;
-	if (!dev_priv->mm.gtt->do_idle_maps)
-		return;
-
-	/*NB: since GTT mappings don't actually touch the GPU, this is not
-	 * strictly necessary.
-	 */
-	ret = i915_gpu_idle(dev_priv->dev);
-	if (ret)
-		DRM_ERROR("couldn't idle GPU %d\n", ret);
-	dev_priv->mm.interruptible = idle;
+	if (unlikely(dev_priv->mm.gtt->do_idle_maps))
+		dev_priv->mm.interruptible = interruptible;
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)

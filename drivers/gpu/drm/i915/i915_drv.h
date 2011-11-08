@@ -1172,13 +1172,16 @@ void i915_gem_do_init(struct drm_device *dev,
 		      unsigned long start,
 		      unsigned long mappable_end,
 		      unsigned long end);
-int __must_check i915_gpu_idle(struct drm_device *dev);
+int __must_check i915_gem_gpu_idle(struct drm_device *dev, bool strictly_idle);
+#define i915_gpu_idle(dev) i915_gem_gpu_idle(dev, false)
 int __must_check i915_gem_idle(struct drm_device *dev);
 int __must_check i915_add_request(struct intel_ring_buffer *ring,
 				  struct drm_file *file,
 				  struct drm_i915_gem_request *request);
-int __must_check i915_wait_request(struct intel_ring_buffer *ring,
-				   uint32_t seqno);
+int __must_check i915_gem_wait_request(struct intel_ring_buffer *ring,
+				   uint32_t seqno,
+				   bool defer_retirement);
+#define i915_wait_request(ring, seqno) i915_gem_wait_request(ring, seqno, false)
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,

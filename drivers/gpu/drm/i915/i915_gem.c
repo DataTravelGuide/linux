@@ -1480,7 +1480,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 
 	if (obj->base.size > dev_priv->mm.gtt_mappable_end) {
 		ret = -E2BIG;
-		goto unlock;
+		goto out;
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
@@ -2028,8 +2028,9 @@ i915_gem_retire_work_handler(struct work_struct *work)
  * request and object lists appropriately for that event.
  */
 int
-i915_wait_request(struct intel_ring_buffer *ring,
-		  uint32_t seqno)
+i915_gem_wait_request(struct intel_ring_buffer *ring,
+		  uint32_t seqno,
+		  bool defer_retirement)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	u32 ier;
@@ -2113,7 +2114,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	 * buffer to have made it to the inactive list, and we would need
 	 * a separate wait queue to handle that.
 	 */
-	if (ret == 0)
+	if (ret == 0 && !defer_retirement)
 		i915_gem_retire_requests_ring(ring);
 
 	return ret;
@@ -2229,7 +2230,7 @@ i915_gem_flush_ring(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static int i915_ring_idle(struct intel_ring_buffer *ring)
+static int i915_ring_idle(struct intel_ring_buffer *ring, bool defer_retirement)
 {
 	int ret;
 
@@ -2243,18 +2244,18 @@ static int i915_ring_idle(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	return i915_wait_request(ring, i915_gem_next_request_seqno(ring));
+	return i915_gem_wait_request(ring, i915_gem_next_request_seqno(ring),
+				     defer_retirement);
 }
 
-int
-i915_gpu_idle(struct drm_device *dev)
+int i915_gem_gpu_idle(struct drm_device *dev, bool strictly_idle)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret, i;
 
 	/* Flush everything onto the inactive list. */
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		ret = i915_ring_idle(&dev_priv->ring[i]);
+		ret = i915_ring_idle(&dev_priv->ring[i], strictly_idle);
 		if (ret)
 			return ret;
 	}
