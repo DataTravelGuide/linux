@@ -1635,6 +1635,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 08 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-220.el6]
+- [drm] i915: fix unmap race condition introduced with VT-d fix (Dave Airlie) [750583]
+- [scsi] iscsi: revert lockless queuecommand dispatch (Rob Evers) [751426]
+
 * Tue Nov 08 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-219.el6]
 - [kernel] KEYS: Fix a NULL pointer deref in the user-defined key type (David Howells) [751190] {CVE-2011-4110}
 - [scsi] fc class: fix building of Fibre Channel DUP drivers in 6.2 (Mike Christie) [750268]
