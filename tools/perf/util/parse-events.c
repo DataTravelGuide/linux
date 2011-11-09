@@ -1003,6 +1003,4 @@ void print_events(const char *event_glob)
 	printf("\n");
 
 	print_tracepoint_events(NULL, NULL);
-
-	exit(129);
 }
