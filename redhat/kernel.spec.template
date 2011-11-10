@@ -672,6 +672,17 @@ written in the Python programming language to use the interface
 to manipulate perf events.
 
 %{!?python_sitearch: %global python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+
+%package -n python-perf-debuginfo
+Summary: Debug information for package perf python bindings
+Group: Development/Debug
+AutoReqProv: no
+%description -n python-perf-debuginfo
+This package provides debug information for the perf python bindings.
+
+# the python_sitearch macro should already be defined from above
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o python-perf-debuginfo.list}
+
 %endif
 
 #
@@ -1549,6 +1560,9 @@ fi
 
 %if %{with_debuginfo}
 %files -f perf-debuginfo.list -n perf-debuginfo
+%defattr(-,root,root)
+
+%files -f python-perf-debuginfo.list -n python-perf-debuginfo
 %defattr(-,root,root)
 %endif
 
