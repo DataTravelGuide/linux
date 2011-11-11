@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/iscsi_boot_sysfs.h>
+#include <linux/inet.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -1022,10 +1023,44 @@ exit_get_ddb_index:
 	return ret;
 }
 
+static int qla4xxx_match_ipaddress(struct scsi_qla_host *ha,
+				   struct ddb_entry *ddb_entry,
+				   char *existing_ipaddr,
+				   char *user_ipaddr)
+{
+	uint8_t dst_ipaddr[IPv6_ADDR_LEN];
+	char formatted_ipaddr[DDB_IPADDR_LEN];
+	int status = QLA_SUCCESS, ret = 0;
+
+	if (ddb_entry->fw_ddb_entry.options & DDB_OPT_IPV6_DEVICE) {
+		ret = in6_pton(user_ipaddr, strlen(user_ipaddr), dst_ipaddr,
+			       '\0', NULL);
+		if (ret == 0) {
+			status = QLA_ERROR;
+			goto out_match;
+		}
+		ret = sprintf(formatted_ipaddr, "%pI6", dst_ipaddr);
+	} else {
+		ret = in4_pton(user_ipaddr, strlen(user_ipaddr), dst_ipaddr,
+			       '\0', NULL);
+		if (ret == 0) {
+			status = QLA_ERROR;
+			goto out_match;
+		}
+		ret = sprintf(formatted_ipaddr, "%pI4", dst_ipaddr);
+	}
+
+	if (strcmp(existing_ipaddr, formatted_ipaddr))
+		status = QLA_ERROR;
+
+out_match:
+	return status;
+}
+
 static int qla4xxx_match_fwdb_session(struct scsi_qla_host *ha,
 				      struct iscsi_cls_conn *cls_conn)
 {
-	int idx = 0, max_ddbs;
+	int idx = 0, max_ddbs, rval;
 	struct iscsi_cls_session *cls_sess = iscsi_conn_to_session(cls_conn);
 	struct iscsi_session *sess, *existing_sess;
 	struct iscsi_conn *conn, *existing_conn;
@@ -1075,8 +1110,11 @@ static int qla4xxx_match_fwdb_session(struct scsi_qla_host *ha,
 
 		if (strcmp(existing_sess->targetname, sess->targetname))
 			continue;
-		if (strcmp(existing_conn->persistent_address,
-			   conn->persistent_address))
+
+		rval = qla4xxx_match_ipaddress(ha, ddb_entry,
+					existing_conn->persistent_address,
+					conn->persistent_address);
+		if (rval == QLA_ERROR)
 			continue;
 		if (existing_conn->persistent_port != conn->persistent_port)
 			continue;
