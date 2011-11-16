@@ -1635,6 +1635,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-221.el6]
+- [scsi] qla4xxx: v5.02.00.00.06.02-k13 (Chad Dupuis) [751286]
+- [scsi] qla4xxx: set ql4xdisablesysfsboot=1 by default (Chad Dupuis) [751286]
+- [scsi] qla4xxx: Correct ipaddress match check (Chad Dupuis) [751286]
+
 * Tue Nov 08 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-220.el6]
 - [drm] i915: fix unmap race condition introduced with VT-d fix (Dave Airlie) [750583]
 - [scsi] iscsi: revert lockless queuecommand dispatch (Rob Evers) [751426]
