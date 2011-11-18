@@ -294,6 +294,8 @@ xen_dangerous_cpuid_features[] = {
 	/* Mask out features masked by BZ#711317 */
 	X86_FEATURE_CONSTANT_TSC,
 	X86_FEATURE_NONSTOP_TSC,
+	/* Mask out features masked by BZ#752382 */
+	X86_FEATURE_SMEP,
 	0
 };
 
@@ -807,8 +809,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 #endif
 	}
 
-	setup_smep(c);
-
 	get_model_name(c); /* Default name */
 
 	init_scattered_cpuid_features(c);
@@ -887,6 +887,8 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	/* Filter out anything that depends on CPUID levels we don't have */
 	filter_cpuid_features(c, true);
+
+	setup_smep(c);
 
 	/*
 	 *  emulation of NX with segment limits unfortunately means
