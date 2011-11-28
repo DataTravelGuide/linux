@@ -359,8 +359,13 @@ static int find_unbound_irq(void)
 {
 	int irq;
 	struct irq_desc *desc;
+	int start = get_nr_hw_irqs();
 
-	for (irq = 0; irq < nr_irqs; irq++) {
+	if (start == nr_irqs)
+		goto no_irqs;
+
+	/* nr_irqs is a magic value. Must not use it.*/
+	for (irq = nr_irqs-1; irq > start; irq--) {
 		desc = irq_to_desc(irq);
 		/* only 0->15 have init'd desc; handle irq > 16 */
 		if (desc == NULL)
@@ -373,8 +378,8 @@ static int find_unbound_irq(void)
 			break;
 	}
 
-	if (irq == nr_irqs)
-		panic("No available IRQ to bind to: increase nr_irqs!\n");
+	if (irq == start)
+		goto no_irqs;
 
 	desc = irq_to_desc_alloc_node(irq, 0);
 	if (WARN_ON(desc == NULL))
@@ -383,6 +388,9 @@ static int find_unbound_irq(void)
 	dynamic_irq_init_keep_chip_data(irq);
 
 	return irq;
+
+no_irqs:
+	panic("No available IRQ to bind to: increase nr_irqs!\n");
 }
 
 int bind_evtchn_to_irq(unsigned int evtchn)
