@@ -1635,6 +1635,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 29 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-222.el6]
+- [net] Restrict pktgen from using shared skbs on bridge interfaces (Neil Horman) [750777]
+- [kernel] sched: Use resched IPI to kick off the nohz idle balance (Vivek Goyal) [717179]
+- [virt] xenfv: mask smep, even if the HV doesn't (Andrew Jones) [752382]
+- [drm] i915: enable ring freq scaling, RC6 and graphics turbo on Ivy Bridge (Prarit Bhargava) [752163]
+- [drm] i915: load a ring frequency scaling table (Prarit Bhargava) [752163]
+- [x86] cpufreq: expose a cpufreq_quick_get_max routine (Prarit Bhargava) [752163]
+- [scsi] qla4xxx: Make sure we discover targets if the cable is plugged in after the driver is loaded (Chad Dupuis) [751509]
+- [sched] Cleanup/optimize clock updates (Larry Woodman) [750237]
+- [sched] fix skip_clock_update optimization (Larry Woodman) [750237]
+- [kernel] Reset clocksource watchdog after sysrq-t (Prarit Bhargava) [742890]
+- [x86] AMD: Make tsc=reliable override boot time stability checks (Prarit Bhargava) [742890]
+- [block] virtio-blk: Use ida to allocate disk index (Michael S. Tsirkin) [692767]
+- [virt] virtio_blk: Replace cryptic number with the macro (Michael S. Tsirkin) [692767]
+- [kernel] ida: simplified functions for id allocation (Michael S. Tsirkin) [692767]
+- [virt] revert virtio-blk: Use ida to allocate disk index (Aristeu Rozanski) [692767]
+
 * Tue Nov 15 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-221.el6]
 - [scsi] qla4xxx: v5.02.00.00.06.02-k13 (Chad Dupuis) [751286]
 - [scsi] qla4xxx: set ql4xdisablesysfsboot=1 by default (Chad Dupuis) [751286]
