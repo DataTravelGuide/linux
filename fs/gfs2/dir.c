@@ -76,6 +76,8 @@
 #define IS_LEAF     1 /* Hashed (leaf) directory */
 #define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
 
+#define MAX_RA_BLOCKS 32 /* max read-ahead blocks */
+
 #define gfs2_disk_hash2offset(h) (((u64)(h)) >> 1)
 #define gfs2_dir_offset2hash(p) ((u32)(((u64)(p)) << 1))
 
@@ -358,6 +360,7 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 	if (hc)
 		return hc;
 
+	ip->i_ra_index = 0;
 	hsize = 1 << ip->i_depth;
 	hsize *= sizeof(__be64);
 	if (hsize != i_size_read(&ip->i_inode)) {
@@ -395,6 +398,7 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 void gfs2_dir_hash_inval(struct gfs2_inode *ip)
 {
 	__be64 *hc = ip->i_hash_cache;
+	ip->i_ra_index = 0;
 	ip->i_hash_cache = NULL;
 	kfree(hc);
 }
@@ -1416,6 +1420,50 @@ out:
 	return error;
 }
 
+/* gfs2_dir_readahead - Issue read-ahead requests for leaf blocks.
+ *
+ * Note: we can't calculate each index like dir_e_read can because we don't
+ * have the leaf, and therefore we don't have the depth, and therefore we
+ * don't have the length. So we have to just read enough ahead to make up
+ * for the loss of information. */
+static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_glock *gl = ip->i_gl;
+	struct buffer_head *bh;
+	u64 blocknr = 0, last;
+	unsigned count;
+
+	/* First check if we've already read-ahead for the whole range. */
+	if (index + MAX_RA_BLOCKS < ip->i_ra_index)
+		return;
+
+	ip->i_ra_index = max(index, ip->i_ra_index);
+	for (count = 0; count < MAX_RA_BLOCKS; count++) {
+		if (ip->i_ra_index >= hsize) /* if exceeded the hash table */
+			break;
+
+		last = blocknr;
+		blocknr = be64_to_cpu(ip->i_hash_cache[ip->i_ra_index]);
+		ip->i_ra_index++;
+		if (blocknr == last)
+			continue;
+
+		bh = gfs2_getbuf(gl, blocknr, 1);
+		if (trylock_buffer(bh)) {
+			if (buffer_uptodate(bh)) {
+				unlock_buffer(bh);
+				brelse(bh);
+				continue;
+			}
+			bh->b_end_io = end_buffer_read_sync;
+			submit_bh(READA | REQ_META, bh);
+			continue;
+		}
+		brelse(bh);
+	}
+}
+
 /**
  * dir_e_read - Reads the entries from a directory into a filldir buffer
  * @dip: dinode pointer
@@ -1444,6 +1492,8 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	lp = gfs2_dir_get_hash_table(dip);
 	if (IS_ERR(lp))
 		return PTR_ERR(lp);
+
+	gfs2_dir_readahead(inode, hsize, index);
 
 	while (index < hsize) {
 		error = gfs2_dir_read_leaf(inode, offset, opaque, filldir,
