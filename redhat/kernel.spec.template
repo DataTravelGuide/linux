@@ -1635,6 +1635,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 29 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-223.el6]
+- [x86] amd: Fix align_va_addr kernel parameter (Frank Arnold) [753237]
+- [md] RAID1: Do not call md_raid1_unplug_device while holding spinlock (Jonathan E Brassow) [752528]
+- [pci] intel-iommu: Default to non-coherent for domains unattached to iommus (Don Dutile) [746484]
+- [x86] initialize min_delta_ns in one_hpet_msi_clockevent() (Prarit Bhargava) [728315]
+- [x86] Update hpet_next_event() (Prarit Bhargava) [728315]
+
 * Tue Nov 29 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-222.el6]
 - [net] Restrict pktgen from using shared skbs on bridge interfaces (Neil Horman) [750777]
 - [kernel] sched: Use resched IPI to kick off the nohz idle balance (Vivek Goyal) [717179]
