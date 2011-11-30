@@ -27,6 +27,7 @@
 #include "rgrp.h"
 #include "util.h"
 #include "trans.h"
+#include "dir.h"
 
 static void gfs2_ail_error(struct gfs2_glock *gl, const struct buffer_head *bh)
 {
@@ -234,6 +235,7 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		if (ip) {
 			set_bit(GIF_INVALID, &ip->i_flags);
 			forget_all_cached_acls(&ip->i_inode);
+			gfs2_dir_hash_inval(ip);
 		}
 	}
 

@@ -1536,6 +1536,7 @@ out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
+	gfs2_dir_hash_inval(ip);
 }
 
 static struct inode *gfs2_alloc_inode(struct super_block *sb)

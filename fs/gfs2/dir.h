@@ -34,6 +34,7 @@ int gfs2_diradd_alloc_required(struct inode *dir,
 			       const struct qstr *filename);
 int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
 			    struct buffer_head **bhp);
+extern void gfs2_dir_hash_inval(struct gfs2_inode *ip);
 
 static inline u32 gfs2_disk_hash(const char *data, int len)
 {
