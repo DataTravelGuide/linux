@@ -848,7 +848,6 @@ static struct scsi_device_handler rdac_dh = {
 	.attach = rdac_bus_attach,
 	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
-	.match = rdac_match,
 };
 
 static int rdac_bus_attach(struct scsi_device *sdev)
@@ -937,9 +936,16 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 static int __init rdac_init(void)
 {
 	int r;
+	struct scsi_device_handler_aux *scsi_dh_aux = NULL;
 
-	r = scsi_register_device_handler(&rdac_dh);
+	scsi_dh_aux = kzalloc(sizeof(struct scsi_device_handler_aux), GFP_KERNEL);
+	if (!scsi_dh_aux)
+		return -ENOMEM;
+	scsi_dh_aux->match = rdac_match;
+
+	r = scsi_register_device_handler(&rdac_dh, scsi_dh_aux);
 	if (r != 0) {
+		kfree(scsi_dh_aux);
 		printk(KERN_ERR "Failed to register scsi device handler.");
 		goto done;
 	}
@@ -949,6 +955,10 @@ static int __init rdac_init(void)
 	 */
 	kmpath_rdacd = create_singlethread_workqueue("kmpath_rdacd");
 	if (!kmpath_rdacd) {
+		/*
+		 * scsi_dh_aux will be kfree()'d by
+		 * scsi_unregister_device_handler()
+		 */
 		scsi_unregister_device_handler(&rdac_dh);
 		printk(KERN_ERR "kmpath_rdacd creation failed.\n");
 	}

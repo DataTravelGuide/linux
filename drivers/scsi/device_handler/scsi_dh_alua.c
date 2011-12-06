@@ -690,7 +690,6 @@ static struct scsi_device_handler alua_dh = {
 	.prep_fn = alua_prep_fn,
 	.check_sense = alua_check_sense,
 	.activate = alua_activate,
-	.match = alua_match,
 };
 
 /*
@@ -768,11 +767,19 @@ static void alua_bus_detach(struct scsi_device *sdev)
 static int __init alua_init(void)
 {
 	int r;
+	struct scsi_device_handler_aux *scsi_dh_aux = NULL;
 
-	r = scsi_register_device_handler(&alua_dh);
-	if (r != 0)
+	scsi_dh_aux = kzalloc(sizeof(struct scsi_device_handler_aux), GFP_KERNEL);
+	if (!scsi_dh_aux)
+		return -ENOMEM;
+	scsi_dh_aux->match = alua_match;
+
+	r = scsi_register_device_handler(&alua_dh, scsi_dh_aux);
+	if (r != 0) {
+		kfree(scsi_dh_aux);
 		printk(KERN_ERR "%s: Failed to register scsi device handler",
 			ALUA_DH_NAME);
+	}
 	return r;
 }
 

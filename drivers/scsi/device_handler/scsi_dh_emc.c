@@ -658,7 +658,6 @@ static struct scsi_device_handler clariion_dh = {
 	.activate	= clariion_activate,
 	.prep_fn	= clariion_prep_fn,
 	.set_params	= clariion_set_params,
-	.match		= clariion_match,
 };
 
 static int clariion_bus_attach(struct scsi_device *sdev)
@@ -732,11 +731,19 @@ static void clariion_bus_detach(struct scsi_device *sdev)
 static int __init clariion_init(void)
 {
 	int r;
+	struct scsi_device_handler_aux *scsi_dh_aux = NULL;
 
-	r = scsi_register_device_handler(&clariion_dh);
-	if (r != 0)
+	scsi_dh_aux = kzalloc(sizeof(struct scsi_device_handler_aux), GFP_KERNEL);
+	if (!scsi_dh_aux)
+		return -ENOMEM;
+	scsi_dh_aux->match = clariion_match;
+
+	r = scsi_register_device_handler(&clariion_dh, scsi_dh_aux);
+	if (r != 0) {
+		kfree(scsi_dh_aux);
 		printk(KERN_ERR "%s: Failed to register scsi device handler.",
 			CLARIION_NAME);
+	}
 	return r;
 }
 
