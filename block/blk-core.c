@@ -1410,8 +1410,9 @@ get_rq:
 
 	spin_lock_irq(q->queue_lock);
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
-	    bio_flagged(bio, BIO_CPU_AFFINE))
-		req->cpu = blk_cpu_to_group(smp_processor_id());
+ 	    bio_flagged(bio, BIO_CPU_AFFINE))
+ 		req->cpu = smp_processor_id();
+	    
 	if (queue_should_plug(q) && elv_queue_empty(q))
 		blk_plug_device(q);
 
