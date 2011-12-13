@@ -549,6 +549,18 @@ config KEXEC
 	  current kernel, and to start another kernel.  It is like a reboot
 	  but is independent of hardware/microcode support.
 
+config KEXEC_AUTO_RESERVE
+	bool "automatically reserve memory for kexec kernel"
+	depends on KEXEC
+	default y
+	---help---
+	  Automatically reserve memory for a kexec kernel, so that you don't
+	  need to specify numbers for the "crashkernel=X@Y" boot option,
+	  instead you can use "crashkernel=auto".
+
+	  On x86_32 and s390x 128M is reserved, on x86_64 1/32 of your memory
+	  is reserved, but it will not exceed 4G.
+
 config CRASH_DUMP
 	bool "kernel crash dumps"
 	depends on 64BIT

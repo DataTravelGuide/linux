@@ -246,3 +246,21 @@ void machine_kexec(struct kimage *image)
 		s390_reset_system(__do_machine_kexec, image);
 	disabled_wait((unsigned long) __builtin_return_address(0));
 }
+
+#ifdef CONFIG_KEXEC_AUTO_RESERVE
+/*
+ * Return 0 in order to automatically search crash base
+ */
+unsigned long long __init arch_default_crash_base(void)
+{
+	return 0;
+}
+
+/*
+ * Return crash size 128 MiB for crashkernel=auto
+ */
+unsigned long long __init arch_default_crash_size(unsigned long long total_size)
+{
+	return 128 * 1024 * 1024;
+}
+#endif
