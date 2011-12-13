@@ -69,6 +69,7 @@
 #define __LC_INT_CLOCK			0x02c8
 #define __LC_MACHINE_FLAGS		0x02d8
 #define __LC_FTRACE_FUNC		0x02dc
+#define __LC_CURRENT_PID		0x02f0
 #define __LC_IRB			0x0300
 #define __LC_PFAULT_INTPARM		0x0080
 #define __LC_CPU_TIMER_SAVE_AREA	0x00d8
@@ -118,6 +119,7 @@
 #define __LC_FTRACE_FUNC		0x0360
 #define __LC_SIE_HOOK			0x0368
 #define __LC_CMF_HPP			0x0370
+#define __LC_CURRENT_PID		0x0378
 #define __LC_IRB			0x0380
 #define __LC_PASTE			0x03c0
 #define __LC_PFAULT_INTPARM		0x11b8
@@ -295,7 +297,8 @@ struct _lowcore
 	__u64	clock_comparator;		/* 0x02d0 */
 	__u32	machine_flags;			/* 0x02d8 */
 	__u32	ftrace_func;			/* 0x02dc */
-	__u8	pad_0x02f0[0x0300-0x02f0];	/* 0x02f0 */
+	__u32	current_pid;			/* 0x02f0 */
+	__u8	pad_0x02f4[0x0300-0x02f4];	/* 0x02f4 */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
@@ -403,7 +406,7 @@ struct _lowcore
 	__u64	ftrace_func;			/* 0x0360 */
 	__u64	sie_hook;			/* 0x0368 */
 	__u64	cmf_hpp;			/* 0x0370 */
-	__u8	pad_0x0378[0x0380-0x0378];	/* 0x0378 */
+	__u64   current_pid;			/* 0x0378 */
 
 	/* Interrupt response block. */
 	__u8	irb[64];			/* 0x0380 */

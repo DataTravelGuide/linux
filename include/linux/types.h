@@ -210,6 +210,10 @@ typedef struct {
 } atomic64_t;
 #endif
 
+struct list_head {
+	struct list_head *next, *prev;
+};
+
 struct ustat {
 	__kernel_daddr_t	f_tfree;
 	__kernel_ino_t		f_tinode;
