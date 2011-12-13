@@ -1133,7 +1133,7 @@ void __weak crash_free_reserved_phys_range(unsigned long begin,
 int crash_shrink_memory(unsigned long new_size)
 {
 	int ret = 0;
-	unsigned long start, end;
+	unsigned long start, end, old_size;
 	struct resource *ram_res;
 
 	mutex_lock(&kexec_mutex);
@@ -1144,11 +1144,9 @@ int crash_shrink_memory(unsigned long new_size)
 	}
 	start = crashk_res.start;
 	end = crashk_res.end;
-
-	if (new_size >= end - start + 1) {
-		ret = -EINVAL;
-		if (new_size == end - start + 1)
-			ret = 0;
+	old_size = (end == 0) ? 0 : end - start + 1;
+	if (new_size >= old_size) {
+		ret = (new_size == old_size) ? 0 : -EINVAL;
 		goto unlock;
 	}
 
