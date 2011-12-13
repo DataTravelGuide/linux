@@ -147,6 +147,7 @@ void system_call(void);
 void pgm_check_handler(void);
 void mcck_int_handler(void);
 void io_int_handler(void);
+void psw_restart_int_handler(void);
 
 struct save_area_s390 {
 	u32	ext_save;
