@@ -313,9 +313,10 @@ struct _lowcore
 	 */
 	__u32	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e04 */
+	__u32	vmcore_info;			/* 0x0e08 */
 
 	/* Align to the top 1k of prefix area */
-	__u8	pad_0x0e08[0x1000-0x0e08];	/* 0x0e08 */
+	__u8	pad_0x0e0c[0x1000-0x0e0c];	/* 0x0e0c */
 #else /* !__s390x__ */
 	/* 0x0000 - 0x01ff: defined by architecture */
 	__u32	ccw1[2];			/* 0x0000 */
@@ -424,7 +425,8 @@ struct _lowcore
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
-	__u8	pad_0x0e0c[0x11b8-0x0e0c];	/* 0x0e0c */
+	__u64	vmcore_info;			/* 0x0e0c */
+	__u8	pad_0x0e14[0x11b8-0x0e14];	/* 0x0e14 */
 
 	/* 64 bit extparam used for pfault/diag 250: defined by architecture */
 	__u64	ext_params2;			/* 0x11B8 */

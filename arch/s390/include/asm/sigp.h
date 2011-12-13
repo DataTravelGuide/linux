@@ -132,4 +132,22 @@ signal_processor_ps(__u32 *statusptr, __u32 parameter, __u16 cpu_addr,
 	return ccode;
 }
 
+/*
+ * Signal processor
+ */
+static inline int raw_sigp(u16 cpu, int order)
+{
+	register unsigned long reg1 asm ("1") = 0;
+	int ccode;
+
+	asm volatile(
+		"       sigp    %1,%2,0(%3)\n"
+		"       ipm     %0\n"
+		"       srl     %0,28\n"
+		:       "=d"    (ccode)
+		: "d" (reg1), "d" (cpu),
+		  "a" (order) : "cc" , "memory");
+	return ccode;
+}
+
 #endif /* __SIGP__ */

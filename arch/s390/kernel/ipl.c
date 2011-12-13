@@ -16,6 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/kexec.h>
+#include <linux/crash_dump.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
@@ -1983,19 +1984,25 @@ void unregister_reset_call(struct reset_call *reset)
 }
 EXPORT_SYMBOL_GPL(unregister_reset_call);
 
+extern void do_reset_diag308(void);
+
 static void do_reset_calls(void)
 {
 	struct reset_call *reset;
 
+#ifdef CONFIG_64BIT
+	if (diag308_set_works) {
+		do_reset_diag308();
+		return;
+	}
+#endif
 	list_for_each_entry(reset, &rcall, list)
 		reset->fn();
 }
 
 u32 dump_prefix_page;
 
-extern void do_reset_diag308(void);
-
-void s390_reset_system(void)
+void s390_reset_system(void (*func)(void *), void *data)
 {
 	struct _lowcore *lc;
 
@@ -2022,10 +2029,11 @@ void s390_reset_system(void)
 	S390_lowcore.program_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
 	S390_lowcore.program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
-#ifdef CONFIG_64BIT
-	if (diag308_set_works)
-		do_reset_diag308();
-	else
-#endif
-		do_reset_calls();
+
+	/* Store status at absolute zero */
+	store_status();
+
+	do_reset_calls();
+	if (func)
+		func(data);
 }

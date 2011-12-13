@@ -36,6 +36,7 @@
 #include <linux/cpu.h>
 #include <linux/timex.h>
 #include <linux/bootmem.h>
+#include <linux/crash_dump.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/sigp.h>
@@ -272,7 +273,7 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
  */
 #define CPU_INIT_NO	1
 
-#ifdef CONFIG_ZFCPDUMP
+#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
 
 /*
  * zfcpdump_prefix_array holds prefix registers for the following scenario:
@@ -285,7 +286,9 @@ unsigned int zfcpdump_prefix_array[NR_CPUS + 1] \
 
 static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 {
-	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+	if (ipl_info.type != IPL_TYPE_FCP_DUMP && !OLDMEM_BASE)
+		return;
+	if (is_kdump_kernel())
 		return;
 	if (cpu >= NR_CPUS) {
 		pr_warning("CPU %i exceeds the maximum %i and is excluded from "
@@ -301,6 +304,8 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 		    (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
 		    SAVE_AREA_SIZE);
 #ifdef CONFIG_64BIT
+	if (OLDMEM_BASE)
+		return;
 	/* copy original prefix register */
 	zfcpdump_save_areas[cpu]->s390x.pref_reg = zfcpdump_prefix_array[cpu];
 #endif
@@ -409,6 +414,18 @@ static void __init smp_detect_cpus(void)
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		panic("smp_detect_cpus failed to allocate memory\n");
+#ifdef CONFIG_CRASH_DUMP
+	if (OLDMEM_BASE && !is_kdump_kernel()) {
+		union save_area *save_area;
+
+		save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
+		if (!save_area)
+			panic("could not allocate memory for save area\n");
+		copy_oldmem_page(1, (void *) save_area, sizeof(*save_area),
+				 0x200, 0);
+		zfcpdump_save_areas[0] = save_area;
+	}
+#endif
 	/* Use sigp detection algorithm if sclp doesn't work. */
 	if (sclp_get_cpu_info(info)) {
 		smp_use_sigp_detection = 1;
