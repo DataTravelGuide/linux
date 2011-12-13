@@ -1951,6 +1951,8 @@ static void do_reset_calls(void)
 
 u32 dump_prefix_page;
 
+extern void do_reset_diag308(void);
+
 void s390_reset_system(void)
 {
 	struct _lowcore *lc;
@@ -1978,7 +1980,10 @@ void s390_reset_system(void)
 	S390_lowcore.program_new_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
 	S390_lowcore.program_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
-
-	do_reset_calls();
+#ifdef CONFIG_64BIT
+	if (diag308_set_works)
+		do_reset_diag308();
+	else
+#endif
+		do_reset_calls();
 }
-
