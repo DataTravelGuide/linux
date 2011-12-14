@@ -424,6 +424,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		set_fs(old_fs);
 		return err;
 	}
+	case FITRIM:
+		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
