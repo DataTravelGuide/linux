@@ -4776,19 +4776,25 @@ static void ext4_trim_extent(struct super_block *sb, int start, int count,
  * the group buddy bitmap. This is done until whole group is scanned.
  */
 static ext4_grpblk_t
-ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
-		ext4_grpblk_t start, ext4_grpblk_t max, ext4_grpblk_t minblocks)
+ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
+		   ext4_grpblk_t start, ext4_grpblk_t max,
+		   ext4_grpblk_t minblocks)
 {
 	void *bitmap;
 	ext4_grpblk_t next, count = 0;
-	ext4_group_t group;
+	struct ext4_buddy e4b;
+	int ret;
 
-	BUG_ON(e4b == NULL);
+	ret = ext4_mb_load_buddy(sb, group, &e4b);
+	if (ret) {
+		ext4_error(sb, "Error in loading buddy "
+				"information for %u", group);
+		return ret;
+	}
 
-	bitmap = e4b->bd_bitmap;
-	group = e4b->bd_group;
-	start = (e4b->bd_info->bb_first_free > start) ?
-		e4b->bd_info->bb_first_free : start;
+	bitmap = e4b.bd_bitmap;
+	start = (e4b.bd_info->bb_first_free > start) ?
+		e4b.bd_info->bb_first_free : start;
 	ext4_lock_group(sb, group);
 
 	while (start < max) {
@@ -4799,7 +4805,7 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 
 		if ((next - start) >= minblocks) {
 			ext4_trim_extent(sb, start,
-					 next - start, group, e4b);
+					 next - start, group, &e4b);
 			count += next - start;
 		}
 		start = next + 1;
@@ -4815,10 +4821,11 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
 			ext4_lock_group(sb, group);
 		}
 
-		if ((e4b->bd_info->bb_free - count) < minblocks)
+		if ((e4b.bd_info->bb_free - count) < minblocks)
 			break;
 	}
 	ext4_unlock_group(sb, group);
+	ext4_mb_release_desc(&e4b);
 
 	ext4_debug("trimmed %d blocks in the group %d\n",
 		count, group);
@@ -4840,12 +4847,11 @@ ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
  */
 int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 {
-	struct ext4_buddy e4b;
+	struct ext4_group_info *grp;
 	ext4_group_t first_group, last_group;
 	ext4_group_t group, ngroups = ext4_get_groups_count(sb);
 	ext4_grpblk_t cnt = 0, first_block, last_block;
-	uint64_t start, len, minlen, trimmed;
-	ext4_fsblk_t blocks_count = ext4_blocks_count(EXT4_SB(sb)->s_es);
+	uint64_t start, len, minlen, trimmed = 0;
 	ext4_fsblk_t first_data_blk =
 			le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 	int ret = 0;
@@ -4853,7 +4859,6 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	start = range->start >> sb->s_blocksize_bits;
 	len = range->len >> sb->s_blocksize_bits;
 	minlen = range->minlen >> sb->s_blocksize_bits;
-	trimmed = 0;
 
 	if (unlikely(minlen > EXT4_BLOCKS_PER_GROUP(sb)))
 		return -EINVAL;
@@ -4861,9 +4866,6 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		len -= first_data_blk - start;
 		start = first_data_blk;
 	}
-	if (len > blocks_count)
-		len = blocks_count - start;
-
 
 	/* Determine first and last group to examine based on start and len */
 	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) start,
@@ -4877,11 +4879,12 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		return -EINVAL;
 
 	for (group = first_group; group <= last_group; group++) {
-		ret = ext4_mb_load_buddy(sb, group, &e4b);
-		if (ret) {
-			ext4_error(sb, "Error in loading buddy "
-					"information for %u", group);
-			break;
+		grp = ext4_get_group_info(sb, group);
+		/* We only do this if the grp has never been initialized */
+		if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
+			ret = ext4_mb_init_group(sb, group);
+			if (ret)
+				break;
 		}
 
 		/*
@@ -4894,16 +4897,14 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 			last_block = first_block + len;
 		len -= last_block - first_block;
 
-		if (e4b.bd_info->bb_free >= minlen) {
-			cnt = ext4_trim_all_free(sb, &e4b, first_block,
+		if (grp->bb_free >= minlen) {
+			cnt = ext4_trim_all_free(sb, group, first_block,
 						last_block, minlen);
 			if (cnt < 0) {
 				ret = cnt;
-				ext4_mb_release_desc(&e4b);
 				break;
 			}
 		}
-		ext4_mb_release_desc(&e4b);
 		trimmed += cnt;
 		first_block = 0;
 	}
