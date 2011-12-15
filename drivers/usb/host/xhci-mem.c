@@ -1139,7 +1139,7 @@ static u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 
 	if (udev->speed == USB_SPEED_SUPER) {
 		if (ep->ss_ep_comp)
-			return ep->ss_ep_comp->desc.wBytesPerInterval;
+			return le16_to_cpu(ep->ss_ep_comp->desc.wBytesPerInterval);
 		xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
 		/* Assume no bursts, no multiple opportunities to send. */
 		return ep->desc.wMaxPacketSize;
