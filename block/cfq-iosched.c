@@ -1832,11 +1832,15 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 }
 
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			       struct request *rq)
+			       struct request *rq, bool for_preempt)
 {
 	sector_t sdist = cfqq->seek_mean;
 
 	if (!sample_valid(cfqq->seek_samples))
+		sdist = CFQQ_SEEK_THR;
+
+	/* if seek_mean is big, using it as close criteria is meaningless */
+	if (sdist > CFQQ_SEEK_THR && !for_preempt)
 		sdist = CFQQ_SEEK_THR;
 
 	return cfq_dist_from_last(cfqd, rq) <= sdist;
@@ -1866,7 +1870,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1877,7 +1881,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	return NULL;
@@ -3348,7 +3352,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, cfqq, rq))
+	if (cfq_rq_close(cfqd, cfqq, rq, true))
 		return true;
 
 	return false;
