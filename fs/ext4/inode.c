@@ -2375,9 +2375,11 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 
 	if (ext4_should_order_data(mpd->inode)) {
 		err = ext4_jbd2_file_inode(handle, mpd->inode);
-		if (err)
+		if (err) {
 			/* This only happens if the journal is aborted */
-			return;
+			mpd->retval = err;
+			goto submit_io;
+		}
 	}
 
 	/*
@@ -3177,12 +3179,13 @@ retry:
 			ret = 0;
 		} else if (ret == MPAGE_DA_EXTENT_TAIL) {
 			/*
-			 * got one extent now try with
-			 * rest of the pages
+			 * Got one extent now try with rest of the pages.
+			 * If mpd.retval is set -EIO, journal is aborted.
+			 * So we don't need to write any more.
 			 */
 			pages_written += mpd.pages_written;
 			wbc->pages_skipped = pages_skipped;
-			ret = 0;
+			ret = mpd.retval;
 			io_done = 1;
 		} else if (wbc->nr_to_write)
 			/*
