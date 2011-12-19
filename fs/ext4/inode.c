@@ -2349,6 +2349,9 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 		}
 		/* invalidate all the pages */
 		ext4_da_block_invalidatepages(mpd);
+
+		/* Mark this page range as having been completed */
+		mpd->io_done = 1;
 		return;
 	}
 	BUG_ON(blks == 0);
