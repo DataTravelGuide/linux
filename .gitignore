@@ -82,6 +82,8 @@ GTAGS
 configs/*
 localversion
 
+drivers/net/ethernet/*
+
 #
 # GPG leavings from module signing
 #
