@@ -653,10 +653,6 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		r = kvm_assign_device(kvm, match);
 		if (r)
 			goto out_list_del;
-	} else {
-		/* Disable the ability to assign a device without an iommu */
-		r = -EINVAL;
-		goto out_list_del;
 	}
 
 out:
@@ -696,7 +692,8 @@ static int kvm_vm_ioctl_deassign_device(struct kvm *kvm,
 		goto out;
 	}
 
-	kvm_deassign_device(kvm, match);
+	if (match->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU)
+		kvm_deassign_device(kvm, match);
 
 	kvm_free_assigned_device(kvm, match);
 
