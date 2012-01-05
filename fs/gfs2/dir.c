@@ -1907,7 +1907,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 		nblk = be64_to_cpu(tmp_leaf->lf_next);
 		brelse(bh);
 
-		gfs2_rlist_add(sdp, &rlist, blk);
+		gfs2_rlist_add(dip, &rlist, blk);
 		l_blocks++;
 	}
 
