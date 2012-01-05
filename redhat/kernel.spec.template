@@ -1635,6 +1635,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jan 04 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-225.el6]
+- [kernel] Remove "WARNING: at kernel/sched.c:5915" (Larry Woodman) [766051]
+- [x86] kernel: Fix memory corruption in module load (Prarit Bhargava) [767140]
+
 * Wed Dec 14 2011 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-224.el6]
 - [virt] xen: Find an unbound irq number in reverse order high to low (Igor Mammedov) [756307]
 - [virt] xen: add get_nr_hw_irqs req for finding an unbound irq number in reverse order (Igor Mammedov) [756307]
