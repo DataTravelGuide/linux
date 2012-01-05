@@ -318,17 +318,16 @@ static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
 
 struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk)
 {
-	struct rb_node **newn, *parent = NULL;
+	struct rb_node **newn;
+	struct gfs2_rgrpd *cur;
 
 	spin_lock(&sdp->sd_rindex_spin);
 	newn = &sdp->sd_rindex_tree.rb_node;
 	while (*newn) {
-		struct gfs2_rgrpd *cur = rb_entry(*newn, struct gfs2_rgrpd,
-						  rd_node);
-		parent = *newn;
+		cur = rb_entry(*newn, struct gfs2_rgrpd, rd_node);
 		if (blk < cur->rd_addr)
 			newn = &((*newn)->rb_left);
-		else if (blk > cur->rd_data0 + cur->rd_data)
+		else if (blk >= cur->rd_data0 + cur->rd_data)
 			newn = &((*newn)->rb_right);
 		else {
 			spin_unlock(&sdp->sd_rindex_spin);
@@ -968,7 +967,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
 	struct gfs2_alloc *al = ip->i_alloc;
-	int error, rg_locked;
+	int error, rg_locked, flags = LM_FLAG_TRY;
 	int loops = 0;
 
 	if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal))
@@ -987,7 +986,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			error = 0;
 		} else {
 			error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-						   LM_FLAG_TRY, &al->al_rgd_gh);
+						   flags, &al->al_rgd_gh);
 		}
 		switch (error) {
 		case 0:
@@ -1002,8 +1001,10 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
-			if (rgd == begin)
+			if (rgd == begin) {
+				flags = 0;
 				loops++;
+			}
 			break;
 		default:
 			return error;
@@ -1014,14 +1015,13 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 }
 
 /**
- * gfs2_inplace_reserve_i - Reserve space in the filesystem
+ * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
  *
  * Returns: errno
  */
 
-int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
-			   char *file, unsigned int line)
+int gfs2_inplace_reserve(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
@@ -1047,14 +1047,7 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip,
 		gfs2_log_flush(sdp, NULL);
 	} while(tries++ < 3);
 
-	if (error)
-		return error;
-
-	/* no error, so we have the rgrp set in the inode's allocation. */
-	al->al_file = file;
-	al->al_line = line;
-
-	return 0;
+	return error;
 }
 
 /**
@@ -1332,7 +1325,7 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
-	ip->i_goal = block;
+	ip->i_goal = block + *n - 1;
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error == 0) {
 		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
