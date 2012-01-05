@@ -403,7 +403,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		rblocks += data_blocks ? data_blocks : 1;
 	if (ind_blocks || data_blocks) {
 		rblocks += RES_STATFS + RES_QUOTA;
-		rblocks += gfs2_rg_blocks(al);
+		rblocks += gfs2_rg_blocks(ip);
 	}
 	ret = gfs2_trans_begin(sdp, rblocks, 0);
 	if (ret)

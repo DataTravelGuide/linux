@@ -62,8 +62,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode, 0);
 		if (!IS_ERR(inode)) {
 			gfs2_trans_end(sdp);
-			if (dip->i_alloc->al_rgd)
-				gfs2_inplace_release(dip);
+			gfs2_inplace_release(dip);
 			gfs2_quota_unlock(dip);
 			gfs2_alloc_put(dip);
 			gfs2_glock_dq_uninit_m(2, ghs);
@@ -225,7 +224,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 gfs2_rg_blocks(al) +
+					 gfs2_rg_blocks(dip) +
 					 2 * RES_DINODE + RES_STATFS +
 					 RES_QUOTA, 0);
 		if (error)
@@ -425,8 +424,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	gfs2_trans_end(sdp);
-	if (dip->i_alloc->al_rgd)
-		gfs2_inplace_release(dip);
+	gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_alloc_put(dip);
 
@@ -501,8 +499,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	gfs2_assert_withdraw(sdp, !error); /* dip already pinned */
 
 	gfs2_trans_end(sdp);
-	if (dip->i_alloc->al_rgd)
-		gfs2_inplace_release(dip);
+	gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_alloc_put(dip);
 
@@ -670,8 +667,7 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	}
 
 	gfs2_trans_end(sdp);
-	if (dip->i_alloc->al_rgd)
-		gfs2_inplace_release(dip);
+	gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_alloc_put(dip);
 
@@ -905,7 +901,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock_q;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 gfs2_rg_blocks(al) +
+					 gfs2_rg_blocks(ndip) +
 					 4 * RES_DINODE + 4 * RES_LEAF +
 					 RES_STATFS + RES_QUOTA + 4, 0);
 		if (error)
@@ -1421,7 +1417,7 @@ static void calc_max_reserv(struct gfs2_inode *ip, loff_t max, loff_t *len,
 			    unsigned int *data_blocks, unsigned int *ind_blocks)
 {
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int max_blocks = ip->i_alloc->al_rgd->rd_free_clone;
+	unsigned int max_blocks = ip->i_rgd->rd_free_clone;
 	unsigned int tmp, max_data = max_blocks - 3 * (sdp->sd_max_height - 1);
 
 	for (tmp = max_data; tmp > sdp->sd_diptrs;) {
@@ -1509,7 +1505,7 @@ retry:
 		al->al_requested = data_blocks + ind_blocks;
 
 		rblocks = RES_DINODE + ind_blocks + RES_STATFS + RES_QUOTA +
-			  ip->i_alloc->al_rgd->rd_length;
+			  RES_RG_HDR + gfs2_rg_blocks(ip);
 		if (gfs2_is_jdata(ip))
 			rblocks += data_blocks ? data_blocks : 1;
 

@@ -712,7 +712,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 			goto fail_quota_locks;
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
-					 gfs2_rg_blocks(al) +
+					 gfs2_rg_blocks(dip) +
 					 2 * RES_DINODE +
 					 RES_STATFS + RES_QUOTA, 0);
 		if (error)
@@ -740,8 +740,7 @@ fail_end_trans:
 	gfs2_trans_end(sdp);
 
 fail_ipreserv:
-	if (dip->i_alloc->al_rgd)
-		gfs2_inplace_release(dip);
+	gfs2_inplace_release(dip);
 
 fail_quota_locks:
 	gfs2_quota_unlock(dip);

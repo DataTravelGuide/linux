@@ -20,6 +20,7 @@ struct gfs2_glock;
 #define RES_JDATA	1
 #define RES_DATA	1
 #define RES_LEAF	1
+#define RES_RG_HDR	1
 #define RES_RG_BIT	2
 #define RES_EATTR	1
 #define RES_STATFS	1
@@ -27,10 +28,12 @@ struct gfs2_glock;
 
 /* reserve either the number of blocks to be allocated plus the rg header
  * block, or all of the blocks in the rg, whichever is smaller */
-static inline unsigned int gfs2_rg_blocks(const struct gfs2_alloc *al)
+static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip)
 {
-	return (al->al_requested < al->al_rgd->rd_length)?
-	       al->al_requested + 1 : al->al_rgd->rd_length;
+	const struct gfs2_alloc *al = ip->i_alloc;
+	if (al->al_requested < ip->i_rgd->rd_length)
+		return al->al_requested + 1;
+	return ip->i_rgd->rd_length;
 }
 
 extern int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
