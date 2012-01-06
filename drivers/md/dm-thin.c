@@ -1691,6 +1691,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
 	sector_t metadata_dev_size;
+	char *end;
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -1724,7 +1725,8 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto out_metadata;
 	}
 
-	if (kstrtoul(argv[2], 10, &block_size) || !block_size ||
+	block_size = simple_strtoul(argv[2], &end, 10);
+	if (!block_size || *end ||
 	    block_size < DATA_DEV_BLOCK_SIZE_MIN_SECTORS ||
 	    block_size > DATA_DEV_BLOCK_SIZE_MAX_SECTORS ||
 	    !is_power_of_2(block_size)) {
@@ -1733,7 +1735,8 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto out;
 	}
 
-	if (kstrtoull(argv[3], 10, (unsigned long long *)&low_water_blocks)) {
+	low_water_blocks = simple_strtoull(argv[3], &end, 10);
+	if (*end) {
 		ti->error = "Invalid low water mark";
 		r = -EINVAL;
 		goto out;
@@ -1910,8 +1913,10 @@ static int check_arg_count(unsigned argc, unsigned args_required)
 
 static int read_dev_id(char *arg, dm_thin_id *dev_id, int warning)
 {
-	if (!kstrtoull(arg, 10, (unsigned long long *)dev_id) &&
-	    *dev_id <= MAX_DEV_ID)
+	char *end;
+
+	*dev_id = simple_strtoull(arg, &end, 10);
+	if (!(*end) && *dev_id <= MAX_DEV_ID)
 		return 0;
 
 	if (warning)
@@ -1995,17 +2000,20 @@ static int process_set_transaction_id_mesg(unsigned argc, char **argv, struct po
 {
 	dm_thin_id old_id, new_id;
 	int r;
+	char *end;
 
 	r = check_arg_count(argc, 3);
 	if (r)
 		return r;
 
-	if (kstrtoull(argv[1], 10, (unsigned long long *)&old_id)) {
+	old_id = simple_strtoull(argv[1], &end, 10);
+	if (*end) {
 		DMWARN("set_transaction_id message: Unrecognised id %s.", argv[1]);
 		return -EINVAL;
 	}
 
-	if (kstrtoull(argv[2], 10, (unsigned long long *)&new_id)) {
+	new_id = simple_strtoull(argv[2], &end, 10);
+	if (*end) {
 		DMWARN("set_transaction_id message: Unrecognised new id %s.", argv[2]);
 		return -EINVAL;
 	}
