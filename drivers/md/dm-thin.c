@@ -658,7 +658,7 @@ static void remap_and_issue(struct thin_c *tc, struct bio *bio,
 	 * Batch together any FUA/FLUSH bios we find and then issue
 	 * a single commit for them in process_deferred_bios().
 	 */
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA)) {
 		spin_lock_irqsave(&pool->lock, flags);
 		bio_list_add(&pool->deferred_flush_bios, bio);
 		spin_unlock_irqrestore(&pool->lock, flags);
@@ -1352,7 +1352,7 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio,
 	 */
 	map_context->ptr = tc;
 
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA)) {
 		thin_defer_bio(tc, bio);
 		return DM_MAPIO_SUBMITTED;
 	}
@@ -1515,7 +1515,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	 * Create singlethreaded workqueue that will service all devices
 	 * that use this metadata.
 	 */
-	pool->wq = alloc_ordered_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM);
+	pool->wq = create_singlethread_workqueue("dm-" DM_MSG_PREFIX);
 	if (!pool->wq) {
 		*error = "Error creating pool's workqueue";
 		err_p = ERR_PTR(-ENOMEM);
