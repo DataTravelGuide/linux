@@ -24,7 +24,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
 		 const struct gfs2_inode *ip, unsigned int type);
 int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *filename);
 int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
-		  filldir_t filldir);
+		  filldir_t filldir, struct file_ra_state *f_ra);
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 		   const struct gfs2_inode *nip, unsigned int new_type);
 
