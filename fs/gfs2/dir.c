@@ -363,7 +363,7 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 	ip->i_ra_index = 0;
 	hsize = 1 << ip->i_depth;
 	hsize *= sizeof(__be64);
-	if (hsize != i_size_read(&ip->i_inode)) {
+	if (hsize != ip->i_disksize) {
 		gfs2_consist_inode(ip);
 		return ERR_PTR(-EIO);
 	}
