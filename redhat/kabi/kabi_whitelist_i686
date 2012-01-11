@@ -349,6 +349,13 @@
 	disable_irq
 	disable_irq_nosync
 	div64_u64
+	dm_device_name
+	dm_get_device
+	dm_put_device
+	dm_register_target
+	dm_table_get_md
+	dm_table_get_mode
+	dm_unregister_target
 	dma_alloc_from_coherent
 	dma_async_device_register
 	dma_async_device_unregister
@@ -370,13 +377,6 @@
 	dmi_get_system_info
 	dmi_match
 	dmi_walk
-	dm_device_name
-	dm_get_device
-	dm_put_device
-	dm_register_target
-	dm_table_get_md
-	dm_table_get_mode
-	dm_unregister_target
 	do_gettimeofday
 	do_sync_read
 	do_sync_write

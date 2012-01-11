@@ -294,7 +294,6 @@
 	device_unregister
 	devm_kzalloc
 	dget_locked
-	dma_get_required_mask
 	dm_device_name
 	dm_get_device
 	dm_put_device
@@ -302,6 +301,7 @@
 	dm_table_get_md
 	dm_table_get_mode
 	dm_unregister_target
+	dma_get_required_mask
 	do_gettimeofday
 	do_sync_read
 	do_sync_write

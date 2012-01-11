@@ -356,6 +356,13 @@
 	dget_locked
 	disable_irq
 	disable_irq_nosync
+	dm_device_name
+	dm_get_device
+	dm_put_device
+	dm_register_target
+	dm_table_get_md
+	dm_table_get_mode
+	dm_unregister_target
 	dma_async_device_register
 	dma_async_device_unregister
 	dma_async_tx_descriptor_init
@@ -375,13 +382,6 @@
 	dmi_get_system_info
 	dmi_match
 	dmi_walk
-	dm_device_name
-	dm_get_device
-	dm_put_device
-	dm_register_target
-	dm_table_get_md
-	dm_table_get_mode
-	dm_unregister_target
 	do_gettimeofday
 	do_sync_read
 	do_sync_write
