@@ -1203,7 +1203,8 @@ static void rtl8169_update_counters(struct net_device *dev)
 	if ((RTL_R8(ChipCmd) & CmdRxEnb) == 0)
 		return;
 
-	counters = pci_alloc_consistent(tp->pci_dev, sizeof(*counters), &paddr);
+	counters = dma_alloc_coherent(&tp->pci_dev->dev, sizeof(*counters),
+				      &paddr, GFP_KERNEL);
 	if (!counters)
 		return;
 
@@ -1224,7 +1225,8 @@ static void rtl8169_update_counters(struct net_device *dev)
 	RTL_W32(CounterAddrLow, 0);
 	RTL_W32(CounterAddrHigh, 0);
 
-	pci_free_consistent(tp->pci_dev, sizeof(*counters), counters, paddr);
+	dma_free_coherent(&tp->pci_dev->dev, sizeof(*counters), counters,
+			  paddr);
 }
 
 static void rtl8169_get_ethtool_stats(struct net_device *dev,
@@ -3280,15 +3282,15 @@ static int rtl8169_open(struct net_device *dev)
 
 	/*
 	 * Rx and Tx desscriptors needs 256 bytes alignment.
-	 * pci_alloc_consistent provides more.
+	 * dma_alloc_coherent provides more.
 	 */
-	tp->TxDescArray = pci_alloc_consistent(pdev, R8169_TX_RING_BYTES,
-					       &tp->TxPhyAddr);
+	tp->TxDescArray = dma_alloc_coherent(&pdev->dev, R8169_TX_RING_BYTES,
+					     &tp->TxPhyAddr, GFP_KERNEL);
 	if (!tp->TxDescArray)
 		goto out;
 
-	tp->RxDescArray = pci_alloc_consistent(pdev, R8169_RX_RING_BYTES,
-					       &tp->RxPhyAddr);
+	tp->RxDescArray = dma_alloc_coherent(&pdev->dev, R8169_RX_RING_BYTES,
+					     &tp->RxPhyAddr, GFP_KERNEL);
 	if (!tp->RxDescArray)
 		goto err_free_tx_0;
 
@@ -3319,11 +3321,13 @@ out:
 err_release_ring_2:
 	rtl8169_rx_clear(tp);
 err_free_rx_1:
-	pci_free_consistent(pdev, R8169_RX_RING_BYTES, tp->RxDescArray,
-			    tp->RxPhyAddr);
+	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
+			  tp->RxPhyAddr);
+	tp->RxDescArray = NULL;
 err_free_tx_0:
-	pci_free_consistent(pdev, R8169_TX_RING_BYTES, tp->TxDescArray,
-			    tp->TxPhyAddr);
+	dma_free_coherent(&pdev->dev, R8169_TX_RING_BYTES, tp->TxDescArray,
+			  tp->TxPhyAddr);
+	tp->TxDescArray = NULL;
 	goto out;
 }
 
@@ -3957,7 +3961,7 @@ static void rtl8169_free_rx_skb(struct rtl8169_private *tp,
 {
 	struct pci_dev *pdev = tp->pci_dev;
 
-	pci_unmap_single(pdev, le64_to_cpu(desc->addr), tp->rx_buf_sz,
+	dma_unmap_single(&pdev->dev, le64_to_cpu(desc->addr), tp->rx_buf_sz,
 			 PCI_DMA_FROMDEVICE);
 	dev_kfree_skb(*sk_buff);
 	*sk_buff = NULL;
@@ -3996,7 +4000,7 @@ static struct sk_buff *rtl8169_alloc_rx_skb(struct pci_dev *pdev,
 
 	skb_reserve(skb, align ? ((pad - 1) & (unsigned long)skb->data) : pad);
 
-	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
+	mapping = dma_map_single(&pdev->dev, skb->data, rx_buf_sz,
 				 PCI_DMA_FROMDEVICE);
 
 	rtl8169_map_to_asic(desc, mapping, rx_buf_sz);
@@ -4081,7 +4085,8 @@ static void rtl8169_unmap_tx_skb(struct pci_dev *pdev, struct ring_info *tx_skb,
 {
 	unsigned int len = tx_skb->len;
 
-	pci_unmap_single(pdev, le64_to_cpu(desc->addr), len, PCI_DMA_TODEVICE);
+	dma_unmap_single(&pdev->dev, le64_to_cpu(desc->addr), len,
+			 PCI_DMA_TODEVICE);
 	desc->opts1 = 0x00;
 	desc->opts2 = 0x00;
 	desc->addr = 0x00;
@@ -4225,7 +4230,8 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		txd = tp->TxDescArray + entry;
 		len = frag->size;
 		addr = ((void *) page_address(frag->page)) + frag->page_offset;
-		mapping = pci_map_single(tp->pci_dev, addr, len, PCI_DMA_TODEVICE);
+		mapping = dma_map_single(&tp->pci_dev->dev, addr, len,
+					 PCI_DMA_TODEVICE);
 
 		/* anti gcc 2.95.3 bugware (sic) */
 		status = opts1 | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
@@ -4295,7 +4301,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		tp->tx_skb[entry].skb = skb;
 	}
 
-	mapping = pci_map_single(tp->pci_dev, skb->data, len, PCI_DMA_TODEVICE);
+	mapping = dma_map_single(&tp->pci_dev->dev, skb->data, len,
+				 PCI_DMA_TODEVICE);
 
 	tp->tx_skb[entry].len = len;
 	txd->addr = cpu_to_le64(mapping);
@@ -4453,13 +4460,12 @@ static inline bool rtl8169_try_rx_copy(struct sk_buff **sk_buff,
 	if (pkt_size >= rx_copybreak)
 		goto out;
 
-	skb = netdev_alloc_skb(tp->dev, pkt_size + NET_IP_ALIGN);
+	skb = netdev_alloc_skb_ip_align(tp->dev, pkt_size);
 	if (!skb)
 		goto out;
 
-	pci_dma_sync_single_for_cpu(tp->pci_dev, addr, pkt_size,
-				    PCI_DMA_FROMDEVICE);
-	skb_reserve(skb, NET_IP_ALIGN);
+	dma_sync_single_for_cpu(&tp->pci_dev->dev, addr, pkt_size,
+				PCI_DMA_FROMDEVICE);
 	skb_copy_from_linear_data(*sk_buff, skb->data, pkt_size);
 	*sk_buff = skb;
 	done = true;
@@ -4528,11 +4534,11 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 			}
 
 			if (rtl8169_try_rx_copy(&skb, tp, pkt_size, addr)) {
-				pci_dma_sync_single_for_device(pdev, addr,
+				dma_sync_single_for_device(&pdev->dev, addr,
 					pkt_size, PCI_DMA_FROMDEVICE);
 				rtl8169_mark_to_asic(desc, tp->rx_buf_sz);
 			} else {
-				pci_unmap_single(pdev, addr, tp->rx_buf_sz,
+				dma_unmap_single(&pdev->dev, addr, tp->rx_buf_sz,
 						 PCI_DMA_FROMDEVICE);
 				tp->Rx_skbuff[entry] = NULL;
 			}
@@ -4768,10 +4774,10 @@ static int rtl8169_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 
-	pci_free_consistent(pdev, R8169_RX_RING_BYTES, tp->RxDescArray,
-			    tp->RxPhyAddr);
-	pci_free_consistent(pdev, R8169_TX_RING_BYTES, tp->TxDescArray,
-			    tp->TxPhyAddr);
+	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
+			  tp->RxPhyAddr);
+	dma_free_coherent(&pdev->dev, R8169_TX_RING_BYTES, tp->TxDescArray,
+			  tp->TxPhyAddr);
 	tp->TxDescArray = NULL;
 	tp->RxDescArray = NULL;
 
