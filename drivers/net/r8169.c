@@ -4434,7 +4434,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 	    ((status == RxProtoUDP) && !(opts1 & UDPFail)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 }
 
 static inline bool rtl8169_try_rx_copy(struct sk_buff **sk_buff,
