@@ -3305,7 +3305,7 @@ static const struct net_device_ops rtl8169_netdev_ops = {
 	.ndo_change_mtu		= rtl8169_change_mtu,
 	.ndo_set_mac_address	= rtl_set_mac_address,
 	.ndo_do_ioctl		= rtl8169_ioctl,
-	.ndo_set_multicast_list	= rtl_set_rx_mode,
+	.ndo_set_rx_mode	= rtl_set_rx_mode,
 #ifdef CONFIG_R8169_VLAN
 	.ndo_vlan_rx_register	= rtl8169_vlan_rx_register,
 #endif
