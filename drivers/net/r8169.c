@@ -3411,10 +3411,15 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_napi_add(dev, &tp->napi, rtl8169_poll, R8169_NAPI_WEIGHT);
 
+	/* don't enable SG, IP_CSUM and TSO by default - it might not work
+	 * properly for all devices */
 #ifdef CONFIG_R8169_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
 	dev->features |= NETIF_F_GRO;
+
+	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
+		NETIF_F_GRO | NETIF_F_HIGHDMA;
 
 	tp->intr_mask = 0xffff;
 	tp->hw_start = cfg->hw_start;
@@ -4299,6 +4304,11 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
+
+	if (dev->mtu > MSSMask)
+		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6 |
+				   NETIF_F_TSO_ECN);
+
 	return 0;
 }
 
@@ -4623,12 +4633,11 @@ err_out:
 
 static inline u32 rtl8169_tso_csum(struct sk_buff *skb, struct net_device *dev)
 {
-	if (dev->features & NETIF_F_TSO) {
-		u32 mss = skb_shinfo(skb)->gso_size;
+	u32 mss = skb_shinfo(skb)->gso_size;
 
-		if (mss)
-			return LargeSend | ((mss & MSSMask) << MSSShift);
-	}
+	if (mss)
+		return LargeSend | ((mss & MSSMask) << MSSShift);
+
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const struct iphdr *ip = ip_hdr(skb);
 
