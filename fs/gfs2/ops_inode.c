@@ -1385,8 +1385,6 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			   int mode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct super_block *sb = sdp->sd_vfs;
 	struct buffer_head *dibh;
 	int error;
 	unsigned int nr_blks;
@@ -1408,6 +1406,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	while (len) {
 		struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 		bh_map.b_size = len;
+		set_buffer_zeronew(&bh_map);
 
 		error = gfs2_block_map(inode, lblock, &bh_map, 1);
 		if (unlikely(error))
@@ -1417,10 +1416,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 		lblock += nr_blks;
 		if (!buffer_new(&bh_map))
 			continue;
-		error = sb_issue_zeroout(sb, bh_map.b_blocknr, nr_blks,
-					 GFP_NOFS);
-		if (unlikely(error)) {
-			fs_err(sdp, "Failed to zero data buffers\n");
+		if (unlikely(!buffer_zeronew(&bh_map))) {
 			error = -EIO;
 			goto out;
 		}
