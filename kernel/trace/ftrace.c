@@ -1082,13 +1082,15 @@ static void ftrace_replace_code(int enable)
 	struct ftrace_page *pg;
 	int failed;
 
+	if (unlikely(ftrace_disabled))
+		return;
+
 	do_for_each_ftrace_rec(pg, rec) {
 		/*
 		 * Skip over free records, records that have
 		 * failed and not converted.
 		 */
 		if (rec->flags & FTRACE_FL_FREE ||
-		    rec->flags & FTRACE_FL_FAILED ||
 		    !(rec->flags & FTRACE_FL_CONVERTED))
 			continue;
 
@@ -1102,7 +1104,6 @@ static void ftrace_replace_code(int enable)
 
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
-			rec->flags |= FTRACE_FL_FAILED;
 			ftrace_bug(failed, rec->ip);
 			/* Stop processing */
 			return;
@@ -1118,10 +1119,12 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 
 	ip = rec->ip;
 
+	if (unlikely(ftrace_disabled))
+		return 0;
+
 	ret = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
 	if (ret) {
 		ftrace_bug(ret, ip);
-		rec->flags |= FTRACE_FL_FAILED;
 		return 0;
 	}
 	return 1;
@@ -1435,6 +1438,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = NULL;
 
+	if (unlikely(ftrace_disabled))
+		return NULL;
+
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_next(m, v, pos);
 
@@ -1474,6 +1480,10 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	loff_t l;
 
 	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled))
+		return NULL;
+
 	/*
 	 * For set_ftrace_filter reading, if we have the filter
 	 * off, we can short cut and just print out that all
@@ -1575,8 +1585,6 @@ static void ftrace_filter_reset(int enable)
 	if (enable)
 		ftrace_filtered = 0;
 	do_for_each_ftrace_rec(pg, rec) {
-		if (rec->flags & FTRACE_FL_FAILED)
-			continue;
 		rec->flags &= ~type;
 	} while_for_each_ftrace_rec();
 	mutex_unlock(&ftrace_lock);
@@ -1705,9 +1713,6 @@ static void ftrace_match_records(char *buff, int len, int enable)
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (rec->flags & FTRACE_FL_FAILED)
-			continue;
-
 		if (ftrace_match_record(rec, search, search_len, type)) {
 			if (not)
 				rec->flags &= ~flag;
@@ -1771,10 +1776,11 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 	}
 
 	mutex_lock(&ftrace_lock);
-	do_for_each_ftrace_rec(pg, rec) {
 
-		if (rec->flags & FTRACE_FL_FAILED)
-			continue;
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
+
+	do_for_each_ftrace_rec(pg, rec) {
 
 		if (ftrace_match_module_record(rec, mod,
 					       search, search_len, type)) {
@@ -1787,6 +1793,7 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 			ftrace_filtered = 1;
 
 	} while_for_each_ftrace_rec();
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
 }
 
@@ -1939,10 +1946,11 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		return -EINVAL;
 
 	mutex_lock(&ftrace_lock);
-	do_for_each_ftrace_rec(pg, rec) {
 
-		if (rec->flags & FTRACE_FL_FAILED)
-			continue;
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
+
+	do_for_each_ftrace_rec(pg, rec) {
 
 		if (!ftrace_match_record(rec, search, len, type))
 			continue;
@@ -2147,6 +2155,10 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 		return 0;
 
 	mutex_lock(&ftrace_regex_lock);
+
+	ret = -ENODEV;
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
 
 	if (file->f_mode & FMODE_READ) {
 		struct seq_file *m = file->private_data;
@@ -2443,9 +2455,6 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 	bool exists;
 	int i;
 
-	if (ftrace_disabled)
-		return -ENODEV;
-
 	/* decode regex */
 	type = filter_parse_regex(buffer, strlen(buffer), &search, &not);
 	if (not)
@@ -2454,12 +2463,18 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 	search_len = strlen(search);
 
 	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled)) {
+		mutex_unlock(&ftrace_lock);
+		return -ENODEV;
+	}
+
 	do_for_each_ftrace_rec(pg, rec) {
 
 		if (*idx >= FTRACE_GRAPH_MAX_FUNCS)
 			break;
 
-		if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
+		if (rec->flags & FTRACE_FL_FREE)
 			continue;
 
 		if (ftrace_match_record(rec, search, search_len, type)) {
@@ -2593,10 +2608,11 @@ void ftrace_release_mod(struct module *mod)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 
-	if (ftrace_disabled)
-		return;
-
 	mutex_lock(&ftrace_lock);
+
+	if (ftrace_disabled)
+		goto out_unlock;
+
 	do_for_each_ftrace_rec(pg, rec) {
 		if (within_module_core(rec->ip, mod)) {
 			/*
@@ -2607,6 +2623,7 @@ void ftrace_release_mod(struct module *mod)
 			ftrace_free_rec(rec);
 		}
 	} while_for_each_ftrace_rec();
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
 }
 
@@ -2910,16 +2927,17 @@ void ftrace_kill(void)
  */
 int register_ftrace_function(struct ftrace_ops *ops)
 {
-	int ret;
-
-	if (unlikely(ftrace_disabled))
-		return -1;
+	int ret = -1;
 
 	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
 
 	ret = __register_ftrace_function(ops);
 	ftrace_startup(0);
 
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
 	return ret;
 }
@@ -2947,14 +2965,14 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp,
 		     loff_t *ppos)
 {
-	int ret;
-
-	if (unlikely(ftrace_disabled))
-		return -ENODEV;
+	int ret = -ENODEV;
 
 	mutex_lock(&ftrace_lock);
 
-	ret  = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (unlikely(ftrace_disabled))
+		goto out;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;
