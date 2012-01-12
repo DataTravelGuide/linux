@@ -29,6 +29,7 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 enum {
 	FTRACE_OPS_FL_ENABLED		= 1 << 0,
 	FTRACE_OPS_FL_GLOBAL		= 1 << 1,
+	FTRACE_OPS_FL_DYNAMIC		= 1 << 2,
 };
 
 struct ftrace_ops {
