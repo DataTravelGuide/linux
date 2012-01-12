@@ -3190,7 +3190,7 @@ static int ftrace_process_locs(struct module *mod,
 {
 	unsigned long *p;
 	unsigned long addr;
-	unsigned long flags;
+	unsigned long flags = 0; /* Shut up gcc */
 
 	mutex_lock(&ftrace_lock);
 	p = start;
@@ -3207,10 +3207,19 @@ static int ftrace_process_locs(struct module *mod,
 		ftrace_record_ip(addr);
 	}
 
-	/* disable interrupts to prevent kstop machine */
-	local_irq_save(flags);
+	/*
+	 * We only need to disable interrupts on start up
+	 * because we are modifying code that an interrupt
+	 * may execute, and the modification is not atomic.
+	 * But for modules, nothing runs the code we modify
+	 * until we are finished with it, and there's no
+	 * reason to cause large interrupt latencies while we do it.
+	 */
+	if (!mod)
+		local_irq_save(flags);
 	ftrace_update_code(mod);
-	local_irq_restore(flags);
+	if (!mod)
+		local_irq_restore(flags);
 	mutex_unlock(&ftrace_lock);
 
 	return 0;
