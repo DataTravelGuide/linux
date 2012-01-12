@@ -1704,6 +1704,15 @@ static int ftrace_match(char *str, char *regex, int len, int type)
 	return matched;
 }
 
+static void
+update_record(struct dyn_ftrace *rec, unsigned long flag, int not)
+{
+	if (not)
+		rec->flags &= ~flag;
+	else
+		rec->flags |= flag;
+}
+
 static int
 ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
 {
@@ -1731,12 +1740,9 @@ static void ftrace_match_records(char *buff, int len, int enable)
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (ftrace_match_record(rec, search, search_len, type)) {
-			if (not)
-				rec->flags &= ~flag;
-			else
-				rec->flags |= flag;
-		}
+		if (ftrace_match_record(rec, search, search_len, type))
+			update_record(rec, flag, not);
+
 		/*
 		 * Only enable filtering if we have a function that
 		 * is filtered on.
@@ -1801,12 +1807,8 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 	do_for_each_ftrace_rec(pg, rec) {
 
 		if (ftrace_match_module_record(rec, mod,
-					       search, search_len, type)) {
-			if (not)
-				rec->flags &= ~flag;
-			else
-				rec->flags |= flag;
-		}
+					       search, search_len, type))
+			update_record(rec, flag, not);
 		if (enable && (rec->flags & FTRACE_FL_FILTER))
 			ftrace_filtered = 1;
 
