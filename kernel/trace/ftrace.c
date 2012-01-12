@@ -1340,9 +1340,8 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
 	FTRACE_ITER_NOTRACE	= (1 << 1),
-	FTRACE_ITER_FAILURES	= (1 << 2),
-	FTRACE_ITER_PRINTALL	= (1 << 3),
-	FTRACE_ITER_HASH	= (1 << 4),
+	FTRACE_ITER_PRINTALL	= (1 << 2),
+	FTRACE_ITER_HASH	= (1 << 3),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -1455,12 +1454,6 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		rec = &iter->pg->records[iter->idx++];
 		if ((rec->flags & FTRACE_FL_FREE) ||
 
-		    (!(iter->flags & FTRACE_ITER_FAILURES) &&
-		     (rec->flags & FTRACE_FL_FAILED)) ||
-
-		    ((iter->flags & FTRACE_ITER_FAILURES) &&
-		     !(rec->flags & FTRACE_FL_FAILED)) ||
-
 		    ((iter->flags & FTRACE_ITER_FILTER) &&
 		     !(rec->flags & FTRACE_FL_FILTER)) ||
 
@@ -1571,24 +1564,6 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 
 	return ret;
 }
-
-static int
-ftrace_failures_open(struct inode *inode, struct file *file)
-{
-	int ret;
-	struct seq_file *m;
-	struct ftrace_iterator *iter;
-
-	ret = ftrace_avail_open(inode, file);
-	if (!ret) {
-		m = (struct seq_file *)file->private_data;
-		iter = (struct ftrace_iterator *)m->private;
-		iter->flags = FTRACE_ITER_FAILURES;
-	}
-
-	return ret;
-}
-
 
 static void ftrace_filter_reset(int enable)
 {
@@ -2348,13 +2323,6 @@ static const struct file_operations ftrace_avail_fops = {
 	.release = seq_release_private,
 };
 
-static const struct file_operations ftrace_failures_fops = {
-	.open = ftrace_failures_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_private,
-};
-
 static const struct file_operations ftrace_filter_fops = {
 	.open = ftrace_filter_open,
 	.read = seq_read,
@@ -2571,9 +2539,6 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 
 	trace_create_file("available_filter_functions", 0444,
 			d_tracer, NULL, &ftrace_avail_fops);
-
-	trace_create_file("failures", 0444,
-			d_tracer, NULL, &ftrace_failures_fops);
 
 	trace_create_file("set_ftrace_filter", 0644, d_tracer,
 			NULL, &ftrace_filter_fops);
