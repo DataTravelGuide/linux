@@ -1528,10 +1528,8 @@ static void ftrace_startup_enable(int command)
 	ftrace_run_update_code(command);
 }
 
-static void ftrace_startup(int command)
+static void ftrace_startup(struct ftrace_ops *ops, int command)
 {
-	struct ftrace_ops *ops = &global_ops;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -1545,10 +1543,8 @@ static void ftrace_startup(int command)
 	ftrace_startup_enable(command);
 }
 
-static void ftrace_shutdown(int command)
+static void ftrace_shutdown(struct ftrace_ops *ops, int command)
 {
-	struct ftrace_ops *ops = &global_ops;
-
 	if (unlikely(ftrace_disabled))
 		return;
 
@@ -2286,7 +2282,7 @@ static void __enable_ftrace_function_probe(void)
 		return;
 
 	__register_ftrace_function(&trace_probe_ops);
-	ftrace_startup(0);
+	ftrace_startup(&global_ops, 0);
 	ftrace_probe_registered = 1;
 }
 
@@ -2305,7 +2301,7 @@ static void __disable_ftrace_function_probe(void)
 
 	/* no more funcs left */
 	__unregister_ftrace_function(&trace_probe_ops);
-	ftrace_shutdown(0);
+	ftrace_shutdown(&global_ops, 0);
 	ftrace_probe_registered = 0;
 }
 
@@ -3142,6 +3138,10 @@ void __init ftrace_init(void)
 
 #else
 
+struct ftrace_ops global_ops = {
+	.func			= ftrace_stub,
+};
+
 static int __init ftrace_nodyn_init(void)
 {
 	ftrace_enabled = 1;
@@ -3152,8 +3152,8 @@ device_initcall(ftrace_nodyn_init);
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
 /* Keep as macros so we do not need to define the commands */
-# define ftrace_startup(command)	do { } while (0)
-# define ftrace_shutdown(command)	do { } while (0)
+# define ftrace_startup(ops, command)	do { } while (0)
+# define ftrace_shutdown(ops, command)	do { } while (0)
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
 #endif /* CONFIG_DYNAMIC_FTRACE */
@@ -3367,7 +3367,7 @@ int register_ftrace_function(struct ftrace_ops *ops)
 		goto out_unlock;
 
 	ret = __register_ftrace_function(ops);
-	ftrace_startup(0);
+	ftrace_startup(&global_ops, 0);
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
@@ -3386,7 +3386,7 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 
 	mutex_lock(&ftrace_lock);
 	ret = __unregister_ftrace_function(ops);
-	ftrace_shutdown(0);
+	ftrace_shutdown(&global_ops, 0);
 	mutex_unlock(&ftrace_lock);
 
 	return ret;
@@ -3609,7 +3609,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_graph_return = retfunc;
 	ftrace_graph_entry = entryfunc;
 
-	ftrace_startup(FTRACE_START_FUNC_RET);
+	ftrace_startup(&global_ops, FTRACE_START_FUNC_RET);
 
 out:
 	mutex_unlock(&ftrace_lock);
@@ -3627,7 +3627,7 @@ void unregister_ftrace_graph(void)
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
-	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
+	ftrace_shutdown(&global_ops, FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 
  out:
