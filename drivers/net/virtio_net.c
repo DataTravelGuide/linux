@@ -45,6 +45,11 @@ struct virtnet_info
 	struct virtqueue *rvq, *svq, *cvq;
 	struct net_device *dev;
 	struct napi_struct napi;
+	/*
+	 * Upstream uses the system_nrt workqueue; RHEL6 doesn't have
+	 * that, so we create a singlethread wq.
+	 */
+	struct workqueue_struct *st_wq;
 	unsigned int status;
 
 	/* Number of input buffers, and max we've ever had. */
@@ -485,7 +490,7 @@ static void refill_work(struct work_struct *work)
 	/* In theory, this can happen: if we don't get any buffers in
 	 * we will *never* try to fill again. */
 	if (still_empty)
-		schedule_delayed_work(&vi->refill, HZ/2);
+		queue_delayed_work(vi->st_wq, &vi->refill, HZ/2);
 }
 
 static int virtnet_poll(struct napi_struct *napi, int budget)
@@ -504,7 +509,7 @@ again:
 
 	if (vi->num < vi->max / 2) {
 		if (!try_fill_recv(vi, GFP_ATOMIC))
-			schedule_delayed_work(&vi->refill, 0);
+			queue_delayed_work(vi->st_wq, &vi->refill, 0);
 	}
 
 	/* Out of packets? */
@@ -663,7 +668,7 @@ static int virtnet_open(struct net_device *dev)
 
 	/* Make sure we have some buffers: if oom use wq. */
 	if (!try_fill_recv(vi, GFP_KERNEL))
-		schedule_delayed_work(&vi->refill, 0);
+		queue_delayed_work(vi->st_wq, &vi->refill, 0);
 
 	virtnet_napi_enable(vi);
 	return 0;
@@ -958,6 +963,12 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->vdev = vdev;
 	vdev->priv = vi;
 	vi->pages = NULL;
+	vi->st_wq = create_singlethread_workqueue("virtio-net");
+	if (!vi->st_wq) {
+		/* Can't get a precise err from function above */
+		err = -ENOMEM;
+		goto free;
+	}
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 
 	/* If we can receive ANY GSO packets, we must allocate large ones. */
@@ -975,7 +986,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	err = vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names);
 	if (err)
-		goto free;
+		goto free_wq;
 
 	vi->rvq = vqs[0];
 	vi->svq = vqs[1];
@@ -1019,6 +1030,8 @@ unregister:
 	unregister_netdev(dev);
 free_vqs:
 	vdev->config->del_vqs(vdev);
+free_wq:
+	destroy_workqueue(vi->st_wq);
 free:
 	free_netdev(dev);
 	return err;
@@ -1062,6 +1075,8 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 
 	while (vi->pages)
 		__free_pages(get_a_page(vi, GFP_KERNEL), 0);
+
+	destroy_workqueue(vi->st_wq);
 
 	free_netdev(vi->dev);
 }
