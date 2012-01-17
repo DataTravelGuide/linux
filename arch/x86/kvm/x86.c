@@ -834,26 +834,36 @@ static inline u64 get_kernel_ns(void)
 	return timespec_to_ns(&ts);
 }
 
-static inline u64 nsec_to_cycles(struct kvm *kvm, u64 nsec)
+static u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu)
 {
-	return pvclock_scale_delta(nsec, kvm->arch.virtual_tsc_mult,
-				   kvm->arch.virtual_tsc_shift);
+	if (vcpu->arch.virtual_tsc_khz)
+		return vcpu->arch.virtual_tsc_khz;
+	else
+		return __get_cpu_var(cpu_tsc_khz);
 }
 
-static void kvm_arch_set_tsc_khz(struct kvm *kvm, u32 this_tsc_khz)
+static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
+{
+	u64 ret;
+
+	ret = nsec * vcpu_tsc_khz(vcpu);
+	do_div(ret, USEC_PER_SEC);
+	return ret;
+}
+
+static void kvm_init_tsc_catchup(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 {
 	/* Compute a scale to convert nanoseconds in TSC cycles */
 	kvm_get_time_scale(this_tsc_khz, NSEC_PER_SEC / 1000,
-			   &kvm->arch.virtual_tsc_shift,
-			   &kvm->arch.virtual_tsc_mult);
-	kvm->arch.virtual_tsc_khz = this_tsc_khz;
+			   &vcpu->arch.tsc_catchup_shift,
+			   &vcpu->arch.tsc_catchup_mult);
 }
 
 static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 {
 	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.last_tsc_nsec,
-				      vcpu->kvm->arch.virtual_tsc_mult,
-				      vcpu->kvm->arch.virtual_tsc_shift);
+				      vcpu->arch.tsc_catchup_mult,
+				      vcpu->arch.tsc_catchup_shift);
 	tsc += vcpu->arch.last_tsc_write;
 	return tsc;
 }
@@ -886,11 +896,11 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	 * continually write the TSC could end up overshooting the TSC if
 	 * the elapsed time is factored in.
 	 */
-	delta = nsec_to_cycles(kvm, elapsed);
+	delta = nsec_to_cycles(vcpu, elapsed);
 	sdiff -= delta;
 	if (sdiff < 0)
 		sdiff = -sdiff;
-	if (sdiff < nsec_to_cycles(kvm, 1 * NSEC_PER_SEC) ) {
+	if (sdiff < nsec_to_cycles(vcpu, 1 * NSEC_PER_SEC) ) {
 		if (!check_tsc_unstable()) {
 			offset = kvm->arch.last_tsc_offset;
 			pr_debug("kvm: matched tsc offset for %llu\n", data);
@@ -926,7 +936,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	local_irq_save(flags);
 	kvm_get_msr(v, MSR_IA32_TSC, &tsc_timestamp);
 	kernel_ns = get_kernel_ns();
-	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
+	this_tsc_khz = vcpu_tsc_khz(v);
 
 	if (unlikely(this_tsc_khz == 0)) {
 		local_irq_restore(flags);
@@ -6142,8 +6152,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.pio_data = page_address(page);
 
-	if (!kvm->arch.virtual_tsc_khz)
-		kvm_arch_set_tsc_khz(kvm, max_tsc_khz);
+	kvm_init_tsc_catchup(vcpu, max_tsc_khz);
 
 	r = kvm_mmu_create(vcpu);
 	if (r < 0)
