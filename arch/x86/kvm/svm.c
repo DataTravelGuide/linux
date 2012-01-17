@@ -69,6 +69,8 @@ MODULE_LICENSE("GPL");
 #endif
 
 #define TSC_RATIO_RSVD          0xffffff0000000000ULL
+#define TSC_RATIO_MIN		0x0000000000000001ULL
+#define TSC_RATIO_MAX		0x000000ffffffffffULL
 
 static bool erratum_383_found __read_mostly;
 
@@ -154,6 +156,7 @@ static int nested_svm_exit_handled(struct vcpu_svm *svm);
 static int nested_svm_vmexit(struct vcpu_svm *svm);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
+static u64 __scale_tsc(u64 ratio, u64 tsc);
 
 enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
@@ -573,6 +576,23 @@ static __init int svm_hardware_setup(void)
 	}
 
 	svm_features = cpuid_edx(SVM_CPUID_FUNC);
+
+	if (svm_has(SVM_FEATURE_TSC_RATE)) {
+		u64 max;
+
+		kvm_has_tsc_control = true;
+
+		/*
+		 * Make sure the user can only configure tsc_khz values that
+		 * fit into a signed integer.
+		 * A min value is not calculated needed because it will always
+		 * be 1 on all machines and a value of 0 is used to disable
+		 * tsc-scaling for the vcpu.
+		 */
+		max = min(0x7fffffffULL, __scale_tsc(tsc_khz, TSC_RATIO_MAX));
+
+		kvm_max_guest_tsc_khz = max;
+	}
 
 	if (!svm_has(SVM_FEATURE_NPT))
 		npt_enabled = false;
