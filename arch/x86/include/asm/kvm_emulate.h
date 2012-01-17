@@ -108,7 +108,8 @@ struct x86_emulate_ops {
 				const void *new,
 				unsigned int bytes,
 				struct kvm_vcpu *vcpu);
-
+	bool (*get_cpuid)(struct kvm_vcpu *vcpu,
+			  u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 };
 
 /* Type, address-of, and value of an instruction's operand. */
