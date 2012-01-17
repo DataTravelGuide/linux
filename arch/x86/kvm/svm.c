@@ -650,6 +650,38 @@ static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
 	return _tsc;
 }
 
+static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 ratio;
+	u64 khz;
+
+	/* TSC scaling supported? */
+	if (!svm_has(SVM_FEATURE_TSC_RATE))
+		return;
+
+	/* TSC-Scaling disabled or guest TSC same frequency as host TSC? */
+	if (user_tsc_khz == 0) {
+		vcpu->arch.virtual_tsc_khz = 0;
+		svm->tsc_ratio = TSC_RATIO_DEFAULT;
+		return;
+	}
+
+	khz = user_tsc_khz;
+
+	/* TSC scaling required  - calculate ratio */
+	ratio = khz << 32;
+	do_div(ratio, tsc_khz);
+
+	if (ratio == 0 || ratio & TSC_RATIO_RSVD) {
+		WARN_ONCE(1, "Invalid TSC ratio - virtual-tsc-khz=%u\n",
+				user_tsc_khz);
+		return;
+	}
+	vcpu->arch.virtual_tsc_khz = user_tsc_khz;
+	svm->tsc_ratio             = ratio;
+}
+
 static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3385,6 +3417,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.exit_reasons_str = svm_exit_reasons_str,
 	.gb_page_enable = svm_gb_page_enable,
 
+	.set_tsc_khz = svm_set_tsc_khz,
 	.write_tsc_offset = svm_write_tsc_offset,
 	.adjust_tsc_offset = svm_adjust_tsc_offset,
 };
