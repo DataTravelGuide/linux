@@ -480,3 +480,17 @@ S:	Maintained
 F:	drivers/net/wireless/
 F:	net/mac80211/
 F:	net/wireless/
+
+XEN
+M:	Igor Mammedov <imammedo@redhat.com>
+M:	Andrew Jones <drjones@redhat.com>
+S:	Maintained
+F:	include/xen/
+F:	drivers/net/xen-netfront.c
+F:	drivers/input/xen-kbdfront.c
+F:	drivers/video/xen-fbfront.c
+F:	drivers/block/xen-blkfront.c
+F:	drivers/xen/
+F:	drivers/char/hvc_xen.c
+F:	arch/x86/include/asm/xen/
+F:	arch/x86/xen/
