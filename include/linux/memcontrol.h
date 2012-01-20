@@ -134,6 +134,11 @@ void mem_cgroup_split_hugepage_commit(struct page *page, struct page *head);
 
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 
+#ifdef CONFIG_DEBUG_VM
+bool mem_cgroup_bad_page_check(struct page *page);
+void mem_cgroup_print_bad_page(struct page *page);
+#endif
+
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -323,6 +328,19 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *mem)
 }
 
 #endif /* CONFIG_CGROUP_MEM_CONT */
+
+#if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
+static inline bool
+mem_cgroup_bad_page_check(struct page *page)
+{
+	return false;
+}
+
+static inline void
+mem_cgroup_print_bad_page(struct page *page)
+{
+}
+#endif
 
 #endif /* _LINUX_MEMCONTROL_H */
 
