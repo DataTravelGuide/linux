@@ -261,6 +261,7 @@ S:	Maintained
 
 IPV4/IPV6 PROTOCOLS
 M:	Neil Horman <nhorman@redhat.com>
+M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
 F:	net/ipv4
 F:	net/ipv6
@@ -291,9 +292,17 @@ M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
 F:	drivers/net/myri10ge/
 
+NETLINK
+M:	Thomas Graf <tgraf@redhat.com>
+S:	Maintained
+F:	net/netlink/
+F:	include/linux/netlink.h
+F:	include/net/netlink.h
+
 NETWORKING [GENERAL]
 M:	Andy Gospodarek <agospoda@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
+M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
 F:	net/
 F:	include/net/
@@ -378,8 +387,9 @@ F:	drivers/scsi/
 
 SCTP PROTOCOL
 M:	Neil Horman <nhorman@redhat.com>
+M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
-F:	net/sctp
+F:	net/sctp/
 F:	include/net/sctp/
 
 SERIAL ATA (SATA) SUBSYSTEM
