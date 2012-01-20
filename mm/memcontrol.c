@@ -1569,26 +1569,60 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	 * thread group leader migrates. It's possible that mm is not
 	 * set, if so charge the init_mm (happens for pagecache usage).
 	 */
-	mem = *memcg;
-	if (likely(!mem)) {
-		mem = try_get_mem_cgroup_from_mm(mm);
-		*memcg = mem;
-	} else {
+	if (!*memcg && !mm)
+		goto bypass;
+again:
+	if (*memcg) {
+		mem = *memcg;
+		VM_BUG_ON(css_is_removed(&mem->css));
+		if (mem_cgroup_is_root(mem))
+			goto done;
+		if (page_size == PAGE_SIZE && consume_stock(mem))
+			goto done;
 		css_get(&mem->css);
-	}
-	if (unlikely(!mem))
-		return 0;
+	} else {
+		struct task_struct *p;
 
-	VM_BUG_ON(css_is_removed(&mem->css));
-	if (mem_cgroup_is_root(mem))
-		goto done;
+		rcu_read_lock();
+		p = rcu_dereference(mm->owner);
+		/*
+		 * Because we don't have task_lock(), "p" can exit.
+		 * In that case, "memcg" can point to root or p can be NULL with
+		 * race with swapoff. Then, we have small risk of mis-accouning.
+		 * But such kind of mis-account by race always happens because
+		 * we don't have cgroup_mutex(). It's overkill and we allo that
+		 * small race, here.
+		 * (*) swapoff at el will charge against mm-struct not against
+		 * task-struct. So, mm->owner can be NULL.
+		 */
+		mem = mem_cgroup_from_task(p);
+		if (!mem || mem_cgroup_is_root(mem)) {
+			rcu_read_unlock();
+			goto done;
+		}
+		if (page_size == PAGE_SIZE && consume_stock(mem)) {
+			/*
+			 * It seems dagerous to access memcg without css_get().
+			 * But considering how consume_stok works, it's not
+			 * necessary. If consume_stock success, some charges
+			 * from this memcg are cached on this cpu. So, we
+			 * don't need to call css_get()/css_tryget() before
+			 * calling consume_stock().
+			 */
+			rcu_read_unlock();
+			goto done;
+		}
+		/* after here, we may be blocked. we need to get refcnt */
+		if (!css_tryget(&mem->css)) {
+			rcu_read_unlock();
+			goto again;
+		}
+		rcu_read_unlock();
+	}
 
 	while (1) {
 		int ret = 0;
 		unsigned long flags = 0;
-
-		if (page_size == PAGE_SIZE && consume_stock(mem))
-			goto charged;
 
 		ret = res_counter_charge(&mem->res, batch, &fail_res);
 		if (likely(!ret)) {
@@ -1677,7 +1711,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	}
 	if (batch == CHARGE_SIZE)
 		refill_stock(mem, batch - PAGE_SIZE);
-charged:
+	css_put(&mem->css);
 	/*
 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
 	 * if they exceeds softlimit.
@@ -1685,8 +1719,10 @@ charged:
 	if (page && mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
 done:
+	*memcg = mem;
 	return 0;
 nomem:
+	*memcg = NULL;
 	css_put(&mem->css);
 	return -ENOMEM;
 bypass:
@@ -1714,11 +1750,6 @@ static void mem_cgroup_cancel_charge(struct mem_cgroup *mem,
 {
 	__mem_cgroup_cancel_charge(mem,
 				(page_size >> PAGE_SHIFT) * charge_count);
-	/* we don't need css_put for root */
-	if (!mem_cgroup_is_root(mem)) {
-		WARN_ON_ONCE(charge_count > INT_MAX);
-		__css_put(&mem->css, (int)charge_count);
-	}
 }
 
 /*
@@ -2108,7 +2139,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 		goto charge_cur_mm;
 	*ptr = mem;
 	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true, page, PAGE_SIZE);
-	/* drop extra refcnt from tryget */
 	css_put(&mem->css);
 	return ret;
 charge_cur_mm:
@@ -2284,10 +2314,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 		break;
 	}
 
-	if (!mem_cgroup_is_root(mem))
-		__do_uncharge(mem, ctype, page_size);
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-		mem_cgroup_swap_statistics(mem, true);
 	mem_cgroup_charge_statistics(mem, pc, -page_size);
 
 	ClearPageCgroupUsed(pc);
@@ -2298,12 +2324,18 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	 * special functions.
 	 */
 	unlock_page_cgroup(pc);
-
+	/*
+	 * even after unlock, we have memcg->res.usage here and this memcg
+	 * will never be freed.
+	 */
 	if (mem_cgroup_soft_limit_check(mem))
 		mem_cgroup_update_tree(mem, page);
-	/* at swapout, this memcg will be accessed to record to swap */
-	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-		css_put(&mem->css);
+	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+		mem_cgroup_swap_statistics(mem, true);
+		mem_cgroup_get(mem);
+	}
+	if (!mem_cgroup_is_root(mem))
+		__do_uncharge(mem, ctype, page_size);
 
 	return mem;
 
@@ -2355,11 +2387,7 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
 	mem = origin->mem_cgroup;
 
 	BUG_ON(mem != origin->mem_cgroup);
-	/*
-  	 * Because css_get() is called only against the head, we need to
- 	 * call this against tails
- 	 */
-	css_get(&mem->css);
+
 	/* Zero the flags, but not the upper bits! */
 	target->flags &= ~((1UL << NR_PCG_FLAGS) - 1);
 	target->mem_cgroup = mem;
@@ -2437,13 +2465,12 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
 
 	memcg = __mem_cgroup_uncharge_common(page, ctype);
 
-	/* record memcg information */
-	if (do_swap_account && swapout && memcg) {
+	/*
+	 * record memcg information,  if swapout && memcg != NULL,
+	 * mem_cgroup_get() was called in uncharge().
+	 */
+	if (do_swap_account && swapout && memcg)
 		swap_cgroup_record(ent, css_id(&memcg->css));
-		mem_cgroup_get(memcg);
-	}
-	if (swapout && memcg)
-		css_put(&memcg->css);
 }
 #endif
 
@@ -2521,7 +2548,6 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
 			 */
 			if (!mem_cgroup_is_root(to))
 				res_counter_uncharge(&to->res, PAGE_SIZE);
-			css_put(&to->css);
 		}
 		return 0;
 	}
@@ -3860,9 +3886,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
 			goto one_by_one;
 		}
 		mc.precharge += count;
-		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-		WARN_ON_ONCE(count > INT_MAX);
-		__css_get(&mem->css, (int)count);
 		return ret;
 	}
 one_by_one:
@@ -4095,7 +4118,6 @@ static void mem_cgroup_clear_mc(void)
 	}
 	/* we must fixup refcnts and charges */
 	if (mc.moved_swap) {
-		WARN_ON_ONCE(mc.moved_swap > INT_MAX);
 		/* uncharge swap account from the old cgroup */
 		if (!mem_cgroup_is_root(mc.from))
 			res_counter_uncharge(&mc.from->memsw,
@@ -4109,8 +4131,6 @@ static void mem_cgroup_clear_mc(void)
 			 */
 			res_counter_uncharge(&mc.to->res,
 						PAGE_SIZE * mc.moved_swap);
-			VM_BUG_ON(test_bit(CSS_ROOT, &mc.to->css.flags));
-			__css_put(&mc.to->css, mc.moved_swap);
 		}
 		/* we've already done mem_cgroup_get(mc.to) */
 
