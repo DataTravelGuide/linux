@@ -2040,6 +2040,54 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
 	mem_cgroup_cancel_charge(mem, PAGE_SIZE, 1);
 }
 
+static void
+__do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype, int page_size)
+{
+	struct memcg_batch_info *batch = NULL;
+	bool uncharge_memsw = true;
+
+	/* If swapout, usage of swap doesn't decrease */
+	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
+		uncharge_memsw = false;
+	/*
+	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
+	 * In those cases, all pages freed continously can be expected to be in
+	 * the same cgroup and we have chance to coalesce uncharges.
+	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
+	 * because we want to do uncharge as soon as possible.
+	 */
+	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
+		goto direct_uncharge;
+
+	if (page_size > PAGE_SIZE)
+		goto direct_uncharge;
+
+	batch = &current->memcg_batch;
+	/*
+	 * In usual, we do css_get() when we remember memcg pointer.
+	 * But in this case, we keep res->usage until end of a series of
+	 * uncharges. Then, it's ok to ignore memcg's refcnt.
+	 */
+	if (!batch->memcg)
+		batch->memcg = mem;
+	/*
+	 * In typical case, batch->memcg == mem. This means we can
+	 * merge a series of uncharges to an uncharge of res_counter.
+	 * If not, we uncharge res_counter ony by one.
+	 */
+	if (batch->memcg != mem)
+		goto direct_uncharge;
+	/* remember freed charge and uncharge it later */
+	batch->bytes += page_size;
+	if (uncharge_memsw)
+		batch->memsw_bytes += page_size;
+	return;
+direct_uncharge:
+	res_counter_uncharge(&mem->res, page_size);
+	if (uncharge_memsw)
+		res_counter_uncharge(&mem->memsw, page_size);
+	return;
+}
 
 /*
  * uncharge if !page_mapped(page)
@@ -2094,12 +2142,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 		break;
 	}
 
-	if (!mem_cgroup_is_root(mem)) {
-		res_counter_uncharge(&mem->res, page_size);
-		if (do_swap_account &&
-				(ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT))
-			res_counter_uncharge(&mem->memsw, page_size);
-	}
+	if (!mem_cgroup_is_root(mem))
+		__do_uncharge(mem, ctype, page_size);
 	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		mem_cgroup_swap_statistics(mem, true);
 	mem_cgroup_charge_statistics(mem, pc, -page_size);
@@ -2190,6 +2234,51 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
 }
 
 #endif
+
+/*
+ * Batch_start/batch_end is called in unmap_page_range/invlidate/trucate.
+ * In that cases, pages are freed continuously and we can expect pages
+ * are in the same memcg. All these calls itself limits the number of
+ * pages freed at once, then uncharge_start/end() is called properly.
+ * This may be called prural(2) times in a context,
+ */
+
+void mem_cgroup_uncharge_start(void)
+{
+	current->memcg_batch.do_batch++;
+	/* We can do nest. */
+	if (current->memcg_batch.do_batch == 1) {
+		current->memcg_batch.memcg = NULL;
+		current->memcg_batch.bytes = 0;
+		current->memcg_batch.memsw_bytes = 0;
+	}
+}
+
+void mem_cgroup_uncharge_end(void)
+{
+	struct memcg_batch_info *batch = &current->memcg_batch;
+
+	if (!batch->do_batch)
+		return;
+
+	batch->do_batch--;
+	if (batch->do_batch) /* If stacked, do nothing. */
+		return;
+
+	if (!batch->memcg)
+		return;
+	/*
+	 * This "batch->memcg" is valid without any css_get/put etc...
+	 * bacause we hide charges behind us.
+	 */
+	if (batch->bytes)
+		res_counter_uncharge(&batch->memcg->res, batch->bytes);
+	if (batch->memsw_bytes)
+		res_counter_uncharge(&batch->memcg->memsw, batch->memsw_bytes);
+	/* forget this pointer (for sanity check) */
+	batch->memcg = NULL;
+}
+
 #ifdef CONFIG_SWAP
 /*
  * called after __delete_from_swap_cache() and drop "page" account.
