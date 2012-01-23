@@ -1846,7 +1846,7 @@ retry:
 	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
 	inode->i_nlink = 2;
 	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
-	ext4_handle_dirty_metadata(handle, dir, dir_block);
+	ext4_handle_dirty_metadata(handle, inode, dir_block);
 	brelse(dir_block);
 	ext4_mark_inode_dirty(handle, inode);
 	err = ext4_add_entry(handle, dentry, inode);
