@@ -1649,6 +1649,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jan 25 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-228.el6]
+- [fs] Revert "proc: enable writing to /proc/pid/mem" (Johannes Weiner) [782650] {CVE-2012-0056}
+- [fs] nfs: fix regression in handling of context= option in NFSv4 (Jeff Layton) [757896]
+- [kernel] panic: call console_verbose() in panic (Alexander Gordeev) [771521]
+- [net] igmp: Avoid zero delay when receiving odd mixture of IGMP queries (Jiri Pirko) [772871] {CVE-2012-0207}
+- [fs] cifs/nfs: don't allow TASK_KILLABLE sleeps to block the freezer (Jeff Layton) [702630]
+- [fs] xfs: validate acl count (Eric Sandeen) [773283]
+- [ppc] POWER7 optimised copy_to_user/copy_from_user using VMX (Steve Best) [739137]
+- [fs] GFS2: Update fallocate to match upstream (Steven Whitehouse) [732744]
+- [pci] portdrv: cleanup pcie_device registration (Myron Stowe) [742460]
+- [tpm] NSC driver X86 dependency fix (Steve Best) [741557]
+- [net] sunrpc: remove xpt_pool (J. Bruce Fields) [753301]
+- [fs] Fix sendfile write-side file position (Steven Whitehouse) [770023]
+- [mm] Make task in balance_dirty_pages() killable (Lukas Czerner) [769115]
+- [virt] kvm: x86: fix missing checks in syscall emulation (Marcelo Tosatti) [773391] {CVE-2012-0045}
+- [virt] kvm: x86: extend "struct x86_emulate_ops" with "get_cpuid" (Marcelo Tosatti) [773391] {CVE-2012-0045}
+- [net] svcrpc: fix double-free on shutdown of nfsd after changing pool mode (J. Bruce Fields) [753030]
+- [net] svcrpc: avoid memory-corruption on pool shutdown (J. Bruce Fields) [753030]
+- [net] svcrpc: destroy server sockets all at once (J. Bruce Fields) [753030]
+- [net] svcrpc: simplify svc_close_all (J. Bruce Fields) [753030]
+- [net] svcrpc: fix list-corrupting race on nfsd shutdown (J. Bruce Fields) [753030]
+
 * Tue Jan 17 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-227.el6]
 - [virt] virtio: console: add port stats for bytes received, sent and discarded (Amit Shah) [772194]
 - [virt] virtio: console: make discard_port_data() use get_inbuf() (Amit Shah) [772194]
