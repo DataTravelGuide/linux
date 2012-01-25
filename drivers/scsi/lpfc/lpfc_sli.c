@@ -9913,7 +9913,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 			phba->work_status[1] =
 				readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2885 Port Error Detected: "
+					"2885 Port Status Event: "
 					"port status reg 0x%x, "
 					"port smphr reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",

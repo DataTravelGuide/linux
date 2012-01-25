@@ -1464,6 +1464,18 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_sli4_offline_eratt(phba);
 			break;
 		}
+		if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+		    reg_err2 == SLIPORT_ERR2_REG_FW_RESTART)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3143 Port Down: Firmware Restarted\n");
+		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+			 reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3144 Port Down: Debug Dump\n");
+		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3145 Port Down: Provisioning\n");
 		/*
 		 * On error status condition, driver need to wait for port
 		 * ready before performing reset.
@@ -1472,8 +1484,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		if (!rc) {
 			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2887 Port Error: Attempting "
-					"Port Recovery\n");
+					"2887 Reset Needed: Attempting Port "
+					"Recovery...\n");
 			lpfc_offline_prep(phba);
 			lpfc_offline(phba);
 			lpfc_sli_brdrestart(phba);
