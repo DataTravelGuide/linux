@@ -6492,8 +6492,10 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	phba->sli4_hba.els_wq = NULL;
 
 	/* Release FCP work queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count; fcp_qidx++)
-		lpfc_sli4_queue_free(phba->sli4_hba.fcp_wq[fcp_qidx]);
+	if (phba->sli4_hba.fcp_wq != NULL)
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count;
+		     fcp_qidx++)
+			lpfc_sli4_queue_free(phba->sli4_hba.fcp_wq[fcp_qidx]);
 	kfree(phba->sli4_hba.fcp_wq);
 	phba->sli4_hba.fcp_wq = NULL;
 
@@ -6513,15 +6515,18 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 
 	/* Release FCP response complete queue */
 	fcp_qidx = 0;
-	do
-		lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
-	while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	if (phba->sli4_hba.fcp_cq != NULL)
+		do
+			lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
+		while (++fcp_qidx < phba->cfg_fcp_eq_count);
 	kfree(phba->sli4_hba.fcp_cq);
 	phba->sli4_hba.fcp_cq = NULL;
 
 	/* Release fast-path event queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
-		lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
+	if (phba->sli4_hba.fp_eq != NULL)
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++)
+			lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
 	kfree(phba->sli4_hba.fp_eq);
 	phba->sli4_hba.fp_eq = NULL;
 

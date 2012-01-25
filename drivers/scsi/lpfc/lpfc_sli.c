@@ -3892,6 +3892,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 			      ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
 
 	/* Perform FCoE PCI function reset */
+	lpfc_sli4_queue_destroy(phba);
 	lpfc_pci_function_reset(phba);
 
 	/* Restore PCI cmd register */
