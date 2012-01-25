@@ -3413,9 +3413,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (!lpfc_cmd) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
-			 "x%x ID %d "
-			 "LUN %d snum %#lx\n", ret, cmnd->device->id,
-			 cmnd->device->lun, cmnd->serial_number);
+			 "x%x ID %d LUN %d\n",
+			 ret, cmnd->device->id, cmnd->device->lun);
 		return SUCCESS;
 	}
 
@@ -3493,16 +3492,15 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 				 "0748 abort handler timed out waiting "
 				 "for abort to complete: ret %#x, ID %d, "
-				 "LUN %d, snum %#lx\n",
-				 ret, cmnd->device->id, cmnd->device->lun,
-				 cmnd->serial_number);
+				 "LUN %d\n",
+				 ret, cmnd->device->id, cmnd->device->lun);
 	}
 
  out:
 	lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "0749 SCSI Layer I/O Abort Request Status x%x ID %d "
-			 "LUN %d snum %#lx\n", ret, cmnd->device->id,
-			 cmnd->device->lun, cmnd->serial_number);
+			 "LUN %d\n", ret, cmnd->device->id,
+			 cmnd->device->lun);
 	return ret;
 }
 
