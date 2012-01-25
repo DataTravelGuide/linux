@@ -1431,6 +1431,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	uint32_t if_type;
 	struct lpfc_register portstat_reg = {0};
 	uint32_t reg_err1, reg_err2;
+	uint32_t uerrlo_reg, uemasklo_reg;
+	uint32_t pci_rd_rc1, pci_rd_rc2;
 	int rc;
 
 	/* If the pci channel is offline, ignore possible errors, since
@@ -1445,11 +1447,24 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
 	case LPFC_SLI_INTF_IF_TYPE_0:
+		pci_rd_rc1 = lpfc_readl(
+				phba->sli4_hba.u.if_type0.UERRLOregaddr,
+				&uerrlo_reg);
+		pci_rd_rc2 = lpfc_readl(
+				phba->sli4_hba.u.if_type0.UEMASKLOregaddr,
+				&uemasklo_reg);
+		/* consider PCI bus read error as pci_channel_offline */
+		if (pci_rd_rc1 == -EIO && pci_rd_rc2 == -EIO)
+			return;
 		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
-		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
-			   &portstat_reg.word0);
+		pci_rd_rc1 = lpfc_readl(
+				phba->sli4_hba.u.if_type2.STATUSregaddr,
+				&portstat_reg.word0);
+		/* consider PCI bus read error as pci_channel_offline */
+		if (pci_rd_rc1 == -EIO)
+			return;
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
@@ -6500,6 +6515,7 @@ out_free_fcp_wq:
 		phba->sli4_hba.fcp_wq[fcp_wqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fcp_wq);
+	phba->sli4_hba.fcp_wq = NULL;
 out_free_els_wq:
 	lpfc_sli4_queue_free(phba->sli4_hba.els_wq);
 	phba->sli4_hba.els_wq = NULL;
@@ -6512,6 +6528,7 @@ out_free_fcp_cq:
 		phba->sli4_hba.fcp_cq[fcp_cqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fcp_cq);
+	phba->sli4_hba.fcp_cq = NULL;
 out_free_els_cq:
 	lpfc_sli4_queue_free(phba->sli4_hba.els_cq);
 	phba->sli4_hba.els_cq = NULL;
@@ -6524,6 +6541,7 @@ out_free_fp_eq:
 		phba->sli4_hba.fp_eq[fcp_eqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fp_eq);
+	phba->sli4_hba.fp_eq = NULL;
 out_free_sp_eq:
 	lpfc_sli4_queue_free(phba->sli4_hba.sp_eq);
 	phba->sli4_hba.sp_eq = NULL;
@@ -6644,6 +6662,11 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path event queue */
+	if (!phba->sli4_hba.fp_eq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3147 Fast-path EQs not allocated\n");
+		goto out_destroy_sp_eq;
+	}
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++) {
 		if (!phba->sli4_hba.fp_eq[fcp_eqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6708,6 +6731,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path FCP Response Complete Queue */
+	if (!phba->sli4_hba.fcp_cq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3148 Fast-path FCP CQ array not "
+				"allocated\n");
+		goto out_destroy_els_cq;
+	}
 	fcp_cqidx = 0;
 	do {
 		if (!phba->sli4_hba.fcp_cq[fcp_cqidx]) {
@@ -6787,6 +6816,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.els_cq->queue_id);
 
 	/* Set up fast-path FCP Work Queue */
+	if (!phba->sli4_hba.fcp_wq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3149 Fast-path FCP WQ array not "
+				"allocated\n");
+		goto out_destroy_els_wq;
+	}
 	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++) {
 		if (!phba->sli4_hba.fcp_wq[fcp_wqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6848,18 +6883,21 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 out_destroy_fcp_wq:
 	for (--fcp_wqidx; fcp_wqidx >= 0; fcp_wqidx--)
 		lpfc_wq_destroy(phba, phba->sli4_hba.fcp_wq[fcp_wqidx]);
+out_destroy_els_wq:
 	lpfc_wq_destroy(phba, phba->sli4_hba.els_wq);
 out_destroy_mbx_wq:
 	lpfc_mq_destroy(phba, phba->sli4_hba.mbx_wq);
 out_destroy_fcp_cq:
 	for (--fcp_cqidx; fcp_cqidx >= 0; fcp_cqidx--)
 		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_cqidx]);
+out_destroy_els_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
 out_destroy_mbx_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.mbx_cq);
 out_destroy_fp_eq:
 	for (--fcp_eqidx; fcp_eqidx >= 0; fcp_eqidx--)
 		lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_eqidx]);
+out_destroy_sp_eq:
 	lpfc_eq_destroy(phba, phba->sli4_hba.sp_eq);
 out_error:
 	return rc;
@@ -6896,13 +6934,18 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 	/* Unset ELS complete queue */
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
 	/* Unset FCP response complete queue */
-	fcp_qidx = 0;
-	do {
-		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_qidx]);
-	} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	if (phba->sli4_hba.fcp_cq) {
+		fcp_qidx = 0;
+		do {
+			lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_qidx]);
+		} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	}
 	/* Unset fast-path event queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
-		lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_qidx]);
+	if (phba->sli4_hba.fp_eq) {
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++)
+			lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_qidx]);
+	}
 	/* Unset slow-path event queue */
 	lpfc_eq_destroy(phba, phba->sli4_hba.sp_eq);
 }
