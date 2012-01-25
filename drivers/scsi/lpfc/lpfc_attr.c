@@ -349,10 +349,23 @@ lpfc_fwrev_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+	uint32_t if_type;
+	uint8_t sli_family;
 	char fwrev[32];
+	int len;
 
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
-	return snprintf(buf, PAGE_SIZE, "%s, sli-%d\n", fwrev, phba->sli_rev);
+	if_type = phba->sli4_hba.pc_sli4_params.if_type;
+	sli_family = phba->sli4_hba.pc_sli4_params.sli_family;
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		len = snprintf(buf, PAGE_SIZE, "%s, sli-%d\n",
+			       fwrev, phba->sli_rev);
+	else
+		len = snprintf(buf, PAGE_SIZE, "%s, sli-%d:%d:%x\n",
+			       fwrev, phba->sli_rev, if_type, sli_family);
+
+	return len;
 }
 
 /**
