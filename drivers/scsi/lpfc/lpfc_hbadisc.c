@@ -2922,6 +2922,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 {
 	struct lpfc_vport *vport = phba->pport;
 	LPFC_MBOXQ_t *sparam_mbox, *cfglink_mbox = NULL;
+	struct Scsi_Host *shost;
 	int i;
 	struct lpfc_dmabuf *mp;
 	int rc;
@@ -2945,6 +2946,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	phba->fc_topology = bf_get(lpfc_mbx_read_top_topology, la);
 	phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
 
+	shost = lpfc_shost_from_vport(vport);
 	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
@@ -2956,8 +2958,11 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
 				/* Get Loop Map information */
-		if (bf_get(lpfc_mbx_read_top_il, la))
+		if (bf_get(lpfc_mbx_read_top_il, la)) {
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_LBIT;
+			spin_unlock_irq(shost->host_lock);
+		}
 
 		vport->fc_myDID = bf_get(lpfc_mbx_read_top_alpa_granted, la);
 		i = la->lilpBde64.tus.f.bdeSize;
@@ -3006,7 +3011,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
 		vport->fc_myDID = phba->fc_pref_DID;
+		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_LBIT;
+		spin_unlock_irq(shost->host_lock);
 	}
 	spin_unlock_irq(&phba->hbalock);
 
@@ -3590,6 +3597,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host *shost;
 
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
 	pmb->context1 = NULL;
@@ -3635,8 +3643,12 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		 * vport discovery */
 		if (!(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
 			lpfc_start_fdiscs(phba);
-		else
+		else {
+			shost = lpfc_shost_from_vport(vport);
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag &= ~FC_LOGO_RCVD_DID_CHNG ;
+			spin_unlock_irq(shost->host_lock);
+		}
 		lpfc_do_scr_ns_plogi(phba, vport);
 	}
 
