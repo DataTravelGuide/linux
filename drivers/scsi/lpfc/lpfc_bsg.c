@@ -3758,6 +3758,24 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				rc = SLI_CONFIG_NOT_HANDLED;
 				break;
 			}
+		} else if (subsys == SLI_CONFIG_SUBSYS_COMN) {
+			switch (opcode) {
+			case COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"3106 Handled SLI_CONFIG "
+						"subsys_fcoe, opcode:x%x\n",
+						opcode);
+				rc = lpfc_bsg_sli_cfg_read_cmd_ext(phba, job,
+							nemb_mse, dmabuf);
+				break;
+			default:
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+						"3107 Not handled SLI_CONFIG "
+						"subsys_fcoe, opcode:x%x\n",
+						opcode);
+				rc = SLI_CONFIG_NOT_HANDLED;
+				break;
+			}
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 					"2977 Handled SLI_CONFIG "

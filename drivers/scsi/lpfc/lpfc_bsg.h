@@ -248,6 +248,8 @@ struct lpfc_sli_config_emb1_subsys {
 #define COMN_OPCODE_WRITE_OBJECT	0xAC
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
 #define COMN_OPCODE_DELETE_OBJECT	0xAE
+
+#define COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES	0x79
 	uint32_t timeout;
 	uint32_t request_length;
 	uint32_t word9;
