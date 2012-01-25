@@ -916,9 +916,11 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				} else {
 					switch (cmd) {
 					case ELX_LOOPBACK_DATA:
-						diag_cmd_data_free(phba,
-						(struct lpfc_dmabufext *)
-							dmabuf);
+						if (phba->sli_rev <
+						    LPFC_SLI_REV4)
+							diag_cmd_data_free(phba,
+							(struct lpfc_dmabufext
+							 *)dmabuf);
 						break;
 					case ELX_LOOPBACK_XRI_SETUP:
 						if ((phba->sli_rev ==
@@ -1000,7 +1002,8 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 error_ct_unsol_exit:
 	if (!list_empty(&head))
 		list_del(&head);
-	if (evt_req_id == SLI_CT_ELX_LOOPBACK)
+	if ((phba->sli_rev < LPFC_SLI_REV4) &&
+	    (evt_req_id == SLI_CT_ELX_LOOPBACK))
 		return 0;
 	return 1;
 }
