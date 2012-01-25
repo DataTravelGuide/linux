@@ -39,6 +39,10 @@
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
 
+/*
+ * For SLI4 iDiag debugfs diagnostics tool
+ */
+
 /* pciConf */
 #define LPFC_PCI_CFG_BROWSE 0xffff
 #define LPFC_PCI_CFG_RD_CMD_ARG 2
@@ -46,6 +50,10 @@
 #define LPFC_PCI_CFG_SIZE 4096
 #define LPFC_PCI_CFG_RD_BUF_SIZE (LPFC_PCI_CFG_SIZE/2)
 #define LPFC_PCI_CFG_RD_SIZE (LPFC_PCI_CFG_SIZE/4)
+
+#define IDIAG_PCICFG_WHERE_INDX 0
+#define IDIAG_PCICFG_COUNT_INDX 1
+#define IDIAG_PCICFG_VALUE_INDX 2
 
 /* queue info */
 #define LPFC_QUE_INFO_GET_BUF_SIZE 4096
@@ -63,6 +71,13 @@
 #define LPFC_IDIAG_WQ 4
 #define LPFC_IDIAG_RQ 5
 
+#define IDIAG_QUEACC_QUETP_INDX 0
+#define IDIAG_QUEACC_QUEID_INDX 1
+#define IDIAG_QUEACC_INDEX_INDX 2
+#define IDIAG_QUEACC_COUNT_INDX 3
+#define IDIAG_QUEACC_OFFST_INDX 4
+#define IDIAG_QUEACC_VALUE_INDX 5
+
 /* doorbell register acc */
 #define LPFC_DRB_ACC_ALL 0xffff
 #define LPFC_DRB_ACC_RD_CMD_ARG 1
@@ -75,6 +90,9 @@
 #define LPFC_DRB_RQ   4
 
 #define LPFC_DRB_MAX  4
+
+#define IDIAG_DRBACC_REGID_INDX 0
+#define IDIAG_DRBACC_VALUE_INDX 1
 
 /* control register acc */
 #define LPFC_CTL_ACC_ALL 0xffff
@@ -90,6 +108,9 @@
 #define LPFC_CTL_PDEV_CTL  6
 
 #define LPFC_CTL_MAX  6
+
+#define IDIAG_CTLACC_REGID_INDX 0
+#define IDIAG_CTLACC_VALUE_INDX 1
 
 /* mailbox access */
 #define LPFC_MBX_DMP_ARG 4
@@ -113,6 +134,11 @@
 #define LPFC_MBX_DMP_ALL 0xffff
 #define LPFC_MBX_ALL_CMD 0xff
 
+#define IDIAG_MBXACC_MBCMD_INDX 0
+#define IDIAG_MBXACC_DPMAP_INDX 1
+#define IDIAG_MBXACC_DPCNT_INDX 2
+#define IDIAG_MBXACC_WDCNT_INDX 3
+
 /* extents access */
 #define LPFC_EXT_ACC_CMD_ARG 1
 #define LPFC_EXT_ACC_BUF_SIZE 4096
@@ -123,6 +149,8 @@
 #define LPFC_EXT_ACC_ALL   (LPFC_EXT_ACC_DRIVR | \
 			    LPFC_EXT_ACC_AVAIL | \
 			    LPFC_EXT_ACC_ALLOC)
+
+#define IDIAG_EXTACC_EXMAP_INDX 0
 
 #define SIZE_U8  sizeof(uint8_t)
 #define SIZE_U16 sizeof(uint16_t)

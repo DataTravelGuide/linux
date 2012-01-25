@@ -1344,8 +1344,8 @@ lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_PCICFG_RD) {
-		where = idiag.cmd.data[0];
-		count = idiag.cmd.data[1];
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
 	} else
 		return 0;
 
@@ -1456,8 +1456,8 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 		if (rc != LPFC_PCI_CFG_RD_CMD_ARG)
 			goto error_out;
 		/* Read command from PCI config space, set up command fields */
-		where = idiag.cmd.data[0];
-		count = idiag.cmd.data[1];
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
 		if (count == LPFC_PCI_CFG_BROWSE) {
 			if (where % sizeof(uint32_t))
 				goto error_out;
@@ -1492,9 +1492,9 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 		if (rc != LPFC_PCI_CFG_WR_CMD_ARG)
 			goto error_out;
 		/* Write command to PCI config space, read-modify-write */
-		where = idiag.cmd.data[0];
-		count = idiag.cmd.data[1];
-		value = idiag.cmd.data[2];
+		where = idiag.cmd.data[IDIAG_PCICFG_WHERE_INDX];
+		count = idiag.cmd.data[IDIAG_PCICFG_COUNT_INDX];
+		value = idiag.cmd.data[IDIAG_PCICFG_VALUE_INDX];
 		/* Sanity checks */
 		if ((count != sizeof(uint8_t)) &&
 		    (count != sizeof(uint16_t)) &&
@@ -1888,8 +1888,8 @@ lpfc_idiag_queacc_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_RD) {
-		index = idiag.cmd.data[2];
-		count = idiag.cmd.data[3];
+		index = idiag.cmd.data[IDIAG_QUEACC_INDEX_INDX];
+		count = idiag.cmd.data[IDIAG_QUEACC_COUNT_INDX];
 		pque = (struct lpfc_queue *)idiag.ptr_private;
 	} else
 		return 0;
@@ -1961,12 +1961,12 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 		return rc;
 
 	/* Get and sanity check on command feilds */
-	quetp  = idiag.cmd.data[0];
-	queid  = idiag.cmd.data[1];
-	index  = idiag.cmd.data[2];
-	count  = idiag.cmd.data[3];
-	offset = idiag.cmd.data[4];
-	value  = idiag.cmd.data[5];
+	quetp  = idiag.cmd.data[IDIAG_QUEACC_QUETP_INDX];
+	queid  = idiag.cmd.data[IDIAG_QUEACC_QUEID_INDX];
+	index  = idiag.cmd.data[IDIAG_QUEACC_INDEX_INDX];
+	count  = idiag.cmd.data[IDIAG_QUEACC_COUNT_INDX];
+	offset = idiag.cmd.data[IDIAG_QUEACC_OFFST_INDX];
+	value  = idiag.cmd.data[IDIAG_QUEACC_VALUE_INDX];
 
 	/* Sanity check on command line arguments */
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_WR ||
@@ -2235,7 +2235,7 @@ lpfc_idiag_drbacc_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_RD)
-		drb_reg_id = idiag.cmd.data[0];
+		drb_reg_id = idiag.cmd.data[IDIAG_DRBACC_REGID_INDX];
 	else
 		return 0;
 
@@ -2286,8 +2286,8 @@ lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
 		return rc;
 
 	/* Sanity check on command line arguments */
-	drb_reg_id = idiag.cmd.data[0];
-	value = idiag.cmd.data[1];
+	drb_reg_id = idiag.cmd.data[IDIAG_DRBACC_REGID_INDX];
+	value = idiag.cmd.data[IDIAG_DRBACC_VALUE_INDX];
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_WR ||
 	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
@@ -2450,7 +2450,7 @@ lpfc_idiag_ctlacc_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_RD)
-		ctl_reg_id = idiag.cmd.data[0];
+		ctl_reg_id = idiag.cmd.data[IDIAG_CTLACC_REGID_INDX];
 	else
 		return 0;
 
@@ -2498,8 +2498,8 @@ lpfc_idiag_ctlacc_write(struct file *file, const char __user *buf,
 		return rc;
 
 	/* Sanity check on command line arguments */
-	ctl_reg_id = idiag.cmd.data[0];
-	value = idiag.cmd.data[1];
+	ctl_reg_id = idiag.cmd.data[IDIAG_CTLACC_REGID_INDX];
+	value = idiag.cmd.data[IDIAG_CTLACC_VALUE_INDX];
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_WR ||
 	    idiag.cmd.opcode == LPFC_IDIAG_CMD_CTLACC_ST ||
@@ -2589,10 +2589,10 @@ lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
 	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
 	int len = 0;
 
-	mbx_mbox_cmd = idiag.cmd.data[0];
-	mbx_dump_map = idiag.cmd.data[1];
-	mbx_dump_cnt = idiag.cmd.data[2];
-	mbx_word_cnt = idiag.cmd.data[3];
+	mbx_mbox_cmd = idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
 
 	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
 			"mbx_dump_map: 0x%08x\n", mbx_dump_map);
@@ -2682,10 +2682,10 @@ lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 		return rc;
 
 	/* Sanity check on command line arguments */
-	mbx_mbox_cmd = idiag.cmd.data[0];
-	mbx_dump_map = idiag.cmd.data[1];
-	mbx_dump_cnt = idiag.cmd.data[2];
-	mbx_word_cnt = idiag.cmd.data[3];
+	mbx_mbox_cmd = idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_MBXACC_DP) {
 		if (!(mbx_dump_map & LPFC_MBX_DMP_MBX_ALL))
@@ -2955,7 +2955,7 @@ lpfc_idiag_extacc_write(struct file *file, const char __user *buf,
 	if (rc < 0)
 		return rc;
 
-	ext_map = idiag.cmd.data[0];
+	ext_map = idiag.cmd.data[IDIAG_EXTACC_EXMAP_INDX];
 
 	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
 		goto error_out;
@@ -3009,7 +3009,7 @@ lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
 	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
 		return 0;
 
-	ext_map = idiag.cmd.data[0];
+	ext_map = idiag.cmd.data[IDIAG_EXTACC_EXMAP_INDX];
 	if (ext_map & LPFC_EXT_ACC_AVAIL)
 		len = lpfc_idiag_extacc_avail_get(phba, pbuffer, len);
 	if (ext_map & LPFC_EXT_ACC_ALLOC)
@@ -3195,10 +3195,10 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 	if (idiag.cmd.opcode != LPFC_IDIAG_BSG_MBXACC_DP)
 		return;
 
-	mbx_mbox_cmd = &idiag.cmd.data[0];
-	mbx_dump_map = &idiag.cmd.data[1];
-	mbx_dump_cnt = &idiag.cmd.data[2];
-	mbx_word_cnt = &idiag.cmd.data[3];
+	mbx_mbox_cmd = &idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = &idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = &idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = &idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
 
 	if (!(*mbx_dump_map & LPFC_MBX_DMP_ALL) ||
 	    (*mbx_dump_cnt == 0) ||
@@ -3291,10 +3291,10 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
 		return;
 
-	mbx_mbox_cmd = &idiag.cmd.data[0];
-	mbx_dump_map = &idiag.cmd.data[1];
-	mbx_dump_cnt = &idiag.cmd.data[2];
-	mbx_word_cnt = &idiag.cmd.data[3];
+	mbx_mbox_cmd = &idiag.cmd.data[IDIAG_MBXACC_MBCMD_INDX];
+	mbx_dump_map = &idiag.cmd.data[IDIAG_MBXACC_DPMAP_INDX];
+	mbx_dump_cnt = &idiag.cmd.data[IDIAG_MBXACC_DPCNT_INDX];
+	mbx_word_cnt = &idiag.cmd.data[IDIAG_MBXACC_WDCNT_INDX];
 
 	if (!(*mbx_dump_map & LPFC_MBX_DMP_MBX_ALL) ||
 	    (*mbx_dump_cnt == 0) ||
