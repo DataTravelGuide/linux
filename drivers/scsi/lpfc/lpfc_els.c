@@ -427,7 +427,7 @@ fail:
  *   0 - successfully issued REG_VFI for @vport
  *   A failure code otherwise.
  **/
-static int
+int
 lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -686,11 +686,16 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_do_scr_ns_plogi(phba, vport);
 		} else if (vport->fc_flag & FC_VFI_REGISTERED)
 			lpfc_issue_init_vpi(vport);
-		else
+		else {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					"3135 Need register VFI: (x%x/%x)\n",
+					vport->fc_prevDID, vport->fc_myDID);
 			lpfc_issue_reg_vfi(vport);
+		}
 	}
 	return 0;
 }
+
 /**
  * lpfc_cmpl_els_flogi_nport - Completion function for flogi to an N_Port
  * @vport: pointer to a host virtual N_Port data structure.
@@ -907,18 +912,44 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * LPFC_MAX_DISC_THREADS (32). Scanning in the case of no
 		 * alpa map would take too long otherwise.
 		 */
-		if (phba->alpa_map[0] == 0) {
+		if (phba->alpa_map[0] == 0)
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
-		}
+
 		if ((phba->sli_rev == LPFC_SLI_REV4) &&
 		    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
 		     (vport->fc_prevDID != vport->fc_myDID))) {
 			if (vport->fc_flag & FC_VFI_REGISTERED)
 				lpfc_sli4_unreg_all_rpis(vport);
-			lpfc_issue_reg_vfi(vport);
+			if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			    (vport->fc_flag & FC_VFI_REGISTERED)) {
+				if ((phba->link_flag & LS_LOOPBACK_MODE) &&
+				    (vport->fc_myDID == 0)) {
+					lpfc_printf_vlog(vport, KERN_INFO,
+						LOG_ELS, "3136 No need "
+						"register VFI: (x%x/%x)\n",
+						vport->fc_prevDID,
+						vport->fc_myDID);
+					vport->fc_myDID = vport->fc_prevDID;
+				}
+			} else {
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					"3137 Need register VFI: (x%x/%x)\n",
+					vport->fc_prevDID, vport->fc_myDID);
+				lpfc_issue_reg_vfi(vport);
+			}
+			/* in case of SLI4 FC loopback test, we are ready */
+			if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			    (phba->link_flag & LS_LOOPBACK_MODE) &&
+			    (phba->link_state >= LPFC_LINK_UP))
+				phba->link_state = LPFC_HBA_READY;
 			lpfc_nlp_put(ndlp);
 			goto out;
 		}
+		/* in case of SLI4 FC loopback test, we are ready */
+		if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		    (phba->link_flag & LS_LOOPBACK_MODE) &&
+		    (phba->link_state >= LPFC_LINK_UP))
+			phba->link_state = LPFC_HBA_READY;
 		goto flogifail;
 	}
 	spin_lock_irq(shost->host_lock);
@@ -1164,8 +1195,7 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
 		icmd = &iocb->iocb;
-		if (icmd->ulpCommand == CMD_ELS_REQUEST64_CR &&
-		    icmd->un.elsreq64.bdl.ulpIoTag32) {
+		if (icmd->ulpCommand == CMD_ELS_REQUEST64_CR) {
 			ndlp = (struct lpfc_nodelist *)(iocb->context1);
 			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 			    (ndlp->nlp_DID == Fabric_DID))
@@ -4879,23 +4909,31 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			    sizeof(struct lpfc_name));
 
 		if (!rc) {
-			mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-			if (!mbox)
+			if (phba->sli_rev < LPFC_SLI_REV4) {
+				mbox = mempool_alloc(phba->mbox_mem_pool,
+						     GFP_KERNEL);
+				if (!mbox)
+					return 1;
+				lpfc_linkdown(phba);
+				lpfc_init_link(phba, mbox,
+					       phba->cfg_topology,
+					       phba->cfg_link_speed);
+				mbox->u.mb.un.varInitLnk.lipsr_AL_PA = 0;
+				mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+				mbox->vport = vport;
+				rc = lpfc_sli_issue_mbox(phba, mbox,
+							 MBX_NOWAIT);
+				lpfc_set_loopback_flag(phba);
+				if (rc == MBX_NOT_FINISHED)
+					mempool_free(mbox, phba->mbox_mem_pool);
 				return 1;
-
-			lpfc_linkdown(phba);
-			lpfc_init_link(phba, mbox,
-				       phba->cfg_topology,
-				       phba->cfg_link_speed);
-			mbox->u.mb.un.varInitLnk.lipsr_AL_PA = 0;
-			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			mbox->vport = vport;
-			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-			lpfc_set_loopback_flag(phba);
-			if (rc == MBX_NOT_FINISHED) {
-				mempool_free(mbox, phba->mbox_mem_pool);
+			} else {
+				/* abort the flogi coming back to ourselves
+				 * due to external loopback on the port.
+				 */
+				lpfc_els_abort_flogi(phba);
+				return 0;
 			}
-			return 1;
 		} else if (rc > 0) {	/* greater than */
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_PT2PT_PLOGI;
@@ -5850,8 +5888,12 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			vport->fc_myDID = vport->fc_prevDID;
 			if (phba->sli_rev < LPFC_SLI_REV4)
 				lpfc_issue_fabric_reglogin(vport);
-			else
+			else {
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					"3138 Need register VFI: (x%x/%x)\n",
+					vport->fc_prevDID, vport->fc_myDID);
 				lpfc_issue_reg_vfi(vport);
+			}
 		}
 	}
 	return 0;

@@ -1615,7 +1615,6 @@ lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 				rc = -ETIMEDOUT;
 				goto loopback_mode_exit;
 			}
-
 			msleep(10);
 		}
 
@@ -1700,6 +1699,11 @@ lpfc_sli4_bsg_set_link_diag_state(struct lpfc_hba *phba, uint32_t diag)
 		rc = -ENOMEM;
 		goto link_diag_state_set_out;
 	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"3128 Set link to diagnostic state:x%x (x%x/x%x)\n",
+			diag, phba->sli4_hba.link_state.type,
+			phba->sli4_hba.link_state.number);
+
 	link_diag_state = &pmboxq->u.mqe.un.link_diag_state;
 	bf_set(lpfc_mbx_set_diag_state_link_num, &link_diag_state->u.req,
 	       phba->sli4_hba.link_state.number);
@@ -1727,6 +1731,54 @@ link_diag_state_set_out:
 }
 
 /**
+ * lpfc_sli4_bsg_set_internal_loopback - set sli4 internal loopback diagnostic
+ * @phba: Pointer to HBA context object.
+ *
+ * This function is responsible for issuing a sli4 mailbox command for setting
+ * up internal loopback diagnostic.
+ */
+static int
+lpfc_sli4_bsg_set_internal_loopback(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *pmboxq;
+	uint32_t req_len, alloc_len;
+	struct lpfc_mbx_set_link_diag_loopback *link_diag_loopback;
+	int mbxstatus = MBX_SUCCESS, rc = 0;
+
+	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmboxq)
+		return -ENOMEM;
+	req_len = (sizeof(struct lpfc_mbx_set_link_diag_loopback) -
+		   sizeof(struct lpfc_sli4_cfg_mhdr));
+	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+				LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK,
+				req_len, LPFC_SLI4_MBX_EMBED);
+	if (alloc_len != req_len) {
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+	link_diag_loopback = &pmboxq->u.mqe.un.link_diag_loopback;
+	bf_set(lpfc_mbx_set_diag_state_link_num,
+	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.number);
+	bf_set(lpfc_mbx_set_diag_state_link_type,
+	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.type);
+	bf_set(lpfc_mbx_set_diag_lpbk_type, &link_diag_loopback->u.req,
+	       LPFC_DIAG_LOOPBACK_TYPE_SERDES);
+
+	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO);
+	if ((mbxstatus != MBX_SUCCESS) || (pmboxq->u.mb.mbxStatus)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3127 Failed setup loopback mode mailbox "
+				"command, rc:x%x, status:x%x\n", mbxstatus,
+				pmboxq->u.mb.mbxStatus);
+		rc = -ENODEV;
+	}
+	if (pmboxq && (mbxstatus != MBX_TIMEOUT))
+		mempool_free(pmboxq, phba->mbox_mem_pool);
+	return rc;
+}
+
+/**
  * lpfc_sli4_bsg_diag_loopback_mode - process an sli4 bsg vendor command
  * @phba: Pointer to HBA context object.
  * @job: LPFC_BSG_VENDOR_DIAG_MODE
@@ -1738,10 +1790,8 @@ static int
 lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 {
 	struct diag_mode_set *loopback_mode;
-	uint32_t link_flags, timeout, req_len, alloc_len;
-	struct lpfc_mbx_set_link_diag_loopback *link_diag_loopback;
-	LPFC_MBOXQ_t *pmboxq = NULL;
-	int mbxstatus = MBX_SUCCESS, i, rc = 0;
+	uint32_t link_flags, timeout;
+	int i, rc = 0;
 
 	/* no data to return just the return code */
 	job->reply->reply_payload_rcv_len = 0;
@@ -1763,78 +1813,75 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		goto job_error;
 
 	/* bring the link to diagnostic mode */
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"3129 Bring link to diagnostic state.\n");
 	loopback_mode = (struct diag_mode_set *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
 	link_flags = loopback_mode->type;
 	timeout = loopback_mode->timeout * 100;
 
 	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 1);
-	if (rc)
+	if (rc) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3130 Failed to bring link to diagnostic "
+				"state, rc:x%x\n", rc);
 		goto loopback_mode_exit;
+	}
 
 	/* wait for link down before proceeding */
 	i = 0;
 	while (phba->link_state != LPFC_LINK_DOWN) {
 		if (i++ > timeout) {
 			rc = -ETIMEDOUT;
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3131 Timeout waiting for link to "
+					"diagnostic mode, timeout:%d ms\n",
+					timeout * 10);
 			goto loopback_mode_exit;
 		}
 		msleep(10);
 	}
-	/* set up loopback mode */
-	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!pmboxq) {
-		rc = -ENOMEM;
-		goto loopback_mode_exit;
-	}
-	req_len = (sizeof(struct lpfc_mbx_set_link_diag_loopback) -
-		   sizeof(struct lpfc_sli4_cfg_mhdr));
-	alloc_len = lpfc_sli4_config(phba, pmboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
-				LPFC_MBOX_OPCODE_FCOE_LINK_DIAG_LOOPBACK,
-				req_len, LPFC_SLI4_MBX_EMBED);
-	if (alloc_len != req_len) {
-		rc = -ENOMEM;
-		goto loopback_mode_exit;
-	}
-	link_diag_loopback = &pmboxq->u.mqe.un.link_diag_loopback;
-	bf_set(lpfc_mbx_set_diag_state_link_num,
-	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.number);
-	bf_set(lpfc_mbx_set_diag_state_link_type,
-	       &link_diag_loopback->u.req, phba->sli4_hba.link_state.type);
-	if (link_flags == INTERNAL_LOOP_BACK)
-		bf_set(lpfc_mbx_set_diag_lpbk_type,
-		       &link_diag_loopback->u.req,
-		       LPFC_DIAG_LOOPBACK_TYPE_INTERNAL);
-	else
-		bf_set(lpfc_mbx_set_diag_lpbk_type,
-		       &link_diag_loopback->u.req,
-		       LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL);
 
-	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO);
-	if ((mbxstatus != MBX_SUCCESS) || (pmboxq->u.mb.mbxStatus))
-		rc = -ENODEV;
+	/* set up loopback mode */
+	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+			"3132 Set up loopback mode:x%x\n", link_flags);
+	/* indicate we are in loobpack diagnostic mode */
+	phba->link_flag |= LS_LOOPBACK_MODE;
+
+	if (link_flags == INTERNAL_LOOP_BACK)
+		rc = lpfc_sli4_bsg_set_internal_loopback(phba);
+	else if (link_flags == EXTERNAL_LOOP_BACK)
+		rc = lpfc_hba_init_link_fc_topology(phba,
+						    FLAGS_TOPOLOGY_MODE_PT_PT);
 	else {
-		phba->link_flag |= LS_LOOPBACK_MODE;
+		rc = -EINVAL;
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"3141 Loopback mode:x%x not supported\n",
+				link_flags);
+		goto loopback_mode_exit;
+	}
+
+	if (!rc) {
 		/* wait for the link attention interrupt */
 		msleep(100);
 		i = 0;
 		while (phba->link_state != LPFC_HBA_READY) {
 			if (i++ > timeout) {
 				rc = -ETIMEDOUT;
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3133 Timeout waiting for port "
+					"loopback mode ready, timeout:%d ms\n",
+					timeout * 10);
 				break;
 			}
 			msleep(10);
 		}
 	}
-
 loopback_mode_exit:
+	/* clear loopback diagnostic mode */
+	if (rc)
+		phba->link_flag &= ~LS_LOOPBACK_MODE;
 	lpfc_bsg_diag_mode_exit(phba);
-
-	/*
-	 * Let SLI layer release mboxq if mbox command completed after timeout.
-	 */
-	if (pmboxq && (mbxstatus != MBX_TIMEOUT))
-		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 job_error:
 	/* make error code available to userspace */
@@ -1879,7 +1926,6 @@ lpfc_bsg_diag_loopback_mode(struct fc_bsg_job *job)
 		rc = -ENODEV;
 
 	return rc;
-
 }
 
 /**
@@ -1895,7 +1941,9 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 	struct Scsi_Host *shost;
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
-	int rc;
+	struct diag_mode_set *loopback_mode_end_cmd;
+	uint32_t timeout;
+	int rc, i;
 
 	shost = job->shost;
 	if (!shost)
@@ -1913,11 +1961,42 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		return -ENODEV;
 
+	/* clear loopback diagnostic mode */
+	phba->link_flag &= ~LS_LOOPBACK_MODE;
+	loopback_mode_end_cmd = (struct diag_mode_set *)
+			job->request->rqst_data.h_vendor.vendor_cmd;
+	timeout = loopback_mode_end_cmd->timeout * 100;
+
 	rc = lpfc_sli4_bsg_set_link_diag_state(phba, 0);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3139 Failed to bring link to diagnostic "
+				"state, rc:x%x\n", rc);
+		goto loopback_mode_end_exit;
+	}
 
-	if (!rc)
-		rc = phba->lpfc_hba_init_link(phba);
+	/* wait for link down before proceeding */
+	i = 0;
+	while (phba->link_state != LPFC_LINK_DOWN) {
+		if (i++ > timeout) {
+			rc = -ETIMEDOUT;
+			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3140 Timeout waiting for link to "
+					"diagnostic mode_end, timeout:%d ms\n",
+					timeout * 10);
+			/* there is nothing much we can do here */
+			break;
+		}
+		msleep(10);
+	}
+	rc = phba->lpfc_hba_init_link(phba);
 
+loopback_mode_end_exit:
+	/* make return code available to userspace */
+	job->reply->result = rc;
+	/* complete the job back to userspace if no error */
+	if (rc == 0)
+		job->job_done(job);
 	return rc;
 }
 
@@ -2091,10 +2170,18 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t *rpi)
 	if (!mbox)
 		return -ENOMEM;
 
-	if (phba->sli_rev == LPFC_SLI_REV4)
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		status = lpfc_reg_rpi(phba, 0, phba->pport->fc_myDID,
+				(uint8_t *)&phba->pport->fc_sparam,
+				mbox, *rpi);
+	else {
 		*rpi = lpfc_sli4_alloc_rpi(phba);
-	status = lpfc_reg_rpi(phba, 0, phba->pport->fc_myDID,
-			      (uint8_t *)&phba->pport->fc_sparam, mbox, *rpi);
+		status = lpfc_reg_rpi(phba, phba->pport->vpi,
+				phba->pport->fc_myDID,
+				(uint8_t *)&phba->pport->fc_sparam,
+				mbox, *rpi);
+	}
+
 	if (status) {
 		mempool_free(mbox, phba->mbox_mem_pool);
 		if (phba->sli_rev == LPFC_SLI_REV4)
@@ -2117,7 +2204,8 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t *rpi)
 		return -ENODEV;
 	}
 
-	*rpi = mbox->u.mb.un.varWords[0];
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		*rpi = mbox->u.mb.un.varWords[0];
 
 	lpfc_mbuf_free(phba, dmabuff->virt, dmabuff->phys);
 	kfree(dmabuff);
@@ -2142,7 +2230,12 @@ static int lpfcdiag_loop_self_unreg(struct lpfc_hba *phba, uint16_t rpi)
 	if (mbox == NULL)
 		return -ENOMEM;
 
-	lpfc_unreg_login(phba, 0, rpi, mbox);
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		lpfc_unreg_login(phba, 0, rpi, mbox);
+	else
+		lpfc_unreg_login(phba, phba->pport->vpi,
+				 phba->sli4_hba.rpi_ids[rpi], mbox);
+
 	status = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 
 	if ((status != MBX_SUCCESS) || (mbox->u.mb.mbxStatus)) {
@@ -2630,8 +2723,8 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	uint32_t full_size;
 	size_t segment_len = 0, segment_offset = 0, current_offset = 0;
 	uint16_t rpi = 0;
-	struct lpfc_iocbq *cmdiocbq, *rspiocbq;
-	IOCB_t *cmd, *rsp;
+	struct lpfc_iocbq *cmdiocbq, *rspiocbq = NULL;
+	IOCB_t *cmd, *rsp = NULL;
 	struct lpfc_sli_ct_request *ctreq;
 	struct lpfc_dmabuf *txbmp;
 	struct ulp_bde64 *txbpl = NULL;
@@ -2720,18 +2813,19 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	if (rc)
 		goto loopback_test_exit;
 
-	rc = lpfcdiag_loop_get_xri(phba, rpi, &txxri, &rxxri);
-	if (rc) {
-		lpfcdiag_loop_self_unreg(phba, rpi);
-		goto loopback_test_exit;
-	}
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		rc = lpfcdiag_loop_get_xri(phba, rpi, &txxri, &rxxri);
+		if (rc) {
+			lpfcdiag_loop_self_unreg(phba, rpi);
+			goto loopback_test_exit;
+		}
 
-	rc = lpfcdiag_loop_post_rxbufs(phba, rxxri, full_size);
-	if (rc) {
-		lpfcdiag_loop_self_unreg(phba, rpi);
-		goto loopback_test_exit;
+		rc = lpfcdiag_loop_post_rxbufs(phba, rxxri, full_size);
+		if (rc) {
+			lpfcdiag_loop_self_unreg(phba, rpi);
+			goto loopback_test_exit;
+		}
 	}
-
 	evt = lpfc_bsg_event_new(FC_REG_CT_EVENT, current->pid,
 				SLI_CT_ELX_LOOPBACK);
 	if (!evt) {
@@ -2746,7 +2840,8 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
-	rspiocbq = lpfc_sli_get_iocbq(phba);
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		rspiocbq = lpfc_sli_get_iocbq(phba);
 	txbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 
 	if (txbmp) {
@@ -2759,14 +2854,18 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 		}
 	}
 
-	if (!cmdiocbq || !rspiocbq || !txbmp || !txbpl || !txbuffer ||
-		!txbmp->virt) {
+	if (!cmdiocbq || !txbmp || !txbpl || !txbuffer || !txbmp->virt) {
+		rc = -ENOMEM;
+		goto err_loopback_test_exit;
+	}
+	if ((phba->sli_rev < LPFC_SLI_REV4) && !rspiocbq) {
 		rc = -ENOMEM;
 		goto err_loopback_test_exit;
 	}
 
 	cmd = &cmdiocbq->iocb;
-	rsp = &rspiocbq->iocb;
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		rsp = &rspiocbq->iocb;
 
 	INIT_LIST_HEAD(&head);
 	list_add_tail(&head, &txbuffer->dma.list);
@@ -2796,7 +2895,6 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	list_del(&head);
 
 	/* Build the XMIT_SEQUENCE iocb */
-
 	num_bde = (uint32_t)txbuffer->flag;
 
 	cmd->un.xseq64.bdl.addrHigh = putPaddrHigh(txbmp->phys);
@@ -2813,8 +2911,16 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	cmd->ulpBdeCount = 1;
 	cmd->ulpLe = 1;
 	cmd->ulpClass = CLASS3;
-	cmd->ulpContext = txxri;
 
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		cmd->ulpContext = txxri;
+	} else {
+		cmd->un.xseq64.bdl.ulpIoTag32 = 0;
+		cmd->un.ulpWord[3] = phba->sli4_hba.rpi_ids[rpi];
+		cmdiocbq->context3 = txbmp;
+		cmdiocbq->sli4_xritag = NO_XRI;
+		cmd->unsli3.rcvsli3.ox_id = 0xffff;
+	}
 	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
 	cmdiocbq->vport = phba->pport;
 
@@ -2822,7 +2928,11 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 					     rspiocbq, (phba->fc_ratov * 2) +
 					     LPFC_DRVR_TIMEOUT);
 
-	if ((iocb_stat != IOCB_SUCCESS) || (rsp->ulpStatus != IOCB_SUCCESS)) {
+	if ((iocb_stat != IOCB_SUCCESS) || ((phba->sli_rev < LPFC_SLI_REV4) &&
+					   (rsp->ulpStatus != IOCB_SUCCESS))) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"3126 Failed loopback test issue iocb: "
+				"iocb_stat:x%x\n", iocb_stat);
 		rc = -EIO;
 		goto err_loopback_test_exit;
 	}
@@ -2832,9 +2942,12 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 		evt->wq, !list_empty(&evt->events_to_see),
 		((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT) * HZ);
 	evt->waiting = 0;
-	if (list_empty(&evt->events_to_see))
+	if (list_empty(&evt->events_to_see)) {
 		rc = (time_left) ? -EINTR : -ETIMEDOUT;
-	else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"3125 Not receiving unsolicited event, "
+				"rc:x%x\n", rc);
+	} else {
 		spin_lock_irqsave(&phba->ct_ev_lock, flags);
 		list_move(evt->events_to_see.prev, &evt->events_to_get);
 		evdat = list_entry(evt->events_to_get.prev,
@@ -2891,7 +3004,7 @@ loopback_test_exit:
 	job->reply->result = rc;
 	job->dd_data = NULL;
 	/* complete the job back to userspace if no error */
-	if (rc == 0)
+	if (rc == IOCB_SUCCESS)
 		job->job_done(job);
 	return rc;
 }

@@ -627,6 +627,26 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 int
 lpfc_hba_init_link(struct lpfc_hba *phba)
 {
+	return lpfc_hba_init_link_fc_topology(phba, phba->cfg_topology);
+}
+
+/**
+ * lpfc_hba_init_link_fc_topology - Initialize FC link with desired topology
+ * @phba: pointer to lpfc hba data structure.
+ * @fc_topology: desired fc topology.
+ *
+ * This routine will issue the INIT_LINK mailbox command call.
+ * It is available to other drivers through the lpfc_hba data
+ * structure for use as a delayed link up mechanism with the
+ * module parameter lpfc_suppress_link_up.
+ *
+ * Return code
+ *              0 - success
+ *              Any other value - error
+ **/
+int
+lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology)
+{
 	struct lpfc_vport *vport = phba->pport;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
@@ -660,9 +680,10 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 			phba->cfg_link_speed);
 			phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
 	}
-	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
+	lpfc_init_link(phba, pmb, fc_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	lpfc_set_loopback_flag(phba);
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		lpfc_set_loopback_flag(phba);
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
