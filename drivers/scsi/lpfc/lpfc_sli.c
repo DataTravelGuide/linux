@@ -13847,8 +13847,9 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		first_iocbq->iocb.ulpContext = NO_XRI;
 		first_iocbq->iocb.unsli3.rcvsli3.ox_id =
 			be16_to_cpu(fc_hdr->fh_ox_id);
-		/* iocbq is prepped for internal consumption.  Logical vpi. */
-		first_iocbq->iocb.unsli3.rcvsli3.vpi = vport->vpi;
+		/* iocbq is prepped for internal consumption.  Physical vpi. */
+		first_iocbq->iocb.unsli3.rcvsli3.vpi =
+			vport->phba->vpi_ids[vport->vpi];
 		/* put the first buffer into the first IOCBq */
 		first_iocbq->context2 = &seq_dmabuf->dbuf;
 		first_iocbq->context3 = NULL;
