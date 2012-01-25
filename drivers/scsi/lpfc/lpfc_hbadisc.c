@@ -2646,9 +2646,14 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
 
-	/* VFI not supported on interface type 0, just do the flogi */
-	if (mboxq->u.mb.mbxStatus && (bf_get(lpfc_sli_intf_if_type,
-	    &phba->sli4_hba.sli_intf) != LPFC_SLI_INTF_IF_TYPE_0)) {
+	/*
+	 * VFI not supported on interface type 0, just do the flogi
+	 * Also continue if the VFI is in use - just use the same one.
+	 */
+	if (mboxq->u.mb.mbxStatus &&
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+			LPFC_SLI_INTF_IF_TYPE_0) &&
+	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
 		lpfc_printf_vlog(vport, KERN_ERR,
 				LOG_MBOX,
 				"2891 Init VFI mailbox failed 0x%x\n",
@@ -3007,7 +3012,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	} else {
 		if (!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
 			if (phba->max_vpi && phba->cfg_enable_npiv &&
-			   (phba->sli_rev == 3))
+			   (phba->sli_rev >= LPFC_SLI_REV3))
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
 		vport->fc_myDID = phba->fc_pref_DID;
