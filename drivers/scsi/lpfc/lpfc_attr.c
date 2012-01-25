@@ -4022,23 +4022,6 @@ static struct bin_attribute sysfs_ctlreg_attr = {
 };
 
 /**
- * sysfs_mbox_idle - frees the sysfs mailbox
- * @phba: lpfc_hba pointer
- **/
-static void
-sysfs_mbox_idle(struct lpfc_hba *phba)
-{
-	phba->sysfs_mbox.state = SMBOX_IDLE;
-	phba->sysfs_mbox.offset = 0;
-
-	if (phba->sysfs_mbox.mbox) {
-		mempool_free(phba->sysfs_mbox.mbox,
-			     phba->mbox_mem_pool);
-		phba->sysfs_mbox.mbox = NULL;
-	}
-}
-
-/**
  * sysfs_mbox_write - Write method for writing information via mbox
  * @filp: open sysfs file
  * @kobj: kernel kobject that contains the kernel class device.
@@ -4048,71 +4031,18 @@ sysfs_mbox_idle(struct lpfc_hba *phba)
  * @count: bytes to transfer.
  *
  * Description:
- * Accessed via /sys/class/scsi_host/hostxxx/mbox.
- * Uses the sysfs mbox to send buf contents to the adapter.
+ * Deprecated function. All mailbox access from user space is performed via the
+ * bsg interface.
  *
  * Returns:
- * -ERANGE off and count combo out of range
- * -EINVAL off, count or buff address invalid
- * zero if count is zero
- * -EPERM adapter is offline
- * -ENOMEM failed to allocate memory for the mail box
- * -EAGAIN offset, state or mbox is NULL
- * count number of bytes transferred
+ * -EPERM operation not permitted
  **/
 static ssize_t
 sysfs_mbox_write(struct file *filp, struct kobject *kobj,
 		 struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfcMboxq  *mbox = NULL;
-
-	if ((count + off) > MAILBOX_CMD_SIZE)
-		return -ERANGE;
-
-	if (off % 4 ||  count % 4 || (unsigned long)buf % 4)
-		return -EINVAL;
-
-	if (count == 0)
-		return 0;
-
-	if (off == 0) {
-		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-		if (!mbox)
-			return -ENOMEM;
-		memset(mbox, 0, sizeof (LPFC_MBOXQ_t));
-	}
-
-	spin_lock_irq(&phba->hbalock);
-
-	if (off == 0) {
-		if (phba->sysfs_mbox.mbox)
-			mempool_free(mbox, phba->mbox_mem_pool);
-		else
-			phba->sysfs_mbox.mbox = mbox;
-		phba->sysfs_mbox.state = SMBOX_WRITING;
-	} else {
-		if (phba->sysfs_mbox.state  != SMBOX_WRITING ||
-		    phba->sysfs_mbox.offset != off           ||
-		    phba->sysfs_mbox.mbox   == NULL) {
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return -EAGAIN;
-		}
-	}
-
-	memcpy((uint8_t *) &phba->sysfs_mbox.mbox->u.mb + off,
-	       buf, count);
-
-	phba->sysfs_mbox.offset = off + count;
-
-	spin_unlock_irq(&phba->hbalock);
-
-	return count;
+	return -EPERM;
 }
 
 /**
@@ -4125,201 +4055,18 @@ sysfs_mbox_write(struct file *filp, struct kobject *kobj,
  * @count: bytes to transfer.
  *
  * Description:
- * Accessed via /sys/class/scsi_host/hostxxx/mbox.
- * Uses the sysfs mbox to receive data from to the adapter.
+ * Deprecated function. All mailbox access from user space is performed via the
+ * bsg interface.
  *
  * Returns:
- * -ERANGE off greater than mailbox command size
- * -EINVAL off, count or buff address invalid
- * zero if off and count are zero
- * -EACCES adapter over temp
- * -EPERM garbage can value to catch a multitude of errors
- * -EAGAIN management IO not permitted, state or off error
- * -ETIME mailbox timeout
- * -ENODEV mailbox error
- * count number of bytes transferred
+ * -EPERM operation not permitted
  **/
 static ssize_t
 sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	LPFC_MBOXQ_t *mboxq;
-	MAILBOX_t *pmb;
-	uint32_t mbox_tmo;
-	int rc;
-
-	if (off > MAILBOX_CMD_SIZE)
-		return -ERANGE;
-
-	if ((count + off) > MAILBOX_CMD_SIZE)
-		count = MAILBOX_CMD_SIZE - off;
-
-	if (off % 4 ||  count % 4 || (unsigned long)buf % 4)
-		return -EINVAL;
-
-	if (off && count == 0)
-		return 0;
-
-	spin_lock_irq(&phba->hbalock);
-
-	if (phba->over_temp_state == HBA_OVER_TEMP) {
-		sysfs_mbox_idle(phba);
-		spin_unlock_irq(&phba->hbalock);
-		return  -EACCES;
-	}
-
-	if (off == 0 &&
-	    phba->sysfs_mbox.state  == SMBOX_WRITING &&
-	    phba->sysfs_mbox.offset >= 2 * sizeof(uint32_t)) {
-		mboxq = (LPFC_MBOXQ_t *)&phba->sysfs_mbox.mbox;
-		pmb = &mboxq->u.mb;
-		switch (pmb->mbxCommand) {
-			/* Offline only */
-		case MBX_INIT_LINK:
-		case MBX_DOWN_LINK:
-		case MBX_CONFIG_LINK:
-		case MBX_CONFIG_RING:
-		case MBX_RESET_RING:
-		case MBX_UNREG_LOGIN:
-		case MBX_CLEAR_LA:
-		case MBX_DUMP_CONTEXT:
-		case MBX_RUN_DIAGS:
-		case MBX_RESTART:
-		case MBX_SET_MASK:
-		case MBX_SET_DEBUG:
-			if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
-				printk(KERN_WARNING "mbox_read:Command 0x%x "
-				       "is illegal in on-line state\n",
-				       pmb->mbxCommand);
-				sysfs_mbox_idle(phba);
-				spin_unlock_irq(&phba->hbalock);
-				return -EPERM;
-			}
-		case MBX_WRITE_NV:
-		case MBX_WRITE_VPARMS:
-		case MBX_LOAD_SM:
-		case MBX_READ_NV:
-		case MBX_READ_CONFIG:
-		case MBX_READ_RCONFIG:
-		case MBX_READ_STATUS:
-		case MBX_READ_XRI:
-		case MBX_READ_REV:
-		case MBX_READ_LNK_STAT:
-		case MBX_DUMP_MEMORY:
-		case MBX_DOWN_LOAD:
-		case MBX_UPDATE_CFG:
-		case MBX_KILL_BOARD:
-		case MBX_LOAD_AREA:
-		case MBX_LOAD_EXP_ROM:
-		case MBX_BEACON:
-		case MBX_DEL_LD_ENTRY:
-		case MBX_SET_VARIABLE:
-		case MBX_WRITE_WWN:
-		case MBX_PORT_CAPABILITIES:
-		case MBX_PORT_IOV_CONTROL:
-			break;
-		case MBX_SECURITY_MGMT:
-		case MBX_AUTH_PORT:
-			if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
-				printk(KERN_WARNING "mbox_read:Command 0x%x "
-				       "is not permitted\n", pmb->mbxCommand);
-				sysfs_mbox_idle(phba);
-				spin_unlock_irq(&phba->hbalock);
-				return -EPERM;
-			}
-			break;
-		case MBX_READ_SPARM64:
-		case MBX_READ_TOPOLOGY:
-		case MBX_REG_LOGIN:
-		case MBX_REG_LOGIN64:
-		case MBX_CONFIG_PORT:
-		case MBX_RUN_BIU_DIAG:
-			printk(KERN_WARNING "mbox_read: Illegal Command 0x%x\n",
-			       pmb->mbxCommand);
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return -EPERM;
-		default:
-			printk(KERN_WARNING "mbox_read: Unknown Command 0x%x\n",
-			       pmb->mbxCommand);
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return -EPERM;
-		}
-
-		/* If HBA encountered an error attention, allow only DUMP
-		 * or RESTART mailbox commands until the HBA is restarted.
-		 */
-		if (phba->pport->stopped &&
-		    pmb->mbxCommand != MBX_DUMP_MEMORY &&
-		    pmb->mbxCommand != MBX_RESTART &&
-		    pmb->mbxCommand != MBX_WRITE_VPARMS &&
-		    pmb->mbxCommand != MBX_WRITE_WWN)
-			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-					"1259 mbox: Issued mailbox cmd "
-					"0x%x while in stopped state.\n",
-					pmb->mbxCommand);
-
-		phba->sysfs_mbox.mbox->vport = vport;
-
-		/* Don't allow mailbox commands to be sent when blocked
-		 * or when in the middle of discovery
-		 */
-		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return  -EAGAIN;
-		}
-
-		if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		    (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE))) {
-
-			spin_unlock_irq(&phba->hbalock);
-			rc = lpfc_sli_issue_mbox (phba,
-						  phba->sysfs_mbox.mbox,
-						  MBX_POLL);
-			spin_lock_irq(&phba->hbalock);
-
-		} else {
-			spin_unlock_irq(&phba->hbalock);
-			mbox_tmo = lpfc_mbox_tmo_val(phba, mboxq);
-			rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
-			spin_lock_irq(&phba->hbalock);
-		}
-
-		if (rc != MBX_SUCCESS) {
-			if (rc == MBX_TIMEOUT) {
-				phba->sysfs_mbox.mbox = NULL;
-			}
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return  (rc == MBX_TIMEOUT) ? -ETIME : -ENODEV;
-		}
-		phba->sysfs_mbox.state = SMBOX_READING;
-	}
-	else if (phba->sysfs_mbox.offset != off ||
-		 phba->sysfs_mbox.state  != SMBOX_READING) {
-		printk(KERN_WARNING  "mbox_read: Bad State\n");
-		sysfs_mbox_idle(phba);
-		spin_unlock_irq(&phba->hbalock);
-		return -EAGAIN;
-	}
-
-	memcpy(buf, (uint8_t *) &pmb + off, count);
-
-	phba->sysfs_mbox.offset = off + count;
-
-	if (phba->sysfs_mbox.offset == MAILBOX_CMD_SIZE)
-		sysfs_mbox_idle(phba);
-
-	spin_unlock_irq(&phba->hbalock);
-
-	return count;
+	return -EPERM;
 }
 
 static struct bin_attribute sysfs_mbox_attr = {
