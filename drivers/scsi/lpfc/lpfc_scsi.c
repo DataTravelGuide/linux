@@ -1302,13 +1302,13 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		case SCSI_PROT_NORMAL:
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9063 BLKGRD: Bad op/guard:%d/%d combination\n",
-					scsi_get_prot_op(sc), guard_type);
+				"9063 BLKGRD: Bad op/guard:%d/IP combination\n",
+					scsi_get_prot_op(sc));
 			ret = 1;
 			break;
 
 		}
-	} else if (guard_type == SHOST_DIX_GUARD_CRC) {
+	} else {
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
@@ -1331,14 +1331,11 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		case SCSI_PROT_NORMAL:
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9075 BLKGRD: Bad op/guard:%d/%d combination\n",
-					scsi_get_prot_op(sc), guard_type);
+				"9075 BLKGRD: Bad op/guard:%d/CRC "
+				"combination\n", scsi_get_prot_op(sc));
 			ret = 1;
 			break;
 		}
-	} else {
-		/* unsupported format */
-		BUG();
 	}
 
 	return ret;
