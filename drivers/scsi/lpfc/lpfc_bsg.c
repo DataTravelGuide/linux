@@ -1637,7 +1637,9 @@ lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		if ((mbxstatus != MBX_SUCCESS) || (pmboxq->u.mb.mbxStatus))
 			rc = -ENODEV;
 		else {
+			spin_lock_irq(&phba->hbalock);
 			phba->link_flag |= LS_LOOPBACK_MODE;
+			spin_unlock_irq(&phba->hbalock);
 			/* wait for the link attention interrupt */
 			msleep(100);
 
@@ -1849,7 +1851,9 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 			"3132 Set up loopback mode:x%x\n", link_flags);
 	/* indicate we are in loobpack diagnostic mode */
+	spin_lock_irq(&phba->hbalock);
 	phba->link_flag |= LS_LOOPBACK_MODE;
+	spin_unlock_irq(&phba->hbalock);
 
 	if (link_flags == INTERNAL_LOOP_BACK)
 		rc = lpfc_sli4_bsg_set_internal_loopback(phba);
@@ -1882,8 +1886,11 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	}
 loopback_mode_exit:
 	/* clear loopback diagnostic mode */
-	if (rc)
+	if (rc) {
+		spin_lock_irq(&phba->hbalock);
 		phba->link_flag &= ~LS_LOOPBACK_MODE;
+		spin_unlock_irq(&phba->hbalock);
+	}
 	lpfc_bsg_diag_mode_exit(phba);
 
 job_error:
@@ -1965,7 +1972,9 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 		return -ENODEV;
 
 	/* clear loopback diagnostic mode */
+	spin_lock_irq(&phba->hbalock);
 	phba->link_flag &= ~LS_LOOPBACK_MODE;
+	spin_unlock_irq(&phba->hbalock);
 	loopback_mode_end_cmd = (struct diag_mode_set *)
 			job->request->rqst_data.h_vendor.vendor_cmd;
 	timeout = loopback_mode_end_cmd->timeout * 100;
@@ -3194,7 +3203,9 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 			&& (mb->un.varWords[1] == 1)) {
 			phba->wait_4_mlo_maint_flg = 1;
 		} else if (mb->un.varWords[0] == SETVAR_MLORST) {
+			spin_lock_irq(&phba->hbalock);
 			phba->link_flag &= ~LS_LOOPBACK_MODE;
+			spin_unlock_irq(&phba->hbalock);
 			phba->fc_topology = LPFC_TOPOLOGY_PT_PT;
 		}
 		break;

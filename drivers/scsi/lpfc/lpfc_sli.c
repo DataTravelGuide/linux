@@ -3575,8 +3575,8 @@ lpfc_sli_brdready(struct lpfc_hba *phba, uint32_t mask)
  * lpfc_reset_barrier - Make HBA ready for HBA reset
  * @phba: Pointer to HBA context object.
  *
- * This function is called before resetting an HBA. This
- * function requests HBA to quiesce DMAs before a reset.
+ * This function is called before resetting an HBA. This function is called
+ * with hbalock held and requests HBA to quiesce DMAs before a reset.
  **/
 void lpfc_reset_barrier(struct lpfc_hba *phba)
 {

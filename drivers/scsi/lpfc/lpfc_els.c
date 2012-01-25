@@ -615,7 +615,9 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					 "1816 FLOGI NPIV supported, "
 					 "response data 0x%x\n",
 					 sp->cmn.response_multiple_NPort);
+			spin_lock_irq(&phba->hbalock);
 			phba->link_flag |= LS_NPIV_FAB_SUPPORTED;
+			spin_unlock_irq(&phba->hbalock);
 		} else {
 			/* Because we asked f/w for NPIV it still expects us
 			to call reg_vnpid atleast for the physcial host */
@@ -623,7 +625,9 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					 LOG_ELS | LOG_VPORT,
 					 "1817 Fabric does not support NPIV "
 					 "- configuring single port mode.\n");
+			spin_lock_irq(&phba->hbalock);
 			phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
+			spin_unlock_irq(&phba->hbalock);
 		}
 	}
 
