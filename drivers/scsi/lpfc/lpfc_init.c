@@ -1446,7 +1446,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			/* TODO: Register for Overtemp async events. */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2889 Port Overtemperature event, "
-				"taking port\n");
+				"taking port offline\n");
 			spin_lock_irq(&phba->hbalock);
 			phba->over_temp_state = HBA_OVER_TEMP;
 			spin_unlock_irq(&phba->hbalock);
