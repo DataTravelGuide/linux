@@ -2589,13 +2589,10 @@ lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
 	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
 	int len = 0;
 
-	mbx_dump_map = idiag.cmd.data[0];
-	mbx_dump_cnt = idiag.cmd.data[1];
-	mbx_word_cnt = idiag.cmd.data[2];
-	if (mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_ALL)
-		mbx_mbox_cmd = idiag.cmd.data[3];
-	else
-		mbx_mbox_cmd = 0;
+	mbx_mbox_cmd = idiag.cmd.data[0];
+	mbx_dump_map = idiag.cmd.data[1];
+	mbx_dump_cnt = idiag.cmd.data[2];
+	mbx_word_cnt = idiag.cmd.data[3];
 
 	len += snprintf(pbuffer+len, LPFC_MBX_ACC_BUF_SIZE-len,
 			"mbx_dump_map: 0x%08x\n", mbx_dump_map);
@@ -2645,7 +2642,8 @@ lpfc_idiag_mbxacc_read(struct file *file, char __user *buf, size_t nbytes,
 	if (*ppos)
 		return 0;
 
-	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+	if ((idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP) &&
+	    (idiag.cmd.opcode != LPFC_IDIAG_BSG_MBXACC_DP))
 		return 0;
 
 	len = lpfc_idiag_mbxacc_get_setup(phba, pbuffer);
@@ -2684,39 +2682,42 @@ lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 		return rc;
 
 	/* Sanity check on command line arguments */
-	mbx_dump_map = idiag.cmd.data[0];
-	mbx_dump_cnt = idiag.cmd.data[1];
-	mbx_word_cnt = idiag.cmd.data[2];
-	mbx_mbox_cmd = idiag.cmd.data[3];
+	mbx_mbox_cmd = idiag.cmd.data[0];
+	mbx_dump_map = idiag.cmd.data[1];
+	mbx_dump_cnt = idiag.cmd.data[2];
+	mbx_word_cnt = idiag.cmd.data[3];
 
 	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_MBXACC_DP) {
-		if (!(mbx_dump_map & LPFC_MBX_DMP_ALL))
+		if (!(mbx_dump_map & LPFC_MBX_DMP_MBX_ALL))
 			goto error_out;
-		if (mbx_dump_map & ~LPFC_MBX_DMP_ALL)
+		if ((mbx_dump_map & ~LPFC_MBX_DMP_MBX_ALL) &&
+		    (mbx_dump_map != LPFC_MBX_DMP_ALL))
 			goto error_out;
-		if (mbx_word_cnt == 0)
+		if (mbx_word_cnt > sizeof(MAILBOX_t))
 			goto error_out;
-		if (mbx_dump_map & LPFC_BSG_MBX_DMP_ALL) {
-			if (mbx_dump_cnt > (BSG_MBOX_SIZE)/4)
-				goto error_out;
-			if ((rc != LPFC_BSG_MBX_DMP_CMD_ARG) &&
-			    (rc != LPFC_MBX_DMP_ISSUE_MBX_CMD_ARG))
-				goto error_out;
-		}
-		if (mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_ALL) {
-			if (mbx_dump_cnt > sizeof(MAILBOX_t))
-				goto error_out;
-			if (rc != LPFC_MBX_DMP_ISSUE_MBX_CMD_ARG)
-				goto error_out;
-		}
-		if ((mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_ALL) &&
-		    (mbx_mbox_cmd & ~0xff))
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_BSG_MBXACC_DP) {
+		if (!(mbx_dump_map & LPFC_BSG_DMP_MBX_ALL))
 			goto error_out;
-		/* as condition for stop mailbox dump */
-		if (mbx_dump_cnt == 0)
-			goto reset_out;
+		if ((mbx_dump_map & ~LPFC_BSG_DMP_MBX_ALL) &&
+		    (mbx_dump_map != LPFC_MBX_DMP_ALL))
+			goto error_out;
+		if (mbx_word_cnt > (BSG_MBOX_SIZE)/4)
+			goto error_out;
+		if (mbx_mbox_cmd != 0x9b)
+			goto error_out;
 	} else
 		goto error_out;
+
+	if (mbx_word_cnt == 0)
+		goto error_out;
+	if (rc != LPFC_MBX_DMP_ARG)
+		goto error_out;
+	if (mbx_mbox_cmd & ~0xff)
+		goto error_out;
+
+	/* condition for stop mailbox dump */
+	if (mbx_dump_cnt == 0)
+		goto reset_out;
 
 	return nbytes;
 
@@ -3184,51 +3185,56 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 				struct lpfc_dmabuf *dmabuf, uint32_t ext_buf)
 {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint32_t *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt;
+	uint32_t *mbx_mbox_cmd, *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt;
 	char line_buf[LPFC_MBX_ACC_LBUF_SZ];
 	int len = 0;
 	uint32_t do_dump = 0;
 	uint32_t *pword;
 	uint32_t i;
 
-	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
+	if (idiag.cmd.opcode != LPFC_IDIAG_BSG_MBXACC_DP)
 		return;
 
-	mbx_dump_map = &idiag.cmd.data[0];
-	mbx_dump_cnt = &idiag.cmd.data[1];
-	mbx_word_cnt = &idiag.cmd.data[2];
+	mbx_mbox_cmd = &idiag.cmd.data[0];
+	mbx_dump_map = &idiag.cmd.data[1];
+	mbx_dump_cnt = &idiag.cmd.data[2];
+	mbx_word_cnt = &idiag.cmd.data[3];
 
-	if (!(*mbx_dump_map & LPFC_MBX_DMP_ALL) || (*mbx_dump_cnt == 0) ||
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_ALL) ||
+	    (*mbx_dump_cnt == 0) ||
 	    (*mbx_word_cnt == 0))
 		return;
 
+	if (*mbx_mbox_cmd != 0x9B)
+		return;
+
 	if ((mbox_tp == mbox_rd) && (dma_tp == dma_mbox)) {
-		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_RD_MBX) {
-			do_dump |= LPFC_BSG_MBX_DMP_RD_MBX;
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_MBX) {
+			do_dump |= LPFC_BSG_DMP_MBX_RD_MBX;
 			printk(KERN_ERR "\nRead mbox command (x%x), "
 			       "nemb:0x%x, extbuf_cnt:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
 	}
 	if ((mbox_tp == mbox_rd) && (dma_tp == dma_ebuf)) {
-		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_RD_BUF) {
-			do_dump |= LPFC_BSG_MBX_DMP_RD_BUF;
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_RD_BUF) {
+			do_dump |= LPFC_BSG_DMP_MBX_RD_BUF;
 			printk(KERN_ERR "\nRead mbox buffer (x%x), "
 			       "nemb:0x%x, extbuf_seq:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
 	}
 	if ((mbox_tp == mbox_wr) && (dma_tp == dma_mbox)) {
-		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_WR_MBX) {
-			do_dump |= LPFC_BSG_MBX_DMP_WR_MBX;
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_MBX) {
+			do_dump |= LPFC_BSG_DMP_MBX_WR_MBX;
 			printk(KERN_ERR "\nWrite mbox command (x%x), "
 			       "nemb:0x%x, extbuf_cnt:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
 		}
 	}
 	if ((mbox_tp == mbox_wr) && (dma_tp == dma_ebuf)) {
-		if (*mbx_dump_map & LPFC_BSG_MBX_DMP_WR_BUF) {
-			do_dump |= LPFC_BSG_MBX_DMP_WR_MBX;
+		if (*mbx_dump_map & LPFC_BSG_DMP_MBX_WR_BUF) {
+			do_dump |= LPFC_BSG_DMP_MBX_WR_BUF;
 			printk(KERN_ERR "\nWrite mbox buffer (x%x), "
 			       "nemb:0x%x, extbuf_seq:%d:\n",
 			       sta_tp, nemb_tp, ext_buf);
@@ -3285,21 +3291,22 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_MBXACC_DP)
 		return;
 
-	mbx_dump_map = &idiag.cmd.data[0];
-	mbx_dump_cnt = &idiag.cmd.data[1];
-	mbx_word_cnt = &idiag.cmd.data[2];
-	mbx_mbox_cmd = &idiag.cmd.data[3];
+	mbx_mbox_cmd = &idiag.cmd.data[0];
+	mbx_dump_map = &idiag.cmd.data[1];
+	mbx_dump_cnt = &idiag.cmd.data[2];
+	mbx_word_cnt = &idiag.cmd.data[3];
 
-	if (!(*mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_ALL) ||
+	if (!(*mbx_dump_map & LPFC_MBX_DMP_MBX_ALL) ||
 	    (*mbx_dump_cnt == 0) ||
 	    (*mbx_word_cnt == 0))
 		return;
 
-	if ((*mbx_mbox_cmd != 0xff) && (*mbx_mbox_cmd != pmbox->mbxCommand))
+	if ((*mbx_mbox_cmd != LPFC_MBX_ALL_CMD) &&
+	    (*mbx_mbox_cmd != pmbox->mbxCommand))
 		return;
 
 	/* dump buffer content */
-	if (*mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_WORD) {
+	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_WORD) {
 		printk(KERN_ERR "Mailbox command:0x%x dump by word:\n",
 		       pmbox->mbxCommand);
 		pword = (uint32_t *)pmbox;
@@ -3322,7 +3329,7 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 			printk(KERN_ERR "%s\n", line_buf);
 		printk(KERN_ERR "\n");
 	}
-	if (*mbx_dump_map & LPFC_MBX_DMP_ISSUE_MBX_BYTE) {
+	if (*mbx_dump_map & LPFC_MBX_DMP_MBX_BYTE) {
 		printk(KERN_ERR "Mailbox command:0x%x dump by byte:\n",
 		       pmbox->mbxCommand);
 		pbyte = (uint8_t *)pmbox;

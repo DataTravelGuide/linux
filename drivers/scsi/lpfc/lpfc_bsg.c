@@ -3179,6 +3179,11 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 				"(x%x/x%x) complete bsg job done, bsize:%d\n",
 				phba->mbox_ext_buf_ctx.nembType,
 				phba->mbox_ext_buf_ctx.mboxType, size);
+		lpfc_idiag_mbxacc_dump_bsg_mbox(phba,
+					phba->mbox_ext_buf_ctx.nembType,
+					phba->mbox_ext_buf_ctx.mboxType,
+					dma_ebuf, sta_pos_addr,
+					phba->mbox_ext_buf_ctx.mbx_dmabuf, 0);
 	} else
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
@@ -3944,16 +3949,16 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 	}
 
-	/* pre write dma buffer */
-	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
-					mbox_wr, dma_ebuf, sta_pos_addr,
-					dmabuf, index);
-
 	/* set up external buffer descriptor and add to external buffer list */
 	lpfc_bsg_sli_cfg_dma_desc_setup(phba, nemb_tp, index,
 					phba->mbox_ext_buf_ctx.mbx_dmabuf,
 					dmabuf);
 	list_add_tail(&dmabuf->list, &phba->mbox_ext_buf_ctx.ext_dmabuf_list);
+
+	/* after write dma buffer */
+	lpfc_idiag_mbxacc_dump_bsg_mbox(phba, phba->mbox_ext_buf_ctx.nembType,
+					mbox_wr, dma_ebuf, sta_pos_addr,
+					dmabuf, index);
 
 	if (phba->mbox_ext_buf_ctx.seqNum == phba->mbox_ext_buf_ctx.numBuf) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
