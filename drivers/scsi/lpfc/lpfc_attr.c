@@ -499,6 +499,34 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sli4_protocol_show - Return the fip mode of the HBA
+ * @dev: class unused variable.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the module description text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_sli4_protocol_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return snprintf(buf, PAGE_SIZE, "fc\n");
+
+	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL) {
+		if (phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_GE)
+			return snprintf(buf, PAGE_SIZE, "fcoe\n");
+		if (phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC)
+			return snprintf(buf, PAGE_SIZE, "fc\n");
+	}
+	return snprintf(buf, PAGE_SIZE, "unknown\n");
+}
+
+/**
  * lpfc_link_state_store - Transition the link_state on an HBA port
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -1953,6 +1981,7 @@ static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
 static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
 static DEVICE_ATTR(lpfc_sriov_hw_max_virtfn, S_IRUGO,
 		   lpfc_sriov_hw_max_virtfn_show, NULL);
+static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
@@ -3835,6 +3864,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fips_rev,
 	&dev_attr_lpfc_dss,
 	&dev_attr_lpfc_sriov_hw_max_virtfn,
+	&dev_attr_protocol,
 	NULL,
 };
 

@@ -2588,6 +2588,8 @@ struct lpfc_rsrc_desc_fcfcoe {
 #define lpfc_rsrc_desc_fcfcoe_lnk_tp_SHIFT      6
 #define lpfc_rsrc_desc_fcfcoe_lnk_tp_MASK	0x00000003
 #define lpfc_rsrc_desc_fcfcoe_lnk_tp_WORD	word13
+#define LPFC_LNK_TYPE_GE	0
+#define LPFC_LNK_TYPE_FC	1
 #define lpfc_rsrc_desc_fcfcoe_lmc_SHIFT		8
 #define lpfc_rsrc_desc_fcfcoe_lmc_MASK		0x00000001
 #define lpfc_rsrc_desc_fcfcoe_lmc_WORD		word13
