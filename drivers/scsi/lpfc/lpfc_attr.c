@@ -4563,9 +4563,17 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
-	hs->tx_words = (pmb->un.varRdStatus.xmitByteCnt * 256);
+	/*
+	 * The MBX_READ_STATUS returns tx_k_bytes which has to
+	 * converted to words
+	 */
+	hs->tx_words = (uint64_t)
+			((uint64_t)pmb->un.varRdStatus.xmitByteCnt
+			* (uint64_t)256);
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
-	hs->rx_words = (pmb->un.varRdStatus.rcvByteCnt * 256);
+	hs->rx_words = (uint64_t)
+			((uint64_t)pmb->un.varRdStatus.rcvByteCnt
+			 * (uint64_t)256);
 
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
