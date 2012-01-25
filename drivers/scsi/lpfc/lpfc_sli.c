@@ -5880,14 +5880,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (!mboxq)
 		return -ENOMEM;
 
-	/*
-	 * Continue initialization with default values even if driver failed
-	 * to read FCoE param config regions
-	 */
-	if (lpfc_sli4_read_fcoe_params(phba, mboxq))
-		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
-			"2570 Failed to read FCoE parameters\n");
-
 	/* Issue READ_REV to collect vpd and FW information. */
 	vpd_size = SLI4_PAGE_SIZE;
 	vpd = kzalloc(vpd_size, GFP_KERNEL);
@@ -5923,6 +5915,16 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		kfree(vpd);
 		goto out_free_mbox;
 	}
+
+	/*
+	 * Continue initialization with default values even if driver failed
+	 * to read FCoE param config regions, only read parameters if the
+	 * board is FCoE
+	 */
+	if (phba->hba_flag & HBA_FCOE_MODE &&
+	    lpfc_sli4_read_fcoe_params(phba, mboxq))
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
+			"2570 Failed to read FCoE parameters\n");
 
 	/*
 	 * Retrieve sli4 device physical port name, failure of doing it
