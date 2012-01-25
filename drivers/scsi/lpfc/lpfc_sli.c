@@ -98,7 +98,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
 		return -ENOMEM;
 	/* set consumption flag every once in a while */
-	if (!((q->host_index + 1) % LPFC_RELEASE_NOTIFICATION_INTERVAL))
+	if (!((q->host_index + 1) % q->entry_repost))
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 1);
 	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
 		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
@@ -12152,6 +12152,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	wq->subtype = subtype;
 	wq->host_index = 0;
 	wq->hba_index = 0;
+	wq->entry_repost = LPFC_RELEASE_NOTIFICATION_INTERVAL;
 
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);
