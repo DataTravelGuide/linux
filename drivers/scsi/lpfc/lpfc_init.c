@@ -6767,6 +6767,10 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				"0540 Receive Queue not allocated\n");
 		goto out_destroy_fcp_wq;
 	}
+
+	lpfc_rq_adjust_repost(phba, phba->sli4_hba.hdr_rq, LPFC_ELS_HBQ);
+	lpfc_rq_adjust_repost(phba, phba->sli4_hba.dat_rq, LPFC_ELS_HBQ);
+
 	rc = lpfc_rq_create(phba, phba->sli4_hba.hdr_rq, phba->sli4_hba.dat_rq,
 			    phba->sli4_hba.els_cq, LPFC_USOL);
 	if (rc) {
@@ -6775,6 +6779,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				"rc = 0x%x\n", rc);
 		goto out_destroy_fcp_wq;
 	}
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"2592 USL RQ setup: hdr-rq-id=%d, dat-rq-id=%d "
 			"parent cq-id=%d\n",
