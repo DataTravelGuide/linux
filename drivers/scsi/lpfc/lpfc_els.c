@@ -3390,11 +3390,17 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/*
 	 * The driver received a LOGO from the rport and has ACK'd it.
-	 * At this point, the driver is done so release the IOCB and
-	 * remove the ndlp reference.
+	 * At this point, the driver is done so release the IOCB
 	 */
 	lpfc_els_free_iocb(phba, cmdiocb);
-	lpfc_nlp_put(ndlp);
+
+	/*
+	 * Remove the ndlp reference if it's a fabric node that has
+	 * sent us an unsolicted LOGO.
+	 */
+	if (ndlp->nlp_type & NLP_FABRIC)
+		lpfc_nlp_put(ndlp);
+
 	return;
 }
 
