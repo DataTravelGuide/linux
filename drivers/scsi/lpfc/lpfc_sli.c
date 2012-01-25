@@ -68,7 +68,6 @@ static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
 static int lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *, uint16_t);
-static uint16_t lpfc_sli4_xri_inrange(struct lpfc_hba *, uint16_t);
 static int lpfc_sli4_alloc_extent(struct lpfc_hba *, uint16_t);
 static int lpfc_sli4_dealloc_extent(struct lpfc_hba *, uint16_t);
 static IOCB_t *lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
@@ -562,7 +561,7 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
 	if (rrq) {
 		rrq->send_rrq = send_rrq;
-		rrq->xritag = phba->sli4_hba.xri_ids[xritag];
+		rrq->xritag = xritag;
 		rrq->rrq_stop_time = jiffies + HZ * (phba->fc_ratov + 1);
 		rrq->ndlp = ndlp;
 		rrq->nlp_DID = ndlp->nlp_DID;
@@ -13588,7 +13587,7 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
  * This function validates the xri maps to the known range of XRIs allocated an
  * used by the driver.
  **/
-static uint16_t
+uint16_t
 lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
 		      uint16_t xri)
 {

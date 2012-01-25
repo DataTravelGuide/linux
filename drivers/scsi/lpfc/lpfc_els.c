@@ -7808,6 +7808,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 {
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	uint16_t lxri = 0;
 
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
@@ -7836,7 +7837,12 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 		}
 	}
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
-	sglq_entry = __lpfc_get_active_sglq(phba, xri);
+	lxri = 	lpfc_sli4_xri_inrange(phba, xri);
+	if (lxri == NO_XRI) {
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
+		return;
+	}
+	sglq_entry = __lpfc_get_active_sglq(phba, lxri);
 	if (!sglq_entry || (sglq_entry->sli4_xritag != xri)) {
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return;
