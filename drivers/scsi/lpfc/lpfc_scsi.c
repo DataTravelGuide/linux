@@ -1324,6 +1324,10 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
+			*txop = BG_OP_IN_CRC_OUT_NODIF;
+			*rxop = BG_OP_IN_NODIF_OUT_CRC;
+			break;
+
 		case SCSI_PROT_NORMAL:
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1350,45 +1354,6 @@ static inline unsigned
 lpfc_cmd_blksize(struct scsi_cmnd *sc)
 {
 	return sc->device->sector_size;
-}
-
-/**
- * lpfc_get_cmd_dif_parms - Extract DIF parameters from SCSI command
- * @sc:             in: SCSI command
- * @apptagmask:     out: app tag mask
- * @apptagval:      out: app tag value
- * @reftag:         out: ref tag (reference tag)
- *
- * Description:
- *   Extract DIF parameters from the command if possible.  Otherwise,
- *   use default parameters.
- *
- **/
-static inline void
-lpfc_get_cmd_dif_parms(struct scsi_cmnd *sc, uint16_t *apptagmask,
-		uint16_t *apptagval, uint32_t *reftag)
-{
-	struct  scsi_dif_tuple *spt;
-	unsigned char op = scsi_get_prot_op(sc);
-	unsigned int protcnt = scsi_prot_sg_count(sc);
-	static int cnt;
-
-	if (protcnt && (op == SCSI_PROT_WRITE_STRIP ||
-				op == SCSI_PROT_WRITE_PASS)) {
-
-		cnt++;
-		spt = page_address(sg_page(scsi_prot_sglist(sc))) +
-			scsi_prot_sglist(sc)[0].offset;
-		*apptagmask = 0;
-		*apptagval = 0;
-		*reftag = cpu_to_be32(spt->ref_tag);
-
-	} else {
-		/* SBC defines ref tag to be lower 32bits of LBA */
-		*reftag = (uint32_t) (0xffffffff & scsi_get_lba(sc));
-		*apptagmask = 0;
-		*apptagval = 0;
-	}
 }
 
 /*
@@ -1427,9 +1392,8 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	dma_addr_t physaddr;
 	int i = 0, num_bde = 0, status;
 	int datadir = sc->sc_data_direction;
-	unsigned blksize;
 	uint32_t reftag;
-	uint16_t apptagmask, apptagval;
+	unsigned blksize;
 	uint8_t txop, rxop;
 
 	status  = lpfc_sc_to_bg_opcodes(phba, sc, &txop, &rxop);
@@ -1438,17 +1402,16 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	/* extract some info from the scsi command for pde*/
 	blksize = lpfc_cmd_blksize(sc);
-	lpfc_get_cmd_dif_parms(sc, &apptagmask, &apptagval, &reftag);
+	reftag = scsi_get_lba(sc) & 0xffffffff;
 
 	/* setup PDE5 with what we have */
 	pde5 = (struct lpfc_pde5 *) bpl;
 	memset(pde5, 0, sizeof(struct lpfc_pde5));
 	bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
-	pde5->reftag = reftag;
 
 	/* Endianness conversion if necessary for PDE5 */
 	pde5->word0 = cpu_to_le32(pde5->word0);
-	pde5->reftag = cpu_to_le32(pde5->reftag);
+	pde5->reftag = cpu_to_le32(reftag);
 
 	/* advance bpl and increment bde count */
 	num_bde++;
@@ -1463,10 +1426,10 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	if (datadir == DMA_FROM_DEVICE) {
 		bf_set(pde6_ce, pde6, 1);
 		bf_set(pde6_re, pde6, 1);
-		bf_set(pde6_ae, pde6, 1);
 	}
 	bf_set(pde6_ai, pde6, 1);
-	bf_set(pde6_apptagval, pde6, apptagval);
+	bf_set(pde6_ae, pde6, 0);
+	bf_set(pde6_apptagval, pde6, 0);
 
 	/* Endianness conversion if necessary for PDE6 */
 	pde6->word0 = cpu_to_le32(pde6->word0);
@@ -1551,7 +1514,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	unsigned char pgdone = 0, alldone = 0;
 	unsigned blksize;
 	uint32_t reftag;
-	uint16_t apptagmask, apptagval;
 	uint8_t txop, rxop;
 	int num_bde = 0;
 
@@ -1571,7 +1533,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	/* extract some info from the scsi command */
 	blksize = lpfc_cmd_blksize(sc);
-	lpfc_get_cmd_dif_parms(sc, &apptagmask, &apptagval, &reftag);
+	reftag = scsi_get_lba(sc) & 0xffffffff;
 
 	split_offset = 0;
 	do {
@@ -1579,11 +1541,10 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		pde5 = (struct lpfc_pde5 *) bpl;
 		memset(pde5, 0, sizeof(struct lpfc_pde5));
 		bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
-		pde5->reftag = reftag;
 
 		/* Endianness conversion if necessary for PDE5 */
 		pde5->word0 = cpu_to_le32(pde5->word0);
-		pde5->reftag = cpu_to_le32(pde5->reftag);
+		pde5->reftag = cpu_to_le32(reftag);
 
 		/* advance bpl and increment bde count */
 		num_bde++;
@@ -1597,9 +1558,9 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		bf_set(pde6_oprx, pde6, rxop);
 		bf_set(pde6_ce, pde6, 1);
 		bf_set(pde6_re, pde6, 1);
-		bf_set(pde6_ae, pde6, 1);
 		bf_set(pde6_ai, pde6, 1);
-		bf_set(pde6_apptagval, pde6, apptagval);
+		bf_set(pde6_ae, pde6, 0);
+		bf_set(pde6_apptagval, pde6, 0);
 
 		/* Endianness conversion if necessary for PDE6 */
 		pde6->word0 = cpu_to_le32(pde6->word0);
