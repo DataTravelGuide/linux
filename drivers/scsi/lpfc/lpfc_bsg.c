@@ -1567,7 +1567,7 @@ lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	uint32_t link_flags;
 	uint32_t timeout;
 	LPFC_MBOXQ_t *pmboxq;
-	int mbxstatus;
+	int mbxstatus = MBX_SUCCESS;
 	int i = 0;
 	int rc = 0;
 
@@ -1741,7 +1741,7 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	uint32_t link_flags, timeout, req_len, alloc_len;
 	struct lpfc_mbx_set_link_diag_loopback *link_diag_loopback;
 	LPFC_MBOXQ_t *pmboxq = NULL;
-	int mbxstatus = 0, i, rc = 0;
+	int mbxstatus = MBX_SUCCESS, i, rc = 0;
 
 	/* no data to return just the return code */
 	job->reply->reply_payload_rcv_len = 0;
@@ -4174,6 +4174,13 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	/* in case no data is transferred */
 	job->reply->reply_payload_rcv_len = 0;
 
+	/* sanity check to protect driver */
+	if (job->reply_payload.payload_len > BSG_MBOX_SIZE ||
+	    job->request_payload.payload_len > BSG_MBOX_SIZE) {
+		rc = -ERANGE;
+		goto job_done;
+	}
+
 	/*
 	 * Don't allow mailbox commands to be sent when blocked or when in
 	 * the middle of discovery
@@ -4185,13 +4192,6 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 	mbox_req =
 	    (struct dfc_mbox_req *)job->request->rqst_data.h_vendor.vendor_cmd;
-
-	/* sanity check to protect driver */
-	if (job->reply_payload.payload_len > BSG_MBOX_SIZE ||
-	    job->request_payload.payload_len > BSG_MBOX_SIZE) {
-		rc = -ERANGE;
-		goto job_done;
-	}
 
 	/* check if requested extended data lengths are valid */
 	if ((mbox_req->inExtWLen > BSG_MBOX_SIZE/sizeof(uint32_t)) ||

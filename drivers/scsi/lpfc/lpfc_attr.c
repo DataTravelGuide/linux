@@ -775,7 +775,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
  * Notes:
  * Assumes any error from lpfc_selective_reset() will be negative.
  * If lpfc_selective_reset() returns zero then the length of the buffer
- * is returned which indicates succcess
+ * is returned which indicates success
  *
  * Returns:
  * -EINVAL if the buffer does not contain the string "selective"
@@ -3667,9 +3667,9 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 /*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
-#       0  = MSI disabled (default)
+#       0  = MSI disabled
 #       1  = MSI enabled
-#       2  = MSI-X enabled
+#       2  = MSI-X enabled (default)
 # Value range is [0,2]. Default value is 2.
 */
 LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "

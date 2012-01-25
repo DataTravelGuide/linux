@@ -2869,6 +2869,7 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			lpfc_do_scr_ns_plogi(phba, vport);
 		}
 	}
+
 fail_free_mem:
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	lpfc_mbuf_free(phba, dmabuf->virt, dmabuf->phys);
@@ -3576,7 +3577,6 @@ out:
 		}
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
-
 	return;
 }
 

@@ -67,10 +67,9 @@ static void lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *,
 				      struct hbq_dmabuf *);
 static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
-static int lpfc_sli4_chk_avail_extnt_rsrc(struct lpfc_hba *, uint16_t);
-static int lpfc_sli4_alloc_extent(struct lpfc_hba *, uint16_t);
-static int lpfc_sli4_dealloc_extent(struct lpfc_hba *, uint16_t);
-static IOCB_t *lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
+
+static IOCB_t *
+lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 {
 	return &iocbq->iocb;
 }
@@ -2198,7 +2197,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 		 */
 		if (lpfc_sli_chk_mbx_command(pmbox->mbxCommand) ==
 		    MBX_SHUTDOWN) {
-			/* Unknow mailbox command compl */
+			/* Unknown mailbox command compl */
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 					"(%d):0323 Unknown Mailbox command "
 					"x%x (x%x/x%x) Cmpl\n",
@@ -4624,7 +4623,7 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
  * addition, this routine gets the port vpd data.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	-ENOMEM - could not allocated memory.
  **/
 static int
@@ -10342,7 +10341,7 @@ lpfc_sli_intr_handler(int irq, void *dev_id)
 	 * If there is deferred error attention, do not check for any interrupt.
 	 */
 	if (unlikely(phba->hba_flag & DEFER_ERATT)) {
-		spin_unlock_irq(&phba->hbalock);
+		spin_unlock(&phba->hbalock);
 		return IRQ_NONE;
 	}
 
@@ -12781,8 +12780,8 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
  * SLI4_PAGE_SIZE modulo 64 rpi context headers.
  *
  * Returns
- * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
- * 	LPFC_RPI_ALLOC_ERROR if no rpis are available.
+ *	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
+ *	LPFC_RPI_ALLOC_ERROR if no rpis are available.
  **/
 uint16_t
 lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
@@ -13039,7 +13038,7 @@ lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
 				"3014 Working ELS Extent start %d, cnt %d\n",
 				rsrc_start, rsrc_size);
 
-		loop_cnt=min(els_xri_cnt, rsrc_size);
+		loop_cnt = min(els_xri_cnt, rsrc_size);
 		if (ttl_cnt + loop_cnt >= els_xri_cnt) {
 			loop_cnt = els_xri_cnt - ttl_cnt;
 			ttl_cnt = els_xri_cnt;
@@ -14277,7 +14276,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
  * sequential.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  *      -EIO - The mailbox failed to complete successfully.
  * 	When this error occurs, the driver is not guaranteed
  *	to have any rpi regions posted to the device and
@@ -14333,7 +14332,7 @@ lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
  * maps up to 64 rpi context regions.
  *
  * Return codes
- * 	0 - sucessful
+ * 	0 - successful
  * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
@@ -14404,7 +14403,7 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
  * SLI4_PAGE_SIZE modulo 64 rpi context headers.
  *
  * Returns
- * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if sucessful
+ * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
  * 	LPFC_RPI_ALLOC_ERROR if no rpis are available.
  **/
 int
@@ -15566,9 +15565,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			ndlp = (struct lpfc_nodelist *) mb->context2;
 			mb->context2 = NULL;
 			if (ndlp) {
-				spin_lock_irq(shost->host_lock);
+				spin_lock(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-				spin_unlock_irq(shost->host_lock);
+				spin_unlock(shost->host_lock);
 				lpfc_nlp_put(ndlp);
 			}
 		}
@@ -15577,9 +15576,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 
 	/* Release the ndlp with the cleaned-up active mailbox command */
 	if (act_mbx_ndlp) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock(shost->host_lock);
 		act_mbx_ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock(shost->host_lock);
 		lpfc_nlp_put(act_mbx_ndlp);
 	}
 }

@@ -227,7 +227,7 @@ struct lpfc_sli4_flags {
 #define lpfc_idx_rsrc_rdy_SHIFT		0
 #define lpfc_idx_rsrc_rdy_MASK		0x00000001
 #define lpfc_idx_rsrc_rdy_WORD		word0
-#define LPFC_IDX_RSRC_RDY 		1
+#define LPFC_IDX_RSRC_RDY		1
 #define lpfc_xri_rsrc_rdy_SHIFT		1
 #define lpfc_xri_rsrc_rdy_MASK		0x00000001
 #define lpfc_xri_rsrc_rdy_WORD		word0

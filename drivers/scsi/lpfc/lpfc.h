@@ -59,7 +59,6 @@ struct lpfc_sli2_slim;
 
 #define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
 					   collection. */
-
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
@@ -680,7 +679,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
 	uint32_t cfg_link_speed;
-#define LPFC_FCF_FOV 1 		/* Fast fcf failover */
+#define LPFC_FCF_FOV 1		/* Fast fcf failover */
 #define LPFC_FCF_PRIORITY 2	/* Priority fcf failover */
 	uint32_t cfg_fcf_failover_policy;
 	uint32_t cfg_cr_delay;

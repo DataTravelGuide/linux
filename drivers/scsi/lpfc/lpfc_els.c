@@ -936,7 +936,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* FLOGI completes successfully */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0101 FLOGI completes sucessfully "
+			 "0101 FLOGI completes successfully "
 			 "Data: x%x x%x x%x x%x\n",
 			 irsp->un.ulpWord[4], sp->cmn.e_d_tov,
 			 sp->cmn.w2.r_a_tov, sp->cmn.edtovResolution);
@@ -4625,7 +4625,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	/* Indicate we are walking fc_rscn_id_list on this vport */
 	vport->fc_rscn_flush = 1;
 	spin_unlock_irq(shost->host_lock);
-	/* Get the array count after sucessfully have the token */
+	/* Get the array count after successfully have the token */
 	rscn_cnt = vport->fc_rscn_id_cnt;
 	/* If we are already processing an RSCN, save the received
 	 * RSCN payload buffer, cmdiocb->context2 to process later.
@@ -7338,10 +7338,9 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_vport *vport = cmdiocb->vport;
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
-	struct Scsi_Host *shost;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	ndlp = (struct lpfc_nodelist *)cmdiocb->context1;
-	shost = lpfc_shost_from_vport(vport);
 	irsp = &rspiocb->iocb;
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
@@ -7841,7 +7840,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 		}
 	}
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
-	lxri = 	lpfc_sli4_xri_inrange(phba, xri);
+	lxri = lpfc_sli4_xri_inrange(phba, xri);
 	if (lxri == NO_XRI) {
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return;
