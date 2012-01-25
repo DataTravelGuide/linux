@@ -6759,7 +6759,7 @@ lpfc_sli4_async_mbox_block(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	int rc = 0;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 
 	/* Mark the asynchronous mailbox command posting as blocked */
 	spin_lock_irq(&phba->hbalock);

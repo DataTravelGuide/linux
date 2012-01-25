@@ -1023,7 +1023,8 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 	else if (dent == phba->debug_readRef)
 		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_rref_cnt);
 	else if (dent == phba->debug_InjErrLBA)
-		cnt = snprintf(cbuf, 16, "0x%lx\n", phba->lpfc_injerr_lba);
+		cnt = snprintf(cbuf, 16, "0x%lx\n",
+				 (unsigned long) phba->lpfc_injerr_lba);
 	else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			 "0547 Unknown debugfs error injection entry\n");

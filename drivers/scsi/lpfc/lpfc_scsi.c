@@ -1334,7 +1334,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9081 BLKGRD: Injecting reftag error: "
-					"write lba x%lx\n", lba);
+					"write lba x%lx\n", (unsigned long)lba);
 			}
 		} else {
 			if (phba->lpfc_injerr_rref_cnt) {
@@ -1345,7 +1345,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9076 BLKGRD: Injecting reftag error: "
-					"read lba x%lx\n", lba);
+					"read lba x%lx\n", (unsigned long)lba);
 			}
 		}
 	}
@@ -1368,7 +1368,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9077 BLKGRD: Injecting apptag error: "
-					"write lba x%lx\n", lba);
+					"write lba x%lx\n", (unsigned long)lba);
 			}
 		} else {
 			if (phba->lpfc_injerr_rapp_cnt) {
@@ -1379,7 +1379,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9078 BLKGRD: Injecting apptag error: "
-					"read lba x%lx\n", lba);
+					"read lba x%lx\n", (unsigned long)lba);
 			}
 		}
 	}
@@ -1403,7 +1403,8 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 				"9079 BLKGRD: Injecting guard error: "
 				"write lba x%lx oldGuard x%x refTag x%x\n",
-				lba, src->guard_tag, src->ref_tag);
+				(unsigned long)lba, src->guard_tag,
+				src->ref_tag);
 
 			src->guard_tag = (uint16_t)new_guard;
 			phba->lpfc_injerr_wgrd_cnt--;
@@ -1424,7 +1425,8 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 				"9080 BLKGRD: Injecting guard error: "
 				"write lba x%lx oldGuard x%x refTag x%x\n",
-				lba, src->guard_tag, src->ref_tag);
+				(unsigned long)lba, src->guard_tag,
+				src->ref_tag);
 
 			src->guard_tag = (uint16_t)new_guard;
 			phba->lpfc_injerr_wgrd_cnt--;
