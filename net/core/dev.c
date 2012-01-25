@@ -2340,7 +2340,7 @@ got_hash:
 
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		tcpu = map->cpus[((u64) skb->rxhash * map->len) >> 32];
+		tcpu = map->cpus[((u32) (skb->rxhash * map->len)) >> 16];
 
 		if (cpu_online(tcpu)) {
 			cpu = tcpu;
