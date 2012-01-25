@@ -96,7 +96,7 @@ struct get_mgmt_rev {
 };
 
 #define MANAGEMENT_MAJOR_REV   1
-#define MANAGEMENT_MINOR_REV   0
+#define MANAGEMENT_MINOR_REV   1
 
 /* the MgmtRevInfo structure */
 struct MgmtRevInfo {
