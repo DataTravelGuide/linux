@@ -1566,7 +1566,7 @@ lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	struct diag_mode_set *loopback_mode;
 	uint32_t link_flags;
 	uint32_t timeout;
-	LPFC_MBOXQ_t *pmboxq;
+	LPFC_MBOXQ_t *pmboxq  = NULL;
 	int mbxstatus = MBX_SUCCESS;
 	int i = 0;
 	int rc = 0;
@@ -1658,7 +1658,7 @@ loopback_mode_exit:
 	/*
 	 * Let SLI layer release mboxq if mbox command completed after timeout.
 	 */
-	if (mbxstatus != MBX_TIMEOUT)
+	if (pmboxq && mbxstatus != MBX_TIMEOUT)
 		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 job_error:
