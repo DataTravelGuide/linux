@@ -3575,7 +3575,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			&sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr);
 		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_MSE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
-					"2953 Handled SLI_CONFIG(mse) wr, "
+					"2953 Failed SLI_CONFIG(mse) wr, "
 					"ext_buf_cnt(%d) out of range(%d)\n",
 					ext_buf_cnt,
 					LPFC_MBX_SLI_CONFIG_MAX_MSE);
@@ -3593,7 +3593,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 		ext_buf_cnt = sli_cfg_mbx->un.sli_config_emb1_subsys.hbd_count;
 		if (ext_buf_cnt > LPFC_MBX_SLI_CONFIG_MAX_HBD) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
-					"2954 Handled SLI_CONFIG(hbd) wr, "
+					"2954 Failed SLI_CONFIG(hbd) wr, "
 					"ext_buf_cnt(%d) out of range(%d)\n",
 					ext_buf_cnt,
 					LPFC_MBX_SLI_CONFIG_MAX_HBD);
@@ -3687,6 +3687,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				"2956 Failed to issue SLI_CONFIG ext-buffer "
 				"maibox command, rc:x%x\n", rc);
 		rc = -EPIPE;
+		goto job_error;
 	}
 
 	/* wait for additoinal external buffers */
@@ -3721,7 +3722,7 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 	uint32_t opcode;
 	int rc = SLI_CONFIG_NOT_HANDLED;
 
-	/* state change */
+	/* state change on new multi-buffer pass-through mailbox command */
 	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_HOST;
 
 	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
@@ -3752,10 +3753,10 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				break;
 			default:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-						"2959 Not handled SLI_CONFIG "
+						"2959 Reject SLI_CONFIG "
 						"subsys_fcoe, opcode:x%x\n",
 						opcode);
-				rc = SLI_CONFIG_NOT_HANDLED;
+				rc = -EPERM;
 				break;
 			}
 		} else if (subsys == SLI_CONFIG_SUBSYS_COMN) {
@@ -3770,18 +3771,18 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 				break;
 			default:
 				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-						"3107 Not handled SLI_CONFIG "
+						"3107 Reject SLI_CONFIG "
 						"subsys_fcoe, opcode:x%x\n",
 						opcode);
-				rc = SLI_CONFIG_NOT_HANDLED;
+				rc = -EPERM;
 				break;
 			}
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-					"2977 Handled SLI_CONFIG "
+					"2977 Reject SLI_CONFIG "
 					"subsys:x%d, opcode:x%x\n",
 					subsys, opcode);
-			rc = SLI_CONFIG_NOT_HANDLED;
+			rc = -EPERM;
 		}
 	} else {
 		subsys = bsg_bf_get(lpfc_emb1_subcmnd_subsys,
@@ -3817,12 +3818,17 @@ lpfc_bsg_handle_sli_cfg_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 			}
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-					"2978 Handled SLI_CONFIG "
+					"2978 Not handled SLI_CONFIG "
 					"subsys:x%d, opcode:x%x\n",
 					subsys, opcode);
 			rc = SLI_CONFIG_NOT_HANDLED;
 		}
 	}
+
+	/* state reset on not handled new multi-buffer mailbox command */
+	if (rc != SLI_CONFIG_HANDLED)
+		phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_IDLE;
+
 	return rc;
 }
 
