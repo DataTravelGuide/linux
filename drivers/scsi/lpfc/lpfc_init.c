@@ -6662,9 +6662,10 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path event queue */
-	if (!phba->sli4_hba.fp_eq) {
+	if (phba->cfg_fcp_eq_count && !phba->sli4_hba.fp_eq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3147 Fast-path EQs not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_sp_eq;
 	}
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++) {
@@ -6672,6 +6673,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0522 Fast-path EQ (%d) not "
 					"allocated\n", fcp_eqidx);
+			rc = -ENOMEM;
 			goto out_destroy_fp_eq;
 		}
 		rc = lpfc_eq_create(phba, phba->sli4_hba.fp_eq[fcp_eqidx],
@@ -6696,6 +6698,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.mbx_cq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0528 Mailbox CQ not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_fp_eq;
 	}
 	rc = lpfc_cq_create(phba, phba->sli4_hba.mbx_cq, phba->sli4_hba.sp_eq,
@@ -6715,6 +6718,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.els_cq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0530 ELS CQ not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_mbx_cq;
 	}
 	rc = lpfc_cq_create(phba, phba->sli4_hba.els_cq, phba->sli4_hba.sp_eq,
@@ -6735,6 +6739,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3148 Fast-path FCP CQ array not "
 				"allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_els_cq;
 	}
 	fcp_cqidx = 0;
@@ -6743,6 +6748,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0526 Fast-path FCP CQ (%d) not "
 					"allocated\n", fcp_cqidx);
+			rc = -ENOMEM;
 			goto out_destroy_fcp_cq;
 		}
 		if (phba->cfg_fcp_eq_count)
@@ -6781,6 +6787,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.mbx_wq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0538 Slow-path MQ not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_fcp_cq;
 	}
 	rc = lpfc_mq_create(phba, phba->sli4_hba.mbx_wq,
@@ -6800,6 +6807,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.els_wq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0536 Slow-path ELS WQ not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_mbx_wq;
 	}
 	rc = lpfc_wq_create(phba, phba->sli4_hba.els_wq,
@@ -6820,6 +6828,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3149 Fast-path FCP WQ array not "
 				"allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_els_wq;
 	}
 	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++) {
@@ -6827,6 +6836,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0534 Fast-path FCP WQ (%d) not "
 					"allocated\n", fcp_wqidx);
+			rc = -ENOMEM;
 			goto out_destroy_fcp_wq;
 		}
 		rc = lpfc_wq_create(phba, phba->sli4_hba.fcp_wq[fcp_wqidx],
@@ -6857,6 +6867,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.hdr_rq || !phba->sli4_hba.dat_rq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0540 Receive Queue not allocated\n");
+		rc = -ENOMEM;
 		goto out_destroy_fcp_wq;
 	}
 
