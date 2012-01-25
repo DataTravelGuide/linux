@@ -926,7 +926,7 @@ lpfc_debugfs_dumpData_open(struct inode *inode, struct file *file)
 	if (!debug)
 		goto out;
 
-	/* Round to page boundry */
+	/* Round to page boundary */
 	printk(KERN_ERR "9059 BLKGRD:  %s: _dump_buf_data=0x%p\n",
 			__func__, _dump_buf_data);
 	debug->buffer = _dump_buf_data;
@@ -956,7 +956,7 @@ lpfc_debugfs_dumpDif_open(struct inode *inode, struct file *file)
 	if (!debug)
 		goto out;
 
-	/* Round to page boundry */
+	/* Round to page boundary */
 	printk(KERN_ERR	"9060 BLKGRD: %s: _dump_buf_dif=0x%p file=%s\n",
 		__func__, _dump_buf_dif, file->f_dentry->d_name.name);
 	debug->buffer = _dump_buf_dif;
@@ -3998,7 +3998,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			debugfs_create_dir(name, phba->hba_debugfs_root);
 		if (!vport->vport_debugfs_root) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0417 Cant create debugfs\n");
+					 "0417 Can't create debugfs\n");
 			goto debug_failed;
 		}
 		atomic_inc(&phba->debugfs_vport_count);
