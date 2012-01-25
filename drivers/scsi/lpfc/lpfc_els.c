@@ -3067,17 +3067,22 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (did == FDMI_DID)
 		retry = 1;
 
-	if (((cmd == ELS_CMD_FLOGI) || (cmd == ELS_CMD_FDISC)) &&
+	if ((cmd == ELS_CMD_FLOGI) &&
 	    (phba->fc_topology != LPFC_TOPOLOGY_LOOP) &&
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
-		/* retry forever */
+		/* retry FLOGI forever */
 		maxretry = 0;
 		if (cmdiocb->retry >= 100)
 			delay = 5000;
 		else if (cmdiocb->retry >= 32)
 			delay = 1000;
+	} else if ((cmd == ELS_CMD_FDISC) && !lpfc_error_lost_link(irsp)) {
+		/* retry FDISCs every second up to devloss */
+		retry = 1;
+		maxretry = vport->cfg_devloss_tmo;
+		delay = 1000;
 	}
 
 	cmdiocb->retry++;
