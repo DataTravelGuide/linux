@@ -1046,7 +1046,7 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 	if (copy_from_user(dstbuf, buf, size))
 		return 0;
 
-	if (strict_strtoul(dstbuf, NULL, &tmp))
+	if (strict_strtoul(dstbuf, 0, &tmp))
 		return 0;
 
 	if (dent == phba->debug_writeGuard)
