@@ -10432,12 +10432,17 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 	/* Move mbox data to caller's mailbox region, do endian swapping */
 	if (pmb->mbox_cmpl && mbox)
 		lpfc_sli_pcimem_bcopy(mbox, mqe, sizeof(struct lpfc_mqe));
-	/* Set the mailbox status with SLI4 range 0x4000 */
-	mcqe_status = bf_get(lpfc_mcqe_status, mcqe);
-	if (mcqe_status != MB_CQE_STATUS_SUCCESS)
-		bf_set(lpfc_mqe_status, mqe,
-		       (LPFC_MBX_ERROR_RANGE | mcqe_status));
 
+	/*
+	 * For mcqe errors, conditionally move a modified error code to
+	 * the mbox so that the error will not be missed.
+	 */
+	mcqe_status = bf_get(lpfc_mcqe_status, mcqe);
+	if (mcqe_status != MB_CQE_STATUS_SUCCESS) {
+		if (bf_get(lpfc_mqe_status, mqe) == MBX_SUCCESS)
+			bf_set(lpfc_mqe_status, mqe,
+			       (LPFC_MBX_ERROR_RANGE | mcqe_status));
+	}
 	if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
 		pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_MBOX_VPORT,
