@@ -8347,6 +8347,9 @@ lpfc_pci_probe_one_s3(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_free_iocb_list;
 	}
 
+	/* Get the default values for Model Name and Description */
+	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
+
 	/* Create SCSI host to the physical port */
 	error = lpfc_create_shost(phba);
 	if (error) {
@@ -9078,6 +9081,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 				"1414 Failed to set up driver resource.\n");
 		goto out_free_iocb_list;
 	}
+
+	/* Get the default values for Model Name and Description */
+	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
 	/* Create SCSI host to the physical port */
 	error = lpfc_create_shost(phba);
