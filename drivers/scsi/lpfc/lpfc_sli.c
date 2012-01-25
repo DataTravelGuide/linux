@@ -4556,9 +4556,9 @@ lpfc_sli_hba_setup_error:
  * data structure.
  **/
 static int
-lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
-		LPFC_MBOXQ_t *mboxq)
+lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba)
 {
+	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_dmabuf *mp;
 	struct lpfc_mqe *mqe;
 	uint32_t data_length;
@@ -4570,9 +4570,15 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
-	mqe = &mboxq->u.mqe;
-	if (lpfc_sli4_dump_cfg_rg23(phba, mboxq))
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
 		return -ENOMEM;
+
+	mqe = &mboxq->u.mqe;
+	if (lpfc_sli4_dump_cfg_rg23(phba, mboxq)) {
+		rc = -ENOMEM;
+		goto out_free_mboxq;
+	}
 
 	mp = (struct lpfc_dmabuf *) mboxq->context1;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
@@ -4601,19 +4607,25 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 	if (rc) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		return -EIO;
+		rc = -EIO;
+		goto out_free_mboxq;
 	}
 	data_length = mqe->un.mb_words[5];
 	if (data_length > DMP_RGN23_SIZE) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		return -EIO;
+		rc = -EIO;
+		goto out_free_mboxq;
 	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
-	return 0;
+	rc = 0;
+
+out_free_mboxq:
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return rc;
 }
 
 /**
@@ -5927,7 +5939,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 * board is FCoE
 	 */
 	if (phba->hba_flag & HBA_FCOE_MODE &&
-	    lpfc_sli4_read_fcoe_params(phba, mboxq))
+	    lpfc_sli4_read_fcoe_params(phba))
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
 			"2570 Failed to read FCoE parameters\n");
 
