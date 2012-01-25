@@ -1075,6 +1075,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Setup CSPs accordingly for Fabric */
 	sp->cmn.e_d_tov = 0;
 	sp->cmn.w2.r_a_tov = 0;
+	sp->cmn.virtual_fabric_support = 0;
 	sp->cls1.classValid = 0;
 	sp->cls2.seqDelivery = 1;
 	sp->cls3.seqDelivery = 1;
@@ -7281,6 +7282,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Setup CSPs accordingly for Fabric */
 	sp->cmn.e_d_tov = 0;
 	sp->cmn.w2.r_a_tov = 0;
+	sp->cmn.virtual_fabric_support = 0;
 	sp->cls1.classValid = 0;
 	sp->cls2.seqDelivery = 1;
 	sp->cls3.seqDelivery = 1;
