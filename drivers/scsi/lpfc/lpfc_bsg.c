@@ -4262,11 +4262,8 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 	/* extended mailbox commands will need an extended buffer */
 	if (mbox_req->inExtWLen || mbox_req->outExtWLen) {
-		/* any data for the device? */
-		if (mbox_req->inExtWLen) {
-			from = pmbx;
-			ext = from + sizeof(MAILBOX_t);
-		}
+		from = pmbx;
+		ext = from + sizeof(MAILBOX_t);
 		pmboxq->context2 = ext;
 		pmboxq->in_ext_byte_len =
 			mbox_req->inExtWLen * sizeof(uint32_t);
