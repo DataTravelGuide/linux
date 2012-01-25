@@ -8924,11 +8924,11 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 		return -EINVAL;
 	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
-	if (strncmp(fwrev, image->rev_name, strnlen(fwrev, 16))) {
+	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3023 Updating Firmware. Current Version:%s "
 				"New Version:%s\n",
-				fwrev, image->rev_name);
+				fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
 			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
 					 GFP_KERNEL);
@@ -8957,9 +8957,9 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 					temp_offset = fw->size;
 					break;
 				}
-				temp_offset += SLI4_PAGE_SIZE;
 				memcpy(dmabuf->virt, fw->data + temp_offset,
 				       SLI4_PAGE_SIZE);
+				temp_offset += SLI4_PAGE_SIZE;
 			}
 			rc = lpfc_wr_object(phba, &dma_buffer_list,
 				    (fw->size - offset), &offset);

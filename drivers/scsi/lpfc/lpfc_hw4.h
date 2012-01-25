@@ -3200,6 +3200,8 @@ struct lpfc_grp_hdr {
 #define lpfc_grp_hdr_id_MASK		0x000000FF
 #define lpfc_grp_hdr_id_WORD		word2
 	uint8_t rev_name[128];
+	uint8_t date[12];
+	uint8_t revision[32];
 };
 
 #define FCP_COMMAND 0x0
