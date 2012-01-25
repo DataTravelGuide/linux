@@ -1077,6 +1077,11 @@ BuildKernel() {
       mkdir -p $RPM_BUILD_ROOT/lib/modules/$KernelVer/{kernel,extra}
     fi
 
+    if [ "$Flavour" == "debug" ]; then
+        mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/$KernelVer/vm;
+        install -m 755 Documentation/vm/{page-types,slabinfo} $RPM_BUILD_ROOT/%{_libexecdir}/$KernelVer/vm;
+    fi
+
 %ifarch %{vdso_arches}
     make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT vdso_install KERNELRELEASE=$KernelVer
     if grep '^CONFIG_XEN=y$' .config >/dev/null; then
@@ -1604,6 +1609,10 @@ fi
 /etc/ld.so.conf.d/kernel-%{KVERREL}%{?2:.%{2}}.conf\
 %endif\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/modules.*\
+%if 0%{?3} \
+%{_libexecdir}/%{KVERREL}%{?2:.%{2}}/vm/page-types\
+%{_libexecdir}/%{KVERREL}%{?2:.%{2}}/vm/slabinfo\
+%endif\
 %if %{with_dracut}\
 %ghost /boot/initramfs-%{KVERREL}%{?2:.%{2}}.img\
 %else\
@@ -1638,7 +1647,7 @@ fi
 
 %kernel_variant_files %{with_up}
 %kernel_variant_files %{with_smp} smp
-%kernel_variant_files %{with_debug} debug
+%kernel_variant_files %{with_debug} debug 1
 %kernel_variant_files %{with_pae} PAE
 %kernel_variant_files %{with_pae_debug} PAEdebug
 %ifarch s390x
