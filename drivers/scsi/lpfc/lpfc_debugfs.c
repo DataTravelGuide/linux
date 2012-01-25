@@ -1390,6 +1390,11 @@ pcicfg_browse:
 		len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
 				"%08x ", u32val);
 		offset += sizeof(uint32_t);
+		if (offset >= LPFC_PCI_CFG_SIZE) {
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_CFG_SIZE-len, "\n");
+			break;
+		}
 		index -= sizeof(uint32_t);
 		if (!index)
 			len += snprintf(pbuffer+len, LPFC_PCI_CFG_SIZE-len,
@@ -1402,8 +1407,11 @@ pcicfg_browse:
 	}
 
 	/* Set up the offset for next portion of pci cfg read */
-	idiag.offset.last_rd += LPFC_PCI_CFG_RD_SIZE;
-	if (idiag.offset.last_rd >= LPFC_PCI_CFG_SIZE)
+	if (index == 0) {
+		idiag.offset.last_rd += LPFC_PCI_CFG_RD_SIZE;
+		if (idiag.offset.last_rd >= LPFC_PCI_CFG_SIZE)
+			idiag.offset.last_rd = 0;
+	} else
 		idiag.offset.last_rd = 0;
 
 	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
@@ -1575,6 +1583,292 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 							       u32val);
 				}
 			}
+		}
+	} else
+		/* All other opecodes are illegal for now */
+		goto error_out;
+
+	return nbytes;
+error_out:
+	memset(&idiag, 0, sizeof(idiag));
+	return -EINVAL;
+}
+
+/**
+ * lpfc_idiag_baracc_read - idiag debugfs pci bar access read
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the data to.
+ * @nbytes: The number of bytes to read.
+ * @ppos: The position in the file to start reading from.
+ *
+ * Description:
+ * This routine reads data from the @phba pci bar memory mapped space
+ * according to the idiag command, and copies to user @buf.
+ *
+ * Returns:
+ * This function returns the amount of data that was read (this could be less
+ * than @nbytes if the end of the file was reached) or a negative error value.
+ **/
+static ssize_t
+lpfc_idiag_baracc_read(struct file *file, char __user *buf, size_t nbytes,
+		       loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	int offset_label, offset, offset_run, len = 0, index;
+	int bar_num, acc_range, bar_size;
+	char *pbuffer;
+	void __iomem *mem_mapped_bar;
+	uint32_t if_type;
+	struct pci_dev *pdev;
+	uint32_t u32val;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return 0;
+
+	/* This is a user read operation */
+	debug->op = LPFC_IDIAG_OP_RD;
+
+	if (!debug->buffer)
+		debug->buffer = kmalloc(LPFC_PCI_BAR_RD_BUF_SIZE, GFP_KERNEL);
+	if (!debug->buffer)
+		return 0;
+	pbuffer = debug->buffer;
+
+	if (*ppos)
+		return 0;
+
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_RD) {
+		bar_num   = idiag.cmd.data[IDIAG_BARACC_BAR_NUM_INDX];
+		offset    = idiag.cmd.data[IDIAG_BARACC_OFF_SET_INDX];
+		acc_range = idiag.cmd.data[IDIAG_BARACC_ACC_MOD_INDX];
+		bar_size = idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX];
+	} else
+		return 0;
+
+	if (acc_range == 0)
+		return 0;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if (bar_num == IDIAG_BARACC_BAR_0)
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		else if (bar_num == IDIAG_BARACC_BAR_1)
+			mem_mapped_bar = phba->sli4_hba.ctrl_regs_memmap_p;
+		else if (bar_num == IDIAG_BARACC_BAR_2)
+			mem_mapped_bar = phba->sli4_hba.drbl_regs_memmap_p;
+		else
+			return 0;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num == IDIAG_BARACC_BAR_0)
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		else
+			return 0;
+	} else
+		return 0;
+
+	/* Read single PCI bar space register */
+	if (acc_range == SINGLE_WORD) {
+		offset_run = offset;
+		u32val = readl(mem_mapped_bar + offset_run);
+		len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+				"%05x: %08x\n", offset_run, u32val);
+	} else
+		goto baracc_browse;
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+
+baracc_browse:
+
+	/* Browse all PCI bar space registers */
+	offset_label = idiag.offset.last_rd;
+	offset_run = offset_label;
+
+	/* Read PCI bar memory mapped space */
+	len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+			"%05x: ", offset_label);
+	index = LPFC_PCI_BAR_RD_SIZE;
+	while (index > 0) {
+		u32val = readl(mem_mapped_bar + offset_run);
+		len += snprintf(pbuffer+len, LPFC_PCI_BAR_RD_BUF_SIZE-len,
+				"%08x ", u32val);
+		offset_run += sizeof(uint32_t);
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (offset_run >= bar_size) {
+				len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+				break;
+			}
+		} else {
+			if (offset_run >= offset +
+			    (acc_range * sizeof(uint32_t))) {
+				len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+				break;
+			}
+		}
+		index -= sizeof(uint32_t);
+		if (!index)
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len, "\n");
+		else if (!(index % (8 * sizeof(uint32_t)))) {
+			offset_label += (8 * sizeof(uint32_t));
+			len += snprintf(pbuffer+len,
+					LPFC_PCI_BAR_RD_BUF_SIZE-len,
+					"\n%05x: ", offset_label);
+		}
+	}
+
+	/* Set up the offset for next portion of pci bar read */
+	if (index == 0) {
+		idiag.offset.last_rd += LPFC_PCI_BAR_RD_SIZE;
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (idiag.offset.last_rd >= bar_size)
+				idiag.offset.last_rd = 0;
+		} else {
+			if (offset_run >= offset +
+			    (acc_range * sizeof(uint32_t)))
+				idiag.offset.last_rd = offset;
+		}
+	} else {
+		if (acc_range == LPFC_PCI_BAR_BROWSE)
+			idiag.offset.last_rd = 0;
+		else
+			idiag.offset.last_rd = offset;
+	}
+
+	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
+}
+
+/**
+ * lpfc_idiag_baracc_write - Syntax check and set up idiag bar access commands
+ * @file: The file pointer to read from.
+ * @buf: The buffer to copy the user data from.
+ * @nbytes: The number of bytes to get.
+ * @ppos: The position in the file to start reading from.
+ *
+ * This routine get the debugfs idiag command struct from user space and
+ * then perform the syntax check for PCI bar memory mapped space read or
+ * write command accordingly. In the case of PCI bar memory mapped space
+ * read command, it sets up the command in the idiag command struct for
+ * the debugfs read operation. In the case of PCI bar memorpy mapped space
+ * write operation, it executes the write operation into the PCI bar memory
+ * mapped space accordingly.
+ *
+ * It returns the @nbytges passing in from debugfs user space when successful.
+ * In case of error conditions, it returns proper error code back to the user
+ * space.
+ */
+static ssize_t
+lpfc_idiag_baracc_write(struct file *file, const char __user *buf,
+			size_t nbytes, loff_t *ppos)
+{
+	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	uint32_t bar_num, bar_size, offset, value, acc_range;
+	struct pci_dev *pdev;
+	void __iomem *mem_mapped_bar;
+	uint32_t if_type;
+	uint32_t u32val;
+	int rc;
+
+	pdev = phba->pcidev;
+	if (!pdev)
+		return -EFAULT;
+
+	/* This is a user write operation */
+	debug->op = LPFC_IDIAG_OP_WR;
+
+	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
+	if (rc < 0)
+		return rc;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	bar_num = idiag.cmd.data[IDIAG_BARACC_BAR_NUM_INDX];
+
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if ((bar_num != IDIAG_BARACC_BAR_0) &&
+		    (bar_num != IDIAG_BARACC_BAR_1) &&
+		    (bar_num != IDIAG_BARACC_BAR_2))
+			goto error_out;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num != IDIAG_BARACC_BAR_0)
+			goto error_out;
+	} else
+		goto error_out;
+
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
+		if (bar_num == IDIAG_BARACC_BAR_0) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR0_SIZE;
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		} else if (bar_num == IDIAG_BARACC_BAR_1) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR1_SIZE;
+			mem_mapped_bar = phba->sli4_hba.ctrl_regs_memmap_p;
+		} else if (bar_num == IDIAG_BARACC_BAR_2) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF0_BAR2_SIZE;
+			mem_mapped_bar = phba->sli4_hba.drbl_regs_memmap_p;
+		} else
+			goto error_out;
+	} else if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (bar_num == IDIAG_BARACC_BAR_0) {
+			idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX] =
+				LPFC_PCI_IF2_BAR0_SIZE;
+			mem_mapped_bar = phba->sli4_hba.conf_regs_memmap_p;
+		} else
+			goto error_out;
+	} else
+		goto error_out;
+
+	offset = idiag.cmd.data[IDIAG_BARACC_OFF_SET_INDX];
+	if (offset % sizeof(uint32_t))
+		goto error_out;
+
+	bar_size = idiag.cmd.data[IDIAG_BARACC_BAR_SZE_INDX];
+	if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_RD) {
+		/* Sanity check on PCI config read command line arguments */
+		if (rc != LPFC_PCI_BAR_RD_CMD_ARG)
+			goto error_out;
+		acc_range = idiag.cmd.data[IDIAG_BARACC_ACC_MOD_INDX];
+		if (acc_range == LPFC_PCI_BAR_BROWSE) {
+			if (offset > bar_size - sizeof(uint32_t))
+				goto error_out;
+			/* Starting offset to browse */
+			idiag.offset.last_rd = offset;
+		} else if (acc_range > SINGLE_WORD) {
+			if (offset + acc_range * sizeof(uint32_t) > bar_size)
+				goto error_out;
+			/* Starting offset to browse */
+			idiag.offset.last_rd = offset;
+		} else if (acc_range != SINGLE_WORD)
+			goto error_out;
+	} else if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_WR ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_ST ||
+		   idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_CL) {
+		/* Sanity check on PCI bar write command line arguments */
+		if (rc != LPFC_PCI_BAR_WR_CMD_ARG)
+			goto error_out;
+		/* Write command to PCI bar space, read-modify-write */
+		acc_range = SINGLE_WORD;
+		value = idiag.cmd.data[IDIAG_BARACC_REG_VAL_INDX];
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_WR) {
+			writel(value, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_ST) {
+			u32val = readl(mem_mapped_bar + offset);
+			u32val |= value;
+			writel(u32val, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
+		}
+		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_BARACC_CL) {
+			u32val = readl(mem_mapped_bar + offset);
+			u32val &= ~value;
+			writel(u32val, mem_mapped_bar + offset);
+			readl(mem_mapped_bar + offset);
 		}
 	} else
 		/* All other opecodes are illegal for now */
@@ -3110,6 +3404,16 @@ static const struct file_operations lpfc_idiag_op_pciCfg = {
 	.release =      lpfc_idiag_cmd_release,
 };
 
+#undef lpfc_idiag_op_barAcc
+static const struct file_operations lpfc_idiag_op_barAcc = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_idiag_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_idiag_baracc_read,
+	.write =        lpfc_idiag_baracc_write,
+	.release =      lpfc_idiag_cmd_release,
+};
+
 #undef lpfc_idiag_op_queInfo
 static const struct file_operations lpfc_idiag_op_queInfo = {
 	.owner =        THIS_MODULE,
@@ -3626,6 +3930,20 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		idiag.offset.last_rd = 0;
 	}
 
+	/* iDiag PCI BAR access */
+	snprintf(name, sizeof(name), "barAcc");
+	if (!phba->idiag_bar_acc) {
+		phba->idiag_bar_acc =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				phba->idiag_root, phba, &lpfc_idiag_op_barAcc);
+		if (!phba->idiag_bar_acc) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+					"3056 Can't create idiag debugfs\n");
+			goto debug_failed;
+		}
+		idiag.offset.last_rd = 0;
+	}
+
 	/* iDiag get PCI function queue information */
 	snprintf(name, sizeof(name), "queInfo");
 	if (!phba->idiag_que_info) {
@@ -3815,6 +4133,11 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 				/* iDiag queInfo */
 				debugfs_remove(phba->idiag_que_info);
 				phba->idiag_que_info = NULL;
+			}
+			if (phba->idiag_bar_acc) {
+				/* iDiag barAcc */
+				debugfs_remove(phba->idiag_bar_acc);
+				phba->idiag_bar_acc = NULL;
 			}
 			if (phba->idiag_pci_cfg) {
 				/* iDiag pciCfg */

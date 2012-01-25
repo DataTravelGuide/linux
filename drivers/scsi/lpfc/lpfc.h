@@ -850,6 +850,7 @@ struct lpfc_hba {
 	/* iDiag debugfs sub-directory */
 	struct dentry *idiag_root;
 	struct dentry *idiag_pci_cfg;
+	struct dentry *idiag_bar_acc;
 	struct dentry *idiag_que_info;
 	struct dentry *idiag_que_acc;
 	struct dentry *idiag_drb_acc;
