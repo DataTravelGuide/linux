@@ -1428,6 +1428,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	struct Scsi_Host *shost;
 	uint32_t if_type;
 	struct lpfc_register portstat_reg;
+	int rc;
 
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
@@ -1470,7 +1471,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_sli4_offline_eratt(phba);
 			return;
 		}
-		if (bf_get(lpfc_sliport_status_rn, &portstat_reg)) {
+		/*
+		 * On error status condition, driver need to wait for port
+		 * ready before performing reset.
+		 */
+		rc = lpfc_sli4_pdev_status_reg_wait(phba);
+		if (!rc) {
 			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2887 Port Error: Attempting "

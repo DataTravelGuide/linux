@@ -1741,7 +1741,7 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	uint32_t link_flags, timeout, req_len, alloc_len;
 	struct lpfc_mbx_set_link_diag_loopback *link_diag_loopback;
 	LPFC_MBOXQ_t *pmboxq = NULL;
-	int mbxstatus, i, rc = 0;
+	int mbxstatus = 0, i, rc = 0;
 
 	/* no data to return just the return code */
 	job->reply->reply_payload_rcv_len = 0;
