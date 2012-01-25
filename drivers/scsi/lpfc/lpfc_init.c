@@ -7362,22 +7362,25 @@ out:
 static void
 lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 {
-	struct pci_dev *pdev;
+	uint32_t if_type;
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 
-	/* Obtain PCI device reference */
-	if (!phba->pcidev)
-		return;
-	else
-		pdev = phba->pcidev;
-
-	/* Free coherent DMA memory allocated */
-
-	/* Unmap I/O memory space */
-	iounmap(phba->sli4_hba.drbl_regs_memmap_p);
-	iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
-	iounmap(phba->sli4_hba.conf_regs_memmap_p);
-
-	return;
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
+		iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_2:
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_1:
+	default:
+		dev_printk(KERN_ERR, &phba->pcidev->dev,
+			   "FATAL - unsupported SLI4 interface type - %d\n",
+			   if_type);
+		break;
+	}
 }
 
 /**
