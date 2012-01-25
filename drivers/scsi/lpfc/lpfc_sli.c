@@ -4710,7 +4710,6 @@ static int
 lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *mboxq;
-	struct lpfc_mbx_read_config *rd_config;
 	struct lpfc_mbx_get_cntl_attributes *mbx_cntl_attr;
 	struct lpfc_controller_attribute *cntl_attr;
 	struct lpfc_mbx_get_port_name *get_port_name;
@@ -4728,33 +4727,11 @@ lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
 		return -ENOMEM;
-
 	/* obtain link type and link number via READ_CONFIG */
-	lpfc_read_config(phba, mboxq);
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	if (rc == MBX_SUCCESS) {
-		rd_config = &mboxq->u.mqe.un.rd_config;
-		if (bf_get(lpfc_mbx_rd_conf_lnk_ldv, rd_config)) {
-			phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_VAL;
-			phba->sli4_hba.lnk_info.lnk_tp =
-				bf_get(lpfc_mbx_rd_conf_lnk_type, rd_config);
-			phba->sli4_hba.lnk_info.lnk_no =
-				bf_get(lpfc_mbx_rd_conf_lnk_numb, rd_config);
-			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-					"3081 lnk_type:%d, lnk_numb:%d\n",
-					phba->sli4_hba.lnk_info.lnk_tp,
-					phba->sli4_hba.lnk_info.lnk_no);
-			goto retrieve_ppname;
-		} else
-			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-					"3082 Mailbox (x%x) returned ldv:x0\n",
-					bf_get(lpfc_mqe_command,
-					       &mboxq->u.mqe));
-	} else
-		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"3083 Mailbox (x%x) failed, status:x%x\n",
-				bf_get(lpfc_mqe_command, &mboxq->u.mqe),
-				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
+	lpfc_sli4_read_config(phba);
+	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL)
+		goto retrieve_ppname;
 
 	/* obtain link type and link number via COMMON_GET_CNTL_ATTRIBUTES */
 	reqlen = sizeof(struct lpfc_mbx_get_cntl_attributes);
@@ -5461,6 +5438,8 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 	uint16_t count, base;
 	unsigned long longs;
 
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
+		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
 	if (phba->sli4_hba.extents_in_use) {
 		/*
 		 * The port supports resource extents. The XRI, VPI, VFI, RPI
@@ -5542,9 +5521,10 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		 * need any action - just exit.
 		 */
 		if (bf_get(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags) ==
-		    LPFC_IDX_RSRC_RDY)
-			return 0;
-
+		    LPFC_IDX_RSRC_RDY) {
+			lpfc_sli4_dealloc_resource_identifiers(phba);
+			lpfc_sli4_remove_rpis(phba);
+		}
 		/* RPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_rpi;
 		base = phba->sli4_hba.max_cfg_param.rpi_base;
@@ -6050,6 +6030,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"rc = x%x\n", rc);
 		goto out_free_mbox;
 	}
+	/* update physical xri mappings in the scsi buffers */
+	lpfc_scsi_buf_update(phba);
 
 	/* Read the port's service parameters. */
 	rc = lpfc_read_sparam(phba, mboxq, vport->vpi);

@@ -456,3 +456,5 @@ void lpfc_sli4_queue_destroy(struct lpfc_hba *);
 void lpfc_sli4_abts_err_handler(struct lpfc_hba *, struct lpfc_nodelist *,
 				struct sli4_wcqe_xri_aborted *);
 int lpfc_hba_init_link_fc_topology(struct lpfc_hba *, uint32_t);
+int lpfc_sli4_read_config(struct lpfc_hba *phba);
+int lpfc_scsi_buf_update(struct lpfc_hba *phba);
