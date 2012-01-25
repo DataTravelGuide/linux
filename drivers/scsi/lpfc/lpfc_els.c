@@ -6606,7 +6606,7 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;
 	unsigned long flags;
-	int i;
+	int i = 0;
 
 	/* The physical ports are always vpi 0 - translate is unnecessary. */
 	if (vpi > 0) {
@@ -6629,7 +6629,7 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->vpi == vpi) {
+		if (vport->vpi == i) {
 			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return vport;
 		}

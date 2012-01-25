@@ -3641,7 +3641,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
 
 		vport = lpfc_find_vport_by_vpid(phba,
-				acqe_fip->index - phba->vpi_base);
+						acqe_fip->index);
 		ndlp = lpfc_sli4_perform_vport_cvl(vport);
 		if (!ndlp)
 			break;
