@@ -7069,10 +7069,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			 * the loop again.
 			 */
 			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
+				msleep(10);
 				if (lpfc_readl(phba->sli4_hba.u.if_type2.
 					      STATUSregaddr, &reg_data.word0)) {
 					rc = -ENODEV;
-					break;
+					goto out;
 				}
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
@@ -7080,7 +7081,6 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 					reset_again++;
 					break;
 				}
-				msleep(10);
 			}
 
 			/*
@@ -7094,11 +7094,6 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			}
 
 			/* Detect any port errors. */
-			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
-				 &reg_data.word0)) {
-				rc = -ENODEV;
-				break;
-			}
 			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
 			    (rdy_chk >= 1000)) {
 				phba->work_status[0] = readl(
@@ -7131,6 +7126,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		break;
 	}
 
+out:
 	/* Catch the not-ready port failure after a port reset. */
 	if (num_resets >= MAX_IF_TYPE_2_RESETS)
 		rc = -ENODEV;
