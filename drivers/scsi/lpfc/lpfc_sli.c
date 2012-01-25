@@ -8310,7 +8310,7 @@ lpfc_sli_abts_err_handler(struct lpfc_hba *phba,
 	vpi = iocbq->iocb.un.asyncstat.sub_ctxt_tag;
 	rpi = iocbq->iocb.ulpContext;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"3092 Port generated ABTS async event "
 			"on vpi %d rpi %d status 0x%x\n",
 			vpi, rpi, iocbq->iocb.ulpStatus);
@@ -8356,7 +8356,7 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 				"3115 Node Context not found, driver "
 				"ignoring abts err event\n");
 	vport = ndlp->vport;
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"3116 Port generated FCP XRI ABORT event on "
 			"vpi %d rpi %d xri x%x status 0x%x\n",
 			ndlp->vport->vpi, ndlp->nlp_rpi,
