@@ -1409,7 +1409,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	uint32_t event_data;
 	struct Scsi_Host *shost;
 	uint32_t if_type;
-	struct lpfc_register portstat_reg;
+	struct lpfc_register portstat_reg = {0};
 	uint32_t reg_err1, reg_err2;
 	int rc;
 
@@ -1428,8 +1428,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
-		portstat_reg.word0 =
-			readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
+		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			   &portstat_reg.word0);
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
