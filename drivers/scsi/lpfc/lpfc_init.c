@@ -9165,12 +9165,15 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
 
-	/* check for firmware upgrade or downgrade */
-	snprintf(file_name, 16, "%s.grp", phba->ModelName);
-	error = request_firmware(&fw, file_name, &phba->pcidev->dev);
-	if (!error) {
-		lpfc_write_firmware(phba, fw);
-		release_firmware(fw);
+	/* check for firmware upgrade or downgrade (if_type 2 only) */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		snprintf(file_name, 16, "%s.grp", phba->ModelName);
+		error = request_firmware(&fw, file_name, &phba->pcidev->dev);
+		if (!error) {
+			lpfc_write_firmware(phba, fw);
+			release_firmware(fw);
+		}
 	}
 
 	/* Check if there are static vports to be created. */
