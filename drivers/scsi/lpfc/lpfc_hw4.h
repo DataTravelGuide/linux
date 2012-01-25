@@ -2648,7 +2648,7 @@ struct lpfc_controller_attribute {
 	uint32_t fw_post_status;
 	uint32_t hba_mtu[8];
 	uint32_t word121;
-	uint32_t reserved[3];
+	uint32_t reserved1[3];
 	uint32_t word125;
 #define lpfc_cntl_attr_pci_vendor_id_SHIFT	0
 #define lpfc_cntl_attr_pci_vendor_id_MASK	0x0000ffff
@@ -2656,6 +2656,32 @@ struct lpfc_controller_attribute {
 #define lpfc_cntl_attr_pci_device_id_SHIFT	16
 #define lpfc_cntl_attr_pci_device_id_MASK	0x0000ffff
 #define lpfc_cntl_attr_pci_device_id_WORD	word125
+	uint32_t word126;
+#define lpfc_cntl_attr_pci_subvdr_id_SHIFT	0
+#define lpfc_cntl_attr_pci_subvdr_id_MASK	0x0000ffff
+#define lpfc_cntl_attr_pci_subvdr_id_WORD	word126
+#define lpfc_cntl_attr_pci_subsys_id_SHIFT	16
+#define lpfc_cntl_attr_pci_subsys_id_MASK	0x0000ffff
+#define lpfc_cntl_attr_pci_subsys_id_WORD	word126
+	uint32_t word127;
+#define lpfc_cntl_attr_pci_bus_num_SHIFT	0
+#define lpfc_cntl_attr_pci_bus_num_MASK		0x000000ff
+#define lpfc_cntl_attr_pci_bus_num_WORD		word127
+#define lpfc_cntl_attr_pci_dev_num_SHIFT	8
+#define lpfc_cntl_attr_pci_dev_num_MASK		0x000000ff
+#define lpfc_cntl_attr_pci_dev_num_WORD		word127
+#define lpfc_cntl_attr_pci_fnc_num_SHIFT	16
+#define lpfc_cntl_attr_pci_fnc_num_MASK		0x000000ff
+#define lpfc_cntl_attr_pci_fnc_num_WORD		word127
+#define lpfc_cntl_attr_inf_type_SHIFT		24
+#define lpfc_cntl_attr_inf_type_MASK		0x000000ff
+#define lpfc_cntl_attr_inf_type_WORD		word127
+	uint32_t unique_id[2];
+	uint32_t word130;
+#define lpfc_cntl_attr_num_netfil_SHIFT		0
+#define lpfc_cntl_attr_num_netfil_MASK		0x000000ff
+#define lpfc_cntl_attr_num_netfil_WORD		word130
+	uint32_t reserved2[4];
 };
 
 struct lpfc_mbx_get_cntl_attributes {
