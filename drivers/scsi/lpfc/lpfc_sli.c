@@ -6267,9 +6267,12 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 			goto out_unset_queue;
 		}
 	} else if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK) {
-		rc = phba->lpfc_hba_init_link(phba);
-		if (rc)
-			goto out_unset_queue;
+		/* don't perform init_link on SLI4 FC port loopback test */
+		if (!(phba->link_flag & LS_LOOPBACK_MODE)) {
+			rc = phba->lpfc_hba_init_link(phba);
+			if (rc)
+				goto out_unset_queue;
+		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return rc;

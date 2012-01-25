@@ -1784,6 +1784,31 @@ lpfc_sli4_bsg_set_internal_loopback(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_diag_fcport_reg_setup - setup port registrations for diagnostic
+ * @phba: Pointer to HBA context object.
+ *
+ * This function set up SLI4 FC port registrations for diagnostic run, which
+ * includes all the rpis, vfi, and also vpi.
+ */
+static int
+lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
+{
+	int rc;
+
+	if (phba->pport->fc_flag & FC_VFI_REGISTERED) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"3136 Port still had vfi registered: "
+				"mydid:x%x, fcfi:%d, vfi:%d, vpi:%d\n",
+				phba->pport->fc_myDID, phba->fcf.fcfi,
+				phba->sli4_hba.vfi_ids[phba->pport->vfi],
+				phba->vpi_ids[phba->pport->vpi]);
+		return -EINVAL;
+	}
+	rc = lpfc_issue_reg_vfi(phba->pport);
+	return rc;
+}
+
+/**
  * lpfc_sli4_bsg_diag_loopback_mode - process an sli4 bsg vendor command
  * @phba: Pointer to HBA context object.
  * @job: LPFC_BSG_VENDOR_DIAG_MODE
@@ -1814,6 +1839,16 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	}
 
 	rc = lpfc_bsg_diag_mode_enter(phba);
+	if (rc)
+		goto job_error;
+
+	/* indicate we are in loobpack diagnostic mode */
+	spin_lock_irq(&phba->hbalock);
+	phba->link_flag |= LS_LOOPBACK_MODE;
+	spin_unlock_irq(&phba->hbalock);
+
+	/* reset port to start frome scratch */
+	rc = lpfc_selective_reset(phba);
 	if (rc)
 		goto job_error;
 
@@ -1850,10 +1885,6 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 	/* set up loopback mode */
 	lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
 			"3132 Set up loopback mode:x%x\n", link_flags);
-	/* indicate we are in loobpack diagnostic mode */
-	spin_lock_irq(&phba->hbalock);
-	phba->link_flag |= LS_LOOPBACK_MODE;
-	spin_unlock_irq(&phba->hbalock);
 
 	if (link_flags == INTERNAL_LOOP_BACK)
 		rc = lpfc_sli4_bsg_set_internal_loopback(phba);
@@ -1872,6 +1903,31 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		/* wait for the link attention interrupt */
 		msleep(100);
 		i = 0;
+		while (phba->link_state < LPFC_LINK_UP) {
+			if (i++ > timeout) {
+				rc = -ETIMEDOUT;
+				lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
+					"3137 Timeout waiting for link up "
+					"in loopback mode, timeout:%d ms\n",
+					timeout * 10);
+				break;
+			}
+			msleep(10);
+		}
+	}
+
+	/* port resource registration setup for loopback diagnostic */
+	if (!rc) {
+		/* set up a none zero myDID for loopback test */
+		phba->pport->fc_myDID = 1;
+		rc = lpfc_sli4_diag_fcport_reg_setup(phba);
+	} else
+		goto loopback_mode_exit;
+
+	if (!rc) {
+		/* wait for the port ready */
+		msleep(100);
+		i = 0;
 		while (phba->link_state != LPFC_HBA_READY) {
 			if (i++ > timeout) {
 				rc = -ETIMEDOUT;
@@ -1884,6 +1940,7 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 			msleep(10);
 		}
 	}
+
 loopback_mode_exit:
 	/* clear loopback diagnostic mode */
 	if (rc) {
@@ -2001,7 +2058,10 @@ lpfc_sli4_bsg_diag_mode_end(struct fc_bsg_job *job)
 		}
 		msleep(10);
 	}
-	rc = phba->lpfc_hba_init_link(phba);
+
+	/* reset port resource registrations */
+	rc = lpfc_selective_reset(phba);
+	phba->pport->fc_myDID = 0;
 
 loopback_mode_end_exit:
 	/* make return code available to userspace */
@@ -2770,7 +2830,6 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 		rc = -EINVAL;
 		goto loopback_test_exit;
 	}
-
 	diag_mode = (struct diag_mode_test *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
 
@@ -2935,7 +2994,6 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	}
 	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
 	cmdiocbq->vport = phba->pport;
-
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
 					     rspiocbq, (phba->fc_ratov * 2) +
 					     LPFC_DRVR_TIMEOUT);

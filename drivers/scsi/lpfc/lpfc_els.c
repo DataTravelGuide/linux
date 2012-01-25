@@ -421,7 +421,7 @@ fail:
  * @vport: pointer to a host virtual N_Port data structure.
  *
  * This routine issues a REG_VFI mailbox for the vfi, vpi, fcfi triplet for
- * the @vport. This mailbox command is necessary for FCoE only.
+ * the @vport. This mailbox command is necessary for SLI4 port only.
  *
  * Return code
  *   0 - successfully issued REG_VFI for @vport
@@ -438,10 +438,14 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	int rc = 0;
 
 	sp = &phba->fc_fabparam;
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
-		rc = -ENODEV;
-		goto fail;
+	/* move forward in case of SLI4 FC port loopback test */
+	if ((phba->sli_rev == LPFC_SLI_REV4) &&
+	    !(phba->link_flag & LS_LOOPBACK_MODE)) {
+		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+			rc = -ENODEV;
+			goto fail;
+		}
 	}
 
 	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
@@ -484,6 +488,54 @@ fail:
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 		"0289 Issue Register VFI failed: Err %d\n", rc);
 	return rc;
+}
+
+/**
+ * lpfc_issue_unreg_vfi - Unregister VFI for this vport's fabric login
+ * @vport: pointer to a host virtual N_Port data structure.
+ *
+ * This routine issues a UNREG_VFI mailbox with the vfi, vpi, fcfi triplet for
+ * the @vport. This mailbox command is necessary for SLI4 port only.
+ *
+ * Return code
+ *   0 - successfully issued REG_VFI for @vport
+ *   A failure code otherwise.
+ **/
+int
+lpfc_issue_unreg_vfi(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct Scsi_Host *shost;
+	LPFC_MBOXQ_t *mboxq;
+	int rc;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+				"2556 UNREG_VFI mbox allocation failed"
+				"HBA state x%x\n", phba->pport->port_state);
+		return -ENOMEM;
+	}
+
+	lpfc_unreg_vfi(mboxq, vport);
+	mboxq->vport = vport;
+	mboxq->mbox_cmpl = lpfc_unregister_vfi_cmpl;
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY|LOG_MBOX,
+				"2557 UNREG_VFI issue mbox failed rc x%x "
+				"HBA state x%x\n",
+				rc, phba->pport->port_state);
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return -EIO;
+	}
+
+	shost = lpfc_shost_from_vport(vport);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag &= ~FC_VFI_REGISTERED;
+	spin_unlock_irq(shost->host_lock);
+	return 0;
 }
 
 /**
@@ -918,42 +970,15 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (phba->alpa_map[0] == 0)
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
-
 		if ((phba->sli_rev == LPFC_SLI_REV4) &&
 		    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
 		     (vport->fc_prevDID != vport->fc_myDID))) {
 			if (vport->fc_flag & FC_VFI_REGISTERED)
 				lpfc_sli4_unreg_all_rpis(vport);
-			if ((phba->sli_rev == LPFC_SLI_REV4) &&
-			    (vport->fc_flag & FC_VFI_REGISTERED)) {
-				if ((phba->link_flag & LS_LOOPBACK_MODE) &&
-				    (vport->fc_myDID == 0)) {
-					lpfc_printf_vlog(vport, KERN_INFO,
-						LOG_ELS, "3136 No need "
-						"register VFI: (x%x/%x)\n",
-						vport->fc_prevDID,
-						vport->fc_myDID);
-					vport->fc_myDID = vport->fc_prevDID;
-				}
-			} else {
-				lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-					"3137 Need register VFI: (x%x/%x)\n",
-					vport->fc_prevDID, vport->fc_myDID);
-				lpfc_issue_reg_vfi(vport);
-			}
-			/* in case of SLI4 FC loopback test, we are ready */
-			if ((phba->sli_rev == LPFC_SLI_REV4) &&
-			    (phba->link_flag & LS_LOOPBACK_MODE) &&
-			    (phba->link_state >= LPFC_LINK_UP))
-				phba->link_state = LPFC_HBA_READY;
+			lpfc_issue_reg_vfi(vport);
 			lpfc_nlp_put(ndlp);
 			goto out;
 		}
-		/* in case of SLI4 FC loopback test, we are ready */
-		if ((phba->sli_rev == LPFC_SLI_REV4) &&
-		    (phba->link_flag & LS_LOOPBACK_MODE) &&
-		    (phba->link_state >= LPFC_LINK_UP))
-			phba->link_state = LPFC_HBA_READY;
 		goto flogifail;
 	}
 	spin_lock_irq(shost->host_lock);
