@@ -3140,6 +3140,9 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	unsigned long flags;
 	uint32_t size;
 	int rc = 0;
+	struct lpfc_dmabuf *dmabuf;
+	struct lpfc_sli_config_mbox *sli_cfg_mbx;
+	uint8_t *pmbx;
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	dd_data = pmboxq->context1;
@@ -3156,7 +3159,19 @@ lpfc_bsg_issue_mbox_ext_handle_job(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	 */
 	pmb = (uint8_t *)&pmboxq->u.mb;
 	pmb_buf = (uint8_t *)dd_data->context_un.mbox.mb;
+	/* Copy the byte swapped response mailbox back to the user */
 	memcpy(pmb_buf, pmb, sizeof(MAILBOX_t));
+	/* if there is any non-embedded extended data copy that too */
+	dmabuf = phba->mbox_ext_buf_ctx.mbx_dmabuf;
+	sli_cfg_mbx = (struct lpfc_sli_config_mbox *)dmabuf->virt;
+	if (!bsg_bf_get(lpfc_mbox_hdr_emb,
+	    &sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr)) {
+		pmbx = (uint8_t *)dmabuf->virt;
+		/* byte swap the extended data following the mailbox command */
+		lpfc_sli_pcimem_bcopy(&pmbx[sizeof(MAILBOX_t)],
+			&pmbx[sizeof(MAILBOX_t)],
+			sli_cfg_mbx->un.sli_config_emb0_subsys.mse[0].buf_len);
+	}
 
 	job = dd_data->context_un.mbox.set_job;
 	if (job) {
@@ -3518,6 +3533,18 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct fc_bsg_job *job,
 
 	/* state change */
 	phba->mbox_ext_buf_ctx.state = LPFC_BSG_MBOX_PORT;
+
+	/*
+	 * Non-embedded mailbox subcommand data gets byte swapped here because
+	 * the lower level driver code only does the first 64 mailbox words.
+	 */
+	if ((!bsg_bf_get(lpfc_mbox_hdr_emb,
+	    &sli_cfg_mbx->un.sli_config_emb0_subsys.sli_config_hdr)) &&
+		(nemb_tp == nemb_mse))
+		lpfc_sli_pcimem_bcopy(&pmbx[sizeof(MAILBOX_t)],
+			&pmbx[sizeof(MAILBOX_t)],
+				sli_cfg_mbx->un.sli_config_emb0_subsys.
+					mse[0].buf_len);
 
 	rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 	if ((rc == MBX_SUCCESS) || (rc == MBX_BUSY)) {
