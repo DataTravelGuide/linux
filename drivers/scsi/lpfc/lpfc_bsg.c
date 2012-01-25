@@ -1472,13 +1472,12 @@ send_mgmt_rsp_exit:
 /**
  * lpfc_bsg_diag_mode_enter - process preparing into device diag loopback mode
  * @phba: Pointer to HBA context object.
- * @job: LPFC_BSG_VENDOR_DIAG_MODE
  *
  * This function is responsible for preparing driver for diag loopback
  * on device.
  */
 static int
-lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba, struct fc_bsg_job *job)
+lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	struct Scsi_Host *shost;
@@ -1522,7 +1521,6 @@ lpfc_bsg_diag_mode_enter(struct lpfc_hba *phba, struct fc_bsg_job *job)
 /**
  * lpfc_bsg_diag_mode_exit - exit process from device diag loopback mode
  * @phba: Pointer to HBA context object.
- * @job: LPFC_BSG_VENDOR_DIAG_MODE
  *
  * This function is responsible for driver exit processing of setting up
  * diag loopback mode on device.
@@ -1587,7 +1585,7 @@ lpfc_sli3_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		goto job_error;
 	}
 
-	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	rc = lpfc_bsg_diag_mode_enter(phba);
 	if (rc)
 		goto job_error;
 
@@ -1759,7 +1757,7 @@ lpfc_sli4_bsg_diag_loopback_mode(struct lpfc_hba *phba, struct fc_bsg_job *job)
 		goto job_error;
 	}
 
-	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	rc = lpfc_bsg_diag_mode_enter(phba);
 	if (rc)
 		goto job_error;
 
@@ -1983,7 +1981,7 @@ lpfc_sli4_bsg_link_diag_test(struct fc_bsg_job *job)
 		goto job_error;
 	}
 
-	rc = lpfc_bsg_diag_mode_enter(phba, job);
+	rc = lpfc_bsg_diag_mode_enter(phba);
 	if (rc)
 		goto job_error;
 
