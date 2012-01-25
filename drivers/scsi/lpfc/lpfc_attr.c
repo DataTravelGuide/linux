@@ -4210,8 +4210,13 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 		case LPFC_LINK_UP:
 		case LPFC_CLEAR_LA:
 		case LPFC_HBA_READY:
-			/* Links up, beyond this port_type reports state */
-			fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+			/* Links up, reports port state accordingly */
+			if (vport->port_state < LPFC_VPORT_READY)
+				fc_host_port_state(shost) =
+							FC_PORTSTATE_BYPASSED;
+			else
+				fc_host_port_state(shost) =
+							FC_PORTSTATE_ONLINE;
 			break;
 		case LPFC_HBA_ERROR:
 			fc_host_port_state(shost) = FC_PORTSTATE_ERROR;
