@@ -812,7 +812,12 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
  * the readyness after performing a firmware reset.
  *
  * Returns:
- * zero for success
+ * zero for success, -EPERM when port does not have privilage to perform the
+ * reset, -EIO when port timeout from recovering from the reset.
+ *
+ * Note:
+ * As the caller will interpret the return code by value, be careful in making
+ * change or addition to return codes.
  **/
 int
 lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
@@ -865,9 +870,11 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 {
 	struct completion online_compl;
 	struct pci_dev *pdev = phba->pcidev;
+	uint32_t before_fc_flag;
+	uint32_t sriov_nr_virtfn;
 	uint32_t reg_val;
-	int status = 0;
-	int rc;
+	int status = 0, rc = 0;
+	int job_posted = 1, sriov_err;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
@@ -876,6 +883,10 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
 	     LPFC_SLI_INTF_IF_TYPE_2))
 		return -EPERM;
+
+	/* Keep state if we need to restore back */
+	before_fc_flag = phba->pport->fc_flag;
+	sriov_nr_virtfn = phba->cfg_sriov_nr_virtfn;
 
 	/* Disable SR-IOV virtual functions if enabled */
 	if (phba->cfg_sriov_nr_virtfn) {
@@ -908,21 +919,44 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	/* delay driver action following IF_TYPE_2 reset */
 	rc = lpfc_sli4_pdev_status_reg_wait(phba);
 
-	if (rc)
+	if (rc == -EPERM) {
+		/* no privilage for reset, restore if needed */
+		if (before_fc_flag & FC_OFFLINE_MODE)
+			goto out;
+	} else if (rc == -EIO) {
+		/* reset failed, there is nothing more we can do */
 		return rc;
+	}
+
+	/* keep the original port state */
+	if (before_fc_flag & FC_OFFLINE_MODE)
+		goto out;
 
 	init_completion(&online_compl);
-	rc = lpfc_workq_post_event(phba, &status, &online_compl,
-				   LPFC_EVT_ONLINE);
-	if (rc == 0)
-		return -ENOMEM;
+	job_posted = lpfc_workq_post_event(phba, &status, &online_compl,
+					   LPFC_EVT_ONLINE);
+	if (!job_posted)
+		goto out;
 
 	wait_for_completion(&online_compl);
 
-	if (status != 0)
-		return -EIO;
+out:
+	/* in any case, restore the virtual functions enabled as before */
+	if (sriov_nr_virtfn) {
+		sriov_err =
+			lpfc_sli_probe_sriov_nr_virtfn(phba, sriov_nr_virtfn);
+		if (!sriov_err)
+			phba->cfg_sriov_nr_virtfn = sriov_nr_virtfn;
+	}
 
-	return 0;
+	/* return proper error code */
+	if (!rc) {
+		if (!job_posted)
+			rc = -ENOMEM;
+		else if (status)
+			rc = -EIO;
+	}
+	return rc;
 }
 
 /**
@@ -994,33 +1028,38 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
-	int status=0;
+	char *board_mode_str = NULL;
+	int status = 0;
 	int rc;
 
-	if (!phba->cfg_enable_hba_reset)
-		return -EACCES;
+	if (!phba->cfg_enable_hba_reset) {
+		status = -EACCES;
+		goto board_mode_out;
+	}
 
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-		"3050 lpfc_board_mode set to %s\n", buf);
+			 "3050 lpfc_board_mode set to %s\n", buf);
 
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
 		rc = lpfc_workq_post_event(phba, &status, &online_compl,
 				      LPFC_EVT_ONLINE);
-		if (rc == 0)
-			return -ENOMEM;
+		if (rc == 0) {
+			status = -ENOMEM;
+			goto board_mode_out;
+		}
 		wait_for_completion(&online_compl);
 	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
 		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 	else if (strncmp(buf, "warm", sizeof("warm") - 1) == 0)
 		if (phba->sli_rev == LPFC_SLI_REV4)
-			return -EINVAL;
+			status = -EINVAL;
 		else
 			status = lpfc_do_offline(phba, LPFC_EVT_WARM_START);
 	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
 		if (phba->sli_rev == LPFC_SLI_REV4)
-			return -EINVAL;
+			status = -EINVAL;
 		else
 			status = lpfc_do_offline(phba, LPFC_EVT_KILL);
 	else if (strncmp(buf, "dump", sizeof("dump") - 1) == 0)
@@ -1030,12 +1069,21 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	else if (strncmp(buf, "dv_reset", sizeof("dv_reset") - 1) == 0)
 		status = lpfc_sli4_pdev_reg_request(phba, LPFC_DV_RESET);
 	else
-		return -EINVAL;
+		status = -EINVAL;
 
+board_mode_out:
 	if (!status)
 		return strlen(buf);
-	else
+	else {
+		board_mode_str = strchr(buf, '\n');
+		if (board_mode_str)
+			*board_mode_str = '\0';
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				 "3097 Failed \"%s\", status(%d), "
+				 "fc_flag(x%x)\n",
+				 buf, status, phba->pport->fc_flag);
 		return status;
+	}
 }
 
 /**
