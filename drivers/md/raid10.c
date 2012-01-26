@@ -1150,6 +1150,9 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
+	if (rdev->badblocks.count)
+		return -EINVAL;
+
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
@@ -2315,6 +2318,11 @@ static int run(mddev_t *mddev)
 				 (conf->raid_disks / conf->near_copies));
 
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
+
+		if (rdev->badblocks.count) {
+			printk(KERN_ERR "md/raid10: cannot handle bad blocks yet\n");
+			goto out_free_conf;
+		}
 		disk_idx = rdev->raid_disk;
 		if (disk_idx >= conf->raid_disks
 		    || disk_idx < 0)
