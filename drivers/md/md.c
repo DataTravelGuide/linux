@@ -7884,6 +7884,7 @@ int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				  s + rdev->data_offset, sectors, acknowledged);
 	if (rv) {
 		/* Make sure they get written out promptly */
+		sysfs_notify_dirent_safe(rdev->sysfs_state);
 		set_bit(MD_CHANGE_CLEAN, &rdev->mddev->flags);
 		md_wakeup_thread(rdev->mddev->thread);
 	}
