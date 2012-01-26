@@ -2927,8 +2927,7 @@ static void handle_parity_checks6(raid5_conf_t *conf, struct stripe_head *sh,
 	}
 }
 
-static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
-				    struct stripe_head_state *r6s)
+static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh)
 {
 	int i;
 
@@ -2970,7 +2969,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 			set_bit(R5_UPTODATE, &sh2->dev[dd_idx].flags);
 			for (j = 0; j < conf->raid_disks; j++)
 				if (j != sh2->pd_idx &&
-				    (!r6s || j != sh2->qd_idx) &&
+				    j != sh2->qd_idx &&
 				    !test_bit(R5_Expanded, &sh2->dev[j].flags))
 					break;
 			if (j == conf->raid_disks) {
@@ -3255,7 +3254,7 @@ static void handle_stripe5(struct stripe_head *sh, struct stripe_head_state *s)
 
 	if (s->expanding && s->locked == 0 &&
 	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state))
-		handle_stripe_expansion(conf, sh, NULL);
+		handle_stripe_expansion(conf, sh);
 }
 
 static void handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
@@ -3518,7 +3517,7 @@ static void handle_stripe6(struct stripe_head *sh, struct stripe_head_state *s)
 
 	if (s->expanding && s->locked == 0 &&
 	    !test_bit(STRIPE_COMPUTE_RUN, &sh->state))
-		handle_stripe_expansion(conf, sh, s);
+		handle_stripe_expansion(conf, sh);
 }
 
 static void handle_stripe(struct stripe_head *sh)
