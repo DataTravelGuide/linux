@@ -29,7 +29,7 @@
 static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
 {
 	int lo, mid, hi;
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 
 	lo = 0;
 	hi = mddev->raid_disks - 1;
@@ -90,7 +90,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 static void linear_unplug(struct request_queue *q)
 {
 	struct mddev *mddev = q->queuedata;
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 	int i;
 
 	rcu_read_lock();
@@ -106,7 +106,7 @@ static void linear_unplug(struct request_queue *q)
 static int linear_congested(void *data, int bits)
 {
 	struct mddev *mddev = data;
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 	int i, ret = 0;
 
 	if (mddev_congested(mddev, bits))
@@ -126,7 +126,7 @@ static int linear_congested(void *data, int bits)
 
 static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 	sector_t array_sectors;
 
 	rcu_read_lock();
@@ -139,9 +139,9 @@ static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disk
 	return array_sectors;
 }
 
-static linear_conf_t *linear_conf(struct mddev *mddev, int raid_disks)
+static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 {
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 	struct md_rdev *rdev;
 	int i, cnt;
 
@@ -212,7 +212,7 @@ out:
 
 static int linear_run (struct mddev *mddev)
 {
-	linear_conf_t *conf;
+	struct linear_conf *conf;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -232,7 +232,7 @@ static int linear_run (struct mddev *mddev)
 
 static void free_conf(struct rcu_head *head)
 {
-	linear_conf_t *conf = container_of(head, linear_conf_t, rcu);
+	struct linear_conf *conf = container_of(head, struct linear_conf, rcu);
 	kfree(conf);
 }
 
@@ -246,7 +246,7 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	 * The current one is never freed until the array is stopped.
 	 * This avoids races.
 	 */
-	linear_conf_t *newconf, *oldconf;
+	struct linear_conf *newconf, *oldconf;
 
 	if (rdev->saved_raid_disk != mddev->raid_disks)
 		return -EINVAL;
@@ -270,7 +270,7 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 
 static int linear_stop (struct mddev *mddev)
 {
-	linear_conf_t *conf = mddev->private;
+	struct linear_conf *conf = mddev->private;
 
 	/*
 	 * We do not require rcu protection here since
