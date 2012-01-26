@@ -4996,10 +4996,8 @@ static int run(mddev_t *mddev)
 	return 0;
 abort:
 	md_unregister_thread(&mddev->thread);
-	if (conf) {
-		print_raid5_conf(conf);
-		free_conf(conf);
-	}
+	print_raid5_conf(conf);
+	free_conf(conf);
 	mddev->private = NULL;
 	printk(KERN_ALERT "md/raid:%s: failed to run raid set.\n", mdname(mddev));
 	return -EIO;
