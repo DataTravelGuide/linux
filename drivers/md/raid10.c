@@ -3104,7 +3104,7 @@ static void *raid10_takeover(struct mddev *mddev)
 	return ERR_PTR(-EINVAL);
 }
 
-static struct mdk_personality raid10_personality =
+static struct md_personality raid10_personality =
 {
 	.name		= "raid10",
 	.level		= 10,
