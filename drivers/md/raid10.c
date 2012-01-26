@@ -1421,6 +1421,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		}
 
 		p->head_position = 0;
+		p->recovery_disabled = mddev->recovery_disabled - 1;
 		rdev->raid_disk = mirror;
 		err = 0;
 		if (rdev->saved_raid_disk != mirror)
@@ -2983,6 +2984,7 @@ static int run(struct mddev *mddev)
 			if (disk->rdev)
 				conf->fullsync = 1;
 		}
+		disk->recovery_disabled = mddev->recovery_disabled - 1;
 	}
 
 	if (mddev->recovery_cp != MaxSector)
