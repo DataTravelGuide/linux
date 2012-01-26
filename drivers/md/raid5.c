@@ -1712,6 +1712,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		 */
 		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	}
+	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT
@@ -4193,6 +4194,9 @@ static void raid5d(mddev_t *mddev)
 		handle_stripe(sh);
 		release_stripe(sh);
 		cond_resched();
+
+		if (mddev->flags & ~(1<<MD_CHANGE_PENDING))
+			md_check_recovery(mddev);
 
 		spin_lock_irq(&conf->device_lock);
 	}
