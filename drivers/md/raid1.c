@@ -1288,9 +1288,7 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 				 * active, and resync is currently active
 				 */
 				rdev = conf->mirrors[d].rdev;
-				if (sync_page_io(rdev,
-						 sect,
-						 s<<9,
+				if (sync_page_io(rdev, sect, s<<9,
 						 bio->bi_io_vec[idx].bv_page,
 						 READ, false)) {
 					success = 1;
@@ -1325,16 +1323,13 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 			if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 				continue;
 			rdev = conf->mirrors[d].rdev;
-			if (sync_page_io(rdev,
-					 sect,
-					 s<<9,
+			if (sync_page_io(rdev, sect, s<<9,
 					 bio->bi_io_vec[idx].bv_page,
 					 WRITE, false) == 0) {
 				r1_bio->bios[d]->bi_end_io = NULL;
 				rdev_dec_pending(rdev, mddev);
 				md_error(mddev, rdev);
-			} else
-				atomic_add(s, &rdev->corrected_errors);
+			}
 		}
 		d = start;
 		while (d != r1_bio->read_disk) {
@@ -1344,12 +1339,12 @@ static int fix_sync_read_error(r1bio_t *r1_bio)
 			if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 				continue;
 			rdev = conf->mirrors[d].rdev;
-			if (sync_page_io(rdev,
-					 sect,
-					 s<<9,
+			if (sync_page_io(rdev, sect, s<<9,
 					 bio->bi_io_vec[idx].bv_page,
 					 READ, false) == 0)
 				md_error(mddev, rdev);
+			else
+				atomic_add(s, &rdev->corrected_errors);
 		}
 		sectors -= s;
 		sect += s;
