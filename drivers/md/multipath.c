@@ -31,7 +31,7 @@
 #define	NR_RESERVED_BUFS	32
 
 
-static int multipath_map (multipath_conf_t *conf)
+static int multipath_map (struct mpconf *conf)
 {
 	int i, disks = conf->raid_disks;
 
@@ -59,7 +59,7 @@ static void multipath_reschedule_retry (struct multipath_bh *mp_bh)
 {
 	unsigned long flags;
 	struct mddev *mddev = mp_bh->mddev;
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 
 	spin_lock_irqsave(&conf->device_lock, flags);
 	list_add(&mp_bh->retry_list, &conf->retry_list);
@@ -76,7 +76,7 @@ static void multipath_reschedule_retry (struct multipath_bh *mp_bh)
 static void multipath_end_bh_io (struct multipath_bh *mp_bh, int err)
 {
 	struct bio *bio = mp_bh->master_bio;
-	multipath_conf_t *conf = mp_bh->mddev->private;
+	struct mpconf *conf = mp_bh->mddev->private;
 
 	bio_endio(bio, err);
 	mempool_free(mp_bh, conf->pool);
@@ -86,7 +86,7 @@ static void multipath_end_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct multipath_bh *mp_bh = bio->bi_private;
-	multipath_conf_t *conf = mp_bh->mddev->private;
+	struct mpconf *conf = mp_bh->mddev->private;
 	struct md_rdev *rdev = conf->multipaths[mp_bh->path].rdev;
 
 	if (uptodate)
@@ -138,7 +138,7 @@ static void multipath_unplug(struct request_queue *q)
 
 static int multipath_make_request(struct mddev *mddev, struct bio * bio)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
@@ -172,7 +172,7 @@ static int multipath_make_request(struct mddev *mddev, struct bio * bio)
 
 static void multipath_status (struct seq_file *seq, struct mddev *mddev)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	int i;
 	
 	seq_printf (seq, " [%d/%d] [", conf->raid_disks,
@@ -187,7 +187,7 @@ static void multipath_status (struct seq_file *seq, struct mddev *mddev)
 static int multipath_congested(void *data, int bits)
 {
 	struct mddev *mddev = data;
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	int i, ret = 0;
 
 	if (mddev_congested(mddev, bits))
@@ -215,7 +215,7 @@ static int multipath_congested(void *data, int bits)
  */
 static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	char b[BDEVNAME_SIZE];
 
 	if (conf->raid_disks - mddev->degraded <= 1) {
@@ -248,7 +248,7 @@ static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 	       conf->raid_disks - mddev->degraded);
 }
 
-static void print_multipath_conf (multipath_conf_t *conf)
+static void print_multipath_conf (struct mpconf *conf)
 {
 	int i;
 	struct multipath_info *tmp;
@@ -274,7 +274,7 @@ static void print_multipath_conf (multipath_conf_t *conf)
 
 static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	struct request_queue *q;
 	int err = -EEXIST;
 	int path;
@@ -323,7 +323,7 @@ static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 
 static int multipath_remove_disk(struct mddev *mddev, int number)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	int err = 0;
 	struct md_rdev *rdev;
 	struct multipath_info *p = conf->multipaths + number;
@@ -370,7 +370,7 @@ static void multipathd (struct mddev *mddev)
 	struct multipath_bh *mp_bh;
 	struct bio *bio;
 	unsigned long flags;
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 	struct list_head *head = &conf->retry_list;
 
 	md_check_recovery(mddev);
@@ -419,7 +419,7 @@ static sector_t multipath_size(struct mddev *mddev, sector_t sectors, int raid_d
 
 static int multipath_run (struct mddev *mddev)
 {
-	multipath_conf_t *conf;
+	struct mpconf *conf;
 	int disk_idx;
 	struct multipath_info *disk;
 	struct md_rdev *rdev;
@@ -439,7 +439,7 @@ static int multipath_run (struct mddev *mddev)
 	 * should be freed in multipath_stop()]
 	 */
 
-	conf = kzalloc(sizeof(multipath_conf_t), GFP_KERNEL);
+	conf = kzalloc(sizeof(struct mpconf), GFP_KERNEL);
 	mddev->private = conf;
 	if (!conf) {
 		printk(KERN_ERR 
@@ -543,7 +543,7 @@ out:
 
 static int multipath_stop (struct mddev *mddev)
 {
-	multipath_conf_t *conf = mddev->private;
+	struct mpconf *conf = mddev->private;
 
 	md_unregister_thread(&mddev->thread);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
