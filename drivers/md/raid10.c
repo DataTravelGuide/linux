@@ -59,6 +59,11 @@
 #define	NR_RAID10_BIOS 256
 
 static void unplug_slaves(struct mddev *mddev);
+/* When there are this many requests queue to be written by
+ * the raid10 thread, we become 'congested' to provide back-pressure
+ * for writeback.
+ */
+static int max_queued_requests = 1024;
 
 static void allow_barrier(struct r10conf *conf);
 static void lower_barrier(struct r10conf *conf);
@@ -721,6 +726,10 @@ static int raid10_congested(void *data, int bits)
 	struct r10conf *conf = mddev->private;
 	int i, ret = 0;
 
+	if ((bits & (1 << BDI_async_congested)) &&
+	    conf->pending_count >= max_queued_requests)
+		return 1;
+
 	if (mddev_congested(mddev, bits))
 		return 1;
 	rcu_read_lock();
@@ -753,10 +762,12 @@ static int flush_pending_writes(struct r10conf *conf)
 		spin_lock(conf->mddev->queue->queue_lock);
 		blk_remove_plug(conf->mddev->queue);
 		spin_unlock(conf->mddev->queue->queue_lock);
+		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
 		/* flush any pending bitmap writes to disk
 		 * before proceeding w/ I/O */
 		bitmap_unplug(conf->mddev->bitmap);
+		wake_up(&conf->wait_barrier);
 
 		while (bio) { /* submit pending writes */
 			struct bio *next = bio->bi_next;
@@ -1045,6 +1056,11 @@ read_again:
 	/*
 	 * WRITE:
 	 */
+	if (conf->pending_count >= max_queued_requests) {
+		md_wakeup_thread(mddev->thread);
+		wait_event(conf->wait_barrier,
+			   conf->pending_count < max_queued_requests);
+	}
 	/* first select target devices under rcu_lock and
 	 * inc refcount on their rdev.  Record them by setting
 	 * bios[x] to bio
@@ -1177,6 +1193,7 @@ retry_write:
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
 		blk_plug_device_unlocked(mddev->queue);
+		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 
@@ -3140,3 +3157,5 @@ MODULE_DESCRIPTION("RAID10 (striped mirror) personality for MD");
 MODULE_ALIAS("md-personality-9"); /* RAID10 */
 MODULE_ALIAS("md-raid10");
 MODULE_ALIAS("md-level-10");
+
+module_param(max_queued_requests, int, S_IRUGO|S_IWUSR);

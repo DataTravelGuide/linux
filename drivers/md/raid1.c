@@ -45,6 +45,11 @@
  */
 #define	NR_RAID1_BIOS 256
 
+/* When there are this many requests queue to be written by
+ * the raid1 thread, we become 'congested' to provide back-pressure
+ * for writeback.
+ */
+static int max_queued_requests = 1024;
 
 static void unplug_slaves(struct mddev *mddev);
 
@@ -655,6 +660,10 @@ int md_raid1_congested(struct mddev *mddev, int bits)
 	struct r1conf *conf = mddev->private;
 	int i, ret = 0;
 
+	if ((bits & (1 << BDI_async_congested)) &&
+	    conf->pending_count >= max_queued_requests)
+		return 1;
+
 	rcu_read_lock();
 	for (i = 0; i < mddev->raid_disks; i++) {
 		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
@@ -699,10 +708,12 @@ static int flush_pending_writes(struct r1conf *conf)
 		struct bio *bio;
 		bio = bio_list_get(&conf->pending_bio_list);
 		plugger_remove_plug(&conf->plug);
+		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
 		/* flush any pending bitmap writes to
 		 * disk before proceeding w/ I/O */
 		bitmap_unplug(conf->mddev->bitmap);
+		wake_up(&conf->wait_barrier);
 
 		while (bio) { /* submit pending writes */
 			struct bio *next = bio->bi_next;
@@ -1010,6 +1021,11 @@ read_again:
 	/*
 	 * WRITE:
 	 */
+	if (conf->pending_count >= max_queued_requests) {
+		md_wakeup_thread(mddev->thread);
+		wait_event(conf->wait_barrier,
+			   conf->pending_count < max_queued_requests);
+	}
 	/* first select target devices under rcu_lock and
 	 * inc refcount on their rdev.  Record them by setting
 	 * bios[x] to bio
@@ -1171,6 +1187,7 @@ read_again:
 		atomic_inc(&r1_bio->remaining);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
+		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 		md_raid1_unplug_device(conf);
 	}
@@ -2484,6 +2501,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	init_waitqueue_head(&conf->wait_barrier);
 
 	bio_list_init(&conf->pending_bio_list);
+	conf->pending_count = 0;
 
 	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks; i++) {
@@ -2846,3 +2864,5 @@ MODULE_DESCRIPTION("RAID1 (mirroring) personality for MD");
 MODULE_ALIAS("md-personality-3"); /* RAID1 */
 MODULE_ALIAS("md-raid1");
 MODULE_ALIAS("md-level-1");
+
+module_param(max_queued_requests, int, S_IRUGO|S_IWUSR);
