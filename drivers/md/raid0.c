@@ -28,7 +28,7 @@
 static void raid0_unplug(struct request_queue *q)
 {
 	struct mddev *mddev = q->queuedata;
-	raid0_conf_t *conf = mddev->private;
+	struct r0conf *conf = mddev->private;
 	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i;
@@ -43,7 +43,7 @@ static void raid0_unplug(struct request_queue *q)
 static int raid0_congested(void *data, int bits)
 {
 	struct mddev *mddev = data;
-	raid0_conf_t *conf = mddev->private;
+	struct r0conf *conf = mddev->private;
 	struct md_rdev **devlist = conf->devlist;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
@@ -68,7 +68,7 @@ static void dump_zones(struct mddev *mddev)
 	sector_t zone_size = 0;
 	sector_t zone_start = 0;
 	char b[BDEVNAME_SIZE];
-	raid0_conf_t *conf = mddev->private;
+	struct r0conf *conf = mddev->private;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	printk(KERN_INFO "md: RAID0 configuration for %s - %d zone%s\n",
 	       mdname(mddev),
@@ -92,7 +92,7 @@ static void dump_zones(struct mddev *mddev)
 	printk(KERN_INFO "\n");
 }
 
-static int create_strip_zones(struct mddev *mddev, raid0_conf_t **private_conf)
+static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 {
 	int i, c, err;
 	sector_t curr_zone_end, sectors;
@@ -101,7 +101,7 @@ static int create_strip_zones(struct mddev *mddev, raid0_conf_t **private_conf)
 	int cnt;
 	char b[BDEVNAME_SIZE];
 	char b2[BDEVNAME_SIZE];
-	raid0_conf_t *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
+	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
 
 	if (!conf)
 		return -ENOMEM;
@@ -352,7 +352,7 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 
 static int raid0_run(struct mddev *mddev)
 {
-	raid0_conf_t *conf;
+	struct r0conf *conf;
 	int ret;
 
 	if (mddev->chunk_sectors == 0) {
@@ -402,7 +402,7 @@ static int raid0_run(struct mddev *mddev)
 
 static int raid0_stop(struct mddev *mddev)
 {
-	raid0_conf_t *conf = mddev->private;
+	struct r0conf *conf = mddev->private;
 
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
@@ -415,7 +415,7 @@ static int raid0_stop(struct mddev *mddev)
 /* Find the zone which holds a particular offset
  * Update *sectorp to be an offset in that zone
  */
-static struct strip_zone *find_zone(struct raid0_private_data *conf,
+static struct strip_zone *find_zone(struct r0conf *conf,
 				    sector_t *sectorp)
 {
 	int i;
@@ -440,7 +440,7 @@ static struct md_rdev *map_sector(struct mddev *mddev, struct strip_zone *zone,
 {
 	unsigned int sect_in_chunk;
 	sector_t chunk;
-	raid0_conf_t *conf = mddev->private;
+	struct r0conf *conf = mddev->private;
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	unsigned int chunk_sects = mddev->chunk_sectors;
 
@@ -553,7 +553,7 @@ static void raid0_status(struct seq_file *seq, struct mddev *mddev)
 static void *raid0_takeover_raid45(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
-	raid0_conf_t *priv_conf;
+	struct r0conf *priv_conf;
 
 	if (mddev->degraded != 1) {
 		printk(KERN_ERR "md/raid0:%s: raid5 must be degraded! Degraded disks: %d\n",
@@ -586,7 +586,7 @@ static void *raid0_takeover_raid45(struct mddev *mddev)
 
 static void *raid0_takeover_raid10(struct mddev *mddev)
 {
-	raid0_conf_t *priv_conf;
+	struct r0conf *priv_conf;
 
 	/* Check layout:
 	 *  - far_copies must be 1
@@ -627,7 +627,7 @@ static void *raid0_takeover_raid10(struct mddev *mddev)
 
 static void *raid0_takeover_raid1(struct mddev *mddev)
 {
-	raid0_conf_t *priv_conf;
+	struct r0conf *priv_conf;
 
 	/* Check layout:
 	 *  - (N - 1) mirror drives must be already faulty
