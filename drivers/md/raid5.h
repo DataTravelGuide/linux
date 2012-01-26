@@ -402,6 +402,7 @@ struct raid5_private_data {
 
 	struct plug_handle	plug;
 
+	int			recovery_disabled;
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */
