@@ -27,7 +27,6 @@
 #define MaxSector (~(sector_t)0)
 
 typedef struct mddev_s mddev_t;
-typedef struct mdk_rdev_s mdk_rdev_t;
 
 /* generic plugging support - like that provided with request_queue,
  * but does not require a request_queue
@@ -59,8 +58,7 @@ static inline void plugger_flush(struct plug_handle *plug)
 /*
  * MD's 'extended' device
  */
-struct mdk_rdev_s
-{
+struct md_rdev {
 	struct list_head same_set;	/* RAID devices within the same set */
 
 	sector_t sectors;		/* Device size (in 512bytes sectors) */
@@ -188,7 +186,7 @@ struct mdk_rdev_s
 
 extern int md_is_badblock(struct badblocks *bb, sector_t s, int sectors,
 			  sector_t *first_bad, int *bad_sectors);
-static inline int is_badblock(mdk_rdev_t *rdev, sector_t s, int sectors,
+static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
 			      sector_t *first_bad, int *bad_sectors)
 {
 	if (unlikely(rdev->badblocks.count)) {
@@ -201,9 +199,9 @@ static inline int is_badblock(mdk_rdev_t *rdev, sector_t s, int sectors,
 	}
 	return 0;
 }
-extern int rdev_set_badblocks(mdk_rdev_t *rdev, sector_t s, int sectors,
+extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 			      int acknowledged);
-extern int rdev_clear_badblocks(mdk_rdev_t *rdev, sector_t s, int sectors);
+extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors);
 extern void md_ack_all_badblocks(struct badblocks *bb);
 
 struct mddev_s
@@ -420,12 +418,11 @@ struct mddev_s
 	atomic_t flush_pending;
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
-
-	void (*sync_super)(mddev_t *mddev, mdk_rdev_t *rdev);
+	void (*sync_super)(mddev_t *mddev, struct md_rdev *rdev);
 };
 
 
-static inline void rdev_dec_pending(mdk_rdev_t *rdev, mddev_t *mddev)
+static inline void rdev_dec_pending(struct md_rdev *rdev, mddev_t *mddev)
 {
 	int faulty = test_bit(Faulty, &rdev->flags);
 	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
@@ -450,8 +447,8 @@ struct mdk_personality
 	/* error_handler must set ->faulty and clear ->in_sync
 	 * if appropriate, and should abort recovery if needed 
 	 */
-	void (*error_handler)(mddev_t *mddev, mdk_rdev_t *rdev);
-	int (*hot_add_disk) (mddev_t *mddev, mdk_rdev_t *rdev);
+	void (*error_handler)(mddev_t *mddev, struct md_rdev *rdev);
+	int (*hot_add_disk) (mddev_t *mddev, struct md_rdev *rdev);
 	int (*hot_remove_disk) (mddev_t *mddev, int number);
 	int (*spare_active) (mddev_t *mddev);
 	sector_t (*sync_request)(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster);
@@ -503,14 +500,14 @@ static inline char * mdname (mddev_t * mddev)
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
 }
 
-static inline int sysfs_link_rdev(mddev_t *mddev, mdk_rdev_t *rdev)
+static inline int sysfs_link_rdev(mddev_t *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
 	sprintf(nm, "rd%d", rdev->raid_disk);
 	return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
 }
 
-static inline void sysfs_unlink_rdev(mddev_t *mddev, mdk_rdev_t *rdev)
+static inline void sysfs_unlink_rdev(mddev_t *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
 	sprintf(nm, "rd%d", rdev->raid_disk);
@@ -585,23 +582,23 @@ extern void md_check_recovery(mddev_t *mddev);
 extern void md_write_start(mddev_t *mddev, struct bio *bi);
 extern void md_write_end(mddev_t *mddev);
 extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
-extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
+extern void md_error(mddev_t *mddev, struct md_rdev *rdev);
 
 extern int mddev_congested(mddev_t *mddev, int bits);
 extern void md_flush_request(mddev_t *mddev, struct bio *bio);
-extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
+extern void md_super_write(mddev_t *mddev, struct md_rdev *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
-extern int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size, 
+extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size, 
 			struct page *page, int rw, bool metadata_op);
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);
-extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(mddev_t *mddev);
 extern int md_integrity_register(mddev_t *mddev);
-extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
+extern void md_integrity_add_rdev(struct md_rdev *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 extern void restore_bitmap_write_access(struct file *file);
 extern void md_unplug(mddev_t *mddev);
@@ -610,7 +607,7 @@ extern void mddev_init(mddev_t *mddev);
 extern int md_run(mddev_t *mddev);
 extern void md_stop(mddev_t *mddev);
 extern void md_stop_writes(mddev_t *mddev);
-extern int md_rdev_init(mdk_rdev_t *rdev);
+extern int md_rdev_init(struct md_rdev *rdev);
 
 extern void mddev_suspend(mddev_t *mddev);
 extern void mddev_resume(mddev_t *mddev);

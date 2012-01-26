@@ -142,7 +142,7 @@ static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
-	mdk_rdev_t *rdev;
+	struct md_rdev *rdev;
 	int i, cnt;
 
 	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
@@ -236,7 +236,7 @@ static void free_conf(struct rcu_head *head)
 	kfree(conf);
 }
 
-static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
+static int linear_add(mddev_t *mddev, struct md_rdev *rdev)
 {
 	/* Adding a drive to a linear array allows the array to grow.
 	 * It is permitted if the new drive has a matching superblock
