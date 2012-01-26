@@ -1920,7 +1920,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	bd_claim_by_disk(rdev->bdev, rdev->bdev->bd_holder, mddev->gendisk);
 
 	/* May as well allow recovery to be retried once */
-	mddev->recovery_disabled = 0;
+	mddev->recovery_disabled++;
 
 	return 0;
 
@@ -7099,7 +7099,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 			}
 		}
 
-	if (mddev->degraded && !mddev->recovery_disabled) {
+	if (mddev->degraded) {
 		list_for_each_entry(rdev, &mddev->disks, same_set) {
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(In_sync, &rdev->flags) &&
