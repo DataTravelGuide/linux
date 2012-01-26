@@ -307,9 +307,10 @@ void __iomem *__init_refok
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map, *tmp_map;
-	unsigned long flags, pg_sz;
+	unsigned long flags;
 	void __iomem *virt;
-	phys_addr_t pg_off;
+	acpi_physical_address pg_off;
+	acpi_size pg_sz;
 
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
@@ -325,7 +326,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 
 	pg_off = round_down(phys, PAGE_SIZE);
 	pg_sz = round_up(phys + size, PAGE_SIZE) - pg_off;
-	virt = ioremap_cache(pg_off, pg_sz);
+	virt = acpi_os_ioremap(pg_off, pg_sz);
 	if (!virt) {
 		kfree(map);
 		return NULL;
@@ -647,7 +648,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
 	rcu_read_unlock();
 	if (!virt_addr) {
-		virt_addr = ioremap_cache(phys_addr, size);
+		virt_addr = acpi_os_ioremap(phys_addr, size);
 		unmap = 1;
 	}
 	if (!value)
@@ -683,7 +684,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
 	rcu_read_unlock();
 	if (!virt_addr) {
-		virt_addr = ioremap_cache(phys_addr, size);
+		virt_addr = acpi_os_ioremap(phys_addr, size);
 		unmap = 1;
 	}
 
