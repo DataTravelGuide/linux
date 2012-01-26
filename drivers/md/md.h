@@ -268,8 +268,8 @@ struct mddev {
 	int				delta_disks, new_level, new_layout;
 	int				new_chunk_sectors;
 
-	struct mdk_thread_s		*thread;	/* management thread */
-	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
+	struct md_thread		*thread;	/* management thread */
+	struct md_thread		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* last block scheduled */
 	/* As resync requests can complete out of order, we cannot easily track
 	 * how much resync has been completed.  So we occasionally pause until
@@ -527,14 +527,14 @@ static inline void sysfs_unlink_rdev(struct mddev *mddev, struct md_rdev *rdev)
 #define rdev_for_each_rcu(rdev, mddev)				\
 	list_for_each_entry_rcu(rdev, &((mddev)->disks), same_set)
 
-typedef struct mdk_thread_s {
+struct md_thread {
 	void			(*run) (struct mddev *mddev);
 	struct mddev		*mddev;
 	wait_queue_head_t	wqueue;
 	unsigned long           flags;
 	struct task_struct	*tsk;
 	unsigned long		timeout;
-} mdk_thread_t;
+};
 
 #define THREAD_WAKEUP  0
 
@@ -571,10 +571,12 @@ static inline void safe_put_page(struct page *p)
 
 extern int register_md_personality(struct mdk_personality *p);
 extern int unregister_md_personality(struct mdk_personality *p);
-extern mdk_thread_t * md_register_thread(void (*run) (struct mddev *mddev),
-				struct mddev *mddev, const char *name);
-extern void md_unregister_thread(mdk_thread_t **threadp);
-extern void md_wakeup_thread(mdk_thread_t *thread);
+extern struct md_thread *md_register_thread(
+	void (*run)(struct mddev *mddev),
+	struct mddev *mddev,
+	const char *name);
+extern void md_unregister_thread(struct md_thread **threadp);
+extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
