@@ -1667,20 +1667,80 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 	}
 }
 
+static void handle_read_error(mddev_t *mddev, r10bio_t *r10_bio)
+{
+	int slot = r10_bio->read_slot;
+	int mirror = r10_bio->devs[slot].devnum;
+	struct bio *bio;
+	conf_t *conf = mddev->private;
+	mdk_rdev_t *rdev;
+	char b[BDEVNAME_SIZE];
+	unsigned long do_sync;
+
+	/* we got a read error. Maybe the drive is bad.  Maybe just
+	 * the block and we can fix it.
+	 * We freeze all other IO, and try reading the block from
+	 * other devices.  When we find one, we re-write
+	 * and check it that fixes the read error.
+	 * This is all done synchronously while the array is
+	 * frozen.
+	 */
+	if (mddev->ro == 0) {
+		freeze_array(conf);
+		fix_read_error(conf, mddev, r10_bio);
+		unfreeze_array(conf);
+	}
+	rdev_dec_pending(conf->mirrors[mirror].rdev, mddev);
+
+	bio = r10_bio->devs[slot].bio;
+	r10_bio->devs[slot].bio =
+		mddev->ro ? IO_BLOCKED : NULL;
+	mirror = read_balance(conf, r10_bio);
+	if (mirror == -1) {
+		printk(KERN_ALERT "md/raid10:%s: %s: unrecoverable I/O"
+		       " read error for block %llu\n",
+		       mdname(mddev),
+		       bdevname(bio->bi_bdev, b),
+		       (unsigned long long)r10_bio->sector);
+		raid_end_bio_io(r10_bio);
+		bio_put(bio);
+		return;
+	}
+
+	do_sync = (r10_bio->master_bio->bi_rw & REQ_SYNC);
+	bio_put(bio);
+	slot = r10_bio->read_slot;
+	rdev = conf->mirrors[mirror].rdev;
+	printk_ratelimited(
+		KERN_ERR
+		"md/raid10:%s: %s: redirecting"
+		"sector %llu to another mirror\n",
+		mdname(mddev),
+		bdevname(rdev->bdev, b),
+		(unsigned long long)r10_bio->sector);
+	bio = bio_clone_mddev(r10_bio->master_bio,
+			      GFP_NOIO, mddev);
+	r10_bio->devs[slot].bio = bio;
+	bio->bi_sector = r10_bio->devs[slot].addr
+		+ rdev->data_offset;
+	bio->bi_bdev = rdev->bdev;
+	bio->bi_rw = READ | do_sync;
+	bio->bi_private = r10_bio;
+	bio->bi_end_io = raid10_end_read_request;
+	generic_make_request(bio);
+}
+
 static void raid10d(mddev_t *mddev)
 {
 	r10bio_t *r10_bio;
-	struct bio *bio;
 	unsigned long flags;
 	conf_t *conf = mddev->private;
 	struct list_head *head = &conf->retry_list;
 	int unplug=0;
-	mdk_rdev_t *rdev;
 
 	md_check_recovery(mddev);
 
 	for (;;) {
-		char b[BDEVNAME_SIZE];
 
 		unplug += flush_pending_writes(conf);
 
@@ -1703,59 +1763,8 @@ static void raid10d(mddev_t *mddev)
 			recovery_request_write(mddev, r10_bio);
 			unplug = 1;
 		} else {
-			int slot = r10_bio->read_slot;
-			int mirror = r10_bio->devs[slot].devnum;
-			/* we got a read error. Maybe the drive is bad.  Maybe just
-			 * the block and we can fix it.
-			 * We freeze all other IO, and try reading the block from
-			 * other devices.  When we find one, we re-write
-			 * and check it that fixes the read error.
-			 * This is all done synchronously while the array is
-			 * frozen.
-			 */
-			if (mddev->ro == 0) {
-				freeze_array(conf);
-				fix_read_error(conf, mddev, r10_bio);
-				unfreeze_array(conf);
-			}
-			rdev_dec_pending(conf->mirrors[mirror].rdev, mddev);
-
-			bio = r10_bio->devs[slot].bio;
-			r10_bio->devs[slot].bio =
-				mddev->ro ? IO_BLOCKED : NULL;
-			mirror = read_balance(conf, r10_bio);
-			if (mirror == -1) {
-				printk(KERN_ALERT "md/raid10:%s: %s: unrecoverable I/O"
-				       " read error for block %llu\n",
-				       mdname(mddev),
-				       bdevname(bio->bi_bdev,b),
-				       (unsigned long long)r10_bio->sector);
-				raid_end_bio_io(r10_bio);
-				bio_put(bio);
-			} else {
-				const bool do_sync = bio_rw_flagged(r10_bio->master_bio, BIO_RW_SYNCIO);
-				bio_put(bio);
-				slot = r10_bio->read_slot;
-				rdev = conf->mirrors[mirror].rdev;
-				printk_ratelimited(
-					KERN_ERR
-					"md/raid10:%s: %s: redirecting"
-					"sector %llu to another mirror\n",
-					mdname(mddev),
-					bdevname(rdev->bdev, b),
-					(unsigned long long)r10_bio->sector);
-				bio = bio_clone_mddev(r10_bio->master_bio,
-						      GFP_NOIO, mddev);
-				r10_bio->devs[slot].bio = bio;
-				bio->bi_sector = r10_bio->devs[slot].addr
-					+ rdev->data_offset;
-				bio->bi_bdev = rdev->bdev;
-				bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
-				bio->bi_private = r10_bio;
-				bio->bi_end_io = raid10_end_read_request;
-				unplug = 1;
-				generic_make_request(bio);
-			}
+			handle_read_error(mddev, r10_bio);
+			unplug = 1;
 		}
 		cond_resched();
 		if (mddev->flags & ~(1<<MD_CHANGE_PENDING))
