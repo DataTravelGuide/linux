@@ -1582,7 +1582,6 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 			    test_bit(In_sync, &rdev->flags)) {
 				atomic_inc(&rdev->nr_pending);
 				rcu_read_unlock();
-				atomic_add(s, &rdev->corrected_errors);
 				if (sync_page_io(rdev,
 						 r10_bio->devs[sl].addr +
 						 sect,
@@ -1647,6 +1646,7 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 					       (unsigned long long)(
 						       sect + rdev->data_offset),
 					       bdevname(rdev->bdev, b));
+					atomic_add(s, &rdev->corrected_errors);
 				}
 
 				rdev_dec_pending(rdev, mddev);
