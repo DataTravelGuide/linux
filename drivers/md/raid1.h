@@ -19,7 +19,7 @@ struct pool_info {
 	int	raid_disks;
 };
 
-struct r1_private_data_s {
+struct r1conf {
 	struct mddev		*mddev;
 	struct mirror_info		*mirrors;
 	int			raid_disks;
@@ -90,8 +90,6 @@ struct r1_private_data_s {
 	 */
 	struct md_thread	*thread;
 };
-
-typedef struct r1_private_data_s conf_t;
 
 /*
  * this is our 'private' RAID1 bio.
@@ -170,6 +168,6 @@ struct r1bio {
 #define	R1BIO_WriteError 8
 
 extern int md_raid1_congested(struct mddev *mddev, int bits);
-extern void md_raid1_unplug_device(conf_t *conf);
+extern void md_raid1_unplug_device(struct r1conf *conf);
 
 #endif
