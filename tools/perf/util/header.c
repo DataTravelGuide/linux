@@ -1,5 +1,6 @@
 #define _FILE_OFFSET_BITS 64
 
+#include "util.h"
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -12,7 +13,6 @@
 
 #include "evlist.h"
 #include "evsel.h"
-#include "util.h"
 #include "header.h"
 #include "../perf.h"
 #include "trace-event.h"
