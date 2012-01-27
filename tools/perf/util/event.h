@@ -150,9 +150,9 @@ typedef int (*perf_event__handler_t)(union perf_event *event,
 				     struct perf_sample *sample,
 				      struct perf_session *session);
 
-int perf_event__synthesize_thread(struct thread_map *threads,
-				  perf_event__handler_t process,
-				  struct perf_session *session);
+int perf_event__synthesize_thread_map(struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct perf_session *session);
 int perf_event__synthesize_threads(perf_event__handler_t process,
 				   struct perf_session *session);
 int perf_event__synthesize_kernel_mmap(perf_event__handler_t process,

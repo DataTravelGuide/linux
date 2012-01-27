@@ -271,9 +271,9 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 					     process, session);
 }
 
-int perf_event__synthesize_thread(struct thread_map *threads,
-				 perf_event__handler_t process,
-				 struct perf_session *session)
+int perf_event__synthesize_thread_map(struct thread_map *threads,
+				      perf_event__handler_t process,
+				      struct perf_session *session)
 {
 	union perf_event *comm_event, *mmap_event;
 	int err = -1, thread;
