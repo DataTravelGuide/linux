@@ -279,9 +279,9 @@ Or you can use:
 
     crashkernel=auto
 
-if you have enough memory. The threshold is 4G on ia64 and x86, 2G on powerpc,
-below which this won't work.
-
+if you have enough memory. The threshold is 2G on ia64 and x86, for powerpc
+if PAGESIZE is 4k the threshold is 2G or the threshold is 8G, below which
+this won't work.
 
 The automatically reserved memory size varies based on architecture. For i386
 and x86_64, base memory reserved is 128M and this memory is scaled based on
