@@ -20,7 +20,6 @@
 
 struct mqprio_sched {
 	struct Qdisc		**qdiscs;
-	int hw_owned;
 };
 
 static void mqprio_destroy(struct Qdisc *sch)
@@ -37,10 +36,7 @@ static void mqprio_destroy(struct Qdisc *sch)
 		kfree(priv->qdiscs);
 	}
 
-	if (priv->hw_owned && dev->netdev_ops->ndo_setup_tc)
-		dev->netdev_ops->ndo_setup_tc(dev, 0);
-	else
-		netdev_set_num_tc(dev, 0);
+	netdev_set_num_tc(dev, 0);
 }
 
 static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
@@ -58,14 +54,13 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 	}
 
 	/* net_device does not support requested operation */
-	if (qopt->hw && !dev->netdev_ops->ndo_setup_tc)
+	if (qopt->hw) {
+		/*
+		 * RHEL6: Can't backport ndo_setup_tc() therefore we do not support
+		 * strict hardware mode.
+		 */
 		return -EINVAL;
-
-	/* if hw owned qcount and qoffset are taken from LLD so
-	 * no reason to verify them here
-	 */
-	if (qopt->hw)
-		return 0;
+	}
 
 	for (i = 0; i < qopt->num_tc; i++) {
 		unsigned int last = qopt->offset[i] + qopt->count[i];
@@ -123,7 +118,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		dev_queue = netdev_get_tx_queue(dev, i);
-		qdisc = qdisc_create_dflt(dev_queue, &pfifo_fast_ops,
+		qdisc = qdisc_create_dflt(dev, dev_queue, &pfifo_fast_ops,
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
 						    TC_H_MIN(i + 1)));
 		if (qdisc == NULL) {
@@ -134,21 +129,10 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 		priv->qdiscs[i] = qdisc;
 	}
 
-	/* If the mqprio options indicate that hardware should own
-	 * the queue mapping then run ndo_setup_tc otherwise use the
-	 * supplied and verified mapping
-	 */
-	if (qopt->hw) {
-		priv->hw_owned = 1;
-		err = dev->netdev_ops->ndo_setup_tc(dev, qopt->num_tc);
-		if (err)
-			goto err;
-	} else {
-		netdev_set_num_tc(dev, qopt->num_tc);
-		for (i = 0; i < qopt->num_tc; i++)
-			netdev_set_tc_queue(dev, i,
-					    qopt->count[i], qopt->offset[i]);
-	}
+	netdev_set_num_tc(dev, qopt->num_tc);
+	for (i = 0; i < qopt->num_tc; i++)
+		netdev_set_tc_queue(dev, i,
+				    qopt->count[i], qopt->offset[i]);
 
 	/* Always use supplied priority mappings */
 	for (i = 0; i < TC_BITMASK + 1; i++)
@@ -214,7 +198,7 @@ static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct net_device *dev = qdisc_dev(sch);
-	struct mqprio_sched *priv = qdisc_priv(sch);
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_mqprio_qopt opt = { 0 };
 	struct Qdisc *qdisc;
@@ -239,12 +223,11 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	}
 
 	opt.num_tc = netdev_get_num_tc(dev);
-	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
-	opt.hw = priv->hw_owned;
+	memcpy(opt.prio_tc_map, qos->prio_tc_map, sizeof(opt.prio_tc_map));
 
 	for (i = 0; i < netdev_get_num_tc(dev); i++) {
-		opt.count[i] = dev->tc_to_txq[i].count;
-		opt.offset[i] = dev->tc_to_txq[i].offset;
+		opt.count[i] = qos->tc_to_txq[i].count;
+		opt.offset[i] = qos->tc_to_txq[i].offset;
 	}
 
 	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
@@ -283,6 +266,7 @@ static int mqprio_dump_class(struct Qdisc *sch, unsigned long cl,
 			 struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct net_device *dev = qdisc_dev(sch);
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
 
 	if (cl <= netdev_get_num_tc(dev)) {
 		tcm->tcm_parent = TC_H_ROOT;
@@ -294,7 +278,7 @@ static int mqprio_dump_class(struct Qdisc *sch, unsigned long cl,
 		dev_queue = mqprio_queue_get(sch, cl);
 		tcm->tcm_parent = 0;
 		for (i = 0; i < netdev_get_num_tc(dev); i++) {
-			struct netdev_tc_txq tc = dev->tc_to_txq[i];
+			struct netdev_tc_txq tc = qos->tc_to_txq[i];
 			int q_idx = cl - netdev_get_num_tc(dev);
 
 			if (q_idx > tc.offset &&
@@ -317,13 +301,14 @@ static int mqprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	__acquires(d->lock)
 {
 	struct net_device *dev = qdisc_dev(sch);
+	struct netdev_qos_info *qos = &netdev_extended(dev)->qos_data;
 
 	if (cl <= netdev_get_num_tc(dev)) {
 		int i;
 		struct Qdisc *qdisc;
 		struct gnet_stats_queue qstats = {0};
 		struct gnet_stats_basic_packed bstats = {0};
-		struct netdev_tc_txq tc = dev->tc_to_txq[cl - 1];
+		struct netdev_tc_txq tc = qos->tc_to_txq[cl - 1];
 
 		/* Drop lock here it will be reclaimed before touching
 		 * statistics this is required because the d->lock we
