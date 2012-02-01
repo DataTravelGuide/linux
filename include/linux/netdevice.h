@@ -1148,6 +1148,11 @@ struct netdev_qos_info {
 	u8 prio_tc_map[TC_BITMASK + 1];
 };
 
+struct netdev_netpoll_ext_info {
+	int (*ndo_netpoll_setup)(struct net_device *dev,
+	     struct netpoll_info *info);
+};
+
 struct netdev_priomap_info {
 #ifdef CONFIG_NETPRIO_CGROUP
 	struct netprio_map *priomap;
@@ -1166,6 +1171,7 @@ struct net_device_extended {
 	int                     (*ndo_fcoe_get_hbainfo)(struct net_device *dev,
 					struct netdev_fcoe_hbainfo *hbainfo);
 #endif
+	struct netdev_netpoll_ext_info		netpoll_data;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
