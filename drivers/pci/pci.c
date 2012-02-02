@@ -970,7 +970,7 @@ int pci_enable_device(struct pci_dev *dev)
 	return __pci_enable_device_flags(dev, IORESOURCE_MEM | IORESOURCE_IO);
 }
 
-enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_PERFORMANCE;
+enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_SAFE;
 
 /*
  * Managed PCI resources.  This manages device on/off, intx/msi/msix
