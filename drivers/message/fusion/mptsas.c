@@ -5008,7 +5008,6 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 			(ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)) {
 			VirtTarget *vtarget = NULL;
 			u8		id, channel;
-			u32	 log_info = le32_to_cpu(reply->IOCLogInfo);
 
 			id = sas_event_data->TargetID;
 			channel = sas_event_data->Bus;
@@ -5017,7 +5016,8 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 			if(vtarget) {
 				printk("LSI debug LogInfo (0x%x) available for "
 				   "INTERNAL_DEVICE_RESET"
-				   "fw_id %d fw_channel %d\n", log_info,
+				   "fw_id %d fw_channel %d\n",
+					le32_to_cpu(reply->IOCLogInfo),
 				   id, channel);
 				if (vtarget->raidVolume)
 					printk(KERN_INFO
