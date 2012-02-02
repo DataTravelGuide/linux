@@ -106,7 +106,7 @@ MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 static int host_lock_less = -1;
 module_param(host_lock_less, int, 0);
 MODULE_PARM_DESC(host_lock_less, " Enable host_lock_less mode (default=0). "
-	"Valid value is 1. This is an experimental option - only for testing");
+	"Valid value is 1. This is an experimental option");
 
 /**
  * struct sense_info - common structure for obtaining sense keys
@@ -7523,8 +7523,6 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (host_lock_less == 1) {
 		scsih_driver_template.lockless = 1;
 		scsih_driver_template.queuecommand  = _scsih_qcmd_preempt_disable;
-		mark_tech_preview("mpt2sas: lockless mode active - to use only for testing\n",
-				  THIS_MODULE);
 	}
 
 	shost = scsi_host_alloc(&scsih_driver_template,

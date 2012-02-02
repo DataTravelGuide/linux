@@ -25,6 +25,4 @@ bfa			drivers/scsi/bfa/bfad_im.c
 btrfs			fs/btrfs/super.c
 ecryptfs		fs/ecryptfs/main.c
 fscache			fs/fscache/main.c
-mpt2sas			drivers/scsi/mpt2sas/mpt2sas_scsih.c
-				- tech preview only for lockless mode
 fcoe-target		drivers/target/target_core_configfs.c
