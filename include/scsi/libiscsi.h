@@ -282,6 +282,7 @@ struct iscsi_session {
 	char			*password;
 	char			*password_in;
 	char			*targetname;
+	char			*targetalias;
 	char			*ifacename;
 	char			*initiatorname;
 	/* control data */
