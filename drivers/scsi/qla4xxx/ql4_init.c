@@ -572,8 +572,8 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 		writel(set_rmask(NVR_WRITE_ENABLE),
 		       &ha->reg->u1.isp4022.nvram);
 
-        writel(2, &ha->reg->mailbox[6]);
-        readl(&ha->reg->mailbox[6]);
+	writel(2, &ha->reg->mailbox[6]);
+	readl(&ha->reg->mailbox[6]);
 
 	writel(set_rmask(CSR_BOOT_ENABLE), &ha->reg->ctrl_status);
 	readl(&ha->reg->ctrl_status);

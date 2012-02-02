@@ -230,12 +230,12 @@ struct srb {
  * Asynchronous Event Queue structure
  */
 struct aen {
-        uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
+	uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
 };
 
 struct ql4_aen_log {
-        int count;
-        struct aen entry[MAX_AEN_ENTRIES];
+	int count;
+	struct aen entry[MAX_AEN_ENTRIES];
 };
 
 /*

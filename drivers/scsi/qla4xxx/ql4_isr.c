@@ -17,8 +17,8 @@
  * @srb: Pointer to srb structure.
  **/
 static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
-                               struct status_entry *sts_entry,
-                               struct srb *srb)
+			       struct status_entry *sts_entry,
+			       struct srb *srb)
 {
 	struct scsi_cmnd *cmd = srb->cmd;
 	uint16_t sense_len;
