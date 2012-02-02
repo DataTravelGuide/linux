@@ -180,6 +180,7 @@
 #define IP_CONFIG_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
+#define FW_ALIVE_WAIT_TOV		3
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
