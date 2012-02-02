@@ -6412,8 +6412,19 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 			pReq->Action, ioc->mptbase_cmds.status, timeleft));
 		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out;
-		if (!timeleft)
+		if (!timeleft) {
+			spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+			if (ioc->ioc_reset_in_progress) {
+				spin_unlock_irqrestore(&ioc->taskmgmt_lock,
+					flags);
+				printk(MYIOC_s_INFO_FMT "%s: host reset in"
+					" progress mpt_config timed out.!!\n",
+					__func__, ioc->name);
+				return -EFAULT;
+			}
+			spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 			issue_hard_reset = 1;
+		}
 		goto out;
 	}
 
@@ -7129,7 +7140,18 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	if (ioc->ioc_reset_in_progress) {
 		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
-		return 0;
+		ioc->wait_on_reset_completion = 1;
+		do {
+			ssleep(1);
+		} while (ioc->ioc_reset_in_progress == 1);
+		ioc->wait_on_reset_completion = 0;
+		return ioc->reset_status;
+	}
+	if (ioc->wait_on_reset_completion) {
+		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+		rc = 0;
+		time_count = jiffies;
+		goto exit;
 	}
 	ioc->ioc_reset_in_progress = 1;
 	if (ioc->alt_ioc)
@@ -7166,6 +7188,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	ioc->ioc_reset_in_progress = 0;
 	ioc->taskmgmt_quiesce_io = 0;
 	ioc->taskmgmt_in_progress = 0;
+	ioc->reset_status = rc;
 	if (ioc->alt_ioc) {
 		ioc->alt_ioc->ioc_reset_in_progress = 0;
 		ioc->alt_ioc->taskmgmt_quiesce_io = 0;
@@ -7181,7 +7204,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 					ioc->alt_ioc, MPT_IOC_POST_RESET);
 		}
 	}
-
+exit:
 	dtmprintk(ioc,
 	    printk(MYIOC_s_DEBUG_FMT
 		"HardResetHandler: completed (%d seconds): %s\n", ioc->name,

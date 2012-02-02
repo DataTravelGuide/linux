@@ -718,6 +718,8 @@ typedef struct _MPT_ADAPTER
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
+	u8			 reset_status;
+	u8			 wait_on_reset_completion;
 	MPT_SCHEDULE_TARGET_RESET schedule_target_reset;
 	struct work_struct	 sas_persist_task;
 
