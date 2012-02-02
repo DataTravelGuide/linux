@@ -153,6 +153,8 @@
 #define QL4_SCSI_ADAPTER_RESET		1
 #define QL4_SCSI_FIRMWARE_RESET		2
 
+#define MSB(x) ((uint8_t)((uint16_t)(x) >> 8))
+#define LSW(x) ((uint16_t)(x))
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
