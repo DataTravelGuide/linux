@@ -114,22 +114,52 @@ void smp_restart_with_online_cpu(void)
 	for (;;);
 }
 
+static void smp_stop_cpu(void)
+{
+	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+		cpu_relax();
+}
+
 void smp_send_stop(void)
 {
-	int cpu, rc;
+	cpumask_t cpumask;
+	int cpu;
+	u64 end;
 
 	/* Disable all interrupts/machine checks */
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 	trace_hardirqs_off();
 
-	/* stop all processors */
-	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
-			continue;
-		do {
-			rc = signal_processor(cpu, sigp_stop);
-		} while (rc == sigp_busy);
+	cpumask_copy(&cpumask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 
+	if (oops_in_progress) {
+		/*
+		 * Give the other cpus the opportunity to complete
+		 * outstanding interrupts before stopping them.
+		 */
+		end = get_clock() + (1000000UL << 12);
+		for_each_cpu(cpu, &cpumask) {
+			set_bit(ec_stop_cpu, (unsigned long *)
+				&lowcore_ptr[cpu]->ext_call_fast);
+			while (signal_processor(cpu, sigp_emergency_signal)
+			       == sigp_busy && get_clock() < end)
+				cpu_relax();
+		}
+		while (get_clock() < end) {
+			for_each_cpu(cpu, &cpumask)
+				if (cpu_stopped(cpu))
+					cpumask_clear_cpu(cpu, &cpumask);
+			if (cpumask_empty(&cpumask))
+				break;
+			cpu_relax();
+		}
+	}
+
+	/* stop all processors */
+	for_each_cpu(cpu, &cpumask) {
+		while (signal_processor(cpu, sigp_stop) == sigp_busy)
+			cpu_relax();
 		while (!cpu_stopped(cpu))
 			cpu_relax();
 	}
@@ -154,6 +184,9 @@ static void do_ext_call_interrupt(__u16 code)
 
 	if (test_bit(ec_schedule, &bits))
 		scheduler_ipi();
+
+	if (test_bit(ec_stop_cpu, &bits))
+		smp_stop_cpu();
 
 	if (test_bit(ec_call_function, &bits))
 		generic_smp_call_function_interrupt();
