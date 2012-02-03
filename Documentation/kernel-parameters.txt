@@ -874,6 +874,10 @@ and is between 256 and 4096 characters. It is defined in the file
 				VIA, nVidia)
 			verbose: show contents of HPET registers during setup
 
+	hpet_mmap	[HW, X86_64] Enable userspace mapping of HPET
+			registers for faster HPET access by userspace
+			processes.
+
 	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
 	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
 			On x86-64 and powerpc, this option can be specified
