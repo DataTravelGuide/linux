@@ -90,6 +90,7 @@ do {									\
 
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
+static void iucv_sever_path(struct sock *, int);
 
 static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev);
@@ -165,18 +166,11 @@ static int afiucv_pm_freeze(struct device *dev)
 	read_lock(&iucv_sk_list.lock);
 	sk_for_each(sk, node, &iucv_sk_list.head) {
 		iucv = iucv_sk(sk);
-		skb_queue_purge(&iucv->send_skb_q);
-		skb_queue_purge(&iucv->backlog_skb_q);
 		switch (sk->sk_state) {
-		case IUCV_SEVERED:
 		case IUCV_DISCONN:
 		case IUCV_CLOSING:
 		case IUCV_CONNECTED:
-			if (iucv->path) {
-				err = pr_iucv->path_sever(iucv->path, NULL);
-				iucv_path_free(iucv->path);
-				iucv->path = NULL;
-			}
+			iucv_sever_path(sk, 0);
 			break;
 		case IUCV_OPEN:
 		case IUCV_BOUND:
@@ -185,6 +179,8 @@ static int afiucv_pm_freeze(struct device *dev)
 		default:
 			break;
 		}
+		skb_queue_purge(&iucv->send_skb_q);
+		skb_queue_purge(&iucv->backlog_skb_q);
 	}
 	read_unlock(&iucv_sk_list.lock);
 	return err;
@@ -215,7 +211,6 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 			sk->sk_state_change(sk);
 			break;
 		case IUCV_DISCONN:
-		case IUCV_SEVERED:
 		case IUCV_CLOSING:
 		case IUCV_LISTEN:
 		case IUCV_BOUND:
@@ -457,10 +452,29 @@ static void iucv_sock_kill(struct sock *sk)
 	sock_put(sk);
 }
 
+/* Terminate an IUCV path */
+static void iucv_sever_path(struct sock *sk, int with_user_data)
+{
+	unsigned char user_data[16];
+	struct iucv_sock *iucv = iucv_sk(sk);
+	struct iucv_path *path = iucv->path;
+
+	if (iucv->path) {
+		iucv->path = NULL;
+		if (with_user_data) {
+			low_nmcpy(user_data, iucv->src_name);
+			high_nmcpy(user_data, iucv->dst_name);
+			ASCEBC(user_data, sizeof(user_data));
+			pr_iucv->path_sever(path, user_data);
+		} else
+			pr_iucv->path_sever(path, NULL);
+		iucv_path_free(path);
+	}
+}
+
 /* Close an IUCV socket */
 static void iucv_sock_close(struct sock *sk)
 {
-	unsigned char user_data[16];
 	struct iucv_sock *iucv = iucv_sk(sk);
 	unsigned long timeo;
 	int err, blen;
@@ -509,25 +523,14 @@ static void iucv_sock_close(struct sock *sk)
 		sk->sk_state = IUCV_CLOSED;
 		sk->sk_state_change(sk);
 
-		if (iucv->path) {
-			low_nmcpy(user_data, iucv->src_name);
-			high_nmcpy(user_data, iucv->dst_name);
-			ASCEBC(user_data, sizeof(user_data));
-			pr_iucv->path_sever(iucv->path, user_data);
-			iucv_path_free(iucv->path);
-			iucv->path = NULL;
-		}
-
 		sk->sk_err = ECONNRESET;
 		sk->sk_state_change(sk);
 
 		skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
-		break;
 
-	default:
-		/* nothing to do here */
-		break;
+	default:   /* fall through */
+		iucv_sever_path(sk, 1);
 	}
 
 	/* mark socket for deletion by iucv_sock_kill() */
@@ -672,15 +675,11 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 		}
 
 		if (sk->sk_state == IUCV_CONNECTED ||
-		    sk->sk_state == IUCV_SEVERED ||
-		    sk->sk_state == IUCV_DISCONN ||	/* due to PM restore */
+		    sk->sk_state == IUCV_DISCONN ||
 		    !newsock) {
 			iucv_accept_unlink(sk);
 			if (newsock)
 				sock_graft(sk, newsock);
-
-			if (sk->sk_state == IUCV_SEVERED)
-				sk->sk_state = IUCV_DISCONN;
 
 			release_sock(sk);
 			return sk;
@@ -915,11 +914,9 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_CLOSED)
 		err = -ECONNREFUSED;
 
-	if (err && iucv->transport == AF_IUCV_TRANS_IUCV) {
-		pr_iucv->path_sever(iucv->path, NULL);
-		iucv_path_free(iucv->path);
-		iucv->path = NULL;
-	}
+	if (err && iucv->transport == AF_IUCV_TRANS_IUCV)
+		iucv_sever_path(sk, 0);
+
 done:
 	release_sock(sk);
 	return err;
@@ -1354,7 +1351,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int blen;
 	int err = 0;
 
-	if ((sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_SEVERED) &&
+	if ((sk->sk_state == IUCV_DISCONN) &&
 	    skb_queue_empty(&iucv->backlog_skb_q) &&
 	    skb_queue_empty(&sk->sk_receive_queue) &&
 	    list_empty(&iucv->message_q.list))
@@ -1503,7 +1500,7 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 	if (sk->sk_state == IUCV_CLOSED)
 		mask |= POLLHUP;
 
-	if (sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_SEVERED)
+	if (sk->sk_state == IUCV_DISCONN)
 		mask |= POLLIN;
 
 	if (sock_writeable(sk))
@@ -1530,7 +1527,6 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 	switch (sk->sk_state) {
 	case IUCV_DISCONN:
 	case IUCV_CLOSING:
-	case IUCV_SEVERED:
 	case IUCV_CLOSED:
 		err = -ENOTCONN;
 		goto fail;
@@ -1585,13 +1581,6 @@ static int iucv_sock_release(struct socket *sock)
 		return 0;
 
 	iucv_sock_close(sk);
-
-	/* Unregister with IUCV base support */
-	if (iucv_sk(sk)->path) {
-		pr_iucv->path_sever(iucv_sk(sk)->path, NULL);
-		iucv_path_free(iucv_sk(sk)->path);
-		iucv_sk(sk)->path = NULL;
-	}
 
 	sock_orphan(sk);
 	iucv_sock_kill(sk);
@@ -1771,8 +1760,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	path->msglim = iucv->msglimit;
 	err = pr_iucv->path_accept(path, &af_iucv_handler, nuser_data, nsk);
 	if (err) {
-		err = pr_iucv->path_sever(path, user_data);
-		iucv_path_free(path);
+		iucv_sever_path(sk, 1);
 		iucv_sock_kill(nsk);
 		goto fail;
 	}
@@ -1849,6 +1837,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 	struct sk_buff *list_skb = list->next;
 	unsigned long flags;
 
+	bh_lock_sock(sk);
 	if (!skb_queue_empty(list)) {
 		spin_lock_irqsave(&list->lock, flags);
 
@@ -1870,7 +1859,6 @@ static void iucv_callback_txdone(struct iucv_path *path,
 			iucv_sock_wake_msglim(sk);
 		}
 	}
-	BUG_ON(!this);
 
 	if (sk->sk_state == IUCV_CLOSING) {
 		if (skb_queue_empty(&iucv_sk(sk)->send_skb_q)) {
@@ -1878,6 +1866,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 			sk->sk_state_change(sk);
 		}
 	}
+	bh_unlock_sock(sk);
 
 }
 
@@ -1885,12 +1874,14 @@ static void iucv_callback_connrej(struct iucv_path *path, u8 ipuser[16])
 {
 	struct sock *sk = path->private;
 
-	if (!list_empty(&iucv_sk(sk)->accept_q))
-		sk->sk_state = IUCV_SEVERED;
-	else
-		sk->sk_state = IUCV_DISCONN;
+	if (sk->sk_state == IUCV_CLOSED)
+		return;
 
+	bh_lock_sock(sk);
+	iucv_sever_path(sk, 1);
+	sk->sk_state = IUCV_DISCONN;
 	sk->sk_state_change(sk);
+	bh_unlock_sock(sk);
 }
 
 /* called if the other communication side shuts down its RECV direction;
@@ -2048,10 +2039,7 @@ static int afiucv_hs_callback_fin(struct sock *sk, struct sk_buff *skb)
 	/* other end of connection closed */
 	if (iucv) {
 		bh_lock_sock(sk);
-		if (!list_empty(&iucv->accept_q))
-			sk->sk_state = IUCV_SEVERED;
-		else
-			sk->sk_state = IUCV_DISCONN;
+		sk->sk_state = IUCV_DISCONN;
 		sk->sk_state_change(sk);
 		bh_unlock_sock(sk);
 	}
@@ -2275,10 +2263,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 			case TX_NOTIFY_DELAYED_GENERALERROR:
 				__skb_unlink(this, list);
 				kfree_skb(this);
-				if (!list_empty(&iucv->accept_q))
-					sk->sk_state = IUCV_SEVERED;
-				else
-					sk->sk_state = IUCV_DISCONN;
+				sk->sk_state = IUCV_DISCONN;
 				sk->sk_state_change(sk);
 				break;
 			}
