@@ -73,7 +73,7 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf);
 static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		struct qeth_qdio_out_buffer *buf,
 		enum qeth_qdio_buffer_states newbufstate);
-
+static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
 static inline void __qeth_fill_buffer_frag(struct sk_buff *skb,
 		struct qdio_buffer *buffer, int is_tso,
@@ -412,6 +412,9 @@ static inline enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
 static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
 	int bidx, int forced_cleanup)
 {
+	if (q->card->options.cq != QETH_CQ_ENABLED)
+		return;
+
 	if (q->bufs[bidx]->next_pending != NULL) {
 		struct qeth_qdio_out_buffer *head = q->bufs[bidx];
 		struct qeth_qdio_out_buffer *c = q->bufs[bidx]->next_pending;
@@ -436,6 +439,13 @@ static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
 
 		}
 	}
+	if (forced_cleanup && (atomic_read(&(q->bufs[bidx]->state)) ==
+					QETH_QDIO_BUF_HANDLED_DELAYED)) {
+		/* for recovery situations */
+		q->bufs[bidx]->aob = q->bufstates[bidx].aob;
+		qeth_init_qdio_out_buf(q, bidx);
+		QETH_DBF_TEXT(TRACE, 2, "clprecov");
+	}
 }
 
 
@@ -455,7 +465,6 @@ static inline void qeth_qdio_handle_aob(struct qeth_card *card,
 		notification = TX_NOTIFY_OK;
 	} else {
 		BUG_ON(atomic_read(&buffer->state) != QETH_QDIO_BUF_PENDING);
-
 		atomic_set(&buffer->state, QETH_QDIO_BUF_IN_CQ);
 		notification = TX_NOTIFY_DELAYED_OK;
 	}
@@ -468,7 +477,8 @@ static inline void qeth_qdio_handle_aob(struct qeth_card *card,
 
 	buffer->aob = NULL;
 	qeth_clear_output_buffer(buffer->q, buffer,
-				QETH_QDIO_BUF_HANDLED_DELAYED);
+				 QETH_QDIO_BUF_HANDLED_DELAYED);
+
 	/* from here on: do not touch buffer anymore */
 	qdio_release_aob(aob);
 }
@@ -1152,11 +1162,25 @@ out:
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 {
 	struct sk_buff *skb;
+	struct iucv_sock *iucv;
+	int notify_general_error = 0;
+
+	if (atomic_read(&buf->state) == QETH_QDIO_BUF_PENDING)
+		notify_general_error = 1;
+
+	/* release may never happen from within CQ tasklet scope */
+	BUG_ON(atomic_read(&buf->state) == QETH_QDIO_BUF_IN_CQ);
 
 	skb = skb_dequeue(&buf->skb_list);
 	while (skb) {
 		QETH_DBF_TEXT(TRACE, 5, "skbr");
 		QETH_DBF_TEXT_(TRACE, 5, "%lx", (long) skb);
+		if (notify_general_error && skb->protocol == ETH_P_AF_IUCV) {
+			if (skb->sk) {
+				iucv = iucv_sk(skb->sk);
+				iucv->sk_txnotify(skb, TX_NOTIFY_GENERALERROR);
+			}
+		}
 		atomic_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 		skb = skb_dequeue(&buf->skb_list);
@@ -1198,7 +1222,7 @@ static void qeth_clear_outq_buffers(struct qeth_qdio_out_q *q, int free)
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
 		if (!q->bufs[j])
 			continue;
-		qeth_cleanup_handled_pending(q, j, free);
+		qeth_cleanup_handled_pending(q, j, 1);
 		qeth_clear_output_buffer(q, q->bufs[j], QETH_QDIO_BUF_EMPTY);
 		if (free) {
 			kmem_cache_free(qeth_qdio_outbuf_cache, q->bufs[j]);
@@ -1245,7 +1269,7 @@ static void qeth_free_qdio_buffers(struct qeth_card *card)
 	qeth_free_cq(card);
 	cancel_delayed_work_sync(&card->buffer_reclaim_work);
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j)
-		kfree_skb(card->qdio.in_q->bufs[j].rx_skb);
+		dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
 	kfree(card->qdio.in_q);
 	card->qdio.in_q = NULL;
 	/* inbound buffer pool */
