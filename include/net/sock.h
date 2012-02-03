@@ -337,6 +337,12 @@ struct sock_extended {
 	struct {
 		int len;
 	} sk_backlog;
+
+#ifdef CONFIG_CGROUPS
+	struct {
+		u32 sk_cgrp_prioidx;
+	} __sk_common_extended2;
+#endif
 };
 
 #define __sk_tx_queue_mapping(sk) \

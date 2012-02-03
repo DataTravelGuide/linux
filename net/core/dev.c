@@ -2060,6 +2060,21 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	return rc;
 }
 
+#ifdef CONFIG_NETPRIO_CGROUP
+static void skb_update_prio(struct sk_buff *skb)
+{
+	struct netdev_priomap_info *data = &netdev_extended(skb->dev)->priomap_data;
+	struct netprio_map *map = rcu_dereference(data->priomap);
+
+	if ((!skb->priority) && (skb->sk) && map) {
+		struct sock_extended *ske = sk_extended(skb->sk);
+		skb->priority = map->priomap[ske->__sk_common_extended2.sk_cgrp_prioidx];
+	}
+}
+#else
+#define skb_update_prio(skb)
+#endif
+
 /**
  *	dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit
@@ -2125,6 +2140,8 @@ gso:
 	 * stops preemption for RCU.
 	 */
 	rcu_read_lock_bh();
+
+	skb_update_prio(skb);
 
 	txq = dev_pick_tx(dev, skb);
 	q = rcu_dereference(txq->qdisc);

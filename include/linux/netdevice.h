@@ -50,6 +50,9 @@
 #ifdef CONFIG_DCB
 #include <net/dcbnl.h>
 #endif
+#ifndef __GENKSYMS__
+#include <net/netprio_cgroup.h>
+#endif
 
 struct vlan_group;
 struct netpoll_info;
@@ -1128,6 +1131,12 @@ struct netdev_qos_info {
 	u8 prio_tc_map[TC_BITMASK + 1];
 };
 
+struct netdev_priomap_info {
+#ifdef CONFIG_NETPRIO_CGROUP
+	struct netprio_map *priomap;
+#endif
+};
+
 /* Only append, do not change existing! */
 struct net_device_extended {
 	struct xps_dev_maps			*xps_maps;
@@ -1135,6 +1144,7 @@ struct net_device_extended {
 	struct netdev_rps_info			rps_data;
 	struct netdev_qos_info			qos_data;
 	unsigned long				ext_priv_flags;
+	struct netdev_priomap_info		priomap_data;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
