@@ -171,7 +171,7 @@ void pci_configure_slot(struct pci_dev *dev)
 
 	if (dev->bus && dev->bus->self)
 		pcie_bus_configure_settings(dev->bus,
-					    dev->bus->self->pcie_mpss);
+					    rh_get_mpss(dev->bus->self));
 
 	memset(&hpp, 0, sizeof(hpp));
 	ret = pci_get_hp_params(dev, &hpp);

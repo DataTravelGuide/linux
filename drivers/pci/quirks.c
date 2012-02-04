@@ -2717,8 +2717,8 @@ static void __devinit quirk_intel_mc_errata(struct pci_dev *dev)
 		return;
 	}
 
-	pr_info_once("Read completion coalescing disabled due to hardware "
-		     "errata relating to 256B MPS.\n");
+	printk_once(KERN_INFO"Read completion coalescing disabled due to "
+		    "hardware errata relating to 256B MPS.\n");
 }
 /* Intel 5000 series memory controllers and ports 2-7 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x25c0, quirk_intel_mc_errata);

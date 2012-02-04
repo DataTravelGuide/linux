@@ -221,8 +221,7 @@ struct pci_dev {
 	u8		revision;	/* PCI revision, low byte of class word */
 	u8		hdr_type;	/* PCI header type (`multi' flag masked out) */
 	u8		pcie_cap;	/* PCI-E capability offset */
-	u8		pcie_type:4;	/* PCI-E device/port type */
-	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
+	u8		pcie_type;	/* PCI-E device/port type */
 	u8		rom_base_reg;	/* which config register controls the ROM */
 	u8		pin;  		/* which interrupt pin this device uses */
 
@@ -318,10 +317,13 @@ struct pci_dev_rh1 {
 	unsigned int	__pcie_osc_capabilities_valid:1;
 	unsigned int	pcie_osc_capabilities;
 	resource_size_t	fw_addr[DEVICE_COUNT_RESOURCE];	/* FW-assigned addr */
+	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 };
 
 extern struct pci_dev *alloc_pci_dev(void);
 extern void kfree_pci_dev(struct pci_dev *);
+extern u8 rh_get_mpss(struct pci_dev *);
+extern void rh_set_mpss(struct pci_dev *, u8);
 
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)

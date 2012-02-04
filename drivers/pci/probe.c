@@ -752,7 +752,7 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
 	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
-	pdev->pcie_mpss = reg16 & PCI_EXP_DEVCAP_PAYLOAD;
+	rh_set_mpss(pdev, reg16 & PCI_EXP_DEVCAP_PAYLOAD);
 }
 
 void set_pcie_hotplug_bridge(struct pci_dev *pdev)
@@ -1206,8 +1206,8 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
-	if (*smpss > dev->pcie_mpss)
-		*smpss = dev->pcie_mpss;
+	if (*smpss > rh_get_mpss(dev))
+		*smpss = rh_get_mpss(dev);
 
 	return 0;
 }
@@ -1217,7 +1217,7 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 	int rc;
 
 	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
-		mps = 128 << dev->pcie_mpss;
+		mps = 128 << rh_get_mpss(dev);
 
 		if (dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT && dev->bus->self)
 			/* For "Performance", the assumption is made that
@@ -1291,8 +1291,8 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	pcie_write_mrrs(dev);
 
 	dev_info(&dev->dev, "PCI-E Max Payload Size set to %4d/%4d (was %4d), "
-		 "Max Read Rq %4d\n", pcie_get_mps(dev), 128 << dev->pcie_mpss,
-		 orig_mps, pcie_get_readrq(dev));
+		 "Max Read Rq %4d\n", pcie_get_mps(dev),
+		 128 << rh_get_mpss(dev), orig_mps, pcie_get_readrq(dev));
 
 	return 0;
 }

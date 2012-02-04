@@ -24,6 +24,16 @@
 #include <asm/setup.h>
 #include "pci.h"
 
+u8 rh_get_mpss(struct pci_dev *dev)
+{
+	return ((struct pci_dev_rh1 *) dev->rh_reserved1)->pcie_mpss;
+}
+
+void rh_set_mpss(struct pci_dev *dev, u8 mpss)
+{
+	((struct pci_dev_rh1 *) dev->rh_reserved1)->pcie_mpss = mpss;
+}
+
 const char *pci_power_names[] = {
 	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
 };
@@ -3008,7 +3018,7 @@ int pcie_set_mps(struct pci_dev *dev, int mps)
 		goto out;
 
 	v = ffs(mps) - 8;
-	if (v > dev->pcie_mpss) 
+	if (v > rh_get_mpss(dev))
 		goto out;
 	v <<= 5;
 

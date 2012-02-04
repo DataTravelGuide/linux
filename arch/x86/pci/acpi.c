@@ -370,7 +370,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 			if (!self)
 				continue;
 
-			pcie_bus_configure_settings(child, self->pcie_mpss);
+			pcie_bus_configure_settings(child, rh_get_mpss(self));
 		}
 	}
 
