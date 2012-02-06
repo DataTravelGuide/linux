@@ -345,6 +345,7 @@ struct sock_extended {
 #endif
 
 	__u8			min_ttl;
+	__u8			min_hopcount;
 };
 
 #define __sk_tx_queue_mapping(sk) \
@@ -820,6 +821,20 @@ static inline void sk_set_min_ttl(struct sock *sk, __u8 min_ttl)
 	struct sock_extended *sk_ext = sk_extended(sk);
 
 	sk_ext->min_ttl = min_ttl;
+}
+
+static inline __u8 sk_get_min_hopcount(const struct sock *sk)
+{
+	struct sock_extended *sk_ext = sk_extended(sk);
+
+	return sk_ext->min_hopcount;
+}
+
+static inline void sk_set_min_hopcount(struct sock *sk, __u8 min_hopcount)
+{
+	struct sock_extended *sk_ext = sk_extended(sk);
+
+	sk_ext->min_hopcount = min_hopcount;
 }
 
 extern int proto_register(struct proto *prot, int alloc_slab);
