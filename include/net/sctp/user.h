@@ -121,6 +121,8 @@ enum sctp_optname {
 #define SCTP_LOCAL_AUTH_CHUNKS SCTP_LOCAL_AUTH_CHUNKS
 	SCTP_GET_ASSOC_NUMBER,		/* Read only */
 #define SCTP_GET_ASSOC_NUMBER SCTP_GET_ASSOC_NUMBER
+	SCTP_GET_ASSOC_ID_LIST,  	/* Read only */
+#define SCTP_GET_ASSOC_ID_LIST SCTP_GET_ASSOC_ID_LIST
 
 
 	/* Internal Socket Options. Some of the sctp library functions are 
@@ -712,6 +714,18 @@ struct sctp_authchunks {
 	sctp_assoc_t	gauth_assoc_id;
 	__u32		gauth_number_of_chunks;
 	uint8_t		gauth_chunks[];
+};
+
+/*
+ * 8.2.6. Get the Current Identifiers of Associations
+ *        (SCTP_GET_ASSOC_ID_LIST)
+ *
+ * This option gets the current list of SCTP association identifiers of
+ * the SCTP associations handled by a one-to-many style socket.
+ */
+struct sctp_assoc_ids {
+	__u32		gaids_number_of_ids;
+	sctp_assoc_t	gaids_assoc_id[];
 };
 
 /*
