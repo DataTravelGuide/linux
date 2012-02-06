@@ -343,6 +343,8 @@ struct sock_extended {
 		u32 sk_cgrp_prioidx;
 	} __sk_common_extended2;
 #endif
+
+	__u8			min_ttl;
 };
 
 #define __sk_tx_queue_mapping(sk) \
@@ -804,6 +806,20 @@ static inline struct sock_extended *sk_extended(const struct sock *sk)
 	unsigned int obj_size = sk->sk_prot_creator->obj_size;
 
 	return (struct sock_extended *) (((char *) sk) + obj_size);
+}
+
+static inline __u8 sk_get_min_ttl(const struct sock *sk)
+{
+	struct sock_extended *sk_ext = sk_extended(sk);
+
+	return sk_ext->min_ttl;
+}
+
+static inline void sk_set_min_ttl(struct sock *sk, __u8 min_ttl)
+{
+	struct sock_extended *sk_ext = sk_extended(sk);
+
+	sk_ext->min_ttl = min_ttl;
 }
 
 extern int proto_register(struct proto *prot, int alloc_slab);
