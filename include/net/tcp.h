@@ -368,6 +368,7 @@ static inline void tcp_clear_options(struct tcp_options_received *rx_opt)
 #define	TCP_ECN_OK		1
 #define	TCP_ECN_QUEUE_CWR	2
 #define	TCP_ECN_DEMAND_CWR	4
+#define	TCP_ECN_SEEN		8
 
 static __inline__ void
 TCP_ECN_create_request(struct request_sock *req, struct tcphdr *th)
