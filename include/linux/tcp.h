@@ -414,6 +414,11 @@ struct tcp_sock {
 	u8	thin_lto    : 1,/* Use linear timeouts for thin streams */
 		thin_dupack : 1,/* Fast retransmit on first dupack      */
 		unused      : 6;
+
+	u32	prior_cwnd;	/* Congestion window at start of Recovery. */
+	u32	prr_delivered;	/* Number of newly delivered packets to
+				 * receiver in Recovery. */
+	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 #endif
 };
 
