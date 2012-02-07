@@ -38,6 +38,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <trace/events/sunrpc.h>
 
 #include "sunrpc.h"
 
@@ -56,9 +57,6 @@ static LIST_HEAD(all_clients);
 static DEFINE_SPINLOCK(rpc_client_lock);
 
 static DECLARE_WAIT_QUEUE_HEAD(destroy_wait);
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/sunrpc.h>
 
 static void	call_start(struct rpc_task *task);
 static void	call_reserve(struct rpc_task *task);

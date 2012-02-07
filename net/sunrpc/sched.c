@@ -28,6 +28,9 @@
 #define RPCDBG_FACILITY		RPCDBG_SCHED
 #endif
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sunrpc.h>
+
 /*
  * RPC slabs and memory pools
  */
@@ -247,6 +250,8 @@ static inline void rpc_task_set_debuginfo(struct rpc_task *task)
 
 static void rpc_set_active(struct rpc_task *task)
 {
+	trace_rpc_task_begin(task->tk_client, task, NULL);
+
 	rpc_task_set_debuginfo(task);
 	set_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 }
@@ -262,6 +267,8 @@ static int rpc_complete_task(struct rpc_task *task)
 	struct wait_bit_key k = __WAIT_BIT_KEY_INITIALIZER(m, RPC_TASK_ACTIVE);
 	unsigned long flags;
 	int ret;
+
+	trace_rpc_task_complete(task->tk_client, task, NULL);
 
 	spin_lock_irqsave(&wq->lock, flags);
 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
@@ -318,6 +325,8 @@ static void __rpc_sleep_on(struct rpc_wait_queue *q, struct rpc_task *task,
 	dprintk("RPC: %5u sleep_on(queue \"%s\" time %lu)\n",
 			task->tk_pid, rpc_qname(q), jiffies);
 
+	trace_rpc_task_sleep(task->tk_client, task, q);
+
 	__rpc_add_wait_queue(q, task);
 
 	BUG_ON(task->tk_callback != NULL);
@@ -357,6 +366,8 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
 		printk(KERN_ERR "RPC: Inactive task (%p) being woken up!\n", task);
 		return;
 	}
+
+	trace_rpc_task_wakeup(task->tk_client, task, queue);
 
 	__rpc_remove_wait_queue(queue, task);
 
@@ -635,6 +646,7 @@ static void __rpc_execute(struct rpc_task *task)
 			if (do_action == NULL)
 				break;
 		}
+		trace_rpc_task_run_action(task->tk_client, task, task->tk_action);
 		do_action(task);
 
 		/*
