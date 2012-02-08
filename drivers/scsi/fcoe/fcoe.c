@@ -134,6 +134,8 @@ static void fcoe_recv_frame(struct sk_buff *skb);
 
 static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
+static void fcoe_do_destroy(struct fcoe_port *port);
+
 /* notification function for packets from net device */
 static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
@@ -1895,16 +1897,13 @@ static int fcoe_destroy(struct net_device *netdev)
 	mutex_lock(&fcoe_config_mutex);
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
-	if (!fcoe) {
-		rc = -ENODEV;
-		goto out_nodev;
-	}
+	if (!fcoe)
+		return -ENODEV;
 	lport = fcoe->ctlr.lp;
 	port = lport_priv(lport);
 	list_del(&fcoe->list);
-	schedule_work(&port->destroy_work);
-out_nodev:
 	rtnl_unlock();
+	fcoe_do_destroy(port);
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1913,14 +1912,10 @@ out_nodev:
  * fcoe_destroy_work() - Destroy a FCoE port in a deferred work context
  * @work: Handle to the FCoE port to be destroyed
  */
-static void fcoe_destroy_work(struct work_struct *work)
+static void fcoe_do_destroy(struct fcoe_port *port)
 {
-	struct fcoe_port *port;
 	struct fcoe_interface *fcoe;
 	int npiv = 0;
-
-	port = container_of(work, struct fcoe_port, destroy_work);
-	mutex_lock(&fcoe_config_mutex);
 
 	/* set if this is an NPIV port */
 	npiv = port->lport->vport ? 1 : 0;
@@ -1931,6 +1926,16 @@ static void fcoe_destroy_work(struct work_struct *work)
 	if (!npiv)
 		fcoe_interface_cleanup(fcoe);
 
+}
+
+static void fcoe_destroy_work(struct work_struct *work)
+{
+
+	struct fcoe_port *port;
+
+	port = container_of(work, struct fcoe_port, destroy_work);
+	mutex_lock(&fcoe_config_mutex);
+	fcoe_do_destroy(port);
 	mutex_unlock(&fcoe_config_mutex);
 }
 
