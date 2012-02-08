@@ -381,7 +381,7 @@ static int watchdog_nmi_enable(int cpu)
 	wd_attr->sample_period = hw_nmi_get_sample_period();
 
 	/* Try to register using hardware perf events */
-	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback);
+	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
 
 	/* save cpu0 error for future comparison */
 	if (!cpu)
