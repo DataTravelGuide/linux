@@ -1464,13 +1464,23 @@ static void intel_clovertown_quirks(void)
 	x86_pmu.pebs_constraints = NULL;
 }
 
+static int intel_event_id_to_hw_id[] = {
+	PERF_COUNT_HW_CPU_CYCLES,
+	PERF_COUNT_HW_INSTRUCTIONS,
+	PERF_COUNT_HW_BUS_CYCLES,
+	PERF_COUNT_HW_CACHE_REFERENCES,
+	PERF_COUNT_HW_CACHE_MISSES,
+	PERF_COUNT_HW_BRANCH_INSTRUCTIONS,
+	PERF_COUNT_HW_BRANCH_MISSES,
+};
+
 static __init int intel_pmu_init(void)
 {
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
+	union cpuid10_ebx ebx;
 	unsigned int unused;
-	unsigned int ebx;
-	int version;
+	int version, bit;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
 		switch (boot_cpu_data.x86) {
@@ -1486,8 +1496,8 @@ static __init int intel_pmu_init(void)
 	 * Check whether the Architectural PerfMon supports
 	 * Branch Misses Retired hw_event or not.
 	 */
-	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
-	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
+	cpuid(10, &eax.full, &ebx.full, &unused, &edx.full);
+	if (eax.split.mask_length < ARCH_PERFMON_EVENTS_COUNT)
 		return -ENODEV;
 
 	version = eax.split.version_id;
@@ -1563,7 +1573,7 @@ static __init int intel_pmu_init(void)
 		/* UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
 		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x1803fb1;
 
-		if (ebx & 0x40) {
+		if (ebx.split.no_branch_misses_retired) {
 			/*
 			 * Erratum AAJ80 detected, we work it around by using
 			 * the BR_MISP_EXEC.ANY event. This will over-count
@@ -1571,6 +1581,7 @@ static __init int intel_pmu_init(void)
 			 * architectural event which is often completely bogus:
 			 */
 			intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
+			ebx.split.no_branch_misses_retired = 0;
 
 			pr_cont("erratum AAJ80 worked around, ");
 		}
@@ -1641,6 +1652,14 @@ static __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_gen_event_constraints;
 		pr_cont("generic architected perfmon, ");
 	}
+	x86_pmu.events_maskl		= ebx.full;
+	x86_pmu.events_mask_len		= eax.split.mask_length;
+
+	/* disable event that reported as not presend by cpuid */
+	for_each_bit(bit, x86_pmu.events_mask,
+			min(x86_pmu.events_mask_len, x86_pmu.max_events))
+		intel_perfmon_event_map[intel_event_id_to_hw_id[bit]] = 0;
+
 	return 0;
 }
 
