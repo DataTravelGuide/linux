@@ -772,6 +772,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
 				(1ULL << INTERCEPT_NMI) |
 				(1ULL << INTERCEPT_SMI) |
+				(1ULL << INTERCEPT_RDPMC) |
 				(1ULL << INTERCEPT_CPUID) |
 				(1ULL << INTERCEPT_INVD) |
 				(1ULL << INTERCEPT_HLT) |
@@ -2379,6 +2380,22 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
+static int rdpmc_interception(struct vcpu_svm *svm)
+{
+	int err;
+
+	if (!static_cpu_has(X86_FEATURE_NRIPS))
+		return emulate_on_interception(svm);
+
+	err = kvm_rdpmc(&svm->vcpu);
+	if (err)
+		kvm_inject_gp(&svm->vcpu, 0);
+	else
+		skip_emulated_instruction(&svm->vcpu);
+
+	return 1;
+}
+
 #define CR_VALID (1ULL << 63)
 
 static int cr_interception(struct vcpu_svm *svm)
@@ -2740,6 +2757,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_SMI]				= nop_on_interception,
 	[SVM_EXIT_INIT]				= nop_on_interception,
 	[SVM_EXIT_VINTR]			= interrupt_window_interception,
+	[SVM_EXIT_RDPMC]			= rdpmc_interception,
 	/* [SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception, */
 	[SVM_EXIT_CPUID]			= cpuid_interception,
 	[SVM_EXIT_IRET]                         = iret_interception,
