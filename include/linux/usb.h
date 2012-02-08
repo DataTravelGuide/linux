@@ -421,6 +421,7 @@ struct usb_tt;
  *	FIXME -- complete doc
  * @authenticated: Crypto authentication passed
  * @wusb: device is Wireless USB
+ * @lpm_capable: device supports LPM
  * @string_langid: language ID for strings
  * @product: iProduct string, if present (static)
  * @manufacturer: iManufacturer string, if present (static)
@@ -495,6 +496,7 @@ struct usb_device {
 	unsigned wusb:1;
 #ifndef __GENKSYMS__
 	unsigned bos_kabi_bit:1;
+	unsigned lpm_capable:1;
 #endif
 	int string_langid;
 
