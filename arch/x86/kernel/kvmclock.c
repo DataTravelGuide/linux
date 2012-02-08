@@ -145,8 +145,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
 	 * we shouldn't fail.
 	 */
 	WARN_ON(kvm_register_clock("secondary cpu clock"));
-	/* ok, done with our trickery, call native */
-	setup_secondary_APIC_clock();
 }
 #endif
 
@@ -201,7 +199,7 @@ void __init kvmclock_init(void)
 	x86_platform.get_wallclock = kvm_get_wallclock;
 	x86_platform.set_wallclock = kvm_set_wallclock;
 #ifdef CONFIG_X86_LOCAL_APIC
-	x86_cpuinit.setup_percpu_clockev =
+	x86_cpuinit.early_percpu_clock_init =
 		kvm_setup_secondary_clock;
 #endif
 #ifdef CONFIG_SMP

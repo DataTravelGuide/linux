@@ -292,6 +292,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 
 	vmi_bringup();
 	cpu_init();
+	x86_cpuinit.early_percpu_clock_init();
 	preempt_disable();
 	smp_callin();
 
