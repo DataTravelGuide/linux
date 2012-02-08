@@ -2039,6 +2039,35 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->edx = 0;
 		break;
 	}
+	case 0xa: { /* Architectural Performance Monitoring */
+		struct x86_pmu_capability cap;
+		union cpuid10_eax eax;
+		union cpuid10_edx edx;
+
+		perf_get_x86_pmu_capability(&cap);
+
+		/*
+		 * Only support guest architectural pmu on a host
+		 * with architectural pmu.
+		 */
+		if (!cap.version)
+			memset(&cap, 0, sizeof(cap));
+
+		eax.split.version_id = min(cap.version, 2);
+		eax.split.num_counters = cap.num_counters_gp;
+		eax.split.bit_width = cap.bit_width_gp;
+		eax.split.mask_length = cap.events_mask_len;
+
+		edx.split.num_counters_fixed = cap.num_counters_fixed;
+		edx.split.bit_width_fixed = cap.bit_width_fixed;
+		edx.split.reserved = 0;
+
+		entry->eax = eax.full;
+		entry->ebx = cap.events_mask;
+		entry->ecx = 0;
+		entry->edx = edx.full;
+		break;
+	}	
 	/* function 0xb has additional index. */
 	case 0xb: {
 		int i, level_type;
