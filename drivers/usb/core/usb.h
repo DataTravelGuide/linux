@@ -98,6 +98,7 @@ static inline void usb_pm_unlock(struct usb_device *udev) {}
 extern void usb_autosuspend_device(struct usb_device *udev);
 extern void usb_try_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
+extern int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable);
 
 #else
 
@@ -108,6 +109,10 @@ static inline int usb_autoresume_device(struct usb_device *udev)
 	return 0;
 }
 
+static inline int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
+{
+	return 0;
+}
 #endif
 
 extern struct workqueue_struct *ksuspend_usb_wq;
