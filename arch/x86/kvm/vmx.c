@@ -37,6 +37,7 @@
 #include <asm/mce.h>
 #include <asm/i387.h>
 #include <asm/xcr.h>
+#include <asm/perf_event.h>
 
 #include "trace.h"
 
@@ -3922,6 +3923,24 @@ static void fixup_rmode_irq(struct vcpu_vmx *vmx)
 		| vmx->rmode.irq.vector;
 }
 
+static void atomic_switch_perf_msrs(struct vcpu_vmx *vmx)
+{
+	int i, nr_msrs;
+	struct perf_guest_switch_msr *msrs;
+
+	msrs = perf_guest_get_msrs(&nr_msrs);
+
+	if (!msrs)
+		return;
+
+	for (i = 0; i < nr_msrs; i++)
+		if (msrs[i].host == msrs[i].guest)
+			clear_atomic_switch_msr(vmx, msrs[i].msr);
+		else
+			add_atomic_switch_msr(vmx, msrs[i].msr, msrs[i].guest,
+					msrs[i].host);
+}
+
 #ifdef CONFIG_X86_64
 #define R "r"
 #define Q "q"
@@ -3968,6 +3987,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.switch_db_regs)
 		set_debugreg(vcpu->arch.dr6, 6);
+
+	atomic_switch_perf_msrs(vmx);
 
 	asm(
 		/* Store host registers */
