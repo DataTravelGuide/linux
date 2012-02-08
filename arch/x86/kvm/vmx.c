@@ -86,7 +86,7 @@ module_param(ple_gap, int, S_IRUGO);
 static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, int, S_IRUGO);
 
-#define NR_AUTOLOAD_MSRS 1
+#define NR_AUTOLOAD_MSRS 8
 
 struct vmcs {
 	u32 revision_id;
@@ -169,6 +169,8 @@ static unsigned long *vmx_io_bitmap_a;
 static unsigned long *vmx_io_bitmap_b;
 static unsigned long *vmx_msr_bitmap_legacy;
 static unsigned long *vmx_msr_bitmap_longmode;
+
+static bool cpu_has_load_perf_global_ctrl;
 
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
@@ -587,10 +589,28 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	vmcs_write32(EXCEPTION_BITMAP, eb);
 }
 
+static void clear_atomic_switch_msr_special(unsigned long entry,
+		unsigned long exit)
+{
+	vmcs_clear_bits(VM_ENTRY_CONTROLS, entry);
+	vmcs_clear_bits(VM_EXIT_CONTROLS, exit);
+}
+
 static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 {
 	unsigned i;
 	struct msr_autoload *m = &vmx->msr_autoload;
+
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		if (cpu_has_load_perf_global_ctrl) {
+			clear_atomic_switch_msr_special(
+					VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL,
+					VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
+			return;
+		}
+		break;
+	}
 
 	for (i = 0; i < m->nr; ++i)
 		if (m->guest[i].index == msr)
@@ -605,11 +625,35 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, m->nr);
 }
 
+static void add_atomic_switch_msr_special(unsigned long entry,
+		unsigned long exit, unsigned long guest_val_vmcs,
+		unsigned long host_val_vmcs, u64 guest_val, u64 host_val)
+{
+	vmcs_write64(guest_val_vmcs, guest_val);
+	vmcs_write64(host_val_vmcs, host_val);
+	vmcs_set_bits(VM_ENTRY_CONTROLS, entry);
+	vmcs_set_bits(VM_EXIT_CONTROLS, exit);
+}
+
 static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 				  u64 guest_val, u64 host_val)
 {
 	unsigned i;
 	struct msr_autoload *m = &vmx->msr_autoload;
+
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		if (cpu_has_load_perf_global_ctrl) {
+			add_atomic_switch_msr_special(
+					VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL,
+					VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL,
+					GUEST_IA32_PERF_GLOBAL_CTRL,
+					HOST_IA32_PERF_GLOBAL_CTRL,
+					guest_val, host_val);
+			return;
+		}
+		break;
+	}
 
 	for (i = 0; i < m->nr; ++i)
 		if (m->guest[i].index == msr)
@@ -1304,6 +1348,14 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 	return 0;
 }
 
+static __init bool allow_1_setting(u32 msr, u32 ctl)
+{
+	u32 vmx_msr_low, vmx_msr_high;
+
+	rdmsr(msr, vmx_msr_low, vmx_msr_high);
+	return vmx_msr_high & ctl;
+}
+
 static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 {
 	u32 vmx_msr_low, vmx_msr_high;
@@ -1414,6 +1466,42 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
 	vmcs_conf->vmexit_ctrl         = _vmexit_control;
 	vmcs_conf->vmentry_ctrl        = _vmentry_control;
+
+	cpu_has_load_perf_global_ctrl =
+		allow_1_setting(MSR_IA32_VMX_ENTRY_CTLS,
+				VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
+		&& allow_1_setting(MSR_IA32_VMX_EXIT_CTLS,
+				   VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
+
+	/*
+	 * Some cpus support VM_ENTRY_(LOAD|SAVE)_IA32_PERF_GLOBAL_CTRL
+	 * but due to arrata below it can't be used. Workaround is to use
+	 * msr load mechanism to switch IA32_PERF_GLOBAL_CTRL.
+	 *
+	 * VM Exit May Incorrectly Clear IA32_PERF_GLOBAL_CTRL [34:32]
+	 *
+	 * AAK155             (model 26)
+	 * AAP115             (model 30)
+	 * AAT100             (model 37)
+	 * BC86,AAY89,BD102   (model 44)
+	 * BA97               (model 46)
+	 *
+	 */
+	if (cpu_has_load_perf_global_ctrl && boot_cpu_data.x86 == 0x6) {
+		switch (boot_cpu_data.x86_model) {
+		case 26:
+		case 30:
+		case 37:
+		case 44:
+		case 46:
+			cpu_has_load_perf_global_ctrl = false;
+			printk_once(KERN_WARNING"kvm: VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL "
+					"does not work properly. Using workaround\n");
+			break;
+		default:
+			break;
+		}
+	}
 
 	return 0;
 }
