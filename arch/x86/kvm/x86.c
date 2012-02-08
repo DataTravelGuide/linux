@@ -531,6 +531,8 @@ static void update_cpuid(struct kvm_vcpu *vcpu)
 		if (vcpu->arch.cr4 & X86_CR4_OSXSAVE)
 			best->ecx |= bit(X86_FEATURE_OSXSAVE);
 	}
+
+	kvm_pmu_cpuid_update(vcpu);
 }
 
 static bool guest_cpuid_has_smep(struct kvm_vcpu *vcpu)
@@ -1260,8 +1262,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	 * which we perfectly emulate ;-). Any other value should be at least
 	 * reported, some guests depend on them.
 	 */
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_EVNTSEL1:
 	case MSR_K7_EVNTSEL2:
@@ -1273,8 +1273,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	/* at least RHEL 4 unconditionally writes to the perfctr registers,
 	 * so we ignore writes to make it happy.
 	 */
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
 	case MSR_K7_PERFCTR0:
 	case MSR_K7_PERFCTR1:
 	case MSR_K7_PERFCTR2:
@@ -1299,6 +1297,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		pr_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n", msr, data);
 		break;
 	default:
+		if (kvm_pmu_msr(vcpu, msr))
+			return kvm_pmu_set_msr(vcpu, msr, data);
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
 				msr, data);
@@ -1410,10 +1410,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_K8_SYSCFG:
 	case MSR_K7_HWCR:
 	case MSR_VM_HSAVE_PA:
-	case MSR_P6_PERFCTR0:
-	case MSR_P6_PERFCTR1:
-	case MSR_P6_EVNTSEL0:
-	case MSR_P6_EVNTSEL1:
 	case MSR_K7_EVNTSEL0:
 	case MSR_K7_PERFCTR0:
 	case MSR_K8_INT_PENDING_MSG:
@@ -1505,6 +1501,8 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		data = 0xbe702111;
 		break;
 	default:
+		if (kvm_pmu_msr(vcpu, msr))
+			return kvm_pmu_get_msr(vcpu, msr, pdata);
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
 			return 1;
@@ -4241,7 +4239,7 @@ static void kvm_timer_init(void)
 
 static DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
 
-static int kvm_is_in_guest(void)
+int kvm_is_in_guest(void)
 {
 	return percpu_read(current_vcpu) != NULL;
 }
@@ -4809,6 +4807,10 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			vcpu->fpu_active = 0;
 			kvm_x86_ops->fpu_deactivate(vcpu);
 		}
+		if (test_and_clear_bit(KVM_REQ_PMU, &vcpu->requests))
+			kvm_handle_pmu_event(vcpu);
+		if (test_and_clear_bit(KVM_REQ_PMI, &vcpu->requests))
+			kvm_deliver_pmi(vcpu);
 	}
 
 	preempt_disable();
@@ -6065,6 +6067,8 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.dr6 = DR6_FIXED_1;
 	vcpu->arch.dr7 = DR7_FIXED_1;
 
+	kvm_pmu_reset(vcpu);
+
 	return kvm_x86_ops->vcpu_reset(vcpu);
 }
 
@@ -6222,6 +6226,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.mcg_cap = KVM_MAX_MCE_BANKS;
 
+	kvm_pmu_init(vcpu);
+
 	return 0;
 fail_free_lapic:
 	kvm_free_lapic(vcpu);
@@ -6237,6 +6243,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	int idx;
 
+	kvm_pmu_destroy(vcpu);
 	kfree(vcpu->arch.mce_banks);
 	kvm_free_lapic(vcpu);
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
