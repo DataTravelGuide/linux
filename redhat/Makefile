@@ -192,7 +192,7 @@ rh-brew rh-koji: rh-%: rh-srpm
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
 
 rhg-brew rhg-koji: rhg-%:
-	$* build $(BUILD_FLAGS) $(BUILD_TARGET) "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
+	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
 
 rh-help:
 	@echo  'Cleaning targets:'
