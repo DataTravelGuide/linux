@@ -1559,8 +1559,8 @@ static int __init eventpoll_init(void)
 	/*
 	 * Allows top 4% of lomem to be allocated for epoll watches (per user).
 	 */
-	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
-		EP_ITEM_COST;
+	max_user_watches = min((unsigned long)INT_MAX, (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
+		EP_ITEM_COST);
 
 	/*
 	 * Initialize the structure used to perform epoll file descriptor
