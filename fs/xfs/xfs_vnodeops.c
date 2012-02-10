@@ -546,7 +546,8 @@ xfs_readlink(
 			 __func__, (unsigned long long) ip->i_ino,
 			 (long long) pathlen);
 		ASSERT(0);
-		return XFS_ERROR(EFSCORRUPTED);
+		error = XFS_ERROR(EFSCORRUPTED);
+		goto out;
 	}
 
 	if (ip->i_df.if_flags & XFS_IFINLINE) {
