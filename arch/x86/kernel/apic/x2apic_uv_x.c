@@ -865,6 +865,10 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info_apic_pnode_shift(cpu) = uvh_apicid.s.pnode_shift;
 		uv_cpu_hub_info_hub_revision(cpu) = uv_hub_info_hub_revision;
 
+		uv_cpu_hub_info_m_shift(cpu) = 64 - m_val;
+		uv_cpu_hub_info_n_lshift(cpu) = is_uv2_1_hub() ?
+				(m_val == 40 ? 40 : 39) : m_val;
+
 		for (i = 0; i < UV_HUB_INFO_EXTRA_FIELDS; i++)
 			uv_cpu_hub_info_extra(cpu)->future[i] = 0;
 		pnode = uv_apicid_to_pnode(apicid);
@@ -897,8 +901,7 @@ void __init uv_system_init(void)
 		if (uv_node_to_blade[nid] >= 0)
 			continue;
 		paddr = node_start_pfn(nid) << PAGE_SHIFT;
-		paddr = uv_soc_phys_ram_to_gpa(paddr);
-		pnode = (paddr >> m_val) & pnode_mask;
+		pnode = uv_gpa_to_pnode(uv_soc_phys_ram_to_gpa(paddr));
 		blade = boot_pnode_to_blade(pnode);
 		uv_node_to_blade[nid] = blade;
 	}
