@@ -409,8 +409,8 @@ static struct scsi_host_template virtscsi_host_template = {
 				  &__val, sizeof(__val)); \
 	})
 
-static int __devinit virtscsi_init(struct virtio_device *vdev,
-				   struct virtio_scsi *vscsi)
+static int virtscsi_init(struct virtio_device *vdev,
+			 struct virtio_scsi *vscsi)
 {
 	int err;
 	struct virtqueue *vqs[3];
@@ -494,7 +494,7 @@ virtscsi_init_failed:
 	return err;
 }
 
-static void __devexit virtscsi_remove_vqs(struct virtio_device *vdev)
+static void virtscsi_remove_vqs(struct virtio_device *vdev)
 {
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
@@ -512,6 +512,22 @@ static void __devexit virtscsi_remove(struct virtio_device *vdev)
 	scsi_host_put(shost);
 }
 
+#ifdef CONFIG_PM
+static int virtscsi_freeze(struct virtio_device *vdev)
+{
+	virtscsi_remove_vqs(vdev);
+	return 0;
+}
+
+static int virtscsi_restore(struct virtio_device *vdev)
+{
+	struct Scsi_Host *sh = virtio_scsi_host(vdev);
+	struct virtio_scsi *vscsi = shost_priv(sh);
+
+	return virtscsi_init(vdev, vscsi);
+}
+#endif
+
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_SCSI, VIRTIO_DEV_ANY_ID },
 	{ 0 },
@@ -522,6 +538,10 @@ static struct virtio_driver virtio_scsi_driver = {
 	.driver.owner = THIS_MODULE,
 	.id_table = id_table,
 	.probe = virtscsi_probe,
+#ifdef CONFIG_PM
+	.freeze = virtscsi_freeze,
+	.restore = virtscsi_restore,
+#endif
 	.remove = __devexit_p(virtscsi_remove),
 };
 
