@@ -3589,14 +3589,14 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	if (info->read < PAGE_SIZE)
 		goto read;
 
-	info->read = 0;
-
 	ret = ring_buffer_read_page(info->tr->buffer,
 				    &info->spare,
 				    count,
 				    info->cpu, 0);
 	if (ret < 0)
 		return 0;
+
+	info->read = 0;
 
 	pos = ring_buffer_page_len(info->spare);
 
