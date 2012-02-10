@@ -29,6 +29,8 @@
  * e1000_82576
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
@@ -66,10 +68,6 @@ static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 static s32  igb_reset_mdicnfg_82580(struct e1000_hw *hw);
 static s32  igb_validate_nvm_checksum_82580(struct e1000_hw *hw);
 static s32  igb_update_nvm_checksum_82580(struct e1000_hw *hw);
-static s32  igb_update_nvm_checksum_with_offset(struct e1000_hw *hw,
-						u16 offset);
-static s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
-						u16 offset);
 static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
@@ -248,11 +246,9 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 * Check for invalid size
 	 */
 	if ((hw->mac.type == e1000_82576) && (size > 15)) {
-		printk("igb: The NVM size is not valid, "
-			"defaulting to 32K.\n");
+		pr_notice("The NVM size is not valid, defaulting to 32K\n");
 		size = 15;
 	}
-
 	nvm->word_size = 1 << size;
 	if (nvm->word_size == (1 << 15))
 		nvm->page_size = 128;
@@ -1056,7 +1052,10 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	igb_clear_vfta(hw);
+	if (hw->mac.type == e1000_i350)
+		igb_clear_vfta_i350(hw);
+	else
+		igb_clear_vfta(hw);
 
 	/* Setup the receive address */
 	igb_init_rx_addrs(hw, rar_count);
@@ -1838,7 +1837,8 @@ u16 igb_rxpbs_adjust_82580(u32 data)
  *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
  *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
  **/
-s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+static s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
+						 u16 offset)
 {
 	s32 ret_val = 0;
 	u16 checksum = 0;
@@ -1873,7 +1873,7 @@ out:
  *  up to the checksum.  Then calculates the EEPROM checksum and writes the
  *  value to the EEPROM.
  **/
-s32 igb_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+static s32 igb_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 {
 	s32 ret_val;
 	u16 checksum = 0;
