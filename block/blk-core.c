@@ -722,7 +722,7 @@ EXPORT_SYMBOL(blk_init_allocated_queue_node);
 
 int blk_get_queue(struct request_queue *q)
 {
-	if (likely(!test_bit(QUEUE_FLAG_DEAD, &q->queue_flags))) {
+	if (likely(!blk_queue_dead(q))) {
 		kobject_get(&q->kobj);
 		return 0;
 	}
@@ -868,7 +868,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	int may_queue;
 
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+	if (unlikely(blk_queue_dead(q)))
 		return NULL;
 
 	may_queue = elv_may_queue(q, rw_flags);
@@ -988,7 +988,7 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
 
-		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		if (unlikely(blk_queue_dead(q)))
 			return NULL;
 
 		prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
