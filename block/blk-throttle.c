@@ -1219,7 +1219,7 @@ void blk_throtl_drain(struct request_queue *q)
 	struct bio_list bl;
 	struct bio *bio;
 
-	lockdep_is_held(q->queue_lock);
+	WARN_ON_ONCE(!queue_is_locked(q));
 
 	bio_list_init(&bl);
 
