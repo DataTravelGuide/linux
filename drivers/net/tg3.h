@@ -2998,6 +2998,7 @@ struct tg3 {
 
 	/* begin "everything else" cacheline(s) section */
 	struct net_device_stats		net_stats;
+	unsigned long			tx_dropped;
 	struct net_device_stats		net_stats_prev;
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
