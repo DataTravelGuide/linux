@@ -27,6 +27,7 @@
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fault-inject.h>
+#include <linux/delay.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -251,6 +252,33 @@ int blk_remove_plug(struct request_queue *q)
 	return 1;
 }
 EXPORT_SYMBOL(blk_remove_plug);
+
+/**
+ * blk_drain_queue - drain requests from request_queue
+ * @q: queue to drain
+ *
+ * Drain ELV_PRIV requests from @q.  The caller is responsible for ensuring
+ * that no new requests which need to be drained are queued.
+ */
+void blk_drain_queue(struct request_queue *q)
+{
+	while (true) {
+		int nr_rqs;
+
+		spin_lock_irq(q->queue_lock);
+
+		elv_drain_elevator(q);
+
+		__blk_run_queue(q);
+		nr_rqs = q->rq.elvpriv;
+
+		spin_unlock_irq(q->queue_lock);
+
+		if (!nr_rqs)
+			break;
+		msleep(10);
+	}
+}
 
 /*
  * remove the plug and let it rip..
