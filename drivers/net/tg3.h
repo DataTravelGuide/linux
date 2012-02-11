@@ -3017,7 +3017,6 @@ struct tg3 {
 	struct net_device_stats		net_stats;
 	unsigned long			tx_dropped;
 	struct net_device_stats		net_stats_prev;
-	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
 
 	DECLARE_BITMAP(tg3_flags, TG3_FLAG_NUMBER_OF_FLAGS);
