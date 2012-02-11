@@ -93,6 +93,7 @@
 struct epoll_filefd {
 	struct file *file;
 	int fd;
+	int added;
 };
 
 /*
@@ -255,11 +256,71 @@ static struct kmem_cache *pwq_cache __read_mostly;
 /* Visited nodes during ep_loop_check(), so we can unset them when we finish */
 static LIST_HEAD(visited_list);
 
-/*
- * List of files with newly added links, where we may need to limit the number
- * of emanating paths. Protected by the epmutex.
- */
-static LIST_HEAD(tfile_check_list);
+#define NUM_FILES 30
+
+/* KABI workarounds */
+struct tfile_check {
+	int count;
+	struct epoll_filefd *tfile_arr[NUM_FILES];
+	struct tfile_check *next;
+};
+
+struct tfile_check base_tfile_check = {
+       .count = 0,
+       .next = NULL,
+};
+
+static struct tfile_check *current_tfile_check = &base_tfile_check;
+
+static int add_to_tfile_check(struct epoll_filefd *ffd)
+{
+	struct tfile_check *new;
+
+	if (current_tfile_check->count < NUM_FILES) {
+		current_tfile_check->tfile_arr[current_tfile_check->count++] = ffd;
+		ffd->added = 1;
+		return 0;
+	}
+	new = kmalloc(sizeof(struct tfile_check), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+	new->count = 0;
+	new->next = NULL;
+	new->tfile_arr[new->count++] = ffd;
+	ffd->added = 1;
+	current_tfile_check->next = new;
+	current_tfile_check = new;
+
+	return 0;
+}
+
+static void clear_added_flag(struct tfile_check *tfile_check_iter)
+{
+	int i;
+
+	for (i = 0; i < tfile_check_iter->count; i++)
+		tfile_check_iter->tfile_arr[i]->added = 0;
+}
+
+static void clear_tfile_check_list(void)
+{
+	struct tfile_check *tfile_check_iter, *tmp;
+
+	tfile_check_iter = base_tfile_check.next;
+	base_tfile_check.next = NULL;
+	clear_added_flag(&base_tfile_check);
+	base_tfile_check.count = 0;
+
+	while (tfile_check_iter) {
+		clear_added_flag(tfile_check_iter);
+		tmp = tfile_check_iter;
+		tfile_check_iter = tfile_check_iter->next;
+		kfree(tmp);
+	}
+	current_tfile_check = &base_tfile_check;
+}
+
+
 
 #ifdef CONFIG_SYSCTL
 
@@ -288,6 +349,7 @@ static inline void ep_set_ffd(struct epoll_filefd *ffd,
 {
 	ffd->file = file;
 	ffd->fd = fd;
+	ffd->added = 0;
 }
 
 /* Compare RB tree keys */
@@ -1006,17 +1068,21 @@ static int reverse_path_check(void)
 {
 	int length = 0;
 	int error = 0;
-	struct file *current_file;
+	int i;
+	struct tfile_check *tfile_check_iter = &base_tfile_check;
 
 	/* let's call this for all tfiles */
-	list_for_each_entry(current_file, &tfile_check_list, f_tfile_llink) {
-		length++;
-		path_count_init();
-		error = ep_call_nested(&poll_loop_ncalls, EP_MAX_NESTS,
-					reverse_path_check_proc, current_file,
-					current_file, current);
-		if (error)
-			break;
+	while (tfile_check_iter) {
+		for (i = 0; i < tfile_check_iter->count; i++) {
+			length++;
+			path_count_init();
+			error = ep_call_nested(&poll_loop_ncalls, EP_MAX_NESTS,
+					reverse_path_check_proc, tfile_check_iter->tfile_arr[i]->file,
+					tfile_check_iter->tfile_arr[i]->file, current);
+			if (error)
+				return error;
+		}
+		tfile_check_iter = tfile_check_iter->next;
 	}
 	return error;
 }
@@ -1069,6 +1135,12 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	error = -ENOMEM;
 	if (epi->nwait < 0)
 		goto error_unregister;
+
+	if (!is_file_epoll(tfile)) {
+		error = add_to_tfile_check(&epi->ffd);
+		if (error)
+			goto error_unregister;
+	}
 
 	/* Add the current item to the list of active epoll hook for this file */
 	spin_lock(&tfile->f_lock);
@@ -1410,9 +1482,11 @@ static int ep_loop_check_proc(void *priv, void *cookie, int call_nests)
 			 * not already there, and calling reverse_path_check()
 			 * during ep_insert().
 			 */
-			if (list_empty(&epi->ffd.file->f_tfile_llink))
-				list_add(&epi->ffd.file->f_tfile_llink,
-					 &tfile_check_list);
+			if (!epi->ffd.added) {
+				error = add_to_tfile_check(&epi->ffd);
+				if (error)
+					break;
+			}
 		}
 	}
 	mutex_unlock(&ep->mtx);
@@ -1445,19 +1519,6 @@ static int ep_loop_check(struct eventpoll *ep, struct file *file)
 		list_del(&ep_cur->visited_list_link);
 	}
 	return ret;
-}
-
-static void clear_tfile_check_list(void)
-{
-	struct file *file;
-
-	/* first clear the tfile_check_list */
-	while (!list_empty(&tfile_check_list)) {
-		file = list_first_entry(&tfile_check_list, struct file,
-					f_tfile_llink);
-		list_del_init(&file->f_tfile_llink);
-	}
-	INIT_LIST_HEAD(&tfile_check_list);
 }
 
 /*
@@ -1583,13 +1644,10 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		mutex_lock(&epmutex);
 		did_lock_epmutex = 1;
 	}
-	if (op == EPOLL_CTL_ADD) {
-		if (is_file_epoll(tfile)) {
+	if ((op == EPOLL_CTL_ADD) && (is_file_epoll(tfile))) {
 			error = -ELOOP;
 			if (ep_loop_check(ep, tfile) != 0)
 				goto error_tgt_fput;
-		} else
-			list_add(&tfile->f_tfile_llink, &tfile_check_list);
 	}
 
 	mutex_lock(&ep->mtx);
