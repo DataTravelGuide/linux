@@ -2659,6 +2659,7 @@ struct tg3_config_info {
 struct tg3_tx_ring_info {
 	struct sk_buff			*skb;
 	dma_addr_t			mapping;
+	bool				fragmented;
 };
 
 struct tg3_link_config {
