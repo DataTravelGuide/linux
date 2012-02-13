@@ -1013,6 +1013,7 @@ struct qlcnic_adapter {
 
 	u8 mac_addr[ETH_ALEN];
 
+	u8 mac_learn;
 	u64 dev_rst_time;
 
 	struct vlan_group *vlgrp;
@@ -1456,6 +1457,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void qlcnic_dev_request_reset(struct qlcnic_adapter *);
+void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 
 /* Management functions */
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);
