@@ -52,7 +52,7 @@
  * This lock protects updates to the following mapping and reference-count
  * arrays. The lock does not need to be acquired to read the mapping tables.
  */
-static DEFINE_SPINLOCK(irq_mapping_update_lock);
+static DEFINE_MUTEX(irq_mapping_update_lock);
 
 /* IRQ <-> VIRQ mapping. */
 static DEFINE_PER_CPU(int [NR_VIRQS], virq_to_irq) = {[0 ... NR_VIRQS-1] = -1};
@@ -397,7 +397,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 {
 	int irq;
 
-	spin_lock(&irq_mapping_update_lock);
+	mutex_lock(&irq_mapping_update_lock);
 
 	irq = evtchn_to_irq[evtchn];
 
@@ -411,7 +411,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		irq_info[irq] = mk_evtchn_info(evtchn);
 	}
 
-	spin_unlock(&irq_mapping_update_lock);
+	mutex_unlock(&irq_mapping_update_lock);
 
 	return irq;
 }
@@ -422,7 +422,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	struct evtchn_bind_ipi bind_ipi;
 	int evtchn, irq;
 
-	spin_lock(&irq_mapping_update_lock);
+	mutex_lock(&irq_mapping_update_lock);
 
 	irq = per_cpu(ipi_to_irq, cpu)[ipi];
 
@@ -448,7 +448,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	}
 
  out:
-	spin_unlock(&irq_mapping_update_lock);
+	mutex_unlock(&irq_mapping_update_lock);
 	return irq;
 }
 
@@ -458,7 +458,7 @@ static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 	struct evtchn_bind_virq bind_virq;
 	int evtchn, irq;
 
-	spin_lock(&irq_mapping_update_lock);
+	mutex_lock(&irq_mapping_update_lock);
 
 	irq = per_cpu(virq_to_irq, cpu)[virq];
 
@@ -483,7 +483,7 @@ static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 
-	spin_unlock(&irq_mapping_update_lock);
+	mutex_unlock(&irq_mapping_update_lock);
 
 	return irq;
 }
@@ -493,7 +493,7 @@ static void unbind_from_irq(unsigned int irq)
 	struct evtchn_close close;
 	int evtchn = evtchn_from_irq(irq);
 
-	spin_lock(&irq_mapping_update_lock);
+	mutex_lock(&irq_mapping_update_lock);
 
 	if (VALID_EVTCHN(evtchn)) {
 		close.port = evtchn;
@@ -525,7 +525,7 @@ static void unbind_from_irq(unsigned int irq)
 		dynamic_irq_cleanup(irq);
 	}
 
-	spin_unlock(&irq_mapping_update_lock);
+	mutex_unlock(&irq_mapping_update_lock);
 }
 
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
@@ -772,7 +772,7 @@ void rebind_evtchn_irq(int evtchn, int irq)
 	   will also be masked. */
 	disable_irq(irq);
 
-	spin_lock(&irq_mapping_update_lock);
+	mutex_lock(&irq_mapping_update_lock);
 
 	/* After resume the irq<->evtchn mappings are all cleared out */
 	BUG_ON(evtchn_to_irq[evtchn] != -1);
@@ -783,7 +783,7 @@ void rebind_evtchn_irq(int evtchn, int irq)
 	evtchn_to_irq[evtchn] = irq;
 	irq_info[irq] = mk_evtchn_info(evtchn);
 
-	spin_unlock(&irq_mapping_update_lock);
+	mutex_unlock(&irq_mapping_update_lock);
 
 	/* new event channels are always bound to cpu 0 */
 	irq_set_affinity(irq, cpumask_of(0));
