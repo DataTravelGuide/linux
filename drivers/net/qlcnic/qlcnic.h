@@ -34,8 +34,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 23
-#define QLCNIC_LINUX_VERSIONID  "5.0.23"
+#define _QLCNIC_LINUX_SUBVERSION 24
+#define QLCNIC_LINUX_VERSIONID  "5.0.24"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -582,6 +582,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_DESTROY_RX_CTX          0x00000008
 #define QLCNIC_CDRP_CMD_CREATE_TX_CTX           0x00000009
 #define QLCNIC_CDRP_CMD_DESTROY_TX_CTX          0x0000000a
+#define QLCNIC_CDRP_CMD_INTRPT_TEST		0x00000011
 #define QLCNIC_CDRP_CMD_SET_MTU                 0x00000012
 #define QLCNIC_CDRP_CMD_READ_PHY		0x00000013
 #define QLCNIC_CDRP_CMD_WRITE_PHY		0x00000014
@@ -1356,6 +1357,18 @@ struct qlcnic_dump_operations {
 			struct qlcnic_dump_entry *, u32 *);
 };
 
+struct _cdrp_cmd {
+	u32 cmd;
+	u32 arg1;
+	u32 arg2;
+	u32 arg3;
+};
+
+struct qlcnic_cmd_args {
+	struct _cdrp_cmd req;
+	struct _cdrp_cmd rsp;
+};
+
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);
 int qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config);
 
@@ -1467,9 +1480,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
-u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
-	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd,
-		u32 *rd_args[3]);
+void qlcnic_issue_cmd(struct qlcnic_adapter *adapter, struct qlcnic_cmd_args *);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
