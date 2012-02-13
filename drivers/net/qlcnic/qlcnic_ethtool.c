@@ -85,7 +85,7 @@ static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register_Test_on_offline",
 	"Link_Test_on_offline",
 	"Interrupt_Test_offline",
-	"Loopback_Test_offline"
+	"Internal_Loopback_offline"
 };
 
 #define QLCNIC_TEST_LEN	ARRAY_SIZE(qlcnic_gstrings_test)
@@ -676,7 +676,7 @@ int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[])
 	return memcmp(data, buff, QLCNIC_ILB_PKT_SIZE);
 }
 
-static int qlcnic_do_ilb_test(struct qlcnic_adapter *adapter)
+static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
@@ -702,19 +702,19 @@ static int qlcnic_do_ilb_test(struct qlcnic_adapter *adapter)
 		dev_kfree_skb_any(skb);
 
 		if (!adapter->diag_cnt)
-			dev_warn(&adapter->pdev->dev, "ILB Test: %dth packet"
+			dev_warn(&adapter->pdev->dev, "LB Test: %dth packet"
 				" not recevied\n", i + 1);
 		else
 			cnt++;
 	}
 	if (cnt != i) {
-		dev_warn(&adapter->pdev->dev, "ILB Test failed\n");
+		dev_warn(&adapter->pdev->dev, "LB Test failed\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int qlcnic_iloopback_test(struct net_device *netdev)
+int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int max_sds_rings = adapter->max_sds_rings;
@@ -722,7 +722,8 @@ static int qlcnic_iloopback_test(struct net_device *netdev)
 	int loop = 0;
 	int ret;
 
-	dev_info(&adapter->pdev->dev, "%s:  in progress\n", __func__);
+	dev_info(&adapter->pdev->dev, "%s loopback test in progress\n",
+		mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(&adapter->pdev->dev, "Loopback test not supported "
 				"for non privilege function\n");
@@ -739,7 +740,7 @@ static int qlcnic_iloopback_test(struct net_device *netdev)
 
 	sds_ring = &adapter->recv_ctx->sds_rings[0];
 
-	ret = qlcnic_set_lb_mode(adapter, QLCNIC_ILB_MODE);
+	ret = qlcnic_set_lb_mode(adapter, mode);
 	if (ret)
 		goto free_res;
 
@@ -757,7 +758,7 @@ static int qlcnic_iloopback_test(struct net_device *netdev)
 		goto free_res;
 	}
 
-	ret = qlcnic_do_ilb_test(adapter);
+	ret = qlcnic_do_lb_test(adapter);
 
 	qlcnic_clear_lb_mode(adapter);
 
@@ -789,10 +790,9 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		if (data[2])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		data[3] = qlcnic_iloopback_test(dev);
+		data[3] = qlcnic_loopback_test(dev, QLCNIC_ILB_MODE);
 		if (data[3])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 	}
 }
 

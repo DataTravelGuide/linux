@@ -34,8 +34,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 19
-#define QLCNIC_LINUX_VERSIONID  "5.0.19"
+#define _QLCNIC_LINUX_SUBVERSION 20
+#define QLCNIC_LINUX_VERSIONID  "5.0.20"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -781,6 +781,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_IP_DOWN		3
 
 #define QLCNIC_ILB_MODE		0x1
+#define QLCNIC_ELB_MODE		0x2
 
 #define QLCNIC_LINKEVENT	0x1
 #define QLCNIC_LB_RESPONSE	0x2
@@ -1445,6 +1446,7 @@ int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode);
 
 /* Functions from qlcnic_ethtool.c */
 int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[]);
+int qlcnic_loopback_test(struct net_device *netdev, u8 mode);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);

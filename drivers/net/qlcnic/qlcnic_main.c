@@ -3467,6 +3467,24 @@ static struct device_attribute dev_attr_max_rss = {
 	.store = qlcnic_store_max_rss,
 };
 
+static ssize_t
+qlcnic_show_elb_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	int err;
+
+	rtnl_lock();
+	err = qlcnic_loopback_test(adapter->netdev, QLCNIC_ELB_MODE);
+	rtnl_unlock();
+	return sprintf(buf, "%d\n", err);
+}
+
+static struct device_attribute dev_attr_elb_mode = {
+	.attr = {.name = "elb_mode", .mode = (S_IRUGO | S_IWUSR)},
+	.show = qlcnic_show_elb_mode,
+};
+
 static int
 qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 		loff_t offset, size_t size)
@@ -4352,6 +4370,8 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		dev_info(dev, "failed to create diag_mode sysfs entry\n");
 	if (device_create_file(dev, &dev_attr_max_rss))
 		dev_info(dev, "failed to create rss sysfs entry\n");
+	if (device_create_file(dev, &dev_attr_elb_mode))
+		dev_info(dev, "failed to create elb_mode sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_crb))
 		dev_info(dev, "failed to create crb sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_mem))
@@ -4393,6 +4413,7 @@ qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 		return;
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_file(dev, &dev_attr_max_rss);
+	device_remove_file(dev, &dev_attr_elb_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
 	if (adapter->ahw->fw_dump.tmpl_hdr) {
