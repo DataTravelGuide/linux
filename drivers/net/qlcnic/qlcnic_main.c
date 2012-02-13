@@ -3573,6 +3573,152 @@ qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
+static ssize_t
+qlcnic_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
+		char *buf, loff_t offset, size_t size)
+{
+	void *tmp_buf;
+	int i, copy_sz, pos;
+	u32 *buf_ptr, *hdr_ptr;
+	size_t data_sz, ret = 0, tmp_sz = 0;
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
+	if (offset >= size || offset < 0)
+		return 0;
+
+	if (!fw_dump->clr) {
+		dev_info(dev, "Dump not available\n");
+		return -EIO;
+	}
+
+	copy_sz = fw_dump->tmpl_hdr->size - fw_dump->pos;
+	/* Copy template header first */
+	if (copy_sz > 0) {
+		if (copy_sz < size)
+			tmp_sz = copy_sz;
+		else
+			tmp_sz = size;
+		tmp_buf = vmalloc(tmp_sz);
+		if (!tmp_buf)
+			return -EIO;
+		memset(tmp_buf, 0, tmp_sz);
+		buf_ptr = (u32 *) tmp_buf;
+		hdr_ptr = (u32 *) ((void *) fw_dump->tmpl_hdr + fw_dump->pos);
+		for (i = 0; i < tmp_sz/sizeof(u32); i++)
+			*buf_ptr++ = cpu_to_le32(*hdr_ptr++);
+
+		ret = memory_read_from_buffer((void *) buf, tmp_sz, &offset,
+			(void *) tmp_buf, tmp_sz);
+		fw_dump->pos += tmp_sz;
+		data_sz = size - tmp_sz;
+		vfree(tmp_buf);
+		tmp_buf = NULL;
+	} else {
+		copy_sz = fw_dump->tmpl_hdr->size + fw_dump->size -
+			fw_dump->pos;
+		if (copy_sz >= size)
+			data_sz = size;
+		else
+			data_sz = copy_sz;
+	}
+	/* Copy captured dump data */
+	if (data_sz > 0) {
+		pos = fw_dump->pos - fw_dump->tmpl_hdr->size;
+		ret = memory_read_from_buffer((void *) (buf + tmp_sz), data_sz,
+			&offset, (void *) (fw_dump->data + pos), data_sz);
+		fw_dump->pos += data_sz;
+	}
+	/* free dump area once the whoel dump data has been captured */
+	if (fw_dump->pos == fw_dump->size + fw_dump->tmpl_hdr->size) {
+		vfree(fw_dump->data);
+		fw_dump->size = 0;
+		fw_dump->data = NULL;
+		fw_dump->clr = 0;
+		fw_dump->pos = 0;
+	}
+	return ret;
+}
+
+static ssize_t
+qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
+		char *buf, loff_t offset, size_t size)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	unsigned long data;
+
+	data = simple_strtoul(buf, NULL, 16);
+	if (data == QLCNIC_FORCE_FW_DUMP_KEY) {
+		dev_info(dev, "Forcing a fw dump\n");
+		qlcnic_dev_request_reset(adapter);
+	}
+	return size;
+}
+
+static ssize_t
+qlcnic_store_fwdump_level(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	unsigned long int val;
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+
+	if (adapter->ahw->fw_dump.clr)
+		return -EINVAL;
+
+	val = simple_strtoul(buf, NULL, 16);
+
+	if (val <= QLCNIC_DUMP_MASK_MAX && val >= QLCNIC_DUMP_MASK_MIN) {
+		adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask = val & 0xff;
+		dev_info(dev, "Driver mask changed to: 0x%x\n",
+			adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask);
+	} else
+		dev_info(dev, "Invalid Dump Level: 0x%lx\n",
+			(unsigned long int) val);
+	return size;
+}
+
+static ssize_t
+qlcnic_show_fwdump_level(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	u32 size = adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask;
+	return sprintf(buf, "%u\n", size);
+}
+
+static ssize_t
+qlcnic_store_fwdump_size(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	return -EIO;
+}
+
+static ssize_t
+qlcnic_show_fwdump_size(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	u32 size = adapter->ahw->fw_dump.size +
+		adapter->ahw->fw_dump.tmpl_hdr->size;
+	return sprintf(buf, "%u\n", size);
+}
+
+static struct device_attribute dev_attr_fwdump_size = {
+	.attr = {.name = "fwdump_size", .mode = (S_IRUGO | S_IWUSR)},
+	.show = qlcnic_show_fwdump_size,
+	.store = qlcnic_store_fwdump_size,
+};
+
+static struct device_attribute dev_attr_fwdump_level = {
+	.attr = {.name = "fwdump_level", .mode = (S_IRUGO | S_IWUSR)},
+	.show = qlcnic_show_fwdump_level,
+	.store = qlcnic_store_fwdump_level,
+};
+
 static struct bin_attribute bin_attr_crb = {
 	.attr = {.name = "crb", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
@@ -3585,6 +3731,13 @@ static struct bin_attribute bin_attr_mem = {
 	.size = 0,
 	.read = qlcnic_sysfs_read_mem,
 	.write = qlcnic_sysfs_write_mem,
+};
+
+static struct bin_attribute bin_attr_fw_dump = {
+	.attr = {.name = "fw_dump", .mode = (S_IRUGO | S_IWUSR)},
+	.size = 0,
+	.read = qlcnic_sysfs_read_fw_dump,
+	.write = qlcnic_sysfs_write_fw_dump,
 };
 
 static int
@@ -4154,6 +4307,16 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 		dev_info(dev, "failed to create crb sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_mem))
 		dev_info(dev, "failed to create mem sysfs entry\n");
+	if (adapter->ahw->fw_dump.tmpl_hdr) {
+		if (device_create_bin_file(dev, &bin_attr_fw_dump))
+			dev_info(dev, "failed to create fw_dump sysfs entry");
+		if (device_create_file(dev, &dev_attr_fwdump_size))
+			dev_info(dev,
+				"failed to create fwdump_size sysfs entry");
+		if (device_create_file(dev, &dev_attr_fwdump_level))
+			dev_info(dev,
+				"failed to create fwdump_level sysfs entry");
+	}
 	if (device_create_bin_file(dev, &bin_attr_pci_config))
 		dev_info(dev, "failed to create pci config sysfs entry");
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
@@ -4183,6 +4346,11 @@ qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	device_remove_file(dev, &dev_attr_max_rss);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
+	if (adapter->ahw->fw_dump.tmpl_hdr) {
+		device_remove_bin_file(dev, &bin_attr_fw_dump);
+		device_remove_file(dev, &dev_attr_fwdump_size);
+		device_remove_file(dev, &dev_attr_fwdump_level);
+	}
 	device_remove_bin_file(dev, &bin_attr_pci_config);
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
 		return;
