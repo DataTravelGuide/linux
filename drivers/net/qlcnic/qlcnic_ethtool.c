@@ -1168,13 +1168,18 @@ static void qlcnic_set_msglevel(struct net_device *netdev, u32 msglvl)
 	adapter->msg_enable = msglvl;
 }
 
+static u32 qlcnic_get_link(struct net_device *dev)
+{
+	return netif_running(dev) && netif_carrier_ok(dev);
+}
+
 const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_settings = qlcnic_get_settings,
 	.set_settings = qlcnic_set_settings,
 	.get_drvinfo = qlcnic_get_drvinfo,
 	.get_regs_len = qlcnic_get_regs_len,
 	.get_regs = qlcnic_get_regs,
-	.get_link = ethtool_op_get_link,
+	.get_link = qlcnic_get_link,
 	.get_eeprom_len = qlcnic_get_eeprom_len,
 	.get_eeprom = qlcnic_get_eeprom,
 	.get_ringparam = qlcnic_get_ringparam,
