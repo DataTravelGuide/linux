@@ -722,6 +722,12 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	int loop = 0;
 	int ret;
 
+	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
+		dev_info(&adapter->pdev->dev,
+				"Firmware is not loopback test capable\n");
+		return -EOPNOTSUPP;
+	}
+
 	dev_info(&adapter->pdev->dev, "%s loopback test in progress\n",
 		mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
@@ -731,8 +737,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	}
 
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return -EIO;
-
+		return -EBUSY;
 
 	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
 	if (ret)
@@ -744,19 +749,20 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	if (ret)
 		goto free_res;
 
+	adapter->diag_cnt = 0;
 	do {
 		msleep(500);
 		qlcnic_process_rcv_ring_diag(sds_ring);
-		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP)
-			break;
+		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
+			dev_info(&adapter->pdev->dev, "Firmware didn't respond "
+				"to loopback configure request\n");
+			ret = -QLCNIC_FW_NOT_RESPOND;
+			goto free_res;
+		} else if (adapter->diag_cnt) {
+			ret = adapter->diag_cnt;
+			goto free_res;
+		}
 	} while (!QLCNIC_IS_LB_CONFIGURED(adapter->ahw->loopback_state));
-
-	if (!QLCNIC_IS_LB_CONFIGURED(adapter->ahw->loopback_state)) {
-		dev_info(&adapter->pdev->dev, "firmware didnt respond to "
-				"loopback configure request\n");
-		ret = adapter->ahw->loopback_state;
-		goto free_res;
-	}
 
 	ret = qlcnic_do_lb_test(adapter);
 
