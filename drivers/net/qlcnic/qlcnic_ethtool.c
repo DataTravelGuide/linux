@@ -676,7 +676,7 @@ int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[])
 	return memcmp(data, buff, QLCNIC_ILB_PKT_SIZE);
 }
 
-static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter)
+static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
@@ -702,13 +702,18 @@ static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter)
 		dev_kfree_skb_any(skb);
 
 		if (!adapter->diag_cnt)
-			dev_warn(&adapter->pdev->dev, "LB Test: %dth packet"
-				" not recevied\n", i + 1);
+			QLCDB(adapter, DRV,
+			"LB Test: packet #%d was not received\n", i + 1);
 		else
 			cnt++;
 	}
 	if (cnt != i) {
 		dev_warn(&adapter->pdev->dev, "LB Test failed\n");
+		if (mode != QLCNIC_ILB_MODE) {
+			dev_warn(&adapter->pdev->dev,
+				"WARNING: Please make sure external"
+				"loopback connector is plugged in\n");
+		}
 		return -1;
 	}
 	return 0;
@@ -728,7 +733,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 		return -EOPNOTSUPP;
 	}
 
-	dev_info(&adapter->pdev->dev, "%s loopback test in progress\n",
+	QLCDB(adapter, DRV, "%s loopback test in progress\n",
 		mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(&adapter->pdev->dev, "Loopback test not supported "
@@ -764,7 +769,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 		}
 	} while (!QLCNIC_IS_LB_CONFIGURED(adapter->ahw->loopback_state));
 
-	ret = qlcnic_do_lb_test(adapter);
+	ret = qlcnic_do_lb_test(adapter, mode);
 
 	qlcnic_clear_lb_mode(adapter);
 
