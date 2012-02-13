@@ -3614,17 +3614,43 @@ qlcnic_show_elb_mode(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+
+	if (test_bit(__QLCNIC_ELB_INPROGRESS, &adapter->state))
+		return sprintf(buf, "1\n");
+
+	return sprintf(buf, "0\n");
+}
+
+static ssize_t
+qlcnic_store_elb_mode(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	unsigned long new;
 	int err;
+
+	if (strict_strtoul(buf, 2, &new))
+		return -EINVAL;
+
+	if (new == test_and_set_bit(__QLCNIC_ELB_INPROGRESS, &adapter->state))
+		return len;
 
 	rtnl_lock();
 	err = qlcnic_loopback_test(adapter->netdev, QLCNIC_ELB_MODE);
 	rtnl_unlock();
-	return sprintf(buf, "%d\n", err);
+
+	clear_bit(__QLCNIC_ELB_INPROGRESS, &adapter->state);
+
+	if (!err)
+		err = len;
+
+	return err;
 }
 
 static struct device_attribute dev_attr_elb_mode = {
 	.attr = {.name = "elb_mode", .mode = (S_IRUGO | S_IWUSR)},
 	.show = qlcnic_show_elb_mode,
+	.store = qlcnic_store_elb_mode,
 };
 
 static int

@@ -933,6 +933,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_START_FW 		4
 #define __QLCNIC_AER			5
 #define __QLCNIC_LED_ENABLE		7
+#define __QLCNIC_ELB_INPROGRESS		8
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
 #define QLCNIC_LED_TEST		3
