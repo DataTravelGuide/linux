@@ -388,7 +388,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 	snd_pcm_stream_unlock_irq(substream);
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	if (!substream->oss.oss)
+	if (!((struct snd_pcm_substream2 *)substream)->oss.oss)
 #endif
 		if (atomic_read(&substream->mmap_count))
 			return -EBADFD;
