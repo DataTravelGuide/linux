@@ -613,7 +613,9 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 		return 0;
 
 	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, 1)) {
-		DMERR("Failed to read device superblock");
+		DMERR("Failed to read superblock of device at position %d",
+		      rdev->raid_disk);
+		set_bit(Faulty, &rdev->flags);
 		return -EINVAL;
 	}
 
@@ -864,8 +866,24 @@ static int super_validate(struct mddev *mddev, struct md_rdev *rdev)
 static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int ret;
+	unsigned redundancy = 0;
+	struct raid_dev *dev;
 	struct md_rdev *rdev, *freshest, *tmp;
 	struct mddev *mddev = &rs->md;
+
+	switch (rs->raid_type->level) {
+	case 1:
+		redundancy = rs->md.raid_disks - 1;
+		break;
+	case 4:
+	case 5:
+	case 6:
+		redundancy = rs->raid_type->parity_devs;
+		break;
+	default:
+		ti->error = "Unknown RAID type";
+		return -EINVAL;
+	}
 
 	freshest = NULL;
 	rdev_for_each(rdev, tmp, mddev) {
@@ -881,6 +899,34 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		case 0:
 			break;
 		default:
+			dev = container_of(rdev, struct raid_dev, rdev);
+			if (redundancy--) {
+				if (dev->meta_dev)
+					dm_put_device(ti, dev->meta_dev);
+				dev->meta_dev = NULL;
+				rdev->meta_bdev = NULL;
+
+				if (rdev->sb_page)
+					put_page(rdev->sb_page);
+				rdev->sb_page = NULL;
+
+				rdev->sb_loaded = 0;
+
+				/*
+				 * We might be able to salvage the data device
+				 * even though the meta device has failed.  For
+				 * now, we behave as though '- -' had been
+				 * passed in for this device via the CTR table.
+				 */
+				if (dev->data_dev)
+					dm_put_device(ti, dev->data_dev);
+				dev->data_dev = NULL;
+				rdev->bdev = NULL;
+
+				list_del(&rdev->same_set);
+
+				continue;
+			}
 			ti->error = "Failed to load superblock";
 			return ret;
 		}
