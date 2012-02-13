@@ -229,9 +229,11 @@ struct cgroup {
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
 
+#ifndef __GENKSYMS__
 	/* List of events which userspace want to recieve */
 	struct list_head event_list;
 	spinlock_t event_list_lock;
+#endif
 };
 
 /*
