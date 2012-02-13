@@ -965,22 +965,25 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int max_sds_rings = adapter->max_sds_rings;
-	int dev_down = 0;
-	int ret;
+	int ret = 0;
+
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		netdev_warn(dev,
+			"LED test not supported for non privilege function\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
 		return -EBUSY;
 
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-		dev_down = 1;
-		if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-			return -EIO;
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+		goto done;
 
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
-		if (ret) {
-			clear_bit(__QLCNIC_RESETTING, &adapter->state);
-			return ret;
-		}
+		if (ret)
+			goto done;
+		set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 	}
 
 	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
@@ -990,20 +993,29 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 		goto done;
 	}
 
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
+		qlcnic_diag_free_res(dev, max_sds_rings);
+
 	msleep_interruptible(val * 1000);
 
-	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
-	if (ret) {
-		dev_err(&adapter->pdev->dev,
-			"Failed to reset LED blink state.\n");
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
 		goto done;
+
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
+		if (ret)
+			goto done;
+		set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 	}
 
+	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
+	if (ret)
+		dev_err(&adapter->pdev->dev,
+			"Failed to reset LED blink state.\n");
+
 done:
-	if (dev_down) {
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(dev, max_sds_rings);
-		clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	}
 
 	clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
 	return ret;
