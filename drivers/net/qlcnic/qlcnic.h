@@ -1343,6 +1343,7 @@ enum op_codes {
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
+#define QLCNIC_FORCE_FW_RESET		0xdeaddead
 
 struct qlcnic_dump_operations {
 	enum op_codes opcode;

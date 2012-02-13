@@ -3698,7 +3698,8 @@ qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 
 	data = simple_strtoul(buf, NULL, 16);
 	rtnl_lock();
-	if (data == QLCNIC_FORCE_FW_DUMP_KEY) {
+	switch (data) {
+	case QLCNIC_FORCE_FW_DUMP_KEY:
 		if (!fw_dump->enable) {
 			dev_info(dev, "FW dump not enabled\n");
 			goto out;
@@ -3710,16 +3711,27 @@ qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		}
 		dev_info(dev, "Forcing a fw dump\n");
 		qlcnic_dev_request_reset(adapter);
-	} else if (data == QLCNIC_DISABLE_FW_DUMP) {
+		break;
+	case QLCNIC_DISABLE_FW_DUMP:
 		if (fw_dump->enable) {
 			dev_info(dev, "Disabling FW dump\n");
 			fw_dump->enable = 0;
 		}
-	} else if (data == QLCNIC_ENABLE_FW_DUMP) {
+		break;
+	case QLCNIC_ENABLE_FW_DUMP:
 		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
 			dev_info(dev, "Enabling FW dump\n");
 			fw_dump->enable = 1;
 		}
+		break;
+	case QLCNIC_FORCE_FW_RESET:
+		dev_info(dev, "Forcing a FW reset\n");
+		qlcnic_dev_request_reset(adapter);
+		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		break;
+	default:
+		dev_info(dev, "Invalid dump key, 0x%lx\n", data);
+		break;
 	}
 out:
 	rtnl_unlock();
@@ -3771,8 +3783,11 @@ qlcnic_show_fwdump_size(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
-	u32 size = adapter->ahw->fw_dump.size +
-		adapter->ahw->fw_dump.tmpl_hdr->size;
+	u32 size = 0;
+
+	if (adapter->ahw->fw_dump.clr)
+		size = adapter->ahw->fw_dump.size +
+			adapter->ahw->fw_dump.tmpl_hdr->size;
 	return sprintf(buf, "%u\n", size);
 }
 
