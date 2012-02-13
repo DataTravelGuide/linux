@@ -126,7 +126,7 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		err = -EIO;
 		goto error;
 	}
-	tmp_tmpl = (struct qlcnic_dump_template_hdr *) tmp_addr;
+	tmp_tmpl = tmp_addr;
 	csum = qlcnic_temp_checksum((uint32_t *) tmp_addr, temp_size);
 	if (csum) {
 		dev_err(&adapter->pdev->dev,
@@ -140,7 +140,7 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		goto error;
 	}
 	memset(ahw->fw_dump.tmpl_hdr, 0, temp_size);
-	tmp_buf = (u32 *) tmp_addr;
+	tmp_buf = tmp_addr;
 	template = (u32 *) ahw->fw_dump.tmpl_hdr;
 	for (i = 0; i < temp_size/sizeof(u32); i++)
 		*template++ = __le32_to_cpu(*tmp_buf++);
@@ -215,7 +215,7 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 			&hostrq_phys_addr, GFP_KERNEL);
 	if (addr == NULL)
 		return -ENOMEM;
-	prq = (struct qlcnic_hostrq_rx_ctx *)addr;
+	prq = addr;
 
 	addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
 			&cardrsp_phys_addr, GFP_KERNEL);
@@ -223,7 +223,7 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 		err = -ENOMEM;
 		goto out_free_rq;
 	}
-	prsp = (struct qlcnic_cardrsp_rx_ctx *)addr;
+	prsp = addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(cardrsp_phys_addr);
 
@@ -381,10 +381,10 @@ qlcnic_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter)
 	}
 
 	memset(rq_addr, 0, rq_size);
-	prq = (struct qlcnic_hostrq_tx_ctx *)rq_addr;
+	prq = rq_addr;
 
 	memset(rsp_addr, 0, rsp_size);
-	prsp = (struct qlcnic_cardrsp_tx_ctx *)rsp_addr;
+	prsp = rsp_addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(rsp_phys_addr);
 
@@ -494,7 +494,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		goto err_out_free;
 	}
 
-	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;
+	tx_ring->desc_head = addr;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -507,7 +507,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 			err = -ENOMEM;
 			goto err_out_free;
 		}
-		rds_ring->desc_head = (struct rcv_desc *)addr;
+		rds_ring->desc_head = addr;
 
 	}
 
@@ -523,7 +523,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 			err = -ENOMEM;
 			goto err_out_free;
 		}
-		sds_ring->desc_head = (struct status_desc *)addr;
+		sds_ring->desc_head = addr;
 	}
 
 	return 0;
@@ -663,7 +663,7 @@ int qlcnic_get_nic_info(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 	memset(nic_info_addr, 0, nic_size);
 
-	nic_info = (struct qlcnic_info *) nic_info_addr;
+	nic_info = nic_info_addr;
 	err = qlcnic_issue_cmd(adapter,
 			adapter->ahw->pci_func,
 			adapter->fw_hal_version,
@@ -721,7 +721,7 @@ int qlcnic_set_nic_info(struct qlcnic_adapter *adapter, struct qlcnic_info *nic)
 		return -ENOMEM;
 
 	memset(nic_info_addr, 0, nic_size);
-	nic_info = (struct qlcnic_info *)nic_info_addr;
+	nic_info = nic_info_addr;
 
 	nic_info->pci_func = cpu_to_le16(nic->pci_func);
 	nic_info->op_mode = cpu_to_le16(nic->op_mode);
@@ -770,7 +770,7 @@ int qlcnic_get_pci_info(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 	memset(pci_info_addr, 0, pci_size);
 
-	npar = (struct qlcnic_pci_info *) pci_info_addr;
+	npar = pci_info_addr;
 	err = qlcnic_issue_cmd(adapter,
 			adapter->ahw->pci_func,
 			adapter->fw_hal_version,
@@ -878,7 +878,7 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 			QLCNIC_CDRP_CMD_GET_ESWITCH_STATS);
 
 	if (!err) {
-		stats = (struct __qlcnic_esw_statistics *)stats_addr;
+		stats = stats_addr;
 		esw_stats->context_id = le16_to_cpu(stats->context_id);
 		esw_stats->version = le16_to_cpu(stats->version);
 		esw_stats->size = le16_to_cpu(stats->size);
