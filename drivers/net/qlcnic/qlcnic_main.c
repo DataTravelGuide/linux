@@ -2842,9 +2842,11 @@ skip_ack_check:
 		qlcnic_api_unlock(adapter);
 
 		rtnl_lock();
-		QLCDB(adapter, DRV, "Take FW dump\n");
-		qlcnic_dump_fw(adapter);
-		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		if (adapter->ahw->fw_dump.enable) {
+			QLCDB(adapter, DRV, "Take FW dump\n");
+			qlcnic_dump_fw(adapter);
+			adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		}
 		rtnl_unlock();
 		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
@@ -3665,13 +3667,36 @@ qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 	unsigned long data;
 
 	data = simple_strtoul(buf, NULL, 16);
+	rtnl_lock();
 	if (data == QLCNIC_FORCE_FW_DUMP_KEY) {
+		if (!fw_dump->enable) {
+			dev_info(dev, "FW dump not enabled\n");
+			goto out;
+		}
+		if (fw_dump->clr) {
+			dev_info(dev,
+			   "Previous dump not cleared, not forcing dump\n");
+			goto out;
+		}
 		dev_info(dev, "Forcing a fw dump\n");
 		qlcnic_dev_request_reset(adapter);
+	} else if (data == QLCNIC_DISABLE_FW_DUMP) {
+		if (fw_dump->enable) {
+			dev_info(dev, "Disabling FW dump\n");
+			fw_dump->enable = 0;
+		}
+	} else if (data == QLCNIC_ENABLE_FW_DUMP) {
+		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
+			dev_info(dev, "Enabling FW dump\n");
+			fw_dump->enable = 1;
+		}
 	}
+out:
+	rtnl_unlock();
 	return size;
 }
 
@@ -3688,7 +3713,9 @@ qlcnic_store_fwdump_level(struct device *dev,
 	val = simple_strtoul(buf, NULL, 16);
 
 	if (val <= QLCNIC_DUMP_MASK_MAX && val >= QLCNIC_DUMP_MASK_MIN) {
+		rtnl_lock();
 		adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask = val & 0xff;
+		rtnl_unlock();
 		dev_info(dev, "Driver mask changed to: 0x%x\n",
 			adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask);
 	} else
