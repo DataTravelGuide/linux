@@ -3873,7 +3873,10 @@ qlcnic_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 		fw_dump->data = NULL;
 		fw_dump->clr = 0;
 		fw_dump->pos = 0;
+		dev_info(dev, "%s: extracted the FW dump Successfully\n",
+				adapter->netdev->name);
 	}
+
 	return ret;
 }
 
