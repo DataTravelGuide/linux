@@ -799,7 +799,7 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 		be_vid_config(adapter, false, 0);
 }
 
-static void be_set_multicast_list(struct net_device *netdev)
+static void be_set_rx_mode(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
@@ -2068,7 +2068,7 @@ done:
 	return;
 }
 
-static void be_sriov_enable(struct be_adapter *adapter)
+static int be_sriov_enable(struct be_adapter *adapter)
 {
 	be_check_sriov_fn_type(adapter);
 #ifdef CONFIG_PCI_IOV
@@ -2090,8 +2090,17 @@ static void be_sriov_enable(struct be_adapter *adapter)
 
 		status = pci_enable_sriov(adapter->pdev, num_vfs);
 		adapter->sriov_enabled = status ? false : true;
+
+		if (adapter->sriov_enabled) {
+			adapter->vf_cfg = kcalloc(num_vfs,
+						sizeof(struct be_vf_cfg),
+						GFP_KERNEL);
+			if (!adapter->vf_cfg)
+				return -ENOMEM;
+		}
 	}
 #endif
+	return 0;
 }
 
 static void be_sriov_disable(struct be_adapter *adapter)
@@ -2099,6 +2108,7 @@ static void be_sriov_disable(struct be_adapter *adapter)
 #ifdef CONFIG_PCI_IOV
 	if (adapter->sriov_enabled) {
 		pci_disable_sriov(adapter->pdev);
+		kfree(adapter->vf_cfg);
 		adapter->sriov_enabled = false;
 	}
 #endif
@@ -2351,17 +2361,6 @@ static int be_open(struct net_device *netdev)
 	/* Now that interrupts are on we can process async mcc */
 	be_async_mcc_enable(adapter);
 
-	if (be_physfn(adapter)) {
-		status = be_vid_config(adapter, false, 0);
-		if (status)
-			goto err;
-
-		status = be_cmd_set_flow_control(adapter,
-				adapter->tx_fc, adapter->rx_fc);
-		if (status)
-			goto err;
-	}
-
 	return 0;
 err:
 	be_close(adapter->netdev);
@@ -2415,7 +2414,7 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
  */
 static inline int be_vf_eth_addr_config(struct be_adapter *adapter)
 {
-	u32 vf = 0;
+	u32 vf;
 	int status = 0;
 	u8 mac[ETH_ALEN];
 
@@ -2437,7 +2436,7 @@ static inline int be_vf_eth_addr_config(struct be_adapter *adapter)
 	return status;
 }
 
-static inline void be_vf_eth_addr_rem(struct be_adapter *adapter)
+static void be_vf_clear(struct be_adapter *adapter)
 {
 	u32 vf;
 
@@ -2447,60 +2446,119 @@ static inline void be_vf_eth_addr_rem(struct be_adapter *adapter)
 					adapter->vf_cfg[vf].vf_if_handle,
 					adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
 	}
+
+	for (vf = 0; vf < num_vfs; vf++)
+		if (adapter->vf_cfg[vf].vf_if_handle)
+			be_cmd_if_destroy(adapter,
+				adapter->vf_cfg[vf].vf_if_handle, vf + 1);
+}
+
+static int be_clear(struct be_adapter *adapter)
+{
+	if (be_physfn(adapter) && adapter->sriov_enabled)
+		be_vf_clear(adapter);
+
+	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
+
+	be_mcc_queues_destroy(adapter);
+	be_rx_queues_destroy(adapter);
+	be_tx_queues_destroy(adapter);
+	adapter->eq_next_idx = 0;
+
+	adapter->be3_native = false;
+	adapter->promiscuous = false;
+
+	/* tell fw we're done with firing cmds */
+	be_cmd_fw_clean(adapter);
+	return 0;
+}
+
+static int be_vf_setup(struct be_adapter *adapter)
+{
+	u32 cap_flags, en_flags, vf;
+	u16 lnk_speed;
+	int status;
+
+	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST;
+	for (vf = 0; vf < num_vfs; vf++) {
+		status = be_cmd_if_create(adapter, cap_flags, en_flags, NULL,
+					&adapter->vf_cfg[vf].vf_if_handle,
+					NULL, vf+1);
+		if (status)
+			goto err;
+		adapter->vf_cfg[vf].vf_pmac_id = BE_INVALID_PMAC_ID;
+	}
+
+	if (!lancer_chip(adapter)) {
+		status = be_vf_eth_addr_config(adapter);
+		if (status)
+			goto err;
+	}
+
+	for (vf = 0; vf < num_vfs; vf++) {
+		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
+				vf + 1);
+		if (status)
+			goto err;
+		adapter->vf_cfg[vf].vf_tx_rate = lnk_speed * 10;
+	}
+	return 0;
+err:
+	return status;
 }
 
 static int be_setup(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u32 cap_flags, en_flags, vf = 0;
+	u32 cap_flags, en_flags;
+	u32 tx_fc, rx_fc;
 	int status;
 	u8 mac[ETH_ALEN];
 
+	/* Allow all priorities by default. A GRP5 evt may modify this */
+	adapter->vlan_prio_bmap = 0xff;
+	adapter->link_speed = -1;
+
 	be_cmd_req_native_mode(adapter);
 
-	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED |
-				BE_IF_FLAGS_BROADCAST |
-				BE_IF_FLAGS_MULTICAST;
-
-	if (be_physfn(adapter)) {
-		cap_flags |= BE_IF_FLAGS_MCAST_PROMISCUOUS |
-				BE_IF_FLAGS_PROMISCUOUS |
-				BE_IF_FLAGS_PASS_L3L4_ERRORS;
-		en_flags |= BE_IF_FLAGS_PASS_L3L4_ERRORS;
-
-		if (adapter->function_caps & BE_FUNCTION_CAPS_RSS) {
-			cap_flags |= BE_IF_FLAGS_RSS;
-			en_flags |= BE_IF_FLAGS_RSS;
-		}
-	}
-
-	status = be_cmd_if_create(adapter, cap_flags, en_flags,
-			netdev->dev_addr, false/* pmac_invalid */,
-			&adapter->if_handle, &adapter->pmac_id, 0);
+	status = be_tx_queues_create(adapter);
 	if (status != 0)
-		goto do_none;
+		goto err;
 
-	if (be_physfn(adapter)) {
-		if (adapter->sriov_enabled) {
-			while (vf < num_vfs) {
-				cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED |
-							BE_IF_FLAGS_BROADCAST;
-				status = be_cmd_if_create(adapter, cap_flags,
-					en_flags, mac, true,
-					&adapter->vf_cfg[vf].vf_if_handle,
-					NULL, vf+1);
-				if (status) {
-					dev_err(&adapter->pdev->dev,
-					"Interface Create failed for VF %d\n",
-					vf);
-					goto if_destroy;
-				}
-				adapter->vf_cfg[vf].vf_pmac_id =
-							BE_INVALID_PMAC_ID;
-				vf++;
-			}
-		}
-	} else {
+	status = be_rx_queues_create(adapter);
+	if (status != 0)
+		goto err;
+
+	status = be_mcc_queues_create(adapter);
+	if (status != 0)
+		goto err;
+
+	memset(mac, 0, ETH_ALEN);
+	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
+			true /*permanent */, 0);
+	if (status)
+		return status;
+	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	cap_flags = en_flags | BE_IF_FLAGS_MCAST_PROMISCUOUS |
+			BE_IF_FLAGS_PROMISCUOUS;
+	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS) {
+		cap_flags |= BE_IF_FLAGS_RSS;
+		en_flags |= BE_IF_FLAGS_RSS;
+	}
+	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+			netdev->dev_addr, &adapter->if_handle,
+			&adapter->pmac_id, 0);
+	if (status != 0)
+		goto err;
+
+	/* For BEx, the VF's permanent mac queried from card is incorrect.
+	 * Query the mac configued by the PF using if_handle
+	 */
+	if (!be_physfn(adapter) && !lancer_chip(adapter)) {
 		status = be_cmd_mac_addr_query(adapter, mac,
 			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);
 		if (!status) {
@@ -2509,72 +2567,37 @@ static int be_setup(struct be_adapter *adapter)
 		}
 	}
 
-	status = be_tx_queues_create(adapter);
-	if (status != 0)
-		goto if_destroy;
-
-	status = be_rx_queues_create(adapter);
-	if (status != 0)
-		goto tx_qs_destroy;
-
-	/* Allow all priorities by default. A GRP5 evt may modify this */
-	adapter->vlan_prio_bmap = 0xff;
-
-	status = be_mcc_queues_create(adapter);
-	if (status != 0)
-		goto rx_qs_destroy;
-
-	adapter->link_speed = -1;
-
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
 
-	pcie_set_readrq(adapter->pdev, 4096);
-	return 0;
+	status = be_vid_config(adapter, false, 0);
+	if (status)
+		goto err;
 
-rx_qs_destroy:
-	be_rx_queues_destroy(adapter);
-tx_qs_destroy:
-	be_tx_queues_destroy(adapter);
-if_destroy:
-	if (be_physfn(adapter) && adapter->sriov_enabled)
-		for (vf = 0; vf < num_vfs; vf++)
-			if (adapter->vf_cfg[vf].vf_if_handle)
-				be_cmd_if_destroy(adapter,
-					adapter->vf_cfg[vf].vf_if_handle,
-					vf + 1);
-	be_cmd_if_destroy(adapter, adapter->if_handle, 0);
-do_none:
+	be_set_rx_mode(adapter->netdev);
+
+	status = be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
+	if (status)
+		goto err;
+	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc) {
+		status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
+					adapter->rx_fc);
+		if (status)
+			goto err;
+	}
+
+	pcie_set_readrq(adapter->pdev, 4096);
+
+	if (be_physfn(adapter) && adapter->sriov_enabled) {
+		status = be_vf_setup(adapter);
+		if (status)
+			goto err;
+	}
+
+	return 0;
+err:
+	be_clear(adapter);
 	return status;
 }
-
-static int be_clear(struct be_adapter *adapter)
-{
-	int vf;
-
-	if (be_physfn(adapter) && adapter->sriov_enabled)
-		be_vf_eth_addr_rem(adapter);
-
-	be_mcc_queues_destroy(adapter);
-	be_rx_queues_destroy(adapter);
-	be_tx_queues_destroy(adapter);
-	adapter->eq_next_idx = 0;
-
-	if (be_physfn(adapter) && adapter->sriov_enabled)
-		for (vf = 0; vf < num_vfs; vf++)
-			if (adapter->vf_cfg[vf].vf_if_handle)
-				be_cmd_if_destroy(adapter,
-					adapter->vf_cfg[vf].vf_if_handle,
-					vf + 1);
-
-	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
-
-	adapter->be3_native = 0;
-
-	/* tell fw we're done with firing cmds */
-	be_cmd_fw_clean(adapter);
-	return 0;
-}
-
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
 static bool be_flash_redboot(struct be_adapter *adapter,
@@ -2914,7 +2937,7 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
 	.ndo_start_xmit		= be_xmit,
-	.ndo_set_rx_mode	= be_set_multicast_list,
+	.ndo_set_rx_mode	= be_set_rx_mode,
 	.ndo_set_mac_address	= be_mac_addr_set,
 	.ndo_change_mtu		= be_change_mtu,
 	.ndo_get_stats		= be_get_stats,
@@ -2948,10 +2971,6 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->flags |= IFF_MULTICAST;
 
 	adapter->rx_csum = true;
-
-	/* Default settings for Rx and Tx flow control */
-	adapter->rx_fc = true;
-	adapter->tx_fc = true;
 
 	netif_set_gso_max_size(netdev, 65535);
 
@@ -3133,7 +3152,6 @@ static void __devexit be_remove(struct pci_dev *pdev)
 
 	be_ctrl_cleanup(adapter);
 
-	kfree(adapter->vf_cfg);
 	be_sriov_disable(adapter);
 
 	be_msix_disable(adapter);
@@ -3148,29 +3166,11 @@ static void __devexit be_remove(struct pci_dev *pdev)
 static int be_get_config(struct be_adapter *adapter)
 {
 	int status;
-	u8 mac[ETH_ALEN];
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
 			&adapter->function_mode, &adapter->function_caps);
 	if (status)
 		return status;
-
-	memset(mac, 0, ETH_ALEN);
-
-	/* A default permanent address is given to each VF for Lancer*/
-	if (be_physfn(adapter) || lancer_chip(adapter)) {
-		status = be_cmd_mac_addr_query(adapter, mac,
-			MAC_ADDRESS_TYPE_NETWORK, true /*permanent */, 0);
-
-		if (status)
-			return status;
-
-		if (!is_valid_ether_addr(mac))
-			return -EADDRNOTAVAIL;
-
-		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
-		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
-	}
 
 	if (adapter->function_mode & 0x400)
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
@@ -3320,18 +3320,13 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		}
 	}
 
-	be_sriov_enable(adapter);
-	if (adapter->sriov_enabled) {
-		adapter->vf_cfg = kcalloc(num_vfs,
-			sizeof(struct be_vf_cfg), GFP_KERNEL);
-
-		if (!adapter->vf_cfg)
-			goto free_netdev;
-	}
+	status = be_sriov_enable(adapter);
+	if (status)
+		goto free_netdev;
 
 	status = be_ctrl_init(adapter);
 	if (status)
-		goto free_vf_cfg;
+		goto disable_sriov;
 
 	if (lancer_chip(adapter)) {
 		status = lancer_test_and_set_rdy_state(adapter);
@@ -3374,6 +3369,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	be_msix_enable(adapter);
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
+	adapter->rx_fc = adapter->tx_fc = true;
 
 	status = be_setup(adapter);
 	if (status)
@@ -3384,33 +3380,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status != 0)
 		goto unsetup;
 
-	if (be_physfn(adapter) && adapter->sriov_enabled) {
-		u8 mac_speed;
-		u16 vf, lnk_speed;
-
-		if (!lancer_chip(adapter)) {
-			status = be_vf_eth_addr_config(adapter);
-			if (status)
-				goto unreg_netdev;
-		}
-
-		for (vf = 0; vf < num_vfs; vf++) {
-			status = be_cmd_link_status_query(adapter, &mac_speed,
-						&lnk_speed, vf + 1);
-			if (!status)
-				adapter->vf_cfg[vf].vf_tx_rate = lnk_speed * 10;
-			else
-				goto unreg_netdev;
-		}
-	}
-
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 
-unreg_netdev:
-	unregister_netdev(netdev);
 unsetup:
 	be_clear(adapter);
 msix_disable:
@@ -3419,10 +3393,9 @@ stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
 	be_ctrl_cleanup(adapter);
-free_vf_cfg:
-	kfree(adapter->vf_cfg);
-free_netdev:
+disable_sriov:
 	be_sriov_disable(adapter);
+free_netdev:
 	free_netdev(netdev);
 	pci_set_drvdata(pdev, NULL);
 rel_reg:
@@ -3449,7 +3422,6 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 		be_close(netdev);
 		rtnl_unlock();
 	}
-	be_cmd_get_flow_control(adapter, &adapter->tx_fc, &adapter->rx_fc);
 	be_clear(adapter);
 
 	be_msix_disable(adapter);
