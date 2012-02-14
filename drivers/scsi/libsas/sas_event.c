@@ -26,6 +26,65 @@
 #include "sas_internal.h"
 #include "sas_dump.h"
 
+static void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work)
+{
+	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
+		return;
+
+	if (test_bit(SAS_HA_DRAINING, &ha->state))
+		list_add(&work->entry, &ha->defer_q);
+	else
+		scsi_queue_work(ha->core.shost, work);
+}
+
+static void sas_queue_event(int event, unsigned long *pending,
+			    struct work_struct *work,
+			    struct sas_ha_struct *ha)
+{
+	if (!test_and_set_bit(event, pending)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ha->state_lock, flags);
+		sas_queue_work(ha, work);
+		spin_unlock_irqrestore(&ha->state_lock, flags);
+	}
+}
+
+int sas_drain_work(struct sas_ha_struct *ha)
+{
+	struct Scsi_Host *shost = ha->core.shost;
+	struct work_struct *w, *_w;
+	int err, i;
+
+	err = mutex_lock_interruptible(&ha->drain_mutex);
+	if (err)
+		return err;
+
+	set_bit(SAS_HA_DRAINING, &ha->state);
+	/* flush submitters */
+	spin_lock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->state_lock);
+
+	/* 
+	   For RHEL6 substitute drain_workqueue with manual flush,
+	   this will still flush late to arrive unchained events.
+	*/
+	for (i=0; i<3; i++)
+		scsi_flush_work(shost);
+
+	spin_lock_irq(&ha->state_lock);
+	clear_bit(SAS_HA_DRAINING, &ha->state);
+	list_for_each_entry_safe(w, _w, &ha->defer_q, entry) {
+		list_del_init(&w->entry);
+		sas_queue_work(ha, w);
+	}
+	spin_unlock_irq(&ha->state_lock);
+	mutex_unlock(&ha->drain_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sas_drain_work);
+
 static void notify_ha_event(struct sas_ha_struct *sas_ha, enum ha_event event)
 {
 	BUG_ON(event >= HA_NUM_EVENTS);
