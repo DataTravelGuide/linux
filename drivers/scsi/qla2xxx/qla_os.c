@@ -144,7 +144,7 @@ MODULE_PARM_DESC(ql2xmultique_tag,
 		"Set it to 1 to turn on the cpu affinity.");
 
 int ql2xfwloadbin;
-module_param(ql2xfwloadbin, int, S_IRUGO);
+module_param(ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Option to specify location from which to load ISP firmware:\n"
 		" 2 -- load firmware via the request_firmware() (hotplug)\n"
@@ -159,14 +159,14 @@ MODULE_PARM_DESC(ql2xetsenable,
 		"Default is 0 - skip ETS enablement.");
 
 int ql2xdbwr = 1;
-module_param(ql2xdbwr, int, S_IRUGO);
+module_param(ql2xdbwr, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xdbwr,
 		"Option to specify scheme for request queue posting\n"
 		" 0 -- Regular doorbell.\n"
 		" 1 -- CAMRAM doorbell (faster).\n");
 
 int ql2xdontresethba;
-module_param(ql2xdontresethba, int, S_IRUGO);
+module_param(ql2xdontresethba, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xdontresethba,
 		"Option to specify reset behaviour\n"
 		" 0 (Default) -- Reset on failure.\n"
