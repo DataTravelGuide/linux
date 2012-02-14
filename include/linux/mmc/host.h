@@ -126,6 +126,7 @@ struct mmc_host_ops {
 	void	(*enable_sdio_irq)(struct mmc_host *host, int enable);
 
 	int	(*start_signal_voltage_switch)(struct mmc_host *host, struct mmc_ios *ios);
+	int	(*execute_tuning)(struct mmc_host *host);
 };
 
 struct mmc_card;

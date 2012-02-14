@@ -151,6 +151,8 @@
 #define   SDHCI_CTRL_DRV_TYPE_A		0x0010
 #define   SDHCI_CTRL_DRV_TYPE_C		0x0020
 #define   SDHCI_CTRL_DRV_TYPE_D		0x0030
+#define  SDHCI_CTRL_EXEC_TUNING		0x0040
+#define  SDHCI_CTRL_TUNED_CLK		0x0080
 #define  SDHCI_CTRL_PRESET_VAL_ENABLE	0x8000
 
 #define SDHCI_CAPABILITIES	0x40
@@ -177,6 +179,7 @@
 #define  SDHCI_DRIVER_TYPE_A	0x00000010
 #define  SDHCI_DRIVER_TYPE_C	0x00000020
 #define  SDHCI_DRIVER_TYPE_D	0x00000040
+#define  SDHCI_USE_SDR50_TUNING	0x00002000
 
 #define SDHCI_CAPABILITIES_1	0x44
 
@@ -304,6 +307,7 @@ struct sdhci_host {
 #define SDHCI_USE_ADMA		(1<<1)		/* Host is ADMA capable */
 #define SDHCI_REQ_USE_DMA	(1<<2)		/* Use DMA for this req. */
 #define SDHCI_DEVICE_DEAD	(1<<3)		/* Device unresponsive */
+#define SDHCI_SDR50_NEEDS_TUNING (1<<4)        /* SDR50 needs tuning */
 
 	unsigned int		version;	/* SDHCI spec. version */
 
@@ -335,6 +339,9 @@ struct sdhci_host {
 	struct timer_list	timer;		/* Timer for timeouts */
 
 	unsigned int		caps;		/* Alternative capabilities */
+
+	wait_queue_head_t	buf_ready_int;	/* Waitqueue for Buffer Read Ready interrupt */
+	unsigned int		tuning_done;	/* Condition flag set when CMD19 succeeds */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
