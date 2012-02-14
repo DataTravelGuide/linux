@@ -319,7 +319,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 	}
 
-	err = mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid);
+	err = mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid, NULL);
 
 	if (!err) {
 		card->type = MMC_TYPE_SD_COMBO;
