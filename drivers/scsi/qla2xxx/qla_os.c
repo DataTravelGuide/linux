@@ -92,17 +92,21 @@ MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to report for target devices.");
 
 /* Do not change the value of this after module load */
-int ql2xenabledif = 1;
+int ql2xenabledif = 0;
 module_param(ql2xenabledif, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xenabledif,
 		" Enable T10-CRC-DIF "
-		" Default is 0 - No DIF Support. 1 - Enable it");
+		" Default is 0 - No DIF Support. 1 - Enable it"
+		", 2 - Enable DIF for all types, except Type 0.");
 
-int ql2xenablehba_err_chk;
+int ql2xenablehba_err_chk = 2;
 module_param(ql2xenablehba_err_chk, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xenablehba_err_chk,
-		" Enable T10-CRC-DIF Error isolation by HBA"
-		" Default is 0 - Error isolation disabled, 1 - Enable it");
+		" Enable T10-CRC-DIF Error isolation by HBA:\n"
+		" Default is 1.\n"
+		"  0 -- Error isolation disabled\n"
+		"  1 -- Error isolation enabled only for DIX Type 0\n"
+		"  2 -- Error isolation enabled for all Types\n");
 
 int ql2xqfulltracking = 1;
 module_param(ql2xqfulltracking, int, S_IRUGO|S_IWUSR);
@@ -2221,12 +2225,15 @@ skip_dpc:
 
 	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
+			int prot = 0;
 			base_vha->flags.difdix_supported = 1;
 			DEBUG18(qla_printk(KERN_INFO, ha,
 			    "Registering for DIF/DIX type 1 and 3"
 			    " protection.\n"));
+			if (ql2xenabledif == 1)
+				prot = SHOST_DIX_TYPE0_PROTECTION;
 			scsi_host_set_prot(host,
-			    SHOST_DIF_TYPE1_PROTECTION
+			    prot | SHOST_DIF_TYPE1_PROTECTION
 			    | SHOST_DIF_TYPE2_PROTECTION
 			    | SHOST_DIF_TYPE3_PROTECTION
 			    | SHOST_DIX_TYPE1_PROTECTION
