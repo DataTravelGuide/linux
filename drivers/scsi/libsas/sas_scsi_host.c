@@ -215,7 +215,7 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 		}
 
 		/* If the device fell off, no sense in issuing commands */
-		if (dev->gone) {
+		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			cmd->result = DID_BAD_TARGET << 16;
 			scsi_done(cmd);
 			goto out;

@@ -172,7 +172,10 @@ struct sata_device {
 	struct ata_taskfile tf;
 };
 
-/* ---------- Domain device ---------- */
+enum {
+	SAS_DEV_GONE,
+};
+
 struct domain_device {
         enum sas_dev_type dev_type;
 
@@ -204,7 +207,7 @@ struct domain_device {
         };
 
         void *lldd_dev;
-	int gone;
+	unsigned long state;
 	struct kref kref;
 };
 
