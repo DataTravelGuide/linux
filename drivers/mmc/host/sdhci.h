@@ -180,7 +180,11 @@
 #define  SDHCI_DRIVER_TYPE_A	0x00000010
 #define  SDHCI_DRIVER_TYPE_C	0x00000020
 #define  SDHCI_DRIVER_TYPE_D	0x00000040
-#define  SDHCI_USE_SDR50_TUNING	0x00002000
+#define  SDHCI_RETUNING_TIMER_COUNT_MASK	0x00000F00
+#define  SDHCI_RETUNING_TIMER_COUNT_SHIFT	8
+#define  SDHCI_USE_SDR50_TUNING			0x00002000
+#define  SDHCI_RETUNING_MODE_MASK		0x0000C000
+#define  SDHCI_RETUNING_MODE_SHIFT		14
 #define  SDHCI_CLOCK_MUL_MASK	0x00FF0000
 #define  SDHCI_CLOCK_MUL_SHIFT	16
 
@@ -311,6 +315,7 @@ struct sdhci_host {
 #define SDHCI_REQ_USE_DMA	(1<<2)		/* Use DMA for this req. */
 #define SDHCI_DEVICE_DEAD	(1<<3)		/* Device unresponsive */
 #define SDHCI_SDR50_NEEDS_TUNING (1<<4)        /* SDR50 needs tuning */
+#define SDHCI_NEEDS_RETUNING	(1<<5)		/* Host needs retuning */
 
 	unsigned int		version;	/* SDHCI spec. version */
 
@@ -346,6 +351,11 @@ struct sdhci_host {
 
 	wait_queue_head_t	buf_ready_int;	/* Waitqueue for Buffer Read Ready interrupt */
 	unsigned int		tuning_done;	/* Condition flag set when CMD19 succeeds */
+
+	unsigned int		tuning_count;	/* Timer count for re-tuning */
+	unsigned int		tuning_mode;	/* Re-tuning mode supported by host */
+#define SDHCI_TUNING_MODE_1    0
+	struct timer_list	tuning_timer;	/* Timer for tuning */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
