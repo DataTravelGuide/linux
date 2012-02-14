@@ -544,7 +544,7 @@ extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 
 /* IOCB related functions */
 extern int qla82xx_start_scsi(srb_t *);
-extern void qla82xx_start_iocbs(srb_t *);
+extern void qla82xx_start_iocbs(scsi_qla_host_t *);
 
 /* Interrupt related */
 extern irqreturn_t qla82xx_intr_handler(int, void *);
