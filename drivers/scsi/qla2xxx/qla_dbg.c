@@ -18,11 +18,11 @@
  * |                              |                    | 0x302e         |
  * | DPC Thread                   |       0x401c       |		|
  * | Async Events                 |       0x5057       | 0x5052		|
- * | Timer Routines               |       0x600d       |		|
+ * | Timer Routines               |       0x6010       |		|
  * | User Space Interactions      |       0x709e       |		|
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
  * |                              |                    | 0x800b         |
- * | AER/EEH                      |       0x900f       |		|
+ * | AER/EEH                      |       0x900f       | 0x9001		|
  * | Virtual Port                 |       0xa007       |		|
  * | ISP82XX Specific             |       0xb051       |    		|
  * | MultiQ                       |       0xc00b       |		|
