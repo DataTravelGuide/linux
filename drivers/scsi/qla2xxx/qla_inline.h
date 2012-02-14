@@ -168,3 +168,16 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
 }
+
+static inline int
+qla2x00_reset_active(scsi_qla_host_t *vha)
+{
+	scsi_qla_host_t *base_vha = pci_get_drvdata(vha->hw->pdev);
+
+	/* Test appropriate base-vha and vha flags. */
+	return test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags) ||
+	    test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_RETRY, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
+	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
+}
