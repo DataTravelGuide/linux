@@ -492,19 +492,19 @@ static struct net_device_stats *be_get_stats(struct net_device *netdev)
 	return dev_stats;
 }
 
-void be_link_status_update(struct be_adapter *adapter, u32 link_status)
+void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	/* when link status changes, link speed must be re-queried from card */
-	adapter->link_speed = -1;
-	if ((link_status & LINK_STATUS_MASK) == LINK_UP) {
-		netif_carrier_on(netdev);
-		dev_info(&adapter->pdev->dev, "%s: Link up\n", netdev->name);
-	} else {
+	if (!(adapter->flags & BE_FLAGS_LINK_STATUS_INIT)) {
 		netif_carrier_off(netdev);
-		dev_info(&adapter->pdev->dev, "%s: Link down\n", netdev->name);
+		adapter->flags |= BE_FLAGS_LINK_STATUS_INIT;
 	}
+
+	if ((link_status & LINK_STATUS_MASK) == LINK_UP)
+		netif_carrier_on(netdev);
+	else
+		netif_carrier_off(netdev);
 }
 
 static void be_tx_stats_update(struct be_tx_obj *txo,
@@ -2403,6 +2403,7 @@ static int be_open(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	struct be_rx_obj *rxo;
+	u8 link_status;
 	int status, i;
 
 	status = be_rx_queues_setup(adapter);
@@ -2425,6 +2426,11 @@ static int be_open(struct net_device *netdev)
 
 	/* Now that interrupts are on we can process async mcc */
 	be_async_mcc_enable(adapter);
+
+	status = be_cmd_link_status_query(adapter, NULL, NULL,
+					  &link_status, 0);
+	if (!status)
+		be_link_status_update(adapter, link_status);
 
 	return 0;
 err:
@@ -2573,7 +2579,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
-						  vf + 1);
+						  NULL, vf + 1);
 		if (status)
 			goto err;
 		vf_cfg->tx_rate = lnk_speed * 10;
