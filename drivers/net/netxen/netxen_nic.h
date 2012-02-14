@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 77
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.77"
+#define _NETXEN_NIC_LINUX_SUBVERSION 78
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.78"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -1723,6 +1723,14 @@ void netxen_pcie_sem_unlock(struct netxen_adapter *, int);
 	netxen_pcie_sem_lock((a), 7, NETXEN_CRB_WIN_LOCK_ID)
 #define crb_win_unlock(a)	\
 	netxen_pcie_sem_unlock((a), 7)
+
+#ifndef SPEED_UNKNOWN
+#define SPEED_UNKNOWN 0x0
+#endif
+
+#ifndef DUPLEX_UNKNOWN
+#define DUPLEX_UNKNOWN 0xff
+#endif
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter);
 int netxen_nic_wol_supported(struct netxen_adapter *adapter);
