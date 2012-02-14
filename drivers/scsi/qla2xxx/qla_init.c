@@ -1518,10 +1518,8 @@ enable_82xx_npiv:
 				    &ha->fw_xcb_count, NULL, NULL,
 				    &ha->max_npiv_vports, NULL);
 
-				if (!fw_major_version && ql2xallocfwdump) {
-					if (!IS_QLA82XX(ha))
-						qla2x00_alloc_fw_dump(vha);
-				}
+				if (!fw_major_version && ql2xallocfwdump)
+					qla2x00_alloc_fw_dump(vha);
 			}
 		} else {
 			DEBUG2(printk(KERN_INFO

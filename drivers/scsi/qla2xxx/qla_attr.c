@@ -22,11 +22,23 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	int rval = 0;
 
 	if (ha->fw_dump_reading == 0)
 		return 0;
 
-	return memory_read_from_buffer(buf, count, &off, ha->fw_dump,
+	if (IS_QLA82XX(ha)) {
+		if (off < ha->md_template_size) {
+			rval = memory_read_from_buffer(buf, count,
+			    &off, ha->md_tmplt_hdr, ha->md_template_size);
+			return rval;
+		}
+		*&off = (*&off - ha->md_template_size);
+		rval = memory_read_from_buffer(buf, count,
+		    &off, ha->md_dump, ha->md_dump_size);
+		return rval;
+	} else
+		return memory_read_from_buffer(buf, count, &off, ha->fw_dump,
 					ha->fw_dump_len);
 }
 
@@ -40,12 +52,6 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
 
-	if (IS_QLA82XX(ha)) {
-		DEBUG2(qla_printk(KERN_INFO, ha,
-			"Firmware dump not supported for ISP82xx\n"));
-		return count;
-        }
-
 	if (off != 0)
 		return (0);
 
@@ -57,6 +63,11 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 
 		qla_printk(KERN_INFO, ha,
 		    "Firmware dump cleared on (%ld).\n", vha->host_no);
+
+		if (IS_QLA82XX(vha->hw)) {
+			qla82xx_md_free(vha);
+			qla82xx_md_prep(vha);
+		}
 
 		ha->fw_dump_reading = 0;
 		ha->fw_dumped = 0;
@@ -74,7 +85,28 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		qla2x00_alloc_fw_dump(vha);
 		break;
 	case 3:
-		qla2x00_system_error(vha);
+		if (IS_QLA82XX(ha)) {
+			qla82xx_idc_lock(ha);
+			qla82xx_set_reset_owner(vha);
+			qla82xx_idc_unlock(ha);
+		} else
+			qla2x00_system_error(vha);
+		break;
+	case 4:
+		if (IS_QLA82XX(ha)) {
+			if (ha->md_tmplt_hdr)
+				DEBUG(qla_printk(KERN_INFO, ha,
+				    "MiniDump supported with this "
+				    "firmware.\n"));
+			else
+				DEBUG(qla_printk(KERN_INFO, ha,
+				    "MiniDump not supported with this "
+				    "firmware.\n"));
+		}
+		break;
+	case 5:
+		if (IS_QLA82XX(ha))
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 	}
 	return (count);
@@ -543,6 +575,11 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 
 		scsi_block_requests(vha->host);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		if (IS_QLA82XX(ha)) {
+			qla82xx_idc_lock(ha);
+			qla82xx_set_reset_owner(vha);
+			qla82xx_idc_unlock(ha);
+		}
 		qla2xxx_wake_dpc(vha);
 		qla2x00_wait_for_chip_reset(vha);
 		scsi_unblock_requests(vha->host);
