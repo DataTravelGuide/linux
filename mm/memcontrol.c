@@ -1831,6 +1831,7 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 
 	if (PageTransHuge(page)) {
 		page_size <<= compound_order(page);
+		VM_BUG_ON(!PageTransHuge(page));
 		/*
 		 * Never OOM-kill a process for a huge page.  The
 		 * fault handler will fall back to regular pages.
@@ -2056,8 +2057,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	if (PageSwapCache(page))
 		return NULL;
 
-	if (PageTransHuge(page))
+	if (PageTransHuge(page)) {
 		page_size <<= compound_order(page);
+		VM_BUG_ON(!PageTransHuge(page));
+	}
 
 	/*
 	 * Check if our page_cgroup is valid
