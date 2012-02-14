@@ -5638,12 +5638,20 @@ qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return QLA_FUNCTION_FAILED;
 
 	ret = qla24xx_set_fcp_prio(vha, fcport->loop_id, priority, mb);
-	if (ret == QLA_SUCCESS)
+	if (ret == QLA_SUCCESS) {
+		if (fcport->fcp_prio != priority)
+			DEBUG(qla_printk(KERN_INFO, vha->hw, "scsi(%ld): "
+			    "Updated FCP_CMND priority - value=%d loop_id=%d "
+			    "port_id=%02x%02x%02x.\n", vha->host_no, priority,
+			    fcport->loop_id, fcport->d_id.b.domain,
+			    fcport->d_id.b.area, fcport->d_id.b.al_pa));
 		fcport->fcp_prio = priority;
-	else
-		DEBUG2(printk(KERN_WARNING
-			"scsi(%ld): Unable to activate fcp priority, "
-			" ret=0x%x\n", vha->host_no, ret));
+	} else
+		DEBUG(qla_printk(KERN_INFO, vha->hw, "scsi(%ld): "
+		    "Unable to update FCP_CMND priority - ret=0x%x for "
+		    "loop_id=%d port_id=%02x%02x%02x.\n", vha->host_no, ret,
+		    fcport->loop_id, fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa));
 
 	return  ret;
 }
