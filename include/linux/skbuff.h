@@ -140,6 +140,26 @@ struct skb_frag_struct {
 	__u32 size;
 };
 
+static inline unsigned int skb_frag_size(const skb_frag_t *frag)
+{
+	return frag->size;
+}
+
+static inline void skb_frag_size_set(skb_frag_t *frag, unsigned int size)
+{
+	frag->size = size;
+}
+
+static inline void skb_frag_size_add(skb_frag_t *frag, int delta)
+{
+	frag->size += delta;
+}
+
+static inline void skb_frag_size_sub(skb_frag_t *frag, int delta)
+{
+	frag->size -= delta;
+}
+
 #define HAVE_HW_TIME_STAMP
 
 /**
@@ -1076,7 +1096,7 @@ static inline int skb_pagelen(const struct sk_buff *skb)
 	int i, len = 0;
 
 	for (i = (int)skb_shinfo(skb)->nr_frags - 1; i >= 0; i--)
-		len += skb_shinfo(skb)->frags[i].size;
+		len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
 	return len + skb_headlen(skb);
 }
 
@@ -1100,7 +1120,7 @@ static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
 
 	frag->page		  = page;
 	frag->page_offset	  = off;
-	frag->size		  = size;
+	skb_frag_size_set(frag, size);
 }
 
 /**
@@ -1814,10 +1834,10 @@ static inline int skb_can_coalesce(struct sk_buff *skb, int i,
 				   struct page *page, int off)
 {
 	if (i) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
+		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
 
 		return page == frag->page &&
-		       off == frag->page_offset + frag->size;
+		       off == frag->page_offset + skb_frag_size(frag);
 	}
 	return 0;
 }
