@@ -2355,13 +2355,13 @@ ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 	va_start(va, fmt);
 
 	switch (level) {
-	case 0: /* FATAL LOG */
+	case ql_log_fatal: /* FATAL LOG */
 		pr_crit("%s", pbuf);
 		break;
-	case 1:
+	case ql_log_warn:
 		pr_err("%s", pbuf);
 		break;
-	case 2:
+	case ql_log_info:
 		pr_warning("%s", pbuf);
 		break;
 	default:
@@ -2405,13 +2405,13 @@ ql_log_pci(uint32_t level, struct pci_dev *pdev, int32_t id,
 	va_start(va, fmt);
 
 	switch (level) {
-	case 0: /* FATAL LOG */
+	case ql_log_fatal: /* FATAL LOG */
 		pr_crit("%s", pbuf);
 		break;
-	case 1:
+	case ql_log_warn:
 		pr_err("%s", pbuf);
 		break;
-	case 2:
+	case ql_log_info:
 		pr_warning("%s", pbuf);
 		break;
 	default:
