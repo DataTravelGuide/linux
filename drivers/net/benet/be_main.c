@@ -2527,6 +2527,7 @@ static int be_setup(struct be_adapter *adapter)
 
 	adapter->link_speed = -1;
 
+	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
 	return 0;
 
 rx_qs_destroy:
@@ -3147,10 +3148,6 @@ static int be_get_config(struct be_adapter *adapter)
 {
 	int status;
 	u8 mac[ETH_ALEN];
-
-	status = be_cmd_get_fw_ver(adapter, adapter->fw_ver);
-	if (status)
-		return status;
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
 			&adapter->function_mode, &adapter->function_caps);
