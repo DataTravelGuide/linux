@@ -4647,8 +4647,6 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	netif_device_detach(netdev);
 
-	mutex_lock(&adapter->mutex);
-
 	if (netif_running(netdev)) {
 		WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 		e1000_down(adapter);
@@ -4656,10 +4654,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
-	if (retval) {
-		mutex_unlock(&adapter->mutex);
+	if (retval)
 		return retval;
-	}
 #endif
 
 	status = er32(STATUS);
@@ -4713,8 +4709,6 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	if (netif_running(netdev))
 		e1000_free_irq(adapter);
-
-	mutex_unlock(&adapter->mutex);
 
 	pci_disable_device(pdev);
 
