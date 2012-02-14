@@ -50,15 +50,11 @@ static void sas_queue_event(int event, unsigned long *pending,
 	}
 }
 
-int sas_drain_work(struct sas_ha_struct *ha)
+void __sas_drain_work(struct sas_ha_struct *ha)
 {
 	struct Scsi_Host *shost = ha->core.shost;
 	struct work_struct *w, *_w;
-	int err, i;
-
-	err = mutex_lock_interruptible(&ha->drain_mutex);
-	if (err)
-		return err;
+	int i;
 
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
@@ -79,6 +75,17 @@ int sas_drain_work(struct sas_ha_struct *ha)
 		sas_queue_work(ha, w);
 	}
 	spin_unlock_irq(&ha->state_lock);
+}
+
+int sas_drain_work(struct sas_ha_struct *ha)
+{
+	int err;
+
+	err = mutex_lock_interruptible(&ha->drain_mutex);
+	if (err)
+		return err;
+	if (test_bit(SAS_HA_REGISTERED, &ha->state))
+		__sas_drain_work(ha);
 	mutex_unlock(&ha->drain_mutex);
 
 	return 0;
