@@ -3139,12 +3139,7 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 	fw_minor_version = ha->fw_minor_version;
 	fw_subminor_version = ha->fw_subminor_version;
 
-	rval = qla2x00_get_fw_version(vha, &ha->fw_major_version,
-	    &ha->fw_minor_version, &ha->fw_subminor_version,
-	    &ha->fw_attributes, &ha->fw_memory_size,
-	    ha->mpi_version, &ha->mpi_capabilities,
-	    ha->phy_version);
-
+	rval = qla2x00_get_fw_version(vha);
 	if (rval != QLA_SUCCESS)
 		return rval;
 
@@ -3153,7 +3148,6 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 			if (fw_major_version != ha->fw_major_version ||
 			    fw_minor_version != ha->fw_minor_version ||
 			    fw_subminor_version != ha->fw_subminor_version) {
-
 				ql_log(ql_log_info, vha, 0xb02d,
 				    "Firmware version differs "
 				    "Previous version: %d:%d:%d - "

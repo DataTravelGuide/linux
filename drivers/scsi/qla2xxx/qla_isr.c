@@ -288,7 +288,7 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		mb[cnt] = RD_REG_WORD(wptr);
 
 	ql_dbg(ql_dbg_async, vha, 0x5021,
-	    "Inter-Driver Commucation %s -- "
+	    "Inter-Driver Communication %s -- "
 	    "%04x %04x %04x %04x %04x %04x %04x.\n",
 	    event[aen & 0xff], mb[0], mb[1], mb[2], mb[3],
 	    mb[4], mb[5], mb[6]);
@@ -317,7 +317,7 @@ void
 qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 {
 #define LS_UNKNOWN	2
-	static char	*link_speeds[] = { "1", "2", "?", "4", "8", "10" };
+	static char	*link_speeds[] = { "1", "2", "?", "4", "8", "16", "10" };
 	char		*link_speed;
 	uint16_t	handle_cnt;
 	uint16_t	cnt, mbx;
@@ -332,7 +332,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
-	if (IS_QLA8XXX_TYPE(ha))
+	if (IS_CNA_CAPABLE(ha))
 		goto skip_rio;
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:
@@ -404,7 +404,8 @@ skip_rio:
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
-		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox7) : 0;
+		mbx = (IS_QLA81XX(ha) || IS_QLA83XX(ha)) ?
+			RD_REG_WORD(&reg24->mailbox7) : 0;
 		ql_log(ql_log_warn, vha, 0x5003,
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh "
 		    "mbx7=%xh.\n", mb[1], mb[2], mb[3], mbx);
@@ -417,6 +418,7 @@ skip_rio:
 				    "Unrecoverable Hardware Error: adapter "
 				    "marked OFFLINE!\n");
 				vha->flags.online = 0;
+				vha->device_flags |= DFLG_DEV_FAILED;
 			} else {
 				/* Check to see if MPI timeout occured */
 				if ((mbx & MBX_3) && (ha->flags.port0))
@@ -430,6 +432,7 @@ skip_rio:
 			    "Unrecoverable Hardware Error: adapter marked "
 			    "OFFLINE!\n");
 			vha->flags.online = 0;
+			vha->device_flags |= DFLG_DEV_FAILED;
 		} else
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
@@ -481,10 +484,10 @@ skip_rio:
 			ha->link_data_rate = PORT_SPEED_1GB;
 		} else {
 			link_speed = link_speeds[LS_UNKNOWN];
-			if (mb[1] < 5)
+			if (mb[1] < 6)
 				link_speed = link_speeds[mb[1]];
 			else if (mb[1] == 0x13)
-				link_speed = link_speeds[5];
+				link_speed = link_speeds[6];
 			ha->link_data_rate = mb[1];
 		}
 
@@ -496,7 +499,8 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
-		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox4) : 0;
+		mbx = (IS_QLA81XX(ha) || IS_QLA8031(ha))
+			? RD_REG_WORD(&reg24->mailbox4) : 0;
 		mbx = IS_QLA82XX(ha) ? RD_REG_WORD(&reg82->mailbox_out[4]): mbx;
 		ql_dbg(ql_dbg_async, vha, 0x500b,
 		    "LOOP DOWN detected (%x %x %x %x).\n",
@@ -546,7 +550,7 @@ skip_rio:
 		if (IS_QLA2100(ha))
 			break;
 
-		if (IS_QLA8XXX_TYPE(ha)) {
+		if (IS_QLA81XX(ha) || IS_QLA82XX(ha) || IS_QLA8031(ha)) {
 			ql_dbg(ql_dbg_async, vha, 0x500d,
 			    "DCBX Completed -- %04x %04x %04x.\n",
 			    mb[1], mb[2], mb[3]);
@@ -808,6 +812,10 @@ skip_rio:
 	case MBA_IDC_TIME_EXT:
 		qla81xx_idc_event(vha, mb[0], mb[1]);
 		break;
+	default:
+		ql_dbg(ql_dbg_async, vha, 0x5057,
+		    "Unknown AEN:%04x %04x %04x %04x\n",
+		    mb[0], mb[1], mb[2], mb[3]);
 	}
 
 	if (!vha->vp_idx && ha->num_vhosts)
@@ -2126,7 +2134,7 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
-	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha))
+	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		return;
 
 	rval = QLA_SUCCESS;
@@ -2167,7 +2175,7 @@ done:
 }
 
 /**
- * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
+ * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP24xx.
  * @irq:
  * @dev_id: SCSI driver HA context
  *
@@ -2529,8 +2537,14 @@ msix_failed:
 	}
 
 	/* Enable MSI-X vector for response queue update for queue 0 */
-	if (ha->mqiobase &&  (ha->max_rsp_queues > 1 || ha->max_req_queues > 1))
-		ha->mqenable = 1;
+	if (IS_QLA83XX(ha)) {
+		if (ha->msixbase && ha->mqiobase &&
+		    (ha->max_rsp_queues > 1 || ha->max_req_queues > 1))
+			ha->mqenable = 1;
+	} else
+		if (ha->mqiobase
+		    && (ha->max_rsp_queues > 1 || ha->max_req_queues > 1))
+			ha->mqenable = 1;
 	ql_dbg(ql_dbg_multiq, vha, 0xc005,
 	    "mqiobase=%p, max_rsp_queues=%d, max_req_queues=%d.\n",
 	    ha->mqiobase, ha->max_rsp_queues, ha->max_req_queues);
@@ -2551,8 +2565,8 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	/* If possible, enable MSI-X. */
-	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
-		!IS_QLA8432(ha) && !IS_QLA8XXX_TYPE(ha))
+	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		goto skip_msi;
 
 	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
@@ -2614,7 +2628,7 @@ clear_risc_ints:
 	 * FIXME: Noted that 8014s were being dropped during NK testing.
 	 * Timing deltas during MSI-X/INTa transitions?
 	 */
-	if (IS_QLA81XX(ha) || IS_QLA82XX(ha))
+	if (IS_QLA81XX(ha) || IS_QLA82XX(ha) || IS_QLA83XX(ha))
 		goto fail;
 	spin_lock_irq(&ha->hardware_lock);
 	if (IS_FWI2_CAPABLE(ha)) {
