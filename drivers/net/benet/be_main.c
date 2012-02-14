@@ -932,7 +932,7 @@ static void be_rx_eqd_update(struct be_adapter *adapter, struct be_rx_obj *rxo)
 	if (delta < HZ)
 		return;
 
-	stats->rx_pps = (stats->rx_pkts - stats->rx_pkts_prev) / (delta / HZ);
+	stats->rx_pps = (unsigned long)(stats->rx_pkts - stats->rx_pkts_prev) / (delta / HZ);
 	stats->rx_pkts_prev = stats->rx_pkts;
 	stats->rx_jiffies = now;
 	eqd = stats->rx_pps / 110000;
