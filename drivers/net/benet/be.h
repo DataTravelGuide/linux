@@ -286,13 +286,11 @@ struct be_drv_stats {
 
 struct be_vf_cfg {
 	unsigned char vf_mac_addr[ETH_ALEN];
-	u32 vf_if_handle;
-	u32 vf_pmac_id;
+	int vf_if_handle;
+	int vf_pmac_id;
 	u16 vf_vlan_tag;
 	u32 vf_tx_rate;
 };
-
-#define BE_INVALID_PMAC_ID		0xffffffff
 
 struct be_adapter {
 	struct pci_dev *pdev;
@@ -346,7 +344,7 @@ struct be_adapter {
 	/* Ethtool knobs and info */
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
 	char fw_ver[FW_VER_LEN];
-	u32 if_handle;		/* Used to configure filtering */
+	int if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
 
 	bool eeh_err;
