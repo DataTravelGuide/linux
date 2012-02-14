@@ -48,6 +48,7 @@ struct mmc_ext_csd {
 
 struct sd_scr {
 	unsigned char		sda_vsn;
+	unsigned char		sda_spec3;
 	unsigned char		bus_widths;
 #define SD_SCR_BUS_WIDTH_1	(1<<0)
 #define SD_SCR_BUS_WIDTH_4	(1<<2)
@@ -55,6 +56,9 @@ struct sd_scr {
 
 struct sd_switch_caps {
 	unsigned int		hs_max_dtr;
+	unsigned int		sd3_bus_mode;
+	unsigned int		sd3_drv_type;
+	unsigned int		sd3_curr_limit;
 };
 
 struct sdio_cccr {
