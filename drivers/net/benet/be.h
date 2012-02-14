@@ -345,7 +345,6 @@ struct be_adapter {
 	u32 pmac_id;		/* MAC addr handle used by BE card */
 
 	bool eeh_err;
-	bool link_up;
 	u32 port_num;
 	bool promiscuous;
 	bool wol;
