@@ -3381,7 +3381,7 @@ qla82xx_watchdog(scsi_qla_host_t *vha)
 				    qla82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c),
 				    qla82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c),
 				    qla82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c));
-				if(LSW(MSB(halt_status)) == 0x67)
+				if(MSB(LSW(halt_status)) == 0x67)
 					ql_log(ql_log_warn, vha, 0xb052,
 					    "Firmware aborted with "
 					    "error code 0x00006700. Device is "
