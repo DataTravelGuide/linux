@@ -98,8 +98,9 @@ struct isci_port {
 	struct isci_host *isci_host;
 	struct list_head remote_dev_list;
 	struct list_head domain_dev_list;
-	struct completion hard_reset_complete;
 	enum sci_status hard_reset_status;
+	#define IPORT_RESET_PENDING 0
+	unsigned long state;
 	struct sci_base_state_machine sm;
 	bool ready_exit;
 	u8 logical_port_index;
