@@ -566,6 +566,7 @@ extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 
 /* Reset related */
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
+extern int qla82xx_check_md_needed(scsi_qla_host_t *);
 extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
 extern char *qdev_state(uint32_t);
 extern int qla82xx_mbx_beacon_ctl(scsi_qla_host_t *, int);
