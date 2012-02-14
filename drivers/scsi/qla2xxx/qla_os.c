@@ -2038,6 +2038,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (IS_QLA24XX(ha) || IS_QLA25XX(ha) || IS_QLA81XX(ha))
 		pdev->needs_freset = 1;
 
+	ha->prev_topology = 0;
+	ha->init_cb_size = sizeof(init_cb_t);
+	ha->link_data_rate = PORT_SPEED_UNKNOWN;
+	ha->optrom_size = OPTROM_SIZE_2300;
+
 	/* Assign ISP specific operations. */
 	max_id = MAX_TARGETS_2200;
 	if (IS_QLA2100(ha)) {
@@ -2154,11 +2159,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ql_log_pci(ql_log_info, pdev, 0x001d,
 	    "Found an ISP%04X irq %d iobase 0x%p.\n",
 	    pdev->device, pdev->irq, ha->iobase);
-	ha->prev_topology = 0;
-	ha->init_cb_size = sizeof(init_cb_t);
-	ha->link_data_rate = PORT_SPEED_UNKNOWN;
-	ha->optrom_size = OPTROM_SIZE_2300;
-
 	mutex_init(&ha->vport_lock);
 	init_completion(&ha->mbx_cmd_comp);
 	complete(&ha->mbx_cmd_comp);
