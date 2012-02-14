@@ -21,6 +21,7 @@
 
 #include <linux/leds.h>
 
+#include <linux/mmc/mmc.h>
 #include <linux/mmc/host.h>
 
 #include "sdhci.h"
