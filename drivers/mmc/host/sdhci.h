@@ -91,6 +91,7 @@
 #define  SDHCI_DIV_MASK	0xFF
 #define  SDHCI_DIV_MASK_LEN	8
 #define  SDHCI_DIV_HI_MASK	0x300
+#define  SDHCI_PROG_CLOCK_MODE	0x0020
 #define  SDHCI_CLOCK_CARD_EN	0x0004
 #define  SDHCI_CLOCK_INT_STABLE	0x0002
 #define  SDHCI_CLOCK_INT_EN	0x0001
@@ -180,6 +181,8 @@
 #define  SDHCI_DRIVER_TYPE_C	0x00000020
 #define  SDHCI_DRIVER_TYPE_D	0x00000040
 #define  SDHCI_USE_SDR50_TUNING	0x00002000
+#define  SDHCI_CLOCK_MUL_MASK	0x00FF0000
+#define  SDHCI_CLOCK_MUL_SHIFT	16
 
 #define SDHCI_CAPABILITIES_1	0x44
 
@@ -313,6 +316,7 @@ struct sdhci_host {
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
+	unsigned int		clk_mul;	/* Clock Muliplier value */
 
 	unsigned int		clock;		/* Current clock (MHz) */
 	u8			pwr;		/* Current voltage */
