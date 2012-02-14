@@ -139,6 +139,7 @@ static ctl_table raid_dir_table[] = {
 
 static ctl_table raid_root_table[] = {
 	{
+		.ctl_name	= CTL_DEV,
 		.procname	= "dev",
 		.maxlen		= 0,
 		.mode		= 0555,
