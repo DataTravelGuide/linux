@@ -757,6 +757,7 @@ void sas_ata_schedule_reset(struct domain_device *dev)
 	ata_port_schedule_eh(ap);
 	spin_unlock_irqrestore(ap->lock, flags);
 }
+EXPORT_SYMBOL_GPL(sas_ata_schedule_reset);
 
 void sas_ata_wait_eh(struct domain_device *dev)
 {
