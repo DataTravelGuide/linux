@@ -181,3 +181,10 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 }
+
+static inline int
+qla2x00_gid_list_size(struct qla_hw_data *ha)
+{
+	return (sizeof(struct gid_list_info) * ha->max_fibre_devices);
+}
+
