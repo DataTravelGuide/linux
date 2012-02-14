@@ -841,6 +841,13 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 
 		/* Card is an ultra-high-speed card */
 		mmc_sd_card_set_uhs(card);
+
+		/*
+		 * Since initialization is now complete, enable preset
+		 * value registers for UHS-I cards.
+		 */
+		if (host->ops->enable_preset_value)
+			host->ops->enable_preset_value(host, true);
 	} else {
 		/*
 		 * Attempt to change to high-speed (if supported)
@@ -1024,6 +1031,10 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
 	if (err)
 		return err;
+
+	/* Disable preset value enable if already set since last time */
+	if (host->ops->enable_preset_value)
+		host->ops->enable_preset_value(host, false);
 
 	mmc_sd_attach_bus_ops(host);
 
