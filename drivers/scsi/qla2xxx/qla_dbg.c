@@ -15,10 +15,11 @@
  * | Mailbox commands             |       0x113e       | 0x112c-0x112e, |
  * |                              |                    | 0x113a         |
  * | Device Discovery             |       0x2084       | 		|
- * | Queue Command and IO tracing |       0x302f       | 0x3008,0x302d  |
- * |                              |                    | 0x302e         |
+ * | Queue Command and IO tracing |       0x302f       | 0x3006,0x3008  |
+ * |                              |                    | 0x302d,0x302e  |
  * | DPC Thread                   |       0x401c       |		|
- * | Async Events                 |       0x5057       | 0x5052		|
+ * | Async Events                 |       0x5057       | 0x502b-0x502f  |
+ * |				  | 		       | 0x5047,0x5052  |
  * | Timer Routines               |       0x6011       | 0x600e-600f    |
  * | User Space Interactions      |       0x709e       |		|
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
