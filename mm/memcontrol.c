@@ -2050,14 +2050,14 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	struct mem_cgroup *mem = NULL;
 	int page_size = PAGE_SIZE;
 
-	if (PageTransHuge(page))
-		page_size <<= compound_order(page);
-
 	if (mem_cgroup_disabled())
 		return NULL;
 
 	if (PageSwapCache(page))
 		return NULL;
+
+	if (PageTransHuge(page))
+		page_size <<= compound_order(page);
 
 	/*
 	 * Check if our page_cgroup is valid
