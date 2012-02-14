@@ -160,9 +160,7 @@ static int sdio_enable_wide(struct mmc_card *card)
 	if (ret)
 		return ret;
 
-	mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
-
-	return 0;
+	return 1;
 }
 
 /*
@@ -188,10 +186,33 @@ static int sdio_disable_cd(struct mmc_card *card)
 	return mmc_io_rw_direct(card, 1, 0, SDIO_CCCR_IF, ctrl, NULL);
 }
 
+static int sdio_enable_4bit_bus(struct mmc_card *card)
+{
+	int err;
+
+	if (card->type == MMC_TYPE_SDIO)
+		return sdio_enable_wide(card);
+
+	if ((card->host->caps & MMC_CAP_4_BIT_DATA) &&
+		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+		if (err)
+			return err;
+	} else
+		return 0;
+
+	err = sdio_enable_wide(card);
+	if (err <= 0)
+		mmc_app_set_bus_width(card, MMC_BUS_WIDTH_1);
+
+	return err;
+}
+
+
 /*
  * Test if the card supports high-speed mode and, if so, switch to it.
  */
-static int sdio_enable_hs(struct mmc_card *card)
+static int mmc_sdio_switch_hs(struct mmc_card *card, int enable)
 {
 	int ret;
 	u8 speed;
@@ -206,13 +227,34 @@ static int sdio_enable_hs(struct mmc_card *card)
 	if (ret)
 		return ret;
 
-	speed |= SDIO_SPEED_EHS;
+	if (enable)
+		speed |= SDIO_SPEED_EHS;
+	else
+		speed &= ~SDIO_SPEED_EHS;
 
 	ret = mmc_io_rw_direct(card, 1, 0, SDIO_CCCR_SPEED, speed, NULL);
 	if (ret)
 		return ret;
 
 	return 1;
+}
+
+/*
+ * Enable SDIO/combo card's high-speed mode. Return 0/1 if [not]supported.
+ */
+static int sdio_enable_hs(struct mmc_card *card)
+{
+	int ret;
+
+	ret = mmc_sdio_switch_hs(card, true);
+	if (ret <= 0 || card->type == MMC_TYPE_SDIO)
+		return ret;
+
+	ret = mmc_sd_switch_hs(card);
+	if (ret <= 0)
+		mmc_sdio_switch_hs(card, false);
+
+	return ret;
 }
 
 static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
@@ -230,6 +272,9 @@ static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
 	} else {
 		max_dtr = card->cis.max_dtr;
 	}
+
+	if (card->type == MMC_TYPE_SD_COMBO)
+		max_dtr = min(max_dtr, mmc_sd_get_max_clock(card));
 
 	return max_dtr;
 }
@@ -274,7 +319,24 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 	}
 
-	card->type = MMC_TYPE_SDIO;
+	err = mmc_sd_get_cid(host, host->ocr & ocr, card->raw_cid);
+
+	if (!err) {
+		card->type = MMC_TYPE_SD_COMBO;
+
+		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
+		    memcmp(card->raw_cid, oldcard->raw_cid, sizeof(card->raw_cid)) != 0)) {
+			mmc_remove_card(card);
+			return -ENOENT;
+		}
+	} else {
+		card->type = MMC_TYPE_SDIO;
+
+		if (oldcard && oldcard->type != MMC_TYPE_SDIO) {
+			mmc_remove_card(card);
+			return -ENOENT;
+		}
+	}
 
 	/*
 	 * For native busses:  set card RCA and quit open drain mode.
@@ -285,6 +347,17 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			goto remove;
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+	}
+
+	/*
+	 * Read CSD, before selecting the card
+	 */
+	if (!oldcard && card->type == MMC_TYPE_SD_COMBO) {
+		err = mmc_sd_get_csd(host, card);
+		if (err)
+			return err;
+
+		mmc_decode_cid(card);
 	}
 
 	/*
@@ -314,13 +387,32 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		int same = (card->cis.vendor == oldcard->cis.vendor &&
 			    card->cis.device == oldcard->cis.device);
 		mmc_remove_card(card);
-		if (!same) {
-			err = -ENOENT;
-			goto err;
-		}
+		if (!same)
+			return -ENOENT;
+
 		card = oldcard;
 		return 0;
 	}
+
+	if (card->type == MMC_TYPE_SD_COMBO) {
+		err = mmc_sd_setup_card(host, card, oldcard != NULL);
+		/* handle as SDIO-only card if memory init failed */
+		if (err) {
+			mmc_go_idle(host);
+			if (mmc_host_is_spi(host))
+				/* should not fail, as it worked previously */
+				mmc_spi_set_crc(host, use_spi_crc);
+			card->type = MMC_TYPE_SDIO;
+		} else
+			card->dev.type = &sd_type;
+	}
+
+	/*
+	 * If needed, disconnect card detection pull-up resistor.
+	 */
+	err = sdio_disable_cd(card);
+	if (err)
+		goto remove;
 
 	/*
 	 * Switch to high-speed (if supported).
@@ -339,8 +431,10 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Switch to wider bus (if supported).
 	 */
-	err = sdio_enable_wide(card);
-	if (err)
+	err = sdio_enable_4bit_bus(card);
+	if (err > 0)
+		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
+	else if (err)
 		goto remove;
 
 	if (!oldcard)
@@ -526,13 +620,6 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 * the ocr.
 	 */
 	card->sdio_funcs = funcs = (ocr & 0x70000000) >> 28;
-
-	/*
-	 * If needed, disconnect card detection pull-up resistor.
-	 */
-	err = sdio_disable_cd(card);
-	if (err)
-		goto remove;
 
 	/*
 	 * Initialize (but don't add) all present functions.
