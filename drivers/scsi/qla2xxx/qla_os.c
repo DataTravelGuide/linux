@@ -82,6 +82,9 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"\t\t0x00080000 - P3P Specific.  0x00040000 - Virtual Port.\n"
 		"\t\t0x00020000 - Buffer Dump.   0x00010000 - Misc.\n"
 		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
+		"\t\t0x1e400000 - Preferred value for capturing essential "
+		"debug information (equivalent to old "
+		"ql2xextended_error_logging=1).\n"
 		"\t\tDo LOGICAL OR of the value to enable more than one level");
 
 int ql2xshiftctondsd = 6;
@@ -922,7 +925,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	ql_log(ql_log_info, vha, 0x801c,
-	    "Abort command issued nexus=%ld:%d%d --  %d %x.\n",
+	    "Abort command issued nexus=%ld:%d:%d --  %d %x.\n",
 	    vha->host_no, id, lun, wait, ret);
 
 	return ret;

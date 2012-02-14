@@ -1401,13 +1401,14 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sp->request_sense_length != 0)
 		rsp->status_srb = sp;
 
-	ql_dbg(ql_dbg_io, vha, 0x301c,
-	    "Check condition Sense data, nexus%ld:%d:%d cmd=%p.\n",
-	    sp->fcport->vha->host_no, cp->device->id, cp->device->lun, cp);
-
-	if (sense_len)
+	if (sense_len) {
+		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x301c,
+		    "Check condition Sense data, nexus%ld:%d:%d cmd=%p.\n",
+		    sp->fcport->vha->host_no, cp->device->id, cp->device->lun,
+		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x302b,
 		    cp->sense_buffer, sense_len);
+	}
 }
 
 struct scsi_dif_tuple {
@@ -1599,7 +1600,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		sp = NULL;
 
 	if (sp == NULL) {
-		ql_log(ql_log_warn, vha, 0x3017,
+		ql_dbg(ql_dbg_io, vha, 0x3017,
 		    "Invalid status handle (0x%x).\n", sts->handle);
 
 		if (IS_QLA82XX(ha))
@@ -1611,7 +1612,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 	cp = sp->cmd;
 	if (cp == NULL) {
-		ql_log(ql_log_warn, vha, 0x3018,
+		ql_dbg(ql_dbg_io, vha, 0x3018,
 		    "Command already returned (0x%x/%p).\n",
 		    sts->handle, sp);
 
@@ -1658,7 +1659,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			par_sense_len -= rsp_info_len;
 		}
 		if (rsp_info_len > 3 && rsp_info[3]) {
-			ql_log(ql_log_warn, vha, 0x3019,
+			ql_dbg(ql_dbg_io, vha, 0x3019,
 			    "FCP I/O protocol failure (0x%x/0x%x).\n",
 			    rsp_info_len, rsp_info[3]);
 
@@ -1689,7 +1690,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			if (!lscsi_status &&
 			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			     cp->underflow)) {
-				ql_log(ql_log_warn, vha, 0x301a,
+				ql_dbg(ql_dbg_io, vha, 0x301a,
 				    "Mid-layer underflow "
 				    "detected (0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1701,7 +1702,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		cp->result = DID_OK << 16 | lscsi_status;
 
 		if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
-			ql_log(ql_log_warn, vha, 0x301b,
+			ql_dbg(ql_dbg_io, vha, 0x301b,
 			    "QUEUE FULL detected.\n");
 			break;
 		}
@@ -1723,7 +1724,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		scsi_set_resid(cp, resid);
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			if (IS_FWI2_CAPABLE(ha) && fw_resid_len != resid_len) {
-				ql_log(ql_log_warn, vha, 0x301d,
+				ql_dbg(ql_dbg_io, vha, 0x301d,
 				    "Dropped frame(s) detected "
 				    "(0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1735,7 +1736,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			if (!lscsi_status &&
 			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			    cp->underflow)) {
-				ql_log(ql_log_warn, vha, 0x301e,
+				ql_dbg(ql_dbg_io, vha, 0x301e,
 				    "Mid-layer underflow "
 				    "detected (0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1744,7 +1745,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				break;
 			}
 		} else {
-			ql_log(ql_log_warn, vha, 0x301f,
+			ql_dbg(ql_dbg_io, vha, 0x301f,
 			    "Dropped frame(s) detected (0x%x "
 			    "of 0x%x bytes).\n", resid, scsi_bufflen(cp));
 
@@ -1762,7 +1763,7 @@ check_scsi_status:
 		 */
 		if (lscsi_status != 0) {
 			if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
-				ql_log(ql_log_warn, vha, 0x3020,
+				ql_dbg(ql_dbg_io, vha, 0x3020,
 				    "QUEUE FULL detected.\n");
 				logit = 1;
 				break;

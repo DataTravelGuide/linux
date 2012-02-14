@@ -1984,16 +1984,13 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 
 		/* Delay for a while */
 		msleep(500);
-
-		ql_dbg(ql_dbg_taskm, vha, 0x8039,
-		    "fw_state=%x curr time=%lx.\n", state[0], jiffies);
 	} while (1);
 
 	ql_dbg(ql_dbg_taskm, vha, 0x803a,
 	    "fw_state=%x (%x, %x, %x, %x) " "curr time=%lx.\n", state[0],
 	    state[1], state[2], state[3], state[4], jiffies);
 
-	if (rval) {
+	if (rval && !(vha->device_flags & DFLG_NO_CABLE)) {
 		ql_log(ql_log_warn, vha, 0x803b,
 		    "Firmware ready **** FAILED ****.\n");
 	}
@@ -2389,7 +2386,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	 * internal driver logging.
 	 */
 	if (nv->host_p[0] & BIT_7)
-		ql2xextended_error_logging = 0x7fffffff;
+		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
