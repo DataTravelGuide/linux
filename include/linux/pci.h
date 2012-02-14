@@ -1019,8 +1019,9 @@ int  ht_create_irq(struct pci_dev *dev, int idx);
 void ht_destroy_irq(unsigned int irq);
 #endif /* CONFIG_HT_IRQ */
 
-extern void pci_block_user_cfg_access(struct pci_dev *dev);
-extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
+extern void pci_cfg_access_lock(struct pci_dev *dev);
+extern bool pci_cfg_access_trylock(struct pci_dev *dev);
+extern void pci_cfg_access_unlock(struct pci_dev *dev);
 
 /*
  * PCI domain support.  Sometimes called PCI segment (eg by ACPI),
@@ -1221,10 +1222,13 @@ static inline void pci_release_regions(struct pci_dev *dev)
 
 #define pci_dma_burst_advice(pdev, strat, strategy_parameter) do { } while (0)
 
-static inline void pci_block_user_cfg_access(struct pci_dev *dev)
+static inline void pci_block_cfg_access(struct pci_dev *dev)
 { }
 
-static inline void pci_unblock_user_cfg_access(struct pci_dev *dev)
+static inline int pci_block_cfg_access_in_atomic(struct pci_dev *dev)
+{ return 0;}
+
+static inline void pci_unblock_cfg_access(struct pci_dev *dev)
 { }
 
 static inline struct pci_bus *pci_find_next_bus(const struct pci_bus *from)
