@@ -408,6 +408,8 @@ extern void qla2x00_beacon_blink(struct scsi_qla_host *);
 extern int qla24xx_beacon_on(struct scsi_qla_host *);
 extern int qla24xx_beacon_off(struct scsi_qla_host *);
 extern void qla24xx_beacon_blink(struct scsi_qla_host *);
+extern int qla82xx_beacon_on(struct scsi_qla_host *);
+extern int qla82xx_beacon_off(struct scsi_qla_host *);
 
 extern uint8_t *qla2x00_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
@@ -562,6 +564,7 @@ extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 /* Reset related */
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
 extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
+extern int qla82xx_mbx_beacon_ctl(scsi_qla_host_t *, int);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);
