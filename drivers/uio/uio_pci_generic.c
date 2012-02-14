@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/uio_driver.h>
-#include <linux/spinlock.h>
 
 #define DRIVER_VERSION	"0.01.0"
 #define DRIVER_AUTHOR	"Michael S. Tsirkin <mst@redhat.com>"
@@ -32,7 +31,6 @@
 struct uio_pci_generic_dev {
 	struct uio_info info;
 	struct pci_dev *pdev;
-	spinlock_t lock; /* guards command register accesses */
 };
 
 static inline struct uio_pci_generic_dev *
@@ -56,7 +54,6 @@ static irqreturn_t irqhandler(int irq, struct uio_info *info)
 	BUILD_BUG_ON(PCI_COMMAND % 4);
 	BUILD_BUG_ON(PCI_COMMAND + 2 != PCI_STATUS);
 
-	spin_lock_irq(&gdev->lock);
 	pci_block_user_cfg_access(pdev);
 
 	/* Read both command and status registers in a single 32-bit operation.
@@ -82,7 +79,6 @@ static irqreturn_t irqhandler(int irq, struct uio_info *info)
 done:
 
 	pci_unblock_user_cfg_access(pdev);
-	spin_unlock_irq(&gdev->lock);
 	return ret;
 }
 
@@ -156,7 +152,6 @@ static int __devinit probe(struct pci_dev *pdev,
 	gdev->info.irq_flags = IRQF_SHARED;
 	gdev->info.handler = irqhandler;
 	gdev->pdev = pdev;
-	spin_lock_init(&gdev->lock);
 
 	if (uio_register_device(&pdev->dev, &gdev->info))
 		goto err_register;
