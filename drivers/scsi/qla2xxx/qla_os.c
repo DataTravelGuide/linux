@@ -2120,7 +2120,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->unique_id = host->host_no;
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif)
+	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif)
 		host->max_cmd_len = 32;
 	else
 		host->max_cmd_len = MAX_CMDSZ;
@@ -2223,7 +2223,7 @@ skip_dpc:
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    base_vha->host_no, ha));
 
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
+	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
 			int prot = 0;
 			base_vha->flags.difdix_supported = 1;
