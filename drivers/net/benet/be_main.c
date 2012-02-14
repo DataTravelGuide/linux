@@ -399,8 +399,9 @@ void be_parse_stats(struct be_adapter *adapter)
 			erx->rx_drops_no_fragments[rxo->q.id];
 }
 
-void netdev_stats_update(struct be_adapter *adapter)
+static struct net_device_stats *be_get_stats(struct net_device *netdev)
 {
+	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_drv_stats *drvs = &adapter->drv_stats;
 	struct net_device_stats *dev_stats = &adapter->netdev->stats;
 	struct be_rx_obj *rxo;
@@ -412,7 +413,8 @@ void netdev_stats_update(struct be_adapter *adapter)
 		pkts += rx_stats(rxo)->rx_pkts;
 		bytes += rx_stats(rxo)->rx_bytes;
 		mcast += rx_stats(rxo)->rx_mcast_pkts;
-		drops += rx_stats(rxo)->rx_drops_no_skbs;
+		drops += rx_stats(rxo)->rx_drops_no_skbs +
+			rx_stats(rxo)->rx_drops_no_frags;
 	}
 	dev_stats->rx_packets = pkts;
 	dev_stats->rx_bytes = bytes;
@@ -437,10 +439,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 		drvs->rx_dropped_too_short +
 		drvs->rx_dropped_header_too_small +
 		drvs->rx_dropped_tcp_length +
-		drvs->rx_dropped_runt +
-		drvs->rx_tcp_checksum_errs +
-		drvs->rx_ip_checksum_errs +
-		drvs->rx_udp_checksum_errs;
+		drvs->rx_dropped_runt;
 
 	/* detailed rx errors */
 	dev_stats->rx_length_errors = drvs->rx_in_range_errors +
@@ -457,6 +456,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->rx_fifo_errors = drvs->rxpp_fifo_overflow_drop +
 				drvs->rx_input_fifo_overflow_drop +
 				drvs->rx_drops_no_pbuf;
+	return dev_stats;
 }
 
 void be_link_status_update(struct be_adapter *adapter, bool link_up)
@@ -1902,7 +1902,6 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 				netif_wake_subqueue(adapter->netdev, i);
 			}
 
-			adapter->drv_stats.tx_events++;
 			tx_stats(txo)->tx_compl += tx_compl;
 		}
 	}
@@ -1917,6 +1916,7 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	napi_complete(napi);
 
 	be_eq_notify(adapter, tx_eq->q.id, true, false, 0);
+	adapter->drv_stats.tx_events++;
 	return 1;
 }
 
@@ -2867,6 +2867,7 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_set_rx_mode	= be_set_multicast_list,
 	.ndo_set_mac_address	= be_mac_addr_set,
 	.ndo_change_mtu		= be_change_mtu,
+	.ndo_get_stats		= be_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_vlan_rx_register	= be_vlan_register,
 	.ndo_vlan_rx_add_vid	= be_vlan_add_vid,
