@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/ratelimit.h>
+#include <linux/vmalloc.h>
 #include <scsi/scsi_tcq.h>
 
 #define MASK(n)			((1ULL<<(n))-1)
