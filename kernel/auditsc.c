@@ -579,6 +579,18 @@ static int audit_filter_rules(struct task_struct *tsk,
 				}
 			}
 			break;
+		case AUDIT_OBJ_UID:
+			if (name) {
+				result = audit_comparator(name->uid, f->op, f->val);
+			} else if (ctx) {
+				list_for_each_entry(n, &ctx->names_list, list) {
+					if (audit_comparator(n->uid, f->op, f->val)) {
+						++result;
+						break;
+					}
+				}
+			}
+			break;
 		case AUDIT_WATCH:
 			if (name && audit_watch_inode(rule->watch) != (unsigned long)-1)
 				result = (name->dev == audit_watch_dev(rule->watch) &&
