@@ -328,33 +328,20 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	}
 }
 
-static int audit_match_filetype(struct audit_context *ctx, int which)
+static int audit_match_filetype(struct audit_context *ctx, int val)
 {
 	struct audit_names *n;
-	unsigned i = 0;
-	unsigned index = which & ~S_IFMT;
-	mode_t mode = which & S_IFMT;
+	mode_t mode = (mode_t)(val & S_IFMT);
 
 	if (unlikely(!ctx))
 		return 0;
 
-	if (index >= ctx->name_count)
-		return 0;
-
 	list_for_each_entry(n, &ctx->names_list, list) {
-		if (i != index) {
-			i++;
-			continue;
-		}
-
-		if (n->ino == -1)
-			return 0;
-		if ((n->mode ^ mode) & S_IFMT)
-			return 0;
-		return 1;
+		if ((n->ino != -1) &&
+		    ((n->mode & S_IFMT) == mode))
+			return 1;
 	}
 
-	/* we should not get here since we should eventually hit i == index */
 	return 0;
 }
 

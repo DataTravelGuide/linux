@@ -383,7 +383,7 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 				goto exit_free;
 			break;
 		case AUDIT_FILETYPE:
-			if ((f->val & ~S_IFMT) > S_IFMT)
+			if (f->val & ~S_IFMT)
 				goto exit_free;
 			break;
 		case AUDIT_INODE:
@@ -534,7 +534,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			break;
 		case AUDIT_FILETYPE:
-			if ((f->val & ~S_IFMT) > S_IFMT)
+			if (f->val & ~S_IFMT)
 				goto exit_free;
 			break;
 		default:
