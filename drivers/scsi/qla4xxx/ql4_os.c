@@ -3401,9 +3401,8 @@ static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
 		/* Check Boot Mode */
 		val = rd_nvram_byte(ha, addr);
 		if (!(val & 0x07)) {
-			DEBUG2(ql4_printk(KERN_ERR, ha,
-					  "%s: Failed Boot options : 0x%x\n",
-					  __func__, val));
+			DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Adapter boot "
+					  "options : 0x%x\n", __func__, val));
 			ret = QLA_ERROR;
 			goto exit_boot_info;
 		}
@@ -3448,9 +3447,8 @@ static int get_fw_boot_info(struct scsi_qla_host *ha, uint16_t ddb_index[])
 		}
 		/* Check Boot Mode */
 		if (!(buf[1] & 0x07)) {
-			DEBUG2(ql4_printk(KERN_INFO, ha,
-					  "Failed: Boot options : 0x%x\n",
-					  buf[1]));
+			DEBUG2(ql4_printk(KERN_INFO, ha, "Firmware boot options"
+					  " : 0x%x\n", buf[1]));
 			ret = QLA_ERROR;
 			goto exit_boot_info_free;
 		}
@@ -3556,8 +3554,8 @@ static int qla4xxx_get_boot_target(struct scsi_qla_host *ha,
 
 	if (qla4xxx_bootdb_by_index(ha, fw_ddb_entry,
 				   fw_ddb_entry_dma, ddb_index)) {
-		DEBUG2(ql4_printk(KERN_ERR, ha,
-				  "%s: Flash DDB read Failed\n", __func__));
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: No Flash DDB found at "
+				  "index [%d]\n", __func__, ddb_index));
 		ret = QLA_ERROR;
 		goto exit_boot_target;
 	}
@@ -3635,8 +3633,8 @@ static int qla4xxx_get_boot_info(struct scsi_qla_host *ha)
 	ddb_index[1] = 0xffff;
 	ret = get_fw_boot_info(ha, ddb_index);
 	if (ret != QLA_SUCCESS) {
-		DEBUG2(ql4_printk(KERN_ERR, ha,
-				  "%s: Failed to set boot info.\n", __func__));
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				"%s: No boot target configured.\n", __func__));
 		return ret;
 	}
 
@@ -3649,8 +3647,8 @@ static int qla4xxx_get_boot_info(struct scsi_qla_host *ha)
 	rval = qla4xxx_get_boot_target(ha, &(ha->boot_tgt.boot_pri_sess),
 				      ddb_index[0]);
 	if (rval != QLA_SUCCESS) {
-		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Failed to get "
-				  "primary target\n", __func__));
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Primary boot target not "
+				  "configured\n", __func__));
 	} else
 		ret = QLA_SUCCESS;
 
@@ -3661,8 +3659,8 @@ sec_target:
 	rval = qla4xxx_get_boot_target(ha, &(ha->boot_tgt.boot_sec_sess),
 				      ddb_index[1]);
 	if (rval != QLA_SUCCESS) {
-		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Failed to get "
-				  "secondary target\n", __func__));
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Secondary boot target not"
+				  " configured\n", __func__));
 	} else
 		ret = QLA_SUCCESS;
 
