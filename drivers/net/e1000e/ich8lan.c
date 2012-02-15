@@ -349,7 +349,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	/* Ungate automatic PHY configuration on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
-		msleep(10);
+		usleep_range(10000, 20000);
 		e1000_gate_hw_phy_config_ich8lan(hw, false);
 	}
 
@@ -438,7 +438,7 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	phy->id = 0;
 	while ((e1000_phy_unknown == e1000e_get_phy_type_from_id(phy->id)) &&
 	       (i++ < 100)) {
-		msleep(1);
+		usleep_range(1000, 2000);
 		ret_val = e1000e_get_phy_id(hw);
 		if (ret_val)
 			return ret_val;
@@ -1738,7 +1738,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 		goto out;
 
 	/* Allow time for h/w to get to quiescent state after reset */
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Perform any necessary post-reset workarounds */
 	switch (hw->mac.type) {
@@ -1774,7 +1774,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	if (hw->mac.type == e1000_pch2lan) {
 		/* Ungate automatic PHY configuration on non-managed 82579 */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-			msleep(10);
+			usleep_range(10000, 20000);
 			e1000_gate_hw_phy_config_ich8lan(hw, false);
 		}
 
@@ -2568,7 +2568,7 @@ release:
 	 */
 	if (!ret_val) {
 		e1000e_reload_nvm(hw);
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 out:
@@ -3045,7 +3045,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ew32(TCTL, E1000_TCTL_PSP);
 	e1e_flush();
 
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* Workaround for ICH8 bit corruption issue in FIFO memory */
 	if (hw->mac.type == e1000_ich8lan) {

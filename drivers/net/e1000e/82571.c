@@ -589,7 +589,7 @@ static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
-		msleep(2);
+		usleep_range(2000, 4000);
 		i++;
 	} while (i < MDIO_OWNERSHIP_TIMEOUT);
 
@@ -811,7 +811,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
-		msleep(1);
+		usleep_range(1000, 2000);
 		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
 			break;
 	}
@@ -835,7 +835,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	ew32(EECD, eecd);
 
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
-		msleep(1);
+		usleep_range(1000, 2000);
 		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
 			break;
 	}
@@ -925,7 +925,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 		if (er32(EEMNGCTL) &
 		    E1000_NVM_CFG_DONE_PORT_0)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 		timeout--;
 	}
 	if (!timeout) {
@@ -1032,7 +1032,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(TCTL, E1000_TCTL_PSP);
 	e1e_flush();
 
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/*
 	 * Must acquire the MDIO ownership before MAC reset.
