@@ -551,6 +551,7 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
+	int dblocks = 0;
 
 	if (gfs2_alloc_get(dip) == NULL)
 		return -ENOMEM;
@@ -564,7 +565,7 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	if (error)
 		goto out_ipreserv;
 
-	error = gfs2_alloc_block(dip, no_addr, NULL, 1, generation);
+	error = gfs2_alloc_blocks(dip, no_addr, &dblocks, 1, generation);
 
 	gfs2_trans_end(sdp);
 
