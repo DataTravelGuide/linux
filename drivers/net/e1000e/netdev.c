@@ -1319,7 +1319,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			ps_page->page = NULL;
 			skb->len += length;
 			skb->data_len += length;
-			skb->truesize += length;
+			skb->truesize += PAGE_SIZE;
 		}
 
 		/* strip the ethernet crc, problem is we're using pages now so
@@ -1381,7 +1381,7 @@ static void e1000_consume_page(struct e1000_buffer *bi, struct sk_buff *skb,
 	bi->page = NULL;
 	skb->len += length;
 	skb->data_len += length;
-	skb->truesize += length;
+	skb->truesize += PAGE_SIZE;
 }
 
 /**
