@@ -2801,7 +2801,11 @@ static int ext4_writepage(struct page *page,
 			 * via journal_submit_inode_data_buffers.
 			 * If we don't have mapping block we just ignore
 			 * them. We can also reach here via shrink_page_list
+			 * but it should never be for direct reclaim so warn
+			 * if that happens
 			 */
+			WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
+				PF_MEMALLOC);
 			redirty_page_for_writepage(wbc, page);
 			unlock_page(page);
 			return 0;
