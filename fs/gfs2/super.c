@@ -1387,7 +1387,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out;
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr, 1);
 	if (!rgd) {
 		gfs2_consist_inode(ip);
 		error = -EIO;
