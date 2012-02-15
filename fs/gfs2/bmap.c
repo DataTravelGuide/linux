@@ -24,6 +24,7 @@
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "super.h"
 #include "dir.h"
 #include "util.h"
 #include "trace_gfs2.h"
@@ -719,7 +720,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
 	u64 bn, bstart;
-	u32 blen;
+	u32 blen, btotal;
 	__be64 *p;
 	unsigned int rg_blocks = 0;
 	int metadata;
@@ -795,6 +796,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	bstart = 0;
 	blen = 0;
+	btotal = 0;
 
 	for (p = top; p < bottom; p++) {
 		if (!*p)
@@ -806,10 +808,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 			blen++;
 		else {
 			if (bstart) {
-				if (metadata)
-					gfs2_free_meta(ip, bstart, blen);
-				else
-					gfs2_free_data(ip, bstart, blen);
+				__gfs2_free_blocks(ip, bstart, blen, metadata);
+				btotal += blen;
 			}
 
 			bstart = bn;
@@ -820,11 +820,13 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		gfs2_add_inode_blocks(&ip->i_inode, -1);
 	}
 	if (bstart) {
-		if (metadata)
-			gfs2_free_meta(ip, bstart, blen);
-		else
-			gfs2_free_data(ip, bstart, blen);
+		__gfs2_free_blocks(ip, bstart, blen, metadata);
+		btotal += blen;
 	}
+
+	gfs2_statfs_change(sdp, 0, +btotal, 0);
+	gfs2_quota_change(ip, -(s64)btotal, ip->i_inode.i_uid,
+			  ip->i_inode.i_gid);
 
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 
