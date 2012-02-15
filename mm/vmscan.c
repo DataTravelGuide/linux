@@ -635,7 +635,8 @@ static enum page_references page_check_references(struct page *page,
 static unsigned long shrink_page_list(struct list_head *page_list,
 					struct scan_control *sc,
 					struct zone *zone,
-					enum pageout_io sync_writeback)
+					enum pageout_io sync_writeback,
+					int priority)
 {
 	LIST_HEAD(ret_pages);
 	struct pagevec freed_pvec;
@@ -739,9 +740,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 			/*
 			 * Only kswapd can writeback filesystem pages to
-			 * avoid risk of stack overflow
+			 * avoid risk of stack overflow but do not writeback
+			 * unless under significant pressure.
 			 */
-			if (page_is_file_cache(page) && !current_is_kswapd()) {
+			if (page_is_file_cache(page) &&
+					(!current_is_kswapd() || priority >= DEF_PRIORITY - 2)) {
 				inc_zone_page_state(page, NR_VMSCAN_WRITE_SKIP);
 				goto keep_locked;
 			}
@@ -1259,7 +1262,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		spin_unlock_irq(&zone->lru_lock);
 
 		nr_scanned += nr_scan;
-		nr_freed = shrink_page_list(&page_list, sc, zone, PAGEOUT_IO_ASYNC);
+		nr_freed = shrink_page_list(&page_list, sc, zone, PAGEOUT_IO_ASYNC, priority);
 
 		nr_reclaimed += nr_freed;
 
