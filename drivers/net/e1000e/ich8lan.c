@@ -844,8 +844,6 @@ static void e1000_release_nvm_ich8lan(struct e1000_hw *hw)
 	mutex_unlock(&nvm_mutex);
 }
 
-static DEFINE_MUTEX(swflag_mutex);
-
 /**
  *  e1000_acquire_swflag_ich8lan - Acquire software control flag
  *  @hw: pointer to the HW structure
@@ -858,7 +856,12 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	u32 extcnf_ctrl, timeout = PHY_CFG_TIMEOUT;
 	s32 ret_val = 0;
 
-	mutex_lock(&swflag_mutex);
+	if (test_and_set_bit(__E1000_ACCESS_SHARED_RESOURCE,
+			     &hw->adapter->state)) {
+		WARN(1, "e1000e: %s: contention for Phy access\n",
+		     hw->adapter->netdev->name);
+		return -E1000_ERR_PHY;
+	}
 
 	while (timeout) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -870,7 +873,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		e_dbg("SW/FW/HW has locked the resource for too long.\n");
+		e_dbg("SW has already locked the resource.\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
 	}
@@ -890,7 +893,9 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		e_dbg("Failed to acquire the semaphore.\n");
+		e_dbg("Failed to acquire the semaphore, FW or HW has it: "
+		      "FWSM=0x%8.8x EXTCNF_CTRL=0x%8.8x)\n",
+		      er32(FWSM), extcnf_ctrl);
 		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
 		ret_val = -E1000_ERR_CONFIG;
@@ -899,7 +904,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 out:
 	if (ret_val)
-		mutex_unlock(&swflag_mutex);
+		clear_bit(__E1000_ACCESS_SHARED_RESOURCE, &hw->adapter->state);
 
 	return ret_val;
 }
@@ -924,7 +929,7 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 		e_dbg("Semaphore unexpectedly released by sw/fw/hw\n");
 	}
 
-	mutex_unlock(&swflag_mutex);
+	clear_bit(__E1000_ACCESS_SHARED_RESOURCE, &hw->adapter->state);
 }
 
 /**
@@ -3131,7 +3136,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	msleep(20);
 
 	if (!ret_val)
-		mutex_unlock(&swflag_mutex);
+		clear_bit(__E1000_ACCESS_SHARED_RESOURCE, &hw->adapter->state);
 
 	if (ctrl & E1000_CTRL_PHY_RST) {
 		ret_val = hw->phy.ops.get_cfg_done(hw);
