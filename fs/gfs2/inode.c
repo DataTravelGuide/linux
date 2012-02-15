@@ -553,11 +553,11 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	int error;
 	int dblocks = 0;
 
-	if (gfs2_alloc_get(dip) == NULL)
-		return -ENOMEM;
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		fs_warn(sdp, "rindex update returns %d\n", error);
 
-	dip->i_alloc->al_requested = RES_DINODE;
-	error = gfs2_inplace_reserve(dip);
+	error = gfs2_inplace_reserve(dip, RES_DINODE);
 	if (error)
 		goto out;
 
@@ -572,7 +572,6 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 out_ipreserv:
 	gfs2_inplace_release(dip);
 out:
-	gfs2_alloc_put(dip);
 	return error;
 }
 
@@ -655,7 +654,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	int error;
 
 	munge_mode_uid_gid(dip, &mode, &uid, &gid);
-	if (!gfs2_alloc_get(dip))
+	if (!gfs2_qadata_get(dip))
 		return -ENOMEM;
 
 	error = gfs2_quota_lock(dip, uid, gid);
@@ -677,7 +676,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 out_quota:
 	gfs2_quota_unlock(dip);
 out:
-	gfs2_alloc_put(dip);
+	gfs2_qadata_put(dip);
 	return error;
 }
 
@@ -685,13 +684,13 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	int alloc_required;
 	struct buffer_head *dibh;
 	int error;
 
-	al = gfs2_alloc_get(dip);
-	if (!al)
+	qa = gfs2_qadata_get(dip);
+	if (!qa)
 		return -ENOMEM;
 
 	error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
@@ -706,9 +705,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		al->al_requested = sdp->sd_max_dirres;
-
-		error = gfs2_inplace_reserve(dip);
+		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres);
 		if (error)
 			goto fail_quota_locks;
 
@@ -747,7 +744,7 @@ fail_quota_locks:
 	gfs2_quota_unlock(dip);
 
 fail:
-	gfs2_alloc_put(dip);
+	gfs2_qadata_put(dip);
 	return error;
 }
 
