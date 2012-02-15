@@ -851,7 +851,7 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 
 		if (!num_nodes) {
 			num_nodes = ls->ls_num_nodes;
-			warned = kmalloc(GFP_KERNEL, num_nodes * sizeof(int));
+			warned = kmalloc(num_nodes * sizeof(int), GFP_KERNEL);
 			if (warned)
 				memset(warned, 0, num_nodes * sizeof(int));
 		}
