@@ -1026,6 +1026,10 @@ extern void pci_cfg_access_lock(struct pci_dev *dev);
 extern bool pci_cfg_access_trylock(struct pci_dev *dev);
 extern void pci_cfg_access_unlock(struct pci_dev *dev);
 
+/* kabi wrapper to pci_cfg_access_[un]lock */
+extern void pci_block_user_cfg_access(struct pci_dev *dev);
+extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
+
 /*
  * PCI domain support.  Sometimes called PCI segment (eg by ACPI),
  * a PCI domain is defined to be a set of PCI busses which share

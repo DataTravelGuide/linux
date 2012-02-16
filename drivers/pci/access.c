@@ -454,3 +454,27 @@ void pci_cfg_access_unlock(struct pci_dev *dev)
 	spin_unlock_irqrestore(&pci_lock, flags);
 }
 EXPORT_SYMBOL_GPL(pci_cfg_access_unlock);
+
+/**
+ * pci_block_user_cfg_access -- kabi wrapper to pci_cfg_access_lock
+ * @dev:	pci device struct
+ *
+ */
+void pci_block_user_cfg_access(struct pci_dev *dev)
+{
+	return pci_cfg_access_lock(dev);
+}
+EXPORT_SYMBOL_GPL(pci_block_user_cfg_access);
+
+/**
+ * pci_unblock_user_cfg_access -- kabi wrapper to pci_cfg_access_unlock
+ * @dev:	pci device struct
+ *
+ */
+void pci_unblock_user_cfg_access(struct pci_dev *dev)
+{
+	return pci_cfg_access_unlock(dev);
+}
+EXPORT_SYMBOL_GPL(pci_unblock_user_cfg_access);
+
+
