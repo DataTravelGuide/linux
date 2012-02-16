@@ -160,7 +160,6 @@ void kvm_disable_steal_time(void)
 	if (!has_steal_clock)
 		return;
 
-	paravirt_steal_enabled = 0;
 	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
 }
 
