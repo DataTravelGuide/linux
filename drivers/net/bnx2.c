@@ -59,11 +59,11 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.1.11"
-#define DRV_MODULE_RELDATE	"July 20, 2011"
-#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.1.fw"
+#define DRV_MODULE_VERSION	"2.2.1"
+#define DRV_MODULE_RELDATE	"Dec 18, 2011"
+#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.3.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
-#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1a.fw"
+#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1b.fw"
 #define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-6.0.17.fw"
 #define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-6.0.17.fw"
 
@@ -2059,8 +2059,8 @@ __acquires(&bp->phy_lock)
 
 	if (bp->autoneg & AUTONEG_SPEED) {
 		u32 adv_reg, adv1000_reg;
-		u32 new_adv_reg = 0;
-		u32 new_adv1000_reg = 0;
+		u32 new_adv = 0;
+		u32 new_adv1000 = 0;
 
 		bnx2_read_phy(bp, bp->mii_adv, &adv_reg);
 		adv_reg &= (PHY_ALL_10_100_SPEED | ADVERTISE_PAUSE_CAP |
@@ -2069,27 +2069,17 @@ __acquires(&bp->phy_lock)
 		bnx2_read_phy(bp, MII_CTRL1000, &adv1000_reg);
 		adv1000_reg &= PHY_ALL_1000_SPEED;
 
-		if (bp->advertising & ADVERTISED_10baseT_Half)
-			new_adv_reg |= ADVERTISE_10HALF;
-		if (bp->advertising & ADVERTISED_10baseT_Full)
-			new_adv_reg |= ADVERTISE_10FULL;
-		if (bp->advertising & ADVERTISED_100baseT_Half)
-			new_adv_reg |= ADVERTISE_100HALF;
-		if (bp->advertising & ADVERTISED_100baseT_Full)
-			new_adv_reg |= ADVERTISE_100FULL;
-		if (bp->advertising & ADVERTISED_1000baseT_Full)
-			new_adv1000_reg |= ADVERTISE_1000FULL;
+		new_adv = ethtool_adv_to_mii_adv_t(bp->advertising);
+		new_adv |= ADVERTISE_CSMA;
+		new_adv |= bnx2_phy_get_pause_adv(bp);
 
-		new_adv_reg |= ADVERTISE_CSMA;
+		new_adv1000 |= ethtool_adv_to_mii_ctrl1000_t(bp->advertising);
 
-		new_adv_reg |= bnx2_phy_get_pause_adv(bp);
-
-		if ((adv1000_reg != new_adv1000_reg) ||
-			(adv_reg != new_adv_reg) ||
-			((bmcr & BMCR_ANENABLE) == 0)) {
-
-			bnx2_write_phy(bp, bp->mii_adv, new_adv_reg);
-			bnx2_write_phy(bp, MII_CTRL1000, new_adv1000_reg);
+		if ((adv1000_reg != new_adv1000) ||
+		    (adv_reg != new_adv) ||
+	 	    ((bmcr & BMCR_ANENABLE) == 0)) {
+			bnx2_write_phy(bp, bp->mii_adv, new_adv);
+			bnx2_write_phy(bp, MII_CTRL1000, new_adv1000);
 			bnx2_write_phy(bp, bp->mii_bmcr, BMCR_ANRESTART |
 				BMCR_ANENABLE);
 		}
@@ -3056,7 +3046,6 @@ bnx2_rx_skb(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, struct sk_buff *skb,
 						&skb_shinfo(skb)->frags[i - 1];
 					frag->size -= tail;
 					skb->data_len -= tail;
-					skb->truesize -= tail;
 				}
 				return 0;
 			}
@@ -3088,7 +3077,7 @@ bnx2_rx_skb(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, struct sk_buff *skb,
 
 			frag_size -= frag_len;
 			skb->data_len += frag_len;
-			skb->truesize += frag_len;
+			skb->truesize += PAGE_SIZE;
 			skb->len += frag_len;
 
 			pg_prod = NEXT_RX_BD(pg_prod);
@@ -3653,7 +3642,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 	spin_unlock_bh(&bp->phy_lock);
 }
 
-static int __devinit
+static int
 check_fw_section(const struct firmware *fw,
 		 const struct bnx2_fw_file_section *section,
 		 u32 alignment, bool non_empty)
@@ -3669,7 +3658,7 @@ check_fw_section(const struct firmware *fw,
 	return 0;
 }
 
-static int __devinit
+static int
 check_mips_fw_entry(const struct firmware *fw,
 		    const struct bnx2_mips_fw_file_entry *entry)
 {
@@ -3680,8 +3669,16 @@ check_mips_fw_entry(const struct firmware *fw,
 	return 0;
 }
 
-static int __devinit
-bnx2_request_firmware(struct bnx2 *bp)
+static void bnx2_release_firmware(struct bnx2 *bp)
+{
+	if (bp->rv2p_firmware) {
+		release_firmware(bp->mips_firmware);
+		release_firmware(bp->rv2p_firmware);
+		bp->rv2p_firmware = NULL;
+	}
+}
+
+static int bnx2_request_uncached_firmware(struct bnx2 *bp)
 {
 	const char *mips_fw_file, *rv2p_fw_file;
 	const struct bnx2_mips_fw_file *mips_fw;
@@ -3703,13 +3700,13 @@ bnx2_request_firmware(struct bnx2 *bp)
 	rc = request_firmware(&bp->mips_firmware, mips_fw_file, &bp->pdev->dev);
 	if (rc) {
 		pr_err("Can't load firmware file \"%s\"\n", mips_fw_file);
-		return rc;
+		goto out;
 	}
 
 	rc = request_firmware(&bp->rv2p_firmware, rv2p_fw_file, &bp->pdev->dev);
 	if (rc) {
 		pr_err("Can't load firmware file \"%s\"\n", rv2p_fw_file);
-		return rc;
+		goto err_release_mips_firmware;
 	}
 	mips_fw = (const struct bnx2_mips_fw_file *) bp->mips_firmware->data;
 	rv2p_fw = (const struct bnx2_rv2p_fw_file *) bp->rv2p_firmware->data;
@@ -3720,16 +3717,30 @@ bnx2_request_firmware(struct bnx2 *bp)
 	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->tpat) ||
 	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->txp)) {
 		pr_err("Firmware file \"%s\" is invalid\n", mips_fw_file);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_release_firmware;
 	}
 	if (bp->rv2p_firmware->size < sizeof(*rv2p_fw) ||
 	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc1.rv2p, 8, true) ||
 	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc2.rv2p, 8, true)) {
 		pr_err("Firmware file \"%s\" is invalid\n", rv2p_fw_file);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_release_firmware;
 	}
+out:
+	return rc;
 
-	return 0;
+err_release_firmware:
+	release_firmware(bp->rv2p_firmware);
+	bp->rv2p_firmware = NULL;
+err_release_mips_firmware:
+	release_firmware(bp->mips_firmware);
+	goto out;
+}
+
+static int bnx2_request_firmware(struct bnx2 *bp)
+{
+	return bp->rv2p_firmware ? 0 : bnx2_request_uncached_firmware(bp);
 }
 
 static u32
@@ -6296,6 +6307,10 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
+	rc = bnx2_request_firmware(bp);
+	if (rc < 0)
+		goto out;
+
 	netif_carrier_off(dev);
 
 	bnx2_set_power_state(bp, PCI_D0);
@@ -6354,8 +6369,8 @@ bnx2_open(struct net_device *dev)
 		netdev_info(dev, "using MSIX\n");
 
 	netif_tx_start_all_queues(dev);
-
-	return 0;
+out:
+	return rc;
 
 open_err:
 	bnx2_napi_disable(bp);
@@ -6363,7 +6378,8 @@ open_err:
 	bnx2_free_irq(bp);
 	bnx2_free_mem(bp);
 	bnx2_del_napi(bp);
-	return rc;
+	bnx2_release_firmware(bp);
+	goto out;
 }
 
 static void
@@ -6562,8 +6578,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = frag->size;
-		mapping = dma_map_page(&bp->pdev->dev, frag->page, frag->page_offset,
-				       len, PCI_DMA_TODEVICE);
+		mapping = dma_map_page(&bp->pdev->dev, frag->page, 0, len,
+					   PCI_DMA_TODEVICE);
 		if (dma_mapping_error(&bp->pdev->dev, mapping))
 			goto dma_error;
 		pci_unmap_addr_set(&txr->tx_buf_ring[ring_prod], mapping,
@@ -6576,6 +6592,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	}
 	txbd->tx_bd_vlan_tag_flags |= TX_BD_FLAGS_END;
+
+	/* Sync BD data before updating TX mailbox */
+	wmb();
 
 	prod = NEXT_TX_BD(prod);
 	txr->tx_prod_bseq += skb->len;
@@ -6909,10 +6928,10 @@ bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
-	strcpy(info->bus_info, pci_name(bp->pdev));
-	strcpy(info->fw_version, bp->fw_version);
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
+	strlcpy(info->fw_version, bp->fw_version, sizeof(info->fw_version));
 }
 
 #define BNX2_REGDUMP_LEN		(32 * 1024)
@@ -7190,11 +7209,9 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
-	ering->rx_mini_max_pending = 0;
 	ering->rx_jumbo_max_pending = MAX_TOTAL_RX_PG_DESC_CNT;
 
 	ering->rx_pending = bp->rx_ring_size;
-	ering->rx_mini_pending = 0;
 	ering->rx_jumbo_pending = bp->rx_pg_ring_size;
 
 	ering->tx_max_pending = MAX_TX_DESC_CNT;
@@ -8440,10 +8457,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	rc = bnx2_request_firmware(bp);
-	if (rc)
-		goto error;
-
 	memcpy(dev->dev_addr, bp->mac_addr, 6);
 	memcpy(dev->perm_addr, bp->mac_addr, 6);
 
@@ -8478,11 +8491,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 error:
-	if (bp->mips_firmware)
-		release_firmware(bp->mips_firmware);
-	if (bp->rv2p_firmware)
-		release_firmware(bp->rv2p_firmware);
-
 	if (bp->regview)
 		iounmap(bp->regview);
 	pci_release_regions(pdev);
@@ -8503,11 +8511,6 @@ bnx2_remove_one(struct pci_dev *pdev)
 	del_timer_sync(&bp->timer);
 	cancel_work_sync(&bp->reset_task);
 
-	if (bp->mips_firmware)
-		release_firmware(bp->mips_firmware);
-	if (bp->rv2p_firmware)
-		release_firmware(bp->rv2p_firmware);
-
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -8517,6 +8520,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 		pci_disable_pcie_error_reporting(pdev);
 		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
 	}
+
+	bnx2_release_firmware(bp);
 
 	free_netdev(dev);
 
