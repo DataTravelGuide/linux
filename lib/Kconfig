@@ -206,6 +206,9 @@ config NLATTR
 config GENERIC_ATOMIC64
        bool
 
+config LLIST
+	bool
+
 config AVERAGE
 	bool
 
