@@ -1545,7 +1545,7 @@ done_chk_sdma:
 		 * it just means that sooner or later we don't recommend
 		 * a cpu, and let the scheduler do it's best.
 		 */
-		weight = cpumask_weight(&current->cpus_allowed);
+		weight = cpumask_weight(tsk_cpus_allowed(current));
 		if (!ret && weight >= qib_cpulist_count) {
 			int cpu;
 			cpu = find_first_zero_bit(qib_cpulist,
@@ -1555,12 +1555,12 @@ done_chk_sdma:
 				fd->rec_cpu_num = cpu;
 			}
 		} else if (weight == 1 &&
-			test_bit(cpumask_first(&current->cpus_allowed),
+			test_bit(cpumask_first(tsk_cpus_allowed(current)),
 				 qib_cpulist))
 			qib_devinfo(dd->pcidev, "%s PID %u affinity "
 				    "set to cpu %d; already allocated\n",
 				    current->comm, current->pid,
-				    cpumask_first(&current->cpus_allowed));
+				    cpumask_first(tsk_cpus_allowed(current)));
 	}
 
 	mutex_unlock(&qib_mutex);
