@@ -626,6 +626,23 @@ struct netdev_tc_txq {
 	u16 offset;
 };
 
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+/*
+ * This structure is to hold information about the device
+ * configured to run FCoE protocol stack.
+ */
+struct netdev_fcoe_hbainfo {
+	char	manufacturer[64];
+	char	serial_number[64];
+	char	hardware_version[64];
+	char	driver_version[64];
+	char	optionrom_version[64];
+	char	firmware_version[64];
+	char	model[256];
+	char	model_description[256];
+};
+#endif
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -1145,6 +1162,8 @@ struct net_device_extended {
 	struct netdev_qos_info			qos_data;
 	unsigned long				ext_priv_flags;
 	struct netdev_priomap_info		priomap_data;
+	int                     (*ndo_fcoe_get_hbainfo)(struct net_device *dev,
+					struct netdev_fcoe_hbainfo *hbainfo);
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \

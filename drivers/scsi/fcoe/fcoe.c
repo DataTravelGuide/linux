@@ -754,9 +754,9 @@ static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
 	if (lport->vport)
 		return;
 
-	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
+	if (netdev_extended(realdev)->ndo_fcoe_get_hbainfo) {
 		memset(&fdmi, 0, sizeof(fdmi));
-		rc = realdev->netdev_ops->ndo_fcoe_get_hbainfo(realdev,
+		rc = netdev_extended(realdev)->ndo_fcoe_get_hbainfo(realdev,
 							       &fdmi);
 		if (rc) {
 			printk(KERN_INFO "fcoe: Failed to retrieve FDMI "
