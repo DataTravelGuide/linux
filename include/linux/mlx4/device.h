@@ -244,6 +244,7 @@ struct mlx4_caps {
 	int			pkey_table_len[MLX4_MAX_PORTS + 1];
 	int			local_ca_ack_delay;
 	int			num_uars;
+	u32			uar_page_size;
 	int			bf_reg_size;
 	int			bf_regs_per_page;
 	int			max_sq_sg;
