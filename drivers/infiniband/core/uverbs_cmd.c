@@ -1447,6 +1447,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	}
 
 	if (cmd.qp_type != IB_QPT_XRC_TGT) {
+		qp->real_qp	  = qp;
 		qp->device	  = device;
 		qp->pd		  = pd;
 		qp->send_cq	  = attr.send_cq;
@@ -1713,8 +1714,12 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->alt_ah_attr.ah_flags 	    = cmd.alt_dest.is_global ? IB_AH_GRH : 0;
 	attr->alt_ah_attr.port_num 	    = cmd.alt_dest.port_num;
 
-	ret = qp->device->modify_qp(qp, attr,
-				    modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
+	if (qp->real_qp == qp) {
+		ret = qp->device->modify_qp(qp, attr,
+			modify_qp_mask(qp->qp_type, cmd.attr_mask), &udata);
+	} else {
+		ret = ib_modify_qp(qp, attr, modify_qp_mask(qp->qp_type, cmd.attr_mask));
+	}
 
 	put_qp_read(qp);
 
@@ -1911,7 +1916,7 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 	}
 
 	resp.bad_wr = 0;
-	ret = qp->device->post_send(qp, wr, &bad_wr);
+	ret = qp->device->post_send(qp->real_qp, wr, &bad_wr);
 	if (ret)
 		for (next = wr; next; next = next->next) {
 			++resp.bad_wr;
@@ -2049,7 +2054,7 @@ ssize_t ib_uverbs_post_recv(struct ib_uverbs_file *file,
 		goto out;
 
 	resp.bad_wr = 0;
-	ret = qp->device->post_recv(qp, wr, &bad_wr);
+	ret = qp->device->post_recv(qp->real_qp, wr, &bad_wr);
 
 	put_qp_read(qp);
 
