@@ -2089,17 +2089,11 @@ static int fcoe_destroy(struct net_device *netdev)
 static void fcoe_do_destroy(struct fcoe_port *port)
 {
 	struct fcoe_interface *fcoe;
-	int npiv = 0;
 
-	/* set if this is an NPIV port */
-	npiv = port->lport->vport ? 1 : 0;
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
 
-	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv)
-		fcoe_interface_cleanup(fcoe);
-
+	fcoe_interface_cleanup(fcoe);
 }
 
 static void fcoe_destroy_work(struct work_struct *work)
@@ -2667,12 +2661,15 @@ static int fcoe_vport_destroy(struct fc_vport *vport)
 	struct Scsi_Host *shost = vport_to_shost(vport);
 	struct fc_lport *n_port = shost_priv(shost);
 	struct fc_lport *vn_port = vport->dd_data;
-	struct fcoe_port *port = lport_priv(vn_port);
 
 	mutex_lock(&n_port->lp_mutex);
 	list_del(&vn_port->list);
 	mutex_unlock(&n_port->lp_mutex);
-	schedule_work(&port->destroy_work);
+
+	mutex_lock(&fcoe_config_mutex);
+	fcoe_if_destroy(vn_port);
+	mutex_unlock(&fcoe_config_mutex);
+
 	return 0;
 }
 
