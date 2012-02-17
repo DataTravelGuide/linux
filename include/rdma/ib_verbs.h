@@ -540,7 +540,8 @@ enum ib_cq_notify_flags {
 };
 
 enum ib_srq_type {
-	IB_SRQT_BASIC
+	IB_SRQT_BASIC,
+	IB_SRQT_XRC
 };
 
 enum ib_srq_attr_mask {
@@ -559,6 +560,13 @@ struct ib_srq_init_attr {
 	void		       *srq_context;
 	struct ib_srq_attr	attr;
 	enum ib_srq_type	srq_type;
+
+	union {
+		struct {
+			struct ib_xrcd *xrcd;
+			struct ib_cq   *cq;
+		} xrc;
+	} ext;
 };
 
 struct ib_qp_cap {
@@ -911,6 +919,14 @@ struct ib_srq {
 	void		       *srq_context;
 	enum ib_srq_type	srq_type;
 	atomic_t		usecnt;
+
+	union {
+		struct {
+			struct ib_xrcd *xrcd;
+			struct ib_cq   *cq;
+			u32		srq_num;
+		} xrc;
+	} ext;
 };
 
 struct ib_qp {
