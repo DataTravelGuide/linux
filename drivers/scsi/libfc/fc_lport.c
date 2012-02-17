@@ -89,6 +89,7 @@
 
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 
 #include <scsi/fc/fc_gs.h>
