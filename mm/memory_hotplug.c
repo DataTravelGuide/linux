@@ -825,10 +825,9 @@ int offline_pages(unsigned long start_pfn,
 
 	ret = memory_notify(MEM_GOING_OFFLINE, &arg);
 	ret = notifier_to_errno(ret);
-	if (ret) {
-		printk("0XXX: memory_notify failed: rc=%d\n", ret);
+	if (ret)
 		goto failed_removal;
-	}
+
 	pfn = start_pfn;
 	expire = jiffies + timeout;
 	drain = 0;
@@ -836,15 +835,11 @@ int offline_pages(unsigned long start_pfn,
 repeat:
 	/* start memory hot removal */
 	ret = -EAGAIN;
-	if (time_after(jiffies, expire)) {
-		printk("1XXX: memory_notify failed: rc=%d\n", ret);
+	if (time_after(jiffies, expire))
 		goto failed_removal;
-	}
 	ret = -EINTR;
-	if (signal_pending(current)) {
-		printk("2XXX: memory_notify failed: rc=%d\n", ret);
+	if (signal_pending(current))
 		goto failed_removal;
-	}
 	ret = 0;
 	if (drain) {
 		lru_add_drain_all();
@@ -861,10 +856,8 @@ repeat:
 			goto repeat;
 		} else {
 			if (ret < 0)
-				if (--retry_max == 0) {
-					printk("3XXX: memory_notify failed: rc=%d: %ld/%ld\n", ret, pfn, end_pfn);
+				if (--retry_max == 0)
 					goto failed_removal;
-				}
 			yield();
 			drain = 1;
 			goto repeat;
@@ -879,7 +872,6 @@ repeat:
 	/* check again */
 	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
 	if (offlined_pages < 0) {
-		printk("4XXX: memory_notify failed: rc=%d\n", ret);
 		ret = -EBUSY;
 		goto failed_removal;
 	}
