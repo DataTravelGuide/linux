@@ -1142,16 +1142,14 @@ static int pma_get_classportinfo(struct ib_perf *pmp,
 	p->class_version = 1;
 	p->cap_mask = IB_PMA_CLASS_CAP_EXT_WIDTH;
 	/*
+	 * Set the most significant bit of CM2 to indicate support for
+	 * congestion statistics
+	 */
+	p->reserved[0] = dd->psxmitwait_supported << 7;
+	/*
 	 * Expected response time is 4.096 usec. * 2^18 == 1.073741824 sec.
 	 */
-	p->cap_mask2_resp_time_value = cpu_to_be32(18);
-	if (dd->psxmitwait_supported)
-		/*
-		 * Set the most significant two bits of CM2 to indicate
-		 * support for congestion statistics
-		 */
-		p->cap_mask2_resp_time_value |=
-			IB_PMA_CLASS_CAP_PORT_CONGS;
+	p->resp_time_value = 18;
 
 	return reply((struct ib_smp *) pmp);
 }
@@ -1718,14 +1716,8 @@ static int pma_set_portcounters(struct ib_perf *pmp,
 }
 
 static int pma_set_portcounters_cong(struct ib_perf *pmp,
-				     struct ib_device *ibdev, u8 port,
-				     struct ib_perf *pmp_in)
+				     struct ib_device *ibdev, u8 port)
 {
-	/* Congestion PMA packets start at offset 24 not 64 */
-	struct ib_pma_portcounters_cong *p_out =
-			(struct ib_pma_portcounters_cong *)pmp->reserved;
-	struct ib_pma_portcounters_cong *p_in =
-			(struct ib_pma_portcounters_cong *)pmp_in->reserved;
 	struct qib_ibport *ibp = to_iport(ibdev, port);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 	struct qib_devdata *dd = dd_from_ppd(ppd);
@@ -1739,65 +1731,36 @@ static int pma_set_portcounters_cong(struct ib_perf *pmp,
 	ret = pma_get_portcounters_cong(pmp, ibdev, port);
 
 	if (counter_select & IB_PMA_SEL_CONG_XMIT) {
-		if (be64_to_cpu(p_out->port_xmit_wait) >
-			be64_to_cpu(p_in->port_xmit_wait)) {
-			spin_lock_irqsave(&ppd->ibport_data.lock, flags);
-			ppd->cong_stats.counter = 0;
-			dd->f_set_cntr_sample(ppd, QIB_CONG_TIMER_PSINTERVAL,
-					      0x0);
-			spin_unlock_irqrestore(&ppd->ibport_data.lock, flags);
-		}
+		spin_lock_irqsave(&ppd->ibport_data.lock, flags);
+		ppd->cong_stats.counter = 0;
+		dd->f_set_cntr_sample(ppd, QIB_CONG_TIMER_PSINTERVAL,
+				      0x0);
+		spin_unlock_irqrestore(&ppd->ibport_data.lock, flags);
 	}
 	if (counter_select & IB_PMA_SEL_CONG_PORT_DATA) {
-		if (be64_to_cpu(p_out->port_xmit_data) >
-			be64_to_cpu(p_in->port_xmit_data))
-			ibp->z_port_xmit_data = cntrs.port_xmit_data;
-		if (be64_to_cpu(p_out->port_rcv_data) >
-			be64_to_cpu(p_in->port_rcv_data))
-			ibp->z_port_rcv_data = cntrs.port_rcv_data;
-		if (be64_to_cpu(p_out->port_xmit_packets) >
-			be64_to_cpu(p_in->port_xmit_packets))
-			ibp->z_port_xmit_packets = cntrs.port_xmit_packets;
-		if (be64_to_cpu(p_out->port_rcv_packets) >
-			be64_to_cpu(p_in->port_rcv_packets))
-			ibp->z_port_rcv_packets = cntrs.port_rcv_packets;
+		ibp->z_port_xmit_data = cntrs.port_xmit_data;
+		ibp->z_port_rcv_data = cntrs.port_rcv_data;
+		ibp->z_port_xmit_packets = cntrs.port_xmit_packets;
+		ibp->z_port_rcv_packets = cntrs.port_rcv_packets;
 	}
 	if (counter_select & IB_PMA_SEL_CONG_ALL) {
-		if (be16_to_cpu(p_out->symbol_error_counter) >
-			be16_to_cpu(p_in->symbol_error_counter))
-			ibp->z_symbol_error_counter =
-				cntrs.symbol_error_counter;
-		if (p_out->link_error_recovery_counter >
-		    p_in->link_error_recovery_counter)
-			ibp->z_link_error_recovery_counter =
-				cntrs.link_error_recovery_counter;
-		if (p_out->link_downed_counter > p_in->link_downed_counter)
-			ibp->z_link_downed_counter =
-				cntrs.link_downed_counter;
-		if (be16_to_cpu(p_out->port_rcv_errors) >
-			be16_to_cpu(p_in->port_rcv_errors))
-			ibp->z_port_rcv_errors = cntrs.port_rcv_errors;
-		if (be16_to_cpu(p_out->port_rcv_remphys_errors) >
-		    be16_to_cpu(p_in->port_rcv_remphys_errors))
-			ibp->z_port_rcv_remphys_errors =
-				cntrs.port_rcv_remphys_errors;
-		if (be16_to_cpu(p_out->port_xmit_discards) >
-			be16_to_cpu(p_in->port_xmit_discards))
-			ibp->z_port_xmit_discards =
-				cntrs.port_xmit_discards;
-		if ((p_out->lli_ebor_errors & 0xf0) >
-		    (p_in->lli_ebor_errors & 0xf0))
-			ibp->z_local_link_integrity_errors =
-				cntrs.local_link_integrity_errors;
-		if ((p_out->lli_ebor_errors & 0x0f) >
-		    (p_in->lli_ebor_errors & 0x0f))
-			ibp->z_excessive_buffer_overrun_errors =
-				cntrs.excessive_buffer_overrun_errors;
-		if (be16_to_cpu(p_out->vl15_dropped) >
-			be16_to_cpu(p_in->vl15_dropped)) {
-			ibp->n_vl15_dropped = 0;
-			ibp->z_vl15_dropped = cntrs.vl15_dropped;
-		}
+		ibp->z_symbol_error_counter =
+			cntrs.symbol_error_counter;
+		ibp->z_link_error_recovery_counter =
+			cntrs.link_error_recovery_counter;
+		ibp->z_link_downed_counter =
+			cntrs.link_downed_counter;
+		ibp->z_port_rcv_errors = cntrs.port_rcv_errors;
+		ibp->z_port_rcv_remphys_errors =
+			cntrs.port_rcv_remphys_errors;
+		ibp->z_port_xmit_discards =
+			cntrs.port_xmit_discards;
+		ibp->z_local_link_integrity_errors =
+			cntrs.local_link_integrity_errors;
+		ibp->z_excessive_buffer_overrun_errors =
+			cntrs.excessive_buffer_overrun_errors;
+		ibp->n_vl15_dropped = 0;
+		ibp->z_vl15_dropped = cntrs.vl15_dropped;
 	}
 
 	return ret;
@@ -2048,8 +2011,7 @@ static int process_perf(struct ib_device *ibdev, u8 port,
 			ret = pma_set_portcounters_ext(pmp, ibdev, port);
 			goto bail;
 		case IB_PMA_PORT_COUNTERS_CONG:
-			ret = pma_set_portcounters_cong(pmp, ibdev, port,
-						(struct ib_perf *)in_mad);
+			ret = pma_set_portcounters_cong(pmp, ibdev, port);
 			goto bail;
 		default:
 			pmp->status |= IB_SMP_UNSUP_METH_ATTR;
