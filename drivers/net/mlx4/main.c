@@ -193,6 +193,7 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB)
 			dev->caps.port_mask |= 1 << (i - 1);
 }
+
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -302,6 +303,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	}
 
 	mlx4_set_port_mask(dev);
+
+	dev->caps.max_counters = 1 << ilog2(dev_cap->max_counters);
 
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] = dev_cap->reserved_qps;
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] =
@@ -881,6 +884,45 @@ err_stop_fw:
 	return err;
 }
 
+static int mlx4_init_counters_table(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int nent;
+
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS))
+		return -ENOENT;
+
+	nent = dev->caps.max_counters;
+	return mlx4_bitmap_init(&priv->counters_bitmap, nent, nent - 1, 0, 0);
+}
+
+static void mlx4_cleanup_counters_table(struct mlx4_dev *dev)
+{
+	mlx4_bitmap_cleanup(&mlx4_priv(dev)->counters_bitmap);
+}
+
+int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS))
+		return -ENOENT;
+
+	*idx = mlx4_bitmap_alloc(&priv->counters_bitmap);
+	if (*idx == -1)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_counter_alloc);
+
+void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
+{
+	mlx4_bitmap_free(&mlx4_priv(dev)->counters_bitmap, idx);
+	return;
+}
+EXPORT_SYMBOL_GPL(mlx4_counter_free);
+
 static int mlx4_setup_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -985,6 +1027,12 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_qp_table_free;
 	}
 
+	err = mlx4_init_counters_table(dev);
+	if (err && err != -ENOENT) {
+		mlx4_err(dev, "Failed to initialize counters table, aborting.\n");
+		goto err_counters_table_free;
+	}
+
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		enum mlx4_port_type port_type = 0;
 		mlx4_SENSE_PORT(dev, port, &port_type);
@@ -1010,6 +1058,9 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 
 err_mcg_table_free:
 	mlx4_cleanup_mcg_table(dev);
+
+err_counters_table_free:
+	mlx4_cleanup_counters_table(dev);
 
 err_qp_table_free:
 	mlx4_cleanup_qp_table(dev);
@@ -1341,6 +1392,7 @@ err_port:
 	for (--port; port >= 1; --port)
 		mlx4_cleanup_port_info(&priv->port[port]);
 
+	mlx4_cleanup_counters_table(dev);
 	mlx4_cleanup_mcg_table(dev);
 	mlx4_cleanup_qp_table(dev);
 	mlx4_cleanup_srq_table(dev);
@@ -1406,6 +1458,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 			mlx4_CLOSE_PORT(dev, p);
 		}
 
+		mlx4_cleanup_counters_table(dev);
 		mlx4_cleanup_mcg_table(dev);
 		mlx4_cleanup_qp_table(dev);
 		mlx4_cleanup_srq_table(dev);
