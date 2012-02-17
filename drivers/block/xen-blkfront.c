@@ -107,6 +107,10 @@ struct blkfront_info
 
 static DEFINE_SPINLOCK(blkif_io_lock);
 
+static unsigned int nr_minors;
+static unsigned long *minors;
+static DEFINE_SPINLOCK(minor_lock);
+
 #define MAXIMUM_OUTSTANDING_BLOCK_REQS \
 	(BLKIF_MAX_SEGMENTS_PER_REQUEST * BLK_RING_SIZE)
 #define GRANT_INVALID_REF	0
@@ -145,6 +149,55 @@ static void add_id_to_freelist(struct blkfront_info *info,
 	info->shadow[id].req.id  = info->shadow_free;
 	info->shadow[id].request = 0;
 	info->shadow_free = id;
+}
+
+static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
+{
+	unsigned int end = minor + nr;
+	int rc;
+
+	if (end > nr_minors) {
+		unsigned long *bitmap, *old;
+
+		bitmap = kzalloc(BITS_TO_LONGS(end) * sizeof(*bitmap),
+				 GFP_KERNEL);
+		if (bitmap == NULL)
+			return -ENOMEM;
+
+		spin_lock(&minor_lock);
+		if (end > nr_minors) {
+			old = minors;
+			memcpy(bitmap, minors,
+			       BITS_TO_LONGS(nr_minors) * sizeof(*bitmap));
+			minors = bitmap;
+			nr_minors = BITS_TO_LONGS(end) * BITS_PER_LONG;
+		} else
+			old = bitmap;
+		spin_unlock(&minor_lock);
+		kfree(old);
+	}
+
+	spin_lock(&minor_lock);
+	if (find_next_bit(minors, end, minor) >= end) {
+		for (; minor < end; ++minor)
+			__set_bit(minor, minors);
+		rc = 0;
+	} else
+		rc = -EBUSY;
+	spin_unlock(&minor_lock);
+
+	return rc;
+}
+
+static void xlbd_release_minors(unsigned int minor, unsigned int nr)
+{
+	unsigned int end = minor + nr;
+
+	BUG_ON(end > nr_minors);
+	spin_lock(&minor_lock);
+	for (; minor < end; ++minor)
+		__clear_bit(minor, minors);
+	spin_unlock(&minor_lock);
 }
 
 static void blkif_restart_queue_callback(void *arg)
@@ -484,9 +537,14 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	if ((minor % nr_parts) == 0)
 		nr_minors = nr_parts;
 
+	err = xlbd_reserve_minors(minor, nr_minors);
+	if (err)
+		goto out;
+	err = -ENODEV;
+
 	gd = alloc_disk(nr_minors);
 	if (gd == NULL)
-		goto out;
+		goto release;
 
 	if (nr_minors > 1) {
 		if (offset < 26)
@@ -515,7 +573,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 
 	if (xlvbd_init_blk_queue(gd, sector_size)) {
 		del_gendisk(gd);
-		goto out;
+		goto release;
 	}
 
 	info->rq = gd->queue;
@@ -534,6 +592,8 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 
 	return 0;
 
+ release:
+	xlbd_release_minors(minor, nr_minors);
  out:
 	return err;
 }
@@ -1094,12 +1154,11 @@ static void blkfront_connect(struct blkfront_info *info)
  * the backend.  Once is this done, we can switch to Closed in
  * acknowledgement.
  */
-static void blkfront_closing(struct xenbus_device *dev)
+static void blkfront_closing(struct blkfront_info *info)
 {
-	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
+	unsigned int minor, nr_minors;
 	unsigned long flags;
 
-	dev_dbg(&dev->dev, "blkfront_closing: %s removed\n", dev->nodename);
 
 	if (info->rq == NULL)
 		goto out;
@@ -1119,10 +1178,14 @@ static void blkfront_closing(struct xenbus_device *dev)
 	blk_cleanup_queue(info->rq);
 	info->rq = NULL;
 
+	minor = info->gd->first_minor;
+	nr_minors = info->gd->minors;
 	del_gendisk(info->gd);
+	xlbd_release_minors(minor, nr_minors);
 
  out:
-	xenbus_frontend_closed(dev);
+	if (info->xbdev)
+		xenbus_frontend_closed(info->xbdev);
 }
 
 /**
@@ -1162,7 +1225,7 @@ static void blkback_changed(struct xenbus_device *dev,
 			xenbus_dev_error(dev, -EBUSY,
 					 "Device in use; refusing to close");
 		else
-			blkfront_closing(dev);
+			blkfront_closing(info);
 		mutex_unlock(&bd->bd_mutex);
 		bdput(bd);
 		break;
@@ -1177,7 +1240,10 @@ static int blkfront_remove(struct xenbus_device *dev)
 
 	blkif_free(info, 0);
 
-	kfree(info);
+	if(info->users == 0)
+		kfree(info);
+	else
+		info->xbdev = NULL;
 
 	return 0;
 }
@@ -1186,12 +1252,16 @@ static int blkfront_is_ready(struct xenbus_device *dev)
 {
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 
-	return info->is_ready;
+	return info->is_ready && info->xbdev;
 }
 
 static int blkif_open(struct block_device *bdev, fmode_t mode)
 {
 	struct blkfront_info *info = bdev->bd_disk->private_data;
+
+	if (!info->xbdev)
+		return -ENODEV;
+
 	info->users++;
 	return 0;
 }
@@ -1205,10 +1275,13 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 		   have ignored this request initially, as the device was
 		   still mounted. */
 		struct xenbus_device *dev = info->xbdev;
-		enum xenbus_state state = xenbus_read_driver_state(dev->otherend);
 
-		if (state == XenbusStateClosing && info->is_ready)
-			blkfront_closing(dev);
+		if (!dev) {
+			blkfront_closing(info);
+			kfree(info);
+		} else if (xenbus_read_driver_state(dev->otherend)
+			   == XenbusStateClosing && info->is_ready)
+			blkfront_closing(info);
 	}
 	return 0;
 }
