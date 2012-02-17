@@ -1325,7 +1325,6 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	struct xenbus_device *xbdev;
 
 	bdev = bdget_disk(disk, 0);
-	bdput(bdev);
 
 	if (bdev->bd_openers)
 		goto out;
@@ -1354,6 +1353,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	}
 
 out:
+	bdput(bdev);
 	return 0;
 }
 
