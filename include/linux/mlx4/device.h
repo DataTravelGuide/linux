@@ -245,6 +245,7 @@ struct mlx4_caps {
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
+	int			udp_rss;
 	int			loopback_support;
 	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
