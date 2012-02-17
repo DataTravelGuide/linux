@@ -79,7 +79,7 @@ static void nes_terminate_start_timer(struct nes_qp *nesqp);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
 static unsigned char *nes_iwarp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Idle",
 	"RTS",
 	"Closing",
@@ -90,7 +90,7 @@ static unsigned char *nes_iwarp_state_str[] = {
 };
 
 static unsigned char *nes_tcp_state_str[] = {
-	"Non-Existant",
+	"Non-Existent",
 	"Closed",
 	"Listen",
 	"SYN Sent",
