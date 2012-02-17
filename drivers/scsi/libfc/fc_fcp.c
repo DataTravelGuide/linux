@@ -154,6 +154,7 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
 		fsp->xfer_ddp = FC_XID_UNKNOWN;
 		atomic_set(&fsp->ref_cnt, 1);
 		init_timer(&fsp->timer);
+		fsp->timer.data = (unsigned long)fsp;
 		INIT_LIST_HEAD(&fsp->list);
 		spin_lock_init(&fsp->scsi_pkt_lock);
 	}
@@ -1848,9 +1849,6 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 		stats->ControlRequests++;
 	}
 	put_cpu();
-
-	init_timer(&fsp->timer);
-	fsp->timer.data = (unsigned long)fsp;
 
 	/*
 	 * send it to the lower layer
