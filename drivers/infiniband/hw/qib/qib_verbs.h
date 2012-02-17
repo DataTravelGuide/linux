@@ -496,6 +496,7 @@ struct qib_qp {
 	u32 s_last;             /* last completed entry */
 	u32 s_ssn;              /* SSN of tail entry */
 	u32 s_lsn;              /* limit sequence number (credit) */
+	unsigned long timeout_jiffies;  /* computed from timeout */
 	struct qib_swqe *s_wq;  /* send work queue */
 	struct qib_swqe *s_wqe;
 	struct qib_rq r_rq;             /* receive work queue */
@@ -724,7 +725,8 @@ struct qib_ibdev {
 	dma_addr_t pio_hdrs_phys;
 	/* list of QPs waiting for RNR timer */
 	spinlock_t pending_lock; /* protect wait lists, PMA counters, etc. */
-	unsigned qp_table_size; /* size of the hash table */
+	u32 qp_table_size; /* size of the hash table */
+	u32 qp_rnd; /* random bytes for hash */
 	spinlock_t qpt_lock;
 
 	u32 n_piowait;
