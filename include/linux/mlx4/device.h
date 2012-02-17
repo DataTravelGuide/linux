@@ -268,8 +268,7 @@ struct mlx4_caps {
 	int			num_comp_vectors;
 	int			comp_pool;
 	int			num_mpts;
-	int			num_mtt_segs;
-	int			mtts_per_seg;
+	int			num_mtts;
 	int			fmr_reserved_mtts;
 	int			reserved_mtts;
 	int			reserved_mrws;
@@ -319,7 +318,7 @@ struct mlx4_buf {
 };
 
 struct mlx4_mtt {
-	u32			first_seg;
+	u32			offset;
 	int			order;
 	int			page_shift;
 };
