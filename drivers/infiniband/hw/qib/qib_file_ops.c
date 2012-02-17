@@ -1283,6 +1283,7 @@ static int setup_ctxt(struct qib_pportdata *ppd, int ctxt,
 	strlcpy(rcd->comm, current->comm, sizeof(rcd->comm));
 	ctxt_fp(fp) = rcd;
 	qib_stats.sps_ctxts++;
+	dd->freectxts++;
 	ret = 0;
 	goto bail;
 
@@ -1791,6 +1792,7 @@ static int qib_close(struct inode *in, struct file *fp)
 		if (dd->pageshadow)
 			unlock_expected_tids(rcd);
 		qib_stats.sps_ctxts--;
+		dd->freectxts--;
 	}
 
 	mutex_unlock(&qib_mutex);
