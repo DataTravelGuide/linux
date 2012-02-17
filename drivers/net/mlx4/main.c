@@ -180,10 +180,11 @@ static void process_mod_param_profile(void)
 				  default_profile.num_mtt);
 }
 
-static int port_type_array[2] = {1, 1};
+static int port_type_array[2] = {MLX4_PORT_TYPE_NONE, MLX4_PORT_TYPE_NONE};
 static int arr_argc = 2;
 module_param_array(port_type_array, int, &arr_argc, 0444);
-MODULE_PARM_DESC(port_type_array, "Array of port types: IB by default");
+MODULE_PARM_DESC(port_type_array, "Array of port types: HW_DEFAULT (0) is default "
+				"1 for IB, 2 for Ethernet");
 
 struct mlx4_port_config {
 	struct list_head list;
@@ -275,6 +276,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
 		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
 		dev->caps.supported_type[i] = dev_cap->supported_port_types[i];
+		dev->caps.suggested_type[i] = dev_cap->suggested_type[i];
+		dev->caps.default_sense[i] = dev_cap->default_sense[i];
 	}
 
 	dev->caps.uar_page_size	     = PAGE_SIZE;
@@ -348,21 +351,42 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			 * first of all check if SRIOV is on */
 			} else if (dev->flags & MLX4_FLAG_SRIOV)
 				dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
-			/* if IB and ETH are supported and SRIOV is off
-			 * use module parameters */
 			else {
-				if (port_type_array[i-1])
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_IB;
+				/* In non-SRIOV mode, we set the port type
+				 * according to user selection of port type,
+				 * if usere selected none, take the FW hint */
+				if (port_type_array[i-1] == MLX4_PORT_TYPE_NONE)
+					dev->caps.port_type[i] = dev->caps.suggested_type[i] ?
+						MLX4_PORT_TYPE_ETH : MLX4_PORT_TYPE_IB;
 				else
-					dev->caps.port_type[i] =
-						MLX4_PORT_TYPE_ETH;
+					dev->caps.port_type[i] = port_type_array[i-1];
 			}
 		}
-		dev->caps.possible_type[i] = dev->caps.port_type[i];
+		/*
+		 * Link sensing is allowed on the port if 3 conditions are true:
+		 * 1. Both protocols are supported on the port.
+		 * 2. Different types are supported on the port
+		 * 3. FW declared that it supports link sensing
+		 */
 		mlx4_priv(dev)->sense.sense_allowed[i] =
 			((dev->caps.supported_type[i] == MLX4_PORT_TYPE_AUTO) &&
+			 (dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP) &&
 			 (dev->caps.flags & MLX4_DEV_CAP_FLAG_SENSE_SUPPORT));
+
+		/*
+		 * If "default_sense" bit is set, we move the port to "AUTO" mode
+		 * and perform sense_port FW command to try and set the correct
+		 * port type from beginning
+		 */
+		if (mlx4_priv(dev)->sense.sense_allowed && dev->caps.default_sense[i]) {
+			enum mlx4_port_type sensed_port = MLX4_PORT_TYPE_NONE;
+			dev->caps.possible_type[i] = MLX4_PORT_TYPE_AUTO;
+			mlx4_SENSE_PORT(dev, i, &sensed_port);
+			if (sensed_port != MLX4_PORT_TYPE_NONE)
+				dev->caps.port_type[i] = sensed_port;
+		} else {
+			dev->caps.possible_type[i] = dev->caps.port_type[i];
+		}
 
 		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
 			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
@@ -1375,12 +1399,6 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 
 	if (!mlx4_is_slave(dev)) {
 		for (port = 1; port <= dev->caps.num_ports; port++) {
-			if (!mlx4_is_mfunc(dev)) {
-				enum mlx4_port_type port_type = 0;
-				mlx4_SENSE_PORT(dev, port, &port_type);
-				if (port_type)
-					dev->caps.port_type[port] = port_type;
-			}
 			ib_port_default_caps = 0;
 			err = mlx4_get_port_ib_caps(dev, port,
 						    &ib_port_default_caps);
