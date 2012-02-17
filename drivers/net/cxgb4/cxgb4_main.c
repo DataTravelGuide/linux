@@ -242,7 +242,7 @@ module_param_array(intr_cnt, uint, NULL, 0644);
 MODULE_PARM_DESC(intr_cnt,
 		 "thresholds 1..3 for queue interrupt packet counters");
 
-static int vf_acls;
+static bool vf_acls;
 
 #ifdef CONFIG_PCI_IOV
 module_param(vf_acls, bool, 0644);
@@ -1000,13 +1000,12 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(adapter->pdev));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
 
-	if (!adapter->params.fw_vers)
-		strcpy(info->fw_version, "N/A");
-	else
+	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			"%u.%u.%u.%u, TP %u.%u.%u.%u",
 			FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers),
@@ -1877,7 +1876,7 @@ static int set_tso(struct net_device *dev, u32 value)
 	return 0;
 }
 
-static struct ethtool_ops cxgb_ethtool_ops = {
+static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
 	.get_drvinfo       = get_drvinfo,
