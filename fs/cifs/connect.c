@@ -2956,6 +2956,24 @@ try_mount_again:
 	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
 
 remote_path_check:
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	/*
+	 * Perform an unconditional check for whether there are DFS
+	 * referrals for this path without prefix, to provide support
+	 * for DFS referrals from w2k8 servers which don't seem to respond
+	 * with PATH_NOT_COVERED to requests that include the prefix.
+	 * Chase the referral if found, otherwise continue normally.
+	 */
+	if (referral_walks_count == 0) {
+		int refrc = expand_dfs_referral(xid, pSesInfo, volume_info,
+						cifs_sb, &mount_data, false);
+		if (!refrc) {
+			referral_walks_count++;
+			goto try_mount_again;
+		}
+	}
+#endif
+
 	/* check if a whole path (including prepath) is not remote */
 	if (!rc && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
