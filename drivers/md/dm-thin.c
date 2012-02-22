@@ -1692,6 +1692,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct dm_dev *metadata_dev;
 	sector_t metadata_dev_size;
 	char *end;
+	static bool seen = false;
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -1780,6 +1781,11 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
+
+	if (!seen) {
+		mark_tech_preview("DM thin provisioning", THIS_MODULE);
+		seen = true;
+	}
 
 	return 0;
 
