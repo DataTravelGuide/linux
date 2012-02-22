@@ -966,7 +966,6 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct raid_type *rt;
 	unsigned long num_raid_params, num_raid_devs;
 	struct raid_set *rs = NULL;
-	static bool seen = false;
 
 	/* Must have at least <raid_type> <#raid_params> */
 	if (argc < 2) {
@@ -1048,12 +1047,6 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	dm_table_add_target_callbacks(ti->table, &rs->callbacks);
 
 	mddev_suspend(&rs->md);
-	if (!seen) {
-		mark_tech_preview("dm-raid (a device-mapper/MD bridge)",
-				  THIS_MODULE);
-		seen = true;
-	}
-
 	return 0;
 
 bad:
