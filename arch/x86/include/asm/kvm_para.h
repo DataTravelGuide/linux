@@ -78,6 +78,7 @@ struct kvm_mmu_op_release_pt {
 #include <asm/processor.h>
 
 extern void kvmclock_init(void);
+extern void kvm_disable_steal_time(void);
 
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
