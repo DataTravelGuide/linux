@@ -1,0 +1,507 @@
+#!/usr/bin/python
+#
+# update-kabi - Red Hat kABI reference update tool
+#
+# Author: Jiri Olsa <jolsa@redhat.com>
+# Copyright (C) 2012 Red Hat, Inc.
+#
+# This software may be freely redistributed under the terms of the GNU
+# General Public License version 2 (GPLv2).
+
+import os
+import sys
+import getopt
+import urllib2
+import shutil
+import string
+
+archs_supported = ['i686', 'x86_64', 's390x', 'ppc64' ]
+dir_tmp         = './tmp/'
+dir_symvers     = 'symvers'
+dir_output      = 'output'
+dir_kabi        = '.'
+base_url        = "http://download.devel.redhat.com/brewroot/packages/kernel/2.6.32"
+
+def usage():
+    print """
+update-kabi: creates new KABI lists&symvers out of symbols from standard input
+
+    options:
+            -r rev  - kernel revision to take symvers from (default 228)
+            -u url  - base url to download kernel rpm from like:
+                        '%s/%d.el6/%s/%s' % (base_url, rev, arch, rpm_file)
+                      (default http://download.devel.redhat.com/brewroot/packages/kernel/2.6.32)
+
+            -d dir  - temp dir to use for symvers/output data (default ./tmp)
+            -k dir  - directory that contains KABI lists (default .)
+                      (KERNEL/redhat/kabi)
+
+            -R      - remove symbols (default adding symbols)
+            -g      - update greylist (default whitelist)
+            -a      - update given arch only (default all supported archs)
+
+            -h      - display help
+            -D      - display doc
+
+    examples:
+        - Add 'scsi_sense_key_string' function to the whitelist, run:
+
+            # echo scsi_sense_key_string | ./redhat/kabi/update-kabi -k ./redhat/kabi/
+
+          Following files will be created in ./tmp/228/output:
+
+            kabi_whitelist_i686
+            kabi_whitelist_ppc64
+            kabi_whitelist_s390x
+            kabi_whitelist_x86_64
+            Module.kabi_i686
+            Module.kabi_ppc64
+            Module.kabi_s390x
+            Module.kabi_x86_64
+
+          containing current whitelist with scsi_sense_key_string symbol
+
+        - Remove 'scsi_sense_key_string' function to the whitelist, run:
+
+            # echo dmi_match | ./redhat/kabi/update-kabi -k ./redhat/kabi/ -R
+
+          Same file as for above example are made containing current whitelist
+          without dmi_match symbol
+"""
+
+
+def doc():
+    print """
+The usecase usualy is:
+  having list of functions, which needs to be added/removed
+  to/from kabi whitelist files (in $KERNEL_GIT/redhat/kabi):
+    - kabi_whitelist_$ARCH
+    - Module.kabi_$ARCH
+
+The update-kabi is python script, that takes list of functions
+on the standard input and makes for you:
+    - kabi_whitelist_$ARCH files
+    - Module.kabi_$ARCH files
+
+which contains current whitelist data ($KERNEL_GIT based) updated
+with the provided symbol list. The rest is simple - copy those
+files into: $KERNEL_GIT/redhat/kabi directory and run git diff to
+get a shiny whitelist patch.
+
+How it works
+------------
+To prepare whitelist information, we need Module.symvers file
+for each architecture we want to generate whitelist for. Each
+Module.symvers file contains signatures for all exported
+functions of the kernel build, so it is used to generate
+whitelist files.
+
+The Module.symvers file is part of the kernel-devel rpm package.
+The update-kabi script downloads kernel-devel package for each
+specified architecture ('-a' option, all by default) and specified
+revision ('-r' option, 228 by default).
+
+The script run could be described in several steps:
+
+1) prepare working directory ('-d' option, './tmp' by default)
+   create following layout, if needed:
+      dir_tmp/
+      dir_tmp/rev/
+      dir_tmp/rev/dir_output
+      dir_tmp/rev/dir_symvers
+      dir_tmp/rev/dir_symvers/archs
+
+2) download/extract all needed kernel-devel/Module.symvers
+   This step is ommited if the Module.symvers files are
+   found properly extracted from previous run.
+
+3) read standard input to get user's symbols list
+
+4) generate kabi files and output then into:
+      dir_tmp/rev/dir_output
+
+Another options to specify:
+  - directory with current whitelist files $KERNEL_GIT/redhat/kabi
+    ('-k' option, '.' by default)
+  - base url to get kernel-devel rpms from
+    ('-u' option, syntax is '%s/%d.el6/%s/%s' % (base_url, rev, arch, rpm_file)
+     default http://download.devel.redhat.com/brewroot/packages/kernel/2.6.32)
+  - generate greylist data
+  - instruct script to remove symbols
+    ('-R' option, adding symbols by default)
+
+Examples
+--------
+1) Add 'scsi_sense_key_string' function to the whitelist, run:
+
+   # echo scsi_sense_key_string | ./redhat/kabi/update-kabi -k ./redhat/kabi/
+
+   Following files will be created in ./tmp/228/output:
+
+            kabi_whitelist_i686
+            kabi_whitelist_ppc64
+            kabi_whitelist_s390x
+            kabi_whitelist_x86_64
+            Module.kabi_i686
+            Module.kabi_ppc64
+            Module.kabi_s390x
+            Module.kabi_x86_64
+
+   containing current whitelist with scsi_sense_key_string symbol
+
+2) Remove 'scsi_sense_key_string' function to the whitelist, run:
+
+   # echo dmi_match | ./redhat/kabi/update-kabi -k ./redhat/kabi/ -R
+
+   Same file as for above example are made containing current whitelist
+   without dmi_match symbol.
+"""
+
+
+# download file from given url to given dir
+def download_file(dir, url):
+    name = url.split('/')[-1]
+
+    u = urllib2.urlopen(url)
+    f = open(dir + '/' + name, 'wb')
+
+    meta = u.info()
+    file_size = int(meta.getheaders("Content-Length")[0])
+
+    print "- downloading: %s Bytes: %s" % (name, file_size)
+
+    file_size_dl = 0
+    block_sz = 8192
+    while True:
+        buffer = u.read(block_sz)
+        if not buffer:
+            break
+
+        file_size_dl += len(buffer)
+        f.write(buffer)
+        status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+        status = status + chr(8)*(len(status)+1)
+        print status,
+
+    f.close()
+
+
+# download kernel-devel rpm for given revision/arch
+def symvers_load(arch, symvers):
+    name = '%s/%s/Module.symvers' % (dir_symvers, arch)
+    file = open(name,"r")
+
+    print '- loading symvers [%s]' % name
+
+    while True:
+        line = file.readline()
+        line = line.rstrip('\r\n')
+        if not line:
+           break
+
+        checksum, symbol, directory, type = string.split(line)
+        symvers[symbol] = line
+
+
+# store new Module.symvers file based on given kabi list
+def symvers_store(arch, symvers, kabi, white):
+    if white:
+        name = dir_output + '/Module.kabi_' + arch
+    else:
+        name = dir_output + '/Module.kabi_greylist_' + arch
+
+    print '- storing symvers [%s]' % name
+    file = open(name, "w")
+
+    for symbol in kabi:
+        if symvers.has_key(symbol):
+            file.write(symvers[symbol] + "\n")
+
+
+# chheck for Module.symvers file for given arch
+def symvers_files_check_arch(arch, dir):
+    name = '%s/%s/Module.symvers' % (dir, arch)
+    os.stat(name)
+
+
+# chheck for Module.symvers file for all archs
+def symvers_files_check(archs, dir):
+    for a in archs:
+        symvers_files_check_arch(a, dir)
+
+
+# extract Module.symvers file out of given rpm file
+def symvers_unpack(arch, rev, rpm):
+    try:
+        print '- unpacking %s Module.symvers' % arch
+
+        symvers_src = './usr/src/kernels/2.6.32-%d.el6.%s/Module.symvers' % (rev, arch)
+        symvers_dst = '%s/%s/Module.symvers' % (dir_symvers, arch)
+
+        dir_current = getcwd();
+        chdir(dir_tmp)
+
+        cmd_unpack = 'rpm2cpio %s | cpio -ivd %s' % (rpm, symvers_src)
+        os.system(cmd_unpack)
+
+        chdir(dir_current)
+
+        shutil.copyfile(symvers_src, symvers_dst)
+        shutil.rmtree('./usr')
+
+        symvers_files_check_arch(arch, dir_symvers)
+
+    except OSError as e:
+        print 'FAILED %s: %s' % (e.strerror, e.filename)
+        sys.exit(1)
+
+    except IOError as e:
+        print 'FAILED %s: %s' % (e.strerror, e.filename)
+        sys.exit(1)
+
+
+# get Module.symvers file for given rev/arch
+def symvers_files_download(archs, rev):
+    for a in archs:
+        rpm = 'kernel-devel-2.6.32-%d.el6.%s.rpm' % (rev, a)
+        url = '%s/%d.el6/%s/%s' % (base_url, rev, a, rpm)
+
+        rpm_file = dir_tmp + '/' + rpm
+        if not os.path.isfile(rpm_file):
+            download_file(dir_tmp, url)
+        else:
+            print '- rpm available: [%s]' % rpm_file
+
+        symvers_unpack(a, rev, rpm_file)
+
+
+
+# check we have all needed kabi symvers files
+# available under current directory settings
+def symvers_check(archs, rev):
+    try:
+        symvers_files_check(archs, dir_symvers)
+    except OSError as e:
+        print '- symvers not available, trying to download'
+        symvers_files_download(archs, rev)
+
+
+# check we have all needed kabi white/grey-list files
+# available under current directory settings
+def kabi_check(archs, white):
+    try:
+        for a in archs:
+            if white:
+                os.stat(dir_kabi + '/kabi_whitelist_' + a)
+            else:
+                os.stat(dir_kabi + '/kabi_greylist_' + a)
+    except OSError as e:
+        print 'FAILED %s: %s' % (e.filename, e.strerror)
+        sys.exit(1)
+
+
+# load kabi white/grey-list into the name list
+def kabi_load(arch, kabi, white):
+    if white:
+        name = dir_kabi + '/kabi_whitelist_' + arch
+    else:
+        name = dir_kabi + '/kabi_greylist_' + arch
+
+    print '- loading list [%s]' % name
+
+    file = open(name, "r")
+
+    while True:
+        line = file.readline()
+        line = line.rstrip('\r\n')
+        line = line.lstrip()
+        if not line:
+           break
+
+        if line.startswith('['):
+            continue
+
+        kabi.append(line)
+
+    kabi.sort()
+
+
+# store kabi list into the white/grey-list
+def kabi_store(arch, symvers, kabi, white):
+    if white:
+        name   = dir_output + '/kabi_whitelist_' + arch
+        header = '[rhel6_%s_whitelist]\n' % arch
+    else:
+        name = dir_output + '/kabi_greylist_' + arch
+        header = '[rhel6_%s_greylist]\n' % arch
+
+    print '- storing list [%s]' % name
+
+    file = open(name, "w")
+    file.write(header);
+
+    for symbol in kabi:
+        if symvers.has_key(symbol):
+            file.write('\t' + symbol + '\n');
+        else:
+            print '  no symvers: %s' % symbol
+
+
+# add specified symbols from kabi list
+def kabi_update_add(kabi, symbols):
+    print '- adding symbols:'
+    for s in symbols:
+        if not s in kabi:
+            kabi.append(s)
+            print '\t%s' % s
+        else:
+            print '\t%s already in kabi' %s
+
+    kabi.sort()
+
+# remove specified symbols from kabi list
+def kabi_update_del(kabi, symbols):
+    print '- removing symbols:'
+    for s in symbols:
+        if s in kabi:
+            kabi.remove(s)
+            print '\t%s' % s
+        else:
+            print '\t%s not in kabi' % s
+
+
+# main symbols update processing for given architecture
+def kabi_update(arch, add, symbols, white):
+    symvers = {}
+    kabi    = []
+
+    print '\n[%s]' % arch
+
+    # load all symvers definitions
+    symvers_load(arch, symvers)
+
+    # load current white/grey list data
+    kabi_load(arch, kabi, white)
+
+    # update the kabi data according to user
+    if add:
+        kabi_update_add(kabi, symbols)
+    else:
+        kabi_update_del(kabi, symbols)
+
+    # store new kabi
+    kabi_store(arch, symvers, kabi, white)
+
+    # store new kabi symvers
+    symvers_store(arch, symvers, kabi, white)
+
+
+# create all necessary directory structure
+# dir_tmp/
+# dir_tmp/rev/
+# dir_tmp/rev/dir_output
+# dir_tmp/rev/dir_symvers
+# dir_tmp/rev/dir_symvers/archs
+#
+# dir_output and dir_symvers become fully specified paths
+def prepare_dirs(archs):
+    global dir_symvers
+    global dir_output
+
+    dir_symvers = '%s/%d/%s' % (dir_tmp, rev, dir_symvers)
+    dir_output  = '%s/%d/%s' % (dir_tmp, rev, dir_output)
+
+    try:
+        if os.path.isfile(dir_tmp):
+            os.unlink(dir_tmp)
+        if not os.path.isdir(dir_tmp):
+            os.makedirs(dir_tmp)
+        if not os.path.isdir(dir_symvers):
+            os.makedirs(dir_symvers)
+        if os.path.isdir(dir_output):
+            shutil.rmtree(dir_output)
+        os.makedirs(dir_output)
+
+        for a in archs:
+            dir_arch = dir_symvers + '/' + a;
+            if not os.path.isdir(dir_arch):
+                os.makedirs(dir_arch)
+
+    except OSError as e:
+        print 'FAILED %s: %s' % (e.strerror, e.filename)
+
+
+# checks user defined arch falls into archs we support
+# i686, x86_64, s390x, ppc64
+def arch_validate(archs):
+    for a in archs:
+        if not a in archs_supported:
+            print "FAILED following arch(s) not supported: " + a
+            sys.exit(1)
+
+
+# main
+if __name__ == "__main__":
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'u:r:d:k:Rga:hD')
+    except getopt.GetoptError as e:
+        print 'Unknown option: -%s' % e.opt
+        usage()
+        sys.exit(1)
+
+    # defaults
+    rev         = 228
+    white       = True
+    add         = True
+    archs       = archs_supported;
+
+    for o, v in opts:
+        if o == "-u":
+            base_url = v
+        if o == "-r":
+            revision = v
+        if o == "-d":
+            dir_tmp = v
+        if o == "-k":
+            dir_kabi = v
+        if o == "-R":
+            add = False
+        if o == "-g":
+            white = False
+        if o == "-a":
+            archs = v.split(',')
+        if o == "-h":
+            usage()
+            sys.exit(0)
+        if o == "-D":
+            doc()
+            sys.exit(0)
+
+    prepare_dirs(archs)
+
+    # check user want archs we know about
+    arch_validate(archs)
+
+    # verify all the symvers data are in place
+    symvers_check(archs, rev)
+
+    # verify all the kabi files are in place
+    kabi_check(archs, white)
+
+    symbols = []
+
+    # read all the input first and process it later
+    while 1:
+        line = sys.stdin.readline()
+        if not line:
+           break
+
+        line = line.rstrip('\r\n')
+        line = line.lstrip()
+        symbols.append(line)
+
+    for a in archs:
+        kabi_update(a, add, symbols, white)
+
+    print '\noutput data available in [%s]' % dir_output
