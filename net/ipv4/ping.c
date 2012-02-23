@@ -183,7 +183,8 @@ exit:
 	return sk;
 }
 
-static void inet_get_ping_group_range_net(struct net *net, gid_t *low, gid_t *high)
+static void inet_get_ping_group_range_net(struct net *net, gid_t *low,
+					  gid_t *high)
 {
 	gid_t *data = net->ipv4_sysctl_ping_group_range;
 	unsigned seq;
@@ -744,7 +745,9 @@ static struct sock *ping_get_first(struct seq_file *seq, int start)
 	for (state->bucket = start; state->bucket < PING_HTABLE_SIZE;
 	     ++state->bucket) {
 		struct hlist_nulls_node *node;
-		struct hlist_nulls_head *hslot = &ping_table.hash[state->bucket];
+		struct hlist_nulls_head *hslot;
+
+		hslot = &ping_table.hash[state->bucket];
 
 		if (hlist_nulls_empty(hslot))
 			continue;
