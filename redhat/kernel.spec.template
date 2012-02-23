@@ -564,6 +564,10 @@ Source30: Module.kabi_i686
 Source31: Module.kabi_ppc64
 Source32: Module.kabi_s390x
 Source33: Module.kabi_x86_64
+Source34: Module.kabi_greylist_i686
+Source35: Module.kabi_greylist_ppc64
+Source36: Module.kabi_greylist_s390x
+Source37: Module.kabi_greylist_x86_64
 
 %%CONFIGS%%
 
@@ -1133,15 +1137,26 @@ hwcap 1 nosegneg"
     rm -f %{_tmppath}/kernel-$KernelVer-kabideps
     %_sourcedir/kabitool -s Module.symvers -o %{_tmppath}/kernel-$KernelVer-kabideps
 
+    # whitelist checking
+    # if this one fails, the build fails
     echo "**** kABI checking is enabled in kernel SPEC file. ****"
     chmod 0755 $RPM_SOURCE_DIR/check-kabi
-    if [ -e $RPM_SOURCE_DIR/Module.kabi_%{_target_cpu}$Flavour ]; then
-        cp $RPM_SOURCE_DIR/Module.kabi_%{_target_cpu}$Flavour $RPM_BUILD_ROOT/Module.kabi
-        $RPM_SOURCE_DIR/check-kabi -k $RPM_BUILD_ROOT/Module.kabi -s Module.symvers || exit 1
-        rm $RPM_BUILD_ROOT/Module.kabi # for now, don't keep it around.
+    whitelist=$RPM_SOURCE_DIR/Module.kabi_%{_target_cpu}$Flavour
+    if [ -e $whitelist ]; then
+        $RPM_SOURCE_DIR/check-kabi -k $whitelist -s Module.symvers || exit 1
     else
         echo "**** NOTE: Cannot find reference Module.kabi file. ****"
     fi
+
+    # greylist checking
+    # if this one fails, we go on with warnings in build log
+    greylist=$RPM_SOURCE_DIR/Module.kabi_greylist_%{_target_cpu}$Flavour
+    if [ -e $greylist ]; then
+        echo "**** kABI: greylist checking start ****"
+        $RPM_SOURCE_DIR/check-kabi -k $greylist -s Module.symvers
+        echo "**** kABI: greylist checking stop  ****"
+    fi
+
 %endif
     # Ensure the kabideps file always exists for the RPM ProvReq scripts
     touch %{_tmppath}/kernel-$KernelVer-kabideps

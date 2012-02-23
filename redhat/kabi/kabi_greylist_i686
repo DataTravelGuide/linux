@@ -1,0 +1,20 @@
+[rhel6_i686_greylist]
+	dcb_getapp
+	irq_set_affinity_hint
+	mdiobus_alloc
+	mdiobus_free
+	mdiobus_register
+	mdiobus_unregister
+	pci_disable_link_state_locked
+	pci_vpd_find_info_keyword
+	pci_vpd_find_tag
+	phy_connect
+	phy_disconnect
+	phy_ethtool_gset
+	phy_ethtool_sset
+	phy_mii_ioctl
+	phy_start
+	phy_start_aneg
+	phy_stop
+	vzalloc
+	vzalloc_node
