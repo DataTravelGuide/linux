@@ -84,6 +84,9 @@ struct net {
 	struct sk_buff_head	wext_nlevents;
 #endif
 	struct net_generic	*gen;
+#ifndef __GENKSYMS__
+	unsigned int ipv4_sysctl_ping_group_range[2];
+#endif
 };
 
 
