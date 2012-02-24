@@ -1993,6 +1993,7 @@ static ext3_grpblk_t ext3_trim_all_free(struct super_block *sb,
 		if ((next - start) < minblocks)
 			goto free_extent;
 
+		trace_ext3_discard_blocks(sb, discard_block, next - start);
 		 /* Send the TRIM command down to the device */
 		err = sb_issue_discard(sb, discard_block, next - start,
 				       GFP_NOFS, 0);
