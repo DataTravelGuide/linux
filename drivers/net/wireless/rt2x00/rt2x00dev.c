@@ -529,7 +529,7 @@ static void rt2x00lib_rxdone_check_ps(struct rt2x00_dev *rt2x00dev,
 	cam |= (tim_ie->bitmap_ctrl & 0x01);
 
 	if (!cam && !test_bit(CONFIG_POWERSAVING, &rt2x00dev->flags))
-		queue_work(rt2x00dev->workqueue, &rt2x00dev->sleep_work);
+		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->sleep_work);
 }
 
 static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
@@ -1146,15 +1146,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_WDS);
 
 	/*
-	 * Initialize work.
+	 * Initialize configuration work.
 	 */
-	rt2x00dev->workqueue =
-	    alloc_ordered_workqueue(wiphy_name(rt2x00dev->hw->wiphy), 0);
-	if (!rt2x00dev->workqueue) {
-		retval = -ENOMEM;
-		goto exit;
-	}
-
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->autowakeup_work, rt2x00lib_autowakeup);
 	INIT_WORK(&rt2x00dev->sleep_work, rt2x00lib_sleep);
@@ -1220,7 +1213,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 		cancel_work_sync(&rt2x00dev->rxdone_work);
 		cancel_work_sync(&rt2x00dev->txdone_work);
 	}
-	destroy_workqueue(rt2x00dev->workqueue);
 
 	/*
 	 * Free the tx status fifo.

@@ -282,7 +282,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 */
 	if (!test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags) ||
 	    !kfifo_is_empty(&rt2x00dev->txstatus_fifo))
-		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 }
 
 static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void* data)
@@ -377,7 +377,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Schedule the delayed work for reading the RX status
 	 * from the device.
 	 */
-	queue_work(rt2x00dev->workqueue, &rt2x00dev->rxdone_work);
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
 }
 
 static bool rt2x00usb_kick_rx_entry(struct queue_entry *entry, void* data)
@@ -497,7 +497,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue, bool drop)
 		 * Schedule the completion handler manually, when this
 		 * worker function runs, it should cleanup the queue.
 		 */
-		queue_work(queue->rt2x00dev->workqueue, completion);
+		ieee80211_queue_work(queue->rt2x00dev->hw, completion);
 
 		/*
 		 * Wait for a little while to give the driver
@@ -521,7 +521,7 @@ static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
 	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
 		" invoke forced tx handler\n", queue->qid);
 
-	queue_work(queue->rt2x00dev->workqueue, &queue->rt2x00dev->txdone_work);
+	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
 }
 
 static int rt2x00usb_status_timeout(struct data_queue *queue)

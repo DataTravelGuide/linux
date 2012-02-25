@@ -127,11 +127,11 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status)) {
 			WARNING(rt2x00dev, "TX status FIFO overrun, "
 				"drop tx status report.\n");
-			queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+			ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 		} else
 			return true;
 	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
-		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
 		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(2));
 	}
