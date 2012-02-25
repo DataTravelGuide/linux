@@ -20,11 +20,9 @@ static ssize_t ath5k_attr_store_##name(struct device *dev,		\
 {									\
 	struct ieee80211_hw *hw = dev_get_drvdata(dev);			\
 	struct ath5k_hw *ah = hw->priv;				\
-	int val, ret;							\
+	int val;							\
 									\
-	ret = kstrtoint(buf, 10, &val);					\
-	if (ret < 0)							\
-		return ret;						\
+	val = (int)simple_strtoul(buf, NULL, 10);			\
 	set(ah, val);						\
 	return count;							\
 }									\
