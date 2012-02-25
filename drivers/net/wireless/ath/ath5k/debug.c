@@ -286,7 +286,6 @@ static const struct file_operations fops_reset = {
 	.write = write_file_reset,
 	.open = ath5k_debugfs_open,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
 };
 
 

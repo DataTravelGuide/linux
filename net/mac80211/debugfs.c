@@ -94,7 +94,6 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 static const struct file_operations reset_ops = {
 	.write = reset_write,
 	.open = mac80211_open_file_generic,
-	.llseek = noop_llseek,
 };
 
 static ssize_t noack_read(struct file *file, char __user *user_buf,
