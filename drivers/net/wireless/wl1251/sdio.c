@@ -39,15 +39,9 @@
 #define SDIO_DEVICE_ID_TI_WL1251	0x9066
 #endif
 
-struct wl1251_sdio {
-	struct sdio_func *func;
-	u32 elp_val;
-};
-
 static struct sdio_func *wl_to_func(struct wl1251 *wl)
 {
-	struct wl1251_sdio *wl_sdio = wl->if_priv;
-	return wl_sdio->func;
+	return wl->if_priv;
 }
 
 static void wl1251_sdio_interrupt(struct sdio_func *func)
@@ -96,17 +90,10 @@ static void wl1251_sdio_write(struct wl1251 *wl, int addr,
 static void wl1251_sdio_read_elp(struct wl1251 *wl, int addr, u32 *val)
 {
 	int ret = 0;
-	struct wl1251_sdio *wl_sdio = wl->if_priv;
-	struct sdio_func *func = wl_sdio->func;
+	struct sdio_func *func = wl_to_func(wl);
 
-	/*
-	 * The hardware only supports RAW (read after write) access for
-	 * reading, regular sdio_readb won't work here (it interprets
-	 * the unused bits of CMD52 as write data even if we send read
-	 * request).
-	 */
 	sdio_claim_host(func);
-	*val = sdio_writeb_readb(func, wl_sdio->elp_val, addr, &ret);
+	*val = sdio_readb(func, addr, &ret);
 	sdio_release_host(func);
 
 	if (ret)
@@ -116,8 +103,7 @@ static void wl1251_sdio_read_elp(struct wl1251 *wl, int addr, u32 *val)
 static void wl1251_sdio_write_elp(struct wl1251 *wl, int addr, u32 val)
 {
 	int ret = 0;
-	struct wl1251_sdio *wl_sdio = wl->if_priv;
-	struct sdio_func *func = wl_sdio->func;
+	struct sdio_func *func = wl_to_func(wl);
 
 	sdio_claim_host(func);
 	sdio_writeb(func, val, addr, &ret);
@@ -125,8 +111,6 @@ static void wl1251_sdio_write_elp(struct wl1251 *wl, int addr, u32 val)
 
 	if (ret)
 		wl1251_error("sdio_writeb failed (%d)", ret);
-	else
-		wl_sdio->elp_val = val;
 }
 
 static void wl1251_sdio_reset(struct wl1251 *wl)
@@ -224,7 +208,6 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	int ret;
 	struct wl1251 *wl;
 	struct ieee80211_hw *hw;
-	struct wl1251_sdio *wl_sdio;
 	const struct wl12xx_platform_data *wl12xx_board_data;
 
 	hw = wl1251_alloc_hw();
@@ -232,12 +215,6 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 		return PTR_ERR(hw);
 
 	wl = hw->priv;
-
-	wl_sdio = kzalloc(sizeof(*wl_sdio), GFP_KERNEL);
-	if (wl_sdio == NULL) {
-		ret = -ENOMEM;
-		goto out_free_hw;
-	}
 
 	sdio_claim_host(func);
 	ret = sdio_enable_func(func);
@@ -248,8 +225,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	sdio_release_host(func);
 
 	SET_IEEE80211_DEV(hw, &func->dev);
-	wl_sdio->func = func;
-	wl->if_priv = wl_sdio;
+	wl->if_priv = func;
 	wl->if_ops = &wl1251_sdio_ops;
 
 	wl12xx_board_data = wl12xx_get_platform_data();
@@ -299,8 +275,6 @@ disable:
 	sdio_disable_func(func);
 release:
 	sdio_release_host(func);
-	kfree(wl_sdio);
-out_free_hw:
 	wl1251_free_hw(wl);
 	return ret;
 }
@@ -308,14 +282,12 @@ out_free_hw:
 static void __devexit wl1251_sdio_remove(struct sdio_func *func)
 {
 	struct wl1251 *wl = sdio_get_drvdata(func);
-	struct wl1251_sdio *wl_sdio = wl->if_priv;
 
 	/* Undo decrement done above in wl1251_probe */
 	pm_runtime_get_noresume(&func->dev);
 
 	if (wl->irq)
 		free_irq(wl->irq, wl);
-	kfree(wl_sdio);
 	wl1251_free_hw(wl);
 
 	sdio_claim_host(func);
