@@ -65,6 +65,7 @@ static int b43_pcmcia_resume(struct pcmcia_device *dev)
 static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 {
 	struct ssb_bus *ssb;
+	win_req_t win;
 	int err = -ENOMEM;
 	int res = 0;
 
@@ -76,15 +77,16 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 
 	dev->conf.Attributes = CONF_ENABLE_IRQ;
 
-	dev->resource[2]->flags |=  WIN_ENABLE | WIN_DATA_WIDTH_16 |
+	win.Attributes =  WIN_ENABLE | WIN_DATA_WIDTH_16 |
 			 WIN_USE_WAIT;
-	dev->resource[2]->start = 0;
-	dev->resource[2]->end = SSB_CORE_SIZE;
-	res = pcmcia_request_window(dev, dev->resource[2], 250);
+	win.Base = 0;
+	win.Size = SSB_CORE_SIZE;
+	win.AccessSpeed = 250;
+	res = pcmcia_request_window(dev, &win, &dev->win);
 	if (res != 0)
 		goto err_kfree_ssb;
 
-	res = pcmcia_map_mem_page(dev, dev->resource[2], 0);
+	res = pcmcia_map_mem_page(dev, dev->win, 0);
 	if (res != 0)
 		goto err_disable;
 
@@ -95,7 +97,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	if (res != 0)
 		goto err_disable;
 
-	err = ssb_bus_pcmciabus_register(ssb, dev, dev->resource[2]->start);
+	err = ssb_bus_pcmciabus_register(ssb, dev, win.Base);
 	if (err)
 		goto err_disable;
 	dev->priv = ssb;
