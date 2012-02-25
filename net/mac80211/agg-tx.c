@@ -147,18 +147,15 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				    bool tx)
 {
 	struct ieee80211_local *local = sta->local;
-	struct tid_ampdu_tx *tid_tx;
+	struct tid_ampdu_tx *tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	int ret;
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
-	spin_lock_bh(&sta->lock);
-
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
-	if (!tid_tx) {
-		spin_unlock_bh(&sta->lock);
+	if (!tid_tx)
 		return -ENOENT;
-	}
+
+	spin_lock_bh(&sta->lock);
 
 	/* if we're already stopping ignore any new requests to stop */
 	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
@@ -336,13 +333,13 @@ ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
 
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 {
-	struct tid_ampdu_tx *tid_tx;
+	struct tid_ampdu_tx *tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u16 start_seq_num;
 	int ret;
 
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	/*
 	 * Start queuing up packets for this aggregation session.
@@ -446,7 +443,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		goto err_unlock_sta;
 	}
 
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	/* check if the TID is not in aggregation flow already */
 	if (tid_tx || sta->ampdu_mlme.tid_start_tx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -496,11 +493,7 @@ EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
 static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
 {
-	struct tid_ampdu_tx *tid_tx;
-
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
-
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Aggregation is on for tid %d\n", tid);
@@ -508,7 +501,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 
 	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
-			 &sta->sta, tid, NULL, tid_tx->buf_size);
+			 &sta->sta, tid, NULL,
+			 sta->ampdu_mlme.tid_tx[tid]->buf_size);
 
 	/*
 	 * synchronize with TX path, while splicing the TX path
@@ -516,13 +510,13 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	 */
 	spin_lock_bh(&sta->lock);
 
-	ieee80211_agg_splice_packets(local, tid_tx, tid);
+	ieee80211_agg_splice_packets(local, sta->ampdu_mlme.tid_tx[tid], tid);
 	/*
 	 * Now mark as operational. This will be visible
 	 * in the TX path, and lets it go lock-free in
 	 * the common case.
 	 */
-	set_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state);
+	set_bit(HT_AGG_STATE_OPERATIONAL, &sta->ampdu_mlme.tid_tx[tid]->state);
 	ieee80211_agg_splice_finish(local, tid);
 
 	spin_unlock_bh(&sta->lock);
@@ -556,7 +550,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	}
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 
 	if (WARN_ON(!tid_tx)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -629,7 +623,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		return -EINVAL;
 
 	spin_lock_bh(&sta->lock);
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 
 	if (!tid_tx) {
 		ret = -ENOENT;
@@ -685,7 +679,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 	spin_lock_bh(&sta->lock);
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 
 	if (!tid_tx || !test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -761,7 +755,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
-	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	if (!tid_tx)
 		goto out;
 

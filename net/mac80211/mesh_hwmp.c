@@ -598,14 +598,6 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 }
 
 
-static inline struct sta_info *
-next_hop_deref_protected(struct mesh_path *mpath)
-{
-	return rcu_dereference_protected(mpath->next_hop,
-					 lockdep_is_held(&mpath->state_lock));
-}
-
-
 static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    u8 *prep_elem, u32 metric)
@@ -645,7 +637,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 		spin_unlock_bh(&mpath->state_lock);
 		goto fail;
 	}
-	memcpy(next_hop, next_hop_deref_protected(mpath)->sta.addr, ETH_ALEN);
+	memcpy(next_hop, mpath->next_hop->sta.addr, ETH_ALEN);
 	spin_unlock_bh(&mpath->state_lock);
 	--ttl;
 	flags = PREP_IE_FLAGS(prep_elem);
@@ -697,8 +689,7 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (mpath) {
 		spin_lock_bh(&mpath->state_lock);
 		if (mpath->flags & MESH_PATH_ACTIVE &&
-		    memcmp(ta, next_hop_deref_protected(mpath)->sta.addr,
-							ETH_ALEN) == 0 &&
+		    memcmp(ta, mpath->next_hop->sta.addr, ETH_ALEN) == 0 &&
 		    (!(mpath->flags & MESH_PATH_SN_VALID) ||
 		    SN_GT(target_sn, mpath->sn))) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -988,7 +979,6 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 {
 	struct sk_buff *skb_to_free = NULL;
 	struct mesh_path *mpath;
-	struct sta_info *next_hop;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *target_addr = hdr->addr3;
 	int err = 0;
@@ -1016,11 +1006,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			mesh_queue_preq(mpath,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
-		next_hop = rcu_dereference(mpath->next_hop);
-		if (next_hop)
-			memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
-		else
-			err = -ENOENT;
+		memcpy(hdr->addr1, mpath->next_hop->sta.addr, ETH_ALEN);
 	} else {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {

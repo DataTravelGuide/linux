@@ -227,7 +227,7 @@ struct beacon_data {
 };
 
 struct ieee80211_if_ap {
-	struct beacon_data __rcu *beacon;
+	struct beacon_data *beacon;
 
 	struct list_head vlans;
 
@@ -250,7 +250,7 @@ struct ieee80211_if_vlan {
 	struct list_head list;
 
 	/* used for all tx if the VLAN is configured to 4-addr mode */
-	struct sta_info __rcu *sta;
+	struct sta_info *sta;
 };
 
 struct mesh_stats {
@@ -468,8 +468,7 @@ struct ieee80211_if_ibss {
 
 	unsigned long ibss_join_req;
 	/* probe response/beacon for IBSS */
-	struct sk_buff __rcu *presp;
-	struct sk_buff *skb;
+	struct sk_buff *presp, *skb;
 
 	enum {
 		IEEE80211_IBSS_MLME_SEARCH,
@@ -600,10 +599,9 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
 
-	struct ieee80211_key __rcu *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
-	struct ieee80211_key __rcu *default_unicast_key;
-	struct ieee80211_key __rcu *default_multicast_key;
-	struct ieee80211_key __rcu *default_mgmt_key;
+	struct ieee80211_key *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
+	struct ieee80211_key *default_unicast_key, *default_multicast_key;
+	struct ieee80211_key *default_mgmt_key;
 
 	u16 sequence_number;
 	__be16 control_port_protocol;
@@ -848,7 +846,7 @@ struct ieee80211_local {
 	spinlock_t sta_lock;
 	unsigned long num_sta;
 	struct list_head sta_list, sta_pending_list;
-	struct sta_info __rcu *sta_hash[STA_HASH_SIZE];
+	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 	struct work_struct sta_finish_work;
 	int sta_generation;

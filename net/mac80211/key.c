@@ -225,7 +225,7 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	assert_key_lock(sdata->local);
 
 	if (idx >= 0 && idx < NUM_DEFAULT_KEYS)
-		key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
+		key = sdata->keys[idx];
 
 	if (uni)
 		rcu_assign_pointer(sdata->default_unicast_key, key);
@@ -252,7 +252,7 @@ __ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata, int idx)
 
 	if (idx >= NUM_DEFAULT_KEYS &&
 	    idx < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
-		key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
+		key = sdata->keys[idx];
 
 	rcu_assign_pointer(sdata->default_mgmt_key, key);
 
@@ -296,15 +296,9 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		else
 			idx = new->conf.keyidx;
 
-		defunikey = old &&
-			old == key_mtx_dereference(sdata->local,
-						sdata->default_unicast_key);
-		defmultikey = old &&
-			old == key_mtx_dereference(sdata->local,
-						sdata->default_multicast_key);
-		defmgmtkey = old &&
-			old == key_mtx_dereference(sdata->local,
-						sdata->default_mgmt_key);
+		defunikey = old && sdata->default_unicast_key == old;
+		defmultikey = old && sdata->default_multicast_key == old;
+		defmgmtkey = old && sdata->default_mgmt_key == old;
 
 		if (defunikey && !new)
 			__ieee80211_set_default_key(sdata, -1, true, false);
@@ -488,11 +482,11 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	mutex_lock(&sdata->local->key_mtx);
 
 	if (sta && pairwise)
-		old_key = key_mtx_dereference(sdata->local, sta->ptk);
+		old_key = sta->ptk;
 	else if (sta)
-		old_key = key_mtx_dereference(sdata->local, sta->gtk[idx]);
+		old_key = sta->gtk[idx];
 	else
-		old_key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
+		old_key = sdata->keys[idx];
 
 	increment_tailroom_need_count(sdata);
 
