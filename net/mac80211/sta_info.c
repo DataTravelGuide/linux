@@ -94,9 +94,7 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
-				    lockdep_is_held(&local->sta_mtx));
+	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
 		if (sta->sdata == sdata && !sta->dummy &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
@@ -115,16 +113,12 @@ struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
-				    lockdep_is_held(&local->sta_mtx));
+	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
 		if (sta->sdata == sdata &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
-					    lockdep_is_held(&local->sta_mtx));
+		sta = rcu_dereference(sta->hnext);
 	}
 	return sta;
 }
@@ -139,9 +133,7 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
-				    lockdep_is_held(&local->sta_mtx));
+	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
 		if ((sta->sdata == sdata ||
 		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
@@ -173,9 +165,7 @@ struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
-					    lockdep_is_held(&local->sta_mtx));
+		sta = rcu_dereference(sta->hnext);
 	}
 	return sta;
 }

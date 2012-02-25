@@ -243,11 +243,11 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 			switch (sdata->vif.type) {
 			case NL80211_IFTYPE_AP:
 				sdata->vif.bss_conf.enable_beacon =
-					!!sdata->u.ap.beacon;
+					!!rcu_dereference(sdata->u.ap.beacon);
 				break;
 			case NL80211_IFTYPE_ADHOC:
 				sdata->vif.bss_conf.enable_beacon =
-					!!sdata->u.ibss.presp;
+					!!rcu_dereference(sdata->u.ibss.presp);
 				break;
 #ifdef CONFIG_MAC80211_MESH
 			case NL80211_IFTYPE_MESH_POINT:
