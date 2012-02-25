@@ -799,7 +799,7 @@ static struct sk_buff *ar9170_rx_copy_data(u8 *buf, int len)
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		reserved += NET_IP_ALIGN;
 
-		if (*qc & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
+		if (*qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
 			reserved += NET_IP_ALIGN;
 	}
 
@@ -1739,7 +1739,7 @@ out:
 	mutex_unlock(&ar->mutex);
 }
 
-static u64 ar9170_op_get_tsf(struct ieee80211_hw *hw)
+static u64 ar9170_op_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ar9170 *ar = hw->priv;
 	int err;
@@ -1925,7 +1925,8 @@ static int ar9170_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
-static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int ar9170_conf_tx(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
 {
 	struct ar9170 *ar = hw->priv;
@@ -2117,7 +2118,6 @@ static int ar9170_read_eeprom(struct ar9170 *ar)
 		ar->hw->channel_change_time = 80 * 1000;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
-	regulatory->current_rd_ext = le16_to_cpu(ar->eeprom.reg_domain[1]);
 
 	/* second part of wiphy init */
 	SET_IEEE80211_PERM_ADDR(ar->hw, addr);
