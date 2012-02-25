@@ -324,7 +324,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 {
 	struct wl1271 *wl = file->private_data;
 	int res = 0;
-	char buf[1024];
+	char buf[892];
 
 	mutex_lock(&wl->mutex);
 
