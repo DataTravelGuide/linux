@@ -143,12 +143,20 @@ static ssize_t uapsd_queues_write(struct file *file,
 				  size_t count, loff_t *ppos)
 {
 	struct ieee80211_local *local = file->private_data;
-	u8 val;
+	unsigned long val;
+	char buf[10];
+	size_t len;
 	int ret;
 
-	ret = kstrtou8_from_user(user_buf, count, 0, &val);
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = strict_strtoul(buf, 0, &val);
+
 	if (ret)
-		return ret;
+		return -EINVAL;
 
 	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
 		return -ERANGE;
