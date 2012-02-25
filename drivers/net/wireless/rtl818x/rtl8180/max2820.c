@@ -24,7 +24,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_max2820.h"
+#include "max2820.h"
 
 static const u32 max2820_chan[] = {
 	12, /* CH 1 */
@@ -72,6 +72,22 @@ static void max2820_write_phy_antenna(struct ieee80211_hw *dev, short chan)
 		ant |= BB_ANTATTEN_CHAN14;
 
 	rtl8180_write_phy(dev, 0x10, ant);
+}
+
+static u8 max2820_rf_calc_rssi(u8 agc, u8 sq)
+{
+	bool odd;
+
+	odd = !!(agc & 1);
+
+	agc >>= 1;
+	if (odd)
+		agc += 76;
+	else
+		agc += 66;
+
+	/* TODO: change addends above to avoid mult / div below */
+	return 65 * agc / 100;
 }
 
 static void max2820_rf_set_channel(struct ieee80211_hw *dev,
@@ -148,5 +164,6 @@ const struct rtl818x_rf_ops max2820_rf_ops = {
 	.name		= "Maxim",
 	.init		= max2820_rf_init,
 	.stop		= max2820_rf_stop,
-	.set_chan	= max2820_rf_set_channel
+	.set_chan	= max2820_rf_set_channel,
+	.calc_rssi	= max2820_rf_calc_rssi,
 };

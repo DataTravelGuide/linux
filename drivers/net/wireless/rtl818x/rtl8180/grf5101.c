@@ -25,7 +25,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_grf5101.h"
+#include "grf5101.h"
 
 static const int grf5101_encode[] = {
 	0x0, 0x8, 0x4, 0xC,
@@ -67,6 +67,15 @@ static void grf5101_write_phy_antenna(struct ieee80211_hw *dev, short chan)
 		ant |= BB_ANTATTEN_CHAN14;
 
 	rtl8180_write_phy(dev, 0x10, ant);
+}
+
+static u8 grf5101_rf_calc_rssi(u8 agc, u8 sq)
+{
+	if (agc > 60)
+		return 65;
+
+	/* TODO(?): just return agc (or agc + 5) to avoid mult / div */
+	return 65 * agc / 60;
 }
 
 static void grf5101_rf_set_channel(struct ieee80211_hw *dev,
@@ -176,5 +185,6 @@ const struct rtl818x_rf_ops grf5101_rf_ops = {
 	.name		= "GCT",
 	.init		= grf5101_rf_init,
 	.stop		= grf5101_rf_stop,
-	.set_chan	= grf5101_rf_set_channel
+	.set_chan	= grf5101_rf_set_channel,
+	.calc_rssi	= grf5101_rf_calc_rssi,
 };

@@ -21,7 +21,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
-#include "rtl8187_rtl8225.h"
+#include "rtl8225.h"
 
 static void rtl8225_write_bitbang(struct ieee80211_hw *dev, u8 addr, u16 data)
 {
@@ -366,8 +366,8 @@ static void rtl8225_rf_init(struct ieee80211_hw *dev)
 		rtl8225_write(dev, 0x02, 0x044d);
 		msleep(100);
 		if (!(rtl8225_read(dev, 6) & (1 << 7)))
-			printk(KERN_WARNING "%s: RF Calibration Failed! %x\n",
-			       wiphy_name(dev->wiphy), rtl8225_read(dev, 6));
+			wiphy_warn(dev->wiphy, "RF Calibration Failed! %x\n",
+				   rtl8225_read(dev, 6));
 	}
 
 	rtl8225_write(dev, 0x0, 0x127);
@@ -735,8 +735,8 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 		rtl8225_write(dev, 0x02, 0x044D);
 		msleep(100);
 		if (!(rtl8225_read(dev, 6) & (1 << 7)))
-			printk(KERN_WARNING "%s: RF Calibration Failed! %x\n",
-			       wiphy_name(dev->wiphy), rtl8225_read(dev, 6));
+			wiphy_warn(dev->wiphy, "RF Calibration Failed! %x\n",
+				   rtl8225_read(dev, 6));
 	}
 
 	msleep(200);
@@ -898,29 +898,7 @@ static void rtl8225z2_b_rf_init(struct ieee80211_hw *dev)
 
 static void rtl8225_rf_stop(struct ieee80211_hw *dev)
 {
-	u8 reg;
-	struct rtl8187_priv *priv = dev->priv;
-
 	rtl8225_write(dev, 0x4, 0x1f);
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	if (!priv->is_rtl8187b) {
-		rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
-				  RTL8187_RTL8225_ANAPARAM2_OFF);
-		rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
-				  RTL8187_RTL8225_ANAPARAM_OFF);
-	} else {
-		rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
-				  RTL8187B_RTL8225_ANAPARAM2_OFF);
-		rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
-				  RTL8187B_RTL8225_ANAPARAM_OFF);
-		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3,
-				  RTL8187B_RTL8225_ANAPARAM3_OFF);
-	}
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }
 
 static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,

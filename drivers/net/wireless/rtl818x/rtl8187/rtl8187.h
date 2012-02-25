@@ -16,7 +16,7 @@
 #define RTL8187_H
 
 #include "rtl818x.h"
-#include "rtl8187_leds.h"
+#include "leds.h"
 
 #define RTL8187_EEPROM_TXPWR_BASE	0x05
 #define RTL8187_EEPROM_MAC_ADDR		0x07
@@ -35,6 +35,8 @@
 #define RFKILL_MASK_8187_89_97	0x2
 #define RFKILL_MASK_8198	0x4
 
+#define RETRY_COUNT		7
+
 struct rtl8187_rx_info {
 	struct urb *urb;
 	struct ieee80211_hw *dev;
@@ -47,7 +49,7 @@ struct rtl8187_rx_hdr {
 	u8 agc;
 	u8 reserved;
 	__le64 mac_time;
-} __attribute__((packed));
+} __packed;
 
 struct rtl8187b_rx_hdr {
 	__le32 flags;
@@ -59,7 +61,7 @@ struct rtl8187b_rx_hdr {
 	__le16 snr_long2end;
 	s8 pwdb_g12;
 	u8 fot;
-} __attribute__((packed));
+} __packed;
 
 /* {rtl8187,rtl8187b}_tx_info is in skb */
 
@@ -68,7 +70,7 @@ struct rtl8187_tx_hdr {
 	__le16 rts_duration;
 	__le16 len;
 	__le32 retry;
-} __attribute__((packed));
+} __packed;
 
 struct rtl8187b_tx_hdr {
 	__le32 flags;
@@ -80,7 +82,7 @@ struct rtl8187b_tx_hdr {
 	__le32 unused_3;
 	__le32 retry;
 	__le32 unused_4[2];
-} __attribute__((packed));
+} __packed;
 
 enum {
 	DEVICE_RTL8187,
@@ -92,7 +94,7 @@ struct rtl8187_priv {
 	struct rtl818x_csr *map;
 	const struct rtl818x_rf_ops *rf;
 	struct ieee80211_vif *vif;
-	int mode;
+
 	/* The mutex protects the TX loopback state.
 	 * Any attempt to set channels concurrently locks the device.
 	 */
@@ -108,6 +110,7 @@ struct rtl8187_priv {
 	struct delayed_work work;
 	struct ieee80211_hw *dev;
 #ifdef CONFIG_RTL8187_LEDS
+	struct rtl8187_led led_radio;
 	struct rtl8187_led led_tx;
 	struct rtl8187_led led_rx;
 	struct delayed_work led_on;
@@ -123,7 +126,6 @@ struct rtl8187_priv {
 	} hw_rev;
 	struct sk_buff_head rx_queue;
 	u8 signal;
-	u8 quality;
 	u8 noise;
 	u8 slot_time;
 	u8 aifsn[4];
