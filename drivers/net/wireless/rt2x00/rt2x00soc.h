@@ -19,28 +19,24 @@
  */
 
 /*
-	Module: rt2x00lib
-	Abstract: rt2x00 led datastructures and routines
+	Module: rt2x00soc
+	Abstract: Data structures for the rt2x00soc module.
  */
 
-#ifndef RT2X00LEDS_H
-#define RT2X00LEDS_H
+#ifndef RT2X00SOC_H
+#define RT2X00SOC_H
 
-enum led_type {
-	LED_TYPE_RADIO,
-	LED_TYPE_ASSOC,
-	LED_TYPE_ACTIVITY,
-	LED_TYPE_QUALITY,
-};
+/*
+ * SoC driver handlers.
+ */
+int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops);
+int rt2x00soc_remove(struct platform_device *pdev);
+#ifdef CONFIG_PM
+int rt2x00soc_suspend(struct platform_device *pdev, pm_message_t state);
+int rt2x00soc_resume(struct platform_device *pdev);
+#else
+#define rt2x00soc_suspend	NULL
+#define rt2x00soc_resume	NULL
+#endif /* CONFIG_PM */
 
-struct rt2x00_led {
-	struct rt2x00_dev *rt2x00dev;
-	struct led_classdev led_dev;
-
-	enum led_type type;
-	unsigned int flags;
-#define LED_INITIALIZED		( 1 << 0 )
-#define LED_REGISTERED		( 1 << 1 )
-};
-
-#endif /* RT2X00LEDS_H */
+#endif /* RT2X00SOC_H */
