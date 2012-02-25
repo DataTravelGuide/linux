@@ -13,7 +13,6 @@
 
 #include <net/mac80211.h>
 #include <linux/netdevice.h>
-#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>

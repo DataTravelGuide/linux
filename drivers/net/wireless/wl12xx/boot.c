@@ -23,7 +23,6 @@
 
 #include <linux/slab.h>
 #include <linux/wl12xx.h>
-#include <linux/export.h>
 
 #include "acx.h"
 #include "reg.h"

@@ -1,5 +1,4 @@
 #include <linux/ieee80211.h>
-#include <linux/export.h>
 #include <net/cfg80211.h>
 #include "nl80211.h"
 #include "core.h"
