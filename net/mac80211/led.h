@@ -8,7 +8,10 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+
+#include "leds-compat.h"
 #include <linux/leds.h>
+
 #include "ieee80211_i.h"
 
 #ifdef CONFIG_MAC80211_LEDS
