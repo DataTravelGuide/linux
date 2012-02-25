@@ -1285,8 +1285,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
 
 #ifdef CONFIG_PROVE_LOCKING
-	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
-		!lockdep_is_held(&local->iflist_mtx));
+	WARN_ON(debug_locks && !lockdep_is_held(&local->iflist_mtx));
 #endif
 	lockdep_assert_held(&local->mtx);
 
