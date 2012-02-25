@@ -276,7 +276,7 @@ static ssize_t gpio_power_write(struct file *file,
 	}
 	buf[len] = '\0';
 
-	ret = kstrtoul(buf, 0, &value);
+	ret = strict_strtoul(buf, 0, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value in gpio_power");
 		return -EINVAL;
