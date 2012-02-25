@@ -32,6 +32,7 @@ struct ftrace_ops {
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
+	unsigned long			flags;
 #endif
 };
 
@@ -147,10 +148,13 @@ extern void unregister_ftrace_function_probe_all(char *glob);
 extern int ftrace_text_reserved(void *start, void *end);
 
 enum {
-	FTRACE_FL_FREE		= (1 << 0),
-	FTRACE_FL_FROZEN	= (1 << 1),
-	FTRACE_FL_ENABLED	= (1 << 2),
+	FTRACE_FL_ENABLED	= (1 << 29),
+	FTRACE_FL_FROZEN	= (1 << 30),
+	FTRACE_FL_FREE		= (1 << 31),
 };
+
+#define FTRACE_FL_MASK		(0x7UL << 29)
+#define FTRACE_REF_MAX		((1 << 29) - 1)
 
 struct dyn_ftrace {
 	union {
