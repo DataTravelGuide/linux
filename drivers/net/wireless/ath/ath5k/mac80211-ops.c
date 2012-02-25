@@ -312,20 +312,22 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 static u64
 ath5k_prepare_multicast(struct ieee80211_hw *hw,
-			struct netdev_hw_addr_list *mc_list)
+			int mc_count, struct dev_addr_list *ha)
 {
 	u32 mfilt[2], val;
 	u8 pos;
-	struct netdev_hw_addr *ha;
+	int i;
 
 	mfilt[0] = 0;
 	mfilt[1] = 1;
 
-	netdev_hw_addr_list_for_each(ha, mc_list) {
+	for (i = 0; i < mc_count; i++) {
+		if (!ha)
+			break;
 		/* calculate XOR of eight 6-bit values */
-		val = get_unaligned_le32(ha->addr + 0);
+		val = get_unaligned_le32(ha->dmi_addr + 0);
 		pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-		val = get_unaligned_le32(ha->addr + 3);
+		val = get_unaligned_le32(ha->dmi_addr + 3);
 		pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
 		pos &= 0x3f;
 		mfilt[pos / 32] |= (1 << (pos % 32));
@@ -334,6 +336,7 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
 		* need to inform below not to reset the mcast */
 		/* ath5k_hw_set_mcast_filterindex(ah,
 		 *      ha->addr[5]); */
+		ha = ha->next;
 	}
 
 	return ((u64)(mfilt[1]) << 32) | mfilt[0];

@@ -162,14 +162,16 @@ static inline void drv_finish_tx_sync(struct ieee80211_local *local,
 }
 
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
-					struct netdev_hw_addr_list *mc_list)
+					int mc_count,
+					struct dev_addr_list *mc_list)
 {
 	u64 ret = 0;
 
-	trace_drv_prepare_multicast(local, mc_list->count);
+	trace_drv_prepare_multicast(local, mc_count);
 
 	if (local->ops->prepare_multicast)
-		ret = local->ops->prepare_multicast(&local->hw, mc_list);
+		ret = local->ops->prepare_multicast(&local->hw, mc_count,
+						    mc_list);
 
 	trace_drv_return_u64(local, ret);
 

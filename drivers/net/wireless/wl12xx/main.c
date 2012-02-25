@@ -2464,11 +2464,11 @@ struct wl1271_filter_params {
 	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
 };
 
-static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
-				       struct netdev_hw_addr_list *mc_list)
+static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
+				       struct dev_addr_list *mc_list)
 {
 	struct wl1271_filter_params *fp;
-	struct netdev_hw_addr *ha;
+	int i;
 	struct wl1271 *wl = hw->priv;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
@@ -2481,16 +2481,21 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 	}
 
 	/* update multicast filtering parameters */
-	fp->mc_list_length = 0;
-	if (netdev_hw_addr_list_count(mc_list) > ACX_MC_ADDRESS_GROUP_MAX) {
+	fp->enabled = true;
+	if (mc_count > ACX_MC_ADDRESS_GROUP_MAX) {
+		mc_count = 0;
 		fp->enabled = false;
-	} else {
-		fp->enabled = true;
-		netdev_hw_addr_list_for_each(ha, mc_list) {
+	}
+
+	fp->mc_list_length = 0;
+	for (i = 0; i < mc_count; i++) {
+		if (mc_list->da_addrlen == ETH_ALEN) {
 			memcpy(fp->mc_list[fp->mc_list_length],
-					ha->addr, ETH_ALEN);
+			       mc_list->da_addr, ETH_ALEN);
 			fp->mc_list_length++;
-		}
+		} else
+			wl1271_warning("Unknown mc address length.");
+		mc_list = mc_list->next;
 	}
 
 	return (u64)(unsigned long)fp;

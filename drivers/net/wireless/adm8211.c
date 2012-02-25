@@ -1320,19 +1320,21 @@ static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
 }
 
 static u64 adm8211_prepare_multicast(struct ieee80211_hw *hw,
-				     struct netdev_hw_addr_list *mc_list)
+				     int mc_count, struct dev_addr_list *ha)
 {
-	unsigned int bit_nr;
+	unsigned int bit_nr, i;
 	u32 mc_filter[2];
-	struct netdev_hw_addr *ha;
 
 	mc_filter[1] = mc_filter[0] = 0;
 
-	netdev_hw_addr_list_for_each(ha, mc_list) {
-		bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+	for (i = 0; i < mc_count; i++) {
+		if (!ha)
+			break;
+		bit_nr = ether_crc(ETH_ALEN, ha->dmi_addr) >> 26;
 
 		bit_nr &= 0x3F;
 		mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
+		ha = ha->next;
 	}
 
 	return mc_filter[0] | ((u64)(mc_filter[1]) << 32);

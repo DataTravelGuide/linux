@@ -1195,17 +1195,20 @@ static void zd_process_intr(struct work_struct *work)
 
 
 static u64 zd_op_prepare_multicast(struct ieee80211_hw *hw,
-				   struct netdev_hw_addr_list *mc_list)
+				   int mc_count, struct dev_addr_list *ha)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct zd_mc_hash hash;
-	struct netdev_hw_addr *ha;
+	int i;
 
 	zd_mc_clear(&hash);
 
-	netdev_hw_addr_list_for_each(ha, mc_list) {
-		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", ha->addr);
-		zd_mc_add_addr(&hash, ha->addr);
+	for (i = 0; i < mc_count; i++) {
+		if (!ha)
+			break;
+		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", ha->dmi_addr);
+		zd_mc_add_addr(&hash, ha->dmi_addr);
+		ha = ha->next;
 	}
 
 	return hash.low | ((u64)hash.high << 32);

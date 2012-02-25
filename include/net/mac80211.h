@@ -2112,7 +2112,7 @@ struct ieee80211_ops {
 			       enum ieee80211_tx_sync_type type);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
-				 struct netdev_hw_addr_list *mc_list);
+				 int mc_count, struct dev_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,

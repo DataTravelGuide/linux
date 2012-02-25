@@ -360,11 +360,10 @@ out:
 	return ret;
 }
 
-static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
-				 struct netdev_hw_addr_list *mc_list)
+static u64 p54_prepare_multicast(struct ieee80211_hw *dev, int mc_count,
+				 struct dev_addr_list *ha)
 {
 	struct p54_common *priv = dev->priv;
-	struct netdev_hw_addr *ha;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(priv->mc_maclist) !=
@@ -374,12 +373,15 @@ static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
 	 * Otherwise the firmware will drop it and ARP will no longer work.
 	 */
 	i = 1;
-	priv->mc_maclist_num = netdev_hw_addr_list_count(mc_list) + i;
-	netdev_hw_addr_list_for_each(ha, mc_list) {
-		memcpy(&priv->mc_maclist[i], ha->addr, ETH_ALEN);
+	priv->mc_maclist_num = mc_count + i;
+	while (i <= mc_count) {
+		if (!ha)
+			break;
+		memcpy(&priv->mc_maclist[i], ha->dmi_addr, ETH_ALEN);
 		i++;
 		if (i >= ARRAY_SIZE(priv->mc_maclist))
 			break;
+		ha = ha->next;
 	}
 
 	return 1; /* update */
