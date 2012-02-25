@@ -962,7 +962,7 @@ struct rt2x00_dev {
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
-	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
+	struct kfifo txstatus_fifo;
 
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).

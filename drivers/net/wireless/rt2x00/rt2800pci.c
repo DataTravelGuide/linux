@@ -714,7 +714,14 @@ static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 	u8 qid;
 	int max_tx_done = 16;
 
-	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
+	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
+		/* Now remove the tx status from the FIFO */
+		if (kfifo_out(&rt2x00dev->txstatus_fifo, &status,
+			      sizeof(status)) != sizeof(status)) {
+			WARN_ON(1);
+			break;
+		}
+
 		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
 		if (unlikely(qid >= QID_RX)) {
 			/*
@@ -848,7 +855,14 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
 
-		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &status)) {
+		if (kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
+			WARNING(rt2x00dev, "TX status FIFO overrun,"
+				" drop tx status report.\n");
+			break;
+		}
+
+		if (kfifo_in(&rt2x00dev->txstatus_fifo, &status,
+			     sizeof(status)) != sizeof(status)) {
 			WARNING(rt2x00dev, "TX status FIFO overrun,"
 				"drop tx status report.\n");
 			break;
