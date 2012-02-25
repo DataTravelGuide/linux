@@ -21,6 +21,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/slab.h>
 
+#include <pcmcia/cs_types.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
