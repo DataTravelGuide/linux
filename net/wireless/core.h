@@ -13,7 +13,10 @@
 #include <linux/debugfs.h>
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
+
+#include "genetlink-compat.h"
 #include <net/genetlink.h>
+
 #include <net/cfg80211.h>
 #include "reg.h"
 

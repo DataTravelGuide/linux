@@ -15,8 +15,11 @@
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
 #include <linux/etherdevice.h>
-#include <net/net_namespace.h>
+
+#include "genetlink-compat.h"
 #include <net/genetlink.h>
+
+#include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include <net/sock.h>
 #include "core.h"

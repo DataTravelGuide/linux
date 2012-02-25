@@ -18,7 +18,10 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+
+#include "genetlink-compat.h"
 #include <net/genetlink.h>
+
 #include <net/cfg80211.h>
 #include "nl80211.h"
 #include "core.h"
