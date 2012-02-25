@@ -1131,8 +1131,8 @@ int mesh_pathtbl_init(void)
 	INIT_HLIST_HEAD(tbl_mpp->known_gates);
 
 	/* Need no locking since this is during init */
-	RCU_INIT_POINTER(mesh_paths, tbl_path);
-	RCU_INIT_POINTER(mpp_paths, tbl_mpp);
+	rcu_assign_pointer(mesh_paths, tbl_path);
+	rcu_assign_pointer(mpp_paths, tbl_mpp);
 
 	return 0;
 

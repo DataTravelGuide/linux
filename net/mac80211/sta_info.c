@@ -807,7 +807,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	local->sta_generation++;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
+		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
 
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)

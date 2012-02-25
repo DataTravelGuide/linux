@@ -63,7 +63,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 
 	if (type == NL80211_IFTYPE_AP_VLAN &&
 	    params && params->use_4addr == 0)
-		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
+		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
 	else if (type == NL80211_IFTYPE_STATION &&
 		 params && params->use_4addr >= 0)
 		sdata->u.mgd.use_4addr = params->use_4addr;
@@ -633,7 +633,7 @@ static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	if (!old)
 		return -ENOENT;
 
-	RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
+	rcu_assign_pointer(sdata->u.ap.beacon, NULL);
 	synchronize_rcu();
 	kfree(old);
 
