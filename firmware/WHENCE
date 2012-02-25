@@ -959,3 +959,26 @@ Licence:
  * data in hexadecimal or equivalent format, provided this copyright
  * notice is accompanying it.
 --------------------------------------------------------------------------
+
+Driver: iwlwifi - Intel Wireless Wifi
+ 
+File: iwlwifi-6000g2b-6.ucode
+Info: v18.168.6.1
+
+File: iwlwifi-135-6.ucode
+Info: v18.168.6.1
+
+File: iwlwifi-105-6.ucode
+Info: v18.168.6.1
+
+File: iwlwifi-2030-6.ucode
+Info: v18.168.6.1
+
+File: iwlwifi-2000-6.ucode
+Info: v18.168.6.1
+
+License: Redistributable. See LICENCE.iwlwifi_firmware for details
+
+Also available from http://intellinuxwireless.org/?n=Downloads
+
+--------------------------------------------------------------------------
