@@ -357,7 +357,7 @@ static ssize_t ieee80211_if_parse_tsf(
 			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
 		}
 	} else {
-		ret = kstrtoull(buf, 10, &tsf);
+		ret = strict_strtoull(buf, 10, &tsf);
 		if (ret < 0)
 			return -EINVAL;
 		if (local->ops->set_tsf) {
