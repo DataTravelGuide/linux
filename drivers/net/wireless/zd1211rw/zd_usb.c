@@ -550,7 +550,7 @@ int zd_usb_enable_int(struct zd_usb *usb)
 	spin_unlock_irq(&intr->lock);
 
 	r = -ENOMEM;
-	intr->buffer = usb_alloc_coherent(udev, USB_MAX_EP_INT_BUFFER,
+	intr->buffer = usb_buffer_alloc(udev, USB_MAX_EP_INT_BUFFER,
 					  GFP_KERNEL, &intr->buffer_dma);
 	if (!intr->buffer) {
 		dev_dbg_f(zd_usb_dev(usb),
@@ -575,7 +575,7 @@ int zd_usb_enable_int(struct zd_usb *usb)
 
 	return 0;
 error:
-	usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER,
+	usb_buffer_free(udev, USB_MAX_EP_INT_BUFFER,
 			  intr->buffer, intr->buffer_dma);
 error_set_urb_null:
 	spin_lock_irq(&intr->lock);
@@ -613,7 +613,7 @@ void zd_usb_disable_int(struct zd_usb *usb)
 	usb_free_urb(urb);
 
 	if (buffer)
-		usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER,
+		usb_buffer_free(udev, USB_MAX_EP_INT_BUFFER,
 				  buffer, buffer_dma);
 }
 
@@ -733,7 +733,7 @@ static struct urb *alloc_rx_urb(struct zd_usb *usb)
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return NULL;
-	buffer = usb_alloc_coherent(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
+	buffer = usb_buffer_alloc(udev, USB_MAX_RX_SIZE, GFP_KERNEL,
 				    &urb->transfer_dma);
 	if (!buffer) {
 		usb_free_urb(urb);
@@ -752,7 +752,7 @@ static void free_rx_urb(struct urb *urb)
 {
 	if (!urb)
 		return;
-	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
 			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb(urb);
 }
