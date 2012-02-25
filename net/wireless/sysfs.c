@@ -121,13 +121,6 @@ static int wiphy_resume(struct device *dev)
 	return ret;
 }
 
-static const void *wiphy_namespace(struct device *d)
-{
-	struct wiphy *wiphy = container_of(d, struct wiphy, dev);
-
-	return wiphy_net(wiphy);
-}
-
 struct class ieee80211_class = {
 	.name = "ieee80211",
 	.owner = THIS_MODULE,
@@ -138,8 +131,6 @@ struct class ieee80211_class = {
 #endif
 	.suspend = wiphy_suspend,
 	.resume = wiphy_resume,
-	.ns_type = &net_ns_type_operations,
-	.namespace = wiphy_namespace,
 };
 
 int wiphy_sysfs_init(void)
