@@ -1992,10 +1992,6 @@ struct wiphy {
 	struct net *_net;
 #endif
 
-#ifdef CONFIG_CFG80211_WEXT
-	const struct iw_handler_def *wext;
-#endif
-
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 
@@ -2183,7 +2179,7 @@ struct wireless_dev {
 
 	int beacon_interval;
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 	/* wext data */
 	struct {
 		struct cfg80211_ibss_params ibss;

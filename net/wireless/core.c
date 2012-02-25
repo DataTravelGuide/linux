@@ -375,9 +375,6 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
-#ifdef CONFIG_CFG80211_WEXT
-	rdev->wiphy.wext = &cfg80211_wext_handler;
-#endif
 
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
@@ -822,7 +819,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->netdev = dev;
 		wdev->sme_state = CFG80211_SME_IDLE;
 		mutex_unlock(&rdev->devlist_mtx);
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
+		if (!dev->wireless_handlers)
+			dev->wireless_handlers = &cfg80211_wext_handler;
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
@@ -855,7 +854,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			mutex_unlock(&rdev->sched_scan_mtx);
 
 			wdev_lock(wdev);
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 			kfree(wdev->wext.ie);
 			wdev->wext.ie = NULL;
 			wdev->wext.ie_len = 0;
@@ -895,7 +894,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		mutex_lock(&rdev->devlist_mtx);
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_ibss_wext_join(rdev, wdev);
 			break;
@@ -961,7 +960,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			list_del_rcu(&wdev->list);
 			rdev->devlist_generation++;
 			cfg80211_mlme_purge_registrations(wdev);
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 			kfree(wdev->wext.keys);
 #endif
 		}

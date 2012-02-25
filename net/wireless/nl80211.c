@@ -1889,7 +1889,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto out;
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 		dev->ieee80211_ptr->wext.default_key = key.idx;
 #endif
 	} else {
@@ -2014,7 +2014,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 					 key.type == NL80211_KEYTYPE_PAIRWISE,
 					 mac_addr);
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
 	if (!err) {
 		if (key.idx == dev->ieee80211_ptr->wext.default_key)
 			dev->ieee80211_ptr->wext.default_key = -1;
