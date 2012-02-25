@@ -266,7 +266,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
-		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
+		sta->last_seq_ctrl[i] = cpu_to_le16(USHORT_MAX);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	wiphy_debug(local->hw.wiphy, "Allocated STA %pM\n", sta->sta.addr);
