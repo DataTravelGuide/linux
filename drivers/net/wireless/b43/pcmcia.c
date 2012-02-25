@@ -82,15 +82,18 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	win.Base = 0;
 	win.Size = SSB_CORE_SIZE;
 	win.AccessSpeed = 250;
-	res = pcmcia_request_window(dev, &win, &dev->win);
+	res = pcmcia_request_window(&dev, &win, &dev->win);
 	if (res != 0)
 		goto err_kfree_ssb;
 
-	res = pcmcia_map_mem_page(dev, dev->win, 0);
+	res = pcmcia_map_mem_page(dev->win, 0);
 	if (res != 0)
 		goto err_disable;
 
-	if (!dev->irq)
+	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+	dev->irq.Handler = NULL; /* The handler is registered later. */
+	res = pcmcia_request_irq(dev, &dev->irq);
+	if (res != 0)
 		goto err_disable;
 
 	res = pcmcia_request_configuration(dev, &dev->conf);
