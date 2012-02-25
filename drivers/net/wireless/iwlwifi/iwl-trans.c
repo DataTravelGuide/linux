@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,29 +60,18 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-5000-hw.h) only for hardware-related definitions.
- * Use iwl-commands.h for uCode API definitions.
- */
 
-#ifndef __iwl_5000_hw_h__
-#define __iwl_5000_hw_h__
+#include "iwl-trans.h"
 
-/* 5150 only */
-#define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
-
-static inline s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
+int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
+			   u32 flags, u16 len, const void *data)
 {
-	u16 temperature, voltage;
-	__le16 *temp_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+	struct iwl_host_cmd cmd = {
+		.id = id,
+		.len = { len, },
+		.data = { data, },
+		.flags = flags,
+	};
 
-	temperature = le16_to_cpu(temp_calib[0]);
-	voltage = le16_to_cpu(temp_calib[1]);
-
-	/* offset = temp - volt / coeff */
-	return (s32)(temperature - voltage / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF);
+	return iwl_trans_send_cmd(trans, &cmd);
 }
-
-#endif /* __iwl_5000_hw_h__ */
-

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,22 +60,58 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#ifndef __iwl_pci_h__
+#define __iwl_pci_h__
+
+
 /*
- * Please use this file (iwl-6000-hw.h) only for hardware-related definitions.
- * Use iwl-commands.h for uCode API definitions.
+ * This file declares the config structures for all devices.
  */
 
-#ifndef __iwl_6000_hw_h__
-#define __iwl_6000_hw_h__
+extern struct iwl_cfg iwl5300_agn_cfg;
+extern struct iwl_cfg iwl5100_agn_cfg;
+extern struct iwl_cfg iwl5350_agn_cfg;
+extern struct iwl_cfg iwl5100_bgn_cfg;
+extern struct iwl_cfg iwl5100_abg_cfg;
+extern struct iwl_cfg iwl5150_agn_cfg;
+extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6005_2agn_cfg;
+extern struct iwl_cfg iwl6005_2abg_cfg;
+extern struct iwl_cfg iwl6005_2bg_cfg;
+extern struct iwl_cfg iwl6005_2agn_sff_cfg;
+extern struct iwl_cfg iwl6005_2agn_d_cfg;
+extern struct iwl_cfg iwl1030_bgn_cfg;
+extern struct iwl_cfg iwl1030_bg_cfg;
+extern struct iwl_cfg iwl6030_2agn_cfg;
+extern struct iwl_cfg iwl6030_2abg_cfg;
+extern struct iwl_cfg iwl6030_2bgn_cfg;
+extern struct iwl_cfg iwl6030_2bg_cfg;
+extern struct iwl_cfg iwl6000i_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2abg_cfg;
+extern struct iwl_cfg iwl6000i_2bg_cfg;
+extern struct iwl_cfg iwl6000_3agn_cfg;
+extern struct iwl_cfg iwl6050_2agn_cfg;
+extern struct iwl_cfg iwl6050_2abg_cfg;
+extern struct iwl_cfg iwl6150_bgn_cfg;
+extern struct iwl_cfg iwl6150_bg_cfg;
+extern struct iwl_cfg iwl1000_bgn_cfg;
+extern struct iwl_cfg iwl1000_bg_cfg;
+extern struct iwl_cfg iwl100_bgn_cfg;
+extern struct iwl_cfg iwl100_bg_cfg;
+extern struct iwl_cfg iwl130_bgn_cfg;
+extern struct iwl_cfg iwl130_bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_cfg;
+extern struct iwl_cfg iwl2000_2bg_cfg;
+extern struct iwl_cfg iwl2000_2bgn_d_cfg;
+extern struct iwl_cfg iwl2030_2bgn_cfg;
+extern struct iwl_cfg iwl2030_2bg_cfg;
+extern struct iwl_cfg iwl6035_2agn_cfg;
+extern struct iwl_cfg iwl6035_2abg_cfg;
+extern struct iwl_cfg iwl6035_2bg_cfg;
+extern struct iwl_cfg iwl105_bg_cfg;
+extern struct iwl_cfg iwl105_bgn_cfg;
+extern struct iwl_cfg iwl105_bgn_d_cfg;
+extern struct iwl_cfg iwl135_bg_cfg;
+extern struct iwl_cfg iwl135_bgn_cfg;
 
-#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
-#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
-#define IWL60_RTC_INST_SIZE \
-	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
-#define IWL60_RTC_DATA_SIZE \
-	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
-
-#endif /* __iwl_6000_hw_h__ */
-
+#endif /* __iwl_pci_h__ */
