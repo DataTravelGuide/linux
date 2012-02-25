@@ -437,7 +437,7 @@ static ssize_t dtim_interval_write(struct file *file,
 		return -EFAULT;
 	buf[len] = '\0';
 
-	ret = kstrtoul(buf, 0, &value);
+	ret = strict_strtoul(buf, 0, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value for dtim_interval");
 		return -EINVAL;
@@ -502,7 +502,7 @@ static ssize_t beacon_interval_write(struct file *file,
 		return -EFAULT;
 	buf[len] = '\0';
 
-	ret = kstrtoul(buf, 0, &value);
+	ret = strict_strtoul(buf, 0, &value);
 	if (ret < 0) {
 		wl1271_warning("illegal value for beacon_interval");
 		return -EINVAL;
