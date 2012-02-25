@@ -37,7 +37,7 @@
 #include <linux/mutex.h>
 #include <linux/etherdevice.h>
 #include <linux/input-polldev.h>
-#include <linux/kfifo.h>
+#include <linux/kfifo-new.h>
 #include <linux/timer.h>
 
 #include <net/mac80211.h>
