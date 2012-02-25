@@ -1198,6 +1198,10 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			int hlim = inet->mc_ttl;
 			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
 		}
+		if (inet->cmsg_flags & IP_CMSG_TOS) {
+			int tos = sk_extended(sk)->rcv_tos;
+			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
+		}
 		len -= msg.msg_controllen;
 		return put_user(len, optlen);
 	}

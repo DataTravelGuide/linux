@@ -346,6 +346,11 @@ struct sock_extended {
 
 	__u8			min_ttl;
 	__u8			min_hopcount;
+	/* rcv_tos could not be put inside inet_sock_extended above (where
+	 * it belongs) because the following fields would shift and
+	 * sk_rcvqueues_full(), sk_set_min_ttl(), etc. would break for
+	 * existing modules. */
+	__u8			rcv_tos;
 };
 
 #define __sk_tx_queue_mapping(sk) \
