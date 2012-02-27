@@ -1144,6 +1144,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->vlan_features |= NETIF_F_SG;
 	dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	dev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	dev->features |= NETIF_F_RXHASH;
 	dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_HW_VLAN_TX |
 			 NETIF_F_HW_VLAN_RX |
