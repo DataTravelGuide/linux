@@ -4841,6 +4841,12 @@ static int nfs4_reset_slot_table(struct nfs4_slot_table *tbl, u32 max_reqs,
 	dprintk("--> %s: max_reqs=%u, tbl->max_slots %d\n", __func__,
 		max_reqs, tbl->max_slots);
 
+       if (max_reqs > NFS4_MAX_SLOT_TABLE) {
+                max_reqs = NFS4_MAX_SLOT_TABLE;
+		dprintk("%s: RESET max_reqs=%u to NFS4_MAX_SLOT_TABLE",
+			__func__, max_reqs);
+	}
+
 	/* Does the newly negotiated max_reqs match the existing slot table? */
 	if (max_reqs != tbl->max_slots) {
 		ret = -ENOMEM;
@@ -4906,9 +4912,13 @@ static int nfs4_init_slot_table(struct nfs4_slot_table *tbl,
 	struct nfs4_slot *slot;
 	int ret = -ENOMEM;
 
-	BUG_ON(max_slots > NFS4_MAX_SLOT_TABLE);
-
 	dprintk("--> %s: max_reqs=%u\n", __func__, max_slots);
+
+	if (max_slots > NFS4_MAX_SLOT_TABLE) {
+		max_slots = NFS4_MAX_SLOT_TABLE;
+		dprintk("%s: RESET max_slots=%u to NFS4_MAX_SLOT_TABLE",
+			__func__, max_slots);
+	}
 
 	slot = kcalloc(max_slots, sizeof(struct nfs4_slot), GFP_NOFS);
 	if (!slot)
@@ -5015,7 +5025,7 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 	args->fc_attrs.max_rqst_sz = mxrqst_sz;
 	args->fc_attrs.max_resp_sz = mxresp_sz;
 	args->fc_attrs.max_ops = NFS4_MAX_OPS;
-	args->fc_attrs.max_reqs = session->clp->cl_rpcclient->cl_xprt->max_reqs;
+	args->fc_attrs.max_reqs = NFS4_MAX_SLOT_TABLE;
 
 	dprintk("%s: Fore Channel : max_rqst_sz=%u max_resp_sz=%u "
 		"max_ops=%u max_reqs=%u\n",
