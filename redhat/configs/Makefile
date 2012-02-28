@@ -99,6 +99,9 @@ temp-powerpc-generic: config-powerpc-generic-merged temp-generic
 temp-powerpc-debug-generic: config-powerpc-generic-merged temp-debug-generic
 	perl merge.pl $^  > $@
 
+temp-powerpc64-debug-generic: config-powerpc64-merged temp-powerpc-debug-generic
+	perl merge.pl $^ powerpc > $@
+
 temp-s390x-generic: config-s390x-merged temp-generic
 	perl merge.pl $^ > $@
 
@@ -129,7 +132,7 @@ kernel-$(VERSION)-ppc64.config: config-powerpc64-merged temp-powerpc-generic
 kernel-$(VERSION)-ppc64-kdump.config: config-powerpc64-kdump-merged kernel-$(VERSION)-ppc64.config
 	perl merge.pl $^ powerpc > $@
 
-kernel-$(VERSION)-ppc64-debug.config: config-powerpc64-merged temp-powerpc-debug-generic
+kernel-$(VERSION)-ppc64-debug.config: config-powerpc64-debug-merged temp-powerpc64-debug-generic
 	perl merge.pl $^ powerpc > $@
 
 kernel-$(VERSION)-s390x.config: config-s390x-merged temp-s390x-generic
