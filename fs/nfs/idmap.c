@@ -213,6 +213,7 @@ int nfs_idmap_init(void)
 	if (ret < 0)
 		goto failed_put_key;
 
+	set_bit(KEY_FLAG_ROOT_CAN_CLEAR, &keyring->flags);
 	cred->thread_keyring = keyring;
 	cred->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
 	id_resolver_cache = cred;
@@ -283,7 +284,7 @@ static ssize_t nfs_idmap_request_key(const char *name, size_t namelen,
 	}
 
 	rcu_read_lock();
-	rkey->perm |= KEY_USR_VIEW;
+	rkey->perm |= KEY_USR_VIEW|KEY_USR_WRITE;
 
 	ret = key_validate(rkey);
 	if (ret < 0)
