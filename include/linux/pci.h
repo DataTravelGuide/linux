@@ -317,6 +317,9 @@ struct pci_dev_rh1 {
 	unsigned int	__pcie_osc_capabilities_valid:1;
 	unsigned int	pcie_osc_capabilities;
 	resource_size_t	fw_addr[DEVICE_COUNT_RESOURCE];	/* FW-assigned addr */
+#ifdef CONFIG_PCI_MSI
+	struct kset *msi_kset;
+#endif
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 };
 
