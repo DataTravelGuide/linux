@@ -62,6 +62,7 @@
 /*
  * Local functions
  */
+static void	 xprt_init(struct rpc_xprt *xprt, struct net *net);
 static void	xprt_request_init(struct rpc_task *, struct rpc_xprt *);
 static void	xprt_connect_status(struct rpc_task *task);
 static int      __xprt_get_cong(struct rpc_xprt *, struct rpc_task *);
@@ -964,26 +965,42 @@ static void xprt_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 	spin_unlock(&xprt->reserve_lock);
 }
 
-struct rpc_xprt *xprt_alloc(struct net *net, int size, int max_req)
+static void xprt_free_all_slots(struct rpc_xprt *xprt)
+{
+	struct rpc_rqst *req;
+	while (!list_empty(&xprt->free)) {
+		req = list_first_entry(&xprt->free, struct rpc_rqst, rq_list);
+		list_del(&req->rq_list);
+		kfree(req);
+	}
+}
+
+struct rpc_xprt *xprt_alloc(struct net *net, int size, int num_prealloc)
 {
 	struct rpc_xprt *xprt;
+	struct rpc_rqst *req;
+	int i;
 
 	xprt = kzalloc(size, GFP_KERNEL);
 	if (xprt == NULL)
 		goto out;
 
-	atomic_set(&xprt->count, 1);
+	xprt_init(xprt, net);
 
-	xprt->max_reqs = max_req;
-	xprt->slot = kcalloc(max_req, sizeof(struct rpc_rqst), GFP_KERNEL);
-	if (xprt->slot == NULL)
+	for (i = 0; i < num_prealloc; i++) {
+		req = kzalloc(sizeof(struct rpc_rqst), GFP_KERNEL);
+		if (!req)
+			break;
+		list_add(&req->rq_list, &xprt->free);
+	}
+	if (i < num_prealloc)
 		goto out_free;
+	xprt->max_reqs = num_prealloc;
 
-	xprt->xprt_net = get_net(net);
 	return xprt;
 
 out_free:
-	kfree(xprt);
+	xprt_free(xprt);
 out:
 	return NULL;
 }
@@ -992,7 +1009,7 @@ EXPORT_SYMBOL_GPL(xprt_alloc);
 void xprt_free(struct rpc_xprt *xprt)
 {
 	put_net(xprt->xprt_net);
-	kfree(xprt->slot);
+	xprt_free_all_slots(xprt);
 	kfree(xprt);
 }
 EXPORT_SYMBOL_GPL(xprt_free);
@@ -1095,9 +1112,9 @@ void xprt_release(struct rpc_task *task)
 		xprt_free_bc_request(req);
 }
 
-static void xprt_init(struct rpc_xprt *xprt)
+static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 {
-	struct rpc_rqst	*req;
+	atomic_set(&xprt->count, 1);
 
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
@@ -1109,12 +1126,6 @@ static void xprt_init(struct rpc_xprt *xprt)
 	INIT_LIST_HEAD(&xprt->bc_pa_list);
 #endif /* CONFIG_NFS_V4_1 */
 
-	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
-	if (xprt_has_timer(xprt))
-		setup_timer(&xprt->timer, xprt_init_autodisconnect,
-			    (unsigned long)xprt);
-	else
-		init_timer(&xprt->timer);
 	xprt->last_used = jiffies;
 	xprt->cwnd = RPC_INITCWND;
 	xprt->bind_index = 0;
@@ -1125,12 +1136,9 @@ static void xprt_init(struct rpc_xprt *xprt)
 	rpc_init_wait_queue(&xprt->resend, "xprt_resend");
 	rpc_init_priority_wait_queue(&xprt->backlog, "xprt_backlog");
 
-	/* initialize free list */
-	for (req = &xprt->slot[xprt->max_reqs-1]; req >= &xprt->slot[0]; req--)
-		list_add(&req->rq_list, &xprt->free);
-
 	xprt_init_xid(xprt);
 
+	xprt->xprt_net = get_net(net);
 }
 
 /**
@@ -1159,16 +1167,17 @@ found:
 	if (IS_ERR(xprt)) {
 		dprintk("RPC:       xprt_create_transport: failed, %ld\n",
 				-PTR_ERR(xprt));
-		return xprt;
+		goto out;
 	}
-	if (test_and_set_bit(XPRT_INITIALIZED, &xprt->state))
-		/* ->setup returned a pre-initialized xprt: */
-		return xprt;
-
-	xprt_init(xprt);
-
+	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
+	if (xprt_has_timer(xprt))
+		setup_timer(&xprt->timer, xprt_init_autodisconnect,
+			    (unsigned long)xprt);
+	else
+		init_timer(&xprt->timer);
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
+out:
 	return xprt;
 }
 
