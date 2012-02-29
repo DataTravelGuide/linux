@@ -62,11 +62,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode, 0);
 		if (!IS_ERR(inode)) {
 			gfs2_trans_end(sdp);
-			/* Check if we reserved space in the rgrp. Function
-			   link_dinode may not, depending on whether alloc is
-			   required. */
-			if (dip->i_res)
-				gfs2_inplace_release(dip);
+			gfs2_inplace_release(dip);
 			gfs2_quota_unlock(dip);
 			gfs2_qadata_put(dip);
 			gfs2_glock_dq_uninit_m(2, ghs);
