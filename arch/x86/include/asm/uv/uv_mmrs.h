@@ -62,9 +62,6 @@
 /* Compat: if this #define is present, UV headers support UV2 */
 #define UV2_HUB_IS_SUPPORTED	1
 
-/* KABI compat: if this #define is present, KABI hacks are present */
-#define UV2_HUB_KABI_HACKS	1
-
 /* ========================================================================= */
 /*                          UVH_BAU_DATA_BROADCAST                           */
 /* ========================================================================= */
