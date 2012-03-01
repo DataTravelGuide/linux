@@ -351,6 +351,7 @@ struct snd_pcm_runtime2 {
 	/* -- OSS things -- */
 	struct snd_pcm_oss_runtime oss;
 #endif
+	unsigned long hw_ptr_buffer_jiffies; /* buffer time in jiffies */
 };
 
 struct snd_pcm_group {		/* keep linked substreams */
