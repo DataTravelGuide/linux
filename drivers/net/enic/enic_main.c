@@ -923,6 +923,7 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 	}
 
 	memcpy(netdev->dev_addr, addr, netdev->addr_len);
+	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }
@@ -1135,8 +1136,17 @@ static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 		return err;
 
 	if (is_valid_ether_addr(mac)) {
-		memcpy(pp->vf_mac, mac, ETH_ALEN);
-		return 0;
+		if (vf == PORT_SELF_VF) {
+			memcpy(pp->vf_mac, mac, ETH_ALEN);
+			return 0;
+		} else {
+			/*
+			 * For sriov vf's set the mac in hw
+			 */
+			ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic,
+				vnic_dev_set_mac_addr, mac);
+			return enic_dev_status_to_errno(err);
+		}
 	} else
 		return -EINVAL;
 }
@@ -1180,12 +1190,23 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 			nla_data(port[IFLA_PORT_HOST_UUID]), PORT_UUID_MAX);
 	}
 
-	/* Special case handling: mac came from IFLA_VF_MAC */
-	if (!is_zero_ether_addr(prev_pp.vf_mac))
-		memcpy(pp->mac_addr, prev_pp.vf_mac, ETH_ALEN);
+	if (vf == PORT_SELF_VF) {
+		/* Special case handling: mac came from IFLA_VF_MAC */
+		if (!is_zero_ether_addr(prev_pp.vf_mac))
+			memcpy(pp->mac_addr, prev_pp.vf_mac, ETH_ALEN);
 
-	if (vf == PORT_SELF_VF && is_zero_ether_addr(netdev->dev_addr))
-		random_ether_addr(netdev->dev_addr);
+		if (is_zero_ether_addr(netdev->dev_addr))
+			dev_hw_addr_random(netdev, netdev->dev_addr);
+	} else {
+		/* SR-IOV VF: get mac from adapter */
+		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic,
+			vnic_dev_get_mac_addr, pp->mac_addr);
+		if (err) {
+			netdev_err(netdev, "Error getting mac for vf %d\n", vf);
+			memcpy(pp, &prev_pp, sizeof(*pp));
+			return enic_dev_status_to_errno(err);
+		}
+	}
 
 	err = enic_process_set_pp_request(enic, vf, &prev_pp, &restore_pp);
 	if (err) {
@@ -1213,7 +1234,8 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 		}
 	}
 
-	memset(pp->vf_mac, 0, ETH_ALEN);
+	if (vf == PORT_SELF_VF)
+		memset(pp->vf_mac, 0, ETH_ALEN);
 
 	return err;
 }
@@ -2509,7 +2531,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	 * called later by an upper layer.
 	 */
 
-	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic)) {
+	if (!enic_is_dynamic(enic)) {
 		err = vnic_dev_init(enic->vdev, 0);
 		if (err) {
 			dev_err(dev, "vNIC dev init failed, aborting\n");
