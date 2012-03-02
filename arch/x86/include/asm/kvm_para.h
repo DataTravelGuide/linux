@@ -42,6 +42,10 @@ struct kvm_steal_time {
 	__u32 pad[12];
 };
 
+#define KVM_STEAL_ALIGNMENT_BITS 5
+#define KVM_STEAL_VALID_BITS ((-1ULL << (KVM_STEAL_ALIGNMENT_BITS + 1)))
+#define KVM_STEAL_RESERVED_MASK (((1 << KVM_STEAL_ALIGNMENT_BITS) - 1 ) << 1)
+
 #define KVM_MAX_MMU_OP_BATCH           32
 
 /* Operations for KVM_HC_MMU_OP */
