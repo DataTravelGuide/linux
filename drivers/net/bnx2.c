@@ -3642,7 +3642,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 	spin_unlock_bh(&bp->phy_lock);
 }
 
-static int
+static int __devinit
 check_fw_section(const struct firmware *fw,
 		 const struct bnx2_fw_file_section *section,
 		 u32 alignment, bool non_empty)
@@ -3658,7 +3658,7 @@ check_fw_section(const struct firmware *fw,
 	return 0;
 }
 
-static int
+static int __devinit
 check_mips_fw_entry(const struct firmware *fw,
 		    const struct bnx2_mips_fw_file_entry *entry)
 {
@@ -3669,16 +3669,8 @@ check_mips_fw_entry(const struct firmware *fw,
 	return 0;
 }
 
-static void bnx2_release_firmware(struct bnx2 *bp)
-{
-	if (bp->rv2p_firmware) {
-		release_firmware(bp->mips_firmware);
-		release_firmware(bp->rv2p_firmware);
-		bp->rv2p_firmware = NULL;
-	}
-}
-
-static int bnx2_request_uncached_firmware(struct bnx2 *bp)
+static int __devinit
+bnx2_request_firmware(struct bnx2 *bp)
 {
 	const char *mips_fw_file, *rv2p_fw_file;
 	const struct bnx2_mips_fw_file *mips_fw;
@@ -3700,13 +3692,13 @@ static int bnx2_request_uncached_firmware(struct bnx2 *bp)
 	rc = request_firmware(&bp->mips_firmware, mips_fw_file, &bp->pdev->dev);
 	if (rc) {
 		pr_err("Can't load firmware file \"%s\"\n", mips_fw_file);
-		goto out;
+		return rc;
 	}
 
 	rc = request_firmware(&bp->rv2p_firmware, rv2p_fw_file, &bp->pdev->dev);
 	if (rc) {
 		pr_err("Can't load firmware file \"%s\"\n", rv2p_fw_file);
-		goto err_release_mips_firmware;
+		return rc;
 	}
 	mips_fw = (const struct bnx2_mips_fw_file *) bp->mips_firmware->data;
 	rv2p_fw = (const struct bnx2_rv2p_fw_file *) bp->rv2p_firmware->data;
@@ -3717,30 +3709,16 @@ static int bnx2_request_uncached_firmware(struct bnx2 *bp)
 	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->tpat) ||
 	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->txp)) {
 		pr_err("Firmware file \"%s\" is invalid\n", mips_fw_file);
-		rc = -EINVAL;
-		goto err_release_firmware;
+		return -EINVAL;
 	}
 	if (bp->rv2p_firmware->size < sizeof(*rv2p_fw) ||
 	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc1.rv2p, 8, true) ||
 	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc2.rv2p, 8, true)) {
 		pr_err("Firmware file \"%s\" is invalid\n", rv2p_fw_file);
-		rc = -EINVAL;
-		goto err_release_firmware;
+		return -EINVAL;
 	}
-out:
-	return rc;
 
-err_release_firmware:
-	release_firmware(bp->rv2p_firmware);
-	bp->rv2p_firmware = NULL;
-err_release_mips_firmware:
-	release_firmware(bp->mips_firmware);
-	goto out;
-}
-
-static int bnx2_request_firmware(struct bnx2 *bp)
-{
-	return bp->rv2p_firmware ? 0 : bnx2_request_uncached_firmware(bp);
+	return 0;
 }
 
 static u32
@@ -6307,10 +6285,6 @@ bnx2_open(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	int rc;
 
-	rc = bnx2_request_firmware(bp);
-	if (rc < 0)
-		goto out;
-
 	netif_carrier_off(dev);
 
 	bnx2_set_power_state(bp, PCI_D0);
@@ -6369,8 +6343,8 @@ bnx2_open(struct net_device *dev)
 		netdev_info(dev, "using MSIX\n");
 
 	netif_tx_start_all_queues(dev);
-out:
-	return rc;
+
+	return 0;
 
 open_err:
 	bnx2_napi_disable(bp);
@@ -6378,8 +6352,7 @@ open_err:
 	bnx2_free_irq(bp);
 	bnx2_free_mem(bp);
 	bnx2_del_napi(bp);
-	bnx2_release_firmware(bp);
-	goto out;
+	return rc;
 }
 
 static void
@@ -6578,8 +6551,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = frag->size;
-		mapping = dma_map_page(&bp->pdev->dev, frag->page, 0, len,
-					   PCI_DMA_TODEVICE);
+		mapping = dma_map_page(&bp->pdev->dev, frag->page, frag->page_offset,
+				       len, PCI_DMA_TODEVICE);
 		if (dma_mapping_error(&bp->pdev->dev, mapping))
 			goto dma_error;
 		pci_unmap_addr_set(&txr->tx_buf_ring[ring_prod], mapping,
@@ -8457,6 +8430,10 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
+	rc = bnx2_request_firmware(bp);
+	if (rc)
+		goto error;
+
 	memcpy(dev->dev_addr, bp->mac_addr, 6);
 	memcpy(dev->perm_addr, bp->mac_addr, 6);
 
@@ -8491,6 +8468,11 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 error:
+	if (bp->mips_firmware)
+		release_firmware(bp->mips_firmware);
+	if (bp->rv2p_firmware)
+		release_firmware(bp->rv2p_firmware);
+
 	if (bp->regview)
 		iounmap(bp->regview);
 	pci_release_regions(pdev);
@@ -8511,6 +8493,11 @@ bnx2_remove_one(struct pci_dev *pdev)
 	del_timer_sync(&bp->timer);
 	cancel_work_sync(&bp->reset_task);
 
+	if (bp->mips_firmware)
+		release_firmware(bp->mips_firmware);
+	if (bp->rv2p_firmware)
+		release_firmware(bp->rv2p_firmware);
+
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -8520,8 +8507,6 @@ bnx2_remove_one(struct pci_dev *pdev)
 		pci_disable_pcie_error_reporting(pdev);
 		bp->flags &= ~BNX2_FLAG_AER_ENABLED;
 	}
-
-	bnx2_release_firmware(bp);
 
 	free_netdev(dev);
 
