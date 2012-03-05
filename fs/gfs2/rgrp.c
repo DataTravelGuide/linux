@@ -529,7 +529,6 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 	struct file_ra_state ra_state;
 	int error, rgrps;
 
-	mutex_lock(&sdp->sd_rindex_mutex);
 	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (rgrps = 0;; rgrps++) {
 		loff_t pos = rgrps * sizeof(struct gfs2_rindex);
@@ -542,11 +541,10 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 			break;
 		total_data += be32_to_cpu(((struct gfs2_rindex *)buf)->ri_data);
 	}
-	mutex_unlock(&sdp->sd_rindex_mutex);
 	return total_data;
 }
 
-static void rgd_insert(struct gfs2_rgrpd *rgd)
+static int rgd_insert(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	struct rb_node **newn = &sdp->sd_rindex_tree.rb_node, *parent = NULL;
@@ -562,11 +560,13 @@ static void rgd_insert(struct gfs2_rgrpd *rgd)
 		else if (rgd->rd_addr > cur->rd_addr)
 			newn = &((*newn)->rb_right);
 		else
-			return;
+			return -EEXIST;
 	}
 
 	rb_link_node(&rgd->rd_node, parent, newn);
 	rb_insert_color(&rgd->rd_node, &sdp->sd_rindex_tree);
+	sdp->sd_rgrps++;
+	return 0;
 }
 
 /**
@@ -620,10 +620,12 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 	if (rgd->rd_data > sdp->sd_max_rg_data)
 		sdp->sd_max_rg_data = rgd->rd_data;
 	spin_lock(&sdp->sd_rindex_spin);
-	rgd_insert(rgd);
-	sdp->sd_rgrps++;
+	error = rgd_insert(rgd);
 	spin_unlock(&sdp->sd_rindex_spin);
-	return error;
+	if (!error)
+		return 0;
+
+	error = 0; /* someone else read in the rgrp; free it and ignore it */
 
 fail:
 	kfree(rgd->rd_bits);
@@ -683,14 +685,12 @@ int gfs2_rindex_update(struct gfs2_sbd *sdp)
 
 	/* Read new copy from disk if we don't have the latest */
 	if (!sdp->sd_rindex_uptodate) {
-		mutex_lock(&sdp->sd_rindex_mutex);
 		error = gfs2_glock_nq_init(gl, LM_ST_SHARED, 0, &ri_gh);
 		if (error)
 			return error;
 		if (!sdp->sd_rindex_uptodate)
 			error = gfs2_ri_update(ip);
 		gfs2_glock_dq_uninit(&ri_gh);
-		mutex_unlock(&sdp->sd_rindex_mutex);
 	}
 
 
