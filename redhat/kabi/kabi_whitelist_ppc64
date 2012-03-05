@@ -19,10 +19,6 @@
 	__free_pages
 	__get_free_pages
 	__gpio_get_value
-	__ieee80211_get_assoc_led_name
-	__ieee80211_get_radio_led_name
-	__ieee80211_get_rx_led_name
-	__ieee80211_get_tx_led_name
 	__init_rwsem
 	__init_waitqueue_head
 	__insert_inode_hash
@@ -460,7 +456,6 @@
 	genl_unregister_family
 	genphy_config_aneg
 	genphy_read_status
-	get_cmd_string
 	get_device
 	get_fs_type
 	get_page
@@ -526,30 +521,6 @@
 	idr_remove
 	idr_remove_all
 	idr_replace
-	ieee80211_alloc_hw
-	ieee80211_beacon_get
-	ieee80211_channel_to_frequency
-	ieee80211_find_sta
-	ieee80211_free_hw
-	ieee80211_frequency_to_channel
-	ieee80211_get_tkip_key
-	ieee80211_hdrlen
-	ieee80211_queue_delayed_work
-	ieee80211_queue_work
-	ieee80211_rate_control_register
-	ieee80211_rate_control_unregister
-	ieee80211_register_hw
-	ieee80211_restart_hw
-	ieee80211_rx_irqsafe
-	ieee80211_scan_completed
-	ieee80211_start_tx_ba_cb_irqsafe
-	ieee80211_stop_queue
-	ieee80211_stop_queues
-	ieee80211_stop_tx_ba_cb_irqsafe
-	ieee80211_tx_status_irqsafe
-	ieee80211_unregister_hw
-	ieee80211_wake_queue
-	ieee80211_wake_queues
 	iget5_locked
 	iget_locked
 	igrab
@@ -958,7 +929,6 @@
 	raid_class_attach
 	raid_class_release
 	random32
-	rate_control_send_low
 	raw_local_irq_restore
 	rb_erase
 	rb_first
@@ -1511,7 +1481,6 @@
 	wait_for_completion_timeout
 	wait_on_page_bit
 	wake_up_process
-	wiphy_rfkill_set_hw_state
 	wireless_send_event
 	write_one_page
 	xfrm_register_mode
