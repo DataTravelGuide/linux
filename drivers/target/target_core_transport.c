@@ -3630,6 +3630,8 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 EXPORT_SYMBOL(transport_do_task_sg_chain);
 
 #if BITS_PER_LONG == 32
+#define DIV_ROUND_UP_ULL(ll,d) \
+	({ unsigned long long _tmp = (ll)+(d)-1; do_div(_tmp, d); _tmp; })
 # define DIV_ROUND_UP_SECTOR_T(ll,d) DIV_ROUND_UP_ULL(ll, d)
 #else
 # define DIV_ROUND_UP_SECTOR_T(ll,d) DIV_ROUND_UP(ll,d)
