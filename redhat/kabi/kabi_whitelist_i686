@@ -125,7 +125,6 @@
 	alloc_etherdev_mq
 	alloc_netdev_mq
 	alloc_tty_driver
-	alloc_vm_area
 	apic
 	arp_send
 	async_schedule
@@ -193,7 +192,6 @@
 	blk_queue_max_segments
 	blk_queue_merge_bvec
 	blk_queue_prep_rq
-	blk_queue_rq_timed_out
 	blk_queue_rq_timeout
 	blk_queue_softirq_done
 	blk_queue_stack_limits
@@ -442,12 +440,6 @@
 	fb_mode_option
 	fb_set_suspend
 	fb_set_var
-	fc_attach_transport
-	fc_release_transport
-	fc_remote_port_add
-	fc_remote_port_delete
-	fc_remote_port_rolechg
-	fc_remove_host
 	fget
 	filemap_fault
 	filemap_fdatawait
@@ -460,7 +452,6 @@
 	find_first_bit
 	find_first_zero_bit
 	find_get_page
-	find_module
 	find_next_bit
 	find_next_zero_bit
 	find_or_create_page
@@ -499,7 +490,6 @@
 	genphy_config_aneg
 	genphy_read_status
 	get_device
-	get_fs_type
 	get_jiffies_64
 	get_page
 	get_random_bytes
@@ -630,7 +620,6 @@
 	jiffies_to_msecs
 	jiffies_to_timeval
 	jiffies_to_usecs
-	kallsyms_on_each_symbol
 	kasprintf
 	kernel_recvmsg
 	kernel_sendmsg
@@ -730,7 +719,6 @@
 	mnt_want_write
 	mod_timer
 	module_layout
-	module_mutex
 	module_put
 	module_refcount
 	movable_zone
@@ -959,8 +947,6 @@
 	print_mac
 	printk
 	printk_ratelimit
-	probe_kernel_read
-	probe_kernel_write
 	proc_create_data
 	proc_dointvec
 	proc_dointvec_jiffies
@@ -1167,7 +1153,6 @@
 	sget
 	shmem_file_setup
 	shrink_dcache_parent
-	si_meminfo
 	simple_empty
 	simple_read_from_buffer
 	simple_strtol
@@ -1369,7 +1354,6 @@
 	timespec_to_jiffies
 	totalram_pages
 	touch_atime
-	touch_nmi_watchdog
 	trace_current_buffer_lock_reserve
 	trace_define_common_fields
 	trace_define_field
@@ -1510,7 +1494,6 @@
 	usbnet_stop
 	usbnet_suspend
 	usbnet_tx_timeout
-	use_module
 	usecs_to_jiffies
 	v4l2_chip_ident_i2c_client
 	v4l2_ctrl_next
@@ -1542,7 +1525,6 @@
 	vmap
 	vmtruncate
 	vprintk
-	vscnprintf
 	vsnprintf
 	vsprintf
 	vsscanf

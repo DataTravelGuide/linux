@@ -89,7 +89,6 @@
 	alloc_etherdev_mq
 	alloc_netdev_mq
 	alloc_tty_driver
-	alloc_vm_area
 	arp_send
 	async_schedule
 	async_synchronize_full
@@ -153,7 +152,6 @@
 	blk_queue_max_segments
 	blk_queue_merge_bvec
 	blk_queue_prep_rq
-	blk_queue_rq_timed_out
 	blk_queue_rq_timeout
 	blk_queue_softirq_done
 	blk_queue_stack_limits
@@ -344,12 +342,6 @@
 	ethtool_op_set_tx_hw_csum
 	ethtool_op_set_tx_ipv6_csum
 	fasync_helper
-	fc_attach_transport
-	fc_release_transport
-	fc_remote_port_add
-	fc_remote_port_delete
-	fc_remote_port_rolechg
-	fc_remove_host
 	fget
 	filemap_fault
 	filemap_fdatawait
@@ -360,7 +352,6 @@
 	filp_open
 	filter_current_check_discard
 	find_get_page
-	find_module
 	find_or_create_page
 	find_vma
 	finish_wait
@@ -389,7 +380,6 @@
 	genl_register_ops
 	genl_unregister_family
 	get_device
-	get_fs_type
 	get_page
 	get_random_bytes
 	get_sb_bdev
@@ -473,7 +463,6 @@
 	jiffies_to_msecs
 	jiffies_to_timeval
 	jiffies_to_usecs
-	kallsyms_on_each_symbol
 	kasprintf
 	kernel_recvmsg
 	kernel_sendmsg
@@ -559,7 +548,6 @@
 	mnt_want_write
 	mod_timer
 	module_layout
-	module_mutex
 	module_put
 	module_refcount
 	movable_zone
@@ -683,8 +671,6 @@
 	print_mac
 	printk
 	printk_ratelimit
-	probe_kernel_read
-	probe_kernel_write
 	proc_create_data
 	proc_dointvec
 	proc_dointvec_jiffies
@@ -870,7 +856,6 @@
 	sget
 	shmem_file_setup
 	shrink_dcache_parent
-	si_meminfo
 	simple_empty
 	simple_read_from_buffer
 	simple_strtol
@@ -1073,7 +1058,6 @@
 	up
 	up_read
 	up_write
-	use_module
 	usecs_to_jiffies
 	vfree
 	vfs_write
@@ -1091,7 +1075,6 @@
 	vmap
 	vmtruncate
 	vprintk
-	vscnprintf
 	vsnprintf
 	vsprintf
 	vsscanf
