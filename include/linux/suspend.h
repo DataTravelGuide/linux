@@ -269,7 +269,7 @@ static inline int hibernate_nvs_register(unsigned long a, unsigned long b)
 }
 static inline int hibernate_nvs_alloc(void) { return 0; }
 static inline void hibernate_nvs_free(void) {}
-static inline int hibernate_nvs_save(void) {}
+static inline int hibernate_nvs_save(void) { return 0; }
 static inline void hibernate_nvs_restore(void) {}
 #endif /* CONFIG_HIBERNATION_NVS */
 
