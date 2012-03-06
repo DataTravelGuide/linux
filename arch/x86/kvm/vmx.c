@@ -68,6 +68,9 @@ module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 static int __read_mostly yield_on_hlt = 1;
 module_param(yield_on_hlt, bool, S_IRUGO);
 
+static int __read_mostly vmm_exclusive = 1;
+module_param(vmm_exclusive, bool, S_IRUGO);
+
 /*
  * These 2 parameters are used to config the controls for Pause-Loop Exiting:
  * ple_gap:    upper bound on the amount of time between two successive
@@ -824,7 +827,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vcpu->cpu != cpu)
+	if (vmm_exclusive && vcpu->cpu != cpu)
 		vcpu_clear(vmx);
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
@@ -858,6 +861,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	__vmx_load_host_state(to_vmx(vcpu));
+	if (!vmm_exclusive)
+		__vcpu_clear(to_vmx(vcpu));
 }
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
