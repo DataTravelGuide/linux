@@ -349,7 +349,7 @@ static struct dlm_rsb *create_rsb(struct dlm_ls *ls, char *name, int len)
 	return r;
 }
 
-static int search_rsb_list(struct list_head *head, char *name, int len,
+int search_rsb_list(struct list_head *head, char *name, int len,
 			   unsigned int flags, struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r;
