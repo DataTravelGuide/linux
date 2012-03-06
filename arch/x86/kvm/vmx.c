@@ -824,14 +824,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vcpu->cpu != cpu) {
+	if (vcpu->cpu != cpu)
 		vcpu_clear(vmx);
-		set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
-		local_irq_disable();
-		list_add(&vmx->local_vcpus_link,
-			 &per_cpu(vcpus_on_cpu, cpu));
-		local_irq_enable();
-	}
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
 		per_cpu(current_vmcs, cpu) = vmx->vmcs;
@@ -841,6 +835,12 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (vcpu->cpu != cpu) {
 		struct descriptor_table dt;
 		unsigned long sysenter_esp;
+
+		set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
+		local_irq_disable();
+		list_add(&vmx->local_vcpus_link,
+			 &per_cpu(vcpus_on_cpu, cpu));
+		local_irq_enable();
 
 		/*
 		 * Linux uses per-cpu TSS and GDT, so set these when switching
