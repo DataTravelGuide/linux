@@ -1674,6 +1674,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 06 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-249.el6]
+- [fs] procfs: add hidepid= and gid= mount options (Jerome Marchand) [770652]
+- [fs] procfs: parse mount options (Jerome Marchand) [770652]
+- [scsi] qla4xxx: v5.02.00.00.06.03-k3 (Chad Dupuis) [798721]
+- [scsi] qla4xxx: assign correct address for iscsi_cls_host (Chad Dupuis) [798721]
+- [scsi] qla4xxx: trivial cleanup (Chad Dupuis) [798721]
+- [scsi] qla4xxx: Fix sparse warning (Chad Dupuis) [798721]
+- [scsi] qla4xxx: Add support for multiple session per host (Chad Dupuis) [798721]
+- [scsi] qla4xxx: Export CHAP index as sysfs attribute (Chad Dupuis) [798721]
+- [scsi] scsi_transport: Export CHAP index as sysfs attribute (Chad Dupuis) [798721]
+- [scsi] qla4xxx: Add support to display CHAP list and delete CHAP entry (Chad Dupuis) [798721]
+- [scsi] iscsi_transport: Add support to display CHAP list and delete CHAP entry (Chad Dupuis) [798721]
+- [block] Fix io_context leak after failure of clone with CLONE_IO (Vivek Goyal) [791125] {CVE-2012-0879}
+- [block] Fix io_context leak after clone with CLONE_IO (Vivek Goyal) [791125] {CVE-2012-0879}
+- [fs] dlm: fix slow rsb search in dir recovery (David Teigland) [772376]
+- [fs] GFS2: rename existing file after mount crashes (Robert S Peterson) [794839]
+- [fs] GFS2: Eliminate sd_rindex_mutex (Robert S Peterson) [798763]
+- [fs] cifs: fix dentry refcount leak when opening a FIFO on lookup (Sachin Prabhu) [781893]
+- [fs] NFSv4: Handle expired stateids when the lease is still valid (Sachin Prabhu) [757876]
+- [perf] header: Fix build on old systems (Jiri Olsa) [784888]
+- [perf] hists browser: Add missing stdarg.h include (Jiri Olsa) [784888]
+
 * Tue Mar 06 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-248.el6]
 - [netdrv] bnx2: revert firmware load modifications (Neil Horman) [720428]
 - [virt] virtio: balloon: leak / fill balloon across S4 (Amit Shah) [798583]
