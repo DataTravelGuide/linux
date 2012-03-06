@@ -1674,6 +1674,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 06 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-248.el6]
+- [netdrv] bnx2: revert firmware load modifications (Neil Horman) [720428]
+- [virt] virtio: balloon: leak / fill balloon across S4 (Amit Shah) [798583]
+- [scsi] silencing 'killing requests for dead queue' (David Milburn) [798672]
+- [scsi] sd_dif: fix setting bio flags (Jeff Moyer) [799075]
+- [scsi] megaraid_sas: driver update to version 00.00.06.14-rh1 (Tomas Henzl) [749923]
+- [infiniband] srp: fix include ordering issue (Doug Ledford) [791209]
+- [sched] Fix Kernel divide by zero panic in find_busiest_group() (Larry Woodman) [785959]
+
 * Mon Mar 05 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-247.el6]
 - [virt] KVM steal time suspend/resume bugfix (Rik van Riel) [612320]
 - [virt] guest: KVM Steal time registration (Laszlo Ersek) [612320]
