@@ -1162,8 +1162,10 @@ struct net_device_extended {
 	struct netdev_qos_info			qos_data;
 	unsigned long				ext_priv_flags;
 	struct netdev_priomap_info		priomap_data;
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	int                     (*ndo_fcoe_get_hbainfo)(struct net_device *dev,
 					struct netdev_fcoe_hbainfo *hbainfo);
+#endif
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
