@@ -1705,6 +1705,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 */
 	new_slave->original_flags = slave_dev->flags;
 
+	/* Save slave's original mtu and then set it to match the bond */
+	new_slave->original_mtu = slave_dev->mtu;
+	res = dev_set_mtu(slave_dev, bond->dev->mtu);
+	if (res) {
+		pr_debug("Error %d calling dev_set_mtu\n", res);
+		goto err_free;
+	}
+
 	/*
 	 * Set the new_slave's queue_id to be zero.  Queue ID mapping
 	 * is set via sysfs or module option if desired.
@@ -1729,7 +1737,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		res = dev_set_mac_address(slave_dev, &addr);
 		if (res) {
 			pr_debug("Error %d calling set_mac_address\n", res);
-			goto err_free;
+			goto err_restore_mtu;
 		}
 	}
 
@@ -1969,6 +1977,9 @@ err_restore_mac:
 		dev_set_mac_address(slave_dev, &addr);
 	}
 
+err_restore_mtu:
+	dev_set_mtu(slave_dev, new_slave->original_mtu);
+
 err_free:
 	kfree(new_slave);
 
@@ -2169,6 +2180,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
 	}
+
+	dev_set_mtu(slave_dev, slave->original_mtu);
 
 	slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
 				   IFF_SLAVE_INACTIVE | IFF_BONDING |
