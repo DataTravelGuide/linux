@@ -77,5 +77,7 @@ struct x86_platform_ops x86_platform = {
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,
 	.is_untracked_pat_range		= is_ISA_range,
-	.nmi_init			= default_nmi_init
+	.nmi_init			= default_nmi_init,
+	.save_sched_clock_state		= tsc_save_sched_clock_state,
+	.restore_sched_clock_state	= tsc_restore_sched_clock_state,
 };

@@ -180,6 +180,15 @@ static u64 kvm_steal_clock(int cpu)
 	return steal;
 }
 
+static void kvm_save_sched_clock_state(void)
+{
+}
+
+static void kvm_restore_sched_clock_state(void)
+{
+	kvm_register_clock("primary cpu clock, resume");
+}
+
 #ifdef CONFIG_X86_LOCAL_APIC
 static void __cpuinit kvm_setup_secondary_clock(void)
 {
@@ -259,6 +268,8 @@ void __init kvmclock_init(void)
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 #endif
+	x86_platform.save_sched_clock_state = kvm_save_sched_clock_state;
+	x86_platform.restore_sched_clock_state = kvm_restore_sched_clock_state;
 	machine_ops.shutdown  = kvm_shutdown;
 #ifdef CONFIG_KEXEC
 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
