@@ -4873,8 +4873,6 @@ static void inject_pending_event(struct kvm_vcpu *vcpu)
 					    false);
 			kvm_x86_ops->set_irq(vcpu);
 		}
-		if (test_and_clear_bit(KVM_REQ_STEAL_UPDATE, &vcpu->requests))
-			record_steal_time(vcpu);
 	}
 }
 
@@ -4943,6 +4941,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_handle_pmu_event(vcpu);
 		if (test_and_clear_bit(KVM_REQ_PMI, &vcpu->requests))
 			kvm_deliver_pmi(vcpu);
+		if (test_and_clear_bit(KVM_REQ_STEAL_UPDATE, &vcpu->requests))
+			record_steal_time(vcpu);
 	}
 
 	preempt_disable();
