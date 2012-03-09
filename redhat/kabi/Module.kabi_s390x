@@ -285,6 +285,7 @@
 0xbb8d1e09	dev_set_name	vmlinux	EXPORT_SYMBOL_GPL
 0x49c9efd7	dev_set_promiscuity	vmlinux	EXPORT_SYMBOL
 0x78108f53	dev_trans_start	vmlinux	EXPORT_SYMBOL
+0x48b6f00d	dev_unicast_add	vmlinux	EXPORT_SYMBOL
 0x65414e67	dev_valid_name	vmlinux	EXPORT_SYMBOL
 0xf27d18f5	device_add	vmlinux	EXPORT_SYMBOL_GPL
 0xcd9dfabd	device_create	vmlinux	EXPORT_SYMBOL_GPL
