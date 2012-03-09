@@ -185,6 +185,7 @@
 0x4c759827	byte_rev_table	vmlinux	EXPORT_SYMBOL_GPL
 0x1251d30f	call_rcu	vmlinux	EXPORT_SYMBOL_GPL
 0x8d1f3bea	call_usermodehelper_exec	vmlinux	EXPORT_SYMBOL
+0x68abaef0	call_usermodehelper_setfns	vmlinux	EXPORT_SYMBOL
 0x4000f36e	call_usermodehelper_setup	vmlinux	EXPORT_SYMBOL
 0x30ffe1f7	cancel_delayed_work_sync	vmlinux	EXPORT_SYMBOL
 0x08d8708f	cancel_work_sync	vmlinux	EXPORT_SYMBOL_GPL

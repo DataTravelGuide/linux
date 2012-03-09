@@ -186,6 +186,7 @@
 	byte_rev_table
 	call_rcu
 	call_usermodehelper_exec
+	call_usermodehelper_setfns
 	call_usermodehelper_setup
 	cancel_delayed_work_sync
 	cancel_work_sync
