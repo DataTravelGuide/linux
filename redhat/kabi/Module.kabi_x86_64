@@ -633,6 +633,7 @@
 0x957e225b	kernel_bind	vmlinux	EXPORT_SYMBOL
 0xe17a262a	kernel_recvmsg	vmlinux	EXPORT_SYMBOL
 0xdae48196	kernel_sendmsg	vmlinux	EXPORT_SYMBOL
+0xfa8928ae	kernel_sock_ioctl	vmlinux	EXPORT_SYMBOL
 0x3da5eb6d	kfifo_alloc	vmlinux	EXPORT_SYMBOL
 0x15ef2dd9	kfifo_free	vmlinux	EXPORT_SYMBOL
 0x037a0cba	kfree	vmlinux	EXPORT_SYMBOL

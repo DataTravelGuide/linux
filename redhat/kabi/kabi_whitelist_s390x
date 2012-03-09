@@ -471,6 +471,7 @@
 	kernel_bind
 	kernel_recvmsg
 	kernel_sendmsg
+	kernel_sock_ioctl
 	kfifo_alloc
 	kfifo_free
 	kfree
