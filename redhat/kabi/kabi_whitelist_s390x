@@ -574,6 +574,7 @@
 	net_msg_warn
 	net_ratelimit
 	netdev_features_change
+	netdev_fix_features
 	netdev_increment_features
 	netdev_set_master
 	netif_carrier_off
