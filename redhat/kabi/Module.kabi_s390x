@@ -90,6 +90,7 @@
 0xaaefc7d3	alloc_tty_driver	vmlinux	EXPORT_SYMBOL
 0x84bc398f	arp_create	vmlinux	EXPORT_SYMBOL
 0x6c349749	arp_send	vmlinux	EXPORT_SYMBOL
+0x3518db71	arp_xmit	vmlinux	EXPORT_SYMBOL
 0x7e1183c9	async_schedule	vmlinux	EXPORT_SYMBOL_GPL
 0xa5efbf4c	async_synchronize_full	vmlinux	EXPORT_SYMBOL_GPL
 0xcc27d383	atomic_notifier_call_chain	vmlinux	EXPORT_SYMBOL_GPL

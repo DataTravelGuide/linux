@@ -91,6 +91,7 @@
 	alloc_tty_driver
 	arp_create
 	arp_send
+	arp_xmit
 	async_schedule
 	async_synchronize_full
 	atomic_notifier_call_chain
