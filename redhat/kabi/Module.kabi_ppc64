@@ -1298,6 +1298,7 @@
 0xbaaab8ae	timespec_to_jiffies	vmlinux	EXPORT_SYMBOL
 0xde9360ba	totalram_pages	vmlinux	EXPORT_SYMBOL
 0x5247d458	touch_atime	vmlinux	EXPORT_SYMBOL
+0x6fcb87a1	touch_softlockup_watchdog	vmlinux	EXPORT_SYMBOL
 0x1dee2629	trace_current_buffer_lock_reserve	vmlinux	EXPORT_SYMBOL_GPL
 0x6c0e553c	trace_define_common_fields	vmlinux	EXPORT_SYMBOL_GPL
 0x7187797b	trace_define_field	vmlinux	EXPORT_SYMBOL_GPL

@@ -1364,6 +1364,7 @@
 	timespec_to_jiffies
 	totalram_pages
 	touch_atime
+	touch_softlockup_watchdog
 	trace_current_buffer_lock_reserve
 	trace_define_common_fields
 	trace_define_field
