@@ -624,6 +624,7 @@
 0xcfb9006e	jiffies_to_timeval	vmlinux	EXPORT_SYMBOL
 0x7f24de73	jiffies_to_usecs	vmlinux	EXPORT_SYMBOL
 0xda1a7335	kasprintf	vmlinux	EXPORT_SYMBOL
+0x121f958c	kernel_bind	vmlinux	EXPORT_SYMBOL
 0x279b83a0	kernel_recvmsg	vmlinux	EXPORT_SYMBOL
 0x28307f87	kernel_sendmsg	vmlinux	EXPORT_SYMBOL
 0x3da5eb6d	kfifo_alloc	vmlinux	EXPORT_SYMBOL

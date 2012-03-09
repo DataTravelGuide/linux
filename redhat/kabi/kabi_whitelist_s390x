@@ -468,6 +468,7 @@
 	jiffies_to_timeval
 	jiffies_to_usecs
 	kasprintf
+	kernel_bind
 	kernel_recvmsg
 	kernel_sendmsg
 	kfifo_alloc
