@@ -426,6 +426,7 @@
 0xd1077bf1	ether_setup	vmlinux	EXPORT_SYMBOL
 0xcea2e0cb	ethtool_op_get_flags	vmlinux	EXPORT_SYMBOL
 0xcb8ce066	ethtool_op_get_link	vmlinux	EXPORT_SYMBOL
+0x5a82fe5e	ethtool_op_get_rx_csum	vmlinux	EXPORT_SYMBOL
 0x0bb24775	ethtool_op_get_sg	vmlinux	EXPORT_SYMBOL
 0xba637716	ethtool_op_get_tso	vmlinux	EXPORT_SYMBOL
 0xe4774cdf	ethtool_op_get_tx_csum	vmlinux	EXPORT_SYMBOL

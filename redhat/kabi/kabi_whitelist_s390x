@@ -337,6 +337,7 @@
 	ether_setup
 	ethtool_op_get_flags
 	ethtool_op_get_link
+	ethtool_op_get_rx_csum
 	ethtool_op_get_sg
 	ethtool_op_get_tso
 	ethtool_op_get_tx_csum
