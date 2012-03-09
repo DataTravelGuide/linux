@@ -1674,6 +1674,22 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Mar 09 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-251.el6]
+- [scsi] lpfc: Update lpfc version for 8.3.5.58.1p driver release (Rob Evers) [738037]
+- [virt] VMX: VMXON/VMXOFF usage changes (Avi Kivity) [704173]
+- [virt] VMX: VMCLEAR/VMPTRLD usage changes (Avi Kivity) [704173]
+- [virt] VMX: Some minor changes to code structure (Avi Kivity) [704173]
+- [virt] VMX: Define new functions to wrapper direct call of asm code (Avi Kivity) [704173]
+- [net] bonding: move dev_addr cpy to bond_enslave (Thomas Graf) [799794]
+- [net] bonding: move slave MTU handling from sysfs (Thomas Graf) [799794]
+- [ppc] Implement CONFIG_STRICT_DEVMEM (Steve Best) [655689]
+- [scsi] fcoe: Only define ndo_fcoe_get_hbainfo if fcoe is configured (Neil Horman) [789086]
+- [x86] ACPI / PM: Fix build problem for !CONFIG_ACPI related to NVS rework (Myron Stowe) [708447]
+- [x86] ips: use interruptible waits in ips-monitor (Neil Horman) [727944]
+- [x86] kvmclock: abstract save/restore sched_clock_state (Marcelo Tosatti) [694801]
+- [virt] fix a merge problem in "KVM steal time suspend/resume bugfix" series (Aristeu Rozanski) [612320]
+- [virt] reapply "KVM steal time suspend/resume bugfix" series (Aristeu Rozanski)
+
 * Tue Mar 06 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-250.el6]
 - [net] nfs: set vs_hidden on nfs4_callback_version4 (Jeff Layton) [741039]
 - [net] SUNRPC: remove rpcbind clients destruction on module cleanup (Jeff Layton) [741039]
