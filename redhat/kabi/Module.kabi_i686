@@ -1048,6 +1048,7 @@
 0xa0a17ed8	rtnl_link_register	vmlinux	EXPORT_SYMBOL_GPL
 0x2337d5ac	rtnl_link_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0xc7a4fbed	rtnl_lock	vmlinux	EXPORT_SYMBOL
+0xf4f14de6	rtnl_trylock	vmlinux	EXPORT_SYMBOL
 0x6e720ff2	rtnl_unlock	vmlinux	EXPORT_SYMBOL
 0x7f05e505	save_stack_trace_tsk	vmlinux	EXPORT_SYMBOL_GPL
 0xe7a2620e	save_vga	drivers/video/vgastate	EXPORT_SYMBOL

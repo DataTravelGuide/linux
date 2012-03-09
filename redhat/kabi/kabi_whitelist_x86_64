@@ -1055,6 +1055,7 @@
 	rtnl_link_register
 	rtnl_link_unregister
 	rtnl_lock
+	rtnl_trylock
 	rtnl_unlock
 	save_stack_trace_tsk
 	save_vga
