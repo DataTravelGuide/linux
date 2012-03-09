@@ -126,6 +126,7 @@
 	alloc_netdev_mq
 	alloc_tty_driver
 	apic
+	arp_create
 	arp_send
 	async_schedule
 	async_synchronize_full

@@ -111,6 +111,7 @@
 	alloc_netdev_mq
 	alloc_pages_current
 	alloc_tty_driver
+	arp_create
 	arp_send
 	async_schedule
 	async_synchronize_full
