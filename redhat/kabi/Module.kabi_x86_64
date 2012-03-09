@@ -340,6 +340,7 @@
 0x599a4d52	dev_set_promiscuity	vmlinux	EXPORT_SYMBOL
 0x38098f57	dev_trans_start	vmlinux	EXPORT_SYMBOL
 0x2fa52655	dev_unicast_add	vmlinux	EXPORT_SYMBOL
+0x9b574672	dev_unicast_delete	vmlinux	EXPORT_SYMBOL
 0x65414e67	dev_valid_name	vmlinux	EXPORT_SYMBOL
 0xc482542c	device_add	vmlinux	EXPORT_SYMBOL_GPL
 0x02d2cf7d	device_create	vmlinux	EXPORT_SYMBOL_GPL

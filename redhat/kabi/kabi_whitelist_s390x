@@ -287,6 +287,7 @@
 	dev_set_promiscuity
 	dev_trans_start
 	dev_unicast_add
+	dev_unicast_delete
 	dev_valid_name
 	device_add
 	device_create
