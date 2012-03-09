@@ -339,6 +339,7 @@
 	dev_set_mtu
 	dev_set_name
 	dev_set_promiscuity
+	dev_trans_start
 	dev_valid_name
 	device_add
 	device_create
