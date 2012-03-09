@@ -613,6 +613,7 @@
 	nf_register_hooks
 	nf_unregister_hook
 	nf_unregister_hooks
+	nla_memcpy
 	nla_parse
 	nla_put
 	no_llseek

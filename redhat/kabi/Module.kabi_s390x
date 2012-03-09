@@ -612,6 +612,7 @@
 0xb07b7898	nf_register_hooks	vmlinux	EXPORT_SYMBOL
 0xf23a4d5f	nf_unregister_hook	vmlinux	EXPORT_SYMBOL
 0xc3f22c21	nf_unregister_hooks	vmlinux	EXPORT_SYMBOL
+0xf1db1704	nla_memcpy	vmlinux	EXPORT_SYMBOL
 0xa58b6804	nla_parse	vmlinux	EXPORT_SYMBOL
 0xcb133321	nla_put	vmlinux	EXPORT_SYMBOL
 0x52882887	no_llseek	vmlinux	EXPORT_SYMBOL
