@@ -1473,13 +1473,15 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
-	error = gfs2_write_alloc_required(ip, offset, len, &alloc_required);
-	if (error || !alloc_required)
-		goto out_unlock;
-
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
+		gfs2_write_alloc_required(ip, offset, bytes, &alloc_required);
+		if (!alloc_required) {
+			len -= bytes;
+			offset += bytes;
+			continue;
+		}
 		qa = gfs2_qadata_get(ip);
 		if (!qa) {
 			error = -ENOMEM;
