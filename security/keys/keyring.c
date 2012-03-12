@@ -23,6 +23,8 @@
 #define rcu_dereference_locked_keyring(keyring)				\
 	(rcu_dereference((keyring)->payload.subscriptions))
 
+#define KEY_LINK_FIXQUOTA 1UL
+
 /*
  * When plumbing the depths of the key tree, this sets a hard limit
  * set on how deep we're willing to go.
@@ -695,11 +697,11 @@ static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
  * Preallocate memory so that a key can be linked into to a keyring.
  */
 int __key_link_begin(struct key *keyring, const struct key_type *type,
-		     const char *description,
-		     struct keyring_list **_prealloc)
+		     const char *description, unsigned long *_prealloc)
 	__acquires(&keyring->sem)
 {
 	struct keyring_list *klist, *nklist;
+	unsigned long prealloc;
 	unsigned max;
 	size_t size;
 	int loop, ret;
@@ -742,6 +744,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 
 				/* note replacement slot */
 				klist->delkey = nklist->delkey = loop;
+				prealloc = (unsigned long)nklist;
 				goto done;
 			}
 		}
@@ -756,6 +759,7 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 	if (klist && klist->nkeys < klist->maxkeys) {
 		/* there's sufficient slack space to append directly */
 		nklist = NULL;
+		prealloc = KEY_LINK_FIXQUOTA;
 	} else {
 		/* grow the key list */
 		max = 4;
@@ -790,8 +794,9 @@ int __key_link_begin(struct key *keyring, const struct key_type *type,
 		nklist->keys[nklist->delkey] = NULL;
 	}
 
+	prealloc = (unsigned long)nklist | KEY_LINK_FIXQUOTA;
 done:
-	*_prealloc = nklist;
+	*_prealloc = prealloc;
 	kleave(" = 0");
 	return 0;
 
@@ -832,12 +837,12 @@ int __key_link_check_live_key(struct key *keyring, struct key *key)
  * combination.
  */
 void __key_link(struct key *keyring, struct key *key,
-		struct keyring_list **_prealloc)
+		unsigned long *_prealloc)
 {
 	struct keyring_list *klist, *nklist;
 
-	nklist = *_prealloc;
-	*_prealloc = NULL;
+	nklist = (struct keyring_list *)(*_prealloc & ~KEY_LINK_FIXQUOTA);
+	*_prealloc = 0;
 
 	kenter("%d,%d,%p", keyring->serial, key->serial, nklist);
 
@@ -876,20 +881,22 @@ void __key_link(struct key *keyring, struct key *key,
  * Must be called with __key_link_begin() having being called.
  */
 void __key_link_end(struct key *keyring, struct key_type *type,
-		    struct keyring_list *prealloc)
+		    unsigned long prealloc)
 	__releases(&keyring->sem)
 {
 	BUG_ON(type == NULL);
 	BUG_ON(type->name == NULL);
-	kenter("%d,%s,%p", keyring->serial, type->name, prealloc);
+	kenter("%d,%s,%lx", keyring->serial, type->name, prealloc);
 
 	if (type == &key_type_keyring)
 		up_write(&keyring_serialise_link_sem);
 
 	if (prealloc) {
-		kfree(prealloc);
-		key_payload_reserve(keyring,
-				    keyring->datalen - KEYQUOTA_LINK_BYTES);
+		if (prealloc & KEY_LINK_FIXQUOTA)
+			key_payload_reserve(keyring,
+					    keyring->datalen -
+					    KEYQUOTA_LINK_BYTES);
+		kfree((struct keyring_list *)(prealloc & ~KEY_LINK_FIXQUOTA));
 	}
 	up_write(&keyring->sem);
 }
@@ -916,7 +923,7 @@ void __key_link_end(struct key *keyring, struct key_type *type,
  */
 int key_link(struct key *keyring, struct key *key)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	int ret;
 
 	key_check(keyring);
