@@ -36,6 +36,23 @@ struct key_type key_type_user = {
 EXPORT_SYMBOL_GPL(key_type_user);
 
 /*
+ * This key type is essentially the same as key_type_user, but it does
+ * not define a .read op. This is suitable for storing username and
+ * password pairs in the keyring that you do not want to be readable
+ * from userspace.
+ */
+struct key_type key_type_logon = {
+	.name			= "logon",
+	.instantiate		= user_instantiate,
+	.update			= user_update,
+	.match			= user_match,
+	.revoke			= user_revoke,
+	.destroy		= user_destroy,
+	.describe		= user_describe,
+};
+EXPORT_SYMBOL_GPL(key_type_logon);
+
+/*
  * instantiate a user defined key
  */
 int user_instantiate(struct key *key, const void *data, size_t datalen)
