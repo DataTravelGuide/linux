@@ -39,7 +39,6 @@ struct key_user root_key_user = {
 	.user_ns	= &init_user_ns,
 };
 
-/*****************************************************************************/
 /*
  * install user and user session keyrings for a particular UID
  */
@@ -277,7 +276,6 @@ static int install_session_keyring(struct key *keyring)
 	return commit_creds(new);
 }
 
-/*****************************************************************************/
 /*
  * the filesystem user ID changed
  */
@@ -290,10 +288,8 @@ void key_fsuid_changed(struct task_struct *tsk)
 		tsk->cred->thread_keyring->uid = tsk->cred->fsuid;
 		up_write(&tsk->cred->thread_keyring->sem);
 	}
+}
 
-} /* end key_fsuid_changed() */
-
-/*****************************************************************************/
 /*
  * the filesystem group ID changed
  */
@@ -306,10 +302,8 @@ void key_fsgid_changed(struct task_struct *tsk)
 		tsk->cred->thread_keyring->gid = tsk->cred->fsgid;
 		up_write(&tsk->cred->thread_keyring->sem);
 	}
+}
 
-} /* end key_fsgid_changed() */
-
-/*****************************************************************************/
 /*
  * search only my process keyrings for the first matching key
  * - we use the supplied match function to see if the description (or other
@@ -430,7 +424,6 @@ found:
 	return key_ref;
 }
 
-/*****************************************************************************/
 /*
  * search the process keyrings for the first matching key
  * - we use the supplied match function to see if the description (or other
@@ -491,20 +484,16 @@ key_ref_t search_process_keyrings(struct key_type *type,
 
 found:
 	return key_ref;
+}
 
-} /* end search_process_keyrings() */
-
-/*****************************************************************************/
 /*
  * see if the key we're looking at is the target key
  */
 int lookup_user_key_possessed(const struct key *key, const void *target)
 {
 	return key == target;
+}
 
-} /* end lookup_user_key_possessed() */
-
-/*****************************************************************************/
 /*
  * lookup a key given a key ID from userspace with a given permissions mask
  * - don't create special keyrings unless so requested
@@ -713,10 +702,8 @@ invalid_key:
 reget_creds:
 	put_cred(cred);
 	goto try_again;
+}
 
-} /* end lookup_user_key() */
-
-/*****************************************************************************/
 /*
  * join the named keyring as the session keyring if possible, or attempt to
  * create a new one of that name if not

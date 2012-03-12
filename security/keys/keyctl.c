@@ -46,7 +46,6 @@ static int key_get_type_from_user(char *type,
 	return 0;
 }
 
-/*****************************************************************************/
 /*
  * extract the description of a new key from userspace and either add it as a
  * new key to the specified keyring or update a matching key in that keyring
@@ -132,10 +131,8 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
 	kfree(description);
  error:
 	return ret;
+}
 
-} /* end sys_add_key() */
-
-/*****************************************************************************/
 /*
  * search the process keyrings for a matching key
  * - nested keyrings may also be searched if they have Search permission
@@ -222,10 +219,8 @@ error2:
 	kfree(description);
 error:
 	return ret;
+}
 
-} /* end sys_request_key() */
-
-/*****************************************************************************/
 /*
  * get the ID of the specified process keyring
  * - the keyring must have search permission to be found
@@ -251,7 +246,6 @@ error:
 
 } /* end keyctl_get_keyring_ID() */
 
-/*****************************************************************************/
 /*
  * join the session keyring
  * - implements keyctl(KEYCTL_JOIN_SESSION_KEYRING)
@@ -277,10 +271,8 @@ long keyctl_join_session_keyring(const char __user *_name)
 
 error:
 	return ret;
+}
 
-} /* end keyctl_join_session_keyring() */
-
-/*****************************************************************************/
 /*
  * update a key's data payload
  * - the key must be writable
@@ -326,10 +318,8 @@ error2:
 	kfree(payload);
 error:
 	return ret;
+}
 
-} /* end keyctl_update_key() */
-
-/*****************************************************************************/
 /*
  * revoke a key
  * - the key must be writable
@@ -358,10 +348,8 @@ long keyctl_revoke_key(key_serial_t id)
 	key_ref_put(key_ref);
 error:
 	return ret;
+}
 
-} /* end keyctl_revoke_key() */
-
-/*****************************************************************************/
 /*
  * clear the specified process keyring
  * - the keyring must be writable
@@ -396,10 +384,8 @@ error_put:
 	key_ref_put(keyring_ref);
 error:
 	return ret;
+}
 
-} /* end keyctl_keyring_clear() */
-
-/*****************************************************************************/
 /*
  * link a key into a keyring
  * - the keyring must be writable
@@ -430,10 +416,8 @@ error2:
 	key_ref_put(keyring_ref);
 error:
 	return ret;
+}
 
-} /* end keyctl_keyring_link() */
-
-/*****************************************************************************/
 /*
  * unlink the first attachment of a key from a keyring
  * - the keyring must be writable
@@ -464,10 +448,8 @@ error2:
 	key_ref_put(keyring_ref);
 error:
 	return ret;
+}
 
-} /* end keyctl_keyring_unlink() */
-
-/*****************************************************************************/
 /*
  * describe a user key
  * - the key must have view permission
@@ -544,10 +526,8 @@ error2:
 	key_ref_put(key_ref);
 error:
 	return ret;
+}
 
-} /* end keyctl_describe_key() */
-
-/*****************************************************************************/
 /*
  * search the specified keyring for a matching key
  * - the start keyring must be searchable
@@ -639,10 +619,8 @@ error2:
 	kfree(description);
 error:
 	return ret;
+}
 
-} /* end keyctl_keyring_search() */
-
-/*****************************************************************************/
 /*
  * read a user key's payload
  * - the keyring must be readable or the key must be searchable from the
@@ -701,10 +679,8 @@ error2:
 	key_put(key);
 error:
 	return ret;
+}
 
-} /* end keyctl_read_key() */
-
-/*****************************************************************************/
 /*
  * change the ownership of a key
  * - the keyring owned by the changer
@@ -809,10 +785,8 @@ quota_overrun:
 	zapowner = newowner;
 	ret = -EDQUOT;
 	goto error_put;
+}
 
-} /* end keyctl_chown_key() */
-
-/*****************************************************************************/
 /*
  * change the permission mask on a key
  * - the keyring owned by the changer
@@ -851,8 +825,7 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	key_put(key);
 error:
 	return ret;
-
-} /* end keyctl_setperm_key() */
+}
 
 /*
  * get the destination keyring for instantiation
@@ -908,7 +881,6 @@ static int keyctl_change_reqkey_auth(struct key *key)
 	return commit_creds(new);
 }
 
-/*****************************************************************************/
 /*
  * instantiate the key with the specified payload, and, if one is given, link
  * the key into the keyring
@@ -986,10 +958,8 @@ error2:
 		vfree(payload);
 error:
 	return ret;
+}
 
-} /* end keyctl_instantiate_key() */
-
-/*****************************************************************************/
 /*
  * negatively instantiate the key with the given timeout (in seconds), and, if
  * one is given, link the key into the keyring
@@ -1033,10 +1003,8 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 
 error:
 	return ret;
+}
 
-} /* end keyctl_negate_key() */
-
-/*****************************************************************************/
 /*
  * set the default keyring in which request_key() will cache keys
  * - return the old setting
@@ -1092,10 +1060,8 @@ set:
 error:
 	abort_creds(new);
 	return ret;
+}
 
-} /* end keyctl_set_reqkey_keyring() */
-
-/*****************************************************************************/
 /*
  * set or clear the timeout for a key
  */
@@ -1149,10 +1115,8 @@ okay:
 	ret = 0;
 error:
 	return ret;
+}
 
-} /* end keyctl_set_timeout() */
-
-/*****************************************************************************/
 /*
  * assume the authority to instantiate the specified key
  */
@@ -1191,8 +1155,7 @@ long keyctl_assume_authority(key_serial_t id)
 	ret = authkey->serial;
 error:
 	return ret;
-
-} /* end keyctl_assume_authority() */
+}
 
 /*
  * get the security label of a key
@@ -1368,7 +1331,6 @@ error_keyring:
 #endif /* !TIF_NOTIFY_RESUME */
 }
 
-/*****************************************************************************/
 /*
  * the key control system call
  */
@@ -1459,5 +1421,4 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 	default:
 		return -EOPNOTSUPP;
 	}
-
-} /* end sys_keyctl() */
+}

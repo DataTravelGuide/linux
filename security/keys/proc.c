@@ -61,7 +61,6 @@ static const struct file_operations proc_key_users_fops = {
 	.release	= seq_release,
 };
 
-/*****************************************************************************/
 /*
  * declare the /proc files
  */
@@ -80,12 +79,10 @@ static int __init key_proc_init(void)
 		panic("Cannot create /proc/key-users\n");
 
 	return 0;
-
-} /* end key_proc_init() */
+}
 
 __initcall(key_proc_init);
 
-/*****************************************************************************/
 /*
  * implement "/proc/keys" to provides a list of the keys on the system
  */
@@ -294,7 +291,6 @@ static struct rb_node *key_user_first(struct rb_root *r)
 	return __key_user_next(n);
 }
 
-/*****************************************************************************/
 /*
  * implement "/proc/key-users" to provides a list of the key users
  */
@@ -352,5 +348,4 @@ static int proc_key_users_show(struct seq_file *m, void *v)
 		   maxbytes);
 
 	return 0;
-
 }
