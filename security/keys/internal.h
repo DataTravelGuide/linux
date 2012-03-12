@@ -153,6 +153,14 @@ extern void keyring_gc(struct key *keyring, time_t limit);
 extern void key_schedule_gc(time_t expiry_at);
 extern void key_gc_keytype(struct key_type *ktype);
 
+extern bool key_need_gc;
+static inline void key_schedule_gc_work(void)
+{
+	smp_wmb();
+	key_need_gc = true;
+	schedule_work(&key_gc_work);
+}
+
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
 			       key_perm_t perm);

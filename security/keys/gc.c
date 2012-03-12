@@ -23,8 +23,8 @@ unsigned key_gc_delay = 5 * 60;
 /*
  * Reaper for unused keys.
  */
-static void key_garbage_collector(struct work_struct *work);
-DECLARE_WORK(key_gc_work, key_garbage_collector);
+static void key_garbage_collector_nonreentrant(struct work_struct *work);
+DECLARE_WORK(key_gc_work, key_garbage_collector_nonreentrant);
 
 /*
  * Reaper for links from keyrings to dead keys.
@@ -62,7 +62,7 @@ void key_schedule_gc(time_t gc_at)
 
 	if (gc_at <= now || test_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags)) {
 		kdebug("IMMEDIATE");
-		queue_work(system_nrt_wq, &key_gc_work);
+		key_schedule_gc_work();
 	} else if (gc_at < key_gc_next_run) {
 		kdebug("DEFERRED");
 		key_gc_next_run = gc_at;
@@ -80,7 +80,7 @@ static void key_gc_timer_func(unsigned long data)
 	kenter("");
 	key_gc_next_run = LONG_MAX;
 	set_bit(KEY_GC_KEY_EXPIRED, &key_gc_flags);
-	queue_work(system_nrt_wq, &key_gc_work);
+	key_schedule_gc_work();
 }
 
 /*
@@ -112,7 +112,7 @@ void key_gc_keytype(struct key_type *ktype)
 	set_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags);
 
 	kdebug("schedule");
-	queue_work(system_nrt_wq, &key_gc_work);
+	key_schedule_gc_work();
 
 	kdebug("sleep");
 	wait_on_bit(&key_gc_flags, KEY_GC_REAPING_KEYTYPE, key_gc_wait_bit,
@@ -345,7 +345,7 @@ maybe_resched:
 	}
 
 	if (gc_state & KEY_GC_REAP_AGAIN)
-		queue_work(system_nrt_wq, &key_gc_work);
+		key_schedule_gc_work();
 	kleave(" [end %x]", gc_state);
 	return;
 
@@ -385,4 +385,26 @@ destroy_dead_key:
 	memset(&key->payload, KEY_DESTROY, sizeof(key->payload));
 	up_write(&key->sem);
 	goto maybe_resched;
+}
+
+/*
+ * Nonreentrancy wrapper for the garbage collector workqueue item
+ */
+bool key_need_gc;
+static void key_garbage_collector_nonreentrant(struct work_struct *work)
+{
+	static unsigned long running;
+
+	if (!key_need_gc)
+		return;
+
+	if (xchg(&running, 1) == 0) {
+		key_need_gc = false;
+		smp_mb();
+		key_garbage_collector(work);
+
+		running = 0;
+		if (key_need_gc)
+			schedule_work(&key_gc_work);
+	}
 }
