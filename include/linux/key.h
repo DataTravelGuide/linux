@@ -275,6 +275,9 @@ static inline key_serial_t key_serial(struct key *key)
 	return key ? key->serial : 0;
 }
 
+#define rcu_dereference_key(KEY)					\
+	(rcu_dereference((KEY)->payload.data))
+
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];
 #endif
