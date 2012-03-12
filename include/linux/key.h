@@ -291,6 +291,9 @@ static inline bool key_is_instantiated(const struct key *key)
 #define rcu_dereference_key(KEY)					\
 	(rcu_dereference((KEY)->payload.data))
 
+#define rcu_assign_keypointer(KEY, PAYLOAD)				\
+	(rcu_assign_pointer((KEY)->payload.data, PAYLOAD))
+
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];
 #endif
