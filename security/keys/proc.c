@@ -1,4 +1,4 @@
-/* proc.c: proc files for key database enumeration
+/* procfs files for key database enumeration
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -62,7 +62,7 @@ static const struct file_operations proc_key_users_fops = {
 };
 
 /*
- * declare the /proc files
+ * Declare the /proc files.
  */
 static int __init key_proc_init(void)
 {
@@ -84,7 +84,8 @@ static int __init key_proc_init(void)
 __initcall(key_proc_init);
 
 /*
- * implement "/proc/keys" to provides a list of the keys on the system
+ * Implement "/proc/keys" to provide a list of the keys on the system that
+ * grant View permission to the caller.
  */
 #ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
 
@@ -292,7 +293,8 @@ static struct rb_node *key_user_first(struct rb_root *r)
 }
 
 /*
- * implement "/proc/key-users" to provides a list of the key users
+ * Implement "/proc/key-users" to provides a list of the key users and their
+ * quotas.
  */
 static int proc_key_users_open(struct inode *inode, struct file *file)
 {
