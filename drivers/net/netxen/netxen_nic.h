@@ -1804,8 +1804,6 @@ void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 /* Functions from netxen_nic_main.c */
 int netxen_nic_reset_context(struct netxen_adapter *);
 
-int nx_dev_request_reset(struct netxen_adapter *adapter);
-
 /*
  * NetXen Board information
  */
