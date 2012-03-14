@@ -56,6 +56,10 @@ MODULE_VERSION(DRV_VERSION);
 
 struct workqueue_struct *mlx4_wq;
 
+static int hpn = 0;
+module_param(hpn, int, 0644);
+MODULE_PARM_DESC(hpn, "Enable RoCE/IBoE support (implies that the packages from the HPN channel are installed).  Enabling this option without those packages installed is specifically not supported.");
+
 #ifdef CONFIG_MLX4_DEBUG
 
 int mlx4_debug_level = 0;
@@ -317,7 +321,11 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 	dev->caps.max_msg_sz         = dev_cap->max_msg_sz;
 	dev->caps.page_size_cap	     = ~(u32) (dev_cap->min_page_sz - 1);
-	dev->caps.flags		     = dev_cap->flags;
+	if (hpn)
+		dev->caps.flags	     = dev_cap->flags;
+	else
+		dev->caps.flags      = (dev_cap->flags &
+					~MLX4_DEV_CAP_FLAG_IBOE);
 	dev->caps.bmme_flags	     = dev_cap->bmme_flags;
 	dev->caps.reserved_lkey	     = dev_cap->reserved_lkey;
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
