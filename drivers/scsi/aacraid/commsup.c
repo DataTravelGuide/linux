@@ -135,6 +135,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		i < (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
 		i++, fibptr++)
 	{
+		fibptr->flags = 0;
 		fibptr->dev = dev;
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
