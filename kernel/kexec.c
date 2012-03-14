@@ -1371,7 +1371,13 @@ static int __init parse_crashkernel_simple(char 		*cmdline,
 #ifndef arch_default_crash_size
 unsigned long long __init arch_default_crash_size(unsigned long long total_size)
 {
-	if (total_size < KEXEC_AUTO_THRESHOLD)
+	/*
+	 * BIOS usually will reserve some memory regions for it's own use.
+	 * so we will get less than actual memory in e820 usable areas.
+	 * We workaround this by round up the total size to 128M which is
+	 * enough for our current 2G kdump auto reserve threshold.
+	 */
+	if (roundup(total_size, 0x8000000) < KEXEC_AUTO_THRESHOLD)
 		return 0;
 	else {
 		/*
