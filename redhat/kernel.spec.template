@@ -1674,6 +1674,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Mar 14 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-252.el6]
+- [dm] fixing test for NULL pointer testing (Paolo Bonzini) [752380] {CVE-2011-4127}
+- [dm] do not forward ioctls from logical volumes to the underlying device (Paolo Bonzini) [752380] {CVE-2011-4127}
+- [block] fail SCSI passthrough ioctls on partition devices (Paolo Bonzini) [752380] {CVE-2011-4127}
+- [block] add and use scsi_blk_cmd_ioctl (Paolo Bonzini) [752380] {CVE-2011-4127}
+- [kernel] regset: Return -EFAULT, not -EIO, on host-side memory fault (Jerome Marchand) [799213] {CVE-2012-1097}
+- [kernel] regset: Prevent null pointer reference on readonly regsets (Jerome Marchand) [799213] {CVE-2012-1097}
+- [scsi] qla4xxx: update version (Mike Christie) [800664]
+- [scsi] iscsi class: fix gfp use in ping compl and host event (Mike Christie) [800664]
+- [scsi] iscsi if: Removed packed attr from struct iscsi_chap_rec (Mike Christie) [800664]
+- [scsi] iscsi_transport: Added error status code for ping comp event (Mike Christie) [800664]
+- [scsi] fix system lock up from scsi error flood (Neil Horman) [800555]
+- [scsi] libcxgbi: do not print a message when memory allocation fails (Steve Best) [800114]
+- [infiniband] iser: post initial receive buffers before sending the final login request (Mike Christie) [800041]
+- [sound] ALSA: pcm midlevel code - add time check for (Jaroslav Kysela) [798984]
+- [fs] GFS2: call gfs2_write_alloc_required for each fallocate chunk (Benjamin Marzinski) [801141]
+
 * Fri Mar 09 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-251.el6]
 - [scsi] lpfc: Update lpfc version for 8.3.5.58.1p driver release (Rob Evers) [738037]
 - [virt] VMX: VMXON/VMXOFF usage changes (Avi Kivity) [704173]
