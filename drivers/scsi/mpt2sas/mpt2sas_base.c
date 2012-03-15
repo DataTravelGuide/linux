@@ -1760,6 +1760,13 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
  * care of 32 bit environment where its not quarenteed to send the entire word
  * in one transfer.
  */
+#if defined(writeq) && defined(CONFIG_64BIT)
+static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
+    spinlock_t *writeq_lock)
+{
+	writeq(cpu_to_le64(b), addr);
+}
+#else
 static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
     spinlock_t *writeq_lock)
 {
@@ -1771,6 +1778,7 @@ static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
 	writel((u32)(data_out >> 32), (addr + 4));
 	spin_unlock_irqrestore(writeq_lock, flags);
 }
+#endif
 
 static inline u8
 _base_get_msix_index(struct MPT2SAS_ADAPTER *ioc)
