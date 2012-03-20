@@ -173,9 +173,10 @@ static void virtscsi_complete_free(void *buf)
 {
 	struct virtio_scsi_cmd *cmd = buf;
 
-	if (cmd->comp)
-		complete_all(cmd->comp);
-	mempool_free(cmd, virtscsi_cmd_pool);
+       if (cmd->comp)
+               complete_all(cmd->comp);
+       else
+               mempool_free(cmd, virtscsi_cmd_pool);
 }
 
 static void virtscsi_ctrl_done(struct virtqueue *vq)
@@ -316,20 +317,21 @@ static int virtscsi_queue(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *)
 static int virtscsi_tmf(struct virtio_scsi *vscsi, struct virtio_scsi_cmd *cmd)
 {
 	DECLARE_COMPLETION_ONSTACK(comp);
-	int ret;
+	int ret = FAILED;
 
 	cmd->comp = &comp;
-	ret = virtscsi_kick_cmd(vscsi, vscsi->ctrl_vq, cmd,
-				sizeof cmd->req.tmf, sizeof cmd->resp.tmf);
-	if (ret < 0)
-		return FAILED;
+	if (virtscsi_kick_cmd(vscsi, vscsi->ctrl_vq, cmd,
+			      sizeof cmd->req.tmf, sizeof cmd->resp.tmf) < 0)
+		goto out;
 
 	wait_for_completion(&comp);
-	if (cmd->resp.tmf.response != VIRTIO_SCSI_S_OK &&
-	    cmd->resp.tmf.response != VIRTIO_SCSI_S_FUNCTION_SUCCEEDED)
-		return FAILED;
+	if (cmd->resp.tmf.response == VIRTIO_SCSI_S_OK ||
+	    cmd->resp.tmf.response == VIRTIO_SCSI_S_FUNCTION_SUCCEEDED)
+		ret = SUCCESS;
 
-	return SUCCESS;
+out:
+	mempool_free(cmd, virtscsi_cmd_pool);
+	return ret;
 }
 
 static int virtscsi_device_reset(struct scsi_cmnd *sc)
