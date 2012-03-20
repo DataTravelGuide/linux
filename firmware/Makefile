@@ -109,6 +109,10 @@ fw-shipped-$(CONFIG_R8169) += rtl_nic/rtl_nic_rtl8168d-1.fw \
 			      rtl_nic/rtl_nic_rtl8168e-1.fw \
 			      rtl_nic/rtl_nic_rtl8168e-2.fw \
 			      rtl_nic/rtl_nic_rtl8168e-3.fw
+fw-shipped-$(CONFIG_MYRI10GE) += myri10ge_eth_z8e.dat \
+				 myri10ge_ethp_z8e.dat \
+				 myri10ge_rss_eth_z8e.dat \
+				 myri10ge_rss_ethp_z8e.dat
 fw-shipped-$(CONFIG_SERIAL_8250_CS) += cis/MT5634ZLX.cis cis/RS-COM-2P.cis \
 				       cis/COMpad2.cis cis/COMpad4.cis \
 				       cis/SW_555_SER.cis cis/SW_7xx_SER.cis \
