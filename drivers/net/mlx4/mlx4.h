@@ -696,7 +696,7 @@ struct mlx4_sense {
 
 struct mlx4_msix_ctl {
 	u64		pool_bm;
-	spinlock_t	pool_lock;
+	struct mutex	pool_lock;
 };
 
 struct mlx4_steer {
