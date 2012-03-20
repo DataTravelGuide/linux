@@ -727,7 +727,8 @@ void __init efi_enter_virtual_mode(void)
 			continue;
 		}
 
-		if (!(md->attribute & EFI_MEMORY_WB)) {
+		if ((md->attribute & EFI_MEMORY_UC) &&
+		    !(md->attribute & EFI_MEMORY_WB)) {
 			addr = md->virt_addr;
 			npages = md->num_pages;
 			memrange_efi_to_native(&addr, &npages);
