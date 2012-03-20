@@ -1674,6 +1674,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 19 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-253.el6]
+- [net] gro: more generic L2 header check (Doug Ledford) [789123]
+- [infiniband] IPoIB: Stop lying about hard_header_len and use skb->cb to stash LL addresses (Doug Ledford) [789123]
+- [net] Make qdisc_skb_cb upper size bound explicit (Doug Ledford) [789123]
+- [fs] GFS2: Invalidate directory hash table on inode deallocate (Robert S Peterson) [801171]
+- [fs] GFS2: Fix a use-after-free that coverity spotted (Robert S Peterson) [801171]
+- [kernel] lkdtm: avoid calling lkdtm_do_action() with spinlock held (Prarit Bhargava) [770621]
+- [x86] Fix printk levels for panic, softlockups and stack dumps (Prarit Bhargava) [770621]
+- [kernel] lkdtm.c: fix race when crashpoint is hit multiple times before checking count (Prarit Bhargava) [770621]
+- [kernel] lkdtm: prefix enum constants (Prarit Bhargava) [770621]
+- [kernel] lkdtm: use generic_file_llseek in debugfs (Prarit Bhargava) [770621]
+- [kernel] param: remove unnecessary writable charp (Prarit Bhargava) [770621]
+- [kernel] lktdm: add support for hardlockup, softlockup and hung task crashes (Prarit Bhargava) [770621]
+- [kernel] lkdtm: add debugfs access and loosen KPROBE ties (Prarit Bhargava) [770621]
+- [scsi] aacraid: Fixes kernel oops in "aac_eh_abort" (Tomas Henzl) [760396]
+- [kernel] sys_poll: fix incorrect type for 'timeout' parameter (Oleg Nesterov) [794681]
+- [kernel] kdump: round up total_size to 128M for crashkernel reserving threshold (Dave Young) [798727]
+- [block] loop: fix partial read infomation leak (Dave Young) [761418]
+- [netdrv] mlx4: Don't show RoCE interfaces if the hpn channel is not installed (Doug Ledford) [753004]
+- [mm] thp: fix pmd_bad() triggering in code paths holding mmap_sem read mode (Andrea Arcangeli) [800328]
+- [target] fix build on i386 (Andy Grover) [765982]
+- [target] Backport from stable-3.2.6 (Andy Grover) [765982]
+
 * Wed Mar 14 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-252.el6]
 - [dm] fixing test for NULL pointer testing (Paolo Bonzini) [752380] {CVE-2011-4127}
 - [dm] do not forward ioctls from logical volumes to the underlying device (Paolo Bonzini) [752380] {CVE-2011-4127}
