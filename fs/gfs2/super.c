@@ -1227,6 +1227,7 @@ static void gfs2_clear_inode(struct inode *inode)
 
 	gfs2_dir_hash_inval(ip);
 	ip->i_gl->gl_object = NULL;
+	flush_delayed_work(&ip->i_gl->gl_work);
 	gfs2_glock_add_to_lru(ip->i_gl);
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;
