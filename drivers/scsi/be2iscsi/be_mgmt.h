@@ -20,9 +20,9 @@
 #ifndef _BEISCSI_MGMT_
 #define _BEISCSI_MGMT_
 
+#include <scsi/scsi_bsg_iscsi.h>
 #include "be_iscsi.h"
 #include "be_main.h"
-#include <scsi/scsi_bsg_iscsi.h>
 
 #define IP_ACTION_ADD	0x01
 #define IP_ACTION_DEL	0x02

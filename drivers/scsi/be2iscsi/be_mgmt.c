@@ -18,10 +18,10 @@
  */
 
 #include <linux/bsg-lib.h>
-#include "be_mgmt.h"
-#include "be_iscsi.h"
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/scsi_bsg_iscsi.h>
+#include "be_mgmt.h"
+#include "be_iscsi.h"
 
 unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba)
 {
