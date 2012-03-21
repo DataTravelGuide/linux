@@ -1651,7 +1651,7 @@ hwi_fwd_async_msg(struct beiscsi_conn *beiscsi_conn,
 			}
 			memcpy(pfirst_buffer + offset,
 			       pasync_handle->pbuffer, buf_len);
-			offset = buf_len;
+			offset += buf_len;
 		}
 		index++;
 	}
@@ -1660,7 +1660,7 @@ hwi_fwd_async_msg(struct beiscsi_conn *beiscsi_conn,
 					   (beiscsi_conn->beiscsi_conn_cid -
 					    phba->fw_config.iscsi_cid_start),
 					    phdr, hdr_len, pfirst_buffer,
-					    buf_len);
+					    offset);
 
 	if (status == 0)
 		hwi_free_async_msg(phba, cri);
