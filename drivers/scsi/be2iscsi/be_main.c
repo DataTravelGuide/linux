@@ -539,8 +539,7 @@ static int be_ctrl_init(struct beiscsi_hba *phba, struct pci_dev *pdev)
 						  &mbox_mem_alloc->dma);
 	if (!mbox_mem_alloc->va) {
 		beiscsi_unmap_pci_function(phba);
-		status = -ENOMEM;
-		return status;
+		return -ENOMEM;
 	}
 
 	mbox_mem_align->size = sizeof(struct be_mcc_mailbox);
@@ -3205,7 +3204,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 error:
 	shost_printk(KERN_ERR, phba->shost, "hwi_init_port failed");
 	hwi_cleanup(phba);
-	return -ENOMEM;
+	return status;
 }
 
 static int hwi_init_controller(struct beiscsi_hba *phba)
@@ -3280,7 +3279,7 @@ static int beiscsi_init_controller(struct beiscsi_hba *phba)
 
 free_init:
 	beiscsi_free_mem(phba);
-	return -ENOMEM;
+	return ret;
 }
 
 static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
