@@ -2146,7 +2146,7 @@ void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
 	unsigned int sector_sz = sdkp->device->sector_size;
-	const int vpd_len = 32;
+	const int vpd_len = 64;
 	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
 
 	if (!buffer ||
@@ -2213,7 +2213,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 {
 	unsigned char *buffer;
 	u16 rot;
-	const int vpd_len = 32;
+	const int vpd_len = 64;
 
 	buffer = kmalloc(vpd_len, GFP_KERNEL);
 
