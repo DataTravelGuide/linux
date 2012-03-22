@@ -1674,6 +1674,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 22 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-255.el6]
+- [fs] jbd2: clear BH_Delay & BH_Unwritten in journal_unmap_buffer (Eric Sandeen) [748713] {CVE-2011-4086}
+- [kernel] sched: Call tick_check_idle before __irq_enter (George Beshers) [635817]
+- [kernel] sched: Increment cache_nice_tries only on periodic lb (George Beshers) [635817]
+- [cpuidle] menu: fixed wrapping timers at 4.294 seconds (George Beshers) [635817]
+- [kernel] sched: Fix softirq time accounting (George Beshers) [635817]
+- [x86] UV: Lower UV rtc clocksource rating (George Beshers) [635817]
+- [infiniband] mlx4_core: fix bug in modify_cq wrapper for resize flow (Doug Ledford) [801111]
+- [infiniband] mlx4_core: remove buggy sched_queue masking (Doug Ledford) [801111]
+- [infiniband] mlx4_core: Fixing array indexes when setting port types (Doug Ledford) [801111]
+- [infiniband] mlx4: Setting new port types after all interfaces unregistered (Doug Ledford) [801111]
+- [infiniband] mlx4: Replacing pool_lock with mutex (Doug Ledford) [801111]
+- [infiniband] mlx4_core: Do not map BF area if capability is 0 (Doug Ledford) [801111]
+- [infiniband] mlx4: add unicast steering entries to resource_tracker (Doug Ledford) [801111]
+- [infiniband] mlx4: fix QP tree trashing (Doug Ledford) [801111]
+- [infiniband] mlx4: fix buffer overrun (Doug Ledford) [801111]
+- [infiniband] mlx4: Fix kcalloc parameters swapped (Doug Ledford) [801111]
+- [net] net_sched: qdisc_alloc_handle() can be too slow (Jiri Pirko) [785891]
+- [net] RFC3069, private VLAN proxy arp support (Weiping Pan) [786544]
+- [scsi] aio: fix the "too late munmap()" race (Jeff Moyer) [801528]
+- [scsi] aio: fix io_setup/io_destroy race (Jeff Moyer) [801528]
+- [scsi] aio: fix rcu ioctx lookup (Jeff Moyer) [801528]
+
 * Wed Mar 21 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-254.el6]
 - [fs] GFS2: Change truncate page allocation to be GFP_NOFS (Robert S Peterson) [796017]
 - [fs] GFS2: Remove a __GFP_NOFAIL allocation (Robert S Peterson) [796017]
