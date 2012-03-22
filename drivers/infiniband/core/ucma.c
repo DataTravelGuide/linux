@@ -56,18 +56,19 @@ static unsigned int max_backlog = 1024;
 static struct ctl_table_header *ucma_ctl_table_hdr;
 static ctl_table ucma_ctl_table[] = {
 	{
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "max_backlog",
 		.data		= &max_backlog,
 		.maxlen		= sizeof max_backlog,
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= &proc_dointvec,
 	},
 	{ }
 };
 
 static struct ctl_path ucma_ctl_path[] = {
-	{ .procname = "net" },
-	{ .procname = "rdma_ucm" },
+	{ .procname = "net", .ctl_name = CTL_NET },
+	{ .procname = "rdma_ucm", .ctl_name = CTL_UNNUMBERED },
 	{ }
 };
 
