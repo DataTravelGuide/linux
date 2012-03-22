@@ -203,11 +203,6 @@ static int __init platform_pci_module_init(void)
 {
 	int rc;
 
-	/* no unplug has been done, IGNORE hasn't been specified: just
-	 * return now */
-	if (!xen_platform_pci_unplug)
-		return -ENODEV;
-
 	rc = pci_register_driver(&platform_driver);
 	if (rc) {
 		printk(KERN_INFO DRV_NAME

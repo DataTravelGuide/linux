@@ -46,6 +46,7 @@
 #include <xen/grant_table.h>
 #include <xen/events.h>
 #include <xen/page.h>
+#include <xen/platform_pci.h>
 
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/blkif.h>
@@ -1387,6 +1388,9 @@ static int __init xlblk_init(void)
 	int ret;
 
 	if (!xen_domain())
+		return -ENODEV;
+
+	if (!xen_platform_pci_unplug)
 		return -ENODEV;
 
 	printk("%s: register_blkdev major: %d \n", __FUNCTION__, XENVBD_MAJOR);
