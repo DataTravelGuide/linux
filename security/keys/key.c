@@ -543,7 +543,7 @@ int key_reject_and_link(struct key *key,
 		atomic_inc(&key->user->nikeys);
 		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
-		key->type_data.x[0] = -error;
+		key->type_data.x[0] = -(long)error;
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
 		key_schedule_gc(key->expiry + key_gc_delay);
