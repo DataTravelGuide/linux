@@ -1674,6 +1674,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 22 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-256.el6]
+- [kernel] sched: Fix ancient race in do_exit() (Motohiro Kosaki) [784758]
+- [virt] xen: initialize platform_pci even if xen_emul_unplug=never (Igor Mammedov) [803239]
+- [virt] virtio-scsi: fix TMF use-after-free (Paolo Bonzini) [802127]
+- [virt] KVM: increase max vcpu count to 160 (Marcelo Tosatti) [748946]
+- [scsi] sd: Unmap discard alignment needs to be converted to bytes (Mike Snitzer) [805519]
+- [scsi] sd: Fix VPD buffer allocations (Mike Snitzer) [805519]
+- [scsi] isci: improvements in driver unloading routine (David Milburn) [805530]
+- [scsi] isci: improve phy event warnings (David Milburn) [805530]
+- [scsi] isci: debug, provide state-enum-to-string conversions (David Milburn) [805530]
+- [scsi] scsi_transport_sas: 'enable' phys on reset (David Milburn) [805530]
+- [scsi] libsas: don't recover end devices attached to disabled phys (David Milburn) [805530]
+- [scsi] libsas: fixup target_port_protocols for expanders that don't report sata (David Milburn) [805530]
+- [scsi] libsas: set attached device type and target protocols for local phys (David Milburn) [805530]
+- [scsi] isci: T10 DIF support (David Milburn) [805530]
+- [scsi] isci: enable clock gating (David Milburn) [805530]
+- [scsi] isci: Fix NULL ptr dereference when no firmware is being loaded (David Milburn) [805530]
+- [fs] Pstore supplies a wrong header to kmsg files (Seiji Aguchi) [804789]
+- [fs] nfs: Try using machine credentials for RENEW calls (Sachin Prabhu) [795441]
+- [kernel] perf/x86/kvm: Fix Host-Only/Guest-Only counting with SVM disabled (Gleb Natapov) [805496]
+
 * Thu Mar 22 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-255.el6]
 - [fs] jbd2: clear BH_Delay & BH_Unwritten in journal_unmap_buffer (Eric Sandeen) [748713] {CVE-2011-4086}
 - [kernel] sched: Call tick_check_idle before __irq_enter (George Beshers) [635817]
