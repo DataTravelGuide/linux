@@ -2702,6 +2702,8 @@ static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 	if (!fp->disable_tpa) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
 		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
+		if (fp->mode == TPA_MODE_GRO)
+			__set_bit(BNX2X_Q_FLG_TPA_GRO, &flags);
 	}
 
 	if (leading) {
@@ -10154,9 +10156,10 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->flags &= ~TPA_ENABLE_FLAG;
+		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
 		bp->dev->features &= ~NETIF_F_LRO;
 	} else {
+		/* RHEL6.3: don't enable GRO_ENABLE_FLAG yet */
 		bp->flags |= TPA_ENABLE_FLAG;
 		bp->dev->features |= NETIF_F_LRO;
 	}
