@@ -173,10 +173,10 @@ static void virtscsi_complete_free(void *buf)
 {
 	struct virtio_scsi_cmd *cmd = buf;
 
-       if (cmd->comp)
-               complete_all(cmd->comp);
-       else
-               mempool_free(cmd, virtscsi_cmd_pool);
+	if (cmd->comp)
+		complete_all(cmd->comp);
+	else
+		mempool_free(cmd, virtscsi_cmd_pool);
 }
 
 static void virtscsi_ctrl_done(struct virtqueue *vq)
