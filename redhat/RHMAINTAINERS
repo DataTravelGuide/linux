@@ -135,7 +135,7 @@ S:	Maintained
 F:	drivers/net/tg3.*
 
 BONDING DRIVER
-M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Veaceslav Falico <vfalico@redhat.com>
 S:	Maintained
 F:	drivers/net/bonding/
 F:	include/linux/if_bonding.h
