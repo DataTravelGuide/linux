@@ -145,6 +145,8 @@ static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
 static void fcoe_do_destroy(struct fcoe_port *port);
 
+static struct workqueue_struct *fcoe_wq;
+
 /* notification function for packets from net device */
 static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
@@ -1936,7 +1938,8 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	case NETDEV_UNREGISTER:
 		list_del(&fcoe->list);
 		port = lport_priv(fcoe->ctlr.lp);
-		schedule_work(&port->destroy_work);
+		if (fcoe_wq)
+			queue_work(fcoe_wq, &port->destroy_work);
 		goto out;
 		break;
 	case NETDEV_FEAT_CHANGE:
@@ -2391,12 +2394,21 @@ static int __init fcoe_init(void)
 	unsigned int cpu;
 	int rc = 0;
 
+	/*
+ 	 * Create a per-cpu workqueue
+ 	 */
+	fcoe_wq = create_workqueue("fcoe_work");
+	if (!fcoe_wq) {
+		printk(KERN_ERR "Failed to create the fcoe_work workqueue\n");
+		return -ENOMEM;
+	}
+
 	/* register as a fcoe transport */
 	rc = fcoe_transport_attach(&fcoe_sw_transport);
 	if (rc) {
 		printk(KERN_ERR "failed to register an fcoe transport, check "
 			"if libfcoe is loaded\n");
-		return rc;
+		goto out_wq;
 	}
 
 	mutex_lock(&fcoe_config_mutex);
@@ -2423,12 +2435,14 @@ static int __init fcoe_init(void)
 
 	mutex_unlock(&fcoe_config_mutex);
 	return 0;
-
+	
 out_free:
 	for_each_online_cpu(cpu) {
 		fcoe_percpu_thread_destroy(cpu);
 	}
 	mutex_unlock(&fcoe_config_mutex);
+out_wq:
+	destroy_workqueue(fcoe_wq);
 	return rc;
 }
 module_init(fcoe_init);
@@ -2443,6 +2457,7 @@ static void __exit fcoe_exit(void)
 	struct fcoe_interface *fcoe, *tmp;
 	struct fcoe_port *port;
 	unsigned int cpu;
+	struct workqueue_struct *tmp_wq = fcoe_wq;
 
 	mutex_lock(&fcoe_config_mutex);
 
@@ -2453,8 +2468,9 @@ static void __exit fcoe_exit(void)
 	list_for_each_entry_safe(fcoe, tmp, &fcoe_hostlist, list) {
 		list_del(&fcoe->list);
 		port = lport_priv(fcoe->ctlr.lp);
-		schedule_work(&port->destroy_work);
+		queue_work(fcoe_wq, &port->destroy_work);
 	}
+	fcoe_wq = NULL;
 	rtnl_unlock();
 
 	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
@@ -2463,6 +2479,11 @@ static void __exit fcoe_exit(void)
 		fcoe_percpu_thread_destroy(cpu);
 
 	mutex_unlock(&fcoe_config_mutex);
+
+	/*
+ 	 * flush and destroy the fcoe_work workqueue
+ 	 */
+	destroy_workqueue(tmp_wq);
 
 	/* flush any asyncronous interface destroys,
 	 * this should happen after the netdev notifier is unregistered */
