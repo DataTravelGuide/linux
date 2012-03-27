@@ -1674,6 +1674,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 27 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-258.el6]
+- [fs] epoll: kabi fixups for epoll limit wakeup paths (Jason Baron) [681689] {CVE-2011-1083}
+- [fs] epoll: limit paths (Jason Baron) [681689] {CVE-2011-1083}
+- [perf] tool: Fix diff command to work with new hists design (Jiri Olsa) [794689]
+- [x86] call restore_sched_clock_state after gs is initialized (Marcelo Tosatti) [803132]
+- [virt] virtio-scsi: fix whitespace in fix TMF use-after-free patch (Paolo Bonzini) [802127]
+- [netdrv] macvtap: add ioctl to modify vnet header size (Michael S. Tsirkin) [789362]
+- [netdrv] firmware: add bnx2x FW 7.2.16 (Michal Schmidt) [798316]
+- [netdrv] cnic: update for FW 7.2.xx (Michal Schmidt) [798316]
+- [netdrv] bnx2fc: HSI dependent changes for 7.2.xx FW (Michal Schmidt) [798316]
+- [netdrv] bnx2x: use FW 7.2.16 (Michal Schmidt) [798316]
+- [fs] GFS2: put glock reference in error patch of read_rindex_entry (Robert S Peterson) [803384]
+- [infiniband] rdmacm: fix initialization bug (Doug Ledford) [805996]
+- [pci] Don't touch ASPM at all when it's forcibly disabled (Matthew Garrett) [801877]
+
 * Mon Mar 26 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-257.el6]
 - [security] Fix negative key error handling (David Howells) [806393]
 - [char] ipmi: Increase KCS timeouts (Matthew Garrett) [803378]
