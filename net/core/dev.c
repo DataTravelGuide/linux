@@ -2583,6 +2583,7 @@ struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
 					struct sk_buff *skb) __read_mostly;
 EXPORT_SYMBOL_GPL(br_handle_frame_hook);
 
+
 static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 					    struct packet_type **pt_prev, int *ret,
 					    struct net_device *orig_dev)
@@ -2605,9 +2606,26 @@ static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 
 	return br_handle_frame_hook(port, skb);
 }
+
+struct net_device *(*br_get_br_dev_for_port_hook)(struct net_device *);
+EXPORT_SYMBOL_GPL(br_get_br_dev_for_port_hook);
+
+/* You need to hold rcu_lock while calling this */
+struct net_device *br_get_br_dev_for_port_rcu(struct net_device *port_dev)
+{
+	if (!br_get_br_dev_for_port_hook)
+		return NULL;
+	return br_get_br_dev_for_port_hook(port_dev);
+}
+
 #else
 #define handle_bridge(skb, pt_prev, ret, orig_dev)	(skb)
+struct net_device *br_get_br_dev_for_port_rcu(struct net_device *port_dev)
+{
+	return NULL;
+}
 #endif
+EXPORT_SYMBOL_GPL(br_get_br_dev_for_port_rcu);
 
 #if defined(CONFIG_MACVLAN) || defined(CONFIG_MACVLAN_MODULE)
 struct sk_buff *(*macvlan_handle_frame_hook)(struct sk_buff *skb) __read_mostly;
