@@ -39,6 +39,8 @@
 #define CIFS_MOUNT_FSCACHE	0x8000 /* local caching enabled */
 #define CIFS_MOUNT_MF_SYMLINKS	0x10000 /* Minshall+French Symlinks enabled */
 #define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
+#define CIFS_MOUNT_CIFS_BACKUPUID 0x200000 /* backup intent bit for a user */
+#define CIFS_MOUNT_CIFS_BACKUPGID 0x400000 /* backup intent bit for a group */
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;
@@ -50,6 +52,8 @@ struct cifs_sb_info {
 	atomic_t active;
 	uid_t	mnt_uid;
 	gid_t	mnt_gid;
+	uid_t   mnt_backupuid;
+	gid_t   mnt_backupgid;
 	mode_t	mnt_file_mode;
 	mode_t	mnt_dir_mode;
 	unsigned int mnt_cifs_flags;
