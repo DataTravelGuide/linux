@@ -83,8 +83,6 @@ static DECLARE_WAIT_QUEUE_HEAD(async_new);
 static atomic_t entry_count;
 static atomic_t thread_count;
 
-extern int initcall_debug;
-
 
 /*
  * MUST be called with the lock held!
