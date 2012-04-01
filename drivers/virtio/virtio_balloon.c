@@ -401,11 +401,6 @@ static int restore_common(struct virtio_device *vdev)
 	return 0;
 }
 
-static int virtballoon_thaw(struct virtio_device *vdev)
-{
-	return restore_common(vdev);
-}
-
 static int virtballoon_restore(struct virtio_device *vdev)
 {
 	return restore_common(vdev);
@@ -429,7 +424,6 @@ static struct virtio_driver virtio_balloon_driver = {
 #ifdef CONFIG_PM
 	.freeze	=	virtballoon_freeze,
 	.restore =	virtballoon_restore,
-	.thaw =		virtballoon_thaw,
 #endif
 };
 
