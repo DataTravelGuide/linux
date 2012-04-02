@@ -208,6 +208,7 @@
 	complete_and_exit
 	consume_skb
 	contig_page_data
+	cpu_clock
 	cpu_online_mask
 	cpu_possible_mask
 	cpu_present_mask

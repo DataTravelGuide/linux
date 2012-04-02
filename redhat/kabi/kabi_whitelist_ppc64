@@ -237,6 +237,7 @@
 	copy_from_user
 	copy_in_user
 	copy_to_user
+	cpu_clock
 	cpu_online_mask
 	cpu_possible_mask
 	cpu_present_mask
