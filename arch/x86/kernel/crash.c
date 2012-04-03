@@ -103,9 +103,6 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	cpu_emergency_svm_disable();
 
 	lapic_shutdown();
-#if defined(CONFIG_X86_IO_APIC)
-	disable_IO_APIC();
-#endif
 	if (mcp55_rewrite) {
 		u32 cfg;
 		printk(KERN_CRIT "REWRITING MCP55 CFG REG\n");
