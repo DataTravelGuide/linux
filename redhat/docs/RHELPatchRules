@@ -228,7 +228,7 @@ Some bad examples of subject lines)
 Note in the last two examples that the subject line is a copy of the upstream
 commit message, however, the upstream commit message does not adequately
 describe the affect of the patch.  These types of patch descriptions should
-be editted to include a better description of what the patch is actually
+be edited to include a better description of what the patch is actually
 resolving rather than what the upstream commit is.
 
 
@@ -305,9 +305,9 @@ c) Brew:
 [Required] The patch(es) must compile on all architectures.
 
     Patches are expected to compile on all architectures.  To ensure this,
-develpers are expected to put their patches through the brew build system prior
+developers are expected to put their patches through the brew build system prior
 to patch posting, and should include a reference to the build job in their
-patch submssion.  The maintainers build kernels containing many patchsets, and
+patch submission.  The maintainers build kernels containing many patchsets, and
 compile failures require them to identify and revert offending patches.
 Ensuring that patches compile before submission reduces maintainer time and
 effort required to identify patches that break the build, and reduces delays
@@ -509,7 +509,7 @@ cover letter patch.  Failure to do so will result in the rejection of the patch.
 detailed in this document.  Is that okay?
 
 Your patch will receive the same attention all other patches receive on RHKL.
-Some of the feedback may be postive, some may be negative.  Again, we encourage
+Some of the feedback may be positive, some may be negative.  Again, we encourage
 you to send questions to RHKL if you want to do something different than what
 has been suggested in this document.
 
@@ -582,3 +582,4 @@ Reviewed-by: John Linville <linville@redhat.com>
 Reviewed-by: Dean Nelson <dnelson@redhat.com>
 Reviewed-by: Andrew Jones <drjones@redhat.com>
 Reviewed-by: Jarod Wilson <jarod@redhat.com>
+Reviewed-by: Jesper Dangaard Brouer <jbrouer@redhat.com>
