@@ -2424,18 +2424,16 @@ static int cr_interception(struct vcpu_svm *svm)
 		val = kvm_register_read(&svm->vcpu, reg);
 		switch (cr) {
 		case 0:
-			kvm_set_cr0(&svm->vcpu, val);
+			err = kvm_set_cr0(&svm->vcpu, val);
 			break;
 		case 3:
-			kvm_set_cr3(&svm->vcpu, val);
+			err = kvm_set_cr3(&svm->vcpu, val);
 			break;
 		case 4:
-			kvm_set_cr4(&svm->vcpu, val);
+			err = kvm_set_cr4(&svm->vcpu, val);
 			break;
 		case 8:
 			err = kvm_set_cr8(&svm->vcpu, val);
-			if (err)
-			kvm_inject_gp(&svm->vcpu, 0);
 			break;
 		default:
 			WARN(1, "unhandled write to CR%d", cr);
@@ -2466,7 +2464,9 @@ static int cr_interception(struct vcpu_svm *svm)
 		}
 		kvm_register_write(&svm->vcpu, reg, val);
 	}
-	if (!err)
+	if (err)
+		kvm_inject_gp(&svm->vcpu, 0);
+	else
 		skip_emulated_instruction(&svm->vcpu);
 
 	return 1;
