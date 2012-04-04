@@ -43,7 +43,7 @@ column lists the sections below which describe in detail what is needed:
 [II]--  Subject: [RHELX.Y PATCH] subsystem: nice summary of what was fixed
 
       / Bugzilla: <bugzilla reference>
-   __|  Upstream: <upstream reference>
+   __|  Upstream Status: <upstream status>
 [III]|  Brew: <brew build reference>
       \ Tested: <testing data>
 
@@ -272,7 +272,7 @@ Good examples for bugzilla numbers:
 	Fixes bug #783023 and bug #911911
 	https://bugzilla.redhat.com/show_bug.cgi?id=783023
 
-b) Upstream:
+b) Upstream Status:
 [Required] A mention of where the patch(es) came from.
 
     Reviewers and maintainers need to know where a patch is coming from.
