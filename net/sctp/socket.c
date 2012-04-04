@@ -3962,6 +3962,19 @@ static int sctp_getsockopt_disable_fragments(struct sock *sk, int len,
 	return 0;
 }
 
+
+struct sctp_event_subscribe_rhel6_kabi {
+	__u8 sctp_data_io_event;
+	__u8 sctp_association_event;
+	__u8 sctp_address_event;
+	__u8 sctp_send_failure_event;
+	__u8 sctp_peer_error_event;
+	__u8 sctp_shutdown_event;
+	__u8 sctp_partial_delivery_event;
+	__u8 sctp_adaptation_layer_event;
+	__u8 sctp_authentication_event;
+};
+
 /* 7.1.15 Set notification and ancillary events (SCTP_EVENTS)
  *
  * This socket option is used to specify various notifications and
@@ -3970,9 +3983,29 @@ static int sctp_getsockopt_disable_fragments(struct sock *sk, int len,
 static int sctp_getsockopt_events(struct sock *sk, int len, char __user *optval,
 				  int __user *optlen)
 {
-	if (len < sizeof(struct sctp_event_subscribe))
+	/* RHEL6: Ensure sanity to rule out allowing negative lengths */
+	BUILD_BUG_ON(sizeof(struct sctp_event_subscribe)
+		     < sizeof(struct sctp_event_subscribe_rhel6_kabi));
+
+	/*
+	 * RHEL6: The original behavior is to return an error if len is less than
+	 * sizeof(struct sctp_event_subscribe). By only doing so if len is less
+	 * than the size of sctp_event_subscribe when the KABI was set in stone
+	 * it will allow binaries compiled with an outdated sctp_event_subscribe
+	 * to still succeed.
+	 */
+	if (len < sizeof(struct sctp_event_subscribe_rhel6_kabi))
 		return -EINVAL;
-	len = sizeof(struct sctp_event_subscribe);
+
+	/*
+	 * RHEL6: Unlike in upstream, we do not enforce our own version of
+	 * sctp_event_subscribe upon the user but only deliver what the user is
+	 * aware of. We only cap the length in case the user is aware of more
+	 * events than we are.
+	 */
+	if (len > sizeof(struct sctp_event_subscribe))
+		len = sizeof(struct sctp_event_subscribe);
+
 	if (put_user(len, optlen))
 		return -EFAULT;
 	if (copy_to_user(optval, &sctp_sk(sk)->subscribe, len))
