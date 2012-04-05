@@ -192,9 +192,17 @@ struct vif_device
 
 struct mfc_cache 
 {
-	struct mfc_cache *next;			/* Next entry on cache line 	*/
+#ifndef __GENKSYMS__
+	struct list_head list;
+#else
+	/*
+	 * next and mfc_net are placeholders to maintain KABI and correspond to
+	 * the two pointers in the list_head above.
+	 */
+	struct mfc_cache *next;			/* Next entry on cache line	*/
 #ifdef CONFIG_NET_NS
 	struct net *mfc_net;			/* KABI: Unused, can't remove	*/
+#endif
 #endif
 	__be32 mfc_mcastgrp;			/* Group the entry belongs to 	*/
 	__be32 mfc_origin;			/* Source of packet 		*/

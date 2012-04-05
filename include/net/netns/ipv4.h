@@ -60,9 +60,11 @@ struct netns_ipv4 {
 	struct sock		*mroute_sk;
 #ifndef __GENKSYMS__
 	struct timer_list	ipmr_expire_timer; /* FIXME: REMOVE AGAIN */
-	struct mfc_cache	*mfc_unres_queue;  /* FIXME: REMOVE AGAIN */
-#endif
+	struct list_head	mfc_unres_queue;   /* FIXME: REMOVE AGAIN */
+	struct list_head	*mfc_cache_array;  /* FIXME: REMOVE AGAIN */
+#else
 	struct mfc_cache	**mfc_cache_array;
+#endif
 	struct vif_device	*vif_table;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
