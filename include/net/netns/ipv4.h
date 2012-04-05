@@ -58,6 +58,10 @@ struct netns_ipv4 {
 
 #ifdef CONFIG_IP_MROUTE
 	struct sock		*mroute_sk;
+#ifndef __GENKSYMS__
+	struct timer_list	ipmr_expire_timer; /* FIXME: REMOVE AGAIN */
+	struct mfc_cache	*mfc_unres_queue;  /* FIXME: REMOVE AGAIN */
+#endif
 	struct mfc_cache	**mfc_cache_array;
 	struct vif_device	*vif_table;
 	int			maxvif;
