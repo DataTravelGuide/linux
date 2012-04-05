@@ -88,7 +88,7 @@ int rtnl_is_locked(void)
 	return mutex_is_locked(&rtnl_mutex);
 }
 
-static struct rtnl_link *rtnl_msg_handlers[NPROTO];
+static struct rtnl_link *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
 static inline int rtm_msgindex(int msgtype)
 {
@@ -108,7 +108,7 @@ static rtnl_doit_func rtnl_get_doit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	if (protocol < NPROTO)
+	if (protocol <= RTNL_FAMILY_MAX)
 		tab = rtnl_msg_handlers[protocol];
 	else
 		tab = NULL;
@@ -123,7 +123,7 @@ static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
 {
 	struct rtnl_link *tab;
 
-	if (protocol < NPROTO)
+	if (protocol <= RTNL_FAMILY_MAX)
 		tab = rtnl_msg_handlers[protocol];
 	else
 		tab = NULL;
@@ -157,7 +157,7 @@ int __rtnl_register(int protocol, int msgtype,
 	struct rtnl_link *tab;
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	tab = rtnl_msg_handlers[protocol];
@@ -211,7 +211,7 @@ int rtnl_unregister(int protocol, int msgtype)
 {
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	if (rtnl_msg_handlers[protocol] == NULL)
@@ -234,7 +234,7 @@ EXPORT_SYMBOL_GPL(rtnl_unregister);
  */
 void rtnl_unregister_all(int protocol)
 {
-	BUG_ON(protocol < 0 || protocol >= NPROTO);
+	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 
 	kfree(rtnl_msg_handlers[protocol]);
 	rtnl_msg_handlers[protocol] = NULL;
@@ -1544,7 +1544,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (s_idx == 0)
 		s_idx = 1;
-	for (idx=1; idx<NPROTO; idx++) {
+	for (idx = 1; idx <= RTNL_FAMILY_MAX; idx++) {
 		int type = cb->nlh->nlmsg_type-RTM_BASE;
 		if (idx < s_idx || idx == PF_PACKET)
 			continue;
