@@ -19,6 +19,7 @@
 #define FIB_RULES_IPV4		AF_INET
 #define FIB_RULES_IPV6		AF_INET6
 #define FIB_RULES_DECNET	AF_DECnet
+#define FIB_RULES_IPMR		128
 
 struct fib_rule_hdr
 {
