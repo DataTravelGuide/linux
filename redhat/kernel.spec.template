@@ -1674,6 +1674,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Apr 05 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-261.el6]
+- [x86] Don't inject GP for non-XSAVE enabled guests (Don Dugger) [705242]
+- [drm] i915: suspend fbdev device around suspend/hibernate (Dave Airlie) [746169]
+- [fs] cifs: Add mount options backupuid and backugid. (Sachin Prabhu) [806336]
+- [kernel] genirq: Respect NUMA node affinity in setup_affinity() (Prarit Bhargava) [788579]
+- [netdrv] iwlwifi: do not nulify ctx->vif on reset (Stanislaw Gruszka) [801730]
+- [virt] VMX: vmx_set_cr0 expects kvm->srcu locked (Marcelo Tosatti) [807507] {CVE-2012-1601}
+- [virt] KVM: Ensure all vcpus are consistent with in-kernel irqchip settings (Marcelo Tosatti) [807507] {CVE-2012-1601}
+- [virt] virtio-pci: S3 support (Amit Shah) [803187]
+- [virt] virtio-pci: drop restore_common() (Amit Shah) [803187]
+- [virt] virtio: drop thaw PM operation (Amit Shah) [803187]
+- [virt] virtio: balloon: Allow stats update after restore from S4 (Amit Shah) [803187]
+
 * Mon Apr 02 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-260.el6]
 - [scsi] be2iscsi: fix include order (Mike Christie) [738043]
 - [scsi] be2iscsi: Get Port State and Speed of the Adapter (Mike Christie) [738043]
