@@ -300,8 +300,6 @@ xen_dangerous_cpuid_features[] = {
 	X86_FEATURE_NONSTOP_TSC,
 	/* Mask out features masked by BZ#752382 */
 	X86_FEATURE_SMEP,
-	/* BZ#750758 MTRRs are not supported by rhel5's xen */
-	X86_FEATURE_MTRR,
 	0
 };
 
