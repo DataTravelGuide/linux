@@ -450,6 +450,7 @@
 	fb_set_suspend
 	fb_set_var
 	fc_attach_transport
+	fc_release_transport
 	fget
 	filemap_fault
 	filemap_fdatawait

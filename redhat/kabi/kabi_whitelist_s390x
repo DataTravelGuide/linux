@@ -352,6 +352,7 @@
 	ethtool_op_set_tx_ipv6_csum
 	fasync_helper
 	fc_attach_transport
+	fc_release_transport
 	fget
 	filemap_fault
 	filemap_fdatawait
