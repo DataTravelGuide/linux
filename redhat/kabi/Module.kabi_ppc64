@@ -409,6 +409,7 @@
 0xdaf4dfb3	fb_mode_option	vmlinux	EXPORT_SYMBOL_GPL
 0x73773c22	fb_set_suspend	vmlinux	EXPORT_SYMBOL
 0xe12bbe88	fb_set_var	vmlinux	EXPORT_SYMBOL
+0x56d66c1a	fc_attach_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x49abfe85	fget	vmlinux	EXPORT_SYMBOL
 0x5ffb680e	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x6499df9a	filemap_fdatawait	vmlinux	EXPORT_SYMBOL

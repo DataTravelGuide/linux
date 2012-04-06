@@ -410,6 +410,7 @@
 	fb_mode_option
 	fb_set_suspend
 	fb_set_var
+	fc_attach_transport
 	fget
 	filemap_fault
 	filemap_fdatawait

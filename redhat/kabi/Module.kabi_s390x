@@ -350,6 +350,7 @@
 0x10024887	ethtool_op_set_tx_hw_csum	vmlinux	EXPORT_SYMBOL
 0x4c01548b	ethtool_op_set_tx_ipv6_csum	vmlinux	EXPORT_SYMBOL
 0x2ce08a4a	fasync_helper	vmlinux	EXPORT_SYMBOL
+0x8a93a134	fc_attach_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xf08496a7	fget	vmlinux	EXPORT_SYMBOL
 0x114d7c0a	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x8cc6d758	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
