@@ -456,6 +456,7 @@
 0x50d9bee9	fc_attach_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x15fcb12e	fc_release_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xbe9011cf	fc_remote_port_add	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
+0xff9505a4	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x92375255	fget	vmlinux	EXPORT_SYMBOL
 0xec150229	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x36a493a8	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
