@@ -1160,6 +1160,12 @@ struct netdev_priomap_info {
 #endif
 };
 
+struct ipv4_devconf_extensions {
+	int accept_local;
+};
+
+extern struct ipv4_devconf_extensions ipv4_devconf_ext;
+
 /* Only append, do not change existing! */
 struct net_device_extended {
 	struct xps_dev_maps			*xps_maps;
@@ -1173,6 +1179,7 @@ struct net_device_extended {
 					struct netdev_fcoe_hbainfo *hbainfo);
 #endif
 	struct netdev_netpoll_ext_info		netpoll_data;
+	struct ipv4_devconf_extensions		ipv4_devconf_ext;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1205,6 +1212,12 @@ static inline struct net_device_extended *
 netdev_extended(const struct net_device *dev)
 {
 	return netdev_extended_frozen(dev)->dev_ext;
+}
+
+static inline struct ipv4_devconf_extensions *
+netdev_ipv4_devconf_extended(const struct net_device *dev)
+{
+	return &(netdev_extended(dev)->ipv4_devconf_ext);
 }
 
 static inline

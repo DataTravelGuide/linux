@@ -86,6 +86,9 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_SRC_VMARK(in_dev)    	IN_DEV_ORCONF((in_dev), SRC_VMARK)
 #define IN_DEV_SOURCE_ROUTE(in_dev)	IN_DEV_ANDCONF((in_dev), \
 						       ACCEPT_SOURCE_ROUTE)
+#define IN_DEV_ACCEPT_LOCAL(in_dev)	(ipv4_devconf_ext.accept_local || \
+	(netdev_ipv4_devconf_extended(in_dev->dev) ? \
+	netdev_ipv4_devconf_extended(in_dev->dev)->accept_local : 0))
 #define IN_DEV_BOOTP_RELAY(in_dev)	IN_DEV_ANDCONF((in_dev), BOOTP_RELAY)
 
 #define IN_DEV_LOG_MARTIANS(in_dev)	IN_DEV_ORCONF((in_dev), LOG_MARTIANS)
