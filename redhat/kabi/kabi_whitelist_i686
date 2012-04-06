@@ -453,6 +453,7 @@
 	fc_release_transport
 	fc_remote_port_add
 	fc_remote_port_delete
+	fc_remote_port_rolechg
 	fget
 	filemap_fault
 	filemap_fdatawait
