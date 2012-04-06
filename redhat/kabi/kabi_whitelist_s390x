@@ -353,6 +353,7 @@
 	fasync_helper
 	fc_attach_transport
 	fc_release_transport
+	fc_remote_port_add
 	fget
 	filemap_fault
 	filemap_fdatawait

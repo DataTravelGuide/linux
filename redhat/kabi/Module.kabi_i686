@@ -450,6 +450,7 @@
 0x69c91880	fb_set_var	vmlinux	EXPORT_SYMBOL
 0x1a6a08f6	fc_attach_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x4e82a9bf	fc_release_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
+0x44975217	fc_remote_port_add	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x132c01d1	fget	vmlinux	EXPORT_SYMBOL
 0xf3c7313c	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x1fd5a226	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
