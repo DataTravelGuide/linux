@@ -1674,6 +1674,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Apr 08 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-262.el6]
+- [net] bonding: send igmp report for its master (Weiping Pan) [797780]
+- [net] allow to get master bridge device for bridge port (Weiping Pan) [797780]
+- [s390x] zcrypt: Fix parameter checking for ZSECSENDCPRB ioctl (Hendrik Brueckner) [808487]
+- [net] fix vlan gro path (Jiri Pirko) [720611]
+- [net] bonding: emit event when bonding changes MAC (Veaceslav Falico) [800231]
+- [net] sctp: Fix getsockopt with SCTP_EVENTS regression and allow sctp_event_subscribe to grow (Thomas Graf) [808086]
+- [net] vlan: Avoid broken offload configuration when reorder_hdr is disabled (Michal Schmidt) [781652]
+- [virt] xen: Revert "xen: mask MTRR feature from guest"" (Andrew Jones) [810222]
+
 * Thu Apr 05 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-261.el6]
 - [x86] Don't inject GP for non-XSAVE enabled guests (Don Dugger) [705242]
 - [drm] i915: suspend fbdev device around suspend/hibernate (Dave Airlie) [746169]
