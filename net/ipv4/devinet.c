@@ -1545,7 +1545,7 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 	if (!t)
 		goto out;
 
-	dev = dev_get_by_name(net, dev_name);
+	dev = __dev_get_by_name(net, dev_name);
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		if (!check_ipv4_ext_conf(&t->devinet_vars[i], dev,
 				   p == &ipv4_devconf_dflt)) {
