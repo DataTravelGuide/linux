@@ -200,6 +200,7 @@ enum {
 	GLF_QUEUED			= 12,
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
+	GLF_BLOCKING			= 15,
 };
 
 struct gfs2_glock {
