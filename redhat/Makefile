@@ -24,6 +24,7 @@ endif
 $(info BUILDID is "$(BUILDID)". Update '$(shell dirname $(REDHAT))/localversion' to change.)
 
 RHGITURL:=$(shell git config remote.origin.url)
+RHVALIDURL:=$(shell git config remote.origin.url | grep -E '^git://git[2]?\.engineering\.redhat\.com')
 RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)
 
 # this section is needed in order to make O= to work
@@ -194,7 +195,17 @@ rh-brew rh-koji: rh-%: rh-srpm
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
 
 rhg-brew rhg-koji: rhg-%:
+ifeq ("$(RHVALIDURL)", "")
+		@echo "The rhg-brew target requires a git remote.origin.url config option in the form:"
+		@echo "  git://git.engineering.redhat.com.*"
+		@echo "Please update your git config to reflect this"
+		@echo "If you wish to a read/write url for your origin"
+		@echo "You can separately specify the git remote.origin.pushurl option, do:"
+		@echo "  git config remote.origin.pushurl $(RHGITURL)"
+		@echo "  git config remote.origin.url     git://git.engineering.redhat.com..."
+else
 	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
+endif
 
 rh-help:
 	@echo  'Cleaning targets:'
