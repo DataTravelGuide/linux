@@ -254,6 +254,7 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 {
 	__u16 x, y, pressure;
 	__u32 id;
+	__u8 distance;
 
 	switch (data[1]) {
 	case 0x80: /* Out of proximity report */
@@ -282,6 +283,7 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 		y = data[4] << 9 | data[5] << 1 | (data[9] & 0x01);
 		pressure = (data[6] << 3) | ((data[7] & 0xC0) >> 5)
 			| (data[1] & 0x01);
+		distance = (data[9] >> 2) & 0x3f;
 
 		input_report_key(input, BTN_TOUCH, pressure > 1);
 
@@ -290,6 +292,7 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 		input_report_key(input, wdata->tool, 1);
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
+		input_report_abs(input, ABS_DISTANCE, distance);
 		input_report_abs(input, ABS_PRESSURE, pressure);
 		input_sync(input);
 		break;
@@ -416,6 +419,7 @@ static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		input_set_abs_params(input, ABS_X, 0, 40640, 4, 0);
 		input_set_abs_params(input, ABS_Y, 0, 25400, 4, 0);
 		input_set_abs_params(input, ABS_PRESSURE, 0, 2047, 0, 0);
+		input_set_abs_params(input, ABS_DISTANCE, 0, 63, 0, 0);
 		break;
 	}
 
