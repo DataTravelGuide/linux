@@ -29,6 +29,44 @@ struct wacom_data {
 	unsigned char butstate;
 };
 
+static void wacom_poke(struct hid_device *hdev, u8 speed)
+{
+	int limit, ret;
+	char rep_data[2];
+
+	rep_data[0] = 0x03 ; rep_data[1] = 0x00;
+	limit = 3;
+	do {
+		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
+				HID_FEATURE_REPORT);
+	} while (ret < 0 && limit-- > 0);
+
+	if (ret >= 0) {
+		if (speed == 0)
+			rep_data[0] = 0x05;
+		else
+			rep_data[0] = 0x06;
+
+		rep_data[1] = 0x00;
+		limit = 3;
+		do {
+			ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
+					HID_FEATURE_REPORT);
+		} while (ret < 0 && limit-- > 0);
+
+		if (ret >= 0)
+			return;
+	}
+
+	/*
+	 * Note that if the raw queries fail, it's not a hard failure and it
+	 * is safe to continue
+	 */
+	dev_warn(&hdev->dev, "failed to poke device, command %d, err %d\n",
+				rep_data[0], ret);
+	return;
+}
+
 static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
 {
@@ -194,9 +232,7 @@ static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	struct wacom_data *wdata;
-	char rep_data[2];
 	int ret;
-	int limit;
 
 	wdata = kzalloc(sizeof(*wdata), GFP_KERNEL);
 	if (wdata == NULL) {
@@ -219,30 +255,8 @@ static int wacom_probe(struct hid_device *hdev,
 		goto err_free;
 	}
 
-	/*
-	 * Note that if the raw queries fail, it's not a hard failure and it
-	 * is safe to continue
-	 */
-
-	/* Set Wacom mode2 */
-	rep_data[0] = 0x03; rep_data[1] = 0x00;
-	limit = 3;
-	do {
-		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
-				HID_FEATURE_REPORT);
-	} while (ret < 0 && limit-- > 0);
-	if (ret < 0)
-		dev_warn(&hdev->dev, "failed to poke device #1, %d\n", ret);
-
-	/* 0x06 - high reporting speed, 0x05 - low speed */
-	rep_data[0] = 0x06; rep_data[1] = 0x00;
-	limit = 3;
-	do {
-		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
-				HID_FEATURE_REPORT);
-	} while (ret < 0 && limit-- > 0);
-	if (ret < 0)
-		dev_warn(&hdev->dev, "failed to poke device #2, %d\n", ret);
+	/* Set Wacom mode 2 with high reporting speed */
+	wacom_poke(hdev, 1);
 
 	return 0;
 err_free:
