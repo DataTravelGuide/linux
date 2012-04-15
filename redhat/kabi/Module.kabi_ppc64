@@ -280,6 +280,7 @@
 0x3d126697	debugfs_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0xcae6de58	debugfs_create_u8	vmlinux	EXPORT_SYMBOL_GPL
 0x4e032625	debugfs_remove	vmlinux	EXPORT_SYMBOL_GPL
+0xd7c2347f	dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0xffd5a395	default_wake_function	vmlinux	EXPORT_SYMBOL
 0x18f7be5e	del_gendisk	vmlinux	EXPORT_SYMBOL
 0x6ea4be70	del_timer	vmlinux	EXPORT_SYMBOL

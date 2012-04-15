@@ -312,6 +312,7 @@
 	debugfs_create_file
 	debugfs_create_u8
 	debugfs_remove
+	dec_zone_page_state
 	default_wake_function
 	del_gendisk
 	del_timer
