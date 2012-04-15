@@ -14,6 +14,7 @@
 	__class_register
 	__copy_tofrom_user
 	__create_workqueue_key
+	__dec_zone_page_state
 	__dev_get_by_index
 	__dev_get_by_name
 	__free_pages

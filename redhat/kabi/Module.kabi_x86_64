@@ -15,6 +15,7 @@
 0x8b55badc	__copy_from_user_inatomic	vmlinux	EXPORT_SYMBOL
 0x1db7706b	__copy_user_nocache	vmlinux	EXPORT_SYMBOL
 0x9c14f8c3	__create_workqueue_key	vmlinux	EXPORT_SYMBOL_GPL
+0x09849352	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0x6a6d551b	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x5a4767f7	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0xffd35acd	__free_pages	vmlinux	EXPORT_SYMBOL

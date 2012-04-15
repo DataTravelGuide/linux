@@ -13,6 +13,7 @@
 0x7a61d11a	__class_register	vmlinux	EXPORT_SYMBOL_GPL
 0x461ebfa0	__copy_tofrom_user	vmlinux	EXPORT_SYMBOL
 0xd2aeb37c	__create_workqueue_key	vmlinux	EXPORT_SYMBOL_GPL
+0x255a68e6	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0xd2f47584	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x7984fc68	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0xc4ff0264	__free_pages	vmlinux	EXPORT_SYMBOL

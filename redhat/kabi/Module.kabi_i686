@@ -16,6 +16,7 @@
 0x1af40e18	__copy_from_user_ll	vmlinux	EXPORT_SYMBOL
 0xd7474566	__copy_to_user_ll	vmlinux	EXPORT_SYMBOL
 0xbb638200	__create_workqueue_key	vmlinux	EXPORT_SYMBOL_GPL
+0xdfd71874	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0xfe554aa7	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x86274c28	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0xfce6b61f	__free_pages	vmlinux	EXPORT_SYMBOL

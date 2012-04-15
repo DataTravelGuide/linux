@@ -12,6 +12,7 @@
 0xf993c87d	__class_create	vmlinux	EXPORT_SYMBOL_GPL
 0xd27be21d	__class_register	vmlinux	EXPORT_SYMBOL_GPL
 0x01777435	__create_workqueue_key	vmlinux	EXPORT_SYMBOL_GPL
+0xe3f1cc76	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0x83737efc	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x02f0e0ac	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0x91d1bbc3	__free_pages	vmlinux	EXPORT_SYMBOL
