@@ -978,7 +978,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (vcpu->tsc_catchup) {
 		u64 tsc = compute_guest_tsc(v, kernel_ns);
 		if (tsc > tsc_timestamp) {
-			kvm_x86_ops->adjust_tsc_offset(v, tsc - tsc_timestamp);
+			adjust_tsc_offset_guest(v, tsc - tsc_timestamp);
 			tsc_timestamp = tsc;
 		}
 	}
@@ -1821,8 +1821,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Apply any externally detected TSC adjustments (due to suspend) */
 	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
-		kvm_x86_ops->adjust_tsc_offset(vcpu,
-			vcpu->arch.tsc_offset_adjustment);
+		adjust_tsc_offset_host(vcpu, vcpu->arch.tsc_offset_adjustment);
 		vcpu->arch.tsc_offset_adjustment = 0;
 		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
 	}
@@ -1833,7 +1832,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		if (tsc_delta < 0)
 			WARN_ON(!check_tsc_unstable());
 		if (check_tsc_unstable()) {
-			kvm_x86_ops->adjust_tsc_offset(vcpu, -tsc_delta);
+			adjust_tsc_offset_host(vcpu, -tsc_delta);
 			vcpu->arch.tsc_catchup = 1;
 		}
 		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
