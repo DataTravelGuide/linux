@@ -816,7 +816,10 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 
 static bool rdac_match(struct scsi_device *sdev)
 {
-	int i;
+	int i, err;
+	struct c8_inquiry inqp;
+	struct request *rq;
+	struct request_queue *q = sdev->request_queue;
 
 	if (scsi_device_tpgs(sdev))
 		return false;
@@ -829,6 +832,27 @@ static bool rdac_match(struct scsi_device *sdev)
 			return true;
 		}
 	}
+
+	/* Now lets try to match the signature on 0xC8 page */
+	memset(&inqp, 0, sizeof(struct c8_inquiry));
+	rq = get_rdac_req(sdev, &inqp, sizeof(struct c8_inquiry), READ);
+	if (!rq)
+		return false;
+
+	rq->cmd[0] = INQUIRY;
+	rq->cmd[1] = 1;
+	rq->cmd[2] = 0xC8;
+	rq->cmd[4] = sizeof(struct c8_inquiry);
+	rq->cmd_len = COMMAND_SIZE(INQUIRY);
+
+	err = blk_execute_rq(q, NULL, rq, 1);
+	blk_put_request(rq);
+	if (err != -EIO) {
+		if (inqp.page_id[0] == 'e' && inqp.page_id[1] == 'd' &&
+		    inqp.page_id[2] == 'i' && inqp.page_id[3] == 'd')
+			return true;
+	}
+
 	return false;
 }
 
