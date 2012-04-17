@@ -1824,16 +1824,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_x86_ops->adjust_tsc_offset(vcpu,
 			vcpu->arch.tsc_offset_adjustment);
 		vcpu->arch.tsc_offset_adjustment = 0;
+		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
 	}
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
 		/* Make sure TSC doesn't go backwards */
-		s64 tsc_delta;
-		u64 tsc;
-
-		kvm_get_msr(vcpu, MSR_IA32_TSC, &tsc);
-		tsc_delta = !vcpu->arch.last_guest_tsc ? 0 :
-			     tsc - vcpu->arch.last_guest_tsc;
-
+		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
+				native_read_tsc() - vcpu->arch.last_host_tsc;
 		if (tsc_delta < 0)
 			WARN_ON(!check_tsc_unstable());
 		if (check_tsc_unstable()) {
@@ -6226,8 +6222,11 @@ int kvm_arch_hardware_enable(void *garbage)
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (!stable && vcpu->cpu == smp_processor_id())
 				set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
-			if (stable && vcpu->arch.last_host_tsc > local_tsc)
+			if (stable && vcpu->arch.last_host_tsc > local_tsc) {
 				backwards_tsc = true;
+				if (vcpu->arch.last_host_tsc > max_tsc)
+					max_tsc = vcpu->arch.last_host_tsc;
+			}
 		}
 	}
 
@@ -6274,21 +6273,8 @@ int kvm_arch_hardware_enable(void *garbage)
 	 * perfect synchronization.  Fix thou thine TSC and all shalt be well.
 	 */
 	if (backwards_tsc) {
-		u64 delta_cyc;
+		u64 delta_cyc = max_tsc - local_tsc;
 		list_for_each_entry(kvm, &vm_list, vm_list)
-			max_tsc = delta_cyc = 0;
-			kvm_for_each_vcpu(i, vcpu, kvm) {
-				if (max_tsc > vcpu->arch.last_host_tsc) {
-					u64 tsc, g_tsc;
-
-					max_tsc = vcpu->arch.last_host_tsc;
-					g_tsc   = vcpu->arch.last_guest_tsc;
-					kvm_get_msr(vcpu, MSR_IA32_TSC, &tsc);
-					delta_cyc = g_tsc - tsc;
-				}
-			}
-
-			/* We got the right adjustment - update all vcpus */
 			kvm_for_each_vcpu(i, vcpu, kvm) {
 				vcpu->arch.tsc_offset_adjustment += delta_cyc;
 				vcpu->arch.last_host_tsc = local_tsc;
