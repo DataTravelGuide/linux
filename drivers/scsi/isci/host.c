@@ -988,9 +988,8 @@ static enum sci_status sci_controller_start(struct isci_host *ihost,
 	u16 index;
 
 	if (ihost->sm.current_state_id != SCIC_INITIALIZED) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller start operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1214,9 +1213,8 @@ static void isci_host_completion_routine(unsigned long data)
 static enum sci_status sci_controller_stop(struct isci_host *ihost, u32 timeout)
 {
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller stop operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1251,9 +1249,8 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 		sci_change_state(&ihost->sm, SCIC_RESETTING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller reset operation requested in "
-			 "invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -2280,9 +2277,8 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	unsigned long i, state, val;
 
 	if (ihost->sm.current_state_id != SCIC_RESET) {
-		dev_warn(&ihost->pdev->dev,
-			 "SCIC Controller initialize operation requested "
-			 "in invalid state\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2843,7 +2839,8 @@ enum sci_status sci_controller_start_io(struct isci_host *ihost,
 	enum sci_status status;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev, "invalid state to start I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2867,8 +2864,8 @@ enum sci_status sci_controller_terminate_request(struct isci_host *ihost,
 	enum sci_status status;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev,
-			 "invalid state to terminate request\n");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2916,7 +2913,8 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(&ihost->pdev->dev, "invalid state to complete I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2927,7 +2925,8 @@ enum sci_status sci_controller_continue_io(struct isci_request *ireq)
 	struct isci_host *ihost = ireq->owning_controller;
 
 	if (ihost->sm.current_state_id != SCIC_READY) {
-		dev_warn(&ihost->pdev->dev, "invalid state to continue I/O");
+		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
+			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
