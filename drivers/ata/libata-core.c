@@ -5374,13 +5374,15 @@ bool ata_link_offline(struct ata_link *link)
 		(!slave || ata_phys_link_offline(slave));
 }
 
+static int ata_pm_result_ignore;
+
 #ifdef CONFIG_PM
 static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 			       unsigned int action, unsigned int ehi_flags,
-			       int wait)
+			       int *async)
 {
 	unsigned long flags;
-	int i, rc;
+	int i, rc = 0;
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
@@ -5398,10 +5400,16 @@ static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 		spin_lock_irqsave(ap->lock, flags);
 
 		ap->pm_mesg = mesg;
-		if (wait) {
-			rc = 0;
+
+		/* in the async case caller guarantees 1 port per host,
+		 * and we force the issue below
+		 */
+		if (async && async != &ata_pm_result_ignore)
+			ap->pm_result = async;
+		else if (!async)
 			ap->pm_result = &rc;
-		}
+		else
+			ap->pm_result = NULL;
 
 		ap->pflags |= ATA_PFLAG_PM_PENDING;
 		ata_for_each_link(link, ap, HOST_FIRST) {
@@ -5414,7 +5422,7 @@ static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 		spin_unlock_irqrestore(ap->lock, flags);
 
 		/* wait and check result */
-		if (wait) {
+		if (!async) {
 			ata_port_wait_eh(ap);
 			WARN_ON(ap->pflags & ATA_PFLAG_PM_PENDING);
 			if (rc)
@@ -5424,6 +5432,26 @@ static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 
 	return 0;
 }
+
+/* sas ports don't participate in pm runtime management of ata_ports,
+ * and need to resume ata devices at the domain level, not the per-port
+ * level. sas suspend/resume is async to allow parallel port recovery
+ * since sas has multiple ata_port instances per Scsi_Host.
+ */
+int ata_sas_port_async_suspend(struct ata_port *ap, int *async)
+{
+	return ata_host_request_pm(ap->host, PMSG_SUSPEND, 0, ATA_EHI_QUIET,
+				   async);
+}
+EXPORT_SYMBOL_GPL(ata_sas_port_async_suspend);
+
+int ata_sas_port_async_resume(struct ata_port *ap, int *async)
+{
+	return ata_host_request_pm(ap->host, PMSG_ON, ATA_EH_RESET,
+				   ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET,
+				   async);
+}
+EXPORT_SYMBOL_GPL(ata_sas_port_async_resume);
 
 /**
  *	ata_host_suspend - suspend host
@@ -5450,7 +5478,7 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 	 */
 	ata_lpm_enable(host);
 
-	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, 1);
+	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, NULL);
 	if (rc == 0)
 		host->dev->power.power_state = mesg;
 	return rc;
@@ -5470,7 +5498,8 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 void ata_host_resume(struct ata_host *host)
 {
 	ata_host_request_pm(host, PMSG_ON, ATA_EH_RESET,
-			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
+			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET,
+			    &ata_pm_result_ignore);
 	host->dev->power.power_state = PMSG_ON;
 
 	/* reenable link pm */
