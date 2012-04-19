@@ -131,6 +131,7 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @bt_ch_announce: BT channel inhibition, default = enable
  * @wanted_ucode_alternative: ucode alternative to use, default = 1
  * @auto_agg: enable agg. without check, default = true
+ * @disable_5ghz: disable 5GHz capability, default = false
  */
 struct iwl_mod_params {
 	int sw_crypto;
@@ -152,6 +153,7 @@ struct iwl_mod_params {
 	bool bt_ch_announce;
 	int wanted_ucode_alternative;
 	bool auto_agg;
+	bool disable_5ghz;
 };
 
 /**

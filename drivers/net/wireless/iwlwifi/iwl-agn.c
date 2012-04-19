@@ -3554,3 +3554,7 @@ module_param_named(no_sleep_autoadjust, iwlagn_mod_params.no_sleep_autoadjust,
 MODULE_PARM_DESC(no_sleep_autoadjust,
 		 "don't automatically adjust sleep level "
 		 "according to maximum network latency (default: true)");
+
+module_param_named(5ghz_disable, iwlagn_mod_params.disable_5ghz, bool, S_IRUGO);
+MODULE_PARM_DESC(5ghz_disable, "disable 5GHz band (default: 0 [enabled])");
+
