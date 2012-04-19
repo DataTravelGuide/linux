@@ -383,7 +383,10 @@ VI.  THE PATCH
 --------------
 [Required] The patch(es) must apply cleanly via 'patch -p1'
 
-    There are several ways to generate a patch, all of which are acceptable.
+    In general, it is preferred that patches are generated from the internal
+git tree.  However, there are several ways to generate a patch, all of which
+are acceptable.
+
 Some of the common approaches to generating a patch are:
 
 	diff -Naurp
