@@ -85,7 +85,6 @@ struct isci_remote_device {
 	#define IDEV_GONE 3
 	#define IDEV_IO_READY 4
 	#define IDEV_IO_NCQERROR 5
-	#define IDEV_TXRX_SUSPENDED 6
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
@@ -106,10 +105,8 @@ struct isci_remote_device {
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
 
 static inline struct isci_remote_device *isci_get_device(
-	struct domain_device *dev)
+	struct isci_remote_device *idev)
 {
-	struct isci_remote_device *idev = dev->lldd_dev;
-
 	if (idev)
 		kref_get(&idev->kref);
 	return idev;
@@ -378,4 +375,14 @@ enum sci_status isci_remote_device_reset_complete(
 enum sci_status
 sci_remote_device_abort_requests_pending_abort(
 	struct isci_remote_device *idev);
+
+enum sci_status isci_remote_device_suspend_terminate(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	struct isci_request *ireq);
+
+enum sci_status isci_remote_device_terminate_requests(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	struct isci_request *ireq);
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */
