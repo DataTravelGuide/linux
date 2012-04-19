@@ -1253,6 +1253,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
 
+			* rstonce: only attempt one reset during
+			  hot-unplug link recovery
+
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
