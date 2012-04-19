@@ -959,6 +959,9 @@ out:
 
 static int __init init_tsc_clocksource(void)
 {
+	if (!cpu_has_tsc || tsc_disabled > 0 || !tsc_khz)
+		return 0;
+
 	clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
 			clocksource_tsc.shift);
 	if (tsc_clocksource_reliable)
