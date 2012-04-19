@@ -254,6 +254,9 @@ extern const char * const x86_power_flags[32];
 	  ? 1 :								\
 	 test_cpu_cap(c, bit))
 
+#define this_cpu_has(bit)						\
+	cpu_has(&current_cpu_data, bit)
+
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define setup_clear_cpu_cap(bit) do { \
