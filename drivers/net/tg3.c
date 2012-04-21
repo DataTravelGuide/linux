@@ -5766,8 +5766,10 @@ next_pkt_nopost:
 		tpr->rx_std_prod_idx = std_prod_idx & tp->rx_std_ring_mask;
 		tpr->rx_jmb_prod_idx = jmb_prod_idx & tp->rx_jmb_ring_mask;
 
-		if (tnapi != &tp->napi[1])
+		if (tnapi != &tp->napi[1]) {
+			tp->rx_refill = true;
 			napi_schedule(&tp->napi[1].napi);
+		}
 	}
 
 	return received;
@@ -5947,6 +5949,7 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 		u32 std_prod_idx = dpr->rx_std_prod_idx;
 		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
+		tp->rx_refill = false;
 		for (i = 1; i < tp->irq_cnt; i++)
 			err |= tg3_rx_prodring_xfer(tp, dpr,
 						    &tp->napi[i].prodring);
@@ -6009,9 +6012,25 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 		/* check for RX/TX work to do */
 		if (likely(sblk->idx[0].tx_consumer == tnapi->tx_cons &&
 			   *(tnapi->rx_rcb_prod_idx) == tnapi->rx_rcb_ptr)) {
+
+			/* This test here is not race free, but will reduce
+			 * the number of interrupts by looping again.
+			 */
+			if (tnapi == &tp->napi[1] && tp->rx_refill)
+				continue;
+
 			napi_complete(napi);
 			/* Reenable interrupts. */
 			tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
+
+			/* This test here is synchronized by napi_schedule()
+			 * and napi_complete() to close the race condition.
+			 */
+			if (unlikely(tnapi == &tp->napi[1] && tp->rx_refill)) {
+				tw32(HOSTCC_MODE, tp->coalesce_mode |
+						  HOSTCC_MODE_ENABLE |
+						  tnapi->coal_now);
+			}
 			mmiowb();
 			break;
 		}
