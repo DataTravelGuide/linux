@@ -1099,6 +1099,7 @@
 0x4ca4a02e	up_write	vmlinux	EXPORT_SYMBOL
 0xb54533f7	usecs_to_jiffies	vmlinux	EXPORT_SYMBOL
 0x999e8297	vfree	vmlinux	EXPORT_SYMBOL
+0x6effced8	vfs_rename	vmlinux	EXPORT_SYMBOL
 0xf5583605	vfs_write	vmlinux	EXPORT_SYMBOL
 0x5571f67e	vlan_dev_real_dev	vmlinux	EXPORT_SYMBOL
 0x183bdade	vlan_dev_vlan_id	vmlinux	EXPORT_SYMBOL

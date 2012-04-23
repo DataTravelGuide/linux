@@ -1542,6 +1542,7 @@
 	v4l2_ctrl_query_fill
 	v4l2_type_names
 	vfree
+	vfs_rename
 	vfs_write
 	vga_client_register
 	vgacon_text_force

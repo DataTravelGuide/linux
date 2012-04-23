@@ -1541,6 +1541,7 @@
 0x1e326b97	v4l2_ctrl_query_fill	drivers/media/video/v4l2-common	EXPORT_SYMBOL
 0x123959a1	v4l2_type_names	drivers/media/video/videodev	EXPORT_SYMBOL
 0x999e8297	vfree	vmlinux	EXPORT_SYMBOL
+0xdb7001b1	vfs_rename	vmlinux	EXPORT_SYMBOL
 0x5fd2360d	vfs_write	vmlinux	EXPORT_SYMBOL
 0x609acf85	vga_client_register	vmlinux	EXPORT_SYMBOL
 0x42595e58	vgacon_text_force	vmlinux	EXPORT_SYMBOL
