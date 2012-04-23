@@ -11,6 +11,7 @@
 	__blk_end_request
 	__blk_end_request_all
 	__bread
+	__brelse
 	__class_create
 	__class_register
 	__copy_tofrom_user
