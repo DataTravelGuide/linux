@@ -467,6 +467,7 @@
 0xff50c748	generic_permission	vmlinux	EXPORT_SYMBOL
 0x72e1956d	generic_read_dir	vmlinux	EXPORT_SYMBOL
 0x6615cd80	generic_readlink	vmlinux	EXPORT_SYMBOL
+0x0e12637e	generic_write_checks	vmlinux	EXPORT_SYMBOL
 0x6254fa91	generic_write_end	vmlinux	EXPORT_SYMBOL
 0xdca0e950	genl_register_family	vmlinux	EXPORT_SYMBOL
 0x3fb00015	genl_register_ops	vmlinux	EXPORT_SYMBOL

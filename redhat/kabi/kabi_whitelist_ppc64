@@ -468,6 +468,7 @@
 	generic_permission
 	generic_read_dir
 	generic_readlink
+	generic_write_checks
 	generic_write_end
 	genl_register_family
 	genl_register_ops

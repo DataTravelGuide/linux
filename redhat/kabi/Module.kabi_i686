@@ -507,6 +507,7 @@
 0xb59728e5	generic_permission	vmlinux	EXPORT_SYMBOL
 0x902f7856	generic_read_dir	vmlinux	EXPORT_SYMBOL
 0xe80abede	generic_readlink	vmlinux	EXPORT_SYMBOL
+0x123ccdad	generic_write_checks	vmlinux	EXPORT_SYMBOL
 0x11dd5864	generic_write_end	vmlinux	EXPORT_SYMBOL
 0xdca0e950	genl_register_family	vmlinux	EXPORT_SYMBOL
 0x0adabf25	genl_register_ops	vmlinux	EXPORT_SYMBOL

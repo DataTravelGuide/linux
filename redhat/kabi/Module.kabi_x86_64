@@ -512,6 +512,7 @@
 0x19319f8b	generic_permission	vmlinux	EXPORT_SYMBOL
 0x06856361	generic_read_dir	vmlinux	EXPORT_SYMBOL
 0x049b1a88	generic_readlink	vmlinux	EXPORT_SYMBOL
+0xbc52450e	generic_write_checks	vmlinux	EXPORT_SYMBOL
 0xd66d8789	generic_write_end	vmlinux	EXPORT_SYMBOL
 0xdca0e950	genl_register_family	vmlinux	EXPORT_SYMBOL
 0xec576ebe	genl_register_ops	vmlinux	EXPORT_SYMBOL
