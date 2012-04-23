@@ -399,6 +399,7 @@
 0x748caf40	down	vmlinux	EXPORT_SYMBOL
 0xfc4f55f3	down_interruptible	vmlinux	EXPORT_SYMBOL
 0xb4b0ee4e	down_read	vmlinux	EXPORT_SYMBOL
+0x9385667d	down_read_trylock	vmlinux	EXPORT_SYMBOL
 0x150853cf	down_trylock	vmlinux	EXPORT_SYMBOL
 0x45d55543	down_write	vmlinux	EXPORT_SYMBOL
 0x6c7363b3	dput	vmlinux	EXPORT_SYMBOL

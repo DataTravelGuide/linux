@@ -395,6 +395,7 @@
 	down
 	down_interruptible
 	down_read
+	down_read_trylock
 	down_trylock
 	down_write
 	dput
