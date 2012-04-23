@@ -490,6 +490,7 @@
 0x8b6c553c	fput	vmlinux	EXPORT_SYMBOL
 0xec6f78fe	framebuffer_alloc	vmlinux	EXPORT_SYMBOL
 0xaba489e7	framebuffer_release	vmlinux	EXPORT_SYMBOL
+0x23f3afe3	free_buffer_head	vmlinux	EXPORT_SYMBOL
 0x6e7e9aec	free_dca_provider	drivers/dca/dca	EXPORT_SYMBOL_GPL
 0x72b243d4	free_dma	vmlinux	EXPORT_SYMBOL
 0xf20dabd8	free_irq	vmlinux	EXPORT_SYMBOL

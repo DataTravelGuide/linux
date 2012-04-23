@@ -445,6 +445,7 @@
 0x2156bd69	fput	vmlinux	EXPORT_SYMBOL
 0xf93d49ea	framebuffer_alloc	vmlinux	EXPORT_SYMBOL
 0x164143dd	framebuffer_release	vmlinux	EXPORT_SYMBOL
+0xc1a9aa55	free_buffer_head	vmlinux	EXPORT_SYMBOL
 0x72b243d4	free_dma	vmlinux	EXPORT_SYMBOL
 0xf20dabd8	free_irq	vmlinux	EXPORT_SYMBOL
 0x03464236	free_netdev	vmlinux	EXPORT_SYMBOL

@@ -382,6 +382,7 @@
 	flush_signals
 	flush_workqueue
 	fput
+	free_buffer_head
 	free_netdev
 	free_pages
 	free_percpu

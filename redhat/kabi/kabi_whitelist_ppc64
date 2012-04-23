@@ -446,6 +446,7 @@
 	fput
 	framebuffer_alloc
 	framebuffer_release
+	free_buffer_head
 	free_dma
 	free_irq
 	free_netdev

@@ -491,6 +491,7 @@
 	fput
 	framebuffer_alloc
 	framebuffer_release
+	free_buffer_head
 	free_dca_provider
 	free_dma
 	free_irq

@@ -381,6 +381,7 @@
 0x7e358155	flush_signals	vmlinux	EXPORT_SYMBOL
 0x3405effe	flush_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0xb1a86e39	fput	vmlinux	EXPORT_SYMBOL
+0xfe2dfb04	free_buffer_head	vmlinux	EXPORT_SYMBOL
 0x599c56e7	free_netdev	vmlinux	EXPORT_SYMBOL
 0x4302d0eb	free_pages	vmlinux	EXPORT_SYMBOL
 0xc9ec4e21	free_percpu	vmlinux	EXPORT_SYMBOL_GPL
