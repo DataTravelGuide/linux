@@ -698,6 +698,7 @@
 0x0799aca4	local_bh_enable	vmlinux	EXPORT_SYMBOL
 0xcc7fa952	local_bh_enable_ip	vmlinux	EXPORT_SYMBOL
 0x3656bf5a	lock_kernel	vmlinux	EXPORT_SYMBOL
+0x8e2b61b8	lock_rename	vmlinux	EXPORT_SYMBOL
 0xb7ccea58	lock_sock_nested	vmlinux	EXPORT_SYMBOL
 0x852597c1	lock_super	vmlinux	EXPORT_SYMBOL
 0xa69b0a7e	lookup_one_len	vmlinux	EXPORT_SYMBOL
