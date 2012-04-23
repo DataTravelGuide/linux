@@ -1084,6 +1084,7 @@
 	rtnl_unlock
 	save_stack_trace_tsk
 	save_vga
+	sb_set_blocksize
 	schedule
 	schedule_delayed_work
 	schedule_timeout

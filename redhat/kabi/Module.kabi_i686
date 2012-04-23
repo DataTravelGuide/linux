@@ -1083,6 +1083,7 @@
 0x6e720ff2	rtnl_unlock	vmlinux	EXPORT_SYMBOL
 0x7f05e505	save_stack_trace_tsk	vmlinux	EXPORT_SYMBOL_GPL
 0xe7a2620e	save_vga	drivers/video/vgastate	EXPORT_SYMBOL
+0xdc3d670a	sb_set_blocksize	vmlinux	EXPORT_SYMBOL
 0x4292364c	schedule	vmlinux	EXPORT_SYMBOL
 0x91009452	schedule_delayed_work	vmlinux	EXPORT_SYMBOL
 0xd62c833f	schedule_timeout	vmlinux	EXPORT_SYMBOL

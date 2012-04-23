@@ -793,6 +793,7 @@
 0xf4f14de6	rtnl_trylock	vmlinux	EXPORT_SYMBOL
 0x6e720ff2	rtnl_unlock	vmlinux	EXPORT_SYMBOL
 0xf6f1c388	save_stack_trace_tsk	vmlinux	EXPORT_SYMBOL_GPL
+0x90f7dbeb	sb_set_blocksize	vmlinux	EXPORT_SYMBOL
 0x01000e51	schedule	vmlinux	EXPORT_SYMBOL
 0x0340e0ae	schedule_delayed_work	vmlinux	EXPORT_SYMBOL
 0xd62c833f	schedule_timeout	vmlinux	EXPORT_SYMBOL
