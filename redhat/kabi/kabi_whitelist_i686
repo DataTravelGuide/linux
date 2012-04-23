@@ -128,6 +128,7 @@
 	alloc_etherdev_mq
 	alloc_netdev_mq
 	alloc_tty_driver
+	allow_signal
 	apic
 	arp_create
 	arp_send
