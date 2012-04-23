@@ -154,6 +154,7 @@
 0x93039158	bdget_disk	vmlinux	EXPORT_SYMBOL
 0xd3362be8	bdput	vmlinux	EXPORT_SYMBOL
 0x5edd0762	bin2bcd	vmlinux	EXPORT_SYMBOL
+0xd02b8a51	bio_add_page	vmlinux	EXPORT_SYMBOL
 0x5d004f9e	bio_alloc	vmlinux	EXPORT_SYMBOL
 0x09daba29	bio_clone	vmlinux	EXPORT_SYMBOL
 0x4c75ad64	bio_endio	vmlinux	EXPORT_SYMBOL

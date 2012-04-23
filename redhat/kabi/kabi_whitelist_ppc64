@@ -134,6 +134,7 @@
 	bdget_disk
 	bdput
 	bin2bcd
+	bio_add_page
 	bio_alloc
 	bio_clone
 	bio_endio
