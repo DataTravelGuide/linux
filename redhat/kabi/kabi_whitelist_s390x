@@ -10,6 +10,7 @@
 	__bitmap_weight
 	__blk_end_request
 	__blk_end_request_all
+	__bread
 	__class_create
 	__class_register
 	__create_workqueue_key
