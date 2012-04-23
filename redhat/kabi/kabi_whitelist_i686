@@ -398,6 +398,7 @@
 	down_read_trylock
 	down_trylock
 	down_write
+	down_write_trylock
 	dput
 	driver_create_file
 	driver_for_each_device
