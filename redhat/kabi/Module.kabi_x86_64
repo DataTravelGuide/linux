@@ -1434,6 +1434,7 @@
 0xb1f975aa	unlock_kernel	vmlinux	EXPORT_SYMBOL
 0x6dc5dd8b	unlock_new_inode	vmlinux	EXPORT_SYMBOL
 0x6803f8dd	unlock_page	vmlinux	EXPORT_SYMBOL
+0x8fa19dd8	unlock_rename	vmlinux	EXPORT_SYMBOL
 0x310b6f21	unmap_mapping_range	vmlinux	EXPORT_SYMBOL
 0xa7c83531	unmap_underlying_metadata	vmlinux	EXPORT_SYMBOL
 0xb5a459dc	unregister_blkdev	vmlinux	EXPORT_SYMBOL

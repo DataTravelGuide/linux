@@ -1069,6 +1069,7 @@
 	unlock_kernel
 	unlock_new_inode
 	unlock_page
+	unlock_rename
 	unmap_mapping_range
 	unmap_underlying_metadata
 	unregister_blkdev
