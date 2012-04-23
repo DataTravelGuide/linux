@@ -441,6 +441,7 @@
 	finish_wait
 	flush_dcache_page
 	flush_scheduled_work
+	flush_signals
 	flush_workqueue
 	fput
 	framebuffer_alloc

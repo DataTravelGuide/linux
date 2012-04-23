@@ -486,6 +486,7 @@
 	find_vma
 	finish_wait
 	flush_scheduled_work
+	flush_signals
 	flush_workqueue
 	fput
 	framebuffer_alloc

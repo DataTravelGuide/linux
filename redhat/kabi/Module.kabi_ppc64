@@ -440,6 +440,7 @@
 0x271f4d2a	finish_wait	vmlinux	EXPORT_SYMBOL
 0xb9274aec	flush_dcache_page	vmlinux	EXPORT_SYMBOL
 0x00801678	flush_scheduled_work	vmlinux	EXPORT_SYMBOL
+0x070973d0	flush_signals	vmlinux	EXPORT_SYMBOL
 0xd0c42625	flush_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0x2156bd69	fput	vmlinux	EXPORT_SYMBOL
 0xf93d49ea	framebuffer_alloc	vmlinux	EXPORT_SYMBOL

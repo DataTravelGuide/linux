@@ -378,6 +378,7 @@
 0xa4be218f	find_vma	vmlinux	EXPORT_SYMBOL
 0x7b7ebd78	finish_wait	vmlinux	EXPORT_SYMBOL
 0x00801678	flush_scheduled_work	vmlinux	EXPORT_SYMBOL
+0x7e358155	flush_signals	vmlinux	EXPORT_SYMBOL
 0x3405effe	flush_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0xb1a86e39	fput	vmlinux	EXPORT_SYMBOL
 0x599c56e7	free_netdev	vmlinux	EXPORT_SYMBOL

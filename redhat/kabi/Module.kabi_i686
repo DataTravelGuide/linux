@@ -480,6 +480,7 @@
 0x4f756975	find_vma	vmlinux	EXPORT_SYMBOL
 0x9ccb2622	finish_wait	vmlinux	EXPORT_SYMBOL
 0x00801678	flush_scheduled_work	vmlinux	EXPORT_SYMBOL
+0x71357e0c	flush_signals	vmlinux	EXPORT_SYMBOL
 0x0fe03e22	flush_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0x5a8af264	fput	vmlinux	EXPORT_SYMBOL
 0xb587240c	framebuffer_alloc	vmlinux	EXPORT_SYMBOL
