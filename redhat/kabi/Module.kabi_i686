@@ -1187,6 +1187,7 @@
 0x4e7763b9	sget	vmlinux	EXPORT_SYMBOL
 0x01da9086	shmem_file_setup	vmlinux	EXPORT_SYMBOL_GPL
 0x1f752400	shrink_dcache_parent	vmlinux	EXPORT_SYMBOL
+0x4d3c153f	sigprocmask	vmlinux	EXPORT_SYMBOL
 0x86747b16	simple_empty	vmlinux	EXPORT_SYMBOL
 0x528c709d	simple_read_from_buffer	vmlinux	EXPORT_SYMBOL
 0x0b742fd7	simple_strtol	vmlinux	EXPORT_SYMBOL
