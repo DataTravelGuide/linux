@@ -153,6 +153,7 @@
 0x8f17a469	bio_alloc	vmlinux	EXPORT_SYMBOL
 0xd8783229	bio_clone	vmlinux	EXPORT_SYMBOL
 0xa3c3dec1	bio_endio	vmlinux	EXPORT_SYMBOL
+0x26b1810f	bio_get_nr_vecs	vmlinux	EXPORT_SYMBOL
 0xe856aa80	bio_put	vmlinux	EXPORT_SYMBOL
 0xfaf98462	bitrev32	vmlinux	EXPORT_SYMBOL
 0x28fdda9b	blk_alloc_queue	vmlinux	EXPORT_SYMBOL

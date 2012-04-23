@@ -114,6 +114,7 @@
 	bio_alloc
 	bio_clone
 	bio_endio
+	bio_get_nr_vecs
 	bio_put
 	bitrev32
 	blk_alloc_queue
