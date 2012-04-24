@@ -96,7 +96,7 @@ static unsigned int ata_dev_set_feature(struct ata_device *dev,
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
-atomic_t ata_print_id = ATOMIC_INIT(1);
+atomic_t ata_print_id = ATOMIC_INIT(0);
 static struct workqueue_struct *ata_wq;
 
 struct workqueue_struct *ata_aux_wq;
