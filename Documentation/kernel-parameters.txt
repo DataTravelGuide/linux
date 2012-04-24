@@ -496,6 +496,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SPARC64] tick
 			[X86-64] hpet,tsc
 
+	clocksource_failover [GENERIC_TIME] Switch the clocksource if the
+			     current clocksource is found to be unstable.
+
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeature.h for the valid bit

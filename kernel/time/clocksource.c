@@ -31,6 +31,10 @@
 #include <linux/tick.h>
 #include <linux/kthread.h>
 
+/* RHEL6: fail clocksource if it is found to be unstable.
+ * set 'clocksource_failover' as boot parameter to enable.*/
+static int clocksource_failover;
+
 void timecounter_init(struct timecounter *tc,
 		      const struct cyclecounter *cc,
 		      u64 start_tstamp)
@@ -284,7 +288,11 @@ static void clocksource_watchdog(unsigned long data)
 
 		/* Check the deviation from the watchdog clocksource. */
 		if (abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD) {
-			clocksource_unstable(cs, cs_nsec - wd_nsec);
+			if (clocksource_failover)
+				clocksource_unstable(cs, cs_nsec - wd_nsec);
+			else
+				printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns).  Enable clocksource failover by adding clocksource_failover kernel parameter.\n",
+				       cs->name, cs_nsec - wd_nsec);
 			continue;
 		}
 
@@ -845,6 +853,18 @@ static int __init boot_override_clocksource(char* str)
 }
 
 __setup("clocksource=", boot_override_clocksource);
+
+/**
+ * set_clocksource_failover - set the clocksource to fail when it is detected to
+ * be unstable
+ */
+static int __init set_clocksource_failover(char *str)
+{
+	clocksource_failover = 1;
+
+	return 1;
+}
+__setup("clocksource_failover", set_clocksource_failover);
 
 /**
  * boot_override_clock - Compatibility layer for deprecated boot option
