@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <acpi/video.h>
+#include <asm/pat.h>
 
 static void i915_write_hws_pga(struct drm_device *dev)
 {
@@ -1893,6 +1894,29 @@ ips_ping_for_i915_load(void)
 	}
 }
 
+static void
+i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
+		unsigned long size)
+{
+	dev_priv->mm.gtt_mtrr = -1;
+
+#if defined(CONFIG_X86_PAT)
+	if (cpu_has_pat)
+		return;
+#endif
+
+	/* Set up a WC MTRR for non-PAT systems.  This is more common than
+	 * one would think, because the kernel disables PAT on first
+	 * generation Core chips because WC PAT gets overridden by a UC
+	 * MTRR if present.  Even if a UC MTRR isn't present.
+	 */
+	dev_priv->mm.gtt_mtrr = mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1);
+	if (dev_priv->mm.gtt_mtrr < 0) {
+		DRM_INFO("MTRR allocation failed.  Graphics "
+			 "performance may suffer.\n");
+	}
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1969,18 +1993,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	/* Set up a WC MTRR for non-PAT systems.  This is more common than
-	 * one would think, because the kernel disables PAT on first
-	 * generation Core chips because WC PAT gets overridden by a UC
-	 * MTRR if present.  Even if a UC MTRR isn't present.
-	 */
-	dev_priv->mm.gtt_mtrr = mtrr_add(dev->agp->base,
-					 agp_size,
-					 MTRR_TYPE_WRCOMB, 1);
-	if (dev_priv->mm.gtt_mtrr < 0) {
-		DRM_INFO("MTRR allocation failed.  Graphics "
-			 "performance may suffer.\n");
-	}
+	i915_mtrr_setup(dev_priv, dev->agp->base, agp_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
