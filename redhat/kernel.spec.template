@@ -1674,6 +1674,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Apr 24 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-268.el6]
+- [x86] efi: Remove unnecessary error message (Matthew Garrett) [788428]
+- [hid] wacom: Add serial and id reporting for Wacom Intuos4 WL (Aristeu Rozanski) [769676]
+- [hid] wacom: fix proximity tool release (Aristeu Rozanski) [769676]
+- [hid] wacom: report distance for Intuos4 WL (Aristeu Rozanski) [769676]
+- [hid] wacom: Add pad buttons reporting on Intuos4 WL (Aristeu Rozanski) [769676]
+- [hid] wacom: set ABS_MISC bit for Intuos4 WL (Aristeu Rozanski) [769676]
+- [hid] wacom: introduce support for Intuos4 bluetooth (Aristeu Rozanski) [769676]
+- [hid] wacom: introduce sysfs interface to control the device reporting speed (Aristeu Rozanski) [769676]
+- [hid] wacom: separate mode switching function (Aristeu Rozanski) [769676]
+- [hid] wacom: add missing events for pad buttons (Aristeu Rozanski) [769676]
+- [bluetooth] hidp: implement raw output support for HIDP layer (Aristeu Rozanski) [769676]
+- [fs] nfsd: vfs_llseek() with 32 or 64 bit offsets (hashes) (J. Bruce Fields) [813070]
+- [fs] nfsd: rename 'int access' to 'int may_flags' in nfsd_open() (J. Bruce Fields) [813070]
+- [fs] ext4: return 32/64-bit dir name hash according to usage type (J. Bruce Fields) [813070]
+- [fs] add new FMODE flags FMODE_32bithash and FMODE_64bithash (J. Bruce Fields) [813070]
+- [fs] nfsd: Remove check for a 32-bit cookie in nfsd4_readdir() (J. Bruce Fields) [813070]
+- [net] bonding: remove entries for master_ip and vlan_ip and query devices instead (Andy Gospodarek) [810299]
+- [net] netfilter: place conntrack in source hash after SNAT is done (Neil Horman) [740747]
+- [netdrv] tg3: Fix RSS ring refill race condition (John Feeney) [808247]
+- [scsi] Revert: rdac: Add dynamic match to rdac handler (Jarod Wilson) [811364]
+
 * Sat Apr 21 2012 Aristeu Rozanski <arozansk@redhat.com> [2.6.32-267.el6]
 - [x86] therm_throt: Don't report power limit and package level thermal throttle events in mcelog (Naoya Horiguchi) [803913]
 - [x86] Use this_cpu_has for thermal_interrupt current cpu (Naoya Horiguchi) [803913]
