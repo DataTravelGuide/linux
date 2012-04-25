@@ -2613,10 +2613,6 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->prepathlen = 0;
 	cifs_sb->mnt_uid = pvolume_info->linux_uid;
 	cifs_sb->mnt_gid = pvolume_info->linux_gid;
-	if (pvolume_info->backupuid_specified)
-		cifs_sb->mnt_backupuid = pvolume_info->backupuid;
-	if (pvolume_info->backupgid_specified)
-		cifs_sb->mnt_backupgid = pvolume_info->backupgid;
 	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
 	cifs_sb->mnt_dir_mode = pvolume_info->dir_mode;
 	cFYI(1, "file mode: 0x%x  dir mode: 0x%x",
@@ -2642,10 +2638,14 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NOPOSIXBRL;
 	if (pvolume_info->cifs_acl)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_ACL;
-	if (pvolume_info->backupuid_specified)
+	if (pvolume_info->backupuid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPUID;
-	if (pvolume_info->backupgid_specified)
+		cifs_sb->mnt_backupuid = pvolume_info->backupuid;
+	}
+	if (pvolume_info->backupgid_specified) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_CIFS_BACKUPGID;
+		cifs_sb->mnt_backupgid = pvolume_info->backupgid;
+	}
 	if (pvolume_info->override_uid)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_UID;
 	if (pvolume_info->override_gid)
