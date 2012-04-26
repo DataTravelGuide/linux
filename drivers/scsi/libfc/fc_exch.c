@@ -66,16 +66,15 @@ static void fc_exch_mgr_destroy(struct kref *kref);
  * assigned range of exchanges to per cpu pool.
  */
 struct fc_exch_pool {
+	spinlock_t	 lock;
+	struct list_head ex_list;
 	u16		 next_index;
 	u16		 total_exches;
 
 	/* two cache of free slot in exch array */
 	u16		 left;
 	u16		 right;
-
-	spinlock_t	 lock;
-	struct list_head ex_list;
-};
+} ____cacheline_aligned_in_smp;
 
 /**
  * struct fc_exch_mgr - The Exchange Manager (EM).
