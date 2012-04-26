@@ -15,7 +15,7 @@
  * | Mailbox commands             |       0x113e       | 0x112c-0x112e, |
  * |                              |                    | 0x113a         |
  * | Device Discovery             |       0x2086       | 0x2020-0x2022  |
- * | Queue Command and IO tracing |       0x302f       | 0x3006,0x3008  |
+ * | Queue Command and IO tracing |       0x3030       | 0x3006,0x3008  |
  * |                              |                    | 0x302d,0x302e  |
  * | DPC Thread                   |       0x401c       |		|
  * | Async Events                 |       0x505d       | 0x502b-0x502f  |
@@ -29,7 +29,7 @@
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x900f       |                |
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb052       |    		|
+ * | ISP82XX Specific             |       0xb053       |    		|
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
  * ----------------------------------------------------------------------
