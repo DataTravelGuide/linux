@@ -92,6 +92,7 @@
 	alloc_etherdev_mq
 	alloc_netdev_mq
 	alloc_tty_driver
+	alloc_vm_area
 	allow_signal
 	arp_create
 	arp_send

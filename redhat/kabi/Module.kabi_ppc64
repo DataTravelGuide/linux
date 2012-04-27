@@ -113,6 +113,7 @@
 0x5f779075	alloc_netdev_mq	vmlinux	EXPORT_SYMBOL
 0x73885186	alloc_pages_current	vmlinux	EXPORT_SYMBOL
 0x3191d312	alloc_tty_driver	vmlinux	EXPORT_SYMBOL
+0xb1acb52a	alloc_vm_area	vmlinux	EXPORT_SYMBOL_GPL
 0xd79b5a02	allow_signal	vmlinux	EXPORT_SYMBOL
 0x1dde0c9d	arp_create	vmlinux	EXPORT_SYMBOL
 0x9de130ae	arp_send	vmlinux	EXPORT_SYMBOL

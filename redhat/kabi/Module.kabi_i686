@@ -127,6 +127,7 @@
 0xd8301c2f	alloc_etherdev_mq	vmlinux	EXPORT_SYMBOL
 0xa3531551	alloc_netdev_mq	vmlinux	EXPORT_SYMBOL
 0x7668f413	alloc_tty_driver	vmlinux	EXPORT_SYMBOL
+0xd8818516	alloc_vm_area	vmlinux	EXPORT_SYMBOL_GPL
 0xd79b5a02	allow_signal	vmlinux	EXPORT_SYMBOL
 0xc7c89f9f	apic	vmlinux	EXPORT_SYMBOL_GPL
 0x8223c752	arp_create	vmlinux	EXPORT_SYMBOL

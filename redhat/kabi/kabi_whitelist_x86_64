@@ -133,6 +133,7 @@
 	alloc_netdev_mq
 	alloc_pages_current
 	alloc_tty_driver
+	alloc_vm_area
 	allow_signal
 	apic
 	arp_create
