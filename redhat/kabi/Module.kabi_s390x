@@ -1116,6 +1116,7 @@
 0x7361a995	vmap	vmlinux	EXPORT_SYMBOL
 0x99c397f6	vmtruncate	vmlinux	EXPORT_SYMBOL
 0x8e3c9cc3	vprintk	vmlinux	EXPORT_SYMBOL
+0xe3b0192b	vscnprintf	vmlinux	EXPORT_SYMBOL
 0x35b0650f	vsnprintf	vmlinux	EXPORT_SYMBOL
 0x954cbb26	vsprintf	vmlinux	EXPORT_SYMBOL
 0xb5044271	vsscanf	vmlinux	EXPORT_SYMBOL

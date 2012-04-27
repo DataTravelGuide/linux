@@ -1569,6 +1569,7 @@
 	vmap
 	vmtruncate
 	vprintk
+	vscnprintf
 	vsnprintf
 	vsprintf
 	vsscanf
