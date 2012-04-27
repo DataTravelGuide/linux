@@ -64,9 +64,7 @@
 static inline void crash_setup_regs(struct pt_regs *newregs,
 					struct pt_regs *oldregs) { }
 
-extern unsigned long long __init arch_default_crash_base(void);
-#define arch_default_crash_base arch_default_crash_base
-extern unsigned long long __init arch_default_crash_size(unsigned long long);
-#define arch_default_crash_size arch_default_crash_size
+#define KEXEC_AUTO_RESERVED_SIZE (1ULL<<27) /* 128M */
+#define KEXEC_AUTO_THRESHOLD (1ULL<<32) /* 4G */
 
 #endif /*_S390_KEXEC_H */

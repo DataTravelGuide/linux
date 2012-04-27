@@ -557,10 +557,12 @@ config KEXEC_AUTO_RESERVE
 	---help---
 	  Automatically reserve memory for a kexec kernel, so that you don't
 	  need to specify numbers for the "crashkernel=X@Y" boot option,
-	  instead you can use "crashkernel=auto".
-
-	  On x86_32 and s390x 128M is reserved, on x86_64 1/32 of your memory
-	  is reserved, but it will not exceed 4G.
+	  instead you can use "crashkernel=auto". This option works for
+	  systems that have at least 4 GiB memory. Then 128 MiB plus a small
+	  amount of additional memory that grows linearly with the 1st kernel
+	  memory size is reserved. When "crashkernel=auto" is used for
+	  systems with less than 4 GiB memory, no crashkernel memory will be
+	  reserved.
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
