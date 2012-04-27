@@ -2201,7 +2201,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 	struct mem_array *mem_arr, *mem_arr_orig;
 	unsigned int i, j, alloc_size, curr_alloc_size;
 
-	phba->phwi_ctrlr = kmalloc(phba->params.hwi_ws_sz, GFP_KERNEL);
+	phba->phwi_ctrlr = kzalloc(phba->params.hwi_ws_sz, GFP_KERNEL);
 	if (!phba->phwi_ctrlr)
 		return -ENOMEM;
 
@@ -3685,6 +3685,57 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	kfree(phba->ep_array);
 }
 
+static void beiscsi_cleanup_task(struct iscsi_task *task)
+{
+	struct beiscsi_io_task *io_task = task->dd_data;
+	struct iscsi_conn *conn = task->conn;
+	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct beiscsi_session *beiscsi_sess = beiscsi_conn->beiscsi_sess;
+	struct hwi_wrb_context *pwrb_context;
+	struct hwi_controller *phwi_ctrlr;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	pwrb_context = &phwi_ctrlr->wrb_context[beiscsi_conn->beiscsi_conn_cid
+			- phba->fw_config.iscsi_cid_start];
+
+	if (io_task->cmd_bhs) {
+		pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
+			      io_task->bhs_pa.u.a64.address);
+		io_task->cmd_bhs = NULL;
+	}
+
+	if (task->sc) {
+		if (io_task->pwrb_handle) {
+			free_wrb_handle(phba, pwrb_context,
+					io_task->pwrb_handle);
+			io_task->pwrb_handle = NULL;
+		}
+
+		if (io_task->psgl_handle) {
+			spin_lock(&phba->io_sgl_lock);
+			free_io_sgl_handle(phba, io_task->psgl_handle);
+			spin_unlock(&phba->io_sgl_lock);
+			io_task->psgl_handle = NULL;
+		}
+	} else {
+		if (!beiscsi_conn->login_in_progress) {
+			if (io_task->pwrb_handle) {
+				free_wrb_handle(phba, pwrb_context,
+						io_task->pwrb_handle);
+				io_task->pwrb_handle = NULL;
+			}
+			if (io_task->psgl_handle) {
+				spin_lock(&phba->mgmt_sgl_lock);
+				free_mgmt_sgl_handle(phba,
+						     io_task->psgl_handle);
+				spin_unlock(&phba->mgmt_sgl_lock);
+				io_task->psgl_handle = NULL;
+			}
+		}
+	}
+}
+
 void
 beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 			   struct beiscsi_offload_params *params)
@@ -3694,6 +3745,7 @@ beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 	struct be_mem_descriptor *mem_descr;
 	struct beiscsi_hba *phba = beiscsi_conn->phba;
 	struct iscsi_task *task = beiscsi_conn->task;
+	struct iscsi_session *session = task->conn->session;
 	u32 doorbell = 0;
 
 	/*
@@ -3701,7 +3753,9 @@ beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 	 * login/startup related tasks.
 	 */
 	beiscsi_conn->login_in_progress = 0;
+	spin_lock_bh(&session->lock);
 	beiscsi_cleanup_task(task);
+	spin_unlock_bh(&session->lock);
 
 	pwrb_handle = alloc_wrb_handle(phba, (beiscsi_conn->beiscsi_conn_cid -
 				       phba->fw_config.iscsi_cid_start));
@@ -3819,9 +3873,9 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	io_task->pwrb_handle = NULL;
 
 	if (task->sc) {
-		spin_lock_bh(&phba->io_sgl_lock);
+		spin_lock(&phba->io_sgl_lock);
 		io_task->psgl_handle = alloc_io_sgl_handle(phba);
-		spin_unlock_bh(&phba->io_sgl_lock);
+		spin_unlock(&phba->io_sgl_lock);
 		if (!io_task->psgl_handle)
 			goto free_hndls;
 		io_task->pwrb_handle = alloc_wrb_handle(phba,
@@ -3833,10 +3887,10 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 		io_task->scsi_cmnd = NULL;
 		if ((opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN) {
 			if (!beiscsi_conn->login_in_progress) {
-				spin_lock_bh(&phba->mgmt_sgl_lock);
+				spin_lock(&phba->mgmt_sgl_lock);
 				io_task->psgl_handle = (struct sgl_handle *)
 						alloc_mgmt_sgl_handle(phba);
-				spin_unlock_bh(&phba->mgmt_sgl_lock);
+				spin_unlock(&phba->mgmt_sgl_lock);
 				if (!io_task->psgl_handle)
 					goto free_hndls;
 
@@ -3860,9 +3914,9 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 			}
 			beiscsi_conn->task = task;
 		} else {
-			spin_lock_bh(&phba->mgmt_sgl_lock);
+			spin_lock(&phba->mgmt_sgl_lock);
 			io_task->psgl_handle = alloc_mgmt_sgl_handle(phba);
-			spin_unlock_bh(&phba->mgmt_sgl_lock);
+			spin_unlock(&phba->mgmt_sgl_lock);
 			if (!io_task->psgl_handle)
 				goto free_hndls;
 			io_task->pwrb_handle =
@@ -3883,14 +3937,14 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	return 0;
 
 free_io_hndls:
-	spin_lock_bh(&phba->io_sgl_lock);
+	spin_lock(&phba->io_sgl_lock);
 	free_io_sgl_handle(phba, io_task->psgl_handle);
-	spin_unlock_bh(&phba->io_sgl_lock);
+	spin_unlock(&phba->io_sgl_lock);
 	goto free_hndls;
 free_mgmt_hndls:
-	spin_lock_bh(&phba->mgmt_sgl_lock);
+	spin_lock(&phba->mgmt_sgl_lock);
 	free_mgmt_sgl_handle(phba, io_task->psgl_handle);
-	spin_unlock_bh(&phba->mgmt_sgl_lock);
+	spin_unlock(&phba->mgmt_sgl_lock);
 free_hndls:
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pwrb_context = &phwi_ctrlr->wrb_context[
@@ -3904,57 +3958,6 @@ free_hndls:
 	io_task->cmd_bhs = NULL;
 	SE_DEBUG(DBG_LVL_1, "Alloc of SGL_ICD Failed\n");
 	return -ENOMEM;
-}
-
-void beiscsi_cleanup_task(struct iscsi_task *task)
-{
-	struct beiscsi_io_task *io_task = task->dd_data;
-	struct iscsi_conn *conn = task->conn;
-	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
-	struct beiscsi_hba *phba = beiscsi_conn->phba;
-	struct beiscsi_session *beiscsi_sess = beiscsi_conn->beiscsi_sess;
-	struct hwi_wrb_context *pwrb_context;
-	struct hwi_controller *phwi_ctrlr;
-
-	phwi_ctrlr = phba->phwi_ctrlr;
-	pwrb_context = &phwi_ctrlr->wrb_context[beiscsi_conn->beiscsi_conn_cid
-			- phba->fw_config.iscsi_cid_start];
-
-	if (io_task->cmd_bhs) {
-		pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
-			      io_task->bhs_pa.u.a64.address);
-		io_task->cmd_bhs = NULL;
-	}
-
-	if (task->sc) {
-		if (io_task->pwrb_handle) {
-			free_wrb_handle(phba, pwrb_context,
-					io_task->pwrb_handle);
-			io_task->pwrb_handle = NULL;
-		}
-
-		if (io_task->psgl_handle) {
-			spin_lock_bh(&phba->io_sgl_lock);
-			free_io_sgl_handle(phba, io_task->psgl_handle);
-			spin_unlock_bh(&phba->io_sgl_lock);
-			io_task->psgl_handle = NULL;
-		}
-	} else {
-		if (!beiscsi_conn->login_in_progress) {
-			if (io_task->pwrb_handle) {
-				free_wrb_handle(phba, pwrb_context,
-						io_task->pwrb_handle);
-				io_task->pwrb_handle = NULL;
-			}
-			if (io_task->psgl_handle) {
-				spin_lock_bh(&phba->mgmt_sgl_lock);
-				free_mgmt_sgl_handle(phba,
-						     io_task->psgl_handle);
-				spin_unlock_bh(&phba->mgmt_sgl_lock);
-				io_task->psgl_handle = NULL;
-			}
-		}
-	}
 }
 
 static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,

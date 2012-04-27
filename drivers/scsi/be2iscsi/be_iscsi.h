@@ -46,7 +46,6 @@ mode_t be2iscsi_attr_is_visible(int param_type, int param);
 void beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 				struct beiscsi_offload_params *params);
 
-void beiscsi_cleanup_task(struct iscsi_task *task);
 void beiscsi_offload_iscsi(struct beiscsi_hba *phba, struct iscsi_conn *conn,
 			   struct beiscsi_conn *beiscsi_conn,
 			   unsigned int fw_handle);
