@@ -408,6 +408,7 @@
 	genl_register_ops
 	genl_unregister_family
 	get_device
+	get_fs_type
 	get_page
 	get_random_bytes
 	get_sb_bdev

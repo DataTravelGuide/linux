@@ -517,6 +517,7 @@
 0xb239e075	genphy_config_aneg	vmlinux	EXPORT_SYMBOL
 0x7984ec00	genphy_read_status	vmlinux	EXPORT_SYMBOL
 0x3a185a5c	get_device	vmlinux	EXPORT_SYMBOL_GPL
+0x6549c623	get_fs_type	vmlinux	EXPORT_SYMBOL
 0x37e74642	get_jiffies_64	vmlinux	EXPORT_SYMBOL
 0x627f4097	get_page	vmlinux	EXPORT_SYMBOL
 0x79aa04a2	get_random_bytes	vmlinux	EXPORT_SYMBOL

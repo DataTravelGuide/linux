@@ -518,6 +518,7 @@
 	genphy_config_aneg
 	genphy_read_status
 	get_device
+	get_fs_type
 	get_jiffies_64
 	get_page
 	get_random_bytes

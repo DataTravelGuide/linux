@@ -523,6 +523,7 @@
 	genphy_config_aneg
 	genphy_read_status
 	get_device
+	get_fs_type
 	get_page
 	get_random_bytes
 	get_sb_bdev

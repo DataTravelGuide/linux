@@ -407,6 +407,7 @@
 0xaa27a8a9	genl_register_ops	vmlinux	EXPORT_SYMBOL
 0x49439411	genl_unregister_family	vmlinux	EXPORT_SYMBOL
 0x06f2500c	get_device	vmlinux	EXPORT_SYMBOL_GPL
+0xd9490df5	get_fs_type	vmlinux	EXPORT_SYMBOL
 0x90efbadc	get_page	vmlinux	EXPORT_SYMBOL
 0x79aa04a2	get_random_bytes	vmlinux	EXPORT_SYMBOL
 0x53bfdf10	get_sb_bdev	vmlinux	EXPORT_SYMBOL
