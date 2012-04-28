@@ -78,6 +78,12 @@ static struct vlan_group *__vlan_find_group(struct net_device *real_dev)
 	return NULL;
 }
 
+struct vlan_group *vlan_find_group(struct net_device *dev)
+{
+	return __vlan_find_group(dev);
+}
+EXPORT_SYMBOL(vlan_find_group);
+
 /*  Find the protocol handler.  Assumes VID < VLAN_VID_MASK.
  *
  * Must be invoked with RCU read lock (no preempt)
@@ -92,7 +98,7 @@ struct net_device *__find_vlan_dev(struct net_device *real_dev, u16 vlan_id)
 	return NULL;
 }
 
-static void vlan_group_free(struct vlan_group *grp)
+void vlan_group_free(struct vlan_group *grp)
 {
 	int i;
 
@@ -100,8 +106,9 @@ static void vlan_group_free(struct vlan_group *grp)
 		kfree(grp->vlan_devices_arrays[i]);
 	kfree(grp);
 }
+EXPORT_SYMBOL(vlan_group_free);
 
-static struct vlan_group *vlan_group_alloc(struct net_device *real_dev)
+struct vlan_group *vlan_group_alloc(struct net_device *real_dev)
 {
 	struct vlan_group *grp;
 
@@ -114,8 +121,9 @@ static struct vlan_group *vlan_group_alloc(struct net_device *real_dev)
 			&vlan_group_hash[vlan_grp_hashfn(real_dev->ifindex)]);
 	return grp;
 }
+EXPORT_SYMBOL(vlan_group_alloc);
 
-static int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id)
+int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id)
 {
 	struct net_device **array;
 	unsigned int size;
@@ -134,6 +142,7 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id)
 	vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN] = array;
 	return 0;
 }
+EXPORT_SYMBOL(vlan_group_prealloc_vid);
 
 static void vlan_rcu_free(struct rcu_head *rcu)
 {
