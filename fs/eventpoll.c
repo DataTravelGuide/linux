@@ -1649,8 +1649,10 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	}
 	if ((op == EPOLL_CTL_ADD) && (is_file_epoll(tfile))) {
 			error = -ELOOP;
-			if (ep_loop_check(ep, tfile) != 0)
+			if (ep_loop_check(ep, tfile) != 0) {
+				clear_tfile_check_list();
 				goto error_tgt_fput;
+			}
 	}
 
 	mutex_lock(&ep->mtx);
