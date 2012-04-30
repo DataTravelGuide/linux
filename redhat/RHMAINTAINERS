@@ -452,6 +452,12 @@ M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/media/video/uvc/
 
+VIDEO DRIVERS
+M:	David Airlie <airlied@redhat.com>
+M:	Adam Jackson <ajax@redhat.com>
+S:	Maintained
+F:	drivers/gpu/
+
 VIRTIO CONSOLE DRIVER
 M:	Amit Shah <amit.shah@redhat.com>
 S:	Maintained
