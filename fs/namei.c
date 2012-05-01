@@ -941,6 +941,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 {
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry = __d_lookup(nd->path.dentry, name);
+	int flags = nd->flags;
 	struct dentry *parent;
 	struct inode *dir;
 	int err;
@@ -953,7 +954,13 @@ found:
 done:
 	path->mnt = mnt;
 	path->dentry = dentry;
-	err = follow_managed(path, nd->flags);
+	/*
+	 * Make sure follow_automount() knows about the trailing
+	 * "/" but only for the real last path component.
+	 */
+	if (!(nd->flags & LOOKUP_CONTINUE) && name->name[name->len] == '/')
+		flags |= LOOKUP_DIRECTORY;
+	err = follow_managed(path, flags);
 	if (unlikely(err < 0))
 		path_put_conditional(path, nd);
 	return err;
