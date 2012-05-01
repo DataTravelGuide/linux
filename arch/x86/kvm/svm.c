@@ -725,10 +725,18 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool host)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	bool negative = false;
 
-	WARN_ON(adjustment < 0);
+	if (adjustment < 0) {
+		adjustment = -adjustment;
+		negative = true;
+	}
 	if (host)
 		adjustment = svm_scale_tsc(vcpu, adjustment);
+
+	if (negative) {
+		adjustment = -adjustment;
+	}
 
 	svm->vmcb->control.tsc_offset += adjustment;
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
