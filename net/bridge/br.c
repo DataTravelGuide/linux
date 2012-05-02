@@ -35,7 +35,8 @@ static struct pernet_operations br_net_ops = {
 
 static struct net_device *__br_get_br_dev_for_port_rcu(struct net_device *port_dev)
 {
-	return rcu_dereference(port_dev->br_port)->br->dev;
+	struct net_bridge_port *port = rcu_dereference(port_dev->br_port);
+	return port ? port->br->dev : NULL;
 }
 
 static int __init br_init(void)
