@@ -1196,6 +1196,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		__vlan_put_tag(skb, rxcp->vlan_tag);
 
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
+	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
@@ -1253,6 +1254,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	skb->len = rxcp->pkt_size;
 	skb->data_len = rxcp->pkt_size;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
