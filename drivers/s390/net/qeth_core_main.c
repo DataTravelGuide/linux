@@ -3379,7 +3379,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		}
 	}
 
-	queue->sync_iqdio_error = 0;
 	queue->card->dev->trans_start = jiffies;
 	if (queue->card->options.performance_stats) {
 		queue->card->perf_stats.outbound_do_qdio_cnt++;
@@ -3395,10 +3394,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		queue->card->perf_stats.outbound_do_qdio_time +=
 			qeth_get_micros() -
 			queue->card->perf_stats.outbound_do_qdio_start_time;
-	if (rc > 0) {
-		if (!(rc & QDIO_ERROR_SIGA_BUSY))
-			queue->sync_iqdio_error = rc & 3;
-	}
+	atomic_add(count, &queue->used_buffers);
 	if (rc) {
 		queue->card->stats.tx_errors += count;
 		/* ignore temporary SIGA errors without busy condition */
@@ -3416,7 +3412,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		qeth_schedule_recovery(queue->card);
 		return;
 	}
-	atomic_add(count, &queue->used_buffers);
 	if (queue->card->options.performance_stats)
 		queue->card->perf_stats.bufs_sent += count;
 }
@@ -3831,10 +3826,7 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 		int offset, int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
-	struct sk_buff *skb1;
-	struct qeth_skb_data *retry_ctrl;
 	int index;
-	int rc;
 
 	/* spin until we get the queue ... */
 	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
@@ -3853,25 +3845,6 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
 	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	qeth_flush_buffers(queue, index, 1);
-	if (queue->sync_iqdio_error == 2) {
-		skb1 = skb_dequeue(&buffer->skb_list);
-		while (skb1) {
-			atomic_dec(&skb1->users);
-			skb1 = skb_dequeue(&buffer->skb_list);
-		}
-		retry_ctrl = (struct qeth_skb_data *) &skb->cb[16];
-		if (retry_ctrl->magic != QETH_SKB_MAGIC) {
-			retry_ctrl->magic = QETH_SKB_MAGIC;
-			retry_ctrl->count = 0;
-		}
-		if (retry_ctrl->count < QETH_SIGA_CC2_RETRIES) {
-			retry_ctrl->count++;
-			rc = dev_queue_xmit(skb);
-		} else {
-			dev_kfree_skb_any(skb);
-			QETH_DBF_TEXT(QERR, 2, "qrdrop");
-		}
-	}
 	return 0;
 out:
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
