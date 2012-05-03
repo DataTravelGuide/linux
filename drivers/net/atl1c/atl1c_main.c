@@ -2534,6 +2534,7 @@ static int atl1c_suspend(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int atl1c_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2560,6 +2561,7 @@ static int atl1c_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static void atl1c_shutdown(struct pci_dev *pdev)
 {
