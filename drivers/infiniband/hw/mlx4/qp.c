@@ -1349,7 +1349,7 @@ out:
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
-	struct ib_device *ib_dev = sqp->qp.ibqp.device;
+	struct ib_device *ib_dev = &to_mdev(sqp->qp.ibqp.device)->ib_dev;
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
 	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
@@ -1363,6 +1363,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	int is_vlan = 0;
 	int is_grh;
 	u16 vlan;
+	int err;
 
 	send_size = 0;
 	for (i = 0; i < wr->num_sge; ++i)
@@ -1370,9 +1371,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 
 	is_eth = rdma_port_get_link_layer(sqp->qp.ibqp.device, sqp->qp.port) == IB_LINK_LAYER_ETHERNET;
 	is_grh = mlx4_ib_ah_grh_present(ah);
+	err = ib_get_cached_gid(ib_dev, be32_to_cpu(ah->av.ib.port_pd) >> 24,
+				ah->av.ib.gid_index, &sgid);
+	if (err)
+		return err;
 	if (is_eth) {
-		ib_get_cached_gid(ib_dev, be32_to_cpu(ah->av.ib.port_pd) >> 24,
-				  ah->av.ib.gid_index, &sgid);
 		vlan = rdma_get_vlan_id(&sgid);
 		is_vlan = vlan < 0x1000;
 	}
