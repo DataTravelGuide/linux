@@ -1192,13 +1192,12 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	else
 		skb_checksum_none_assert(skb);
 
+	if (rxcp->vlanf && !adapter->vlan_grp)
+		__vlan_put_tag(skb, rxcp->vlan_tag);
+
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
-
-
-	if (rxcp->vlanf && !adapter->vlan_grp)
-		__vlan_put_tag(skb, rxcp->vlan_tag);
 
 	if (rxcp->vlanf && adapter->vlan_grp)
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
