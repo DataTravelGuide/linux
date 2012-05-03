@@ -1525,7 +1525,9 @@ static int event_handle(struct be_adapter *adapter,
 	if (!num)
 		rearm = true;
 
-	be_eq_notify(adapter, eq_obj->q.id, rearm, true, num);
+	if (num || msix_enabled(adapter))
+		be_eq_notify(adapter, eq_obj->q.id, rearm, true, num);
+
 	if (num)
 		napi_schedule(&eq_obj->napi);
 
