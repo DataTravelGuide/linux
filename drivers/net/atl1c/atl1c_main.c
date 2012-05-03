@@ -466,6 +466,7 @@ static int atl1c_set_mac_addr(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
+	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	atl1c_hw_set_mac_addr(&adapter->hw);
 
@@ -2719,10 +2720,9 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 		err = -EIO;
 		goto err_reset;
 	}
-	if (atl1c_read_mac_addr(&adapter->hw) != 0) {
-		err = -EIO;
-		dev_err(&pdev->dev, "get mac address failed\n");
-		goto err_eeprom;
+	if (atl1c_read_mac_addr(&adapter->hw)) {
+		/* got a random MAC address, set NET_ADDR_RANDOM to netdev */
+		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
@@ -2747,7 +2747,6 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 err_reset:
 err_register:
 err_sw_init:
-err_eeprom:
 	iounmap(adapter->hw.hw_addr);
 err_init_netdev:
 err_ioremap:
