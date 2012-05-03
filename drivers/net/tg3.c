@@ -6902,6 +6902,34 @@ drop_nofree:
 	return NETDEV_TX_OK;
 }
 
+static void tg3_mac_loopback(struct tg3 *tp, bool enable)
+{
+	if (enable) {
+		tp->mac_mode &= ~(MAC_MODE_HALF_DUPLEX |
+				  MAC_MODE_PORT_MODE_MASK);
+
+		tp->mac_mode |= MAC_MODE_PORT_INT_LPBACK;
+
+		if (!tg3_flag(tp, 5705_PLUS))
+			tp->mac_mode |= MAC_MODE_LINK_POLARITY;
+
+		if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
+			tp->mac_mode |= MAC_MODE_PORT_MODE_MII;
+		else
+			tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
+	} else {
+		tp->mac_mode &= ~MAC_MODE_PORT_INT_LPBACK;
+
+		if (tg3_flag(tp, 5705_PLUS) ||
+		    (tp->phy_flags & TG3_PHYFLG_PHY_SERDES) ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700)
+			tp->mac_mode &= ~MAC_MODE_LINK_POLARITY;
+	}
+
+	tw32(MAC_MODE, tp->mac_mode);
+	udelay(40);
+}
+
 static int tg3_phy_lpbk_set(struct tg3 *tp, u32 speed, bool extlpbk)
 {
 	u32 val, bmcr, mac_mode, ptest = 0;
@@ -11620,7 +11648,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 			}
 		} else if ((desc->type_flags & RXD_FLAG_TCPUDP_CSUM) &&
 			   (desc->ip_tcp_csum & RXD_TCPCSUM_MASK)
-			    >> RXD_TCPCSUM_SHIFT == 0xffff) {
+			    >> RXD_TCPCSUM_SHIFT != 0xffff) {
 			goto out;
 		}
 
@@ -11693,12 +11721,24 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 			tw32(i, 0x0);
 	}
 
-	if (tg3_run_loopback(tp, ETH_FRAME_LEN, false))
-		data[0] |= TG3_STD_LOOPBACK_FAILED;
+	/* HW errata - mac loopback fails in some cases on 5780.
+	 * Normal traffic and PHY loopback are not affected by
+	 * errata.  Also, the MAC loopback test is deprecated for
+	 * all newer ASIC revisions.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5780 &&
+	    !tg3_flag(tp, CPMU_PRESENT)) {
+		tg3_mac_loopback(tp, true);
 
-	if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
-	    tg3_run_loopback(tp, 9000 + ETH_HLEN, false))
-		data[0] |= TG3_JMB_LOOPBACK_FAILED;
+		if (tg3_run_loopback(tp, ETH_FRAME_LEN, false))
+			data[0] |= TG3_STD_LOOPBACK_FAILED;
+
+		if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
+		    tg3_run_loopback(tp, 9000 + ETH_HLEN, false))
+			data[0] |= TG3_JMB_LOOPBACK_FAILED;
+
+		tg3_mac_loopback(tp, false);
+	}
 
 	if (!(tp->phy_flags & TG3_PHYFLG_PHY_SERDES) &&
 	    !tg3_flag(tp, USE_PHYLIB)) {
