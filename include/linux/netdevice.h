@@ -525,7 +525,7 @@ struct rps_map {
 	struct rcu_head rcu;
 	u16 cpus[0];
 };
-#define RPS_MAP_SIZE(_num) (sizeof(struct rps_map) + (_num * sizeof(u16)))
+#define RPS_MAP_SIZE(_num) (sizeof(struct rps_map) + ((_num) * sizeof(u16)))
 
 /*
  * This structure holds an XPS map which can be of variable length.  The
@@ -537,7 +537,7 @@ struct xps_map {
 	struct rcu_head rcu;
 	u16 queues[0];
 };
-#define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + (_num * sizeof(u16)))
+#define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + ((_num) * sizeof(u16)))
 #define XPS_MIN_MAP_ALLOC ((L1_CACHE_BYTES - sizeof(struct xps_map))	\
     / sizeof(u16))
 
@@ -572,7 +572,7 @@ struct rps_dev_flow_table {
 };
 
 #define RPS_DEV_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_dev_flow_table) + \
-     (_num * sizeof(struct rps_dev_flow)))
+     ((_num) * sizeof(struct rps_dev_flow)))
 
  /*
   * The rps_sock_flow_table contains mappings of flows to the last CPU
@@ -583,7 +583,7 @@ struct rps_sock_flow_table {
 	u16 ents[0];
 };
 #define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_sock_flow_table) + \
-     (_num * sizeof(u16)))
+     ((_num) * sizeof(u16)))
 
 #define RPS_NO_CPU 0xffff
 
