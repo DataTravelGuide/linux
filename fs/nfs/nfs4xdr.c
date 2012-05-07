@@ -4939,6 +4939,8 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 	int i;
 
 	status = decode_op_hdr(xdr, OP_SECINFO);
+	if (status)
+		goto out;
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
@@ -4955,13 +4957,14 @@ static int decode_secinfo(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 		sec_flavor->flavor = be32_to_cpup(p);
 
 		if (sec_flavor->flavor == RPC_AUTH_GSS) {
-			if (decode_secinfo_gss(xdr, sec_flavor))
-				break;
+			status = decode_secinfo_gss(xdr, sec_flavor);
+			if (status)
+				goto out;
 		}
 	}
 
-	return 0;
-
+out:
+	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
