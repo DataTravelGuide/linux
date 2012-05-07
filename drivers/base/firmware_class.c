@@ -125,14 +125,27 @@ static ssize_t firmware_loading_show(struct device *dev,
 	return sprintf(buf, "%d\n", loading);
 }
 
+/* global list of firmware pages */
+static LIST_HEAD(firmware_pages_list);
 static void firmware_free_data(const struct firmware *fw)
 {
+	struct list_head *entry, *next;
+	struct firmware_pages *fw_pages;
 	int i;
+
 	vunmap(fw->data);
-	if (fw->pages) {
-		for (i = 0; i < PFN_UP(fw->size); i++)
-			__free_page(fw->pages[i]);
-		kfree(fw->pages);
+	list_for_each_safe(entry, next, &firmware_pages_list) {
+		fw_pages = list_entry(entry, struct firmware_pages, list);
+		if (fw_pages->firmware != fw)
+			continue;
+		if (fw_pages->pages) {
+			for (i = 0; i < PFN_UP(fw->size); i++)
+				__free_page(fw_pages->pages[i]);
+			kfree(fw_pages->pages);
+		}
+		list_del(&fw_pages->list);
+		kfree(fw_pages);
+		break;
 	}
 }
 
@@ -159,6 +172,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 {
 	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
 	int loading = simple_strtol(buf, NULL, 10);
+	struct firmware_pages *fw_pages;
 	int i;
 
 	switch (loading) {
@@ -170,7 +184,14 @@ static ssize_t firmware_loading_store(struct device *dev,
 		}
 		firmware_free_data(fw_priv->fw);
 		memset(fw_priv->fw, 0, sizeof(struct firmware));
-		/* If the pages are not owned by 'struct firmware' */
+		fw_pages = kzalloc(sizeof(struct firmware_pages), GFP_KERNEL);
+		if (!fw_pages) {
+			fw_load_abort(fw_priv);
+			break;
+		}
+		fw_pages->firmware = fw_priv->fw;
+		list_add(&fw_pages->list, &firmware_pages_list);
+		/* If the pages are not owned by 'struct firmware_pages' */
 		for (i = 0; i < fw_priv->nr_pages; i++)
 			__free_page(fw_priv->pages[i]);
 		kfree(fw_priv->pages);
@@ -190,8 +211,14 @@ static ssize_t firmware_loading_store(struct device *dev,
 				dev_err(dev, "%s: vmap() failed\n", __func__);
 				goto err;
 			}
-			/* Pages are now owned by 'struct firmware' */
-			fw_priv->fw->pages = fw_priv->pages;
+			/* Pages are now owned by 'struct firmware_pages' */
+			fw_pages = kzalloc(sizeof(struct firmware_pages),
+					   GFP_KERNEL);
+			if (!fw_pages)
+				goto err;
+			fw_pages->firmware = fw_priv->fw;
+			fw_pages->pages = fw_priv->pages;
+			list_add(&fw_pages->list, &firmware_pages_list);
 			fw_priv->pages = NULL;
 
 			fw_priv->page_array_size = 0;
