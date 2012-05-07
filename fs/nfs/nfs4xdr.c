@@ -2604,19 +2604,21 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, __be32 *p, struct nfs
 /*
  * Encode SECINFO request
  */
-static void nfs4_xdr_enc_secinfo(struct rpc_rqst *req,
-				struct xdr_stream *xdr,
+static int nfs4_xdr_enc_secinfo(struct rpc_rqst *req, uint32_t *p,
 				struct nfs4_secinfo_arg *args)
 {
+	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
 
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->dir_fh, &hdr);
-	encode_secinfo(xdr, args->name, &hdr);
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_sequence(&xdr, &args->seq_args, &hdr);
+	encode_putfh(&xdr, args->dir_fh, &hdr);
+	encode_secinfo(&xdr, args->name, &hdr);
 	encode_nops(&hdr);
+	return 0;
 }
 
 #if defined(CONFIG_NFS_V4_1)
@@ -6242,23 +6244,24 @@ out:
 /*
  * Decode SECINFO response
  */
-static int nfs4_xdr_dec_secinfo(struct rpc_rqst *rqstp,
-				struct xdr_stream *xdr,
+static int nfs4_xdr_dec_secinfo(struct rpc_rqst *rqstp, __be32 *p,
 				struct nfs4_secinfo_res *res)
 {
+	struct xdr_stream xdr;
 	struct compound_hdr hdr;
 	int status;
 
-	status = decode_compound_hdr(xdr, &hdr);
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
 	if (status)
 		goto out;
-	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	status = decode_sequence(&xdr, &res->seq_res, rqstp);
 	if (status)
 		goto out;
-	status = decode_putfh(xdr);
+	status = decode_putfh(&xdr);
 	if (status)
 		goto out;
-	status = decode_secinfo(xdr, res);
+	status = decode_secinfo(&xdr, res);
 out:
 	return status;
 }
