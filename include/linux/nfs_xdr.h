@@ -90,6 +90,7 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_CHANGE		(1U << 17)
 #define NFS_ATTR_FATTR_PRECHANGE	(1U << 18)
 #define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
+#define NFS_ATTR_FATTR_MOUNTPOINT	(1U << 20)	/* Treat as mountpoint */
 #define NFS_ATTR_FATTR_MOUNTED_ON_FILEID		(1U << 21)
 #define NFS_ATTR_FATTR_OWNER_NAME	(1U << 22)
 #define NFS_ATTR_FATTR_GROUP_NAME	(1U << 23)
