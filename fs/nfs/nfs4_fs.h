@@ -236,6 +236,7 @@ extern int nfs4_setxattr(struct dentry *, const char *, const void *, size_t, in
 extern ssize_t nfs4_listxattr(struct dentry *, char *, size_t);
 
 /* nfs4namespace.c */
+rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *);
 struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *, struct inode *, struct qstr *);
 
 /* nfs4proc.c */
