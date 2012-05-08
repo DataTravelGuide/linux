@@ -111,6 +111,12 @@ struct wacom {
 	struct mutex lock;
 	unsigned int open:1;
 	char phys[32];
+	struct wacom_led {
+		u8 select; /* status led selector (0..3) */
+		u8 llv;    /* status led brightness no button (1..127) */
+		u8 hlv;    /* status led brightness button pressed (1..127) */
+		u8 img_lum;   /* OLED matrix display brightness */
+	} led;
 };
 
 struct wacom_combo {
