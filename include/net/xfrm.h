@@ -160,7 +160,18 @@ struct xfrm_state
 	struct xfrm_lifetime_cfg lft;
 
 	/* Data for transformer */
+#ifdef __GENKSYMS__
+	/*
+	 * kabi hack alert! altering xfrm_state breaks kabi checking for
+	 * core network structs, but this is just a pointer to a struct,
+	 * so this really should be just fine, we just have to lie. We
+	 * need somewhere to store alg_trunc_len, and other approaches
+	 * haven't panned out, so here we are...
+	 */
+	struct xfrm_algo	*aalg;
+#else
 	struct xfrm_algo_auth	*aalg;
+#endif
 	struct xfrm_algo	*ealg;
 	struct xfrm_algo	*calg;
 	struct xfrm_algo_aead	*aead;
