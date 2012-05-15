@@ -320,7 +320,6 @@ xfsaild_push(
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
-			last_pushed_lsn = lsn;
 			stuck++;
 			break;
 
