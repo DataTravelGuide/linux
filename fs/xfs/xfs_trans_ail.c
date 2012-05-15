@@ -307,8 +307,13 @@ xfsaild_push(
 
 		case XFS_ITEM_PUSHBUF:
 			XFS_STATS_INC(xs_push_ail_pushbuf);
-			IOP_PUSHBUF(lip);
-			last_pushed_lsn = lsn;
+
+			if (!IOP_PUSHBUF(lip)) {
+				stuck++;
+				flush_log = 1;
+			} else {
+				last_pushed_lsn = lsn;
+			}
 			push_xfsbufd = 1;
 			break;
 
