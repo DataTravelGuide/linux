@@ -245,7 +245,7 @@ xfsaild_push(
 	struct xfs_ail	*ailp,
 	xfs_lsn_t	*last_lsn)
 {
-	long		tout = 0;
+	long		tout = 10;
 	xfs_lsn_t	last_pushed_lsn = *last_lsn;
 	xfs_lsn_t	target;
 	xfs_lsn_t	lsn;
@@ -390,6 +390,8 @@ xfsaild_push(
 	if (!count) {
 		/* We're past our target or empty, so idle */
 		last_pushed_lsn = 0;
+
+		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
 		 * We reached the target so wait a bit longer for I/O to
@@ -409,10 +411,8 @@ xfsaild_push(
 		 * continuing from where we were.
 		 */
 		tout = 20;
-	} else {
-		/* more to do, but wait a short while before continuing */
-		tout = 10;
 	}
+
 	*last_lsn = last_pushed_lsn;
 	return tout;
 }
