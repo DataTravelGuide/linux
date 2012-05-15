@@ -26,6 +26,7 @@
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_trans_priv.h"
+#include "xfs_trace.h"
 #include "xfs_error.h"
 
 STATIC void xfs_ail_splice(struct xfs_ail *, struct list_head *, xfs_lsn_t);
@@ -301,14 +302,18 @@ xfsaild_push(
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(xs_push_ail_success);
+			trace_xfs_ail_push(lip);
+
 			IOP_PUSH(lip);
 			last_pushed_lsn = lsn;
 			break;
 
 		case XFS_ITEM_PUSHBUF:
 			XFS_STATS_INC(xs_push_ail_pushbuf);
+			trace_xfs_ail_pushbuf(lip);
 
 			if (!IOP_PUSHBUF(lip)) {
+				trace_xfs_ail_pushbuf_pinned(lip);
 				stuck++;
 				flush_log = 1;
 			} else {
@@ -319,12 +324,15 @@ xfsaild_push(
 
 		case XFS_ITEM_PINNED:
 			XFS_STATS_INC(xs_push_ail_pinned);
+			trace_xfs_ail_pinned(lip);
+
 			stuck++;
 			flush_log = 1;
 			break;
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
+			trace_xfs_ail_locked(lip);
 			stuck++;
 			break;
 
