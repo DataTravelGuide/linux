@@ -1674,6 +1674,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 15 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-272.el6]
+- [md] bitmap: ensure to load bitmap when creating via sysfs (Jes Sorensen) [821329]
+- [infiniband] mlx4: fix RoCE oops (Doug Ledford) [749059]
+- [x86] setup: Add rh_check_supported() (Prarit Bhargava) [821561]
+- [mm] read_pmd_atomic: fix pmd_populate SMP race condition (Andrea Arcangeli) [820762] {CVE-2012-1179}
+- [drm] i915: add Ivy Bridge GT2 Server entries (Dave Airlie) [817926]
+
 * Tue May 15 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-271.el6]
 - [scsi] qla2xxx: Update version number to 8.04.00.04.06.3-k (Chad Dupuis) [816331]
 - [scsi] qla2xxx: Properly check for current state after the fabric-login request (Chad Dupuis) [816331]
