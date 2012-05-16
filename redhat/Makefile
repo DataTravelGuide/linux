@@ -147,7 +147,7 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	fi)
 	@cp genkey perf perf-archive Makefile.common kabi/{find-provides,kabitool,check-kabi} \
 	kabi/Module.kabi_{i686,ppc64,s390x,x86_64} kabi/Module.kabi_greylist_{i686,ppc64,s390x,x86_64}  \
-	configs/{config-*,merge.pl} extrakeys.pub  cvs/Makefile $(SOURCES)/
+	configs/{config-*,merge.pl} extrakeys.pub tests/submit-beaker-test.sh cvs/Makefile $(SOURCES)/
 
 rh-sources: setup-source sources-rh
 
