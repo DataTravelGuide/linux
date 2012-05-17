@@ -33,7 +33,7 @@ static cputime64_t get_idle_time(int cpu)
 		idle = kstat_cpu(cpu).cpustat.idle;
 		idle = cputime64_add(idle, arch_idle_time(cpu));
 	} else
-		idle = usecs_to_cputime(idle_time);
+		idle = nsecs_to_jiffies(1000 * idle_time);
 
 	return idle;
 }
@@ -47,7 +47,7 @@ static cputime64_t get_iowait_time(int cpu)
 		/* !NO_HZ so we can rely on cpustat.iowait */
 		iowait = kstat_cpu(cpu).cpustat.iowait;
 	else
-		iowait = usecs_to_cputime(iowait_time);
+		iowait = nsecs_to_jiffies(1000 * iowait_time);
 
 	return iowait;
 }
