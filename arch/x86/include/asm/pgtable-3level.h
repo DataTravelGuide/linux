@@ -73,12 +73,13 @@ static inline pmd_t read_pmd_atomic(pmd_t *pmdp)
 		ret |= ((pmdval_t)*(tmp + 1)) << 32;
 	}
 
-	return __pmd(ret);
+	return (pmd_t) { ret };
 }
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 static inline pmd_t read_pmd_atomic(pmd_t *pmdp)
 {
-	return __pmd(atomic64_read((atomic64_t *)pmdp));
+	pmdval_t val = (pmdval_t)atomic64_read((atomic64_t *)pmdp);
+	return (pmd_t) { val };
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
