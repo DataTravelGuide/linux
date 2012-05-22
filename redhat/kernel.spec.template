@@ -1674,6 +1674,18 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 21 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-273.el6]
+- [s390] qeth: remove siga retry for HiperSockets devices (Hendrik Brueckner) [817090]
+- [scsi] lpfc: Changed version number to 8.3.5.68.5p (Rob Evers) [821515]
+- [scsi] lpfc: Fixed system crash due to not providing SCSI error-handling host reset handler (Rob Evers) [821515]
+- [scsi] lpfc: Correct handling of SLI4-port XRI resource-provisioning profile change (Rob Evers) [821515]
+- [scsi] lpfc: Fix driver crash during back-to-back ramp events. (Rob Evers) [821515]
+- [scsi] lpfc: Fixed system panic due to midlayer abort and driver complete race on SCSI cmd (Rob Evers) [821515]
+- [scsi] sd: Fix device removal NULL pointer dereference (Rob Evers) [817853]
+- [md] Add del_timer_sync to mddev_suspend, fixes a panic (Jonathan E Brassow) [818371]
+- [virt] virtio_net: invoke softirqs after __napi_schedule (Michael S. Tsirkin) [819435]
+- [virt] virtio_net: do not reschedule rx refill forever (Michael S. Tsirkin) [819435]
+
 * Tue May 15 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-272.el6]
 - [md] bitmap: ensure to load bitmap when creating via sysfs (Jes Sorensen) [821329]
 - [infiniband] mlx4: fix RoCE oops (Doug Ledford) [749059]
