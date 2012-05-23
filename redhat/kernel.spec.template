@@ -1674,6 +1674,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 22 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-274.el6]
+- [net] sunrpc: fix loss of task->tk_status after rpc_delay call in xprt_alloc_slot (Jeff Layton) [822189]
+- [net] sunrpc: suppress page allocation warnings in xprt_alloc_slot() (Jeff Layton) [822189]
+- [net] netfilter: Fix ip_route_me_harder triggering ip_rt_bug (Jiri Benc) [812108]
+- [net] netfilter/tproxy: do not assign timewait sockets to skb->sk (Jiri Benc) [812108]
+- [usb] Don't fail USB3 probe on missing legacy PCI IRQ (Don Zickus) [812254]
+- [usb] Fix handoff when BIOS disables host PCI device (Don Zickus) [812254]
+- [usb] Remove duplicate USB 3.0 hub feature #defines (Don Zickus) [812254]
+- [usb] Set hub depth after USB3 hub reset (Don Zickus) [812254]
+- [usb] xhci: Fix encoding for HS bulk/control NAK rate (Don Zickus) [812254]
+- [usb] Fix issue with USB 3.0 devices after system resume (Don Zickus) [812254]
+- [virt] xenpv: avoid paravirt __pmd in read_pmd_atomic (Andrew Jones) [822697]
+
 * Mon May 21 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-273.el6]
 - [s390] qeth: remove siga retry for HiperSockets devices (Hendrik Brueckner) [817090]
 - [scsi] lpfc: Changed version number to 8.3.5.68.5p (Rob Evers) [821515]
