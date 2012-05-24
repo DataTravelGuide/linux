@@ -131,7 +131,7 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
 		else
 			p = &(*p)->rb_right;
 	}
-	leaf = kzalloc(sizeof(struct posix_msg_tree_node), GFP_KERNEL);
+	leaf = kzalloc(sizeof(*leaf), GFP_ATOMIC);
 	if (!leaf)
 		return -ENOMEM;
 	rb_init_node(&leaf->rb_node);
