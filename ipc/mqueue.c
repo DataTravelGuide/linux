@@ -1038,7 +1038,7 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 		info->node_cache = new_leaf;
 		info->qsize += sizeof(*new_leaf);
 		new_leaf = NULL;
-	} else if (new_leaf) {
+	} else {
 		kfree(new_leaf);
 	}
 
@@ -1143,7 +1143,7 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		INIT_LIST_HEAD(&new_leaf->msg_list);
 		info->node_cache = new_leaf;
 		info->qsize += sizeof(*new_leaf);
-	} else if (new_leaf) {
+	} else {
 		kfree(new_leaf);
 	}
 
