@@ -222,18 +222,18 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 		struct sas_ha_struct *sas_ha = dev->port->ha;
 		struct sas_task *task;
 
+		/* If the device fell off, no sense in issuing commands */
+		if (test_bit(SAS_DEV_GONE, &dev->state)) {
+			cmd->result = DID_BAD_TARGET << 16;
+			scsi_done(cmd);
+			goto out;
+		}
+		
 		if (dev_is_sata(dev)) {
 			spin_lock_irq(dev->sata_dev.ap->lock);
 			res = ata_sas_queuecmd(cmd, scsi_done,
 					       dev->sata_dev.ap);
 			spin_unlock_irq(dev->sata_dev.ap->lock);
-			goto out;
-		}
-
-		/* If the device fell off, no sense in issuing commands */
-		if (test_bit(SAS_DEV_GONE, &dev->state)) {
-			cmd->result = DID_BAD_TARGET << 16;
-			scsi_done(cmd);
 			goto out;
 		}
 
