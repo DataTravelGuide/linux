@@ -17,17 +17,15 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	struct rtable *rt;
 	struct flowi fl = {};
 	__be32 saddr = iph->saddr;
-	__u8 flags = 0;
+	__u8 flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
 	unsigned int hh_len;
 
-	if (!skb->sk && addr_type != RTN_LOCAL) {
-		if (addr_type == RTN_UNSPEC)
-			addr_type = inet_addr_type(net, saddr);
-		if (addr_type == RTN_LOCAL || addr_type == RTN_UNICAST)
-			flags |= FLOWI_FLAG_ANYSRC;
-		else
-			saddr = 0;
-	}
+	if (addr_type == RTN_UNSPEC)
+		addr_type = inet_addr_type(net, saddr);
+	if (addr_type == RTN_LOCAL || addr_type == RTN_UNICAST)
+		flags |= FLOWI_FLAG_ANYSRC;
+	else
+		saddr = 0;
 
 	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
@@ -37,7 +35,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 	fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
 	fl.mark = skb->mark;
-	fl.flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : flags;
+	fl.flags = flags;
 	if (ip_route_output_key(net, &rt, &fl) != 0)
 		return -1;
 
