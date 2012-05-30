@@ -1674,6 +1674,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 29 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-276.el6]
+- [net] ipv4/netfilter: TCP and raw fix for ip_route_me_harder (Jiri Benc) [812108]
+
 * Fri May 25 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-275.el6]
 - [net] bridge: fix broadcast flood regression (Jesper Brouer) [817157]
 - [ipc] mqueue: use correct gfp flags in msg_insert (Doug Ledford) [750260]
