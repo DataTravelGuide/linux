@@ -40,7 +40,7 @@ static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
 static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
 static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
 
-static int __get_page_tail(struct page *page)
+static bool __get_page_tail(struct page *page)
 {
 	/*
 	 * This takes care of get_page() if run on a tail page
@@ -51,9 +51,22 @@ static int __get_page_tail(struct page *page)
 	 * split_huge_page().
 	 */
 	unsigned long flags;
-	int got = 0;
+	bool got = false;
 	struct page *page_head = compound_trans_head(page);
+
 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
+
+		/* Ref to put_compound_page() comment. */
+		if (PageSlab(page_head)) {
+			if (likely(PageTail(page))) {
+				__get_page_tail_foll(page, false);
+				return true;
+			} else {
+				put_page(page_head);
+				return false;
+			}
+		}
+
 		/*
 		 * page_head wasn't a dangling pointer but it
 		 * may not be a head page anymore by the time
@@ -64,7 +77,7 @@ static int __get_page_tail(struct page *page)
 		/* here __split_huge_page_refcount won't run anymore */
 		if (likely(PageTail(page))) {
 			__get_page_tail_foll(page, false);
-			got = 1;
+			got = true;
 		}
 		compound_unlock_irqrestore(page_head, flags);
 		if (unlikely(!got))
@@ -128,6 +141,25 @@ static void put_compound_page(struct page *page)
 		if (likely(page != page_head &&
 			   get_page_unless_zero(page_head))) {
 			unsigned long flags;
+
+			/*
+			 * THP can not break up slab pages so avoid taking
+			 * compound_lock().  Slab performs non-atomic bit ops
+			 * on page->flags for better performance.  In particular
+			 * slab_unlock() in slub used to be a hot path.  It is
+			 * still hot on arches that do not support
+			 * this_cpu_cmpxchg_double().
+			 */
+			if (PageSlab(page_head)) {
+				if (PageTail(page)) {
+					if (put_page_testzero(page_head))
+						VM_BUG_ON(1);
+
+					atomic_dec(&page->_mapcount);
+					goto skip_lock_tail;
+				} else
+					goto skip_lock;
+			}
 			/*
 			 * page_head wasn't a dangling pointer but it
 			 * may not be a head page anymore by the time
@@ -138,10 +170,10 @@ static void put_compound_page(struct page *page)
 			if (unlikely(!PageTail(page))) {
 				/* __split_huge_page_refcount run before us */
 				compound_unlock_irqrestore(page_head, flags);
-				VM_BUG_ON(PageHead(page_head));
+skip_lock:
 				if (put_page_testzero(page_head))
 					__put_single_page(page_head);
-			out_put_single:
+out_put_single:
 				if (put_page_testzero(page))
 					__put_single_page(page);
 				return;
@@ -161,6 +193,8 @@ static void put_compound_page(struct page *page)
 			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
 			VM_BUG_ON(atomic_read(&page->_count) != 0);
 			compound_unlock_irqrestore(page_head, flags);
+
+skip_lock_tail:
 			if (put_page_testzero(page_head)) {
 				if (PageHead(page_head))
 					__put_compound_page(page_head);
