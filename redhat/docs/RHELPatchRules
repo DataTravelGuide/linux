@@ -158,12 +158,14 @@ and maintainers if the patch is targetted for a later release.  The current
 in-development release is considered to be the target release if no Y is
 provided.
 
-[Suggested] The subject line can include the bugzilla number in the []s.
+[Suggested] The subject line can include a bugzilla number in the []s.
 
     Some reviewers appreciate it if the bugzilla number is included in the
 brackets for easy lookup on the high volume RHKL list.  Bugzilla numbers
 included outside the []s will need to be manually removed by the maintainers to
-ensure a sane changelog entry, and are thus discouraged.
+ensure a sane changelog entry, and are thus discouraged.  Listing multiple
+bugzillas on the subject line is not recommended as the subject line size is
+limited by most email programs.
 
 [Required] Patchsets include X/Y series numbers inside the leading []s.
 
@@ -244,7 +246,7 @@ looking metadata from the upstream text.  The metadata section consists of
 four parts:
 
 a) Bugzilla:
-[Required] Each patch has at least one bugzilla number in the body.
+[Required] Each patch has at least one bugzilla number in the body or subject.
 
     Patches lacking a bugzilla number will not be committed and will be
 immediately flagged by the maintainers.  Every patch needs to be coordinated
@@ -255,15 +257,15 @@ will the patch be considered for inclusion into the trees by the maintainers.
     Additionally, the bugzilla number can potentially give the reviewer more
 details about the reported problem the patch is addressing.
 
-    Patches can list multiple bugzilla numbers if the patch fixes or is part
-of the fix for multiple bugs.  All bugzillas must must have appropriate flags
-before the patch can be committed.  In patchsets, it is preferred that bugs are
-listed only in the patches relevant to the bug, for both changelog clarity and
-for the benefit of SEG (Support Engineering Group).
+    Patches can list multiple bugzilla numbers in the body if the patch fixes
+or is part of the fix for multiple bugs.  All bugzillas must must have
+appropriate flags before the patch can be committed.  In patchsets, it is
+preferred that bugs are listed only in the patches relevant to the bug, for
+both changelog clarity and for the benefit of SEG (Support Engineering Group).
 
-Good examples for bugzilla numbers:
+Good examples for bugzilla numbers in the body:
 
-	BZ 783023
+	BZ 783023 (this is also the preferred subject line format)
 	Bug 783023
 	Bugzilla: 783023
 	Fixes BZ 789023
@@ -551,6 +553,19 @@ and the description as the main body.
 Including _multiple_ bugzilla numbers or commit IDs in the subject line, even
 if contained in [], is frowned upon.
 
+9. I am a submaintainer with patches that were written by someone else, or I
+have to submit a patch for someone else.  What should I do?
+
+While rare, there have been situations in the past where one engineer has had
+to submit a patch for another engineer.  When this occurs, the engineer who
+sends the patch to RHKL (the submitter) should cc the patch's author and
+add
+
+	RH-AUTHOR: Joe Engineer <joe@redhat.com>
+
+to the Red Hat Metadata (section III) above.  The usage is similar to
+upstream's "From:" field which cannot be reliably used by the maintainers
+and submaintainers when dealing with RHEL.
 
 VIII.  Useful Links
 -------------------
