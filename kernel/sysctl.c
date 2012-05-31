@@ -1639,6 +1639,7 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(files_stat.max_files),
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_data,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
