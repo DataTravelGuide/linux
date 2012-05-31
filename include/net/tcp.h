@@ -1293,10 +1293,10 @@ static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_bu
  */
 static inline bool retransmits_timed_out(struct sock *sk,
 					 unsigned int boundary,
+					 unsigned int timeout,
 					 bool syn_set)
 {
-	unsigned int timeout, linear_backoff_thresh;
-	unsigned int start_ts;
+	unsigned int linear_backoff_thresh, start_ts;
 	unsigned int rto_base = syn_set ? TCP_TIMEOUT_INIT : TCP_RTO_MIN;
 
 	if (!inet_csk(sk)->icsk_retransmits)
@@ -1307,14 +1307,15 @@ static inline bool retransmits_timed_out(struct sock *sk,
 	else
 		start_ts = tcp_sk(sk)->retrans_stamp;
 
-	linear_backoff_thresh = ilog2(TCP_RTO_MAX/rto_base);
+	if (likely(timeout == 0)) {
+		linear_backoff_thresh = ilog2(TCP_RTO_MAX/rto_base);
 
-	if (boundary <= linear_backoff_thresh)
-		timeout = ((2 << boundary) - 1) * rto_base;
-	else
-		timeout = ((2 << linear_backoff_thresh) - 1) * rto_base +
-			  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
-
+		if (boundary <= linear_backoff_thresh)
+			timeout = ((2 << boundary) - 1) * rto_base;
+		else
+			timeout = ((2 << linear_backoff_thresh) - 1) * rto_base +
+				  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
+	}
 	return (tcp_time_stamp - start_ts) >= timeout;
 }
 

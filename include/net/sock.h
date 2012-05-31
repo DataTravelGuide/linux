@@ -351,6 +351,7 @@ struct sock_extended {
 	 * sk_rcvqueues_full(), sk_set_min_ttl(), etc. would break for
 	 * existing modules. */
 	__u8			rcv_tos;
+	u32			icsk_user_timeout;
 };
 
 #define __sk_tx_queue_mapping(sk) \
