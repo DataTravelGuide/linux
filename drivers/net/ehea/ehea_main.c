@@ -2059,11 +2059,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	struct dev_mc_list *k_mcl_entry;
 	int ret, i;
 
-	if (dev->flags & IFF_PROMISC) {
-		ehea_promiscuous(dev, 1);
-		return;
-	}
-	ehea_promiscuous(dev, 0);
+	ehea_promiscuous(dev, !!(dev->flags & IFF_PROMISC));
 
 	if (dev->flags & IFF_ALLMULTI) {
 		ehea_allmulti(dev, 1);
