@@ -110,7 +110,7 @@ static ctl_table xs_tunables_table[] = {
 		.extra2		= &max_slot_table_size
 	},
 	{
-		.ctl_name	= CTL_SLOTTABLE_MAX,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "tcp_max_slot_table_entries",
 		.data		= &xprt_max_tcp_slot_table_entries,
 		.maxlen		= sizeof(unsigned int),
