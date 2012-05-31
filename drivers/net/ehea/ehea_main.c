@@ -297,16 +297,18 @@ static void ehea_update_bcmc_registrations(void)
 
 				arr[i].adh = adapter->handle;
 				arr[i].port_id = port->logical_port_id;
-				arr[i].reg_type = EHEA_BCMC_SCOPE_ALL |
-						  EHEA_BCMC_MULTICAST |
+				arr[i].reg_type = EHEA_BCMC_MULTICAST |
 						  EHEA_BCMC_UNTAGGED;
+				if (mc_entry->macaddr == 0)
+					arr[i].reg_type |= EHEA_BCMC_SCOPE_ALL;
 				arr[i++].macaddr = mc_entry->macaddr;
 
 				arr[i].adh = adapter->handle;
 				arr[i].port_id = port->logical_port_id;
-				arr[i].reg_type = EHEA_BCMC_SCOPE_ALL |
-						  EHEA_BCMC_MULTICAST |
+				arr[i].reg_type = EHEA_BCMC_MULTICAST |
 						  EHEA_BCMC_VLANID_ALL;
+				if (mc_entry->macaddr == 0)
+					arr[i].reg_type |= EHEA_BCMC_SCOPE_ALL;
 				arr[i++].macaddr = mc_entry->macaddr;
 				num_registrations -= 2;
 			}
@@ -1953,8 +1955,9 @@ static u64 ehea_multicast_reg_helper(struct ehea_port *port, u64 mc_mac_addr,
 	u64 hret;
 	u8 reg_type;
 
-	reg_type = EHEA_BCMC_SCOPE_ALL | EHEA_BCMC_MULTICAST
-		 | EHEA_BCMC_UNTAGGED;
+	reg_type = EHEA_BCMC_MULTICAST | EHEA_BCMC_UNTAGGED;
+	if (mc_mac_addr == 0)
+		reg_type |= EHEA_BCMC_SCOPE_ALL;
 
 	hret = ehea_h_reg_dereg_bcmc(port->adapter->handle,
 				     port->logical_port_id,
@@ -1962,8 +1965,9 @@ static u64 ehea_multicast_reg_helper(struct ehea_port *port, u64 mc_mac_addr,
 	if (hret)
 		goto out;
 
-	reg_type = EHEA_BCMC_SCOPE_ALL | EHEA_BCMC_MULTICAST
-		 | EHEA_BCMC_VLANID_ALL;
+	reg_type = EHEA_BCMC_MULTICAST | EHEA_BCMC_VLANID_ALL;
+	if (mc_mac_addr == 0)
+		reg_type |= EHEA_BCMC_SCOPE_ALL;
 
 	hret = ehea_h_reg_dereg_bcmc(port->adapter->handle,
 				     port->logical_port_id,
@@ -2012,7 +2016,7 @@ static void ehea_allmulti(struct net_device *dev, int enable)
 			else
 				ehea_error("failed enabling IFF_ALLMULTI");
 		}
-	} else
+	} else {
 		if (!enable) {
 			/* Disable ALLMULTI */
 			hret = ehea_multicast_reg_helper(port, 0, H_DEREG_BCMC);
@@ -2021,6 +2025,7 @@ static void ehea_allmulti(struct net_device *dev, int enable)
 			else
 				ehea_error("failed disabling IFF_ALLMULTI");
 		}
+	}
 }
 
 static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
@@ -2677,6 +2682,7 @@ static int ehea_down(struct net_device *dev)
 		return 0;
 
 	ehea_drop_multicast_list(dev);
+	ehea_allmulti(dev, 0);
 	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 
 	ehea_free_interrupts(dev);
