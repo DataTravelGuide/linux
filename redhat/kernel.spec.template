@@ -1674,6 +1674,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed May 30 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-277.el6]
+- [scsi] be2iscsi: fix dma free size mismatch regression (Mike Christie) [824287]
+- [scsi] libsas: check dev->gone before submitting sata i/o (David Milburn) [824025]
+
 * Tue May 29 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-276.el6]
 - [net] ipv4/netfilter: TCP and raw fix for ip_route_me_harder (Jiri Benc) [812108]
 
