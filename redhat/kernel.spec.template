@@ -1674,6 +1674,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jun 01 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-278.el6]
+- [kernel] sysctl: silence warning about missing strategy for file-max at boot time (Jeff Layton) [803431]
+- [net] sunrpc: make new tcp_max_slot_table_entries sysctl use CTL_UNNUMBERED (Jeff Layton) [803431]
+- [drm] i915: set AUD_CONFIG N_value_index for DisplayPort (Dave Airlie) [747890]
+- [scsi] scsi_lib: fix scsi_io_completion's SG_IO error propagation (Mike Snitzer) [827163]
+- [fs] nfs: Fix corrupt read data after short READ from server (Sachin Prabhu) [817738]
+
 * Wed May 30 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-277.el6]
 - [scsi] be2iscsi: fix dma free size mismatch regression (Mike Christie) [824287]
 - [scsi] libsas: check dev->gone before submitting sata i/o (David Milburn) [824025]
