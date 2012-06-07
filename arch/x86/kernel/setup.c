@@ -745,7 +745,17 @@ static void __init trim_bios_range(void)
 
 static void rh_check_supported(void)
 {
-	/* The RHEL kernel does not support this hardware. */
+	/* The RHEL kernel does not support this hardware.  The kernel will
+	 * attempt to boot, but no support is given for this hardware */
+
+	/* RHEL only supports Intel and AMD processors */
+	if ((boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) &&
+	    (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)) {
+		printk(KERN_CRIT "Detected processor %s %s\n",
+		       boot_cpu_data.x86_vendor_id,
+		       boot_cpu_data.x86_model_id);
+		mark_hardware_unsupported("Unsupported Processor");
+	}
 
 	/* Intel CPU family 6, model greater than 59 */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
