@@ -359,14 +359,6 @@ config DM_DELAY
 
 	If unsure, say N.
 
-config DM_REPLICATOR
-	tristate "Replication target (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
-	---help---
-	A target that supports replication of local devices to remote sites.
-
-	If unsure, say N.
-
 config DM_RAID45
 	tristate "RAID 4/5 target (EXPERIMENTAL)"
 	depends on BLK_DEV_DM && EXPERIMENTAL
