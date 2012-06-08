@@ -39,8 +39,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(block_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
-static int __make_request(struct request_queue *q, struct bio *bio);
-
 /*
  * For the allocated request tables
  */
@@ -1362,7 +1360,7 @@ static void blk_account_io_front_merge(struct request *req, sector_t newsector)
 	}
 }
 
-static int __make_request(struct request_queue *q, struct bio *bio)
+int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
 	int el_ret;
@@ -1513,6 +1511,7 @@ out_unlock:
 	spin_unlock_irq(q->queue_lock);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__make_request);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location
