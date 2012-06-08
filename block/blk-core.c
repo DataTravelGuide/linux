@@ -716,7 +716,7 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 	/*
 	 * This also sets hw/phys segments, boundary and size
 	 */
-	blk_queue_make_request(q, __make_request);
+	blk_queue_make_request(q, blk_queue_bio);
 
 	q->sg_reserved_size = INT_MAX;
 
@@ -1360,7 +1360,7 @@ static void blk_account_io_front_merge(struct request *req, sector_t newsector)
 	}
 }
 
-int __make_request(struct request_queue *q, struct bio *bio)
+int blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
 	int el_ret;
@@ -1511,7 +1511,7 @@ out_unlock:
 	spin_unlock_irq(q->queue_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__make_request);	/* for device mapper only */
+EXPORT_SYMBOL_GPL(blk_queue_bio);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location
