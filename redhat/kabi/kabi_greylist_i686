@@ -1,10 +1,52 @@
 [rhel6_i686_greylist]
+	____pagevec_lru_add
+	__blockdev_direct_IO
+	__generic_file_aio_write
+	__put_cred
+	_read_trylock
+	add_to_page_cache_locked
+	alloc_vm_area
+	allow_signal
+	bio_init
+	d_find_alias
+	d_invalidate
+	d_path
+	daemonize
+	dcache_lock
 	dcb_getapp
+	default_llseek
+	ethtool_op_get_rx_csum
+	file_fsync
+	filemap_flush
+	find_module
+	flock_lock_file_wait
+	flush_signals
+	generic_file_direct_write
+	generic_segment_checks
+	ifla_policy
+	in_group_p
+	inet_ioctl
+	ioctl_by_bdev
 	irq_set_affinity_hint
+	jiffies_64
+	kallsyms_on_each_symbol
+	kernel_read
+	kernel_thread
+	kmem_cache_shrink
+	locks_init_lock
 	mdiobus_alloc
 	mdiobus_free
 	mdiobus_register
 	mdiobus_unregister
+	mntput_no_expire
+	module_mutex
+	nobh_truncate_page
+	nobh_write_begin
+	nobh_write_end
+	nobh_writepage
+	override_creds
+	path_get
+	path_put
 	pci_disable_link_state_locked
 	pci_vpd_find_info_keyword
 	pci_vpd_find_tag
@@ -16,5 +58,24 @@
 	phy_start
 	phy_start_aneg
 	phy_stop
+	posix_lock_file
+	posix_lock_file_wait
+	posix_test_lock
+	prepare_creds
+	probe_kernel_read
+	probe_kernel_write
+	remove_inode_hash
+	revert_creds
+	si_meminfo
+	sigprocmask
+	strspn
+	truncate_inode_pages_range
+	unlock_rename
+	use_module
+	vfs_llseek
+	vfs_read
+	vfs_rename
+	vfs_writev
 	vzalloc
 	vzalloc_node
+	write_inode_now
