@@ -1674,6 +1674,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 13 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-279.el6]
+- [netdrv] mlx4: ignore old module parameters (Jay Fenlason) [830553]
+
 * Fri Jun 01 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-278.el6]
 - [kernel] sysctl: silence warning about missing strategy for file-max at boot time (Jeff Layton) [803431]
 - [net] sunrpc: make new tcp_max_slot_table_entries sysctl use CTL_UNNUMBERED (Jeff Layton) [803431]
