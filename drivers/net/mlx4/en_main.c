@@ -75,6 +75,10 @@ MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
 
+MLX4_EN_PARM_INT(num_lro, ~0, "Dummy parameter for backward compatibility" );
+MLX4_EN_PARM_INT(rss_mask, ~0, "Dummy parameter for backward compatibility" );
+MLX4_EN_PARM_INT(rss_xor, ~0, "Dummy parameter for backward compatibility" );
+
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
@@ -98,6 +102,8 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 			(!!pfcrx) * MLX4_EN_NUM_PPP_RINGS;
 	}
 
+	if ( num_lro != ~0 || rss_mask != ~0 || rss_xor != ~0 )
+		mlx4_warn(mdev, "Obsolete parameter passed, ignoring.\n");
 	return 0;
 }
 
