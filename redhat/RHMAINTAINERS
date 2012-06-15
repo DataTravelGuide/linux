@@ -479,6 +479,11 @@ S:	Maintained
 F:	drivers/vhost/
 F:	include/linux/vhost.h
 
+VMWARE VMXNET3 ETHERNET DRIVER (vmxnet3)
+M:	Neil Horman <nhorman@redhat.com>
+S:	Maintained
+F:	drivers/net/vmxnet3/*
+
 WIRELESS DRIVERS AND STACK
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 M:	John Linville <linville@redhat.com>
