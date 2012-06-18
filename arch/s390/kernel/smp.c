@@ -106,6 +106,7 @@ void smp_restart_with_online_cpu(void)
 		}
 	}
 	/* We are not online: Do PSW restart on an online CPU */
+	cpu = any_online_cpu(cpu_online_map);
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)
 		cpu_relax();
 	/* And stop ourself */
