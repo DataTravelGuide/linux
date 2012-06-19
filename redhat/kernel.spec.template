@@ -1674,6 +1674,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 18 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-280.el6]
+- [fs] writeback: merge for_kupdate and !for_kupdate cases (Eric Sandeen) [818172]
+- [fs] writeback: fix queue_io() ordering (Eric Sandeen) [818172]
+- [fs] writeback: don't redirty tail an inode with dirty pages (Eric Sandeen) [818172]
+- [fs] nfs: Map minor mismatch error to protocol not support error (Steve Dickson) [796352]
+- [fs] ext4: Fix overflow caused by missing cast in ext4_fallocate() (Lukas Czerner) [830209]
+- [ata] libata: Add 2GB ATA Flash Disk/ADMA428M to DMA blacklist (Prarit Bhargava) [812904]
+- [netdrv] r8169: fix typo in firmware filenames (Ivan Vecera) [829211]
+- [net] bonding: fix regression on vlan module removal (Neil Horman) [823822]
+
 * Wed Jun 13 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-279.el6]
 - [netdrv] mlx4: ignore old module parameters (Jay Fenlason) [830553]
 
