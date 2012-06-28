@@ -180,6 +180,8 @@ static inline cputime_t usecs_to_cputime(const unsigned long us)
 	return ct;
 }
 
+#define usecs_to_cputime64(us)		usecs_to_cputime(us)
+
 /*
  * Convert cputime <-> seconds
  */
