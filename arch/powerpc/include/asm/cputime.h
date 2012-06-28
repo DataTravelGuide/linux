@@ -156,9 +156,11 @@ static inline cputime_t msecs_to_cputime(const unsigned long ms)
  * Convert cputime <-> microseconds
  */
 
+extern u64 __cputime_usec_factor;
+
 static inline unsigned long cputime_to_usecs(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_msec_factor) * USEC_PER_MSEC;
+	return mulhdu(ct, __cputime_msec_factor);
 }
 
 static inline cputime_t usecs_to_cputime(const unsigned long us)
@@ -171,7 +173,7 @@ static inline cputime_t usecs_to_cputime(const unsigned long us)
 	sec = us / 1000000;
 	if (ct) {
 		ct *= tb_ticks_per_sec;
-		do_div(ct, 1000);
+		do_div(ct, 1000000);
 	}
 	if (sec)
 		ct += (cputime_t) sec * tb_ticks_per_sec;
