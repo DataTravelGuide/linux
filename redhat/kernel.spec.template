@@ -1674,6 +1674,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jun 29 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-281.el6]
+- [fs] xfs: disable xfsaild idle mode (Brian Foster) [813137]
+- [fs] xfs: fix the logspace waiting algorithm (Brian Foster) [813137]
+- [fs] xfs: add AIL pushing tracepoints (Brian Foster) [813137]
+- [fs] xfs: force the log if we encounter pinned buffers in .iop_pushbuf (Brian Foster) [813137]
+- [fs] xfs: do not update xa_last_pushed_lsn for locked items (Brian Foster) [813137]
+- [net] rpc: handle rotated gss data for Windows interoperability (Steve Dickson) [796992]
+- [md] raid5: Reintroduce locking in handle_stripe() to avoid racing (Jes Sorensen) [828065]
+- [virt] kvm/vmx: Fix KVM_SET_SREGS with big real mode segments (Orit Wasserman) [756044]
+- virtio: console: Use wait_event_freezable instead of _interruptible (Amit Shah) [823428]
+- virtio: console: Ignore port name update request if name already set (Amit Shah) [820945]
+- [x86] kprobes: Fix a bug which can modify kernel code permanently (Dave Anderson) [726270]
+- [x86] kprobes: Fix instruction recovery on optimized path (Dave Anderson) [726270]
+- [net] bonding: show all the link status of slaves (Amerigo Wang) [826945]
+
 * Mon Jun 18 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-280.el6]
 - [fs] writeback: merge for_kupdate and !for_kupdate cases (Eric Sandeen) [818172]
 - [fs] writeback: fix queue_io() ordering (Eric Sandeen) [818172]
