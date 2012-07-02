@@ -71,7 +71,11 @@ event_def
 	parse_events_update_lists(list_event, list_all);
 }
 
-event_def: event_pmu |
+event_def:
+/*
+ * XXX PMU events are not supported in RHEL6
+ *          event_pmu |
+ */
 	   event_legacy_symbol |
 	   event_legacy_cache sep_dc |
 	   event_legacy_mem |
@@ -79,12 +83,15 @@ event_def: event_pmu |
 	   event_legacy_numeric sep_dc |
 	   event_legacy_raw sep_dc
 
+/*
+ * XXX PMU events are not supported in RHEL6
 event_pmu:
 PE_NAME '/' event_config '/'
 {
 	ABORT_ON(parse_events_add_pmu(list_event, idx, $1, $3));
 	parse_events__free_terms($3);
 }
+*/
 
 event_legacy_symbol:
 PE_VALUE_SYM '/' event_config '/'

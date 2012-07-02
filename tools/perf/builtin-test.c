@@ -955,6 +955,8 @@ static int test__checkevent_breakpoint_w_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_w(evlist);
 }
 
+/*
+ * XXX PMU events are not supported in RHEL6
 static int test__checkevent_pmu(struct perf_evlist *evlist)
 {
 
@@ -970,6 +972,7 @@ static int test__checkevent_pmu(struct perf_evlist *evlist)
 
 	return 0;
 }
+*/
 
 static int test__checkevent_list(struct perf_evlist *evlist)
 {
@@ -1111,10 +1114,15 @@ static struct test__event_st {
 		.name  = "mem:0:w:up",
 		.check = test__checkevent_breakpoint_w_modifier,
 	},
+
+/*
+ * XXX PMU events are not supported in RHEL6
 	{
 		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
 		.check = test__checkevent_pmu,
 	},
+*/
+
 	{
 		.name  = "r1,syscalls:sys_enter_open:k,1:1:hp",
 		.check = test__checkevent_list,
