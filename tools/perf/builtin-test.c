@@ -1016,8 +1016,6 @@ realloc:
 static int test__PERF_RECORD(void)
 {
 	struct perf_record_opts opts = {
-		.target_pid = -1,
-		.target_tid = -1,
 		.no_delay   = true,
 		.freq	    = 10,
 		.mmap_pages = 256,
