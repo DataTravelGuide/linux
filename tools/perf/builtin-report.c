@@ -36,6 +36,8 @@
 
 #include <linux/bitmap.h>
 
+#include "compat.h"
+
 struct perf_report {
 	struct perf_tool	tool;
 	struct perf_session	*session;

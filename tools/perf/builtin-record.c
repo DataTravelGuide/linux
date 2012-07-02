@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include "compat.h"
 
 enum write_mode_t {
 	WRITE_FORCE,
@@ -662,7 +663,7 @@ static const struct branch_mode branch_modes[] = {
 	BRANCH_END
 };
 
-static int
+static int __used
 parse_branch_stack(const struct option *opt, const char *str, int unset)
 {
 #define ONLY_PLM \
@@ -815,6 +816,8 @@ const struct option record_options[] = {
 		     parse_cgroups),
 	OPT_STRING('u', "uid", &record.uid_str, "user", "user to profile"),
 
+/*
+ * XXX branch stack feature is not supported in RHEL6
 	OPT_CALLBACK_NOOPT('b', "branch-any", &record.opts.branch_stack,
 		     "branch any", "sample any taken branches",
 		     parse_branch_stack),
@@ -822,6 +825,7 @@ const struct option record_options[] = {
 	OPT_CALLBACK('j', "branch-filter", &record.opts.branch_stack,
 		     "branch filter mask", "branch stack filter modes",
 		     parse_branch_stack),
+*/
 	OPT_END()
 };
 

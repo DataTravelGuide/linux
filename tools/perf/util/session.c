@@ -15,6 +15,8 @@
 #include "util.h"
 #include "cpumap.h"
 
+#include "../compat.h"
+
 static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;

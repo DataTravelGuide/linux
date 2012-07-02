@@ -14,6 +14,7 @@
 #include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
+#include "../compat.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -129,7 +130,10 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	}
 	if (opts->branch_stack) {
 		attr->sample_type	|= PERF_SAMPLE_BRANCH_STACK;
-		attr->branch_sample_type = opts->branch_stack;
+		/*
+		 * no kernel change so far
+		 * attr->branch_sample_type = opts->branch_stack;
+		 */
 	}
 
 	attr->mmap = track;
