@@ -648,8 +648,8 @@ static int
 parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 {
 	const char *str = *strp;
-	int exclude = 0;
-	int eu = 0, ek = 0, eh = 0, precise = 0;
+	int exclude = 0, exclude_GH = 0;
+	int eu = 0, ek = 0, eh = 0, eH = 0, eG = 0, precise = 0;
 
 	if (!*str)
 		return 0;
@@ -673,6 +673,14 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
 			eh = 0;
+		} else if (*str == 'G') {
+			if (!exclude_GH)
+				exclude_GH = eG = eH = 1;
+			eG = 0;
+		} else if (*str == 'H') {
+			if (!exclude_GH)
+				exclude_GH = eG = eH = 1;
+			eH = 0;
 		} else if (*str == 'p') {
 			precise++;
 		} else
@@ -689,6 +697,8 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 	attr->exclude_kernel = ek;
 	attr->exclude_hv     = eh;
 	attr->precise_ip     = precise;
+	attr->exclude_host   = eH;
+	attr->exclude_guest  = eG;
 
 	return 0;
 }
