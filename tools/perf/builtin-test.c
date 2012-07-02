@@ -13,6 +13,7 @@
 #include "util/parse-events.h"
 #include "util/symbol.h"
 #include "util/thread_map.h"
+#include "util/pmu.h"
 
 /* XXX There's no support for HW_BREAKPOINT in RHEL6 yet.
 #include "../../include/linux/hw_breakpoint.h"
@@ -1323,6 +1324,11 @@ out:
 	return (err < 0 || errs > 0) ? -1 : 0;
 }
 
+static int test__perf_pmu(void)
+{
+	return perf_pmu__test();
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -1350,6 +1356,10 @@ static struct test {
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
+	},
+	{
+		.desc = "Test perf pmu format parsing",
+		.func = test__perf_pmu,
 	},
 	{
 		.func = NULL,
