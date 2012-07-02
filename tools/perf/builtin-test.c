@@ -279,7 +279,7 @@ static int test__open_syscall_event(void)
 		return -1;
 	}
 
-	threads = thread_map__new(-1, getpid());
+	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
 		return -1;
@@ -345,7 +345,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 		return -1;
 	}
 
-	threads = thread_map__new(-1, getpid());
+	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
 		return -1;
@@ -493,7 +493,7 @@ static int test__basic_mmap(void)
 		expected_nr_events[i] = random() % 257;
 	}
 
-	threads = thread_map__new(-1, getpid());
+	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
 		return -1;
@@ -1062,7 +1062,7 @@ static int test__PERF_RECORD(void)
 	 * we're monitoring, the one forked there.
 	 */
 	err = perf_evlist__create_maps(evlist, opts.target_pid,
-				       opts.target_tid, opts.cpu_list);
+				       opts.target_tid, UINT_MAX, opts.cpu_list);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
