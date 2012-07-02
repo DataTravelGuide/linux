@@ -903,6 +903,7 @@ static int test__checkevent_genhw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_genhw(evlist);
 }
 
+/* XXX There's no support for HW_BREAKPOINT in RHEL6 yet.
 static int test__checkevent_breakpoint_modifier(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = list_entry(evlist->entries.next,
@@ -954,6 +955,7 @@ static int test__checkevent_breakpoint_w_modifier(struct perf_evlist *evlist)
 
 	return test__checkevent_breakpoint_w(evlist);
 }
+*/
 
 /*
  * XXX PMU events are not supported in RHEL6
@@ -1098,6 +1100,7 @@ static struct test__event_st {
 		.name  = "L1-dcache-load-miss:kp",
 		.check = test__checkevent_genhw_modifier,
 	},
+/* XXX There's no support for HW_BREAKPOINT in RHEL6 yet.
 	{
 		.name  = "mem:0:u",
 		.check = test__checkevent_breakpoint_modifier,
@@ -1114,6 +1117,7 @@ static struct test__event_st {
 		.name  = "mem:0:w:up",
 		.check = test__checkevent_breakpoint_w_modifier,
 	},
+*/
 
 /*
  * XXX PMU events are not supported in RHEL6

@@ -78,7 +78,11 @@ event_def:
  */
 	   event_legacy_symbol |
 	   event_legacy_cache sep_dc |
-	   event_legacy_mem |
+
+/*
+ * XXX hw breakpoint events are not supported in RHEL6
+ *         event_legacy_mem |
+ */
 	   event_legacy_tracepoint sep_dc |
 	   event_legacy_numeric sep_dc |
 	   event_legacy_raw sep_dc
@@ -127,6 +131,8 @@ PE_NAME_CACHE_TYPE
 	ABORT_ON(parse_events_add_cache(list_event, idx, $1, NULL, NULL));
 }
 
+/*
+ * XXX hw breakpoint events are not supported in RHEL6
 event_legacy_mem:
 PE_PREFIX_MEM PE_VALUE ':' PE_MODIFIER_BP sep_dc
 {
@@ -137,6 +143,7 @@ PE_PREFIX_MEM PE_VALUE sep_dc
 {
 	ABORT_ON(parse_events_add_breakpoint(list_event, idx, (void *) $2, NULL));
 }
+*/
 
 event_legacy_tracepoint:
 PE_NAME ':' PE_NAME

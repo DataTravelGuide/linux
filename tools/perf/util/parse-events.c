@@ -13,6 +13,7 @@
 #include "debugfs.h"
 #include "parse-events-flex.h"
 #include "pmu.h"
+#include "../compat.h"
 
 #define MAX_NAME_LEN 100
 
