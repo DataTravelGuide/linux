@@ -1674,6 +1674,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 05 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-283.el6]
+- [net] bonding: Fix up refcounting issues with bond/vlan config (Neil Horman) [836164]
+- [net] bonding: Always add vid to new slave group (Neil Horman) [834764]
+- [fs] procfs: do not confuse jiffies with cputime64_t (Steve Best) [821374]
+- [kernel] time: Add nsecs_to_cputime64 interface for asm-generic (Steve Best) [821374]
+- [powerpc] Fix wrong divisor in usecs_to_cputime (Steve Best) [821374]
+
 * Mon Jul 02 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-282.el6]
 - [kernel] futex: Fix uninterruptible loop due to gate_area (Jerome Marchand) [834038]
 - [kernel] futex: Fix regression with read only mappings (Jerome Marchand) [834038]
