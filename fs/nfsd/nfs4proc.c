@@ -233,10 +233,10 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		status = nfsd_lookup(rqstp, current_fh,
 				     open->op_fname.data, open->op_fname.len, &resfh);
 		fh_unlock(current_fh);
-		if (status)
-			goto out;
-		status = nfsd_check_obj_isreg(&resfh);
 	}
+	if (status)
+		goto out;
+	status = nfsd_check_obj_isreg(&resfh);
 	if (status)
 		goto out;
 
