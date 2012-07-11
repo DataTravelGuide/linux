@@ -158,12 +158,12 @@ F:	drivers/cpufreq/
 F:	arch/x86/kernel/cpu/cpufreq/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
-M:	Neil Horman <nhorman@redhat.com>
+M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb3/
 
 CXGB4 ETHERNET DRIVER (cxgb4)
-M:	Neil Horman <nhorman@redhat.com>
+M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb4/
 
