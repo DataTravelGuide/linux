@@ -266,6 +266,7 @@ struct nfs4_layoutcommit_res {
 	struct nfs_fattr *fattr;
 	const struct nfs_server *server;
 	struct nfs4_sequence_res seq_res;
+	int status;
 };
 
 struct nfs4_layoutcommit_data {
