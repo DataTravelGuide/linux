@@ -886,13 +886,15 @@ static void timekeeping_adjust(s64 offset)
 	 *
 	 * XXX - TODO: Doc ntp_error calculation.
 	 */
-	WARN_ONCE(timekeeper.clock->maxadj &&
-			(timekeeper.mult + adj > timekeeper.clock->mult +
-						timekeeper.clock->maxadj),
-			"Adjusting %s more then 11%% (%ld vs %ld)\n",
+	if (unlikely(timekeeper.clock->maxadj &&
+			(timekeeper.mult + adj >
+			timekeeper.clock->mult + timekeeper.clock->maxadj))) {
+		printk_once(KERN_WARNING
+			"Adjusting %s more than 11%% (%ld vs %ld)\n",
 			timekeeper.clock->name, (long)timekeeper.mult + adj,
 			(long)timekeeper.clock->mult +
 				timekeeper.clock->maxadj);
+	}
 	timekeeper.mult += adj;
 	timekeeper.xtime_interval += interval;
 	timekeeper.xtime_nsec -= offset;
