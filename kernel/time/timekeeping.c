@@ -67,7 +67,8 @@ struct timekeeper {
 	struct timespec wall_to_monotonic;
 	/* time spent in suspend */
 	struct timespec total_sleep_time;
-
+	/* The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock. */
+	struct timespec raw_time;
 };
 
 static struct timekeeper timekeeper;
@@ -164,10 +165,6 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 
 
 
-/*
- * The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock.
- */
-static struct timespec raw_time;
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -208,7 +205,7 @@ static void timekeeping_forward_now(void)
 	timespec_add_ns(&timekeeper.xtime, nsec);
 
 	nsec = clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
-	timespec_add_ns(&raw_time, nsec);
+	timespec_add_ns(&timekeeper.raw_time, nsec);
 }
 
 /**
@@ -456,7 +453,7 @@ void getrawmonotonic(struct timespec *ts)
 	do {
 		seq = read_seqbegin(&xtime_lock);
 		nsecs = timekeeping_get_ns_raw();
-		*ts = raw_time;
+		*ts = timekeeper.raw_time;
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -547,8 +544,8 @@ void __init timekeeping_init(void)
 
 	timekeeper.xtime.tv_sec = now.tv_sec;
 	timekeeper.xtime.tv_nsec = now.tv_nsec;
-	raw_time.tv_sec = 0;
-	raw_time.tv_nsec = 0;
+	timekeeper.raw_time.tv_sec = 0;
+	timekeeper.raw_time.tv_nsec = 0;
 	if (boot.tv_sec == 0 && boot.tv_nsec == 0) {
 		boot.tv_sec = timekeeper.xtime.tv_sec;
 		boot.tv_nsec = timekeeper.xtime.tv_nsec;
@@ -925,13 +922,13 @@ static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
 
 	/* Accumulate raw time */
 	raw_nsecs = timekeeper.raw_interval << shift;
-	raw_nsecs += raw_time.tv_nsec;
+	raw_nsecs += timekeeper.raw_time.tv_nsec;
 	if (raw_nsecs >= NSEC_PER_SEC) {
 		u64 raw_secs = raw_nsecs;
 		raw_nsecs = do_div(raw_secs, NSEC_PER_SEC);
-		raw_time.tv_sec += raw_secs;
+		timekeeper.raw_time.tv_sec += raw_secs;
 	}
-	raw_time.tv_nsec = raw_nsecs;
+	timekeeper.raw_time.tv_nsec = raw_nsecs;
 
 	/* Accumulate error between NTP and clock interval */
 	timekeeper.ntp_error += tick_length << shift;
