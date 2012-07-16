@@ -734,7 +734,7 @@ static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
  *
  * Called from the timer interrupt, must hold a write on xtime_lock.
  */
-void update_wall_time(void)
+static void update_wall_time(void)
 {
 	struct clocksource *clock;
 	cycle_t offset;
@@ -915,4 +915,16 @@ ktime_t ktime_get_monotonic_offset(void)
 		wtom = wall_to_monotonic;
 	} while (read_seqretry(&xtime_lock, seq));
 	return timespec_to_ktime(wtom);
+}
+
+/*
+ * The 64-bit jiffies value is not atomic - you MUST NOT read it
+ * without sampling the sequence number in xtime_lock.
+ * jiffies is defined in the linker script...
+ */
+void do_timer(unsigned long ticks)
+{
+	jiffies_64 += ticks;
+	update_wall_time();
+	calc_global_load();
 }
