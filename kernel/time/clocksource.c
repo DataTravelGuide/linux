@@ -488,7 +488,7 @@ void clocksource_touch_watchdog(void)
 	clocksource_resume_watchdog();
 }
 
-#ifdef CONFIG_GENERIC_TIME
+#ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
 
 /**
  * clocksource_max_deferment - Returns max time the clocksource can be deferred
@@ -575,7 +575,7 @@ static void clocksource_select(void)
 	}
 }
 
-#else /* CONFIG_GENERIC_TIME */
+#else /* !CONFIG_ARCH_USES_GETTIMEOFFSET */
 
 static inline void clocksource_select(void) { }
 
