@@ -1,0 +1,5 @@
+# make distclean removes zero-length files.  Since this file was empty
+# it would be removed.  A subsequent make rh-configs-prep would then
+# fail, since this file was missing.  So, this comment ensures that the
+# sequence of make distclean followed by make rh-configs-prep will
+# succeed.
