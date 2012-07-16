@@ -1674,6 +1674,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sat Jul 14 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-286.el6]
+- [net] bridge: Fix enforcement of multicast hash_max limit (Thomas Graf) [832575]
+- [net] bluetooth: fix sco_conninfo infoleak (Jacob Tanenbaum) [681308] {CVE-2011-1078}
+- [wireless] ipw2200: remove references to CFG80211_WEXT config option (John Linville) [839311]
+- [virt] kvm: whitelist-based GET_SUPPORTED_CPUID (Eduardo Habkost) [832486]
+- [virt] kvm: handle last_boosted_vcpu = 0 case (Rik van Riel) [827031]
+- [net] ehea: fix promiscuous mode (Steve Best) [826075]
+- [net] ehea: fix allmulticast support (Steve Best) [826075]
+- [s390] kdump: Move early_pgm_check_handler() to text section (Hendrik Brueckner) [831288]
+
 * Wed Jul 11 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-285.el6]
 - [s390] kdump: Fix PSW restart on offline CPUs (Hendrik Brueckner) [831277]
 - [s390] kdump: Use real mode for PSW restart and kexec (Hendrik Brueckner) [831278]
