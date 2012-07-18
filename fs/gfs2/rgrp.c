@@ -1137,6 +1137,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
+			rgd = rgd ? : begin; /* if NULL, wrap */
 			if (rgd == begin) {
 				flags = 0;
 				loops++;
