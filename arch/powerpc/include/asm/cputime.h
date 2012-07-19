@@ -160,7 +160,7 @@ extern u64 __cputime_usec_factor;
 
 static inline unsigned long cputime_to_usecs(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_msec_factor);
+	return mulhdu(ct, __cputime_usec_factor);
 }
 
 static inline cputime_t usecs_to_cputime(const unsigned long us)
