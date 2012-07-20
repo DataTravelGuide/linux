@@ -1674,6 +1674,22 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 19 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-288.el6]
+- [powerpc] Fix wrong divisor in usecs_to_cputime backport (Steve Best) [821374]
+- [drm] i915: fix integer overflow in i915_gem_execbuffer2() (Jacob Tanenbaum) [824555] {CVE-2012-2383}
+- [fs] proc/stat: Use arch_idle_time for idle and iowait times if available (Steve Best) [841149]
+- [lib] kstrto: Reduce the number of expensive division instructions done by _parse_integer() (Sachin Prabhu) [820847]
+- [lib] kstrtox: common code between kstrto*() and simple_strto*() functions (Sachin Prabhu) [820847]
+- [lib] make _tolower() public (Sachin Prabhu) [820847]
+- [lib] vsprintf: use TOLOWER whenever possible (Sachin Prabhu) [820847]
+- [lib] lib: add kstrto*_from_user() (Sachin Prabhu) [820847]
+- [lib] kstrtox: simpler code in _kstrtoull() (Sachin Prabhu) [820847]
+- [lib] kstrto: converting strings to integers done (hopefully) right (Sachin Prabhu) [820847]
+- [lib] vsprintf: reuse almost identical simple_strtoulX() functions (Sachin Prabhu) [820847]
+- [usb] core: change the memory limits in usbfs URB submission (Don Zickus) [828271]
+- [usb] core: unify some error pathways in usbfs (Don Zickus) [828271]
+- [base] firmware: Fix an oops on reading fw_priv->fw in sysfs loading file (Prarit Bhargava) [819877]
+
 * Tue Jul 17 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-287.el6]
 - [tools] perf, spec: Add bison and flex build BuildRequires (Jiri Olsa) [827474]
 - [tools] perf, compat: Disable hw breakpoint events (Jiri Olsa) [827474]
