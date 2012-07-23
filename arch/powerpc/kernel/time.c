@@ -868,7 +868,6 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 {
 	u64 t2x, stamp_xsec;
 	u32 frac_sec;
-	struct timespec t;
 
 	if (clock != &clocksource_timebase)
 		return;
@@ -884,14 +883,13 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	do_div(stamp_xsec, 1000000000);
 	stamp_xsec += (u64) wall_time->tv_sec * XSEC_PER_SEC;
 
-	t = xtime;
-	if (t.tv_nsec >= 1000000000) {
-		++t.tv_sec;
-		t.tv_nsec -= 1000000000;
+	if (wall_time->tv_nsec >= 1000000000) {
+		++wall_time->tv_sec;
+		wall_time->tv_nsec -= 1000000000;
 	}
 	/* this is tv_nsec / 1e9 as a 0.32 fraction */
-	frac_sec = ((u64) t.tv_nsec * 18446744073ULL) >> 32;
-	update_gtod(clock->cycle_last, stamp_xsec, t2x, &t, frac_sec);
+	frac_sec = ((u64) wall_time->tv_nsec * 18446744073ULL) >> 32;
+	update_gtod(clock->cycle_last, stamp_xsec, t2x, wall_time, frac_sec);
 }
 
 void update_vsyscall_tz(void)
@@ -1078,8 +1076,6 @@ void __init time_init(void)
 	/* Save the current timebase to pretty up CONFIG_PRINTK_TIME */
 	boot_tb = get_tb_or_rtc();
 
-	write_seqlock_irqsave(&xtime_lock, flags);
-
 	/* If platform provided a timezone (pmac), we correct the time */
         if (timezone_offset) {
 		sys_tz.tz_minuteswest = -timezone_offset / 60;
@@ -1091,8 +1087,6 @@ void __init time_init(void)
 	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
 	vdso_data->stamp_xsec = (u64) get_seconds() * XSEC_PER_SEC;
 	vdso_data->tb_to_xs = tb_to_xs;
-
-	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	/* Start the decrementer on CPUs that have manual control
 	 * such as BookE
