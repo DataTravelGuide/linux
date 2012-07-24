@@ -809,6 +809,7 @@
 	param_set_ulong
 	param_set_ushort
 	path_lookup
+	path_put
 	pci_add_new_bus
 	pci_assign_resource
 	pci_bus_add_devices

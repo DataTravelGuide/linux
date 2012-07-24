@@ -678,6 +678,7 @@
 	param_set_ulong
 	param_set_ushort
 	path_lookup
+	path_put
 	per_cpu__ftrace_event_seq
 	perf_tp_event
 	pfifo_qdisc_ops

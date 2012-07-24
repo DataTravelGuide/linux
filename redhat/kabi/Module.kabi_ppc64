@@ -808,6 +808,7 @@
 0x0799c50a	param_set_ulong	vmlinux	EXPORT_SYMBOL
 0xe0bc24a1	param_set_ushort	vmlinux	EXPORT_SYMBOL
 0x3f984310	path_lookup	vmlinux	EXPORT_SYMBOL
+0x5742d4f2	path_put	vmlinux	EXPORT_SYMBOL
 0xbd617c31	pci_add_new_bus	vmlinux	EXPORT_SYMBOL
 0x58c7eef0	pci_assign_resource	vmlinux	EXPORT_SYMBOL
 0xc1665643	pci_bus_add_devices	vmlinux	EXPORT_SYMBOL
