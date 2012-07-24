@@ -274,6 +274,7 @@
 0x721758ee	debugfs_create_u8	vmlinux	EXPORT_SYMBOL_GPL
 0x74cf25ba	debugfs_remove	vmlinux	EXPORT_SYMBOL_GPL
 0x20203a2b	dec_zone_page_state	vmlinux	EXPORT_SYMBOL
+0x806a35fb	default_llseek	vmlinux	EXPORT_SYMBOL
 0xffd5a395	default_wake_function	vmlinux	EXPORT_SYMBOL
 0x1db708e7	del_gendisk	vmlinux	EXPORT_SYMBOL
 0xa65c6b8a	del_timer	vmlinux	EXPORT_SYMBOL
