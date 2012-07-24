@@ -548,6 +548,9 @@ extern void			ipv6_push_frag_opts(struct sk_buff *skb,
 
 extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 					         u8 *nexthdrp);
+extern int			ipv6_skip_exthdr_fragoff(
+					const struct sk_buff *, int start,
+					u8 *nexthdrp, __be16 *frag_offp);
 
 extern int 			ipv6_ext_hdr(u8 nexthdr);
 
