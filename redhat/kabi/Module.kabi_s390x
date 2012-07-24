@@ -707,6 +707,7 @@
 0x3285cc48	param_set_uint	vmlinux	EXPORT_SYMBOL
 0x0799c50a	param_set_ulong	vmlinux	EXPORT_SYMBOL
 0xe0bc24a1	param_set_ushort	vmlinux	EXPORT_SYMBOL
+0x4411afec	path_get	vmlinux	EXPORT_SYMBOL
 0xb3e1486a	path_lookup	vmlinux	EXPORT_SYMBOL
 0xb80e90b5	path_put	vmlinux	EXPORT_SYMBOL
 0x5f56db66	per_cpu__ftrace_event_seq	vmlinux	EXPORT_SYMBOL

@@ -708,6 +708,7 @@
 	param_set_uint
 	param_set_ulong
 	param_set_ushort
+	path_get
 	path_lookup
 	path_put
 	per_cpu__ftrace_event_seq
