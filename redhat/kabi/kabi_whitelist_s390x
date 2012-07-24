@@ -83,6 +83,7 @@
 	acquire_console_sem
 	add_disk
 	add_timer
+	add_to_page_cache_locked
 	add_uevent_var
 	add_wait_queue
 	add_wait_queue_exclusive

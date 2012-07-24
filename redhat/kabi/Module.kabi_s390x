@@ -82,6 +82,7 @@
 0xf174ed48	acquire_console_sem	vmlinux	EXPORT_SYMBOL
 0x44e01fb7	add_disk	vmlinux	EXPORT_SYMBOL
 0x034ec71c	add_timer	vmlinux	EXPORT_SYMBOL
+0xdd526cdf	add_to_page_cache_locked	vmlinux	EXPORT_SYMBOL
 0xb9eb3aa9	add_uevent_var	vmlinux	EXPORT_SYMBOL_GPL
 0xc38d7071	add_wait_queue	vmlinux	EXPORT_SYMBOL
 0x664aedb9	add_wait_queue_exclusive	vmlinux	EXPORT_SYMBOL
