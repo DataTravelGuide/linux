@@ -911,6 +911,7 @@
 0x0b742fd7	simple_strtol	vmlinux	EXPORT_SYMBOL
 0x20000329	simple_strtoul	vmlinux	EXPORT_SYMBOL
 0x61b7b126	simple_strtoull	vmlinux	EXPORT_SYMBOL
+0x7060fe8d	simple_write_end	vmlinux	EXPORT_SYMBOL
 0x13c426d1	single_open	vmlinux	EXPORT_SYMBOL
 0x98f3142a	single_release	vmlinux	EXPORT_SYMBOL
 0xef362d9b	sk_alloc	vmlinux	EXPORT_SYMBOL

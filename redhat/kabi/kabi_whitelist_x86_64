@@ -1215,6 +1215,7 @@
 	simple_strtol
 	simple_strtoul
 	simple_strtoull
+	simple_write_end
 	single_open
 	single_release
 	sk_alloc
