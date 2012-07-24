@@ -381,6 +381,7 @@
 0x8cc6d758	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
 0x2393e2a2	filemap_fdatawrite	vmlinux	EXPORT_SYMBOL
 0xd8951a6a	filemap_fdatawrite_range	vmlinux	EXPORT_SYMBOL
+0x0ebcc52c	filemap_flush	vmlinux	EXPORT_SYMBOL
 0x215c86f9	filemap_write_and_wait	vmlinux	EXPORT_SYMBOL
 0xb1bfc57a	filemap_write_and_wait_range	vmlinux	EXPORT_SYMBOL
 0x85e2d755	filp_close	vmlinux	EXPORT_SYMBOL
