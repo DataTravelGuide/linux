@@ -1388,6 +1388,7 @@
 0x738803e6	strnlen	vmlinux	EXPORT_SYMBOL
 0x9f984513	strrchr	vmlinux	EXPORT_SYMBOL
 0x85df9b6c	strsep	vmlinux	EXPORT_SYMBOL
+0xc7ec6c27	strspn	vmlinux	EXPORT_SYMBOL
 0x1e6d26a8	strstr	vmlinux	EXPORT_SYMBOL
 0xac8b15ea	submit_bh	vmlinux	EXPORT_SYMBOL
 0xfc107b06	submit_bio	vmlinux	EXPORT_SYMBOL

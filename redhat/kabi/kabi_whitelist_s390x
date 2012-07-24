@@ -1034,6 +1034,7 @@
 	strnlen
 	strrchr
 	strsep
+	strspn
 	strstr
 	submit_bh
 	submit_bio

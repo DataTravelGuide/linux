@@ -1395,6 +1395,7 @@
 0xcc07af75	strnlen	vmlinux	EXPORT_SYMBOL
 0x9f984513	strrchr	vmlinux	EXPORT_SYMBOL
 0x85df9b6c	strsep	vmlinux	EXPORT_SYMBOL
+0x3fa913da	strspn	vmlinux	EXPORT_SYMBOL
 0x1e6d26a8	strstr	vmlinux	EXPORT_SYMBOL
 0x7da17ea5	submit_bh	vmlinux	EXPORT_SYMBOL
 0x1cd29603	submit_bio	vmlinux	EXPORT_SYMBOL

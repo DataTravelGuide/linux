@@ -1033,6 +1033,7 @@
 0x9b8d07aa	strnlen	vmlinux	EXPORT_SYMBOL
 0x9f984513	strrchr	vmlinux	EXPORT_SYMBOL
 0x85df9b6c	strsep	vmlinux	EXPORT_SYMBOL
+0x3fa913da	strspn	vmlinux	EXPORT_SYMBOL
 0x1e6d26a8	strstr	vmlinux	EXPORT_SYMBOL
 0x23c667ad	submit_bh	vmlinux	EXPORT_SYMBOL
 0x7a46a61b	submit_bio	vmlinux	EXPORT_SYMBOL
