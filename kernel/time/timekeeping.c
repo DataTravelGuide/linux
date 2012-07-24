@@ -638,7 +638,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	clockevents_notify(CLOCK_EVT_NOTIFY_RESUME, NULL);
 
 	/* Resume hrtimers */
-	hres_timers_resume();
+	hrtimers_resume();
 
 	return 0;
 }

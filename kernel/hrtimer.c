@@ -594,6 +594,98 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 	return res;
 }
 
+/*
+ * Initialize the high resolution related parts of cpu_base
+ */
+static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base)
+{
+	base->expires_next.tv64 = KTIME_MAX;
+	base->hres_active = 0;
+}
+
+/*
+ * Initialize the high resolution related parts of a hrtimer
+ */
+static inline void hrtimer_init_timer_hres(struct hrtimer *timer)
+{
+}
+
+
+/*
+ * When High resolution timers are active, try to reprogram. Note, that in case
+ * the state has HRTIMER_STATE_CALLBACK set, no reprogramming and no expiry
+ * check happens. The timer gets enqueued into the rbtree. The reprogramming
+ * and expiry check is done in the hrtimer_interrupt or in the softirq.
+ */
+static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
+					    struct hrtimer_clock_base *base,
+					    int wakeup)
+{
+	if (base->cpu_base->hres_active && hrtimer_reprogram(timer, base)) {
+		if (wakeup) {
+			spin_unlock(&base->cpu_base->lock);
+			raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+			spin_lock(&base->cpu_base->lock);
+		} else
+			__raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static void retrigger_next_event(void *arg);
+
+/*
+ * Switch to high resolution mode
+ */
+static int hrtimer_switch_to_hres(void)
+{
+	int cpu = smp_processor_id();
+	struct hrtimer_cpu_base *base = &per_cpu(hrtimer_bases, cpu);
+	unsigned long flags;
+
+	if (base->hres_active)
+		return 1;
+
+	local_irq_save(flags);
+
+	if (tick_init_highres()) {
+		local_irq_restore(flags);
+		printk(KERN_WARNING "Could not switch to high resolution "
+				    "mode on CPU %d\n", cpu);
+		return 0;
+	}
+	base->hres_active = 1;
+	base->clock_base[CLOCK_REALTIME].resolution = KTIME_HIGH_RES;
+	base->clock_base[CLOCK_MONOTONIC].resolution = KTIME_HIGH_RES;
+
+	tick_setup_sched_timer();
+
+	/* "Retrigger" the interrupt to get things going */
+	retrigger_next_event(NULL);
+	local_irq_restore(flags);
+	return 1;
+}
+
+#else
+
+static inline int hrtimer_hres_active(void) { return 0; }
+static inline int hrtimer_is_hres_enabled(void) { return 0; }
+static inline int hrtimer_switch_to_hres(void) { return 0; }
+static inline void
+hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
+static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
+					    struct hrtimer_clock_base *base,
+					    int wakeup)
+{
+	return 0;
+}
+static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base) { }
+static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
+
+#endif /* CONFIG_HIGH_RES_TIMERS */
 
 /*
  * Retrigger next event is called after clock was set
@@ -645,105 +737,14 @@ void clock_was_set(void)
  * During resume we might have to reprogram the high resolution timer
  * interrupt (on the local CPU):
  */
-void hres_timers_resume(void)
+void hrtimers_resume(void)
 {
 	WARN_ONCE(!irqs_disabled(),
-		  KERN_INFO "hres_timers_resume() called with IRQs enabled!");
+		  KERN_INFO "hrtimers_resume() called with IRQs enabled!");
 
 	retrigger_next_event(NULL);
 	timerfd_clock_was_set();
 }
-
-/*
- * Initialize the high resolution related parts of cpu_base
- */
-static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base)
-{
-	base->expires_next.tv64 = KTIME_MAX;
-	base->hres_active = 0;
-}
-
-/*
- * Initialize the high resolution related parts of a hrtimer
- */
-static inline void hrtimer_init_timer_hres(struct hrtimer *timer)
-{
-}
-
-
-/*
- * When High resolution timers are active, try to reprogram. Note, that in case
- * the state has HRTIMER_STATE_CALLBACK set, no reprogramming and no expiry
- * check happens. The timer gets enqueued into the rbtree. The reprogramming
- * and expiry check is done in the hrtimer_interrupt or in the softirq.
- */
-static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
-					    struct hrtimer_clock_base *base,
-					    int wakeup)
-{
-	if (base->cpu_base->hres_active && hrtimer_reprogram(timer, base)) {
-		if (wakeup) {
-			spin_unlock(&base->cpu_base->lock);
-			raise_softirq_irqoff(HRTIMER_SOFTIRQ);
-			spin_lock(&base->cpu_base->lock);
-		} else
-			__raise_softirq_irqoff(HRTIMER_SOFTIRQ);
-
-		return 1;
-	}
-
-	return 0;
-}
-
-/*
- * Switch to high resolution mode
- */
-static int hrtimer_switch_to_hres(void)
-{
-	int cpu = smp_processor_id();
-	struct hrtimer_cpu_base *base = &per_cpu(hrtimer_bases, cpu);
-	unsigned long flags;
-
-	if (base->hres_active)
-		return 1;
-
-	local_irq_save(flags);
-
-	if (tick_init_highres()) {
-		local_irq_restore(flags);
-		printk(KERN_WARNING "Could not switch to high resolution "
-				    "mode on CPU %d\n", cpu);
-		return 0;
-	}
-	base->hres_active = 1;
-	base->clock_base[CLOCK_REALTIME].resolution = KTIME_HIGH_RES;
-	base->clock_base[CLOCK_MONOTONIC].resolution = KTIME_HIGH_RES;
-
-	tick_setup_sched_timer();
-
-	/* "Retrigger" the interrupt to get things going */
-	retrigger_next_event(NULL);
-	local_irq_restore(flags);
-	return 1;
-}
-
-#else
-
-static inline int hrtimer_hres_active(void) { return 0; }
-static inline int hrtimer_is_hres_enabled(void) { return 0; }
-static inline int hrtimer_switch_to_hres(void) { return 0; }
-static inline void
-hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
-static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
-					    struct hrtimer_clock_base *base,
-					    int wakeup)
-{
-	return 0;
-}
-static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base) { }
-static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
-
-#endif /* CONFIG_HIGH_RES_TIMERS */
 
 #ifdef CONFIG_TIMER_STATS
 void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer, void *addr)
