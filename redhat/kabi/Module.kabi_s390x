@@ -657,6 +657,7 @@
 0xdf4c8767	ns_to_timeval	vmlinux	EXPORT_SYMBOL
 0x0948cde9	num_physpages	vmlinux	EXPORT_SYMBOL
 0xc33f6f4c	on_each_cpu	vmlinux	EXPORT_SYMBOL
+0x8d1df722	open_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0xd67a1d4b	open_by_devnum	vmlinux	EXPORT_SYMBOL
 0x985623b2	pagevec_lookup_tag	vmlinux	EXPORT_SYMBOL
 0x0e52592a	panic	vmlinux	EXPORT_SYMBOL

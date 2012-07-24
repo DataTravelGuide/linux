@@ -830,6 +830,7 @@
 0xdf4c8767	ns_to_timeval	vmlinux	EXPORT_SYMBOL
 0x0948cde9	num_physpages	vmlinux	EXPORT_SYMBOL
 0xc33f6f4c	on_each_cpu	vmlinux	EXPORT_SYMBOL
+0x3c52c63f	open_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0x19a12baf	open_by_devnum	vmlinux	EXPORT_SYMBOL
 0x229c8992	page_address	vmlinux	EXPORT_SYMBOL
 0xe50738aa	pagevec_lookup_tag	vmlinux	EXPORT_SYMBOL

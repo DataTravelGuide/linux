@@ -788,6 +788,7 @@
 	ns_to_timeval
 	num_physpages
 	on_each_cpu
+	open_bdev_exclusive
 	open_by_devnum
 	paca
 	pagevec_lookup_tag
