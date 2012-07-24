@@ -972,6 +972,7 @@
 0xbdf5c25c	rb_next	vmlinux	EXPORT_SYMBOL
 0x60a13e90	rcu_barrier	vmlinux	EXPORT_SYMBOL_GPL
 0x429bba33	read_cache_page	vmlinux	EXPORT_SYMBOL
+0xfb6af58d	recalc_sigpending	vmlinux	EXPORT_SYMBOL
 0x55342ead	redirty_page_for_writepage	vmlinux	EXPORT_SYMBOL
 0x35c2ba9e	refrigerator	vmlinux	EXPORT_SYMBOL
 0x71a50dbc	register_blkdev	vmlinux	EXPORT_SYMBOL

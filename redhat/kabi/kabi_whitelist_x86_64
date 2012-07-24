@@ -1035,6 +1035,7 @@
 	rb_next
 	rcu_barrier
 	read_cache_page
+	recalc_sigpending
 	redirty_page_for_writepage
 	refrigerator
 	register_blkdev
