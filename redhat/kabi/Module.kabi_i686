@@ -302,6 +302,7 @@
 0x67053080	current_kernel_time	vmlinux	EXPORT_SYMBOL
 0x5e95b1cd	current_umask   vmlinux EXPORT_SYMBOL
 0xd79f78e8	d_alloc_root	vmlinux	EXPORT_SYMBOL
+0x83be342f	d_find_alias	vmlinux	EXPORT_SYMBOL
 0x4c221de6	d_instantiate	vmlinux	EXPORT_SYMBOL
 0x9e03ecb4	d_lookup	vmlinux	EXPORT_SYMBOL
 0x373c03e6	d_obtain_alias	vmlinux	EXPORT_SYMBOL
