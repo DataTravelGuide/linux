@@ -790,6 +790,7 @@
 0x74439d35	open_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0xf7d3578e	open_by_devnum	vmlinux	EXPORT_SYMBOL
 0x72927f79	paca	vmlinux	EXPORT_SYMBOL
+0x28691278	pagevec_lookup	vmlinux	EXPORT_SYMBOL
 0xd4a3f52b	pagevec_lookup_tag	vmlinux	EXPORT_SYMBOL
 0x0e52592a	panic	vmlinux	EXPORT_SYMBOL
 0x4a8702be	panic_notifier_list	vmlinux	EXPORT_SYMBOL

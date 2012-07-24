@@ -834,6 +834,7 @@
 	open_bdev_exclusive
 	open_by_devnum
 	page_address
+	pagevec_lookup
 	pagevec_lookup_tag
 	panic
 	panic_notifier_list

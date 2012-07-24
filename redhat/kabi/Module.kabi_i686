@@ -833,6 +833,7 @@
 0x3c52c63f	open_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0x19a12baf	open_by_devnum	vmlinux	EXPORT_SYMBOL
 0x229c8992	page_address	vmlinux	EXPORT_SYMBOL
+0x65054b8d	pagevec_lookup	vmlinux	EXPORT_SYMBOL
 0xe50738aa	pagevec_lookup_tag	vmlinux	EXPORT_SYMBOL
 0x0e52592a	panic	vmlinux	EXPORT_SYMBOL
 0xd7a6fafa	panic_notifier_list	vmlinux	EXPORT_SYMBOL

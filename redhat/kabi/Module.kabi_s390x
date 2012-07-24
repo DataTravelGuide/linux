@@ -659,6 +659,7 @@
 0xc33f6f4c	on_each_cpu	vmlinux	EXPORT_SYMBOL
 0x8d1df722	open_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0xd67a1d4b	open_by_devnum	vmlinux	EXPORT_SYMBOL
+0xf7a50a85	pagevec_lookup	vmlinux	EXPORT_SYMBOL
 0x985623b2	pagevec_lookup_tag	vmlinux	EXPORT_SYMBOL
 0x0e52592a	panic	vmlinux	EXPORT_SYMBOL
 0x5ff45be9	panic_notifier_list	vmlinux	EXPORT_SYMBOL
