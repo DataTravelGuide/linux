@@ -372,6 +372,7 @@
 	filemap_fault
 	filemap_fdatawait
 	filemap_fdatawrite
+	filemap_fdatawrite_range
 	filemap_write_and_wait
 	filemap_write_and_wait_range
 	filp_close

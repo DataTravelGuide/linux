@@ -469,6 +469,7 @@
 0xf3c7313c	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x1fd5a226	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
 0xcc5a344f	filemap_fdatawrite	vmlinux	EXPORT_SYMBOL
+0x0282f10c	filemap_fdatawrite_range	vmlinux	EXPORT_SYMBOL
 0x31a4c66c	filemap_write_and_wait	vmlinux	EXPORT_SYMBOL
 0x99c37b0c	filemap_write_and_wait_range	vmlinux	EXPORT_SYMBOL
 0xc2fa88ca	filp_close	vmlinux	EXPORT_SYMBOL
