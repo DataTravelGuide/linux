@@ -737,6 +737,7 @@
 0xf6e58a66	queue_delayed_work_on	vmlinux	EXPORT_SYMBOL_GPL
 0xa4a2b82d	queue_work	vmlinux	EXPORT_SYMBOL_GPL
 0xe6b77e98	queue_work_on	vmlinux	EXPORT_SYMBOL_GPL
+0x605c8bde	radix_tree_delete	vmlinux	EXPORT_SYMBOL
 0x3db2e258	radix_tree_gang_lookup	vmlinux	EXPORT_SYMBOL
 0xb18e02c3	radix_tree_gang_lookup_tag	vmlinux	EXPORT_SYMBOL
 0xac383451	radix_tree_tag_clear	vmlinux	EXPORT_SYMBOL

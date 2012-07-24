@@ -959,6 +959,7 @@
 	queue_delayed_work_on
 	queue_work
 	queue_work_on
+	radix_tree_delete
 	radix_tree_gang_lookup
 	radix_tree_gang_lookup_tag
 	radix_tree_tag_clear

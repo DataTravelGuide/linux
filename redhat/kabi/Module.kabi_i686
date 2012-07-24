@@ -1015,6 +1015,7 @@
 0x20c65bcb	queue_delayed_work_on	vmlinux	EXPORT_SYMBOL_GPL
 0x8d44ade9	queue_work	vmlinux	EXPORT_SYMBOL_GPL
 0x4797912a	queue_work_on	vmlinux	EXPORT_SYMBOL_GPL
+0x4a971ec7	radix_tree_delete	vmlinux	EXPORT_SYMBOL
 0x8063f83d	radix_tree_gang_lookup	vmlinux	EXPORT_SYMBOL
 0xea858cb5	radix_tree_gang_lookup_tag	vmlinux	EXPORT_SYMBOL
 0xf7623914	radix_tree_tag_clear	vmlinux	EXPORT_SYMBOL
