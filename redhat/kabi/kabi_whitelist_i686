@@ -1592,6 +1592,7 @@
 	vfree
 	vfs_rename
 	vfs_write
+	vfs_writev
 	vga_client_register
 	vgacon_text_force
 	vid_from_reg

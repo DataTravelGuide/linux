@@ -1598,6 +1598,7 @@
 0x999e8297	vfree	vmlinux	EXPORT_SYMBOL
 0xedadfa8d	vfs_rename	vmlinux	EXPORT_SYMBOL
 0xe26193a3	vfs_write	vmlinux	EXPORT_SYMBOL
+0x8f0c99e6	vfs_writev	vmlinux	EXPORT_SYMBOL
 0xc00994a1	vga_client_register	vmlinux	EXPORT_SYMBOL
 0x42595e58	vgacon_text_force	vmlinux	EXPORT_SYMBOL
 0x0903c239	vid_from_reg	drivers/hwmon/hwmon-vid	EXPORT_SYMBOL

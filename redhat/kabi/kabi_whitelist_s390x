@@ -1150,6 +1150,7 @@
 	vfree
 	vfs_rename
 	vfs_write
+	vfs_writev
 	vlan_dev_real_dev
 	vlan_dev_vlan_id
 	vlan_gro_frags
