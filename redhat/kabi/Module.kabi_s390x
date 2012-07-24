@@ -506,6 +506,7 @@
 0x392674a6	kfifo_free	vmlinux	EXPORT_SYMBOL
 0x037a0cba	kfree	vmlinux	EXPORT_SYMBOL
 0x4ac977d0	kfree_skb	vmlinux	EXPORT_SYMBOL
+0x89e09fb7	kill_anon_super	vmlinux	EXPORT_SYMBOL
 0x40fd6216	kill_block_super	vmlinux	EXPORT_SYMBOL
 0xd64f9b19	kill_fasync	vmlinux	EXPORT_SYMBOL
 0x3c0d7411	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL

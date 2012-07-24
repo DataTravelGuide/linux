@@ -664,6 +664,7 @@
 	kfifo_free
 	kfree
 	kfree_skb
+	kill_anon_super
 	kill_block_super
 	kill_fasync
 	kmap

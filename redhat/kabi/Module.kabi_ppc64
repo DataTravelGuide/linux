@@ -625,6 +625,7 @@
 0x08a64e7c	kfifo_free	vmlinux	EXPORT_SYMBOL
 0x037a0cba	kfree	vmlinux	EXPORT_SYMBOL
 0xa8ca1107	kfree_skb	vmlinux	EXPORT_SYMBOL
+0x80ad3bb8	kill_anon_super	vmlinux	EXPORT_SYMBOL
 0xb594b11b	kill_block_super	vmlinux	EXPORT_SYMBOL
 0x8a4adcbd	kill_fasync	vmlinux	EXPORT_SYMBOL
 0x26773e3e	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL

@@ -663,6 +663,7 @@
 0x15ef2dd9	kfifo_free	vmlinux	EXPORT_SYMBOL
 0x037a0cba	kfree	vmlinux	EXPORT_SYMBOL
 0x44744ddb	kfree_skb	vmlinux	EXPORT_SYMBOL
+0xdd122365	kill_anon_super	vmlinux	EXPORT_SYMBOL
 0xde3c9c4a	kill_block_super	vmlinux	EXPORT_SYMBOL
 0xe292647d	kill_fasync	vmlinux	EXPORT_SYMBOL
 0x4639723b	kmap	vmlinux	EXPORT_SYMBOL
