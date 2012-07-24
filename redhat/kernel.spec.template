@@ -1674,6 +1674,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 24 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-290.el6]
+- [netdrv] be2net: reduce gso_max_size setting to account for ethernet header (Ivan Vecera) [834185]
+- [netdrv] dl2k: fix unfiltered netdev rio_ioctl access by users (Jacob Tanenbaum) [818825] {CVE-2012-2313}
+- [fs] proc/stat: fix whitespace damage in use arch_idle_time patch (Steve Best) [841149]
+- [virt] kvm: disable writeback for TEST in emulator (Gleb Natapov) [842211]
+- [x86] lapic-timer: Increase the max_delta to 31 bits (Prarit Bhargava) [832138]
+- [net] 8021q/vlan: filter device events on bonds (Neil Horman) [841983]
+
 * Mon Jul 23 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-289.el6]
 - [fs] nfs: fix EOF incorrectly set on short read for nfsv2 (Sachin Prabhu) [827126]
 - [usbhid] hiddev: Consolidate device existence checks in hiddev_ioctl (Don Zickus) [839973]
