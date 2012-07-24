@@ -757,12 +757,12 @@ static void rh_check_supported(void)
 		mark_hardware_unsupported("Unsupported Processor");
 	}
 
-	/* Intel CPU family 6, model greater than 59 */
+	/* Intel CPU family 6, model greater than 60 */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
-	    ((boot_cpu_data.x86 == 6) && (boot_cpu_data.x86_model > 59))) {
+	    ((boot_cpu_data.x86 == 6) && (boot_cpu_data.x86_model > 60))) {
 		printk(KERN_CRIT "Detected CPU family %d model %d\n",
 		       boot_cpu_data.x86, boot_cpu_data.x86_model);
-		mark_hardware_unsupported("CPU family 6 model > 59");
+		mark_hardware_unsupported("CPU family 6 model > 60");
 	}
 }
 
