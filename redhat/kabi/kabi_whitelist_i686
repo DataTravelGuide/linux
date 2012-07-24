@@ -481,6 +481,7 @@
 	fc_remove_host
 	fd_install
 	fget
+	file_fsync
 	filemap_fault
 	filemap_fdatawait
 	filemap_fdatawrite

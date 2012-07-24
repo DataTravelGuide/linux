@@ -486,6 +486,7 @@
 0xe9df4985	fc_remove_host	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xfd8ec3c2	fd_install      vmlinux EXPORT_SYMBOL
 0x92375255	fget	vmlinux	EXPORT_SYMBOL
+0x77045cfa	file_fsync	vmlinux	EXPORT_SYMBOL
 0xec150229	filemap_fault	vmlinux	EXPORT_SYMBOL
 0x36a493a8	filemap_fdatawait	vmlinux	EXPORT_SYMBOL
 0x6567485d	filemap_fdatawrite	vmlinux	EXPORT_SYMBOL
