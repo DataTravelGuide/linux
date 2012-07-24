@@ -674,6 +674,7 @@
 0xcb133321	nla_put	vmlinux	EXPORT_SYMBOL
 0x52882887	no_llseek	vmlinux	EXPORT_SYMBOL
 0x4d0efe82	nobh_truncate_page	vmlinux	EXPORT_SYMBOL
+0x1dcb96f6	nobh_write_begin	vmlinux	EXPORT_SYMBOL
 0xfcda63a3	node_states	vmlinux	EXPORT_SYMBOL
 0xc860d335	nonseekable_open	vmlinux	EXPORT_SYMBOL
 0x264794b4	noop_qdisc	vmlinux	EXPORT_SYMBOL
