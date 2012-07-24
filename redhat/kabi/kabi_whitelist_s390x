@@ -676,6 +676,7 @@
 	no_llseek
 	nobh_truncate_page
 	nobh_write_begin
+	nobh_write_end
 	node_states
 	nonseekable_open
 	noop_qdisc
