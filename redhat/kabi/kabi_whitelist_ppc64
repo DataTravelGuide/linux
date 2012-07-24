@@ -609,6 +609,7 @@
 	jiffies
 	jiffies_to_clock_t
 	jiffies_to_msecs
+	jiffies_to_timespec
 	jiffies_to_timeval
 	jiffies_to_usecs
 	kasprintf

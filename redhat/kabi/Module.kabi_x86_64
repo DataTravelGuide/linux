@@ -652,6 +652,7 @@
 0x7d11c268	jiffies	vmlinux	EXPORT_SYMBOL
 0x9f100139	jiffies_to_clock_t	vmlinux	EXPORT_SYMBOL
 0x37befc70	jiffies_to_msecs	vmlinux	EXPORT_SYMBOL
+0x57b57ebe	jiffies_to_timespec	vmlinux	EXPORT_SYMBOL
 0xcfb9006e	jiffies_to_timeval	vmlinux	EXPORT_SYMBOL
 0x7f24de73	jiffies_to_usecs	vmlinux	EXPORT_SYMBOL
 0xda1a7335	kasprintf	vmlinux	EXPORT_SYMBOL
