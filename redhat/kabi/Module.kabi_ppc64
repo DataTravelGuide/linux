@@ -1,3 +1,4 @@
+0x12594e9d	____pagevec_lru_add	vmlinux	EXPORT_SYMBOL
 0x2bb91353	___pskb_trim	vmlinux	EXPORT_SYMBOL
 0xd666d609	__alloc_pages_nodemask	vmlinux	EXPORT_SYMBOL
 0x55f2580b	__alloc_percpu	vmlinux	EXPORT_SYMBOL_GPL

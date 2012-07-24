@@ -1,5 +1,6 @@
 [rhel6_i686_whitelist]
 	__FIXADDR_TOP
+	____pagevec_lru_add
 	___pskb_trim
 	__alloc_pages_nodemask
 	__alloc_percpu

@@ -1,4 +1,5 @@
 0xa51cdfe8	__FIXADDR_TOP	vmlinux	EXPORT_SYMBOL
+0x8392e8e5	____pagevec_lru_add	vmlinux	EXPORT_SYMBOL
 0x5e0ada3d	___pskb_trim	vmlinux	EXPORT_SYMBOL
 0xf87541df	__alloc_pages_nodemask	vmlinux	EXPORT_SYMBOL
 0x50c89f23	__alloc_percpu	vmlinux	EXPORT_SYMBOL_GPL
