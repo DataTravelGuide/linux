@@ -845,6 +845,7 @@
 0xa58b6804	nla_parse	vmlinux	EXPORT_SYMBOL
 0xbacdc1df	nla_put	vmlinux	EXPORT_SYMBOL
 0x684ba88a	no_llseek	vmlinux	EXPORT_SYMBOL
+0x0888be9c	nobh_truncate_page	vmlinux	EXPORT_SYMBOL
 0xfcda63a3	node_states	vmlinux	EXPORT_SYMBOL
 0x61c54c5a	nonseekable_open	vmlinux	EXPORT_SYMBOL
 0x2ba28b44	noop_qdisc	vmlinux	EXPORT_SYMBOL

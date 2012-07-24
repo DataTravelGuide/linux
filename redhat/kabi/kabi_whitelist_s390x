@@ -673,6 +673,7 @@
 	nla_parse
 	nla_put
 	no_llseek
+	nobh_truncate_page
 	node_states
 	nonseekable_open
 	noop_qdisc
