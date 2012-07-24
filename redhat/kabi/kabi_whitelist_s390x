@@ -497,6 +497,7 @@
 	kernel_getsockopt
 	kernel_recvmsg
 	kernel_sendmsg
+	kernel_setsockopt
 	kernel_sock_ioctl
 	kfifo_alloc
 	kfifo_free
