@@ -255,6 +255,7 @@
 0xda23fe1a	clear_inode	vmlinux	EXPORT_SYMBOL
 0x07a20dc1	clear_page_dirty_for_io	vmlinux	EXPORT_SYMBOL
 0x7da99cdd	clear_user	vmlinux	EXPORT_SYMBOL
+0x795f1e45	close_bdev_exclusive	vmlinux	EXPORT_SYMBOL
 0xe456bd3a	complete	vmlinux	EXPORT_SYMBOL
 0x3c7227bf	complete_all	vmlinux	EXPORT_SYMBOL
 0x6dc0c24b	complete_and_exit	vmlinux	EXPORT_SYMBOL

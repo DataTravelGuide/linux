@@ -237,6 +237,7 @@
 	class_unregister
 	clear_inode
 	clear_page_dirty_for_io
+	close_bdev_exclusive
 	compat_alloc_user_space
 	complete
 	complete_all
