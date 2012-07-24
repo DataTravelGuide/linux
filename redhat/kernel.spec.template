@@ -1674,6 +1674,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 23 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-289.el6]
+- [fs] nfs: fix EOF incorrectly set on short read for nfsv2 (Sachin Prabhu) [827126]
+- [usbhid] hiddev: Consolidate device existence checks in hiddev_ioctl (Don Zickus) [839973]
+- [usbhid] hiddev: Fix race between disconnect and hiddev_ioctl (Don Zickus) [839973]
+- [usbhid] hiddev: protect against disconnect/NULL-dereference race (Don Zickus) [839973]
+- [perf] events: Fix ring_buffer_wakeup() brown paperbag bug (Frederic Weisbecker) [839105]
+- [perf] Fix loss of notification with multi-event (Frederic Weisbecker) [839105]
+- [perf] Split up buffer handling from core code (Frederic Weisbecker) [839105]
+- [drm] i915: fix integer overflow in i915_gem_do_execbuffer() (Jacob Tanenbaum) [824563] {CVE-2012-2384}
+- [crypto] algapi: Move larval completion into algboss (Herbert Xu) [832135]
+- [kernel] pm_qos: Accept ASCII values for latency (Herbert Xu) [833456]
+- [x86] Use .cfi_sections for assembly code (Mark Wielaard) [823990]
+- [scsi] mpt2sas: reduce lock contention (Tomas Henzl) [790506]
+- [net] ipv4: fix panic while tuning accept_local (Weiping Pan) [835911]
+
 * Thu Jul 19 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-288.el6]
 - [powerpc] Fix wrong divisor in usecs_to_cputime backport (Steve Best) [821374]
 - [drm] i915: fix integer overflow in i915_gem_execbuffer2() (Jacob Tanenbaum) [824555] {CVE-2012-2383}
