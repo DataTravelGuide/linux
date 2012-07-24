@@ -304,6 +304,7 @@
 0xd79f78e8	d_alloc_root	vmlinux	EXPORT_SYMBOL
 0x83be342f	d_find_alias	vmlinux	EXPORT_SYMBOL
 0x4c221de6	d_instantiate	vmlinux	EXPORT_SYMBOL
+0x13712888	d_invalidate	vmlinux	EXPORT_SYMBOL
 0x9e03ecb4	d_lookup	vmlinux	EXPORT_SYMBOL
 0x373c03e6	d_obtain_alias	vmlinux	EXPORT_SYMBOL
 0x491ccc8f	d_prune_aliases	vmlinux	EXPORT_SYMBOL

@@ -286,6 +286,7 @@
 0xae17190e	d_alloc_root	vmlinux	EXPORT_SYMBOL
 0xfa3655c9	d_find_alias	vmlinux	EXPORT_SYMBOL
 0x21690c49	d_instantiate	vmlinux	EXPORT_SYMBOL
+0x4cfbef01	d_invalidate	vmlinux	EXPORT_SYMBOL
 0xe4f696cf	d_lookup	vmlinux	EXPORT_SYMBOL
 0x05ad7fca	d_obtain_alias	vmlinux	EXPORT_SYMBOL
 0x9906b03f	d_prune_aliases	vmlinux	EXPORT_SYMBOL

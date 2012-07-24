@@ -287,6 +287,7 @@
 	d_alloc_root
 	d_find_alias
 	d_instantiate
+	d_invalidate
 	d_lookup
 	d_obtain_alias
 	d_prune_aliases
