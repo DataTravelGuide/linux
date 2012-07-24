@@ -995,7 +995,8 @@ struct net_device
 	void                    *dn_ptr;        /* DECnet specific data */
 	void                    *ip6_ptr;       /* IPv6 specific data */
 	void			*ec_ptr;	/* Econet specific data	*/
-	void			*ax25_ptr;	/* AX.25 specific data */
+	void			*ax25_ptr;	/* AX.25 specific data
+						   also used by openvswitch */
 	struct wireless_dev	*ieee80211_ptr;	/* IEEE 802.11 specific data,
 						   assign before registering */
 

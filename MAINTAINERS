@@ -3971,6 +3971,14 @@ F:	drivers/of
 F:	include/linux/of*.h
 K:	of_get_property
 
+OPENVSWITCH
+M:	Jesse Gross <jesse@nicira.com>
+L:	dev@openvswitch.org
+W:	http://openvswitch.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+S:	Maintained
+F:	net/openvswitch/
+
 OPROFILE
 M:	Robert Richter <robert.richter@amd.com>
 L:	oprofile-list@lists.sf.net

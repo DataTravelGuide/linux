@@ -127,6 +127,7 @@
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#include <linux/openvswitch.h>
 #ifndef __GENKSYMS__
 #include <trace/events/napi.h>
 #include <trace/events/net.h>
@@ -2649,6 +2650,25 @@ static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
 #define handle_macvlan(skb, pt_prev, ret, orig_dev)	(skb)
 #endif
 
+struct sk_buff *(*openvswitch_handle_frame_hook)(struct sk_buff *skb)
+	__read_mostly;
+EXPORT_SYMBOL_GPL(openvswitch_handle_frame_hook);
+
+static inline struct sk_buff *handle_openvswitch(struct sk_buff *skb,
+						 struct packet_type **pt_prev,
+						 int *ret,
+						 struct net_device *orig_dev)
+{
+	if (!(skb->dev->priv_flags & IFF_OVS_DATAPATH) || !skb->dev->ax25_ptr)
+		return skb;
+
+	if (*pt_prev) {
+		*ret = deliver_skb(skb, *pt_prev, orig_dev);
+		*pt_prev = NULL;
+	}
+	return openvswitch_handle_frame_hook(skb);
+}
+
 #ifdef CONFIG_NET_CLS_ACT
 /* TODO: Maybe we should just force sch_ingress to be compiled in
  * when CONFIG_NET_CLS_ACT is? otherwise some useless instructions
@@ -2828,6 +2848,9 @@ ncls:
 	if (!skb)
 		goto out;
 	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
+	if (!skb)
+		goto out;
+	skb = handle_openvswitch(skb, &pt_prev, &ret, orig_dev);
 	if (!skb)
 		goto out;
 
