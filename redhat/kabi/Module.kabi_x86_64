@@ -528,6 +528,7 @@
 0xe46d84e9	get_page	vmlinux	EXPORT_SYMBOL
 0x79aa04a2	get_random_bytes	vmlinux	EXPORT_SYMBOL
 0xddbd934c	get_sb_bdev	vmlinux	EXPORT_SYMBOL
+0x5c7e09d7	get_sb_nodev	vmlinux	EXPORT_SYMBOL
 0x405c1144	get_seconds	vmlinux	EXPORT_SYMBOL
 0x6e293b8e	get_user_pages	vmlinux	EXPORT_SYMBOL
 0xfd423e5b	get_write_access	vmlinux	EXPORT_SYMBOL

@@ -484,6 +484,7 @@
 	get_page
 	get_random_bytes
 	get_sb_bdev
+	get_sb_nodev
 	get_seconds
 	get_user_pages
 	get_write_access
