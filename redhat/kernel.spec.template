@@ -1674,6 +1674,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 25 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-293.el6]
+- [s390] kernel: pfault task state race (Hendrik Brueckner) [831262]
+- [powerpc] pseries: Support lower minimum entitlement for virtual processors (Steve Best) [822651]
+- [kernel] sched: Fix signed unsigned comparison in check_preempt_tick() (Frederic Weisbecker) [835797]
+- [edac] i5000_edac: Fix the fatal error channel report (Mauro Carvalho Chehab) [806796]
+- [security] selinux: fix error codes in cond_read_bool() (Eric Paris) [839315]
+- [mm] page-writeback: Improvement of page writeback ordering (Naoya Horiguchi) [786025]
+- [mm] reduce page fragmentation in buddy allocator (Jarod Wilson) [786318]
+
 * Wed Jul 25 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-292.el6]
 - [pci] print out PCI device info along with duration (Myron Stowe) [808213]
 - [pci] Move "pci reassigndev resource alignment" out of quirks.c (Myron Stowe) [808213]
