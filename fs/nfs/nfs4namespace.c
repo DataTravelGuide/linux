@@ -51,6 +51,30 @@ Elong:
 }
 
 /*
+ * return the path component of "<server>:<path>"
+ *  nfspath - the "<server>:<path>" string
+ *  end - one past the last char that could contain "<server>:"
+ * returns NULL on failure
+ */
+static char *nfs_path_component(const char *nfspath, const char *end)
+{
+	char *p;
+
+	if (*nfspath == '[') {
+		/* parse [] escaped IPv6 addrs */
+		p = strchr(nfspath, ']');
+		if (p != NULL && ++p < end && *p == ':')
+			return p + 1;
+	} else {
+		/* otherwise split on first colon */
+		p = strchr(nfspath, ':');
+		if (p != NULL && p < end)
+			return p + 1;
+	}
+	return NULL;
+}
+
+/*
  * Determine the mount path as a string
  */
 static char *nfs4_path(const struct vfsmount *mnt_parent,
@@ -58,11 +82,11 @@ static char *nfs4_path(const struct vfsmount *mnt_parent,
 		       char *buffer, ssize_t buflen)
 {
 	const char *srvpath;
+	const char *devname = mnt_parent->mnt_devname; 
+	const char *limit = (devname + strlen(devname));
 
-	srvpath = strchr(mnt_parent->mnt_devname, ':');
-	if (srvpath)
-		srvpath++;
-	else
+	srvpath = nfs_path_component(devname, limit);
+	if (!srvpath)
 		srvpath = mnt_parent->mnt_devname;
 
 	return nfs_path(srvpath, mnt_parent->mnt_root, dentry, buffer, buflen);
