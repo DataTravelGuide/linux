@@ -584,7 +584,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				cFYI(1, "file id match, oplock break");
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 				cifs_set_oplock_level(pCifsInode,
-						      pSMB->OplockLevel);
+					pSMB->OplockLevel ? OPLOCK_READ : 0);
 				rc = slow_work_enqueue(&netfile->oplock_break);
 				if (rc) {
 					cERROR(1, "failed to enqueue oplock "
