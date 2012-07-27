@@ -108,22 +108,13 @@ cifs_sb_deactive(struct super_block *sb)
 }
 
 static int
-cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
-		const char *devname, int silent)
+cifs_read_super(struct super_block *sb)
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
 	int rc = 0;
 
 	cifs_sb = CIFS_SB(sb);
-
-	rc = cifs_mount(cifs_sb, volume_info);
-
-	if (rc) {
-		if (!silent)
-			cERROR(1, "cifs_mount failed w/return code = %d", rc);
-		return rc;
-	}
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIXACL)
 		sb->s_flags |= MS_POSIXACL;
@@ -602,9 +593,20 @@ cifs_get_sb(struct file_system_type *fs_type,
 
 	cifs_setup_cifs_sb(volume_info, cifs_sb);
 
+	rc = cifs_mount(cifs_sb, volume_info);
+	if (rc) {
+		if (!(flags & MS_SILENT))
+			cERROR(1, "cifs_mount failed w/return code = %d", rc);
+		unload_nls(volume_info->local_nls);
+		kfree(cifs_sb->mountdata);
+		kfree(cifs_sb);
+		goto out;
+	}
+
 	sb = sget(fs_type, NULL, set_anon_super, NULL);
 	if (IS_ERR(sb)) {
 		rc = PTR_ERR(sb);
+		cifs_umount(cifs_sb);
 		goto out_cifs_sb;
 	}
 
@@ -613,8 +615,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
 	sb->s_fs_info = cifs_sb;
 
-	rc = cifs_read_super(sb, volume_info, dev_name,
-			     flags & MS_SILENT ? 1 : 0);
+	rc = cifs_read_super(sb);
 	if (rc)
 		goto out_super;
 
