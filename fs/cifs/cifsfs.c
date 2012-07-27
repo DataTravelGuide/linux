@@ -579,6 +579,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
 		rc = -ENOMEM;
+		unload_nls(volume_info->local_nls);
 		goto out;
 	}
 
