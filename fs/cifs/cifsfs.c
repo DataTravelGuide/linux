@@ -594,14 +594,6 @@ cifs_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	cifs_setup_cifs_sb(volume_info, cifs_sb);
-
-	sb = sget(fs_type, NULL, set_anon_super, NULL);
-	if (IS_ERR(sb)) {
-		rc = PTR_ERR(sb);
-		goto out_cifs_sb;
-	}
-
 	/*
 	 * Copy mount params for use in submounts. Better to do
 	 * the copy here and deal with the error before cleanup gets
@@ -610,7 +602,17 @@ cifs_get_sb(struct file_system_type *fs_type,
 	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
 	if (cifs_sb->mountdata == NULL) {
 		rc = -ENOMEM;
-		goto out_super;
+		unload_nls(volume_info->local_nls);
+		kfree(cifs_sb);
+		goto out;
+	}
+
+	cifs_setup_cifs_sb(volume_info, cifs_sb);
+
+	sb = sget(fs_type, NULL, set_anon_super, NULL);
+	if (IS_ERR(sb)) {
+		rc = PTR_ERR(sb);
+		goto out_cifs_sb;
 	}
 
 	sb->s_flags = flags;
@@ -633,6 +635,7 @@ out_super:
 	goto out;
 
 out_cifs_sb:
+	kfree(cifs_sb->mountdata);
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
 
