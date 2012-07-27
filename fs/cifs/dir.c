@@ -55,7 +55,7 @@ build_path_from_dentry(struct dentry *direntry)
 	char *full_path;
 	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
-	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
@@ -130,7 +130,7 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static void setup_cifs_dentry(struct cifsTconInfo *tcon,
+static void setup_cifs_dentry(struct cifs_tcon *tcon,
 			      struct dentry *direntry,
 			      struct inode *newinode)
 {
@@ -163,7 +163,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	__u16 fileHandle;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	char *full_path = NULL;
 	FILE_ALL_INFO *buf = NULL;
 	struct inode *newinode = NULL;
@@ -371,7 +371,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	int create_options = CREATE_NOT_DIR | CREATE_OPTION_SPECIAL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct cifs_io_parms io_parms;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
@@ -508,7 +508,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct cifsFileInfo *cfile;
 	struct inode *newInode = NULL;
 	char *full_path = NULL;
