@@ -532,6 +532,13 @@ static const struct super_operations cifs_super_ops = {
 #endif
 };
 
+static int cifs_set_super(struct super_block *sb, void *data)
+{
+	struct cifs_mnt_data *mnt_data = data;
+	sb->s_fs_info = mnt_data->cifs_sb;
+	return set_anon_super(sb, NULL);
+}
+
 static int
 cifs_get_sb(struct file_system_type *fs_type,
 	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
@@ -540,6 +547,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
 	struct smb_vol *volume_info;
+	struct cifs_mnt_data mnt_data;
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
@@ -579,7 +587,11 @@ cifs_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	sb = sget(fs_type, NULL, set_anon_super, NULL);
+	mnt_data.vol = volume_info;
+	mnt_data.cifs_sb = cifs_sb;
+	mnt_data.flags = flags;
+
+	sb = sget(fs_type, NULL, cifs_set_super, &mnt_data);
 	if (IS_ERR(sb)) {
 		rc = PTR_ERR(sb);
 		cifs_umount(cifs_sb);
@@ -589,7 +601,6 @@ cifs_get_sb(struct file_system_type *fs_type,
 	sb->s_flags = flags;
 	/* BB should we make this contingent on mount parm? */
 	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-	sb->s_fs_info = cifs_sb;
 
 	rc = cifs_read_super(sb);
 	if (rc)

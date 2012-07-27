@@ -215,6 +215,12 @@ struct smb_vol {
 	struct nls_table *local_nls;
 };
 
+struct cifs_mnt_data {
+	struct cifs_sb_info *cifs_sb;
+	struct smb_vol *vol;
+	int flags;
+};
+
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
