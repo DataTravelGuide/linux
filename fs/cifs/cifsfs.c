@@ -122,7 +122,7 @@ cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
 	if (rc) {
 		if (!silent)
 			cERROR(1, "cifs_mount failed w/return code = %d", rc);
-		goto out_mount_failed;
+		return rc;
 	}
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIXACL)
@@ -169,9 +169,7 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
-	cifs_umount(sb, cifs_sb);
-
-out_mount_failed:
+	cifs_umount(cifs_sb);
 	return rc;
 }
 
@@ -190,9 +188,7 @@ cifs_put_super(struct super_block *sb)
 
 	lock_kernel();
 
-	rc = cifs_umount(sb, cifs_sb);
-	if (rc)
-		cERROR(1, "cifs_umount failed with return code %d", rc);
+	cifs_umount(cifs_sb);
 
 	unlock_kernel();
 }

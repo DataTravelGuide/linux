@@ -3302,8 +3302,8 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	return rc;
 }
 
-int
-cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
+void
+cifs_umount(struct cifs_sb_info *cifs_sb)
 {
 	struct rb_root *root = &cifs_sb->tlink_tree;
 	struct rb_node *node;
@@ -3329,8 +3329,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	cifs_sb->prepathlen = 0;
 	cifs_sb->prepath = NULL;
 	kfree(tmp);
-
-	return 0;
 }
 
 int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
