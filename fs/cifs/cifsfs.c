@@ -1059,9 +1059,15 @@ init_cifs(void)
 		cFYI(1, "cifs_max_pending set to max of 256");
 	}
 
+	cifsiod_workqueue = create_singlethread_workqueue("cifsiod");
+	if (cifsiod_workqueue == NULL) {
+		rc = -ENOMEM;
+		goto out_clean_proc;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_clean_proc;
+		goto out_destroy_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1075,28 +1081,29 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_mids;
 
-	rc = register_filesystem(&cifs_fs_type);
-	if (rc)
-		goto out_destroy_request_bufs;
 #ifdef CONFIG_CIFS_UPCALL
 	rc = register_key_type(&cifs_spnego_key_type);
 	if (rc)
-		goto out_unregister_filesystem;
-#endif
+		goto out_destroy_request_bufs;
+#endif /* CONFIG_CIFS_UPCALL */
+#ifdef CONFIG_CIFS_ACL
+	rc = init_cifs_idmap();
+	if (rc)
+		goto out_register_key_type;
+#endif /* CONFIG_CIFS_ACL */
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	rc = cifs_init_dns_resolver();
 	if (rc)
-		goto out_unregister_key_type;
+		goto out_init_cifs_idmap;
 #endif
 	rc = slow_work_register_user(THIS_MODULE);
 	if (rc)
 		goto out_unregister_resolver_key;
 
-	cifsiod_workqueue = create_singlethread_workqueue("cifsiod");
-	if (cifsiod_workqueue == NULL) {
-		rc = -ENOMEM;
+	rc = register_filesystem(&cifs_fs_type);
+	if (rc)
 		goto out_unregister_slow_work;
-	}
 
 	return 0;
 
@@ -1105,14 +1112,16 @@ out_unregister_slow_work:
 out_unregister_resolver_key:
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_exit_dns_resolver();
-out_unregister_key_type:
+#endif
+out_init_cifs_idmap:
+#ifdef CONFIG_CIFS_ACL
+	exit_cifs_idmap();
+out_register_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
-out_unregister_filesystem:
-#endif
-	unregister_filesystem(&cifs_fs_type);
 out_destroy_request_bufs:
+#endif
 	cifs_destroy_request_bufs();
 out_destroy_mids:
 	cifs_destroy_mids();
@@ -1120,6 +1129,8 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
+out_destroy_wq:
+	destroy_workqueue(cifsiod_workqueue);
 out_clean_proc:
 	cifs_proc_clean();
 	return rc;
@@ -1136,6 +1147,10 @@ exit_cifs(void)
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
 	cifs_exit_dns_resolver();
+#endif
+#ifdef CONFIG_CIFS_ACL
+	cifs_destroy_idmaptrees();
+	exit_cifs_idmap();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
