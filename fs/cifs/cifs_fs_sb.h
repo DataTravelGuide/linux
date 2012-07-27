@@ -40,6 +40,7 @@
 #define CIFS_MOUNT_MF_SYMLINKS	0x10000 /* Minshall+French Symlinks enabled */
 #define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
 #define CIFS_MOUNT_STRICT_IO	0x40000 /* strict cache mode */
+#define CIFS_MOUNT_RWPIDFORWARD	0x80000 /* use pid forwarding for rw */
 #define CIFS_MOUNT_CIFS_BACKUPUID 0x200000 /* backup intent bit for a user */
 #define CIFS_MOUNT_CIFS_BACKUPGID 0x400000 /* backup intent bit for a group */
 
