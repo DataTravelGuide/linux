@@ -44,6 +44,16 @@
 #define CIFS_MIN_RCV_POOL 4
 
 /*
+ * default attribute cache timeout (jiffies)
+ */
+#define CIFS_DEF_ACTIMEO (1 * HZ)
+
+/*
+ * max attribute cache timeout (jiffies) - 2^30
+ */
+#define CIFS_MAX_ACTIMEO (1 << 30)
+
+/*
  * MAX_REQ is the maximum number of requests that WE will send
  * on one socket concurently. It also matches the most common
  * value of max multiplex returned by servers.  We may
