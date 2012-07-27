@@ -3329,6 +3329,9 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	cifs_sb->prepathlen = 0;
 	cifs_sb->prepath = NULL;
 	kfree(tmp);
+	kfree(cifs_sb->mountdata);
+	unload_nls(cifs_sb->local_nls);
+	kfree(cifs_sb);
 }
 
 int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)

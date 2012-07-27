@@ -168,9 +168,6 @@ static void cifs_kill_sb(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
-	kfree(cifs_sb->mountdata);
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
 }
 
 static int
@@ -586,7 +583,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 	if (IS_ERR(sb)) {
 		rc = PTR_ERR(sb);
 		cifs_umount(cifs_sb);
-		goto out_cifs_sb;
+		goto out;
 	}
 
 	sb->s_flags = flags;
@@ -605,13 +602,6 @@ cifs_get_sb(struct file_system_type *fs_type,
 
 out_super:
 	deactivate_locked_super(sb);
-	goto out;
-
-out_cifs_sb:
-	kfree(cifs_sb->mountdata);
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
-
 out:
 	cifs_cleanup_volume_info(&volume_info);
 	return rc;
