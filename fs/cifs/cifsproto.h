@@ -148,8 +148,14 @@ extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
 					const char *, u32 *);
 
+extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
+			       struct cifs_sb_info *cifs_sb);
+extern int cifs_match_super(struct super_block *, void *);
+extern void cifs_cleanup_volume_info(struct smb_vol **pvolume_info);
+extern int cifs_setup_volume_info(struct smb_vol **pvolume_info,
+				  char *mount_data, const char *devname);
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *,
-			const char *);
+		      struct smb_vol *, const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
