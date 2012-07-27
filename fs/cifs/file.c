@@ -1427,8 +1427,13 @@ int cifs_strict_fsync(struct file *file, struct dentry *dentry, int datasync)
 	cFYI(1, "Sync file - name: %s datasync: 0x%x",
 		dentry->d_name.name, datasync);
 
-	if (!CIFS_I(inode)->clientCanCacheRead)
-		cifs_invalidate_mapping(inode);
+	if (!CIFS_I(inode)->clientCanCacheRead) {
+		rc = cifs_invalidate_mapping(inode);
+		if (rc) {
+			cFYI(1, "rc: %d during invalidate phase", rc);
+			rc = 0; /* don't care about it in fsync */
+		}
+	}
 
 	tcon = tlink_tcon(smbfile->tlink);
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
@@ -1913,8 +1918,11 @@ int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 
 	xid = GetXid();
 
-	if (!CIFS_I(inode)->clientCanCacheRead)
-		cifs_invalidate_mapping(inode);
+	if (!CIFS_I(inode)->clientCanCacheRead) {
+		rc = cifs_invalidate_mapping(inode);
+		if (rc)
+			return rc;
+	}
 
 	rc = generic_file_mmap(file, vma);
 	FreeXid(xid);
