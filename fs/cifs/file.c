@@ -1313,9 +1313,10 @@ retry:
 	return rc;
 }
 
-static int cifs_writepage(struct page *page, struct writeback_control *wbc)
+static int
+cifs_writepage_locked(struct page *page, struct writeback_control *wbc)
 {
-	int rc = -EFAULT;
+	int rc;
 	int xid;
 
 	xid = GetXid();
@@ -1335,12 +1336,26 @@ static int cifs_writepage(struct page *page, struct writeback_control *wbc)
 	 * to fail to update with the state of the page correctly.
 	 */
 	set_page_writeback(page);
+retry_write:
 	rc = cifs_partialpagewrite(page, 0, PAGE_CACHE_SIZE);
-	SetPageUptodate(page); /* BB add check for error and Clearuptodate? */
-	unlock_page(page);
+	if (rc == -EAGAIN && wbc->sync_mode == WB_SYNC_ALL)
+		goto retry_write;
+	else if (rc == -EAGAIN)
+		redirty_page_for_writepage(wbc, page);
+	else if (rc != 0)
+		SetPageError(page);
+	else
+		SetPageUptodate(page);
 	end_page_writeback(page);
 	page_cache_release(page);
 	FreeXid(xid);
+	return rc;
+}
+
+static int cifs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int rc = cifs_writepage_locked(page, wbc);
+	unlock_page(page);
 	return rc;
 }
 
@@ -2324,6 +2339,27 @@ static void cifs_invalidate_page(struct page *page, unsigned long offset)
 		cifs_fscache_invalidate_page(page, &cifsi->vfs_inode);
 }
 
+static int cifs_launder_page(struct page *page)
+{
+	int rc = 0;
+	loff_t range_start = page_offset(page);
+	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0,
+		.range_start = range_start,
+		.range_end = range_end,
+	};
+
+	cFYI(1, "Launder page: %p", page);
+
+	if (clear_page_dirty_for_io(page))
+		rc = cifs_writepage_locked(page, &wbc);
+
+	cifs_fscache_invalidate_page(page, page->mapping->host);
+	return rc;
+}
+
 static void
 cifs_oplock_break(struct slow_work *work)
 {
@@ -2400,7 +2436,7 @@ const struct address_space_operations cifs_addr_ops = {
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
 	/* .sync_page = cifs_sync_page, */
-	/* .direct_IO = */
+	.launder_page = cifs_launder_page,
 };
 
 /*
@@ -2418,5 +2454,5 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
 	/* .sync_page = cifs_sync_page, */
-	/* .direct_IO = */
+	.launder_page = cifs_launder_page,
 };
