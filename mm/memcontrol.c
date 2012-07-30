@@ -640,9 +640,28 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 /* The caller has to guarantee "mem" exists before calling this */
 static struct mem_cgroup *mem_cgroup_start_loop(struct mem_cgroup *mem)
 {
-	if (mem && css_tryget(&mem->css))
-		return mem;
-	return NULL;
+	struct cgroup_subsys_state *css;
+	int found;
+
+	if (!mem) /* ROOT cgroup has the smallest ID */
+		return root_mem_cgroup; /*css_put/get against root is ignored*/
+	if (!mem->use_hierarchy) {
+		if (css_tryget(&mem->css))
+			return mem;
+		return NULL;
+	}
+	rcu_read_lock();
+	/*
+	 * searching a memory cgroup which has the smallest ID under given
+	 * ROOT cgroup. (ID >= 1)
+	 */
+	css = css_get_next(&mem_cgroup_subsys, 1, &mem->css, &found);
+	if (css && css_tryget(css))
+		mem = container_of(css, struct mem_cgroup, css);
+	else
+		mem = NULL;
+	rcu_read_unlock();
+	return mem;
 }
 
 static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
@@ -657,8 +676,12 @@ static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
 	hierarchy_used = iter->use_hierarchy;
 
 	css_put(&iter->css);
-	if (!cond || !hierarchy_used)
+	/* If no ROOT, walk all, ignore hierarchy */
+	if (!cond || (root && !hierarchy_used))
 		return NULL;
+
+	if (!root)
+		root = root_mem_cgroup;
 
 	do {
 		iter = NULL;
@@ -687,6 +710,9 @@ static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
 
 #define for_each_mem_cgroup_tree(iter, root) \
 	for_each_mem_cgroup_tree_cond(iter, root, true)
+
+#define for_each_mem_cgroup_all(iter) \
+	for_each_mem_cgroup_tree_cond(iter, NULL, true)
 
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
