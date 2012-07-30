@@ -422,6 +422,7 @@ EXPORT_SYMBOL(udelay);
 
 static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 			       u64 new_tb_to_xs, struct timespec *now,
+			       struct timespec *wall_time,
 			       u32 frac_sec)
 {
 	/*
@@ -440,7 +441,7 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	vdso_data->tb_to_xs = new_tb_to_xs;
 	vdso_data->wtom_clock_sec = now->tv_sec;
 	vdso_data->wtom_clock_nsec = now->tv_nsec;
-	vdso_data->stamp_xtime = *now;
+	vdso_data->stamp_xtime = *wall_time;
 	vdso_data->stamp_sec_fraction = frac_sec;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
@@ -878,7 +879,7 @@ void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
 
 	/* XXX this assumes clock->shift == 22 */
 	/* 4611686018 ~= 2^(20+64-22) / 1e9 */
-	t2x = (u64) clock->mult * 4611686018ULL;
+	t2x = (u64) mult * 4611686018ULL;
 	stamp_xsec = (u64) wall_time->tv_nsec * XSEC_PER_SEC;
 	do_div(stamp_xsec, 1000000000);
 	stamp_xsec += (u64) wall_time->tv_sec * XSEC_PER_SEC;
@@ -889,7 +890,7 @@ void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
 	}
 	/* this is tv_nsec / 1e9 as a 0.32 fraction */
 	frac_sec = ((u64) wall_time->tv_nsec * 18446744073ULL) >> 32;
-	update_gtod(clock->cycle_last, stamp_xsec, t2x, wall_time, frac_sec);
+	update_gtod(clock->cycle_last, stamp_xsec, t2x, wtm, wall_time, frac_sec);
 }
 
 void update_vsyscall_tz(void)
