@@ -1674,6 +1674,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 31 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-294.el6]
+- [net] ipv4: add RCU protection to inet->opt (Jiri Pirko) [829109]
+- [x86] perf: Update event scheduling constraints for AMD family 15h models (Jiri Olsa) [739441]
+- [x86] ioapic: Fix kdump race with migrating irq (Don Zickus) [783322]
+- [net] sctp: Implement quick failover draft from tsvwg (Neil Horman) [830716]
+- [net] sctp: be more restrictive in transport selection on bundled sacks (Neil Horman) [830716]
+- [net] rds: set correct msg_namelen (Weiping Pan) [822731] {CVE-2012-3430}
+
 * Wed Jul 25 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-293.el6]
 - [s390] kernel: pfault task state race (Hendrik Brueckner) [831262]
 - [powerpc] pseries: Support lower minimum entitlement for virtual processors (Steve Best) [822651]
