@@ -27,9 +27,6 @@ struct virtio_blk
 	/* The disk structure for the kernel. */
 	struct gendisk *disk;
 
-	/* Request tracking. */
-	struct list_head reqs;
-
 	mempool_t *pool;
 
 	/* Process context for config space updates */
@@ -53,7 +50,6 @@ struct virtio_blk
 
 struct virtblk_req
 {
-	struct list_head list;
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
@@ -92,7 +88,6 @@ static void blk_done(struct virtqueue *vq)
 			vbr->req->errors = (error != 0);
 
 		__blk_end_request_all(vbr->req, error);
-		list_del(&vbr->list);
 		mempool_free(vbr, vblk->pool);
 	}
 	/* In case queue is stopped waiting for more buffers. */
@@ -176,7 +171,6 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		return false;
 	}
 
-	list_add_tail(&vbr->list, &vblk->reqs);
 	return true;
 }
 
@@ -398,7 +392,6 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 		goto out_free_index;
 	}
 
-	INIT_LIST_HEAD(&vblk->reqs);
 	spin_lock_init(&vblk->lock);
 	vblk->vdev = vdev;
 	vblk->sg_elems = sg_elems;
@@ -560,9 +553,6 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 	mutex_lock(&vblk->config_lock);
 	vblk->config_enable = false;
 	mutex_unlock(&vblk->config_lock);
-
-	/* Nothing should be pending. */
-	BUG_ON(!list_empty(&vblk->reqs));
 
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
