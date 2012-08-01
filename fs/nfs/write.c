@@ -235,10 +235,10 @@ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblo
 		req = nfs_page_find_request_locked(page);
 		if (req == NULL)
 			break;
-		if (nfs_set_page_tag_locked(req))
+		if (nfs_lock_request_dontget(req))
 			break;
 		/* Note: If we hold the page lock, as is the case in nfs_writepage,
-		 *	 then the call to nfs_set_page_tag_locked() will always
+		 *	 then the call to nfs_lock_request_dontget() will always
 		 *	 succeed provided that someone hasn't already marked the
 		 *	 request as dirty (in which case we don't care).
 		 */
@@ -401,8 +401,6 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	set_page_private(req->wb_page, (unsigned long)req);
 	nfsi->npages++;
 	kref_get(&req->wb_kref);
-	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index,
-				NFS_PAGE_TAG_LOCKED);
 	spin_unlock(&inode->i_lock);
 	radix_tree_preload_end();
 out:
@@ -613,7 +611,7 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 		    || end < req->wb_offset)
 			goto out_flushme;
 
-		if (nfs_set_page_tag_locked(req))
+		if (nfs_lock_request_dontget(req))
 			break;
 
 		/* The request is locked, so wait and then retry */
@@ -693,7 +691,7 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
 	nfs_mark_request_dirty(req);
-	nfs_clear_page_tag_locked(req);
+	nfs_unlock_request(req);
 	return 0;
 }
 
@@ -784,7 +782,7 @@ static void nfs_writepage_release(struct nfs_page *req,
 
 	if (PageError(req->wb_page) || !nfs_reschedule_unstable_write(req, data))
 		nfs_inode_remove_request(req);
-	nfs_clear_page_tag_locked(req);
+	nfs_unlock_request(req);
 	nfs_end_page_writeback(page);
 }
 
@@ -908,7 +906,7 @@ static void nfs_redirty_request(struct nfs_page *req)
 	struct page *page = req->wb_page;
 
 	nfs_mark_request_dirty(req);
-	nfs_clear_page_tag_locked(req);
+	nfs_unlock_request(req);
 	nfs_end_page_writeback(page);
 }
 
@@ -1179,7 +1177,7 @@ static void nfs_writeback_release_full(void *calldata)
 remove_request:
 		nfs_inode_remove_request(req);
 	next:
-		nfs_clear_page_tag_locked(req);
+		nfs_unlock_request(req);
 		nfs_end_page_writeback(page);
 	}
 	nfs_writedata_release(calldata);
@@ -1392,7 +1390,7 @@ void nfs_retry_commit(struct list_head *page_list,
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
 		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
 			     BDI_RECLAIMABLE);
-		nfs_clear_page_tag_locked(req);
+		nfs_unlock_request(req);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_retry_commit);
@@ -1468,7 +1466,7 @@ void nfs_commit_release_pages(struct nfs_write_data *data)
 		dprintk(" mismatch\n");
 		nfs_mark_request_dirty(req);
 	next:
-		nfs_clear_page_tag_locked(req);
+		nfs_unlock_request(req);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_commit_release_pages);
