@@ -115,7 +115,7 @@ void nfs_unlock_request(struct nfs_page *req)
  * Release page and open context resources associated with a read/write
  * request after it has completed.
  */
-void nfs_clear_request(struct nfs_page *req)
+static void nfs_clear_request(struct nfs_page *req)
 {
 	struct page *page = req->wb_page;
 	struct nfs_open_context *ctx = req->wb_context;
