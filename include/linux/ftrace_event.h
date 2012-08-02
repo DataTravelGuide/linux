@@ -5,7 +5,10 @@
 #include <linux/trace_seq.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
+
+#ifndef __GENKSYMS__
 #include <linux/perf_event.h>
+#endif
 
 struct trace_array;
 struct tracer;
