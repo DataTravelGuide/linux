@@ -1867,7 +1867,7 @@ static void unregister_probe_event(struct trace_probe *tp)
 	trace_remove_event_call(&tp->call);
 }
 
-/* Make a debugfs interface for controling probe points */
+/* Make a debugfs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
 {
 	struct dentry *d_tracer;
