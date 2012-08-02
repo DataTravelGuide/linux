@@ -143,6 +143,8 @@ static inline void scsi_netlink_init(void) {}
 static inline void scsi_netlink_exit(void) {}
 #endif
 
+extern struct list_head scsi_sd_probe_domain;
+
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport
  * classes.
