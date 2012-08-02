@@ -36,8 +36,6 @@ enum trace_type {
 	TRACE_KMEM_ALLOC,
 	TRACE_KMEM_FREE,
 	TRACE_BLK,
-	TRACE_KPROBE,
-	TRACE_KRETPROBE,
 
 	__TRACE_LAST_TYPE,
 };
@@ -234,10 +232,6 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
-		IF_ASSIGN(var, ent, struct kprobe_trace_entry,		\
-			  TRACE_KPROBE);				\
-		IF_ASSIGN(var, ent, struct kretprobe_trace_entry,	\
-			  TRACE_KRETPROBE);				\
 		__ftrace_bad_type();					\
 	} while (0)
 
