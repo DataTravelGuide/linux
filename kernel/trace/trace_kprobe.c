@@ -990,6 +990,9 @@ static int create_trace_probe(int argc, char **argv)
 	/* parse arguments */
 	ret = 0;
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
+		/* Increment count for freeing args in error case */
+		tp->nr_args++;
+
 		/* Parse argument name */
 		arg = strchr(argv[i], '=');
 		if (arg)
@@ -1019,11 +1022,8 @@ static int create_trace_probe(int argc, char **argv)
 		ret = parse_probe_arg(arg, tp, &tp->args[i], is_return);
 		if (ret) {
 			pr_info("Parse error at argument%d. (%d)\n", i, ret);
-			kfree(tp->args[i].name);
 			goto error;
 		}
-
-		tp->nr_args++;
 	}
 
 	ret = register_trace_probe(tp);
