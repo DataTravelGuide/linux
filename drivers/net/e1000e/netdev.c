@@ -3205,6 +3205,7 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
+		rctl &= ~E1000_RCTL_VFE;
 	} else {
 		int count;
 		if (netdev->flags & IFF_ALLMULTI) {
