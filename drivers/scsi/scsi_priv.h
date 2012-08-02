@@ -2,6 +2,7 @@
 #define _SCSI_PRIV_H
 
 #include <linux/device.h>
+#include <linux/async.h>
 
 struct request_queue;
 struct request;
@@ -143,7 +144,7 @@ static inline void scsi_netlink_init(void) {}
 static inline void scsi_netlink_exit(void) {}
 #endif
 
-extern struct list_head scsi_sd_probe_domain;
+extern struct async_domain scsi_sd_probe_domain;
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport
