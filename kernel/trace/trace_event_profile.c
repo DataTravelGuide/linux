@@ -8,17 +8,14 @@
 #include <linux/module.h>
 #include "trace.h"
 
-/*
- * We can't use a size but a type in alloc_percpu()
- * So let's create a dummy type that matches the desired size
- */
-typedef struct {char buf[FTRACE_MAX_PROFILE_SIZE];} profile_buf_t;
 
-char		*trace_profile_buf;
+char *trace_profile_buf;
 EXPORT_SYMBOL_GPL(trace_profile_buf);
 
-char		*trace_profile_buf_nmi;
+char *trace_profile_buf_nmi;
 EXPORT_SYMBOL_GPL(trace_profile_buf_nmi);
+
+typedef typeof(char [FTRACE_MAX_PROFILE_SIZE]) perf_trace_t ;
 
 /* Count the events in use (per event id, not per instance) */
 static int	total_profile_count;
@@ -32,13 +29,13 @@ static int ftrace_profile_enable_event(struct ftrace_event_call *event)
 		return 0;
 
 	if (!total_profile_count) {
-		buf = (char *)alloc_percpu(profile_buf_t);
+		buf = (char *)alloc_percpu(perf_trace_t);
 		if (!buf)
 			goto fail_buf;
 
 		rcu_assign_pointer(trace_profile_buf, buf);
 
-		buf = (char *)alloc_percpu(profile_buf_t);
+		buf = (char *)alloc_percpu(perf_trace_t);
 		if (!buf)
 			goto fail_buf_nmi;
 
