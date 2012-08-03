@@ -2177,7 +2177,6 @@ static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 		return max_size;
 
 	bvm->bi_bdev = dev->bdev;
-	bvm->bi_sector = bvm->bi_sector;
 
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
