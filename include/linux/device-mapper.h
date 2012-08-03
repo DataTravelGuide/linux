@@ -231,6 +231,17 @@ struct dm_target {
 
 #ifndef __GENKSYMS__
 	/*
+	 * RHEL6ism: continuing to use 'unsigned foo:1' because
+	 * discards_supported cannot change (to bool) due to kABI
+	 */
+
+	/*
+	 * Set if this target needs to receive flushes regardless of
+	 * whether or not its underlying devices have support.
+	 */
+	unsigned flush_supported:1;
+
+	/*
 	 * Set if the target required discard request to be split
 	 * on max_io_len boundary.
 	 */
