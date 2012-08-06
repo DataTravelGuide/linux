@@ -190,7 +190,15 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* Always a power of 2 */
+	/*
+	 * If non-zero, maximum size of I/O submitted to a target.
+	 *
+	 * To preserve kABI, retain 'split_io' name rather than use upstream's
+	 * 'max_io_len'.  Also retain the sector_t type rather than use uint32_t.
+	 * In practice no target should be exceeding UINT_MAX for split_io.  All
+	 * targets should be updated to use dm_set_target_max_io_len() to set
+	 * split_io.
+	 */
 	sector_t split_io;
 
 	/*
@@ -368,6 +376,11 @@ int dm_table_complete(struct dm_table *t);
  * Unplug all devices in a table.
  */
 void dm_table_unplug_all(struct dm_table *t);
+
+/*
+ * Target may require that it is never sent I/O larger than len.
+ */
+int __must_check dm_set_target_max_io_len(struct dm_target *ti, sector_t len);
 
 /*
  * Table reference counting.
