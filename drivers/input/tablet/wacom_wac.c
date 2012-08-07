@@ -446,6 +446,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
 		if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
+                    (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L) ||
 			wacom->features->type == WACOM_21UX2 ||
 			wacom->features->type == WACOM_24HD) {
 			t = (t << 1) | (data[1] & 1);
@@ -629,7 +630,9 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 			&& ((wacom->features->type == INTUOS3)
 			|| (wacom->features->type == INTUOS3S)
 			|| (wacom->features->type == INTUOS4)
-			|| (wacom->features->type == INTUOS4S)))
+			|| (wacom->features->type == INTUOS4S)
+			|| (wacom->features->type == INTUOS5)
+			|| (wacom->features->type == INTUOS5S)))
 		return 0;
 
 	/* Cintiq doesn't send data when RDY bit isn't set */
@@ -680,7 +683,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 
 		} else if (wacom->tool[idx] == BTN_TOOL_MOUSE) {
 			/* I4 mouse */
-			if (wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) {
+			if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
+			    (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L)) {
 				wacom_report_key(wcombo, BTN_LEFT,   data[6] & 0x01);
 				wacom_report_key(wcombo, BTN_MIDDLE, data[6] & 0x02);
 				wacom_report_key(wcombo, BTN_RIGHT,  data[6] & 0x04);
@@ -707,7 +711,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				}
 			}
 		} else if ((wacom->features->type < INTUOS3S || wacom->features->type == INTUOS3L ||
-				wacom->features->type == INTUOS4L) &&
+			   wacom->features->type == INTUOS4L || wacom->features->type == INTUOS5L) &&
 			   wacom->tool[idx] == BTN_TOOL_LENS) {
 			/* Lens cursor packets */
 			wacom_report_key(wcombo, BTN_LEFT,   data[8] & 0x01);
@@ -865,6 +869,9 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case INTUOS4S:
 		case INTUOS4:
 		case INTUOS4L:
+		case INTUOS5S:
+		case INTUOS5:
+		case INTUOS5L:
 		case CINTIQ:
 		case WACOM_BEE:
 		case WACOM_21UX2:
@@ -910,10 +917,13 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 		case INTUOS:
 			input_dev_i(input_dev, wacom_wac);
 			break;
+		case INTUOS5:
+		case INTUOS5L:
 		case INTUOS4:
 		case INTUOS4L:
 			input_dev_i4(input_dev, wacom_wac);
 			/* fall through */
+		case INTUOS5S:
 		case INTUOS4S:
 			input_dev_i4s(input_dev, wacom_wac);
 			input_dev_i(input_dev, wacom_wac);
@@ -1000,6 +1010,11 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom DTU2231",        8, 47864, 27011,  511,  0, DTU },
 	{ "Wacom DTU1631",        8, 34623, 19553,  511,  0, DTU },
 	{ "Wacom Cintiq 24HD",   10,104480, 65600, 2047, 63, WACOM_24HD },
+	{ "Wacom Intuos5 touch S", 10,31496,19685, 2047, 63, INTUOS5S },
+	{ "Wacom Intuos5 touch M", 10,44704,27940, 2047, 63, INTUOS5 },
+	{ "Wacom Intuos5 touch L", 10,65024,40640, 2047, 63, INTUOS5L },
+	{ "Wacom Intuos5 S",     10, 31496, 19685, 2047, 63, INTUOS5S },
+	{ "Wacom Intuos5 M",     10, 44704, 27940, 2047, 63, INTUOS5 },
 	{ }
 };
 
@@ -1078,6 +1093,21 @@ static struct usb_device_id wacom_ids[] = {
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xF0) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xF4) },
+	{ USB_DEVICE_DETAILED(0x26, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0x27, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0x28, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0x29, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0x2A, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ }
 };
 
