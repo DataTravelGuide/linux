@@ -706,7 +706,7 @@ static const struct nfs_pageio_ops filelayout_pg_read_ops = {
 static const struct nfs_pageio_ops filelayout_pg_write_ops = {
 	.pg_init = pnfs_generic_pg_init_write,
 	.pg_test = filelayout_pg_test,
-	.pg_doio = nfs_generic_pg_writepages,
+	.pg_doio = pnfs_generic_pg_writepages,
 };
 
 static u32 select_bucket_index(struct nfs4_filelayout_segment *fl, u32 j)
