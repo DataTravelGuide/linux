@@ -534,7 +534,7 @@ static void shmem_free_pages(struct list_head *next)
 	} while (next);
 }
 
-static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	unsigned long idx;
@@ -556,6 +556,8 @@ static void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 	spinlock_t *needs_lock;
 	spinlock_t *punch_lock;
 	unsigned long upper_limit;
+
+	truncate_inode_pages_range(inode->i_mapping, start, end);
 
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 	idx = (start + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
@@ -728,20 +730,13 @@ done2:
 	if (inode->i_mapping->nrpages && (info->flags & SHMEM_PAGEIN)) {
 		/*
 		 * Call truncate_inode_pages again: racing shmem_unuse_inode
-		 * may have swizzled a page in from swap since vmtruncate or
-		 * generic_delete_inode did it, before we lowered next_index.
-		 * Also, though shmem_getpage checks i_size before adding to
-		 * cache, no recheck after: so fix the narrow window there too.
-		 *
-		 * Recalling truncate_inode_pages_range and unmap_mapping_range
-		 * every time for punch_hole (which never got a chance to clear
-		 * SHMEM_PAGEIN at the start of vmtruncate_range) is expensive,
-		 * yet hardly ever necessary: try to optimize them out later.
+		 * may have swizzled a page in from swap since
+		 * truncate_pagecache or generic_delete_inode did it, before we
+		 * lowered next_index.  Also, though shmem_getpage checks
+		 * i_size before adding to cache, no recheck after: so fix the
+		 * narrow window there too.
 		 */
 		truncate_inode_pages_range(inode->i_mapping, start, end);
-		if (punch_hole)
-			unmap_mapping_range(inode->i_mapping, start,
-							end - start, 1);
 	}
 
 	spin_lock(&info->lock);
@@ -760,20 +755,28 @@ done2:
 		shmem_free_pages(pages_to_free.next);
 	}
 }
+EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 static void shmem_truncate(struct inode *inode)
 {
 	shmem_truncate_range(inode, inode->i_size, (loff_t)-1);
 }
 
-static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
+static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
-	struct page *page = NULL;
 	int error;
 
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-		if (attr->ia_size < inode->i_size) {
+		loff_t oldsize = inode->i_size;
+		loff_t newsize = attr->ia_size;
+		struct page *page = NULL;
+
+		if (newsize < oldsize) {
 			/*
 			 * If truncating down to a partial page, then
 			 * if that page is already allocated, hold it
@@ -781,9 +784,9 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			 * truncate_partial_page cannnot miss it were
 			 * it assigned to swap.
 			 */
-			if (attr->ia_size & (PAGE_CACHE_SIZE-1)) {
+			if (newsize & (PAGE_CACHE_SIZE-1)) {
 				(void) shmem_getpage(inode,
-					attr->ia_size>>PAGE_CACHE_SHIFT,
+					newsize >> PAGE_CACHE_SHIFT,
 						&page, SGP_READ, NULL);
 				if (page)
 					unlock_page(page);
@@ -795,13 +798,26 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			 * if it's being fully truncated to zero-length: the
 			 * nrpages check is efficient enough in that case.
 			 */
-			if (attr->ia_size) {
+			if (newsize) {
 				struct shmem_inode_info *info = SHMEM_I(inode);
 				spin_lock(&info->lock);
 				info->flags &= ~SHMEM_PAGEIN;
 				spin_unlock(&info->lock);
 			}
 		}
+		if (newsize != oldsize) {
+			i_size_write(inode, newsize);
+			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+		}
+		if (newsize < oldsize) {
+			loff_t holebegin = round_up(newsize, PAGE_SIZE);
+			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
+			shmem_truncate_range(inode, newsize, (loff_t)-1);
+			/* unmap again to remove racily COWed private pages */
+			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
+		}
+		if (page)
+			page_cache_release(page);
 	}
 
 	error = inode_change_ok(inode, attr);
@@ -811,8 +827,6 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (!error && (attr->ia_valid & ATTR_MODE))
 		error = generic_acl_chmod(inode, &shmem_acl_ops);
 #endif
-	if (page)
-		page_cache_release(page);
 	return error;
 }
 
@@ -820,11 +834,10 @@ static void shmem_delete_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
-	if (inode->i_op->truncate == shmem_truncate) {
-		truncate_inode_pages(inode->i_mapping, 0);
+	if (inode->i_mapping->a_ops == &shmem_aops) {
 		shmem_unacct_size(info->flags, inode->i_size);
 		inode->i_size = 0;
-		shmem_truncate(inode);
+		shmem_truncate_range(inode, 0, (loff_t)-1);
 		if (!list_empty(&info->swaplist)) {
 			mutex_lock(&shmem_swaplist_mutex);
 			list_del_init(&info->swaplist);
@@ -2492,7 +2505,7 @@ static const struct file_operations shmem_file_operations = {
 
 static const struct inode_operations shmem_inode_operations = {
 	.truncate	= shmem_truncate,
-	.setattr	= shmem_notify_change,
+	.setattr	= shmem_setattr,
 	.truncate_range	= shmem_truncate_range,
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setxattr	= generic_setxattr,
@@ -2517,7 +2530,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.rename		= shmem_rename,
 #endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	.setattr	= shmem_notify_change,
+	.setattr	= shmem_setattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
@@ -2528,7 +2541,7 @@ static const struct inode_operations shmem_dir_inode_operations = {
 
 static const struct inode_operations shmem_special_inode_operations = {
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	.setattr	= shmem_notify_change,
+	.setattr	= shmem_setattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
 	.listxattr	= generic_listxattr,
@@ -2687,6 +2700,12 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 {
 	return 0;
 }
+
+void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
+{
+	truncate_inode_pages_range(inode->i_mapping, start, end);
+}
+EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 /**
