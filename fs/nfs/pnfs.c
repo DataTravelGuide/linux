@@ -1159,6 +1159,7 @@ void pnfs_ld_write_done(struct nfs_write_data *data)
 		data->lseg = NULL;
 		dprintk("pnfs write error = %d\n", data->pnfs_error);
 	}
+	put_lseg(data->lseg);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_write_done);
@@ -1172,6 +1173,7 @@ pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
 		nfs_list_add_request(data->req, &desc->pg_list);
 	nfs_pageio_reset_write_mds(desc);
 	desc->pg_recoalesce = 1;
+	put_lseg(data->lseg);
 	nfs_writedata_release(data);
 }
 
@@ -1269,6 +1271,7 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 		data->mds_ops->rpc_call_done(&data->task, data);
 	} else
 		pnfs_ld_handle_read_error(data);
+	put_lseg(data->lseg);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);

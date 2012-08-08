@@ -317,12 +317,13 @@ extern int nfs_initiate_commit(struct nfs_write_data *data,
 extern void nfs_init_commit(struct nfs_write_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg);
-int nfs_scan_commit_list(struct list_head *src, struct list_head *dst, int max);
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg);
 void nfs_commit_clear_lock(struct nfs_inode *nfsi);
 void nfs_commitdata_release(void *data);
 void nfs_commit_release_pages(struct nfs_write_data *data);
+void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *head);
+void nfs_request_remove_commit_list(struct nfs_page *req);
 
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
