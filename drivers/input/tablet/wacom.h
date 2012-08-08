@@ -145,6 +145,7 @@ extern void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 extern void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_bee(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_cintiq(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_bamboo_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern __u16 wacom_le16_to_cpu(unsigned char *data);
 extern __u16 wacom_be16_to_cpu(unsigned char *data);
 extern struct wacom_features *get_wacom_feature(const struct usb_device_id *id);

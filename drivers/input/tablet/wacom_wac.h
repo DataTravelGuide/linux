@@ -22,6 +22,7 @@ enum {
 	PTU,
 	PL,
 	DTU,
+	BAMBOO_PT,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,

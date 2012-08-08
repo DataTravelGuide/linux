@@ -357,6 +357,16 @@ void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_RUBBER);
 }
 
+void input_dev_bamboo_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+{
+	input_dev->absbit[BIT_WORD(ABS_MISC)] &= ~ABS_MISC;
+	/* for now, BAMBOO_PT will only handle pen */
+	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_RUBBER) |
+		BIT_MASK(BTN_STYLUS2);
+	input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+			     wacom_wac->features->distance_max, 0, 0);
+}
+
 static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hid_desc,
 			   struct wacom_wac *wacom_wac)
 {

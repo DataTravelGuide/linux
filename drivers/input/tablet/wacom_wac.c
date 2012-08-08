@@ -870,6 +870,84 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 	return 0;
 }
 
+static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
+{
+	struct input_dev *input = wcombo->wacom->dev;
+	unsigned char *data = wacom->data;
+	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+
+	if (data[0] != 0x02)
+	    return 0;
+
+	prox = (data[1] & 0x20) == 0x20;
+
+	/*
+	 * All reports shared between PEN and RUBBER tool must be
+	 * forced to a known starting value (zero) when transitioning to
+	 * out-of-prox.
+	 *
+	 * If not reset then, to userspace, it will look like lost events
+	 * if new tool comes in-prox with same values as previous tool sent.
+	 *
+	 * Hardware does report zero in most out-of-prox cases but not all.
+	 */
+	if (prox) {
+		if (!wacom->tool[0]) {
+			if (data[1] & 0x08) {
+				wacom->tool[0] = BTN_TOOL_RUBBER;
+				wacom->id[0] = ERASER_DEVICE_ID;
+			} else {
+				wacom->tool[0] = BTN_TOOL_PEN;
+				wacom->id[0] = STYLUS_DEVICE_ID;
+			}
+		}
+		x = le16_to_cpup((__le16 *)&data[2]);
+		y = le16_to_cpup((__le16 *)&data[4]);
+		p = le16_to_cpup((__le16 *)&data[6]);
+		/*
+		 * Convert distance from out prox to distance from tablet.
+		 * distance will be greater than distance_max once
+		 * touching and applying pressure; do not report negative
+		 * distance.
+		 */
+		if (data[8] <= wacom->features->distance_max)
+			d = wacom->features->distance_max - data[8];
+
+		pen = data[1] & 0x01;
+		btn1 = data[1] & 0x02;
+		btn2 = data[1] & 0x04;
+	}
+
+	input_report_key(input, BTN_TOUCH, pen);
+	input_report_key(input, BTN_STYLUS, btn1);
+	input_report_key(input, BTN_STYLUS2, btn2);
+
+	input_report_abs(input, ABS_X, x);
+	input_report_abs(input, ABS_Y, y);
+	input_report_abs(input, ABS_PRESSURE, p);
+	input_report_abs(input, ABS_DISTANCE, d);
+
+	if (!prox)
+		wacom->id[0] = 0;
+
+	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
+	input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
+
+	if (!prox)
+		wacom->tool[0] = 0;
+
+	return 1;
+
+}
+
+static int wacom_bpt_irq(struct wacom_wac *wacom, void *wcombo)
+{
+	struct wacom_combo *wc = wcombo;
+
+	/* currently only CTL-460 (Bamboo pen) is supported */
+	return wacom_bpt_pen(wacom, wc);
+}
+
 int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 {
 	switch (wacom_wac->features->type) {
@@ -908,6 +986,8 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 
 		case TABLETPC:
 			return wacom_tpc_irq(wacom_wac, wcombo);
+		case BAMBOO_PT:
+			return wacom_bpt_irq(wacom_wac, wcombo);
 
 		default:
 			return 0;
@@ -968,6 +1048,9 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
                 case CINTIQ:
                         input_dev_cintiq(input_dev, wacom_wac);
                         break;
+		case BAMBOO_PT:
+			input_dev_bamboo_pt(input_dev, wacom_wac);
+			break;
 	}
 	return;
 }
@@ -1043,6 +1126,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos5 touch L", 10,65024,40640, 2047, 63, INTUOS5L },
 	{ "Wacom Intuos5 S",     10, 31496, 19685, 2047, 63, INTUOS5S },
 	{ "Wacom Intuos5 M",     10, 44704, 27940, 2047, 63, INTUOS5 },
+	{ "Wacom Bamboo Pen",	  9, 14720,  9200, 1023, 31, BAMBOO_PT },
 	{ }
 };
 
@@ -1134,6 +1218,9 @@ static struct usb_device_id wacom_ids[] = {
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ USB_DEVICE_DETAILED(0x2A, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0xD4, USB_CLASS_HID,
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ }
