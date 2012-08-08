@@ -179,7 +179,7 @@ void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
 void pnfs_ld_write_done(struct nfs_write_data *);
-int pnfs_ld_read_done(struct nfs_read_data *);
+void pnfs_ld_read_done(struct nfs_read_data *);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 
