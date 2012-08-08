@@ -94,7 +94,6 @@ extern bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 
-extern	int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 extern	int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
 
 
