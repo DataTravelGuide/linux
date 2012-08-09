@@ -439,6 +439,9 @@ static void lru_deactivate(struct page *page, struct zone *zone)
 	if (!PageLRU(page))
 		return;
 
+	if (PageUnevictable(page))
+		return;
+
 	/* Some processes are using the page */
 	if (page_mapped(page))
 		return;
