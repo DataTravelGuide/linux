@@ -1674,6 +1674,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Aug 09 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-296.el6]
+- [mm] check PageUnevictable in lru_deactivate() (Jan Stancek) [846253]
+- [virt] virtio-blk: Use block layer provided spinlock (Asias He) [734051]
+- [virt] virtio-blk: Reset device after blk_cleanup_queue() (Asias He) [734051]
+- [virt] virtio-blk: Call del_gendisk() before disable guest kick (Asias He) [734051]
+- [virt] virtio-blk: Fix hot-unplug race in remove method (Asias He) [734051]
+- [virt] virtio_blk: Drop unused request tracking list (Asias He) [734051]
+- [acpi] apei: new einj parameter to control trigger action (Myron Stowe) [816508]
+- [acpi] apei: limit the range of einj_param (Myron Stowe) [816508]
+- [acpi] apei: Use acpi_os_map_memory() instead of ioremap() in einj driver (Myron Stowe) [816508]
+- [acpi] apei: cleanup 0 vs NULL confusion (Myron Stowe) [816508]
+- [acpi] apei: Allow empty EINJ Trigger Error Action Table (Myron Stowe) [816508]
+- [acpi] apei: Add extensions to EINJ from rev 5.0 of acpi spec (Myron Stowe) [816508]
+- [acpi] apei: Print resource errors in conventional format (Myron Stowe) [816508]
+- [net] dev: consolidate netif_needs_gso() checks (Amerigo Wang) [822737]
+- [net] skbuff: add check for non-linear to warn_if_lro and needs_linearize (Amerigo Wang) [822737]
+- [net] dev: Optimize non-gso test checks (Amerigo Wang) [822737]
+- [powerpc] time: Fixups for powerpc timekeeping code (Prarit Bhargava) [843138]
+- [mm] Eliminate kernel crash due to races in hugetlbfs (Larry Woodman) [822458]
+- [net] tcp: clear hints to avoid a stale one (Andy Gospodarek) [807704]
+- [net] fix rtnetlink IFF_PROMISC and IFF_ALLMULTI handling (Jiri Benc) [838450]
+
 * Wed Aug 08 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-295.el6]
 - [net] openvswitch: checking wrong variable in queue_userspace_packet() (Herbert Xu) [805656]
 - [net] openvswitch: Validation of IPv6 set port action uses IPv4 header (Herbert Xu) [805656]
