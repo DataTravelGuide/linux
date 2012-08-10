@@ -1673,10 +1673,10 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	 * proportional to the fraction of recently scanned pages on
 	 * each list that were recently referenced and in active use.
 	 */
-	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
+	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
 	ap /= reclaim_stat->recent_rotated[0] + 1;
 
-	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
+	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
 	fp /= reclaim_stat->recent_rotated[1] + 1;
 
 	/* Normalize to percentages */
@@ -1732,7 +1732,7 @@ static void shrink_zone(int priority, struct zone *zone,
 		unsigned long scan;
 
 		scan = zone_nr_lru_pages(zone, sc, l);
-		if (priority || noswap) {
+		if (priority || noswap || !sc->swappiness) {
 			scan >>= priority;
 			scan = (scan * percent[file]) / 100;
 		}
