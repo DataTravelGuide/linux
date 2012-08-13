@@ -282,6 +282,7 @@ struct mddev {
 	sector_t			reshape_position;
 	int				delta_disks, new_level, new_layout;
 	int				new_chunk_sectors;
+	int				reshape_backwards;
 
 	struct md_thread		*thread;	/* management thread */
 	struct md_thread		*sync_thread;	/* doing resync or reconstruct */
