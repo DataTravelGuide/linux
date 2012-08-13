@@ -802,9 +802,23 @@ static void wait_barrier(struct r1conf *conf)
 	spin_lock_irq(&conf->resync_lock);
 	if (conf->barrier) {
 		conf->nr_waiting++;
-		wait_event_lock_irq(conf->wait_barrier, !conf->barrier,
+		/* Wait for the barrier to drop.
+		 * However if there are already pending
+		 * requests (preventing the barrier from
+		 * rising completely), and the
+		 * pre-process bio queue isn't empty,
+		 * then don't wait, as we need to empty
+		 * that queue to get the nr_pending
+		 * count down.
+		 */
+		wait_event_lock_irq(conf->wait_barrier,
+				    !conf->barrier ||
+				    (conf->nr_pending &&
+				     current->bio_list &&
+				     current->bio_tail),
 				    conf->resync_lock,
-				    md_raid1_unplug_device(conf));
+				    md_raid1_unplug_device(conf)
+			);
 		conf->nr_waiting--;
 	}
 	conf->nr_pending++;
