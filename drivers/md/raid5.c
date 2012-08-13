@@ -4045,12 +4045,10 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
-		int disks, data_disks;
 		int previous;
 
 	retry:
 		previous = 0;
-		disks = conf->raid_disks;
 		prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 		if (unlikely(conf->reshape_progress != MaxSector)) {
 			/* spinlock is needed as reshape_progress may be
@@ -4065,7 +4063,6 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 			if (mddev->reshape_backwards
 			    ? logical_sector < conf->reshape_progress
 			    : logical_sector >= conf->reshape_progress) {
-				disks = conf->previous_raid_disks;
 				previous = 1;
 			} else {
 				if (mddev->reshape_backwards
@@ -4078,7 +4075,6 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 			}
 			spin_unlock_irq(&conf->device_lock);
 		}
-		data_disks = disks - conf->max_degraded;
 
 		new_sector = raid5_compute_sector(conf, logical_sector,
 						  previous,
