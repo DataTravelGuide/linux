@@ -2533,7 +2533,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
-					r10_bio->sectors);
+					r10_bio->sectors, 0);
 			} else {
 				if (!rdev_set_badblocks(
 					    rdev,
@@ -2549,7 +2549,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
-					r10_bio->sectors);
+					r10_bio->sectors, 0);
 			} else {
 				if (!rdev_set_badblocks(
 					    rdev,
@@ -2568,7 +2568,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
-					r10_bio->sectors);
+					r10_bio->sectors, 0);
 				rdev_dec_pending(rdev, conf->mddev);
 			} else if (bio != NULL &&
 				   !test_bit(BIO_UPTODATE, &bio->bi_flags)) {
@@ -2585,7 +2585,7 @@ static void handle_write_completed(struct r10conf *conf, struct r10bio *r10_bio)
 				rdev_clear_badblocks(
 					rdev,
 					r10_bio->devs[m].addr,
-					r10_bio->sectors);
+					r10_bio->sectors, 0);
 				rdev_dec_pending(rdev, conf->mddev);
 			}
 		}
