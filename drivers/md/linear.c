@@ -214,6 +214,7 @@ out:
 static int linear_run (struct mddev *mddev)
 {
 	struct linear_conf *conf;
+	int ret;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -228,7 +229,13 @@ static int linear_run (struct mddev *mddev)
 	mddev->queue->unplug_fn = linear_unplug;
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
-	return md_integrity_register(mddev);
+
+	ret =  md_integrity_register(mddev);
+	if (ret) {
+		kfree(conf);
+		mddev->private = NULL;
+	}
+	return ret;
 }
 
 static void free_conf(struct rcu_head *head)
