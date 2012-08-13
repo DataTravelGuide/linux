@@ -75,7 +75,8 @@ static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 	struct r10bio *r10_bio;
 	int size = offsetof(struct r10bio, devs[conf->copies]);
 
-	/* allocate a r10bio with room for raid_disks entries in the bios array */
+	/* allocate a r10bio with room for raid_disks entries in the
+	 * bios array */
 	r10_bio = kzalloc(size, gfp_flags);
 	if (!r10_bio && conf->mddev)
 		unplug_slaves(conf->mddev);
@@ -131,12 +132,19 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 		if (!bio)
 			goto out_free_bio;
 		r10_bio->devs[j].bio = bio;
+		if (!conf->have_replacement)
+			continue;
+		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+		if (!bio)
+			goto out_free_bio;
+		r10_bio->devs[j].repl_bio = bio;
 	}
 	/*
 	 * Allocate RESYNC_PAGES data pages and attach them
 	 * where needed.
 	 */
 	for (j = 0 ; j < nalloc; j++) {
+		struct bio *rbio = r10_bio->devs[j].repl_bio;
 		bio = r10_bio->devs[j].bio;
 		for (i = 0; i < RESYNC_PAGES; i++) {
 			if (j == 1 && !test_bit(MD_RECOVERY_SYNC,
@@ -151,6 +159,8 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 				goto out_free_pages;
 
 			bio->bi_io_vec[i].bv_page = page;
+			if (rbio)
+				rbio->bi_io_vec[i].bv_page = page;
 		}
 	}
 
@@ -164,8 +174,11 @@ out_free_pages:
 			safe_put_page(r10_bio->devs[j].bio->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
-	while ( ++j < nalloc )
+	while (++j < nalloc) {
 		bio_put(r10_bio->devs[j].bio);
+		if (r10_bio->devs[j].repl_bio)
+			bio_put(r10_bio->devs[j].repl_bio);
+	}
 	r10bio_pool_free(r10_bio, conf);
 	return NULL;
 }
@@ -186,6 +199,9 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 			}
 			bio_put(bio);
 		}
+		bio = r10bio->devs[j].repl_bio;
+		if (bio)
+			bio_put(bio);
 	}
 	r10bio_pool_free(r10bio, conf);
 }
@@ -197,6 +213,10 @@ static void put_all_bios(struct r10conf *conf, struct r10bio *r10_bio)
 	for (i = 0; i < conf->copies; i++) {
 		struct bio **bio = & r10_bio->devs[i].bio;
 		if (!BIO_SPECIAL(*bio))
+			bio_put(*bio);
+		*bio = NULL;
+		bio = &r10_bio->devs[i].repl_bio;
+		if (r10_bio->read_slot < 0 && !BIO_SPECIAL(*bio))
 			bio_put(*bio);
 		*bio = NULL;
 	}
@@ -283,19 +303,27 @@ static inline void update_head_pos(int slot, struct r10bio *r10_bio)
  * Find the disk number which triggered given bio
  */
 static int find_bio_disk(struct r10conf *conf, struct r10bio *r10_bio,
-			 struct bio *bio, int *slotp)
+			 struct bio *bio, int *slotp, int *replp)
 {
 	int slot;
+	int repl = 0;
 
-	for (slot = 0; slot < conf->copies; slot++)
+	for (slot = 0; slot < conf->copies; slot++) {
 		if (r10_bio->devs[slot].bio == bio)
 			break;
+		if (r10_bio->devs[slot].repl_bio == bio) {
+			repl = 1;
+			break;
+		}
+	}
 
 	BUG_ON(slot == conf->copies);
 	update_head_pos(slot, r10_bio);
 
 	if (slotp)
 		*slotp = slot;
+	if (replp)
+		*replp = repl;
 	return r10_bio->devs[slot].devnum;
 }
 
@@ -376,7 +404,7 @@ static void raid10_end_write_request(struct bio *bio, int error)
 	struct r10conf *conf = r10_bio->mddev->private;
 	int slot;
 
-	dev = find_bio_disk(conf, r10_bio, bio, &slot);
+	dev = find_bio_disk(conf, r10_bio, bio, &slot, NULL);
 
 	/*
 	 * this branch is our 'one mirror IO has finished' event handler:
@@ -1073,6 +1101,8 @@ read_again:
 	 * of r10_bios is recored in bio->bi_phys_segments just as with
 	 * the read case.
 	 */
+
+	r10_bio->read_slot = -1; /* make sure repl_bio gets freed */
 	raid10_find_phys(conf, r10_bio);
 retry_write:
 	blocked_rdev = NULL;
@@ -1482,7 +1512,7 @@ static void end_sync_read(struct bio *bio, int error)
 	struct r10conf *conf = r10_bio->mddev->private;
 	int d;
 
-	d = find_bio_disk(conf, r10_bio, bio, NULL);
+	d = find_bio_disk(conf, r10_bio, bio, NULL, NULL);
 
 	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
@@ -1544,7 +1574,7 @@ static void end_sync_write(struct bio *bio, int error)
 	int bad_sectors;
 	int slot;
 
-	d = find_bio_disk(conf, r10_bio, bio, &slot);
+	d = find_bio_disk(conf, r10_bio, bio, &slot, NULL);
 
 	if (!uptodate) {
 		set_bit(WriteErrorSeen, &conf->mirrors[d].rdev->flags);
@@ -2326,9 +2356,14 @@ static void raid10d(struct mddev *mddev)
 static int init_resync(struct r10conf *conf)
 {
 	int buffs;
+	int i;
 
 	buffs = RESYNC_WINDOW / RESYNC_BLOCK_SIZE;
 	BUG_ON(conf->r10buf_pool);
+	conf->have_replacement = 0;
+	for (i = 0; i < conf->raid_disks; i++)
+		if (conf->mirrors[i].replacement)
+			conf->have_replacement = 1;
 	conf->r10buf_pool = mempool_create(buffs, r10buf_pool_alloc, r10buf_pool_free, conf);
 	if (!conf->r10buf_pool)
 		return -ENOMEM;
