@@ -196,7 +196,8 @@ static void __release_stripe(struct r5conf *conf, struct stripe_head *sh)
 		BUG_ON(!list_empty(&sh->lru));
 		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
-			if (test_bit(STRIPE_DELAYED, &sh->state)) {
+			if (test_bit(STRIPE_DELAYED, &sh->state) &&
+			    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
 				list_add_tail(&sh->lru, &conf->delayed_list);
 				plugger_set_plug(&conf->plug);
 			} else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
@@ -204,6 +205,7 @@ static void __release_stripe(struct r5conf *conf, struct stripe_head *sh)
 				list_add_tail(&sh->lru, &conf->bitmap_list);
 				plugger_set_plug(&conf->plug);
 			} else {
+				clear_bit(STRIPE_DELAYED, &sh->state);
 				clear_bit(STRIPE_BIT_DELAY, &sh->state);
 				list_add_tail(&sh->lru, &conf->handle_list);
 			}
