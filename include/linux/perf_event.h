@@ -887,6 +887,7 @@ struct perf_event_context {
 	int				is_active;
 	int				nr_stat;
 #ifndef __GENKSYMS__ /* kabi tool is crap */
+	int				nr_freq;
 	int				rotate_disable;
 #endif
 	atomic_t			refcount;

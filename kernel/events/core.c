@@ -1093,6 +1093,8 @@ event_sched_out(struct perf_event *event,
 	if (!is_software_event(event))
 		cpuctx->active_oncpu--;
 	ctx->nr_active--;
+	if (event->attr.freq && event->attr.sample_freq)
+		ctx->nr_freq--;
 	if (event->attr.exclusive || !cpuctx->active_oncpu)
 		cpuctx->exclusive = 0;
 }
@@ -1365,6 +1367,8 @@ event_sched_in(struct perf_event *event,
 	if (!is_software_event(event))
 		cpuctx->active_oncpu++;
 	ctx->nr_active++;
+	if (event->attr.freq && event->attr.sample_freq)
+		ctx->nr_freq++;
 
 	if (event->attr.exclusive)
 		cpuctx->exclusive = 1;
@@ -2294,6 +2298,9 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx, u64 period)
 	u64 interrupts, now;
 	s64 delta;
 
+	if (!ctx->nr_freq)
+		return;
+
 	list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
 		if (event->state != PERF_EVENT_STATE_ACTIVE)
 			continue;
@@ -2349,12 +2356,14 @@ static void perf_rotate_context(struct perf_cpu_context *cpuctx)
 {
 	u64 interval = (u64)cpuctx->jiffies_interval * TICK_NSEC;
 	struct perf_event_context *ctx = NULL;
-	int rotate = 0, remove = 1;
+	int rotate = 0, remove = 1, freq = 0;
 
 	if (cpuctx->ctx.nr_events) {
 		remove = 0;
 		if (cpuctx->ctx.nr_events != cpuctx->ctx.nr_active)
 			rotate = 1;
+		if (cpuctx->ctx.nr_freq)
+			freq = 1;
 	}
 
 	ctx = cpuctx->task_ctx;
@@ -2362,35 +2371,42 @@ static void perf_rotate_context(struct perf_cpu_context *cpuctx)
 		remove = 0;
 		if (ctx->nr_events != ctx->nr_active)
 			rotate = 1;
+		if (ctx->nr_freq)
+			freq = 1;
 	}
+
+	if (!rotate && !freq)
+		goto done;
 
 	perf_ctx_lock(cpuctx, cpuctx->task_ctx);
 	perf_pmu_disable(cpuctx->ctx.pmu);
-	perf_ctx_adjust_freq(&cpuctx->ctx, interval);
-	if (ctx)
-		perf_ctx_adjust_freq(ctx, interval);
 
-	if (!rotate)
-		goto done;
+	if (freq) {
+		perf_ctx_adjust_freq(&cpuctx->ctx, interval);
+		if (ctx)
+			perf_ctx_adjust_freq(ctx, interval);
+	}
 
-	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
-	if (ctx)
-		task_ctx_sched_out(ctx, EVENT_FLEXIBLE);
+	if (rotate) {
+		cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
+		if (ctx)
+			task_ctx_sched_out(ctx, EVENT_FLEXIBLE);
 
-	rotate_ctx(&cpuctx->ctx);
-	if (ctx)
-		rotate_ctx(ctx);
+		rotate_ctx(&cpuctx->ctx);
+		if (ctx)
+			rotate_ctx(ctx);
 
-	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE, current);
-	if (ctx)
-		task_ctx_sched_in(ctx, EVENT_FLEXIBLE);
+		cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE, current);
+		if (ctx)
+			task_ctx_sched_in(ctx, EVENT_FLEXIBLE);
+	}
+
+	perf_pmu_enable(cpuctx->ctx.pmu);
+	perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
 
 done:
 	if (remove)
 		list_del_init(&cpuctx->rotation_list);
-
-	perf_pmu_enable(cpuctx->ctx.pmu);
-	perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
 }
 
 void perf_event_task_tick(void)
