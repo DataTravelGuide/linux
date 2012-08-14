@@ -78,6 +78,11 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	sb->s_fs_info = sdp;
 	sdp->sd_vfs = sb;
+	sdp->sd_lkstats = alloc_percpu(struct gfs2_pcpu_lkstats);
+	if (!sdp->sd_lkstats) {
+		kfree(sdp);
+		return NULL;
+	}
 
 	gfs2_tune_init(&sdp->sd_tune);
 
@@ -1168,6 +1173,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (error) {
 		/* In this case, we haven't initialized sysfs, so we have to
 		   manually free the sdp. */
+		free_percpu(sdp->sd_lkstats);
 		kfree(sdp);
 		sb->s_fs_info = NULL;
 		return error;
@@ -1250,6 +1256,7 @@ fail_lm:
 	gfs2_lm_unmount(sdp);
 fail_debug:
 	gfs2_delete_debugfs_file(sdp);
+	free_percpu(sdp->sd_lkstats);
 	/* gfs2_sys_fs_del must be the last thing we do, since it causes
 	 * sysfs to call function gfs2_sbd_release, which frees sdp. */
 	gfs2_sys_fs_del(sdp);

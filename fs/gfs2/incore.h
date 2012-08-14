@@ -18,6 +18,8 @@
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
 #include <linux/rbtree.h>
+#include <linux/ktime.h>
+#include <linux/percpu.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -167,6 +169,22 @@ struct gfs2_glock_operations {
 };
 
 enum {
+	GFS2_LKS_SRTT = 0,	/* Non blocking smoothed round trip time */
+	GFS2_LKS_SRTTVAR = 1,	/* Non blocking smoothed variance */
+	GFS2_LKS_SRTTB = 2,	/* Blocking smoothed round trip time */
+	GFS2_LKS_SRTTVARB = 3,	/* Blocking smoothed variance */
+	GFS2_LKS_SIRT = 4,	/* Smoothed Inter-request time */
+	GFS2_LKS_SIRTVAR = 5,	/* Smoothed Inter-request variance */
+	GFS2_LKS_DCOUNT = 6,	/* Count of dlm requests */
+	GFS2_LKS_QCOUNT = 7,	/* Count of gfs2_holder queues */
+	GFS2_NR_LKSTATS
+};
+
+struct gfs2_lkstats {
+	s64 stats[GFS2_NR_LKSTATS];
+};
+
+enum {
 	/* States */
 	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
 	HIF_FIRST		= 7,
@@ -205,6 +223,7 @@ enum {
 
 struct gfs2_glock {
 	struct hlist_bl_node gl_list;
+	struct gfs2_sbd *gl_sbd;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
 	atomic_t gl_ref;
@@ -224,16 +243,14 @@ struct gfs2_glock {
 	struct list_head gl_holders;
 
 	const struct gfs2_glock_operations *gl_ops;
-	char gl_strname[GDLM_STRNAME_BYTES];
+	ktime_t gl_dstamp;
+	struct gfs2_lkstats gl_stats;
 	struct dlm_lksb gl_lksb;
 	char gl_lvb[32];
 	unsigned long gl_tchange;
 	void *gl_object;
 
 	struct list_head gl_lru;
-
-	struct gfs2_sbd *gl_sbd;
-
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	atomic_t gl_revokes;
@@ -516,8 +533,14 @@ struct lm_lockstruct {
 	int ls_recover_jid_status;
 };
 
+struct gfs2_pcpu_lkstats {
+	/* One struct for each glock type */
+	struct gfs2_lkstats lkstats[10];
+};
+
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
+	struct gfs2_pcpu_lkstats __percpu *sd_lkstats;
 	struct kobject sd_kobj;
 	unsigned long sd_flags;	/* SDF_... */
 	struct gfs2_sb_host sd_sb;
@@ -675,8 +698,23 @@ struct gfs2_sbd {
 
 	unsigned long sd_last_warning;
 	struct dentry *debugfs_dir;    /* debugfs directory */
-	struct dentry *debugfs_dentry_glocks; /* for debugfs */
+	struct dentry *debugfs_dentry_glocks;
+	struct dentry *debugfs_dentry_glstats;
+	struct dentry *debugfs_dentry_sbstats;
 };
+
+static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)
+{
+	gl->gl_stats.stats[which]++;
+}
+
+static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
+{
+	const struct gfs2_sbd *sdp = gl->gl_sbd;
+	preempt_disable();
+	this_cpu_ptr(sdp->sd_lkstats)->lkstats[gl->gl_name.ln_type].stats[which]++;
+	preempt_enable();
+}
 
 #endif /* __INCORE_DOT_H__ */
 
