@@ -184,33 +184,41 @@ int hwpoison_filter(struct page *p)
 EXPORT_SYMBOL_GPL(hwpoison_filter);
 
 /*
- * Send all the processes who have the page mapped an ``action optional''
- * signal.
+ * Send all the processes who have the page mapped a signal.
+ * ``action optional'' if they are not immediately affected by the error
+ * ``action required'' if error happened in current execution context
  */
-static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
-			unsigned long pfn, struct page *page)
+static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
+			unsigned long pfn, struct page *page, int flags)
 {
 	struct siginfo si;
 	int ret;
 
 	printk(KERN_ERR
-		"MCE %#lx: Killing %s:%d early due to hardware memory corruption\n",
+		"MCE %#lx: Killing %s:%d due to hardware memory corruption\n",
 		pfn, t->comm, t->pid);
 	si.si_signo = SIGBUS;
 	si.si_errno = 0;
-	si.si_code = BUS_MCEERR_AO;
 	si.si_addr = (void *)addr;
 #ifdef __ARCH_SI_TRAPNO
 	si.si_trapno = trapno;
 #endif
 	si.si_addr_lsb = compound_trans_order(compound_head(page)) + PAGE_SHIFT;
-	/*
-	 * Don't use force here, it's convenient if the signal
-	 * can be temporarily blocked.
-	 * This could cause a loop when the user sets SIGBUS
-	 * to SIG_IGN, but hopefully noone will do that?
-	 */
 	ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
+
+	if ((flags & MF_ACTION_REQUIRED) && t == current) {
+		si.si_code = BUS_MCEERR_AR;
+		ret = force_sig_info(SIGBUS, &si, t);
+	} else {
+		/*
+		 * Don't use force here, it's convenient if the signal
+		 * can be temporarily blocked.
+		 * This could cause a loop when the user sets SIGBUS
+		 * to SIG_IGN, but hopefully no one will do that?
+		 */
+		si.si_code = BUS_MCEERR_AO;
+		ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
+	}
 	if (ret < 0)
 		printk(KERN_INFO "MCE: Error sending signal to %s:%d: %d\n",
 		       t->comm, t->pid, ret);
@@ -331,8 +339,9 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
  * Also when FAIL is set do a force kill because something went
  * wrong earlier.
  */
-static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
-			  int fail, struct page *page, unsigned long pfn)
+static void kill_procs(struct list_head *to_kill, int doit, int trapno,
+			  int fail, struct page *page, unsigned long pfn,
+			  int flags)
 {
 	struct to_kill *tk, *next;
 
@@ -356,8 +365,8 @@ static void kill_procs_ao(struct list_head *to_kill, int doit, int trapno,
 			 * check for that, but we need to tell the
 			 * process anyways.
 			 */
-			else if (kill_proc_ao(tk->tsk, tk->addr, trapno,
-					      pfn, page) < 0)
+			else if (kill_proc(tk->tsk, tk->addr, trapno,
+					      pfn, page, flags) < 0)
 				printk(KERN_ERR
 		"MCE %#lx: Cannot send advisory machine check signal to %s:%d\n",
 					pfn, tk->tsk->comm, tk->tsk->pid);
@@ -846,7 +855,7 @@ static int page_action(struct page_state *ps, struct page *p,
  * the pages and send SIGBUS to the processes if the data was dirty.
  */
 static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
-				  int trapno)
+				  int trapno, int flags)
 {
 	enum ttu_flags ttu = TTU_UNMAP | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
 	struct address_space *mapping;
@@ -964,8 +973,8 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * use a more force-full uncatchable kill to prevent
 	 * any accesses to the poisoned memory.
 	 */
-	kill_procs_ao(&tokill, !!PageDirty(ppage), trapno,
-		      ret != SWAP_SUCCESS, p, pfn);
+	kill_procs(&tokill, !!PageDirty(ppage), trapno,
+		      ret != SWAP_SUCCESS, p, pfn, flags);
 
 	return ret;
 }
@@ -1150,7 +1159,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	 * Now take care of user space mappings.
 	 * Abort on fail: __remove_from_page_cache() assumes unmapped page.
 	 */
-	if (hwpoison_user_mappings(p, pfn, trapno) != SWAP_SUCCESS) {
+	if (hwpoison_user_mappings(p, pfn, trapno, flags) != SWAP_SUCCESS) {
 		printk(KERN_ERR "MCE %#lx: cannot unmap page, give up\n", pfn);
 		res = -EBUSY;
 		goto out;
