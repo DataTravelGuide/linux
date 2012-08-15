@@ -290,7 +290,8 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 	return bi;
 }
 
-int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
+int machine__resolve_callchain(struct machine *self,
+			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent)
@@ -299,7 +300,7 @@ int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 	unsigned int i;
 	int err;
 
-	callchain_cursor_reset(&evsel->hists.callchain_cursor);
+	callchain_cursor_reset(&callchain_cursor);
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip;
@@ -335,7 +336,7 @@ int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 				break;
 		}
 
-		err = callchain_cursor_append(&evsel->hists.callchain_cursor,
+		err = callchain_cursor_append(&callchain_cursor,
 					      ip, al.map, al.sym);
 		if (err)
 			return err;
@@ -1430,7 +1431,6 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			  int print_sym, int print_dso, int print_symoffset)
 {
 	struct addr_location al;
-	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
 	struct callchain_cursor_node *node;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
@@ -1448,10 +1448,10 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 				error("Failed to resolve callchain. Skipping\n");
 			return;
 		}
-		callchain_cursor_commit(cursor);
+		callchain_cursor_commit(&callchain_cursor);
 
 		while (1) {
-			node = callchain_cursor_current(cursor);
+			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
 
@@ -1467,7 +1467,7 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			}
 			printf("\n");
 
-			callchain_cursor_advance(cursor);
+			callchain_cursor_advance(&callchain_cursor);
 		}
 
 	} else {
