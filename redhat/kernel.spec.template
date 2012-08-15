@@ -1674,6 +1674,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 15 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-298.el6]
+- [scsi] vmw_pvscsi: set max_id suggested by device (Rob Evers) [830357]
+- [scsi] fix medium error problems (Rob Evers) [845135]
+- [char] hw_random/virtio-rng: s3/s4 support (Amit Shah) [844579 844582 844583]
+- [char] hw_random/virtio-rng: split out common code in probe / remove for s3/s4 ops (Amit Shah) [844579 844582 844583]
+- [char] hw_random/virtio-rng: don't wait on host when module is going away (Amit Shah) [844579 844582 844583]
+- [char] hw_random/virtio-rng: allow tasks to be killed that are waiting for rng input (Amit Shah) [844579 844582 844583]
+- [char] hwrng: virtio-rng - Convert to new API (Amit Shah) [844579 844582 844583]
+- [char] hwrng: core - Fix double unlock in rng_dev_read (Amit Shah) [844579 844582 844583]
+- [char] hwrng: core - Replace u32 in driver API with byte array (Amit Shah) [844579 844582 844583]
+- [kernel] timekeeping: Add missing update call in timekeeping_resume() (Prarit Bhargava) [836803]
+- [kernel] hrtimer: Update hrtimer base offsets each hrtimer_interrupt (Prarit Bhargava) [836803]
+- [kernel] timekeeping: Provide hrtimer update function (Prarit Bhargava) [836803]
+- [kernel] hrtimers: Move lock held region in hrtimer_interrupt() (Prarit Bhargava) [836803]
+- [kernel] timekeeping: Maintain ktime_t based offsets for hrtimers (Prarit Bhargava) [836803]
+- [kernel] timekeeping: Fix leapsecond triggered load spike issue (Prarit Bhargava) [836803]
+- [kernel] hrtimer: Provide clock_was_set_delayed() (Prarit Bhargava) [836803]
+
 * Tue Aug 14 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-297.el6]
 - [powerpc] pci-dma: use include/linux/pci-dma.h (Stanislaw Gruszka) [827193]
 - [x86] pci-dma: use include/linux/pci-dma.h (Stanislaw Gruszka) [827193]
