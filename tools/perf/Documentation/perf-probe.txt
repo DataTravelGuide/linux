@@ -103,6 +103,7 @@ OPTIONS
 --exec=PATH::
 	Specify path to the executable or shared library file for user
 	space tracing. Can also be used with --funcs option.
+	(this feature is unsupported in RHEL6)
 
 PROBE SYNTAX
 ------------
