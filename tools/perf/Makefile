@@ -496,7 +496,7 @@ else
 	else
 		BASIC_CFLAGS += $(shell pkg-config --cflags gtk+-2.0)
 		EXTLIBS += $(shell pkg-config --libs gtk+-2.0)
-		LIB_OBJS += $(OUTPUT)util/gtk/browser.o
+		LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
 	endif
 endif
 
