@@ -98,7 +98,10 @@ static int __cmd_evlist(const char *input_name, struct perf_attr_details *detail
 			if_print(__reserved_1);
 			if_print(wakeup_events);
 			if_print(bp_type);
+/*
+ * XXX RHEL6 branch samples not supported in RHEL6
 			if_print(branch_sample_type);
+ */
 		}
 
 		putchar('\n');
