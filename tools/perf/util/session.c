@@ -928,7 +928,7 @@ static struct machine *
 		else
 			pid = event->ip.pid;
 
-		return perf_session__find_machine(session, pid);
+		return perf_session__findnew_machine(session, pid);
 	}
 
 	return perf_session__find_host_machine(session);
