@@ -177,6 +177,10 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->op.left);
 		define_event_symbols(event, ev_name, args->op.right);
 		break;
+	case PRINT_HEX:
+		define_event_symbols(event, ev_name, args->hex.field);
+		define_event_symbols(event, ev_name, args->hex.size);
+		break;
 	default:
 		/* gcc warns for these? */
 	case PRINT_BSTRING:
