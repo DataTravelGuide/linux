@@ -42,6 +42,7 @@
 #include <asm/s390_ext.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
+#include <asm/ipl.h>
 #include "entry.h"
 
 pgm_check_handler_t *pgm_check_table[128];
@@ -250,6 +251,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	static int die_counter;
 
 	oops_enter();
+	lgr_info_log();
 	debug_stop_all();
 	console_verbose();
 	spin_lock_irq(&die_lock);

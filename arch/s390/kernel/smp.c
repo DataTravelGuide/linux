@@ -51,6 +51,7 @@
 #include <asm/cputime.h>
 #include <asm/vdso.h>
 #include <asm/cpu.h>
+#include <asm/debug.h>
 #include "entry.h"
 
 /* logical cpu to cpu address */
@@ -131,6 +132,7 @@ void smp_send_stop(void)
 	__load_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK);
 	trace_hardirqs_off();
 
+	debug_set_critical();
 	cpumask_copy(&cpumask, cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 

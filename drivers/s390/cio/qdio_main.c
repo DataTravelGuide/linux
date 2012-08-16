@@ -16,6 +16,7 @@
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
+#include <asm/ipl.h>
 #include <linux/io.h>
 
 #include "cio.h"
@@ -1097,6 +1098,11 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 		   0, -1, -1, irq_ptr->int_parm);
 no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
+	/*
+	 * In case of z/VM LGR (Live Guest Migration) QDIO recovery will happen.
+	 * Therefore we call the LGR detection function here.
+	 */
+	lgr_info_log();
 }
 
 static void qdio_establish_handle_irq(struct ccw_device *cdev, int cstat,
