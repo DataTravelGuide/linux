@@ -206,13 +206,12 @@ out:
 		m->tcf_qstats.overlimits++;
 		m->tcf_bstats.bytes += qdisc_pkt_len(skb);
 		m->tcf_bstats.packets++;
-		/* should we be asking for packet to be dropped?
-		 * may make sense for redirect case only
-		 */
-		retval = TC_ACT_SHOT;
-	} else {
+		if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
+			retval = TC_ACT_SHOT;
+		else
+			retval = m->tcf_action;
+	} else
 		retval = m->tcf_action;
-	}
 	spin_unlock(&m->tcf_lock);
 
 	return retval;
