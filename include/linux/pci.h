@@ -321,6 +321,8 @@ struct pci_dev_rh1 {
 	struct kset *msi_kset;
 #endif
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
+	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
+						   decoding during bar sizing */
 };
 
 extern struct pci_dev *alloc_pci_dev(void);
