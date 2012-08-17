@@ -43,10 +43,10 @@ EXPORT_SYMBOL(pci_pci_problems);
  */
 static void __devinit quirk_mmio_always_on(struct pci_dev *dev)
 {
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-		((struct pci_dev_rh1 *)dev->rh_reserved1)->mmio_always_on = 1;
+	((struct pci_dev_rh1 *)dev->rh_reserved1)->mmio_always_on = 1;
 }
-DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, quirk_mmio_always_on);
+DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_ANY_ID, PCI_ANY_ID,
+				PCI_CLASS_BRIDGE_HOST, 8, quirk_mmio_always_on);
 
 /* The Mellanox Tavor device gives false positive parity errors
  * Mark this device with a broken_parity_status, to allow
