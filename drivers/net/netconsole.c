@@ -681,6 +681,8 @@ restart:
 			case NETDEV_RELEASE:
 			case NETDEV_JOIN:
 			case NETDEV_UNREGISTER:
+				nt->enabled = 0;
+				stopped = true;
 				/*
 				 * rtnl_lock already held
 				 */
@@ -696,9 +698,6 @@ restart:
 					netconsole_target_put(nt);
 					goto restart;
 				}
-				/* Fall through */
-				nt->enabled = 0;
-				stopped = true;
 				break;
 			}
 		}
