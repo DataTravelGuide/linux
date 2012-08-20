@@ -1,7 +1,7 @@
 /*
  * Orb related data structures.
  *
- * Copyright IBM Corp. 2007, 2011
+ * Copyright IBM Corp. 2007, 2012
  *
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
@@ -59,9 +59,33 @@ struct tm_orb {
 	u32:32;
 }  __packed __aligned(4);
 
+/*
+ * eadm operation request block
+ */
+struct eadm_orb {
+	u32 intparm;
+	u32 key:4;
+	u32:4;
+	u32 compat1:1;
+	u32 compat2:1;
+	u32:21;
+	u32 x:1;
+	u32 aob;
+	u32 css_prio:8;
+	u32:8;
+	u32 scm_prio:8;
+	u32:8;
+	u32:29;
+	u32 fmt:3;
+	u32:32;
+	u32:32;
+	u32:32;
+}  __packed __aligned(4);
+
 union orb {
 	struct cmd_orb cmd;
 	struct tm_orb tm;
+	struct eadm_orb eadm;
 }  __packed __aligned(4);
 
 #endif /* S390_ORB_H */
