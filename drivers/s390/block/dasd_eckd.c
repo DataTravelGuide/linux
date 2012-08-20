@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
+#include <asm/css_chars.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
@@ -32,7 +33,6 @@
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
-#include "../cio/chsc.h"
 
 /* emergency request for reserve/release */
 static struct {
