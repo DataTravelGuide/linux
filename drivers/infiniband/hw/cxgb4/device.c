@@ -271,7 +271,8 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 		entry = list_entry(pos, struct c4iw_qid_list, entry);
 		list_del_init(&entry->entry);
 		if (!(entry->qid & rdev->qpmask))
-			c4iw_put_resource(rdev->resource.qid_fifo, entry->qid);
+			c4iw_put_resource(&rdev->resource.qid_table,
+					  entry->qid);
 		kfree(entry);
 	}
 
