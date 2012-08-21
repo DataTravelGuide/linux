@@ -45,7 +45,7 @@
 
 #include "iw_cxgb4.h"
 
-static inline struct neighbour *dst_get_neighbour(struct dst_entry *dst)
+static inline struct neighbour *dst_get_neighbour_noref(struct dst_entry *dst)
 {
 	return dst->neighbour;
 }
@@ -1612,7 +1612,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	dst = &rt->u.dst;
 	rcu_read_lock();
-	neigh = dst_get_neighbour(dst);
+	neigh = dst_get_neighbour_noref(dst);
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		pdev = ip_dev_find(&init_net, peer_ip);
 		BUG_ON(!pdev);
@@ -1841,7 +1841,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	ep->dst = &rt->u.dst;
 
 	rcu_read_lock();
-	neigh = dst_get_neighbour(ep->dst);
+	neigh = dst_get_neighbour_noref(ep->dst);
 	/* get a l2t entry */
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		PDBG("%s LOOPBACK\n", __func__);
@@ -2323,7 +2323,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->dst = &rt->u.dst;
 
 	rcu_read_lock();
-	neigh = dst_get_neighbour(ep->dst);
+	neigh = dst_get_neighbour_noref(ep->dst);
 	/* get a l2t entry */
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		PDBG("%s LOOPBACK\n", __func__);
