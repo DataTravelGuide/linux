@@ -472,6 +472,11 @@ patches that have actually changed from your prior submission.  This decreases
 the amount of traffic on RHKL, and makes patch tracking easier for the
 maintainers.
 
+[Suggested] cc all previous reviewers on new versions of patches
+
+When reposting a patch it is useful for reviewers to be cc'd on new versions of
+patches.  This alerts reviewers that a new patch is available for review.
+
 5. Do I have to break up my patches into individual commits?  Can I use
 large monolithic patches?  What's the rule about this stuff?  Are there any
 benefits to a broken out patchset versus a monolithic patch?
