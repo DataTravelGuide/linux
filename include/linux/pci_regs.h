@@ -489,6 +489,12 @@
 #define  PCI_EXP_RTCTL_CRSSVE	0x10	/* CRS Software Visibility Enable */
 #define PCI_EXP_RTCAP		30	/* Root Capabilities */
 #define PCI_EXP_RTSTA		32	/* Root Status */
+/*
+ * Note that the following PCI Express 'Capability Structure' registers
+ * were introduced with 'Capability Version' 0x2 (v2).  These registers
+ * do not exist on devices with Capability Version 1.  Use pci_pcie_cap2()
+ * to use these fields safely.
+ */
 #define PCI_EXP_DEVCAP2		36	/* Device Capabilities 2 */
 #define  PCI_EXP_DEVCAP2_ARI	0x20	/* Alternative Routing-ID */
 #define  PCI_EXP_DEVCAP2_LTR	0x800	/* Latency tolerance reporting */
