@@ -1400,6 +1400,24 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		} else if (!strnicmp(data, "backupgid", 9) && value && *value) {
 			vol->backupgid = simple_strtoul(value, &value, 0);
 			vol->backupgid_specified = true;
+		} else if (strnicmp(data, "cache", 5) == 0) {
+			if (!value || !*value) {
+				cERROR(1, "No cache flavour specified");
+				goto cifs_parse_mount_err;
+			} else if (strnicmp(value, "loose", 5) == 0) {
+				vol->direct_io = false;
+				vol->strict_io = false;
+			} else if (strnicmp(value, "strict", 6) == 0) {
+				vol->direct_io = false;
+				vol->strict_io = true;
+			} else if (strnicmp(value, "none", 4) == 0) {
+				vol->direct_io = true;
+				vol->strict_io = false;
+			} else {
+				cERROR(1, "Invalid cache flavour specified: %s",
+				       value);
+				goto cifs_parse_mount_err;
+			}
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
