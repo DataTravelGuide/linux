@@ -421,7 +421,12 @@ static inline u32 safe_apic_wait_icr_idle(void)
 	return apic->safe_wait_icr_idle();
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
 extern struct apic *apic_probe[];
+extern void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v));
+#else
+static inline void apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v)) {}
+#endif
 
 static inline void ack_APIC_irq(void)
 {
