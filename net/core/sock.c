@@ -2300,7 +2300,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 
 			sprintf(prot->rsk_prot->slab_name, mask, prot->name);
 			prot->rsk_prot->slab = kmem_cache_create(prot->rsk_prot->slab_name,
-								 sk_alloc_size(prot->rsk_prot->obj_size), 0,
+								 prot->rsk_prot->obj_size, 0,
 								 SLAB_HWCACHE_ALIGN, NULL);
 
 			if (prot->rsk_prot->slab == NULL) {
@@ -2321,7 +2321,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 			sprintf(prot->twsk_prot->twsk_slab_name, mask, prot->name);
 			prot->twsk_prot->twsk_slab =
 				kmem_cache_create(prot->twsk_prot->twsk_slab_name,
-						  sk_alloc_size(prot->twsk_prot->twsk_obj_size),
+						  prot->twsk_prot->twsk_obj_size,
 						  0,
 						  SLAB_HWCACHE_ALIGN |
 							prot->slab_flags,
