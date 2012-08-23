@@ -354,6 +354,16 @@ struct apic {
 	void (*icr_write)(u32 low, u32 high);
 	void (*wait_icr_idle)(void);
 	u32 (*safe_wait_icr_idle)(void);
+#ifndef __GENKSYMS__
+	/*
+	 * ->eoi_write() has the same signature as ->write().
+	 *
+	 * Drivers can support both ->eoi_write() and ->write() by passing the same
+	 * callback value. Kernel can override ->eoi_write() and fall back
+	 * on write for EOI.
+	 */
+	void (*eoi_write)(u32 reg, u32 v);
+#endif
 };
 
 /*
@@ -379,6 +389,11 @@ static inline u32 apic_read(u32 reg)
 static inline void apic_write(u32 reg, u32 val)
 {
 	apic->write(reg, val);
+}
+
+static inline void apic_eoi(void)
+{
+	apic->eoi_write(APIC_EOI, APIC_EOI_ACK);
 }
 
 static inline u64 apic_icr_read(void)
@@ -409,7 +424,7 @@ static inline void ack_APIC_irq(void)
 	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
 	 */
-	apic_write(APIC_EOI, APIC_EOI_ACK);
+	apic_eoi();
 #endif
 }
 
