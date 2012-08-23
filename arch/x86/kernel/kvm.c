@@ -31,6 +31,8 @@
 #include <linux/reboot.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
+#include <asm/apic.h>
+#include <asm/apicdef.h>
 
 #define MMU_QUEUE_SIZE 1024
 
@@ -198,6 +200,22 @@ static void kvm_leave_lazy_mmu(void)
 	paravirt_leave_lazy_mmu();
 }
 
+static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
+
+static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
+{
+	/**
+	 * This relies on __test_and_clear_bit to modify the memory
+	 * in a way that is atomic with respect to the local CPU.
+	 * The hypervisor only accesses this memory from the local CPU so
+	 * there's no need for lock or memory barriers.
+	 * An optimization barrier is implied in apic write.
+	 */
+	if (__test_and_clear_bit(KVM_PV_EOI_BIT, &__get_cpu_var(kvm_apic_eoi)))
+		return;
+	apic->write(APIC_EOI, APIC_EOI_ACK);
+}
+
 static void __init paravirt_ops_setup(void)
 {
 	pv_info.name = "KVM";
@@ -238,11 +256,33 @@ void __cpuinit kvm_guest_cpu_init(void)
 {
 	if (!kvm_para_available())
 		return;
+
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
+		unsigned long pa;
+		/* Size alignment is implied but just to make it explicit. */
+		BUILD_BUG_ON(__alignof__(per_cpu_var(kvm_apic_eoi)) < 4);
+		__get_cpu_var(kvm_apic_eoi) = 0;
+		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
+		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
+	}
+}
+
+static void kvm_pv_guest_cpu_reboot(void *unused)
+{
+	/*
+	 * We disable PV EOI before we load a new kernel by kexec,
+	 * since MSR_KVM_PV_EOI_EN stores a pointer into old kernel's memory.
+	 * New kernel can re-enable when it boots.
+	 */
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
 }
 
 static int kvm_pv_reboot_notify(struct notifier_block *nb,
 				unsigned long code, void *unused)
 {
+	if (code == SYS_RESTART)
+		on_each_cpu(kvm_pv_guest_cpu_reboot, NULL, 1);
 	return NOTIFY_DONE;
 }
 
@@ -264,6 +304,8 @@ static void __cpuinit kvm_guest_cpu_online(void *dummy)
 
 static void kvm_guest_cpu_offline(void *dummy)
 {
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
+		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
 }
 
 static int __cpuinit kvm_cpu_notify(struct notifier_block *self,
@@ -298,6 +340,17 @@ void __init kvm_guest_init(void)
 
 	paravirt_ops_setup();
 	register_reboot_notifier(&kvm_pv_reboot_nb);
+
+	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
+		struct apic **drv;
+
+		for (drv = apic_probe; *drv; drv++) {
+			/* Should happen once for each apic */
+			WARN_ON((*drv)->eoi_write == kvm_guest_apic_eoi_write);
+			(*drv)->eoi_write = kvm_guest_apic_eoi_write;
+		}
+	}
+
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 	register_cpu_notifier(&kvm_cpu_notifier);
