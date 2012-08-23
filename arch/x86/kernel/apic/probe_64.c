@@ -41,6 +41,7 @@ static struct apic *apic_probe[] __initdata = {
 	&apic_x2apic_cluster,
 #endif
 	&apic_physflat,
+	&apic_flat,	/* must be last */
 	NULL,
 };
 
