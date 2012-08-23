@@ -179,7 +179,7 @@ extern struct apic apic_es7000_cluster;
 struct apic *apic = &apic_default;
 EXPORT_SYMBOL_GPL(apic);
 
-static struct apic *apic_probe[] __initdata = {
+struct apic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_NUMAQ
 	&apic_numaq,
 #endif

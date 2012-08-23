@@ -421,6 +421,7 @@ static inline u32 safe_apic_wait_icr_idle(void)
 	return apic->safe_wait_icr_idle();
 }
 
+extern struct apic *apic_probe[];
 
 static inline void ack_APIC_irq(void)
 {
