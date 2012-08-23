@@ -666,6 +666,7 @@ static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
 	MSR_KVM_STEAL_TIME,
+	MSR_KVM_PV_EOI_EN,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
 	MSR_K6_STAR,
 #ifdef CONFIG_X86_64
@@ -1321,6 +1322,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		set_bit(KVM_REQ_STEAL_UPDATE, &vcpu->requests);
 
+		break;
+	case MSR_KVM_PV_EOI_EN:
+		if (kvm_lapic_enable_pv_eoi(vcpu, data))
+			return 1;
 		break;
 
 	case MSR_IA32_MCG_CTL:
@@ -2194,6 +2199,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->eax = (1 << KVM_FEATURE_CLOCKSOURCE) |
 			     (1 << KVM_FEATURE_NOP_IO_DELAY) |
 			     (1 << KVM_FEATURE_CLOCKSOURCE2) |
+			     (1 << KVM_FEATURE_PV_EOI) |
 			     (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
 
 		if (sched_info_on())
@@ -5065,7 +5071,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		unsigned long rip = kvm_rip_read(vcpu);
 		profile_hit(KVM_PROFILING, (void *)rip);
 	}
-
 
 	if (vcpu->arch.apic_attention)
 		kvm_lapic_sync_from_vapic(vcpu);

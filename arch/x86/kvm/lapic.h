@@ -58,4 +58,5 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu);
 
 int kvm_x2apic_msr_write(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 int kvm_x2apic_msr_read(struct kvm_vcpu *vcpu, u32 msr, u64 *data);
+int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
 #endif
