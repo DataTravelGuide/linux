@@ -1419,6 +1419,7 @@ skip_lpage:
 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 		if (mem->slot >= slots->nmemslots)
 			slots->nmemslots = mem->slot + 1;
+		slots->generation++;
 		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
 
 		old_memslots = kvm->memslots;
@@ -1456,6 +1457,7 @@ skip_lpage:
 	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 	if (mem->slot >= slots->nmemslots)
 		slots->nmemslots = mem->slot + 1;
+	slots->generation++;
 
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
 	if (!npages) {
@@ -1586,10 +1588,10 @@ int kvm_is_error_hva(unsigned long addr)
 }
 EXPORT_SYMBOL_GPL(kvm_is_error_hva);
 
-struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
+static struct kvm_memory_slot *
+__gfn_to_memslot_unaliased(struct kvm_memslots *slots, gfn_t gfn)
 {
 	int i;
-	struct kvm_memslots *slots = rcu_dereference(kvm->memslots);
 
 	for (i = 0; i < slots->nmemslots; ++i) {
 		struct kvm_memory_slot *memslot = &slots->memslots[i];
@@ -1599,6 +1601,12 @@ struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
 			return memslot;
 	}
 	return NULL;
+}
+
+struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn)
+{
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	return __gfn_to_memslot_unaliased(slots, gfn);
 }
 EXPORT_SYMBOL_GPL(gfn_to_memslot_unaliased);
 
@@ -1646,15 +1654,21 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
 	return memslot - slots->memslots;
 }
 
+static unsigned long
+__gfn_to_hva(struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
+		return bad_hva();
+	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
+}
+
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 
 	gfn = unalias_gfn_instantiation(kvm, gfn);
 	slot = gfn_to_memslot_unaliased(kvm, gfn);
-	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
-		return bad_hva();
-	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
+	return __gfn_to_hva(slot, gfn);
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
@@ -1905,6 +1919,47 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
 	return 0;
 }
 
+int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			      gpa_t gpa)
+{
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	int offset = offset_in_page(gpa);
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+
+	ghc->gpa = gpa;
+	ghc->generation = slots->generation;
+	ghc->memslot = __gfn_to_memslot_unaliased(slots, gfn);
+	ghc->hva = __gfn_to_hva(ghc->memslot, gfn);
+	if (!kvm_is_error_hva(ghc->hva))
+		ghc->hva += offset;
+	else
+		return -EFAULT;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_gfn_to_hva_cache_init);
+
+int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, unsigned long len)
+{
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	int r;
+
+	if (slots->generation != ghc->generation)
+		kvm_gfn_to_hva_cache_init(kvm, ghc, ghc->gpa);
+
+	if (kvm_is_error_hva(ghc->hva))
+		return -EFAULT;
+
+	r = copy_to_user((void __user *)ghc->hva, data, len);
+	if (r)
+		return -EFAULT;
+	mark_page_dirty_in_slot(kvm, ghc->memslot, ghc->gpa >> PAGE_SHIFT);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_write_guest_cached);
+
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 {
 	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
@@ -1930,12 +1985,9 @@ int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
 }
 EXPORT_SYMBOL_GPL(kvm_clear_guest);
 
-void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
+void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
+			     gfn_t gfn)
 {
-	struct kvm_memory_slot *memslot;
-
-	gfn = unalias_gfn(kvm, gfn);
-	memslot = gfn_to_memslot_unaliased(kvm, gfn);
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
@@ -1943,6 +1995,14 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 		if (!test_bit(rel_gfn, memslot->dirty_bitmap))
 			set_bit(rel_gfn, memslot->dirty_bitmap);
 	}
+}
+
+void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
+{
+	struct kvm_memory_slot *memslot;
+
+	memslot = gfn_to_memslot(kvm, gfn);
+	mark_page_dirty_in_slot(kvm, memslot, gfn);
 }
 
 /*
