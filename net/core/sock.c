@@ -1066,7 +1066,7 @@ void sock_update_classid(struct sock *sk)
 {
 	u32 classid = task_cls_classid(current);
 
-	if (classid && classid != sk->sk_classid)
+	if (classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
 EXPORT_SYMBOL(sock_update_classid);
