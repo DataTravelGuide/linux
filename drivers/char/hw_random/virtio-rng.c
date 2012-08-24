@@ -108,7 +108,6 @@ static int probe_common(struct virtio_device *vdev)
 static void remove_common(struct virtio_device *vdev)
 {
 	vdev->config->reset(vdev);
-	busy = false;
 	hwrng_unregister(&virtio_hwrng);
 	vdev->config->del_vqs(vdev);
 }
