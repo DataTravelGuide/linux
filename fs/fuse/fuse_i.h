@@ -453,6 +453,9 @@ struct fuse_conn {
 	/** Don't apply umask to creation modes */
 	unsigned dont_mask:1;
 
+	/** Use enhanced/automatic page cache invalidation. */
+	unsigned auto_inval_data:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
