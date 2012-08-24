@@ -1532,7 +1532,6 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 	pr->rx_packets = rx_packets;
 
 	pr->port = port;
-	spin_lock_init(&pr->xmit_lock);
 	spin_lock_init(&pr->netif_queue);
 
 	pr->eq = ehea_create_eq(adapter, eq_type, EHEA_MAX_ENTRIES_EQ, 0);
@@ -2258,13 +2257,8 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pr = &port->port_res[ehea_hash_skb(skb, port->num_tx_qps)];
 
-	if (!spin_trylock(&pr->xmit_lock))
+	if (pr->queue_stopped)
 		return NETDEV_TX_BUSY;
-
-	if (pr->queue_stopped) {
-		spin_unlock(&pr->xmit_lock);
-		return NETDEV_TX_BUSY;
-	}
 
 	swqe = ehea_get_swqe(pr->qp, &swqe_index);
 	memset(swqe, 0, SWQE_HEADER_SIZE);
@@ -2329,8 +2323,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		spin_unlock_irqrestore(&pr->netif_queue, flags);
 	}
-	dev->trans_start = jiffies;
-	spin_unlock(&pr->xmit_lock);
 
 	return NETDEV_TX_OK;
 }
@@ -3243,8 +3235,7 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
-		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
-		      | NETIF_F_LLTX;
+		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
 	if (use_lro)
