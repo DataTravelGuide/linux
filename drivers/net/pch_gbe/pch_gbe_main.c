@@ -29,7 +29,7 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
 #define DSC_INIT16			0xC000
-#define PCH_GBE_DMA_ALIGN		0
+#define PCH_GBE_DMA_ALIGN		32
 #define PCH_GBE_DMA_PADDING		2
 #define PCH_GBE_WATCHDOG_PERIOD		(5 * HZ)	/* watchdog time */
 #define PCH_GBE_COPYBREAK_DEFAULT	256
@@ -1256,7 +1256,7 @@ pch_gbe_alloc_rx_buffers(struct pch_gbe_adapter *adapter,
 	unsigned int i;
 	unsigned int bufsz;
 
-	bufsz = adapter->rx_buffer_len + NET_IP_ALIGN;
+	bufsz = adapter->rx_buffer_len + PCH_GBE_DMA_ALIGN;
 	i = rx_ring->next_to_use;
 
 	while ((cleaned_count--)) {
@@ -1268,7 +1268,7 @@ pch_gbe_alloc_rx_buffers(struct pch_gbe_adapter *adapter,
 			break;
 		}
 		/* align */
-		skb_reserve(skb, NET_IP_ALIGN);
+		skb_reserve(skb, PCH_GBE_DMA_ALIGN);
 		buffer_info->skb = skb;
 
 		buffer_info->dma = dma_map_single(&pdev->dev,
