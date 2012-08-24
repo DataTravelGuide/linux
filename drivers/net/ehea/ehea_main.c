@@ -2003,7 +2003,6 @@ static void xmit_common(struct sk_buff *skb, struct ehea_swqe *swqe)
 
 		swqe->tcp_offset = swqe->ip_end + 1 +
 				   offsetof(struct udphdr, check);
-		swqe->tcp_end = skb->len - 1;
 		break;
 
 	case IPPROTO_TCP:
@@ -2012,7 +2011,6 @@ static void xmit_common(struct sk_buff *skb, struct ehea_swqe *swqe)
 
 		swqe->tcp_offset = swqe->ip_end + 1 +
 				   offsetof(struct tcphdr, check);
-		swqe->tcp_end = skb->len - 1;
 		break;
 	}
 }
