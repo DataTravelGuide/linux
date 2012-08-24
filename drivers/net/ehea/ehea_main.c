@@ -1674,37 +1674,6 @@ static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 	return ret;
 }
 
-/*
- * The write_* functions store information in swqe which is used by
- * the hardware to calculate the ip/tcp/udp checksum
- */
-
-static inline void write_ip_start_end(struct ehea_swqe *swqe,
-				      const struct sk_buff *skb)
-{
-	swqe->ip_start = skb_network_offset(skb);
-	swqe->ip_end = (u8)(swqe->ip_start + ip_hdrlen(skb) - 1);
-}
-
-static inline void write_tcp_offset_end(struct ehea_swqe *swqe,
-					const struct sk_buff *skb)
-{
-	swqe->tcp_offset =
-		(u8)(swqe->ip_end + 1 + offsetof(struct tcphdr, check));
-
-	swqe->tcp_end = (u16)skb->len - 1;
-}
-
-static inline void write_udp_offset_end(struct ehea_swqe *swqe,
-					const struct sk_buff *skb)
-{
-	swqe->tcp_offset =
-		(u8)(swqe->ip_end + 1 + offsetof(struct udphdr, check));
-
-	swqe->tcp_end = (u16)skb->len - 1;
-}
-
-
 static void write_swqe2_TSO(struct sk_buff *skb,
 			    struct ehea_swqe *swqe, u32 lkey)
 {
@@ -2107,41 +2076,46 @@ static int ehea_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static void xmit_common(struct sk_buff *skb, struct ehea_swqe *swqe)
+{
+	swqe->tx_control |= EHEA_SWQE_IMM_DATA_PRESENT | EHEA_SWQE_CRC;
+
+	if (skb->protocol != htons(ETH_P_IP))
+		return;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		swqe->tx_control |= EHEA_SWQE_IP_CHECKSUM;
+
+	swqe->ip_start = skb_network_offset(skb);
+	swqe->ip_end = swqe->ip_start + ip_hdrlen(skb) - 1;
+
+	switch (ip_hdr(skb)->protocol) {
+	case IPPROTO_UDP:
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			swqe->tx_control |= EHEA_SWQE_TCP_CHECKSUM;
+
+		swqe->tcp_offset = swqe->ip_end + 1 +
+				   offsetof(struct udphdr, check);
+		swqe->tcp_end = skb->len - 1;
+		break;
+
+	case IPPROTO_TCP:
+		if (skb->ip_summed == CHECKSUM_PARTIAL)
+			swqe->tx_control |= EHEA_SWQE_TCP_CHECKSUM;
+
+		swqe->tcp_offset = swqe->ip_end + 1 +
+				   offsetof(struct tcphdr, check);
+		swqe->tcp_end = skb->len - 1;
+		break;
+	}
+}
+
 static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 		       struct ehea_swqe *swqe, u32 lkey)
 {
-	if (skb->protocol == htons(ETH_P_IP)) {
-		const struct iphdr *iph = ip_hdr(skb);
+	swqe->tx_control |= EHEA_SWQE_DESCRIPTORS_PRESENT;
 
-		/* IPv4 */
-		swqe->tx_control |= EHEA_SWQE_CRC
-				 | EHEA_SWQE_IP_CHECKSUM
-				 | EHEA_SWQE_TCP_CHECKSUM
-				 | EHEA_SWQE_IMM_DATA_PRESENT
-				 | EHEA_SWQE_DESCRIPTORS_PRESENT;
-
-		write_ip_start_end(swqe, skb);
-
-		if (iph->protocol == IPPROTO_UDP) {
-			if ((iph->frag_off & IP_MF)
-			    || (iph->frag_off & IP_OFFSET))
-				/* IP fragment, so don't change cs */
-				swqe->tx_control &= ~EHEA_SWQE_TCP_CHECKSUM;
-			else
-				write_udp_offset_end(swqe, skb);
-		} else if (iph->protocol == IPPROTO_TCP) {
-			write_tcp_offset_end(swqe, skb);
-		}
-
-		/* icmp (big data) and ip segmentation packets (all other ip
-		   packets) do not require any special handling */
-
-	} else {
-		/* Other Ethernet Protocol */
-		swqe->tx_control |= EHEA_SWQE_CRC
-				 | EHEA_SWQE_IMM_DATA_PRESENT
-				 | EHEA_SWQE_DESCRIPTORS_PRESENT;
-	}
+	xmit_common(skb, swqe);
 
 	write_swqe2_data(skb, dev, swqe, lkey);
 }
@@ -2154,51 +2128,11 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 	skb_frag_t *frag;
 	int i;
 
-	if (skb->protocol == htons(ETH_P_IP)) {
-		const struct iphdr *iph = ip_hdr(skb);
+	xmit_common(skb, swqe);
 
-		/* IPv4 */
-		write_ip_start_end(swqe, skb);
-
-		if (iph->protocol == IPPROTO_TCP) {
-			swqe->tx_control |= EHEA_SWQE_CRC
-					 | EHEA_SWQE_IP_CHECKSUM
-					 | EHEA_SWQE_TCP_CHECKSUM
-					 | EHEA_SWQE_IMM_DATA_PRESENT;
-
-			write_tcp_offset_end(swqe, skb);
-
-		} else if (iph->protocol == IPPROTO_UDP) {
-			if ((iph->frag_off & IP_MF)
-			    || (iph->frag_off & IP_OFFSET))
-				/* IP fragment, so don't change cs */
-				swqe->tx_control |= EHEA_SWQE_CRC
-						 | EHEA_SWQE_IMM_DATA_PRESENT;
-			else {
-				swqe->tx_control |= EHEA_SWQE_CRC
-						 | EHEA_SWQE_IP_CHECKSUM
-						 | EHEA_SWQE_TCP_CHECKSUM
-						 | EHEA_SWQE_IMM_DATA_PRESENT;
-
-				write_udp_offset_end(swqe, skb);
-			}
-		} else {
-			/* icmp (big data) and
-			   ip segmentation packets (all other ip packets) */
-			swqe->tx_control |= EHEA_SWQE_CRC
-					 | EHEA_SWQE_IP_CHECKSUM
-					 | EHEA_SWQE_IMM_DATA_PRESENT;
-		}
-	} else {
-		/* Other Ethernet Protocol */
-		swqe->tx_control |= EHEA_SWQE_CRC | EHEA_SWQE_IMM_DATA_PRESENT;
-	}
-	/* copy (immediate) data */
 	if (nfrags == 0) {
-		/* data is in a single piece */
 		skb_copy_from_linear_data(skb, imm_data, skb->len);
 	} else {
-		/* first copy data from the skb->data buffer ... */
 		skb_copy_from_linear_data(skb, imm_data,
 					  skb->len - skb->data_len);
 		imm_data += skb->len - skb->data_len;
@@ -2212,6 +2146,7 @@ static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 			imm_data += frag->size;
 		}
 	}
+
 	swqe->immediate_data_length = skb->len;
 	dev_kfree_skb(skb);
 }
