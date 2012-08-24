@@ -22,12 +22,10 @@
  * @cleanup:		Cleanup callback (can be NULL).
  * @data_present:	Callback to determine if data is available
  *			on the RNG. If NULL, it is assumed that
- *			there is always data available.  *OBSOLETE*
+ *			there is always data available.
  * @data_read:		Read data from the RNG device.
  *			Returns the number of lower random bytes in "data".
- *			Must not be NULL.    *OSOLETE*
- * @read:		New API. drivers can fill up to max bytes of data
- *			into the buffer. The buffer is aligned for any type.
+ *			Must not be NULL.
  * @priv:		Private data, for use by the RNG driver.
  */
 struct hwrng {
@@ -40,10 +38,6 @@ struct hwrng {
 
 	/* internal. */
 	struct list_head list;
-
-#ifndef __GENKSYMS__
-	int (*read)(struct hwrng *rng, void *data, size_t max, bool wait);
-#endif
 };
 
 /** Register a new Hardware Random Number Generator driver. */

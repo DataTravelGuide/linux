@@ -16,7 +16,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
-
 #include <linux/err.h>
 #include <linux/hw_random.h>
 #include <linux/scatterlist.h>
@@ -24,44 +23,49 @@
 #include <linux/virtio.h>
 #include <linux/virtio_rng.h>
 
+/* The host will fill any buffer we give it with sweet, sweet randomness.  We
+ * give it 64 bytes at a time, and the hwrng framework takes it 4 bytes at a
+ * time. */
+#define RANDOM_DATA_SIZE 64
+
 static struct virtqueue *vq;
-static unsigned int data_avail;
+static u32 *random_data;
+static unsigned int data_left;
 static DECLARE_COMPLETION(have_data);
-static bool busy;
 
 static void random_recv_done(struct virtqueue *vq)
 {
+	unsigned int len;
+
 	/* We can get spurious callbacks, e.g. shared IRQs + virtio_pci. */
-	if (!virtqueue_get_buf(vq, &data_avail))
+	if (!virtqueue_get_buf(vq, &len))
 		return;
 
+	data_left += len;
 	complete(&have_data);
 }
 
-/* The host will fill any buffer we give it with sweet, sweet randomness. */
-static void register_buffer(u8 *buf, size_t size)
+static void register_buffer(void)
 {
 	struct scatterlist sg;
 
-	sg_init_one(&sg, buf, size);
-
+	sg_init_one(&sg, random_data+data_left, RANDOM_DATA_SIZE-data_left);
 	/* There should always be room for one buffer. */
-	if (virtqueue_add_buf(vq, &sg, 0, 1, buf) < 0)
+	if (virtqueue_add_buf(vq, &sg, 0, 1, random_data) < 0)
 		BUG();
 
 	virtqueue_kick(vq);
 }
 
-static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
+/* At least we don't udelay() in a loop like some other drivers. */
+static int virtio_data_present(struct hwrng *rng, int wait)
 {
 	int ret;
 
-	if (!busy) {
-		busy = true;
-		init_completion(&have_data);
-		register_buffer(buf, size);
-	}
+	if (data_left >= sizeof(u32))
+		return 1;
 
+again:
 	if (!wait)
 		return 0;
 
@@ -69,22 +73,33 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 	if (ret < 0)
 		return ret;
 
-	busy = false;
+	/* Not enough?  Re-register. */
+	if (unlikely(data_left < sizeof(u32))) {
+		register_buffer();
+		goto again;
+	}
 
-	return data_avail;
+	return 1;
 }
 
-static void virtio_cleanup(struct hwrng *rng)
+/* virtio_data_present() must have succeeded before this is called. */
+static int virtio_data_read(struct hwrng *rng, u32 *data)
 {
-	if (busy)
-		wait_for_completion(&have_data);
-}
+	BUG_ON(data_left < sizeof(u32));
+	data_left -= sizeof(u32);
+	*data = random_data[data_left / 4];
 
+	if (data_left < sizeof(u32)) {
+		init_completion(&have_data);
+		register_buffer();
+	}
+	return sizeof(*data);
+}
 
 static struct hwrng virtio_hwrng = {
-	.name		= "virtio",
-	.cleanup	= virtio_cleanup,
-	.read		= virtio_read,
+	.name = "virtio",
+	.data_present = virtio_data_present,
+	.data_read = virtio_data_read,
 };
 
 static int probe_common(struct virtio_device *vdev)
@@ -102,6 +117,7 @@ static int probe_common(struct virtio_device *vdev)
 		return err;
 	}
 
+	register_buffer();
 	return 0;
 }
 
@@ -154,11 +170,21 @@ static struct virtio_driver virtio_rng_driver = {
 
 static int __init init(void)
 {
-	return register_virtio_driver(&virtio_rng_driver);
+	int err;
+
+	random_data = kmalloc(RANDOM_DATA_SIZE, GFP_KERNEL);
+	if (!random_data)
+		return -ENOMEM;
+
+	err = register_virtio_driver(&virtio_rng_driver);
+	if (err)
+		kfree(random_data);
+	return err;
 }
 
 static void __exit fini(void)
 {
+	kfree(random_data);
 	unregister_virtio_driver(&virtio_rng_driver);
 }
 module_init(init);
