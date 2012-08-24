@@ -273,7 +273,7 @@ static int ehea_set_flags(struct net_device *dev, u32 data)
 	return ethtool_op_set_flags(dev, data);
 }
 
-const struct ethtool_ops ehea_ethtool_ops = {
+static const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
 	.get_msglevel = ehea_get_msglevel,
