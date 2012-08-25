@@ -86,7 +86,7 @@ module_param(oos_shadow, bool, 0644);
 	}
 #endif
 
-#define PT_FIRST_AVAIL_BITS_SHIFT 9
+#define PT_FIRST_AVAIL_BITS_SHIFT 10
 #define PT64_SECOND_AVAIL_BITS_SHIFT 52
 
 #define VALID_PAGE(x) ((x) != INVALID_PAGE)
