@@ -62,6 +62,9 @@ static int __read_mostly enable_unrestricted_guest = 1;
 module_param_named(unrestricted_guest,
 			enable_unrestricted_guest, bool, S_IRUGO);
 
+static bool __read_mostly enable_ept_ad_bits = 1;
+module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
+
 static int __read_mostly emulate_invalid_guest_state = 0;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
@@ -328,6 +331,11 @@ static inline bool cpu_has_vmx_eptp_writeback(void)
 static inline bool cpu_has_vmx_ept_2m_page(void)
 {
 	return !!(vmx_capability.ept & VMX_EPT_2MB_PAGE_BIT);
+}
+
+static inline bool cpu_has_vmx_ept_ad_bits(void)
+{
+	return vmx_capability.ept & VMX_EPT_AD_BIT;
 }
 
 static inline int cpu_has_vmx_invept_individual_addr(void)
@@ -1621,7 +1629,11 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_ept()) {
 		enable_ept = 0;
 		enable_unrestricted_guest = 0;
+		enable_ept_ad_bits = 0;
 	}
+
+	if (!cpu_has_vmx_ept_ad_bits())
+		enable_ept_ad_bits = 0;
 
 	if (!cpu_has_vmx_unrestricted_guest())
 		enable_unrestricted_guest = 0;
