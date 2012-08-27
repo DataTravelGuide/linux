@@ -1674,6 +1674,18 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 27 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-303.el6]
+- [ata] libata: Add space to fix 2GB ATA Flash Disk/ADMA428M blacklist (Prarit Bhargava) [843849]
+- [char] hw_random: check for errors in data_present() return value (Amit Shah) [849196]
+- [char] hwrng: Revert back to older API to prevent (k)abi bugs (Amit Shah) [849196]
+- [char] Revert: hw_random/virtio-rng: don't wait on host when module is going away (Amit Shah) [849196]
+- [pci] add pci_pcie_cap2() check for PCIe feature capabilities >= v2 (Myron Stowe) [834700]
+- [pci] use pci_pcie_cap() in pci core (Myron Stowe) [834700]
+- [s390] dasd: add sanity check to detect path connection error (Hendrik Brueckner) [823015]
+- [s390] kernel: Add z/VM LGR detection (Hendrik Brueckner) [823014]
+- [message] mptfusion: Fix for device removed in blocked state (Tomas Henzl) [831865]
+- [mm] avoid swapping out with swappiness==0 (Satoru Moriya) [787885]
+
 * Fri Aug 24 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-302.el6]
 - [pci] disable MEM decoding while updating 64-bit MEM BARs (Myron Stowe) [841973]
 - [pci] leave MEM and IO decoding disabled during 64-bit BAR sizing, too (Myron Stowe) [841973]
