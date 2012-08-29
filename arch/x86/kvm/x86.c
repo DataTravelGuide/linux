@@ -661,7 +661,7 @@ EXPORT_SYMBOL_GPL(kvm_get_cr8);
  * kvm-specific. Those are put in the beginning of the list.
  */
 
-#define KVM_SAVE_MSRS_BEGIN	5
+#define KVM_SAVE_MSRS_BEGIN	6
 static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
