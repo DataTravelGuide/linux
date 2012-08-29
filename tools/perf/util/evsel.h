@@ -66,6 +66,8 @@ struct perf_evsel {
 		void		*data;
 	} handler;
 	bool 			supported;
+	/* parse modifier helper */
+	int			exclude_GH;
 };
 
 struct cpu_map;
