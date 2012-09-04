@@ -528,7 +528,7 @@ static void update_cpuid(struct kvm_vcpu *vcpu)
 	/* Update OSXSAVE bit */
 	if (cpu_has_xsave && best->function == 0x1) {
 		best->ecx &= ~(bit(X86_FEATURE_OSXSAVE));
-		if (vcpu->arch.cr4 & X86_CR4_OSXSAVE)
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE))
 			best->ecx |= bit(X86_FEATURE_OSXSAVE);
 	}
 
@@ -553,7 +553,7 @@ static bool guest_cpuid_has_fsgsbase(struct kvm_vcpu *vcpu)
 
 int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long old_cr4 = vcpu->arch.cr4;
+	unsigned long old_cr4 = kvm_read_cr4(vcpu);
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE |
 				   X86_CR4_PAE | X86_CR4_SMEP;
 	if (cr4 & CR4_RESERVED_BITS)
@@ -2422,7 +2422,7 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 		return 0;
 	if (mce->status & MCI_STATUS_UC) {
 		if ((vcpu->arch.mcg_status & MCG_STATUS_MCIP) ||
-		    !(vcpu->arch.cr4 & X86_CR4_MCE)) {
+		    !kvm_read_cr4_bits(vcpu, X86_CR4_MCE)) {
 			printk(KERN_DEBUG "kvm: set_mce: "
 			       "injects mce exception while "
 			       "previous one is in progress!\n");
@@ -4628,7 +4628,6 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 {
 	unsigned long value;
 
-	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 	switch (cr) {
 	case 0:
 		value = kvm_read_cr0(vcpu);
@@ -4640,7 +4639,7 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 		value = vcpu->arch.cr3;
 		break;
 	case 4:
-		value = vcpu->arch.cr4;
+		value = kvm_read_cr4(vcpu);
 		break;
 	case 8:
 		value = kvm_get_cr8(vcpu);
@@ -4670,7 +4669,7 @@ int realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		res = kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
-		res = kvm_set_cr4(vcpu, mk_cr_64(vcpu->arch.cr4, val));
+		res = kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
 		break;
 	case 8:
 		kvm_set_cr8(vcpu, val & 0xfUL);
@@ -4915,7 +4914,7 @@ static void inject_pending_event(struct kvm_vcpu *vcpu)
 
 static void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu)
 {
-	if ((vcpu->arch.cr4 & X86_CR4_OSXSAVE) &&
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
 			!vcpu->guest_xcr0_loaded) {
 		/* kvm_set_xcr() also depends on this */
 		xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
@@ -5335,11 +5334,10 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->gdt.limit = dt.limit;
 	sregs->gdt.base = dt.base;
 
-	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 	sregs->cr0 = kvm_read_cr0(vcpu);
 	sregs->cr2 = vcpu->arch.cr2;
 	sregs->cr3 = vcpu->arch.cr3;
-	sregs->cr4 = vcpu->arch.cr4;
+	sregs->cr4 = kvm_read_cr4(vcpu);
 	sregs->cr8 = kvm_get_cr8(vcpu);
 	sregs->efer = vcpu->arch.shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
@@ -5985,13 +5983,12 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	kvm_x86_ops->set_efer(vcpu, sregs->efer);
 	kvm_set_apic_base(vcpu, sregs->apic_base);
 
-	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 
 	mmu_reset_needed |= kvm_read_cr0(vcpu) != sregs->cr0;
 	kvm_x86_ops->set_cr0(vcpu, sregs->cr0);
 	vcpu->arch.cr0 = sregs->cr0;
 
-	mmu_reset_needed |= vcpu->arch.cr4 != sregs->cr4;
+	mmu_reset_needed |= kvm_read_cr4(vcpu) != sregs->cr4;
 	kvm_x86_ops->set_cr4(vcpu, sregs->cr4);
 	if (sregs->cr4 & X86_CR4_OSXSAVE)
 		update_cpuid(vcpu);
