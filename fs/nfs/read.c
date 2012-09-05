@@ -275,7 +275,6 @@ nfs_async_read_error(struct list_head *head)
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		SetPageError(req->wb_page);
 		nfs_readpage_release(req);
 	}
 }
@@ -331,7 +330,6 @@ out_bad:
 		list_del(&data->list);
 		nfs_readdata_release(data);
 	}
-	SetPageError(page);
 	nfs_readpage_release(req);
 	return -ENOMEM;
 }
@@ -464,10 +462,10 @@ static void nfs_readpage_release_partial(void *calldata)
 	int status = data->task.tk_status;
 
 	if (status < 0)
-		SetPageError(page);
+		set_bit(PG_PARTIAL_READ_FAILED, &req->wb_flags);
 
 	if (atomic_dec_and_test(&req->wb_complete)) {
-		if (!PageError(page))
+		if (!test_bit(PG_PARTIAL_READ_FAILED, &req->wb_flags))
 			SetPageUptodate(page);
 		nfs_readpage_release(req);
 	}
@@ -640,7 +638,6 @@ readpage_async_filler(void *data, struct page *page)
 	return 0;
 out_error:
 	error = PTR_ERR(new);
-	SetPageError(page);
 out_unlock:
 	unlock_page(page);
 	return error;
