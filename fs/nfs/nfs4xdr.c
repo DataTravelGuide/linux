@@ -1008,7 +1008,7 @@ static void encode_close(struct xdr_stream *xdr, const struct nfs_closeargs *arg
 	hdr->replen += decode_close_maxsz;
 }
 
-static void encode_commit(struct xdr_stream *xdr, const struct nfs_writeargs *args, struct compound_hdr *hdr)
+static void encode_commit(struct xdr_stream *xdr, const struct nfs_commitargs *args, struct compound_hdr *hdr)
 {
 	__be32 *p;
 
@@ -2451,7 +2451,7 @@ static int nfs4_xdr_enc_write(struct rpc_rqst *req, __be32 *p, struct nfs_writea
 /*
  *  a COMMIT request
  */
-static int nfs4_xdr_enc_commit(struct rpc_rqst *req, __be32 *p, struct nfs_writeargs *args)
+static int nfs4_xdr_enc_commit(struct rpc_rqst *req, __be32 *p, struct nfs_commitargs *args)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -4041,7 +4041,7 @@ static int decode_verifier(struct xdr_stream *xdr, void *verifier)
 	return decode_opaque_fixed(xdr, verifier, 8);
 }
 
-static int decode_commit(struct xdr_stream *xdr, struct nfs_writeres *res)
+static int decode_commit(struct xdr_stream *xdr, struct nfs_commitres *res)
 {
 	int status;
 
@@ -6113,7 +6113,7 @@ out:
 /*
  * Decode COMMIT response
  */
-static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, __be32 *p, struct nfs_writeres *res)
+static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, __be32 *p, struct nfs_commitres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
