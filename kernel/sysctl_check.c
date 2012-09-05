@@ -223,6 +223,7 @@ static const struct trans_ctl_table trans_net_ipv4_conf_vars_table[] = {
 	{ NET_IPV4_CONF_ACCEPT_LOCAL,		"accept_local" },
 	{ NET_IPV4_CONF_SRC_VMARK,		"src_valid_mark" },
 	{ NET_IPV4_CONF_PROXY_ARP_PVLAN,	"proxy_arp_pvlan" },
+	{ NET_IPV4_CONF_ROUTE_LOCALNET,		"route_localnet" },
 	{}
 };
 

@@ -1477,6 +1477,8 @@ static struct devinet_sysctl_table {
 		DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
 					      "promote_secondaries"),
 		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_LOCAL, "accept_local"),
+		DEVINET_SYSCTL_FLUSHING_ENTRY(ROUTE_LOCALNET,
+					      "route_localnet"),
 	},
 };
 
