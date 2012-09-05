@@ -775,7 +775,7 @@ filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 					   GFP_KERNEL);
 	/* If no lseg, fall back to read through mds */
 	if (pgio->pg_lseg == NULL)
-		nfs_pageio_init_read_mds(pgio, pgio->pg_inode);
+		nfs_pageio_reset_read_mds(pgio);
 }
 
 void
@@ -795,6 +795,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	/* If no lseg, fall back to write through mds */
 	if (pgio->pg_lseg == NULL)
 		goto out_mds;
+
 	status = filelayout_alloc_commit_info(pgio->pg_lseg, GFP_NOFS);
 	if (status < 0) {
 		put_lseg(pgio->pg_lseg);
