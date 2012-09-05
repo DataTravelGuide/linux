@@ -274,7 +274,6 @@ static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
-	put_lseg(wdata->header->lseg);
 	wdata->header->mds_ops->rpc_release(data);
 }
 
