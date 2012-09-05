@@ -135,7 +135,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 static int filelayout_read_done_cb(struct rpc_task *task,
 				struct nfs_read_data *data)
 {
-	struct nfs_client *clp = data->ds_clp;
 	int reset = 0;
 
 	dprintk("%s DS read\n", __func__);
@@ -147,9 +146,8 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 		if (reset) {
 			filelayout_set_lo_fail(data->lseg);
 			nfs4_reset_read(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
 		}
-		nfs_restart_rpc(task, clp);
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -217,17 +215,13 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 
 	if (filelayout_async_handle_error(task, data->args.context->state,
 					  data->ds_clp, &reset) == -EAGAIN) {
-		struct nfs_client *clp;
-
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
 			filelayout_set_lo_fail(data->lseg);
 			nfs4_reset_write(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
-		} else
-			clp = data->ds_clp;
-		nfs_restart_rpc(task, clp);
+		}
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -259,7 +253,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 			prepare_to_resend_writes(data);
 			filelayout_set_lo_fail(data->lseg);
 		} else
-			nfs_restart_rpc(task, data->ds_clp);
+			rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
