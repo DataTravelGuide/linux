@@ -4,7 +4,6 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
-#include <linux/srcu.h>
 
 struct mmu_notifier;
 struct mmu_notifier_ops;
@@ -20,8 +19,6 @@ struct mmu_notifier_ops;
 struct mmu_notifier_mm {
 	/* all mmu notifiers registerd in this mm are queued in this list */
 	struct hlist_head list;
-	/* srcu structure for this mm */
-	struct srcu_struct srcu;
 	/* to serialize the list modifications and hlist_unhashed */
 	spinlock_t lock;
 };

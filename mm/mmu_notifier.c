@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/err.h>
-#include <linux/srcu.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 
@@ -25,15 +24,14 @@
  * in parallel despite there being no task using this mm any more,
  * through the vmas outside of the exit_mmap context, such as with
  * vmtruncate. This serializes against mmu_notifier_unregister with
- * the mmu_notifier_mm->lock in addition to SRCU and it serializes
- * against the other mmu notifiers with SRCU. struct mmu_notifier_mm
+ * the mmu_notifier_mm->lock in addition to RCU and it serializes
+ * against the other mmu notifiers with RCU. struct mmu_notifier_mm
  * can't go away from under us as exit_mmap holds an mm_count pin
  * itself.
  */
 void __mmu_notifier_release(struct mm_struct *mm)
 {
 	struct mmu_notifier *mn;
-	int srcu;
 
 	spin_lock(&mm->mmu_notifier_mm->lock);
 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
@@ -48,10 +46,10 @@ void __mmu_notifier_release(struct mm_struct *mm)
 		 */
 		hlist_del_init_rcu(&mn->hlist);
 		/*
-		 * SRCU here will block mmu_notifier_unregister until
+		 * RCU here will block mmu_notifier_unregister until
 		 * ->release returns.
 		 */
-		srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+		rcu_read_lock();
 		spin_unlock(&mm->mmu_notifier_mm->lock);
 		/*
 		 * if ->release runs before mmu_notifier_unregister it
@@ -62,13 +60,13 @@ void __mmu_notifier_release(struct mm_struct *mm)
 		 */
 		if (mn->ops->release)
 			mn->ops->release(mn, mm);
-		srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+		rcu_read_unlock();
 		spin_lock(&mm->mmu_notifier_mm->lock);
 	}
 	spin_unlock(&mm->mmu_notifier_mm->lock);
 
 	/*
-	 * synchronize_srcu here prevents mmu_notifier_release to
+	 * synchronize_rcu here prevents mmu_notifier_release to
 	 * return to exit_mmap (which would proceed freeing all pages
 	 * in the mm) until the ->release method returns, if it was
 	 * invoked by mmu_notifier_unregister.
@@ -76,7 +74,7 @@ void __mmu_notifier_release(struct mm_struct *mm)
 	 * The mmu_notifier_mm can't go away from under us because one
 	 * mm_count is hold by exit_mmap.
 	 */
-	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+	synchronize_rcu();
 }
 
 /*
@@ -89,14 +87,14 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 {
 	struct mmu_notifier *mn;
 	struct hlist_node *n;
-	int young = 0, srcu;
+	int young = 0;
 
-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->clear_flush_young)
 			young |= mn->ops->clear_flush_young(mn, mm, address);
 	}
-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+	rcu_read_unlock();
 
 	return young;
 }
@@ -106,9 +104,8 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 {
 	struct mmu_notifier *mn;
 	struct hlist_node *n;
-	int srcu;
 
-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->change_pte)
 			mn->ops->change_pte(mn, mm, address, pte);
@@ -119,7 +116,7 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
 		else if (mn->ops->invalidate_page)
 			mn->ops->invalidate_page(mn, mm, address);
 	}
-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+	rcu_read_unlock();
 }
 
 void __mmu_notifier_invalidate_page(struct mm_struct *mm,
@@ -127,14 +124,13 @@ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
 {
 	struct mmu_notifier *mn;
 	struct hlist_node *n;
-	int srcu;
 
-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->invalidate_page)
 			mn->ops->invalidate_page(mn, mm, address);
 	}
-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+	rcu_read_unlock();
 }
 
 void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
@@ -142,14 +138,13 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
 {
 	struct mmu_notifier *mn;
 	struct hlist_node *n;
-	int srcu;
 
-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->invalidate_range_start)
 			mn->ops->invalidate_range_start(mn, mm, start, end);
 	}
-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+	rcu_read_unlock();
 }
 
 void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
@@ -157,14 +152,13 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
 {
 	struct mmu_notifier *mn;
 	struct hlist_node *n;
-	int srcu;
 
-	srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+	rcu_read_lock();
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->invalidate_range_end)
 			mn->ops->invalidate_range_end(mn, mm, start, end);
 	}
-	srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+	rcu_read_unlock();
 }
 
 static int do_mmu_notifier_register(struct mmu_notifier *mn,
@@ -180,10 +174,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
 	if (unlikely(!mmu_notifier_mm))
 		goto out;
-
-	ret = init_srcu_struct(&mmu_notifier_mm->srcu);
-	if (unlikely(ret))
-		goto out_kfree;
 
 	if (take_mmap_sem)
 		down_write(&mm->mmap_sem);
@@ -215,9 +205,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
 out_cleanup:
 	if (take_mmap_sem)
 		up_write(&mm->mmap_sem);
-	if (mmu_notifier_mm)
-		cleanup_srcu_struct(&mmu_notifier_mm->srcu);
-out_kfree:
 	/* kfree() does nothing if mmu_notifier_mm is NULL */
 	kfree(mmu_notifier_mm);
 out:
@@ -258,7 +245,6 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_register);
 void __mmu_notifier_mm_destroy(struct mm_struct *mm)
 {
 	BUG_ON(!hlist_empty(&mm->mmu_notifier_mm->list));
-	cleanup_srcu_struct(&mm->mmu_notifier_mm->srcu);
 	kfree(mm->mmu_notifier_mm);
 	mm->mmu_notifier_mm = LIST_POISON1; /* debug */
 }
@@ -266,8 +252,8 @@ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
 /*
  * This releases the mm_count pin automatically and frees the mm
  * structure if it was the last user of it. It serializes against
- * running mmu notifiers with SRCU and against mmu_notifier_unregister
- * with the unregister lock + SRCU. All sptes must be dropped before
+ * running mmu notifiers with RCU and against mmu_notifier_unregister
+ * with the unregister lock + RCU. All sptes must be dropped before
  * calling mmu_notifier_unregister. ->release or any other notifier
  * method may be invoked concurrently with mmu_notifier_unregister,
  * and only after mmu_notifier_unregister returned we're guaranteed
@@ -279,15 +265,13 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 
 	spin_lock(&mm->mmu_notifier_mm->lock);
 	if (!hlist_unhashed(&mn->hlist)) {
-		int srcu;
-
 		hlist_del_rcu(&mn->hlist);
 
 		/*
-		 * SRCU here will force exit_mmap to wait ->release to finish
+		 * RCU here will force exit_mmap to wait ->release to finish
 		 * before freeing the pages.
 		 */
-		srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
+		rcu_read_lock();
 		spin_unlock(&mm->mmu_notifier_mm->lock);
 		/*
 		 * exit_mmap will block in mmu_notifier_release to
@@ -296,7 +280,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 		 */
 		if (mn->ops->release)
 			mn->ops->release(mn, mm);
-		srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
+		rcu_read_unlock();
 	} else
 		spin_unlock(&mm->mmu_notifier_mm->lock);
 
@@ -304,7 +288,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
 	 * Wait any running method to finish, of course including
 	 * ->release if it was run by mmu_notifier_relase instead of us.
 	 */
-	synchronize_srcu(&mm->mmu_notifier_mm->srcu);
+	synchronize_rcu();
 
 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
 
