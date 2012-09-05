@@ -872,6 +872,10 @@ static void unplug_slaves(struct mddev *mddev)
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
 
+			if (!r_queue) {
+				printk("FIXME: No queue on device\n");
+				continue;
+			}
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
 
@@ -884,12 +888,25 @@ static void unplug_slaves(struct mddev *mddev)
 	rcu_read_unlock();
 }
 
-static void raid10_unplug(struct request_queue *q)
+void md_raid10_unplug_device(struct r10conf *conf)
+{
+	struct mddev *mddev = conf->mddev;
+
+	unplug_slaves(mddev);
+	md_wakeup_thread(mddev->thread);
+}
+EXPORT_SYMBOL_GPL(md_raid10_unplug_device);
+
+static void raid10_unplug(struct plug_handle *plug)
+{
+	struct r10conf *conf = container_of(plug, struct r10conf, plug);
+	md_raid10_unplug_device(conf);
+}
+
+static void raid10_unplug_queue(struct request_queue *q)
 {
 	struct mddev *mddev = q->queuedata;
-
-	unplug_slaves(q->queuedata);
-	md_wakeup_thread(mddev->thread);
+	md_raid10_unplug_device(mddev->private);
 }
 
 int md_raid10_congested(struct mddev *mddev, int bits)
@@ -939,10 +956,7 @@ static int flush_pending_writes(struct r10conf *conf)
 	if (conf->pending_bio_list.head) {
 		struct bio *bio;
 		bio = bio_list_get(&conf->pending_bio_list);
-		/* Spinlock only taken to quiet a warning */
-		spin_lock(conf->mddev->queue->queue_lock);
-		blk_remove_plug(conf->mddev->queue);
-		spin_unlock(conf->mddev->queue->queue_lock);
+		plugger_remove_plug(&conf->plug);
 		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
 		/* flush any pending bitmap writes to disk
@@ -991,7 +1005,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	/* Wait until no block IO is waiting (unless 'force') */
 	wait_event_lock_irq(conf->wait_barrier, force || !conf->nr_waiting,
 			    conf->resync_lock,
-			    raid10_unplug(conf->mddev->queue));
+			    md_raid10_unplug_device(conf));
 
 	/* block any new IO from starting */
 	conf->barrier++;
@@ -1000,7 +1014,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock,
-			    raid10_unplug(conf->mddev->queue));
+			    md_raid10_unplug_device(conf));
 
 	spin_unlock_irq(&conf->resync_lock);
 }
@@ -1034,7 +1048,7 @@ static void wait_barrier(struct r10conf *conf)
 				     current->bio_list &&
 				     current->bio_tail),
 				    conf->resync_lock,
-				    raid10_unplug(conf->mddev->queue)
+				    md_raid10_unplug_device(conf)
 			);
 		conf->nr_waiting--;
 	}
@@ -1072,7 +1086,7 @@ static void freeze_array(struct r10conf *conf)
 			    conf->nr_pending == conf->nr_queued+1,
 			    conf->resync_lock,
 			    ({ flush_pending_writes(conf);
-			       raid10_unplug(conf->mddev->queue); }));
+			       md_raid10_unplug_device(conf); }));
 	spin_unlock_irq(&conf->resync_lock);
 }
 
@@ -1464,7 +1478,7 @@ retry_write:
 		atomic_inc(&r10_bio->remaining);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		blk_plug_device_unlocked(mddev->queue);
+		md_raid10_unplug_device(conf);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 
@@ -3656,10 +3670,12 @@ static int run(struct mddev *mddev)
 	md_set_array_sectors(mddev, size);
 	mddev->resync_max_sectors = size;
 
+	plugger_init(&conf->plug, raid10_unplug);
+	mddev->plug = &conf->plug;
 	if (mddev->queue) {
 		int stripe = conf->geo.raid_disks *
 			((mddev->chunk_sectors << 9) / PAGE_SIZE);
-		mddev->queue->unplug_fn = raid10_unplug;
+		mddev->queue->unplug_fn = raid10_unplug_queue;
 		mddev->queue->backing_dev_info.congested_fn = raid10_congested;
 		mddev->queue->backing_dev_info.congested_data = mddev;
 
@@ -3723,9 +3739,7 @@ static int stop(struct mddev *mddev)
 	lower_barrier(conf);
 
 	md_unregister_thread(&mddev->thread);
-	if (mddev->queue)
-		/* the unplug fn references 'conf'*/
-		blk_sync_queue(mddev->queue);
+	plugger_flush(&conf->plug);
 
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);

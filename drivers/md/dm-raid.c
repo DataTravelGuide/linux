@@ -698,6 +698,8 @@ static void raid_unplug(struct dm_target_callbacks *cb)
 
 	if (rs->raid_type->level == 1)
 		md_raid1_unplug_device(rs->md.private);
+	else if (rs->raid_type->level == 10)
+		md_raid10_unplug_device(rs->md.private);
 	else
 		md_raid5_unplug_device(rs->md.private);
 }

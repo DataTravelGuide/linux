@@ -71,6 +71,8 @@ struct r10conf {
 	mempool_t		*r10buf_pool;
 	struct page		*tmppage;
 
+	struct plug_handle      plug;
+
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
@@ -147,5 +149,6 @@ enum r10bio_state {
 };
 
 extern int md_raid10_congested(struct mddev *mddev, int bits);
+extern void md_raid10_unplug_device(struct r10conf *conf);
 
 #endif
