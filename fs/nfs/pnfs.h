@@ -64,6 +64,11 @@ enum {
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 };
 
+enum layoutdriver_policy_flags {
+	/* Should the pNFS client commit and return the layout upon a setattr */
+	PNFS_LAYOUTRET_ON_SETATTR	= 1 << 0,
+};
+
 struct nfs4_deviceid_node;
 
 /* Per-layout driver specific registration structure */
@@ -72,6 +77,7 @@ struct pnfs_layoutdriver_type {
 	const u32 id;
 	const char *name;
 	struct module *owner;
+	unsigned flags;
 
 	struct pnfs_layout_hdr * (*alloc_layout_hdr) (struct inode *inode, gfp_t gfp_flags);
 	void (*free_layout_hdr) (struct pnfs_layout_hdr *);
@@ -278,6 +284,16 @@ pnfs_scan_commit_lists(struct inode *inode, int max, spinlock_t *lock)
 	return ret;
 }
 
+/* Should the pNFS client commit and return the layout upon a setattr */
+static inline bool
+pnfs_ld_layoutret_on_setattr(struct inode *inode)
+{
+	if (!pnfs_enabled_sb(NFS_SERVER(inode)))
+		return false;
+	return NFS_SERVER(inode)->pnfs_curr_ld->flags &
+		PNFS_LAYOUTRET_ON_SETATTR;
+}
+
 static inline int pnfs_return_layout(struct inode *ino)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -312,6 +328,12 @@ static inline void put_lseg(struct pnfs_layout_segment *lseg)
 static inline int pnfs_return_layout(struct inode *ino)
 {
 	return 0;
+}
+
+static inline bool
+pnfs_ld_layoutret_on_setattr(struct inode *inode)
+{
+	return false;
 }
 
 static inline bool
