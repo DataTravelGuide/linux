@@ -1279,38 +1279,23 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_writepages);
 
-static int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head)
-{
-	struct nfs_pageio_descriptor pgio;
-	LIST_HEAD(failed);
-
-	/* Resend all requests through the MDS */
-	nfs_pageio_init_read_mds(&pgio, inode);
-	while (!list_empty(head)) {
-		struct nfs_page *req = nfs_list_entry(head->next);
-
-		nfs_list_remove_request(req);
-		if (!nfs_pageio_add_request(&pgio, req))
-			nfs_list_add_request(req, &failed);
-	}
-	nfs_pageio_complete(&pgio);
-
-	if (!list_empty(&failed)) {
-		list_move(&failed, head);
-		return -EIO;
-	}
-	return 0;
-}
-
 static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
 {
-	dprintk("pnfs read error = %d\n", data->pnfs_error);
-	if (NFS_SERVER(data->inode)->pnfs_curr_ld->flags &
-	    PNFS_LAYOUTRET_ON_ERROR) {
-		clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(data->inode)->flags);
-		pnfs_return_layout(data->inode);
+	struct nfs_pageio_descriptor pgio;
+
+	put_lseg(data->lseg);
+	data->lseg = NULL;
+	dprintk("pnfs write error = %d\n", data->pnfs_error);
+
+	nfs_pageio_init_read_mds(&pgio, data->inode);
+
+	while (!list_empty(&data->pages)) {
+		struct nfs_page *req = nfs_list_entry(data->pages.next);
+
+		nfs_list_remove_request(req);
+		nfs_pageio_add_request(&pgio, req);
 	}
-	data->task.tk_status = pnfs_read_done_resend_to_mds(data->inode, &data->pages);
+	nfs_pageio_complete(&pgio);
 }
 
 /*
@@ -1323,7 +1308,6 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 		data->mds_ops->rpc_call_done(&data->task, data);
 	} else
 		pnfs_ld_handle_read_error(data);
-	put_lseg(data->lseg);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
