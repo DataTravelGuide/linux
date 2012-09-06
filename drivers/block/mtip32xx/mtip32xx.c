@@ -172,7 +172,7 @@ static void mtip_command_cleanup(struct driver_data *dd)
 
 	up(&port->cmd_slot);
 
-	set_bit(MTIP_DD_FLAG_CLEANUP_BIT, &dd->dd_flag);
+	set_bit(MTIP_DDF_CLEANUP_BIT, &dd->dd_flag);
 	in_progress = 0;
 }
 
@@ -270,7 +270,7 @@ static int hba_reset_nosleep(struct driver_data *dd)
 		 && time_before(jiffies, timeout))
 		mdelay(1);
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag))
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))
 		return -1;
 
 	if (readl(dd->mmio + HOST_CTL) & HOST_RESET)
@@ -466,7 +466,7 @@ static void mtip_restart_port(struct mtip_port *port)
 		 && time_before(jiffies, timeout))
 		;
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &port->dd->dd_flag))
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 		return;
 
 	/*
@@ -497,7 +497,7 @@ static void mtip_restart_port(struct mtip_port *port)
 	while (time_before(jiffies, timeout))
 		;
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &port->dd->dd_flag))
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 		return;
 
 	/* Clear PxSCTL.DET */
@@ -511,7 +511,7 @@ static void mtip_restart_port(struct mtip_port *port)
 			 && time_before(jiffies, timeout))
 		;
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &port->dd->dd_flag))
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 		return;
 
 	if ((readl(port->mmio + PORT_SCR_STAT) & 0x01) == 0)
@@ -544,7 +544,7 @@ static void mtip_timeout_function(unsigned long int data)
 	if (unlikely(!port))
 		return;
 
-	if (test_bit(MTIP_DD_FLAG_RESUME_BIT, &port->dd->dd_flag)) {
+	if (test_bit(MTIP_DDF_RESUME_BIT, &port->dd->dd_flag)) {
 		mod_timer(&port->cmd_timer,
 			jiffies + msecs_to_jiffies(30000));
 		return;
@@ -571,7 +571,7 @@ static void mtip_timeout_function(unsigned long int data)
 
 			cmdto_cnt++;
 			if (cmdto_cnt == 1)
-				set_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags);
+				set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 
 			/*
 			 * Clear the completed bit. This should prevent
@@ -609,7 +609,7 @@ static void mtip_timeout_function(unsigned long int data)
 			"%d commands timed out: restarting port",
 			cmdto_cnt);
 		mtip_restart_port(port);
-		clear_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags);
+		clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 		wake_up_interruptible(&port->svc_wait);
 	}
 
@@ -764,7 +764,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	del_timer(&port->cmd_timer);
 
 	/* Set eh_active */
-	set_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags);
+	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 
 	/* Loop through all the groups */
 	for (group = 0; group < dd->slot_groups; group++) {
@@ -825,14 +825,14 @@ static void mtip_handle_tfe(struct driver_data *dd)
 		if (buf[259] & 0x1) {
 			dev_info(&dd->pdev->dev,
 				"Write protect bit is set.\n");
-			set_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag);
+			set_bit(MTIP_DDF_WRITE_PROTECT_BIT, &dd->dd_flag);
 			fail_all_ncq_write = 1;
 			fail_reason = "write protect";
 		}
 		if (buf[288] == 0xF7) {
 			dev_info(&dd->pdev->dev,
 				"Exceeded Tmax, drive in thermal shutdown.\n");
-			set_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag);
+			set_bit(MTIP_DDF_OVER_TEMP_BIT, &dd->dd_flag);
 			fail_all_ncq_cmds = 1;
 			fail_reason = "thermal shutdown";
 		}
@@ -919,7 +919,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	print_tags(dd, "TFE tags reissued:", tagaccum);
 
 	/* clear eh_active */
-	clear_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags);
+	clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 	wake_up_interruptible(&port->svc_wait);
 
 	mod_timer(&port->cmd_timer,
@@ -987,7 +987,7 @@ static inline void mtip_process_legacy(struct driver_data *dd, u32 port_stat)
 	struct mtip_port *port = dd->port;
 	struct mtip_cmd *cmd = &port->commands[MTIP_TAG_INTERNAL];
 
-	if (test_bit(MTIP_FLAG_IC_ACTIVE_BIT, &port->flags) &&
+	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
 	    (cmd != NULL) && !(readl(port->cmd_issue[MTIP_TAG_INTERNAL])
 		& (1 << MTIP_TAG_INTERNAL))) {
 		if (cmd->comp_func) {
@@ -1054,7 +1054,7 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 				/* don't proceed further */
 				return IRQ_HANDLED;
 			}
-			if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 							&dd->dd_flag))
 				return rv;
 
@@ -1122,13 +1122,12 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 
 	to = jiffies + msecs_to_jiffies(timeout);
 	do {
-		if (test_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags) &&
-			test_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags)) {
+		if (test_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags) &&
+			test_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags)) {
 			msleep(20);
 			continue; /* svc thd is actively issuing commands */
 		}
-		if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag))
+		if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 			return -EFAULT;
 		/*
 		 * Ignore s_active bit 0 of array element 0.
@@ -1192,7 +1191,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 			"Internal command already active\n");
 		return -EBUSY;
 	}
-	set_bit(MTIP_FLAG_IC_ACTIVE_BIT, &port->flags);
+	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 
 	if (atomic == GFP_KERNEL) {
 		if (fis->command != ATA_CMD_STANDBYNOW1) {
@@ -1201,8 +1200,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 				dev_warn(&port->dd->pdev->dev,
 					"Failed to quiesce IO\n");
 				release_slot(port, MTIP_TAG_INTERNAL);
-				clear_bit(MTIP_FLAG_IC_ACTIVE_BIT,
-							&port->flags);
+				clear_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 				wake_up_interruptible(&port->svc_wait);
 				return -EBUSY;
 			}
@@ -1255,7 +1253,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 				"within timeout of  %lu ms\n",
 				atomic, timeout);
 			if (mtip_check_surprise_removal(port->dd->pdev) ||
-				test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+				test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 						&port->dd->dd_flag)) {
 				rv = -ENXIO;
 				goto exec_ic_exit;
@@ -1267,7 +1265,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 			& (1 << MTIP_TAG_INTERNAL)) {
 			dev_warn(&port->dd->pdev->dev,
 				"Retiring internal command but CI is 1.\n");
-			if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 						&port->dd->dd_flag)) {
 				hba_reset_nosleep(port->dd);
 				rv = -ENXIO;
@@ -1289,7 +1287,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 				goto exec_ic_exit;
 			}
 			if ((fis->command != ATA_CMD_STANDBYNOW1) &&
-				test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+				test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 						&port->dd->dd_flag)) {
 				rv = -ENXIO;
 				goto exec_ic_exit;
@@ -1301,7 +1299,7 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 			dev_err(&port->dd->pdev->dev,
 				"Internal command did not complete [atomic]\n");
 			rv = -EAGAIN;
-			if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 						&port->dd->dd_flag)) {
 				hba_reset_nosleep(port->dd);
 				rv = -ENXIO;
@@ -1315,7 +1313,7 @@ exec_ic_exit:
 	/* Clear the allocated and active bits for the internal command. */
 	atomic_set(&int_cmd->active, 0);
 	release_slot(port, MTIP_TAG_INTERNAL);
-	clear_bit(MTIP_FLAG_IC_ACTIVE_BIT, &port->flags);
+	clear_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 	wake_up_interruptible(&port->svc_wait);
 
 	return rv;
@@ -1365,7 +1363,7 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	int rv = 0;
 	struct host_to_dev_fis fis;
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &port->dd->dd_flag))
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &port->dd->dd_flag))
 		return -EFAULT;
 
 	/* Build the FIS. */
@@ -2397,10 +2395,10 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	 * To prevent this command from being issued
 	 * if an internal command is in progress or error handling is active.
 	 */
-	if (unlikely(test_bit(MTIP_FLAG_IC_ACTIVE_BIT, &port->flags) ||
-			test_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags))) {
+	if (unlikely(test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) ||
+			test_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags))) {
 		set_bit(tag, port->cmds_to_issue);
-		set_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags);
+		set_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags);
 		return;
 	}
 
@@ -2446,7 +2444,7 @@ static struct scatterlist *mtip_hw_get_scatterlist(struct driver_data *dd,
 	down(&dd->port->cmd_slot);
 	*tag = get_slot(dd->port);
 
-	if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag))) {
+	if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))) {
 		up(&dd->port->cmd_slot);
 		return NULL;
 	}
@@ -2520,9 +2518,9 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 	struct driver_data *dd = dev_to_disk(dev)->private_data;
 	int size = 0;
 
-	if (test_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag))
+	if (test_bit(MTIP_DDF_OVER_TEMP_BIT, &dd->dd_flag))
 		size += sprintf(buf, "%s", "thermal_shutdown\n");
-	else if (test_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag))
+	else if (test_bit(MTIP_DDF_WRITE_PROTECT_BIT, &dd->dd_flag))
 		size += sprintf(buf, "%s", "write_protect\n");
 	else
 		size += sprintf(buf, "%s", "online\n");
@@ -2669,7 +2667,7 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 	timeout = jiffies + msecs_to_jiffies(MTIP_FTL_REBUILD_TIMEOUT_MS);
 
 	do {
-		if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 				&dd->dd_flag)))
 			return -EFAULT;
 		if (mtip_check_surprise_removal(dd->pdev))
@@ -2727,17 +2725,17 @@ static int mtip_service_thread(void *data)
 		 * is in progress nor error handling is active
 		 */
 		wait_event_interruptible(port->svc_wait, (port->flags) &&
-			!test_bit(MTIP_FLAG_IC_ACTIVE_BIT, &port->flags) &&
-			!test_bit(MTIP_FLAG_EH_ACTIVE_BIT, &port->flags));
+			!test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
+			!test_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags));
 
 		if (kthread_should_stop())
 			break;
 
-		if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT,
+		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
 				&dd->dd_flag)))
 			break;
-		set_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
-		if (test_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags)) {
+		set_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags);
+		if (test_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags)) {
 			slot = 1;
 			/* used to restrict the loop to one iteration */
 			slot_start = num_cmd_slots;
@@ -2765,16 +2763,16 @@ static int mtip_service_thread(void *data)
 				clear_bit(slot, port->cmds_to_issue);
 			}
 
-			clear_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags);
-		} else if (test_bit(MTIP_FLAG_REBUILD_BIT, &port->flags)) {
+			clear_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags);
+		} else if (test_bit(MTIP_PF_REBUILD_BIT, &port->flags)) {
 			if (!mtip_ftl_rebuild_poll(dd))
-				set_bit(MTIP_DD_FLAG_REBUILD_FAILED_BIT,
+				set_bit(MTIP_DDF_REBUILD_FAILED_BIT,
 							&dd->dd_flag);
-			clear_bit(MTIP_FLAG_REBUILD_BIT, &port->flags);
+			clear_bit(MTIP_PF_REBUILD_BIT, &port->flags);
 		}
-		clear_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
+		clear_bit(MTIP_PF_SVC_THD_ACTIVE_BIT, &port->flags);
 
-		if (test_bit(MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT, &port->flags))
+		if (test_bit(MTIP_PF_SVC_THD_SHOULD_STOP_BIT, &port->flags))
 			break;
 	}
 	return 0;
@@ -2929,7 +2927,7 @@ static int mtip_hw_init(struct driver_data *dd)
 		rv = -ENODEV;
 		goto out2 ;
 	}
-	if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag))) {
+	if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))) {
 		timetaken = jiffies - timetaken;
 		dev_warn(&dd->pdev->dev,
 			"Removal detected at %u ms\n",
@@ -2982,7 +2980,7 @@ static int mtip_hw_init(struct driver_data *dd)
 		jiffies + msecs_to_jiffies(MTIP_TIMEOUT_CHECK_PERIOD));
 
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag)) {
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)) {
 		rv = -EFAULT;
 		goto out3;
 	}
@@ -2994,7 +2992,7 @@ static int mtip_hw_init(struct driver_data *dd)
 
 	if (*(dd->port->identify + MTIP_FTL_REBUILD_OFFSET) ==
 		MTIP_FTL_REBUILD_MAGIC) {
-		set_bit(MTIP_FLAG_REBUILD_BIT, &dd->port->flags);
+		set_bit(MTIP_PF_REBUILD_BIT, &dd->port->flags);
 		return MTIP_FTL_REBUILD_MAGIC;
 	}
 	mtip_dump_identify(dd->port);
@@ -3012,12 +3010,12 @@ static int mtip_hw_init(struct driver_data *dd)
 		if (buf[259] & 0x1) {
 			dev_info(&dd->pdev->dev,
 				"Write protect bit is set.\n");
-			set_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag);
+			set_bit(MTIP_DDF_WRITE_PROTECT_BIT, &dd->dd_flag);
 		}
 		if (buf[288] == 0xF7) {
 			dev_info(&dd->pdev->dev,
 				"Exceeded Tmax, drive in thermal shutdown.\n");
-			set_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag);
+			set_bit(MTIP_DDF_OVER_TEMP_BIT, &dd->dd_flag);
 		}
 		if (buf[288] == 0xBF) {
 			dev_info(&dd->pdev->dev,
@@ -3076,9 +3074,9 @@ static int mtip_hw_exit(struct driver_data *dd)
 	 * Send standby immediate (E0h) to the drive so that it
 	 * saves its state.
 	 */
-	if (!test_bit(MTIP_DD_FLAG_CLEANUP_BIT, &dd->dd_flag)) {
+	if (!test_bit(MTIP_DDF_CLEANUP_BIT, &dd->dd_flag)) {
 
-		if (!test_bit(MTIP_FLAG_REBUILD_BIT, &dd->port->flags))
+		if (!test_bit(MTIP_PF_REBUILD_BIT, &dd->port->flags))
 			if (mtip_standby_immediate(dd->port))
 				dev_warn(&dd->pdev->dev,
 					"STANDBY IMMEDIATE failed\n");
@@ -3259,7 +3257,7 @@ static int mtip_block_ioctl(struct block_device *dev,
 	if (!dd)
 		return -ENOTTY;
 
-	if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag)))
+	if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)))
 		return -ENOTTY;
 
 	switch (cmd) {
@@ -3297,7 +3295,7 @@ static int mtip_block_compat_ioctl(struct block_device *dev,
 	if (!dd)
 		return -ENOTTY;
 
-	if (unlikely(test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag)))
+	if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)))
 		return -ENOTTY;
 
 	switch (cmd) {
@@ -3424,7 +3422,7 @@ static int mtip_make_request(struct request_queue *queue, struct bio *bio)
 	int nents = 0;
 	int tag = 0;
 
-	if (test_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag)) {
+	if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag)) {
 		bio_endio(bio, -ENXIO);
 		return 0;
 	}
@@ -3594,7 +3592,7 @@ skip_create_disk:
 	}
 
 	if (dd->mtip_svc_handler) {
-		set_bit(MTIP_DD_FLAG_INIT_DONE_BIT, &dd->dd_flag);
+		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
 		return rv; /* service thread created for handling rebuild */
 	}
 
@@ -3654,13 +3652,13 @@ static int mtip_block_remove(struct driver_data *dd)
 	struct kobject *kobj;
 
 	if (dd->mtip_svc_handler) {
-		set_bit(MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT, &dd->port->flags);
+		set_bit(MTIP_PF_SVC_THD_SHOULD_STOP_BIT, &dd->port->flags);
 		wake_up_interruptible(&dd->port->svc_wait);
 		kthread_stop(dd->mtip_svc_handler);
 	}
 
 	/* Clean up the sysfs attributes, if created */
-	if (test_bit(MTIP_DD_FLAG_INIT_DONE_BIT, &dd->dd_flag)) {
+	if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag)) {
 		kobj = kobject_get(&disk_to_dev(dd->disk)->kobj);
 		if (kobj) {
 			mtip_hw_sysfs_exit(dd, kobj);
@@ -3816,7 +3814,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	 */
 	instance++;
 	if (rv != MTIP_FTL_REBUILD_MAGIC)
-		set_bit(MTIP_DD_FLAG_INIT_DONE_BIT, &dd->dd_flag);
+		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
 	goto done;
 
 block_initialize_err:
@@ -3845,10 +3843,10 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	struct driver_data *dd = pci_get_drvdata(pdev);
 	int counter = 0;
 
-	set_bit(MTIP_DD_FLAG_REMOVE_PENDING_BIT, &dd->dd_flag);
+	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
 
 	if (mtip_check_surprise_removal(pdev)) {
-		while (!test_bit(MTIP_DD_FLAG_CLEANUP_BIT, &dd->dd_flag)) {
+		while (!test_bit(MTIP_DDF_CLEANUP_BIT, &dd->dd_flag)) {
 			counter++;
 			msleep(20);
 			if (counter == 10) {
@@ -3886,7 +3884,7 @@ static int mtip_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 		return -EFAULT;
 	}
 
-	set_bit(MTIP_DD_FLAG_RESUME_BIT, &dd->dd_flag);
+	set_bit(MTIP_DDF_RESUME_BIT, &dd->dd_flag);
 
 	/* Disable ports & interrupts then send standby immediate */
 	rv = mtip_block_suspend(dd);
@@ -3952,7 +3950,7 @@ static int mtip_pci_resume(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Unable to resume\n");
 
 err:
-	clear_bit(MTIP_DD_FLAG_RESUME_BIT, &dd->dd_flag);
+	clear_bit(MTIP_DDF_RESUME_BIT, &dd->dd_flag);
 
 	return rv;
 }
