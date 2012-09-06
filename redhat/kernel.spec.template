@@ -1674,6 +1674,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 06 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-306.el6]
+- [x86] acpi: Fix use-after-free in acpi_map_lsapic (Igor Mammedov) [826067]
+- [drm] ttm: use shmem_read_mapping_page (Rafael Aquini) [806049]
+- [drm] i915: use shmem_read_mapping_page (Rafael Aquini) [806049]
+- [drm] i915: use shmem_truncate_range (Rafael Aquini) [806049]
+- [fs] udf: fix retun value on error path in udf_load_logicalvol (Nikola Pajkovsky) [843143] {CVE-2012-3400}
+- [fs] udf: Improve table length check to avoid possible overflow (Nikola Pajkovsky) [843143] {CVE-2012-3400}
+- [fs] udf: Fortify loading of sparing table (Nikola Pajkovsky) [843143] {CVE-2012-3400}
+- [fs] udf: Avoid run away loop when partition table length is corrupted (Nikola Pajkovsky) [843143] {CVE-2012-3400}
+- [fs] udf: Use 'ret' instead of abusing 'i' in udf_load_logicalvol() (Nikola Pajkovsky) [843143] {CVE-2012-3400}
+
 * Fri Aug 31 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-305.el6]
 - [virt] kvm: fix KVM_GET_MSR for PV EOI (Michael S. Tsirkin) [835095]
 - [virt] kvm: update KVM_SAVE_MSRS_BEGIN to correct value (Michael S. Tsirkin) [835095]
