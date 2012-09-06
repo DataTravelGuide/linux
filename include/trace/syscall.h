@@ -42,10 +42,6 @@ void free_syscall_print_fmt(struct ftrace_event_call *call);
 extern struct trace_event event_syscall_enter;
 extern struct trace_event event_syscall_exit;
 
-extern int syscall_enter_format(struct ftrace_event_call *call,
-				struct trace_seq *s);
-extern int syscall_exit_format(struct ftrace_event_call *call,
-				struct trace_seq *s);
 extern int syscall_enter_define_fields(struct ftrace_event_call *call);
 extern int syscall_exit_define_fields(struct ftrace_event_call *call);
 extern int reg_event_syscall_enter(struct ftrace_event_call *call);

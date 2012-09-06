@@ -1638,104 +1638,6 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 	return 0;
 }
 
-static int __probe_event_show_format(struct trace_seq *s,
-				     struct trace_probe *tp, const char *fmt,
-				     const char *arg)
-{
-	int i;
-
-	/* Show format */
-	if (!trace_seq_printf(s, "\nprint fmt: \"%s", fmt))
-		return 0;
-
-	for (i = 0; i < tp->nr_args; i++)
-		if (!trace_seq_printf(s, " %s=%s", tp->args[i].name,
-				      tp->args[i].type->fmt))
-			return 0;
-
-	if (!trace_seq_printf(s, "\", %s", arg))
-		return 0;
-
-	for (i = 0; i < tp->nr_args; i++) {
-		if (strcmp(tp->args[i].type->name, "string") == 0) {
-			if (!trace_seq_printf(s, ", __get_str(%s)", tp->args[i].name))
-				return 0;
-		} else {
-			if (!trace_seq_printf(s, ", REC->%s", tp->args[i].name))
-				return 0;
-		}
-	}
-
-	return trace_seq_puts(s, "\n");
-}
-
-#undef SHOW_FIELD
-#define SHOW_FIELD(type, item, name)					\
-	do {								\
-		ret = trace_seq_printf(s, "\tfield:" #type " %s;\t"	\
-				"offset:%u;\tsize:%u;\tsigned:%d;\n", name,\
-				(unsigned int)offsetof(typeof(field), item),\
-				(unsigned int)sizeof(type),		\
-				is_signed_type(type));			\
-		if (!ret)						\
-			return 0;					\
-	} while (0)
-
-static int kprobe_event_show_format(struct ftrace_event_call *call,
-				    struct trace_seq *s)
-{
-	struct kprobe_trace_entry_head field __attribute__((unused));
-	int ret, i;
-	struct trace_probe *tp = (struct trace_probe *)call->data;
-
-	SHOW_FIELD(unsigned long, ip, FIELD_STRING_IP);
-
-	/* Show fields */
-	for (i = 0; i < tp->nr_args; i++) {
-		ret = trace_seq_printf(s, "\tfield: %s %s;\t"
-				"offset:%u;\tsize:%u;\tsigned:%d;\n",
-				tp->args[i].type->name, tp->args[i].name,
-				(unsigned int) sizeof(field) + tp->args[i].offset,
-				(unsigned int) tp->args[i].type->size,
-				tp->args[i].type->is_signed);
-		if (!ret)
-			return 0;
-	}
-	trace_seq_puts(s, "\n");
-
-	return __probe_event_show_format(s, tp, "(%lx)",
-					 "REC->" FIELD_STRING_IP);
-}
-
-static int kretprobe_event_show_format(struct ftrace_event_call *call,
-				       struct trace_seq *s)
-{
-	struct kretprobe_trace_entry_head field __attribute__((unused));
-	int ret, i;
-	struct trace_probe *tp = (struct trace_probe *)call->data;
-
-	SHOW_FIELD(unsigned long, func, FIELD_STRING_FUNC);
-	SHOW_FIELD(unsigned long, ret_ip, FIELD_STRING_RETIP);
-
-	/* Show fields */
-	for (i = 0; i < tp->nr_args; i++) {
-		ret = trace_seq_printf(s, "\tfield: %s %s;\t"
-				"offset:%u;\tsize:%u;\tsigned:%d;\n",
-				tp->args[i].type->name, tp->args[i].name,
-				(unsigned int) sizeof(field) + tp->args[i].offset,
-				(unsigned int) tp->args[i].type->size,
-				tp->args[i].type->is_signed);
-		if (!ret)
-			return 0;
-	}
-
-	trace_seq_puts(s, "\n");
-
-	return __probe_event_show_format(s, tp, "(%lx <- %lx)",
-					 "REC->" FIELD_STRING_FUNC
-					 ", REC->" FIELD_STRING_RETIP);
-}
-
 static int __set_print_fmt(struct trace_probe *tp, char *buf, int len)
 {
 	int i;
@@ -1919,12 +1821,10 @@ static int register_probe_event(struct trace_probe *tp)
 	if (trace_probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->fmt.show_format = kretprobe_event_show_format;
 		call->define_fields = kretprobe_event_define_fields;
 	} else {
 		tp->event.trace = print_kprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->fmt.show_format = kprobe_event_show_format;
 		call->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
