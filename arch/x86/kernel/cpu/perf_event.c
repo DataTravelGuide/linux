@@ -270,6 +270,11 @@ union perf_capabilities {
 	u64	capabilities;
 };
 
+struct x86_pmu_quirk {
+	struct x86_pmu_quirk *next;
+	void (*func)(void);
+};
+
 /*
  * struct x86_pmu - generic x86 pmu
  */
@@ -308,7 +313,7 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 	struct event_constraint *event_constraints;
-	void		(*quirks)(void);
+	struct x86_pmu_quirk *quirks;
 	int		perfctr_second_write;
 
 	int		(*cpu_prepare)(int cpu);
@@ -347,6 +352,15 @@ struct x86_pmu {
 	 */
 	struct perf_guest_switch_msr *(*guest_get_msrs)(int *nr);
 };
+
+#define x86_add_quirk(func_)						\
+do {									\
+	static struct x86_pmu_quirk __quirk __initdata = {		\
+		.func = func_,						\
+	};								\
+	__quirk.next = x86_pmu.quirks;					\
+	x86_pmu.quirks = &__quirk;					\
+} while (0)
 
 #define ERF_NO_HT_SHARING	1
 #define ERF_HAS_RSP_1		2
@@ -1569,6 +1583,7 @@ static void __init pmu_check_apic(void)
 
 static int __init init_hw_perf_events(void)
 {
+	struct x86_pmu_quirk *quirk;
 	struct event_constraint *c;
 	int err;
 
@@ -1597,8 +1612,8 @@ static int __init init_hw_perf_events(void)
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
-	if (x86_pmu.quirks)
-		x86_pmu.quirks();
+	for (quirk = x86_pmu.quirks; quirk; quirk = quirk->next)
+		quirk->func();
 
 	if (x86_pmu.num_counters > X86_PMC_MAX_GENERIC) {
 		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
