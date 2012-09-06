@@ -1863,12 +1863,12 @@ static int register_probe_event(struct trace_probe *tp)
 	if (trace_probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->show_format = kretprobe_event_show_format;
+		call->fmt.show_format = kretprobe_event_show_format;
 		call->define_fields = kretprobe_event_define_fields;
 	} else {
 		tp->event.trace = print_kprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->show_format = kprobe_event_show_format;
+		call->fmt.show_format = kprobe_event_show_format;
 		call->define_fields = kprobe_event_define_fields;
 	}
 	call->event = &tp->event;

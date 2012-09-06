@@ -206,6 +206,9 @@ static int ftrace_raw_init_event(struct ftrace_event_call *call)
 	return 0;
 }
 
+#undef __entry
+#define __entry REC
+
 #undef __field
 #define __field(type, item)
 
@@ -221,6 +224,9 @@ static int ftrace_raw_init_event(struct ftrace_event_call *call)
 #undef __dynamic_array
 #define __dynamic_array(type, item)
 
+#undef F_printk
+#define F_printk(fmt, args...) #fmt ", "  __stringify(args)
+
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, type, tstruct, print)		\
 									\
@@ -231,7 +237,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.id			= type,					\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.raw_init		= ftrace_raw_init_event,		\
-	.show_format		= ftrace_format_##call,			\
+	.fmt.print_fmt		= print,				\
 	.define_fields		= ftrace_define_fields_##call,		\
 };
 

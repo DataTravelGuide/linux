@@ -760,8 +760,20 @@ static int ftrace_raw_init_event_##call(struct ftrace_event_call *unused)\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+#undef __entry
+#define __entry REC
+
+#undef __print_flags
+#undef __print_symbolic
+#undef __get_dynamic_array
+#undef __get_str
+
+#undef TP_printk
+#define TP_printk(fmt, args...) "\"" fmt "\", "  __stringify(args)
+
 #undef DECLARE_EVENT_CLASS
-#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)
+#define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
+static const char print_fmt_##call[] = print;
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
@@ -775,13 +787,16 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.raw_init		= ftrace_raw_init_event_##call,		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
-	.show_format		= ftrace_format_##template,		\
+	.fmt.print_fmt		= print_fmt_##template,			\
+	.flags			= TRACE_EVENT_FL_KABI_PRINT_FMT,	\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
 }
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
+									\
+static const char print_fmt_##call[] = print;				\
 									\
 static struct ftrace_event_call __used					\
 __attribute__((__aligned__(4)))						\
@@ -792,7 +807,8 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.raw_init		= ftrace_raw_init_event_##call,		\
 	.regfunc		= ftrace_raw_reg_event_##call,		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
-	.show_format		= ftrace_format_##call,			\
+	.fmt.print_fmt		= print_fmt_##call,			\
+	.flags			= TRACE_EVENT_FL_KABI_PRINT_FMT,	\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
 }
@@ -862,6 +878,16 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  */
 
 #ifdef CONFIG_EVENT_PROFILE
+
+#undef __entry
+#define __entry entry
+
+#undef __get_dynamic_array
+#define __get_dynamic_array(field)	\
+		((void *)__entry + (__entry->__data_loc_##field & 0xffff))
+
+#undef __get_str
+#define __get_str(field) (char *)__get_dynamic_array(field)
 
 #undef __perf_addr
 #define __perf_addr(a) __addr = (a)

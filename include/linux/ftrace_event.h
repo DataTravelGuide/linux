@@ -125,12 +125,23 @@ enum {
 	TRACE_EVENT_FL_ENABLED_BIT,
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_RECORDED_CMD_BIT,
+
+	/*
+	 * RHEL6 specific bit.
+	 *
+	 * Due to KABI constraints, we cannot change ftrace_event_call
+	 * struct. This bit is to differentiate among current RHEL6
+	 * version with 'print_fmt' pointer and older releases versions
+	 * with show_format pointer. Both occupy same place.
+	 */
+	TRACE_EVENT_FL_KABI_PRINT_FMT_BIT = 31,
 };
 
 enum {
 	TRACE_EVENT_FL_ENABLED		= (1 << TRACE_EVENT_FL_ENABLED_BIT),
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
 	TRACE_EVENT_FL_RECORDED_CMD	= (1 << TRACE_EVENT_FL_RECORDED_CMD_BIT),
+	TRACE_EVENT_FL_KABI_PRINT_FMT	= (1 << TRACE_EVENT_FL_KABI_PRINT_FMT_BIT),
 };
 
 struct ftrace_event_call {
@@ -146,8 +157,25 @@ struct ftrace_event_call {
 	void			(*unregfunc)(struct ftrace_event_call *);
 	int			id;
 	int			(*raw_init)(struct ftrace_event_call *);
+#ifdef __GENKSYMS__
 	int			(*show_format)(struct ftrace_event_call *,
 					       struct trace_seq *);
+#else
+	/*
+	 * RHEL6 specific.
+	 *
+	 * TRACE_EVENT_FL_KABI_PRINT_FMT flags bit tells what
+	 * pointer to use. From this version onward RHEL6 uses
+	 * print_fmt and have TRACE_EVENT_FL_KABI_PRINT_FMT
+	 * flags bit enabled by default. Older releases have this
+	 * flags bit set to 0 and use show_format pointer.
+	 */
+	union {
+		int		(*show_format)(struct ftrace_event_call *,
+					       struct trace_seq *);
+		const char	*print_fmt;
+	} fmt;
+#endif
 	int			(*define_fields)(struct ftrace_event_call *);
 	struct list_head	fields;
 #ifdef __GENKSYMS__
@@ -158,6 +186,9 @@ struct ftrace_event_call {
 	 *   bit 1:		enabled
 	 *   bit 2:		filter_active
 	 *   bit 3:		enabled cmd record
+	 *   bit 31:		print_fmt format display
+	 *   			(read TRACE_EVENT_FL_KABI_PRINT_FMT_BIT
+	 *   			enum comment)
 	 *
 	 * Changes to flags must hold the event_mutex.
 	 *

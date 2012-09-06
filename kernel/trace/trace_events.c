@@ -585,7 +585,7 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 	trace_seq_printf(s, "format:\n");
 	trace_write_header(s);
 
-	r = call->show_format(call, s);
+	r = call->fmt.show_format(call, s);
 	if (!r) {
 		/*
 		 * ug!  The format output is bigger than a PAGE!!
@@ -917,6 +917,11 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 	return system->entry;
 }
 
+static bool is_print_fmt_event(struct ftrace_event_call *call)
+{
+	return call->flags & TRACE_EVENT_FL_KABI_PRINT_FMT;
+}
+
 static int
 event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 const struct file_operations *id,
@@ -961,7 +966,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 	}
 
 	/* A trace may not want to export its format */
-	if (!call->show_format)
+	if (!(is_print_fmt_event(call)) && !call->fmt.show_format)
 		return 0;
 
 	entry = trace_create_file("format", 0444, call->dir, call,
