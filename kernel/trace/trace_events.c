@@ -604,6 +604,85 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 }
 
 static ssize_t
+event_format_read_print_fmt(struct file *filp, char __user *ubuf, size_t cnt,
+			    loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct ftrace_event_field *field;
+	struct trace_seq *s;
+	int common_field_count = 5;
+	char *buf;
+	int r = 0;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	trace_seq_printf(s, "name: %s\n", call->name);
+	trace_seq_printf(s, "ID: %d\n", call->id);
+	trace_seq_printf(s, "format:\n");
+
+	list_for_each_entry_reverse(field, &call->fields, link) {
+		/*
+		 * Smartly shows the array type(except dynamic array).
+		 * Normal:
+		 *	field:TYPE VAR
+		 * If TYPE := TYPE[LEN], it is shown:
+		 *	field:TYPE VAR[LEN]
+		 */
+		const char *array_descriptor = strchr(field->type, '[');
+
+		if (!strncmp(field->type, "__data_loc", 10))
+			array_descriptor = NULL;
+
+		if (!array_descriptor) {
+			r = trace_seq_printf(s, "\tfield:%s %s;\toffset:%u;"
+					"\tsize:%u;\tsigned:%d;\n",
+					field->type, field->name, field->offset,
+					field->size, !!field->is_signed);
+		} else {
+			r = trace_seq_printf(s, "\tfield:%.*s %s%s;\toffset:%u;"
+					"\tsize:%u;\tsigned:%d;\n",
+					(int)(array_descriptor - field->type),
+					field->type, field->name,
+					array_descriptor, field->offset,
+					field->size, !!field->is_signed);
+		}
+
+		if (--common_field_count == 0)
+			r = trace_seq_printf(s, "\n");
+
+		if (!r)
+			break;
+	}
+
+	if (r)
+		r = trace_seq_printf(s, "\nprint fmt: %s\n",
+				call->fmt.print_fmt);
+
+	if (!r) {
+		/*
+		 * ug!  The format output is bigger than a PAGE!!
+		 */
+		buf = "FORMAT TOO BIG\n";
+		r = simple_read_from_buffer(ubuf, cnt, ppos,
+					      buf, strlen(buf));
+		goto out;
+	}
+
+	r = simple_read_from_buffer(ubuf, cnt, ppos,
+				    s->buffer, s->len);
+ out:
+	kfree(s);
+	return r;
+}
+
+static ssize_t
 event_id_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 	struct ftrace_event_call *call = filp->private_data;
@@ -797,6 +876,11 @@ static const struct file_operations ftrace_enable_fops = {
 	.write = event_enable_write,
 };
 
+static const struct file_operations ftrace_event_format_print_fmt_fops = {
+	.open = tracing_open_generic,
+	.read = event_format_read_print_fmt,
+};
+
 static const struct file_operations ftrace_event_format_fops = {
 	.open = tracing_open_generic,
 	.read = event_format_read,
@@ -978,6 +1062,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 static int __trace_add_event_call(struct ftrace_event_call *call)
 {
 	struct dentry *d_events;
+	const struct file_operations *format;
 	int ret;
 
 	if (!call->name)
@@ -997,10 +1082,15 @@ static int __trace_add_event_call(struct ftrace_event_call *call)
 	if (!d_events)
 		return -ENOENT;
 
+	if (is_print_fmt_event(call))
+		format = &ftrace_event_format_print_fmt_fops;
+	else
+		format = &ftrace_event_format_fops;
+
 	list_add(&call->list, &ftrace_events);
 	ret = event_create_dir(call, d_events, &ftrace_event_id_fops,
 				&ftrace_enable_fops, &ftrace_event_filter_fops,
-				&ftrace_event_format_fops);
+				format);
 	if (ret < 0)
 		list_del(&call->list);
 	return ret;
@@ -1090,7 +1180,7 @@ struct ftrace_module_file_ops {
 };
 
 static struct ftrace_module_file_ops *
-trace_create_file_ops(struct module *mod)
+trace_create_file_ops(struct module *mod, bool print_fmt)
 {
 	struct ftrace_module_file_ops *file_ops;
 
@@ -1116,7 +1206,10 @@ trace_create_file_ops(struct module *mod)
 	file_ops->filter = ftrace_event_filter_fops;
 	file_ops->filter.owner = mod;
 
-	file_ops->format = ftrace_event_format_fops;
+	if (print_fmt)
+		file_ops->format = ftrace_event_format_print_fmt_fops;
+	else
+		file_ops->format = ftrace_event_format_fops;
 	file_ops->format.owner = mod;
 
 	list_add(&file_ops->list, &ftrace_module_file_list);
@@ -1159,7 +1252,8 @@ static void trace_module_add_events(struct module *mod)
 		 * if not already done.
 		 */
 		if (!file_ops) {
-			file_ops = trace_create_file_ops(mod);
+			bool print_fmt = is_print_fmt_event(call);
+			file_ops = trace_create_file_ops(mod, print_fmt);
 			if (!file_ops)
 				return;
 		}
@@ -1310,7 +1404,7 @@ static __init int event_trace_init(void)
 		list_add(&call->list, &ftrace_events);
 		event_create_dir(call, d_events, &ftrace_event_id_fops,
 				 &ftrace_enable_fops, &ftrace_event_filter_fops,
-				 &ftrace_event_format_fops);
+				 &ftrace_event_format_print_fmt_fops);
 	}
 
 	while (true) {
