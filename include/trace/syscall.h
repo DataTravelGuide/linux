@@ -37,6 +37,8 @@ extern struct syscall_metadata *syscall_nr_to_meta(int nr);
 extern int syscall_name_to_nr(char *name);
 void set_syscall_enter_id(int num, int id);
 void set_syscall_exit_id(int num, int id);
+int set_syscall_print_fmt(struct ftrace_event_call *call);
+void free_syscall_print_fmt(struct ftrace_event_call *call);
 extern struct trace_event event_syscall_enter;
 extern struct trace_event event_syscall_exit;
 
