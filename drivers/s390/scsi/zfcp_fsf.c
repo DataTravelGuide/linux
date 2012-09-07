@@ -483,6 +483,34 @@ void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 	}
 }
 
+#define ZFCP_FSF_PORTSPEED_1GBIT	(1 <<  0)
+#define ZFCP_FSF_PORTSPEED_2GBIT	(1 <<  1)
+#define ZFCP_FSF_PORTSPEED_4GBIT	(1 <<  2)
+#define ZFCP_FSF_PORTSPEED_10GBIT	(1 <<  3)
+#define ZFCP_FSF_PORTSPEED_8GBIT	(1 <<  4)
+#define ZFCP_FSF_PORTSPEED_16GBIT	(1 <<  5)
+#define ZFCP_FSF_PORTSPEED_NOT_NEGOTIATED (1 << 15)
+
+static u32 zfcp_fsf_convert_portspeed(u32 fsf_speed)
+{
+	u32 fdmi_speed = 0;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_1GBIT)
+		fdmi_speed |= FC_PORTSPEED_1GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_2GBIT)
+		fdmi_speed |= FC_PORTSPEED_2GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_4GBIT)
+		fdmi_speed |= FC_PORTSPEED_4GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_10GBIT)
+		fdmi_speed |= FC_PORTSPEED_10GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_8GBIT)
+		fdmi_speed |= FC_PORTSPEED_8GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_16GBIT)
+		fdmi_speed |= FC_PORTSPEED_16GBIT;
+	if (fsf_speed & ZFCP_FSF_PORTSPEED_NOT_NEGOTIATED)
+		fdmi_speed |= FC_PORTSPEED_NOT_NEGOTIATED;
+	return fdmi_speed;
+}
+
 static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 {
 	struct fsf_qtcb_bottom_config *bottom;
@@ -497,7 +525,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	fc_host_node_name(shost) = bottom->nport_serv_param.wwnn;
 	fc_host_port_name(shost) = bottom->nport_serv_param.wwpn;
 	fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
-	fc_host_speed(shost) = bottom->fc_link_speed;
+	fc_host_speed(shost) =
+		zfcp_fsf_convert_portspeed(bottom->fc_link_speed);
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
 
 	adapter->hydra_version = bottom->adapter_type;
@@ -622,7 +651,8 @@ static void zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *req)
 	} else
 		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
 	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
-	fc_host_supported_speeds(shost) = bottom->supported_speed;
+	fc_host_supported_speeds(shost) =
+		zfcp_fsf_convert_portspeed(bottom->supported_speed);
 }
 
 static void zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *req)
