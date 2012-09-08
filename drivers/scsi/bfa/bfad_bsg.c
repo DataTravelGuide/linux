@@ -2926,12 +2926,15 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 	 */
 	bsg_fcpt = (struct bfa_bsg_fcpt_s *)
 		   kzalloc(bsg_data->payload_len, GFP_KERNEL);
-	if (!bsg_fcpt)
+	if (!bsg_fcpt) {
+		rc = -ENOMEM;
 		goto out;
+	}
 
 	if (copy_from_user((uint8_t *)bsg_fcpt, bsg_data->payload,
 				bsg_data->payload_len)) {
 		kfree(bsg_fcpt);
+		rc = -EIO;
 		goto out;
 	}
 
