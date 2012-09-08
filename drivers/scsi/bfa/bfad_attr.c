@@ -496,6 +496,7 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 
 	if (im_port->flags & BFAD_PORT_DELETE) {
 		bfad_scsi_host_free(bfad, im_port);
+		kfree(vport);
 		return 0;
 	}
 
