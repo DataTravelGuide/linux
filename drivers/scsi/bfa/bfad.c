@@ -62,9 +62,9 @@ int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
 u32	*bfi_image_cb, *bfi_image_ct, *bfi_image_ct2;
 
-#define BFAD_FW_FILE_CB		"cbfw.bin"
-#define BFAD_FW_FILE_CT		"ctfw.bin"
-#define BFAD_FW_FILE_CT2	"ct2fw.bin"
+#define BFAD_FW_FILE_CB		"cbfw-3.0.3.1.bin"
+#define BFAD_FW_FILE_CT		"ctfw-3.0.3.1.bin"
+#define BFAD_FW_FILE_CT2	"ct2fw-3.0.3.1.bin"
 
 static u32 *bfad_load_fwimg(struct pci_dev *pdev);
 static void bfad_free_fwimg(void);
