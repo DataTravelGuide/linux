@@ -337,6 +337,21 @@ static inline void __rcu_reclaim(struct rcu_head *head)
 		head->func(head);
 }
 
+/*
+ * Does the specified offset indicate that the corresponding rcu_head
+ * structure can be handled by kfree_rcu()?
+ */
+#define __is_kfree_rcu_offset(offset) ((offset) < 4096)
+
+/*
+ * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
+ */
+#define __kfree_rcu(head, offset) \
+	do { \
+		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+		call_rcu(head, (void (*)(struct rcu_head *))(unsigned long)(offset)); \
+	} while (0)
+
 /**
  * kfree_rcu() - kfree an object after a grace period.
  * @ptr:	pointer to kfree
@@ -359,6 +374,9 @@ static inline void __rcu_reclaim(struct rcu_head *head)
  *
  * Note that the allowable offset might decrease in the future, for example,
  * to allow something like kmem_cache_free_rcu().
+ *
+ * The BUILD_BUG_ON check must not involve any function calls, hence the
+ * checks are done in macros here.
  */
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
