@@ -435,6 +435,8 @@ extern int set_irq_chip_data(unsigned int irq, void *data);
 extern int set_irq_type(unsigned int irq, unsigned int type);
 extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 
+#define irq_set_irq_type(irq, type) set_irq_type(irq, type)
+
 #define get_irq_chip(irq)	(irq_to_desc(irq)->chip)
 #define get_irq_chip_data(irq)	(irq_to_desc(irq)->chip_data)
 #define get_irq_data(irq)	(irq_to_desc(irq)->handler_data)
