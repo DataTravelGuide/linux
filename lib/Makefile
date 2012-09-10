@@ -103,6 +103,8 @@ obj-$(CONFIG_GENERIC_ATOMIC64) += atomic64.o
 
 obj-$(CONFIG_AVERAGE) += average.o
 
+obj-$(CONFIG_CORDIC) += cordic.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
