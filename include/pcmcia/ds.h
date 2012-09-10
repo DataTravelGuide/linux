@@ -195,6 +195,12 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
 #define pcmcia_get_tuple_data(p_dev, tuple) \
 		pccard_get_tuple_data(p_dev->socket, tuple)
 
+/* loop over CIS entries */
+int pcmcia_loop_tuple(struct pcmcia_device *p_dev, cisdata_t code,
+		      int (*loop_tuple) (struct pcmcia_device *p_dev,
+					 tuple_t *tuple,
+					 void *priv_data),
+		      void *priv_data);
 
 /* loop CIS entries for valid configuration */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
