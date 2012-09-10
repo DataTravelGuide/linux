@@ -240,6 +240,10 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 				(_________p1); \
 				})
 
+#define rcu_dereference_protected(p, c)	rcu_dereference(p)
+#define rcu_dereference_check(p, c)	rcu_dereference(p)
+#define rcu_dereference_raw(p)		rcu_dereference(p)
+
 /**
  * rcu_assign_pointer - assign (publicize) a pointer to a newly
  * initialized structure that will be dereferenced by RCU read-side
