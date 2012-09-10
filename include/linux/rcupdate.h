@@ -278,6 +278,15 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 		(p) = (v); \
 	})
 
+/**
+ * RCU_INIT_POINTER() - initialize an RCU protected pointer
+ *
+ * Initialize an RCU-protected pointer in such a way to avoid RCU-lockdep
+ * splats.
+ */
+#define RCU_INIT_POINTER(p, v) \
+		p = (typeof(*v) __force __rcu *)(v)
+
 /* Infrastructure to implement the synchronize_() primitives. */
 
 struct rcu_synchronize {
