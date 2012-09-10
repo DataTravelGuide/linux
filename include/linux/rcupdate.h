@@ -94,6 +94,19 @@ extern struct lockdep_map rcu_lock_map;
 #endif
 
 /**
+ * rcu_access_pointer - fetch RCU pointer with no dereferencing
+ *
+ * Return the value of the specified RCU-protected pointer, but omit the
+ * smp_read_barrier_depends() and keep the ACCESS_ONCE().  This is useful
+ * when the value of this pointer is accessed, but the pointer is not
+ * dereferenced, for example, when testing an RCU-protected pointer against
+ * NULL.  This may also be used in cases where update-side locks prevent
+ * the value of the pointer from changing, but rcu_dereference_protected()
+ * is a lighter-weight primitive for this use case.
+ */
+#define rcu_access_pointer(p)	ACCESS_ONCE(p)
+
+/**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.
  *
  * When synchronize_rcu() is invoked on one CPU while other CPUs
