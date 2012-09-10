@@ -1536,6 +1536,41 @@ void netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 }
 EXPORT_SYMBOL(netif_set_real_num_tx_queues);
 
+#ifdef CONFIG_RPS
+/**
+ *	netif_set_real_num_rx_queues - set actual number of RX queues used
+ *	@dev: Network device
+ *	@rxq: Actual number of RX queues
+ *
+ *	This must be called either with the rtnl_lock held or before
+ *	registration of the net device.  Returns 0 on success, or a
+ *	negative error code.  If called before registration, it also
+ *	sets the maximum number of queues, and always succeeds.
+ */
+int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
+{
+	int rc;
+
+	if (dev->reg_state == NETREG_REGISTERED) {
+		ASSERT_RTNL();
+
+		if (rxq > dev->num_rx_queues)
+			return -EINVAL;
+
+		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
+						  rxq);
+		if (rc)
+			return rc;
+	} else {
+		dev->num_rx_queues = rxq;
+	}
+
+	dev->real_num_rx_queues = rxq;
+	return 0;
+}
+EXPORT_SYMBOL(netif_set_real_num_rx_queues);
+#endif
+
 static inline void __netif_reschedule(struct Qdisc *q)
 {
 	struct softnet_data *sd;
@@ -2264,10 +2299,11 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
-		if (unlikely(index >= rpinfo->num_rx_queues)) {
-			WARN_ONCE(rpinfo->num_rx_queues > 1, "%s received packet "
-				"on queue %u, but number of RX queues is %u\n",
-				dev->name, index, rpinfo->num_rx_queues);
+		if (unlikely(index >= netdev_extended(dev)->real_num_rx_queues)) {
+			WARN_ONCE(netdev_extended(dev)->real_num_rx_queues > 1,
+				  "%s received packet on queue %u, but number "
+				  "of RX queues is %u\n",
+				  dev->name, index, netdev_extended(dev)->real_num_rx_queues);
 			goto done;
 		}
 		rxqueue = rpinfo->_rx + index;
@@ -5944,6 +5980,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 				  ((char *) dev + NET_DEVICE_SIZE + sizeof_priv);
 
 	netdev_extended(dev)->rps_data.num_rx_queues = rxqs;
+	netdev_extended(dev)->real_num_rx_queues = rxqs;
+
 	if (netif_alloc_rx_queues(dev)) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "rx queues.\n");

@@ -1174,6 +1174,7 @@ struct net_device_extended {
 					struct netdev_fcoe_hbainfo *hbainfo);
 #endif
 	struct netdev_netpoll_ext_info		netpoll_data;
+	unsigned int				real_num_rx_queues;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1804,6 +1805,17 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 
 extern void netif_set_real_num_tx_queues(struct net_device *dev,
 					 unsigned int txq);
+
+#ifdef CONFIG_RPS
+extern int netif_set_real_num_rx_queues(struct net_device *dev,
+					unsigned int rxq);
+#else
+static inline int netif_set_real_num_rx_queues(struct net_device *dev,
+						unsigned int rxq)
+{
+	return 0;
+}
+#endif
 
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts

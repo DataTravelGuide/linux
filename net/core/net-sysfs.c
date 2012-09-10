@@ -22,6 +22,9 @@
 #include "net-sysfs.h"
 
 #ifdef CONFIG_SYSFS
+static void remove_queue_kobjects(struct net_device *net);
+static int register_queue_kobjects(struct net_device *net);
+
 static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
@@ -1096,11 +1099,37 @@ static int netdev_queue_add_kobject(struct net_device *net, int index)
 int
 netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 {
+#ifdef CONFIG_SYSFS
+        int i;
+        int error = 0;
+
+        for (i = old_num; i < new_num; i++) {
+                error = netdev_queue_add_kobject(net, i);
+                if (error) {
+                        new_num = old_num;
+                        break;
+                }
+        }
+
+        while (--i >= new_num) {
+		kobject_put(&netdev_extended(net)->_tx_ext[i].kobj);
+        }
+
+        return error;
+#else
+        return 0;
+#endif /* CONFIG_SYSFS */
+}
+
+int
+net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
+{
 	int i;
 	int error = 0;
+	struct netdev_rps_info *rpinfo = &netdev_extended(net)->rps_data;
 
 	for (i = old_num; i < new_num; i++) {
-		error = netdev_queue_add_kobject(net, i);
+		error = rx_queue_add_kobject(net, i);
 		if (error) {
 			new_num = old_num;
 			break;
@@ -1108,50 +1137,9 @@ netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 	}
 
 	while (--i >= new_num)
-		kobject_put(&netdev_extended(net)->_tx_ext[i].kobj);
+		kobject_put(&rpinfo->_rx[i].kobj);
 
 	return error;
-}
-
-static int register_queue_kobjects(struct net_device *net)
-{
-	int error = 0, txq = 0;
-	int i;
-
-	netdev_extended(net)->rps_data.queues_kset =
-	    kset_create_and_add("queues", NULL, &net->dev.kobj);
-	if (!netdev_extended(net)->rps_data.queues_kset)
-		return -ENOMEM;
-	for (i = 0; i < netdev_extended(net)->rps_data.num_rx_queues; i++) {
-		error = rx_queue_add_kobject(net, i);
-		if (error)
-			goto error;
-	}
-
-	error = netdev_queue_update_kobjects(net, 0,
-					     net->real_num_tx_queues);
-	if (error)
-		goto error;
-	txq = net->real_num_tx_queues;
-
-	return 0;
-
-error:
-	netdev_queue_update_kobjects(net, txq, 0);
-	while (--i >= 0)
-		kobject_put(&netdev_extended(net)->rps_data._rx[i].kobj);
-
-	return error;
-}
-
-static void remove_queue_kobjects(struct net_device *net)
-{
-	int i;
-
-	for (i = 0; i < netdev_extended(net)->rps_data.num_rx_queues; i++)
-		kobject_put(&netdev_extended(net)->rps_data._rx[i].kobj);
-	netdev_queue_update_kobjects(net, net->real_num_tx_queues, 0);
-	kset_unregister(netdev_extended(net)->rps_data.queues_kset);
 }
 
 #endif /* CONFIG_SYSFS */
@@ -1259,6 +1247,60 @@ int netdev_register_kobject(struct net_device *net)
 		return error;
 	}
 
+	return error;
+}
+
+static void remove_queue_kobjects(struct net_device *net)
+{
+	int real_rx = 0, real_tx = 0;
+	struct netdev_rps_info *rpinfo = &netdev_extended(net)->rps_data;
+
+
+#ifdef CONFIG_RPS
+	real_rx = netdev_extended(net)->real_num_rx_queues;
+#endif
+	real_tx = net->real_num_tx_queues;
+
+	net_rx_queue_update_kobjects(net, real_rx, 0);
+	netdev_queue_update_kobjects(net, real_tx, 0);
+#ifdef CONFIG_SYSFS
+	kset_unregister(rpinfo->queues_kset);
+#endif
+}
+
+static int register_queue_kobjects(struct net_device *net)
+{
+	int error = 0, txq = 0, rxq = 0, real_rx = 0, real_tx = 0;
+	struct netdev_rps_info *rpinfo = &netdev_extended(net)->rps_data;
+
+
+#ifdef CONFIG_SYSFS
+	rpinfo->queues_kset = kset_create_and_add("queues",
+	   NULL, &net->dev.kobj);
+	if (!rpinfo->queues_kset)
+		return -ENOMEM;
+#endif
+
+#ifdef CONFIG_RPS
+	real_rx = netdev_extended(net)->real_num_rx_queues;
+#endif
+	real_tx = net->real_num_tx_queues;
+
+	error = net_rx_queue_update_kobjects(net, 0, real_rx);
+	if (error)
+		goto error;
+	rxq = real_rx;
+
+	error = netdev_queue_update_kobjects(net, 0, real_tx);
+	if (error)
+		goto error;
+	txq = real_tx;
+
+	return 0;
+
+error:
+	netdev_queue_update_kobjects(net, txq, 0);
+	net_rx_queue_update_kobjects(net, rxq, 0);
 	return error;
 }
 
