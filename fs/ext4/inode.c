@@ -4404,7 +4404,14 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 			      __le32 *last)
 {
 	__le32 *p;
-	int	is_metadata = S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode);
+	int is_metadata = 0;
+	int flags = 0;
+
+	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) {
+		flags |= EXT4_FREE_BLOCKS_METADATA;
+		is_metadata = 1;
+	}
+
 
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
@@ -4440,7 +4447,7 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		}
 	}
 
-	ext4_free_blocks(handle, inode, block_to_free, count, is_metadata);
+	ext4_free_blocks(handle, inode, block_to_free, count, flags);
 }
 
 /**
@@ -4628,7 +4635,8 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 					    blocks_for_truncate(inode));
 			}
 
-			ext4_free_blocks(handle, inode, nr, 1, 1);
+			ext4_free_blocks(handle, inode, nr, 1,
+					 EXT4_FREE_BLOCKS_METADATA);
 
 			if (parent_bh) {
 				/*

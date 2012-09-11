@@ -1063,7 +1063,8 @@ cleanup:
 		for (i = 0; i < depth; i++) {
 			if (!ablocks[i])
 				continue;
-			ext4_free_blocks(handle, inode, ablocks[i], 1, 1);
+			ext4_free_blocks(handle, inode, ablocks[i], 1,
+					 EXT4_FREE_BLOCKS_METADATA);
 		}
 	}
 	kfree(ablocks);
@@ -2094,7 +2095,7 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	ext_debug("index is empty, remove it, free block %llu\n", leaf);
 	bh = sb_find_get_block(inode->i_sb, leaf);
 	ext4_forget(handle, 1, inode, bh, leaf);
-	ext4_free_blocks(handle, inode, leaf, 1, 1);
+	ext4_free_blocks(handle, inode, leaf, 1, EXT4_FREE_BLOCKS_METADATA);
 	return err;
 }
 
@@ -2163,10 +2164,11 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 {
 	struct buffer_head *bh;
 	unsigned short ee_len =  ext4_ext_get_actual_len(ex);
-	int i, metadata = 0;
+	int i, metadata = 0, flags =0;
 
 	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
 		metadata = 1;
+		flags = EXT4_FREE_BLOCKS_METADATA;
 #ifdef EXTENTS_STATS
 	{
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
@@ -2195,7 +2197,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 			bh = sb_find_get_block(inode->i_sb, start + i);
 			ext4_forget(handle, metadata, inode, bh, start + i);
 		}
-		ext4_free_blocks(handle, inode, start, num, metadata);
+		ext4_free_blocks(handle, inode, start, num, flags);
 	} else if (from == le32_to_cpu(ex->ee_block)
 		   && to <= le32_to_cpu(ex->ee_block) + ee_len - 1) {
 		printk(KERN_INFO "strange request: removal %u-%u from %u:%u\n",

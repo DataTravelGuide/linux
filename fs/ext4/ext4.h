@@ -463,6 +463,12 @@ struct ext4_new_group_data {
 					 EXT4_GET_BLOCKS_DIO_CREATE_EXT)
 
 /*
+ * Flags used by ext4_free_blocks
+ */
+#define EXT4_FREE_BLOCKS_METADATA	0x0001
+
+
+/*
  * ioctl commands
  */
 #define	EXT4_IOC_GETFLAGS		FS_IOC_GETFLAGS
@@ -1620,7 +1626,7 @@ extern int __init init_ext4_mballoc(void);
 extern void exit_ext4_mballoc(void);
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     ext4_fsblk_t block, unsigned long count,
-			     int metadata);
+			     int flags);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
 extern void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
