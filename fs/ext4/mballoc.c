@@ -4434,7 +4434,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
  * @inode:		inode
  * @block:		start physical block to free
  * @count:		number of blocks to count
- * @metadata: 		Are these metadata blocks
+ * @flags:		flags used by ext4_free_blocks
  */
 void ext4_free_blocks(handle_t *handle, struct inode *inode,
 		      ext4_fsblk_t block, unsigned long count,
