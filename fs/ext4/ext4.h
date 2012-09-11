@@ -466,7 +466,7 @@ struct ext4_new_group_data {
  * Flags used by ext4_free_blocks
  */
 #define EXT4_FREE_BLOCKS_METADATA	0x0001
-
+#define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
 
 /*
  * ioctl commands

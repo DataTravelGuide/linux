@@ -4611,7 +4611,7 @@ do_more:
 	}
 	sb->s_dirt = 1;
 error_return:
-	if (freed)
+	if (freed && !(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
 		vfs_dq_free_block(inode, freed);
 	brelse(bitmap_bh);
 	ext4_std_error(sb, err);
