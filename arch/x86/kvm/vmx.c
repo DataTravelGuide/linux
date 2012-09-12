@@ -376,6 +376,17 @@ static inline int cpu_has_vmx_vpid(void)
 		SECONDARY_EXEC_ENABLE_VPID;
 }
 
+static inline bool cpu_has_vmx_invpcid(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENABLE_INVPCID;
+}
+
+static bool vmx_invpcid_supported(void)
+{
+	return cpu_has_vmx_invpcid() && enable_ept;
+}
+
 static inline int cpu_has_virtual_nmis(void)
 {
 	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
@@ -1441,7 +1452,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_ENABLE_VPID |
 			SECONDARY_EXEC_ENABLE_EPT |
 			SECONDARY_EXEC_UNRESTRICTED_GUEST |
-			SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+			SECONDARY_EXEC_PAUSE_LOOP_EXITING |
+			SECONDARY_EXEC_ENABLE_INVPCID;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -2628,6 +2640,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		if (!enable_ept) {
 			exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
 			enable_unrestricted_guest = 0;
+			/* Enable INVPCID for non-ept guests may cause performance regression. */
+			exec_control &= ~SECONDARY_EXEC_ENABLE_INVPCID;
 		}
 		if (!enable_unrestricted_guest)
 			exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
@@ -4347,6 +4361,25 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 {
+	struct kvm_cpuid_entry2 *best;
+	u32 exec_control;
+
+	exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
+	/* Exposing INVPCID only when PCID is exposed */
+	best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
+	if (vmx_invpcid_supported() &&
+	    best && (best->ebx & bit(X86_FEATURE_INVPCID)) &&
+	    guest_cpuid_has_pcid(vcpu)) {
+		exec_control |= SECONDARY_EXEC_ENABLE_INVPCID;
+		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+			     exec_control);
+	} else {
+		exec_control &= ~SECONDARY_EXEC_ENABLE_INVPCID;
+		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+			     exec_control);
+		if (best)
+			best->ebx &= ~bit(X86_FEATURE_INVPCID);
+	}
 }
 
 static const struct trace_print_flags vmx_exit_reasons_str[] = {
@@ -4445,6 +4478,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.gb_page_enable = vmx_gb_page_enable,
 
 	.cpuid_update = vmx_cpuid_update,
+	.invpcid_supported = vmx_invpcid_supported,
 
 	.set_tsc_khz = vmx_set_tsc_khz,
 	.write_tsc_offset = vmx_write_tsc_offset,

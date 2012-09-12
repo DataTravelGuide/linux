@@ -37,6 +37,7 @@
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
+#define CR3_PCID_ENABLED_RESERVED_BITS 0xFFFFFF0000000000ULL
 #define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS |	\
 				  0xFFFFFF0000000000ULL)
 
@@ -618,6 +619,7 @@ struct kvm_x86_ops {
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	bool (*gb_page_enable)(void);
+	bool (*invpcid_supported)(void);
 
 	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);

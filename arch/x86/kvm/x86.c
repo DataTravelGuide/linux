@@ -64,7 +64,7 @@
 #define CR4_RESERVED_BITS						\
 	(~(unsigned long)(X86_CR4_VME | X86_CR4_PVI | X86_CR4_TSD | X86_CR4_DE\
 			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE	\
-			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR	\
+			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_PCIDE \
 			  | X86_CR4_OSXSAVE \
 			  | X86_CR4_SMEP | X86_CR4_RDWRGSFS		\
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
@@ -158,11 +158,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 };
 
 u64 __read_mostly host_xcr0;
-
-static inline u32 bit(int bitno)
-{
-	return 1 << (bitno & 31);
-}
 
 static void kvm_on_user_return(struct user_return_notifier *urn)
 {
@@ -464,6 +459,9 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	}
 
+	if (!(cr0 & X86_CR0_PG) && vcpu->arch.cr4)
+		return 1;
+
 	kvm_x86_ops->set_cr0(vcpu, cr0);
 	vcpu->arch.cr0 = cr0;
 
@@ -584,6 +582,15 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		   && !load_pdptrs(vcpu, vcpu->arch.cr3))
 		return 1;
 
+	if ((cr4 & X86_CR4_PCIDE) && !(old_cr4 & X86_CR4_PCIDE)) {
+		if (!guest_cpuid_has_pcid(vcpu))
+			return 1;
+
+		/* PCID can not be enabled when cr3[11:0]!=000H or EFER.LMA=0 */
+		if ((vcpu->arch.cr3 & X86_CR3_PCID_MASK) || !is_long_mode(vcpu))
+			return 1;
+	}
+
 	if (cr4 & X86_CR4_VMXE)
 		return 1;
 	kvm_x86_ops->set_cr4(vcpu, cr4);
@@ -607,8 +614,12 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (cr3 & CR3_L_MODE_RESERVED_BITS)
-			return 1;
+		if (vcpu->arch.cr4 & X86_CR4_PCIDE) {
+			if (cr3 & CR3_PCID_ENABLED_RESERVED_BITS)
+				return 1;
+		} else
+			if (cr3 & CR3_L_MODE_RESERVED_BITS)
+				return 1;
 	} else {
 		if (is_pae(vcpu)) {
 			if (cr3 & CR3_PAE_RESERVED_BITS)
@@ -2055,6 +2066,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 #else
 	unsigned f_lm = 0;
 #endif
+	unsigned f_invpcid = kvm_x86_ops->invpcid_supported() ? F(INVPCID) : 0;
 
 	/* cpuid 1.edx */
 	const u32 kvm_supported_word0_x86_features =
@@ -2082,7 +2094,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		0 /* DS-CPL, VMX, SMX, EST */ |
 		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
 		F(FMA) | F(CX16) | 0 /* xTPR Update, PDCM */ |
-		0 /* Reserved, DCA */ | F(XMM4_1) |
+		F(PCID) | 0 /* Reserved, DCA */ | F(XMM4_1) |
 		F(XMM4_2) | F(X2APIC) | F(MOVBE) | F(POPCNT) |
 		0 /* Reserved*/ | F(AES) | F(XSAVE) | 0 /* OSXSAVE */ | F(AVX) |
 		F(F16C) | F(RDRAND);
@@ -2096,7 +2108,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	/* cpuid 7.0.ebx */
 	const u32 kvm_supported_word9_x86_features =
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
-		F(BMI2) | F(ERMS) | F(RTM);
+		F(BMI2) | F(ERMS) | f_invpcid | F(RTM);
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
@@ -4787,6 +4799,7 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 	}
 	return best;
 }
+EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
 int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 {

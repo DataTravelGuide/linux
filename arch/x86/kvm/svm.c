@@ -3341,6 +3341,11 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
 }
 
+static bool svm_invpcid_supported(void)
+{
+	return false;
+}
+
 static const struct trace_print_flags svm_exit_reasons_str[] = {
 	{ SVM_EXIT_READ_CR0,           		"read_cr0" },
 	{ SVM_EXIT_READ_CR3,	      		"read_cr3" },
@@ -3486,6 +3491,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.gb_page_enable = svm_gb_page_enable,
 
 	.cpuid_update = svm_cpuid_update,
+	.invpcid_supported = svm_invpcid_supported,
 
 	.set_tsc_khz = svm_set_tsc_khz,
 	.write_tsc_offset = svm_write_tsc_offset,
