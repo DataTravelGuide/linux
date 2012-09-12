@@ -3,4 +3,6 @@
 *.bin
 *.csp
 *.dsp
+*.ucode
+*.dat
 ihex2fw
