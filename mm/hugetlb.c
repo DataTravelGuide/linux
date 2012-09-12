@@ -2148,6 +2148,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 	int cow;
 	struct hstate *h = hstate_vma(vma);
 	unsigned long sz = huge_page_size(h);
+	bool shared = false;
 
 	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
 
@@ -2155,12 +2156,12 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 		src_pte = huge_pte_offset(src, addr);
 		if (!src_pte)
 			continue;
-		dst_pte = huge_pte_alloc(dst, addr, sz);
+		dst_pte = huge_pte_alloc(dst, addr, sz, &shared);
 		if (!dst_pte)
 			goto nomem;
 
 		/* If the pagetables are shared don't copy or take references */
-		if (dst_pte == src_pte)
+		if (shared)
 			continue;
 
 		spin_lock(&dst->page_table_lock);
@@ -2628,6 +2629,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *pagecache_page = NULL;
 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
 	struct hstate *h = hstate_vma(vma);
+	bool shared = false;
 
 	ptep = huge_pte_offset(mm, address);
 	if (ptep) {
@@ -2640,9 +2642,13 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			       VM_FAULT_SET_HINDEX(h - hstates);
 	}
 
-	ptep = huge_pte_alloc(mm, address, huge_page_size(h));
+	ptep = huge_pte_alloc(mm, address, huge_page_size(h), &shared);
 	if (!ptep)
 		return VM_FAULT_OOM;
+
+	/* If the pagetable is shared, no other work is necessary */
+	if (shared)
+		return 0;
 
 	/*
 	 * Serialize hugepage allocation and instantiation, so that we don't
