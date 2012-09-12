@@ -4345,6 +4345,10 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	return ret;
 }
 
+static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
+{
+}
+
 static const struct trace_print_flags vmx_exit_reasons_str[] = {
 	{ EXIT_REASON_EXCEPTION_NMI,           "exception" },
 	{ EXIT_REASON_EXTERNAL_INTERRUPT,      "ext_irq" },
@@ -4439,6 +4443,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.exit_reasons_str = vmx_exit_reasons_str,
 	.gb_page_enable = vmx_gb_page_enable,
+
+	.cpuid_update = vmx_cpuid_update,
 
 	.set_tsc_khz = vmx_set_tsc_khz,
 	.write_tsc_offset = vmx_write_tsc_offset,
