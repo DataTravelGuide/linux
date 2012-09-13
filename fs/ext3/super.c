@@ -1949,6 +1949,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sb->dq_op = &ext3_quota_operations;
 #endif
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
+	mutex_init(&sbi->s_resize_lock);
 
 	sb->s_root = NULL;
 
