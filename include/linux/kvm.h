@@ -456,6 +456,7 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_TSC_CONTROL 60
 #define KVM_CAP_GET_TSC_KHZ 61
+#define KVM_CAP_TSC_DEADLINE_TIMER 72
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
