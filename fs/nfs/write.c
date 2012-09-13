@@ -1524,6 +1524,17 @@ static const struct rpc_call_ops nfs_commit_ops = {
 	.rpc_release = nfs_commit_release,
 };
 
+static int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
+				   int how)
+{
+	int status;
+
+	status = pnfs_commit_list(inode, head, how);
+	if (status == PNFS_NOT_ATTEMPTED)
+		status = nfs_commit_list(inode, head, how);
+	return status;
+}
+
 int nfs_commit_inode(struct inode *inode, int how)
 {
 	LIST_HEAD(head);
@@ -1537,9 +1548,7 @@ int nfs_commit_inode(struct inode *inode, int how)
 	if (res) {
 		int error;
 
-		error = pnfs_commit_list(inode, &head, how);
-		if (error == PNFS_NOT_ATTEMPTED)
-			error = nfs_commit_list(inode, &head, how);
+		error = nfs_generic_commit_list(inode, &head, how);
 		if (error < 0)
 			return error;
 		if (!may_wait)
