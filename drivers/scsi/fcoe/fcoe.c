@@ -425,6 +425,42 @@ out:
 }
 
 /**
+ * fcoe_interface_release() - fcoe_port kref release function
+ * @kref: Embedded reference count in an fcoe_interface struct
+ */
+static void fcoe_interface_release(struct kref *kref)
+{
+	struct fcoe_interface *fcoe;
+	struct net_device *netdev;
+
+	fcoe = container_of(kref, struct fcoe_interface, kref);
+	netdev = fcoe->netdev;
+	/* tear-down the FCoE controller */
+	fcoe_ctlr_destroy(&fcoe->ctlr);
+	kfree(fcoe);
+	dev_put(netdev);
+	module_put(THIS_MODULE);
+}
+
+/**
+ * fcoe_interface_get() - Get a reference to a FCoE interface
+ * @fcoe: The FCoE interface to be held
+ */
+static inline void fcoe_interface_get(struct fcoe_interface *fcoe)
+{
+	kref_get(&fcoe->kref);
+}
+
+/**
+ * fcoe_interface_put() - Put a reference to a FCoE interface
+ * @fcoe: The FCoE interface to be released
+ */
+static inline void fcoe_interface_put(struct fcoe_interface *fcoe)
+{
+	kref_put(&fcoe->kref, fcoe_interface_release);
+}
+
+/**
  * fcoe_interface_cleanup() - Clean up a FCoE interface
  * @fcoe: The FCoE interface to be cleaned up
  *
@@ -436,6 +472,21 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
+	struct fcoe_port *port = lport_priv(fcoe->ctlr.lp);
+
+	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
+
+	/* Logout of the fabric */
+	fc_fabric_logoff(fcoe->ctlr.lp);
+
+	/* Cleanup the fc_lport */
+	fc_lport_destroy(fcoe->ctlr.lp);
+
+	/* Stop the transmit retry timer */
+	del_timer_sync(&port->timer);
+
+	/* Free existing transmit skbs */
+	fcoe_clean_pending_queue(fcoe->ctlr.lp);
 
 	rtnl_lock();
 
@@ -459,6 +510,9 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 		dev_mc_delete(netdev, FIP_ALL_P2P_MACS, ETH_ALEN, 0);
 	} else
 		dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+
+	if (!is_zero_ether_addr(port->data_src_addr))
+		dev_unicast_delete(netdev, port->data_src_addr);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
@@ -2032,13 +2086,18 @@ static int fcoe_destroy(struct net_device *netdev)
 	mutex_lock(&fcoe_config_mutex);
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
-	if (!fcoe)
-		return -ENODEV;
+	if (!fcoe) {
+		rtnl_unlock();
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+
 	lport = fcoe->ctlr.lp;
 	port = lport_priv(lport);
 	list_del(&fcoe->list);
 	rtnl_unlock();
 	fcoe_do_destroy(port);
+out_nodev:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
