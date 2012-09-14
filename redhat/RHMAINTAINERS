@@ -311,7 +311,7 @@ F:	include/linux/net.h
 F:	include/linux/netdevice.h
 
 NETXEN (1/10) GbE SUPPORT
-M:	Chad Dupuis <cdupius@redhat.com>
+M:	Chad Dupuis <cdupuis@redhat.com>
 M:	Tony Camuso <tcamuso@redhat.com>
 S:	Maintained
 F:	drivers/net/netxen/
@@ -353,18 +353,18 @@ S:	Maintained
 F:	drivers/pci/hotplug/
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
-M:	Chad Dupuis <cdupius@redhat.com>
+M:	Chad Dupuis <cdupuis@redhat.com>
 S:	Maintained
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
-M:	Chad Dupuis <cdupius@redhat.com>
+M:	Chad Dupuis <cdupuis@redhat.com>
 S:	Maintained
 F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/qla3xxx.*
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Chad Dupuis <cdupius@redhat.com>
+M:	Chad Dupuis <cdupuis@redhat.com>
 S:	Maintained
 F:	drivers/net/qlge/
 
