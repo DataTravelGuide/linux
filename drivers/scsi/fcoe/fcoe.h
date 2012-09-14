@@ -81,6 +81,7 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
+	struct kref	   kref;
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
