@@ -19,7 +19,6 @@
 	__copy_from_user_ll
 	__copy_to_user_ll
 	__create_workqueue_key
-	__dec_zone_page_state
 	__dev_get_by_index
 	__dev_get_by_name
 	__free_pages
@@ -27,7 +26,6 @@
 	__get_user_1
 	__get_user_2
 	__get_user_4
-	__inc_zone_page_state
 	__init_rwsem
 	__init_waitqueue_head
 	__insert_inode_hash
@@ -309,7 +307,6 @@
 	debugfs_create_file
 	debugfs_create_u8
 	debugfs_remove
-	dec_zone_page_state
 	default_wake_function
 	del_gendisk
 	del_timer
@@ -586,7 +583,6 @@
 	ilookup5
 	in_aton
 	in_dev_finish_destroy
-	inc_zone_page_state
 	inet_add_protocol
 	inet_addr_type
 	inet_del_protocol
