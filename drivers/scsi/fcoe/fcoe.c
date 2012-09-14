@@ -2124,11 +2124,8 @@ static void fcoe_do_destroy(struct fcoe_port *port)
 	fcoe_if_destroy(port->lport);
 
 	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv) {
-		rtnl_lock();
+	if (!npiv)
 		fcoe_interface_cleanup(fcoe);
-		rtnl_unlock();
-	}
 }
 
 static void fcoe_destroy_work(struct work_struct *work)
