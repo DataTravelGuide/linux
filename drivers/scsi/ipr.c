@@ -103,6 +103,7 @@ static DEFINE_SPINLOCK(ipr_driver_lock);
 static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	{ /* Gemstone, Citrine, Obsidian, and Obsidian-E */
 		.mailbox = 0x0042C,
+		.max_cmds = 100,
 		.cache_line_size = 0x20,
 		.clear_isr = 1,
 		{
@@ -126,6 +127,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	},
 	{ /* Snipe and Scamp */
 		.mailbox = 0x0052C,
+		.max_cmds = 100,
 		.cache_line_size = 0x20,
 		.clear_isr = 1,
 		{
@@ -149,6 +151,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	},
 	{ /* CRoC */
 		.mailbox = 0x00044,
+		.max_cmds = 1000,
 		.cache_line_size = 0x20,
 		.clear_isr = 0,
 		{
@@ -8284,6 +8287,10 @@ static void ipr_free_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 	if (ioa_cfg->ipr_cmd_pool)
 		pci_pool_destroy (ioa_cfg->ipr_cmd_pool);
 
+	kfree(ioa_cfg->ipr_cmnd_list);
+	kfree(ioa_cfg->ipr_cmnd_list_dma);
+	ioa_cfg->ipr_cmnd_list = NULL;
+	ioa_cfg->ipr_cmnd_list_dma = NULL;
 	ioa_cfg->ipr_cmd_pool = NULL;
 }
 
@@ -8363,6 +8370,14 @@ static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 
 	if (!ioa_cfg->ipr_cmd_pool)
 		return -ENOMEM;
+
+	ioa_cfg->ipr_cmnd_list = kcalloc(IPR_NUM_CMD_BLKS, sizeof(struct ipr_cmnd *), GFP_KERNEL);
+	ioa_cfg->ipr_cmnd_list_dma = kcalloc(IPR_NUM_CMD_BLKS, sizeof(dma_addr_t), GFP_KERNEL);
+
+	if (!ioa_cfg->ipr_cmnd_list || !ioa_cfg->ipr_cmnd_list_dma) {
+		ipr_free_cmd_blks(ioa_cfg);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < IPR_NUM_CMD_BLKS; i++) {
 		ipr_cmd = pci_pool_alloc (ioa_cfg->ipr_cmd_pool, GFP_KERNEL, &dma_addr);
@@ -8591,6 +8606,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	host->max_channel = IPR_MAX_BUS_TO_SCAN;
 	host->unique_id = host->host_no;
 	host->max_cmd_len = IPR_MAX_CDB_LEN;
+	host->can_queue = ioa_cfg->max_cmds;
 	pci_set_drvdata(pdev, ioa_cfg);
 
 	p = &ioa_cfg->chip_cfg->regs;
@@ -8775,6 +8791,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	ioa_cfg->sis64 = ioa_cfg->ipr_chip->sis_type == IPR_SIS64 ? 1 : 0;
 	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
 	ioa_cfg->clear_isr = ioa_cfg->chip_cfg->clear_isr;
+	ioa_cfg->max_cmds = ioa_cfg->chip_cfg->max_cmds;
 
 	if (ipr_transop_timeout)
 		ioa_cfg->transop_timeout = ipr_transop_timeout;
