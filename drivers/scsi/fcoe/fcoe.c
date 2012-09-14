@@ -435,42 +435,6 @@ out:
 }
 
 /**
- * fcoe_interface_release() - fcoe_port kref release function
- * @kref: Embedded reference count in an fcoe_interface struct
- */
-static void fcoe_interface_release(struct kref *kref)
-{
-	struct fcoe_interface *fcoe;
-	struct net_device *netdev;
-
-	fcoe = container_of(kref, struct fcoe_interface, kref);
-	netdev = fcoe->netdev;
-	/* tear-down the FCoE controller */
-	fcoe_ctlr_destroy(&fcoe->ctlr);
-	kfree(fcoe);
-	dev_put(netdev);
-	module_put(THIS_MODULE);
-}
-
-/**
- * fcoe_interface_get() - Get a reference to a FCoE interface
- * @fcoe: The FCoE interface to be held
- */
-static inline void fcoe_interface_get(struct fcoe_interface *fcoe)
-{
-	kref_get(&fcoe->kref);
-}
-
-/**
- * fcoe_interface_put() - Put a reference to a FCoE interface
- * @fcoe: The FCoE interface to be released
- */
-static inline void fcoe_interface_put(struct fcoe_interface *fcoe)
-{
-	kref_put(&fcoe->kref, fcoe_interface_release);
-}
-
-/**
  * fcoe_interface_cleanup() - Clean up a FCoE interface
  * @fcoe: The FCoE interface to be cleaned up
  *
@@ -2123,17 +2087,10 @@ out_nodev:
 static void fcoe_do_destroy(struct fcoe_port *port)
 {
 	struct fcoe_interface *fcoe;
-	int npiv = 0;
-
-	/* set if this is an NPIV port */
-	npiv = port->lport->vport ? 1 : 0;
 
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
-
-	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv)
-		fcoe_interface_cleanup(fcoe);
+	fcoe_interface_cleanup(fcoe);
 }
 
 static void fcoe_destroy_work(struct work_struct *work)
