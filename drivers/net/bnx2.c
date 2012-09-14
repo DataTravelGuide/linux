@@ -5381,7 +5381,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 			int k, last;
 
 			if (skb == NULL) {
-				j++;
+				j = NEXT_TX_BD(j);
 				continue;
 			}
 
@@ -5393,8 +5393,8 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 			tx_buf->skb = NULL;
 
 			last = tx_buf->nr_frags;
-			j++;
-			for (k = 0; k < last; k++, j++) {
+			j = NEXT_TX_BD(j);
+			for (k = 0; k < last; k++, j = NEXT_TX_BD(j)) {
 				tx_buf = &txr->tx_buf_ring[TX_RING_IDX(j)];
 				dma_unmap_page(&bp->pdev->dev,
 					pci_unmap_addr(tx_buf, mapping),
