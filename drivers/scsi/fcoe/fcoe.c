@@ -475,21 +475,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
-	struct fcoe_port *port = lport_priv(fcoe->ctlr.lp);
-
-	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
-
-	/* Logout of the fabric */
-	fc_fabric_logoff(fcoe->ctlr.lp);
-
-	/* Cleanup the fc_lport */
-	fc_lport_destroy(fcoe->ctlr.lp);
-
-	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
-
-	/* Free existing transmit skbs */
-	fcoe_clean_pending_queue(fcoe->ctlr.lp);
 
 	rtnl_lock();
 
@@ -513,9 +498,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 		dev_mc_delete(netdev, FIP_ALL_P2P_MACS, ETH_ALEN, 0);
 	} else
 		dev_mc_delete(netdev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
-
-	if (!is_zero_ether_addr(port->data_src_addr))
-		dev_unicast_delete(netdev, port->data_src_addr);
 
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
@@ -2112,8 +2094,8 @@ static int fcoe_destroy(struct net_device *netdev)
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
-		rtnl_unlock();
 		rc = -ENODEV;
+		rtnl_unlock();
 		goto out_nodev;
 	}
 
@@ -2134,10 +2116,20 @@ out_nodev:
 static void fcoe_do_destroy(struct fcoe_port *port)
 {
 	struct fcoe_interface *fcoe;
+	int npiv = 0;
+
+	/* set if this is an NPIV port */
+	npiv = port->lport->vport ? 1 : 0;
 
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
-	fcoe_interface_cleanup(fcoe);
+
+	/* Do not tear down the fcoe interface for NPIV port */
+	if (!npiv) {
+		rtnl_lock();
+		fcoe_interface_cleanup(fcoe);
+		rtnl_unlock();
+	}
 }
 
 static void fcoe_destroy_work(struct work_struct *work)
