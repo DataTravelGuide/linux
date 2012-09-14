@@ -1910,7 +1910,7 @@ static int fcoe_dcb_app_notification(struct notifier_block *notifier,
 	if (entry->app.selector != DCB_APP_IDTYPE_ETHTYPE)
 		return NOTIFY_OK;
 
-	netdev = dev_get_by_name(&init_net, entry->name);
+	netdev = dev_get_by_index(&init_net, entry->ifindex);
 	if (!netdev)
 		return NOTIFY_OK;
 
