@@ -6961,6 +6961,8 @@ struct bnx2 {
 	struct bnx2_irq		irq_tbl[BNX2_MAX_MSIX_VEC];
 	int			irq_nvecs;
 
+	u8			func;
+
 	u8			num_tx_rings;
 	u8			num_rx_rings;
 
