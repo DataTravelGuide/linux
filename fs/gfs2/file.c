@@ -376,8 +376,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	atomic_set(&ip->i_res->rs_sizehint,
-		   PAGE_CACHE_SIZE >> sdp->sd_sb.sb_bsize_shift);
+	gfs2_size_hint(inode, pos, PAGE_CACHE_SIZE);
 
 	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
 	if (ret)
@@ -639,7 +638,7 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (ret)
 		return ret;
 
-	atomic_set(&ip->i_res->rs_sizehint, writesize >> sdp->sd_sb.sb_bsize_shift);
+	gfs2_size_hint(file->f_dentry->d_inode, pos, writesize);
 	if (file->f_flags & O_APPEND) {
 		struct gfs2_holder gh;
 

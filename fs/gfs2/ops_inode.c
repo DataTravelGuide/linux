@@ -1448,7 +1448,7 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
-	atomic_set(&ip->i_res->rs_sizehint, len >> sdp->sd_sb.sb_bsize_shift);
+	gfs2_size_hint(inode, offset, len);
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
