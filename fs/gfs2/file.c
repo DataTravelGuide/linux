@@ -551,14 +551,14 @@ fail:
 }
 
 /**
- * gfs2_close - called to close a struct file
+ * gfs2_release - called to close a struct file
  * @inode: the inode the struct file belongs to
  * @file: the struct file being closed
  *
  * Returns: errno
  */
 
-static int gfs2_close(struct inode *inode, struct file *file)
+static int gfs2_release(struct inode *inode, struct file *file)
 {
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_file *fp;
@@ -789,7 +789,7 @@ const struct file_operations gfs2_file_fops = {
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
-	.release	= gfs2_close,
+	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
@@ -802,7 +802,7 @@ const struct file_operations gfs2_dir_fops = {
 	.readdir	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
-	.release	= gfs2_close,
+	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
@@ -819,7 +819,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
-	.release	= gfs2_close,
+	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
@@ -830,7 +830,7 @@ const struct file_operations gfs2_dir_fops_nolock = {
 	.readdir	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
-	.release	= gfs2_close,
+	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
 };
 
