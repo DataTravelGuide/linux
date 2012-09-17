@@ -355,7 +355,6 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned int data_blocks, ind_blocks, rblocks;
 	int alloc_required = 0;
 	struct gfs2_holder gh;
-	struct gfs2_qadata *qa;
 	loff_t size;
 	int ret;
 
@@ -390,14 +389,13 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto out_unlock;
 	}
 
-	ret = -ENOMEM;
-	qa = gfs2_qadata_get(ip);
-	if (qa == NULL)
+	ret = gfs2_rindex_update(sdp);
+	if (ret)
 		goto out_unlock;
 
 	ret = gfs2_quota_lock_check(ip);
 	if (ret)
-		goto out_alloc_put;
+		goto out_unlock;
 	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
 	ret = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
 	if (ret)
@@ -444,8 +442,6 @@ out_trans_fail:
 	gfs2_inplace_release(ip);
 out_quota_unlock:
 	gfs2_quota_unlock(ip);
-out_alloc_put:
-	gfs2_qadata_put(ip);
 out_unlock:
 	gfs2_glock_dq(&gh);
 out:

@@ -644,12 +644,10 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	int error;
 
 	munge_mode_uid_gid(dip, &mode, &uid, &gid);
-	if (!gfs2_qadata_get(dip))
-		return -ENOMEM;
 
 	error = gfs2_quota_lock(dip, uid, gid);
 	if (error)
-		goto out;
+		return error;
 
 	error = gfs2_quota_check(dip, uid, gid);
 	if (error)
@@ -665,8 +663,6 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 
 out_quota:
 	gfs2_quota_unlock(dip);
-out:
-	gfs2_qadata_put(dip);
 	return error;
 }
 
@@ -674,14 +670,13 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
-	struct gfs2_qadata *qa;
 	int alloc_required;
 	struct buffer_head *dibh;
 	int error;
 
-	qa = gfs2_qadata_get(dip);
-	if (!qa)
-		return -ENOMEM;
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
 
 	error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)
@@ -734,7 +729,6 @@ fail_quota_locks:
 	gfs2_quota_unlock(dip);
 
 fail:
-	gfs2_qadata_put(dip);
 	return error;
 }
 
