@@ -1386,7 +1386,8 @@ static void calc_max_reserv(struct gfs2_inode *ip, loff_t max, loff_t *len,
 			    unsigned int *data_blocks, unsigned int *ind_blocks)
 {
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int max_blocks = ip->i_rgd->rd_free_clone;
+	unsigned int max_blocks = ip->i_rgd->rd_free_clone -
+		ip->i_rgd->rd_reserved + (ip->i_res ? ip->i_res->rs_free : 0);
 	unsigned int tmp, max_data = max_blocks - 3 * (sdp->sd_max_height - 1);
 
 	for (tmp = max_data; tmp > sdp->sd_diptrs;) {
@@ -1420,6 +1421,10 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	loff_t max_chunk_size = UINT_MAX & bsize_mask;
 	next = (next + 1) << sdp->sd_sb.sb_bsize_shift;
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	offset &= bsize_mask;
 
 	len = next - offset;
@@ -1430,11 +1435,6 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	if (bytes == 0)
 		bytes = sdp->sd_sb.sb_bsize;
 
-	error = gfs2_rindex_update(sdp);
-	if (error) {
-		fs_warn(sdp, "rindex update returns %d\n", error);
-		return error;
-	}
 	error = gfs2_rs_alloc(ip);
 	if (error)
 		return error;
@@ -1444,6 +1444,7 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 	if (unlikely(error))
 		goto out_uninit;
 
+	atomic_set(&ip->i_res->rs_sizehint, len >> sdp->sd_sb.sb_bsize_shift);
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;

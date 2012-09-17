@@ -376,6 +376,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
+	atomic_set(&ip->i_res->rs_sizehint,
+		   PAGE_CACHE_SIZE >> sdp->sd_sb.sb_bsize_shift);
+
 	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
 	if (ret)
 		goto out_unlock;
@@ -560,28 +563,23 @@ fail:
 
 static int gfs2_release(struct inode *inode, struct file *file)
 {
-	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
-	struct gfs2_file *fp;
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	fp = file->private_data;
+	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if ((file->f_mode & FMODE_WRITE) && ip->i_res &&
+	if ((file->f_mode & FMODE_WRITE) &&
 	    (atomic_read(&inode->i_writecount) == 1))
 		gfs2_rs_delete(ip);
-
-	if (gfs2_assert_warn(sdp, fp))
-		return -EIO;
-
-	kfree(fp);
 
 	return 0;
 }
 
 /**
  * gfs2_fsync - sync the dirty data for a file (across the cluster)
- * @file: the file that points to the dentry (we ignore this)
+ * @file: the file that points to the dentry
+ * @start: the start position in the file to sync
+ * @end: the end position in the file to sync
  * @datasync: set if we can ignore timestamp changes
  *
  * The VFS will flush data for us. We only need to worry
@@ -630,14 +628,18 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				   unsigned long nr_segs, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
+	size_t writesize = iov_length(iov, nr_segs);
 	struct dentry *dentry = file->f_dentry;
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_sbd *sdp;
 	int ret;
 
+	sdp = GFS2_SB(file->f_mapping->host);
 	ret = gfs2_rs_alloc(ip);
 	if (ret)
 		return ret;
 
+	atomic_set(&ip->i_res->rs_sizehint, writesize >> sdp->sd_sb.sb_bsize_shift);
 	if (file->f_flags & O_APPEND) {
 		struct gfs2_holder gh;
 

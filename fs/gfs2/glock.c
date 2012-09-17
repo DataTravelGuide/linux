@@ -725,7 +725,8 @@ static void glock_work_func(struct work_struct *work)
 	if (!delay)
 		gfs2_glock_put(gl);
 	else {
-		if (gl->gl_name.ln_type != LM_TYPE_INODE)
+		if (gl->gl_name.ln_type != LM_TYPE_INODE ||
+		    gl->gl_sbd->sd_lockstruct.ls_ops->lm_lock == NULL)
 			delay = 0;
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, delay) == 0)
 			gfs2_glock_put(gl);
@@ -1151,7 +1152,8 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	gfs2_glock_hold(gl);
 	if (test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    !test_bit(GLF_DEMOTE, &gl->gl_flags) &&
-	    gl->gl_name.ln_type == LM_TYPE_INODE)
+	    gl->gl_name.ln_type == LM_TYPE_INODE &&
+	    gl->gl_sbd->sd_lockstruct.ls_ops->lm_lock != NULL)
 		delay = gl->gl_hold_time;
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, delay) == 0)
 		gfs2_glock_put(gl);
@@ -1333,7 +1335,8 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	gfs2_glock_hold(gl);
 	holdtime = gl->gl_tchange + gl->gl_hold_time;
 	if (test_bit(GLF_QUEUED, &gl->gl_flags) &&
-	    gl->gl_name.ln_type == LM_TYPE_INODE) {
+	    gl->gl_name.ln_type == LM_TYPE_INODE &&
+	    gl->gl_sbd->sd_lockstruct.ls_ops->lm_lock != NULL) {
 		if (time_before(now, holdtime))
 			delay = holdtime - now;
 		if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags))

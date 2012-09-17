@@ -335,9 +335,11 @@ static inline void release_metapath(struct metapath *mp)
  * Returns: The length of the extent (minimum of one block)
  */
 
-static inline unsigned int gfs2_extent_length(void *start, unsigned int len, __be64 *ptr, unsigned limit, int *eob)
+static inline unsigned int gfs2_extent_length(struct buffer_head *bh,
+					      __be64 *ptr, unsigned limit,
+					      int *eob)
 {
-	const __be64 *end = (start + len);
+	const __be64 *end = (const __be64 *)(bh->b_data + bh->b_size);
 	const __be64 *first = ptr;
 	u64 d = be64_to_cpu(*ptr);
 
@@ -452,8 +454,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 		/* Bottom indirect block exists, find unalloced extent size */
 		ptr = metapointer(end_of_metadata, mp);
 		bh = mp->mp_bh[end_of_metadata];
-		dblks = gfs2_extent_length(bh->b_data, bh->b_size, ptr, maxlen,
-					   &eob);
+		dblks = gfs2_extent_length(bh, ptr, maxlen, &eob);
 		BUG_ON(dblks < 1);
 		state = ALLOC_DATA;
 	} else {
@@ -627,7 +628,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		goto do_alloc;
 	map_bh(bh_map, inode->i_sb, be64_to_cpu(*ptr));
 	bh = mp.mp_bh[ip->i_height - 1];
-	len = gfs2_extent_length(bh->b_data, bh->b_size, ptr, maxlen, &eob);
+	len = gfs2_extent_length(bh, ptr, maxlen, &eob);
 	bh_map->b_size = (len << inode->i_blkbits);
 	if (eob)
 		set_buffer_boundary(bh_map);
@@ -785,6 +786,9 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	error = gfs2_glock_nq_m(rlist.rl_rgrps, rlist.rl_ghs);
 	if (error)
 		goto out_rlist;
+
+	if (gfs2_rs_active(ip->i_res)) /* needs to be done with the rgrp glock held */
+		gfs2_rs_deltree(ip->i_res);
 
 	error = gfs2_trans_begin(sdp, rg_blocks + RES_DINODE +
 				 RES_INDIRECT + RES_STATFS + RES_QUOTA,
@@ -1027,7 +1031,6 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	truncate_pagecache(inode, oldsize, newsize);
 out_brelse:
 	brelse(dibh);
-
 out:
 	gfs2_trans_end(sdp);
 	return error;
@@ -1157,7 +1160,7 @@ void gfs2_trim_blocks(struct inode *inode)
  * earlier versions of GFS2 have a bug in the stuffed file reading
  * code which will result in a buffer overrun if the size is larger
  * than the max stuffed file size. In order to prevent this from
- * occuring, such files are unstuffed, but in other cases we can
+ * occurring, such files are unstuffed, but in other cases we can
  * just update the inode size directly.
  *
  * Returns: 0 on success, or -ve on error

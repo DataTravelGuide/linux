@@ -660,7 +660,7 @@ out:
  * @sdp: the file system
  *
  * This function flushes data and meta data for all machines by
- * aquiring the transaction log exclusively.  All journals are
+ * acquiring the transaction log exclusively.  All journals are
  * ensured to be in a clean state as well.
  *
  * Returns: errno
@@ -1441,9 +1441,9 @@ out_qs:
 
 static void gfs2_delete_inode(struct inode *inode)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
 	struct super_block *sb = inode->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
 
@@ -1515,6 +1515,9 @@ out_truncate:
 
 out_unlock:
 	/* Error path for case 1 */
+	if (gfs2_rs_active(ip->i_res))
+		gfs2_rs_deltree(ip->i_res);
+
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
 		gfs2_glock_dq(&ip->i_iopen_gh);
 	gfs2_holder_uninit(&ip->i_iopen_gh);
