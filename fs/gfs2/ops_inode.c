@@ -1153,29 +1153,6 @@ int gfs2_permission(struct inode *inode, int mask)
 	return error;
 }
 
-static int setattr_size(struct inode *inode, struct iattr *attr)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	int error;
-
-	if (attr->ia_size != ip->i_disksize) {
-		error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
-		if (error)
-			return error;
-		error = vmtruncate(inode, attr->ia_size);
-		gfs2_trans_end(sdp);
-		if (error) 
-			return error;
-	}
-
-	error = gfs2_truncatei(ip, attr->ia_size);
-	if (error && (inode->i_size != ip->i_disksize))
-		i_size_write(inode, ip->i_disksize);
-
-	return error;
-}
-
 static int setattr_chown(struct inode *inode, struct iattr *attr)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -1268,7 +1245,7 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		goto out;
 
 	if (attr->ia_valid & ATTR_SIZE)
-		error = setattr_size(inode, attr);
+		error = gfs2_setattr_size(inode, attr->ia_size);
 	else if (attr->ia_valid & (ATTR_UID | ATTR_GID))
 		error = setattr_chown(inode, attr);
 	else if ((attr->ia_valid & ATTR_MODE) && IS_POSIXACL(inode))

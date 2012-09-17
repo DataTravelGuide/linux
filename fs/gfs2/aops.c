@@ -714,8 +714,11 @@ out:
 
 	unlock_page(page);
 	page_cache_release(page);
+	gfs2_trans_end(sdp);
 	if (pos + len > ip->i_inode.i_size)
-		vmtruncate(&ip->i_inode, ip->i_inode.i_size);
+		gfs2_trim_blocks(&ip->i_inode);
+	goto out_trans_fail;
+
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:
