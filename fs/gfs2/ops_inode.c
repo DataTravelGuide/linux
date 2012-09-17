@@ -431,7 +431,8 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	}
 
 	gfs2_trans_end(sdp);
-	gfs2_inplace_release(dip);
+	if (gfs2_mb_reserved(dip))
+		gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_qadata_put(dip);
 
@@ -506,7 +507,8 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	gfs2_assert_withdraw(sdp, !error); /* dip already pinned */
 
 	gfs2_trans_end(sdp);
-	gfs2_inplace_release(dip);
+	if (gfs2_mb_reserved(dip))
+		gfs2_inplace_release(dip);
 	gfs2_quota_unlock(dip);
 	gfs2_qadata_put(dip);
 
@@ -1455,6 +1457,10 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 		fs_warn(sdp, "rindex update returns %d\n", error);
 		return error;
 	}
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		return error;
+
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
 	error = gfs2_glock_nq(&ip->i_gh);
 	if (unlikely(error))

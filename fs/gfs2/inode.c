@@ -792,6 +792,10 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
 
+	error = gfs2_rs_alloc(dip);
+	if (error)
+		return ERR_PTR(error);
+
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, ghs);
 	error = gfs2_glock_nq(ghs);
 	if (error)
@@ -821,6 +825,11 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 		goto fail_gunlock2;
 
 	error = gfs2_inode_refresh(GFS2_I(inode));
+	if (error)
+		goto fail_gunlock2;
+
+	/* the new inode needs a reservation so it can allocate xattrs. */
+	error = gfs2_rs_alloc(GFS2_I(inode));
 	if (error)
 		goto fail_gunlock2;
 
