@@ -813,7 +813,7 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 	atomic_inc(&qhp->refcnt);
 	spin_unlock(&qhp->lock);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock(&rchp->lock);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
@@ -827,7 +827,7 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 		spin_unlock(&rchp->comp_handler_lock);
 	}
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock(&schp->lock);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);
