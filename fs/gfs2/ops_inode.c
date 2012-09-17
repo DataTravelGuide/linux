@@ -419,7 +419,6 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 	ip = ghs[1].gh_gl->gl_object;
 
-	ip->i_disksize = size;
 	i_size_write(inode, size);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
@@ -473,7 +472,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ip = ghs[1].gh_gl->gl_object;
 
 	ip->i_inode.i_nlink = 2;
-	ip->i_disksize = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+	i_size_write(inode, sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode));
 	ip->i_diskflags |= GFS2_DIF_JDATA;
 	ip->i_entries = 2;
 
@@ -1013,7 +1012,7 @@ static int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
 {
 	struct gfs2_holder i_gh;
 	struct buffer_head *dibh;
-	unsigned int x;
+	unsigned int x, size;
 	int error;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
@@ -1023,7 +1022,8 @@ static int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
 		return error;
 	}
 
-	if (!ip->i_disksize) {
+	size = (unsigned int)i_size_read(&ip->i_inode);
+	if (size == 0) {
 		gfs2_consist_inode(ip);
 		error = -EIO;
 		goto out;
@@ -1033,7 +1033,7 @@ static int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
 	if (error)
 		goto out;
 
-	x = ip->i_disksize + 1;
+	x = size + 1;
 	if (x > *len) {
 		*buf = kmalloc(x, GFP_NOFS);
 		if (!*buf) {
@@ -1391,10 +1391,8 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 			goto out;
 		}
 	}
-	if (offset + size > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE)) {
+	if (offset + size > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
 		i_size_write(inode, offset + size);
-		ip->i_disksize = inode->i_size;
-	}
 	gfs2_dinode_out(ip, dibh->b_data);
 	mark_inode_dirty(inode);
 

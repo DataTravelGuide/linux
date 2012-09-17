@@ -818,10 +818,8 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	page_cache_release(page);
 
 	if (copied) {
-		if (inode->i_size < to) {
+		if (inode->i_size < to)
 			i_size_write(inode, to);
-			ip->i_disksize = inode->i_size;
-		}
 		gfs2_dinode_out(ip, di);
 		mark_inode_dirty(inode);
 	}
@@ -894,8 +892,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	/* inlined bits of generic_write_end to avoid marking the inode dirty
 	   a second time: */
 	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-	if (pos + ret > ip->i_disksize) {
-		ip->i_disksize = pos + ret;
+	if (pos + ret > inode->i_size) {
 		i_size_write(inode, pos + ret);
 		i_size_changed = 1;
 	}
