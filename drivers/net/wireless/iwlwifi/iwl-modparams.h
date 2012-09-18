@@ -60,60 +60,67 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-agn-hw.h) only for hardware-related definitions.
+#ifndef __iwl_modparams_h__
+#define __iwl_modparams_h__
+
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/gfp.h>
+#include <net/mac80211.h>
+
+extern struct iwl_mod_params iwlwifi_mod_params;
+
+enum iwl_power_level {
+	IWL_POWER_INDEX_1,
+	IWL_POWER_INDEX_2,
+	IWL_POWER_INDEX_3,
+	IWL_POWER_INDEX_4,
+	IWL_POWER_INDEX_5,
+	IWL_POWER_NUM
+};
+
+#define IWL_DISABLE_HT_ALL	BIT(0)
+#define IWL_DISABLE_HT_TXAGG	BIT(1)
+#define IWL_DISABLE_HT_RXAGG	BIT(2)
+
+/**
+ * struct iwl_mod_params
+ *
+ * Holds the module parameters
+ *
+ * @sw_crypto: using hardware encryption, default = 0
+ * @disable_11n: disable 11n capabilities, default = 0,
+ *	use IWL_DISABLE_HT_* constants
+ * @amsdu_size_8K: enable 8K amsdu size, default = 1
+ * @restart_fw: restart firmware, default = 1
+ * @plcp_check: enable plcp health check, default = true
+ * @wd_disable: enable stuck queue check, default = 0
+ * @bt_coex_active: enable bt coex, default = true
+ * @led_mode: system default, default = 0
+ * @power_save: disable power save, default = false
+ * @power_level: power level, default = 1
+ * @debug_level: levels are IWL_DL_*
+ * @ant_coupling: antenna coupling in dB, default = 0
+ * @bt_ch_announce: BT channel inhibition, default = enable
+ * @auto_agg: enable agg. without check, default = true
+ * @disable_5ghz: disable 5GHz capability, default = false
  */
+struct iwl_mod_params {
+	int sw_crypto;
+	unsigned int disable_11n;
+	int amsdu_size_8K;
+	int restart_fw;
+	bool plcp_check;
+	int  wd_disable;
+	bool bt_coex_active;
+	int led_mode;
+	bool power_save;
+	int power_level;
+	u32 debug_level;
+	int ant_coupling;
+	bool bt_ch_announce;
+	bool auto_agg;
+	bool disable_5ghz;
+};
 
-#ifndef __iwl_agn_hw_h__
-#define __iwl_agn_hw_h__
-
-#define IWLAGN_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWLAGN_RTC_INST_UPPER_BOUND		(0x020000)
-
-#define IWLAGN_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWLAGN_RTC_DATA_UPPER_BOUND		(0x80C000)
-
-#define IWLAGN_RTC_INST_SIZE (IWLAGN_RTC_INST_UPPER_BOUND - \
-				IWLAGN_RTC_INST_LOWER_BOUND)
-#define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
-				IWLAGN_RTC_DATA_LOWER_BOUND)
-
-#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
-#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
-#define IWL60_RTC_INST_SIZE \
-	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
-#define IWL60_RTC_DATA_SIZE \
-	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
-
-/* RSSI to dBm */
-#define IWLAGN_RSSI_OFFSET	44
-
-#define IWLAGN_DEFAULT_TX_RETRY			15
-#define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
-#define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_LOW_RETRY_LIMIT			7
-
-/* Limit range of txpower output target to be between these values */
-#define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-#define IWLAGN_TX_POWER_TARGET_POWER_MAX	(16)	/* 16 dBm */
-
-/* EEPROM */
-#define IWLAGN_EEPROM_IMG_SIZE		2048
-/* OTP */
-/* lower blocks contain EEPROM image and calibration data */
-#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
-/* high blocks contain PAPD data */
-#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
-#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
-#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
-#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
-#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
-#define OTP_MAX_LL_ITEMS_2x00		(4)	/* OTP blocks for 2x00 */
-
-
-#define IWLAGN_NUM_QUEUES		20
-
-#endif /* __iwl_agn_hw_h__ */
+#endif /* #__iwl_modparams_h__ */

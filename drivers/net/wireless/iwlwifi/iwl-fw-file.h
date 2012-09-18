@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,62 +58,99 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  *****************************************************************************/
+
+#ifndef __iwl_fw_file_h__
+#define __iwl_fw_file_h__
+
+#include <linux/netdevice.h>
+
+/* v1/v2 uCode file layout */
+struct iwl_ucode_header {
+	__le32 ver;	/* major/minor/API/serial */
+	union {
+		struct {
+			__le32 inst_size;	/* bytes of runtime code */
+			__le32 data_size;	/* bytes of runtime data */
+			__le32 init_size;	/* bytes of init code */
+			__le32 init_data_size;	/* bytes of init data */
+			__le32 boot_size;	/* bytes of bootstrap code */
+			u8 data[0];		/* in same order as sizes */
+		} v1;
+		struct {
+			__le32 build;		/* build number */
+			__le32 inst_size;	/* bytes of runtime code */
+			__le32 data_size;	/* bytes of runtime data */
+			__le32 init_size;	/* bytes of init code */
+			__le32 init_data_size;	/* bytes of init data */
+			__le32 boot_size;	/* bytes of bootstrap code */
+			u8 data[0];		/* in same order as sizes */
+		} v2;
+	} u;
+};
+
 /*
- * Please use this file (iwl-agn-hw.h) only for hardware-related definitions.
+ * new TLV uCode file layout
+ *
+ * The new TLV file format contains TLVs, that each specify
+ * some piece of data.
  */
 
-#ifndef __iwl_agn_hw_h__
-#define __iwl_agn_hw_h__
+enum iwl_ucode_tlv_type {
+	IWL_UCODE_TLV_INVALID		= 0, /* unused */
+	IWL_UCODE_TLV_INST		= 1,
+	IWL_UCODE_TLV_DATA		= 2,
+	IWL_UCODE_TLV_INIT		= 3,
+	IWL_UCODE_TLV_INIT_DATA		= 4,
+	IWL_UCODE_TLV_BOOT		= 5,
+	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+	IWL_UCODE_TLV_PAN		= 7,
+	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
+	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
+	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
+	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
+	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
+	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
+	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
+	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
+	IWL_UCODE_TLV_WOWLAN_INST	= 16,
+	IWL_UCODE_TLV_WOWLAN_DATA	= 17,
+	IWL_UCODE_TLV_FLAGS		= 18,
+	IWL_UCODE_TLV_SEC_RT		= 19,
+	IWL_UCODE_TLV_SEC_INIT		= 20,
+	IWL_UCODE_TLV_SEC_WOWLAN	= 21,
+	IWL_UCODE_TLV_DEF_CALIB		= 22,
+	IWL_UCODE_TLV_PHY_SKU		= 23,
+};
 
-#define IWLAGN_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWLAGN_RTC_INST_UPPER_BOUND		(0x020000)
+struct iwl_ucode_tlv {
+	__le32 type;		/* see above */
+	__le32 length;		/* not including type/length fields */
+	u8 data[0];
+};
 
-#define IWLAGN_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWLAGN_RTC_DATA_UPPER_BOUND		(0x80C000)
+#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
 
-#define IWLAGN_RTC_INST_SIZE (IWLAGN_RTC_INST_UPPER_BOUND - \
-				IWLAGN_RTC_INST_LOWER_BOUND)
-#define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
-				IWLAGN_RTC_DATA_LOWER_BOUND)
+struct iwl_tlv_ucode_header {
+	/*
+	 * The TLV style ucode header is distinguished from
+	 * the v1/v2 style header by first four bytes being
+	 * zero, as such is an invalid combination of
+	 * major/minor/API/serial versions.
+	 */
+	__le32 zero;
+	__le32 magic;
+	u8 human_readable[64];
+	__le32 ver;		/* major/minor/API/serial */
+	__le32 build;
+	__le64 ignore;
+	/*
+	 * The data contained herein has a TLV layout,
+	 * see above for the TLV header and types.
+	 * Note that each TLV is padded to a length
+	 * that is a multiple of 4 for alignment.
+	 */
+	u8 data[0];
+};
 
-#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
-#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
-#define IWL60_RTC_INST_SIZE \
-	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
-#define IWL60_RTC_DATA_SIZE \
-	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
-
-/* RSSI to dBm */
-#define IWLAGN_RSSI_OFFSET	44
-
-#define IWLAGN_DEFAULT_TX_RETRY			15
-#define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
-#define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_LOW_RETRY_LIMIT			7
-
-/* Limit range of txpower output target to be between these values */
-#define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-#define IWLAGN_TX_POWER_TARGET_POWER_MAX	(16)	/* 16 dBm */
-
-/* EEPROM */
-#define IWLAGN_EEPROM_IMG_SIZE		2048
-/* OTP */
-/* lower blocks contain EEPROM image and calibration data */
-#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
-/* high blocks contain PAPD data */
-#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
-#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
-#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
-#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
-#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
-#define OTP_MAX_LL_ITEMS_2x00		(4)	/* OTP blocks for 2x00 */
-
-
-#define IWLAGN_NUM_QUEUES		20
-
-#endif /* __iwl_agn_hw_h__ */
+#endif  /* __iwl_fw_file_h__ */

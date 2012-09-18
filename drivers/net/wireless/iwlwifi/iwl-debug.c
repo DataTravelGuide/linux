@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,60 +60,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-agn-hw.h) only for hardware-related definitions.
- */
 
-#ifndef __iwl_agn_hw_h__
-#define __iwl_agn_hw_h__
+#include <linux/interrupt.h>
+#include "iwl-debug.h"
+#include "iwl-devtrace.h"
 
-#define IWLAGN_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWLAGN_RTC_INST_UPPER_BOUND		(0x020000)
+#define __iwl_fn(fn)						\
+void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
+{								\
+	struct va_format vaf = {				\
+		.fmt = fmt,					\
+	};							\
+	va_list args;						\
+								\
+	va_start(args, fmt);					\
+	vaf.va = &args;						\
+	dev_ ##fn(dev, "%pV", &vaf);				\
+	trace_iwlwifi_ ##fn(&vaf);				\
+	va_end(args);						\
+}
 
-#define IWLAGN_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWLAGN_RTC_DATA_UPPER_BOUND		(0x80C000)
+__iwl_fn(warn)
+__iwl_fn(info)
+__iwl_fn(crit)
 
-#define IWLAGN_RTC_INST_SIZE (IWLAGN_RTC_INST_UPPER_BOUND - \
-				IWLAGN_RTC_INST_LOWER_BOUND)
-#define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
-				IWLAGN_RTC_DATA_LOWER_BOUND)
+void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
+		const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
 
-#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
-#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
-#define IWL60_RTC_INST_SIZE \
-	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
-#define IWL60_RTC_DATA_SIZE \
-	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
+	va_start(args, fmt);
+	vaf.va = &args;
+	if (!trace_only) {
+		if (rfkill_prefix)
+			dev_err(dev, "(RFKILL) %pV", &vaf);
+		else
+			dev_err(dev, "%pV", &vaf);
+	}
+	trace_iwlwifi_err(&vaf);
+	va_end(args);
+}
 
-/* RSSI to dBm */
-#define IWLAGN_RSSI_OFFSET	44
+#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+void __iwl_dbg(struct device *dev,
+	       u32 level, bool limit, const char *function,
+	       const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
 
-#define IWLAGN_DEFAULT_TX_RETRY			15
-#define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
-#define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_LOW_RETRY_LIMIT			7
-
-/* Limit range of txpower output target to be between these values */
-#define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-#define IWLAGN_TX_POWER_TARGET_POWER_MAX	(16)	/* 16 dBm */
-
-/* EEPROM */
-#define IWLAGN_EEPROM_IMG_SIZE		2048
-/* OTP */
-/* lower blocks contain EEPROM image and calibration data */
-#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
-/* high blocks contain PAPD data */
-#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
-#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
-#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
-#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
-#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
-#define OTP_MAX_LL_ITEMS_2x00		(4)	/* OTP blocks for 2x00 */
-
-
-#define IWLAGN_NUM_QUEUES		20
-
-#endif /* __iwl_agn_hw_h__ */
+	va_start(args, fmt);
+	vaf.va = &args;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_have_debug_level(level) &&
+	    (!limit || net_ratelimit()))
+		dev_err(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
+			function, &vaf);
+#endif
+	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
+	va_end(args);
+}
+#endif

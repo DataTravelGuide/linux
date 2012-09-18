@@ -41,7 +41,6 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
  *    distribution.
  *  * Neither the name Intel Corporation nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -60,60 +59,80 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-/*
- * Please use this file (iwl-agn-hw.h) only for hardware-related definitions.
+#ifndef __iwl_notif_wait_h__
+#define __iwl_notif_wait_h__
+
+#include <linux/wait.h>
+
+#include "iwl-trans.h"
+
+struct iwl_notif_wait_data {
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
+};
+
+#define MAX_NOTIF_CMDS	5
+
+/**
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: Function called with the notification. If the function
+ *	returns true, the wait is over, if it returns false then
+ *	the waiter stays blocked. If no function is given, any
+ *	of the listed commands will unblock the waiter.
+ * @cmds: command IDs
+ * @n_cmds: number of command IDs
+ * @triggered: waiter should be woken up
+ * @aborted: wait was aborted
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
  */
+struct iwl_notification_wait {
+	struct list_head list;
 
-#ifndef __iwl_agn_hw_h__
-#define __iwl_agn_hw_h__
+	bool (*fn)(struct iwl_notif_wait_data *notif_data,
+		   struct iwl_rx_packet *pkt, void *data);
+	void *fn_data;
 
-#define IWLAGN_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWLAGN_RTC_INST_UPPER_BOUND		(0x020000)
-
-#define IWLAGN_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWLAGN_RTC_DATA_UPPER_BOUND		(0x80C000)
-
-#define IWLAGN_RTC_INST_SIZE (IWLAGN_RTC_INST_UPPER_BOUND - \
-				IWLAGN_RTC_INST_LOWER_BOUND)
-#define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
-				IWLAGN_RTC_DATA_LOWER_BOUND)
-
-#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
-#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
-#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
-#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
-#define IWL60_RTC_INST_SIZE \
-	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
-#define IWL60_RTC_DATA_SIZE \
-	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
-
-/* RSSI to dBm */
-#define IWLAGN_RSSI_OFFSET	44
-
-#define IWLAGN_DEFAULT_TX_RETRY			15
-#define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
-#define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
-#define IWLAGN_LOW_RETRY_LIMIT			7
-
-/* Limit range of txpower output target to be between these values */
-#define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
-#define IWLAGN_TX_POWER_TARGET_POWER_MAX	(16)	/* 16 dBm */
-
-/* EEPROM */
-#define IWLAGN_EEPROM_IMG_SIZE		2048
-/* OTP */
-/* lower blocks contain EEPROM image and calibration data */
-#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
-/* high blocks contain PAPD data */
-#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
-#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
-#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
-#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
-#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
-#define OTP_MAX_LL_ITEMS_2x00		(4)	/* OTP blocks for 2x00 */
+	u8 cmds[MAX_NOTIF_CMDS];
+	u8 n_cmds;
+	bool triggered, aborted;
+};
 
 
-#define IWLAGN_NUM_QUEUES		20
+/* caller functions */
+void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_data);
+void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
+				  struct iwl_rx_packet *pkt);
+void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
 
-#endif /* __iwl_agn_hw_h__ */
+/* user functions */
+void __acquires(wait_entry)
+iwl_init_notification_wait(struct iwl_notif_wait_data *notif_data,
+			   struct iwl_notification_wait *wait_entry,
+			   const u8 *cmds, int n_cmds,
+			   bool (*fn)(struct iwl_notif_wait_data *notif_data,
+				      struct iwl_rx_packet *pkt, void *data),
+			   void *fn_data);
+
+int __must_check __releases(wait_entry)
+iwl_wait_notification(struct iwl_notif_wait_data *notif_data,
+		      struct iwl_notification_wait *wait_entry,
+		      unsigned long timeout);
+
+void __releases(wait_entry)
+iwl_remove_notification(struct iwl_notif_wait_data *notif_data,
+			struct iwl_notification_wait *wait_entry);
+
+#endif /* __iwl_notif_wait_h__ */
