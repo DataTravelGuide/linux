@@ -655,7 +655,9 @@ struct  ethtool_ops_ext {
 	int	(*get_module_eeprom)(struct net_device *,
 				     struct ethtool_eeprom *, u8 *);
 	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
+	int	(*reset)(struct net_device *, u32 *);
 };
+
 #endif /* __KERNEL__ */
 
 /* CMDs currently supported */
@@ -714,6 +716,7 @@ struct  ethtool_ops_ext {
 #define	ETHTOOL_SRXCLSRLDEL	0x00000031 /* Delete RX classification rule */
 #define	ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
 #define	ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
+#define	ETHTOOL_RESET		0x00000034 /* Reset hardware */
 
 #define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
 #define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */

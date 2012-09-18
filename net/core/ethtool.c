@@ -324,6 +324,26 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	return ret;
 }
 
+static int ethtool_reset(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value reset;
+	int ret;
+	
+	if (!GET_ETHTOOL_OP_EXT(dev, reset))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&reset, useraddr, sizeof(reset)))
+		return -EFAULT;
+
+	ret = GET_ETHTOOL_OP_EXT(dev, reset)(dev, &reset.data);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(useraddr, &reset, sizeof(reset)))
+		return -EFAULT;
+	return 0;
+}
+
 static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_wolinfo wol = { ETHTOOL_GWOL };
@@ -1326,6 +1346,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCLSRLCNT:
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_GRXCLSRLALL:
+		break;
+	case ETHTOOL_RESET:
+		rc = ethtool_reset(dev, useraddr);
 		break;
 	default:
 		if (!capable(CAP_NET_ADMIN))
