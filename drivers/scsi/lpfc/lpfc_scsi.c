@@ -1936,6 +1936,7 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	/* Endianness conversion if necessary */
 	diseed->ref_tag = cpu_to_le32(reftag);
+	diseed->ref_tag_tran = diseed->ref_tag;
 
 	/* setup DISEED with the rest of the info */
 	bf_set(lpfc_sli4_sge_dif_optx, diseed, txop);
@@ -2070,6 +2071,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 		/* Endianness conversion if necessary */
 		diseed->ref_tag = cpu_to_le32(reftag);
+		diseed->ref_tag_tran = diseed->ref_tag;
 
 		/* setup DISEED with the rest of the info */
 		bf_set(lpfc_sli4_sge_dif_optx, diseed, txop);
