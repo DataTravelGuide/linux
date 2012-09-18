@@ -1,7 +1,9 @@
 #ifndef __NET_WEXT_H
 #define __NET_WEXT_H
 
+#ifndef __GENKSYMS__
 #include <net/iw_handler.h>
+#endif
 
 struct net;
 
