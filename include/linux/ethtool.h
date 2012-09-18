@@ -580,6 +580,26 @@ struct ethtool_ops {
 };
 
 /**
+ * struct ethtool_dump - used for retrieving, setting device dump
+ * @cmd: Command number - %ETHTOOL_GET_DUMP_FLAG, %ETHTOOL_GET_DUMP_DATA, or
+ * 	%ETHTOOL_SET_DUMP
+ * @version: FW version of the dump, filled in by driver
+ * @flag: driver dependent flag for dump setting, filled in by driver during
+ * 	  get and filled in by ethtool for set operation
+ * @len: length of dump data, used as the length of the user buffer on entry to
+ * 	 %ETHTOOL_GET_DUMP_DATA and this is returned as dump length by driver
+ * 	 for %ETHTOOL_GET_DUMP_FLAG command
+ * @data: data collected for get dump data operation
+ */
+struct ethtool_dump {
+	__u32	cmd;
+	__u32	version;
+	__u32	flag;
+	__u32	len;
+	__u8	data[0];
+};
+ 
+/**
  * ethtool_ops_ext - structure used to extend ethtool_ops methods
  * @size: This field should be initialized to the size of the structure 
  *	  by the drivers.
@@ -593,6 +613,11 @@ struct  ethtool_ops_ext {
 	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
+	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
+	int	(*get_dump_data)(struct net_device *,
+				 struct ethtool_dump *, void *);
+	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
+
 };
 #endif /* __KERNEL__ */
 
@@ -657,6 +682,9 @@ struct  ethtool_ops_ext {
 #define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
 #define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
 #define ETHTOOL_SCHANNELS	0x0000003d /* Set no of channels */
+#define ETHTOOL_SET_DUMP	0x0000003e /* Set dump settings */
+#define ETHTOOL_GET_DUMP_FLAG	0x0000003f /* Get dump settings */
+#define ETHTOOL_GET_DUMP_DATA	0x00000040 /* Get dump data */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
