@@ -15,12 +15,15 @@
 #include <linux/types.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/rtnetlink.h>
+#include <linux/vmalloc.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
-#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
+
+#ifndef __GENKSYMS__
+#include <linux/rtnetlink.h>
+#include <linux/sched.h>
+#endif
 
 /*
  * Some useful ethtool_ops methods that're device independent.
