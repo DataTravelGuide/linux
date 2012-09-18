@@ -101,6 +101,23 @@ struct ethtool_eeprom {
 	__u8	data[0];
 };
 
+/**
+ * struct ethtool_modinfo - plugin module eeprom information
+ * @cmd: %ETHTOOL_GMODULEINFO
+ * @type: Standard the module information conforms to %ETH_MODULE_SFF_xxxx
+ * @eeprom_len: Length of the eeprom
+ *
+ * This structure is used to return the information to
+ * properly size memory for a subsequent call to %ETHTOOL_GMODULEEEPROM.
+ * The type code indicates the eeprom data format
+ */
+struct ethtool_modinfo {
+	__u32   cmd;
+	__u32   type;
+	__u32   eeprom_len;
+	__u32   reserved[8];
+};
+
 /* for configuring coalescing parameters of chip */
 struct ethtool_coalesce {
 	__u32	cmd;	/* ETHTOOL_{G,S}COALESCE */
@@ -617,7 +634,10 @@ struct  ethtool_ops_ext {
 	int	(*get_dump_data)(struct net_device *,
 				 struct ethtool_dump *, void *);
 	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
-
+	int	(*get_module_info)(struct net_device *,
+				   struct ethtool_modinfo *);
+	int	(*get_module_eeprom)(struct net_device *,
+				     struct ethtool_eeprom *, u8 *);
 };
 #endif /* __KERNEL__ */
 
@@ -685,6 +705,8 @@ struct  ethtool_ops_ext {
 #define ETHTOOL_SET_DUMP	0x0000003e /* Set dump settings */
 #define ETHTOOL_GET_DUMP_FLAG	0x0000003f /* Get dump settings */
 #define ETHTOOL_GET_DUMP_DATA	0x00000040 /* Get dump data */
+#define ETHTOOL_GMODULEINFO	0x00000042 /* Get plug-in module information */
+#define ETHTOOL_GMODULEEEPROM	0x00000043 /* Get plug-in module eeprom */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -833,6 +855,12 @@ struct  ethtool_ops_ext {
 #define RX_CLS_LOC_ANY		0xffffffff
 #define RX_CLS_LOC_FIRST	0xfffffffe
 #define RX_CLS_LOC_LAST	0xfffffffd
+
+/* EEPROM Standards for plug in modules */
+#define ETH_MODULE_SFF_8079		0x1
+#define ETH_MODULE_SFF_8079_LEN		256
+#define ETH_MODULE_SFF_8472		0x2
+#define ETH_MODULE_SFF_8472_LEN		512
 
 enum ethtool_reset_flags {
 	/* These flags represent components dedicated to the interface
