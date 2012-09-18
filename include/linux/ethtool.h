@@ -401,20 +401,7 @@ struct ethtool_ah_espip4_spec {
 	__u8    tos;
 };
 
-struct ethtool_rawip4_spec {
-	__be32	ip4src;
-	__be32	ip4dst;
-	__u8	hdata[64];
-};
-
-struct ethtool_ether_spec {
-	__be16	ether_type;
-	__u8	frame_size;
-	__u8	eframe[16];
-};
-
 #define	ETH_RX_NFC_IP4	1
-#define	ETH_RX_NFC_IP6	2
 
 struct ethtool_usrip4_spec {
 	__be32	ip4src;
@@ -433,10 +420,8 @@ struct ethtool_rx_flow_spec {
 		struct ethtool_tcpip4_spec		sctp_ip4_spec;
 		struct ethtool_ah_espip4_spec		ah_ip4_spec;
 		struct ethtool_ah_espip4_spec		esp_ip4_spec;
-		struct ethtool_rawip4_spec		raw_ip4_spec;
-		struct ethtool_ether_spec		ether_spec;
 		struct ethtool_usrip4_spec		usr_ip4_spec;
-		__u8					hdata[64];
+		__u8					hdata[72];
 	} h_u, m_u; /* entry, mask */
 	__u64		ring_cookie;
 	__u32		location;
