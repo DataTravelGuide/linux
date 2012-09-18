@@ -429,6 +429,18 @@ struct ethtool_flow_ext {
 	__be32	data[2];
 };
 
+struct ethtool_rawip4_spec {
+	__be32  ip4src;
+	__be32  ip4dst;
+	__u8    hdata[64];
+};
+
+struct ethtool_ether_spec {
+	__be16  ether_type;
+	__u8    frame_size;
+	__u8    eframe[16];
+};
+
  /**
   * struct ethtool_rx_flow_spec - specification for RX flow filter
   * @flow_type: Type of match to perform, e.g. %TCP_V4_FLOW
@@ -444,10 +456,25 @@ struct ethtool_flow_ext {
   */
 struct ethtool_rx_flow_spec {
 	__u32		flow_type;
+#ifdef	__GENKSYMS__
+	union {
+		struct ethtool_tcpip4_spec	tcp_ip4_spec;
+		struct ethtool_tcpip4_spec	udp_ip4_spec;
+		struct ethtool_tcpip4_spec	sctp_ip4_spec;
+		struct ethtool_ah_espip4_spec	ah_ip4_spec;
+		struct ethtool_ah_espip4_spec	esp_ip4_spec;
+		struct ethtool_rawip4_spec	raw_ip4_spec;
+		struct ethtool_ether_spec	ether_spec;
+		struct ethtool_usrip4_spec	usr_ip4_spec;
+		__u8				hdata[64];
+	} h_u, m_u; /* entry, mask */
+
+#else
 	union ethtool_flow_union h_u;
 	struct ethtool_flow_ext h_ext;
 	union ethtool_flow_union m_u;
 	struct ethtool_flow_ext m_ext;
+#endif
 	__u64		ring_cookie;
 	__u32		location;
 };
