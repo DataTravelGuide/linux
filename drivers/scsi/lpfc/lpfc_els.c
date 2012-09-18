@@ -1477,7 +1477,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	memset(&rrq.xri_bitmap, 0, sizeof(new_ndlp->active_rrqs.xri_bitmap));
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-		 "1201 PLOGI comfirm: ndlp %p x%x: new_ndlp %p\n",
+		 "1201 PLOGI confirm: ndlp %p x%x: new_ndlp %p\n",
 		 ndlp, ndlp->nlp_DID, new_ndlp);
 
 	if (!new_ndlp) {
@@ -1532,7 +1532,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		 * to put ndlp on UNUSED list and try to free it.
 		 */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "1202 PLOGI comfirm NEW: %x %x\n",
+			 "1202 PLOGI confirm NEW: %x %x\n",
 			 new_ndlp->nlp_DID, keepDID);
 
 		/* Fix up the rport accordingly */
@@ -1567,18 +1567,17 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	}
 	else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "1203 PLOGI comfirm SWAP: %x %x\n",
+			 "1203 PLOGI confirm SWAP: %x %x\n",
 			 new_ndlp->nlp_DID, keepDID);
 
 		lpfc_unreg_rpi(vport, ndlp);
 
+		/* Two ndlps cannot have the same did */
+		ndlp->nlp_DID = keepDID;
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			memcpy(&ndlp->active_rrqs.xri_bitmap,
 				&rrq.xri_bitmap,
 				sizeof(ndlp->active_rrqs.xri_bitmap));
-
-		/* Two ndlps cannot have the same did */
-		ndlp->nlp_DID = keepDID;
 
 		/* Since we are swapping the ndlp passed in with the new one
 		 * and the did has already been swapped, copy over state.
