@@ -1307,7 +1307,6 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	if (ret != 0) {
 		put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
-		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	} else
 		pnfs_do_multiple_writes(desc, &hdr->rpc_list, desc->pg_ioflags);
 	if (atomic_dec_and_test(&hdr->refcnt))
@@ -1462,7 +1461,6 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	if (ret != 0) {
 		put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
-		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	} else
 		pnfs_do_multiple_reads(desc, &hdr->rpc_list);
 	if (atomic_dec_and_test(&hdr->refcnt))
