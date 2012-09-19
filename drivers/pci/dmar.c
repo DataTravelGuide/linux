@@ -26,6 +26,8 @@
  * These routines are used by both DMA-remapping and Interrupt-remapping
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt /* has to precede printk.h */
+
 #include <linux/pci.h>
 #include <linux/dmar.h>
 #include <linux/iova.h>
@@ -35,8 +37,6 @@
 #include <linux/interrupt.h>
 #include <linux/tboot.h>
 #include <linux/dmi.h>
-
-#define PREFIX "DMAR: "
 
 /* No locks are needed as DMA remapping hardware unit
  * list is constructed at boot time and hotplug of
@@ -80,15 +80,12 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 		 * ignore it
 		 */
 		if (!bus) {
-			pr_warn(PREFIX "Device scope bus [%d] not found\n",
-				scope->bus);
+			pr_warn("Device scope bus [%d] not found\n", scope->bus);
 			break;
 		}
 		pdev = pci_get_slot(bus, PCI_DEVFN(path->dev, path->fn));
 		if (!pdev) {
-			pr_warn(PREFIX "Device scope device"
-				"[%04x:%02x:%02x.%02x] not found\n",
-				segment, bus->number, path->dev, path->fn);
+			/* warning will be printed below */
 			break;
 		}
 		path ++;
@@ -96,8 +93,7 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 		bus = pdev->subordinate;
 	}
 	if (!pdev) {
-		pr_warn(PREFIX
-			"Device scope device [%04x:%02x:%02x.%02x] not found\n",
+		pr_warn("Device scope device [%04x:%02x:%02x.%02x] not found\n",
 			segment, scope->bus, path->dev, path->fn);
 		*dev = NULL;
 		return 0;
@@ -106,8 +102,8 @@ static int __init dmar_parse_one_dev_scope(struct acpi_dmar_device_scope *scope,
 			pdev->subordinate) || (scope->entry_type == \
 			ACPI_DMAR_SCOPE_TYPE_BRIDGE && !pdev->subordinate)) {
 		pci_dev_put(pdev);
-		pr_warn(PREFIX "Device scope type does not match for %s\n",
-			 pci_name(pdev));
+		pr_warn("Device scope type does not match for %s\n",
+			pci_name(pdev));
 		return -EINVAL;
 	}
 	*dev = pdev;
@@ -348,23 +344,23 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
 		drhd = container_of(header, struct acpi_dmar_hardware_unit,
 				    header);
-		pr_info(PREFIX "DRHD base: %#016Lx flags: %#x\n",
+		pr_info("DRHD base: %#016Lx flags: %#x\n",
 			(unsigned long long)drhd->address, drhd->flags);
 		break;
 	case ACPI_DMAR_TYPE_RESERVED_MEMORY:
 		rmrr = container_of(header, struct acpi_dmar_reserved_memory,
 				    header);
-		pr_info(PREFIX "RMRR base: %#016Lx end: %#016Lx\n",
+		pr_info("RMRR base: %#016Lx end: %#016Lx\n",
 			(unsigned long long)rmrr->base_address,
 			(unsigned long long)rmrr->end_address);
 		break;
 	case ACPI_DMAR_TYPE_ATSR:
 		atsr = container_of(header, struct acpi_dmar_atsr, header);
-		pr_info(PREFIX "ATSR flags: %#x\n", atsr->flags);
+		pr_info("ATSR flags: %#x\n", atsr->flags);
 		break;
 	case ACPI_DMAR_HARDWARE_AFFINITY:
 		rhsa = container_of(header, struct acpi_dmar_rhsa, header);
-		pr_info(PREFIX "RHSA base: %#016Lx proximity domain: %#x\n",
+		pr_info("RHSA base: %#016Lx proximity domain: %#x\n",
 		       (unsigned long long)rhsa->base_address,
 		       rhsa->proximity_domain);
 		break;
@@ -384,7 +380,7 @@ static int __init dmar_table_detect(void)
 				&dmar_tbl_size);
 
 	if (ACPI_SUCCESS(status) && !dmar_tbl) {
-		pr_warn(PREFIX "Unable to map DMAR\n");
+		pr_warn("Unable to map DMAR\n");
 		status = AE_NOT_FOUND;
 	}
 
@@ -418,18 +414,18 @@ parse_dmar_table(void)
 		return -ENODEV;
 
 	if (dmar->width < PAGE_SHIFT - 1) {
-		pr_warn(PREFIX "Invalid DMAR haw\n");
+		pr_warn("Invalid DMAR haw\n");
 		return -EINVAL;
 	}
 
-	pr_info(PREFIX "Host address width %d\n", dmar->width + 1);
+	pr_info("Host address width %d\n", dmar->width + 1);
 
 	entry_header = (struct acpi_dmar_header *)(dmar + 1);
 	while (((unsigned long)entry_header) <
 			(((unsigned long)dmar) + dmar_tbl->length)) {
 		/* Avoid looping forever on bad ACPI tables */
 		if (entry_header->length == 0) {
-			pr_warn(PREFIX "Invalid 0-length structure\n");
+			pr_warn("Invalid 0-length structure\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -454,7 +450,7 @@ parse_dmar_table(void)
 			/* We don't do anything with RHSA (yet?) */
 			break;
 		default:
-			pr_warn(PREFIX "Unknown DMAR structure type %d\n",
+			pr_warn("Unknown DMAR structure type %d\n",
 				entry_header->type);
 			ret = 0; /* for forward compatibility */
 			break;
@@ -554,12 +550,12 @@ int __init dmar_table_init(void)
 	ret = parse_dmar_table();
 	if (ret) {
 		if (ret != -ENODEV)
-			pr_info(PREFIX "parse DMAR table failure.\n");
+			pr_info("parse DMAR table failure.\n");
 		return ret;
 	}
 
 	if (list_empty(&dmar_drhd_units)) {
-		pr_info(PREFIX "No DMAR devices found\n");
+		pr_info("No DMAR devices found\n");
 		return -ENODEV;
 	}
 
@@ -599,7 +595,7 @@ int __init check_zero_address(void)
 			(((unsigned long)dmar) + dmar_tbl->length)) {
 		/* Avoid looping forever on bad ACPI tables */
 		if (entry_header->length == 0) {
-			pr_warn(PREFIX "Invalid 0-length structure\n");
+			pr_warn("Invalid 0-length structure\n");
 			return 0;
 		}
 
@@ -683,9 +679,9 @@ static void unmap_iommu(struct intel_iommu *iommu)
  * map_iommu: map the iommu's registers
  * @iommu: the iommu to map
  * @phys_addr: the physical address of the base resgister
- * 
+ *
  * Memory map the iommu's registers.  Start w/ a single page, and
- * possibly expand if that turns out to be insufficent.  
+ * possibly expand if that turns out to be insufficent.
  */
 static int map_iommu(struct intel_iommu *iommu, u64 phys_addr)
 {
@@ -1403,8 +1399,7 @@ int __cpuinit enable_drhd_fault_handling(void)
 		ret = dmar_set_interrupt(iommu);
 
 		if (ret) {
-			pr_err("DRHD %Lx: failed to enable fault, "
-			       " interrupt, ret %d\n",
+			pr_err("DRHD %Lx: failed to enable fault, interrupt, ret %d\n",
 			       (unsigned long long)drhd->reg_base_addr, ret);
 			return -1;
 		}
