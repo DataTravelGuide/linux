@@ -182,8 +182,6 @@ static int hidraw_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&minors_lock);
 	if (!hidraw_table[minor]) {
-		printk(KERN_EMERG "hidraw device with minor %d doesn't exist\n",
-				minor);
 		kfree(list);
 		err = -ENODEV;
 		goto out_unlock;
@@ -222,11 +220,8 @@ static int hidraw_release(struct inode * inode, struct file * file)
 	struct hidraw *dev;
 	struct hidraw_list *list = file->private_data;
 
-	if (!hidraw_table[minor]) {
-		printk(KERN_EMERG "hidraw device with minor %d doesn't exist\n",
-				minor);
+	if (!hidraw_table[minor])
 		return -ENODEV;
-	}
 
 	list_del(&list->node);
 	dev = hidraw_table[minor];
