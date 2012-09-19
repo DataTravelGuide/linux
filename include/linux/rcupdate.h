@@ -331,27 +331,14 @@ extern void call_rcu(struct rcu_head *head,
 extern void call_rcu_bh(struct rcu_head *head,
 			void (*func)(struct rcu_head *head));
 
-static __always_inline bool __is_kfree_rcu_offset(unsigned long offset)
-{
-	return offset < 4096;
-}
-
-static __always_inline
-void __kfree_rcu(struct rcu_head *head, unsigned long offset)
-{
-	typedef void (*rcu_callback)(struct rcu_head *);
-
-#if 0 /* XXX: RHEL6 compiler limitation ? */
-	BUILD_BUG_ON(!__builtin_constant_p(offset));
-
-	/* See the kfree_rcu() header comment. */
-	BUILD_BUG_ON(!__is_kfree_rcu_offset(offset));
-#endif
-
-	call_rcu(head, (rcu_callback)offset);
-}
 
 extern void kfree(const void *);
+
+/*
+ * Does the specified offset indicate that the corresponding rcu_head
+ * structure can be handled by kfree_rcu()?
+ */
+#define __is_kfree_rcu_offset(offset) ((offset) < 4096)
 
 static inline void __rcu_reclaim(struct rcu_head *head)
 {
@@ -362,12 +349,6 @@ static inline void __rcu_reclaim(struct rcu_head *head)
 	else
 		head->func(head);
 }
-
-/*
- * Does the specified offset indicate that the corresponding rcu_head
- * structure can be handled by kfree_rcu()?
- */
-#define __is_kfree_rcu_offset(offset) ((offset) < 4096)
 
 /*
  * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
