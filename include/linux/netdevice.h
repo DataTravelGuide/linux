@@ -1175,6 +1175,7 @@ struct net_device_extended {
 #endif
 	struct netdev_netpoll_ext_info		netpoll_data;
 	unsigned int				real_num_rx_queues;
+	const struct ethtool_ops_ext		*ethtool_ops_ext;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1208,6 +1209,14 @@ netdev_extended(const struct net_device *dev)
 {
 	return netdev_extended_frozen(dev)->dev_ext;
 }
+
+extern void set_ethtool_ops_ext(struct net_device *, const struct ethtool_ops_ext *);
+extern const struct ethtool_ops_ext *get_ethtool_ops_ext(const struct net_device *);
+
+#define GET_ETHTOOL_OP_EXT(net, op) \
+	({ const struct ethtool_ops_ext *ops = get_ethtool_ops_ext(net); \
+	   ops && (offsetof(struct ethtool_ops_ext, op) < ops->size) ? \
+	   ops->op : NULL; })
 
 static inline
 int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)

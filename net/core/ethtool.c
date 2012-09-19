@@ -937,6 +937,138 @@ static int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
 	return dev->ethtool_ops->flash_device(dev, &efl);
 }
 
+static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
+						      void __user *useraddr)
+{
+	u32 user_size, dev_size;
+	u32 *indir;
+	int ret;
+
+	if (!GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir_size) || !GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir))
+		return -EOPNOTSUPP;
+        
+	dev_size = GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir_size)(dev);
+	if (dev_size == 0)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&user_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(user_size)))
+		return -EFAULT;
+
+	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			 &dev_size, sizeof(dev_size)))
+		return -EFAULT;
+
+	/* If the user buffer size is 0, this is just a query for the
+	* device table size.  Otherwise, if it's smaller than the
+	* device table size it's an error.
+	*/
+	if (user_size < dev_size)
+		return user_size == 0 ? 0 : -EINVAL;
+        
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	ret = GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir)(dev, indir);
+	if (ret)
+		goto out;
+                                  
+	if (copy_to_user(useraddr +
+			 offsetof(struct ethtool_rxfh_indir, ring_index[0]),
+			 indir, dev_size * sizeof(indir[0])))
+		ret = -EFAULT;
+
+out:
+	kfree(indir);
+	return ret;
+}
+
+static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
+						      void __user *useraddr)
+{
+	struct ethtool_rxnfc rx_rings;
+	u32 user_size, dev_size, i;
+	u32 *indir;
+	int ret;
+
+	if (!GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir_size) || !GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir) || !dev->ethtool_ops->get_rxnfc)
+		return -EOPNOTSUPP;
+
+	dev_size = GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir_size)(dev);
+	if (dev_size == 0)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&user_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(user_size)))
+		return -EFAULT;
+
+	if (user_size != 0 && user_size != dev_size)
+		return -EINVAL;
+
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	rx_rings.cmd = ETHTOOL_GRXRINGS;
+	ret = dev->ethtool_ops->get_rxnfc(dev, &rx_rings, NULL);
+	if (ret)
+		goto out;
+
+	if (user_size == 0) {
+		for (i = 0; i < dev_size; i++)
+			indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
+	} else {
+		if (copy_from_user(indir,
+				  useraddr +
+				  offsetof(struct ethtool_rxfh_indir,
+					   ring_index[0]),
+				  dev_size * sizeof(indir[0]))) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		/* Validate ring indices */
+		for (i = 0; i < dev_size; i++) {
+			if (indir[i] >= rx_rings.data) {
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	ret = GET_ETHTOOL_OP_EXT(dev, set_rxfh_indir)(dev, indir);
+
+out:
+	kfree(indir);
+	return ret;
+}
+
+/**
+ * set_ethtool_ops_ext() - Assign ethtool extended ops to netdev's ethtool_ops_ext
+ * @netdev:	Network device
+ * @ops:	Extended ops structure
+ */
+void set_ethtool_ops_ext(struct net_device *netdev, const struct ethtool_ops_ext *ops)
+{
+	netdev_extended(netdev)->ethtool_ops_ext = ops;
+}
+EXPORT_SYMBOL(set_ethtool_ops_ext);
+
+/**
+ * get_ethtool_ops_ext() - Return ethtool extended ops from netdev
+ * @netdev:	Network device
+ * 
+ * This function should be used through GET_ETHTOOL_OP_EXT() macro.
+ */
+const struct ethtool_ops_ext *get_ethtool_ops_ext(const struct net_device *netdev)
+{
+	return netdev_extended(netdev)->ethtool_ops_ext;
+}
+EXPORT_SYMBOL(get_ethtool_ops_ext);
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1158,6 +1290,14 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_FLASHDEV:
 		rc = ethtool_flash_device(dev, useraddr);
+		break;
+	
+	case ETHTOOL_GRXFHINDIR:
+		rc = ethtool_get_rxfh_indir(dev, useraddr);
+		break;
+		
+	case ETHTOOL_SRXFHINDIR:
+		rc = ethtool_set_rxfh_indir(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

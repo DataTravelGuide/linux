@@ -14,6 +14,7 @@
 #define _LINUX_ETHTOOL_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 /* This should work for both 32 and 64 bit userland. */
 struct ethtool_cmd {
@@ -389,9 +390,40 @@ struct ethtool_flash {
 	char	data[ETHTOOL_FLASH_MAX_FILENAME];
 };
 
+/**
+ * struct ethtool_rxfh_indir - command to get or set RX flow hash indirection
+ * @cmd: Specific command number - %ETHTOOL_GRXFHINDIR or %ETHTOOL_SRXFHINDIR
+ * @size: On entry, the array size of the user buffer, which may be zero.
+ *      On return from %ETHTOOL_GRXFHINDIR, the array size of the hardware
+ *      indirection table.
+ * @ring_index: RX ring/queue index for each hash value
+ *
+ * For %ETHTOOL_GRXFHINDIR, a @size of zero means that only the size
+ * should be returned.  For %ETHTOOL_SRXFHINDIR, a @size of zero means
+ * the table should be reset to default values.  This last feature
+ * is not supported by the original implementations.
+ */
+struct ethtool_rxfh_indir {
+	__u32	cmd;
+	__u32	size;
+	__u32	ring_index[0];
+};
+
 #ifdef __KERNEL__
 
 struct net_device;
+
+/**
+ * ethtool_rxfh_indir_default - get default value for RX flow hash indirection
+ * @index: Index in RX flow hash indirection table
+ * @n_rx_rings: Number of RX rings to use
+ *
+ * This function provides the default policy for RX flow hash indirection.
+ */
+static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
+{
+	return index % n_rx_rings;
+}
 
 /* Some generic methods drivers may use in their ethtool_ops */
 u32 ethtool_op_get_link(struct net_device *dev);
@@ -518,6 +550,20 @@ struct ethtool_ops {
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int     (*flash_device)(struct net_device *, struct ethtool_flash *);
 };
+
+/**
+ * ethtool_ops_ext - structure used to extend ethtool_ops methods
+ * @size: This field should be initialized to the size of the structure 
+ *	  by the drivers.
+ *
+ */
+struct  ethtool_ops_ext {
+	size_t    size;
+
+	u32     (*get_rxfh_indir_size)(struct net_device *);
+	int     (*get_rxfh_indir)(struct net_device *, u32 *);
+	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
+};
 #endif /* __KERNEL__ */
 
 /* CMDs currently supported */
@@ -576,6 +622,9 @@ struct ethtool_ops {
 #define	ETHTOOL_SRXCLSRLDEL	0x00000031 /* Delete RX classification rule */
 #define	ETHTOOL_SRXCLSRLINS	0x00000032 /* Insert RX classification rule */
 #define	ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
+
+#define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
+#define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -701,6 +750,11 @@ struct ethtool_ops {
 #define	AH_V6_FLOW	0x0b
 #define	ESP_V6_FLOW	0x0c
 #define	IP_USER_FLOW	0x0d
+#define	IPV4_FLOW	0x10	/* hash only */
+#define	IPV6_FLOW	0x11	/* hash only */
+#define	ETHER_FLOW	0x12	/* spec only (ether_spec) */
+/* Flag to enable additional fields in struct ethtool_rx_flow_spec */
+#define	FLOW_EXT	0x80000000
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)
@@ -713,6 +767,12 @@ struct ethtool_ops {
 #define	RXH_DISCARD	(1 << 31)
 
 #define	RX_CLS_FLOW_DISC	0xffffffffffffffffULL
+
+/* Special RX classification rule insert location values */
+#define RX_CLS_LOC_SPECIAL	0x80000000	/* flag */
+#define RX_CLS_LOC_ANY		0xffffffff
+#define RX_CLS_LOC_FIRST	0xfffffffe
+#define RX_CLS_LOC_LAST	0xfffffffd
 
 enum ethtool_reset_flags {
 	/* These flags represent components dedicated to the interface
