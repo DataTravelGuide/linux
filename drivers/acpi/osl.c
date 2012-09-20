@@ -1690,7 +1690,7 @@ static void bind_workqueue(struct workqueue_struct *wq)
 	queue_work(wq, work);
 }
 
-acpi_status acpi_os_initialize1(void)
+acpi_status __init acpi_os_initialize1(void)
 {
 	/*
 	 * On some machines, a software-initiated SMI causes corruption unless
