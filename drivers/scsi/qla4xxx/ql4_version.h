@@ -5,4 +5,4 @@
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
-#define QLA4XXX_DRIVER_VERSION	"5.02.00.00.06.04-k0"
+#define QLA4XXX_DRIVER_VERSION	"5.02.00.00.06.04-k1"
