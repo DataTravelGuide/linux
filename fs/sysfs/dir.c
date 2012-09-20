@@ -898,8 +898,10 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	if (!new_name)
 		goto out_unlock;
 
+	sysfs_unlink_sibling(sd);
 	dup_name = sd->s_name;
 	sd->s_name = new_name;
+	sysfs_link_sibling(sd);
 
 	/* rename */
 	d_add(new_dentry, NULL);
