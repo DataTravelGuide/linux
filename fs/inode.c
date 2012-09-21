@@ -1451,12 +1451,17 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 	if (timespec_equal(&inode->i_atime, &now))
 		return;
 
-	if (mnt_want_write(mnt))
+	if (!sb_start_write_trylock(inode->i_sb))
 		return;
+
+	if (__mnt_want_write(mnt))
+		goto skip_update;
 
 	inode->i_atime = now;
 	mark_inode_dirty_sync(inode);
-	mnt_drop_write(mnt);
+	__mnt_drop_write(mnt);
+skip_update:
+	sb_end_write(inode->i_sb);
 }
 EXPORT_SYMBOL(touch_atime);
 
