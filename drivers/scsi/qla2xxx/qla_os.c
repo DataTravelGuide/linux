@@ -1092,7 +1092,7 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 	    cmd->device->lun, type) != QLA_SUCCESS) {
 		goto eh_reset_failed;
 		ql_log(ql_log_warn, vha, 0x800d,
-		    "wait for peding cmds failed for cmd=%p.\n", cmd);
+		    "wait for pending cmds failed for cmd=%p.\n", cmd);
 	}
 	ql_log(ql_log_info, vha, 0x800e,
 	    "%s RESET SUCCEEDED nexus:%ld:%d:%d cmd=%p.\n", name,
@@ -1189,7 +1189,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 eh_bus_reset_done:
 	ql_log(ql_log_warn, vha, 0x802b,
 	    "BUS RESET %s nexus=%ld:%d:%d.\n",
-	    (ret == FAILED) ? "FAILED" : "SUCCEDED", vha->host_no, id, lun);
+	    (ret == FAILED) ? "FAILED" : "SUCCEEDED", vha->host_no, id, lun);
 
 	return ret;
 }
