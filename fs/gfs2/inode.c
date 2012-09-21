@@ -838,8 +838,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	   dinode block under the directory's reservation, we transfer
 	   ownership of that reservation to the new inode. The directory
 	   doesn't need a reservation unless it needs a new allocation. */
-	ip->i_res = dip->i_res;
-	dip->i_res = NULL;
+	error = gfs2_rs_alloc(ip);
 
 	error = gfs2_acl_create(dip, inode);
 	if (error)
