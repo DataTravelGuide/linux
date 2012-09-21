@@ -259,6 +259,7 @@ void apic_disable(void)
 {
 	apic->read = native_apic_read_dummy;
 	apic->write = native_apic_write_dummy;
+	apic->eoi_write = native_apic_write_dummy;
 }
 
 void native_apic_wait_icr_idle(void)
