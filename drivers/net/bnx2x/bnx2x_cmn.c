@@ -1487,21 +1487,31 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
  */
 static inline int bnx2x_set_real_num_queues(struct bnx2x *bp)
 {
-	int tx;
+	int rc, tx, rx;
 
 	tx = MAX_TXQS_PER_COS * bp->max_cos;
+	rx = BNX2X_NUM_ETH_QUEUES(bp);
 
 /* account for fcoe queue */
 #ifdef BCM_CNIC
-	if (!NO_FCOE(bp))
+	if (!NO_FCOE(bp)) {
+		rx += FCOE_PRESENT;
 		tx += FCOE_PRESENT;
+	}
 #endif
 
 	netif_set_real_num_tx_queues(bp->dev, tx);
 
-	DP(NETIF_MSG_DRV, "Setting real num tx queues to %d\n", tx);
+	rc = netif_set_real_num_rx_queues(bp->dev, rx);
+	if (rc) {
+		BNX2X_ERR("Failed to set real number of Rx queues: %d\n", rc);
+		return rc;
+	}
 
-	return 0;
+	DP(NETIF_MSG_DRV, "Setting real num queues to (tx, rx) (%d, %d)\n",
+			  tx, rx);
+
+	return rc;
 }
 
 static inline void bnx2x_set_rx_buf_size(struct bnx2x *bp)
