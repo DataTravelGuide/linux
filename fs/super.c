@@ -244,7 +244,6 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 {
 	s->s_count++;
 	spin_unlock(&sb_lock);
-	down_write(&s->s_umount);
 	if (s->s_root) {
 		spin_lock(&sb_lock);
 		if (s->s_count > S_BIAS) {
@@ -356,6 +355,7 @@ retry:
 				up_write(&s->s_umount);
 				destroy_super(s);
 			}
+			down_write(&old->s_umount);
 			return old;
 		}
 	}
@@ -495,7 +495,7 @@ struct super_block *get_super_thawed(struct block_device *bdev)
  *
  * Scans the superblock list and finds the superblock of the file system
  * mounted on the device given.  Returns the superblock with an active
- * reference and s_umount held exclusively or %NULL if none was found.
+ * reference or %NULL if none was found.
  */
 struct super_block *get_active_super(struct block_device *bdev)
 {
