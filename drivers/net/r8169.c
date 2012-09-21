@@ -667,6 +667,7 @@ struct rtl8169_counters {
 };
 
 enum rtl_flag {
+	RTL_FLAG_TASK_ENABLED,
 	RTL_FLAG_TASK_SLOW_PENDING,
 	RTL_FLAG_TASK_RESET_PENDING,
 	RTL_FLAG_TASK_PHY_PENDING,
@@ -727,7 +728,6 @@ struct rtl8169_private {
 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
 		struct mutex mutex;
 		struct work_struct work;
-		bool enabled;
 	} wk;
 
 	unsigned features;
@@ -4396,7 +4396,7 @@ static int rtl8169_open(struct net_device *dev)
 
 	rtl_lock_work(tp);
 
-	tp->wk.enabled = true;
+	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
 
 	napi_enable(&tp->napi);
 
@@ -5934,7 +5934,8 @@ static void rtl_task(struct work_struct *work)
 
 	rtl_lock_work(tp);
 
-	if (!netif_running(dev) || !tp->wk.enabled)
+	if (!netif_running(dev) ||
+	    !test_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags))
 		goto out_unlock;
 
 	for (i = 0; i < ARRAY_SIZE(rtl_work); i++) {
@@ -6032,7 +6033,7 @@ static int rtl8169_close(struct net_device *dev)
 	rtl8169_update_counters(dev);
 
 	rtl_lock_work(tp);
-	tp->wk.enabled = false;
+	clear_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
 
 	rtl8169_down(dev);
 	rtl_unlock_work(tp);
@@ -6131,7 +6132,7 @@ static void rtl8169_net_suspend(struct net_device *dev)
 
 	rtl_lock_work(tp);
 	napi_disable(&tp->napi);
-	tp->wk.enabled = false;
+	clear_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
 	rtl_unlock_work(tp);
 
 	rtl_pll_power_down(tp);
@@ -6157,7 +6158,7 @@ static void __rtl8169_resume(struct net_device *dev)
 
 	rtl_pll_power_up(tp);
 
-	tp->wk.enabled = true;
+	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
 
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
