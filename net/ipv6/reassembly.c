@@ -344,7 +344,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 
 	/* Check for overlap with preceding fragment. */
 	if (prev &&
-	    (FRAG6_CB(prev)->offset + prev->len) - offset > 0)
+	    (FRAG6_CB(prev)->offset + prev->len) > offset)
 		goto discard_fq;
 
 	/* Look for overlap with succeeding segment. */
