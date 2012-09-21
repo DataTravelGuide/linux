@@ -290,3 +290,5 @@ rh-help:
 	@echo  '  rh-configs	    Creates config files in the redhat/configs/ directory,'
 	@echo  '		    these will be used by other Makefile targets and are not'
 	@echo  '		    intended for developer use'
+	@echo  '  rh-dist-git       Clones a dist-git repository and updates with the tree\'s state'
+	@echo  '                    See redhat/docs/rh-dist-git.txt for more information'

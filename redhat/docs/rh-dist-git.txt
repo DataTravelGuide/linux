@@ -1,0 +1,58 @@
+The scripts to update dist-git (previously CVS) from the git source tree
+have been a per-maintainer thing for a while and since nobody else used
+it, they stayed mostly that way with some sort of sharing between
+maintainers. With submaintainers, it became clear we needed something
+better that also can be used by other engineers too. For maintainers
+taking over new releases, it'll reduce the setup time, since it's one
+less custom script to worry about. Hopefully we'll have a RHEL-5 and
+RHEL-7+ versions of this target.
+(Engineers might not find it so appealing since they can clone the dist-git
+and just put the combined patch into linux-kernel-test.sh instead of waiting
+about 15min to have the single tarball generated)
+
+This target takes some configuration that can be done both globally
+(~/.rhel6kernel.mk) and/or locally (.rhel6kernel.mk). The order is first
+the one present in home, then git directory. The variables also can be
+passed on the command line
+	$ make rh-dist-git RHDISTGIT_USER=arozansk ...
+
+The variables:
+RHDISTGIT_USER:		alternative username. if you have your local username
+			different than kerberos, you'll need this. optional
+
+RHDISTGIT:		current dist-git url. unlikely will need change. optional
+
+RHDISTGIT_CACHE:	local *pristine* copy of dist-git. As a
+			suggestion: clone it with rhpkg in some
+			directory, and write a cron job to pull it every
+			4h or so and then run "rhpkg sources". This way
+			you'll have the latest tarballs downloaded
+			locally, which the scripts will notice and pick
+			them up, saving some time. if you don't have
+			this set, rhpkg will clone the kernel repo every time.
+			then download the tarballs, extra slow. optional
+
+RHDISTGIT_TMP:		for those with faster storage, this directory
+			will be used to create the temporary files.
+			Since what takes the longest is the single tarball
+			generation, this will speed up things. optional
+
+RHDISTGIT_BRANCH:	branch to use, right now rhel-6.4 if you're
+			jarod. if you're a submaintainer, you might use
+			your own branch. this option is mandatory.
+
+The target will output in the end a temporary directory where you'll
+have the dist-git tree already updated with the new patches, new tarball
+uploaded. Two files are created outside the dist-git clone, 'diff' and
+'changelog'. The 'diff' file contains the changes between the changed
+dist-git repo and redhat/rpm/SOURCES/ to make sure everything is ok
+(maintainers that already screwed up knows how valuable this is). The
+'changelog' file is a ready to use changelog to be used while committing
+the changes to dist-git.
+
+After the script ran, the changes, changelog should be verified then
+commit the changes and push them with rhpkg push. In other words, this
+all does what update_cvs.sh does but hopefully better and cleaner.
+
+The file redhat/cvs/files contains the files that should be copied other
+than the new patches.
