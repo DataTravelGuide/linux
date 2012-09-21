@@ -1742,7 +1742,7 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+	eee_cfg = bp->link_vars.eee_status;
 
 	edata->supported =
 		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
@@ -1779,7 +1779,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+	eee_cfg = bp->link_vars.eee_status;
 
 	if (!(eee_cfg & SHMEM_EEE_SUPPORTED_MASK)) {
 		DP(BNX2X_MSG_ETHTOOL, "Board does not support EEE!\n");
