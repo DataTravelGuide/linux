@@ -73,6 +73,20 @@ struct igb_adapter;
 #define IGB_82576_VF_DEV_ID                0x10CA
 #define IGB_I350_VF_DEV_ID                 0x1520
 
+/* NVM version defines */
+#define IGB_MAJOR_MASK			0xF000
+#define IGB_MINOR_MASK			0x0FF0
+#define IGB_BUILD_MASK			0x000F
+#define IGB_COMB_VER_MASK		0x00FF
+#define IGB_MAJOR_SHIFT			12
+#define IGB_MINOR_SHIFT			4
+#define IGB_COMB_VER_SHFT		8
+#define IGB_NVM_VER_INVALID		0xFFFF
+#define IGB_ETRACK_SHIFT		16
+#define NVM_ETRACK_WORD			0x0042
+#define NVM_COMB_VER_OFF		0x0083
+#define NVM_COMB_VER_PTR		0x003d
+
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
@@ -355,6 +369,8 @@ struct igb_adapter {
 	u32 wvbr;
 	int node;
 	u32 *shadow_vfta;
+
+	char fw_version[32];
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
@@ -405,6 +421,7 @@ extern void igb_update_stats(struct igb_adapter *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);
+extern void igb_set_fw_version(struct igb_adapter *);
 
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
