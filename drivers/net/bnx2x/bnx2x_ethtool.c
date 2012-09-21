@@ -2720,35 +2720,42 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static int bnx2x_phys_id(struct net_device *dev, u32 data)
+static int bnx2x_set_phys_id(struct net_device *dev,
+			     enum ethtool_phys_id_state state)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i;
 
-	if (!netif_running(dev))
-		return 0;
-
-	if (!bp->port.pmf)
-		return 0;
-
-	if (data == 0)
-		data = 2;
-
-	for (i = 0; i < (data * 2); i++) {
-		if ((i % 2) == 0)
-			bnx2x_set_led(&bp->link_params, &bp->link_vars,
-				      LED_MODE_ON, SPEED_1000);
-		else
-			bnx2x_set_led(&bp->link_params, &bp->link_vars,
-				      LED_MODE_FRONT_PANEL_OFF, 0);
-
-		msleep_interruptible(500);
-		if (signal_pending(current))
-			break;
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
+		   "cannot access eeprom when the interface is down\n");
+		return -EAGAIN;
 	}
 
-	bnx2x_set_led(&bp->link_params, &bp->link_vars,
-		LED_MODE_OPER, bp->link_vars.line_speed);
+	if (!bp->port.pmf) {
+		DP(BNX2X_MSG_ETHTOOL, "Interface is not pmf\n");
+		return -EOPNOTSUPP;
+	}
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		return 1;	/* cycle on/off once per second */
+
+	case ETHTOOL_ID_ON:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_ON, SPEED_1000);
+		break;
+
+	case ETHTOOL_ID_OFF:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_FRONT_PANEL_OFF, 0);
+
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		bnx2x_set_led(&bp->link_params, &bp->link_vars,
+			      LED_MODE_OPER,
+			      bp->link_vars.line_speed);
+	}
 
 	return 0;
 }
@@ -3061,11 +3068,17 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.self_test		= bnx2x_self_test,
 	.get_sset_count		= bnx2x_get_sset_count,
 	.get_strings		= bnx2x_get_strings,
-	.phys_id		= bnx2x_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
+};
+
+static const struct ethtool_ops_ext bnx2x_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+
+	.set_phys_id		= bnx2x_set_phys_id,
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev)
 {
 	SET_ETHTOOL_OPS(netdev, &bnx2x_ethtool_ops);
+	set_ethtool_ops_ext(netdev, &bnx2x_ethtool_ops_ext);
 }
