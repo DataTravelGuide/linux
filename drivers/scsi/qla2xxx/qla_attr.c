@@ -33,7 +33,7 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 			    &off, ha->md_tmplt_hdr, ha->md_template_size);
 			return rval;
 		}
-		*&off = (*&off - ha->md_template_size);
+		off -= ha->md_template_size;
 		rval = memory_read_from_buffer(buf, count,
 		    &off, ha->md_dump, ha->md_dump_size);
 		return rval;

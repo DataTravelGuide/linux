@@ -62,7 +62,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 			/*
 			 * Issue a "HARD" reset in order for the RISC interrupt
-			 * bit to be cleared.  Schedule a big hammmer to get
+			 * bit to be cleared.  Schedule a big hammer to get
 			 * out of the RISC PAUSED state.
 			 */
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
@@ -170,7 +170,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 			/*
 			 * Issue a "HARD" reset in order for the RISC
 			 * interrupt bit to be cleared.  Schedule a big
-			 * hammmer to get out of the RISC PAUSED state.
+			 * hammer to get out of the RISC PAUSED state.
 			 */
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
 			RD_REG_WORD(&reg->hccr);
@@ -419,7 +419,7 @@ skip_rio:
 				vha->flags.online = 0;
 				vha->device_flags |= DFLG_DEV_FAILED;
 			} else {
-				/* Check to see if MPI timeout occured */
+				/* Check to see if MPI timeout occurred */
 				if ((mbx & MBX_3) && (ha->flags.port0))
 					set_bit(MPI_RESET_NEEDED,
 					    &vha->dpc_flags);
@@ -500,7 +500,8 @@ skip_rio:
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		mbx = (IS_QLA81XX(ha) || IS_QLA8031(ha))
 			? RD_REG_WORD(&reg24->mailbox4) : 0;
-		mbx = IS_QLA82XX(ha) ? RD_REG_WORD(&reg82->mailbox_out[4]): mbx;
+		mbx = IS_QLA82XX(ha) ? RD_REG_WORD(&reg82->mailbox_out[4])
+			: mbx;
 		ql_dbg(ql_dbg_async, vha, 0x500b,
 		    "LOOP DOWN detected (%x %x %x %x).\n",
 		    mb[1], mb[2], mb[3], mbx);
@@ -1022,7 +1023,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5035,
 		    (uint8_t *)pkt, sizeof(*pkt));
 	} else {
-		res =  DID_OK << 16;;
+		res =  DID_OK << 16;
 		bsg_job->reply->reply_payload_rcv_len =
 		    bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;

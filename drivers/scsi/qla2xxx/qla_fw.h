@@ -543,7 +543,7 @@ struct sts_entry_24xx {
 	 * of qla2x00_status_entry().
 	 *
 	 * &data[10] : uint8_t report_runt_bg[2];	- computed guard
-	 * &data[12] : uint8_t actual_dif[8];		- DIF Data recieved
+	 * &data[12] : uint8_t actual_dif[8];		- DIF Data received
 	 * &data[20] : uint8_t expected_dif[8];		- DIF Data computed
 	*/
 };
