@@ -1059,7 +1059,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 					   iov, offset, nr_segs,
 					   gfs2_get_block_direct, NULL);
 out:
-	gfs2_glock_dq_m(1, &gh);
+	gfs2_glock_dq(&gh);
 	gfs2_holder_uninit(&gh);
 	return rv;
 }
