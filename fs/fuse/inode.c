@@ -1086,7 +1086,7 @@ static void fuse_kill_sb_anon(struct super_block *sb)
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
-	.fs_flags	= FS_HAS_SUBTYPE,
+	.fs_flags	= FS_HAS_SUBTYPE | FS_HAS_NEW_FREEZE,
 	.get_sb		= fuse_get_sb,
 	.kill_sb	= fuse_kill_sb_anon,
 };
@@ -1118,7 +1118,7 @@ static struct file_system_type fuseblk_fs_type = {
 	.name		= "fuseblk",
 	.get_sb		= fuse_get_sb_blk,
 	.kill_sb	= fuse_kill_sb_blk,
-	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE,
+	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE | FS_HAS_NEW_FREEZE,
 };
 
 static inline int register_fuseblk(void)
