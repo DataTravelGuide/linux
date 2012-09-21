@@ -40,12 +40,15 @@
  * Makes sure the contents of the bp->fp[to].napi is kept
  * intact. This is done by first copying the napi struct from
  * the target to the source, and then mem copying the entire
- * source onto the target
+ * source onto the target. Update txdata pointers and related
+ * content.
  */
 static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 {
 	struct bnx2x_fastpath *from_fp = &bp->fp[from];
 	struct bnx2x_fastpath *to_fp = &bp->fp[to];
+	int old_max_eth_txqs, new_max_eth_txqs;
+	int old_txdata_index = 0, new_txdata_index = 0;
 
 	/* Copy the NAPI object as it has been already initialized */
 	from_fp->napi = to_fp->napi;
@@ -53,6 +56,24 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 	/* Move bnx2x_fastpath contents */
 	memcpy(to_fp, from_fp, sizeof(*to_fp));
 	to_fp->index = to;
+
+	/* Update txdata pointers in fp and move txdata content accordingly:
+	 * Each fp consumes 'max_cos' txdata structures, so the index should be
+	 * decremented by max_cos x delta.
+	 */
+
+	old_max_eth_txqs = BNX2X_NUM_ETH_QUEUES(bp) * (bp)->max_cos;
+	new_max_eth_txqs = (BNX2X_NUM_ETH_QUEUES(bp) - from + to) *
+				(bp)->max_cos;
+	if (from == FCOE_IDX(bp)) {
+		old_txdata_index = old_max_eth_txqs + FCOE_TXQ_IDX_OFFSET;
+		new_txdata_index = new_max_eth_txqs + FCOE_TXQ_IDX_OFFSET;
+	}
+
+	memcpy(&bp->bnx2x_txq[old_txdata_index],
+	       &bp->bnx2x_txq[new_txdata_index],
+	       sizeof(struct bnx2x_fp_txdata));
+	to_fp->txdata_ptr[0] = &bp->bnx2x_txq[new_txdata_index];
 }
 
 int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
@@ -885,7 +906,7 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 	prefetch(fp->rx_cons_sb);
 
 	for_each_cos_in_tx_queue(fp, cos)
-		prefetch(fp->txdata[cos].tx_cons_sb);
+		prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 
 	prefetch(&fp->sb_running_index[SM_RX_ID]);
 	napi_schedule(&bnx2x_fp(bp, fp->index, napi));
@@ -1202,7 +1223,7 @@ static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			u16 sw_prod = txdata->tx_pkt_prod;
 			u16 sw_cons = txdata->tx_pkt_cons;
@@ -1572,6 +1593,8 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 #endif
 	/* Add special queues */
 	bp->num_queues += NON_ETH_CONTEXT_USE;
+
+	BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
 }
 
 /**
@@ -1600,8 +1623,8 @@ static int bnx2x_set_real_num_queues(struct bnx2x *bp)
 {
 	int rc, tx, rx;
 
-	tx = MAX_TXQS_PER_COS * bp->max_cos;
-	rx = BNX2X_NUM_ETH_QUEUES(bp);
+	tx = BNX2X_NUM_ETH_QUEUES(bp) * bp->max_cos;
+	rx = BNX2X_NUM_QUEUES(bp) - NON_ETH_CONTEXT_USE;
 
 /* account for fcoe queue */
 #ifdef BCM_CNIC
@@ -1843,6 +1866,7 @@ bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err)
 static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 {
 	struct bnx2x_fastpath *fp = &bp->fp[index];
+	int cos;
 	struct napi_struct orig_napi = fp->napi;
 	/* bzero bnx2x_fastpath contents */
 	if (bp->stats_init)
@@ -1891,6 +1915,16 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	else
 		/* Special queues support only one CoS */
 		fp->max_cos = 1;
+
+	/* Init txdata pointers */
+#ifdef BCM_CNIC
+	if (IS_FCOE_FP(fp))
+		fp->txdata_ptr[0] = &bp->bnx2x_txq[FCOE_TXQ_IDX(bp)];
+#endif
+	if (IS_ETH_FP(fp))
+		for_each_cos_in_tx_queue(fp, cos)
+			fp->txdata_ptr[cos] = &bp->bnx2x_txq[cos *
+				BNX2X_NUM_ETH_QUEUES(bp) + index];
 
 	/*
 	 * set the tpa flag for each queue. The tpa flag determines the queue
@@ -1941,11 +1975,13 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/*
 	 * Zero fastpath structures preserving invariants like napi, which are
 	 * allocated only once, fp index, max_cos, bp pointer.
-	 * Also set fp->disable_tpa.
+	 * Also set fp->disable_tpa and txdata_ptr.
 	 */
 	DP(NETIF_MSG_IFUP, "num queues: %d", bp->num_queues);
 	for_each_queue(bp, i)
 		bnx2x_bz_fp(bp, i);
+	memset(bp->bnx2x_txq, 0, bp->bnx2x_txq_size *
+	       sizeof(struct bnx2x_fp_txdata));
 
 
 	/* Set the receive queues buffer size */
@@ -2286,6 +2322,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
+	netdev_reset_tc(bp->dev);
 
 #ifdef BCM_CNIC
 	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
@@ -2444,8 +2481,8 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 #endif
 
 		for_each_cos_in_tx_queue(fp, cos)
-			if (bnx2x_tx_queue_has_work(&fp->txdata[cos]))
-				bnx2x_tx_int(bp, &fp->txdata[cos]);
+			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
+				bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
 
 
 		if (bnx2x_has_rx_work(fp)) {
@@ -2822,7 +2859,6 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	struct bnx2x_fastpath *fp;
 	struct netdev_queue *txq;
 	struct bnx2x_fp_txdata *txdata;
 	struct sw_tx_bd *tx_buf;
@@ -2832,7 +2868,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct eth_tx_parse_bd_e2 *pbd_e2 = NULL;
 	u32 pbd_e2_parsing_data = 0;
 	u16 pkt_prod, bd_prod;
-	int nbd, txq_index, fp_index, txdata_index;
+	int nbd, txq_index;
 	dma_addr_t mapping;
 	u32 xmit_type = bnx2x_xmit_type(bp, skb);
 	int i;
@@ -2851,30 +2887,11 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	BUG_ON(txq_index >= MAX_ETH_TXQ_IDX(bp) + FCOE_PRESENT);
 
-	/* decode the fastpath index and the cos index from the txq */
-	fp_index = TXQ_TO_FP(txq_index);
-	txdata_index = TXQ_TO_COS(txq_index);
-
-#ifdef BCM_CNIC
-	/*
-	 * Override the above for the FCoE queue:
-	 *   - FCoE fp entry is right after the ETH entries.
-	 *   - FCoE L2 queue uses bp->txdata[0] only.
-	 */
-	if (unlikely(!NO_FCOE(bp) && (txq_index ==
-				      bnx2x_fcoe_tx(bp, txq_index)))) {
-		fp_index = FCOE_IDX;
-		txdata_index = 0;
-	}
-#endif
+	txdata = &bp->bnx2x_txq[txq_index];
 
 	/* enable this debug print to view the transmission queue being used
 	DP(NETIF_MSG_TX_QUEUED, "indices: txq %d, fp %d, txdata %d\n",
 	   txq_index, fp_index, txdata_index); */
-
-	/* locate the fastpath and the txdata */
-	fp = &bp->fp[fp_index];
-	txdata = &fp->txdata[txdata_index];
 
 	/* enable this debug print to view the tranmission details
 	DP(NETIF_MSG_TX_QUEUED,
@@ -2883,7 +2900,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(bnx2x_tx_avail(bp, txdata) <
 		     (skb_shinfo(skb)->nr_frags + 3))) {
-		fp->eth_q_stats.driver_xoff++;
+		txdata->parent_fp->eth_q_stats.driver_xoff++;
 		netif_tx_stop_queue(txq);
 		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
@@ -3159,7 +3176,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * fp->bd_tx_cons */
 		smp_mb();
 
-		fp->eth_q_stats.driver_xoff++;
+		txdata->parent_fp->eth_q_stats.driver_xoff++;
 		if (bnx2x_tx_avail(bp, txdata) >= MAX_SKB_FRAGS + 4)
 			netif_tx_wake_queue(txq);
 	}
@@ -3257,7 +3274,7 @@ static void bnx2x_free_fp_mem_at(struct bnx2x *bp, int fp_index)
 	if (!skip_tx_queue(bp, fp_index)) {
 		/* fastpath tx rings: tx_buf tx_desc */
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			DP(NETIF_MSG_IFDOWN,
 			   "freeing tx memory of fp %d cos %d cid %d\n",
@@ -3414,7 +3431,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	if (!skip_tx_queue(bp, index)) {
 		/* fastpath tx rings: tx_buf tx_desc */
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			DP(NETIF_MSG_IFUP,
 			   "allocating tx memory of fp %d cos %d\n",
@@ -3497,7 +3514,7 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 #ifdef BCM_CNIC
 	if (!NO_FCOE(bp))
 		/* FCoE */
-		if (bnx2x_alloc_fp_mem_at(bp, FCOE_IDX))
+		if (bnx2x_alloc_fp_mem_at(bp, FCOE_IDX(bp)))
 			/* we will fail load process instead of mark
 			 * NO_FCOE_FLAG
 			 */
@@ -3522,7 +3539,7 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 		 */
 
 		/* move FCoE fp even NO_FCOE_FLAG is on */
-		bnx2x_move_fp(bp, FCOE_IDX, FCOE_IDX - delta);
+		bnx2x_move_fp(bp, FCOE_IDX(bp), FCOE_IDX(bp) - delta);
 #endif
 		bp->num_queues -= delta;
 		BNX2X_ERR("Adjusted num of queues from %d to %d\n",
@@ -3535,6 +3552,7 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 void bnx2x_free_mem_bp(struct bnx2x *bp)
 {
 	kfree(bp->fp);
+	kfree(bp->bnx2x_txq);
 	kfree(bp->msix_table);
 	kfree(bp->ilt);
 }
@@ -3558,6 +3576,16 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	if (!fp)
 		goto alloc_err;
 	bp->fp = fp;
+
+	/* Allocate memory for the transmission queues array */
+	bp->bnx2x_txq_size = BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS;
+#ifdef BCM_CNIC
+	bp->bnx2x_txq_size++;
+#endif
+	bp->bnx2x_txq = kcalloc(bp->bnx2x_txq_size,
+				sizeof(struct bnx2x_fp_txdata), GFP_KERNEL);
+	if (!bp->bnx2x_txq)
+		goto alloc_err;
 
 	/* msix table */
 	tbl = kcalloc(msix_table_size, sizeof(*tbl), GFP_KERNEL);
