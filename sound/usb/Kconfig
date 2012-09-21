@@ -105,6 +105,7 @@ config SND_USB_6FIRE
         tristate "TerraTec DMX 6Fire USB"
         depends on EXPERIMENTAL
         select FW_LOADER
+        select BITREVERSE
         select SND_RAWMIDI
         select SND_PCM
         help
