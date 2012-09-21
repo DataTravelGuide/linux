@@ -960,6 +960,9 @@ Version: 0.0.4
 File: rtl_nic/rtl8168f-2.fw
 Version: 0.0.4
 
+File: rtl_nic/rtl8402-1.fw
+Version: 0.0.1
+
 Licence:
  * Copyright (c) 2010, Realtek Semiconductor Corporation
  *
