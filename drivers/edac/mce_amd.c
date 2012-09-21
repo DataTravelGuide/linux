@@ -789,6 +789,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	pr_cont("]: 0x%016llx\n", m->status);
 
+	if (m->status & MCI_STATUS_ADDRV)
+		pr_emerg(HW_ERR "\tMC%d_ADDR: 0x%016llx\n", m->bank, m->addr);
 
 	switch (m->bank) {
 	case 0:
