@@ -48,7 +48,7 @@
 #endif
 
 #include <linux/mdio.h>
-#include <linux/pci.h>
+
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
@@ -304,7 +304,7 @@ enum {
  */
 struct sw_rx_bd {
 	u8		*data;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct sw_tx_bd {
@@ -317,7 +317,7 @@ struct sw_tx_bd {
 
 struct sw_rx_page {
 	struct page	*page;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 union db_prod {
@@ -1442,7 +1442,7 @@ struct bnx2x {
 #define BNX2X_CNIC_FLAG_MAC_SET		1
 	void			*t2;
 	dma_addr_t		t2_mapping;
-	struct cnic_ops		*cnic_ops;
+	struct cnic_ops	__rcu	*cnic_ops;
 	void			*cnic_data;
 	u32			cnic_tag;
 	struct cnic_eth_dev	cnic_eth_dev;

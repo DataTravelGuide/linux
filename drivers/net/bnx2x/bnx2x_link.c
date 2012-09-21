@@ -1565,7 +1565,7 @@ static void bnx2x_umac_enable(struct link_params *params,
 	/* Reset UMAC */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 	       (MISC_REGISTERS_RESET_REG_2_UMAC0 << params->port));
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 	       (MISC_REGISTERS_RESET_REG_2_UMAC0 << params->port));
@@ -1675,7 +1675,7 @@ static void bnx2x_xmac_init(struct link_params *params, u32 max_speed)
 	/* Hard reset */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 	       MISC_REGISTERS_RESET_REG_2_XMAC);
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 	       MISC_REGISTERS_RESET_REG_2_XMAC);
@@ -1705,7 +1705,7 @@ static void bnx2x_xmac_init(struct link_params *params, u32 max_speed)
 	/* Soft reset */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 	       MISC_REGISTERS_RESET_REG_2_XMAC_SOFT);
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 	       MISC_REGISTERS_RESET_REG_2_XMAC_SOFT);
@@ -10234,7 +10234,7 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 	u32 cfg_pin;
 
 	DP(NETIF_MSG_LINK, "54618SE cfg init\n");
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	/*
 	 * This works with E3 only, no need to check the chip

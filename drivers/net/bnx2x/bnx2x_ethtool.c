@@ -1991,7 +1991,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 
 	rx_buf = &fp_rx->rx_buf_ring[RX_BD(fp_rx->rx_bd_cons)];
 	dma_sync_single_for_cpu(&bp->pdev->dev,
-				   pci_unmap_addr(rx_buf, mapping),
+				   dma_unmap_addr(rx_buf, mapping),
 				   fp_rx->rx_buf_size, DMA_FROM_DEVICE);
 	data = rx_buf->data + NET_SKB_PAD + cqe->fast_path_cqe.placement_offset;
 	for (i = ETH_HLEN; i < pkt_size; i++)

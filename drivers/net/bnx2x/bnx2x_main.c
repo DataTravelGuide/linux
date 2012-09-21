@@ -5876,7 +5876,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	int r_order, w_order;
 
 	pci_read_config_word(bp->pdev,
-			     bp->pdev->pcie_cap + PCI_EXP_DEVCTL, &devctl);
+			     pci_pcie_cap(bp->pdev) + PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -7962,7 +7962,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	}
 
 	/* Give HW time to discard old tx messages */
-	msleep(1);
+	usleep_range(1000, 1000);
 
 	/* Clean all ETH MACs */
 	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_ETH_MAC, false);
@@ -8364,7 +8364,7 @@ static int bnx2x_er_poll_igu_vq(struct bnx2x *bp)
 		if (pend_bits == 0)
 			break;
 
-		msleep(1);
+		usleep_range(1000, 1000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -8395,7 +8395,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 		    ((port_is_idle_1 & 0x1) == 0x1) &&
 		    (pgl_exp_rom2 == 0xffffffff))
 			break;
-		msleep(1);
+		usleep_range(1000, 1000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -8432,7 +8432,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	/* Wait for 1ms to empty GLUE and PCI-E core queues,
 	 * PSWHST, GRC and PSWRD Tetris buffer.
 	 */
-	msleep(1);
+	usleep_range(1000, 1000);
 
 	/* Prepare to chip reset: */
 	/* MCP */
@@ -9799,7 +9799,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 			while (tout && REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
 				tout--;
-				msleep(1);
+				usleep_range(1000, 1000);
 			}
 
 			if (REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
@@ -11108,7 +11108,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	tx_count = MAX_TXQS_PER_COS * max_cos_est + FCOE_PRESENT;
 
 	/* dev zeroed in init_etherdev */
-	dev = alloc_etherdev_mq(sizeof(*bp), max(tx_count, rx_count));
+	dev = alloc_etherdev_mqs(sizeof(*bp), tx_count, rx_count);
 	if (!dev)
 		return -ENOMEM;
 
@@ -11632,7 +11632,8 @@ static int bnx2x_cnic_ctl_send(struct bnx2x *bp, struct cnic_ctl_info *ctl)
 	int rc = 0;
 
 	mutex_lock(&bp->cnic_mutex);
-	c_ops = bp->cnic_ops;
+	c_ops = rcu_dereference_protected(bp->cnic_ops,
+					  lockdep_is_held(&bp->cnic_mutex));
 	if (c_ops)
 		rc = c_ops->cnic_ctl(bp->cnic_data, ctl);
 	mutex_unlock(&bp->cnic_mutex);
@@ -11920,7 +11921,7 @@ static int bnx2x_unregister_cnic(struct net_device *dev)
 
 	mutex_lock(&bp->cnic_mutex);
 	cp->drv_state = 0;
-	rcu_assign_pointer(bp->cnic_ops, NULL);
+	RCU_INIT_POINTER(bp->cnic_ops, NULL);
 	mutex_unlock(&bp->cnic_mutex);
 	synchronize_rcu();
 	kfree(bp->cnic_kwq);

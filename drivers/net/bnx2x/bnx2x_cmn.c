@@ -300,7 +300,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 
 	/* move empty data from pool to prod */
 	prod_rx_buf->data = first_buf->data;
-	pci_unmap_addr_set(prod_rx_buf, mapping, mapping);
+	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
 	/* point prod_bd to new data */
 	prod_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	prod_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
@@ -450,7 +450,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		/* Unmap the page as we r going to pass it to the stack */
 		dma_unmap_page(&bp->pdev->dev,
-			       pci_unmap_addr(&old_rx_pg, mapping),
+			       dma_unmap_addr(&old_rx_pg, mapping),
 			       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
 		/* Add one frag and update the appropriate fields in the skb */
 		if (fp->mode == TPA_MODE_LRO)
@@ -505,7 +505,7 @@ static inline void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
-	dma_unmap_single(&bp->pdev->dev, pci_unmap_addr(rx_buf, mapping),
+	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(rx_buf, mapping),
 			 fp->rx_buf_size, DMA_FROM_DEVICE);
 	if (likely(new_data))
 		skb = build_skb(data);
@@ -686,7 +686,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		len = le16_to_cpu(cqe_fp->pkt_len_or_gro_seg_len);
 		pad = cqe_fp->placement_offset;
 		dma_sync_single_for_cpu(&bp->pdev->dev,
-					pci_unmap_addr(rx_buf, mapping),
+					dma_unmap_addr(rx_buf, mapping),
 					pad + RX_COPY_THRESH,
 					DMA_FROM_DEVICE);
 		pad += NET_SKB_PAD;
@@ -717,7 +717,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		} else {
 			if (likely(bnx2x_alloc_rx_data(bp, fp, bd_prod) == 0)) {
 				dma_unmap_single(&bp->pdev->dev,
-						 pci_unmap_addr(rx_buf, mapping),
+						 dma_unmap_addr(rx_buf, mapping),
 						 fp->rx_buf_size,
 						 DMA_FROM_DEVICE);
 				skb = build_skb(data);
@@ -1023,7 +1023,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 					fp->disable_tpa = 1;
 					break;
 				}
-				pci_unmap_addr_set(first_buf, mapping, 0);
+				dma_unmap_addr_set(first_buf, mapping, 0);
 				tpa_info->tpa_state = BNX2X_TPA_STOP;
 			}
 
@@ -1122,8 +1122,7 @@ static void bnx2x_free_rx_bds(struct bnx2x_fastpath *fp)
 		if (data == NULL)
 			continue;
 		dma_unmap_single(&bp->pdev->dev,
-
-				 pci_unmap_addr(rx_buf, mapping),
+				 dma_unmap_addr(rx_buf, mapping),
 				 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 		rx_buf->data = NULL;
@@ -2829,9 +2828,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		mapping = dma_map_page(&bp->pdev->dev, frag->page,
-				       frag->page_offset,
-				       skb_frag_size(frag), DMA_TO_DEVICE);
+		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0,
+					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 
 			DP(NETIF_MSG_TX_QUEUED, "Unable to map page - "

@@ -818,7 +818,7 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 	if (!page)
 		return;
 
-	dma_unmap_page(&bp->pdev->dev, pci_unmap_addr(sw_buf, mapping),
+	dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(sw_buf, mapping),
 		       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
 	__free_pages(page, PAGES_PER_SGE_SHIFT);
 
@@ -908,7 +908,7 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 	}
 
 	sw_buf->page = page;
-	pci_unmap_addr_set(sw_buf, mapping, mapping);
+	dma_unmap_addr_set(sw_buf, mapping, mapping);
 
 	sge->addr_hi = cpu_to_le32(U64_HI(mapping));
 	sge->addr_lo = cpu_to_le32(U64_LO(mapping));
@@ -937,7 +937,7 @@ static inline int bnx2x_alloc_rx_data(struct bnx2x *bp,
 	}
 
 	rx_buf->data = data;
-	pci_unmap_addr_set(rx_buf, mapping, mapping);
+	dma_unmap_addr_set(rx_buf, mapping, mapping);
 
 	rx_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	rx_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
@@ -958,8 +958,8 @@ static inline void bnx2x_reuse_rx_data(struct bnx2x_fastpath *fp,
 	struct eth_rx_bd *cons_bd = &fp->rx_desc_ring[cons];
 	struct eth_rx_bd *prod_bd = &fp->rx_desc_ring[prod];
 
-	pci_unmap_addr_set(prod_rx_buf, mapping,
-			   pci_unmap_addr(cons_rx_buf, mapping));
+	dma_unmap_addr_set(prod_rx_buf, mapping,
+			   dma_unmap_addr(cons_rx_buf, mapping));
 	prod_rx_buf->data = cons_rx_buf->data;
 	*prod_bd = *cons_bd;
 }
@@ -1041,7 +1041,7 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 		}
 		if (tpa_info->tpa_state == BNX2X_TPA_START)
 			dma_unmap_single(&bp->pdev->dev,
-					 pci_unmap_addr(first_buf, mapping),
+					 dma_unmap_addr(first_buf, mapping),
 					 fp->rx_buf_size, DMA_FROM_DEVICE);
 		kfree(data);
 		first_buf->data = NULL;
@@ -1388,7 +1388,7 @@ static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
 #endif
 		}
 		cnt--;
-		msleep(1);
+		usleep_range(1000, 1000);
 	}
 
 	return 0;
@@ -1447,7 +1447,7 @@ static inline bool bnx2x_wait_sp_comp(struct bnx2x *bp, unsigned long mask)
 		}
 		netif_addr_unlock_bh(bp->dev);
 
-		msleep(1);
+		usleep_range(1000, 1000);
 	}
 
 	smp_mb();
