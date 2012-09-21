@@ -5434,7 +5434,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 
 	entry = tp->cur_tx;
 	for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
-		skb_frag_t *frag = info->frags + cur_frag;
+		const skb_frag_t *frag = info->frags + cur_frag;
 		dma_addr_t mapping;
 		u32 status, len;
 		void *addr;
@@ -5442,7 +5442,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		entry = (entry + 1) % NUM_TX_DESC;
 
 		txd = tp->TxDescArray + entry;
-		len = frag->size;
+		len = skb_frag_size(frag);
 		addr = skb_frag_address(frag);
 		mapping = dma_map_single(d, addr, len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(d, mapping))) {
