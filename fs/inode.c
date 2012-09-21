@@ -26,6 +26,7 @@
 #include <linux/mount.h>
 #include <linux/async.h>
 #include <linux/posix_acl.h>
+#include "internal.h"
 
 /*
  * This is needed for the following functions:
@@ -1495,7 +1496,7 @@ void file_update_time(struct file *file)
 		return;
 
 	/* Finally allowed to write? Takes lock. */
-	if (mnt_want_write_file(file))
+	if (__mnt_want_write_file(file))
 		return;
 
 	/* Only change inode inside the lock region */
@@ -1506,7 +1507,7 @@ void file_update_time(struct file *file)
 	if (sync_it & S_MTIME)
 		inode->i_mtime = now;
 	mark_inode_dirty_sync(inode);
-	mnt_drop_write(file->f_path.mnt);
+	__mnt_drop_write(file->f_path.mnt);
 }
 EXPORT_SYMBOL(file_update_time);
 
