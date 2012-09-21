@@ -531,7 +531,7 @@ TRACE_EVENT(gfs2_rs,
 		__entry->rd_free_clone	= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_free_clone : 0;
 		__entry->rd_reserved	= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_reserved : 0;
 		__entry->inum		= ip ? ip->i_no_addr : 0;
-		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
+		__entry->start		= rs->rs_rbm.rgd ? gfs2_rbm_to_block(&rs->rs_rbm) : 0;
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;
 	),
