@@ -1826,6 +1826,9 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 }
 #endif
 
+#define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
+extern int netif_get_num_default_rss_queues(void);
+
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts
  * disabled.
