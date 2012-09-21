@@ -188,6 +188,8 @@ again:
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
+	sb_start_intwrite(root->fs_info->sb);
+
 	if (type != TRANS_JOIN_NOLOCK)
 		mutex_lock(&root->fs_info->trans_mutex);
 	if (may_wait_transaction(root, type))
@@ -438,6 +440,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_trans_release_metadata(trans, root);
+
+	sb_end_intwrite(root->fs_info->sb);
 
 	if (lock && !root->fs_info->open_ioctl_trans &&
 	    should_end_transaction(trans, root))
@@ -1389,6 +1393,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	put_transaction(cur_trans);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
+
+	sb_end_intwrite(root->fs_info->sb);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;

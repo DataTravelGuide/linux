@@ -1049,7 +1049,7 @@ static struct file_system_type btrfs_fs_type = {
 	.name		= "btrfs",
 	.get_sb		= btrfs_get_sb,
 	.kill_sb	= kill_anon_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_NEW_FREEZE,
 };
 
 /*
