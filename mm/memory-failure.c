@@ -204,7 +204,6 @@ static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
 	si.si_trapno = trapno;
 #endif
 	si.si_addr_lsb = compound_trans_order(compound_head(page)) + PAGE_SHIFT;
-	ret = send_sig_info(SIGBUS, &si, t);  /* synchronous? */
 
 	if ((flags & MF_ACTION_REQUIRED) && t == current) {
 		si.si_code = BUS_MCEERR_AR;
