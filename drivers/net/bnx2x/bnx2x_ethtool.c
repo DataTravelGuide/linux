@@ -1161,7 +1161,6 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 	return rc;
 }
 
-#if 0 /* not yet in RHEL6 */
 static int bnx2x_get_module_eeprom(struct net_device *dev,
 				   struct ethtool_eeprom *ee,
 				   u8 *data)
@@ -1220,7 +1219,6 @@ static int bnx2x_get_module_info(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-#endif
 
 static int bnx2x_nvram_write_dword(struct bnx2x *bp, u32 offset, u32 val,
 				   u32 cmd_flags)
@@ -1705,7 +1703,6 @@ static char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
 	"link_test (online)         "
 };
 
-#if 0 /* not yet in RHEL6 */
 static u32 bnx2x_eee_to_adv(u32 eee_adv)
 {
 	u32 modes = 0;
@@ -1835,7 +1832,6 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 
 	return 0;
 }
-#endif
 
 enum {
 	BNX2X_CHIP_E1_OFST = 0,
@@ -2760,7 +2756,6 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 	return 0;
 }
 
-#if 0 /* not in RHEL6 */
 static int bnx2x_get_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 {
 
@@ -2797,7 +2792,7 @@ static int bnx2x_get_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
 }
 
 static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			   u32 *rules __always_unused)
+			   void *rules __always_unused)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -3032,7 +3027,6 @@ static int bnx2x_set_channels(struct net_device *dev,
 	bnx2x_change_num_queues(bp, channels->combined_count);
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }
-#endif
 
 static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
@@ -3069,12 +3063,23 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_sset_count		= bnx2x_get_sset_count,
 	.get_strings		= bnx2x_get_strings,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
+	.get_rxnfc		= bnx2x_get_rxnfc,
+	.set_rxnfc		= bnx2x_set_rxnfc,
 };
 
 static const struct ethtool_ops_ext bnx2x_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 
 	.set_phys_id		= bnx2x_set_phys_id,
+	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
+	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
+	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
+	.get_channels		= bnx2x_get_channels,
+	.set_channels		= bnx2x_set_channels,
+	.get_module_info	= bnx2x_get_module_info,
+	.get_module_eeprom	= bnx2x_get_module_eeprom,
+	.get_eee		= bnx2x_get_eee,
+	.set_eee		= bnx2x_set_eee,
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev)
