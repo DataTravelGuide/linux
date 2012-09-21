@@ -2536,6 +2536,9 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	count = ocount;
 	pos = *ppos;
 
+	if (!sb_has_new_freeze(inode->i_sb))
+		vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
 	written = 0;

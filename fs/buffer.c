@@ -2480,7 +2480,19 @@ int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 
 	if (unlikely(ret < 0))
 		goto out_unlock;
+	/*
+	 * OLD FREEZE PATH:
+	 * Freezing in progress? We check after the page is marked dirty and
+	 * with page lock held so if the test here fails, we are sure freezing
+	 * code will wait during syncing until the page fault is done - at that
+	 * point page will be dirty and unlocked so freezing code will write it
+	 * and writeprotect it again.
+	 */
 	set_page_dirty(page);
+	if (!sb_has_new_freeze(inode->i_sb) && inode->i_sb->s_frozen != SB_UNFROZEN) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
 	wait_on_page_writeback(page);
 	return 0;
 out_unlock:
@@ -2494,6 +2506,14 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 {
 	int ret;
 	__attribute__ ((unused)) struct super_block *sb = vma->vm_file->f_path.dentry->d_inode->i_sb;
+
+	/*
+	 *  OLD FREEZE PATH:
+	 * This check is racy but catches the common case. The check in
+	 * __block_page_mkwrite() is reliable.
+	 */
+	if (!sb_has_new_freeze(sb))
+		vfs_check_frozen(sb, SB_FREEZE_WRITE);
 
 	sb_start_pagefault(sb);
 	ret = __block_page_mkwrite(vma, vmf, get_block);
