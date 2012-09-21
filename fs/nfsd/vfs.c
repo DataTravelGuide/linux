@@ -1871,11 +1871,11 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 
 	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
 	if (host_err)
-		goto out_nfserr;
+		goto out_put;
 
 	host_err = nfsd_break_lease(rdentry->d_inode);
 	if (host_err)
-		goto out_put;
+		goto out_drop_write;
 	if (type != S_IFDIR) {
 #ifdef MSNFS
 		if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
@@ -1888,13 +1888,13 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		host_err = vfs_rmdir(dirp, rdentry);
 	}
 
+	if (!host_err)
+		host_err = commit_metadata(fhp);
+out_drop_write:
+	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 out_put:
 	dput(rdentry);
 
-	if (!host_err)
-		host_err = commit_metadata(fhp);
-
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 out_nfserr:
 	err = nfserrno(host_err);
 out:
