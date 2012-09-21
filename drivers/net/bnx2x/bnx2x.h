@@ -1594,6 +1594,7 @@ struct bnx2x {
 	/* DCBX Negotation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
+
 #ifdef BCM_DCBNL
 	struct dcbx_features			dcbx_remote_feat;
 	u32					dcbx_remote_flags;

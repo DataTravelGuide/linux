@@ -539,6 +539,7 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 	else
 		bnx2x_dcbx_2cos_limit_update_ets_config(bp);
 }
+
 #ifdef BCM_DCBNL
 static int bnx2x_dcbx_read_shmem_remote_mib(struct bnx2x *bp)
 {
@@ -729,7 +730,7 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 		DP(BNX2X_MSG_DCB, "BNX2X_DCBX_STATE_TX_RELEASED\n");
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
 #ifdef BCM_DCBNL
-		/**
+		/*
 		 * Send a notification for the new negotiated parameters
 		 */
 		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
@@ -1696,7 +1697,6 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 							  pg_pri_orginal_spread,
 							  pri_join_mask,
 							  num_of_dif_pri);
-
 
 	for (i = 0; i < cos_data.num_of_cos ; i++) {
 		struct bnx2x_dcbx_cos_params *p =
