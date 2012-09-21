@@ -171,7 +171,9 @@ static int igb_check_vf_assignment(struct igb_adapter *adapter);
 #endif
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *);
+#endif
 static int igb_resume(struct device *);
 #ifdef CONFIG_PM_RUNTIME
 static int igb_runtime_suspend(struct device *dev);
@@ -6656,6 +6658,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 }
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *dev)
 {
 	int retval;
@@ -6675,6 +6678,7 @@ static int igb_suspend(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static int igb_resume(struct device *dev)
 {
