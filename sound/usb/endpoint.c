@@ -87,7 +87,7 @@ static inline unsigned get_usb_high_speed_rate(unsigned int rate)
 static void release_urb_ctx(struct snd_urb_ctx *u)
 {
 	if (u->buffer_size)
-		usb_free_coherent(u->ep->chip->dev, u->buffer_size,
+		usb_buffer_free(u->ep->chip->dev, u->buffer_size,
 				  u->urb->transfer_buffer,
 				  u->urb->transfer_dma);
 	usb_free_urb(u->urb);
@@ -556,7 +556,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 		release_urb_ctx(&ep->urb[i]);
 
 	if (ep->syncbuf)
-		usb_free_coherent(ep->chip->dev, SYNC_URBS * 4,
+		usb_buffer_free(ep->chip->dev, SYNC_URBS * 4,
 				  ep->syncbuf, ep->sync_dma);
 
 	ep->syncbuf = NULL;
@@ -669,7 +669,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 			goto out_of_memory;
 
 		u->urb->transfer_buffer =
-			usb_alloc_coherent(ep->chip->dev, u->buffer_size,
+			usb_buffer_alloc(ep->chip->dev, u->buffer_size,
 					   GFP_KERNEL, &u->urb->transfer_dma);
 		if (!u->urb->transfer_buffer)
 			goto out_of_memory;
@@ -696,7 +696,7 @@ static int sync_ep_set_params(struct snd_usb_endpoint *ep,
 {
 	int i;
 
-	ep->syncbuf = usb_alloc_coherent(ep->chip->dev, SYNC_URBS * 4,
+	ep->syncbuf = usb_buffer_alloc(ep->chip->dev, SYNC_URBS * 4,
 					 GFP_KERNEL, &ep->sync_dma);
 	if (!ep->syncbuf)
 		return -ENOMEM;
