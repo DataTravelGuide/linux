@@ -43,9 +43,6 @@ early_param("no-kvmclock", parse_no_kvmclock);
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct pvclock_vcpu_time_info, hv_clock);
 static struct pvclock_wall_clock wall_clock;
 
-static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
-static int has_steal_clock = 0;
-
 /*
  * The wallclock is the time of day when we booted. Since then, some time may
  * have elapsed since the hypervisor wrote the data. So we try to account for
@@ -128,7 +125,7 @@ static struct clocksource kvm_clock = {
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int kvm_register_clock(char *txt)
+int kvm_register_clock(char *txt)
 {
 	int cpu = smp_processor_id();
 	int low, high;
@@ -138,46 +135,6 @@ static int kvm_register_clock(char *txt)
 	       cpu, high, low, txt);
 
 	return native_write_msr_safe(msr_kvm_system_time, low, high);
-}
-
-static void kvm_register_steal_time(void)
-{
-	int cpu = smp_processor_id();
-	struct kvm_steal_time *st = &per_cpu(steal_time, cpu);
-
-	if (!has_steal_clock)
-		return;
-
-	memset(st, 0, sizeof(*st));
-
-	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
-	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
-		cpu, __pa(st));
-}
-
-void kvm_disable_steal_time(void)
-{
-	if (!has_steal_clock)
-		return;
-
-	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
-}
-
-static u64 kvm_steal_clock(int cpu)
-{
-	u64 steal;
-	struct kvm_steal_time *src;
-	int version;
-
-	src = &per_cpu(steal_time, cpu);
-	do {
-		version = src->version;
-		rmb();
-		steal = src->steal;
-		rmb();
-	} while ((version & 1) || (version != src->version));
-
-	return steal;
 }
 
 static void kvm_save_sched_clock_state(void)
@@ -197,16 +154,6 @@ static void __cpuinit kvm_setup_secondary_clock(void)
 	 * we shouldn't fail.
 	 */
 	WARN_ON(kvm_register_clock("secondary cpu clock"));
-	kvm_register_steal_time();
-}
-#endif
-
-#ifdef CONFIG_SMP
-static void __init kvm_smp_prepare_boot_cpu(void)
-{
-	WARN_ON(kvm_register_clock("primary cpu clock"));
-	kvm_register_steal_time();
-	native_smp_prepare_boot_cpu();
 }
 #endif
 
@@ -250,13 +197,6 @@ void __init kvmclock_init(void)
 
 	if (kvm_register_clock("boot clock"))
 		return;
-	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
-		kvm_register_steal_time();
-		has_steal_clock = 1;
-		pv_time_ops.steal_clock = kvm_steal_clock;
-		paravirt_steal_enabled = true;
-	}
-
 	pv_time_ops.sched_clock = kvm_clock_read;
 	x86_platform.calibrate_tsc = kvm_get_tsc_khz;
 	x86_platform.get_wallclock = kvm_get_wallclock;
@@ -264,9 +204,6 @@ void __init kvmclock_init(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	x86_cpuinit.early_percpu_clock_init =
 		kvm_setup_secondary_clock;
-#endif
-#ifdef CONFIG_SMP
-	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
 #endif
 	x86_platform.save_sched_clock_state = kvm_save_sched_clock_state;
 	x86_platform.restore_sched_clock_state = kvm_restore_sched_clock_state;

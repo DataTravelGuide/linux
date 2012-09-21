@@ -48,6 +48,9 @@ static struct kvm_para_state *kvm_para_state(void)
 	return &per_cpu(para_state, raw_smp_processor_id());
 }
 
+static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
+static int has_steal_clock = 0;
+
 /*
  * No need for any "IO delay" on KVM
  */
@@ -252,6 +255,21 @@ static void __init paravirt_ops_setup(void)
 #endif
 }
 
+static void kvm_register_steal_time(void)
+{
+	int cpu = smp_processor_id();
+	struct kvm_steal_time *st = &per_cpu(steal_time, cpu);
+
+	if (!has_steal_clock)
+		return;
+
+	memset(st, 0, sizeof(*st));
+
+	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
+	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
+		cpu, __pa(st));
+}
+
 void __cpuinit kvm_guest_cpu_init(void)
 {
 	if (!kvm_para_available())
@@ -265,6 +283,8 @@ void __cpuinit kvm_guest_cpu_init(void)
 		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
 	}
+	if (has_steal_clock)
+		kvm_register_steal_time();
 }
 
 static void kvm_pv_guest_cpu_reboot(void *unused)
@@ -290,9 +310,37 @@ static struct notifier_block kvm_pv_reboot_nb = {
 	.notifier_call = kvm_pv_reboot_notify,
 };
 
+static u64 kvm_steal_clock(int cpu)
+{
+	u64 steal;
+	struct kvm_steal_time *src;
+	int version;
+
+	src = &per_cpu(steal_time, cpu);
+	do {
+		version = src->version;
+		rmb();
+		steal = src->steal;
+		rmb();
+	} while ((version & 1) || (version != src->version));
+
+	return steal;
+}
+
+void kvm_disable_steal_time(void)
+{
+	if (!has_steal_clock)
+		return;
+
+	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
+}
+
 #ifdef CONFIG_SMP
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
+#ifdef CONFIG_KVM_CLOCK
+	WARN_ON(kvm_register_clock("primary cpu clock"));
+#endif
 	kvm_guest_cpu_init();
 	native_smp_prepare_boot_cpu();
 }
@@ -304,6 +352,7 @@ static void __cpuinit kvm_guest_cpu_online(void *dummy)
 
 static void kvm_guest_cpu_offline(void *dummy)
 {
+	kvm_disable_steal_time();
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
 }
@@ -340,6 +389,12 @@ void __init kvm_guest_init(void)
 
 	paravirt_ops_setup();
 	register_reboot_notifier(&kvm_pv_reboot_nb);
+
+	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
+		has_steal_clock = 1;
+		pv_time_ops.steal_clock = kvm_steal_clock;
+		paravirt_steal_enabled = true;
+	}
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
