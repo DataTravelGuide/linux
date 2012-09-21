@@ -47,6 +47,10 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 {
 	struct bnx2x_fastpath *from_fp = &bp->fp[from];
 	struct bnx2x_fastpath *to_fp = &bp->fp[to];
+	struct bnx2x_sp_objs *from_sp_objs = &bp->sp_objs[from];
+	struct bnx2x_sp_objs *to_sp_objs = &bp->sp_objs[to];
+	struct bnx2x_fp_stats *from_fp_stats = &bp->fp_stats[from];
+	struct bnx2x_fp_stats *to_fp_stats = &bp->fp_stats[to];
 	int old_max_eth_txqs, new_max_eth_txqs;
 	int old_txdata_index = 0, new_txdata_index = 0;
 
@@ -56,6 +60,12 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 	/* Move bnx2x_fastpath contents */
 	memcpy(to_fp, from_fp, sizeof(*to_fp));
 	to_fp->index = to;
+
+	/* move sp_objs contents as well, as their indices match fp ones */
+	memcpy(to_sp_objs, from_sp_objs, sizeof(*to_sp_objs));
+
+	/* move fp_stats contents as well, as their indices match fp ones */
+	memcpy(to_fp_stats, from_fp_stats, sizeof(*to_fp_stats));
 
 	/* Update txdata pointers in fp and move txdata content accordingly:
 	 * Each fp consumes 'max_cos' txdata structures, so the index should be
@@ -492,7 +502,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		   where we are and drop the whole packet */
 		err = bnx2x_alloc_rx_sge(bp, fp, sge_idx);
 		if (unlikely(err)) {
-			fp->eth_q_stats.rx_skb_alloc_failed++;
+			bnx2x_fp_qstats(bp, fp)->rx_skb_alloc_failed++;
 			return err;
 		}
 
@@ -600,7 +610,7 @@ drop:
 	/* drop the packet and keep the buffer in the bin */
 	DP(NETIF_MSG_RX_STATUS,
 	   "Failed to allocate or map a new skb - dropping packet!\n");
-	fp->eth_q_stats.rx_skb_alloc_failed++;
+	bnx2x_fp_stats(bp, fp)->eth_q_stats.rx_skb_alloc_failed++;
 }
 
 static int bnx2x_alloc_rx_data(struct bnx2x *bp,
@@ -633,8 +643,10 @@ static int bnx2x_alloc_rx_data(struct bnx2x *bp,
 	return 0;
 }
 
-static void bnx2x_csum_validate(struct sk_buff *skb, union eth_rx_cqe *cqe,
-				struct bnx2x_fastpath *fp)
+static
+void bnx2x_csum_validate(struct sk_buff *skb, union eth_rx_cqe *cqe,
+				 struct bnx2x_fastpath *fp,
+				 struct bnx2x_eth_q_stats *qstats)
 {
 	/* Do nothing if no IP/L4 csum validation was done */
 
@@ -648,7 +660,7 @@ static void bnx2x_csum_validate(struct sk_buff *skb, union eth_rx_cqe *cqe,
 	if (cqe->fast_path_cqe.type_error_flags &
 	    (ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG |
 	     ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG))
-		fp->eth_q_stats.hw_csum_err++;
+		qstats->hw_csum_err++;
 	else
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
@@ -792,7 +804,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			DP(NETIF_MSG_RX_ERR | NETIF_MSG_RX_STATUS,
 			   "ERROR  flags %x  rx packet %u\n",
 			   cqe_fp_flags, sw_comp_cons);
-			fp->eth_q_stats.rx_err_discard_pkt++;
+			bnx2x_fp_qstats(bp, fp)->rx_err_discard_pkt++;
 			goto reuse_rx;
 		}
 
@@ -805,7 +817,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			if (skb == NULL) {
 				DP(NETIF_MSG_RX_ERR | NETIF_MSG_RX_STATUS,
 				   "ERROR  packet dropped because of alloc failure\n");
-				fp->eth_q_stats.rx_skb_alloc_failed++;
+				bnx2x_fp_qstats(bp, fp)->rx_skb_alloc_failed++;
 				goto reuse_rx;
 			}
 			memcpy(skb->data, data + pad, len);
@@ -819,14 +831,15 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 				skb = build_skb(data);
 				if (unlikely(!skb)) {
 					kfree(data);
-					fp->eth_q_stats.rx_skb_alloc_failed++;
+					bnx2x_fp_qstats(bp, fp)->
+							rx_skb_alloc_failed++;
 					goto next_rx;
 				}
 				skb_reserve(skb, pad);
 			} else {
 				DP(NETIF_MSG_RX_ERR | NETIF_MSG_RX_STATUS,
 				   "ERROR  packet dropped because of alloc failure\n");
-				fp->eth_q_stats.rx_skb_alloc_failed++;
+				bnx2x_fp_qstats(bp, fp)->rx_skb_alloc_failed++;
 reuse_rx:
 				bnx2x_reuse_rx_data(fp, bd_cons, bd_prod);
 				goto next_rx;
@@ -842,8 +855,8 @@ reuse_rx:
 		skb_checksum_none_assert(skb);
 
 		if (bp->rx_csum)
-			bnx2x_csum_validate(skb, cqe, fp);
-
+			bnx2x_csum_validate(skb, cqe, fp,
+					    bnx2x_fp_qstats(bp, fp));
 
 		skb_record_rx_queue(skb, fp->rx_queue);
 
@@ -1769,7 +1782,7 @@ static void bnx2x_squeeze_objects(struct bnx2x *bp)
 	int rc;
 	unsigned long ramrod_flags = 0, vlan_mac_flags = 0;
 	struct bnx2x_mcast_ramrod_params rparam = {NULL};
-	struct bnx2x_vlan_mac_obj *mac_obj = &bp->fp->mac_obj;
+	struct bnx2x_vlan_mac_obj *mac_obj = &bp->sp_objs->mac_obj;
 
 	/***************** Cleanup MACs' object first *************************/
 
@@ -1780,7 +1793,7 @@ static void bnx2x_squeeze_objects(struct bnx2x *bp)
 
 	/* Clean ETH primary MAC */
 	__set_bit(BNX2X_ETH_MAC, &vlan_mac_flags);
-	rc = mac_obj->delete_all(bp, &bp->fp->mac_obj, &vlan_mac_flags,
+	rc = mac_obj->delete_all(bp, &bp->sp_objs->mac_obj, &vlan_mac_flags,
 				 &ramrod_flags);
 	if (rc != 0)
 		BNX2X_ERR("Failed to clean ETH MACs: %d\n", rc);
@@ -1866,12 +1879,16 @@ bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err)
 static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 {
 	struct bnx2x_fastpath *fp = &bp->fp[index];
+	struct bnx2x_fp_stats *fp_stats = &bp->fp_stats[index];
+
 	int cos;
 	struct napi_struct orig_napi = fp->napi;
+	struct bnx2x_agg_info *orig_tpa_info = fp->tpa_info;
 	/* bzero bnx2x_fastpath contents */
-	if (bp->stats_init)
+	if (bp->stats_init) {
+		memset(fp->tpa_info, 0, sizeof(*fp->tpa_info));
 		memset(fp, 0, sizeof(*fp));
-	else {
+	} else {
 		/* Keep Queue statistics */
 		struct bnx2x_eth_q_stats *tmp_eth_q_stats;
 		struct bnx2x_eth_q_stats_old *tmp_eth_q_stats_old;
@@ -1879,26 +1896,27 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 		tmp_eth_q_stats = kzalloc(sizeof(struct bnx2x_eth_q_stats),
 					  GFP_KERNEL);
 		if (tmp_eth_q_stats)
-			memcpy(tmp_eth_q_stats, &fp->eth_q_stats,
+			memcpy(tmp_eth_q_stats, &fp_stats->eth_q_stats,
 			       sizeof(struct bnx2x_eth_q_stats));
 
 		tmp_eth_q_stats_old =
 			kzalloc(sizeof(struct bnx2x_eth_q_stats_old),
 				GFP_KERNEL);
 		if (tmp_eth_q_stats_old)
-			memcpy(tmp_eth_q_stats_old, &fp->eth_q_stats_old,
+			memcpy(tmp_eth_q_stats_old, &fp_stats->eth_q_stats_old,
 			       sizeof(struct bnx2x_eth_q_stats_old));
 
+		memset(fp->tpa_info, 0, sizeof(*fp->tpa_info));
 		memset(fp, 0, sizeof(*fp));
 
 		if (tmp_eth_q_stats) {
-			memcpy(&fp->eth_q_stats, tmp_eth_q_stats,
-				   sizeof(struct bnx2x_eth_q_stats));
+			memcpy(&fp_stats->eth_q_stats, tmp_eth_q_stats,
+			       sizeof(struct bnx2x_eth_q_stats));
 			kfree(tmp_eth_q_stats);
 		}
 
 		if (tmp_eth_q_stats_old) {
-			memcpy(&fp->eth_q_stats_old, tmp_eth_q_stats_old,
+			memcpy(&fp_stats->eth_q_stats_old, tmp_eth_q_stats_old,
 			       sizeof(struct bnx2x_eth_q_stats_old));
 			kfree(tmp_eth_q_stats_old);
 		}
@@ -1907,7 +1925,7 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 
 	/* Restore the NAPI object as it has been already initialized */
 	fp->napi = orig_napi;
-
+	fp->tpa_info = orig_tpa_info;
 	fp->bp = bp;
 	fp->index = index;
 	if (IS_ETH_FP(fp))
@@ -2901,7 +2919,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(bnx2x_tx_avail(bp, txdata) <
 		     (skb_shinfo(skb)->nr_frags + 3))) {
-		txdata->parent_fp->eth_q_stats.driver_xoff++;
+		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
 		netif_tx_stop_queue(txq);
 		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
@@ -3177,7 +3195,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * fp->bd_tx_cons */
 		smp_mb();
 
-		txdata->parent_fp->eth_q_stats.driver_xoff++;
+		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
 		if (bnx2x_tx_avail(bp, txdata) >= MAX_SKB_FRAGS + 4)
 			netif_tx_wake_queue(txq);
 	}
@@ -3347,7 +3365,7 @@ static int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 			       cqe_ring_prod);
 	fp->rx_pkt = fp->rx_calls = 0;
 
-	fp->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
+	bnx2x_fp_stats(bp, fp)->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
 
 	return i - failure_cnt;
 }
@@ -3552,7 +3570,10 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 
 void bnx2x_free_mem_bp(struct bnx2x *bp)
 {
+	kfree(bp->fp->tpa_info);
 	kfree(bp->fp);
+	kfree(bp->sp_objs);
+	kfree(bp->fp_stats);
 	kfree(bp->bnx2x_txq);
 	kfree(bp->msix_table);
 	kfree(bp->ilt);
@@ -3564,6 +3585,8 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	struct msix_entry *tbl;
 	struct bnx2x_ilt *ilt;
 	int msix_table_size = 0;
+	int fp_array_size;
+	int i;
 
 	/*
 	 * The biggest MSI-X table we might need is as a maximum number of fast
@@ -3572,11 +3595,33 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	msix_table_size = bp->igu_sb_cnt + 1;
 
 	/* fp array: RSS plus CNIC related L2 queues */
-	fp = kcalloc(BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE,
-		     sizeof(*fp), GFP_KERNEL);
+	fp_array_size = BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE;
+	BNX2X_DEV_INFO("fp_array_size %d", fp_array_size);
+
+	fp = kcalloc(fp_array_size, sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		goto alloc_err;
+	for (i = 0; i < fp_array_size; i++) {
+		fp[i].tpa_info =
+			kcalloc(ETH_MAX_AGGREGATION_QUEUES_E1H_E2,
+				sizeof(struct bnx2x_agg_info), GFP_KERNEL);
+		if (!(fp[i].tpa_info))
+			goto alloc_err;
+	}
+
 	bp->fp = fp;
+
+	/* allocate sp objs */
+	bp->sp_objs = kcalloc(fp_array_size, sizeof(struct bnx2x_sp_objs),
+			      GFP_KERNEL);
+	if (!bp->sp_objs)
+		goto alloc_err;
+
+	/* allocate fp_stats */
+	bp->fp_stats = kcalloc(fp_array_size, sizeof(struct bnx2x_fp_stats),
+			       GFP_KERNEL);
+	if (!bp->fp_stats)
+		goto alloc_err;
 
 	/* Allocate memory for the transmission queues array */
 	bp->bnx2x_txq_size = BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS;
@@ -3759,7 +3804,7 @@ static int bnx2x_set_vlan_stripping(struct bnx2x *bp, bool set)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		/* Set the appropriate Queue object */
-		q_params.q_obj = &fp->q_obj;
+		q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 		/* Update the Queue state */
 		rc = bnx2x_queue_state_change(bp, &q_params);
