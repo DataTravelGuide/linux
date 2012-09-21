@@ -456,6 +456,22 @@ struct ethtool_rxfh_indir {
 
 #ifdef __KERNEL__
 
+/**
+ * enum ethtool_phys_id_state - indicator state for physical identification
+ * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
+ * @ETHTOOL_ID_ACTIVE: Physical ID indicator should be activated
+ * @ETHTOOL_ID_ON: LED should be turned on (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ * @ETHTOOL_ID_OFF: LED should be turned off (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ */
+enum ethtool_phys_id_state {
+	ETHTOOL_ID_INACTIVE,
+	ETHTOOL_ID_ACTIVE,
+	ETHTOOL_ID_ON,
+	ETHTOOL_ID_OFF
+};
+
 struct net_device;
 
 /**
@@ -638,6 +654,7 @@ struct  ethtool_ops_ext {
 				   struct ethtool_modinfo *);
 	int	(*get_module_eeprom)(struct net_device *,
 				     struct ethtool_eeprom *, u8 *);
+	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
 };
 #endif /* __KERNEL__ */
 

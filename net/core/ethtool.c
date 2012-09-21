@@ -15,8 +15,11 @@
 #include <linux/types.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
+#include <linux/sched.h>
+#include <linux/rtnetlink.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 
 /*
@@ -846,14 +849,64 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_value id;
+	static bool busy;
+	int rc;
 
-	if (!dev->ethtool_ops->phys_id)
+	if (!GET_ETHTOOL_OP_EXT(dev, set_phys_id) && !dev->ethtool_ops->phys_id)
 		return -EOPNOTSUPP;
+
+	if (busy)
+		return -EBUSY;
 
 	if (copy_from_user(&id, useraddr, sizeof(id)))
 		return -EFAULT;
 
-	return dev->ethtool_ops->phys_id(dev, id.data);
+	if (!GET_ETHTOOL_OP_EXT(dev, set_phys_id))
+		/* Do it the old way */
+		return dev->ethtool_ops->phys_id(dev, id.data);
+
+	rc = GET_ETHTOOL_OP_EXT(dev, set_phys_id)(dev, ETHTOOL_ID_ACTIVE);
+	if (rc < 0)
+		return rc;
+
+	/* Drop the RTNL lock while waiting, but prevent reentry or
+	 * removal of the device.
+	 */
+	busy = true;
+	dev_hold(dev);
+	rtnl_unlock();
+
+	if (rc == 0) {
+		/* Driver will handle this itself */
+		schedule_timeout_interruptible(
+			id.data ? (id.data * HZ) : MAX_SCHEDULE_TIMEOUT);	
+	} else {
+		/* Driver expects to be called at twice the frequency in rc */
+		int n = rc * 2, i, interval = HZ / n;
+
+		/* Count down seconds */
+		do {
+			/* Count down iterations per second */
+			i = n;
+			do {
+				rtnl_lock();
+				rc = GET_ETHTOOL_OP_EXT(dev, set_phys_id)(dev,
+				    (i & 1) ? ETHTOOL_ID_OFF : ETHTOOL_ID_ON);
+				rtnl_unlock();
+				if (rc)
+					break;
+				schedule_timeout_interruptible(interval);
+			} while (!signal_pending(current) && --i != 0);
+		} while (!signal_pending(current) &&
+			 (id.data == 0 || --id.data != 0));
+	}
+
+	rtnl_lock();
+	dev_put(dev);
+	busy = false;
+
+	(void)GET_ETHTOOL_OP_EXT(dev, set_phys_id)(dev, ETHTOOL_ID_INACTIVE);
+	return rc;
 }
 
 static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
