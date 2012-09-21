@@ -549,7 +549,6 @@ extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 
 /* PCI related functions */
 extern int qla82xx_pci_config(struct scsi_qla_host *);
-extern char *qla82xx_pci_info_str(struct scsi_qla_host *, char *);
 extern int qla82xx_iospace_config(struct qla_hw_data *);
 
 /* Initialization related functions */
