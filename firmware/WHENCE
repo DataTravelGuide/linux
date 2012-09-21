@@ -966,6 +966,9 @@ Version: 0.0.3
 File: rtl_nic/rtl8402-1.fw
 Version: 0.0.1
 
+File: rtl_nic/rtl8106e-1.fw
+Version: 0.0.1
+
 Licence:
  * Copyright (c) 2010, Realtek Semiconductor Corporation
  *
