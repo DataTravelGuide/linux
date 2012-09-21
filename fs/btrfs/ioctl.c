@@ -160,6 +160,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (!is_owner_or_cap(inode))
 		return -EACCES;
 
+	ret = mnt_want_write(file->f_path.mnt);
+	if (ret)
+		return ret;
+
 	mutex_lock(&inode->i_mutex);
 
 	flags = btrfs_mask_flags(inode->i_mode, flags);
@@ -170,10 +174,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 			goto out_unlock;
 		}
 	}
-
-	ret = mnt_want_write(file->f_path.mnt);
-	if (ret)
-		goto out_unlock;
 
 	if (flags & FS_SYNC_FL)
 		ip->flags |= BTRFS_INODE_SYNC;
@@ -211,9 +211,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	inode->i_ctime = CURRENT_TIME;
 	btrfs_end_transaction(trans, root);
 
-	mnt_drop_write(file->f_path.mnt);
  out_unlock:
 	mutex_unlock(&inode->i_mutex);
+	mnt_drop_write(file->f_path.mnt);
 	return 0;
 }
 
@@ -519,6 +519,10 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	struct dentry *dentry;
 	int error;
 
+	error = mnt_want_write(parent->mnt);
+	if (error)
+		return error;
+
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 
 	dentry = lookup_one_len(name, parent->dentry, namelen);
@@ -530,13 +534,9 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	if (dentry->d_inode)
 		goto out_dput;
 
-	error = mnt_want_write(parent->mnt);
-	if (error)
-		goto out_dput;
-
 	error = btrfs_may_create(dir, dentry);
 	if (error)
-		goto out_drop_write;
+		goto out_dput;
 
 	down_read(&BTRFS_I(dir)->root->fs_info->subvol_sem);
 
@@ -554,12 +554,11 @@ static noinline int btrfs_mksubvol(struct path *parent,
 		fsnotify_mkdir(dir, dentry);
 out_up_read:
 	up_read(&BTRFS_I(dir)->root->fs_info->subvol_sem);
-out_drop_write:
-	mnt_drop_write(parent->mnt);
 out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->i_mutex);
+	mnt_drop_write(parent->mnt);
 	return error;
 }
 
