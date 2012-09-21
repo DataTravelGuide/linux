@@ -4839,11 +4839,11 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 	start = (e4b.bd_info->bb_first_free > start) ?
 		e4b.bd_info->bb_first_free : start;
 
-	while (start < max) {
-		start = mb_find_next_zero_bit(bitmap, max, start);
-		if (start >= max)
+	while (start <= max) {
+		start = mb_find_next_zero_bit(bitmap, max + 1, start);
+		if (start > max)
 			break;
-		next = mb_find_next_bit(bitmap, max, start);
+		next = mb_find_next_bit(bitmap, max + 1, start);
 
 		if ((next - start) >= minblocks) {
 			ext4_trim_extent(sb, start,
@@ -4903,6 +4903,9 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	ext4_fsblk_t max_blks = ext4_blocks_count(EXT4_SB(sb)->s_es);
 	int ret = 0;
 
+	if ((range->len >> sb->s_blocksize_bits) == 0)
+		goto out;
+
 	start = range->start >> sb->s_blocksize_bits;
 	end = start + (range->len >> sb->s_blocksize_bits) - 1;
 	minlen = range->minlen >> sb->s_blocksize_bits;
@@ -4924,7 +4927,7 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 				     &last_group, &last_block);
 
 	/* The last block to discard in the group */
-	end = EXT4_BLOCKS_PER_GROUP(sb);
+	end = EXT4_BLOCKS_PER_GROUP(sb) - 1;
 
 	for (group = first_group; group <= last_group; group++) {
 		grp = ext4_get_group_info(sb, group);
