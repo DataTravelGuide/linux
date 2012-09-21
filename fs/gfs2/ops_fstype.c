@@ -1442,7 +1442,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 
 struct file_system_type gfs2_fs_type = {
 	.name = "gfs2",
-	.fs_flags = FS_REQUIRES_DEV,
+	.fs_flags = FS_REQUIRES_DEV | FS_HAS_NEW_FREEZE,
 	.get_sb = gfs2_get_sb,
 	.kill_sb = gfs2_kill_sb,
 	.owner = THIS_MODULE,

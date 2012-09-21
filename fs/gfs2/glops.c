@@ -96,6 +96,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
 	tr.tr_ip = (unsigned long)__builtin_return_address(0);
 	INIT_LIST_HEAD(&tr.tr_list_buf);
+	sb_start_intwrite(sdp->sd_vfs);
 	gfs2_log_reserve(sdp, tr.tr_reserved);
 	BUG_ON(current->journal_info);
 	current->journal_info = &tr;
