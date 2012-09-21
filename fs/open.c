@@ -727,7 +727,7 @@ cleanup_all:
 			 * here, so just reset the state.
 			 */
 			file_reset_write(f);
-			mnt_drop_write(mnt);
+			__mnt_drop_write(mnt);
 		}
 	}
 	file_kill(f);
