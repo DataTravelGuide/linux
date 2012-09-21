@@ -722,7 +722,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			models++;
 		}
 	}
-	if (id < 0) {
+	if (id < 0 && quirk) {
 		q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
 		if (q) {
 			id = q->value;
@@ -731,7 +731,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 #endif
 		}
 	}
-	if (id < 0) {
+	if (id < 0 && quirk) {
 		for (q = quirk; q->subvendor; q++) {
 			unsigned int vendorid =
 				q->subdevice | (q->subvendor << 16);
