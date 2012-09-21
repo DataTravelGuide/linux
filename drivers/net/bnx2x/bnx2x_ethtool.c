@@ -2676,6 +2676,204 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
+#if 0 /* not in RHEL6 */
+static int bnx2x_get_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
+{
+
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST |
+			     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		if (bp->rss_conf_obj.udp_rss_v4)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V6_FLOW:
+		if (bp->rss_conf_obj.udp_rss_v6)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		info->data = 0;
+		break;
+	}
+
+	return 0;
+}
+
+static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   u32 *rules __always_unused)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = BNX2X_NUM_ETH_QUEUES(bp);
+		return 0;
+	case ETHTOOL_GRXFH:
+		return bnx2x_get_rss_flags(bp, info);
+	default:
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
+{
+	int udp_rss_requested;
+
+	DP(BNX2X_MSG_ETHTOOL,
+	   "Set rss flags command parameters: flow type = %d, data = %llu\n",
+	   info->flow_type, info->data);
+
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		/* For TCP only 4-tupple hash is supported */
+		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST |
+				  RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+
+	case UDP_V4_FLOW:
+	case UDP_V6_FLOW:
+		/* For UDP either 2-tupple hash or 4-tupple hash is supported */
+		if (info->data == (RXH_IP_SRC | RXH_IP_DST |
+				 RXH_L4_B_0_1 | RXH_L4_B_2_3))
+			udp_rss_requested = 1;
+		else if (info->data == (RXH_IP_SRC | RXH_IP_DST))
+			udp_rss_requested = 0;
+		else
+			return -EINVAL;
+		if ((info->flow_type == UDP_V4_FLOW) &&
+		    (bp->rss_conf_obj.udp_rss_v4 != udp_rss_requested)) {
+			bp->rss_conf_obj.udp_rss_v4 = udp_rss_requested;
+			DP(BNX2X_MSG_ETHTOOL,
+			   "rss re-configured, UDP 4-tupple %s\n",
+			   udp_rss_requested ? "enabled" : "disabled");
+			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+		} else if ((info->flow_type == UDP_V6_FLOW) &&
+			   (bp->rss_conf_obj.udp_rss_v6 != udp_rss_requested)) {
+			bp->rss_conf_obj.udp_rss_v6 = udp_rss_requested;
+			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			DP(BNX2X_MSG_ETHTOOL,
+			   "rss re-configured, UDP 4-tupple %s\n",
+			   udp_rss_requested ? "enabled" : "disabled");
+		} else {
+			return 0;
+		}
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		/* For IP only 2-tupple hash is supported */
+		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST)) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IP_USER_FLOW:
+	case ETHER_FLOW:
+		/* RSS is not supported for these protocols */
+		if (info->data) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bnx2x_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_SRXFH:
+		return bnx2x_set_rss_flags(bp, info);
+	default:
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
+
+static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
+{
+	return T_ETH_INDIRECTION_TABLE_SIZE;
+}
+
+static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
+	size_t i;
+
+	/* Get the current configuration of the RSS indirection table */
+	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
+
+	/*
+	 * We can't use a memcpy() as an internal storage of an
+	 * indirection table is a u8 array while indir->ring_index
+	 * points to an array of u32.
+	 *
+	 * Indirection table contains the FW Client IDs, so we need to
+	 * align the returned table to the Client ID of the leading RSS
+	 * queue.
+	 */
+	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++)
+		indir[i] = ind_table[i] - bp->fp->cl_id;
+
+	return 0;
+}
+
+static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	size_t i;
+
+	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
+		/*
+		 * The same as in bnx2x_get_rxfh_indir: we can't use a memcpy()
+		 * as an internal storage of an indirection table is a u8 array
+		 * while indir->ring_index points to an array of u32.
+		 *
+		 * Indirection table contains the FW Client IDs, so we need to
+		 * align the received table to the Client ID of the leading RSS
+		 * queue
+		 */
+		bp->rss_conf_obj.ind_table[i] = indir[i] + bp->fp->cl_id;
+	}
+
+	return bnx2x_config_rss_eth(bp, false);
+}
+#endif
+
 static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
