@@ -3078,7 +3078,7 @@ static struct file_system_type ext3_fs_type = {
 	.name		= "ext3",
 	.get_sb		= ext3_get_sb,
 	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.fs_flags	= FS_REQUIRES_DEV  | FS_HAS_NEW_FREEZE,
 };
 
 static int __init init_ext3_fs(void)
