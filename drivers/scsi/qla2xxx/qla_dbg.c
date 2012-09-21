@@ -18,7 +18,7 @@
  * | Device Discovery             |       0x2087       | 0x2020-0x2022  |
  * | Queue Command and IO tracing |       0x3030       | 0x3006,0x3008  |
  * |                              |                    | 0x302d,0x302e  |
- * | DPC Thread                   |       0x401c       | 0x4002,4013    |
+ * | DPC Thread                   |       0x401d       | 0x4002,4013    |
  * | Async Events                 |       0x5071       | 0x502b-0x502f  |
  * |				  | 		       | 0x5047,0x5052  |
  * | Timer Routines               |       0x6011       |                |
