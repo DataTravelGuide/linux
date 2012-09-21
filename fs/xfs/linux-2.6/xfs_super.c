@@ -1577,7 +1577,7 @@ static struct file_system_type xfs_fs_type = {
 	.name			= "xfs",
 	.get_sb			= xfs_fs_get_sb,
 	.kill_sb		= kill_block_super,
-	.fs_flags		= FS_REQUIRES_DEV,
+	.fs_flags		= FS_REQUIRES_DEV | FS_HAS_NEW_FREEZE,
 };
 
 STATIC int __init
