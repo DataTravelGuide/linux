@@ -6,6 +6,8 @@ LANG=C
 BUILD_DEFAULT_TARGET = RHEL-6-test
 BUILD_SCRATCH_TARGET = RHEL-6-test
 
+TOPDIR:=$(shell dirname $(REDHAT))
+
 #ifeq ($(shell git diff --quiet HEAD && git describe --exact-match 2>/dev/null && echo ok),)
 BUILD_TARGET ?= --scratch $(BUILD_SCRATCH_TARGET)
 #else
@@ -21,11 +23,33 @@ BUILDID:=$(shell cat $(LOCVERFILE))
 else
 BUILDID:=.test
 endif
-$(info BUILDID is "$(BUILDID)". Update '$(shell dirname $(REDHAT))/localversion' to change.)
+$(info BUILDID is "$(BUILDID)". Update '$(TOPDIR)/localversion' to change.)
 
 RHGITURL:=$(shell git config remote.origin.url)
 RHVALIDURL:=$(shell git config remote.origin.url | grep -E '^git://git[2]?\.engineering\.redhat\.com')
 RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)
+RHDISTGIT_USER:="$(shell whoami)"
+RHDISTGIT:="ssh://$(RHDISTGIT_USER)@pkgs.devel.redhat.com/rpms/kernel"
+
+# variables that can be overrided by ~/.rhel6git.mk or $(TOPDIR)/.rhel6git.mk
+#
+# Local dist-git _clean_ clone. To be used when updating dist-git
+#RHDISTGIT_CACHE:=
+# Temporary directory to clone the dist-git repo to. Change this if you 
+# have a faster storage
+RHDISTGIT_TMP:=/tmp
+# Branch it should be switched into
+# RHDISTGIT_BRANCH:=rhel-6.4
+
+# load configuration, starting with home directory then local
+ifeq ("$(RHDISTGIT_CACHE)", "")
+ ifneq ("$(wildcard ${HOME}/.rhel6git.mk)", "")
+  include ${HOME}/.rhel6git.mk
+ endif
+ ifneq ("$(wildcard $(TOPDIR)/.rhel6git.mk)", "")
+  include $(TOPDIR)/.rhel6git.mk
+ endif
+endif
 
 # this section is needed in order to make O= to work
 _OUTPUT := ..
@@ -206,6 +230,18 @@ ifeq ("$(RHVALIDURL)", "")
 else
 	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
 endif
+
+$(REDHAT)/rpm/SOURCES/kernel.spec:
+	@echo "rh-sources"
+
+	@$(MAKE) rh-sources
+
+rh-dist-git: $(REDHAT)/rpm/SOURCES/kernel.spec
+ifeq ("$(RHDISTGIT_BRANCH)", "")
+	$(error RHDISTGIT_BRANCH unset)
+endif
+	$(REDHAT)/scripts/rh-dist-git.sh "$(RHDISTGIT_BRANCH)" "$(RHDISTGIT_CACHE)" "$(RHDISTGIT_TMP)" "$(RHDISTGIT)"
+
 
 rh-help:
 	@echo  'Cleaning targets:'

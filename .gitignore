@@ -121,3 +121,5 @@ firmware/nouveau/nva8.ctxvals
 firmware/nouveau/nvaa.ctxprog
 firmware/nouveau/nvaa.ctxvals
 
+# configuration file for rh- targets
+.rhel6git.mk

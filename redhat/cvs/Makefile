@@ -29,6 +29,7 @@ update-spec:
 		sed -e "s,linux-2.6.32.tar.bz2,$(FULL_TARBALL),">$(MAIN_SPEC);
 	@make update-ksb-spec
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
+	@git add kernel.spec*
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
 full-srpm:
