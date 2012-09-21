@@ -1284,8 +1284,8 @@ struct bnx2x {
 #define BNX2X_FW_RX_ALIGN_START	(1UL << BNX2X_RX_ALIGN_SHIFT)
 
 #define BNX2X_FW_RX_ALIGN_END					\
-	max(1UL << BNX2X_RX_ALIGN_SHIFT, 			\
-	    (unsigned long)SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+	max_t(u64, 1UL << BNX2X_RX_ALIGN_SHIFT,			\
+	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define BNX2X_PXP_DRAM_ALIGN		(BNX2X_RX_ALIGN_SHIFT - 5)
 
