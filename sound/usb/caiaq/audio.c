@@ -310,8 +310,10 @@ snd_usb_caiaq_pcm_pointer(struct snd_pcm_substream *sub)
 
 	spin_lock(&dev->spinlock);
 
-	if (dev->input_panic || dev->output_panic)
+	if (dev->input_panic || dev->output_panic) {
 		ptr = SNDRV_PCM_POS_XRUN;
+		goto unlock;
+	}
 
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ptr = bytes_to_frames(sub->runtime,
@@ -320,6 +322,7 @@ snd_usb_caiaq_pcm_pointer(struct snd_pcm_substream *sub)
 		ptr = bytes_to_frames(sub->runtime,
 					dev->audio_in_buf_pos[index]);
 
+unlock:
 	spin_unlock(&dev->spinlock);
 	return ptr;
 }
