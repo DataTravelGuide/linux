@@ -186,12 +186,13 @@ static void snd_hda_do_unregister(struct work_struct *work)
 int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 {
 	struct hda_beep *beep = codec->beep;
-	enable = !!enable;
-	if (beep == NULL)
+	if (!beep)
 		return 0;
+	enable = !!enable;
 	if (beep->enabled != enable) {
 		beep->enabled = enable;
 		if (!enable) {
+			cancel_work_sync(&beep->beep_work);
 			/* turn off beep */
 			snd_hda_codec_write(beep->codec, beep->nid, 0,
 						  AC_VERB_SET_BEEP_CONTROL, 0);
