@@ -905,6 +905,7 @@ static int bnx2x_nway_reset(struct net_device *dev)
 
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -1644,7 +1645,7 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 		dev->features &= ~NETIF_F_RXHASH;
 
 	if (changed && netif_running(dev)) {
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
 	}
 
@@ -1828,6 +1829,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	/* Restart link to propogate changes */
 	if (netif_running(dev)) {
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_force_link_reset(bp);
 		bnx2x_link_set(bp);
 	}
 
@@ -2348,7 +2350,7 @@ static int bnx2x_test_ext_loopback(struct bnx2x *bp)
 	if (!netif_running(bp->dev))
 		return BNX2X_EXT_LOOPBACK_FAILED;
 
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 	rc = bnx2x_nic_load(bp, LOAD_LOOPBACK_EXT);
 	if (rc) {
 		DP(BNX2X_MSG_ETHTOOL,
@@ -2499,7 +2501,7 @@ static void bnx2x_self_test(struct net_device *dev,
 
 		link_up = bp->link_vars.link_up;
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 		rc = bnx2x_nic_load(bp, LOAD_DIAG);
 		if (rc) {
 			etest->flags |= ETH_TEST_FL_FAILED;
@@ -2531,7 +2533,7 @@ static void bnx2x_self_test(struct net_device *dev,
 			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
 		}
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, false);
 
 		/* restore input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, val);
@@ -3019,7 +3021,7 @@ static int bnx2x_set_channels(struct net_device *dev,
 		bnx2x_change_num_queues(bp, channels->combined_count);
 		return 0;
 	}
-	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 	bnx2x_change_num_queues(bp, channels->combined_count);
 	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }

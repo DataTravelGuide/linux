@@ -2175,7 +2175,6 @@ void bnx2x_link_set(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 
@@ -2188,10 +2187,17 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+		bnx2x_lfa_reset(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing - can not reset link\n");
+}
+
+void bnx2x_force_link_reset(struct bnx2x *bp)
+{
+	bnx2x_acquire_phy_lock(bp);
+	bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
+	bnx2x_release_phy_lock(bp);
 }
 
 u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
@@ -6761,7 +6767,6 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	u32 low, high;
 	u32 val;
 
-	bnx2x__link_reset(bp);
 
 	DP(NETIF_MSG_HW, "starting port init  port %d\n", port);
 
@@ -8254,12 +8259,15 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode)
  * bnx2x_send_unload_done - send UNLOAD_DONE command to the MCP.
  *
  * @bp:		driver handle
+ * @keep_link:		true iff link should be kept up
  */
-void bnx2x_send_unload_done(struct bnx2x *bp)
+void bnx2x_send_unload_done(struct bnx2x *bp, bool keep_link)
 {
+	u32 reset_param = keep_link ? DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET : 0;
+
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
-		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, reset_param);
 }
 
 static int bnx2x_func_wait_started(struct bnx2x *bp)
@@ -8328,7 +8336,7 @@ static int bnx2x_func_wait_started(struct bnx2x *bp)
 	return 0;
 }
 
-void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
+void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link)
 {
 	int port = BP_PORT(bp);
 	int i, rc = 0;
@@ -8450,7 +8458,7 @@ unload_error:
 
 
 	/* Report UNLOAD_DONE to MCP */
-	bnx2x_send_unload_done(bp);
+	bnx2x_send_unload_done(bp, keep_link);
 }
 
 void bnx2x_disable_close_the_gate(struct bnx2x *bp)
@@ -8862,7 +8870,8 @@ int bnx2x_leader_reset(struct bnx2x *bp)
 	 * driver is owner of the HW
 	 */
 	if (!global && !BP_NOMCP(bp)) {
-		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ, 0);
+		load_code = bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_REQ,
+					     DRV_MSG_CODE_LOAD_REQ_WITH_LFA);
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EAGAIN;
@@ -8968,7 +8977,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 
 			/* Stop the driver */
 			/* If interface has been removed - break */
-			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY))
+			if (bnx2x_nic_unload(bp, UNLOAD_RECOVERY, false))
 				return;
 
 			bp->recovery_state = BNX2X_RECOVERY_WAIT;
@@ -9134,7 +9143,7 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		bp->sp_rtnl_state = 0;
 		smp_mb();
 
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 
 		goto sp_rtnl_exit;
@@ -9318,7 +9327,8 @@ static void __devinit bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port,
 
 static int __devinit bnx2x_prev_mcp_done(struct bnx2x *bp)
 {
-	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
+	u32 rc = bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE,
+				  DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET);
 	if (!rc) {
 		BNX2X_ERR("MCP response failure, aborting\n");
 		return -EBUSY;
@@ -11010,7 +11020,7 @@ static int bnx2x_close(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* Unload the driver, release IRQs */
-	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
 	/* Power off */
 	bnx2x_set_power_state(bp, PCI_D3hot);
