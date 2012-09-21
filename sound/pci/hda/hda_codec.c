@@ -1209,6 +1209,9 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	kfree(codec);
 }
 
+static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
+				hda_nid_t fg, unsigned int power_state);
+
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 
