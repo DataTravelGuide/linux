@@ -10210,6 +10210,8 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->max_cos = 1;
 
+	bp->gro_check = bnx2x_need_gro_check(bp->dev->mtu);
+
 	return rc;
 }
 
