@@ -247,36 +247,56 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		goto out;
 	down_write(&sb->s_umount);
 	if (sb->s_flags & MS_RDONLY) {
-		sb->s_frozen = SB_FREEZE_TRANS;
+		/* Nothing to do really... */
+		sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 		up_write(&sb->s_umount);
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		return sb;
 	}
 
-	sb->s_frozen = SB_FREEZE_WRITE;
+	/* From now on, no new normal writers can start */
+	sb->s_writers.frozen = SB_FREEZE_WRITE;
 	smp_wmb();
 
+	/* Release s_umount to preserve sb_start_write -> s_umount ordering */
+	up_write(&sb->s_umount);
+
+	sb_wait_write(sb, SB_FREEZE_WRITE);
+
+	/* Now we go and block page faults... */
+	down_write(&sb->s_umount);
+	sb->s_writers.frozen = SB_FREEZE_PAGEFAULT;
+	smp_wmb();
+
+	sb_wait_write(sb, SB_FREEZE_PAGEFAULT);
+
+	/* All writers are done so after syncing there won't be dirty data */
 	sync_filesystem(sb);
 
-	sb->s_frozen = SB_FREEZE_TRANS;
+	/* Now wait for internal filesystem counter */
+	sb->s_writers.frozen = SB_FREEZE_FS;
 	smp_wmb();
-
-	sync_blockdev(sb->s_bdev);
+	sb_wait_write(sb, SB_FREEZE_FS);
 
 	if (sb->s_op->freeze_fs) {
 		error = sb->s_op->freeze_fs(sb);
 		if (error) {
 			printk(KERN_ERR
 				"VFS:Filesystem freeze failed\n");
-			sb->s_frozen = SB_UNFROZEN;
+			sb->s_writers.frozen = SB_UNFROZEN;
 			smp_wmb();
-			wake_up(&sb->s_wait_unfrozen);
+			wake_up(&sb->s_writers.wait_unfrozen);
 			deactivate_locked_super(sb);
 			bdev->bd_fsfreeze_count--;
 			mutex_unlock(&bdev->bd_fsfreeze_mutex);
 			return ERR_PTR(error);
 		}
 	}
+	/*
+	 * This is just for debugging purposes so that fs can warn if it
+	 * sees write activity when frozen is set to SB_FREEZE_COMPLETE.
+	 */
+	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 	up_write(&sb->s_umount);
 
  out:
@@ -318,7 +338,6 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 		if (error) {
 			printk(KERN_ERR
 				"VFS:Filesystem thaw failed\n");
-			sb->s_frozen = SB_FREEZE_TRANS;
 			bdev->bd_fsfreeze_count++;
 			mutex_unlock(&bdev->bd_fsfreeze_mutex);
 			return error;
@@ -326,9 +345,9 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 	}
 
 out_unfrozen:
-	sb->s_frozen = SB_UNFROZEN;
+	sb->s_writers.frozen = SB_UNFROZEN;
 	smp_wmb();
-	wake_up(&sb->s_wait_unfrozen);
+	wake_up(&sb->s_writers.wait_unfrozen);
 
 	if (sb)
 		deactivate_locked_super(sb);

@@ -38,11 +38,46 @@
 #include <linux/mutex.h>
 #include <linux/file.h>
 #include <asm/uaccess.h>
+#include <linux/lockdep.h>
 #include "internal.h"
 
+static char *sb_writers_name[SB_FREEZE_LEVELS] = {
+	"sb_writers",
+	"sb_pagefaults",
+	"sb_internal",
+};
 
 LIST_HEAD(super_blocks);
 DEFINE_SPINLOCK(sb_lock);
+
+static int init_sb_writers(struct super_block *s, struct file_system_type *type)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
+		err = percpu_counter_init(&s->s_writers.counter[i], 0);
+		if (err < 0)
+			goto err_out;
+		lockdep_init_map(&s->s_writers.lock_map[i], sb_writers_name[i],
+				 &type->s_writers_key[i], 0);
+	}
+	init_waitqueue_head(&s->s_writers.wait);
+	init_waitqueue_head(&s->s_writers.wait_unfrozen);
+	return 0;
+err_out:
+	while (--i >= 0)
+		percpu_counter_destroy(&s->s_writers.counter[i]);
+	return err;
+}
+
+static void destroy_sb_writers(struct super_block *s)
+{
+	int i;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++)
+		percpu_counter_destroy(&s->s_writers.counter[i]);
+}
 
 /**
  *	alloc_super	-	create new superblock
@@ -58,11 +93,17 @@ static struct super_block *alloc_super(struct file_system_type *type)
 
 	if (s) {
 		if (security_sb_alloc(s)) {
+			/*
+			 * We cannot call security_sb_free() without
+			 * security_sb_alloc() succeeding. So bail out manually
+			 */
 			kfree(s);
 			s = NULL;
 			goto out;
 		}
 		INIT_LIST_HEAD(&s->s_files);
+		if (init_sb_writers(s, type))
+			goto err_out;
 		INIT_LIST_HEAD(&s->s_instances);
 		INIT_HLIST_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
@@ -107,6 +148,12 @@ static struct super_block *alloc_super(struct file_system_type *type)
 	}
 out:
 	return s;
+err_out:
+	security_sb_free(s);
+	destroy_sb_writers(s);
+	kfree(s);
+	s = NULL;
+	goto out;
 }
 
 /**
@@ -118,6 +165,7 @@ out:
 static inline void destroy_super(struct super_block *s)
 {
 	security_sb_free(s);
+	destroy_sb_writers(s);
 	kfree(s->s_subtype);
 	kfree(s->s_options);
 	kfree(s);
@@ -481,10 +529,11 @@ struct super_block *get_super_thawed(struct block_device *bdev)
 {
 	while (1) {
 		struct super_block *s = get_super(bdev);
-		if (!s || s->s_frozen == SB_UNFROZEN)
+		if (!s || s->s_writers.frozen == SB_UNFROZEN)
 			return s;
 		up_read(&s->s_umount);
-		vfs_check_frozen(s, SB_FREEZE_WRITE);
+		wait_event(s->s_writers.wait_unfrozen,
+			   s->s_writers.frozen == SB_UNFROZEN);
 		put_super(s);
 	}
 }
@@ -543,6 +592,120 @@ rescan:
 	return NULL;
 }
 
+/*
+ * This is an internal function, please use sb_end_{write,pagefault,intwrite}
+ * instead.
+ */
+void __sb_end_write(struct super_block *sb, int level)
+{
+	percpu_counter_dec(&sb->s_writers.counter[level-1]);
+	/*
+	 * Make sure s_writers are updated before we wake up waiters in
+	 * freeze_super().
+	 */
+	smp_mb();
+	if (waitqueue_active(&sb->s_writers.wait))
+		wake_up(&sb->s_writers.wait);
+	rwsem_release(&sb->s_writers.lock_map[level-1], 1, _RET_IP_);
+}
+EXPORT_SYMBOL(__sb_end_write);
+
+#ifdef CONFIG_LOCKDEP
+/*
+ * We want lockdep to tell us about possible deadlocks with freezing but
+ * it's it bit tricky to properly instrument it. Getting a freeze protection
+ * works as getting a read lock but there are subtle problems. XFS for example
+ * gets freeze protection on internal level twice in some cases, which is OK
+ * only because we already hold a freeze protection also on higher level. Due
+ * to these cases we have to tell lockdep we are doing trylock when we
+ * already hold a freeze protection for a higher freeze level.
+ */
+static void acquire_freeze_lock(struct super_block *sb, int level, bool trylock,
+				unsigned long ip)
+{
+	int i;
+
+	if (!trylock) {
+		for (i = 0; i < level - 1; i++)
+			if (lock_is_held(&sb->s_writers.lock_map[i])) {
+				trylock = true;
+				break;
+			}
+	}
+	rwsem_acquire_read(&sb->s_writers.lock_map[level-1], 0, trylock, ip);
+}
+#endif
+
+/*
+ * This is an internal function, please use sb_start_{write,pagefault,intwrite}
+ * instead.
+ */
+int __sb_start_write(struct super_block *sb, int level, bool wait)
+{
+retry:
+	if (unlikely(sb->s_writers.frozen >= level)) {
+		if (!wait)
+			return 0;
+		wait_event(sb->s_writers.wait_unfrozen,
+			   sb->s_writers.frozen < level);
+	}
+
+#ifdef CONFIG_LOCKDEP
+	acquire_freeze_lock(sb, level, !wait, _RET_IP_);
+#endif
+	percpu_counter_inc(&sb->s_writers.counter[level-1]);
+	/*
+	 * Make sure counter is updated before we check for frozen.
+	 * freeze_super() first sets frozen and then checks the counter.
+	 */
+	smp_mb();
+	if (unlikely(sb->s_writers.frozen >= level)) {
+		__sb_end_write(sb, level);
+		goto retry;
+	}
+	return 1;
+}
+EXPORT_SYMBOL(__sb_start_write);
+
+/**
+ * sb_wait_write - wait until all writers to given file system finish
+ * @sb: the super for which we wait
+ * @level: type of writers we wait for (normal vs page fault)
+ *
+ * This function waits until there are no writers of given type to given file
+ * system. Caller of this function should make sure there can be no new writers
+ * of type @level before calling this function. Otherwise this function can
+ * livelock.
+ */
+void sb_wait_write(struct super_block *sb, int level)
+{
+	s64 writers;
+
+	/*
+	 * We just cycle-through lockdep here so that it does not complain
+	 * about returning with lock to userspace
+	 */
+	rwsem_acquire(&sb->s_writers.lock_map[level-1], 0, 0, _THIS_IP_);
+	rwsem_release(&sb->s_writers.lock_map[level-1], 1, _THIS_IP_);
+
+	do {
+		DEFINE_WAIT(wait);
+
+		/*
+		 * We use a barrier in prepare_to_wait() to separate setting
+		 * of frozen and checking of the counter
+		 */
+		prepare_to_wait(&sb->s_writers.wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+
+		writers = percpu_counter_sum(&sb->s_writers.counter[level-1]);
+		if (writers)
+			schedule();
+
+		finish_wait(&sb->s_writers.wait, &wait);
+	} while (writers);
+}
+
 /**
  *	do_remount_sb - asks filesystem to change mount options.
  *	@sb:	superblock in question
@@ -557,7 +720,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	int retval;
 	int remount_rw, remount_ro;
 
-	if (sb->s_frozen != SB_UNFROZEN)
+	if (sb->s_writers.frozen != SB_UNFROZEN)
 		return -EBUSY;
 
 #ifdef CONFIG_BLOCK

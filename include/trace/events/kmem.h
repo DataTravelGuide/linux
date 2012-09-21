@@ -5,7 +5,9 @@
 #define _TRACE_KMEM_H
 
 #include <linux/types.h>
+#ifdef __GENKSYMS__
 #include <linux/fs.h>
+#endif
 #include <linux/tracepoint.h>
 #include <linux/mmzone.h>
 
@@ -524,6 +526,10 @@ TRACE_EVENT(mm_filemap_userunmap,
 	TP_printk("mm=%lx address=%lx",
 		(unsigned long)__entry->mm, __entry->address)
 	);
+
+#ifndef __GENKSYMS__
+struct address_space;
+#endif
 
 TRACE_EVENT(mm_pagereclaim_pgout,
 
