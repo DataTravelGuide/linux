@@ -324,7 +324,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	if (!e1000_check_reset_block(hw)) {
+	if (!hw->phy.ops.check_reset_block(hw)) {
 		u32 fwsm = er32(FWSM);
 
 		/*
@@ -1306,7 +1306,7 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 			oem_reg |= HV_OEM_BITS_LPLU;
 
 		/* Set Restart auto-neg to activate the bits */
-		if (!e1000_check_reset_block(hw))
+		if (!hw->phy.ops.check_reset_block(hw))
 			oem_reg |= HV_OEM_BITS_RESTART_AN;
 	} else {
 		if (mac_reg & (E1000_PHY_CTRL_GBE_DISABLE |
@@ -1780,7 +1780,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 reg;
 
-	if (e1000_check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
 	/* Allow time for h/w to get to quiescent state after reset */
@@ -1889,7 +1889,7 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 	else
 		oem_reg &= ~HV_OEM_BITS_LPLU;
 
-	if (!e1000_check_reset_block(hw))
+	if (!hw->phy.ops.check_reset_block(hw))
 		oem_reg |= HV_OEM_BITS_RESTART_AN;
 
 	return e1e_wphy(hw, HV_OEM_BITS, oem_reg);
@@ -3101,7 +3101,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
-	if (!e1000_check_reset_block(hw)) {
+	if (!hw->phy.ops.check_reset_block(hw)) {
 		/*
 		 * Full-chip reset requires MAC and PHY reset at the same
 		 * time to make sure the interface between MAC and the
@@ -3319,7 +3319,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
-	if (e1000_check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
 	/*
@@ -3699,7 +3699,8 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 	u16 phy_id1, phy_id2;
 	s32 ret_val;
 
-	if ((hw->mac.type != e1000_pch2lan) || e1000_check_reset_block(hw))
+	if ((hw->mac.type != e1000_pch2lan) ||
+	    hw->phy.ops.check_reset_block(hw))
 		return;
 
 	ret_val = hw->phy.ops.acquire(hw);
