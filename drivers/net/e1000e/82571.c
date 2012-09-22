@@ -997,7 +997,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext;
+	u32 ctrl, ctrl_ext, eecd;
 	s32 ret_val;
 
 	/*
@@ -1070,6 +1070,16 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 */
 
 	switch (hw->mac.type) {
+	case e1000_82571:
+	case e1000_82572:
+		/*
+		 * REQ and GNT bits need to be cleared when using AUTO_RD
+		 * to access the EEPROM.
+		 */
+		eecd = er32(EECD);
+		eecd &= ~(E1000_EECD_REQ | E1000_EECD_GNT);
+		ew32(EECD, eecd);
+		break;
 	case e1000_82573:
 	case e1000_82574:
 	case e1000_82583:
