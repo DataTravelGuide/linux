@@ -505,8 +505,8 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 	/* Ignore Checksum bit is set */
 	if (status & E1000_RXD_STAT_IXSM)
 		return;
-	/* TCP/UDP checksum error bit is set */
-	if (errors & E1000_RXD_ERR_TCPE) {
+	/* TCP/UDP checksum error bit or IP checksum error bit is set */
+	if (errors & (E1000_RXD_ERR_TCPE | E1000_RXD_ERR_IPE)) {
 		/* let the stack verify checksum errors */
 		adapter->hw_csum_err++;
 		return;
