@@ -147,6 +147,8 @@ struct zfcp_dbf_hba_record_qdio {
 	u32 qdio_error;
 	u8 sbal_index;
 	u8 sbal_count;
+	u64 fsf_reqid;
+	u8 scount;
 } __attribute__ ((packed));
 
 struct zfcp_dbf_hba_record {

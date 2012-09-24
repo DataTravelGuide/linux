@@ -1043,6 +1043,77 @@ void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
 	sbale->eflags |= SBAL_EFLAGS_LAST_ENTRY;
 }
 
+/**
+ * zfcp_qdio_skip_to_last_sbale - skip to last sbale in sbal
+ * @q_req: The current zfcp_queue_req
+ */
+static inline
+void zfcp_qdio_skip_to_last_sbale(struct zfcp_qdio *qdio,
+				  struct zfcp_queue_req *q_req)
+{
+	q_req->sbale_curr = qdio->max_sbale_per_sbal - 1;
+}
+
+/**
+ * zfcp_qdio_set_data_div - set data division count
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: The current zfcp_queue_req
+ * @count: The data division count
+ */
+static inline
+void zfcp_qdio_set_data_div(struct zfcp_qdio *qdio,
+			    struct zfcp_queue_req *q_req, u32 count)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = qdio->req_q.sbal[q_req->sbal_first]->element;
+	sbale->length = count;
+}
+
+/**
+ * zfcp_qdio_sbale_count - count sbale used
+ * @sg: pointer to struct scatterlist
+ */
+static inline
+unsigned int zfcp_qdio_sbale_count(struct scatterlist *sg)
+{
+	unsigned int count = 0;
+
+	for (; sg; sg = sg_next(sg))
+		count++;
+
+	return count;
+}
+
+/**
+ * zfcp_qdio_set_scount - set SBAL count value
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: The current zfcp_queue_req
+ */
+static inline
+void zfcp_qdio_set_scount(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = qdio->req_q.sbal[q_req->sbal_first]->element;
+	sbale->scount = q_req->sbal_number - 1;
+}
+
+/**
+ * zfcp_qdio_real_bytes - count bytes used
+ * @sg: pointer to struct scatterlist
+ */
+static inline
+unsigned int zfcp_qdio_real_bytes(struct scatterlist *sg)
+{
+	unsigned int real_bytes = 0;
+
+	for (; sg; sg = sg_next(sg))
+		real_bytes += sg->length;
+
+	return real_bytes;
+}
+
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_req,
 				       struct scatterlist *sg_resp,
@@ -1051,14 +1122,24 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	struct zfcp_adapter *adapter = req->adapter;
 	struct qdio_buffer_element *sbale = zfcp_qdio_sbale_req(adapter->qdio,
 							       &req->queue_req);
+	struct zfcp_qdio *qdio = adapter->qdio;
+	struct fsf_qtcb *qtcb = req->qtcb;
 	u32 feat = adapter->adapter_features;
-	int bytes;
 
-	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS)) {
-		if (!zfcp_fsf_one_sbal(sg_req) || !zfcp_fsf_one_sbal(sg_resp))
-			return -EOPNOTSUPP;
+	if (zfcp_adapter_multi_buffer_active(adapter)) {
+		if (zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+					    SBAL_SFLAGS0_TYPE_WRITE_READ,
+					    sg_req, max_sbals))
+			return -EIO;
+		if (zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+					    SBAL_SFLAGS0_TYPE_WRITE_READ,
+					    sg_resp, max_sbals))
+			return -EIO;
 
-		zfcp_fsf_setup_ct_els_unchained(sbale, sg_req, sg_resp);
+		zfcp_qdio_set_data_div(qdio, &req->queue_req,
+				       zfcp_qdio_sbale_count(sg_req));
+		zfcp_qdio_set_sbale_last(qdio, &req->queue_req);
+		zfcp_qdio_set_scount(qdio, &req->queue_req);
 		return 0;
 	}
 
@@ -1068,22 +1149,27 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 		return 0;
 	}
 
-	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->queue_req,
-					SBAL_SFLAGS0_TYPE_WRITE_READ,
-					sg_req, max_sbals);
-	if (bytes <= 0)
-		return -EIO;
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
-	req->qtcb->bottom.support.req_buf_length = bytes;
-	req->queue_req.sbale_curr = ZFCP_LAST_SBALE_PER_SBAL;
+	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS))
+		return -EOPNOTSUPP;
 
-	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->queue_req,
-					SBAL_SFLAGS0_TYPE_WRITE_READ,
-					sg_resp, max_sbals);
-	req->qtcb->bottom.support.resp_buf_length = bytes;
-	if (bytes <= 0)
+	if (zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+				    SBAL_SFLAGS0_TYPE_WRITE_READ,
+				    sg_req, max_sbals))
 		return -EIO;
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
+
+	qtcb->bottom.support.req_buf_length = zfcp_qdio_real_bytes(sg_req);
+
+	zfcp_qdio_set_sbale_last(qdio, &req->queue_req);
+	zfcp_qdio_skip_to_last_sbale(qdio, &req->queue_req);
+
+	if (zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+				    SBAL_SFLAGS0_TYPE_WRITE_READ,
+				    sg_resp, max_sbals))
+		return -EIO;
+
+	qtcb->bottom.support.resp_buf_length = zfcp_qdio_real_bytes(sg_resp);
+
+	zfcp_qdio_set_sbale_last(qdio, &req->queue_req);
 
 	return 0;
 }
@@ -1232,6 +1318,12 @@ int zfcp_fsf_send_els(struct zfcp_send_els *els, unsigned int timeout)
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
+
+#if 1 /* FIXME */
+	if (!zfcp_adapter_multi_buffer_active(els->adapter))
+		zfcp_qdio_sbal_limit(qdio, &req->queue_req, 2);
+#endif
+
 	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, 2, timeout);
 
 	if (ret)
@@ -2346,22 +2438,6 @@ skip_fsfstatus:
 	}
 }
 
-/**
- * zfcp_qdio_set_data_div - set data division count
- * @qdio: pointer to struct zfcp_qdio
- * @q_req: The current zfcp_queue_req
- * @count: The data division count
- */
-static inline
-void zfcp_qdio_set_data_div(struct zfcp_qdio *qdio,
-			    struct zfcp_queue_req *q_req, u32 count)
-{
-	struct qdio_buffer_element *sbale;
-
-	sbale = &qdio->req_q.sbal[q_req->sbal_first]->element[0];
-	sbale->length = count;
-}
-
 static int zfcp_fsf_set_data_dir(struct scsi_cmnd *scsi_cmnd, u32 *data_dir)
 {
 	switch (scsi_get_prot_op(scsi_cmnd)) {
@@ -2411,7 +2487,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
 	u8 sbtype = SBAL_SFLAGS0_TYPE_READ;
-	int real_bytes, retval = -EIO, dix_bytes = 0;
+	int retval = -EIO;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct fsf_qtcb_bottom_io *io;
@@ -2464,31 +2540,25 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	if (scsi_prot_sg_count(scsi_cmnd)) {
 		zfcp_qdio_set_data_div(qdio, &req->queue_req,
 				       scsi_prot_sg_count(scsi_cmnd));
-		dix_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
-						    sbtype,
-						    scsi_prot_sglist(scsi_cmnd),
-						    FSF_MAX_SBALS_PER_REQ);
-		io->prot_data_length = dix_bytes;
+		retval = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+						 sbtype,
+						 scsi_prot_sglist(scsi_cmnd),
+						 FSF_MAX_SBALS_PER_REQ);
+		if (retval)
+			goto failed_scsi_cmnd;
+		io->prot_data_length = zfcp_qdio_real_bytes(
+						scsi_prot_sglist(scsi_cmnd));
 	}
 
-	real_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req, sbtype,
-					     scsi_sglist(scsi_cmnd),
-					     FSF_MAX_SBALS_PER_REQ);
-
-	if (unlikely(real_bytes < 0) || unlikely(dix_bytes < 0)) {
-		if (req->queue_req.sbal_number >= FSF_MAX_SBALS_PER_REQ) {
-			dev_err(&adapter->ccw_device->dev,
-				"Oversize data package, unit 0x%016Lx "
-				"on port 0x%016Lx closed\n",
-				(unsigned long long)unit->fcp_lun,
-				(unsigned long long)unit->port->wwpn);
-			zfcp_erp_unit_shutdown(unit, 0, "fssfct1", req);
-			retval = -EINVAL;
-		}
+	retval = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req, sbtype,
+					 scsi_sglist(scsi_cmnd),
+					 FSF_MAX_SBALS_PER_REQ);
+	if (unlikely(retval))
 		goto failed_scsi_cmnd;
-	}
 
 	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
+	if (zfcp_adapter_multi_buffer_active(adapter))
+		zfcp_qdio_set_scount(qdio, &req->queue_req);
 
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
@@ -2578,7 +2648,7 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
-	int retval = -EIO, bytes;
+	int retval = -EIO;
 	u8 direction;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
@@ -2614,14 +2684,18 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	bottom->operation_subtype = FSF_CFDC_OPERATION_SUBTYPE;
 	bottom->option = fsf_cfdc->option;
 
-	bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
-					direction, fsf_cfdc->sg,
-					FSF_MAX_SBALS_PER_REQ);
-	if (bytes != ZFCP_CFDC_MAX_SIZE) {
+	retval = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+					 direction, fsf_cfdc->sg,
+					 FSF_MAX_SBALS_PER_REQ);
+	if (retval ||
+	    (zfcp_qdio_real_bytes(fsf_cfdc->sg) != ZFCP_CFDC_MAX_SIZE)) {
 		zfcp_fsf_req_free(req);
+		retval = -EIO;
 		goto out;
 	}
-	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
+	zfcp_qdio_set_sbale_last(qdio, &req->queue_req);
+	if (zfcp_adapter_multi_buffer_active(adapter))
+		zfcp_qdio_set_scount(qdio, &req->queue_req);
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(req);

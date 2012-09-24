@@ -13,6 +13,10 @@
 
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
+static bool enable_multibuffer;
+module_param_named(datarouter, enable_multibuffer, bool, 0400);
+MODULE_PARM_DESC(datarouter, "Enable hardware data router support");
+
 static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 {
 	int pos;
@@ -41,8 +45,11 @@ static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
 
 	dev_warn(&adapter->ccw_device->dev, "A QDIO problem occurred\n");
 
-	if (qdio_err & QDIO_ERROR_SLSB_STATE)
+	if (qdio_err & QDIO_ERROR_SLSB_STATE) {
 		zfcp_qdio_siosl(adapter);
+		zfcp_erp_adapter_shutdown(adapter, 0, id, NULL);
+		return;
+	}
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
 				ZFCP_STATUS_COMMON_ERP_FAILED, id, NULL);
@@ -83,7 +90,7 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 
 	if (unlikely(qdio_err)) {
 		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, first,
-					count);
+				  count, 0, 0, NULL);
 		zfcp_qdio_handler_error(qdio, "qdireq1", qdio_err);
 		return;
 	}
@@ -122,11 +129,32 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 			       unsigned long parm)
 {
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
-	int sbal_idx, sbal_no;
+	struct zfcp_adapter *adapter = qdio->adapter;
+	struct qdio_buffer_element *sbale;
+	int sbal_no, sbal_idx;
+	void *pl[FSF_MAX_SBALS_PER_REQ + 1];
+	u64 req_id = 0;
+	u8 scount = 0;
 
 	if (unlikely(qdio_err)) {
+		memset(pl, 0, (FSF_MAX_SBALS_PER_REQ + 1) * sizeof(void *));
+		if (zfcp_adapter_multi_buffer_active(adapter)) {
+			sbale = qdio->resp_q.sbal[first]->element;
+			req_id = (u64) sbale->addr;
+			scount = min(sbale->scount + 1,
+				     FSF_MAX_SBALS_PER_REQ + 1);
+				     /* incl. signaling SBAL */
+
+			for (sbal_no = 0; sbal_no < scount; sbal_no++) {
+				sbal_idx = (first + sbal_no) %
+					QDIO_MAX_BUFFERS_PER_Q;
+				pl[sbal_no] = qdio->resp_q.sbal[sbal_idx];
+			}
+		}
 		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, first,
-					count);
+				  count, req_id, scount,
+				  zfcp_adapter_multi_buffer_active(adapter)
+				  ? pl : NULL);
 		zfcp_qdio_handler_error(qdio, "qdires1", qdio_err);
 		return;
 	}
@@ -172,15 +200,6 @@ struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_qdio *qdio,
 			       q_req->sbale_curr);
 }
 
-static void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
-				 struct zfcp_queue_req *q_req, int max_sbals)
-{
-	int count = atomic_read(&qdio->req_q.count);
-	count = min(count, max_sbals);
-	q_req->sbal_limit = (q_req->sbal_first + count - 1)
-					% QDIO_MAX_BUFFERS_PER_Q;
-}
-
 static struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 		     u8 sbtype)
@@ -205,6 +224,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 
 	/* keep this requests number of SBALs up-to-date */
 	q_req->sbal_number++;
+	BUG_ON(q_req->sbal_number > FSF_MAX_SBALS_PER_REQ);
 
 	/* start at first SBALE of new SBAL */
 	q_req->sbale_curr = 0;
@@ -220,7 +240,7 @@ static struct qdio_buffer_element *
 zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 		     u8 sbtype)
 {
-	if (q_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
+	if (q_req->sbale_curr == qdio->max_sbale_per_sbal - 1)
 		return zfcp_qdio_sbal_chain(qdio, q_req, sbtype);
 	q_req->sbale_curr++;
 	return zfcp_qdio_sbale_curr(qdio, q_req);
@@ -272,7 +292,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_qdio *qdio,
  * @sbtype: SBALE flags
  * @sg: scatter-gather list
  * @max_sbals: upper bound for number of SBALs to be used
- * Returns: number of bytes, or error (negativ)
+ * Returns: zero or -EINVAL on error
  */
 int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 			    struct zfcp_queue_req *q_req,
@@ -280,10 +300,12 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 			    int max_sbals)
 {
 	struct qdio_buffer_element *sbale;
-	int retval, bytes = 0;
+	int retval;
 
+#if 1 /* FIXME */
 	/* figure out last allowed SBAL */
 	zfcp_qdio_sbal_limit(qdio, q_req, max_sbals);
+#endif
 
 	/* set storage-block type for this request */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
@@ -294,10 +316,9 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 					      sg_virt(sg), sg->length);
 		if (retval < 0)
 			return retval;
-		bytes += sg->length;
 	}
 
-	return bytes;
+	return 0;
 }
 
 /**
@@ -340,6 +361,8 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
 	ASCEBC(id->adapter_name, 8);
 	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
+	if (enable_multibuffer)
+		id->qdr_ac |= QDR_AC_MULTI_BUFFER_ENABLE;
 	id->no_input_qs = 1;
 	id->no_output_qs = 1;
 	id->input_handler = zfcp_qdio_int_resp;
@@ -415,11 +438,12 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 {
 	struct qdio_buffer_element *sbale;
 	struct qdio_initialize init_data;
-	struct ccw_device *cdev = qdio->adapter->ccw_device;
+	struct zfcp_adapter *adapter = qdio->adapter;
+	struct ccw_device *cdev = adapter->ccw_device;
 	struct qdio_ssqd_desc ssqd;
 	int cc;
 
-	if (atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
@@ -437,6 +461,17 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 		atomic_set_mask(ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED,
 				&qdio->adapter->status);
 
+	if (ssqd.qdioac2 & CHSC_AC2_MULTI_BUFFER_ENABLED) {
+		atomic_set_mask(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
+		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER;
+	} else {
+		atomic_clear_mask(ZFCP_STATUS_ADAPTER_MB_ACT, &adapter->status);
+		qdio->max_sbale_per_sbal = QDIO_MAX_ELEMENTS_PER_BUFFER - 1;
+	}
+
+	qdio->max_sbale_per_req =
+		FSF_MAX_SBALS_PER_REQ * qdio->max_sbale_per_sbal
+		- 2;
 	if (qdio_activate(cdev))
 		goto failed_qdio;
 
@@ -455,6 +490,11 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	/* set index of first avalable SBALS / number of available SBALS */
 	qdio->req_q.first = 0;
 	atomic_set(&qdio->req_q.count, QDIO_MAX_BUFFERS_PER_Q);
+
+	if (adapter->scsi_host) {
+		adapter->scsi_host->sg_tablesize = qdio->max_sbale_per_req;
+		adapter->scsi_host->max_sectors = qdio->max_sbale_per_req * 8;
+	}
 
 	return 0;
 

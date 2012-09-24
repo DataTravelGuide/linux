@@ -702,8 +702,8 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
 		mask |= SHOST_DIX_TYPE1_PROTECTION;
 		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);
-		shost->sg_tablesize = ZFCP_MAX_SBALES_PER_REQ / 2;
-		shost->max_sectors = ZFCP_MAX_SBALES_PER_REQ * 8 / 2;
+		shost->sg_tablesize = adapter->qdio->max_sbale_per_req / 2;
+		shost->max_sectors = shost->sg_tablesize * 8;
 	}
 #endif
 
@@ -773,11 +773,11 @@ struct zfcp_data zfcp_data = {
 		.eh_host_reset_handler	 = zfcp_scsi_eh_host_reset_handler,
 		.can_queue		 = 4096,
 		.this_id		 = -1,
-		.sg_tablesize		 = ZFCP_MAX_SBALES_PER_REQ,
+		.sg_tablesize		 = 1, /* adjusted later */
 		.cmd_per_lun		 = 1,
 		.use_clustering		 = 1,
 		.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
-		.max_sectors		 = (ZFCP_MAX_SBALES_PER_REQ * 8),
+		.max_sectors		 = 8, /* adjusted later */
 		.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	},
 };

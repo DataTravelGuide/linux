@@ -48,17 +48,6 @@
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
 
-/* DMQ bug workaround: don't use last SBALE */
-#define ZFCP_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
-
-/* index of last SBALE (with respect to DMQ bug workaround) */
-#define ZFCP_LAST_SBALE_PER_SBAL	(ZFCP_MAX_SBALES_PER_SBAL - 1)
-
-/* max. number of (data buffer) SBALEs in largest SBAL chain */
-#define ZFCP_MAX_SBALES_PER_REQ		\
-	(FSF_MAX_SBALS_PER_REQ * ZFCP_MAX_SBALES_PER_SBAL - 2)
-        /* request ID + QTCB in SBALE 0 + 1 of first SBAL in chain */
-
 #define ZFCP_MAX_SECTORS (ZFCP_MAX_SBALES_PER_REQ * 8)
         /* max. number of (data buffer) SBALEs in largest SBAL chain
            multiplied with number of sectors per 4k block */
@@ -159,6 +148,7 @@ struct zfcp_ls_adisc {
 #define ZFCP_STATUS_COMMON_NOESC		0x00200000
 
 /* adapter status */
+#define ZFCP_STATUS_ADAPTER_MB_ACT		0x00000001
 #define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
 #define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
@@ -418,6 +408,8 @@ struct zfcp_qdio {
 	atomic_t		req_q_full;
 	wait_queue_head_t	req_q_wq;
 	struct zfcp_adapter	*adapter;
+	u16			max_sbale_per_sbal;
+	u16			max_sbale_per_req;
 };
 
 struct zfcp_adapter {
@@ -676,6 +668,21 @@ zfcp_adapter_put(struct zfcp_adapter *adapter)
 {
 	if (atomic_dec_return(&adapter->refcount) == 0)
 		wake_up(&adapter->remove_wq);
+}
+
+static inline
+int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter)
+{
+	return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
+}
+
+static inline void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
+				 struct zfcp_queue_req *q_req, int max_sbals)
+{
+	int count = atomic_read(&qdio->req_q.count);
+	count = min(count, max_sbals);
+	q_req->sbal_limit = (q_req->sbal_first + count - 1)
+					% QDIO_MAX_BUFFERS_PER_Q;
 }
 
 #endif /* ZFCP_DEF_H */
