@@ -2454,7 +2454,8 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		io->ref_tag_value = scsi_get_lba(scsi_cmnd) & 0xFFFFFFFF;
 	}
 
-	zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction);
+	if (zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction))
+		goto failed_scsi_cmnd;
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
 	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);

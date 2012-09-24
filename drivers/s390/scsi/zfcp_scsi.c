@@ -21,11 +21,8 @@ module_param_named(queue_depth, default_depth, uint, 0600);
 MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
 
 static bool enable_dif;
-
-#if defined(CONFIG_ZFCP_DIF) || defined(CONFIG_ZFCP_DIF_MODULE)
-module_param_named(dif, enable_dif, bool, 0600);
+module_param_named(dif, enable_dif, bool, 0400);
 MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
-#endif
 
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
