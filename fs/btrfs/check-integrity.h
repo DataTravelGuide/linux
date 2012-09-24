@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 Oracle.  All rights reserved.
+ * Copyright (C) STRATO AG 2011.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -16,31 +16,21 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/completion.h>
-#include <linux/buffer_head.h>
-#include <linux/module.h>
-#include <linux/kobject.h>
+#if !defined(__BTRFS_CHECK_INTEGRITY__)
+#define __BTRFS_CHECK_INTEGRITY__
 
-#include "ctree.h"
-#include "disk-io.h"
-#include "transaction.h"
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+int btrfsic_submit_bh(int rw, struct buffer_head *bh);
+void btrfsic_submit_bio(int rw, struct bio *bio);
+#else
+#define btrfsic_submit_bh submit_bh
+#define btrfsic_submit_bio submit_bio
+#endif
 
-/* /sys/fs/btrfs/ entry */
-static struct kset *btrfs_kset;
+int btrfsic_mount(struct btrfs_root *root,
+		  struct btrfs_fs_devices *fs_devices,
+		  int including_extent_data, u32 print_mask);
+void btrfsic_unmount(struct btrfs_root *root,
+		     struct btrfs_fs_devices *fs_devices);
 
-int btrfs_init_sysfs(void)
-{
-	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
-	if (!btrfs_kset)
-		return -ENOMEM;
-	return 0;
-}
-
-void btrfs_exit_sysfs(void)
-{
-	kset_unregister(btrfs_kset);
-}
-
+#endif
