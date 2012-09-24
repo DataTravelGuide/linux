@@ -5947,6 +5947,9 @@ next_pkt_nopost:
 
 	/* Refill RX ring(s). */
 	if (!tg3_flag(tp, ENABLE_RSS)) {
+		/* Sync BD data before updating mailbox */
+		wmb();
+
 		if (work_mask & RXD_OPAQUE_RING_STD) {
 			tpr->rx_std_prod_idx = std_prod_idx &
 					       tp->rx_std_ring_mask;
@@ -7006,6 +7009,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						base_flags, mss, vlan))
 			goto drop_nofree;
 	}
+
+	/* Sync BD data before updating mailbox */
+	wmb();
 
 	/* Packets are ready, update Tx producer idx local and on card. */
 	tw32_tx_mbox(tnapi->prodmbox, entry);
@@ -11733,6 +11739,9 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 	}
 
 	tnapi->tx_prod++;
+
+	/* Sync BD data before updating mailbox */
+	wmb();
 
 	tw32_tx_mbox(tnapi->prodmbox, tnapi->tx_prod);
 	tr32_mailbox(tnapi->prodmbox);
