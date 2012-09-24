@@ -1539,8 +1539,6 @@ static struct sk_buff *netxen_process_rxbuf(struct netxen_adapter *adapter,
 	} else
 		skb->ip_summed = CHECKSUM_NONE;
 
-	skb->dev = adapter->netdev;
-
 	buffer->skb = NULL;
 no_skb:
 	buffer->state = NETXEN_BUFFER_FREE;
