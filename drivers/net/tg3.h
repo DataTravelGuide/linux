@@ -2704,6 +2704,7 @@ struct tg3_link_config {
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff
 	u16				active_speed;
+	u32				rmt_adv;
 
 	/* When we go in and out of low power mode we need
 	 * to swap with this state.
