@@ -1139,7 +1139,6 @@ netxen_validate_firmware(struct netxen_adapter *adapter)
 		 _build(file_fw_ver));
 		return -EINVAL;
 	}
-
 	val = nx_get_bios_version(adapter);
 	netxen_rom_fast_read(adapter, NX_BIOS_VERSION_OFFSET, (int *)&bios);
 	if ((__force u32)val != bios) {
@@ -1691,6 +1690,9 @@ netxen_process_lro(struct netxen_adapter *adapter,
 	th->seq = htonl(seq_number);
 
 	length = skb->len;
+
+	if (adapter->flags & NETXEN_FW_MSS_CAP)
+		skb_shinfo(skb)->gso_size  =  netxen_get_lro_sts_mss(sts_data1);
 
 	if ((vid != 0xffff))
 		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
