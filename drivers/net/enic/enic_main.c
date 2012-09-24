@@ -1002,8 +1002,7 @@ static void enic_update_multicast_addr_list(struct enic *enic)
 
 	for (i = 0; i < enic->mc_count; i++) {
 		for (j = 0; j < mc_count; j++)
-			if (compare_ether_addr(enic->mc_addr[i],
-				mc_addr[j]) == 0)
+			if (ether_addr_equal(enic->mc_addr[i], mc_addr[j]))
 				break;
 		if (j == mc_count)
 			enic_dev_del_addr(enic, enic->mc_addr[i]);
@@ -1011,8 +1010,7 @@ static void enic_update_multicast_addr_list(struct enic *enic)
 
 	for (i = 0; i < mc_count; i++) {
 		for (j = 0; j < enic->mc_count; j++)
-			if (compare_ether_addr(mc_addr[i],
-				enic->mc_addr[j]) == 0)
+			if (ether_addr_equal(mc_addr[i], enic->mc_addr[j]))
 				break;
 		if (j == enic->mc_count)
 			enic_dev_add_addr(enic, mc_addr[i]);
@@ -1057,8 +1055,7 @@ static void enic_update_unicast_addr_list(struct enic *enic)
 
 	for (i = 0; i < enic->uc_count; i++) {
 		for (j = 0; j < uc_count; j++)
-			if (compare_ether_addr(enic->uc_addr[i],
-				uc_addr[j]) == 0)
+			if (ether_addr_equal(enic->uc_addr[i], uc_addr[j]))
 				break;
 		if (j == uc_count)
 			enic_dev_del_addr(enic, enic->uc_addr[i]);
@@ -1066,8 +1063,7 @@ static void enic_update_unicast_addr_list(struct enic *enic)
 
 	for (i = 0; i < uc_count; i++) {
 		for (j = 0; j < enic->uc_count; j++)
-			if (compare_ether_addr(uc_addr[i],
-				enic->uc_addr[j]) == 0)
+			if (ether_addr_equal(uc_addr[i], enic->uc_addr[j]))
 				break;
 		if (j == enic->uc_count)
 			enic_dev_add_addr(enic, uc_addr[i]);
