@@ -359,11 +359,17 @@ typedef	struct
 	unsigned em_storage_alteration : 1;
 	unsigned em_gpr_alt_unused     : 1;
 	unsigned em_store_real_address : 1;
+#ifdef __GENKSYMS__
+	unsigned                       : 3;
+	unsigned branch_addr_ctl       : 1;
+	unsigned                       : 1;
+#else
 	unsigned                       : 1;
 	unsigned em_transaction_end    : 1;
 	unsigned em_nullification      : 1;
 	unsigned branch_addr_ctl       : 1;
 	unsigned suspension_ctl        : 1;
+#endif
 	unsigned storage_alt_space_ctl : 1;
 	unsigned                       : 21;
 	unsigned long starting_addr;

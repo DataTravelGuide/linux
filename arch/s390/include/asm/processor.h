@@ -83,16 +83,18 @@ struct thread_struct {
         unsigned long prot_addr;        /* address of protection-excep.     */
         unsigned int trap_no;
         per_struct per_info;
-	unsigned long per_flags;	/* Flags to control debug behavior */
 	/* Used to give failing instruction back to user for ieee exceptions */
 	unsigned long ieee_instruction_pointer; 
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
+#ifndef __GENKSYMS__
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
 	int ri_signum;
+	unsigned long per_flags;	/* Flags to control debug behavior */
 #ifdef CONFIG_64BIT
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+#endif
 #endif
 };
 
