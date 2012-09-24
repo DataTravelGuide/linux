@@ -4919,11 +4919,11 @@ int ext4_can_truncate(struct inode *inode)
 int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 {
 	if (!S_ISREG(inode->i_mode))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		/* TODO: Add support for non extent hole punching */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return ext4_ext_punch_hole(inode, offset, length);
