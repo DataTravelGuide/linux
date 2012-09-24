@@ -2871,22 +2871,26 @@ static ssize_t
 netxen_store_fwdump_level(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t size)
 {
+	int i;
 	unsigned long int val;
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 
 	val = simple_strtoul(buf, NULL, 16);
 
-	if (val <= NX_DUMP_MASK_MAX && val >= NX_DUMP_MASK_MIN) {
-		rtnl_lock();
-		adapter->mdump.md_capture_mask = val & 0xff;
-		rtnl_unlock();
-		dev_info(&adapter->pdev->dev, "%s: Driver mask changed to: "
-			 "0x%x\n", adapter->netdev->name,
-			 adapter->mdump.md_capture_mask);
-	} else
-		dev_info(dev, "Invalid Dump Level: 0x%lx\n",
-			 (unsigned long int) val);
-	return size;
+	for (i = 0; i < ARRAY_SIZE(FW_DUMP_LEVELS); i++) {
+		if (val == FW_DUMP_LEVELS[i]) {
+			rtnl_lock();
+			adapter->mdump.md_capture_mask = val;
+			rtnl_unlock();
+			dev_info(&adapter->pdev->dev,
+				"Driver mask changed to: 0x%x\n",
+				adapter->mdump.md_capture_mask);
+			return size;
+		}
+	}
+	dev_info(dev, "Invalid Dump Level: 0x%lx\n",
+		(unsigned long int) val);
+	return -EINVAL;
 }
 
 static ssize_t
