@@ -246,7 +246,7 @@ xfs_setattr(
 		    iattr->ia_size > ip->i_d.di_size) {
 			code = xfs_flush_pages(ip,
 					ip->i_d.di_size, iattr->ia_size,
-					XBF_ASYNC, FI_NONE);
+					0, FI_NONE);
 			if (code)
 				goto error_return;
 		}
