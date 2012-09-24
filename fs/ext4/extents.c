@@ -1700,7 +1700,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	}
 
 	/* try to insert block into found extent and return */
-	if (ex && (flag != EXT4_GET_BLOCKS_DIO_CREATE_EXT)
+	if (ex && !(flag & EXT4_GET_BLOCKS_DIO_CREATE_EXT)
 		&& ext4_can_extents_be_merged(inode, ex, newext)) {
 		ext_debug("append [%d]%d block to %d:[%d]%d (from %llu)\n",
 			  ext4_ext_is_uninitialized(newext),
@@ -1824,7 +1824,7 @@ has_space:
 
 merge:
 	/* try to merge extents to the right */
-	if (flag != EXT4_GET_BLOCKS_DIO_CREATE_EXT)
+	if (!(flag & EXT4_GET_BLOCKS_DIO_CREATE_EXT))
 		ext4_ext_try_to_merge(inode, path, nearex);
 
 	/* try to merge extents to the left */
