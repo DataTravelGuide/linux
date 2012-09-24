@@ -3826,7 +3826,7 @@ qlcnic_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 
 	if (!fw_dump->clr) {
 		dev_info(dev, "Dump not available\n");
-		return -EIO;
+		return 0;
 	}
 
 	copy_sz = fw_dump->tmpl_hdr->size - fw_dump->pos;
@@ -3895,7 +3895,8 @@ qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	switch (data) {
 	case QLCNIC_FORCE_FW_DUMP_KEY:
 		if (!fw_dump->enable) {
-			dev_info(dev, "FW dump not enabled\n");
+			dev_info(dev, "%s: FW dump not enabled\n",
+					adapter->netdev->name);
 			goto out;
 		}
 		if (fw_dump->clr) {
@@ -3903,23 +3904,27 @@ qlcnic_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			   "Previous dump not cleared, not forcing dump\n");
 			goto out;
 		}
-		dev_info(dev, "Forcing a fw dump\n");
+		dev_info(dev, "%s: Forcing a fw dump\n",
+				adapter->netdev->name);
 		qlcnic_dev_request_reset(adapter);
 		break;
 	case QLCNIC_DISABLE_FW_DUMP:
 		if (fw_dump->enable) {
-			dev_info(dev, "Disabling FW dump\n");
+			dev_info(dev, "%s: Disabling FW dump\n",
+					adapter->netdev->name);
 			fw_dump->enable = 0;
 		}
 		break;
 	case QLCNIC_ENABLE_FW_DUMP:
 		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
-			dev_info(dev, "Enabling FW dump\n");
+			dev_info(dev, "%s: Enabling FW dump\n",
+					adapter->netdev->name);
 			fw_dump->enable = 1;
 		}
 		break;
 	case QLCNIC_FORCE_FW_RESET:
-		dev_info(dev, "Forcing a FW reset\n");
+		dev_info(dev, "%s: Forcing a FW reset\n",
+				adapter->netdev->name);
 		qlcnic_dev_request_reset(adapter);
 		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
 		break;
@@ -3938,9 +3943,6 @@ qlcnic_store_fwdump_level(struct device *dev,
 {
 	unsigned long int val;
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
-
-	if (adapter->ahw->fw_dump.clr)
-		return -EINVAL;
 
 	val = simple_strtoul(buf, NULL, 16);
 
@@ -3985,6 +3987,22 @@ qlcnic_show_fwdump_size(struct device *dev,
 	return sprintf(buf, "%u\n", size);
 }
 
+static ssize_t
+qlcnic_show_fwdump_state(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	u32 state = adapter->ahw->fw_dump.enable;
+	return sprintf(buf, "%u\n", state);
+}
+
+static ssize_t
+qlcnic_store_fwdump_state(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	return -EIO;
+}
+
 static struct device_attribute dev_attr_fwdump_size = {
 	.attr = {.name = "fwdump_size", .mode = (S_IRUGO | S_IWUSR)},
 	.show = qlcnic_show_fwdump_size,
@@ -4016,6 +4034,12 @@ static struct bin_attribute bin_attr_fw_dump = {
 	.size = 0,
 	.read = qlcnic_sysfs_read_fw_dump,
 	.write = qlcnic_sysfs_write_fw_dump,
+};
+
+static struct device_attribute dev_attr_fwdump_state = {
+	.attr = {.name = "fwdump_state", .mode = (S_IRUGO | S_IWUSR)},
+	.show = qlcnic_show_fwdump_state,
+	.store = qlcnic_store_fwdump_state,
 };
 
 static int
@@ -4592,6 +4616,8 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 	if (adapter->ahw->fw_dump.tmpl_hdr) {
 		if (device_create_bin_file(dev, &bin_attr_fw_dump))
 			dev_info(dev, "failed to create fw_dump sysfs entry");
+		if (device_create_file(dev, &dev_attr_fwdump_state))
+			dev_info(dev, "create fwdump_state sysfs entry failed");
 		if (device_create_file(dev, &dev_attr_fwdump_size))
 			dev_info(dev,
 				"failed to create fwdump_size sysfs entry");
@@ -4634,6 +4660,7 @@ qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 		device_remove_bin_file(dev, &bin_attr_fw_dump);
 		device_remove_file(dev, &dev_attr_fwdump_size);
 		device_remove_file(dev, &dev_attr_fwdump_level);
+		device_remove_file(dev, &dev_attr_fwdump_state);
 	}
 	device_remove_bin_file(dev, &bin_attr_pci_config);
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
