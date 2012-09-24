@@ -2386,6 +2386,15 @@ unlock:
 				balance_dirty_pages_ratelimited(mapping);
 			}
 		}
+
+		/*
+		 * If an out-of-tree filesytem does have page_mkwrite but
+		 * it doesn't update time, do it here.
+		 */
+		/* file_update_time outside page_lock */
+		if (vma->vm_file &&
+		    (page_mkwrite && !vma_mkwrite_updates_time(vma)))
+			file_update_time(vma->vm_file);
 	}
 	return ret;
 oom_free_new:
@@ -3071,8 +3080,15 @@ out:
 		}
 
 		/* file_update_time outside page_lock */
-		if (vma->vm_file && !page_mkwrite)
+		if (vma->vm_file &&
+		    (!page_mkwrite || !vma_mkwrite_updates_time(vma))) {
+			/*
+			 * Filesystems without page_mkwrite, and 
+			 * out-of-tree filesystems w/o file_update_time in
+			 * page_mkwrite, get time updated here
+			 */
 			file_update_time(vma->vm_file);
+		}
 	} else {
 		unlock_page(vmf.page);
 		if (anon)

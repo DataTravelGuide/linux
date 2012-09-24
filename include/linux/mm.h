@@ -113,6 +113,15 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_HUGEPAGE	0x100000000UL	/* MADV_HUGEPAGE marked this vma */
 #endif
 
+/*
+ * Means this fs will do time updates in ->page_mkwrite.
+ * Explicitly flagged filesystems do it, as do those which use
+ * filemap_page_mkwrite.  For KABI.
+ */
+ #define vma_mkwrite_updates_time(vma) \
+	(((vma)->vm_file->f_mapping->host->i_sb->s_type->fs_flags & FS_HAS_NEW_FREEZE) || \
+	 ((vma)->vm_ops->page_mkwrite == filemap_page_mkwrite))
+
 /* Bits set in the VMA until the stack is in its final location */
 #define VM_STACK_INCOMPLETE_SETUP	(VM_RAND_READ | VM_SEQ_READ)
 
