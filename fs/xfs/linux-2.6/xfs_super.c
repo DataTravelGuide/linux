@@ -1039,7 +1039,6 @@ xfs_fs_put_super(
 	 * structure so we don't have memory reclaim racing with us here.
 	 */
 	xfs_inode_shrinker_unregister(mp);
-	xfs_syncd_stop(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -1051,6 +1050,7 @@ xfs_fs_put_super(
 	XFS_bflush(mp->m_ddev_targp);
 
 	xfs_unmountfs(mp);
+	xfs_syncd_stop(mp);
 	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
@@ -1436,22 +1436,22 @@ xfs_fs_fill_super(
 
 	xfs_inode_shrinker_register(mp);
 
-	error = xfs_mountfs(mp);
+	error = xfs_syncd_init(mp);
 	if (error)
 		goto out_filestream_unmount;
 
-	error = xfs_syncd_init(mp);
+	error = xfs_mountfs(mp);
 	if (error)
-		goto out_unmount;
+		goto out_syncd_stop;
 
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
 		error = ENOENT;
-		goto out_syncd_stop;
+		goto out_unmount;
 	}
 	if (is_bad_inode(root)) {
 		error = EINVAL;
-		goto out_syncd_stop;
+		goto out_unmount;
 	}
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
@@ -1461,6 +1461,8 @@ xfs_fs_fill_super(
 
 	return 0;
 
+ out_syncd_stop:
+	xfs_syncd_stop(mp);
  out_filestream_unmount:
 	xfs_inode_shrinker_unregister(mp);
 	xfs_filestream_unmount(mp);
@@ -1478,8 +1480,6 @@ xfs_fs_fill_super(
 
  out_iput:
 	iput(root);
- out_syncd_stop:
-	xfs_syncd_stop(mp);
  out_unmount:
 	xfs_inode_shrinker_unregister(mp);
 
@@ -1493,6 +1493,7 @@ xfs_fs_fill_super(
 	XFS_bflush(mp->m_ddev_targp);
 
 	xfs_unmountfs(mp);
+	xfs_syncd_stop(mp);
 	goto out_free_sb;
 }
 
