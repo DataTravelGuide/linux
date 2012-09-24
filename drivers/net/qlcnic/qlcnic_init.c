@@ -1571,7 +1571,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	}
 
 	if (adapter->mac_learn) {
-		t_vid = (vid == 0xffff) ? adapter->pvid : vid;
+		t_vid = 0;
 		qlcnic_add_lb_filter(adapter, skb, sts_data0, t_vid);
 	}
 
@@ -1650,7 +1650,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	}
 
 	if (adapter->mac_learn) {
-		t_vid = (vid == 0xffff) ? adapter->pvid : vid;
+		t_vid = 0;
 		qlcnic_add_lb_filter(adapter, skb, sts_data0, t_vid);
 	}
 

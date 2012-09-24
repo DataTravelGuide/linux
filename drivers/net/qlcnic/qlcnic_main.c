@@ -2072,9 +2072,6 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	if (adapter->fhash.fnum >= adapter->fhash.fmax)
 		return;
 
-	/* Only NPAR capable devices support vlan based learning*/
-	if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
-		vlan_id = first_desc->vlan_TCI;
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
 	hindex = QLCNIC_MAC_HASH(src_addr) & (QLCNIC_LB_MAX_FILTERS - 1);
 	head = &(adapter->fhash.fhead[hindex]);
