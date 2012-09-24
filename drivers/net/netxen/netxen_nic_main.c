@@ -2804,8 +2804,11 @@ netxen_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	rtnl_lock();
 	switch (data) {
 	case NX_FORCE_FW_DUMP_KEY:
-		if (!mdump->md_enabled)
-			mdump->md_enabled = 1;
+		if (!mdump->md_enabled) {
+			dev_info(&adapter->pdev->dev, "FW dump not enabled\n");
+			goto out;
+		}
+
 		if (adapter->fw_mdump_rdy) {
 			dev_info(&adapter->pdev->dev, "%s: Previous dump not "
 				 "cleared, not forcing dump\n",
