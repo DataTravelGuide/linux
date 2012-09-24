@@ -231,9 +231,7 @@ restart:
 			 * need to do this before the inode is joined to the
 			 * transaction to modify the i_size.
 			 */
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			code = xfs_zero_eof(ip, iattr->ia_size, old_size);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			if (code)
 				goto error_return;
 		}
