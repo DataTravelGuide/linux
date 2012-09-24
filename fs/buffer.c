@@ -1842,7 +1842,7 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-static int __block_prepare_write(struct inode *inode, struct page *page,
+int __block_prepare_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to, get_block_t *get_block)
 {
 	unsigned block_start, block_end;
@@ -1921,6 +1921,7 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		page_zero_new_buffers(page, from, to);
 	return err;
 }
+EXPORT_SYMBOL(__block_prepare_write);
 
 static int __block_commit_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to)
