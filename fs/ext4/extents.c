@@ -3826,8 +3826,27 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 			ext4_ext_mark_uninitialized(ex);
 
-			err = ext4_ext_remove_space(inode, iblock,
-				iblock + punched_out);
+			ext4_ext_invalidate_cache(inode);
+
+			err = ext4_ext_rm_leaf(handle, inode, path,
+				iblock, iblock + punched_out);
+
+			if (!err && path->p_hdr->eh_entries == 0) {
+				/*
+				 * Punch hole freed all of this sub tree,
+				 * so we need to correct eh_depth
+				 */
+				err = ext4_ext_get_access(handle, inode, path);
+				if (err == 0) {
+					ext_inode_hdr(inode)->eh_depth = 0;
+					ext_inode_hdr(inode)->eh_max =
+					cpu_to_le16(ext4_ext_space_root(
+						inode, 0));
+
+					err = ext4_ext_dirty(
+						handle, inode, path);
+				}
+			}
 
 			goto out2;
 		}
