@@ -3699,6 +3699,10 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	struct buffer_head map_bh;
 	unsigned int credits, blkbits = inode->i_blkbits;
 
+	/* We only support the FALLOC_FL_KEEP_SIZE mode */
+	if (mode && (mode != FALLOC_FL_KEEP_SIZE))
+		return -EOPNOTSUPP;
+
 	/*
 	 * currently supporting (pre)allocate mode for extent-based
 	 * files _only_
