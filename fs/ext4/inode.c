@@ -5842,8 +5842,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (S_ISREG(inode->i_mode) &&
 	    attr->ia_valid & ATTR_SIZE &&
-	    (attr->ia_size < inode->i_size ||
-	     (ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS)))) {
+	    (attr->ia_size < inode->i_size)) {
 		handle_t *handle;
 
 		handle = ext4_journal_start(inode, 3);
@@ -5874,9 +5873,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 				goto err_out;
 			}
 		}
-		/* ext4_truncate will clear the flag */
-		if ((ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS)))
-			ext4_truncate(inode);
+		ext4_truncate(inode);
 	}
 
 	rc = inode_setattr(inode, attr);
