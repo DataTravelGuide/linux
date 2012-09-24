@@ -3685,7 +3685,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
-					  round_jiffies(jiffies + 2 * HZ));
+					  round_jiffies(jiffies + HZ));
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
