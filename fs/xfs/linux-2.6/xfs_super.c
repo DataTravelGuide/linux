@@ -1707,13 +1707,21 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
+	xfs_alloc_wq = create_workqueue("xfsalloc");
+	if (!xfs_alloc_wq) {
+		error = ENOMEM;
+		goto out_sysctl_unregister;
+	}
+
 	vfs_initquota();
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
-		goto out_sysctl_unregister;
+		goto out_destroy_alloc_wq;
 	return 0;
 
+ out_destroy_alloc_wq:
+	destroy_workqueue(xfs_alloc_wq);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
@@ -1735,6 +1743,7 @@ exit_xfs_fs(void)
 {
 	vfs_exitquota();
 	unregister_filesystem(&xfs_fs_type);
+	destroy_workqueue(xfs_alloc_wq);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();
