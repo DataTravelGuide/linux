@@ -2962,6 +2962,8 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 			bp = xfs_trans_get_buf(*trans,
 					dp->i_mount->m_ddev_targp,
 					dblkno, dblkcnt, XBF_LOCK);
+			if (!bp)
+				return ENOMEM;
 			xfs_trans_binval(*trans, bp);
 			/*
 			 * Roll to next transaction.
