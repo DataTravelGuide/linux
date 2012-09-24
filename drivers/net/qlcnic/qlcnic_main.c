@@ -4006,21 +4006,26 @@ static ssize_t
 qlcnic_store_fwdump_level(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
+	int i;
 	unsigned long int val;
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct net_device *netdev = adapter->netdev;
 
 	val = simple_strtoul(buf, NULL, 16);
 
-	if (val <= QLCNIC_DUMP_MASK_MAX && val >= QLCNIC_DUMP_MASK_MIN) {
-		rtnl_lock();
-		adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask = val & 0xff;
-		rtnl_unlock();
-		dev_info(dev, "Driver mask changed to: 0x%x\n",
-			adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask);
-	} else
-		dev_info(dev, "Invalid Dump Level: 0x%lx\n",
+	for (i = 0; i < ARRAY_SIZE(FW_DUMP_LEVELS); i++) {
+		if (val == FW_DUMP_LEVELS[i]) {
+			rtnl_lock();
+			adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask = val;
+			rtnl_unlock();
+			netdev_info(netdev, "Driver mask changed to: 0x%x\n",
+				adapter->ahw->fw_dump.tmpl_hdr->drv_cap_mask);
+			return size;
+		}
+	}
+	netdev_info(netdev, "Invalid Dump Level: 0x%lx\n",
 			(unsigned long int) val);
-	return size;
+	return -EINVAL;
 }
 
 static ssize_t
