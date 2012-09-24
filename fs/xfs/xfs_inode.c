@@ -357,7 +357,6 @@ xfs_iformat(
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		ip->i_d.di_size = 0;
-		ip->i_size = 0;
 		ip->i_df.if_u2.if_rdev = xfs_dinode_get_rdev(dip);
 		break;
 
@@ -868,7 +867,6 @@ xfs_iread(
 	}
 
 	ip->i_delayed_blks = 0;
-	ip->i_size = ip->i_d.di_size;
 
 	/*
 	 * Mark the buffer containing the inode as something to keep
@@ -1058,7 +1056,6 @@ xfs_ialloc(
 	}
 
 	ip->i_d.di_size = 0;
-	ip->i_size = 0;
 	ip->i_d.di_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
 
@@ -1257,7 +1254,7 @@ xfs_file_last_byte(
 	} else {
 		last_block = 0;
 	}
-	size_last_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)ip->i_size);
+	size_last_block = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
 	last_block = XFS_FILEOFF_MAX(last_block, size_last_block);
 
 	last_byte = XFS_FSB_TO_B(mp, last_block);
@@ -1314,14 +1311,14 @@ xfs_itruncate_start(
 	int		error = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-	ASSERT((new_size == 0) || (new_size <= ip->i_size));
+	ASSERT(new_size == 0 || new_size <= XFS_ISIZE(ip));
 	ASSERT((flags == XFS_ITRUNC_DEFINITE) ||
 	       (flags == XFS_ITRUNC_MAYBE));
 
 	mp = ip->i_mount;
 
 	/* wait for the completion of any pending DIOs */
-	if (new_size == 0 || new_size < ip->i_size)
+	if (new_size == 0 || new_size < XFS_ISIZE(ip))
 		xfs_ioend_wait(ip);
 
 	/*
@@ -1416,7 +1413,7 @@ xfs_itruncate_finish(
 	int		error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
-	ASSERT((new_size == 0) || (new_size <= ip->i_size));
+	ASSERT(new_size == 0 || new_size <= XFS_ISIZE(ip));
 	ASSERT(*tp != NULL);
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(ip->i_transp == *tp);
@@ -1460,9 +1457,8 @@ xfs_itruncate_finish(
 			 * flushed to disk then the files may be full of
 			 * holes (ie NULL files bug).
 			 */
-			if (ip->i_size != new_size) {
+			if (ip->i_d.di_size != new_size) {
 				ip->i_d.di_size = new_size;
-				ip->i_size = new_size;
 				xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 			}
 		}
@@ -1578,9 +1574,8 @@ xfs_itruncate_finish(
 		 * flushed to disk then the files may be full of
 		 * holes (ie NULL files bug).
 		 */
-		if (ip->i_size != new_size) {
+		if (ip->i_d.di_size != new_size) {
 			ip->i_d.di_size = new_size;
-			ip->i_size = new_size;
 		}
 	}
 	xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
@@ -2015,8 +2010,7 @@ xfs_ifree(
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
-	ASSERT((ip->i_d.di_size == 0 && ip->i_size == 0) ||
-	       ((ip->i_d.di_mode & S_IFMT) != S_IFREG));
+	ASSERT(ip->i_d.di_size == 0 || !S_ISREG(ip->i_d.di_mode));
 	ASSERT(ip->i_d.di_nblocks == 0);
 
 	/*

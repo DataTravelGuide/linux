@@ -179,9 +179,11 @@ xfs_setattr(
 	 * Truncate file.  Must have write permission and not be a directory.
 	 */
 	if (mask & ATTR_SIZE) {
+		loff_t	old_size = XFS_ISIZE(ip);
+
 		/* Short circuit the truncate case for zero length files */
 		if (iattr->ia_size == 0 &&
-		    ip->i_size == 0 && ip->i_d.di_nextents == 0) {
+		    old_size == 0 && ip->i_d.di_nextents == 0) {
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
 			if (mask & ATTR_CTIME) {
@@ -216,14 +218,14 @@ xfs_setattr(
 		 * to the transaction, because the inode cannot be unlocked
 		 * once it is a part of the transaction.
 		 */
-		if (iattr->ia_size > ip->i_size) {
+		if (iattr->ia_size > old_size) {
 			/*
 			 * Do the first part of growing a file: zero any data
 			 * in the last block that is beyond the old EOF.  We
 			 * need to do this before the inode is joined to the
 			 * transaction to modify the i_size.
 			 */
-			code = xfs_zero_eof(ip, iattr->ia_size, ip->i_size);
+			code = xfs_zero_eof(ip, iattr->ia_size, old_size);
 			if (code)
 				goto error_return;
 		}
@@ -242,7 +244,7 @@ xfs_setattr(
 		 * really care about here and prevents waiting for other data
 		 * not within the range we care about here.
 		 */
-		if (ip->i_size != ip->i_d.di_size &&
+		if (old_size != ip->i_d.di_size &&
 		    iattr->ia_size > ip->i_d.di_size) {
 			code = xfs_flush_pages(ip,
 					ip->i_d.di_size, iattr->ia_size,
@@ -287,18 +289,17 @@ xfs_setattr(
 		 * VFS set these flags explicitly if it wants a timestamp
 		 * update.
 		 */
-		if (iattr->ia_size != ip->i_size &&
+		if (iattr->ia_size != old_size &&
 		    (!(mask & (ATTR_CTIME | ATTR_MTIME)))) {
 			iattr->ia_ctime = iattr->ia_mtime =
 				current_fs_time(inode->i_sb);
 			mask |= ATTR_CTIME | ATTR_MTIME;
 		}
 
-		if (iattr->ia_size > ip->i_size) {
+		if (iattr->ia_size > old_size) {
 			ip->i_d.di_size = iattr->ia_size;
-			ip->i_size = iattr->ia_size;
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-		} else if (iattr->ia_size <= ip->i_size ||
+		} else if (iattr->ia_size <= old_size ||
 			   (iattr->ia_size == 0 && ip->i_d.di_nextents)) {
 			code = xfs_itruncate_finish(&tp, ip, iattr->ia_size,
 						    XFS_DATA_FORK);
@@ -589,7 +590,7 @@ xfs_free_eofblocks(
 	 * Figure out if there are any blocks beyond the end
 	 * of the file.  If not, then there is nothing to do.
 	 */
-	end_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)ip->i_size));
+	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_ISIZE(ip));
 	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
 	if (last_fsb <= end_fsb)
 		return 0;
@@ -634,7 +635,7 @@ xfs_free_eofblocks(
 			xfs_ilock(ip, XFS_IOLOCK_EXCL);
 		}
 		error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE,
-				    ip->i_size);
+				    XFS_ISIZE(ip));
 		if (error) {
 			xfs_trans_cancel(tp, 0);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -655,7 +656,7 @@ xfs_free_eofblocks(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip);
 
-		error = xfs_itruncate_finish(&tp, ip, ip->i_size,
+		error = xfs_itruncate_finish(&tp, ip, XFS_ISIZE(ip),
 					     XFS_DATA_FORK);
 		/*
 		 * If we get an error at this point we
@@ -970,7 +971,7 @@ xfs_release(
 		return 0;
 
 	if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-	     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
+	     ((XFS_ISIZE(ip) > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
 	       ip->i_delayed_blks > 0)) &&
 	     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 	    (!(ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
@@ -1048,7 +1049,7 @@ xfs_inactive(
 	 * only one with a reference to the inode.
 	 */
 	truncate = ((ip->i_d.di_nlink == 0) &&
-	    ((ip->i_d.di_size != 0) || (ip->i_size != 0) ||
+	    ((ip->i_d.di_size != 0) || XFS_ISIZE(ip) != 0 ||
 	     (ip->i_d.di_nextents > 0) || (ip->i_delayed_blks > 0)) &&
 	    ((ip->i_d.di_mode & S_IFMT) == S_IFREG));
 
@@ -1062,7 +1063,7 @@ xfs_inactive(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-                     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
+                     ((XFS_ISIZE(ip) > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
                        ip->i_delayed_blks > 0)) &&
 		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
 		     (!(ip->i_d.di_flags &
@@ -2411,11 +2412,11 @@ xfs_zero_remaining_bytes(
 	 * since nothing can read beyond eof.  The space will
 	 * be zeroed when the file is extended anyway.
 	 */
-	if (startoff >= ip->i_size)
+	if (startoff >= XFS_ISIZE(ip))
 		return 0;
 
-	if (endoff > ip->i_size)
-		endoff = ip->i_size;
+	if (endoff > XFS_ISIZE(ip))
+		endoff = XFS_ISIZE(ip);
 
 	bp = xfs_buf_get_uncached(XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp,
@@ -2709,7 +2710,7 @@ xfs_change_file_space(
 		bf->l_start += offset;
 		break;
 	case 2: /*SEEK_END*/
-		bf->l_start += ip->i_size;
+		bf->l_start += XFS_ISIZE(ip);
 		break;
 	default:
 		return XFS_ERROR(EINVAL);
@@ -2726,7 +2727,7 @@ xfs_change_file_space(
 	bf->l_whence = 0;
 
 	startoffset = bf->l_start;
-	fsize = ip->i_size;
+	fsize = XFS_ISIZE(ip);
 
 	/*
 	 * XFS_IOC_RESVSP and XFS_IOC_UNRESVSP will reserve or unreserve
