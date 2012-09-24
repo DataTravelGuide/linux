@@ -133,23 +133,6 @@ xfs_destroy_ioend(
 }
 
 /*
- * If the end of the current ioend is beyond the current EOF,
- * return the new EOF value, otherwise zero.
- */
-STATIC xfs_fsize_t
-xfs_ioend_new_eof(
-	xfs_ioend_t		*ioend)
-{
-	xfs_inode_t		*ip = XFS_I(ioend->io_inode);
-	xfs_fsize_t		isize;
-	xfs_fsize_t		bsize;
-
-	bsize = ioend->io_offset + ioend->io_size;
-	isize = MIN(i_size_read(VFS_I(ip)), bsize);
-	return isize > ip->i_d.di_size ? isize : 0;
-}
-
-/*
  * Fast and loose check if this write could update the on-disk inode size.
  */
 static inline bool xfs_ioend_is_append(struct xfs_ioend *ioend)
@@ -175,7 +158,7 @@ xfs_setfilesize(
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
 		return EAGAIN;
 
-	isize = xfs_ioend_new_eof(ioend);
+	isize = xfs_new_eof(ip, ioend->io_offset + ioend->io_size);
 	if (isize) {
 		ip->i_d.di_size = isize;
 		xfs_mark_inode_dirty(ip);
@@ -410,6 +393,7 @@ xfs_submit_ioend_bio(
 	xfs_ioend_t		*ioend,
 	struct bio		*bio)
 {
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	atomic_inc(&ioend->io_remaining);
 	bio->bi_private = ioend;
 	bio->bi_end_io = xfs_end_bio;
@@ -418,8 +402,8 @@ xfs_submit_ioend_bio(
 	 * If the I/O is beyond EOF we mark the inode dirty immediately
 	 * but don't update the inode size until I/O completion.
 	 */
-	if (xfs_ioend_new_eof(ioend))
-		xfs_mark_inode_dirty(XFS_I(ioend->io_inode));
+	if (xfs_new_eof(ip, ioend->io_offset + ioend->io_size))
+		xfs_mark_inode_dirty(ip);
 
 	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
 		   WRITE_SYNC_PLUG : WRITE, bio);
