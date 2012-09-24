@@ -31,7 +31,7 @@ qlcnic_issue_cmd(struct qlcnic_adapter *adapter, struct qlcnic_cmd_args *cmd)
 {
 	u32 rsp;
 	u32 signature;
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	signature = QLCNIC_CDRP_SIGNATURE_MAKE(ahw->pci_func,
@@ -53,12 +53,39 @@ qlcnic_issue_cmd(struct qlcnic_adapter *adapter, struct qlcnic_cmd_args *cmd)
 	rsp = qlcnic_poll_rsp(adapter);
 
 	if (rsp == QLCNIC_CDRP_RSP_TIMEOUT) {
-		dev_err(&pdev->dev, "card response timeout.\n");
+		netdev_err(netdev, "CDRP response timeout.\n");
 		cmd->rsp.cmd = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.cmd = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-		dev_err(&pdev->dev, "failed card response code:0x%x\n",
+		switch (cmd->rsp.cmd) {
+		case QLCNIC_RCODE_INVALID_ARGS:
+			netdev_err(netdev, "CDRP invalid args: 0x%x.\n",
 				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_NOT_SUPPORTED:
+		case QLCNIC_RCODE_NOT_IMPL:
+			netdev_err(netdev,
+				"CDRP command not supported: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_NOT_PERMITTED:
+			netdev_err(netdev,
+				"CDRP requested action not permitted: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_INVALID:
+			netdev_err(netdev,
+				"CDRP invalid or unknown cmd received: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_TIMEOUT:
+			netdev_err(netdev, "CDRP command timeout: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		default:
+			netdev_err(netdev, "CDRP command failed: 0x%x.\n",
+				cmd->rsp.cmd);
+		}
 	} else if (rsp == QLCNIC_CDRP_RSP_OK) {
 		cmd->rsp.cmd = QLCNIC_RCODE_SUCCESS;
 		if (cmd->rsp.arg2)
@@ -959,9 +986,6 @@ int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 		mac_stats->mac_rx_dropped = le64_to_cpu(stats->mac_rx_dropped);
 		mac_stats->mac_rx_crc_error =
 				le64_to_cpu(stats->mac_rx_crc_error);
-	} else {
-		dev_info(&adapter->pdev->dev,
-			"%s: Get mac stats failed =%d.\n", __func__, err);
 	}
 
 	dma_free_coherent(&adapter->pdev->dev, stats_size, stats_addr,
