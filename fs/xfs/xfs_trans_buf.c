@@ -457,26 +457,12 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 		 xfs_buf_t	*bp)
 {
 	xfs_buf_log_item_t	*bip;
-	xfs_log_item_t		*lip;
 
 	/*
 	 * Default to a normal brelse() call if the tp is NULL.
 	 */
 	if (tp == NULL) {
 		ASSERT(XFS_BUF_FSPRIVATE2(bp, void *) == NULL);
-		/*
-		 * If there's a buf log item attached to the buffer,
-		 * then let the AIL know that the buffer is being
-		 * unlocked.
-		 */
-		if (XFS_BUF_FSPRIVATE(bp, void *) != NULL) {
-			lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
-			if (lip->li_type == XFS_LI_BUF) {
-				bip = XFS_BUF_FSPRIVATE(bp,xfs_buf_log_item_t*);
-				xfs_trans_unlocked_item(bip->bli_item.li_ailp,
-							lip);
-			}
-		}
 		xfs_buf_relse(bp);
 		return;
 	}
@@ -551,19 +537,9 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 		ASSERT(!(bip->bli_item.li_flags & XFS_LI_IN_AIL));
 		ASSERT(!(bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF));
 		xfs_buf_item_relse(bp);
-		bip = NULL;
 	}
+
 	XFS_BUF_SET_FSPRIVATE2(bp, NULL);
-
-	/*
-	 * If we've still got a buf log item on the buffer, then
-	 * tell the AIL that the buffer is being unlocked.
-	 */
-	if (bip != NULL) {
-		xfs_trans_unlocked_item(bip->bli_item.li_ailp,
-					(xfs_log_item_t*)bip);
-	}
-
 	xfs_buf_relse(bp);
 	return;
 }
