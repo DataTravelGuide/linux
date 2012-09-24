@@ -516,10 +516,8 @@ xfs_vn_fallocate(
 	loff_t		new_size = 0;
 	xfs_flock64_t	bf;
 	xfs_inode_t	*ip = XFS_I(inode);
+	int		cmd = XFS_IOC_RESVSP;
 	int		attr_flags = XFS_ATTR_NOLOCK;
-
-	if (mode & ~FALLOC_FL_KEEP_SIZE)
-		return -EOPNOTSUPP;
 
 	/* preallocation on directories not yet supported */
 	error = -ENODEV;
@@ -531,6 +529,9 @@ xfs_vn_fallocate(
 	bf.l_len = len;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		cmd = XFS_IOC_UNRESVSP;
 
 	/* check the new inode size is valid before allocating */
 	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
@@ -549,7 +550,7 @@ xfs_vn_fallocate(
 	 */
 	attr_flags |= XFS_ATTR_SYNC;
 
-	error = -xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf, 0, attr_flags);
+	error = -xfs_change_file_space(ip, cmd, &bf, 0, attr_flags);
 	if (error)
 		goto out_unlock;
 
