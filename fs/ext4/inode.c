@@ -4277,26 +4277,8 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 
 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
 
-	if (!page_has_buffers(page)) {
-		/*
-		 * If the range to be discarded covers a partial block
-		 * we need to get the page buffers.  This is because
-		 * partial blocks cannot be released and the page needs
-		 * to be updated with the contents of the block before
-		 * we write the zeros on top of it.
-		 */
-		if ((from & (blocksize - 1)) ||
-		    ((from + length) & (blocksize - 1))) {
-			create_empty_buffers(page, blocksize, 0);
-		} else {
-			/*
-			 * If there are no partial blocks,
-			 * there is nothing to update,
-			 * so we can return now
-			 */
-			return 0;
-		}
-	}
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, blocksize, 0);
 
 	/* Find the buffer that contains "offset" */
 	bh = page_buffers(page);
