@@ -236,6 +236,7 @@ typedef struct
 #define PSW_MASK_ASC		0x0000C000UL
 #define PSW_MASK_CC		0x00003000UL
 #define PSW_MASK_PM		0x00000F00UL
+#define PSW_MASK_RI		0x00000000UL
 
 #define PSW_ADDR_AMODE		0x80000000UL
 #define PSW_ADDR_INSN		0x7FFFFFFFUL
@@ -261,6 +262,7 @@ typedef struct
 #define PSW_MASK_ASC		0x0000C00000000000UL
 #define PSW_MASK_CC		0x0000300000000000UL
 #define PSW_MASK_PM		0x00000F0000000000UL
+#define PSW_MASK_RI		0x0000008000000000UL
 
 #define PSW_ADDR_AMODE		0x0000000000000000UL
 #define PSW_ADDR_INSN		0xFFFFFFFFFFFFFFFFUL
@@ -290,7 +292,7 @@ extern long psw_user32_bits;
    is the condition code and the program mask bits.  */
 #define PSW_MASK_MERGE(CURRENT,NEW) \
 	(((CURRENT) & ~(PSW_MASK_CC|PSW_MASK_PM)) | \
-	 ((NEW) & (PSW_MASK_CC|PSW_MASK_PM)))
+	 ((NEW) & (PSW_MASK_CC|PSW_MASK_PM|PSW_MASK_RI)))
 
 /*
  * The s390_regs structure is used to define the elf_gregset_t.

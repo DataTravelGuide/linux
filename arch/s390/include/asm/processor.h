@@ -18,6 +18,7 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
+#include <asm/runtime_instr.h>
 
 #ifdef __KERNEL__
 /*
@@ -86,6 +87,9 @@ struct thread_struct {
 	unsigned long ieee_instruction_pointer; 
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
+	/* cpu runtime instrumentation */
+	struct runtime_instr_cb *ri_cb;
+	int ri_signum;
 };
 
 typedef struct thread_struct thread_struct;
