@@ -125,10 +125,12 @@ xfs_setattr(
 	 * first do an error checking pass.
 	 */
 	tp = NULL;
+restart:
 	lock_flags = XFS_ILOCK_EXCL;
 	if (flags & XFS_ATTR_NOLOCK)
 		need_iolock = 0;
 	if (!(mask & ATTR_SIZE)) {
+		ASSERT(tp == NULL);
 		tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
 		commit_flags = 0;
 		code = xfs_trans_reserve(tp, 0, XFS_ICHANGE_LOG_RES(mp),
@@ -187,9 +189,14 @@ xfs_setattr(
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
 			if (mask & ATTR_CTIME) {
-				inode->i_mtime = inode->i_ctime =
+				/* need to log timestamp changes */
+				iattr->ia_ctime = iattr->ia_mtime =
 						current_fs_time(inode->i_sb);
-				xfs_mark_inode_dirty_sync(ip);
+				mask |= ATTR_CTIME | ATTR_MTIME;
+				mask &= ~ATTR_SIZE;
+				if (lock_flags)
+					xfs_iunlock(ip, lock_flags);
+				goto restart;
 			}
 			code = 0;
 			goto error_return;
@@ -384,19 +391,16 @@ xfs_setattr(
 		inode->i_atime = iattr->ia_atime;
 		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
 		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 	if (mask & ATTR_CTIME) {
 		inode->i_ctime = iattr->ia_ctime;
 		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
 		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 	if (mask & ATTR_MTIME) {
 		inode->i_mtime = iattr->ia_mtime;
 		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
 		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 
 	/*
