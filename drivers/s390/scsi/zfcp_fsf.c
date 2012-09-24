@@ -527,6 +527,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		return -EIO;
 	}
 
+	zfcp_scsi_set_prot(adapter);
+
 	return 0;
 }
 
@@ -1025,6 +1027,21 @@ static int zfcp_fsf_one_sbal(struct scatterlist *sg)
 	return sg_is_last(sg) && sg->length <= PAGE_SIZE;
 }
 
+/**
+ * zfcp_qdio_set_sbale_last - set last entry flag in current sbale
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: pointer to struct zfcp_queue_req
+ */
+static inline
+void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
+			      struct zfcp_queue_req *q_req)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
+	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+}
+
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_req,
 				       struct scatterlist *sg_resp,
@@ -1055,6 +1072,7 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 					sg_req, max_sbals);
 	if (bytes <= 0)
 		return -EIO;
+	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
 	req->qtcb->bottom.support.req_buf_length = bytes;
 	req->queue_req.sbale_curr = ZFCP_LAST_SBALE_PER_SBAL;
 
@@ -1064,6 +1082,7 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	req->qtcb->bottom.support.resp_buf_length = bytes;
 	if (bytes <= 0)
 		return -EIO;
+	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
 
 	return 0;
 }
@@ -2120,9 +2139,13 @@ static void zfcp_fsf_req_latency(struct zfcp_fsf_req *req)
 	lat_inf = &req->qtcb->prefix.prot_status_qual.latency_info;
 
 	switch (req->qtcb->bottom.io.data_direction) {
+	case FSF_DATADIR_DIF_READ_STRIP:
+	case FSF_DATADIR_DIF_READ_CONVERT:
 	case FSF_DATADIR_READ:
 		lat = &unit->latencies.read;
 		break;
+	case FSF_DATADIR_DIF_WRITE_INSERT:
+	case FSF_DATADIR_DIF_WRITE_CONVERT:
 	case FSF_DATADIR_WRITE:
 		lat = &unit->latencies.write;
 		break;
@@ -2189,6 +2212,21 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 		goto skip_fsfstatus;
 	}
 
+	switch (req->qtcb->header.fsf_status) {
+	case FSF_INCONSISTENT_PROT_DATA:
+	case FSF_INVALID_PROT_PARM:
+		set_host_byte(scpnt, DID_ERROR);
+		goto skip_fsfstatus;
+	case FSF_BLOCK_GUARD_CHECK_FAILURE:
+		zfcp_scsi_dif_sense_error(scpnt, 0x1);
+		goto skip_fsfstatus;
+	case FSF_APP_TAG_CHECK_FAILURE:
+		zfcp_scsi_dif_sense_error(scpnt, 0x2);
+		goto skip_fsfstatus;
+	case FSF_REF_TAG_CHECK_FAILURE:
+		zfcp_scsi_dif_sense_error(scpnt, 0x3);
+		goto skip_fsfstatus;
+	}
 	fcp_rsp = (struct fcp_resp_with_ext *) &req->qtcb->bottom.io.fcp_rsp;
 	zfcp_fc_eval_fcp_rsp(fcp_rsp, scpnt);
 
@@ -2308,6 +2346,60 @@ skip_fsfstatus:
 }
 
 /**
+ * zfcp_qdio_set_data_div - set data division count
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: The current zfcp_queue_req
+ * @count: The data division count
+ */
+static inline
+void zfcp_qdio_set_data_div(struct zfcp_qdio *qdio,
+			    struct zfcp_queue_req *q_req, u32 count)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = &qdio->req_q.sbal[q_req->sbal_first]->element[0];
+	sbale->length = count;
+}
+
+static int zfcp_fsf_set_data_dir(struct scsi_cmnd *scsi_cmnd, u32 *data_dir)
+{
+	switch (scsi_get_prot_op(scsi_cmnd)) {
+	case SCSI_PROT_NORMAL:
+		switch (scsi_cmnd->sc_data_direction) {
+		case DMA_NONE:
+			*data_dir = FSF_DATADIR_CMND;
+			break;
+		case DMA_FROM_DEVICE:
+			*data_dir = FSF_DATADIR_READ;
+			break;
+		case DMA_TO_DEVICE:
+			*data_dir = FSF_DATADIR_WRITE;
+			break;
+		case DMA_BIDIRECTIONAL:
+			return -EINVAL;
+		}
+		break;
+
+	case SCSI_PROT_READ_STRIP:
+		*data_dir = FSF_DATADIR_DIF_READ_STRIP;
+		break;
+	case SCSI_PROT_WRITE_INSERT:
+		*data_dir = FSF_DATADIR_DIF_WRITE_INSERT;
+		break;
+	case SCSI_PROT_READ_PASS:
+		*data_dir = FSF_DATADIR_DIF_READ_CONVERT;
+		break;
+	case SCSI_PROT_WRITE_PASS:
+		*data_dir = FSF_DATADIR_DIF_WRITE_CONVERT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * zfcp_fsf_send_fcp_command_task - initiate an FCP command (for a SCSI command)
  * @unit: unit where command is sent to
  * @scsi_cmnd: scsi command to be sent
@@ -2318,9 +2410,10 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
 	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
-	int real_bytes, retval = -EIO;
+	int real_bytes, retval = -EIO, dix_bytes = 0;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
+	struct fsf_qtcb_bottom_io *io;
 
 	if (unlikely(!(atomic_read(&unit->status) &
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
@@ -2332,6 +2425,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		goto out;
 	}
 
+	if (scsi_cmnd->sc_data_direction == DMA_TO_DEVICE)
+		sbtype = SBAL_FLAGS0_TYPE_WRITE;
+
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
 				  adapter->pool.scsi_req);
 
@@ -2340,6 +2436,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		goto out;
 	}
 
+	scsi_cmnd->host_scribble = (unsigned char *) req->req_id;
+
+	io = &req->qtcb->bottom.io;
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	zfcp_unit_get(unit);
 	req->unit = unit;
@@ -2347,38 +2446,34 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	req->handler = zfcp_fsf_send_fcp_command_handler;
 	req->qtcb->header.lun_handle = unit->handle;
 	req->qtcb->header.port_handle = unit->port->handle;
-	req->qtcb->bottom.io.service_class = FSF_CLASS_3;
-	req->qtcb->bottom.io.fcp_cmnd_length = FCP_CMND_LEN;
+	io->service_class = FSF_CLASS_3;
+	io->fcp_cmnd_length = FCP_CMND_LEN;
 
-	scsi_cmnd->host_scribble = (unsigned char *) req->req_id;
-
-	/*
-	 * set depending on data direction:
-	 *      data direction bits in SBALE (SB Type)
-	 *      data direction bits in QTCB
-	 */
-	switch (scsi_cmnd->sc_data_direction) {
-	case DMA_NONE:
-		req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
-		break;
-	case DMA_FROM_DEVICE:
-		req->qtcb->bottom.io.data_direction = FSF_DATADIR_READ;
-		break;
-	case DMA_TO_DEVICE:
-		req->qtcb->bottom.io.data_direction = FSF_DATADIR_WRITE;
-		sbtype = SBAL_FLAGS0_TYPE_WRITE;
-		break;
-	case DMA_BIDIRECTIONAL:
-		goto failed_scsi_cmnd;
+	if (scsi_get_prot_op(scsi_cmnd) != SCSI_PROT_NORMAL) {
+		io->data_block_length = scsi_cmnd->device->sector_size;
+		io->ref_tag_value = scsi_get_lba(scsi_cmnd) & 0xFFFFFFFF;
 	}
+
+	zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction);
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
 	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
 
+	if (scsi_prot_sg_count(scsi_cmnd)) {
+		zfcp_qdio_set_data_div(qdio, &req->queue_req,
+				       scsi_prot_sg_count(scsi_cmnd));
+		dix_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req,
+						    sbtype,
+						    scsi_prot_sglist(scsi_cmnd),
+						    FSF_MAX_SBALS_PER_REQ);
+		io->prot_data_length = dix_bytes;
+	}
+
 	real_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->queue_req, sbtype,
 					     scsi_sglist(scsi_cmnd),
 					     FSF_MAX_SBALS_PER_REQ);
-	if (unlikely(real_bytes < 0)) {
+
+	if (unlikely(real_bytes < 0) || unlikely(dix_bytes < 0)) {
 		if (req->queue_req.sbal_number >= FSF_MAX_SBALS_PER_REQ) {
 			dev_err(&adapter->ccw_device->dev,
 				"Oversize data package, unit 0x%016Lx "
@@ -2390,6 +2485,8 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		}
 		goto failed_scsi_cmnd;
 	}
+
+	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
 
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
@@ -2521,6 +2618,7 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 		zfcp_fsf_req_free(req);
 		goto out;
 	}
+	zfcp_qdio_set_sbale_last(adapter->qdio, &req->queue_req);
 
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(req);
