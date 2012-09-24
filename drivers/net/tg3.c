@@ -2719,9 +2719,6 @@ static int tg3_5700_link_polarity(struct tg3 *tp, u32 speed)
 	return 0;
 }
 
-static int tg3_setup_phy(struct tg3 *, int);
-static int tg3_halt_cpu(struct tg3 *, u32);
-
 static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 {
 	u32 val;
@@ -3526,6 +3523,8 @@ static int tg3_power_up(struct tg3 *tp)
 
 	return err;
 }
+
+static int tg3_setup_phy(struct tg3 *, int);
 
 static int tg3_power_down_prepare(struct tg3 *tp)
 {
