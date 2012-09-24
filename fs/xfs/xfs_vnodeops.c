@@ -61,7 +61,7 @@ xfs_setattr(
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			code;
-	uint			lock_flags;
+	uint			lock_flags = 0;
 	uint			commit_flags=0;
 	uid_t			uid=0, iuid=0;
 	gid_t			gid=0, igid=0;
@@ -126,7 +126,7 @@ xfs_setattr(
 	 */
 	tp = NULL;
 restart:
-	lock_flags = XFS_ILOCK_EXCL;
+	lock_flags = 0;
 	if (flags & XFS_ATTR_NOLOCK)
 		need_iolock = 0;
 	if (!(mask & ATTR_SIZE)) {
@@ -139,6 +139,7 @@ restart:
 			lock_flags = 0;
 			goto error_return;
 		}
+		lock_flags = XFS_ILOCK_EXCL;
 	} else {
 		if (need_iolock)
 			lock_flags |= XFS_IOLOCK_EXCL;
@@ -186,8 +187,6 @@ restart:
 		/* Short circuit the truncate case for zero length files */
 		if (iattr->ia_size == 0 &&
 		    old_size == 0 && ip->i_d.di_nextents == 0) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			lock_flags &= ~XFS_ILOCK_EXCL;
 			if (mask & ATTR_CTIME) {
 				/* need to log timestamp changes */
 				iattr->ia_ctime = iattr->ia_mtime =
@@ -213,7 +212,7 @@ restart:
 		/*
 		 * Make sure that the dquots are attached to the inode.
 		 */
-		code = xfs_qm_dqattach_locked(ip, 0);
+		code = xfs_qm_dqattach(ip, 0);
 		if (code)
 			goto error_return;
 
@@ -232,12 +231,12 @@ restart:
 			 * need to do this before the inode is joined to the
 			 * transaction to modify the i_size.
 			 */
+			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			code = xfs_zero_eof(ip, iattr->ia_size, old_size);
+			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			if (code)
 				goto error_return;
 		}
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		lock_flags &= ~XFS_ILOCK_EXCL;
 
 		/*
 		 * We are going to log the inode size change in this
