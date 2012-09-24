@@ -8877,9 +8877,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (tg3_flag(tp, PCI_EXPRESS))
 		rdmac_mode |= RDMAC_MODE_FIFO_LONG_BURST;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57766)
-		rdmac_mode |= RDMAC_MODE_JMB_2K_MMRR;
-
 	if (tg3_flag(tp, HW_TSO_1) ||
 	    tg3_flag(tp, HW_TSO_2) ||
 	    tg3_flag(tp, HW_TSO_3))
