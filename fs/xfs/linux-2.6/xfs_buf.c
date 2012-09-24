@@ -66,10 +66,6 @@ struct workqueue_struct *xfsconvertd_workqueue;
 #define xb_to_km(flags) \
 	 (((flags) & XBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
 
-#define xfs_buf_allocate(flags) \
-	kmem_zone_alloc(xfs_buf_zone, xb_to_km(flags))
-#define xfs_buf_deallocate(bp) \
-	kmem_zone_free(xfs_buf_zone, (bp));
 
 static inline int
 xfs_buf_is_vmapped(
@@ -169,14 +165,19 @@ xfs_buf_stale(
 	ASSERT(atomic_read(&bp->b_hold) >= 1);
 }
 
-STATIC void
-_xfs_buf_initialize(
-	xfs_buf_t		*bp,
-	xfs_buftarg_t		*target,
+struct xfs_buf *
+xfs_buf_alloc(
+	struct xfs_buftarg	*target,
 	xfs_off_t		range_base,
 	size_t			range_length,
 	xfs_buf_flags_t		flags)
 {
+	struct xfs_buf		*bp;
+
+	bp = kmem_zone_alloc(xfs_buf_zone, xb_to_km(flags));
+	if (unlikely(!bp))
+		return NULL;
+
 	/*
 	 * We don't want certain flags to appear in b_flags.
 	 */
@@ -205,8 +206,9 @@ _xfs_buf_initialize(
 	init_waitqueue_head(&bp->b_waiters);
 
 	XFS_STATS_INC(xb_create);
-
 	trace_xfs_buf_init(bp, _RET_IP_);
+
+	return bp;
 }
 
 /*
@@ -279,7 +281,7 @@ xfs_buf_free(
 	} else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 	_xfs_buf_free_pages(bp);
-	xfs_buf_deallocate(bp);
+	kmem_zone_free(xfs_buf_zone, bp);
 }
 
 /*
@@ -546,16 +548,14 @@ xfs_buf_get(
 	if (likely(bp))
 		goto found;
 
-	new_bp = xfs_buf_allocate(flags);
+	new_bp = xfs_buf_alloc(target, ioff << BBSHIFT, isize << BBSHIFT,
+			       flags);
 	if (unlikely(!new_bp))
 		return NULL;
 
-	_xfs_buf_initialize(new_bp, target,
-			    ioff << BBSHIFT, isize << BBSHIFT, flags);
-
 	bp = _xfs_buf_find(target, ioff, isize, flags, new_bp);
 	if (!bp) {
-		xfs_buf_deallocate(new_bp);
+		kmem_zone_free(xfs_buf_zone, new_bp);
 		return NULL;
 	}
 
@@ -564,7 +564,7 @@ xfs_buf_get(
 		if (error)
 			goto no_buffer;
 	} else
-		xfs_buf_deallocate(new_bp);
+		kmem_zone_free(xfs_buf_zone, new_bp);
 
 	/*
 	 * Now we have a workable buffer, fill in the block number so
@@ -705,19 +705,6 @@ xfs_buf_read_uncached(
 	return bp;
 }
 
-xfs_buf_t *
-xfs_buf_get_empty(
-	size_t			len,
-	xfs_buftarg_t		*target)
-{
-	xfs_buf_t		*bp;
-
-	bp = xfs_buf_allocate(0);
-	if (bp)
-		_xfs_buf_initialize(bp, target, 0, len, 0);
-	return bp;
-}
-
 /*
  * Return a buffer allocated as an empty buffer and associated to external
  * memory via xfs_buf_associate_memory() back to it's empty state.
@@ -803,10 +790,9 @@ xfs_buf_get_uncached(
 	int			error, i;
 	xfs_buf_t		*bp;
 
-	bp = xfs_buf_allocate(0);
+	bp = xfs_buf_alloc(target, 0, len, 0);
 	if (unlikely(bp == NULL))
 		goto fail;
-	_xfs_buf_initialize(bp, target, 0, len, 0);
 
 	error = _xfs_buf_get_pages(bp, page_count, 0);
 	if (error)
@@ -836,7 +822,7 @@ xfs_buf_get_uncached(
 		__free_page(bp->b_pages[i]);
 	_xfs_buf_free_pages(bp);
  fail_free_buf:
-	xfs_buf_deallocate(bp);
+	kmem_zone_free(xfs_buf_zone, bp);
  fail:
 	return NULL;
 }
