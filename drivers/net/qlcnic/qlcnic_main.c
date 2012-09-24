@@ -1896,6 +1896,7 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 		return;
 
 	spin_lock_init(&adapter->mac_learn_lock);
+	spin_lock_init(&adapter->rx_mac_learn_lock);
 
 	head = kcalloc(QLCNIC_LB_MAX_FILTERS, sizeof(struct hlist_head),
 								GFP_KERNEL);
@@ -1907,6 +1908,18 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 
 	for (i = 0; i < adapter->fhash.fmax; i++)
 		INIT_HLIST_HEAD(&adapter->fhash.fhead[i]);
+
+	head = kcalloc(QLCNIC_LB_RX_MAX_FILTERS, sizeof(struct hlist_head),
+								GFP_KERNEL);
+	if (!head)
+		return;
+
+	adapter->rx_fhash.fmax = QLCNIC_LB_RX_MAX_FILTERS;
+	adapter->rx_fhash.fhead = head;
+
+	for (i = 0; i < adapter->rx_fhash.fmax; i++)
+		INIT_HLIST_HEAD(&adapter->rx_fhash.fhead[i]);
+
 }
 
 static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
@@ -1916,6 +1929,12 @@ static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter)
 
 	adapter->fhash.fhead = NULL;
 	adapter->fhash.fmax = 0;
+
+	if (adapter->rx_fhash.fmax && adapter->rx_fhash.fhead)
+		kfree(adapter->rx_fhash.fhead);
+
+	adapter->rx_fhash.fmax = 0;
+	adapter->rx_fhash.fhead = NULL;
 }
 
 static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
@@ -1949,8 +1968,89 @@ static void qlcnic_change_filter(struct qlcnic_adapter *adapter,
 	smp_mb();
 }
 
+#define STATUS_CKSUM_LB 0
 #define QLCNIC_MAC_HASH(MAC)\
 	((((MAC) & 0x70000) >> 0x10) | (((MAC) & 0x70000000000ULL) >> 0x25))
+
+#define QLCNIC_IS_LOOPBACK_PKT(STS_DATA0)      \
+	((qlcnic_get_sts_status((STS_DATA0))) == STATUS_CKSUM_LB ? 1 : 0)
+
+void
+qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
+		struct sk_buff *skb, u64 sts_desc, u16 vlan_id)
+{
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
+	struct qlcnic_filter *fil, *tmp_fil;
+	struct hlist_node *tmp_hnode, *n;
+	struct hlist_head *head;
+	u64 src_addr = 0;
+	u8 hindex, found = 0, op;
+
+	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
+
+	if (QLCNIC_IS_LOOPBACK_PKT(sts_desc)) {
+
+		if (adapter->rx_fhash.fnum >= adapter->rx_fhash.fmax)
+			return;
+
+		hindex = QLCNIC_MAC_HASH(src_addr) &
+				(QLCNIC_LB_RX_MAX_FILTERS - 1);
+		head = &(adapter->rx_fhash.fhead[hindex]);
+
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
+					tmp_fil->vlan_id == vlan_id) {
+				if (jiffies >
+				    (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
+					tmp_fil->ftime = jiffies;
+				return;
+			}
+		}
+
+		fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
+		if (!fil)
+			return;
+
+		fil->ftime = jiffies;
+		memcpy(fil->faddr, &src_addr, ETH_ALEN);
+		fil->vlan_id = vlan_id;
+		spin_lock(&adapter->rx_mac_learn_lock);
+		hlist_add_head(&(fil->fnode), head);
+		adapter->rx_fhash.fnum++;
+		spin_unlock(&adapter->rx_mac_learn_lock);
+	} else {
+		hindex = QLCNIC_MAC_HASH(src_addr) &
+				(QLCNIC_LB_RX_MAX_FILTERS - 1);
+		head = &(adapter->rx_fhash.fhead[hindex]);
+
+		spin_lock(&adapter->rx_mac_learn_lock);
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
+					tmp_fil->vlan_id == vlan_id) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			spin_unlock(&adapter->rx_mac_learn_lock);
+			return;
+		}
+
+		op = vlan_id ? QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_ADD;
+		if (!qlcnic_sre_macaddr_change(adapter,
+				(u8 *)&src_addr, vlan_id, op)) {
+			op = vlan_id ? QLCNIC_MAC_VLAN_DEL : QLCNIC_MAC_DEL;
+
+			if (!qlcnic_sre_macaddr_change(adapter,
+					(u8 *)&src_addr, vlan_id, op)) {
+				hlist_del(&(tmp_fil->fnode));
+				adapter->rx_fhash.fnum--;
+			}
+		}
+		spin_unlock(&adapter->rx_mac_learn_lock);
+	}
+}
 
 static void
 qlcnic_send_filter(struct qlcnic_adapter *adapter,

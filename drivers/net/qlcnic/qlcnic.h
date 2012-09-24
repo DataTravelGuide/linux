@@ -955,6 +955,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_FILTER_AGE	80
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
+#define QLCNIC_LB_RX_MAX_FILTERS	(3 * 64)
 
 /* QLCNIC Driver Error Code */
 #define QLCNIC_FW_NOT_RESPOND		51
@@ -1063,9 +1064,11 @@ struct qlcnic_adapter {
 
 
 	struct qlcnic_filter_hash fhash;
+	struct qlcnic_filter_hash rx_fhash;
 
 	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
+	spinlock_t rx_mac_learn_lock;
 	__le32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
@@ -1578,7 +1581,9 @@ int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, u8, u8, u8);
 int qlcnic_get_mac_stats(struct qlcnic_adapter *,
 			 struct qlcnic_mac_statistics *);
 extern int qlcnic_config_tso;
-
+void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, u64, u16);
+int qlcnic_sre_macaddr_change(struct qlcnic_adapter *,
+			      u8 *, __le16, unsigned op);
 /*
  * QLOGIC Board information
  */

@@ -1535,7 +1535,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
 	int index, length, cksum, pkt_offset;
-	u16 vid = 0xffff;
+	u16 vid = 0xffff, t_vid;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -1568,6 +1568,11 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 		adapter->stats.rxdropped++;
 		dev_kfree_skb(skb);
 		return buffer;
+	}
+
+	if (adapter->mac_learn) {
+		t_vid = (vid == 0xffff) ? adapter->pvid : vid;
+		qlcnic_add_lb_filter(adapter, skb, sts_data0, t_vid);
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -1605,6 +1610,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	u16 lro_length, length, data_offset;
 	u32 seq_number;
 	u16 vid = 0xffff;
+	u16 t_vid;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1641,6 +1647,11 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 		adapter->stats.rxdropped++;
 		dev_kfree_skb(skb);
 		return buffer;
+	}
+
+	if (adapter->mac_learn) {
+		t_vid = (vid == 0xffff) ? adapter->pvid : vid;
+		qlcnic_add_lb_filter(adapter, skb, sts_data0, t_vid);
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
