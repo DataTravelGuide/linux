@@ -1230,3 +1230,10 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_msglevel = qlcnic_set_msglevel,
 	.get_msglevel = qlcnic_get_msglevel,
 };
+
+const struct ethtool_ops qlcnic_ethtool_failed_ops = {
+	.get_settings = qlcnic_get_settings,
+	.get_drvinfo = qlcnic_get_drvinfo,
+	.set_msglevel = qlcnic_set_msglevel,
+	.get_msglevel = qlcnic_get_msglevel,
+};

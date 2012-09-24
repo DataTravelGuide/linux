@@ -1353,6 +1353,10 @@ enum op_codes {
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
 #define QLCNIC_FORCE_FW_RESET		0xdeaddead
+#define QLCNIC_SET_QUIESCENT		0xadd00010
+#define QLCNIC_RESET_QUIESCENT		0xadd00020
+
+#define QLCNIC_INVALID_KEY		EINVAL
 
 struct qlcnic_dump_operations {
 	enum op_codes opcode;
@@ -1564,6 +1568,7 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 
 struct qlcnic_nic_template {
 	int (*config_bridged_mode) (struct qlcnic_adapter *, u32);
