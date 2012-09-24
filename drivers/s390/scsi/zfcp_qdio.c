@@ -183,13 +183,13 @@ static void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
 
 static struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
-		     unsigned long sbtype)
+		     u8 sbtype)
 {
 	struct qdio_buffer_element *sbale;
 
 	/* set last entry flag in current SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale->eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	/* don't exceed last allowed SBAL */
 	if (q_req->sbal_last == q_req->sbal_limit)
@@ -197,7 +197,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 
 	/* set chaining flag in first SBALE of current SBAL */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS0_MORE_SBALS;
+	sbale->sflags |= SBAL_SFLAGS0_MORE_SBALS;
 
 	/* calculate index of next SBAL */
 	q_req->sbal_last++;
@@ -211,14 +211,14 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 
 	/* set storage-block type for new SBAL */
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= sbtype;
+	sbale->sflags |= sbtype;
 
 	return sbale;
 }
 
 static struct qdio_buffer_element *
 zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
-		     unsigned int sbtype)
+		     u8 sbtype)
 {
 	if (q_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
 		return zfcp_qdio_sbal_chain(qdio, q_req, sbtype);
@@ -276,7 +276,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_qdio *qdio,
  */
 int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 			    struct zfcp_queue_req *q_req,
-			    unsigned long sbtype, struct scatterlist *sg,
+			    u8 sbtype, struct scatterlist *sg,
 			    int max_sbals)
 {
 	struct qdio_buffer_element *sbale;
@@ -287,7 +287,7 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 
 	/* set storage-block type for this request */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
-	sbale->flags |= sbtype;
+	sbale->sflags |= sbtype;
 
 	for (; sg; sg = sg_next(sg)) {
 		retval = zfcp_qdio_fill_sbals(qdio, q_req, sbtype,
@@ -443,7 +443,8 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	for (cc = 0; cc < QDIO_MAX_BUFFERS_PER_Q; cc++) {
 		sbale = &(qdio->resp_q.sbal[cc]->element[0]);
 		sbale->length = 0;
-		sbale->flags = SBAL_FLAGS_LAST_ENTRY;
+		sbale->eflags = SBAL_EFLAGS_LAST_ENTRY;
+		sbale->sflags = 0;
 		sbale->addr = NULL;
 	}
 

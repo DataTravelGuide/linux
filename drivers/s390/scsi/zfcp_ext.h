@@ -150,7 +150,7 @@ extern struct qdio_buffer_element
 extern struct qdio_buffer_element
 	*zfcp_qdio_sbale_curr(struct zfcp_qdio *, struct zfcp_queue_req *);
 extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *,
-				   struct zfcp_queue_req *, unsigned long,
+				   struct zfcp_queue_req *, u8,
 				   struct scatterlist *, int);
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);

@@ -742,7 +742,8 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
 	sbale[0].addr = (void *) req->req_id;
-	sbale[0].flags |= SBAL_FLAGS0_COMMAND;
+	sbale[0].eflags = 0;
+	sbale[0].sflags |= SBAL_SFLAGS0_COMMAND;
 
 	if (likely(fsf_cmd != FSF_QTCB_UNSOLICITED_STATUS)) {
 		if (likely(pool))
@@ -832,7 +833,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	}
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[2].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[2].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 	req->queue_req.sbale_curr = 2;
 
 	sr_buf = mempool_alloc(adapter->pool.status_read_data, GFP_ATOMIC);
@@ -940,8 +941,8 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 		goto out_error_free;
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->data = unit;
 	req->handler = zfcp_fsf_abort_fcp_command_handler;
@@ -1014,12 +1015,12 @@ static void zfcp_fsf_setup_ct_els_unchained(struct qdio_buffer_element *sbale,
 					    struct scatterlist *sg_req,
 					    struct scatterlist *sg_resp)
 {
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE_READ;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_WRITE_READ;
 	sbale[2].addr   = sg_virt(sg_req);
 	sbale[2].length = sg_req->length;
 	sbale[3].addr   = sg_virt(sg_resp);
 	sbale[3].length = sg_resp->length;
-	sbale[3].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[3].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 }
 
 static int zfcp_fsf_one_sbal(struct scatterlist *sg)
@@ -1039,7 +1040,7 @@ void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
 	struct qdio_buffer_element *sbale;
 
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale->eflags |= SBAL_EFLAGS_LAST_ENTRY;
 }
 
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
@@ -1068,7 +1069,7 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	}
 
 	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->queue_req,
-					SBAL_FLAGS0_TYPE_WRITE_READ,
+					SBAL_SFLAGS0_TYPE_WRITE_READ,
 					sg_req, max_sbals);
 	if (bytes <= 0)
 		return -EIO;
@@ -1077,7 +1078,7 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	req->queue_req.sbale_curr = ZFCP_LAST_SBALE_PER_SBAL;
 
 	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->queue_req,
-					SBAL_FLAGS0_TYPE_WRITE_READ,
+					SBAL_SFLAGS0_TYPE_WRITE_READ,
 					sg_resp, max_sbals);
 	req->qtcb->bottom.support.resp_buf_length = bytes;
 	if (bytes <= 0)
@@ -1276,8 +1277,8 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->qtcb->bottom.config.feature_selection =
 			FSF_FEATURE_CFDC |
@@ -1318,8 +1319,8 @@ int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *qdio,
 	}
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 	req->handler = zfcp_fsf_exchange_config_data_handler;
 
 	req->qtcb->bottom.config.feature_selection =
@@ -1374,8 +1375,8 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_exchange_port_data_handler;
 	req->erp_action = erp_action;
@@ -1423,8 +1424,8 @@ int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *qdio,
 		req->data = data;
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_exchange_port_data_handler;
 	zfcp_fsf_start_timer(req, ZFCP_FSF_REQUEST_TIMEOUT);
@@ -1551,8 +1552,8 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-        sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-        sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_port_handler;
 	req->qtcb->bottom.support.d_id = port->d_id;
@@ -1621,8 +1622,8 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_close_port_handler;
 	req->data = erp_action->port;
@@ -1698,8 +1699,8 @@ int zfcp_fsf_open_wka_port(struct zfcp_wka_port *wka_port)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_wka_port_handler;
 	req->qtcb->bottom.support.d_id = wka_port->d_id;
@@ -1753,8 +1754,8 @@ int zfcp_fsf_close_wka_port(struct zfcp_wka_port *wka_port)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_close_wka_port_handler;
 	req->data = wka_port;
@@ -1843,8 +1844,8 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->data = erp_action->port;
 	req->qtcb->header.port_handle = erp_action->port->handle;
@@ -2016,8 +2017,8 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-        sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-        sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->qtcb->header.port_handle = erp_action->port->handle;
 	req->qtcb->bottom.support.fcp_lun = erp_action->unit->fcp_lun;
@@ -2102,8 +2103,8 @@ int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_READ;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	req->qtcb->header.port_handle = erp_action->port->handle;
 	req->qtcb->header.lun_handle = erp_action->unit->handle;
@@ -2409,7 +2410,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd *fcp_cmnd;
-	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
+	u8 sbtype = SBAL_SFLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO, dix_bytes = 0;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
@@ -2426,7 +2427,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	}
 
 	if (scsi_cmnd->sc_data_direction == DMA_TO_DEVICE)
-		sbtype = SBAL_FLAGS0_TYPE_WRITE;
+		sbtype = SBAL_SFLAGS0_TYPE_WRITE;
 
 	req = zfcp_fsf_req_create(qdio, FSF_QTCB_FCP_CMND,
 				  adapter->pool.scsi_req);
@@ -2543,8 +2544,8 @@ struct zfcp_fsf_req *zfcp_fsf_send_fcp_ctm(struct zfcp_unit *unit, u8 tm_flags)
 	req->qtcb->bottom.io.fcp_cmnd_length = FCP_CMND_LEN;
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE;
-	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].sflags |= SBAL_SFLAGS0_TYPE_WRITE;
+	sbale[1].eflags |= SBAL_EFLAGS_LAST_ENTRY;
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
 	zfcp_fc_fcp_tm(fcp_cmnd, unit->device, tm_flags);
@@ -2577,17 +2578,18 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct zfcp_fsf_req *req = NULL;
 	struct fsf_qtcb_bottom_support *bottom;
-	int direction, retval = -EIO, bytes;
+	int retval = -EIO, bytes;
+	u8 direction;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_CFDC))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	switch (fsf_cfdc->command) {
 	case FSF_QTCB_DOWNLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_WRITE;
+		direction = SBAL_SFLAGS0_TYPE_WRITE;
 		break;
 	case FSF_QTCB_UPLOAD_CONTROL_FILE:
-		direction = SBAL_FLAGS0_TYPE_READ;
+		direction = SBAL_SFLAGS0_TYPE_READ;
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
@@ -2606,7 +2608,7 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	req->handler = zfcp_fsf_control_file_handler;
 
 	sbale = zfcp_qdio_sbale_req(qdio, &req->queue_req);
-	sbale[0].flags |= direction;
+	sbale[0].sflags |= direction;
 
 	bottom = &req->qtcb->bottom.support;
 	bottom->operation_subtype = FSF_CFDC_OPERATION_SUBTYPE;
@@ -2672,7 +2674,7 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 			atomic_read(&qdio->resp_q.count);
 		zfcp_fsf_req_complete(fsf_req);
 
-		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
+		if (likely(sbale->eflags & SBAL_EFLAGS_LAST_ENTRY))
 			break;
 	}
 }
