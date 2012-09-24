@@ -289,9 +289,6 @@ extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 extern int ext4_can_extents_be_merged(struct inode *inode,
 				      struct ext4_extent *ex1,
 				      struct ext4_extent *ex2);
-extern int ext4_ext_try_to_merge(struct inode *inode,
-				 struct ext4_ext_path *path,
-				 struct ext4_extent *);
 extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *, struct ext4_ext_path *);
 extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *, int);
 extern int ext4_ext_walk_space(struct inode *, ext4_lblk_t, ext4_lblk_t,
