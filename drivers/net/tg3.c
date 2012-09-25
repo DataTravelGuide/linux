@@ -15637,8 +15637,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	if (tp->pci_chip_rev_id != CHIPREV_ID_5700_B0) {
 		features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_GRO;
 
-	if (tg3_flag(tp, 5755_PLUS))
-		features |= NETIF_F_IPV6_CSUM;
+		tg3_flag_set(tp, RX_CHECKSUMS);
+		if (tg3_flag(tp, 5755_PLUS))
+			features |= NETIF_F_IPV6_CSUM;
 	}
 
 	/* TSO is on by default on chips that support hardware TSO.
