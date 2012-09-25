@@ -427,6 +427,7 @@ struct be_adapter {
 	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u32 msg_enable;
+	int be_get_temp_freq;
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)
