@@ -911,7 +911,7 @@ int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 #if 0 /* not in RHEL6 */
 static int
 efx_ethtool_get_rxnfc(struct net_device *net_dev,
-		      struct ethtool_rxnfc *info, void *rules __always_unused)
+		      struct ethtool_rxnfc *info, u32 *rules __always_unused)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
