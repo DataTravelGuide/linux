@@ -3994,6 +3994,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	ext4_fsblk_t n_blocks_count = 0;
 	unsigned long old_sb_flags;
 	struct ext4_mount_options old_opts;
+	int enable_quota = 0;
 	ext4_group_t g;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
 	int err;
@@ -4050,6 +4051,12 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		}
 
 		if (*flags & MS_RDONLY) {
+			err = vfs_dq_off(sb, 1);
+			if (err < 0 && err != -ENOSYS) {
+				err = -EBUSY;
+				goto restore_opts;
+			}
+
 			/*
 			 * First of all, the unconditional stuff we have to do
 			 * to disable replay of the journal when we next remount
@@ -4118,6 +4125,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				goto restore_opts;
 			if (!ext4_setup_super(sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
+			enable_quota = 1;
 		}
 	}
 
@@ -4146,6 +4154,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 #endif
 	unlock_super(sb);
 	unlock_kernel();
+	if (enable_quota)
+		vfs_dq_quota_on_remount(sb);
 	return 0;
 
 restore_opts:
@@ -4515,7 +4525,7 @@ static struct file_system_type ext4_fs_type = {
 	.name		= "ext4",
 	.get_sb		= ext4_get_sb,
 	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_NEW_FREEZE,
+	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_NEW_FREEZE | FS_HANDLE_QUOTA,
 };
 
 static int __init ext4_init_feat_adverts(void)
