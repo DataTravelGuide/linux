@@ -82,8 +82,8 @@ struct efx_special_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	unsigned int len;
-	int index;
-	int entries;
+	unsigned int index;
+	unsigned int entries;
 };
 
 /**
