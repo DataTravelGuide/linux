@@ -303,6 +303,8 @@ struct be_vf_cfg {
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
+#define BE_UC_PMAC_COUNT		30
+#define BE_VF_UC_PMAC_COUNT		2
 
 struct be_adapter {
 	struct pci_dev *pdev;
@@ -358,7 +360,7 @@ struct be_adapter {
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
 	char fw_ver[FW_VER_LEN];
 	int if_handle;		/* Used to configure filtering */
-	u32 pmac_id;		/* MAC addr handle used by BE card */
+	u32 *pmac_id;		/* MAC addr handle used by BE card */
 
 	bool eeh_err;
 	bool ue_detected;
@@ -386,6 +388,8 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
+	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)
