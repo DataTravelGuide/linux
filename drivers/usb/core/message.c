@@ -1212,6 +1212,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			put_device(&dev->actconfig->interface[i]->dev);
 			dev->actconfig->interface[i] = NULL;
 		}
+		usb_disable_ltm(dev);
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);
@@ -1874,6 +1875,9 @@ free_interfaces:
 	if (cp->string == NULL &&
 			!(dev->quirks & USB_QUIRK_CONFIG_INTF_STRINGS))
 		cp->string = usb_cache_string(dev, cp->desc.iConfiguration);
+
+	/* Enable LTM if it was turned off by usb_disable_device. */
+	usb_enable_ltm(dev);
 
 	/* Now that all the interfaces are set up, register them
 	 * to trigger binding of drivers to interfaces.  probe()

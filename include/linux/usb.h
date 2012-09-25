@@ -625,6 +625,9 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 { }
 #endif
 
+extern int usb_disable_ltm(struct usb_device *udev);
+extern void usb_enable_ltm(struct usb_device *udev);
+
 /*-------------------------------------------------------------------------*/
 
 /* for drivers using iso endpoints */
