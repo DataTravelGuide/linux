@@ -11,7 +11,6 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
-#include <linux/in.h>
 #include "net_driver.h"
 #include "workarounds.h"
 #include "selftest.h"
@@ -956,7 +955,6 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 	struct ethhdr *mac_entry = &ntuple->fs.h_u.ether_spec;
 	struct ethhdr *mac_mask = &ntuple->fs.m_u.ether_spec;
 	struct efx_filter_spec filter;
-	int rc;
 
 	/* Range-check action */
 	if (ntuple->fs.action < ETHTOOL_RXNTUPLE_ACTION_CLEAR ||
@@ -966,16 +964,9 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 	if (~ntuple->fs.data_mask)
 		return -EINVAL;
 
-	efx_filter_init_rx(&filter, EFX_FILTER_PRI_MANUAL, 0,
-			   (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP) ?
-			   0xfff : ntuple->fs.action);
-
 	switch (ntuple->fs.flow_type) {
 	case TCP_V4_FLOW:
-	case UDP_V4_FLOW: {
-		u8 proto = (ntuple->fs.flow_type == TCP_V4_FLOW ?
-			    IPPROTO_TCP : IPPROTO_UDP);
-
+	case UDP_V4_FLOW:
 		/* Must match all of destination, */
 		if (ip_mask->ip4dst | ip_mask->pdst)
 			return -EINVAL;
@@ -987,22 +978,7 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 		/* and nothing else */
 		if ((u8)~ip_mask->tos | (u16)~ntuple->fs.vlan_tag_mask)
 			return -EINVAL;
-
-		if (!ip_mask->ip4src)
-			rc = efx_filter_set_ipv4_full(&filter, proto,
-						      ip_entry->ip4dst,
-						      ip_entry->pdst,
-						      ip_entry->ip4src,
-						      ip_entry->psrc);
-		else
-			rc = efx_filter_set_ipv4_local(&filter, proto,
-						       ip_entry->ip4dst,
-						       ip_entry->pdst);
-		if (rc)
-			return rc;
 		break;
-	}
-
 	case ETHER_FLOW:
 		/* Must match all of destination, */
 		if (!is_zero_ether_addr(mac_mask->h_dest))
