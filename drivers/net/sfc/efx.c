@@ -1309,7 +1309,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 
 	/* Initialise the interrupt moderation settings */
-	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true);
+	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
+				true);
 
 	return 0;
 }
@@ -1509,14 +1510,25 @@ static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int resolution)
 }
 
 /* Set interrupt moderation parameters */
-void efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
-			     unsigned int rx_usecs, bool rx_adaptive)
+int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
+			    unsigned int rx_usecs, bool rx_adaptive,
+			    bool rx_may_override_tx)
 {
 	struct efx_channel *channel;
 	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);
 	unsigned rx_ticks = irq_mod_ticks(rx_usecs, EFX_IRQ_MOD_RESOLUTION);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
+
+	if (tx_ticks > EFX_IRQ_MOD_MAX || rx_ticks > EFX_IRQ_MOD_MAX)
+		return -EINVAL;
+
+	if (tx_ticks != rx_ticks && efx->tx_channel_offset == 0 &&
+	    !rx_may_override_tx) {
+		netif_err(efx, drv, efx->net_dev, "Channels are shared. "
+			  "RX and TX IRQ moderation must be equal\n");
+		return -EINVAL;
+	}
 
 	efx->irq_rx_adaptive = rx_adaptive;
 	efx->irq_rx_moderation = rx_ticks;
@@ -1526,6 +1538,8 @@ void efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 		else if (efx_channel_has_tx_queues(channel))
 			channel->irq_moderation = tx_ticks;
 	}
+
+	return 0;
 }
 
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
