@@ -1453,12 +1453,21 @@ static int efx_probe_all(struct efx_nic *efx)
 	}
 	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
+	rc = efx_probe_filters(efx);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "failed to create filter tables\n");
+		goto fail3;
+	}
+
 	rc = efx_probe_channels(efx);
 	if (rc)
-		goto fail3;
-
+		goto fail4;
+	
 	return 0;
 
+ fail4:
+	efx_remove_filters(efx);
  fail3:
 	efx_remove_port(efx);
  fail2:
@@ -1545,6 +1554,7 @@ static void efx_stop_all(struct efx_nic *efx)
 static void efx_remove_all(struct efx_nic *efx)
 {
 	efx_remove_channels(efx);
+	efx_remove_filters(efx);
 	efx_remove_port(efx);
 	efx_remove_nic(efx);
 }
@@ -2118,7 +2128,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	efx->type->reconfigure_mac(efx);
 
 	efx_start_interrupts(efx, false);
-
+	efx_restore_filters(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
@@ -2127,7 +2137,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 fail:
 	efx->port_initialized = false;
-
+ 
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;

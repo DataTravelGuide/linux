@@ -2913,6 +2913,20 @@
 #define FFE_BZ_TX_PACE_OFF 0
 #define FFE_BZ_TX_PACE_RESERVED 21
 
+/* RX_MAC_FILTER_TBL0 */
+/* RMFT_DEST_MAC is wider than 32 bits */
+#define FRF_CZ_RMFT_DEST_MAC_LO_LBN 12
+#define FRF_CZ_RMFT_DEST_MAC_LO_WIDTH 32
+#define FRF_CZ_RMFT_DEST_MAC_HI_LBN 44
+#define FRF_CZ_RMFT_DEST_MAC_HI_WIDTH 16
+
+/* TX_MAC_FILTER_TBL0 */
+/* TMFT_SRC_MAC is wider than 32 bits */
+#define FRF_CZ_TMFT_SRC_MAC_LO_LBN 12
+#define FRF_CZ_TMFT_SRC_MAC_LO_WIDTH 32
+#define FRF_CZ_TMFT_SRC_MAC_HI_LBN 44
+#define FRF_CZ_TMFT_SRC_MAC_HI_WIDTH 16
+
 /* DRIVER_EV */
 /* Sub-fields of an RX flush completion event */
 #define FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL_LBN 12

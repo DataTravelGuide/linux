@@ -621,6 +621,8 @@ union efx_multicast_hash {
 	efx_oword_t oword[EFX_MCAST_HASH_ENTRIES / sizeof(efx_oword_t) / 8];
 };
 
+struct efx_filter_state;
+
 /**
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
@@ -807,6 +809,8 @@ struct efx_nic {
 	u64 loopback_modes;
 
 	void *loopback_selftest;
+
+	struct efx_filter_state *filter_state;
 
 	atomic_t drain_pending;
 	atomic_t rxq_flush_pending;
