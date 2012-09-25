@@ -628,6 +628,14 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 extern int usb_disable_ltm(struct usb_device *udev);
 extern void usb_enable_ltm(struct usb_device *udev);
 
+static inline bool usb_device_supports_ltm(struct usb_device *udev)
+{
+	if (udev->speed != USB_SPEED_SUPER || !udev->bos || !udev->bos->ss_cap)
+		return false;
+	return udev->bos->ss_cap->bmAttributes & USB_LTM_SUPPORT;
+}
+
+
 /*-------------------------------------------------------------------------*/
 
 /* for drivers using iso endpoints */
