@@ -1102,10 +1102,10 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-static int efx_wanted_parallelism(void)
+static unsigned int efx_wanted_parallelism(void)
 {
 	cpumask_var_t thread_mask;
-	int count;
+	unsigned int count;
 	int cpu;
 
 	if (rss_cpus)
@@ -1135,13 +1135,14 @@ static int efx_wanted_parallelism(void)
  */
 static void efx_probe_interrupts(struct efx_nic *efx)
 {
-	int max_channels =
-		min_t(int, efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
-	int rc, i;
+	unsigned int max_channels =
+		min(efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
+	unsigned int i;
+	int rc;
 
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
-		int n_channels;
+		unsigned int n_channels;
 
 		n_channels = efx_wanted_parallelism();
 		if (separate_tx_channels)
@@ -1154,7 +1155,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		if (rc > 0) {
 			netif_err(efx, drv, efx->net_dev,
 				  "WARNING: Insufficient MSI-X vectors"
-				  " available (%d < %d).\n", rc, n_channels);
+				  " available (%d < %u).\n", rc, n_channels);
 			netif_err(efx, drv, efx->net_dev,
 				  "WARNING: Performance may be reduced.\n");
 			EFX_BUG_ON_PARANOID(rc >= n_channels);
