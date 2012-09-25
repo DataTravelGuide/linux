@@ -177,7 +177,8 @@ static inline cputime_t virt_ticks(struct task_struct *p)
 	return p->utime;
 }
 
-int posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
+static int
+posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
 {
 	int error = check_clock(which_clock);
 	if (!error) {
@@ -195,7 +196,8 @@ int posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
 	return error;
 }
 
-int posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *tp)
+static int
+posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *tp)
 {
 	/*
 	 * You can never reset a CPU clock, but we check for other errors
@@ -325,7 +327,7 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 }
 
 
-int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
+static int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 {
 	const pid_t pid = CPUCLOCK_PID(which_clock);
 	int error = -EINVAL;
@@ -386,7 +388,7 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
  * Validate the clockid_t for a new CPU-clock timer, and initialize the timer.
  * This is called from sys_timer_create with the new timer already locked.
  */
-int posix_cpu_timer_create(struct k_itimer *new_timer)
+static int posix_cpu_timer_create(struct k_itimer *new_timer)
 {
 	int ret = 0;
 	const pid_t pid = CPUCLOCK_PID(new_timer->it_clock);
@@ -434,7 +436,7 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
  * If we return TIMER_RETRY, it's necessary to release the timer's lock
  * and try again.  (This happens when the timer is in the middle of firing.)
  */
-int posix_cpu_timer_del(struct k_itimer *timer)
+static int posix_cpu_timer_del(struct k_itimer *timer)
 {
 	struct task_struct *p = timer->it.cpu.task;
 	int ret = 0;
@@ -718,8 +720,8 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
  * If we return TIMER_RETRY, it's necessary to release the timer's lock
  * and try again.  (This happens when the timer is in the middle of firing.)
  */
-int posix_cpu_timer_set(struct k_itimer *timer, int flags,
-			struct itimerspec *new, struct itimerspec *old)
+static int posix_cpu_timer_set(struct k_itimer *timer, int flags,
+			       struct itimerspec *new, struct itimerspec *old)
 {
 	struct task_struct *p = timer->it.cpu.task;
 	union cpu_time_count old_expires, new_expires, val;
@@ -873,7 +875,7 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	return ret;
 }
 
-void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
+static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 {
 	union cpu_time_count now;
 	struct task_struct *p = timer->it.cpu.task;
@@ -1572,8 +1574,10 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 	return error;
 }
 
-int posix_cpu_nsleep(const clockid_t which_clock, int flags,
-		     struct timespec *rqtp, struct timespec __user *rmtp)
+static long posix_cpu_nsleep_restart(struct restart_block *restart_block);
+
+static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
+			    struct timespec *rqtp, struct timespec __user *rmtp)
 {
 	struct restart_block *restart_block =
 		&current_thread_info()->restart_block;
@@ -1608,7 +1612,7 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	return error;
 }
 
-long posix_cpu_nsleep_restart(struct restart_block *restart_block)
+static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->nanosleep.index;
 	struct timespec t;
@@ -1632,7 +1636,6 @@ long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 	return error;
 
 }
-
 
 #define PROCESS_CLOCK	MAKE_PROCESS_CPUCLOCK(0, CPUCLOCK_SCHED)
 #define THREAD_CLOCK	MAKE_THREAD_CPUCLOCK(0, CPUCLOCK_SCHED)
