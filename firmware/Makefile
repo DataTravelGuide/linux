@@ -104,7 +104,8 @@ fw-shipped-$(CONFIG_E100) += e100/d101m_ucode.bin e100/d101s_ucode.bin \
 			     e100/d102e_ucode.bin
 fw-shipped-$(CONFIG_MYRI_SBUS) += myricom/lanai.bin
 fw-shipped-$(CONFIG_NETXEN_NIC) += phanfw-4.0.550.bin \
-				   phanfw-4.0.579.bin
+				   phanfw-4.0.579.bin \
+				   phanfw-4.0.588.bin
 fw-shipped-$(CONFIG_PCMCIA_PCNET) += cis/LA-PCM.cis cis/PCMLM28.cis \
 				     cis/DP83903.cis cis/NE2K.cis \
 				     cis/tamarack.cis cis/PE-200.cis
