@@ -670,8 +670,8 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		struct skb_frag_struct *frag =
 			&skb_shinfo(skb)->frags[i];
-		busaddr = dma_map_page(dev, frag->page, frag->page_offset,
-				       frag->size, DMA_TO_DEVICE);
+		busaddr = skb_frag_dma_map(dev, frag, 0,
+					   frag->size, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
 			goto dma_err;
 		wrb = queue_head_node(txq);
@@ -1198,7 +1198,7 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		hdr_len = ETH_HLEN;
 		memcpy(skb->data, start, hdr_len);
 		skb_shinfo(skb)->nr_frags = 1;
-		skb_shinfo(skb)->frags[0].page = page_info->page;
+		skb_frag_set_page(skb, 0, page_info->page);
 		skb_shinfo(skb)->frags[0].page_offset =
 					page_info->page_offset + hdr_len;
 		skb_shinfo(skb)->frags[0].size = curr_frag_len - hdr_len;
@@ -1224,7 +1224,7 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		if (page_info->page_offset == 0) {
 			/* Fresh page */
 			j++;
-			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_frag_set_page(skb, j, page_info->page);
 			skb_shinfo(skb)->frags[j].page_offset =
 							page_info->page_offset;
 			skb_shinfo(skb)->frags[j].size = 0;
@@ -1308,7 +1308,7 @@ void be_rx_compl_process_gro(struct be_rx_obj *rxo, struct napi_struct *napi,
 		if (i == 0 || page_info->page_offset == 0) {
 			/* First frag or Fresh page */
 			j++;
-			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_frag_set_page(skb, j, page_info->page);
 			skb_shinfo(skb)->frags[j].page_offset =
 							page_info->page_offset;
 			skb_shinfo(skb)->frags[j].size = 0;
