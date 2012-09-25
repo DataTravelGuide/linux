@@ -391,7 +391,7 @@ int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0 || num_tc > EFX_MAX_TX_TC)
 		return -EINVAL;
 
-	if (num_tc == net_dev->num_tc)
+	if (num_tc == netdev_get_num_tc(net_dev))
 		return 0;
 
 	for (tc = 0; tc < num_tc; tc++) {
@@ -399,7 +399,7 @@ int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
 	}
 
-	if (num_tc > net_dev->num_tc) {
+	if (num_tc > netdev_get_num_tc(net_dev)) {
 		/* Initialise high-priority queues as necessary */
 		efx_for_each_channel(channel, efx) {
 			efx_for_each_possible_channel_tx_queue(tx_queue,
@@ -418,7 +418,7 @@ int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 		}
 	} else {
 		/* Reduce number of classes before number of queues */
-		net_dev->num_tc = num_tc;
+		netdev_set_num_tc(net_dev, num_tc);
 	}
 
 	rc = netif_set_real_num_tx_queues(net_dev,
@@ -433,7 +433,7 @@ int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 	 * it to efx_fini_channels().
 	 */
 
-	net_dev->num_tc = num_tc;
+	netdev_set_num_tc(net_dev, num_tc);
 	return 0;
 }
 

@@ -976,7 +976,7 @@ efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 
 static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 {
-	return !(tx_queue->efx->net_dev->num_tc < 2 &&
+	return !(netdev_get_num_tc(tx_queue->efx->net_dev) < 2 &&
 		 tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI);
 }
 
