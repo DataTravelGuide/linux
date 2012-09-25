@@ -824,6 +824,9 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (err)
 			goto out_mknod_parent;
 
+		err = mnt_want_write(nd.path.mnt);
+		if (err)
+			goto out_mknod_dput;
 		dentry = lookup_create(&nd, 0);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
@@ -834,19 +837,15 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 */
 		mode = S_IFSOCK |
 		       (SOCK_INODE(sock)->i_mode & ~current_umask());
-		err = mnt_want_write(nd.path.mnt);
-		if (err)
-			goto out_mknod_dput;
 		err = security_path_mknod(&nd.path, dentry, mode, 0);
 		if (err)
-			goto out_mknod_drop_write;
+			goto out_mknod_dput;
 		err = vfs_mknod(nd.path.dentry->d_inode, dentry, mode, 0);
-out_mknod_drop_write:
-		mnt_drop_write(nd.path.mnt);
 		if (err)
 			goto out_mknod_dput;
 		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
 		dput(nd.path.dentry);
+		mnt_drop_write(nd.path.mnt);
 		nd.path.dentry = dentry;
 
 		addr->hash = UNIX_HASH_SIZE;
@@ -885,6 +884,7 @@ out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+	mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 out_mknod_parent:
 	if (err == -EEXIST)
