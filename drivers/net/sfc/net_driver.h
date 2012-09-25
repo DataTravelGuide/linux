@@ -667,6 +667,9 @@ union efx_multicast_hash {
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
+ * @fc_disable: When non-zero flow control is disabled. Typically used to
+ *	ensure that network back pressure doesn't delay dma queue flushes.
+ *	Serialised by the rtnl lock.
  * @mac_work: Work item for changing MAC promiscuity and multicast hash
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
@@ -767,6 +770,7 @@ struct efx_nic {
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
 	u8 wanted_fc;
+	unsigned fc_disable;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;
