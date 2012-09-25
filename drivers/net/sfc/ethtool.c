@@ -1043,40 +1043,26 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 	return rc < 0 ? rc : 0;
 }
 
-static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,
-				      struct ethtool_rxfh_indir *indir)
+static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
+{
+	return (efx_nic_rev(efx) < EFX_REV_FALCON_B0 ?
+	               0 : ARRAY_SIZE(efx->rx_indir_table));
+}
+
+static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev, u32 *indir)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	size_t copy_size =
-		min_t(size_t, indir->size, ARRAY_SIZE(efx->rx_indir_table));
-
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
-		return -EOPNOTSUPP;
-
-	indir->size = ARRAY_SIZE(efx->rx_indir_table);
-	memcpy(indir->ring_index, efx->rx_indir_table,
-	       copy_size * sizeof(indir->ring_index[0]));
+	
+	memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
 	return 0;
 }
 
 static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
-				      const struct ethtool_rxfh_indir *indir)
+				      const u32 *indir)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	size_t i;
-
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
-		return -EOPNOTSUPP;
-
-	/* Validate size and indices */
-	if (indir->size != ARRAY_SIZE(efx->rx_indir_table))
-		return -EINVAL;
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		if (indir->ring_index[i] >= efx->n_rx_channels)
-			return -EINVAL;
-
-	memcpy(efx->rx_indir_table, indir->ring_index,
-	       sizeof(efx->rx_indir_table));
+	
+	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
 	efx_nic_push_rx_indir_table(efx);
 	return 0;
 }
@@ -1117,4 +1103,12 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_ethtool_stats	= efx_ethtool_get_stats,
 	.get_wol                = efx_ethtool_get_wol,
 	.set_wol                = efx_ethtool_set_wol,
+};
+
+const struct ethtool_ops_ext efx_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	
+	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
+	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
+	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
 };
