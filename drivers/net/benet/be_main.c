@@ -423,6 +423,9 @@ void be_parse_stats(struct be_adapter *adapter)
 		populate_be2_stats(adapter);
 	}
 
+	if (lancer_chip(adapter))
+		goto done;
+
 	/* as erx_v1 is longer than v0, ok to use v1 defn for v0 access */
 	for_all_rx_queues(adapter, rxo, i) {
 		/* below erx HW counter can actually wrap around after
@@ -431,6 +434,8 @@ void be_parse_stats(struct be_adapter *adapter)
 		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
 				(u16)erx->rx_drops_no_fragments[rxo->q.id]);
 	}
+done:
+	return;
 }
 
 static struct net_device_stats *be_get_stats(struct net_device *netdev)
