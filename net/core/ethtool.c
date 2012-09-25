@@ -154,6 +154,17 @@ int ethtool_op_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
+int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+{
+	info->so_timestamping =
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE;
+	info->phc_index = -1;
+	return 0;
+}
+EXPORT_SYMBOL(ethtool_op_get_ts_info);
+
 /* Handlers for each ethtool command */
 
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
