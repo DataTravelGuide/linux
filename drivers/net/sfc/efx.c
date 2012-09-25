@@ -1281,10 +1281,27 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		efx->n_tx_channels = 1;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
+
+	/* Assign extra channels if possible */
+	j = efx->n_channels;
+	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
+		if (!efx->extra_channel_type[i])
+			continue;
+		if (efx->interrupt_mode != EFX_INT_MODE_MSIX ||
+			efx->n_channels <= extra_channels) {
+			efx->extra_channel_type[i]->handle_no_channel(efx);
+		} else {
+			--j;
+			efx_get_channel(efx, j)->type =
+				efx->extra_channel_type[i];
+		}
+	}
+
+	return 0;
 }
 
 /* Enable interrupts, then probe and start the event queues */
-static void efx_start_interrupts(struct efx_nic *efx)
+static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 {
 	struct efx_channel *channel;
 
