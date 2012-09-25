@@ -484,8 +484,10 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 
 	EFX_BUG_ON_PARANOID(stats->n_stats != EFX_ETHTOOL_NUM_STATS);
 
+	spin_lock_bh(&efx->stats_lock);
+
 	/* Update MAC and NIC statistics */
-	dev_get_stats(net_dev);
+	efx->type->update_stats(efx);
 
 	/* Fill detailed statistics buffer */
 	for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++) {
@@ -515,6 +517,8 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 			break;
 		}
 	}
+
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
