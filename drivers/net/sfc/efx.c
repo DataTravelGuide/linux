@@ -1759,7 +1759,6 @@ static void efx_watchdog(struct net_device *net_dev)
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	int rc = 0;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -1782,7 +1781,7 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	efx_init_channels(efx);
 
 	efx_start_all(efx);
-	return rc;
+	return 0;
 }
 
 static int efx_set_mac_address(struct net_device *net_dev, void *data)
