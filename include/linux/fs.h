@@ -203,6 +203,7 @@ struct inodes_stat_t {
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move()
 					 * during rename() internally.
 					 */
+#define FS_HANDLE_QUOTA		(1<<16)	/* FS handle quota disable/enable */
 
  /*
   * the fs is built with the new s_writers member in the superblock
