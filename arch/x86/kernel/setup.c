@@ -754,15 +754,25 @@ static void rh_check_supported(void)
 		printk(KERN_CRIT "Detected processor %s %s\n",
 		       boot_cpu_data.x86_vendor_id,
 		       boot_cpu_data.x86_model_id);
-		mark_hardware_unsupported("Unsupported Processor");
+		mark_hardware_unsupported("Processor");
 	}
 
 	/* Intel CPU family 6, model greater than 60 */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
-	    ((boot_cpu_data.x86 == 6) && (boot_cpu_data.x86_model > 60))) {
-		printk(KERN_CRIT "Detected CPU family %d model %d\n",
-		       boot_cpu_data.x86, boot_cpu_data.x86_model);
-		mark_hardware_unsupported("CPU family 6 model > 60");
+	    ((boot_cpu_data.x86 == 6))) {
+		switch (boot_cpu_data.x86_model) {
+		case 62: /* Ivy Town */
+			break;
+		default:
+			if (boot_cpu_data.x86_model > 60) {
+				printk(KERN_CRIT
+				       "Detected CPU family %d model %d\n",
+				       boot_cpu_data.x86,
+				       boot_cpu_data.x86_model);
+				mark_hardware_unsupported("Intel CPU model");
+			}
+			break;
+		}
 	}
 }
 
