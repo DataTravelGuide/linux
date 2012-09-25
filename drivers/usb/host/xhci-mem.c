@@ -153,6 +153,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	if (!ring)
 		return NULL;
 
+	ring->num_segs = num_segs;
 	INIT_LIST_HEAD(&ring->td_list);
 	ring->type = type;
 	if (num_segs == 0)
@@ -176,6 +177,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		num_segs--;
 	}
 	xhci_link_segments(xhci, prev, ring->first_seg, type);
+	ring->last_seg = prev;
 
 	/* Only event ring does not use link TRB */
 	if (type != TYPE_EVENT) {
