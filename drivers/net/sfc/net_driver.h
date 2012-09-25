@@ -13,10 +13,6 @@
 #ifndef EFX_NET_DRIVER_H
 #define EFX_NET_DRIVER_H
 
-#if defined(EFX_ENABLE_DEBUG) && !defined(DEBUG)
-#define DEBUG
-#endif
-
 #include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -43,7 +39,7 @@
 
 #define EFX_DRIVER_VERSION	"3.1"
 
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
 #else
