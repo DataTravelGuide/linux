@@ -16,6 +16,7 @@
 #include "workarounds.h"
 #include "selftest.h"
 #include "efx.h"
+#include "filter.h"
 #include "nic.h"
 
 struct ethtool_string {
@@ -568,26 +569,23 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 
 static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 {
-#if 0 /* not in RHEL */
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u32 supported = (efx->type->offload_features &
 			 (ETH_FLAG_RXHASH | ETH_FLAG_NTUPLE));
 	int rc;
 
-	if (data & ~supported)
-		return -EINVAL;
-
 	rc = ethtool_op_set_flags(net_dev, data);
 	if (rc)
 		return rc;
 
-	if (!(data & ETH_FLAG_NTUPLE))
-		efx_filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+       if (!(data & ETH_FLAG_NTUPLE)) {
+		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_IP,
+				      EFX_FILTER_PRI_MANUAL);
+		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_MAC,
+				      EFX_FILTER_PRI_MANUAL);
+	}
 
 	return 0;
-#else
-	return -EINVAL;
-#endif
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
@@ -904,7 +902,6 @@ int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_reset(efx, method);
 }
 
-#if 0 /* not in RHEL6 */
 static int
 efx_ethtool_get_rxnfc(struct net_device *net_dev,
 		      struct ethtool_rxnfc *info, u32 *rules __always_unused)
@@ -1066,7 +1063,6 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 	efx_nic_push_rx_indir_table(efx);
 	return 0;
 }
-#endif
 
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
@@ -1112,3 +1108,5 @@ const struct ethtool_ops_ext efx_ethtool_ops_ext = {
 	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
 	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
 };
+
+

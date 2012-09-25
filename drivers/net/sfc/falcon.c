@@ -1794,7 +1794,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 				   * interrupt handler only supports 32
 				   * channels */
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
-	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH,
+	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 	.reset_world_flags = ETH_RESET_IRQ,
 };
 

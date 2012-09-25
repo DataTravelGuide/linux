@@ -634,6 +634,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 				   * interrupt handler only supports 32
 				   * channels */
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
-	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXHASH),
+	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.reset_world_flags = ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT,
 };
