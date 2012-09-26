@@ -3582,10 +3582,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
 
-
-	/* Enable VLAN tag insert/strip */
-	adapter->netdev->features |= NETIF_F_HW_VLAN_RX;
-
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
 #ifdef IXGBE_FCOE
