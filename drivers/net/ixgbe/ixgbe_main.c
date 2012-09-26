@@ -7388,20 +7388,21 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
+			   NETIF_F_IPV6_CSUM |
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
-			   NETIF_F_HW_VLAN_FILTER;
-
-	netdev->features |= NETIF_F_IPV6_CSUM;
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
-	netdev->features |= NETIF_F_GRO;
-	netdev->features |= NETIF_F_RXHASH;
+			   NETIF_F_HW_VLAN_FILTER |
+			   NETIF_F_TSO |
+			   NETIF_F_TSO6 |
+			   NETIF_F_GRO |
+			   NETIF_F_RXHASH |
+			   NETIF_F_RXCSUM;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		netdev->features |= NETIF_F_SCTP_CSUM;
+		netdev->features |= NETIF_F_SCTP_CSUM |
+				    NETIF_F_NTUPLE;
 		break;
 	default:
 		break;
