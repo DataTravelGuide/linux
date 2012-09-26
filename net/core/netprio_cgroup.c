@@ -170,7 +170,7 @@ static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 	for_each_netdev(&init_net, dev) {
 		data = &netdev_extended(dev)->priomap_data;
 		map = rcu_dereference(data->priomap);
-		if (map)
+		if (map && cs->prioidx < map->priomap_len)
 			map->priomap[cs->prioidx] = 0;
 	}
 	rtnl_unlock();
@@ -196,7 +196,7 @@ static int read_priomap(struct cgroup *cont, struct cftype *cft,
 	for_each_netdev(&init_net, dev) {
 		data = &netdev_extended(dev)->priomap_data;
 		map = rcu_dereference(data->priomap);
-		priority = map ? map->priomap[prioidx] : 0;
+		priority = (map && prioidx < map->priomap_len) ? map->priomap[prioidx] : 0;
 		cb->fill(cb, dev->name, priority);
 	}
 	rtnl_unlock();

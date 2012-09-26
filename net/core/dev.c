@@ -2154,7 +2154,10 @@ static void skb_update_prio(struct sk_buff *skb)
 
 	if ((!skb->priority) && (skb->sk) && map) {
 		struct sock_extended *ske = sk_extended(skb->sk);
-		skb->priority = map->priomap[ske->__sk_common_extended2.sk_cgrp_prioidx];
+		unsigned int prioidx = ske->__sk_common_extended2.sk_cgrp_prioidx;
+
+		if (prioidx < map->priomap_len)
+			skb->priority = map->priomap[prioidx];
 	}
 }
 #else
