@@ -352,6 +352,14 @@ M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	drivers/pci/hotplug/
 
+PTP HARDWARE CLOCK SUPPORT
+M:	Jiri Benc <jbenc@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	Documentation/ptp/
+F:	drivers/ptp/
+F:	include/linux/ptp_cl*
+
 QLOGIC QLA2XXX FC-SCSI DRIVER
 M:	Chad Dupuis <cdupuis@redhat.com>
 S:	Maintained
