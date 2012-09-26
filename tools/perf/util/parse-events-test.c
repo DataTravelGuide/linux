@@ -16,7 +16,7 @@ do { \
 } while (0)
 
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
-			     PERF_SAMPLE_CPU)
+			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
 
 static int test__checkevent_tracepoint(struct perf_evlist *evlist)
 {
