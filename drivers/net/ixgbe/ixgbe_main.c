@@ -759,6 +759,10 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		/* clear next_to_watch to prevent false hangs */
 		tx_buffer->next_to_watch = NULL;
 
+		/* update the statistics for this packet */
+		total_bytes += tx_buffer->bytecount;
+		total_packets += tx_buffer->gso_segs;
+
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
@@ -767,12 +771,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 		do {
 			ixgbe_unmap_tx_resource(tx_ring, tx_buffer);
-			if (likely(tx_desc == eop_desc)) {
+			if (likely(tx_desc == eop_desc))
 				eop_desc = NULL;
-
-				total_bytes += tx_buffer->bytecount;
-				total_packets += tx_buffer->gso_segs;
-			}
 
 			tx_buffer++;
 			tx_desc++;
@@ -6580,8 +6580,13 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 				     0, IPPROTO_TCP, 0);
 	}
 
+	/* compute header lengths */
 	l4len = tcp_hdrlen(skb);
 	*hdr_len = skb_transport_offset(skb) + l4len;
+
+	/* update gso size and bytecount with header size */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount += (first->gso_segs - 1) * *hdr_len;
 
 	/* mss_l4len_id: use 1 as index for TSO */
 	mss_l4len_idx = l4len << IXGBE_ADVTXD_L4LEN_SHIFT;
@@ -6744,7 +6749,6 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	u32 offset = 0;
 	u32 paylen = skb->len - hdr_len;
 	u16 i = tx_ring->next_to_use;
-	u16 gso_segs;
 
 #ifdef IXGBE_FCOE
 	if (tx_flags & IXGBE_TX_FLAGS_FCOE) {
@@ -6827,21 +6831,6 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 		i = 0;
 
 	tx_ring->next_to_use = i;
-
-	if (tx_flags & IXGBE_TX_FLAGS_TSO)
-		gso_segs = skb_shinfo(skb)->gso_segs;
-#ifdef IXGBE_FCOE
-	/* adjust for FCoE Sequence Offload */
-	else if (tx_flags & IXGBE_TX_FLAGS_FSO)
-		gso_segs = DIV_ROUND_UP(skb->len - hdr_len,
-					skb_shinfo(skb)->gso_size);
-#endif /* IXGBE_FCOE */
-	else
-		gso_segs = 1;
-
-	/* multiply data chunks by size of headers */
-	tx_buffer_info->bytecount = paylen + (gso_segs * hdr_len);
-	tx_buffer_info->gso_segs = gso_segs;
 
 	/* set the timestamp */
 	first->time_stamp = jiffies;
@@ -7054,6 +7043,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
 	first->skb = skb;
+	first->bytecount = skb->len;
+	first->gso_segs = 1;
 
 	/* if we have a HW VLAN tag being added default to the HW one */
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
