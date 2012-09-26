@@ -653,6 +653,7 @@ extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 extern void ixgbe_check_options(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_IXGBE_DCB
+extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
