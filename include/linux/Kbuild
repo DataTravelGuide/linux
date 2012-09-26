@@ -138,6 +138,7 @@ header-y += pkt_sched.h
 header-y += posix_types.h
 header-y += ppdev.h
 header-y += prctl.h
+header-y += ptp_clock.h
 header-y += qnxtypes.h
 header-y += qnx4_fs.h
 header-y += radeonfb.h
