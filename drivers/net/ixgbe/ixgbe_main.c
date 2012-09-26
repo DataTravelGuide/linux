@@ -6220,7 +6220,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
  *                               print link down message
  * @adapter - pointer to the adapter structure
  **/
-static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter* adapter)
+static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -7315,8 +7315,8 @@ static void ixgbe_netpoll(struct net_device *netdev)
 	}
 	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
 }
-#endif
 
+#endif
 /* ixgbe_validate_rtr - verify 802.1Qp to Rx packet buffer mapping is valid.
  * #adapter: pointer to ixgbe_adapter
  * @tc: number of traffic classes currently enabled
@@ -7353,7 +7353,6 @@ static void ixgbe_validate_rtr(struct ixgbe_adapter *adapter, u8 tc)
 	return;
 }
 
-
 /* ixgbe_setup_tc - routine to configure net_device for multiple traffic
  * classes.
  *
@@ -7373,7 +7372,8 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
-	    (hw->mac.type == ixgbe_mac_82598EB && tc < MAX_TRAFFIC_CLASS))
+	    (hw->mac.type == ixgbe_mac_82598EB &&
+	     tc < MAX_TRAFFIC_CLASS))
 		return -EINVAL;
 
 	/* Hardware has to reinitialize queues and interrupts to
@@ -7387,7 +7387,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	if (tc) {
 		netdev_set_num_tc(dev, tc);
 		adapter->last_lfc_mode = adapter->hw.fc.current_mode;
-
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
@@ -7395,7 +7394,6 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 	} else {
 		netdev_reset_tc(dev);
-
 		adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
 		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
@@ -7418,7 +7416,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_stop		= ixgbe_close,
 	.ndo_start_xmit		= ixgbe_xmit_frame,
 	.ndo_select_queue	= ixgbe_select_queue,
-	.ndo_set_rx_mode        = ixgbe_set_rx_mode,
+	.ndo_set_rx_mode	= ixgbe_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbe_set_mac,
 	.ndo_change_mtu		= ixgbe_change_mtu,
@@ -7732,7 +7730,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 
 	setup_timer(&adapter->service_timer, &ixgbe_service_timer,
-	            (unsigned long) adapter);
+		    (unsigned long) adapter);
 	INIT_WORK(&adapter->service_task, ixgbe_service_task);
 	clear_bit(__IXGBE_SERVICE_SCHED, &adapter->state);
 
@@ -7817,7 +7815,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* reset the hardware with the new settings */
 	err = hw->mac.ops.start_hw(hw);
-
 	if (err == IXGBE_ERR_EEPROM_VERSION) {
 		/* We are running on a pre-production device, log a warning */
 		e_dev_warn("This device is a pre-production adapter/LOM. "
