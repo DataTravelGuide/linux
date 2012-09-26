@@ -505,8 +505,8 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		 * of max_msix_q_vectors + NON_Q_VECTORS, or the number of
 		 * vectors we were allocated.
 		 */
-		adapter->num_msix_vectors = min(vectors,
-				   adapter->max_msix_q_vectors + NON_Q_VECTORS);
+		vectors -= NON_Q_VECTORS;
+		adapter->num_q_vectors = min(vectors, adapter->max_q_vectors);
 	}
 }
 
@@ -687,7 +687,7 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
  **/
 static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int q_vectors = adapter->num_q_vectors;
 	int rxr_remaining = adapter->num_rx_queues;
 	int txr_remaining = adapter->num_tx_queues;
 	int rxr_idx = 0, txr_idx = 0, v_idx = 0;
@@ -731,10 +731,12 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 	return 0;
 
 err_out:
-	while (v_idx) {
-		v_idx--;
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
+
+	while (v_idx--)
 		ixgbe_free_q_vector(adapter, v_idx);
-	}
 
 	return -ENOMEM;
 }
@@ -749,14 +751,13 @@ err_out:
  **/
 static void ixgbe_free_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int v_idx, q_vectors;
+	int v_idx = adapter->num_q_vectors;
 
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
-		q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-	else
-		q_vectors = 1;
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+	adapter->num_q_vectors = 0;
 
-	for (v_idx = 0; v_idx < q_vectors; v_idx++)
+	while (v_idx--)
 		ixgbe_free_q_vector(adapter, v_idx);
 }
 
@@ -833,6 +834,8 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		ixgbe_disable_sriov(adapter);
 
 	ixgbe_set_num_queues(adapter);
+
+	adapter->num_q_vectors = 1;
 
 	err = pci_enable_msi(adapter->pdev);
 	if (!err) {
