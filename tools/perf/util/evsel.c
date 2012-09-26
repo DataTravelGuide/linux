@@ -23,7 +23,7 @@
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
-int __perf_evsel__sample_size(u64 sample_type)
+static int __perf_evsel__sample_size(u64 sample_type)
 {
 	u64 mask = sample_type & PERF_SAMPLE_MASK;
 	int size = 0;
@@ -56,6 +56,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->attr	   = *attr;
 	INIT_LIST_HEAD(&evsel->node);
 	hists__init(&evsel->hists);
+	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
