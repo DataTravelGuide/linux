@@ -62,9 +62,10 @@ static int get_prioidx(u32 *prio)
 	}
 
 	set_bit(prioidx, prioidx_map);
+	if (atomic_read(&max_prioidx) < prioidx)
+		atomic_set(&max_prioidx, prioidx);
 	spin_unlock_irqrestore(&prioidx_map_lock, flags);
 
-	atomic_set(&max_prioidx, prioidx);
 	*prio = prioidx;
 	return 0;
 }
