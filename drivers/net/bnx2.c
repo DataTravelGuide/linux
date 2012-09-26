@@ -8546,7 +8546,7 @@ error:
 	if (bp->rv2p_firmware)
 		release_firmware(bp->rv2p_firmware);
 
-	iounmap(bp->regview);
+	pci_iounmap(pdev, bp->regview);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
