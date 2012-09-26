@@ -86,7 +86,7 @@ static void free_priomap_rcu(struct rcu_head *head)
 	kfree(map);
 }
 
-static void extend_netdev_table(struct net_device *dev, u32 new_len)
+static int extend_netdev_table(struct net_device *dev, u32 new_len)
 {
 	size_t new_size = sizeof(struct netprio_map) +
 			   ((sizeof(u32) * new_len));
@@ -100,7 +100,7 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 
 	if (!new_priomap) {
 		printk(KERN_WARNING "Unable to alloc new priomap!\n");
-		return;
+		return -ENOMEM;
 	}
 
 	for (i = 0;
@@ -113,49 +113,84 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 	rcu_assign_pointer(data->priomap, new_priomap);
 	if (old_priomap)
 		call_rcu(&old_priomap->rcu, free_priomap_rcu);
+	return 0;
 }
 
-static void update_netdev_tables(void)
+static int write_update_netdev_table(struct net_device *dev)
 {
-	struct net_device *dev;
-	u32 max_len = atomic_read(&max_prioidx) + 1;
+	int ret = 0;
+	u32 max_len;
 	struct netprio_map *map;
 	struct netdev_priomap_info *data;
 
 	rtnl_lock();
+	max_len = atomic_read(&max_prioidx) + 1;
+	data = &netdev_extended(dev)->priomap_data;
+	map = rtnl_dereference(data->priomap);
+	if (!map || map->priomap_len < max_len)
+		ret = extend_netdev_table(dev, max_len);
+	rtnl_unlock();
+
+	return ret;
+}
+
+static int update_netdev_tables(void)
+{
+	int ret = 0;
+	struct net_device *dev;
+	u32 max_len;
+	struct netprio_map *map;
+	struct netdev_priomap_info *data;
+
+	rtnl_lock();
+	max_len = atomic_read(&max_prioidx) + 1;
 	for_each_netdev(&init_net, dev) {
 		data = &netdev_extended(dev)->priomap_data;
 		map = rcu_dereference(data->priomap);
-		if ((!map) ||
-		    (map->priomap_len < max_len))
-			extend_netdev_table(dev, max_len);
+		/*
+		 * don't allocate priomap if we didn't
+		 * change net_prio.ifpriomap (map == NULL),
+		 * this will speed up skb_update_prio.
+		 */
+		if (map && map->priomap_len < max_len) {
+			ret = extend_netdev_table(dev, max_len);
+			if (ret < 0)
+				break;
+		}
 	}
 	rtnl_unlock();
+	return ret;
 }
 
 static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 						 struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
-	int ret;
+	int ret = -EINVAL;
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	if (cgrp->parent && cgrp_netprio_state(cgrp->parent)->prioidx) {
-		kfree(cs);
-		return ERR_PTR(-EINVAL);
-	}
+	if (cgrp->parent && cgrp_netprio_state(cgrp->parent)->prioidx)
+		goto out;
 
 	ret = get_prioidx(&cs->prioidx);
-	if (ret != 0) {
+	if (ret < 0) {
 		printk(KERN_WARNING "No space in priority index array\n");
-		kfree(cs);
-		return ERR_PTR(ret);
+		goto out;
+	}
+
+	ret = update_netdev_tables();
+	if (ret < 0) {
+		put_prioidx(cs->prioidx);
+		goto out;
 	}
 
 	return &cs->css;
+out:
+	kfree(cs);
+	return ERR_PTR(ret);
 }
 
 static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
@@ -252,14 +287,18 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 	if (!dev)
 		goto out_free_devname;
 
-	update_netdev_tables();
-	ret = 0;
+	ret = write_update_netdev_table(dev);
+	if (ret < 0)
+		goto out_put_dev;
+
 	rcu_read_lock();
 	data = &netdev_extended(dev)->priomap_data;
 	map = rcu_dereference(data->priomap);
 	if (map)
 		map->priomap[prioidx] = priority;
 	rcu_read_unlock();
+
+out_put_dev:
 	dev_put(dev);
 
 out_free_devname:
