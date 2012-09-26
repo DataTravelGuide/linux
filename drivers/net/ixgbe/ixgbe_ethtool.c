@@ -34,6 +34,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>
 #include <linux/uaccess.h>
 
 #include "ixgbe.h"
@@ -1711,7 +1712,6 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->netdev = adapter->netdev;
 	rx_ring->reg_idx = adapter->rx_ring[0]->reg_idx;
-	rx_ring->rx_buf_len = IXGBE_RXBUFFER_2K;
 
 	err = ixgbe_setup_rx_resources(rx_ring);
 	if (err) {
@@ -1814,12 +1814,14 @@ static bool ixgbe_check_lbtest_frame(struct ixgbe_rx_buffer *rx_buffer,
 
 	frame_size >>= 1;
 
-	data = rx_buffer->skb->data;
+	data = kmap(rx_buffer->page) + rx_buffer->page_offset;
 
 	if (data[3] != 0xFF ||
 	    data[frame_size + 10] != 0xBE ||
 	    data[frame_size + 12] != 0xAF)
 		match = false;
+
+	kunmap(rx_buffer->page);
 
 	return match;
 }
@@ -1842,16 +1844,21 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 		/* check Rx buffer */
 		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
 
-		/* unmap Rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(rx_ring->dev,
-				 rx_buffer->dma,
-				 rx_ring->rx_buf_len,
-				 DMA_FROM_DEVICE);
-		rx_buffer->dma = 0;
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer->dma,
+					ixgbe_rx_bufsz(rx_ring),
+					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
 		if (ixgbe_check_lbtest_frame(rx_buffer, size))
 			count++;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer->dma,
+					   ixgbe_rx_bufsz(rx_ring),
+					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on Tx side */
 		tx_buffer = &tx_ring->tx_buffer_info[tx_ntc];
