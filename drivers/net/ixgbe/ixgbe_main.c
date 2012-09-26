@@ -3439,14 +3439,18 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	unsigned int rar_entries = IXGBE_MAX_PF_MACVLANS;
+	unsigned int rar_entries = hw->mac.num_rar_entries - 1;
 	int count = 0;
+
+	/* In SR-IOV mode significantly less RAR entries are available */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		rar_entries = IXGBE_MAX_PF_MACVLANS - 1;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
 	if (netdev_uc_count(netdev) > rar_entries)
 		return -ENOMEM;
 
-	if (!netdev_uc_empty(netdev) && rar_entries) {
+	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
 		/* return error if we do not support writing to RAR table */
 		if (!hw->mac.ops.set_rar)
