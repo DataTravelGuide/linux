@@ -4775,6 +4775,11 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
+	/* Notify the stack of the actual queue counts. */
+	netif_set_real_num_tx_queues(netdev,
+				     adapter->num_rx_pools > 1 ? 1 :
+				     adapter->num_tx_queues);
+
 	ixgbe_up_complete(adapter);
 
 	return 0;
@@ -4841,23 +4846,19 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	pci_wake_from_d3(pdev, false);
 
-	rtnl_lock();
-	err = ixgbe_init_interrupt_scheme(adapter);
-	rtnl_unlock();
-	if (err) {
-		e_dev_err("Cannot initialize interrupts for device\n");
-		return err;
-	}
-
 	ixgbe_reset(adapter);
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
 
-	if (netif_running(netdev)) {
+	rtnl_lock();
+	err = ixgbe_init_interrupt_scheme(adapter);
+	if (!err && netif_running(netdev))
 		err = ixgbe_open(netdev);
-		if (err)
-			return err;
-	}
+
+	rtnl_unlock();
+
+	if (err)
+		return err;
 
 	netif_device_attach(netdev);
 

@@ -358,27 +358,14 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_rx_queues_per_pool = 1;
 
 	if (ixgbe_set_sriov_queues(adapter))
-		goto done;
+		return;
 
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
-		goto done;
-
-#endif
-	if (ixgbe_set_rss_queues(adapter))
-		goto done;
-
-	/* fallback to base case */
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-
-done:
-	if ((adapter->netdev->reg_state == NETREG_UNREGISTERED) ||
-	    (adapter->netdev->reg_state == NETREG_UNREGISTERING))
 		return;
 
-	/* Notify the stack of the (possibly) reduced queue counts. */
-	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
+#endif
+	ixgbe_set_rss_queues(adapter);
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
@@ -702,11 +689,10 @@ static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
  * Attempt to configure the interrupts using the best available
  * capabilities of the hardware and the kernel.
  **/
-static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
+static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int err = 0;
-	int vector, v_budget;
+	int vector, v_budget, err;
 
 	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
@@ -739,7 +725,7 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		ixgbe_acquire_msix_vectors(adapter, v_budget);
 
 		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
-			goto out;
+			return;
 	}
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
@@ -755,22 +741,16 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 		ixgbe_disable_sriov(adapter);
 
 	ixgbe_set_num_queues(adapter);
-
 	adapter->num_q_vectors = 1;
 
 	err = pci_enable_msi(adapter->pdev);
-	if (!err) {
-		adapter->flags |= IXGBE_FLAG_MSI_ENABLED;
-	} else {
+	if (err) {
 		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
 			     "Unable to allocate MSI interrupt, "
 			     "falling back to legacy.  Error: %d\n", err);
-		/* reset err */
-		err = 0;
+		return;
 	}
-
-out:
-	return err;
+	adapter->flags |= IXGBE_FLAG_MSI_ENABLED;
 }
 
 /**
@@ -790,11 +770,8 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 	/* Number of supported queues */
 	ixgbe_set_num_queues(adapter);
 
-	err = ixgbe_set_interrupt_capability(adapter);
-	if (err) {
-		e_dev_err("Unable to setup interrupt capabilities\n");
-		goto err_set_interrupt;
-	}
+	/* Set interrupt mode */
+	ixgbe_set_interrupt_capability(adapter);
 
 	err = ixgbe_alloc_q_vectors(adapter);
 	if (err) {
@@ -814,7 +791,6 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 
 err_alloc_q_vectors:
 	ixgbe_reset_interrupt_capability(adapter);
-err_set_interrupt:
 	return err;
 }
 
