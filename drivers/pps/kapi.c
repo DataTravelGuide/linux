@@ -267,11 +267,12 @@ EXPORT_SYMBOL(pps_unregister_source);
  *	pps->info.echo(source, event, data);
  */
 
-void pps_event(int source, struct pps_ktime *ts, int event, void *data)
+void pps_event(int source, struct pps_event_time *ts, int event, void *data)
 {
 	struct pps_device *pps;
 	unsigned long flags;
 	int captured = 0;
+	struct pps_ktime ts_real = { .sec = 0, .nsec = 0, .flags = 0 };
 
 	if ((event & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR)) == 0) {
 		printk(KERN_ERR "pps: unknown event (%x) for source %d\n",
@@ -283,8 +284,10 @@ void pps_event(int source, struct pps_ktime *ts, int event, void *data)
 	if (!pps)
 		return;
 
-	pr_debug("PPS event on source %d at %llu.%06u\n",
-			pps->id, (unsigned long long) ts->sec, ts->nsec);
+	pr_debug("PPS event on source %d at %ld.%09ld\n",
+			pps->id, ts->ts_real.tv_sec, ts->ts_real.tv_nsec);
+
+	timespec_to_pps_ktime(&ts_real, ts->ts_real);
 
 	spin_lock_irqsave(&pps->lock, flags);
 
@@ -298,10 +301,11 @@ void pps_event(int source, struct pps_ktime *ts, int event, void *data)
 			(pps->params.mode & PPS_CAPTUREASSERT)) {
 		/* We have to add an offset? */
 		if (pps->params.mode & PPS_OFFSETASSERT)
-			pps_add_offset(ts, &pps->params.assert_off_tu);
+			pps_add_offset(&ts_real,
+					&pps->params.assert_off_tu);
 
 		/* Save the time stamp */
-		pps->assert_tu = *ts;
+		pps->assert_tu = ts_real;
 		pps->assert_sequence++;
 		pr_debug("capture assert seq #%u for source %d\n",
 			pps->assert_sequence, source);
@@ -312,10 +316,11 @@ void pps_event(int source, struct pps_ktime *ts, int event, void *data)
 			(pps->params.mode & PPS_CAPTURECLEAR)) {
 		/* We have to add an offset? */
 		if (pps->params.mode & PPS_OFFSETCLEAR)
-			pps_add_offset(ts, &pps->params.clear_off_tu);
+			pps_add_offset(&ts_real,
+					&pps->params.clear_off_tu);
 
 		/* Save the time stamp */
-		pps->clear_tu = *ts;
+		pps->clear_tu = ts_real;
 		pps->clear_sequence++;
 		pr_debug("capture clear seq #%u for source %d\n",
 			pps->clear_sequence, source);
