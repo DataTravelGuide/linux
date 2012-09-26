@@ -194,7 +194,8 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline struct event_format *find_cache_event(int type)
+static inline
+struct event_format *find_cache_event(struct pevent *pevent, int type)
 {
 	static char ev_name[256];
 	struct event_format *event;
@@ -202,7 +203,7 @@ static inline struct event_format *find_cache_event(int type)
 	if (events[type])
 		return events[type];
 
-	events[type] = event = trace_find_event(type);
+	events[type] = event = pevent_find_event(pevent, type);
 	if (!event)
 		return NULL;
 
@@ -213,7 +214,8 @@ static inline struct event_format *find_cache_event(int type)
 	return event;
 }
 
-static void python_process_event(union perf_event *pevent __unused,
+static void python_process_event(union perf_event *perf_event __unused,
+				 struct pevent *pevent,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel __unused,
 				 struct machine *machine __unused,
@@ -237,13 +239,13 @@ static void python_process_event(union perf_event *pevent __unused,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	type = trace_parse_common_type(data);
+	type = trace_parse_common_type(pevent, data);
 
-	event = find_cache_event(type);
+	event = find_cache_event(pevent, type);
 	if (!event)
 		die("ug! no event found for type %d", type);
 
-	pid = trace_parse_common_pid(data);
+	pid = trace_parse_common_pid(pevent, data);
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
 
@@ -288,7 +290,8 @@ static void python_process_event(union perf_event *pevent __unused,
 				offset = field->offset;
 			obj = PyString_FromString((char *)data + offset);
 		} else { /* FIELD_IS_NUMERIC */
-			val = read_size(data + field->offset, field->size);
+			val = read_size(pevent, data + field->offset,
+					field->size);
 			if (field->flags & FIELD_IS_SIGNED) {
 				if ((long long)val >= LONG_MIN &&
 				    (long long)val <= LONG_MAX)
@@ -442,7 +445,7 @@ out:
 	return err;
 }
 
-static int python_generate_script(const char *outfile)
+static int python_generate_script(struct pevent *pevent, const char *outfile)
 {
 	struct event_format *event = NULL;
 	struct format_field *f;
@@ -491,7 +494,7 @@ static int python_generate_script(const char *outfile)
 	fprintf(ofp, "def trace_end():\n");
 	fprintf(ofp, "\tprint \"in trace_end\"\n\n");
 
-	while ((event = trace_find_next_event(event))) {
+	while ((event = trace_find_next_event(pevent, event))) {
 		fprintf(ofp, "def %s__%s(", event->system, event->name);
 		fprintf(ofp, "event_name, ");
 		fprintf(ofp, "context, ");
