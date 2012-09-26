@@ -2244,10 +2244,6 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	bool need_reset = false;
 	int rc;
 
-	if ((data & ETH_FLAG_RXHASH) &&
-	    !(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return -EOPNOTSUPP;
-
 	rc = ethtool_op_set_flags(netdev, data);
 	if (rc)
 		return rc;
@@ -2290,7 +2286,7 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	} else if (!(data & ETH_FLAG_NTUPLE)) {
 		/* turn off Flow Director, set ATR and reset */
 		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-		if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
+		if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
 		    !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		need_reset = true;
@@ -2399,10 +2395,6 @@ static int ixgbe_get_rss_hash_opts(struct ixgbe_adapter *adapter,
 				   struct ethtool_rxnfc *cmd)
 {
 	cmd->data = 0;
-
-	/* if RSS is disabled then report no hashing */
-	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return 0;
 
 	/* Report default options for RSS on ixgbe */
 	switch (cmd->flow_type) {
