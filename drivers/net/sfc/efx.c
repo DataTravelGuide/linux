@@ -1308,7 +1308,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		}
 	}
 
-	return 0;
+	return;
 }
 
 /* Enable interrupts, then probe and start the event queues */
@@ -1455,7 +1455,7 @@ static int efx_probe_all(struct efx_nic *efx)
 
 	rc = efx_probe_channels(efx);
 	if (rc)
-		goto fail4;
+		goto fail3;
 
 	return 0;
 
@@ -1698,15 +1698,21 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
  *
  **************************************************************************/
 
+static void efx_init_napi_channel(struct efx_channel *channel)
+{
+	struct efx_nic *efx = channel->efx;
+
+	channel->napi_dev = efx->net_dev;
+	netif_napi_add(channel->napi_dev, &channel->napi_str,
+		       efx_poll, napi_weight);
+}
+
 static void efx_init_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
-	efx_for_each_channel(channel, efx) {
-		channel->napi_dev = efx->net_dev;
-		netif_napi_add(channel->napi_dev, &channel->napi_str,
-			       efx_poll, napi_weight);
-	}
+	efx_for_each_channel(channel, efx) 
+		efx_init_napi_channel(channel);
 }
 
 static void efx_fini_napi_channel(struct efx_channel *channel)
@@ -1946,7 +1952,10 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
+
+#if 0 /* !RHEL */
 	.ndo_setup_tc		= efx_setup_tc,
+#endif
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -2070,7 +2079,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
@@ -2107,7 +2116,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	efx->type->reconfigure_mac(efx);
 
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 
 	mutex_unlock(&efx->mac_lock);
 
@@ -2376,7 +2385,7 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -2403,7 +2412,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -2506,7 +2515,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 
 	return 0;
 
@@ -2630,7 +2639,7 @@ static int efx_pm_freeze(struct device *dev)
 	netif_device_detach(efx->net_dev);
 
 	efx_stop_all(efx);
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 
 	return 0;
 }
@@ -2641,7 +2650,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	efx->state = STATE_INIT;
 
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 
 	mutex_lock(&efx->mac_lock);
 	efx->phy_op->reconfigure(efx);
@@ -2785,3 +2794,4 @@ MODULE_AUTHOR("Solarflare Communications and "
 MODULE_DESCRIPTION("Solarflare Communications network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
+

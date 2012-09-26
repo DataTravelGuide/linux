@@ -380,6 +380,7 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
+#if 0 /* !RHEL */
 int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
@@ -436,6 +437,7 @@ int efx_setup_tc(struct net_device *net_dev, u8 num_tc)
 	netdev_set_num_tc(net_dev, num_tc);
 	return 0;
 }
+#endif	/* !RHEL */
 
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
