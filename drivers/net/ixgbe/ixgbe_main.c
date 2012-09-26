@@ -783,6 +783,13 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
+#ifdef CONFIG_IXGBE_PTP
+		if (unlikely(tx_buffer->tx_flags &
+			     IXGBE_TX_FLAGS_TSTAMP))
+			ixgbe_ptp_tx_hwtstamp(q_vector,
+					      tx_buffer->skb);
+
+#endif
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
@@ -1373,6 +1380,11 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	ixgbe_rx_hash(rx_ring, rx_desc, skb);
 
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
+
+#ifdef CONFIG_IXGBE_PTP
+	if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS))
+		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
+#endif
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -5408,6 +5420,11 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 		flow_rx = false;
 		break;
 	}
+
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_start_cyclecounter(adapter);
+#endif
+
 	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
 	       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
 	       "10 Gbps" :
@@ -5447,6 +5464,10 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 	/* poll for SFP+ cable when link is down */
 	if (ixgbe_is_sfp(hw) && hw->mac.type == ixgbe_mac_82598EB)
 		adapter->flags2 |= IXGBE_FLAG2_SEARCH_FOR_SFP;
+
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_start_cyclecounter(adapter);
+#endif
 
 	e_info(drv, "NIC Link is Down\n");
 	netif_carrier_off(netdev);
@@ -5750,6 +5771,9 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_watchdog_subtask(adapter);
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_overflow_check(adapter);
+#endif
 
 	ixgbe_service_event_complete(adapter);
 }
@@ -5899,6 +5923,11 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 	/* set HW vlan bit if vlan is present */
 	if (tx_flags & IXGBE_TX_FLAGS_HW_VLAN)
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_VLE);
+
+#ifdef CONFIG_IXGBE_PTP
+	if (tx_flags & IXGBE_TX_FLAGS_TSTAMP)
+		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_MAC_TSTAMP);
+#endif
 
 	/* set segmentation enable bits for TSO/FSO */
 #ifdef IXGBE_FCOE
@@ -6292,6 +6321,13 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IXGBE_TX_FLAGS_SW_VLAN;
 	}
 
+#ifdef CONFIG_IXGBE_PTP
+	if (unlikely(skb_tx(skb)->hardware)) {
+		skb_tx(skb)->in_progress = 1;
+		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
+	}
+#endif
+
 #ifdef CONFIG_PCI_IOV
 	/*
 	 * Use the l2switch_enable flag - would be false if the DMA
@@ -6438,7 +6474,14 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
+	switch (cmd) {
+#ifdef CONFIG_IXGBE_PTP
+	case SIOCSHWTSTAMP:
+		return ixgbe_ptp_hwtstamp_ioctl(adapter, req, cmd);
+#endif
+	default:
+		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
+	}
 }
 
 /**
@@ -7011,6 +7054,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_init(adapter);
+#endif /* CONFIG_IXGBE_PTP*/
+
 	/* save off EEPROM version number */
 	hw->eeprom.ops.read(hw, 0x2e, &adapter->eeprom_verh);
 	hw->eeprom.ops.read(hw, 0x2d, &adapter->eeprom_verl);
@@ -7139,6 +7186,10 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
+
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_stop(adapter);
+#endif
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
