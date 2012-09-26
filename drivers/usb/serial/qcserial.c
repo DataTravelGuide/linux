@@ -140,6 +140,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
+				kfree(data);
 			}
 			return retval;
 		}
@@ -156,6 +157,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 					"Could not set interface, error %d\n",
 					retval);
 				retval = -ENODEV;
+				kfree(data);
 			}
 			return retval;
 		}
@@ -164,6 +166,7 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 	default:
 		dev_err(&serial->dev->dev,
 			"unknown number of interfaces: %d\n", nintf);
+		kfree(data);
 		return -ENODEV;
 	}
 
