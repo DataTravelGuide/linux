@@ -489,6 +489,7 @@ static void scsi_requeue_command(struct request_queue *q, struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	scsi_run_queue(q);
+
 	put_device(&sdev->sdev_gendev);
 }
 
@@ -1389,7 +1390,6 @@ static int scsi_lld_busy(struct request_queue *q)
 	if (blk_queue_dead(q))
 		return 0;
 
-	BUG_ON(!sdev);
 	shost = sdev->host;
 	starget = scsi_target(sdev);
 
