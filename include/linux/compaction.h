@@ -23,6 +23,7 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern unsigned long compact_zone_order(struct zone *zone,
 					int order, gfp_t gfp_mask,
 					bool sync);
+extern unsigned long compaction_suitable(struct zone *zone, int order);
 extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *mask,
 			bool sync);
@@ -69,6 +70,11 @@ static inline unsigned long compact_zone_order(struct zone *zone,
 					       bool sync)
 {
 	return COMPACT_CONTINUE;
+}
+
+static inline unsigned long compaction_suitable(struct zone *zone, int order)
+{
+	return COMPACT_SKIPPED;
 }
 
 static inline void defer_compaction(struct zone *zone)
