@@ -74,6 +74,7 @@
 #include <linux/gfp.h>
 #include <linux/kthread.h>
 #include <linux/splice.h>
+#include <linux/falloc.h>
 
 #include <asm/uaccess.h>
 
@@ -494,6 +495,29 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 			}
 		}
 
+		/*
+		 * We use punch hole to reclaim the free space used by the
+		 * image a.k.a. discard. However we do support discard if
+		 * encryption is enabled, because it may give an attacker
+		 * useful information.
+		 */
+		if (bio->bi_rw & BIO_DISCARD) {
+			struct inode *inode = lo->lo_backing_file->f_mapping->host;
+			int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
+
+			if ((!inode->i_op->fallocate) ||
+			    lo->lo_encrypt_key_size) {
+				ret = -EOPNOTSUPP;
+				goto out;
+			}
+			ret = inode->i_op->fallocate(inode, mode, pos,
+						    bio->bi_size);
+			if (unlikely(ret && ret != -EINVAL &&
+				     ret != -EOPNOTSUPP))
+				ret = -EIO;
+			goto out;
+		}
+
 		ret = lo_send(lo, bio, pos);
 
 		if ((bio->bi_rw & BIO_FUA) && !ret) {
@@ -736,6 +760,35 @@ static inline int is_loop_device(struct file *file)
 	struct inode *i = file->f_mapping->host;
 
 	return i && S_ISBLK(i->i_mode) && MAJOR(i->i_rdev) == LOOP_MAJOR;
+}
+
+static void loop_config_discard(struct loop_device *lo)
+{
+	struct file *file = lo->lo_backing_file;
+	struct inode *inode = file->f_mapping->host;
+	struct request_queue *q = lo->lo_queue;
+
+	/*
+	 * We use punch hole to reclaim the free space used by the
+	 * image a.k.a. discard. However we do support discard if
+	 * encryption is enabled, because it may give an attacker
+	 * useful information.
+	 */
+	if ((!inode->i_op->fallocate) ||
+	    lo->lo_encrypt_key_size) {
+		q->limits.discard_granularity = 0;
+		q->limits.discard_alignment = 0;
+		q->limits.max_discard_sectors = 0;
+		q->limits.discard_zeroes_data = 0;
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
+		return;
+	}
+
+	q->limits.discard_granularity = inode->i_sb->s_blocksize;
+	q->limits.discard_alignment = inode->i_sb->s_blocksize;
+	q->limits.max_discard_sectors = UINT_MAX >> 9;
+	q->limits.discard_zeroes_data = 1;
+	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 }
 
 static int loop_set_fd(struct loop_device *lo, fmode_t mode,
@@ -1007,6 +1060,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 		if (figure_loop_size(lo))
 			return -EFBIG;
 	}
+	loop_config_discard(lo);
 
 	memcpy(lo->lo_file_name, info->lo_file_name, LO_NAME_SIZE);
 	memcpy(lo->lo_crypt_name, info->lo_crypt_name, LO_NAME_SIZE);
