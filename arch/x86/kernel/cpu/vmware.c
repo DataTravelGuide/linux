@@ -109,7 +109,6 @@ static bool __init vmware_platform(void)
 
 	return false;
 }
-EXPORT_SYMBOL(vmware_platform);
 
 /*
  * VMware hypervisor takes care of exporting a reliable TSC to the guest.
@@ -135,3 +134,4 @@ const __refconst struct hypervisor_x86 x86_hyper_vmware = {
 	.set_cpu_features	= vmware_set_cpu_features,
 	.init_platform		= vmware_platform_setup,
 };
+EXPORT_SYMBOL(x86_hyper_vmware);
