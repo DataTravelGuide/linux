@@ -481,9 +481,8 @@ EXPORT_SYMBOL(fail_migrate_page);
  *
  * Pages are locked upon entry and exit.
  */
-int migrate_page(struct address_space *mapping,
-		struct page *newpage, struct page *page,
-		enum migrate_mode mode)
+int do_migrate_page(struct address_space *mapping,
+		struct page *newpage, struct page *page, enum migrate_mode mode)
 {
 	int rc;
 
@@ -497,6 +496,22 @@ int migrate_page(struct address_space *mapping,
 	migrate_page_copy(newpage, page);
 	return 0;
 }
+
+int migrate_page(struct address_space *mapping,
+		struct page *newpage, struct page *page)
+{
+	enum migrate_mode mode = MIGRATE_ASYNC;
+
+	/*
+	 * RHEL: we pass in async vs synchronous migration by overloading
+	 * PF_SWAPWRITE in current flags, since adding a parameter here
+	 * would break the kABI.  This does lose us MIGRATE_SYNC_LIGHT.
+	 */
+	if (current->flags & PF_SWAPWRITE)
+		mode = MIGRATE_SYNC;
+
+	return do_migrate_page(mapping, newpage, page, mode);
+}
 EXPORT_SYMBOL(migrate_page);
 
 #ifdef CONFIG_BLOCK
@@ -506,13 +521,22 @@ EXPORT_SYMBOL(migrate_page);
  * exist.
  */
 int buffer_migrate_page(struct address_space *mapping,
-		struct page *newpage, struct page *page, enum migrate_mode mode)
+		struct page *newpage, struct page *page)
 {
 	struct buffer_head *bh, *head;
 	int rc;
+	enum migrate_mode mode = MIGRATE_ASYNC;
+
+	/*
+	 * RHEL: we pass in async vs synchronous migration by overloading
+	 * PF_SWAPWRITE in current flags, since adding a parameter here
+	 * would break the kABI.  This does lose us MIGRATE_SYNC_LIGHT.
+	 */
+	if (current->flags & PF_SWAPWRITE)
+		mode = MIGRATE_SYNC;
 
 	if (!page_has_buffers(page))
-		return migrate_page(mapping, newpage, page, mode);
+		return do_migrate_page(mapping, newpage, page, mode);
 
 	head = page_buffers(page);
 
@@ -622,7 +646,7 @@ static int fallback_migrate_page(struct address_space *mapping,
 	    !try_to_release_page(page, GFP_KERNEL))
 		return -EAGAIN;
 
-	return migrate_page(mapping, newpage, page, mode);
+	return do_migrate_page(mapping, newpage, page, mode);
 }
 
 /*
@@ -658,7 +682,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 
 	mapping = page_mapping(page);
 	if (!mapping)
-		rc = migrate_page(mapping, newpage, page, mode);
+		rc = do_migrate_page(mapping, newpage, page, mode);
 	else if (mapping->a_ops->migratepage)
 		/*
 		 * Most pages have a mapping and most filesystems provide a
@@ -666,8 +690,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		 * space which also has its own migratepage callback. This
 		 * is the most common path for page migration.
 		 */
-		rc = mapping->a_ops->migratepage(mapping,
-						newpage, page, mode);
+		rc = mapping->a_ops->migratepage(mapping, newpage, page);
 	else
 		rc = fallback_migrate_page(mapping, newpage, page, mode);
 
@@ -999,8 +1022,17 @@ int migrate_pages(struct list_head *from,
 	int swapwrite = current->flags & PF_SWAPWRITE;
 	int rc;
 
-	if (!swapwrite)
+	/*
+	 * RHEL: due to kABI constraints we cannot pass the parameter mode
+	 * through the filesystem specific migrate functions, so we overload
+	 * PF_SWAPWRITE. The function migrate_page understands this.
+	 * We restore PF_SWAPWRITE to its original state on exit.
+	 */
+	if (mode != MIGRATE_ASYNC)
 		current->flags |= PF_SWAPWRITE;
+	else
+		/* kswapd wants asynchronous compaction */
+		current->flags &= ~PF_SWAPWRITE;
 
 	for(pass = 0; pass < 10 && retry; pass++) {
 		retry = 0;
@@ -1029,7 +1061,9 @@ int migrate_pages(struct list_head *from,
 	}
 	rc = 0;
 out:
-	if (!swapwrite)
+	if (swapwrite)
+		current->flags |= PF_SWAPWRITE;
+	else
 		current->flags &= ~PF_SWAPWRITE;
 
 	putback_lru_pages(from);

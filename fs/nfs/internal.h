@@ -344,7 +344,7 @@ void nfs_request_remove_commit_list(struct nfs_page *req);
 
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
-		struct page *, struct page *, enum migrate_mode);
+		struct page *, struct page *);
 #else
 #define nfs_migrate_page NULL
 #endif
