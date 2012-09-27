@@ -904,7 +904,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 *  or we have NX, then we don't need to do this.
 	 */
 	if (exec_shield != 0) {
-#ifdef CONFIG_X86_PAE
+#if defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
 		if (!test_cpu_cap(c, X86_FEATURE_NX))
 #endif
 			clear_cpu_cap(c, X86_FEATURE_SEP);
