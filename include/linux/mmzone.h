@@ -454,7 +454,14 @@ struct zone {
 	 */
 	const char		*name;
 
+#ifndef __GENKSYMS__
+#if defined CONFIG_COMPACTION
+	unsigned long		compact_blockskip_expire;
+#endif
+	unsigned long padding[15];
+#else
 	unsigned long padding[16];
+#endif
 } ____cacheline_internodealigned_in_smp;
 
 typedef enum {
