@@ -119,6 +119,8 @@ struct cpuinfo_x86 {
 #ifdef CONFIG_SMP
 	/* Compute unit id */
 	u8			compute_unit_id;
+	/* The layout of this field is hypervisor specific */
+	u16			x86_hyper_features;
 #endif /* CONFIG_SMP */
 #endif /* !__GENKSYMS__ */
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
@@ -141,6 +143,7 @@ struct cpuinfo_x86_rh {
 
 #define X86_HYPER_VENDOR_NONE  0
 #define X86_HYPER_VENDOR_VMWARE 1
+#define X86_HYPER_VENDOR_MSFT	2
 
 /*
  * capabilities of CPUs
