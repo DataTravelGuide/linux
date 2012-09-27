@@ -148,8 +148,6 @@ static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
 static void fcoe_do_destroy(struct fcoe_port *port);
 
-static struct workqueue_struct *fcoe_wq;
-
 /* notification function for packets from net device */
 static struct notifier_block fcoe_notifier = {
 	.notifier_call = fcoe_device_notification,
@@ -2508,7 +2506,6 @@ static void __exit fcoe_exit(void)
 		port = lport_priv(fcoe->ctlr.lp);
 		queue_work(fcoe_wq, &port->destroy_work);
 	}
-	fcoe_wq = NULL;
 	rtnl_unlock();
 
 	unregister_hotcpu_notifier(&fcoe_cpu_notifier);
