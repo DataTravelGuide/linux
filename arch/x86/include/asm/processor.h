@@ -112,6 +112,7 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 #endif
+	/* RHEL6: deprecated and should use x86_hyper instead */
 	unsigned int		x86_hyper_vendor;
 #ifndef __GENKSYMS__
 	/* RHEL6:
@@ -119,8 +120,6 @@ struct cpuinfo_x86 {
 #ifdef CONFIG_SMP
 	/* Compute unit id */
 	u8			compute_unit_id;
-	/* The layout of this field is hypervisor specific */
-	u16			x86_hyper_features;
 #endif /* CONFIG_SMP */
 #endif /* !__GENKSYMS__ */
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
@@ -140,10 +139,6 @@ struct cpuinfo_x86_rh {
 #define X86_VENDOR_NUM		9
 
 #define X86_VENDOR_UNKNOWN	0xff
-
-#define X86_HYPER_VENDOR_NONE  0
-#define X86_HYPER_VENDOR_VMWARE 1
-#define X86_HYPER_VENDOR_MSFT	2
 
 /*
  * capabilities of CPUs
