@@ -41,7 +41,7 @@ struct compact_control {
 	struct zone *zone;
 
 	int compact_mode;
-	bool *contended;
+	bool contended;
 };
 
 static unsigned long release_freepages(struct list_head *freelist)
@@ -78,8 +78,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 
 		/* async aborts if taking too long or contended */
 		if (!cc->sync) {
-			if (cc->contended)
-				*cc->contended = true;
+			cc->contended = true;
 			return false;
 		}
 
@@ -349,12 +348,11 @@ static unsigned long isolate_migratepages(struct zone *zone,
 	locked = true;
 	for (; low_pfn < end_pfn; low_pfn++) {
 		struct page *page;
-		int unlocked = 0;
 
 		/* give a chance to irqs before checking need_resched() */
 		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
 			spin_unlock_irqrestore(&zone->lru_lock, flags);
-			unlocked = 1;
+			locked = 0;
 		}
 
 		/* Check if it is ok to still hold the lock */
@@ -598,8 +596,15 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
 		unsigned long nr_migrate, nr_remaining;
 
-		if (!isolate_migratepages(zone, cc))
+		if (!isolate_migratepages(zone, cc)) {
+			if (cc->contended && cc->sync != MIGRATE_SYNC) {
+				putback_lru_pages(&cc->migratepages);
+				cc->nr_migratepages = 0;
+				ret = COMPACT_PARTIAL;
+				break;
+			}
 			continue;
+		}
 
 		nr_migrate = cc->nr_migratepages;
 		migrate_pages(&cc->migratepages, compaction_alloc,
@@ -632,6 +637,7 @@ unsigned long compact_zone_order(struct zone *zone,
 				 int order, gfp_t gfp_mask,
 				 bool sync, bool *contended)
 {
+	unsigned long ret;
 	struct compact_control cc = {
 		.nr_freepages = 0,
 		.nr_migratepages = 0,
@@ -639,12 +645,17 @@ unsigned long compact_zone_order(struct zone *zone,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
 		.sync = sync,
-		.contended = contended,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
 
-	return compact_zone(zone, &cc);
+	ret = compact_zone(zone, &cc);
+
+	VM_BUG_ON(!list_empty(&cc.freepages));
+	VM_BUG_ON(!list_empty(&cc.migratepages));
+
+	*contended = cc.contended;
+	return ret;
 }
 
 int sysctl_extfrag_threshold = 500;
