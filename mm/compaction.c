@@ -364,9 +364,6 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		}
 
 		if (!cc->sync)
-			mode |= ISOLATE_CLEAN;
-
-		if (!cc->sync)
 			mode |= ISOLATE_ASYNC_MIGRATE;
 
 		/* Try isolate the page */
