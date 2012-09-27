@@ -2368,6 +2368,7 @@ loop_again:
 			int nr_slab;
 			int nid, zid;
 			unsigned long balance_gap;
+			bool contended = false;
 
 			if (!populated_zone(zone))
 				continue;
@@ -2434,7 +2435,8 @@ loop_again:
 			 * would ordinarily call try_to_compact_pages()
 			 */
 			if (sc.order > PAGE_ALLOC_COSTLY_ORDER)
-				compact_zone_order(zone, sc.order, sc.gfp_mask, 0);
+				compact_zone_order(zone, sc.order, sc.gfp_mask, 0,
+						&contended);
 
 			if (!zone_watermark_ok_safe(zone, order,
 					high_wmark_pages(zone), end_zone, 0)) {
