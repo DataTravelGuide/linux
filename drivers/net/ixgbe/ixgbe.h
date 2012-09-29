@@ -249,8 +249,6 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
-	u64 rsc_count;			/* stat for coalesced packets */
-	int numa_node;
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	struct ixgbe_q_vector *q_vector; /* back-pointer to host q_vector */
@@ -312,8 +310,12 @@ struct ixgbe_q_vector {
 	struct ixgbe_ring_container rx, tx;
 
 	struct napi_struct napi;
-	cpumask_var_t affinity_mask;
+	cpumask_t affinity_mask;
+	int numa_node;
 	char name[IFNAMSIZ + 9];
+
+	/* for dynamic allocation of rings associated with this q_vector */
+	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
 
 /*
@@ -508,7 +510,6 @@ struct ixgbe_adapter {
 	u16 eeprom_verl;
 	u16 eeprom_cap;
 
-	int node;
 	u32 interrupt_event;
 	u32 led_reg;
 
