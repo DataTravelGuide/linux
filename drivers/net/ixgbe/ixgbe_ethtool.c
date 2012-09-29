@@ -457,8 +457,7 @@ static void ixgbe_do_reset(struct net_device *netdev)
 
 static u32 ixgbe_get_rx_csum(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
+	return netdev->features & NETIF_F_RXCSUM;
 }
 
 static void ixgbe_set_rsc(struct ixgbe_adapter *adapter)
@@ -482,9 +481,9 @@ static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
 	bool need_reset = false;
 
 	if (data) {
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
+		netdev->features |= NETIF_F_RXCSUM;
 	} else {
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+		netdev->features &= ~NETIF_F_RXCSUM;
 
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
 			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
