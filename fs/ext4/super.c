@@ -4542,6 +4542,9 @@ static int __init init_ext4_fs(void)
 	int err;
 	int i;
 
+	ext4_li_info = NULL;
+	mutex_init(&ext4_li_mtx);
+
 	ext4_check_flag_values();
 	for (i = 0; i < WQ_HASH_SZ; i++)
 		init_waitqueue_head(&aio_wq[i]);
@@ -4570,8 +4573,6 @@ static int __init init_ext4_fs(void)
 	if (err)
 		goto out;
 
-	ext4_li_info = NULL;
-	mutex_init(&ext4_li_mtx);
 	return 0;
 out:
 	destroy_inodecache();
