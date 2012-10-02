@@ -3931,10 +3931,11 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  		  iocb->private, io_end->inode->i_ino, iocb, offset,
 		  size);
 
+	iocb->private = NULL;
+
 	/* if not aio dio with unwritten extents, just free io and return */
 	if (io_end->flag != DIO_AIO_UNWRITTEN){
 		ext4_free_io_end(io_end);
-		iocb->private = NULL;
 out:
 		if (is_async)
 			aio_complete(iocb, ret, 0);
@@ -3956,7 +3957,6 @@ out:
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
 	/* queue the work to convert unwritten extents to written */
-	iocb->private = NULL;
 	queue_work(wq, &io_end->work);
 }
 /*
