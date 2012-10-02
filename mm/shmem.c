@@ -1136,19 +1136,6 @@ static struct inode *shmem_get_inode(struct super_block *sb, int mode,
 static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_symlink_inline_operations;
 
-/*
- * Normally tmpfs avoids the use of shmem_readpage and shmem_write_begin;
- * but providing them allows a tmpfs file to be used for splice, sendfile, and
- * below the loop driver, in the generic fashion that many filesystems support.
- */
-static int shmem_readpage(struct file *file, struct page *page)
-{
-	struct inode *inode = page->mapping->host;
-	int error = shmem_getpage(inode, page->index, &page, SGP_CACHE, NULL);
-	unlock_page(page);
-	return error;
-}
-
 static int
 shmem_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
@@ -1354,7 +1341,6 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 	error = 0;
 
 	while (spd.nr_pages < nr_pages) {
-		page = NULL;
 		error = shmem_getpage(inode, index, &page, SGP_CACHE, NULL);
 		if (error)
 			break;
@@ -1377,7 +1363,6 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 		page = spd.pages[page_nr];
 
 		if (!PageUptodate(page) || page->mapping != mapping) {
-			page = NULL;
 			error = shmem_getpage(inode, index, &page,
 							SGP_CACHE, NULL);
 			if (error)
@@ -2062,7 +2047,6 @@ static const struct address_space_operations shmem_aops = {
 	.writepage	= shmem_writepage,
 	.set_page_dirty	= __set_page_dirty_no_writeback,
 #ifdef CONFIG_TMPFS
-	.readpage	= shmem_readpage,
 	.write_begin	= shmem_write_begin,
 	.write_end	= shmem_write_end,
 #endif
