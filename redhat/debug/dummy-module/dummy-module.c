@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012, Red Hat, Inc.
+ *
  * Just an skeleton module.  Useful for debugging.
  *
  * Written by: Prarit Bhargava <prarit@redhat.com>
