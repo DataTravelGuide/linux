@@ -1070,9 +1070,9 @@ static int fcoe_ddp_target(struct fc_lport *lport, u16 xid,
 {
 	struct net_device *netdev = fcoe_netdev(lport);
 
-	if (netdev->netdev_ops->ndo_fcoe_ddp_target)
-		return netdev->netdev_ops->ndo_fcoe_ddp_target(netdev, xid,
-							       sgl, sgc);
+	if (netdev_extended(netdev)->ndo_fcoe_ddp_target)
+		return netdev_extended(netdev)->ndo_fcoe_ddp_target(netdev, xid,
+								    sgl, sgc);
 
 	return 0;
 }
