@@ -1177,6 +1177,12 @@ struct net_device_extended {
 	struct netdev_netpoll_ext_info		netpoll_data;
 	unsigned int				real_num_rx_queues;
 	const struct ethtool_ops_ext		*ethtool_ops_ext;
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	int			(*ndo_fcoe_ddp_target)(struct net_device *dev,
+					u16 xid,
+					struct scatterlist *sgl,
+					unsigned int sgc);
+#endif
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
