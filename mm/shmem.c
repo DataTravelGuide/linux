@@ -52,7 +52,9 @@ static struct vfsmount *shm_mnt;
 #include <linux/blkdev.h>
 #include <linux/pagevec.h>
 #include <linux/percpu_counter.h>
+#ifndef __GENKSYMS__
 #include <linux/splice.h>
+#endif
 #include <linux/security.h>
 #include <linux/swapops.h>
 #include <linux/mempolicy.h>
