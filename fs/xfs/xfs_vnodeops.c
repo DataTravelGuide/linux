@@ -501,8 +501,7 @@ xfs_readlink_bmap(
 				  XBF_LOCK | XBF_MAPPED | XBF_DONT_BLOCK);
 		error = XFS_BUF_GETERROR(bp);
 		if (error) {
-			xfs_ioerror_alert("xfs_readlink",
-				  ip->i_mount, bp, XFS_BUF_ADDR(bp));
+			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
 			goto out;
 		}
@@ -2448,8 +2447,8 @@ xfs_zero_remaining_bytes(
 		xfsbdstrat(mp, bp);
 		error = xfs_buf_iowait(bp);
 		if (error) {
-			xfs_ioerror_alert("xfs_zero_remaining_bytes(read)",
-					  mp, bp, XFS_BUF_ADDR(bp));
+			xfs_buf_ioerror_alert(bp,
+					"xfs_zero_remaining_bytes(read)");
 			break;
 		}
 		memset(XFS_BUF_PTR(bp) +
@@ -2461,8 +2460,8 @@ xfs_zero_remaining_bytes(
 		xfsbdstrat(mp, bp);
 		error = xfs_buf_iowait(bp);
 		if (error) {
-			xfs_ioerror_alert("xfs_zero_remaining_bytes(write)",
-					  mp, bp, XFS_BUF_ADDR(bp));
+			xfs_buf_ioerror_alert(bp,
+					"xfs_zero_remaining_bytes(write)");
 			break;
 		}
 	}
