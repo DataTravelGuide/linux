@@ -1674,6 +1674,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 03 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-318.el6]
+- [kernel] cgroups: don't attach task to subsystem if migration failed (Frederic Weisbecker) [751817]
+- [kernel] cgroups: more safe tasklist locking in cgroup_attach_proc (Frederic Weisbecker) [751817]
+- [kernel] cgroups: use flex_array in attach_proc (Frederic Weisbecker) [751817]
+- [lib] flex_array: allow zero length flex arrays (Frederic Weisbecker) [751817]
+- [lib] flex_array: fix flex_array_put_ptr macro to be valid C (Frederic Weisbecker) [751817]
+- [lib] flex_array: add helpers to get and put to make pointers easy to use (Frederic Weisbecker) [751817]
+- [kernel] cgroups: make procs file writable (Frederic Weisbecker) [751817]
+- [kernel] cgroups: add per-thread subsystem callbacks (Frederic Weisbecker) [751817]
+- [kernel] cgroup_freezer: fix freezing groups with stopped tasks (Frederic Weisbecker) [751817]
+- [kernel] cgroup_freezer: update_freezer_state() does incorrect state transitions (Frederic Weisbecker) [751817]
+- [kernel] cgroups: read-write lock CLONE_THREAD forking per threadgroup (Frederic Weisbecker) [751817]
+- [kernel] cgroup_freezer: fix can_attach() to prohibit moving from/to freezing/frozen cgroups (Frederic Weisbecker) [751817]
+- [kernel] cgroup_freezer: unnecessary test in cgroup_freezing_or_frozen() (Frederic Weisbecker) [751817]
+- [kernel] cgroup_freezer: Update stale locking comments (Frederic Weisbecker) [751817]
+- [net] nf_defrag_ipv6: fix oops on module unloading (Amerigo Wang) [726807]
+
 * Wed Oct 03 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-317.el6]
 - [fs] ext4: check for zero length extent (Lukas Czerner) [813097]
 - [fs] cifs: Fix the conflict between rwpidforward and rw mount options (Sachin Prabhu) [852747]
