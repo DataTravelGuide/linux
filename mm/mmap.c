@@ -1568,8 +1568,6 @@ static bool should_randomize(void)
 		!(current->personality & ADDR_NO_RANDOMIZE);
 }
 
-#define SHLIB_BASE	0x00110000
-
 unsigned long
 arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 		unsigned long len0, unsigned long pgoff, unsigned long flags)
@@ -1586,8 +1584,8 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 		return addr;
 
 	if (!addr)
-		addr = !should_randomize() ? SHLIB_BASE :
-			randomize_range(SHLIB_BASE, 0x01000000, len);
+		addr = !should_randomize() ? mm->shlib_base :
+			randomize_range(mm->shlib_base, 0x01000000, len);
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -1597,7 +1595,7 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 			return addr;
 	}
 
-	addr = SHLIB_BASE;
+	addr = mm->shlib_base;
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
 		if (TASK_SIZE - len < addr)
