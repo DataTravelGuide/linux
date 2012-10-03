@@ -325,6 +325,16 @@ struct pci_dev_rh1 {
 						   decoding during bar sizing */
 };
 
+static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
+{
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn)
+		dev = dev->physfn;
+#endif
+
+	return dev;
+}
+
 extern struct pci_dev *alloc_pci_dev(void);
 extern void kfree_pci_dev(struct pci_dev *);
 extern u8 rh_get_mpss(struct pci_dev *);
