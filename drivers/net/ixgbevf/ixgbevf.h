@@ -248,6 +248,8 @@ struct ixgbevf_adapter {
 	bool link_up;
 
 	struct work_struct watchdog_task;
+
+	spinlock_t mbx_lock;
 };
 
 enum ixbgevf_state_t {
