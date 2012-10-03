@@ -70,6 +70,7 @@ struct xfs_ail {
 	xfs_lsn_t		xa_target;
 	struct xfs_ail_cursor	xa_cursors;
 	spinlock_t		xa_lock;
+	int			xa_log_flush;
 };
 
 /*

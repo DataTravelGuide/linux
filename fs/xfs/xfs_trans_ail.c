@@ -381,7 +381,20 @@ xfsaild_push(
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
 	int		push_xfsbufd = 0;
 
+	/*
+	 * If last time we ran we encountered pinned items, force the log first
+	 * and wait for it before pushing again.
+	 */
 	spin_lock(&ailp->xa_lock);
+	if (last_pushed_lsn == 0 && ailp->xa_log_flush &&
+	    !list_empty(&ailp->xa_ail)) {
+		ailp->xa_log_flush = 0;
+		spin_unlock(&ailp->xa_lock);
+		XFS_STATS_INC(xs_push_ail_flush);
+		xfs_log_force(mp, XFS_LOG_SYNC);
+		spin_lock(&ailp->xa_lock);
+	}
+
 	target = ailp->xa_target;
 	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_trans_ail_cursor_first(ailp, cur, *last_lsn);
@@ -441,7 +454,7 @@ xfsaild_push(
 			if (!IOP_PUSHBUF(lip)) {
 				trace_xfs_ail_pushbuf_pinned(lip);
 				stuck++;
-				flush_log = 1;
+				ailp->xa_log_flush++;
 			} else {
 				last_pushed_lsn = lsn;
 			}
@@ -453,7 +466,7 @@ xfsaild_push(
 			trace_xfs_ail_pinned(lip);
 
 			stuck++;
-			flush_log = 1;
+			ailp->xa_log_flush++;
 			break;
 
 		case XFS_ITEM_LOCKED:
@@ -498,16 +511,6 @@ xfsaild_push(
 	xfs_trans_ail_cursor_done(ailp, cur);
 	spin_unlock(&ailp->xa_lock);
 
-	if (flush_log) {
-		/*
-		 * If something we need to push out was pinned, then
-		 * push out the log so it will become unpinned and
-		 * move forward in the AIL.
-		 */
-		XFS_STATS_INC(xs_push_ail_flush);
-		xfs_log_force(mp, 0);
-	}
-
 	if (push_xfsbufd) {
 		/* we've got delayed write buffers to flush */
 		wake_up_process(mp->m_ddev_targp->bt_task);
@@ -516,6 +519,7 @@ xfsaild_push(
 	if (!count) {
 		/* We're past our target or empty, so idle */
 		last_pushed_lsn = 0;
+		ailp->xa_log_flush = 0;
 
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
@@ -534,9 +538,13 @@ xfsaild_push(
 		 * were stuck.
 		 *
 		 * Backoff a bit more to allow some I/O to complete before
-		 * continuing from where we were.
+		 * restarting from the start of the AIL. This prevents us
+		 * from spinning on the same items, and if they are pinned will
+		 * all the restart to issue a log force to unpin the stuck
+		 * items.
 		 */
 		tout = 20;
+		last_pushed_lsn = 0;
 	}
 
 	*last_lsn = last_pushed_lsn;
