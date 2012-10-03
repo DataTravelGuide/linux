@@ -3272,8 +3272,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_register;
 
-	adapter->netdev_registered = true;
-
 	netif_carrier_off(netdev);
 
 	ixgbevf_init_last_counter_stats(adapter);
@@ -3322,10 +3320,8 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);
 
-	if (adapter->netdev_registered) {
+	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
-		adapter->netdev_registered = false;
-	}
 
 	ixgbevf_reset_interrupt_capability(adapter);
 
