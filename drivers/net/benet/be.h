@@ -312,6 +312,11 @@ struct be_vf_cfg {
 	u32 tx_rate;
 };
 
+enum vf_state {
+	ENABLED = 0,
+	ASSIGNED = 1
+};
+
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_UC_PMAC_COUNT		30
@@ -416,8 +421,9 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
-	u32 num_vfs;
-	u8 is_virtfn;
+	u32 num_vfs;		/* Number of VFs provisioned by PF driver */
+	u32 dev_num_vfs;	/* Number of VFs supported by HW */
+	u8 virtfn;
 	struct be_vf_cfg *vf_cfg;
 	bool be3_native;
 	u32 sli_family;
@@ -432,8 +438,10 @@ struct be_adapter {
 	int be_get_temp_freq;
 };
 
-#define be_physfn(adapter) (!adapter->is_virtfn)
+#define be_physfn(adapter)		(!adapter->virtfn)
 #define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
+#define	sriov_want(adapter)		(adapter->dev_num_vfs && num_vfs && \
+					 be_physfn(adapter))
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
@@ -567,14 +575,6 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 		val = (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP);
 
 	return val;
-}
-
-static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
-{
-	u32 sli_intf;
-
-	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
-	adapter->is_virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
 }
 
 static inline bool is_ipv4_pkt(struct sk_buff *skb)
