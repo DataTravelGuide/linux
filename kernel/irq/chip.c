@@ -733,3 +733,4 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 	desc->status |= set;
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
+EXPORT_SYMBOL_GPL(irq_modify_status);
