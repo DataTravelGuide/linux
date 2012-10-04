@@ -204,6 +204,12 @@ struct inodes_stat_t {
 					 * during rename() internally.
 					 */
 
+ /*
+  * the fs is built with the new s_writers member in the superblock
+  * and uses all of that associated infrastructure
+  */
+#define sb_has_new_freeze(sb) ((sb)->s_type->fs_flags & FS_HAS_NEW_FREEZE)
+
 /*
  * These are the fs-independent mount-flags: up to 32 flags are supported
  */
@@ -1480,8 +1486,10 @@ extern struct timespec current_fs_time(struct super_block *sb);
 /*
  * Snapshotting support.
  */
-/* Will go away when all users are converted */
-#define vfs_check_frozen(sb, level) do {  } while (0)
+/* Old freezing mechanism */
+#define vfs_check_frozen(sb, level) \
+	if (!sb_has_new_freeze(sb)) \
+		wait_event((sb)->s_wait_unfrozen, ((sb)->s_frozen < (level)))
 
 void __sb_end_write(struct super_block *sb, int level);
 int __sb_start_write(struct super_block *sb, int level, bool wait);

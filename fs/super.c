@@ -55,6 +55,10 @@ static int init_sb_writers(struct super_block *s, struct file_system_type *type)
 	int err;
 	int i;
 
+	/* Out of tree modules don't use this mechanism */
+	if (unlikely(!(type->fs_flags & FS_HAS_NEW_FREEZE)))
+		return 0;
+
 	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
 		err = percpu_counter_init(&s->s_writers.counter[i], 0);
 		if (err < 0)
@@ -74,6 +78,10 @@ err_out:
 static void destroy_sb_writers(struct super_block *s)
 {
 	int i;
+
+	/* Out of tree modules don't use this mechanism */
+	if (unlikely(!sb_has_new_freeze(s)))
+		return;
 
 	for (i = 0; i < SB_FREEZE_LEVELS; i++)
 		percpu_counter_destroy(&s->s_writers.counter[i]);
@@ -529,11 +537,20 @@ struct super_block *get_super_thawed(struct block_device *bdev)
 {
 	while (1) {
 		struct super_block *s = get_super(bdev);
-		if (!s || s->s_writers.frozen == SB_UNFROZEN)
-			return s;
-		up_read(&s->s_umount);
-		wait_event(s->s_writers.wait_unfrozen,
-			   s->s_writers.frozen == SB_UNFROZEN);
+
+		if (likely(sb_has_new_freeze(s))) {
+			if (!s || s->s_writers.frozen == SB_UNFROZEN)
+				return s;
+			up_read(&s->s_umount);
+			wait_event(s->s_writers.wait_unfrozen,
+				   s->s_writers.frozen == SB_UNFROZEN);
+		} else {
+			/* Version for out of tree filesystems w/o s_writers */
+			if (!s || s->s_frozen == SB_UNFROZEN)
+				return s;
+			up_read(&s->s_umount);
+			vfs_check_frozen(s, SB_FREEZE_WRITE);
+		}
 		put_super(s);
 	}
 }
@@ -598,6 +615,10 @@ rescan:
  */
 void __sb_end_write(struct super_block *sb, int level)
 {
+	/* Out of tree modules don't use this mechanism */
+	if (unlikely(!sb_has_new_freeze(sb)))
+		return;
+
 	percpu_counter_dec(&sb->s_writers.counter[level-1]);
 	/*
 	 * Make sure s_writers are updated before we wake up waiters in
@@ -642,6 +663,9 @@ static void acquire_freeze_lock(struct super_block *sb, int level, bool trylock,
  */
 int __sb_start_write(struct super_block *sb, int level, bool wait)
 {
+	/* Out of tree modules don't use this mechanism */
+	if (unlikely(!sb_has_new_freeze(sb)))
+		return 1;
 retry:
 	if (unlikely(sb->s_writers.frozen >= level)) {
 		if (!wait)
@@ -681,6 +705,9 @@ void sb_wait_write(struct super_block *sb, int level)
 {
 	s64 writers;
 
+	/* Out of tree modules don't use this mechanism */
+	if (unlikely(!sb_has_new_freeze(sb)))
+		return;
 	/*
 	 * We just cycle-through lockdep here so that it does not complain
 	 * about returning with lock to userspace
@@ -719,6 +746,10 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	int remount_rw, remount_ro;
+
+	/* Older / out of tree filesystems */
+	if (unlikely(!sb_has_new_freeze(sb)) && (sb->s_frozen != SB_UNFROZEN))
+		return -EBUSY;
 
 	if (sb->s_writers.frozen != SB_UNFROZEN)
 		return -EBUSY;

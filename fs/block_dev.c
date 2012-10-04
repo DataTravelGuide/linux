@@ -224,6 +224,65 @@ EXPORT_SYMBOL(fsync_bdev);
  * count down in thaw_bdev(). When it becomes 0, thaw_bdev() will unfreeze
  * actually.
  */
+
+/*
+ * For old filesystems which are not using the sb_start_write
+ * infrastructure etc - this is for the benefit of precompiled out of tree
+ * filesystem modules, to preserve KABI.  To use the new freeze mechanisms,
+ * fs should set FS_HAS_NEW_FREEZE in fs_flags and follow upstream
+ * freeze handling.
+ *
+ * New freeze paths were added in RHEL6.4 and in-tree freeze capable
+ * fielsystems do not use the _old freeze & thaw variants here
+ *
+ * note: freeze_bdev() already got us an active sb and grabbed bd_fsfreeze_mutex
+ */
+static struct super_block *freeze_bdev_old(struct block_device *bdev,
+					   struct super_block *sb)
+{
+	int error = 0;
+
+	WARN_ON_ONCE(sb_has_new_freeze(sb));
+
+	down_write(&sb->s_umount);
+	if (sb->s_flags & MS_RDONLY) {
+		sb->s_frozen = SB_FREEZE_TRANS;
+		up_write(&sb->s_umount);
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return sb;
+	}
+
+	sb->s_frozen = SB_FREEZE_WRITE;
+	smp_wmb();
+
+	sync_filesystem(sb);
+
+	sb->s_frozen = SB_FREEZE_TRANS;
+	smp_wmb();
+
+	sync_blockdev(sb->s_bdev);
+
+	if (sb->s_op->freeze_fs) {
+		error = sb->s_op->freeze_fs(sb);
+		if (error) {
+			printk(KERN_ERR
+				"VFS:Filesystem freeze failed\n");
+			sb->s_frozen = SB_UNFROZEN;
+			smp_wmb();
+			wake_up(&sb->s_wait_unfrozen);
+			deactivate_locked_super(sb);
+			bdev->bd_fsfreeze_count--;
+			mutex_unlock(&bdev->bd_fsfreeze_mutex);
+			return ERR_PTR(error);
+		}
+	}
+	up_write(&sb->s_umount);
+
+	sync_blockdev(bdev);
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
+	return sb;      /* thaw_bdev releases s->s_umount */
+}
+
 struct super_block *freeze_bdev(struct block_device *bdev)
 {
 	struct super_block *sb;
@@ -245,6 +304,10 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	sb = get_active_super(bdev);
 	if (!sb)
 		goto out;
+
+	if (unlikely(!sb_has_new_freeze(sb)))
+		return freeze_bdev_old(bdev, sb);
+
 	down_write(&sb->s_umount);
 	if (sb->s_flags & MS_RDONLY) {
 		/* Nothing to do really... */
@@ -313,9 +376,56 @@ EXPORT_SYMBOL(freeze_bdev);
  *
  * Unlocks the filesystem and marks it writeable again after freeze_bdev().
  */
+static int thaw_bdev_old(struct block_device *bdev, struct super_block *sb)
+{
+	int error = -EINVAL;
+
+	mutex_lock(&bdev->bd_fsfreeze_mutex);
+	if (!bdev->bd_fsfreeze_count)
+		goto out_unlock;
+
+	error = 0;
+	if (--bdev->bd_fsfreeze_count > 0)
+		goto out_unlock;
+
+	if (!sb)
+		goto out_unlock;
+
+	BUG_ON(sb->s_bdev != bdev);
+	down_write(&sb->s_umount);
+	if (sb->s_flags & MS_RDONLY)
+		goto out_unfrozen;
+
+	if (sb->s_op->unfreeze_fs) {
+		error = sb->s_op->unfreeze_fs(sb);
+		if (error) {
+			printk(KERN_ERR
+				"VFS:Filesystem thaw failed\n");
+			sb->s_frozen = SB_FREEZE_TRANS;
+			bdev->bd_fsfreeze_count++;
+			mutex_unlock(&bdev->bd_fsfreeze_mutex);
+			return error;
+		}
+	}
+
+out_unfrozen:
+	sb->s_frozen = SB_UNFROZEN;
+	smp_wmb();
+	wake_up(&sb->s_wait_unfrozen);
+
+	if (sb)
+		deactivate_locked_super(sb);
+out_unlock:
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
+	return error;
+}
+
 int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 {
 	int error = -EINVAL;
+
+	if (unlikely(sb && !sb_has_new_freeze(sb)))
+		return thaw_bdev_old(bdev, sb);
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
 	if (!bdev->bd_fsfreeze_count)
