@@ -95,7 +95,7 @@ static unsigned long mmap_base(void)
 	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
 }
 
-#define SHLIB_BASE             0x00111000
+#define SHLIB_BASE             0x00110000
 
 /*
  * Bottom-up (legacy) layout on X86_32 did not support randomization, X86_64
