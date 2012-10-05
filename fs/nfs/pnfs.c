@@ -664,6 +664,7 @@ _pnfs_return_layout(struct inode *ino)
 	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
+		put_layout_hdr(lo);
 		goto out;
 	}
 
