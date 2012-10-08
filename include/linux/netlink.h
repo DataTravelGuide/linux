@@ -230,6 +230,9 @@ struct netlink_callback
 	int			(*done)(struct netlink_callback *cb);
 	int			family;
 	long			args[6];
+#ifndef __GENKSYMS__
+	u16			min_dump_alloc;
+#endif
 };
 
 struct netlink_notify
@@ -267,7 +270,8 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      int (*dump)(struct sk_buff *skb, struct netlink_callback*),
-			      int (*done)(struct netlink_callback*));
+			      int (*done)(struct netlink_callback*),
+			      u16 min_dump_alloc);
 
 
 #define NL_NONROOT_RECV 0x1
