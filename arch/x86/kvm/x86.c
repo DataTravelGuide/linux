@@ -1737,6 +1737,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_VCPU_EVENTS:
 	case KVM_CAP_XSAVE:
 	case KVM_CAP_GET_TSC_KHZ:
+	case KVM_CAP_KVMCLOCK_CTRL:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2600,6 +2601,23 @@ static int kvm_vcpu_ioctl_x86_set_xcrs(struct kvm_vcpu *vcpu,
 	return r;
 }
 
+/*
+ * kvm_set_guest_paused() indicates to the guest kernel that it has been
+ * stopped by the hypervisor.  This function will be called from the host only.
+ * EINVAL is returned when the host attempts to set the flag for a guest that
+ * does not support pv clocks.
+ */
+static int kvm_set_guest_paused(struct kvm_vcpu *vcpu)
+{
+	struct pvclock_vcpu_time_info *src = &vcpu->arch.hv_clock;
+	if (!vcpu->arch.time_page)
+		return -EINVAL;
+	src->flags |= PVCLOCK_GUEST_STOPPED;
+	mark_page_dirty(vcpu->kvm, vcpu->arch.time >> PAGE_SHIFT);
+	set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -2862,6 +2880,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 
 		r = vcpu_tsc_khz(vcpu);
 
+		goto out;
+	}
+	case KVM_KVMCLOCK_CTRL: {
+		r = kvm_set_guest_paused(vcpu);
 		goto out;
 	}
 	default:
