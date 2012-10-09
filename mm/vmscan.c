@@ -130,9 +130,25 @@ static LIST_HEAD(shrinker_list);
 static DECLARE_RWSEM(shrinker_rwsem);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
+static bool global_reclaim(struct scan_control *sc)
+{
+	return !sc->mem_cgroup;
+}
+
+static bool scanning_global_lru(struct scan_control *sc)
+{
+	return !sc->mem_cgroup;
+}
 #else
-#define scanning_global_lru(sc)	(1)
+static bool global_reclaim(struct scan_control *sc)
+{
+	return true;
+}
+
+static bool scanning_global_lru(struct scan_control *sc)
+{
+	return true;
+}
 #endif
 
 static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
@@ -874,7 +890,7 @@ keep:
 	 * back off and wait for congestion to clear because further reclaim
 	 * will encounter the same problem
 	 */
-	if (nr_dirty && nr_dirty == nr_congested && scanning_global_lru(sc))
+	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
 		zone_set_flag(zone, ZONE_CONGESTED);
 
 	list_splice(&ret_pages, page_list);
@@ -1220,7 +1236,7 @@ static int too_many_isolated(struct zone *zone, int file,
 	if (current_is_kswapd())
 		return 0;
 
-	if (!scanning_global_lru(sc))
+	if (!global_reclaim(sc))
 		return 0;
 
 	if (file) {
@@ -1281,6 +1297,14 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 							&page_list, &nr_scan,
 							order, ISOLATE_INACTIVE,
 							zone, 0, file);
+		} else {
+			nr_taken = mem_cgroup_isolate_pages(SWAP_CLUSTER_MAX,
+							&page_list, &nr_scan,
+							order, ISOLATE_INACTIVE,
+							zone, sc->mem_cgroup,
+							0, file);
+		}
+		if (global_reclaim(sc)) {
 			zone->pages_scanned += nr_scan;
 			if (current_is_kswapd())
 				__count_zone_vm_events(PGSCAN_KSWAPD, zone,
@@ -1288,16 +1312,6 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			else
 				__count_zone_vm_events(PGSCAN_DIRECT, zone,
 						       nr_scan);
-		} else {
-			nr_taken = mem_cgroup_isolate_pages(SWAP_CLUSTER_MAX,
-							&page_list, &nr_scan,
-							order, ISOLATE_INACTIVE,
-							zone, sc->mem_cgroup,
-							0, file);
-			/*
-			 * mem_cgroup_isolate_pages() keeps track of
-			 * scanned pages on its own.
-			 */
 		}
 
 		if (nr_taken == 0)
@@ -1499,17 +1513,15 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 						&pgscanned, order,
 						ISOLATE_ACTIVE, zone,
 						1, file);
-		zone->pages_scanned += pgscanned;
 	} else {
 		nr_taken = mem_cgroup_isolate_pages(nr_pages, &l_hold,
 						&pgscanned, order,
 						ISOLATE_ACTIVE, zone,
 						sc->mem_cgroup, 1, file);
-		/*
-		 * mem_cgroup_isolate_pages() keeps track of
-		 * scanned pages on its own.
-		 */
 	}
+
+	if (global_reclaim(sc))
+		zone->pages_scanned += pgscanned;
 
 	reclaim_stat->recent_scanned[file] += nr_taken;
 
@@ -1686,7 +1698,7 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	file  = zone_nr_lru_pages(zone, sc, LRU_ACTIVE_FILE) +
 		zone_nr_lru_pages(zone, sc, LRU_INACTIVE_FILE);
 
-	if (scanning_global_lru(sc)) {
+	if (global_reclaim(sc)) {
 		free  = zone_page_state(zone, NR_FREE_PAGES);
 		/* If we have very few page cache pages,
 		   force-scan anon pages. */
@@ -1996,7 +2008,7 @@ static bool shrink_zones(int priority, struct zonelist *zonelist,
 		 * Take care memory controller reclaiming has small influence
 		 * to global LRU.
 		 */
-		if (scanning_global_lru(sc)) {
+		if (global_reclaim(sc)) {
 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
 				continue;
 			note_zone_scanning_priority(zone, priority);
@@ -2069,12 +2081,12 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 	get_mems_allowed();
 	delayacct_freepages_start();
 
-	if (scanning_global_lru(sc))
+	if (global_reclaim(sc))
 		count_vm_event(ALLOCSTALL);
 	/*
 	 * mem_cgroup will not do shrink_slab.
 	 */
-	if (scanning_global_lru(sc)) {
+	if (global_reclaim(sc)) {
 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 
 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
@@ -2095,7 +2107,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		 * Don't shrink slabs when reclaiming memory from
 		 * over limit cgroups
 		 */
-		if (scanning_global_lru(sc)) {
+		if (global_reclaim(sc)) {
 			shrink_slab(sc->nr_scanned, sc->gfp_mask, lru_pages);
 			if (reclaim_state) {
 				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
@@ -2132,7 +2144,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		}
 	}
 	/* top priority shrink_zones still had more to do? don't OOM, then */
-	if (!sc->all_unreclaimable && scanning_global_lru(sc))
+	if (!sc->all_unreclaimable && global_reclaim(sc))
 		ret = sc->nr_reclaimed;
 out:
 	/*
@@ -2151,7 +2163,7 @@ out:
 #else
 	trace_mm_directreclaim_reclaimall(0, sc->nr_reclaimed, priority);
 #endif
-	if (scanning_global_lru(sc)) {
+	if (global_reclaim(sc)) {
 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 
 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
