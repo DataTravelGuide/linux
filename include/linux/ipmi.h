@@ -434,12 +434,13 @@ struct ipmi_smi_watcher {
 	   a module (generally just set it to "THIS_MODULE"). */
 	struct module *owner;
 
-	/* These two are called with read locks held for the interface
+	/* These three are called with read locks held for the interface
 	   the watcher list.  So you can add and remove users from the
 	   IPMI interface, send messages, etc., but you cannot add
 	   or remove SMI watchers or SMI interfaces. */
 	void (*new_smi)(int if_num, struct device *dev);
 	void (*smi_gone)(int if_num);
+	void (*smi_probe_complete)(void);
 };
 
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher);

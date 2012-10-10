@@ -216,6 +216,11 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 int ipmi_unregister_smi(ipmi_smi_t intf);
 
 /*
+ * Indicate to the IPMI driver that probing has been completed
+ */
+void ipmi_smi_probe_complete(void);
+
+/*
  * The lower layer reports received messages through this interface.
  * The data_size should be zero if this is an asyncronous message.  If
  * the lower layer gets an error sending a message, it should format

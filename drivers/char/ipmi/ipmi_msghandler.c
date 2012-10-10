@@ -563,6 +563,9 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 		kfree(e);
 	}
 
+	if (watcher->smi_probe_complete)
+		watcher->smi_probe_complete();
+
 	mutex_unlock(&smi_watchers_mutex);
 
 	return 0;
@@ -2761,6 +2764,18 @@ void ipmi_poll_interface(ipmi_user_t user)
 		intf->handlers->poll(intf->send_info);
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
+
+void ipmi_smi_probe_complete(void)
+{
+	struct ipmi_smi_watcher *w;
+
+	mutex_lock(&smi_watchers_mutex);
+	list_for_each_entry(w, &smi_watchers, link) {
+		if (w->smi_probe_complete)
+			w->smi_probe_complete();
+	}
+	mutex_unlock(&smi_watchers_mutex);
+}
 
 int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,

@@ -3405,6 +3405,7 @@ static __devinit int init_ipmi_si(void)
 	/* type will only have been set if we successfully registered an si */
 	if (type) {
 		mutex_unlock(&smi_infos_lock);
+		ipmi_smi_probe_complete();
 		return 0;
 	}
 
@@ -3419,8 +3420,10 @@ static __devinit int init_ipmi_si(void)
 	}
 	mutex_unlock(&smi_infos_lock);
 
-	if (type)
+	if (type) {
+		ipmi_smi_probe_complete();
 		return 0;
+	}
 
 	if (si_trydefaults) {
 		mutex_lock(&smi_infos_lock);
@@ -3451,6 +3454,7 @@ static __devinit int init_ipmi_si(void)
 		return -ENODEV;
 	} else {
 		mutex_unlock(&smi_infos_lock);
+		ipmi_smi_probe_complete();
 		return 0;
 	}
 }
