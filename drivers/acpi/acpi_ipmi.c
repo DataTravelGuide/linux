@@ -122,11 +122,14 @@ static struct ipmi_driver_data driver_data = {
 		.owner = THIS_MODULE,
 		.new_smi = ipmi_register_bmc,
 		.smi_gone = ipmi_bmc_gone,
-		.smi_probe_complete = ipmi_probe_complete,
 	},
 	.ipmi_hndlrs = {
 		.ipmi_recv_hndl = ipmi_msg_handler,
 	},
+};
+
+static struct ipmi_smi_probe_complete probe_complete = {
+	.probe_complete = ipmi_probe_complete,
 };
 
 static struct acpi_ipmi_msg *acpi_alloc_ipmi_msg(struct acpi_ipmi_device *ipmi)
@@ -543,6 +546,9 @@ static int __init acpi_ipmi_init(void)
 
 	result = ipmi_smi_watcher_register(&driver_data.bmc_events);
 
+	if (!result)
+		result = ipmi_smi_probe_complete_register(&probe_complete);
+
 	return result;
 }
 
@@ -553,6 +559,7 @@ static void __exit acpi_ipmi_exit(void)
 	if (acpi_disabled)
 		return;
 
+	ipmi_smi_probe_complete_unregister(&probe_complete);
 	ipmi_smi_watcher_unregister(&driver_data.bmc_events);
 
 	/*

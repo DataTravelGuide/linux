@@ -445,6 +445,10 @@ static DEFINE_MUTEX(ipmi_interfaces_mutex);
 static LIST_HEAD(smi_watchers);
 static DEFINE_MUTEX(smi_watchers_mutex);
 
+static LIST_HEAD(smi_probe_complete);
+static DEFINE_MUTEX(smi_probe_complete_mutex);
+
+static bool probing_complete;
 
 #define ipmi_inc_stat(intf, stat) \
 	atomic_inc(&(intf)->stats[IPMI_STAT_ ## stat])
@@ -563,9 +567,6 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 		kfree(e);
 	}
 
-	if (watcher->smi_probe_complete)
-		watcher->smi_probe_complete();
-
 	mutex_unlock(&smi_watchers_mutex);
 
 	return 0;
@@ -590,6 +591,24 @@ int ipmi_smi_watcher_unregister(struct ipmi_smi_watcher *watcher)
 	return 0;
 }
 EXPORT_SYMBOL(ipmi_smi_watcher_unregister);
+
+int ipmi_smi_probe_complete_register(struct ipmi_smi_probe_complete *probe_complete)
+{
+	mutex_lock(&smi_probe_complete_mutex);
+	list_add(&probe_complete->link, &smi_probe_complete);
+	if (probing_complete && probe_complete->probe_complete)
+		probe_complete->probe_complete();
+	mutex_unlock(&smi_probe_complete_mutex);
+	return 0;
+}
+
+int ipmi_smi_probe_complete_unregister(struct ipmi_smi_probe_complete *probe_complete)
+{
+	mutex_lock(&smi_probe_complete_mutex);
+	list_del(&probe_complete->link);
+	mutex_unlock(&smi_probe_complete_mutex);
+	return 0;
+}
 
 /*
  * Must be called with smi_watchers_mutex held.
@@ -973,6 +992,8 @@ out_kfree:
 }
 EXPORT_SYMBOL(ipmi_create_user);
 
+extern int ipmi_si_get_smi_info(void *send_info, struct ipmi_smi_info *data);
+
 int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 {
 	int           rv = 0;
@@ -991,9 +1012,7 @@ int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 
 found:
 	handlers = intf->handlers;
-	rv = -ENOSYS;
-	if (handlers->get_smi_info)
-		rv = handlers->get_smi_info(intf->send_info, data);
+	rv = ipmi_si_get_smi_info(intf->send_info, data);
 	mutex_unlock(&ipmi_interfaces_mutex);
 
 	return rv;
@@ -2767,14 +2786,15 @@ EXPORT_SYMBOL(ipmi_poll_interface);
 
 void ipmi_smi_probe_complete(void)
 {
-	struct ipmi_smi_watcher *w;
+	struct ipmi_smi_probe_complete *w;
+	probing_complete = true;
 
-	mutex_lock(&smi_watchers_mutex);
-	list_for_each_entry(w, &smi_watchers, link) {
-		if (w->smi_probe_complete)
-			w->smi_probe_complete();
+	mutex_lock(&smi_probe_complete_mutex);
+	list_for_each_entry(w, &smi_probe_complete, link) {
+		if (w->probe_complete)
+			w->probe_complete();
 	}
-	mutex_unlock(&smi_watchers_mutex);
+	mutex_unlock(&smi_probe_complete_mutex);
 }
 
 int ipmi_register_smi(struct ipmi_smi_handlers *handlers,

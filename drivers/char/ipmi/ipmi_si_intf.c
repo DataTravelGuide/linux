@@ -170,7 +170,10 @@ enum si_stat_indexes {
 	SI_NUM_STATS
 };
 
+#define SI_INTF_TOKEN 0x6188709B
+
 struct smi_info {
+	int		       token;
 	int                    intf_num;
 	ipmi_smi_t             intf;
 	struct si_sm_data      *si_sm;
@@ -1188,9 +1191,12 @@ static int smi_start_processing(void       *send_info,
 	return 0;
 }
 
-static int get_smi_info(void *send_info, struct ipmi_smi_info *data)
+int ipmi_si_get_smi_info(void *send_info, struct ipmi_smi_info *data)
 {
 	struct smi_info *smi = send_info;
+
+	if (!smi || (smi->token != SI_INTF_TOKEN))
+		return -ENOSYS;
 
 	data->addr_src = smi->addr_source;
 	data->dev = smi->dev;
@@ -1211,7 +1217,6 @@ static void set_maintenance_mode(void *send_info, int enable)
 static struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
-	.get_smi_info		= get_smi_info,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_maintenance_mode   = set_maintenance_mode,
@@ -3210,6 +3215,8 @@ static int try_smi_init(struct smi_info *new_smi)
 		}
 		new_smi->dev_registered = 1;
 	}
+
+	new_smi->token = SI_INTF_TOKEN;
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
