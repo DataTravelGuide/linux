@@ -72,6 +72,7 @@ struct ipmi_driver_data {
 	struct ipmi_smi_watcher	bmc_events;
 	struct ipmi_user_hndl	ipmi_hndlrs;
 	struct mutex		ipmi_lock;
+	struct acpi_ipmi_device *global_device;
 };
 
 struct acpi_ipmi_msg {
@@ -106,9 +107,14 @@ struct acpi_ipmi_buffer {
 
 static void ipmi_register_bmc(int iface, struct device *dev);
 static void ipmi_bmc_gone(int iface);
+static void ipmi_probe_complete(void);
 static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data);
 static void acpi_add_ipmi_device(struct acpi_ipmi_device *ipmi_device);
 static void acpi_remove_ipmi_device(struct acpi_ipmi_device *ipmi_device);
+static acpi_status
+acpi_ipmi_space_handler(u32 function, acpi_physical_address address,
+			u32 bits, acpi_integer *value,
+			void *handler_context, void *region_context);
 
 static struct ipmi_driver_data driver_data = {
 	.ipmi_devices = LIST_HEAD_INIT(driver_data.ipmi_devices),
@@ -116,6 +122,7 @@ static struct ipmi_driver_data driver_data = {
 		.owner = THIS_MODULE,
 		.new_smi = ipmi_register_bmc,
 		.smi_gone = ipmi_bmc_gone,
+		.smi_probe_complete = ipmi_probe_complete,
 	},
 	.ipmi_hndlrs = {
 		.ipmi_recv_hndl = ipmi_msg_handler,
@@ -276,6 +283,32 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	ipmi_free_recv_msg(msg);
 };
 
+/* Must be called with driver_data.ipmi_lock held */
+static void ipmi_update_global_handler(void)
+{
+        struct acpi_ipmi_device *ipmi_device;
+	acpi_status status;
+
+	if (driver_data.global_device)
+		return;
+
+	list_for_each_entry(ipmi_device, &driver_data.ipmi_devices, head) {
+		/*
+		 * Register a handler for IPMI regions that aren't under a
+		 * specific IPMI namespace. This appears to be a spec violation
+		 * but we should do what we can.
+		 */
+		status = acpi_install_address_space_handler(ACPI_ROOT_OBJECT,
+						      ACPI_ADR_SPACE_IPMI,
+						      &acpi_ipmi_space_handler,
+						      NULL, ipmi_device);
+		if (ACPI_SUCCESS(status)) {
+			driver_data.global_device = ipmi_device;
+			break;
+		}
+	}
+}
+
 static void ipmi_register_bmc(int iface, struct device *dev)
 {
 	struct acpi_ipmi_device *ipmi_device, *temp;
@@ -347,12 +380,29 @@ static void ipmi_bmc_gone(int iface)
 			continue;
 
 		acpi_remove_ipmi_device(ipmi_device);
+
+		if (driver_data.global_device == ipmi_device) {
+			acpi_remove_address_space_handler(ACPI_ROOT_OBJECT,
+				ACPI_ADR_SPACE_IPMI, &acpi_ipmi_space_handler);
+			driver_data.global_device = NULL;
+			ipmi_update_global_handler();
+		}
+
 		put_device(ipmi_device->smi_data.dev);
 		kfree(ipmi_device);
 		break;
-	}
+	}	
+
 	mutex_unlock(&driver_data.ipmi_lock);
 }
+
+static void ipmi_probe_complete(void)
+{
+	mutex_lock(&driver_data.ipmi_lock);
+	ipmi_update_global_handler();
+	mutex_unlock(&driver_data.ipmi_lock);
+}
+
 /* --------------------------------------------------------------------------
  *			Address Space Management
  * -------------------------------------------------------------------------- */
