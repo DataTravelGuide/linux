@@ -2194,7 +2194,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 		info->irq_setup = std_irq_setup;
 	}
 
-	info->dev = &acpi_dev->dev;
+	info->dev = &dev->dev;
 	pnp_set_drvdata(dev, info);
 
 	return try_smi_init(info);
