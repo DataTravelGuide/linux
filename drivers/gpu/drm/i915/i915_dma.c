@@ -1449,6 +1449,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
+	if (info->is_haswell) {
+		DRM_INFO("Intel Haswell based GPU not supported in this release.\n");
+		return -ENODEV;
+	}
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
