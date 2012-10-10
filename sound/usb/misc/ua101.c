@@ -1183,7 +1183,7 @@ static void free_usb_related_resources(struct ua101 *ua,
 
 static void ua101_card_free(struct snd_card *card)
 {
-	struct ua101 *ua = card->private_data;
+	struct ua101 __maybe_unused *ua = card->private_data;
 
 	mutex_destroy(&ua->mutex);
 }
