@@ -91,5 +91,6 @@ enum nfqnl_attr_config {
 
 /* Flags for NFQA_CFG_FLAGS */
 #define NFQA_CFG_F_FAIL_OPEN			(1 << 0)
+#define NFQA_CFG_F_MAX				(1 << 1)
 
 #endif /* _NFNETLINK_QUEUE_H */
