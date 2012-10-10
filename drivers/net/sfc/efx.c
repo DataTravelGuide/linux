@@ -21,7 +21,11 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
+
+#if 0 /* !RHEL */
 #include <linux/cpu_rmap.h>
+#endif
+
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -1181,7 +1185,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-static unsigned int efx_wanted_parallelism(void)
+static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 {
 	cpumask_var_t thread_mask;
 	unsigned int count;
@@ -1224,6 +1228,7 @@ static unsigned int efx_wanted_parallelism(void)
 	return count;
 }
 
+#if 0 /* !RHEL */
 static int
 efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
 {
@@ -1245,6 +1250,7 @@ efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
 #endif
 	return 0;
 }
+#endif
 
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
@@ -1265,7 +1271,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		unsigned int n_channels;
 
-		n_channels = efx_wanted_parallelism();
+		n_channels = efx_wanted_parallelism(efx);
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels += extra_channels;
@@ -1299,11 +1305,13 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 				efx->n_tx_channels = n_channels;
 				efx->n_rx_channels = n_channels;
 			}
+#if 0 /* !RHEL - RFS */
 			rc = efx_init_rx_cpu_rmap(efx, xentries);
 			if (rc) {
 				pci_disable_msix(efx->pci_dev);
 				return rc;
 			}
+#endif /* !RHEL */
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
@@ -2018,7 +2026,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_SFC_SRIOV
 	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
 	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
-	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
 	.ndo_get_vf_config	= efx_sriov_get_vf_config,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER

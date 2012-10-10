@@ -22,6 +22,12 @@
 #define FILTER_CTL_SRCH_FUDGE_WILD 3
 #define FILTER_CTL_SRCH_FUDGE_FULL 1
 
+/* Hard maximum hop limit.  Hardware will time-out beyond 200-something.
+ * We also need to avoid infinite loops in efx_filter_search() when the
+ * table is full.
+ */
+#define FILTER_CTL_SRCH_MAX 200
+
 /* Don't try very hard to find space for performance hints, as this is
  * counter-productive. */
 #define FILTER_CTL_SRCH_HINT_MAX 5

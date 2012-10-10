@@ -569,8 +569,6 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	u32 supported = (efx->type->offload_features &
-			 (ETH_FLAG_RXHASH | ETH_FLAG_NTUPLE));
 	int rc;
 
 	rc = ethtool_op_set_flags(net_dev, data);
@@ -960,8 +958,9 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 
 static int
 efx_ethtool_get_rxnfc(struct net_device *net_dev,
-		      struct ethtool_rxnfc *info, u32 *rule_locs)
+		      struct ethtool_rxnfc *info, void *varg)
 {
+	u32 *rule_locs = (u32 *)varg;
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	switch (info->cmd) {

@@ -8,6 +8,7 @@
  */
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -1636,7 +1637,9 @@ int efx_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	tci = ntohs(vf->addr.tci);
 	ivi->vlan = tci & VLAN_VID_MASK;
 	ivi->qos = (tci >> VLAN_PRIO_SHIFT) & 0x7;
+#if 0 /* !RHEL */
 	ivi->spoofchk = vf->tx_filter_mode == VF_TX_FILTER_ON;
+#endif
 
 	return 0;
 }
