@@ -37,6 +37,7 @@ extern netdev_tx_t
 efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
 extern unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
+extern int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 
 /* RX */
 extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
