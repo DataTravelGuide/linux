@@ -102,4 +102,13 @@ static inline void pps_get_ts(struct pps_event_time *ts)
 	getnstimeofday(&ts->ts_real);
 }
 
+/* Subtract known time delay from PPS event time(s) */
+static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec delta)
+{
+	ts->ts_real = timespec_sub(ts->ts_real, delta);
+#ifdef CONFIG_NTP_PPS
+	ts->ts_raw = timespec_sub(ts->ts_raw, delta);
+#endif
+}
+
 #endif /* LINUX_PPS_KERNEL_H */
