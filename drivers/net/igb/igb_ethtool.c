@@ -2282,21 +2282,8 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
-static int igb_ethtool_begin(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	pm_runtime_get_sync(&adapter->pdev->dev);
-	return 0;
-}
-
-static void igb_ethtool_complete(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	pm_runtime_put(&adapter->pdev->dev);
-}
-
 #ifdef CONFIG_IGB_PTP
-static int igb_ethtool_get_ts_info(struct net_device *dev,
+static int igb_get_ts_info(struct net_device *dev,
 				   struct ethtool_ts_info *info)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
@@ -2326,6 +2313,19 @@ static int igb_ethtool_get_ts_info(struct net_device *dev,
 	return 0;
 }
 #endif /* CONFIG_IGB_PTP */
+
+static int igb_ethtool_begin(struct net_device *netdev)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	pm_runtime_get_sync(&adapter->pdev->dev);
+	return 0;
+}
+
+static void igb_ethtool_complete(struct net_device *netdev)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	pm_runtime_put(&adapter->pdev->dev);
+}
 
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings           = igb_get_settings,
@@ -2368,7 +2368,7 @@ static const struct ethtool_ops igb_ethtool_ops = {
 static const struct ethtool_ops_ext igb_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 #ifdef CONFIG_IGB_PTP
-	.get_ts_info		= igb_ethtool_get_ts_info,
+	.get_ts_info            = igb_get_ts_info,
 #endif /* CONFIG_IGB_PTP */
 };
 
