@@ -200,7 +200,6 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
 	ptp = kzalloc(sizeof(struct ptp_clock), GFP_KERNEL);
 	if (ptp == NULL)
 		goto no_memory;
-	ptp->pps_source = -1;
 
 	ptp->clock.ops = ptp_clock_ops;
 	ptp->clock.release = delete_ptp_clock;
@@ -231,7 +230,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
 		pps.mode = PTP_PPS_MODE;
 		pps.owner = info->owner;
 		ptp->pps_source = pps_register_source(&pps, PTP_PPS_DEFAULTS);
-		if (ptp->pps_source < 0) {
+		if (!ptp->pps_source) {
 			pr_err("failed to register pps source\n");
 			goto no_pps;
 		}
@@ -248,7 +247,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info)
 	return ptp;
 
 no_clock:
-	if (ptp->pps_source >= 0)
+	if (ptp->pps_source)
 		pps_unregister_source(ptp->pps_source);
 no_pps:
 	ptp_cleanup_sysfs(ptp);
@@ -271,7 +270,7 @@ int ptp_clock_unregister(struct ptp_clock *ptp)
 	wake_up_interruptible(&ptp->tsev_wq);
 
 	/* Release the clock's resources. */
-	if (ptp->pps_source >= 0)
+	if (ptp->pps_source)
 		pps_unregister_source(ptp->pps_source);
 	ptp_cleanup_sysfs(ptp);
 	device_destroy(ptp_class, ptp->devid);
