@@ -37,6 +37,7 @@
 #include <linux/clocksource.h>
 #include <linux/timecompare.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 
 struct igb_adapter;
 
@@ -369,6 +370,12 @@ struct igb_adapter {
 	int node;
 	u32 *shadow_vfta;
 
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info caps;
+	struct delayed_work overflow_work;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
 	char fw_version[32];
 };
 
