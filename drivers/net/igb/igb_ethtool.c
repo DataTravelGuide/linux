@@ -2325,8 +2325,8 @@ static int igb_ethtool_get_ts_info(struct net_device *dev,
 
 	return 0;
 }
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings           = igb_get_settings,
 	.set_settings           = igb_set_settings,
@@ -2369,7 +2369,7 @@ static const struct ethtool_ops_ext igb_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 #ifdef CONFIG_IGB_PTP
 	.get_ts_info		= igb_ethtool_get_ts_info,
-#endif
+#endif /* CONFIG_IGB_PTP */
 };
 
 void igb_set_ethtool_ops(struct net_device *netdev)
