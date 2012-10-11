@@ -586,10 +586,10 @@ static int iblock_do_task(struct se_task *task)
 		sg_num--;
 	}
 
+	q = bdev_get_queue(bio->bi_bdev);
 	while ((bio = bio_list_pop(&list)))
 		submit_bio(rw, bio);
 
-	q = bdev_get_queue(bio->bi_bdev);
 	if (q->unplug_fn)
 		q->unplug_fn(q);
 	return 0;
