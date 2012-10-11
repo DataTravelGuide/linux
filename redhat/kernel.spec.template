@@ -1674,6 +1674,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 11 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-329.el6]
+- [char] ipmi: Fix KABI issues with acpi_ipmi addition (Matthew Garrett) [803653]
+- [acpi] acpi_ipmi: Add a default handler for IPMI operation regions (Matthew Garrett) [803653]
+- [char] ipmi: Add a callback to indicate that probing has finished (Matthew Garrett) [803653]
+- [acpi] ipmi: Reorder makefiles (Matthew Garrett) [803653]
+- [acpi] acpi_ipmi: Add the IPMI opregion driver to enable ACPI to access BMC controller (Matthew Garrett) [803653]
+- [char] ipmi: Add one interface to get more info of low-level IPMI device (Matthew Garrett) [803653]
+- [char] ipmi: fix ACPI detection with regspacing (Matthew Garrett) [803653]
+- [char] ipmi: convert tracking of the ACPI device pointer to a PNP device (Matthew Garrett) [803653]
+- [char] ipmi: add PNP discovery (ACPI namespace via PNPACPI) (Matthew Garrett) [803653]
+- [pnp] pnpacpi: add interface to retrieve ACPI device from a PNPACPI device (Matthew Garrett) [803653]
+- [pnp] pnpacpi: save struct acpi_device, not just acpi_handle (Matthew Garrett) [803653]
+- [mm] hugetlb: do not use vma_hugecache_offset() for vma_prio_tree_foreach (Frederic Weisbecker) [843035] {CVE-2012-2133}
+- [mm] hugepages: fix use after free bug in "quota" handling (Frederic Weisbecker) [843035] {CVE-2012-2133}
+- [mm] hugetlb: fix pgoff computation when unmapping page from vma (Frederic Weisbecker) [843035] {CVE-2012-2133}
+- [mm] hugetlb: fix ENOSPC returned by handle_mm_fault() (Frederic Weisbecker) [843035] {CVE-2012-2133}
+- [block] loop: remove the incorrect write_begin/write_end shortcut (Lukas Czerner) [766815]
+- [block] loop: Fix discard_alignment default setting (Lukas Czerner) [766815]
+- [block] loop: fix loop block driver discard and encryption comment (Lukas Czerner) [766815]
+- [block] loop: add discard support for loop devices (Lukas Czerner) [766815]
+- [s390] dasd: check count address during online setting (Hendrik Brueckner) [853234]
+- [scsi] fix softlockup regression on hot remove (Chris Leech) [863077]
+
 * Tue Oct 09 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-328.el6]
 - [netdrv] qlge: fix endian issue (Chad Dupuis) [826571]
 - [netdrv] qlge: Bumped driver version to 1.00.00.31 (Chad Dupuis) [826571]
