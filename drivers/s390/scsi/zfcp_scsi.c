@@ -22,7 +22,7 @@ MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
 
 static bool enable_dif;
 module_param_named(dif, enable_dif, bool, 0400);
-MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
+MODULE_PARM_DESC(dif, "Enable DIF data integrity support");
 
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
@@ -697,6 +697,7 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 	    adapter->adapter_features & FSF_FEATURE_DIF_PROT_TYPE1)
 		mask |= SHOST_DIF_TYPE1_PROTECTION;
 
+#if 0
 	if (enable_dif && data_div &&
 	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
 		mask |= SHOST_DIX_TYPE1_PROTECTION;
@@ -704,6 +705,7 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 		shost->sg_tablesize = ZFCP_MAX_SBALES_PER_REQ / 2;
 		shost->max_sectors = ZFCP_MAX_SBALES_PER_REQ * 8 / 2;
 	}
+#endif
 
 	scsi_host_set_prot(shost, mask);
 }
