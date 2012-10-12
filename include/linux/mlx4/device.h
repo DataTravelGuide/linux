@@ -53,7 +53,8 @@ enum {
 };
 
 enum {
-	MLX4_MAX_PORTS		= 2
+	MLX4_MAX_PORTS		= 2,
+	MLX4_MAX_PORT_PKEYS	= 128
 };
 
 /* base qkey for use in sriov tunnel-qp/proxy-qp communication.
