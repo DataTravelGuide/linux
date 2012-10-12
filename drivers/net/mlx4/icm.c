@@ -412,6 +412,8 @@ err:
 			mlx4_free_icm(dev, table->icm[i], use_coherent);
 		}
 
+	kfree(table->icm);
+
 	return -ENOMEM;
 }
 
