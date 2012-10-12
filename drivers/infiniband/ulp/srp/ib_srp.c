@@ -475,6 +475,21 @@ static void srp_free_req_data(struct srp_target_port *target)
 	}
 }
 
+/**
+ * srp_del_scsi_host_attr() - Remove attributes defined in the host template.
+ * @shost: SCSI host whose attributes to remove from sysfs.
+ *
+ * Note: Any attributes defined in the host template and that did not exist
+ * before invocation of this function will be ignored.
+ */
+static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
+{
+	struct device_attribute **attr;
+
+	for (attr = shost->hostt->shost_attrs; attr && *attr; ++attr)
+		device_remove_file(&shost->shost_dev, *attr);
+}
+
 static void srp_remove_work(struct work_struct *work)
 {
 	struct srp_target_port *target =
@@ -487,6 +502,7 @@ static void srp_remove_work(struct work_struct *work)
 	list_del(&target->list);
 	spin_unlock(&target->srp_host->target_lock);
 
+	srp_del_scsi_host_attr(target->scsi_host);
 	srp_remove_host(target->scsi_host);
 	scsi_remove_host(target->scsi_host);
 	ib_destroy_cm_id(target->cm_id);
@@ -1683,10 +1699,6 @@ static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
-
 	return sprintf(buf, "0x%016llx\n",
 		       (unsigned long long) be64_to_cpu(target->id_ext));
 }
@@ -1695,10 +1707,6 @@ static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
-
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
 
 	return sprintf(buf, "0x%016llx\n",
 		       (unsigned long long) be64_to_cpu(target->ioc_guid));
@@ -1709,10 +1717,6 @@ static ssize_t show_service_id(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
-
 	return sprintf(buf, "0x%016llx\n",
 		       (unsigned long long) be64_to_cpu(target->service_id));
 }
@@ -1722,10 +1726,6 @@ static ssize_t show_pkey(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
-
 	return sprintf(buf, "0x%04x\n", be16_to_cpu(target->path.pkey));
 }
 
@@ -1733,10 +1733,6 @@ static ssize_t show_dgid(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
-
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
 
 	return sprintf(buf, "%pI6\n", target->path.dgid.raw);
 }
@@ -1746,10 +1742,6 @@ static ssize_t show_orig_dgid(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
-
 	return sprintf(buf, "%pI6\n", target->orig_dgid);
 }
 
@@ -1758,10 +1750,6 @@ static ssize_t show_req_lim(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
-
 	return sprintf(buf, "%d\n", target->req_lim);
 }
 
@@ -1769,10 +1757,6 @@ static ssize_t show_zero_req_lim(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
-
-	if (target->state == SRP_TARGET_DEAD ||
-	    target->state == SRP_TARGET_REMOVED)
-		return -ENODEV;
 
 	return sprintf(buf, "%d\n", target->zero_req_lim);
 }
@@ -2437,6 +2421,7 @@ static void srp_remove_one(struct ib_device *device)
 
 		list_for_each_entry_safe(target, tmp_target,
 					 &host->target_list, list) {
+			srp_del_scsi_host_attr(target->scsi_host);
 			srp_remove_host(target->scsi_host);
 			scsi_remove_host(target->scsi_host);
 			srp_disconnect_target(target);
