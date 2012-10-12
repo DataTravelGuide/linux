@@ -211,7 +211,10 @@ struct mlx4_wqe_ctrl_seg {
 	 * [3:2] C (generate completion queue entry)
 	 * [1]   SE (solicited event)
 	 */
-	__be32			srcrb_flags;
+	union {
+		__be32			srcrb_flags;
+		__be16			srcrb_flags16[2];
+	};
 	/*
 	 * imm is immediate data for send/RDMA write w/ immediate;
 	 * also invalidation key for send with invalidate; input
