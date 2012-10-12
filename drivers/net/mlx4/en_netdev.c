@@ -65,8 +65,21 @@ static void mlx4_en_vlan_rx_register(struct net_device *dev, struct vlan_group *
 
 static int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
-	if (up != MLX4_EN_NUM_UP)
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int i;
+	unsigned int q, offset = 0;
+
+	if (up && up != MLX4_EN_NUM_UP)
 		return -EINVAL;
+
+	netdev_set_num_tc(dev, up);
+
+	/* Partition Tx queues evenly amongst UP's */
+	q = priv->tx_ring_num / up;
+	for (i = 0; i < up; i++) {
+		netdev_set_tc_queue(dev, i, q, offset);
+		offset += q;
+	}
 
 	return 0;
 }
@@ -719,7 +732,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		/* Configure ring */
 		tx_ring = &priv->tx_ring[i];
 		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn,
-				max(0, i - MLX4_EN_NUM_TX_RINGS));
+			i / priv->mdev->profile.num_tx_rings_p_up);
 		if (err) {
 			en_err(priv, "Failed allocating Tx ring\n");
 			mlx4_en_deactivate_cq(priv, cq);
@@ -1037,6 +1050,9 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mlx4_en_free_resources(priv, false);
 
+	kfree(priv->tx_ring);
+	kfree(priv->tx_cq);
+
 	free_netdev(dev);
 }
 
@@ -1127,6 +1143,18 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->rx_csum = 1;
 	priv->flags = prof->flags;
 	priv->tx_ring_num = prof->tx_ring_num;
+	priv->tx_ring = kzalloc(sizeof(struct mlx4_en_tx_ring) *
+			priv->tx_ring_num, GFP_KERNEL);
+	if (!priv->tx_ring) {
+		err = -ENOMEM;
+		goto out;
+	}
+	priv->tx_cq = kzalloc(sizeof(struct mlx4_en_cq) * priv->tx_ring_num,
+			GFP_KERNEL);
+	if (!priv->tx_cq) {
+		err = -ENOMEM;
+		goto out;
+	}
 	priv->rx_ring_num = prof->rx_ring_num;
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
@@ -1175,24 +1203,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	/*
-	 * This is a no-op right now, but we need it because we don't
-	 * have an entry for .setup_tc in net_device_ops struct, so
-	 * even though we added mlx4_en_setup_tc() with this patch,
-	 * nothing references it, which causes us to throw a build error.
-	 * We'll make this do something more interesting when setup_tc
-	 * does something useful.
+	 * We don't have an net_device_ops entry to setup_tc, so we use
+	 * a module parameter instead.
 	 */
-	mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
-
-	netdev_set_num_tc(dev, MLX4_EN_NUM_UP);
-
-	/* First 9 rings are for UP 0 */
-	netdev_set_tc_queue(dev, 0, MLX4_EN_NUM_TX_RINGS + 1, 0);
-
-	/* Partition Tx queues evenly amongst UP's 1-7 */
-	for (i = 1; i < MLX4_EN_NUM_UP; i++)
-		netdev_set_tc_queue(dev, i, 1, MLX4_EN_NUM_TX_RINGS + i);
-
+	if (mdev->profile.enable_tc)
+		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+	
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
 	/* Set defualt MAC */
