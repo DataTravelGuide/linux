@@ -1449,6 +1449,9 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	}
 
 	if (is_eth) {
+		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
+
+		mlx->sched_prio = cpu_to_be16(pcp);
 		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac, 6);
 		/* FIXME: cache smac value? */
 		memcpy(sqp->ud_header.eth.smac_h, ndev->dev_addr, 6);
@@ -1457,10 +1460,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		if (!is_vlan) {
 			sqp->ud_header.eth.type = cpu_to_be16(MLX4_IB_IBOE_ETHERTYPE);
 		} else {
-			u16 pcp;
-
 			sqp->ud_header.vlan.type = cpu_to_be16(MLX4_IB_IBOE_ETHERTYPE);
-			pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
 			sqp->ud_header.vlan.tag = cpu_to_be16(vlan | pcp);
 		}
 	} else {
