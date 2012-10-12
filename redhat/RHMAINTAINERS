@@ -199,8 +199,8 @@ S:	Maintained
 F:	drivers/net/e1000/
 
 INTEL E1000E ETHERNET DRIVER (e1000e)
-M:	Andy Gospodarek <agospoda@redhat.com>
 M:	Dean Nelson <dnelson@redhat.com>
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/e1000e/
 
