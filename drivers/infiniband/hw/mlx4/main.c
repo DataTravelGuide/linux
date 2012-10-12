@@ -73,6 +73,8 @@ struct update_gid_work {
 	int			port;
 };
 
+static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init);
+
 static struct workqueue_struct *wq;
 
 static void init_query_mad(struct ib_smp *mad)
@@ -1469,6 +1471,15 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_is_mfunc(ibdev->dev))
 		init_pkeys(ibdev);
 
+	/* create paravirt contexts for any VFs which are active */
+	if (mlx4_is_master(ibdev->dev)) {
+		for (j = 0; j < MLX4_MFUNC_MAX; j++) {
+			if (j == mlx4_master_func_num(ibdev->dev))
+				continue;
+			if (mlx4_is_slave_active(ibdev->dev, j))
+				do_slave_init(ibdev, j, 1);
+		}
+	}
 	return ibdev;
 
 err_notif:
