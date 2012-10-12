@@ -321,6 +321,16 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 
 			/* Enable promiscouos mode */
 			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_DEVICE_MANAGED:
+				err = mlx4_flow_steer_promisc_add(mdev->dev,
+								  priv->port,
+								  priv->base_qpn,
+								  MLX4_FS_PROMISC_UPLINK);
+				if (err)
+					en_err(priv, "Failed enabling promiscuous mode\n");
+				priv->flags |= MLX4_EN_FLAG_MC_PROMISC;
+				break;
+
 			case MLX4_STEERING_MODE_B0:
 				err = mlx4_unicast_promisc_add(mdev->dev,
 							       priv->base_qpn,
@@ -379,6 +389,15 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 
 		/* Disable promiscouos mode */
 		switch (mdev->dev->caps.steering_mode) {
+		case MLX4_STEERING_MODE_DEVICE_MANAGED:
+			err = mlx4_flow_steer_promisc_remove(mdev->dev,
+							     priv->port,
+							     MLX4_FS_PROMISC_UPLINK);
+			if (err)
+				en_err(priv, "Failed disabling promiscuous mode\n");
+			priv->flags &= ~MLX4_EN_FLAG_MC_PROMISC;
+			break;
+
 		case MLX4_STEERING_MODE_B0:
 			err = mlx4_unicast_promisc_remove(mdev->dev,
 							  priv->base_qpn,
@@ -421,6 +440,13 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		/* Add the default qp number as multicast promisc */
 		if (!(priv->flags & MLX4_EN_FLAG_MC_PROMISC)) {
 			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_DEVICE_MANAGED:
+				err = mlx4_flow_steer_promisc_add(mdev->dev,
+								  priv->port,
+								  priv->base_qpn,
+								  MLX4_FS_PROMISC_ALL_MULTI);
+				break;
+
 			case MLX4_STEERING_MODE_B0:
 				err = mlx4_multicast_promisc_add(mdev->dev,
 								 priv->base_qpn,
@@ -438,6 +464,12 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		/* Disable Multicast promisc */
 		if (priv->flags & MLX4_EN_FLAG_MC_PROMISC) {
 			switch (mdev->dev->caps.steering_mode) {
+			case MLX4_STEERING_MODE_DEVICE_MANAGED:
+				err = mlx4_flow_steer_promisc_remove(mdev->dev,
+								     priv->port,
+								     MLX4_FS_PROMISC_ALL_MULTI);
+				break;
+
 			case MLX4_STEERING_MODE_B0:
 				err = mlx4_multicast_promisc_remove(mdev->dev,
 								    priv->base_qpn,
@@ -886,9 +918,6 @@ int mlx4_en_start_port(struct net_device *dev)
 		goto tx_err;
 	}
 
-	/* Must redo promiscuous mode setup. */
-	priv->flags &= ~(MLX4_EN_FLAG_PROMISC | MLX4_EN_FLAG_MC_PROMISC);
-
 	/* Attach rx QP to bradcast address */
 	memset(&mc_list[10], 0xff, ETH_ALEN);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
@@ -896,6 +925,18 @@ int mlx4_en_start_port(struct net_device *dev)
 				  priv->port, 0, MLX4_PROT_ETH,
 				  &priv->broadcast_id))
 		mlx4_warn(mdev, "Failed Attaching Broadcast\n");
+
+	/* Must redo promiscuous mode setup. */
+	priv->flags &= ~(MLX4_EN_FLAG_PROMISC | MLX4_EN_FLAG_MC_PROMISC);
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		mlx4_flow_steer_promisc_remove(mdev->dev,
+					       priv->port,
+					       MLX4_FS_PROMISC_UPLINK);
+		mlx4_flow_steer_promisc_remove(mdev->dev,
+					       priv->port,
+					       MLX4_FS_PROMISC_ALL_MULTI);
+	}
 
 	/* Schedule multicast task to populate multicast list */
 	queue_work(mdev->workqueue, &priv->mcast_task);
