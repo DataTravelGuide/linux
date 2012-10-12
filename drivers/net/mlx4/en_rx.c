@@ -47,7 +47,6 @@ static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 			      struct mlx4_en_rx_alloc *ring_alloc,
 			      int i)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_frag_info *frag_info = &priv->frag_info[i];
 	struct mlx4_en_rx_alloc *page_alloc = &ring_alloc[i];
 	struct page *page;
@@ -71,7 +70,7 @@ static int mlx4_en_alloc_frag(struct mlx4_en_priv *priv,
 		skb_frags[i].page_offset = page_alloc->offset;
 		page_alloc->offset += frag_info->frag_stride;
 	}
-	dma = pci_map_single(mdev->pdev, page_address(skb_frags[i].page) +
+	dma = dma_map_single(priv->ddev, page_address(skb_frags[i].page) +
 			     skb_frags[i].page_offset, frag_info->frag_size,
 			     PCI_DMA_FROMDEVICE);
 	rx_desc->data[i].addr = cpu_to_be64(dma);
@@ -169,7 +168,7 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 err:
 	while (i--) {
 		dma_addr_t dma = be64_to_cpu(rx_desc->data[i].addr);
-		pci_unmap_single(priv->mdev->pdev, dma, skb_frags[i].size,
+		dma_unmap_single(priv->ddev, dma, skb_frags[i].size,
 				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[i].page);
 	}
@@ -185,7 +184,6 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 				 struct mlx4_en_rx_ring *ring,
 				 int index)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct skb_frag_struct *skb_frags;
 	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index << ring->log_stride);
 	dma_addr_t dma;
@@ -196,8 +194,8 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 		en_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
-		en_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (u64) dma);
-		pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
+		en_dbg(DRV, priv, "Unmapping buffer at dma:0x%llx\n", (u64) dma);
+		dma_unmap_single(priv->ddev, dma, skb_frags[nr].size,
 				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[nr].page);
 	}
@@ -411,7 +409,6 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				    struct mlx4_en_rx_alloc *page_alloc,
 				    int length)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_frag_info *frag_info;
 	int nr;
 	dma_addr_t dma;
@@ -433,7 +430,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			goto fail;
 
 		/* Unmap buffer */
-		pci_unmap_single(mdev->pdev, dma, skb_frags_rx[nr].size,
+		dma_unmap_single(priv->ddev, dma, skb_frags_rx[nr].size,
 				 PCI_DMA_FROMDEVICE);
 	}
 	/* Adjust size of last fragment to match actual length */
@@ -459,7 +456,6 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 				      struct mlx4_en_rx_alloc *page_alloc,
 				      unsigned int length)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct sk_buff *skb;
 	void *va;
 	int used_frags;
@@ -483,10 +479,10 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		/* We are copying all relevant data to the skb - temporarily
 		 * synch buffers for the copy */
 		dma = be64_to_cpu(rx_desc->data[0].addr);
-		dma_sync_single_for_cpu(&mdev->pdev->dev, dma, length,
+		dma_sync_single_for_cpu(priv->ddev, dma, length,
 					DMA_FROM_DEVICE);
 		skb_copy_to_linear_data(skb, va, length);
-		dma_sync_single_for_device(&mdev->pdev->dev, dma, length,
+		dma_sync_single_for_device(priv->ddev, dma, length,
 					   DMA_FROM_DEVICE);
 		skb->tail += length;
 	} else {
