@@ -56,6 +56,13 @@ enum {
 	MLX4_MAX_PORTS		= 2
 };
 
+/* base qkey for use in sriov tunnel-qp/proxy-qp communication.
+ * These qkeys must not be allowed for general use. This is a 64k range,
+ * and to test for violation, we use the mask (protect against future chg).
+ */
+#define MLX4_RESERVED_QKEY_BASE  (0xFFFF0000)
+#define MLX4_RESERVED_QKEY_MASK  (0xFFFF0000)
+
 enum {
 	MLX4_BOARD_ID_LEN = 64
 };
@@ -320,6 +327,8 @@ struct mlx4_caps {
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
 	int			sqp_start;
+	u32			base_sqpn;
+	u32			base_tunnel_sqpn;
 	int			num_srqs;
 	int			max_srq_wqes;
 	int			max_srq_sge;
@@ -896,5 +905,7 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
+
+int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey);
 
 #endif /* MLX4_DEVICE_H */
