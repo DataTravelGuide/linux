@@ -2135,6 +2135,10 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 			mlx4_CLOSE_PORT(dev, p);
 		}
 
+		if (mlx4_is_master(dev))
+			mlx4_free_resource_tracker(dev,
+						   RES_TR_FREE_SLAVES_ONLY);
+
 		mlx4_cleanup_counters_table(dev);
 		mlx4_cleanup_mcg_table(dev);
 		mlx4_cleanup_qp_table(dev);
@@ -2147,7 +2151,8 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cleanup_pd_table(dev);
 
 		if (mlx4_is_master(dev))
-			mlx4_free_resource_tracker(dev);
+			mlx4_free_resource_tracker(dev,
+						   RES_TR_FREE_STRUCTS_ONLY);
 
 		iounmap(priv->kar);
 		mlx4_uar_free(dev, &priv->driver_uar);
