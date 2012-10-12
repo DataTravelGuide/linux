@@ -63,6 +63,14 @@ static void mlx4_en_vlan_rx_register(struct net_device *dev, struct vlan_group *
 	mutex_unlock(&mdev->state_lock);
 }
 
+static int mlx4_en_setup_tc(struct net_device *dev, u8 up)
+{
+	if (up != MLX4_EN_NUM_UP)
+		return -EINVAL;
+
+	return 0;
+}
+
 static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -1159,6 +1167,25 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
+
+	/*
+	 * This is a no-op right now, but we need it because we don't
+	 * have an entry for .setup_tc in net_device_ops struct, so
+	 * even though we added mlx4_en_setup_tc() with this patch,
+	 * nothing references it, which causes us to throw a build error.
+	 * We'll make this do something more interesting when setup_tc
+	 * does something useful.
+	 */
+	mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
+
+	netdev_set_num_tc(dev, MLX4_EN_NUM_UP);
+
+	/* First 9 rings are for UP 0 */
+	netdev_set_tc_queue(dev, 0, MLX4_EN_NUM_TX_RINGS + 1, 0);
+
+	/* Partition Tx queues evenly amongst UP's 1-7 */
+	for (i = 1; i < MLX4_EN_NUM_UP; i++)
+		netdev_set_tc_queue(dev, i, 1, MLX4_EN_NUM_TX_RINGS + i);
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
