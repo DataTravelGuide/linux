@@ -1431,8 +1431,8 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		return err;
 	if (is_eth) {
 		ndev = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1];
-		if (!ndev || !ndev->dev_addr)
-			return -EINVAL;
+		if (!ndev)
+			return -ENODEV;
 		vlan = rdma_get_vlan_id(&sgid);
 		is_vlan = vlan < 0x1000;
 	}
