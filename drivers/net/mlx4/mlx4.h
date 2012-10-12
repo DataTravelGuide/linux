@@ -148,6 +148,7 @@ enum mlx4_resource {
 	RES_VLAN,
 	RES_EQ,
 	RES_COUNTER,
+	RES_FS_RULE,
 	MLX4_NUM_OF_RESOURCE_TYPE
 };
 
