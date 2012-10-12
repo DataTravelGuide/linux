@@ -853,6 +853,10 @@ int mlx4_en_start_port(struct net_device *dev)
 					"EQ's\n", priv->dev->name);
 		}
 	}
+	err = mlx4_en_create_drop_qp(priv);
+	if (err)
+		goto rss_err;
+
 	/* Configure tx cq's and rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		/* Configure cq */
@@ -952,7 +956,8 @@ tx_err:
 		mlx4_en_deactivate_tx_ring(priv, &priv->tx_ring[tx_index]);
 		mlx4_en_deactivate_cq(priv, &priv->tx_cq[tx_index]);
 	}
-
+	mlx4_en_destroy_drop_qp(priv);
+rss_err:
 	mlx4_en_release_rss_steer(priv);
 mac_err:
 	mlx4_put_eth_qp(mdev->dev, priv->port, priv->mac, priv->base_qpn);
@@ -1006,6 +1011,8 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Flush multicast filter */
 	mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0, 1, MLX4_MCAST_CONFIG);
+
+	mlx4_en_destroy_drop_qp(priv);
 
 	/* Free TX Rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {
