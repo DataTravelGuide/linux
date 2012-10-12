@@ -1382,9 +1382,6 @@ int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (priv->mfunc.master.slave_state[slave].init_port_mask & (1 << port))
 		return 0;
 
-	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
-		return -ENODEV;
-
 	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
 		/* Enable port only if it was previously disabled */
 		if (!priv->mfunc.master.init_port_ref[port]) {
@@ -1479,9 +1476,6 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (!(priv->mfunc.master.slave_state[slave].init_port_mask &
 	    (1 << port)))
 		return 0;
-
-	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
-		return -ENODEV;
 
 	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
 		if (priv->mfunc.master.init_port_ref[port] == 1) {
