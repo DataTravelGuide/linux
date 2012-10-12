@@ -1373,6 +1373,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		mlx4_en_setup_tc(dev, MLX4_EN_NUM_UP);
 	
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
+	set_ethtool_ops_ext(dev, &mlx4_en_ethtool_ops_ext);
 
 	/* Set defualt MAC */
 	dev->addr_len = ETH_ALEN;

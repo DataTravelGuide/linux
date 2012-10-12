@@ -353,11 +353,11 @@ struct mlx4_en_port_profile {
 	u8 rx_ppp;
 	u8 tx_pause;
 	u8 tx_ppp;
+	int rss_rings;
 };
 
 struct mlx4_en_profile {
 	int rss_xor;
-	int tcp_rss;
 	int udp_rss;
 	int enable_tc;
 	u8 rss_mask;
@@ -627,4 +627,5 @@ u64 mlx4_en_mac_to_u64(u8 *addr);
  * Globals
  */
 extern const struct ethtool_ops mlx4_en_ethtool_ops;
+extern const struct ethtool_ops_ext mlx4_en_ethtool_ops_ext;
 #endif

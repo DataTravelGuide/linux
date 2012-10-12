@@ -61,10 +61,6 @@ static const char mlx4_en_version[] =
  * Device scope module parameters
  */
 
-
-/* Enable RSS TCP traffic */
-MLX4_EN_PARM_INT(tcp_rss, 1,
-		 "Enable RSS for incomming TCP traffic or disabled (0)");
 /* Enable RSS UDP traffic */
 MLX4_EN_PARM_INT(udp_rss, 1,
 		 "Enable RSS for incomming UDP traffic or disabled (0)");
@@ -85,7 +81,6 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	struct mlx4_en_profile *params = &mdev->profile;
 	int i;
 
-	params->tcp_rss = tcp_rss;
 	params->udp_rss = udp_rss;
 	params->num_tx_rings_p_up = min_t(int, num_online_cpus(),
 			MLX4_EN_MAX_TX_RING_P_UP);
