@@ -456,7 +456,8 @@ struct zone {
 
 #ifndef __GENKSYMS__
 #if defined CONFIG_COMPACTION
-	unsigned long		compact_blockskip_expire;
+	/* Set to true when the PG_migrate_skip bits should be cleared */
+	bool			compact_blockskip_flush;
 
 	/* pfns where compaction scanners should start */
 	unsigned long		compact_cached_free_pfn;
