@@ -14,7 +14,18 @@
 #include <asm/page.h>		/* kmalloc_sizes.h needs PAGE_SIZE */
 #include <asm/cache.h>		/* kmalloc_sizes.h needs L1_CACHE_BYTES */
 #include <linux/compiler.h>
+
+/*
+ * The linux/kmemtrace.h include was moved into the c files that used it
+ * (mm/slab.c and mm/util.c).  However, the kabi checker will complain if
+ * struct address_space (which gets included via kmemtrace.h ->
+ * trace/events/kmem.h -> fs.h) is not defined.  So, to avoid the
+ * warnings from the kabi checker, just include the file when __GENKSYMS__
+ * is defined.
+ */
+#ifdef __GENKSYMS__
 #include <linux/kmemtrace.h>
+#endif
 
 /*
  * struct kmem_cache
