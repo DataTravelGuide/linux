@@ -609,6 +609,7 @@ struct pmu {
 	struct list_head		entry;
 
 	struct device			*dev;
+	const struct attribute_group	**attr_groups;
 	char				*name;
 	int				type;
 
@@ -971,6 +972,8 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr,
 				struct task_struct *task,
 				perf_overflow_handler_t callback,
 				void *context);
+extern void perf_pmu_migrate_context(struct pmu *pmu,
+				int src_cpu, int dst_cpu);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
 
@@ -1188,7 +1191,7 @@ static inline void perf_event_task_tick(void)				{ }
 #define perf_cpu_notifier(fn)						\
 do {									\
 	static struct notifier_block fn##_nb __cpuinitdata =		\
-		{ .notifier_call = fn, .priority = 20 };	\
+		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
 	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,			\
 		(void *)(unsigned long)smp_processor_id());		\
 	fn(&fn##_nb, (unsigned long)CPU_STARTING,			\
