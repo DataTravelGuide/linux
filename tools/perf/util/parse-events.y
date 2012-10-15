@@ -45,10 +45,7 @@ do { \
 %type <num> value_sym
 %type <head> event_config
 %type <term> event_term
-/*
- * XXX PMU events are not supported in RHEL6
 %type <head> event_pmu
- */
 %type <head> event_legacy_symbol
 %type <head> event_legacy_cache
 /*
@@ -165,11 +162,7 @@ event_def PE_MODIFIER_EVENT
 |
 event_def
 
-event_def:
-/*
- * XXX PMU events are not supported in RHEL6
- *          event_pmu |
- */
+event_def: event_pmu |
 	   event_legacy_symbol |
 	   event_legacy_cache sep_dc |
 
@@ -181,8 +174,6 @@ event_def:
 	   event_legacy_numeric sep_dc |
 	   event_legacy_raw sep_dc
 
-/*
- * XXX PMU events are not supported in RHEL6
 event_pmu:
 PE_NAME '/' event_config '/'
 {
@@ -193,7 +184,6 @@ PE_NAME '/' event_config '/'
 	parse_events__free_terms($3);
 	$$ = list;
 }
-*/
 
 value_sym:
 PE_VALUE_SYM_HW
