@@ -459,7 +459,7 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	}
 
-	if (!(cr0 & X86_CR0_PG) && vcpu->arch.cr4)
+	if (!(cr0 & X86_CR0_PG) && kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
 		return 1;
 
 	kvm_x86_ops->set_cr0(vcpu, cr0);
@@ -614,7 +614,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (vcpu->arch.cr4 & X86_CR4_PCIDE) {
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)) {
 			if (cr3 & CR3_PCID_ENABLED_RESERVED_BITS)
 				return 1;
 		} else
