@@ -1640,7 +1640,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb_reset_network_header(skb);
 	skb->mac_len = elen;
 	skb->protocol = htons(ETH_P_FCOE);
-	skb->priority = port->priority;
+	skb->priority = fcoe->priority;
 
 	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN &&
 	    fcoe->realdev->features & NETIF_F_HW_VLAN_TX) {
@@ -1912,7 +1912,6 @@ static int fcoe_dcb_app_notification(struct notifier_block *notifier,
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct net_device *netdev;
-	struct fcoe_port *port;
 	int prio;
 
 	if (entry->app.selector != DCB_APP_IDTYPE_ETHTYPE)
@@ -1941,10 +1940,8 @@ static int fcoe_dcb_app_notification(struct notifier_block *notifier,
 	    entry->app.protocol == ETH_P_FCOE)
 		ctlr->priority = prio;
 
-	if (entry->app.protocol == ETH_P_FCOE) {
-		port = lport_priv(ctlr->lp);
-		port->priority = prio;
-	}
+	if (entry->app.protocol == ETH_P_FCOE)
+		fcoe->priority = prio;
 
 	return NOTIFY_OK;
 }
@@ -2181,7 +2178,6 @@ static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 	u8 fup, up;
 	struct net_device *netdev = fcoe->realdev;
 	struct fcoe_ctlr *ctlr = fcoe_to_ctlr(fcoe);
-	struct fcoe_port *port = lport_priv(ctlr->lp);
 	struct dcb_app app = {
 				.priority = 0,
 				.protocol = ETH_P_FCOE
@@ -2203,8 +2199,8 @@ static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 			fup = dcb_getapp(netdev, &app);
 		}
 
-		port->priority = ffs(up) ? ffs(up) - 1 : 0;
-		ctlr->priority = ffs(fup) ? ffs(fup) - 1 : port->priority;
+		fcoe->priority = ffs(up) ? ffs(up) - 1 : 0;
+		ctlr->priority = ffs(fup) ? ffs(fup) - 1 : fcoe->priority;
 	}
 #endif
 }
