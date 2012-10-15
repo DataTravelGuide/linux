@@ -1,16 +1,12 @@
-#ifdef CONFIG_CPU_SUP_INTEL
+#include <linux/stddef.h>
+#include <linux/types.h>
+#include <linux/init.h>
+#include <linux/slab.h>
 
-/*
- * Per core/cpu state
- *
- * Used to coordinate shared registers between HT threads or
- * among events on a single PMU.
- */
-struct intel_shared_regs {
-	struct er_account       regs[EXTRA_REG_MAX];
-	int                     refcnt;		/* per-core: #HT threads */
-	unsigned                core_id;	/* per-core: core id */
-};
+#include <asm/hardirq.h>
+#include <asm/apic.h>
+
+#include "perf_event.h"
 
 /*
  * Intel PerfMon, used on Core and later.
@@ -894,7 +890,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
  * Save and restart an expired event. Called by NMI contexts,
  * so it has to be careful about preempting normal event ops:
  */
-static int intel_pmu_save_and_restart(struct perf_event *event)
+int intel_pmu_save_and_restart(struct perf_event *event)
 {
 	x86_perf_event_update(event);
 	return x86_perf_event_set_period(event);
@@ -1146,6 +1142,21 @@ intel_shared_regs_constraints(struct cpu_hw_events *cpuc,
 	return c;
 }
 
+struct event_constraint *
+x86_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
+{
+	struct event_constraint *c;
+
+	if (x86_pmu.event_constraints) {
+		for_each_event_constraint(c, x86_pmu.event_constraints) {
+			if ((event->hw.config & c->cmask) == c->code)
+				return c;
+		}
+	}
+
+	return &unconstrained;
+}
+
 static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
@@ -1373,7 +1384,7 @@ static __initconst const struct x86_pmu core_pmu = {
 	.guest_get_msrs		= core_guest_get_msrs,
 };
 
-static struct intel_shared_regs *allocate_shared_regs(int cpu)
+struct intel_shared_regs *allocate_shared_regs(int cpu)
 {
 	struct intel_shared_regs *regs;
 	int i;
@@ -1555,7 +1566,7 @@ static __init void intel_nehalem_quirk(void)
 	}
 }
 
-static __init int intel_pmu_init(void)
+__init int intel_pmu_init(void)
 {
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
@@ -1713,7 +1724,7 @@ static __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_snb_event_constraints;
-		x86_pmu.pebs_constraints = intel_snb_pebs_events;
+		x86_pmu.pebs_constraints = intel_snb_pebs_event_constraints;
 		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
 		x86_pmu.extra_regs = intel_snb_extra_regs;
 		/* all extra regs are per-cpu when HT is on */
@@ -1740,16 +1751,3 @@ static __init int intel_pmu_init(void)
 
 	return 0;
 }
-
-#else /* CONFIG_CPU_SUP_INTEL */
-
-static int intel_pmu_init(void)
-{
-	return 0;
-}
-
-static struct intel_shared_regs *allocate_shared_regs(int cpu)
-{
-	return NULL;
-}
-#endif /* CONFIG_CPU_SUP_INTEL */
