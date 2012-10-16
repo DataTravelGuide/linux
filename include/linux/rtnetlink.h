@@ -377,10 +377,18 @@ enum
 #define RTAX_FEATURES RTAX_FEATURES
 	RTAX_RTO_MIN,
 #define RTAX_RTO_MIN RTAX_RTO_MIN
-	__RTAX_MAX
+	__RTAX_MAX,
+#define RTAX_INITRWND __RTAX_MAX /* Red Hat kABI workaround for dst_entry */
+	__RTAX_NEW_MAX
 };
 
-#define RTAX_MAX (__RTAX_MAX - 1)
+/* This Red Hat kABI workaround, requires some subtle details to understand.
+ * We MUST keep the exact string expansion "(__RTAX_MAX - 1)" else the kABI
+ * checker will miss-fire, as its based on gcc's preprocessor and it keeps
+ * the enum literals (not like real defines that gets macro expanded).
+ */
+#define RTAX_MAX_ORIG (__RTAX_MAX - 1)
+#define RTAX_MAX (__RTAX_NEW_MAX - 1)
 
 #define RTAX_FEATURE_ECN	0x00000001
 #define RTAX_FEATURE_SACK	0x00000002
