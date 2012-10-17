@@ -30,10 +30,10 @@
 /*
  * If we have Intel graphics, we're not going to have anything other than
  * an Intel IOMMU. So make the correct use of the PCI DMA API contingent
- * on the Intel IOMMU support (CONFIG_INTEL_IOMMU).
+ * on the Intel IOMMU support (CONFIG_DMAR).
  * Only newer chipsets need to bother with this, of course.
  */
-#ifdef CONFIG_INTEL_IOMMU
+#ifdef CONFIG_DMAR
 #define USE_PCI_DMA_API 1
 #else
 #define USE_PCI_DMA_API 0
@@ -1235,7 +1235,7 @@ static void gen6_cleanup(void)
  */
 static inline int needs_idle_maps(void)
 {
-#ifdef CONFIG_INTEL_IOMMU
+#ifdef CONFIG_DMAR
 	const unsigned short gpu_devid = intel_private.pcidev->device;
 
 	/* Query intel_iommu to see if we need the workaround. Presumably that

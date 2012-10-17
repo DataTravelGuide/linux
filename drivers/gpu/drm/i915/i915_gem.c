@@ -3799,7 +3799,7 @@ intel_enable_ppgtt(struct drm_device *dev)
 	if (i915_enable_ppgtt >= 0)
 		return i915_enable_ppgtt;
 
-#ifdef CONFIG_INTEL_IOMMU
+#ifdef CONFIG_DMAR
 	/* Disable ppgtt on SNB if VT-d is on. */
 	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
 		return false;
