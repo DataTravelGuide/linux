@@ -22,10 +22,6 @@
 #include <linux/topology.h>
 #include <linux/gfp.h>
 
-#if 0 /* !RHEL */
-#include <linux/cpu_rmap.h>
-#endif
-
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -1228,30 +1224,6 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	return count;
 }
 
-#if 0 /* !RHEL */
-static int
-efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
-{
-#ifdef CONFIG_RFS_ACCEL
-	int i, rc;
-
-	efx->net_dev->rx_cpu_rmap = alloc_irq_cpu_rmap(efx->n_rx_channels);
-	if (!efx->net_dev->rx_cpu_rmap)
-		return -ENOMEM;
-	for (i = 0; i < efx->n_rx_channels; i++) {
-		rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
-				      xentries[i].vector);
-		if (rc) {
-			free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-			efx->net_dev->rx_cpu_rmap = NULL;
-			return rc;
-		}
-	}
-#endif
-	return 0;
-}
-#endif
-
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
@@ -1305,13 +1277,6 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 				efx->n_tx_channels = n_channels;
 				efx->n_rx_channels = n_channels;
 			}
-#if 0 /* !RHEL - RFS */
-			rc = efx_init_rx_cpu_rmap(efx, xentries);
-			if (rc) {
-				pci_disable_msix(efx->pci_dev);
-				return rc;
-			}
-#endif /* !RHEL */
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
@@ -2030,14 +1995,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
-#endif
-
-#if 0 /* !RHEL */
-	.ndo_setup_tc		= efx_setup_tc,
-
-//#ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer      = efx_filter_rfs,
-//#endif
 #endif
 };
 
@@ -2897,4 +2854,3 @@ MODULE_AUTHOR("Solarflare Communications and "
 MODULE_DESCRIPTION("Solarflare Communications network driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, efx_pci_table);
-
