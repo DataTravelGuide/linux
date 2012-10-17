@@ -1674,6 +1674,42 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 17 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-333.el6]
+- [drm] i915: block haswell support (Dave Airlie) [862376]
+- [powerpc] fadump: Remove the phyp assisted dump code (Steve Best) [739124]
+- [powerpc] pseries: Call ibm, os-term if the ibm, extended-os-term is present (Steve Best) [739124]
+- [powerpc] fadump: Invalidate the fadump registration during machine shutdown (Steve Best) [739124]
+- [powerpc] fadump: Invalidate registration and release reserved memory for general use (Steve Best) [739124]
+- [fs] proc/vmcore: Introduce cleanup routine to invalidate /proc/vmcore (Steve Best) [739124]
+- [powerpc] fadump: Add PT_NOTE program header for vmcoreinfo (Steve Best) [739124]
+- [powerpc] fadump: Convert firmware-assisted cpu state dump data into elf notes (Steve Best) [739124]
+- [powerpc] fadump: Initialize elfcore header and add PT_LOAD program headers (Steve Best) [739124]
+- [powerpc] fadump: Register for firmware assisted dump (Steve Best) [739124]
+- [powerpc] fadump: Reserve the memory for firmware assisted dump (Steve Best) [739124]
+- [powerpc] fadump: Add documentation for firmware-assisted dump (Steve Best) [739124]
+- [net] Add rtnetlink init_rcvwnd to set the TCP initial receive window (Jesper Brouer) [795598]
+- [scsi] fcoe: Fix write errors on NPIV ports (Neil Horman) [857575]
+- [scsi] fcoe: Allocate fcoe_ctlr with fcoe_interface, not as a member (Neil Horman) [857575]
+- [scsi] fcoe: Fix up rmmod crash (Neil Horman) [860846]
+- [fs] NFSv4.1: Clean up layoutreturn (Steve Dickson) [837871]
+- [net] nfs: Fix buffer overflow checking in __nfs4_get_acl_uncached (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: Fix the acl cache size calculation (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: Fix range checking in __nfs4_get_acl_uncached and __nfs4_proc_set_acl (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: nfs_getaclargs.acl_len is a size_t (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: Don't use private xdr_stream fields in decode_getacl (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: Fix pointer arithmetic in decode_getacl (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] nfs: Simplify the GETATTR attribute length calculation (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] sunrpc: Add the helper xdr_stream_pos (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] sunrpc: Don't decode beyond the end of the RPC reply message (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] sunrpc: Clean up xdr_set_iov() (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [net] sunrpc: xdr_read_pages needs to clear xdr->page_ptr (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [fs] nfs: Avoid beyond bounds copy while caching ACL (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [fs] nfs: Avoid reading past buffer when calling GETACL (Sachin Prabhu) [822871] {CVE-2012-2375}
+- [virt] kvm: Use accessors function to access cr4 (Gleb Natapov) [866452]
+- [fs] xfs: report projid32bit feature in geometry call (Eric Sandeen) [865929]
+- [usb] serial/ti_usb: fix module removal (Don Zickus) [864186]
+- [fs] nfs: do not send an empty SETATTR compound (J. Bruce Fields) [863912]
+
 * Mon Oct 15 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-332.el6]
 - [scsi] libfc: fix lun reset failure bugs in fc_fcp_resp handling of FCP_RSP_INFO (Neil Horman) [789103]
 - [scsi] libfc: fix retries with FDMI lport states (Neil Horman) [789103]
