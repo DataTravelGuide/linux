@@ -990,6 +990,7 @@
 0x5d74dbcf	pnp_range_reserved	vmlinux	EXPORT_SYMBOL
 0xf80c1a44	pnp_register_driver	vmlinux	EXPORT_SYMBOL
 0x388d4997	pnp_unregister_driver	vmlinux	EXPORT_SYMBOL
+0x0f1ef871	posix_acl_alloc vmlinux EXPORT_SYMBOL
 0x56f59d1f	ppp_input	drivers/net/ppp_generic	EXPORT_SYMBOL
 0x33d92f9a	prepare_to_wait	vmlinux	EXPORT_SYMBOL
 0x1985ed3c	prepare_to_wait_exclusive	vmlinux	EXPORT_SYMBOL

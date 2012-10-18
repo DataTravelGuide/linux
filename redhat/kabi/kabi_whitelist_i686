@@ -991,6 +991,7 @@
 	pnp_range_reserved
 	pnp_register_driver
 	pnp_unregister_driver
+	posix_acl_alloc
 	ppp_input
 	prepare_to_wait
 	prepare_to_wait_exclusive

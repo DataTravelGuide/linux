@@ -716,6 +716,7 @@
 	pm_qos_add_requirement
 	pm_qos_remove_requirement
 	pm_qos_update_requirement
+	posix_acl_alloc
 	prepare_to_wait
 	prepare_to_wait_exclusive
 	print_hex_dump

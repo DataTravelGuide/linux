@@ -715,6 +715,7 @@
 0xa5bf5c3e	pm_qos_add_requirement	vmlinux	EXPORT_SYMBOL_GPL
 0xe530071c	pm_qos_remove_requirement	vmlinux	EXPORT_SYMBOL_GPL
 0x52d111ea	pm_qos_update_requirement	vmlinux	EXPORT_SYMBOL_GPL
+0x0f1ef871	posix_acl_alloc vmlinux EXPORT_SYMBOL
 0x6ea9f43a	prepare_to_wait	vmlinux	EXPORT_SYMBOL
 0xdc22c9e0	prepare_to_wait_exclusive	vmlinux	EXPORT_SYMBOL
 0xead58fb9	print_hex_dump	vmlinux	EXPORT_SYMBOL
