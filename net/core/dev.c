@@ -5253,7 +5253,6 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	case SIOCBONDCHANGEACTIVE:
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
-	case SIOCSHWTSTAMP:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		/* fall through */
@@ -5263,6 +5262,26 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		rtnl_lock();
 		ret = dev_ifsioc(net, &ifr, cmd);
 		rtnl_unlock();
+		return ret;
+
+	case SIOCSHWTSTAMP:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+		dev_load(net, ifr.ifr_name);
+		rtnl_lock();
+		ret = dev_ifsioc(net, &ifr, cmd);
+		rtnl_unlock();
+		if (!ret) {
+			static bool ptp_tech_previewed = false;
+
+			if (!ptp_tech_previewed) {
+				mutex_lock(&module_mutex);
+				mark_tech_preview("IEEE 1588 (PTP)",
+						  find_module("ptp"));
+				mutex_unlock(&module_mutex);
+				ptp_tech_previewed = true;
+			}
+		}
 		return ret;
 
 	case SIOCGIFMEM:
