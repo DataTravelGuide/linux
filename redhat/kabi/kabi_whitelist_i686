@@ -992,6 +992,7 @@
 	pnp_register_driver
 	pnp_unregister_driver
 	posix_acl_alloc
+	posix_acl_from_xattr
 	ppp_input
 	prepare_to_wait
 	prepare_to_wait_exclusive
