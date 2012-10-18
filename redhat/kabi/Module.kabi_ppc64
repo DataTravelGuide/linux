@@ -572,6 +572,7 @@
 0x3d6481f2	init_timer_key	vmlinux	EXPORT_SYMBOL
 0x773ca527	init_uts_ns	vmlinux	EXPORT_SYMBOL_GPL
 0x8c5cc3aa	inode_change_ok	vmlinux	EXPORT_SYMBOL
+0x4a0be949	inode_init_always	vmlinux	EXPORT_SYMBOL
 0x9fd5fff0	inode_init_once	vmlinux	EXPORT_SYMBOL
 0x1ad39f2c	inode_setattr	vmlinux	EXPORT_SYMBOL
 0xc787a5d8	input_allocate_device	vmlinux	EXPORT_SYMBOL

@@ -475,6 +475,7 @@
 0xda672d86	init_timer_key	vmlinux	EXPORT_SYMBOL
 0x773ca527	init_uts_ns	vmlinux	EXPORT_SYMBOL_GPL
 0x631072e5	inode_change_ok	vmlinux	EXPORT_SYMBOL
+0x0f9112d3	inode_init_always	vmlinux	EXPORT_SYMBOL
 0xb2ddf98d	inode_init_once	vmlinux	EXPORT_SYMBOL
 0x0ce6196f	inode_setattr	vmlinux	EXPORT_SYMBOL
 0xea10212a	int_to_scsilun	drivers/scsi/scsi_mod	EXPORT_SYMBOL

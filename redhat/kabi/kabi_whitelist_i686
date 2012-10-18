@@ -611,6 +611,7 @@
 	init_timer_key
 	init_uts_ns
 	inode_change_ok
+	inode_init_always
 	inode_init_once
 	inode_setattr
 	input_allocate_device

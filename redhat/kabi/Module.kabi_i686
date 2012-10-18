@@ -610,6 +610,7 @@
 0x6a9f26c9	init_timer_key	vmlinux	EXPORT_SYMBOL
 0x773ca527	init_uts_ns	vmlinux	EXPORT_SYMBOL_GPL
 0xc800aa12	inode_change_ok	vmlinux	EXPORT_SYMBOL
+0xd5ac4fec	inode_init_always	vmlinux	EXPORT_SYMBOL
 0xed71c8ab	inode_init_once	vmlinux	EXPORT_SYMBOL
 0x0e925e53	inode_setattr	vmlinux	EXPORT_SYMBOL
 0x7ada9217	input_allocate_device	vmlinux	EXPORT_SYMBOL
