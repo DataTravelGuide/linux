@@ -247,6 +247,7 @@
 0x8810ad5e	crypto_xor	vmlinux	EXPORT_SYMBOL_GPL
 0x8b5bab3c	current_fs_time	vmlinux	EXPORT_SYMBOL
 0x67053080	current_kernel_time	vmlinux	EXPORT_SYMBOL
+0x5e95b1cd	current_umask   vmlinux EXPORT_SYMBOL
 0xc59a8f4d	d_alloc_root	vmlinux	EXPORT_SYMBOL
 0xb994efcd	d_instantiate	vmlinux	EXPORT_SYMBOL
 0xf221cb49	d_lookup	vmlinux	EXPORT_SYMBOL

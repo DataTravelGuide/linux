@@ -278,6 +278,7 @@
 0x56a10763	csum_tcpudp_magic	vmlinux	EXPORT_SYMBOL
 0x068a001e	current_fs_time	vmlinux	EXPORT_SYMBOL
 0x67053080	current_kernel_time	vmlinux	EXPORT_SYMBOL
+0x5e95b1cd	current_umask   vmlinux EXPORT_SYMBOL
 0xae17190e	d_alloc_root	vmlinux	EXPORT_SYMBOL
 0x21690c49	d_instantiate	vmlinux	EXPORT_SYMBOL
 0xe4f696cf	d_lookup	vmlinux	EXPORT_SYMBOL

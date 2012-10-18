@@ -296,6 +296,7 @@
 0x07d50a24	csum_partial	vmlinux	EXPORT_SYMBOL
 0x365c0678	current_fs_time	vmlinux	EXPORT_SYMBOL
 0x67053080	current_kernel_time	vmlinux	EXPORT_SYMBOL
+0x5e95b1cd	current_umask   vmlinux EXPORT_SYMBOL
 0xd79f78e8	d_alloc_root	vmlinux	EXPORT_SYMBOL
 0x4c221de6	d_instantiate	vmlinux	EXPORT_SYMBOL
 0x9e03ecb4	d_lookup	vmlinux	EXPORT_SYMBOL

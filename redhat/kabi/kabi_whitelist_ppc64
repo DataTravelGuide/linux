@@ -279,6 +279,7 @@
 	csum_tcpudp_magic
 	current_fs_time
 	current_kernel_time
+	current_umask
 	d_alloc_root
 	d_instantiate
 	d_lookup
