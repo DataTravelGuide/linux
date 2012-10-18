@@ -243,6 +243,7 @@
 0x4d71232a	call_usermodehelper_setfns	vmlinux	EXPORT_SYMBOL
 0xdeac3097	call_usermodehelper_setup	vmlinux	EXPORT_SYMBOL
 0x30ffe1f7	cancel_delayed_work_sync	vmlinux	EXPORT_SYMBOL
+0xa2204a97	cancel_dirty_page	vmlinux	EXPORT_SYMBOL
 0x08d8708f	cancel_work_sync	vmlinux	EXPORT_SYMBOL_GPL
 0x7dceceac	capable	vmlinux	EXPORT_SYMBOL
 0xa6d1bdca	cdev_add	vmlinux	EXPORT_SYMBOL

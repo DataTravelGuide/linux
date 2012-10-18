@@ -244,6 +244,7 @@
 	call_usermodehelper_setfns
 	call_usermodehelper_setup
 	cancel_delayed_work_sync
+	cancel_dirty_page
 	cancel_work_sync
 	capable
 	cdev_add
