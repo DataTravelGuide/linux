@@ -1150,6 +1150,7 @@
 0x27fe46e1	set_cpus_allowed_ptr	vmlinux	EXPORT_SYMBOL_GPL
 0x08d2923f	set_disk_ro	vmlinux	EXPORT_SYMBOL
 0xeea90d55	set_page_dirty	vmlinux	EXPORT_SYMBOL
+0x96e194f2	set_page_dirty_lock     vmlinux EXPORT_SYMBOL
 0x924f0feb	set_user_nice	vmlinux	EXPORT_SYMBOL
 0x79d6c54a	sg_copy_from_buffer	vmlinux	EXPORT_SYMBOL
 0x48bc2ef0	sg_copy_to_buffer	vmlinux	EXPORT_SYMBOL

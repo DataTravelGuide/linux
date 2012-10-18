@@ -1212,6 +1212,7 @@
 0x91607d95	set_memory_wb	vmlinux	EXPORT_SYMBOL
 0x767ddb02	set_memory_wc	vmlinux	EXPORT_SYMBOL
 0xf1eb59c6	set_page_dirty	vmlinux	EXPORT_SYMBOL
+0x58c0d151	set_page_dirty_lock     vmlinux EXPORT_SYMBOL
 0xe8cd7d31	set_user_nice	vmlinux	EXPORT_SYMBOL
 0x9e4b3747	sg_copy_from_buffer	vmlinux	EXPORT_SYMBOL
 0x3cb3931b	sg_copy_to_buffer	vmlinux	EXPORT_SYMBOL

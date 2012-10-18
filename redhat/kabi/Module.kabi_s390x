@@ -915,6 +915,7 @@
 0x3b326d94	set_cpus_allowed_ptr	vmlinux	EXPORT_SYMBOL_GPL
 0x4821a6ba	set_disk_ro	vmlinux	EXPORT_SYMBOL
 0xf5ad3dd3	set_page_dirty	vmlinux	EXPORT_SYMBOL
+0x5e1d9004	set_page_dirty_lock     vmlinux EXPORT_SYMBOL
 0xb5ce7324	set_user_nice	vmlinux	EXPORT_SYMBOL
 0x71f6eb38	sg_copy_from_buffer	vmlinux	EXPORT_SYMBOL
 0x2d5528c9	sg_copy_to_buffer	vmlinux	EXPORT_SYMBOL

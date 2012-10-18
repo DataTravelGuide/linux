@@ -1220,6 +1220,7 @@
 	set_memory_wb
 	set_memory_wc
 	set_page_dirty
+	set_page_dirty_lock
 	set_user_nice
 	sg_copy_from_buffer
 	sg_copy_to_buffer
