@@ -272,6 +272,7 @@
 	del_gendisk
 	del_timer
 	del_timer_sync
+	dentry_open
 	destroy_workqueue
 	dev_add_pack
 	dev_addr_add

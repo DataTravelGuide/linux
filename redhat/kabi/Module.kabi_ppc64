@@ -294,6 +294,7 @@
 0x18f7be5e	del_gendisk	vmlinux	EXPORT_SYMBOL
 0x6ea4be70	del_timer	vmlinux	EXPORT_SYMBOL
 0x9fb030f4	del_timer_sync	vmlinux	EXPORT_SYMBOL
+0x0ca97027	dentry_open	vmlinux	EXPORT_SYMBOL
 0x79fd8859	destroy_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0x8168be99	dev_add_pack	vmlinux	EXPORT_SYMBOL
 0x86b69f73	dev_addr_add	vmlinux	EXPORT_SYMBOL

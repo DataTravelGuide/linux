@@ -326,6 +326,7 @@
 0xce4db10e	del_gendisk	vmlinux	EXPORT_SYMBOL
 0x6307fc98	del_timer	vmlinux	EXPORT_SYMBOL
 0x0e83fea1	del_timer_sync	vmlinux	EXPORT_SYMBOL
+0xe83c6f95	dentry_open	vmlinux	EXPORT_SYMBOL
 0x20f26c14	destroy_workqueue	vmlinux	EXPORT_SYMBOL_GPL
 0xbf1cac9f	dev_add_pack	vmlinux	EXPORT_SYMBOL
 0x47c5a6ab	dev_addr_add	vmlinux	EXPORT_SYMBOL
