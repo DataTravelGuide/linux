@@ -425,6 +425,7 @@
 0x52760ca9	getnstimeofday	vmlinux	EXPORT_SYMBOL
 0x6ac9e8c6	gnet_stats_copy_basic	vmlinux	EXPORT_SYMBOL
 0xac71f8a5	gnet_stats_copy_queue	vmlinux	EXPORT_SYMBOL
+0xd55751b4	grab_cache_page_nowait	vmlinux	EXPORT_SYMBOL
 0x9b2b3969	grab_cache_page_write_begin	vmlinux	EXPORT_SYMBOL
 0xebe671a4	have_submounts	vmlinux	EXPORT_SYMBOL
 0x9db21624	hex_dump_to_buffer	vmlinux	EXPORT_SYMBOL

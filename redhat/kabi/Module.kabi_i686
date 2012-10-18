@@ -536,6 +536,7 @@
 0x52760ca9	getnstimeofday	vmlinux	EXPORT_SYMBOL
 0x3abcfd74	gnet_stats_copy_basic	vmlinux	EXPORT_SYMBOL
 0xf601589c	gnet_stats_copy_queue	vmlinux	EXPORT_SYMBOL
+0xf3bd9da3	grab_cache_page_nowait	vmlinux	EXPORT_SYMBOL
 0x8f7ef3d8	grab_cache_page_write_begin	vmlinux	EXPORT_SYMBOL
 0x99bf93c4	have_submounts	vmlinux	EXPORT_SYMBOL
 0x779651b9	hci_alloc_dev	net/bluetooth/bluetooth	EXPORT_SYMBOL

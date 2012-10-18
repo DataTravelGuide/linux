@@ -499,6 +499,7 @@
 	gpio_direction_output
 	gpio_free
 	gpio_request
+	grab_cache_page_nowait
 	grab_cache_page_write_begin
 	have_submounts
 	hci_alloc_dev

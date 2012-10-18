@@ -498,6 +498,7 @@
 0xa8f59416	gpio_direction_output	vmlinux	EXPORT_SYMBOL_GPL
 0xfe990052	gpio_free	vmlinux	EXPORT_SYMBOL_GPL
 0x47229b5c	gpio_request	vmlinux	EXPORT_SYMBOL_GPL
+0xa7a00e42	grab_cache_page_nowait	vmlinux	EXPORT_SYMBOL
 0x47491667	grab_cache_page_write_begin	vmlinux	EXPORT_SYMBOL
 0xda916dc4	have_submounts	vmlinux	EXPORT_SYMBOL
 0x7796a4b9	hci_alloc_dev	net/bluetooth/bluetooth	EXPORT_SYMBOL

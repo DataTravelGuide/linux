@@ -426,6 +426,7 @@
 	getnstimeofday
 	gnet_stats_copy_basic
 	gnet_stats_copy_queue
+	grab_cache_page_nowait
 	grab_cache_page_write_begin
 	have_submounts
 	hex_dump_to_buffer
