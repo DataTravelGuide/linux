@@ -168,10 +168,6 @@ static inline int is_unevictable_lru(enum lru_list l)
 /* LRU Isolation modes. */
 typedef unsigned __bitwise__ isolate_mode_t;
 
-struct lruvec {
-	struct list_head lists[NR_LRU_LISTS];
-};
-
 enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
@@ -367,14 +363,10 @@ struct zone {
 	ZONE_PADDING(_pad1_)
 
 	/* Fields commonly accessed by the page reclaim scanner */
-	spinlock_t		lru_lock;
-#ifdef __GENKSYMS__
+	spinlock_t		lru_lock;	
 	struct zone_lru {
 		struct list_head list;
 	} lru[NR_LRU_LISTS];
-#else
-	struct lruvec		lruvec;
-#endif
 
 	struct zone_reclaim_stat reclaim_stat;
 
