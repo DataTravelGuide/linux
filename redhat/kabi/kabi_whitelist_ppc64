@@ -479,6 +479,7 @@
 	generic_file_aio_read
 	generic_file_aio_write
 	generic_file_llseek
+	generic_file_llseek_unlocked
 	generic_file_mmap
 	generic_file_open
 	generic_fillattr

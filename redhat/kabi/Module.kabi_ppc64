@@ -478,6 +478,7 @@
 0xbb144357	generic_file_aio_read	vmlinux	EXPORT_SYMBOL
 0x5d610e3a	generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0xa79160c2	generic_file_llseek	vmlinux	EXPORT_SYMBOL
+0xf875e076	generic_file_llseek_unlocked	vmlinux	EXPORT_SYMBOL
 0xa8ba5a7f	generic_file_mmap	vmlinux	EXPORT_SYMBOL
 0x2f012caf	generic_file_open	vmlinux	EXPORT_SYMBOL
 0xde76c70c	generic_fillattr	vmlinux	EXPORT_SYMBOL
