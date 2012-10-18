@@ -1200,6 +1200,7 @@
 0x0b86f8a6	sdev_evt_send_simple	vmlinux	EXPORT_SYMBOL_GPL
 0x48945a23	security_inode_init_security	vmlinux	EXPORT_SYMBOL
 0x438d4628	send_sig	vmlinux	EXPORT_SYMBOL
+0x27f7c562	send_sig_info   vmlinux EXPORT_SYMBOL
 0x5ca8e4f6	seq_lseek	vmlinux	EXPORT_SYMBOL
 0x4e06a175	seq_open	vmlinux	EXPORT_SYMBOL
 0x77e93f6f	seq_printf	vmlinux	EXPORT_SYMBOL

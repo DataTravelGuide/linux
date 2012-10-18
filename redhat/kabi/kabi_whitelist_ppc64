@@ -1137,6 +1137,7 @@
 	sdev_evt_send_simple
 	security_inode_init_security
 	send_sig
+	send_sig_info
 	seq_lseek
 	seq_open
 	seq_printf

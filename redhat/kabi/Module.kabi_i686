@@ -1193,6 +1193,7 @@
 0x0793a7e6	sdev_evt_send_simple	vmlinux	EXPORT_SYMBOL_GPL
 0x14afab50	security_inode_init_security	vmlinux	EXPORT_SYMBOL
 0x6551a63e	send_sig	vmlinux	EXPORT_SYMBOL
+0xfd2441ff	send_sig_info   vmlinux EXPORT_SYMBOL
 0xa54015e2	seq_lseek	vmlinux	EXPORT_SYMBOL
 0x3d8e39e5	seq_open	vmlinux	EXPORT_SYMBOL
 0x79566c2d	seq_printf	vmlinux	EXPORT_SYMBOL
