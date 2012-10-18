@@ -960,6 +960,7 @@
 0x8353e69e	put_disk	vmlinux	EXPORT_SYMBOL
 0x803421f4	put_page	vmlinux	EXPORT_SYMBOL
 0x719e6129	put_tty_driver	vmlinux	EXPORT_SYMBOL
+0x3f4547a7	put_unused_fd   vmlinux EXPORT_SYMBOL
 0x269b191a	qdisc_calculate_pkt_len	vmlinux	EXPORT_SYMBOL
 0xa6afa73b	qdisc_create_dflt	vmlinux	EXPORT_SYMBOL
 0xcc9db6f3	qdisc_destroy	vmlinux	EXPORT_SYMBOL

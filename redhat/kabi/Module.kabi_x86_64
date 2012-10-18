@@ -1022,6 +1022,7 @@
 0x8aa14eee	put_disk	vmlinux	EXPORT_SYMBOL
 0x72b295a3	put_page	vmlinux	EXPORT_SYMBOL
 0x0fcbb547	put_tty_driver	vmlinux	EXPORT_SYMBOL
+0x3f4547a7	put_unused_fd   vmlinux EXPORT_SYMBOL
 0x27f96468	pv_cpu_ops	vmlinux	EXPORT_SYMBOL
 0x78764f4e	pv_irq_ops	vmlinux	EXPORT_SYMBOL
 0xf4dc0fdc	qdisc_calculate_pkt_len	vmlinux	EXPORT_SYMBOL
