@@ -719,6 +719,7 @@
 	posix_acl_alloc
 	posix_acl_from_xattr
 	posix_acl_to_xattr
+	posix_acl_valid
 	prepare_to_wait
 	prepare_to_wait_exclusive
 	print_hex_dump
