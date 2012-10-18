@@ -259,6 +259,8 @@ nvd0_display_flip_stop(struct drm_crtc *crtc)
 	struct evo *evo = &disp->evo[EVO_FLIP(nv_crtc->index)];
 	u32 *push;
 
+	return;
+
 	push = evo_wait(crtc->dev, evo->idx, 8);
 	if (push) {
 		evo_mthd(push, 0x0084, 1);
@@ -284,6 +286,8 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u64 offset;
 	u32 *push;
 	int ret;
+
+	return 0;
 
 	swap_interval <<= 4;
 	if (swap_interval == 0)

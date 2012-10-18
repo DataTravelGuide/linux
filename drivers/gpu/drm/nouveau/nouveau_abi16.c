@@ -70,7 +70,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_HAS_PAGEFLIP:
-		getparam->value = 1;
+		getparam->value = (dev_priv->chipset < 0xd0);
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register
