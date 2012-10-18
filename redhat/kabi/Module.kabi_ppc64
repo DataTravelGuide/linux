@@ -701,6 +701,7 @@
 0xd3af979c	memdup_user	vmlinux	EXPORT_SYMBOL
 0x5dbbe98e	memmove	vmlinux	EXPORT_SYMBOL
 0x189b6bac	memory_read_from_buffer	vmlinux	EXPORT_SYMBOL
+0x27864d57	memparse	vmlinux	EXPORT_SYMBOL
 0xcfaf79ba	mempool_alloc	vmlinux	EXPORT_SYMBOL
 0x183fa88b	mempool_alloc_slab	vmlinux	EXPORT_SYMBOL
 0xbe8a1485	mempool_create	vmlinux	EXPORT_SYMBOL

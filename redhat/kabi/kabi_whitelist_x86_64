@@ -748,6 +748,7 @@
 	memdup_user
 	memmove
 	memory_read_from_buffer
+	memparse
 	mempool_alloc
 	mempool_alloc_slab
 	mempool_create
