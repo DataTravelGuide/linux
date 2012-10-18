@@ -102,6 +102,7 @@
 0x89a08186	atomic_notifier_chain_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0x201aafb0	attribute_container_find_class_device	vmlinux	EXPORT_SYMBOL_GPL
 0xc8b57c27	autoremove_wake_function	vmlinux	EXPORT_SYMBOL
+0xfeb5b7f1	balance_dirty_pages_ratelimited_nr	vmlinux	EXPORT_SYMBOL
 0xfec3c2f2	bcd2bin	vmlinux	EXPORT_SYMBOL
 0x91a390fb	bd_claim	vmlinux	EXPORT_SYMBOL
 0x0003194f	bd_release	vmlinux	EXPORT_SYMBOL

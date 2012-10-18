@@ -127,6 +127,7 @@
 	autoremove_wake_function
 	backlight_device_register
 	backlight_device_unregister
+	balance_dirty_pages_ratelimited_nr
 	bcd2bin
 	bd_claim
 	bd_release

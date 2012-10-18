@@ -147,6 +147,7 @@
 0x1a0f19d1	backlight_device_register	vmlinux	EXPORT_SYMBOL
 0x63eeac30	backlight_device_unregister	vmlinux	EXPORT_SYMBOL
 0x1675606f	bad_dma_address	vmlinux	EXPORT_SYMBOL
+0xdc8c7865	balance_dirty_pages_ratelimited_nr	vmlinux	EXPORT_SYMBOL
 0xfec3c2f2	bcd2bin	vmlinux	EXPORT_SYMBOL
 0x87846fce	bd_claim	vmlinux	EXPORT_SYMBOL
 0x82f52f83	bd_release	vmlinux	EXPORT_SYMBOL

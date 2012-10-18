@@ -103,6 +103,7 @@
 	atomic_notifier_chain_unregister
 	attribute_container_find_class_device
 	autoremove_wake_function
+	balance_dirty_pages_ratelimited_nr
 	bcd2bin
 	bd_claim
 	bd_release

@@ -148,6 +148,7 @@
 	backlight_device_register
 	backlight_device_unregister
 	bad_dma_address
+	balance_dirty_pages_ratelimited_nr
 	bcd2bin
 	bd_claim
 	bd_release

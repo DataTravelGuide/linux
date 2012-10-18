@@ -126,6 +126,7 @@
 0xc8b57c27	autoremove_wake_function	vmlinux	EXPORT_SYMBOL
 0x3348505e	backlight_device_register	vmlinux	EXPORT_SYMBOL
 0x1f3c0182	backlight_device_unregister	vmlinux	EXPORT_SYMBOL
+0x8b2a4ede	balance_dirty_pages_ratelimited_nr	vmlinux	EXPORT_SYMBOL
 0xfec3c2f2	bcd2bin	vmlinux	EXPORT_SYMBOL
 0x7e1e4add	bd_claim	vmlinux	EXPORT_SYMBOL
 0xe346222f	bd_release	vmlinux	EXPORT_SYMBOL
