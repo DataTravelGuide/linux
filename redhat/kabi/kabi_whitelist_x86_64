@@ -261,6 +261,7 @@
 	class_remove_file
 	class_unregister
 	clear_inode
+	clear_page
 	clear_page_dirty_for_io
 	clear_user
 	close_bdev_exclusive

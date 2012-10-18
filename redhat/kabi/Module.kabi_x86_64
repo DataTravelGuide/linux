@@ -260,6 +260,7 @@
 0x71306250	class_remove_file	vmlinux	EXPORT_SYMBOL_GPL
 0xa9d45217	class_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0x1af07d43	clear_inode	vmlinux	EXPORT_SYMBOL
+0x3d9ee9f0	clear_page	vmlinux	EXPORT_SYMBOL
 0x2bd79406	clear_page_dirty_for_io	vmlinux	EXPORT_SYMBOL
 0xd1581077	clear_user	vmlinux	EXPORT_SYMBOL
 0x6bc34cb6	close_bdev_exclusive	vmlinux	EXPORT_SYMBOL
