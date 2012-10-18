@@ -201,6 +201,7 @@
 	blk_stop_queue
 	blkcipher_walk_done
 	blkcipher_walk_virt
+	blkdev_get
 	blkdev_put
 	block_commit_write
 	block_prepare_write
