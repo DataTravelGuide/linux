@@ -70,6 +70,7 @@
 0xc512626a	__supported_pte_mask	vmlinux	EXPORT_SYMBOL_GPL
 0x868784cb	__symbol_get	vmlinux	EXPORT_SYMBOL_GPL
 0x6e9dd606	__symbol_put	vmlinux	EXPORT_SYMBOL
+0x4ab09b80	__task_pid_nr_ns	vmlinux	EXPORT_SYMBOL
 0x267fc65b	__tasklet_hi_schedule	vmlinux	EXPORT_SYMBOL
 0xf397b9aa	__tasklet_schedule	vmlinux	EXPORT_SYMBOL
 0x36875389	__timecompare_update	vmlinux	EXPORT_SYMBOL

@@ -71,6 +71,7 @@
 	__supported_pte_mask
 	__symbol_get
 	__symbol_put
+	__task_pid_nr_ns
 	__tasklet_hi_schedule
 	__tasklet_schedule
 	__timecompare_update
