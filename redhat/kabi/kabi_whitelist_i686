@@ -1032,6 +1032,7 @@
 	radix_tree_gang_lookup
 	radix_tree_gang_lookup_tag
 	radix_tree_tag_clear
+	radix_tree_tag_set
 	raid_class_attach
 	raid_class_release
 	random32

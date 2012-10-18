@@ -1031,6 +1031,7 @@
 0x8063f83d	radix_tree_gang_lookup	vmlinux	EXPORT_SYMBOL
 0xea858cb5	radix_tree_gang_lookup_tag	vmlinux	EXPORT_SYMBOL
 0xf7623914	radix_tree_tag_clear	vmlinux	EXPORT_SYMBOL
+0xdd6bfccd	radix_tree_tag_set	vmlinux	EXPORT_SYMBOL
 0x53471e01	raid_class_attach	drivers/scsi/raid_class	EXPORT_SYMBOL
 0x894d9978	raid_class_release	drivers/scsi/raid_class	EXPORT_SYMBOL
 0xb86e4ab9	random32	vmlinux	EXPORT_SYMBOL
