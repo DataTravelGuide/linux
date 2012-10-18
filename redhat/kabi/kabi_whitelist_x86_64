@@ -471,6 +471,7 @@
 	fc_remote_port_delete
 	fc_remote_port_rolechg
 	fc_remove_host
+	fd_install
 	fget
 	filemap_fault
 	filemap_fdatawait
