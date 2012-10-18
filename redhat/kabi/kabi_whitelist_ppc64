@@ -1010,6 +1010,7 @@
 	register_pernet_subsys
 	register_qdisc
 	register_reboot_notifier
+	register_shrinker
 	register_sysctl_paths
 	register_sysctl_table
 	register_sysrq_key

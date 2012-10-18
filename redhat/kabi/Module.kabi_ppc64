@@ -1009,6 +1009,7 @@
 0x88938a93	register_pernet_subsys	vmlinux	EXPORT_SYMBOL_GPL
 0xf47eba28	register_qdisc	vmlinux	EXPORT_SYMBOL
 0x1cc6719a	register_reboot_notifier	vmlinux	EXPORT_SYMBOL
+0x19f428cb	register_shrinker	vmlinux	EXPORT_SYMBOL
 0xde8aff4b	register_sysctl_paths	vmlinux	EXPORT_SYMBOL
 0xa4ad2a20	register_sysctl_table	vmlinux	EXPORT_SYMBOL
 0x99bfc2ea	register_sysrq_key	vmlinux	EXPORT_SYMBOL
