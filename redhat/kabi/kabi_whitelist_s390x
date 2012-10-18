@@ -922,6 +922,7 @@
 	sget
 	shmem_file_setup
 	shrink_dcache_parent
+	shrink_dcache_sb
 	sigprocmask
 	simple_empty
 	simple_read_from_buffer
