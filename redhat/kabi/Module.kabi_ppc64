@@ -243,6 +243,7 @@
 0x2581543c	complete	vmlinux	EXPORT_SYMBOL
 0xa2d4c119	complete_all	vmlinux	EXPORT_SYMBOL
 0x69b4208d	complete_and_exit	vmlinux	EXPORT_SYMBOL
+0x64999478	congestion_wait	vmlinux	EXPORT_SYMBOL
 0x811183c5	consume_skb	vmlinux	EXPORT_SYMBOL
 0x0d6c963c	copy_from_user	vmlinux	EXPORT_SYMBOL
 0x8d944cbb	copy_in_user	vmlinux	EXPORT_SYMBOL

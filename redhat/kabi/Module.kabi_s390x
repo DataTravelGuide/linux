@@ -216,6 +216,7 @@
 0xd12282cc	complete	vmlinux	EXPORT_SYMBOL
 0x0d161444	complete_all	vmlinux	EXPORT_SYMBOL
 0xb5226160	complete_and_exit	vmlinux	EXPORT_SYMBOL
+0x64999478	congestion_wait	vmlinux	EXPORT_SYMBOL
 0xe38ecf1f	consume_skb	vmlinux	EXPORT_SYMBOL
 0x0f31ac28	contig_page_data	vmlinux	EXPORT_SYMBOL
 0x3109b751	cpu_clock	vmlinux	EXPORT_SYMBOL_GPL

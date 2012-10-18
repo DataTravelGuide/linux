@@ -244,6 +244,7 @@
 	complete
 	complete_all
 	complete_and_exit
+	congestion_wait
 	consume_skb
 	copy_from_user
 	copy_in_user
