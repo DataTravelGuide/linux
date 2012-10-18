@@ -538,6 +538,9 @@ static const struct trans_ctl_table trans_net_ipv6_table[] = {
 	{ NET_IPV6_IP6FRAG_LOW_THRESH,	"ip6frag_low_thresh" },
 	{ NET_IPV6_IP6FRAG_TIME,	"ip6frag_time" },
 	{ NET_IPV6_IP6FRAG_SECRET_INTERVAL,	"ip6frag_secret_interval" },
+	{ NET_NF_CONNTRACK_FRAG6_TIMEOUT,	"nf_conntrack_frag6_timeout" },
+	{ NET_NF_CONNTRACK_FRAG6_LOW_THRESH,	"nf_conntrack_frag6_low_thresh" },
+	{ NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,	"nf_conntrack_frag6_high_thresh" },
 	{ NET_IPV6_MLD_MAX_MSF,		"mld_max_msf" },
 	{ 2088 /* IPQ_QMAX */,		"ip6_queue_maxlen" },
 	{}
