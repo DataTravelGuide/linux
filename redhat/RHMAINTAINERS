@@ -130,7 +130,7 @@ F:	drivers/net/bnx2x.*
 F:	drivers/net/bnx2x_*
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
-M:	John Feeney <jfeeney@redhat.com>
+M:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
 F:	drivers/net/tg3.*
 
