@@ -116,6 +116,8 @@ source "drivers/vlynq/Kconfig"
 
 source "drivers/xen/Kconfig"
 
+source "drivers/hv/Kconfig"
+
 source "drivers/staging/Kconfig"
 
 source "drivers/platform/Kconfig"
