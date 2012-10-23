@@ -12470,6 +12470,11 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_sset_count		= tg3_get_sset_count,
 };
 
+static const struct ethtool_ops_ext tg3_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	.get_ts_info		= ethtool_op_get_ts_info,
+};
+
 static struct net_device_stats *tg3_get_stats(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -15834,6 +15839,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->rx_jumbo_pending = TG3_DEF_RX_JUMBO_RING_PENDING;
 
 	dev->ethtool_ops = &tg3_ethtool_ops;
+	set_ethtool_ops_ext(dev, &tg3_ethtool_ops_ext);
 	dev->watchdog_timeo = TG3_TX_TIMEOUT;
 	dev->netdev_ops = &tg3_netdev_ops;
 	dev->irq = pdev->irq;
