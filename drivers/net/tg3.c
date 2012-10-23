@@ -7131,6 +7131,8 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto drop_nofree;
 	}
 
+	skb_tx_timestamp(skb);
+
 	/* Sync BD data before updating mailbox */
 	wmb();
 
