@@ -1517,7 +1517,6 @@ static int  __perf_install_in_context(void *info)
 		perf_event_context_sched_in(ctx, ctx->task);
 
 	spin_lock(&ctx->lock);
-	ctx->is_active = 1;
 	update_context_time(ctx);
 	/*
 	 * update cgrp time only if current cgrp
