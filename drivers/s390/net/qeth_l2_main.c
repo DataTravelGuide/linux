@@ -1163,8 +1163,7 @@ static int qeth_l2_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		if (card->dev) {
-			rtnl_lock();
+		if (card->dev && rtnl_trylock()) {
 			dev_close(card->dev);
 			rtnl_unlock();
 		}
