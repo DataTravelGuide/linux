@@ -1674,6 +1674,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Oct 26 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-337.el6]
+- [fs] ext4: Adding error check after calling ext4_mb_regular_allocator() (Eric Sandeen) [852810]
+- [md] faulty: use disk_stack_limits() (Eric Sandeen) [868233]
+- [fs] autofs4: fix reset pending flag on mount fail (Ian Kent) [866271]
+- [net] netfilter/nfnetlink_queue: do not allow to set unsupported flag bits (Steve Best) [822598]
+- [net] netfilter: Add fail-open support (Steve Best) [822598]
+- [pci] intel-iommu: Increase the number of iommus supported to MAX_IO_APICS (George Beshers) [787724]
+- [pci] intel-iommu: Fix identity mapping for sandy bridge (George Beshers) [787724]
+- [netdrv] tg3: Support the get_ts_info ethtool method (Jiri Benc) [866624]
+- [netdrv] tg3: enable transmit time stamping (Jiri Benc) [866624]
+- [kernel] audit: do not print error when SELinux disabled (Eric Paris) [785936]
+- [kernel] resource: make sure requested range is included in the root range (Johannes Weiner) [845632]
+- [kernel] ntp: fix non privileged system time shifting (Jan Stancek) [868827]
+- [x86] mce: Fix race in MCE cpu synchronization (Prarit Bhargava) [868110]
+- [net] cfg80211, mac80211: avoid state mismatch on deauth (Stanislaw Gruszka) [866417]
+- [net] mac80211: check if key has TKIP type before updating IV (Stanislaw Gruszka) [859355]
+
 * Mon Oct 22 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-336.el6]
 - [tools] perf: Catch event names from command line (Luming Yu) [696579 696580]
 - [tools] perf: Allow pmu events parsing for RHEL6 (Luming Yu) [696579 696580]
