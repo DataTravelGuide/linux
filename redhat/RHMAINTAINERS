@@ -432,6 +432,10 @@ S:	Maintained
 F:	net/sctp/
 F:	include/net/sctp/
 
+SECURITY RELATED FIXES
+M:	Security Response Team <secalert@redhat.com>
+S:	maintained, https://home.corp.redhat.com/wiki/embargo-faq
+
 SERIAL ATA (SATA) SUBSYSTEM
 M:	David Milburn <dmilburn@redhat.com>
 M:	Jeff Garzik <jgarzik@redhat.com>
