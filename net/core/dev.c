@@ -1554,18 +1554,19 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 	if (dev->reg_state == NETREG_REGISTERED) {
 		ASSERT_RTNL();
 
-		if (rxq > dev->num_rx_queues)
+		if (rxq > netdev_extended(dev)->rps_data.num_rx_queues)
 			return -EINVAL;
 
-		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
+		rc = net_rx_queue_update_kobjects(dev,
+				netdev_extended(dev)->real_num_rx_queues,
 						  rxq);
 		if (rc)
 			return rc;
 	} else {
-		dev->num_rx_queues = rxq;
+		netdev_extended(dev)->rps_data.num_rx_queues = rxq;
 	}
 
-	dev->real_num_rx_queues = rxq;
+	netdev_extended(dev)->real_num_rx_queues = rxq;
 	return 0;
 }
 EXPORT_SYMBOL(netif_set_real_num_rx_queues);
