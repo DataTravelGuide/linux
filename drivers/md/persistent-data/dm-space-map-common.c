@@ -7,7 +7,7 @@
 #include "dm-space-map-common.h"
 #include "dm-transaction-manager.h"
 
-#include <asm-generic/bitops/le.h>
+#include <linux/bitops.h>
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "space map common"
@@ -142,8 +142,8 @@ static unsigned sm_lookup_bitmap(void *addr, unsigned b)
 	unsigned hi, lo;
 
 	b = (b & (ENTRIES_PER_WORD - 1)) << 1;
-	hi = !!generic_test_le_bit(b, (void *) w_le);
-	lo = !!generic_test_le_bit(b + 1, (void *) w_le);
+	hi = !!test_bit_le(b, (void *) w_le);
+	lo = !!test_bit_le(b + 1, (void *) w_le);
 	return (hi << 1) | lo;
 }
 
@@ -155,14 +155,14 @@ static void sm_set_bitmap(void *addr, unsigned b, unsigned val)
 	b = (b & (ENTRIES_PER_WORD - 1)) << 1;
 
 	if (val & 2)
-		generic___set_le_bit(b, (void *) w_le);
+		__set_bit_le(b, (void *) w_le);
 	else
-		generic___clear_le_bit(b, (void *) w_le);
+		__clear_bit_le(b, (void *) w_le);
 
 	if (val & 1)
-		generic___set_le_bit(b + 1, (void *) w_le);
+		__set_bit_le(b + 1, (void *) w_le);
 	else
-		generic___clear_le_bit(b + 1, (void *) w_le);
+		__clear_bit_le(b + 1, (void *) w_le);
 }
 
 static int sm_find_free(void *addr, unsigned begin, unsigned end,
