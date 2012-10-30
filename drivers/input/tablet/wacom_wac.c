@@ -397,7 +397,8 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 
 	/* older I4 styli don't work with new Cintiqs */
 	if (!((wacom->id[idx] >> 20) & 0x01) &&
-			(wacom->features->type == WACOM_21UX2))
+			(wacom->features->type >= WACOM_21UX2 &&
+			 wacom->features->type <= WACOM_24HD))
 		return 1;
 
 	/* Exit report */
@@ -447,8 +448,8 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
 		if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
                     (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L) ||
-			wacom->features->type == WACOM_21UX2 ||
-			wacom->features->type == WACOM_24HD) {
+			(wacom->features->type >= WACOM_21UX2 &&
+			wacom->features->type <= WACOM_24HD)) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		wacom_report_abs(wcombo, ABS_PRESSURE, t);
@@ -596,7 +597,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_abs(wcombo, ABS_MISC, 0);
 			}
 		} else {
-			if (wacom->features->type == WACOM_21UX2) {
+			if (wacom->features->type == WACOM_21UX2 ||
+			    wacom->features->type == WACOM_22HD) {
 				wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
 				wacom_report_key(wcombo, BTN_1, (data[6] & 0x01));
 				wacom_report_key(wcombo, BTN_2, (data[6] & 0x02));
@@ -615,6 +617,11 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_key(wcombo, BTN_Z, (data[8] & 0x20));
 				wacom_report_key(wcombo, BTN_BASE, (data[8] & 0x40));
 				wacom_report_key(wcombo, BTN_BASE2, (data[8] & 0x80));
+				if (wacom->features->type == WACOM_22HD) {
+					wacom_report_key(wcombo, KEY_PROG1, data[9] & 0x01);
+					wacom_report_key(wcombo, KEY_PROG2, data[9] & 0x02);
+					wacom_report_key(wcombo, KEY_PROG3, data[9] & 0x04);
+				}
 			} else {
 				wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
 				wacom_report_key(wcombo, BTN_1, (data[5] & 0x02));
@@ -981,6 +988,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case CINTIQ:
 		case WACOM_BEE:
 		case WACOM_21UX2:
+		case WACOM_22HD:
 		case WACOM_24HD:
 			return wacom_intuos_irq(wacom_wac, wcombo);
 
@@ -1009,6 +1017,9 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 		case WACOM_24HD:
 			input_dev_24hd(input_dev, wacom_wac);
 			break;
+		case WACOM_22HD:
+			input_dev_c22hd(input_dev, wacom_wac);
+			/* fall through */
 		case WACOM_21UX2:
 			input_dev_c21ux2(input_dev, wacom_wac);
 			/* fall through */
@@ -1127,6 +1138,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos5 S",     10, 31496, 19685, 2047, 63, INTUOS5S },
 	{ "Wacom Intuos5 M",     10, 44704, 27940, 2047, 63, INTUOS5 },
 	{ "Wacom Bamboo Pen",	  9, 14720,  9200, 1023, 31, BAMBOO_PT },
+	{ "Wacom Cintiq 22HD",	 10, 95840, 54260, 2047, 63, WACOM_22HD },
 	{ }
 };
 
@@ -1221,6 +1233,9 @@ static struct usb_device_id wacom_ids[] = {
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ USB_DEVICE_DETAILED(0xD4, USB_CLASS_HID,
+			      USB_INTERFACE_SUBCLASS_BOOT,
+			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE_DETAILED(0xFA, USB_CLASS_HID,
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ }
