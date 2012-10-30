@@ -363,7 +363,8 @@ static int intel_idle_probe(void)
 		cpuidle_state_table = snb_cstates;
 		break;
 
-	case 0x3A:
+	case 0x3A:	/* Ivy Bridge */
+	case 0x3E:	/* Ivy Bridge Xeon */
 		cpuidle_state_table = ivb_cstates;
 		break;
 
