@@ -2567,7 +2567,6 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->rval;
-	args.stack_switch = ap->stack_switch;
 
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = MIN(ap->alen, XFS_ALLOC_AG_MAX_USABLE(mp));
@@ -4289,6 +4288,44 @@ xfs_bmap_validate_ret(
 #endif /* DEBUG */
 
 
+static void
+xfs_bmapi_allocate_worker(
+	struct work_struct	*work)
+{
+	struct xfs_bmalloca	*args = container_of(work,
+						struct xfs_bmalloca, work);
+	unsigned long		pflags;
+
+	/* we are in a transaction context here */
+	current_set_flags_nested(&pflags, PF_FSTRANS);
+
+	args->result = xfs_bmap_alloc(args);
+	complete(args->done);
+
+	current_restore_flags_nested(&pflags, PF_FSTRANS);
+}
+
+/*
+ * Some allocation requests often come in with little stack to work on. Push
+ * them off to a worker thread so there is lots of stack to use. Otherwise just
+ * call directly to avoid the context switch overhead here.
+ */
+int
+xfs_bmapi_allocate(
+	struct xfs_bmalloca	*args)
+{
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	if (!args->stack_switch)
+		return xfs_bmap_alloc(args);
+
+	args->done = &done;
+	INIT_WORK(&args->work, xfs_bmapi_allocate_worker);
+	queue_work(xfs_alloc_wq, &args->work);
+	wait_for_completion(&done);
+	return args->result;
+}
+
 /*
  * Map file blocks to filesystem blocks.
  * File range is given by the bno/len pair.
@@ -4599,6 +4636,7 @@ xfs_bmapi(
 				bma.minlen = minlen;
 				bma.low = flist->xbf_low;
 				bma.minleft = minleft;
+				bma.flags = flags;
 				/*
 				 * Only want to do the alignment at the
 				 * eof if it is userdata and allocation length
@@ -4614,12 +4652,12 @@ xfs_bmapi(
 					bma.aeof = 0;
 
 				if (flags & XFS_BMAPI_STACK_SWITCH)
-					bma->stack_switch = 1;
+					bma.stack_switch = 1;
 
 				/*
 				 * Call allocator.
 				 */
-				if ((error = xfs_bmap_alloc(&bma)))
+				if ((error = xfs_bmapi_allocate(&bma)))
 					goto error0;
 				/*
 				 * Copy out result fields.
