@@ -1674,6 +1674,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 31 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-338.el6]
+- [netdrv] igb: schedule watchdog every second to update statistics fixup (Stefan Assmann) [838404]
+- [s390] smsgiucv: reestablish IUCV path after resume (Hendrik Brueckner) [869752]
+- [kernel] events: Fix perf tool is_active old behaviour leftover (Jiri Olsa) [865380]
+- [mm] hugetlb: fix non-atomic enqueue of huge page (Rafael Aquini) [869750]
+- [char] random: Use arch-specific RNG to initialize the entropy store (Prarit Bhargava) [862344]
+- [drm] i915: Use cpu relocations if the object is in the GTT but not mappable (Dave Airlie) [869856]
+- [scsi] storvsc: Account for in-transit packets in the RESET path (Jason Wang) [870297]
+- [netdrv] ixgbe: reduce PTP rx path overhead (Jiri Benc) [868214]
+- [net] relax rcvbuf limits (Weiping Pan) [860778]
+- [lib] Fix rwsem to not hang the system (David Howells) [852847]
+- [input] wacom: add support to Cintiq 22HD (Aristeu Rozanski) [857062]
+
 * Fri Oct 26 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-337.el6]
 - [fs] ext4: Adding error check after calling ext4_mb_regular_allocator() (Eric Sandeen) [852810]
 - [md] faulty: use disk_stack_limits() (Eric Sandeen) [868233]
