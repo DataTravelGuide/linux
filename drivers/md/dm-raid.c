@@ -1005,7 +1005,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	int ret;
 	unsigned redundancy = 0;
 	struct raid_dev *dev;
-	struct md_rdev *rdev, *freshest;
+	struct md_rdev *rdev, *tmp, *freshest;
 	struct mddev *mddev = &rs->md;
 
 	switch (rs->raid_type->level) {
@@ -1026,7 +1026,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	}
 
 	freshest = NULL;
-	rdev_for_each(rdev, mddev) {
+	rdev_for_each_safe(rdev, tmp, mddev) {
 		if (!rdev->meta_bdev)
 			continue;
 
