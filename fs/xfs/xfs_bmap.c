@@ -2567,6 +2567,7 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->rval;
+	args.stack_switch = ap->stack_switch;
 
 	/* Trim the allocation back to the maximum an AG can fit. */
 	args.maxlen = MIN(ap->alen, XFS_ALLOC_AG_MAX_USABLE(mp));
@@ -4611,6 +4612,10 @@ xfs_bmapi(
 						goto error0;
 				} else
 					bma.aeof = 0;
+
+				if (flags & XFS_BMAPI_STACK_SWITCH)
+					bma->stack_switch = 1;
+
 				/*
 				 * Call allocator.
 				 */
