@@ -120,7 +120,7 @@ Summary: The Linux kernel
 %endif
 
 # Control whether we perform a compat. check against published ABI.
-%define with_kabichk   %{?_without_kabichk:   0} %{?!_without_kabichk: 1}
+%define with_kabichk   %{?_without_kabichk:   0} %{?!_without_kabichk:   1}
 # Control whether we perform a compat. check against published ABI.
 %define with_fips      %{?_without_fips:      0} %{?!_without_fips:      1}
 
@@ -134,7 +134,10 @@ Summary: The Linux kernel
 %define with_dbgonly   %{?_with_dbgonly:      1} %{?!_with_dbgonly:      0}
 
 # should we do C=1 builds with sparse
-%define with_sparse	%{?_with_sparse:      1} %{?!_with_sparse:      0}
+%define with_sparse    %{?_with_sparse:       1} %{?!_with_sparse:       0}
+
+# Cross compile requested?
+%define with_cross    %{?_with_cross:         1} %{?!_with_cross:        0}
 
 # Set debugbuildsenabled to 1 for production (build separate debug kernels)
 #  and 0 for rawhide (all kernels are debug kernels).
@@ -540,6 +543,22 @@ BuildConflicts: rhbuildsys(DiskFree) < 7Gb
 %if %{fancy_debuginfo}
 # Fancy new debuginfo generation introduced in Fedora 8.
 %define debuginfo_args --strict-build-id
+%endif
+
+#cross compile make
+%if %{with_cross}
+%if "%{_target_cpu}" == "i686"
+%define cross_opts CROSS_COMPILE=i686-unknown-linux-gnu-
+%endif
+%if "%{_target_cpu}" == "s390x"
+%define cross_opts CROSS_COMPILE=s390x-unknown-linux-gnu-
+%endif
+%if "%{_target_cpu}" == "ppc64"
+%define cross_opts CROSS_COMPILE=powerpc64-unknown-linux-gnu-
+%define strip_cmd /opt/crosstool/gcc-glibc/powerpc64-unknown-linux-gnu/bin/powerpc64-unknown-linux-gnu-strip
+%endif
+%else
+%define strip_cmd strip
 %endif
 
 Source0: linux-2.6.32.tar.bz2
@@ -985,7 +1004,7 @@ export AFTER_LINK=\
 
 cp_vmlinux()
 {
-  strip -R .note -R .comment -o "$2" "$1"
+  %{strip_cmd} -R .note -R .comment -o "$2" "$1"
 }
 
 BuildKernel() {
@@ -1032,10 +1051,10 @@ BuildKernel() {
         gcc -static -o zfcpdump zfcpdump.c
         popd
     fi
-    make -s ARCH=$Arch %{oldconfig_target} > /dev/null
-    make -s ARCH=$Arch V=1 %{?_smp_mflags} $MakeTarget %{?sparse_mflags}
+    make -s %{?cross_opts} ARCH=$Arch %{oldconfig_target} > /dev/null
+    make -s %{?cross_opts} ARCH=$Arch V=1 %{?_smp_mflags} $MakeTarget %{?sparse_mflags}
     if [ "$Arch" != "s390" -o "$Flavour" != "kdump" ]; then
-        make -s ARCH=$Arch V=1 %{?_smp_mflags} modules %{?sparse_mflags} || exit 1
+	make -s %{?cross_opts} ARCH=$Arch V=1 %{?_smp_mflags} modules %{?sparse_mflags} || exit 1
     fi
 
     # Start installing the results
@@ -1072,7 +1091,7 @@ BuildKernel() {
     # Override $(mod-fw) because we don't want it to install any firmware
     # We'll do that ourselves with 'make firmware_install'
     if [ "$Arch" != "s390" -o "$Flavour" != "kdump" ]; then
-      make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
+      make -s %{?cross_opts} ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
 
       # check if the modules are being signed
 %if %{signmodules}
@@ -1091,7 +1110,7 @@ BuildKernel() {
     fi
 
 %ifarch %{vdso_arches}
-    make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT vdso_install KERNELRELEASE=$KernelVer
+    make -s %{?cross_opts} ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT vdso_install KERNELRELEASE=$KernelVer
     if grep '^CONFIG_XEN=y$' .config >/dev/null; then
       echo > ldconfig-kernel.conf "\
 # This directive teaches ldconfig to search in nosegneg subdirectories
@@ -1373,10 +1392,10 @@ ls $man9dir | grep -q '' || > $man9dir/BROKEN
 
 %if %{with_headers}
 # Install kernel headers
-make ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
+make %{?cross_opts} ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
 
 # Do headers_check but don't die if it fails.
-make ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_check \
+make %{?cross_opts} ARCH=%{hdrarch} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_check \
      > hdrwarnings.txt || :
 if grep -q exist hdrwarnings.txt; then
    sed s:^$RPM_BUILD_ROOT/usr/include/:: hdrwarnings.txt
@@ -1400,7 +1419,7 @@ rm -f $RPM_BUILD_ROOT/usr/include/asm*/irq.h
 %endif
 
 %if %{with_bootwrapper}
-make DESTDIR=$RPM_BUILD_ROOT bootwrapper_install WRAPPER_OBJDIR=%{_libdir}/kernel-wrapper WRAPPER_DTSDIR=%{_libdir}/kernel-wrapper/dts
+make %{?cross_opts} ARCH=%{hdrarch} DESTDIR=$RPM_BUILD_ROOT bootwrapper_install WRAPPER_OBJDIR=%{_libdir}/kernel-wrapper WRAPPER_DTSDIR=%{_libdir}/kernel-wrapper/dts
 %endif
 
 

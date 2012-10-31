@@ -60,6 +60,13 @@ endif
 
 ARCHCONFIG := $(shell uname -m | sed -e s/x86_64/X86_64/ -e  s/i.86/X86/ \
 				     -e s/s390x/S390/ -e s/ppc.*/PPC/ )
+
+PATH := /opt/crosstool/gcc-glibc/s390x-unknown-linux-gnu/bin:${PATH}
+PATH := /opt/crosstool/gcc-glibc/i686-unknown-linux-gnu/bin:${PATH}
+PATH := /opt/crosstool/gcc-glibc/powerpc64-unknown-linux-gnu/bin:${PATH}
+
+include Makefile.cross
+
 default: rh-help
 
 rh-check-kabi:

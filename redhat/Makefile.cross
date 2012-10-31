@@ -1,0 +1,61 @@
+# compile targets for cross compile builds
+CROSS_REPO=http://patchwork.lab.bos.redhat.com/packages/crosstools/rhel6-cross-compilers.repo
+
+CROSS_RPMFLAGS = $(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)"
+
+rh-cross-download:
+	@if [ "$(ARCHCONFIG)" != "X86_64" ]; then \
+		echo "$(ARCHCONFIG) ERROR: cross compile only enabled for x86_64"; \
+		exit 1; \
+	fi;
+ifeq ($(USER), root)
+	@yum -y --config=$(CROSS_REPO) install rhel6-cross-compilers;
+else
+	@echo "Checking for rhel6-cross-compilers.  If this fails, run \"make rh-cross-download\" as root."
+	@rpm -q rhel6-cross-compilers
+	@echo "Compilers found."
+endif
+
+rh-cross-i686-rpms: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686"
+
+rh-cross-ppc64-rpms: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target ppc64 --with cross -ba $(RPM)/SOURCES/kernel.spec
+
+rh-cross-s390x-rpms: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "s390"
+
+rh-cross-all-rpms: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) --target ppc64 --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x"
+
+rh-cross-i686-build: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686"
+
+rh-cross-s390x-build:
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target ppc64 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "s390x"
+
+rh-cross-ppc64-build:
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "ppc64"
+
+rh-cross-all-builds: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) --target ppc64 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x"
+
