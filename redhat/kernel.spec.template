@@ -531,7 +531,11 @@ BuildRequires: glibc-static
 
 BuildConflicts: rhbuildsys(DiskFree) < 7Gb
 
+%if %{with_debuginfo}
 %define fancy_debuginfo 1
+%else
+%define fancy_debuginfo 0
+%endif
 
 %if %{fancy_debuginfo}
 # Fancy new debuginfo generation introduced in Fedora 8.
