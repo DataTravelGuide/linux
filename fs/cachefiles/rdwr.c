@@ -196,6 +196,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 
 		fscache_end_io(op, monitor->netfs_page, error);
 		page_cache_release(monitor->netfs_page);
+		fscache_retrieval_complete(op, 1);
 		fscache_put_retrieval(op);
 		kfree(monitor);
 
@@ -338,6 +339,7 @@ backing_page_already_uptodate:
 
 	copy_highpage(netpage, backpage);
 	fscache_end_io(op, netpage, 0);
+	fscache_retrieval_complete(op, 1);
 
 success:
 	_debug("success");
@@ -359,6 +361,7 @@ read_error:
 		goto out;
 io_error:
 	cachefiles_io_error_obj(object, "Page read error on backing file");
+	fscache_retrieval_complete(op, 1);
 	ret = -ENOBUFS;
 	goto out;
 
@@ -368,6 +371,7 @@ nomem_monitor:
 	fscache_put_retrieval(monitor->op);
 	kfree(monitor);
 nomem:
+	fscache_retrieval_complete(op, 1);
 	_leave(" = -ENOMEM");
 	return -ENOMEM;
 }
@@ -406,7 +410,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	_enter("{%p},{%lx},,,", object, page->index);
 
 	if (!object->backer)
-		return -ENOBUFS;
+		goto enobufs;
 
 	inode = object->backer->d_inode;
 	ASSERT(S_ISREG(inode->i_mode));
@@ -415,7 +419,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 
 	/* calculate the shift required to use bmap */
 	if (inode->i_sb->s_blocksize > PAGE_SIZE)
-		return -ENOBUFS;
+		goto enobufs;
 
 	shift = PAGE_SHIFT - inode->i_sb->s_blocksize_bits;
 
@@ -447,13 +451,19 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	} else if (cachefiles_has_space(cache, 0, 1) == 0) {
 		/* there's space in the cache we can use */
 		fscache_mark_page_cached(op, page, true);
+		fscache_retrieval_complete(op, 1);
 		ret = -ENODATA;
 	} else {
-		ret = -ENOBUFS;
+		goto enobufs;
 	}
 
 	_leave(" = %d", ret);
 	return ret;
+
+enobufs:
+	fscache_retrieval_complete(op, 1);
+	_leave(" = -ENOBUFS");
+	return -ENOBUFS;
 }
 
 /*
@@ -631,6 +641,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 
 		/* the netpage is unlocked and marked up to date here */
 		fscache_end_io(op, netpage, 0);
+		fscache_retrieval_complete(op, 1);
 		page_cache_release(netpage);
 		netpage = NULL;
 		continue;
@@ -658,6 +669,7 @@ out:
 	list_for_each_entry_safe(netpage, _n, list, lru) {
 		list_del(&netpage->lru);
 		page_cache_release(netpage);
+		fscache_retrieval_complete(op, 1);
 	}
 
 	_leave(" = %d", ret);
@@ -714,7 +726,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	}
 
 	if (!object->backer)
-		return -ENOBUFS;
+		goto all_enobufs;
 
 	space = 1;
 	if (cachefiles_has_space(cache, 0, *nr_pages) < 0)
@@ -727,7 +739,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 
 	/* calculate the shift required to use bmap */
 	if (inode->i_sb->s_blocksize > PAGE_SIZE)
-		return -ENOBUFS;
+		goto all_enobufs;
 
 	shift = PAGE_SHIFT - inode->i_sb->s_blocksize_bits;
 
@@ -767,7 +779,10 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 			nrbackpages++;
 		} else if (space && pagevec_add(&pagevec, page) == 0) {
 			fscache_mark_pages_cached(op, &pagevec, false);
+			fscache_retrieval_complete(op, 1);
 			ret = -ENODATA;
+		} else {
+			fscache_retrieval_complete(op, 1);
 		}
 	}
 
@@ -788,6 +803,10 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	_leave(" = %d [nr=%u%s]",
 	       ret, *nr_pages, list_empty(pages) ? " empty" : "");
 	return ret;
+
+all_enobufs:
+	fscache_retrieval_complete(op, *nr_pages);
+	return -ENOBUFS;
 }
 
 /*
@@ -822,6 +841,7 @@ int cachefiles_allocate_page(struct fscache_retrieval *op,
 	else
 		ret = -ENOBUFS;
 
+	fscache_retrieval_complete(op, 1);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -871,6 +891,7 @@ int cachefiles_allocate_pages(struct fscache_retrieval *op,
 		ret = -ENOBUFS;
 	}
 
+	fscache_retrieval_complete(op, *nr_pages);
 	_leave(" = %d", ret);
 	return ret;
 }
