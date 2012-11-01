@@ -963,11 +963,13 @@ EXPORT_SYMBOL(__fscache_uncache_page);
  * fscache_mark_page_cached - Mark a page as being cached
  * @op: The retrieval op pages are being marked for
  * @page: The page to be marked
+ * @should_have_mapping: True if the pages should have a mapping set
  *
  * Mark a netfs page as being cached.  After this is called, the netfs
  * must call fscache_uncache_page() to remove the mark.
  */
-void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
+void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page,
+			      bool should_have_mapping)
 {
 	struct fscache_cookie *cookie = op->op.object->cookie;
 
@@ -986,6 +988,31 @@ void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
 			       cookie->def->name, page->index);
 		}
 	}
+	if (should_have_mapping && !page->mapping) {
+		static bool once_only;
+		if (!once_only) {
+			once_only = 1;
+			printk(KERN_ALERT
+			       "FSC: page:%p count:%d mapcount:%d NO_MAPPING"
+			       " index:%#lx\n",
+			       page, page_count(page), page_mapcount(page),
+			       page->index);
+			WARN_ON(1);
+		}
+	}
+
+	if (!should_have_mapping && page->mapping) {
+		static bool once_only;
+		if (!once_only) {
+			once_only = 1;
+			printk(KERN_ALERT
+			       "FSC: page:%p count:%d mapcount:%d MAPPING:%p"
+			       " index:%#lx\n",
+			       page, page_count(page), page_mapcount(page),
+			       page->mapping, page->index);
+			WARN_ON(1);
+		}
+	}
 
 	if (cookie->def->mark_page_cached)
 		cookie->def->mark_page_cached(cookie->netfs_data,
@@ -997,17 +1024,20 @@ EXPORT_SYMBOL(fscache_mark_page_cached);
  * fscache_mark_pages_cached - Mark pages as being cached
  * @op: The retrieval op pages are being marked for
  * @pagevec: The pages to be marked
+ * @should_have_mapping: True if the pages should have a mapping set
  *
  * Mark a bunch of netfs pages as being cached.  After this is called,
  * the netfs must call fscache_uncache_page() to remove the mark.
  */
 void fscache_mark_pages_cached(struct fscache_retrieval *op,
-			       struct pagevec *pagevec)
+			       struct pagevec *pagevec,
+			       bool should_have_mapping)
 {
 	unsigned long loop;
 
 	for (loop = 0; loop < pagevec->nr; loop++)
-		fscache_mark_page_cached(op, pagevec->pages[loop]);
+		fscache_mark_page_cached(op, pagevec->pages[loop],
+					 should_have_mapping);
 
 	pagevec_reinit(pagevec);
 }

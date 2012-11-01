@@ -176,7 +176,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 		if (PageUptodate(monitor->back_page)) {
 			copy_highpage(monitor->netfs_page, monitor->back_page);
 			fscache_mark_page_cached(monitor->op,
-						 monitor->netfs_page);
+						 monitor->netfs_page, true);
 			error = 0;
 		} else if (!PageError(monitor->back_page)) {
 			/* the page has probably been truncated */
@@ -333,7 +333,7 @@ backing_page_already_present:
 backing_page_already_uptodate:
 	_debug("- uptodate");
 
-	fscache_mark_page_cached(op, netpage);
+	fscache_mark_page_cached(op, netpage, true);
 
 	copy_highpage(netpage, backpage);
 	fscache_end_io(op, netpage, 0);
@@ -445,7 +445,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 						       &pagevec);
 	} else if (cachefiles_has_space(cache, 0, 1) == 0) {
 		/* there's space in the cache we can use */
-		fscache_mark_page_cached(op, page);
+		fscache_mark_page_cached(op, page, true);
 		ret = -ENODATA;
 	} else {
 		ret = -ENOBUFS;
@@ -621,7 +621,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		page_cache_release(backpage);
 		backpage = NULL;
 
-		fscache_mark_page_cached(op, netpage);
+		fscache_mark_page_cached(op, netpage, true);
 
 		page_cache_get(netpage);
 		if (!pagevec_add(&lru_pvec, netpage))
@@ -703,6 +703,14 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	       object->fscache.debug_id, atomic_read(&op->op.usage),
 	       *nr_pages);
 
+	{
+		struct page *q, *_q;
+		list_for_each_entry_safe(q, _q, pages, lru) {
+			ASSERT(!q->mapping);
+			ASSERT(!PageFsCache(q));
+		}
+	}
+
 	if (!object->backer)
 		return -ENOBUFS;
 
@@ -756,13 +764,13 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 			(*nr_pages)--;
 			nrbackpages++;
 		} else if (space && pagevec_add(&pagevec, page) == 0) {
-			fscache_mark_pages_cached(op, &pagevec);
+			fscache_mark_pages_cached(op, &pagevec, false);
 			ret = -ENODATA;
 		}
 	}
 
 	if (pagevec_count(&pagevec) > 0)
-		fscache_mark_pages_cached(op, &pagevec);
+		fscache_mark_pages_cached(op, &pagevec, false);
 
 	if (list_empty(pages))
 		ret = 0;
@@ -808,7 +816,7 @@ int cachefiles_allocate_page(struct fscache_retrieval *op,
 
 	ret = cachefiles_has_space(cache, 0, 1);
 	if (ret == 0)
-		fscache_mark_page_cached(op, page);
+		fscache_mark_page_cached(op, page, true);
 	else
 		ret = -ENOBUFS;
 
@@ -851,11 +859,11 @@ int cachefiles_allocate_pages(struct fscache_retrieval *op,
 
 		list_for_each_entry(page, pages, lru) {
 			if (pagevec_add(&pagevec, page) == 0)
-				fscache_mark_pages_cached(op, &pagevec);
+				fscache_mark_pages_cached(op, &pagevec, false);
 		}
 
 		if (pagevec_count(&pagevec) > 0)
-			fscache_mark_pages_cached(op, &pagevec);
+			fscache_mark_pages_cached(op, &pagevec, false);
 		ret = -ENODATA;
 	} else {
 		ret = -ENOBUFS;
