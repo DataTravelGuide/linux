@@ -237,7 +237,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 	_debug("read back %p{%lu,%d}",
 	       netpage, netpage->index, page_count(netpage));
 
-	monitor = kzalloc(sizeof(*monitor), GFP_KERNEL);
+	monitor = kzalloc(sizeof(*monitor), cachefiles_gfp);
 	if (!monitor)
 		goto nomem;
 
@@ -256,13 +256,14 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 			goto backing_page_already_present;
 
 		if (!newpage) {
-			newpage = page_cache_alloc_cold(bmapping);
+			newpage = __page_cache_alloc(cachefiles_gfp |
+						     __GFP_COLD);
 			if (!newpage)
 				goto nomem_monitor;
 		}
 
 		ret = add_to_page_cache(newpage, bmapping,
-					netpage->index, GFP_KERNEL);
+					netpage->index, cachefiles_gfp);
 		if (ret == 0)
 			goto installed_new_backing_page;
 		if (ret != -EEXIST)
@@ -480,7 +481,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		       netpage, netpage->index, page_count(netpage));
 
 		if (!monitor) {
-			monitor = kzalloc(sizeof(*monitor), GFP_KERNEL);
+			monitor = kzalloc(sizeof(*monitor), cachefiles_gfp);
 			if (!monitor)
 				goto nomem;
 
@@ -495,13 +496,14 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 				goto backing_page_already_present;
 
 			if (!newpage) {
-				newpage = page_cache_alloc_cold(bmapping);
+				newpage = __page_cache_alloc(cachefiles_gfp |
+							     __GFP_COLD);
 				if (!newpage)
 					goto nomem;
 			}
 
 			ret = add_to_page_cache(newpage, bmapping,
-						netpage->index, GFP_KERNEL);
+						netpage->index, cachefiles_gfp);
 			if (ret == 0)
 				goto installed_new_backing_page;
 			if (ret != -EEXIST)
@@ -531,7 +533,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		_debug("- monitor add");
 
 		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
-					GFP_KERNEL);
+					cachefiles_gfp);
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
@@ -607,7 +609,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		_debug("- uptodate");
 
 		ret = add_to_page_cache(netpage, op->mapping, netpage->index,
-					GFP_KERNEL);
+					cachefiles_gfp);
 		if (ret < 0) {
 			if (ret == -EEXIST) {
 				page_cache_release(netpage);
