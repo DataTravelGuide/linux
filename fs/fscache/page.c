@@ -530,6 +530,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	if (fscache_submit_op(object, &op->op) < 0)
 		goto nobufs_unlock;
 	spin_unlock(&cookie->lock);
+	ASSERTCMP(object->cookie, ==, cookie);
 
 	fscache_stat(&fscache_n_retrieval_ops);
 
@@ -547,6 +548,26 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 		goto error;
 
 	/* ask the cache to honour the operation */
+	if (!object->cookie) {
+		static const char prefix[] = "fs-";
+		printk(KERN_ERR "%sobject: OBJ%x\n",
+		       prefix, object->debug_id);
+		printk(KERN_ERR "%sobjstate=%s fl=%lx wbusy=%lx ev=%lx[%lx]\n",
+		       prefix, fscache_object_states[object->state],
+		       object->flags, object->work.flags,
+		       object->events,
+		       object->event_mask & FSCACHE_OBJECT_EVENTS_MASK);
+		printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
+		       prefix, object->n_ops, object->n_in_progress,
+		       object->n_exclusive);
+		printk(KERN_ERR "%sparent=%p\n",
+		       prefix, object->parent);
+		printk(KERN_ERR "%scookie=%p [pr=%p nd=%p fl=%lx]\n",
+		       prefix, object->cookie,
+		       cookie->parent, cookie->netfs_data, cookie->flags);
+	}
+	ASSERTCMP(object->cookie, ==, cookie);
+
 	if (test_bit(FSCACHE_COOKIE_NO_DATA_YET, &object->cookie->flags)) {
 		fscache_stat(&fscache_n_cop_allocate_pages);
 		ret = object->cache->ops->allocate_pages(
