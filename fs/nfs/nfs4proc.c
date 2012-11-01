@@ -61,6 +61,7 @@
 #include "iostat.h"
 #include "callback.h"
 #include "pnfs.h"
+#include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -762,6 +763,7 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 	if (!cinfo->atomic || cinfo->before != nfsi->change_attr)
 		nfs_force_lookup_revalidate(dir);
 	nfsi->change_attr = cinfo->after;
+	nfs_fscache_invalidate(dir);
 	spin_unlock(&dir->i_lock);
 }
 
