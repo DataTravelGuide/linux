@@ -1,0 +1,5 @@
+# This is the list of people who have submitted patches
+# that broke the build, costing the maintainer hours of
+# their time they'll never get back. These people are
+# immortalized here so subsequent maintainers will know
+# who to look out for in the future.
