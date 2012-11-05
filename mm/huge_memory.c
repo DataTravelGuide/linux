@@ -476,7 +476,7 @@ static int __init hugepage_init(void)
 {
 	int err;
 #ifdef CONFIG_SYSFS
-	static struct kobject *hugepage_kobj;
+	struct kobject *hugepage_kobj;
 #endif
 
 	err = -EINVAL;
@@ -503,6 +503,12 @@ static int __init hugepage_init(void)
 	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
 	if (err) {
 		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+		goto out;
+	}
+
+	err = sysfs_create_link(mm_kobj, hugepage_kobj, "transparent_hugeage");
+	if (err) {
+		printk(KERN_ERR "hugepage: failed create symlink transparent_hugeage\n");
 		goto out;
 	}
 #endif
