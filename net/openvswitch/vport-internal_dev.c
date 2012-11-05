@@ -104,6 +104,8 @@ static void internal_dev_getinfo(struct net_device *netdev,
 static const struct ethtool_ops internal_dev_ethtool_ops = {
 	.get_drvinfo	= internal_dev_getinfo,
 	.get_link	= ethtool_op_get_link,
+	.set_tso	= ethtool_op_set_tso,
+	.get_tso	= ethtool_op_get_tso,
 };
 
 static int internal_dev_change_mtu(struct net_device *netdev, int new_mtu)
