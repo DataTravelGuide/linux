@@ -1678,6 +1678,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Nov 05 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-339.el6]
+- [Documentation] vm: Transparent Hugepage Support (Baoquan He) [852802]
+- [mm] huge_memory: create sysfs symlink to redhat_transparent_hugepage (Baoquan He) [852802]
+- [net] openvswitch: allow to turn off TSO on internal devices (Amerigo Wang) [871275]
+- [net] WARN if struct ip_options was allocated directly by kmalloc (Jiri Pirko) [872799]
+- [net] fix bug that causes no RX queue entries to be created under /sys/devices (Tatsuya Kitamura) [869770]
+- [fs] xfs: move allocation stack switch up to xfs_bmapi_allocate (Dave Chinner) [867277]
+- [fs] xfs: introduce XFS_BMAPI_STACK_SWITCH (Dave Chinner) [867277]
+- [fs] xfs: zero allocation_args on the kernel stack (Dave Chinner) [867277]
+- [kernel] Do not include asm-generic/bitops/le.h directly, use linux/bitops.h (Jes Sorensen) [871142]
+- [s390] dasd: move wake_up call (Hendrik Brueckner) [869753]
+- [md] dm-raid: Use safe version of rdev_for_each (Jonathan E Brassow) [871630]
+
 * Wed Oct 31 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-338.el6]
 - [netdrv] igb: schedule watchdog every second to update statistics fixup (Stefan Assmann) [838404]
 - [s390] smsgiucv: reestablish IUCV path after resume (Hendrik Brueckner) [869752]
