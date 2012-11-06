@@ -579,6 +579,7 @@ nfs_fileid_to_ino_t(u64 fileid)
 }
 
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
+extern struct file_system_type nfs_fs_type;
 
 #endif /* __KERNEL__ */
 
