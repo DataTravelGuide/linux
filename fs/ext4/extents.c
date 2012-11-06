@@ -4010,6 +4010,9 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 		mutex_unlock(&inode->i_mutex);
 		return ret;
 	}
+
+	/* Prevent race condition between unwritten */
+	flush_aio_dio_completed_IO(inode);
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
