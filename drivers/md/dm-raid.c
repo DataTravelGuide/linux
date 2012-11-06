@@ -763,16 +763,18 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 
 static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct md_rdev *r;
+	int i;
 	uint64_t failed_devices;
 	struct dm_raid_superblock *sb;
+	struct raid_set *rs = container_of(mddev, struct raid_set, md);
 
 	sb = page_address(rdev->sb_page);
 	failed_devices = le64_to_cpu(sb->failed_devices);
 
-	rdev_for_each(r, mddev)
-		if ((r->raid_disk >= 0) && test_bit(Faulty, &r->flags))
-			failed_devices |= (1ULL << r->raid_disk);
+	for (i = 0; i < mddev->raid_disks; i++)
+		if (!rs->dev[i].data_dev ||
+		    test_bit(Faulty, &(rs->dev[i].rdev.flags)))
+			failed_devices |= (1ULL << i);
 
 	memset(sb, 0, sizeof(*sb));
 
