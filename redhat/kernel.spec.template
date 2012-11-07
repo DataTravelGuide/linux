@@ -1512,7 +1512,7 @@ fi\
 /sbin/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
 if [ -x /sbin/weak-modules ]\
 then\
-    /sbin/weak-modules --remove-kernel %{KVERREL}%{?-v:.%{-v*}} || exit $?\
+    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1:.%{1}} || exit $?\
 fi\
 %{nil}
 
