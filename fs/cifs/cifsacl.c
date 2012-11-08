@@ -48,6 +48,20 @@ cifs_idmap_key_instantiate(struct key *key, const void *data, size_t datalen)
 {
 	char *payload;
 
+	/*
+	 * If the payload is less than or equal to the size of a pointer, then
+	 * an allocation here is wasteful. Just copy the data directly to the
+	 * payload.value union member instead.
+	 *
+	 * With this however, you must check the datalen before trying to
+	 * dereference payload.data!
+	 */
+	if (datalen <= sizeof(void *)) {
+		key->payload.value = 0;
+		memcpy(&key->payload.value, data, datalen);
+		key->datalen = datalen;
+		return 0;
+	}
 	payload = kmalloc(datalen, GFP_KERNEL);
 	if (!payload)
 		return -ENOMEM;
@@ -61,7 +75,8 @@ cifs_idmap_key_instantiate(struct key *key, const void *data, size_t datalen)
 static inline void
 cifs_idmap_key_destroy(struct key *key)
 {
-	kfree(key->payload.data);
+	if (key->datalen > sizeof(void *))
+		kfree(key->payload.data);
 }
 
 static struct key_type cifs_idmap_key_type = {
@@ -244,7 +259,7 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	 * probably a safe assumption but might be better to check based on
 	 * sidtype.
 	 */
-	if (sidkey->datalen < sizeof(uid_t)) {
+	if (sidkey->datalen != sizeof(uid_t)) {
 		rc = -EIO;
 		cFYI(1, "%s: Downcall contained malformed key "
 			"(datalen=%hu)", __func__, sidkey->datalen);
@@ -252,9 +267,9 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 	}
 
 	if (sidtype == SIDOWNER)
-		fuid = *(uid_t *)sidkey->payload.value;
+		memcpy(&fuid, &sidkey->payload.value, sizeof(uid_t));
 	else
-		fgid = *(gid_t *)sidkey->payload.value;
+		memcpy(&fgid, &sidkey->payload.value, sizeof(gid_t));
 
 out_key_put:
 	key_put(sidkey);
