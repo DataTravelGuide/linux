@@ -1161,7 +1161,6 @@ exit_cifs(void)
 	cifs_exit_dns_resolver();
 #endif
 #ifdef CONFIG_CIFS_ACL
-	cifs_destroy_idmaptrees();
 	exit_cifs_idmap();
 #endif
 #ifdef CONFIG_CIFS_UPCALL
