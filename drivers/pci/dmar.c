@@ -301,6 +301,8 @@ int dmar_find_matched_atsr_unit(struct pci_dev *dev)
 	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 
+	dev = pci_physfn(dev);
+
 	list_for_each_entry(atsru, &dmar_atsr_units, list) {
 		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
 		if (atsr->segment == pci_domain_nr(dev->bus))
@@ -463,7 +465,7 @@ parse_dmar_table(void)
 	return ret;
 }
 
-int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
+static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
 			  struct pci_dev *dev)
 {
 	int index;
@@ -485,6 +487,8 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 {
 	struct dmar_drhd_unit *dmaru = NULL;
 	struct acpi_dmar_hardware_unit *drhd;
+
+	dev = pci_physfn(dev);
 
 	list_for_each_entry(dmaru, &dmar_drhd_units, list) {
 		drhd = container_of(dmaru->hdr,
