@@ -1678,6 +1678,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Nov 09 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-340.el6]
+- [scsi] sd: fix crash when UA received on DIF enabled device (Ewan Milne) [865682]
+- [scsi] hpsa: fix pci-IDs, add gen8plus Smart Array IDs (Tomas Henzl) [870513]
+- [fs] nfs: fix bug in legacy DNS resolver (Steve Dickson) [873816]
+- [fs] nfsd: add get_uint for u32's (Steve Dickson) [873816]
+- [net] sunrpc: Ensure we return EAGAIN in xs_nospace if congestion is cleared (Steve Dickson) [871128]
+- [net] sunrpc: Prevent races in xs_abort_connection() (Steve Dickson) [871128]
+- [net] Revert: sunrpc: Ensure we close the socket on EPIPE errors too (Steve Dickson) [871128]
+- [net] sunrpc: Get rid of the xs_error_report socket callback (Steve Dickson) [871128]
+- [fs] ext4: Use proper flags in ext4_ext_insert_extent() (Lukas Czerner) [873394]
+- [idle] intel_idle: enable Ivy Bridge Xeon support (Lenny Szubowicz) [870209]
+- [md] dm-raid: Transiently failed devices do not undergo resync (Jonathan E Brassow) [870246]
+- [md] dm-thin: bump thin and pool target versions to 1.5 (Mike Snitzer) [872249]
+- [mm] Prevent kernel panic in NUMA related system calls after memory hot-add (Larry Woodman) [870350]
+
 * Mon Nov 05 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-339.el6]
 - [Documentation] vm: Transparent Hugepage Support (Baoquan He) [852802]
 - [mm] huge_memory: create sysfs symlink to redhat_transparent_hugepage (Baoquan He) [852802]
