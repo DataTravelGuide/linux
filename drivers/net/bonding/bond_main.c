@@ -1750,16 +1750,14 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	/*
 	 * Sync the slaves vlan state with the bonds vlan state
 	 */
-	if (slave_dev->ethtool_ops->get_flags &&
-	    slave_dev->ethtool_ops->set_flags) {
-		orig_flags = slave_dev->ethtool_ops->get_flags(slave_dev);	
-		if (bond_dev->features & NETIF_F_LRO)
-			flags = orig_flags | NETIF_F_LRO;
-		else
-			flags = orig_flags & ~NETIF_F_LRO;
-		if (flags != orig_flags)
-			slave_dev->ethtool_ops->set_flags(slave_dev, flags);
-	}
+	orig_flags = dev_ethtool_get_flags(slave_dev);
+	if (bond_dev->features & NETIF_F_LRO)
+		flags = orig_flags | NETIF_F_LRO;
+	else
+		flags = orig_flags & ~NETIF_F_LRO;
+	if (flags != orig_flags && slave_dev->ethtool_ops
+	    && slave_dev->ethtool_ops->set_flags)
+		slave_dev->ethtool_ops->set_flags(slave_dev, flags);
 
 	/* vlan challenged mutual exclusion */
 	/* no need to lock since we're protected by rtnl_lock */
@@ -4994,16 +4992,13 @@ static int bond_ethtool_set_flags(struct net_device *dev, u32 flags)
 	int i;
 
 	bond_for_each_slave(bond, slave, i) {
-		if (!slave->dev->ethtool_ops->get_flags)
-			continue;
-		if (!slave->dev->ethtool_ops->set_flags)
-			continue;
-		dflags = slave->dev->ethtool_ops->get_flags(slave->dev);
+		dflags = dev_ethtool_get_flags(slave->dev);
 		if (flags & ETH_FLAG_LRO)
 			ndflags = dflags | ETH_FLAG_LRO;
 		else
 			ndflags = dflags & ~ETH_FLAG_LRO;
-		if (ndflags != dflags)
+		if (ndflags != dflags && slave->dev->ethtool_ops
+		    && slave->dev->ethtool_ops->set_flags)
 			slave->dev->ethtool_ops->set_flags(slave->dev, ndflags);
 	}
 
