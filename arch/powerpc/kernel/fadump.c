@@ -293,8 +293,7 @@ int __init fadump_reserve_mem(void)
 		else
 			memory_limit = lmb_end_of_DRAM();
 		printk(KERN_INFO "Adjusted memory_limit for firmware-assisted"
-				" dump, now %#016llx\n",
-				(unsigned long long)memory_limit);
+				" dump, now %#016llx\n", memory_limit);
 	}
 	if (memory_limit)
 		memory_boundary = memory_limit;

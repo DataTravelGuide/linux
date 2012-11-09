@@ -426,7 +426,7 @@ static int __init early_parse_mem(char *p)
 		return 1;
 
 	memory_limit = PAGE_ALIGN(memparse(p, &p));
-	DBG("memory limit = 0x%llx\n", (unsigned long long)memory_limit);
+	DBG("memory limit = 0x%llx\n", memory_limit);
 
 	return 0;
 }
