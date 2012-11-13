@@ -959,6 +959,20 @@ static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
 	spin_unlock_irqrestore(&zone->lru_lock, flags);
 }
 
+/*
+ * Checks whether given mem is same or in the root_mem_cgroup's
+ * hierarchy subtree
+ */
+bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+				  struct mem_cgroup *memcg)
+{
+	if (root_memcg == memcg)
+		return true;
+	if (!root_memcg->use_hierarchy || !memcg)
+		return false;
+	return css_is_ancestor(&memcg->css, &root_memcg->css);
+}
+
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 {
 	int ret;
