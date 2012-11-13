@@ -869,6 +869,7 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
 	} else
 		memcg = root_mem_cgroup;
 	mz = page_cgroup_zoneinfo(memcg, page);
+	VM_BUG_ON(MEM_CGROUP_ZSTAT(mz, lru) < (1 << compound_order(page)));
 	MEM_CGROUP_ZSTAT(mz, lru) -= numpages;
 }
 
@@ -2434,7 +2435,6 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *target, *origin;
-	struct mem_cgroup_per_zone *mz;
 
 	/* compound lock is held and we're safe */
 	origin = lookup_page_cgroup(head);
@@ -2453,14 +2453,6 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
 	target->mem_cgroup = mem;
 	smp_wmb();
 	SetPageCgroupUsed(target);
-	/*
-	 * LRU accounting should be decremented, because it's updated when
- 	 * the target is added to lru. we're under zone->lru_lock
- 	 */
-	if (PageCgroupAcctLRU(origin)) {
-		mz = page_cgroup_zoneinfo(origin->mem_cgroup, head);
-		MEM_CGROUP_ZSTAT(mz, page_lru(head)) -= 1;
-	}
 }
 
 #endif
