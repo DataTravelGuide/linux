@@ -1945,12 +1945,43 @@ restart:
 static void shrink_zone(int priority, struct zone *zone,
 			struct scan_control *sc)
 {
-	struct mem_cgroup_zone mz = {
-		.mem_cgroup = sc->target_mem_cgroup,
+	struct mem_cgroup *root = sc->target_mem_cgroup;
+	struct mem_cgroup_reclaim_cookie reclaim = {
 		.zone = zone,
+		.priority = priority,
 	};
+	struct mem_cgroup *memcg;
 
-	shrink_mem_cgroup_zone(priority, &mz, sc);
+	if (global_reclaim(sc)) {
+		struct mem_cgroup_zone mz = {
+			.mem_cgroup = NULL,
+			.zone = zone,
+		};
+
+		shrink_mem_cgroup_zone(priority, &mz, sc);
+		return;
+	}
+
+	memcg = mem_cgroup_iter(root, NULL, &reclaim);
+	do {
+		struct mem_cgroup_zone mz = {
+			.mem_cgroup = memcg,
+			.zone = zone,
+		};
+
+		shrink_mem_cgroup_zone(priority, &mz, sc);
+		/*
+		 * Limit reclaim has historically picked one memcg and
+		 * scanned it with decreasing priority levels until
+		 * nr_to_reclaim had been reclaimed.  This priority
+		 * cycle is thus over after a single memcg.
+		 */
+		if (!global_reclaim(sc)) {
+			mem_cgroup_iter_break(root, memcg);
+			break;
+		}
+		memcg = mem_cgroup_iter(root, memcg, &reclaim);
+	} while (memcg);
 }
 
 /* Returns true if compaction should go ahead for a high-order request */
@@ -2245,6 +2276,10 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 		.order = 0,
 		.target_mem_cgroup = mem,
 	};
+	struct mem_cgroup_zone mz = {
+		.mem_cgroup = mem,
+		.zone = zone,
+	};
 	nodemask_t nm  = nodemask_of_node(nid);
 
 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
@@ -2259,7 +2294,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
 	 * will pick up pages from other mem cgroup's as well. We hack
 	 * the priority and make it zero.
 	 */
-	shrink_zone(0, zone, &sc);
+	shrink_mem_cgroup_zone(0, &mz, &sc);
 	return sc.nr_reclaimed;
 }
 
