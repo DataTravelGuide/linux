@@ -1415,7 +1415,6 @@ struct sb_writers {
 
 
 #define sb_entry(list)  list_entry((list), struct super_block, s_list)
-#define S_BIAS (1<<30)
 struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
