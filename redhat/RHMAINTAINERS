@@ -381,6 +381,17 @@ M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
 F:	drivers/net/wireless/rt2x00/
 
+ATHEROS WIRELESS LAN DRIVERS 
+M:	John Greene <jogreene@redhat.com>
+S: 	Maintained
+F:	drivers/net/wireless/ath5k
+F: 	drivers/net/wireless/ath9k
+
+REALTEK WIRELESS LAN DRIVERS
+M: 	John Greene <jogreene@redhat.com>
+S:	Maintained
+F:	drivers/net/wireless/rtl818x
+
 RFKILL
 M:	John Linville <linville@redhat.com>
 S:	Maintained
