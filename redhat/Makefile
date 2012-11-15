@@ -25,6 +25,20 @@ BUILDID:=.test
 endif
 $(info BUILDID is "$(BUILDID)". Update '$(TOPDIR)/localversion' to change.)
 
+#deal with build options.  Support for command line is due to koji support
+BUILD_OPTIONS:=
+BO_SINGLE_TARBALL :=
+
+#grab the command line build options
+ifeq ("$(origin S)", "command line")
+  BO_SINGLE_TARBALL := $(S)
+endif
+
+#set the build options
+ifeq ($(BO_SINGLE_TARBALL),1)
+  BUILD_OPTIONS += S
+  CMARKER=$(LASTCOMMIT)
+endif
 RHGITURL:=$(shell git config remote.origin.url)
 RHVALIDURL:=$(shell git config remote.origin.url | grep -E '^git://git[2]?\.engineering\.redhat\.com')
 RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)
@@ -127,7 +141,7 @@ rh-stub-key:
 $(TARBALL):
 	@echo "Creating archive $(TARBALL)"
 	(cd ../; \
-	git archive --prefix=linux-$(KVERSION)/ --format=tar v$(KVERSION) | \
+	git archive --prefix=linux-$(KVERSION)/ --format=tar $(CMARKER) --worktree-attributes | \
 	bzip2 > $(TARBALL))
 
 $(RC_PATCH):
@@ -166,7 +180,7 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	@diff $(TESTPATCH).tmp $(TESTPATCH) > /dev/null || \
 		echo "WARNING: There are uncommitted changes in your tree or the changes are not in sync with the kernel-test.patch.  Either commit the changes or run 'make rh-test-patch'"
 	@rm $(TESTPATCH).tmp
-	@$(REDHAT)/create-patches.sh $(MARKER) $(SOURCES) $(SOURCES)/$(SPECFILE) $(BUILD) $(BUILDID)
+	@$(REDHAT)/create-patches.sh $(MARKER) $(SOURCES) $(SOURCES)/$(SPECFILE) $(BUILD) $(BUILDID) "$(BUILD_OPTIONS)"
 	@cp $(SOURCES)/$(SPECFILE) $(SOURCES)/../SPECS
 	@cp $(TESTPATCH) $(SOURCES)/linux-kernel-test.patch
 	@cp configs/Makefile $(SOURCES)/Makefile.config
@@ -221,7 +235,14 @@ rhg-brew: BUILD_FLAGS ?= $(BREW_FLAGS) $(TEST_FLAGS)
 rhg-koji: BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
 
 rh-brew rh-koji: rh-%: rh-srpm
+	@#force rebuild of tarball next time if using single patch approach
+	@#otherwise non-scratch builds think this tarball is v2.6.32
+	@$(if $(findstring S, $(BUILD_OPTIONS)), rm -f $(TARBALL))
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
+
+scratch-prep-rh:
+	@#need to force rebuilding of tarball
+	@rm -f $(TARBALL)
 
 rhg-brew rhg-koji: rhg-%:
 ifeq ("$(RHVALIDURL)", "")

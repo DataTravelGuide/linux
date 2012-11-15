@@ -5,6 +5,7 @@ SOURCES=$2
 SPECFILE=$3
 BUILD=$4
 BUILDID=$5
+BUILD_OPTIONS=$6
 PATCHF="$SOURCES/Patch.include"
 patchf="$SOURCES/patch.include"
 SERIESF="$SOURCES/series"
@@ -23,6 +24,7 @@ RCREV=$(echo $MARKER | cut -f 2 -d '-' -s | sed -e "s/rc//")
 GITREV=$(echo $MARKER | cut -f 3 -d '-' -s | sed -e "s/git//")
 LASTCOMMIT=$(cat lastcommit);
 STAMP=$(echo $MARKER | cut -f 1 -d '-' | sed -e "s/v//");
+SINGLE_TARBALL="$(echo "$BUILD_OPTIONS"|grep -q "S" && echo "S" || echo "")"
 if [ -n "$RCREV" ]; then
 	RELEASED_KERNEL="0";
 	SUBLEVEL=$(($SUBLEVEL - 1));
@@ -36,12 +38,13 @@ if [ -z "$GITREV" ]; then
 	GITREV=0;
 fi
 RPM_VERSION="$STAMP-$PREBUILD$BUILD.el6$BUILDID";
+test -n "$SINGLE_TARBALL" && START="$LASTCOMMIT" || START="$MARKER"
 
 touch $PATCHF $patchf
 echo >$clogf
 
-total="$(git log --first-parent --pretty=oneline $MARKER.. |wc -l)"
-git format-patch --first-parent --no-renames -k --stdout $MARKER..|awk '
+total="$(git log --first-parent --pretty=oneline $START.. |wc -l)"
+git format-patch --first-parent --no-renames -k --stdout $START..|awk '
 BEGIN{TYPE="PATCHJUNK"; count=1; dolog=0; }
 
 	#convert subject line to a useable filename
