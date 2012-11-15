@@ -38,6 +38,12 @@ ifeq ("$(origin Q)", "command line")
   BO_QUICK_BUILD := $(Q)
 endif
 
+#filter out the builds with build options to re-use code
+ifneq ($(filter rh-brew-scratch rh-koji-scratch,$(MAKECMDGOALS)),)
+  BO_SINGLE_TARBALL := 1
+  BO_QUICK_BUILD := 1
+endif
+
 #set the build options
 ifeq ($(BO_SINGLE_TARBALL),1)
   BUILD_OPTIONS += S
@@ -252,6 +258,8 @@ scratch-prep-rh:
 	@#need to force rebuilding of tarball
 	@rm -f $(TARBALL)
 
+rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
+
 rhg-brew rhg-koji: rhg-%:
 ifeq ("$(RHVALIDURL)", "")
 		@echo "The rhg-brew target requires a git remote.origin.url config option in the form:"
@@ -292,6 +300,8 @@ rh-help:
 	@echo  '  rh-koji	- Create a kernel SRPM and then call koji to build the created SRPM'
 	@echo  '  rhg-brew	- Pass a commit hash to brew to build an RPM set'
 	@echo  '  rhg-koji	- Pass a commit hash to koji to build an RPM set'
+	@echo  '  rh-brew-scratch - Same as rh-brew but bypass debuginfo and docs (for speed purposes)'
+	@echo  '  rh-koji-scratch - Same as rh-koji but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-test	- Pass in brew task number, TASK=1234 make rh-test, to use for an RHTS test'
 	@echo  '		  setup ./tests to use a test from redhat/tests (minus the .xml)'
 	@echo  '		  uses a known stable RHEL6 distro as the default'
