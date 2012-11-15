@@ -53,8 +53,21 @@ ifeq ($(BO_QUICK_BUILD),1)
   BUILD_OPTIONS += Q
 endif
 
+#we assume most users push to a seperate repo than they read
+#and that repo is on the git.engineering website
+RHGITPUSHURL:=$(shell git config remote.origin.pushurl | sed 's/+ssh//;s,/srv/git,,')
 RHGITURL:=$(shell git config remote.origin.url)
-RHVALIDURL:=$(shell git config remote.origin.url | grep -E '^git://git[2]?\.engineering\.redhat\.com')
+RHVALIDURL:=
+ifneq ("$(RHGITPUSHURL)", "")
+  ifneq ("$(shell echo "$(RHGITPUSHURL)" | grep -E '^git://git[2]?\.engineering\.redhat\.com')", "")
+    RHVALIDURL = $(RHGITPUSHURL)
+  endif
+else
+  ifneq ("$(shell echo "$(RHGITURL)" | grep -E '^git://git[2]?\.engineering\.redhat\.com')", "")
+    RHVALIDURL = $(RHGITURL)
+  endif
+endif
+
 RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)
 RHDISTGIT_USER:="$(shell whoami)"
 RHDISTGIT:="ssh://$(RHDISTGIT_USER)@pkgs.devel.redhat.com/rpms/kernel"
@@ -262,13 +275,19 @@ rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
 
 rhg-brew rhg-koji: rhg-%:
 ifeq ("$(RHVALIDURL)", "")
-		@echo "The rhg-brew target requires a git remote.origin.url config option in the form:"
+		@echo "The rhg-brew target requires a valid git remote config option in the form:"
 		@echo "  git://git.engineering.redhat.com.*"
 		@echo "Please update your git config to reflect this"
-		@echo "If you wish to a read/write url for your origin"
-		@echo "You can separately specify the git remote.origin.pushurl option, do:"
-		@echo "  git config remote.origin.pushurl $(RHGITURL)"
-		@echo "  git config remote.origin.url     git://git.engineering.redhat.com..."
+		@echo "Current pushurl -> $(RHGITPUSHURL)"
+		@echo "Current url -> $(RHGITURL)"
+		@echo
+		@echo "You can specify the git remote.origin.pushurl option to do this (safest):"
+		@echo "(this does _not_ disturb the normal rhel6 master repo mechanism)"
+		@echo "  git config remote.origin.pushurl <git+ssh eng redhat url>"
+		@echo
+		@echo "Or to use orgin as read/write make sure it points to a valid"
+		@echo "git.engineering.redhat.com url"
+		@echo "  git config remote.origin.url <git eng redhat url>"
 else
 	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
 endif
