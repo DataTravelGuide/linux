@@ -273,6 +273,7 @@ scratch-prep-rh:
 
 rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
 
+KOJIDIR=redhat/koji
 rhg-brew rhg-koji: rhg-%:
 ifeq ("$(RHVALIDURL)", "")
 		@echo "The rhg-brew target requires a valid git remote config option in the form:"
@@ -289,8 +290,11 @@ ifeq ("$(RHVALIDURL)", "")
 		@echo "git.engineering.redhat.com url"
 		@echo "  git config remote.origin.url <git eng redhat url>"
 else
-	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHGITURL)?redhat/koji#$(RHGITCOMMIT)"
+	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHVALIDURL)?$(KOJIDIR)#$(RHGITCOMMIT)"
 endif
+
+rhg-%-scratch: KOJIDIR=redhat/koji/scratch
+rhg-brew-scratch rhg-koji-scratch: rhg-%-scratch: rhg-%
 
 $(REDHAT)/rpm/SOURCES/kernel.spec:
 	@echo "rh-sources"
@@ -321,6 +325,8 @@ rh-help:
 	@echo  '  rhg-koji	- Pass a commit hash to koji to build an RPM set'
 	@echo  '  rh-brew-scratch - Same as rh-brew but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-koji-scratch - Same as rh-koji but bypass debuginfo and docs (for speed purposes)'
+	@echo  '  rhg-brew-scratch - Same as rhg-brew but bypass debuginfo and docs (for speed purposes)'
+	@echo  '  rhg-koji-scratch - Same as rhg-koji but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-test	- Pass in brew task number, TASK=1234 make rh-test, to use for an RHTS test'
 	@echo  '		  setup ./tests to use a test from redhat/tests (minus the .xml)'
 	@echo  '		  uses a known stable RHEL6 distro as the default'
