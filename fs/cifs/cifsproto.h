@@ -453,6 +453,8 @@ struct cifs_writedata {
 	__u64				offset;
 	unsigned int			bytes;
 	int				result;
+	void (*marshal_iov) (struct kvec *iov,
+			     struct cifs_writedata *wdata);
 	unsigned int			nr_pages;
 	struct page			*pages[1];
 };
