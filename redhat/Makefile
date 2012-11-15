@@ -28,10 +28,14 @@ $(info BUILDID is "$(BUILDID)". Update '$(TOPDIR)/localversion' to change.)
 #deal with build options.  Support for command line is due to koji support
 BUILD_OPTIONS:=
 BO_SINGLE_TARBALL :=
+BO_QUICK_BUILD :=
 
 #grab the command line build options
 ifeq ("$(origin S)", "command line")
   BO_SINGLE_TARBALL := $(S)
+endif
+ifeq ("$(origin Q)", "command line")
+  BO_QUICK_BUILD := $(Q)
 endif
 
 #set the build options
@@ -39,6 +43,10 @@ ifeq ($(BO_SINGLE_TARBALL),1)
   BUILD_OPTIONS += S
   CMARKER=$(LASTCOMMIT)
 endif
+ifeq ($(BO_QUICK_BUILD),1)
+  BUILD_OPTIONS += Q
+endif
+
 RHGITURL:=$(shell git config remote.origin.url)
 RHVALIDURL:=$(shell git config remote.origin.url | grep -E '^git://git[2]?\.engineering\.redhat\.com')
 RHGITCOMMIT=$(shell git log -1 --pretty=format:%H)

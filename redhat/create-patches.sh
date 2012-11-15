@@ -24,6 +24,7 @@ RCREV=$(echo $MARKER | cut -f 2 -d '-' -s | sed -e "s/rc//")
 GITREV=$(echo $MARKER | cut -f 3 -d '-' -s | sed -e "s/git//")
 LASTCOMMIT=$(cat lastcommit);
 STAMP=$(echo $MARKER | cut -f 1 -d '-' | sed -e "s/v//");
+QUICK_BUILD="$(echo "$BUILD_OPTIONS"|grep -q "Q" && echo "Q" || echo "")"
 SINGLE_TARBALL="$(echo "$BUILD_OPTIONS"|grep -q "S" && echo "S" || echo "")"
 if [ -n "$RCREV" ]; then
 	RELEASED_KERNEL="0";
@@ -278,6 +279,17 @@ tac $clogf | sed "1{/^$/d; /^- /i\
 * $cdate $cname $cversion
 	}" > $clogf.rev
 
+# hacks to speed up a build for test compiling
+if [ -n "$QUICK_BUILD" ]; then
+	sfile=$SOURCES/sflags
+	rm -f $sfile
+	echo "# Build speed up hacks" >> $sfile
+	echo "%define _without_debuginfo 1" >> $sfile
+	echo "%define _without_doc 1" >> $sfile
+	sed -i -e "/%%SCRATCH_FLAGS/r $sfile" $SPECFILE
+	rm $sfile
+fi
+
 test -n "$SPECFILE" &&
         sed -i -e "/%%PATCH_LIST%%/r $PATCHF
         /%%PATCH_LIST%%/d
@@ -288,6 +300,7 @@ test -n "$SPECFILE" &&
 	/%%CHANGELOG%%/r $clogf.rev
 	/%%CHANGELOG%%/d
 	s/%%BUILD%%/$BUILD/
+	/%%SCRATCH_FLAGS%%/d
 	s/%%SUBLEVEL%%/$SUBLEVEL/
 	s/%%RCREV%%/$RCREV/
 	s/%%GITREV%%/$GITREV/

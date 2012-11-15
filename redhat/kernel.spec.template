@@ -82,6 +82,7 @@ Summary: The Linux kernel
 # All should default to 1 (enabled) and be flipped to 0 (disabled)
 # by later arch-specific checks.
 
+%%SCRATCH_FLAGS%%
 # The following build options are enabled by default.
 # Use either --without <opt> in your rpmbuild command or force values
 # to 0 in here to disable them.
