@@ -199,7 +199,7 @@ int blk_verify_command(struct request_queue *q,
 	struct blk_cmd_filter *filter = &blk_default_cmd_filter;
 
 	/* root can do any command. */
-	if (capable(CAP_SYS_RAWIO))
+	if (capable(CAP_SYS_RAWIO) || blk_queue_unpriv_sgio(q))
 		return 0;
 
 	/* if there's no filter set, assume we're filtering everything out */
