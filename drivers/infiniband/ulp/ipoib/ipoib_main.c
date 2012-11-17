@@ -536,14 +536,14 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
+	spin_lock_irqsave(&priv->lock, flags);
 	neigh = ipoib_neigh_alloc(daddr, dev);
 	if (!neigh) {
+		spin_unlock_irqrestore(&priv->lock, flags);
 		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 		return;
 	}
-
-	spin_lock_irqsave(&priv->lock, flags);
 
 	path = __path_find(dev, daddr + 4);
 	if (!path) {
@@ -853,10 +853,10 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 	if (test_bit(IPOIB_STOP_NEIGH_GC, &priv->flags))
 		return;
 
-	write_lock_bh(&ntbl->rwlock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	htbl = rcu_dereference_protected(ntbl->htbl,
-					 lockdep_is_held(&ntbl->rwlock));
+					 lockdep_is_held(&priv->lock));
 
 	if (!htbl)
 		goto out_unlock;
@@ -873,16 +873,14 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 		struct ipoib_neigh __rcu **np = &htbl->buckets[i];
 
 		while ((neigh = rcu_dereference_protected(*np,
-							  lockdep_is_held(&ntbl->rwlock))) != NULL) {
+							  lockdep_is_held(&priv->lock))) != NULL) {
 			/* was the neigh idle for two GC periods */
 			if (time_after(neigh_obsolete, neigh->alive)) {
 				rcu_assign_pointer(*np,
 						   rcu_dereference_protected(neigh->hnext,
-									     lockdep_is_held(&ntbl->rwlock)));
+									     lockdep_is_held(&priv->lock)));
 				/* remove from path/mc list */
-				spin_lock_irqsave(&priv->lock, flags);
 				list_del(&neigh->list);
-				spin_unlock_irqrestore(&priv->lock, flags);
 				call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			} else {
 				np = &neigh->hnext;
@@ -892,7 +890,7 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 	}
 
 out_unlock:
-	write_unlock_bh(&ntbl->rwlock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void ipoib_reap_neigh(struct work_struct *work)
@@ -937,10 +935,8 @@ struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 	struct ipoib_neigh *neigh;
 	u32 hash_val;
 
-	write_lock_bh(&ntbl->rwlock);
-
 	htbl = rcu_dereference_protected(ntbl->htbl,
-					 lockdep_is_held(&ntbl->rwlock));
+					 lockdep_is_held(&priv->lock));
 	if (!htbl) {
 		neigh = NULL;
 		goto out_unlock;
@@ -951,10 +947,10 @@ struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 	 */
 	hash_val = ipoib_addr_hash(htbl, daddr);
 	for (neigh = rcu_dereference_protected(htbl->buckets[hash_val],
-					       lockdep_is_held(&ntbl->rwlock));
+					       lockdep_is_held(&priv->lock));
 	     neigh != NULL;
 	     neigh = rcu_dereference_protected(neigh->hnext,
-					       lockdep_is_held(&ntbl->rwlock))) {
+					       lockdep_is_held(&priv->lock))) {
 		if (memcmp(daddr, neigh->daddr, INFINIBAND_ALEN) == 0) {
 			/* found, take one ref on behalf of the caller */
 			if (!atomic_inc_not_zero(&neigh->refcnt)) {
@@ -977,12 +973,11 @@ struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 	/* put in hash */
 	rcu_assign_pointer(neigh->hnext,
 			   rcu_dereference_protected(htbl->buckets[hash_val],
-						     lockdep_is_held(&ntbl->rwlock)));
+						     lockdep_is_held(&priv->lock)));
 	rcu_assign_pointer(htbl->buckets[hash_val], neigh);
 	atomic_inc(&ntbl->entries);
 
 out_unlock:
-	write_unlock_bh(&ntbl->rwlock);
 
 	return neigh;
 }
@@ -1030,35 +1025,29 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 	struct ipoib_neigh *n;
 	u32 hash_val;
 
-	write_lock_bh(&ntbl->rwlock);
-
 	htbl = rcu_dereference_protected(ntbl->htbl,
-					lockdep_is_held(&ntbl->rwlock));
+					lockdep_is_held(&priv->lock));
 	if (!htbl)
-		goto out_unlock;
+		return;
 
 	hash_val = ipoib_addr_hash(htbl, neigh->daddr);
 	np = &htbl->buckets[hash_val];
 	for (n = rcu_dereference_protected(*np,
-					    lockdep_is_held(&ntbl->rwlock));
+					    lockdep_is_held(&priv->lock));
 	     n != NULL;
 	     n = rcu_dereference_protected(*np,
-					lockdep_is_held(&ntbl->rwlock))) {
+					lockdep_is_held(&priv->lock))) {
 		if (n == neigh) {
 			/* found */
 			rcu_assign_pointer(*np,
 					   rcu_dereference_protected(neigh->hnext,
-								     lockdep_is_held(&ntbl->rwlock)));
+								     lockdep_is_held(&priv->lock)));
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
-			goto out_unlock;
+			return;
 		} else {
 			np = &n->hnext;
 		}
 	}
-
-out_unlock:
-	write_unlock_bh(&ntbl->rwlock);
-
 }
 
 static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
@@ -1070,7 +1059,6 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 	ntbl->htbl = NULL;
-	rwlock_init(&ntbl->rwlock);
 	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
 	if (!htbl)
 		return -ENOMEM;
@@ -1118,10 +1106,10 @@ void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid)
 	int i;
 
 	/* remove all neigh connected to a given path or mcast */
-	write_lock_bh(&ntbl->rwlock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	htbl = rcu_dereference_protected(ntbl->htbl,
-					 lockdep_is_held(&ntbl->rwlock));
+					 lockdep_is_held(&priv->lock));
 
 	if (!htbl)
 		goto out_unlock;
@@ -1131,16 +1119,14 @@ void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid)
 		struct ipoib_neigh __rcu **np = &htbl->buckets[i];
 
 		while ((neigh = rcu_dereference_protected(*np,
-							  lockdep_is_held(&ntbl->rwlock))) != NULL) {
+							  lockdep_is_held(&priv->lock))) != NULL) {
 			/* delete neighs belong to this parent */
 			if (!memcmp(gid, neigh->daddr + 4, sizeof (union ib_gid))) {
 				rcu_assign_pointer(*np,
 						   rcu_dereference_protected(neigh->hnext,
-									     lockdep_is_held(&ntbl->rwlock)));
+									     lockdep_is_held(&priv->lock)));
 				/* remove from parent list */
-				spin_lock_irqsave(&priv->lock, flags);
 				list_del(&neigh->list);
-				spin_unlock_irqrestore(&priv->lock, flags);
 				call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			} else {
 				np = &neigh->hnext;
@@ -1149,7 +1135,7 @@ void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid)
 		}
 	}
 out_unlock:
-	write_unlock_bh(&ntbl->rwlock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
@@ -1161,10 +1147,10 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 
 	init_completion(&priv->ntbl.flushed);
 
-	write_lock_bh(&ntbl->rwlock);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	htbl = rcu_dereference_protected(ntbl->htbl,
-					lockdep_is_held(&ntbl->rwlock));
+					lockdep_is_held(&priv->lock));
 	if (!htbl)
 		goto out_unlock;
 
@@ -1177,14 +1163,12 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 		struct ipoib_neigh __rcu **np = &htbl->buckets[i];
 
 		while ((neigh = rcu_dereference_protected(*np,
-							  lockdep_is_held(&ntbl->rwlock))) != NULL) {
+				       lockdep_is_held(&priv->lock))) != NULL) {
 			rcu_assign_pointer(*np,
 					   rcu_dereference_protected(neigh->hnext,
-								     lockdep_is_held(&ntbl->rwlock)));
+								     lockdep_is_held(&priv->lock)));
 			/* remove from path/mc list */
-			spin_lock_irqsave(&priv->lock, flags);
 			list_del(&neigh->list);
-			spin_unlock_irqrestore(&priv->lock, flags);
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 		}
 	}
@@ -1194,7 +1178,7 @@ free_htbl:
 	call_rcu(&htbl->rcu, neigh_hash_free_rcu);
 
 out_unlock:
-	write_unlock_bh(&ntbl->rwlock);
+	spin_unlock_irqrestore(&priv->lock, flags);
 	if (wait_flushed)
 		wait_for_completion(&priv->ntbl.flushed);
 }
