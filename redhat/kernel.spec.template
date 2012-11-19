@@ -1697,6 +1697,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Nov 19 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-343.el6]
+- [mm] percpu: Fix kdump crash_notes content lost in case i386 debug (Baoquan He) [828045]
+- [mm] percpu: fix chunk range calculation (Baoquan He) [828045]
+
 * Fri Nov 16 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-342.el6]
 - [netdrv] pch_gbe: align skbs to 64byte (Veaceslav Falico) [814481]
 - [Documentation] nfs: Update kernel idmapping documentation (Steve Dickson) [823359]
