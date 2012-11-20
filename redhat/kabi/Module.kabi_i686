@@ -686,6 +686,7 @@
 0xe2fae716	kmemdup	vmlinux	EXPORT_SYMBOL
 0xd18e95e0	kobject_create_and_add	vmlinux	EXPORT_SYMBOL_GPL
 0x5b370f66	kobject_del	vmlinux	EXPORT_SYMBOL
+0xc13413f9	kobject_get	vmlinux	EXPORT_SYMBOL
 0x6a51ffe5	kobject_init_and_add	vmlinux	EXPORT_SYMBOL_GPL
 0x9bedef39	kobject_put	vmlinux	EXPORT_SYMBOL
 0x0fd70aae	kobject_set_name	vmlinux	EXPORT_SYMBOL
