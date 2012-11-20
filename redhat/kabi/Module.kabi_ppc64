@@ -638,6 +638,7 @@
 0x80ad3bb8	kill_anon_super	vmlinux	EXPORT_SYMBOL
 0xb594b11b	kill_block_super	vmlinux	EXPORT_SYMBOL
 0x8a4adcbd	kill_fasync	vmlinux	EXPORT_SYMBOL
+0xd8a71b3b	kill_pid	vmlinux	EXPORT_SYMBOL
 0x26773e3e	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL
 0x166b3e47	kmem_cache_alloc_node_notrace	vmlinux	EXPORT_SYMBOL
 0xa07c62cd	kmem_cache_alloc_notrace	vmlinux	EXPORT_SYMBOL

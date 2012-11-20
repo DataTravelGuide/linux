@@ -676,6 +676,7 @@
 0xdd122365	kill_anon_super	vmlinux	EXPORT_SYMBOL
 0xde3c9c4a	kill_block_super	vmlinux	EXPORT_SYMBOL
 0xe292647d	kill_fasync	vmlinux	EXPORT_SYMBOL
+0x22c1d714	kill_pid	vmlinux	EXPORT_SYMBOL
 0x4639723b	kmap	vmlinux	EXPORT_SYMBOL
 0x1d8ae192	kmap_atomic	vmlinux	EXPORT_SYMBOL
 0xd8b08694	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL

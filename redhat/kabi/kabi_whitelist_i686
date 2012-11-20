@@ -677,6 +677,7 @@
 	kill_anon_super
 	kill_block_super
 	kill_fasync
+	kill_pid
 	kmap
 	kmap_atomic
 	kmem_cache_alloc
