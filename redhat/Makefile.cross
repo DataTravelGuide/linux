@@ -35,7 +35,8 @@ rh-cross-all-rpms: rh-cross-download rh-sources
 	$(CROSS_RPMFLAGS) --target i686 --with cross -ba $(RPM)/SOURCES/kernel.spec
 	$(CROSS_RPMFLAGS) --target ppc64 --with cross -ba $(RPM)/SOURCES/kernel.spec
 	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/kernel.spec
-	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x"
+	$(CROSS_RPMFLAGS) -ba $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x x86_64"
 
 rh-cross-i686-build: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
@@ -57,5 +58,6 @@ rh-cross-all-builds: rh-cross-download rh-sources
 	$(CROSS_RPMFLAGS) --target i686 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
 	$(CROSS_RPMFLAGS) --target ppc64 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
 	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
-	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x"
+	$(CROSS_RPMFLAGS) --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x x86_64"
 
