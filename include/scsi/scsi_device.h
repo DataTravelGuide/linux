@@ -49,6 +49,8 @@ enum scsi_device_state {
 	SDEV_CREATED_BLOCK,	/* same as above but for created devices */
 };
 
+#define SDEV_TRANSPORT_OFFLINE	(SDEV_CREATED_BLOCK + 1) /* Offlined by transport class error handler */
+
 enum scsi_device_event {
 	SDEV_EVT_MEDIA_CHANGE	= 1,	/* media has changed */
 
@@ -425,6 +427,7 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
 	return (sdev->sdev_state != SDEV_OFFLINE &&
+		sdev->sdev_state != SDEV_TRANSPORT_OFFLINE &&
 		sdev->sdev_state != SDEV_DEL);
 }
 static inline int scsi_device_blocked(struct scsi_device *sdev)
