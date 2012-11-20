@@ -564,6 +564,7 @@
 	lock_rename
 	lock_sock_nested
 	lock_super
+	lookup_bdev
 	lookup_one_len
 	lro_flush_all
 	lro_receive_frags

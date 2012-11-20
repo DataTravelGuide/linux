@@ -683,6 +683,7 @@
 0x9d64d92a	lock_rename	vmlinux	EXPORT_SYMBOL
 0xa9a96902	lock_sock_nested	vmlinux	EXPORT_SYMBOL
 0xa4263a4e	lock_super	vmlinux	EXPORT_SYMBOL
+0xaa26b1bb	lookup_bdev	vmlinux	EXPORT_SYMBOL
 0x0b95aba1	lookup_one_len	vmlinux	EXPORT_SYMBOL
 0x17957207	lro_flush_all	vmlinux	EXPORT_SYMBOL
 0x091c542c	lro_receive_frags	vmlinux	EXPORT_SYMBOL
