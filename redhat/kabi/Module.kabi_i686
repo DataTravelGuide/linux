@@ -1596,6 +1596,7 @@
 0x523cf902	vlan_gro_receive	vmlinux	EXPORT_SYMBOL
 0x3ef78d80	vm_get_page_prot	vmlinux	EXPORT_SYMBOL
 0x6b29b6c0	vm_insert_pfn	vmlinux	EXPORT_SYMBOL
+0xb98ef804	vm_stat	vmlinux	EXPORT_SYMBOL
 0xd6ee688f	vmalloc	vmlinux	EXPORT_SYMBOL
 0xa0b04675	vmalloc_32	vmlinux	EXPORT_SYMBOL
 0x23fd3028	vmalloc_node	vmlinux	EXPORT_SYMBOL

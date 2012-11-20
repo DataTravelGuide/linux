@@ -1145,6 +1145,7 @@
 	vlan_gro_receive
 	vm_get_page_prot
 	vm_insert_pfn
+	vm_stat
 	vmalloc
 	vmalloc_32
 	vmalloc_node
