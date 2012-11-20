@@ -1472,6 +1472,7 @@
 	unlock_rename
 	unmap_mapping_range
 	unmap_underlying_metadata
+	unregister_binfmt
 	unregister_blkdev
 	unregister_chrdev_region
 	unregister_cpu_notifier
