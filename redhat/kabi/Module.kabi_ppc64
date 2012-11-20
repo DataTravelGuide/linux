@@ -166,6 +166,7 @@
 0x82acfb70	blk_iopoll_sched	vmlinux	EXPORT_SYMBOL
 0xa58eca9c	blk_limits_io_min	vmlinux	EXPORT_SYMBOL
 0x73c15c02	blk_limits_io_opt	vmlinux	EXPORT_SYMBOL
+0x26051fdc	blk_make_request	vmlinux	EXPORT_SYMBOL
 0x1163f0a7	blk_max_low_pfn	vmlinux	EXPORT_SYMBOL
 0x7b1a5c47	blk_peek_request	vmlinux	EXPORT_SYMBOL
 0xeb3653da	blk_plug_device	vmlinux	EXPORT_SYMBOL

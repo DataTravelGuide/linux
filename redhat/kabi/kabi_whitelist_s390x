@@ -143,6 +143,7 @@
 	blk_iopoll_sched
 	blk_limits_io_min
 	blk_limits_io_opt
+	blk_make_request
 	blk_max_low_pfn
 	blk_peek_request
 	blk_plug_device
