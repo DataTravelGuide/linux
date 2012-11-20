@@ -43,6 +43,7 @@
 0x306596b2	__pagevec_release	vmlinux	EXPORT_SYMBOL
 0xc5844fb8	__per_cpu_offset	vmlinux	EXPORT_SYMBOL
 0x3bac60f0	__pskb_pull_tail	vmlinux	EXPORT_SYMBOL
+0x8e707545	__register_binfmt	vmlinux	EXPORT_SYMBOL
 0x40413654	__register_chrdev	vmlinux	EXPORT_SYMBOL
 0x7c61340c	__release_region	vmlinux	EXPORT_SYMBOL
 0xe90dcae0	__request_module	vmlinux	EXPORT_SYMBOL

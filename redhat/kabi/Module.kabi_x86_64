@@ -59,6 +59,7 @@
 0x5a4896a8	__put_user_2	vmlinux	EXPORT_SYMBOL
 0xb2fd5ceb	__put_user_4	vmlinux	EXPORT_SYMBOL
 0xb8e7ce2c	__put_user_8	vmlinux	EXPORT_SYMBOL
+0xfb994832	__register_binfmt	vmlinux	EXPORT_SYMBOL
 0xfa0d49c7	__register_chrdev	vmlinux	EXPORT_SYMBOL
 0x7c61340c	__release_region	vmlinux	EXPORT_SYMBOL
 0xe90dcae0	__request_module	vmlinux	EXPORT_SYMBOL

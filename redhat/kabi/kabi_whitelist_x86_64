@@ -60,6 +60,7 @@
 	__put_user_2
 	__put_user_4
 	__put_user_8
+	__register_binfmt
 	__register_chrdev
 	__release_region
 	__request_module
