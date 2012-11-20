@@ -5248,6 +5248,11 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	 * NOTE: interrupts enabled upon successful completion
 	 */
 	status = qla4xxx_initialize_adapter(ha, INIT_ADAPTER);
+
+	/* Dont retry adapter initialization if IRQ allocation failed */
+	if (!test_bit(AF_IRQ_ATTACHED, &ha->flags))
+		goto skip_retry_init;
+
 	while ((!test_bit(AF_ONLINE, &ha->flags)) &&
 	    init_retry_count++ < MAX_INIT_RETRIES) {
 
@@ -5272,6 +5277,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 		status = qla4xxx_initialize_adapter(ha, INIT_ADAPTER);
 	}
 
+skip_retry_init:
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
 		ql4_printk(KERN_WARNING, ha, "Failed to initialize adapter\n");
 
