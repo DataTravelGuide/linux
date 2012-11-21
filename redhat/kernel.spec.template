@@ -1697,6 +1697,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Nov 21 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-344.el6]
+- [netdrv] pch_gbe: don't reset MAC_RX on FIFO overflow (Veaceslav Falico) [858747]
+- [netdrv] pch_gbe: don't re-set RX_FIFO_ERR flag in napi_poll (Veaceslav Falico) [858747]
+- [netdrv] pch_gbe: create functions for MAC_RX enable, disable (Veaceslav Falico) [858747]
+- [s390] prevent kABI checking for transactional execution and RI (Hendrik Brueckner) [823011]
+- [s390] add support for transactional memory (Hendrik Brueckner) [823011]
+- [s390] add support for runtime instrumentation (Hendrik Brueckner) [823011]
+- [block] sg_io: introduce unpriv_sgio queue flag (Paolo Bonzini) [841577]
+- [block] sg_io: pass request_queue to blk_verify_command (Paolo Bonzini) [841577]
+- [scsi] have scsi_internal_device_unblock take new state (Chris Leech) [854140]
+- [scsi] add new SDEV_TRANSPORT_OFFLINE state (Chris Leech) [854140]
+- [fs] sysfs: Cache the last sysfs_dirent to improve readdir scalability (Jes Sorensen) [869037]
+- [fs] cifs: when CONFIG_HIGHMEM is set, serialize the write kmaps (Sachin Prabhu) [832252]
+- [fs] cifs: abstract out function to marshal up the iovec array for async writes (Sachin Prabhu) [832252]
+- [fs] cifs: on CONFIG_HIGHMEM machines, limit the wsize to the kmap space (Sachin Prabhu) [832252]
+- [fs] gfs2: fix truncation of journaled data files (Abhijith Das) [864634]
+- [fs] gfs2: re-fix kernel panic with small gfs2 filesystems (Abhijith Das) [838638]
+- [target] iblock: Add parameter to specify read-only devices (Andy Grover) [877561]
+- [ata] sata_svw: check DMA start bit before reset (David Milburn) [737836]
+- [scsi] hpsa: Use LUN reset instead of target reset (Tomas Henzl) [875091]
+- [net] bonding: prevent deadlock on slave store with alb mode (Veaceslav Falico) [849129]
+- [net] fix divide by zero in tcp algorithm illinois (Flavio Leitner) [866514] {CVE-2012-4565}
+
 * Mon Nov 19 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-343.el6]
 - [mm] percpu: Fix kdump crash_notes content lost in case i386 debug (Baoquan He) [828045]
 - [mm] percpu: fix chunk range calculation (Baoquan He) [828045]
