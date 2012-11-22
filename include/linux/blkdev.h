@@ -255,7 +255,6 @@ struct blk_queue_tag {
 };
 
 #define BLK_SCSI_MAX_CMDS	(256)
-#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
 struct queue_limits {
 	unsigned long		bounce_pfn;
@@ -430,6 +429,8 @@ struct request_queue
 	 * Delayed queue handling
 	 */
 	struct delayed_work	delay_work;
+
+	unsigned char		sgio_type;
 #endif /* __GENKSYMS__ */
 };
 

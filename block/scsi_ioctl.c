@@ -33,8 +33,8 @@
 #include <scsi/scsi_cmnd.h>
 
 struct blk_cmd_filter {
-	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
-	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
+	u32 read_ok[BLK_SCSI_MAX_CMDS];
+	u32 write_ok[BLK_SCSI_MAX_CMDS];
 } blk_default_cmd_filter;
 
 /* Command group 3 is reserved and should never be used.  */
@@ -113,7 +113,7 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 static void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 {
 #define sgio_bitmap_set(cmd, mask, rw) \
-	if ((mask) & (1u << TYPE_ROM)) __set_bit((cmd), filter->rw##_ok)
+	filter->rw##_ok[(cmd)] |= (mask);
 
 #define D (1u << TYPE_DISK)           /* Direct Access Block Device (SBC-3) */
 #define T (1u << TYPE_TAPE)           /* Sequential Access Device (SSC-3) */
@@ -459,16 +459,12 @@ int blk_verify_command(struct request_queue *q,
 	if (capable(CAP_SYS_RAWIO) || blk_queue_unpriv_sgio(q))
 		return 0;
 
-	/* if there's no filter set, assume we're filtering everything out */
-	if (!filter)
-		return -EPERM;
-
 	/* Anybody who can open the device can do a read-safe command */
-	if (test_bit(cmd[0], filter->read_ok))
+	if (filter->read_ok[cmd[0]] & (1 << q->sgio_type))
 		return 0;
 
 	/* Write-safe commands require a writable open */
-	if (test_bit(cmd[0], filter->write_ok) && has_write_perm)
+	if (has_write_perm && filter->write_ok[cmd[0]] & (1 << q->sgio_type))
 		return 0;
 
 	return -EPERM;
