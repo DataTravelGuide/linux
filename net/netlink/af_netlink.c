@@ -1682,7 +1682,7 @@ static int netlink_dump(struct sock *sk)
 		goto errout_skb;
 	}
 
-	alloc_size = max_t(int, cb->min_dump_alloc, NLMSG_GOODSIZE);
+	alloc_size = max_t(int, nl_callback_extended(cb)->min_dump_alloc, NLMSG_GOODSIZE);
 
 	skb = sock_rmalloc(sk, alloc_size, 0, GFP_KERNEL);
 	if (!skb)
@@ -1750,7 +1750,7 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->done = control->done;
 	cb->nlh = nlh;
 	cb_ext->module = control->module;
-	cb->min_dump_alloc = control->min_dump_alloc;
+	cb_ext->min_dump_alloc = control->min_dump_alloc;
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 

@@ -230,15 +230,13 @@ struct netlink_callback
 	int			(*done)(struct netlink_callback *cb);
 	int			family;
 	long			args[6];
-#ifndef __GENKSYMS__
-	u16			min_dump_alloc;
-#endif
 };
 
 struct netlink_callback_extended
 {
 	/* the module that dump function belong to */
 	struct module		*module;
+	u16			min_dump_alloc;
 };
 
 #define NETLINK_CALLBACK_SIZE (sizeof(struct netlink_callback))
