@@ -235,6 +235,25 @@ struct netlink_callback
 #endif
 };
 
+struct netlink_callback_extended
+{
+	/* the module that dump function belong to */
+	struct module		*module;
+};
+
+#define NETLINK_CALLBACK_SIZE (sizeof(struct netlink_callback))
+#define NETLINK_CALLBACK_EXTENDED_SIZE \
+	(sizeof(struct netlink_callback_extended))
+#define NETLINK_CALLBACK_TOTAL_SIZE (NETLINK_CALLBACK_SIZE +\
+	NETLINK_CALLBACK_EXTENDED_SIZE)
+
+static inline struct netlink_callback_extended *
+nl_callback_extended(const struct netlink_callback *cb)
+{
+	return (struct netlink_callback_extended *) (((char *) cb)
+		+ NETLINK_CALLBACK_SIZE);
+}
+
 struct netlink_notify
 {
 	struct net *net;
@@ -271,12 +290,22 @@ struct netlink_dump_control {
 	int (*dump)(struct sk_buff *skb, struct netlink_callback *);
 	int (*done)(struct netlink_callback*);
 	u16 min_dump_alloc;
+	struct module *module;
 };
 
-extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
+extern int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      struct netlink_dump_control *control);
 
+static inline int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
+				     const struct nlmsghdr *nlh,
+				     struct netlink_dump_control *control)
+{
+	if (!control->module)
+		control->module = THIS_MODULE;
+
+	return __netlink_dump_start(ssk, skb, nlh, control);
+}
 
 #define NL_NONROOT_RECV 0x1
 #define NL_NONROOT_SEND 0x2
