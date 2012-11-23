@@ -1370,7 +1370,7 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 	int noblock = flags&MSG_DONTWAIT;
 	size_t copied;
 	struct sk_buff *skb, *frag __maybe_unused = NULL;
-	int err;
+	int err, ret;
 
 	if (flags&MSG_OOB)
 		return -EOPNOTSUPP;
@@ -1447,8 +1447,13 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 
 	skb_free_datagram(sk, skb);
 
-	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2)
-		netlink_dump(sk);
+	if (nlk->cb && atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf / 2) {
+		ret = netlink_dump(sk);
+		if (ret) {
+			sk->sk_err = ret;
+			sk->sk_error_report(sk);
+		}
+	}
 
 	scm_recv(sock, msg, siocb->scm, flags);
 out:
@@ -1733,6 +1738,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	struct netlink_callback *cb;
 	struct sock *sk;
 	struct netlink_sock *nlk;
+	int ret;
 
 	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	if (cb == NULL)
@@ -1762,8 +1768,12 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	nlk->cb = cb;
 	mutex_unlock(nlk->cb_mutex);
 
-	netlink_dump(sk);
+	ret = netlink_dump(sk);
+
 	sock_put(sk);
+
+	if (ret)
+		return ret;
 
 	/* We successfully started a dump, by returning -EINTR we
 	 * signal not to send ACK even if it was requested.
