@@ -778,7 +778,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)uaddr;
 	struct dentry *dentry = NULL;
 	struct nameidata nd;
-	int err;
+	int err, err2 = 0;
 	unsigned hash;
 	struct unix_address *addr;
 	struct hlist_head *list;
@@ -824,14 +824,21 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (err)
 			goto out_mknod_parent;
 
-		err = mnt_want_write(nd.path.mnt);
-		if (err)
-			goto out_mknod_dput;
+		/*
+		 * don't fail immediately if it's r/o, at least try to
+		 * report other errors
+		 */
+		err2 = mnt_want_write(nd.path.mnt);
+
 		dentry = lookup_create(&nd, 0);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_mknod_unlock;
 
+		if (unlikely(err2)) {
+			err = err2;
+			goto out_mknod_dput;
+		}
 		/*
 		 * All right, let's create it.
 		 */
@@ -884,7 +891,8 @@ out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
+	if (!err2)
+		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 out_mknod_parent:
 	if (err == -EEXIST)

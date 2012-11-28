@@ -2243,7 +2243,7 @@ static int may_mknod(mode_t mode)
 SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
 		unsigned, dev)
 {
-	int error;
+	int error, err2;
 	char *tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
@@ -2255,14 +2255,18 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
 	if (error)
 		return error;
 
-	error = mnt_want_write(nd.path.mnt);
-	if (error)
-		goto out_put;
+	/* don't fail immediately if it's r/o, at least try to report other errors */
+	err2 = mnt_want_write(nd.path.mnt);
 
 	dentry = lookup_create(&nd, 0);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_unlock;
+	}
+
+	if (unlikely(err2)) {
+		error = err2;
+		goto out_dput;
 	}
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
 		mode &= ~current_umask();
@@ -2288,8 +2292,8 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
-out_put:
+	if (!err2)
+		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(tmp);
 
@@ -2325,7 +2329,7 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 {
-	int error = 0;
+	int error = 0, err2;
 	char * tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
@@ -2334,15 +2338,18 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 	if (error)
 		goto out_err;
 
-	error = mnt_want_write(nd.path.mnt);
-	if (error)
-		goto out_put;
+	/* don't fail immediately if it's r/o, at least try to report other errors */
+	err2 = mnt_want_write(nd.path.mnt);
 
 	dentry = lookup_create(&nd, 1);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
 
+	if (unlikely(err2)) {
+		error = err2;
+		goto out_dput;
+	}
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
 		mode &= ~current_umask();
 	error = security_path_mkdir(&nd.path, dentry, mode);
@@ -2353,8 +2360,8 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
-out_put:
+	if (!err2)
+		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(tmp);
 out_err:
@@ -2609,7 +2616,7 @@ int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)
 SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 		int, newdfd, const char __user *, newname)
 {
-	int error;
+	int error, err2;
 	char *from;
 	char *to;
 	struct dentry *dentry;
@@ -2623,15 +2630,18 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	if (error)
 		goto out_putname;
 
-	error = mnt_want_write(nd.path.mnt);
-	if (error)
-		goto out_putname;
+	/* don't fail immediately if it's r/o, at least try to report other errors */
+	err2 = mnt_want_write(nd.path.mnt);
 
 	dentry = lookup_create(&nd, 0);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
 
+	if (unlikely(err2)) {
+		error = err2;
+		goto out_dput;
+	}
 	error = security_path_symlink(&nd.path, dentry, from);
 	if (error)
 		goto out_dput;
@@ -2640,7 +2650,8 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
+	if (!err2)
+		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(to);
 out_putname:
