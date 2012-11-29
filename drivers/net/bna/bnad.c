@@ -462,6 +462,12 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 
 		rcb->rxq->rx_packets++;
 		rcb->rxq->rx_bytes += skb->len;
+
+		/* RHEL6 specific - if VLAN tag is indicated but there is no
+		 * VLAN configured, then put back VLAN tag stripped by HW */
+		if ((flags & BNA_CQ_EF_VLAN) && !bnad->vlan_grp)
+			__vlan_put_tag(skb, ntohs(cmpl->vlan_tag));
+
 		skb->protocol = eth_type_trans(skb, bnad->netdev);
 
 		if (bnad->vlan_grp && (flags & BNA_CQ_EF_VLAN)) {
