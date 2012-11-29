@@ -90,13 +90,11 @@ rh-clean-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) clean
 
 rh-clean-sources:
-	@for i in $(SOURCES)/*; do \
-		rm -f $$i; \
-	done;
+	@rm -rf $(SOURCES)/*
 
 rh-clean-rpmdirs:
 	@for i in $(RPM)/{BUILD,SRPMS,RPMS,SPECS}/*; do \
-		rm -rfv $$i; \
+		rm -rf $$i; \
 	done;
 
 rh-clean: rh-clean-sources rh-clean-configs rh-clean-rpmdirs
