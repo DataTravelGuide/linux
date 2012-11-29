@@ -1697,6 +1697,31 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Nov 28 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-345.el6]
+- [fs] ext4: race-condition protection for ext4_convert_unwritten_extents_endio (Lukas Czerner) [869906] {CVE-2012-4508}
+- [fs] ext4: serialize fallocate with ext4_convert_unwritten_extents (Lukas Czerner) [869906] {CVE-2012-4508}
+- [fs] ext4: flush the i_completed_io_list during ext4_truncate (Lukas Czerner) [869906] {CVE-2012-4508}
+- [infiniband] ipoib: Fix AB-BA deadlock when deleting neighbours (Doug Ledford) [873949]
+- [infiniband] ipoib: Fix memory leak in the neigh table deletion flow (Doug Ledford) [873949]
+- [infiniband] ipoib: Fix RCU pointer dereference of wrong object (Doug Ledford) [873949]
+- [misc] Make rcu_dereference_bh work (Doug Ledford) [873949]
+- [infiniband] ipoib: Use a private hash table for path lookup in xmit path (Doug Ledford) [873949]
+- [net] netlink: move min_dump_alloc to netlink_callback_extended (Weiping Pan) [872067]
+- [infiniband] pass rdma_cm module to netlink_dump_start (Weiping Pan) [872067]
+- [net] netlink: add reference of module in netlink_dump_start (Weiping Pan) [872067]
+- [net] netfilter: add netlink_dump_control structure for netlink_dump_start() (Weiping Pan) [872067]
+- [net] netlink: handle errors from netlink_dump() (Weiping Pan) [872067]
+- [powerpc] mm: Export memory limit via device tree (Baoquan He) [674664]
+- [powerpc] mm: Change memory_limit from phys_addr_t to unsigned long long (Baoquan He) [674664]
+- [drm] radeon: For single CRTC GPUs move handling of CRTC_CRT_ON to crtc_dpms() (Jerome Glisse) [873728]
+- [drm] radeon: Fix TV DAC Load Detection for single CRTC chips (Jerome Glisse) [873728]
+- [drm] radeon: Clean up code in TV DAC load detection (Jerome Glisse) [873728]
+- [drm] radeon: On DVI-I use Load Detection when EDID is bogus (Jerome Glisse) [873728]
+- [drm] radeon: Fix primary DAC Load Detection for RV100 chips (Jerome Glisse) [873728]
+- [drm] radeon: Fix Load Detection on legacy primary DAC (Jerome Glisse) [873728]
+- [netdrv] ixgbe: PTP get_ts_info missing software support (Andy Gospodarek) [876810]
+- [pci] dmar: use PF's pci-dev struct for IOMMU association for VFs (Don Dutile) [873462]
+
 * Wed Nov 21 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-344.el6]
 - [netdrv] pch_gbe: don't reset MAC_RX on FIFO overflow (Veaceslav Falico) [858747]
 - [netdrv] pch_gbe: don't re-set RX_FIFO_ERR flag in napi_poll (Veaceslav Falico) [858747]
