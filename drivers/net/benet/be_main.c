@@ -880,7 +880,11 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-	if (!be_physfn(adapter))
+	if (!lancer_chip(adapter) && !be_physfn(adapter))
+		return;
+
+	/* Packets with VID 0 are always received by Lancer by default */
+	if (lancer_chip(adapter) && vid == 0)
 		return;
 
 	adapter->vlan_tag[vid] = 1;
@@ -898,7 +902,11 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-	if (!be_physfn(adapter))
+	if (!lancer_chip(adapter) && !be_physfn(adapter))
+		return;
+
+	/* Packets with VID 0 are always received by Lancer by default */
+	if (lancer_chip(adapter) && vid == 0)
 		return;
 
 	adapter->vlan_tag[vid] = 0;
