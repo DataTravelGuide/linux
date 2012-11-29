@@ -388,6 +388,7 @@ struct be_adapter {
 
 	struct delayed_work func_recovery_work;
 	u32 flags;
+	u32 cmd_privileges;
 	/* Ethtool knobs and info */
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
 	char fw_ver[FW_VER_LEN];
