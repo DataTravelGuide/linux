@@ -931,7 +931,7 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 	 */
 	r = dm_thin_insert_block(tc->td, m->virt_block, m->data_block);
 	if (r) {
-		DMERR("dm_thin_insert_block() failed");
+		DMERR_LIMIT("dm_thin_insert_block() failed");
 		cell_error(m->cell);
 		goto out;
 	}
@@ -984,7 +984,7 @@ static void process_prepared_discard(struct dm_thin_new_mapping *m)
 
 	r = dm_thin_remove_block(tc->td, m->virt_block);
 	if (r)
-		DMERR("dm_thin_remove_block() failed");
+		DMERR_LIMIT("dm_thin_remove_block() failed");
 
 	process_prepared_discard_passdown(m);
 }
@@ -1097,7 +1097,7 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 				   0, copy_complete, m);
 		if (r < 0) {
 			mempool_free(m, pool->mapping_pool);
-			DMERR("dm_kcopyd_copy() failed");
+			DMERR_LIMIT("dm_kcopyd_copy() failed");
 			cell_error(cell);
 		}
 	}
@@ -1162,7 +1162,7 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 		r = dm_kcopyd_zero(pool->copier, 1, &to, 0, copy_complete, m);
 		if (r < 0) {
 			mempool_free(m, pool->mapping_pool);
-			DMERR("dm_kcopyd_zero() failed");
+			DMERR_LIMIT("dm_kcopyd_zero() failed");
 			cell_error(cell);
 		}
 	}
@@ -1174,7 +1174,7 @@ static int commit(struct pool *pool)
 
 	r = dm_pool_commit_metadata(pool->pmd);
 	if (r)
-		DMERR("commit failed, error = %d", r);
+		DMERR_LIMIT("commit failed, error = %d", r);
 
 	return r;
 }
@@ -1355,7 +1355,8 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR("discard: find block unexpectedly returned %d", r);
+		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+			    __func__, r);
 		cell_release_singleton(cell, bio);
 		bio_io_error(bio);
 		break;
@@ -1382,7 +1383,8 @@ static void break_sharing(struct thin_c *tc, struct bio *bio, dm_block_t block,
 		break;
 
 	default:
-		DMERR("%s: alloc_data_block() failed, error = %d", __func__, r);
+		DMERR_LIMIT("%s: alloc_data_block() failed, error = %d",
+			    __func__, r);
 		cell_error(cell);
 		break;
 	}
@@ -1455,7 +1457,8 @@ static void provision_block(struct thin_c *tc, struct bio *bio, dm_block_t block
 		break;
 
 	default:
-		DMERR("%s: alloc_data_block() failed, error = %d", __func__, r);
+		DMERR_LIMIT("%s: alloc_data_block() failed, error = %d",
+			    __func__, r);
 		set_pool_mode(tc->pool, PM_READ_ONLY);
 		cell_error(cell);
 		break;
@@ -1507,7 +1510,8 @@ static void process_bio(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR("dm_thin_find_block() failed, error = %d", r);
+		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+			    __func__, r);
 		cell_release_singleton(cell, bio);
 		bio_io_error(bio);
 		break;
@@ -1546,7 +1550,8 @@ static void process_bio_read_only(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR("dm_thin_find_block() failed, error = %d", r);
+		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+			    __func__, r);
 		bio_io_error(bio);
 		break;
 	}
