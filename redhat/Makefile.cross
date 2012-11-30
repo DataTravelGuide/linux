@@ -8,7 +8,7 @@ rh-cross-download:
 		echo "$(ARCHCONFIG) ERROR: cross compile only enabled for x86_64"; \
 		exit 1; \
 	fi;
-ifeq ($(USER), root)
+ifeq ($(shell whoami), root)
 	@yum -y --config=$(CROSS_REPO) install rhel6-cross-compilers;
 else
 	@echo "Checking for rhel6-cross-compilers.  If this fails, run \"make rh-cross-download\" as root."
