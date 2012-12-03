@@ -229,10 +229,7 @@ static int wait_for_helper(void *data)
 			sub_info->retval = ret;
 	}
 
-	if (sub_info->wait == UMH_NO_WAIT)
-		call_usermodehelper_freeinfo(sub_info);
-	else
-		complete(sub_info->complete);
+	complete(sub_info->complete);
 	return 0;
 }
 
@@ -241,15 +238,15 @@ static void __call_usermodehelper(struct work_struct *work)
 {
 	struct subprocess_info *sub_info =
 		container_of(work, struct subprocess_info, work);
-	pid_t pid;
 	enum umh_wait wait = sub_info->wait;
+	pid_t pid;
 
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
 
 	/* CLONE_VFORK: wait until the usermode helper has execve'd
 	 * successfully We need the data structures to stay around
 	 * until that is done.  */
-	if (wait == UMH_WAIT_PROC || wait == UMH_NO_WAIT)
+	if (wait == UMH_WAIT_PROC)
 		pid = kernel_thread(wait_for_helper, sub_info,
 				    CLONE_FS | CLONE_FILES | SIGCHLD);
 	else
@@ -258,6 +255,7 @@ static void __call_usermodehelper(struct work_struct *work)
 
 	switch (wait) {
 	case UMH_NO_WAIT:
+		call_usermodehelper_freeinfo(sub_info);
 		break;
 
 	case UMH_WAIT_PROC:
