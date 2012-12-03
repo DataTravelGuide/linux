@@ -46,6 +46,11 @@ static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
+
+	/* if previous slave_alloc returned early, there is nothing to do */
+	if (!unit)
+		return;
+
 	unit->device = NULL;
 	zfcp_unit_put(unit);
 }
