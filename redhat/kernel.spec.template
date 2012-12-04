@@ -1697,6 +1697,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 04 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-346.el6]
+- [net] ipset: list-set: fix adding 'after' (Thomas Graf) [880464]
+- [net] ipset: take into account cidr value for the from address when creating the set (Thomas Graf) [879539]
+- [net] net_sched: gred: Fix oops in gred_dump() in WRED mode (Thomas Graf) [874872]
+- [net] IPv4: Send gratuitous ARP for secondary IP addresses also (Jason Wang) [875309]
+- [net] arp_notify: unconditionally send gratuitous ARP for NETDEV_NOTIFY_PEERS (Jason Wang) [875309]
+- [net] fix net.core.?mem_max defaults (Thomas Graf) [878072]
+- [net] pktgen: fix crash when generating IPv6 packets (Thomas Graf) [877327]
+- [net] netfilter/ipset: fix hash size checking in kernel (Thomas Graf) [876831]
+- [net] sctp: send abort chunk when max_retrans exceeded (Neil Horman) [876249]
+
 * Wed Nov 28 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-345.el6]
 - [fs] ext4: race-condition protection for ext4_convert_unwritten_extents_endio (Lukas Czerner) [869906] {CVE-2012-4508}
 - [fs] ext4: serialize fallocate with ext4_convert_unwritten_extents (Lukas Czerner) [869906] {CVE-2012-4508}
