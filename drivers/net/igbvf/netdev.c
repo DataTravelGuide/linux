@@ -107,11 +107,16 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
-	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
-		vlan_hwaccel_receive_skb(skb, adapter->vlgrp,
-		                         le16_to_cpu(vlan) &
-		                         E1000_RXD_SPC_VLAN_MASK);
-	else
+	u16 vid;
+
+	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP)) {
+		if ((adapter->flags & IGBVF_FLAG_RX_LB_VLAN_BSWAP) &&
+		    (status & E1000_RXDEXT_STATERR_LB))
+			vid = be16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		else
+			vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
+	} else
 		netif_receive_skb(skb);
 }
 
@@ -2760,6 +2765,10 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
+
+	/* set hardware-specific flags */
+	if (adapter->hw.mac.type == e1000_vfadapt_i350)
+		adapter->flags |= IGBVF_FLAG_RX_LB_VLAN_BSWAP;
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
