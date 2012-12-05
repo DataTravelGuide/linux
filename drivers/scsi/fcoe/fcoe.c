@@ -2049,7 +2049,7 @@ static int fcoe_disable(struct net_device *netdev)
 
 	if (fcoe) {
 		ctlr = fcoe_to_ctlr(fcoe);
-		fcoe_ctlr_link_down(ctlr);
+		fcoe_ctlr_disable(ctlr);
 		fcoe_clean_pending_queue(ctlr->lp);
 	} else
 		rc = -ENODEV;
@@ -2085,7 +2085,7 @@ static int fcoe_enable(struct net_device *netdev)
 	ctlr = fcoe_to_ctlr(fcoe);
 
 	if (!fcoe_link_ok(ctlr->lp))
-		fcoe_ctlr_link_up(ctlr);
+		fcoe_ctlr_enable(ctlr);
 
 out:
 	mutex_unlock(&fcoe_config_mutex);
