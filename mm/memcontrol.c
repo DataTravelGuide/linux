@@ -2453,6 +2453,8 @@ void mem_cgroup_split_hugepage_commit(struct page *tail, struct page *head)
 	target->mem_cgroup = mem;
 	smp_wmb();
 	SetPageCgroupUsed(target);
+	if (PageCgroupAcctLRU(origin))
+		SetPageCgroupAcctLRU(target);
 }
 
 #endif
