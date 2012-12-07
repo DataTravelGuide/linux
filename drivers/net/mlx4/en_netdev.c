@@ -1126,7 +1126,7 @@ static int mlx4_en_close(struct net_device *dev)
 	return 0;
 }
 
-void mlx4_en_free_resources(struct mlx4_en_priv *priv, bool reserve_vectors)
+void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 {
 	int i;
 
@@ -1134,7 +1134,7 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv, bool reserve_vectors)
 		if (priv->tx_ring[i].tx_info)
 			mlx4_en_destroy_tx_ring(priv, &priv->tx_ring[i]);
 		if (priv->tx_cq[i].buf)
-			mlx4_en_destroy_cq(priv, &priv->tx_cq[i], reserve_vectors);
+			mlx4_en_destroy_cq(priv, &priv->tx_cq[i]);
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -1142,7 +1142,7 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv, bool reserve_vectors)
 			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i],
 				priv->prof->rx_ring_size, priv->stride);
 		if (priv->rx_cq[i].buf)
-			mlx4_en_destroy_cq(priv, &priv->rx_cq[i], reserve_vectors);
+			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}
 
 	if (priv->base_tx_qpn) {
@@ -1216,7 +1216,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mdev->pndev[priv->port] = NULL;
 	mutex_unlock(&mdev->state_lock);
 
-	mlx4_en_free_resources(priv, false);
+	mlx4_en_free_resources(priv);
 
 	kfree(priv->tx_ring);
 	kfree(priv->tx_cq);
