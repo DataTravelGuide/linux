@@ -4626,7 +4626,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 	struct net_device *ndev = NULL;
 	struct ql_adapter *qdev = NULL;
 	static int cards_found = 0;
-	int err = 0;
+	int err = 0, hw_features;
 
 	ndev = alloc_etherdev_mq(sizeof(struct ql_adapter),
 			min(MAX_CPUS, (int)num_online_cpus()));
@@ -4641,15 +4641,14 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 
 	qdev = netdev_priv(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
-	ndev->features = (0
-			  | NETIF_F_IP_CSUM
-			  | NETIF_F_SG
-			  | NETIF_F_TSO
-			  | NETIF_F_TSO6
-			  | NETIF_F_TSO_ECN
-			  | NETIF_F_HW_VLAN_TX
-			  | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER);
+	hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN |
+		NETIF_F_HW_VLAN_TX;
+	ndev->features = hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	/* next line RHEL specific: ensure GRO enabled by default */
 	ndev->features |= NETIF_F_GRO;
+	ndev->vlan_features = hw_features;
 
 	if (test_bit(QL_DMA64, &qdev->flags))
 		ndev->features |= NETIF_F_HIGHDMA;
