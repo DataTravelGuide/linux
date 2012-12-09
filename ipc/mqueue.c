@@ -307,7 +307,7 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct ipc_namespace *ns = data;
-	int error = 0;
+	int error;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -325,7 +325,9 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root) {
 		iput(inode);
 		error = -ENOMEM;
+		goto out;
 	}
+	error = 0;
 
 out:
 	return error;
@@ -831,9 +833,10 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 	if (oflag & O_CREAT) {
 		if (dentry->d_inode) {	/* entry already exists */
 			audit_inode(name, dentry);
-			error = -EEXIST;
-			if (oflag & O_EXCL)
+			if (oflag & O_EXCL) {
+				error = -EEXIST;
 				goto out;
+			}
 			filp = do_open(ipc_ns, dentry, oflag);
 		} else {
 			filp = do_create(ipc_ns, ipc_ns->mq_mnt->mnt_root,
@@ -841,9 +844,10 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 						u_attr ? &attr : NULL);
 		}
 	} else {
-		error = -ENOENT;
-		if (!dentry->d_inode)
+		if (!dentry->d_inode) {
+			error = -ENOENT;
 			goto out;
+		}
 		audit_inode(name, dentry);
 		filp = do_open(ipc_ns, dentry, oflag);
 	}
@@ -992,19 +996,24 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 	audit_mq_sendrecv(mqdes, msg_len, msg_prio, p);
 	timeout = prepare_timeout(p);
 
-	ret = -EBADF;
 	filp = fget(mqdes);
-	if (unlikely(!filp))
+	if (unlikely(!filp)) {
+		ret = -EBADF;
 		goto out;
+	}
 
 	inode = filp->f_path.dentry->d_inode;
-	if (unlikely(filp->f_op != &mqueue_file_operations))
+	if (unlikely(filp->f_op != &mqueue_file_operations)) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 	info = MQUEUE_I(inode);
 	audit_inode(NULL, filp->f_path.dentry);
 
-	if (unlikely(!(filp->f_mode & FMODE_WRITE)))
+	if (unlikely(!(filp->f_mode & FMODE_WRITE))) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 
 	if (unlikely(msg_len > info->attr.mq_msgsize)) {
 		ret = -EMSGSIZE;
@@ -1107,19 +1116,24 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 	audit_mq_sendrecv(mqdes, msg_len, 0, p);
 	timeout = prepare_timeout(p);
 
-	ret = -EBADF;
 	filp = fget(mqdes);
-	if (unlikely(!filp))
+	if (unlikely(!filp)) {
+		ret = -EBADF;
 		goto out;
+	}
 
 	inode = filp->f_path.dentry->d_inode;
-	if (unlikely(filp->f_op != &mqueue_file_operations))
+	if (unlikely(filp->f_op != &mqueue_file_operations)) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 	info = MQUEUE_I(inode);
 	audit_inode(NULL, filp->f_path.dentry);
 
-	if (unlikely(!(filp->f_mode & FMODE_READ)))
+	if (unlikely(!(filp->f_mode & FMODE_READ))) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 
 	/* checks if buffer is big enough */
 	if (unlikely(msg_len < info->attr.mq_msgsize)) {
@@ -1228,13 +1242,14 @@ SYSCALL_DEFINE2(mq_notify, mqd_t, mqdes,
 
 			/* create the notify skb */
 			nc = alloc_skb(NOTIFY_COOKIE_LEN, GFP_KERNEL);
-			ret = -ENOMEM;
-			if (!nc)
+			if (!nc) {
+				ret = -ENOMEM;
 				goto out;
-			ret = -EFAULT;
+			}
 			if (copy_from_user(nc->data,
 					notification.sigev_value.sival_ptr,
 					NOTIFY_COOKIE_LEN)) {
+				ret = -EFAULT;
 				goto out;
 			}
 
@@ -1243,9 +1258,10 @@ SYSCALL_DEFINE2(mq_notify, mqd_t, mqdes,
 			/* and attach it to the socket */
 retry:
 			filp = fget(notification.sigev_signo);
-			ret = -EBADF;
-			if (!filp)
+			if (!filp) {
+				ret = -EBADF;
 				goto out;
+			}
 			sock = netlink_getsockbyfilp(filp);
 			fput(filp);
 			if (IS_ERR(sock)) {
@@ -1257,7 +1273,7 @@ retry:
 			timeo = MAX_SCHEDULE_TIMEOUT;
 			ret = netlink_attachskb(sock, nc, &timeo, NULL);
 			if (ret == 1)
-		       		goto retry;
+				goto retry;
 			if (ret) {
 				sock = NULL;
 				nc = NULL;
@@ -1266,14 +1282,17 @@ retry:
 		}
 	}
 
-	ret = -EBADF;
 	filp = fget(mqdes);
-	if (!filp)
+	if (!filp) {
+		ret = -EBADF;
 		goto out;
+	}
 
 	inode = filp->f_path.dentry->d_inode;
-	if (unlikely(filp->f_op != &mqueue_file_operations))
+	if (unlikely(filp->f_op != &mqueue_file_operations)) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 	info = MQUEUE_I(inode);
 
 	ret = 0;
@@ -1336,14 +1355,17 @@ SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
 			return -EINVAL;
 	}
 
-	ret = -EBADF;
 	filp = fget(mqdes);
-	if (!filp)
+	if (!filp) {
+		ret = -EBADF;
 		goto out;
+	}
 
 	inode = filp->f_path.dentry->d_inode;
-	if (unlikely(filp->f_op != &mqueue_file_operations))
+	if (unlikely(filp->f_op != &mqueue_file_operations)) {
+		ret = -EBADF;
 		goto out_fput;
+	}
 	info = MQUEUE_I(inode);
 
 	spin_lock(&info->lock);
