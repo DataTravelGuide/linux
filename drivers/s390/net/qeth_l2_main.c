@@ -602,7 +602,11 @@ static int qeth_l2_send_delmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code) {
 		QETH_DBF_TEXT_(TRACE, 2, "err%d", cmd->hdr.return_code);
-		cmd->hdr.return_code = -EIO;
+		if (cmd->hdr.return_code == IPA_RC_L2_MAC_NOT_FOUND) {
+			card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
+			cmd->hdr.return_code = 0;
+		} else
+			cmd->hdr.return_code = -EIO;
 		return 0;
 	}
 	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
