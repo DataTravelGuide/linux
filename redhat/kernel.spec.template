@@ -1697,6 +1697,43 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Dec 10 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-348.el6]
+- [ipc] mqueue: Prevent mq_send/receive memory corruption (Larry Woodman) [885030]
+- [fs] nfs: prevent delegreturn attr deadlock (David Jeffery) [870142]
+- [netdrv] tg3: Do not set TSS for 5719 and 5720 (John Feeney) [823371]
+- [scsi] lpfc: Update lpfc version for 8.3.5.86.1p driver release (Rob Evers) [877149]
+- [scsi] lpfc: Fixed setting sequential delivery bit in a service class that is not valid (Rob Evers) [877149]
+- [scsi] lpfc: Fixed boot from san failure when SLI4 FC device presented on the same PCI bus (Rob Evers) [877149]
+- [scsi] lpfc: Add LOGO support after ABTS compliance (Rob Evers) [877149]
+- [scsi] lpfc: Fixed not reporting logical link speed to SCSI midlayer when QoS not on (Rob Evers) [877149]
+- [scsi] lpfc: Fixed SCSI host create showing wrong link speed on SLI3 HBA ports (Rob Evers) [877149]
+- [scsi] lpfc: Fixed kernel warning on spinlock usage on some distributions (Rob Evers) [877149]
+- [scsi] lpfc: Fixed Linux generic firmware download on SLI4 devices with longer module names (Rob Evers) [877149]
+- [scsi] lpfc: Fix error with fabric service parameters causing performance issues (Rob Evers) [877149]
+- [scsi] lpfc: Fixed messages for misconfigured port errors (Rob Evers) [877149]
+- [scsi] lpfc: Fix FCP2 Retries for non-r/w commands (Rob Evers) [877149]
+- [scsi] lpfc: Fix incorrect comment in T10 DIF attributes (Rob Evers) [877149]
+- [scsi] lpfc: Correct missing queue destroy on function reset (Rob Evers) [877149]
+- [scsi] lpfc: Added checking BMBX register for RDY bit before writing the first address in (Rob Evers) [877149]
+- [scsi] lpfc: Misc changes to optimize critical path (Rob Evers) [877149]
+- [s390] qdio: fix kernel panic for zfcp 31-bit (Hendrik Brueckner) [878380]
+- [s390] zcrypt: msgType50 (RSA-CRT) fix (Hendrik Brueckner) [875977]
+- [netdrv] ixgbe: fix uninitialized event.type in ixgbe_ptp_check_pps_event (Andy Gospodarek) [884369]
+- [netdrv] ixgbe: (PTP) Fix PPS interrupt code (Andy Gospodarek) [884369]
+- [netdrv] ixgbe: Fix PTP X540 SDP alignment code for PPS signal (Andy Gospodarek) [884369]
+- [s390] zfcp: support for hardware data router (Hendrik Brueckner) [823016]
+- [s390] qdio: base support for hardware data router with zfcp (Hendrik Brueckner) [823016]
+- [s390] qdio: Split SBAL entry flags (Hendrik Brueckner) [823016]
+- [net] netfilter/ipset: Check and reject crazy /0 input parameters (Thomas Graf) [880920]
+- [kernel] kmod: make __request_module() killable (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [kernel] kmod: introduce call_modprobe() helper (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [kernel] usermodehelper: implement UMH_KILLABLE (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [kernel] usermodehelper: introduce umh_complete(sub_info) (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [kernel] call_usermodehelper: simplify/fix UMH_NO_WAIT case (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [kernel] wait_for_helper: SIGCHLD from user-space can lead to use-after-free (Oleg Nesterov) [819529] {CVE-2012-4398}
+- [netdrv] qlge: Backport offload features to vlan interfaces (John Green) [849749]
+- [netdrv] igbvf: work around i350 erratum (Stefan Assmann) [870638]
+
 * Thu Dec 06 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-347.el6]
 - [netdrv] be2net: Update driver version to 4.4.161.0r (Ivan Vecera) [868896]
 - [netdrv] be2net: Fix skyhawk VF PCI Device ID (Ivan Vecera) [868896]
