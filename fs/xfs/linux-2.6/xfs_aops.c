@@ -161,6 +161,13 @@ xfs_setfilesize_trans_alloc(
 	ioend->io_append_trans = tp;
 
 	/*
+	 * We may pass freeze protection with a transaction.  So tell lockdep
+	 * we released it.
+	 */
+	rwsem_release(&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+		      1, _THIS_IP_);
+
+	/*
 	 * We hand off the transaction to the completion thread now, so
 	 * clear the flag here.
 	 */
@@ -223,7 +230,8 @@ xfs_finish_ioend(
 	if (atomic_dec_and_test(&ioend->io_remaining)) {
 		if (ioend->io_type == IO_UNWRITTEN)
 			queue_work(xfsconvertd_workqueue, &ioend->io_work);
-		else if (ioend->io_append_trans)
+		else if (ioend->io_append_trans ||
+			 (ioend->io_isdirect && xfs_ioend_is_append(ioend)))
 			queue_work(xfsdatad_workqueue, &ioend->io_work);
 		else
 			xfs_destroy_ioend(ioend);
@@ -253,30 +261,31 @@ xfs_end_io(
 	 * range to normal written extens after the data I/O has finished.
 	 */
 	if (ioend->io_type == IO_UNWRITTEN) {
-		/*
-		 * For buffered I/O we never preallocate a transaction when
-		 * doing the unwritten extent conversion, but for direct I/O
-		 * we do not know if we are converting an unwritten extent
-		 * or not at the point where we preallocate the transaction.
-		 */
-		if (ioend->io_append_trans) {
-			ASSERT(ioend->io_isdirect);
-
-			current_set_flags_nested(
-				&ioend->io_append_trans->t_pflags, PF_FSTRANS);
-			xfs_trans_cancel(ioend->io_append_trans, 0);
-		}
-
 		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
-						 ioend->io_size);
-		if (error) {
-			ioend->io_error = -error;
+						  ioend->io_size);
+	} else if (ioend->io_isdirect && xfs_ioend_is_append(ioend) &&
+		   !ioend->io_append_trans) {
+		/*
+		 * For direct I/O we do not know if we need to allocate blocks
+		 * or not so we can't preallocate an append transaction as that
+		 * results in nested reservations and log space deadlocks. Hence
+		 * allocate the transaction here. While this is sub-optimal and
+		 * can block IO completion for some time, we're stuck with doing
+		 * it this way until we can pass the ioend to the direct IO
+		 * allocation callbacks and avoid nesting that way.
+		 *
+		 * RHEL6 porting note: We can re-enter this function because
+		 * xfs_setfilesize() can return EAGAIN. In that case, we will
+		 * re-enter with a transaction already reserved, so we don't
+		 * want to take this branch and reserve another transaction....
+		 */
+		error = xfs_setfilesize_trans_alloc(ioend);
+		if (error)
 			goto done;
-		}
+		error = xfs_setfilesize(ioend);
 	} else if (ioend->io_append_trans) {
 		error = xfs_setfilesize(ioend);
-		if (error && error != EAGAIN)
-			ioend->io_error = -error;
+
 	} else {
 		ASSERT(!xfs_ioend_is_append(ioend));
 	}
@@ -293,9 +302,10 @@ done:
 		xfs_finish_ioend(ioend);
 		/* ensure we don't spin on blocked ioends */
 		delay(1);
-	} else {
-		xfs_destroy_ioend(ioend);
+		return;
 	}
+	ioend->io_error = -error;
+	xfs_destroy_ioend(ioend);
 }
 
 /*
@@ -1463,25 +1473,21 @@ xfs_vm_direct_IO(
 		size_t size = iov_length(iov, nr_segs);
 
 		/*
-		 * We need to preallocate a transaction for a size update
-		 * here.  In the case that this write both updates the size
-		 * and converts at least on unwritten extent we will cancel
-		 * the still clean transaction after the I/O has finished.
+		 * We cannot preallocate a size update transaction here as we
+		 * don't know whether allocation is necessary or not. Hence we
+		 * can only tell IO completion that one is necessary if we are
+		 * not doing unwritten extent conversion.
 		 */
 		iocb->private = ioend = xfs_alloc_ioend(inode, IO_DIRECT);
-		if (offset + size > XFS_I(inode)->i_d.di_size) {
-			ret = xfs_setfilesize_trans_alloc(ioend);
-			if (ret)
-				goto out_destroy_ioend;
+		if (offset + size > XFS_I(inode)->i_d.di_size)
 			ioend->io_isdirect = 1;
-		}
 
 		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
 					    offset, nr_segs,
 					    xfs_get_blocks_direct,
 					    xfs_end_io_direct_write, NULL, 0);
 		if (ret != -EIOCBQUEUED && iocb->private)
-			goto out_trans_cancel;
+			goto out_destroy_ioend;
 	} else {
 		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
 					    offset, nr_segs,
@@ -1491,12 +1497,6 @@ xfs_vm_direct_IO(
 
 	return ret;
 
-out_trans_cancel:
-	if (ioend->io_append_trans) {
-		current_set_flags_nested(&ioend->io_append_trans->t_pflags,
-					 PF_FSTRANS);
-		xfs_trans_cancel(ioend->io_append_trans, 0);
-	}
 out_destroy_ioend:
 	xfs_destroy_ioend(ioend);
 	return ret;
