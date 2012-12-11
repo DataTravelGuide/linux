@@ -1472,6 +1472,52 @@ done:
 	return rval;
 }
 
+int
+qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
+{
+	/* Don't try to reallocate the array */
+	if (req->outstanding_cmds)
+		return QLA_SUCCESS;
+
+	/*
+	 * If we have multiple request queues per adapter or are an ISP23xx or
+	 * older, then allocate the old default value.  Otherwise, base the
+	 * allocation size on the returned firmware resource counts.
+	 */ 
+	if (!IS_FWI2_CAPABLE(ha) || (ha->mqiobase &&
+	    (ql2xmultique_tag || ql2xmaxqueues > 1)))
+		req->num_outstanding_cmds = DEFAULT_OUTSTANDING_COMMANDS;
+	else {
+		if (min(ha->fw_xcb_count, ha->fw_iocb_count))
+			req->num_outstanding_cmds = ha->fw_xcb_count;
+		else
+			req->num_outstanding_cmds = ha->fw_iocb_count;
+	}
+
+	req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
+	    req->num_outstanding_cmds, GFP_KERNEL);
+
+	if (!req->outstanding_cmds) {
+		/*
+		 * Try to allocate a minimal size just so we can get through
+		 * initialization.
+		 */
+		req->num_outstanding_cmds = MIN_OUTSTANDING_COMMANDS;
+		req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
+		    req->num_outstanding_cmds, GFP_KERNEL);
+
+		if (!req->outstanding_cmds) {
+			ql_log(ql_log_fatal, NULL, 0x0123,
+			    "Failed to allocate memory for "
+			    "outstanding_cmds for req_que %p.\n", req);
+			req->num_outstanding_cmds = 0;
+			return QLA_FUNCTION_FAILED;
+		}
+	}
+
+	return QLA_SUCCESS;
+}
+
 /**
  * qla2x00_setup_chip() - Load and start RISC firmware.
  * @ha: HA context
@@ -1541,8 +1587,17 @@ enable_82xx_npiv:
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
 				qla2x00_get_resource_cnts(vha, NULL,
-				    &ha->fw_xcb_count, NULL, NULL,
+				    &ha->fw_xcb_count, NULL, &ha->fw_iocb_count,
 				    &ha->max_npiv_vports, NULL);
+
+				/*
+				 * Allocate the array of outstanding commands
+				 * now that we know the firmware resources.
+				 */
+				rval = qla2x00_alloc_outstanding_cmds(ha,
+				    vha->req);
+				if (rval != QLA_SUCCESS)
+					goto failed;
 
 				if (!fw_major_version && ql2xallocfwdump
 				    && !IS_QLA82XX(ha))
@@ -1853,7 +1908,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req)
 			continue;
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++)
+		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
 
 		req->current_outstanding_cmd = 1;
