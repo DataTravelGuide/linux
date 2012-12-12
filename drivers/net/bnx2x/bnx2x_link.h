@@ -267,6 +267,8 @@ struct link_params {
 #define FEATURE_CONFIG_AUTOGREEEN_ENABLED			(1<<9)
 #define FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED		(1<<10)
 #define FEATURE_CONFIG_DISABLE_REMOTE_FAULT_DET		(1<<11)
+#define FEATURE_CONFIG_BOOT_FROM_SAN			(1<<14)
+
 	/* Will be populated during common init */
 	struct bnx2x_phy phy[MAX_PHYS];
 
