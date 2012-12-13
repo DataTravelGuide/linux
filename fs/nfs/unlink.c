@@ -104,7 +104,7 @@ static void nfs_async_unlink_release(void *calldata)
 
 	nfs_dec_sillycount(data->dir);
 	nfs_free_unlinkdata(data);
-	nfs_sb_deactive(sb);
+	nfs_sb_deactive_async(sb);
 }
 
 #if defined(CONFIG_NFS_V4_1)
