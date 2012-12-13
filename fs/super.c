@@ -532,15 +532,18 @@ struct super_block *get_super_thawed(struct block_device *bdev)
 	while (1) {
 		struct super_block *s = get_super(bdev);
 
+		if (!s)
+			return s;
+
 		if (likely(sb_has_new_freeze(s))) {
-			if (!s || s->s_writers.frozen == SB_UNFROZEN)
+			if (s->s_writers.frozen == SB_UNFROZEN)
 				return s;
 			up_read(&s->s_umount);
 			wait_event(s->s_writers.wait_unfrozen,
 				   s->s_writers.frozen == SB_UNFROZEN);
 		} else {
 			/* Version for out of tree filesystems w/o s_writers */
-			if (!s || s->s_frozen == SB_UNFROZEN)
+			if (s->s_frozen == SB_UNFROZEN)
 				return s;
 			up_read(&s->s_umount);
 			vfs_check_frozen(s, SB_FREEZE_WRITE);
