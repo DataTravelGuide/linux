@@ -1236,6 +1236,12 @@ static int smi_num; /* Used to sequence the SMIs */
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
+#ifdef CONFIG_ACPI
+static int           si_tryacpi = 1;
+#endif
+#ifdef CONFIG_DMI
+static int           si_trydmi = 1;
+#endif
 static int           si_trydefaults = 1;
 static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
@@ -1266,6 +1272,16 @@ MODULE_PARM_DESC(hotmod, "Add and remove interfaces.  See"
 		 " Documentation/IPMI.txt in the kernel sources for the"
 		 " gory details.");
 
+#ifdef CONFIG_ACPI
+module_param_named(tryacpi, si_tryacpi, bool, 0);
+MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the"
+		 " default scan of the interfaces identified via ACPI");
+#endif
+#ifdef CONFIG_DMI
+module_param_named(trydmi, si_trydmi, bool, 0);
+MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the"
+		 " default scan of the interfaces identified via DMI");
+#endif
 module_param_named(trydefaults, si_trydefaults, bool, 0);
 MODULE_PARM_DESC(trydefaults, "Setting this to 'false' will disable the"
 		 " default scan of the KCS and SMIC interface at the standard"
@@ -3363,11 +3379,17 @@ static __devinit int init_ipmi_si(void)
 	mutex_unlock(&smi_infos_lock);
 
 #ifdef CONFIG_PNP
+#ifdef CONFIG_ACPI
+	if (si_tryacpi)
+		pnp_register_driver(&ipmi_pnp_driver);
+#else
 	pnp_register_driver(&ipmi_pnp_driver);
+#endif
 #endif
 
 #ifdef CONFIG_DMI
-	dmi_find_bmc();
+	if (si_trydmi)
+		dmi_find_bmc();
 #endif
 
 #ifdef CONFIG_PCI
@@ -3381,7 +3403,8 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 #ifdef CONFIG_ACPI
-	acpi_find_bmc();
+	if (si_tryacpi)
+		acpi_find_bmc();
 #endif
 
 #ifdef CONFIG_PPC_OF
