@@ -315,12 +315,13 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	int size = cq->size;
 	u32 size_mask = ring->size_mask;
 	struct mlx4_cqe *buf = cq->buf;
+	int factor = priv->cqe_factor;
 
 	if (!priv->port_up)
 		return;
 
 	index = cons_index & size_mask;
-	cqe = &buf[index];
+	cqe = &buf[(index << factor) + factor];
 	ring_index = ring->cons & size_mask;
 
 	/* Process all completed CQEs */
@@ -347,7 +348,7 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 
 		++cons_index;
 		index = cons_index & size_mask;
-		cqe = &buf[index];
+		cqe = &buf[(index << factor) + factor];
 	}
 
 
