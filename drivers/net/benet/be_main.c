@@ -3564,7 +3564,7 @@ static void be_netdev_init(struct net_device *netdev)
 		netdev->features |= NETIF_F_RXHASH;
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
