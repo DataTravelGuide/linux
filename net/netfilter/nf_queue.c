@@ -113,7 +113,7 @@ static int __nf_queue(struct sk_buff *skb,
 		      int (*okfn)(struct sk_buff *),
 		      unsigned int queuenum)
 {
-	int status;
+	int status = -ENOENT;
 	struct nf_queue_entry *entry = NULL;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct net_device *physindev;
@@ -134,8 +134,10 @@ static int __nf_queue(struct sk_buff *skb,
 		goto err_unlock;
 
 	entry = kmalloc(sizeof(*entry) + afinfo->route_key_size, GFP_ATOMIC);
-	if (!entry)
+	if (!entry) {
+		status = -ENOMEM;
 		goto err_unlock;
+	}
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
@@ -151,9 +153,8 @@ static int __nf_queue(struct sk_buff *skb,
 	if (!try_module_get(entry->elem->owner)) {
 		rcu_read_unlock();
 		kfree(entry);
-		return 0;
+		return -ECANCELED;
 	}
-
 	/* Bump dev refs so they don't vanish while packet is out */
 	if (indev)
 		dev_hold(indev);
@@ -179,14 +180,14 @@ static int __nf_queue(struct sk_buff *skb,
 		goto err;
 	}
 
-	return 1;
+	return 0;
 
 err_unlock:
 	rcu_read_unlock();
 err:
 	kfree_skb(skb);
 	kfree(entry);
-	return 1;
+	return status;
 }
 
 int nf_queue(struct sk_buff *skb,
@@ -198,6 +199,8 @@ int nf_queue(struct sk_buff *skb,
 	     unsigned int queuenum)
 {
 	struct sk_buff *segs;
+	int err;
+	unsigned int queued;
 
 	if (!skb_is_gso(skb))
 		return __nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
@@ -214,19 +217,32 @@ int nf_queue(struct sk_buff *skb,
 
 	segs = skb_gso_segment(skb, 0);
 	kfree_skb(skb);
+	/* Does not use PTR_ERR to limit the number of error codes that can be
+	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to mean
+	 * 'ignore this hook'.
+	 */
 	if (IS_ERR(segs))
-		return 1;
+		return -EINVAL;
 
+	queued = 0;
+	err = 0;
 	do {
 		struct sk_buff *nskb = segs->next;
 
 		segs->next = NULL;
-		if (!__nf_queue(segs, elem, pf, hook, indev, outdev, okfn,
-				queuenum))
+		if (err == 0)
+			err = __nf_queue(segs, elem, pf, hook, indev,
+					   outdev, okfn, queuenum);
+		if (err == 0)
+			queued++;
+		else
 			kfree_skb(segs);
 		segs = nskb;
 	} while (segs);
-	return 1;
+
+	if (unlikely(err && queued))
+		err = 0;
+	return err;
 }
 
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
@@ -234,6 +250,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	struct sk_buff *skb = entry->skb;
 	struct list_head *elem = &entry->elem->list;
 	const struct nf_afinfo *afinfo;
+	int err;
 
 	rcu_read_lock();
 
@@ -268,9 +285,10 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	case NF_STOLEN:
 		break;
 	case NF_QUEUE:
-		if (!__nf_queue(skb, elem, entry->pf, entry->hook,
-				entry->indev, entry->outdev, entry->okfn,
-				verdict >> NF_VERDICT_BITS))
+		err = __nf_queue(skb, elem, entry->pf, entry->hook,
+				 entry->indev, entry->outdev, entry->okfn,
+				 verdict >> NF_VERDICT_BITS);
+		if (err == -ECANCELED)
 			goto next_hook;
 		break;
 	default:
