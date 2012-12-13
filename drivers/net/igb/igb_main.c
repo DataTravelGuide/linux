@@ -4382,13 +4382,13 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 {
 #ifdef CONFIG_IGB_PTP
 	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
+	union skb_shared_tx *shtx = skb_tx(skb);
 #endif /* CONFIG_IGB_PTP */
 	struct igb_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
 	__be16 protocol = vlan_get_protocol(skb);
 	u8 hdr_len = 0;
-	union skb_shared_tx *shtx = skb_tx(skb);
 
 	/* need: 1 descriptor per page,
 	 *       + 2 desc gap to keep tail from touching head,
