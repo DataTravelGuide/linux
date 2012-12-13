@@ -2527,11 +2527,27 @@ void scheduler_ipi(void)
 {
 	if (!got_nohz_idle_kick())
 		return;
+
+	/*
+	 * Not all reschedule IPI handlers call irq_enter/irq_exit, since
+	 * traditionally all their work was done from the interrupt return
+	 * path. Now that we actually do some work, we need to make sure
+	 * we do call them.
+	 *
+	 * Some archs already do call them, luckily irq_enter/exit nest
+	 * properly.
+	 *
+	 * Arguably we should visit all archs and update all handlers,
+	 * however a fair share of IPIs are still resched only so this would
+	 * somewhat pessimize the simple resched case.
+	 */
+	irq_enter();
 	/*
 	 * Check if someone kicked us for doing the nohz idle load balance.
 	 */
 	if (unlikely(got_nohz_idle_kick() && !need_resched()))
 		raise_softirq_irqoff(SCHED_SOFTIRQ);
+	irq_exit();
 }
 
 /***
