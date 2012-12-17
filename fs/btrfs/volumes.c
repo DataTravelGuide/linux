@@ -458,7 +458,7 @@ again:
 		}
 
 		if (device->bdev) {
-			blkdev_put(device->bdev, device->mode | FMODE_EXCL);
+			close_bdev_exclusive(device->bdev, device->mode);
 			device->bdev = NULL;
 			fs_devices->open_devices--;
 		}
@@ -492,7 +492,7 @@ static void __free_device(struct work_struct *work)
 	device = container_of(work, struct btrfs_device, rcu_work);
 
 	if (device->bdev)
-		blkdev_put(device->bdev, device->mode);
+		close_bdev_exclusive(device->bdev, device->mode);
 
 	rcu_string_free(device->name);
 	kfree(device);
@@ -662,7 +662,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 error_brelse:
 		brelse(bh);
 error_close:
-		blkdev_put(bdev, flags | FMODE_EXCL);
+		close_bdev_exclusive(bdev, flags);
 error:
 		continue;
 	}
@@ -736,7 +736,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	brelse(bh);
 error_close:
 	mutex_unlock(&uuid_mutex);
-	blkdev_put(bdev, flags | FMODE_EXCL);
+	close_bdev_exclusive(bdev, flags);
 error:
 	return ret;
 }
@@ -1453,7 +1453,7 @@ error_brelse:
 	brelse(bh);
 error_close:
 	if (bdev)
-		blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
+		close_bdev_exclusive(bdev, FMODE_READ);
 out:
 	mutex_unlock(&uuid_mutex);
 	return ret;
@@ -1779,7 +1779,7 @@ error_trans:
 	rcu_string_free(device->name);
 	kfree(device);
 error:
-	blkdev_put(bdev, FMODE_EXCL);
+	close_bdev_exclusive(bdev, 0);
 	if (seeding_dev) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
