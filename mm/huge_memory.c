@@ -496,19 +496,19 @@ static int __init hugepage_init(void)
 
 	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+		printk(KERN_ERR "hugepage: failed register hugepage group\n");
 		goto out;
 	}
 
 	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+		printk(KERN_ERR "hugepage: failed register hugepage group\n");
 		goto out;
 	}
 
-	err = sysfs_create_link(mm_kobj, hugepage_kobj, "transparent_hugeage");
+	err = sysfs_create_link(mm_kobj, hugepage_kobj, "transparent_hugepage");
 	if (err) {
-		printk(KERN_ERR "hugepage: failed create symlink transparent_hugeage\n");
+		printk(KERN_ERR "hugepage: failed create symlink transparent_hugepage\n");
 		goto out;
 	}
 #endif
