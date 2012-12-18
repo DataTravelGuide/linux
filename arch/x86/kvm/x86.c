@@ -680,10 +680,11 @@ EXPORT_SYMBOL_GPL(kvm_get_cr8);
  * kvm-specific. Those are put in the beginning of the list.
  */
 
-#define KVM_SAVE_MSRS_BEGIN	6
+#define KVM_SAVE_MSRS_BEGIN	8
 static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 	MSR_KVM_SYSTEM_TIME_NEW, MSR_KVM_WALL_CLOCK_NEW,
+	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
 	MSR_KVM_STEAL_TIME,
 	MSR_KVM_PV_EOI_EN,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
@@ -1252,6 +1253,70 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
 }
 
+static bool kvm_hv_msr_partition_wide(u32 msr)
+{
+        bool r = false;
+        switch (msr) {
+        case HV_X64_MSR_GUEST_OS_ID:
+        case HV_X64_MSR_HYPERCALL:
+                r = true;
+                break;
+        }
+
+        return r;
+}
+
+static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+        struct kvm *kvm = vcpu->kvm;
+
+        switch (msr) {
+        case HV_X64_MSR_GUEST_OS_ID:
+                kvm->arch.hv_guest_os_id = data;
+                /* setting guest os id to zero disables hypercall page */
+                if (!kvm->arch.hv_guest_os_id)
+                        kvm->arch.hv_hypercall &= ~HV_X64_MSR_HYPERCALL_ENABLE;
+                break;
+        case HV_X64_MSR_HYPERCALL: {
+                u64 gfn;
+                unsigned long addr;
+                u8 instructions[11];
+
+                /* if guest os id is not set hypercall should remain disabled */
+                if (!kvm->arch.hv_guest_os_id)
+                        break;
+                if (!(data & HV_X64_MSR_HYPERCALL_ENABLE)) {
+                        kvm->arch.hv_hypercall = data;
+                        break;
+                }
+                gfn = data >> HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT;
+                addr = gfn_to_hva(kvm, gfn);
+                if (kvm_is_error_hva(addr))
+                        return 1;
+                ((unsigned char *)instructions)[0]  = 0xb8; /* mov eax, 0x02 */
+                ((unsigned char *)instructions)[1]  = 0x02;
+                ((unsigned char *)instructions)[2]  = 0x00;
+                ((unsigned char *)instructions)[3]  = 0x00;
+                ((unsigned char *)instructions)[4]  = 0x00;
+                ((unsigned char *)instructions)[5]  = 0xba; /* mov edx, 0  */
+                ((unsigned char *)instructions)[6]  = 0x00;
+                ((unsigned char *)instructions)[7]  = 0x00;
+                ((unsigned char *)instructions)[8]  = 0x00;
+                ((unsigned char *)instructions)[9]  = 0x00;
+                ((unsigned char *)instructions)[10] = 0xc3; /* ret */
+                if (__copy_to_user((void __user *)addr, instructions, 11))
+                        return 1;
+                kvm->arch.hv_hypercall = data;
+                break;
+        }
+        default:
+                pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x "
+                          "data 0x%llx\n", msr, data);
+                return 1;
+        }
+        return 0;
+}
+
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	bool pr = false;
@@ -1407,6 +1472,17 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			pr_unimpl(vcpu, "disabled perfctr wrmsr: "
 				"0x%x data 0x%llx\n", msr, data);
 		break;
+        case HV_X64_MSR_GUEST_OS_ID ... HV_X64_MSR_SINT15:
+                if (kvm_hv_msr_partition_wide(msr)) {
+                        int r;
+                        mutex_lock(&vcpu->kvm->lock);
+                        r = set_msr_hyperv_pw(vcpu, msr, data);
+                        mutex_unlock(&vcpu->kvm->lock);
+                        return r;
+                }
+                pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x "
+                          "data 0x%llx\n", msr, data);
+                break;
 	case MSR_K7_CLK_CTL:
 		/*
 		 * Ignore all writes to this no longer documented MSR.
@@ -1522,6 +1598,48 @@ static int get_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	return 0;
 }
 
+static int get_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+{
+        u64 data = 0;
+        struct kvm *kvm = vcpu->kvm;
+
+        switch (msr) {
+        case HV_X64_MSR_GUEST_OS_ID:
+                data = kvm->arch.hv_guest_os_id;
+                break;
+        case HV_X64_MSR_HYPERCALL:
+                data = kvm->arch.hv_hypercall;
+                break;
+        default:
+                pr_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
+                return 1;
+        }
+
+        *pdata = data;
+        return 0;
+}
+
+static int get_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+{
+        u64 data = 0;
+
+        switch (msr) {
+        case HV_X64_MSR_VP_INDEX: {
+                int r;
+                struct kvm_vcpu *v;
+                kvm_for_each_vcpu(r, v, vcpu->kvm)
+                        if (v == vcpu)
+                                data = r;
+                break;
+        }
+        default:
+                pr_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
+                return 1;
+        }
+        *pdata = data;
+        return 0;
+}
+
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
 	u64 data;
@@ -1631,6 +1749,16 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		 */
 		data = 0x20000000;
 		break;
+        case HV_X64_MSR_GUEST_OS_ID ... HV_X64_MSR_SINT15:
+                if (kvm_hv_msr_partition_wide(msr)) {
+                        int r;
+                        mutex_lock(&vcpu->kvm->lock);
+                        r = get_msr_hyperv_pw(vcpu, msr, pdata);
+                        mutex_unlock(&vcpu->kvm->lock);
+                        return r;
+                } else
+                        return get_msr_hyperv(vcpu, msr, pdata);
+                break;
 	case MSR_IA32_BBL_CR_CTL3:
 		/* This legacy MSR exists but isn't documented in current
 		 * silicon.  It is however accessed by winxp in certain
@@ -1760,6 +1888,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 	case KVM_CAP_ADJUST_CLOCK:
 	case KVM_CAP_VCPU_EVENTS:
+	case KVM_CAP_HYPERV:
 	case KVM_CAP_XSAVE:
 	case KVM_CAP_GET_TSC_KHZ:
 	case KVM_CAP_KVMCLOCK_CTRL:

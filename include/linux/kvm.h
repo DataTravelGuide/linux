@@ -448,6 +448,7 @@ struct kvm_ioeventfd {
 #ifdef __KVM_HAVE_VCPU_EVENTS
 #define KVM_CAP_VCPU_EVENTS 41
 #endif
+#define KVM_CAP_HYPERV 44
 #ifdef __KVM_HAVE_XSAVE
 #define KVM_CAP_XSAVE 55
 #endif

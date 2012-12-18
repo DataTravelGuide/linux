@@ -500,6 +500,10 @@ struct kvm_arch {
 	u64 last_tsc_nsec;
 	u64 last_tsc_offset;
 	u64 last_tsc_write;
+
+        /* fields used by HYPER-V emulation */
+        u64 hv_guest_os_id;
+        u64 hv_hypercall;
 };
 
 struct kvm_vm_stat {
