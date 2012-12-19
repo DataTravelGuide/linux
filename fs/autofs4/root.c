@@ -112,12 +112,8 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	 * autofs file system so just let the libfs routines handle
 	 * it.
 	 */
-	spin_lock(&dcache_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
-		spin_unlock(&dcache_lock);
+	if (!d_mountpoint(dentry) && simple_empty(dentry))
 		return -ENOENT;
-	}
-	spin_unlock(&dcache_lock);
 
 out:
 	return dcache_dir_open(inode, file);
@@ -377,12 +373,8 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 				goto done;
 			}
 		} else {
-			spin_lock(&dcache_lock);
-			if (!list_empty(&dentry->d_subdirs)) {
-				spin_unlock(&dcache_lock);
+			if (!simple_empty(dentry))
 				goto done;
-			}
-			spin_unlock(&dcache_lock);
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
@@ -677,7 +669,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 		return -EACCES;
 
 	spin_lock(&dcache_lock);
-	if (!list_empty(&dentry->d_subdirs)) {
+	if (!__simple_empty(dentry)) {
 		spin_unlock(&dcache_lock);
 		return -ENOTEMPTY;
 	}
