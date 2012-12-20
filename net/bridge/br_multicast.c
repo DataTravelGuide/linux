@@ -1639,6 +1639,7 @@ void br_multicast_stop(struct net_bridge *br)
 	del_timer_sync(&br->multicast_querier_timer);
 	del_timer_sync(&br->multicast_query_timer);
 
+	br_mdb_uninit();
 	spin_lock_bh(&br->multicast_lock);
 	mdb = br->mdb;
 	if (!mdb)

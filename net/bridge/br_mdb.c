@@ -165,3 +165,8 @@ void br_mdb_init(void)
 {
 	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, NULL);
 }
+
+void br_mdb_uninit(void)
+{
+	rtnl_unregister(PF_BRIDGE, RTM_GETMDB);
+}

@@ -363,6 +363,7 @@ extern int br_multicast_set_port_router(struct net_bridge_port *p,
 extern int br_multicast_toggle(struct net_bridge *br, unsigned long val);
 extern int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
 extern void br_mdb_init(void);
+extern void br_mdb_uninit(void);
 
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {
