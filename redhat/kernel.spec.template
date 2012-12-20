@@ -1697,6 +1697,22 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Dec 20 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-351.el6]
+- [kernel] ptrace-utrace: fix PTRACE_GETEVENTMSG(pid) in sub-namespace (Oleg Nesterov) [782330]
+- [scsi] mpt2sas: fix for driver fails EEH recovery from injected pci bus error (Tomas Henzl) [829149]
+- [mm] memcontrol: propagate LRU accounting state when splitting THP (Johannes Weiner) [881714]
+- [net] sctp: proc: protect bind_addr->address_list accesses with rcu_read_lock() (Thomas Graf) [706038]
+- [net] sctp: Add RCU protection to assoc->transport_addr_list (Thomas Graf) [706038]
+- [s390] zfcp: Adapt to new FC_PORTSPEED semantics (Hendrik Brueckner) [855128]
+- [virt] virtio_net: allow to change mac when iface is running (Jiri Pirko) [882868]
+- [virt] kvm: Minimal hyper-v support (Vadim Rozenfeld) [871350]
+- [fs] gfs2: Journal DLM lock has wrong label (Steven Whitehouse) [884822]
+- [mm] huge_memory: fix typo in transparent_hugepage sysfs symlink (Jeremy Eder) [887308]
+- [mm] ksm: numa awareness sysfs knob (Petr Holasek) [743643]
+- [fs] btrfs: handle IS_ERR(inode) in btrfs_lookup() (Zach Brown) [870944]
+- [kernel] sched: Add irq_{enter,exit}() to scheduler_ipi() (Stanislaw Gruszka) [836964]
+- [kernel] panic: fix a possible deadlock in panic() (Tatsuya Kitamura) [871939]
+
 * Tue Dec 18 2012 Jarod Wilson <jarod@redhat.com> [2.6.32-350.el6]
 - [powerpc] perf: power_pmu_start restores incorrect values, breaking frequency events (Jiri Olsa) [880525]
 - [netdrv] mlx4: Allow choosing flow steering mode (Doug Ledford) [885191]
