@@ -3216,10 +3216,12 @@ init_ram_restrict_zm_reg_group(struct nvbios *bios, uint16_t offset,
 	 * from the 'M' BIT table, herein called "blocklen"
 	 */
 
+	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
 	uint32_t reg = ROM32(bios->data[offset + 1]);
 	uint8_t regincrement = bios->data[offset + 5];
 	uint8_t count = bios->data[offset + 6];
-	uint32_t strap_ramcfg, data;
+	static uint32_t strap_ramcfg, data;
+	static int have_strap = 0;
 	/* previously set by 'M' BIT table */
 	uint16_t blocklen = bios->ram_restrict_group_count * 4;
 	int len = 7 + count * blocklen;
@@ -3237,7 +3239,18 @@ init_ram_restrict_zm_reg_group(struct nvbios *bios, uint16_t offset,
 	if (!iexec->execute)
 		return len;
 
-	strap_ramcfg = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
+	if (dev_priv->chipset <  0xa3 ||
+	    dev_priv->chipset == 0xaa ||
+	    dev_priv->chipset == 0xac) {
+		strap_ramcfg = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
+	} else {
+		if (!have_strap) {
+			udelay(1);
+			strap_ramcfg = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) >> 2) & 0xf;
+			have_strap = 1;
+		}
+	}
+
 	index = bios->data[bios->ram_restrict_tbl_ptr + strap_ramcfg];
 
 	BIOSLOG(bios, "0x%04X: Reg: 0x%08X, RegIncrement: 0x%02X, "
