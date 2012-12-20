@@ -933,15 +933,15 @@ nouveau_bo_move_init(struct nouveau_channel *chan)
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
 		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
-		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
-		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
-		{  "COPY", 0, 0x85b5, nva3_bo_move_copy, nv50_bo_move_init },
-		{ "CRYPT", 0, 0x74c1, nv84_bo_move_exec, nv50_bo_move_init },
 		{  "M2MF", 0, 0x9039, nvc0_bo_move_m2mf, nvc0_bo_move_init },
 		{  "M2MF", 0, 0x5039, nv50_bo_move_m2mf, nv50_bo_move_init },
 		{  "M2MF", 0, 0x0039, nv04_bo_move_m2mf, nv04_bo_move_init },
 		{},
 		{ "CRYPT", 0, 0x88b4, nv98_bo_move_exec, nv50_bo_move_init },
+		{ "CRYPT", 0, 0x74c1, nv84_bo_move_exec, nv50_bo_move_init },
+		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
+		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 0, 0x85b5, nva3_bo_move_copy, nv50_bo_move_init },
 	}, *mthd = _methods;
 	const char *name = "CPU";
 	int ret;
