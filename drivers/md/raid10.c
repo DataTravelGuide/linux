@@ -1478,9 +1478,9 @@ retry_write:
 		atomic_inc(&r10_bio->remaining);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		md_raid10_unplug_device(conf);
 		conf->pending_count++;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
+		md_raid10_unplug_device(conf);
 
 		if (!r10_bio->devs[i].repl_bio)
 			continue;
