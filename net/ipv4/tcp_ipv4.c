@@ -1819,6 +1819,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	skb_queue_head_init(&tp->out_of_order_queue);
 	tcp_init_xmit_timers(sk);
 	tcp_prequeue_init(tp);
+	INIT_LIST_HEAD(&tp->tsq_node);
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev = TCP_TIMEOUT_INIT;
@@ -2468,6 +2469,7 @@ struct proto tcp_prot = {
 	.getsockopt		= tcp_getsockopt,
 	.recvmsg		= tcp_recvmsg,
 	.backlog_rcv		= tcp_v4_do_rcv,
+	.release_cb		= tcp_release_cb,
 	.hash			= inet_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,

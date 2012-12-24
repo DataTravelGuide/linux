@@ -811,6 +811,9 @@ struct proto {
 #ifdef SOCK_REFCNT_DEBUG
 	atomic_t		socks;
 #endif
+#ifndef __GENKSYMS__
+	void		(*release_cb)(struct sock *sk);
+#endif
 };
 
 static inline struct sock_extended *sk_extended(const struct sock *sk)
