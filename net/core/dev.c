@@ -5756,6 +5756,7 @@ static void rollback_registered(struct net_device *dev)
 
 	list_add(&netdev_extended(dev)->unreg_list, &single);
 	rollback_registered_many(&single);
+	list_del(&single);
 }
 
 static void __netdev_init_queue_locks_one(struct net_device *dev,
