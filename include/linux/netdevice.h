@@ -1215,6 +1215,7 @@ struct net_device_extended {
 						struct netlink_callback *cb,
 						struct net_device *dev,
 						int idx);
+	struct list_head			unreg_list;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1521,6 +1522,8 @@ extern void		dev_disable_lro(struct net_device *dev);
 extern int		dev_queue_xmit(struct sk_buff *skb);
 extern int		register_netdevice(struct net_device *dev);
 extern void		unregister_netdevice(struct net_device *dev);
+extern void		unregister_netdevice_queue(struct net_device *dev,
+						   struct list_head *head);
 extern void		free_netdev(struct net_device *dev);
 extern void		synchronize_net(void);
 extern int 		register_netdevice_notifier(struct notifier_block *nb);
