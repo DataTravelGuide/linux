@@ -1319,11 +1319,12 @@ int dev_close_many(struct list_head *head)
  */
 int dev_close(struct net_device *dev)
 {
-	LIST_HEAD(single);
-
-	list_add(&netdev_extended(dev)->unreg_list, &single);
-	dev_close_many(&single);
-
+	if (dev->flags & IFF_UP) {
+		LIST_HEAD(single);
+		list_add(&netdev_extended(dev)->unreg_list, &single);
+		dev_close_many(&single);
+		list_del(&single);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(dev_close);
