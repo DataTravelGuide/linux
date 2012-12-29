@@ -964,18 +964,30 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
-static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt)
+static int dev_alloc_name_ns(struct net *net,
+			     struct net_device *dev,
+			     const char *name)
 {
-	struct net *net;
+	char buf[IFNAMSIZ];
+	int ret;
 
-	BUG_ON(!dev_net(dev));
-	net = dev_net(dev);
+	ret = __dev_alloc_name(net, name, buf);
+	if (ret >= 0)
+		strlcpy(dev->name, buf, IFNAMSIZ);
+	return ret;
+}
+
+static int dev_get_valid_name(struct net *net,
+			      struct net_device *dev,
+			      const char *name, bool fmt)
+{
+	BUG_ON(!net);
 
 	if (!dev_valid_name(name))
 		return -EINVAL;
 
 	if (fmt && strchr(name, '%'))
-		return dev_alloc_name(dev, name);
+		return dev_alloc_name_ns(net, dev, name);
 	else if (__dev_get_by_name(net, name))
 		return -EEXIST;
 	else if (dev->name != name)
@@ -1011,7 +1023,7 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
-	err = dev_get_valid_name(dev, newname, 1);
+	err = dev_get_valid_name(net, dev, newname, 1);
 	if (err < 0)
 		return err;
 
@@ -5936,7 +5948,7 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
-	ret = dev_get_valid_name(dev, dev->name, 0);
+	ret = dev_get_valid_name(net, dev, dev->name, 0);
 	if (ret)
 		goto err_uninit;
 
@@ -6626,7 +6638,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		if (dev_get_valid_name(dev, pat, 1))
+		if (dev_get_valid_name(net, dev, pat, 1) < 0)
 			goto out;
 	}
 
