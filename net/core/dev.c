@@ -1526,6 +1526,7 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	skb_orphan(skb);
+	nf_reset(skb);
 
 	if (!(dev->flags & IFF_UP) ||
 	    (skb->len > (dev->mtu + dev->hard_header_len))) {
