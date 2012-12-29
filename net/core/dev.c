@@ -3822,7 +3822,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * entries to the tail of this list, and only ->poll()
 		 * calls can remove this head entry from the list.
 		 */
-		n = list_entry(list->next, struct napi_struct, poll_list);
+		n = list_first_entry(list, struct napi_struct, poll_list);
 
 		have = netpoll_poll_lock(n);
 
@@ -5699,7 +5699,7 @@ static void rollback_registered_many(struct list_head *head)
 	}
 
 	/* Process any work delayed until the end of the batch */
-	nde = list_entry(head->next, struct net_device_extended, unreg_list);
+	nde = list_first_entry(head, struct net_device_extended, unreg_list);
 	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, nde->dev);
 
 	synchronize_net();
@@ -6137,7 +6137,7 @@ void netdev_run_todo(void)
 
 	while (!list_empty(&list)) {
 		struct net_device *dev
-			= list_entry(list.next, struct net_device, todo_list);
+			= list_first_entry(&list, struct net_device, todo_list);
 		list_del(&dev->todo_list);
 
 		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
