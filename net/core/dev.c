@@ -1384,7 +1384,7 @@ rollback:
 				nb->notifier_call(nb, NETDEV_DOWN, dev);
 			}
 			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
-			nb->notifier_call(nb, NETDEV_UNREGISTER_PERNET, dev);
+			nb->notifier_call(nb, NETDEV_UNREGISTER_BATCH, dev);
 		}
 	}
 
@@ -5638,8 +5638,7 @@ static void net_set_todo(struct net_device *dev)
 static void rollback_registered_many(struct list_head *head)
 {
 	struct net_device *dev;
-	struct net_device_extended *nde, *aux, *fnde;
-	LIST_HEAD(pernet_list);
+	struct net_device_extended *nde;
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
@@ -5697,28 +5696,14 @@ static void rollback_registered_many(struct list_head *head)
 		netdev_unregister_kobject(dev);
 	}
 
+	/* Process any work delayed until the end of the batch */
+	nde = list_entry(head->next, struct net_device_extended, unreg_list);
+	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, nde->dev);
+
 	synchronize_net();
 
-	list_for_each_entry_safe(nde, aux, head, unreg_list) {
-		int new_net = 1;
-		dev = nde->dev;
-		list_for_each_entry(fnde, &pernet_list, unreg_list) {
-			if (dev_net(dev) == dev_net(fnde->dev)) {
-				new_net = 0;
-				dev_put(dev);
-				break;
-			}
-		}
-		if (new_net)
-			list_move(&nde->unreg_list, &pernet_list);
-	}
-
-	list_for_each_entry_safe(nde, aux, &pernet_list, unreg_list) {
-		dev = nde->dev;
-		call_netdevice_notifiers(NETDEV_UNREGISTER_PERNET, dev);
-		list_move(&nde->unreg_list, head);
-		dev_put(dev);
-	}
+	list_for_each_entry(nde, head, unreg_list)
+		dev_put(nde->dev);
 }
 
 static void rollback_registered(struct net_device *dev)
@@ -6084,7 +6069,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 
 			/* Rebroadcast unregister notification */
 			call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-			/* don't resend NETDEV_UNREGISTER_PERNET, _PERNET users
+			/* don't resend NETDEV_UNREGISTER_BATCH, _BATCH users
 			 * should have already handle it the first time */
 
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
@@ -6508,11 +6493,6 @@ EXPORT_SYMBOL(unregister_netdevice);
 /**
  *	unregister_netdevice_many - unregister many devices
  *	@head: list of devices
- *
- *	WARNING: Calling this modifies the given list
- *	(in rollback_registered_many). It may change the order of the elements
- *	in the list. However, you can assume it does not add or delete elements
- *	to/from the list.
  */
 void unregister_netdevice_many(struct list_head *head)
 {
@@ -6635,7 +6615,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	   the device is just moving and can keep their slaves up.
 	*/
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-	call_netdevice_notifiers(NETDEV_UNREGISTER_PERNET, dev);
+	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, dev);
 
 	/*
 	 *	Flush the unicast and multicast chains
