@@ -6616,8 +6616,10 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	 * is enabled.
 	 */
 	err = -EINVAL;
-	if (dev->dev.parent)
+	if (dev->dev.parent) {
+		printk(KERN_INFO "real device is not allowed to be moved\n");
 		goto out;
+	}
 #endif
 
 	/* Ensure the device has been registrered */
