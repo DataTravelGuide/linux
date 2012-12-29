@@ -1505,6 +1505,27 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	return 0;
 }
 
+static inline bool is_skb_forwardable(struct net_device *dev,
+				      struct sk_buff *skb)
+{
+	unsigned int len;
+
+	if (!(dev->flags & IFF_UP))
+		return false;
+
+	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
+	if (skb->len <= len)
+		return true;
+
+	/* if TSO is enabled, we don't care about the length as the packet
+	 * could be forwarded without being segmented before
+	 */
+	if (skb_is_gso(skb))
+		return true;
+
+	return false;
+}
+
 /**
  * dev_forward_skb - loopback an skb to another netif
  *
@@ -1528,8 +1549,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	skb_orphan(skb);
 	nf_reset(skb);
 
-	if (!(dev->flags & IFF_UP) ||
-	    (skb->len > (dev->mtu + dev->hard_header_len + VLAN_HLEN))) {
+	if (unlikely(!is_skb_forwardable(dev, skb))) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
