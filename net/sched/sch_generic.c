@@ -831,6 +831,7 @@ void dev_deactivate(struct net_device *dev)
 
 	list_add(&netdev_extended(dev)->unreg_list, &single);
 	dev_deactivate_many(&single);
+	list_del(&single);
 }
 EXPORT_SYMBOL(dev_deactivate);
 
