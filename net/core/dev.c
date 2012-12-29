@@ -5638,22 +5638,24 @@ static void net_set_todo(struct net_device *dev)
 static void rollback_registered_many(struct list_head *head)
 {
 	struct net_device *dev;
-	struct net_device_extended *nde;
+	struct net_device_extended *nde, *tmp;
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
-	list_for_each_entry(nde, head, unreg_list) {
+	list_for_each_entry_safe(nde, tmp, head, unreg_list) {
 		dev = nde->dev;
 		/* Some devices call without registering
-		 * for initialization unwind.
+		 * for initialization unwind. Remove those
+		 * devices and proceed with the remaining.
 		 */
 		if (dev->reg_state == NETREG_UNINITIALIZED) {
 			pr_debug("unregister_netdevice: device %s/%p never "
 				 "was registered\n", dev->name, dev);
 
 			WARN_ON(1);
-			return;
+			list_del(&nde->unreg_list);
+			continue;
 		}
 
 		BUG_ON(dev->reg_state != NETREG_REGISTERED);
