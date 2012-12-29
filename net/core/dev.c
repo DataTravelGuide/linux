@@ -5702,7 +5702,7 @@ static void rollback_registered_many(struct list_head *head)
 	nde = list_first_entry(head, struct net_device_extended, unreg_list);
 	call_netdevice_notifiers(NETDEV_UNREGISTER_BATCH, nde->dev);
 
-	synchronize_net();
+	rcu_barrier();
 
 	list_for_each_entry(nde, head, unreg_list)
 		dev_put(nde->dev);
