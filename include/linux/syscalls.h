@@ -913,4 +913,5 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
 				      unsigned long riovcnt,
 				      unsigned long flags);
 
+asmlinkage long sys_setns(int fd, int nstype);
 #endif
