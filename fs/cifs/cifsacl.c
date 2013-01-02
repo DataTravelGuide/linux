@@ -38,10 +38,10 @@ static void tmp_key_invalidate(struct key *key)
 	key_revoke(key);
 	/*
 	 * At this time gc has been set by key_revoke() above.
-	 * Simply set expiry time to 0
+	 * Simply set expiry time to 'now'.
 	 */
 	down_write(&key->sem);
-	key->expiry = 0;
+	key->expiry = current_kernel_time().tv_sec;
 	up_write(&key->sem);
 }
 
