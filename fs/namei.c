@@ -1269,9 +1269,15 @@ static int path_init(int dfd, const char *name, unsigned int flags, struct namei
 		if (!S_ISDIR(dentry->d_inode->i_mode))
 			goto fput_fail;
 
-		retval = file_permission(file, MAY_EXEC);
-		if (retval)
-			goto fput_fail;
+		/*
+		 * __link_path_walk will shortcut the permissions check if the
+		 * pathname is empty, so we must handle it here.
+		 */
+		if (unlikely(*name == '\0')) {
+			retval = file_permission(file, MAY_EXEC);
+			if (retval)
+				goto fput_fail;
+		}
 
 		nd->path = file->f_path;
 		path_get(&file->f_path);
