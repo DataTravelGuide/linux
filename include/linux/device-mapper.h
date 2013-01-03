@@ -75,6 +75,18 @@ typedef void (*dm_resume_fn) (struct dm_target *ti);
 typedef int (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 			     char *result, unsigned int maxlen);
 
+/*
+ * DM targets that would like to work with old RHEL kernels (< 6.4) but also
+ * take advantage of the ability to pass status flags to the status method in
+ * new kernels (>= 6.4) must implement both .status and .status_with_flags
+ * - care must also be taken to set DM_TARGET_STATUS_WITH_FLAGS in the
+ *   target's .features
+ */
+typedef int (*dm_status_with_flags_fn) (struct dm_target *ti,
+					status_type_t status_type,
+					unsigned status_flags, char *result,
+					unsigned maxlen);
+
 typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv);
 
 typedef int (*dm_ioctl_fn) (struct dm_target *ti, unsigned int cmd,
@@ -158,6 +170,10 @@ struct target_type {
 
 	/* For internal device-mapper use. */
 	struct list_head list;
+
+#ifndef __GENKSYMS__
+	dm_status_with_flags_fn status_with_flags;
+#endif
 };
 
 /*
@@ -180,6 +196,13 @@ struct target_type {
  */
 #define DM_TARGET_IMMUTABLE		0x00000004
 #define dm_target_is_immutable(type)	((type)->features & DM_TARGET_IMMUTABLE)
+
+/*
+ * Target provides the .status_with_flags method (which is RHEL-specific)
+ */
+#define DM_TARGET_STATUS_WITH_FLAGS	0x00000008
+#define dm_target_provides_status_with_flags(type) \
+		((type)->features & DM_TARGET_STATUS_WITH_FLAGS)
 
 struct dm_target {
 	uint64_t features;	/* 3rd party driver must initialize to zero */
