@@ -1700,7 +1700,7 @@ fi
 * Mon Jan 07 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-353.el6]
 - [mm] pageattr: prevent PSE and GLOABL leftovers to confuse pmd/pte_present and pmd_huge (Andrea Arcangeli) [878877]
 - [fs] gfs2: Fix FITRIM argument handling (Abhijith Das) [866932]
-- [fs] gfs22: Require user to provide argument for FITRIM (Abhijith Das) [866932]
+- [fs] gfs2: Require user to provide argument for FITRIM (Abhijith Das) [866932]
 - [fs] exec: do not leave bprm->interp on stack (Josh Poimboeuf) [880146] {CVE-2012-4530}
 - [fs] exec: use -ELOOP for max recursion depth (Josh Poimboeuf) [880146] {CVE-2012-4530}
 - [fs] btrfs: close exclusive opens with close_bdev_exclusive() (Zach Brown) [874505]
