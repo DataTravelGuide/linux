@@ -11,6 +11,8 @@
 #ifndef __ip6_offload_h
 #define __ip6_offload_h
 
+extern void initialize_hashidentrnd(void);
+
 int ipv6_exthdrs_offload_init(void);
 void ipv6_exthdrs_offload_exit(void);
 
