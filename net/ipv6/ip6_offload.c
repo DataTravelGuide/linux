@@ -12,6 +12,7 @@
 #include <linux/socket.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/printk.h>
 
 #include <net/protocol.h>
 #include <net/ipv6.h>
@@ -309,12 +310,19 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 	.gro_complete = ipv6_gro_complete,
 };
 
-void __init ipv6_offload_init(void)
+static int __init ipv6_offload_init(void)
 {
+	initialize_hashidentrnd();
+
+	if (tcpv6_offload_init() < 0)
+		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
+	if (udp_offload_init() < 0)
+		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
+	if (ipv6_exthdrs_offload_init() < 0)
+		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
+
 	dev_add_offload(&ipv6_packet_offload);
+	return 0;
 }
 
-void ipv6_offload_cleanup(void)
-{
-	dev_remove_offload(&ipv6_packet_offload);
-}
+fs_initcall(ipv6_offload_init);

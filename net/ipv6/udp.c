@@ -48,7 +48,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include "udp_impl.h"
-#include "ip6_offload.h"
 
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 {
@@ -1219,13 +1218,9 @@ int __init udpv6_init(void)
 {
 	int ret;
 
-	ret = udp_offload_init();
-	if (ret)
-		goto out;
-
 	ret = inet6_add_protocol(&udpv6_protocol, IPPROTO_UDP);
 	if (ret)
-		goto out_offload;
+		goto out;
 
 	ret = inet6_register_protosw(&udpv6_protosw);
 	if (ret)
@@ -1235,8 +1230,6 @@ out:
 
 out_udpv6_protocol:
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
-out_offload:
-	udp_offload_cleanup();
 	goto out;
 }
 
@@ -1244,5 +1237,4 @@ void udpv6_exit(void)
 {
 	inet6_unregister_protosw(&udpv6_protosw);
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
-	udp_offload_cleanup();
 }

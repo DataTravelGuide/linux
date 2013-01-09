@@ -25,6 +25,7 @@
 #define _PROTOCOL_H
 
 #include <linux/in6.h>
+#include <linux/skbuff.h>
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>
 #endif
@@ -68,8 +69,6 @@ struct inet6_protocol
 
 #define INET6_PROTO_NOPOLICY	0x1
 #define INET6_PROTO_FINAL	0x2
-/* This should be set for any extension header which is compatible with GSO. */
-#define INET6_PROTO_GSO_EXTHDR	0x4
 #endif
 
 struct net_offload {
@@ -81,6 +80,8 @@ struct net_offload {
 	int			(*gro_complete)(struct sk_buff *skb);
 	unsigned int		flags;	/* Flags used by IPv6 for now */
 };
+/* This should be set for any extension header which is compatible with GSO. */
+#define INET6_PROTO_GSO_EXTHDR	0x1
 
 /* This is used to register socket interfaces for IP protocols.  */
 struct inet_protosw {
@@ -102,10 +103,10 @@ struct inet_protosw {
 
 extern const struct net_protocol *inet_protos[MAX_INET_PROTOS];
 extern const struct net_offload *inet_offloads[MAX_INET_PROTOS];
+extern const struct net_offload *inet6_offloads[MAX_INET_PROTOS];
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 extern const struct inet6_protocol *inet6_protos[MAX_INET_PROTOS];
-extern const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS];
 #endif
 
 extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);
@@ -118,10 +119,10 @@ extern void	inet_unregister_protosw(struct inet_protosw *p);
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 extern int	inet6_add_protocol(const struct inet6_protocol *prot, unsigned char num);
 extern int	inet6_del_protocol(const struct inet6_protocol *prot, unsigned char num);
-extern int	inet6_add_offload(const struct net_offload *prot, unsigned char num);
-extern int	inet6_del_offload(const struct net_offload *prot, unsigned char num);
 extern int	inet6_register_protosw(struct inet_protosw *p);
 extern void	inet6_unregister_protosw(struct inet_protosw *p);
 #endif
+extern int	inet6_add_offload(const struct net_offload *prot, unsigned char num);
+extern int	inet6_del_offload(const struct net_offload *prot, unsigned char num);
 
 #endif	/* _PROTOCOL_H */

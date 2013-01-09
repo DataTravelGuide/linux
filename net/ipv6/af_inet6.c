@@ -61,7 +61,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/mroute6.h>
-#include "ip6_offload.h"
 
 MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
@@ -719,14 +718,12 @@ static struct packet_type ipv6_packet_type __read_mostly = {
 
 static int __init ipv6_packet_init(void)
 {
-	ipv6_offload_init();
 	dev_add_pack(&ipv6_packet_type);
 	return 0;
 }
 
 static void ipv6_packet_cleanup(void)
 {
-	ipv6_offload_cleanup();
 	dev_remove_pack(&ipv6_packet_type);
 }
 
@@ -836,8 +833,6 @@ static int __init inet6_init(void)
 		       "reboot required to enable\n");
 		goto out;
 	}
-
-	initialize_hashidentrnd();
 
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
