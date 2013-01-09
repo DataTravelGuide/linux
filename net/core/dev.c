@@ -1816,8 +1816,9 @@ EXPORT_SYMBOL(skb_checksum_help);
 struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
-	struct packet_type *ptype;
+	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
+	bool found = false;
 	int err;
 
 	skb_reset_mac_header(skb);
@@ -1843,19 +1844,45 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	}
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(ptype,
-			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
-		if (ptype->type == type && !ptype->dev && ptype->gso_segment) {
+	list_for_each_entry_rcu(ptype, &offload_base, list) {
+		if (ptype->type == type && ptype->gso_segment) {
 			if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
 				err = ptype->gso_send_check(skb);
 				segs = ERR_PTR(err);
-				if (err || skb_gso_ok(skb, features))
+				if (err || skb_gso_ok(skb, features)) {
+					found = true;
 					break;
+				}
 				__skb_push(skb, (skb->data -
 						 skb_network_header(skb)));
 			}
 			segs = ptype->gso_segment(skb, features);
+			found = true;
 			break;
+		}
+	}
+
+	if (!found) {
+		/* We didn't find GSO in offload list. Look at the old
+		 * packet list to see if it might by some chance be there.
+		 */
+		struct packet_type *pkt_type;
+		struct list_head *head =
+				&ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+		list_for_each_entry_rcu(pkt_type, head, list) {
+			if (pkt_type->type == type && !pkt_type->dev &&
+			    pkt_type->gso_segment) {
+				if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+					err = pkt_type->gso_send_check(skb);
+					segs = ERR_PTR(err);
+					if (err || skb_gso_ok(skb, features))
+						break;
+					__skb_push(skb, (skb->data -
+						   skb_network_header(skb)));
+				}
+				segs = pkt_type->gso_segment(skb, features);
+				break;
+			}
 		}
 	}
 	rcu_read_unlock();
@@ -3074,9 +3101,10 @@ static void flush_backlog(void *arg)
 
 static int napi_gro_complete(struct sk_buff *skb)
 {
-	struct packet_type *ptype;
+	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
-	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+	struct list_head *head = &offload_base;
+	bool found = false;
 	int err = -ENOENT;
 
 	if (NAPI_GRO_CB(skb)->count == 1) {
@@ -3086,12 +3114,30 @@ static int napi_gro_complete(struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
-		if (ptype->type != type || ptype->dev || !ptype->gro_complete)
+		if (ptype->type != type || !ptype->gro_complete)
 			continue;
 
 		err = ptype->gro_complete(skb);
+		found = true;
 		break;
 	}
+	if (!found) {
+		/* Did not find offload information in the new offload list.
+		 * Try the packet list in case someone used the old API.
+		 */
+		struct packet_type *pkt_type;
+		head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+
+		list_for_each_entry_rcu(pkt_type, head, list) {
+			if (pkt_type->type != type || pkt_type->dev ||
+			    !pkt_type->gro_complete)
+				continue;
+
+			err = pkt_type->gro_complete(skb);
+			break;
+		}
+	}
+
 	rcu_read_unlock();
 
 	if (err) {
@@ -3122,12 +3168,13 @@ EXPORT_SYMBOL(napi_gro_flush);
 gro_result_t dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
-	struct packet_type *ptype;
+	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
-	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+	struct list_head *head = &offload_base;
 	int same_flow;
 	int mac_len;
 	gro_result_t ret;
+	bool found = false;
 
 	if (!(skb->dev->features & NETIF_F_GRO) || netpoll_rx_on(skb))
 		goto normal;
@@ -3137,7 +3184,7 @@ gro_result_t dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
-		if (ptype->type != type || ptype->dev || !ptype->gro_receive)
+		if (ptype->type != type || !ptype->gro_receive)
 			continue;
 
 		skb_set_network_header(skb, skb_gro_offset(skb));
@@ -3146,13 +3193,35 @@ gro_result_t dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		NAPI_GRO_CB(skb)->same_flow = 0;
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
+		found = true;
 
 		pp = ptype->gro_receive(&napi->gro_list, skb);
 		break;
 	}
+
+	if (!found) {
+		struct packet_type *pkt_type;
+
+		head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
+		list_for_each_entry_rcu(pkt_type, head, list) {
+			if (pkt_type->type != type || pkt_type->dev ||
+			    !pkt_type->gro_receive)
+				continue;
+			skb_set_network_header(skb, skb_gro_offset(skb));
+			mac_len = skb->network_header - skb->mac_header;
+			skb->mac_len = mac_len;
+			NAPI_GRO_CB(skb)->same_flow = 0;
+			NAPI_GRO_CB(skb)->flush = 0;
+			NAPI_GRO_CB(skb)->free = 0;
+			found = true;
+
+			pp = pkt_type->gro_receive(&napi->gro_list, skb);
+			break;
+		}
+	}
 	rcu_read_unlock();
 
-	if (&ptype->list == head)
+	if (!found)
 		goto normal;
 
 	same_flow = NAPI_GRO_CB(skb)->same_flow;
