@@ -2239,7 +2239,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	info->dev = &dev->dev;
 	pnp_set_drvdata(dev, info);
 
-	return try_smi_init(info);
+	return add_smi(info);
 
 err_free:
 	kfree(info);
