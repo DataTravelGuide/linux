@@ -11,7 +11,6 @@ struct pci_root_info {
 	char name[16];
 	unsigned int res_num;
 	struct resource *res;
-	int busnum;
 	struct pci_sysdata sd;
 };
 
@@ -306,7 +305,9 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 {
 	size_t size;
 
+	sprintf(info->name, "PCI Bus %04x:%02x", domain, busnum);
 	info->bridge = device;
+
 	info->res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_resource,
 				info);
@@ -318,8 +319,6 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 	info->res = kmalloc(size, GFP_KERNEL);
 	if (!info->res)
 		return;
-
-	sprintf(info->name, "PCI Bus %04x:%02x", domain, busnum);
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				info);
@@ -399,7 +398,8 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		bus = pci_create_root_bus(NULL, busnum, &pci_root_ops, sd,
 					  &resources);
 		if (bus) {
-			bus->subordinate = pci_scan_child_bus(bus);
+			pci_scan_child_bus(bus);
+			bus->subordinate = root->secondary.end;
 			pci_set_host_bridge_release(
 				to_pci_host_bridge(bus->bridge),
 				release_pci_root_info, info);
