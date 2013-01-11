@@ -367,6 +367,11 @@ static inline int pci_channel_offline(struct pci_dev *pdev)
  * Use pci_bus_for_each_resource() to iterate through all the resources.
  */
 
+struct pci_host_bridge {
+	struct list_head list;
+	struct pci_bus *bus;		/* root bus */
+};
+
 /*
  * PCI_SUBTRACTIVE_DECODE means the bridge forwards the window implicitly
  * and there's no way to program the bridge with the details of the window.
