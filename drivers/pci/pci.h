@@ -223,6 +223,8 @@ extern void pci_disable_bridge_window(struct pci_dev *dev);
 /* Use "pci=[nosriov|sriov]" to disable or enable SRIOV */
 extern unsigned int pci_sriov_enabled;
 
+void add_to_pci_host_bridges(struct pci_host_bridge *bridge);
+
 /* Single Root I/O Virtualization */
 struct pci_sriov {
 	int pos;		/* capability position */
