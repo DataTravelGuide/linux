@@ -8,7 +8,7 @@
 
 struct pci_root_info {
 	struct acpi_device *bridge;
-	char *name;
+	char name[16];
 	unsigned int res_num;
 	struct resource *res;
 	int busnum;
@@ -266,7 +266,6 @@ static void add_resources(struct pci_root_info *info,
 
 static void free_pci_root_info_res(struct pci_root_info *info)
 {
-	kfree(info->name);
 	kfree(info->res);
 	info->res = NULL;
 	info->res_num = 0;
@@ -319,9 +318,7 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 	if (!info->res)
 		return;
 
-	info->name = kasprintf(GFP_KERNEL, "PCI Bus %04x:%02x", domain, busnum);
-	if (!info->name)
-		return;
+	sprintf(info->name, "PCI Bus %04x:%02x", domain, busnum);
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				info);
