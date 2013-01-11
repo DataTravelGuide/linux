@@ -374,10 +374,12 @@ struct pci_host_bridge_window {
 };
 
 struct pci_host_bridge {
-	struct list_head list;
+	struct device dev;
 	struct pci_bus *bus;		/* root bus */
 	struct list_head windows;	/* pci_host_bridge_windows */
 };
+
+#define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
 
 /*
  * PCI_SUBTRACTIVE_DECODE means the bridge forwards the window implicitly
