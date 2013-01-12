@@ -198,7 +198,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 
 	/* Get the last PFN we should scan for free pages at */
 	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-	end_pfn = min(blockpfn + pageblock_nr_pages, zone_end_pfn);
+
+	/*
+	 * As pfn may not start aligned, pfn+pageblock_nr_page
+	 * may cross a MAX_ORDER_NR_PAGES boundary and miss
+	 * a pfn_valid check. Ensure isolate_freepages_block()
+	 * only scans within a pageblock
+	 */
+	end_pfn = ALIGN(blockpfn + 1, pageblock_nr_pages);
+	end_pfn = min(end_pfn, zone_end_pfn);
 
 	/* Find the first usable PFN in the block to initialse page cursor */
 	for (; blockpfn < end_pfn; blockpfn++) {
