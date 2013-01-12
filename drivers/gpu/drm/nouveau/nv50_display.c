@@ -436,6 +436,8 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 	struct nouveau_channel *evo = dispc->sync;
 	int ret;
 
+	return;
+
 	ret = RING_SPACE(evo, 8);
 	if (ret) {
 		WARN_ON(1);
@@ -464,6 +466,8 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nv50_display_crtc *dispc = &disp->crtc[nv_crtc->index];
 	struct nouveau_channel *evo = dispc->sync;
 	int ret;
+
+	return 0;
 
 	ret = RING_SPACE(evo, chan ? 25 : 27);
 	if (unlikely(ret))
