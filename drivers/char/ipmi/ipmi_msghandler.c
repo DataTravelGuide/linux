@@ -45,6 +45,9 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/rcupdate.h>
+#ifndef __GENKSYMS__
+#include <linux/interrupt.h>
+#endif
 
 #define PFX "IPMI message handler: "
 
@@ -52,6 +55,8 @@
 
 static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void);
 static int ipmi_init_msghandler(void);
+static void smi_recv_tasklet(unsigned long);
+static void handle_new_recv_msgs(ipmi_smi_t intf);
 
 static int initialized;
 
@@ -354,9 +359,10 @@ struct ipmi_smi {
 	int curr_seq;
 
 	/*
-	 * Messages that were delayed for some reason (out of memory,
-	 * for instance), will go in here to be processed later in a
-	 * periodic timer interrupt.
+	 * Messages queued for delivery.  If delivery fails (out of memory
+	 * for instance), They will stay in here to be processed later in a
+	 * periodic timer interrupt.  The tasklet is for handling received
+	 * messages directly from the handler.
 	 */
 	spinlock_t       waiting_msgs_lock;
 	struct list_head waiting_msgs;
@@ -422,6 +428,11 @@ struct ipmi_smi {
 	 * parameters passed by "low" level IPMI code.
 	 */
 	int run_to_completion;
+
+#ifndef __GENKSYMS__
+	atomic_t	 watchdog_pretimeouts_to_deliver;
+	struct tasklet_struct recv_tasklet;
+#endif
 };
 #define to_si_intf_from_dev(device) container_of(device, struct ipmi_smi, dev)
 
@@ -495,6 +506,8 @@ static void clean_up_interface_data(ipmi_smi_t intf)
 	int              i;
 	struct cmd_rcvr  *rcvr, *rcvr2;
 	struct list_head list;
+
+	tasklet_kill(&intf->recv_tasklet);
 
 	free_smi_msg_list(&intf->waiting_msgs);
 	free_recv_msg_list(&intf->waiting_events);
@@ -2781,6 +2794,9 @@ void ipmi_poll_interface(ipmi_user_t user)
 
 	if (intf->handlers->poll)
 		intf->handlers->poll(intf->send_info);
+
+	/* In case something came in */
+	handle_new_recv_msgs(intf);
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
 
@@ -2862,6 +2878,10 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 #endif
 	spin_lock_init(&intf->waiting_msgs_lock);
 	INIT_LIST_HEAD(&intf->waiting_msgs);
+	tasklet_init(&intf->recv_tasklet,
+		     smi_recv_tasklet,
+		     (unsigned long) intf);
+	atomic_set(&intf->watchdog_pretimeouts_to_deliver, 0);
 	spin_lock_init(&intf->events_lock);
 	INIT_LIST_HEAD(&intf->waiting_events);
 	intf->waiting_events_count = 0;
@@ -3624,11 +3644,11 @@ static int handle_bmc_rsp(ipmi_smi_t          intf,
 }
 
 /*
- * Handle a new message.  Return 1 if the message should be requeued,
+ * Handle a received message.  Return 1 if the message should be requeued,
  * 0 if the message should be freed, or -1 if the message should not
  * be freed or requeued.
  */
-static int handle_new_recv_msg(ipmi_smi_t          intf,
+static int handle_one_recv_msg(ipmi_smi_t          intf,
 			       struct ipmi_smi_msg *msg)
 {
 	int requeue;
@@ -3786,12 +3806,72 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 	return requeue;
 }
 
+/*
+ * If there are messages in the queue or pretimeouts, handle them.
+ */
+static void handle_new_recv_msgs(ipmi_smi_t intf)
+{
+	struct ipmi_smi_msg  *smi_msg;
+	unsigned long        flags = 0;
+	int                  rv;
+	int                  run_to_completion = intf->run_to_completion;
+
+	/* See if any waiting messages need to be processed. */
+	if (!run_to_completion)
+		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
+	while (!list_empty(&intf->waiting_msgs)) {
+		smi_msg = list_entry(intf->waiting_msgs.next,
+				     struct ipmi_smi_msg, link);
+		list_del(&smi_msg->link);
+		if (!run_to_completion)
+			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		rv = handle_one_recv_msg(intf, smi_msg);
+		if (!run_to_completion)
+			spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
+		if (rv == 0) {
+			/* Message handled */
+			ipmi_free_smi_msg(smi_msg);
+		} else if (rv < 0) {
+			/* Fatal error on the message, del but don't free. */
+		} else {
+			/*
+			 * To preserve message order, quit if we
+			 * can't handle a message.
+			 */
+			list_add(&smi_msg->link, &intf->waiting_msgs);
+			break;
+		}
+	}
+	if (!run_to_completion)
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+
+	/*
+	 * If the pretimout count is non-zero, decrement one from it and
+	 * deliver pretimeouts to all the users.
+	 */
+	if (atomic_add_unless(&intf->watchdog_pretimeouts_to_deliver, -1, 0)) {
+		ipmi_user_t user;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(user, &intf->users, link) {
+			if (user->handler->ipmi_watchdog_pretimeout)
+				user->handler->ipmi_watchdog_pretimeout(
+					user->handler_data);
+		}
+		rcu_read_unlock();
+	}
+}
+
+static void smi_recv_tasklet(unsigned long val)
+{
+	handle_new_recv_msgs((ipmi_smi_t) val);
+}
+
 /* Handle a new message from the lower layer. */
 void ipmi_smi_msg_received(ipmi_smi_t          intf,
 			   struct ipmi_smi_msg *msg)
 {
 	unsigned long flags = 0; /* keep us warning-free. */
-	int           rv;
 	int           run_to_completion;
 
 
@@ -3845,31 +3925,11 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	run_to_completion = intf->run_to_completion;
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
-	if (!list_empty(&intf->waiting_msgs)) {
-		list_add_tail(&msg->link, &intf->waiting_msgs);
-		if (!run_to_completion)
-			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
-		goto out;
-	}
+	list_add_tail(&msg->link, &intf->waiting_msgs);
 	if (!run_to_completion)
 		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 
-	rv = handle_new_recv_msg(intf, msg);
-	if (rv > 0) {
-		/*
-		 * Could not handle the message now, just add it to a
-		 * list to handle later.
-		 */
-		run_to_completion = intf->run_to_completion;
-		if (!run_to_completion)
-			spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
-		list_add_tail(&msg->link, &intf->waiting_msgs);
-		if (!run_to_completion)
-			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
-	} else if (rv == 0) {
-		ipmi_free_smi_msg(msg);
-	}
-
+	tasklet_schedule(&intf->recv_tasklet);
  out:
 	return;
 }
@@ -3877,16 +3937,8 @@ EXPORT_SYMBOL(ipmi_smi_msg_received);
 
 void ipmi_smi_watchdog_pretimeout(ipmi_smi_t intf)
 {
-	ipmi_user_t user;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(user, &intf->users, link) {
-		if (!user->handler->ipmi_watchdog_pretimeout)
-			continue;
-
-		user->handler->ipmi_watchdog_pretimeout(user->handler_data);
-	}
-	rcu_read_unlock();
+	atomic_set(&intf->watchdog_pretimeouts_to_deliver, 1);
+	tasklet_schedule(&intf->recv_tasklet);
 }
 EXPORT_SYMBOL(ipmi_smi_watchdog_pretimeout);
 
@@ -4000,28 +4052,12 @@ static void ipmi_timeout_handler(long timeout_period)
 	ipmi_smi_t           intf;
 	struct list_head     timeouts;
 	struct ipmi_recv_msg *msg, *msg2;
-	struct ipmi_smi_msg  *smi_msg, *smi_msg2;
 	unsigned long        flags;
 	int                  i;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
-		/* See if any waiting messages need to be processed. */
-		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
-		list_for_each_entry_safe(smi_msg, smi_msg2,
-					 &intf->waiting_msgs, link) {
-			if (!handle_new_recv_msg(intf, smi_msg)) {
-				list_del(&smi_msg->link);
-				ipmi_free_smi_msg(smi_msg);
-			} else {
-				/*
-				 * To preserve message order, quit if we
-				 * can't handle a message.
-				 */
-				break;
-			}
-		}
-		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		tasklet_schedule(&intf->recv_tasklet);
 
 		/*
 		 * Go through the seq table and find any messages that
