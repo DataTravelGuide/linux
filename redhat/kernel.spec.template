@@ -1697,6 +1697,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 15 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-355.el6]
+- [netdrv] qlge: remove NETIF_F_TSO6 flag (Amerigo Wang) [891839]
+- [fs] ext3: Remove BKL from ext3_put_super() and ext3_remount() (Carlos Maiolino) [885945]
+- [lib] switch the protection of percpu_counter list to spinlock (Carlos Maiolino) [885945]
+- [virt] hv: Add Hyper-V balloon driver (Jason Wang) [885572]
+- [mm] export a function to get vm committed memory (Jason Wang) [885572]
+- [drm] nouveau: extend prevent display switching issues by disabling pageflip (Ben Skeggs) [853226]
+- [netdrv] mlx4: Fix advertisement of wrong PF context behaviour (Alex Williamson) [894060]
+
 * Mon Jan 14 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-354.el6]
 - [char] ipmi: add new kernel options to prevent automatic ipmi init (Tony Camuso) [877177]
 - [usb] xhci: New system added for Compliance Mode Patch on SN65LVPE502CP (Don Zickus) [856709]
