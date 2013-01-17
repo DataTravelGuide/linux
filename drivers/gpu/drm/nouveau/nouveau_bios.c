@@ -2687,6 +2687,7 @@ init_io(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * in the places where this INIT_IO happens..
 	 */
 	if (dev_priv->card_type >= NV_50 && crtcport == 0x3c3 && data == 1) {
+		struct drm_device *dev = bios->dev;
 		int i;
 
 		bios_wr32(bios, 0x614100, (bios_rd32(
@@ -2736,6 +2737,8 @@ init_io(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		for (i = 0; i < 2; i++)
 			bios_wr32(bios, 0x614108 + (i*0x800), bios_rd32(
 				  bios, 0x614108 + (i*0x800)) & 0x0fffffff);
+
+		nv_wr08(dev, 0x6013c3, nv_rd08(dev, 0x6013c3) | 0x01);
 		return 5;
 	}
 
