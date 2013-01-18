@@ -5574,11 +5574,11 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 	}
 
 	/* TSO requires that SG is present as well. */
-	if ((features & NETIF_F_TSO) && !(features & NETIF_F_SG)) {
+	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
 		if (name)
-			printk(KERN_NOTICE "%s: Dropping NETIF_F_TSO since no "
+			printk(KERN_NOTICE "%s: Dropping TSO features since no "
 			       "SG feature.\n", name);
-		features &= ~NETIF_F_TSO;
+		features &= ~NETIF_F_ALL_TSO;
 	}
 
 	if (features & NETIF_F_UFO) {
