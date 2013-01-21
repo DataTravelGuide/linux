@@ -40,7 +40,7 @@
 /*
  * Turn off idmapping when using AUTH_SYS.
  */
-static bool nfs4_disable_idmapping = true;
+static bool nfs4_disable_idmapping = false;
 module_param(nfs4_disable_idmapping, bool, 0644);
 MODULE_PARM_DESC(nfs4_disable_idmapping,
 		"Turn off server's NFSv4 idmapping when using 'sec=sys'");

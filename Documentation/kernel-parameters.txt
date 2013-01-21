@@ -1645,7 +1645,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			To turn off this behaviour, set the value to '0'.
 
 	nfsd.nfs4_disable_idmapping=
-			[NFSv4] When set to the default of '1', the NFSv4
+			[NFSv4] Defaults to 0.  When set to '1', the NFSv4
 			server will return only numeric uids and gids to
 			clients using auth_sys, and will accept numeric uids
 			and gids from such clients.  This is intended to ease
