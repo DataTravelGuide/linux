@@ -307,7 +307,10 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	else
 		fq->q.fragments = skb;
 
-	skb->dev = NULL;
+	if (skb->dev) {
+		fq->iif = skb->dev->ifindex;
+		skb->dev = NULL;
+	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
 	atomic_add(skb->truesize, &fq->q.net->mem);
