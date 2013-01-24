@@ -44,7 +44,7 @@ column lists the sections below which describe in detail what is needed:
 
       / Bugzilla: <bugzilla reference>
    __|  Upstream Status: <upstream status>
-[III]|  Brew: <brew build reference>
+[III]|  Build Info: <brew build reference or cross-compiler output>
       \ Tested: <testing data>
 
       / commit 7fff4beb311dfab4f18ff2cd64f78scd9296a39a
@@ -303,17 +303,17 @@ or explain why the patch is RHEL only.
 referenced.  Since there are many trees with the same name on sites like
 kernel.org and github.org, care should be taken to reference a particular tree.
 
-c) Brew:
+c) Build info:
 [Required] The patch(es) must compile on all architectures.
 
     Patches are expected to compile on all architectures.  To ensure this,
-developers are expected to put their patches through the brew build system prior
-to patch posting, and should include a reference to the build job in their
-patch submission.  The maintainers build kernels containing many patchsets, and
-compile failures require them to identify and revert offending patches.
-Ensuring that patches compile before submission reduces maintainer time and
-effort required to identify patches that break the build, and reduces delays
-delivering builds that may contain urgent fixes.
+developers are expected to put their patches through the brew build system or
+cross compile them prior to patch posting, and should include a reference to
+the build job in their patch submission.  The maintainers build kernels
+containing many patchsets, and compile failures require them to identify and
+revert offending patches.  Ensuring that patches compile before submission
+reduces maintainer time and effort required to identify patches that break the
+build, and reduces delays delivering builds that may contain urgent fixes.
 
     Submitting broken patches is rare but if you do *you will be singled out
 on RHKL*, which is never a good thing :-)
@@ -321,6 +321,9 @@ on RHKL*, which is never a good thing :-)
     For information on brew, see the Brew HOWTO at
 
 	https://home.corp.redhat.com/node/62846
+
+    For information on cross-compiling see the mini-FAQ at the end of this
+document.
 
 d) Test:
 [Required] A comment on how you or the customer tested the patch(es).
@@ -334,7 +337,7 @@ acceptable, provided the test environment is known to adequately test a patch.
 
 [Suggested] Build and testing status can be stated only in a 0/X cover letter.
 
-For patchsets, the brew and testing status can be mentioned a single time in
+For patchsets, the build and testing status can be mentioned a single time in
 the cover letter.
 
 
@@ -574,6 +577,28 @@ add
 to the Red Hat Metadata (section III) above.  The usage is similar to
 upstream's "From:" field which cannot be reliably used by the maintainers
 and submaintainers when dealing with RHEL.
+
+10. How do I cross compile a patch?  What is required?
+
+In order to cross compile patches users must use a system with the latest
+nightly RHEL6 OS installed.  Users can checkout a system from beaker or install
+a local system manually.  A user must also setup the "optional" repository for
+their RHEL6 install (note, that this is done automatically in a beaker
+install).
+
+After installing the system, a user must install the latest RHEL6 git tree,
+and apply their patches to this git tree.  After doing so, a user must type
+the following command as _root_:
+
+make rh-cross-download
+
+This will automatically install all dependencies for the rhel6-cross-compiler.
+
+After this step is complete, a user can execute
+
+make rh-cross-all-builds
+
+which will build i686, s390x, and ppc64.
 
 VIII.  Useful Links
 -------------------
