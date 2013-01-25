@@ -68,8 +68,8 @@ S:	Maintained
 F:	drivers/net/8139too.c
 
 ACPI SUBSYSTEM
-M:	Matthew Garrett <mjg@redhat.com>
-M:	Peter Martuccelli <peterm@redhat.com>
+M:	Lenny Szubowicz <lszubowi@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -99,7 +99,7 @@ S:	Maintained
 F:	drivers/net/benet/
 
 BIOS ISSUES
-M:	Matthew Garrett <mjg@redhat.com>
+M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 
 BLOCK LAYER
@@ -151,7 +151,7 @@ S:	Maintained
 F:	drivers/net/enic/
 
 CPU FREQUENCY DRIVERS
-M:	Matthew Garrett <mjg@redhat.com>
+M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	drivers/cpufreq/
@@ -231,7 +231,7 @@ S:	Maintained
 F:	drivers/net/ixgbevf/
 
 KERNEL-BASED VIRTUAL MACHINE (kvm)
-M:	Avi Kivity <avi@redhat.com>
+M:	Gleb Natapov <gleb@redhat.com>
 M:	Marcelo Tosatti <mtosatti@redhat.com>
 S:	Maintained
 F:	arch/x86/include/asm/kvm*.h
@@ -451,7 +451,7 @@ S:	Maintained
 F:	net/sunrpc/
 
 SUSPEND/RESUME
-M:	Matthew Garrett <mjg@redhat.com>
+M:	Lenny Szubowicz <lszubowi@redhat.com>
 S:	Maintained
 
 X86 ARCHITECTURE (32-BIT AND 64-BIT)
@@ -460,9 +460,9 @@ S:	Maintained
 F:	arch/x86/
 
 UNIVERSAL EXTENSIBLE FIRMWARE INTERFACE (UEFI/EFI)
-M:	Matthew Garrett <mjg@redhat.com>
-M:	Prarit Bhargava <prarit@redhat.com>
+M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Myron Stowe <mstowe@redhat.com>
+M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	arch/x86/kernel/efi*
 F:	include/linux/efi.h
