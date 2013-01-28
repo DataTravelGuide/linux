@@ -1128,6 +1128,7 @@
 	round_jiffies_relative
 	rtc_device_register
 	rtc_device_unregister
+	rtc_lock
 	rtc_time_to_tm
 	rtc_update_irq
 	rtc_valid_tm

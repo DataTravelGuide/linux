@@ -1070,6 +1070,7 @@
 0x1eb9516e	round_jiffies_relative	vmlinux	EXPORT_SYMBOL_GPL
 0xbf6181c3	rtc_device_register	vmlinux	EXPORT_SYMBOL_GPL
 0xcab4a640	rtc_device_unregister	vmlinux	EXPORT_SYMBOL_GPL
+0x811afadf	rtc_lock	vmlinux	EXPORT_SYMBOL_GPL
 0xabd0c91c	rtc_time_to_tm	vmlinux	EXPORT_SYMBOL
 0xe6a6900a	rtc_update_irq	vmlinux	EXPORT_SYMBOL_GPL
 0x5838f6c9	rtc_valid_tm	vmlinux	EXPORT_SYMBOL
