@@ -207,6 +207,7 @@
 0xc52bc908	blk_queue_merge_bvec	vmlinux	EXPORT_SYMBOL
 0x341d3821	blk_queue_physical_block_size	vmlinux	EXPORT_SYMBOL
 0xc9561080	blk_queue_prep_rq	vmlinux	EXPORT_SYMBOL
+0xa1628710	blk_queue_resize_tags	vmlinux	EXPORT_SYMBOL
 0x328f346a	blk_queue_rq_timed_out	vmlinux	EXPORT_SYMBOL_GPL
 0x479fb42e	blk_queue_rq_timeout	vmlinux	EXPORT_SYMBOL_GPL
 0x90f0392d	blk_queue_softirq_done	vmlinux	EXPORT_SYMBOL
