@@ -21,6 +21,7 @@
 	__dev_get_by_index
 	__dev_get_by_name
 	__free_pages
+	__generic_file_aio_write
 	__get_free_pages
 	__gpio_get_value
 	__inc_zone_page_state

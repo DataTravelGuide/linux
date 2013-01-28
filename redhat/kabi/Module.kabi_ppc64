@@ -20,6 +20,7 @@
 0xd2f47584	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x7984fc68	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0xc4ff0264	__free_pages	vmlinux	EXPORT_SYMBOL
+0x97159460	__generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0x93fca811	__get_free_pages	vmlinux	EXPORT_SYMBOL
 0x6c8d5ae8	__gpio_get_value	vmlinux	EXPORT_SYMBOL_GPL
 0x9d343d58	__inc_zone_page_state	vmlinux	EXPORT_SYMBOL

@@ -19,6 +19,7 @@
 0x83737efc	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x02f0e0ac	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0x91d1bbc3	__free_pages	vmlinux	EXPORT_SYMBOL
+0x99f2b5fb	__generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0x93fca811	__get_free_pages	vmlinux	EXPORT_SYMBOL
 0x3949817e	__inc_zone_page_state	vmlinux	EXPORT_SYMBOL
 0xf31338a7	__init_rwsem	vmlinux	EXPORT_SYMBOL

@@ -23,6 +23,7 @@
 0xfe554aa7	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x86274c28	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0xfce6b61f	__free_pages	vmlinux	EXPORT_SYMBOL
+0xc0cd0df1	__generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0x93fca811	__get_free_pages	vmlinux	EXPORT_SYMBOL
 0x167e7f9d	__get_user_1	vmlinux	EXPORT_SYMBOL
 0x8f9c199c	__get_user_2	vmlinux	EXPORT_SYMBOL
