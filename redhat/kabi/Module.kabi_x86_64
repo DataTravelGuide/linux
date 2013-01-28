@@ -215,6 +215,7 @@
 0x1c49edfe	blk_queue_resize_tags	vmlinux	EXPORT_SYMBOL
 0x4d1b14fe	blk_queue_rq_timed_out	vmlinux	EXPORT_SYMBOL_GPL
 0x1bd6a5d8	blk_queue_rq_timeout	vmlinux	EXPORT_SYMBOL_GPL
+0xca7203f1	blk_queue_segment_boundary	vmlinux	EXPORT_SYMBOL
 0xe534bb0e	blk_queue_softirq_done	vmlinux	EXPORT_SYMBOL
 0x67d01db8	blk_queue_stack_limits	vmlinux	EXPORT_SYMBOL
 0x7f7465c7	blk_remove_plug	vmlinux	EXPORT_SYMBOL
