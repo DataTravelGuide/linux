@@ -1697,6 +1697,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jan 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-357.el6]
+- [virt] xen: Fix stack corruption in xen_failsafe_callback for 32bit PVOPS guests (Andrew Jones) [896050] {CVE-2013-0190}
+- [block] sg_io: use different default filters for each device class (Paolo Bonzini) [875361] {CVE-2012-4542}
+- [block] sg_io: prepare for adding per-device-type filters (Paolo Bonzini) [875361] {CVE-2012-4542}
+- [virt] virtio-blk: Don't free ida when disk is in use (Asias He) [870344]
+- [netdrv] mlx4: Remove FCS bytes from packet length (Doug Ledford) [893707]
+- [net] netfilter: nf_ct_reasm: fix conntrack reassembly expire code (Amerigo Wang) [726807]
+
 * Mon Jan 21 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-356.el6]
 - [char] ipmi: use a tasklet for handling received messages (Prarit Bhargava) [890160]
 - [char] ipmi: handle run_to_completion properly in deliver_recv_msg() (Prarit Bhargava) [890160]
