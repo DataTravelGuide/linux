@@ -3337,6 +3337,9 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	list_splice_tail(&freeze_queue, &device->ccw_queue);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
+	/* mark device as suspended */
+	set_bit(DASD_FLAG_SUSPENDED, &device->flags);
+
 	if (device->discipline->freeze)
 		rc = device->discipline->freeze(device);
 
@@ -3375,6 +3378,7 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 	if (device->block)
 		dasd_schedule_block_bh(device->block);
 
+	clear_bit(DASD_FLAG_SUSPENDED, &device->flags);
 	dasd_put_device(device);
 	return 0;
 }

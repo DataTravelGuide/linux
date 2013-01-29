@@ -1237,6 +1237,12 @@ static void do_path_verification_work(struct work_struct *work)
 	data = container_of(work, struct path_verification_work_data, worker);
 	device = data->device;
 
+	/* delay path verification until device was resumed */
+	if (test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
+		schedule_work(work);
+		return;
+	}
+
 	opm = 0;
 	npm = 0;
 	ppm = 0;
@@ -2290,10 +2296,14 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
 	if ((scsw_dstat(&irb->scsw) & mask) == mask) {
-		/* for alias only and not in offline processing*/
+		/*
+		 * for alias only, not in offline processing
+		 * and only if not suspended
+		 */
 		if (!device->block && private->lcu &&
 		    device->state == DASD_STATE_ONLINE &&
-		    !test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		    !test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
+ 		    !test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
 			/*
 			 * the state change could be caused by an alias
 			 * reassignment remove device from alias handling
