@@ -1697,6 +1697,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 29 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-358.el6]
+- [fs] Fix sget() race with failing mount (Eric Sandeen) [883276]
+
 * Mon Jan 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-357.el6]
 - [virt] xen: Fix stack corruption in xen_failsafe_callback for 32bit PVOPS guests (Andrew Jones) [896050] {CVE-2013-0190}
 - [block] sg_io: use different default filters for each device class (Paolo Bonzini) [875361] {CVE-2012-4542}
