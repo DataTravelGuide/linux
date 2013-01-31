@@ -503,7 +503,7 @@ struct xfrm_policy
 	struct xfrm_selector	selector;
 	struct xfrm_lifetime_cfg lft;
 	struct xfrm_lifetime_cur curlft;
-	struct dst_entry       *bundles;
+	struct dst_entry	*bundles; /* unused */
 	struct xfrm_policy_walk_entry walk;
 	u8			type;
 	u8			action;
@@ -515,6 +515,7 @@ struct xfrm_policy
 #ifndef __GENKSYMS__
 	struct xfrm_mark	mark;
 	struct flow_cache_object flo;
+	atomic_t		genid;
 #endif
 };
 
@@ -904,16 +905,24 @@ struct xfrm_dst
 	struct flowi *origin;
 	struct xfrm_selector *partner;
 #endif
-	u32 genid;
+	u32 unused;
 	u32 route_mtu_cached;
 	u32 child_mtu_cached;
 	u32 route_cookie;
 	u32 path_cookie;
+#ifndef __GENKSYMS__
+	u32 xfrm_genid;
+	u32 policy_genid;
+	int num_pols, num_xfrms;
+	struct flow_cache_object flo;
+	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
+#endif
 };
 
 #ifdef CONFIG_XFRM
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 {
+	xfrm_pols_put(xdst->pols, xdst->num_pols);
 	dst_release(xdst->route);
 	if (likely(xdst->u.dst.xfrm))
 		xfrm_state_put(xdst->u.dst.xfrm);
