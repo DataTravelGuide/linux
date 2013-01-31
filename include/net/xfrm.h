@@ -228,6 +228,9 @@ struct xfrm_state
 	/* Private data of this transformer, format is opaque,
 	 * interpreted by xfrm_type methods. */
 	void			*data;
+#ifndef __GENKSYMS__
+	struct xfrm_mark	mark;
+#endif
 };
 
 static inline struct net *xs_net(struct xfrm_state *x)
@@ -506,6 +509,9 @@ struct xfrm_policy
 	u16			family;
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
+#ifndef __GENKSYMS__
+	struct xfrm_mark	mark;
+#endif
 };
 
 static inline struct net *xp_net(struct xfrm_policy *xp)
@@ -1589,5 +1595,25 @@ static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
 	return skb->sp->xvec[skb->sp->len - 1];
 }
 #endif
+
+static inline int xfrm_mark_get(struct nlattr **attrs, struct xfrm_mark *m)
+{
+	if (attrs[XFRMA_MARK])
+		memcpy(m, nla_data(attrs[XFRMA_MARK]), sizeof(m));
+	else
+		m->v = m->m = 0;
+
+	return m->v & m->m;
+}
+
+static inline int xfrm_mark_put(struct sk_buff *skb, struct xfrm_mark *m)
+{
+	if (m->m | m->v)
+		NLA_PUT(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
 
 #endif	/* _NET_XFRM_H */
