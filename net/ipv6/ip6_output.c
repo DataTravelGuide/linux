@@ -1077,6 +1077,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	int err;
 	int offset = 0;
 	int csummode = CHECKSUM_NONE;
+	union skb_shared_tx tx_flags = { .flags = 0 };
 
 	if (flags&MSG_PROBE)
 		return 0;
@@ -1159,6 +1160,13 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 			ipv6_local_error(sk, EMSGSIZE, fl, mtu-exthdrlen);
 			return -EMSGSIZE;
 		}
+	}
+
+	/* For UDP, check if TX timestamp is enabled */
+	if (sk->sk_type == SOCK_DGRAM) {
+		err = sock_tx_timestamp(NULL, sk, &tx_flags);
+		if (err)
+			goto error;
 	}
 
 	/*
@@ -1257,6 +1265,12 @@ alloc_new_skb:
 							   sk->sk_allocation);
 				if (unlikely(skb == NULL))
 					err = -ENOBUFS;
+				else {
+					/* Only the initial fragment
+					 * is time stamped.
+					 */
+					tx_flags.flags = 0;
+				}
 			}
 			if (skb == NULL)
 				goto error;
@@ -1267,6 +1281,9 @@ alloc_new_skb:
 			skb->csum = 0;
 			/* reserve for fragmentation */
 			skb_reserve(skb, hh_len+sizeof(struct frag_hdr));
+
+			if (sk->sk_type == SOCK_DGRAM)
+				skb_shinfo(skb)->tx_flags = tx_flags;
 
 			/*
 			 *	Find where to start putting bytes
