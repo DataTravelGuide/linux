@@ -358,6 +358,18 @@ void flow_cache_flush(void)
 	put_online_cpus();
 }
 
+static void flow_cache_flush_task(struct work_struct *work)
+{
+	flow_cache_flush();
+}
+
+static DECLARE_WORK(flow_cache_flush_work, flow_cache_flush_task);
+
+void flow_cache_flush_deferred(void)
+{
+	schedule_work(&flow_cache_flush_work);
+}
+
 static void __init flow_cache_cpu_prepare(struct flow_cache *fc,
 					  struct flow_cache_percpu *fcp)
 {
