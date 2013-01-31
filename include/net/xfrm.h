@@ -19,6 +19,8 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
+#include <net/flow.h>
+
 #ifdef CONFIG_XFRM_STATISTICS
 #include <net/snmp.h>
 #endif
@@ -512,6 +514,7 @@ struct xfrm_policy
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 #ifndef __GENKSYMS__
 	struct xfrm_mark	mark;
+	struct flow_cache_object flo;
 #endif
 };
 
