@@ -20,6 +20,7 @@
 #include <net/netns/conntrack.h>
 #endif
 #include <net/netns/xfrm.h>
+#include <net/dst_ops.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -87,6 +88,13 @@ struct net {
 #ifndef __GENKSYMS__
 	unsigned int ipv4_sysctl_ping_group_range[2];
 	struct netns_nf_frag	nf_frag;
+#ifdef CONFIG_XFRM
+	struct dst_ops		xfrm4_dst_ops;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct dst_ops		xfrm6_dst_ops;
+#endif
+#endif
+
 #endif
 };
 
