@@ -1118,11 +1118,13 @@ restart:
 		if (status >= 0) {
 			status = nfs4_reclaim_locks(state, ops);
 			if (status >= 0) {
+				spin_lock(&state->state_lock);
 				list_for_each_entry(lock, &state->lock_states, ls_locks) {
 					if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
 						printk("%s: Lock reclaim failed!\n",
 							__func__);
 				}
+				spin_unlock(&state->state_lock);
 				nfs4_put_open_state(state);
 				goto restart;
 			}
@@ -1186,10 +1188,12 @@ static void nfs4_clear_open_state(struct nfs4_state *state)
 	clear_bit(NFS_O_RDONLY_STATE, &state->flags);
 	clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 	clear_bit(NFS_O_RDWR_STATE, &state->flags);
+	spin_lock(&state->state_lock);
 	list_for_each_entry(lock, &state->lock_states, ls_locks) {
 		lock->ls_seqid.flags = 0;
 		lock->ls_flags &= ~NFS_LOCK_INITIALIZED;
 	}
+	spin_unlock(&state->state_lock);
 }
 
 static void nfs4_state_mark_reclaim_helper(struct nfs_client *clp, int (*mark_reclaim)(struct nfs_client *clp, struct nfs4_state *state))
