@@ -2517,7 +2517,7 @@ static int __devinit cciss_send_reset(ctlr_info_t *h, unsigned char *scsi3addr,
 		return -ENOMEM;
 	return_status = fill_cmd(h, c, CCISS_RESET_MSG, NULL, 0, 0,
 		CTLR_LUNID, TYPE_MSG);
-	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to target reset */
+	c->Request.CDB[1] = reset_type; /* fill_cmd defaults to lun reset */
 	if (return_status != IO_OK) {
 		cmd_special_free(h, c);
 		return return_status;
@@ -2640,7 +2640,7 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 			c->Request.Timeout = 0;
 			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
 			c->Request.CDB[0] = cmd;	/* reset */
-			c->Request.CDB[1] = CCISS_RESET_TYPE_TARGET;
+			c->Request.CDB[1] = CCISS_RESET_TYPE_LUN;
 			break;
 		case CCISS_NOOP_MSG:
 			c->Request.CDBLen = 1;
