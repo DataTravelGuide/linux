@@ -30,6 +30,7 @@
 #include <linux/if_ether.h>
 #include <linux/hash.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/ethtool.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
@@ -969,6 +970,18 @@ static void vxlan_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static void vxlan_get_drvinfo(struct net_device *netdev,
+			      struct ethtool_drvinfo *drvinfo)
+{
+	strlcpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
+}
+
+static const struct ethtool_ops vxlan_ethtool_ops = {
+	.get_drvinfo	= vxlan_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+};
+
 /* Initialize the device structure. */
 static void vxlan_setup(struct net_device *dev)
 {
@@ -981,6 +994,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
+	dev->ethtool_ops = &vxlan_ethtool_ops;
 	dev->destructor = vxlan_free;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
