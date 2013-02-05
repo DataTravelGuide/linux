@@ -622,6 +622,22 @@ static inline u8 vxlan_ecn_encap(u8 tos,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
+static __be32 vxlan_find_dst(struct vxlan_dev *vxlan, struct sk_buff *skb)
+{
+	const struct ethhdr *eth = (struct ethhdr *) skb->data;
+	const struct vxlan_fdb *f;
+
+	if (is_multicast_ether_addr(eth->h_dest))
+		return vxlan->gaddr;
+
+	f = vxlan_find_mac(vxlan, eth->h_dest);
+	if (f)
+		return f->remote_ip;
+	else
+		return vxlan->gaddr;
+
+}
+
 /* Transmit local packets over Vxlan
  *
  * Outer IP header inherits ECN and DF from inner header.
@@ -633,7 +649,6 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct rtable *rt;
-	const struct ethhdr *eth;
 	const struct iphdr *old_iph;
 	struct iphdr *iph;
 	struct vxlanhdr *vxh;
@@ -645,20 +660,15 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	__u8 tos, ttl;
 	int err;
 
+	dst = vxlan_find_dst(vxlan, skb);
+	if (!dst)
+		goto drop;
+
 	/* Need space for new headers (invalidates iph ptr) */
 	if (skb_cow_head(skb, VXLAN_HEADROOM))
 		goto drop;
 
-	eth = (void *)skb->data;
 	old_iph = ip_hdr(skb);
-
-	if (!is_multicast_ether_addr(eth->h_dest) &&
-	    (f = vxlan_find_mac(vxlan, eth->h_dest)))
-		dst = f->remote_ip;
-	else if (vxlan->gaddr) {
-		dst = vxlan->gaddr;
-	} else
-		goto drop;
 
 	ttl = vxlan->ttl;
 	if (!ttl && IN_MULTICAST(ntohl(dst)))
