@@ -638,6 +638,23 @@ static __be32 vxlan_find_dst(struct vxlan_dev *vxlan, struct sk_buff *skb)
 
 }
 
+static void vxlan_sock_free(struct sk_buff *skb)
+{
+	sock_put(skb->sk);
+}
+
+/* On transmit, associate with the tunnel socket */
+static void vxlan_set_owner(struct net_device *dev, struct sk_buff *skb)
+{
+	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
+	struct sock *sk = vn->sock->sk;
+
+	skb_orphan(skb);
+	sock_hold(sk);
+	skb->sk = sk;
+	skb->destructor = vxlan_sock_free;
+}
+
 /* Transmit local packets over Vxlan
  *
  * Outer IP header inherits ECN and DF from inner header.
@@ -728,6 +745,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->daddr	= dst;
 	iph->saddr	= fl4.fl4_src;
 	iph->ttl	= ttl ? : dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
+
+	vxlan_set_owner(dev, skb);
 
 	/* See __IPTUNNEL_XMIT */
 	skb->ip_summed = CHECKSUM_NONE;
