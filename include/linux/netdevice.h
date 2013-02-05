@@ -52,6 +52,7 @@
 #endif
 #ifndef __GENKSYMS__
 #include <net/netprio_cgroup.h>
+#include <linux/neighbour.h>
 #endif
 
 struct vlan_group;
@@ -744,6 +745,17 @@ struct netdev_fcoe_hbainfo {
  * int (*ndo_set_vf_port)(struct net_device *dev, int vf,
  *			  struct nlattr *port[]);
  * int (*ndo_get_vf_port)(struct net_device *dev, int vf, struct sk_buff *skb);
+
+ * int (*ndo_fdb_add)(struct ndmsg *ndm, struct net_device *dev,
+ *		      unsigned char *addr, u16 flags)
+ *	Adds an FDB entry to dev for addr.
+ * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
+ *		      unsigned char *addr)
+ *	Deletes the FDB entry from dev coresponding to addr.
+ * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
+ *		       struct net_device *dev, int idx)
+ *	Used to add FDB entries to dump requests. Implementers should add
+ *	entries to skb and update idx with the number of entries.
  */
 #define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
@@ -1188,6 +1200,17 @@ struct net_device_extended {
 					struct scatterlist *sgl,
 					unsigned int sgc);
 #endif
+	int			(*ndo_fdb_add)(struct ndmsg *ndm,
+					       struct net_device *dev,
+					       unsigned char *addr,
+					       u16 flags);
+	int			(*ndo_fdb_del)(struct ndmsg *ndm,
+					       struct net_device *dev,
+					       unsigned char *addr);
+	int			(*ndo_fdb_dump)(struct sk_buff *skb,
+						struct netlink_callback *cb,
+						struct net_device *dev,
+						int idx);
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \

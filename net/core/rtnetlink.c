@@ -35,7 +35,9 @@
 #include <linux/security.h>
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
+#include <linux/if_bridge.h>
 #include <linux/pci.h>
+#include <linux/etherdevice.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -1687,6 +1689,149 @@ errout:
 		rtnl_set_sk_err(net, RTNLGRP_LINK, err);
 }
 
+static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct net_device *master = NULL;
+	struct ndmsg *ndm;
+	struct nlattr *tb[NDA_MAX+1];
+	struct net_device *dev;
+	u8 *addr;
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
+	if (err < 0)
+		return err;
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_ifindex == 0) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ifindex\n");
+		return -EINVAL;
+	}
+
+	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
+	if (dev == NULL) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid address\n");
+		return -EINVAL;
+	}
+
+	addr = nla_data(tb[NDA_LLADDR]);
+	if (!is_valid_ether_addr(addr)) {
+		pr_info("PF_BRIDGE: RTM_NEWNEIGH with invalid ether address\n");
+		return -EINVAL;
+	}
+
+	err = -EOPNOTSUPP;
+
+	/* Support fdb on master device the net/bridge default case */
+	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
+	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+		master = dev->master;
+		err = netdev_extended(master)->ndo_fdb_add(ndm, dev, addr,
+						      nlh->nlmsg_flags);
+		if (err)
+			goto out;
+		else
+			ndm->ndm_flags &= ~NTF_MASTER;
+	}
+
+	/* Embedded bridge, macvlan, and any other device support */
+	if ((ndm->ndm_flags & NTF_SELF) && netdev_extended(dev)->ndo_fdb_add) {
+		err = netdev_extended(dev)->ndo_fdb_add(ndm, dev, addr,
+						   nlh->nlmsg_flags);
+
+		if (!err)
+			ndm->ndm_flags &= ~NTF_SELF;
+	}
+out:
+	return err;
+}
+
+static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+{
+	struct net *net = sock_net(skb->sk);
+	struct ndmsg *ndm;
+	struct nlattr *llattr;
+	struct net_device *dev;
+	int err = -EINVAL;
+	__u8 *addr;
+
+	if (nlmsg_len(nlh) < sizeof(*ndm))
+		return -EINVAL;
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_ifindex == 0) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with invalid ifindex\n");
+		return -EINVAL;
+	}
+
+	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
+	if (dev == NULL) {
+		pr_info("PF_BRIDGE: RTM_DELNEIGH with unknown ifindex\n");
+		return -ENODEV;
+	}
+
+	llattr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_LLADDR);
+	if (llattr == NULL || nla_len(llattr) != ETH_ALEN) {
+		pr_info("PF_BRIGDE: RTM_DELNEIGH with invalid address\n");
+		return -EINVAL;
+	}
+
+	addr = nla_data(llattr);
+	err = -EOPNOTSUPP;
+
+	/* Support fdb on master device the net/bridge default case */
+	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
+	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
+		struct net_device *master = dev->master;
+
+		if (netdev_extended(master)->ndo_fdb_del)
+			err = netdev_extended(master)->ndo_fdb_del(ndm, dev, addr);
+
+		if (err)
+			goto out;
+		else
+			ndm->ndm_flags &= ~NTF_MASTER;
+	}
+
+	/* Embedded bridge, macvlan, and any other device support */
+	if ((ndm->ndm_flags & NTF_SELF) && netdev_extended(dev)->ndo_fdb_del) {
+		err = netdev_extended(dev)->ndo_fdb_del(ndm, dev, addr);
+
+		if (!err)
+			ndm->ndm_flags &= ~NTF_SELF;
+	}
+out:
+	return err;
+}
+
+static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int idx = 0;
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+
+	for_each_netdev(net, dev) {
+		if (dev->priv_flags & IFF_BRIDGE_PORT) {
+			struct net_device *master = dev->master;
+
+			if (netdev_extended(master)->ndo_fdb_dump)
+				idx = netdev_extended(master)->ndo_fdb_dump(skb, cb, dev, idx);
+		}
+
+		if (netdev_extended(dev)->ndo_fdb_dump)
+			idx = netdev_extended(dev)->ndo_fdb_dump(skb, cb, dev, idx);
+	}
+
+	cb->args[0] = idx;
+	return skb->len;
+}
+
 /* Protected by RTNL sempahore.  */
 static struct rtattr **rta_buf;
 static int rtattr_max;
@@ -1860,6 +2005,10 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all, NULL);
 	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all, NULL);
+
+	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, rtnl_fdb_dump, NULL);
 }
 
 EXPORT_SYMBOL(__rta_fill);
