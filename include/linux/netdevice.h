@@ -745,8 +745,9 @@ struct netdev_fcoe_hbainfo {
  * int (*ndo_set_vf_port)(struct net_device *dev, int vf,
  *			  struct nlattr *port[]);
  * int (*ndo_get_vf_port)(struct net_device *dev, int vf, struct sk_buff *skb);
-
- * int (*ndo_fdb_add)(struct ndmsg *ndm, struct net_device *dev,
+ *
+ * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
+ *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 flags)
  *	Adds an FDB entry to dev for addr.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct net_device *dev,
@@ -1201,6 +1202,7 @@ struct net_device_extended {
 					unsigned int sgc);
 #endif
 	int			(*ndo_fdb_add)(struct ndmsg *ndm,
+					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr,
 					       u16 flags);
