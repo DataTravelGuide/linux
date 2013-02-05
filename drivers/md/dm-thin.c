@@ -814,7 +814,7 @@ static int commit(struct pool *pool)
 
 	r = dm_pool_commit_metadata(pool->pmd);
 	if (r)
-		DMERR_LIMIT("commit failed, error = %d", r);
+		DMERR_LIMIT("commit failed: error = %d", r);
 
 	return r;
 }
@@ -997,7 +997,7 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+		DMERR_LIMIT("%s: dm_thin_find_block() failed: error = %d",
 			    __func__, r);
 		cell_defer_no_holder(tc, cell);
 		bio_io_error(bio);
@@ -1025,7 +1025,7 @@ static void break_sharing(struct thin_c *tc, struct bio *bio, dm_block_t block,
 		break;
 
 	default:
-		DMERR_LIMIT("%s: alloc_data_block() failed, error = %d",
+		DMERR_LIMIT("%s: alloc_data_block() failed: error = %d",
 			    __func__, r);
 		dm_cell_error(cell);
 		break;
@@ -1102,7 +1102,7 @@ static void provision_block(struct thin_c *tc, struct bio *bio, dm_block_t block
 		break;
 
 	default:
-		DMERR_LIMIT("%s: alloc_data_block() failed, error = %d",
+		DMERR_LIMIT("%s: alloc_data_block() failed: error = %d",
 			    __func__, r);
 		set_pool_mode(tc->pool, PM_READ_ONLY);
 		dm_cell_error(cell);
@@ -1151,7 +1151,7 @@ static void process_bio(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+		DMERR_LIMIT("%s: dm_thin_find_block() failed: error = %d",
 			    __func__, r);
 		cell_defer_no_holder(tc, cell);
 		bio_io_error(bio);
@@ -1194,7 +1194,7 @@ static void process_bio_read_only(struct thin_c *tc, struct bio *bio)
 		break;
 
 	default:
-		DMERR_LIMIT("%s: dm_thin_find_block() failed, error = %d",
+		DMERR_LIMIT("%s: dm_thin_find_block() failed: error = %d",
 			    __func__, r);
 		bio_io_error(bio);
 		break;
