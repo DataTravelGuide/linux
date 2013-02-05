@@ -1590,7 +1590,7 @@ again:
 	/*
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
-	if (r == 0 && ti->len != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT)
+	if (!r && ti->len != i_size_read(bdev->bd_inode) >> SECTOR_SHIFT)
 		r = scsi_verify_blk_ioctl(NULL, cmd);
 
 	if (r == -EAGAIN && !fatal_signal_pending(current)) {

@@ -374,8 +374,14 @@ out:
 static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
 	struct mapped_device *md = disk->private_data;
+
+	spin_lock(&_minor_lock);
+
 	atomic_dec(&md->open_count);
 	dm_put(md);
+
+	spin_unlock(&_minor_lock);
+
 	return 0;
 }
 
@@ -2050,15 +2056,13 @@ static void event_callback(void *context)
 	wake_up(&md->eventq);
 }
 
+/*
+ * Protected by md->suspend_lock obtained by dm_swap_table().
+ */
 static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	/*
-	 * Only DM is allowed to change the size of a DM device.
-	 * i_size_write() is protected by the dm_swap_table() critical
-	 * section that uses md->suspend_lock.
-	 */
 	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
 }
 

@@ -2458,7 +2458,6 @@ static void set_discard_limits(struct pool_c *pt, struct queue_limits *limits)
 		 */
 		limits->discard_granularity = max(1 << (ffs(pool->sectors_per_block) - 1),
 						  DATA_DEV_BLOCK_SIZE_MIN_SECTORS) << SECTOR_SHIFT;
-
 }
 
 static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)

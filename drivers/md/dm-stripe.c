@@ -53,7 +53,6 @@ static void trigger_event(struct work_struct *work)
 	struct stripe_c *sc = container_of(work, struct stripe_c, kstriped_ws);
 
 	dm_table_event(sc->ti->table);
-
 }
 
 static inline struct stripe_c *alloc_context(unsigned int stripes)
