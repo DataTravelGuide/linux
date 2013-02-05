@@ -1750,7 +1750,6 @@ errout:
 static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
-	struct net_device *master = NULL;
 	struct ndmsg *ndm;
 	struct nlattr *tb[NDA_MAX+1];
 	struct net_device *dev;
@@ -1789,14 +1788,7 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	/* Support fdb on master device the net/bridge default case */
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
 	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
-		master = dev->master;
-		err = netdev_extended(master)->ndo_fdb_add(ndm, tb,
-							   dev, addr,
-							   nlh->nlmsg_flags);
-		if (err)
-			goto out;
-		else
-			ndm->ndm_flags &= ~NTF_MASTER;
+		ndm->ndm_flags &= ~NTF_MASTER;
 	}
 
 	/* Embedded bridge, macvlan, and any other device support */
@@ -1809,7 +1801,7 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			ndm->ndm_flags &= ~NTF_SELF;
 		}
 	}
-out:
+
 	return err;
 }
 
@@ -1849,15 +1841,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	/* Support fdb on master device the net/bridge default case */
 	if ((!ndm->ndm_flags || ndm->ndm_flags & NTF_MASTER) &&
 	    (dev->priv_flags & IFF_BRIDGE_PORT)) {
-		struct net_device *master = dev->master;
-
-		if (netdev_extended(master)->ndo_fdb_del)
-			err = netdev_extended(master)->ndo_fdb_del(ndm, dev, addr);
-
-		if (err)
-			goto out;
-		else
-			ndm->ndm_flags &= ~NTF_MASTER;
+		ndm->ndm_flags &= ~NTF_MASTER;
 	}
 
 	/* Embedded bridge, macvlan, and any other device support */
@@ -1869,7 +1853,7 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			ndm->ndm_flags &= ~NTF_SELF;
 		}
 	}
-out:
+
 	return err;
 }
 
@@ -1880,13 +1864,6 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 
 	for_each_netdev(net, dev) {
-		if (dev->priv_flags & IFF_BRIDGE_PORT) {
-			struct net_device *master = dev->master;
-
-			if (netdev_extended(master)->ndo_fdb_dump)
-				idx = netdev_extended(master)->ndo_fdb_dump(skb, cb, dev, idx);
-		}
-
 		if (netdev_extended(dev)->ndo_fdb_dump)
 			idx = netdev_extended(dev)->ndo_fdb_dump(skb, cb, dev, idx);
 	}
