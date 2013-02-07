@@ -1899,7 +1899,7 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 	spin_lock_init(&adapter->rx_mac_learn_lock);
 
 	head = kcalloc(QLCNIC_LB_MAX_FILTERS, sizeof(struct hlist_head),
-								GFP_KERNEL);
+								GFP_ATOMIC);
 	if (!head)
 		return;
 
@@ -1910,7 +1910,7 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 		INIT_HLIST_HEAD(&adapter->fhash.fhead[i]);
 
 	head = kcalloc(QLCNIC_LB_RX_MAX_FILTERS, sizeof(struct hlist_head),
-								GFP_KERNEL);
+								GFP_ATOMIC);
 	if (!head)
 		return;
 
