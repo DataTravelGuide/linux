@@ -1817,17 +1817,28 @@ out:
 }
 EXPORT_SYMBOL(skb_checksum_help);
 
+/* openvswitch calls this on rx path, so we need a different check.
+ */
+static inline bool skb_needs_check(struct sk_buff *skb, bool tx_path)
+{
+	if (tx_path)
+		return skb->ip_summed != CHECKSUM_PARTIAL;
+	else
+		return skb->ip_summed == CHECKSUM_NONE;
+}
+
 /**
- *	skb_gso_segment - Perform segmentation on skb.
+ *	__skb_gso_segment - Perform segmentation on skb.
  *	@skb: buffer to segment
  *	@features: features for the output path (see dev->features)
+ *	@tx_path: whether it is called in TX path
  *
  *	This function segments the given skb and returns a list of segments.
  *
  *	It may return NULL if the skb requires no segmentation.  This is
  *	only possible when GSO is used for verifying header integrity.
  */
-struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
+struct sk_buff *__skb_gso_segment(struct sk_buff *skb, int features, bool tx_path)
 {
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_offload *ptype;
@@ -1839,7 +1850,7 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	skb->mac_len = skb->network_header - skb->mac_header;
 	__skb_pull(skb, skb->mac_len);
 
-	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL)) {
+	if (unlikely(skb_needs_check(skb, tx_path))) {
 		skb_warn_bad_offload(skb);
 
 		if (skb_header_cloned(skb) &&
@@ -1894,6 +1905,12 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	__skb_push(skb, skb->data - skb_mac_header(skb));
 
 	return segs;
+}
+EXPORT_SYMBOL(__skb_gso_segment);
+
+struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
+{
+	return __skb_gso_segment(skb, features, true);
 }
 EXPORT_SYMBOL(skb_gso_segment);
 
