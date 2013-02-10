@@ -766,6 +766,13 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
 	((struct pci_dev_rh1 *)pdev->rh_reserved1)->pcie_flags_reg = reg16;
+	/*
+	 * 'pcie_type' should be considered deprecated;  going forward,
+	 * there should be no references introduced for 'pcie_type' -
+	 * see RHEL6 commits related to upstream commits 786e22885d9,
+	 * 62f87c0e31d, and b2ef39be574 for an explanation of why it
+	 * must still exist here.
+	 */
 	pdev->pcie_type = pci_pcie_type(pdev);
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
 	rh_set_mpss(pdev, reg16 & PCI_EXP_DEVCAP_PAYLOAD);
