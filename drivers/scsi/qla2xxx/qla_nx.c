@@ -2492,7 +2492,6 @@ fw_load_failed:
 int
 qla82xx_start_firmware(scsi_qla_host_t *vha)
 {
-	int           pcie_cap;
 	uint16_t      lnk;
 	struct qla_hw_data *ha = vha->hw;
 
@@ -2523,8 +2522,7 @@ qla82xx_start_firmware(scsi_qla_host_t *vha)
 	}
 
 	/* Negotiated Link width */
-	pcie_cap = pci_pcie_cap(ha->pdev);
-	pci_read_config_word(ha->pdev, pcie_cap + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(ha->pdev, PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 
 	/* Synchronize with Receive peg */
