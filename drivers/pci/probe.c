@@ -765,7 +765,8 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->is_pcie = 1;
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
-	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
+	((struct pci_dev_rh1 *)pdev->rh_reserved1)->pcie_flags_reg = reg16;
+	pdev->pcie_type = pci_pcie_type(pdev);
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
 	rh_set_mpss(pdev, reg16 & PCI_EXP_DEVCAP_PAYLOAD);
 }

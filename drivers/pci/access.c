@@ -477,4 +477,13 @@ void pci_unblock_user_cfg_access(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_unblock_user_cfg_access);
 
-
+/**
+ * pci_pcie_type - get the PCIe device/port type
+ * @dev: PCI device
+ */
+int pci_pcie_type(const struct pci_dev *dev)
+{
+	return (((struct pci_dev_rh1 *)dev->rh_reserved1)->pcie_flags_reg &
+		PCI_EXP_FLAGS_TYPE) >> 4;
+}
+EXPORT_SYMBOL_GPL(pci_pcie_type);

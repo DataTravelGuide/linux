@@ -328,6 +328,7 @@ struct pci_dev_rh1 {
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
 						   decoding during bar sizing */
+	u16		pcie_flags_reg;	/* cached PCI-E Capabilities Register */
 };
 
 static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
@@ -1501,6 +1502,8 @@ static inline int pci_num_vf(struct pci_dev *dev)
 extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
 extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
 #endif
+
+extern int pci_pcie_type(const struct pci_dev *dev);
 
 void pci_request_acs(void);
 /**
