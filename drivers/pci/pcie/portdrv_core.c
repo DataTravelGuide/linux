@@ -250,8 +250,7 @@ static void cleanup_service_irqs(struct pci_dev *dev)
  */
 int pcie_get_port_device_capability(struct pci_dev *dev)
 {
-	int services = 0, pos;
-	u16 reg16;
+	int services = 0;
 	u32 reg32;
 	int cap_mask = 0;
 	int err;
@@ -273,11 +272,9 @@ int pcie_get_port_device_capability(struct pci_dev *dev)
 			cap_mask |= PCIE_PORT_SERVICE_AER;
 	}
 
-	pos = pci_pcie_cap(dev);
-	pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
 	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PCI_EXP_FLAGS_SLOT)) {
-		pci_read_config_dword(dev, pos + PCI_EXP_SLTCAP, &reg32);
+	if (cap_mask & PCIE_PORT_SERVICE_HP) {
+		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
 		if (reg32 & PCI_EXP_SLTCAP_HPC)
 			services |= PCIE_PORT_SERVICE_HP;
 	}
