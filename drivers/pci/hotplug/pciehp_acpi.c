@@ -85,7 +85,8 @@ static int __init dummy_probe(struct pcie_device *dev)
 	struct dummy_slot *slot, *tmp;
 	struct pci_dev *pdev = dev->port;
 
-	if (!(pos = pci_find_capability(pdev, PCI_CAP_ID_EXP)))
+	pos = pci_pcie_cap(pdev);
+	if (!pos)
 		return -ENODEV;
 	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &slot_cap);
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
