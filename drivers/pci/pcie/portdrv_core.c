@@ -289,7 +289,7 @@ int pcie_get_port_device_capability(struct pci_dev *dev)
 	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
 		services |= PCIE_PORT_SERVICE_VC;
 	if ((cap_mask & PCIE_PORT_SERVICE_PME)
-	    && dev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	    && pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
 		services |= PCIE_PORT_SERVICE_PME;
 
 	rh1_pci->pcie_osc_capabilities = services;
@@ -323,7 +323,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device->release = release_pcie_device;	/* callback to free pcie dev */
 	dev_set_name(device, "%s:pcie%02x",
 		     pci_name(pdev),
-		     get_descriptor_id(pdev->pcie_type, service));
+		     get_descriptor_id(pci_pcie_type(pdev), service));
 	device->parent = &pdev->dev;
 
 	retval = device_register(device);

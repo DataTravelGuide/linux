@@ -99,9 +99,9 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 	int			status;
 
 	if (!pci_is_pcie(dev) ||
-	    ((dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_UPSTREAM) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
+	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
         if (!dev->irq && dev->pin) {

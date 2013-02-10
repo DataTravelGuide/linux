@@ -316,10 +316,10 @@ found:
 		struct pci_dev *bridge = bus->self;
 
 		if (!bridge || !pci_is_pcie(bridge) ||
-		    bridge->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+		    pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE)
 			return 0;
 
-		if (bridge->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT) {
 			for (i = 0; i < atsru->devices_cnt; i++)
 				if (atsru->devices[i] == bridge)
 					return 1;
