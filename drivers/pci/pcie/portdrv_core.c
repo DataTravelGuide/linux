@@ -121,7 +121,7 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
 		 * the value in this field indicates which MSI-X Table entry is
 		 * used to generate the interrupt message."
 		 */
-		pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+		pos = pci_pcie_cap(dev);
 		pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 		entry = (reg16 >> 9) & PCIE_PORT_MSI_VECTOR_MASK;
 		if (entry >= nr_entries)
@@ -273,7 +273,7 @@ int pcie_get_port_device_capability(struct pci_dev *dev)
 			cap_mask |= PCIE_PORT_SERVICE_AER;
 	}
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	pci_read_config_word(dev, pos + PCIE_CAPABILITIES_REG, &reg16);
 	/* Hot-Plug Capable */
 	if ((cap_mask & PCIE_PORT_SERVICE_HP) && (reg16 & PORT_TO_SLOT_MASK)) {
