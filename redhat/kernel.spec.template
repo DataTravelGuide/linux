@@ -1697,6 +1697,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 11 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-359.el6]
+- [fs] gfs2: Get a block reservation before resizing a file (Robert S Peterson) [875753]
+- [net] ipv6: do not create neighbor entries for local delivery (Jiri Pirko) [896020]
+- [net] bonding: check for assigned mac before adopting the slaves mac address (Veaceslav Falico) [905126]
+- [fs] nfs: nfs4_xdr_enc_layout{commit, return} must return status (Steve Dickson) [907227]
+- [fs] set s_type before destroy_super in sget() (Eric Sandeen) [904982]
+- [scsi] ses: Avoid kernel panic when lun 0 is not mapped (Ewan Milne) [886867]
+- [block] avoid divide-by-zero with zero discard granularity (Mike Snitzer) [901705]
+- [block] discard granularity might not be power of 2 (Mike Snitzer) [901705]
+- [netdrv] tg3: Fix crc errors on jumbo frame receive (Ivan Vecera) [895336]
+- [netdrv] igb: set E1000_IMS_TS interrupt bit in igb_irq_enable (Stefan Assmann) [871795]
+- [pci] intel-iommu: Prevent devices with RMRRs from being placed into SI Domain (Tony Camuso) [678451]
+- [scsi] sd: Reshuffle init_sd to avoid crash (Ewan Milne) [888417]
+- [mm] add numa node symlink for cpu devices in sysfs (Neil Horman) [878708]
+
 * Tue Jan 29 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-358.el6]
 - [fs] Fix sget() race with failing mount (Eric Sandeen) [883276]
 
