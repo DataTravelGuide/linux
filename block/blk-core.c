@@ -1686,8 +1686,8 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		if (unlikely(!bio_rw_flagged(bio, BIO_RW_DISCARD) &&
-			     nr_sectors > queue_max_hw_sectors(q))) {
+		if (likely(bio_is_rw(bio) &&
+			   nr_sectors > queue_max_hw_sectors(q))) {
 			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 			       bdevname(bio->bi_bdev, b),
 			       bio_sectors(bio),
@@ -1729,7 +1729,7 @@ static inline void __generic_make_request(struct bio *bio)
 			}
 		}
 
-		if (bio_rw_flagged(bio, BIO_RW_DISCARD) &&
+		if ((bio->bi_rw & BIO_DISCARD) &&
 		    !blk_queue_discard(q)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
@@ -1821,7 +1821,7 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio) && !(rw & (1 << BIO_RW_DISCARD))) {
+	if (bio_has_data(bio)) {
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
@@ -1866,7 +1866,7 @@ EXPORT_SYMBOL(submit_bio);
  */
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_flags & REQ_DISCARD)
+	if (!rq_mergeable(rq))
 		return 0;
 
 	if (blk_rq_sectors(rq) > queue_max_sectors(q) ||
@@ -2344,7 +2344,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	req->buffer = bio_data(req->bio);
 
 	/* update sector only for requests with clear definition of sector */
-	if (req->cmd_type == REQ_TYPE_FS || (req->cmd_flags & REQ_DISCARD))
+	if (req->cmd_type == REQ_TYPE_FS)
 		req->__sector += total_bytes >> 9;
 
 	/* mixed attributes always follow the first bio */
