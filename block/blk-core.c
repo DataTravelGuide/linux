@@ -1738,13 +1738,6 @@ static inline void __generic_make_request(struct bio *bio)
 		if (blk_throtl_bio(q, bio))
 			break;  /* throttled, will be resubmitted later */
 
-		/*
-		 * If bio = NULL, bio has been throttled and will be submitted
-		 * later.
-		 */
-		if (!bio)
-			break;
-
 		trace_block_bio_queue(q, bio);
 
 		ret = q->make_request_fn(q, bio);
