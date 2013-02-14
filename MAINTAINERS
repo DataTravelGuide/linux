@@ -2584,6 +2584,13 @@ M:	William Irwin <wli@holomorphy.com>
 S:	Maintained
 F:	fs/hugetlbfs/
 
+I2C/SMBUS ISMT DRIVER
+M:     Seth Heasley <seth.heasley@intel.com>
+M:     Neil Horman <nhorman@tuxdriver.com>
+L:     linux-i2c@vger.kernel.org
+F:     drivers/i2c/busses/i2c-ismt.c
+F:     Documentation/i2c/busses/i2c-ismt
+
 I2C/SMBUS STUB DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	linux-i2c@vger.kernel.org
