@@ -1697,6 +1697,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Feb 14 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-361.el6]
+- [netdrv] mlx4: Set number of msix vectors under SRIOV mode to firmware defaults (Michal Schmidt) [904726]
+- [netdrv] mlx4: Fix bridged vSwitch configuration for non SRIOV mode (Michal Schmidt) [903644]
+- [net] rtnetlink: Fix IFLA_EXT_MASK definition (regression) (Thomas Graf) [903220]
+- [x86] msr: Add capabilities check (Nikola Pajkovsky) [908699] {CVE-2013-0268}
+- [x86] msr: Remove incorrect, duplicated code in the MSR driver (Nikola Pajkovsky) [908699] {CVE-2013-0268}
+- [virt] xen: don't assume ds is usable in xen_iret for 32-bit PVOPS (Andrew Jones) [906311] {CVE-2013-0228}
+
 * Wed Feb 13 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-360.el6]
 - [kernel] cputime: Avoid multiplication overflow on utime scaling (Stanislaw Gruszka) [862758]
 - [net] sunrpc: When changing the queue priority, ensure that we change the owner (Steve Dickson) [902965]
