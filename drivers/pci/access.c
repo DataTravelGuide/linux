@@ -478,6 +478,16 @@ void pci_unblock_user_cfg_access(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_unblock_user_cfg_access);
 
 /**
+ * pcie_caps_reg - get the PCIe Capabilities Register
+ * @dev: PCI device
+ */
+u16 pcie_caps_reg(const struct pci_dev *dev)
+{
+	return ((struct pci_dev_rh1 *)dev->rh_reserved1)->pcie_flags_reg;
+}
+EXPORT_SYMBOL(pcie_caps_reg);
+
+/**
  * pci_pcie_type - get the PCIe device/port type
  * @dev: PCI device
  */

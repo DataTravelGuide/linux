@@ -1536,6 +1536,7 @@ extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
 extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
 #endif
 
+extern u16 pcie_caps_reg(const struct pci_dev *dev);
 extern int pci_pcie_type(const struct pci_dev *dev);
 
 void pci_request_acs(void);
