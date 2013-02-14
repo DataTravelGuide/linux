@@ -273,6 +273,11 @@ F:	net/ipv4
 F:	net/ipv6
 F:	include/net
 
+ISMT SMBUS DRIVER
+M:	Neil Horman <nhorman@redhat.com>
+S:	Maintained
+F:	drivers/i2c/busses/i2c-ismt.c
+
 MACHINE CHECK ERROR (MCE) SUBSYSTEM
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
