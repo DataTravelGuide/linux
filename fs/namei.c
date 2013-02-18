@@ -154,6 +154,10 @@ getname(const char __user * filename)
 	struct filename *result, *err;
 	char *kname;
 
+	result = audit_reusename(filename);
+	if (result)
+		return result;
+
 	result = kzalloc(sizeof(*result), GFP_KERNEL);
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
