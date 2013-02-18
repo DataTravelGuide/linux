@@ -2805,14 +2805,11 @@ is_path_accessible(int xid, struct cifs_tcon *tcon,
 }
 
 void
-cifs_cleanup_volume_info(struct smb_vol **pvolume_info)
+cifs_cleanup_volume_info(struct smb_vol *volume_info)
 {
-	struct smb_vol *volume_info;
-
-	if (!pvolume_info || !*pvolume_info)
+	if (!volume_info)
 		return;
 
-	volume_info = *pvolume_info;
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
 	kfree(volume_info->UNC);
@@ -2822,7 +2819,6 @@ cifs_cleanup_volume_info(struct smb_vol **pvolume_info)
 	kfree(volume_info->iocharset);
 	kfree(volume_info->prepath);
 	kfree(volume_info);
-	*pvolume_info = NULL;
 	return;
 }
 
@@ -2967,7 +2963,7 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 	*pvolume_info = volume_info;
 	return rc;
 out:
-	cifs_cleanup_volume_info(&volume_info);
+	cifs_cleanup_volume_info(volume_info);
 	return rc;
 }
 

@@ -620,9 +620,8 @@ cifs_get_sb(struct file_system_type *fs_type,
 out_super:
 	deactivate_locked_super(sb);
 out:
-	cifs_cleanup_volume_info(&volume_info);
+	cifs_cleanup_volume_info(volume_info);
 	return rc;
-
 out_mountdata:
 	kfree(cifs_sb->mountdata);
 out_cifs_sb:
