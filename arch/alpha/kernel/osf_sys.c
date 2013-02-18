@@ -312,7 +312,7 @@ osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
-	char *devname;
+	struct filename *devname;
 
 	retval = -EFAULT;
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
@@ -321,7 +321,7 @@ osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
 	retval = PTR_ERR(devname);
 	if (IS_ERR(devname))
 		goto out;
-	retval = do_mount(devname, dirname, "ext2", flags, NULL);
+	retval = do_mount(devname->name, dirname, "ext2", flags, NULL);
 	putname(devname);
  out:
 	return retval;
@@ -332,7 +332,7 @@ osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
-	char *devname;
+	struct filename *devname;
 
 	retval = -EFAULT;
 	if (copy_from_user(&tmp, args, sizeof(tmp)))
@@ -341,7 +341,7 @@ osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
 	retval = PTR_ERR(devname);
 	if (IS_ERR(devname))
 		goto out;
-	retval = do_mount(devname, dirname, "iso9660", flags, NULL);
+	retval = do_mount(devname->name, dirname, "iso9660", flags, NULL);
 	putname(devname);
  out:
 	return retval;
@@ -361,8 +361,8 @@ osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
 SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 		int, flag, void __user *, data)
 {
-	int retval = -EINVAL;
-	char *name;
+	int retval;
+	struct filename *name;
 
 	name = getname(path);
 	retval = PTR_ERR(name);
@@ -370,13 +370,13 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 		goto out;
 	switch (typenr) {
 	case 1:
-		retval = osf_ufs_mount(name, data, flag);
+		retval = osf_ufs_mount(name->name, data, flag);
 		break;
 	case 6:
-		retval = osf_cdfs_mount(name, data, flag);
+		retval = osf_cdfs_mount(name->name, data, flag);
 		break;
 	case 9:
-		retval = osf_procfs_mount(name, data, flag);
+		retval = osf_procfs_mount(name->name, data, flag);
 		break;
 	default:
 		printk("osf_mount(%ld, %x)\n", typenr, flag);

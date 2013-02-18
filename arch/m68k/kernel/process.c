@@ -314,7 +314,7 @@ EXPORT_SYMBOL(dump_fpu);
 asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __user * __user *envp)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 	struct pt_regs *regs = (struct pt_regs *) &name;
 
 	lock_kernel();
@@ -322,7 +322,7 @@ asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 out:
 	unlock_kernel();

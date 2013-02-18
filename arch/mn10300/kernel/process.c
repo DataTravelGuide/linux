@@ -272,7 +272,7 @@ asmlinkage long sys_execve(char __user *name,
 			   char __user * __user *argv,
 			   char __user * __user *envp)
 {
-	char *filename;
+	struct filename *filename;
 	int error;
 
 	lock_kernel();
@@ -280,7 +280,7 @@ asmlinkage long sys_execve(char __user *name,
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (!IS_ERR(filename)) {
-		error = do_execve(filename, argv, envp, __frame);
+		error = do_execve(filename->name, argv, envp, __frame);
 		putname(filename);
 	}
 

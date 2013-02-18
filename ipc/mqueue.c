@@ -805,7 +805,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 {
 	struct dentry *dentry;
 	struct file *filp;
-	char *name;
+	struct filename *name;
 	struct mq_attr attr;
 	int fd, error;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
@@ -823,7 +823,8 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 		goto out_putname;
 
 	mutex_lock(&ipc_ns->mq_mnt->mnt_root->d_inode->i_mutex);
-	dentry = lookup_one_len(name, ipc_ns->mq_mnt->mnt_root, strlen(name));
+	dentry = lookup_one_len(name->name, ipc_ns->mq_mnt->mnt_root,
+				strlen(name->name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_putfd;
@@ -832,7 +833,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 
 	if (oflag & O_CREAT) {
 		if (dentry->d_inode) {	/* entry already exists */
-			audit_inode(name, dentry, 0);
+			audit_inode(name->name, dentry, 0);
 			if (oflag & O_EXCL) {
 				error = -EEXIST;
 				goto out;
@@ -848,7 +849,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 			error = -ENOENT;
 			goto out;
 		}
-		audit_inode(name, dentry, 0);
+		audit_inode(name->name, dentry, 0);
 		filp = do_open(ipc_ns, dentry, oflag);
 	}
 
@@ -876,7 +877,7 @@ out_putname:
 SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 {
 	int err;
-	char *name;
+	struct filename *name;
 	struct dentry *dentry;
 	struct inode *inode = NULL;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
@@ -887,7 +888,8 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 	mutex_lock_nested(&ipc_ns->mq_mnt->mnt_root->d_inode->i_mutex,
 			I_MUTEX_PARENT);
-	dentry = lookup_one_len(name, ipc_ns->mq_mnt->mnt_root, strlen(name));
+	dentry = lookup_one_len(name->name, ipc_ns->mq_mnt->mnt_root,
+				strlen(name->name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		goto out_unlock;

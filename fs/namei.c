@@ -112,6 +112,12 @@
 
 static int __link_path_walk(const char *name, struct nameidata *nd);
 
+void final_putname(struct filename *name)
+{
+	__putname(name->name);
+	kfree(name);
+}
+
 /* In order to reduce some races, while at the same time doing additional
  * checking and hopefully speeding things up, we copy filenames to the
  * kernel data space before using them..
@@ -141,32 +147,47 @@ static int do_getname(const char __user *filename, char *page)
 	return retval;
 }
 
-char * getname(const char __user * filename)
+struct filename *
+getname(const char __user * filename)
 {
-	char *tmp, *result;
+	int retval;
+	struct filename *result, *err;
+	char *kname;
 
-	result = ERR_PTR(-ENOMEM);
-	tmp = __getname();
-	if (tmp)  {
-		int retval = do_getname(filename, tmp);
+	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	if (unlikely(!result))
+		return ERR_PTR(-ENOMEM);
 
-		result = tmp;
-		if (retval < 0) {
-			__putname(tmp);
-			result = ERR_PTR(retval);
-		}
+	kname = __getname();
+	if (unlikely(!kname)) {
+		err = ERR_PTR(-ENOMEM);
+		goto error_free_name;
 	}
+
+	retval = do_getname(filename, kname);
+
+	if (retval < 0) {
+		err = ERR_PTR(retval);
+		goto error;
+	}
+	result->name = kname;
+	result->uptr = filename;
 	audit_getname(result);
 	return result;
+error:
+	__putname(kname);
+error_free_name:
+	kfree(result);
+	return err;
 }
+EXPORT_SYMBOL(getname);
 
 #ifdef CONFIG_AUDITSYSCALL
-void putname(const char *name)
+void putname(struct filename *name)
 {
 	if (unlikely(!audit_dummy_context()))
-		audit_putname(name);
-	else
-		__putname(name);
+		return audit_putname(name);
+	final_putname(name);
 }
 EXPORT_SYMBOL(putname);
 #endif
@@ -1509,13 +1530,13 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {
 	struct nameidata nd;
-	char *tmp = getname(name);
+	struct filename *tmp = getname(name);
 	int err = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
 
 		BUG_ON(flags & LOOKUP_PARENT);
 
-		err = do_path_lookup(dfd, tmp, flags, &nd);
+		err = do_path_lookup(dfd, tmp->name, flags, &nd);
 		putname(tmp);
 		if (!err)
 			*path = nd.path;
@@ -1523,22 +1544,22 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return err;
 }
 
-static int user_path_parent(int dfd, const char __user *path,
-			struct nameidata *nd, char **name)
+static struct filename *
+user_path_parent(int dfd, const char __user *path, struct nameidata *nd)
 {
-	char *s = getname(path);
+	struct filename *s = getname(path);
 	int error;
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return s;
 
-	error = do_path_lookup(dfd, s, LOOKUP_PARENT, nd);
-	if (error)
+	error = do_path_lookup(dfd, s->name, LOOKUP_PARENT, nd);
+	if (error) {
 		putname(s);
-	else
-		*name = s;
+		return ERR_PTR(error);
+	}
 
-	return error;
+	return s;
 }
 
 /*
@@ -2262,16 +2283,16 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
 		unsigned, dev)
 {
 	int error, err2;
-	char *tmp;
+	struct filename *tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
 
 	if (S_ISDIR(mode))
 		return -EPERM;
 
-	error = user_path_parent(dfd, filename, &nd, &tmp);
-	if (error)
-		return error;
+	tmp = user_path_parent(dfd, filename, &nd);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	/* don't fail immediately if it's r/o, at least try to report other errors */
 	err2 = mnt_want_write(nd.path.mnt);
@@ -2348,13 +2369,13 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 {
 	int error = 0, err2;
-	char * tmp;
+	struct filename *tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
 
-	error = user_path_parent(dfd, pathname, &nd, &tmp);
-	if (error)
-		goto out_err;
+	tmp = user_path_parent(dfd, pathname, &nd);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	/* don't fail immediately if it's r/o, at least try to report other errors */
 	err2 = mnt_want_write(nd.path.mnt);
@@ -2382,7 +2403,6 @@ out_unlock:
 		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(tmp);
-out_err:
 	return error;
 }
 
@@ -2454,13 +2474,13 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 static long do_rmdir(int dfd, const char __user *pathname)
 {
 	int error = 0;
-	char * name;
+	struct filename *name;
 	struct dentry *dentry;
 	struct nameidata nd;
 
-	error = user_path_parent(dfd, pathname, &nd, &name);
-	if (error)
-		return error;
+	name = user_path_parent(dfd, pathname, &nd);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 
 	switch(nd.last_type) {
 	case LAST_DOTDOT:
@@ -2544,14 +2564,14 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 static long do_unlinkat(int dfd, const char __user *pathname)
 {
 	int error;
-	char *name;
+	struct filename *name;
 	struct dentry *dentry;
 	struct nameidata nd;
 	struct inode *inode = NULL;
 
-	error = user_path_parent(dfd, pathname, &nd, &name);
-	if (error)
-		return error;
+	name = user_path_parent(dfd, pathname, &nd);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 
 	error = -EISDIR;
 	if (nd.last_type != LAST_NORM)
@@ -2635,8 +2655,8 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 		int, newdfd, const char __user *, newname)
 {
 	int error, err2;
-	char *from;
-	char *to;
+	struct filename *from;
+	struct filename *to;
 	struct dentry *dentry;
 	struct nameidata nd;
 
@@ -2644,9 +2664,11 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	if (IS_ERR(from))
 		return PTR_ERR(from);
 
-	error = user_path_parent(newdfd, newname, &nd, &to);
-	if (error)
+	to = user_path_parent(newdfd, newname, &nd);
+	if (IS_ERR(to)) {
+		error = PTR_ERR(to);
 		goto out_putname;
+	}
 
 	/* don't fail immediately if it's r/o, at least try to report other errors */
 	err2 = mnt_want_write(nd.path.mnt);
@@ -2655,15 +2677,14 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
-
 	if (unlikely(err2)) {
 		error = err2;
 		goto out_dput;
 	}
-	error = security_path_symlink(&nd.path, dentry, from);
+	error = security_path_symlink(&nd.path, dentry, from->name);
 	if (error)
 		goto out_dput;
-	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from);
+	error = vfs_symlink(nd.path.dentry->d_inode, dentry, from->name);
 out_dput:
 	dput(dentry);
 out_unlock:
@@ -2736,7 +2757,7 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	struct nameidata nd;
 	struct path old_path;
 	int error;
-	char *to;
+	struct filename *to;
 
 	if ((flags & ~AT_SYMLINK_FOLLOW) != 0)
 		return -EINVAL;
@@ -2747,9 +2768,12 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	if (error)
 		return error;
 
-	error = user_path_parent(newdfd, newname, &nd, &to);
-	if (error)
+	to = user_path_parent(newdfd, newname, &nd);
+	if (IS_ERR(to)) {
+		error = PTR_ERR(to);
 		goto out;
+	}
+
 	error = -EXDEV;
 	if (old_path.mnt != nd.path.mnt)
 		goto out_release;
@@ -2936,17 +2960,21 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	struct dentry *old_dentry, *new_dentry;
 	struct dentry *trap;
 	struct nameidata oldnd, newnd;
-	char *from;
-	char *to;
+	struct filename *from;
+	struct filename *to;
 	int error;
 
-	error = user_path_parent(olddfd, oldname, &oldnd, &from);
-	if (error)
+	from = user_path_parent(olddfd, oldname, &oldnd);
+	if (IS_ERR(from)) {
+		error = PTR_ERR(from);
 		goto exit;
+	}
 
-	error = user_path_parent(newdfd, newname, &newnd, &to);
-	if (error)
+	to = user_path_parent(newdfd, newname, &newnd);
+	if (IS_ERR(to)) {
+		error = PTR_ERR(to);
 		goto exit1;
+	}
 
 	error = -EXDEV;
 	if (oldnd.path.mnt != newnd.path.mnt)
@@ -3170,7 +3198,6 @@ EXPORT_SYMBOL(follow_down);
 EXPORT_SYMBOL(__follow_down);
 EXPORT_SYMBOL(follow_up);
 EXPORT_SYMBOL(get_write_access); /* binfmt_aout */
-EXPORT_SYMBOL(getname);
 EXPORT_SYMBOL(lock_rename);
 EXPORT_SYMBOL(lookup_one_len);
 EXPORT_SYMBOL(page_follow_link_light);

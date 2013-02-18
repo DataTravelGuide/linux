@@ -114,13 +114,13 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
-	char *tmp = getname(library);
+	struct filename *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 
 	if (IS_ERR(tmp))
 		goto out;
 
-	file = do_filp_open(AT_FDCWD, tmp,
+	file = do_filp_open(AT_FDCWD, tmp->name,
 				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
 				MAY_READ | MAY_EXEC | MAY_OPEN);
 	putname(tmp);
@@ -1916,7 +1916,6 @@ static void wait_for_dump_helpers(struct file *file)
 	pipe_unlock(pipe);
 
 }
-
 
 /*
  * uhm_pipe_setup
