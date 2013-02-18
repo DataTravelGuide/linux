@@ -64,6 +64,8 @@ static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
+static int cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
+					const char *devname);
 
 /*
  * cifs tcp session reconnection
@@ -2804,12 +2806,9 @@ is_path_accessible(int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-void
-cifs_cleanup_volume_info(struct smb_vol *volume_info)
+static void
+cleanup_volume_info_contents(struct smb_vol *volume_info)
 {
-	if (!volume_info)
-		return;
-
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
 	kfree(volume_info->UNC);
@@ -2818,9 +2817,17 @@ cifs_cleanup_volume_info(struct smb_vol *volume_info)
 	kfree(volume_info->domainname);
 	kfree(volume_info->iocharset);
 	kfree(volume_info->prepath);
-	kfree(volume_info);
-	return;
 }
+
+void
+cifs_cleanup_volume_info(struct smb_vol *volume_info)
+{
+	if (!volume_info)
+		return;
+	cleanup_volume_info_contents(volume_info);
+	kfree(volume_info);
+}
+
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 /* build_path_to_root returns full path to root when
@@ -2892,15 +2899,32 @@ expand_dfs_referral(int xid, struct cifs_ses *pSesInfo,
 						   &fake_devname);
 
 		free_dfs_info_array(referrals, num_referrals);
-		kfree(fake_devname);
-
-		if (cifs_sb->mountdata != NULL)
-			kfree(cifs_sb->mountdata);
 
 		if (IS_ERR(mdata)) {
 			rc = PTR_ERR(mdata);
 			mdata = NULL;
+		} else {
+			cleanup_volume_info_contents(volume_info);
+			memset(volume_info, '\0', sizeof(*volume_info));
+			rc = cifs_setup_volume_info(volume_info, mdata,
+							fake_devname);
+			/* We also need to setup cifs_sb->prepath and
+			 * cifs_sb->prepathlen since we do not support
+			 * shared sb in RHEL 6
+			 */
+			if (cifs_sb->prepath) {
+				kfree(cifs_sb->prepath);
+				cifs_sb->prepath = NULL;
+				cifs_sb->prepathlen = 0;
+			}
+			if (volume_info->prepath) {
+				cifs_sb->prepath = volume_info->prepath;
+				cifs_sb->prepathlen = strlen(cifs_sb->prepath);
+				volume_info->prepath = NULL;
+			}
 		}
+		kfree(fake_devname);
+		kfree(cifs_sb->mountdata);
 		cifs_sb->mountdata = mdata;
 	}
 	kfree(full_path);
