@@ -34,14 +34,14 @@
 int hpux_execve(struct pt_regs *regs)
 {
 	int error;
-	struct filename *filename;
+	char *filename;
 
 	filename = getname((char __user *) regs->gr[26]);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 
-	error = do_execve(filename->name, (char __user * __user *) regs->gr[25],
+	error = do_execve(filename, (char __user * __user *) regs->gr[25],
 		(char __user * __user *) regs->gr[24], regs);
 
 	putname(filename);

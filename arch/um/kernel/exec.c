@@ -74,13 +74,13 @@ long sys_execve(char __user *file, char __user *__user *argv,
 		char __user *__user *env)
 {
 	long error;
-	struct filename *filename;
+	char *filename;
 
 	lock_kernel();
 	filename = getname(file);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename)) goto out;
-	error = execve1(filename->name, argv, env);
+	error = execve1(filename, argv, env);
 	putname(filename);
  out:
 	unlock_kernel();

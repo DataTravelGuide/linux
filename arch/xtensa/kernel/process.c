@@ -324,13 +324,13 @@ long xtensa_execve(char __user *name, char __user * __user *argv,
                    struct pt_regs *regs)
 {
 	long error;
-	struct filename *filename;
+	char * filename;
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
+	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
 out:
 	return error;

@@ -4227,23 +4227,22 @@ static inline int ocfs2_may_create(struct inode *dir, struct dentry *child)
 }
 
 /* copied from user_path_parent. */
-static struct filename *
-ocfs2_user_path_parent(const char __user *path,
-			  struct nameidata *nd, char **name)
+static int ocfs2_user_path_parent(const char __user *path,
+				  struct nameidata *nd, char **name)
 {
-	struct filename *s = getname(path);
+	char *s = getname(path);
 	int error;
 
 	if (IS_ERR(s))
-		return s;
+		return PTR_ERR(s);
 
-	error = path_lookup(s->name, LOOKUP_PARENT, nd);
-	if (error) {
+	error = path_lookup(s, LOOKUP_PARENT, nd);
+	if (error)
 		putname(s);
-		s = ERR_PTR(error);
-	}
+	else
+		*name = s;
 
-	return s;
+	return error;
 }
 
 /**
@@ -4322,7 +4321,7 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 	struct nameidata nd;
 	struct path old_path;
 	int error;
-	struct filename *to;
+	char *to = NULL;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)))
 		return -EOPNOTSUPP;
@@ -4333,9 +4332,8 @@ int ocfs2_reflink_ioctl(struct inode *inode,
 		return error;
 	}
 
-	to = ocfs2_user_path_parent(newname, &nd);
-	if (IS_ERR(to)) {
-		error = PTR_ERR(to);
+	error = ocfs2_user_path_parent(newname, &nd, &to);
+	if (error) {
 		mlog_errno(error);
 		goto out;
 	}

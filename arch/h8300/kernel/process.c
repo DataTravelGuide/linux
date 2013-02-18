@@ -215,7 +215,7 @@ int copy_thread(unsigned long clone_flags,
 asmlinkage int sys_execve(char *name, char **argv, char **envp,int dummy,...)
 {
 	int error;
-	struct filename *filename;
+	char * filename;
 	struct pt_regs *regs = (struct pt_regs *) ((unsigned char *)&dummy-4);
 
 	lock_kernel();
@@ -223,7 +223,7 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp,int dummy,...)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
+	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
 out:
 	unlock_kernel();

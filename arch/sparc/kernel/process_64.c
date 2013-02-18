@@ -756,7 +756,7 @@ EXPORT_SYMBOL(dump_fpu);
 asmlinkage int sparc_execve(struct pt_regs *regs)
 {
 	int error, base = 0;
-	struct filename *filename;
+	char *filename;
 
 	/* User register window flush is done by entry.S */
 
@@ -768,7 +768,7 @@ asmlinkage int sparc_execve(struct pt_regs *regs)
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename->name,
+	error = do_execve(filename,
 			  (char __user * __user *)
 			  regs->u_regs[base + UREG_I1],
 			  (char __user * __user *)

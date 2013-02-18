@@ -219,7 +219,7 @@ copy_thread(unsigned long clone_flags,
 asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __user * __user *envp)
 {
 	int error;
-	struct filename *filename;
+	char *filename;
 	struct pt_regs *regs = (struct pt_regs *)((&name) + 6);
 
 	lock_kernel();
@@ -227,7 +227,7 @@ asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename->name, argv, envp, regs);
+	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
  out:
 	unlock_kernel();
