@@ -2425,8 +2425,10 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 	struct filename *tmp;
 	struct dentry *dentry;
 	struct nameidata nd;
+	unsigned int lookup_flags = 0;
 
-	tmp = user_path_parent(dfd, pathname, &nd, 0);
+retry:
+	tmp = user_path_parent(dfd, pathname, &nd, lookup_flags);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
@@ -2456,6 +2458,10 @@ out_unlock:
 		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(tmp);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 	return error;
 }
 
