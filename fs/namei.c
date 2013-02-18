@@ -2718,12 +2718,14 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 	struct filename *to;
 	struct dentry *dentry;
 	struct nameidata nd;
+	unsigned int lookup_flags = 0;
 
 	from = getname(oldname);
 	if (IS_ERR(from))
 		return PTR_ERR(from);
 
-	to = user_path_parent(newdfd, newname, &nd, 0);
+retry:
+	to = user_path_parent(newdfd, newname, &nd, lookup_flags);
 	if (IS_ERR(to)) {
 		error = PTR_ERR(to);
 		goto out_putname;
@@ -2752,6 +2754,10 @@ out_unlock:
 		mnt_drop_write(nd.path.mnt);
 	path_put(&nd.path);
 	putname(to);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 out_putname:
 	putname(from);
 	return error;
