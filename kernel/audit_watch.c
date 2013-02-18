@@ -251,7 +251,7 @@ static void audit_update_watch(struct audit_parent *parent,
 
 	mutex_lock(&audit_filter_mutex);
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(dname, owatch->path, NULL))
+		if (audit_compare_dname_path(dname, owatch->path))
 			continue;
 
 		/* If the update involves invalidating rules, do the inode-based
