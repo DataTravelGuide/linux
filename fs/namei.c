@@ -1053,6 +1053,7 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 	struct inode *inode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
+	const char *orig_name = name;
 	
 	while (*name=='/')
 		name++;
@@ -1222,7 +1223,7 @@ out_dput:
 		break;
 	}
 	if (unlikely(!audit_dummy_context()) && nd->path.dentry->d_inode)
-		audit_inode(name, nd->path.dentry);
+		audit_inode(orig_name, nd->path.dentry);
 	path_put(&nd->path);
 return_err:
 	return err;
