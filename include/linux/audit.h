@@ -451,8 +451,10 @@ extern int audit_classify_arch(int arch);
 
 /* audit_names->type values */
 #define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */
-#define AUDIT_TYPE_NORMAL	1	/* a "normal" audit record */
-#define AUDIT_TYPE_PARENT	2	/* a parent audit record */
+#define	AUDIT_TYPE_NORMAL	1	/* a "normal" audit record */
+#define	AUDIT_TYPE_PARENT	2	/* a parent audit record */
+#define	AUDIT_TYPE_CHILD_DELETE 3	/* a child being deleted */
+#define	AUDIT_TYPE_CHILD_CREATE 4	/* a child being created */
 
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
@@ -469,7 +471,8 @@ extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct dentry *dentry,
 				unsigned int parent);
 extern void __audit_inode_child(const struct inode *parent,
-				const struct dentry *dentry);
+				const struct dentry *dentry,
+				const unsigned char type);
 extern void __audit_ptrace(struct task_struct *t);
 
 static inline int audit_dummy_context(void)
@@ -497,9 +500,10 @@ static inline void audit_inode(const char *name, const struct dentry *dentry,
 		__audit_inode(name, dentry, parent);
 }
 static inline void audit_inode_child(const struct inode *parent,
-				     const struct dentry *dentry) {
+				     const struct dentry *dentry,
+				     const unsigned char type) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode_child(parent, dentry);
+		__audit_inode_child(parent, dentry, type);
 }
 void audit_core_dumps(long signr);
 
@@ -604,9 +608,9 @@ extern int audit_signals;
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,d,p) do { ; } while (0)
-#define __audit_inode_child(p,d) do { ; } while (0)
+#define __audit_inode_child(p,d,t) do { ; } while (0)
 #define audit_inode(n,d,p) do { ; } while (0)
-#define audit_inode_child(p,d) do { ; } while (0)
+#define audit_inode_child(p,d,t) do { ; } while (0)
 #define audit_core_dumps(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) (0)
 #define audit_get_loginuid(t) (-1)
