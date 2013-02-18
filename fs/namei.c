@@ -2822,18 +2822,22 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	struct nameidata nd;
 	struct path old_path;
 	int error;
+	unsigned int how = 0;
 	struct filename *to;
 
 	if ((flags & ~AT_SYMLINK_FOLLOW) != 0)
 		return -EINVAL;
 
-	error = user_path_at(olddfd, oldname,
-			     flags & AT_SYMLINK_FOLLOW ? LOOKUP_FOLLOW : 0,
-			     &old_path);
+	if (flags & AT_SYMLINK_FOLLOW)
+		how |= LOOKUP_FOLLOW;
+
+retry:
+	error = user_path_at(olddfd, oldname, how, &old_path);
 	if (error)
 		return error;
 
-	to = user_path_parent(newdfd, newname, &nd, 0);
+	to = user_path_parent(newdfd, newname, &nd,
+					(how & LOOKUP_REVAL));
 	if (IS_ERR(to)) {
 		error = PTR_ERR(to);
 		goto out;
@@ -2861,6 +2865,10 @@ out_unlock:
 out_release:
 	path_put(&nd.path);
 	putname(to);
+	if (retry_estale(error, how)) {
+		how |= LOOKUP_REVAL;
+		goto retry;
+	}
 out:
 	path_put(&old_path);
 
