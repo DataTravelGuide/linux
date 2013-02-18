@@ -1379,7 +1379,7 @@ EXPORT_SYMBOL(search_binary_handler);
 /*
  * sys_execve() executes a new program.
  */
-int do_execve(char * filename,
+int do_execve(const char * filename,
 	char __user *__user *argv,
 	char __user *__user *envp,
 	struct pt_regs * regs)
@@ -1417,8 +1417,8 @@ int do_execve(char * filename,
 	sched_exec();
 
 	bprm->file = file;
-	bprm->filename = filename;
-	bprm->interp = filename;
+	bprm->filename = (char *)filename;
+	bprm->interp = (char *)filename;
 
 	retval = bprm_mm_init(bprm);
 	if (retval)

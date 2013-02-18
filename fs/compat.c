@@ -1481,7 +1481,7 @@ out:
  * compat_do_execve() is mostly a copy of do_execve(), with the exception
  * that it processes 32 bit argv and envp pointers.
  */
-int compat_do_execve(char * filename,
+int compat_do_execve(const char * filename,
 	compat_uptr_t __user *argv,
 	compat_uptr_t __user *envp,
 	struct pt_regs * regs)
@@ -1519,8 +1519,8 @@ int compat_do_execve(char * filename,
 	sched_exec();
 
 	bprm->file = file;
-	bprm->filename = filename;
-	bprm->interp = filename;
+	bprm->filename = (char *)filename;
+	bprm->interp = (char *)filename;
 
 	retval = bprm_mm_init(bprm);
 	if (retval)
