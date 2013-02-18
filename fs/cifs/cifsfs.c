@@ -563,9 +563,9 @@ cifs_get_sb(struct file_system_type *fs_type,
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
-	rc = cifs_setup_volume_info(&volume_info, (char *)data, dev_name);
-	if (rc)
-		return rc;
+	volume_info = cifs_get_volume_info((char *)data, dev_name);
+	if (IS_ERR(volume_info))
+		return PTR_ERR(volume_info);
 
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
