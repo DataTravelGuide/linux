@@ -517,8 +517,9 @@ SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 	struct inode *inode;
 	int error;
 	struct iattr newattrs;
-
-	error = user_path_at(dfd, filename, LOOKUP_FOLLOW, &path);
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+retry:
+	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (error)
 		goto out;
 	inode = path.dentry->d_inode;
@@ -536,6 +537,10 @@ SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, mode_t, mode)
 	mnt_drop_write(path.mnt);
 dput_and_out:
 	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
 out:
 	return error;
 }
