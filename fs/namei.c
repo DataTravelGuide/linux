@@ -114,8 +114,12 @@ static int __link_path_walk(struct filename *filename, struct nameidata *nd);
 
 void final_putname(struct filename *name)
 {
-	__putname(name->name);
-	kfree(name);
+	if (name->separate) {
+		__putname(name->name);
+		kfree(name);
+	} else {
+		__putname(name);
+	}
 }
 
 /* In order to reduce some races, while at the same time doing additional
@@ -125,15 +129,15 @@ void final_putname(struct filename *name)
  * POSIX.1 2.4: an empty pathname is invalid (ENOENT).
  * PATH_MAX includes the nul terminator --RR.
  */
-static int do_getname(const char __user *filename, char *page)
+static int do_getname(const char __user *filename, char *page,
+			unsigned long len)
 {
 	int retval;
-	unsigned long len = PATH_MAX;
 
 	if (!segment_eq(get_fs(), KERNEL_DS)) {
 		if ((unsigned long) filename >= TASK_SIZE)
 			return -EFAULT;
-		if (TASK_SIZE - (unsigned long) filename < PATH_MAX)
+		if (TASK_SIZE - (unsigned long) filename < len)
 			len = TASK_SIZE - (unsigned long) filename;
 	}
 
@@ -147,41 +151,63 @@ static int do_getname(const char __user *filename, char *page)
 	return retval;
 }
 
+#define EMBEDDED_NAME_MAX      (PATH_MAX - sizeof(struct filename))
+
 struct filename *
 getname(const char __user * filename)
 {
-	int retval;
+	int len;
 	struct filename *result, *err;
+	unsigned long max;
 	char *kname;
 
 	result = audit_reusename(filename);
 	if (result)
 		return result;
 
-	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	result = __getname();
 	if (unlikely(!result))
 		return ERR_PTR(-ENOMEM);
 
-	kname = __getname();
-	if (unlikely(!kname)) {
-		err = ERR_PTR(-ENOMEM);
-		goto error_free_name;
-	}
+	kname = (char *)result + sizeof(*result);
+	result->name = kname;
+	result->separate = false;
+	max = EMBEDDED_NAME_MAX;
 
-	retval = do_getname(filename, kname);
-
-	if (retval < 0) {
-		err = ERR_PTR(retval);
+recopy:
+	len = do_getname(filename, kname, max);
+	if (len < 0) {
+		err = ERR_PTR(len);
 		goto error;
 	}
-	result->name = kname;
+
+	/*
+	 * Uh-oh. We have a name that's approaching PATH_MAX. Allocate a
+	 * separate struct filename so we can dedicate the entire
+	 * names_cache allocation for the pathname, and re-do the copy from
+	 * userland.
+	 */
+	if (len == EMBEDDED_NAME_MAX && max == EMBEDDED_NAME_MAX) {
+		kname = (char *)result;
+
+		result = kzalloc(sizeof(*result), GFP_KERNEL);
+		if (!result) {
+			err = ERR_PTR(-ENOMEM);
+			result = (struct filename *)kname;
+			goto error;
+		}
+		result->name = kname;
+		result->separate = true;
+		max = PATH_MAX;
+		goto recopy;
+	}
+
 	result->uptr = filename;
 	audit_getname(result);
 	return result;
+
 error:
-	__putname(kname);
-error_free_name:
-	kfree(result);
+	final_putname(result);
 	return err;
 }
 EXPORT_SYMBOL(getname);
