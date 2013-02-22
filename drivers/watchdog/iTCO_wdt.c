@@ -35,6 +35,7 @@
  *	document number TBD                   : Patsburg (PBG)
  *	document number TBD                   : Panther Point
  *	document number TBD                   : Lynx Point
+ *	document number TBD                   : Lynx Point-LP
  */
 
 /*
@@ -184,6 +185,7 @@ enum iTCO_chipsets {
 	TCO_PPT30,	/* Panther Point */
 	TCO_PPT31,	/* Panther Point */
 	TCO_LPT,	/* Lynx Point */
+	TCO_LPT_LP,	/* Lynx Point-LP */
 };
 
 static struct {
@@ -306,6 +308,7 @@ static struct {
 	{"Panther Point", 2},
 	{"Panther Point", 2},
 	{"Lynx Point", 2},
+	{"Lynx Point-LP", 2},
 	{NULL, 0}
 };
 
@@ -487,6 +490,14 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(0x8c5d,				TCO_LPT)},
 	{ ITCO_PCI_DEVICE(0x8c5e,				TCO_LPT)},
 	{ ITCO_PCI_DEVICE(0x8c5f,				TCO_LPT)},
+	{ ITCO_PCI_DEVICE(0x9c40,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c41,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c42,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c43,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c44,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c45,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c46,				TCO_LPT_LP)},
+	{ ITCO_PCI_DEVICE(0x9c47,				TCO_LPT_LP)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);
