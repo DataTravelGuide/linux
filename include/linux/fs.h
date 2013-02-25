@@ -733,10 +733,6 @@ struct block_device {
 	int			bd_fsfreeze_count;
 	/* Mutex for freeze */
 	struct mutex		bd_fsfreeze_mutex;
-#ifndef __GENKSYMS__
-	/* A semaphore that prevents I/O while block size is being changed */
-	struct percpu_rw_semaphore	bd_block_size_semaphore;
-#endif
 };
 
 /*
@@ -2442,8 +2438,6 @@ extern int generic_segment_checks(const struct iovec *iov,
 		unsigned long *nr_segs, size_t *count, int access_flags);
 
 /* fs/block_dev.c */
-extern ssize_t blkdev_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			       unsigned long nr_segs, loff_t pos);
 extern ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
 extern int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync);
