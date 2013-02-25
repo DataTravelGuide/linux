@@ -1680,6 +1680,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 25 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-362.el6]
+- [kernel] utrace: ensure arch_ptrace/ptrace_request can never race with SIGKILL (Oleg Nesterov) [912074] {CVE-2013-0871}
+- [security] device_cgroup: fix RCU usage (Aristeu Rozanski) [819366]
+- [security] device_cgroup: fix unchecked cgroup parent usage (Aristeu Rozanski) [819366]
+- [security] device_cgroup: add proper checking when changing default behavior (Aristeu Rozanski) [819366]
+- [security] device_cgroup: stop using simple_strtoul() (Aristeu Rozanski) [819366]
+- [security] device_cgroup: rename deny_all to behavior (Aristeu Rozanski) [819366]
+- [security] device_cgroup: fix invalid rcu dereference (Aristeu Rozanski) [819366]
+- [security] device_cgroup: rename whitelist to exception list (Aristeu Rozanski) [819366]
+- [security] device_cgroup: convert device_cgroup internally to policy + exceptions (Aristeu Rozanski) [819366]
+- [security] device_cgroup: introduce dev_whitelist_clean() (Aristeu Rozanski) [819366]
+- [security] device_cgroup: add "deny_all" in dev_cgroup structure (Aristeu Rozanski) [819366]
+- [security] devcgroup_inode_permission: take "is it a device node" checks to inlined wrapper (Aristeu Rozanski) [819366]
+- [security] rcu: Convert call_rcu(whitelist_item_free) to kfree_rcu() (Aristeu Rozanski) [819366]
+- [fs] cifs: after upcalling for krb5 creds, invalidate key rather than revoking it (Niels de Vos) [885899]
+- [fs] cifs: tmp_key_invalidate() should not set key->expiry to 0 (Niels de Vos) [885899]
+- [block] disable discard request merge temporarily (Mike Snitzer) [907844]
+
 * Thu Feb 14 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-361.el6]
 - [netdrv] mlx4: Set number of msix vectors under SRIOV mode to firmware defaults (Michal Schmidt) [904726]
 - [netdrv] mlx4: Fix bridged vSwitch configuration for non SRIOV mode (Michal Schmidt) [903644]
