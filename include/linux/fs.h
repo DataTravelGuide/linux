@@ -421,7 +421,6 @@ struct inodes_stat_t {
 #include <linux/fiemap.h>
 #include <linux/lockdep.h>
 #include <linux/percpu_counter.h>
-#include <linux/percpu-rwsem.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
