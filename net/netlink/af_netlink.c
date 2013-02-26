@@ -860,7 +860,7 @@ static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
 		struct sk_buff *nskb = skb_clone(skb, allocation);
 		if (!nskb)
 			return skb;
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = nskb;
 	}
 
