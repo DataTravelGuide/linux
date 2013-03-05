@@ -461,8 +461,8 @@ extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct dentry *dentry);
-extern void __audit_inode_child(const struct dentry *dentry,
-				const struct inode *parent);
+extern void __audit_inode_child(const struct inode *parent,
+				const struct dentry *dentry);
 extern void __audit_ptrace(struct task_struct *t);
 
 static inline int audit_dummy_context(void)
@@ -488,10 +488,10 @@ static inline void audit_inode(const char *name, const struct dentry *dentry) {
 	if (unlikely(!audit_dummy_context()))
 		__audit_inode(name, dentry);
 }
-static inline void audit_inode_child(const struct dentry *dentry,
-				     const struct inode *parent) {
+static inline void audit_inode_child(const struct inode *parent,
+				     const struct dentry *dentry) {
 	if (unlikely(!audit_dummy_context()))
-		__audit_inode_child(dentry, parent);
+		__audit_inode_child(parent, dentry);
 }
 void audit_core_dumps(long signr);
 
@@ -596,9 +596,9 @@ extern int audit_signals;
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,d) do { ; } while (0)
-#define __audit_inode_child(i,p) do { ; } while (0)
+#define __audit_inode_child(p,d) do { ; } while (0)
 #define audit_inode(n,d) do { ; } while (0)
-#define audit_inode_child(i,p) do { ; } while (0)
+#define audit_inode_child(p,d) do { ; } while (0)
 #define audit_core_dumps(i) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) (0)
 #define audit_get_loginuid(t) (-1)
