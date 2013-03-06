@@ -185,10 +185,28 @@ end:
 }
 static DEVICE_ATTR(path, 0444, acpi_device_path_show, NULL);
 
+static ssize_t
+acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
+		     char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	unsigned long long sun;
+	int result;
+
+	result = acpi_evaluate_integer(acpi_dev->handle, "_SUN", NULL, &sun);
+	if (result)
+		goto end;
+
+	result = sprintf(buf, "%llu\n", sun);
+end:
+	return result;
+}
+static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
+
 static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	acpi_status status;
 	acpi_handle temp;
+	unsigned long long sun;
 	int result = 0;
 
 	/*
@@ -207,6 +225,13 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	result = device_create_file(&dev->dev, &dev_attr_modalias);
 	if (result)
 		goto end;
+
+	status = acpi_evaluate_integer(dev->handle, "_SUN", NULL, &sun);
+	if (ACPI_SUCCESS(status)) {
+		result = device_create_file(&dev->dev, &dev_attr_sun);
+		if (result)
+			goto end;
+	}
 
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
@@ -231,6 +256,10 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
+
+	status = acpi_get_handle(dev->handle, "_SUN", &temp);
+	if (ACPI_SUCCESS(status))
+		device_remove_file(&dev->dev, &dev_attr_sun);
 
 	device_remove_file(&dev->dev, &dev_attr_modalias);
 	device_remove_file(&dev->dev, &dev_attr_hid);
