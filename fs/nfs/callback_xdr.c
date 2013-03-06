@@ -72,7 +72,7 @@ static __be32 *read_buf(struct xdr_stream *xdr, int nbytes)
 
 	p = xdr_inline_decode(xdr, nbytes);
 	if (unlikely(p == NULL))
-		printk(KERN_WARNING "NFSv4 callback reply buffer overflowed!\n");
+		printk(KERN_WARNING "NFS: NFSv4 callback reply buffer overflowed!\n");
 	return p;
 }
 
@@ -154,7 +154,7 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 		return status;
 	/* We do not like overly long tags! */
 	if (hdr->taglen > CB_OP_TAGLEN_MAXSZ - 12) {
-		printk("NFSv4 CALLBACK %s: client sent tag of length %u\n",
+		printk("NFS: NFSv4 CALLBACK %s: client sent tag of length %u\n",
 				__func__, hdr->taglen);
 		return htonl(NFS4ERR_RESOURCE);
 	}
@@ -166,7 +166,7 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	if (hdr->minorversion <= 1) {
 		hdr->cb_ident = ntohl(*p++); /* ignored by v4.1 */
 	} else {
-		printk(KERN_WARNING "%s: NFSv4 server callback with "
+		printk(KERN_WARNING "NFS: %s: NFSv4 server callback with "
 			"illegal minor version %u!\n",
 			__func__, hdr->minorversion);
 		return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
