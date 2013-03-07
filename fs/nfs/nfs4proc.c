@@ -487,7 +487,7 @@ out_retry:
 static int nfs4_sequence_done(struct rpc_task *task,
 			       struct nfs4_sequence_res *res)
 {
-	if (res->sr_session == NULL)
+	if (res->sr_session == NULL || res->sr_slot == NULL)
 		return 1;
 	return nfs41_sequence_done(task, res);
 }
@@ -1430,7 +1430,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	struct nfs4_state_owner *sp = data->owner;
 
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
-		return;
+		goto out_wait;
 	/*
 	 * Check if we still need to send an OPEN call, or if we can use
 	 * a delegation instead.
@@ -1467,7 +1467,8 @@ unlock_no_action:
 	rcu_read_unlock();
 out_no_action:
 	task->tk_action = NULL;
-
+out_wait:
+	nfs4_sequence_done(task, &data->o_res.seq_res);
 }
 
 static void nfs4_recover_open_prepare(struct rpc_task *task, void *calldata)
@@ -2011,7 +2012,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	dprintk("%s: begin!\n", __func__);
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
-		return;
+		goto out_wait;
 
 	task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
 	calldata->arg.fmode = FMODE_READ|FMODE_WRITE;
@@ -2033,15 +2034,14 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	if (!call_close) {
 		/* Note: exit _without_ calling nfs4_close_done */
-		task->tk_action = NULL;
-		goto out;
+		goto out_no_action;
 	}
 
 	if (calldata->arg.fmode == 0) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE];
 		if (calldata->roc &&
 		    pnfs_roc_drain(inode, &calldata->roc_barrier, task))
-			goto out;
+			goto out_wait;
 	}
 
 	nfs_fattr_init(calldata->res.fattr);
@@ -2053,8 +2053,12 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		nfs_release_seqid(calldata->arg.seqid);
 	else
 		rpc_call_start(task);
-out:
 	dprintk("%s: done!\n", __func__);
+	return;
+out_no_action:
+	task->tk_action = NULL;
+out_wait:
+	nfs4_sequence_done(task, &calldata->res.seq_res);
 }
 
 static const struct rpc_call_ops nfs4_close_ops = {
@@ -4248,11 +4252,10 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 	struct nfs4_unlockdata *calldata = data;
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
-		return;
+		goto out_wait;
 	if ((calldata->lsp->ls_flags & NFS_LOCK_INITIALIZED) == 0) {
 		/* Note: exit _without_ running nfs4_locku_done */
-		task->tk_action = NULL;
-		return;
+		goto out_no_action;
 	}
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence(calldata->server,
@@ -4262,6 +4265,11 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 		nfs_release_seqid(calldata->arg.seqid);
 	else
 		rpc_call_start(task);
+	return;
+out_no_action:
+	task->tk_action = NULL;
+out_wait:
+	nfs4_sequence_done(task, &calldata->res.seq_res);
 }
 
 static const struct rpc_call_ops nfs4_locku_ops = {
@@ -4409,7 +4417,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 
 	dprintk("%s: begin!\n", __func__);
 	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
-		return;
+		goto out_wait;
 	/* Do we need to do an open_to_lock_owner? */
 	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
 		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0)
@@ -4430,7 +4438,9 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	nfs_release_seqid(data->arg.open_seqid);
 out_release_lock_seqid:
 	nfs_release_seqid(data->arg.lock_seqid);
-	dprintk("%s: done!, ret = %d\n", __func__, task->tk_status);
+out_wait:
+	nfs4_sequence_done(task, &data->res.seq_res);
+	dprintk("%s: done!, ret = %d\n", __func__, data->rpc_status);
 }
 
 static void nfs4_recover_lock_prepare(struct rpc_task *task, void *calldata)
