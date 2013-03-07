@@ -131,7 +131,7 @@ rh-clean-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) clean
 
 rh-clean-sources:
-	@rm -rf $(SOURCES)/*
+	@find $(SOURCES) -mindepth 1 ! -name ".gitignore" -delete
 
 rh-clean-rpmdirs:
 	@for i in $(RPM)/{BUILD,SRPMS,RPMS,SPECS}/*; do \
