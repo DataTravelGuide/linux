@@ -594,7 +594,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
 	max_pages = nfs_page_array_len(0, max_resp_sz);
 
-	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
+	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
 	if (!pages)
 		goto out_err_free;
 
