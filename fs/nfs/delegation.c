@@ -81,8 +81,10 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	int status = 0;
 
 	if (inode->i_flock == NULL)
-		goto out;
+		return 0;
 
+	if (inode->i_flock == NULL)
+		goto out;
 	/* Protect inode->i_flock using the BKL */
 	lock_kernel();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
@@ -123,12 +125,15 @@ again:
 		get_nfs_open_context(ctx);
 		spin_unlock(&inode->i_lock);
 		sp = state->owner;
+		/* Block nfs4_proc_unlck */
+		mutex_lock(&sp->so_delegreturn_mutex);
 		seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 		err = nfs4_open_delegation_recall(ctx, state, stateid);
 		if (!err)
 			err = nfs_delegation_claim_locks(ctx, state);
 		if (!err && read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
 			err = -EAGAIN;
+		mutex_unlock(&sp->so_delegreturn_mutex);
 		put_nfs_open_context(ctx);
 		if (err != 0)
 			return err;
