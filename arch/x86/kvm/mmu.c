@@ -2964,7 +2964,8 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 	mmu_free_memory_caches(vcpu);
 }
 
-void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
+void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot,
+				      bool destroy_large_pages)
 {
 	struct kvm_mmu_page *sp;
 
@@ -2975,9 +2976,22 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		if (!test_bit(slot, sp->slot_bitmap))
 			continue;
 
-		if (sp->role.level != PT_PAGE_TABLE_LEVEL)
-			continue;
+		if (sp->role.level != PT_PAGE_TABLE_LEVEL) {
+			if (!destroy_large_pages)
+				continue;
 
+			pt = sp->spt;
+			for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
+				if (is_shadow_present_pte(pt[i]) &&
+				    is_large_pte(pt[i])) {
+					--kvm->stat.lpages;
+					rmap_remove(kvm, &pt[i]);
+					__set_spte(&pt[i],
+						   shadow_trap_nonpresent_pte);
+				}
+			}
+			continue;
+		}
 		pt = sp->spt;
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 			/* avoid RMW */
