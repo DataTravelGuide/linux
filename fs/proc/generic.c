@@ -351,14 +351,14 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
  *	Once we split the thing into several virtual filesystems,
  *	we will get rid of magical ranges (and this comment, BTW).
  */
-static unsigned int get_inode_number(void)
+int proc_alloc_inum(unsigned int *inum)
 {
 	unsigned int i;
 	int error;
 
 retry:
-	if (ida_pre_get(&proc_inum_ida, GFP_KERNEL) == 0)
-		return 0;
+	if (!ida_pre_get(&proc_inum_ida, GFP_KERNEL))
+		return -ENOMEM;
 
 	spin_lock(&proc_inum_lock);
 	error = ida_get_new(&proc_inum_ida, &i);
@@ -366,18 +366,19 @@ retry:
 	if (error == -EAGAIN)
 		goto retry;
 	else if (error)
-		return 0;
+		return error;
 
 	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
 		spin_lock(&proc_inum_lock);
 		ida_remove(&proc_inum_ida, i);
 		spin_unlock(&proc_inum_lock);
-		return 0;
+		return -ENOSPC;
 	}
-	return PROC_DYNAMIC_FIRST + i;
+	*inum = PROC_DYNAMIC_FIRST + i;
+	return 0;
 }
 
-static void release_inode_number(unsigned int inum)
+void proc_free_inum(unsigned int inum)
 {
 	spin_lock(&proc_inum_lock);
 	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
@@ -558,13 +559,12 @@ static const struct inode_operations proc_dir_inode_operations = {
 
 static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp)
 {
-	unsigned int i;
 	struct proc_dir_entry *tmp;
+	int ret;
 	
-	i = get_inode_number();
-	if (i == 0)
-		return -EAGAIN;
-	dp->low_ino = i;
+	ret = proc_alloc_inum(&dp->low_ino);
+	if (ret)
+		return ret;
 
 	if (S_ISDIR(dp->mode)) {
 		if (dp->proc_iops == NULL) {
@@ -770,7 +770,7 @@ void free_proc_entry(struct proc_dir_entry *de)
 	if (ino < PROC_DYNAMIC_FIRST)
 		return;
 
-	release_inode_number(ino);
+	proc_free_inum(ino);
 
 	if (S_ISLNK(de->mode))
 		kfree(de->data);
