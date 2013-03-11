@@ -162,14 +162,7 @@ void __init proc_root_init(void)
 	err = register_filesystem(&proc_fs_type);
 	if (err)
 		return;
-	proc_mnt = kern_mount_data(&proc_fs_type, &init_pid_ns);
-	err = PTR_ERR(proc_mnt);
-	if (IS_ERR(proc_mnt)) {
-		unregister_filesystem(&proc_fs_type);
-		return;
-	}
 
-	init_pid_ns.proc_mnt = proc_mnt;
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();

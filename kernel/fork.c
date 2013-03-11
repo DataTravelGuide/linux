@@ -1359,8 +1359,6 @@ bad_fork_cleanup_io:
 	if (p->io_context)
 		exit_io_context(p);
 bad_fork_cleanup_namespaces:
-	if (unlikely(clone_flags & CLONE_NEWPID))
-		pid_ns_release_proc(task_active_pid_ns(p));
 	exit_task_namespaces(p);
 bad_fork_cleanup_mm:
 	if (p->mm) {

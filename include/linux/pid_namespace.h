@@ -33,6 +33,8 @@ struct pid_namespace {
 #ifndef __GENKSYMS__
 	gid_t pid_gid;
 	int hide_pid;
+	int nr_hashed;
+	struct work_struct proc_work;
 #endif
 };
 
