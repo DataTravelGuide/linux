@@ -1221,7 +1221,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	if (pid != &init_struct_pid) {
 		retval = -ENOMEM;
-		pid = alloc_pid(p->nsproxy->pid_ns);
+		pid = alloc_pid(task_active_pid_ns(p));
 		if (!pid)
 			goto bad_fork_cleanup_io;
 	}
@@ -1328,7 +1328,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 		if (thread_group_leader(p)) {
 			if (clone_flags & CLONE_NEWPID)
-				p->nsproxy->pid_ns->child_reaper = p;
+				ns_of_pid(pid)->child_reaper = p;
 
 			p->signal->leader_pid = pid;
 			tty_kref_put(p->signal->tty);
@@ -1360,7 +1360,7 @@ bad_fork_cleanup_io:
 		exit_io_context(p);
 bad_fork_cleanup_namespaces:
 	if (unlikely(clone_flags & CLONE_NEWPID))
-		pid_ns_release_proc(p->nsproxy->pid_ns);
+		pid_ns_release_proc(task_active_pid_ns(p));
 	exit_task_namespaces(p);
 bad_fork_cleanup_mm:
 	if (p->mm) {
