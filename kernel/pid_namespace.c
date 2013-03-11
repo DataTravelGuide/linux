@@ -126,8 +126,6 @@ struct pid_namespace *copy_pid_ns(unsigned long flags, struct pid_namespace *old
 {
 	if (!(flags & CLONE_NEWPID))
 		return get_pid_ns(old_ns);
-	if (flags & (CLONE_THREAD|CLONE_PARENT))
-		return ERR_PTR(-EINVAL);
 	if (task_active_pid_ns(current) != old_ns)
 		return ERR_PTR(-EINVAL);
 	return create_pid_namespace(old_ns);
