@@ -98,7 +98,7 @@ struct net {
 	struct dst_ops		xfrm6_dst_ops;
 #endif
 #endif
-
+	unsigned int		proc_inum;
 #endif
 };
 

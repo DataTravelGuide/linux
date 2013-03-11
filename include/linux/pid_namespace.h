@@ -36,6 +36,7 @@ struct pid_namespace {
 	int nr_hashed;
 	struct work_struct proc_work;
 	int reboot;	/* group exit code if this pidns was rebooted */
+	unsigned int proc_inum;
 #endif
 };
 

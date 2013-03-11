@@ -14,6 +14,7 @@ struct mnt_namespace {
 	int event;
 #ifndef __GENKSYMS__
 	u64 seq; /* Sequence number to prevent loops */
+	unsigned int		proc_inum;
 #endif
 };
 
