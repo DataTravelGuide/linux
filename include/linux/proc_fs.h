@@ -180,6 +180,7 @@ extern struct file *get_mm_exe_file(struct mm_struct *mm);
 extern void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm);
 
 extern struct file *proc_ns_fget(int fd);
+extern bool proc_ns_inode(struct inode *inode);
 
 #else
 
@@ -246,6 +247,11 @@ static inline struct file *proc_ns_fget(int fd)
 	return ERR_PTR(-EINVAL);
 }
 
+static inline bool proc_ns_inode(struct inode *inode)
+{
+	return false;
+}
+
 #endif /* CONFIG_PROC_FS */
 
 #if !defined(CONFIG_PROC_KCORE)
@@ -268,6 +274,7 @@ struct proc_ns_operations {
 extern const struct proc_ns_operations netns_operations;
 extern const struct proc_ns_operations utsns_operations;
 extern const struct proc_ns_operations ipcns_operations;
+extern const struct proc_ns_operations mntns_operations;
 
 union proc_op {
 	int (*proc_get_link)(struct inode *, struct path *);
