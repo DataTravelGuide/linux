@@ -1327,7 +1327,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		tracehook_finish_clone(p, clone_flags, trace);
 
 		if (thread_group_leader(p)) {
-			if (clone_flags & CLONE_NEWPID)
+			if (is_child_reaper(pid))
 				ns_of_pid(pid)->child_reaper = p;
 
 			p->signal->leader_pid = pid;
