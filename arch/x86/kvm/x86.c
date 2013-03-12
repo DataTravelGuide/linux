@@ -1320,6 +1320,14 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
         return 0;
 }
 
+static void kvmclock_reset(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.time_page) {
+		kvm_release_page_dirty(vcpu->arch.time_page);
+		vcpu->arch.time_page = NULL;
+	}
+}
+
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	bool pr = false;
@@ -1381,10 +1389,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
 	case MSR_KVM_SYSTEM_TIME: {
-		if (vcpu->arch.time_page) {
-			kvm_release_page_dirty(vcpu->arch.time_page);
-			vcpu->arch.time_page = NULL;
-		}
+		kvmclock_reset(vcpu);
 
 		vcpu->arch.time = data;
 		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
@@ -6387,10 +6392,7 @@ EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.time_page) {
-		kvm_release_page_dirty(vcpu->arch.time_page);
-		vcpu->arch.time_page = NULL;
-	}
+	kvmclock_reset(vcpu);
 
 	fx_free(vcpu);
 	kvm_x86_ops->vcpu_free(vcpu);
@@ -6442,6 +6444,7 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.dr6 = DR6_FIXED_1;
 	vcpu->arch.dr7 = DR7_FIXED_1;
 
+	kvmclock_reset(vcpu);
 	kvm_pmu_reset(vcpu);
 
 	return kvm_x86_ops->vcpu_reset(vcpu);
