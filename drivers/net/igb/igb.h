@@ -210,7 +210,6 @@ struct igb_q_vector {
 	struct igb_ring_container rx, tx;
 
 	struct napi_struct napi;
-	int numa_node;
 
 	u16 itr_val;
 	u8 set_itr;
@@ -252,7 +251,6 @@ struct igb_ring {
 	};
 	/* Items past this point are only used during ring alloc / free */
 	dma_addr_t dma;                /* phys address of the ring */
-	int numa_node;                  /* node to alloc ring memory on */
 };
 
 enum e1000_ring_flags_t {
@@ -364,7 +362,6 @@ struct igb_adapter {
 	int vf_rate_link_speed;
 	u32 rss_queues;
 	u32 wvbr;
-	int node;
 	u32 *shadow_vfta;
 
 #ifdef CONFIG_IGB_PTP
