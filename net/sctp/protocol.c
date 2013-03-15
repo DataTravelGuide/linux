@@ -1122,6 +1122,15 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	sctp_cookie_preserve_enable 	= 1;
 
+	/* Default sctp sockets to use md5 as their hmac alg */
+#if defined (CONFIG_CRYPTO_MD5)
+	sctp_hmac_algorithm		= "md5";
+#elif defined (CONFIG_CRYPTO_SHA1)
+	sctp_hmac_algorithm		= "sha1";
+#else
+	sctp_hmac_algorithm		= NULL;
+#endif
+
 	/* Max.Burst		    - 4 */
 	sctp_max_burst 			= SCTP_DEFAULT_MAX_BURST;
 

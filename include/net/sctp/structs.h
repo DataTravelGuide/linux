@@ -144,6 +144,9 @@ extern struct sctp_globals {
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	int cookie_preserve_enable;
 
+	/* The default hmac alg */
+	char *hmac_alg;
+
 	/* Valid.Cookie.Life	    - 60  seconds  */
 	unsigned int valid_cookie_life;
 
@@ -280,6 +283,7 @@ extern struct sctp_globals {
 #define sctp_auth_enable		(sctp_globals.auth_enable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
 #define sctp_rwnd_upd_shift		(sctp_globals.rwnd_update_shift)
+#define sctp_hmac_algorithm		(sctp_globals.hmac_alg)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -300,6 +304,7 @@ struct sctp_sock {
 
 	/* Access to HMAC transform. */
 	struct crypto_hash *hmac;
+	char *sctp_hmac_alg;
 
 	/* What is our base endpointer? */
 	struct sctp_endpoint *ep;
