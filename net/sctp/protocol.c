@@ -1123,9 +1123,9 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_cookie_preserve_enable 	= 1;
 
 	/* Default sctp sockets to use md5 as their hmac alg */
-#if defined (CONFIG_CRYPTO_MD5)
+#if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
 	sctp_hmac_algorithm		= "md5";
-#elif defined (CONFIG_CRYPTO_SHA1)
+#elif defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_SHA1)
 	sctp_hmac_algorithm		= "sha1";
 #else
 	sctp_hmac_algorithm		= NULL;
