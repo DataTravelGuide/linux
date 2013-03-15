@@ -1680,6 +1680,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Mar 15 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-365.el6]
+- [fs] NLM: Ensure that we resend all pending blocking locks after a reclaim (Steve Dickson) [913704]
+- [fs] xfs: remove log force from xfs_buf_cond_lock() (Brian Foster) [896224]
+- [fs] xfs: recheck buffer pinned status after push trylock failure (Brian Foster) [896224]
+- [fs] nfs: Ensure that we check lock exclusive/shared type against open modes (Dave Wysochanski) [916324]
+- [powerpc] pseries: Fix partition migration hang in stop_topology_update (Steve Best) [910597]
+- [infiniband] qib: correction for faulty sparse warning correction (Jay Fenlason) [901701]
+- [usb] io_ti: Fix NULL dereference in chase_port() (Nikola Pajkovsky) [916200] {CVE-2013-1774}
+- [net] bluetooth: Fix incorrect strncpy() in hidp_setup_hid() (Nikola Pajkovsky) [914691] {CVE-2013-0349}
+- [char] tty: set_termios/set_termiox should not return -EINTR (Oleg Nesterov) [904907]
+- [netdrv] ehea: fix VLAN support (Steve Best) [911359]
+- [net] xfrm_user: return error pointer instead of NULL (Thomas Graf) [919389] {CVE-2013-1826}
+- [net] dccp: check ccid before NULL poiter dereference (Weiping Pan) [919188] {CVE-2013-1827}
+
 * Thu Feb 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-364.el6]
 - [Documentation] ipv6: Update ip-sysctl.txt documentation (Jacob Tanenbaum) [795367]
 - [net] ipv6: add special mode forwarding=2 to send RS while configured as router (Jacob Tanenbaum) [795367]
