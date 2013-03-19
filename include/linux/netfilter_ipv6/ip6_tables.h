@@ -318,15 +318,6 @@ extern unsigned int ip6t_do_table(struct sk_buff *skb,
 /* Check for an extension */
 extern int ip6t_ext_hdr(u8 nexthdr);
 
-enum {
-	IP6T_FH_F_FRAG	= (1 << 0),
-	IP6T_FH_F_AUTH	= (1 << 1),
-};
-
-/* find specified header and get offset to it */
-extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
-			 int target, unsigned short *fragoff, int *fragflg);
-
 extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
 			      const struct in6_addr *mask,
 			      const struct in6_addr *addr2);
