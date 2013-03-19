@@ -1680,6 +1680,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 19 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-367.el6]
+- [fs] xfs: use maximum schedule timeout when ail is empty (Brian Foster) [883905]
+- [net] xfrm_user: fix info leak in copy_to_user_tmpl() (Thomas Graf) [922429] {CVE-2012-6537}
+- [net] xfrm_user: fix info leak in copy_to_user_policy() (Thomas Graf) [922429] {CVE-2012-6537}
+- [net] xfrm_user: fix info leak in copy_to_user_state() (Thomas Graf) [922429] {CVE-2012-6537}
+- [net] xfrm_user: fix info leak in copy_to_user_auth() (Thomas Graf) [922429] {CVE-2012-6537}
+- [net] atm: fix info leak in getsockopt(SO_ATMPVC) (Thomas Graf) [922387] {CVE-2012-6546}
+- [net] atm: fix info leak via getsockname() (Thomas Graf) [922387] {CVE-2012-6546}
+- [fs] nls: improve UTF8 -> UTF16 string conversion routine (Nikola Pajkovsky) [916119] {CVE-2013-1773}
+- [fs] fat: Fix stat->f_namelen (Nikola Pajkovsky) [916119] {CVE-2013-1773}
+- [netdrv] tun: fix ioctl() based info leaks (Thomas Graf) [922351] {CVE-2012-6547}
+- [net] llc: fix info leak via getsockname() (Thomas Graf) [922333] {CVE-2012-6542}
+- [virt] x86: Add a check to catch Xen emulation of Hyper-V (Andrew Jones) [918239]
+- [fs] cifs: fix expand_dfs_referral (Sachin Prabhu) [902492]
+- [fs] cifs: factor smb_vol allocation out of cifs_setup_volume_info (Sachin Prabhu) [902492]
+- [fs] cifs: have cifs_cleanup_volume_info not take a double pointer (Sachin Prabhu) [902492]
+- [fs] nfs: Dont allow NFS silly-renamed files to be deleted, no signal (Dave Wysochanski) [905095]
+
 * Mon Mar 18 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-366.el6]
 - [Documentation] vxlan: fix command usage in its doc (Amerigo Wang) [907447]
 - [net] vxlan: Add ethtool drvinfo (Amerigo Wang) [907447]
