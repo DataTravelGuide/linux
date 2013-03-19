@@ -118,7 +118,7 @@ static struct datapath *get_dp(struct net *net, int dp_ifindex)
 /* Must be called with rcu_read_lock or RTNL lock. */
 const char *ovs_dp_name(const struct datapath *dp)
 {
-	struct vport *vport = rcu_dereference_rtnl(dp->ports[OVSP_LOCAL]);
+	struct vport *vport = ovs_vport_rtnl_rcu(dp, OVSP_LOCAL);
 	return vport->ops->get_name(vport);
 }
 
@@ -129,7 +129,7 @@ static int get_dpifindex(struct datapath *dp)
 
 	rcu_read_lock();
 
-	local = rcu_dereference(dp->ports[OVSP_LOCAL]);
+	local = ovs_vport_rcu(dp, OVSP_LOCAL);
 	if (local)
 		ifindex = local->ops->get_ifindex(local);
 	else
@@ -147,7 +147,28 @@ static void destroy_dp_rcu(struct rcu_head *rcu)
 	ovs_flow_tbl_destroy((__force struct flow_table *)dp->table);
 	free_percpu(dp->stats_percpu);
 	release_net(ovs_dp_get_net(dp));
+	kfree(dp->ports);
 	kfree(dp);
+}
+
+static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
+					    u16 port_no)
+{
+	return &dp->ports[port_no & (DP_VPORT_HASH_BUCKETS - 1)];
+}
+
+struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
+{
+	struct vport *vport;
+	struct hlist_node *n;
+	struct hlist_head *head;
+
+	head = vport_hash_bucket(dp, port_no);
+	hlist_for_each_entry_rcu(vport, n, head, dp_hash_node) {
+		if (vport->port_no == port_no)
+			return vport;
+	}
+	return NULL;
 }
 
 /* Called with RTNL lock and genl_lock. */
@@ -158,9 +179,9 @@ static struct vport *new_vport(const struct vport_parms *parms)
 	vport = ovs_vport_add(parms);
 	if (!IS_ERR(vport)) {
 		struct datapath *dp = parms->dp;
+		struct hlist_head *head = vport_hash_bucket(dp, vport->port_no);
 
-		rcu_assign_pointer(dp->ports[parms->port_no], vport);
-		list_add(&vport->node, &dp->port_list);
+		hlist_add_head_rcu(&vport->dp_hash_node, head);
 	}
 
 	return vport;
@@ -172,8 +193,7 @@ void ovs_dp_detach_port(struct vport *p)
 	ASSERT_RTNL();
 
 	/* First drop references to device. */
-	list_del(&p->node);
-	rcu_assign_pointer(p->dp->ports[p->port_no], NULL);
+	hlist_del_rcu(&p->dp_hash_node);
 
 	/* Then destroy it. */
 	ovs_vport_del(p);
@@ -1247,7 +1267,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	struct datapath *dp;
 	struct vport *vport;
 	struct ovs_net *ovs_net;
-	int err;
+	int err, i;
 
 	err = -EINVAL;
 	if (!a[OVS_DP_ATTR_NAME] || !a[OVS_DP_ATTR_UPCALL_PID])
@@ -1260,7 +1280,6 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (dp == NULL)
 		goto err_unlock_rtnl;
 
-	INIT_LIST_HEAD(&dp->port_list);
 	ovs_dp_set_net(dp, hold_net(sock_net(skb->sk)));
 
 	/* Allocate table. */
@@ -1274,6 +1293,16 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		err = -ENOMEM;
 		goto err_destroy_table;
 	}
+
+	dp->ports = kmalloc(DP_VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
+			GFP_KERNEL);
+	if (!dp->ports) {
+		err = -ENOMEM;
+		goto err_destroy_percpu;
+	}
+
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(&dp->ports[i]);
 
 	/* Set up our datapath device. */
 	parms.name = nla_data(a[OVS_DP_ATTR_NAME]);
@@ -1289,7 +1318,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		if (err == -EBUSY)
 			err = -EEXIST;
 
-		goto err_destroy_percpu;
+		goto err_destroy_ports_array;
 	}
 
 	reply = ovs_dp_cmd_build_info(dp, info->snd_pid,
@@ -1308,7 +1337,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 
 err_destroy_local_port:
-	ovs_dp_detach_port(rcu_dereference(dp->ports[OVSP_LOCAL]));
+	ovs_dp_detach_port(ovs_vport_rtnl(dp, OVSP_LOCAL));
+err_destroy_ports_array:
+	kfree(dp->ports);
 err_destroy_percpu:
 	free_percpu(dp->stats_percpu);
 err_destroy_table:
@@ -1325,15 +1356,21 @@ err:
 /* Called with genl_mutex. */
 static void __dp_destroy(struct datapath *dp)
 {
-	struct vport *vport, *next_vport;
+	int i;
 
 	rtnl_lock();
-	list_for_each_entry_safe(vport, next_vport, &dp->port_list, node)
-		if (vport->port_no != OVSP_LOCAL)
-			ovs_dp_detach_port(vport);
+
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
+		struct vport *vport;
+		struct hlist_node *node, *n;
+
+		hlist_for_each_entry_safe(vport, node, n, &dp->ports[i], dp_hash_node)
+			if (vport->port_no != OVSP_LOCAL)
+				ovs_dp_detach_port(vport);
+	}
 
 	list_del(&dp->list_node);
-	ovs_dp_detach_port(rcu_dereference(dp->ports[OVSP_LOCAL]));
+	ovs_dp_detach_port(ovs_vport_rtnl(dp, OVSP_LOCAL));
 
 	/* rtnl_unlock() will wait until all the references to devices that
 	 * are pending unregistration have been dropped.  We do it here to
@@ -1565,7 +1602,7 @@ static struct vport *lookup_vport(struct net *net,
 		if (!dp)
 			return ERR_PTR(-ENODEV);
 
-		vport = rcu_dereference_rtnl(dp->ports[port_no]);
+		vport = ovs_vport_rtnl_rcu(dp, port_no);
 		if (!vport)
 			return ERR_PTR(-ENOENT);
 		return vport;
@@ -1602,7 +1639,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		if (port_no >= DP_MAX_PORTS)
 			goto exit_unlock;
 
-		vport = rcu_dereference(dp->ports[port_no]);
+		vport = ovs_vport_rtnl_rcu(dp, port_no);
 		err = -EBUSY;
 		if (vport)
 			goto exit_unlock;
@@ -1612,7 +1649,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 				err = -EFBIG;
 				goto exit_unlock;
 			}
-			vport = rcu_dereference(dp->ports[port_no]);
+			vport = ovs_vport_rtnl(dp, port_no);
 			if (!vport)
 				break;
 		}
@@ -1754,32 +1791,39 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ovs_header *ovs_header = genlmsg_data(nlmsg_data(cb->nlh));
 	struct datapath *dp;
-	u32 port_no;
-	int retval;
+	int bucket = cb->args[0], skip = cb->args[1];
+	int i, j = 0;
 
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp)
 		return -ENODEV;
 
 	rcu_read_lock();
-	for (port_no = cb->args[0]; port_no < DP_MAX_PORTS; port_no++) {
+	for (i = bucket; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
+		struct hlist_node *n;
 
-		vport = rcu_dereference(dp->ports[port_no]);
-		if (!vport)
-			continue;
+		j = 0;
+		hlist_for_each_entry_rcu(vport, n, &dp->ports[i], dp_hash_node) {
+			if (j >= skip &&
+			    ovs_vport_cmd_fill_info(vport, skb,
+						    NETLINK_CB(cb->skb).pid,
+						    cb->nlh->nlmsg_seq,
+						    NLM_F_MULTI,
+						    OVS_VPORT_CMD_NEW) < 0)
+				goto out;
 
-		if (ovs_vport_cmd_fill_info(vport, skb, NETLINK_CB(cb->skb).pid,
-					    cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					    OVS_VPORT_CMD_NEW) < 0)
-			break;
+			j++;
+		}
+		skip = 0;
 	}
+out:
 	rcu_read_unlock();
 
-	cb->args[0] = port_no;
-	retval = skb->len;
+	cb->args[0] = i;
+	cb->args[1] = j;
 
-	return retval;
+	return skb->len;
 }
 
 static struct genl_ops dp_vport_genl_ops[] = {
