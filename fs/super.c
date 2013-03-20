@@ -574,15 +574,15 @@ struct super_block *get_active_super(struct block_device *bdev)
 	if (!bdev)
 		return NULL;
 
+restart:
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_bdev != bdev)
-			continue;
-
-		if (grab_super(sb)) /* drops sb_lock */
-			return sb;
-
-		spin_lock(&sb_lock);
+		if (sb->s_bdev == bdev) {
+			if (grab_super(sb)) /* drops sb_lock */
+				return sb;
+			else
+				goto restart;
+		}
 	}
 	spin_unlock(&sb_lock);
 	return NULL;
