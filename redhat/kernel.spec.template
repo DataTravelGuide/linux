@@ -16,27 +16,8 @@ Summary: The Linux kernel
 #
 # % define buildid .local
 
-%define rhel 1
-%if %{rhel}
 %define distro_build %%BUILD%%
 %define signmodules 1
-%else
-# fedora_build defines which build revision of this kernel version we're
-# building. Rather than incrementing forever, as with the prior versioning
-# setup, we set fedora_cvs_origin to the current cvs revision s/1.// of the
-# kernel spec when the kernel is rebased, so fedora_build automatically
-# works out to the offset from the rebase, so it doesn't get too ginormous.
-#
-# If you're building on a branch, the RCS revision will be something like
-# 1.1205.1.1.  In this case we drop the initial 1, subtract fedora_cvs_origin
-# from the second number, and then append the rest of the RCS string as is.
-# Don't stare at the awk too long, you'll go blind.
-%define fedora_cvs_origin   1462
-%define fedora_cvs_revision() %2
-%global distro_build %(echo %{fedora_cvs_origin}.%{fedora_cvs_revision $Revision: 1.1532 $} | awk -F . '{ OFS = "."; ORS = ""; print $3 - $1 ; i = 4 ; OFS = ""; while (i <= NF) { print ".", $i ; i++} }')
-%define distro_build %{fedora_build}
-%define signmodules 0
-%endif
 
 # if patch fuzzy patch applying will be forbidden
 %define with_fuzzy_patches 0
@@ -199,9 +180,7 @@ Summary: The Linux kernel
 %define pkg_release 0.%{distro_build}%{upstream_branch_tag}%{?dist}%{?buildid}
 %endif
 
-%if %{rhel}
 %define pkg_release %{distro_build}%{?dist}%{?buildid}
-%endif
 %define KVERREL %{rpmversion}-%{pkg_release}.%{_target_cpu}
 
 %if !%{debugbuildsenabled}
@@ -277,6 +256,7 @@ Summary: The Linux kernel
 %define with_up 0
 %define with_headers 0
 %define with_perf 0
+%define signmodules 0
 %define all_arch_configs kernel-%{version}-*.config
 %define with_firmware  %{?_without_firmware:  0} %{?!_without_firmware:  1}
 %endif
