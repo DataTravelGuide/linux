@@ -562,6 +562,16 @@ struct pci_driver {
 	void *rh_reserved;
 };
 
+/*
+ * sriov_configure in pci_driver struct upstream;
+ * due to kabi, it has to go in extended structure attached to pci_driver.
+ * statically define this struct in driver like pci_driver and have 
+ * pci_driver->rh_reserved set to point to this struct
+ */
+struct pci_driver_rh {
+	int (*sriov_configure) (struct pci_dev *dev, int num_vfs); /* PF pdev */
+};
+
 #define	to_pci_driver(drv) container_of(drv, struct pci_driver, driver)
 
 /**
