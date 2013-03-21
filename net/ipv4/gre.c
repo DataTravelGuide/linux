@@ -180,7 +180,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	/* enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
 	 * No hardware supports HW GRE TSO offload yet, fall back to software GSO
 	 */
-	segs = skb_mac_gso_segment(skb, 0);
+	segs = skb_mac_gso_segment(skb, NETIF_F_SG & netif_skb_features(skb));
 	if (!segs || IS_ERR(segs))
 		goto out;
 

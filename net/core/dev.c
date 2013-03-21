@@ -2078,7 +2078,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		 * features for the netdev
 		 */
 		if (skb->encapsulation)
-			features = 0;
+			features &= NETIF_F_SG;
 
 		if (netif_needs_gso(skb, features)) {
 			if (unlikely(dev_gso_segment(skb, features)))
