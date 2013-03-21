@@ -1012,6 +1012,8 @@ static void vxlan_get_drvinfo(struct net_device *netdev,
 static const struct ethtool_ops vxlan_ethtool_ops = {
 	.get_drvinfo	= vxlan_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
+	.set_tso	= ethtool_op_set_tso,
+	.get_tso	= ethtool_op_get_tso,
 };
 
 /* Initialize the device structure. */
