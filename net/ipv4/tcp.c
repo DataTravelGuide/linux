@@ -2531,6 +2531,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 			       SKB_GSO_TCP_ECN |
 			       SKB_GSO_TCPV6 |
 			       SKB_GSO_GRE |
+			       SKB_GSO_UDP_TUNNEL |
 			       0) ||
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;

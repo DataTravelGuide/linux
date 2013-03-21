@@ -22,6 +22,10 @@ static int udp6_ufo_send_check(struct sk_buff *skb)
 	struct ipv6hdr *ipv6h;
 	struct udphdr *uh;
 
+	/* UDP Tunnel offload on ipv6 is not yet supported. */
+	if (skb->encapsulation)
+		return -EINVAL;
+
 	if (!pskb_may_pull(skb, sizeof(*uh)))
 		return -EINVAL;
 
@@ -57,7 +61,9 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb, int features)
 		/* Packet is from an untrusted source, reset gso_segs. */
 		int type = skb_shinfo(skb)->gso_type;
 
-		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY |
+		if (unlikely(type & ~(SKB_GSO_UDP |
+				      SKB_GSO_DODGY |
+				      SKB_GSO_UDP_TUNNEL |
 				      SKB_GSO_GRE) ||
 			     !(type & (SKB_GSO_UDP))))
 			goto out;

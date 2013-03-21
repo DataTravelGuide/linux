@@ -1250,6 +1250,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 	int ihl;
 	int id;
 	unsigned int offset = 0;
+	bool tunnel;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
 		     ~(SKB_GSO_TCPV4 |
@@ -1257,6 +1258,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_UDP_TUNNEL |
 		       0)))
 		goto out;
 
@@ -1270,6 +1272,8 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 
 	if (unlikely(!pskb_may_pull(skb, ihl)))
 		goto out;
+
+	tunnel = !!skb->encapsulation;
 
 	__skb_pull(skb, ihl);
 	skb_reset_transport_header(skb);
@@ -1299,7 +1303,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 	skb = segs;
 	do {
 		iph = ip_hdr(skb);
-		if (proto == IPPROTO_UDP) {
+		if (!tunnel && proto == IPPROTO_UDP) {
 			iph->id = htons(id);
 			iph->frag_off = htons(offset >> 3);
 			if (skb->next != NULL)

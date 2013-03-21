@@ -921,6 +921,7 @@ struct net_device
 #define NETIF_F_TSO6		(SKB_GSO_TCPV6 << NETIF_F_GSO_SHIFT)
 #define NETIF_F_FSO		(SKB_GSO_FCOE << NETIF_F_GSO_SHIFT)
 #define NETIF_F_GSO_GRE		(SKB_GSO_GRE << NETIF_F_GSO_SHIFT)
+#define NETIF_F_GSO_UDP_TUNNEL	(SKB_GSO_UDP_TUNNEL << NETIF_F_GSO_SHIFT)
 #define NETIF_F_ALL_TSO 	(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
 	/* List of features with software fallbacks. */
