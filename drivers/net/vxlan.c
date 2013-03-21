@@ -32,6 +32,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/ethtool.h>
 #include <net/ip.h>
+#include <net/ipip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/rtnetlink.h>
@@ -781,13 +782,13 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	iph->daddr	= dst;
 	iph->saddr	= fl4.fl4_src;
 	iph->ttl	= ttl ? : dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
+	tunnel_ip_select_ident(skb, old_iph, &rt->u.dst);
 
 	vxlan_set_owner(dev, skb);
 
 	/* See __IPTUNNEL_XMIT */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		skb->ip_summed = CHECKSUM_NONE;
-	ip_select_ident(iph, &rt->u.dst, NULL);
 
 	err = ip_local_out(skb);
 	if (likely(net_xmit_eval(err) == 0)) {
