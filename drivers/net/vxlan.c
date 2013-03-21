@@ -700,6 +700,11 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!dst)
 		goto drop;
 
+	if (!skb->encapsulation) {
+		/* skb_reset_inner_headers(skb); */
+		skb->encapsulation = 1;
+	}
+
 	/* Need space for new headers (invalidates iph ptr) */
 	if (skb_cow_head(skb, VXLAN_HEADROOM))
 		goto drop;
@@ -770,7 +775,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	vxlan_set_owner(dev, skb);
 
 	/* See __IPTUNNEL_XMIT */
-	skb->ip_summed = CHECKSUM_NONE;
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_NONE;
 	ip_select_ident(iph, &rt->u.dst, NULL);
 
 	err = ip_local_out(skb);
@@ -1001,6 +1007,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->tx_queue_len = 0;
 	dev->features	|= NETIF_F_LLTX;
 	dev->features	|= NETIF_F_NETNS_LOCAL;
+	dev->features	|= NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->priv_flags	&= ~IFF_XMIT_DST_RELEASE;
 	netdev_extended(dev)->ndo_fdb_add = vxlan_fdb_add;
 	netdev_extended(dev)->ndo_fdb_del = vxlan_fdb_delete;
