@@ -900,3 +900,50 @@ int pci_ats_queue_depth(struct pci_dev *dev)
 	return PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
 				       PCI_ATS_MAX_QDEP;
 }
+
+/**
+ * pci_sriov_set_totalvfs -- reduce the TotalVFs available
+ * @dev: the PCI PF device
+ * numvfs: number that should be used for TotalVFs supported
+ *
+ * Should be called from PF driver's probe routine with
+ * device's mutex held.
+ *
+ * Returns 0 if PF is an SRIOV-capable device and
+ * value of numvfs valid. If not a PF with VFS, return -EINVAL;
+ * if VFs already enabled, return -EBUSY.
+ */
+int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
+{
+	if (!dev || !dev->is_physfn || (numvfs > dev->sriov->total))
+		return -EINVAL;
+
+	/* Shouldn't change if VFs already enabled */
+	if (dev->sriov->ctrl & PCI_SRIOV_CTRL_VFE)
+		return -EBUSY;
+	else
+		dev->sriov->drvttl = numvfs;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_sriov_set_totalvfs);
+
+/**
+ * pci_sriov_get_totalvfs -- get total VFs supported on this devic3
+ * @dev: the PCI PF device
+ *
+ * For a PCIe device with SRIOV support, return the PCIe
+ * SRIOV capability value of TotalVFs or the value of drvttl
+ * if the driver reduced it.  Otherwise, -EINVAL.
+ */
+int pci_sriov_get_totalvfs(struct pci_dev *dev)
+{
+	if (!dev || !dev->is_physfn)
+		return -EINVAL;
+
+	if (dev->sriov->drvttl)
+		return dev->sriov->drvttl;
+	else
+		return dev->sriov->total;
+}
+EXPORT_SYMBOL_GPL(pci_sriov_get_totalvfs);

@@ -355,7 +355,7 @@ static ssize_t sriov_totalvfs_show(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	return sprintf(buf, "%u\n", pdev->sriov->total);
+	return sprintf(buf, "%u\n", pci_sriov_get_totalvfs(pdev));
 }
 
 
@@ -401,7 +401,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 	pddr = pdev->driver->rh_reserved;
 
 	/* if enabling vf's ... */
-	total = pdev->sriov->total;
+	total = pci_sriov_get_totalvfs(pdev);
 	/* Requested VFs to enable < totalvfs and none enabled already */
 	if ((num_vfs > 0) && (num_vfs <= total)) {
 		if (pdev->sriov->nr_virtfn == 0) {
