@@ -718,7 +718,8 @@ static int ehea_proc_rwqes(struct net_device *dev,
 
 			processed_bytes += skb->len;
 
-			if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT) {
+			if ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
+			    && port->vgrp) {
 				vlan_gro_receive(&pr->napi, port->vgrp,
 						cqe->vlan_tag, skb);
 			} else {
