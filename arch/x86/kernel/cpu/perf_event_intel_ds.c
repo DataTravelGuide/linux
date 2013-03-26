@@ -326,7 +326,7 @@ int intel_pmu_drain_bts_buffer(void)
 	 */
 	perf_prepare_sample(&header, &data, event, &regs);
 
-	if (perf_output_begin(&handle, event, header.size * (top - at), 1))
+	if (perf_output_begin(&handle, event, header.size * (top - at)))
 		return 1;
 
 	for (; at < top; at++) {
