@@ -2070,7 +2070,11 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 	unsigned int skb_len;
 
 	if (likely(!skb->next)) {
-		if (netif_needs_gso(dev, skb)) {
+		int features;
+
+		features = netif_skb_features(skb);
+
+		if (netif_needs_gso(skb, features)) {
 			if (unlikely(dev_gso_segment(skb)))
 				goto out_kfree_skb;
 			if (skb->next)
