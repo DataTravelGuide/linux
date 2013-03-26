@@ -654,9 +654,9 @@ static int ipgre_rcv(struct sk_buff *skb)
 		skb_reset_network_header(skb);
 		ipgre_ecn_decapsulate(iph, skb);
 
-		netif_rx(skb);
+		gro_cells_receive(&tunnel->gro_cells, skb);
 		rcu_read_unlock();
-		return(0);
+		return 0;
 	}
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
@@ -1310,6 +1310,14 @@ static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_change_mtu		= ipgre_tunnel_change_mtu,
 };
 
+static void ipgre_dev_free(struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	gro_cells_destroy(&tunnel->gro_cells);
+	free_netdev(dev);
+}
+
 #define GRE_FEATURES (NETIF_F_SG |		\
 		      NETIF_F_FRAGLIST |	\
 		      NETIF_F_HIGHDMA |		\
@@ -1318,7 +1326,7 @@ static const struct net_device_ops ipgre_netdev_ops = {
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipgre_netdev_ops;
-	dev->destructor 	= free_netdev;
+	dev->destructor 	= ipgre_dev_free;
 
 	dev->type		= ARPHRD_IPGRE;
 	dev->needed_headroom 	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
@@ -1337,6 +1345,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel;
 	struct iphdr *iph;
+	int err;
 
 	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
@@ -1358,6 +1367,11 @@ static int ipgre_tunnel_init(struct net_device *dev)
 #endif
 	} else
 		dev->header_ops = &ipgre_header_ops;
+
+	err = gro_cells_init(&tunnel->gro_cells, dev);
+	if (err) {
+		return err;
+	}
 
 	return 0;
 }
