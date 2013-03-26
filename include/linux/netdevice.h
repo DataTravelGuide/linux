@@ -2330,6 +2330,7 @@ extern int		netdev_set_master(struct net_device *dev, struct net_device *master)
 extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
 extern struct sk_buff *__skb_gso_segment(struct sk_buff *skb, int features, bool tx_path);
+extern struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb, int features);
 
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
