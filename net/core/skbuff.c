@@ -2229,7 +2229,7 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 {
 	int pos = skb_headlen(skb);
 
-	skb_tx(skb)->shared_frag = skb_tx(skb1)->shared_frag;
+	skb_tx(skb1)->shared_frag = skb_tx(skb)->shared_frag;
 	if (len < pos)	/* Split line is inside header. */
 		skb_split_inside_header(skb, skb1, len, pos);
 	else		/* Second chunk has no header, nothing to copy. */
