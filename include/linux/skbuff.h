@@ -432,6 +432,12 @@ struct sk_buff {
 #endif
 #ifndef __GENKSYMS__
 	__u8			ooo_okay:1;
+	/* Encapsulation protocol and NIC drivers should use
+	 * this flag to indicate to each other if the skb contains
+	 * encapsulated packet or not and maybe use the inner packet
+	 * headers if needed
+	 */
+	__u8			encapsulation:1;
 #endif
 	kmemcheck_bitfield_end(flags2);
 
