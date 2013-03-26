@@ -318,7 +318,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * interrupts again and then search the VMAs
 	 */
 	local_irq_enable();
-	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	down_read(&mm->mmap_sem);
 
 	fault = VM_FAULT_BADMAP;
@@ -355,11 +355,11 @@ static inline int do_exception(struct pt_regs *regs, int access,
 
 	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
 				     regs, address);
 	} else {
 		tsk->min_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
 				     regs, address);
 	}
 	/*

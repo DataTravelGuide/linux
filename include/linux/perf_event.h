@@ -747,7 +747,7 @@ enum perf_event_active_state {
 struct file;
 struct perf_sample_data;
 
-typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
+typedef void (*perf_overflow_handler_t)(struct perf_event *,
 					struct perf_sample_data *,
 					struct pt_regs *regs);
 
@@ -999,7 +999,6 @@ struct perf_output_handle {
 	unsigned long			size;
 	void				*addr;
 	int				page;
-	int				nmi;
 	int				sample;
 };
 
@@ -1072,7 +1071,7 @@ extern void perf_prepare_sample(struct perf_event_header *header,
 				struct perf_event *event,
 				struct pt_regs *regs);
 
-extern int perf_event_overflow(struct perf_event *event, int nmi,
+extern int perf_event_overflow(struct perf_event *event,
 				 struct perf_sample_data *data,
 				 struct pt_regs *regs);
 
@@ -1091,7 +1090,7 @@ static inline int is_software_event(struct perf_event *event)
 
 extern atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
-extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
+extern void __perf_sw_event(u32, u64, struct pt_regs *, u64);
 
 #ifndef perf_arch_fetch_caller_regs
 static inline void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip) { }
@@ -1113,7 +1112,7 @@ static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 }
 
 static __always_inline void
-perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 {
 	struct pt_regs hot_regs;
 
@@ -1122,7 +1121,7 @@ perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 			perf_fetch_caller_regs(&hot_regs);
 			regs = &hot_regs;
 		}
-		__perf_sw_event(event_id, nr, nmi, regs, addr);
+		__perf_sw_event(event_id, nr, regs, addr);
 	}
 }
 
@@ -1136,7 +1135,7 @@ static inline void perf_event_task_sched_in(struct task_struct *task)
 
 static inline void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
 {
-	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
+	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, NULL, 0);
 
 	__perf_event_task_sched_out(task, next);
 }
@@ -1202,7 +1201,7 @@ static inline bool has_branch_stack(struct perf_event *event)
 
 extern int perf_output_begin(struct perf_output_handle *handle,
 			     struct perf_event *event, unsigned int size,
-			     int nmi, int sample);
+			     int sample);
 extern void perf_output_end(struct perf_output_handle *handle);
 extern void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
@@ -1226,8 +1225,7 @@ static inline int perf_event_task_disable(void)				{ return -EINVAL; }
 static inline int perf_event_task_enable(void)				{ return -EINVAL; }
 
 static inline void
-perf_sw_event(u32 event_id, u64 nr, int nmi,
-		     struct pt_regs *regs, u64 addr)			{ }
+perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)	{ }
 static inline void
 perf_bp_event(struct perf_event *event, void *data)			{ }
 

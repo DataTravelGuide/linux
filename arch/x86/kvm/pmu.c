@@ -100,7 +100,7 @@ static void trigger_pmi(struct irq_work *irq_work)
 	kvm_deliver_pmi(vcpu);
 }
 
-static void kvm_perf_overflow(struct perf_event *perf_event, int nmi,
+static void kvm_perf_overflow(struct perf_event *perf_event,
 			      struct perf_sample_data *data,
 			      struct pt_regs *regs)
 {
@@ -109,13 +109,13 @@ static void kvm_perf_overflow(struct perf_event *perf_event, int nmi,
 	__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 }
 
-static void kvm_perf_overflow_intr(struct perf_event *perf_event, int nmi,
+static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 		struct perf_sample_data *data, struct pt_regs *regs)
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = &pmc->vcpu->arch.pmu;
 	if (!test_and_set_bit(pmc->idx, (unsigned long *)&pmu->reprogram_pmi)) {
-		kvm_perf_overflow(perf_event, nmi, data, regs);
+		kvm_perf_overflow(perf_event, data, regs);
 		set_bit(KVM_REQ_PMU, &pmc->vcpu->requests);
 		/*
 		 * Inject PMI. If vcpu was in a guest mode during NMI PMI
