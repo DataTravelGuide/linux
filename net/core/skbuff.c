@@ -2654,6 +2654,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	unsigned int doffset = skb->data - skb_mac_header(skb);
 	unsigned int offset = doffset;
+	unsigned int tnl_hlen = skb_tnl_header_len(skb);
 	unsigned int headroom;
 	unsigned int len;
 	int sg = features & NETIF_F_SG;
@@ -2730,7 +2731,10 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		skb_set_network_header(nskb, skb->mac_len);
 		nskb->transport_header = (nskb->network_header +
 					  skb_network_header_len(skb));
-		skb_copy_from_linear_data(skb, nskb->data, doffset);
+
+		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
+						 nskb->data - tnl_hlen,
+						 doffset + tnl_hlen);
 
 		if (fskb != skb_shinfo(skb)->frag_list)
 			continue;
