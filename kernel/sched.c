@@ -2984,7 +2984,7 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	 */
 	prev_state = prev->state;
 	finish_arch_switch(prev);
-	perf_event_task_sched_in(current);
+	perf_event_task_sched_in(prev, current);
 	finish_lock_switch(rq, prev);
 
 	fire_sched_in_preempt_notifiers(current);
