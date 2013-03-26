@@ -2362,6 +2362,8 @@ unsigned long netdev_fix_features(unsigned long features, const char *name);
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
 
+int netif_skb_features(struct sk_buff *skb);
+
 static inline int net_gso_ok(int features, int gso_type)
 {
 	int feature = gso_type << NETIF_F_GSO_SHIFT;
@@ -2376,9 +2378,14 @@ static inline int skb_gso_ok(struct sk_buff *skb, int features)
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
-	return skb_is_gso(skb) &&
-	       (!skb_gso_ok(skb, dev->features) ||
-		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+	if (skb_is_gso(skb)) {
+		int features = netif_skb_features(skb);
+
+		return (!skb_gso_ok(skb, features) ||
+			unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+	}
+
+	return 0;
 }
 
 static inline void netif_set_gso_max_size(struct net_device *dev,
