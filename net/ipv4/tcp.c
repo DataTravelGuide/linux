@@ -806,6 +806,8 @@ new_segment:
 			skb_fill_page_desc(skb, i, page, offset, copy);
 		}
 
+		skb_shinfo(skb)->gso_type |= SKB_GSO_SHARED_FRAG;
+
 		skb->len += copy;
 		skb->data_len += copy;
 		skb->truesize += copy;
@@ -2529,6 +2531,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 			       SKB_GSO_DODGY |
 			       SKB_GSO_TCP_ECN |
 			       SKB_GSO_TCPV6 |
+			       SKB_GSO_SHARED_FRAG |
 			       0) ||
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;

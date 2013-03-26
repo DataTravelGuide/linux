@@ -1795,6 +1795,15 @@ int skb_checksum_help(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
+	/* Before computing a checksum, we should make sure no frag could
+	 * be modified by an external entity : checksum could be wrong.
+	 */
+	if (skb_has_shared_frag(skb)) {
+		ret = __skb_linearize(skb);
+		if (ret)
+			goto out;
+	}
+
 	offset = skb->csum_start - skb_headroom(skb);
 	BUG_ON(offset >= skb_headlen(skb));
 	csum = skb_checksum(skb, offset, skb->len - offset, 0);

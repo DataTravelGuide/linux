@@ -1259,6 +1259,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 		       SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_SHARED_FRAG |
 		       0)))
 		goto out;
 
