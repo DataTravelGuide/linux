@@ -154,8 +154,6 @@ struct x86_pmu_capability {
 #ifdef CONFIG_PERF_EVENTS
 extern void perf_events_lapic_init(void);
 
-#define PERF_EVENT_INDEX_OFFSET			0
-
 /*
  * Abuse bit 3 of the cpu eflags register to indicate proper PEBS IP fixups.
  * This flag is otherwise unused and ABI specified to be 0, so nobody should
