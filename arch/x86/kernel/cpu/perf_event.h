@@ -128,6 +128,9 @@ struct cpu_hw_events {
 	 * AMD specific bits
 	 */
 	struct amd_nb			*amd_nb;
+
+	void				*kfree_on_online;
+
 	/* Inverted mask of bits to clear in the perf_ctr ctrl registers */
 	u64				perf_ctr_virt_mask;
 };
