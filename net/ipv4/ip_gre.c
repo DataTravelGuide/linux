@@ -680,6 +680,10 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	__be32 dst;
 	int    mtu;
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    skb_checksum_help(skb))
+		goto tx_error;
+
 	if (dev->type == ARPHRD_ETHER)
 		IPCB(skb)->flags = 0;
 
@@ -1221,6 +1225,11 @@ static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_change_mtu		= ipgre_tunnel_change_mtu,
 };
 
+#define GRE_FEATURES (NETIF_F_SG |		\
+		      NETIF_F_FRAGLIST |	\
+		      NETIF_F_HIGHDMA |		\
+		      NETIF_F_HW_CSUM)
+
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipgre_netdev_ops;
@@ -1234,6 +1243,8 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+
+	dev->features		|= GRE_FEATURES;
 }
 
 static int ipgre_tunnel_init(struct net_device *dev)
