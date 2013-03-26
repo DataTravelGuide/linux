@@ -1737,32 +1737,6 @@ void netif_device_attach(struct net_device *dev)
 }
 EXPORT_SYMBOL(netif_device_attach);
 
-static bool can_checksum_protocol(unsigned long features, __be16 protocol)
-{
-	return ((features & NETIF_F_GEN_CSUM) ||
-		((features & NETIF_F_IP_CSUM) &&
-		 protocol == htons(ETH_P_IP)) ||
-		((features & NETIF_F_IPV6_CSUM) &&
-		 protocol == htons(ETH_P_IPV6)) ||
-		((features & NETIF_F_FCOE_CRC) &&
-		 protocol == htons(ETH_P_FCOE)));
-}
-
-static bool dev_can_checksum(struct net_device *dev, struct sk_buff *skb)
-{
-	if (can_checksum_protocol(dev->features, skb->protocol))
-		return true;
-
-	if (skb->protocol == htons(ETH_P_8021Q)) {
-		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
-		if (can_checksum_protocol(dev->features & dev->vlan_features,
-					  veh->h_vlan_encapsulated_proto))
-			return true;
-	}
-
-	return false;
-}
-
 static void skb_warn_bad_offload(const struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
@@ -2008,6 +1982,17 @@ static int dev_gso_segment(struct sk_buff *skb, int features)
 	return 0;
 }
 
+static bool can_checksum_protocol(unsigned long features, __be16 protocol)
+{
+	return ((features & NETIF_F_GEN_CSUM) ||
+		((features & NETIF_F_IP_CSUM) &&
+		 protocol == htons(ETH_P_IP)) ||
+		((features & NETIF_F_IPV6_CSUM) &&
+		 protocol == htons(ETH_P_IPV6)) ||
+		((features & NETIF_F_FCOE_CRC) &&
+		 protocol == htons(ETH_P_FCOE)));
+}
+
 static int harmonize_features(struct sk_buff *skb, __be16 protocol, int features)
 {
 	if (!can_checksum_protocol(protocol, features)) {
@@ -2090,7 +2075,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			if (skb->ip_summed == CHECKSUM_PARTIAL) {
 				skb_set_transport_header(skb, skb->csum_start -
 					      skb_headroom(skb));
-				if (!dev_can_checksum(dev, skb) &&
+				if (!(features & NETIF_F_ALL_CSUM) &&
 				     skb_checksum_help(skb))
 					goto out_kfree_skb;
 			}
