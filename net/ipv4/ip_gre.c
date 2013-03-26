@@ -892,7 +892,8 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	iph->daddr		=	rt->rt_dst;
 	iph->saddr		=	rt->rt_src;
 	iph->ttl		=	ttl;
-	iph->id			=	0;
+
+	tunnel_ip_select_ident(skb, old_iph, &rt->u.dst);
 
 	if (ttl == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
