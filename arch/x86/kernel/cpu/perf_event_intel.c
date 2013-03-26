@@ -1239,7 +1239,7 @@ again:
 		 */
 		c = &unconstrained;
 	} else if (intel_try_alt_er(event, orig_idx)) {
-		spin_unlock(&era->lock);
+		spin_unlock_irqrestore(&era->lock, flags);
 		goto again;
 	}
 	spin_unlock_irqrestore(&era->lock, flags);
