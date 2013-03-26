@@ -1335,6 +1335,7 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
+	dev->features		|= NETIF_F_GRO;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 
 	dev->features		|= GRE_FEATURES;
@@ -1591,6 +1592,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 
 	dev->iflink		= 0;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
+	dev->features		|= NETIF_F_GRO;
 
 	dev->features		|= GRE_FEATURES;
 	SET_ETHTOOL_OPS(dev, &gre_dev_ethtool_ops);
