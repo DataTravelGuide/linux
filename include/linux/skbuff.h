@@ -215,7 +215,13 @@ union skb_shared_tx {
 			software:1,
 			in_progress:1,
 			reserved:1,
-			dev_zerocopy:1;
+			dev_zerocopy:1,
+			/* This indicates at least one fragment might be overwritten
+			 * (as in vmsplice(), sendfile() ...)
+			 * If we need to compute a TX checksum, we'll need to copy
+			 * all frags to avoid possible bad checksum
+			 */
+			shared_frag:1;
 	};
 	__u8 flags;
 };
@@ -285,13 +291,6 @@ enum {
 	SKB_GSO_TCPV6 = 1 << 4,
 
 	SKB_GSO_FCOE = 1 << 5,
-
-	/* This indicates at least one fragment might be overwritten
-	 * (as in vmsplice(), sendfile() ...)
-	 * If we need to compute a TX checksum, we'll need to copy
-	 * all frags to avoid possible bad checksum
-	 */
-	SKB_GSO_SHARED_FRAG = 1 << 6,
 };
 
 #if BITS_PER_LONG > 32
@@ -1895,9 +1894,9 @@ static inline int skb_linearize(struct sk_buff *skb)
  * Return true if the skb has at least one frag that might be modified
  * by an external entity (as in vmsplice()/sendfile())
  */
-static inline bool skb_has_shared_frag(const struct sk_buff *skb)
+static inline bool skb_has_shared_frag(struct sk_buff *skb)
 {
-	return skb_shinfo(skb)->gso_type & SKB_GSO_SHARED_FRAG;
+	return skb_is_nonlinear(skb) && skb_tx(skb)->shared_frag;
 }
 
 /**

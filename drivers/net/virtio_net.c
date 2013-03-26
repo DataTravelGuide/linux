@@ -143,7 +143,7 @@ static void set_skb_frag(struct sk_buff *skb, struct page *page,
 	skb->data_len += f->size;
 	skb->len += f->size;
 	skb_shinfo(skb)->nr_frags++;
-	skb_shinfo(skb)->gso_type |= SKB_GSO_SHARED_FRAG;
+	skb_tx(skb)->shared_frag = 1;
 	*len -= f->size;
 }
 
@@ -287,18 +287,16 @@ static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
 	if (hdr->hdr.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
-		unsigned short gso_type = 0;
-
 		pr_debug("GSO!\n");
 		switch (hdr->hdr.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
-			gso_type = SKB_GSO_TCPV4;
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 			break;
 		case VIRTIO_NET_HDR_GSO_UDP:
-			gso_type = SKB_GSO_UDP;
+			skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 			break;
 		case VIRTIO_NET_HDR_GSO_TCPV6:
-			gso_type = SKB_GSO_TCPV6;
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
 			break;
 		default:
 			if (net_ratelimit())
@@ -308,7 +306,7 @@ static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 		}
 
 		if (hdr->hdr.gso_type & VIRTIO_NET_HDR_GSO_ECN)
-			gso_type |= SKB_GSO_TCP_ECN;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 
 		skb_shinfo(skb)->gso_size = hdr->hdr.gso_size;
 		if (skb_shinfo(skb)->gso_size == 0) {
@@ -318,7 +316,6 @@ static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 			goto frame_err;
 		}
 
-		skb_shinfo(skb)->gso_type |= gso_type;
 		/* Header must be checked, and gso_segs computed. */
 		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
 		skb_shinfo(skb)->gso_segs = 0;

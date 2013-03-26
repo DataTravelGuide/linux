@@ -657,18 +657,16 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 	};
 
 	if (gso.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
-		unsigned short gso_type = 0;
-
 		pr_debug("GSO!\n");
 		switch (gso.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
 		case VIRTIO_NET_HDR_GSO_TCPV4:
-			gso_type = SKB_GSO_TCPV4;
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 			break;
 		case VIRTIO_NET_HDR_GSO_TCPV6:
-			gso_type = SKB_GSO_TCPV6;
+			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
 			break;
 		case VIRTIO_NET_HDR_GSO_UDP:
-			gso_type = SKB_GSO_UDP;
+			skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 			break;
 		default:
 			tun->dev->stats.rx_frame_errors++;
@@ -677,10 +675,9 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 		}
 
 		if (gso.gso_type & VIRTIO_NET_HDR_GSO_ECN)
-			gso_type |= SKB_GSO_TCP_ECN;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 
 		skb_shinfo(skb)->gso_size = gso.gso_size;
-		skb_shinfo(skb)->gso_type |= gso_type;
 		if (skb_shinfo(skb)->gso_size == 0) {
 			tun->dev->stats.rx_frame_errors++;
 			kfree_skb(skb);
