@@ -1282,6 +1282,19 @@ static int ipgre_close(struct net_device *dev)
 
 #endif
 
+static void gre_dev_getinfo(struct net_device *netdev,
+				 struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, "ip_gre");
+}
+
+static const struct ethtool_ops gre_dev_ethtool_ops = {
+	.get_drvinfo	= gre_dev_getinfo,
+	.get_link	= ethtool_op_get_link,
+	.set_tso	= ethtool_op_set_tso,
+	.get_tso	= ethtool_op_get_tso,
+};
+
 static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_init		= ipgre_tunnel_init,
 	.ndo_uninit		= ipgre_tunnel_uninit,
@@ -1314,6 +1327,7 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 
 	dev->features		|= GRE_FEATURES;
+	SET_ETHTOOL_OPS(dev, &gre_dev_ethtool_ops);
 }
 
 static int ipgre_tunnel_init(struct net_device *dev)
@@ -1557,6 +1571,7 @@ static void ipgre_tap_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 
 	dev->features		|= GRE_FEATURES;
+	SET_ETHTOOL_OPS(dev, &gre_dev_ethtool_ops);
 }
 
 static int ipgre_newlink(struct net_device *dev, struct nlattr *tb[],
