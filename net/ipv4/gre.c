@@ -165,10 +165,16 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		goto out;
 	__skb_pull(skb, ghl);
 	skb_reset_mac_header(skb);
-	/* skb_set_network_header(skb, skb_inner_network_offset(skb)); */
-	skb_set_network_header(skb, 0);
-	/* skb_inner_network_offset(skb); */
-	skb->mac_len = 0;
+	/* skb_set_network_header(skb, skb_inner_network_offset(skb));
+	 * skb->mac_len = skb_inner_network_offset(skb);
+	 */
+	if (greh->protocol == htons(ETH_P_TEB)) {
+		skb_set_network_header(skb, ETH_HLEN);
+		skb->mac_len = ETH_HLEN;
+	} else {
+		skb_set_network_header(skb, 0);
+		skb->mac_len = 0;
+	}
 
 	/* segment inner packet. */
 	/* enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
