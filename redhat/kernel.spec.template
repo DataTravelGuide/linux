@@ -111,6 +111,8 @@ Summary: The Linux kernel
 %define with_vdso_install %{?_without_vdso_install: 0} %{?!_without_vdso_install: 1}
 # Use dracut instead of mkinitrd for initrd image generation
 %define with_dracut       %{?_without_dracut:       0} %{?!_without_dracut:       1}
+# kernel-abi-whitelists
+%define with_kernel_abi_whitelists %{?_with_kernel_abi_whitelists: 0} %{?!_with_kernel_abi_whitelists: 1}
 
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
@@ -267,6 +269,7 @@ Summary: The Linux kernel
 # only package docs noarch
 %ifnarch noarch
 %define with_doc 0
+%define with_kernel_abi_whitelists 0
 %endif
 
 # don't build noarch kernels or headers (duh)
@@ -586,6 +589,7 @@ Source34: Module.kabi_greylist_i686
 Source35: Module.kabi_greylist_ppc64
 Source36: Module.kabi_greylist_s390x
 Source37: Module.kabi_greylist_x86_64
+Source38: kernel-abi-whitelists.tar.bz2
 
 %%CONFIGS%%
 
@@ -706,6 +710,16 @@ This package provides debug information for the perf python bindings.
 %{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o python-perf-debuginfo.list}
 
 %endif
+
+%package -n kernel-abi-whitelists
+Summary: The Red Hat Enterprise Linux kernel ABI symbol whitelists
+Group: System Environment/Kernel
+AutoReqProv: no
+Obsoletes: kabi-whitelists
+%description -n kernel-abi-whitelists
+The kABI package contains information pertaining to the Red Hat Enterprise
+Linux kernel ABI, including lists of kernel symbols that are needed by
+external Linux kernel modules, and a yum plugin to aid enforcement.
 
 #
 # This macro creates a kernel-<subpackage>-debuginfo package.
@@ -1376,6 +1390,21 @@ xargs -0 --no-run-if-empty %{__install} -m 444 -t $man9dir $m
 ls $man9dir | grep -q '' || > $man9dir/BROKEN
 %endif # with_doc
 
+%if %{with_kernel_abi_whitelists}
+# kabi directory
+INSTALL_KABI_PATH=$RPM_BUILD_ROOT/lib/modules/
+# current kabi release directory
+KABI_CURRENT=kabi-rhel65
+
+mkdir -p $INSTALL_KABI_PATH
+
+# install kabi releases directories
+tar xjvf %{SOURCE38} -C $INSTALL_KABI_PATH
+
+# add 'kabi-current' link
+(cd $INSTALL_KABI_PATH; ln -s $KABI_CURRENT kabi-current)
+%endif  # with_kernel_abi_whitelists
+
 %if %{with_perf}
 # perf tool binary and supporting scripts/binaries
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install
@@ -1586,6 +1615,12 @@ fi
 %dir %{_datadir}/doc/kernel-doc-%{rpmversion}/Documentation
 %dir %{_datadir}/doc/kernel-doc-%{rpmversion}
 %{_datadir}/man/man9/*
+%endif
+
+%if %{with_kernel_abi_whitelists}
+%files -n kernel-abi-whitelists
+%defattr(-,root,root,-)
+/lib/modules/kabi-*
 %endif
 
 %if %{with_perf}
