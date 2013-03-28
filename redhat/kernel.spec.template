@@ -1680,6 +1680,51 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-368.el6]
+- [net] tcp: fix for zero packets_in_flight was too broad (Thomas Graf) [920794]
+- [net] tcp: frto should not set snd_cwnd to 0 (Thomas Graf) [920794]
+- [net] tcp: fix an infinite loop in tcp_slow_start() (Thomas Graf) [920794]
+- [net] tcp: fix ABC in tcp_slow_start() (Thomas Graf) [920794]
+- [md] dm-thin: bump the target version numbers (Mike Snitzer) [922931]
+- [md] dm-thin: use block_size_is_power_of_two (Mike Snitzer) [904161]
+- [md] dm-thin: support a non-power-of-2 discard_granularity (Mike Snitzer) [904161]
+- [md] dm-thin: fix queue limits stacking (Mike Snitzer) [904161]
+- [md] dm: sync misc small differences from upstream (Mike Snitzer) [904161]
+- [md] persistent-data: improve improve space map block alloc failure message (Mike Snitzer) [904161]
+- [md] dm-thin: use DMERR_LIMIT for errors (Mike Snitzer) [904161]
+- [md] persistent-data: use DMERR_LIMIT for errors (Mike Snitzer) [904161]
+- [md] persistent-data: fix nested btree deletion (Mike Snitzer) [904161]
+- [md] dm-thin: move bio_prison code to separate module (Mike Snitzer) [904161]
+- [md] dm-thin: prepare to separate bio_prison code (Mike Snitzer) [904161]
+- [md] persistent-data: convert to use le32_add_cpu (Mike Snitzer) [904161]
+- [md] dm-bufio: use ACCESS_ONCE for sysfs values (Mike Snitzer) [904161]
+- [md] dm-bufio: use list_move (Mike Snitzer) [904161]
+- [md] dm-ioctl: use kmalloc if possible (Mike Snitzer) [904161]
+- [md] dm-ioctl: remove PF_MEMALLOC (Mike Snitzer) [904161]
+- [md] dm-ioctl: prevent unsafe change to dm_ioctl data_size (Mike Snitzer) [904161]
+- [md] dm-snap: optimize track_chunk (Mike Snitzer) [904161]
+- [md] dm: fix deadlock with request based dm and queue request_fn recursion (Mike Snitzer) [904161]
+- [fs] ext3: Fix format string issues (Nikola Pajkovsky) [920785] {CVE-2013-1848}
+- [netdrv] ehea: avoid accessing a NULL vgrp (Steve Best) [911359]
+- [kernel] signal: always clear sa_restorer on execve (Nikola Pajkovsky) [920506] {CVE-2013-0914}
+- [md] dm-thin: fix discard corruption (Mike Snitzer) [922931]
+- [md] persistent-data: rename node to btree_node (Mike Snitzer) [922931]
+- [netdrv] ixgbe: Only set gso_type to SKB_GSO_TCPV4 as RSC does not support IPv6 (Michael S. Tsirkin) [908196]
+- [netdrv] bnx2x: set gso_type (Michael S. Tsirkin) [908196]
+- [netdrv] qlcnic: set gso_type (Michael S. Tsirkin) [908196]
+- [netdrv] ixgbe: fix gso type (Michael S. Tsirkin) [908196]
+- [net] sunrpc: Get rid of the redundant xprt->shutdown bit field (J. Bruce Fields) [893584]
+- [virt] kvm: do not #GP on unaligned MSR_KVM_SYSTEM_TIME write (Gleb Natapov) [917021] {CVE-2013-1796}
+- [fs] gfs2: Allocate reservation structure before rename and link (Robert S Peterson) [922999]
+- [drm] i915: bounds check execbuffer relocation count (Nikola Pajkovsky) [920525] {CVE-2013-0913}
+- [x86] irq: add quirk for broken interrupt remapping on 55XX chipsets (Neil Horman) [887006]
+- [md] dm: fix limits initialization when there are no data devices (Mike Snitzer) [908851]
+- [kvm] Convert MSR_KVM_SYSTEM_TIME to use gfn_to_hva_cache functions (Gleb Natapov) [917025] {CVE-2013-1797}
+- [kvm] Fix for buffer overflow in handling of MSR_KVM_SYSTEM_TIME (Gleb Natapov) [917021] {CVE-2013-1796}
+- [kvm] Fix bounds checking in ioapic indirect register reads (Gleb Natapov) [917032] {CVE-2013-1798}
+- [kvm] x86: release kvmclock page on reset (Gleb Natapov) [917025] {CVE-2013-1797}
+- [security] keys: Fix race with concurrent install_user_keyrings() (David Howells) [913258] {CVE-2013-1792}
+
 * Tue Mar 19 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-367.el6]
 - [fs] xfs: use maximum schedule timeout when ail is empty (Brian Foster) [883905]
 - [net] xfrm_user: fix info leak in copy_to_user_tmpl() (Thomas Graf) [922429] {CVE-2012-6537}
