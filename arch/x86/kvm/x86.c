@@ -982,6 +982,8 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	u64 tsc_timestamp;
 	struct pvclock_vcpu_time_info guest_hv_clock;
 	u8 pvclock_flags;
+	bool use_cached_fc;
+	gpa_t time;
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
@@ -1073,10 +1075,17 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 */
 	vcpu->hv_clock.version += 2;
 
-	if (unlikely(kvm_read_guest_cached(v->kvm, &vcpu->pv_time,
-		&guest_hv_clock, sizeof(guest_hv_clock)))) {
-		return -EFAULT;
-	}
+	time = vcpu->time & ~1ULL;
+	use_cached_fc = sizeof(guest_hv_clock) <= (PAGE_SIZE -
+				offset_in_page(time));
+
+	if (likely(use_cached_fc)) {
+		if (unlikely(kvm_read_guest_cached(v->kvm, &vcpu->pv_time,
+				&guest_hv_clock, sizeof(guest_hv_clock))))
+			return -EFAULT;
+	} else if (unlikely(kvm_read_guest(v->kvm, time,
+				&guest_hv_clock, sizeof(guest_hv_clock))))
+			return -EFAULT;
 
 	/* retain PVCLOCK_GUEST_STOPPED if set in guest copy */
 	pvclock_flags = (guest_hv_clock.flags & PVCLOCK_GUEST_STOPPED);
@@ -1088,9 +1097,14 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 
 	vcpu->hv_clock.flags = pvclock_flags;
 
-	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
-				&vcpu->hv_clock,
-				sizeof(vcpu->hv_clock));
+	if (likely(use_cached_fc))
+		kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+					&vcpu->hv_clock,
+					sizeof(vcpu->hv_clock));
+	else
+		kvm_write_guest(v->kvm, time, &vcpu->hv_clock,
+				sizeof(guest_hv_clock));
+
 	return 0;
 }
 
@@ -1383,7 +1397,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
 	case MSR_KVM_SYSTEM_TIME: {
-		u64 gpa_offset;
 		kvmclock_reset(vcpu);
 
 		vcpu->arch.time = data;
@@ -1391,12 +1404,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		/* we verify if the enable bit is set... */
 		if (!(data & 1))
-			break;
-
-		gpa_offset = data & ~(PAGE_MASK | 1);
-
-		/* Check that the address is 32-byte aligned. */
-		if (gpa_offset & (sizeof(struct pvclock_vcpu_time_info) - 1))
 			break;
 
 		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
