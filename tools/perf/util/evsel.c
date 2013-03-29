@@ -372,7 +372,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 
 	if (opts->call_graph) {
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
-
+#if 0
+XXX No dwarf unwind support in RHEL6
 		if (opts->call_graph == CALLCHAIN_DWARF) {
 			attr->sample_type |= PERF_SAMPLE_REGS_USER |
 					     PERF_SAMPLE_STACK_USER;
@@ -380,6 +381,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 			attr->sample_stack_user = opts->stack_dump_size;
 			attr->exclude_callchain_user = 1;
 		}
+#endif
 	}
 
 	if (perf_target__has_cpu(&opts->target))
@@ -766,7 +768,10 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data, bool swapped)
 {
 	u64 type = evsel->attr.sample_type;
+#if 0
+XXX No dwarf unwind support in RHEL6
 	u64 regs_user = evsel->attr.sample_regs_user;
+#endif
 	const u64 *array;
 
 	/*
@@ -904,6 +909,8 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array += sz;
 	}
 
+#if 0
+XXX No dwarf unwind support in RHEL6
 	if (type & PERF_SAMPLE_REGS_USER) {
 		/* First u64 tells us if we have any regs in sample. */
 		u64 avail = *array++;
@@ -928,7 +935,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			data->user_stack.size = *array;
 		}
 	}
-
+#endif
 	return 0;
 }
 

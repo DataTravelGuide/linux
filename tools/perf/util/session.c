@@ -1,6 +1,7 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <linux/kernel.h>
+#include <linux/compiler.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -362,7 +363,7 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 	return 0;
 }
 
-static int unwind_entry(struct unwind_entry *entry, void *arg)
+__used static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	struct callchain_cursor *cursor = arg;
 	return callchain_cursor_append(cursor, entry->ip,
@@ -370,7 +371,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 }
 
 int machine__resolve_callchain(struct machine *machine,
-			       struct perf_evsel *evsel,
+			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct perf_sample *sample,
 			       struct symbol **parent)
@@ -385,6 +386,10 @@ int machine__resolve_callchain(struct machine *machine,
 	if (ret)
 		return ret;
 
+	return 0;
+
+#if 0
+XXX No dwarf unwind support in RHEL6
 	/* Can we do dwarf post unwind? */
 	if (!((evsel->attr.sample_type & PERF_SAMPLE_REGS_USER) &&
 	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
@@ -393,6 +398,7 @@ int machine__resolve_callchain(struct machine *machine,
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
 				   sample);
+#endif
 
 }
 
@@ -914,7 +920,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	}
 }
 
-static void regs_user__printf(struct perf_sample *sample, u64 mask)
+__used static void regs_user__printf(struct perf_sample *sample, u64 mask)
 {
 	struct regs_dump *user_regs = &sample->user_regs;
 
@@ -924,7 +930,7 @@ static void regs_user__printf(struct perf_sample *sample, u64 mask)
 	}
 }
 
-static void stack_user__printf(struct stack_dump *dump)
+__used static void stack_user__printf(struct stack_dump *dump)
 {
 	printf("... ustack: size %" PRIu64 ", offset 0x%x\n",
 	       dump->size, dump->offset);
@@ -987,11 +993,14 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		branch_stack__printf(sample);
 
+#if 0
+XXX No dwarf unwind support in RHEL6
 	if (sample_type & PERF_SAMPLE_REGS_USER)
 		regs_user__printf(sample, evsel->attr.sample_regs_user);
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
+#endif
 }
 
 static struct machine *
