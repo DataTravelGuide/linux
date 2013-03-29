@@ -395,6 +395,11 @@ XXX No dwarf unwind support in RHEL6
 	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
 		return 0;
 
+	/* Bail out if nothing was captured. */
+	if ((!sample->user_regs.regs) ||
+	    (!sample->user_stack.size))
+		return 0;
+
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
 				   sample);
