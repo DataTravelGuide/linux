@@ -32,15 +32,6 @@
 #include <sys/mman.h>
 #include "compat.h"
 
-#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
-
-#ifdef LIBUNWIND_SUPPORT
-static unsigned long default_stack_dump_size = 8192;
-static char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
-#else
-static char callchain_help[] = CALLCHAIN_HELP "[fp]";
-#endif
-
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
@@ -869,6 +860,8 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 #ifdef LIBUNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
 			ret = 0;
 			rec->opts.call_graph = CALLCHAIN_DWARF;
 			rec->opts.stack_dump_size = default_stack_dump_size;
@@ -930,6 +923,14 @@ static struct perf_record record = {
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,
 };
+
+#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
+
+#ifdef LIBUNWIND_SUPPORT
+static const char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+#else
+static const char callchain_help[] = CALLCHAIN_HELP "[fp]";
+#endif
 
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
