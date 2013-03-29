@@ -1611,6 +1611,7 @@ fi
 %{_libexecdir}/perf-core/*
 %{_mandir}/man[1-8]/*
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
+%config(noreplace) %{_sysconfdir}/bash_completion.d/perf
 
 %if %{with_debuginfo}
 %files -f perf-debuginfo.list -n perf-debuginfo
