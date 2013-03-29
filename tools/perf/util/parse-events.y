@@ -69,7 +69,7 @@ do { \
 %union
 {
 	char *str;
-	unsigned long num;
+	u64 num;
 	struct list_head *head;
 	struct parse_events__term *term;
 }
@@ -300,7 +300,7 @@ PE_VALUE ':' PE_VALUE
 	struct parse_events_data__events *data = _data;
 	struct list_head *list = NULL;
 
-	ABORT_ON(parse_events_add_numeric(&list, &data->idx, $1, $3, NULL));
+	ABORT_ON(parse_events_add_numeric(&list, &data->idx, (u32)$1, $3, NULL));
 	$$ = list;
 }
 
@@ -375,7 +375,7 @@ PE_TERM '=' PE_NAME
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_str(&term, $1, NULL, $3));
+	ABORT_ON(parse_events__term_str(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
@@ -383,7 +383,7 @@ PE_TERM '=' PE_VALUE
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_num(&term, $1, NULL, $3));
+	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, $3));
 	$$ = term;
 }
 |
@@ -391,7 +391,7 @@ PE_TERM
 {
 	struct parse_events__term *term;
 
-	ABORT_ON(parse_events__term_num(&term, $1, NULL, 1));
+	ABORT_ON(parse_events__term_num(&term, (int)$1, NULL, 1));
 	$$ = term;
 }
 
