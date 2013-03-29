@@ -1832,6 +1832,8 @@ static const int attr_file_abi_sizes[] = {
 XXX we are still on PERF_ATTR_SIZE_VER0 in RHEL6
 	[1] = PERF_ATTR_SIZE_VER1,
 	[2] = PERF_ATTR_SIZE_VER2,
+	[3] = PERF_ATTR_SIZE_VER3,
+	[4] = PERF_ATTR_SIZE_VER4,
 #endif
 	0,
 };
