@@ -236,8 +236,11 @@ const char *event_type(int type)
 	return "unknown";
 }
 
-static int add_event(struct list_head **_list, int *idx,
-		     struct perf_event_attr *attr, char *name)
+
+
+static int __add_event(struct list_head **_list, int *idx,
+		       struct perf_event_attr *attr,
+		       char *name, struct cpu_map *cpus)
 {
 	struct perf_evsel *evsel;
 	struct list_head *list = *_list;
@@ -257,11 +260,18 @@ static int add_event(struct list_head **_list, int *idx,
 		return -ENOMEM;
 	}
 
+	evsel->cpus = cpus;
 	if (name)
 		evsel->name = strdup(name);
 	list_add_tail(&evsel->node, list);
 	*_list = list;
 	return 0;
+}
+
+static int add_event(struct list_head **_list, int *idx,
+		     struct perf_event_attr *attr, char *name)
+{
+	return __add_event(_list, idx, attr, name, NULL);
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -604,8 +614,8 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 	if (perf_pmu__config(pmu, &attr, head_config))
 		return -EINVAL;
 
-	return add_event(list, idx, &attr,
-			 pmu_event_name(head_config));
+	return __add_event(list, idx, &attr, pmu_event_name(head_config),
+			   pmu->cpus);
 }
 
 int parse_events__modifier_group(struct list_head *list,
