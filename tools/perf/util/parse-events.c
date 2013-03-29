@@ -886,7 +886,8 @@ static const char * const event_type_descriptors[] = {
  * Print the events from <debugfs_mount_point>/tracing/events
  */
 
-void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
+void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
+			     bool name_only)
 {
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
@@ -915,6 +916,11 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
 			if (event_glob != NULL && 
 			    !strglobmatch(evt_dirent.d_name, event_glob))
 				continue;
+
+			if (name_only) {
+				printf("%s:%s ", sys_dirent.d_name, evt_dirent.d_name);
+				continue;
+			}
 
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent.d_name, evt_dirent.d_name);
@@ -993,7 +999,7 @@ void print_events_type(u8 type)
 		__print_events_type(type, event_symbols_hw, PERF_COUNT_HW_MAX);
 }
 
-int print_hwcache_events(const char *event_glob)
+int print_hwcache_events(const char *event_glob, bool name_only)
 {
 	unsigned int type, op, i, printed = 0;
 	char name[64];
@@ -1010,8 +1016,11 @@ int print_hwcache_events(const char *event_glob)
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 
-				printf("  %-50s [%s]\n", name,
-					event_type_descriptors[PERF_TYPE_HW_CACHE]);
+				if (name_only)
+					printf("%s ", name);
+				else
+					printf("  %-50s [%s]\n", name,
+					       event_type_descriptors[PERF_TYPE_HW_CACHE]);
 				++printed;
 			}
 		}
@@ -1021,7 +1030,8 @@ int print_hwcache_events(const char *event_glob)
 }
 
 static void print_symbol_events(const char *event_glob, unsigned type,
-				struct event_symbol *syms, unsigned max)
+				struct event_symbol *syms, unsigned max,
+				bool name_only)
 {
 	unsigned i, printed = 0;
 	char name[MAX_NAME_LEN];
@@ -1032,6 +1042,11 @@ static void print_symbol_events(const char *event_glob, unsigned type,
 		    !(strglobmatch(syms->symbol, event_glob) ||
 		      (syms->alias && strglobmatch(syms->alias, event_glob))))
 			continue;
+
+		if (name_only) {
+			printf("%s ", syms->symbol);
+			continue;
+		}
 
 		if (strlen(syms->alias))
 			snprintf(name, MAX_NAME_LEN, "%s OR %s", syms->symbol, syms->alias);
@@ -1050,19 +1065,20 @@ static void print_symbol_events(const char *event_glob, unsigned type,
 /*
  * Print the help text for the event symbols:
  */
-void print_events(const char *event_glob)
+void print_events(const char *event_glob, bool name_only)
 {
-
-	printf("\n");
-	printf("List of pre-defined events (to be used in -e):\n");
+	if (!name_only) {
+		printf("\n");
+		printf("List of pre-defined events (to be used in -e):\n");
+	}
 
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
-			    event_symbols_hw, PERF_COUNT_HW_MAX);
+			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
 
 	print_symbol_events(event_glob, PERF_TYPE_SOFTWARE,
-			    event_symbols_sw, PERF_COUNT_SW_MAX);
+			    event_symbols_sw, PERF_COUNT_SW_MAX, name_only);
 
-	print_hwcache_events(event_glob);
+	print_hwcache_events(event_glob, name_only);
 
 	if (event_glob != NULL)
 		return;
@@ -1077,7 +1093,28 @@ void print_events(const char *event_glob)
 	printf("   (see 'perf list --help' on how to encode it)\n");
 	printf("\n");
 
-	print_tracepoint_events(NULL, NULL);
+	if (!name_only) {
+		printf("\n");
+		printf("  %-50s [%s]\n",
+		       "rNNN",
+		       event_type_descriptors[PERF_TYPE_RAW]);
+		printf("  %-50s [%s]\n",
+		       "cpu/t1=v1[,t2=v2,t3 ...]/modifier",
+		       event_type_descriptors[PERF_TYPE_RAW]);
+		printf("   (see 'perf list --help' on how to encode it)\n");
+		printf("\n");
+
+#if 0
+XXX no HW breakpoint support in RHEL6
+
+		printf("  %-50s [%s]\n",
+		       "mem:<addr>[:access]",
+			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
+		printf("\n");
+#endif
+	}
+
+	print_tracepoint_events(NULL, NULL, name_only);
 }
 
 int parse_events__is_hardcoded_term(struct parse_events__term *term)
