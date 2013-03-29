@@ -95,7 +95,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 			struct annotation *notes;
 			err = -ENOMEM;
 			bx = he->branch_info;
-			if (bx->from.sym && use_browser > 0) {
+			if (bx->from.sym && use_browser == 1 && sort__has_sym) {
 				notes = symbol__annotation(bx->from.sym);
 				if (!notes->src
 				    && symbol__alloc_hist(bx->from.sym) < 0)
@@ -109,7 +109,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 					goto out;
 			}
 
-			if (bx->to.sym && use_browser > 0) {
+			if (bx->to.sym && use_browser == 1 && sort__has_sym) {
 				notes = symbol__annotation(bx->to.sym);
 				if (!notes->src
 				    && symbol__alloc_hist(bx->to.sym) < 0)
@@ -164,7 +164,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (he->ms.sym != NULL && use_browser > 0) {
+	if (he->ms.sym != NULL && use_browser == 1 && sort__has_sym) {
 		struct annotation *notes = symbol__annotation(he->ms.sym);
 
 		assert(evsel != NULL);
@@ -694,12 +694,14 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	else
 		use_browser = 0;
 
+	setup_sorting(report_usage, options);
+
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (use_browser > 0) {
+	if (use_browser == 1 && sort__has_sym) {
 		symbol_conf.priv_size = sizeof(struct annotation);
 		report.annotate_init  = symbol__annotate_init;
 		/*
@@ -721,8 +723,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (symbol__init() < 0)
 		goto error;
-
-	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
 		if (sort_dimension__add("parent") < 0)
