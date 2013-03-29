@@ -1680,6 +1680,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-369.el6]
+- [fs] defer do_filp_open() access checks to may_open() (Eric Sandeen) [920752]
+- [infiniband] ipoib: Add missing locking when CM object is deleted (Doug Ledford) [913645]
+- [virt] kvm: accept unaligned MSR_KVM_SYSTEM_TIME writes (Petr Matousek) [917021] {CVE-2013-1796}
+- [char] tty: hold lock across tty buffer finding and buffer filling (Prarit Bhargava) [901780]
+
 * Thu Mar 28 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-368.el6]
 - [net] tcp: fix for zero packets_in_flight was too broad (Thomas Graf) [920794]
 - [net] tcp: frto should not set snd_cwnd to 0 (Thomas Graf) [920794]
