@@ -321,7 +321,7 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__set_filters(evlist)) {
+	if (perf_evlist__apply_filters(evlist)) {
 		error("failed to set filter with %d (%s)\n", errno,
 			strerror(errno));
 		rc = -1;
