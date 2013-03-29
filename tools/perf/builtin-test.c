@@ -19,7 +19,8 @@
 #include "../../include/linux/hw_breakpoint.h"
 */
 
-static int vmlinux_matches_kallsyms_filter(struct map *map __used, struct symbol *sym)
+static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
+					   struct symbol *sym)
 {
 	bool *visited = symbol__priv(sym);
 	*visited = true;
@@ -1143,7 +1144,7 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_test(int argc, const char **argv, const char *prefix __used)
+int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",

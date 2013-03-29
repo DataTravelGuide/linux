@@ -804,7 +804,8 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
+int parse_events(struct perf_evlist *evlist, const char *str,
+		 int unset __maybe_unused)
 {
 	struct parse_events_data__events data = {
 		.list = LIST_HEAD_INIT(data.list),
@@ -830,14 +831,14 @@ int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 }
 
 int parse_events_option(const struct option *opt, const char *str,
-			int unset __used)
+			int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	return parse_events(evlist, str, unset);
 }
 
 int parse_filter(const struct option *opt, const char *str,
-		 int unset __used)
+		 int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_evsel *last = NULL;
