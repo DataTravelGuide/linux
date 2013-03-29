@@ -321,6 +321,7 @@ LIB_H += util/target.h
 LIB_H += util/rblist.h
 LIB_H += util/intlist.h
 LIB_H += util/perf_regs.h
+LIB_H += util/unwind.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
 LIB_OBJS += $(OUTPUT)util/alias.o
@@ -529,6 +530,7 @@ else
 	EXTLIBS += $(LIBUNWIND_LIBS)
 	BASIC_CFLAGS := $(LIBUNWIND_CFLAGS) $(BASIC_CFLAGS)
 	BASIC_LDFLAGS := $(LIBUNWIND_LDFLAGS) $(BASIC_LDFLAGS)
+	LIB_OBJS += $(OUTPUT)util/unwind.o
 endif
 
 ifdef NO_NEWT
