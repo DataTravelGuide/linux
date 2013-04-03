@@ -2351,30 +2351,42 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 
 		r = dm_pool_get_metadata_transaction_id(pool->pmd,
 							&transaction_id);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_metadata_transaction_id returned %d", r);
+			goto err;
+		}
 
 		r = dm_pool_get_free_metadata_block_count(pool->pmd,
 							  &nr_free_blocks_metadata);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_free_metadata_block_count returned %d", r);
+			goto err;
+		}
 
 		r = dm_pool_get_metadata_dev_size(pool->pmd, &nr_blocks_metadata);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_data_dev_size returned %d", r);
+			goto err;
+		}
 
 		r = dm_pool_get_free_block_count(pool->pmd,
 						 &nr_free_blocks_data);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_free_block_count returned %d", r);
+			goto err;
+		}
 
 		r = dm_pool_get_data_dev_size(pool->pmd, &nr_blocks_data);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_data_dev_size returned %d", r);
+			goto err;
+		}
 
 		r = dm_pool_get_metadata_snap(pool->pmd, &held_root);
-		if (r)
-			return r;
+		if (r) {
+			DMERR("dm_pool_get_metadata_snap returned %d", r);
+			goto err;
+		}
 
 		DMEMIT("%llu %llu/%llu %llu/%llu ",
 		       (unsigned long long)transaction_id,
@@ -2412,6 +2424,10 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		break;
 	}
 
+	return 0;
+
+err:
+	DMEMIT("Error");
 	return 0;
 }
 
@@ -2711,12 +2727,16 @@ static int thin_status(struct dm_target *ti, status_type_t type,
 		switch (type) {
 		case STATUSTYPE_INFO:
 			r = dm_thin_get_mapped_count(tc->td, &mapped);
-			if (r)
-				return r;
+			if (r) {
+				DMERR("dm_thin_get_mapped_count returned %d", r);
+				goto err;
+			}
 
 			r = dm_thin_get_highest_mapped_block(tc->td, &highest);
-			if (r < 0)
-				return r;
+			if (r < 0) {
+				DMERR("dm_thin_get_highest_mapped_block returned %d", r);
+				goto err;
+			}
 
 			DMEMIT("%llu ", mapped * tc->pool->sectors_per_block);
 			if (r)
@@ -2736,6 +2756,10 @@ static int thin_status(struct dm_target *ti, status_type_t type,
 		}
 	}
 
+	return 0;
+
+err:
+	DMEMIT("Error");
 	return 0;
 }
 
