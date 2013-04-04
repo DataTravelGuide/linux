@@ -34,8 +34,8 @@ BO_QUICK_BUILD :=
 ifeq ("$(origin S)", "command line")
   BO_SINGLE_TARBALL := $(S)
 endif
-ifeq ("$(origin Q)", "command line")
-  BO_QUICK_BUILD := $(Q)
+ifeq ("$(origin F)", "command line")
+  BO_QUICK_BUILD := $(F)
 endif
 
 #filter out the builds with build options to re-use code
