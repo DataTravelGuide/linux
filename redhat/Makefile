@@ -265,12 +265,12 @@ rhg-koji: BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
 rh-brew rh-koji: rh-%: rh-srpm
 	@#force rebuild of tarball next time if using single patch approach
 	@#otherwise non-scratch builds think this tarball is v2.6.32
-	@$(if $(findstring S, $(BUILD_OPTIONS)), rm -f $(TARBALL))
+	@$(if $(findstring S, $(BUILD_OPTIONS)), rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32)
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
 
 scratch-prep-rh:
 	@#need to force rebuilding of tarball
-	@rm -f $(TARBALL)
+	@rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32
 
 rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
 
