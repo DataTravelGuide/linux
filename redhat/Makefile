@@ -39,7 +39,7 @@ ifeq ("$(origin F)", "command line")
 endif
 
 #filter out the builds with build options to re-use code
-ifneq ($(filter rh-brew-scratch rh-koji-scratch,$(MAKECMDGOALS)),)
+ifneq ($(filter rh-%-scratch,$(MAKECMDGOALS)),)
   BO_SINGLE_TARBALL := 1
   BO_QUICK_BUILD := 1
 endif
@@ -274,6 +274,10 @@ scratch-prep-rh:
 
 rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
 
+rh-rpms-scratch rh-srpm-scratch: rh-%-scratch: scratch-prep-rh rh-%
+	@#clean up for a possible follow up non-scratch build
+	@rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32
+
 KOJIDIR=redhat/koji
 rhg-brew rhg-koji: rhg-%:
 ifeq ("$(RHVALIDURL)", "")
@@ -324,6 +328,7 @@ rh-help:
 	@echo  '  rh-koji	- Create a kernel SRPM and then call koji to build the created SRPM'
 	@echo  '  rhg-brew	- Pass a commit hash to brew to build an RPM set'
 	@echo  '  rhg-koji	- Pass a commit hash to koji to build an RPM set'
+	@echo  '  rh-srpm-scratch - Same as rh-srpm but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-brew-scratch - Same as rh-brew but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-koji-scratch - Same as rh-koji but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rhg-brew-scratch - Same as rhg-brew but bypass debuginfo and docs (for speed purposes)'
@@ -335,6 +340,7 @@ rh-help:
 	@echo  '		  see output for possible override options (USER_ID,DISTRO,FAMILY,..)'
 	@echo  '  rh-brew-test  - Calls rh-brew and passes the task number into an RHTS test. See rh-test for more'
 	@echo  '  rh-rpms	- Create the binary RPMS for the kernel'
+	@echo  '  rh-rpms-scratch - Same as rh-rpms but bypass debuginfo and docs (for speed purposes)'
 	@echo  '  rh-kernel-<type> - Create  binary RPMS for a particular kernel type'
 	@echo  '                   - <type> can be: baseonly, smponly, dbgonly'
 
