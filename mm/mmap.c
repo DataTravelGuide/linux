@@ -1483,8 +1483,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	if (mm->mmap_base < len)
 		goto bottomup;
 
-	addr = mm->mmap_base-len;
-
 	do {
 		/*
 		 * Lookup failure means no vma is above this address,
