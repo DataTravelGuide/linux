@@ -71,6 +71,7 @@ void *rw_thread_init(int cpu, const char *in_path, const char *out_path,
 		goto error;
 	}
 
+#if 0 /* RHEL6 doesn't have the F_SETPIPE_SZ fcntl. */
 	/*
 	 * Size of pipe is 64kB in default based on fs/pipe.c.
 	 * To read/write trace data speedy, pipe size is changed.
@@ -79,6 +80,7 @@ void *rw_thread_init(int cpu, const char *in_path, const char *out_path,
 		pr_err("Could not change pipe size in rw-thread(%d)\n", cpu);
 		goto error;
 	}
+#endif
 
 	rw_ti->read_pipe = data_pipe[1];
 	rw_ti->write_pipe = data_pipe[0];
