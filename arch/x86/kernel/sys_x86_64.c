@@ -14,6 +14,7 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
+#include <linux/security.h>
 
 #include <asm/elf.h>
 #include <asm/ia32.h>
@@ -142,7 +143,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (end - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vma->vm_start) &&
+		    (addr >= mmap_min_addr))
 			return addr;
 	}
 	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32))) {
@@ -218,7 +220,8 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
-				(!vma || addr + len <= vma->vm_start))
+				(!vma || addr + len <= vma->vm_start) &&
+				(addr >= mmap_min_addr))
 			return addr;
 	}
 
@@ -238,7 +241,8 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 						    ALIGN_TOPDOWN);
 
 		vma = find_vma(mm, tmp_addr);
-		if (!vma || tmp_addr + len <= vma->vm_start)
+		if ((!vma || tmp_addr + len <= vma->vm_start) &&
+		    (tmp_addr >= mmap_min_addr))
 			/* remember the address as a hint for next time */
 			return mm->free_area_cache = tmp_addr;
 	}
@@ -255,9 +259,13 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		 * return with success:
 		 */
 		vma = find_vma(mm, addr);
-		if (!vma || addr+len <= vma->vm_start)
+		if (!vma || addr+len <= vma->vm_start) {
+			/* we hit the bottom, stop this search */
+			if (addr < mmap_min_addr)
+				break;
 			/* remember the address as a hint for next time */
 			return mm->free_area_cache = addr;
+		}
 
 		/* remember the largest hole we saw so far */
 		if (!unmap_factor &&
