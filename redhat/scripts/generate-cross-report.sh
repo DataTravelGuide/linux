@@ -11,7 +11,7 @@ echo "                        CROSS COMPILE REPORT"
 echo "==============================================================================="
 echo "For patch submissions, this text must be cut-and-pasted into patch 0/1."
 echo -n "Date: "
-date
+LC_TIME=C date
 
 # Note, there is no guarantee that this environment is pristine.
 echo -n "Build OS: "
