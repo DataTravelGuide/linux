@@ -2048,7 +2048,7 @@ struct SPMITable {
 	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
 };
 
-static __devinit int try_init_acpi(struct SPMITable *spmi)
+static __devinit int try_init_spmi(struct SPMITable *spmi)
 {
 	struct smi_info  *info;
 	u8 		 addr_space;
@@ -2131,7 +2131,7 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 	return 0;
 }
 
-static __devinit void acpi_find_bmc(void)
+static __devinit void spmi_find_bmc(void)
 {
 	acpi_status      status;
 	struct SPMITable *spmi;
@@ -2149,7 +2149,7 @@ static __devinit void acpi_find_bmc(void)
 		if (status != AE_OK)
 			return;
 
-		try_init_acpi(spmi);
+		try_init_spmi(spmi);
 	}
 }
 
@@ -3399,7 +3399,7 @@ static __devinit int init_ipmi_si(void)
 
 #ifdef CONFIG_ACPI
 	if (si_tryacpi)
-		acpi_find_bmc();
+		spmi_find_bmc();
 #endif
 
 #ifdef CONFIG_PPC_OF
