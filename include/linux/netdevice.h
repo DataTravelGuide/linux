@@ -1513,6 +1513,10 @@ extern rwlock_t				dev_base_lock;		/* Device list lock */
 		list_for_each_entry_safe(d, n, &(net)->dev_base_head, dev_list)
 #define for_each_netdev_continue(net, d)		\
 		list_for_each_entry_continue(d, &(net)->dev_base_head, dev_list)
+#define for_each_netdev_in_bond(bond, slave)		\
+		for_each_netdev(&init_net, slave)	\
+			if (slave->master == bond)
+
 #define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
 
 static inline struct net_device *next_net_device(struct net_device *dev)
@@ -1917,6 +1921,16 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 
 #define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
 extern int netif_get_num_default_rss_queues(void);
+
+static inline bool netif_is_bond_master(struct net_device *dev)
+{
+	return dev->flags & IFF_MASTER && dev->priv_flags & IFF_BONDING;
+}
+
+static inline bool netif_is_bond_slave(struct net_device *dev)
+{
+	return dev->flags & IFF_SLAVE && dev->priv_flags & IFF_BONDING;
+}
 
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts
