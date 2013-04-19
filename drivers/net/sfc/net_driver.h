@@ -57,7 +57,8 @@
 #define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
 #define EFX_EXTRA_CHANNEL_IOV	0
-#define EFX_MAX_EXTRA_CHANNELS	1U
+#define EFX_EXTRA_CHANNEL_PTP	1
+#define EFX_MAX_EXTRA_CHANNELS	2U
 
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
@@ -68,6 +69,11 @@
 #define EFX_TXQ_TYPE_HIGHPRI	2	/* flag */
 #define EFX_TXQ_TYPES		4
 #define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CHANNELS)
+
+/* Forward declare Precision Time Protocol (PTP) support structure. */
+struct efx_ptp_data;
+
+struct efx_self_tests;
 
 /**
  * struct efx_special_buffer - An Efx special buffer
@@ -731,6 +737,7 @@ struct vfdi_status;
  *	%local_addr_list. Protected by %local_lock.
  * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
  * @peer_work: Work item to broadcast peer addresses to VMs.
+ * @ptp_data: PTP state data
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -854,6 +861,10 @@ struct efx_nic {
 	struct list_head local_page_list;
 	struct mutex local_lock;
 	struct work_struct peer_work;
+#endif
+
+#ifdef CONFIG_SFC_PTP
+	struct efx_ptp_data *ptp_data;
 #endif
 
 	/* The following fields may be written more often */
@@ -1115,6 +1126,5 @@ static inline void clear_bit_le(unsigned nr, unsigned char *addr)
  */
 #define EFX_MAX_FRAME_LEN(mtu) \
 	((((mtu) + ETH_HLEN + VLAN_HLEN + 4/* FCS */ + 7) & ~7) + 16)
-
 
 #endif /* EFX_NET_DRIVER_H */

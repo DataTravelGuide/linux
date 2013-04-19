@@ -1241,6 +1241,7 @@ const struct ethtool_ops_ext efx_ethtool_ops_ext = {
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
 	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
 	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
+	.get_ts_info		= efx_ptp_get_ts_info,
 };
 
 

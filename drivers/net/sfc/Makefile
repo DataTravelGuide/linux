@@ -6,5 +6,6 @@ sfc-y			+= efx.o nic.o falcon.o siena.o tx.o rx.o filter.o \
 sfc-y			+= ioctl.o
 sfc-$(CONFIG_SFC_MTD)	+= mtd.o
 sfc-$(CONFIG_SFC_SRIOV)	+= siena_sriov.o
+sfc-$(CONFIG_SFC_PTP)	+= ptp.o
 
 obj-$(CONFIG_SFC)	+= sfc.o
