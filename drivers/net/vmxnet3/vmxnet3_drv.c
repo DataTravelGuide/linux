@@ -1279,7 +1279,10 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				vlan_hwaccel_receive_skb(skb,
 						adapter->vlan_grp, rcd->tci);
 			} else {
-				netif_receive_skb(skb);
+				if (adapter->netdev->features & NETIF_F_LRO)
+					netif_receive_skb(skb);
+				else
+					napi_gro_receive(&rq->napi, skb);
 			}
 
 			ctx->skb = NULL;
