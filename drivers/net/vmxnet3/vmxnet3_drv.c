@@ -151,8 +151,7 @@ vmxnet3_check_link(struct vmxnet3_adapter *adapter, bool affectTxQueue)
 	if (ret & 1) { /* Link is up. */
 		netdev_info(adapter->netdev, "NIC Link is Up %d Mbps\n",
 			    adapter->link_speed);
-		if (!netif_carrier_ok(adapter->netdev))
-			netif_carrier_on(adapter->netdev);
+		netif_carrier_on(adapter->netdev);
 
 		if (affectTxQueue) {
 			for (i = 0; i < adapter->num_tx_queues; i++)
@@ -161,8 +160,7 @@ vmxnet3_check_link(struct vmxnet3_adapter *adapter, bool affectTxQueue)
 		}
 	} else {
 		netdev_info(adapter->netdev, "NIC Link is Down\n");
-		if (netif_carrier_ok(adapter->netdev))
-			netif_carrier_off(adapter->netdev);
+		netif_carrier_off(adapter->netdev);
 
 		if (affectTxQueue) {
 			for (i = 0; i < adapter->num_tx_queues; i++)
