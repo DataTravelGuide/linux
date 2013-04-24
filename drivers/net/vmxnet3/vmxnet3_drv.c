@@ -44,7 +44,6 @@ static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
 MODULE_DEVICE_TABLE(pci, vmxnet3_pciid_table);
 
 
-#define VMXNET3_MAX_DEVICES 10
 static int enable_mq = 1;
 static int irq_share_mode;
 
