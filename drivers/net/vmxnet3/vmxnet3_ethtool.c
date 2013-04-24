@@ -585,7 +585,51 @@ vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
-static const struct ethtool_ops vmxnet3_ethtool_ops = {
+#ifdef VMXNET3_RSS
+static u32
+vmxnet3_get_rss_indir_size(struct net_device *netdev)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
+
+	return rssConf->indTableSize;
+}
+
+static int
+vmxnet3_get_rss_indir(struct net_device *netdev, u32 *p)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
+	unsigned int n = rssConf->indTableSize;
+
+	while (n--)
+		p[n] = rssConf->indTable[n];
+	return 0;
+
+}
+
+static int
+vmxnet3_set_rss_indir(struct net_device *netdev, const u32 *p)
+{
+	unsigned int i;
+	unsigned long flags;
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
+
+	for (i = 0; i < rssConf->indTableSize; i++)
+		rssConf->indTable[i] = p[i];
+
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
+	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+			       VMXNET3_CMD_UPDATE_RSSIDT);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+	return 0;
+
+}
+#endif
+
+static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_settings      = vmxnet3_get_settings,
 	.get_drvinfo       = vmxnet3_get_drvinfo,
 	.get_regs_len      = vmxnet3_get_regs_len,
@@ -611,7 +655,17 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_rxnfc         = vmxnet3_get_rxnfc,
 };
 
+static const struct ethtool_ops_ext vmxnet3_ethtool_ops_ext = {
+        .size                   = sizeof(struct ethtool_ops_ext),
+#ifdef VMXNET3_RSS
+	.get_rxfh_indir_size = vmxnet3_get_rss_indir_size,
+	.get_rxfh_indir    = vmxnet3_get_rss_indir,
+	.set_rxfh_indir    = vmxnet3_set_rss_indir,
+#endif
+};
+
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)
 {
 	SET_ETHTOOL_OPS(netdev, &vmxnet3_ethtool_ops);
+	set_ethtool_ops_ext(netdev, &vmxnet3_ethtool_ops_ext);
 }
