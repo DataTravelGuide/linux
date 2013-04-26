@@ -4456,29 +4456,6 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	}
 }
 
-static const struct trace_print_flags vmx_exit_reasons_str[] = {
-	{ EXIT_REASON_EXCEPTION_NMI,           "exception" },
-	{ EXIT_REASON_EXTERNAL_INTERRUPT,      "ext_irq" },
-	{ EXIT_REASON_TRIPLE_FAULT,            "triple_fault" },
-	{ EXIT_REASON_NMI_WINDOW,              "nmi_window" },
-	{ EXIT_REASON_IO_INSTRUCTION,          "io_instruction" },
-	{ EXIT_REASON_CR_ACCESS,               "cr_access" },
-	{ EXIT_REASON_DR_ACCESS,               "dr_access" },
-	{ EXIT_REASON_CPUID,                   "cpuid" },
-	{ EXIT_REASON_MSR_READ,                "rdmsr" },
-	{ EXIT_REASON_MSR_WRITE,               "wrmsr" },
-	{ EXIT_REASON_PENDING_INTERRUPT,       "interrupt_window" },
-	{ EXIT_REASON_HLT,                     "halt" },
-	{ EXIT_REASON_INVLPG,                  "invlpg" },
-	{ EXIT_REASON_VMCALL,                  "hypercall" },
-	{ EXIT_REASON_TPR_BELOW_THRESHOLD,     "tpr_below_thres" },
-	{ EXIT_REASON_APIC_ACCESS,             "apic_access" },
-	{ EXIT_REASON_WBINVD,                  "wbinvd" },
-	{ EXIT_REASON_TASK_SWITCH,             "task_switch" },
-	{ EXIT_REASON_EPT_VIOLATION,           "ept_violation" },
-	{ -1, NULL }
-};
-
 static bool vmx_gb_page_enable(void)
 {
 	return false;
@@ -4548,7 +4525,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_tdp_level = get_ept_level,
 	.get_mt_mask = vmx_get_mt_mask,
 
-	.exit_reasons_str = vmx_exit_reasons_str,
 	.gb_page_enable = vmx_gb_page_enable,
 
 	.cpuid_update = vmx_cpuid_update,
