@@ -59,7 +59,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
 	for (;;) {
-		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode, 0);
+		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode, 0, NULL, 0);
 		if (!IS_ERR(inode)) {
 			gfs2_trans_end(sdp);
 			gfs2_inplace_release(dip);
@@ -389,38 +389,22 @@ out_inodes:
 static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 			const char *symname)
 {
-	struct gfs2_inode *dip = GFS2_I(dir), *ip;
+	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
-	struct buffer_head *dibh;
-	int size;
-	int error;
+	unsigned int size;
 
-	/* Must be stuffed with a null terminator for gfs2_follow_link() */
 	size = strlen(symname);
 	if (size > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode) - 1)
 		return -ENAMETOOLONG;
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO, 0);
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO, 0, symname, size);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
-	}
-
-	ip = ghs[1].gh_gl->gl_object;
-
-	i_size_write(inode, size);
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-
-	if (!gfs2_assert_withdraw(sdp, !error)) {
-		gfs2_dinode_out(ip, dibh->b_data);
-		memcpy(dibh->b_data + sizeof(struct gfs2_dinode), symname,
-		       size);
-		brelse(dibh);
 	}
 
 	gfs2_trans_end(sdp);
@@ -454,7 +438,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode, 0);
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode, 0, NULL, 0);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
@@ -624,7 +608,7 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, mode, dev);
+	inode = gfs2_createi(ghs, &dentry->d_name, mode, dev, NULL, 0);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);

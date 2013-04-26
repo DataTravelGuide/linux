@@ -596,7 +596,8 @@ static void gfs2_init_dir(struct buffer_head *dibh,
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 			const struct gfs2_inum_host *inum, unsigned int mode,
 			unsigned int uid, unsigned int gid,
-			const u64 *generation, dev_t dev, struct buffer_head **bhp)
+			const u64 *generation, dev_t dev, const char *symname,
+			unsigned size, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_dinode *di;
@@ -615,7 +616,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_uid = cpu_to_be32(uid);
 	di->di_gid = cpu_to_be32(gid);
 	di->di_nlink = 0;
-	di->di_size = 0;
+	di->di_size = cpu_to_be64(size);
 	di->di_blocks = cpu_to_be64(1);
 	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(tv.tv_sec);
 	di->di_major = cpu_to_be32(MAJOR(dev));
@@ -652,6 +653,9 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		di->di_entries = cpu_to_be32(2);
 		gfs2_init_dir(dibh, dip);
 		break;
+	case S_IFLNK:
+		memcpy(dibh->b_data + sizeof(struct gfs2_dinode), symname, size);
+		break;
 	}
 
 	set_buffer_uptodate(dibh);
@@ -661,7 +665,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 
 static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		       unsigned int mode, const struct gfs2_inum_host *inum,
-		       const u64 *generation, dev_t dev, struct buffer_head **bhp)
+		       const u64 *generation, dev_t dev, const char *symname,
+		       unsigned int size, struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	unsigned int uid, gid;
@@ -684,7 +689,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	if (error)
 		goto out_quota;
 
-	init_dinode(dip, gl, inum, mode, uid, gid, generation, dev, bhp);
+	init_dinode(dip, gl, inum, mode, uid, gid, generation, dev, symname, size, bhp);
 	gfs2_quota_change(dip, +1, uid, gid);
 	gfs2_trans_end(sdp);
 
@@ -799,8 +804,10 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
  * Returns: An inode
  */
 
-struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
-			   unsigned int mode, dev_t dev)
+struct inode *gfs2_createi(struct gfs2_holder *ghs,
+			   const struct qstr *name, unsigned int mode,
+			   dev_t dev, const char *symname,
+			   unsigned int size)
 {
 	struct inode *inode = NULL;
 	struct gfs2_inode *dip = ghs->gh_gl->gl_object, *ip;
@@ -847,7 +854,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev, &bh);
+	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev, symname, size, &bh);
 	if (error)
 		goto fail_gunlock2;
 
