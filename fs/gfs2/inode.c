@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -584,12 +584,17 @@ static void gfs2_init_dir(struct buffer_head *dibh,
 
 /**
  * init_dinode - Fill in a new dinode structure
- * @dip: the directory this inode is being created in
+ * @dip: The directory this inode is being created in
  * @gl: The glock covering the new inode
- * @inum: the inode number
- * @mode: the file permissions
- * @uid:
- * @gid:
+ * @inum: The inode number
+ * @mode: The file permissions
+ * @uid: The uid of the new inode
+ * @gid: The gid of the new inode
+ * @generation: The generation number of the new inode
+ * @dev: The device number (if a device node)
+ * @symname: The symlink destination (if a symlink)
+ * @size: The inode size (ignored for directories)
+ * @bhp: The buffer head (returned to caller)
  *
  */
 
@@ -789,29 +794,25 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 }
 
 /**
- * gfs2_createi - Create a new inode
- * @ghs: An array of two holders
- * @name: The name of the new file
- * @mode: the permissions on the new inode
+ * gfs2_create_inode - Create a new inode
+ * @dir: The parent directory
+ * @dentry: The new dentry
+ * @mode: The permissions on the new inode
+ * @dev: For device nodes, this is the device number
+ * @symname: For symlinks, this is the link destination
+ * @size: The initial size of the inode (ignored for directories)
  *
- * @ghs[0] is an initialized holder for the directory
- * @ghs[1] is the holder for the inode lock
- *
- * If the return value is not NULL, the glocks on both the directory and the new
- * file are held.  A transaction has been started and an inplace reservation
- * is held, as well.
- *
- * Returns: An inode
+ * Returns: 0 on success, or error code
  */
 
-struct inode *gfs2_createi(struct gfs2_holder *ghs,
-			   const struct qstr *name, unsigned int mode,
-			   dev_t dev, const char *symname,
-			   unsigned int size)
+int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
+		      unsigned int mode, dev_t dev, const char *symname,
+		      unsigned int size)
 {
+	const struct qstr *name = &dentry->d_name;
+	struct gfs2_holder ghs[2];
 	struct inode *inode = NULL;
-	struct gfs2_inode *dip = ghs->gh_gl->gl_object, *ip;
-	struct inode *dir = &dip->i_inode;
+	struct gfs2_inode *dip = GFS2_I(dir), *ip;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_inum_host inum = { .no_addr = 0, .no_formal_ino = 0 };
 	int error;
@@ -820,7 +821,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs,
 	u32 aflags = 0;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
-		return ERR_PTR(-ENAMETOOLONG);
+		return -ENAMETOOLONG;
 
 	/* We need a reservation to allocate the new dinode block. The
 	   directory ip temporarily points to the reservation, but this is
@@ -829,10 +830,9 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs,
 	   have to use the minimum reservation size. */
 	error = gfs2_rs_alloc(dip);
 	if (error)
-		return ERR_PTR(error);
+		return error;
 
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, ghs);
-	error = gfs2_glock_nq(ghs);
+	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	if (error)
 		goto fail;
 
@@ -890,12 +890,19 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs,
 
 	if (bh)
 		brelse(bh);
-	return inode;
+
+	gfs2_trans_end(sdp);
+	gfs2_inplace_release(dip);
+	gfs2_quota_unlock(dip);
+	mark_inode_dirty(inode);
+	gfs2_glock_dq_uninit_m(2, ghs);
+	d_instantiate(dentry, inode);
+	return 0;
 
 fail_gunlock2:
 	gfs2_glock_dq_uninit(ghs + 1);
 fail_gunlock:
-	gfs2_glock_dq(ghs);
+	gfs2_glock_dq_uninit(ghs);
 	if (inode && !IS_ERR(inode)) {
 		set_bit(GIF_ALLOC_FAILED, &GFS2_I(inode)->i_flags);
 		iput(inode);
@@ -904,7 +911,7 @@ fail:
 	gfs2_rs_delete(dip);
 	if (bh)
 		brelse(bh);
-	return ERR_PTR(error);
+	return error;
 }
 
 static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)

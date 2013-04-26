@@ -1678,13 +1678,15 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested, u32 aflags)
 	if (gfs2_rs_active(rs)) {
 		begin = rs->rs_rbm.rgd;
 		flags = 0; /* Yoda: Do or do not. There is no try */
-	} else if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal)) {
-		rs->rs_rbm.rgd = begin = ip->i_rgd;
 	} else {
-		rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
+		if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal)) {
+			rs->rs_rbm.rgd = begin = ip->i_rgd;
+		} else {
+			rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
+		}
+		if (S_ISDIR(ip->i_inode.i_mode) && (aflags & GFS2_AF_ORLOV))
+			skip = gfs2_orlov_skip(ip);
 	}
-	if (S_ISDIR(ip->i_inode.i_mode) && (aflags & GFS2_AF_ORLOV))
-		skip = gfs2_orlov_skip(ip);
 	if (rs->rs_rbm.rgd == NULL)
 		return -EBADSLT;
 
