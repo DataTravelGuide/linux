@@ -3915,7 +3915,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 
-	trace_kvm_exit(exit_reason, kvm_rip_read(vcpu));
+	trace_kvm_exit(exit_reason, kvm_rip_read(vcpu), KVM_ISA_VMX);
 
 	/* If we need to emulate an MMIO from handle_invalid_guest_state
 	 * we just return 0 */

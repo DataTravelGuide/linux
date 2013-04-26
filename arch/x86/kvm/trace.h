@@ -148,21 +148,26 @@ TRACE_EVENT(kvm_apic,
 #define trace_kvm_apic_read(reg, val)		trace_kvm_apic(0, reg, val)
 #define trace_kvm_apic_write(reg, val)		trace_kvm_apic(1, reg, val)
 
+#define KVM_ISA_VMX   1
+#define KVM_ISA_SVM   2
+
 /*
  * Tracepoint for kvm guest exit:
  */
 TRACE_EVENT(kvm_exit,
-	TP_PROTO(unsigned int exit_reason, unsigned long guest_rip),
-	TP_ARGS(exit_reason, guest_rip),
+	TP_PROTO(unsigned int exit_reason, unsigned long guest_rip, u32 isa),
+	TP_ARGS(exit_reason, guest_rip, isa),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	exit_reason	)
 		__field(	unsigned long,	guest_rip	)
+		__field(	u32,	        isa             )
 	),
 
 	TP_fast_assign(
 		__entry->exit_reason	= exit_reason;
 		__entry->guest_rip	= guest_rip;
+		__entry->isa            = isa;
 	),
 
 	TP_printk("reason %s rip 0x%lx",
