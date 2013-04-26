@@ -523,7 +523,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 static int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 		       struct gfs2_inode *ip)
 {
-	struct qstr dotname;
 	int error;
 
 	if (ip->i_entries != 2) {
@@ -540,13 +539,11 @@ static int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 	if (error)
 		return error;
 
-	gfs2_str2qstr(&dotname, ".");
-	error = gfs2_dir_del(ip, &dotname);
+	error = gfs2_dir_del(ip, &gfs2_qdot);
 	if (error)
 		return error;
 
-	gfs2_str2qstr(&dotname, "..");
-	error = gfs2_dir_del(ip, &dotname);
+	error = gfs2_dir_del(ip, &gfs2_qdotdot);
 	if (error)
 		return error;
 
@@ -695,10 +692,7 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 	struct inode *dir = &to->i_inode;
 	struct super_block *sb = dir->i_sb;
 	struct inode *tmp;
-	struct qstr dotdot;
 	int error = 0;
-
-	gfs2_str2qstr(&dotdot, "..");
 
 	igrab(dir);
 
@@ -712,7 +706,7 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			break;
 		}
 
-		tmp = gfs2_lookupi(dir, &dotdot, 1);
+		tmp = gfs2_lookupi(dir, &gfs2_qdotdot, 1);
 		if (IS_ERR(tmp)) {
 			error = PTR_ERR(tmp);
 			break;
@@ -928,9 +922,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	}
 
 	if (dir_rename) {
-		struct qstr name;
-		gfs2_str2qstr(&name, "..");
-
 		error = gfs2_change_nlink(ndip, +1);
 		if (error)
 			goto out_end_trans;
@@ -938,7 +929,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_end_trans;
 
-		error = gfs2_dir_mvino(ip, &name, ndip, DT_DIR);
+		error = gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
 		if (error)
 			goto out_end_trans;
 	} else {
