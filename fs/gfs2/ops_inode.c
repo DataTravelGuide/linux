@@ -214,7 +214,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto out_gunlock_q;
 
@@ -895,7 +895,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(ndip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(ndip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto out_gunlock_q;
 
@@ -1471,7 +1471,7 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset,
 retry:
 		gfs2_write_calc_reserv(ip, bytes, &data_blocks, &ind_blocks);
 
-		error = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
+		error = gfs2_inplace_reserve(ip, data_blocks + ind_blocks, 0);
 		if (error) {
 			if (error == -ENOSPC && bytes > sdp->sd_sb.sb_bsize) {
 				bytes >>= 1;

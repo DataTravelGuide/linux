@@ -1226,7 +1226,7 @@ static int do_grow(struct inode *inode, u64 size)
 		if (error)
 			return error;
 
-		error = gfs2_inplace_reserve(ip, sdp->sd_max_height + RES_DATA);
+		error = gfs2_inplace_reserve(ip, sdp->sd_max_height + RES_DATA, 0);
 		if (error)
 			goto do_grow_qunlock;
 		unstuff = 1;

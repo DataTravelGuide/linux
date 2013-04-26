@@ -541,13 +541,14 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 		*gid = current_fsgid();
 }
 
-static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
+static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation,
+			u32 flags)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
 	int dblocks = 1;
 
-	error = gfs2_inplace_reserve(dip, RES_DINODE);
+	error = gfs2_inplace_reserve(dip, RES_DINODE, flags);
 	if (error)
 		goto out;
 
@@ -693,7 +694,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto fail_quota_locks;
 
@@ -786,6 +787,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	int error;
 	u64 generation;
 	struct buffer_head *bh = NULL;
+	u32 aflags = 0;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -808,7 +810,11 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock;
 
-	error = alloc_dinode(dip, &inum.no_addr, &generation);
+	if ((GFS2_I(sdp->sd_root_dir->d_inode) == dip) ||
+	    (dip->i_diskflags & GFS2_DIF_TOPDIR))
+		aflags |= GFS2_AF_ORLOV;
+
+	error = alloc_dinode(dip, &inum.no_addr, &generation, aflags);
 	if (error)
 		goto fail_gunlock;
 	inum.no_formal_ino = generation;

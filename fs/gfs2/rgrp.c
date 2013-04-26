@@ -16,6 +16,7 @@
 #include <linux/prefetch.h>
 #include <linux/blkdev.h>
 #include <linux/rbtree.h>
+#include <linux/random.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1633,6 +1634,15 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 	return;
 }
 
+static u32 gfs2_orlov_skip(const struct gfs2_inode *ip)
+{
+	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	u32 skip;
+
+	get_random_bytes(&skip, sizeof(skip));
+	return skip % sdp->sd_rgrps;
+}
+
 static bool gfs2_select_rgrp(struct gfs2_rgrpd **pos, const struct gfs2_rgrpd *begin)
 {
 	struct gfs2_rgrpd *rgd = *pos;
@@ -1655,7 +1665,7 @@ static bool gfs2_select_rgrp(struct gfs2_rgrpd **pos, const struct gfs2_rgrpd *b
  * Returns: errno
  */
 
-int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
+int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested, u32 aflags)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *begin = NULL;
@@ -1663,6 +1673,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 	int error, rg_locked, flags = LM_FLAG_TRY;
 	u64 last_unlinked = NO_BLOCK;
 	int loops = 0;
+	u32 skip = 0;
 
 	if (gfs2_rs_active(rs)) {
 		begin = rs->rs_rbm.rgd;
@@ -1672,6 +1683,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 	} else {
 		rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
 	}
+	if (S_ISDIR(ip->i_inode.i_mode) && (aflags & GFS2_AF_ORLOV))
+		skip = gfs2_orlov_skip(ip);
 	if (rs->rs_rbm.rgd == NULL)
 		return -EBADSLT;
 
@@ -1680,6 +1693,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 
 		if (!gfs2_glock_is_locked_by_me(rs->rs_rbm.rgd->rd_gl)) {
 			rg_locked = 0;
+			if (skip && skip--)
+				goto next_rgrp;
 			error = gfs2_glock_nq_init(rs->rs_rbm.rgd->rd_gl,
 						   LM_ST_EXCLUSIVE, flags,
 						   &rs->rs_rgd_gh);
@@ -1721,6 +1736,8 @@ skip_rgrp:
 next_rgrp:
 		/* Find the next rgrp, and continue looking */
 		if (gfs2_select_rgrp(&rs->rs_rbm.rgd, begin))
+			continue;
+		if (skip)
 			continue;
 
 		/* If we've scanned all the rgrps, but found no free blocks
