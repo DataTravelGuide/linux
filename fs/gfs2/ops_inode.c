@@ -446,11 +446,10 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	struct gfs2_inode *dip = GFS2_I(dir), *ip;
+	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
-	struct buffer_head *dibh;
 	int error;
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
@@ -459,39 +458,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
-	}
-
-	ip = ghs[1].gh_gl->gl_object;
-
-	ip->i_inode.i_nlink = 2;
-	i_size_write(inode, sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode));
-	ip->i_diskflags |= GFS2_DIF_JDATA;
-	ip->i_entries = 2;
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-
-	if (!gfs2_assert_withdraw(sdp, !error)) {
-		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
-		struct gfs2_dirent *dent = (struct gfs2_dirent *)(di+1);
-		struct qstr str;
-
-		gfs2_str2qstr(&str, ".");
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_qstr2dirent(&str, GFS2_DIRENT_SIZE(str.len), dent);
-		dent->de_inum = di->di_num; /* already GFS2 endian */
-		dent->de_type = cpu_to_be16(DT_DIR);
-		di->di_entries = cpu_to_be32(1);
-
-		gfs2_str2qstr(&str, "..");
-		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
-		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
-
-		gfs2_inum_out(dip, dent);
-		dent->de_type = cpu_to_be16(DT_DIR);
-
-		gfs2_dinode_out(ip, di);
-
-		brelse(dibh);
 	}
 
 	error = gfs2_change_nlink(dip, +1);

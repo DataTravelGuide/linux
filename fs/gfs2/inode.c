@@ -566,6 +566,22 @@ out:
 	return error;
 }
 
+static void gfs2_init_dir(struct buffer_head *dibh,
+			  const struct gfs2_inode *parent)
+{
+	struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
+	struct gfs2_dirent *dent = (struct gfs2_dirent *)(di+1);
+
+	gfs2_qstr2dirent(&gfs2_qdot, GFS2_DIRENT_SIZE(gfs2_qdot.len), dent);
+	dent->de_inum = di->di_num; /* already GFS2 endian */
+	dent->de_type = cpu_to_be16(DT_DIR);
+
+	dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
+	gfs2_qstr2dirent(&gfs2_qdotdot, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
+	gfs2_inum_out(parent, dent);
+	dent->de_type = cpu_to_be16(DT_DIR);
+}
+
 /**
  * init_dinode - Fill in a new dinode structure
  * @dip: the directory this inode is being created in
@@ -608,15 +624,6 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_generation = cpu_to_be64(*generation);
 	di->di_flags = 0;
 
-	if (S_ISREG(mode)) {
-		if ((dip->i_diskflags & GFS2_DIF_INHERIT_JDATA) ||
-		    gfs2_tune_get(sdp, gt_new_files_jdata))
-			di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
-	} else if (S_ISDIR(mode)) {
-		di->di_flags |= cpu_to_be32(dip->i_diskflags &
-					    GFS2_DIF_INHERIT_JDATA);
-	}
-
 	di->__pad1 = 0;
 	di->di_payload_format = cpu_to_be32(S_ISDIR(mode) ? GFS2_FORMAT_DE : 0);
 	di->di_height = 0;
@@ -630,7 +637,23 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_mtime_nsec = cpu_to_be32(tv.tv_nsec);
 	di->di_ctime_nsec = cpu_to_be32(tv.tv_nsec);
 	memset(&di->di_reserved, 0, sizeof(di->di_reserved));
-	
+
+	switch(mode & S_IFMT) {
+	case S_IFREG:
+		if ((dip->i_diskflags & GFS2_DIF_INHERIT_JDATA) ||
+		    gfs2_tune_get(sdp, gt_new_files_jdata))
+			di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
+		break;
+	case S_IFDIR:
+		di->di_flags |= cpu_to_be32(dip->i_diskflags &
+					    GFS2_DIF_INHERIT_JDATA);
+		di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
+		di->di_size = cpu_to_be64(sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode));
+		di->di_entries = cpu_to_be32(2);
+		gfs2_init_dir(dibh, dip);
+		break;
+	}
+
 	set_buffer_uptodate(dibh);
 
 	*bhp = dibh;
@@ -717,7 +740,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto fail_end_trans;
-	ip->i_inode.i_nlink = 1;
+	ip->i_inode.i_nlink = S_ISDIR(ip->i_inode.i_mode) ? 2 : 1;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
