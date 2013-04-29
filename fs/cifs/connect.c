@@ -567,27 +567,21 @@ dequeue_mid(struct mid_q_entry *mid, int malformed)
 	spin_unlock(&GlobalMid_Lock);
 }
 
-static struct mid_q_entry *
-find_cifs_mid(struct TCP_Server_Info *server, struct smb_hdr *buf,
-	      int malformed)
+static void
+handle_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server,
+	   struct smb_hdr *buf, int malformed)
 {
-	struct mid_q_entry *mid = NULL;
-
-	mid = find_mid(server, buf);
-	if (!mid)
-		return mid;
-
 	if (malformed == 0 && check2ndT2(buf) > 0) {
 		mid->multiRsp = true;
 		if (mid->resp_buf) {
 			/* merge response - fix up 1st*/
 			malformed = coalesce_t2(buf, mid->resp_buf);
 			if (malformed > 0)
-				return mid;
+				return;
 
 			/* All parts received or packet is malformed. */
 			mid->multiEnd = true;
-			goto multi_t2_fnd;
+			return dequeue_mid(mid, malformed);
 		}
 		if (!server->large_buf) {
 			/*FIXME: switch to already allocated largebuf?*/
@@ -598,7 +592,7 @@ find_cifs_mid(struct TCP_Server_Info *server, struct smb_hdr *buf,
 			mid->largeBuf = true;
 			server->bigbuf = NULL;
 		}
-		return mid;
+		return;
 	}
 	mid->resp_buf = buf;
 	mid->largeBuf = server->large_buf;
@@ -610,9 +604,7 @@ find_cifs_mid(struct TCP_Server_Info *server, struct smb_hdr *buf,
 		else
 			server->smallbuf = NULL;
 	}
-multi_t2_fnd:
 	dequeue_mid(mid, malformed);
-	return mid;
 }
 
 static void clean_demultiplex_info(struct TCP_Server_Info *server)
@@ -774,6 +766,8 @@ cifs_demultiplex_thread(void *p)
 			continue;
 		server->total_read += length;
 
+		mid_entry = find_mid(server, smb_buffer);
+
 		if (pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 			cERROR(1, "SMB response too long (%u bytes)",
 				pdu_length);
@@ -818,8 +812,8 @@ cifs_demultiplex_thread(void *p)
 
 		server->lstrp = jiffies;
 
-		mid_entry = find_cifs_mid(server, smb_buffer, length);
 		if (mid_entry != NULL) {
+			handle_mid(mid_entry, server, smb_buffer, length);
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
 		} else if (length != 0) {
