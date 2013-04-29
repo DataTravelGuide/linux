@@ -1491,7 +1491,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	pgoff_t eof_index;
 	struct page *page, *tpage;
 
-	cFYI(1, "%s: mid=%u offset=%llu bytes=%u", __func__,
+	cFYI(1, "%s: mid=%llu offset=%llu bytes=%u", __func__,
 		mid->mid, rdata->offset, rdata->bytes);
 
 	/*
@@ -1689,10 +1689,10 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 
-	cFYI(1, "%s: mid=%u state=%d result=%d bytes=%u", __func__,
-		mid->mid, mid->midState, rdata->result, rdata->bytes);
+	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
+		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
 
-	switch (mid->midState) {
+	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
 		/* result already set, check signature */
 		if (server->sec_mode &
@@ -2120,7 +2120,7 @@ cifs_writedata_alloc(unsigned int nr_pages)
 }
 
 /*
- * Check the midState and signature on received buffer (if any), and queue the
+ * Check the mid_state and signature on received buffer (if any), and queue the
  * workqueue completion task.
  */
 static void
@@ -2131,7 +2131,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 	unsigned int written;
 	WRITE_RSP *smb = (WRITE_RSP *)mid->resp_buf;
 
-	switch (mid->midState) {
+	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
 		wdata->result = cifs_check_receive(mid, tcon->ses->server, 0);
 		if (wdata->result != 0)
