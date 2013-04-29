@@ -1604,7 +1604,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		rdata->result = -EIO;
 	}
 
-	queue_work(system_nrt_wq, &rdata->work);
+	slow_work_enqueue(&rdata->work);
 	DeleteMidQEntry(mid);
 	cifs_add_credits(server, 1);
 }

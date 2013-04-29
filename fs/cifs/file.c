@@ -1774,7 +1774,7 @@ ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 }
 
 static struct cifs_readdata *
-cifs_readdata_alloc(unsigned int nr_vecs, work_func_t complete)
+cifs_readdata_alloc(unsigned int nr_vecs, const struct slow_work_ops *ops)
 {
 	struct cifs_readdata *rdata;
 
@@ -1784,7 +1784,7 @@ cifs_readdata_alloc(unsigned int nr_vecs, work_func_t complete)
 		kref_init(&rdata->refcount);
 		INIT_LIST_HEAD(&rdata->list);
 		init_completion(&rdata->done);
-		INIT_WORK(&rdata->work, complete);
+		slow_work_init(&rdata->work, ops);
 		INIT_LIST_HEAD(&rdata->pages);
 	}
 	return rdata;
@@ -1916,7 +1916,7 @@ cifs_readdata_to_iov(struct cifs_readdata *rdata, const struct iovec *iov,
 }
 
 static void
-cifs_uncached_readv_complete(struct work_struct *work)
+cifs_uncached_readv_complete(struct slow_work *work)
 {
 	struct cifs_readdata *rdata = container_of(work,
 						struct cifs_readdata, work);
@@ -1930,8 +1930,18 @@ cifs_uncached_readv_complete(struct work_struct *work)
 	}
 
 	complete(&rdata->done);
+}
+
+static void cifs_uncached_readdata_put(struct slow_work *work)
+{
+	struct cifs_readdata *rdata = container_of(work, struct cifs_readdata, work);
 	kref_put(&rdata->refcount, cifs_uncached_readdata_release);
 }
+
+const struct slow_work_ops cifs_uncached_readv_complete_ops = {
+	.put_ref =	cifs_uncached_readdata_put,
+	.execute =	cifs_uncached_readv_complete
+};
 
 static int
 cifs_uncached_read_marshal_iov(struct cifs_readdata *rdata,
@@ -2018,7 +2028,7 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 
 		/* allocate a readdata struct */
 		rdata = cifs_readdata_alloc(npages,
-					    cifs_uncached_readv_complete);
+					    &cifs_uncached_readv_complete_ops);
 		if (!rdata) {
 			rc = -ENOMEM;
 			goto error;
@@ -2257,7 +2267,7 @@ int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static void
-cifs_readv_complete(struct work_struct *work)
+cifs_readv_complete(struct slow_work *work)
 {
 	struct cifs_readdata *rdata = container_of(work,
 						struct cifs_readdata, work);
@@ -2280,8 +2290,18 @@ cifs_readv_complete(struct work_struct *work)
 
 		page_cache_release(page);
 	}
+}
+
+static void cifs_readdata_put(struct slow_work *work)
+{
+	struct cifs_readdata *rdata = container_of(work, struct cifs_readdata, work);
 	kref_put(&rdata->refcount, cifs_readdata_release);
 }
+
+const struct slow_work_ops cifs_readv_complete_ops = {
+	.put_ref =	cifs_readdata_put,
+	.execute =	cifs_readv_complete
+};
 
 static int
 cifs_readpages_marshal_iov(struct cifs_readdata *rdata, unsigned int remaining)
@@ -2452,7 +2472,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			nr_pages++;
 		}
 
-		rdata = cifs_readdata_alloc(nr_pages, cifs_readv_complete);
+		rdata = cifs_readdata_alloc(nr_pages, &cifs_readv_complete_ops);
 		if (!rdata) {
 			/* best to give up if we're out of mem */
 			list_for_each_entry_safe(page, tpage, &tmplist, lru) {

@@ -465,7 +465,7 @@ struct cifs_readdata {
 	pid_t				pid;
 	int				result;
 	struct list_head		pages;
-	struct work_struct		work;
+	struct slow_work		work;
 	int (*marshal_iov) (struct cifs_readdata *rdata,
 			    unsigned int remaining);
 	unsigned int			nr_iov;
