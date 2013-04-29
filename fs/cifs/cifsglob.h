@@ -325,6 +325,18 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 	return num > 0;
 }
 
+static inline size_t
+header_size(void)
+{
+	return sizeof(struct smb_hdr);
+}
+
+static inline size_t
+max_header_size(void)
+{
+	return MAX_CIFS_HDR_SIZE;
+}
+
 /*
  * Session structure.  One of these for each uid session with a particular host
  */

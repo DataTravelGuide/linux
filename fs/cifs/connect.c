@@ -335,18 +335,6 @@ requeue_echo:
 	queue_delayed_work(cifsiod_workqueue, &server->echo, SMB_ECHO_INTERVAL);
 }
 
-static inline size_t
-header_size(void)
-{
-	return sizeof(struct smb_hdr);
-}
-
-static inline size_t
-max_header_size(void)
-{
-	return MAX_CIFS_HDR_SIZE;
-}
-
 static bool
 allocate_buffers(struct TCP_Server_Info *server)
 {
