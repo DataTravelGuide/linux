@@ -1643,9 +1643,9 @@ cifs_readv_complete(struct work_struct *work)
 	list_for_each_entry_safe(page, tpage, &rdata->pages, lru) {
 		list_del(&page->lru);
 		lru_cache_add_file(page);
-		kunmap(page);
 
 		if (rdata->result == 0) {
+			kunmap(page);
 			flush_dcache_page(page);
 			SetPageUptodate(page);
 		}
