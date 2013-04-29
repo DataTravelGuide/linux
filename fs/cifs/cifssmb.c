@@ -112,7 +112,6 @@ cifs_kmap_unlock(void)
 #endif /* CONFIG_HIGHMEM */
 
 /* Forward declarations */
-static void cifs_readv_complete(struct work_struct *work);
 
 /* Mark as invalid, all open files on tree connections since they
    were closed when session to server was lost */
@@ -1409,28 +1408,6 @@ openRetry:
 	return rc;
 }
 
-struct cifs_readdata *
-cifs_readdata_alloc(unsigned int nr_pages)
-{
-	struct cifs_readdata *rdata;
-
-	/* readdata + 1 kvec for each page */
-	rdata = kzalloc(sizeof(*rdata) +
-			sizeof(struct kvec) * nr_pages, GFP_KERNEL);
-	if (rdata != NULL) {
-		INIT_WORK(&rdata->work, cifs_readv_complete);
-		INIT_LIST_HEAD(&rdata->pages);
-	}
-	return rdata;
-}
-
-void
-cifs_readdata_free(struct cifs_readdata *rdata)
-{
-	cifsFileInfo_put(rdata->cfile);
-	kfree(rdata);
-}
-
 /*
  * Discard any remaining data in the current SMB. To do this, we borrow the
  * current bigbuf.
@@ -1653,33 +1630,6 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	dequeue_mid(mid, false);
 	return length;
-}
-
-static void
-cifs_readv_complete(struct work_struct *work)
-{
-	struct cifs_readdata *rdata = container_of(work,
-						struct cifs_readdata, work);
-	struct page *page, *tpage;
-
-	list_for_each_entry_safe(page, tpage, &rdata->pages, lru) {
-		list_del(&page->lru);
-		lru_cache_add_file(page);
-
-		if (rdata->result == 0) {
-			kunmap(page);
-			flush_dcache_page(page);
-			SetPageUptodate(page);
-		}
-
-		unlock_page(page);
-
-		if (rdata->result == 0)
-			cifs_readpage_to_fscache(rdata->mapping->host, page);
-
-		page_cache_release(page);
-	}
-	cifs_readdata_free(rdata);
 }
 
 static void
