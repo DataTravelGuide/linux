@@ -2646,13 +2646,6 @@ void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
 		if (cifs_sb && (cifs_sb->prepathlen > 0))
 			cifs_sb->prepath[0] = CIFS_DIR_SEP(cifs_sb);
 
-		if (cifs_sb && (cifs_sb->rsize > 127 * 1024)) {
-			if ((cap & CIFS_UNIX_LARGE_READ_CAP) == 0) {
-				cifs_sb->rsize = 127 * 1024;
-				cFYI(DBG2, "larger reads not supported by srv");
-			}
-		}
-
 		cFYI(1, "Negotiate caps 0x%x", (int)cap);
 #ifdef CONFIG_CIFS_DEBUG2
 		if (cap & CIFS_UNIX_FCNTL_CAP)
@@ -2717,21 +2710,6 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
-	if (pvolume_info->rsize > CIFSMaxBufSize) {
-		cERROR(1, "rsize %d too large, using MaxBufSize",
-			pvolume_info->rsize);
-		cifs_sb->rsize = CIFSMaxBufSize;
-	} else if ((pvolume_info->rsize) &&
-			(pvolume_info->rsize <= CIFSMaxBufSize))
-		cifs_sb->rsize = pvolume_info->rsize;
-	else /* default */
-		cifs_sb->rsize = CIFSMaxBufSize;
-
-	if (cifs_sb->rsize < 2048) {
-		cifs_sb->rsize = 2048;
-		/* Windows ME may prefer this */
-		cFYI(1, "readsize set to minimum: 2048");
-	}
 	/* calculate prepath */
 	cifs_sb->prepath = pvolume_info->prepath;
 	if (cifs_sb->prepath) {
@@ -2816,22 +2794,28 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 }
 
 /*
- * When the server supports very large writes via POSIX extensions, we can
- * allow up to 2^24-1, minus the size of a WRITE_AND_X header, not including
- * the RFC1001 length.
+ * When the server supports very large reads and writes via POSIX extensions,
+ * we can allow up to 2^24-1, minus the size of a READ/WRITE_AND_X header, not
+ * including the RFC1001 length.
  *
  * Note that this might make for "interesting" allocation problems during
  * writeback however as we have to allocate an array of pointers for the
  * pages. A 16M write means ~32kb page array with PAGE_CACHE_SIZE == 4096.
+ * 
+ * For reads, there is a similar problem as we need to allocate an array
+ * of kvecs to handle the receive, though that should only need to be done
+ * once.
  */
 #define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ) + 4)
+#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP) + 4)
 
 /*
- * When the server doesn't allow large posix writes, only allow a wsize of
- * 128k minus the size of the WRITE_AND_X header. That allows for a write up
- * to the maximum size described by RFC1002.
+ * When the server doesn't allow large posix writes, only allow a rsize/wsize
+ * of 2^17-1 minus the size of the call header. That allows for a read or
+ * write up to the maximum size described by RFC1002.
  */
 #define CIFS_MAX_RFC1002_WSIZE (128 * 1024 - sizeof(WRITE_REQ) + 4)
+#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
 
 /*
  * The default wsize is 1M. find_get_pages seems to return a maximum of 256
@@ -2851,6 +2835,7 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
  *
  * http://blogs.msdn.com/b/openspecification/archive/2009/04/10/smb-maximum-transmit-buffer-size-and-performance-tuning.aspx
  */
+#define CIFS_DEFAULT_NON_POSIX_RSIZE (60 * 1024)
 #define CIFS_DEFAULT_NON_POSIX_WSIZE (65536)
 
 /*
@@ -2902,6 +2887,50 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
 	wsize = min_t(unsigned int, wsize, CIFS_MAX_WSIZE);
 
 	return wsize;
+}
+
+static unsigned int
+cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *pvolume_info)
+{
+	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	unsigned int rsize, defsize;
+
+	/*
+	 * Set default value...
+	 *
+	 * HACK alert! Ancient servers have very small buffers. Even though
+	 * MS-CIFS indicates that servers are only limited by the client's
+	 * bufsize for reads, testing against win98se shows that it throws
+	 * INVALID_PARAMETER errors if you try to request too large a read.
+	 *
+	 * If the server advertises a MaxBufferSize of less than one page,
+	 * assume that it also can't satisfy reads larger than that either.
+	 *
+	 * FIXME: Is there a better heuristic for this?
+	 */
+	if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_READ_CAP))
+		defsize = CIFS_DEFAULT_IOSIZE;
+	else if (server->capabilities & CAP_LARGE_READ_X)
+		defsize = CIFS_DEFAULT_NON_POSIX_RSIZE;
+	else if (server->maxBuf >= PAGE_CACHE_SIZE)
+		defsize = CIFSMaxBufSize;
+	else
+		defsize = server->maxBuf - sizeof(READ_RSP);
+
+	rsize = pvolume_info->rsize ? pvolume_info->rsize : defsize;
+
+	/*
+	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
+	 * the client's MaxBufferSize.
+	 */
+	if (!(server->capabilities & CAP_LARGE_READ_X))
+		rsize = min_t(unsigned int, CIFSMaxBufSize, rsize);
+
+	/* hard limit of CIFS_MAX_RSIZE */
+	rsize = min_t(unsigned int, rsize, CIFS_MAX_RSIZE);
+
+	return rsize;
 }
 
 static int
@@ -3191,14 +3220,8 @@ try_mount_again:
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
 		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 
-	if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
-		cifs_sb->rsize = 1024 * 127;
-		cFYI(DBG2, "no very large read support, rsize now 127K");
-	}
-	if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
-		cifs_sb->rsize = min(cifs_sb->rsize, CIFSMaxBufSize);
-
 	cifs_sb->wsize = cifs_negotiate_wsize(tcon, volume_info);
+	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
 
 remote_path_check:
 #ifdef CONFIG_CIFS_DFS_UPCALL
