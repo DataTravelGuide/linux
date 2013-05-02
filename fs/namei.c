@@ -1264,13 +1264,21 @@ return_reval:
 		 * We bypassed the ordinary revalidation routines.
 		 * We may need to check the cached dentry for staleness.
 		 */
-		if (nd->path.dentry && nd->path.dentry->d_sb &&
-		    (nd->path.dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)) {
-			err = -ESTALE;
-			/* Note: we do not d_invalidate() */
-			if (!nd->path.dentry->d_op->d_revalidate(
-					nd->path.dentry, nd))
-				break;
+		if (nd->path.dentry && nd->path.dentry->d_sb) {
+			int fs_flags = nd->path.dentry->d_sb->s_type->fs_flags;
+
+			if (fs_flags & FS_REVAL_DOT) {
+				err = -ESTALE;
+
+				/* Note: we do not d_invalidate() */
+				if (fs_flags & FS_WEAK_REVALIDATE) {
+					if (!nd->path.dentry->d_op->d_weak_revalidate(nd->path.dentry, nd))
+						break;
+				} else {
+					if (!nd->path.dentry->d_op->d_revalidate(nd->path.dentry, nd))
+						break;
+				}
+			}
 		}
 return_base:
 		return 0;

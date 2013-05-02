@@ -142,6 +142,7 @@ struct dentry_operations {
 #ifndef __GENKSYMS__
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(struct dentry *, bool);
+	int (*d_weak_revalidate)(struct dentry *, struct nameidata *);
 #endif
 };
 

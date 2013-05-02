@@ -204,6 +204,8 @@ struct inodes_stat_t {
 					 * during rename() internally.
 					 */
 #define FS_HANDLE_QUOTA		(1<<16)	/* FS handle quota disable/enable */
+#define FS_WEAK_REVALIDATE (1<<17) /* FS has d_op->d_weak_revalidate. Must
+					also have FS_REVAL_DOT set! */
 
  /*
   * the fs is built with the new s_writers member in the superblock
