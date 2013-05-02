@@ -601,7 +601,8 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 			error = force_reval_path(&nd->path, nd);
 			if (error) {
 				if (unlikely(!audit_dummy_context()))
-					audit_inode(NULL, path->dentry);
+					audit_inode(NULL, path->dentry,
+						nd->flags & LOOKUP_PARENT);
 				path_put(&nd->path);
 			}
 		}
@@ -609,7 +610,8 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
 	} else {
 		if (unlikely(!audit_dummy_context()))
-			audit_inode(NULL, path->dentry);
+			audit_inode(NULL, path->dentry,
+					nd->flags & LOOKUP_PARENT);
 	}
 	path_put(path);
 
@@ -1223,7 +1225,8 @@ out_dput:
 		break;
 	}
 	if (unlikely(!audit_dummy_context()) && nd->path.dentry->d_inode)
-		audit_inode(orig_name, nd->path.dentry);
+		audit_inode(orig_name, nd->path.dentry,
+				nd->flags & LOOKUP_PARENT);
 	path_put(&nd->path);
 return_err:
 	return err;
@@ -1302,7 +1305,7 @@ static int do_path_lookup(int dfd, const char *name,
 		retval = path_walk(name, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry);
+		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
 	if (nd->root.mnt) {
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
@@ -1353,7 +1356,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	retval = path_walk(name, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry);
+		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
 
 	path_put(&nd->root);
 	nd->root.mnt = NULL;
@@ -1908,7 +1911,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		return ERR_PTR(error);
 	}
 	if (unlikely(!audit_dummy_context()))
-		audit_inode(pathname, nd.path.dentry);
+		audit_inode(pathname, nd.path.dentry, 1);
 
 	/*
 	 * We have the parent and last component. First of all, check
@@ -1995,7 +1998,7 @@ do_last:
 		mnt_drop_write(nd.path.mnt);
 		got_write = false;
 	}
-	audit_inode(pathname, path.dentry);
+	audit_inode(pathname, path.dentry, 0);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)

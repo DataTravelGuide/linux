@@ -471,7 +471,7 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, mode_t, mode)
 	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 
-	audit_inode(NULL, dentry);
+	audit_inode(NULL, dentry, 0);
 
 	err = mnt_want_write_file(file);
 	if (err)
@@ -626,7 +626,7 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	if (error)
 		goto out_fput;
 	dentry = file->f_path.dentry;
-	audit_inode(NULL, dentry);
+	audit_inode(NULL, dentry, 0);
 	error = chown_common(dentry, user, group);
 	mnt_drop_write(file->f_path.mnt);
 out_fput:
