@@ -5822,6 +5822,14 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	 */
 	rtime = nsecs_to_cputime(p->se.sum_exec_runtime);
 
+	/*
+	 * Update userspace visible utime/stime values only if actual execution
+	 * time is bigger than already exported. Note that can happen, that we
+	 * provided bigger values due to scaling inaccuracy on big numbers.
+	 */
+	if (p->prev_stime + p->prev_utime >= rtime)
+		goto out;
+
 	if (total)
 		stime = scale_stime(stime, rtime, total);
 	else
@@ -5833,6 +5841,7 @@ void task_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	p->prev_stime = max(p->prev_stime, stime);
 	p->prev_utime = max(p->prev_utime, cputime_sub(rtime, p->prev_stime));
 
+out:
 	*ut = p->prev_utime;
 	*st = p->prev_stime;
 }
@@ -5851,6 +5860,14 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	total = cputime_add(cputime.utime, cputime.stime);
 	rtime = nsecs_to_cputime(cputime.sum_exec_runtime);
 
+	/*
+	 * Update userspace visible utime/stime values only if actual execution
+	 * time is bigger than already exported. Note that can happen, that we
+	 * provided bigger values due to scaling inaccuracy on big numbers.
+	 */
+	if (sig->prev_stime + sig->prev_utime >= rtime)
+		goto out;
+
 	if (total)
 		stime = scale_stime(cputime.stime, rtime, total);
 	else
@@ -5860,6 +5877,7 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 	sig->prev_utime = max(sig->prev_utime,
 			      cputime_sub(rtime, sig->prev_stime));
 
+out:
 	*ut = sig->prev_utime;
 	*st = sig->prev_stime;
 }
