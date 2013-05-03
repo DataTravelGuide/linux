@@ -433,6 +433,7 @@ static int intel_idle_probe(void)
 	case 0x3C:	/* Haswell */
 	case 0x3F:	/* Haswell Xeon */
 	case 0x45:	/* Haswell ULT */
+	case 0x46:	/* Crystal Well */
 		cpuidle_state_table = hsw_cstates;
 		break;
 
