@@ -199,6 +199,42 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
+static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
+	{ /* MWAIT C0 */ },
+	{ /* MWAIT C1 */
+		.name = "C1-HSW",
+		.desc = "MWAIT 0x00",
+		.driver_data = (void *) 0x00,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle },
+	{ /* MWAIT C2 */
+		.name = "C3-HSW",
+		.desc = "MWAIT 0x10",
+		.driver_data = (void *) 0x10,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 33,
+		.target_residency = 100,
+		.enter = &intel_idle },
+	{ /* MWAIT C3 */
+		.name = "C6-HSW",
+		.desc = "MWAIT 0x20",
+		.driver_data = (void *) 0x20,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 133,
+		.target_residency = 400,
+		.enter = &intel_idle },
+	{ /* MWAIT C4 */
+		.name = "C7s-HSW",
+		.desc = "MWAIT 0x32",
+		.driver_data = (void *) 0x32,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 166,
+		.target_residency = 500,
+		.enter = &intel_idle },
+};
+
 static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
@@ -392,6 +428,12 @@ static int intel_idle_probe(void)
 	case 0x3A:	/* Ivy Bridge */
 	case 0x3E:	/* Ivy Bridge Xeon */
 		cpuidle_state_table = ivb_cstates;
+		break;
+
+	case 0x3C:	/* Haswell */
+	case 0x3F:	/* Haswell Xeon */
+	case 0x45:	/* Haswell ULT */
+		cpuidle_state_table = hsw_cstates;
 		break;
 
 	default:
