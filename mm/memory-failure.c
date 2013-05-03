@@ -1347,12 +1347,13 @@ static int soft_offline_huge_page(struct page *page, int flags)
 
 	if (PageHWPoison(hpage)) {
 		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	ret = get_any_page(page, pfn, flags);
 	if (ret < 0)
-		return ret;
+		goto out;
 	if (ret == 0)
 		goto done;
 
@@ -1366,13 +1367,13 @@ static int soft_offline_huge_page(struct page *page, int flags)
 			pfn, ret, page->flags);
 		if (ret > 0)
 			ret = -EIO;
-		return ret;
+		goto out;
 	}
 done:
 	atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
 	set_page_hwpoison_huge_page(hpage);
 	dequeue_hwpoisoned_huge_page(hpage);
-
+out:
 	return ret;
 }
 
@@ -1404,24 +1405,28 @@ int soft_offline_page(struct page *page, int flags)
 	unsigned long pfn = page_to_pfn(page);
 	struct page *hpage = compound_trans_head(page);
 
-	if (PageHuge(page))
-		return soft_offline_huge_page(page, flags);
+	if (PageHuge(page)) {
+		ret = soft_offline_huge_page(page, flags);
+		goto out;
+	}
 	if (PageTransHuge(hpage)) {
 		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
 			pr_info("soft offline: %#lx: failed to split THP\n",
 				pfn);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto out;
 		}
 	}
 
 	if (PageHWPoison(page)) {
 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	ret = get_any_page(page, pfn, flags);
 	if (ret < 0)
-		return ret;
+		goto out;
 	if (ret == 0)
 		goto done;
 
@@ -1440,14 +1445,15 @@ int soft_offline_page(struct page *page, int flags)
 		 */
 		ret = get_any_page(page, pfn, 0);
 		if (ret < 0)
-			return ret;
+			goto out;
 		if (ret == 0)
 			goto done;
 	}
 	if (!PageLRU(page)) {
 		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
 			pfn, page->flags);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	/*
@@ -1501,11 +1507,11 @@ int soft_offline_page(struct page *page, int flags)
 			pfn, ret, page_count(page), page->flags);
 	}
 	if (ret)
-		return ret;
+		goto out;
 
 done:
-	atomic_long_add(1, &mce_bad_pages);
+	atomic_long_inc(&mce_bad_pages);
 	SetPageHWPoison(page);
-
+out:
 	return ret;
 }
