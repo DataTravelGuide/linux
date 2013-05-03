@@ -1695,6 +1695,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri May 03 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-374.el6]
+- [net] tcp: Reallocate headroom if it would overflow csum_start (Thomas Graf) [896233]
+- [net] tcp: take care of misalignments (Thomas Graf) [896233]
+- [net] skbuff.c cleanup (Thomas Graf) [896233]
+- [net] ipv6: fix incorrect route 'expires' value passed to userspace (Thomas Graf) [912029]
+
 * Fri Apr 26 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-373.el6]
 - [fs] nfs: don't allow nfs_find_actor to match inodes of the wrong type (Jeff Layton) [913660]
 - [mm] hugetlbfs: add swap entry check in follow_hugetlb_page() (Naoya Horiguchi) [928883]
