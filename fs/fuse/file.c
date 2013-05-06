@@ -134,6 +134,8 @@ EXPORT_SYMBOL_GPL(fuse_do_open);
 void fuse_finish_open(struct inode *inode, struct file *file)
 {
 	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	if (ff->open_flags & FOPEN_DIRECT_IO)
 		file->f_op = &fuse_direct_io_file_operations;
@@ -141,6 +143,12 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 		invalidate_inode_pages2(inode->i_mapping);
 	if (ff->open_flags & FOPEN_NONSEEKABLE)
 		nonseekable_open(inode, file);
+
+ 	/* file might be required for fallocate */
+	spin_lock(&fc->lock);
+	if (S_ISREG(inode->i_mode) && (file->f_mode & FMODE_WRITE))
+		list_add(&ff->write_entry, &fi->write_files);
+	spin_unlock(&fc->lock);
 }
 
 int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
@@ -2145,10 +2153,9 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	return ret;
 }
 
-long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
+long fuse_file_fallocate(struct fuse_file *ff, int mode, loff_t offset,
 			    loff_t length)
 {
-	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 	struct fuse_req *req;
 	struct fuse_fallocate_in inarg = {

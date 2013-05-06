@@ -1701,6 +1701,21 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 	return err;
 }
 
+static long fuse_fallocate(struct inode *inode, int mode, loff_t offset,
+			   loff_t len)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_file *ff;
+
+	spin_lock(&fc->lock);
+	BUG_ON(list_empty(&fi->write_files));
+	ff = list_entry(fi->write_files.next, struct fuse_file, write_entry);
+	spin_unlock(&fc->lock);
+
+	return fuse_file_fallocate(ff, mode, offset, len);
+}
+
 static const struct inode_operations fuse_dir_inode_operations = {
 	.lookup		= fuse_lookup,
 	.mkdir		= fuse_mkdir,
@@ -1737,6 +1752,7 @@ static const struct inode_operations fuse_common_inode_operations = {
 	.getxattr	= fuse_getxattr,
 	.listxattr	= fuse_listxattr,
 	.removexattr	= fuse_removexattr,
+	.fallocate	= fuse_fallocate,
 };
 
 static const struct inode_operations fuse_symlink_inode_operations = {
