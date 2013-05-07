@@ -767,11 +767,6 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (!task)
 		goto out;
 
-	mm = mm_for_maps(task);
-	ret = PTR_ERR(mm);
-	if (!mm || IS_ERR(mm))
-		goto out_task;
-
 	ret = -EINVAL;
 	/* file position must be aligned */
 	if ((*ppos % PM_ENTRY_BYTES) || (count % PM_ENTRY_BYTES))
@@ -787,11 +782,17 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	pagecount = (PAGE_ALIGN(uend) - uaddr) / PAGE_SIZE;
 	ret = 0;
 	if (pagecount == 0)
-		goto out_mm;
+		goto out_task;
+
 	pages = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
 	ret = -ENOMEM;
 	if (!pages)
-		goto out_mm;
+		goto out_task;
+
+	mm = mm_for_maps(task);
+	ret = PTR_ERR(mm);
+	if (!mm || IS_ERR(mm))
+		 goto out_free;
 
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm, uaddr, pagecount,
@@ -799,7 +800,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	up_read(&current->mm->mmap_sem);
 
 	if (ret < 0)
-		goto out_free;
+		goto out_mm;
 
 	if (ret != pagecount) {
 		pagecount = ret;
@@ -848,10 +849,10 @@ out_pages:
 			SetPageDirty(page);
 		page_cache_release(page);
 	}
-out_free:
-	kfree(pages);
 out_mm:
 	mmput(mm);
+out_free:
+	kfree(pages);
 out_task:
 	put_task_struct(task);
 out:
