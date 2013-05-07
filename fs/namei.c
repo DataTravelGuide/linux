@@ -110,7 +110,7 @@
  * any extra contention...
  */
 
-static int __link_path_walk(const char *name, struct nameidata *nd);
+static int __link_path_walk(struct filename *filename, struct nameidata *nd);
 
 void final_putname(struct filename *name)
 {
@@ -520,7 +520,8 @@ ok:
  * Retry the whole path once, forcing real lookup requests
  * instead of relying on the dcache.
  */
-static __always_inline int link_path_walk(const char *name, struct nameidata *nd)
+static __always_inline int link_path_walk(struct filename *name,
+					  struct nameidata *nd)
 {
 	struct path save = nd->path;
 	int result;
@@ -557,6 +558,8 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 {
 	int res = 0;
 	char *name;
+	struct filename filename = { .name = link };
+
 	if (IS_ERR(link))
 		goto fail;
 
@@ -567,7 +570,7 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		path_get(&nd->root);
 	}
 
-	res = link_path_walk(link, nd);
+	res = link_path_walk(&filename, nd);
 	if (nd->depth || res || nd->last_type!=LAST_NORM)
 		return res;
 	/*
@@ -1074,13 +1077,13 @@ static inline int follow_on_final(struct inode *inode, unsigned lookup_flags)
  * Returns 0 and nd will have valid dentry and mnt on success.
  * Returns error and drops reference to input namei data on failure.
  */
-static int __link_path_walk(const char *name, struct nameidata *nd)
+static int __link_path_walk(struct filename *filename, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
 	int err;
 	unsigned int lookup_flags = nd->flags;
-	const char *orig_name = name;
+	const char *name = filename->name;
 	
 	while (*name=='/')
 		name++;
@@ -1250,14 +1253,14 @@ out_dput:
 		break;
 	}
 	if (unlikely(!audit_dummy_context()) && nd->path.dentry->d_inode)
-		audit_inode(orig_name, nd->path.dentry,
+		audit_inode(filename->name, nd->path.dentry,
 				nd->flags & LOOKUP_PARENT);
 	path_put(&nd->path);
 return_err:
 	return err;
 }
 
-static int path_walk(const char *name, struct nameidata *nd)
+static int path_walk(struct filename *name, struct nameidata *nd)
 {
 	current->total_link_count = 0;
 	return link_path_walk(name, nd);
@@ -1322,20 +1325,28 @@ out_fail:
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int do_path_lookup(int dfd, const char *name,
+static int filename_lookup(int dfd, struct filename *filename,
 				unsigned int flags, struct nameidata *nd)
 {
-	int retval = path_init(dfd, name, flags, nd);
+	int retval = path_init(dfd, filename->name, flags, nd);
 	if (!retval)
-		retval = path_walk(name, nd);
+		retval = path_walk(filename, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
+		audit_inode(filename->name, nd->path.dentry, flags & LOOKUP_PARENT);
 	if (nd->root.mnt) {
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
 	}
 	return retval;
+}
+
+static int do_path_lookup(int dfd, const char *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	struct filename filename = { .name = name };
+
+	return filename_lookup(dfd, &filename, flags, nd);
 }
 
 int path_lookup(const char *name, unsigned int flags,
@@ -1366,6 +1377,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    struct nameidata *nd)
 {
 	int retval;
+	struct filename filename = { .name = name };
 
 	/* same as do_path_lookup */
 	nd->last_type = LAST_ROOT;
@@ -1378,7 +1390,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	nd->root = nd->path;
 	path_get(&nd->root);
 
-	retval = path_walk(name, nd);
+	retval = path_walk(&filename, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
 		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
@@ -1540,7 +1552,7 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 
 		BUG_ON(flags & LOOKUP_PARENT);
 
-		err = do_path_lookup(dfd, tmp->name, flags, &nd);
+		err = filename_lookup(dfd, tmp, flags, &nd);
 		putname(tmp);
 		if (!err)
 			*path = nd.path;
@@ -1557,7 +1569,7 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd)
 	if (IS_ERR(s))
 		return s;
 
-	error = do_path_lookup(dfd, s->name, LOOKUP_PARENT, nd);
+	error = filename_lookup(dfd, s, LOOKUP_PARENT, nd);
 	if (error) {
 		putname(s);
 		return ERR_PTR(error);
@@ -1884,6 +1896,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
 	int got_write = false;
+	struct filename filename = { .name = pathname };
 
 	if (!acc_mode)
 		acc_mode = MAY_OPEN | ACC_MODE(flag);
@@ -1929,7 +1942,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
-	error = path_walk(pathname, &nd);
+	error = path_walk(&filename, &nd);
 	if (error) {
 		if (nd.root.mnt)
 			path_put(&nd.root);
