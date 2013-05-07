@@ -21,7 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 
-int enter_vmx_copy(void)
+int enter_vmx_usercopy(void)
 {
 	if (in_interrupt())
 		return 0;
@@ -43,7 +43,7 @@ int enter_vmx_copy(void)
  * This function must return 0 because we tail call optimise when calling
  * from __copy_tofrom_user_power7 which returns 0 on success.
  */
-int exit_vmx_copy(void)
+int exit_vmx_usercopy(void)
 {
 	pagefault_enable();
 	return 0;
