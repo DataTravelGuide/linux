@@ -391,7 +391,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 
 	ip->i_inode.i_ctime = CURRENT_TIME;
 
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
@@ -607,7 +607,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_inode *ip,
 	struct buffer_head *dibh;
 
 	dibh = gfs2_meta_new(ip->i_gl, ip->i_no_addr);
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_metatype_set(dibh, GFS2_METATYPE_DI, GFS2_FORMAT_DI);
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	di = (struct gfs2_dinode *)dibh->b_data;
@@ -706,7 +706,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	if (error)
 		goto fail_end_trans;
 	ip->i_inode.i_nlink = S_ISDIR(ip->i_inode.i_mode) ? 2 : 1;
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	return 0;
@@ -918,7 +918,7 @@ static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 	if (!error) {
 		error = inode_setattr(&ip->i_inode, attr);
 		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+		gfs2_trans_add_meta(ip->i_gl, dibh);
 		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
 	}
@@ -1007,4 +1007,3 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  i_eattr = %llu\n",
 	       (unsigned long long)ip->i_eattr);
 }
-

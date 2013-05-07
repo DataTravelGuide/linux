@@ -585,7 +585,7 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 	s64 x;
 
 	mutex_lock(&sdp->sd_quota_mutex);
-	gfs2_trans_add_bh(ip->i_gl, qd->qd_bh, 1);
+	gfs2_trans_add_meta(ip->i_gl, qd->qd_bh);
 
 	if (!test_bit(QDF_CHANGE, &qd->qd_flags)) {
 		qc->qc_change = 0;
@@ -721,7 +721,7 @@ get_a_page:
 			goto unlock_out;
 	}
 
-	gfs2_trans_add_bh(ip->i_gl, bh, 0);
+	gfs2_trans_add_meta(ip->i_gl, bh);
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)
@@ -751,7 +751,7 @@ get_a_page:
 	if (size > inode->i_size)
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	mark_inode_dirty(inode);
