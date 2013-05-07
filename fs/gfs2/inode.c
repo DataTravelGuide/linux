@@ -757,7 +757,7 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
 
 int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		      unsigned int mode, dev_t dev, const char *symname,
-		      unsigned int size)
+		      unsigned int size, int excl)
 {
 	const struct qstr *name = &dentry->d_name;
 	struct gfs2_holder ghs[2];
@@ -786,6 +786,14 @@ int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail;
 
 	error = create_ok(dip, name, mode);
+	if ((error == -EEXIST) && S_ISREG(mode) && !excl) {
+		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
+		if (inode)
+			gfs2_glock_dq_uninit(ghs);
+		if (!IS_ERR(inode))
+			d_instantiate(dentry, inode);
+		return IS_ERR(inode) ? PTR_ERR(inode) : 0;
+	}
 	if (error)
 		goto fail_gunlock;
 
@@ -794,10 +802,10 @@ int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail_gunlock;
 
 	inode = new_inode(sdp->sd_vfs);
-	error = -ENOMEM;
-	if (!inode)
-		goto fail_gunlock;
-
+	if (!inode) {
+		gfs2_glock_dq_uninit(ghs);
+		return -ENOMEM;
+	}
 	ip = GFS2_I(inode);
 	error = gfs2_rs_alloc(ip);
 	if (error)

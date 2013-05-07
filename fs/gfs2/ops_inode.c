@@ -51,24 +51,10 @@
 static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		       int mode, struct nameidata *nd)
 {
-	struct inode *inode;
-	int ret;
-
-	for (;;) {
-		ret = gfs2_create_inode(dir, dentry, S_IFREG | mode, 0, NULL, 0);
-		if (ret != -EEXIST || (nd && (nd->flags & LOOKUP_EXCL)))
-			return ret;
-
-		inode = gfs2_lookupi(dir, &dentry->d_name, 0);
-		if (inode) {
-			if (!IS_ERR(inode))
-				break;
-			return PTR_ERR(inode);
-		}
-	}
-
-	d_instantiate(dentry, inode);
-	return 0;
+	int excl = 0;
+	if (nd && (nd->flags & LOOKUP_EXCL))
+		excl = 1;
+	return gfs2_create_inode(dir, dentry, S_IFREG | mode, 0, NULL, 0, excl);
 }
 
 /**
@@ -377,7 +363,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	if (size > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode) - 1)
 		return -ENAMETOOLONG;
 
-	return gfs2_create_inode(dir, dentry, S_IFLNK | S_IRWXUGO, 0, symname, size);
+	return gfs2_create_inode(dir, dentry, S_IFLNK | S_IRWXUGO, 0, symname, size, 0);
 }
 
 /**
@@ -391,7 +377,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	return gfs2_create_inode(dir, dentry, S_IFDIR | mode, 0, NULL, 0);
+	return gfs2_create_inode(dir, dentry, S_IFDIR | mode, 0, NULL, 0, 0);
 }
 
 /**
@@ -536,7 +522,7 @@ out_parent:
 static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 		      dev_t dev)
 {
-	return gfs2_create_inode(dir, dentry, mode, dev, NULL, 0);
+	return gfs2_create_inode(dir, dentry, mode, dev, NULL, 0, 0);
 }
 
 /*
