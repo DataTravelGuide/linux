@@ -120,7 +120,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 	if (IS_ERR(tmp))
 		goto out;
 
-	file = do_filp_open(AT_FDCWD, tmp->name,
+	file = do_filp_open(AT_FDCWD, tmp,
 				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
 				MAY_READ | MAY_EXEC | MAY_OPEN);
 	putname(tmp);
@@ -723,8 +723,9 @@ struct file *open_exec(const char *name)
 {
 	struct file *file;
 	int err;
+	struct filename filename = { .name = name };
 
-	file = do_filp_open(AT_FDCWD, name,
+	file = do_filp_open(AT_FDCWD, &filename,
 				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
 				MAY_EXEC | MAY_OPEN);
 	if (IS_ERR(file))

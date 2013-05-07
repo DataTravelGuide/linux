@@ -1884,7 +1884,7 @@ static int open_will_truncate(int flag, struct inode *inode)
  * are not the same as in the local variable "flag". See
  * open_to_namei_flags() for more details.
  */
-struct file *do_filp_open(int dfd, const char *pathname,
+struct file *do_filp_open(int dfd, struct filename *filename,
 		int open_flag, int mode, int acc_mode)
 {
 	struct file *filp;
@@ -1896,7 +1896,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
 	int got_write = false;
-	struct filename filename = { .name = pathname };
+	const char *pathname = filename->name;
 
 	if (!acc_mode)
 		acc_mode = MAY_OPEN | ACC_MODE(flag);
@@ -1922,7 +1922,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		filp->f_flags = open_flag;
 		nd.intent.open.flags = flag;
 		nd.intent.open.create_mode = 0;
-		error = do_path_lookup(dfd, pathname,
+		error = filename_lookup(dfd, filename,
 					lookup_flags(flag)|LOOKUP_OPEN, &nd);
 		if (IS_ERR(nd.intent.open.file)) {
 			if (error == 0) {
@@ -1942,7 +1942,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
-	error = path_walk(&filename, &nd);
+	error = path_walk(filename, &nd);
 	if (error) {
 		if (nd.root.mnt)
 			path_put(&nd.root);
@@ -2194,7 +2194,9 @@ do_link:
  */
 struct file *filp_open(const char *filename, int flags, int mode)
 {
-	return do_filp_open(AT_FDCWD, filename, flags, mode, 0);
+	struct filename name = { .name = filename };
+
+	return do_filp_open(AT_FDCWD, &name, flags, mode, 0);
 }
 EXPORT_SYMBOL(filp_open);
 
