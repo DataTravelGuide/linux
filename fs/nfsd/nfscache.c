@@ -8,6 +8,8 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/sunrpc/clnt.h>
+
 #include "nfsd.h"
 #include "cache.h"
 
@@ -144,7 +146,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 		    xid == rp->c_xid && proc == rp->c_proc &&
 		    proto == rp->c_prot && vers == rp->c_vers &&
 		    time_before(jiffies, rp->c_timestamp + 120*HZ) &&
-		    memcmp((char*)&rqstp->rq_addr, (char*)&rp->c_addr, sizeof(rp->c_addr))==0) {
+		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
+		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr)) {
 			nfsdstats.rchits++;
 			goto found_entry;
 		}
@@ -181,7 +184,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rp->c_state = RC_INPROG;
 	rp->c_xid = xid;
 	rp->c_proc = proc;
-	memcpy(&rp->c_addr, svc_addr_in(rqstp), sizeof(rp->c_addr));
+	rpc_copy_addr((struct sockaddr *)&rp->c_addr, svc_addr(rqstp));
+	rpc_set_port((struct sockaddr *)&rp->c_addr, rpc_get_port(svc_addr(rqstp)));
 	rp->c_prot = proto;
 	rp->c_vers = vers;
 	rp->c_timestamp = jiffies;
