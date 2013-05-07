@@ -19,7 +19,7 @@ obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
 			   memcpy_64.o usercopy_64.o mem_64.o string.o \
 			   checksum_wrappers_64.o copyuser_power7.o \
-			   copypage_power7.o
+			   copypage_power7.o memcpy_power7.o
 obj-$(CONFIG_XMON)	+= sstep.o
 obj-$(CONFIG_KPROBES)	+= sstep.o
 
