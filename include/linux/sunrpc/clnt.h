@@ -231,6 +231,7 @@ static inline bool __rpc_copy_addr6(struct sockaddr *dst,
 
 	dsin6->sin6_family = ssin6->sin6_family;
 	ipv6_addr_copy(&dsin6->sin6_addr, &ssin6->sin6_addr);
+	dsin6->sin6_scope_id = ssin6->sin6_scope_id;
 	return true;
 }
 #else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
