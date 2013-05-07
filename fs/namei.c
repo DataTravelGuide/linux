@@ -1253,7 +1253,7 @@ out_dput:
 		break;
 	}
 	if (unlikely(!audit_dummy_context()) && nd->path.dentry->d_inode)
-		audit_inode(filename->name, nd->path.dentry,
+		audit_inode(filename, nd->path.dentry,
 				nd->flags & LOOKUP_PARENT);
 	path_put(&nd->path);
 return_err:
@@ -1333,7 +1333,7 @@ static int filename_lookup(int dfd, struct filename *filename,
 		retval = path_walk(filename, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
-		audit_inode(filename->name, nd->path.dentry, flags & LOOKUP_PARENT);
+		audit_inode(filename, nd->path.dentry, flags & LOOKUP_PARENT);
 	if (nd->root.mnt) {
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
@@ -1393,7 +1393,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	retval = path_walk(&filename, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
+		audit_inode(&filename, nd->path.dentry, flags & LOOKUP_PARENT);
 
 	path_put(&nd->root);
 	nd->root.mnt = NULL;
@@ -1949,7 +1949,7 @@ struct file *do_filp_open(int dfd, struct filename *filename,
 		return ERR_PTR(error);
 	}
 	if (unlikely(!audit_dummy_context()))
-		audit_inode(pathname, nd.path.dentry, 1);
+		audit_inode(filename, nd.path.dentry, LOOKUP_PARENT);
 
 	/*
 	 * We have the parent and last component. First of all, check
@@ -2036,7 +2036,7 @@ do_last:
 		mnt_drop_write(nd.path.mnt);
 		got_write = false;
 	}
-	audit_inode(pathname, path.dentry, 0);
+	audit_inode(filename, path.dentry, 0);
 
 	error = -EEXIST;
 	if (flag & O_EXCL)
