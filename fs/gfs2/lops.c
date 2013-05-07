@@ -254,12 +254,8 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr;
 
-	if (!list_empty(&bd->bd_list_tr))
-		return;
 	tr = current->journal_info;
 	tr->tr_touched = 1;
-	tr->tr_num_buf++;
-	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 	if (!list_empty(&bd->bd_list))
 		return;
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
@@ -597,15 +593,8 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	struct address_space *mapping = bd->bd_bh->b_page->mapping;
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 
-	if (tr) {
-		if (!list_empty(&bd->bd_list_tr))
-			return;
+	if (tr)
 		tr->tr_touched = 1;
-		if (gfs2_is_jdata(ip)) {
-			tr->tr_num_buf++;
-			list_add(&bd->bd_list_tr, &tr->tr_list_buf);
-		}
-	}
 	if (!list_empty(&bd->bd_list))
 		return;
 

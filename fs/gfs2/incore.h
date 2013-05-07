@@ -133,13 +133,7 @@ TAS_BUFFER_FNS(Zeronew, zeronew)
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
 	struct gfs2_glock *bd_gl;
-
-	union {
-		struct list_head list_tr;
-		u64 blkno;
-	} u;
-#define bd_list_tr u.list_tr
-#define bd_blkno u.blkno
+	u64 bd_blkno;
 
 	struct list_head bd_list;
 	const struct gfs2_log_operations *bd_ops;
@@ -401,13 +395,10 @@ struct gfs2_trans {
 
 	int tr_touched;
 
-	unsigned int tr_num_buf;
 	unsigned int tr_num_buf_new;
 	unsigned int tr_num_databuf_new;
 	unsigned int tr_num_buf_rm;
 	unsigned int tr_num_databuf_rm;
-	struct list_head tr_list_buf;
-
 	unsigned int tr_num_revoke;
 	unsigned int tr_num_revoke_rm;
 };
