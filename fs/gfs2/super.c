@@ -1557,6 +1557,7 @@ out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
 	gfs2_rs_delete(ip);
+	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 }
 

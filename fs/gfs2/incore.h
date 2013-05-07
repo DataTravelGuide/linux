@@ -301,6 +301,7 @@ enum {
 	GIF_QD_LOCKED		= 1,
 	GIF_ALLOC_FAILED        = 2,
 	GIF_SW_PAGED		= 3,
+	GIF_ORDERED		= 4,
 };
 
 struct gfs2_inode {
@@ -317,6 +318,7 @@ struct gfs2_inode {
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
+	struct list_head i_ordered;
 	struct list_head i_trunc_list;
 	__be64 *i_hash_cache;
 	u32 i_entries;
@@ -670,6 +672,7 @@ struct gfs2_sbd {
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_databuf;
 	struct list_head sd_log_le_ordered;
+	spinlock_t sd_ordered_lock;
 
 	atomic_t sd_log_blks_free;
 	struct mutex sd_log_reserve_mutex;
