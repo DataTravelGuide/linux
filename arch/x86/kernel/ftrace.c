@@ -25,6 +25,15 @@
 #include <asm/nops.h>
 #include <asm/nmi.h>
 
+#if defined(CONFIG_FTRACE_SYSCALLS) && defined(CONFIG_IA32_EMULATION)
+#include <asm/compat.h>
+bool arch_trace_is_compat_syscall(struct pt_regs *regs)
+{
+	if (is_compat_task())
+		return true;
+	return false;
+}
+#endif /* CONFIG_FTRACE_SYSCALLS && CONFIG_IA32_EMULATION */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
