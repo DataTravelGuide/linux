@@ -382,6 +382,8 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	int rctx;
 
 	syscall_nr = syscall_get_nr(current, regs);
+	if (syscall_nr < 0)
+		return;
 	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
 		return;
 
@@ -484,6 +486,8 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	int rctx;
 
 	syscall_nr = syscall_get_nr(current, regs);
+	if (syscall_nr < 0)
+		return;
 	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
 		return;
 
