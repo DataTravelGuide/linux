@@ -105,7 +105,7 @@ static void intel_remapping_check(struct pci_dev *dev)
 	if ((revision == 0x13) && intr_remapping_enabled) {
 		pr_warn(HW_ERR "This system BIOS has enabled interrupt remapping\n"
 			"on a chipset that contains an errata making that\n"
-			"feature unstable.  Please reboot with nointremap\n"
+			"feature unstable.  Please reboot with intremap=off\n"
 			"added to the kernel command line and contact\n"
 			"your BIOS vendor for an update");
 	}
