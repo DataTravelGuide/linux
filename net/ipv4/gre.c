@@ -124,6 +124,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	int ghl = GRE_HEADER_SECTION;
 	struct gre_base_hdr *greh;
 	int mac_len = skb->mac_len;
+	__be16 protocol = skb->protocol;
 	int tnl_hlen;
 	bool csum;
 
@@ -153,7 +154,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 	/* setup inner skb. */
 	if (greh->protocol == htons(ETH_P_TEB)) {
-		struct ethhdr *eth = eth_hdr(skb);
+		struct ethhdr *eth = (struct ethhdr *)(skb->data + ghl);
 		skb->protocol = eth->h_proto;
 	} else {
 		skb->protocol = greh->protocol;
@@ -212,6 +213,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		skb_reset_mac_header(skb);
 		skb_set_network_header(skb, mac_len);
 		skb->mac_len = mac_len;
+		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
 	return segs;
