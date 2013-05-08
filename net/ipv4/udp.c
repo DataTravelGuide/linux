@@ -1928,8 +1928,10 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb, int features)
 	 * Only VXLAN uses this so far, so we can just hardcode this length.
 	 */
 	int tnl_hlen = sizeof(struct udphdr) + 8; /* 8 == sizeof(struct vxlanhdr) */
-	int outer_hlen;
+	struct ethhdr *inner_eth = (struct ethhdr *)(skb_transport_header(skb) + tnl_hlen);
+	__be16 protocol = skb->protocol;
 	int enc_features;
+	int outer_hlen;
 
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
@@ -1941,6 +1943,8 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb, int features)
 	skb_set_network_header(skb, ETH_HLEN);
 	/* skb->mac_len = skb_inner_network_offset(skb); */
 	skb->mac_len = ETH_HLEN;
+	inner_eth = (struct ethhdr *)skb_mac_header(skb);
+	skb->protocol = inner_eth->h_proto;
 
 	/* segment inner packet. */
 	enc_features = NETIF_F_SG & netif_skb_features(skb);
@@ -1977,6 +1981,7 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb, int features)
 
 		}
 		skb->ip_summed = CHECKSUM_NONE;
+		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
 	return segs;
