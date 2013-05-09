@@ -263,7 +263,7 @@ extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, struct qstr 
 			    struct nfs_fh *, struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
 extern void nfs4_release_lockowner(const struct nfs4_lock_state *);
-extern void nfs4_set_rw_stateid(nfs4_stateid *stateid,
+extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		const struct nfs_open_context *ctx,
 		const struct nfs_lock_context *l_ctx,
 		fmode_t fmode);
@@ -379,7 +379,7 @@ extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 extern void nfs41_handle_recall_slot(struct nfs_client *clp);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
-extern void nfs4_select_rw_stateid(nfs4_stateid *, struct nfs4_state *,
+extern int nfs4_select_rw_stateid(nfs4_stateid *, struct nfs4_state *,
 		fmode_t, const struct nfs_lockowner *);
 
 extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask);
