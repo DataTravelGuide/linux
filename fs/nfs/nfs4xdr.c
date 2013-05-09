@@ -1435,7 +1435,7 @@ static void encode_stateid(struct xdr_stream *xdr, const struct nfs_open_context
 
 	p = reserve_space(xdr, NFS4_STATEID_SIZE);
 	if (ctx->state != NULL) {
-		nfs4_copy_stateid(&stateid, ctx->state, l_ctx->lockowner, l_ctx->pid);
+		nfs4_select_rw_stateid(&stateid, ctx->state, l_ctx->lockowner, l_ctx->pid);
 		if (zero_seqid)
 			stateid.stateid.seqid = 0;
 		xdr_encode_opaque_fixed(p, stateid.data, NFS4_STATEID_SIZE);
