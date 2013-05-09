@@ -3293,6 +3293,19 @@ static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
+void nfs4_set_rw_stateid(nfs4_stateid *stateid,
+		const struct nfs_open_context *ctx,
+		const struct nfs_lock_context *l_ctx,
+		fmode_t fmode)
+{
+	const struct nfs_lockowner *lockowner = NULL;
+
+	if (l_ctx != NULL)
+		lockowner = &l_ctx->lockowner;
+	nfs4_select_rw_stateid(stateid, ctx->state, fmode, lockowner);
+}
+EXPORT_SYMBOL_GPL(nfs4_set_rw_stateid);
+
 void __nfs4_read_done_cb(struct nfs_read_data *data)
 {
 	nfs_invalidate_atime(data->header->inode);
@@ -3341,6 +3354,8 @@ static void nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_da
 				task))
 		return;
 	rpc_call_start(task);
+	nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
+			data->args.lock_context, FMODE_READ);
 }
 
 /* Reset the the nfs_read_data to send the read to the MDS. */
@@ -3442,6 +3457,8 @@ static void nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_
 				task))
 		return;
 	rpc_call_start(task);
+	nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
+			data->args.lock_context, FMODE_WRITE);
 }
 
 static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)

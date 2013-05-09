@@ -200,6 +200,8 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 		return;
 
 	rpc_call_start(task);
+	nfs4_set_rw_stateid(&rdata->args.stateid, rdata->args.context,
+			rdata->args.lock_context, FMODE_READ);
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
@@ -282,6 +284,8 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 		return;
 
 	rpc_call_start(task);
+	nfs4_set_rw_stateid(&wdata->args.stateid, wdata->args.context,
+			wdata->args.lock_context, FMODE_WRITE);
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
