@@ -179,6 +179,7 @@ struct nfs_server {
 #define NFS_CAP_MTIME		(1U << 13)
 #define NFS_CAP_POSIX_LOCK	(1U << 14)
 #define NFS_CAP_UIDGID_NOMAP	(1U << 15)
+#define NFS_CAP_STATEID_NFSV41	(1U << 16)
 
 
 /* maximum number of slots to use */
