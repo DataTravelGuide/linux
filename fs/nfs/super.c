@@ -2525,9 +2525,8 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 		goto error_splat_super;
 	}
 	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
-		dput(mntroot);
 		error = -ESTALE;
-		goto error_splat_super;
+		goto error_splat_root;
 	}
 
 	s->s_flags |= MS_ACTIVE;
@@ -2535,7 +2534,9 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	mnt->mnt_root = mntroot;
 
 	/* clone any lsm security options from the parent to the new sb */
-	security_sb_clone_mnt_opts(data->sb, s);
+	error = security_sb_clone_mnt_opts(data->sb, s);
+	if (error)
+		goto error_splat_root;
 
 	dprintk("<-- nfs_xdev_get_sb() = 0\n");
 	return 0;
@@ -2546,6 +2547,8 @@ out_err_noserver:
 	dprintk("<-- nfs_xdev_get_sb() = %d [error]\n", error);
 	return error;
 
+error_splat_root:
+	dput(mntroot);
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
@@ -3098,16 +3101,17 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 		goto error_splat_super;
 	}
 	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
-		dput(mntroot);
 		error = -ESTALE;
-		goto error_splat_super;
+		goto error_splat_root;
 	}
 
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
 
-	security_sb_clone_mnt_opts(data->sb, s);
+	error = security_sb_clone_mnt_opts(data->sb, s);
+	if (error)
+		goto error_splat_root;
 
 	dprintk("<-- nfs4_xdev_get_sb() = 0\n");
 	return 0;
@@ -3118,6 +3122,8 @@ out_err_noserver:
 	dprintk("<-- nfs4_xdev_get_sb() = %d [error]\n", error);
 	return error;
 
+error_splat_root:
+	dput(mntroot);
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
@@ -3191,16 +3197,17 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 		goto error_splat_super;
 	}
 	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops) {
-		dput(mntroot);
 		error = -ESTALE;
-		goto error_splat_super;
+		goto error_splat_root;
 	}
 
 	s->s_flags |= MS_ACTIVE;
 	mnt->mnt_sb = s;
 	mnt->mnt_root = mntroot;
 
-	security_sb_clone_mnt_opts(data->sb, s);
+	error = security_sb_clone_mnt_opts(data->sb, s);
+	if (error)
+		goto error_splat_root;
 
 	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
@@ -3214,6 +3221,8 @@ out_err_nofh:
 	dprintk("<-- nfs4_referral_get_sb() = %d [error]\n", error);
 	return error;
 
+error_splat_root:
+	dput(mntroot);
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
