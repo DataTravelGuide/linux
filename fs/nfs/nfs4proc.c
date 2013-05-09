@@ -6256,7 +6256,30 @@ out:
 	rpc_put_task(task);
 	return status;
 }
+
+static bool nfs41_match_stateid(const nfs4_stateid *s1,
+		const nfs4_stateid *s2)
+{
+	if (memcmp(s1->stateid.other, s2->stateid.other,
+		   sizeof(s1->stateid.other)) != 0)
+		return false;
+
+	if (s1->stateid.seqid == s2->stateid.seqid)
+		return true;
+	if (s1->stateid.seqid == 0 || s2->stateid.seqid == 0)
+		return true;
+
+	return false;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
+
+static bool nfs4_match_stateid(const nfs4_stateid *s1,
+		const nfs4_stateid *s2)
+{
+	return memcmp(s1->data, s2->data, sizeof(s1->data)) == 0;
+}
+
 
 struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
@@ -6316,7 +6339,7 @@ struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.minor_version = 0,
 	.call_sync = _nfs4_call_sync,
-	.validate_stateid = nfs4_validate_delegation_stateid,
+	.match_stateid = nfs4_match_stateid,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
 	.state_renewal_ops = &nfs40_state_renewal_ops,
@@ -6326,7 +6349,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.minor_version = 1,
 	.call_sync = _nfs4_call_sync_session,
-	.validate_stateid = nfs41_validate_delegation_stateid,
+	.match_stateid = nfs41_match_stateid,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
