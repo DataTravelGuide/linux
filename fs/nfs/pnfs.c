@@ -548,6 +548,8 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 	spin_lock(&lo->plh_inode->i_lock);
 	if (pnfs_layoutgets_blocked(lo, NULL, 1)) {
 		status = -EAGAIN;
+	} else if (!nfs4_valid_open_stateid(open_state)) {
+		status = -EBADF;
 	} else if (list_empty(&lo->plh_segs)) {
 		int seq;
 
