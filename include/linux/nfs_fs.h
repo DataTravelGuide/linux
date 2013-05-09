@@ -96,6 +96,7 @@ struct nfs_open_context {
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
+#define NFS_CONTEXT_BAD			(2)
 	int error;
 
 	struct list_head list;
