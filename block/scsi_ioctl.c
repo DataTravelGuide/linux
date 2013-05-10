@@ -563,7 +563,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	rq = blk_get_request(q, writing ? WRITE : READ, GFP_KERNEL);
 	if (!rq)
-		return -ENOMEM;
+		return -ENODEV;
 
 	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
