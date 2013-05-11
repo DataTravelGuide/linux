@@ -718,40 +718,8 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
 	struct backing_dev_info *bdi = metamapping->backing_dev_info;
-	struct gfs2_holder gh;
-	struct buffer_head *bh;
-	struct timespec atime;
-	struct gfs2_dinode *di;
 	int ret = 0;
-	int unlock_required = 0;
 
-	/* Skip timestamp update, if this is from a memalloc */
-	if (current->flags & PF_MEMALLOC)
-		goto do_flush;
-	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
-		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-		if (ret)
-			goto do_flush;
-		unlock_required = 1;
-	}
-	ret = gfs2_meta_inode_buffer(ip, &bh);
-	if (ret == 0) {
-		di = (struct gfs2_dinode *)bh->b_data;
-		atime.tv_sec = be64_to_cpu(di->di_atime);
-		atime.tv_nsec = be32_to_cpu(di->di_atime_nsec);
-		if (timespec_compare(&inode->i_atime, &atime) > 0) {
-			ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
-			if (ret == 0) {
-				gfs2_trans_add_meta(ip->i_gl, bh);
-				gfs2_dinode_out(ip, bh->b_data);
-				gfs2_trans_end(sdp);
-			}
-		}
-		brelse(bh);
-	}
-	if (unlock_required)
-		gfs2_glock_dq_uninit(&gh);
-do_flush:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
 	if (bdi->dirty_exceeded)
@@ -760,12 +728,65 @@ do_flush:
 		filemap_fdatawrite(metamapping);
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		ret = filemap_fdatawait(metamapping);
-	if ((ret || (current->flags & PF_MEMALLOC)) &&
-	    !(inode->i_state & (I_WILL_FREE|I_FREEING))) {
+	if (ret)
 		mark_inode_dirty_sync(inode);
-		return ret ? ret : -EAGAIN;
-	}
 	return ret;
+}
+
+/**
+ * gfs2_dirty_inode - check for atime updates
+ * @inode: The inode in question
+ * @flags: The type of dirty
+ *
+ * Unfortunately it can be called under any combination of inode
+ * glock and transaction lock, so we have to check carefully.
+ *
+ * At the moment this deals only with atime - it should be possible
+ * to expand that role in future, once a review of the locking has
+ * been carried out.
+ */
+
+static void gfs2_dirty_inode(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct buffer_head *bh;
+	struct gfs2_holder gh;
+	int need_unlock = 0;
+	int need_endtrans = 0;
+	int ret;
+
+	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
+		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+		if (ret) {
+			fs_err(sdp, "dirty_inode: glock %d\n", ret);
+			return;
+		}
+		need_unlock = 1;
+	} else if (WARN_ON_ONCE(ip->i_gl->gl_state != LM_ST_EXCLUSIVE))
+		return;
+
+	if (current->journal_info == NULL) {
+		ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
+		if (ret) {
+			fs_err(sdp, "dirty_inode: gfs2_trans_begin %d\n", ret);
+			goto out;
+		}
+		need_endtrans = 1;
+	}
+
+	ret = gfs2_meta_inode_buffer(ip, &bh);
+	if (ret == 0) {
+		gfs2_trans_add_meta(ip->i_gl, bh);
+		gfs2_dinode_out(ip, bh->b_data);
+		brelse(bh);
+	}
+
+	if (need_endtrans)
+		gfs2_trans_end(sdp);
+out:
+	if (need_unlock)
+		gfs2_glock_dq_uninit(&gh);
 }
 
 /**
@@ -1584,6 +1605,7 @@ const struct super_operations gfs2_super_ops = {
 	.alloc_inode		= gfs2_alloc_inode,
 	.destroy_inode		= gfs2_destroy_inode,
 	.write_inode		= gfs2_write_inode,
+	.dirty_inode		= gfs2_dirty_inode,
 	.delete_inode		= gfs2_delete_inode,
 	.put_super		= gfs2_put_super,
 	.sync_fs		= gfs2_sync_fs,

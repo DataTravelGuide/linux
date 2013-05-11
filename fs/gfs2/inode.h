@@ -133,7 +133,7 @@ extern int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 			     unsigned int mode, dev_t dev, const char *symname,
 			     unsigned int size, int excl);
 extern int gfs2_permission(struct inode *inode, int mask);
-extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
+extern int gfs2_setattr_simple(struct inode *inode, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
 extern void gfs2_dinode_print(const struct gfs2_inode *ip);

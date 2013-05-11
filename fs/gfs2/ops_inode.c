@@ -1074,12 +1074,12 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	else if ((attr->ia_valid & ATTR_MODE) && IS_POSIXACL(inode))
 		error = gfs2_acl_chmod(ip, attr);
 	else
-		error = gfs2_setattr_simple(ip, attr);
+		error = gfs2_setattr_simple(inode, attr);
 
 out:
-	gfs2_glock_dq_uninit(&i_gh);
 	if (!error)
 		mark_inode_dirty(inode);
+	gfs2_glock_dq_uninit(&i_gh);
 	return error;
 }
 
@@ -1220,7 +1220,7 @@ static int fallocate_chunk(struct inode *inode, loff_t offset, loff_t len,
 	}
 	if (offset + size > inode->i_size && !(mode & FALLOC_FL_KEEP_SIZE))
 		i_size_write(inode, offset + size);
-	gfs2_dinode_out(ip, dibh->b_data);
+
 	mark_inode_dirty(inode);
 
 out:

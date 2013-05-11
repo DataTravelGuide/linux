@@ -909,20 +909,11 @@ fail:
 	return error;
 }
 
-static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
+static int __gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
-	struct buffer_head *dibh;
-	int error;
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_meta(ip->i_gl, dibh);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
-	}
-	return error;
+	generic_setattr(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 /**
@@ -935,19 +926,19 @@ static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
  * Returns: errno
  */
 
-int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
+int gfs2_setattr_simple(struct inode *inode, struct iattr *attr)
 {
 	int error;
 
 	if (current->journal_info)
-		return __gfs2_setattr_simple(ip, attr);
+		return __gfs2_setattr_simple(inode, attr);
 
-	error = gfs2_trans_begin(GFS2_SB(&ip->i_inode), RES_DINODE, 0);
+	error = gfs2_trans_begin(GFS2_SB(inode), RES_DINODE, 0);
 	if (error)
 		return error;
 
-	error = __gfs2_setattr_simple(ip, attr);
-	gfs2_trans_end(GFS2_SB(&ip->i_inode));
+	error = __gfs2_setattr_simple(inode, attr);
+	gfs2_trans_end(GFS2_SB(inode));
 	return error;
 }
 

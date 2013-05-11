@@ -794,7 +794,6 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	u64 to = pos + copied;
 	void *kaddr;
 	unsigned char *buf = dibh->b_data + sizeof(struct gfs2_dinode);
-	struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
 
 	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
 	kaddr = kmap_atomic(page, KM_USER0);
@@ -811,7 +810,6 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	if (copied) {
 		if (inode->i_size < to)
 			i_size_write(inode, to);
-		gfs2_dinode_out(ip, di);
 		mark_inode_dirty(inode);
 	}
 
@@ -860,7 +858,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	unsigned int from = pos & (PAGE_CACHE_SIZE - 1);
 	unsigned int to = from + len;
 	int ret;
-	int i_size_changed = 0;
 
 	BUG_ON(gfs2_glock_is_locked_by_me(ip->i_gl) == NULL);
 
@@ -879,21 +876,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	if (!gfs2_is_writeback(ip))
 		gfs2_page_add_databufs(ip, page, from, to);
 
-	/* inlined bits of generic_write_end to avoid marking the inode dirty
-	   a second time: */
-	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
-	if (pos + ret > inode->i_size) {
-		i_size_write(inode, pos + ret);
-		i_size_changed = 1;
-	}
-
-	unlock_page(page);
-	page_cache_release(page);
-
-	if (i_size_changed) {
-		gfs2_dinode_out(ip, dibh->b_data);
-		mark_inode_dirty(inode);
-	}
+	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 
 	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);

@@ -1718,16 +1718,11 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 				be16_add_cpu(&leaf->lf_entries, 1);
 			}
 			brelse(bh);
-			error = gfs2_meta_inode_buffer(ip, &bh);
-			if (error)
-				break;
-			gfs2_trans_add_meta(ip->i_gl, bh);
 			ip->i_entries++;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 			if (S_ISDIR(nip->i_inode.i_mode))
 				inc_nlink(&ip->i_inode);
-			gfs2_dinode_out(ip, bh->b_data);
-			brelse(bh);
+			mark_inode_dirty(inode);
 			error = 0;
 			break;
 		}
@@ -1774,7 +1769,6 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 {
 	struct gfs2_dirent *dent, *prev = NULL;
 	struct buffer_head *bh;
-	int error;
 
 	/* Returns _either_ the entry (if its first in block) or the
 	   previous entry otherwise */
@@ -1803,20 +1797,13 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 	}
 	brelse(bh);
 
-	error = gfs2_meta_inode_buffer(dip, &bh);
-	if (error)
-		return error;
-
 	if (!dip->i_entries)
 		gfs2_consist_inode(dip);
-	gfs2_trans_add_meta(dip->i_gl, bh);
 	dip->i_entries--;
 	dip->i_inode.i_mtime = dip->i_inode.i_ctime = CURRENT_TIME;
-	gfs2_dinode_out(dip, bh->b_data);
-	brelse(bh);
 	mark_inode_dirty(&dip->i_inode);
 
-	return error;
+	return 0;
 }
 
 /**

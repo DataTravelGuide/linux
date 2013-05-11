@@ -641,7 +641,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
 	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
 	unsigned blocksize, iblock, pos;
-	struct buffer_head *bh, *dibh;
+	struct buffer_head *bh;
 	struct page *page;
 	void *kaddr, *ptr;
 	struct gfs2_quota q, *qp;
@@ -721,7 +721,7 @@ get_a_page:
 			goto unlock_out;
 	}
 
-	gfs2_trans_add_meta(ip->i_gl, bh);
+	gfs2_trans_add_data(ip->i_gl, bh);
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	if (offset + sizeof(struct gfs2_quota) > PAGE_CACHE_SIZE)
@@ -742,22 +742,13 @@ get_a_page:
 		goto get_a_page;
 	}
 
-	/* Update the disk inode timestamp and size (if extended) */
-	err = gfs2_meta_inode_buffer(ip, &dibh);
-	if (err)
-		goto out;
-
 	size = loc + sizeof(struct gfs2_quota);
 	if (size > inode->i_size)
 		i_size_write(inode, size);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
-	gfs2_trans_add_meta(ip->i_gl, dibh);
-	gfs2_dinode_out(ip, dibh->b_data);
-	brelse(dibh);
 	mark_inode_dirty(inode);
+	return 0;
 
-out:
-	return err;
 unlock_out:
 	unlock_page(page);
 	page_cache_release(page);
