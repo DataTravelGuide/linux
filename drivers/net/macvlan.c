@@ -193,7 +193,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 
 	dev = vlan->dev;
 
-	if (unlikely(!dev && !(dev->flags & IFF_UP))) {
+	if (unlikely(!(dev->flags & IFF_UP))) {
 		kfree_skb(skb);
 		return NULL;
 	}
