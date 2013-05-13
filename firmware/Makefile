@@ -195,6 +195,8 @@ fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
 fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
+fw-shipped-$(CONFIG_BRCMSMAC) += brcm/bcm43xx-0.fw brcm/bcm43xx_hdr-0.fw
+
 fw-shipped-$(CONFIG_RT2800PCI) += rt2860.bin
 fw-shipped-$(CONFIG_RT2800USB) += rt2870.bin
 
