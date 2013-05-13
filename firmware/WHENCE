@@ -1037,3 +1037,12 @@ Licence: Redistributable. See LICENCE.ralink-firmware.txt for details
 Binary file supplied by Shiang Tu <shiang_tu@ralinktech.com>. Firmware Version 29
 
 --------------------------------------------------------------------------
+
+Driver: brcmsmac - Broadcom 802.11n softmac wireless LAN driver.
+
+File: brcm/bcm43xx-0.fw
+File: brcm/bcm43xx_hdr-0.fw
+
+Licence: Redistributable. See LICENCE.broadcom_bcm43xx for details.
+
+--------------------------------------------------------------------------
