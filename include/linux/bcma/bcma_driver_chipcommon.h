@@ -527,6 +527,7 @@ struct bcma_sflash {
 	u32 size;
 
 	struct mtd_info *mtd;
+	void *priv;
 };
 #endif
 
