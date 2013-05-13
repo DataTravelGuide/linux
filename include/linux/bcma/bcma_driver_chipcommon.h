@@ -1,6 +1,8 @@
 #ifndef LINUX_BCMA_DRIVER_CC_H_
 #define LINUX_BCMA_DRIVER_CC_H_
 
+#include <linux/gpio.h>
+
 /** ChipCommon core registers. **/
 #define BCMA_CC_ID			0x0000
 #define  BCMA_CC_ID_ID			0x0000FFFF
@@ -573,6 +575,9 @@ struct bcma_drv_cc {
 
 	/* Lock for GPIO register access. */
 	spinlock_t gpio_lock;
+#ifdef CONFIG_BCMA_DRIVER_GPIO
+	struct gpio_chip gpio;
+#endif
 };
 
 /* Register access */
