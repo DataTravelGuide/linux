@@ -736,6 +736,11 @@ void fuse_invalidate_attr(struct inode *inode);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
 
+/*
+ * Increment reference count on request
+ */
+void __fuse_get_request(struct fuse_req *req);
+
 /**
  * Acquire reference to fuse_conn
  */
@@ -800,7 +805,7 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir);
-ssize_t fuse_direct_io(struct file *file, const struct iovec *iov,
+ssize_t fuse_direct_io(struct fuse_io_priv *io, const struct iovec *iov,
 		       unsigned long nr_segs, size_t count, loff_t *ppos,
 		       int write);
 long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
