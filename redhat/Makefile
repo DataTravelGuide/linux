@@ -218,7 +218,9 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	@cp genkey perf perf-archive Makefile.common kabi/{find-provides,kabitool,check-kabi} \
 	kabi/Module.kabi_{i686,ppc64,s390x,x86_64} kabi/Module.kabi_greylist_{i686,ppc64,s390x,x86_64}  \
 	configs/{config-*,merge.pl} extrakeys.pub tests/submit-beaker-test.sh cvs/Makefile $(SOURCES)/
-	@(cd kabi; tar cjvf $(SOURCES)/kernel-abi-whitelists.tar.bz2 kabi-rhel6* > /dev/null);
+	@(cd kabi && \
+	git archive --format=tar HEAD kabi-rhel6* | \
+	bzip2 > $(SOURCES)/kernel-abi-whitelists.tar.bz2)
 
 rh-sources: setup-source sources-rh
 
