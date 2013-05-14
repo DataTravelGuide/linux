@@ -841,6 +841,7 @@ void tick_cancel_sched_timer(int cpu)
 # endif
 
 	ts->nohz_mode = NOHZ_MODE_INACTIVE;
+	memset(ts, 0, sizeof(*ts));
 }
 #endif
 
