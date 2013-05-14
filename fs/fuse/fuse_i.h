@@ -497,6 +497,9 @@ struct fuse_conn {
 	/** Does the filesystem support readdir-plus? */
 	unsigned do_readdirplus:1;
 
+	/** Does the filesystem support asynchronous direct-IO submission? */
+	unsigned async_dio:1;
+
 	/** Is fallocate not implemented by fs? */
 	unsigned no_fallocate:1;
 

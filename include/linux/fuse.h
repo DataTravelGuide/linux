@@ -143,6 +143,7 @@ struct fuse_file_lock {
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
  * FUSE_DONT_MASK: don't apply umask to file mode on create operations
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
+ * FUSE_ASYNC_DIO: asynchronous direct I/O submission
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -153,6 +154,7 @@ struct fuse_file_lock {
 #define FUSE_DONT_MASK		(1 << 6)
 #define FUSE_AUTO_INVAL_DATA   (1 << 12)
 #define FUSE_DO_READDIRPLUS    (1 << 13)
+#define FUSE_ASYNC_DIO         (1 << 15)
 
 /**
  * CUSE INIT request/reply flags
