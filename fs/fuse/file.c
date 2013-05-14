@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/swap.h>
 #include <linux/falloc.h>
 
 static const struct file_operations fuse_direct_io_file_operations;
@@ -858,6 +859,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
 		pagefault_enable();
 		flush_dcache_page(page);
+
+		mark_page_accessed(page);
 
 		if (!tmp) {
 			unlock_page(page);
