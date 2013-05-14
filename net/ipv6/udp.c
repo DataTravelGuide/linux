@@ -478,19 +478,19 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 			bh_lock_sock(sk2);
 			if (!sock_owned_by_user(sk2))
 				udpv6_queue_rcv_skb(sk2, buff);
-			else if (sk_add_backlog(sk2, buff))
+			else if (sk_add_backlog(sk2, buff, sk2->sk_rcvbuf))
 				kfree_skb(buff);
 			bh_unlock_sock(sk2);
 		}
 	}
-	if (sk_rcvqueues_full(sk, skb)) {
+	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf)) {
 		kfree_skb(skb);
 		goto out;
 	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
-	else if (sk_add_backlog(sk, skb))
+	else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf))
 		kfree_skb(skb);
 	bh_unlock_sock(sk);
 out:
@@ -607,14 +607,14 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 
 	/* deliver */
 
-	if (sk_rcvqueues_full(sk, skb)) {
+	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf)) {
 		sock_put(sk);
 		goto discard;
 	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
-	else if (sk_add_backlog(sk, skb)) {
+	else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
 		atomic_inc(&sk->sk_drops);
 		bh_unlock_sock(sk);
 		sock_put(sk);
