@@ -640,14 +640,18 @@ static int compact_finished(struct zone *zone,
 		return COMPACT_COMPLETE;
 	}
 
+	/*
+	 * order == -1 is expected when compacting via
+	 * /proc/sys/vm/compact_memory
+	 */
+	if (cc->order == -1)
+		return COMPACT_CONTINUE;
+
 	/* Compaction run is not finished if the watermark is not met */
 	watermark = low_wmark_pages(zone);
 	watermark += (1 << cc->order);
 
 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
-		return COMPACT_CONTINUE;
-
-	if (cc->order == -1)
 		return COMPACT_CONTINUE;
 
 	/* Direct compactor: Is a suitable page free? */
@@ -675,6 +679,13 @@ unsigned long compaction_suitable(struct zone *zone, int order)
 {
 	int fragindex;
 	unsigned long watermark;
+
+	/*
+	 * order == -1 is expected when compacting via
+	 * /proc/sys/vm/compact_memory
+	 */
+	if (order == -1)
+		return COMPACT_CONTINUE;
 
 	/*
 	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
