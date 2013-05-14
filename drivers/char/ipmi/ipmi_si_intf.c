@@ -3354,6 +3354,10 @@ static int try_smi_init(struct smi_info *new_smi)
 	return rv;
 }
 
+#ifdef CONFIG_X86_UV
+extern int is_uv_system(void);
+#endif
+
 static int __devinit init_ipmi_si(void)
 {
 	int  i;
@@ -3362,6 +3366,10 @@ static int __devinit init_ipmi_si(void)
 	struct smi_info *e;
 	enum ipmi_addr_src type = SI_INVALID;
 
+#ifdef CONFIG_X86_UV
+	if (is_uv_system())	/* Not supported on SGI UV systems */
+		return -ENODEV;
+#endif
 	if (initialized)
 		return 0;
 	initialized = 1;
