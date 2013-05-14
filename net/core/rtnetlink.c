@@ -1051,6 +1051,20 @@ static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
 	[IFLA_PORT_RESPONSE]	= { .type = NLA_U16, },
 };
 
+struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
+{
+	struct net *net;
+	/* Examine the link attributes and figure out which
+	 * network namespace we are talking about.
+	 */
+	if (tb[IFLA_NET_NS_PID])
+		net = get_net_ns_by_pid(nla_get_u32(tb[IFLA_NET_NS_PID]));
+	else
+		net = get_net(src_net);
+	return net;
+}
+EXPORT_SYMBOL(rtnl_link_get_net);
+
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 {
 	if (dev) {
@@ -1120,11 +1134,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	int err;
 
 	if (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]) {
-		struct net *net;
-		if (tb[IFLA_NET_NS_PID])
-			net = get_net_ns_by_pid(nla_get_u32(tb[IFLA_NET_NS_PID]));
-		else if (tb[IFLA_NET_NS_FD])
-			net = get_net_ns_by_fd(nla_get_u32(tb[IFLA_NET_NS_FD]));
+		struct net *net = rtnl_link_get_net(dev_net(dev), tb);
 		if (IS_ERR(net)) {
 			err = PTR_ERR(net);
 			goto errout;
@@ -1404,8 +1414,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
-struct net_device *rtnl_create_link(struct net *net, char *ifname,
-		const struct rtnl_link_ops *ops, struct nlattr *tb[])
+struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
+	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
 	int err;
 	struct net_device *dev;
@@ -1413,7 +1423,8 @@ struct net_device *rtnl_create_link(struct net *net, char *ifname,
 	unsigned int real_num_queues = 1;
 
 	if (ops->get_tx_queues) {
-		err = ops->get_tx_queues(net, tb, &num_queues, &real_num_queues);
+		err = ops->get_tx_queues(src_net, tb, &num_queues,
+					 &real_num_queues);
 		if (err)
 			goto err;
 	}
@@ -1422,15 +1433,16 @@ struct net_device *rtnl_create_link(struct net *net, char *ifname,
 	if (!dev)
 		goto err;
 
+	dev_net_set(dev, net);
+	netdev_extended(dev)->src_net = src_net;
+	dev->rtnl_link_ops = ops;
 	dev->real_num_tx_queues = real_num_queues;
+
 	if (strchr(dev->name, '%')) {
 		err = dev_alloc_name(dev, dev->name);
 		if (err < 0)
 			goto err_free;
 	}
-
-	dev_net_set(dev, net);
-	dev->rtnl_link_ops = ops;
 
 	if (tb[IFLA_MTU])
 		dev->mtu = nla_get_u32(tb[IFLA_MTU]);
@@ -1508,6 +1520,7 @@ replay:
 
 	if (1) {
 		struct nlattr *attr[ops ? ops->maxtype + 1 : 0], **data = NULL;
+		struct net *dest_net;
 
 		if (ops) {
 			if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
@@ -1572,7 +1585,8 @@ replay:
 		if (!ifname[0])
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
 
-		dev = rtnl_create_link(net, ifname, ops, tb);
+		dest_net = rtnl_link_get_net(net, tb);
+		dev = rtnl_create_link(net, dest_net, ifname, ops, tb);
 
 		if (IS_ERR(dev))
 			err = PTR_ERR(dev);
@@ -1580,9 +1594,10 @@ replay:
 			err = ops->newlink(dev, tb, data);
 		else
 			err = register_netdevice(dev);
-
 		if (err < 0 && !IS_ERR(dev))
 			free_netdev(dev);
+
+		put_net(dest_net);
 		return err;
 	}
 }

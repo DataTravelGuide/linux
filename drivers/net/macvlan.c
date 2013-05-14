@@ -646,6 +646,7 @@ int macvlan_common_newlink(struct net_device *dev,
 					  struct sk_buff *skb))
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct net *src_net = netdev_extended(dev)->src_net;
 	struct macvlan_port *port;
 	struct net_device *lowerdev;
 	int err;
@@ -653,7 +654,7 @@ int macvlan_common_newlink(struct net_device *dev,
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 
-	lowerdev = __dev_get_by_index(dev_net(dev), nla_get_u32(tb[IFLA_LINK]));
+	lowerdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
 		return -ENODEV;
 

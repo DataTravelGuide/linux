@@ -332,6 +332,7 @@ static struct rtnl_link_ops veth_link_ops;
 static int veth_newlink(struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
+	struct net *net, *src_net = netdev_extended(dev)->src_net;
 	int err;
 	struct net_device *peer;
 	struct veth_priv *priv;
@@ -369,14 +370,22 @@ static int veth_newlink(struct net_device *dev,
 	else
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
 
-	peer = rtnl_create_link(dev_net(dev), ifname, &veth_link_ops, tbp);
-	if (IS_ERR(peer))
+	net = rtnl_link_get_net(src_net, tbp);
+	if (IS_ERR(net))
+		return PTR_ERR(net);
+
+	peer = rtnl_create_link(src_net, net, ifname, &veth_link_ops, tbp);
+	if (IS_ERR(peer)) {
+		put_net(net);
 		return PTR_ERR(peer);
+	}
 
 	if (tbp[IFLA_ADDRESS] == NULL)
 		random_ether_addr(peer->dev_addr);
 
 	err = register_netdevice(peer);
+	put_net(net);
+	net = NULL;
 	if (err < 0)
 		goto err_register_peer;
 

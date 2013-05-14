@@ -1217,6 +1217,7 @@ struct net_device_extended {
 						int idx);
 	struct list_head			unreg_list;
 	struct net_device			*dev;
+	struct net				*src_net;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
