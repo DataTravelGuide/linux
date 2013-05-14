@@ -815,5 +815,7 @@ int fuse_dev_release(struct inode *inode, struct file *file);
 long fuse_file_fallocate(struct inode *inode, struct fuse_file *ff, int mode,
 			 loff_t offset, loff_t length);
 
+int fuse_do_setattr(struct inode *inode, struct iattr *attr,
+		    struct file *file);
 
 #endif /* _FS_FUSE_I_H */
