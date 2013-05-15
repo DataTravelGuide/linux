@@ -753,6 +753,7 @@ static void intel_pstate_exit(void)
 
 	sysfs_remove_group(intel_pstate_kobject,
 				&intel_pstate_attr_group);
+	kobject_put(intel_pstate_kobject);
 	debugfs_remove_recursive(debugfs_parent);
 
 	cpufreq_unregister_driver(&intel_pstate_driver);
