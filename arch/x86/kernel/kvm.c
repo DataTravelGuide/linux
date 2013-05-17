@@ -390,9 +390,15 @@ static bool __init kvm_detect(void)
 	return true;
 }
 
+static bool __init kvm_x2apic_available(void)
+{
+	return kvm_para_available();
+}
+
 const struct hypervisor_x86 x86_hyper_kvm __refconst = {
 	.name                   = "KVM",
 	.detect                 = kvm_detect,
+	.x2apic_available	= kvm_x2apic_available,
 };
 EXPORT_SYMBOL_GPL(x86_hyper_kvm);
 
