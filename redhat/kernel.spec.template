@@ -1696,6 +1696,26 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri May 17 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-379.el6]
+- [net] macvlan: remove bogus check in macvlan_handle_frame() (Jiri Pirko) [952785]
+- [net] macvlan: fix passthru mode race between dev removal and rx path (Jiri Pirko) [952785]
+- [kernel] rcu: Replace list_first_entry_rcu() with list_first_or_null_rcu() (Jiri Pirko) [952785]
+- [kernel] tick: Don't invoke tick_nohz_stop_sched_tick() if the cpu is offline (Prarit Bhargava) [950068]
+- [kernel] tick: Cleanup NOHZ per cpu data on cpu down (Prarit Bhargava) [950068]
+- [mm] memory-failure: fix wrong num_poisoned_pages in handling memory error on thp (Naoya Horiguchi) [954045]
+- [mm] memory-failure: clean up soft_offline_page() (Naoya Horiguchi) [954045]
+- [mm] memory-failure: use num_poisoned_pages instead of mce_bad_pages (Naoya Horiguchi) [954045]
+- [mm] memory-failure: do code refactor of soft_offline_page() (Naoya Horiguchi) [954045]
+- [mm] memory-failure: fix an error of mce_bad_pages statistics (Naoya Horiguchi) [954045]
+- [mm] memory-failure: fix wrong argument of migrate_huge_pages() in soft_offline_huge_page() (Naoya Horiguchi) [954045]
+- [mm] memory-failure: let the compiler add the function name (Naoya Horiguchi) [954045]
+- [mm] memory-failure: change order of error_states[]'s elements (Naoya Horiguchi) [954045]
+- [mm] memory-failure: fix misjudgement of page_action() for errors on mlocked pages (Naoya Horiguchi) [954045]
+- [mm] memory-failure: fix action_result() to print out dirty/clean (Naoya Horiguchi) [954045]
+- [mm] memory-failure: split thp at the beginning of soft_offline_page() (Naoya Horiguchi) [954045]
+- [net] bluetooth/rfcomm: Fix missing msg_namelen update in rfcomm_sock_recvmsg() (Weiping Pan) [955654] {CVE-2013-3225}
+- [net] bluetooth: fix possible info leak in bt_sock_recvmsg() (Radomir Vrbovsky) [955604] {CVE-2013-3224}
+
 * Tue May 14 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-378.el6]
 - [fs] gfs2: Use ->writepages for ordered writes (Robert S Peterson) [859444]
 - [fs] gfs2: Merge gfs2_attach_bufdata() into trans.c (Robert S Peterson) [859444]
