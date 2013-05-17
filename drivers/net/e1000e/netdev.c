@@ -3229,8 +3229,16 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 
 	if (netdev->flags & IFF_PROMISC) {
+		u32 ctrl;
+
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		rctl &= ~E1000_RCTL_VFE;
+		/* enable VLAN RX/TX even if no VLAN is registered */
+		ctrl = er32(CTRL);
+		ctrl |= E1000_CTRL_VME;
+		ew32(CTRL, ctrl);
+		if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
+			rctl &= ~E1000_RCTL_CFIEN;
 	} else {
 		int count;
 
