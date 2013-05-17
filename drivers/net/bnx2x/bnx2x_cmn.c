@@ -585,8 +585,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		if (!bnx2x_fill_frag_skb(bp, fp, tpa_info, pages,
 					 skb, cqe, cqe_idx)) {
-			if ((bp->vlgrp != NULL) &&
-				(tpa_info->parsing_flags & PARSING_FLAGS_VLAN))
+			if (tpa_info->parsing_flags & PARSING_FLAGS_VLAN)
 				vlan_gro_receive(&fp->napi, bp->vlgrp,
 						 tpa_info->vlan_tag, skb);
 			else
@@ -860,8 +859,7 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->rx_queue);
 
-		if ((bp->vlgrp != NULL) &&
-		    (le16_to_cpu(cqe_fp->pars_flags.flags) &
+		if ((le16_to_cpu(cqe_fp->pars_flags.flags) &
 		     PARSING_FLAGS_VLAN))
 			vlan_gro_receive(&fp->napi, bp->vlgrp,
 				le16_to_cpu(cqe_fp->vlan_tag), skb);
