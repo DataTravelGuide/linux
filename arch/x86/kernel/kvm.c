@@ -33,6 +33,7 @@
 #include <asm/cpu.h>
 #include <asm/apic.h>
 #include <asm/apicdef.h>
+#include <asm/hypervisor.h>
 
 #define MMU_QUEUE_SIZE 1024
 
@@ -381,6 +382,19 @@ static struct notifier_block __cpuinitdata kvm_cpu_notifier = {
         .notifier_call  = kvm_cpu_notify,
 };
 #endif
+
+static bool __init kvm_detect(void)
+{
+	if (!kvm_para_available())
+		return false;
+	return true;
+}
+
+const struct hypervisor_x86 x86_hyper_kvm __refconst = {
+	.name                   = "KVM",
+	.detect                 = kvm_detect,
+};
+EXPORT_SYMBOL_GPL(x86_hyper_kvm);
 
 void __init kvm_guest_init(void)
 {
