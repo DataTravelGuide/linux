@@ -103,8 +103,8 @@ struct driver_info {
  * Indicates to usbnet, that USB driver accumulates multiple IP packets.
  * Affects statistic (counters) and short packet handling.
  */
-#define FLAG_MULTI_PACKET	0x1000
-#define FLAG_RX_ASSEMBLE	0x2000	/* rx packets may span >1 frames */
+#define FLAG_MULTI_PACKET	0x2000
+#define FLAG_RX_ASSEMBLE	0x4000	/* rx packets may span >1 frames */
 
 #define FLAG_RH_HAS_MANAGE_POWER 0x80000000 /* Flag to indicate that we have manage_power */
 
