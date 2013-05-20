@@ -67,6 +67,7 @@ struct usbnet {
 #		define EVENT_RX_PAUSED	5
 #		define EVENT_DEV_WAKING 6
 #		define EVENT_DEV_ASLEEP 7
+#		define EVENT_DEV_OPEN	8
 #ifndef __GENKSYMS__
 	struct usb_anchor	deferred;
 #endif
