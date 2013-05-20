@@ -434,6 +434,13 @@ static void sierra_net_dosync(struct usbnet *dev)
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 
+	/* The SIERRA_NET_HIP_MSYNC_ID command appears to request that the
+	 * firmware restart itself.  After restarting, the modem will respond
+	 * with the SIERRA_NET_HIP_RESTART_ID indication.  The driver continues
+	 * sending MSYNC commands every few seconds until it receives the
+	 * RESTART event from the firmware
+	 */
+
 	/* tell modem we are ready */
 	status = sierra_net_send_sync(dev);
 	if (status < 0)
@@ -735,6 +742,9 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* set context index initially to 0 - prepares tx hdr template */
 	sierra_net_set_ctx_index(priv, 0);
 
+	/* prepare sync message template */
+	memcpy(priv->sync_msg, sync_tmplate, sizeof(priv->sync_msg));
+
 	/* decrease the rx_urb_size and max_tx_size to 4k on USB 1.1 */
 	dev->rx_urb_size  = data->rx_urb_size;
 	if (dev->udev->speed != USB_SPEED_HIGH)
@@ -770,11 +780,6 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 		kfree(priv);
 		return -ENODEV;
 	}
-	/* prepare sync message from template */
-	memcpy(priv->sync_msg, sync_tmplate, sizeof(priv->sync_msg));
-
-	/* initiate the sync sequence */
-	sierra_net_dosync(dev);
 
 	return 0;
 }
@@ -797,8 +802,9 @@ static void sierra_net_unbind(struct usbnet *dev, struct usb_interface *intf)
 		netdev_err(dev->net,
 			"usb_control_msg failed, status %d\n", status);
 
-	sierra_net_set_private(dev, NULL);
+	usbnet_status_stop(dev);
 
+	sierra_net_set_private(dev, NULL);
 	kfree(priv);
 }
 
@@ -949,6 +955,24 @@ static const struct driver_info sierra_net_info_direct_ip = {
 	.data = (unsigned long)&sierra_net_info_data_direct_ip,
 };
 
+static int
+sierra_net_probe(struct usb_interface *udev, const struct usb_device_id *prod)
+{
+	int ret;
+
+	ret = usbnet_probe(udev, prod);
+	if (ret == 0) {
+		struct usbnet *dev = usb_get_intfdata(udev);
+
+		ret = usbnet_status_start(dev, GFP_KERNEL);
+		if (ret == 0) {
+			/* Interrupt URB now set up; initiate sync sequence */
+			sierra_net_dosync(dev);
+		}
+	}
+	return ret;
+}
+
 static const struct usb_device_id products[] = {
 	{USB_DEVICE(0x1199, 0x68A3), /* Sierra Wireless USB-to-WWAN modem */
 	.driver_info = (unsigned long) &sierra_net_info_direct_ip},
@@ -967,7 +991,7 @@ MODULE_DEVICE_TABLE(usb, products);
 static struct usb_driver sierra_net_driver = {
 	.name = "sierra_net",
 	.id_table = products,
-	.probe = usbnet_probe,
+	.probe = sierra_net_probe,
 	.disconnect = usbnet_disconnect,
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
