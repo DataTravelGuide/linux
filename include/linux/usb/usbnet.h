@@ -266,5 +266,6 @@ extern int usbnet_nway_reset(struct net_device *net);
 #define devinfo(usbnet, fmt, arg...) \
 	printk(KERN_INFO "%s: " fmt "\n" , (usbnet)->net->name , ## arg); \
 
+extern int usbnet_manage_power(struct usbnet *, int);
 
 #endif /* __LINUX_USB_USBNET_H */
