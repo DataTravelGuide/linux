@@ -347,7 +347,7 @@ static void sierra_net_set_ctx_index(struct sierra_net_data *priv, u8 ctx_ix)
 	dev_dbg(&(priv->usbnet->udev->dev), "%s %d", __func__, ctx_ix);
 	priv->tx_hdr_template[0] = 0x3F;
 	priv->tx_hdr_template[1] = ctx_ix;
-	*((u16 *)&priv->tx_hdr_template[2]) =
+	*((__be16 *)&priv->tx_hdr_template[2]) =
 		cpu_to_be16(SIERRA_NET_HIP_EXT_IP_OUT_ID);
 }
 
@@ -654,7 +654,7 @@ static int is_whitelisted(const u8 ifnum,
 static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 {
 	int result = 0;
-	u16 attrdata;
+	__le16 attrdata;
 
 	result = usbnet_read_cmd(dev,
 				/* _u8 vendor specific request */
