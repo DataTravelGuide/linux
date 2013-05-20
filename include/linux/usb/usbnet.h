@@ -74,6 +74,8 @@ struct usbnet {
 #ifndef __GENKSYMS__
 	struct usb_anchor	deferred;
 	unsigned char		pkt_cnt, pkt_err;
+	unsigned		interrupt_count;
+	struct mutex		interrupt_mutex;
 #endif
 };
 
@@ -272,5 +274,8 @@ extern int usbnet_nway_reset(struct net_device *net);
 
 extern int usbnet_manage_power(struct usbnet *, int);
 extern void usbnet_link_change(struct usbnet *, bool, bool);
+
+extern int usbnet_status_start(struct usbnet *dev, gfp_t mem_flags);
+extern void usbnet_status_stop(struct usbnet *dev);
 
 #endif /* __LINUX_USB_USBNET_H */
