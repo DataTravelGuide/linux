@@ -1302,7 +1302,6 @@ void usbnet_disconnect (struct usb_interface *intf)
 	usb_free_urb(dev->interrupt);
 
 	free_netdev(net);
-	usb_put_dev (xdev);
 }
 EXPORT_SYMBOL_GPL(usbnet_disconnect);
 
@@ -1357,8 +1356,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	}
 	xdev = interface_to_usbdev (udev);
 	interface = udev->cur_altsetting;
-
-	usb_get_dev (xdev);
 
 	status = -ENOMEM;
 
@@ -1490,7 +1487,6 @@ out3:
 out1:
 	free_netdev(net);
 out:
-	usb_put_dev(xdev);
 	return status;
 }
 EXPORT_SYMBOL_GPL(usbnet_probe);
