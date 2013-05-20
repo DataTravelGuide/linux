@@ -270,5 +270,6 @@ extern int usbnet_nway_reset(struct net_device *net);
 	printk(KERN_INFO "%s: " fmt "\n" , (usbnet)->net->name , ## arg); \
 
 extern int usbnet_manage_power(struct usbnet *, int);
+extern void usbnet_link_change(struct usbnet *, bool, bool);
 
 #endif /* __LINUX_USB_USBNET_H */
