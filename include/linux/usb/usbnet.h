@@ -99,6 +99,12 @@ struct driver_info {
 
 #define FLAG_LINK_INTR	0x0800		/* updates link (carrier) status */
 
+/*
+ * Indicates to usbnet, that USB driver accumulates multiple IP packets.
+ * Affects statistic (counters) and short packet handling.
+ */
+#define FLAG_MULTI_PACKET	0x1000
+
 #define FLAG_RH_HAS_MANAGE_POWER 0x80000000 /* Flag to indicate that we have manage_power */
 
 	/* init device ... can sleep, or cause probe() failure */
