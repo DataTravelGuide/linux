@@ -65,6 +65,11 @@ struct usbnet {
 #		define EVENT_STS_SPLIT	3
 #		define EVENT_LINK_RESET	4
 #		define EVENT_RX_PAUSED	5
+#		define EVENT_DEV_WAKING 6
+#		define EVENT_DEV_ASLEEP 7
+#ifndef __GENKSYMS__
+	struct usb_anchor	deferred;
+#endif
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -93,6 +98,8 @@ struct driver_info {
 #define FLAG_WWAN	0x0400		/* use "wwan%d" names */
 
 #define FLAG_LINK_INTR	0x0800		/* updates link (carrier) status */
+
+#define FLAG_RH_HAS_MANAGE_POWER 0x80000000 /* Flag to indicate that we have manage_power */
 
 	/* init device ... can sleep, or cause probe() failure */
 	int	(*bind)(struct usbnet *, struct usb_interface *);
@@ -135,6 +142,10 @@ struct driver_info {
 	int		out;		/* tx endpoint */
 
 	unsigned long	data;		/* Misc driver specific data */
+#ifndef __GENKSYMS__
+	/* (dis)activate runtime power management */
+	int	(*manage_power)(struct usbnet *, int);
+#endif
 };
 
 /* Minidrivers are just drivers using the "usbnet" core as a powerful
