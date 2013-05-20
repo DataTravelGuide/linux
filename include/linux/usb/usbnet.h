@@ -69,8 +69,10 @@ struct usbnet {
 #		define EVENT_DEV_OPEN	7
 #		define EVENT_DEVICE_REPORT_IDLE	8
 #		define EVENT_NO_RUNTIME_PM	9
+#		define EVENT_RX_KILL	10
 #ifndef __GENKSYMS__
 	struct usb_anchor	deferred;
+	unsigned char		pkt_cnt, pkt_err;
 #endif
 };
 
