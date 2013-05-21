@@ -465,6 +465,15 @@ static void ghes_do_proc(const struct acpi_hest_generic_status *estatus)
 			apei_mce_report_mem_error(sev == GHES_SEV_CORRECTED,
 						  mem_err);
 #endif
+#ifdef CONFIG_ACPI_APEI_MEMORY_FAILURE
+			if (sev == GHES_SEV_RECOVERABLE &&
+			    sec_sev == GHES_SEV_RECOVERABLE &&
+			    mem_err->validation_bits & CPER_MEM_VALID_PHYSICAL_ADDRESS) {
+				unsigned long pfn;
+				pfn = mem_err->physical_addr >> PAGE_SHIFT;
+				memory_failure_queue(pfn, 0, 0);
+			}
+#endif
 		}
 	}
 }
