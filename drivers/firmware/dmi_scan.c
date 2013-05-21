@@ -150,6 +150,23 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot, int str
 	dmi_ident[slot] = p;
 }
 
+/*
+ * As of version 2.6 of the SMBIOS specification, the first 3 fields of
+ * the UUID are supposed to be little-endian encoded.  The specification
+ * says that this is the defacto standard.
+ *
+ * RHEL6, however, has API restrictions on /proc.  This means that users
+ * will have to select a kernel parameter option to get the 2.6 UUID decoding
+ * to avoid userspace breakage.
+ */
+static int smbios_26_uuid;
+static int __init setup_smbios_26_uuid(char *str)
+{
+	smbios_26_uuid = 1;
+	return 1;
+}
+__setup("smbios_26_uuid", setup_smbios_26_uuid);
+
 static void __init dmi_save_uuid(const struct dmi_header *dm, int slot, int index)
 {
 	const u8 *d = (u8*) dm + index;
@@ -178,7 +195,7 @@ static void __init dmi_save_uuid(const struct dmi_header *dm, int slot, int inde
 	 * the UUID are supposed to be little-endian encoded.  The specification
 	 * says that this is the defacto standard.
 	 */
-	if (dmi_ver >= 0x0206)
+	if (smbios_26_uuid && dmi_ver >= 0x0206)
 		sprintf(s, "%pUL", d);
 	else
 		sprintf(s, "%pUB", d);
