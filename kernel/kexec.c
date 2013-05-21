@@ -1461,6 +1461,7 @@ int __init parse_crashkernel(char 		 *cmdline,
 			ck_cmdline += 4; /* strlen("auto") */
 			memmove(ck_cmdline - 16, ck_cmdline,
 				strlen(cmdline) - (ck_cmdline - cmdline) + 1);
+			pr_warning("crashkernel=auto resulted in zero bytes of reserved memory.\n");
 			return -ENOMEM;
 		}
 	}
