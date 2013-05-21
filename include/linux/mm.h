@@ -1477,6 +1477,7 @@ enum mf_flags {
 	MF_ACTION_REQUIRED = 1 << 1,
 };
 extern int memory_failure(unsigned long pfn, int trapno, int flags);
+extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
