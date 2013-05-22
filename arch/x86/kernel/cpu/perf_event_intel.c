@@ -1816,7 +1816,7 @@ __init int intel_pmu_init(void)
 		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,
 		       sizeof(hw_cache_extra_regs));
 
-		intel_pmu_lbr_init_nhm();
+		intel_pmu_lbr_init_snb();
 
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
 		x86_pmu.pebs_constraints = intel_nehalem_pebs_event_constraints;
