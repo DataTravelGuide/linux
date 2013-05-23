@@ -1939,15 +1939,17 @@ EXPORT_SYMBOL(skb_checksum_help);
 __be16 skb_network_protocol(struct sk_buff *skb)
 {
 	__be16 type = skb->protocol;
+	int vlan_depth = ETH_HLEN;
 
-	if (type == htons(ETH_P_8021Q)) {
-		struct vlan_ethhdr *veh;
+	while (type == htons(ETH_P_8021Q)) {
+		struct vlan_hdr *vh;
 
-		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
+		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))
 			return 0;
 
-		veh = (struct vlan_ethhdr *)skb->data;
-		type = veh->h_vlan_encapsulated_proto;
+		vh = (struct vlan_hdr *)(skb->data + vlan_depth);
+		type = vh->h_vlan_encapsulated_proto;
+		vlan_depth += VLAN_HLEN;
 	}
 
 	return type;
