@@ -1939,6 +1939,17 @@ EXPORT_SYMBOL(skb_checksum_help);
 __be16 skb_network_protocol(struct sk_buff *skb)
 {
 	__be16 type = skb->protocol;
+
+	if (type == htons(ETH_P_8021Q)) {
+		struct vlan_ethhdr *veh;
+
+		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
+			return 0;
+
+		veh = (struct vlan_ethhdr *)skb->data;
+		type = veh->h_vlan_encapsulated_proto;
+	}
+
 	return type;
 }
 
@@ -2209,6 +2220,15 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		features = netif_skb_features(skb);
 
+		if (vlan_tx_tag_present(skb) &&
+		    !(features & NETIF_F_HW_VLAN_TX)) {
+			skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
+			if (unlikely(!skb))
+				goto out;
+
+			skb->vlan_tci = 0;
+		}
+
 		/* If encapsulation offload request, verify we are testing
 		 * hardware encapsulation features instead of standard
 		 * features for the netdev
@@ -2300,6 +2320,7 @@ gso:
 
 out_kfree_skb:
 	kfree_skb(skb);
+out:
 	return NETDEV_TX_OK;
 }
 
