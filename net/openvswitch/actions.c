@@ -89,16 +89,21 @@ static int pop_vlan(struct sk_buff *skb)
 		if (err)
 			return err;
 	}
+	/* move next vlan tag to hw accel tag */
+	if (likely(skb->protocol != htons(ETH_P_8021Q) ||
+		   skb->len < VLAN_ETH_HLEN))
+		return 0;
 
+	err = __pop_vlan_tci(skb, &tci);
+	if (unlikely(err))
+		return err;
+
+	__vlan_hwaccel_put_tag(skb, ntohs(tci));
 	return 0;
 }
 
 static int push_vlan(struct sk_buff *skb, const struct ovs_action_push_vlan *vlan)
 {
-	/*
-	 * Push an eventual existing hardware accel VLAN tag to the skb first
-	 * to maintain correct order.
-	 */
 	if (unlikely(vlan_tx_tag_present(skb))) {
 		u16 current_tag;
 
@@ -113,8 +118,7 @@ static int push_vlan(struct sk_buff *skb, const struct ovs_action_push_vlan *vla
 					+ (2 * ETH_ALEN), VLAN_HLEN, 0));
 
 	}
-
-	__vlan_put_tag(skb, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
+	__vlan_hwaccel_put_tag(skb, ntohs(vlan->vlan_tci) & ~VLAN_TAG_PRESENT);
 	return 0;
 }
 
