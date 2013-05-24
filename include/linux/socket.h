@@ -24,6 +24,12 @@ struct __kernel_sockaddr_storage {
 #include <linux/types.h>		/* pid_t			*/
 #include <linux/compiler.h>		/* __user			*/
 
+struct pid;
+struct cred;
+
+#define __sockaddr_check_size(size)    \
+	BUILD_BUG_ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
+
 #ifdef __KERNEL__
 # ifdef CONFIG_PROC_FS
 struct seq_file;
@@ -302,6 +308,8 @@ struct ucred {
 #define IPX_TYPE	1
 
 #ifdef __KERNEL__
+extern void cred_to_ucred(struct pid *pid, const struct cred *cred, struct ucred *ucred);
+
 extern int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len);
 extern int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
 			       int offset, int len);
