@@ -88,6 +88,7 @@
 
 /* Array sizes */
 #define VALIDATE_BUF_SIZE 4096    
+#define VALIDATE_MSG_LEN  256
 #define RTAS_MSG_MAXLEN   64
 
 /* Quirk - RTAS requires 4k list length and block size */
@@ -483,7 +484,7 @@ static void validate_flash(struct rtas_validate_flash_t *args_buf)
 }
 
 static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf, 
-		                   char *msg)
+		                   char *msg, int msglen)
 {
 	int n;
 
@@ -491,7 +492,8 @@ static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf,
 		n = sprintf(msg, "%d\n", args_buf->update_results);
 		if ((args_buf->update_results >= VALIDATE_CUR_UNKNOWN) ||
 		    (args_buf->update_results == VALIDATE_TMP_UPDATE))
-			n += sprintf(msg + n, "%s\n", args_buf->buf);
+			n += snprintf(msg + n, msglen - n, "%s\n",
+					args_buf->buf);
 	} else {
 		n = sprintf(msg, "%d\n", args_buf->status);
 	}
@@ -503,7 +505,7 @@ static ssize_t validate_flash_read(struct file *file, char __user *buf,
 {
 	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
 	struct rtas_validate_flash_t *args_buf;
-	char msg[RTAS_MSG_MAXLEN];
+	char msg[VALIDATE_MSG_LEN];
 	int msglen;
 
 	args_buf = (struct rtas_validate_flash_t *) dp->data;
@@ -511,7 +513,7 @@ static ssize_t validate_flash_read(struct file *file, char __user *buf,
 	if (ppos && *ppos != 0)
 		return 0;	/* be cheap */
 	
-	msglen = get_validate_flash_msg(args_buf, msg);
+	msglen = get_validate_flash_msg(args_buf, msg, VALIDATE_MSG_LEN);
 	if (msglen > count)
 		msglen = count;
 
