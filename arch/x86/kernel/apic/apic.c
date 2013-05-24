@@ -2430,6 +2430,7 @@ early_param("nolapic_timer", parse_nolapic_timer);
 static int __init parse_enable_arat(char *arg)
 {
 	enable_arat = 1;
+	mark_tech_preview("x86 ARAT Support", NULL);
 	return 0;
 }
 early_param("enable_arat", parse_enable_arat);
