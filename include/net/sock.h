@@ -352,6 +352,8 @@ struct sock_extended {
 	 * existing modules. */
 	__u8			rcv_tos;
 	u32			icsk_user_timeout;
+	struct pid		*sk_peer_pid;
+	const struct cred	*sk_peer_cred;
 };
 
 #define __sk_tx_queue_mapping(sk) \
