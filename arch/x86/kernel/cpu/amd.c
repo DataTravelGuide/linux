@@ -395,6 +395,13 @@ static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 
 	c->x86_coreid_bits = bits;
 #endif
+
+	/*
+	 * Family 0x12 and above processors have APIC timer
+	 * running in deep C states.
+	 */
+	if (c->x86 > 0x11)
+		set_cpu_cap(c, X86_FEATURE_ARAT);
 }
 
 static void __cpuinit bsp_init_amd(struct cpuinfo_x86 *c)
