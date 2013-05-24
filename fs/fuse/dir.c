@@ -1713,7 +1713,7 @@ static long fuse_fallocate(struct inode *inode, int mode, loff_t offset,
 	ff = list_entry(fi->write_files.next, struct fuse_file, write_entry);
 	spin_unlock(&fc->lock);
 
-	return fuse_file_fallocate(ff, mode, offset, len);
+	return fuse_file_fallocate(inode, ff, mode, offset, len);
 }
 
 static const struct inode_operations fuse_dir_inode_operations = {
