@@ -358,7 +358,7 @@ static void chsc_process_sei_chp_avail(struct chsc_sei_area *sei_area)
 			continue;
 		}
 		mutex_lock(&chp->lock);
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		chp_update_desc(chp);
 		mutex_unlock(&chp->lock);
 	}
 }
@@ -580,8 +580,8 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
 	if (on) {
-		/* Try to update the channel path descritor. */
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		/* Try to update the channel path description. */
+		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
 					   __s390_vary_chpid_on, &link);
 	} else
