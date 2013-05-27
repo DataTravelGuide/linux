@@ -1247,7 +1247,7 @@ errout:
 
 static size_t inet_get_link_af_size(const struct net_device *dev)
 {
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	if (!in_dev)
 		return 0;
@@ -1257,7 +1257,7 @@ static size_t inet_get_link_af_size(const struct net_device *dev)
 
 static int inet_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 	struct nlattr *nla;
 	int i;
 
@@ -1284,7 +1284,7 @@ static int inet_validate_link_af(const struct net_device *dev,
 	struct nlattr *a, *tb[IFLA_INET_MAX+1];
 	int err, rem;
 
-	if (dev && !__in_dev_get_rcu(dev))
+	if (dev && !__in_dev_get_rtnl(dev))
 		return -EAFNOSUPPORT;
 
 	err = nla_parse_nested(tb, IFLA_INET_MAX, nla, inet_af_policy);
@@ -1308,7 +1308,7 @@ static int inet_validate_link_af(const struct net_device *dev,
 
 static int inet_set_link_af(struct net_device *dev, const struct nlattr *nla)
 {
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 	struct nlattr *a, *tb[IFLA_INET_MAX+1];
 	int rem;
 
