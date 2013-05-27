@@ -652,6 +652,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	ifa->prefix_len = pfxlen;
 	ifa->flags = flags | IFA_F_TENTATIVE;
 	ifa->cstamp = ifa->tstamp = jiffies;
+	ifa->tokenized = false;
 
 	ifa->rt = rt;
 
@@ -1885,6 +1886,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 		struct inet6_ifaddr * ifp;
 		struct in6_addr addr;
 		int create = 0, update_lft = 0;
+		bool tokenized = false;
 
 		if (pinfo->prefix_len == 64) {
 			memcpy(&addr, &pinfo->prefix, 8);
@@ -1894,6 +1896,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 				memcpy(addr.s6_addr + 8,
 				       in6_dev->token.s6_addr + 8, 8);
 				read_unlock_bh(&in6_dev->lock);
+				tokenized = true;
 			} else if (ipv6_generate_eui64(addr.s6_addr + 8, dev) &&
 				   ipv6_inherit_eui64(addr.s6_addr + 8, in6_dev)) {
 				in6_dev_put(in6_dev);
@@ -1937,6 +1940,7 @@ ok:
 
 			update_lft = create = 1;
 			ifp->cstamp = jiffies;
+			ifp->tokenized = tokenized;
 			addrconf_dad_start(ifp, RTF_ADDRCONF|RTF_PREFIX_RT);
 		}
 
@@ -3925,8 +3929,7 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 	/* Well, that's kinda nasty ... */
 	for (ifp = idev->addr_list; ifp; ifp = ifp->if_next) {
 		spin_lock(&ifp->lock);
-		if (ipv6_addr_src_scope(&ifp->addr) ==
-		    IPV6_ADDR_SCOPE_GLOBAL) {
+		if (ifp->tokenized) {
 			ifp->valid_lft = 0;
 			ifp->prefered_lft = 0;
 		}

@@ -72,6 +72,9 @@ struct inet6_ifaddr
 #endif
 
 	int			dead;
+#ifndef __GENKSYMS__
+	bool			tokenized;
+#endif
 };
 
 struct ip6_sf_socklist
