@@ -91,6 +91,7 @@ struct net_bridge_mdb_entry
 	struct br_ip			addr;
 	bool				mglist;
 	u32				queries_sent;
+	bool				timer_armed;
 };
 
 struct net_bridge_mdb_htable
