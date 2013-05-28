@@ -51,10 +51,6 @@ struct nfs_client {
 	nfs4_verifier		cl_confirm;	/* Clientid verifier */
 	unsigned long		cl_state;
 
-	struct rb_root		cl_openowner_id;
-	struct rb_root		cl_lockowner_id;
-
-	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;
@@ -82,6 +78,10 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session; 	/* sharred session */
+	/* the following fields are protected by nfs_client->cl_lock */
+	struct rb_root		cl_openowner_id;
+	struct rb_root		cl_lockowner_id;
+	struct rb_root		cl_state_owners;
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -147,6 +147,11 @@ struct nfs_server {
 						   filesystem */
 	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
 	struct rpc_wait_queue	roc_rpcwaitq;
+
+	/* the following fields are protected by nfs_client->cl_lock */
+	struct rb_root		state_owners;
+	struct rb_root		openowner_id;
+	struct rb_root		lockowner_id;
 #endif
 	struct list_head	layouts;
 	struct list_head        delegations;
