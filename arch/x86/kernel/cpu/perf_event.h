@@ -318,6 +318,7 @@ struct x86_pmu {
 	 * sysfs attrs
 	 */
 	int		attr_rdpmc;
+	struct attribute **format_attrs;
 
 	/*
 	 * CPU Hotplug hooks

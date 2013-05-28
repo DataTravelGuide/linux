@@ -542,6 +542,15 @@ struct perf_guest_info_callbacks {
 #include <linux/cpu.h>
 #include <linux/irq_work.h>
 #include <asm/atomic.h>
+/*
+ * RHEL6 - following includes unwind additional structs
+ * for genksyms check, ending up with false broken KABI.
+ * Disabling them for the check.
+ */
+#ifndef __GENKSYMS__
+#include <linux/sysfs.h>
+#include <linux/device.h>
+#endif
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -1271,6 +1280,19 @@ do {									\
 		(void *)(unsigned long)smp_processor_id());		\
 	register_cpu_notifier(&fn##_nb);				\
 } while (0)
+
+
+#define PMU_FORMAT_ATTR(_name, _format)					\
+static ssize_t								\
+_name##_show(struct device *dev,					\
+			       struct device_attribute *attr,		\
+			       char *page)				\
+{									\
+	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);			\
+	return sprintf(page, _format "\n");				\
+}									\
+									\
+static struct device_attribute format_attr_##_name = __ATTR_RO(_name)
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_PERF_EVENT_H */
