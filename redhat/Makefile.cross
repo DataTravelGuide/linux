@@ -30,6 +30,12 @@ rh-cross-s390x-rpms: rh-cross-download rh-sources
 	$(CROSS_RPMFLAGS) --target s390x --with cross -ba $(RPM)/SOURCES/kernel.spec
 	$(REDHAT)/scripts/generate-cross-report.sh "s390"
 
+rh-cross-x86-rpms: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross -ba $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) -ba $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 x86_64"
+
 rh-cross-all-rpms: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
 	$(CROSS_RPMFLAGS) --target i686 --with cross -ba $(RPM)/SOURCES/kernel.spec
@@ -52,6 +58,12 @@ rh-cross-ppc64-build: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
 	$(CROSS_RPMFLAGS) --target s390x --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
 	$(REDHAT)/scripts/generate-cross-report.sh "ppc64"
+
+rh-cross-x86-builds: rh-cross-download rh-sources
+	$(REDHAT)/scripts/x86_rngd.sh
+	$(CROSS_RPMFLAGS) --target i686 --with cross --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(CROSS_RPMFLAGS) --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
+	$(REDHAT)/scripts/generate-cross-report.sh "i686 x86_64"
 
 rh-cross-all-builds: rh-cross-download rh-sources
 	$(REDHAT)/scripts/x86_rngd.sh
