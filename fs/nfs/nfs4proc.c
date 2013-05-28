@@ -793,6 +793,7 @@ struct nfs4_opendata {
 	struct iattr attrs;
 	unsigned long timestamp;
 	unsigned int rpc_done : 1;
+	unsigned int is_recover : 1;
 	int rpc_status;
 	int cancelled;
 };
@@ -1115,9 +1116,11 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		nfs4_stateid_copy(&stateid, &delegation->stateid);
 		rcu_read_unlock();
 		nfs_release_seqid(opendata->o_arg.seqid);
-		ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
-		if (ret != 0)
-			goto out;
+		if (!opendata->is_recover) {
+			ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
+			if (ret != 0)
+				goto out;
+		}
 		ret = -EAGAIN;
 
 		/* Try to update the stateid using the delegation */
@@ -1631,8 +1634,11 @@ static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 	data->rpc_done = 0;
 	data->rpc_status = 0;
 	data->cancelled = 0;
-	if (isrecover)
+	data->is_recover = 0;
+	if (isrecover) {
 		task_setup_data.callback_ops = &nfs4_recover_open_ops;
+		data->is_recover = 1;
+	}
 	task = rpc_run_task(&task_setup_data);
         if (IS_ERR(task))
                 return PTR_ERR(task);
