@@ -81,6 +81,7 @@ int nfs_wait_bit_killable(void *word)
 	freezable_schedule();
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_wait_bit_killable);
 
 /**
  * nfs_compat_user_ino64 - returns the user-visible inode number

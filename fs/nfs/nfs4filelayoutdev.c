@@ -608,6 +608,22 @@ filelayout_mark_devid_negative(struct nfs4_file_layout_dsaddr *dsaddr,
 	spin_unlock(&nfs4_ds_cache_lock);
 }
 
+static void nfs4_wait_ds_connect(struct nfs4_pnfs_ds *ds)
+{
+	might_sleep();
+	wait_on_bit(&ds->ds_state, NFS4DS_CONNECTING,
+			nfs_wait_bit_killable, TASK_KILLABLE);
+}
+
+static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(NFS4DS_CONNECTING, &ds->ds_state);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&ds->ds_state, NFS4DS_CONNECTING);
+}
+
+
 struct nfs4_pnfs_ds *
 nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
@@ -619,8 +635,10 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 			__func__, ds_idx);
 		return NULL;
 	}
+	if (ds->ds_clp)
+		return ds;
 
-	if (!ds->ds_clp) {
+	if (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) == 0) {
 		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
@@ -633,8 +651,12 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 		if (err) {
 			filelayout_mark_devid_negative(dsaddr, err,
 						       ntohl(ds->ds_ip_addr));
-			return NULL;
+			ds = NULL;
 		}
+		nfs4_clear_ds_conn_bit(ds);
+	} else {
+		/* Either ds is connected, or ds is NULL */
+		nfs4_wait_ds_connect(ds);
 	}
 	return ds;
 }
