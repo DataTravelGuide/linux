@@ -2573,7 +2573,7 @@ static int _nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir,
 	return status;
 }
 
-static void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr)
+void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr)
 {
 	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
 		NFS_ATTR_FATTR_NLINK | NFS_ATTR_FATTR_MOUNTPOINT;
