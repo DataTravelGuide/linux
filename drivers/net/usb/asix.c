@@ -1582,6 +1582,10 @@ static const struct usb_device_id	products [] = {
 	// ASIX 88772a
 	USB_DEVICE(0x0db0, 0xa877),
 	.driver_info = (unsigned long) &ax88772_info,
+}, {
+	// Lenovo carbon X1
+	USB_DEVICE(0x17ef, 0x7203),
+	.driver_info = (unsigned long) &ax88772_info,
 },
 	{ },		// END
 };
