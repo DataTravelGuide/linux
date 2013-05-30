@@ -21,7 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
-
+#include <linux/cpu_rmap.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -1230,6 +1230,29 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	return count;
 }
 
+static int
+efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
+{
+#ifdef CONFIG_RFS_ACCEL
+	int i, rc;
+	struct netdev_rfs_info *rfinfo = &netdev_extended(efx->net_dev)->rfs_data;
+
+	rfinfo->rx_cpu_rmap = alloc_irq_cpu_rmap(efx->n_rx_channels);
+	if (!rfinfo->rx_cpu_rmap)
+		return -ENOMEM;
+	for (i = 0; i < efx->n_rx_channels; i++) {
+		rc = irq_cpu_rmap_add(rfinfo->rx_cpu_rmap,
+				      xentries[i].vector);
+		if (rc) {
+			free_irq_cpu_rmap(rfinfo->rx_cpu_rmap);
+			rfinfo->rx_cpu_rmap = NULL;
+			return rc;
+		}
+	}
+#endif
+	return 0;
+}
+
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
@@ -1282,6 +1305,11 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			} else {
 				efx->n_tx_channels = n_channels;
 				efx->n_rx_channels = n_channels;
+			}
+			rc = efx_init_rx_cpu_rmap(efx, xentries);
+			if (rc) {
+				pci_disable_msix(efx->pci_dev);
+				return rc;
 			}
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
@@ -1451,6 +1479,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 				true);
 
 	return 0;
+
 fail:
 	efx->type->remove(efx);
 	return rc;
@@ -2049,7 +2078,11 @@ static int efx_register_netdev(struct efx_nic *efx)
 	struct net_device *net_dev = efx->net_dev;
 	struct efx_channel *channel;
 	int rc;
+#ifdef CONFIG_RFS_ACCEL
+	struct netdev_rfs_info *rfinfo = &netdev_extended(efx->net_dev)->rfs_data;
 
+	rfinfo->ndo_rx_flow_steer = efx_filter_rfs;
+#endif
 	net_dev->watchdog_timeo = 5 * HZ;
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &efx_netdev_ops;
@@ -2444,8 +2477,10 @@ static void efx_fini_struct(struct efx_nic *efx)
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
 #ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-	efx->net_dev->rx_cpu_rmap = NULL;
+	struct netdev_rfs_info *rfinfo = &netdev_extended(efx->net_dev)->rfs_data;
+
+	free_irq_cpu_rmap(rfinfo->rx_cpu_rmap);
+	rfinfo->rx_cpu_rmap = NULL;
 #endif
 	efx_stop_interrupts(efx, false);
 	efx_nic_fini_interrupt(efx);
