@@ -553,14 +553,16 @@ struct xps_dev_maps {
     (nr_cpu_ids * sizeof(struct xps_map *)))
 
  /*
-  * The rps_dev_flow structure contains the mapping of a flow to a CPU and the
-  * tail pointer for that CPU's input queue at the time of last enqueue.
+  * The rps_dev_flow structure contains the mapping of a flow to a CPU, the
+  * tail pointer for that CPU's input queue at the time of last enqueue, and
+  * a hardware filter index.
   */
 struct rps_dev_flow {
 	u16 cpu;
-	u16 fill;
+	u16 filter;
 	unsigned int last_qtail;
 };
+#define RPS_NO_FILTER 0xffff
 
  /*
   * The rps_dev_flow_table structure contains a table of flow mappings.
@@ -610,6 +612,11 @@ static inline void rps_reset_sock_flow(struct rps_sock_flow_table *table,
 }
 
 extern struct rps_sock_flow_table *rps_sock_flow_table;
+
+#ifdef CONFIG_RFS_ACCEL
+extern bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index,
+				u32 flow_id, u16 filter_id);
+#endif
 
 /* This structure contains an instance of an RX queue. */
 struct netdev_rx_queue {
@@ -1165,6 +1172,28 @@ struct netdev_rps_info {
 	unsigned int	num_rx_queues;
 };
 
+struct netdev_rfs_info {
+#ifdef CONFIG_RFS_ACCEL
+	/* CPU reverse-mapping for RX completion interrupts, indexed
+	 * by RX queue number.  Assigned by driver.  This must only be
+	 * set if the ndo_rx_flow_steer operation is defined.
+	 */
+	struct cpu_rmap		*rx_cpu_rmap;
+	/* RFS acceleration.
+	 * int (*ndo_rx_flow_steer)(struct net_device *dev,
+	 * 			    const struct sk_buff *skb,
+	 *			    u16 rxq_index, u32 flow_id);
+	 * Set hardware filter for RFS.  rxq_index is the target queue index;
+	 * flow_id is a flow ID to be passed to rps_may_expire_flow() later.
+	 * Return the filter ID on success, or a negative error code.
+	 */
+	int			(*ndo_rx_flow_steer)(struct net_device *dev,
+						     const struct sk_buff *skb,
+						     u16 rxq_index,
+						     u32 flow_id);
+#endif
+};
+
 struct netdev_qos_info {
 	u8 num_tc;
 	struct netdev_tc_txq tc_to_txq[TC_MAX_QUEUE];
@@ -1218,6 +1247,7 @@ struct net_device_extended {
 	struct list_head			unreg_list;
 	struct net_device			*dev;
 	struct net				*src_net;
+	struct netdev_rfs_info			rfs_data;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
