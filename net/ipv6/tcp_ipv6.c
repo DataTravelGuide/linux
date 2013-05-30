@@ -1496,6 +1496,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		TCP_CHECK_TIMER(sk);
+		sock_rps_save_rxhash(sk, skb->rxhash);
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len))
 			goto reset;
 		TCP_CHECK_TIMER(sk);
@@ -1524,7 +1525,8 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 				__kfree_skb(opt_skb);
 			return 0;
 		}
-	}
+	} else
+		sock_rps_save_rxhash(sk, skb->rxhash);
 
 	TCP_CHECK_TIMER(sk);
 	if (tcp_rcv_state_process(sk, skb, tcp_hdr(skb), skb->len))
