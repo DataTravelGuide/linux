@@ -1129,19 +1129,13 @@ static void cdc_ncm_disconnect(struct usb_interface *intf)
 	usbnet_disconnect(intf);
 }
 
-static int cdc_ncm_manage_power(struct usbnet *dev, int status)
-{
-	dev->intf->needs_remote_wakeup = status;
-	return 0;
-}
-
 static const struct driver_info cdc_ncm_info = {
 	.description = "CDC NCM",
-	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET,
+	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET |  FLAG_RH_HAS_MANAGE_POWER,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.check_connect = cdc_ncm_check_connect,
-	.manage_power = cdc_ncm_manage_power,
+	.manage_power = usbnet_manage_power,
 	.status = cdc_ncm_status,
 	.rx_fixup = cdc_ncm_rx_fixup,
 	.tx_fixup = cdc_ncm_tx_fixup,
@@ -1151,11 +1145,11 @@ static const struct driver_info cdc_ncm_info = {
 static const struct driver_info wwan_info = {
 	.description = "Mobile Broadband Network Device",
 	.flags = FLAG_POINTTOPOINT | FLAG_NO_SETINT | FLAG_MULTI_PACKET
-			| FLAG_WWAN,
+			| FLAG_WWAN |  FLAG_RH_HAS_MANAGE_POWER,
 	.bind = cdc_ncm_bind,
 	.unbind = cdc_ncm_unbind,
 	.check_connect = cdc_ncm_check_connect,
-	.manage_power = cdc_ncm_manage_power,
+	.manage_power = usbnet_manage_power,
 	.status = cdc_ncm_status,
 	.rx_fixup = cdc_ncm_rx_fixup,
 	.tx_fixup = cdc_ncm_tx_fixup,
