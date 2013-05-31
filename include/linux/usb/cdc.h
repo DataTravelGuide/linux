@@ -18,6 +18,7 @@
 #define USB_CDC_SUBCLASS_MDLM			0x0a
 #define USB_CDC_SUBCLASS_OBEX			0x0b
 #define USB_CDC_SUBCLASS_EEM			0x0c
+#define USB_CDC_SUBCLASS_MBIM			0x0e
 
 #define USB_CDC_PROTO_NONE			0
 
@@ -30,6 +31,8 @@
 #define USB_CDC_ACM_PROTO_VENDOR		0xff
 
 #define USB_CDC_PROTO_EEM			7
+
+#define USB_CDC_MBIM_PROTO_NTB			2
 
 /*-------------------------------------------------------------------------*/
 
@@ -49,6 +52,7 @@
 #define USB_CDC_MDLM_DETAIL_TYPE	0x13	/* mdlm_detail_desc */
 #define USB_CDC_DMM_TYPE		0x14
 #define USB_CDC_OBEX_TYPE		0x15
+#define USB_CDC_MBIM_TYPE		0x1b
 
 /* "Header Functional Descriptor" from CDC spec  5.2.3.1 */
 struct usb_cdc_header_desc {
@@ -174,6 +178,21 @@ struct usb_cdc_obex_desc {
 	__le16	bcdVersion;
 } __attribute__ ((packed));
 
+
+/* "MBIM Control Model Functional Descriptor" */
+struct usb_cdc_mbim_desc {
+	__u8	bLength;
+	__u8	bDescriptorType;
+	__u8	bDescriptorSubType;
+
+	__le16	bcdMBIMVersion;
+	__le16  wMaxControlMessage;
+	__u8    bNumberFilters;
+	__u8    bMaxFilterSize;
+	__le16  wMaxSegmentSize;
+	__u8    bmNetworkCapabilities;
+} __attribute__ ((packed));
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -246,5 +265,11 @@ struct usb_cdc_notification {
 	__le16	wIndex;
 	__le16	wLength;
 } __attribute__ ((packed));
+
+
+#define USB_CDC_MBIM_NDP16_IPS_SIGN     0x00535049 /* IPS<sessionID> : IPS0 for now */
+#define USB_CDC_MBIM_NDP32_IPS_SIGN     0x00737069 /* ips<sessionID> : ips0 for now */
+#define USB_CDC_MBIM_NDP16_DSS_SIGN     0x00535344 /* DSS<sessionID> */
+#define USB_CDC_MBIM_NDP32_DSS_SIGN     0x00737364 /* dss<sessionID> */
 
 #endif /* __LINUX_USB_CDC_H */
