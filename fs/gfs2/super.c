@@ -1257,6 +1257,7 @@ static void gfs2_clear_inode(struct inode *inode)
 	ip->i_gl = NULL;
 	if (ip->i_iopen_gh.gh_gl) {
 		ip->i_iopen_gh.gh_gl->gl_object = NULL;
+		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	}
 }
@@ -1477,6 +1478,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	/* Must not read inode block until block type has been verified */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (unlikely(error)) {
+		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
 	}
@@ -1568,8 +1570,10 @@ out_unlock:
 	if (gfs2_rs_active(ip->i_res))
 		gfs2_rs_deltree(ip->i_res);
 
-	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
+	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
+		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq(&ip->i_iopen_gh);
+	}
 	gfs2_holder_uninit(&ip->i_iopen_gh);
 	gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
