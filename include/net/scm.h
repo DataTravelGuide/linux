@@ -6,6 +6,9 @@
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
+#ifndef __GENKSYMS__
+#include <linux/user_namespace.h>
+#endif
 
 /* Well, we should have at least one descriptor open
  * to accept passed FDs 8)
@@ -50,9 +53,13 @@ static __inline__ void unix_get_peersec_dgram(struct socket *sock, struct scm_co
 static __inline__ void scm_set_cred(struct scm_cookie *scm,
 				    struct pid *pid, const struct cred *cred)
 {
+	struct user_namespace *current_ns = current_user_ns();
+
 	scm->pid  = get_pid(pid);
 	scm->cred = cred ? get_cred(cred) : NULL;
-	cred_to_ucred(pid, cred, &scm->creds);
+	scm->creds.pid = pid_vnr(pid);
+	scm->creds.uid = cred ? user_ns_map_uid(current_ns, cred, cred->uid) : -1;
+	scm->creds.gid = cred ? user_ns_map_gid(current_ns, cred, cred->gid) : -1;
 }
 
 static __inline__ void scm_destroy_cred(struct scm_cookie *scm)
