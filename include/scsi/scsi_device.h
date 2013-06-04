@@ -176,6 +176,7 @@ struct scsi_device {
 	unsigned long		sdev_data[0];
 #else
 	struct work_struct	requeue_work;
+	unsigned int eh_timeout; /* Error handling timeout */
 	unsigned long		sdev_data[0];
 #endif
 } __attribute__((aligned(sizeof(unsigned long))));
