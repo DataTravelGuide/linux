@@ -378,6 +378,7 @@ void br_features_recompute(struct net_bridge *br)
 
 done:
 	br->dev->features = netdev_fix_features(features, NULL);
+	netdev_features_change(br->dev);
 }
 
 /* called with RTNL */
