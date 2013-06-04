@@ -1852,12 +1852,6 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (mce->bank != 8)
 		return NOTIFY_DONE;
 
-#ifdef CONFIG_SMP
-	/* Only handle if it is the right mc controller */
-	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket)
-		return NOTIFY_DONE;
-#endif
-
 	smp_rmb();
 	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
 		smp_wmb();
@@ -1920,8 +1914,6 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &i7core_dev->pdev[0]->dev);
-
-	mce_unregister_decode_chain(&i7_mce_dec);
 
 	/* Disable EDAC polling */
 	i7core_pci_ctl_release(pvt);
@@ -2015,8 +2007,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 
 	/* allocating generic PCI control info */
 	i7core_pci_ctl_create(pvt);
-
-	mce_register_decode_chain(&i7_mce_dec);
 
 	return 0;
 
@@ -2161,8 +2151,10 @@ static int __init i7core_init(void)
 
 	pci_rc = pci_register_driver(&i7core_driver);
 
-	if (pci_rc >= 0)
+	if (pci_rc >= 0) {
+		mce_register_decode_chain(&i7_mce_dec);
 		return 0;
+	}
 
 	i7core_printk(KERN_ERR, "Failed to register device with error %d.\n",
 		      pci_rc);
@@ -2178,6 +2170,7 @@ static void __exit i7core_exit(void)
 {
 	debugf2("MC: " __FILE__ ": %s()\n", __func__);
 	pci_unregister_driver(&i7core_driver);
+	mce_unregister_decode_chain(&i7_mce_dec);
 }
 
 module_init(i7core_init);
