@@ -1921,7 +1921,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &i7core_dev->pdev[0]->dev);
 
-	atomic_notifier_chain_unregister(&x86_mce_decoder_chain, &i7_mce_dec);
+	mce_unregister_decode_chain(&i7_mce_dec);
 
 	/* Disable EDAC polling */
 	i7core_pci_ctl_release(pvt);
@@ -2016,7 +2016,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	/* allocating generic PCI control info */
 	i7core_pci_ctl_create(pvt);
 
-	atomic_notifier_chain_register(&x86_mce_decoder_chain, &i7_mce_dec);
+	mce_register_decode_chain(&i7_mce_dec);
 
 	return 0;
 
