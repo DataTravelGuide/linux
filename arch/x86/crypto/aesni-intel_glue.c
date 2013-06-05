@@ -29,6 +29,7 @@
 #include <crypto/ctr.h>
 #include <asm/i387.h>
 #include <asm/aes.h>
+#include <asm/crypto/ablk_helper.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
 #include <linux/workqueue.h>
@@ -49,10 +50,6 @@
 #if defined(CONFIG_CRYPTO_XTS) || defined(CONFIG_CRYPTO_XTS_MODULE)
 #define HAS_XTS
 #endif
-
-struct async_aes_ctx {
-	struct cryptd_ablkcipher *cryptd_tfm;
-};
 
 /* This data is stored at the end of the crypto_tfm struct.
  * It's a type of per "session" data storage location.
@@ -374,87 +371,6 @@ static int ctr_crypt(struct blkcipher_desc *desc,
 	return err;
 }
 #endif
-
-static int ablk_set_key(struct crypto_ablkcipher *tfm, const u8 *key,
-			unsigned int key_len)
-{
-	struct async_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-	struct crypto_ablkcipher *child = &ctx->cryptd_tfm->base;
-	int err;
-
-	crypto_ablkcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
-	crypto_ablkcipher_set_flags(child, crypto_ablkcipher_get_flags(tfm)
-				    & CRYPTO_TFM_REQ_MASK);
-	err = crypto_ablkcipher_setkey(child, key, key_len);
-	crypto_ablkcipher_set_flags(tfm, crypto_ablkcipher_get_flags(child)
-				    & CRYPTO_TFM_RES_MASK);
-	return err;
-}
-
-static int ablk_encrypt(struct ablkcipher_request *req)
-{
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct async_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-
-	if (!irq_fpu_usable()) {
-		struct ablkcipher_request *cryptd_req =
-			ablkcipher_request_ctx(req);
-		memcpy(cryptd_req, req, sizeof(*req));
-		ablkcipher_request_set_tfm(cryptd_req, &ctx->cryptd_tfm->base);
-		return crypto_ablkcipher_encrypt(cryptd_req);
-	} else {
-		struct blkcipher_desc desc;
-		desc.tfm = cryptd_ablkcipher_child(ctx->cryptd_tfm);
-		desc.info = req->info;
-		desc.flags = 0;
-		return crypto_blkcipher_crt(desc.tfm)->encrypt(
-			&desc, req->dst, req->src, req->nbytes);
-	}
-}
-
-static int ablk_decrypt(struct ablkcipher_request *req)
-{
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct async_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-
-	if (!irq_fpu_usable()) {
-		struct ablkcipher_request *cryptd_req =
-			ablkcipher_request_ctx(req);
-		memcpy(cryptd_req, req, sizeof(*req));
-		ablkcipher_request_set_tfm(cryptd_req, &ctx->cryptd_tfm->base);
-		return crypto_ablkcipher_decrypt(cryptd_req);
-	} else {
-		struct blkcipher_desc desc;
-		desc.tfm = cryptd_ablkcipher_child(ctx->cryptd_tfm);
-		desc.info = req->info;
-		desc.flags = 0;
-		return crypto_blkcipher_crt(desc.tfm)->decrypt(
-			&desc, req->dst, req->src, req->nbytes);
-	}
-}
-
-static void ablk_exit(struct crypto_tfm *tfm)
-{
-	struct async_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	cryptd_free_ablkcipher(ctx->cryptd_tfm);
-}
-
-static int ablk_init_common(struct crypto_tfm *tfm, const char *drv_name)
-{
-	struct async_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher(drv_name, 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-
-	ctx->cryptd_tfm = cryptd_tfm;
-	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
-		crypto_ablkcipher_reqsize(&cryptd_tfm->base);
-
-	return 0;
-}
 
 static int ablk_ecb_init(struct crypto_tfm *tfm)
 {
@@ -966,7 +882,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -987,7 +903,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -1031,7 +947,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -1096,7 +1012,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= 1,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -1124,7 +1040,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -1148,7 +1064,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
@@ -1172,7 +1088,7 @@ static struct crypto_alg aesni_algs[] = { {
 	.cra_priority		= 400,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_ctxsize		= sizeof(struct async_helper_ctx),
 	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
