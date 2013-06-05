@@ -179,7 +179,6 @@ config EDAC_I5400
 config EDAC_I7CORE
 	tristate "Intel i7 Core (Nehalem) processors"
 	depends on EDAC_MM_EDAC && PCI && X86
-	select EDAC_MCE
 	help
 	  Support for error detection and correction the Intel
 	  i7 Core (Nehalem) Integrated Memory Controller that exists on
@@ -224,7 +223,7 @@ config EDAC_I7300
 config EDAC_SBRIDGE
 	tristate "Intel Sandy-Bridge Integrated MC"
 	depends on EDAC_MM_EDAC && X86 && PCI
-	select EDAC_MCE
+	select PCI_MMCONFIG
 	help
 	  Support for error detection and correction the Intel
 	  Sandy Bridge Integrated Memory Controller.
