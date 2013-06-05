@@ -59,9 +59,11 @@ static int scm_remove(struct scm_device *scmdev)
 
 	spin_lock_irq(&scmdev->lock);
 	bdev = dev_get_drvdata(&scmdev->dev);
-	dev_set_drvdata(&scmdev->dev, NULL);
 	spin_unlock_irq(&scmdev->lock);
 	scm_blk_dev_cleanup(bdev);
+	spin_lock_irq(&scmdev->lock);
+	dev_set_drvdata(&scmdev->dev, NULL);
+	spin_unlock_irq(&scmdev->lock);
 	kfree(bdev);
 
 	return 0;
