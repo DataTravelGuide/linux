@@ -415,6 +415,20 @@ static void chsc_process_sei_scm_change(struct chsc_sei_area *sei_area)
 			      " failed (rc=%d).\n", ret);
 }
 
+static void chsc_process_sei_scm_avail(struct chsc_sei_area *sei_area)
+{
+	int ret;
+
+	CIO_CRW_EVENT(4, "chsc: scm available information\n");
+	if (sei_area->rs != 7)
+		return;
+
+	ret = scm_process_availability_information();
+	if (ret)
+		CIO_CRW_EVENT(0, "chsc: process availability information"
+			      " failed (rc=%d).\n", ret);
+}
+
 static void chsc_process_sei(struct chsc_sei_area *sei_area)
 {
 	/* Check if we might have lost some information. */
@@ -438,6 +452,9 @@ static void chsc_process_sei(struct chsc_sei_area *sei_area)
 		break;
 	case 12: /* scm change notification */
 		chsc_process_sei_scm_change(sei_area);
+		break;
+	case 14: /* scm available notification */
+		chsc_process_sei_scm_avail(sei_area);
 		break;
 	default: /* other stuff */
 		CIO_CRW_EVENT(4, "chsc: unhandled sei content code %d\n",
