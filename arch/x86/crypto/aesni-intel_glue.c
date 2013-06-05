@@ -549,25 +549,25 @@ static void ablk_exit(struct crypto_tfm *tfm)
 	cryptd_free_ablkcipher(ctx->cryptd_tfm);
 }
 
-static void ablk_init_common(struct crypto_tfm *tfm,
-			     struct cryptd_ablkcipher *cryptd_tfm)
+static int ablk_init_common(struct crypto_tfm *tfm, const char *drv_name)
 {
 	struct async_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cryptd_ablkcipher *cryptd_tfm;
+
+	cryptd_tfm = cryptd_alloc_ablkcipher(drv_name, 0, 0);
+	if (IS_ERR(cryptd_tfm))
+		return PTR_ERR(cryptd_tfm);
 
 	ctx->cryptd_tfm = cryptd_tfm;
 	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
 		crypto_ablkcipher_reqsize(&cryptd_tfm->base);
+
+	return 0;
 }
 
 static int ablk_ecb_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-ecb-aes-aesni", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "__driver-ecb-aes-aesni");
 }
 
 static struct crypto_alg ablk_ecb_alg = {
@@ -596,13 +596,7 @@ static struct crypto_alg ablk_ecb_alg = {
 
 static int ablk_cbc_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-cbc-aes-aesni", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "__driver-cbc-aes-aesni");
 }
 
 static struct crypto_alg ablk_cbc_alg = {
@@ -633,13 +627,7 @@ static struct crypto_alg ablk_cbc_alg = {
 #ifdef CONFIG_X86_64
 static int ablk_ctr_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-ctr-aes-aesni", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "__driver-ctr-aes-aesni");
 }
 
 static struct crypto_alg ablk_ctr_alg = {
@@ -671,14 +659,7 @@ static struct crypto_alg ablk_ctr_alg = {
 #ifdef HAS_CTR
 static int ablk_rfc3686_ctr_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher(
-		"rfc3686(__driver-ctr-aes-aesni)", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "rfc3686(__driver-ctr-aes-aesni)");
 }
 
 static struct crypto_alg ablk_rfc3686_ctr_alg = {
@@ -712,14 +693,7 @@ static struct crypto_alg ablk_rfc3686_ctr_alg = {
 #ifdef HAS_LRW
 static int ablk_lrw_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("fpu(lrw(__driver-aes-aesni))",
-					     0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "fpu(lrw(__driver-aes-aesni))");
 }
 
 static struct crypto_alg ablk_lrw_alg = {
@@ -751,14 +725,7 @@ static struct crypto_alg ablk_lrw_alg = {
 #ifdef HAS_PCBC
 static int ablk_pcbc_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("fpu(pcbc(__driver-aes-aesni))",
-					     0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "fpu(pcbc(__driver-aes-aesni))");
 }
 
 static struct crypto_alg ablk_pcbc_alg = {
@@ -790,14 +757,7 @@ static struct crypto_alg ablk_pcbc_alg = {
 #ifdef HAS_XTS
 static int ablk_xts_init(struct crypto_tfm *tfm)
 {
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("fpu(xts(__driver-aes-aesni))",
-					     0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
+	return ablk_init_common(tfm, "fpu(xts(__driver-aes-aesni))");
 }
 
 static struct crypto_alg ablk_xts_alg = {
