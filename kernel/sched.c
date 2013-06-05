@@ -4315,6 +4315,10 @@ static inline void fix_small_imbalance(struct sd_lb_stats *sds,
 	 * moving them.
 	 */
 
+	/* Weird topologies might not set this */
+	if (!sds->this)
+		return;
+
 	pwr_now += sds->busiest->cpu_power *
 			min(sds->busiest_load_per_task, sds->max_load);
 	pwr_now += sds->this->cpu_power *
@@ -4398,8 +4402,8 @@ static inline void calculate_imbalance(struct sd_lb_stats *sds, int this_cpu,
 	max_pull = min(sds->max_load - sds->avg_load, load_above_capacity);
 
 	/* How much load to actually move to equalise the imbalance */
-	*imbalance = min(max_pull * sds->busiest->cpu_power,
-		(sds->avg_load - sds->this_load) * sds->this->cpu_power)
+	*imbalance = min(max_pull * sds->busiest->cpu_power, (!sds->this ? 0 :
+		(sds->avg_load - sds->this_load) * sds->this->cpu_power))
 			/ SCHED_LOAD_SCALE;
 
 	/*
@@ -9216,7 +9220,8 @@ static int build_numa_sched_groups(struct s_data *d,
 		sd->groups = sg;
 	}
 
-	sg->cpu_power = 0;
+	/* Weird topologies might otherwise result in a /0 trap */
+	sg->cpu_power = SCHED_LOAD_SCALE * cpumask_weight(d->nodemask);
 	cpumask_copy(sched_group_cpus(sg), d->nodemask);
 	sg->next = sg;
 	cpumask_or(d->covered, d->covered, d->nodemask);
@@ -9239,7 +9244,7 @@ static int build_numa_sched_groups(struct s_data *d,
 			       "Can not alloc domain group for node %d\n", j);
 			return -ENOMEM;
 		}
-		sg->cpu_power = 0;
+		sg->cpu_power = SCHED_LOAD_SCALE * cpumask_weight(d->tmpmask);
 		cpumask_copy(sched_group_cpus(sg), d->tmpmask);
 		sg->next = prev->next;
 		cpumask_or(d->covered, d->covered, d->tmpmask);
