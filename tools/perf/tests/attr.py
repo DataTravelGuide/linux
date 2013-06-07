@@ -51,7 +51,7 @@ class Event(dict):
         'inherit_stat',
         'enable_on_exec',
         'task',
-        'watermask',
+        'watermark',
         'precise_ip',
         'mmap_data',
         'sample_id_all',
