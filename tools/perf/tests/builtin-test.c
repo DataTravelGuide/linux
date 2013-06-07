@@ -1281,6 +1281,13 @@ static struct test {
 		.desc = "Generate and check syscalls:sys_enter_open event fields",
 		.func = test__syscall_open_tp_fields,
 	},
+/* RHEL6 - attr tests supported only for x86 */
+#if defined(__i386__) || defined(__x86_64)
+	{
+		.desc = "struct perf_event_attr setup",
+		.func = test_attr__run,
+	},
+#endif
 	{
 		.func = NULL,
 	},
