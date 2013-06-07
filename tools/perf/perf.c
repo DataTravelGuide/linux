@@ -484,6 +484,11 @@ int main(int argc, const char **argv)
 	}
 	cmd = argv[0];
 
+/* RHEL6 - attr tests supported only for x86 */
+#if defined(__i386__) || defined(__x86_64)
+	test_attr__init();
+#endif
+
 	/*
 	 * We use PATH to find perf commands, but we prepend some higher
 	 * precedence paths: the "--exec-path" option, the PERF_EXEC_PATH

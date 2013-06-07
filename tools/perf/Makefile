@@ -419,7 +419,10 @@ LIB_OBJS += $(OUTPUT)arch/common.o
 
 LIB_OBJS += $(OUTPUT)tests/parse-events.o
 LIB_OBJS += $(OUTPUT)tests/dso-data.o
-
+# RHEL6 - attr tests supported only for x86
+ifeq ($(ARCH),x86)
+LIB_OBJS += $(OUTPUT)tests/attr.o
+endif
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
 # Benchmark modules
