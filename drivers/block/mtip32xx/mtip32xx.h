@@ -164,6 +164,21 @@ struct smart_attr {
 	u8 res[3];
 } __packed;
 
+#define MTIP_TRIM_TIMEOUT_MS		240000
+#define MTIP_MAX_TRIM_ENTRIES		8
+#define MTIP_MAX_TRIM_ENTRY_LEN 	0xfff8
+
+struct mtip_trim_entry {
+	u32 lba;   /* starting lba of region */
+	u16 rsvd;  /* unused */
+	u16 range; /* # of 512b blocks to trim */
+} __packed;
+
+struct mtip_trim {
+	/* Array of regions to trim */
+	struct mtip_trim_entry entry[MTIP_MAX_TRIM_ENTRIES];
+} __packed;
+
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
 	/*
@@ -461,6 +476,8 @@ struct driver_data {
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 
 	struct dentry *dfs_node;
+
+	bool trim_supp; /* flag indicating trim support */
 };
 
 #endif
