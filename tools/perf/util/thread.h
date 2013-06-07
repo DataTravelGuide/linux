@@ -17,6 +17,9 @@ struct thread {
 	bool			comm_set;
 	char			*comm;
 	int			comm_len;
+
+	/* RHEL6 - added by kvm change */
+	void			*priv;
 };
 
 struct machine;
