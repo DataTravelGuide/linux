@@ -423,6 +423,8 @@ LIB_OBJS += $(OUTPUT)tests/dso-data.o
 ifeq ($(ARCH),x86)
 LIB_OBJS += $(OUTPUT)tests/attr.o
 endif
+LIB_OBJS += $(OUTPUT)tests/vmlinux-kallsyms.o
+
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
 # Benchmark modules
