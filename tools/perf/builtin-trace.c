@@ -247,7 +247,8 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 	if (sc->tp_format != NULL) {
 		struct format_field *field;
 
-		for (field = sc->tp_format->format.fields->next; field; field = field->next) {
+		/* No need to skip 'nr' field, since it's not in RHEL6 yet. */
+		for (field = sc->tp_format->format.fields; field; field = field->next) {
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: %ld", printed ? ", " : "",
 					     field->name, args[i++]);
@@ -430,9 +431,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out;
 	}
 
-	if (perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_enter", trace__sys_enter) ||
-	    perf_evlist__add_newtp(evlist, "raw_syscalls", "sys_exit", trace__sys_exit)) {
-		printf("Couldn't read the raw_syscalls tracepoints information!\n");
+	if (perf_evlist__add_newtp(evlist, "syscalls", "sys_enter", trace__sys_enter) ||
+	    perf_evlist__add_newtp(evlist, "syscalls", "sys_exit", trace__sys_exit)) {
+		printf("Couldn't read the syscalls tracepoints information!\n");
 		goto out_delete_evlist;
 	}
 
