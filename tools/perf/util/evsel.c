@@ -405,8 +405,8 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 	return evsel->name ?: "unknown";
 }
 
-void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
-			struct perf_evsel *first)
+void perf_evsel__config(struct perf_evsel *evsel,
+			struct perf_record_opts *opts)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
@@ -492,10 +492,8 @@ XXX No dwarf unwind support in RHEL6
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (perf_target__none(&opts->target) &&
-	    (!opts->group || evsel == first)) {
+	if (perf_target__none(&opts->target) && (!evsel->leader))
 		attr->enable_on_exec = 1;
-	}
 }
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
