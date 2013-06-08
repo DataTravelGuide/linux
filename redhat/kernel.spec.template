@@ -1696,6 +1696,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jun 07 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-386.el6]
+- [net] rtnl: fix info leak on RTM_GETLINK request for VF devices (Flavio Leitner) [923659] {CVE-2013-2634 CVE-2013-2635}
+- [net] dcbnl: fix various netlink info leaks (Flavio Leitner) [923659] {CVE-2013-2634 CVE-2013-2635}
+- [net] tcp: fix tcp_trim_head() to adjust segment count with skb MSS (Daniel Borkmann) [970609]
+- [net] af_netlink: force credentials passing (Thomas Graf) [880142]
+- [net] af_unix: Only allow recv on connected (Thomas Graf) [880142]
+- [net] scm: fix incorrect credentials passing (Thomas Graf) [880142]
+- [net] llc: Fix missing msg_namelen update in llc_ui_recvmsg() (Jesper Brouer) [956100] {CVE-2013-3231}
+- [net] rps: Update RFS target at poll for tcp/udp (Daniel Borkmann) [893177]
+- [net] rps: Fix brokeness causing OOO packets (Daniel Borkmann) [893177]
+- [net] rps: enable RFS before first data packet is received (Daniel Borkmann) [893177]
+- [net] ipv6: Enable RFS sk_rxhash tracking for ipv6 sockets (Daniel Borkmann) [893177]
+- [netdrv] sfc: Implement hardware acceleration of RFS (Daniel Borkmann) [893177]
+- [net] rps: Make hardware-accelerated RFS conditional on NETIF_F_NTUPLE (Daniel Borkmann) [893177]
+- [net] rps: Enable hardware acceleration of RFS (Daniel Borkmann) [893177]
+- [lib] cpu_rmap: avoid flushing all workqueues (Daniel Borkmann) [893177]
+- [net] rps: Protect cpu_rmap.h from double inclusion (Daniel Borkmann) [893177]
+- [lib] cpu_rmap: CPU affinity reverse-mapping (Daniel Borkmann) [893177]
+- [kernel] genirq: Add IRQ affinity notifiers (Daniel Borkmann) [893177]
+- [net] bonding: fix enslaving in alb mode when link down (Veaceslav Falico) [965132]
+- [net] sch_tbf: segment too big GSO packets (Jiri Pirko) [875750]
+- [net] Documentation: add nf_conntrack sysctl api documentation (Jiri Pirko) [747951]
+
 * Fri Jun 07 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-385.el6]
 - [x86] perf: Add IvyBridge EP support (Prarit Bhargava) [892531]
 - [x86] perf: Fix Intel Ivy Bridge support (Prarit Bhargava) [892531]
