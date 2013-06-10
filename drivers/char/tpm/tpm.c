@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 
 #include "tpm.h"
+#include "tpm_eventlog.h"
 
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
