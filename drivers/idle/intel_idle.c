@@ -462,8 +462,6 @@ static int intel_idle_probe(void)
 	else
 		smp_call_function(__setup_broadcast_timer, (void *)true, 1);
 
-	register_cpu_notifier(&cpu_hotplug_notifier);
-
 	pr_debug(PREFIX "v" INTEL_IDLE_VERSION
 		" model 0x%X\n", boot_cpu_data.x86_model);
 
@@ -577,6 +575,7 @@ static int __init intel_idle_init(void)
 			return retval;
 		}
 	}
+	register_cpu_notifier(&cpu_hotplug_notifier);
 
 	return 0;
 }
