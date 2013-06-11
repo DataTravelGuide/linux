@@ -93,6 +93,7 @@ void acpi_bus_hot_remove_device(void *context)
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
+	unsigned long long sta;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 
 	if (acpi_bus_get_device(handle, &device))
@@ -138,9 +139,22 @@ void acpi_bus_hot_remove_device(void *context)
 	status = acpi_evaluate_object(handle, "_EJ0", &arg_list, NULL);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND)
-			printk(KERN_WARNING PREFIX
-					"Eject device failed\n");
+			acpi_handle_warn(handle, "Eject failed (0x%x)\n",
+								status);
 		goto err_out;
+	}
+
+	/*
+	 * Verify if eject was indeed successful.  If not, log an error
+	 * message.  No need to call _OST since _EJ0 call was made OK.
+	 */
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_warn(handle,
+			"Status check after eject failed (0x%x)\n", status);
+	} else if (sta & ACPI_STA_DEVICE_ENABLED) {
+		acpi_handle_warn(handle,
+			"Eject incomplete - status 0x%llx\n", sta);
 	}
 
 	kfree(context);
