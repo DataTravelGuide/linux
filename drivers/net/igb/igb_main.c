@@ -4558,6 +4558,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
 
+	skb_tx_timestamp(skb);
+
 	tso = igb_tso(tx_ring, skb, tx_flags, protocol, &hdr_len);
 	if (tso < 0) {
 		goto out_drop;
