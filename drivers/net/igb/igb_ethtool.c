@@ -1712,7 +1712,7 @@ static int igb_check_lbtest_frame(struct igb_rx_buffer *rx_buffer,
 
 	frame_size >>= 1;
 
-	data = kmap(rx_buffer->page) + rx_buffer->page_offset;
+	data = kmap(rx_buffer->page);
 
 	if (data[3] != 0xFF ||
 	    data[frame_size + 10] != 0xBE ||
@@ -1742,16 +1742,21 @@ static int igb_clean_test_rings(struct igb_ring *rx_ring,
 		/* check rx buffer */
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
-		/* unmap rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(rx_ring->dev,
-				 rx_buffer_info->dma,
-				 PAGE_SIZE / 2,
-				 DMA_FROM_DEVICE);
-		rx_buffer_info->dma = 0;
+		/* sync Rx buffer for CPU read */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					rx_buffer_info->dma,
+					PAGE_SIZE / 2,
+					DMA_FROM_DEVICE);
 
 		/* verify contents of skb */
 		if (igb_check_lbtest_frame(rx_buffer_info, size))
 			count++;
+
+		/* sync Rx buffer for device write */
+		dma_sync_single_for_device(rx_ring->dev,
+					   rx_buffer_info->dma,
+					   PAGE_SIZE / 2,
+					   DMA_FROM_DEVICE);
 
 		/* unmap buffer on tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];

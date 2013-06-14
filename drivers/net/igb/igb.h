@@ -221,6 +221,7 @@ struct igb_ring {
 	/* everything past this point are written often */
 	u16 next_to_clean;
 	u16 next_to_use;
+	u16 next_to_alloc;
 
 	union {
 		/* TX */
