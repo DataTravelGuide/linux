@@ -3936,6 +3936,7 @@ static void igb_watchdog_task(struct work_struct *work)
 	}
 
 	igb_spoof_check(adapter);
+	igb_ptp_rx_hang(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__IGB_DOWN, &adapter->state))
