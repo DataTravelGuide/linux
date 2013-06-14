@@ -6084,6 +6084,33 @@ static bool igb_cleanup_headers(struct igb_ring *rx_ring,
 	return false;
 }
 
+/**
+ * igb_process_skb_fields - Populate skb header fields from Rx descriptor
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
+ * @skb: pointer to current skb being populated
+ *
+ * This function checks the ring, descriptor, and packet information in
+ * order to populate the hash, checksum, VLAN, timestamp, protocol, and
+ * other fields within the skb.
+ **/
+static void igb_process_skb_fields(struct igb_ring *rx_ring,
+				   union e1000_adv_rx_desc *rx_desc,
+				   struct sk_buff *skb)
+{
+	igb_rx_hash(rx_ring, rx_desc, skb);
+
+	igb_rx_checksum(rx_ring, rx_desc, skb);
+
+#ifdef CONFIG_IGB_PTP
+	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+#endif /* CONFIG_IGB_PTP */
+
+	skb_record_rx_queue(skb, rx_ring->queue_index);
+
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+}
+
 static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 {
 	struct igb_ring *rx_ring = q_vector->rx.ring;
@@ -6169,23 +6196,18 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			continue;
 		}
 
-#ifdef CONFIG_IGB_PTP
-		igb_ptp_rx_hwtstamp(q_vector, rx_desc, skb);
-#endif /* CONFIG_IGB_PTP */
-		igb_rx_hash(rx_ring, rx_desc, skb);
-		igb_rx_checksum(rx_ring, rx_desc, skb);
+		/* probably a little skewed due to removing CRC */
+		total_bytes += skb->len;
+		total_packets++;
+
+		/* populate checksum, timestamp, VLAN, and protocol */
+		igb_process_skb_fields(rx_ring, rx_desc, skb);
 
 		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
 		    test_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &rx_ring->flags))
 			vlan_tag = be16_to_cpu(rx_desc->wb.upper.vlan);
 		else
 			vlan_tag = le16_to_cpu(rx_desc->wb.upper.vlan);
-
-		total_bytes += skb->len;
-		total_packets++;
-
-		skb_record_rx_queue(skb, rx_ring->queue_index);
-		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 
 		igb_receive_skb(q_vector, skb, vlan_tag);
 
