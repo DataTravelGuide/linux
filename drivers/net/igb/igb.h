@@ -37,6 +37,8 @@
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 
 struct igb_adapter;
 
@@ -295,6 +297,11 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
 }
 
+struct igb_i2c_client_list {
+	struct i2c_client *client;
+	struct igb_i2c_client_list *next;
+};
+
 /* board specific private data structure */
 struct igb_adapter {
 	struct net_device *netdev;
@@ -381,6 +388,9 @@ struct igb_adapter {
 	struct timecounter tc;
 
 	char fw_version[32];
+	struct i2c_algo_bit_data i2c_algo;
+	struct i2c_adapter i2c_adap;
+	struct igb_i2c_client_list *i2c_clients;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -456,7 +466,6 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
-
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)
