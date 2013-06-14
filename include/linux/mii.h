@@ -12,28 +12,29 @@
 #include <linux/ethtool.h>
 
 /* Generic MII registers. */
-
-#define MII_BMCR            0x00        /* Basic mode control register */
-#define MII_BMSR            0x01        /* Basic mode status register  */
-#define MII_PHYSID1         0x02        /* PHYS ID 1                   */
-#define MII_PHYSID2         0x03        /* PHYS ID 2                   */
-#define MII_ADVERTISE       0x04        /* Advertisement control reg   */
-#define MII_LPA             0x05        /* Link partner ability reg    */
-#define MII_EXPANSION       0x06        /* Expansion register          */
-#define MII_CTRL1000        0x09        /* 1000BASE-T control          */
-#define MII_STAT1000        0x0a        /* 1000BASE-T status           */
-#define MII_ESTATUS	    0x0f	/* Extended Status */
-#define MII_DCOUNTER        0x12        /* Disconnect counter          */
-#define MII_FCSCOUNTER      0x13        /* False carrier counter       */
-#define MII_NWAYTEST        0x14        /* N-way auto-neg test reg     */
-#define MII_RERRCOUNTER     0x15        /* Receive error counter       */
-#define MII_SREVISION       0x16        /* Silicon revision            */
-#define MII_RESV1           0x17        /* Reserved...                 */
-#define MII_LBRERROR        0x18        /* Lpback, rx, bypass error    */
-#define MII_PHYADDR         0x19        /* PHY address                 */
-#define MII_RESV2           0x1a        /* Reserved...                 */
-#define MII_TPISTATUS       0x1b        /* TPI status for 10mbps       */
-#define MII_NCONFIG         0x1c        /* Network interface config    */
+#define MII_BMCR		0x00	/* Basic mode control register */
+#define MII_BMSR		0x01	/* Basic mode status register  */
+#define MII_PHYSID1		0x02	/* PHYS ID 1                   */
+#define MII_PHYSID2		0x03	/* PHYS ID 2                   */
+#define MII_ADVERTISE		0x04	/* Advertisement control reg   */
+#define MII_LPA			0x05	/* Link partner ability reg    */
+#define MII_EXPANSION		0x06	/* Expansion register          */
+#define MII_CTRL1000		0x09	/* 1000BASE-T control          */
+#define MII_STAT1000		0x0a	/* 1000BASE-T status           */
+#define	MII_MMD_CTRL		0x0d	/* MMD Access Control Register */
+#define	MII_MMD_DATA		0x0e	/* MMD Access Data Register */
+#define MII_ESTATUS		0x0f	/* Extended Status             */
+#define MII_DCOUNTER		0x12	/* Disconnect counter          */
+#define MII_FCSCOUNTER		0x13	/* False carrier counter       */
+#define MII_NWAYTEST		0x14	/* N-way auto-neg test reg     */
+#define MII_RERRCOUNTER		0x15	/* Receive error counter       */
+#define MII_SREVISION		0x16	/* Silicon revision            */
+#define MII_RESV1		0x17	/* Reserved...                 */
+#define MII_LBRERROR		0x18	/* Lpback, rx, bypass error    */
+#define MII_PHYADDR		0x19	/* PHY address                 */
+#define MII_RESV2		0x1a	/* Reserved...                 */
+#define MII_TPISTATUS		0x1b	/* TPI status for 10mbps       */
+#define MII_NCONFIG		0x1c	/* Network interface config    */
 
 /* Basic mode control register. */
 #define BMCR_RESV               0x003f  /* Unused...                   */
@@ -141,6 +142,13 @@
 /* Flow control flags */
 #define FLOW_CTRL_TX		0x01
 #define FLOW_CTRL_RX		0x02
+
+/* MMD Access Control register fields */
+#define MII_MMD_CTRL_DEVAD_MASK	0x1f	/* Mask MMD DEVAD*/
+#define MII_MMD_CTRL_ADDR	0x0000	/* Address */
+#define MII_MMD_CTRL_NOINCR	0x4000	/* no post increment */
+#define MII_MMD_CTRL_INCR_RDWT	0x8000	/* post increment on reads & writes */
+#define MII_MMD_CTRL_INCR_ON_WT	0xC000	/* post increment on writes only */
 
 /* This structure is used in all SIOCxMIIxxx ioctl calls */
 struct mii_ioctl_data {
