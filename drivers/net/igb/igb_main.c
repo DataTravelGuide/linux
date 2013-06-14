@@ -4113,24 +4113,29 @@ static inline bool igb_tx_csum(struct igb_ring *tx_ring, struct sk_buff *skb,
 	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
-static __le32 igb_tx_cmd_type(u32 tx_flags)
+#define IGB_SET_FLAG(_input, _flag, _result) \
+	((_flag <= _result) ? \
+	 ((u32)(_input & _flag) * (_result / _flag)) : \
+	 ((u32)(_input & _flag) / (_flag / _result)))
+
+static u32 igb_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 {
 	/* set type for advanced descriptor with frame checksum insertion */
-	__le32 cmd_type = cpu_to_le32(E1000_ADVTXD_DTYP_DATA |
-				      E1000_ADVTXD_DCMD_IFCS |
-				      E1000_ADVTXD_DCMD_DEXT);
+	u32 cmd_type = E1000_ADVTXD_DTYP_DATA |
+		       E1000_ADVTXD_DCMD_DEXT |
+		       E1000_ADVTXD_DCMD_IFCS;
 
 	/* set HW vlan bit if vlan is present */
-	if (tx_flags & IGB_TX_FLAGS_VLAN)
-		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_VLE);
-
-	/* set timestamp bit if present */
-	if (unlikely(tx_flags & IGB_TX_FLAGS_TSTAMP))
-		cmd_type |= cpu_to_le32(E1000_ADVTXD_MAC_TSTAMP);
+	cmd_type |= IGB_SET_FLAG(tx_flags, IGB_TX_FLAGS_VLAN,
+				 (E1000_ADVTXD_DCMD_VLE));
 
 	/* set segmentation bits for TSO */
-	if (tx_flags & IGB_TX_FLAGS_TSO)
-		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_TSE);
+	cmd_type |= IGB_SET_FLAG(tx_flags, IGB_TX_FLAGS_TSO,
+				 (E1000_ADVTXD_DCMD_TSE));
+
+	/* set timestamp bit if present */
+	cmd_type |= IGB_SET_FLAG(tx_flags, IGB_TX_FLAGS_TSTAMP,
+				 (E1000_ADVTXD_MAC_TSTAMP));
 
 	return cmd_type;
 }
@@ -4140,19 +4145,19 @@ static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
 {
 	u32 olinfo_status = paylen << E1000_ADVTXD_PAYLEN_SHIFT;
 
-	/* 82575 requires a unique index per ring if any offload is enabled */
-	if ((tx_flags & (IGB_TX_FLAGS_CSUM | IGB_TX_FLAGS_VLAN)) &&
-	    test_bit(IGB_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
+	/* 82575 requires a unique index per ring */
+	if (test_bit(IGB_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		olinfo_status |= tx_ring->reg_idx << 4;
 
 	/* insert L4 checksum */
-	if (tx_flags & IGB_TX_FLAGS_CSUM) {
-		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+	olinfo_status |= IGB_SET_FLAG(tx_flags,
+				      IGB_TX_FLAGS_CSUM,
+				      (E1000_TXD_POPTS_TXSM << 8));
 
-		/* insert IPv4 checksum */
-		if (tx_flags & IGB_TX_FLAGS_IPV4)
-			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
-	}
+	/* insert IPv4 checksum */
+	olinfo_status |= IGB_SET_FLAG(tx_flags,
+				      IGB_TX_FLAGS_IPV4,
+				      (E1000_TXD_POPTS_IXSM << 8));
 
 	return cpu_to_le32(olinfo_status);
 }
@@ -4175,7 +4180,7 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
 	unsigned int paylen = skb->len - hdr_len;
-	__le32 cmd_type;
+	u32 cmd_type = igb_tx_cmd_type(skb, tx_flags);
 	u16 i = tx_ring->next_to_use;
 	u16 gso_segs;
 
@@ -4194,8 +4199,6 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->read.olinfo_status =
 		igb_tx_olinfo_status(tx_flags, paylen, tx_ring);
 
-	cmd_type = igb_tx_cmd_type(tx_flags);
-
 	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(tx_ring->dev, dma))
 		goto dma_error;
@@ -4210,7 +4213,7 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	for (;;) {
 		while (unlikely(size > IGB_MAX_DATA_PER_TXD)) {
 			tx_desc->read.cmd_type_len =
-				cmd_type | cpu_to_le32(IGB_MAX_DATA_PER_TXD);
+				cpu_to_le32(cmd_type ^ IGB_MAX_DATA_PER_TXD);
 
 			i++;
 			tx_desc++;
@@ -4229,7 +4232,7 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		if (likely(!data_len))
 			break;
 
-		tx_desc->read.cmd_type_len = cmd_type | cpu_to_le32(size);
+		tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type ^ size);
 
 		i++;
 		tx_desc++;
@@ -4261,8 +4264,8 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 	}
 
 	/* write last descriptor with RS and EOP bits */
-	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
-	tx_desc->read.cmd_type_len = cmd_type;
+	cmd_type |= size | IGB_TXD_DCMD;
+	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
 
 	/* set the timestamp */
 	first->time_stamp = jiffies;
