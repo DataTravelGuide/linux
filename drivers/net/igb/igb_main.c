@@ -75,6 +75,9 @@ static const struct e1000_info *igb_info_tbl[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(igb_pci_tbl) = {
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_BACKPLANE_1GBPS) },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_SGMII) },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_BACKPLANE_2_5GBPS) },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I211_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_FIBER), board_82575 },
@@ -740,6 +743,7 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 	case e1000_82575:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 	default:
@@ -825,6 +829,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		/* On 82580 and newer adapters the scheme is similar to 82576
@@ -892,6 +897,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		/* Turn on MSI-X capability first, or our settings
@@ -1246,7 +1252,8 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		if (adapter->hw.mac.type >= e1000_82576)
 			set_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags);
 
-		/* On i350, i210, and i211, loopback VLAN packets
+		/*
+		 * On i350, i354, i210, and i211, loopback VLAN packets
 		 * have the tag byte-swapped.
 		 */
 		if (adapter->hw.mac.type >= e1000_i350)
@@ -1725,6 +1732,7 @@ void igb_reset(struct igb_adapter *adapter)
 	 */
 	switch (mac->type) {
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_82580:
 		pba = rd32(E1000_RXPBS);
 		pba = igb_rxpbs_adjust_82580(pba);
@@ -2283,17 +2291,20 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	igb_ptp_init(adapter);
 
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
-	/* print bus type/speed/width info */
-	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
-		 netdev->name,
-		 ((hw->bus.speed == e1000_bus_speed_2500) ? "2.5Gb/s" :
-		  (hw->bus.speed == e1000_bus_speed_5000) ? "5.0Gb/s" :
-		   "unknown"),
-		 ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
-		  (hw->bus.width == e1000_bus_width_pcie_x2) ? "Width x2" :
-		  (hw->bus.width == e1000_bus_width_pcie_x1) ? "Width x1" :
-		   "unknown"),
-		 netdev->dev_addr);
+	/* print bus type/speed/width info, not applicable to i354 */
+	if (hw->mac.type != e1000_i354) {
+		dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
+			 netdev->name,
+			 ((hw->bus.speed == e1000_bus_speed_2500) ? "2.5Gb/s" :
+			  (hw->bus.speed == e1000_bus_speed_5000) ? "5.0Gb/s" :
+			   "unknown"),
+			 ((hw->bus.width == e1000_bus_width_pcie_x4) ?
+			  "Width x4" :
+			  (hw->bus.width == e1000_bus_width_pcie_x2) ?
+			  "Width x2" :
+			  (hw->bus.width == e1000_bus_width_pcie_x1) ?
+			  "Width x1" : "unknown"), netdev->dev_addr);
+	}
 
 	ret_val = igb_read_part_string(hw, part_str, E1000_PBANUM_LENGTH);
 	if (ret_val)
@@ -2309,6 +2320,13 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	case e1000_i210:
 	case e1000_i211:
 		igb_set_eee_i350(hw);
+		break;
+	case e1000_i354:
+		if (hw->phy.media_type == e1000_media_type_copper) {
+			if ((rd32(E1000_CTRL_EXT) &
+			    E1000_CTRL_EXT_LINK_MODE_SGMII))
+				igb_set_eee_i354(hw);
+		}
 		break;
 	default:
 		break;
@@ -2563,6 +2581,7 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
 		}
 		/* fall through */
 	case e1000_82580:
+	case e1000_i354:
 	default:
 		max_rss_queues = IGB_MAX_RX_QUEUES;
 		break;
@@ -2587,6 +2606,7 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
 		/* fall through */
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	default:
 		/* If rss_queues > half of max_rss_queues, pair the queues in
@@ -7419,6 +7439,7 @@ static void igb_vmm_control(struct igb_adapter *adapter)
 	case e1000_82575:
 	case e1000_i210:
 	case e1000_i211:
+	case e1000_i354:
 	default:
 		/* replication is not supported for 82575 */
 		return;
@@ -7492,7 +7513,9 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			reg |= (1000 >> 5);
 
 			/* Disable BMC-to-OS Watchdog Enable */
-			reg &= ~E1000_DMACR_DC_BMC2OSW_EN;
+			if (hw->mac.type != e1000_i354)
+				reg &= ~E1000_DMACR_DC_BMC2OSW_EN;
+
 			wr32(E1000_DMACR, reg);
 
 			/* no lower threshold to disable
