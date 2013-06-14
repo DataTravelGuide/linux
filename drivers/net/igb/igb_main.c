@@ -6531,7 +6531,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
 
-	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+	igb_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
