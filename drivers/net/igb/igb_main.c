@@ -4511,7 +4511,6 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
-	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 	union skb_shared_tx *shtx = skb_tx(skb);
 	struct igb_tx_buffer *first;
 	int tso;
@@ -4539,15 +4538,18 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (unlikely(shtx->hardware) &&
-		     !(adapter->ptp_tx_skb)) {
-		shtx->in_progress = 1;
-		tx_flags |= IGB_TX_FLAGS_TSTAMP;
+	if (unlikely(shtx->hardware)) {
+		struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 
-		adapter->ptp_tx_skb = skb_get(skb);
-		adapter->ptp_tx_start = jiffies;
-		if (adapter->hw.mac.type == e1000_82576)
-			schedule_work(&adapter->ptp_tx_work);
+		if (!(adapter->ptp_tx_skb)) {
+			shtx->in_progress = 1;
+			tx_flags |= IGB_TX_FLAGS_TSTAMP;
+
+			adapter->ptp_tx_skb = skb_get(skb);
+			adapter->ptp_tx_start = jiffies;
+			if (adapter->hw.mac.type == e1000_82576)
+				schedule_work(&adapter->ptp_tx_work);
+		}
 	}
 
 	if (vlan_tx_tag_present(skb)) {
