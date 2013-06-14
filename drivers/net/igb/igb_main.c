@@ -4244,7 +4244,6 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		size = frag->size;
 		data_len -= size;
 
-		tx_buffer->mapped_as_page = true;
 		dma = skb_frag_dma_map(tx_ring->dev, frag, 0,
 				       size, DMA_TO_DEVICE);
 		if (dma_mapping_error(tx_ring->dev, dma))
