@@ -4175,11 +4175,9 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 {
 	struct igb_tx_buffer *tx_buffer;
 	union e1000_adv_tx_desc *tx_desc;
+	struct skb_frag_struct *frag;
 	dma_addr_t dma;
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned int data_len = skb->data_len;
-	unsigned int size = skb_headlen(skb);
-	unsigned int paylen = skb->len - hdr_len;
+	unsigned int data_len, size;
 	u32 cmd_type = igb_tx_cmd_type(skb, tx_flags);
 	u16 i = tx_ring->next_to_use;
 	u16 gso_segs;
@@ -4190,27 +4188,34 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		gso_segs = 1;
 
 	/* multiply data chunks by size of headers */
-	first->bytecount = paylen + (gso_segs * hdr_len);
+	first->bytecount = skb->len - hdr_len + (gso_segs * hdr_len);
 	first->gso_segs = gso_segs;
 	first->skb = skb;
 
 	tx_desc = IGB_TX_DESC(tx_ring, i);
 
 	tx_desc->read.olinfo_status =
-		igb_tx_olinfo_status(tx_flags, paylen, tx_ring);
+		igb_tx_olinfo_status(tx_flags, skb->len - hdr_len, tx_ring);
+
+	size = skb_headlen(skb);
+	data_len = skb->data_len;
 
 	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
-	if (dma_mapping_error(tx_ring->dev, dma))
-		goto dma_error;
 
-	/* record length, and DMA address */
-	dma_unmap_len_set(first, len, size);
-	dma_unmap_addr_set(first, dma, dma);
-	first->shtx = skb_shinfo(skb)->tx_flags;
-	tx_desc->read.buffer_addr = cpu_to_le64(dma);
-	tx_buffer = &tx_ring->tx_buffer_info[i];
+	tx_buffer = first;
 
-	for (;;) {
+	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
+		if (dma_mapping_error(tx_ring->dev, dma))
+			goto dma_error;
+
+		/* record length, and DMA address */
+		dma_unmap_len_set(tx_buffer, len, size);
+		dma_unmap_addr_set(tx_buffer, dma, dma);
+
+		first->shtx = skb_shinfo(skb)->tx_flags;
+
+		tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
 		while (unlikely(size > IGB_MAX_DATA_PER_TXD)) {
 			tx_desc->read.cmd_type_len =
 				cpu_to_le32(cmd_type ^ IGB_MAX_DATA_PER_TXD);
@@ -4221,11 +4226,11 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 				tx_desc = IGB_TX_DESC(tx_ring, 0);
 				i = 0;
 			}
+			tx_desc->read.olinfo_status = 0;
 
 			dma += IGB_MAX_DATA_PER_TXD;
 			size -= IGB_MAX_DATA_PER_TXD;
 
-			tx_desc->read.olinfo_status = 0;
 			tx_desc->read.buffer_addr = cpu_to_le64(dma);
 		}
 
@@ -4240,23 +4245,15 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 			tx_desc = IGB_TX_DESC(tx_ring, 0);
 			i = 0;
 		}
+		tx_desc->read.olinfo_status = 0;
 
 		size = frag->size;
 		data_len -= size;
 
 		dma = skb_frag_dma_map(tx_ring->dev, frag, 0,
 				       size, DMA_TO_DEVICE);
-		if (dma_mapping_error(tx_ring->dev, dma))
-			goto dma_error;
 
 		tx_buffer = &tx_ring->tx_buffer_info[i];
-		dma_unmap_len_set(tx_buffer, len, size);
-		dma_unmap_addr_set(tx_buffer, dma, dma);
-
-		tx_desc->read.olinfo_status = 0;
-		tx_desc->read.buffer_addr = cpu_to_le64(dma);
-
-		frag++;
 	}
 
 	/* write last descriptor with RS and EOP bits */
