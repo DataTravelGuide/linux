@@ -335,6 +335,7 @@ static struct {
 } trace_clocks[] = {
 	{ trace_clock_local,	"local" },
 	{ trace_clock_global,	"global" },
+	ARCH_TRACE_CLOCKS
 };
 
 int trace_clock_id;
