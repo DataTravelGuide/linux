@@ -9357,7 +9357,10 @@ static int __devinit ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg,
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	rc = request_irq(pdev->irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
+	if (ioa_cfg->intr_flag == IPR_USE_MSIX)
+		rc = request_irq(ioa_cfg->vectors_info[0].vec, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
+	else
+		rc = request_irq(pdev->irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
 	if (rc) {
 		dev_err(&pdev->dev, "Can not assign irq %d\n", pdev->irq);
 		return rc;
@@ -9379,7 +9382,10 @@ static int __devinit ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg,
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	free_irq(pdev->irq, ioa_cfg);
+	if (ioa_cfg->intr_flag == IPR_USE_MSIX)
+		free_irq(ioa_cfg->vectors_info[0].vec, ioa_cfg);
+	else
+		free_irq(pdev->irq, ioa_cfg);
 
 	LEAVE;
 
