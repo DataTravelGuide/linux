@@ -85,6 +85,7 @@ extern struct kobject *fscache_root;
 
 extern int fscache_wait_bit(void *);
 extern int fscache_wait_bit_interruptible(void *);
+extern int fscache_wait_atomic_t(atomic_t *);
 
 /*
  * object.c
@@ -98,8 +99,10 @@ extern void fscache_enqueue_object(struct fscache_object *);
 extern const struct file_operations fscache_objlist_fops;
 
 extern void fscache_objlist_add(struct fscache_object *);
+extern void fscache_objlist_remove(struct fscache_object *);
 #else
 #define fscache_objlist_add(object) do {} while(0)
+#define fscache_objlist_remove(object) do {} while(0)
 #endif
 
 /*
