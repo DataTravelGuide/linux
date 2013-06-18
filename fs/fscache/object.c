@@ -68,7 +68,7 @@ static void fscache_withdraw_object(struct fscache_object *);
 static void fscache_enqueue_dependents(struct fscache_object *);
 static void fscache_dequeue_object(struct fscache_object *);
 
-const struct slow_work_ops fscache_object_slow_work_ops = {
+static const struct slow_work_ops fscache_object_slow_work_ops = {
 	.owner		= THIS_MODULE,
 	.get_ref	= fscache_object_slow_work_get_ref,
 	.put_ref	= fscache_object_slow_work_put_ref,
@@ -77,7 +77,6 @@ const struct slow_work_ops fscache_object_slow_work_ops = {
 	.desc		= fscache_object_slow_work_desc,
 #endif
 };
-EXPORT_SYMBOL(fscache_object_slow_work_ops);
 
 /*
  * we need to notify the parent when an op completes that we had outstanding
@@ -410,6 +409,43 @@ static void fscache_object_slow_work_desc(struct slow_work *work,
 		   fscache_object_states_short[object->state]);
 }
 #endif
+
+/**
+ * fscache_object_init - Initialise a cache object description
+ * @object: Object description
+ * @cookie: Cookie object will be attached to
+ * @cache: Cache in which backing object will be found
+ *
+ * Initialise a cache object description to its basic values.
+ *
+ * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * description.
+ */
+void fscache_object_init(struct fscache_object *object,
+			 struct fscache_cookie *cookie,
+			 struct fscache_cache *cache)
+{
+	atomic_inc(&cache->object_count);
+
+	object->state = FSCACHE_OBJECT_INIT;
+	spin_lock_init(&object->lock);
+	INIT_LIST_HEAD(&object->cache_link);
+	INIT_HLIST_NODE(&object->cookie_link);
+	vslow_work_init(&object->work, &fscache_object_slow_work_ops);
+	INIT_LIST_HEAD(&object->dependents);
+	INIT_LIST_HEAD(&object->dep_link);
+	INIT_LIST_HEAD(&object->pending_ops);
+	object->n_children = 0;
+	object->n_ops = object->n_in_progress = object->n_exclusive = 0;
+	object->events = object->event_mask = 0;
+	object->flags = 0;
+	object->store_limit = 0;
+	object->store_limit_l = 0;
+	object->cache = cache;
+	object->cookie = cookie;
+	object->parent = NULL;
+}
+EXPORT_SYMBOL(fscache_object_init);
 
 /*
  * initialise an object
