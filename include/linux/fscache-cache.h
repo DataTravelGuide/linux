@@ -130,7 +130,7 @@ extern atomic_t fscache_op_debug_id;
 extern const struct slow_work_ops fscache_op_slow_work_ops;
 
 extern void fscache_enqueue_operation(struct fscache_operation *);
-extern void fscache_op_complete(struct fscache_operation *);
+extern void fscache_op_complete(struct fscache_operation *, bool);
 extern void fscache_put_operation(struct fscache_operation *);
 
 /**
@@ -223,7 +223,7 @@ static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 {
 	op->n_pages -= n_pages;
 	if (op->n_pages <= 0)
-		fscache_op_complete(&op->op);
+		fscache_op_complete(&op->op, true);
 }
 
 /**
