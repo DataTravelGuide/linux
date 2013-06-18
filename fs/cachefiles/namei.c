@@ -37,7 +37,7 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 	printk(KERN_ERR "%sobject: OBJ%x\n",
 	       prefix, object->fscache.debug_id);
 	printk(KERN_ERR "%sobjstate=%s fl=%lx swfl=%lx ev=%lx[%lx]\n",
-	       prefix, fscache_object_states[object->fscache.state],
+	       prefix, object->fscache.state->name,
 	       object->fscache.flags, object->fscache.work.flags,
 	       object->fscache.events, object->fscache.event_mask);
 	printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
@@ -126,7 +126,7 @@ static void cachefiles_mark_object_buried(struct cachefiles_cache *cache,
 found_dentry:
 	kdebug("preemptive burial: OBJ%x [%s] %p",
 	       object->fscache.debug_id,
-	       fscache_object_states[object->fscache.state],
+	       object->fscache.state->name,
 	       dentry);
 
 	if (fscache_object_is_live(&object->fscache)) {
