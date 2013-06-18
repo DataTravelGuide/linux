@@ -2476,6 +2476,36 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_fcpim_throttle_query(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fcpim_throttle_s *iocmd =
+			(struct bfa_bsg_fcpim_throttle_s *)cmd;
+	unsigned long   flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcpim_throttle_get(&bfad->bfa,
+				(void *)&iocmd->throttle);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
+int
+bfad_iocmd_fcpim_throttle_set(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fcpim_throttle_s *iocmd =
+			(struct bfa_bsg_fcpim_throttle_s *)cmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcpim_throttle_set(&bfad->bfa,
+				iocmd->throttle.cfg_value);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2797,6 +2827,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_VF_RESET_STATS:
 		rc = bfad_iocmd_vf_clr_stats(bfad, iocmd);
+		break;
+	case IOCMD_FCPIM_THROTTLE_QUERY:
+		rc = bfad_iocmd_fcpim_throttle_query(bfad, iocmd);
+		break;
+	case IOCMD_FCPIM_THROTTLE_SET:
+		rc = bfad_iocmd_fcpim_throttle_set(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

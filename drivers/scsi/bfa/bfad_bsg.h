@@ -139,6 +139,8 @@ enum {
 	IOCMD_DIAG_DPORT_DISABLE,
 	IOCMD_DIAG_DPORT_GET_STATE,
 	IOCMD_QOS_SET_BW,
+	IOCMD_FCPIM_THROTTLE_QUERY,
+	IOCMD_FCPIM_THROTTLE_SET
 };
 
 struct bfa_bsg_gen_s {
@@ -717,6 +719,13 @@ struct bfa_bsg_vf_reset_stats_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		vf_id;
+};
+
+struct bfa_bsg_fcpim_throttle_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	struct bfa_defs_fcpim_throttle_s throttle;
 };
 
 struct bfa_bsg_fcpt_s {
