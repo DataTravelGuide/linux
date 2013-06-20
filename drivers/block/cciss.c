@@ -2915,8 +2915,6 @@ cciss_read_capacity_16(ctlr_info_t *h, int logvol, sector_t *total_size,
 		*total_size = 0;
 		*block_size = BLOCK_SIZE;
 	}
-	dev_info(&h->pdev->dev, "      blocks= %llu block_size= %d\n",
-	       (unsigned long long)*total_size+1, *block_size);
 	kfree(buf);
 }
 
