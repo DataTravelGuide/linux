@@ -1195,6 +1195,7 @@
 0xabcf248c	xt_register_match	vmlinux	EXPORT_SYMBOL
 0x2f56a82d	xt_register_matches	vmlinux	EXPORT_SYMBOL
 0xf248f7dd	xt_register_target	vmlinux	EXPORT_SYMBOL
+0xd9e79913	xt_register_targets	vmlinux	EXPORT_SYMBOL
 0x28bfaac7	xt_unregister_match	vmlinux	EXPORT_SYMBOL
 0x42abd209	xt_unregister_matches	vmlinux	EXPORT_SYMBOL
 0x1b148279	xt_unregister_target	vmlinux	EXPORT_SYMBOL

@@ -1660,6 +1660,7 @@
 0xc0b96425	xt_register_match	vmlinux	EXPORT_SYMBOL
 0x5929a6ea	xt_register_matches	vmlinux	EXPORT_SYMBOL
 0x725d11f4	xt_register_target	vmlinux	EXPORT_SYMBOL
+0x85da6302	xt_register_targets	vmlinux	EXPORT_SYMBOL
 0x41071e8e	xt_unregister_match	vmlinux	EXPORT_SYMBOL
 0x2276055c	xt_unregister_matches	vmlinux	EXPORT_SYMBOL
 0xbbda233c	xt_unregister_target	vmlinux	EXPORT_SYMBOL

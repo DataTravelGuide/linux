@@ -1583,6 +1583,7 @@
 0xb066bd0d	xt_register_match	vmlinux	EXPORT_SYMBOL
 0x4c3274f6	xt_register_matches	vmlinux	EXPORT_SYMBOL
 0x217d2288	xt_register_target	vmlinux	EXPORT_SYMBOL
+0x2d8064ee	xt_register_targets	vmlinux	EXPORT_SYMBOL
 0xddf1fd68	xt_unregister_match	vmlinux	EXPORT_SYMBOL
 0x4fc4a612	xt_unregister_matches	vmlinux	EXPORT_SYMBOL
 0x1649a7c7	xt_unregister_target	vmlinux	EXPORT_SYMBOL

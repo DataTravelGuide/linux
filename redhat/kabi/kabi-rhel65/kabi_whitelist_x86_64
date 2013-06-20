@@ -1661,6 +1661,7 @@
 	xt_register_match
 	xt_register_matches
 	xt_register_target
+	xt_register_targets
 	xt_unregister_match
 	xt_unregister_matches
 	xt_unregister_target
