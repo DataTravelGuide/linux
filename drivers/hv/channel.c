@@ -731,6 +731,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	u32 packetlen;
 	u32 userlen;
 	int ret;
+	bool signal = false;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -757,8 +758,10 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 
 	/* Copy over the packet to the user buffer */
 	ret = hv_ringbuffer_read(&channel->inbound, buffer, userlen,
-			     (desc.offset8 << 3));
+			     (desc.offset8 << 3), &signal);
 
+	if (signal)
+		vmbus_setevent(channel);
 
 	return 0;
 }
@@ -775,6 +778,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	u32 packetlen;
 	u32 userlen;
 	int ret;
+	bool signal = false;
 
 	*buffer_actual_len = 0;
 	*requestid = 0;
@@ -801,7 +805,11 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.trans_id;
 
 	/* Copy over the entire packet to the user buffer */
-	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
+	ret = hv_ringbuffer_read(&channel->inbound, buffer, packetlen, 0,
+				 &signal);
+
+	if (signal)
+		vmbus_setevent(channel);
 
 	return 0;
 }
