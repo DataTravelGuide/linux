@@ -371,22 +371,31 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 		return ERR_PTR(-EIO);
 	}
 
-	hc = kmalloc(hsize, GFP_NOFS);
-	ret = -ENOMEM;
+	hc = kmalloc(hsize, GFP_NOFS | __GFP_NOWARN);
+	if (hc == NULL)
+		hc = __vmalloc(hsize, GFP_NOFS, PAGE_KERNEL);
+
 	if (hc == NULL)
 		return ERR_PTR(-ENOMEM);
 
 	ret = gfs2_dir_read_data(ip, (char *)hc, 0, hsize, 1);
 	if (ret < 0) {
-		kfree(hc);
+		if (is_vmalloc_addr(hc))
+			vfree(hc);
+		else
+			kfree(hc);
 		return ERR_PTR(ret);
 	}
 
 	spin_lock(&inode->i_lock);
-	if (ip->i_hash_cache)
-		kfree(hc);
-	else
+	if (ip->i_hash_cache) {
+		if (is_vmalloc_addr(hc))
+			vfree(hc);
+		else
+			kfree(hc);
+	} else {
 		ip->i_hash_cache = hc;
+	}
 	spin_unlock(&inode->i_lock);
 
 	return ip->i_hash_cache;
@@ -402,7 +411,10 @@ void gfs2_dir_hash_inval(struct gfs2_inode *ip)
 {
 	__be64 *hc = ip->i_hash_cache;
 	ip->i_hash_cache = NULL;
-	kfree(hc);
+	if (is_vmalloc_addr(hc))
+		vfree(hc);
+	else
+		kfree(hc);
 }
 
 static inline int gfs2_dirent_sentinel(const struct gfs2_dirent *dent)
@@ -1157,10 +1169,14 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	if (IS_ERR(hc))
 		return PTR_ERR(hc);
 
-	h = hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS);
+	hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS | __GFP_NOWARN);
+	if (hc2 == NULL)
+		hc2 = __vmalloc(hsize_bytes * 2, GFP_NOFS, PAGE_KERNEL);
+
 	if (!hc2)
 		return -ENOMEM;
 
+	h = hc2;
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (error)
 		goto out_kfree;
@@ -1189,7 +1205,10 @@ fail:
 	gfs2_dinode_out(dip, dibh->b_data);
 	brelse(dibh);
 out_kfree:
-	kfree(hc2);
+	if (is_vmalloc_addr(hc2))
+		vfree(hc2);
+	else
+		kfree(hc2);
 	return error;
 }
 
@@ -1883,6 +1902,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
 	ht = kzalloc(size, GFP_NOFS);
+	if (ht == NULL)
+		ht = vzalloc(size);
 	if (!ht)
 		return -ENOMEM;
 
@@ -1961,7 +1982,10 @@ out_rlist:
 	gfs2_rlist_free(&rlist);
 	gfs2_quota_unhold(dip);
 out:
-	kfree(ht);
+	if (is_vmalloc_addr(ht))
+		vfree(ht);
+	else
+		kfree(ht);
 	return error;
 }
 
