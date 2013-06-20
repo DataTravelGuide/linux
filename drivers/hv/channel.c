@@ -560,6 +560,7 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
 	int ret;
+	bool signal = false;
 
 
 	/* Setup the descriptor */
@@ -576,9 +577,9 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		   packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;
@@ -602,6 +603,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	u32 packetlen_aligned;
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
+	bool signal = false;
 
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
@@ -637,9 +639,9 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;
@@ -661,6 +663,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	u32 packetlen_aligned;
 	struct scatterlist bufferlist[3];
 	u64 aligned_data = 0;
+	bool signal = false;
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
@@ -699,9 +702,9 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
+	if (ret == 0 && signal)
 		vmbus_setevent(channel);
 
 	return ret;

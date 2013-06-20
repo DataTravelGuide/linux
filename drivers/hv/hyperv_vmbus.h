@@ -554,7 +554,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 		    struct scatterlist *sglist,
-		    u32 sgcount);
+		    u32 sgcount, bool *signal);
 
 int hv_ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
