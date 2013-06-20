@@ -14,10 +14,16 @@
 #include <linux/time.h>
 #include <linux/clocksource.h>
 #include <linux/module.h>
+#include <linux/hardirq.h>
+#include <linux/interrupt.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
+#include <asm/desc.h>
+#include <asm/idle.h>
+#include <asm/irq_regs.h>
+
 #include <xen/xen.h>
 
 struct ms_hyperv_info ms_hyperv;
@@ -76,7 +82,15 @@ static void __init ms_hyperv_init_platform(void)
 	printk(KERN_INFO "HyperV: features 0x%x, hints 0x%x\n",
 	       ms_hyperv.features, ms_hyperv.hints);
 
-	clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
+	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
+		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
+#if defined(CONFIG_HYPERV) || defined(CONFIG_HYPERV_MODULE)
+	/*
+	 * Setup the IDT for hypervisor callback.
+	 */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+#endif
+
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
@@ -85,3 +99,36 @@ const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
 	.init_platform		= ms_hyperv_init_platform,
 };
 EXPORT_SYMBOL(x86_hyper_ms_hyperv);
+
+#if defined(CONFIG_HYPERV) || defined(CONFIG_HYPERV_MODULE)
+static int vmbus_irq = -1;
+static irq_handler_t vmbus_isr;
+
+void hv_register_vmbus_handler(int irq, irq_handler_t handler)
+{
+	vmbus_irq = irq;
+	vmbus_isr = handler;
+}
+
+void hyperv_vector_handler(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct irq_desc *desc;
+
+	irq_enter();
+	exit_idle();
+
+	desc = irq_to_desc(vmbus_irq);
+
+	if (desc)
+		generic_handle_irq_desc(vmbus_irq, desc);
+
+	irq_exit();
+	set_irq_regs(old_regs);
+}
+#else
+void hv_register_vmbus_handler(int irq, irq_handler_t handler)
+{
+}
+#endif
+EXPORT_SYMBOL_GPL(hv_register_vmbus_handler);
