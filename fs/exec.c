@@ -1916,6 +1916,17 @@ int get_dumpable(struct mm_struct *mm)
 	return (ret >= 2) ? 2 : ret;
 }
 
+static bool dump_interrupted(void)
+{
+	/*
+	 * SIGKILL or freezing() interrupt the coredumping. Perhaps we
+	 * can do try_to_freeze() and check __fatal_signal_pending(),
+	 * but then we need to teach dump_write() to restart and clear
+	 * TIF_SIGPENDING.
+	 */
+	return signal_pending(current);
+}
+
 static void wait_for_dump_helpers(struct file *file)
 {
 	struct pipe_inode_info *pipe;
@@ -2142,7 +2153,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	    do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file) != 0)
 		goto close_fail;
 
-	core_dumped = binfmt->core_dump(&cprm);
+	core_dumped = !dump_interrupted() && binfmt->core_dump(&cprm);
 
 close_fail:
 	if (ispipe && core_pipe_limit)
@@ -2166,7 +2177,8 @@ fail:
 
 int dump_write(struct file *file, const void *addr, int nr)
 {
-	return file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+	return !dump_interrupted() &&
+		file->f_op->write(file, addr, nr, &file->f_pos) == nr;
 }
 EXPORT_SYMBOL(dump_write);
 
@@ -2175,7 +2187,8 @@ int dump_seek(struct file *file, loff_t off)
 	int ret = 1;
 
 	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
-		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
+		if (dump_interrupted() ||
+		    file->f_op->llseek(file, off, SEEK_CUR) < 0)
 			return 0;
 	} else {
 		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
