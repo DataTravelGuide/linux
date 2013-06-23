@@ -1839,12 +1839,14 @@ fail:
 	return core_waiters;
 }
 
-static void coredump_finish(struct mm_struct *mm)
+static void coredump_finish(struct mm_struct *mm, bool core_dumped)
 {
 	struct core_thread *curr, *next;
 	struct task_struct *task;
 
 	spin_lock_irq(&current->sighand->siglock);
+	if (core_dumped && !__fatal_signal_pending(current))
+		current->signal->group_exit_code |= 0x80;
 	current->signal->group_exit_task = NULL;
 	current->signal->flags = SIGNAL_GROUP_EXIT;
 	spin_unlock_irq(&current->sighand->siglock);
@@ -1995,6 +1997,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	char **helper_argv = NULL;
 	int helper_argc = 0;
 	int dump_count = 0;
+	bool core_dumped = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.signr = signr,
@@ -2139,10 +2142,8 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	    do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file) != 0)
 		goto close_fail;
 
-	retval = binfmt->core_dump(&cprm);
+	core_dumped = binfmt->core_dump(&cprm);
 
-	if (retval)
-		current->signal->group_exit_code |= 0x80;
 close_fail:
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
@@ -2158,7 +2159,7 @@ fail_corename:
 
 	revert_creds(old_cred);
 	put_cred(cred);
-	coredump_finish(mm);
+	coredump_finish(mm, core_dumped);
 fail:
 	return;
 }
