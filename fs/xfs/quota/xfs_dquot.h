@@ -42,6 +42,13 @@ typedef struct xfs_dqhash {
 struct xfs_mount;
 struct xfs_trans;
 
+enum {
+	XFS_QLOWSP_1_PCNT = 0,
+	XFS_QLOWSP_3_PCNT,
+	XFS_QLOWSP_5_PCNT,
+	XFS_QLOWSP_MAX
+};
+
 /*
  * The incore dquot structure
  */
@@ -64,6 +71,9 @@ typedef struct xfs_dquot {
 	xfs_qcnt_t	 q_res_bcount;	/* total regular nblks used+reserved */
 	xfs_qcnt_t	 q_res_icount;	/* total inos allocd+reserved */
 	xfs_qcnt_t	 q_res_rtbcount;/* total realtime blks used+reserved */
+	xfs_qcnt_t	 q_prealloc_lo_wmark;/* prealloc throttle wmark */
+	xfs_qcnt_t	 q_prealloc_hi_wmark;/* prealloc disabled wmark */
+	int64_t		 q_low_space[XFS_QLOWSP_MAX];
 	struct mutex	 q_qlock;	/* quota lock */
 	struct completion q_flush;	/* flush completion queue */
 	atomic_t          q_pincount;	/* dquot pin count */
@@ -159,6 +169,7 @@ extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 extern void		xfs_qm_dqput(xfs_dquot_t *);
 extern void		xfs_dqlock(xfs_dquot_t *);
 extern void		xfs_dqlock2(xfs_dquot_t *, xfs_dquot_t *);
+extern void		xfs_dquot_set_prealloc_limits(struct xfs_dquot *);
 extern void		xfs_dqunlock(xfs_dquot_t *);
 extern void		xfs_dqunlock_nonotify(xfs_dquot_t *);
 
