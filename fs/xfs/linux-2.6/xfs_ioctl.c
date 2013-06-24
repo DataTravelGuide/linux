@@ -1615,8 +1615,10 @@ xfs_file_ioctl(
 		if (eofb.eof_flags & ~XFS_EOF_FLAGS_VALID)
 			return -XFS_ERROR(EINVAL);
 
+		if (eofb.pad32 != 0)
+			return -XFS_ERROR(EINVAL);
 		for (i = 0; i < XFS_EOFBLOCKS_PADSZ; i++)
-			if (eofb.pad[i] != 0)
+			if (eofb.pad64[i] != 0)
 				return -XFS_ERROR(EINVAL);
 
 		error = xfs_icache_free_eofblocks(mp, &eofb);

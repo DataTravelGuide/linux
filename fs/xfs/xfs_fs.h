@@ -338,17 +338,27 @@ typedef struct xfs_error_injection {
  * Speculative preallocation trimming.
  */
 #define XFS_EOFBLOCKS_VERSION		1
-#define XFS_EOFBLOCKS_PADSZ		15
+#define XFS_EOFBLOCKS_PADSZ		13
 struct xfs_eofblocks {
 	__u32		eof_version;
 	__u32		eof_flags;
-	__u64		pad[XFS_EOFBLOCKS_PADSZ];
+	uid_t		eof_uid;
+	gid_t		eof_gid;
+	prid_t		eof_prid;
+	__u32		pad32;
+	__u64		pad64[XFS_EOFBLOCKS_PADSZ];
 };
 
 /* eof_flags values */
 #define XFS_EOF_FLAGS_SYNC		(1 << 0) /* sync/wait mode scan */
+#define XFS_EOF_FLAGS_UID		(1 << 1) /* filter by uid */
+#define XFS_EOF_FLAGS_GID		(1 << 2) /* filter by gid */
+#define XFS_EOF_FLAGS_PRID		(1 << 3) /* filter by project id */
 #define XFS_EOF_FLAGS_VALID	\
-	(XFS_EOF_FLAGS_SYNC)
+	(XFS_EOF_FLAGS_SYNC |	\
+	 XFS_EOF_FLAGS_UID |	\
+	 XFS_EOF_FLAGS_GID |	\
+	 XFS_EOF_FLAGS_PRID)
 
 
 /*

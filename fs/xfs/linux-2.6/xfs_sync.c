@@ -1145,6 +1145,21 @@ xfs_inode_shrinker_unregister(
 }
 
 STATIC int
+xfs_inode_match_id(
+	struct xfs_inode	*ip,
+	struct xfs_eofblocks	*eofb)
+{
+	if (eofb->eof_flags & XFS_EOF_FLAGS_UID)
+		return ip->i_d.di_uid == eofb->eof_uid;
+	else if (eofb->eof_flags & XFS_EOF_FLAGS_GID)
+		return ip->i_d.di_gid == eofb->eof_gid;
+	else if (eofb->eof_flags & XFS_EOF_FLAGS_PRID)
+		return xfs_get_projid(ip) == eofb->eof_prid;
+
+	return 0;
+}
+
+STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
@@ -1152,6 +1167,7 @@ xfs_inode_free_eofblocks(
 	void			*args)
 {
 	int ret;
+	struct xfs_eofblocks *eofb = args;
 
 	if (!xfs_can_free_eofblocks(ip, false)) {
 		/* inode could be preallocated or append-only */
@@ -1166,6 +1182,12 @@ xfs_inode_free_eofblocks(
 	 */
 	if (!(flags & SYNC_WAIT) &&
 	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
+		return 0;
+
+	if (eofb &&
+	    (eofb->eof_flags & (XFS_EOF_FLAGS_UID|XFS_EOF_FLAGS_GID|
+			       XFS_EOF_FLAGS_PRID)) &&
+	    !xfs_inode_match_id(ip, eofb))
 		return 0;
 
 	ret = xfs_free_eofblocks(ip->i_mount, ip, XFS_FREE_EOF_TRYLOCK);
