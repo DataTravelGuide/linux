@@ -187,13 +187,11 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	int build_fail;
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
-
 	entry = iommu_range_alloc(dev, tbl, npages, NULL, mask, align_order);
+	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 
-	if (unlikely(entry == DMA_ERROR_CODE)) {
-		spin_unlock_irqrestore(&(tbl->it_lock), flags);
+	if (unlikely(entry == DMA_ERROR_CODE))
 		return DMA_ERROR_CODE;
-	}
 
 	entry += tbl->it_offset;	/* Offset into real TCE table */
 	ret = entry << IOMMU_PAGE_SHIFT;	/* Set the return dma address */
@@ -209,17 +207,16 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	 * not altered.
 	 */
 	if (unlikely(build_fail)) {
+		spin_lock_irqsave(&(tbl->it_lock), flags);
 		__iommu_free(tbl, ret, npages);
-
 		spin_unlock_irqrestore(&(tbl->it_lock), flags);
+
 		return DMA_ERROR_CODE;
 	}
 
 	/* Flush/invalidate TLB caches if necessary */
 	if (ppc_md.tce_flush)
 		ppc_md.tce_flush(tbl);
-
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 
 	/* Make sure updates are seen by hardware */
 	mb();
@@ -261,8 +258,8 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned long flags;
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
-
 	__iommu_free(tbl, dma_addr, npages);
+	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 
 	/* Make sure TLB cache is flushed if the HW needs it. We do
 	 * not do an mb() here on purpose, it is not needed on any of
@@ -270,8 +267,6 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	 */
 	if (ppc_md.tce_flush)
 		ppc_md.tce_flush(tbl);
-
-	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 }
 
 int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
