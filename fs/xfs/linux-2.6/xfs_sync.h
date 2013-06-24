@@ -53,8 +53,13 @@ void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
 
 int xfs_sync_inode_grab(struct xfs_inode *ip);
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
-	int flags);
+	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+		int flags, void *args),
+	int flags, void *args);
+int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
+	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+		int flags, void *args),
+	int flags, void *args, int tag);
 
 void xfs_inode_shrinker_register(struct xfs_mount *mp);
 void xfs_inode_shrinker_unregister(struct xfs_mount *mp);

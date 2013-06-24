@@ -98,8 +98,11 @@ xfs_inode_ag_walk(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	int			(*execute)(struct xfs_inode *ip,
-					   struct xfs_perag *pag, int flags),
-	int			flags)
+					   struct xfs_perag *pag, int flags,
+					   void *args),
+	int			flags,
+	void			*args,
+	int			tag)
 {
 	uint32_t		first_index;
 	int			last_error = 0;
@@ -118,9 +121,17 @@ restart:
 		int		i;
 
 		rcu_read_lock();
-		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
+
+		if (tag == -1)
+			nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
 					(void **)batch, first_index,
 					XFS_LOOKUP_BATCH);
+		else
+			nr_found = radix_tree_gang_lookup_tag(
+					&pag->pag_ici_root,
+					(void **) batch, first_index,
+					XFS_LOOKUP_BATCH, tag);
+
 		if (!nr_found) {
 			rcu_read_unlock();
 			break;
@@ -161,7 +172,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			if (!batch[i])
 				continue;
-			error = execute(batch[i], pag, flags);
+			error = execute(batch[i], pag, flags, args);
 			IRELE(batch[i]);
 			if (error == EAGAIN) {
 				skipped++;
@@ -188,8 +199,10 @@ int
 xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
 	int			(*execute)(struct xfs_inode *ip,
-					   struct xfs_perag *pag, int flags),
-	int			flags)
+					   struct xfs_perag *pag, int flags,
+					   void *args),
+	int			flags,
+	void			*args)
 {
 	struct xfs_perag	*pag;
 	int			error = 0;
@@ -199,7 +212,36 @@ xfs_inode_ag_iterator(
 	ag = 0;
 	while ((pag = xfs_perag_get(mp, ag))) {
 		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, flags);
+		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, -1);
+		xfs_perag_put(pag);
+		if (error) {
+			last_error = error;
+			if (error == EFSCORRUPTED)
+				break;
+		}
+	}
+	return XFS_ERROR(last_error);
+}
+
+int
+xfs_inode_ag_iterator_tag(
+	struct xfs_mount	*mp,
+	int			(*execute)(struct xfs_inode *ip,
+					   struct xfs_perag *pag, int flags,
+					   void *args),
+	int			flags,
+	void			*args,
+	int			tag)
+{
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			last_error = 0;
+	xfs_agnumber_t		ag;
+
+	ag = 0;
+	while ((pag = xfs_perag_get_tag(mp, ag, tag))) {
+		ag = pag->pag_agno + 1;
+		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, tag);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
@@ -214,7 +256,8 @@ STATIC int
 xfs_sync_inode_data(
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
-	int			flags)
+	int			flags,
+	void			*args)
 {
 	struct inode		*inode = VFS_I(ip);
 	struct address_space *mapping = inode->i_mapping;
@@ -243,7 +286,8 @@ STATIC int
 xfs_sync_inode_attr(
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
-	int			flags)
+	int			flags,
+	void			*args)
 {
 	int			error = 0;
 
@@ -290,7 +334,7 @@ xfs_sync_data(
 
 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
-	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags);
+	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags, NULL);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -308,7 +352,7 @@ xfs_sync_attr(
 {
 	ASSERT((flags & ~SYNC_WAIT) == 0);
 
-	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags);
+	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags, NULL);
 }
 
 STATIC int
