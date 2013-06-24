@@ -40,6 +40,8 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+struct workqueue_struct *xfs_eofblocks_wq;
+
 /*
  * The inode lookup is done in batches to keep the amount of lock traffic and
  * radix tree lookups to a minimum. The batch size is a trade off between
@@ -193,6 +195,32 @@ restart:
 		goto restart;
 	}
 	return last_error;
+}
+
+/*
+ * Background scanning to trim post-EOF preallocated space. This is queued
+ * based on the 'background_prealloc_discard_period' tunable (5m by default).
+ */
+STATIC void
+xfs_queue_eofblocks(
+	struct xfs_mount *mp)
+{
+	rcu_read_lock();
+	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_EOFBLOCKS_TAG))
+		queue_delayed_work(xfs_eofblocks_wq,
+				   &mp->m_eofblocks_work,
+				   msecs_to_jiffies(xfs_eofb_secs * 1000));
+	rcu_read_unlock();
+}
+
+void
+xfs_eofblocks_worker(
+	struct work_struct *work)
+{
+	struct xfs_mount *mp = container_of(to_delayed_work(work),
+				struct xfs_mount, m_eofblocks_work);
+	xfs_icache_free_eofblocks(mp, NULL);
+	xfs_queue_eofblocks(mp);
 }
 
 int
@@ -1246,6 +1274,9 @@ xfs_inode_set_eofblocks_tag(
 				   XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino),
 				   XFS_ICI_EOFBLOCKS_TAG);
 		spin_unlock(&ip->i_mount->m_perag_lock);
+
+		/* kick off background trimming */
+		xfs_queue_eofblocks(ip->i_mount);
 
 		trace_xfs_perag_set_eofblocks(ip->i_mount, pag->pag_agno,
 					      -1, _RET_IP_);
