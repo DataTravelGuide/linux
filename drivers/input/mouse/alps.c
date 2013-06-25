@@ -32,8 +32,6 @@
 /*
  * Definitions for ALPS version 3 and 4 command mode protocol
  */
-#define ALPS_V3_X_MAX	2000
-#define ALPS_V3_Y_MAX	1400
 #define ALPS_CMD_NIBBLE_10	0x01f2
 
 static const struct alps_nibble_commands alps_v3_nibble_commands[] = {
@@ -1174,6 +1172,9 @@ static void alps_set_defaults(struct alps_data *priv)
 	priv->mask0 = 0x8f;
 	priv->flags = ALPS_DUALPOINT;
 
+	priv->x_max = 2000;
+	priv->y_max = 1400;
+
 	switch (priv->proto_version) {
 	case ALPS_PROTO_V1:
 	case ALPS_PROTO_V2:
@@ -1301,15 +1302,15 @@ static void alps_set_abs_params_st(struct alps_data *priv,
 static void alps_set_abs_params_mt(struct alps_data *priv,
 				   struct input_dev *dev1)
 {
-	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, ALPS_V3_X_MAX, 0, 0);
-	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, ALPS_V3_Y_MAX, 0, 0);
+	input_set_abs_params(dev1, ABS_MT_POSITION_X, 0, priv->x_max, 0, 0);
+	input_set_abs_params(dev1, ABS_MT_POSITION_Y, 0, priv->y_max, 0, 0);
 
 	set_bit(BTN_TOOL_DOUBLETAP, dev1->keybit);
 	set_bit(BTN_TOOL_TRIPLETAP, dev1->keybit);
 	set_bit(BTN_TOOL_QUADTAP, dev1->keybit);
 
-	input_set_abs_params(dev1, ABS_X, 0, ALPS_V3_X_MAX, 0, 0);
-	input_set_abs_params(dev1, ABS_Y, 0, ALPS_V3_Y_MAX, 0, 0);
+	input_set_abs_params(dev1, ABS_X, 0, priv->x_max, 0, 0);
+	input_set_abs_params(dev1, ABS_Y, 0, priv->y_max, 0, 0);
 }
 
 int alps_init(struct psmouse *psmouse)

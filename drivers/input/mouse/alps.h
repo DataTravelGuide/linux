@@ -38,9 +38,13 @@ struct alps_data {
 	unsigned char proto_version;
 	unsigned char byte0, mask0;
 	unsigned char flags;
+	int x_max;
+	int y_max;
+
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
 	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
+
 	int prev_fin;			/* Finger bit from previous packet */
 	int multi_packet;		/* Multi-packet data in progress */
 	u8 quirks;
