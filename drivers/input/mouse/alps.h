@@ -33,9 +33,11 @@ struct alps_nibble_commands {
 struct alps_data {
 	struct input_dev *dev2;		/* Relative device */
 	char phys[32];			/* Phys */
-	const struct alps_model_info *i;/* Info */
 	const struct alps_nibble_commands *nibble_commands;
 	int addr_command;		/* Command to set register address */
+	unsigned char proto_version;
+	unsigned char byte0, mask0;
+	unsigned char flags;
 	int prev_fin;			/* Finger bit from previous packet */
 	int multi_packet;		/* Multi-packet data in progress */
 	u8 quirks;
