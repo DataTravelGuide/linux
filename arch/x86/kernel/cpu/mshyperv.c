@@ -84,13 +84,6 @@ static void __init ms_hyperv_init_platform(void)
 
 	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)
 		clocksource_register_hz(&hyperv_cs, NSEC_PER_SEC/100);
-#if defined(CONFIG_HYPERV) || defined(CONFIG_HYPERV_MODULE)
-	/*
-	 * Setup the IDT for hypervisor callback.
-	 */
-	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
-#endif
-
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
@@ -106,6 +99,11 @@ static irq_handler_t vmbus_isr;
 
 void hv_register_vmbus_handler(int irq, irq_handler_t handler)
 {
+	/*
+	 * Setup the IDT for hypervisor callback.
+	 */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
+
 	vmbus_irq = irq;
 	vmbus_isr = handler;
 }
