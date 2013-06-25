@@ -7040,6 +7040,8 @@ static int __init net_dev_init(void)
 
 	if (netdev_kobject_init())
 		goto out;
+	if (linkwatch_init())
+		goto out;
 
 	INIT_LIST_HEAD(&ptype_all);
 	for (i = 0; i < PTYPE_HASH_SIZE; i++)
