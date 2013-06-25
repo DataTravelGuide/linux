@@ -30,6 +30,36 @@ struct alps_nibble_commands {
 	unsigned char data;
 };
 
+/**
+ * struct alps_fields - decoded version of the report packet
+ * @x: X position for ST.
+ * @y: Y position for ST.
+ * @z: Z position for ST.
+ * @first_mp: Packet is the first of a multi-packet report.
+ * @is_mp: Packet is part of a multi-packet report.
+ * @left: Left touchpad button is active.
+ * @right: Right touchpad button is active.
+ * @middle: Middle touchpad button is active.
+ * @ts_left: Left trackstick button is active.
+ * @ts_right: Right trackstick button is active.
+ * @ts_middle: Middle trackstick button is active.
+ */
+struct alps_fields {
+	unsigned int x;
+	unsigned int y;
+	unsigned int z;
+	unsigned int first_mp:1;
+	unsigned int is_mp:1;
+
+	unsigned int left:1;
+	unsigned int right:1;
+	unsigned int middle:1;
+
+	unsigned int ts_left:1;
+	unsigned int ts_right:1;
+	unsigned int ts_middle:1;
+};
+
 struct alps_data {
 	struct input_dev *dev2;		/* Relative device */
 	char phys[32];			/* Phys */
@@ -43,6 +73,7 @@ struct alps_data {
 
 	int (*hw_init)(struct psmouse *psmouse);
 	void (*process_packet)(struct psmouse *psmouse);
+	void (*decode_fields)(struct alps_fields *f, unsigned char *p);
 	void (*set_abs_params)(struct alps_data *priv, struct input_dev *dev1);
 
 	int prev_fin;			/* Finger bit from previous packet */

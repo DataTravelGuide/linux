@@ -259,6 +259,30 @@ static void alps_process_packet_v1_v2(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
+static void alps_decode_buttons_v3(struct alps_fields *f, unsigned char *p)
+{
+	f->left = !!(p[3] & 0x01);
+	f->right = !!(p[3] & 0x02);
+	f->middle = !!(p[3] & 0x04);
+
+	f->ts_left = !!(p[3] & 0x10);
+	f->ts_right = !!(p[3] & 0x20);
+	f->ts_middle = !!(p[3] & 0x40);
+}
+
+static void alps_decode_pinnacle(struct alps_fields *f, unsigned char *p)
+{
+	f->first_mp = !!(p[4] & 0x40);
+	f->is_mp = !!(p[0] & 0x40);
+
+	f->x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
+	       ((p[0] & 0x30) >> 4);
+	f->y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
+	f->z = p[5] & 0x7f;
+
+	alps_decode_buttons_v3(f, p);
+}
+
 static void alps_process_trackstick_packet_v3(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
@@ -325,8 +349,9 @@ static void alps_process_touchpad_packet_v3(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = psmouse->dev;
 	struct input_dev *dev2 = priv->dev2;
-	int x, y, z;
-	int left, right, middle;
+	struct alps_fields f;
+
+	priv->decode_fields(&f, packet);
 
 	/*
 	 * There's no single feature of touchpad position and bitmap
@@ -343,7 +368,7 @@ static void alps_process_touchpad_packet_v3(struct psmouse *psmouse)
 		 * packet. Check for this, and when it happens process the
 		 * position packet as usual.
 		 */
-		if (packet[0] & 0x40) {
+		if (f.first_mp) {
 			/*
 			 * Bitmap packets are not yet supported, so for now
 			 * just ignore them.
@@ -352,19 +377,13 @@ static void alps_process_touchpad_packet_v3(struct psmouse *psmouse)
 		}
 	}
 
-	if (!priv->multi_packet && (packet[4] & 0x40))
+	if (!priv->multi_packet && f.first_mp)
 		priv->multi_packet = 1;
 	else
 		priv->multi_packet = 0;
 
-	left = packet[3] & 0x01;
-	right = packet[3] & 0x02;
-	middle = packet[3] & 0x04;
-
-	x = ((packet[1] & 0x7f) << 4) | ((packet[4] & 0x30) >> 2) |
-	    ((packet[0] & 0x30) >> 4);
-	y = ((packet[2] & 0x7f) << 4) | (packet[4] & 0x0f);
-	z = packet[5] & 0x7f;
+	if (f.is_mp)
+		return;
 
 	/*
 	 * Sometimes the hardware sends a single packet with z = 0
@@ -372,35 +391,31 @@ static void alps_process_touchpad_packet_v3(struct psmouse *psmouse)
 	 * with x, y, and z all zero, so these seem to be flukes.
 	 * Ignore them.
 	 */
-	if (x && y && !z)
+	if (f.x && f.y && !f.z)
 		return;
 
-	if (z >= 64)
+	if (f.z >= 64)
 		input_report_key(dev, BTN_TOUCH, 1);
 	else
 		input_report_key(dev, BTN_TOUCH, 0);
 
-	if (z > 0) {
-		input_report_abs(dev, ABS_X, x);
-		input_report_abs(dev, ABS_Y, y);
+	if (f.z > 0) {
+		input_report_abs(dev, ABS_X, f.x);
+		input_report_abs(dev, ABS_Y, f.y);
 	}
-	input_report_abs(dev, ABS_PRESSURE, z);
+	input_report_abs(dev, ABS_PRESSURE, f.z);
 
-	input_report_key(dev, BTN_TOOL_FINGER, z > 0);
-	input_report_key(dev, BTN_LEFT, left);
-	input_report_key(dev, BTN_RIGHT, right);
-	input_report_key(dev, BTN_MIDDLE, middle);
+	input_report_key(dev, BTN_TOOL_FINGER, f.z > 0);
+	input_report_key(dev, BTN_LEFT, f.left);
+	input_report_key(dev, BTN_RIGHT, f.right);
+	input_report_key(dev, BTN_MIDDLE, f.middle);
 
 	input_sync(dev);
 
 	if (!(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
-		left = packet[3] & 0x10;
-		right = packet[3] & 0x20;
-		middle = packet[3] & 0x40;
-
-		input_report_key(dev2, BTN_LEFT, left);
-		input_report_key(dev2, BTN_RIGHT, right);
-		input_report_key(dev2, BTN_MIDDLE, middle);
+		input_report_key(dev2, BTN_LEFT, f.ts_left);
+		input_report_key(dev2, BTN_RIGHT, f.ts_right);
+		input_report_key(dev2, BTN_MIDDLE, f.ts_middle);
 		input_sync(dev2);
 	}
 }
@@ -1186,6 +1201,7 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->hw_init = alps_hw_init_v3;
 		priv->process_packet = alps_process_packet_v3;
 		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->decode_fields = alps_decode_pinnacle;
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
 		break;
