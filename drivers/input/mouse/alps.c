@@ -756,8 +756,7 @@ static int alps_rpt_cmd(struct psmouse *psmouse, int init_command,
 	return 0;
 }
 
-static int alps_enter_command_mode(struct psmouse *psmouse,
-				   unsigned char *resp)
+static int alps_enter_command_mode(struct psmouse *psmouse)
 {
 	unsigned char param[4];
 
@@ -771,8 +770,6 @@ static int alps_enter_command_mode(struct psmouse *psmouse,
 		return -1;
 	}
 
-	if (resp)
-		*resp = param[2];
 	return 0;
 }
 
@@ -937,7 +934,7 @@ static int alps_passthrough_mode_v3(struct psmouse *psmouse,
 {
 	int reg_val, ret = -1;
 
-	if (alps_enter_command_mode(psmouse, NULL))
+	if (alps_enter_command_mode(psmouse))
 		return -1;
 
 	reg_val = alps_command_mode_read_reg(psmouse, reg_base + 0x0008);
@@ -977,7 +974,7 @@ static int alps_probe_trackstick_v3(struct psmouse *psmouse, int reg_base)
 {
 	int ret = -EIO, reg_val;
 
-	if (alps_enter_command_mode(psmouse, NULL))
+	if (alps_enter_command_mode(psmouse))
 		goto error;
 
 	reg_val = alps_command_mode_read_reg(psmouse, reg_base + 0x08);
@@ -1038,7 +1035,7 @@ static int alps_setup_trackstick_v3(struct psmouse *psmouse, int reg_base)
 		 * supported by this driver. If bit 1 isn't set the packet
 		 * format is different.
 		 */
-		if (alps_enter_command_mode(psmouse, NULL) ||
+		if (alps_enter_command_mode(psmouse) ||
 		    alps_command_mode_write_reg(psmouse,
 						reg_base + 0x08, 0x82) ||
 		    alps_exit_command_mode(psmouse))
@@ -1065,7 +1062,7 @@ static int alps_hw_init_v3(struct psmouse *psmouse)
 	    alps_setup_trackstick_v3(psmouse, ALPS_REG_BASE_PINNACLE) == -EIO)
 		goto error;
 
-	if (alps_enter_command_mode(psmouse, NULL) ||
+	if (alps_enter_command_mode(psmouse) ||
 	    alps_absolute_mode_v3(psmouse)) {
 		printk(KERN_ERR "Failed to enter absolute mode\n");
 		goto error;
@@ -1140,7 +1137,7 @@ static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 			priv->flags &= ~ALPS_DUALPOINT;
 	}
 
-	if (alps_enter_command_mode(psmouse, NULL) ||
+	if (alps_enter_command_mode(psmouse) ||
 	    alps_command_mode_read_reg(psmouse, 0xc2d9) == -1 ||
 	    alps_command_mode_write_reg(psmouse, 0xc2cb, 0x00))
 		goto error;
@@ -1190,7 +1187,7 @@ static int alps_hw_init_v4(struct psmouse *psmouse)
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[4];
 
-	if (alps_enter_command_mode(psmouse, NULL))
+	if (alps_enter_command_mode(psmouse))
 		goto error;
 
 	if (alps_absolute_mode_v4(psmouse)) {
