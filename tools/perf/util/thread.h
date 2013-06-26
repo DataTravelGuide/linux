@@ -18,7 +18,6 @@ struct thread {
 	char			*comm;
 	int			comm_len;
 
-	/* RHEL6 - added by kvm change */
 	void			*priv;
 };
 
