@@ -1101,7 +1101,8 @@ static void tg3_switch_clocks(struct tg3 *tp)
 
 #define PHY_BUSY_LOOPS	5000
 
-static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
+static int __tg3_readphy(struct tg3 *tp, unsigned int phy_addr, int reg,
+			 u32 *val)
 {
 	u32 frame_val;
 	unsigned int loops;
@@ -1117,7 +1118,7 @@ static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
 
 	*val = 0x0;
 
-	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
+	frame_val  = ((phy_addr << MI_COM_PHY_ADDR_SHIFT) &
 		      MI_COM_PHY_ADDR_MASK);
 	frame_val |= ((reg << MI_COM_REG_ADDR_SHIFT) &
 		      MI_COM_REG_ADDR_MASK);
@@ -1154,7 +1155,13 @@ static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
 	return ret;
 }
 
-static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
+static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
+{
+	return __tg3_readphy(tp, tp->phy_addr, reg, val);
+}
+
+static int __tg3_writephy(struct tg3 *tp, unsigned int phy_addr, int reg,
+			  u32 val)
 {
 	u32 frame_val;
 	unsigned int loops;
@@ -1172,7 +1179,7 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 
 	tg3_ape_lock(tp, tp->phy_ape_lock);
 
-	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
+	frame_val  = ((phy_addr << MI_COM_PHY_ADDR_SHIFT) &
 		      MI_COM_PHY_ADDR_MASK);
 	frame_val |= ((reg << MI_COM_REG_ADDR_SHIFT) &
 		      MI_COM_REG_ADDR_MASK);
@@ -1205,6 +1212,11 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 	tg3_ape_unlock(tp, tp->phy_ape_lock);
 
 	return ret;
+}
+
+static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
+{
+	return __tg3_writephy(tp, tp->phy_addr, reg, val);
 }
 
 static int tg3_phy_cl45_write(struct tg3 *tp, u32 devad, u32 addr, u32 val)
@@ -12999,7 +13011,8 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
-		err = tg3_readphy(tp, data->reg_num & 0x1f, &mii_regval);
+		err = __tg3_readphy(tp, data->phy_id & 0x1f,
+				    data->reg_num & 0x1f, &mii_regval);
 		spin_unlock_bh(&tp->lock);
 
 		data->val_out = mii_regval;
@@ -13015,7 +13028,8 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
-		err = tg3_writephy(tp, data->reg_num & 0x1f, data->val_in);
+		err = __tg3_writephy(tp, data->phy_id & 0x1f,
+				     data->reg_num & 0x1f, data->val_in);
 		spin_unlock_bh(&tp->lock);
 
 		return err;
