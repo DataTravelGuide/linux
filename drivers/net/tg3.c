@@ -10103,6 +10103,11 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		tp->napi[i].irq_vec = msix_ent[i].vector;
 
 	netif_set_real_num_tx_queues(tp->dev, 1);
+	rc = tp->irq_cnt > 1 ? tp->irq_cnt - 1 : 1;
+	if (netif_set_real_num_rx_queues(tp->dev, rc)) {
+		pci_disable_msix(tp->pdev);
+		return false;
+	}
 	if (tp->irq_cnt > 1)
 		tg3_flag_set(tp, ENABLE_RSS);
 
