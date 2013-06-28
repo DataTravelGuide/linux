@@ -3273,6 +3273,7 @@ struct tg3 {
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	struct device			*hwmon_dev;
 #endif
+	bool				link_up;
 };
 
 #endif /* !(_T3_H) */
