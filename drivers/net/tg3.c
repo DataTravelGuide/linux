@@ -9164,9 +9164,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
 	udelay(100);
 
-	if (tg3_flag(tp, USING_MSIX) && tp->irq_cnt > 1) {
+	if (tg3_flag(tp, USING_MSIX)) {
 		val = tr32(MSGINT_MODE);
-		val |= MSGINT_MODE_ENABLE | MSGINT_MODE_MULTIVEC_EN;
+		val |= MSGINT_MODE_ENABLE;
+		if (tp->irq_cnt > 1)
+			val |= MSGINT_MODE_MULTIVEC_EN;
 		if (!tg3_flag(tp, 1SHOT_MSI))
 			val |= MSGINT_MODE_ONE_SHOT_DISABLE;
 		tw32(MSGINT_MODE, val);
