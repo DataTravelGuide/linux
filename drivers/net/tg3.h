@@ -2723,13 +2723,9 @@ struct ring_info {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
-struct tg3_config_info {
-	u32				flags;
-};
-
 struct tg3_tx_ring_info {
 	struct sk_buff			*skb;
-	dma_addr_t			mapping;
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	bool				fragmented;
 };
 
