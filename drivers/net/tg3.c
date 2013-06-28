@@ -15831,12 +15831,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp,
 			      &pci_state_reg);
 	if ((pci_state_reg & PCISTATE_CONV_PCI_MODE) == 0 &&
 	    !tg3_flag(tp, PCIX_TARGET_HWBUG)) {
-		u32 chiprevid = GET_CHIP_REV_ID(tp->misc_host_ctrl);
-
-		if (chiprevid == CHIPREV_ID_5701_A0 ||
-		    chiprevid == CHIPREV_ID_5701_B0 ||
-		    chiprevid == CHIPREV_ID_5701_B2 ||
-		    chiprevid == CHIPREV_ID_5701_B5) {
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5701_B0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5701_B2 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5701_B5) {
 			void __iomem *sram_base;
 
 			/* Write some dummy words into the SRAM status block
