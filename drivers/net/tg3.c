@@ -16976,14 +16976,13 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	tg3_timer_init(tp);
 
+	tg3_carrier_off(tp);
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
 		goto err_out_apeunmap;
 	}
-
-	/* RHEL: Set an initial value for operstate, after registration */
-	netif_carrier_off(dev);
 
 	netdev_info(dev, "Tigon3 [partno(%s) rev %04x] (%s) MAC address %pM\n",
 		    tp->board_part_number,
