@@ -44,10 +44,8 @@
 #include <linux/prefetch.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#endif
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -9544,7 +9542,6 @@ static int tg3_init_hw(struct tg3 *tp, int reset_phy)
 	return tg3_reset_hw(tp, reset_phy);
 }
 
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 static void tg3_sd_scan_scratchpad(struct tg3 *tp, struct tg3_ocir *ocir)
 {
 	int i;
@@ -9597,22 +9594,17 @@ static const struct attribute_group tg3_group = {
 	.attrs = tg3_attributes,
 };
 
-#endif
-
 static void tg3_hwmon_close(struct tg3 *tp)
 {
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	if (tp->hwmon_dev) {
 		hwmon_device_unregister(tp->hwmon_dev);
 		tp->hwmon_dev = NULL;
 		sysfs_remove_group(&tp->pdev->dev.kobj, &tg3_group);
 	}
-#endif
 }
 
 static void tg3_hwmon_open(struct tg3 *tp)
 {
-#if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	int i, err;
 	u32 size = 0;
 	struct pci_dev *pdev = tp->pdev;
@@ -9644,7 +9636,6 @@ static void tg3_hwmon_open(struct tg3 *tp)
 		dev_err(&pdev->dev, "Cannot register hwmon device, aborting\n");
 		sysfs_remove_group(&pdev->dev.kobj, &tg3_group);
 	}
-#endif
 }
 
 
