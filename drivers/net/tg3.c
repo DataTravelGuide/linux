@@ -5675,7 +5675,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		}
 
 		pci_unmap_single(tp->pdev,
-				 pci_unmap_addr(ri, mapping),
+				 dma_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
 				 PCI_DMA_TODEVICE);
 
@@ -5695,7 +5695,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 				tx_bug = 1;
 
 			pci_unmap_page(tp->pdev,
-				       pci_unmap_addr(ri, mapping),
+				       dma_unmap_addr(ri, mapping),
 				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
 
@@ -5740,7 +5740,7 @@ static void tg3_rx_skb_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
 	if (!ri->skb)
 		return;
 
-	pci_unmap_single(tp->pdev, pci_unmap_addr(ri, mapping),
+	pci_unmap_single(tp->pdev, dma_unmap_addr(ri, mapping),
 			 map_sz, PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(ri->skb);
 	ri->skb = NULL;
@@ -5805,7 +5805,7 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	}
 
 	map->skb = skb;
-	pci_unmap_addr_set(map, mapping, mapping);
+	dma_unmap_addr_set(map, mapping, mapping);
 
 	desc->addr_hi = ((u64)mapping >> 32);
 	desc->addr_lo = ((u64)mapping & 0xffffffff);
@@ -5850,8 +5850,8 @@ static void tg3_recycle_rx(struct tg3_napi *tnapi,
 	}
 
 	dest_map->skb = src_map->skb;
-	pci_unmap_addr_set(dest_map, mapping,
-			   pci_unmap_addr(src_map, mapping));
+	dma_unmap_addr_set(dest_map, mapping,
+			   dma_unmap_addr(src_map, mapping));
 	dest_desc->addr_hi = src_desc->addr_hi;
 	dest_desc->addr_lo = src_desc->addr_lo;
 
@@ -5921,13 +5921,13 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		opaque_key = desc->opaque & RXD_OPAQUE_RING_MASK;
 		if (opaque_key == RXD_OPAQUE_RING_STD) {
 			ri = &tp->napi[0].prodring.rx_std_buffers[desc_idx];
-			dma_addr = pci_unmap_addr(ri, mapping);
+			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &std_prod_idx;
 			rx_std_posted++;
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
 			ri = &tp->napi[0].prodring.rx_jmb_buffers[desc_idx];
-			dma_addr = pci_unmap_addr(ri, mapping);
+			dma_addr = dma_unmap_addr(ri, mapping);
 			skb = ri->skb;
 			post_ptr = &jmb_prod_idx;
 		} else
@@ -6822,7 +6822,7 @@ static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 	txb->skb = NULL;
 
 	pci_unmap_single(tnapi->tp->pdev,
-			 pci_unmap_addr(txb, mapping),
+			 dma_unmap_addr(txb, mapping),
 			 skb_headlen(skb),
 			 PCI_DMA_TODEVICE);
 
@@ -6839,7 +6839,7 @@ static void tg3_tx_skb_unmap(struct tg3_napi *tnapi, u32 entry, int last)
 		txb = &tnapi->tx_buffers[entry];
 
 		pci_unmap_page(tnapi->tp->pdev,
-			       pci_unmap_addr(txb, mapping),
+			       dma_unmap_addr(txb, mapping),
 			       frag->size, PCI_DMA_TODEVICE);
 
 		while (txb->fragmented) {
@@ -6887,7 +6887,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 			base_flags |= TXD_FLAG_END;
 
 			tnapi->tx_buffers[*entry].skb = new_skb;
-			pci_unmap_addr_set(&tnapi->tx_buffers[*entry],
+			dma_unmap_addr_set(&tnapi->tx_buffers[*entry],
 					   mapping, new_addr);
 
 			if (tg3_tx_frag_set(tnapi, entry, budget, new_addr,
@@ -7069,7 +7069,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
 	tnapi->tx_buffers[entry].skb = skb;
-	pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
+	dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping, mapping);
 
 	would_hit_hwbug = 0;
 
@@ -7102,7 +7102,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					       len, PCI_DMA_TODEVICE);
 
 			tnapi->tx_buffers[entry].skb = NULL;
-			pci_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
+			dma_unmap_addr_set(&tnapi->tx_buffers[entry], mapping,
 					   mapping);
 			if (pci_dma_mapping_error(tp->pdev, mapping))
 				goto dma_error;
@@ -11966,7 +11966,7 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 
 	val = tnapi->tx_prod;
 	tnapi->tx_buffers[val].skb = skb;
-	pci_unmap_addr_set(&tnapi->tx_buffers[val], mapping, map);
+	dma_unmap_addr_set(&tnapi->tx_buffers[val], mapping, map);
 
 	tw32_f(HOSTCC_MODE, tp->coalesce_mode | HOSTCC_MODE_ENABLE |
 	       rnapi->coal_now);
@@ -12048,11 +12048,11 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 
 		if (opaque_key == RXD_OPAQUE_RING_STD) {
 			rx_skb = tpr->rx_std_buffers[desc_idx].skb;
-			map = pci_unmap_addr(&tpr->rx_std_buffers[desc_idx],
+			map = dma_unmap_addr(&tpr->rx_std_buffers[desc_idx],
 					     mapping);
 		} else if (opaque_key == RXD_OPAQUE_RING_JUMBO) {
 			rx_skb = tpr->rx_jmb_buffers[desc_idx].skb;
-			map = pci_unmap_addr(&tpr->rx_jmb_buffers[desc_idx],
+			map = dma_unmap_addr(&tpr->rx_jmb_buffers[desc_idx],
 					     mapping);
 		} else
 			goto out;
