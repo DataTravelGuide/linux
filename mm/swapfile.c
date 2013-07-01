@@ -876,9 +876,15 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, swp_entry_t entry, struct page *page)
 {
 	struct mem_cgroup *ptr = NULL;
+	struct page *swapcache;
 	spinlock_t *ptl;
 	pte_t *pte;
 	int ret = 1;
+
+	swapcache = page;
+	page = ksm_might_need_to_copy(page, vma, addr);
+	if (unlikely(!page))
+		return -ENOMEM;
 
 	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page, GFP_KERNEL, &ptr)) {
 		ret = -ENOMEM;
@@ -898,7 +904,12 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 	get_page(page);
 	set_pte_at(vma->vm_mm, addr, pte,
 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
-	page_add_anon_rmap(page, vma, addr);
+
+	if (page == swapcache)
+		page_add_anon_rmap(page, vma, addr);
+	else /* ksm created a completely new copy */
+		page_add_new_anon_rmap(page, vma, addr);
+
 	mem_cgroup_commit_charge_swapin(page, ptr);
 	swap_free(entry);
 	/*
@@ -909,6 +920,10 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 out:
 	pte_unmap_unlock(pte, ptl);
 out_nolock:
+	if (page != swapcache) {
+		unlock_page(page);
+		put_page(page);
+	}
 	return ret;
 }
 
