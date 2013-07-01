@@ -735,9 +735,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			kexec loader will pass this option to capture kernel.
 			See Documentation/kdump/kdump.txt for details.
 
-	enable_arat	[X86]
-			Enable ARAT support on X86
-
 	enable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous
 			to discrete, to make X server driver able to add WB

@@ -159,8 +159,6 @@ static int disable_apic_timer __cpuinitdata;
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
-/* Enable ARAT timer from the kernel commandline */
-static int enable_arat;
 
 int first_system_vector = 0xfe;
 
@@ -802,18 +800,6 @@ void __init setup_boot_APIC_clock(void)
 			setup_APIC_timer();
 		}
 		return;
-	}
-
-	/*
-	 * The Always Running APIC Timer (ARAT) can be enabled via the
-	 * kernel commandline.
-	 */
-	if (!enable_arat && boot_cpu_has(X86_FEATURE_ARAT)) {
-		/* clear remaining cpus */
-		setup_clear_cpu_cap(X86_FEATURE_ARAT);
-		/* clear this cpu */
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_ARAT);
-		clear_cpu_cap(&current_cpu_data, X86_FEATURE_ARAT);
 	}
 
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
@@ -2426,14 +2412,6 @@ static int __init parse_nolapic_timer(char *arg)
 	return 0;
 }
 early_param("nolapic_timer", parse_nolapic_timer);
-
-static int __init parse_enable_arat(char *arg)
-{
-	enable_arat = 1;
-	return 0;
-}
-early_param("enable_arat", parse_enable_arat);
-
 
 static int __init apic_set_verbosity(char *arg)
 {
