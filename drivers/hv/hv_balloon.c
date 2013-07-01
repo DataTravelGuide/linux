@@ -459,10 +459,8 @@ static bool do_hot_add;
  */
 static uint pressure_report_delay = 45;
 
-#if 0
 module_param(hot_add, bool, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(hot_add, "If set attempt memory hot_add");
-#endif
 
 module_param(pressure_report_delay, uint, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(pressure_report_delay, "Delay in secs in reporting pressure");
