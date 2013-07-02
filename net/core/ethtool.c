@@ -738,9 +738,6 @@ static int ethtool_set_rx_csum(struct net_device *dev, char __user *useraddr)
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
-	if (!edata.data && dev->ethtool_ops->set_sg)
-		dev->features &= ~NETIF_F_GRO;
-
 	return dev->ethtool_ops->set_rx_csum(dev, edata.data);
 }
 
@@ -832,12 +829,9 @@ static int ethtool_set_gro(struct net_device *dev, char __user *useraddr)
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
-	if (edata.data) {
-		if (!dev->ethtool_ops->get_rx_csum ||
-		    !dev->ethtool_ops->get_rx_csum(dev))
-			return -EINVAL;
+	if (edata.data)
 		dev->features |= NETIF_F_GRO;
-	} else
+	else
 		dev->features &= ~NETIF_F_GRO;
 
 	return 0;
