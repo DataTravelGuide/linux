@@ -1150,19 +1150,19 @@ int ip6_route_add(struct fib6_config *cfg)
 		cfg->fc_metric = IP6_RT_PRIO_USER;
 
 	err = -ENOBUFS;
-	if (NULL != cfg->fc_nlinfo.nlh &&
-	    !(cfg->fc_nlinfo.nlh->nlmsg_flags&NLM_F_CREATE)) {
+	if (cfg->fc_nlinfo.nlh &&
+	    !(cfg->fc_nlinfo.nlh->nlmsg_flags & NLM_F_CREATE)) {
 		table = fib6_get_table(net, cfg->fc_table);
-		if (table == NULL) {
+		if (!table) {
 			printk(KERN_WARNING "IPv6: NLM_F_CREATE should be specified when creating new route\n");
 			table = fib6_new_table(net, cfg->fc_table);
 		}
 	} else {
 		table = fib6_new_table(net, cfg->fc_table);
 	}
-	if (table == NULL) {
+
+	if (!table)
 		goto out;
-	}
 
 	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops);
 
