@@ -1,7 +1,8 @@
 # compile targets for cross compile builds
 CROSS_REPO=http://patchwork.lab.bos.redhat.com/packages/crosstools/rhel6-cross-compilers.repo
 
-CROSS_RPMFLAGS = $(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)"
+CROSS_EXCLUDE = --without perf
+CROSS_RPMFLAGS = $(RPMBUILD) --define "_sourcedir $(SOURCES)" --define "_builddir $(RPM)/BUILD" --define "_srcrpmdir $(RPM)/SRPMS" --define "_rpmdir $(RPM)/RPMS" --define "_specdir $(RPM)/SPECS" --define "dist $(DIST)" $(CROSS_EXCLUDE)
 
 rh-cross-download:
 	@if [ "$(ARCHCONFIG)" != "X86_64" ]; then \
