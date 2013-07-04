@@ -3922,6 +3922,7 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 	struct inet6_ifaddr *ifp;
 	struct net_device *dev = idev->dev;
 	bool update_rs = false;
+	struct in6_addr ll_addr;
 
 	if (token == NULL)
 		return -EINVAL;
@@ -3941,11 +3942,9 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 
 	write_unlock_bh(&idev->lock);
 
-	if (!idev->dead && (idev->if_flags & IF_READY)) {
-		struct in6_addr ll_addr;
-
-		ipv6_get_lladdr(dev, &ll_addr, IFA_F_TENTATIVE |
-				IFA_F_OPTIMISTIC);
+	if (!idev->dead && (idev->if_flags & IF_READY) &&
+	    !ipv6_get_lladdr(dev, &ll_addr, IFA_F_TENTATIVE |
+			     IFA_F_OPTIMISTIC)) {
 
 		/* If we're not ready, then normal ifup will take care
 		 * of this. Otherwise, we need to request our rs here.
