@@ -626,10 +626,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
-	int replace = (NULL != info->nlh &&
-	    (info->nlh->nlmsg_flags&NLM_F_REPLACE));
-	int add = (NULL == info->nlh ||
-	    (info->nlh->nlmsg_flags&NLM_F_CREATE));
+	int replace = (info->nlh &&
+		       (info->nlh->nlmsg_flags & NLM_F_REPLACE));
+	int add = (!info->nlh ||
+		   (info->nlh->nlmsg_flags & NLM_F_CREATE));
 	int found = 0;
 
 	ins = &fn->leaf;
@@ -643,8 +643,8 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			/*
 			 *	Same priority level
 			 */
-			if (NULL != info->nlh &&
-			    (info->nlh->nlmsg_flags&NLM_F_EXCL))
+			if (info->nlh &&
+			    (info->nlh->nlmsg_flags & NLM_F_EXCL))
 				return -EEXIST;
 			if (replace) {
 				found++;
@@ -691,7 +691,7 @@ add:
 		inet6_rt_notify(RTM_NEWROUTE, rt, info);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
-		if ((fn->fn_flags & RTN_RTINFO) == 0) {
+		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
@@ -709,7 +709,7 @@ add:
 		atomic_inc(&rt->rt6i_ref);
 		inet6_rt_notify(RTM_NEWROUTE, rt, info);
 		rt6_release(iter);
-		if ((fn->fn_flags & RTN_RTINFO) == 0) {
+		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
@@ -745,18 +745,19 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	int err = -ENOMEM;
 	int allow_create = 1;
 	int replace_required = 0;
-	if (NULL != info->nlh) {
-		if (!(info->nlh->nlmsg_flags&NLM_F_CREATE))
+
+	if (info->nlh) {
+		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
 			allow_create = 0;
-		if ((info->nlh->nlmsg_flags&NLM_F_REPLACE))
+		if (info->nlh->nlmsg_flags & NLM_F_REPLACE)
 			replace_required = 1;
 	}
 	if (!allow_create && !replace_required)
 		pr_warn("RTM_NEWROUTE with no NLM_F_CREATE or NLM_F_REPLACE\n");
 
 	fn = fib6_add_1(root, &rt->rt6i_dst.addr, sizeof(struct in6_addr),
-		    rt->rt6i_dst.plen, offsetof(struct rt6_info, rt6i_dst),
-		    allow_create, replace_required);
+			rt->rt6i_dst.plen, offsetof(struct rt6_info, rt6i_dst),
+			allow_create, replace_required);
 
 	if (IS_ERR(fn)) {
 		err = PTR_ERR(fn);
