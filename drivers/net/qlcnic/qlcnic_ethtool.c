@@ -849,7 +849,7 @@ int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[])
 	return memcmp(data, buff, QLCNIC_ILB_PKT_SIZE);
 }
 
-static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
+int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
@@ -902,7 +902,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	int ret;
 
 	if (qlcnic_83xx_check(adapter))
-		goto skip_cap;
+		return qlcnic_83xx_loopback_test(netdev, mode);
 
 	if (!(adapter->ahw->capabilities &
 	      QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
@@ -911,7 +911,6 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 		return -EOPNOTSUPP;
 	}
 
-skip_cap:
 	dev_warn(&adapter->pdev->dev, "%s loopback test in progress\n",
 		 mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
@@ -932,9 +931,6 @@ skip_cap:
 	if (ret)
 		goto free_res;
 
-	if (qlcnic_83xx_check(adapter))
-		goto skip_fw_msg;
-
 	ahw->diag_cnt = 0;
 	do {
 		msleep(500);
@@ -949,21 +945,9 @@ skip_cap:
 			goto free_res;
 		}
 	} while (!QLCNIC_IS_LB_CONFIGURED(ahw->loopback_state));
-skip_fw_msg:
-	if (qlcnic_83xx_check(adapter)) {
-		/* wait until firmware report link up before running traffic */
-		loop = 0;
-		do {
-			msleep(500);
-			if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
-				dev_info(&adapter->pdev->dev,
-					 "No linkup event after LB req\n");
-				ret = -QLCNIC_FW_NOT_RESPOND;
-				goto free_res;
-			}
-		} while ((adapter->ahw->linkup && ahw->has_link_events) != 1);
-	}
+
 	ret = qlcnic_do_lb_test(adapter, mode);
+
 	qlcnic_clear_lb_mode(adapter, mode);
 
  free_res:

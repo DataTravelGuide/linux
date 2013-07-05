@@ -1449,7 +1449,8 @@ int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_host_tx_ring *);
 
 /* Functions from qlcnic_ethtool.c */
-int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[]);
+int qlcnic_check_loopback_buff(unsigned char *, u8 []);
+int qlcnic_do_lb_test(struct qlcnic_adapter *, u8);
 int qlcnic_loopback_test(struct net_device *, u8);
 
 /* Functions from qlcnic_main.c */
