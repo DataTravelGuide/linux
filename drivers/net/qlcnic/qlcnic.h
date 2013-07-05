@@ -798,6 +798,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_MORE_CAPS		BIT_31
 
 #define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
+#define QLCNIC_FW_CAPABILITY_2_OCBB		BIT_5
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1439,6 +1440,7 @@ void qlcnic_set_multi(struct net_device *netdev);
 void qlcnic_free_mac_list(struct qlcnic_adapter *adapter);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
+int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *);
 int qlcnic_change_mtu(struct net_device *netdev, int new_mtu);
 int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
