@@ -2227,7 +2227,7 @@ static int qlcnic_83xx_poll_flash_status_reg(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_enable_flash_write_op(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_enable_flash_write(struct qlcnic_adapter *adapter)
 {
 	int ret;
 	u32 cmd;
@@ -2245,7 +2245,7 @@ static int qlcnic_83xx_enable_flash_write_op(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_83xx_disable_flash_write_op(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_disable_flash_write(struct qlcnic_adapter *adapter)
 {
 	int ret;
 
@@ -2319,7 +2319,7 @@ int qlcnic_83xx_erase_flash_sector(struct qlcnic_adapter *adapter,
 		return -EIO;
 
 	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
-		ret = qlcnic_83xx_enable_flash_write_op(adapter);
+		ret = qlcnic_83xx_enable_flash_write(adapter);
 		if (ret) {
 			qlcnic_83xx_unlock_flash(adapter);
 			dev_err(&adapter->pdev->dev,
@@ -2361,7 +2361,7 @@ int qlcnic_83xx_erase_flash_sector(struct qlcnic_adapter *adapter,
 	}
 
 	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
-		ret = qlcnic_83xx_disable_flash_write_op(adapter);
+		ret = qlcnic_83xx_disable_flash_write(adapter);
 		if (ret) {
 			qlcnic_83xx_unlock_flash(adapter);
 			dev_err(&adapter->pdev->dev,
@@ -2401,8 +2401,8 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *adapter, u32 addr,
 	u32 temp;
 	int ret = -EIO;
 
-	if ((count < QLC_83XX_FLASH_BULK_WRITE_MIN) ||
-	    (count > QLC_83XX_FLASH_BULK_WRITE_MAX)) {
+	if ((count < QLC_83XX_FLASH_WRITE_MIN) ||
+	    (count > QLC_83XX_FLASH_WRITE_MAX)) {
 		dev_err(&adapter->pdev->dev,
 			"%s: Invalid word count\n", __func__);
 		return -EIO;
