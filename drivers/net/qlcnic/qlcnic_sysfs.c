@@ -915,15 +915,12 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);
 
-	if (qlcnic_83xx_check(adapter)) {
-		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_config_intrpt(adapter, 0);
-		qlcnic_83xx_free_mbx_intr(adapter);
-	}
-
 	qlcnic_detach(adapter);
-	qlcnic_teardown_intr(adapter);
 
+	if (qlcnic_83xx_check(adapter))
+		qlcnic_83xx_free_mbx_intr(adapter);
+
+	qlcnic_teardown_intr(adapter);
 	err = qlcnic_setup_intr(adapter, data);
 	if (err) {
 		kfree(adapter->msix_entries);
@@ -932,6 +929,9 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 	}
 
 	if (qlcnic_83xx_check(adapter)) {
+		/* Register for NIC IDC AEN Events */
+		qlcnic_83xx_register_nic_idc_func(adapter, 1);
+
 		err = qlcnic_83xx_setup_mbx_intr(adapter);
 		if (err) {
 			dev_err(&adapter->pdev->dev,
