@@ -1286,6 +1286,8 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	u8 scsi_op = scmnd->cmnd[0];
 
 	switch (scsi_op) {
+	/* the host does not handle WRITE_SAME, log accident usage */
+	case WRITE_SAME:
 	/*
 	 * smartd sends this command and the host does not handle
 	 * this. So, don't send it.
