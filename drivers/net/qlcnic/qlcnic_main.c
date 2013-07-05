@@ -3121,6 +3121,7 @@ void qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 	if (!adapter->vlgrp)
 		return;
 
+	rcu_read_lock();
 	for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
 		dev = vlan_group_get_device(adapter->vlgrp, vid);
 		if (!dev)
@@ -3128,6 +3129,7 @@ void qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 
 		qlcnic_config_indev_addr(adapter, dev, event);
 	}
+	rcu_read_unlock();
 }
 
 static int qlcnic_netdev_event(struct notifier_block *this,
