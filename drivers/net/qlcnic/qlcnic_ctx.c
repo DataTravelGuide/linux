@@ -147,8 +147,36 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1));
-		dev_err(&pdev->dev, "failed card response code:0x%x\n",
-			cmd->rsp.arg[0]);
+		switch (cmd->rsp.arg[0]) {
+		case QLCNIC_RCODE_INVALID_ARGS:
+			dev_err(&pdev->dev, "CDRP invalid args 0x%x\n",
+				cmd->rsp.arg[0]);
+			break;
+		case QLCNIC_RCODE_NOT_SUPPORTED:
+		case QLCNIC_RCODE_NOT_IMPL:
+			dev_err(&pdev->dev,
+				"CDRP command not supported: 0x%x.\n",
+				cmd->rsp.arg[0]);
+			break;
+		case QLCNIC_RCODE_NOT_PERMITTED:
+			dev_err(&pdev->dev,
+				"CDRP requested action not permitted: 0x%x.\n",
+				cmd->rsp.arg[0]);
+			break;
+		case QLCNIC_RCODE_INVALID:
+			dev_err(&pdev->dev,
+				"CDRP invalid or unknown cmd received: 0x%x.\n",
+				cmd->rsp.arg[0]);
+			break;
+		case QLCNIC_RCODE_TIMEOUT:
+			dev_err(&pdev->dev, "CDRP command timeout: 0x%x.\n",
+				cmd->rsp.arg[0]);
+			break;
+		default:
+			dev_err(&pdev->dev, "CDRP command failed: 0x%x.\n",
+				cmd->rsp.arg[0]);
+			break;
+		}
 	} else if (rsp == QLCNIC_CDRP_RSP_OK)
 		cmd->rsp.arg[0] = QLCNIC_RCODE_SUCCESS;
 
