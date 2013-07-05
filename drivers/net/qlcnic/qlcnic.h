@@ -909,6 +909,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 #define QLCNIC_LB_RX_MAX_FILTERS	32
+#define QLCNIC_LB_BUCKET_SIZE		32
 
 /* QLCNIC Driver Error Code */
 #define QLCNIC_FW_NOT_RESPOND		51
@@ -1385,15 +1386,13 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 
 #define MAX_CTL_CHECK 1000
 
-ssize_t qlcnic_store_max_rss(struct device *,
-			     struct device_attribute *,
-			     const char *, size_t);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter);
 void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
 
 /* Functions from qlcnic_init.c */
+void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
 int qlcnic_load_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
