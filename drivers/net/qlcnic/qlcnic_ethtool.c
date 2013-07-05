@@ -180,7 +180,8 @@ static const u32 ext_diag_registers[] = {
 
 static inline int qlcnic_82xx_statistics(void)
 {
-	return QLCNIC_STATS_LEN + ARRAY_SIZE(qlcnic_83xx_mac_stats_strings);
+	return ARRAY_SIZE(qlcnic_device_gstrings_stats) +
+	       ARRAY_SIZE(qlcnic_83xx_mac_stats_strings);
 }
 
 static inline int qlcnic_83xx_statistics(void)
