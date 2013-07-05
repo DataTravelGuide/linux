@@ -127,6 +127,7 @@
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
 #define DEFAULT_RCV_DESCRIPTORS_VF	1024
 #define MAX_RDS_RINGS                   2
+#define QLC_MAX_SDS_RINGS		8
 
 #define get_next_index(index, length)	\
 	(((index) + 1) & ((length) - 1))
@@ -950,6 +951,9 @@ struct qlcnic_adapter {
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
+
+	u8 num_rds_rings;
+	u8 num_sds_rings;
 	u8 rx_csum;
 	u8 portnum;
 
@@ -1442,6 +1446,8 @@ int qlcnic_reset_context(struct qlcnic_adapter *);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
+int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, size_t);
+int qlcnic_validate_max_rss(u8, u8);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 
@@ -1481,6 +1487,12 @@ void qlcnic_set_vlan_config(struct qlcnic_adapter *,
 void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *,
 				      struct qlcnic_esw_func_cfg *);
 
+void __qlcnic_down(struct qlcnic_adapter *, struct net_device *);
+void qlcnic_detach(struct qlcnic_adapter *);
+void qlcnic_teardown_intr(struct qlcnic_adapter *);
+int qlcnic_attach(struct qlcnic_adapter *);
+int __qlcnic_up(struct qlcnic_adapter *, struct net_device *);
+void qlcnic_restore_indev_addr(struct net_device *, unsigned long);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, u64, u16);
 
 /*
