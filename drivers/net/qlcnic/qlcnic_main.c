@@ -2119,7 +2119,6 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 		return;
 
 	act_pci_func = adapter->ahw->act_pci_func;
-
 	spin_lock_init(&adapter->mac_learn_lock);
 	spin_lock_init(&adapter->rx_mac_learn_lock);
 
@@ -2146,15 +2145,18 @@ void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 	for (i = 0; i < adapter->fhash.fbucket_size; i++)
 		INIT_HLIST_HEAD(&adapter->fhash.fhead[i]);
 
-	head = kcalloc(QLCNIC_LB_RX_MAX_FILTERS, sizeof(struct hlist_head),
-								GFP_ATOMIC);
+	adapter->rx_fhash.fbucket_size = adapter->fhash.fbucket_size;
+
+	head = kcalloc(adapter->rx_fhash.fbucket_size,
+		       sizeof(struct hlist_head), GFP_ATOMIC);
+
 	if (!head)
 		return;
 
-	adapter->rx_fhash.fmax = QLCNIC_LB_RX_MAX_FILTERS;
+	adapter->rx_fhash.fmax = (filter_size / act_pci_func);
 	adapter->rx_fhash.fhead = head;
 
-	for (i = 0; i < adapter->rx_fhash.fmax; i++)
+	for (i = 0; i < adapter->rx_fhash.fbucket_size; i++)
 		INIT_HLIST_HEAD(&adapter->rx_fhash.fhead[i]);
 
 }

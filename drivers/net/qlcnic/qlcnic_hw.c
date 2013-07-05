@@ -557,7 +557,8 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 	struct qlcnic_filter *tmp_fil;
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
-	int i, time;
+	int i;
+	unsigned long time;
 	u8 cmd;
 
 	for (i = 0; i < adapter->fhash.fbucket_size; i++) {
@@ -579,13 +580,13 @@ void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
 			}
 		}
 	}
-	for (i = 0; i < adapter->rx_fhash.fmax; i++) {
+	for (i = 0; i < adapter->rx_fhash.fbucket_size; i++) {
 		head = &(adapter->rx_fhash.fhead[i]);
 
 		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode)
 		{
-			if (jiffies >
-				(QLCNIC_FILTER_AGE * HZ + tmp_fil->ftime)) {
+			time = tmp_fil->ftime;
+			if (jiffies > (QLCNIC_FILTER_AGE * HZ + time)) {
 				spin_lock_bh(&adapter->rx_mac_learn_lock);
 				adapter->rx_fhash.fnum--;
 				hlist_del(&tmp_fil->fnode);

@@ -1012,6 +1012,7 @@ struct qlcnic_adapter {
 
 	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
+	/* spinlock for catching rcv filters for eswitch traffic */
 	spinlock_t rx_mac_learn_lock;
 	u32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
@@ -1507,7 +1508,6 @@ void qlcnic_detach(struct qlcnic_adapter *);
 void qlcnic_teardown_intr(struct qlcnic_adapter *);
 int qlcnic_attach(struct qlcnic_adapter *);
 int __qlcnic_up(struct qlcnic_adapter *, struct net_device *);
-void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, u64, u16);
 
 void qlcnic_restore_indev_addr(struct net_device *, unsigned long);
 int qlcnic_check_temp(struct qlcnic_adapter *);
@@ -1515,6 +1515,8 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *);
 int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
+void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
+			  __le16);
 /*
  * QLOGIC Board information
  */
