@@ -1325,9 +1325,8 @@ int qlcnic_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 }
 
 /* FW dump related functions */
-static u32
-qlcnic_dump_crb(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
-		u32 *buffer)
+static u32 qlcnic_dump_crb(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i;
 	u32 addr, data;
@@ -1345,9 +1344,8 @@ qlcnic_dump_crb(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 	return crb->no_ops * 2 * sizeof(u32);
 }
 
-static u32
-qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
-	struct qlcnic_dump_entry *entry, u32 *buffer)
+static u32 qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
+			    struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i, k, timeout = 0;
 	void __iomem *base = adapter->ahw->pci_base0;
@@ -1433,9 +1431,8 @@ qlcnic_dump_ctrl(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static u32
-qlcnic_dump_mux(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
-	u32 *buffer)
+static u32 qlcnic_dump_mux(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int loop;
 	u32 val, data = 0;
@@ -1453,9 +1450,8 @@ qlcnic_dump_mux(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 	return 2 * mux->no_ops * sizeof(u32);
 }
 
-static u32
-qlcnic_dump_que(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
-	u32 *buffer)
+static u32 qlcnic_dump_que(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i, loop;
 	u32 cnt, addr, data, que_id = 0;
@@ -1478,9 +1474,8 @@ qlcnic_dump_que(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 	return que->no_ops * cnt * sizeof(u32);
 }
 
-static u32
-qlcnic_dump_ocm(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
-	u32 *buffer)
+static u32 qlcnic_dump_ocm(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i;
 	u32 data;
@@ -1496,9 +1491,8 @@ qlcnic_dump_ocm(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 	return ocm->no_ops * sizeof(u32);
 }
 
-static u32
-qlcnic_read_rom(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
-	u32 *buffer)
+static u32 qlcnic_read_rom(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i, count = 0;
 	u32 fl_addr, size, val, lck_val, addr;
@@ -1527,9 +1521,8 @@ lock_try:
 	return rom->size;
 }
 
-static u32
-qlcnic_dump_l1_cache(struct qlcnic_adapter *adapter,
-	struct qlcnic_dump_entry *entry, u32 *buffer)
+static u32 qlcnic_dump_l1_cache(struct qlcnic_adapter *adapter,
+				struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i;
 	u32 cnt, val, data, addr;
@@ -1554,9 +1547,8 @@ qlcnic_dump_l1_cache(struct qlcnic_adapter *adapter,
 	return l1->no_ops * l1->read_addr_num * sizeof(u32);
 }
 
-static u32
-qlcnic_dump_l2_cache(struct qlcnic_adapter *adapter,
-	struct qlcnic_dump_entry *entry, u32 *buffer)
+static u32 qlcnic_dump_l2_cache(struct qlcnic_adapter *adapter,
+				struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	int i;
 	u32 cnt, val, data, addr;
@@ -1603,9 +1595,8 @@ skip_poll:
 	return l2->no_ops * l2->read_addr_num * sizeof(u32);
 }
 
-static u32
-qlcnic_read_memory(struct qlcnic_adapter *adapter,
-	struct qlcnic_dump_entry *entry, u32 *buffer)
+static u32 qlcnic_read_memory(struct qlcnic_adapter *adapter,
+			      struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	u32 addr, data, test, ret = 0;
 	int i, reg_read;
@@ -1657,9 +1648,8 @@ out:
 	return mem->size;
 }
 
-static u32
-qlcnic_dump_nop(struct qlcnic_adapter *adapter,
-	struct qlcnic_dump_entry *entry, u32 *buffer)
+static u32 qlcnic_dump_nop(struct qlcnic_adapter *adapter,
+			   struct qlcnic_dump_entry *entry, __le32 *buffer)
 {
 	entry->hdr.flags |= QLCNIC_DUMP_SKIP;
 	return 0;
@@ -1706,7 +1696,7 @@ qlcnic_valid_dump_entry(struct device *dev, struct qlcnic_dump_entry *entry,
 
 int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 {
-	u32 *buffer;
+	__le32 *buffer;
 	char mesg[64];
 	char *msg[] = {mesg, NULL};
 	int i, k, ops_cnt, ops_index, dump_size = 0;

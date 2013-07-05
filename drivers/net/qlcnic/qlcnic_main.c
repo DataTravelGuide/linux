@@ -2119,7 +2119,7 @@ qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 	if (protocol == ETH_P_8021Q) {
 		vh = (struct vlan_ethhdr *)skb->data;
 		flags = FLAGS_VLAN_TAGGED;
-		vlan_tci = vh->h_vlan_TCI;
+		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
 	} else if (vlan_tx_tag_present(skb)) {
 		flags = FLAGS_VLAN_OOB;
