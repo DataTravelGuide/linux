@@ -19,6 +19,7 @@
 #include <linux/inetdevice.h>
 #include <linux/aer.h>
 #include <linux/log2.h>
+#include <linux/pci.h>
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
