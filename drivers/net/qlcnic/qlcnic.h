@@ -351,6 +351,7 @@ struct qlcnic_rx_buffer {
 
 #define QLCNIC_INTR_DEFAULT			0x04
 #define QLCNIC_CONFIG_INTR_COALESCE		3
+#define QLCNIC_DEV_INFO_SIZE			1
 
 struct qlcnic_nic_intr_coalesce {
 	u8	type;
@@ -1483,7 +1484,7 @@ void qlcnic_update_cmd_producer(struct qlcnic_host_tx_ring *);
 
 /* Functions from qlcnic_ethtool.c */
 int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[]);
-int qlcnic_loopback_test(struct net_device *netdev, u8 mode);
+int qlcnic_loopback_test(struct net_device *, u8);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
@@ -1856,6 +1857,7 @@ static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+extern const struct ethtool_ops_ext qlcnic_ethtool_ops_ext;
 extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 
 #define QLCDB(adapter, lvl, _fmt, _args...) do {	\

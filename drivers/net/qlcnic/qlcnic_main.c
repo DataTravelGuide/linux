@@ -870,12 +870,17 @@ static void qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	if (esw_cfg->offload_flags & BIT_0) {
 		netdev->features |= features;
 		adapter->rx_csum = 1;
-		if (!(esw_cfg->offload_flags & BIT_1))
+		if (!(esw_cfg->offload_flags & BIT_1)) {
 			netdev->features &= ~NETIF_F_TSO;
-		if (!(esw_cfg->offload_flags & BIT_2))
+			features &= ~NETIF_F_TSO;
+		}
+		if (!(esw_cfg->offload_flags & BIT_2)) {
 			netdev->features &= ~NETIF_F_TSO6;
+			features &= ~NETIF_F_TSO6;
+		}
 	} else {
 		netdev->features &= ~features;
+		features &= ~features;
 		adapter->rx_csum = 0;
 	}
 
@@ -1494,7 +1499,10 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
-			qlcnic_enable_int(sds_ring);
+			if (qlcnic_82xx_check(adapter))
+				qlcnic_enable_int(sds_ring);
+			else
+				qlcnic_83xx_enable_intr(adapter, sds_ring);
 		}
 	}
 
@@ -1579,6 +1587,7 @@ static int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	qlcnic_change_mtu(netdev, netdev->mtu);
 
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
+	set_ethtool_ops_ext(netdev, &qlcnic_ethtool_ops_ext);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
 			     NETIF_F_IPV6_CSUM | NETIF_F_GRO |
