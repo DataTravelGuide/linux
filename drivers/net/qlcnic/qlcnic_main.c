@@ -1934,6 +1934,8 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
 			qlcnic_83xx_config_intrpt(adapter, 0);
 		qlcnic_83xx_free_mbx_intr(adapter);
+		qlcnic_83xx_register_nic_idc_func(adapter, 0);
+		cancel_delayed_work_sync(&adapter->idc_aen_work);
 	}
 
 	qlcnic_detach(adapter);
@@ -2092,10 +2094,6 @@ static int qlcnic_close(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
 	__qlcnic_down(adapter, netdev);
-	if (qlcnic_83xx_check(adapter)) {
-		qlcnic_83xx_register_nic_idc_func(adapter, 0);
-		cancel_delayed_work_sync(&adapter->idc_aen_work);
-	}
 
 	return 0;
 }
@@ -3049,6 +3047,8 @@ static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
 		if (adapter->flags & QLCNIC_MSIX_ENABLED)
 			qlcnic_83xx_config_intrpt(adapter, 0);
 		qlcnic_83xx_free_mbx_intr(adapter);
+		qlcnic_83xx_register_nic_idc_func(adapter, 0);
+		cancel_delayed_work_sync(&adapter->idc_aen_work);
 	}
 
 	qlcnic_detach(adapter);
