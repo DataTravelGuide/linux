@@ -917,10 +917,12 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 	qlcnic_detach(adapter);
 	qlcnic_teardown_intr(adapter);
 
-	err = adapter->ahw->hw_ops->setup_intr(adapter, data);
-	if (err)
-		dev_err(&adapter->pdev->dev,
-			"failed setting max_rss; rss disabled\n");
+	err = qlcnic_setup_intr(adapter, data);
+	if (err) {
+		kfree(adapter->msix_entries);
+		dev_err(&adapter->pdev->dev, "failed to setup interrupt\n");
+		return err;
+	}
 
 	if (qlcnic_83xx_check(adapter)) {
 		err = qlcnic_83xx_setup_mbx_intr(adapter);

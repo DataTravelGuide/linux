@@ -397,8 +397,9 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 	return err;
 }
 
-static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
+static int qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 {
+	int err = 0;
 	u32 offset, mask_reg;
 	const struct qlcnic_legacy_intr_set *legacy_intrp;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -411,8 +412,10 @@ static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 							    offset);
 		dev_info(&pdev->dev, "using msi interrupts\n");
 		adapter->msix_entries[0].vector = pdev->irq;
-		return;
+		return err;
 	}
+	if (qlcnic_use_msi || qlcnic_use_msi_x)
+		return -EOPNOTSUPP;
 
 	legacy_intrp = &legacy_intr[adapter->ahw->pci_func];
 	adapter->ahw->int_vec_bit = legacy_intrp->int_vec_bit;
@@ -424,11 +427,12 @@ static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 	adapter->crb_int_state_reg = qlcnic_get_ioaddr(ahw, ISR_INT_STATE_REG);
 	dev_info(&pdev->dev, "using legacy interrupts\n");
 	adapter->msix_entries[0].vector = pdev->irq;
+	return err;
 }
 
 int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 {
-	int num_msix, err;
+	int num_msix, err = 0;
 
 	if (!num_intr)
 		num_intr = QLCNIC_DEF_NUM_STS_DESC_RINGS;
@@ -443,8 +447,11 @@ int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 	if (err == -ENOMEM || !err)
 		return err;
 
-	qlcnic_enable_msi_legacy(adapter);
-	return 0;
+	err = qlcnic_enable_msi_legacy(adapter);
+	if (!err)
+		return err;
+
+	return -EIO;
 }
 
 void qlcnic_teardown_intr(struct qlcnic_adapter *adapter)
@@ -1825,8 +1832,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			board_name, adapter->ahw->revision_id);
 	}
 	err = qlcnic_setup_intr(adapter, 0);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "Failed to setup interrupt\n");
 		goto err_out_disable_msi;
+	}
 
 	if (qlcnic_83xx_check(adapter)) {
 		err = qlcnic_83xx_setup_mbx_intr(adapter);
@@ -2978,6 +2987,12 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
 	err = qlcnic_setup_intr(adapter, 0);
+
+	if (err) {
+		kfree(adapter->msix_entries);
+		netdev_err(netdev, "failed to setup interrupt\n");
+		return err;
+	}
 
 	if (qlcnic_83xx_check(adapter)) {
 		err = qlcnic_83xx_setup_mbx_intr(adapter);
