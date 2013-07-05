@@ -207,9 +207,9 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 				     ADVERTISED_1000baseT_Half |
 				     ADVERTISED_1000baseT_Full);
 
-		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
-		ecmd->duplex = adapter->link_duplex;
-		ecmd->autoneg = adapter->link_autoneg;
+		ethtool_cmd_speed_set(ecmd, adapter->ahw->link_speed);
+		ecmd->duplex = adapter->ahw->link_duplex;
+		ecmd->autoneg = adapter->ahw->link_autoneg;
 
 	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		u32 val;
@@ -223,10 +223,10 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->advertising = ADVERTISED_10000baseT_Full;
 		}
 
-		if (netif_running(dev) && adapter->has_link_events) {
-			ethtool_cmd_speed_set(ecmd, adapter->link_speed);
-			ecmd->autoneg = adapter->link_autoneg;
-			ecmd->duplex = adapter->link_duplex;
+		if (netif_running(dev) && adapter->ahw->has_link_events) {
+			ethtool_cmd_speed_set(ecmd, adapter->ahw->link_speed);
+			ecmd->autoneg = adapter->ahw->link_autoneg;
+			ecmd->duplex = adapter->ahw->link_duplex;
 			goto skip;
 		}
 
@@ -237,7 +237,7 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		return -EIO;
 
 skip:
-	ecmd->phy_address = adapter->physical_port;
+	ecmd->phy_address = adapter->ahw->physical_port;
 	ecmd->transceiver = XCVR_EXTERNAL;
 
 	switch (adapter->ahw->board_type) {
@@ -253,7 +253,7 @@ skip:
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->port = PORT_TP;
-		ecmd->autoneg =  adapter->link_autoneg;
+		ecmd->autoneg =  adapter->ahw->link_autoneg;
 		break;
 	case QLCNIC_BRDTYPE_P3P_IMEZ:
 	case QLCNIC_BRDTYPE_P3P_XG_LOM:
@@ -269,7 +269,7 @@ skip:
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->supported |= SUPPORTED_TP;
 		check_sfp_module = netif_running(dev) &&
-			adapter->has_link_events;
+				   adapter->ahw->has_link_events;
 	case QLCNIC_BRDTYPE_P3P_10G_XFP:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
@@ -284,7 +284,7 @@ skip:
 				(ADVERTISED_FIBRE | ADVERTISED_TP);
 			ecmd->port = PORT_FIBRE;
 			check_sfp_module = netif_running(dev) &&
-				adapter->has_link_events;
+					   adapter->ahw->has_link_events;
 		} else {
 			ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
@@ -300,7 +300,7 @@ skip:
 	}
 
 	if (check_sfp_module) {
-		switch (adapter->module_type) {
+		switch (adapter->ahw->module_type) {
 		case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
 		case LINKEVENT_MODULE_OPTICAL_SRLR:
 		case LINKEVENT_MODULE_OPTICAL_LRM:
@@ -358,9 +358,9 @@ qlcnic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	else if (ret)
 		return -EIO;
 
-	adapter->link_speed = ethtool_cmd_speed(ecmd);
-	adapter->link_duplex = ecmd->duplex;
-	adapter->link_autoneg = ecmd->autoneg;
+	adapter->ahw->link_speed = ethtool_cmd_speed(ecmd);
+	adapter->ahw->link_duplex = ecmd->duplex;
+	adapter->ahw->link_autoneg = ecmd->autoneg;
 
 	if (!netif_running(dev))
 		return 0;
@@ -509,7 +509,7 @@ qlcnic_get_pauseparam(struct net_device *netdev,
 			  struct ethtool_pauseparam *pause)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int port = adapter->physical_port;
+	int port = adapter->ahw->physical_port;
 	__u32 val;
 
 	if (adapter->ahw->port_type == QLCNIC_GBE) {
@@ -554,7 +554,7 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 			  struct ethtool_pauseparam *pause)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int port = adapter->physical_port;
+	int port = adapter->ahw->physical_port;
 	__u32 val;
 
 	/* read mode */
@@ -669,7 +669,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 	if (ret)
 		goto clear_it;
 
-	adapter->diag_cnt = 0;
+	adapter->ahw->diag_cnt = 0;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.req.cmd = QLCNIC_CDRP_CMD_INTRPT_TEST;
 	cmd.req.arg1 = adapter->ahw->pci_func;
@@ -681,7 +681,7 @@ static int qlcnic_irq_test(struct net_device *netdev)
 
 	msleep(10);
 
-	ret = !adapter->diag_cnt;
+	ret = !adapter->ahw->diag_cnt;
 
 done:
 	qlcnic_diag_free_res(netdev, max_sds_rings);
@@ -727,7 +727,7 @@ static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 		qlcnic_create_loopback_buff(skb->data, adapter->mac_addr);
 		skb_put(skb, QLCNIC_ILB_PKT_SIZE);
 
-		adapter->diag_cnt = 0;
+		adapter->ahw->diag_cnt = 0;
 		qlcnic_xmit_frame(skb, adapter->netdev);
 
 		loop = 0;
@@ -736,11 +736,11 @@ static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 			qlcnic_process_rcv_ring_diag(sds_ring);
 			if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP)
 				break;
-		} while (!adapter->diag_cnt);
+		} while (!adapter->ahw->diag_cnt);
 
 		dev_kfree_skb_any(skb);
 
-		if (!adapter->diag_cnt)
+		if (!adapter->ahw->diag_cnt)
 			QLCDB(adapter, DRV,
 			"LB Test: packet #%d was not received\n", i + 1);
 		else
@@ -766,7 +766,8 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	int loop = 0;
 	int ret;
 
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
+	if (!(adapter->ahw->capabilities &
+	      QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
 		dev_info(&adapter->pdev->dev,
 				"Firmware is not loopback test capable\n");
 		return -EOPNOTSUPP;
@@ -774,7 +775,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 
 	QLCDB(adapter, DRV, "%s loopback test in progress\n",
 		mode == QLCNIC_ILB_MODE ? "internal" : "external");
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		dev_warn(&adapter->pdev->dev, "Loopback test not supported "
 				"for non privilege function\n");
 		return 0;
@@ -793,7 +794,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 	if (ret)
 		goto free_res;
 
-	adapter->diag_cnt = 0;
+	adapter->ahw->diag_cnt = 0;
 	do {
 		msleep(500);
 		qlcnic_process_rcv_ring_diag(sds_ring);
@@ -802,8 +803,8 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 				"to loopback configure request\n");
 			ret = -QLCNIC_FW_NOT_RESPOND;
 			goto free_res;
-		} else if (adapter->diag_cnt) {
-			ret = adapter->diag_cnt;
+		} else if (adapter->ahw->diag_cnt) {
+			ret = adapter->ahw->diag_cnt;
 			goto free_res;
 		}
 	} while (!QLCNIC_IS_LB_CONFIGURED(adapter->ahw->loopback_state));
@@ -1039,7 +1040,7 @@ static u32 qlcnic_get_tso(struct net_device *dev)
 static int qlcnic_set_tso(struct net_device *dev, u32 data)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO))
+	if (!(adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO))
 		return -EOPNOTSUPP;
 	if (data)
 		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
@@ -1055,7 +1056,7 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	int max_sds_rings = adapter->max_sds_rings;
 	int ret = 0;
 
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		netdev_warn(dev,
 			"LED test not supported for non privilege function\n");
 		return -EOPNOTSUPP;
@@ -1238,7 +1239,7 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 		if (netdev->features & NETIF_F_LRO)
 			return 0;
 
-		if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
+		if (!(adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
 			return -EINVAL;
 
 		if (!adapter->rx_csum) {
@@ -1272,14 +1273,14 @@ static u32 qlcnic_get_msglevel(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
-	return adapter->msg_enable;
+	return adapter->ahw->msg_enable;
 }
 
 static void qlcnic_set_msglevel(struct net_device *netdev, u32 msglvl)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
-	adapter->msg_enable = msglvl;
+	adapter->ahw->msg_enable = msglvl;
 }
 
 static u32 qlcnic_get_link(struct net_device *dev)
