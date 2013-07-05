@@ -17,6 +17,9 @@
 #include <linux/sysfs.h>
 
 #define QLC_STATUS_UNSUPPORTED_CMD	-2
+static const u32 FW_DUMP_LEVELS[] = {
+	0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
+
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {
