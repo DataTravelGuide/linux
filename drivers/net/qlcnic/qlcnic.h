@@ -1475,6 +1475,9 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 #define DUPLEX_UNKNOWN 0xff
 #endif
 
+ssize_t qlcnic_store_max_rss(struct device *,
+			     struct device_attribute *,
+			     const char *, size_t);
 int qlcnic_get_board_info(struct qlcnic_adapter *adapter);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 int qlcnic_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate);
@@ -1577,6 +1580,16 @@ void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
 void qlcnic_free_tx_rings(struct qlcnic_adapter *);
 int qlcnic_alloc_tx_rings(struct qlcnic_adapter *, struct net_device *);
 
+void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter);
+void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter);
+void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter);
+void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter);
+int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
+int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
+void qlcnic_set_vlan_config(struct qlcnic_adapter *,
+			    struct qlcnic_esw_func_cfg *);
+void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *,
+				      struct qlcnic_esw_func_cfg *);
 
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, u64, u16);
 int qlcnic_sre_macaddr_change(struct qlcnic_adapter *,
