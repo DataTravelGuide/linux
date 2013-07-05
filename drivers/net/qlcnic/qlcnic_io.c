@@ -488,8 +488,7 @@ drop_packet:
 	return NETDEV_TX_OK;
 }
 
-static void qlcnic_advert_link_change(struct qlcnic_adapter *adapter,
-				      int linkup)
+void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 {
 	struct net_device *netdev = adapter->netdev;
 
