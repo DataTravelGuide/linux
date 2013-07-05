@@ -1876,11 +1876,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_out_disable_mbx_intr:
-	if (qlcnic_83xx_check(adapter)) {
-		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_config_intrpt(adapter, 0);
+	if (qlcnic_83xx_check(adapter))
 		qlcnic_83xx_free_mbx_intr(adapter);
-	}
 
 err_out_disable_msi:
 	qlcnic_teardown_intr(adapter);
@@ -1926,8 +1923,6 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 
 	if (qlcnic_83xx_check(adapter)) {
-		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_config_intrpt(adapter, 0);
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_register_nic_idc_func(adapter, 0);
 		cancel_delayed_work_sync(&adapter->idc_aen_work);
@@ -3039,8 +3034,6 @@ static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
 		qlcnic_down(adapter, netdev);
 
 	if (qlcnic_83xx_check(adapter)) {
-		if (adapter->flags & QLCNIC_MSIX_ENABLED)
-			qlcnic_83xx_config_intrpt(adapter, 0);
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_register_nic_idc_func(adapter, 0);
 		cancel_delayed_work_sync(&adapter->idc_aen_work);
