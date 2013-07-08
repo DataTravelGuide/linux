@@ -1696,6 +1696,31 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 08 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-396.el6]
+- [mm] block: optionally snapshot page contents to provide stable pages during write (Rafael Aquini) [951937]
+- [mm] only enforce stable page writes if the backing device requires it (Rafael Aquini) [951937]
+- [mm] bdi: allow block devices to say that they require stable page writes (Rafael Aquini) [951937]
+- [mm] fix writeback_in_progress() (Rafael Aquini) [951937]
+- [mm] ksm: unfolding of ksm_drop_anon_vma and hold_anon_vma functions (Petr Holasek) [947944]
+- [mm] ksm: allocate roots when needed (Petr Holasek) [947944]
+- [mm] ksm: swapoff might need to copy (Petr Holasek) [947944]
+- [mm] ksm: FOLL_MIGRATION do migration_entry_wait (Petr Holasek) [947944]
+- [mm] ksm: shrink 32-bit rmap_item back to 32 bytes (Petr Holasek) [947944]
+- [mm] ksm: treat unstable nid like in stable tree (Petr Holasek) [947944]
+- [mm] ksm: add some comments (Petr Holasek) [947944]
+- [mm] ksm: stop hotremove lockdep warning (Petr Holasek) [947944]
+- [mm] ksm: enable KSM page migration (Petr Holasek) [947944]
+- [mm] ksm: make !merge_across_nodes migration safe (Petr Holasek) [947944]
+- [mm] ksm: make KSM page migration possible (Petr Holasek) [947944]
+- [mm] ksm: remove old stable nodes more thoroughly (Petr Holasek) [947944]
+- [mm] ksm: get_ksm_page locked (Petr Holasek) [947944]
+- [mm] ksm: reorganize ksm_check_stable_tree (Petr Holasek) [947944]
+- [mm] ksm: trivial tidyups (Petr Holasek) [947944]
+- [mm] ksm: add sysfs ABI Documentation (Petr Holasek) [947944]
+- [mm] ksm: allow trees per NUMA node (Petr Holasek) [947944]
+- [virt] kvm: Add a tracepoint write_tsc_offset (Marcelo Tosatti) [911567]
+- [net] ipv4: fix invalid free in ip_cmsg_send() callers (Petr Matousek) [979788] {CVE-2013-2224}
+
 * Tue Jul 02 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-395.el6]
 - [x86] Revert: amd: Do not enable ARAT feature on AMD processors below family 0x12 (Prarit Bhargava) [808192 979105]
 - [x86] Revert: apic: disable ARAT by default (Prarit Bhargava) [808192 979105]
