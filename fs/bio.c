@@ -508,7 +508,7 @@ int bio_get_nr_vecs(struct block_device *bdev)
 
 	nr_pages = min_t(unsigned,
 		     queue_max_segments(q),
-		     queue_max_sectors(q) / (PAGE_SIZE >> 0) + 1);
+		     queue_max_sectors(q) / (PAGE_SIZE >> 9) + 1);
 
 	return min_t(unsigned, nr_pages, BIO_MAX_PAGES);
 
