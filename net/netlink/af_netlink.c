@@ -1698,8 +1698,10 @@ static int netlink_dump(struct sock *sk)
 	alloc_size = max_t(int, nl_callback_extended(cb)->min_dump_alloc, NLMSG_GOODSIZE);
 
 	skb = sock_rmalloc(sk, alloc_size, 0, GFP_KERNEL);
-	if (!skb)
+	if (!skb) {
+		mutex_unlock(nlk->cb_mutex);
 		goto errout;
+	}
 
 	len = cb->dump(skb, cb);
 
