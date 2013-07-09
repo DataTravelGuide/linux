@@ -444,8 +444,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x0f000004,
 		.cpu_name		= "POWER8 (architected)",
-		.oprofile_type		= PPC_OPROFILE_POWER4,
-		.oprofile_cpu_type	= 0,
+		.oprofile_type		= PPC_OPROFILE_INVALID,
+		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.platform		= "power8",
 	},
 	{	/* Power7 */
@@ -491,8 +491,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_value		= 0x004b0000,
 		.cpu_name		= "POWER8 (raw)",
 		.num_pmcs		= 6,
-		.oprofile_cpu_type	= 0,
-		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_cpu_type	= "ppc64/power8",
+		.oprofile_type		= PPC_OPROFILE_INVALID,
 		.platform		= "power8",
 	},
 	{	/* Cell Broadband Engine */
