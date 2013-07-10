@@ -555,7 +555,11 @@ struct pci_driver {
 	int  (*resume_early) (struct pci_dev *dev);
 	int  (*resume) (struct pci_dev *dev);	                /* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);
+#ifndef __GENKSYMS__
+	const struct pci_error_handlers *err_handler;
+#else
 	struct pci_error_handlers *err_handler;
+#endif
 	struct device_driver	driver;
 	struct pci_dynids dynids;
 	/* RHEL6: padding to add future features to the pci_driver struct */
