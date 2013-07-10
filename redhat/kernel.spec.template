@@ -1696,6 +1696,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 10 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-397.el6]
+- [ata] ahci: Add Device IDs for Intel Wellsburg PCH RAID mode (John Villalovos) [922969]
+- [i2c] i801: Add Device IDs for Intel Wellsburg PCH (John Villalovos) [922969]
+- [ata] ahci: Add Device IDs for Intel Wellsburg PCH AHCI mode (John Villalovos) [922969]
+- [sound] hda_intel: Add Device IDs for Intel Wellsburg PCH (John Villalovos) [922969]
+- [ata] ata_piix: Add Device IDs for Intel Wellsburg PCH (John Villalovos) [922969]
+- [usb] uhci: fix for suspend of virtual HP controller (Gopal) [960026]
+- [usb] uhci: Remove PCI dependencies from uhci-hub (Gopal) [960026]
+- [scsi] st: add MTWEOFI to write filemarks without flushing drive buffer (Jan Vesely) [888903]
+- [mm] reinstate the first-fit scheme for arch_get_unmapped_area_topdown() (Rafael Aquini) [980273]
+- [netdrv] tg3: Prevent system hang during repeated EEH errors (Ivan Vecera) [973209]
+- [netdrv] bnx2x: Change MDIO clock settings (Michal Schmidt) [901747]
+- [scsi] aacraid: Dual firmware support (Rich Bono) [924346]
+- [scsi] aacraid: 1024 max outstanding command support for Series 7 and above (Rich Bono) [903799 952342]
+- [scsi] iscsi_tcp: increase max_lun to ~0, don't care (Jan Vesely) [588679]
+- [scsi] st: Take additional queue ref in st_probe (Tomas Henzl) [927988]
+
 * Mon Jul 08 2013 Jarod Wilson <jarod@redhat.com> [2.6.32-396.el6]
 - [mm] block: optionally snapshot page contents to provide stable pages during write (Rafael Aquini) [951937]
 - [mm] only enforce stable page writes if the backing device requires it (Rafael Aquini) [951937]
