@@ -2135,8 +2135,8 @@ xfs_iroot_realloc(
 		np = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
 						     (int)new_size);
 		ifp->if_broot_bytes = (int)new_size;
-		ASSERT(ifp->if_broot_bytes <=
-			XFS_IFORK_SIZE(ip, whichfork) + XFS_BROOT_SIZE_ADJ);
+		ASSERT(XFS_BMAP_BMDR_SPACE(ifp->if_broot) <=
+			XFS_IFORK_SIZE(ip, whichfork));
 		memmove(np, op, cur_max * (uint)sizeof(xfs_dfsbno_t));
 		return;
 	}
@@ -2188,8 +2188,9 @@ xfs_iroot_realloc(
 	kmem_free(ifp->if_broot);
 	ifp->if_broot = new_broot;
 	ifp->if_broot_bytes = (int)new_size;
-	ASSERT(ifp->if_broot_bytes <=
-		XFS_IFORK_SIZE(ip, whichfork) + XFS_BROOT_SIZE_ADJ);
+	if (ifp->if_broot)
+		ASSERT(XFS_BMAP_BMDR_SPACE(ifp->if_broot) <=
+			XFS_IFORK_SIZE(ip, whichfork));
 	return;
 }
 
@@ -2488,9 +2489,8 @@ xfs_iflush_fork(
 		if ((iip->ili_fields & brootflag[whichfork]) &&
 		    (ifp->if_broot_bytes > 0)) {
 			ASSERT(ifp->if_broot != NULL);
-			ASSERT(ifp->if_broot_bytes <=
-			       (XFS_IFORK_SIZE(ip, whichfork) +
-				XFS_BROOT_SIZE_ADJ));
+			ASSERT(XFS_BMAP_BMDR_SPACE(ifp->if_broot) <=
+			        XFS_IFORK_SIZE(ip, whichfork));
 			xfs_bmbt_to_bmdr(mp, ifp->if_broot, ifp->if_broot_bytes,
 				(xfs_bmdr_block_t *)cp,
 				XFS_DFORK_SIZE(dip, mp, whichfork));
