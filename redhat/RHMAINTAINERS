@@ -172,6 +172,11 @@ M:	Jeff Moyer <jmoyer@redhat.com>
 S:	Maintained
 F:	fs/direct-io.c
 
+EDAC
+M:	Aristeu Rozanski <aris@redhat.com>
+S:	Maintained
+F:	drivers/edac/
+
 EHEA ETHERNET DRIVER (ehea)
 M:	Ameet Paranjape <aparanja@redhat.com>
 S:	Maintained
