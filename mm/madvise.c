@@ -79,7 +79,8 @@ static long madvise_behavior(struct vm_area_struct * vma,
 			goto out;
 		break;
 	case MADV_HUGEPAGE:
-		error = hugepage_madvise(&new_flags);
+	case MADV_NOHUGEPAGE:
+		error = hugepage_madvise(&new_flags, behavior);
 		if (error)
 			goto out;
 		break;
@@ -305,6 +306,7 @@ madvise_behavior_valid(int behavior)
 #endif
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	case MADV_HUGEPAGE:
+	case MADV_NOHUGEPAGE:
 #endif
 
 	case MADV_DONTDUMP:
