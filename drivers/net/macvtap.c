@@ -67,7 +67,7 @@ static const struct proto_ops macvtap_socket_ops;
  * RCU usage:
  * The macvtap_queue and the macvlan_dev are loosely coupled, the
  * pointers from one to the other can only be read while rcu_read_lock
- * or macvtap_lock is held.
+ * or rtnl is held.
  *
  * Both the file and the macvlan_dev hold a reference on the macvtap_queue
  * through sock_hold(&q->sk). When the macvlan_dev goes away first,
@@ -79,7 +79,6 @@ static const struct proto_ops macvtap_socket_ops;
  * file or the dev. The data structure is freed through __sk_free
  * when both our references and any pending SKBs are gone.
  */
-static DEFINE_SPINLOCK(macvtap_lock);
 
 /*
  * Choose the next free queue, for now there is only one
@@ -90,8 +89,8 @@ static int macvtap_set_queue(struct net_device *dev, struct file *file,
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EBUSY;
 
-	spin_lock(&macvtap_lock);
-	if (rcu_dereference(vlan->tap))
+	rtnl_lock();
+	if (rtnl_dereference(vlan->tap))
 		goto out;
 
 	err = 0;
@@ -103,7 +102,7 @@ static int macvtap_set_queue(struct net_device *dev, struct file *file,
 	file->private_data = q;
 
 out:
-	spin_unlock(&macvtap_lock);
+	rtnl_unlock();
 	return err;
 }
 
@@ -119,15 +118,15 @@ static void macvtap_put_queue(struct macvtap_queue *q)
 {
 	struct macvlan_dev *vlan;
 
-	spin_lock(&macvtap_lock);
-	vlan = rcu_dereference(q->vlan);
+	rtnl_lock();
+	vlan = rtnl_dereference(q->vlan);
 	if (vlan) {
 		rcu_assign_pointer(vlan->tap, NULL);
 		rcu_assign_pointer(q->vlan, NULL);
 		sock_put(&q->sk);
 	}
 
-	spin_unlock(&macvtap_lock);
+	rtnl_unlock();
 
 	synchronize_rcu();
 	sock_put(&q->sk);
@@ -154,16 +153,12 @@ static void macvtap_del_queues(struct net_device *dev)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvtap_queue *q;
 
-	spin_lock(&macvtap_lock);
-	q = rcu_dereference(vlan->tap);
-	if (!q) {
-		spin_unlock(&macvtap_lock);
+	q = rtnl_dereference(vlan->tap);
+	if (!q)
 		return;
-	}
 
 	rcu_assign_pointer(vlan->tap, NULL);
 	rcu_assign_pointer(q->vlan, NULL);
-	spin_unlock(&macvtap_lock);
 
 	synchronize_rcu();
 	sock_put(&q->sk);
@@ -845,20 +840,18 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		return ret;
 
 	case TUNGETIFF:
-		rcu_read_lock_bh();
-		vlan = rcu_dereference(q->vlan);
-		if (vlan)
-			dev_hold(vlan->dev);
-		rcu_read_unlock_bh();
-
-		if (!vlan)
+		rtnl_lock();
+		vlan = rtnl_dereference(q->vlan);
+		if (!vlan) {
+			rtnl_unlock();
 			return -ENOLINK;
+		}
 
 		ret = 0;
 		if (copy_to_user(&ifr->ifr_name, q->vlan->dev->name, IFNAMSIZ) ||
 		    put_user(q->flags, &ifr->ifr_flags))
 			ret = -EFAULT;
-		dev_put(vlan->dev);
+		rtnl_unlock();
 		return ret;
 
 	case TUNGETFEATURES:
