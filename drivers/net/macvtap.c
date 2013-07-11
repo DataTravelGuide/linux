@@ -676,7 +676,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 			goto err_kfree;
 	}
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
 	/* copy skb_ubuf_info for callback when skb has no error */
 	if (zerocopy) {
@@ -688,7 +688,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		macvlan_start_xmit(skb, vlan->dev);
 	else
 		kfree_skb(skb);
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return total_len;
 
@@ -696,11 +696,11 @@ err_kfree:
 	kfree_skb(skb);
 
 err:
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
 		netdev_get_tx_queue(vlan->dev, 0)->tx_dropped++;
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return err;
 }
@@ -744,11 +744,11 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 
 	ret = skb_copy_datagram_const_iovec(skb, 0, iv, vnet_hdr_len, len);
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
 		macvlan_count_rx(vlan, len, ret == 0, 0);
-	rcu_read_unlock_bh();
+	rcu_read_unlock();
 
 	return ret ? ret : (len + vnet_hdr_len);
 }
