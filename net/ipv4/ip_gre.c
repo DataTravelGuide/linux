@@ -857,11 +857,11 @@ out:
 
 static void __exit ipgre_fini(void)
 {
-	rtnl_link_unregister(&ipgre_tap_ops);
-	rtnl_link_unregister(&ipgre_link_ops);
 	gre_cisco_unregister(&ipgre_protocol);
 	unregister_pernet_gen_device(gre_tap_net_id, &ipgre_tap_net_ops);
 	unregister_pernet_gen_device(ipgre_net_id, &ipgre_net_ops);
+	rtnl_link_unregister(&ipgre_tap_ops);
+	rtnl_link_unregister(&ipgre_link_ops);
 }
 
 module_init(ipgre_init);
