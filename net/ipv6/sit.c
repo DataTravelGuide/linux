@@ -46,7 +46,7 @@
 #include <net/ip.h>
 #include <net/udp.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 #include <net/dsfield.h>

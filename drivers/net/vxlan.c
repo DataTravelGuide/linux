@@ -32,7 +32,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/ethtool.h>
 #include <net/ip.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/rtnetlink.h>

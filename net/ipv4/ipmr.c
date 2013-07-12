@@ -59,7 +59,7 @@
 #include <linux/notifier.h>
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
 #include <net/fib_rules.h>
