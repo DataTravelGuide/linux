@@ -82,6 +82,20 @@ struct  seminfo {
 
 struct task_struct;
 
+/*
+ * struct security_operations has functions with a pointer to
+ * struct sem_array. To preserve the kABI checksums, we have
+ * to keep the old definitions of struct sem and struct sem_array
+ * visible to the kabitool.  The actual code is not affected,
+ * since all it does is pass a sem_array pointer.
+ */
+#ifdef __GENKSYMS__
+struct sem {
+	int	semval;		/* current value */
+	int	sempid;		/* pid of last operation */
+};
+#endif
+
 /* One sem_array data structure for each set of semaphores in the system. */
 struct sem_array {
 	struct kern_ipc_perm	sem_perm;	/* permissions .. see ipc.h */
@@ -90,9 +104,22 @@ struct sem_array {
 	struct sem		*sem_base;	/* ptr to first semaphore in array */
 	struct list_head	sem_pending;	/* pending operations to be processed */
 	struct list_head	list_id;	/* undo requests on this array */
+#ifdef __GENKSYMS__
+	unsigned long		sem_nsems;	/* no. of semaphores in array */
+#else
 	int			sem_nsems;	/* no. of semaphores in array */
 	int			complex_count;	/* pending complex operations */
+#endif
 };
+
+#ifdef __GENKSYMS__
+/* This struct is only used in ipc/sem.c, the non-GENKSYMS define is there */
+struct sem_undo_list {
+	atomic_t		refcnt;
+	spinlock_t		lock;
+	struct list_head	list_proc;
+};
+#endif
 
 struct sysv_sem {
 	struct sem_undo_list *undo_list;
