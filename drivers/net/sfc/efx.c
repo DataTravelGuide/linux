@@ -203,7 +203,7 @@ static void efx_stop_all(struct efx_nic *efx);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
-		if ((efx->state == STATE_RUNNING) ||	\
+		if ((efx->state == STATE_READY) ||	\
 		    (efx->state == STATE_DISABLED))	\
 			ASSERT_RTNL();			\
 	} while (0)
@@ -1568,7 +1568,7 @@ static void efx_start_all(struct efx_nic *efx)
 	 * of these flags are safe to read under just the rtnl lock */
 	if (efx->port_enabled)
 		return;
-	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
+	if ((efx->state != STATE_READY) && (efx->state != STATE_UNINIT))
 		return;
 	if (!netif_running(efx->net_dev))
 		return;
@@ -2298,11 +2298,11 @@ static void efx_reset_work(struct work_struct *data)
 	if (!pending)
 		return;
 
-	/* If we're not RUNNING then don't reset. Leave the reset_pending
+	/* If we're not READY then don't reset. Leave the reset_pending
 	 * flags set so that efx_pci_probe_main will be retried */
-	if (efx->state != STATE_RUNNING) {
+	if (efx->state != STATE_READY) {
 		netif_info(efx, drv, efx->net_dev,
-			   "scheduled reset quenched. NIC not RUNNING\n");
+			   "scheduled reset quenched; NIC not ready\n");
 		return;
 	}
 
@@ -2412,7 +2412,7 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
-	efx->state = STATE_INIT;
+	efx->state = STATE_UNINIT;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
@@ -2503,7 +2503,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
-	efx->state = STATE_FINI;
+	efx->state = STATE_UNINIT;
 	dev_close(efx->net_dev);
 
 	/* Allow any queued efx_resets() to complete */
@@ -2694,9 +2694,9 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail4;
 	}
 
-	/* Switch to the running state before we expose the device to the OS,
+	/* Switch to the READY state before we expose the device to the OS,
 	 * so that dev_open()|efx_start_all() will actually start the device */
-	efx->state = STATE_RUNNING;
+	efx->state = STATE_READY;
 
 	rc = efx_register_netdev(efx);
 	if (rc)
@@ -2737,7 +2737,7 @@ static int efx_pm_freeze(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
-	efx->state = STATE_FINI;
+	efx->state = STATE_UNINIT;
 
 	netif_device_detach(efx->net_dev);
 
@@ -2751,8 +2751,6 @@ static int efx_pm_thaw(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
-	efx->state = STATE_INIT;
-
 	efx_start_interrupts(efx, false);
 
 	mutex_lock(&efx->mac_lock);
@@ -2763,7 +2761,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	netif_device_attach(efx->net_dev);
 
-	efx->state = STATE_RUNNING;
+	efx->state = STATE_READY;
 
 	efx->type->resume_wol(efx);
 
