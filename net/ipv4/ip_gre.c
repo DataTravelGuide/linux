@@ -947,17 +947,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		}
 	}
 
-	nf_reset(skb);
-
-	pkt_len = skb->len - skb_transport_offset(skb);
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
-		stats->tx_bytes += pkt_len;
-		stats->tx_packets++;
-	} else {
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
-	}
+	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
 tx_error_icmp:

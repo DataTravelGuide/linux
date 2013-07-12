@@ -37,23 +37,6 @@ struct ip_tunnel_prl_entry
 	u16				flags;
 };
 
-#define IPTUNNEL_XMIT() do {						\
-	int err;							\
-	int pkt_len = skb->len - skb_transport_offset(skb);		\
-									\
-	skb->ip_summed = CHECKSUM_NONE;					\
-	ip_select_ident(iph, &rt->u.dst, NULL);				\
-									\
-	err = ip_local_out(skb);					\
-	if (net_xmit_eval(err) == 0) {					\
-		stats->tx_bytes += pkt_len;				\
-		stats->tx_packets++;					\
-	} else {							\
-		stats->tx_errors++;					\
-		stats->tx_aborted_errors++;				\
-	}								\
-} while (0)
-
 static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 					  const struct iphdr  *old_iph,
 					  struct dst_entry *dst)
@@ -67,4 +50,26 @@ static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 		__ip_select_ident(iph, dst,
 				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 }
+
+static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	int err;
+	struct iphdr *iph = ip_hdr(skb);
+	int pkt_len = skb->len - skb_transport_offset(skb);
+	struct net_device_stats *stats = &dev->stats;
+
+	nf_reset(skb);
+	skb->ip_summed = CHECKSUM_NONE;
+	ip_select_ident(iph, &rt->u.dst, NULL);
+
+	err = ip_local_out(skb);
+	if (likely(net_xmit_eval(err) == 0)) {
+		stats->tx_bytes += pkt_len;
+		stats->tx_packets++;
+	} else {
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
+	}
+}
+
 #endif
