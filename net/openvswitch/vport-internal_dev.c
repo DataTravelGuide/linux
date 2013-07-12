@@ -68,7 +68,7 @@ static struct net_device_stats *internal_dev_get_stats(struct net_device *netdev
 static int internal_dev_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	rcu_read_lock();
-	ovs_vport_receive(internal_dev_priv(netdev)->vport, skb);
+	ovs_vport_receive(internal_dev_priv(netdev)->vport, skb, NULL);
 	rcu_read_unlock();
 	return 0;
 }
