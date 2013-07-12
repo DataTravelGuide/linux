@@ -103,8 +103,9 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 	}
 
 	err = -EBUSY;
+	rtnl_lock();
 	if (netdev_vport->dev->ax25_ptr)
-		goto error_put;
+		goto error_unlock;
 
 	netdev_vport->dev->ax25_ptr = vport;
 
@@ -113,9 +114,12 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
+	rtnl_unlock();
 
 	return vport;
 
+error_unlock:
+	rtnl_unlock();
 error_put:
 	dev_put(netdev_vport->dev);
 error_free_vport:
@@ -137,6 +141,7 @@ static void netdev_destroy(struct vport *vport)
 {
 	struct netdev_vport *netdev_vport = netdev_vport_priv(vport);
 
+	rtnl_lock();
 	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
 	netdev_vport->dev->ax25_ptr = NULL;
 
@@ -144,6 +149,7 @@ static void netdev_destroy(struct vport *vport)
 		openvswitch_handle_frame_hook = NULL;
 
 	dev_set_promiscuity(netdev_vport->dev, -1);
+	rtnl_unlock();
 
 	call_rcu(&netdev_vport->rcu, free_port_rcu);
 }
