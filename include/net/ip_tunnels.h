@@ -153,20 +153,19 @@ static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 }
 
-static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+int iptunnel_xmit(struct net *net, struct rtable *rt,
+		  struct sk_buff *skb,
+		  __be32 src, __be32 dst, __u8 proto,
+		  __u8 tos, __u8 ttl, __be16 df, const struct iphdr *inner_ip);
+
+static inline void iptunnel_xmit_stats(int err,
+				       struct net_device_stats *stats)
 {
-	int err;
-	int pkt_len = skb->len - skb_transport_offset(skb);
-
-	nf_reset(skb);
-
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
-		dev->stats.tx_bytes += pkt_len;
-		dev->stats.tx_packets++;
+	if (err > 0) {
+		stats->tx_bytes += err;
+		stats->tx_packets++;
 	} else {
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
+		stats->tx_dropped++;
 	}
 }
 #endif /* __NET_IP_TUNNELS_H */

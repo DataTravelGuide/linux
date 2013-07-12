@@ -710,11 +710,9 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct rtable *rt;
 	const struct iphdr *old_iph;
-	struct iphdr *iph;
 	struct vxlanhdr *vxh;
 	struct udphdr *uh;
 	struct flowi fl4;
-	unsigned int pkt_len = skb->len;
 	__be32 dst;
 	__u16 src_port;
 	__be16 df = 0;
@@ -765,12 +763,6 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_error;
 	}
 
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
-			      IPSKB_REROUTED);
-	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
-
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_FLAGS);
 	vxh->vx_vni = htonl(vxlan->vni << 8);
@@ -785,33 +777,22 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	uh->len = htons(skb->len);
 	uh->check = 0;
 
-	__skb_push(skb, sizeof(*iph));
-	skb_reset_network_header(skb);
-	iph		= ip_hdr(skb);
-	iph->version	= 4;
-	iph->ihl	= sizeof(struct iphdr) >> 2;
-	iph->frag_off	= df;
-	iph->protocol	= IPPROTO_UDP;
-	iph->tos	= vxlan_ecn_encap(tos, old_iph, skb);
-	iph->daddr	= dst;
-	iph->saddr	= fl4.fl4_src;
-	iph->ttl	= ttl ? : dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
-	tunnel_ip_select_ident(skb, old_iph, &rt->u.dst);
-
-	nf_reset(skb);
-
 	vxlan_set_owner(dev, skb);
 
 	if (handle_offloads(skb))
 		goto drop;
 
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
+	tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
+	ttl = ttl ? : dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
+
+	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.fl4_src, dst,
+			    IPPROTO_UDP, tos, ttl, df, old_iph);
+	if (err > 0) {
 		struct vxlan_stats *stats = this_cpu_ptr(vxlan->stats);
 
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
-		stats->tx_bytes += pkt_len;
+		stats->tx_bytes += err;
 		u64_stats_update_end(&stats->syncp);
 	} else {
 		dev->stats.tx_errors++;
