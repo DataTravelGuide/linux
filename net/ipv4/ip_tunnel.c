@@ -485,6 +485,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	/* inner_iph = (const struct iphdr *)skb_inner_network_header(skb); */
 	inner_iph = (const struct iphdr *)skb->data + tunnel->hlen;
 
+	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 	dst = tnl_params->daddr;
 	if (dst == 0) {
 		/* NBMA tunnel */
@@ -642,7 +643,6 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->u.dst);
-	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	/* Push down and install the IP header. */
 	skb_push(skb, sizeof(struct iphdr));
