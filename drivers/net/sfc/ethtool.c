@@ -1179,6 +1179,20 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 	return 0;
 }
 
+int efx_ethtool_get_ts_info(struct net_device *net_dev,
+			    struct ethtool_ts_info *ts_info)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	/* Software capabilities */
+	ts_info->so_timestamping = (SOF_TIMESTAMPING_RX_SOFTWARE |
+				    SOF_TIMESTAMPING_SOFTWARE);
+	ts_info->phc_index = -1;
+
+	efx_ptp_get_ts_info(efx, ts_info);
+	return 0;
+}
+
 static int efx_ethtool_get_module_eeprom(struct net_device *net_dev,
 					 struct ethtool_eeprom *ee,
 					 u8 *data)
@@ -1257,9 +1271,9 @@ const struct ethtool_ops_ext efx_ethtool_ops_ext = {
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
 	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
 	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
+	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
-	.get_ts_info		= efx_ptp_get_ts_info,
 };
 
 
