@@ -2276,7 +2276,7 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 	netif_info(efx, drv, efx->net_dev, "resetting (%s)\n",
 		   RESET_TYPE(method));
 
-	netif_device_detach(efx->net_dev);
+	efx_device_detach_sync(efx);
 	efx_reset_down(efx, method);
 
 	rc = efx->type->reset(efx, method);
@@ -2756,7 +2756,7 @@ static int efx_pm_freeze(struct device *dev)
 	if (efx->state != STATE_DISABLED) {
 		efx->state = STATE_UNINIT;
 
-		netif_device_detach(efx->net_dev);
+		efx_device_detach_sync(efx);
 
 		efx_stop_all(efx);
 		efx_stop_interrupts(efx, false);
