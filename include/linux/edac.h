@@ -59,6 +59,22 @@ enum hw_event_mc_err_type {
 	HW_EVENT_ERR_CORRECTED,
 	HW_EVENT_ERR_UNCORRECTED,
 	HW_EVENT_ERR_FATAL,
+	HW_EVENT_ERR_INFO,
 };
+
+static inline char *mc_event_error_type(const unsigned int err_type)
+{
+	switch (err_type) {
+	case HW_EVENT_ERR_CORRECTED:
+		return "Corrected";
+	case HW_EVENT_ERR_UNCORRECTED:
+		return "Uncorrected";
+	case HW_EVENT_ERR_FATAL:
+		return "Fatal";
+	default:
+	case HW_EVENT_ERR_INFO:
+		return "Info";
+	}
+}
 
 #endif
