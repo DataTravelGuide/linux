@@ -895,6 +895,10 @@ struct hda_codec {
 	spinlock_t power_lock;
 #endif
 
+	/* filter the requested power state per nid */
+	unsigned int (*power_filter)(struct hda_codec *codec, hda_nid_t nid,
+				     unsigned int power_state);
+
 	/* codec-specific additional proc output */
 	void (*proc_widget_hook)(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid);
@@ -1054,8 +1058,7 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
 void snd_hda_bus_reboot_notify(struct hda_bus *bus);
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
-				    unsigned int power_state,
-				    bool eapd_workaround);
+				    unsigned int power_state);
 
 int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
