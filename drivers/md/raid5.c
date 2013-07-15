@@ -4187,6 +4187,7 @@ static int make_request(struct mddev *mddev, struct bio * bi)
 		}
 			
 	}
+
 	spin_lock_irq(&conf->device_lock);
 	remaining = raid5_dec_bi_phys_segments(bi);
 	spin_unlock_irq(&conf->device_lock);
