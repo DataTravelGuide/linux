@@ -2466,7 +2466,7 @@ static void stac92hd71bxx_fixup_hp_hdx(struct hda_codec *codec,
 static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
-	struct sigmatel_spec *spec = codec->spec;
+	struct sigmatel_spec __maybe_unused *spec = codec->spec;
 
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
