@@ -286,7 +286,8 @@ int eth_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	if (!(dev->priv_flags & IFF_LIVE_ADDR_CHANGE) && netif_running(dev))
+	if (!(netdev_extended(dev)->ext_priv_flags & IFF_LIVE_ADDR_CHANGE)
+	    && netif_running(dev))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
