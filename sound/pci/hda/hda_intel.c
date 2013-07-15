@@ -197,7 +197,7 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #endif
 #endif
 
-#define pci_dev_run_wake(pci) 0
+#define pci_dev_run_wake(pci) 1
 
 /*
  * registers
@@ -2826,6 +2826,7 @@ static int azx_resume(struct device *dev)
 			chip->msi = 0;
 	if (azx_acquire_irq(chip, 1) < 0)
 		return -EIO;
+	pm_runtime_set_active(&pci->dev);
 	azx_init_pci(chip);
 
 	azx_init_chip(chip, 1);
@@ -3417,6 +3418,8 @@ static int azx_first_init(struct azx *chip)
 
 	pci_set_master(pci);
 	synchronize_irq(chip->irq);
+	pm_runtime_set_active(&pci->dev);
+	pm_runtime_enable(&pci->dev);
 
 	gcap = azx_readw(chip, GCAP);
 	snd_printdd(SFX "%s: chipset global capabilities = 0x%x\n", pci_name(chip->pci), gcap);
@@ -3734,6 +3737,7 @@ static void azx_remove(struct pci_dev *pci)
 
 	if (card)
 		snd_card_free(card);
+	pm_runtime_disable(&pci->dev);
 }
 
 /* PCI IDs */
