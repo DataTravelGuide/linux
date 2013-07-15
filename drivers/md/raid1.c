@@ -961,7 +961,7 @@ static int make_request(struct mddev *mddev, struct bio * bio)
 	struct bitmap *bitmap;
 	unsigned long flags;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const unsigned long do_sync = (bio->bi_rw & (1 << BIO_RW_SYNCIO));
 	const unsigned long do_flush_fua = (bio->bi_rw & (BIO_FLUSH | BIO_FUA));
 	struct md_rdev *blocked_rdev;
 	int first_clone;
@@ -1059,7 +1059,7 @@ read_again:
 		read_bio->bi_sector = r1_bio->sector + mirror->rdev->data_offset;
 		read_bio->bi_bdev = mirror->rdev->bdev;
 		read_bio->bi_end_io = raid1_end_read_request;
-		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r1_bio;
 
 		if (max_sectors < r1_bio->sectors) {
@@ -1261,7 +1261,7 @@ read_again:
 				   conf->mirrors[i].rdev->data_offset);
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_rw = WRITE | do_flush_fua | (do_sync << BIO_RW_SYNCIO);
+		mbio->bi_rw = WRITE | do_flush_fua | do_sync;
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);
@@ -2192,7 +2192,7 @@ read_more:
 		raid_end_bio_io(r1_bio);
 	} else {
 		const unsigned long do_sync
-			= r1_bio->master_bio->bi_rw & REQ_SYNC;
+			= r1_bio->master_bio->bi_rw & (1 << BIO_RW_SYNCIO);
 		if (bio) {
 			r1_bio->bios[r1_bio->read_disk] =
 				mddev->ro ? IO_BLOCKED : NULL;
