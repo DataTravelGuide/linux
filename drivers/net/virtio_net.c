@@ -638,44 +638,6 @@ again:
 	return NETDEV_TX_OK;
 }
 
-static int virtnet_set_mac_address(struct net_device *dev, void *p)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_device *vdev = vi->vdev;
-	int ret;
-
-	ret = eth_mac_addr(dev, p);
-	if (ret)
-		return ret;
-
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC))
-		vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
-		                  dev->dev_addr, dev->addr_len);
-
-	return 0;
-}
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void virtnet_netpoll(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-
-	napi_schedule(&vi->napi);
-}
-#endif
-
-static int virtnet_open(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-
-	/* Make sure we have some buffers: if oom use wq. */
-	if (!try_fill_recv(vi, GFP_KERNEL))
-		queue_delayed_work(vi->st_wq, &vi->refill, 0);
-
-	virtnet_napi_enable(vi);
-	return 0;
-}
-
 /*
  * Send command via the control virtqueue and check status.  Commands
  * supported by the hypervisor, as indicated by feature bits, should
@@ -719,6 +681,44 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 		cpu_relax();
 
 	return status == VIRTIO_NET_OK;
+}
+
+static int virtnet_set_mac_address(struct net_device *dev, void *p)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct virtio_device *vdev = vi->vdev;
+	int ret;
+
+	ret = eth_mac_addr(dev, p);
+	if (ret)
+		return ret;
+
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC))
+		vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
+		                  dev->dev_addr, dev->addr_len);
+
+	return 0;
+}
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void virtnet_netpoll(struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	napi_schedule(&vi->napi);
+}
+#endif
+
+static int virtnet_open(struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	/* Make sure we have some buffers: if oom use wq. */
+	if (!try_fill_recv(vi, GFP_KERNEL))
+		queue_delayed_work(vi->st_wq, &vi->refill, 0);
+
+	virtnet_napi_enable(vi);
+	return 0;
 }
 
 static int virtnet_close(struct net_device *dev)
