@@ -34,8 +34,6 @@
  */
 
 struct cs_spec {
-	struct hda_gen_spec gen;
-
 	struct auto_pin_cfg autocfg;
 	struct hda_multi_out multiout;
 	struct snd_kcontrol *vmaster_sw;
@@ -1198,7 +1196,7 @@ static int cs_init(struct hda_codec *codec)
 
 	snd_hda_sequence_write(codec, cs_coef_init_verbs);
 
-	snd_hda_gen_apply_verbs(codec);
+	snd_hda_apply_verbs(codec);
 
 	if (spec->gpio_mask) {
 		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_MASK,
@@ -1249,7 +1247,6 @@ static void cs_free(struct hda_codec *codec)
 	struct cs_spec *spec = codec->spec;
 	kfree(spec->capture_bind[0]);
 	kfree(spec->capture_bind[1]);
-	snd_hda_gen_free(&spec->gen);
 	kfree(codec->spec);
 }
 
@@ -1440,7 +1437,6 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	snd_hda_gen_init(&spec->gen);
 
 	spec->vendor_nid = CS420X_VENDOR_NID;
 
@@ -1978,7 +1974,6 @@ static int patch_cs4210(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	snd_hda_gen_init(&spec->gen);
 
 	spec->vendor_nid = CS4210_VENDOR_NID;
 
@@ -2018,7 +2013,6 @@ static int patch_cs4213(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	snd_hda_gen_init(&spec->gen);
 
 	spec->vendor_nid = CS4213_VENDOR_NID;
 
