@@ -38,6 +38,7 @@ EXPORT_SYMBOL_HDA(is_jack_detectable);
 static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {
 	u32 pincap;
+	u32 val;
 
 	if (!codec->no_trigger_sense) {
 		pincap = snd_hda_query_pin_caps(codec, nid);
@@ -45,8 +46,11 @@ static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 			snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_SET_PIN_SENSE, 0);
 	}
-	return snd_hda_codec_read(codec, nid, 0,
+	val = snd_hda_codec_read(codec, nid, 0,
 				  AC_VERB_GET_PIN_SENSE, 0);
+	if (codec->inv_jack_detect)
+		val ^= AC_PINSENSE_PRESENCE;
+	return val;
 }
 
 /**
