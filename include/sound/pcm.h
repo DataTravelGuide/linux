@@ -312,7 +312,7 @@ struct snd_pcm_runtime {
 	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
-	unsigned int twake: 1;		/* do transfer (!poll) wakeup */
+	unsigned int twake_dontuse: 1;	/* do transfer (!poll) wakeup */
 	wait_queue_head_t sleep;	/* poll sleep */
 	wait_queue_head_t tsleep;	/* transfer sleep */
 	struct fasync_struct *fasync;
@@ -352,6 +352,7 @@ struct snd_pcm_runtime2 {
 	struct snd_pcm_oss_runtime oss;
 #endif
 	unsigned long hw_ptr_buffer_jiffies; /* buffer time in jiffies */
+	snd_pcm_uframes_t twake;	/* do transfer (!poll) wakeup if non-zero */
 };
 
 struct snd_pcm_group {		/* keep linked substreams */
