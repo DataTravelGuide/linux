@@ -312,7 +312,7 @@ struct snd_pcm_runtime {
 	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
-	unsigned int twake_dontuse: 1;	/* do transfer (!poll) wakeup */
+	unsigned int twake: 1;		/* do transfer (!poll) wakeup */
 	wait_queue_head_t sleep;	/* poll sleep */
 	wait_queue_head_t tsleep;	/* transfer sleep */
 	struct fasync_struct *fasync;
