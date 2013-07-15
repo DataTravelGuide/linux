@@ -47,6 +47,8 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/completion.h>
+
 #ifdef CONFIG_X86
 /* for snoop control */
 #include <asm/pgtable.h>
@@ -461,6 +463,7 @@ struct azx {
 	/* locks */
 	spinlock_t reg_lock;
 	struct mutex open_mutex;
+	struct completion probe_wait;
 
 	/* streams (x num_streams) */
 	struct azx_dev *azx_dev;
@@ -2647,6 +2650,7 @@ static void azx_vs_set_state(struct pci_dev *pci,
 	struct azx *chip = card->private_data;
 	bool disabled;
 
+	wait_for_completion(&chip->probe_wait);
 	if (chip->init_failed)
 		return;
 
@@ -2692,6 +2696,7 @@ static bool azx_vs_can_switch(struct pci_dev *pci)
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
 
+	wait_for_completion(&chip->probe_wait);
 	if (chip->init_failed)
 		return false;
 	if (chip->disabled || !chip->bus)
@@ -2752,6 +2757,9 @@ static int azx_free(struct azx *chip)
 	azx_del_card_list(chip);
 
 	azx_notifier_unregister(chip);
+
+	chip->init_failed = 1; /* to be sure */
+	complete(&chip->probe_wait);
 
 	if (use_vga_switcheroo(chip)) {
 		if (chip->disabled && chip->bus)
@@ -3058,6 +3066,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	INIT_LIST_HEAD(&chip->pcm_list);
 	INIT_LIST_HEAD(&chip->list);
 	init_vga_switcheroo(chip);
+	init_completion(&chip->probe_wait);
 
 	chip->position_fix[0] = chip->position_fix[1] =
 		check_position_fix(chip, position_fix[dev]);
@@ -3085,26 +3094,6 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		}
 	}
 
-	if (check_hdmi_disabled(pci)) {
-		snd_printk(KERN_INFO SFX "VGA controller for %s is disabled\n",
-			   pci_name(pci));
-		if (use_vga_switcheroo(chip)) {
-			snd_printk(KERN_INFO SFX "Delaying initialization\n");
-			chip->disabled = true;
-			goto ok;
-		}
-		kfree(chip);
-		pci_disable_device(pci);
-		return -ENXIO;
-	}
-
-	err = azx_first_init(chip);
-	if (err < 0) {
-		azx_free(chip);
-		return err;
-	}
-
- ok:
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
 		snd_printk(KERN_ERR SFX "Error creating device [card]!\n");
@@ -3349,7 +3338,29 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
+
+	pci_set_drvdata(pci, card);
+
+	err = register_vga_switcheroo(chip);
+	if (err < 0) {
+		snd_printk(KERN_ERR SFX
+			   "Error registering VGA-switcheroo client\n");
+		goto out_free;
+	}
+
+	if (check_hdmi_disabled(pci)) {
+		snd_printk(KERN_INFO SFX "VGA controller for %s is disabled\n",
+			   pci_name(pci));
+		snd_printk(KERN_INFO SFX "Delaying initialization\n");
+		chip->disabled = true;
+	}
+
 	probe_now = !chip->disabled;
+	if (probe_now) {
+		err = azx_first_init(chip);
+		if (err < 0)
+			goto out_free;
+	}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (patch[dev] && *patch[dev]) {
@@ -3370,23 +3381,16 @@ static int __devinit azx_probe(struct pci_dev *pci,
 			goto out_free;
 	}
 
-	pci_set_drvdata(pci, card);
-
 	if (pci_dev_run_wake(pci))
 		pm_runtime_put_noidle(&pci->dev);
 
-	err = register_vga_switcheroo(chip);
-	if (err < 0) {
-		snd_printk(KERN_ERR SFX
-			   "Error registering VGA-switcheroo client\n");
-		goto out_free;
-	}
-
 	dev++;
+	complete(&chip->probe_wait);
 	return 0;
 
 out_free:
 	snd_card_free(card);
+	pci_set_drvdata(pci, NULL);
 	return err;
 }
 
