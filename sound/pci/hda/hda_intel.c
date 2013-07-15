@@ -2459,11 +2459,10 @@ static int param_set_xint(const char *val, struct kernel_param *kp)
 #define azx_del_card_list(chip) /* NOP */
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM_SLEEP) || defined(SUPPORT_VGA_SWITCHEROO)
 /*
  * power management
  */
-
 static int azx_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -2521,10 +2520,8 @@ static int azx_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(azx_pm, azx_suspend, azx_resume);
 #define AZX_PM_OPS	&azx_pm
 #else
-#define azx_suspend(dev)
-#define azx_resume(dev)
 #define AZX_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP || SUPPORT_VGA_SWITCHEROO */
 
 
 /*
