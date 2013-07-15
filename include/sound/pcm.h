@@ -960,6 +960,8 @@ static int snd_pcm_lib_alloc_vmalloc_32_buffer
 	_snd_pcm_lib_alloc_vmalloc_buffer \
 			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
 
+#define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * SG-buffer handling
