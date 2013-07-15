@@ -1119,7 +1119,7 @@ static int make_request(struct mddev *mddev, struct bio * bio)
 	sector_t chunk_mask = (conf->geo.chunk_mask & conf->prev.chunk_mask);
 	int chunk_sects = chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
+	const unsigned long do_sync = (bio->bi_rw & (1 << BIO_RW_SYNCIO));
 	const unsigned long do_fua = (bio->bi_rw & BIO_FUA);
 	unsigned long flags;
 	struct md_rdev *blocked_rdev;
@@ -1268,7 +1268,7 @@ read_again:
 			choose_data_offset(r10_bio, rdev);
 		read_bio->bi_bdev = rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
-		read_bio->bi_rw = READ | (do_sync << BIO_RW_SYNCIO);
+		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r10_bio;
 
 		if (max_sectors < r10_bio->sectors) {
@@ -1472,7 +1472,7 @@ retry_write:
 						      conf->mirrors[d].rdev));
 		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
 		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | (do_sync << BIO_RW_SYNCIO) | do_fua;
+		mbio->bi_rw = WRITE | do_sync | do_fua;
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
@@ -2595,7 +2595,7 @@ read_more:
 		return;
 	}
 
-	do_sync = (r10_bio->master_bio->bi_rw & REQ_SYNC);
+	do_sync = (r10_bio->master_bio->bi_rw & (1 << BIO_RW_SYNCIO));
 	slot = r10_bio->read_slot;
 	printk_ratelimited(
 		KERN_ERR
