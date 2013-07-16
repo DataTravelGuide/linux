@@ -199,6 +199,11 @@ S:	Maintained
 F:	drivers/firewire/
 F:	include/linux/firewire*.h
 
+FUSE FILESYSTEM
+M:	Brian Foster <bfoster@redhat.com>
+S:	Maintained
+F:	fs/fuse/
+
 INTEL E100 ETHERNET DRIVER (e100)
 M:	Dean Nelson <dnelson@redhat.com>
 S:	Maintained
