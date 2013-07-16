@@ -1008,10 +1008,15 @@ apicinterrupt3 INVALIDATE_TLB_VECTOR_START+7 \
 	invalidate_interrupt7 smp_invalidate_interrupt
 #endif
 
+#ifdef CONFIG_X86_MCE_THRESHOLD
 apicinterrupt THRESHOLD_APIC_VECTOR \
 	threshold_interrupt smp_threshold_interrupt
+#endif
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
 apicinterrupt THERMAL_APIC_VECTOR \
 	thermal_interrupt smp_thermal_interrupt
+#endif
 
 #ifdef CONFIG_X86_MCE
 apicinterrupt3 MCE_SELF_VECTOR \
