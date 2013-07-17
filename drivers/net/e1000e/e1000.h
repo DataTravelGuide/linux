@@ -45,6 +45,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/mii.h>
+#include <linux/mdio.h>
 #include "hw.h"
 
 struct e1000_info;
@@ -343,6 +344,8 @@ struct e1000_adapter {
 	struct timecounter tc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
+
+	u16 eee_advert;
 };
 
 struct e1000_info {
