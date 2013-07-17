@@ -42,7 +42,8 @@
 #include <linux/etherdevice.h>
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
-
+#include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include "hw.h"
 
 struct e1000_info;
@@ -406,6 +407,8 @@ struct e1000_adapter {
 	spinlock_t systim_lock;	/* protects SYSTIML/H regsters */
 	struct cyclecounter cc;
 	struct timecounter tc;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
 };
 
 struct e1000_info {
@@ -419,6 +422,8 @@ struct e1000_info {
 	const struct e1000_phy_operations *phy_ops;
 	const struct e1000_nvm_operations *nvm_ops;
 };
+
+s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 
 /* The system time is maintained by a 64-bit counter comprised of the 32-bit
  * SYSTIMH and SYSTIML registers.  How the counter increments (and therefore
@@ -695,6 +700,8 @@ extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
 extern bool e1000_check_phy_82574(struct e1000_hw *hw);
 extern s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
+extern void e1000e_ptp_init(struct e1000_adapter *adapter);
+extern void e1000e_ptp_remove(struct e1000_adapter *adapter);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
