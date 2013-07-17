@@ -821,9 +821,17 @@ EXPORT_SYMBOL_GPL(fcoe_transport_enable);
  */
 static int __init libfcoe_init(void)
 {
-	fcoe_transport_init();
+	int rc = 0;
 
-	return 0;
+	rc = fcoe_transport_init();
+	if (rc)
+		return rc;
+
+	rc = fcoe_sysfs_setup();
+	if (rc)
+		fcoe_transport_exit();
+
+	return rc;
 }
 module_init(libfcoe_init);
 
@@ -832,6 +840,7 @@ module_init(libfcoe_init);
  */
 static void __exit libfcoe_exit(void)
 {
+	fcoe_sysfs_teardown();
 	fcoe_transport_exit();
 }
 module_exit(libfcoe_exit);
