@@ -1452,7 +1452,7 @@ next_desc:
  * e1000_consume_page - helper function
  **/
 static void e1000_consume_page(struct e1000_buffer *bi, struct sk_buff *skb,
-                               u16 length)
+			       u16 length)
 {
 	bi->page = NULL;
 	skb->len += length;
