@@ -2195,6 +2195,7 @@ static int fcoe_destroy(struct net_device *netdev)
 	if (!fcoe) {
 		rc = -ENODEV;
 		rtnl_unlock();
+		mutex_unlock(&fcoe_config_mutex);
 		goto out_nodev;
 	}
 	ctlr = fcoe_to_ctlr(fcoe);
@@ -2202,9 +2203,9 @@ static int fcoe_destroy(struct net_device *netdev)
 	port = lport_priv(lport);
 	list_del(&fcoe->list);
 	rtnl_unlock();
+	mutex_unlock(&fcoe_config_mutex);
 	fcoe_do_destroy(port);
 out_nodev:
-	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
 
@@ -2215,10 +2216,36 @@ out_nodev:
 static void fcoe_do_destroy(struct fcoe_port *port)
 {
 	struct fcoe_interface *fcoe;
+	struct Scsi_Host *shost;
+	struct fc_host_attrs *fc_host;
+	unsigned long flags;
+	struct fc_vport *vport;
+	struct fc_vport *next_vport;
+
+	shost = port->lport->host;
+	fc_host = shost_to_fc_host(shost);
+
+	/* Loop through all the vports and mark them for deletion */
+	spin_lock_irqsave(shost->host_lock, flags);
+	list_for_each_entry_safe(vport, next_vport, &fc_host->vports, peers) {
+		if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
+			continue;
+		} else {
+			vport->flags |= FC_VPORT_DELETING;
+			queue_work(fc_host_work_q(shost),
+				   &vport->vport_delete_work);
+		}
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	flush_workqueue(fc_host_work_q(shost));
+
+	mutex_lock(&fcoe_config_mutex);
 
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
 	fcoe_interface_cleanup(fcoe);
+	mutex_unlock(&fcoe_config_mutex);
 }
 
 static void fcoe_destroy_work(struct work_struct *work)
@@ -2227,9 +2254,7 @@ static void fcoe_destroy_work(struct work_struct *work)
 	struct fcoe_port *port;
 
 	port = container_of(work, struct fcoe_port, destroy_work);
-	mutex_lock(&fcoe_config_mutex);
 	fcoe_do_destroy(port);
-	mutex_unlock(&fcoe_config_mutex);
 }
 
 /**
