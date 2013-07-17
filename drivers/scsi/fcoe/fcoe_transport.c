@@ -966,11 +966,7 @@ out_putdev:
 	dev_put(netdev);
 out_nodev:
 	mutex_unlock(&ft_mutex);
-
-	if (rc == -ERESTARTSYS)
-		return restart_syscall();
-	else
-		return rc;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(fcoe_transport_disable);
 
