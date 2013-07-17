@@ -1696,6 +1696,36 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 17 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-399.el6]
+- [mm] transparent hugepage core changes related to MADV_HUGEPAGE/MADV_NOHUGEPAGE (Larry Woodman) [891857]
+- [mm] thp: define MADV_NOHUGEPAGE (Larry Woodman) [891857]
+- [mm] thp: define MADV_HUGEPAGE (Larry Woodman) [891857]
+- [mm] thp: Add madvise MADV_NOHUGEPAGE (Larry Woodman) [891857]
+- [mm] thp: Add madvise MADV_HUGEPAGE (Larry Woodman) [891857]
+- [net] tuntap: initialize vlan_features (Vlad Yasevich) [951458]
+- [net] netlink_dump: fix locking regression in error path (Daniel Borkmann) [982108]
+- [net] ip6_fib: Various cleanups (Jiri Pirko) [958215]
+- [net] ip6_fib: return errno pointers consistently for fib6_add_1() (Jiri Pirko) [958215]
+- [net] ip6_fib: fix return value check in fib6_add() (Jiri Pirko) [958215]
+- [net] ip6_fib/ip6_route: Standardize prefixes for message logging (Jiri Pirko) [958215]
+- [net] ip6_fib: Use pr_warn() (Jiri Pirko) [958215]
+- [net] ip6_fib: Fix a crash when trying to replace non existing route (Jiri Pirko) [958215]
+- [net] ip6_fib: Removing unnecessary NULL checks (Jiri Pirko) [958215]
+- [net] ip6_fib: add NLM_F_* flag support for route (Jiri Pirko) [958215]
+- [net] ip6_route: Various cleanups (Jiri Pirko) [958215]
+- [net] ip6_route: add support for NLM_F_* flags (Jiri Pirko) [958215]
+- [net] af_key: fix info leaks in notify messages (Jiri Benc) [981004] {CVE-2013-2234}
+- [net] af_key: initialize satype in key_notify_policy_flush() (Thomas Graf) [981227] {CVE-2013-2237}
+- [net] ipv4: ipmr_expire_timer causes crash when removing net namespace (Amerigo Wang) [972573]
+- [net] ipv6: ip6_sk_dst_check() must not assume ipv6 dst (Jiri Pirko) [981559] {CVE-2013-2232}
+- [net] ipv6: remove old token ipv6 address as soon as possible (Daniel Borkmann) [876634]
+- [net] ipv6: check return value of ipv6_get_lladdr (Daniel Borkmann) [876634]
+- [net] ipv6: don't call addrconf_dst_alloc again when enable lo (Jiri Benc) [744655]
+- [net] rps: Ensure that an expired hardware filter can be re-added later (Daniel Borkmann) [893177]
+- [crypto] algboss: Hold ref count on larval (Daniel Borkmann) [889992]
+- [net] sctp: fix NULL pointer dereference in socket destruction (Daniel Borkmann) [889992]
+- [net] Use separate workqueue for linkwatch events (Jan Vesely) [783615]
+
 * Thu Jul 11 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-398.el6]
 - [x86] Revert: Allow greater than 1TB of RAM on AMD x86_64 sytems (Larry Woodman) [970735]
 - [x86] Revert: Prevent panic in init_memory_mapping() when booting more than 1TB on AMD systems (Larry Woodman) [970735]
