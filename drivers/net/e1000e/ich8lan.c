@@ -4601,6 +4601,7 @@ const struct e1000_info e1000_pch2_info = {
 	.mac			= e1000_pch2lan,
 	.flags			= FLAG_IS_ICH
 				  | FLAG_HAS_WOL
+				  | FLAG_HAS_HW_TIMESTAMP
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_HAS_AMT
@@ -4621,6 +4622,7 @@ const struct e1000_info e1000_pch_lpt_info = {
 	.mac			= e1000_pch_lpt,
 	.flags			= FLAG_IS_ICH
 				  | FLAG_HAS_WOL
+				  | FLAG_HAS_HW_TIMESTAMP
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_FLASH
