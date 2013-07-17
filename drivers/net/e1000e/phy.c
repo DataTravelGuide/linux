@@ -1584,9 +1584,9 @@ s32 e1000_check_polarity_m88(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, M88E1000_PHY_SPEC_STATUS, &data);
 
 	if (!ret_val)
-		phy->cable_polarity = (data & M88E1000_PSSR_REV_POLARITY)
-				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
+		phy->cable_polarity = ((data & M88E1000_PSSR_REV_POLARITY)
+				       ? e1000_rev_polarity_reversed
+				       : e1000_rev_polarity_normal);
 
 	return ret_val;
 }
@@ -1628,9 +1628,9 @@ s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, offset, &data);
 
 	if (!ret_val)
-		phy->cable_polarity = (data & mask)
-				      ? e1000_rev_polarity_reversed
-				      : e1000_rev_polarity_normal;
+		phy->cable_polarity = ((data & mask)
+				       ? e1000_rev_polarity_reversed
+				       : e1000_rev_polarity_normal);
 
 	return ret_val;
 }
@@ -1660,9 +1660,9 @@ s32 e1000_check_polarity_ife(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, offset, &phy_data);
 
 	if (!ret_val)
-		phy->cable_polarity = (phy_data & mask)
-		                       ? e1000_rev_polarity_reversed
-		                       : e1000_rev_polarity_normal;
+		phy->cable_polarity = ((phy_data & mask)
+				       ? e1000_rev_polarity_reversed
+				       : e1000_rev_polarity_normal);
 
 	return ret_val;
 }
@@ -1766,8 +1766,8 @@ s32 e1000e_get_cable_length_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-	        M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+	index = ((phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
+		 M88E1000_PSSR_CABLE_LENGTH_SHIFT);
 
 	if (index >= M88E1000_CABLE_LENGTH_TABLE_SIZE - 1)
 		return -E1000_ERR_PHY;
@@ -1799,10 +1799,10 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 	u16 cur_agc_index, max_agc_index = 0;
 	u16 min_agc_index = IGP02E1000_CABLE_LENGTH_TABLE_SIZE - 1;
 	static const u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] = {
-	       IGP02E1000_PHY_AGC_A,
-	       IGP02E1000_PHY_AGC_B,
-	       IGP02E1000_PHY_AGC_C,
-	       IGP02E1000_PHY_AGC_D
+		IGP02E1000_PHY_AGC_A,
+		IGP02E1000_PHY_AGC_B,
+		IGP02E1000_PHY_AGC_C,
+		IGP02E1000_PHY_AGC_D
 	};
 
 	/* Read the AGC registers for all channels */
@@ -1816,8 +1816,8 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 		 * that can be put into the lookup table to obtain the
 		 * approximate cable length.
 		 */
-		cur_agc_index = (phy_data >> IGP02E1000_AGC_LENGTH_SHIFT) &
-				IGP02E1000_AGC_LENGTH_MASK;
+		cur_agc_index = ((phy_data >> IGP02E1000_AGC_LENGTH_SHIFT) &
+				 IGP02E1000_AGC_LENGTH_MASK);
 
 		/* Array index bound check. */
 		if ((cur_agc_index >= IGP02E1000_CABLE_LENGTH_TABLE_SIZE) ||
@@ -1840,8 +1840,8 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 	agc_value /= (IGP02E1000_PHY_CHANNEL_NUM - 2);
 
 	/* Calculate cable length with the error range of +/- 10 meters. */
-	phy->min_cable_length = ((agc_value - IGP02E1000_AGC_RANGE) > 0) ?
-				 (agc_value - IGP02E1000_AGC_RANGE) : 0;
+	phy->min_cable_length = (((agc_value - IGP02E1000_AGC_RANGE) > 0) ?
+				 (agc_value - IGP02E1000_AGC_RANGE) : 0);
 	phy->max_cable_length = agc_value + IGP02E1000_AGC_RANGE;
 
 	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
@@ -2015,9 +2015,9 @@ s32 e1000_get_phy_info_ife(struct e1000_hw *hw)
 			return ret_val;
 	} else {
 		/* Polarity is forced */
-		phy->cable_polarity = (data & IFE_PSC_FORCE_POLARITY)
-		                      ? e1000_rev_polarity_reversed
-		                      : e1000_rev_polarity_normal;
+		phy->cable_polarity = ((data & IFE_PSC_FORCE_POLARITY)
+				       ? e1000_rev_polarity_reversed
+				       : e1000_rev_polarity_normal);
 	}
 
 	ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &data);
@@ -2350,13 +2350,13 @@ s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 
 		/* Page is shifted left, PHY expects (page x 32) */
 		ret_val = e1000e_write_phy_reg_mdic(hw, page_select,
-		                                    (page << page_shift));
+						    (page << page_shift));
 		if (ret_val)
 			goto release;
 	}
 
 	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-	                                    data);
+					    data);
 
 release:
 	hw->phy.ops.release(hw);
@@ -2408,13 +2408,13 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 
 		/* Page is shifted left, PHY expects (page x 32) */
 		ret_val = e1000e_write_phy_reg_mdic(hw, page_select,
-		                                    (page << page_shift));
+						    (page << page_shift));
 		if (ret_val)
 			goto release;
 	}
 
 	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-	                                   data);
+					   data);
 release:
 	hw->phy.ops.release(hw);
 	return ret_val;
@@ -2649,7 +2649,7 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 	if (read) {
 		/* Read the Wakeup register page value using opcode 0x12 */
 		ret_val = e1000e_read_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
-		                                   data);
+						   data);
 	} else {
 		/* Write the Wakeup register page value using opcode 0x12 */
 		ret_val = e1000e_write_phy_reg_mdic(hw, BM_WUC_DATA_OPCODE,
@@ -2738,7 +2738,7 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
 		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
-		                                         data, true);
+							 data, true);
 		goto out;
 	}
 
@@ -2761,8 +2761,7 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 	e_dbg("reading PHY page %d (or 0x%x shifted) reg 0x%x\n", page,
 	      page << IGP_PAGE_SHIFT, reg);
 
-	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
-	                                  data);
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg, data);
 out:
 	if (!locked)
 		hw->phy.ops.release(hw);
@@ -2846,7 +2845,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
 		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
-		                                         &data, false);
+							 &data, false);
 		goto out;
 	}
 
@@ -2885,7 +2884,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	      page << IGP_PAGE_SHIFT, reg);
 
 	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
-	                                  data);
+					    data);
 
 out:
 	if (!locked)
@@ -2970,8 +2969,8 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
 	u32 data_reg;
 
 	/* This takes care of the difference with desktop vs mobile phy */
-	addr_reg = (hw->phy.type == e1000_phy_82578) ?
-	           I82578_ADDR_REG : I82577_ADDR_REG;
+	addr_reg = ((hw->phy.type == e1000_phy_82578) ?
+		    I82578_ADDR_REG : I82577_ADDR_REG);
 	data_reg = addr_reg + 1;
 
 	/* All operations in this function are phy address 2 */
@@ -3025,8 +3024,8 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	data &= BM_CS_STATUS_LINK_UP | BM_CS_STATUS_RESOLVED |
-		BM_CS_STATUS_SPEED_MASK;
+	data &= (BM_CS_STATUS_LINK_UP | BM_CS_STATUS_RESOLVED |
+		 BM_CS_STATUS_SPEED_MASK);
 
 	if (data != (BM_CS_STATUS_LINK_UP | BM_CS_STATUS_RESOLVED |
 		     BM_CS_STATUS_SPEED_1000))
@@ -3061,9 +3060,9 @@ s32 e1000_check_polarity_82577(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, I82577_PHY_STATUS_2, &data);
 
 	if (!ret_val)
-		phy->cable_polarity = (data & I82577_PHY_STATUS2_REV_POLARITY)
-		                      ? e1000_rev_polarity_reversed
-		                      : e1000_rev_polarity_normal;
+		phy->cable_polarity = ((data & I82577_PHY_STATUS2_REV_POLARITY)
+				       ? e1000_rev_polarity_reversed
+				       : e1000_rev_polarity_normal);
 
 	return ret_val;
 }
@@ -3190,8 +3189,8 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	length = (phy_data & I82577_DSTATUS_CABLE_LENGTH) >>
-	         I82577_DSTATUS_CABLE_LENGTH_SHIFT;
+	length = ((phy_data & I82577_DSTATUS_CABLE_LENGTH) >>
+		  I82577_DSTATUS_CABLE_LENGTH_SHIFT);
 
 	if (length == E1000_CABLE_LENGTH_UNDEFINED)
 		return -E1000_ERR_PHY;
