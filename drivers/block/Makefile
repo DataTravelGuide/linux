@@ -41,5 +41,5 @@ obj-$(CONFIG_BLK_DEV_PCIESSD_MTIP32XX)	+= mtip32xx/
 
 obj-$(CONFIG_BLK_DEV_RSXX) += rsxx/
 
-nvme-y		:= nvme-core.o
+nvme-y		:= nvme-core.o nvme-scsi.o
 swim_mod-objs	:= swim.o swim_asm.o
