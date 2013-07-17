@@ -236,7 +236,8 @@ static void *free_cmdid(struct nvme_queue *nvmeq, int cmdid,
 		*fn = special_completion;
 		return CMD_CTX_INVALID;
 	}
-	*fn = info[cmdid].fn;
+	if (fn)
+		*fn = info[cmdid].fn;
 	ctx = info[cmdid].ctx;
 	info[cmdid].fn = special_completion;
 	info[cmdid].ctx = CMD_CTX_COMPLETED;
@@ -588,7 +589,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	result = nvme_map_bio(nvmeq->q_dmadev, iod, bio, dma_dir, psegs);
 	if (result < 0)
-		goto free_iod;
+		goto free_cmdid;
 	length = result;
 
 	cmnd->rw.command_id = cmdid;
@@ -608,6 +609,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	return 0;
 
+ free_cmdid:
+	free_cmdid(nvmeq, cmdid, NULL);
  free_iod:
 	nvme_free_iod(nvmeq->dev, iod);
  nomem:
