@@ -1521,7 +1521,7 @@ static void nvme_free_queues(struct nvme_dev *dev)
 static int __devinit nvme_dev_add(struct nvme_dev *dev)
 {
 	int res, nn, i;
-	struct nvme_ns *ns, *next;
+	struct nvme_ns *ns;
 	struct nvme_id_ctrl *ctrl;
 	struct nvme_id_ns *id_ns;
 	void *mem;
@@ -1539,7 +1539,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	res = nvme_identify(dev, 0, 1, dma_addr);
 	if (res) {
 		res = -EIO;
-		goto out_free;
+		goto out;
 	}
 
 	ctrl = mem;
@@ -1574,13 +1574,6 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	list_for_each_entry(ns, &dev->namespaces, list)
 		add_disk(ns->disk);
 	res = 0;
-	goto out;
-
- out_free:
-	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
-		list_del(&ns->list);
-		nvme_ns_free(ns);
-	}
 
  out:
 	dma_free_coherent(&dev->pci_dev->dev, 8192, mem, dma_addr);
