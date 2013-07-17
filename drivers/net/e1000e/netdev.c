@@ -3940,6 +3940,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	e1000_irq_disable(adapter);
 
+	napi_synchronize(&adapter->napi);
+
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
@@ -4277,12 +4279,13 @@ static int e1000_close(struct net_device *netdev)
 		usleep_range(10000, 20000);
 
 	WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
-	napi_disable(&adapter->napi);
-
 	if (!test_bit(__E1000_DOWN, &adapter->state)) {
 		e1000e_down(adapter);
 		e1000_free_irq(adapter);
 	}
+
+	napi_disable(&adapter->napi);
+
 	e1000_power_down_phy(adapter);
 
 	e1000e_free_tx_resources(adapter->tx_ring);
