@@ -407,7 +407,6 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
  */
 void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 {
-	LIBFCOE_FIP_DBG(fip, "Link up.\n");
 	mutex_lock(&fip->ctlr_mutex);
 	if (fip->state == FIP_ST_NON_FIP || fip->state == FIP_ST_AUTO) {
 		mutex_unlock(&fip->ctlr_mutex);
@@ -439,22 +438,6 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 EXPORT_SYMBOL(fcoe_ctlr_link_up);
 
 /**
- * fcoe_ctlr_enable() - enables FCoE controller
- * @fip: The FCoE controller to enable
- *
- * Called from the LLD when the network link is ready.
- */
-void fcoe_ctlr_enable(struct fcoe_ctlr *fip)
-{
-	LIBFCOE_FIP_DBG(fip, "Link enabled.\n");
-	mutex_lock(&fip->ctlr_mutex);
-	fcoe_ctlr_set_state(fip, FIP_ST_LINK_WAIT);
-	mutex_unlock(&fip->ctlr_mutex);
-	fcoe_ctlr_link_up(fip);
-}
-EXPORT_SYMBOL(fcoe_ctlr_enable);
-
-/**
  * fcoe_ctlr_reset() - Reset a FCoE controller
  * @fip:       The FCoE controller to reset
  */
@@ -470,37 +453,6 @@ static void fcoe_ctlr_reset(struct fcoe_ctlr *fip)
 }
 
 /**
- * fcoe_ctlr_down() - Stop a FCoE controller and set next state
- * @fip: The FCoE controller to be stopped
- * @state: next FCoE controller state
- *
- * Returns non-zero if the link was up and now isn't.
- *
- */
-static int fcoe_ctlr_down(struct fcoe_ctlr *fip, enum fip_state state)
-{
-	int link_dropped;
-
-	LIBFCOE_FIP_DBG(fip, "Link down.\n");
-	mutex_lock(&fip->ctlr_mutex);
-	fcoe_ctlr_reset(fip);
-	link_dropped = fip->state != FIP_ST_LINK_WAIT &&
-		       fip->state != FIP_ST_DISABLED;
-	/*
-	 * change fip state on link being dropped
-	 * or is getting disabled.
-	 */
-	if (link_dropped || state == FIP_ST_DISABLED)
-		fcoe_ctlr_set_state(fip, state);
-	mutex_unlock(&fip->ctlr_mutex);
-
-	if (link_dropped)
-		fc_linkdown(fip->lp);
-	return link_dropped;
-}
-
-
-/**
  * fcoe_ctlr_link_down() - Stop a FCoE controller
  * @fip: The FCoE controller to be stopped
  *
@@ -511,23 +463,20 @@ static int fcoe_ctlr_down(struct fcoe_ctlr *fip, enum fip_state state)
  */
 int fcoe_ctlr_link_down(struct fcoe_ctlr *fip)
 {
-	return fcoe_ctlr_down(fip, FIP_ST_LINK_WAIT);
+	int link_dropped;
+
+	LIBFCOE_FIP_DBG(fip, "link down.\n");
+	mutex_lock(&fip->ctlr_mutex);
+	fcoe_ctlr_reset(fip);
+	link_dropped = fip->state != FIP_ST_LINK_WAIT;
+	fcoe_ctlr_set_state(fip, FIP_ST_LINK_WAIT);
+	mutex_unlock(&fip->ctlr_mutex);
+
+	if (link_dropped)
+		fc_linkdown(fip->lp);
+	return link_dropped;
 }
 EXPORT_SYMBOL(fcoe_ctlr_link_down);
-
-/**
- * fcoe_ctlr_disable() - Disable a FCoE controller
- * @fip: The FCoE controller to be stopped
- *
- * Returns non-zero if the link was up and now isn't.
- *
- */
-int fcoe_ctlr_disable(struct fcoe_ctlr *fip)
-{
-	LIBFCOE_FIP_DBG(fip, "Link disabled.\n");
-	return fcoe_ctlr_down(fip, FIP_ST_DISABLED);
-}
-EXPORT_SYMBOL(fcoe_ctlr_disable);
 
 /**
  * fcoe_ctlr_send_keep_alive() - Send a keep-alive to the selected FCF
