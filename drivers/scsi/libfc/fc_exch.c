@@ -460,12 +460,12 @@ static void fc_exch_timer_set(struct fc_exch *ep, unsigned int timer_msec)
 }
 
 /**
- * fc_seq_send() - Send a frame using existing sequence/exchange pair
+ * fc_seq_send_locked() - Send a frame using existing sequence/exchange pair
  * @lport: The local port that the exchange will be sent on
  * @sp:	   The sequence to be sent
  * @fp:	   The frame to be sent on the exchange
  */
-static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
+static int fc_seq_send_locked(struct fc_lport *lport, struct fc_seq *sp,
 		       struct fc_frame *fp)
 {
 	struct fc_exch *ep;
@@ -475,7 +475,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	u8 fh_type = fh->fh_type;
 
 	ep = fc_seq_exch(sp);
-	WARN_ON((ep->esb_stat & ESB_ST_SEQ_INIT) != ESB_ST_SEQ_INIT);
+	WARN_ON(!(ep->esb_stat & ESB_ST_SEQ_INIT));
 
 	f_ctl = ntoh24(fh->fh_f_ctl);
 	fc_exch_setup_hdr(ep, fp, f_ctl);
@@ -498,17 +498,34 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	error = lport->tt.frame_send(lport, fp);
 
 	if (fh_type == FC_TYPE_BLS)
-		return error;
+		goto out;
 
 	/*
 	 * Update the exchange and sequence flags,
 	 * assuming all frames for the sequence have been sent.
 	 * We can only be called to send once for each sequence.
 	 */
-	spin_lock_bh(&ep->ex_lock);
 	ep->f_ctl = f_ctl & ~FC_FC_FIRST_SEQ;	/* not first seq */
 	if (f_ctl & FC_FC_SEQ_INIT)
 		ep->esb_stat &= ~ESB_ST_SEQ_INIT;
+out:
+	return error;
+}
+
+/**
+ * fc_seq_send() - Send a frame using existing sequence/exchange pair
+ * @lport: The local port that the exchange will be sent on
+ * @sp:	   The sequence to be sent
+ * @fp:	   The frame to be sent on the exchange
+ */
+static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
+		       struct fc_frame *fp)
+{
+	struct fc_exch *ep;
+	int error;
+	ep = fc_seq_exch(sp);
+	spin_lock_bh(&ep->ex_lock);
+	error = fc_seq_send_locked(lport, sp, fp);
 	spin_unlock_bh(&ep->ex_lock);
 	return error;
 }
@@ -625,7 +642,7 @@ static int fc_exch_abort_locked(struct fc_exch *ep,
 	if (fp) {
 		fc_fill_fc_hdr(fp, FC_RCTL_BA_ABTS, ep->did, ep->sid,
 			       FC_TYPE_BLS, FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
-		error = fc_seq_send(ep->lp, sp, fp);
+		error = fc_seq_send_locked(ep->lp, sp, fp);
 	} else
 		error = -ENOBUFS;
 	return error;
@@ -1128,7 +1145,7 @@ static void fc_seq_send_last(struct fc_seq *sp, struct fc_frame *fp,
 	f_ctl = FC_FC_LAST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT;
 	f_ctl |= ep->f_ctl;
 	fc_fill_fc_hdr(fp, rctl, ep->did, ep->sid, fh_type, f_ctl, 0);
-	fc_seq_send(ep->lp, sp, fp);
+	fc_seq_send_locked(ep->lp, sp, fp);
 }
 
 /**
@@ -1303,8 +1320,8 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 		ap->ba_low_seq_cnt = htons(sp->cnt);
 	}
 	sp = fc_seq_start_next_locked(sp);
-	spin_unlock_bh(&ep->ex_lock);
 	fc_seq_send_last(sp, fp, FC_RCTL_BA_ACC, FC_TYPE_BLS);
+	spin_unlock_bh(&ep->ex_lock);
 	fc_frame_free(rx_fp);
 	return;
 
