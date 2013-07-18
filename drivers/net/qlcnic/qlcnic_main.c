@@ -484,11 +484,10 @@ void qlcnic_teardown_intr(struct qlcnic_adapter *adapter)
 	}
 }
 
-static void
-qlcnic_cleanup_pci_map(struct qlcnic_adapter *adapter)
+static void qlcnic_cleanup_pci_map(struct qlcnic_hardware_context *ahw)
 {
-	if (adapter->ahw->pci_base0 != NULL)
-		iounmap(adapter->ahw->pci_base0);
+	if (ahw->pci_base0 != NULL)
+		iounmap(ahw->pci_base0);
 }
 
 static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
@@ -1946,7 +1945,7 @@ err_out_free_netdev:
 	free_netdev(netdev);
 
 err_out_iounmap:
-	qlcnic_cleanup_pci_map(adapter);
+	qlcnic_cleanup_pci_map(ahw);
 
 err_out_free_hw_res:
 	kfree(ahw);
@@ -2003,7 +2002,7 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 
 	qlcnic_remove_sysfs(adapter);
 
-	qlcnic_cleanup_pci_map(adapter);
+	qlcnic_cleanup_pci_map(adapter->ahw);
 
 	qlcnic_release_firmware(adapter);
 
