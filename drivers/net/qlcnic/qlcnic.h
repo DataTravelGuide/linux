@@ -979,7 +979,8 @@ struct qlcnic_adapter {
 
 	u16 is_up;
 
-	u16 pvid;
+	u16 rx_pvid;
+	u16 tx_pvid;
 	u32 irq;
 
 	u32 heartbeat;
@@ -1454,10 +1455,10 @@ void qlcnic_watchdog_task(struct work_struct *work);
 void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring, u8 ring_id);
 int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max);
-void qlcnic_set_multi(struct net_device *netdev);
-void __qlcnic_set_multi(struct net_device *netdev);
-int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr);
-void qlcnic_free_mac_list(struct qlcnic_adapter *adapter);
+void qlcnic_set_multi(struct net_device *);
+void __qlcnic_set_multi(struct net_device *, u16);
+int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *, u16);
+void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
 int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *);
@@ -1537,7 +1538,7 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_sriov_vf_schedule_multi(struct net_device *);
-void qlcnic_vf_add_mc_list(struct net_device *);
+void qlcnic_vf_add_mc_list(struct net_device *, u16);
 
 /*
  * QLOGIC Board information
@@ -1613,6 +1614,7 @@ struct qlcnic_hardware_ops {
 	int (*config_promisc_mode) (struct qlcnic_adapter *, u32);
 	void (*change_l2_filter) (struct qlcnic_adapter *, u64 *, u16);
 	int (*get_board_info) (struct qlcnic_adapter *);
+	void (*free_mac_list) (struct qlcnic_adapter *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -1820,6 +1822,11 @@ static inline void qlcnic_change_filter(struct qlcnic_adapter *adapter,
 static inline int qlcnic_get_board_info(struct qlcnic_adapter *adapter)
 {
 	return adapter->ahw->hw_ops->get_board_info(adapter);
+}
+
+static inline void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
+{
+	return adapter->ahw->hw_ops->free_mac_list(adapter);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,
