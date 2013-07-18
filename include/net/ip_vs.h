@@ -362,6 +362,9 @@ struct ip_vs_conn {
 	union nf_inet_addr       caddr;          /* client address */
 	union nf_inet_addr       vaddr;          /* virtual address */
 	union nf_inet_addr       daddr;          /* destination address */
+#ifndef __GENKSYMS__ /* kABI fix for commit 3575792 (ipvs: extend connection flags to 32 bits) */
+	volatile __u32           flags;          /* status flags */
+#endif
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -374,7 +377,9 @@ struct ip_vs_conn {
 
 	/* Flags and state transition */
 	spinlock_t              lock;           /* lock for state transition */
+#ifdef __GENKSYMS__ /* kABI fix for commit 3575792 (ipvs: extend connection flags to 32 bits) */
 	volatile __u16          flags;          /* status flags */
+#endif
 	volatile __u16          state;          /* state info */
 	volatile __u16          old_state;      /* old state, to be used for
 						 * state transition triggerd
