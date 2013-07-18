@@ -1182,6 +1182,13 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 		return -EOPNOTSUPP;
 	if (!!data) {
 		adapter->rx_csum = !!data;
+		if (adapter->flags & QLCNIC_LRO_WAS_ENABLED) {
+			if (qlcnic_config_hw_lro(adapter, QLCNIC_LRO_ENABLED))
+				return -EIO;
+			dev->features |= NETIF_F_LRO;
+			dev_info(&adapter->pdev->dev,
+				 "Enabling LRO as Rx checksum is on\n");
+		}
 		return 0;
 	}
 
@@ -1192,7 +1199,8 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 		dev->features &= ~NETIF_F_LRO;
 		qlcnic_send_lro_cleanup(adapter);
 		dev_info(&adapter->pdev->dev,
-					"disabling LRO as rx_csum is off\n");
+			 "Disabling LRO as rx_csum is off\n");
+		adapter->flags |= QLCNIC_LRO_WAS_ENABLED;
 	}
 	adapter->rx_csum = !!data;
 	return 0;
