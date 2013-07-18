@@ -1033,6 +1033,7 @@ static void qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 {
 	struct net_device *netdev = adapter->netdev;
 	unsigned long features, vlan_features;
+	int hw_lro;
 
 	if (qlcnic_83xx_check(adapter))
 		return;
@@ -1051,8 +1052,16 @@ static void qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 		features |= NETIF_F_LRO;
 
 	if (esw_cfg->offload_flags & BIT_0) {
-		netdev->features |= features;
 		adapter->rx_csum = 1;
+		if (adapter->flags & QLCNIC_LRO_WAS_ENABLED) {
+			hw_lro = QLCNIC_LRO_ENABLED;
+			if (qlcnic_config_hw_lro(adapter, hw_lro))
+				return;
+			dev_info(&adapter->pdev->dev,
+				 "Enabling LRO as Rx checksum is on\n");
+			netdev->features |= NETIF_F_LRO;
+		}
+		netdev->features |= features;
 		if (!(esw_cfg->offload_flags & BIT_1)) {
 			netdev->features &= ~NETIF_F_TSO;
 			features &= ~NETIF_F_TSO;
@@ -1062,6 +1071,17 @@ static void qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 			features &= ~NETIF_F_TSO6;
 		}
 	} else {
+		if (netdev->features & NETIF_F_LRO) {
+			hw_lro = QLCNIC_LRO_DISABLED;
+			if (qlcnic_config_hw_lro(adapter, hw_lro))
+				return;
+
+			if (qlcnic_82xx_check(adapter))
+				qlcnic_send_lro_cleanup(adapter);
+			dev_info(&adapter->pdev->dev,
+				 "Disabling LRO as rx_csum is off\n");
+			adapter->flags |= QLCNIC_LRO_WAS_ENABLED;
+		}
 		netdev->features &= ~features;
 		features &= ~features;
 		adapter->rx_csum = 0;
