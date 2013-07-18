@@ -200,6 +200,8 @@ fw-shipped-$(CONFIG_BRCMSMAC) += brcm/bcm43xx-0.fw brcm/bcm43xx_hdr-0.fw
 fw-shipped-$(CONFIG_RT2800PCI) += rt2860.bin
 fw-shipped-$(CONFIG_RT2800USB) += rt2870.bin
 
+fw-shipped-$(CONFIG_CARL9170) += carl9170-1.fw
+
 # This section is firmware required by the integrated compat-wireless
 # build.  All of those drivers are modules, and their config is turned-off
 # in the base kernel.  So, force them to fw-shipped-m below.
