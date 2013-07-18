@@ -892,7 +892,9 @@ extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
+extern int sysctl_ip_vs_sync_ver;
 
+extern void ip_vs_sync_switch_mode(int mode);
 extern struct ip_vs_service *
 ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);

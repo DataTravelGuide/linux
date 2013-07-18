@@ -87,7 +87,8 @@ int sysctl_ip_vs_expire_nodest_conn = 0;
 int sysctl_ip_vs_expire_quiescent_template = 0;
 int sysctl_ip_vs_sync_threshold[2] = { 3, 50 };
 int sysctl_ip_vs_nat_icmp_send = 0;
-
+int sysctl_ip_vs_snat_reroute = 1;
+int sysctl_ip_vs_sync_ver = 1;		/* Default version of sync proto */
 
 #ifdef CONFIG_IP_VS_DEBUG
 static int sysctl_ip_vs_debug_level = 0;
@@ -1571,6 +1572,25 @@ proc_do_sync_threshold(ctl_table *table, int write,
 	return rc;
 }
 
+static int
+proc_do_sync_mode(ctl_table *table, int write,
+		     void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = table->data;
+	int val = *valp;
+	int rc;
+
+	rc = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write && (*valp != val)) {
+		if ((*valp < 0) || (*valp > 1)) {
+			/* Restore the correct value */
+			*valp = val;
+		} else {
+			ip_vs_sync_switch_mode(val);
+		}
+	}
+	return rc;
+}
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
@@ -1620,6 +1640,13 @@ static struct ctl_table vs_vars[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_do_defense_mode,
+	},
+	{
+		.procname	= "sync_version",
+		.data		= &sysctl_ip_vs_sync_ver,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_do_sync_mode,
 	},
 #if 0
 	{
