@@ -1,5 +1,5 @@
 /*
- * Atheros AR9170 driver
+ * Atheros CARL9170 driver
  *
  * PHY and RF code
  *
@@ -37,33 +37,34 @@
  */
 
 #include <linux/bitrev.h>
-#include "ar9170.h"
+#include "carl9170.h"
 #include "cmd.h"
+#include "phy.h"
 
-static int ar9170_init_power_cal(struct ar9170 *ar)
+static int carl9170_init_power_cal(struct ar9170 *ar)
 {
-	ar9170_regwrite_begin(ar);
+	carl9170_regwrite_begin(ar);
 
-	ar9170_regwrite(0x1bc000 + 0x993c, 0x7f);
-	ar9170_regwrite(0x1bc000 + 0x9934, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0x9938, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa234, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa238, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa38c, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa390, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa3cc, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa3d0, 0x3f3f3f3f);
-	ar9170_regwrite(0x1bc000 + 0xa3d4, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE_MAX, 0x7f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE1, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE2, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE3, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE4, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE5, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE6, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE7, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE8, 0x3f3f3f3f);
+	carl9170_regwrite(AR9170_PHY_REG_POWER_TX_RATE9, 0x3f3f3f3f);
 
-	ar9170_regwrite_finish();
-	return ar9170_regwrite_result();
+	carl9170_regwrite_finish();
+	return carl9170_regwrite_result();
 }
 
-struct ar9170_phy_init {
+struct carl9170_phy_init {
 	u32 reg, _5ghz_20, _5ghz_40, _2ghz_40, _2ghz_20;
 };
 
-static struct ar9170_phy_init ar5416_phy_init[] = {
+static struct carl9170_phy_init ar5416_phy_init[] = {
 	{ 0x1c5800, 0x00000007, 0x00000007, 0x00000007, 0x00000007, },
 	{ 0x1c5804, 0x00000300, 0x000003c4, 0x000003c4, 0x00000300, },
 	{ 0x1c5808, 0x00000000, 0x00000000, 0x00000000, 0x00000000, },
@@ -84,11 +85,12 @@ static struct ar9170_phy_init ar5416_phy_init[] = {
 	{ 0x1c5844, 0x1372161e, 0x13721c1e, 0x13721c24, 0x137216a4, },
 	{ 0x1c5848, 0x001a6a65, 0x001a6a65, 0x00197a68, 0x00197a68, },
 	{ 0x1c584c, 0x1284233c, 0x1284233c, 0x1284233c, 0x1284233c, },
-	{ 0x1c5850, 0x6c48b4e4, 0x6c48b4e4, 0x6c48b0e4, 0x6c48b0e4, },
+	{ 0x1c5850, 0x6c48b4e4, 0x6d48b4e4, 0x6d48b0e4, 0x6c48b0e4, },
 	{ 0x1c5854, 0x00000859, 0x00000859, 0x00000859, 0x00000859, },
 	{ 0x1c5858, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, },
-	{ 0x1c585c, 0x31395c5e, 0x31395c5e, 0x31395c5e, 0x31395c5e, },
+	{ 0x1c585c, 0x31395c5e, 0x3139605e, 0x3139605e, 0x31395c5e, },
 	{ 0x1c5860, 0x0004dd10, 0x0004dd10, 0x0004dd20, 0x0004dd20, },
+	{ 0x1c5864, 0x0001c600, 0x0001c600, 0x0001c600, 0x0001c600, },
 	{ 0x1c5868, 0x409a4190, 0x409a4190, 0x409a4190, 0x409a4190, },
 	{ 0x1c586c, 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081, },
 	{ 0x1c5900, 0x00000000, 0x00000000, 0x00000000, 0x00000000, },
@@ -130,9 +132,10 @@ static struct ar9170_phy_init ar5416_phy_init[] = {
 	{ 0x1c59ac, 0x006f00c4, 0x006f00c4, 0x006f00c4, 0x006f00c4, },
 	{ 0x1c59b0, 0x03051000, 0x03051000, 0x03051000, 0x03051000, },
 	{ 0x1c59b4, 0x00000820, 0x00000820, 0x00000820, 0x00000820, },
+	{ 0x1c59bc, 0x00181400, 0x00181400, 0x00181400, 0x00181400, },
 	{ 0x1c59c0, 0x038919be, 0x038919be, 0x038919be, 0x038919be, },
 	{ 0x1c59c4, 0x06336f77, 0x06336f77, 0x06336f77, 0x06336f77, },
-	{ 0x1c59c8, 0x60f6532c, 0x60f6532c, 0x60f6532c, 0x60f6532c, },
+	{ 0x1c59c8, 0x6af6532c, 0x6af6532c, 0x6af6532c, 0x6af6532c, },
 	{ 0x1c59cc, 0x08f186c8, 0x08f186c8, 0x08f186c8, 0x08f186c8, },
 	{ 0x1c59d0, 0x00046384, 0x00046384, 0x00046384, 0x00046384, },
 	{ 0x1c59d4, 0x00000000, 0x00000000, 0x00000000, 0x00000000, },
@@ -400,7 +403,7 @@ static struct ar9170_phy_init ar5416_phy_init[] = {
  * look up a certain register in ar5416_phy_init[] and return the init. value
  * for the band and bandwidth given. Return 0 if register address not found.
  */
-static u32 ar9170_get_default_phy_reg_val(u32 reg, bool is_2ghz, bool is_40mhz)
+static u32 carl9170_def_val(u32 reg, bool is_2ghz, bool is_40mhz)
 {
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(ar5416_phy_init); i++) {
@@ -424,116 +427,127 @@ static u32 ar9170_get_default_phy_reg_val(u32 reg, bool is_2ghz, bool is_40mhz)
 
 /*
  * initialize some phy regs from eeprom values in modal_header[]
- * acc. to band and bandwith
+ * acc. to band and bandwidth
  */
-static int ar9170_init_phy_from_eeprom(struct ar9170 *ar,
+static int carl9170_init_phy_from_eeprom(struct ar9170 *ar,
 				bool is_2ghz, bool is_40mhz)
 {
 	static const u8 xpd2pd[16] = {
 		0x2, 0x2, 0x2, 0x1, 0x2, 0x2, 0x6, 0x2,
-		0x2, 0x3, 0x7, 0x2, 0xB, 0x2, 0x2, 0x2
+		0x2, 0x3, 0x7, 0x2, 0xb, 0x2, 0x2, 0x2
 	};
-	u32 defval, newval;
 	/* pointer to the modal_header acc. to band */
 	struct ar9170_eeprom_modal *m = &ar->eeprom.modal_header[is_2ghz];
+	u32 val;
 
-	ar9170_regwrite_begin(ar);
+	carl9170_regwrite_begin(ar);
 
 	/* ant common control (index 0) */
-	newval = le32_to_cpu(m->antCtrlCommon);
-	ar9170_regwrite(0x1c5964, newval);
+	carl9170_regwrite(AR9170_PHY_REG_SWITCH_COM,
+		le32_to_cpu(m->antCtrlCommon));
 
 	/* ant control chain 0 (index 1) */
-	newval = le32_to_cpu(m->antCtrlChain[0]);
-	ar9170_regwrite(0x1c5960, newval);
+	carl9170_regwrite(AR9170_PHY_REG_SWITCH_CHAIN_0,
+		le32_to_cpu(m->antCtrlChain[0]));
 
 	/* ant control chain 2 (index 2) */
-	newval = le32_to_cpu(m->antCtrlChain[1]);
-	ar9170_regwrite(0x1c7960, newval);
+	carl9170_regwrite(AR9170_PHY_REG_SWITCH_CHAIN_2,
+		le32_to_cpu(m->antCtrlChain[1]));
 
 	/* SwSettle (index 3) */
 	if (!is_40mhz) {
-		defval = ar9170_get_default_phy_reg_val(0x1c5844,
-							is_2ghz, is_40mhz);
-		newval = (defval & ~0x3f80) |
-			((m->switchSettling & 0x7f) << 7);
-		ar9170_regwrite(0x1c5844, newval);
+		val = carl9170_def_val(AR9170_PHY_REG_SETTLING,
+				     is_2ghz, is_40mhz);
+		SET_VAL(AR9170_PHY_SETTLING_SWITCH, val, m->switchSettling);
+		carl9170_regwrite(AR9170_PHY_REG_SETTLING, val);
 	}
 
 	/* adcDesired, pdaDesired (index 4) */
-	defval = ar9170_get_default_phy_reg_val(0x1c5850, is_2ghz, is_40mhz);
-	newval = (defval & ~0xffff) | ((u8)m->pgaDesiredSize << 8) |
-		((u8)m->adcDesiredSize);
-	ar9170_regwrite(0x1c5850, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_DESIRED_SZ, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_DESIRED_SZ_PGA, val, m->pgaDesiredSize);
+	SET_VAL(AR9170_PHY_DESIRED_SZ_ADC, val, m->adcDesiredSize);
+	carl9170_regwrite(AR9170_PHY_REG_DESIRED_SZ, val);
 
 	/* TxEndToXpaOff, TxFrameToXpaOn (index 5) */
-	defval = ar9170_get_default_phy_reg_val(0x1c5834, is_2ghz, is_40mhz);
-	newval = (m->txEndToXpaOff << 24) | (m->txEndToXpaOff << 16) |
-		(m->txFrameToXpaOn << 8) | m->txFrameToXpaOn;
-	ar9170_regwrite(0x1c5834, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_RF_CTL4, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_RF_CTL4_TX_END_XPAB_OFF, val, m->txEndToXpaOff);
+	SET_VAL(AR9170_PHY_RF_CTL4_TX_END_XPAA_OFF, val, m->txEndToXpaOff);
+	SET_VAL(AR9170_PHY_RF_CTL4_FRAME_XPAB_ON, val, m->txFrameToXpaOn);
+	SET_VAL(AR9170_PHY_RF_CTL4_FRAME_XPAA_ON, val, m->txFrameToXpaOn);
+	carl9170_regwrite(AR9170_PHY_REG_RF_CTL4, val);
 
 	/* TxEndToRxOn (index 6) */
-	defval = ar9170_get_default_phy_reg_val(0x1c5828, is_2ghz, is_40mhz);
-	newval = (defval & ~0xff0000) | (m->txEndToRxOn << 16);
-	ar9170_regwrite(0x1c5828, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_RF_CTL3, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_RF_CTL3_TX_END_TO_A2_RX_ON, val, m->txEndToRxOn);
+	carl9170_regwrite(AR9170_PHY_REG_RF_CTL3, val);
 
 	/* thresh62 (index 7) */
-	defval = ar9170_get_default_phy_reg_val(0x1c8864, is_2ghz, is_40mhz);
-	newval = (defval & ~0x7f000) | (m->thresh62 << 12);
-	ar9170_regwrite(0x1c8864, newval);
+	val = carl9170_def_val(0x1c8864, is_2ghz, is_40mhz);
+	val = (val & ~0x7f000) | (m->thresh62 << 12);
+	carl9170_regwrite(0x1c8864, val);
 
 	/* tx/rx attenuation chain 0 (index 8) */
-	defval = ar9170_get_default_phy_reg_val(0x1c5848, is_2ghz, is_40mhz);
-	newval = (defval & ~0x3f000) | ((m->txRxAttenCh[0] & 0x3f) << 12);
-	ar9170_regwrite(0x1c5848, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_RXGAIN, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_RXGAIN_TXRX_ATTEN, val, m->txRxAttenCh[0]);
+	carl9170_regwrite(AR9170_PHY_REG_RXGAIN, val);
 
 	/* tx/rx attenuation chain 2 (index 9) */
-	defval = ar9170_get_default_phy_reg_val(0x1c7848, is_2ghz, is_40mhz);
-	newval = (defval & ~0x3f000) | ((m->txRxAttenCh[1] & 0x3f) << 12);
-	ar9170_regwrite(0x1c7848, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_RXGAIN_CHAIN_2,
+			       is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_RXGAIN_TXRX_ATTEN, val, m->txRxAttenCh[1]);
+	carl9170_regwrite(AR9170_PHY_REG_RXGAIN_CHAIN_2, val);
 
 	/* tx/rx margin chain 0 (index 10) */
-	defval = ar9170_get_default_phy_reg_val(0x1c620c, is_2ghz, is_40mhz);
-	newval = (defval & ~0xfc0000) | ((m->rxTxMarginCh[0] & 0x3f) << 18);
+	val = carl9170_def_val(AR9170_PHY_REG_GAIN_2GHZ, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_GAIN_2GHZ_RXTX_MARGIN, val, m->rxTxMarginCh[0]);
 	/* bsw margin chain 0 for 5GHz only */
 	if (!is_2ghz)
-		newval = (newval & ~0x3c00) | ((m->bswMargin[0] & 0xf) << 10);
-	ar9170_regwrite(0x1c620c, newval);
+		SET_VAL(AR9170_PHY_GAIN_2GHZ_BSW_MARGIN, val, m->bswMargin[0]);
+	carl9170_regwrite(AR9170_PHY_REG_GAIN_2GHZ, val);
 
 	/* tx/rx margin chain 2 (index 11) */
-	defval = ar9170_get_default_phy_reg_val(0x1c820c, is_2ghz, is_40mhz);
-	newval = (defval & ~0xfc0000) | ((m->rxTxMarginCh[1] & 0x3f) << 18);
-	ar9170_regwrite(0x1c820c, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_GAIN_2GHZ_CHAIN_2,
+			       is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_GAIN_2GHZ_RXTX_MARGIN, val, m->rxTxMarginCh[1]);
+	carl9170_regwrite(AR9170_PHY_REG_GAIN_2GHZ_CHAIN_2, val);
 
 	/* iqCall, iqCallq chain 0 (index 12) */
-	defval = ar9170_get_default_phy_reg_val(0x1c5920, is_2ghz, is_40mhz);
-	newval = (defval & ~0x7ff) | (((u8)m->iqCalICh[0] & 0x3f) << 5) |
-		((u8)m->iqCalQCh[0] & 0x1f);
-	ar9170_regwrite(0x1c5920, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_TIMING_CTRL4(0),
+			       is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF, val, m->iqCalICh[0]);
+	SET_VAL(AR9170_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF, val, m->iqCalQCh[0]);
+	carl9170_regwrite(AR9170_PHY_REG_TIMING_CTRL4(0), val);
 
 	/* iqCall, iqCallq chain 2 (index 13) */
-	defval = ar9170_get_default_phy_reg_val(0x1c7920, is_2ghz, is_40mhz);
-	newval = (defval & ~0x7ff) | (((u8)m->iqCalICh[1] & 0x3f) << 5) |
-		((u8)m->iqCalQCh[1] & 0x1f);
-	ar9170_regwrite(0x1c7920, newval);
+	val = carl9170_def_val(AR9170_PHY_REG_TIMING_CTRL4(2),
+			       is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF, val, m->iqCalICh[1]);
+	SET_VAL(AR9170_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF, val, m->iqCalQCh[1]);
+	carl9170_regwrite(AR9170_PHY_REG_TIMING_CTRL4(2), val);
 
 	/* xpd gain mask (index 14) */
-	defval = ar9170_get_default_phy_reg_val(0x1c6258, is_2ghz, is_40mhz);
-	newval = (defval & ~0xf0000) | (xpd2pd[m->xpdGain & 0xf] << 16);
-	ar9170_regwrite(0x1c6258, newval);
-	ar9170_regwrite_finish();
+	val = carl9170_def_val(AR9170_PHY_REG_TPCRG1, is_2ghz, is_40mhz);
+	SET_VAL(AR9170_PHY_TPCRG1_PD_GAIN_1, val,
+		xpd2pd[m->xpdGain & 0xf] & 3);
+	SET_VAL(AR9170_PHY_TPCRG1_PD_GAIN_2, val,
+		xpd2pd[m->xpdGain & 0xf] >> 2);
+	carl9170_regwrite(AR9170_PHY_REG_TPCRG1, val);
 
-	return ar9170_regwrite_result();
+	carl9170_regwrite(AR9170_PHY_REG_RX_CHAINMASK, ar->eeprom.rx_mask);
+	carl9170_regwrite(AR9170_PHY_REG_CAL_CHAINMASK, ar->eeprom.rx_mask);
+
+	carl9170_regwrite_finish();
+	return carl9170_regwrite_result();
 }
 
-int ar9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
+static int carl9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
 {
 	int i, err;
 	u32 val;
 	bool is_2ghz = band == IEEE80211_BAND_2GHZ;
 	bool is_40mhz = conf_is_ht40(&ar->hw->conf);
 
-	ar9170_regwrite_begin(ar);
+	carl9170_regwrite_begin(ar);
 
 	for (i = 0; i < ARRAY_SIZE(ar5416_phy_init); i++) {
 		if (is_40mhz) {
@@ -548,215 +562,154 @@ int ar9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
 				val = ar5416_phy_init[i]._5ghz_20;
 		}
 
-		ar9170_regwrite(ar5416_phy_init[i].reg, val);
+		carl9170_regwrite(ar5416_phy_init[i].reg, val);
 	}
 
-	ar9170_regwrite_finish();
-	err = ar9170_regwrite_result();
+	carl9170_regwrite_finish();
+	err = carl9170_regwrite_result();
 	if (err)
 		return err;
 
-	err = ar9170_init_phy_from_eeprom(ar, is_2ghz, is_40mhz);
+	err = carl9170_init_phy_from_eeprom(ar, is_2ghz, is_40mhz);
 	if (err)
 		return err;
 
-	err = ar9170_init_power_cal(ar);
+	err = carl9170_init_power_cal(ar);
 	if (err)
 		return err;
 
-	/* XXX: remove magic! */
-	if (is_2ghz)
-		err = ar9170_write_reg(ar, 0x1d4014, 0x5163);
-	else
-		err = ar9170_write_reg(ar, 0x1d4014, 0x5143);
+	if (!ar->fw.hw_counters) {
+		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC,
+					 is_2ghz ? 0x5163 : 0x5143);
+	}
 
 	return err;
 }
 
-struct ar9170_rf_init {
+struct carl9170_rf_initvals {
 	u32 reg, _5ghz, _2ghz;
 };
 
-static struct ar9170_rf_init ar9170_rf_init[] = {
-     /* bank 0 */
-     { 0x1c58b0,  0x1e5795e5,  0x1e5795e5},
-     { 0x1c58e0,  0x02008020,  0x02008020},
-     /* bank 1 */
-     { 0x1c58b0,  0x02108421,  0x02108421},
-     { 0x1c58ec,  0x00000008,  0x00000008},
-     /* bank 2 */
-     { 0x1c58b0,  0x0e73ff17,  0x0e73ff17},
-     { 0x1c58e0,  0x00000420,  0x00000420},
-     /* bank 3 */
-     { 0x1c58f0,  0x01400018,  0x01c00018},
-     /* bank 4 */
-     { 0x1c58b0,  0x000001a1,  0x000001a1},
-     { 0x1c58e8,  0x00000001,  0x00000001},
-     /* bank 5 */
-     { 0x1c58b0,  0x00000013,  0x00000013},
-     { 0x1c58e4,  0x00000002,  0x00000002},
-     /* bank 6 */
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00004000,  0x00004000},
-     { 0x1c58b0,  0x00006c00,  0x00006c00},
-     { 0x1c58b0,  0x00002c00,  0x00002c00},
-     { 0x1c58b0,  0x00004800,  0x00004800},
-     { 0x1c58b0,  0x00004000,  0x00004000},
-     { 0x1c58b0,  0x00006000,  0x00006000},
-     { 0x1c58b0,  0x00001000,  0x00001000},
-     { 0x1c58b0,  0x00004000,  0x00004000},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00087c00,  0x00087c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00005400,  0x00005400},
-     { 0x1c58b0,  0x00000c00,  0x00000c00},
-     { 0x1c58b0,  0x00001800,  0x00001800},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00006c00,  0x00006c00},
-     { 0x1c58b0,  0x00006c00,  0x00006c00},
-     { 0x1c58b0,  0x00007c00,  0x00007c00},
-     { 0x1c58b0,  0x00002c00,  0x00002c00},
-     { 0x1c58b0,  0x00003c00,  0x00003c00},
-     { 0x1c58b0,  0x00003800,  0x00003800},
-     { 0x1c58b0,  0x00001c00,  0x00001c00},
-     { 0x1c58b0,  0x00000800,  0x00000800},
-     { 0x1c58b0,  0x00000408,  0x00000408},
-     { 0x1c58b0,  0x00004c15,  0x00004c15},
-     { 0x1c58b0,  0x00004188,  0x00004188},
-     { 0x1c58b0,  0x0000201e,  0x0000201e},
-     { 0x1c58b0,  0x00010408,  0x00010408},
-     { 0x1c58b0,  0x00000801,  0x00000801},
-     { 0x1c58b0,  0x00000c08,  0x00000c08},
-     { 0x1c58b0,  0x0000181e,  0x0000181e},
-     { 0x1c58b0,  0x00001016,  0x00001016},
-     { 0x1c58b0,  0x00002800,  0x00002800},
-     { 0x1c58b0,  0x00004010,  0x00004010},
-     { 0x1c58b0,  0x0000081c,  0x0000081c},
-     { 0x1c58b0,  0x00000115,  0x00000115},
-     { 0x1c58b0,  0x00000015,  0x00000015},
-     { 0x1c58b0,  0x00000066,  0x00000066},
-     { 0x1c58b0,  0x0000001c,  0x0000001c},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000004,  0x00000004},
-     { 0x1c58b0,  0x00000015,  0x00000015},
-     { 0x1c58b0,  0x0000001f,  0x0000001f},
-     { 0x1c58e0,  0x00000000,  0x00000400},
-     /* bank 7 */
-     { 0x1c58b0,  0x000000a0,  0x000000a0},
-     { 0x1c58b0,  0x00000000,  0x00000000},
-     { 0x1c58b0,  0x00000040,  0x00000040},
-     { 0x1c58f0,  0x0000001c,  0x0000001c},
+static struct carl9170_rf_initvals carl9170_rf_initval[] = {
+	/* bank 0 */
+	{ 0x1c58b0, 0x1e5795e5, 0x1e5795e5},
+	{ 0x1c58e0, 0x02008020, 0x02008020},
+	/* bank 1 */
+	{ 0x1c58b0, 0x02108421, 0x02108421},
+	{ 0x1c58ec, 0x00000008, 0x00000008},
+	/* bank 2 */
+	{ 0x1c58b0, 0x0e73ff17, 0x0e73ff17},
+	{ 0x1c58e0, 0x00000420, 0x00000420},
+	/* bank 3 */
+	{ 0x1c58f0, 0x01400018, 0x01c00018},
+	/* bank 4 */
+	{ 0x1c58b0, 0x000001a1, 0x000001a1},
+	{ 0x1c58e8, 0x00000001, 0x00000001},
+	/* bank 5 */
+	{ 0x1c58b0, 0x00000013, 0x00000013},
+	{ 0x1c58e4, 0x00000002, 0x00000002},
+	/* bank 6 */
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00004000, 0x00004000},
+	{ 0x1c58b0, 0x00006c00, 0x00006c00},
+	{ 0x1c58b0, 0x00002c00, 0x00002c00},
+	{ 0x1c58b0, 0x00004800, 0x00004800},
+	{ 0x1c58b0, 0x00004000, 0x00004000},
+	{ 0x1c58b0, 0x00006000, 0x00006000},
+	{ 0x1c58b0, 0x00001000, 0x00001000},
+	{ 0x1c58b0, 0x00004000, 0x00004000},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00087c00, 0x00087c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00005400, 0x00005400},
+	{ 0x1c58b0, 0x00000c00, 0x00000c00},
+	{ 0x1c58b0, 0x00001800, 0x00001800},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00006c00, 0x00006c00},
+	{ 0x1c58b0, 0x00006c00, 0x00006c00},
+	{ 0x1c58b0, 0x00007c00, 0x00007c00},
+	{ 0x1c58b0, 0x00002c00, 0x00002c00},
+	{ 0x1c58b0, 0x00003c00, 0x00003c00},
+	{ 0x1c58b0, 0x00003800, 0x00003800},
+	{ 0x1c58b0, 0x00001c00, 0x00001c00},
+	{ 0x1c58b0, 0x00000800, 0x00000800},
+	{ 0x1c58b0, 0x00000408, 0x00000408},
+	{ 0x1c58b0, 0x00004c15, 0x00004c15},
+	{ 0x1c58b0, 0x00004188, 0x00004188},
+	{ 0x1c58b0, 0x0000201e, 0x0000201e},
+	{ 0x1c58b0, 0x00010408, 0x00010408},
+	{ 0x1c58b0, 0x00000801, 0x00000801},
+	{ 0x1c58b0, 0x00000c08, 0x00000c08},
+	{ 0x1c58b0, 0x0000181e, 0x0000181e},
+	{ 0x1c58b0, 0x00001016, 0x00001016},
+	{ 0x1c58b0, 0x00002800, 0x00002800},
+	{ 0x1c58b0, 0x00004010, 0x00004010},
+	{ 0x1c58b0, 0x0000081c, 0x0000081c},
+	{ 0x1c58b0, 0x00000115, 0x00000115},
+	{ 0x1c58b0, 0x00000015, 0x00000015},
+	{ 0x1c58b0, 0x00000066, 0x00000066},
+	{ 0x1c58b0, 0x0000001c, 0x0000001c},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000004, 0x00000004},
+	{ 0x1c58b0, 0x00000015, 0x00000015},
+	{ 0x1c58b0, 0x0000001f, 0x0000001f},
+	{ 0x1c58e0, 0x00000000, 0x00000400},
+	/* bank 7 */
+	{ 0x1c58b0, 0x000000a0, 0x000000a0},
+	{ 0x1c58b0, 0x00000000, 0x00000000},
+	{ 0x1c58b0, 0x00000040, 0x00000040},
+	{ 0x1c58f0, 0x0000001c, 0x0000001c},
 };
 
-static int ar9170_init_rf_banks_0_7(struct ar9170 *ar, bool band5ghz)
+static int carl9170_init_rf_banks_0_7(struct ar9170 *ar, bool band5ghz)
 {
 	int err, i;
 
-	ar9170_regwrite_begin(ar);
+	carl9170_regwrite_begin(ar);
 
-	for (i = 0; i < ARRAY_SIZE(ar9170_rf_init); i++)
-		ar9170_regwrite(ar9170_rf_init[i].reg,
-				band5ghz ? ar9170_rf_init[i]._5ghz
-					 : ar9170_rf_init[i]._2ghz);
+	for (i = 0; i < ARRAY_SIZE(carl9170_rf_initval); i++)
+		carl9170_regwrite(carl9170_rf_initval[i].reg,
+				  band5ghz ? carl9170_rf_initval[i]._5ghz
+					   : carl9170_rf_initval[i]._2ghz);
 
-	ar9170_regwrite_finish();
-	err = ar9170_regwrite_result();
+	carl9170_regwrite_finish();
+	err = carl9170_regwrite_result();
 	if (err)
 		wiphy_err(ar->hw->wiphy, "rf init failed\n");
+
 	return err;
 }
 
-static int ar9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
-				    u32 freq, enum ar9170_bw bw)
-{
-	int err;
-	u32 d0, d1, td0, td1, fd0, fd1;
-	u8 chansel;
-	u8 refsel0 = 1, refsel1 = 0;
-	u8 lf_synth = 0;
-
-	switch (bw) {
-	case AR9170_BW_40_ABOVE:
-		freq += 10;
-		break;
-	case AR9170_BW_40_BELOW:
-		freq -= 10;
-		break;
-	case AR9170_BW_20:
-		break;
-	case __AR9170_NUM_BW:
-		BUG();
-	}
-
-	if (band5ghz) {
-		if (freq % 10) {
-			chansel = (freq - 4800) / 5;
-		} else {
-			chansel = ((freq - 4800) / 10) * 2;
-			refsel0 = 0;
-			refsel1 = 1;
-		}
-		chansel = byte_rev_table[chansel];
-	} else {
-		if (freq == 2484) {
-			chansel = 10 + (freq - 2274) / 5;
-			lf_synth = 1;
-		} else
-			chansel = 16 + (freq - 2272) / 5;
-		chansel *= 4;
-		chansel = byte_rev_table[chansel];
-	}
-
-	d1 =	chansel;
-	d0 =	0x21 |
-		refsel0 << 3 |
-		refsel1 << 2 |
-		lf_synth << 1;
-	td0 =	d0 & 0x1f;
-	td1 =	d1 & 0x1f;
-	fd0 =	td1 << 5 | td0;
-
-	td0 =	(d0 >> 5) & 0x7;
-	td1 =	(d1 >> 5) & 0x7;
-	fd1 =	td1 << 5 | td0;
-
-	ar9170_regwrite_begin(ar);
-
-	ar9170_regwrite(0x1c58b0, fd0);
-	ar9170_regwrite(0x1c58e8, fd1);
-
-	ar9170_regwrite_finish();
-	err = ar9170_regwrite_result();
-	if (err)
-		return err;
-
-	msleep(10);
-
-	return 0;
-}
-
-struct ar9170_phy_freq_params {
+struct carl9170_phy_freq_params {
 	u8 coeff_exp;
 	u16 coeff_man;
 	u8 coeff_exp_shgi;
 	u16 coeff_man_shgi;
 };
 
-struct ar9170_phy_freq_entry {
+enum carl9170_bw {
+	CARL9170_BW_20,
+	CARL9170_BW_40_BELOW,
+	CARL9170_BW_40_ABOVE,
+
+	__CARL9170_NUM_BW,
+};
+
+struct carl9170_phy_freq_entry {
 	u16 freq;
-	struct ar9170_phy_freq_params params[__AR9170_NUM_BW];
+	struct carl9170_phy_freq_params params[__CARL9170_NUM_BW];
 };
 
 /* NB: must be in sync with channel tables in main! */
-static const struct ar9170_phy_freq_entry ar9170_phy_freq_params[] = {
+static const struct carl9170_phy_freq_entry carl9170_phy_freq_params[] = {
 /*
  *	freq,
  *		20MHz,
@@ -1010,9 +963,77 @@ static const struct ar9170_phy_freq_entry ar9170_phy_freq_params[] = {
 	} },
 };
 
-static const struct ar9170_phy_freq_params *
-ar9170_get_hw_dyn_params(struct ieee80211_channel *channel,
-			 enum ar9170_bw bw)
+static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
+				      u32 freq, enum carl9170_bw bw)
+{
+	int err;
+	u32 d0, d1, td0, td1, fd0, fd1;
+	u8 chansel;
+	u8 refsel0 = 1, refsel1 = 0;
+	u8 lf_synth = 0;
+
+	switch (bw) {
+	case CARL9170_BW_40_ABOVE:
+		freq += 10;
+		break;
+	case CARL9170_BW_40_BELOW:
+		freq -= 10;
+		break;
+	case CARL9170_BW_20:
+		break;
+	default:
+		BUG();
+		return -ENOSYS;
+	}
+
+	if (band5ghz) {
+		if (freq % 10) {
+			chansel = (freq - 4800) / 5;
+		} else {
+			chansel = ((freq - 4800) / 10) * 2;
+			refsel0 = 0;
+			refsel1 = 1;
+		}
+		chansel = byte_rev_table[chansel];
+	} else {
+		if (freq == 2484) {
+			chansel = 10 + (freq - 2274) / 5;
+			lf_synth = 1;
+		} else
+			chansel = 16 + (freq - 2272) / 5;
+		chansel *= 4;
+		chansel = byte_rev_table[chansel];
+	}
+
+	d1 =	chansel;
+	d0 =	0x21 |
+		refsel0 << 3 |
+		refsel1 << 2 |
+		lf_synth << 1;
+	td0 =	d0 & 0x1f;
+	td1 =	d1 & 0x1f;
+	fd0 =	td1 << 5 | td0;
+
+	td0 =	(d0 >> 5) & 0x7;
+	td1 =	(d1 >> 5) & 0x7;
+	fd1 =	td1 << 5 | td0;
+
+	carl9170_regwrite_begin(ar);
+
+	carl9170_regwrite(0x1c58b0, fd0);
+	carl9170_regwrite(0x1c58e8, fd1);
+
+	carl9170_regwrite_finish();
+	err = carl9170_regwrite_result();
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static const struct carl9170_phy_freq_params *
+carl9170_get_hw_dyn_params(struct ieee80211_channel *channel,
+			   enum carl9170_bw bw)
 {
 	unsigned int chanidx = 0;
 	u16 freq = 2412;
@@ -1022,53 +1043,16 @@ ar9170_get_hw_dyn_params(struct ieee80211_channel *channel,
 		freq = channel->center_freq;
 	}
 
-	BUG_ON(chanidx >= ARRAY_SIZE(ar9170_phy_freq_params));
+	BUG_ON(chanidx >= ARRAY_SIZE(carl9170_phy_freq_params));
 
-	BUILD_BUG_ON(__AR9170_NUM_BW != 3);
+	BUILD_BUG_ON(__CARL9170_NUM_BW != 3);
 
-	WARN_ON(ar9170_phy_freq_params[chanidx].freq != freq);
+	WARN_ON(carl9170_phy_freq_params[chanidx].freq != freq);
 
-	return &ar9170_phy_freq_params[chanidx].params[bw];
+	return &carl9170_phy_freq_params[chanidx].params[bw];
 }
 
-
-int ar9170_init_rf(struct ar9170 *ar)
-{
-	const struct ar9170_phy_freq_params *freqpar;
-	__le32 cmd[7];
-	int err;
-
-	err = ar9170_init_rf_banks_0_7(ar, false);
-	if (err)
-		return err;
-
-	err = ar9170_init_rf_bank4_pwr(ar, false, 2412, AR9170_BW_20);
-	if (err)
-		return err;
-
-	freqpar = ar9170_get_hw_dyn_params(NULL, AR9170_BW_20);
-
-	cmd[0] = cpu_to_le32(2412 * 1000);
-	cmd[1] = cpu_to_le32(0);
-	cmd[2] = cpu_to_le32(1);
-	cmd[3] = cpu_to_le32(freqpar->coeff_exp);
-	cmd[4] = cpu_to_le32(freqpar->coeff_man);
-	cmd[5] = cpu_to_le32(freqpar->coeff_exp_shgi);
-	cmd[6] = cpu_to_le32(freqpar->coeff_man_shgi);
-
-	/* RF_INIT echoes the command back to us */
-	err = ar->exec_cmd(ar, AR9170_CMD_RF_INIT,
-			   sizeof(cmd), (u8 *)cmd,
-			   sizeof(cmd), (u8 *)cmd);
-	if (err)
-		return err;
-
-	msleep(1000);
-
-	return ar9170_echo_test(ar, 0xaabbccdd);
-}
-
-static int ar9170_find_freq_idx(int nfreqs, u8 *freqs, u8 f)
+static int carl9170_find_freq_idx(int nfreqs, u8 *freqs, u8 f)
 {
 	int idx = nfreqs - 2;
 
@@ -1081,7 +1065,7 @@ static int ar9170_find_freq_idx(int nfreqs, u8 *freqs, u8 f)
 	return 0;
 }
 
-static s32 ar9170_interpolate_s32(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
+static s32 carl9170_interpolate_s32(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
 {
 	/* nothing to interpolate, it's horizontal */
 	if (y2 == y1)
@@ -1100,41 +1084,38 @@ static s32 ar9170_interpolate_s32(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
 	return y1 + (((y2 - y1) * (x - x1)) / (x2 - x1));
 }
 
-static u8 ar9170_interpolate_u8(u8 x, u8 x1, u8 y1, u8 x2, u8 y2)
+static u8 carl9170_interpolate_u8(u8 x, u8 x1, u8 y1, u8 x2, u8 y2)
 {
 #define SHIFT		8
 	s32 y;
 
-	y = ar9170_interpolate_s32(x << SHIFT,
-				   x1 << SHIFT, y1 << SHIFT,
-				   x2 << SHIFT, y2 << SHIFT);
+	y = carl9170_interpolate_s32(x << SHIFT, x1 << SHIFT,
+		y1 << SHIFT, x2 << SHIFT, y2 << SHIFT);
 
 	/*
 	 * XXX: unwrap this expression
 	 *	Isn't it just DIV_ROUND_UP(y, 1<<SHIFT)?
 	 *	Can we rely on the compiler to optimise away the div?
 	 */
-	return (y >> SHIFT) + ((y & (1<<(SHIFT-1))) >> (SHIFT - 1));
+	return (y >> SHIFT) + ((y & (1 << (SHIFT - 1))) >> (SHIFT - 1));
 #undef SHIFT
 }
 
-static u8 ar9170_interpolate_val(u8 x, u8 *x_array, u8 *y_array)
+static u8 carl9170_interpolate_val(u8 x, u8 *x_array, u8 *y_array)
 {
 	int i;
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++) {
 		if (x <= x_array[i + 1])
 			break;
+	}
 
-	return ar9170_interpolate_u8(x,
-				     x_array[i],
-				     y_array[i],
-				     x_array[i + 1],
-				     y_array[i + 1]);
+	return carl9170_interpolate_u8(x, x_array[i], y_array[i],
+		x_array[i + 1], y_array[i + 1]);
 }
 
-static int ar9170_set_freq_cal_data(struct ar9170 *ar,
-				    struct ieee80211_channel *channel)
+static int carl9170_set_freq_cal_data(struct ar9170 *ar,
+	struct ieee80211_channel *channel)
 {
 	u8 *cal_freq_pier;
 	u8 vpds[2][AR5416_PD_GAIN_ICEPTS];
@@ -1168,9 +1149,9 @@ static int ar9170_set_freq_cal_data(struct ar9170 *ar,
 	if (i < 0)
 		return -EINVAL;
 
-	idx = ar9170_find_freq_idx(i, cal_freq_pier, f);
+	idx = carl9170_find_freq_idx(i, cal_freq_pier, f);
 
-	ar9170_regwrite_begin(ar);
+	carl9170_regwrite_begin(ar);
 
 	for (chain = 0; chain < AR5416_MAX_CHAINS; chain++) {
 		for (i = 0; i < AR5416_PD_GAIN_ICEPTS; i++) {
@@ -1193,13 +1174,13 @@ static int ar9170_set_freq_cal_data(struct ar9170 *ar,
 			}
 
 			for (j = 0; j < 2; j++) {
-				vpds[j][i] = ar9170_interpolate_u8(f,
+				vpds[j][i] = carl9170_interpolate_u8(f,
 					cal_freq_pier[idx],
 					cal_pier_data->vpd_pdg[j][i],
 					cal_freq_pier[idx + 1],
 					cal_pier_data[1].vpd_pdg[j][i]);
 
-				pwrs[j][i] = ar9170_interpolate_u8(f,
+				pwrs[j][i] = carl9170_interpolate_u8(f,
 					cal_freq_pier[idx],
 					cal_pier_data->pwr_pdg[j][i],
 					cal_freq_pier[idx + 1],
@@ -1209,34 +1190,33 @@ static int ar9170_set_freq_cal_data(struct ar9170 *ar,
 
 		for (i = 0; i < 76; i++) {
 			if (i < 25) {
-				tmp = ar9170_interpolate_val(i, &pwrs[0][0],
-							     &vpds[0][0]);
+				tmp = carl9170_interpolate_val(i, &pwrs[0][0],
+							       &vpds[0][0]);
 			} else {
-				tmp = ar9170_interpolate_val(i - 12,
-							     &pwrs[1][0],
-							     &vpds[1][0]);
+				tmp = carl9170_interpolate_val(i - 12,
+							       &pwrs[1][0],
+							       &vpds[1][0]);
 			}
 
 			phy_data |= tmp << ((i & 3) << 3);
 			if ((i & 3) == 3) {
-				ar9170_regwrite(0x1c6280 + chain * 0x1000 +
-						(i & ~3), phy_data);
+				carl9170_regwrite(0x1c6280 + chain * 0x1000 +
+						  (i & ~3), phy_data);
 				phy_data = 0;
 			}
 		}
 
 		for (i = 19; i < 32; i++)
-			ar9170_regwrite(0x1c6280 + chain * 0x1000 + (i << 2),
-					0x0);
+			carl9170_regwrite(0x1c6280 + chain * 0x1000 + (i << 2),
+					  0x0);
 	}
 
-	ar9170_regwrite_finish();
-	return ar9170_regwrite_result();
+	carl9170_regwrite_finish();
+	return carl9170_regwrite_result();
 }
 
-static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
-				    struct ar9170_calctl_edges edges[],
-				    u32 freq)
+static u8 carl9170_get_max_edge_power(struct ar9170 *ar,
+	u32 freq, struct ar9170_calctl_edges edges[])
 {
 	int i;
 	u8 rc = AR5416_MAX_RATE_POWER;
@@ -1277,9 +1257,8 @@ static u8 ar9170_get_max_edge_power(struct ar9170 *ar,
 	return rc;
 }
 
-static u8 ar9170_get_heavy_clip(struct ar9170 *ar,
-				struct ar9170_calctl_edges edges[],
-				u32 freq, enum ar9170_bw bw)
+static u8 carl9170_get_heavy_clip(struct ar9170 *ar, u32 freq,
+	enum carl9170_bw bw, struct ar9170_calctl_edges edges[])
 {
 	u8 f;
 	int i;
@@ -1290,7 +1269,7 @@ static u8 ar9170_get_heavy_clip(struct ar9170 *ar,
 	else
 		f = (freq - 4800) / 5;
 
-	if (bw == AR9170_BW_40_BELOW || bw == AR9170_BW_40_ABOVE)
+	if (bw == CARL9170_BW_40_BELOW || bw == CARL9170_BW_40_ABOVE)
 		rc |= 0xf0;
 
 	for (i = 0; i < AR5416_NUM_BAND_EDGES; i++) {
@@ -1310,7 +1289,7 @@ static u8 ar9170_get_heavy_clip(struct ar9170 *ar,
  * calculate the conformance test limits and the heavy clip parameter
  * and apply them to ar->power* (derived from otus hal/hpmain.c, line 3706)
  */
-static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
+static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 {
 	u8 ctl_grp; /* CTL group */
 	u8 ctl_idx; /* CTL index */
@@ -1341,7 +1320,7 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 
 #define EDGES(c, n) (ar->eeprom.ctl_data[c].control_edges[n])
 
-	ar->phy_heavy_clip = 0;
+	ar->heavy_clip = 0;
 
 	/*
 	 * TODO: investigate the differences between OTUS'
@@ -1352,7 +1331,7 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 	 * CTL_ETSI for 2GHz and CTL_FCC for 5GHz.
 	 */
 	ctl_grp = ath_regd_get_band_ctl(&ar->common.regulatory,
-					ar->hw->conf.channel->band);
+					ar->hw->conf.chandef.chan->band);
 
 	/* ctl group not found - either invalid band (NO_CTL) or ww roaming */
 	if (ctl_grp == NO_CTL || ctl_grp == SD_NO_CTL)
@@ -1362,7 +1341,7 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 		/* skip CTL and heavy clip for CTL_MKK and CTL_ETSI */
 		return;
 
-	if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
+	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		modes = mode_list_2ghz;
 		nr_modes = ARRAY_SIZE(mode_list_2ghz);
 	} else {
@@ -1378,31 +1357,32 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 		if (ctl_idx < AR5416_NUM_CTLS) {
 			int f_off = 0;
 
-			/* determine heav clip parameter from
-			   the 11G edges array */
+			/*
+			 * determine heavy clip parameter
+			 * from the 11G edges array
+			 */
 			if (modes[i].ctl_mode == CTL_11G) {
-				ar->phy_heavy_clip =
-					ar9170_get_heavy_clip(ar,
-							      EDGES(ctl_idx, 1),
-							      freq, bw);
+				ar->heavy_clip =
+					carl9170_get_heavy_clip(ar,
+						freq, bw, EDGES(ctl_idx, 1));
 			}
 
 			/* adjust freq for 40MHz */
 			if (modes[i].ctl_mode == CTL_2GHT40 ||
 			    modes[i].ctl_mode == CTL_5GHT40) {
-				if (bw == AR9170_BW_40_BELOW)
+				if (bw == CARL9170_BW_40_BELOW)
 					f_off = -10;
 				else
 					f_off = 10;
 			}
 
 			modes[i].max_power =
-				ar9170_get_max_edge_power(ar, EDGES(ctl_idx, 1),
-							  freq+f_off);
+				carl9170_get_max_edge_power(ar,
+					freq + f_off, EDGES(ctl_idx, 1));
 
 			/*
 			 * TODO: check if the regulatory max. power is
-			 *  controlled by cfg80211 for DFS
+			 * controlled by cfg80211 for DFS.
 			 * (hpmain applies it to max_power itself for DFS freq)
 			 */
 
@@ -1410,9 +1390,8 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 			/*
 			 * Workaround in otus driver, hpmain.c, line 3906:
 			 * if no data for 5GHT20 are found, take the
-			 * legacy 5G value.
-			 * We extend this here to fallback from any other *HT or
-			 * 11G, too.
+			 * legacy 5G value. We extend this here to fallback
+			 * from any other HT* or 11G, too.
 			 */
 			int k = i;
 
@@ -1433,35 +1412,35 @@ static void ar9170_calc_ctl(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 		}
 	}
 
-	if (ar->phy_heavy_clip & 0xf0) {
+	if (ar->heavy_clip & 0xf0) {
 		ar->power_2G_ht40[0]--;
 		ar->power_2G_ht40[1]--;
 		ar->power_2G_ht40[2]--;
 	}
-	if (ar->phy_heavy_clip & 0xf) {
+	if (ar->heavy_clip & 0xf) {
 		ar->power_2G_ht20[0]++;
 		ar->power_2G_ht20[1]++;
 		ar->power_2G_ht20[2]++;
 	}
 
-
 #undef EDGES
 }
 
-static int ar9170_set_power_cal(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
+static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
+				   enum carl9170_bw bw)
 {
 	struct ar9170_calibration_target_power_legacy *ctpl;
 	struct ar9170_calibration_target_power_ht *ctph;
 	u8 *ctpres;
 	int ntargets;
 	int idx, i, n;
-	u8 ackpower, ackchains, f;
+	u8 f;
 	u8 pwr_freqs[AR5416_MAX_NUM_TGT_PWRS];
 
 	if (freq < 3000)
 		f = freq - 2300;
 	else
-		f = (freq - 4800)/5;
+		f = (freq - 4800) / 5;
 
 	/*
 	 * cycle through the various modes
@@ -1495,19 +1474,14 @@ static int ar9170_set_power_cal(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 			pwr_freqs[n] = ctpl[n].freq;
 		}
 		ntargets = n;
-		idx = ar9170_find_freq_idx(ntargets, pwr_freqs, f);
+		idx = carl9170_find_freq_idx(ntargets, pwr_freqs, f);
 		for (n = 0; n < 4; n++)
-			ctpres[n] = ar9170_interpolate_u8(
-					f,
-					ctpl[idx + 0].freq,
-					ctpl[idx + 0].power[n],
-					ctpl[idx + 1].freq,
-					ctpl[idx + 1].power[n]);
+			ctpres[n] = carl9170_interpolate_u8(f,
+				ctpl[idx + 0].freq, ctpl[idx + 0].power[n],
+				ctpl[idx + 1].freq, ctpl[idx + 1].power[n]);
 	}
 
-	/*
-	 * HT modes now: 5G HT20, 5G HT40, 2G CCK, 2G OFDM, 2G HT20, 2G HT40
-	 */
+	/* HT modes now: 5G HT20, 5G HT40, 2G CCK, 2G OFDM, 2G HT20, 2G HT40 */
 	for (i = 0; i < 4; i++) {
 		switch (i) {
 		case 0: /* 5 GHz HT 20 */
@@ -1540,124 +1514,134 @@ static int ar9170_set_power_cal(struct ar9170 *ar, u32 freq, enum ar9170_bw bw)
 			pwr_freqs[n] = ctph[n].freq;
 		}
 		ntargets = n;
-		idx = ar9170_find_freq_idx(ntargets, pwr_freqs, f);
+		idx = carl9170_find_freq_idx(ntargets, pwr_freqs, f);
 		for (n = 0; n < 8; n++)
-			ctpres[n] = ar9170_interpolate_u8(
-					f,
-					ctph[idx + 0].freq,
-					ctph[idx + 0].power[n],
-					ctph[idx + 1].freq,
-					ctph[idx + 1].power[n]);
+			ctpres[n] = carl9170_interpolate_u8(f,
+				ctph[idx + 0].freq, ctph[idx + 0].power[n],
+				ctph[idx + 1].freq, ctph[idx + 1].power[n]);
 	}
-
 
 	/* calc. conformance test limits and apply to ar->power*[] */
-	ar9170_calc_ctl(ar, freq, bw);
-
-	/* set ACK/CTS TX power */
-	ar9170_regwrite_begin(ar);
-
-	if (ar->eeprom.tx_mask != 1)
-		ackchains = AR9170_TX_PHY_TXCHAIN_2;
-	else
-		ackchains = AR9170_TX_PHY_TXCHAIN_1;
-
-	if (freq < 3000)
-		ackpower = ar->power_2G_ofdm[0] & 0x3f;
-	else
-		ackpower = ar->power_5G_leg[0] & 0x3f;
-
-	ar9170_regwrite(0x1c3694, ackpower << 20 | ackchains << 26);
-	ar9170_regwrite(0x1c3bb4, ackpower << 5 | ackchains << 11 |
-				  ackpower << 21 | ackchains << 27);
-
-	ar9170_regwrite_finish();
-	return ar9170_regwrite_result();
+	carl9170_calc_ctl(ar, freq, bw);
 }
 
-static int ar9170_calc_noise_dbm(u32 raw_noise)
+int carl9170_get_noisefloor(struct ar9170 *ar)
 {
-	if (raw_noise & 0x100)
-		return ~((raw_noise & 0x0ff) >> 1);
-	else
-		return (raw_noise & 0xff) >> 1;
-}
+	static const u32 phy_regs[] = {
+		AR9170_PHY_REG_CCA, AR9170_PHY_REG_CH2_CCA,
+		AR9170_PHY_REG_EXT_CCA, AR9170_PHY_REG_CH2_EXT_CCA };
+	u32 phy_res[ARRAY_SIZE(phy_regs)];
+	int err, i;
 
-int ar9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
-		       enum ar9170_rf_init_mode rfi, enum ar9170_bw bw)
-{
-	const struct ar9170_phy_freq_params *freqpar;
-	u32 cmd, tmp, offs;
-	__le32 vals[8];
-	int i, err;
-	bool bandswitch;
+	BUILD_BUG_ON(ARRAY_SIZE(phy_regs) != ARRAY_SIZE(ar->noise));
 
-	/* clear BB heavy clip enable */
-	err = ar9170_write_reg(ar, 0x1c59e0, 0x200);
+	err = carl9170_read_mreg(ar, ARRAY_SIZE(phy_regs), phy_regs, phy_res);
 	if (err)
 		return err;
 
-	/* may be NULL at first setup */
-	if (ar->channel)
-		bandswitch = ar->channel->band != channel->band;
-	else
-		bandswitch = true;
+	for (i = 0; i < 2; i++) {
+		ar->noise[i] = sign_extend32(GET_VAL(
+			AR9170_PHY_CCA_MIN_PWR, phy_res[i]), 8);
 
-	/* HW workaround */
-	if (!ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] &&
-	    channel->center_freq <= 2417)
-		bandswitch = true;
-
-	err = ar->exec_cmd(ar, AR9170_CMD_FREQ_START, 0, NULL, 0, NULL);
-	if (err)
-		return err;
-
-	if (rfi != AR9170_RFI_NONE || bandswitch) {
-		u32 val = 0x400;
-
-		if (rfi == AR9170_RFI_COLD)
-			val = 0x800;
-
-		/* warm/cold reset BB/ADDA */
-		err = ar9170_write_reg(ar, 0x1d4004, val);
-		if (err)
-			return err;
-
-		err = ar9170_write_reg(ar, 0x1d4004, 0x0);
-		if (err)
-			return err;
-
-		err = ar9170_init_phy(ar, channel->band);
-		if (err)
-			return err;
-
-		err = ar9170_init_rf_banks_0_7(ar,
-			channel->band == IEEE80211_BAND_5GHZ);
-		if (err)
-			return err;
-
-		cmd = AR9170_CMD_RF_INIT;
-	} else {
-		cmd = AR9170_CMD_FREQUENCY;
+		ar->noise[i + 2] = sign_extend32(GET_VAL(
+			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
 
-	err = ar9170_init_rf_bank4_pwr(ar,
-		channel->band == IEEE80211_BAND_5GHZ,
-		channel->center_freq, bw);
+	if (ar->channel)
+		ar->survey[ar->channel->hw_value].noise = ar->noise[0];
+
+	return 0;
+}
+
+static enum carl9170_bw nl80211_to_carl(enum nl80211_channel_type type)
+{
+	switch (type) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
+		return CARL9170_BW_20;
+	case NL80211_CHAN_HT40MINUS:
+		return CARL9170_BW_40_BELOW;
+	case NL80211_CHAN_HT40PLUS:
+		return CARL9170_BW_40_ABOVE;
+	default:
+		BUG();
+	}
+}
+
+int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
+			 enum nl80211_channel_type _bw)
+{
+	const struct carl9170_phy_freq_params *freqpar;
+	struct carl9170_rf_init_result rf_res;
+	struct carl9170_rf_init rf;
+	u32 tmp, offs = 0, new_ht = 0;
+	int err;
+	enum carl9170_bw bw;
+	struct ieee80211_channel *old_channel = NULL;
+
+	bw = nl80211_to_carl(_bw);
+
+	if (conf_is_ht(&ar->hw->conf))
+		new_ht |= CARL9170FW_PHY_HT_ENABLE;
+
+	if (conf_is_ht40(&ar->hw->conf))
+		new_ht |= CARL9170FW_PHY_HT_DYN2040;
+
+	/* may be NULL at first setup */
+	if (ar->channel) {
+		old_channel = ar->channel;
+		ar->channel = NULL;
+	}
+
+	/* cold reset BB/ADDA */
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET,
+				 AR9170_PWR_RESET_BB_COLD_RESET);
 	if (err)
 		return err;
 
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, 0x0);
+	if (err)
+		return err;
+
+	err = carl9170_init_phy(ar, channel->band);
+	if (err)
+		return err;
+
+	err = carl9170_init_rf_banks_0_7(ar,
+					 channel->band == IEEE80211_BAND_5GHZ);
+	if (err)
+		return err;
+
+	err = carl9170_exec_cmd(ar, CARL9170_CMD_FREQ_START, 0, NULL, 0, NULL);
+	if (err)
+		return err;
+
+	err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
+				 0x200);
+	if (err)
+		return err;
+
+	err = carl9170_init_rf_bank4_pwr(ar,
+					 channel->band == IEEE80211_BAND_5GHZ,
+					 channel->center_freq, bw);
+	if (err)
+		return err;
+
+	tmp = AR9170_PHY_TURBO_FC_SINGLE_HT_LTF1 |
+	      AR9170_PHY_TURBO_FC_HT_EN;
+
 	switch (bw) {
-	case AR9170_BW_20:
-		tmp = 0x240;
-		offs = 0;
+	case CARL9170_BW_20:
 		break;
-	case AR9170_BW_40_BELOW:
-		tmp = 0x2c4;
+	case CARL9170_BW_40_BELOW:
+		tmp |= AR9170_PHY_TURBO_FC_DYN2040_EN |
+		       AR9170_PHY_TURBO_FC_SHORT_GI_40;
 		offs = 3;
 		break;
-	case AR9170_BW_40_ABOVE:
-		tmp = 0x2d4;
+	case CARL9170_BW_40_ABOVE:
+		tmp |= AR9170_PHY_TURBO_FC_DYN2040_EN |
+		       AR9170_PHY_TURBO_FC_SHORT_GI_40 |
+		       AR9170_PHY_TURBO_FC_DYN2040_PRI_CH;
 		offs = 1;
 		break;
 	default:
@@ -1666,54 +1650,81 @@ int ar9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	}
 
 	if (ar->eeprom.tx_mask != 1)
-		tmp |= 0x100;
+		tmp |= AR9170_PHY_TURBO_FC_WALSH;
 
-	err = ar9170_write_reg(ar, 0x1c5804, tmp);
+	err = carl9170_write_reg(ar, AR9170_PHY_REG_TURBO, tmp);
 	if (err)
 		return err;
 
-	err = ar9170_set_freq_cal_data(ar, channel);
+	err = carl9170_set_freq_cal_data(ar, channel);
 	if (err)
 		return err;
 
-	err = ar9170_set_power_cal(ar, channel->center_freq, bw);
+	carl9170_set_power_cal(ar, channel->center_freq, bw);
+
+	err = carl9170_set_mac_tpc(ar, channel);
 	if (err)
 		return err;
 
-	freqpar = ar9170_get_hw_dyn_params(channel, bw);
+	freqpar = carl9170_get_hw_dyn_params(channel, bw);
 
-	vals[0] = cpu_to_le32(channel->center_freq * 1000);
-	vals[1] = cpu_to_le32(conf_is_ht40(&ar->hw->conf));
-	vals[2] = cpu_to_le32(offs << 2 | 1);
-	vals[3] = cpu_to_le32(freqpar->coeff_exp);
-	vals[4] = cpu_to_le32(freqpar->coeff_man);
-	vals[5] = cpu_to_le32(freqpar->coeff_exp_shgi);
-	vals[6] = cpu_to_le32(freqpar->coeff_man_shgi);
-	vals[7] = cpu_to_le32(1000);
+	rf.ht_settings = new_ht;
+	if (conf_is_ht40(&ar->hw->conf))
+		SET_VAL(CARL9170FW_PHY_HT_EXT_CHAN_OFF, rf.ht_settings, offs);
 
-	err = ar->exec_cmd(ar, cmd, sizeof(vals), (u8 *)vals,
-			   sizeof(vals), (u8 *)vals);
+	rf.freq = cpu_to_le32(channel->center_freq * 1000);
+	rf.delta_slope_coeff_exp = cpu_to_le32(freqpar->coeff_exp);
+	rf.delta_slope_coeff_man = cpu_to_le32(freqpar->coeff_man);
+	rf.delta_slope_coeff_exp_shgi = cpu_to_le32(freqpar->coeff_exp_shgi);
+	rf.delta_slope_coeff_man_shgi = cpu_to_le32(freqpar->coeff_man_shgi);
+	rf.finiteLoopCount = cpu_to_le32(2000);
+	err = carl9170_exec_cmd(ar, CARL9170_CMD_RF_INIT, sizeof(rf), &rf,
+				sizeof(rf_res), &rf_res);
 	if (err)
 		return err;
 
-	if (ar->phy_heavy_clip) {
-		err = ar9170_write_reg(ar, 0x1c59e0,
-				       0x200 | ar->phy_heavy_clip);
+	err = le32_to_cpu(rf_res.ret);
+	if (err != 0) {
+		ar->chan_fail++;
+		ar->total_chan_fail++;
+
+		wiphy_err(ar->hw->wiphy, "channel change: %d -> %d "
+			  "failed (%d).\n", old_channel ?
+			  old_channel->center_freq : -1, channel->center_freq,
+			  err);
+
+		if (ar->chan_fail > 3) {
+			/* We have tried very hard to change to _another_
+			 * channel and we've failed to do so!
+			 * Chances are that the PHY/RF is no longer
+			 * operable (due to corruptions/fatal events/bugs?)
+			 * and we need to reset at a higher level.
+			 */
+			carl9170_restart(ar, CARL9170_RR_TOO_MANY_PHY_ERRORS);
+			return 0;
+		}
+
+		err = carl9170_set_channel(ar, channel, _bw);
+		if (err)
+			return err;
+	} else {
+		ar->chan_fail = 0;
+	}
+
+	if (ar->heavy_clip) {
+		err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
+					 0x200 | ar->heavy_clip);
 		if (err) {
-			if (ar9170_nag_limiter(ar))
-				wiphy_err(ar->hw->wiphy,
-					  "failed to set heavy clip\n");
+			if (net_ratelimit()) {
+				wiphy_err(ar->hw->wiphy, "failed to set "
+				       "heavy clip\n");
+			}
+
+			return err;
 		}
 	}
 
-	for (i = 0; i < 2; i++) {
-		ar->noise[i] = ar9170_calc_noise_dbm(
-				(le32_to_cpu(vals[2 + i]) >> 19) & 0x1ff);
-
-		ar->noise[i + 2] = ar9170_calc_noise_dbm(
-				    (le32_to_cpu(vals[5 + i]) >> 23) & 0x1ff);
-	}
-
 	ar->channel = channel;
+	ar->ht_settings = new_ht;
 	return 0;
 }
