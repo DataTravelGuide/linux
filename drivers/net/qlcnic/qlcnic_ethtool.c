@@ -1410,10 +1410,6 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int hw_lro;
 
-	if ((ethtool_op_get_flags(netdev) & ~ETH_FLAG_LRO) !=
-	    (data & ~ETH_FLAG_LRO))
-		return -EINVAL;
-
 	if (data & ETH_FLAG_LRO) {
 		if (netdev->features & NETIF_F_LRO)
 			return 0;
