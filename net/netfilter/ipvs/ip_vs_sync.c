@@ -741,9 +741,30 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 	else
 		cp = ip_vs_ct_in_get(param);
 
-	if (cp && param->pe_data) 	/* Free pe_data */
+	if (cp) {
+		/* Free pe_data */
 		kfree(param->pe_data);
-	if (!cp) {
+
+		dest = cp->dest;
+		if ((cp->flags ^ flags) & IP_VS_CONN_F_INACTIVE &&
+		    !(flags & IP_VS_CONN_F_TEMPLATE) && dest) {
+			if (flags & IP_VS_CONN_F_INACTIVE) {
+				atomic_dec(&dest->activeconns);
+				atomic_inc(&dest->inactconns);
+			} else {
+				atomic_inc(&dest->activeconns);
+				atomic_dec(&dest->inactconns);
+			}
+		}
+		flags &= IP_VS_CONN_F_BACKUP_UPD_MASK;
+		flags |= cp->flags & ~IP_VS_CONN_F_BACKUP_UPD_MASK;
+		cp->flags = flags;
+		if (!dest) {
+			dest = ip_vs_try_bind_dest(cp);
+			if (dest)
+				atomic_dec(&dest->refcnt);
+		}
+	} else {
 		/*
 		 * Find the appropriate destination for the connection.
 		 * If it is not found the connection will remain unbound
@@ -752,18 +773,6 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 		dest = ip_vs_find_dest(type, daddr, dport, param->vaddr,
 				       param->vport, protocol, fwmark, flags);
 
-		/*  Set the approprite ativity flag */
-		if (protocol == IPPROTO_TCP) {
-			if (state != IP_VS_TCP_S_ESTABLISHED)
-				flags |= IP_VS_CONN_F_INACTIVE;
-			else
-				flags &= ~IP_VS_CONN_F_INACTIVE;
-		} else if (protocol == IPPROTO_SCTP) {
-			if (state != IP_VS_SCTP_S_ESTABLISHED)
-				flags |= IP_VS_CONN_F_INACTIVE;
-			else
-				flags &= ~IP_VS_CONN_F_INACTIVE;
-		}
 		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
 		if (dest)
 			atomic_dec(&dest->refcnt);
@@ -772,34 +781,6 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 				kfree(param->pe_data);
 			IP_VS_DBG(2, "BACKUP, add new conn. failed\n");
 			return;
-		}
-	} else if (!cp->dest) {
-		dest = ip_vs_try_bind_dest(cp);
-		if (dest)
-			atomic_dec(&dest->refcnt);
-	} else if ((cp->dest) && (cp->protocol == IPPROTO_TCP) &&
-		(cp->state != state)) {
-		/* update active/inactive flag for the connection */
-		dest = cp->dest;
-		if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
-			(state != IP_VS_TCP_S_ESTABLISHED)) {
-			atomic_dec(&dest->activeconns);
-			atomic_inc(&dest->inactconns);
-			cp->flags |= IP_VS_CONN_F_INACTIVE;
-		} else if ((cp->flags & IP_VS_CONN_F_INACTIVE) &&
-			(state == IP_VS_TCP_S_ESTABLISHED)) {
-			atomic_inc(&dest->activeconns);
-			atomic_dec(&dest->inactconns);
-			cp->flags &= ~IP_VS_CONN_F_INACTIVE;
-		}
-	} else if ((cp->dest) && (cp->protocol == IPPROTO_SCTP) &&
-		(cp->state != state)) {
-		dest = cp->dest;
-		if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
-		(state != IP_VS_SCTP_S_ESTABLISHED)) {
-			atomic_dec(&dest->activeconns);
-			atomic_inc(&dest->inactconns);
-			cp->flags &= ~IP_VS_CONN_F_INACTIVE;
 		}
 	}
 
