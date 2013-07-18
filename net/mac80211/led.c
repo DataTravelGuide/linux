@@ -12,8 +12,6 @@
 #include <linux/export.h>
 #include "led.h"
 
-#include "leds-compat.h"
-
 void ieee80211_led_rx(struct ieee80211_local *local)
 {
 	if (unlikely(!local->rx_led))
