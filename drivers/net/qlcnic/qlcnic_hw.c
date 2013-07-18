@@ -445,7 +445,7 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }
 
-static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
+int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 {
 	struct list_head *head;
 	struct qlcnic_mac_list_s *cur;
@@ -475,7 +475,7 @@ static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	return 0;
 }
 
-void qlcnic_set_multi(struct net_device *netdev)
+void __qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
@@ -487,7 +487,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
-	qlcnic_nic_add_mac(adapter, adapter->mac_addr);
+	if (!qlcnic_sriov_vf_check(adapter))
+		qlcnic_nic_add_mac(adapter, adapter->mac_addr);
 	qlcnic_nic_add_mac(adapter, bcast_addr);
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -502,21 +503,50 @@ void qlcnic_set_multi(struct net_device *netdev)
 		goto send_fw_cmd;
 	}
 
-	if (!netdev_mc_empty(netdev)) {
+	if (!netdev_mc_empty(netdev) && !qlcnic_sriov_vf_check(adapter)) {
 		netdev_for_each_mc_addr(mc_ptr, netdev) {
 			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr);
 		}
 	}
 
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_vf_add_mc_list(netdev);
+
 send_fw_cmd:
-	if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
-		qlcnic_alloc_lb_filters_mem(adapter);
-		adapter->mac_learn = 1;
-	} else {
-		adapter->mac_learn = 0;
+	if (!qlcnic_sriov_vf_check(adapter)) {
+		if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
+			qlcnic_alloc_lb_filters_mem(adapter);
+			adapter->mac_learn = 1;
+		} else {
+			adapter->mac_learn = 0;
+		}
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);
+}
+
+void qlcnic_set_multi(struct net_device *netdev)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct dev_mc_list *mc_ptr;
+	struct qlcnic_mac_list_s *cur;
+
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
+		return;
+	if (qlcnic_sriov_vf_check(adapter)) {
+		if (!netdev_mc_empty(netdev)) {
+			netdev_for_each_mc_addr(mc_ptr, netdev) {
+				cur = kzalloc(sizeof(struct qlcnic_mac_list_s),
+					      GFP_ATOMIC);
+				memcpy(cur->mac_addr,
+				       mc_ptr->dmi_addr, ETH_ALEN);
+				list_add_tail(&cur->list, &adapter->vf_mc_list);
+			}
+		}
+		qlcnic_sriov_vf_schedule_multi(adapter->netdev);
+		return;
+	}
+	__qlcnic_set_multi(netdev);
 }
 
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
