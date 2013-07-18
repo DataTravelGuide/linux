@@ -397,7 +397,9 @@ static int brcms_request_fw(struct brcms_info *wl, struct bcma_device *pdev)
 	return status;
 }
 
-static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void brcms_ops_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct brcms_info *wl = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -409,7 +411,7 @@ static void brcms_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto done;
 	}
 	brcms_c_sendpkt_mac80211(wl->wlc, skb, hw);
-	tx_info->rate_driver_data[0] = tx_info->control.sta;
+	tx_info->rate_driver_data[0] = control->sta;
  done:
 	spin_unlock_bh(&wl->lock);
 }
@@ -540,10 +542,10 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		if (conf->channel_type == NL80211_CHAN_HT20 ||
-		    conf->channel_type == NL80211_CHAN_NO_HT)
+		if (conf->chandef.width == NL80211_CHAN_WIDTH_20 ||
+		    conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 			err = brcms_c_set_channel(wl->wlc,
-						  conf->channel->hw_value);
+						  conf->chandef.chan->hw_value);
 		else
 			err = -ENOTSUPP;
 	}
@@ -669,9 +671,8 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
-		brcms_err(core, "%s: arp filtering: enabled %s, count %d"
-			  " (implement)\n", __func__, info->arp_filter_enabled ?
-			  "true" : "false", info->arp_addr_cnt);
+		brcms_err(core, "%s: arp filtering: %d addresses"
+			  " (implement)\n", __func__, info->arp_addr_cnt);
 	}
 
 	if (changed & BSS_CHANGED_QOS) {
@@ -798,7 +799,9 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		spin_lock_bh(&wl->lock);
 		brcms_c_ampdu_flush(wl->wlc, sta, tid);
 		spin_unlock_bh(&wl->lock);
@@ -848,7 +851,7 @@ static bool brcms_tx_flush_completed(struct brcms_info *wl)
 	return result;
 }
 
-static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop)
+static void brcms_ops_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct brcms_info *wl = hw->priv;
 	int ret;
