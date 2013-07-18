@@ -389,8 +389,7 @@ out_free_rq:
 	return err;
 }
 
-static void
-qlcnic_fw_cmd_destroy_rx_ctx(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_fw_cmd_del_rx_ctx(struct qlcnic_adapter *adapter)
 {
 	int err;
 	struct qlcnic_cmd_args cmd;
@@ -493,13 +492,13 @@ out_free_rq:
 	return err;
 }
 
-static void
-qlcnic_fw_cmd_destroy_tx_ctx(struct qlcnic_adapter *adapter,
-			     struct qlcnic_host_tx_ring *tx_ring)
+void qlcnic_82xx_fw_cmd_del_tx_ctx(struct qlcnic_adapter *adapter,
+				   struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_DESTROY_TX_CTX);
+
 	cmd.req.arg[1] = tx_ring->ctx_id;
 	if (qlcnic_issue_cmd(adapter, &cmd))
 		dev_err(&adapter->pdev->dev,
@@ -623,13 +622,12 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 						  &dev->tx_ring[ring],
 						  ring);
 		if (err) {
-			qlcnic_fw_cmd_destroy_rx_ctx(dev);
+			qlcnic_fw_cmd_del_rx_ctx(dev);
 			if (ring == 0)
 				goto err_out;
 
 			for (i = 0; i < ring; i++)
-				qlcnic_fw_cmd_destroy_tx_ctx(dev,
-							     &dev->tx_ring[i]);
+				qlcnic_fw_cmd_del_tx_ctx(dev, &dev->tx_ring[i]);
 
 			goto err_out;
 		}
@@ -651,10 +649,10 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 	int ring;
 
 	if (test_and_clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state)) {
-		qlcnic_fw_cmd_destroy_rx_ctx(adapter);
+		qlcnic_fw_cmd_del_rx_ctx(adapter);
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++)
-			qlcnic_fw_cmd_destroy_tx_ctx(adapter,
-						     &adapter->tx_ring[ring]);
+			qlcnic_fw_cmd_del_tx_ctx(adapter,
+						 &adapter->tx_ring[ring]);
 
 		if (qlcnic_83xx_check(adapter) &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
