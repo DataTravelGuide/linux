@@ -1745,7 +1745,7 @@ static void qlcnic_83xx_set_interface_id_macaddr(struct qlcnic_adapter *adapter,
 }
 
 int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
-				   __le16 vlan_id, u8 op)
+				   u16 vlan_id, u8 op)
 {
 	int err;
 	u32 *buf, temp = 0;
@@ -1762,7 +1762,7 @@ int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	cmd.req.arg[1] = op | (1 << 8);
 	qlcnic_83xx_set_interface_id_macaddr(adapter, &temp);
 	cmd.req.arg[1] |= temp;
-	mv.vlan = le16_to_cpu(vlan_id);
+	mv.vlan = vlan_id;
 	mv.mac_addr0 = addr[0];
 	mv.mac_addr1 = addr[1];
 	mv.mac_addr2 = addr[2];
@@ -1781,7 +1781,7 @@ int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 }
 
 void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *adapter, u64 *addr,
-				  __le16 vlan_id)
+				  u16 vlan_id)
 {
 	u8 mac[ETH_ALEN];
 	memcpy(&mac, addr, ETH_ALEN);
