@@ -580,6 +580,7 @@ static int qlcnic_sriov_set_vf_acl(struct qlcnic_adapter *adapter, u8 func)
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_vport *vp;
 	int err, id;
+	u8 *mac;
 
 	id = qlcnic_sriov_func_to_index(adapter, func);
 	if (id < 0)
@@ -591,6 +592,14 @@ static int qlcnic_sriov_set_vf_acl(struct qlcnic_adapter *adapter, u8 func)
 		return err;
 
 	cmd.req.arg[1] = 0x3 | func << 16;
+	if (vp->spoofchk == true) {
+		mac = vp->mac;
+		cmd.req.arg[2] |= BIT_1 | BIT_3 | BIT_8;
+		cmd.req.arg[4] = mac[5] | mac[4] << 8 | mac[3] << 16 |
+				 mac[2] << 24;
+		cmd.req.arg[5] = mac[1] | mac[0] << 8;
+	}
+
 	if (vp->vlan_mode == QLC_PVID_MODE) {
 		cmd.req.arg[2] |= BIT_6;
 		cmd.req.arg[3] |= vp->vlan << 8;
