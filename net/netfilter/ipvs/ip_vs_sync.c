@@ -278,6 +278,13 @@ struct ip_vs_sync_buff {
 static LIST_HEAD(ip_vs_sync_queue);
 static DEFINE_SPINLOCK(ip_vs_sync_lock);
 
+/* RH redefined vars from commit 1c003b1580 (ipvs: wakeup master thread)
+ *  orig located in ip_vs.h in struct netns_ipvs
+ */
+static int          ip_vs_sync_queue_len   = 0; /* ipvs->sync_queue_len     */
+static unsigned int ip_vs_sync_queue_delay = 0; /* ipvs->sync_queue_delay   */
+struct delayed_work ip_vs_master_wakeup_work;   /* ipvs->master_wakeup_work */
+
 /* current sync_buff for accepting new conn entries */
 static struct ip_vs_sync_buff   *curr_sb = NULL;
 static DEFINE_SPINLOCK(curr_sb_lock);
@@ -331,11 +338,15 @@ static inline struct ip_vs_sync_buff *sb_dequeue(void)
 	spin_lock_bh(&ip_vs_sync_lock);
 	if (list_empty(&ip_vs_sync_queue)) {
 		sb = NULL;
+		__set_current_state(TASK_INTERRUPTIBLE);
 	} else {
 		sb = list_entry(ip_vs_sync_queue.next,
 				struct ip_vs_sync_buff,
 				list);
 		list_del(&sb->list);
+		ip_vs_sync_queue_len--;
+		if (!ip_vs_sync_queue_len)
+			ip_vs_sync_queue_delay = 0;
 	}
 	spin_unlock_bh(&ip_vs_sync_lock);
 
@@ -378,9 +389,16 @@ static inline void ip_vs_sync_buff_release(struct ip_vs_sync_buff *sb)
 static inline void sb_queue_tail(struct ip_vs_sync_buff *sb)
 {
 	spin_lock(&ip_vs_sync_lock);
-	if (ip_vs_sync_state & IP_VS_STATE_MASTER)
+	if (ip_vs_sync_state & IP_VS_STATE_MASTER &&
+	    ip_vs_sync_queue_len < sysctl_sync_qlen_max()) {
+		if (!ip_vs_sync_queue_len)
+			schedule_delayed_work(&ip_vs_master_wakeup_work,
+					      max(IPVS_SYNC_SEND_DELAY, 1));
+		ip_vs_sync_queue_len++;
 		list_add_tail(&sb->list, &ip_vs_sync_queue);
-	else
+		if ((++ip_vs_sync_queue_delay) == IPVS_SYNC_WAKEUP_RATE)
+			wake_up_process(sync_master_thread);
+	} else
 		ip_vs_sync_buff_release(sb);
 	spin_unlock(&ip_vs_sync_lock);
 }
@@ -399,6 +417,7 @@ get_curr_sync_buff(unsigned long time)
 			time_before(jiffies - curr_sb->firstuse, time))) {
 		sb = curr_sb;
 		curr_sb = NULL;
+		__set_current_state(TASK_RUNNING);
 	} else
 		sb = NULL;
 	spin_unlock_bh(&curr_sb_lock);
@@ -410,25 +429,23 @@ get_curr_sync_buff(unsigned long time)
  *  - must handle sync_buf
  */
 void ip_vs_sync_switch_mode(int mode) {
-
-	if (!ip_vs_sync_state & IP_VS_STATE_MASTER)
-		return;
-	if (mode == sysctl_ip_vs_sync_ver || !curr_sb)
-		return;
+	struct ip_vs_sync_buff *sb;
 
 	spin_lock_bh(&curr_sb_lock);
+	if (!(ip_vs_sync_state & IP_VS_STATE_MASTER))
+		goto unlock;
+	sb = curr_sb;
+	if (mode == sysctl_ip_vs_sync_ver || !sb)
+		goto unlock;
+
 	/* Buffer empty ? then let buf_create do the job  */
-	if ( curr_sb->mesg->size <=  sizeof(struct ip_vs_sync_mesg)) {
-		kfree(curr_sb);
+	if (sb->mesg->size <= sizeof(struct ip_vs_sync_mesg)) {
+		ip_vs_sync_buff_release(sb);
 		curr_sb = NULL;
-	} else {
-		spin_lock_bh(&ip_vs_sync_lock);
-		if (ip_vs_sync_state & IP_VS_STATE_MASTER)
-			list_add_tail(&curr_sb->list, &ip_vs_sync_queue);
-		else
-			ip_vs_sync_buff_release(curr_sb);
-		spin_unlock_bh(&ip_vs_sync_lock);
-	}
+	} else
+		sb_queue_tail(curr_sb);
+
+unlock:
 	spin_unlock_bh(&curr_sb_lock);
 }
 
@@ -1134,6 +1151,28 @@ static void ip_vs_process_message(__u8 *buffer, const size_t buflen)
 
 
 /*
+ *      Setup sndbuf (mode=1) or rcvbuf (mode=0)
+ */
+static void set_sock_size(struct sock *sk, int mode, int val)
+{
+	/* setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val)); */
+	/* setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)); */
+	lock_sock(sk);
+	if (mode) {
+		val = clamp_t(int, val, (SOCK_MIN_SNDBUF + 1) / 2,
+			      sysctl_wmem_max);
+		sk->sk_sndbuf = val * 2;
+		sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
+	} else {
+		val = clamp_t(int, val, (SOCK_MIN_RCVBUF + 1) / 2,
+			      sysctl_rmem_max);
+		sk->sk_rcvbuf = val * 2;
+		sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+	}
+	release_sock(sk);
+}
+
+/*
  *      Setup loopback of outgoing multicasts on a sending socket
  */
 static void set_mcast_loop(struct sock *sk, u_char loop)
@@ -1294,6 +1333,9 @@ static struct socket * make_send_sock(void)
 
 	set_mcast_loop(sock->sk, 0);
 	set_mcast_ttl(sock->sk, 1);
+	result = sysctl_sync_sock_size();
+	if (result > 0)
+		set_sock_size(sock->sk, 1, result);
 
 	result = bind_mcastif_addr(sock, ip_vs_master_mcast_ifn);
 	if (result < 0) {
@@ -1333,6 +1375,9 @@ static struct socket * make_receive_sock(void)
 
 	/* it is equivalent to the REUSEADDR option in user-space */
 	sock->sk->sk_reuse = 1;
+	result = sysctl_sync_sock_size();
+	if (result > 0)
+		set_sock_size(sock->sk, 0, result);
 
 	result = sock->ops->bind(sock, (struct sockaddr *) &mcast_addr,
 			sizeof(struct sockaddr));
@@ -1375,18 +1420,22 @@ ip_vs_send_async(struct socket *sock, const char *buffer, const size_t length)
 	return len;
 }
 
-static void
+static int
 ip_vs_send_sync_msg(struct socket *sock, struct ip_vs_sync_mesg *msg)
 {
 	int msize;
+	int ret;
 
 	msize = msg->size;
 
 	/* Put size in network byte order */
 	msg->size = htons(msg->size);
 
-	if (ip_vs_send_async(sock, (char *)msg, msize) != msize)
-		pr_err("ip_vs_send_async error\n");
+	ret = ip_vs_send_async(sock, (char *)msg, msize);
+	if (ret >= 0 || ret == -EAGAIN)
+		return ret;
+	pr_err("ip_vs_send_async error %d\n", ret);
+	return 0;
 }
 
 static int
@@ -1411,36 +1460,71 @@ ip_vs_receive(struct socket *sock, char *buffer, const size_t buflen)
 	return len;
 }
 
+/* Wakeup the master thread for sending */
+static void master_wakeup_work_handler(struct work_struct *work)
+{
+	spin_lock_bh(&ip_vs_sync_lock);
+	if (ip_vs_sync_queue_len &&
+	    ip_vs_sync_queue_delay < IPVS_SYNC_WAKEUP_RATE) {
+		ip_vs_sync_queue_delay = IPVS_SYNC_WAKEUP_RATE;
+		wake_up_process(sync_master_thread);
+	}
+	spin_unlock_bh(&ip_vs_sync_lock);
+}
+
+/* Get next buffer to send */
+static inline struct ip_vs_sync_buff *
+next_sync_buff(void)
+{
+	struct ip_vs_sync_buff *sb;
+
+	sb = sb_dequeue();
+	if (sb)
+		return sb;
+	/* Do not delay entries in buffer for more than 2 seconds */
+	return get_curr_sync_buff(2 * HZ);
+}
 
 static int sync_thread_master(void *data)
 {
 	struct ip_vs_sync_thread_data *tinfo = data;
+	struct sock *sk = tinfo->sock->sk;
 	struct ip_vs_sync_buff *sb;
 
 	pr_info("sync thread started: state = MASTER, mcast_ifn = %s, "
 		"syncid = %d\n",
 		ip_vs_master_mcast_ifn, ip_vs_master_syncid);
 
-	while (!kthread_should_stop()) {
-		while ((sb = sb_dequeue())) {
-			ip_vs_send_sync_msg(tinfo->sock, sb->mesg);
-			ip_vs_sync_buff_release(sb);
+	for (;;) {
+		sb = next_sync_buff();
+		if (unlikely(kthread_should_stop()))
+			break;
+		if (!sb) {
+			schedule_timeout(IPVS_SYNC_CHECK_PERIOD);
+			continue;
 		}
+		while (ip_vs_send_sync_msg(tinfo->sock, sb->mesg) < 0) {
+			int ret = 0;
 
-		/* check if entries stay in curr_sb for 2 seconds */
-		sb = get_curr_sync_buff(2 * HZ);
-		if (sb) {
-			ip_vs_send_sync_msg(tinfo->sock, sb->mesg);
-			ip_vs_sync_buff_release(sb);
+			__wait_event_interruptible(*(sk->sk_sleep),
+						   sock_writeable(sk) ||
+						   kthread_should_stop(),
+						   ret);
+			if (unlikely(kthread_should_stop()))
+				goto done;
 		}
-
-		schedule_timeout_interruptible(HZ);
-	}
-
-	/* clean up the sync_buff queue */
-	while ((sb=sb_dequeue())) {
 		ip_vs_sync_buff_release(sb);
 	}
+
+done:
+	__set_current_state(TASK_RUNNING);
+	if (sb)
+		ip_vs_sync_buff_release(sb);
+
+	/* clean up the sync_buff queue */
+	while ((sb=sb_dequeue()))
+		ip_vs_sync_buff_release(sb);
+	__set_current_state(TASK_RUNNING);
 
 	/* clean up the current sync_buff */
 	if ((sb = get_curr_sync_buff(0))) {
@@ -1518,6 +1602,10 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 		realtask = &sync_master_thread;
 		name = "ipvs_syncmaster";
 		threadfn = sync_thread_master;
+		ip_vs_sync_queue_len = 0;
+		ip_vs_sync_queue_delay = 0;
+		INIT_DELAYED_WORK(&ip_vs_master_wakeup_work,
+				  master_wakeup_work_handler);
 		sock = make_send_sock();
 	} else if (state == IP_VS_STATE_BACKUP) {
 		if (sync_backup_thread)
@@ -1599,6 +1687,7 @@ int stop_sync_thread(int state)
 		spin_lock_bh(&ip_vs_sync_lock);
 		ip_vs_sync_state &= ~IP_VS_STATE_MASTER;
 		spin_unlock_bh(&ip_vs_sync_lock);
+		cancel_delayed_work_sync(&ip_vs_master_wakeup_work);
 		kthread_stop(sync_master_thread);
 		sync_master_thread = NULL;
 	} else if (state == IP_VS_STATE_BACKUP) {

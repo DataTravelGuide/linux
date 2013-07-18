@@ -89,6 +89,9 @@ int sysctl_ip_vs_sync_threshold[2] = { 3, 50 };
 int sysctl_ip_vs_nat_icmp_send = 0;
 int sysctl_ip_vs_snat_reroute = 1;
 int sysctl_ip_vs_sync_ver = 1;		/* Default version of sync proto */
+int sysctl_ip_vs_sync_qlen_max; /* init in ip_vs_control_init() */
+int sysctl_ip_vs_sync_sock_size = 0;
+
 
 #ifdef CONFIG_IP_VS_DEBUG
 static int sysctl_ip_vs_debug_level = 0;
@@ -1740,6 +1743,20 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 #endif
+	{
+		.procname	= "sync_qlen_max",
+		.data		= &sysctl_ip_vs_sync_qlen_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sync_sock_size",
+		.data		= &sysctl_ip_vs_sync_sock_size,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 	{
 		.procname	= "cache_bypass",
 		.data		= &sysctl_ip_vs_cache_bypass,
@@ -3464,6 +3481,8 @@ int __init ip_vs_control_init(void)
 		nf_unregister_sockopt(&ip_vs_sockopts);
 		return ret;
 	}
+
+	sysctl_ip_vs_sync_qlen_max = nr_free_buffer_pages() / 32;
 
 	proc_net_fops_create(&init_net, "ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);

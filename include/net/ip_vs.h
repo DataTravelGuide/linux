@@ -893,6 +893,39 @@ extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 extern int sysctl_ip_vs_sync_ver;
+extern int sysctl_ip_vs_sync_qlen_max;
+extern int sysctl_ip_vs_sync_sock_size;
+
+#define IPVS_SYNC_WAKEUP_RATE	8
+#define IPVS_SYNC_QLEN_MAX	(IPVS_SYNC_WAKEUP_RATE * 4)
+#define IPVS_SYNC_SEND_DELAY	(HZ / 50)
+#define IPVS_SYNC_CHECK_PERIOD	HZ
+
+#ifdef CONFIG_SYSCTL
+
+static inline int sysctl_sync_qlen_max(void)
+{
+	return sysctl_ip_vs_sync_qlen_max;
+}
+
+static inline int sysctl_sync_sock_size(void)
+{
+	return sysctl_ip_vs_sync_sock_size;
+}
+
+#else
+
+static inline int sysctl_sync_qlen_max(void)
+{
+	return IPVS_SYNC_QLEN_MAX;
+}
+
+static inline int sysctl_sync_sock_size(void)
+{
+	return 0;
+}
+
+#endif /* CONFIG_SYSCTL */
 
 extern void ip_vs_sync_switch_mode(int mode);
 extern struct ip_vs_service *
