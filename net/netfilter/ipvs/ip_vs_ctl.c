@@ -1861,8 +1861,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   &svc->addr.in6,
 					   ntohs(svc->port),
 					   svc->scheduler->name,
-					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?
-					   " ops":"");
+					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?" ops":"");
 			else
 #endif
 				seq_printf(seq, "%s  %08X:%04X %s%s ",
@@ -1870,13 +1869,11 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 					   ntohl(svc->addr.ip),
 					   ntohs(svc->port),
 					   svc->scheduler->name,
-					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?
-					   " ops":"");
+					   (svc->flags & IP_VS_SVC_F_ONEPACKET)?" ops":"");
 		} else {
 			seq_printf(seq, "FWM  %08X %s%s ",
 				   svc->fwmark, svc->scheduler->name,
-				   (svc->flags & IP_VS_SVC_F_ONEPACKET)?
-				   " ops":"");
+				   (svc->flags & IP_VS_SVC_F_ONEPACKET)?" ops":"");
 		}
 
 		if (svc->flags & IP_VS_SVC_F_PERSISTENT)
