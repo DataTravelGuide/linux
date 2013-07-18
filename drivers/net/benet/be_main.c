@@ -667,7 +667,7 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, udpcs, hdr, 1);
 	}
 
-	if (adapter->vlan_grp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan, hdr, 1);
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag, hdr, vlan_tag);
@@ -1462,15 +1462,12 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 	else
 		skb_checksum_none_assert(skb);
 
-	if (rxcp->vlanf && !adapter->vlan_grp)
-		__vlan_put_tag(skb, rxcp->vlan_tag);
-
 	skb->protocol = eth_type_trans(skb, netdev);
 	skb_record_rx_queue(skb, rxo - &adapter->rx_obj[0]);
 	if (netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
-	if (rxcp->vlanf && adapter->vlan_grp)
+	if (rxcp->vlanf)
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp,
 					rxcp->vlan_tag);
 	else
@@ -1527,10 +1524,7 @@ void be_rx_compl_process_gro(struct be_rx_obj *rxo, struct napi_struct *napi,
 	if (adapter->netdev->features & NETIF_F_RXHASH)
 		skb->rxhash = rxcp->rss_hash;
 
-	if (rxcp->vlanf && !adapter->vlan_grp)
-		__vlan_put_tag(skb, rxcp->vlan_tag);
-
-	if (rxcp->vlanf && adapter->vlan_grp)
+	if (rxcp->vlanf)
 		vlan_gro_frags(napi, adapter->vlan_grp, rxcp->vlan_tag);
 	else
 		napi_gro_frags(napi);
