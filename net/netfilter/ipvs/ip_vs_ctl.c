@@ -92,6 +92,8 @@ int sysctl_ip_vs_snat_reroute = 1;
 int sysctl_ip_vs_sync_ver = 1;		/* Default version of sync proto */
 int sysctl_ip_vs_sync_qlen_max; /* init in ip_vs_control_init() */
 int sysctl_ip_vs_sync_sock_size = 0;
+int sysctl_ip_vs_sync_refresh_period = DEFAULT_SYNC_REFRESH_PERIOD;
+int sysctl_ip_vs_sync_retries;  /* init in ip_vs_control_init() */
 
 
 #ifdef CONFIG_IP_VS_DEBUG
@@ -1541,6 +1543,8 @@ static int ip_vs_zero_all(void)
 	return 0;
 }
 
+static int zero;
+static int three = 3;
 
 static int
 proc_do_defense_mode(ctl_table *table, int write,
@@ -1575,7 +1579,8 @@ proc_do_sync_threshold(ctl_table *table, int write,
 	memcpy(val, valp, sizeof(val));
 
 	rc = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (write && (valp[0] < 0 || valp[1] < 0 || valp[0] >= valp[1])) {
+	if (write && (valp[0] < 0 || valp[1] < 0 ||
+	    (valp[0] >= valp[1] && valp[1]))) {
 		/* Restore the correct value */
 		memcpy(valp, val, sizeof(val));
 	}
@@ -1785,6 +1790,22 @@ static struct ctl_table vs_vars[] = {
 		.maxlen		= sizeof(sysctl_ip_vs_sync_threshold),
 		.mode		= 0644,
 		.proc_handler	= proc_do_sync_threshold,
+	},
+	{
+		.procname	= "sync_refresh_period",
+		.data		= &sysctl_ip_vs_sync_refresh_period,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "sync_retries",
+		.data		= &sysctl_ip_vs_sync_retries,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &three,
 	},
 	{
 		.procname	= "nat_icmp_send",
@@ -3484,6 +3505,7 @@ int __init ip_vs_control_init(void)
 	}
 
 	sysctl_ip_vs_sync_qlen_max = nr_free_buffer_pages() / 32;
+	sysctl_ip_vs_sync_retries  = clamp_t(int, DEFAULT_SYNC_RETRIES, 0, 3);
 
 	proc_net_fops_create(&init_net, "ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);

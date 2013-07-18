@@ -812,6 +812,9 @@ static void ip_vs_conn_expire(unsigned long data)
 		  atomic_read(&cp->refcnt)-1,
 		  atomic_read(&cp->n_control));
 
+	if (ip_vs_sync_state & IP_VS_STATE_MASTER)
+		ip_vs_sync_conn(cp, sysctl_sync_threshold());
+
 	ip_vs_conn_put(cp);
 }
 
@@ -882,6 +885,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	/* Set its state and timeout */
 	cp->state = 0;
 	cp->timeout = 3*HZ;
+	cp->sync_endtime = jiffies & ~3UL;
 
 	/* Bind its packet transmitter */
 #ifdef CONFIG_IP_VS_IPV6

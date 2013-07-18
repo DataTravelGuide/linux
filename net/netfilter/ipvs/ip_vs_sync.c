@@ -474,11 +474,93 @@ static inline struct ip_vs_sync_buff * ip_vs_sync_buff_create_v0(void)
 	return sb;
 }
 
+/* Check if conn should be synced.
+ * pkts: conn packets, use sysctl_sync_threshold to avoid packet check
+ * - (1) sync_refresh_period: reduce sync rate. Additionally, retry
+ *	sync_retries times with period of sync_refresh_period/8
+ * - (2) if both sync_refresh_period and sync_period are 0 send sync only
+ *	for state changes or only once when pkts matches sync_threshold
+ * - (3) templates: rate can be reduced only with sync_refresh_period or
+ *	with (2)
+ */
+static int ip_vs_sync_conn_needed(
+				  struct ip_vs_conn *cp, int pkts)
+{
+	unsigned long orig = ACCESS_ONCE(cp->sync_endtime);
+	unsigned long now = jiffies;
+	unsigned long n = (now + cp->timeout) & ~3UL;
+	unsigned int sync_refresh_period;
+	int sync_period;
+	int force;
+
+	/* Check if we sync in current state */
+	if (unlikely(cp->flags & IP_VS_CONN_F_TEMPLATE))
+		force = 0;
+	else if (likely(cp->protocol == IPPROTO_TCP)) {
+		if (!((1 << cp->state) &
+		      ((1 << IP_VS_TCP_S_ESTABLISHED) |
+		       (1 << IP_VS_TCP_S_FIN_WAIT) |
+		       (1 << IP_VS_TCP_S_CLOSE) |
+		       (1 << IP_VS_TCP_S_CLOSE_WAIT) |
+		       (1 << IP_VS_TCP_S_TIME_WAIT))))
+			return 0;
+		force = cp->state != cp->old_state;
+		if (force && cp->state != IP_VS_TCP_S_ESTABLISHED)
+			goto set;
+	} else if (unlikely(cp->protocol == IPPROTO_SCTP)) {
+		if (!((1 << cp->state) &
+		      ((1 << IP_VS_SCTP_S_ESTABLISHED) |
+		       (1 << IP_VS_SCTP_S_CLOSED) |
+		       (1 << IP_VS_SCTP_S_SHUT_ACK_CLI) |
+		       (1 << IP_VS_SCTP_S_SHUT_ACK_SER))))
+			return 0;
+		force = cp->state != cp->old_state;
+		if (force && cp->state != IP_VS_SCTP_S_ESTABLISHED)
+			goto set;
+	} else {
+		/* UDP or another protocol with single state */
+		force = 0;
+	}
+
+	sync_refresh_period = sysctl_sync_refresh_period();
+	if (sync_refresh_period > 0) {
+		long diff = n - orig;
+		long min_diff = max(cp->timeout >> 1, 10UL * HZ);
+
+		/* Avoid sync if difference is below sync_refresh_period
+		 * and below the half timeout.
+		 */
+		if (abs(diff) < min_t(long, sync_refresh_period, min_diff)) {
+			int retries = orig & 3;
+
+			if (retries >= sysctl_sync_retries())
+				return 0;
+			if (time_before(now, orig - cp->timeout +
+					(sync_refresh_period >> 3)))
+				return 0;
+			n |= retries + 1;
+		}
+	}
+	sync_period = sysctl_sync_period();
+	if (sync_period > 0) {
+		if (!(cp->flags & IP_VS_CONN_F_TEMPLATE) &&
+		    pkts % sync_period != sysctl_sync_threshold())
+			return 0;
+	} else if (sync_refresh_period <= 0 &&
+		   pkts != sysctl_sync_threshold())
+		return 0;
+
+set:
+	cp->old_state = cp->state;
+	n = cmpxchg(&cp->sync_endtime, orig, n);
+	return n == orig || force;
+}
+
 /*
  *      Version 0 , could be switched in by sys_ctl.
  *      Add an ip_vs_conn information into the current sync_buff.
  */
-void ip_vs_sync_conn_v0(struct ip_vs_conn *cp)
+void ip_vs_sync_conn_v0(struct ip_vs_conn *cp, int pkts)
 {
 	struct ip_vs_sync_mesg_v0 *m;
 	struct ip_vs_sync_conn_v0 *s;
@@ -490,6 +572,8 @@ void ip_vs_sync_conn_v0(struct ip_vs_conn *cp)
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		return;
 
+	if (!ip_vs_sync_conn_needed(cp, pkts))
+		return;
 	spin_lock(&curr_sb_lock);
 	if (!curr_sb) {
 		if (!(curr_sb=ip_vs_sync_buff_create_v0())) {
@@ -533,8 +617,14 @@ void ip_vs_sync_conn_v0(struct ip_vs_conn *cp)
 	spin_unlock(&curr_sb_lock);
 
 	/* synchronize its controller if it has */
-	if (cp->control)
-		ip_vs_sync_conn(cp->control);
+	cp = cp->control;
+	if (cp) {
+		if (cp->flags & IP_VS_CONN_F_TEMPLATE)
+			pkts = atomic_add_return(1, &cp->in_pkts);
+		else
+			pkts = sysctl_sync_threshold();
+		ip_vs_sync_conn(cp->control, pkts);
+	}
 }
 
 /*
@@ -542,7 +632,7 @@ void ip_vs_sync_conn_v0(struct ip_vs_conn *cp)
  *      Called by ip_vs_in.
  *      Sending Version 1 messages
  */
-void ip_vs_sync_conn(struct ip_vs_conn *cp)
+void ip_vs_sync_conn(struct ip_vs_conn *cp, int pkts)
 {
 	struct ip_vs_sync_mesg *m;
 	union ip_vs_sync_conn *s;
@@ -551,13 +641,16 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 
 	/* Handle old version of the protocol */
 	if (sysctl_ip_vs_sync_ver == 0) {
-		ip_vs_sync_conn_v0(cp);
+		ip_vs_sync_conn_v0(cp, pkts);
 		return;
 	}
 	/* Do not sync ONE PACKET */
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		goto control;
 sloop:
+	if (!ip_vs_sync_conn_needed(cp, pkts))
+		goto control;
+
 	/* Sanity checks */
 	pe_name_len = 0;
 	if (cp->pe_data_len) {
@@ -671,16 +764,10 @@ control:
 	cp = cp->control;
 	if (!cp)
 		return;
-	/*
-	 * Reduce sync rate for templates
-	 * i.e only increment in_pkts for Templates.
-	 */
-	if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
-		int pkts = atomic_add_return(1, &cp->in_pkts);
-
-		if (pkts % sysctl_sync_period() != 1)
-			return;
-	}
+	if (cp->flags & IP_VS_CONN_F_TEMPLATE)
+		pkts = atomic_add_return(1, &cp->in_pkts);
+	else
+		pkts = sysctl_sync_threshold();
 	goto sloop;
 }
 
@@ -1482,7 +1569,7 @@ next_sync_buff(void)
 	if (sb)
 		return sb;
 	/* Do not delay entries in buffer for more than 2 seconds */
-	return get_curr_sync_buff(2 * HZ);
+	return get_curr_sync_buff(IPVS_SYNC_FLUSH_TIME);
 }
 
 static int sync_thread_master(void *data)

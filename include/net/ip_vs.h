@@ -407,6 +407,10 @@ struct ip_vs_conn {
 						 * state transition triggerd
 						 * synchronization
 						 */
+/* kABI fix for commit 749c42b (ipvs: reduce sync rate with time thresholds) */
+#ifndef __GENKSYMS__
+	unsigned long		sync_endtime;	/* jiffies + sent_retries */
+#endif
 
 	/* Control members */
 	struct ip_vs_conn       *control;       /* Master control connection */
@@ -903,6 +907,11 @@ extern int sysctl_ip_vs_sync_sock_size;
 
 #define DEFAULT_SYNC_THRESHOLD	3
 #define DEFAULT_SYNC_PERIOD	50
+#define DEFAULT_SYNC_REFRESH_PERIOD    (0U * HZ)
+#define DEFAULT_SYNC_RETRIES           0
+#define IPVS_SYNC_FLUSH_TIME   (HZ * 2)
+extern int sysctl_ip_vs_sync_refresh_period;
+extern int sysctl_ip_vs_sync_retries;
 
 #ifdef CONFIG_SYSCTL
 
@@ -913,7 +922,17 @@ static inline int sysctl_sync_threshold(void)
 
 static inline int sysctl_sync_period(void)
 {
-	return sysctl_ip_vs_sync_threshold[1];
+	return ACCESS_ONCE(sysctl_ip_vs_sync_threshold[1]);
+}
+
+static inline unsigned int sysctl_sync_refresh_period(void)
+{
+	return ACCESS_ONCE(sysctl_ip_vs_sync_refresh_period);
+}
+
+static inline int sysctl_sync_retries(void)
+{
+	return sysctl_ip_vs_sync_retries;
 }
 
 static inline int sysctl_sync_qlen_max(void)
@@ -936,6 +955,16 @@ static inline int sysctl_sync_threshold(void)
 static inline int sysctl_sync_period(void)
 {
 	return DEFAULT_SYNC_PERIOD;
+}
+
+static inline unsigned int sysctl_sync_refresh_period(void)
+{
+	return DEFAULT_SYNC_REFRESH_PERIOD;
+}
+
+static inline int sysctl_sync_retries(void)
+{
+	return DEFAULT_SYNC_RETRIES & 3;
 }
 
 static inline int sysctl_sync_qlen_max(void)
@@ -986,7 +1015,7 @@ extern char ip_vs_master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 extern char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 extern int start_sync_thread(int state, char *mcast_ifn, __u8 syncid);
 extern int stop_sync_thread(int state);
-extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
+extern void ip_vs_sync_conn(struct ip_vs_conn *cp, int pkts);
 
 
 /*
