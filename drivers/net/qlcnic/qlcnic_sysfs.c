@@ -887,18 +887,42 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 	return size;
 }
 
-int qlcnic_validate_max_rss(u8 max_hw, u8 val)
+int qlcnic_validate_max_rss(struct qlcnic_adapter *adapter,
+			    __u32 val)
 {
+	struct net_device *netdev = adapter->netdev;
+	u8 max_hw = adapter->ahw->max_rx_ques;
 	u32 max_allowed;
-	if (max_hw > QLC_MAX_SDS_RINGS) {
-		max_hw = QLC_MAX_SDS_RINGS;
-		printk("max rss reset to %d\n", QLC_MAX_SDS_RINGS);
+
+	if (val > QLC_MAX_SDS_RINGS) {
+		netdev_err(netdev, "RSS value should not be higher than %u\n",
+			   QLC_MAX_SDS_RINGS);
+		return -EINVAL;
 	}
+
 	max_allowed = rounddown_pow_of_two(
 				min_t(int, max_hw, num_online_cpus()));
+	if ((val > max_allowed) || (val <  2) || !is_power_of_2(val)) {
+		if (!is_power_of_2(val))
+			netdev_err(netdev, "RSS value should be a power of 2\n");
 
-	if ((val > max_allowed) || (val <  2) || !is_power_of_2(val))
-		return max_allowed;
+		if (val < 2)
+			netdev_err(netdev, "RSS value should not be lower than 2\n");
+
+		if (val > max_hw)
+			netdev_err(netdev,
+				   "RSS value should not be higher than[%u], the max RSS rings supported by the adapter\n",
+				   max_hw);
+
+		if (val > num_online_cpus())
+			netdev_err(netdev,
+				   "RSS value should not be higher than[%u], number of online CPUs in the system\n",
+				   num_online_cpus());
+
+		netdev_err(netdev, "Unable to configure %u RSS rings\n", val);
+
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -989,7 +1013,7 @@ static ssize_t qlcnic_store_max_rss(struct device *dev,
 		goto done;
 	}
 
-	err = qlcnic_validate_max_rss(adapter->ahw->max_rx_ques, data);
+	err = qlcnic_validate_max_rss(adapter, data);
 	if (err) {
 		netdev_err(netdev,
 			   "rss_ring valid range[1 - %d] in powers of 2\n",
