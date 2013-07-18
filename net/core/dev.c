@@ -6675,6 +6675,7 @@ void unregister_netdevice_many(struct list_head *head)
 			net_set_todo(nde->dev);
 	}
 }
+EXPORT_SYMBOL(unregister_netdevice_many);
 
 /**
  *	unregister_netdev - remove device from the kernel
