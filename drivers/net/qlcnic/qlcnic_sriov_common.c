@@ -48,6 +48,8 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.get_func_no			= qlcnic_83xx_get_func_no,
 	.api_lock			= qlcnic_83xx_cam_lock,
 	.api_unlock			= qlcnic_83xx_cam_unlock,
+	.add_sysfs			= qlcnic_sriov_vf_add_sysfs,
+	.remove_sysfs			= qlcnic_sriov_vf_remove_sysfs,
 	.process_lb_rcv_ring_diag	= qlcnic_83xx_process_rcv_ring_diag,
 	.create_rx_ctx			= qlcnic_83xx_create_rx_ctx,
 	.create_tx_ctx			= qlcnic_83xx_create_tx_ctx,
@@ -335,7 +337,7 @@ poll:
 		/* Get the FW response data */
 		fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
 		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
-			qlcnic_83xx_process_aen(adapter);
+			__qlcnic_83xx_process_aen(adapter);
 			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 			if (mbx_val)
 				goto poll;

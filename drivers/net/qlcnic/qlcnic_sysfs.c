@@ -964,6 +964,9 @@ static ssize_t qlcnic_store_max_rss(struct device *dev,
 	unsigned long data;
 	int err;
 
+	if (qlcnic_sriov_vf_check(adapter))
+		return -EOPNOTSUPP;
+
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EBUSY;
 
@@ -1484,4 +1487,19 @@ void qlcnic_83xx_remove_sysfs(struct qlcnic_adapter *adapter)
 
 	qlcnic_remove_diag_entries(adapter);
 	sysfs_remove_bin_file(&dev->kobj, &bin_attr_flash);
+}
+
+void qlcnic_sriov_vf_add_sysfs(struct qlcnic_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+
+	if (device_create_file(dev, &dev_attr_max_rss))
+		dev_info(dev, "failed to create rss sysfs entry\n");
+}
+
+void qlcnic_sriov_vf_remove_sysfs(struct qlcnic_adapter *adapter)
+{
+	struct device *dev = &adapter->pdev->dev;
+
+	device_remove_file(dev, &dev_attr_max_rss);
 }

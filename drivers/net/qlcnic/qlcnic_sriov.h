@@ -194,6 +194,8 @@ int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *, struct qlcnic_vf_info *,
 int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *,
 				   struct qlcnic_info *, u16);
 int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *, u16, u8);
+void qlcnic_sriov_vf_add_sysfs(struct qlcnic_adapter *);
+void qlcnic_sriov_vf_remove_sysfs(struct qlcnic_adapter *);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {

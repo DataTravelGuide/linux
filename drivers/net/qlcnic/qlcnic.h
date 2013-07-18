@@ -1875,6 +1875,7 @@ static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 		writel(0xfbff, adapter->tgt_mask_reg);
 }
 
+extern const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops;
 extern const struct ethtool_ops qlcnic_ethtool_ops;
 extern const struct ethtool_ops_ext qlcnic_ethtool_ops_ext;
 extern const struct ethtool_ops qlcnic_ethtool_failed_ops;

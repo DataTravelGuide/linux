@@ -1677,7 +1677,11 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 
 	qlcnic_change_mtu(netdev, netdev->mtu);
 
-	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
+	if (qlcnic_sriov_vf_check(adapter))
+		SET_ETHTOOL_OPS(netdev, &qlcnic_sriov_vf_ethtool_ops);
+	else
+		SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
+
 	set_ethtool_ops_ext(netdev, &qlcnic_ethtool_ops_ext);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
