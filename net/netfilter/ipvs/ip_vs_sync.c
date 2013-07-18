@@ -678,7 +678,7 @@ control:
 	if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
 		int pkts = atomic_add_return(1, &cp->in_pkts);
 
-		if (pkts % sysctl_ip_vs_sync_threshold[1] != 1)
+		if (pkts % sysctl_sync_period() != 1)
 			return;
 	}
 	goto sloop;
@@ -803,7 +803,7 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 
 	if (opt)
 		memcpy(&cp->in_seq, opt, sizeof(*opt));
-	atomic_set(&cp->in_pkts, sysctl_ip_vs_sync_threshold[0]);
+	atomic_set(&cp->in_pkts, sysctl_sync_threshold());
 	cp->state = state;
 	cp->old_state = cp->state;
 	/*

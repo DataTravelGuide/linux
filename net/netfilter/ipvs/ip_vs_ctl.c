@@ -85,7 +85,8 @@ static int sysctl_ip_vs_am_droprate = 10;
 int sysctl_ip_vs_cache_bypass = 0;
 int sysctl_ip_vs_expire_nodest_conn = 0;
 int sysctl_ip_vs_expire_quiescent_template = 0;
-int sysctl_ip_vs_sync_threshold[2] = { 3, 50 };
+int sysctl_ip_vs_sync_threshold[2] = { DEFAULT_SYNC_THRESHOLD,
+				       DEFAULT_SYNC_PERIOD };
 int sysctl_ip_vs_nat_icmp_send = 0;
 int sysctl_ip_vs_snat_reroute = 1;
 int sysctl_ip_vs_sync_ver = 1;		/* Default version of sync proto */

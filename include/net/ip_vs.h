@@ -901,7 +901,20 @@ extern int sysctl_ip_vs_sync_sock_size;
 #define IPVS_SYNC_SEND_DELAY	(HZ / 50)
 #define IPVS_SYNC_CHECK_PERIOD	HZ
 
+#define DEFAULT_SYNC_THRESHOLD	3
+#define DEFAULT_SYNC_PERIOD	50
+
 #ifdef CONFIG_SYSCTL
+
+static inline int sysctl_sync_threshold(void)
+{
+	return sysctl_ip_vs_sync_threshold[0];
+}
+
+static inline int sysctl_sync_period(void)
+{
+	return sysctl_ip_vs_sync_threshold[1];
+}
 
 static inline int sysctl_sync_qlen_max(void)
 {
@@ -914,6 +927,16 @@ static inline int sysctl_sync_sock_size(void)
 }
 
 #else
+
+static inline int sysctl_sync_threshold(void)
+{
+	return DEFAULT_SYNC_THRESHOLD;
+}
+
+static inline int sysctl_sync_period(void)
+{
+	return DEFAULT_SYNC_PERIOD;
+}
 
 static inline int sysctl_sync_qlen_max(void)
 {
