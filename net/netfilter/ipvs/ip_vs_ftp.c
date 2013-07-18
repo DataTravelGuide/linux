@@ -199,7 +199,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 					      0, &cp->vaddr, port, &p);
 			n_cp = ip_vs_conn_new(&p, &from, port,
 					      IP_VS_CONN_F_NO_CPORT,
-					      cp->dest);
+					      cp->dest, skb->mark);
 			if (!n_cp)
 				return 0;
 
@@ -338,7 +338,8 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		if (!n_cp) {
 			n_cp = ip_vs_conn_new(&p, &cp->daddr,
 					      htons(ntohs(cp->dport)-1),
-					      0, cp->dest);
+					      0, cp->dest,
+					      skb->mark);
 			if (!n_cp)
 				return 0;
 
