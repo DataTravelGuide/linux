@@ -844,6 +844,8 @@ struct net_device_ops {
 #endif
 };
 
+typedef u64 netdev_features_t;
+
 /*
  *	The DEVICE structure.
  *	Actually, this whole structure is a big mistake.  It mixes I/O
