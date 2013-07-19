@@ -1183,7 +1183,7 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	int nhoff;
 	int rc;
 
-	nhoff = skb_network_offset(skb);
+	nhoff = 0;
 
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		EFX_BUG_ON_PARANOID(skb_headlen(skb) <
