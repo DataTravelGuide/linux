@@ -2733,6 +2733,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			high-resolution timer mode on older hardware, and in
 			virtualized environment.
 
+	tsc_init_debug  [RHEL] Output additional information about the TSC
+			during system boot.
+
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
 			Format:
