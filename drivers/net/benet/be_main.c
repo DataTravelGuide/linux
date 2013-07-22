@@ -159,6 +159,10 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 {
 	u32 reg, enabled;
 
+	/* On lancer interrupts can't be controlled via this register */
+	if (lancer_chip(adapter))
+		return;
+
 	if (adapter->eeh_error)
 		return;
 
@@ -2419,9 +2423,6 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	if (!lancer_chip(adapter))
-		be_intr_set(adapter, false);
-
 	for_all_evt_queues(adapter, eqo, i)
 		napi_disable(&eqo->napi);
 
@@ -2508,9 +2509,6 @@ static int be_open(struct net_device *netdev)
 		goto err;
 
 	be_irq_register(adapter);
-
-	if (!lancer_chip(adapter))
-		be_intr_set(adapter, true);
 
 	for_all_rx_queues(adapter, rxo, i)
 		be_cq_notify(adapter, rxo->cq.id, true, 0);
@@ -3838,6 +3836,7 @@ static void __devexit be_remove(struct pci_dev *pdev)
 		return;
 
 	be_roce_dev_remove(adapter);
+	be_intr_set(adapter, false);
 
 	cancel_delayed_work_sync(&adapter->func_recovery_work);
 
@@ -4112,11 +4111,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 			goto ctrl_clean;
 	}
 
-	/* The INTR bit may be set in the card when probed by a kdump kernel
-	 * after a crash.
-	 */
-	if (!lancer_chip(adapter))
-		be_intr_set(adapter, false);
+	/* Wait for interrupts to quiesce after an FLR */
+	msleep(100);
+
+	/* Allow interrupts for other ULPs running on NIC function */
+	be_intr_set(adapter, true);
 
 	status = be_stats_init(adapter);
 	if (status)
