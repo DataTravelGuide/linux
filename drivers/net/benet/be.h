@@ -397,6 +397,7 @@ struct be_adapter {
 	char fw_ver[FW_VER_LEN];
 	int if_handle;		/* Used to configure filtering */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
+	u32 beacon_state;	/* for set_phys_id */
 
 	bool eeh_error;
 	bool fw_timeout;
@@ -476,6 +477,7 @@ struct be_adapter {
 				(adapter->function_mode & RDMA_ENABLED))
 
 extern const struct ethtool_ops be_ethtool_ops;
+extern const struct ethtool_ops_ext be_ethtool_ops_ext;
 
 #define msix_enabled(adapter)		(adapter->num_msix_vec > 0)
 #define num_irqs(adapter)		(msix_enabled(adapter) ?	\

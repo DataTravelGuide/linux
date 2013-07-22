@@ -3587,6 +3587,7 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->netdev_ops = &be_netdev_ops;
 
 	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
+	set_ethtool_ops_ext(netdev, &be_ethtool_ops_ext);
 
 	for_all_evt_queues(adapter, eqo, i)
 		netif_napi_add(netdev, &eqo->napi, be_poll, BE_NAPI_WEIGHT);
