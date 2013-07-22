@@ -373,7 +373,6 @@ struct be_adapter {
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
-	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
 
 	struct vlan_group *vlan_grp;
