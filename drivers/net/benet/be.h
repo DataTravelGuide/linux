@@ -212,6 +212,7 @@ struct be_tx_stats {
 };
 
 struct be_tx_obj {
+	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	/* Remember the skbs that were transmitted */
