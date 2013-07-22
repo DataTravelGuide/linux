@@ -497,9 +497,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	br_add_vlans_to_port(br, p);
 
+	br_features_recompute(br);
+
 	spin_lock_bh(&br->lock);
 	br_stp_recalculate_bridge_id(br);
-	br_features_recompute(br);
 
 	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev) &&
 	    (br->dev->flags & IFF_UP))
@@ -540,8 +541,9 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 	spin_lock_bh(&br->lock);
 	br_stp_recalculate_bridge_id(br);
-	br_features_recompute(br);
 	spin_unlock_bh(&br->lock);
+
+	br_features_recompute(br);
 
 	return 0;
 }
