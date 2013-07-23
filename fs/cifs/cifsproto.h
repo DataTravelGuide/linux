@@ -482,6 +482,7 @@ struct cifs_writedata {
 	struct slow_work		work;
 	struct cifsFileInfo		*cfile;
 	__u64				offset;
+	pid_t				pid;
 	unsigned int			bytes;
 	int				result;
 	void (*marshal_iov) (struct kvec *iov,

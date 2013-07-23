@@ -1321,6 +1321,7 @@ retry:
 				rc = -EBADF;
 				break;
 			}
+			wdata->pid = wdata->cfile->pid;
 			rc = cifs_async_writev(wdata);
 		} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
 
