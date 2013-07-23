@@ -3602,6 +3602,7 @@ static const struct ethtool_ops_ext bnx2x_ethtool_ops_ext = {
 	.get_module_eeprom	= bnx2x_get_module_eeprom,
 	.get_eee		= bnx2x_get_eee,
 	.set_eee		= bnx2x_set_eee,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static const struct ethtool_ops bnx2x_vf_ethtool_ops = {
