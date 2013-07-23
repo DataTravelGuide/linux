@@ -570,7 +570,11 @@ struct Scsi_Host {
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
 	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
+#ifdef __GENKSYMS__
 	int resetting; /* if set, it means that last_reset is a valid value */
+#else
+	int eh_deadline;
+#endif
 	unsigned long last_reset;
 
 	/*

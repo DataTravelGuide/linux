@@ -245,6 +245,42 @@ show_shost_active_mode(struct device *dev,
 
 static DEVICE_ATTR(active_mode, S_IRUGO | S_IWUSR, show_shost_active_mode, NULL);
 
+static ssize_t
+show_shost_eh_deadline(struct device *dev,
+		      struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+
+	return sprintf(buf, "%d\n", shost->eh_deadline / HZ);
+}
+
+static ssize_t
+store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	int ret = -EINVAL;
+	int eh_deadline;
+	unsigned long flags;
+
+	if (shost->transportt->eh_strategy_handler)
+		return ret;
+
+	if (sscanf(buf, "%d\n", &eh_deadline) == 1) {
+		spin_lock_irqsave(shost->host_lock, flags);
+		if (scsi_host_in_recovery(shost))
+			ret = -EBUSY;
+		else {
+			shost->eh_deadline = eh_deadline * HZ;
+			ret = count;
+		}
+		spin_unlock_irqrestore(shost->host_lock, flags);
+	}
+	return ret;
+}
+
+static DEVICE_ATTR(eh_deadline, S_IRUGO | S_IWUSR, show_shost_eh_deadline, store_shost_eh_deadline);
+
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
@@ -269,6 +305,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	&dev_attr_active_mode.attr,
 	&dev_attr_prot_capabilities.attr,
 	&dev_attr_prot_guard_type.attr,
+	&dev_attr_eh_deadline.attr,
 	NULL
 };
 
