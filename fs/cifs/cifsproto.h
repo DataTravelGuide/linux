@@ -469,12 +469,13 @@ struct cifs_readdata {
 	unsigned int			bytes;
 	pid_t				pid;
 	int				result;
-	struct list_head		pages;
 	struct slow_work		work;
 	int (*marshal_iov) (struct cifs_readdata *rdata,
 			    unsigned int remaining);
 	unsigned int			nr_iov;
 	struct kvec			*iov;
+	unsigned int			nr_pages;
+	struct page			*pages[];
 };
 
 void cifs_readdata_release(struct kref *refcount);
