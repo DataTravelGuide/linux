@@ -9489,8 +9489,7 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp)
 #define BNX2X_PREV_UNDI_BD(val)		((val) >> 16 & 0xffff)
 #define BNX2X_PREV_UNDI_PROD(rcq, bd)	((bd) << 16 | (rcq))
 
-static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port,
-						 u8 inc)
+static void bnx2x_prev_unload_undi_inc(struct bnx2x *bp, u8 port, u8 inc)
 {
 	u16 rcq, bd;
 	u32 tmp_reg = REG_RD(bp, BNX2X_PREV_UNDI_PROD_ADDR(port));
@@ -10074,8 +10073,7 @@ static int bnx2x_get_igu_cam_info(struct bnx2x *bp)
 	return 0;
 }
 
-static void bnx2x_link_settings_supported(struct bnx2x *bp,
-						    u32 switch_cfg)
+static void bnx2x_link_settings_supported(struct bnx2x *bp, u32 switch_cfg)
 {
 	int cfg_size = 0, idx, port = BP_PORT(bp);
 
@@ -11552,9 +11550,8 @@ static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 	return 0;
 }
 
-static int bnx2x_init_dev(struct pci_dev *pdev,
-				    struct net_device *dev,
-				    unsigned long board_type)
+static int bnx2x_init_dev(struct pci_dev *pdev, struct net_device *dev,
+			  unsigned long board_type)
 {
 	struct bnx2x *bp;
 	int rc;
@@ -11733,8 +11730,7 @@ err_out:
 	return rc;
 }
 
-static void bnx2x_get_pcie_width_speed(struct bnx2x *bp,
-						 int *width, int *speed)
+static void bnx2x_get_pcie_width_speed(struct bnx2x *bp, int *width, int *speed)
 {
 	u32 val = REG_RD(bp, PCICFG_OFFSET + PCICFG_LINK_CONTROL);
 
@@ -12040,8 +12036,7 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 
 struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *);
 
-static int bnx2x_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+static int bnx2x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev = NULL;
 	struct bnx2x *bp;
