@@ -9998,7 +9998,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 #define IGU_FID(val)	GET_FIELD((val), IGU_REG_MAPPING_MEMORY_FID)
 #define IGU_VEC(val)	GET_FIELD((val), IGU_REG_MAPPING_MEMORY_VECTOR)
 
-static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
+static int __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 {
 	int pfid = BP_FUNC(bp);
 	int igu_sb_id;
@@ -10015,7 +10015,7 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 		bp->igu_dsb_id =  E1HVN_MAX * FP_SB_MAX_E1x +
 			(CHIP_MODE_IS_4_PORT(bp) ? pfid : vn);
 
-		return;
+		return 0;
 	}
 
 	/* IGU in normal mode - read CAM */
@@ -10049,8 +10049,12 @@ static void __devinit bnx2x_get_igu_cam_info(struct bnx2x *bp)
 	bp->igu_sb_cnt = min_t(int, bp->igu_sb_cnt, igu_sb_cnt);
 #endif
 
-	if (igu_sb_cnt == 0)
+	if (igu_sb_cnt == 0) {
 		BNX2X_ERR("CAM configuration error\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
@@ -10730,6 +10734,8 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 			if (REG_RD(bp, IGU_REG_RESET_MEMORIES)) {
 				dev_err(&bp->pdev->dev,
 					"FORCING Normal Mode failed!!!\n");
+				bnx2x_release_hw_lock(bp,
+						      HW_LOCK_RESOURCE_RESET);
 				return -EPERM;
 			}
 		}
@@ -10740,9 +10746,10 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		} else
 			BNX2X_DEV_INFO("IGU Normal Mode\n");
 
-		bnx2x_get_igu_cam_info(bp);
-
+		rc = bnx2x_get_igu_cam_info(bp);
 		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+		if (rc)
+			return rc;
 	}
 
 	/*
