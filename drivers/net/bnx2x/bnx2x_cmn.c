@@ -534,6 +534,17 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return 0;
 }
 
+static void bnx2x_frag_free(const struct bnx2x_fastpath *fp, void *data)
+{
+	kfree(data);
+}
+
+static void *bnx2x_frag_alloc(const struct bnx2x_fastpath *fp)
+{
+	return kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
+}
+
+
 static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			   struct bnx2x_agg_info *tpa_info,
 			   u16 pages,
@@ -556,8 +567,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		goto drop;
 
 	/* Try to allocate the new data */
-	new_data = kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
-
+	new_data = bnx2x_frag_alloc(fp);
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
@@ -602,7 +612,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		return;
 	}
-	kfree(new_data);
+	bnx2x_frag_free(fp, new_data);
 drop:
 	/* drop the packet and keep the buffer in the bin */
 	DP(NETIF_MSG_RX_STATUS,
@@ -618,7 +628,7 @@ static int bnx2x_alloc_rx_data(struct bnx2x *bp,
 	struct eth_rx_bd *rx_bd = &fp->rx_desc_ring[index];
 	dma_addr_t mapping;
 
-	data = kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
+	data = bnx2x_frag_alloc(fp);
 	if (unlikely(data == NULL))
 		return -ENOMEM;
 
@@ -626,7 +636,7 @@ static int bnx2x_alloc_rx_data(struct bnx2x *bp,
 				 fp->rx_buf_size,
 				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
-		kfree(data);
+		bnx2x_frag_free(fp, data);
 		BNX2X_ERR("Can't map rx data\n");
 		return -ENOMEM;
 	}
@@ -829,7 +839,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 						 DMA_FROM_DEVICE);
 				skb = build_skb(data);
 				if (unlikely(!skb)) {
-					kfree(data);
+					bnx2x_frag_free(fp, data);
 					bnx2x_fp_qstats(bp, fp)->
 							rx_skb_alloc_failed++;
 					goto next_rx;
@@ -1140,7 +1150,7 @@ static void bnx2x_free_tpa_pool(struct bnx2x *bp,
 			dma_unmap_single(&bp->pdev->dev,
 					 dma_unmap_addr(first_buf, mapping),
 					 fp->rx_buf_size, DMA_FROM_DEVICE);
-		kfree(data);
+		bnx2x_frag_free(fp, data);
 		first_buf->data = NULL;
 	}
 }
@@ -1185,8 +1195,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 				struct sw_rx_bd *first_buf =
 					&tpa_info->first_buf;
 
-				first_buf->data = kmalloc(fp->rx_buf_size + NET_SKB_PAD,
-							  GFP_ATOMIC);
+				first_buf->data = bnx2x_frag_alloc(fp);
 				if (!first_buf->data) {
 					BNX2X_ERR("Failed to allocate TPA skb pool for queue[%d] - disabling TPA on this queue!\n",
 						  j);
@@ -1312,7 +1321,7 @@ static void bnx2x_free_rx_bds(struct bnx2x_fastpath *fp)
 				 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 		rx_buf->data = NULL;
-		kfree(data);
+		bnx2x_frag_free(fp, data);
 	}
 }
 
