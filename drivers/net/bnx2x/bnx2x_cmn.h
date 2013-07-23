@@ -22,7 +22,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
-
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
 
@@ -1170,7 +1169,6 @@ static inline u8 bnx2x_cnic_eth_cl_id(struct bnx2x *bp, u8 cl_idx)
 
 static inline u8 bnx2x_cnic_fw_sb_id(struct bnx2x *bp)
 {
-
 	/* the 'first' id is allocated for the cnic */
 	return bp->base_fw_ndsb;
 }
@@ -1179,7 +1177,6 @@ static inline u8 bnx2x_cnic_igu_sb_id(struct bnx2x *bp)
 {
 	return bp->igu_base_sb;
 }
-
 
 static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 {

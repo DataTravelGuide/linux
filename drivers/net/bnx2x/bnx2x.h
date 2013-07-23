@@ -38,11 +38,9 @@
 #define BCM_DCBNL
 #endif
 
-
 #include "bnx2x_hsi.h"
 
 #include "../cnic_if.h"
-
 
 #define BNX2X_MIN_MSIX_VEC_CNT(bp)		((bp)->min_msix_vec_cnt)
 
@@ -118,7 +116,6 @@ do {								\
 #define BNX2X_ERROR(fmt, ...)					\
 	pr_err("[%s:%d]" fmt, __func__, __LINE__, ##__VA_ARGS__)
 
-
 /* before we have a dev->name use dev_info() */
 #define BNX2X_DEV_INFO(fmt, ...)				 \
 do {								 \
@@ -150,7 +147,6 @@ do {						\
 #define U64_LO(x)			((u32)(((u64)(x)) & 0xffffffff))
 #define U64_HI(x)			((u32)(((u64)(x)) >> 32))
 #define HILO_U64(hi, lo)		((((u64)(hi)) << 32) + (lo))
-
 
 #define REG_ADDR(bp, offset)		((bp->regview) + (offset))
 
@@ -391,7 +387,6 @@ union db_prod {
 #define BIT_VEC64_ELEM_SHIFT		6
 #define BIT_VEC64_ELEM_MASK		((u64)BIT_VEC64_ELEM_SZ - 1)
 
-
 #define __BIT_VEC64_SET_BIT(el, bit) \
 	do { \
 		el = ((el) | ((u64)0x1 << (bit))); \
@@ -401,7 +396,6 @@ union db_prod {
 	do { \
 		el = ((el) & (~((u64)0x1 << (bit)))); \
 	} while (0)
-
 
 #define BIT_VEC64_SET_BIT(vec64, idx) \
 	__BIT_VEC64_SET_BIT((vec64)[(idx) >> BIT_VEC64_ELEM_SHIFT], \
@@ -422,8 +416,6 @@ union db_prod {
 #define BIT_VEC64_ELEM_ONE_MASK	((u64)(~0))
 
 /*******************************************************/
-
-
 
 /* Number of u64 elements in SGE mask array */
 #define RX_SGE_MASK_LEN			(NUM_RX_SGE / BIT_VEC64_ELEM_SZ)
@@ -583,11 +575,9 @@ struct bnx2x_fastpath {
 						txdata_ptr[FIRST_TX_COS_INDEX] \
 						->var)
 
-
 #define IS_ETH_FP(fp)		((fp)->index < BNX2X_NUM_ETH_QUEUES((fp)->bp))
 #define IS_FCOE_FP(fp)		((fp)->index == FCOE_IDX((fp)->bp))
 #define IS_FCOE_IDX(idx)	((idx) == FCOE_IDX(bp))
-
 
 /* MC hsi */
 #define MAX_FETCH_BD		13	/* HW max BDs per packet */
@@ -695,11 +685,9 @@ struct bnx2x_fastpath {
 				 FW_DROP_LEVEL(bp))
 #define RCQ_TH_HI(bp)		(RCQ_TH_LO(bp) + DROPLESS_FC_HEADROOM)
 
-
 /* This is needed for determining of last_max */
 #define SUB_S16(a, b)		(s16)((s16)(a) - (s16)(b))
 #define SUB_S32(a, b)		(s32)((s32)(a) - (s32)(b))
-
 
 #define BNX2X_SWCID_SHIFT	17
 #define BNX2X_SWCID_MASK	((0x1 << BNX2X_SWCID_SHIFT) - 1)
@@ -724,7 +712,6 @@ struct bnx2x_fastpath {
 		writel((u32)(val), bp->doorbells + (bp->db_size * (cid)) + \
 		       DPM_TRIGER_TYPE); \
 	} while (0)
-
 
 /* TX CSUM helpers */
 #define SKB_CS_OFF(skb)		(offsetof(struct tcphdr, check) - \
@@ -761,7 +748,6 @@ struct bnx2x_fastpath {
 				 == PRS_FLAG_OVERETH_IPV4)
 #define BNX2X_RX_SUM_FIX(cqe) \
 	BNX2X_PRS_FLAG_OVERETH_IPV4(cqe->fast_path_cqe.pars_flags.flags)
-
 
 #define FP_USB_FUNC_OFF	\
 			offsetof(struct cstorm_status_block_u, func)
@@ -1064,7 +1050,6 @@ struct bnx2x_slowpath {
 		struct eth_classify_rules_ramrod_data	e2;
 	} mac_rdata;
 
-
 	union {
 		struct tstorm_eth_mac_filter_config	e1x;
 		struct eth_filter_rules_ramrod_data	e2;
@@ -1114,7 +1099,6 @@ struct bnx2x_slowpath {
 #define bnx2x_sp(bp, var)		(&bp->slowpath->var)
 #define bnx2x_sp_mapping(bp, var) \
 		(bp->slowpath_mapping + offsetof(struct bnx2x_slowpath, var))
-
 
 /* attn group wiring */
 #define MAX_DYNAMIC_ATTN_GRPS		8
@@ -1220,7 +1204,6 @@ enum {
 	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
 };
-
 
 struct bnx2x_prev_path_list {
 	struct list_head list;
@@ -1754,7 +1737,6 @@ extern int num_queues;
 #define FUNC_FLG_SPQ		0x0010
 #define FUNC_FLG_LEADING	0x0020	/* PF only */
 
-
 struct bnx2x_func_init_params {
 	/* dma */
 	dma_addr_t	fw_stat_map;	/* valid iff FUNC_FLG_STATS */
@@ -1851,9 +1833,6 @@ struct bnx2x_func_init_params {
 #define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
 #define skip_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
-
-
-
 
 /**
  * bnx2x_set_mac_one - configure a single MAC address
@@ -1999,7 +1978,6 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define UNLOAD_CLOSE			1
 #define UNLOAD_RECOVERY			2
 
-
 /* DMAE command defines */
 #define DMAE_TIMEOUT			-1
 #define DMAE_PCI_ERROR			-2	/* E2 and onward */
@@ -2100,7 +2078,6 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 
 #define SP_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_spe))
 #define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
-
 
 #define BNX2X_BTR			4
 #define MAX_SPQ_PENDING			8
