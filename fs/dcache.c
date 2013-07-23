@@ -1245,15 +1245,20 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 
 	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&dcache_lock);
-		new = __d_find_alias(inode, 1);
+		new = __d_find_any_alias(inode);
 		if (new) {
-			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
+			if (new->d_parent != dentry->d_parent &&
+					!IS_ROOT(new->d_parent)) {
+				WARN_ON_ONCE(1);
+				goto add_duplicate_alias;
+			}
 			spin_unlock(&dcache_lock);
 			security_d_instantiate(new, inode);
 			d_rehash(dentry);
 			d_move(new, dentry);
 			iput(inode);
 		} else {
+add_duplicate_alias:
 			/* already taking dcache_lock, so d_add() by hand */
 			__d_instantiate(dentry, inode);
 			spin_unlock(&dcache_lock);
