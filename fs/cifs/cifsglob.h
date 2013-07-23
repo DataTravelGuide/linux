@@ -575,7 +575,7 @@ struct cifsInodeInfo {
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping:1;		/* pagecache is invalid */
-	u64  server_eof;		/* current file size on server */
+	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
 #ifdef CONFIG_CIFS_FSCACHE
 	struct fscache_cookie *fscache;
