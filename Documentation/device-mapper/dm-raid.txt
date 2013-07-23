@@ -190,3 +190,4 @@ Version History
 1.3.2   Fix/improve redundancy checking for RAID10
 1.3.3   Add message interface to allow manipulation of the sync_action.
         New status (STATUSTYPE_INFO) fields: sync_action and mismatch_cnt.
+1.3.4   Add ability to restore transiently failed devices on resume.
