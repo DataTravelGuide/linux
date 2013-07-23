@@ -452,12 +452,11 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
 	return 0;
 }
 
-static int
-cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
-			 unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+cifs_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	int rc;
-	struct smb_hdr *hdr = (struct smb_hdr *)iov[0].iov_base;
+	struct smb_hdr *hdr = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	/* enable signing if server requires it */
@@ -466,16 +465,15 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
 
 	mid = AllocMidQEntry(hdr, server);
 	if (mid == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	rc = cifs_sign_smbv(iov, nvec, server, &mid->sequence_number);
+	rc = cifs_sign_rqst(rqst, server, &mid->sequence_number);
 	if (rc) {
 		DeleteMidQEntry(mid);
-		return rc;
+		return ERR_PTR(rc);
 	}
 
-	*ret_mid = mid;
-	return 0;
+	return mid;
 }
 
 /*
@@ -483,9 +481,9 @@ cifs_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
  * the result. Caller is responsible for dealing with timeouts.
  */
 int
-cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
-		unsigned int nvec, mid_receive_t *receive,
-		mid_callback_t *callback, void *cbdata, bool ignore_pend)
+cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
+		mid_receive_t *receive, mid_callback_t *callback,
+		void *cbdata, bool ignore_pend)
 {
 	int rc;
 	struct mid_q_entry *mid;
@@ -495,12 +493,12 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 		return rc;
 
 	mutex_lock(&server->srv_mutex);
-	rc = cifs_setup_async_request(server, iov, nvec, &mid);
-	if (rc) {
+	mid = cifs_setup_async_request(server, rqst);
+	if (IS_ERR(mid)) {
 		mutex_unlock(&server->srv_mutex);
 		cifs_add_credits(server, 1);
 		wake_up(&server->request_q);
-		return rc;
+		return PTR_ERR(mid);
 	}
 
 	mid->receive = receive;
@@ -514,7 +512,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	spin_unlock(&GlobalMid_Lock);
 
 	cifs_in_send_inc(server);
-	rc = smb_sendv(server, iov, nvec);
+	rc = smb_send_rqst(server, rqst);
 	cifs_in_send_dec(server);
 	cifs_save_when_sent(mid);
 	mutex_unlock(&server->srv_mutex);
@@ -654,22 +652,22 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	return map_smb_to_linux_error(mid->resp_buf, log_error);
 }
 
-static int
-cifs_setup_request(struct cifs_ses *ses, struct kvec *iov,
-		   unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+cifs_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 {
 	int rc;
-	struct smb_hdr *hdr = (struct smb_hdr *)iov[0].iov_base;
+	struct smb_hdr *hdr = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	rc = allocate_mid(ses, hdr, &mid);
 	if (rc)
-		return rc;
-	rc = cifs_sign_smbv(iov, nvec, ses->server, &mid->sequence_number);
-	if (rc)
+		return ERR_PTR(rc);
+	rc = cifs_sign_rqst(rqst, ses->server, &mid->sequence_number);
+	if (rc) {
 		delete_mid(mid);
-	*ret_mid = mid;
-	return rc;
+		return ERR_PTR(rc);
+	}
+	return mid;
 }
 
 int
@@ -681,6 +679,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	int long_op;
 	struct mid_q_entry *midQ;
 	char *buf = iov[0].iov_base;
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = n_vec };
 
 	long_op = flags & CIFS_TIMEOUT_MASK;
 
@@ -717,13 +717,13 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_lock(&ses->server->srv_mutex);
 
-	rc = cifs_setup_request(ses, iov, n_vec, &midQ);
-	if (rc) {
+	midQ = cifs_setup_request(ses, &rqst);
+	if (IS_ERR(midQ)) {
 		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(buf);
 		/* Update # of requests on wire to server */
 		cifs_add_credits(ses->server, 1);
-		return rc;
+		return PTR_ERR(midQ);
 	}
 
 	midQ->mid_state = MID_REQUEST_SUBMITTED;

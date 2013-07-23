@@ -753,6 +753,8 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	ECHO_REQ *smb;
 	int rc = 0;
 	struct kvec iov;
+	struct smb_rqst rqst = { .rq_iov = &iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "In echo request");
 
@@ -770,7 +772,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov.iov_base = smb;
 	iov.iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
-	rc = cifs_call_async(server, &iov, 1, NULL, cifs_echo_callback,
+	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback,
 			     server, true);
 	if (rc)
 		cFYI(1, "Echo request failed: %d", rc);
@@ -1623,6 +1625,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	READ_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
+	struct smb_rqst rqst = { .rq_iov = rdata->iov,
+				 .rq_nvec = 1 };
 
 	cFYI(1, "%s: offset=%llu bytes=%u", __func__,
 		rdata->offset, rdata->bytes);
@@ -1666,9 +1670,8 @@ cifs_async_readv(struct cifs_readdata *rdata)
 	rdata->iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4;
 
 	kref_get(&rdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, rdata->iov, 1,
-			     cifs_readv_receive, cifs_readv_callback,
-			     rdata, false);
+	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,
+			     cifs_readv_callback, rdata, false);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_reads);
@@ -2069,6 +2072,7 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 	struct kvec *iov = NULL;
+	struct smb_rqst rqst = { };
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
 		wct = 14;
@@ -2085,11 +2089,13 @@ cifs_async_writev(struct cifs_writedata *wdata)
 		goto async_writev_out;
 
 	/* 1 iov per page + 1 for header */
-	iov = kzalloc((wdata->nr_pages + 1) * sizeof(*iov), GFP_NOFS);
+	rqst.rq_nvec = wdata->nr_pages + 1;
+	iov = kzalloc((rqst.rq_nvec) * sizeof(*iov), GFP_NOFS);
 	if (iov == NULL) {
 		rc = -ENOMEM;
 		goto async_writev_out;
 	}
+	rqst.rq_iov = iov;
 
 	smb->hdr.Pid = cpu_to_le16((__u16)wdata->pid);
 	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
@@ -2138,8 +2144,8 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	}
 
 	kref_get(&wdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, iov, wdata->nr_pages + 1,
-			     NULL, cifs_writev_callback, wdata, false);
+	rc = cifs_call_async(tcon->ses->server, &rqst, NULL,
+				cifs_writev_callback, wdata, false);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->num_writes);
