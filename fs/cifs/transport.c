@@ -125,7 +125,6 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 	int rc = 0;
 	int i = 0;
 	struct msghdr smb_msg;
-	__be32 *buf_len = (__be32 *)(iov[0].iov_base);
 	unsigned int len = iov[0].iov_len;
 	unsigned int total_len;
 	int first_vec = 0;
@@ -233,9 +232,6 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 		cERROR(1, "Error %d sending data on socket to server", rc);
 	else
 		rc = 0;
-
-	/* Don't want to modify the buffer as a side effect of this call. */
-	*buf_len = cpu_to_be32(smb_buf_length);
 
 	return rc;
 }
