@@ -124,7 +124,7 @@ static void bnx2x_shrink_eth_fp(struct bnx2x *bp, int delta)
 	int i, cos, old_eth_num = BNX2X_NUM_ETH_QUEUES(bp);
 
 	/* Queue pointer cannot be re-set on an fp-basis, as moving pointer
-	 * backward along the array could cause memory to be overriden
+	 * backward along the array could cause memory to be overridden
 	 */
 	for (cos = 1; cos < bp->max_cos; cos++) {
 		for (i = 0; i < old_eth_num - delta; i++) {
@@ -248,7 +248,7 @@ int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata)
 	smp_mb();
 
 	if (unlikely(netif_tx_queue_stopped(txq))) {
-		/* Taking tx_lock() is needed to prevent reenabling the queue
+		/* Taking tx_lock() is needed to prevent re-enabling the queue
 		 * while it's empty. This could have happen if rx_action() gets
 		 * suspended in bnx2x_tx_int() after the condition before
 		 * netif_tx_wake_queue(), while tx_action (bnx2x_start_xmit()):
@@ -558,7 +558,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			return err;
 		}
 
-		/* Unmap the page as we r going to pass it to the stack */
+		/* Unmap the page as we're going to pass it to the stack */
 		dma_unmap_page(&bp->pdev->dev,
 			       dma_unmap_addr(&old_rx_pg, mapping),
 			       SGE_PAGES, DMA_FROM_DEVICE);
@@ -1111,7 +1111,7 @@ static void bnx2x_fill_report_data(struct bnx2x *bp,
 
 	memset(data, 0, sizeof(*data));
 
-	/* Fill the report data: efective line speed */
+	/* Fill the report data: effective line speed */
 	data->line_speed = line_speed;
 
 	/* Link is down */
@@ -1154,7 +1154,7 @@ void bnx2x_link_report(struct bnx2x *bp)
  *
  * @bp:		driver handle
  *
- * None atomic inmlementation.
+ * None atomic implementation.
  * Should be called under the phy_lock.
  */
 void __bnx2x_link_report(struct bnx2x *bp)
@@ -1297,7 +1297,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, fp->rx_buf_size);
 
 		if (!fp->disable_tpa) {
-			/* Fill the per-aggregtion pool */
+			/* Fill the per-aggregation pool */
 			for (i = 0; i < MAX_AGG_QS(bp); i++) {
 				struct bnx2x_agg_info *tpa_info =
 					&fp->tpa_info[i];
@@ -1849,7 +1849,7 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
  *
  * If the actual number of Tx queues (for each CoS) is less than 16 then there
  * will be the holes at the end of each group of 16 ETh L2 indices (0..15,
- * 16..31,...) with indicies that are not coupled with any real Tx queue.
+ * 16..31,...) with indices that are not coupled with any real Tx queue.
  *
  * The proper configuration of skb->queue_mapping is handled by
  * bnx2x_select_queue() and __skb_tx_hash().
@@ -1908,7 +1908,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 				  ETH_OVREHEAD +
 				  mtu +
 				  BNX2X_FW_RX_ALIGN_END;
-		/* Note : rx_buf_size doesnt take into account NET_SKB_PAD */
+		/* Note : rx_buf_size doesn't take into account NET_SKB_PAD */
 	}
 }
 
@@ -1917,7 +1917,7 @@ static int bnx2x_init_rss_pf(struct bnx2x *bp)
 	int i;
 	u8 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
 
-	/* Prepare the initial contents fo the indirection table if RSS is
+	/* Prepare the initial contents for the indirection table if RSS is
 	 * enabled
 	 */
 	for (i = 0; i < sizeof(bp->rss_conf_obj.ind_table); i++)
@@ -1995,7 +1995,7 @@ static int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
 
 /*
  * Cleans the object that have internal lists without sending
- * ramrods. Should be run when interrutps are disabled.
+ * ramrods. Should be run when interrupts are disabled.
  */
 void bnx2x_squeeze_objects(struct bnx2x *bp)
 {
@@ -2331,8 +2331,7 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 			fp->txdata_ptr[cos] = &bp->bnx2x_txq[cos *
 				BNX2X_NUM_ETH_QUEUES(bp) + index];
 
-	/*
-	 * set the tpa flag for each queue. The tpa flag determines the queue
+	/* set the tpa flag for each queue. The tpa flag determines the queue
 	 * minimal size so it must be set prior to queue memory allocation
 	 */
 	fp->disable_tpa = !(bp->flags & TPA_ENABLE_FLAG ||
@@ -2457,6 +2456,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bp->state = BNX2X_STATE_OPENING_WAIT4_LOAD;
 
+	/* zero the structure w/o any lock, before SP handler is initialized */
 	memset(&bp->last_reported_link, 0, sizeof(bp->last_reported_link));
 	__set_bit(BNX2X_LINK_REPORT_LINK_DOWN,
 		&bp->last_reported_link.link_report_flags);
@@ -2675,7 +2675,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Start the Tx */
 	switch (load_mode) {
 	case LOAD_NORMAL:
-		/* Tx queue should be only reenabled */
+		/* Tx queue should be only re-enabled */
 		netif_tx_wake_all_queues(bp->dev);
 		break;
 
@@ -2820,7 +2820,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/* Nothing to do during unload if previous bnx2x_nic_load()
-	 * have not completed succesfully - all resourses are released.
+	 * have not completed successfully - all resources are released.
 	 *
 	 * we can get here only after unsuccessful ndo_* callback, during which
 	 * dev->IFF_UP flag is still on.
@@ -2869,10 +2869,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 		/* Send the UNLOAD_REQUEST to the MCP */
 		bnx2x_send_unload_req(bp, unload_mode);
 
-		/*
-		 * Prevent transactions to host from the functions on the
+		/* Prevent transactions to host from the functions on the
 		 * engine that doesn't reset global blocks in case of global
-		 * attention once gloabl blocks are reset and gates are opened
+		 * attention once global blocks are reset and gates are opened
 		 * (the engine which leader will perform the recovery
 		 * last).
 		 */
@@ -2893,7 +2892,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/*
-	 * At this stage no more interrupts will arrive so we may safly clean
+	 * At this stage no more interrupts will arrive so we may safely clean
 	 * the queueable objects here in case they failed to get cleaned so far.
 	 */
 	if (IS_PF(bp))
@@ -3434,7 +3433,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DP(NETIF_MSG_TX_QUEUED, "indices: txq %d, fp %d, txdata %d\n",
 	   txq_index, fp_index, txdata_index); */
 
-	/* enable this debug print to view the tranmission details
+	/* enable this debug print to view the transmission details
 	DP(NETIF_MSG_TX_QUEUED,
 	   "transmitting packet cid %d fp index %d txdata_index %d tx_data ptr %p fp pointer %p\n",
 	   txdata->cid, fp_index, txdata_index, txdata, fp); */
