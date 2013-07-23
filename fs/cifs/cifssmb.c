@@ -1536,6 +1536,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* set up first iov for signature check */
 	rdata->iov[0].iov_base = buf;
 	rdata->iov[0].iov_len = server->total_read;
+	rdata->nr_iov = 1;
 	cFYI(1, "0: iov_base=%p iov_len=%zu",
 		rdata->iov[0].iov_base, rdata->iov[0].iov_len);
 
@@ -1547,21 +1548,11 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		return cifs_readv_discard(server, mid);
 	}
 
-	/* marshal up the page array */
-	len = rdata->marshal_iov(rdata, data_len);
-	data_len -= len;
+	length = rdata->read_into_pages(server, rdata, data_len);
+	if (length < 0)
+		return length;
 
-	/* issue the read if we have any iovecs left to fill */
-	if (rdata->nr_iov > 1) {
-		length = cifs_readv_from_socket(server, &rdata->iov[1],
-						rdata->nr_iov - 1, len);
-		if (length < 0)
-			return length;
-		server->total_read += length;
-	} else {
-		length = 0;
-	}
-
+	server->total_read += length;
 	rdata->bytes = length;
 
 	cFYI(1, "total_read=%u buflen=%u remaining=%u", server->total_read,
@@ -1582,7 +1573,11 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
-				 .rq_nvec = rdata->nr_iov };
+				 .rq_nvec = rdata->nr_iov,
+				 .rq_pages = rdata->pages,
+				 .rq_npages = rdata->nr_pages,
+				 .rq_pagesz = rdata->pagesz,
+				 .rq_tailsz = rdata->tailsz };
 
 	cFYI(1, "%s: mid=%llu state=%d result=%d bytes=%u", __func__,
 		mid->mid, mid->mid_state, rdata->result, rdata->bytes);
