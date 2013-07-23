@@ -1952,7 +1952,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	mapping_set_error(inode->i_mapping, rc);
 }
 
-static void
+void
 cifs_writev_complete(struct slow_work *work)
 {
 	struct cifs_writedata *wdata = container_of(work,
@@ -1980,20 +1980,8 @@ cifs_writev_complete(struct slow_work *work)
 		mapping_set_error(inode->i_mapping, wdata->result);
 }
 
-static void cifs_writedata_put(struct slow_work *work)
-{
-	struct cifs_writedata *wdata = container_of(work,
-					struct cifs_writedata, work);
-	kref_put(&wdata->refcount, cifs_writedata_release);
-}
-
-const struct slow_work_ops cifs_writev_complete_ops = {
-	.put_ref =	cifs_writedata_put,
-	.execute =	cifs_writev_complete
-};
-
 struct cifs_writedata *
-cifs_writedata_alloc(unsigned int nr_pages)
+cifs_writedata_alloc(unsigned int nr_pages, const struct slow_work_ops *slow_work_complete)
 {
 	struct cifs_writedata *wdata;
 
@@ -2007,7 +1995,7 @@ cifs_writedata_alloc(unsigned int nr_pages)
 	wdata = kzalloc(sizeof(*wdata) +
 			sizeof(struct page *) * (nr_pages - 1), GFP_NOFS);
 	if (wdata != NULL) {
-		slow_work_init(&wdata->work, &cifs_writev_complete_ops);
+		slow_work_init(&wdata->work, slow_work_complete);
 		kref_init(&wdata->refcount);
 	}
 	return wdata;

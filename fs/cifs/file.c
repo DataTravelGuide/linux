@@ -1135,6 +1135,18 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	return rc;
 }
 
+static void cifs_writedata_put(struct slow_work *work)
+{
+	struct cifs_writedata *wdata = container_of(work,
+					struct cifs_writedata, work);
+	kref_put(&wdata->refcount, cifs_writedata_release);
+}
+
+const struct slow_work_ops cifs_writev_complete_ops = {
+        .put_ref =      cifs_writedata_put,
+        .execute =      cifs_writev_complete
+};
+
 /*
  * Marshal up the iov array, reserving the first one for the header. Also,
  * set wdata->bytes.
@@ -1202,7 +1214,8 @@ retry:
 		tofind = min((cifs_sb->wsize / PAGE_CACHE_SIZE) - 1,
 				end - index) + 1;
 
-		wdata = cifs_writedata_alloc((unsigned int)tofind);
+		wdata = cifs_writedata_alloc((unsigned int)tofind,
+					     &cifs_writev_complete_ops);
 		if (!wdata) {
 			rc = -ENOMEM;
 			break;

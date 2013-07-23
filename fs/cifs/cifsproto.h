@@ -492,7 +492,9 @@ struct cifs_writedata {
 };
 
 int cifs_async_writev(struct cifs_writedata *wdata);
-struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages);
+void cifs_writev_complete(struct slow_work *work);
+struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
+				const struct slow_work_ops *slow_work_complete);
 void cifs_writedata_release(struct kref *refcount);
 
 #endif			/* _CIFSPROTO_H */
