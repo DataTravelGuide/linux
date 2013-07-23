@@ -1223,7 +1223,7 @@ static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
 #endif
 		}
 		cnt--;
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	}
 
 	return 0;
@@ -1258,7 +1258,7 @@ static inline bool bnx2x_wait_sp_comp(struct bnx2x *bp, unsigned long mask)
 		}
 		netif_addr_unlock_bh(bp->dev);
 
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	}
 
 	smp_mb();
