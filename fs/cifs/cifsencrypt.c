@@ -36,11 +36,13 @@
  * the sequence number before this function is called. Also, this function
  * should be called with the server->srv_mutex held.
  */
-static int cifs_calc_signature(const struct kvec *iov, int n_vec,
+static int cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature)
 {
 	int i;
 	int rc;
+	struct kvec *iov = rqst->rq_iov;
+	int n_vec = rqst->rq_nvec;
 
 	if (iov == NULL || signature == NULL || server == NULL)
 		return -EINVAL;
@@ -98,12 +100,12 @@ static int cifs_calc_signature(const struct kvec *iov, int n_vec,
 }
 
 /* must be called with server->srv_mutex held */
-int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
+int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number)
 {
 	int rc = 0;
 	char smb_signature[20];
-	struct smb_hdr *cifs_pdu = (struct smb_hdr *)iov[0].iov_base;
+	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
 	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
@@ -124,13 +126,22 @@ int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 	*pexpected_response_sequence_number = server->sequence_number++;
 	server->sequence_number++;
 
-	rc = cifs_calc_signature(iov, n_vec, server, smb_signature);
+	rc = cifs_calc_signature(rqst, server, smb_signature);
 	if (rc)
 		memset(cifs_pdu->Signature.SecuritySignature, 0, 8);
 	else
 		memcpy(cifs_pdu->Signature.SecuritySignature, smb_signature, 8);
 
 	return rc;
+}
+
+int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
+		   __u32 *pexpected_response_sequence)
+{
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = n_vec };
+
+	return cifs_sign_rqst(&rqst, server, pexpected_response_sequence);
 }
 
 /* must be called with server->srv_mutex held */
@@ -146,14 +157,14 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 			      pexpected_response_sequence_number);
 }
 
-int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
+int cifs_verify_signature(struct smb_rqst *rqst,
 			  struct TCP_Server_Info *server,
 			  __u32 expected_sequence_number)
 {
 	unsigned int rc;
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
-	struct smb_hdr *cifs_pdu = (struct smb_hdr *)iov[0].iov_base;
+	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
 	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;
@@ -185,8 +196,7 @@ int cifs_verify_signature(struct kvec *iov, unsigned int nr_iov,
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
 	mutex_lock(&server->srv_mutex);
-	rc = cifs_calc_signature(iov, nr_iov, server,
-				 what_we_think_sig_should_be);
+	rc = cifs_calc_signature(rqst, server, what_we_think_sig_should_be);
 	mutex_unlock(&server->srv_mutex);
 
 	if (rc)
