@@ -11951,7 +11951,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	dev->netdev_ops = &bnx2x_netdev_ops;
-	bnx2x_set_ethtool_ops(dev);
+	bnx2x_set_ethtool_ops(bp, dev);
 	dev->features |= NETIF_F_SG;
 	dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXHASH;
 	if (bp->flags & USING_DAC_FLAG)
