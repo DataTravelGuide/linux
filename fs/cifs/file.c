@@ -1590,7 +1590,7 @@ cifs_write_allocate_pages(struct page **pages, unsigned long num_pages)
 	unsigned long i;
 
 	for (i = 0; i < num_pages; i++) {
-		pages[i] = alloc_page(__GFP_HIGHMEM);
+		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
 		if (!pages[i]) {
 			/*
 			 * save number of pages we have already allocated and
@@ -1598,15 +1598,14 @@ cifs_write_allocate_pages(struct page **pages, unsigned long num_pages)
 			 */
 			num_pages = i;
 			rc = -ENOMEM;
-			goto error;
+			break;
 		}
 	}
 
-	return rc;
-
-error:
-	for (i = 0; i < num_pages; i++)
-		put_page(pages[i]);
+	if (rc) {
+		for (i = 0; i < num_pages; i++)
+			put_page(pages[i]);
+	}
 	return rc;
 }
 
