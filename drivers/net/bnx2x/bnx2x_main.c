@@ -1959,7 +1959,7 @@ int bnx2x_acquire_hw_lock(struct bnx2x *bp, u32 resource)
 		if (lock_status & resource_bit)
 			return 0;
 
-		msleep(5);
+		usleep_range(5000, 10000);
 	}
 	BNX2X_ERR("Timeout\n");
 	return -EAGAIN;
@@ -3644,7 +3644,7 @@ static int bnx2x_acquire_alr(struct bnx2x *bp)
 		if (val & MCPR_ACCESS_LOCK_LOCK)
 			break;
 
-		msleep(5);
+		usleep_range(5000, 10000);
 	}
 	if (!(val & MCPR_ACCESS_LOCK_LOCK)) {
 		BNX2X_ERR("Cannot acquire MCP access lock register\n");
@@ -6082,6 +6082,8 @@ static void bnx2x_init_tx_ring_one(struct bnx2x_fp_txdata *txdata)
 				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
 	}
 
+	*txdata->tx_cons_sb = cpu_to_le16(0);
+
 	SET_FLAG(txdata->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
 	txdata->tx_db.data.zero_fill1 = 0;
 	txdata->tx_db.data.prod = 0;
@@ -6333,7 +6335,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 0x10)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0x10) {
@@ -6348,7 +6350,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 1)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0x1) {
@@ -6389,7 +6391,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 		if (val == 0xb0)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 20000);
 		count--;
 	}
 	if (val != 0xb0) {
@@ -8504,7 +8506,7 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 		 * scan to complete
 		 */
 		for (i = 0; i < 200; i++) {
-			msleep(10);
+			usleep_range(10000, 20000);
 			if (!REG_RD(bp, TM_REG_LIN0_SCAN_ON + port*4))
 				break;
 		}
