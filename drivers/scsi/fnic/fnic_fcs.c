@@ -494,7 +494,8 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	}
 
 	fnic_queue_wq_eth_desc(wq, skb, pa, skb->len,
-			       fnic->vlan_hw_insert, fnic->vlan_id, 1);
+			       0 /* hw inserts cos value */,
+			       fnic->vlan_id, 1);
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
 }
 
@@ -562,7 +563,8 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 	}
 
 	fnic_queue_wq_desc(wq, skb, pa, tot_len, fr_eof(fp),
-			   fnic->vlan_hw_insert, fnic->vlan_id, 1, 1, 1);
+			   0 /* hw inserts cos value */,
+			   fnic->vlan_id, 1, 1, 1);
 fnic_send_frame_end:
 	spin_unlock_irqrestore(&fnic->wq_lock[0], flags);
 
