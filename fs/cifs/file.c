@@ -1152,27 +1152,6 @@ const struct slow_work_ops cifs_writev_complete_ops = {
         .execute =      cifs_writev_complete
 };
 
-/*
- * Marshal up the iov array, reserving the first one for the header. Also,
- * set wdata->bytes.
- */
-static void
-cifs_writepages_marshal_iov(struct kvec *iov, struct cifs_writedata *wdata)
-{
-	int i;
-	struct inode *inode = wdata->cfile->dentry->d_inode;
-	loff_t size = i_size_read(inode);
-
-	/* marshal up the pages into iov array */
-	wdata->bytes = 0;
-	for (i = 0; i < wdata->nr_pages; i++) {
-		iov[i + 1].iov_len = min(size - page_offset(wdata->pages[i]),
-					(loff_t)PAGE_CACHE_SIZE);
-		iov[i + 1].iov_base = kmap(wdata->pages[i]);
-		wdata->bytes += iov[i + 1].iov_len;
-	}
-}
-
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
@@ -1183,6 +1162,7 @@ static int cifs_writepages(struct address_space *mapping,
 	struct cifs_writedata *wdata;
 	struct page *page;
 	int rc = 0;
+	loff_t isize = i_size_read(mapping->host);
 
 	/*
 	 * BB: Is this meaningful for a non-block-device file system?
@@ -1296,7 +1276,7 @@ retry:
 			 */
 			set_page_writeback(page);
 
-			if (page_offset(page) >= mapping->host->i_size) {
+			if (page_offset(page) >= isize) {
 				done = true;
 				unlock_page(page);
 				end_page_writeback(page);
@@ -1327,7 +1307,12 @@ retry:
 		wdata->sync_mode = wbc->sync_mode;
 		wdata->nr_pages = nr_pages;
 		wdata->offset = page_offset(wdata->pages[0]);
-		wdata->marshal_iov = cifs_writepages_marshal_iov;
+		wdata->pagesz = PAGE_CACHE_SIZE;
+		wdata->tailsz =
+			min(isize - page_offset(wdata->pages[nr_pages - 1]),
+			    (loff_t)PAGE_CACHE_SIZE);
+		wdata->bytes = ((nr_pages - 1) * PAGE_CACHE_SIZE) +
+					wdata->tailsz;
 
 		do {
 			if (wdata->cfile != NULL)
@@ -1630,20 +1615,6 @@ size_t get_numpages(const size_t wsize, const size_t len, size_t *cur_len)
 }
 
 static void
-cifs_uncached_marshal_iov(struct kvec *iov, struct cifs_writedata *wdata)
-{
-	int i;
-	size_t bytes = wdata->bytes;
-
-	/* marshal up the pages into iov array */
-	for (i = 0; i < wdata->nr_pages; i++) {
-		iov[i + 1].iov_len = min(bytes, PAGE_SIZE);
-		iov[i + 1].iov_base = kmap(wdata->pages[i]);
-		bytes -= iov[i + 1].iov_len;
-	}
-}
-
-static void
 cifs_uncached_writev_complete(struct slow_work *work)
 {
 	int i;
@@ -1758,7 +1729,8 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 		wdata->cfile = cifsFileInfo_get(open_file);
 		wdata->pid = pid;
 		wdata->bytes = cur_len;
-		wdata->marshal_iov = cifs_uncached_marshal_iov;
+		wdata->pagesz = PAGE_SIZE;
+		wdata->tailsz = cur_len - ((nr_pages - 1) * PAGE_SIZE);
 		rc = cifs_uncached_retry_writev(wdata);
 		if (rc) {
 			kref_put(&wdata->refcount, cifs_writedata_release);
