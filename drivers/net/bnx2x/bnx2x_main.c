@@ -6044,9 +6044,10 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 	rmb();
 	bnx2x_init_rx_rings(bp);
 	bnx2x_init_tx_rings(bp);
-
-	if (IS_VF(bp))
+	if (IS_VF(bp)) {
+		bnx2x_memset_stats(bp);
 		return;
+	}
 
 	/* Initialize MOD_ABS interrupts */
 	bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
