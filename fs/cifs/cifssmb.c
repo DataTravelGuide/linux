@@ -1997,8 +1997,10 @@ cifs_writedata_alloc(unsigned int nr_pages, const struct slow_work_ops *slow_wor
 	wdata = kzalloc(sizeof(*wdata) +
 			sizeof(struct page *) * (nr_pages - 1), GFP_NOFS);
 	if (wdata != NULL) {
-		slow_work_init(&wdata->work, slow_work_complete);
 		kref_init(&wdata->refcount);
+		INIT_LIST_HEAD(&wdata->list);
+		init_completion(&wdata->done);
+		slow_work_init(&wdata->work, slow_work_complete);
 	}
 	return wdata;
 }
