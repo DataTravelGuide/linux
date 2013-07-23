@@ -1319,6 +1319,10 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				cERROR(1, "no socket option specified");
 				continue;
 			} else if (strnicmp(value, "TCP_NODELAY", 11) == 0) {
+				/*
+				 * FIXME: since we now cork/uncork the socket while
+				 *	sending, should we deprecate this option?
+				 */
 				vol->sockopt_tcp_nodelay = 1;
 			}
 		} else if (strnicmp(data, "netbiosname", 4) == 0) {
