@@ -1890,9 +1890,6 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 	mlx4_en_rx_cpu_rmap(priv) = alloc_irq_cpu_rmap(priv->rx_ring_num);
 	if (!mlx4_en_rx_cpu_rmap(priv))
 		goto err;
-
-	INIT_LIST_HEAD(&priv->filters);
-	spin_lock_init(&priv->filters_lock);
 #endif
 
 	return 0;
@@ -2210,6 +2207,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	err = mlx4_en_alloc_resources(priv);
 	if (err)
 		goto out;
+
+#ifdef CONFIG_RFS_ACCEL
+	INIT_LIST_HEAD(&priv->filters);
+	spin_lock_init(&priv->filters_lock);
+#endif
 
 	/* Initialize time stamping config */
 	priv->hwtstamp_config.flags = 0;
