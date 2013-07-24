@@ -44,7 +44,6 @@
 #include "mlx4_en.h"
 #include "en_port.h"
 
-
 static void mlx4_en_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -63,11 +62,11 @@ static void mlx4_en_vlan_rx_register(struct net_device *dev, struct vlan_group *
 	mutex_unlock(&mdev->state_lock);
 }
 
-static int mlx4_en_setup_tc(struct net_device *dev, u8 up)
+int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int i;
-	unsigned int q, offset = 0;
+	unsigned int offset = 0;
 
 	if (up && up != MLX4_EN_NUM_UP)
 		return -EINVAL;
@@ -75,10 +74,9 @@ static int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 	netdev_set_num_tc(dev, up);
 
 	/* Partition Tx queues evenly amongst UP's */
-	q = priv->tx_ring_num / up;
 	for (i = 0; i < up; i++) {
-		netdev_set_tc_queue(dev, i, q, offset);
-		offset += q;
+		netdev_set_tc_queue(dev, i, priv->num_tx_rings_p_up, offset);
+		offset += priv->num_tx_rings_p_up;
 	}
 
 	return 0;
@@ -851,7 +849,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		/* Configure ring */
 		tx_ring = &priv->tx_ring[i];
 		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn,
-			i / priv->mdev->profile.num_tx_rings_p_up);
+			i / priv->num_tx_rings_p_up);
 		if (err) {
 			en_err(priv, "Failed allocating Tx ring\n");
 			mlx4_en_deactivate_cq(priv, cq);
@@ -1261,11 +1259,14 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	int err;
 
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
-	    prof->tx_ring_num, prof->rx_ring_num);
+				 MAX_TX_RINGS, MAX_RX_RINGS);
 	if (dev == NULL) {
 		mlx4_err(mdev, "Net device allocation failed\n");
 		return -ENOMEM;
 	}
+
+	netif_set_real_num_tx_queues(dev, prof->tx_ring_num);
+	netif_set_real_num_rx_queues(dev, prof->rx_ring_num);
 
 	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
 	dev->dev_id =  port - 1;
@@ -1284,15 +1285,17 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->port_up = false;
 	priv->rx_csum = 1;
 	priv->flags = prof->flags;
+	priv->num_tx_rings_p_up = mdev->profile.num_tx_rings_p_up;
 	priv->tx_ring_num = prof->tx_ring_num;
-	priv->tx_ring = kzalloc(sizeof(struct mlx4_en_tx_ring) *
-			priv->tx_ring_num, GFP_KERNEL);
+
+	priv->tx_ring = kzalloc(sizeof(struct mlx4_en_tx_ring) * MAX_TX_RINGS,
+				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		err = -ENOMEM;
 		goto out;
 	}
-	priv->tx_cq = kzalloc(sizeof(struct mlx4_en_cq) * priv->tx_ring_num,
-			GFP_KERNEL);
+	priv->tx_cq = kzalloc(sizeof(struct mlx4_en_cq) * MAX_RX_RINGS,
+			      GFP_KERNEL);
 	if (!priv->tx_cq) {
 		err = -ENOMEM;
 		goto out;
