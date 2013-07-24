@@ -593,6 +593,9 @@ struct ixgbe_adapter {
 #ifdef CONFIG_IXGBE_HWMON
 	struct hwmon_buff ixgbe_hwmon_buff;
 #endif /* CONFIG_IXGBE_HWMON */
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *ixgbe_dbg_adapter;
+#endif /*CONFIG_DEBUG_FS*/
 };
 
 struct ixgbe_fdir_filter {
@@ -725,6 +728,13 @@ extern int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 				  struct netdev_fcoe_hbainfo *info);
 extern u8 ixgbe_fcoe_get_tc(struct ixgbe_adapter *adapter);
 #endif /* IXGBE_FCOE */
+
+#ifdef CONFIG_DEBUG_FS
+extern void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter);
+extern void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter);
+extern void ixgbe_dbg_init(void);
+extern void ixgbe_dbg_exit(void);
+#endif /* CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_IXGBE_PTP
 extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
