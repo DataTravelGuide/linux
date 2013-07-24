@@ -782,5 +782,8 @@ extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
 #endif /* CONFIG_IXGBE_PTP */
+#ifdef CONFIG_PCI_IOV
+void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter);
+#endif
 
 #endif /* _IXGBE_H_ */

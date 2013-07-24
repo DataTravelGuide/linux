@@ -40,10 +40,11 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate);
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi);
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
-void ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
+int ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
 void ixgbe_enable_sriov(struct ixgbe_adapter *adapter);
 #endif
+int ixgbe_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 
 static inline void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
 				   u16 vid, u16 qos, u32 vf)

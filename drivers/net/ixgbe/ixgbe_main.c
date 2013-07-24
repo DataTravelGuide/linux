@@ -6814,6 +6814,27 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 }
 
 #endif /* CONFIG_IXGBE_DCB */
+#ifdef CONFIG_PCI_IOV
+void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	rtnl_lock();
+#ifdef CONFIG_IXGBE_DCB
+	ixgbe_setup_tc(netdev, netdev_get_num_tc(netdev));
+#else
+	if (netif_running(netdev))
+		ixgbe_close(netdev);
+	ixgbe_clear_interrupt_scheme(adapter);
+	ixgbe_init_interrupt_scheme(adapter);
+	if (netif_running(netdev))
+		ixgbe_open(netdev);
+#endif
+	rtnl_unlock();
+}
+
+#endif
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
@@ -7349,8 +7370,14 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	ixgbe_disable_sriov(adapter);
-
+#ifdef CONFIG_PCI_IOV
+	/*
+	 * Only disable SR-IOV on unload if the user specified the now
+	 * deprecated max_vfs module parameter.
+	 */
+	if (max_vfs)
+		ixgbe_disable_sriov(adapter);
+#endif
 	ixgbe_clear_interrupt_scheme(adapter);
 
 	ixgbe_release_hw_control(adapter);
@@ -7554,6 +7581,10 @@ static struct pci_error_handlers ixgbe_err_handler = {
 	.resume = ixgbe_io_resume,
 };
 
+static struct pci_driver_rh ixgbe_driver_rh = {
+        .sriov_configure = ixgbe_pci_sriov_configure,
+};
+
 static struct pci_driver ixgbe_driver = {
 	.name     = ixgbe_driver_name,
 	.id_table = ixgbe_pci_tbl,
@@ -7564,6 +7595,7 @@ static struct pci_driver ixgbe_driver = {
 	.resume   = ixgbe_resume,
 #endif
 	.shutdown = ixgbe_shutdown,
+	.rh_reserved = &ixgbe_driver_rh,
 	.err_handler = &ixgbe_err_handler
 };
 
