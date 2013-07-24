@@ -1887,9 +1887,11 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 	}
 
 #ifdef CONFIG_RFS_ACCEL
-	mlx4_en_rx_cpu_rmap(priv) = alloc_irq_cpu_rmap(priv->rx_ring_num);
-	if (!mlx4_en_rx_cpu_rmap(priv))
-		goto err;
+	if (priv->mdev->dev->caps.comp_pool) {
+		mlx4_en_rx_cpu_rmap(priv) = alloc_irq_cpu_rmap(priv->mdev->dev->caps.comp_pool);
+		if (!mlx4_en_rx_cpu_rmap(priv))
+			goto err;
+	}
 #endif
 
 	return 0;
