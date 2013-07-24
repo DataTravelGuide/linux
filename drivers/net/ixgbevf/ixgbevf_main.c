@@ -753,9 +753,11 @@ static irqreturn_t ixgbevf_msix_other(int irq, void *data)
 	if (!hw->mbx.ops.check_for_msg(hw)) {
 		hw->mbx.ops.read(hw, &msg, 1);
 
-		if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG)
+		if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG) {
 			mod_timer(&adapter->watchdog_timer,
 				  round_jiffies(jiffies + 1));
+			adapter->link_up = false;
+		}
 
 		if (msg & IXGBE_VT_MSGTYPE_NACK)
 			dev_info(&pdev->dev,
@@ -2123,6 +2125,9 @@ out:
 void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+
+	if (!adapter->link_up)
+		return;
 
 	UPDATE_VF_COUNTER_32bit(IXGBE_VFGPRC, adapter->stats.last_vfgprc,
 				adapter->stats.vfgprc);
