@@ -1432,8 +1432,14 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
 #ifdef CONFIG_IXGBE_PTP
-	ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+	ixgbe_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 #endif
+
+	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+	    ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
+		u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -5552,6 +5558,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	}
 
 #ifdef CONFIG_IXGBE_PTP
+	adapter->last_rx_ptp_check = jiffies;
+
 	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
 		ixgbe_ptp_start_cyclecounter(adapter);
 #endif
@@ -5909,6 +5917,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_check_hang_subtask(adapter);
 #ifdef CONFIG_IXGBE_PTP
 	ixgbe_ptp_overflow_check(adapter);
+	ixgbe_ptp_rx_hang(adapter);
 #endif
 
 	ixgbe_service_event_complete(adapter);

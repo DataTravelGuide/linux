@@ -34,6 +34,7 @@
 #include <linux/cpumask.h>
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
+#include <linux/jiffies.h>
 
 #ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
@@ -232,6 +233,7 @@ struct ixgbe_ring {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
+	unsigned long last_rx_timestamp;
 	unsigned long state;
 	u8 __iomem *tail;
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -580,10 +582,10 @@ struct ixgbe_adapter {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
+	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
-	int rx_hwtstamp_filter;
 	u32 base_incval;
 #endif /* CONFIG_IXGBE_PTP */
 
@@ -752,9 +754,10 @@ extern void ixgbe_dbg_exit(void);
 extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
 				  struct sk_buff *skb);
-extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
 				  union ixgbe_adv_rx_desc *rx_desc,
 				  struct sk_buff *skb);
 extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
