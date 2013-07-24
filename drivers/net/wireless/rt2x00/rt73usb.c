@@ -2536,9 +2536,7 @@ static struct usb_driver rt73usb_driver = {
 	.suspend	= rt2x00usb_suspend,
 	.resume		= rt2x00usb_resume,
 	.reset_resume	= rt2x00usb_resume,
-#if 0 /* Not in RHEL */
 	.disable_hub_initiated_lpm = 1,
-#endif
 };
 
 module_usb_driver(rt73usb_driver);

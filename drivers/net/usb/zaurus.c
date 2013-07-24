@@ -370,6 +370,7 @@ static struct usb_driver zaurus_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int __init zaurus_init(void)
