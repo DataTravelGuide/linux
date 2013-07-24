@@ -920,6 +920,8 @@ struct xhci_virt_device {
 	u8				real_port;
 	struct xhci_interval_bw_table	*bw_table;
 	struct xhci_tt_bw_info		*tt_info;
+	/* The current max exit latency for the enabled USB3 link states. */
+	u16				current_mel;
 };
 
 /*
@@ -1505,6 +1507,7 @@ struct xhci_hcd {
 #define	XHCI_SW_BW_CHECKING	(1 << 8)
 #define XHCI_AMD_0x96_HOST	(1 << 9)
 #define XHCI_TRUST_TX_LENGTH	(1 << 10)
+#define XHCI_LPM_SUPPORT	(1 << 11)
 #define XHCI_SPURIOUS_REBOOT	(1 << 13)
 #define XHCI_COMP_MODE_QUIRK	(1 << 14)
 #define XHCI_AVOID_BEI		(1 << 15)
@@ -1814,6 +1817,10 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 /* xHCI roothub code */
 void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 				int port_id, u32 link_state);
+int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state);
+int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state);
 void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 				int port_id, u32 port_bit);
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
