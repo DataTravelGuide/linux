@@ -1953,6 +1953,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	mdev->pndev[port] = dev;
 
 	netif_carrier_off(dev);
+	mlx4_en_set_default_moderation(priv);
+
 	err = register_netdev(dev);
 	if (err) {
 		en_err(priv, "Netdev registration failed for port %d\n", port);
