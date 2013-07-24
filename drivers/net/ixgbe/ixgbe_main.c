@@ -6933,11 +6933,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 	}
 
-	for (i = 1; i <= 5; i++) {
-		if (pci_resource_len(pdev, i) == 0)
-			continue;
-	}
-
 	netdev->netdev_ops = &ixgbe_netdev_ops;
 #ifdef IXGBE_FCOE
 	netdev_extended(netdev)->ndo_fcoe_get_hbainfo = ixgbe_fcoe_get_hbainfo;
