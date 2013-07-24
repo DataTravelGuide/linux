@@ -842,11 +842,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
-#ifdef CONFIG_IXGBE_PTP
-		if (unlikely(tx_buffer->tx_flags & IXGBE_TX_FLAGS_TSTAMP))
-			ixgbe_ptp_tx_hwtstamp(q_vector, tx_buffer->skb);
-#endif
-
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
@@ -5907,7 +5902,6 @@ static void ixgbe_service_task(struct work_struct *work)
 	struct ixgbe_adapter *adapter = container_of(work,
 						     struct ixgbe_adapter,
 						     service_task);
-
 	ixgbe_reset_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
 	ixgbe_sfp_link_config_subtask(adapter);
@@ -5916,8 +5910,10 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
 #ifdef CONFIG_IXGBE_PTP
-	ixgbe_ptp_overflow_check(adapter);
-	ixgbe_ptp_rx_hang(adapter);
+	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED) {
+		ixgbe_ptp_overflow_check(adapter);
+		ixgbe_ptp_rx_hang(adapter);
+	}
 #endif
 
 	ixgbe_service_event_complete(adapter);
@@ -6460,6 +6456,11 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	if (unlikely(skb_tx(skb)->hardware)) {
 		skb_tx(skb)->in_progress = 1;
 		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
+
+		/* schedule check for Tx timestamp */
+		adapter->ptp_tx_skb = skb_get(skb);
+		adapter->ptp_tx_start = jiffies;
+		schedule_work(&adapter->ptp_tx_work);
 	}
 #endif
 
