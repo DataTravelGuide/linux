@@ -1950,6 +1950,23 @@ err:
 }
 EXPORT_SYMBOL(rdma_resolve_route);
 
+static void cma_set_loopback(struct sockaddr *addr)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *) addr)->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		break;
+	case AF_INET6:
+		ipv6_addr_set(&((struct sockaddr_in6 *) addr)->sin6_addr,
+			      0, 0, 0, htonl(1));
+		break;
+	default:
+		ib_addr_set(&((struct sockaddr_ib *) addr)->sib_addr,
+			    0, 0, 0, htonl(1));
+		break;
+	}
+}
+
 static int cma_bind_loopback(struct rdma_id_private *id_priv)
 {
 	struct cma_device *cma_dev;
@@ -1990,6 +2007,7 @@ port_found:
 	ib_addr_set_pkey(&id_priv->id.route.addr.dev_addr, pkey);
 	id_priv->id.port_num = p;
 	cma_attach_to_dev(id_priv, cma_dev);
+	cma_set_loopback((struct sockaddr *) &id_priv->id.route.addr.src_addr);
 out:
 	mutex_unlock(&lock);
 	return ret;
@@ -2037,7 +2055,6 @@ out:
 static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 {
 	struct cma_work *work;
-	struct sockaddr *src, *dst;
 	union ib_gid gid;
 	int ret;
 
@@ -2053,18 +2070,6 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 
 	rdma_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
-
-	src = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
-	if (cma_zero_addr(src)) {
-		dst = (struct sockaddr *) &id_priv->id.route.addr.dst_addr;
-		if ((src->sa_family = dst->sa_family) == AF_INET) {
-			((struct sockaddr_in *) src)->sin_addr.s_addr =
-				((struct sockaddr_in *) dst)->sin_addr.s_addr;
-		} else {
-			ipv6_addr_copy(&((struct sockaddr_in6 *) src)->sin6_addr,
-				       &((struct sockaddr_in6 *) dst)->sin6_addr);
-		}
-	}
 
 	work->id = id_priv;
 	INIT_WORK(&work->work, cma_work_handler);
