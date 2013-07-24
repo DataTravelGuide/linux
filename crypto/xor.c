@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/raid/xor.h>
 #include <linux/jiffies.h>
+#include <linux/preempt.h>
 #include <asm/xor.h>
 
 /* The xor routines to use.  */
@@ -68,6 +69,8 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	tmpl->next = template_list;
 	template_list = tmpl;
 
+	preempt_disable();
+
 	/*
 	 * Count the number of XORs done during a whole jiffy, and use
 	 * this to calculate the speed of checksumming.  We use a 2-page
@@ -89,6 +92,8 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 		if (count > max)
 			max = count;
 	}
+
+	preempt_enable();
 
 	speed = max * (HZ * BENCH_SIZE / 1024);
 	tmpl->speed = speed;
