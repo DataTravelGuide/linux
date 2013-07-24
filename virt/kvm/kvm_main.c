@@ -2193,6 +2193,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			} else if (pass && i > last_boosted_vcpu)
 				break;
+			if (!ACCESS_ONCE(vcpu->preempted))
+				continue;
 			if (vcpu == me)
 				continue;
 			if (waitqueue_active(&vcpu->wq))
