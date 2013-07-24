@@ -836,6 +836,13 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 		.u.data = &sgl,
 	};
 
+	/*
+	 * pipe->nrbufs == 0 means there are no data to transfer,
+	 * so this returns just 0 for no data.
+	 */
+	if (!pipe->nrbufs)
+		return 0;
+
 	ret = wait_port_writable(port, filp->f_flags & O_NONBLOCK);
 	if (ret < 0)
 		return ret;
