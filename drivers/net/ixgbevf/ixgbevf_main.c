@@ -261,6 +261,8 @@ cont_loop:
 	tx_ring->total_packets += total_packets;
 	adapter->netdev->stats.tx_bytes += total_bytes;
 	adapter->netdev->stats.tx_packets += total_packets;
+	q_vector->tx.total_bytes += total_bytes;
+	q_vector->tx.total_packets += total_packets;
 
 	return count < tx_ring->count;
 }
@@ -488,6 +490,8 @@ next_desc:
 	rx_ring->total_bytes += total_rx_bytes;
 	adapter->netdev->stats.rx_bytes += total_rx_bytes;
 	adapter->netdev->stats.rx_packets += total_rx_packets;
+	q_vector->rx.total_packets += total_rx_packets;
+	q_vector->rx.total_bytes += total_rx_bytes;
 
 	return !!budget;
 }
