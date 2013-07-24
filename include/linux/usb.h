@@ -553,6 +553,7 @@ struct usb_device {
 	unsigned lpm_capable:1;
 	unsigned usb2_hw_lpm_capable:1;
 	unsigned usb2_hw_lpm_enabled:1;
+	unsigned usb3_lpm_enabled:1;
 #endif
 	int string_langid;
 
@@ -601,6 +602,7 @@ struct usb_device {
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
 	unsigned lpm_disable_count;
+	unsigned hub_initiated_lpm_disable_count;
 #endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
