@@ -59,6 +59,8 @@
 #define MLX4_FS_MGM_LOG_ENTRY_SIZE	7
 #define MLX4_FS_NUM_MCG			(1 << 17)
 
+#define INIT_HCA_TPT_MW_ENABLE          (1 << 7)
+
 #define MLX4_NUM_UP		8
 #define MLX4_NUM_TC		8
 #define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
