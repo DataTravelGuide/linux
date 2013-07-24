@@ -38,6 +38,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #ifdef CONFIG_MLX4_EN_DCB
 #include <linux/dcbnl.h>
 #endif
