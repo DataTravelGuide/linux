@@ -393,6 +393,39 @@ struct usb_bus {
 
 struct usb_tt;
 
+/*
+ * USB 3.0 Link Power Management (LPM) parameters.
+ *
+ * PEL and SEL are USB 3.0 Link PM latencies for device-initiated LPM exit.
+ * MEL is the USB 3.0 Link PM latency for host-initiated LPM exit.
+ * All three are stored in nanoseconds.
+ */
+struct usb3_lpm_parameters {
+	/*
+	 * Maximum exit latency (MEL) for the host to send a packet to the
+	 * device (either a Ping for isoc endpoints, or a data packet for
+	 * interrupt endpoints), the hubs to decode the packet, and for all hubs
+	 * in the path to transition the links to U0.
+	 */
+	unsigned int mel;
+	/*
+	 * Maximum exit latency for a device-initiated LPM transition to bring
+	 * all links into U0.  Abbreviated as "PEL" in section 9.4.12 of the USB
+	 * 3.0 spec, with no explanation of what "P" stands for.  "Path"?
+	 */
+	unsigned int pel;
+
+	/*
+	 * The System Exit Latency (SEL) includes PEL, and three other
+	 * latencies.  After a device initiates a U0 transition, it will take
+	 * some time from when the device sends the ERDY to when it will finally
+	 * receive the data packet.  Basically, SEL should be the worse-case
+	 * latency from when a device starts initiating a U0 transition to when
+	 * it will get data.
+	 */
+	unsigned int sel;
+};
+
 /**
  * struct usb_device - kernel's representation of a USB device
  * @devnum: device number; address on a USB bus
@@ -460,6 +493,8 @@ struct usb_tt;
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
+ * @u1_params: exit latencies for U1 (USB 3.0 LPM).
+ * @u2_params: exit latencies for U2 (USB 3.0 LPM).
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -553,6 +588,8 @@ struct usb_device {
 	int slot_id;
 #ifndef __GENKSYMS__
 	struct usb_host_bos *bos;
+	struct usb3_lpm_parameters u1_params;
+	struct usb3_lpm_parameters u2_params;
 #endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
