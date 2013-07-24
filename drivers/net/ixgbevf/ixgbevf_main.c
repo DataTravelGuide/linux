@@ -283,12 +283,15 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	if (adapter->vlgrp && is_vlan)
-		vlan_gro_receive(&q_vector->napi,
-				 adapter->vlgrp,
-				 tag, skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
+	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
+		if (adapter->vlgrp && is_vlan)
+			vlan_gro_receive(&q_vector->napi,
+					 adapter->vlgrp,
+					 tag, skb);
+		else
+			napi_gro_receive(&q_vector->napi, skb);
+	} else
+		netif_rx(skb);
 }
 
 /**
@@ -540,9 +543,11 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
+	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	ixgbevf_for_each_ring(ring, q_vector->rx)
 		clean_complete &= ixgbevf_clean_rx_irq(q_vector, ring,
 						       per_ring_budget);
+	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
 
 	/* If all work not completed, return budget and keep polling */
 	if (!clean_complete)
