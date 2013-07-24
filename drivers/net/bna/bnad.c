@@ -129,9 +129,9 @@ bnad_pci_unmap_skb(struct device *pdev, struct bnad_skb_unmap *array,
 	int j;
 	array[index].skb = NULL;
 
-	dma_unmap_single(pdev, pci_unmap_addr(&array[index], dma_addr),
+	dma_unmap_single(pdev, dma_unmap_addr(&array[index], dma_addr),
 			skb_headlen(skb), DMA_TO_DEVICE);
-	pci_unmap_addr_set(&array[index], dma_addr, 0);
+	dma_unmap_addr_set(&array[index], dma_addr, 0);
 	BNA_QE_INDX_ADD(index, 1, depth);
 
 	for (j = 0; j < frag; j++) {
@@ -302,7 +302,7 @@ bnad_rxq_cleanup(struct bnad *bnad, struct bna_rcb *rcb)
 			continue;
 		unmap_array[unmap_cons].skb = NULL;
 		dma_unmap_single(&bnad->pcidev->dev,
-				 pci_unmap_addr(&unmap_array[unmap_cons],
+				 dma_unmap_addr(&unmap_array[unmap_cons],
 						dma_addr),
 				 rcb->rxq->buffer_size,
 				 DMA_FROM_DEVICE);
@@ -345,7 +345,7 @@ bnad_rxq_post(struct bnad *bnad, struct bna_rcb *rcb)
 		dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
 					  rcb->rxq->buffer_size,
 					  DMA_FROM_DEVICE);
-		pci_unmap_addr_set(&unmap_array[unmap_prod], dma_addr,
+		dma_unmap_addr_set(&unmap_array[unmap_prod], dma_addr,
 				   dma_addr);
 		BNA_SET_DMA_ADDR(dma_addr, &rxent->host_addr);
 		BNA_QE_INDX_ADD(unmap_prod, 1, unmap_q->q_depth);
@@ -2767,7 +2767,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	txqent->vector[0].length = htons(len);
 	dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
 				  skb_headlen(skb), DMA_TO_DEVICE);
-	pci_unmap_addr_set(&unmap_q->unmap_array[unmap_prod], dma_addr,
+	dma_unmap_addr_set(&unmap_q->unmap_array[unmap_prod], dma_addr,
 			   dma_addr);
 
 	BNA_SET_DMA_ADDR(dma_addr, &txqent->vector[0].host_addr);
@@ -2814,7 +2814,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		txqent->vector[vect_id].length = htons(size);
 		dma_addr = dma_map_page(&bnad->pcidev->dev, frag->page,
 					frag->page_offset, size, DMA_TO_DEVICE);
-		pci_unmap_addr_set(&unmap_q->unmap_array[unmap_prod], dma_addr,
+		dma_unmap_addr_set(&unmap_q->unmap_array[unmap_prod], dma_addr,
 				   dma_addr);
 		BNA_SET_DMA_ADDR(dma_addr, &txqent->vector[vect_id].host_addr);
 		BNA_QE_INDX_ADD(unmap_prod, 1, unmap_q->q_depth);
