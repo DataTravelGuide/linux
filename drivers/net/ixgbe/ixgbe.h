@@ -33,6 +33,7 @@
 #include <linux/netdevice.h>
 #include <linux/cpumask.h>
 #include <linux/aer.h>
+#include <linux/if_vlan.h>
 
 #ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
