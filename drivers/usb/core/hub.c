@@ -3512,15 +3512,19 @@ int usb_disable_lpm(struct usb_device *udev)
 {
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_disable_lpm);
 
 void usb_enable_lpm(struct usb_device *udev) { }
+EXPORT_SYMBOL_GPL(usb_enable_lpm);
 
 int usb_unlocked_disable_lpm(struct usb_device *udev)
 {
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_unlocked_disable_lpm);
 
 void usb_unlocked_enable_lpm(struct usb_device *udev) { }
+EXPORT_SYMBOL_GPL(usb_unlocked_enable_lpm);
 
 int usb_disable_ltm(struct usb_device *udev)
 {

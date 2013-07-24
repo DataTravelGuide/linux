@@ -644,12 +644,6 @@ static inline void usb_autopm_disable(struct usb_interface *intf)
 	usb_autopm_set_interface(intf);
 }
 
-extern int usb_disable_lpm(struct usb_device *udev);
-extern void usb_enable_lpm(struct usb_device *udev);
-/* Same as above, but these functions lock/unlock the bandwidth_mutex. */
-extern int usb_unlocked_disable_lpm(struct usb_device *udev);
-extern void usb_unlocked_enable_lpm(struct usb_device *udev);
-
 static inline void usb_mark_last_busy(struct usb_device *udev)
 {
 	udev->last_busy = jiffies;
@@ -680,6 +674,12 @@ static inline void usb_autopm_disable(struct usb_interface *intf)
 static inline void usb_mark_last_busy(struct usb_device *udev)
 { }
 #endif
+
+extern int usb_disable_lpm(struct usb_device *udev);
+extern void usb_enable_lpm(struct usb_device *udev);
+/* Same as above, but these functions lock/unlock the bandwidth_mutex. */
+extern int usb_unlocked_disable_lpm(struct usb_device *udev);
+extern void usb_unlocked_enable_lpm(struct usb_device *udev);
 
 extern int usb_disable_ltm(struct usb_device *udev);
 extern void usb_enable_ltm(struct usb_device *udev);
