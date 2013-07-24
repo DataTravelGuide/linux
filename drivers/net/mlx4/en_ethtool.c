@@ -527,7 +527,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
-		mlx4_en_stop_port(dev);
+		mlx4_en_stop_port(dev, 1);
 	}
 
 	mlx4_en_free_resources(priv);
@@ -622,7 +622,7 @@ static int mlx4_en_set_rxfh_indir(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
-		mlx4_en_stop_port(dev);
+		mlx4_en_stop_port(dev, 1);
 	}
 
 	priv->prof->rss_rings = rss_rings;
@@ -1129,7 +1129,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
-		mlx4_en_stop_port(dev);
+		mlx4_en_stop_port(dev, 1);
 	}
 
 	mlx4_en_free_resources(priv);

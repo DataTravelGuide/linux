@@ -913,6 +913,8 @@ int mlx4_en_start_port(struct net_device *dev)
 
 	priv->port_up = true;
 	netif_tx_start_all_queues(dev);
+	netif_device_attach(dev);
+
 	return 0;
 
 tx_err:
@@ -935,7 +937,7 @@ cq_err:
 }
 
 
-void mlx4_en_stop_port(struct net_device *dev)
+void mlx4_en_stop_port(struct net_device *dev, int detach)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -951,8 +953,12 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
+	if (detach)
+		netif_device_detach(dev);
 	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
+
+	netif_tx_disable(dev);
 
 	/* Set port as not active */
 	priv->port_up = false;
@@ -1057,7 +1063,7 @@ static void mlx4_en_restart(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
-		mlx4_en_stop_port(dev);
+		mlx4_en_stop_port(dev, 1);
 		if (mlx4_en_start_port(dev))
 			en_err(priv, "Failed restarting port %d\n", priv->port);
 	}
@@ -1124,7 +1130,7 @@ static int mlx4_en_close(struct net_device *dev)
 
 	mutex_lock(&mdev->state_lock);
 
-	mlx4_en_stop_port(dev);
+	mlx4_en_stop_port(dev, 0);
 	netif_carrier_off(dev);
 
 	mutex_unlock(&mdev->state_lock);
@@ -1251,7 +1257,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 			 * the port */
 			en_dbg(DRV, priv, "Change MTU called with card down!?\n");
 		} else {
-			mlx4_en_stop_port(dev);
+			mlx4_en_stop_port(dev, 1);
 			err = mlx4_en_start_port(dev);
 			if (err) {
 				en_err(priv, "Failed restarting port:%d\n",
