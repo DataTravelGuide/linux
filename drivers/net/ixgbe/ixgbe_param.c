@@ -90,8 +90,8 @@ struct ixgbe_option {
 	} arg;
 };
 
-static int __devinit ixgbe_validate_option(unsigned int *value,
-                                           struct ixgbe_option *opt)
+static int ixgbe_validate_option(unsigned int *value,
+                                 struct ixgbe_option *opt)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -116,7 +116,7 @@ static int __devinit ixgbe_validate_option(unsigned int *value,
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
-void __devinit ixgbe_check_options(struct ixgbe_adapter *adapter)
+void ixgbe_check_options(struct ixgbe_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	u32 *aflags = &adapter->flags;
