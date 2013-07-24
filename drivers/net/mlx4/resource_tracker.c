@@ -377,11 +377,6 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 		qpc->pri_path.feup |= 1 << 3; /* set fvl bit */
 		qpc->pri_path.sched_queue &= 0xC7;
 		qpc->pri_path.sched_queue |= (vp_oper->state.default_qos) << 3;
-		mlx4_dbg(dev, "qp %d  port %d Q 0x%x set vlan to %d vidx %d feup %x fl %x\n",
-			 be32_to_cpu(qpc->local_qpn) & 0xffffff, port,
-			 (int)(qpc->pri_path.sched_queue), vp_oper->state.default_vlan,
-			 vp_oper->vlan_idx, (int)(qpc->pri_path.feup),
-			 (int)(qpc->pri_path.fl));
 	}
 	return 0;
 }
