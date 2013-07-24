@@ -43,6 +43,7 @@
 #ifdef CONFIG_MLX4_EN_DCB
 #include <linux/dcbnl.h>
 #endif
+#include <linux/cpu_rmap.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -112,6 +113,9 @@
 #define STATS_DELAY		(HZ / 4)
 #define SERVICE_TASK_DELAY	(HZ / 4)
 #define MAX_NUM_OF_FS_RULES	256
+
+#define MLX4_EN_FILTER_HASH_SHIFT 4
+#define MLX4_EN_FILTER_EXPIRY_QUOTA 60
 
 /* Typical TSO descriptor with 16 gather entries is 352 bytes... */
 #define MAX_DESC_SIZE		512
@@ -568,6 +572,13 @@ struct mlx4_en_priv {
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
 #endif
+#ifdef CONFIG_RFS_ACCEL
+	spinlock_t filters_lock;
+	int last_filter_id;
+	struct list_head filters;
+	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
+#endif
+
 };
 
 enum mlx4_en_wol {
@@ -658,6 +669,14 @@ extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_pfc_ops;
 #endif
 
 int mlx4_en_setup_tc(struct net_device *dev, u8 up);
+
+#ifdef CONFIG_RFS_ACCEL
+#define mlx4_en_rx_cpu_rmap(__priv) netdev_extended(__priv->dev)->rfs_data.rx_cpu_rmap
+void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
+			     struct mlx4_en_rx_ring *rx_ring);
+#else
+#define mlx4_en_rx_cpu_rmap(__priv) NULL
+#endif
 
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
