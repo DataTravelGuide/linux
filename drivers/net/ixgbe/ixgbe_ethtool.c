@@ -230,6 +230,10 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		case ixgbe_sfp_type_lr:
 		case ixgbe_sfp_type_srlr_core0:
 		case ixgbe_sfp_type_srlr_core1:
+		case ixgbe_sfp_type_1g_sx_core0:
+		case ixgbe_sfp_type_1g_sx_core1:
+		case ixgbe_sfp_type_1g_lx_core0:
+		case ixgbe_sfp_type_1g_lx_core1:
 			ecmd->supported |= SUPPORTED_FIBRE;
 			ecmd->advertising |= ADVERTISED_FIBRE;
 			ecmd->port = PORT_FIBRE;
@@ -244,12 +248,6 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->supported |= SUPPORTED_TP;
 			ecmd->advertising |= ADVERTISED_TP;
 			ecmd->port = PORT_TP;
-			break;
-		case ixgbe_sfp_type_1g_sx_core0:
-		case ixgbe_sfp_type_1g_sx_core1:
-			ecmd->supported |= SUPPORTED_FIBRE;
-			ecmd->advertising |= ADVERTISED_FIBRE;
-			ecmd->port = PORT_FIBRE;
 			break;
 		case ixgbe_sfp_type_unknown:
 		default:
