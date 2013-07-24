@@ -234,6 +234,30 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.exit_latency = 166,
 		.target_residency = 500,
 		.enter = &intel_idle },
+	{
+		.name = "C8-HSW",
+		.desc = "MWAIT 0x40",
+		.driver_data = (void *) 0x40,
+		.flags = CPUIDLE_FLAG_TIME_VALID, 
+		.exit_latency = 300,
+		.target_residency = 900,
+		.enter = &intel_idle },
+	{
+		.name = "C9-HSW",
+		.desc = "MWAIT 0x50",
+		.driver_data = (void *) 0x50,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 600,
+		.target_residency = 1800,
+		.enter = &intel_idle },
+	{
+		.name = "C10-HSW",
+		.desc = "MWAIT 0x60",
+		.driver_data = (void *) 0x60,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 2600,
+		.target_residency = 7700,
+		.enter = &intel_idle },
 };
 
 static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
