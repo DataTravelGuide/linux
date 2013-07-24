@@ -2714,7 +2714,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
-	.max_sectors		= 512,
+	.max_sectors		= 1024,
 	.lockless		= 1,
 };
 
