@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include "defines.h"
 #include "regs.h"

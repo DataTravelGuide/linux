@@ -21,6 +21,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/etherdevice.h>
 #include <net/sock.h>
 
 #include "br_private.h"
@@ -254,7 +255,7 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 	br->bridge_id.prio[0] = 0x80;
 	br->bridge_id.prio[1] = 0x00;
 
-	memcpy(br->group_addr, br_group_address, ETH_ALEN);
+	memcpy(br->group_addr, br_reserved_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
 	br->stp_enabled = BR_NO_STP;
