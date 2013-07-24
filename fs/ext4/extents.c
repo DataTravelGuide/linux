@@ -4241,7 +4241,8 @@ out:
 
 			bh = head;
 			do {
-				if (buffer_mapped(bh)) {
+				if (buffer_mapped(bh) &&
+				    (end >= newex->ec_block)) {
 					/* get the 1st mapped buffer. */
 					if (end > newex->ec_block +
 						newex->ec_len)
