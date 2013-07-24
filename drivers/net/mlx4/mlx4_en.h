@@ -286,6 +286,7 @@ struct mlx4_en_tx_ring {
 	struct mlx4_srq dummy;
 	unsigned long bytes;
 	unsigned long packets;
+	unsigned long tx_csum;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 };
@@ -312,6 +313,8 @@ struct mlx4_en_rx_ring {
 	void *rx_info;
 	unsigned long bytes;
 	unsigned long packets;
+	unsigned long csum_ok;
+	unsigned long csum_none;
 };
 
 

@@ -628,7 +628,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (likely(priv->rx_csum)) {
 			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 			    (cqe->checksum == cpu_to_be16(0xffff))) {
-				priv->port_stats.rx_chksum_good++;
+				ring->csum_ok++;
 				/* This packet is eligible for LRO if it is:
 				 * - DIX Ethernet (type interpretation)
 				 * - TCP/IP (v4)
@@ -666,11 +666,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
 				ip_summed = CHECKSUM_NONE;
-				priv->port_stats.rx_chksum_none++;
+				ring->csum_none++;
 			}
 		} else {
 			ip_summed = CHECKSUM_NONE;
-			priv->port_stats.rx_chksum_none++;
+			ring->csum_none++;
 		}
 
 		skb = mlx4_en_rx_skb(priv, rx_desc, frags, length);
