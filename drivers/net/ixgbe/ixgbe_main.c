@@ -1782,7 +1782,7 @@ dma_sync:
  **/
 static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *rx_ring,
-			       int budget)
+			       const int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 #ifdef IXGBE_FCOE
@@ -1833,7 +1833,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
-		total_rx_packets++;
 
 		/* populate checksum, timestamp, VLAN, and protocol */
 		ixgbe_process_skb_fields(rx_ring, rx_desc, skb);
@@ -1866,8 +1865,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		ixgbe_rx_skb(q_vector, skb, rx_desc);
 
 		/* update budget accounting */
-		budget--;
-	} while (likely(budget));
+		total_rx_packets++;
+	} while (likely(total_rx_packets < budget));
 
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
@@ -1877,7 +1876,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	if (cleaned_count)
 		ixgbe_alloc_rx_buffers(rx_ring, cleaned_count);
 
-	return !!budget;
+	return (total_rx_packets < budget);
 }
 
 /**
