@@ -3221,16 +3221,6 @@ static int usb_set_device_initiated_lpm(struct usb_device *udev,
 
 	if (enable) {
 		/*
-		 * First, let the device know about the exit latencies
-		 * associated with the link state we're about to enable.
-		 */
-		ret = usb_req_set_sel(udev, state);
-		if (ret < 0) {
-			dev_warn(&udev->dev, "Set SEL for device-initiated "
-					"%s failed.\n", usb3_lpm_names[state]);
-			return -EBUSY;
-		}
-		/*
 		 * Now send the control transfer to enable device-initiated LPM
 		 * for either U1 or U2.
 		 */
@@ -3315,7 +3305,18 @@ static int usb_set_lpm_timeout(struct usb_device *udev,
 static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
-	int timeout;
+	int timeout, ret;
+
+	/*
+	 * First, let the device know about the exit latencies
+	 * associated with the link state we're about to enable.
+	 */
+	ret = usb_req_set_sel(udev, state);
+	if (ret < 0) {
+		dev_warn(&udev->dev, "Set SEL for device-initiated %s failed.\n",
+				usb3_lpm_names[state]);
+		return;
+	}
 
 	/* We allow the host controller to set the U1/U2 timeout internally
 	 * first, so that it can change its schedule to account for the
