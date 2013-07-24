@@ -141,8 +141,17 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
 
+	if (!virt_addr_valid(d)) {
+		pr_crit("aoe: invalid device pointer in %s\n",
+			__func__);
+		WARN_ON(1);
+		return -ENODEV;
+	}
+	if (!(d->flags & DEVFL_UP) || d->flags & DEVFL_TKILL)
+		return -ENODEV;
+
 	spin_lock_irqsave(&d->lock, flags);
-	if (d->flags & DEVFL_UP) {
+	if (d->flags & DEVFL_UP && !(d->flags & DEVFL_TKILL)) {
 		d->nopen++;
 		spin_unlock_irqrestore(&d->lock, flags);
 		return 0;
@@ -252,6 +261,18 @@ aoeblk_gdalloc(void *vp)
 	struct request_queue *q;
 	enum { KB = 1024, MB = KB * KB, READ_AHEAD = 2 * MB, };
 	ulong flags;
+	int late = 0;
+
+	spin_lock_irqsave(&d->lock, flags);
+	if (d->flags & DEVFL_GDALLOC
+	&& !(d->flags & DEVFL_TKILL)
+	&& !(d->flags & DEVFL_GD_NOW))
+		d->flags |= DEVFL_GD_NOW;
+	else
+		late = 1;
+	spin_unlock_irqrestore(&d->lock, flags);
+	if (late)
+		return;
 
 	gd = alloc_disk(AOE_PARTITIONS);
 	if (gd == NULL) {
@@ -275,6 +296,11 @@ aoeblk_gdalloc(void *vp)
 	}
 
 	spin_lock_irqsave(&d->lock, flags);
+	WARN_ON(!(d->flags & DEVFL_GD_NOW));
+	WARN_ON(!(d->flags & DEVFL_GDALLOC));
+	WARN_ON(d->flags & DEVFL_TKILL);
+	WARN_ON(d->gd);
+	WARN_ON(d->flags & DEVFL_UP);
 	blk_queue_max_hw_sectors(q, BLK_DEF_MAX_SECTORS);
 	q->backing_dev_info.name = "aoe";
 	q->backing_dev_info.ra_pages = READ_AHEAD / PAGE_CACHE_SIZE;
@@ -299,6 +325,11 @@ aoeblk_gdalloc(void *vp)
 
 	add_disk(gd);
 	aoedisk_add_sysfs(d);
+
+	spin_lock_irqsave(&d->lock, flags);
+	WARN_ON(!(d->flags & DEVFL_GD_NOW));
+	d->flags &= ~DEVFL_GD_NOW;
+	spin_unlock_irqrestore(&d->lock, flags);
 	return;
 
 err_mempool:
@@ -307,7 +338,8 @@ err_disk:
 	put_disk(gd);
 err:
 	spin_lock_irqsave(&d->lock, flags);
-	d->flags &= ~DEVFL_GDALLOC;
+	d->flags &= ~DEVFL_GD_NOW;
+	schedule_work(&d->work);
 	spin_unlock_irqrestore(&d->lock, flags);
 }
 
