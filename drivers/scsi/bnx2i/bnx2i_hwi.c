@@ -1729,7 +1729,7 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 
 	/* this is a response to one of our nop-outs */
 	task = iscsi_itt_to_task(conn,
-				 (u32) (nop_in->itt & ISCSI_NOP_IN_MSG_INDEX));
+			 (itt_t) (nop_in->itt & ISCSI_NOP_IN_MSG_INDEX));
 	if (task) {
 		hdr->flags = ISCSI_FLAG_CMD_FINAL;
 		hdr->itt = task->hdr->itt;
@@ -1997,7 +1997,8 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			break;
 
 		if (unlikely(test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx))) {
-			if (nopin->op_code == ISCSI_OP_NOOP_IN) {
+			if (nopin->op_code == ISCSI_OP_NOOP_IN &&
+			    nopin->itt == (u16) RESERVED_ITT) {
 				printk(KERN_ALERT "bnx2i: Unsolicited "
 				       "NOP-In detected for suspended "
 				       "connection dev=%s!\n",
