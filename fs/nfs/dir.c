@@ -518,6 +518,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 	dentry = d_lookup(parent, &filename);
 	if (dentry != NULL) {
 		if (nfs_same_file(dentry, entry)) {
+			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 			nfs_refresh_inode(dentry->d_inode, entry->fattr);
 			goto out;
 		} else {
