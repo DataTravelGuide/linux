@@ -1660,7 +1660,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	if (!dmi) {
 		unsigned memalloc_flag = current->flags & PF_MEMALLOC;
 		current->flags |= PF_MEMALLOC;
-		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
+		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH | __GFP_HIGHMEM, PAGE_KERNEL);
 		current->flags = (current->flags & ~PF_MEMALLOC) | memalloc_flag;
 		if (dmi)
 			*param_flags |= DM_PARAMS_VMALLOC;

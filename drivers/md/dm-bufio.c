@@ -348,7 +348,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 		current->flags |= PF_MEMALLOC;
 	}
 
-	ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+	ptr = __vmalloc(c->block_size, gfp_mask | __GFP_HIGHMEM, PAGE_KERNEL);
 
 	if (gfp_mask & __GFP_NORETRY)
 		current->flags = (current->flags & ~PF_MEMALLOC) | memalloc_flag;
