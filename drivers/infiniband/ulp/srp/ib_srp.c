@@ -722,8 +722,8 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	if (ret == 0)
 		ret = srp_connect_target(target);
 
-	scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
-			    SDEV_TRANSPORT_OFFLINE);
+	__scsi_target_unblock(&shost->shost_gendev, ret == 0 ? SDEV_RUNNING :
+			      SDEV_TRANSPORT_OFFLINE);
 	target->transport_offline = !!ret;
 
 	if (ret)
