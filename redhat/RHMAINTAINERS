@@ -361,6 +361,13 @@ NON-MASKABLE INTERRUPT (NMI)
 M:	Don Zickus <dzickus@redhat.com>
 S:	Maintained
 
+NVME EXPRESS BLOCK DRIVER
+M:	David Milburn <dmilburn@redhat.com>
+S:	Maintained
+F:	drivers/block/nvme-core.c
+F:	drivers/block/nvme-scsi.c
+F:	include/linux/nvme.h
+
 PCI SUBSYSTEM
 M:	Myron Stowe <mstowe@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
