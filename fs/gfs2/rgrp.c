@@ -1686,7 +1686,6 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested, u32 aflags)
 
 	if (gfs2_rs_active(rs)) {
 		begin = rs->rs_rbm.rgd;
-		flags = 0; /* Yoda: Do or do not. There is no try */
 	} else {
 		if (ip->i_rgd && rgrp_contains_block(ip->i_rgd, ip->i_goal)) {
 			rs->rs_rbm.rgd = begin = ip->i_rgd;
@@ -1707,7 +1706,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested, u32 aflags)
 			if (skip && skip--)
 				goto next_rgrp;
 			error = gfs2_glock_nq_init(rs->rs_rbm.rgd->rd_gl,
-						   LM_ST_EXCLUSIVE, flags,
+						   LM_ST_EXCLUSIVE,
+						   gfs2_rs_active(rs) ? 0 : flags,
 						   &rs->rs_rgd_gh);
 			if (error == GLR_TRYFAILED)
 				goto next_rgrp;
