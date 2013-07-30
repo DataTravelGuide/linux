@@ -1689,7 +1689,8 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
 
 static int nfs4_opendata_access(struct rpc_cred *cred,
 				struct nfs4_opendata *opendata,
-				struct nfs4_state *state, fmode_t fmode)
+				struct nfs4_state *state, fmode_t fmode,
+				int openflags)
 {
 	struct nfs_access_entry cache;
 	u32 mask;
@@ -1700,12 +1701,15 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 		return 0;
 
 	mask = 0;
-	if (fmode & FMODE_READ)
-		mask |= MAY_READ;
-	if (fmode & FMODE_WRITE)
-		mask |= MAY_WRITE;
-	if (fmode & FMODE_EXEC)
-		mask |= MAY_EXEC;
+	/* don't check MAY_WRITE - a newly created file may not have
+	 * write mode bits, but POSIX allows the creating process to write.
+	 * use openflags to check for exec, because fmode won't
+	 * always have FMODE_EXEC set when file open for exec. */
+	if (openflags & __FMODE_EXEC) {
+		/* ONLY check for exec rights */
+		mask = MAY_EXEC;
+	} else if (fmode & FMODE_READ)
+		mask = MAY_READ;
 
 	cache.cred = cred;
 	cache.jiffies = jiffies;
@@ -1916,7 +1920,7 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, fmode_t fmode
 	if (server->caps & NFS_CAP_POSIX_LOCK)
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
 
-	status = nfs4_opendata_access(cred, opendata, state, fmode);
+	status = nfs4_opendata_access(cred, opendata, state, fmode, flags);
 	if (status != 0)
 		goto err_opendata_put;
 
