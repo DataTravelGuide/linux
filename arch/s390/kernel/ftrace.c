@@ -217,7 +217,7 @@ struct syscall_metadata *syscall_nr_to_meta(int nr)
 	return syscalls_metadata[nr];
 }
 
-int syscall_name_to_nr(char *name)
+int syscall_name_to_nr(const char *name)
 {
 	int i;
 

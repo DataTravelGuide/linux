@@ -203,17 +203,10 @@ void free_syscall_print_fmt(struct ftrace_event_call *call)
 int syscall_enter_define_fields(struct ftrace_event_call *call)
 {
 	struct syscall_trace_enter trace;
-	struct syscall_metadata *meta;
+	struct syscall_metadata *meta = call->data;
 	int ret;
-	int nr;
 	int i;
 	int offset = offsetof(typeof(trace), args);
-
-	nr = syscall_name_to_nr(call->data);
-	meta = syscall_nr_to_meta(nr);
-
-	if (!meta)
-		return 0;
 
 	ret = trace_define_common_fields(call);
 	if (ret)
@@ -316,9 +309,9 @@ int reg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
-	char *name;
+	const char *name;
 
-	name = (char *)call->data;
+	name = ((struct syscall_metadata *)call->data)->name;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
@@ -336,9 +329,9 @@ int reg_event_syscall_enter(struct ftrace_event_call *call)
 void unreg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int num;
-	char *name;
+	const char *name;
 
-	name = (char *)call->data;
+	name = ((struct syscall_metadata *)call->data)->name;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= NR_syscalls)
 		return;
@@ -354,9 +347,9 @@ int reg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
-	char *name;
+	const char *name;
 
-	name = call->data;
+	name = ((struct syscall_metadata *)call->data)->name;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= NR_syscalls)
 		return -ENOSYS;
@@ -374,9 +367,9 @@ int reg_event_syscall_exit(struct ftrace_event_call *call)
 void unreg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int num;
-	char *name;
+	const char *name;
 
-	name = call->data;
+	name = ((struct syscall_metadata *)call->data)->name;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= NR_syscalls)
 		return;
