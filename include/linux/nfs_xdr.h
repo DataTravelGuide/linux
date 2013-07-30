@@ -308,6 +308,7 @@ struct nfs_openargs {
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 	fmode_t			fmode;
+	u32			access;
 	__u64                   clientid;
 	__u64                   id;
 	union {
@@ -343,6 +344,8 @@ struct nfs_openres {
 	struct nfs4_string	*owner;
 	struct nfs4_string	*group_owner;
 	struct nfs4_sequence_res	seq_res;
+	__u32			access_supported;
+	__u32			access_result;
 };
 
 /*
