@@ -388,14 +388,6 @@ void unreg_event_syscall_exit(struct ftrace_event_call *call)
 	mutex_unlock(&syscall_trace_lock);
 }
 
-struct trace_event event_syscall_enter = {
-	.trace			= print_syscall_enter,
-};
-
-struct trace_event event_syscall_exit = {
-	.trace			= print_syscall_exit,
-};
-
 #ifdef CONFIG_EVENT_PROFILE
 
 static DECLARE_BITMAP(enabled_prof_enter_syscalls, NR_syscalls);
