@@ -74,7 +74,6 @@
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
-#include <asm/io.h>
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
@@ -1315,61 +1314,6 @@ static inline size_t pcpu_calc_fc_sizes(size_t static_size,
 		*dyn_sizep = size_sum - static_size - reserved_size;
 
 	return size_sum;
-}
-
-static struct page *pcpu_addr_to_page(void *addr)
-{
-        return vmalloc_to_page(addr);
-}
-
-/**
- * per_cpu_ptr_to_phys - convert translated percpu address to physical address
- * @addr: the address to be converted to physical address
- *
- * Given @addr which is dereferenceable address obtained via one of
- * percpu access macros, this function translates it into its physical
- * address.  The caller is responsible for ensuring @addr stays valid
- * until this function finishes.
- *
- * RETURNS:
- * The physical address for @addr.
- */
-phys_addr_t per_cpu_ptr_to_phys(void *addr)
-{
-        void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
-        bool in_first_chunk = false;
-        unsigned long first_low, first_high;
-        unsigned int cpu;
-
-        /*
-	 * The following test on unit_low/high isn't strictly
-	 * necessary but will speed up lookups of addresses which
-	 * aren't in the first chunk.
-	 */
-        first_low = pcpu_chunk_addr(pcpu_first_chunk, pcpu_low_unit_cpu, 0);
-        first_high = pcpu_chunk_addr(pcpu_first_chunk, pcpu_high_unit_cpu,
-                                     pcpu_unit_pages);
-        if ((unsigned long)addr >= first_low &&
-            (unsigned long)addr < first_high) {
-                for_each_possible_cpu(cpu) {
-                        void *start = per_cpu_ptr(base, cpu);
-
-                        if (addr >= start && addr < start + pcpu_unit_size) {
-                                in_first_chunk = true;
-                                break;
-                        }
-                }
-        }
-
-        if (in_first_chunk) {
-                if (!is_vmalloc_addr(addr))
-                        return __pa(addr);
-                else
-                        return page_to_phys(vmalloc_to_page(addr)) +
-                               offset_in_page(addr);
-        } else
-                return page_to_phys(pcpu_addr_to_page(addr)) +
-                       offset_in_page(addr);
 }
 
 /**
