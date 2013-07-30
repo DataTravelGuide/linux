@@ -2185,7 +2185,8 @@ static int nfs4_xdr_enc_open(struct rpc_rqst *req, __be32 *p, struct nfs_openarg
 	encode_savefh(&xdr, &hdr);
 	encode_open(&xdr, args, &hdr);
 	encode_getfh(&xdr, &hdr);
-	encode_access(&xdr, args->access, &hdr);
+	if (args->access)
+		encode_access(&xdr, args->access, &hdr);
 	encode_getfattr(&xdr, args->bitmask, &hdr);
 	encode_restorefh(&xdr, &hdr);
 	encode_getfattr(&xdr, args->dir_bitmask, &hdr);
@@ -2226,7 +2227,8 @@ static int nfs4_xdr_enc_open_noattr(struct rpc_rqst *req, __be32 *p, struct nfs_
 	encode_sequence(&xdr, &args->seq_args, &hdr);
 	encode_putfh(&xdr, args->fh, &hdr);
 	encode_open(&xdr, args, &hdr);
-	encode_access(&xdr, args->access, &hdr);
+	if (args->access)
+		encode_access(&xdr, args->access, &hdr);
 	encode_getfattr(&xdr, args->bitmask, &hdr);
 	encode_nops(&hdr);
 	return 0;
@@ -5846,7 +5848,8 @@ static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, __be32 *p, struct nfs_openr
 		goto out;
 	if (decode_getfh(&xdr, &res->fh) != 0)
 		goto out;
-	if (decode_access(&xdr, &res->access_supported, &res->access_result) != 0)
+	if (res->access_request &&
+	    decode_access(&xdr, &res->access_supported, &res->access_result) != 0)
 		goto out;
 	if (decode_getfattr(&xdr, res->f_attr, res->server) != 0)
 		goto out;
@@ -5900,9 +5903,11 @@ static int nfs4_xdr_dec_open_noattr(struct rpc_rqst *rqstp, __be32 *p, struct nf
 	status = decode_open(&xdr, res);
 	if (status)
 		goto out;
-	status = decode_access(&xdr, &res->access_supported, &res->access_result);
-	if (status)
-		goto out;
+	if (res->access_request) {
+		status = decode_access(&xdr, &res->access_supported, &res->access_result);
+		if (status)
+			goto out;
+	}
 	decode_getfattr(&xdr, res->f_attr, res->server);
 out:
 	return status;
