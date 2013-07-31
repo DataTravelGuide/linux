@@ -1465,7 +1465,11 @@ static int setup_bdle(struct azx *chip,
 		if (azx_dev->frags >= AZX_MAX_BDL_ENTRIES)
 			return -EINVAL;
 
+#ifdef CONFIG_SND_DMA_SGBUF
 		addr = snd_sgbuf_get_addr(sgbuf, ofs);
+#else
+		addr = dmab->addr + ofs;
+#endif
 		/* program the address field of the BDL entry */
 		bdl[0] = cpu_to_le32((u32)addr);
 		bdl[1] = cpu_to_le32(upper_32_bits(addr));
