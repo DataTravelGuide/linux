@@ -48,7 +48,7 @@ struct pstore_info {
 			enum kmsg_dump_reason reason, u64 *id,
 			unsigned int part, size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,
-			struct pstore_info *psi);
+			struct timespec time, struct pstore_info *psi);
 	void		*data;
 };
 
