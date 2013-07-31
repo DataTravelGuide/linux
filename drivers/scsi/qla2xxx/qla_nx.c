@@ -1645,7 +1645,6 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	if (!ha->nx_pcibase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x000e,
 		    "Cannot remap pcibase MMIO, aborting.\n");
-		pci_release_regions(ha->pdev);
 		goto iospace_error_exit;
 	}
 
@@ -1660,7 +1659,6 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 		if (!ha->nxdb_wr_ptr) {
 			ql_log_pci(ql_log_fatal, ha->pdev, 0x000f,
 			    "Cannot remap MMIO, aborting.\n");
-			pci_release_regions(ha->pdev);
 			goto iospace_error_exit;
 		}
 
