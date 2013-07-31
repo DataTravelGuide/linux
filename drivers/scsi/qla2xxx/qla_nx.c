@@ -2064,9 +2064,6 @@ qla82xx_intr_handler(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->host_int, 0);
 	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (!ha->flags.msi_enabled)
-		qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
 
 #ifdef QL_DEBUG_LEVEL_17
 	if (!irq && ha->flags.eeh_busy)
@@ -2075,11 +2072,12 @@ qla82xx_intr_handler(int irq, void *dev_id)
 		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
 #endif
 
-	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
-	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-		complete(&ha->mbx_intr_comp);
-	}
+	qla2x00_handle_mbx_completion(ha, status);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	if (!ha->flags.msi_enabled)
+		qla82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
+
 	return IRQ_HANDLED;
 }
 
@@ -2139,8 +2137,6 @@ qla82xx_msix_default(int irq, void *dev_id)
 		WRT_REG_DWORD(&reg->host_int, 0);
 	} while (0);
 
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 #ifdef QL_DEBUG_LEVEL_17
 	if (!irq && ha->flags.eeh_busy)
 		ql_log(ql_log_warn, vha, 0x5044,
@@ -2148,11 +2144,9 @@ qla82xx_msix_default(int irq, void *dev_id)
 		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
 #endif
 
-	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
-		(status & MBX_INTERRUPT) && ha->flags.mbox_int) {
-			set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
-			complete(&ha->mbx_intr_comp);
-	}
+	qla2x00_handle_mbx_completion(ha, status);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 	return IRQ_HANDLED;
 }
 
@@ -3334,7 +3328,7 @@ void qla82xx_clear_pending_mbx(scsi_qla_host_t *vha)
 		ha->flags.mbox_busy = 0;
 		ql_log(ql_log_warn, vha, 0x6010,
 		    "Doing premature completion of mbx command.\n");
-		if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags))
+		if (test_and_clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags))
 			complete(&ha->mbx_intr_comp);
 	}
 }
