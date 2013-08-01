@@ -1727,7 +1727,9 @@ zonelist_scan:
 			if (zone_reclaim_mode == 0)
 				goto this_zone_full;
 
-			ret = zone_reclaim(zone, gfp_mask, order);
+			ret = zone_reclaim(preferred_zone, zone, gfp_mask,
+					   order,
+					   mark, classzone_idx, alloc_flags);
 			switch (ret) {
 			case ZONE_RECLAIM_NOSCAN:
 				/* did not scan */
