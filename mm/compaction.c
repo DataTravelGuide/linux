@@ -731,6 +731,17 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	}
 
 	/*
+	 * Clear pageblock skip if there were failures recently and
+	 * compaction is about to be retried after being
+	 * deferred. kswapd does not do this reset and it will wait
+	 * direct compaction to do so either when the cursor meets
+	 * after one compaction pass is complete or if compaction is
+	 * restarted after being deferred for a while.
+	 */
+	if ((compaction_restarting(zone, cc->order)) && !current_is_kswapd())
+		__reset_isolation_suitable(zone);
+
+	/*
 	 * Setup to move all movable pages to the end of the zone. Used cached
 	 * information on where the scanners should start but check that it
 	 * is initialised by ensuring the values are within zone boundaries.
@@ -745,14 +756,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		cc->migrate_pfn = start_pfn;
 		zone->compact_cached_migrate_pfn = cc->migrate_pfn;
 	}
-
-	/*
-	 * Clear pageblock skip if there were failures recently and compaction
-	 * is about to be retried after being deferred. kswapd does not do
-	 * this reset as it'll reset the cached information when going to sleep.
-	 */
-	if (compaction_restarting(zone, cc->order) && !current_is_kswapd())
-		__reset_isolation_suitable(zone);
 
 	migrate_prep_local();
 
