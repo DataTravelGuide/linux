@@ -1465,7 +1465,7 @@ static void bnx2fc_lun_reset_cmpl(struct bnx2fc_cmd *io_req)
 						 bnx2fc_cmd_release);
 							/* timer hold */
 				rc = bnx2fc_initiate_abts(cmd);
-				/* abts shouldnt fail in this context */
+				/* abts shouldn't fail in this context */
 				WARN_ON(rc != SUCCESS);
 			} else
 				printk(KERN_ERR PFX "lun_rst: abts already in"
@@ -1497,7 +1497,7 @@ static void bnx2fc_tgt_reset_cmpl(struct bnx2fc_cmd *io_req)
 				kref_put(&io_req->refcount,
 					 bnx2fc_cmd_release); /* timer hold */
 			rc = bnx2fc_initiate_abts(cmd);
-			/* abts shouldnt fail in this context */
+			/* abts shouldn't fail in this context */
 			WARN_ON(rc != SUCCESS);
 
 		} else
