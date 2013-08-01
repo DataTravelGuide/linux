@@ -86,7 +86,6 @@ static void __reset_isolation_suitable(struct zone *zone)
 
 	zone->compact_cached_migrate_pfn = start_pfn;
 	zone->compact_cached_free_pfn = end_pfn;
-	zone->compact_blockskip_flush = false;
 
 	/* Walk the zone and mark every pageblock as suitable for isolation */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
@@ -112,8 +111,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
 			continue;
 
 		/* Only flush if a full compaction finished recently */
-		if (zone->compact_blockskip_flush)
-			__reset_isolation_suitable(zone);
+		__reset_isolation_suitable(zone);
 	}
 }
 
@@ -629,13 +627,12 @@ static int compact_finished(struct zone *zone,
 	/* Compaction run completes if the migrate and free scanner meet */
 	if (cc->free_pfn <= cc->migrate_pfn) {
 		/*
-		 * Mark that the PG_migrate_skip information should be cleared
-		 * by kswapd when it goes to sleep. kswapd does not set the
-		 * flag itself as the decision to be clear should be directly
-		 * based on an allocation request.
+		 * Clear the PG_migrate_skip information. kswapd does
+		 * not clear it as the decision to be clear should be
+		 * directly based on an allocation request.
 		 */
 		if (!current_is_kswapd())
-			zone->compact_blockskip_flush = true;
+			__reset_isolation_suitable(zone);
 
 		return COMPACT_COMPLETE;
 	}

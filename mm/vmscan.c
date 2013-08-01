@@ -2721,17 +2721,6 @@ static int kswapd(void *p)
 					set_pgdat_percpu_threshold(pgdat,
 						calculate_normal_threshold);
 
-					/*
-					 * Compaction records what page blocks
-					 * it recently failed to isolate pages
-					 * from and skips them in the future
-					 * scanning. When kswapd is going to
-					 * sleep, it is reasonable to assume
-					 * that pages and compaction may succeed
-					 * so reset the cache.
-					 */
-					reset_isolation_suitable(pgdat);
-
 					schedule();
 					set_pgdat_percpu_threshold(pgdat,
 						calculate_pressure_threshold);
