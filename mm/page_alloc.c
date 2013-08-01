@@ -1734,7 +1734,26 @@ zonelist_scan:
 				goto try_next_zone;
 			case ZONE_RECLAIM_FULL:
 				/* scanned but unreclaimable */
-				goto this_zone_full;
+				continue;
+			case ZONE_RECLAIM_SUCCESS:
+				/*
+				 * If we successfully reclaimed
+				 * enough, allow allocations up to the
+				 * min watermark (instead of stopping
+				 * at "mark"). This provides some more
+				 * margin against parallel
+				 * allocations. Using the min
+				 * watermark doesn't alter when we
+				 * wakeup kswapd. It also doesn't
+				 * alter the synchronous direct
+				 * reclaim behavior of zone_reclaim()
+				 * that will still be invoked at the
+				 * next pass if we're still below the
+				 * low watermark (even if kswapd isn't
+				 * woken).
+				 */
+				mark = min_wmark_pages(zone);
+				/* Fall through */
 			default:
 				/* did we reclaim enough */
 				if (zone_watermark_ok(zone, order, mark,
