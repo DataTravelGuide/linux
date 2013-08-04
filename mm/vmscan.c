@@ -3088,7 +3088,7 @@ static int zone_reclaim_compact(struct zone *preferred_zone,
 	if (compaction_deferred(preferred_zone) ||
 	    !order ||
 	    (gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO)) {
-		need_compaction = false;
+		*need_compaction = false;
 		return COMPACT_SKIPPED;
 	}
 
