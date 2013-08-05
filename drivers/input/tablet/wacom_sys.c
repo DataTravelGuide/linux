@@ -395,7 +395,7 @@ void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 
 void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	if (wacom_wac->features->device_type == BTN_TOOL_DOUBLETAP) {
+	if (wacom_wac->features->device_type == BTN_TOOL_FINGER) {
 		input_mt_init_slots(input_dev, 2);
 		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
 				     0, MT_TOOL_MAX, 0, 0);
@@ -462,7 +462,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						if (features->type == TABLETPC2FG) {
 							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_DOUBLETAP;
 						}
 						features->x_max =
 							wacom_le16_to_cpu(&report[i + 3]);
@@ -497,7 +496,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						if (features->type == TABLETPC2FG) {
 							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_DOUBLETAP;
 							features->y_max =
 								wacom_le16_to_cpu(&report[i + 3]);
 							features->y_phy =
