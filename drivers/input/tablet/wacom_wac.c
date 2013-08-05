@@ -762,10 +762,47 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
+static int wacom_tpc_pen(struct wacom_wac *wacom, void *wcombo)
+{
+	struct wacom_features *features = wacom->features;
+	char *data = wacom->data;
+	int prox, pressure;
+
+	prox = data[1] & 0x20;
+
+	if (!wacom->shared->stylus_in_proximity) { /* first in prox */
+		/* Going into proximity select tool */
+		wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+		if (wacom->tool[0] == BTN_TOOL_PEN)
+			wacom->id[0] = STYLUS_DEVICE_ID;
+		else
+			wacom->id[0] = ERASER_DEVICE_ID;
+
+		wacom->shared->stylus_in_proximity = true;
+	}
+	wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
+	wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
+	wacom_report_abs(wcombo, ABS_X, le16_to_cpup((__le16 *)&data[2]));
+	wacom_report_abs(wcombo, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
+	pressure = ((data[7] & 0x01) << 8) | data[6];
+	if (pressure < 0)
+		pressure = features->pressure_max + pressure + 1;
+	wacom_report_abs(wcombo, ABS_PRESSURE, pressure);
+	wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x05);
+	if (!prox) { /* out-prox */
+		wacom->id[0] = 0;
+		wacom->shared->stylus_in_proximity = false;
+	}
+	wacom_report_key(wcombo, wacom->tool[0], prox);
+	wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
+
+	return 1;
+}
+
 static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	char *data = wacom->data;
-	int prox = 0, pressure;
+	int prox = 0;
 	struct urb *urb = ((struct wacom_combo *)wcombo)->urb;
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
@@ -805,42 +842,9 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
 		}
 		return 1;
-	} else if (data[0] == 2) { /* Penabled */
-		prox = data[1] & 0x20;
+	} else if (data[0] == 2)
+		return wacom_tpc_pen(wacom, wcombo);
 
-		if (prox) { /* in prox */
-			if (!wacom->id[0]) {
-				/* Going into proximity select tool */
-				wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
-				if (wacom->tool[0] == BTN_TOOL_PEN)
-					wacom->id[0] = STYLUS_DEVICE_ID;
-				else
-					wacom->id[0] = ERASER_DEVICE_ID;
-				wacom->shared->stylus_in_proximity = true;
-			}
-			wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
-			wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
-			wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
-			wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
-			pressure = ((data[7] & 0x01) << 8) | data[6];
-			if (pressure < 0)
-				pressure = wacom->features->pressure_max + pressure + 1;
-			wacom_report_abs(wcombo, ABS_PRESSURE, pressure);
-			wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x05);
-		} else {
-			wacom_report_abs(wcombo, ABS_X, 0);
-			wacom_report_abs(wcombo, ABS_Y, 0);
-			wacom_report_abs(wcombo, ABS_PRESSURE, 0);
-			wacom_report_key(wcombo, BTN_STYLUS, 0);
-			wacom_report_key(wcombo, BTN_STYLUS2, 0);
-			wacom_report_key(wcombo, BTN_TOUCH, 0);
-			wacom->id[0] = 0;
-			wacom->shared->stylus_in_proximity = false;
-		}
-		wacom_report_key(wcombo, wacom->tool[0], prox);
-		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
-		return 1;
-	}
 	return 0;
 }
 
