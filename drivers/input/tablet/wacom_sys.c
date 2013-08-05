@@ -385,7 +385,6 @@ void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	    wacom_wac->features->device_type == BTN_TOOL_TRIPLETAP) {
 		input_set_abs_params(input_dev, ABS_RX, 0, wacom_wac->features->x_phy, 0, 0);
 		input_set_abs_params(input_dev, ABS_RY, 0, wacom_wac->features->y_phy, 0, 0);
-		input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_DOUBLETAP);
 	}
 }
 
