@@ -766,7 +766,6 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	char *data = wacom->data;
 	int prox = 0, pressure;
-	static int stylusInProx, touchInProx = 1, touchOut;
 	struct urb *urb = ((struct wacom_combo *)wcombo)->urb;
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
@@ -778,46 +777,36 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 			prox = data[1] & 0x03;
 		}
 
-		if (!stylusInProx) { /* stylus not in prox */
+		if (!wacom->shared->stylus_in_proximity) {
 			if (prox) {
-				if (touchInProx) {
-					wacom->tool[1] = BTN_TOOL_DOUBLETAP;
-					wacom->id[0] = TOUCH_DEVICE_ID;
-					if (urb->actual_length != WACOM_PKGLEN_TPC1FG) {
-						wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
-						wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
-						wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
-						wacom_report_key(wcombo, BTN_TOUCH, wacom_le16_to_cpu(&data[6]));
-					} else {
-						wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
-						wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[3]));
-						wacom_report_key(wcombo, BTN_TOUCH, 1);
-					}
-					wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
-					wacom_report_key(wcombo, wacom->tool[1], prox & 0x01);
-					touchOut = 1;
-					return 1;
+				wacom->tool[1] = BTN_TOOL_DOUBLETAP;
+				wacom->id[0] = TOUCH_DEVICE_ID;
+				if (urb->actual_length != WACOM_PKGLEN_TPC1FG) {
+					wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
+					wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
+					wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
+					wacom_report_key(wcombo, BTN_TOUCH, wacom_le16_to_cpu(&data[6]));
+				} else {
+					wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
+					wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[3]));
+					wacom_report_key(wcombo, BTN_TOUCH, 1);
 				}
+				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
+				wacom_report_key(wcombo, wacom->tool[1], prox & 0x01);
 			} else {
 				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
 				wacom_report_key(wcombo, wacom->tool[1], prox & 0x01);
 				wacom_report_key(wcombo, BTN_TOUCH, 0);
-				touchOut = 0;
-				touchInProx = 1;
-				return 1;
+				wacom->id[0] = 0;
 			}
-		} else if (touchOut || !prox) { /* force touch out-prox */
+		} else if (wacom->id[0]) { /* force touch out-prox */
 			wacom_report_abs(wcombo, ABS_MISC, TOUCH_DEVICE_ID);
 			wacom_report_key(wcombo, wacom->tool[1], 0);
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
-			touchOut = 0;
-			touchInProx = 1;
-			return 1;
 		}
+		return 1;
 	} else if (data[0] == 2) { /* Penabled */
 		prox = data[1] & 0x20;
-
-		touchInProx = 0;
 
 		if (prox) { /* in prox */
 			if (!wacom->id[0]) {
@@ -827,6 +816,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 					wacom->id[0] = STYLUS_DEVICE_ID;
 				else
 					wacom->id[0] = ERASER_DEVICE_ID;
+				wacom->shared->stylus_in_proximity = true;
 			}
 			wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
 			wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
@@ -845,12 +835,10 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_STYLUS2, 0);
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
 			wacom->id[0] = 0;
-			/* pen is out so touch can be enabled now */
-			touchInProx = 1;
+			wacom->shared->stylus_in_proximity = false;
 		}
 		wacom_report_key(wcombo, wacom->tool[0], prox);
 		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
-		stylusInProx = prox;
 		return 1;
 	}
 	return 0;
