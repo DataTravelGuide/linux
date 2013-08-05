@@ -386,7 +386,7 @@ void input_dev_bamboo_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 
 void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	if (wacom_wac->features->device_type == BTN_TOOL_DOUBLETAP ||
+	if (wacom_wac->features->device_type == BTN_TOOL_FINGER ||
 	    wacom_wac->features->device_type == BTN_TOOL_PEN) {
 		input_set_abs_params(input_dev, ABS_RX, 0, wacom_wac->features->x_phy, 0, 0);
 		input_set_abs_params(input_dev, ABS_RY, 0, wacom_wac->features->y_phy, 0, 0);
@@ -617,7 +617,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 		goto out;
 
 	/* touch device found but size is not defined. use default */
-	if (features->device_type == BTN_TOOL_DOUBLETAP && !features->x_max) {
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
