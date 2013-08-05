@@ -113,11 +113,14 @@
 #endif
 
 #ifdef CONFIG_EVENT_TRACING
-#define FTRACE_EVENTS()	VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
-			*(_ftrace_events)				\
+#define FTRACE_EVENTS() *(_ftrace_events)
+#define FTRACE_EVENTS_PTRS()	. = ALIGN(8);					\
+			VMLINUX_SYMBOL(__start_ftrace_events) = .;	\
+			*(_ftrace_events_ptrs)				\
 			VMLINUX_SYMBOL(__stop_ftrace_events) = .;
 #else
 #define FTRACE_EVENTS()
+#define FTRACE_EVENTS_PTRS()
 #endif
 
 #ifdef CONFIG_TRACING
@@ -453,6 +456,7 @@
 	KERNEL_CTORS()							\
 	*(.init.rodata)							\
 	MCOUNT_REC()							\
+	FTRACE_EVENTS_PTRS()							\
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)

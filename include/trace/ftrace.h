@@ -534,7 +534,11 @@ ftrace_profile_disable_##name(struct ftrace_event_call *unused)		\
  *	.raw_init		= ftrace_raw_init_event_<call>,
  *	.regfunc		= ftrace_reg_event_<call>,
  *	.unregfunc		= ftrace_unreg_event_<call>,
- * }
+ * };
+ * // its only safe to use pointers when doing linker tricks to
+ * // create an array.
+ * static struct ftrace_event_call __used
+ * __attribute__((section("_ftrace_events_ptrs"))) *__event_<call> = &event_<call>;
  *
  */
 
@@ -689,7 +693,9 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.flags			= TRACE_EVENT_FL_KABI_PRINT_FMT,	\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
-}
+};									\
+static struct ftrace_event_call __used					\
+__attribute__((section("_ftrace_events_ptrs"))) *__event_##call = &event_##call
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
@@ -709,7 +715,9 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.flags			= TRACE_EVENT_FL_KABI_PRINT_FMT,	\
 	.define_fields		= ftrace_define_fields_##template,	\
 	_TRACE_PROFILE_INIT(call)					\
-}
+};									\
+static struct ftrace_event_call __used					\
+__attribute__((section("_ftrace_events_ptrs"))) *__event_##call = &event_##call
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 

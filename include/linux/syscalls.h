@@ -192,7 +192,10 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= (void *)&__syscall_meta_##sname,\
 		TRACE_SYS_ENTER_PROFILE_INIT(sname)			\
-	}
+	};								\
+	static struct ftrace_event_call __used				\
+	  __attribute__((section("_ftrace_events_ptrs")))		\
+	 *__event_enter_##sname = &event_enter_##sname			\
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
@@ -233,7 +236,10 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= (void *)&__syscall_meta_##sname,\
 		TRACE_SYS_EXIT_PROFILE_INIT(sname)			\
-	}
+	};								\
+	static struct ftrace_event_call __used				\
+	  __attribute__((section("_ftrace_events_ptrs")))		\
+	*__event_exit_##sname = &event_exit_##sname			\
 
 #define SYSCALL_METADATA(sname, nb)				\
 	SYSCALL_TRACE_ENTER_EVENT(sname);			\
