@@ -66,9 +66,8 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 
 	prox = data[1] & 0x40;
 
-	wacom->id[0] = ERASER_DEVICE_ID;
 	if (prox) {
-
+		wacom->id[0] = ERASER_DEVICE_ID;
 		pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
 		if (wacom->features->pressure_max > 255)
 			pressure = (pressure << 1) | ((data[4] >> 6) & 1);
@@ -820,38 +819,14 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 
 		touchInProx = 0;
 
-		wacom->id[0] = ERASER_DEVICE_ID;
-
-		/*
-		 * if going from out of proximity into proximity select between the eraser
-		 * and the pen based on the state of the stylus2 button, choose eraser if
-		 * pressed else choose pen. if not a proximity change from out to in, send
-		 * an out of proximity for previous tool then a in for new tool.
-		 */
 		if (prox) { /* in prox */
-			if (!wacom->tool[0]) {
+			if (!wacom->id[0]) {
 				/* Going into proximity select tool */
-				wacom->tool[1] = (data[1] & 0x08) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
-				if (wacom->tool[1] == BTN_TOOL_PEN)
+				wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+				if (wacom->tool[0] == BTN_TOOL_PEN)
 					wacom->id[0] = STYLUS_DEVICE_ID;
-			} else if (wacom->tool[1] == BTN_TOOL_RUBBER && !(data[1] & 0x08)) {
-				/*
-				 * was entered with stylus2 pressed
-				 * report out proximity for previous tool
-				*/
-				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
-				wacom_report_key(wcombo, wacom->tool[1], 0);
-				wacom_input_sync(wcombo);
-
-				/* set new tool */
-				wacom->tool[1] = BTN_TOOL_PEN;
-				wacom->id[0] = STYLUS_DEVICE_ID;
-				return 0;
-			}
-			if (wacom->tool[1] != BTN_TOOL_RUBBER) {
-				/* Unknown tool selected default to pen tool */
-				wacom->tool[1] = BTN_TOOL_PEN;
-				wacom->id[0] = STYLUS_DEVICE_ID;
+				else
+					wacom->id[0] = ERASER_DEVICE_ID;
 			}
 			wacom_report_key(wcombo, BTN_STYLUS, data[1] & 0x02);
 			wacom_report_key(wcombo, BTN_STYLUS2, data[1] & 0x10);
@@ -861,17 +836,21 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 			if (pressure < 0)
 				pressure = wacom->features->pressure_max + pressure + 1;
 			wacom_report_abs(wcombo, ABS_PRESSURE, pressure);
-			wacom_report_key(wcombo, BTN_TOUCH, pressure);
+			wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x05);
 		} else {
+			wacom_report_abs(wcombo, ABS_X, 0);
+			wacom_report_abs(wcombo, ABS_Y, 0);
 			wacom_report_abs(wcombo, ABS_PRESSURE, 0);
 			wacom_report_key(wcombo, BTN_STYLUS, 0);
 			wacom_report_key(wcombo, BTN_STYLUS2, 0);
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
+			wacom->id[0] = 0;
+			/* pen is out so touch can be enabled now */
+			touchInProx = 1;
 		}
-		wacom_report_key(wcombo, wacom->tool[1], prox);
+		wacom_report_key(wcombo, wacom->tool[0], prox);
 		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
 		stylusInProx = prox;
-		wacom->tool[0] = prox;
 		return 1;
 	}
 	return 0;
@@ -993,6 +972,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 			return wacom_intuos_irq(wacom_wac, wcombo);
 
 		case TABLETPC:
+		case TABLETPC2FG:
 			return wacom_tpc_irq(wacom_wac, wcombo);
 		case BAMBOO_PT:
 			return wacom_bpt_irq(wacom_wac, wcombo);
@@ -1047,10 +1027,18 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 			input_dev_i4s(input_dev, wacom_wac);
 			input_dev_i(input_dev, wacom_wac);
 			break;
+		case TABLETPC2FG:
+			input_dev_tpc2fg(input_dev, wacom_wac);
+			/* fall through */
+		case TABLETPC:
+			input_dev_tpc(input_dev, wacom_wac);
+			if (wacom_wac->features->device_type != BTN_TOOL_PEN)
+				break;  /* no need to process stylus stuff */
+
+			/* fall through */
 		case PL:
 		case PTU:
 		case DTU:
-		case TABLETPC:
 			input_dev_pl(input_dev, wacom_wac);
 			/* fall through */
 		case PENPARTNER:
