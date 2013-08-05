@@ -1859,14 +1859,14 @@ static void shrink_mem_cgroup_zone(int priority, struct mem_cgroup_zone *mz,
 	unsigned long nr_to_scan;
 	unsigned long percent[2];	/* anon @ 0; file @ 1 */
 	enum lru_list l;
-	unsigned long nr_reclaimed;
+	unsigned long nr_reclaimed, nr_scanned;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-	unsigned long nr_scanned = sc->nr_scanned;
 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
 	int noswap = 0;
 
 restart:
 	nr_reclaimed = 0;
+	nr_scanned = sc->nr_scanned;
 	/* If we have no swap space, do not bother scanning anon pages. */
 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
 		noswap = 1;
