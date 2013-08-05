@@ -175,27 +175,26 @@ void wacom_input_sync(void *wcombo)
 static int wacom_open(struct input_dev *dev)
 {
 	struct wacom *wacom = input_get_drvdata(dev);
+	int retval = 0;
+
+	if (usb_autopm_get_interface(wacom->intf) < 0)
+		return -EIO;
 
 	mutex_lock(&wacom->lock);
 
-	wacom->irq->dev = wacom->usbdev;
-
-	if (usb_autopm_get_interface(wacom->intf) < 0) {
-		mutex_unlock(&wacom->lock);
-		return -EIO;
-	}
-
 	if (usb_submit_urb(wacom->irq, GFP_KERNEL)) {
-		usb_autopm_put_interface(wacom->intf);
-		mutex_unlock(&wacom->lock);
-		return -EIO;
+		retval = -EIO;
+		goto out;
 	}
 
 	wacom->open = 1;
 	wacom->intf->needs_remote_wakeup = 1;
 
+out:
+	if (retval)
+		usb_autopm_put_interface(wacom->intf);
 	mutex_unlock(&wacom->lock);
-	return 0;
+	return retval;
 }
 
 static void wacom_close(struct input_dev *dev)
@@ -207,6 +206,8 @@ static void wacom_close(struct input_dev *dev)
 	wacom->open = 0;
 	wacom->intf->needs_remote_wakeup = 0;
 	mutex_unlock(&wacom->lock);
+
+	usb_autopm_put_interface(wacom->intf);
 }
 
 void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
