@@ -245,8 +245,6 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 	SYSCALL_TRACE_ENTER_EVENT(sname);			\
 	SYSCALL_TRACE_EXIT_EVENT(sname);			\
 	static const struct syscall_metadata __used		\
-	  __attribute__((__aligned__(4)))			\
-	  __attribute__((section("__syscalls_metadata")))	\
 	  __syscall_meta_##sname = {				\
 		.name 		= "sys"#sname,			\
 		.nb_args 	= nb,				\
@@ -254,20 +252,24 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *unused)     \
 		.args		= args_##sname,			\
 		.enter_event	= &event_enter_##sname,		\
 		.exit_event	= &event_exit_##sname,		\
-	};
+	};							\
+	static const struct syscall_metadata __used		\
+	  __attribute__((section("__syscalls_metadata")))	\
+	 *__p_syscall_meta_##sname = &__syscall_meta_##sname;
 
 #define SYSCALL_DEFINE0(sname)					\
 	SYSCALL_TRACE_ENTER_EVENT(_##sname);			\
 	SYSCALL_TRACE_EXIT_EVENT(_##sname);			\
 	static const struct syscall_metadata __used		\
-	  __attribute__((__aligned__(4)))			\
-	  __attribute__((section("__syscalls_metadata")))	\
 	  __syscall_meta__##sname = {				\
 		.name 		= "sys_"#sname,			\
 		.nb_args 	= 0,				\
 		.enter_event	= &event_enter__##sname,	\
 		.exit_event	= &event_exit__##sname,		\
 	};							\
+	static const struct syscall_metadata __used		\
+	  __attribute__((section("__syscalls_metadata")))	\
+	 *__p_syscall_meta_##sname = &__syscall_meta__##sname;	\
 	asmlinkage long sys_##sname(void)
 #else
 #define SYSCALL_DEFINE0(name)	   asmlinkage long sys_##name(void)

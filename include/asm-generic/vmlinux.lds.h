@@ -132,7 +132,8 @@
 #endif
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-#define TRACE_SYSCALLS() VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
+#define TRACE_SYSCALLS() . = ALIGN(8);					\
+			 VMLINUX_SYMBOL(__start_syscalls_metadata) = .;	\
 			 *(__syscalls_metadata)				\
 			 VMLINUX_SYMBOL(__stop_syscalls_metadata) = .;
 #else
@@ -166,7 +167,7 @@
 	BRANCH_PROFILE()						\
 	TRACE_PRINTKS()							\
 	FTRACE_EVENTS()							\
-	TRACE_SYSCALLS()
+	TRACE_PRINTKS()
 
 /*
  * Data section helpers
@@ -457,6 +458,7 @@
 	*(.init.rodata)							\
 	MCOUNT_REC()							\
 	FTRACE_EVENTS_PTRS()							\
+	TRACE_SYSCALLS()						\
 	DEV_DISCARD(init.rodata)					\
 	CPU_DISCARD(init.rodata)					\
 	MEM_DISCARD(init.rodata)
