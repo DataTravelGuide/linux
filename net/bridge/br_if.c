@@ -459,7 +459,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
-	if (dev->priv_flags & IFF_DONT_BRIDGE)
+	if (netdev_extended(dev)->ext_priv_flags & IFF_DONT_BRIDGE)
 		return -EOPNOTSUPP;
 
 	p = new_nbp(br, dev);

@@ -130,7 +130,7 @@ static void do_setup(struct net_device *netdev)
 
 	netdev->netdev_ops = &internal_dev_netdev_ops;
 
-	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	netdev_extended(netdev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 	netdev_extended(netdev)->ext_priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev->destructor = internal_dev_destructor;
 	SET_ETHTOOL_OPS(netdev, &internal_dev_ethtool_ops);

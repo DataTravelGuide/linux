@@ -862,7 +862,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		dev->ieee80211_ptr->use_4addr = params->use_4addr;
 
 	if (!err) {
-		dev->priv_flags &= ~IFF_DONT_BRIDGE;
+		netdev_extended(dev)->ext_priv_flags &= ~IFF_DONT_BRIDGE;
 		switch (ntype) {
 		case NL80211_IFTYPE_STATION:
 			if (dev->ieee80211_ptr->use_4addr)
@@ -870,7 +870,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			/* fall through */
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_ADHOC:
-			dev->priv_flags |= IFF_DONT_BRIDGE;
+			netdev_extended(dev)->ext_priv_flags |= IFF_DONT_BRIDGE;
 			break;
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP:
