@@ -1146,6 +1146,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos5 M",     WACOM_PKGLEN_INTUOS, 44704, 27940, 2047, 63, INTUOS5 },
 	{ "Wacom Bamboo Pen",	 WACOM_PKGLEN_BBFUN, 14720,  9200, 1023, 31, BAMBOO_PT },
 	{ "Wacom Cintiq 22HD",	 WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_22HD },
+	{ "Wacom ISDv4 E6",      WACOM_PKGLEN_TPC2FG, 27760, 15694,  255,  0, TABLETPC2FG },
 	{ }
 };
 
@@ -1245,6 +1246,7 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0xFA, USB_CLASS_HID,
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xE6) },
 	{ }
 };
 
