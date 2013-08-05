@@ -12,6 +12,7 @@
  * (at your option) any later version.
  */
 #include <linux/hid.h>
+#include <linux/input/mt.h>
 #include "wacom.h"
 #include "wacom_wac.h"
 
@@ -762,6 +763,36 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
+static int wacom_tpc_mt_touch(struct wacom_wac *wacom, void *wcombo)
+{
+	unsigned char *data = wacom->data;
+	int contact_with_no_pen_down_count = 0;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		int p = data[1] & (1 << i);
+		bool touch = p && !wacom->shared->stylus_in_proximity;
+
+		input_mt_slot(wcombo, i);
+		input_mt_report_slot_state(wcombo, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = le16_to_cpup((__le16 *)&data[i * 2 + 2]) & 0x7fff;
+			int y = le16_to_cpup((__le16 *)&data[i * 2 + 6]) & 0x7fff;
+
+			wacom_report_abs(wcombo, ABS_MT_POSITION_X, x);
+			wacom_report_abs(wcombo, ABS_MT_POSITION_Y, y);
+			contact_with_no_pen_down_count++;
+		}
+	}
+
+	/* keep touch state for pen event */
+	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+
+	wacom_mt_report_pointer_emulation(wcombo, true);
+
+	return 1;
+}
+
 static int wacom_tpc_single_touch(struct wacom_wac *wacom, void *wcombo, size_t len)
 {
 	char *data = wacom->data;
@@ -836,6 +867,8 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 
 	if (urb->actual_length == WACOM_PKGLEN_TPC1FG || data[0] == 6) /* Touch data */
 		return wacom_tpc_single_touch(wacom, wcombo, urb->actual_length);
+	else if (data[0] == 13)
+		return wacom_tpc_mt_touch(wacom, wcombo);
 	else if (data[0] == 2)
 		return wacom_tpc_pen(wacom, wcombo);
 

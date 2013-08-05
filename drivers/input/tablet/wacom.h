@@ -87,6 +87,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
+#include <linux/input/mt.h>
 #include <asm/unaligned.h>
 
 /*
@@ -131,6 +132,7 @@ extern void wacom_report_abs(void *wcombo, unsigned int abs_type, int abs_data);
 extern void wacom_report_rel(void *wcombo, unsigned int rel_type, int rel_data);
 extern void wacom_report_key(void *wcombo, unsigned int key_type, int key_data);
 extern void wacom_input_event(void *wcombo, unsigned int type, unsigned int code, int value);
+extern void wacom_mt_report_pointer_emulation(void *wcombo, bool value);
 extern void wacom_input_sync(void *wcombo);
 extern void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_g4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);

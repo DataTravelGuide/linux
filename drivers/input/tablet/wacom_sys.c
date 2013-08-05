@@ -153,6 +153,11 @@ void wacom_input_event(void *wcombo, unsigned int type, unsigned int code, int v
 	input_event(get_input_dev((struct wacom_combo *)wcombo), type, code, value);
 }
 
+void wacom_mt_report_pointer_emulation(void *wcombo, bool value)
+{
+	input_mt_report_pointer_emulation(get_input_dev(wcombo), value);
+}
+
 __u16 wacom_be16_to_cpu(unsigned char *data)
 {
 	__u16 value;
@@ -382,7 +387,7 @@ void input_dev_bamboo_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	if (wacom_wac->features->device_type == BTN_TOOL_DOUBLETAP ||
-	    wacom_wac->features->device_type == BTN_TOOL_TRIPLETAP) {
+	    wacom_wac->features->device_type == BTN_TOOL_PEN) {
 		input_set_abs_params(input_dev, ABS_RX, 0, wacom_wac->features->x_phy, 0, 0);
 		input_set_abs_params(input_dev, ABS_RY, 0, wacom_wac->features->y_phy, 0, 0);
 	}
@@ -390,10 +395,14 @@ void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 
 void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	if (wacom_wac->features->device_type == BTN_TOOL_TRIPLETAP) {
-		input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_TRIPLETAP);
-		input_dev->evbit[0] |= BIT_MASK(EV_MSC);
-		input_dev->mscbit[0] |= BIT_MASK(MSC_SERIAL);
+	if (wacom_wac->features->device_type == BTN_TOOL_DOUBLETAP) {
+		input_mt_init_slots(input_dev, 2);
+		input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+				     0, wacom_wac->features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+				     0, wacom_wac->features->y_max, 0, 0);
 	}
 }
 
@@ -449,11 +458,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			case HID_USAGE_X:
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
-						features->device_type = BTN_TOOL_DOUBLETAP;
+						features->device_type = BTN_TOOL_FINGER;
 						if (features->type == TABLETPC2FG) {
 							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_TRIPLETAP;
+							features->device_type = BTN_TOOL_DOUBLETAP;
 						}
 						features->x_max =
 							wacom_le16_to_cpu(&report[i + 3]);
@@ -484,11 +493,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			case HID_USAGE_Y:
 				if (usage == WCM_DESKTOP) {
 					if (finger) {
-						features->device_type = BTN_TOOL_DOUBLETAP;
+						features->device_type = BTN_TOOL_FINGER;
 						if (features->type == TABLETPC2FG) {
 							/* need to reset back */
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
-							features->device_type = BTN_TOOL_TRIPLETAP;
+							features->device_type = BTN_TOOL_DOUBLETAP;
 							features->y_max =
 								wacom_le16_to_cpu(&report[i + 3]);
 							features->y_phy =
