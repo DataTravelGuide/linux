@@ -776,9 +776,9 @@ EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
-int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
-	return kvm_x86_ops->set_msr(vcpu, msr_index, data);
+	return kvm_x86_ops->set_msr(vcpu, msr);
 }
 
 bool kvm_rdpmc(struct kvm_vcpu *vcpu)
@@ -801,7 +801,12 @@ EXPORT_SYMBOL_GPL(kvm_rdpmc);
  */
 static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	return kvm_set_msr(vcpu, index, *data);
+	struct msr_data msr;
+
+	msr.data = *data;
+	msr.index = index;
+	msr.host_initiated = true;
+	return kvm_set_msr(vcpu, &msr);
 }
 
 static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
@@ -937,13 +942,14 @@ static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 	return tsc;
 }
 
-void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
+void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 {
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
 	s64 sdiff;
 	u64 delta;
+	u64 data = msr->data;
 
 	spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
@@ -1379,9 +1385,11 @@ static void kvmclock_reset(struct kvm_vcpu *vcpu)
 	vcpu->arch.pv_time_enabled = false;
 }
 
-int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	bool pr = false;
+	u32 msr = msr_info->index;
+	u64 data = msr_info->data;
 
 	switch (msr) {
 	case MSR_EFER:
@@ -6456,8 +6464,13 @@ free_vcpu:
 
 int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
+	struct msr_data msr;
+
 	vcpu_load(vcpu);
-	kvm_write_tsc(vcpu, 0);
+	msr.data = 0x0;
+	msr.index = MSR_IA32_TSC;
+	msr.host_initiated = true;
+	kvm_write_tsc(vcpu, &msr);
 	vcpu_put(vcpu);
 
 	return 0;

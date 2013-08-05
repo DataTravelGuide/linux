@@ -1244,16 +1244,18 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
-static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct shared_msr_entry *msr;
 	int ret = 0;
+	u32 msr_index = msr_info->index;
+	u64 data = msr_info->data;
 
 	switch (msr_index) {
 	case MSR_EFER:
 		vmx_load_host_state(vmx);
-		ret = kvm_set_msr_common(vcpu, msr_index, data);
+		ret = kvm_set_msr_common(vcpu, msr_info);
 		break;
 #ifdef CONFIG_X86_64
 	case MSR_FS_BASE:
@@ -1277,7 +1279,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
 	case MSR_IA32_TSC:
-		kvm_write_tsc(vcpu, data);
+		kvm_write_tsc(vcpu, msr_info);
 		break;
 	case MSR_IA32_CR_PAT:
 		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
@@ -1293,7 +1295,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 			msr->data = data;
 			break;
 		}
-		ret = kvm_set_msr_common(vcpu, msr_index, data);
+		ret = kvm_set_msr_common(vcpu, msr_info);
 	}
 
 	return ret;
@@ -3511,13 +3513,17 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu)
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
+	struct msr_data msr;
 	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
 	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
 		| ((u64)(vcpu->arch.regs[VCPU_REGS_RDX] & -1u) << 32);
 
 	trace_kvm_msr_write(ecx, data);
 
-	if (vmx_set_msr(vcpu, ecx, data) != 0) {
+	msr.data = data;
+	msr.index = ecx;
+	msr.host_initiated = false;
+	if (vmx_set_msr(vcpu, &msr) != 0) {
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
