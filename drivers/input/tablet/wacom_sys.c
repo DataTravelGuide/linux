@@ -896,7 +896,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 		error = wacom_parse_hid(intf, hid_desc, wacom_wac);
 		if (error)
-			goto fail2;
+			goto fail3;
 	}
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
