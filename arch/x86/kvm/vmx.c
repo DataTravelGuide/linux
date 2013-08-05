@@ -2815,8 +2815,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 	vmx->vcpu.arch.cr4_guest_owned_bits = ~KVM_GUEST_CR4_MASK;
 
-	kvm_write_tsc(&vmx->vcpu, 0);
-
 	return 0;
 }
 

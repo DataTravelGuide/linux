@@ -6454,6 +6454,15 @@ free_vcpu:
 	return r;
 }
 
+int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+{
+	vcpu_load(vcpu);
+	kvm_write_tsc(vcpu, 0);
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	vcpu_load(vcpu);
