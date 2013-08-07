@@ -402,31 +402,31 @@ bool nfs4_set_task_privileged(struct rpc_task *task, void *dummy)
 /*
  * Signal state manager thread if session fore channel is drained
  */
-static void nfs4_check_drain_fc_complete(struct nfs4_session *ses)
+static void nfs4_check_drain_fc_complete(struct nfs4_slot_table *tbl)
 {
-	if (!test_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
-		rpc_wake_up_first(&ses->fc_slot_table.slot_tbl_waitq,
+	if (!test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
+		rpc_wake_up_first(&tbl->slot_tbl_waitq,
 				nfs4_set_task_privileged, NULL);
 		return;
 	}
 
-	if (ses->fc_slot_table.highest_used_slotid != -1)
+	if (tbl->highest_used_slotid != -1)
 		return;
 
 	dprintk("%s COMPLETE: Session Fore Channel Drained\n", __func__);
-	complete(&ses->fc_slot_table.complete);
+	complete(&tbl->complete);
 }
 
 /*
  * Signal state manager thread if session back channel is drained
  */
-void nfs4_check_drain_bc_complete(struct nfs4_session *ses)
+void nfs4_check_drain_bc_complete(struct nfs4_slot_table *tbl)
 {
-	if (!test_bit(NFS4_SESSION_DRAINING, &ses->session_state) ||
-	    ses->bc_slot_table.highest_used_slotid != -1)
+	if (!test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state) ||
+	    tbl->highest_used_slotid != -1)
 		return;
 	dprintk("%s COMPLETE: Session Back Channel Drained\n", __func__);
-	complete(&ses->bc_slot_table.complete);
+	complete(&tbl->complete);
 }
 
 static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
@@ -443,7 +443,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 
 	spin_lock(&tbl->slot_tbl_lock);
 	nfs4_free_slot(tbl, res->sr_slot);
-	nfs4_check_drain_fc_complete(res->sr_session);
+	nfs4_check_drain_fc_complete(tbl);
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
 }
@@ -573,7 +573,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	tbl = &session->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	if (test_bit(NFS4_SESSION_DRAINING, &session->session_state) &&
+	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state) &&
 	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
 		/*
 		 * The state manager will wait until the slot table is empty.

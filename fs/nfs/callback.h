@@ -166,7 +166,7 @@ extern unsigned nfs4_callback_layoutrecall(
 	struct cb_layoutrecallargs *args,
 	void *dummy, struct cb_process_state *cps);
 
-extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
+extern void nfs4_check_drain_bc_complete(struct nfs4_slot_table *tbl);
 
 struct cb_devicenotifyitem {
 	uint32_t		cbd_notify_type;

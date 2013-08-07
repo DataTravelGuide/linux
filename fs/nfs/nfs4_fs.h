@@ -54,9 +54,12 @@ enum nfs4_client_state {
 	NFS4CLNT_LEASE_CONFIRM,
 };
 
+enum nfs4_slot_tbl_state {
+	NFS4_SLOT_TBL_DRAINING,
+};
+
 enum nfs4_session_state {
 	NFS4_SESSION_INITING,
-	NFS4_SESSION_DRAINING,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01

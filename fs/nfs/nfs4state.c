@@ -205,7 +205,7 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	if (ses == NULL)
 		return;
 	tbl = &ses->fc_slot_table;
-	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
+	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
 		max_slots = tbl->max_slots;
 		while (max_slots--) {
@@ -218,8 +218,9 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	}
 }
 
-static int nfs4_wait_on_slot_tbl(struct nfs4_slot_table *tbl)
+static int nfs4_drain_slot_tbl(struct nfs4_slot_table *tbl)
 {
+	set_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state);
 	spin_lock(&tbl->slot_tbl_lock);
 	if (tbl->highest_used_slotid != -1) {
 		INIT_COMPLETION(tbl->complete);
@@ -235,13 +236,10 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	struct nfs4_session *ses = clp->cl_session;
 	int ret = 0;
 
-	set_bit(NFS4_SESSION_DRAINING, &ses->session_state);
 	/* back channel */
-	ret = nfs4_wait_on_slot_tbl(&ses->bc_slot_table);
-	if (ret)
-		return ret;
+	ret = nfs4_drain_slot_tbl(&ses->bc_slot_table);
 	/* fore channel */
-	return nfs4_wait_on_slot_tbl(&ses->fc_slot_table);
+	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
 }
 
 int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)

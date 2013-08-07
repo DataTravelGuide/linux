@@ -207,6 +207,7 @@ struct nfs4_slot_table {
 	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
 						 * the new max_slots */
 	struct completion complete;
+	unsigned long	slot_tbl_state;
 };
 
 static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
