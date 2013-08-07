@@ -204,6 +204,9 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 
 	if (ses == NULL)
 		return;
+	tbl = &ses->bc_slot_table;
+	test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state);
+
 	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
