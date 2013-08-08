@@ -1042,7 +1042,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
-	if ((vid != 0xffff) && adapter->vlgrp)
+	if (vid != 0xffff)
 		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
 	else
 		napi_gro_receive(&sds_ring->napi, skb);
@@ -1141,7 +1141,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP)
 		skb_shinfo(skb)->gso_size = qlcnic_get_lro_sts_mss(sts_data1);
 
-	if ((vid != 0xffff) && adapter->vlgrp)
+	if (vid != 0xffff)
 		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
 	else
 		netif_receive_skb(skb);
@@ -1506,7 +1506,7 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
-	if ((vid != 0xffff) && adapter->vlgrp)
+	if (vid != 0xffff)
 		vlan_gro_receive(&sds_ring->napi, adapter->vlgrp, vid, skb);
 	else
 		napi_gro_receive(&sds_ring->napi, skb);
@@ -1604,7 +1604,7 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 			skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 	}
 
-	if ((vid != 0xffff) && adapter->vlgrp)
+	if (vid != 0xffff)
 		vlan_hwaccel_receive_skb(skb, adapter->vlgrp, vid);
 	else
 		netif_receive_skb(skb);
