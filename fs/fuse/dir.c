@@ -1132,6 +1132,7 @@ static int fuse_direntplus_link(struct file *file,
 	err = -ENOMEM;
 	if (!dentry)
 		goto out;
+	dentry->d_op = &fuse_dentry_operations;
 
 	inode = fuse_iget(dir->i_sb, o->nodeid, o->generation,
 			  &o->attr, entry_attr_timeout(o), attr_version);
