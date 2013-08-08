@@ -404,6 +404,16 @@ M:	Chad Dupuis <cdupuis@redhat.com>
 S:	Maintained
 F:	drivers/net/qlge/
 
+QLOGIC QLCNIC 1/10Gb CONVERGED ETHERNET NIC DRIVER
+M:	Chad Dupuis <cdupuis@redhat.com>
+S:	Maintained
+F:	drivers/net/qlcnic/
+
+QLOGIC QLA4XXX ISCSI DRIVER 
+M:	Chad Dupuis <cdupuis@redhat.com>
+S:	Maintained
+F:	drivers/scsi/qla4xxx/
+
 RALINK RT2X00 WIRELESS LAN DRIVER
 M:	Stanislaw Gruszka <sgruszka@redhat.com>
 S:	Maintained
