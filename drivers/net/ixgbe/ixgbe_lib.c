@@ -622,7 +622,7 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 		rss_i = f->indices = f->limit;
 
 		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
-			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			ixgbe_set_fdir_flags(adapter, IXGBE_FLAG_FDIR_HASH_CAPABLE);
 	}
 
 #ifdef IXGBE_FCOE

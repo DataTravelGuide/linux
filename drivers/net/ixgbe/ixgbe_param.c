@@ -45,7 +45,7 @@
 
 #define IXGBE_PARAM_INIT { [0 ... IXGBE_MAX_NIC] = OPTION_UNSET }
 #define IXGBE_PARAM(X, desc) \
-	static int __devinitdata X[IXGBE_MAX_NIC+1] = IXGBE_PARAM_INIT; \
+	static int X[IXGBE_MAX_NIC+1] = IXGBE_PARAM_INIT; \
 	static unsigned int num_##X; \
 	module_param_array_named(X, X, int, &num_##X, 0); \
 	MODULE_PARM_DESC(X, desc);
@@ -71,11 +71,11 @@ IXGBE_PARAM(IntMode, "Change Interrupt Mode (0=Legacy, 1=MSI, 2=MSI-X), default 
  *
  * Default Value: 1 (Hashing)
  */
-IXGBE_PARAM(FdirMode, "Flow Director filtering modes (0=Off, 1=Hashing) default 1");
+IXGBE_PARAM(FdirMode, "Flow Director filtering modes (0=Off, 1=On) default 1");
 
 #define IXGBE_FDIR_FILTER_OFF				0
-#define IXGBE_FDIR_FILTER_HASH				1
-#define IXGBE_DEFAULT_FDIR_FILTER  IXGBE_FDIR_FILTER_HASH
+#define IXGBE_FDIR_FILTER_ON				1
+#define IXGBE_DEFAULT_FDIR_FILTER  IXGBE_FDIR_FILTER_ON
 
 struct ixgbe_option {
 	enum { enable_option, range_option, list_option } type;
@@ -105,6 +105,37 @@ static int ixgbe_validate_option(unsigned int *value,
 	       opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
+}
+
+bool ixgbe_adapter_fdir_capable(struct ixgbe_adapter *adapter)
+{
+	if (num_FdirMode <= adapter->bd_number)
+		return true;
+
+	if (FdirMode[adapter->bd_number] == IXGBE_FDIR_FILTER_ON)
+		return true;
+
+	return false;
+
+}
+
+void ixgbe_set_fdir_flags(struct ixgbe_adapter *adapter, u32 flags)
+{
+	u32 *aflags = &adapter->flags;
+
+	/* set flags */
+	*aflags |= flags;
+
+	/* remove Fdir flags if module option disabled Fdir */
+	if (!ixgbe_adapter_fdir_capable(adapter)) {
+		/*
+		 * Do not set any flags that will enable the
+		 * flow director.
+		 */
+		*aflags &= ~(IXGBE_FLAG_FDIR_HASH_CAPABLE |
+			     IXGBE_FLAG_FDIR_PERFECT_CAPABLE);
+		e_dev_info("Flow Director disabled\n");
+	}
 }
 
 /**
@@ -167,15 +198,13 @@ void ixgbe_check_options(struct ixgbe_adapter *adapter)
 		unsigned int fdir_filter_mode;
 		static struct ixgbe_option opt = {
 			.type = range_option,
-			.name = "Flow Director filtering mode",
+			.name = "Flow Director mode",
 			.err = "using default of "
 				__MODULE_STRING(IXGBE_DEFAULT_FDIR_FILTER),
 			.def = IXGBE_DEFAULT_FDIR_FILTER,
 			.arg = {.r = {.min = IXGBE_FDIR_FILTER_OFF,
-				      .max = IXGBE_FDIR_FILTER_HASH}}
+				      .max = IXGBE_FDIR_FILTER_ON}}
 		};
-
-		*aflags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 			goto no_flow_director;
@@ -183,19 +212,7 @@ void ixgbe_check_options(struct ixgbe_adapter *adapter)
 		if (num_FdirMode > bd) {
 			fdir_filter_mode = FdirMode[bd];
 			ixgbe_validate_option(&fdir_filter_mode, &opt);
-
-			switch (fdir_filter_mode) {
-			case IXGBE_FDIR_FILTER_HASH:
-				*aflags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-				e_dev_info("Flow Director hash filtering enabled\n");
-				break;
-			case IXGBE_FDIR_FILTER_OFF:
-			default:
-				e_dev_info("Flow Director disabled\n");
-				break;
-			}
-		} else {
-			*aflags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			FdirMode[bd] = fdir_filter_mode;
 		}
 no_flow_director:
 		/* empty code line with semi-colon */ ;

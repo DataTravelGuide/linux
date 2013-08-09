@@ -2300,6 +2300,9 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	 * Check if Flow Director n-tuple support was enabled or disabled.  If
 	 * the state changed, we need to reset.
 	 */
+	if (!ixgbe_adapter_fdir_capable(adapter))
+		goto skip_fdir;
+
 	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
 		/* turn off ATR, enable perfect filters and reset */
 		if (data & ETH_FLAG_NTUPLE) {
@@ -2316,6 +2319,7 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 		need_reset = true;
 	}
 
+skip_fdir:
 	if (need_reset)
 		ixgbe_do_reset(netdev);
 	return 0;

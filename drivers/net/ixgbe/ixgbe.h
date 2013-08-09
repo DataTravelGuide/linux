@@ -704,6 +704,9 @@ extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
 extern bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 extern void ixgbe_check_options(struct ixgbe_adapter *adapter);
+void ixgbe_set_fdir_flags(struct ixgbe_adapter *adapter, u32 flags);
+bool ixgbe_adapter_fdir_capable(struct ixgbe_adapter *adapter);
+
 #ifdef CONFIG_IXGBE_DCB
 extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
 #endif
