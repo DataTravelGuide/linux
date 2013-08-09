@@ -103,6 +103,8 @@ static struct ib_client srp_client = {
 
 static struct ib_sa_client srp_sa_client;
 
+static struct workqueue_struct *srp_wq;
+
 static inline struct srp_target_port *host_to_target(struct Scsi_Host *host)
 {
 	return (struct srp_target_port *) host->hostdata;
@@ -445,6 +447,23 @@ static int srp_send_req(struct srp_target_port *target)
 	return status;
 }
 
+static bool srp_queue_remove_work(struct srp_target_port *target)
+{
+	bool changed = false;
+
+	spin_lock_irq(&target->lock);
+	if (target->state != SRP_TARGET_REMOVED) {
+		target->state = SRP_TARGET_REMOVED;
+		changed = true;
+	}
+	spin_unlock_irq(&target->lock);
+
+	if (changed)
+		queue_work(srp_wq, &target->remove_work);
+
+	return changed;
+}
+
 static bool srp_change_conn_state(struct srp_target_port *target,
 				  bool connected)
 {
@@ -470,21 +489,6 @@ static void srp_disconnect_target(struct srp_target_port *target)
 				     PFX "Sending CM DREQ failed\n");
 		}
 	}
-}
-
-static bool srp_change_state(struct srp_target_port *target,
-			    enum srp_target_state old,
-			    enum srp_target_state new)
-{
-	bool changed = false;
-
-	spin_lock_irq(&target->lock);
-	if (target->state == old) {
-		target->state = new;
-		changed = true;
-	}
-	spin_unlock_irq(&target->lock);
-	return changed;
 }
 
 static void srp_free_req_data(struct srp_target_port *target)
@@ -522,9 +526,12 @@ static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 
 static void srp_remove_target(struct srp_target_port *target)
 {
+	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
+
 	srp_del_scsi_host_attr(target->scsi_host);
 	srp_remove_host(target->scsi_host);
 	scsi_remove_host(target->scsi_host);
+	srp_disconnect_target(target);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
 	srp_free_req_data(target);
@@ -534,10 +541,9 @@ static void srp_remove_target(struct srp_target_port *target)
 static void srp_remove_work(struct work_struct *work)
 {
 	struct srp_target_port *target =
-		container_of(work, struct srp_target_port, work);
+		container_of(work, struct srp_target_port, remove_work);
 
-	if (!srp_change_state(target, SRP_TARGET_DEAD, SRP_TARGET_REMOVED))
-		return;
+	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
 	spin_lock(&target->srp_host->target_lock);
 	list_del(&target->list);
@@ -749,17 +755,8 @@ err:
 	 * However, we have to defer the real removal because we
 	 * are in the context of the SCSI error handler now, which
 	 * will deadlock if we call scsi_remove_host().
-	 *
-	 * Schedule our work inside the lock to avoid a race with
-	 * the flush_scheduled_work() in srp_remove_one().
 	 */
-	spin_lock_irq(&target->lock);
-	if (target->state == SRP_TARGET_LIVE) {
-		target->state = SRP_TARGET_DEAD;
-		INIT_WORK(&target->work, srp_remove_work);
-		queue_work(ib_wq, &target->work);
-	}
-	spin_unlock_irq(&target->lock);
+	srp_queue_remove_work(target);
 
 	return ret;
 }
@@ -2280,6 +2277,7 @@ static ssize_t srp_create_target(struct device *dev,
 			     sizeof (struct srp_indirect_buf) +
 			     target->cmd_sg_cnt * sizeof (struct srp_direct_buf);
 
+	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
 	INIT_LIST_HEAD(&target->free_tx);
 	INIT_LIST_HEAD(&target->free_reqs);
@@ -2513,8 +2511,7 @@ static void srp_remove_one(struct ib_device *device)
 {
 	struct srp_device *srp_dev;
 	struct srp_host *host, *tmp_host;
-	LIST_HEAD(target_list);
-	struct srp_target_port *target, *tmp_target;
+	struct srp_target_port *target;
 
 	srp_dev = ib_get_client_data(device, &srp_client);
 
@@ -2527,35 +2524,17 @@ static void srp_remove_one(struct ib_device *device)
 		wait_for_completion(&host->released);
 
 		/*
-		 * Mark all target ports as removed, so we stop queueing
-		 * commands and don't try to reconnect.
+		 * Remove all target ports.
 		 */
 		spin_lock(&host->target_lock);
-		list_for_each_entry(target, &host->target_list, list) {
-			spin_lock_irq(&target->lock);
-			target->state = SRP_TARGET_REMOVED;
-			spin_unlock_irq(&target->lock);
-		}
+		list_for_each_entry(target, &host->target_list, list)
+			srp_queue_remove_work(target);
 		spin_unlock(&host->target_lock);
 
 		/*
-		 * Wait for any reconnection tasks that may have
-		 * started before we marked our target ports as
-		 * removed, and any target port removal tasks.
+		 * Wait for target port removal tasks.
 		 */
-		flush_workqueue(ib_wq);
-
-		list_for_each_entry_safe(target, tmp_target,
-					 &host->target_list, list) {
-			srp_del_scsi_host_attr(target->scsi_host);
-			srp_remove_host(target->scsi_host);
-			scsi_remove_host(target->scsi_host);
-			srp_disconnect_target(target);
-			ib_destroy_cm_id(target->cm_id);
-			srp_free_target_ib(target);
-			srp_free_req_data(target);
-			scsi_host_put(target->scsi_host);
-		}
+		flush_workqueue(srp_wq);
 
 		kfree(host);
 	}
@@ -2600,30 +2579,39 @@ static int __init srp_init_module(void)
 		indirect_sg_entries = cmd_sg_entries;
 	}
 
+	srp_wq = create_singlethread_workqueue("srp_wq");
+	if (!srp_wq) {
+		pr_err("couldn't create workqueue\n");
+		return -ENOMEM;
+	}
+
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);
-	if (!ib_srp_transport_template)
-		return -ENOMEM;
+	if (!ib_srp_transport_template) {
+		pr_err("couldn't attach transport\n");
+		ret = -ENOMEM;
+		goto rm_wq;
+	}
 
 	ret = class_register(&srp_class);
 	if (ret) {
 		pr_err("couldn't register class infiniband_srp\n");
-		srp_release_transport(ib_srp_transport_template);
-		return ret;
+		goto rm_transport;
 	}
 
 	ib_sa_register_client(&srp_sa_client);
 
 	ret = ib_register_client(&srp_client);
-	if (ret) {
-		pr_err("couldn't register IB client\n");
-		srp_release_transport(ib_srp_transport_template);
-		ib_sa_unregister_client(&srp_sa_client);
-		class_unregister(&srp_class);
-		return ret;
-	}
-
-	return 0;
+	if (ret == 0)
+		return 0;
+	pr_err("couldn't register IB client\n");
+	ib_sa_unregister_client(&srp_sa_client);
+	class_unregister(&srp_class);
+rm_transport:
+	srp_release_transport(ib_srp_transport_template);
+rm_wq:
+	destroy_workqueue(srp_wq);
+	return ret;
 }
 
 static void __exit srp_cleanup_module(void)
@@ -2632,6 +2620,7 @@ static void __exit srp_cleanup_module(void)
 	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
 	srp_release_transport(ib_srp_transport_template);
+	destroy_workqueue(srp_wq);
 }
 
 module_init(srp_init_module);
