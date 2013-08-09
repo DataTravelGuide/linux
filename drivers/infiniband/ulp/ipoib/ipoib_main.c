@@ -452,7 +452,6 @@ static void path_rec_completion(int status,
 									       path,
 									       neigh));
 				if (!ipoib_cm_get(neigh)) {
-					list_del(&neigh->list);
 					ipoib_neigh_free(neigh);
 					continue;
 				}
@@ -577,7 +576,6 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 			if (!ipoib_cm_get(neigh))
 				ipoib_cm_set(neigh, ipoib_cm_create_tx(dev, path, neigh));
 			if (!ipoib_cm_get(neigh)) {
-				list_del(&neigh->list);
 				ipoib_neigh_free(neigh);
 				goto err_drop;
 			}
@@ -598,7 +596,7 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 		neigh->ah  = NULL;
 
 		if (!path->query && path_rec_start(dev, path))
-			goto err_list;
+			goto err_path;
 
 		__skb_queue_tail(&neigh->queue, skb);
 	}
@@ -606,9 +604,6 @@ static void neigh_add_path(struct sk_buff *skb, u8 *daddr,
 	spin_unlock_irqrestore(&priv->lock, flags);
 	ipoib_neigh_put(neigh);
 	return;
-
-err_list:
-	list_del(&neigh->list);
 
 err_path:
 	ipoib_neigh_free(neigh);
@@ -1057,6 +1052,8 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 			rcu_assign_pointer(*np,
 					   rcu_dereference_protected(neigh->hnext,
 								     lockdep_is_held(&priv->lock)));
+			/* remove from parent list */
+			list_del(&neigh->list);
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			return;
 		} else {
