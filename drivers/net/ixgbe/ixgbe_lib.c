@@ -1038,6 +1038,8 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int vector, v_budget, err;
 
+	if (!(adapter->flags & IXGBE_FLAG_MSIX_CAPABLE))
+		goto try_msi;
 	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
@@ -1072,6 +1074,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 			return;
 	}
 
+try_msi:
 	/* disable DCB if number of TCs exceeds 1 */
 	if (netdev_get_num_tc(adapter->netdev) > 1) {
 		e_err(probe, "num TCs exceeds number of queues - disabling DCB\n");
@@ -1095,6 +1098,8 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	ixgbe_set_num_queues(adapter);
 	adapter->num_q_vectors = 1;
+	if (!(adapter->flags & IXGBE_FLAG_MSI_CAPABLE))
+		return;
 
 	err = pci_enable_msi(adapter->pdev);
 	if (err) {
