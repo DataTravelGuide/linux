@@ -511,7 +511,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	int err;
 
 	/* inner_iph = (const struct iphdr *)skb_inner_network_header(skb); */
-	inner_iph = (const struct iphdr *)skb->data + tunnel->hlen;
+	inner_iph = (const struct iphdr *)(skb->data + tunnel->hlen);
 
 	dst = tnl_params->daddr;
 	if (dst == 0) {
