@@ -1255,10 +1255,10 @@ int register_efivars(struct efivars *efivars,
 		efivars->efi_pstore_info.bufsize = 1024;
 		efivars->efi_pstore_info.data = efivars;
 		spin_lock_init(&efivars->efi_pstore_info.buf_lock);
-		if (pstore_register(&efi_pstore_info)) {
-			kfree(efi_pstore_info.buf);
-			efi_pstore_info.buf = NULL;
-			efi_pstore_info.bufsize = 0;
+		if (pstore_register(&efivars->efi_pstore_info)) {
+			kfree(efivars->efi_pstore_info.buf);
+			efivars->efi_pstore_info.buf = NULL;
+			efivars->efi_pstore_info.bufsize = 0;
 		}
 	}
 
