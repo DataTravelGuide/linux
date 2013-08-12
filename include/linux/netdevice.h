@@ -690,7 +690,13 @@ struct netdev_fcoe_hbainfo {
  *	changes to configuration when multicast or promiscious is enabled.
  *
  * void (*ndo_set_rx_mode)(struct net_device *dev);
- *	This function is called device changes address list filtering.
+ *	This function is called when the device changes either the unicast or
+ *	multicast address filter lists.
+ *	If the device defines this entry point, but can't enable reception
+ *	of more than it's own unicast MAC address, then it should also set
+ *	netdev_extended(dev)->ext_priv_flags |= IFF_NO_UNICAST_FLT to signal
+ *	that we should enable promisc mode on this interface when we need
+ *	to receive more than just our own MAC's Unicast address.
  *
  * void (*ndo_set_multicast_list)(struct net_device *dev);
  *	This function is called when the multicast address list changes.

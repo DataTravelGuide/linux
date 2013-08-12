@@ -4698,7 +4698,8 @@ void __dev_set_rx_mode(struct net_device *dev)
 	if (!netif_device_present(dev))
 		return;
 
-	if (ops->ndo_set_rx_mode)
+	if (ops->ndo_set_rx_mode && !(netdev_extended(dev)->ext_priv_flags &
+				      IFF_NO_UNICAST_FLT))
 		ops->ndo_set_rx_mode(dev);
 	else {
 		/* Unicast addresses changes may only happen under the rtnl,
