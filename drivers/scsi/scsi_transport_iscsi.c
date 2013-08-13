@@ -3554,6 +3554,9 @@ iscsi_session_attr(tgt_reset_tmo, ISCSI_PARAM_TGT_RESET_TMO, 0);
 iscsi_session_attr(ifacename, ISCSI_PARAM_IFACE_NAME, 0);
 iscsi_session_attr(initiatorname, ISCSI_PARAM_INITIATOR_NAME, 0);
 iscsi_session_attr(targetalias, ISCSI_PARAM_TARGET_ALIAS, 0);
+iscsi_session_attr(boot_root, ISCSI_PARAM_BOOT_ROOT, 0);
+iscsi_session_attr(boot_nic, ISCSI_PARAM_BOOT_NIC, 0);
+iscsi_session_attr(boot_target, ISCSI_PARAM_BOOT_TARGET, 0);
 iscsi_session_attr(auto_snd_tgt_disable, ISCSI_PARAM_AUTO_SND_TGT_DISABLE, 0);
 iscsi_session_attr(discovery_session, ISCSI_PARAM_DISCOVERY_SESS, 0);
 iscsi_session_attr(portal_type, ISCSI_PARAM_PORTAL_TYPE, 0);
@@ -3664,6 +3667,9 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_sess_ifacename.attr,
 	&dev_attr_sess_initiatorname.attr,
 	&dev_attr_sess_targetalias.attr,
+	&dev_attr_sess_boot_root.attr,
+	&dev_attr_sess_boot_nic.attr,
+	&dev_attr_sess_boot_target.attr,
 	&dev_attr_priv_sess_recovery_tmo.attr,
 	&dev_attr_priv_sess_state.attr,
 	&dev_attr_priv_sess_creator.attr,
@@ -3741,6 +3747,12 @@ static mode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_PARAM_INITIATOR_NAME;
 	else if (attr == &dev_attr_sess_targetalias.attr)
 		param = ISCSI_PARAM_TARGET_ALIAS;
+	else if (attr == &dev_attr_sess_boot_root.attr)
+		param = ISCSI_PARAM_BOOT_ROOT;
+	else if (attr == &dev_attr_sess_boot_nic.attr)
+		param = ISCSI_PARAM_BOOT_NIC;
+	else if (attr == &dev_attr_sess_boot_target.attr)
+		param = ISCSI_PARAM_BOOT_TARGET;
 	else if (attr == &dev_attr_sess_auto_snd_tgt_disable.attr)
 		param = ISCSI_PARAM_AUTO_SND_TGT_DISABLE;
 	else if (attr == &dev_attr_sess_discovery_session.attr)

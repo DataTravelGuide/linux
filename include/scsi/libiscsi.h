@@ -304,6 +304,9 @@ struct iscsi_session {
 	char			*targetalias;
 	char			*ifacename;
 	char			*initiatorname;
+	char			*boot_root;
+	char			*boot_nic;
+	char			*boot_target;
 	char			*portal_type;
 	char			*discovery_parent_type;
 	uint16_t		discovery_parent_idx;
