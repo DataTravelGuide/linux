@@ -107,6 +107,8 @@ typedef unsigned int ext4_group_t;
 #define EXT4_MB_STREAM_ALLOC		0x0800
 /* Use reserved root blocks if needed */
 #define EXT4_MB_USE_ROOT_BLOCKS		0x1000
+/* Use blocks from reserved pool */
+#define EXT4_MB_USE_RESERVED		0x2000
 
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
@@ -471,9 +473,8 @@ struct ext4_new_group_data {
 #define EXT4_GET_BLOCKS_UNINIT_EXT		0x0002
 #define EXT4_GET_BLOCKS_CREATE_UNINIT_EXT	(EXT4_GET_BLOCKS_UNINIT_EXT|\
 						 EXT4_GET_BLOCKS_CREATE)
-	/* Caller is from the delayed allocation writeout path,
-	   so set the magic i_delalloc_reserve_flag after taking the 
-	   inode allocation semaphore for */
+	/* Caller is from the delayed allocation writeout path
+	 * finally doing the actual allocation of delayed blocks */
 #define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
 	/* caller is from the direct IO path, request to creation of an
 	unitialized extents if not allocated, split the uninitialized
@@ -485,8 +486,9 @@ struct ext4_new_group_data {
 	/* Convert extent to initialized after direct IO complete */
 #define EXT4_GET_BLOCKS_DIO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
 					 EXT4_GET_BLOCKS_DIO_CREATE_EXT)
-	/* Punch out blocks of an extent */
-#define EXT4_GET_BLOCKS_PUNCH_OUT_EXT		0x0020
+	/* Eventual metadata allocation (due to growing extent tree)
+	 * should not fail, so try to use reserved blocks for that.*/
+#define EXT4_GET_BLOCKS_METADATA_NOFAIL		0x0020
 
 /*
  * Flags used by ext4_free_blocks
@@ -1065,6 +1067,7 @@ struct ext4_sb_info {
 	unsigned int s_mount_opt;
 	unsigned int s_mount_flags;
 	ext4_fsblk_t s_sb_block;
+	atomic64_t s_resv_blocks;
 	uid_t s_resuid;
 	gid_t s_resgid;
 	unsigned short s_mount_state;
