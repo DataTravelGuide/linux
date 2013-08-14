@@ -4362,7 +4362,7 @@ static int bnx2x_set_vlan_stripping(struct bnx2x *bp, bool set)
 	__set_bit(BNX2X_Q_UPDATE_IN_VLAN_REM_CHNG,
 		  &update_params->update_flags);
 
-	for_each_rx_queue(bp, i) {
+	for_each_valid_rx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		/* Set the appropriate Queue object */
