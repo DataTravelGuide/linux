@@ -345,6 +345,7 @@ CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 # Needed to be compatible with the O= option
 LINUXINCLUDE    := -Iinclude \
                    $(if $(KBUILD_SRC),-Iinclude2 -I$(srctree)/include) \
+                   -I$(srctree)/include/uapi \
                    -I$(srctree)/arch/$(hdr-arch)/include               \
                    -include $(srctree)/include/linux/kconfig.h
 
