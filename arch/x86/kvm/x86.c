@@ -6410,7 +6410,7 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 	 */
 	kvm_put_guest_xcr0(vcpu);
 	vcpu->guest_fpu_loaded = 1;
-	unlazy_fpu(current);
+	kernel_fpu_begin();
 	fpu_restore_checking(&vcpu->arch.guest_fpu);
 }
 EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
@@ -6424,6 +6424,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 
 	vcpu->guest_fpu_loaded = 0;
 	fpu_save_init(&vcpu->arch.guest_fpu);
+	kernel_fpu_end();
 	++vcpu->stat.fpu_reload;
 	set_bit(KVM_REQ_DEACTIVATE_FPU, &vcpu->requests);
 }
