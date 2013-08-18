@@ -1804,8 +1804,8 @@ repeat:
 	 * There is no free space in the found leaf.
 	 * We're gonna add a new leaf in the tree.
 	 */
-	if (flag & EXT4_GET_BLOCKS_METADATA_NOFAIL)
-		flags = EXT4_MB_USE_RESERVED;
+	if (flag & EXT4_GET_BLOCKS_PUNCH_OUT_EXT)
+		flags = EXT4_MB_USE_ROOT_BLOCKS;
 	err = ext4_ext_create_new_leaf(handle, inode, flags, path, newext);
 	if (err)
 		goto cleanup;
@@ -2582,14 +2582,12 @@ again:
 
 			/*
 			 * Split the extent in two so that 'end' is the last
-			 * block in the first new extent. Also we should not
-			 * fail removing space due to ENOSPC so try to use
-			 * reserved block if that happens.
+			 * block in the first new extent
 			 */
 			err = ext4_split_extent_at(handle, inode, path,
-					end + 1, split_flag,
-					EXT4_GET_BLOCKS_DIO |
-					EXT4_GET_BLOCKS_METADATA_NOFAIL);
+						end + 1, split_flag,
+						EXT4_GET_BLOCKS_DIO |
+						EXT4_GET_BLOCKS_PUNCH_OUT_EXT);
 
 			if (err < 0)
 				goto out;
@@ -2922,8 +2920,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 						struct inode *inode,
 						struct ext4_ext_path *path,
 						ext4_lblk_t iblock,
-						unsigned int max_blocks,
-						int flags)
+						unsigned int max_blocks)
 {
 	struct ext4_extent *ex, newex, orig_ex;
 	struct ext4_extent *ex1 = NULL;
@@ -3077,7 +3074,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		ext4_ext_store_pblock(ex3, newblock + max_blocks);
 		ex3->ee_len = cpu_to_le16(allocated - max_blocks);
 		ext4_ext_mark_uninitialized(ex3);
-		err = ext4_ext_insert_extent(handle, inode, path, ex3, flags);
+		err = ext4_ext_insert_extent(handle, inode, path, ex3, 0);
 		if (err == -ENOSPC && may_zeroout) {
 			err =  ext4_ext_zeroout(inode, &orig_ex);
 			if (err)
@@ -3198,7 +3195,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	err = ext4_ext_dirty(handle, inode, path + depth);
 	goto out;
 insert:
-	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
+	err = ext4_ext_insert_extent(handle, inode, path, &newex, 0);
 	if (err == -ENOSPC && may_zeroout) {
 		err =  ext4_ext_zeroout(inode, &orig_ex);
 		if (err)
@@ -3591,12 +3588,6 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		  flags, allocated);
 	ext4_ext_show_leaf(inode, path);
 
-	/*
-	 * When writing into uninitialized space, we should not fail to
-	 * allocate metadata blocks for the new extent block if needed.
-	 */
-	flags |= EXT4_GET_BLOCKS_METADATA_NOFAIL;
-
 	/* DIO get_block() before submit the IO, split the extent */
 	if (flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
 		ret = ext4_split_unwritten_extents(handle,
@@ -3651,8 +3642,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	/* buffered write, writepage time, convert*/
 	ret = ext4_ext_convert_to_initialized(handle, inode,
 						path, iblock,
-						max_blocks,
-						flags);
+						max_blocks);
 	if (ret >= 0) {
 		ext4_update_inode_fsync_trans(handle, inode, 1);
 		err = check_eofblocks_fl(handle, inode, iblock, path, max_blocks);
