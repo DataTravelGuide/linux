@@ -39,7 +39,7 @@ ifeq ("$(origin F)", "command line")
 endif
 
 #filter out the builds with build options to re-use code
-ifneq ($(filter rh-%-scratch,$(MAKECMDGOALS)),)
+ifneq ($(filter rh-cross-% rh-brew-scratch,$(MAKECMDGOALS)),)
   BO_SINGLE_TARBALL := 1
   BO_QUICK_BUILD := 1
 endif
