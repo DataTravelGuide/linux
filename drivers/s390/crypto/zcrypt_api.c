@@ -337,7 +337,7 @@ struct zcrypt_ops *__ops_lookup(unsigned char *name, int variant)
 	spin_lock_bh(&zcrypt_ops_list_lock);
 	list_for_each_entry(zops, &zcrypt_ops_list, list) {
 		if ((zops->variant == variant) &&
-		    (!strncmp(zops->owner->name, name, MODULE_NAME_LEN))) {
+		    (!strncmp(zops->name, name, MODULE_NAME_LEN))) {
 			found = 1;
 			break;
 		}

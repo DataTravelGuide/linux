@@ -94,6 +94,7 @@ struct zcrypt_ops {
 	long (*rng)(struct zcrypt_device *, char *);
 	struct list_head list;		/* zcrypt ops list. */
 	struct module *owner;
+	char *name;
 	int variant;
 };
 
