@@ -746,6 +746,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl4, 0, sizeof(fl4));
 	fl4.oif = vxlan->link;
+	fl4.proto = IPPROTO_UDP;
 	fl4.fl4_dst = dst;
 	fl4.fl4_src = vxlan->saddr;
 	fl4.fl4_tos = RT_TOS(tos);
