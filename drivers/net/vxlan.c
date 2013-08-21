@@ -1200,6 +1200,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->features   |= NETIF_F_GSO_SOFTWARE;
 
 	dev->priv_flags	&= ~IFF_XMIT_DST_RELEASE;
+	netdev_extended(dev)->ext_priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev_extended(dev)->ndo_fdb_add = vxlan_fdb_add;
 	netdev_extended(dev)->ndo_fdb_del = vxlan_fdb_delete;
 	netdev_extended(dev)->ndo_fdb_dump = vxlan_fdb_dump;
