@@ -1010,7 +1010,6 @@ static void vxlan_setup(struct net_device *dev)
 	dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
-	dev->ethtool_ops = &vxlan_ethtool_ops;
 	dev->destructor = vxlan_free;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
@@ -1165,6 +1164,8 @@ static int vxlan_newlink(struct net_device *dev,
 		vxlan->port_min = ntohs(p->low);
 		vxlan->port_max = ntohs(p->high);
 	}
+
+	SET_ETHTOOL_OPS(dev, &vxlan_ethtool_ops);
 
 	err = register_netdevice(dev);
 	if (!err)
