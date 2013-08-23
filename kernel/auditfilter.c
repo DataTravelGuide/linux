@@ -306,6 +306,18 @@ static u32 audit_to_op(u32 op)
 	return n;
 }
 
+/* check if a field is valid for a given list */
+static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
+{
+	switch(f->type) {
+	case AUDIT_MSGTYPE:
+		if (entry->rule.listnr != AUDIT_FILTER_TYPE &&
+		    entry->rule.listnr != AUDIT_FILTER_USER)
+			return -EINVAL;
+		break;
+	};
+	return 0;
+}
 
 /* Translate struct audit_rule to kernel's rule respresentation.
  * Exists for backward compatibility with userspace. */
@@ -435,6 +447,13 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		f->val = data->values[i];
 		f->lsm_str = NULL;
 		f->lsm_rule = NULL;
+
+		err = audit_field_valid(entry, f);
+		if (err)
+			goto exit_free;
+
+		err = -EINVAL;
+
 		switch(f->type) {
 		case AUDIT_PID:
 		case AUDIT_UID:
@@ -1261,7 +1280,7 @@ int audit_compare_dname_path(const char *dname, const char *path, int parentlen)
 }
 
 static int audit_filter_user_rules(struct netlink_skb_parms *cb,
-				   struct audit_krule *rule,
+				   struct audit_krule *rule, int type,
 				   enum audit_state *state)
 {
 	int i;
@@ -1282,6 +1301,9 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 			break;
 		case AUDIT_LOGINUID:
 			result = audit_comparator(cb->loginuid, f->op, f->val);
+			break;
+		case AUDIT_MSGTYPE:
+			result = audit_comparator(type, f->op, f->val);
 			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
@@ -1307,7 +1329,7 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 	return 1;
 }
 
-int audit_filter_user(struct netlink_skb_parms *cb)
+int audit_filter_user(struct netlink_skb_parms *cb, int type)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
@@ -1315,7 +1337,7 @@ int audit_filter_user(struct netlink_skb_parms *cb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		if (audit_filter_user_rules(cb, &e->rule, &state)) {
+		if (audit_filter_user_rules(cb, &e->rule, type, &state)) {
 			if (state == AUDIT_DISABLED)
 				ret = 0;
 			break;
