@@ -23,6 +23,7 @@
 #include <asm/desc.h>
 #include <asm/idle.h>
 #include <asm/irq_regs.h>
+#include <asm/kvm_para.h>
 
 #include <xen/xen.h>
 
@@ -38,10 +39,10 @@ static bool __init ms_hyperv_platform(void)
 		return false;
 
 	/*
-	 * Xen emulates Hyper-V to support enlightened Windows.
-	 * Check to see first if we are on a Xen Hypervisor.
+	 * Xen and KVM emulates Hyper-V to support enlightened Windows.
+	 * Check to see first if we are on a Xen or KVM Hypervisor.
 	 */
-	if (xen_cpuid_base())
+	if (xen_cpuid_base() || kvm_para_available())
 		return false;
 
 	cpuid(HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS,
