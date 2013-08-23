@@ -327,13 +327,14 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 static void iblock_submit_bios(struct bio_list *list, int rw)
 {
 	struct bio *bio;
-	struct request_queue *q;
+	struct request_queue *q = NULL;
 
-	while ((bio = bio_list_pop(list)))
+	while ((bio = bio_list_pop(list))) {
 		submit_bio(rw, bio);
+		q = bdev_get_queue(bio->bi_bdev);
+	}
 
-	q = bdev_get_queue(bio->bi_bdev);
-	if (q->unplug_fn)
+	if (q && q->unplug_fn)
 		q->unplug_fn(q);
 }
 
