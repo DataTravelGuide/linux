@@ -297,6 +297,14 @@ static void iblock_bio_done(struct bio *bio, int err)
 	iblock_complete_cmd(cmd);
 }
 
+static void iblock_bio_destructor(struct bio *bio)
+{
+	struct se_cmd *cmd = bio->bi_private;
+	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
+
+	bio_free(bio, ib_dev->ibd_bio_set);
+}
+
 static struct bio *
 iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 {
@@ -318,6 +326,7 @@ iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
 
 	bio->bi_bdev = ib_dev->ibd_bd;
 	bio->bi_private = cmd;
+	bio->bi_destructor = iblock_bio_destructor;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_sector = lba;
 
