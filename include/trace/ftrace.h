@@ -731,8 +731,9 @@ __attribute__((section("_ftrace_events_ptrs"))) *__event_##call = &event_##call
  * {
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	struct ftrace_event_call *event_call = &event_<call>;
- *	extern void perf_tp_event(int, u64, u64, void *, int);
+ *	extern void perf_tp_event_regs(int, u64, u64, void *, int, struct pt_regs *);
  *	struct ftrace_raw_##call *entry;
+ *	struct pt_regs __regs;
  *	u64 __addr = 0, __count = 1;
  *	unsigned long irq_flags;
  *	struct trace_entry *ent;
@@ -740,6 +741,8 @@ __attribute__((section("_ftrace_events_ptrs"))) *__event_##call = &event_##call
  *	int __data_size;
  *	int __cpu
  *	int pc;
+ *
+ * 	perf_fetch_caller_regs(&__regs);
  *
  *	pc = preempt_count();
  *
@@ -777,8 +780,8 @@ __attribute__((section("_ftrace_events_ptrs"))) *__event_##call = &event_##call
  *
  *	<assign>  <- affect our values
  *
- *	perf_tp_event(event_call->id, __addr, __count, entry,
- *		     __entry_size);  <- submit them to perf counter
+ *	perf_tp_event_regs(event_call->id, __addr, __count, entry,
+ *		     __entry_size, &regs);  <- submit them to perf counter
  *
  * }
  */
@@ -808,10 +811,11 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			    proto)					\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	extern void perf_tp_event(int, u64, u64, void *, int);		\
+	extern void perf_tp_event_regs(int, u64, u64, void *, int, struct pt_regs* );\
 	extern int perf_swevent_get_recursion_context(void);		\
 	extern void perf_swevent_put_recursion_context(int);		\
 	struct ftrace_raw_##call *entry;				\
+	struct pt_regs __regs;						\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
 	struct trace_entry *ent;					\
@@ -821,6 +825,8 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 	int __cpu;							\
 	int pc;								\
 	int rctx;							\
+									\
+	perf_fetch_caller_regs(&__regs);				\
 									\
 	pc = preempt_count();						\
 									\
@@ -860,8 +866,8 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 									\
 	{ assign; }							\
 									\
-	perf_tp_event(event_call->id, __addr, __count, entry,		\
-			     __entry_size);				\
+	perf_tp_event_regs(event_call->id, __addr, __count, entry,	\
+			   __entry_size, &__regs);			\
 	perf_swevent_put_recursion_context(rctx);			\
 									\
 end:									\

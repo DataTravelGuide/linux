@@ -178,19 +178,11 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
 	(regs)->bp = caller_frame_pointer();			\
 	(regs)->cs = __KERNEL_CS;				\
 	regs->flags = 0;					\
-}
-
-#include <asm/stacktrace.h>
-
-/*
- * We abuse bit 3 from flags to pass exact information, see perf_misc_flags
- * and the comment with PERF_EFLAGS_EXACT.
- */
-#define perf_arch_fetch_caller_regs(regs, __ip)		{	\
-	(regs)->ip = (__ip);					\
-	(regs)->bp = caller_frame_pointer();			\
-	(regs)->cs = __KERNEL_CS;				\
-	regs->flags = 0;					\
+	asm volatile(						\
+		_ASM_MOV "%%"_ASM_SP ", %0\n"			\
+		: "=m" ((regs)->sp)				\
+		:: "memory"					\
+	);							\
 }
 
 struct perf_guest_switch_msr {

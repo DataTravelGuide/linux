@@ -293,11 +293,12 @@ ftrace_perf_buf_prepare(int size, unsigned short type, int *rctxp,
 
 static inline void
 ftrace_perf_buf_submit(void *raw_data, int size, int rctx, u64 addr,
-		       u64 count, unsigned long irq_flags)
+		       u64 count, unsigned long irq_flags,
+		       struct pt_regs *regs)
 {
 	struct trace_entry *entry = raw_data;
 
-	perf_tp_event(entry->type, addr, count, raw_data, size);
+	perf_tp_event_regs(entry->type, addr, count, raw_data, size, regs);
 	perf_swevent_put_recursion_context(rctx);
 	local_irq_restore(irq_flags);
 }
