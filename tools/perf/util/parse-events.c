@@ -66,6 +66,10 @@ static struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 		.symbol = "stalled-cycles-backend",
 		.alias  = "idle-cycles-backend",
 	},
+	[PERF_COUNT_HW_REF_CPU_CYCLES] = {
+		.symbol = "ref-cycles",
+		.alias  = "",
+	},
 };
 
 static struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
