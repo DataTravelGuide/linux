@@ -1804,8 +1804,8 @@ repeat:
 	 * There is no free space in the found leaf.
 	 * We're gonna add a new leaf in the tree.
 	 */
-	if (flag & EXT4_GET_BLOCKS_PUNCH_OUT_EXT)
-		flags = EXT4_MB_USE_ROOT_BLOCKS;
+	if (flag & EXT4_GET_BLOCKS_METADATA_NOFAIL)
+		flags = EXT4_MB_USE_RESERVED;
 	err = ext4_ext_create_new_leaf(handle, inode, flags, path, newext);
 	if (err)
 		goto cleanup;
@@ -2582,12 +2582,14 @@ again:
 
 			/*
 			 * Split the extent in two so that 'end' is the last
-			 * block in the first new extent
+			 * block in the first new extent. Also we should not
+			 * fail removing space due to ENOSPC so try to use
+			 * reserved block if that happens.
 			 */
 			err = ext4_split_extent_at(handle, inode, path,
-						end + 1, split_flag,
-						EXT4_GET_BLOCKS_DIO |
-						EXT4_GET_BLOCKS_PUNCH_OUT_EXT);
+					end + 1, split_flag,
+					EXT4_GET_BLOCKS_DIO |
+					EXT4_GET_BLOCKS_METADATA_NOFAIL);
 
 			if (err < 0)
 				goto out;
@@ -2920,7 +2922,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 						struct inode *inode,
 						struct ext4_ext_path *path,
 						ext4_lblk_t iblock,
-						unsigned int max_blocks)
+						unsigned int max_blocks,
+						int flags)
 {
 	struct ext4_extent *ex, newex, orig_ex;
 	struct ext4_extent *ex1 = NULL;
@@ -3074,7 +3077,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		ext4_ext_store_pblock(ex3, newblock + max_blocks);
 		ex3->ee_len = cpu_to_le16(allocated - max_blocks);
 		ext4_ext_mark_uninitialized(ex3);
-		err = ext4_ext_insert_extent(handle, inode, path, ex3, 0);
+		err = ext4_ext_insert_extent(handle, inode, path, ex3, flags);
 		if (err == -ENOSPC && may_zeroout) {
 			err =  ext4_ext_zeroout(inode, &orig_ex);
 			if (err)
@@ -3195,7 +3198,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	err = ext4_ext_dirty(handle, inode, path + depth);
 	goto out;
 insert:
-	err = ext4_ext_insert_extent(handle, inode, path, &newex, 0);
+	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err == -ENOSPC && may_zeroout) {
 		err =  ext4_ext_zeroout(inode, &orig_ex);
 		if (err)
@@ -3588,8 +3591,15 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		  flags, allocated);
 	ext4_ext_show_leaf(inode, path);
 
+	/*
+	 * When writing into uninitialized space, we should not fail to
+	 * allocate metadata blocks for the new extent block if needed.
+	 */
+	flags |= EXT4_GET_BLOCKS_METADATA_NOFAIL;
+
 	/* DIO get_block() before submit the IO, split the extent */
-	if (flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
+	if ((flags & ~EXT4_GET_BLOCKS_METADATA_NOFAIL) ==
+	    EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
 		ret = ext4_split_unwritten_extents(handle,
 						inode, path, iblock,
 						max_blocks, flags);
@@ -3606,7 +3616,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		goto out;
 	}
 	/* async DIO end_io complete, convert the filled extent to written */
-	if (flags == EXT4_GET_BLOCKS_DIO_CONVERT_EXT) {
+	if ((flags & ~EXT4_GET_BLOCKS_METADATA_NOFAIL) ==
+	    EXT4_GET_BLOCKS_DIO_CONVERT_EXT) {
 		ret = ext4_convert_unwritten_extents_dio(handle, inode,
 							 iblock, max_blocks,
 							 path);
@@ -3642,7 +3653,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	/* buffered write, writepage time, convert*/
 	ret = ext4_ext_convert_to_initialized(handle, inode,
 						path, iblock,
-						max_blocks);
+						max_blocks,
+						flags);
 	if (ret >= 0) {
 		ext4_update_inode_fsync_trans(handle, inode, 1);
 		err = check_eofblocks_fl(handle, inode, iblock, path, max_blocks);
@@ -3893,7 +3905,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 * For non asycn direct IO case, flag the inode state
 		 * that we need to perform convertion when IO is done.
 		 */
-		if (flags == EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
+		if ((flags & ~EXT4_GET_BLOCKS_METADATA_NOFAIL) ==
+		    EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
 			if (io && (io->flag != DIO_AIO_UNWRITTEN)) {
 				io->flag = DIO_AIO_UNWRITTEN;
 				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
