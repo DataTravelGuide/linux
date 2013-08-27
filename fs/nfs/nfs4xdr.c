@@ -2633,8 +2633,8 @@ static int nfs4_xdr_enc_delegreturn(struct rpc_rqst *req, __be32 *p, const struc
 	encode_compound_hdr(&xdr, req, &hdr);
 	encode_sequence(&xdr, &args->seq_args, &hdr);
 	encode_putfh(&xdr, args->fhandle, &hdr);
-	encode_delegreturn(&xdr, args->stateid, &hdr);
 	encode_getfattr(&xdr, args->bitmask, &hdr);
+	encode_delegreturn(&xdr, args->stateid, &hdr);
 	encode_nops(&hdr);
 	return 0;
 }
@@ -6312,10 +6312,10 @@ static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, __be32 *p, struct nf
 	status = decode_putfh(&xdr);
 	if (status != 0)
 		goto out;
-	status = decode_delegreturn(&xdr);
+	status = decode_getfattr(&xdr, res->fattr, res->server);
 	if (status != 0)
 		goto out;
-	decode_getfattr(&xdr, res->fattr, res->server);
+	status = decode_delegreturn(&xdr);
 out:
 	return status;
 }
