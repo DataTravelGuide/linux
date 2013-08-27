@@ -74,3 +74,5 @@ rh-cross-all-builds: rh-cross-download rh-sources
 	$(CROSS_RPMFLAGS) --without debuginfo -bc $(RPM)/SOURCES/kernel.spec
 	$(REDHAT)/scripts/generate-cross-report.sh "i686 ppc64 s390x x86_64"
 
+rh-cross-build-beaker: rh-valid-url-check rh-bkr-download
+	bkr workflow-simple --family=$(FAMILY) --task=/kernel/cross-compile --taskparam="GITURL=$(RHVALIDURL)#$(RHGITCOMMIT)" --tag="RTT_ACCEPTED" --arch=x86_64 --prettyxml --hostrequire="cpu_count>=8" --variant=Workstation --whiteboard="kernel cross-compile for commit $(RHGITCOMMIT)" --keyvalue="DISKSPACE>=50G"

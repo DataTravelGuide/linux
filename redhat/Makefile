@@ -299,8 +299,15 @@ rh-rpms-scratch rh-srpm-scratch: rh-%-scratch: rh-%
 	@#clean up for a possible follow up non-scratch build
 	@rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32
 
-KOJIDIR=redhat/koji
-rhg-brew rhg-koji: rhg-%:
+BKR_REPO=http://download.lab.bos.redhat.com/beakerrepos/beaker-client-RedHatEnterpriseLinux.repo
+rh-bkr-download:
+ifeq ($(shell whoami), root)
+	@yum -y --config=$(BKR_REPO) install beaker-client
+else
+	@rpm -q beaker-client > /dev/null || echo "run \"make rh-bkr-download\" as root."
+endif
+
+rhg-valid-url-check:
 ifeq ("$(RHVALIDURL)", "")
 		@echo "The rhg-brew target requires a valid git remote config option in the form:"
 		@echo "  git://git.engineering.redhat.com.*"
@@ -315,9 +322,12 @@ ifeq ("$(RHVALIDURL)", "")
 		@echo "Or to use orgin as read/write make sure it points to a valid"
 		@echo "git.engineering.redhat.com url"
 		@echo "  git config remote.origin.url <git eng redhat url>"
-else
-	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHVALIDURL)?$(KOJIDIR)#$(RHGITCOMMIT)"
+		@exit 1
 endif
+
+KOJIDIR=redhat/koji
+rhg-brew rhg-koji: rhg-%: rhg-valid-url-check
+	$* build $(BUILD_FLAGS) --scratch RHEL-6-kernel-test "$(RHVALIDURL)?$(KOJIDIR)#$(RHGITCOMMIT)"
 
 rhg-%-scratch: KOJIDIR=redhat/koji/scratch
 rhg-brew-scratch rhg-koji-scratch: rhg-%-scratch: rhg-%
@@ -381,6 +391,8 @@ rh-help:
 	@echo  '		      ppc64, x86_64 using RHEL cross compiler'
 	@echo  '  rh-cross-[ARCH]-rpm - [x86_64 only] execute rpm builds for specified'
 	@echo  '			ARCH using RHEL cross compiler'
+	@echo  '  rh-cross-build-beaker - uses beaker to git clone and run rh-cross-all-build'
+	@echo  '			  must \'git push \' changes first'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
