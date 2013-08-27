@@ -45,13 +45,17 @@ ifneq ($(filter rh-cross-% rh-brew-scratch,$(MAKECMDGOALS)),)
 endif
 
 #set the build options
+TARFILE:=linux-$(KVERSION).tar.bz2
 ifeq ($(BO_SINGLE_TARBALL),1)
   BUILD_OPTIONS += S
   CMARKER=$(LASTCOMMIT)
+  LASTHASH:=$(shell git rev-parse --verify --short $(LASTCOMMIT))
+  TARFILE:=linux-$(KVERSION).$(LASTHASH).tar.bz2
 endif
 ifeq ($(BO_QUICK_BUILD),1)
   BUILD_OPTIONS += Q
 endif
+TARBALL:=$(REDHAT)/$(TARFILE)
 
 #we assume most users push to a seperate repo than they read
 #and that repo is on the git.engineering website
@@ -138,7 +142,10 @@ rh-clean-rpmdirs:
 		rm -rf $$i; \
 	done;
 
-rh-clean: rh-clean-sources rh-clean-configs rh-clean-rpmdirs
+rh-clean-tarballs:
+	@rm -f $(REDHAT)/linux-2.6.32.*.tar.bz2
+
+rh-clean: rh-clean-sources rh-clean-configs rh-clean-rpmdirs rh-clean-tarballs
 
 rh-pull-configs:
 	cd $(REDHAT)/configs; $(MAKE) VERSION=$(KVERSION) pull-configs
@@ -165,11 +172,31 @@ rh-stub-key:
 	@mkdir -p $(_OUTPUT)/crypto/signature/;
 	@cp keys/key.h $(_OUTPUT)/crypto/signature/;
 
-$(TARBALL):
-	@echo "Creating archive $(TARBALL)"
-	(cd ../; \
-	git archive --prefix=linux-$(KVERSION)/ --format=tar $(CMARKER) --worktree-attributes | \
-	bzip2 > $(TARBALL))
+rh-create-tarball:
+	@#save last 3 tarballs
+	@if [ -n "$(findstring S, $(BUILD_OPTIONS))" ]; then \
+		let j=1; \
+		for i in $(shell ls -t linux-$(KVERSION).*.tar.bz2 2> /dev/null); do \
+			if [ $$j -gt 3 ]; then \
+				echo "removing stale $$i"; \
+				rm $$i; \
+			fi; \
+			let j=$$j+1; \
+		done; \
+	fi
+
+	@#verify 2.6.32 cached tarball matches checksum
+	@if [ -f linux-$(KVERSION).tar.bz2 -a \
+	     "$(shell md5sum linux-$(KVERSION).tar.bz2)" != \
+	     "$(shell cat sources|grep linux-$(KVERSION).tar.bz)" ]; then \
+		echo "Bad cached linux-$(KVERSION).tar.bz2, removing"; \
+		rm linux-$(KVERSION).tar.bz2; \
+	fi
+
+	@if [ ! -e $(TARBALL) ]; then \
+		echo "Creating new archive $(TARBALL)"; \
+		(cd ../; git archive --prefix=linux-$(KVERSION)/ --format=tar $(CMARKER) --worktree-attributes | bzip2 > $(TARBALL)); \
+	fi
 
 $(RC_PATCH):
 	@if [ -n "$(RCREV)" ]; then \
@@ -186,7 +213,7 @@ $(GIT_PATCH):
 setup-source: rh-clean-sources
 	@cp $(REDHAT)/$(SPECFILE).template $(SOURCES)/$(SPECFILE)
 
-sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
+sources-rh: rh-create-tarball $(RC_PATCH) $(GIT_PATCH)
 	@cp -l $(TARBALL) $(SOURCES)/ || cp $(TARBALL) $(SOURCES)/
 	@(if [ -n "$(RCREV)" ]; then \
 		cp $(RC_PATCH) $(SOURCES)/; \
@@ -207,7 +234,7 @@ sources-rh: $(TARBALL) $(RC_PATCH) $(GIT_PATCH)
 	@diff $(TESTPATCH).tmp $(TESTPATCH) > /dev/null || \
 		echo "WARNING: There are uncommitted changes in your tree or the changes are not in sync with the kernel-test.patch.  Either commit the changes or run 'make rh-test-patch'"
 	@rm $(TESTPATCH).tmp
-	@$(REDHAT)/create-patches.sh $(MARKER) $(SOURCES) $(SOURCES)/$(SPECFILE) $(BUILD) $(BUILDID) "$(BUILD_OPTIONS)"
+	@$(REDHAT)/create-patches.sh $(MARKER) $(SOURCES) $(SOURCES)/$(SPECFILE) $(BUILD) "$(BUILDID)" "$(BUILD_OPTIONS)" "$(TARFILE)"
 	@cp $(SOURCES)/$(SPECFILE) $(SOURCES)/../SPECS
 	@cp $(TESTPATCH) $(SOURCES)/linux-kernel-test.patch
 	@cp configs/Makefile $(SOURCES)/Makefile.config
@@ -264,18 +291,11 @@ rhg-brew: BUILD_FLAGS ?= $(BREW_FLAGS) $(TEST_FLAGS)
 rhg-koji: BUILD_FLAGS ?= $(KOJI_FLAGS) $(TEST_FLAGS)
 
 rh-brew rh-koji: rh-%: rh-srpm
-	@#force rebuild of tarball next time if using single patch approach
-	@#otherwise non-scratch builds think this tarball is v2.6.32
-	@$(if $(findstring S, $(BUILD_OPTIONS)), rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32)
 	$* build $(BUILD_FLAGS) $(BUILD_TARGET) $(SRPMS)/kernel-$(KVERSION)-$(BUILD)$(DIST)$(BUILDID).src.rpm $(OUTPUT_FILE)
 
-scratch-prep-rh:
-	@#need to force rebuilding of tarball
-	@rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32
+rh-brew-scratch rh-koji-scratch: rh-%-scratch: rh-%
 
-rh-brew-scratch rh-koji-scratch: rh-%-scratch: scratch-prep-rh rh-%
-
-rh-rpms-scratch rh-srpm-scratch: rh-%-scratch: scratch-prep-rh rh-%
+rh-rpms-scratch rh-srpm-scratch: rh-%-scratch: rh-%
 	@#clean up for a possible follow up non-scratch build
 	@rm -rf $(TARBALL) $(RPM)/BUILD/kernel-2.6.32/vanilla-2.6.32
 

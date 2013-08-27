@@ -12,9 +12,6 @@ RPM:=$(REDHAT)/rpm
 SRPMS:=$(RPM)/SRPMS
 SOURCES:=$(RPM)/SOURCES
 BUILD:=443
-#TARFILE:=$(subst _,.,$(MARKER)).tar.bz2
-TARFILE:=linux-$(KVERSION).tar.bz2
-TARBALL:=$(REDHAT)/$(TARFILE)
 TESTPATCH:=$(REDHAT)/linux-kernel-test.patch
 FILTERDIFF:=/usr/bin/filterdiff -x '*redhat/*' -x '*/.gitignore' \
 	-x '*/makefile' -x '*/Makefile'

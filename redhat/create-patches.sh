@@ -6,6 +6,7 @@ SPECFILE=$3
 BUILD=$4
 BUILDID=$5
 BUILD_OPTIONS=$6
+TARFILE=$7
 PATCHF="$SOURCES/Patch.include"
 patchf="$SOURCES/patch.include"
 SERIESF="$SOURCES/series"
@@ -305,7 +306,8 @@ test -n "$SPECFILE" &&
 	s/%%SUBLEVEL%%/$SUBLEVEL/
 	s/%%RCREV%%/$RCREV/
 	s/%%GITREV%%/$GITREV/
-	s/%%RELEASED_KERNEL%%/$RELEASED_KERNEL/" $SPECFILE
+	s/%%RELEASED_KERNEL%%/$RELEASED_KERNEL/
+	s/%%TARFILE%%/$TARFILE/" $SPECFILE
 if [ -n "$BUILDID" ]; then
 	sed -i -e "s/# % define buildid .local/%define buildid $BUILDID/" $SPECFILE;
 fi

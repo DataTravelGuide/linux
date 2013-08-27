@@ -540,7 +540,7 @@ BuildConflicts: rhbuildsys(DiskFree) < 7Gb
 %define strip_cmd strip
 %endif
 
-Source0: linux-2.6.32.tar.bz2
+Source0: %%TARFILE%%
 
 Source1: Makefile.common
 
