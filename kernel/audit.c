@@ -48,6 +48,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/kthread.h>
+#include <linux/kernel.h>
 
 #include <linux/audit.h>
 
@@ -888,6 +889,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		else {
 			spin_lock_irq(&tsk->sighand->siglock);
 			s.enabled = tsk->signal->audit_tty != 0;
+			s.log_passwd = tsk->signal->audit_tty_log_passwd;
 			spin_unlock_irq(&tsk->sighand->siglock);
 		}
 		read_unlock(&tasklist_lock);
@@ -896,13 +898,14 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	}
 	case AUDIT_TTY_SET: {
-		struct audit_tty_status *s;
+		struct audit_tty_status s;
 		struct task_struct *tsk;
 
-		if (nlh->nlmsg_len < sizeof(struct audit_tty_status))
-			return -EINVAL;
-		s = data;
-		if (s->enabled != 0 && s->enabled != 1)
+		memset(&s, 0, sizeof(s));
+		/* guard against past and future API changes */
+		memcpy(&s, data, min(sizeof(s), (size_t)nlh->nlmsg_len));
+		if ((s.enabled != 0 && s.enabled != 1) ||
+		    (s.log_passwd != 0 && s.log_passwd != 1))
 			return -EINVAL;
 		read_lock(&tasklist_lock);
 		tsk = find_task_by_vpid(pid);
@@ -910,7 +913,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			err = -ESRCH;
 		else {
 			spin_lock_irq(&tsk->sighand->siglock);
-			tsk->signal->audit_tty = s->enabled != 0;
+			tsk->signal->audit_tty = s.enabled;
+			tsk->signal->audit_tty_log_passwd = s.log_passwd;
 			spin_unlock_irq(&tsk->sighand->siglock);
 		}
 		read_unlock(&tasklist_lock);

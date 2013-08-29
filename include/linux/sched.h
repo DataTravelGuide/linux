@@ -702,7 +702,10 @@ struct signal_struct {
 				 * Only settable by CAP_SYS_RESOURCE. */
 	
 	cputime_t prev_utime, prev_stime;
-#endif
+#ifdef CONFIG_AUDIT
+	unsigned audit_tty_log_passwd;
+#endif /* CONFIG_AUDIT */
+#endif /* __GENKSYMS__ */
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */
