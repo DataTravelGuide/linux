@@ -111,6 +111,7 @@ struct net;
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
+ *	@skc_reuseport: %SO_REUSEPORT setting
  *	@skc_bound_dev_if: bound device index if != 0
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_prot: protocol handlers inside a network family
@@ -132,7 +133,12 @@ struct sock_common {
 	unsigned int		skc_hash;
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
+#ifndef __GENKSYMS__
+	unsigned char		skc_reuse:4;
+	unsigned char		skc_reuseport:4;
+#else
 	unsigned char		skc_reuse;
+#endif
 	int			skc_bound_dev_if;
 	struct hlist_node	skc_bind_node;
 	struct proto		*skc_prot;
@@ -221,6 +227,7 @@ struct sock {
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
 #define sk_reuse		__sk_common.skc_reuse
+#define sk_reuseport		__sk_common.skc_reuseport
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_prot			__sk_common.skc_prot
