@@ -4182,7 +4182,6 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 
 static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 {
-	int status;
 	struct nfs41_free_stateid_args args = {
 		.stateid = stateid,
 	};
@@ -4192,14 +4191,26 @@ static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
+	int status;
 
+	dprintk("NFS call  free_stateid %p\n", stateid);
 	nfs41_init_sequence(&args.seq_args, &res.seq_res, 0);
 	nfs4_set_sequence_privileged(&args.seq_args);
 	status = nfs4_call_sync_sequence(server->client, server, &msg,
 			&args.seq_args, &res.seq_res);
+	dprintk("NFS reply free_stateid: %d\n", status);
 	return status;
 }
 
+/**
+ * nfs41_free_stateid - perform a FREE_STATEID operation
+ *
+ * @server: server / transport on which to perform the operation
+ * @stateid: state ID to release
+ *
+ * Returns NFS_OK if the server freed "stateid".  Otherwise a
+ * negative NFS4ERR value is returned.
+ */
 static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 {
 	struct nfs4_exception exception = { };
