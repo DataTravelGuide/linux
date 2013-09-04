@@ -1125,7 +1125,7 @@ struct nfs41_reclaim_complete_res {
 };
 
 struct nfs41_free_stateid_args {
-	nfs4_stateid			*stateid;
+	nfs4_stateid			stateid;
 	struct nfs4_sequence_args	seq_args;
 };
 
