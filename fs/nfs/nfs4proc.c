@@ -550,10 +550,16 @@ static void nfs41_init_sequence(struct nfs4_sequence_args *args,
 {
 	args->sa_session = NULL;
 	args->sa_cache_this = 0;
+	args->sa_privileged = 0;
 	if (cache_reply)
 		args->sa_cache_this = 1;
 	res->sr_session = NULL;
 	res->sr_slot = NULL;
+}
+
+static void nfs4_set_sequence_privileged(struct nfs4_sequence_args *args)
+{
+	args->sa_privileged = 1;
 }
 
 int nfs41_setup_sequence(struct nfs4_session *session,
@@ -574,7 +580,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 
 	spin_lock(&tbl->slot_tbl_lock);
 	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state) &&
-	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
+	    !args->sa_privileged) {
 		/*
 		 * The state manager will wait until the slot table is empty.
 		 * Schedule the reset thread
@@ -616,6 +622,9 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	res->sr_status = 1;
 	return 0;
 out_sleep:
+	/* Privileged tasks are queued with top priority */
+	if (args->sa_privileged)
+		rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 	rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 	spin_unlock(&tbl->slot_tbl_lock);
 	return -EAGAIN;
@@ -661,12 +670,6 @@ static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 	rpc_call_start(task);
 }
 
-static void nfs41_call_priv_sync_prepare(struct rpc_task *task, void *calldata)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	nfs41_call_sync_prepare(task, calldata);
-}
-
 static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs41_call_sync_data *data = calldata;
@@ -679,17 +682,11 @@ struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-struct rpc_call_ops nfs41_call_priv_sync_ops = {
-	.rpc_call_prepare = nfs41_call_priv_sync_prepare,
-	.rpc_call_done = nfs41_call_sync_done,
-};
-
 static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 				   struct nfs_server *server,
 				   struct rpc_message *msg,
 				   struct nfs4_sequence_args *args,
-				   struct nfs4_sequence_res *res,
-				   int privileged)
+				   struct nfs4_sequence_res *res)
 {
 	int ret;
 	struct rpc_task *task;
@@ -705,8 +702,6 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 		.callback_data = &data
 	};
 
-	if (privileged)
-		task_setup.callback_ops = &nfs41_call_priv_sync_ops;
 	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
 		ret = PTR_ERR(task);
@@ -725,13 +720,17 @@ int _nfs4_call_sync_session(struct rpc_clnt *clnt,
 			    int cache_reply)
 {
 	nfs41_init_sequence(args, res, cache_reply);
-	return nfs4_call_sync_sequence(clnt, server, msg, args, res, 0);
+	return nfs4_call_sync_sequence(clnt, server, msg, args, res);
 }
 
 #else
-static inline
+static
 void nfs41_init_sequence(struct nfs4_sequence_args *args,
 		struct nfs4_sequence_res *res, int cache_reply)
+{
+}
+
+static void nfs4_set_sequence_privileged(struct nfs4_sequence_args *args)
 {
 }
 
@@ -1543,12 +1542,6 @@ out_wait:
 	nfs4_sequence_done(task, &data->o_res.seq_res);
 }
 
-static void nfs4_recover_open_prepare(struct rpc_task *task, void *calldata)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	nfs4_open_prepare(task, calldata);
-}
-
 static void nfs4_open_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
@@ -1607,12 +1600,6 @@ static const struct rpc_call_ops nfs4_open_ops = {
 	.rpc_release = nfs4_open_release,
 };
 
-static const struct rpc_call_ops nfs4_recover_open_ops = {
-	.rpc_call_prepare = nfs4_recover_open_prepare,
-	.rpc_call_done = nfs4_open_done,
-	.rpc_release = nfs4_open_release,
-};
-
 static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 {
 	struct inode *dir = data->dir->d_inode;
@@ -1643,7 +1630,7 @@ static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 	data->cancelled = 0;
 	data->is_recover = 0;
 	if (isrecover) {
-		task_setup_data.callback_ops = &nfs4_recover_open_ops;
+		nfs4_set_sequence_privileged(&o_arg->seq_args);
 		data->is_recover = 1;
 	}
 	task = rpc_run_task(&task_setup_data);
@@ -4206,8 +4193,10 @@ static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 		.rpc_resp = &res,
 	};
 
-	args.seq_args.sa_session = res.seq_res.sr_session = NULL;
-	status = nfs4_call_sync_sequence(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
+	nfs41_init_sequence(&args.seq_args, &res.seq_res, 0);
+	nfs4_set_sequence_privileged(&args.seq_args);
+	status = nfs4_call_sync_sequence(server->client, server, &msg,
+			&args.seq_args, &res.seq_res);
 	return status;
 }
 
@@ -4630,8 +4619,9 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 		goto out_wait;
 	/* Do we need to do an open_to_lock_owner? */
 	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
-		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0)
+		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0) {
 			goto out_release_lock_seqid;
+		}
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
 		data->res.open_seqid = data->arg.open_seqid;
@@ -4657,12 +4647,6 @@ out_release_lock_seqid:
 out_wait:
 	nfs4_sequence_done(task, &data->res.seq_res);
 	dprintk("%s: done!, ret = %d\n", __func__, data->rpc_status);
-}
-
-static void nfs4_recover_lock_prepare(struct rpc_task *task, void *calldata)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	nfs4_lock_prepare(task, calldata);
 }
 
 static void nfs4_lock_done(struct rpc_task *task, void *calldata)
@@ -4717,12 +4701,6 @@ static const struct rpc_call_ops nfs4_lock_ops = {
 	.rpc_release = nfs4_lock_release,
 };
 
-static const struct rpc_call_ops nfs4_recover_lock_ops = {
-	.rpc_call_prepare = nfs4_recover_lock_prepare,
-	.rpc_call_done = nfs4_lock_done,
-	.rpc_release = nfs4_lock_release,
-};
-
 static void nfs4_handle_setlk_error(struct nfs_server *server, struct nfs4_lock_state *lsp, int new_lock_owner, int error)
 {
 	switch (error) {
@@ -4765,15 +4743,15 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		return -ENOMEM;
 	if (IS_SETLKW(cmd))
 		data->arg.block = 1;
-	if (recovery_type > NFS_LOCK_NEW) {
-		if (recovery_type == NFS_LOCK_RECLAIM)
-			data->arg.reclaim = NFS_LOCK_RECLAIM;
-		task_setup_data.callback_ops = &nfs4_recover_lock_ops;
-	}
 	nfs41_init_sequence(&data->arg.seq_args, &data->res.seq_res, 1);
 	msg.rpc_argp = &data->arg;
 	msg.rpc_resp = &data->res;
 	task_setup_data.callback_data = data;
+	if (recovery_type > NFS_LOCK_NEW) {
+		if (recovery_type == NFS_LOCK_RECLAIM)
+			data->arg.reclaim = NFS_LOCK_RECLAIM;
+		nfs4_set_sequence_privileged(&data->arg.seq_args);
+	}
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -5283,7 +5261,6 @@ static void nfs4_get_lease_time_prepare(struct rpc_task *task,
 			(struct nfs4_get_lease_time_data *)calldata;
 
 	dprintk("--> %s\n", __func__);
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 	/* just setup sequence, do not trigger session recovery
 	   since we're invoked within one */
 	ret = nfs41_setup_sequence(data->clp->cl_session,
@@ -5353,6 +5330,7 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
 	int status;
 
 	nfs41_init_sequence(&args.la_seq_args, &res.lr_seq_res, 0);
+	nfs4_set_sequence_privileged(&args.la_seq_args);
 	dprintk("--> %s\n", __func__);
 	task = rpc_run_task(&task_setup);
 
@@ -5856,26 +5834,15 @@ static void nfs41_sequence_prepare(struct rpc_task *task, void *data)
 	rpc_call_start(task);
 }
 
-static void nfs41_sequence_prepare_privileged(struct rpc_task *task, void *data)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	nfs41_sequence_prepare(task, data);
-}
-
 static const struct rpc_call_ops nfs41_sequence_ops = {
 	.rpc_call_done = nfs41_sequence_call_done,
 	.rpc_call_prepare = nfs41_sequence_prepare,
 	.rpc_release = nfs41_sequence_release,
 };
 
-static const struct rpc_call_ops nfs41_sequence_privileged_ops = {
-	.rpc_call_done = nfs41_sequence_call_done,
-	.rpc_call_prepare = nfs41_sequence_prepare_privileged,
-	.rpc_release = nfs41_sequence_release,
-};
-
-static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred,
-					     const struct rpc_call_ops *seq_ops)
+static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
+		struct rpc_cred *cred,
+		bool is_privileged)
 {
 	struct nfs4_sequence_data *calldata;
 	struct rpc_message msg = {
@@ -5885,7 +5852,7 @@ static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp, struct rpc_
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = clp->cl_rpcclient,
 		.rpc_message = &msg,
-		.callback_ops = seq_ops,
+		.callback_ops = &nfs41_sequence_ops,
 		.flags = RPC_TASK_ASYNC | RPC_TASK_SOFT,
 	};
 
@@ -5897,6 +5864,8 @@ static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp, struct rpc_
 		return ERR_PTR(-ENOMEM);
 	}
 	nfs41_init_sequence(&calldata->args, &calldata->res, 0);
+	if (is_privileged)
+		nfs4_set_sequence_privileged(&calldata->args);
 	msg.rpc_argp = &calldata->args;
 	msg.rpc_resp = &calldata->res;
 	calldata->clp = clp;
@@ -5912,7 +5881,7 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp, struct rpc_cred *cr
 
 	if ((renew_flags & NFS4_RENEW_TIMEOUT) == 0)
 		return 0;
-	task = _nfs41_proc_sequence(clp, cred, &nfs41_sequence_ops);
+	task = _nfs41_proc_sequence(clp, cred, false);
 	if (IS_ERR(task))
 		ret = PTR_ERR(task);
 	else
@@ -5926,7 +5895,7 @@ static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
 	struct rpc_task *task;
 	int ret;
 
-	task = _nfs41_proc_sequence(clp, cred, &nfs41_sequence_privileged_ops);
+	task = _nfs41_proc_sequence(clp, cred, true);
 	if (IS_ERR(task)) {
 		ret = PTR_ERR(task);
 		goto out;
@@ -5955,7 +5924,6 @@ static void nfs4_reclaim_complete_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_reclaim_complete_data *calldata = data;
 
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
 	if (nfs41_setup_sequence(calldata->clp->cl_session,
 				&calldata->arg.seq_args,
 				&calldata->res.seq_res, task))
@@ -6038,6 +6006,7 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp)
 	calldata->arg.one_fs = 0;
 
 	nfs41_init_sequence(&calldata->arg.seq_args, &calldata->res.seq_res, 0);
+	nfs4_set_sequence_privileged(&calldata->arg.seq_args);
 	msg.rpc_argp = &calldata->arg;
 	msg.rpc_resp = &calldata->res;
 	task_setup_data.callback_data = calldata;
