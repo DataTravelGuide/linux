@@ -4193,11 +4193,11 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 	rpc_call_start(task);
 }
 
-static int _nfs4_free_stateid(struct nfs_server *server, struct nfs4_state *state)
+static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 {
 	int status;
 	struct nfs41_free_stateid_args args = {
-		.stateid = &state->stateid,
+		.stateid = stateid,
 	};
 	struct nfs41_free_stateid_res res;
 	struct rpc_message msg = {
@@ -4211,13 +4211,13 @@ static int _nfs4_free_stateid(struct nfs_server *server, struct nfs4_state *stat
 	return status;
 }
 
-static int nfs41_free_stateid(struct nfs_server *server, struct nfs4_state *state)
+static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 {
 	struct nfs4_exception exception = { };
 	int err;
 	do {
 		err = nfs4_handle_exception(server,
-				_nfs4_free_stateid(server, state),
+				_nfs4_free_stateid(server, stateid),
 				&exception);
 	} while (exception.retry);
 	return err;
