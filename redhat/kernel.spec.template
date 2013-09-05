@@ -697,6 +697,7 @@ Summary: The Red Hat Enterprise Linux kernel ABI symbol whitelists
 Group: System Environment/Kernel
 AutoReqProv: no
 Obsoletes: kabi-whitelists
+Provides: kabi-whitelists
 %description -n kernel-abi-whitelists
 The kABI package contains information pertaining to the Red Hat Enterprise
 Linux kernel ABI, including lists of kernel symbols that are needed by
