@@ -593,10 +593,12 @@ static int gfs2_release(struct inode *inode, struct file *file)
 static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
-	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
+	int sync_state = inode->i_state & I_DIRTY;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret;
 
+	if (!gfs2_is_jdata(ip))
+		sync_state &= ~I_DIRTY_PAGES;
 	if (datasync)
 		sync_state &= ~I_DIRTY_SYNC;
 
