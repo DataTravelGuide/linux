@@ -626,12 +626,6 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	if (error)
 		goto out;
 
-	/* touch device found but size is not defined. use default */
-	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
-		features->x_max = 1023;
-		features->y_max = 1023;
-	}
-
  out:
 	return error;
 }
@@ -1026,6 +1020,19 @@ static void wacom_remove_shared_data(struct wacom_wac *wacom)
 	}
 }
 
+void wacom_setup_device_quirks(struct wacom_features *features)
+{
+	/* touch device found but size is not defined. use default */
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
+		features->x_max = 1023;
+		features->y_max = 1023;
+	}
+
+	/* these device have multiple inputs */
+	if (features->type == TABLETPC || features->type == TABLETPC2FG)
+		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -1092,9 +1099,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	wacom_init_input_dev(input_dev, wacom_wac);
 
+	wacom_setup_device_quirks(features);
+
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
 
-	if (features->type == TABLETPC || features->type == TABLETPC2FG) {
+	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
 		/* Append the device type to the name */
 		strlcat(wacom_wac->name,
 			features->device_type == BTN_TOOL_PEN ?

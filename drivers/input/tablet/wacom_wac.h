@@ -28,6 +28,9 @@
 #define ERASER_DEVICE_ID	0x0A
 #define PAD_DEVICE_ID		0x0F
 
+/* device quirks */
+#define WACOM_QUIRK_MULTI_INPUT		0x0001
+
 enum {
 	PENPARTNER = 0,
 	GRAPHIRE,
@@ -70,6 +73,7 @@ struct wacom_features {
 	int y_phy;
 	unsigned char unit;
 	unsigned char unitExpo;
+	unsigned quirks;
 };
 
 struct wacom_shared {
