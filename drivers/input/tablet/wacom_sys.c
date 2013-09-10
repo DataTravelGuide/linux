@@ -529,9 +529,8 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				pen = 1;
 				i++;
 				break;
-
+			}
 			break;
-		}
 
 		case HID_COLLECTION:
 			/* reset UsagePage and Finger */
