@@ -1028,9 +1028,6 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 			if (!p)
 				break;
-
-			addr_end = addr + PAGE_SIZE;
-			p_end = p + PAGE_SIZE;
 		} else {
 			next = pmd_addr_end(addr, end);
 
