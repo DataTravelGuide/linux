@@ -566,9 +566,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	if (!rep_data)
 		return error;
 
-	/* ask to report tablet data if it is MT Tablet PC or
+	/* ask to report tablet data if it is 2FGT Tablet PC or
 	 * not a Tablet PC */
-	if (features->device_type == BTN_TOOL_TRIPLETAP) {
+	if (features->type == TABLETPC2FG) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
@@ -582,7 +582,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 					WAC_HID_FEATURE_REPORT, report_id,
 					rep_data, 4, 1);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
-	} else if (features->type != TABLETPC && features->type != TABLETPC2FG) {
+	} else if (features->type != TABLETPC) {
 		do {
 			rep_data[0] = 2;
 			rep_data[1] = 2;
@@ -610,7 +610,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	/* default device to penabled */
 	features->device_type = BTN_TOOL_PEN;
 
-	/* only Tablet PCs need to retrieve the info */
+	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG))
 		goto out;
 
