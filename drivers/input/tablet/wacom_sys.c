@@ -153,6 +153,17 @@ void wacom_input_event(void *wcombo, unsigned int type, unsigned int code, int v
 	input_event(get_input_dev((struct wacom_combo *)wcombo), type, code, value);
 }
 
+void wacom_mt_slot(void *wcombo, int slot)
+{
+	input_mt_slot(get_input_dev(wcombo), slot);
+}
+
+void wacom_mt_report_slot_state(void *wcombo, unsigned int tool_type,
+				bool active)
+{
+	input_mt_report_slot_state(get_input_dev(wcombo), tool_type, active);
+}
+
 void wacom_mt_report_pointer_emulation(void *wcombo, bool value)
 {
 	input_mt_report_pointer_emulation(get_input_dev(wcombo), value);

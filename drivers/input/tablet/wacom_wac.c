@@ -773,8 +773,8 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom, void *wcombo)
 		int p = data[1] & (1 << i);
 		bool touch = p && !wacom->shared->stylus_in_proximity;
 
-		input_mt_slot(wcombo, i);
-		input_mt_report_slot_state(wcombo, MT_TOOL_FINGER, touch);
+		wacom_mt_slot(wcombo, i);
+		wacom_mt_report_slot_state(wcombo, MT_TOOL_FINGER, touch);
 		if (touch) {
 			int x = le16_to_cpup((__le16 *)&data[i * 2 + 2]) & 0x7fff;
 			int y = le16_to_cpup((__le16 *)&data[i * 2 + 6]) & 0x7fff;
