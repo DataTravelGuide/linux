@@ -157,6 +157,7 @@ const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
 	"bus-cycles",
 	"stalled-cycles-frontend",
 	"stalled-cycles-backend",
+	"ref-cycles",
 };
 
 static const char *__perf_evsel__hw_name(u64 config)
