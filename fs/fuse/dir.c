@@ -225,6 +225,14 @@ out:
 
 invalid:
 	ret = 0;
+	if (inode && S_ISDIR(inode->i_mode)) {
+		if (have_submounts(entry)) {
+			ret = 1;
+			goto out;
+		}
+		shrink_dcache_parent(entry);
+	}
+	d_drop(entry);
 	goto out;
 }
 
