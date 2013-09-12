@@ -303,6 +303,14 @@ int pciehp_check_link_status(struct controller *ctrl)
 		return retval;
 	}
 
+	/*
+	 * If the port supports Link speeds greater than 5.0 GT/s, we
+	 * must wait for 100 ms after Link training completes before
+	 * sending configuration request.
+	 */
+	if (ctrl->pcie->port->subordinate->max_bus_speed > PCIE_5_0GB)
+		msleep(100);
+
 	return retval;
 }
 
