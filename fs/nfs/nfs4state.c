@@ -846,9 +846,8 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	return lsp;
 }
 
-void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
+void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
-	struct nfs_server *server = lsp->ls_state->owner->so_server;
 	struct nfs_client *clp = server->nfs_client;
 
 	spin_lock(&clp->cl_lock);
@@ -886,7 +885,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 	}
 	spin_unlock(&state->state_lock);
 	if (new != NULL)
-		nfs4_free_lock_state(new);
+		nfs4_free_lock_state(state->owner->so_server, new);
 	return lsp;
 }
 
@@ -914,7 +913,7 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 
 		clp->cl_mvops->free_lock_state(server, lsp);
 	} else
-		nfs4_free_lock_state(lsp);
+		nfs4_free_lock_state(lsp->ls_state->owner->so_server, lsp);
 }
 
 static void nfs4_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
