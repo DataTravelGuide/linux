@@ -1698,6 +1698,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 12 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-419.el6]
+- [netdrv] bonding: Fix corrupted queue_mapping (Veaceslav Falico) [991799]
+- [fs] xfs: fallback to vmalloc for large buffers in xfs_attrlist_by_handle (Eric Sandeen) [905086]
+- [fs] nfs: set open access operation call flag in nfs4_init_opendata_res (Jeff Layton) [1002855]
+- [kernel] Prevent RT process stall due to missing upstream scheduler bug fix (Larry Woodman) [1002765]
+
 * Tue Sep 10 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-418.el6]
 - [netdrv] bnx2x: prevent crash in shutdown flow with CNIC (Michal Schmidt) [1003436]
 - [fs] nfs: Minor cleanups for nfs4_handle_exception and nfs4_async_handle_error (Dave Wysochanski) [998752]
