@@ -521,6 +521,7 @@ F:	drivers/media/video/uvc/
 VIDEO DRIVERS
 M:	David Airlie <airlied@redhat.com>
 M:	Adam Jackson <ajax@redhat.com>
+M:	Rob Clark <rclark@redhat.com>
 S:	Maintained
 F:	drivers/gpu/
 
