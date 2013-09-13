@@ -2137,10 +2137,10 @@ static int nvme_dev_start(struct nvme_dev *dev)
 	spin_unlock(&dev_list_lock);
 
 	result = nvme_setup_io_queues(dev);
-	if (result)
+	if (result && result != -EBUSY)
 		goto disable;
 
-	return 0;
+	return result;
 
  disable:
 	spin_lock(&dev_list_lock);
@@ -2179,13 +2179,17 @@ static int __devinit nvme_probe(struct pci_dev *pdev, const struct pci_device_id
 		goto release;
 
 	result = nvme_dev_start(dev);
-	if (result)
+	if (result) {
+		if (result == -EBUSY)
+			goto create_cdev;
 		goto release_pools;
+	}
 
 	result = nvme_dev_add(dev);
-	if (result && result != -EBUSY)
+	if (result)
 		goto shutdown;
 
+ create_cdev:
 	scnprintf(dev->name, sizeof(dev->name), "nvme%d", dev->instance);
 	dev->miscdev.minor = MISC_DYNAMIC_MINOR;
 	dev->miscdev.parent = &pdev->dev;
