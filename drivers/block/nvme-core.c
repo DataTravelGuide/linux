@@ -685,7 +685,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (unlikely(cmdid < 0))
 		goto free_iod;
 
-	if (bio->bi_rw & REQ_DISCARD) {
+	if (bio->bi_rw & BIO_DISCARD) {
 		result = nvme_submit_discard(nvmeq, ns, bio, iod, cmdid);
 		if (result)
 			goto free_cmdid;
