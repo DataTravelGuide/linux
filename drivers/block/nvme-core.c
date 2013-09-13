@@ -739,31 +739,6 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return result;
 }
 
-/*
- * NB: return value of non-zero would mean that we were a stacking driver.
- * make_request must always succeed.
- */
-static int nvme_make_request(struct request_queue *q, struct bio *bio)
-{
-	struct nvme_ns *ns = q->queuedata;
-	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
-	int result = -EBUSY;
-
-	spin_lock_irq(&nvmeq->q_lock);
-	if (bio_list_empty(&nvmeq->sq_cong))
-		result = nvme_submit_bio_queue(nvmeq, ns, bio);
-	if (unlikely(result)) {
-		if (bio_list_empty(&nvmeq->sq_cong))
-			add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
-		bio_list_add(&nvmeq->sq_cong, bio);
-	}
-
-	spin_unlock_irq(&nvmeq->q_lock);
-	put_nvmeq(nvmeq);
-
-	return 0;
-}
-
 static int nvme_process_cq(struct nvme_queue *nvmeq)
 {
 	u16 head, phase;
@@ -802,6 +777,27 @@ static int nvme_process_cq(struct nvme_queue *nvmeq)
 
 	nvmeq->cqe_seen = 1;
 	return 1;
+}
+
+static int nvme_make_request(struct request_queue *q, struct bio *bio)
+{
+	struct nvme_ns *ns = q->queuedata;
+	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
+	int result = -EBUSY;
+
+	spin_lock_irq(&nvmeq->q_lock);
+	if (bio_list_empty(&nvmeq->sq_cong))
+		result = nvme_submit_bio_queue(nvmeq, ns, bio);
+	if (unlikely(result)) {
+		if (bio_list_empty(&nvmeq->sq_cong))
+			add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
+		bio_list_add(&nvmeq->sq_cong, bio);
+	}
+
+	nvme_process_cq(nvmeq);
+	spin_unlock_irq(&nvmeq->q_lock);
+	put_nvmeq(nvmeq);
+	return 0;
 }
 
 static irqreturn_t nvme_irq(int irq, void *data)
