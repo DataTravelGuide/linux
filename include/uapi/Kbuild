@@ -4,3 +4,4 @@
 
 
 header-y += drm/
+header-y += nvme.h
