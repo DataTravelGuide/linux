@@ -302,6 +302,8 @@ xen_dangerous_cpuid_features[] = {
 	X86_FEATURE_NONSTOP_TSC,
 	/* Mask out features masked by BZ#752382 */
 	X86_FEATURE_SMEP,
+	/* Mask out features masked by BZ#1006549 */
+	X86_FEATURE_AVX,
 	0
 };
 
