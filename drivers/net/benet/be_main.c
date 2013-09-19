@@ -1923,7 +1923,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		if (rc)
 			return rc;
 
-		rc = be_cmd_eq_create(adapter, eq, eqo->cur_eqd);
+		rc = be_cmd_eq_create(adapter, eqo);
 		if (rc)
 			return rc;
 	}
@@ -2424,7 +2424,7 @@ done:
 static inline int be_msix_vec_get(struct be_adapter *adapter,
 				struct be_eq_obj *eqo)
 {
-	return adapter->msix_entries[eqo->idx].vector;
+	return adapter->msix_entries[eqo->msix_idx].vector;
 }
 
 static int be_msix_register(struct be_adapter *adapter)
