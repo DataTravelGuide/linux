@@ -4220,7 +4220,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	status = pci_enable_pcie_error_reporting(pdev);
 	if (status)
-		dev_err(&pdev->dev, "Could not use PCIe error reporting\n");
+		dev_info(&pdev->dev, "Could not use PCIe error reporting\n");
 
 	status = be_ctrl_init(adapter);
 	if (status)
