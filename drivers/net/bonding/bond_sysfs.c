@@ -449,21 +449,25 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value;
+	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
 	new_value = bond_parse_parm(buf, arp_validate_tbl);
 	if (new_value < 0) {
 		pr_err(DRV_NAME
 		       ": %s: Ignoring invalid arp_validate value %s\n",
 		       bond->dev->name, buf);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	if (new_value && (bond->params.mode != BOND_MODE_ACTIVEBACKUP)) {
 		pr_err(DRV_NAME
 		       ": %s: arp_validate only supported in active-backup mode.\n",
 		       bond->dev->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	pr_info(DRV_NAME ": %s: setting arp_validate to %s (%d).\n",
 	       bond->dev->name, arp_validate_tbl[new_value].modename,
@@ -475,8 +479,10 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 		bond_unregister_arp(bond);
 
 	bond->params.arp_validate = new_value;
+out:
+	rtnl_unlock();
 
-	return count;
+	return ret;
 }
 
 static DEVICE_ATTR(arp_validate, S_IRUGO | S_IWUSR, bonding_show_arp_validate,
@@ -552,6 +558,8 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err(DRV_NAME
 		       ": %s: no arp_interval value specified.\n",
@@ -615,6 +623,7 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	}
 
 out:
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(arp_interval, S_IRUGO | S_IWUSR,
