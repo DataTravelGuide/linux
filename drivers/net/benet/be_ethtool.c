@@ -1144,6 +1144,29 @@ static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	return status;
 }
 
+static void be_get_channels(struct net_device *netdev,
+			    struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	ch->combined_count = adapter->num_evt_qs;
+	ch->max_combined = be_max_qs(adapter);
+}
+
+static int be_set_channels(struct net_device  *netdev,
+			   struct ethtool_channels *ch)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (ch->rx_count || ch->tx_count || ch->other_count ||
+	    !ch->combined_count || ch->combined_count > be_max_qs(adapter))
+		return -EINVAL;
+
+	adapter->cfg_num_qs = ch->combined_count;
+
+	return be_update_queues(adapter);
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -1183,4 +1206,6 @@ const struct ethtool_ops_ext be_ethtool_ops_ext = {
 	.size		= sizeof(struct ethtool_ops_ext),
 	.set_dump	= be_set_dump,
 	.set_phys_id	= be_set_phys_id,
+	.get_channels	= be_get_channels,
+	.set_channels	= be_set_channels,
 };
