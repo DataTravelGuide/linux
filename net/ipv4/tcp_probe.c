@@ -43,6 +43,10 @@ static unsigned int bufsize __read_mostly = 4096;
 MODULE_PARM_DESC(bufsize, "Log buffer size in packets (4096)");
 module_param(bufsize, uint, 0);
 
+static unsigned int fwmark __read_mostly = 0;
+MODULE_PARM_DESC(fwmark, "skb mark to match (0=no mark)");
+module_param(fwmark, uint, 0);
+
 static int full __read_mostly;
 MODULE_PARM_DESC(full, "Full log (1=every ack packet received,  0=only cwnd changes)");
 module_param(full, int, 0);
@@ -121,9 +125,12 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_sock *inet = inet_sk(sk);
 
-	/* Only update if port matches */
-	if ((port == 0 || ntohs(inet->dport) == port || ntohs(inet->sport) == port)
-	    && (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
+	/* Only update if port or skb mark matches */
+	if (((port == 0 && fwmark == 0) ||
+	     ntohs(inet->dport) == port ||
+	     ntohs(inet->sport) == port ||
+	     (fwmark > 0 && skb->mark == fwmark)) &&
+	    (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
 
 		spin_lock(&tcp_probe.lock);
 		/* If log fills, just silently drop */
@@ -279,7 +286,8 @@ static __init int tcpprobe_init(void)
 	if (ret)
 		goto err1;
 
-	pr_info("TCP probe registered (port=%d) bufsize=%u\n", port, bufsize);
+	pr_info("probe registered (port=%d/fwmark=%u) bufsize=%u\n",
+		port, fwmark, bufsize);
 	return 0;
  err1:
 	proc_net_remove(&init_net, procname);
