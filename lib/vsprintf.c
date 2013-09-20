@@ -671,13 +671,37 @@ static char *mac_address_string(char *buf, char *end, u8 *addr,
 	return string(buf, end, mac_addr, spec);
 }
 
-static char *ip4_string(char *p, const u8 *addr, bool leading_zeros)
+static char *ip4_string(char *p, const u8 *addr, const char *fmt)
 {
 	int i;
+	bool leading_zeros = (fmt[0] == 'i');
+	int index;
+	int step;
 
+	switch (fmt[2]) {
+	case 'h':
+#ifdef __BIG_ENDIAN
+		index = 0;
+		step = 1;
+#else
+		index = 3;
+		step = -1;
+#endif
+		break;
+	case 'l':
+		index = 3;
+		step = -1;
+		break;
+	case 'n':
+	case 'b':
+	default:
+		index = 0;
+		step = 1;
+		break;
+	}
 	for (i = 0; i < 4; i++) {
 		char temp[3];	/* hold each IP quad in reverse order */
-		int digits = put_dec_trunc(temp, addr[i]) - temp;
+		int digits = put_dec_trunc(temp, addr[index]) - temp;
 		if (leading_zeros) {
 			if (digits < 3)
 				*p++ = '0';
@@ -689,6 +713,7 @@ static char *ip4_string(char *p, const u8 *addr, bool leading_zeros)
 			*p++ = temp[digits];
 		if (i < 3)
 			*p++ = '.';
+		index += step;
 	}
 
 	*p = '\0';
@@ -772,7 +797,7 @@ static char *ip6_compressed_string(char *p, const char *addr)
 	if (useIPv4) {
 		if (needcolon)
 			*p++ = ':';
-		p = ip4_string(p, &in6.s6_addr[12], false);
+		p = ip4_string(p, &in6.s6_addr[12], "I4");
 	}
 
 	*p = '\0';
@@ -811,7 +836,7 @@ static char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 {
 	char ip4_addr[sizeof("255.255.255.255")];
 
-	ip4_string(ip4_addr, addr, fmt[0] == 'i');
+	ip4_string(ip4_addr, addr, fmt);
 
 	return string(buf, end, ip4_addr, spec);
 }
@@ -886,6 +911,7 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  * - 'i' [46] for 'raw' IPv4/IPv6 addresses
  *       IPv6 omits the colons (01020304...0f)
  *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
+ * - '[Ii]4[hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I6c' for IPv6 addresses printed as specified by
  *       http://tools.ietf.org/html/rfc5952
  * - 'V' For a struct va_format which contains a format string * and va_list *,
