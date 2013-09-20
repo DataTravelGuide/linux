@@ -220,6 +220,13 @@ static __init int tcpprobe_init(void)
 {
 	int ret = -ENOMEM;
 
+	/* Warning: if the function signature of tcp_rcv_established,
+	 * has been changed, you also have to change the signature of
+	 * jtcp_rcv_established, otherwise you end up right here!
+	 */
+	BUILD_BUG_ON(__same_type(tcp_rcv_established,
+				 jtcp_rcv_established) == 0);
+
 	init_waitqueue_head(&tcp_probe.wait);
 	spin_lock_init(&tcp_probe.lock);
 
