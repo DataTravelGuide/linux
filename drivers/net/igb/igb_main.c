@@ -2700,9 +2700,11 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 			max_vfs = adapter->vfs_allocated_count = 7;
 		} else
 			adapter->vfs_allocated_count = max_vfs;
+#if 0 /* not deprecated in RHEL6 */
 		if (adapter->vfs_allocated_count)
 			dev_warn(&pdev->dev,
 				 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
+#endif
 		break;
 	default:
 		break;
