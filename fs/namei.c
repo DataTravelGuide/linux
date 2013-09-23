@@ -1662,7 +1662,7 @@ umount_lookup_last(struct nameidata *nd, struct path *path)
 	if (unlikely(nd->last_type != LAST_NORM)) {
 		follow_dotdot(nd);
 		dentry = dget(nd->path.dentry);
-		goto error_check;
+		goto done;
 	}
 
 	mutex_lock(&dir->i_mutex);
@@ -1674,43 +1674,47 @@ umount_lookup_last(struct nameidata *nd, struct path *path)
 		 * so that means that this dentry is probably a symlink or the
 		 * path doesn't actually point to a mounted dentry.
 		 */
-		error = -ENOENT;
-		if (IS_DEADDIR(dir))
+		if (IS_DEADDIR(dir)) {
+			error = -ENOENT;
 			goto out_unlock;
-
-		error = -ENOMEM;
-		new = d_alloc(parent, &nd->last);
-		if (new) {
-			dentry = dir->i_op->lookup(dir, new, nd);
-			if (IS_ERR(dentry)) {
-				error = PTR_ERR(dentry);
-				goto out_unlock;
-			}
-			if (dentry)
-				dput(new);
-			else
-				dentry = new;
-			error = 0;
 		}
+
+		new = d_alloc(parent, &nd->last);
+		if (!new) {
+			error = -ENOMEM;
+			goto out_unlock;
+		}
+		dentry = dir->i_op->lookup(dir, new, nd);
+		if (IS_ERR(dentry)) {
+			error = PTR_ERR(dentry);
+			goto out_unlock;
+		}
+		if (dentry)
+			dput(new);
+		else
+			dentry = new;
 	}
-out_unlock:
 	mutex_unlock(&dir->i_mutex);
 
-error_check:
-	if (!error) {
-		if (!dentry->d_inode) {
-			error = -ENOENT;
-			dput(dentry);
-		} else {
-			path->dentry = dentry;
-			path->mnt = mntget(nd->path.mnt);
-			if (nd->flags & LOOKUP_FOLLOW) {
-				if (unlikely(dentry->d_inode->i_op->follow_link))
-					return 1;
-			}
-			follow_mount(path);
-		}
+done:
+	if (!dentry->d_inode) {
+		error = -ENOENT;
+		dput(dentry);
+		goto out;
 	}
+	path->dentry = dentry;
+	path->mnt = mntget(nd->path.mnt);
+	if (nd->flags & LOOKUP_FOLLOW) {
+		if (unlikely(dentry->d_inode->i_op->follow_link))
+			return 1;
+	}
+	follow_mount(path);
+	error = 0;
+	goto out;
+
+out_unlock:
+	mutex_unlock(&dir->i_mutex);
+out:
 	path_put(&nd->path);
 	return error;
 }
