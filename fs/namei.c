@@ -1624,7 +1624,7 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
 }
 
 /**
- * mountpoint_last - look up last component for umount
+ * umount_lookup_last - look up last component for umount
  * @nd:   pathwalk nameidata - currently pointing at parent directory of "last"
  * @path: pointer to container for result
  *
@@ -1651,7 +1651,7 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
  *         to the link, and nd->path will *not* be put.
  */
 static int
-mountpoint_last(struct nameidata *nd, struct path *path)
+umount_lookup_last(struct nameidata *nd, struct path *path)
 {
 	int error = 0;
 	struct dentry *dentry;
@@ -1721,7 +1721,7 @@ out:
 }
 
 /**
- * path_mountpoint - look up a path to a mount point
+ * path_umountat - look up a path to a mount point
  * @dfd:	directory file descriptor to start walk from
  * @name:	full pathname to walk
  * @flags:	lookup flags
@@ -1731,7 +1731,7 @@ out:
  * Returns 0 and "path" will be valid on success; Retuns error otherwise.
  */
 static int
-path_mountpoint(int dfd, struct filename *s, struct path *path, unsigned int flags)
+path_umountat(int dfd, struct filename *s, struct path *path, unsigned int flags)
 {
 	struct nameidata nd;
 	int err;
@@ -1745,14 +1745,14 @@ path_mountpoint(int dfd, struct filename *s, struct path *path, unsigned int fla
 	if (err)
 		goto out;
 
-	err = mountpoint_last(&nd, path);
+	err = umount_lookup_last(&nd, path);
 	while (err > 0) {
 		struct path link = *path;
 		nd.flags |= LOOKUP_PARENT;
 		err = do_follow_link(&link, &nd);
 		if (err)
 			break;
-		err = mountpoint_last(&nd, path);
+		err = umount_lookup_last(&nd, path);
 	}
 out:
 	if (nd.root.mnt)
@@ -1762,7 +1762,7 @@ out:
 }
 
 /**
- * user_path_mountpoint_at - lookup a path from userland in order to umount it
+ * user_path_umountat - lookup a path from userland in order to umount it
  * @dfd:	directory file descriptor
  * @name:	pathname from userland
  * @flags:	lookup flags
@@ -1776,7 +1776,7 @@ out:
  * Returns 0 and populates "path" on success.
  */
 int
-user_path_mountpoint_at(int dfd, const char __user *name, unsigned int flags,
+user_path_umountat(int dfd, const char __user *name, unsigned int flags,
 			struct path *path)
 {
 	struct filename *s = getname(name);
@@ -1785,9 +1785,9 @@ user_path_mountpoint_at(int dfd, const char __user *name, unsigned int flags,
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
-	error = path_mountpoint(dfd, s, path, flags);
+	error = path_umountat(dfd, s, path, flags);
 	if (unlikely(error == -ESTALE))
-		error = path_mountpoint(dfd, s, path, flags | LOOKUP_REVAL);
+		error = path_umountat(dfd, s, path, flags | LOOKUP_REVAL);
 
 	if (likely(!error))
 		audit_inode(s, path->dentry, 0);
