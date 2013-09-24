@@ -571,9 +571,14 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	u32 supported = (efx->type->offload_features &
+			 (ETH_FLAG_RXHASH | ETH_FLAG_NTUPLE));
 	int rc;
 
-	rc = ethtool_op_set_flags(net_dev, data);
+	if (data & ~supported)
+		rc = -EINVAL;
+	else
+		rc = ethtool_op_set_flags(net_dev, data);
 	if (rc)
 		return rc;
 
