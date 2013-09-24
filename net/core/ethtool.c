@@ -1450,9 +1450,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCLSRLALL:
 	case ETHTOOL_GET_TS_INFO:
 		break;
-	case ETHTOOL_RESET:
-		rc = ethtool_reset(dev, useraddr);
-		break;
 	default:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
@@ -1622,6 +1619,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_SRXCLSRLDEL:
 	case ETHTOOL_SRXCLSRLINS:
 		rc = ethtool_set_rxnfc(dev, ethcmd, useraddr);
+		break;
+	case ETHTOOL_RESET:
+		rc = ethtool_reset(dev, useraddr);
 		break;
 	case ETHTOOL_GGRO:
 		rc = ethtool_get_gro(dev, useraddr);
