@@ -2459,7 +2459,7 @@ u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 				    rcu_dereference_check(sk->sk_dst_cache, 1);
 
 			if (dst && skb_dst(skb) == dst)
-				sk_tx_queue_set(sk, queue_index);
+				sk_tx_queue_set(sk, new_index);
 
 		}
 
