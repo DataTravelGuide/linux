@@ -352,6 +352,14 @@ static void filelayout_write_commit_done(struct rpc_task *task, void *data)
 	wdata->mds_ops->rpc_call_done(task, data);
 }
 
+static void filelayout_commit_count_stats(struct rpc_task *task, void *data)
+{
+	struct nfs_commit_data *cdata = data;
+
+	rpc_count_iostats(task, NFS_SERVER(cdata->inode)->client->cl_metrics);
+}
+
+
 static void filelayout_commit_release(void *calldata)
 {
 	struct nfs_commit_data *data = calldata;
@@ -378,7 +386,7 @@ struct rpc_call_ops filelayout_write_call_ops = {
 struct rpc_call_ops filelayout_commit_call_ops = {
 	.rpc_call_prepare = filelayout_commit_prepare,
 	.rpc_call_done = filelayout_write_commit_done,
-	.rpc_count_stats = filelayout_write_count_stats,
+	.rpc_count_stats = filelayout_commit_count_stats,
 	.rpc_release = filelayout_commit_release,
 };
 
