@@ -88,10 +88,12 @@ M:	John Feeney <jfeeney@redhat.com>
 M:	Jaroslav Kysela <jkysela@redhat.com>
 S:	Maintained
 
-ATL1E/ATL1C ETHERNET DRIVER (atl1e/atl1c)
-M:	Dean Nelson <dnelson@redhat.com>
+ATLX ETHERNET DRIVERS
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/atl1e/
+F:	drivers/net/atl1c/
+F:	drivers/net/atlx/
 
 BE2NET ETHERNET DRIVER (be2net)
 M:	Ivan Vecera <ivecera@redhat.com>
