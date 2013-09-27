@@ -3006,18 +3006,28 @@ static void hardware_disable_all_nolock(void)
 
 static void hardware_disable_all(void)
 {
+	int count;
+	char count_string[20];
+	char event_string[] = "EVENT=terminate";
+	char *envp[] = { event_string, count_string, NULL };
+
 	spin_lock(&kvm_lock);
 	hardware_disable_all_nolock();
+	count = kvm_usage_count;
 	spin_unlock(&kvm_lock);
+
+	sprintf(count_string, "COUNT=%d", count);
+	kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, envp);
 }
 
 static int hardware_enable_all(void)
 {
 	int r = 0;
+	int count;
 
 	spin_lock(&kvm_lock);
 
-	kvm_usage_count++;
+	count = ++kvm_usage_count;
 	if (kvm_usage_count == 1) {
 		atomic_set(&hardware_enable_failed, 0);
 		on_each_cpu(hardware_enable, NULL, 1);
@@ -3030,6 +3040,14 @@ static int hardware_enable_all(void)
 
 	spin_unlock(&kvm_lock);
 
+	if (r == 0) {
+		char count_string[20];
+		char event_string[] = "EVENT=create";
+		char *envp[] = { event_string, count_string, NULL };
+
+		sprintf(count_string, "COUNT=%d", count);
+		kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, envp);
+	}
 	return r;
 }
 
