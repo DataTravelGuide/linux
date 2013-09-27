@@ -1050,6 +1050,7 @@
 	put_page
 	put_tty_driver
 	put_unused_fd
+	putname
 	pv_cpu_ops
 	pv_irq_ops
 	qdisc_calculate_pkt_len

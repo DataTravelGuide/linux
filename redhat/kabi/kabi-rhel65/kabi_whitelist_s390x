@@ -767,6 +767,7 @@
 	put_page
 	put_tty_driver
 	put_unused_fd
+	putname
 	qdisc_calculate_pkt_len
 	qdisc_create_dflt
 	qdisc_destroy

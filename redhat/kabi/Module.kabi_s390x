@@ -766,6 +766,7 @@
 0x5904727c	put_page	vmlinux	EXPORT_SYMBOL
 0x598bd2ba	put_tty_driver	vmlinux	EXPORT_SYMBOL
 0x3f4547a7	put_unused_fd   vmlinux EXPORT_SYMBOL
+0x2b4c47df	putname	vmlinux	EXPORT_SYMBOL
 0x70ec9c6d	qdisc_calculate_pkt_len	vmlinux	EXPORT_SYMBOL
 0x9ce03a12	qdisc_create_dflt	vmlinux	EXPORT_SYMBOL
 0xac2c7fa6	qdisc_destroy	vmlinux	EXPORT_SYMBOL
