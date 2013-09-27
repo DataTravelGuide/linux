@@ -440,6 +440,7 @@
 	get_user_pages
 	get_write_access
 	get_zeroed_page
+	getname
 	getnstimeofday
 	gnet_stats_copy_basic
 	gnet_stats_copy_queue

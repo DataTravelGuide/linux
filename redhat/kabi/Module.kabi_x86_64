@@ -555,6 +555,7 @@
 0x6e293b8e	get_user_pages	vmlinux	EXPORT_SYMBOL
 0xfd423e5b	get_write_access	vmlinux	EXPORT_SYMBOL
 0x9b388444	get_zeroed_page	vmlinux	EXPORT_SYMBOL
+0xd9a9bb30	getname	vmlinux	EXPORT_SYMBOL
 0x52760ca9	getnstimeofday	vmlinux	EXPORT_SYMBOL
 0xf6ac8bdc	gnet_stats_copy_basic	vmlinux	EXPORT_SYMBOL
 0xd0aea60a	gnet_stats_copy_queue	vmlinux	EXPORT_SYMBOL
