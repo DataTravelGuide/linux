@@ -48,8 +48,7 @@
 
 /* return minimum truesize of one skb containing X bytes of data */
 #define SKB_TRUESIZE(X) ((X) +						\
-			 SKB_DATA_ALIGN(sizeof(struct sk_buff)) +	\
-			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+			 SKB_DATA_ALIGN(sizeof(struct sk_buff)))
 
 /* A. Checksumming of received packets by device.
  *
