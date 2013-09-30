@@ -134,6 +134,7 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 	if (status)
 		goto out_put;
 
+	smp_wmb();
 	ds->ds_clp = clp;
 	dprintk("%s [new] ip=%x, port=%hu\n", __func__, ntohl(ds->ds_ip_addr),
 		ntohs(ds->ds_port));
@@ -642,6 +643,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 			__func__, ds_idx);
 		return NULL;
 	}
+	smp_rmb();
 	if (ds->ds_clp)
 		goto out;
 
