@@ -629,6 +629,13 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {
 	struct nfs4_file_layout_dsaddr *dsaddr = FILELAYOUT_LSEG(lseg)->dsaddr;
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
+	struct nfs4_pnfs_ds *ret = ds;
+
+	if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
+		/* Already tried to connect, don't try again */
+		dprintk("%s Deviceid marked out of use\n", __func__);
+		return NULL;
+	}
 
 	if (ds == NULL) {
 		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
@@ -636,27 +643,26 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 		return NULL;
 	}
 	if (ds->ds_clp)
-		return ds;
+		goto out;
 
 	if (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) == 0) {
 		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
 		int err;
 
-		if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
-			/* Already tried to connect, don't try again */
-			dprintk("%s Deviceid marked out of use\n", __func__);
-			return NULL;
-		}
 		err = nfs4_ds_connect(s, ds);
-		if (err) {
+		if (err)
 			filelayout_mark_devid_negative(dsaddr, err,
 						       ntohl(ds->ds_ip_addr));
-			ds = NULL;
-		}
 		nfs4_clear_ds_conn_bit(ds);
 	} else {
 		/* Either ds is connected, or ds is NULL */
 		nfs4_wait_ds_connect(ds);
 	}
-	return ds;
+
+	if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
+		dprintk("%s Deviceid marked out of use\n", __func__);
+		return NULL;
+	}
+out:
+	return ret;
 }
