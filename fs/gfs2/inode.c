@@ -817,8 +817,14 @@ int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	inode->i_rdev = dev;
 	inode->i_size = size;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	gfs2_set_inode_blocks(inode, 1);
 	munge_mode_uid_gid(dip, inode);
 	ip->i_goal = dip->i_goal;
+	ip->i_diskflags = 0;
+	ip->i_eattr = 0;
+	ip->i_height = 0;
+	ip->i_depth = 0;
+	ip->i_entries = 0;
 
 	if ((GFS2_I(sdp->sd_root_dir->d_inode) == dip) ||
 	    (dip->i_diskflags & GFS2_DIF_TOPDIR))
