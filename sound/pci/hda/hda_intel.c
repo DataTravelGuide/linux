@@ -193,7 +193,6 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #if defined(CONFIG_PM) && defined(CONFIG_VGA_SWITCHEROO)
 #ifdef CONFIG_SND_HDA_CODEC_HDMI
 #define SUPPORT_VGA_SWITCHEROO
-#undef SUPPORT_VGA_SWITCHEROO /* RHEL6 has old VGA switcheroo code */
 #endif
 #endif
 
