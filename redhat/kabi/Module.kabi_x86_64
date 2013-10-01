@@ -701,6 +701,7 @@
 0xee065ced	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL
 0xa7ec84ac	kmem_cache_alloc_node_notrace	vmlinux	EXPORT_SYMBOL
 0xf85ccdae	kmem_cache_alloc_notrace	vmlinux	EXPORT_SYMBOL
+0x2044fa9e	kmem_cache_alloc_trace	vmlinux	EXPORT_SYMBOL
 0xe4a639f8	kmem_cache_create	vmlinux	EXPORT_SYMBOL
 0x806e575f	kmem_cache_destroy	vmlinux	EXPORT_SYMBOL
 0x7329e40d	kmem_cache_free	vmlinux	EXPORT_SYMBOL

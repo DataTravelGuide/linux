@@ -536,6 +536,7 @@
 0xb5c3fdb1	kill_pid	vmlinux	EXPORT_SYMBOL
 0x3c0d7411	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL
 0x2b4463a9	kmem_cache_alloc_notrace	vmlinux	EXPORT_SYMBOL
+0x8d4b119f	kmem_cache_alloc_trace	vmlinux	EXPORT_SYMBOL
 0x60bfda90	kmem_cache_create	vmlinux	EXPORT_SYMBOL
 0xda7ac242	kmem_cache_destroy	vmlinux	EXPORT_SYMBOL
 0x83e8f10f	kmem_cache_free	vmlinux	EXPORT_SYMBOL
