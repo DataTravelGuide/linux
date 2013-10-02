@@ -16,7 +16,7 @@
  * |                              |                    | 0x1155-0x1158  |
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
  * |                              |                    | 0x2016         |
- * | Queue Command and IO tracing |       0x3058       | 0x3006-0x300b  |
+ * | Queue Command and IO tracing |       0x3059       | 0x3006-0x300b  |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
  * |                              |                    | 0x302d,0x3033  |
