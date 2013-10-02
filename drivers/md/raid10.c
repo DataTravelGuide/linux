@@ -1025,7 +1025,7 @@ static int flush_pending_writes(struct r10conf *conf)
 		while (bio) { /* submit pending writes */
 			struct bio *next = bio->bi_next;
 			bio->bi_next = NULL;
-			if (unlikely((bio->bi_rw & REQ_DISCARD) &&
+			if (unlikely((bio->bi_rw & BIO_DISCARD) &&
 			    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 				/* Just ignore it */
 				bio_endio(bio, 0);
@@ -1183,8 +1183,8 @@ static int make_request(struct mddev *mddev, struct bio * bio)
 	int chunk_sects = chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & (1 << BIO_RW_SYNCIO));
-	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
-	const unsigned long do_discard = (bio->bi_rw & REQ_DISCARD);
+	const unsigned long do_fua = (bio->bi_rw & BIO_FUA);
+	const unsigned long do_discard = (bio->bi_rw & BIO_DISCARD);
 	unsigned long flags;
 	struct md_rdev *blocked_rdev;
 	int sectors_handled;
