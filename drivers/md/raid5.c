@@ -669,7 +669,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 				bi->bi_sector = (sh->sector
 						 + rdev->data_offset);
 			if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
-				bi->bi_rw |= REQ_FLUSH;
+				bi->bi_rw |= BIO_FLUSH;
 
 			bi->bi_flags = 1 << BIO_UPTODATE;
 			bi->bi_idx = 0;
@@ -1195,7 +1195,7 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 					set_bit(R5_WantFUA, &dev->flags);
 				if (wbi->bi_rw & REQ_SYNC)
 					set_bit(R5_SyncIO, &dev->flags);
-				if (wbi->bi_rw & REQ_DISCARD)
+				if (wbi->bi_rw & BIO_DISCARD)
 					set_bit(R5_Discard, &dev->flags);
 				else
 					tx = async_copy_data(1, wbi, dev->page,
