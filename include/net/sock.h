@@ -362,6 +362,7 @@ struct sock_extended {
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
 	u16			sk_gso_max_segs;
+	u32			sk_pacing_rate; /* bytes per second */
 };
 
 #define __sk_tx_queue_mapping(sk) \
