@@ -658,7 +658,7 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 #endif
 	/* RHEL: separate RX path for VLAN */
 	if (vlan_tci)
-		vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci & VLAN_VID_MASK, skb);
+		vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
 	else
 		napi_gro_receive(&fp->napi, skb);
 }
