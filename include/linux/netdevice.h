@@ -1258,6 +1258,8 @@ struct net_device_extended {
 	struct net_device			*dev;
 	struct net				*src_net;
 	struct netdev_rfs_info			rfs_data;
+#define GSO_MAX_SEGS		65535
+	u16			gso_max_segs;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \

@@ -2193,6 +2193,9 @@ int netif_skb_features(struct sk_buff *skb)
 	__be16 protocol = skb->protocol;
 	int features = skb->dev->features;
 
+	if (skb_shinfo(skb)->gso_segs > netdev_extended(skb->dev)->gso_max_segs)
+		features &= ~NETIF_F_GSO_MASK;
+
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 		protocol = veh->h_vlan_encapsulated_proto;
@@ -6583,6 +6586,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 
 	dev->gso_max_size = GSO_MAX_SIZE;
+	netdev_extended(dev)->gso_max_segs = GSO_MAX_SEGS;
 
 	netdev_init_queues(dev);
 
