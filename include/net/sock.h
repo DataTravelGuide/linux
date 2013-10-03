@@ -361,6 +361,7 @@ struct sock_extended {
 	u32			icsk_user_timeout;
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
+	u16			sk_gso_max_segs;
 };
 
 #define __sk_tx_queue_mapping(sk) \

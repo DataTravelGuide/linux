@@ -1307,6 +1307,7 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 		} else {
 			sk->sk_route_caps |= NETIF_F_SG | NETIF_F_HW_CSUM;
 			sk->sk_gso_max_size = dst->dev->gso_max_size;
+			sk_extended(sk)->sk_gso_max_segs = netdev_extended(dst->dev)->gso_max_segs;
 		}
 	}
 }
