@@ -840,6 +840,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
 			}
 			filp = do_open(ipc_ns, dentry, oflag);
 		} else {
+			audit_inode_parent_hidden(name, ipc_ns->mq_mnt->mnt_root);
 			filp = do_create(ipc_ns, ipc_ns->mq_mnt->mnt_root,
 						dentry, oflag, mode,
 						u_attr ? &attr : NULL);
@@ -886,6 +887,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
+	audit_inode_parent_hidden(name, ipc_ns->mq_mnt->mnt_root);
 	mutex_lock_nested(&ipc_ns->mq_mnt->mnt_root->d_inode->i_mutex,
 			I_MUTEX_PARENT);
 	dentry = lookup_one_len(name->name, ipc_ns->mq_mnt->mnt_root,
