@@ -560,7 +560,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			else
 				rw = WRITE;
 			if (test_bit(R5_Discard, &sh->dev[i].flags))
-				rw |= REQ_DISCARD;
+				rw |= BIO_DISCARD;
 		} else if (test_and_clear_bit(R5_Wantread, &sh->dev[i].flags))
 			rw = READ;
 		else if (test_and_clear_bit(R5_WantReplace,
@@ -570,7 +570,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 		} else
 			continue;
 		if (test_and_clear_bit(R5_SyncIO, &sh->dev[i].flags))
-			rw |= REQ_SYNC;
+			rw |= BIO_RW_SYNCIO;
 
 		bi = &sh->dev[i].req;
 		rbi = &sh->dev[i].rreq; /* For writing to replacement */
@@ -1193,7 +1193,7 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 				dev->sector + STRIPE_SECTORS) {
 				if (wbi->bi_rw & BIO_FUA)
 					set_bit(R5_WantFUA, &dev->flags);
-				if (wbi->bi_rw & REQ_SYNC)
+				if (wbi->bi_rw & BIO_RW_SYNCIO)
 					set_bit(R5_SyncIO, &dev->flags);
 				if (wbi->bi_rw & BIO_DISCARD)
 					set_bit(R5_Discard, &dev->flags);
