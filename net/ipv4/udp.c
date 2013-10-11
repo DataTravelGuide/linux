@@ -95,6 +95,7 @@
 #include <linux/mm.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <net/tcp_states.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
@@ -1946,23 +1947,37 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb, int features)
 	 * Only VXLAN uses this so far, so we can just hardcode this length.
 	 */
 	int tnl_hlen = sizeof(struct udphdr) + 8; /* 8 == sizeof(struct vxlanhdr) */
-	struct ethhdr *inner_eth = (struct ethhdr *)(skb_transport_header(skb) + tnl_hlen);
+	struct vlan_ethhdr *veth;
 	__be16 protocol = skb->protocol;
 	int enc_features;
-	int outer_hlen;
+	int outer_hlen, inner_mac_len = ETH_HLEN;
 
-	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
+	if (unlikely(!pskb_may_pull(skb, tnl_hlen + ETH_HLEN)))
 		goto out;
+
+	/* RHEL specific
+	 *
+	 * Due to lack of inner header marks in struct sk_buff, the
+	 * only way to regain knowledge of the inner header protocol
+	 * and inner mac header boundry is by packet inspection.
+	 */
+	veth = (struct vlan_ethhdr *) (skb_transport_header(skb) + tnl_hlen);
+	if (veth->h_vlan_proto == htons(ETH_P_8021Q)) {
+		if (unlikely(!pskb_may_pull(skb, tnl_hlen + VLAN_ETH_HLEN)))
+			goto out;
+
+		skb->protocol = veth->h_vlan_encapsulated_proto;
+		inner_mac_len += VLAN_HLEN;
+	} else
+		skb->protocol = veth->h_vlan_proto;
 
 	skb->encapsulation = 0;
 	__skb_pull(skb, tnl_hlen);
+
 	skb_reset_mac_header(skb);
-	/* skb_set_network_header(skb, skb_inner_network_offset(skb)); */
-	skb_set_network_header(skb, ETH_HLEN);
-	/* skb->mac_len = skb_inner_network_offset(skb); */
-	skb->mac_len = ETH_HLEN;
-	inner_eth = (struct ethhdr *)skb_mac_header(skb);
-	skb->protocol = inner_eth->h_proto;
+
+	skb_set_network_header(skb, inner_mac_len);
+	skb->mac_len = inner_mac_len;
 
 	/* segment inner packet. */
 	enc_features = NETIF_F_SG & netif_skb_features(skb);

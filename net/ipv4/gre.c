@@ -21,6 +21,7 @@
 #include <linux/netdevice.h>
 #include <linux/version.h>
 #include <linux/if_tunnel.h>
+#include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <net/protocol.h>
 #include <net/gre.h>
@@ -329,6 +330,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	struct gre_base_hdr *greh;
 	int mac_len = skb->mac_len;
 	__be16 protocol = skb->protocol;
+	int inner_mac_len = 0;
 	int tnl_hlen;
 	bool csum;
 
@@ -356,30 +358,43 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	} else
 		csum = false;
 
-	/* setup inner skb. */
+	/* RHEL specific
+	 *
+	 * Due to lack of inner header marks in struct sk_buff, the
+	 * only way to regain knowledge of the inner header protocol
+	 * and inner mac header boundry is by packet inspection.
+	 */
 	if (greh->protocol == htons(ETH_P_TEB)) {
-		struct ethhdr *eth = (struct ethhdr *)(skb->data + ghl);
-		skb->protocol = eth->h_proto;
+		struct vlan_ethhdr *veth;
+
+		if (unlikely(!pskb_may_pull(skb, ghl + ETH_HLEN)))
+			goto out;
+
+		veth = (struct vlan_ethhdr *) (skb->data + ghl);
+		inner_mac_len = ETH_HLEN;
+
+		if (veth->h_vlan_proto == htons(ETH_P_8021Q)) {
+			if (unlikely(!pskb_may_pull(skb, ghl + VLAN_ETH_HLEN)))
+				goto out;
+
+			skb->protocol = veth->h_vlan_encapsulated_proto;
+			inner_mac_len += VLAN_HLEN;
+		} else
+			skb->protocol = veth->h_vlan_proto;
 	} else {
 		skb->protocol = greh->protocol;
+
+		if (unlikely(!pskb_may_pull(skb, ghl)))
+			goto out;
 	}
 
 	skb->encapsulation = 0;
 
-	if (unlikely(!pskb_may_pull(skb, ghl)))
-		goto out;
 	__skb_pull(skb, ghl);
 	skb_reset_mac_header(skb);
-	/* skb_set_network_header(skb, skb_inner_network_offset(skb));
-	 * skb->mac_len = skb_inner_network_offset(skb);
-	 */
-	if (greh->protocol == htons(ETH_P_TEB)) {
-		skb_set_network_header(skb, ETH_HLEN);
-		skb->mac_len = ETH_HLEN;
-	} else {
-		skb_set_network_header(skb, 0);
-		skb->mac_len = 0;
-	}
+
+	skb_set_network_header(skb, inner_mac_len);
+	skb->mac_len = inner_mac_len;
 
 	/* segment inner packet. */
 	/* enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
