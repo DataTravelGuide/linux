@@ -81,6 +81,9 @@ struct scsi_disk {
 	unsigned	lbpws : 1;
 	unsigned	lbpws10 : 1;
 	unsigned	lbpvpd : 1;
+#ifndef __GENKSYMS__
+	unsigned	cache_override : 1; /* temp override of WCE,RCD */
+#endif
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 
