@@ -1143,7 +1143,7 @@ static int queue_request_irq(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 				IRQF_DISABLED | IRQF_SHARED, name, nvmeq);
 }
 
-static __devinit void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
+static void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 {
 	struct nvme_dev *dev = nvmeq->dev;
 	unsigned extra = nvme_queue_extra(nvmeq->q_depth);
@@ -1158,7 +1158,7 @@ static __devinit void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 	nvmeq->q_suspended = 0;
 }
 
-static __devinit int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
+static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 {
 	struct nvme_dev *dev = nvmeq->dev;
 	int result;
@@ -1253,7 +1253,7 @@ static int nvme_shutdown_ctrl(struct nvme_dev *dev)
 	return 0;
 }
 
-static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
+static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
 	u32 aqa;
@@ -1746,7 +1746,7 @@ static size_t db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
 	return 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
 }
 
-static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
+static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	struct pci_dev *pdev = dev->pci_dev;
 	int result, cpu, i, vecs, nr_io_queues, size, q_depth;
