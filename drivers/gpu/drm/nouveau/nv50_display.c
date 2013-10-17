@@ -39,6 +39,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <engine/disp.h>
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
@@ -1268,13 +1269,21 @@ nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 static void
 nv50_crtc_destroy(struct drm_crtc *crtc)
 {
+	struct nouveau_event *event = nouveau_disp(nouveau_dev(crtc->dev))->vblank;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
+	unsigned long flags;
+
 	nv50_dmac_destroy(disp->core, &head->ovly.base);
 	nv50_pioc_destroy(disp->core, &head->oimm.base);
 	nv50_dmac_destroy(disp->core, &head->sync.base);
 	nv50_pioc_destroy(disp->core, &head->curs.base);
+
+	spin_lock_irqsave(&event->lock, flags);
+	list_del(&nv_crtc->vblank.head);
+	spin_unlock_irqrestore(&event->lock, flags);
+
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	if (nv_crtc->cursor.nvbo)
 		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
@@ -1320,10 +1329,12 @@ nv50_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 static int
 nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 {
+	struct nouveau_event *event = nouveau_disp(nouveau_dev(dev))->vblank;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct drm_crtc *crtc;
 	int ret, i;
+	unsigned long flags;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
@@ -1347,6 +1358,12 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 	drm_crtc_init(dev, crtc, &nv50_crtc_func);
 	drm_crtc_helper_add(crtc, &nv50_crtc_hfunc);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
+
+	spin_lock_irqsave(&event->lock, flags);
+	event->toggle_lock = &dev->vblank_time_lock;
+	head->base.vblank.func = nouveau_drm_vblank_handler;
+	list_add(&head->base.vblank.head, &event->index[index].list);
+	spin_unlock_irqrestore(&event->lock, flags);
 
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, &head->base.lut.nvbo);

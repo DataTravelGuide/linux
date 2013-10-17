@@ -46,6 +46,7 @@
 #include "nouveau_pm.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
+#include "nouveau_crtc.h"
 #include "nouveau_ioctl.h"
 #include "nouveau_abi16.h"
 #include "nouveau_fbcon.h"
@@ -71,12 +72,13 @@ module_param_named(modeset, nouveau_modeset, int, 0400);
 
 static struct drm_driver driver;
 
-static int
+int
 nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
 {
-	struct nouveau_drm *drm =
-		container_of(event, struct nouveau_drm, vblank[head]);
-	drm_handle_vblank(drm->dev, head);
+	struct nouveau_crtc *nv_crtc =
+		container_of(event, struct nouveau_crtc, vblank);
+
+	drm_handle_vblank(nv_crtc->base.dev, head);
 	return NVKM_EVENT_KEEP;
 }
 
@@ -86,11 +88,9 @@ nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 
-	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
+	if (head >= pdisp->vblank->index_nr)
 		return -EIO;
-	WARN_ON_ONCE(drm->vblank[head].func);
-	drm->vblank[head].func = nouveau_drm_vblank_handler;
-	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
+	nouveau_event_enable_locked(pdisp->vblank, head);
 	return 0;
 }
 
@@ -99,11 +99,9 @@ nouveau_drm_vblank_disable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	if (drm->vblank[head].func)
-		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
-	else
-		WARN_ON_ONCE(1);
-	drm->vblank[head].func = NULL;
+
+	if (head < pdisp->vblank->index_nr)
+		nouveau_event_disable_locked(pdisp->vblank, head, 1);
 }
 
 static u64
