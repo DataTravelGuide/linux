@@ -5,6 +5,7 @@ KSB_SPEC := kernel.spec.ksb
 BACKUP_SPEC := .kernel.spec
 internal_release := $(shell rpm -q --qf "%{RELEASE}\n" --specfile $(DETAILED_SPEC) | head -1)
 FULL_TARBALL := linux-$(VERSION)-$(internal_release).tar.bz2
+KABI_WHITELISTS_TARBALL := kernel-abi-whitelists.tar.bz2
 
 all:
 
@@ -29,7 +30,6 @@ update-spec:
 		sed -e "s,linux-2.6.32.tar.bz2,$(FULL_TARBALL),">$(MAIN_SPEC);
 	@make update-ksb-spec
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
-	@md5sum kernel-abi-whitelists.tar.bz2 >>sources;
 	@git add kernel.spec*
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
@@ -65,5 +65,5 @@ ksb-srpm: $(KSB_SPEC)
 	@echo "*** DO NOT distribute this SRPM ***";
 
 tarball-upload:
-	@rhpkg upload $(FULL_TARBALL)
+	@rhpkg upload $(KABI_WHITELISTS_TARBALL) $(FULL_TARBALL)
 
