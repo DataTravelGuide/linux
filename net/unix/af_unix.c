@@ -1404,7 +1404,21 @@ static void maybe_add_creds(struct sk_buff *skb, const struct socket *sock,
 {
 	if (UNIXCB(skb).cred)
 		return;
-	if (test_bit(SOCK_PASSCRED, &sock->flags) ||
+
+	/* RHEL specific
+	 *
+	 * Always fill out pid/cred at the cost of performance
+	 * but in order to not break ABI for RHEL applications
+	 * that expect a correct pid/cred setting with SOCK_PASSCRED.
+	 * The problem is that between accept() and setsockopt()
+	 * on unix stream server side, we could get a race if the
+	 * server gets interrupted and the sender continues in
+	 * between w/ sendmsg(), which makes it look like a normal
+	 * connection with no creds requested. This does not apply
+	 * to dgram sockets.
+	 */
+	if (sock->type == SOCK_STREAM ||
+	    test_bit(SOCK_PASSCRED, &sock->flags) ||
 	    !other->sk_socket ||
 	    test_bit(SOCK_PASSCRED, &other->sk_socket->flags)) {
 		UNIXCB(skb).pid  = get_pid(task_tgid(current));
