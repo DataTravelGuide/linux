@@ -1701,6 +1701,36 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 21 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-425.el6]
+- [md] dm-snapshot: fix data corruption (Mikulas Patocka) [974481] {CVE-2013-4299}
+- [watchdog] iTCO_wdt: add platform driver module alias (Neil Horman) [1019497]
+- [hda] alsa: disable 44.1kHz rate for Haswell HDMI/DP audio (Jaroslav Kysela) [831970]
+- [x86] Update UV3 hub revision ID (George Beshers) [1018962]
+- [fs] xfs: Don't reference the EFI after it is freed (Eric Sandeen) [1018469]
+- [security] keys: Fix a race between negating a key and reading the error set (Dave Wysochanski) [890231]
+- [fs] nfsv4: Ensure memory ordering between nfs4_ds_connect and nfs4_fl_prepare_ds (Jeff Layton) [1012439]
+- [fs] nfsv4: nfs4_fl_prepare_ds - fix bugs when the connect attempt fails (Jeff Layton) [1012439]
+- [md] Disable TRIM on RAID5 for RHEL 6.5 (Jes Sorensen) [837097]
+- [md] raid5: BIO_RW_SYNCIO is a bit number, not a bitmask (Jes Sorensen) [837097]
+- [virt] hyperv: framebuffer pci stub (Gerd Hoffmann) [1013335]
+- [netdrv] bnx2x: add missing enum channel_tlvs definitions (Michal Schmidt) [1015137]
+- [netdrv] bnx2x: KR2 disablement fix (Michal Schmidt) [1015137]
+- [netdrv] bnx2x: Specific Active-DAC is not detected on 57810 (Michal Schmidt) [1015137]
+- [netdrv] bnx2x: Generalize KR work-around (Michal Schmidt) [1015137]
+- [usb] usbnet: use ethd name for known ethernet devices (Don Zickus) [1014224]
+- [usb] cdc_ether: use ethd name for known ethernet devices (Don Zickus) [1014224]
+- [mm] Revert "Find_early_table_space based on ranges that are actually being mapped" (Rafael Aquini)
+- [mm] Revert "Exclude E820_RESERVED regions and memory holes above 4 GB from direct mapping" (Rafael Aquini)
+- [mm] Revert "Group e820 entries together and add map_individual_e820 boot option" (Rafael Aquini)
+- [net] bridge: update mdb expiration timer upon reports (Vlad Yasevich) [1013816]
+- [net] veth: Remove NETIF_F_HW_VLAN_RX capability (Thomas Graf) [1018158]
+- [net] gre/vxlan: handle 802.1Q inner header properly (Thomas Graf) [997632]
+- [net] disable the new NAPI weight error message for RHEL 6.5 (Michal Schmidt) [1012090]
+- [scsi] sd: Fix parsing of 'temporary ' cache mode prefix (Ewan Milne) [955441]
+- [scsi] sd: fix array cache flushing bug causing performance problems (Ewan Milne) [955441]
+- [scsi] bfa: firmware update to 3.2.1.1 (Rob Evers) [1002770]
+- [netdrv] bna: firmware update to 3.2.1.1 (Ivan Vecera) [1002771]
+
 * Mon Oct 14 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-424.el6]
 - [block] loop: fix crash when using unassigned loop device (Mike Snitzer) [989795]
 - [fs] xfs: prevent deadlock trying to cover an active log (Dave Chinner) [1014867]
