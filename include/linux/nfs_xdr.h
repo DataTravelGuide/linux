@@ -325,6 +325,7 @@ struct nfs_openargs {
 	const u32 *		bitmask;
 	__u32			claim;
 	struct nfs4_sequence_args	seq_args;
+	enum createmode4	createmode;
 };
 
 struct nfs_openres {

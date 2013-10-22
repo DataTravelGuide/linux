@@ -1493,6 +1493,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state_owner *sp = data->owner;
+	struct nfs_client *clp = sp->so_server->nfs_client;
 
 	if (nfs_wait_on_sequence(data->o_arg.seqid, task) != 0)
 		goto out_wait;
@@ -1514,7 +1515,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	}
 	/* Update sequence id. */
 	data->o_arg.id = sp->so_owner_id.id;
-	data->o_arg.clientid = sp->so_server->nfs_client->cl_clientid;
+	data->o_arg.clientid = clp->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
@@ -1527,6 +1528,16 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		nfs_release_seqid(data->o_arg.seqid);
 	else
 		rpc_call_start(task);
+
+	/* Set the create mode (note dependency on the session type) */
+	data->o_arg.createmode = NFS4_CREATE_UNCHECKED;
+	if (data->o_arg.open_flags & O_EXCL) {
+		data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE;
+		if (nfs4_has_persistent_session(clp))
+			data->o_arg.createmode = NFS4_CREATE_GUARDED;
+		else if (clp->cl_mvops->minor_version > 0)
+			data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE4_1;
+	}
 	return;
 unlock_no_action:
 	rcu_read_unlock();
@@ -1889,7 +1900,8 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, fmode_t fmode
 	if (status != 0)
 		goto err_opendata_put;
 
-	if (opendata->o_arg.open_flags & O_EXCL) {
+	if ((opendata->o_arg.open_flags & O_EXCL) &&
+	    (opendata->o_arg.createmode != NFS4_CREATE_GUARDED)) {
 		nfs4_exclusive_attrset(opendata, sattr);
 
 		nfs_fattr_init(opendata->o_res.f_attr);
