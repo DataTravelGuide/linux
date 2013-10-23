@@ -799,6 +799,11 @@ static int follow_automount(struct path *path, unsigned flags,
 
 }
 
+static int managed_d_mountpoint(struct dentry *dentry)
+{
+	return d_mountpoint(dentry) ? DCACHE_MOUNTED : 0;
+}
+
 /*
  * Handle a dentry that is managed in some way.
  * - Flagged for transit management (autofs)
@@ -815,7 +820,8 @@ static int follow_managed(struct path *path, unsigned flags)
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
 	 * the components of that value change under us */
-	while (managed = ACCESS_ONCE(path->dentry->d_flags)|d_mountpoint(path->dentry),
+	while (managed = ACCESS_ONCE(path->dentry->d_flags)|
+		managed_d_mountpoint(path->dentry),
 	       managed &= DCACHE_MANAGED_DENTRY,
 	       unlikely(managed != 0)) {
 		/* Allow the filesystem to manage the transit without i_mutex
@@ -913,7 +919,8 @@ int __follow_down(struct path *path, bool mounting_here)
 	unsigned managed;
 	int ret;
 
-	while (managed = ACCESS_ONCE(path->dentry->d_flags)|d_mountpoint(path->dentry),
+	while (managed = ACCESS_ONCE(path->dentry->d_flags)|
+		managed_d_mountpoint(path->dentry),
 	       unlikely(managed & DCACHE_MANAGED_DENTRY)) {
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held.

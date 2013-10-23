@@ -392,7 +392,7 @@ static inline bool d_managed(struct dentry *dentry)
 
 static inline int d_mountpoint(struct dentry *dentry)
 {
-	return dentry->d_mounted ? DCACHE_MOUNTED : 0;
+	return dentry->d_mounted;
 }
 
 extern struct vfsmount *lookup_mnt(struct path *);
