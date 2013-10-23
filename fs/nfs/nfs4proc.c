@@ -393,20 +393,13 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *free_slot)
 		free_slotid, tbl->highest_used_slotid);
 }
 
-bool nfs4_set_task_privileged(struct rpc_task *task, void *dummy)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	return true;
-}
-
 /*
  * Signal state manager thread if session fore channel is drained
  */
 static void nfs4_check_drain_fc_complete(struct nfs4_slot_table *tbl)
 {
 	if (!test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
-		rpc_wake_up_first(&tbl->slot_tbl_waitq,
-				nfs4_set_task_privileged, NULL);
+		rpc_wake_up_next(&tbl->slot_tbl_waitq);
 		return;
 	}
 
@@ -586,12 +579,6 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 		 * Schedule the reset thread
 		 */
 		dprintk("%s Schedule Session Reset\n", __func__);
-		goto out_sleep;
-	}
-
-	if (!rpc_queue_empty(&tbl->slot_tbl_waitq) &&
-	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
-		dprintk("%s enforce FIFO order\n", __func__);
 		goto out_sleep;
 	}
 
