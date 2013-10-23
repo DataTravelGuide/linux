@@ -8484,6 +8484,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 
 	case CPU_POST_DEAD:
+	case CPU_POST_DEAD_FROZEN:
 		/*
 		 * Bring the migration thread down in CPU_POST_DEAD event,
 		 * since the timers should have got migrated by now and thus
