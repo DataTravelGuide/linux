@@ -1134,11 +1134,9 @@ void ext4_da_update_reserve_space(struct inode *inode,
 	}
 
 	if (unlikely(ei->i_allocated_meta_blocks > ei->i_reserved_meta_blocks)) {
-		ext4_msg(inode->i_sb, KERN_NOTICE, "%s: ino %lu, allocated %d "
-			 "with only %d reserved metadata blocks\n", __func__,
-			 inode->i_ino, ei->i_allocated_meta_blocks,
-			 ei->i_reserved_meta_blocks);
-		WARN_ON(1);
+		trace_ext4_update_reserve_space(inode,
+						ei->i_allocated_meta_blocks,
+						ei->i_reserved_meta_blocks);
 		ei->i_allocated_meta_blocks = ei->i_reserved_meta_blocks;
 	}
 
