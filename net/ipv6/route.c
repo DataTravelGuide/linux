@@ -703,7 +703,7 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *d
 }
 
 static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table, int oif,
-				      struct flowi *fl, int flags)
+				      struct flowi *fl, int flags, bool input)
 {
 	struct fib6_node *fn;
 	struct rt6_info *rt, *nrt;
@@ -711,8 +711,11 @@ static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	int attempts = 3;
 	int err;
 	int reachable = net->ipv6.devconf_all->forwarding ? 0 : RT6_LOOKUP_F_REACHABLE;
+	int local = RTF_NONEXTHOP;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
+	if (input)
+		local |= RTF_LOCAL;
 
 relookup:
 	read_lock_bh(&table->tb6_lock);
@@ -732,7 +735,7 @@ restart:
 	read_unlock_bh(&table->tb6_lock);
 
 	if (!rt->rt6i_nexthop &&
-	    !(rt->rt6i_flags & (RTF_NONEXTHOP | RTF_LOCAL)))
+	    !(rt->rt6i_flags & local))
 		nrt = rt6_alloc_cow(rt, &fl->fl6_dst, &fl->fl6_src);
 	else {
 #if CLONE_OFFLINK_ROUTE
@@ -779,7 +782,7 @@ out2:
 static struct rt6_info *ip6_pol_route_input(struct net *net, struct fib6_table *table,
 					    struct flowi *fl, int flags)
 {
-	return ip6_pol_route(net, table, fl->iif, fl, flags);
+	return ip6_pol_route(net, table, fl->iif, fl, flags, true);
 }
 
 void ip6_route_input(struct sk_buff *skb)
@@ -809,7 +812,7 @@ void ip6_route_input(struct sk_buff *skb)
 static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table *table,
 					     struct flowi *fl, int flags)
 {
-	return ip6_pol_route(net, table, fl->oif, fl, flags);
+	return ip6_pol_route(net, table, fl->oif, fl, flags, false);
 }
 
 struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
