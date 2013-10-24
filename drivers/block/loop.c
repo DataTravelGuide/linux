@@ -790,6 +790,8 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 
 	bio_list_init(&lo->lo_bio_list);
 
+	lo->lo_queue->unplug_fn = loop_unplug;
+
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
 		blk_queue_flush(lo->lo_queue, REQ_FLUSH);
 
@@ -815,6 +817,7 @@ out_clr:
 	lo->lo_device = NULL;
 	lo->lo_backing_file = NULL;
 	lo->lo_flags = 0;
+	lo->lo_queue->unplug_fn = NULL;
 	set_capacity(lo->lo_disk, 0);
 	invalidate_bdev(bdev);
 	bd_set_size(bdev, 0);
@@ -1477,7 +1480,6 @@ static struct loop_device *loop_alloc(int i)
 	 */
 	blk_queue_make_request(lo->lo_queue, loop_make_request);
 	lo->lo_queue->queuedata = lo;
-	lo->lo_queue->unplug_fn = loop_unplug;
 
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);
 	if (!disk)
