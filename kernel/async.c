@@ -60,7 +60,7 @@ asynchronous and synchronous parts of the kernel.
 
 static async_cookie_t next_cookie = 1;
 
-#define MAX_THREADS	(num_online_cpus() > 5 ? num_online_cpus()-1 : 5)
+#define MAX_THREADS	256
 #define MAX_WORK	32768
 
 static LIST_HEAD(async_pending);
