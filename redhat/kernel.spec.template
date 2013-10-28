@@ -1701,6 +1701,29 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 28 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-426.el6]
+- [block] loop: unplug_fn only when backing file is attached (Lukas Czerner) [1022997]
+- [fs] ext4: Remove warning from ext4_da_update_reserve_space() (Lukas Czerner) [1011876]
+- [kernel] async: Revert MAX_THREADS to 256 (Neil Horman) [1021705]
+- [net] ipv6: restrict neighbor entry creation to output flow (Jiri Pirko) [997103]
+- [net] ipv6: udp packets following an UFO enqueued packet need also be handled by UFO (Jiri Pirko) [1011930] {CVE-2013-4387}
+- [net] ipv4: blackhole route should always be recalculated (Herbert Xu) [1010347]
+- [net] unix: revert/fix race in stream sockets with SOCK_PASS* flags (Daniel Borkmann) [1019343]
+- [net] Loosen constraints for recalculating checksum in skb_segment() (Vlad Yasevich) [1020298]
+- [drm] nouveau: fix vblank deadlock (Rob Clark) [1013388]
+- [usb] xhci: refactor EHCI/xHCI port switching (Don Zickus) [970715]
+- [fs] compat_ioctl: VIDEO_SET_SPU_PALETTE missing error check (Phillip Lougher) [949573] {CVE-2013-1928}
+- [fs] vfs: fix d_mountpoint() (Ian Kent) [1011337]
+- [fs] autofs4: fix device ioctl mount lookup (Ian Kent) [999708]
+- [fs] vfs: introduce kern_path_mountpoint() (Ian Kent) [999708]
+- [fs] vfs: rename user_path_umountat() to user_path_mountpoint_at() (Ian Kent) [999708]
+- [fs] vfs: massage umount_lookup_last() a bit to reduce nesting (Ian Kent) [999708]
+- [fs] vfs: allow umount to handle mountpoints without revalidating them (Ian Kent) [999708]
+- [fs] nfs: Remove the 'FIFO' behaviour for nfs41_setup_sequence (Steve Dickson) [1022257]
+- [fs] nfs: Record the OPEN create mode used in the nfs4_opendata structure (Steve Dickson) [1019439]
+- [fs] nfs: Simulate the change attribute (Steve Dickson) [1018653]
+- [scsi] megaraid_sas: Fix synchronization problem between sysPD IO path and AEN path (Tomas Henzl) [1019811]
+
 * Mon Oct 21 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-425.el6]
 - [md] dm-snapshot: fix data corruption (Mikulas Patocka) [974481] {CVE-2013-4299}
 - [watchdog] iTCO_wdt: add platform driver module alias (Neil Horman) [1019497]
