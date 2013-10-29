@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 28 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-427.el6]
+- [tools] perf: Add ref-cycles into array of tested events (Jiri Olsa) [968806]
+- [pci] Revert "make SRIOV resources optional" (Myron Stowe) [1022270]
+- [pci] Revert "ability to relocate assigned pci-resources" (Myron Stowe) [1022270]
+- [pci] Revert "honor child buses add_size in hot plug configuration" (Myron Stowe) [1022270]
+- [pci] Revert "make cardbus-bridge resources optional" (Myron Stowe) [1022270]
+- [pci] Revert "code and comments cleanup" (Myron Stowe) [1022270]
+- [pci] Revert "make re-allocation try harder by reassigning ranges higher in the heirarchy" (Myron Stowe) [1022270]
+- [pci] Revert "Calculate right add_size" (Myron Stowe) [1022270]
+
 * Mon Oct 28 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-426.el6]
 - [block] loop: unplug_fn only when backing file is attached (Lukas Czerner) [1022997]
 - [fs] ext4: Remove warning from ext4_da_update_reserve_space() (Lukas Czerner) [1011876]
