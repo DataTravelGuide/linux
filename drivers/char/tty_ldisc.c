@@ -36,6 +36,7 @@
 
 #include <linux/kmod.h>
 #include <linux/nsproxy.h>
+#include <linux/ratelimit.h>
 
 /*
  *	This guards the refcounted line discipline lists. The lock
@@ -795,12 +796,29 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	mutex_lock(&tty->ldisc_mutex);
 	tty_ldisc_halt(tty);
+	mutex_unlock(&tty->ldisc_mutex);
+
+retry:
+	mutex_lock(&tty->ldisc_mutex);
 	/* At this point we have a closed ldisc and we want to
 	   reopen it. We could defer this to the next open but
 	   it means auditing a lot of other paths so this is
 	   a FIXME */
 	if (tty->ldisc) {	/* Not yet closed */
-		WARN_ON_ONCE(tty_ldisc_wait_idle(tty, 5 * HZ));
+		if (atomic_read(&tty->ldisc->users) != 1) {
+			char cur_n[TASK_COMM_LEN], tty_n[64];
+			long timeout = 3 * HZ;
+
+			while (tty_ldisc_wait_idle(tty, timeout) == -EBUSY) {
+				timeout = MAX_SCHEDULE_TIMEOUT;
+				printk_ratelimited(KERN_WARNING
+					"%s: waiting (%s) for %s took too long, but we keep waiting...\n",
+					__func__, get_task_comm(cur_n, current),
+					tty_name(tty, tty_n));
+			}
+			mutex_unlock(&tty->ldisc_mutex);
+			goto retry;
+		}
 
 		if (reset == 0) {
 
