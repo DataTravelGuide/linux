@@ -132,8 +132,6 @@ void final_putname(struct filename *name)
 static int do_getname(const char __user *filename, char *page,
 			unsigned long len)
 {
-	int retval;
-
 	if (!segment_eq(get_fs(), KERNEL_DS)) {
 		if ((unsigned long) filename >= TASK_SIZE)
 			return -EFAULT;
@@ -141,14 +139,7 @@ static int do_getname(const char __user *filename, char *page,
 			len = TASK_SIZE - (unsigned long) filename;
 	}
 
-	retval = strncpy_from_user(page, filename, len);
-	if (retval > 0) {
-		if (retval < len)
-			return 0;
-		return -ENAMETOOLONG;
-	} else if (!retval)
-		retval = -ENOENT;
-	return retval;
+	return strncpy_from_user(page, filename, len);
 }
 
 #define EMBEDDED_NAME_MAX      (PATH_MAX - sizeof(struct filename))
@@ -201,6 +192,14 @@ recopy:
 		max = PATH_MAX;
 		goto recopy;
 	}
+
+	err = ERR_PTR(-ENOENT);
+	if (unlikely(!len))
+		goto error;
+
+	err = ERR_PTR(-ENAMETOOLONG);
+	if (unlikely(len >= PATH_MAX))
+		goto error;
 
 	result->uptr = filename;
 	audit_getname(result);
