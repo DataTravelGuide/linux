@@ -1701,6 +1701,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 30 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-428.el6]
+- [fs] Revert "vfs: allow umount to handle mountpoints without revalidating them" (Rafael Aquini) [1024607]
+- [fs] Revert "vfs: massage umount_lookup_last() a bit to reduce nesting" (Rafael Aquini) [1024607]
+- [fs] Revert "vfs: rename user_path_umountat() to user_path_mountpoint_at()" (Rafael Aquini) [1024607]
+- [fs] Revert "vfs: introduce kern_path_mountpoint()" (Rafael Aquini) [1024607]
+- [fs] Revert "autofs4: fix device ioctl mount lookup" (Rafael Aquini) [1024607]
+
 * Mon Oct 28 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-427.el6]
 - [tools] perf: Add ref-cycles into array of tested events (Jiri Olsa) [968806]
 - [pci] Revert "make SRIOV resources optional" (Myron Stowe) [1022270]
