@@ -3437,16 +3437,20 @@ static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message 
 	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 }
 
-static void nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
-				&data->args.seq_args,
-				&data->res.seq_res,
-				task))
-		return;
+			&data->args.seq_args,
+			&data->res.seq_res,
+			task))
+		return 0;
 	rpc_call_start(task);
-	nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-			data->args.lock_context, FMODE_READ);
+	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
+				data->args.lock_context, FMODE_READ) == -EIO)
+		return -EIO;
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
+		return -EIO;
+	return 0;
 }
 
 /* Reset the the nfs_read_data to send the read to the MDS. */
@@ -3556,16 +3560,20 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
 }
 
-static void nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
 {
 	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
-				&data->args.seq_args,
-				&data->res.seq_res,
-				task))
-		return;
+			&data->args.seq_args,
+			&data->res.seq_res,
+			task))
+		return 0;
 	rpc_call_start(task);
-	nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
-			data->args.lock_context, FMODE_WRITE);
+	if (nfs4_set_rw_stateid(&data->args.stateid, data->args.context,
+				data->args.lock_context, FMODE_WRITE) == -EIO)
+		return -EIO;
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &data->args.context->flags)))
+		return -EIO;
+	return 0;
 }
 
 static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
@@ -4849,6 +4857,12 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 	return err;
 }
 
+bool recover_locks = true;
+module_param(recover_locks, bool, 0644);
+MODULE_PARM_DESC(recover_locks,
+		 "If the server reports that a lock might be lost, "
+		 "try to recovery it risking corruption.");
+
 static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
@@ -4858,6 +4872,10 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 	err = nfs4_set_lock_state(state, request);
 	if (err != 0)
 		return err;
+	if (!recover_locks) {
+		set_bit(NFS_LOCK_LOST, &request->fl_u.nfs4_fl.owner->ls_flags);
+		return 0;
+	}
 	do {
 		if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0)
 			return 0;
