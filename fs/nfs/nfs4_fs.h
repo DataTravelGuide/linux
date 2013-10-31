@@ -402,6 +402,9 @@ extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_sta
 
 extern const nfs4_stateid zero_stateid;
 
+/* nfs4super.c */
+extern bool recover_lost_locks;
+
 /* nfs4xdr.c */
 extern __be32 *nfs4_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 extern struct rpc_procinfo nfs4_procedures[];
