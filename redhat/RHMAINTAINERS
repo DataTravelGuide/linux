@@ -382,6 +382,20 @@ M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
 F:	drivers/pci/hotplug/
 
+PERFORMANCE EVENTS SUBSYSTEM
+M:	Jiri Olsa <jolsa@redhat.com>
+M:	Don Zickus <dzickus@redhat.com>
+S:	Maintained
+F:	kernel/events/*
+F:	include/linux/perf_event.h
+F:	arch/*/kernel/perf_event*.c
+F:	arch/*/kernel/*/perf_event*.c
+F:	arch/*/kernel/*/*/perf_event*.c
+F:	arch/*/include/asm/perf_event.h
+F:	arch/*/kernel/perf_callchain.c
+F:	tools/perf/
+F:	tools/lib/
+
 PTP HARDWARE CLOCK SUPPORT
 M:	Jiri Benc <jbenc@redhat.com>
 M:	Prarit Bhargava <prarit@redhat.com>
