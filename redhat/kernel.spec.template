@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sat Nov 02 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-429.el6]
+- [fs] revert xfs: prevent deadlock trying to cover an active log (Eric Sandeen) [1014867]
+
 * Wed Oct 30 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-428.el6]
 - [fs] Revert "vfs: allow umount to handle mountpoints without revalidating them" (Rafael Aquini) [1024607]
 - [fs] Revert "vfs: massage umount_lookup_last() a bit to reduce nesting" (Rafael Aquini) [1024607]
