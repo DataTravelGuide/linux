@@ -932,10 +932,7 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 		 * that by attempting to use more space than is available.
 		 */
 		unsigned long dummy_size = remaining_size + 1024;
-		void *dummy = kzalloc(dummy_size, GFP_ATOMIC);
-
-		if (!dummy)
-			return EFI_OUT_OF_RESOURCES;
+		void *dummy = kmalloc(dummy_size, GFP_ATOMIC);
 
 		status = efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
 					  EFI_VARIABLE_NON_VOLATILE |
@@ -954,8 +951,6 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 					 EFI_VARIABLE_RUNTIME_ACCESS,
 					 0, dummy);
 		}
-
-		kfree(dummy);
 
 		/*
 		 * The runtime code may now have triggered a garbage collection
