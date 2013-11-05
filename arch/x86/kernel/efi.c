@@ -50,13 +50,6 @@
 int efi_enabled;
 EXPORT_SYMBOL(efi_enabled);
 
-/*
- * There's some additional metadata associated with each
- * variable. Intel's reference implementation is 60 bytes - bump that
- * to account for potential alignment constraints
- */
-#define VAR_METADATA_SIZE 64
-
 struct efi efi;
 EXPORT_SYMBOL(efi);
 
@@ -901,21 +894,10 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 	if (!max_size && remaining_size > size)
 		printk_once(KERN_ERR FW_BUG "Broken EFI implementation"
 			    " is returning MaxVariableSize=0\n");
-	/*
-	 * Some firmware implementations refuse to boot if there's insufficient
-	 * space in the variable store. We account for that by refusing the
-	 * write if permitting it would reduce the available space to under
-	 * 50%. However, some firmware won't reclaim variable space until
-	 * after the used (not merely the actively used) space drops below
-	 * a threshold. We can approximate that case with the value calculated
-	 * above. If both the firmware and our calculations indicate that the
-	 * available space would drop below 50%, refuse the write.
-	 */
 
 	if (!storage_size || size > remaining_size ||
 	    (max_size && size > max_size) ||
-	    ((active_size + size + VAR_METADATA_SIZE > storage_size / 2) &&
-	     (remaining_size - size < storage_size / 2)))
+	    (remaining_size - size) < (storage_size / 2))
 		return EFI_OUT_OF_RESOURCES;
 
 	return EFI_SUCCESS;
