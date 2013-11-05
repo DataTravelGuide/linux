@@ -50,12 +50,12 @@
 int efi_enabled;
 EXPORT_SYMBOL(efi_enabled);
 
-#define EFI_MIN_RESERVE 5120
-
-#define EFI_DUMMY_GUID \
-	EFI_GUID(0x4424ac57, 0xbe4b, 0x47dd, 0x9e, 0x97, 0xed, 0x50, 0xf0, 0x9f, 0x92, 0xa9)
-
-static efi_char16_t efi_dummy_name[6] = { 'D', 'U', 'M', 'M', 'Y', 0 };
+/*
+ * There's some additional metadata associated with each
+ * variable. Intel's reference implementation is 60 bytes - bump that
+ * to account for potential alignment constraints
+ */
+#define VAR_METADATA_SIZE 64
 
 struct efi efi;
 EXPORT_SYMBOL(efi);
@@ -833,13 +833,6 @@ void __init efi_enter_virtual_mode(void)
 		runtime_code_page_mkexec();
 	early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
 	memmap.map = NULL;
-
-	/* clean DUMMY object */
-	efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
-			 EFI_VARIABLE_NON_VOLATILE |
-			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
-			 EFI_VARIABLE_RUNTIME_ACCESS,
-			 0, NULL);
 }
 
 void __init efi_setup_physical_mode(void)
@@ -909,65 +902,33 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 	efi_status_t status;
 	u64 storage_size, remaining_size, max_size;
 
-	if (!(attributes & EFI_VARIABLE_NON_VOLATILE))
-		return 0;
-
 	status = efi.query_variable_info(attributes, &storage_size,
 					 &remaining_size, &max_size);
 	if (status != EFI_SUCCESS)
 		return status;
 
+	if (!max_size && remaining_size > size)
+		printk_once(KERN_ERR FW_BUG "Broken EFI implementation"
+			    " is returning MaxVariableSize=0\n");
 	/*
 	 * Some firmware implementations refuse to boot if there's insufficient
 	 * space in the variable store. We account for that by refusing the
 	 * write if permitting it would reduce the available space to under
-	 * 5KB. This figure was provided by Samsung, so should be safe.
+	 * 50%. However, some firmware won't reclaim variable space until
+	 * after the used (not merely the actively used) space drops below
+	 * a threshold. We can approximate that case with the value calculated
+	 * above. If both the firmware and our calculations indicate that the
+	 * available space would drop below 50%, refuse the write.
 	 */
-	if ((remaining_size - size < EFI_MIN_RESERVE) &&
-		!efi_no_storage_paranoia) {
 
-		/*
-		 * Triggering garbage collection may require that the firmware
-		 * generate a real EFI_OUT_OF_RESOURCES error. We can force
-		 * that by attempting to use more space than is available.
-		 */
-		unsigned long dummy_size = remaining_size + 1024;
-		void *dummy = kmalloc(dummy_size, GFP_ATOMIC);
+	if (!storage_size || size > remaining_size ||
+	    (max_size && size > max_size))
+		return EFI_OUT_OF_RESOURCES;
 
-		status = efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
-					  EFI_VARIABLE_NON_VOLATILE |
-					  EFI_VARIABLE_BOOTSERVICE_ACCESS |
-					  EFI_VARIABLE_RUNTIME_ACCESS,
-					  dummy_size, dummy);
-
-		if (status == EFI_SUCCESS) {
-			/*
-			 * This should have failed, so if it didn't make sure
-			 * that we delete it...
-			 */
-			efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
-					 EFI_VARIABLE_NON_VOLATILE |
-					 EFI_VARIABLE_BOOTSERVICE_ACCESS |
-					 EFI_VARIABLE_RUNTIME_ACCESS,
-					 0, dummy);
-		}
-
-		/*
-		 * The runtime code may now have triggered a garbage collection
-		 * run, so check the variable info again
-		 */
-		status = efi.query_variable_info(attributes, &storage_size,
-						 &remaining_size, &max_size);
-
-		if (status != EFI_SUCCESS)
-			return status;
-
-		/*
-		 * There still isn't enough room, so return an error
-		 */
-		if (remaining_size - size < EFI_MIN_RESERVE)
-			return EFI_OUT_OF_RESOURCES;
-	}
+	if (!efi_no_storage_paranoia &&
+	    ((active_size + size + VAR_METADATA_SIZE > storage_size / 2) &&
+	     (remaining_size - size < storage_size / 2)))
+		return EFI_OUT_OF_RESOURCES;
 
 	return EFI_SUCCESS;
 }
