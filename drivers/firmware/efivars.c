@@ -233,30 +233,6 @@ get_var_data(struct efivars *efivars, struct efi_variable *var)
 	return status;
 }
 
-static efi_status_t
-check_var_size_locked(struct efivars *efivars, u32 attributes,
-			unsigned long size)
-{
-	u64 storage_size, remaining_size, max_size;
-	efi_status_t status;
-	const struct efivar_operations *fops = efivars->ops;
-
-	if (!efivars->ops->query_variable_info)
-		return EFI_UNSUPPORTED;
-
-	status = fops->query_variable_info(attributes, &storage_size,
-					   &remaining_size, &max_size);
-
-	if (status != EFI_SUCCESS)
-		return status;
-
-	if (!storage_size || size > remaining_size || size > max_size ||
-	    (remaining_size - size) < (storage_size / 2))
-		return EFI_OUT_OF_RESOURCES;
-
-	return status;
-}
-
 static ssize_t
 efivar_guid_read(struct efivar_entry *entry, char *buf)
 {
@@ -361,16 +337,11 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 	}
 
 	spin_lock_irq(&efivars->lock);
-
-	status = check_var_size_locked(efivars, new_var->Attributes,
-	       new_var->DataSize + utf16_strsize(new_var->VariableName, 1024));
-
-	if (status == EFI_SUCCESS || status == EFI_UNSUPPORTED)
-		status = efivars->ops->set_variable(new_var->VariableName,
-						    &new_var->VendorGuid,
-						    new_var->Attributes,
-						    new_var->DataSize,
-						    new_var->Data);
+	status = efivars->ops->set_variable(new_var->VariableName,
+					    &new_var->VendorGuid,
+					    new_var->Attributes,
+					    new_var->DataSize,
+					    new_var->Data);
 
 	spin_unlock_irq(&efivars->lock);
 
@@ -567,6 +538,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct efivars *efivars = psi->data;
 	int i, ret = 0;
+	u64 storage_space, remaining_space, max_variable_size;
 	efi_status_t status = EFI_NOT_FOUND;
 	unsigned long flags;
 
@@ -577,10 +549,11 @@ static int efi_pstore_write(enum pstore_type_id type,
 	 * size: a size of logging data
 	 * DUMP_NAME_LEN * 2: a maximum size of variable name
 	 */
-	status = check_var_size_locked(efivars, PSTORE_EFI_ATTRIBUTES,
-					  size + DUMP_NAME_LEN * 2);
-
-	if (status) {
+	status = efivars->ops->query_variable_info(PSTORE_EFI_ATTRIBUTES,
+						   &storage_space,
+						   &remaining_space,
+						   &max_variable_size);
+	if (status || remaining_space < size + DUMP_NAME_LEN * 2) {
 		spin_unlock_irqrestore(&efivars->lock, flags);
 		*id = part;
 		return -ENOSPC;
@@ -713,30 +686,6 @@ static struct pstore_info efi_pstore_info = {
 	.erase		= efi_pstore_erase,
 };
 
-static int efi_status_to_err(efi_status_t status)
-{
-	int err;
-
-	switch (status) {
-	case EFI_SUCCESS:
-		err = 0;
-		break;
-	case EFI_INVALID_PARAMETER:
-		err = -EINVAL;
-		break;
-	case EFI_OUT_OF_RESOURCES:
-		err = -ENOSPC;
-		break;
-	case EFI_NOT_FOUND:
-		err = -ENOENT;
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-	return err;
-}
-
 static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
 			     char *buf, loff_t pos, size_t count)
@@ -771,14 +720,6 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (found) {
 		spin_unlock_irq(&efivars->lock);
 		return -EINVAL;
-	}
-
-	status = check_var_size_locked(efivars, new_var->Attributes,
-	       new_var->DataSize + utf16_strsize(new_var->VariableName, 1024));
-
-	if (status && status != EFI_UNSUPPORTED) {
-		spin_unlock_irq(&efivars->lock);
-		return efi_status_to_err(status);
 	}
 
 	/* now *really* create the variable via EFI */

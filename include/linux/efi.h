@@ -30,7 +30,6 @@
 #define EFI_UNSUPPORTED		( 3 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BAD_BUFFER_SIZE     ( 4 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_BUFFER_TOO_SMALL	( 5 | (1UL << (BITS_PER_LONG-1)))
-#define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
 
 typedef unsigned long efi_status_t;
