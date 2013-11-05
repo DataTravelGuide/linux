@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 05 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-430.el6]
+- [x86] Revert "efi: be more paranoid about available space when creating variables" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efivars: firmware bug workarounds should be in platform code" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efi: Export efi_query_variable_store() for efivars.ko" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efi: Check max_size only if it is non-zero" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efi: Distinguish between "remaining space" and actually used space" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efi: Implement efi_no_storage_paranoia parameter" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "Modify UEFI anti-bricking code" (Rafael Aquini) [1012370 1023173]
+- [x86] Revert "efi: Fix dummy variable buffer allocation" (Rafael Aquini) [1012370 1023173]
+
 * Sat Nov 02 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-429.el6]
 - [fs] revert xfs: prevent deadlock trying to cover an active log (Eric Sandeen) [1014867]
 
