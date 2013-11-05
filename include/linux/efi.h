@@ -200,7 +200,6 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      unsigned long count,
 					      u64 *max_size,
 					      int *reset_type);
-typedef efi_status_t efi_query_variable_store_t(u32 attributes, unsigned long size);
 
 /*
  *  EFI Configuration Table and GUID definitions
@@ -453,7 +452,7 @@ struct efivar_operations {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
-	efi_query_variable_store_t *query_variable_store;
+	efi_query_variable_info_t *query_variable_info;
 };
 
 struct efivars {
@@ -481,14 +480,5 @@ int register_efivars(struct efivars *efivars,
 void unregister_efivars(struct efivars *efivars);
 
 #endif /* CONFIG_EFI_VARS */
-
-#ifdef CONFIG_X86
-extern efi_status_t efi_query_variable_store(u32 attributes, unsigned long size);
-#else
-static inline efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
-{
-	return EFI_SUCCESS;
-}
-#endif
 
 #endif /* _LINUX_EFI_H */
