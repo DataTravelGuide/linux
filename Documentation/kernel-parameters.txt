@@ -2458,7 +2458,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	smbios_26_uuid  [X86] Display UUID in SMBIOS 2.6 format
 
-	smp-alt-once	[X86-32,SMP] On a hotplug CPU system, only
+	smp-alt-boot	[X86-32,SMP] On a hotplug CPU system, only
 			attempt to substitute SMP alternatives once at boot.
 
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
