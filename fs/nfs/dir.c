@@ -1190,15 +1190,21 @@ out_zap_parent:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fhandle);
 	nfs_mark_for_revalidate(dir);
-	if (inode && S_ISDIR(inode->i_mode)) {
-		/* Purge readdir caches. */
-		nfs_zap_caches(inode);
-		/* If we have submounts, don't unhash ! */
-		if (have_submounts(dentry))
-			goto out_valid;
-		if (dentry->d_flags & DCACHE_DISCONNECTED)
-			goto out_valid;
-		shrink_dcache_parent(dentry);
+	if (inode) {
+		if (S_ISDIR(inode->i_mode)) {
+			/* Purge readdir caches. */
+			nfs_zap_caches(inode);
+			/* If we have submounts, don't unhash ! */
+			if (have_submounts(dentry))
+				goto out_valid;
+			if (dentry->d_flags & DCACHE_DISCONNECTED)
+				goto out_valid;
+			shrink_dcache_parent(dentry);
+		} else {
+			/* mountpoints needn't be directories */
+			if (d_mountpoint(dentry))
+				goto out_valid;
+		}
 	}
 	d_drop(dentry);
 	dput(parent);
