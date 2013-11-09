@@ -5601,8 +5601,6 @@ static int run(struct mddev *mddev)
 		 */
 		mddev->queue->limits.discard_zeroes_data = 0;
 
- /* RHEL 6.5 does not support TRIM on RAID5 */
-#if 0
 		rdev_for_each(rdev, mddev) {
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
@@ -5623,9 +5621,8 @@ static int run(struct mddev *mddev)
 						limits.discard_zeroes_data)
 				discard_supported = false;
 		}
-#else
+ /* RHEL 6.5 does not support TRIM on RAID5 */
 		discard_supported = false;
-#endif
 
 		if (discard_supported &&
 		   mddev->queue->limits.max_discard_sectors >= stripe &&
