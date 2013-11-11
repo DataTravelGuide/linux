@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun Nov 10 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-431.el6]
+- [md] Disabling of TRIM on RAID5 for RHEL6.5 was too aggressive (Jes Sorensen) [1028426]
+
 * Tue Nov 05 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-430.el6]
 - [x86] Revert "efi: be more paranoid about available space when creating variables" (Rafael Aquini) [1012370 1023173]
 - [x86] Revert "efivars: firmware bug workarounds should be in platform code" (Rafael Aquini) [1012370 1023173]
