@@ -201,6 +201,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			     const struct frag_hdr *fhdr, int nhoff)
 {
 	struct sk_buff *prev, *next;
+	unsigned int payload_len;
 	int offset, end;
 
 	if (fq->q.last_in & INET_FRAG_COMPLETE) {
@@ -208,8 +209,10 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 		goto err;
 	}
 
+	payload_len = ntohs(ipv6_hdr(skb)->payload_len);
+
 	offset = ntohs(fhdr->frag_off) & ~0x7;
-	end = offset + (ntohs(ipv6_hdr(skb)->payload_len) -
+	end = offset + (payload_len -
 			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
@@ -313,6 +316,8 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
+	if (payload_len > fq->q.max_size)
+		fq->q.max_size = payload_len;
 	atomic_add(skb->truesize, &fq->q.net->mem);
 
 	/* The first fragment.
@@ -418,10 +423,12 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 	}
 	atomic_sub(head->truesize, &fq->q.net->mem);
 
+	head->local_df = 1;
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = fq->q.stamp;
 	ipv6_hdr(head)->payload_len = htons(payload_len);
+	IP6CB(head)->frag_max_size = sizeof(struct ipv6hdr) + fq->q.max_size;
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (head->ip_summed == CHECKSUM_COMPLETE)
@@ -603,6 +610,7 @@ void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
 			int (*okfn)(struct sk_buff *))
 {
 	struct sk_buff *s, *s2;
+	unsigned int ret = 0;
 
 	for (s = NFCT_FRAG6_CB(skb)->orig; s;) {
 		nf_conntrack_put_reasm(s->nfct_reasm);
@@ -612,8 +620,12 @@ void nf_ct_frag6_output(unsigned int hooknum, struct sk_buff *skb,
 		s2 = s->next;
 		s->next = NULL;
 
-		NF_HOOK_THRESH(PF_INET6, hooknum, s, in, out, okfn,
-			       NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
+		if (ret != -ECANCELED)
+			ret = NF_HOOK_THRESH(PF_INET6, hooknum, s,
+					     in, out, okfn,
+					     NF_IP6_PRI_CONNTRACK_DEFRAG + 1);
+		else
+			kfree_skb(s);
 		s = s2;
 	}
 	nf_conntrack_put_reasm(skb);
