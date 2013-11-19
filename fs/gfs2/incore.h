@@ -90,6 +90,7 @@ struct gfs2_rgrpd {
 	struct gfs2_sbd *rd_sbd;
 	u32 rd_last_alloc;
 	u32 rd_flags;
+	u32 rd_extfail_pt;		/* extent failure point */
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
 #define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
 #define GFS2_RDF_ERROR		0x40000000 /* error in rg */
@@ -241,7 +242,7 @@ struct gfs2_blkreserv {
 
 /*
  * Allocation parameters
- * @target: The number of blocks we'd ideally like to allocate
+ * @target: The minimum number of blocks we need for the allocation
  * @aflags: The flags (e.g. Orlov flag)
  *
  * The intent is to gradually expand this structure over time in
