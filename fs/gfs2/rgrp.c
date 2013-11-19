@@ -57,6 +57,11 @@
  * 3 = Used (metadata)
  */
 
+struct gfs2_extent {
+	struct gfs2_rbm rbm;
+	u32 len;
+};
+
 static const char valid_change[16] = {
 	        /* current */
 	/* n */ 0, 1, 1, 1,
@@ -65,8 +70,9 @@ static const char valid_change[16] = {
 	        1, 0, 0, 0
 };
 
-static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 minext,
-			 const struct gfs2_inode *ip, bool nowrap);
+static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
+			 const struct gfs2_inode *ip, bool nowrap,
+			 const struct gfs2_alloc_parms *ap);
 
 
 /**
@@ -1376,7 +1382,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 	if (WARN_ON(gfs2_rbm_from_block(&rbm, goal)))
 		return;
 
-	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, extlen, ip, true);
+	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, ip, true, ap);
 	if (ret == 0) {
 		rs->rs_rbm = rbm;
 		rs->rs_free = extlen;
@@ -1441,6 +1447,7 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
  * @rbm: The current position in the resource group
  * @ip: The inode for which we are searching for blocks
  * @minext: The minimum extent length
+ * @maxext: A pointer to the maximum extent structure
  *
  * This checks the current position in the rgrp to see whether there is
  * a reservation covering this block. If not then this function is a
@@ -1453,7 +1460,8 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
 
 static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 					     const struct gfs2_inode *ip,
-					     u32 minext)
+					     u32 minext,
+					     struct gfs2_extent *maxext)
 {
 	u64 block = gfs2_rbm_to_block(rbm);
 	u32 extlen = 1;
@@ -1466,8 +1474,7 @@ static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 	 */
 	if (minext) {
 		extlen = gfs2_free_extlen(rbm, minext);
-		nblock = block + extlen;
-		if (extlen < minext)
+		if (extlen <= maxext->len)
 			goto fail;
 	}
 
@@ -1476,9 +1483,17 @@ static int gfs2_reservation_check_and_update(struct gfs2_rbm *rbm,
 	 * and skip if parts of it are already reserved
 	 */
 	nblock = gfs2_next_unreserved_block(rbm->rgd, block, extlen, ip);
-	if (nblock == block)
-		return 0;
+	if (nblock == block) {
+		if (!minext || extlen >= minext)
+			return 0;
+
+		if (extlen > maxext->len) {
+			maxext->len = extlen;
+			maxext->rbm = *rbm;
+		}
 fail:
+		nblock = block + extlen;
+	}
 	ret = gfs2_rbm_from_block(rbm, nblock);
 	if (ret < 0)
 		return ret;
@@ -1489,10 +1504,12 @@ fail:
  * gfs2_rbm_find - Look for blocks of a particular state
  * @rbm: Value/result starting position and final position
  * @state: The state which we want to find
- * @minext: The requested extent length (0 for a single block)
+ * @minext: Pointer to the requested extent length (NULL for a single block)
+ *          This is updated to be the actual reservation size.
  * @ip: If set, check for reservations
  * @nowrap: Stop looking at the end of the rgrp, rather than wrapping
  *          around until we've reached the starting point.
+ * @ap: the allocation parameters
  *
  * Side effects:
  * - If looking for free blocks, we set GBF_FULL on each bitmap which
@@ -1501,8 +1518,9 @@ fail:
  * Returns: 0 on success, -ENOSPC if there is no block of the requested state
  */
 
-static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 minext,
-			 const struct gfs2_inode *ip, bool nowrap)
+static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
+			 const struct gfs2_inode *ip, bool nowrap,
+			 const struct gfs2_alloc_parms *ap)
 {
 	struct buffer_head *bh;
 	struct gfs2_bitmap *initial_bi;
@@ -1513,6 +1531,7 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 minext,
 	int n = 0;
 	int iters = rbm->rgd->rd_length;
 	int ret;
+	struct gfs2_extent maxext = { .rbm.rgd = rbm->rgd, };
 
 	/* If we are not starting at the beginning of a bitmap, then we
 	 * need to add one to the bitmap count to ensure that we search
@@ -1540,7 +1559,9 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 minext,
 			return 0;
 
 		initial_bi = rbm->bi;
-		ret = gfs2_reservation_check_and_update(rbm, ip, minext);
+		ret = gfs2_reservation_check_and_update(rbm, ip,
+							minext ? *minext : 0,
+							&maxext);
 		if (ret == 0)
 			return 0;
 		if (ret > 0) {
@@ -1575,6 +1596,17 @@ next_iter:
 			break;
 	}
 
+	if (minext == NULL || state != GFS2_BLKST_FREE)
+		return -ENOSPC;
+
+	/* If the maximum extent we found is big enough to fulfill the
+	   minimum requirements, use it anyway. */
+	if (maxext.len) {
+		*rbm = maxext.rbm;
+		*minext = maxext.len;
+		return 0;
+	}
+
 	return -ENOSPC;
 }
 
@@ -1600,7 +1632,8 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 
 	while (1) {
 		down_write(&sdp->sd_log_flush_lock);
-		error = gfs2_rbm_find(&rbm, GFS2_BLKST_UNLINKED, 0, NULL, true);
+		error = gfs2_rbm_find(&rbm, GFS2_BLKST_UNLINKED, NULL, NULL,
+				      true, NULL);
 		up_write(&sdp->sd_log_flush_lock);
 		if (error == -ENOSPC)
 			break;
@@ -1982,11 +2015,12 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		goal = rbm.rgd->rd_last_alloc + rbm.rgd->rd_data0;
 
 	gfs2_rbm_from_block(&rbm, goal);
-	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, 0, ip, false);
+	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, ip, false, NULL);
 
 	if (error == -ENOSPC) {
 		gfs2_rbm_from_block(&rbm, goal);
-		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, 0, NULL, false);
+		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, NULL, false,
+				      NULL);
 	}
 
 	/* Since all blocks are reserved in advance, this shouldn't happen */
