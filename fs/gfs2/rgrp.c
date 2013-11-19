@@ -664,6 +664,11 @@ static void __rs_deltree(struct gfs2_blkreserv *rs)
 		/* return reserved blocks to the rgrp and the ip */
 		BUG_ON(rs->rs_rbm.rgd->rd_reserved < rs->rs_free);
 		rs->rs_rbm.rgd->rd_reserved -= rs->rs_free;
+		/* The rgrp extent failure point is likely not to increase;
+		   it will only do so if the freed blocks are somehow
+		   contiguous with a span of free blocks that follows. Still,
+		   it will force the number to be recalculated later. */
+		rgd->rd_extfail_pt += rs->rs_free;
 		rs->rs_free = 0;
 		clear_bit(GBF_FULL, &rs->rs_rbm.bi->bi_flags);
 		smp_mb__after_clear_bit();
@@ -1100,6 +1105,8 @@ int gfs2_rgrp_go_lock(struct gfs2_holder *gh)
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
 		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 		rgd->rd_free_clone = rgd->rd_free;
+		/* max out the rgrp allocation failure point */
+		rgd->rd_extfail_pt = rgd->rd_free;
 	}
 
 	return 0;
@@ -1514,6 +1521,8 @@ fail:
  * Side effects:
  * - If looking for free blocks, we set GBF_FULL on each bitmap which
  *   has no free blocks in it.
+ * - If looking for free blocks, we set rd_extfail_pt on each rgrp which
+ *   has come up short on a free block search.
  *
  * Returns: 0 on success, -ENOSPC if there is no block of the requested state
  */
@@ -1525,6 +1534,8 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
 	struct buffer_head *bh;
 	struct gfs2_bitmap *initial_bi;
 	u32 initial_offset;
+	struct gfs2_bitmap *first_bi = rbm->bi;
+	u32 first_offset = rbm->offset;
 	u32 offset;
 	u8 *buffer;
 	int index;
@@ -1598,6 +1609,13 @@ next_iter:
 
 	if (minext == NULL || state != GFS2_BLKST_FREE)
 		return -ENOSPC;
+
+	/* If the extent was too small, and it's smaller than the smallest
+	   to have failed before, remember for future reference that it's
+	   useless to search this rgrp again for this amount or more. */
+	if ((first_offset == 0) && (first_bi == rbm->rgd->rd_bits) &&
+	    (*minext < rbm->rgd->rd_extfail_pt))
+		rbm->rgd->rd_extfail_pt = *minext;
 
 	/* If the maximum extent we found is big enough to fulfill the
 	   minimum requirements, use it anyway. */
@@ -1748,7 +1766,9 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 				return error;
 		}
 		/* Skip unuseable resource groups */
-		if (rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC | GFS2_RDF_ERROR))
+		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
+						 GFS2_RDF_ERROR)) ||
+		    (ap && (ap->target > rs->rs_rbm.rgd->rd_extfail_pt)))
 			goto skip_rgrp;
 
 		/* Get a reservation if we don't already have one */
@@ -1925,10 +1945,10 @@ int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 
 	if (rgd == NULL)
 		return 0;
-	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u r:%u\n",
+	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u r:%u e:%u\n",
 		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
 		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes,
-		       rgd->rd_reserved);
+		       rgd->rd_reserved, rgd->rd_extfail_pt);
 	spin_lock(&rgd->rd_rsspin);
 	for (n = rb_first(&rgd->rd_rstree); n; n = rb_next(&trs->rs_node)) {
 		trs = rb_entry(n, struct gfs2_blkreserv, rs_node);
@@ -2026,9 +2046,10 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 
 	/* Since all blocks are reserved in advance, this shouldn't happen */
 	if (error) {
-		fs_warn(sdp, "inum=%llu error=%d, nblocks=%u, full=%d\n",
+		fs_warn(sdp, "inum=%llu error=%d, nblocks=%u, full=%d, fail_pt=%d\n",
 			(unsigned long long)ip->i_no_addr, error, *nblocks,
-			test_bit(GBF_FULL, &rbm.rgd->rd_bits->bi_flags));
+			test_bit(GBF_FULL, &rbm.rgd->rd_bits->bi_flags),
+			rbm.rgd->rd_extfail_pt);
 		goto rgrp_error;
 	}
 
