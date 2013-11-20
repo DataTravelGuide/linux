@@ -1061,21 +1061,13 @@ out_unlock:
 }
 
 static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,
-		unsigned long arg)
+		int val)
 {
 	struct sem_undo *un;
 	struct sem_array *sma;
 	struct sem* curr;
 	int err;
 	struct list_head tasks;
-	int val;
-#if defined(CONFIG_64BIT) && defined(__BIG_ENDIAN)
-	/* big-endian 64bit */
-	val = arg >> 32;
-#else
-	/* 32bit or little-endian 64bit */
-	val = arg;
-#endif
 
 	if (val > SEMVMX || val < 0)
 		return -ERANGE;
@@ -1389,7 +1381,7 @@ SYSCALL_DEFINE(semctl)(int semid, int semnum, int cmd, union semun arg)
 	case SETALL:
 		return semctl_main(ns, semid, semnum, cmd, p);
 	case SETVAL:
-		return semctl_setval(ns, semid, semnum, arg);
+		return semctl_setval(ns, semid, semnum, arg.val);
 	case IPC_RMID:
 	case IPC_SET:
 		return semctl_down(ns, semid, cmd, version, p);
