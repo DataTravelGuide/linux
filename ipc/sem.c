@@ -805,7 +805,7 @@ static unsigned long copy_semid_to_user(void __user *buf, struct semid64_ds *in,
 }
 
 static int semctl_nolock(struct ipc_namespace *ns, int semid,
-			 int cmd, int version, union semun arg)
+			 int cmd, int version, void __user *p)
 {
 	int err;
 	struct sem_array *sma;
@@ -840,7 +840,7 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 		}
 		max_id = ipc_get_maxid(&sem_ids(ns));
 		up_read(&sem_ids(ns).rw_mutex);
-		if (copy_to_user (arg.__buf, &seminfo, sizeof(struct seminfo))) 
+		if (copy_to_user(p, &seminfo, sizeof(struct seminfo))) 
 			return -EFAULT;
 		return (max_id < 0) ? 0: max_id;
 	}
@@ -877,7 +877,7 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 		tbuf.sem_ctime  = sma->sem_ctime;
 		tbuf.sem_nsems  = sma->sem_nsems;
 		sem_unlock(sma);
-		if (copy_semid_to_user (arg.buf, &tbuf, version))
+		if (copy_semid_to_user(p, &tbuf, version))
 			return -EFAULT;
 		return id;
 	}
@@ -889,8 +889,67 @@ out_unlock:
 	return err;
 }
 
+static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,
+		unsigned long arg)
+{
+	struct sem_undo *un;
+	struct sem_array *sma;
+	struct sem* curr;
+	int err;
+	int nsems;
+	struct list_head tasks;
+	int val;
+#if defined(CONFIG_64BIT) && defined(__BIG_ENDIAN)
+	/* big-endian 64bit */
+	val = arg >> 32;
+#else
+	/* 32bit or little-endian 64bit */
+	val = arg;
+#endif
+
+	sma = sem_lock_check(ns, semid);
+	if (IS_ERR(sma))
+		return PTR_ERR(sma);
+
+	INIT_LIST_HEAD(&tasks);
+	nsems = sma->sem_nsems;
+
+	err = -EACCES;
+	if (ipcperms(&sma->sem_perm, S_IWUGO))
+		goto out_unlock;
+
+	err = security_sem_semctl(sma, SETVAL);
+	if (err)
+		goto out_unlock;
+
+	err = -EINVAL;
+	if(semnum < 0 || semnum >= nsems)
+		goto out_unlock;
+
+	curr = &sma->sem_base[semnum];
+
+	err = -ERANGE;
+	if (val > SEMVMX || val < 0)
+		goto out_unlock;
+
+	assert_spin_locked(&sma->sem_perm.lock);
+	list_for_each_entry(un, &sma->list_id, list_id)
+		un->semadj[semnum] = 0;
+
+	curr->semval = val;
+	curr->sempid = task_tgid_vnr(current);
+	sma->sem_ctime = get_seconds();
+	/* maybe some queued-up processes were waiting for this */
+	do_smart_update(sma, NULL, 0, 0, &tasks);
+	err = 0;
+out_unlock:
+	sem_unlock(sma);
+	wake_up_sem_queue_do(&tasks);
+	return err;
+}
+
 static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
-		int cmd, int version, union semun arg)
+		int cmd, void __user *p)
 {
 	struct sem_array *sma;
 	struct sem* curr;
@@ -908,7 +967,8 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	nsems = sma->sem_nsems;
 
 	err = -EACCES;
-	if (ipcperms (&sma->sem_perm, (cmd==SETVAL||cmd==SETALL)?S_IWUGO:S_IRUGO))
+	if (ipcperms(&sma->sem_perm,
+		     cmd==SETALL ? S_IWUGO : S_IRUGO))
 		goto out_unlock;
 
 	err = security_sem_semctl(sma, cmd);
@@ -919,7 +979,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	switch (cmd) {
 	case GETALL:
 	{
-		ushort __user *array = arg.array;
+		ushort __user *array = p;
 		int i;
 
 		if(nsems > SEMMSL_FAST) {
@@ -962,7 +1022,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			}
 		}
 
-		if (copy_from_user (sem_io, arg.array, nsems*sizeof(ushort))) {
+		if (copy_from_user (sem_io, p, nsems*sizeof(ushort))) {
 			sem_putref(sma);
 			err = -EFAULT;
 			goto out_free;
@@ -996,7 +1056,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		err = 0;
 		goto out_unlock;
 	}
-	/* GETVAL, GETPID, GETNCTN, GETZCNT, SETVAL: fall-through */
+	/* GETVAL, GETPID, GETNCTN, GETZCNT: fall-through */
 	}
 	err = -EINVAL;
 	if(semnum < 0 || semnum >= nsems)
@@ -1017,27 +1077,6 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 	case GETZCNT:
 		err = count_semzcnt(sma,semnum);
 		goto out_unlock;
-	case SETVAL:
-	{
-		int val = arg.val;
-		struct sem_undo *un;
-
-		err = -ERANGE;
-		if (val > SEMVMX || val < 0)
-			goto out_unlock;
-
-		assert_spin_locked(&sma->sem_perm.lock);
-		list_for_each_entry(un, &sma->list_id, list_id)
-			un->semadj[semnum] = 0;
-
-		curr->semval = val;
-		curr->sempid = task_tgid_vnr(current);
-		sma->sem_ctime = get_seconds();
-		/* maybe some queued-up processes were waiting for this */
-		do_smart_update(sma, NULL, 0, 0, &tasks);
-		err = 0;
-		goto out_unlock;
-	}
 	}
 out_unlock:
 	sem_unlock(sma);
@@ -1081,7 +1120,7 @@ copy_semid_from_user(struct semid64_ds *out, void __user *buf, int version)
  * NOTE: no locks must be held, the rw_mutex is taken inside this function.
  */
 static int semctl_down(struct ipc_namespace *ns, int semid,
-		       int cmd, int version, union semun arg)
+		       int cmd, int version, void __user *p)
 {
 	struct sem_array *sma;
 	int err;
@@ -1089,7 +1128,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 	struct kern_ipc_perm *ipcp;
 
 	if(cmd == IPC_SET) {
-		if (copy_semid_from_user(&semid64, arg.buf, version))
+		if (copy_semid_from_user(&semid64, p, version))
 			return -EFAULT;
 	}
 
@@ -1124,9 +1163,9 @@ out_up:
 
 SYSCALL_DEFINE(semctl)(int semid, int semnum, int cmd, union semun arg)
 {
-	int err = -EINVAL;
 	int version;
 	struct ipc_namespace *ns;
+	void __user *p = (void __user *)arg.__pad;
 
 	if (semid < 0)
 		return -EINVAL;
@@ -1139,21 +1178,19 @@ SYSCALL_DEFINE(semctl)(int semid, int semnum, int cmd, union semun arg)
 	case SEM_INFO:
 	case IPC_STAT:
 	case SEM_STAT:
-		err = semctl_nolock(ns, semid, cmd, version, arg);
-		return err;
+		return semctl_nolock(ns, semid, cmd, version, p);
 	case GETALL:
 	case GETVAL:
 	case GETPID:
 	case GETNCNT:
 	case GETZCNT:
-	case SETVAL:
 	case SETALL:
-		err = semctl_main(ns,semid,semnum,cmd,version,arg);
-		return err;
+		return semctl_main(ns, semid, semnum, cmd, p);
+	case SETVAL:
+		return semctl_setval(ns, semid, semnum, arg);
 	case IPC_RMID:
 	case IPC_SET:
-		err = semctl_down(ns, semid, cmd, version, arg);
-		return err;
+		return semctl_down(ns, semid, cmd, version, p);
 	default:
 		return -EINVAL;
 	}
