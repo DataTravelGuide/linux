@@ -207,17 +207,16 @@ S:	Maintained
 F:	fs/fuse/
 
 INTEL E100 ETHERNET DRIVER (e100)
-M:	Dean Nelson <dnelson@redhat.com>
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/e100.c
 
 INTEL E1000 ETHERNET DRIVER (e1000)
-M:	Dean Nelson <dnelson@redhat.com>
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/e1000/
 
 INTEL E1000E ETHERNET DRIVER (e1000e)
-M:	Dean Nelson <dnelson@redhat.com>
 M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/e1000e/
