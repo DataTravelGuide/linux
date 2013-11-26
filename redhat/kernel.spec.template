@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 26 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-433.el6]
+- [netdrv] mlx4_en: Check device state when setting coalescing (Amir Vadai) [975908]
+- [netdrv] igb: Update link modes display in ethtool (Stefan Assmann) [1019578]
+- [block] fix race between request completion and timeout handling (Jeff Moyer) [919756]
+
 * Wed Nov 20 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-432.el6]
 - [net] ip_output: do skb ufo init for peeked non ufo skb as well (Jiri Pirko) [1023491] {CVE-2013-4470}
 - [net] ip6_output: do skb ufo init for peeked non ufo skb as well (Jiri Pirko) [1023491] {CVE-2013-4470}
