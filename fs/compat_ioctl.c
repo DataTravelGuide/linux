@@ -1506,7 +1506,6 @@ struct serial_struct32 {
 
 static int serial_struct_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 {
-        typedef struct serial_struct SS;
         typedef struct serial_struct32 SS32;
         struct serial_struct32 __user *ss32 = compat_ptr(arg);
         int err;
