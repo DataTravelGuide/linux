@@ -873,8 +873,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str,
-		 int unset __maybe_unused)
+int parse_events(struct perf_evlist *evlist, const char *str)
 {
 	struct parse_events_data__events data = {
 		.list = LIST_HEAD_INIT(data.list),
@@ -901,7 +900,7 @@ int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	int ret = parse_events(evlist, str, unset);
+	int ret = parse_events(evlist, str);
 
 	if (ret) {
 		fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
