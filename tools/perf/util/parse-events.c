@@ -409,6 +409,7 @@ static int add_tracepoint_multi_event(struct list_head **list, int *idx,
 		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name);
 	}
 
+	closedir(evt_dir);
 	return ret;
 }
 
