@@ -7668,41 +7668,39 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 }
 
 static int
-bnx2_phys_id(struct net_device *dev, u32 data)
+bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-	int i;
-	u32 save;
 
-	bnx2_set_power_state(bp, PCI_D0);
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		bnx2_set_power_state(bp, PCI_D0);
 
-	if (data == 0)
-		data = 2;
+		bp->leds_save = BNX2_RD(bp, BNX2_MISC_CFG);
+		BNX2_WR(bp, BNX2_MISC_CFG, BNX2_MISC_CFG_LEDMODE_MAC);
+		return -EINVAL;
 
-	save = BNX2_RD(bp, BNX2_MISC_CFG);
-	BNX2_WR(bp, BNX2_MISC_CFG, BNX2_MISC_CFG_LEDMODE_MAC);
+	case ETHTOOL_ID_ON:
+		BNX2_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE |
+		       BNX2_EMAC_LED_1000MB_OVERRIDE |
+		       BNX2_EMAC_LED_100MB_OVERRIDE |
+		       BNX2_EMAC_LED_10MB_OVERRIDE |
+		       BNX2_EMAC_LED_TRAFFIC_OVERRIDE |
+		       BNX2_EMAC_LED_TRAFFIC);
+		break;
 
-	for (i = 0; i < (data * 2); i++) {
-		if ((i % 2) == 0) {
-			BNX2_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE);
-		}
-		else {
-			BNX2_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE |
-				BNX2_EMAC_LED_1000MB_OVERRIDE |
-				BNX2_EMAC_LED_100MB_OVERRIDE |
-				BNX2_EMAC_LED_10MB_OVERRIDE |
-				BNX2_EMAC_LED_TRAFFIC_OVERRIDE |
-				BNX2_EMAC_LED_TRAFFIC);
-		}
-		msleep_interruptible(500);
-		if (signal_pending(current))
-			break;
+	case ETHTOOL_ID_OFF:
+		BNX2_WR(bp, BNX2_EMAC_LED, BNX2_EMAC_LED_OVERRIDE);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		BNX2_WR(bp, BNX2_EMAC_LED, 0);
+		BNX2_WR(bp, BNX2_MISC_CFG, bp->leds_save);
+
+		if (!netif_running(dev))
+			bnx2_set_power_state(bp, PCI_D3hot);
+		break;
 	}
-	BNX2_WR(bp, BNX2_EMAC_LED, 0);
-	BNX2_WR(bp, BNX2_MISC_CFG, save);
-
-	if (!netif_running(dev))
-		bnx2_set_power_state(bp, PCI_D3hot);
 
 	return 0;
 }
@@ -7744,9 +7742,13 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_tso		= bnx2_set_tso,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
-	.phys_id		= bnx2_phys_id,
 	.get_ethtool_stats	= bnx2_get_ethtool_stats,
 	.get_sset_count		= bnx2_get_sset_count,
+};
+
+static const struct ethtool_ops_ext bnx2_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	.set_phys_id		= bnx2_set_phys_id,
 };
 
 /* Called with rtnl_lock */
@@ -8497,6 +8499,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &bnx2_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->ethtool_ops = &bnx2_ethtool_ops;
+	set_ethtool_ops_ext(dev, &bnx2_ethtool_ops_ext);
 
 	bp = netdev_priv(dev);
 
