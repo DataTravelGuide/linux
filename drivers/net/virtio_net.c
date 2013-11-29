@@ -26,7 +26,7 @@
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
 
-static int napi_weight = 128;
+static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
 
 static int csum = 1, gso = 1;
