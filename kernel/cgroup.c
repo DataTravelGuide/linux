@@ -3647,7 +3647,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
  err_remove:
 
 	cgroup_lock_hierarchy(root);
-	list_del(&cgrp->sibling);
+	list_del_init(&cgrp->sibling);
 	cgroup_unlock_hierarchy(root);
 	root->number_of_cgroups--;
 
@@ -3830,12 +3830,12 @@ again:
 	spin_lock(&release_list_lock);
 	set_bit(CGRP_REMOVED, &cgrp->flags);
 	if (!list_empty(&cgrp->release_list))
-		list_del(&cgrp->release_list);
+		list_del_init(&cgrp->release_list);
 	spin_unlock(&release_list_lock);
 
 	cgroup_lock_hierarchy(cgrp->root);
 	/* delete this cgroup from parent->children */
-	list_del(&cgrp->sibling);
+	list_del_init(&cgrp->sibling);
 	cgroup_unlock_hierarchy(cgrp->root);
 
 	spin_lock(&cgrp->dentry->d_lock);
@@ -4212,7 +4212,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	if (!list_empty(&tsk->cg_list)) {
 		write_lock(&css_set_lock);
 		if (!list_empty(&tsk->cg_list))
-			list_del(&tsk->cg_list);
+			list_del_init(&tsk->cg_list);
 		write_unlock(&css_set_lock);
 	}
 
