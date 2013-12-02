@@ -370,6 +370,9 @@ static inline struct task_group *task_group(struct task_struct *p)
 {
 	struct task_group *tg;
 
+	if (p->flags & PF_EXITING)
+		return &root_task_group;
+
 #ifdef CONFIG_USER_SCHED
 	rcu_read_lock();
 	tg = __task_cred(p)->user->tg;
@@ -11306,6 +11309,21 @@ cpu_cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	sched_move_task(tsk);
 }
 
+static void
+cpu_cgroup_exit(struct cgroup_subsys *ss, struct cgroup *cgrp,
+		struct cgroup *old_cgrp, struct task_struct *task)
+{
+	/*
+	 * cgroup_exit() is called in the copy_process() failure path.
+	 * Ignore this case since the task hasn't ran yet, this avoids
+	 * trying to poke a half freed task state from generic code.
+	 */
+	if (!(task->flags & PF_EXITING))
+		return;
+
+	sched_move_task(task);
+}
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static int cpu_shares_write_u64(struct cgroup *cgrp, struct cftype *cftype,
 				u64 shareval)
@@ -11626,6 +11644,7 @@ struct cgroup_subsys cpu_cgroup_subsys = {
 	.destroy	= cpu_cgroup_destroy,
 	.can_attach_task = cpu_cgroup_can_attach_task,
 	.attach_task	= cpu_cgroup_attach_task,
+	.exit           = cpu_cgroup_exit,
 	.populate	= cpu_cgroup_populate,
 	.subsys_id	= cpu_cgroup_subsys_id,
 	.early_init	= 1,
