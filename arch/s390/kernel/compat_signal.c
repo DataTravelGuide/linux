@@ -309,11 +309,14 @@ static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 	memcpy(regs32.acrs, current->thread.acrs, sizeof(regs32.acrs));
 	err = __copy_to_user(&sregs->regs, &regs32, sizeof(regs32));
 	if (err)
-		return err;
+		return -EFAULT;
 	save_fp_regs(&current->thread.fp_regs);
 	/* s390_fp_regs and _s390_fp_regs32 are the same ! */
-	return __copy_to_user(&sregs->fpregs, &current->thread.fp_regs,
-			      sizeof(_s390_fp_regs32));
+	err = __copy_to_user(&sregs->fpregs, &current->thread.fp_regs,
+			     sizeof(_s390_fp_regs32));
+	if (err)
+		return -EFAULT;
+	return 0;
 }
 
 static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
@@ -326,7 +329,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 
 	err = __copy_from_user(&regs32, &sregs->regs, sizeof(regs32));
 	if (err)
-		return err;
+		return -EFAULT;
 	regs->psw.mask = PSW_MASK_MERGE(regs->psw.mask,
 				        (__u64)regs32.psw.mask << 32);
 	regs->psw.addr = (__u64)(regs32.psw.addr & PSW32_ADDR_INSN);
@@ -339,7 +342,7 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 			       sizeof(_s390_fp_regs32));
 	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
 	if (err)
-		return err;
+		return -EFAULT;
 
 	restore_fp_regs(&current->thread.fp_regs);
 	regs->svcnr = 0;	/* disable syscall checks */
@@ -353,18 +356,18 @@ static int save_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
 
 	for (i = 0; i < NUM_GPRS; i++)
 		gprs_high[i] = regs->gprs[i] >> 32;
-
-	return __copy_to_user(uregs, &gprs_high, sizeof(gprs_high));
+	if (__copy_to_user(uregs, &gprs_high, sizeof(gprs_high)))
+		return -EFAULT;
+	return 0;
 }
 
 static int restore_sigregs_gprs_high(struct pt_regs *regs, __u32 __user *uregs)
 {
 	__u32 gprs_high[NUM_GPRS];
-	int err, i;
+	int i;
 
-	err = __copy_from_user(&gprs_high, uregs, sizeof(gprs_high));
-	if (err)
-		return err;
+	if (__copy_from_user(&gprs_high, uregs, sizeof(gprs_high)))
+		return -EFAULT;
 	for (i = 0; i < NUM_GPRS; i++)
 		*(__u32 *)&regs->gprs[i] = gprs_high[i];
 	return 0;
