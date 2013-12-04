@@ -297,54 +297,55 @@ sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss)
 
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
 {
-	_s390_regs_common32 regs32;
-	int err, i;
+	_sigregs32 user_sregs;
+	int i;
 
-	regs32.psw.mask = PSW32_MASK_MERGE(psw32_user_bits,
-					   (__u32)(regs->psw.mask >> 32));
-	regs32.psw.addr = PSW32_ADDR_AMODE31 | (__u32) regs->psw.addr;
+	user_sregs.regs.psw.mask = PSW32_MASK_MERGE(psw32_user_bits,
+					(__u32)(regs->psw.mask >> 32));
+	user_sregs.regs.psw.addr = PSW32_ADDR_AMODE31 | (__u32) regs->psw.addr;
 	for (i = 0; i < NUM_GPRS; i++)
-		regs32.gprs[i] = (__u32) regs->gprs[i];
+		user_sregs.regs.gprs[i] = (__u32) regs->gprs[i];
 	save_access_regs(current->thread.acrs);
-	memcpy(regs32.acrs, current->thread.acrs, sizeof(regs32.acrs));
-	err = __copy_to_user(&sregs->regs, &regs32, sizeof(regs32));
-	if (err)
-		return -EFAULT;
-	save_fp_regs(&current->thread.fp_regs);
-	/* s390_fp_regs and _s390_fp_regs32 are the same ! */
-	err = __copy_to_user(&sregs->fpregs, &current->thread.fp_regs,
-			     sizeof(_s390_fp_regs32));
-	if (err)
+	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
+	       sizeof(user_sregs.regs.acrs));
+	save_fp_ctl(&current->thread.fp_regs.fpc);
+	save_fp_regs(current->thread.fp_regs.fprs);
+	memcpy(&user_sregs.fpregs, &current->thread.fp_regs,
+	       sizeof(user_sregs.fpregs));
+	if (__copy_to_user(sregs, &user_sregs, sizeof(_sigregs32)))
 		return -EFAULT;
 	return 0;
 }
 
 static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 {
-	_s390_regs_common32 regs32;
-	int err, i;
+	_sigregs32 user_sregs;
+	int i;
 
 	/* Alwys make any pending restarted system call return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-	err = __copy_from_user(&regs32, &sregs->regs, sizeof(regs32));
-	if (err)
+	if (__copy_from_user(&user_sregs, &sregs->regs, sizeof(user_sregs)))
 		return -EFAULT;
+
+	/* Loading the floating-point-control word can fail. Do that first. */
+	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
+		return -EINVAL;
+
+	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = PSW_MASK_MERGE(regs->psw.mask,
-				        (__u64)regs32.psw.mask << 32);
-	regs->psw.addr = (__u64)(regs32.psw.addr & PSW32_ADDR_INSN);
+				(__u64) user_sregs.regs.psw.mask << 32);
+	regs->psw.addr = (__u64)(user_sregs.regs.psw.addr & PSW32_ADDR_INSN);
 	for (i = 0; i < NUM_GPRS; i++)
-		regs->gprs[i] = (__u64) regs32.gprs[i];
-	memcpy(current->thread.acrs, regs32.acrs, sizeof(current->thread.acrs));
+		regs->gprs[i] = (__u64) user_sregs.regs.gprs[i];
+	memcpy(&current->thread.acrs, user_sregs.regs.acrs,
+	       sizeof(current->thread.acrs));
 	restore_access_regs(current->thread.acrs);
 
-	err = __copy_from_user(&current->thread.fp_regs, &sregs->fpregs,
-			       sizeof(_s390_fp_regs32));
-	current->thread.fp_regs.fpc &= FPC_VALID_MASK;
-	if (err)
-		return -EFAULT;
+	memcpy(&current->thread.fp_regs, &user_sregs.fpregs,
+	       sizeof(current->thread.fp_regs));
 
-	restore_fp_regs(&current->thread.fp_regs);
+	restore_fp_regs(current->thread.fp_regs.fprs);
 	regs->svcnr = 0;	/* disable syscall checks */
 	return 0;
 }
