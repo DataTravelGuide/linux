@@ -705,6 +705,7 @@ void __init trap_init(void)
         pgm_check_table[0x13] = &special_op_exception;
 #ifdef CONFIG_64BIT
         pgm_check_table[0x18] = &transaction_exception;
+	pgm_check_table[0x38] = &do_dat_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;
         pgm_check_table[0x3B] = &do_dat_exception;
