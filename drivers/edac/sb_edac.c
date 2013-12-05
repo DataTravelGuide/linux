@@ -1479,6 +1479,10 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		}
 	}
 
+	/* Only decode errors with an valid address (ADDRV) */
+	if (!GET_BITFIELD(m->status, 58, 58))
+		return;
+
 	rc = get_memory_error_data(mci, m->addr, &socket,
 				   &channel_mask, &rank, area_type);
 	if (rc < 0)
