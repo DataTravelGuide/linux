@@ -1350,29 +1350,23 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_mem,
  */
 static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
 {
-	int lock_count = -1;
 	struct mem_cgroup *iter, *failed = NULL;
 
 	for_each_mem_cgroup_tree(iter, mem) {
-		bool locked = iter->oom_lock;
-
-		iter->oom_lock = true;
-		if (lock_count == -1)
-			lock_count = iter->oom_lock;
-		else if (lock_count != locked) {
+		if (iter->oom_lock) {
 			/*
 			 * this subtree of our hierarchy is already locked
 			 * so we cannot give a lock.
 			 */
-			lock_count = 0;
 			failed = iter;
 			mem_cgroup_iter_break(mem, iter);
 			break;
-		}
+		} else
+			iter->oom_lock = true;
 	}
 
 	if (!failed)
-		goto done;
+		return true;
 
 	/*
 	 * OK, we failed to lock the whole subtree so we have to clean up
@@ -1385,8 +1379,7 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
 		}
 		iter->oom_lock = false;
 	}
-done:
-	return lock_count;
+	return false;
 }
 
 /*
