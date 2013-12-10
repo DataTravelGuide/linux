@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 10 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.2.1.el6]
+- [netdrv] bonding: Remove redundant VLAN tag insertion logic (Nikolay Aleksandrov) [1039562 1025224]
+
 * Fri Nov 22 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.1.1.el6]
 - [netdrv] mlx4_en: Check device state when setting coalescing (Amir Vadai) [1032395 975908]
 - [net] ip_output: do skb ufo init for peeked non ufo skb as well (Jiri Pirko) [1023490 1023491] {CVE-2013-4470}
