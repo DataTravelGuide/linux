@@ -719,14 +719,10 @@ static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		}
 	}
 
-	/*
-	 * Can happen right when we first start up, before we've read in any
-	 * btree nodes
-	 */
-	if (list_empty(&c->btree_cache))
-		goto out;
-
 	for (i = 0; nr && i < c->bucket_cache_used; i++) {
+		if (list_empty(&c->btree_cache))
+			goto out;
+
 		b = list_first_entry(&c->btree_cache, struct btree, list);
 		list_rotate_left(&c->btree_cache);
 
