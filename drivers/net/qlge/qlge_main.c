@@ -4681,6 +4681,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 
 	ndev->netdev_ops = &qlge_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &qlge_ethtool_ops);
+	set_ethtool_ops_ext(ndev, &qlge_ethtool_ops_ext);
 	ndev->watchdog_timeo = 10 * HZ;
 
 	err = register_netdev(ndev);

@@ -2205,6 +2205,7 @@ static inline u32 ql_read_sh_reg(__le32  *addr)
 extern char qlge_driver_name[];
 extern const char qlge_driver_version[];
 extern const struct ethtool_ops qlge_ethtool_ops;
+extern const struct ethtool_ops_ext qlge_ethtool_ops_ext;
 
 extern int ql_sem_spinlock(struct ql_adapter *qdev, u32 sem_mask);
 extern void ql_sem_unlock(struct ql_adapter *qdev, u32 sem_mask);
