@@ -17,6 +17,7 @@ update-spec:
 	@cp $(DETAILED_SPEC) $(MAIN_SPEC)
 	@rhpkg prep
 	@(cd kernel-$(VERSION)/; \
+	  if [ -e linux-$(VERSION)-$(internal_release) ]; then rm -rf linux-$(VERSION)-$(internal_release); fi; \
 	  mv linux-$(VERSION)-$(internal_release).*/ linux-$(VERSION)-$(internal_release)/; \
 	  cd linux-$(VERSION)-$(internal_release)/; \
 	  make mrproper; \
