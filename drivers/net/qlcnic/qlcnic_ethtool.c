@@ -1224,83 +1224,74 @@ static int qlcnic_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static int qlcnic_blink_led(struct net_device *dev, u32 val)
+static int qlcnic_set_led(struct net_device *dev,
+			  enum ethtool_phys_id_state state)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	int max_sds_rings = adapter->num_sds_rings;
-	int ret = 0;
+	int max_sds_rings = adapter->max_sds_rings;
+	int err = -EIO, active = 1;
+
+	if (qlcnic_83xx_check(adapter))
+		return qlcnic_83xx_set_led(dev, state);
 
 	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		netdev_warn(dev,
-			"LED test not supported for non privilege function\n");
+		netdev_warn(dev, "LED test not supported for non "
+				"privilege function\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (qlcnic_83xx_check(adapter) &&
-	    !test_bit(__QLCNIC_RESETTING, &adapter->state)) {
-
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
 		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
 			return -EBUSY;
 
-		ret = qlcnic_83xx_config_led(adapter, 1, 0);
-		if (ret)
-			goto led_err;
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+			break;
 
-		msleep_interruptible(val * 1000);
+		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST))
+				break;
+			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
+		}
 
-		ret = qlcnic_83xx_config_led(adapter, 0, 0);
-led_err:
-		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
-		return ret;
-	}
+		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0) {
+			err = 0;
+			break;
+		}
 
-	if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state))
-		return -EBUSY;
-
-	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
-		goto done;
-
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
-		if (ret)
-			goto done;
-		set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
-	}
-
-	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
-	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
-		goto done;
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		active = 0;
+
+		if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+			break;
+
+		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			if (qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST))
+				break;
+			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
+		}
+
+		if (adapter->nic_ops->config_led(adapter, 0, 0xf))
+			dev_err(&adapter->pdev->dev,
+				"Failed to reset LED blink state.\n");
+
+		break;
+
+	default:
+		return -EINVAL;
 	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(dev, max_sds_rings);
 
-	msleep_interruptible(val * 1000);
+	if (!active || err)
+		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
 
-	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
-		goto done;
-
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
-		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
-		if (ret)
-			goto done;
-		set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
-	}
-
-	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
-	if (ret)
-		dev_err(&adapter->pdev->dev,
-			"Failed to reset LED blink state.\n");
-
-done:
-	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
-		qlcnic_diag_free_res(dev, max_sds_rings);
-
-	clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
-	return ret;
-
+	return err;
 }
 
 static void
@@ -1690,7 +1681,6 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_coalesce = qlcnic_set_intr_coalesce,
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = qlcnic_set_flags,
-	.phys_id = qlcnic_blink_led,
 	.set_msglevel = qlcnic_set_msglevel,
 	.get_msglevel = qlcnic_get_msglevel,
 };
@@ -1730,4 +1720,5 @@ const struct ethtool_ops_ext qlcnic_ethtool_ops_ext = {
 	.get_dump_flag		= qlcnic_get_dump_flag,
 	.get_dump_data		= qlcnic_get_dump_data,
 	.set_dump		= qlcnic_set_dump,
+	.set_phys_id		= qlcnic_set_led,
 };
