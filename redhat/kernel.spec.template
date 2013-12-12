@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Dec 12 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.3.1.el6]
+- [net] don't drop TSO features for NO_CSUM devices (Ivan Vecera) [1037812 1030631]
+- [x86] kvm: fix cross page vapic_addr access (Paolo Bonzini) [1032214 1032215] {CVE-2013-6368}
+- [x86] kvm: fix division by zero in apic_get_tmcct (Paolo Bonzini) [1032212 1032213] {CVE-2013-6367}
+
 * Tue Dec 10 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.2.1.el6]
 - [netdrv] bonding: Remove redundant VLAN tag insertion logic (Nikolay Aleksandrov) [1039562 1025224]
 
