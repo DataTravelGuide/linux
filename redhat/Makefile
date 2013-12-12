@@ -56,7 +56,7 @@ endif
 #we assume most users push to a seperate repo than they read
 #and that repo is on the git.engineering website
 RHGITPUSHURL:=$(shell git config remote.origin.pushurl | sed 's/+ssh//;s,/srv/git,,')
-RHGITURL:=$(shell git config remote.origin.url)
+RHGITURL:=$(shell git config rhg.url || git config remote.origin.url)
 RHVALIDURL:=
 ifneq ("$(RHGITPUSHURL)", "")
   ifneq ("$(shell echo "$(RHGITPUSHURL)" | grep -E '^git://git[2]?\.engineering\.redhat\.com')", "")
