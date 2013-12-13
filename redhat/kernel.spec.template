@@ -1701,6 +1701,25 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Dec 13 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-435.el6]
+- [pci] Remove pcie_cap_has_devctl() (Myron Stowe) [1025994]
+- [pci] Support PCIe Capability Slot registers only for ports with slots (Myron Stowe) [1025994]
+- [pci] Remove PCIe Capability version checks (Myron Stowe) [1025994]
+- [pci] Allow PCIe Capability link-related register access for switches (Myron Stowe) [1025994]
+- [pci] Add offsets of PCIe capability registers (Myron Stowe) [1025994]
+- [pci] Tidy bitmasks and spacing of PCIe capability definitions (Myron Stowe) [1025994]
+- [pci] Remove obsolete comment reference to pci_pcie_cap2() (Myron Stowe) [1025994]
+- [pci] Clarify PCI_EXP_TYPE_PCI_BRIDGE comment (Myron Stowe) [1025994]
+- [pci] Rename PCIe capability definitions to follow convention (Myron Stowe) [1025994]
+- [pci] Add PCI_EXP_TYPE_PCIE_BRIDGE value (Myron Stowe) [1025994]
+- [netdrv] bnx2x: correct VF-PF channel locking scheme (Michal Schmidt) [1029203]
+- [netdrv] bnx2x: handle known but unsupported VF messages (Michal Schmidt) [1029203]
+- [netdrv] bnx2x: Lock DMAE when used by statistic flow (Michal Schmidt) [1029200]
+- [net] ipv6: fix leaking uninitialized port number of offender sockaddr (Florian Westphal) [1035883] {CVE-2013-6405}
+- [net] inet: fix addr_len/msg->msg_namelen assignment in recv_error functions (Florian Westphal) [1035883] {CVE-2013-6405}
+- [net] inet: prevent leakage of uninitialized memory to user in recv syscalls (Florian Westphal) [1035883] {CVE-2013-6405}
+- [net] ipvs: Add boundary check on ioctl arguments (Denys Vlasenko) [1030818] {CVE-2013-4588}
+
 * Fri Dec 06 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-434.el6]
 - [s390] qeth: avoid buffer overflow in snmp ioctl (Hendrik Brueckner) [1034266]
 - [md] fix calculation of stacking limits on level change (Jes Sorensen) [1026864]
