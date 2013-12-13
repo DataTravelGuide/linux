@@ -2349,6 +2349,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 long fuse_file_fallocate(struct inode *inode, struct fuse_file *ff, int mode,
 			 loff_t offset, loff_t length)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = ff->fc;
 	struct fuse_req *req;
 	struct fuse_fallocate_in inarg = {
@@ -2376,6 +2377,9 @@ long fuse_file_fallocate(struct inode *inode, struct fuse_file *ff, int mode,
 			fuse_sync_writes(inode);
 		}
 	}
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE))
+		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 
 	req = fuse_get_req_nopages(fc);
 	if (IS_ERR(req)) {
@@ -2409,6 +2413,9 @@ long fuse_file_fallocate(struct inode *inode, struct fuse_file *ff, int mode,
 	fuse_invalidate_attr(inode);
 
 out:
+	if (!(mode & FALLOC_FL_KEEP_SIZE))
+		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
+
 	if (lock_inode)
 		mutex_unlock(&inode->i_mutex);
 
