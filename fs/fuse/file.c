@@ -654,6 +654,7 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 		else
 			SetPageError(page);
 		unlock_page(page);
+		page_cache_release(page);
 	}
 	if (req->ff)
 		fuse_file_put(req->ff);
@@ -715,7 +716,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 		fuse_put_request(fc, req);
 		return -EIO;
 	}
-
+	page_cache_get(page);
 	req->pages[req->num_pages] = page;
 	req->page_descs[req->num_pages].length = PAGE_SIZE;
 	req->num_pages++;
