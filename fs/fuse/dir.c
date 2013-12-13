@@ -180,6 +180,8 @@ u64 fuse_get_attr_version(struct fuse_conn *fc)
 static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
 	struct inode *inode = entry->d_inode;
+	struct dentry *parent;
+	struct fuse_conn *fc;
 	int ret;
 
 	if (inode && is_bad_inode(inode))
@@ -187,10 +189,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 	else if (fuse_dentry_time(entry) < get_jiffies_64()) {
 		int err;
 		struct fuse_entry_out outarg;
-		struct fuse_conn *fc;
 		struct fuse_req *req;
 		struct fuse_forget_link *forget;
-		struct dentry *parent;
 		u64 attr_version;
 
 		/* For negative dentries, always do a fresh lookup */
@@ -240,8 +240,14 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 				       entry_attr_timeout(&outarg),
 				       attr_version);
 		fuse_change_entry_timeout(entry, &outarg);
+	} else if (inode) {
+		fc = get_fuse_conn(inode);
+		if (fc->readdirplus_auto) {
+			parent = dget_parent(entry);
+			fuse_advise_use_readdirplus(parent->d_inode);
+			dput(parent);
+		}
 	}
-	fuse_advise_use_readdirplus(inode);
 	ret = 1;
 out:
 	return ret;
