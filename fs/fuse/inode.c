@@ -854,6 +854,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->auto_inval_data = 1;
 			if (arg->flags & FUSE_DO_READDIRPLUS)
 				fc->do_readdirplus = 1;
+			if (arg->flags & FUSE_READDIRPLUS_AUTO)
+				fc->readdirplus_auto = 1;
 			if (arg->flags & FUSE_ASYNC_DIO)
 				fc->async_dio = 1;
 		} else {
@@ -880,7 +882,8 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
 	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
-		FUSE_AUTO_INVAL_DATA | FUSE_DO_READDIRPLUS | FUSE_ASYNC_DIO;
+		FUSE_AUTO_INVAL_DATA | FUSE_DO_READDIRPLUS |
+		FUSE_READDIRPLUS_AUTO | FUSE_ASYNC_DIO;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
