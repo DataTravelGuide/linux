@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Dec 18 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-436.el6]
+- [powerpc] signals: Improved mark VSX not saved with small contexts fix (Seth Jennings) [1044117]
+- [powerpc] signals: Mark VSX not saved with small contexts (Seth Jennings) [1044117]
+
 * Fri Dec 13 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-435.el6]
 - [pci] Remove pcie_cap_has_devctl() (Myron Stowe) [1025994]
 - [pci] Support PCIe Capability Slot registers only for ports with slots (Myron Stowe) [1025994]
