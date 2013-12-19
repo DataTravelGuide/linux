@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Dec 19 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.4.1.el6]
+- [powerpc] signals: Improved mark VSX not saved with small contexts fix (Seth Jennings) [1044566 1044117]
+- [powerpc] signals: Mark VSX not saved with small contexts (Seth Jennings) [1044566 1044117]
+
 * Thu Dec 12 2013 Petr Holasek <pholasek@redhat.com> [2.6.32-431.3.1.el6]
 - [net] don't drop TSO features for NO_CSUM devices (Ivan Vecera) [1037812 1030631]
 - [x86] kvm: fix cross page vapic_addr access (Paolo Bonzini) [1032214 1032215] {CVE-2013-6368}
