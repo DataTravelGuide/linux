@@ -1701,6 +1701,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 24 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-438.el6]
+- [fs] fuse: never d_drop() dentry mountpoints on failed reval (Brian Foster) [1026952]
+- [fs] cifs: don't instantiate new dentries in readdir for inodes that need to be revalidated immediately (Sachin Prabhu) [1017883]
+- [fs] cifs: revalidate directories instiantiated via FIND_* in order to handle DFS referrals (Sachin Prabhu) [1017883]
+- [fs] cifs: only set ops for inodes in I_NEW state (Sachin Prabhu) [1017883]
+- [fs] nfs: fix handling of invalid mount options in nfs_remount (Jeff Layton) [968185]
+- [fs] nfs: reject version and minorversion changes on remount attempts (Jeff Layton) [968185]
+- [fs] nfsd: add private md5 hashing implementation to get around FIPS blacklisting (Jeff Layton) [1020176]
+- [fs] nfs: Always clear the NFS_INO_LAYOUTCOMMIT in layoutreturn (Jeff Layton) [921540]
+- [fs] nfs: Send atime and mtime as a 64bit value (Jeff Layton) [996548]
+- [fs] nfs: fix mknod() on nfs4 (Jeff Layton) [921684]
+- [fs] nfs: nameidata_to_nfs_open_context() doesn't need nameidata (Jeff Layton) [921684]
+- [md] Re-enable TRIM on MD RAID5 devices (Jes Sorensen) [1023424]
+- [md] raid5: avoid finding "discard" stripe (Jes Sorensen) [1023424]
+- [md] raid5: set bio bi_vcnt 0 for discard request (Jes Sorensen) [1023424]
+- [s390] fix save and restore of the floating-point-control register (Hendrik Brueckner) [1034270]
+- [s390] signal: change return values to -EFAULT (Hendrik Brueckner) [1034270]
+- [kernel] ptrace: Cleanup useless header (Aaron Tomlin) [1036312]
+- [kernel] ptrace: kill BKL in ptrace syscall (Aaron Tomlin) [1036312]
+- [x86] kvm: fix cross page vapic_addr access (Paolo Bonzini) [1032215] {CVE-2013-6368}
+- [x86] kvm: fix division by zero in apic_get_tmcct (Paolo Bonzini) [1032213] {CVE-2013-6367}
+
 * Fri Dec 20 2013 Rafael Aquini <aquini@redhat.com> [2.6.32-437.el6]
 - [scsi] scsi_debug: fix endianness bug in sdebug_build_parts() (Maurizio Lombardi) [563489]
 - [scsi] bfa: Chinook quad port 16G FC HBA claim issue (Vijay Guvva) [1038186]
