@@ -1089,6 +1089,8 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 				ifa->ifa_dev = in_dev;
 				ifa->ifa_scope = RT_SCOPE_HOST;
 				memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
+				ipv4_devconf_setall(in_dev);
+				neigh_parms_data_state_setall(in_dev->arp_parms);
 				inet_insert_ifa(ifa);
 			}
 		}
