@@ -2610,6 +2610,32 @@ static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 	return ret;
 }
 
+static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
+					   void __user *buffer,
+					   size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tmp = *ctl;
+
+	tmp.extra1 = &zero;
+	tmp.extra2 = &int_max;
+
+	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+}
+
+static int neigh_sysctl_intvec_zero_intmax(struct ctl_table *ctl,
+					   void __user *oldval,
+					   size_t __user *oldlenp,
+					   void __user *newval,
+					   size_t newlen)
+{
+	struct ctl_table tmp = *ctl;
+
+	tmp.extra1 = &zero;
+	tmp.extra2 = &int_max;
+
+	return sysctl_intvec(&tmp, oldval, oldlenp, newval, newlen);
+}
+
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	struct ctl_table neigh_vars[__NET_NEIGH_MAX];
@@ -2621,30 +2647,24 @@ static struct neigh_sysctl_table {
 			.procname	= "mcast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
-			.proc_handler	= proc_dointvec_minmax,
-			.strategy       = sysctl_intvec,
+			.proc_handler	= neigh_proc_dointvec_zero_intmax,
+			.strategy       = neigh_sysctl_intvec_zero_intmax,
 		},
 		{
 			.ctl_name	= NET_NEIGH_UCAST_SOLICIT,
 			.procname	= "ucast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
-			.proc_handler	= proc_dointvec_minmax,
-			.strategy       = sysctl_intvec,
+			.proc_handler	= neigh_proc_dointvec_zero_intmax,
+			.strategy       = neigh_sysctl_intvec_zero_intmax,
 		},
 		{
 			.ctl_name	= NET_NEIGH_APP_SOLICIT,
 			.procname	= "app_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
-			.proc_handler	= proc_dointvec_minmax,
-			.strategy       = sysctl_intvec,
+			.proc_handler	= neigh_proc_dointvec_zero_intmax,
+			.strategy       = neigh_sysctl_intvec_zero_intmax,
 		},
 		{
 			.procname	= "retrans_time",
@@ -2689,10 +2709,8 @@ static struct neigh_sysctl_table {
 			.procname	= "proxy_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.extra1 	= &zero,
-			.extra2		= &int_max,
-			.proc_handler	= proc_dointvec_minmax,
-			.strategy       = sysctl_intvec,
+			.proc_handler	= neigh_proc_dointvec_zero_intmax,
+			.strategy       = neigh_sysctl_intvec_zero_intmax,
 		},
 		{
 			.procname	= "anycast_delay",
