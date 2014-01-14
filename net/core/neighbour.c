@@ -2636,6 +2636,43 @@ static int neigh_sysctl_intvec_zero_intmax(struct ctl_table *ctl,
 	return sysctl_intvec(&tmp, oldval, oldlenp, newval, newlen);
 }
 
+int neigh_proc_dointvec(struct ctl_table *ctl, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec);
+
+int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write,
+				void __user *buffer,
+				size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec_jiffies);
+
+static int neigh_proc_dointvec_userhz_jiffies(struct ctl_table *ctl, int write,
+					      void __user *buffer,
+					      size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+}
+
+int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
+				   void __user *buffer,
+				   size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+}
+EXPORT_SYMBOL(neigh_proc_dointvec_ms_jiffies);
+
+static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
+					  void __user *buffer,
+					  size_t *lenp, loff_t *ppos)
+{
+	return proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+}
+
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	struct ctl_table neigh_vars[__NET_NEIGH_MAX];
@@ -2670,14 +2707,14 @@ static struct neigh_sysctl_table {
 			.procname	= "retrans_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_userhz_jiffies,
+			.proc_handler	= neigh_proc_dointvec_userhz_jiffies,
 		},
 		{
 			.ctl_name	= NET_NEIGH_REACHABLE_TIME,
 			.procname	= "base_reachable_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_jiffies,
+			.proc_handler	= neigh_proc_dointvec_jiffies,
 			.strategy	= sysctl_jiffies,
 		},
 		{
@@ -2685,7 +2722,7 @@ static struct neigh_sysctl_table {
 			.procname	= "delay_first_probe_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_jiffies,
+			.proc_handler	= neigh_proc_dointvec_jiffies,
 			.strategy	= sysctl_jiffies,
 		},
 		{
@@ -2693,7 +2730,7 @@ static struct neigh_sysctl_table {
 			.procname	= "gc_stale_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_jiffies,
+			.proc_handler	= neigh_proc_dointvec_jiffies,
 			.strategy	= sysctl_jiffies,
 		},
 		{
@@ -2701,7 +2738,7 @@ static struct neigh_sysctl_table {
 			.procname	= "unres_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_unres_qlen,
+			.proc_handler	= neigh_proc_dointvec_unres_qlen,
 			.strategy       = sysctl_intvec,
 		},
 		{
@@ -2716,26 +2753,26 @@ static struct neigh_sysctl_table {
 			.procname	= "anycast_delay",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_userhz_jiffies,
+			.proc_handler	= neigh_proc_dointvec_userhz_jiffies,
 		},
 		{
 			.procname	= "proxy_delay",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_userhz_jiffies,
+			.proc_handler	= neigh_proc_dointvec_userhz_jiffies,
 		},
 		{
 			.procname	= "locktime",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_userhz_jiffies,
+			.proc_handler	= neigh_proc_dointvec_userhz_jiffies,
 		},
 		{
 			.ctl_name	= NET_NEIGH_RETRANS_TIME_MS,
 			.procname	= "retrans_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_ms_jiffies,
+			.proc_handler	= neigh_proc_dointvec_ms_jiffies,
 			.strategy	= sysctl_ms_jiffies,
 		},
 		{
@@ -2743,7 +2780,7 @@ static struct neigh_sysctl_table {
 			.procname	= "base_reachable_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_ms_jiffies,
+			.proc_handler	= neigh_proc_dointvec_ms_jiffies,
 			.strategy	= sysctl_ms_jiffies,
 		},
 		{
@@ -2792,6 +2829,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 			  int p_id, int pdev_id, char *p_name,
 			  proc_handler *handler, ctl_handler *strategy)
 {
+	int i;
 	struct neigh_sysctl_table *t;
 	const char *dev_name_source = NULL;
 
@@ -2827,6 +2865,9 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	t->neigh_vars[12].data  = &p->retrans_time;
 	t->neigh_vars[13].data  = &p->base_reachable_time;
 
+	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++)
+		t->neigh_vars[i].extra1 = dev;
+
 	if (dev) {
 		dev_name_source = dev->name;
 		neigh_path[NEIGH_CTL_PATH_DEV].ctl_name = dev->ifindex;
@@ -2845,25 +2886,21 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		/* RetransTime */
 		t->neigh_vars[3].proc_handler = handler;
 		t->neigh_vars[3].strategy = strategy;
-		t->neigh_vars[3].extra1 = dev;
 		if (!strategy)
 			t->neigh_vars[3].ctl_name = CTL_UNNUMBERED;
 		/* ReachableTime */
 		t->neigh_vars[4].proc_handler = handler;
 		t->neigh_vars[4].strategy = strategy;
-		t->neigh_vars[4].extra1 = dev;
 		if (!strategy)
 			t->neigh_vars[4].ctl_name = CTL_UNNUMBERED;
 		/* RetransTime (in milliseconds)*/
 		t->neigh_vars[12].proc_handler = handler;
 		t->neigh_vars[12].strategy = strategy;
-		t->neigh_vars[12].extra1 = dev;
 		if (!strategy)
 			t->neigh_vars[12].ctl_name = CTL_UNNUMBERED;
 		/* ReachableTime (in milliseconds) */
 		t->neigh_vars[13].proc_handler = handler;
 		t->neigh_vars[13].strategy = strategy;
-		t->neigh_vars[13].extra1 = dev;
 		if (!strategy)
 			t->neigh_vars[13].ctl_name = CTL_UNNUMBERED;
 	}
