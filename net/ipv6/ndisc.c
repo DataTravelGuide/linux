@@ -1260,7 +1260,7 @@ skip_defrtr:
 			rtime = (rtime*HZ)/1000;
 			if (rtime < HZ/10)
 				rtime = HZ/10;
-			in6_dev->nd_parms->retrans_time = rtime;
+			NEIGH_VAR_SET(in6_dev->nd_parms, RETRANS_TIME, rtime);
 			in6_dev->tstamp = jiffies;
 			inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
 		}
@@ -1273,8 +1273,10 @@ skip_defrtr:
 				rtime = HZ/10;
 
 			if (rtime != in6_dev->nd_parms->base_reachable_time) {
-				in6_dev->nd_parms->base_reachable_time = rtime;
-				in6_dev->nd_parms->gc_staletime = 3 * rtime;
+				NEIGH_VAR_SET(in6_dev->nd_parms,
+					      BASE_REACHABLE_TIME, rtime);
+				NEIGH_VAR_SET(in6_dev->nd_parms,
+					      GC_STALETIME, 3 * rtime);
 				in6_dev->nd_parms->reachable_time = neigh_rand_reach_time(rtime);
 				in6_dev->tstamp = jiffies;
 				inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);

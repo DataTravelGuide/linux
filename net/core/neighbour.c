@@ -1933,40 +1933,49 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 			switch (i) {
 			case NDTPA_QUEUE_LEN:
-				p->queue_len = nla_get_u32(tbp[i]);
+				NEIGH_VAR_SET(p, QUEUE_LEN,
+					      nla_get_u32(tbp[i]));
 				break;
 			case NDTPA_PROXY_QLEN:
-				p->proxy_qlen = nla_get_u32(tbp[i]);
+				NEIGH_VAR_SET(p, PROXY_QLEN,
+					      nla_get_u32(tbp[i]));
 				break;
 			case NDTPA_APP_PROBES:
-				p->app_probes = nla_get_u32(tbp[i]);
+				NEIGH_VAR_SET(p, APP_PROBES,
+					      nla_get_u32(tbp[i]));
 				break;
 			case NDTPA_UCAST_PROBES:
-				p->ucast_probes = nla_get_u32(tbp[i]);
+				NEIGH_VAR_SET(p, UCAST_PROBES,
+					      nla_get_u32(tbp[i]));
 				break;
 			case NDTPA_MCAST_PROBES:
-				p->mcast_probes = nla_get_u32(tbp[i]);
+				NEIGH_VAR_SET(p, MCAST_PROBES,
+					      nla_get_u32(tbp[i]));
 				break;
 			case NDTPA_BASE_REACHABLE_TIME:
-				p->base_reachable_time = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, BASE_REACHABLE_TIME,
+					      nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_GC_STALETIME:
-				p->gc_staletime = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, GC_STALETIME,
+					      nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_DELAY_PROBE_TIME:
-				p->delay_probe_time = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, DELAY_PROBE_TIME,
+					      nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_RETRANS_TIME:
-				p->retrans_time = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, RETRANS_TIME,
+					      nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_ANYCAST_DELAY:
-				p->anycast_delay = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, ANYCAST_DELAY, nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_PROXY_DELAY:
-				p->proxy_delay = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, PROXY_DELAY, nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_LOCKTIME:
-				p->locktime = nla_get_msecs(tbp[i]);
+				NEIGH_VAR_SET(p, LOCKTIME, nla_get_msecs(tbp[i]));
 				break;
 			}
 		}

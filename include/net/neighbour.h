@@ -37,6 +37,28 @@
 
 struct neighbour;
 
+/* Unlike upstream, in rhel6 following enum serves only as an index to
+ * neigh_parms data array. They are sorted in a way so the array can be mapped
+ * to existing vars starting with base_reachable_time.
+ */
+
+enum {
+	NEIGH_VAR_BASE_REACHABLE_TIME,
+	NEIGH_VAR_RETRANS_TIME,
+	NEIGH_VAR_GC_STALETIME,
+	__NEIGH_VAR_RHRESERVED, /* reachable_time is not used externally */
+	NEIGH_VAR_DELAY_PROBE_TIME,
+	NEIGH_VAR_QUEUE_LEN,
+	NEIGH_VAR_UCAST_PROBES,
+	NEIGH_VAR_APP_PROBES,
+	NEIGH_VAR_MCAST_PROBES,
+	NEIGH_VAR_ANYCAST_DELAY,
+	NEIGH_VAR_PROXY_DELAY,
+	NEIGH_VAR_PROXY_QLEN,
+	NEIGH_VAR_LOCKTIME,
+	NEIGH_VAR_DATA_MAX
+};
+
 struct neigh_parms
 {
 #ifdef CONFIG_NET_NS
@@ -69,6 +91,23 @@ struct neigh_parms
 	int	proxy_qlen;
 	int	locktime;
 };
+
+/* KABI: upstream replaces all in vars with data[]. This is not possible
+ * in RHEL due to KABI breakage. So we introduce rh_neigh_parms_data helper to
+ * map current vars into virtual neigh_parms data int array.
+ */
+static inline int *rh_neigh_parms_data(struct neigh_parms *p)
+{
+	return &p->base_reachable_time;
+}
+
+static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
+{
+	rh_neigh_parms_data(p)[index] = val;
+}
+
+#define NEIGH_VAR(p, attr) (rh_neigh_parms_data(p)[NEIGH_VAR_ ## attr])
+#define NEIGH_VAR_SET(p, attr, val) neigh_var_set(p, NEIGH_VAR_ ## attr, val)
 
 struct neigh_statistics
 {
