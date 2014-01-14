@@ -35,8 +35,10 @@
 #include <linux/random.h>
 #include <linux/string.h>
 #include <linux/log2.h>
+#ifndef __GENKSYMS__
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
+#endif
 
 #define NEIGH_DEBUG 1
 
@@ -1352,6 +1354,7 @@ static inline struct neigh_parms *lookup_neigh_parms(struct neigh_table *tbl,
 struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 				      struct neigh_table *tbl)
 {
+	struct neigh_parms_extended *p_ex;
 	struct neigh_parms *p, *ref;
 	struct net *net = dev_net(dev);
 	const struct net_device_ops *ops = dev->netdev_ops;
@@ -1360,15 +1363,17 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	if (!ref)
 		return NULL;
 
-	p = kmemdup(ref, sizeof(*p), GFP_KERNEL);
-	if (p) {
+	p_ex = kmalloc(sizeof(*p_ex), GFP_KERNEL);
+	if (p_ex) {
+		p = &p_ex->parms;
+		memcpy(p, ref, sizeof(*p));
 		p->tbl		  = tbl;
 		atomic_set(&p->refcnt, 1);
 		p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
 
 		if (ops->ndo_neigh_setup && ops->ndo_neigh_setup(dev, p)) {
-			kfree(p);
+			kfree(p_ex);
 			return NULL;
 		}
 
@@ -1382,8 +1387,9 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		write_unlock_bh(&tbl->lock);
 
 		neigh_parms_data_state_cleanall(p);
+		return p;
 	}
-	return p;
+	return NULL;
 }
 EXPORT_SYMBOL(neigh_parms_alloc);
 
@@ -1421,7 +1427,7 @@ EXPORT_SYMBOL(neigh_parms_release);
 static void neigh_parms_destroy(struct neigh_parms *parms)
 {
 	release_net(neigh_parms_net(parms));
-	kfree(parms);
+	kfree(neigh_parms_extended(parms));
 }
 
 static struct lock_class_key neigh_table_proxy_queue_class;
@@ -2638,7 +2644,7 @@ static void neigh_copy_dflt_parms(struct net *net, struct neigh_parms *p,
 		struct neigh_parms *dst_p =
 				neigh_get_dev_parms_rcu(dev, family);
 
-		if (dst_p && !test_bit(index, dst_p->data_state))
+		if (dst_p && !test_bit(index, neigh_parms_extended(dst_p)->data_state))
 			rh_neigh_parms_data(dst_p)[index] = rh_neigh_parms_data(p)[index];
 	}
 	rcu_read_unlock();
@@ -2655,7 +2661,7 @@ static void neigh_proc_update(struct ctl_table *ctl, int write)
 	if (!write)
 		return;
 
-	set_bit(index, p->data_state);
+	set_bit(index, neigh_parms_extended(p)->data_state);
 	if (!dev) /* NULL dev means this is default value */
 		neigh_copy_dflt_parms(net, p, index);
 }

@@ -91,8 +91,21 @@ struct neigh_parms
 	int	proxy_delay;
 	int	proxy_qlen;
 	int	locktime;
+};
+
+/* To prevent KABI-breakage, struct neigh_parms_extended is added here to extend
+ * the original struct neigh_parms. Also, neigh_parms_extended helper is added
+ * for accessing items in struct neigh_parms_extended.
+ */
+struct neigh_parms_extended {
+	struct neigh_parms parms;
 	DECLARE_BITMAP(data_state, NEIGH_VAR_DATA_MAX);
 };
+
+static inline struct neigh_parms_extended *neigh_parms_extended(struct neigh_parms *p)
+{
+	return (struct neigh_parms_extended *) p;
+}
 
 /* KABI: upstream replaces all in vars with data[]. This is not possible
  * in RHEL due to KABI breakage. So we introduce rh_neigh_parms_data helper to
@@ -105,7 +118,7 @@ static inline int *rh_neigh_parms_data(struct neigh_parms *p)
 
 static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
 {
-	set_bit(index, p->data_state);
+	set_bit(index, neigh_parms_extended(p)->data_state);
 	rh_neigh_parms_data(p)[index] = val;
 }
 
@@ -114,12 +127,12 @@ static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
 
 static inline void neigh_parms_data_state_setall(struct neigh_parms *p)
 {
-	bitmap_fill(p->data_state, NEIGH_VAR_DATA_MAX);
+	bitmap_fill(neigh_parms_extended(p)->data_state, NEIGH_VAR_DATA_MAX);
 }
 
 static inline void neigh_parms_data_state_cleanall(struct neigh_parms *p)
 {
-	bitmap_zero(p->data_state, NEIGH_VAR_DATA_MAX);
+	bitmap_zero(neigh_parms_extended(p)->data_state, NEIGH_VAR_DATA_MAX);
 }
 
 struct neigh_statistics
