@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jan 17 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-440.el6]
+- [mm] memcg: fix oom schedule_timeout() (Ulrich Obergfell) [1034237]
+- [mm] memcg: change memcg_oom_mutex to spinlock (Ulrich Obergfell) [1034237]
+- [mm] memcg: fix hierarchical oom locking (Ulrich Obergfell) [1034237]
+- [mm] memcg: make oom_lock 0 and 1 based rather than counter (Ulrich Obergfell) [1034237]
+- [usb] cdc-wdm: fix buffer overflow (Alexander Gordeev) [922001] {CVE-2013-1860}
+- [usb] cdc-wdm: Fix race between autosuspend and reading from the device (Alexander Gordeev) [922001] {CVE-2013-1860}
+
 * Fri Jan 10 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-439.el6]
 - [perf] tools: Fix LIBNUMA build with glibc 2.12 and older (Jiri Olsa) [1034843]
 - [perf] probe: Fix segfault (Jiri Olsa) [1034843]
