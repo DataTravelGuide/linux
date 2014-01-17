@@ -58,6 +58,9 @@ struct ipcm_cookie
 	int			oif;
 	struct ip_options	*opt;
 	union skb_shared_tx	shtx;
+	__u8			ttl;
+	__s16			tos;
+	char			priority;
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
