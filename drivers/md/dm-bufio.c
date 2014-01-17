@@ -163,7 +163,7 @@ static inline int dm_bufio_cache_index(struct dm_bufio_client *c)
 #define DM_BUFIO_CACHE(c)	(dm_bufio_caches[dm_bufio_cache_index(c)])
 #define DM_BUFIO_CACHE_NAME(c)	(dm_bufio_cache_names[dm_bufio_cache_index(c)])
 
-#define dm_bufio_in_request()	(!!current->bio_list)
+#define dm_bufio_in_request()	(!!current->bio_tail)
 
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
