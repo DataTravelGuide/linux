@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sat Jan 18 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.6.1.el6]
+- [mm] memcg: fix oom schedule_timeout() (Ulrich Obergfell) [1054072 1034237]
+- [mm] memcg: change memcg_oom_mutex to spinlock (Ulrich Obergfell) [1054072 1034237]
+- [mm] memcg: fix hierarchical oom locking (Ulrich Obergfell) [1054072 1034237]
+- [mm] memcg: make oom_lock 0 and 1 based rather than counter (Ulrich Obergfell) [1054072 1034237]
+
 * Fri Jan 10 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.5.1.el6]
 - [net] sctp: fix checksum marking for outgoing packets (Daniel Borkmann) [1046041 1040385]
 - [kernel] ptrace: Cleanup useless header (Aaron Tomlin) [1046043 1036312]
