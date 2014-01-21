@@ -277,12 +277,12 @@ nfs4_close_delegation(struct nfs4_delegation *dp)
 static void
 unhash_delegation(struct nfs4_delegation *dp)
 {
+	nfs4_close_delegation(dp);
 	list_del_init(&dp->dl_perfile);
 	list_del_init(&dp->dl_perclnt);
 	spin_lock(&recall_lock);
 	list_del_init(&dp->dl_recall_lru);
 	spin_unlock(&recall_lock);
-	nfs4_close_delegation(dp);
 	nfs4_put_delegation(dp);
 }
 
