@@ -352,6 +352,7 @@ rh-help:
 	@echo  '  rh-check-kabi - Run check-kabi script on a pre-compiled tree.'
 	@echo  '  rh-key	- Generate the required files for compiling with module signing enabled'
 	@echo  '  rh-stub-key	- Use pre generated keys to speed local test builds'
+	@echo  '  rh-cross-download - [x86_64 only] download cross compiler rpms'
 	@echo  '  rh-cross-all-builds - [x86_64 only] execute "rpmbuild -bc" for i686, s390x,'
 	@echo  '			ppc64, x86_64 using RHEL cross compiler'
 	@echo  '  rh-cross-[ARCH]-build - [x86_64 only] execute "rpmbuild -bc" for specified'
