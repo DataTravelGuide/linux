@@ -237,6 +237,17 @@ EXPORT_SYMBOL_GPL(net_prio_subsys_id);
 #endif
 #endif
 
+static bool proto_has_rhel_ext(const struct proto *prot, int flag)
+{
+	return (prot->slab_flags & RHEL_EXTENDED_PROTO) &&
+	       (prot->rhel_flags & flag);
+}
+
+static int proto_slab_flags(const struct proto *prot)
+{
+	return prot->slab_flags & ~RHEL_EXTENDED_PROTO;
+}
+
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 {
 	struct timeval tv;
@@ -2026,7 +2037,8 @@ void release_sock(struct sock *sk)
 	if (sk->sk_backlog.tail)
 		__release_sock(sk);
 
-	if (sk->sk_prot->release_cb)
+	if (proto_has_rhel_ext(sk->sk_prot, RHEL_PROTO_HAS_RELEASE_CB) &&
+	    sk->sk_prot->release_cb)
 		sk->sk_prot->release_cb(sk);
 
 	sk->sk_lock.owned = 0;
@@ -2302,7 +2314,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name,
 					sk_alloc_size(prot->obj_size), 0,
-					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+					SLAB_HWCACHE_ALIGN | proto_slab_flags(prot),
 					NULL);
 
 		if (prot->slab == NULL) {
@@ -2344,7 +2356,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 						  prot->twsk_prot->twsk_obj_size,
 						  0,
 						  SLAB_HWCACHE_ALIGN |
-							prot->slab_flags,
+							proto_slab_flags(prot),
 						  NULL);
 			if (prot->twsk_prot->twsk_slab == NULL)
 				goto out_free_timewait_sock_slab_name;
