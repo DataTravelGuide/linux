@@ -1493,8 +1493,10 @@ extern struct timespec current_fs_time(struct super_block *sb);
  */
 /* Old freezing mechanism */
 #define vfs_check_frozen(sb, level) \
+do { \
 	if (!sb_has_new_freeze(sb)) \
-		wait_event((sb)->s_wait_unfrozen, ((sb)->s_frozen < (level)))
+		wait_event((sb)->s_wait_unfrozen, ((sb)->s_frozen < (level))); \
+} while (0)
 
 void __sb_end_write(struct super_block *sb, int level);
 int __sb_start_write(struct super_block *sb, int level, bool wait);
