@@ -91,6 +91,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 				port = p->port;
 				if (port) {
 					struct br_mdb_entry e;
+					memset(&e, 0, sizeof(e));
 					e.ifindex = port->dev->ifindex;
 					if (p->addr.proto == htons(ETH_P_IP))
 						e.addr.u.ip4 = p->addr.u.ip4;
@@ -143,6 +144,7 @@ static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				break;
 
 			bpm = nlmsg_data(nlh);
+			memset(bpm, 0, sizeof(*bpm));
 			bpm->ifindex = dev->ifindex;
 			if (br_mdb_fill_info(skb, cb, dev) < 0)
 				goto out;
