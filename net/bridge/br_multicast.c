@@ -649,10 +649,12 @@ static struct net_bridge_mdb_entry *br_multicast_new_group(
 	struct net_bridge_mdb_htable *mdb = br->mdb;
 	struct net_bridge_mdb_entry *mp;
 	int hash;
+	int err;
 
 	if (!mdb) {
-		if (br_mdb_rehash(&br->mdb, BR_HASH_SIZE, 0))
-			return NULL;
+		err = br_mdb_rehash(&br->mdb, BR_HASH_SIZE, 0);
+		if (err)
+			return ERR_PTR(err);
 		goto rehash;
 	}
 
@@ -674,7 +676,7 @@ rehash:
 
 	mp = kzalloc(sizeof(*mp), GFP_ATOMIC);
 	if (unlikely(!mp))
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	mp->br = br;
 	mp->addr = *group;
@@ -707,7 +709,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 
 	mp = br_multicast_new_group(br, port, group);
 	err = PTR_ERR(mp);
-	if (unlikely(IS_ERR(mp) || !mp))
+	if (IS_ERR(mp))
 		goto err;
 
 	if (!port) {
