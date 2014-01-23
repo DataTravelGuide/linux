@@ -1379,7 +1379,7 @@ ls $man9dir | grep -q '' || > $man9dir/BROKEN
 # kabi directory
 INSTALL_KABI_PATH=$RPM_BUILD_ROOT/lib/modules/
 # current kabi release directory
-KABI_CURRENT=kabi-rhel65
+KABI_CURRENT=kabi-rhel66
 
 mkdir -p $INSTALL_KABI_PATH
 
