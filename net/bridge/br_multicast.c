@@ -1411,7 +1411,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 {
 	struct sk_buff *skb2;
 	struct ipv6hdr *ip6h;
-	struct icmp6hdr *icmp6h;
+	u8 icmp6_type;
 	u8 nexthdr;
 	unsigned len;
 	int offset;
@@ -1465,9 +1465,9 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	skb_postpull_rcsum(skb2, skb_network_header(skb2),
 			   skb_network_header_len(skb2));
 
-	icmp6h = icmp6_hdr(skb2);
+	icmp6_type = icmp6_hdr(skb2)->icmp6_type;
 
-	switch (icmp6h->icmp6_type) {
+	switch (icmp6_type) {
 	case ICMPV6_MGM_QUERY:
 	case ICMPV6_MGM_REPORT:
 	case ICMPV6_MGM_REDUCTION:
@@ -1507,7 +1507,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 
 	BR_INPUT_SKB_CB(skb)->igmp = 1;
 
-	switch (icmp6h->icmp6_type) {
+	switch (icmp6_type) {
 	case ICMPV6_MGM_REPORT:
 	    {
 		struct mld_msg *mld;
