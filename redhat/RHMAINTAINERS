@@ -242,8 +242,9 @@ S:	Maintained
 F:	drivers/net/ixgbevf/
 
 KERNEL-BASED VIRTUAL MACHINE (kvm)
-M:	Gleb Natapov <gleb@redhat.com>
+M:	Paolo Bonzini <pbonzini@redhat.com>
 M:	Marcelo Tosatti <mtosatti@redhat.com>
+L:	rhvirt-patches@redhat.com
 S:	Maintained
 F:	arch/x86/include/asm/kvm*.h
 F:	arch/x86/kvm/
