@@ -3362,9 +3362,9 @@ static bool svm_invpcid_supported(void)
 	return false;
 }
 
-static bool svm_gb_page_enable(void)
+static int svm_get_lpage_level(void)
 {
-	return true;
+	return PT_PDPE_LEVEL;
 }
 
 static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
@@ -3449,7 +3449,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_tdp_level = get_npt_level,
 	.get_mt_mask = svm_get_mt_mask,
 
-	.gb_page_enable = svm_gb_page_enable,
+	.get_lpage_level = svm_get_lpage_level,
 
 	.cpuid_update = svm_cpuid_update,
 	.invpcid_supported = svm_invpcid_supported,

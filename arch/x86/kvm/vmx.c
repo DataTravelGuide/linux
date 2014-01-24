@@ -4485,9 +4485,9 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	}
 }
 
-static bool vmx_gb_page_enable(void)
+static int vmx_get_lpage_level(void)
 {
-	return false;
+	return PT_DIRECTORY_LEVEL;
 }
 
 static struct kvm_x86_ops vmx_x86_ops = {
@@ -4554,7 +4554,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_tdp_level = get_ept_level,
 	.get_mt_mask = vmx_get_mt_mask,
 
-	.gb_page_enable = vmx_gb_page_enable,
+	.get_lpage_level = vmx_get_lpage_level,
 
 	.cpuid_update = vmx_cpuid_update,
 	.invpcid_supported = vmx_invpcid_supported,
