@@ -339,6 +339,11 @@ static inline bool cpu_has_vmx_ept_ad_bits(void)
 	return vmx_capability.ept & VMX_EPT_AD_BIT;
 }
 
+static inline bool cpu_has_vmx_ept_1g_page(void)
+{
+	return !!(vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT);
+}
+
 static inline int cpu_has_vmx_invept_individual_addr(void)
 {
 	return !!(vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT);
@@ -4487,7 +4492,11 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 
 static int vmx_get_lpage_level(void)
 {
-	return PT_DIRECTORY_LEVEL;
+	if (enable_ept && !cpu_has_vmx_ept_1g_page())
+		return PT_DIRECTORY_LEVEL;
+	else
+		/* For shadow and EPT supported 1GB page */
+		return PT_PDPE_LEVEL;
 }
 
 static struct kvm_x86_ops vmx_x86_ops = {
