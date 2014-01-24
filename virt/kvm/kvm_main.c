@@ -44,6 +44,7 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/srcu.h>
+#include <linux/hugetlb.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -1643,6 +1644,41 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
+
+unsigned long kvm_host_page_size(struct kvm *kvm, gfn_t gfn)
+{
+	struct vm_area_struct *vma;
+	unsigned long addr;
+	unsigned long page_size;
+
+	page_size = PAGE_SIZE;
+
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr))
+		return PAGE_SIZE;
+
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(current->mm, addr);
+	if (!vma)
+		goto out;
+
+	page_size = vma_kernel_pagesize(vma);
+
+out:
+	up_read(&current->mm->mmap_sem);
+
+	/* check for transparent hugepages */
+	if (page_size == PAGE_SIZE) {
+		pfn_t pfn = hva_to_pfn(kvm, addr);
+
+		if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn) &&
+		    PageTransCompound(pfn_to_page(pfn)))
+			page_size = KVM_HPAGE_SIZE(2);
+		kvm_release_pfn_clean(pfn);
+	}
+
+	return page_size;
+}
 
 int memslot_id(struct kvm *kvm, gfn_t gfn)
 {
