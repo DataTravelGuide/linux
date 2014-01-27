@@ -328,6 +328,7 @@ struct x86_pmu {
 	void		(*cpu_starting)(int cpu);
 	void		(*cpu_dying)(int cpu);
 	void		(*cpu_dead)(int cpu);
+	void		(*flush_branch_stack)(void);
 
 	/*
 	 * Intel Arch Perfmon v2+

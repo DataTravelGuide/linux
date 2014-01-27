@@ -1746,25 +1746,32 @@ static int x86_pmu_event_idx(struct perf_event *event)
 	return idx + 1;
 }
 
+static void x86_pmu_flush_branch_stack(void)
+{
+	if (x86_pmu.flush_branch_stack)
+		x86_pmu.flush_branch_stack();
+}
+
 static struct pmu pmu = {
-	.pmu_enable	= x86_pmu_enable,
-	.pmu_disable	= x86_pmu_disable,
+	.pmu_enable		= x86_pmu_enable,
+	.pmu_disable		= x86_pmu_disable,
 
 	.attr_groups	= x86_pmu_attr_groups,
 
 	.event_init	= x86_pmu_event_init,
 
-	.add		= x86_pmu_add,
-	.del		= x86_pmu_del,
-	.start		= x86_pmu_start,
-	.stop		= x86_pmu_stop,
-	.read		= x86_pmu_read,
+	.add			= x86_pmu_add,
+	.del			= x86_pmu_del,
+	.start			= x86_pmu_start,
+	.stop			= x86_pmu_stop,
+	.read			= x86_pmu_read,
 
 	.start_txn	= x86_pmu_start_txn,
 	.cancel_txn	= x86_pmu_cancel_txn,
 	.commit_txn	= x86_pmu_commit_txn,
 
 	.event_idx	= x86_pmu_event_idx,
+	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
 
 /*

@@ -748,6 +748,11 @@ struct pmu {
 	 * if no implementation is provided it will default to: event->hw.idx + 1.
 	 */
 	int (*event_idx)		(struct perf_event *event); /*optional */
+
+	/*
+	 * flush branch stack on context-switches (needed in cpu-wide mode)
+	 */
+	void (*flush_branch_stack)	(void);
 };
 
 /**
@@ -985,6 +990,7 @@ struct perf_event_context {
 	struct rcu_head			rcu_head;
 #ifndef __GENKSYMS__ /* kabi tool is crap */
 	int				nr_cgroups; /* cgroup events present */
+	int				nr_branch_stack; /* branch_stack evt */
 #endif
 };
 
@@ -1049,6 +1055,7 @@ extern void perf_pmu_migrate_context(struct pmu *pmu,
 				int src_cpu, int dst_cpu);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
+
 
 struct perf_sample_data {
 	u64				type;
