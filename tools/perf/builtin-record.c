@@ -946,17 +946,12 @@ const struct option record_options[] = {
 		     parse_cgroups),
 	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
 		   "user to profile"),
-
-/*
- * XXX branch stack feature is not supported in RHEL6
 	OPT_CALLBACK_NOOPT('b', "branch-any", &record.opts.branch_stack,
 		     "branch any", "sample any taken branches",
 		     parse_branch_stack),
-
 	OPT_CALLBACK('j', "branch-filter", &record.opts.branch_stack,
 		     "branch filter mask", "branch stack filter modes",
 		     parse_branch_stack),
-*/
 	OPT_END()
 };
 

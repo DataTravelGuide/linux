@@ -564,10 +564,7 @@ XXX No dwarf unwind support in RHEL6
 	}
 	if (opts->branch_stack) {
 		perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
-		/*
-		 * no kernel change so far
-		 * attr->branch_sample_type = opts->branch_stack;
-		 */
+		attr->branch_sample_type = opts->branch_stack;
 	}
 
 	attr->mmap = track;
@@ -1378,11 +1375,12 @@ static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
 		bit_name(IP), bit_name(TID), bit_name(TIME), bit_name(ADDR),
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
+		bit_name(BRANCH_STACK),
 #if 0
-XXX RHEL6 branch samples, regs and user stack sample
+XXX RHEL6 regs and user stack sample
     types are not supported in RHEL6
 
-		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
+		bit_name(REGS_USER), bit_name(STACK_USER),
 #endif
 		{ .name = NULL, }
 	};
@@ -1465,10 +1463,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(__reserved_1);
 		if_print(wakeup_events);
 		if_print(bp_type);
-/*
- * XXX RHEL6 branch samples not supported in RHEL6
 		if_print(branch_sample_type);
- */
 	}
 out:
 	fputc('\n', fp);
