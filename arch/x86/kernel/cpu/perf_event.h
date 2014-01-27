@@ -112,6 +112,7 @@ struct cpu_hw_events {
 	struct perf_branch_stack	lbr_stack;
 	struct perf_branch_entry	lbr_entries[MAX_LBR_ENTRIES];
 	struct er_account		*lbr_sel;
+	u64				br_sel;
 
 	/*
 	 * Intel host/guest exclude bits
@@ -490,6 +491,15 @@ extern struct event_constraint unconstrained;
 
 extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
+
+static inline bool kernel_ip(unsigned long ip)
+{
+#ifdef CONFIG_X86_32
+	return ip > PAGE_OFFSET;
+#else
+	return (long)ip < 0;
+#endif
+}
 
 #ifdef CONFIG_CPU_SUP_AMD
 
