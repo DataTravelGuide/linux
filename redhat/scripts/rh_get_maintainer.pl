@@ -625,6 +625,11 @@ sub push_email_address {
 	return 0;
     }
 
+    # to avoid confusion, only print redhat.com email addresses
+    if ($line !~ /\@redhat\.com/) {
+	return 0;
+    }
+
     if (!$email_remove_duplicates) {
 	push(@email_to, format_email($name, $address));
     } elsif (!email_inuse($name, $address)) {

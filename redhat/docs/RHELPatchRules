@@ -475,10 +475,13 @@ patches that have actually changed from your prior submission.  This decreases
 the amount of traffic on RHKL, and makes patch tracking easier for the
 maintainers.
 
-[Suggested] cc all previous reviewers on new versions of patches
+[Suggested] run rh_get_maintainer.pl and cc all reviewers on all patches
 
-When reposting a patch it is useful for reviewers to be cc'd on new versions of
-patches.  This alerts reviewers that a new patch is available for review.
+When submitting or resubmitting a patch for review,
+redhat/scripts/rh_get_rhmaintainer.pl should be run to get a list of reviewers
+that should be cc'd on the patch submission. When reposting a patch it is
+useful for reviewers to be cc'd on new versions of patches.  This alerts
+reviewers that a new patch is available for review.
 
 5. Do I have to break up my patches into individual commits?  Can I use
 large monolithic patches?  What's the rule about this stuff?  Are there any
