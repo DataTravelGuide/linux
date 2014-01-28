@@ -1701,6 +1701,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 28 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-441.el6]
+- [edac] e752x_edac: Fix pci_dev usage count (Aristeu Rozanski) [1029530]
+- [md] fix lockdep warning in dm-thin (Mikulas Patocka) [952815]
+- [md] optimize use SRCU and RCU (Mikulas Patocka) [1011985]
+- [s390] mm: handle asce-type exceptions as normal page fault (Hendrik Brueckner) [1034268]
+- [s390] mm: correct tlb flush on page table upgrade (Hendrik Brueckner) [1034269]
+- [kvm] vmx: Properly return error to userspace on vmentry failure (Andrew Jones) [1054139]
+- [net] neigh: fix kabi breakage of the set (Jiri Pirko) [1023278]
+- [net] neigh: use neigh_parms_net() to get struct neigh_parms->net pointer (Jiri Pirko) [1023278]
+- [net] ipv4: loopback device: ignore value changes after device is upped (Jiri Pirko) [1023278]
+- [net] neigh: ipv6: respect default values set before an address is assigned to device (Jiri Pirko) [1023278]
+- [net] neigh: restore old behaviour of default parms values (Jiri Pirko) [1023278]
+- [net] neigh: introduce neigh_parms_family helper (Jiri Pirko) [1023278]
+- [net] neigh: wrap proc dointvec functions (Jiri Pirko) [1023278]
+- [net] neigh: do not use ctl_table->extra (Jiri Pirko) [1023278]
+- [net] neigh: convert parms to an array (Jiri Pirko) [1023278]
+- [net] fix memory information leaks in recv protocol handlers (Florian Westphal) [1039869] {CVE-2013-7271}
+- [net] ipv6: netfilter: ip6t_LOG: fix mark logging for IPv6 packets (Jiri Pirko) [1029970]
+- [net] netfilter: xt_socket: Make tproto signed in socket_mt6_v1() (Jiri Pirko) [1022201]
+- [net] af_unix: If we don't care about credentials coallesce all messages (Jiri Pirko) [1024635]
+
 * Fri Jan 17 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-440.el6]
 - [mm] memcg: fix oom schedule_timeout() (Ulrich Obergfell) [1034237]
 - [mm] memcg: change memcg_oom_mutex to spinlock (Ulrich Obergfell) [1034237]
