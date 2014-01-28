@@ -1132,6 +1132,7 @@
 0x1fd71c04	rfkill_unregister	net/rfkill/rfkill	EXPORT_SYMBOL
 0x1c9f3d70	rh_kabi_6_2	vmlinux	EXPORT_SYMBOL_GPL
 0xb4ac21bf	rh_kabi_6_3	vmlinux	EXPORT_SYMBOL_GPL
+0x1d2c7a03	rh_kabi_6_6	vmlinux	EXPORT_SYMBOL_GPL
 0x32f17454	ring_buffer_event_data	vmlinux	EXPORT_SYMBOL_GPL
 0x091eb9b4	round_jiffies	vmlinux	EXPORT_SYMBOL_GPL
 0x1eb9516e	round_jiffies_relative	vmlinux	EXPORT_SYMBOL_GPL
