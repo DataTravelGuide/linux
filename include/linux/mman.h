@@ -91,5 +91,7 @@ calc_vm_flag_bits(unsigned long flags)
 	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
 }
+
+unsigned long vm_commit_limit(void);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MMAN_H */

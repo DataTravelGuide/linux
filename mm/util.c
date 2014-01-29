@@ -9,6 +9,8 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/audit.h>
+#include <linux/swap.h>
+
 #include <asm/uaccess.h>
 #include <linux/kmemtrace.h>
 
@@ -311,6 +313,16 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 out:
 	return retval;
 }
+
+/*
+ * Committed memory limit enforced when OVERCOMMIT_NEVER policy is used
+ */
+unsigned long vm_commit_limit(void)
+{
+	return ((totalram_pages - hugetlb_total_pages())
+		* sysctl_overcommit_ratio / 100) + total_swap_pages;
+}
+
 
 /* Tracepoints definitions. */
 EXPORT_TRACEPOINT_SYMBOL(kmalloc);
