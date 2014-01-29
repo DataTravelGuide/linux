@@ -124,6 +124,7 @@ struct tun_struct {
 
 	int			vnet_hdr_sz;
 	int			sndbuf;
+	void			*security;
 #ifdef TUN_DEBUG
 	int debug;
 #endif
@@ -147,6 +148,10 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 		goto out;
 
 	err = 0;
+
+	err = security_tun_dev_attach(tfile->socket.sk, tun->security);
+	if (err < 0)
+		goto out;
 
 	tfile->tun = tun;
 	tfile->socket.sk->sk_sndbuf = tun->sndbuf;
@@ -875,6 +880,14 @@ out:
 	return ret;
 }
 
+static void tun_free_netdev(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	security_tun_dev_free_security(tun->security);
+	free_netdev(dev);
+}
+
 static void tun_setup(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
@@ -883,7 +896,7 @@ static void tun_setup(struct net_device *dev)
 	tun->group = -1;
 
 	dev->ethtool_ops = &tun_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = tun_free_netdev;
 }
 
 /* Trivial set of netlink ops to allow deleting tun or tap
@@ -1054,7 +1067,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		     (tun->group != -1 && !in_egroup_p(tun->group))) &&
 		    !capable(CAP_NET_ADMIN))
 			return -EPERM;
-		err = security_tun_dev_attach(tfile->socket.sk);
+		err = security_tun_dev_open(tun->security);
 		if (err < 0)
 			return err;
 
@@ -1103,7 +1116,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		tun->sndbuf = tfile->socket.sk->sk_sndbuf;
 
-		security_tun_dev_post_create(&tfile->sk);
+		err = security_tun_dev_alloc_security(&tun->security);
+		if (err < 0)
+			goto err_free_dev;
 
 		tun_net_init(dev);
 
