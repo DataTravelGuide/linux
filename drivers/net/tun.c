@@ -172,6 +172,7 @@ static void __tun_detach(struct tun_struct *tun)
 	/* Drop read queue */
 	skb_queue_purge(&tfile->socket.sk->sk_receive_queue);
 
+	sock_put(&tfile->sk);
 	/* Drop the extra count on the net device */
 	dev_put(tun->dev);
 }
@@ -332,6 +333,10 @@ static void tun_net_uninit(struct net_device *dev)
 		wake_up_all(&tfile->socket.wait);
 		if (atomic_dec_and_test(&tfile->count))
 			__tun_detach(tun);
+
+		/* The device is being removed, drop module refcount */
+		if (tun->flags & TUN_PERSIST)
+			module_put(THIS_MODULE);
 	}
 }
 
@@ -1287,10 +1292,11 @@ static long tun_chr_ioctl(struct file *file, unsigned int cmd,
 		/* Disable/Enable persist mode. Keep an extra reference to the
 		 * module to prevent the module being unprobed.
 		 */
-		if (arg) {
+		if (arg && !(tun->flags & TUN_PERSIST)) {
 			tun->flags |= TUN_PERSIST;
 			__module_get(THIS_MODULE);
-		} else {
+		}
+		if (!arg && (tun->flags & TUN_PERSIST)) {
 			tun->flags &= ~TUN_PERSIST;
 			module_put(THIS_MODULE);
 		}
@@ -1479,9 +1485,6 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 				unregister_netdevice(dev);
 			rtnl_unlock();
 		}
-
-		/* drop the reference that netdevice holds */
-		sock_put(&tfile->sk);
 	}
 
 	/* drop the reference that file holds */
