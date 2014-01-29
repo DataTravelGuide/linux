@@ -942,8 +942,10 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!tun)
 		return -EBADFD;
 
-	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
-		return -EINVAL;
+	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	m->msg_namelen = 0;
 	ret = tun_do_read(tun, tfile, iocb, m->msg_iov, total_len,
@@ -952,6 +954,7 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
 	}
+out:
 	tun_put(tun);
 	return ret;
 }
