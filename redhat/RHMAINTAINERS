@@ -483,7 +483,7 @@ S:	Maintained
 F:	drivers/net/usb/sierra_net.c
 
 SFC NETWORK DRIVER
-M:	Nikolay Aleksandrov <nikolay@redhat.com>
+M:	Nikolay Aleksandrov <naleksan@redhat.com>
 S:	Maintained
 F:	drivers/net/sfc/
 
