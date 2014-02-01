@@ -2111,6 +2111,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 * them down to the data device.  The thin device's discard
 	 * processing will cause mappings to be removed from the btree.
 	 */
+	ti->discard_zeroes_data_unsupported = 1;
 	if (pf.discard_enabled && pf.discard_passdown) {
 		ti->num_discard_requests = 1;
 
@@ -2120,7 +2121,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		 * thin devices' discard limits consistent).
 		 */
 		ti->discards_supported = 1;
-		ti->discard_zeroes_data_unsupported = 1;
 	}
 	ti->private = pt;
 
@@ -2708,8 +2708,16 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * They get transferred to the live pool in bind_control_target()
 	 * called from pool_preresume().
 	 */
-	if (!pt->adjusted_pf.discard_enabled)
+	if (!pt->adjusted_pf.discard_enabled) {
+		/*
+		 * Must explicitly disallow stacking discard limits otherwise the
+		 * block layer will stack them if pool's data device has support.
+		 * QUEUE_FLAG_DISCARD wouldn't be set but there is no way for the
+		 * user to see that, so make sure to set all discard limits to 0.
+		 */
+		limits->discard_granularity = 0;
 		return;
+	}
 
 	disable_passdown_if_not_supported(pt);
 
@@ -2844,10 +2852,10 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->flush_supported = 1;
 
 	/* In case the pool supports discards, pass them on. */
+	ti->discard_zeroes_data_unsupported = 1;
 	if (tc->pool->pf.discard_enabled) {
 		ti->discards_supported = 1;
 		ti->num_discard_requests = 1;
-		ti->discard_zeroes_data_unsupported = 1;
 		/* Discard requests must be split on a block boundary */
 		ti->split_discard_requests = 1;
 	}
