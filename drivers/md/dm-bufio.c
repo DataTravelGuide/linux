@@ -1058,6 +1058,8 @@ EXPORT_SYMBOL_GPL(dm_bufio_new);
 void dm_bufio_prefetch(struct dm_bufio_client *c,
 		       sector_t block, unsigned n_blocks)
 {
+	BUG_ON(dm_bufio_in_request());
+
 	dm_bufio_lock(c);
 
 	for (; n_blocks--; block++) {
