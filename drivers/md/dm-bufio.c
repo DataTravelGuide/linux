@@ -611,11 +611,22 @@ static void write_endio(struct bio *bio, int error)
 }
 
 /*
+ * Unplug the queue and wait for an event.
+ */
+static void dm_bufio_io_schedule(struct dm_bufio_client *c)
+{
+	blk_unplug(bdev_get_queue(c->bdev));
+	io_schedule();
+}
+
+/*
  * This function is called when wait_on_bit is actually waiting.
  */
 static int do_io_schedule(void *word)
 {
-	io_schedule();
+	struct dm_buffer *b = container_of(word, struct dm_buffer, state);
+
+	dm_bufio_io_schedule(b->c);
 
 	return 0;
 }
@@ -707,7 +718,7 @@ static void __wait_for_free_buffer(struct dm_bufio_client *c)
 	set_task_state(current, TASK_UNINTERRUPTIBLE);
 	dm_bufio_unlock(c);
 
-	io_schedule();
+	dm_bufio_io_schedule(c);
 
 	set_task_state(current, TASK_RUNNING);
 	remove_wait_queue(&c->free_buffer_wait, &wait);
@@ -802,11 +813,13 @@ static void __write_dirty_buffers_async(struct dm_bufio_client *c, int no_wait)
 		}
 
 		if (no_wait && test_bit(B_WRITING, &b->state))
-			return;
+			break;
 
 		__write_dirty_buffer(b);
 		dm_bufio_cond_resched();
 	}
+
+	blk_unplug(bdev_get_queue(c->bdev));
 }
 
 /*
