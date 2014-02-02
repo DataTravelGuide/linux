@@ -1007,12 +1007,26 @@ static void mld_gq_start_timer(struct inet6_dev *idev)
 		in6_dev_hold(idev);
 }
 
+static void mld_gq_stop_timer(struct inet6_dev *idev)
+{
+	idev->mc_gq_running = 0;
+	if (del_timer(&idev->mc_gq_timer))
+		__in6_dev_put(idev);
+}
+
 static void mld_ifc_start_timer(struct inet6_dev *idev, unsigned long delay)
 {
 	unsigned long tv = net_random() % delay;
 
 	if (!mod_timer(&idev->mc_ifc_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
+}
+
+static void mld_ifc_stop_timer(struct inet6_dev *idev)
+{
+	idev->mc_ifc_count = 0;
+	if (del_timer(&idev->mc_ifc_timer))
+		__in6_dev_put(idev);
 }
 
 /*
@@ -1227,15 +1241,9 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 	mld_set_v1_mode(idev);
 
 	/* cancel MLDv2 report timer */
-	idev->mc_gq_running = 0;
-	if (del_timer(&idev->mc_gq_timer))
-		__in6_dev_put(idev);
-
+	mld_gq_stop_timer(idev);
 	/* cancel the interface change timer */
-	idev->mc_ifc_count = 0;
-	if (del_timer(&idev->mc_ifc_timer))
-		__in6_dev_put(idev);
-
+	mld_ifc_stop_timer(idev);
 	/* clear deleted report items */
 	mld_clear_delrec(idev);
 
@@ -2372,12 +2380,8 @@ void ipv6_mc_down(struct inet6_dev *idev)
 	/* Withdraw multicast list */
 
 	read_lock_bh(&idev->lock);
-	idev->mc_ifc_count = 0;
-	if (del_timer(&idev->mc_ifc_timer))
-		__in6_dev_put(idev);
-	idev->mc_gq_running = 0;
-	if (del_timer(&idev->mc_gq_timer))
-		__in6_dev_put(idev);
+	mld_ifc_stop_timer(idev);
+	mld_gq_stop_timer(idev);
 
 	for (i = idev->mc_list; i; i=i->next)
 		igmp6_group_dropped(i);
