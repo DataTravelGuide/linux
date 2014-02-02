@@ -108,6 +108,10 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 
 #define IGMP6_UNSOLICITED_IVAL	(10*HZ)
 #define MLD_QRV_DEFAULT		2
+/* RFC3810, 9.2. Query Interval */
+#define MLD_QI_DEFAULT		(125 * HZ)
+/* RFC3810, 9.3. Query Response Interval */
+#define MLD_QRI_DEFAULT		(10 * HZ)
 
 /* RFC3810, 8.1 Query Version Distinctions */
 #define MLD_V1_QUERY_LEN	24
@@ -1106,6 +1110,94 @@ static int mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
 	return 1;
 }
 
+static void mld_set_v1_mode(struct inet6_dev *idev)
+{
+	/* RFC3810, relevant sections:
+	 *  - 9.1. Robustness Variable
+	 *  - 9.2. Query Interval
+	 *  - 9.3. Query Response Interval
+	 *  - 9.12. Older Version Querier Present Timeout
+	 */
+	unsigned long switchback;
+
+	switchback = (idev->mc_qrv * idev->mc_qi) + idev->mc_qri;
+
+	idev->mc_v1_seen = jiffies + switchback;
+}
+
+static void mld_update_qrv(struct inet6_dev *idev,
+			   const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.8. QRV (Querier's Robustness Variable)
+	 *  - 9.1. Robustness Variable
+	 */
+
+	/* The value of the Robustness Variable MUST NOT be zero,
+	 * and SHOULD NOT be one. Catch this here if we ever run
+	 * into such a case in future.
+	 */
+	WARN_ON(idev->mc_qrv == 0);
+
+	if (mlh2->mld2q_qrv > 0)
+		idev->mc_qrv = mlh2->mld2q_qrv;
+
+	if (unlikely(idev->mc_qrv < 2)) {
+		net_warn_ratelimited("IPv6: MLD: clamping QRV from %u to %u!\n",
+				     idev->mc_qrv, MLD_QRV_DEFAULT);
+		idev->mc_qrv = MLD_QRV_DEFAULT;
+	}
+}
+
+static void mld_update_qi(struct inet6_dev *idev,
+			  const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.9. QQIC (Querier's Query Interval Code)
+	 *  - 9.2. Query Interval
+	 *  - 9.12. Older Version Querier Present Timeout
+	 *    (the [Query Interval] in the last Query received)
+	 */
+	unsigned long mc_qqi;
+
+	if (mlh2->mld2q_qqic < 128) {
+		mc_qqi = mlh2->mld2q_qqic;
+	} else {
+		unsigned long mc_man, mc_exp;
+
+		mc_exp = MLDV2_QQIC_EXP(mlh2->mld2q_qqic);
+		mc_man = MLDV2_QQIC_MAN(mlh2->mld2q_qqic);
+
+		mc_qqi = (mc_man | 0x10) << (mc_exp + 3);
+	}
+
+	idev->mc_qi = mc_qqi * HZ;
+}
+
+static void mld_update_qri(struct inet6_dev *idev,
+			   const struct mld2_query *mlh2)
+{
+	/* RFC3810, relevant sections:
+	 *  - 5.1.3. Maximum Response Code
+	 *  - 9.3. Query Response Interval
+	 */
+	unsigned long mc_qri, mc_mrc = ntohs(mlh2->mld2q_mrc);
+
+	if (mc_mrc < 32768) {
+		mc_qri = mc_mrc;
+	} else {
+		unsigned long mc_man, mc_exp;
+
+		mc_exp = MLDV2_MRC_EXP(mc_mrc);
+		mc_man = MLDV2_MRC_MAN(mc_mrc);
+
+		mc_qri = (mc_man | 0x1000) << (mc_exp + 3);
+	}
+
+	idev->mc_qri = msecs_to_jiffies(mc_qri);
+}
+
+/* called with rcu_read_lock() */
 int igmp6_event_query(struct sk_buff *skb)
 {
 	struct mld2_query *mlh2 = NULL;
@@ -1145,14 +1237,15 @@ int igmp6_event_query(struct sk_buff *skb)
 	}
 
 	if (len == MLD_V1_QUERY_LEN) {
-		int switchback;
 		/* MLDv1 router present */
+		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
 
-		/* Translate milliseconds to jiffies */
-		max_delay = (ntohs(mld->mld_maxdelay)*HZ)/1000;
+		mld_set_v1_mode(idev);
 
-		switchback = (idev->mc_qrv + 1) * max_delay;
-		idev->mc_v1_seen = jiffies + switchback;
+		/* cancel MLDv2 report timer */
+		idev->mc_gq_running = 0;
+		if (del_timer(&idev->mc_gq_timer))
+			__in6_dev_put(idev);
 
 		/* cancel the interface change timer */
 		idev->mc_ifc_count = 0;
@@ -1163,6 +1256,13 @@ int igmp6_event_query(struct sk_buff *skb)
 	} else if (len >= MLD_V2_QUERY_LEN_MIN) {
 		int srcs_offset = sizeof(struct mld2_query) -
 				  sizeof(struct icmp6hdr);
+
+		/* hosts need to stay in MLDv1 mode, discard MLDv2 queries */
+		if (MLD_V1_SEEN(idev)) {
+			in6_dev_put(idev);
+			return 0;
+		}
+
 		if (!pskb_may_pull(skb, srcs_offset)) {
 			in6_dev_put(idev);
 			return -EINVAL;
@@ -1172,8 +1272,11 @@ int igmp6_event_query(struct sk_buff *skb)
 		if (!max_delay)
 			max_delay = 1;
 		idev->mc_maxdelay = max_delay;
-		if (mlh2->mld2q_qrv)
-			idev->mc_qrv = mlh2->mld2q_qrv;
+
+		mld_update_qrv(idev, mlh2);
+		mld_update_qi(idev, mlh2);
+		mld_update_qri(idev, mlh2);
+
 		if (group_type == IPV6_ADDR_ANY) { /* general query */
 			if (mlh2->mld2q_nsrcs) {
 				in6_dev_put(idev);
@@ -2268,8 +2371,12 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 	idev->mc_ifc_count = 0;
 	setup_timer(&idev->mc_ifc_timer, mld_ifc_timer_expire,
 			(unsigned long)idev);
+
 	idev->mc_qrv = MLD_QRV_DEFAULT;
+	idev->mc_qi = MLD_QI_DEFAULT;
+	idev->mc_qri = MLD_QRI_DEFAULT;
 	idev->mc_maxdelay = IGMP6_UNSOLICITED_IVAL;
+
 	idev->mc_v1_seen = 0;
 	write_unlock_bh(&idev->lock);
 }
