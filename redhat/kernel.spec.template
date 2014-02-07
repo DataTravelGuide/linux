@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 07 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.7.1.el6]
+- [char] n_tty: Fix unsafe update of available buffer space (Jiri Benc) [1060491 980188]
+- [char] n_tty: Fix stuck throttled driver (Jiri Benc) [1060491 980188]
+- [char] tty: Add safe tty throttle/unthrottle functions (Jiri Benc) [1060491 980188]
+- [char] tty: note race we need to fix (Jiri Benc) [1060491 980188]
+
 * Sat Jan 18 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.6.1.el6]
 - [mm] memcg: fix oom schedule_timeout() (Ulrich Obergfell) [1054072 1034237]
 - [mm] memcg: change memcg_oom_mutex to spinlock (Ulrich Obergfell) [1054072 1034237]
