@@ -34,25 +34,12 @@ static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 static struct tcf_hashinfo mirred_hash_info;
 
-static int tcf_mirred_release(struct tc_action *a, int bind)
+static void tcf_mirred_release(struct tc_action *a, int bind)
 {
 	struct tcf_mirred *m = to_mirred(a);
-	if (m) {
-		if (bind)
-			m->tcf_bindcnt--;
-		m->tcf_refcnt--;
-		if (!m->tcf_bindcnt && m->tcf_refcnt <= 0) {
-			/* We could be called either in a RCU callback or with RTNL lock held. */
-			spin_lock_bh(&mirred_list_lock);
-			list_del(&m->tcfm_list);
-			spin_unlock_bh(&mirred_list_lock);
-			if (m->tcfm_dev)
-				dev_put(m->tcfm_dev);
-			tcf_hash_destroy(a);
-			return 1;
-		}
-	}
-	return 0;
+	list_del(&m->tcfm_list);
+	if (m->tcfm_dev)
+		dev_put(m->tcfm_dev);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -114,7 +101,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {
-			tcf_mirred_release(a, bind);
+			tcf_hash_release(a, bind);
 			return -EEXIST;
 		}
 	}
