@@ -150,6 +150,16 @@ extern unsigned int sk_run_filter(struct sk_buff *skb,
 extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 extern int sk_detach_filter(struct sock *sk);
 extern int sk_chk_filter(struct sock_filter *filter, int flen);
-#endif /* __KERNEL__ */
 
+static inline int bpf_tell_extensions(void)
+{
+	/* When adding new BPF extension it is necessary to enumerate
+	 * it here, so userspace software which wants to know what is
+	 * supported can do so by inspecting return value of this
+	 * function
+	 */
+
+	return 0;
+}
+#endif /* __KERNEL__ */
 #endif /* __LINUX_FILTER_H__ */
