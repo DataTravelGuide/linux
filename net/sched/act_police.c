@@ -273,11 +273,9 @@ failure:
 	return err;
 }
 
-static int tcf_act_police_cleanup(struct tc_action *a, int bind)
+static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
+			  struct tcf_result *res)
 {
-	struct tcf_police *p = a->priv;
-	int ret = 0;
-
 	if (p != NULL) {
 		if (bind)
 			p->tcf_bindcnt--;
@@ -393,7 +391,7 @@ static struct tc_action_ops act_police_ops = {
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
-	.cleanup	=	tcf_act_police_cleanup,
+	.cleanup	=	tcf_hash_release,
 	.init		=	tcf_act_police_locate,
 	.walk		=	tcf_act_police_walker
 };
