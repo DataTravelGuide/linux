@@ -153,13 +153,7 @@ extern int sk_chk_filter(struct sock_filter *filter, int flen);
 
 static inline int bpf_tell_extensions(void)
 {
-	/* When adding new BPF extension it is necessary to enumerate
-	 * it here, so userspace software which wants to know what is
-	 * supported can do so by inspecting return value of this
-	 * function
-	 */
-
-	return 0;
+	return SKF_AD_MAX;
 }
 #endif /* __KERNEL__ */
 #endif /* __LINUX_FILTER_H__ */
