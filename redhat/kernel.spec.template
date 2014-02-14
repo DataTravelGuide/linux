@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 14 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-444.el6]
+- [x86] apic: Map the local apic when parsing the MP table (Prarit Bhargava) [1061873]
+- [kvm] x86: fix tsc catchup issue with tsc scaling (Marcelo Tosatti) [1005143]
+- [char] virtio-rng: don't register buffer if data isn't read out (Amos Kong) [1008273]
+- [netdrv] enic: remove enic->vlan_group check (Stefan Assmann) [1057704]
+- [netdrv] bonding: add NETIF_F_NO_CSUM vlan_features (Ivan Vecera) [1059777]
+- [infiniband] ipoib: Report operstate consistently when brought up without a link (Michal Schmidt) [995300]
+
 * Thu Feb 06 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-443.el6]
 - [security] selinux: fix broken peer recv check (Paul Moore) [1043051]
 - [perf] tools: Enable branch profiling (Jiri Olsa) [1057869]
