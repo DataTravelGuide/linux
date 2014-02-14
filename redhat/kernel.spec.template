@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.8.1.el6]
+- [netdrv] enic: remove enic->vlan_group check (Stefan Assmann) [1064115 1057704]
+
 * Fri Feb 07 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.7.1.el6]
 - [char] n_tty: Fix unsafe update of available buffer space (Jiri Benc) [1060491 980188]
 - [char] n_tty: Fix stuck throttled driver (Jiri Benc) [1060491 980188]
