@@ -240,11 +240,11 @@ static __init void xen_init_cpuid_mask(void)
 	unsigned int ax, bx, cx, dx;
 
 	cpuid_leaf1_ecx_mask = ~(1 << (X86_FEATURE_MWAIT % 32));
+	cpuid_leaf81_edx_mask = ~(1 << (X86_FEATURE_GBPAGES % 32));
 
 	cpuid_leaf1_edx_mask =
-		~(1 << X86_FEATURE_ACC);   /* thermal monitoring */
-
-	cpuid_leaf81_edx_mask = ~(1 << (X86_FEATURE_GBPAGES % 32));
+		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
+		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
