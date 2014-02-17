@@ -1302,6 +1302,14 @@ uint32_t xen_cpuid_base(void)
 	return 0;
 }
 
+uint32_t xen_version(void)
+{
+	uint32_t eax, ebx, ecx, edx, base;
+	base = xen_cpuid_base();
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+	return eax;
+}
+
 static int init_hvm_pv_info(int *major, int *minor)
 {
 	uint32_t eax, ebx, ecx, edx, pages, msr, base;
