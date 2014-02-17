@@ -298,15 +298,15 @@ struct xen_dangerous_feature {
 static const struct xen_dangerous_feature __cpuinitconst
 xen_dangerous_cpuid_features[] = {
 	/* Mask out GBPAGES & RDTSCP for Xen BZ#703055 */
-	{ X86_FEATURE_GBPAGES,		0 },
-	{ X86_FEATURE_RDTSCP,		0 },
+	{ X86_FEATURE_GBPAGES,		4 },
+	{ X86_FEATURE_RDTSCP,		4 },
 	/* Mask out features masked by BZ#712131 */
-	{ X86_FEATURE_MWAIT,		0 },
+	{ X86_FEATURE_MWAIT,		4 },
 	/* Mask out features masked by BZ#711317 */
-	{ X86_FEATURE_CONSTANT_TSC,	0 },
-	{ X86_FEATURE_NONSTOP_TSC,	0 },
+	{ X86_FEATURE_CONSTANT_TSC,	4 },
+	{ X86_FEATURE_NONSTOP_TSC,	4 },
 	/* Mask out features masked by BZ#752382 */
-	{ X86_FEATURE_SMEP,		0 },
+	{ X86_FEATURE_SMEP,		4 },
 	{ 0, 0 }
 };
 
