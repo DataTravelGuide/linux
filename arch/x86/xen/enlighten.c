@@ -61,6 +61,7 @@
 #include <asm/reboot.h>
 #include <asm/stackprotector.h>
 #include <asm/hypervisor.h>
+#include <asm/mwait.h>
 
 #include "xen-ops.h"
 #include "mmu.h"
@@ -206,8 +207,9 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		maskedx = cpuid_leaf1_edx_mask;
 		break;
 
-	case 5: /* CPUID_MWAIT_LEAF */
-		maskecx = maskedx = 0;
+	case CPUID_MWAIT_LEAF:
+		*ax = *bx = *cx = *dx = 0;
+		return;
 
 	case 0xb:
 		/* Suppress extended topology stuff */
