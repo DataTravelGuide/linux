@@ -850,36 +850,6 @@ void pci_bus_assign_resources(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
-static void pci_bus_dump_res(struct pci_bus *bus)
-{
-	struct resource *res;
-	int i;
-
-	pci_bus_for_each_resource(bus, res, i) {
-		if (!res || !res->end || !res->flags)
-                        continue;
-
-		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
-        }
-}
-
-static void pci_bus_dump_resources(struct pci_bus *bus)
-{
-	struct pci_bus *b;
-	struct pci_dev *dev;
-
-
-	pci_bus_dump_res(bus);
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		b = dev->subordinate;
-		if (!b)
-			continue;
-
-		pci_bus_dump_resources(b);
-	}
-}
-
 static void pci_bridge_release_resources(struct pci_bus *bus,
 					  unsigned long type)
 {
@@ -891,7 +861,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 				  IORESOURCE_PREFETCH;
 
 	dev = bus->self;
-	for (idx = PCI_BRIDGE_RESOURCES; idx < PCI_NUM_RESOURCES;
+	for (idx = PCI_BRIDGE_RESOURCES; idx <= PCI_BRIDGE_RESOURCE_END;
 	     idx++) {
 		r = &dev->resource[idx];
 		if ((r->flags & type_mask) != type)
@@ -907,7 +877,7 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 			dev_printk(KERN_DEBUG, &dev->dev,
 				 "resource %d %pR released\n", idx, r);
 			/* keep the old size */
-			r->end = r->end - r->start;
+			r->end = resource_size(r) - 1;
 			r->start = 0;
 			r->flags = 0;
 			changed = true;
@@ -931,7 +901,7 @@ enum release_type {
  * try to release pci bridge resources that is from leaf bridge,
  * so we can allocate big new one later
  */
-static void pci_bus_release_bridge_resources(struct pci_bus *bus,
+static void __ref pci_bus_release_bridge_resources(struct pci_bus *bus,
 						   unsigned long type,
 						   enum release_type rel_type)
 {
@@ -961,6 +931,36 @@ static void pci_bus_release_bridge_resources(struct pci_bus *bus,
 
 	if ((rel_type == whole_subtree) || is_leaf_bridge)
 		pci_bridge_release_resources(bus, type);
+}
+
+static void pci_bus_dump_res(struct pci_bus *bus)
+{
+	struct resource *res;
+	int i;
+
+	pci_bus_for_each_resource(bus, res, i) {
+		if (!res || !res->end || !res->flags)
+                        continue;
+
+		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %pR\n", i, res);
+        }
+}
+
+static void pci_bus_dump_resources(struct pci_bus *bus)
+{
+	struct pci_bus *b;
+	struct pci_dev *dev;
+
+
+	pci_bus_dump_res(bus);
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		b = dev->subordinate;
+		if (!b)
+			continue;
+
+		pci_bus_dump_resources(b);
+	}
 }
 
 static int __init pci_bus_get_depth(struct pci_bus *bus)
