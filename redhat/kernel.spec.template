@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 18 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.9.1.el6]
+- [netdrv] bonding: add NETIF_F_NO_CSUM vlan_features (Ivan Vecera) [1063199 1059777]
+
 * Fri Feb 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.8.1.el6]
 - [netdrv] enic: remove enic->vlan_group check (Stefan Assmann) [1064115 1057704]
 
