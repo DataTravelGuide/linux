@@ -34,12 +34,6 @@ struct pci_dev_resource {
 	struct list_head list;
 	struct resource *res;
 	struct pci_dev *dev;
-};
-
-struct pci_dev_resource_x {
-	struct list_head list;
-	struct resource *res;
-	struct pci_dev *dev;
 	resource_size_t start;
 	resource_size_t end;
 	resource_size_t add_size;
@@ -75,7 +69,7 @@ static int add_to_list(struct list_head *head,
 		 struct pci_dev *dev, struct resource *res,
 		 resource_size_t add_size, resource_size_t min_align)
 {
-	struct pci_dev_resource_x *tmp;
+	struct pci_dev_resource *tmp;
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp) {
@@ -107,7 +101,7 @@ static void add_to_failed_list(struct list_head *head,
 static void remove_from_list(struct list_head *realloc_head,
 				 struct resource *res)
 {
-	struct pci_dev_resource_x *dev_res_x, *tmp;
+	struct pci_dev_resource *dev_res_x, *tmp;
 
 	list_for_each_entry_safe(dev_res_x, tmp, realloc_head, list) {
 		if (dev_res_x->res == res) {
@@ -121,7 +115,7 @@ static void remove_from_list(struct list_head *realloc_head,
 static resource_size_t get_res_add_size(struct list_head *realloc_head,
 					struct resource *res)
 {
-	struct pci_dev_resource_x *dev_res_x;
+	struct pci_dev_resource *dev_res_x;
 
 	list_for_each_entry(dev_res_x, realloc_head, list) {
 		if (dev_res_x->res == res) {
@@ -230,7 +224,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		struct list_head *head)
 {
 	struct resource *res;
-	struct pci_dev_resource_x *dev_res_x, *tmp;
+	struct pci_dev_resource *dev_res_x, *tmp;
 	struct pci_dev_resource *dev_res;
 	resource_size_t add_size;
 	int idx;
@@ -328,7 +322,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	 */
 	LIST_HEAD(save_head);
 	LIST_HEAD(local_fail_head);
-	struct pci_dev_resource_x *dev_res_x;
+	struct pci_dev_resource *dev_res_x;
 	struct pci_dev_resource *dev_res;
 
 	/* Check if optional add_size is there */
@@ -338,7 +332,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	/* Save original start, end, flags etc at first */
 	list_for_each_entry(dev_res, head, list) {
 		if (add_to_list(&save_head, dev_res->dev, dev_res->res, 0, 0)) {
-			free_list(pci_dev_resource_x, &save_head);
+			free_list(pci_dev_resource, &save_head);
 			goto requested_and_reassign;
 		}
 	}
@@ -356,12 +350,12 @@ static void __assign_resources_sorted(struct list_head *head,
 		/* Remove head list from realloc_head list */
 		list_for_each_entry(dev_res, head, list)
 			remove_from_list(realloc_head, dev_res->res);
-		free_list(pci_dev_resource_x, &save_head);
+		free_list(pci_dev_resource, &save_head);
 		free_list(pci_dev_resource, head);
 		return;
 	}
 
-	free_list(pci_dev_resource_x, &local_fail_head);
+	free_list(pci_dev_resource, &local_fail_head);
 	/* Release assigned resource */
 	list_for_each_entry(dev_res, head, list)
 		if (dev_res->res->parent)
@@ -374,7 +368,7 @@ static void __assign_resources_sorted(struct list_head *head,
 		res->end = dev_res_x->end;
 		res->flags = dev_res_x->flags;
 	}
-	free_list(pci_dev_resource_x, &save_head);
+	free_list(pci_dev_resource, &save_head);
 
 requested_and_reassign:
 	/* Satisfy the must-have resource requests */
@@ -1259,7 +1253,7 @@ pci_assign_unassigned_resources(void)
 	int tried_times = 0;
 	enum release_type rel_type = leaf_only;
 	LIST_HEAD(fail_head);
-	struct pci_dev_resource_x *dev_res_x;
+	struct pci_dev_resource *dev_res_x;
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
 	unsigned long failed_type;
@@ -1307,7 +1301,7 @@ again:
 	 */
 	failed_type &= type_mask;
 	if ((failed_type == IORESOURCE_IO) || (tried_times >= pci_try_num)) {
-		free_list(pci_dev_resource_x, &fail_head);
+		free_list(pci_dev_resource, &fail_head);
 		goto enable_and_dump;
 	}
 
@@ -1338,7 +1332,7 @@ again:
 		if (dev_res_x->dev->subordinate)
 			res->flags = 0;
 	}
-	free_list(pci_dev_resource_x, &fail_head);
+	free_list(pci_dev_resource, &fail_head);
 
 	goto again;
 
@@ -1359,7 +1353,7 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 					want additional resources */
 	int tried_times = 0;
 	LIST_HEAD(fail_head);
-	struct pci_dev_resource_x *dev_res_x;
+	struct pci_dev_resource *dev_res_x;
 	int retval;
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
@@ -1375,7 +1369,7 @@ again:
 
 	if (tried_times >= 2) {
 		/* still fail, don't need to try more */
-		free_list(pci_dev_resource_x, &fail_head);
+		free_list(pci_dev_resource, &fail_head);
 		goto enable_all;
 	}
 
@@ -1403,7 +1397,7 @@ again:
 		if (dev_res_x->dev->subordinate)
 			res->flags = 0;
 	}
-	free_list(pci_dev_resource_x, &fail_head);
+	free_list(pci_dev_resource, &fail_head);
 
 	goto again;
 
