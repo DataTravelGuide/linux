@@ -30,6 +30,12 @@
 
 unsigned int pci_flags;
 
+struct resource_list {
+	struct resource_list *next;
+	struct resource *res;
+	struct pci_dev *dev;
+};
+
 struct resource_list_x {
 	struct resource_list_x *next;
 	struct resource *res;
