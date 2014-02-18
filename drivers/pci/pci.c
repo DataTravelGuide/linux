@@ -3234,8 +3234,10 @@ static int __init pci_setup(char *str)
 				pci_yes_msi();
 			} else if (!strcmp(str, "noaer")) {
 				pci_no_aer();
+			} else if (!strncmp(str, "realloc=", 8)) {
+				pci_realloc_get_opt(str + 8);
 			} else if (!strncmp(str, "realloc", 7)) {
-				pci_realloc();
+				pci_realloc_get_opt("on");
 			} else if (!strcmp(str, "nodomains")) {
 				pci_no_domains();
 			} else if (!strncmp(str, "noari", 5)) {
