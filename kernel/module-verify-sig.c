@@ -100,7 +100,7 @@ int module_verify_signature(struct module_verify_data *mvdata,
 	struct crypto_shash *tfm;
 	const Elf_Shdr *sechdrs = mvdata->sections;
 	const char *secstrings = mvdata->secstrings;
-	const char *sig;
+	const char *sig, *digest_algo;
 	unsigned note_size, sig_size, note_namesz;
 	int loop, ret;
 
@@ -141,18 +141,22 @@ int module_verify_signature(struct module_verify_data *mvdata,
 	       sig[0], sig[1], sig[2], sig[3],
 	       sig[4], sig[5], sig[6], sig[7]);
 
+	ret = ksign_get_signature_digest_algo(sig, sig_size, &digest_algo);
+	if (ret < 0)
+		goto format_error_no_free;
+
 	/* produce a canonicalisation map for the sections */
 	ret = module_verify_canonicalise(mvdata);
 	if (ret < 0)
 		return ret;
 
-	/* grab an SHA1 transformation context
-	 * - !!! if this tries to load the sha1.ko module, we will deadlock!!!
+	/* grab an SHA256 transformation context
+	 * - !!! if this tries to load the sha256.ko module, we will deadlock!!!
 	 */
-	tfm = crypto_alloc_shash("sha1", 0, 0);
+	tfm = crypto_alloc_shash(digest_algo, 0, 0);
 	if (!tfm) {
 		printk(KERN_ERR
-		       "Couldn't load module - SHA1 transform unavailable\n");
+		       "Couldn't load module - SHA256 transform unavailable\n");
 		return -EPERM;
 	}
 
