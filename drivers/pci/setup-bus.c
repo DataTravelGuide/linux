@@ -810,7 +810,7 @@ void __ref pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-static void __pci_bus_assign_resources(const struct pci_bus *bus,
+static void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
 					 struct resource_list_x *add_head,
 					 struct resource_list_x *fail_head)
 {
@@ -843,8 +843,7 @@ static void __pci_bus_assign_resources(const struct pci_bus *bus,
 	}
 }
 
-
-void pci_bus_assign_resources(const struct pci_bus *bus)
+void __ref pci_bus_assign_resources(const struct pci_bus *bus)
 {
 	__pci_bus_assign_resources(bus, NULL, NULL);
 }
