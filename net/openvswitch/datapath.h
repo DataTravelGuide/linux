@@ -28,6 +28,7 @@
 #include <linux/version.h>
 
 #include "flow.h"
+#include "flow_table.h"
 #include "vport.h"
 
 #define DP_MAX_PORTS           USHRT_MAX
