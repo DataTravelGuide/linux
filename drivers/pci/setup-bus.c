@@ -226,6 +226,17 @@ static void __assign_resources_sorted(struct resource_list *head,
 	free_list(resource_list, head);
 }
 
+static void pdev_assign_resources_sorted(struct pci_dev *dev,
+				 struct resource_list_x *fail_head)
+{
+	struct resource_list head;
+
+	head.next = NULL;
+	__dev_sort_resources(dev, &head);
+	__assign_resources_sorted(&head, NULL, fail_head);
+
+}
+
 static void pbus_assign_resources_sorted(const struct pci_bus *bus,
 					 struct resource_list_x *add_head,
 					 struct resource_list_x *fail_head)
@@ -397,9 +408,6 @@ static void pci_setup_bridge_mmio_pref(struct pci_bus *bus)
 static void __pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 	struct pci_dev *bridge = bus->self;
-
-	if (pci_is_enabled(bridge))
-		return;
 
 	dev_info(&bridge->dev, "PCI bridge to [bus %02x-%02x]\n",
 		 bus->secondary, bus->subordinate);
@@ -831,7 +839,8 @@ static void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
 
 		switch (dev->class >> 8) {
 		case PCI_CLASS_BRIDGE_PCI:
-			pci_setup_bridge(b);
+			if (!pci_is_enabled(dev))
+				pci_setup_bridge(b);
 			break;
 
 		case PCI_CLASS_BRIDGE_CARDBUS:
@@ -852,6 +861,34 @@ void __ref pci_bus_assign_resources(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
+static void __ref __pci_bridge_assign_resources(const struct pci_dev *bridge,
+					 struct resource_list_x *fail_head)
+{
+	struct pci_bus *b;
+
+	pdev_assign_resources_sorted((struct pci_dev *)bridge, fail_head);
+
+	b = bridge->subordinate;
+	if (!b)
+		return;
+
+	__pci_bus_assign_resources(b, NULL, fail_head);
+
+	switch (bridge->class >> 8) {
+	case PCI_CLASS_BRIDGE_PCI:
+		pci_setup_bridge(b);
+		break;
+
+	case PCI_CLASS_BRIDGE_CARDBUS:
+		pci_setup_cardbus(b);
+		break;
+
+	default:
+		dev_info(&bridge->dev, "not setting up bridge for bus "
+			 "%04x:%02x\n", pci_domain_nr(b), b->number);
+		break;
+	}
+}
 static void pci_bridge_release_resources(struct pci_bus *bus,
 					  unsigned long type)
 {
@@ -898,7 +935,6 @@ enum release_type {
 	leaf_only,
 	whole_subtree,
 };
-
 /*
  * try to release pci bridge resources that is from leaf bridge,
  * so we can allocate big new one later
@@ -1107,3 +1143,67 @@ enable_and_dump:
 	list_for_each_entry(bus, &pci_root_buses, node)
 		pci_bus_dump_resources(bus);
 }
+
+void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
+{
+	struct pci_bus *parent = bridge->subordinate;
+	int tried_times = 0;
+	struct resource_list_x head, *list;
+	int retval;
+	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
+				  IORESOURCE_PREFETCH;
+
+	head.next = NULL;
+
+again:
+	pci_bus_size_bridges(parent);
+	__pci_bridge_assign_resources(bridge, &head);
+
+	tried_times++;
+
+	if (!head.next)
+		goto enable_all;
+
+	if (tried_times >= 2) {
+		/* still fail, don't need to try more */
+		free_list(resource_list_x, &head);
+		goto enable_all;
+	}
+
+	printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
+			 tried_times + 1);
+
+	/*
+	 * Try to release leaf bridge's resources that doesn't fit resource of
+	 * child device under that bridge
+	 */
+	for (list = head.next; list;) {
+		struct pci_bus *bus = list->dev->bus;
+		unsigned long flags = list->flags;
+
+		pci_bus_release_bridge_resources(bus, flags & type_mask,
+						 whole_subtree);
+		list = list->next;
+	}
+	/* restore size and flags */
+	for (list = head.next; list;) {
+		struct resource *res = list->res;
+
+		res->start = list->start;
+		res->end = list->end;
+		res->flags = list->flags;
+		if (list->dev->subordinate)
+			res->flags = 0;
+
+		list = list->next;
+	}
+	free_list(resource_list_x, &head);
+
+	goto again;
+
+enable_all:
+	retval = pci_reenable_device(bridge);
+	pci_set_master(bridge);
+	pci_enable_bridges(parent);
+}
+EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
