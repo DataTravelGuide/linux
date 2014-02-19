@@ -3652,15 +3652,16 @@ disable_slot:
 }
 
 /*
- * Issue an Address Device command (which will issue a SetAddress request to
- * the device).
+ * Issue an Address Device command and optionally send a corresponding
+ * SetAddress request to the device.
  * We should be protected by the usb_address0_mutex in khubd's hub_port_init, so
  * we should only issue and wait on one address command at the same time.
  *
  * We add one to the device address issued by the hardware because the USB core
  * uses address 1 for the root hubs (even though they're not really devices).
  */
-int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
+			     enum xhci_setup_dev setup)
 {
 	unsigned long flags;
 	int timeleft;
@@ -3711,7 +3712,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_lock_irqsave(&xhci->lock, flags);
 	cmd_trb = xhci->cmd_ring->dequeue;
 	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx->dma,
-					udev->slot_id);
+					udev->slot_id, setup);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
@@ -3799,6 +3800,16 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 }
 
 #ifdef CONFIG_USB_SUSPEND
+
+int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ADDRESS);
+}
+
+int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ONLY);
+}
 
 /* BESL to HIRD Encoding array for USB2 LPM */
 static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
