@@ -2186,6 +2186,7 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	case NETDEV_GOING_DOWN:
 	case NETDEV_RELEASE:
 	case NETDEV_JOIN:
+	case NETDEV_UNREGISTER_BATCH:
 		break;
 	default:
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0);
