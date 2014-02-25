@@ -6161,20 +6161,17 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 	struct kvm_segment tr_seg;
 	struct desc_struct cseg_desc;
 	struct desc_struct nseg_desc;
-	int ret = 0;
+	int ret;
 	u32 old_tss_base = get_segment_base(vcpu, VCPU_SREG_TR);
 	u16 old_tss_sel = get_segment_selector(vcpu, VCPU_SREG_TR);
 
 	old_tss_base = kvm_mmu_gva_to_gpa_write(vcpu, old_tss_base, NULL);
 
-	/* FIXME: Handle errors. Failure to read either TSS or their
-	 * descriptors should generate a pagefault.
-	 */
 	if (load_guest_segment_descriptor(vcpu, tss_selector, &nseg_desc))
-		goto out;
+		return 0;
 
 	if (load_guest_segment_descriptor(vcpu, old_tss_sel, &cseg_desc))
-		goto out;
+		return 0;
 
 	/*
 	 * Check privileges. The three cases are task switch caused by...
@@ -6191,7 +6188,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 
 			if (read_interrupt_descriptor(vcpu, idt_index,
 						      &task_gate_desc))
-				return ret;
+				return 0;
 
 			dpl = task_gate_desc.dpl;
 			cpl = kvm_x86_ops->get_cpl(vcpu);
@@ -6262,7 +6259,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 	seg_desct_to_kvm_desct(&nseg_desc, tss_selector, &tr_seg);
 	tr_seg.type = 11;
 	kvm_set_segment(vcpu, &tr_seg, VCPU_SREG_TR);
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
