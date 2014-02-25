@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 25 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.10.1.el6]
+- [fs] xfs: xfs_remove deadlocks due to inverted AGF vs AGI lock ordering (Brian Foster) [1067775 1059334]
+- [x86] apic: Map the local apic when parsing the MP table (Prarit Bhargava) [1063507 1061873]
+
 * Tue Feb 18 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.9.1.el6]
 - [netdrv] bonding: add NETIF_F_NO_CSUM vlan_features (Ivan Vecera) [1063199 1059777]
 
