@@ -6087,7 +6087,31 @@ out:
 	return ret;
 }
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
+static int read_interrupt_descriptor(struct kvm_vcpu *vcpu,
+				     u16 index, struct desc_struct *desc)
+{
+	struct descriptor_table dt;
+	int ret;
+	u32 err;
+	gva_t addr;
+
+	kvm_x86_ops->get_idt(vcpu, &dt);
+
+	if (dt.limit < index * 8 + 7) {
+		kvm_queue_exception_e(vcpu, GP_VECTOR, (index << 3) | 0x2);
+		return 1;
+	}
+	addr = dt.base + index * 8;
+	ret = kvm_read_guest_virt_system(addr, desc, sizeof(*desc),
+					 vcpu,  &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(vcpu, addr, err);
+
+	return ret;
+}
+
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
+		    int idt_index, int reason,
 		    bool has_error_code, u32 error_code)
 {
 	struct kvm_segment tr_seg;
@@ -6108,11 +6132,36 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	if (load_guest_segment_descriptor(vcpu, old_tss_sel, &cseg_desc))
 		goto out;
 
-	if (reason != TASK_SWITCH_IRET) {
-		int cpl;
+	/*
+	 * Check privileges. The three cases are task switch caused by...
+	 *
+	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
+	 * 2. Exception/IRQ/iret: No check is performed
+	 * 3. jmp/call to TSS: Check agains DPL of the TSS
+	 */
+	if (reason == TASK_SWITCH_GATE) {
+		if (idt_index != -1) {
+			/* Software interrupts */
+			struct desc_struct task_gate_desc;
+			int dpl, cpl;
 
+			if (read_interrupt_descriptor(vcpu, idt_index,
+						      &task_gate_desc))
+				return ret;
+
+			dpl = task_gate_desc.dpl;
+			cpl = kvm_x86_ops->get_cpl(vcpu);
+			if ((tss_selector & 3) > dpl || cpl > dpl) {
+				kvm_queue_exception_e(vcpu, GP_VECTOR, (idt_index << 3) | 0x2);
+				return 1;
+			}
+		}
+	} else if (reason != TASK_SWITCH_IRET) {
+		int dpl, cpl;
+
+		dpl = nseg_desc.dpl;
 		cpl = kvm_x86_ops->get_cpl(vcpu);
-		if ((tss_selector & 3) > nseg_desc.dpl || cpl > nseg_desc.dpl) {
+		if ((tss_selector & 3) > dpl || cpl > dpl) {
 			kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
 			return 1;
 		}
