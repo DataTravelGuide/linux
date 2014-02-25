@@ -3836,14 +3836,18 @@ static int kvm_read_guest_virt_system(gva_t addr, void *val, unsigned int bytes,
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
 }
 
-static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
-				struct kvm_vcpu *vcpu, u32 *error)
+static int kvm_write_guest_virt_helper(gva_t addr, void *val,
+				       unsigned int bytes,
+				       struct kvm_vcpu *vcpu, u32 access,
+				       u32 *error)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
+	access |= PFERR_WRITE_MASK;
+
 	while (bytes) {
-		gpa_t gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, error);
+		gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr, access, error);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
@@ -3866,6 +3870,19 @@ out:
 	return r;
 }
 
+static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
+				struct kvm_vcpu *vcpu, u32 *error)
+{
+	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, access, error);
+}
+
+static int kvm_write_guest_virt_system(gva_t addr, void *val,
+				       unsigned int bytes,
+				       struct kvm_vcpu *vcpu, u32 *error)
+{
+	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
+}
 
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
