@@ -5895,6 +5895,8 @@ static void kvm_load_segment_selector(struct kvm_vcpu *vcpu, u16 sel, int seg)
 static int load_state_from_tss32(struct kvm_vcpu *vcpu,
 				  struct tss_segment_32 *tss)
 {
+	int ret;
+
 	kvm_set_cr3(vcpu, tss->cr3);
 
 	kvm_rip_write(vcpu, tss->eip);
@@ -5925,26 +5927,33 @@ static int load_state_from_tss32(struct kvm_vcpu *vcpu,
 	 * Now load segment descriptors. If fault happenes at this stage
 	 * it is handled in a context of new task
 	 */
-	if (kvm_load_segment_descriptor(vcpu, tss->ldt_selector, VCPU_SREG_LDTR))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ldt_selector, VCPU_SREG_LDTR);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->fs, VCPU_SREG_FS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->fs, VCPU_SREG_FS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->gs, VCPU_SREG_GS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->gs, VCPU_SREG_GS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 	return 0;
 }
 
@@ -5972,6 +5981,8 @@ static void save_state_to_tss16(struct kvm_vcpu *vcpu,
 static int load_state_from_tss16(struct kvm_vcpu *vcpu,
 				 struct tss_segment_16 *tss)
 {
+	int ret;
+
 	kvm_rip_write(vcpu, tss->ip);
 	kvm_x86_ops->set_rflags(vcpu, tss->flag | 2);
 	kvm_register_write(vcpu, VCPU_REGS_RAX, tss->ax);
@@ -5997,20 +6008,25 @@ static int load_state_from_tss16(struct kvm_vcpu *vcpu,
 	 * Now load segment descriptors. If fault happenes at this stage
 	 * it is handled in a context of new task
 	 */
-	if (kvm_load_segment_descriptor(vcpu, tss->ldt, VCPU_SREG_LDTR))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ldt, VCPU_SREG_LDTR);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS))
-		return 1;
+	ret = kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
 	return 0;
 }
 
