@@ -1701,6 +1701,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 24 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-446.el6]
+- [powerpc] Make function that parses RTAS error logs global (Steve Best) [1028682]
+- [powerpc] pseries: Add RTAS event log v6 definition (Steve Best) [1028682]
+- [powerpc] pseries: Parse and handle EPOW interrupts (Steve Best) [1028682]
+- [net] loopback: set default mtu to 64K (Jiri Pirko) [1057610]
+- [net] netpoll: take rcu_read_lock_bh() in netpoll_send_skb_on_dev() (Florian Westphal) [1049052]
+- [net] tcp: call tcp_replace_ts_recent() from tcp_ack() (Jiri Pirko) [1056516]
+- [net] tcp: accept RST without ACK flag (Jiri Pirko) [890377]
+- [net] tcp: should drop incoming frames without ACK flag set (Jiri Pirko) [890377]
+- [fs] cifs: sanity check length of data to send before sending (Sachin Prabhu) [1062590] {CVE-2014-0069}
+- [fs] cifs: ensure that uncached writes handle unmapped areas correctly (Sachin Prabhu) [1062590] {CVE-2014-0069}
+- [fs] xfs: xfs_remove deadlocks due to inverted AGF vs AGI lock ordering (Brian Foster) [1059334]
+
 * Thu Feb 20 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-445.el6]
 - [pci] Retry allocation of only the resource type that failed (Myron Stowe) [1033748]
 - [pci] cleanup assign_requested_resources_sorted() kernel-doc warning (Myron Stowe) [1033748]
