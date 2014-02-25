@@ -5666,22 +5666,6 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 	return ret;
 }
 
-static gpa_t get_tss_base_addr_write(struct kvm_vcpu *vcpu,
-			       struct desc_struct *seg_desc)
-{
-	u32 base_addr = get_desc_base(seg_desc);
-
-	return kvm_mmu_gva_to_gpa_write(vcpu, base_addr, NULL);
-}
-
-static gpa_t get_tss_base_addr_read(struct kvm_vcpu *vcpu,
-			     struct desc_struct *seg_desc)
-{
-	u32 base_addr = get_desc_base(seg_desc);
-
-	return kvm_mmu_gva_to_gpa_read(vcpu, base_addr, NULL);
-}
-
 static u16 get_segment_selector(struct kvm_vcpu *vcpu, int seg)
 {
 	struct kvm_segment kvm_seg;
@@ -6001,37 +5985,56 @@ static int kvm_task_switch_16(struct kvm_vcpu *vcpu, u16 tss_selector,
 			      struct desc_struct *nseg_desc)
 {
 	struct tss_segment_16 tss_segment_16;
-	int ret = 0;
+	int ret;
+	u32 err;
+	gva_t addr;
+	u32 new_tss_base = get_desc_base(nseg_desc);
 
-	if (kvm_read_guest(vcpu->kvm, old_tss_base, &tss_segment_16,
-			   sizeof tss_segment_16))
+	addr = old_tss_base;
+	ret = kvm_read_guest_virt_system(addr, &tss_segment_16,
+				         sizeof tss_segment_16,
+					 vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
 	save_state_to_tss16(vcpu, &tss_segment_16);
 
-	if (kvm_write_guest(vcpu->kvm, old_tss_base, &tss_segment_16,
-			    sizeof tss_segment_16))
+	ret = kvm_write_guest_virt_system(addr, &tss_segment_16,
+					  sizeof tss_segment_16,
+					  vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
-	if (kvm_read_guest(vcpu->kvm, get_tss_base_addr_read(vcpu, nseg_desc),
-			   &tss_segment_16, sizeof tss_segment_16))
+	addr = new_tss_base;
+	ret = kvm_read_guest_virt_system(addr, &tss_segment_16,
+					 sizeof tss_segment_16,
+					 vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
 	if (old_tss_sel != 0xffff) {
 		tss_segment_16.prev_task_link = old_tss_sel;
 
-		if (kvm_write_guest(vcpu->kvm,
-				    get_tss_base_addr_write(vcpu, nseg_desc),
-				    &tss_segment_16.prev_task_link,
-				    sizeof tss_segment_16.prev_task_link))
+		ret = kvm_write_guest_virt_system(addr,
+						  &tss_segment_16.prev_task_link,
+						  sizeof tss_segment_16.prev_task_link,
+						  vcpu, &err);
+		if (ret != X86EMUL_CONTINUE)
+			/* FIXME: need to provide precise fault address */
 			goto out;
 	}
 
-	if (load_state_from_tss16(vcpu, &tss_segment_16))
-		goto out;
+	ret = load_state_from_tss16(vcpu, &tss_segment_16);
+	if (ret != X86EMUL_CONTINUE)
+		/* Fault already injected, exit.  */
+		return ret;
 
-	ret = 1;
 out:
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(vcpu, addr, err);
 	return ret;
 }
 
@@ -6041,59 +6044,74 @@ static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
 		       bool has_error_code, u32 error_code)
 {
 	struct tss_segment_32 tss_segment_32;
-	int ret = 0;
+	int ret;
+	u32 err;
+	gva_t addr;
+	u32 new_tss_base = get_desc_base(nseg_desc);
 
-	if (kvm_read_guest(vcpu->kvm, old_tss_base, &tss_segment_32,
-			   sizeof tss_segment_32))
+	addr = old_tss_base;
+	ret = kvm_read_guest_virt_system(addr, &tss_segment_32,
+				         sizeof tss_segment_32,
+					 vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
 	save_state_to_tss32(vcpu, &tss_segment_32);
 
-	if (kvm_write_guest(vcpu->kvm, old_tss_base, &tss_segment_32,
-			    sizeof tss_segment_32))
+	ret = kvm_write_guest_virt_system(addr, &tss_segment_32,
+					  sizeof tss_segment_32,
+					  vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
-	if (kvm_read_guest(vcpu->kvm, get_tss_base_addr_read(vcpu, nseg_desc),
-			   &tss_segment_32, sizeof tss_segment_32))
+	addr = new_tss_base;
+	ret = kvm_read_guest_virt_system(addr, &tss_segment_32,
+				         sizeof tss_segment_32,
+					 vcpu, &err);
+	if (ret != X86EMUL_CONTINUE)
+		/* FIXME: need to provide precise fault address */
 		goto out;
 
 	if (old_tss_sel != 0xffff) {
 		tss_segment_32.prev_task_link = old_tss_sel;
 
-		if (kvm_write_guest(vcpu->kvm,
-				    get_tss_base_addr_write(vcpu, nseg_desc),
-				    &tss_segment_32.prev_task_link,
-				    sizeof tss_segment_32.prev_task_link))
+		ret = kvm_write_guest_virt_system(addr,
+						  &tss_segment_32.prev_task_link,
+						  sizeof tss_segment_32.prev_task_link,
+						  vcpu, &err);
+		if (ret != X86EMUL_CONTINUE)
+			/* FIXME: need to provide precise fault address */
 			goto out;
 	}
 
-	if (load_state_from_tss32(vcpu, &tss_segment_32))
-		goto out;
-
-	ret = 1;
+	ret = load_state_from_tss32(vcpu, &tss_segment_32);
+	if (ret != X86EMUL_CONTINUE)
+		/* Fault already injected, exit.  */
+		return ret;
 
 	if (has_error_code) {
 		/* put error on a stack of the new task */
-		gva_t sp = kvm_register_read(vcpu, VCPU_REGS_RSP) - 4, lsp;
-		u32 limit, err;
+		gva_t sp = kvm_register_read(vcpu, VCPU_REGS_RSP) - 4;
+		u32 limit;
 		struct kvm_segment ss;
-		int r;
 
 		kvm_get_segment(vcpu, &ss, VCPU_SREG_SS);
 		limit = (ss.g ? (ss.limit << 12) | 0xfff : ss.limit) + 1;
-		lsp = sp + ss.base;
+		addr = sp + ss.base;
 		if (limit)
-			lsp %= limit;
-		r = kvm_write_guest_virt(lsp, &error_code, 4, vcpu, &err);
-		if (r == X86EMUL_PROPAGATE_FAULT)
-			kvm_inject_page_fault(vcpu, lsp, err);
-		else if (r == X86EMUL_UNHANDLEABLE)
-			ret = 0;
-		else
-			kvm_register_write(vcpu, VCPU_REGS_RSP, sp);
+			addr %= limit;
+		ret = kvm_write_guest_virt_system(addr, &error_code, 4, vcpu, &err);
+		if (ret != X86EMUL_CONTINUE)
+			goto out;
+
+		kvm_register_write(vcpu, VCPU_REGS_RSP, sp);
 	}
 
 out:
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(vcpu, addr, err);
 	return ret;
 }
 
@@ -6130,8 +6148,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 	int ret;
 	u32 old_tss_base = get_segment_base(vcpu, VCPU_SREG_TR);
 	u16 old_tss_sel = get_segment_selector(vcpu, VCPU_SREG_TR);
-
-	old_tss_base = kvm_mmu_gva_to_gpa_write(vcpu, old_tss_base, NULL);
 
 	if (load_guest_segment_descriptor(vcpu, tss_selector, &nseg_desc))
 		return 0;
@@ -6210,6 +6226,10 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 		ret = kvm_task_switch_16(vcpu, tss_selector, old_tss_sel,
 					 old_tss_base, &nseg_desc);
 
+	/* Proceed in new task if a page fault happened, otherwise exit.  */
+	if (ret == X86EMUL_UNHANDLEABLE)
+		return 0;
+
 	if (reason == TASK_SWITCH_CALL || reason == TASK_SWITCH_GATE) {
 		u32 eflags = kvm_x86_ops->get_rflags(vcpu);
 		kvm_x86_ops->set_rflags(vcpu, eflags | X86_EFLAGS_NT);
@@ -6225,7 +6245,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 	seg_desct_to_kvm_desct(&nseg_desc, tss_selector, &tr_seg);
 	tr_seg.type = 11;
 	kvm_set_segment(vcpu, &tr_seg, VCPU_SREG_TR);
-	return ret;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
 
