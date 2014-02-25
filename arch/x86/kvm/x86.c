@@ -5649,12 +5649,21 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 {
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
+	int ret;
+	u32 err;
+	gva_t addr;
 
 	get_segment_descriptor_dtable(vcpu, selector, &dtable);
 
 	if (dtable.limit < index * 8 + 7)
 		return 1;
-	return kvm_write_guest_virt(dtable.base + index*8, seg_desc, sizeof(*seg_desc), vcpu, NULL);
+	addr = dtable.base + index*8;
+	ret =  kvm_write_guest_virt_system(addr, seg_desc,
+					   sizeof(*seg_desc), vcpu, &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(vcpu, addr, err);
+
+	return ret;
 }
 
 static gpa_t get_tss_base_addr_write(struct kvm_vcpu *vcpu,
@@ -5806,7 +5815,9 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg)
 		/* mark segment as accessed */
 		kvm_seg.type |= 1;
 		seg_desc.type |= 1;
-		save_guest_segment_descriptor(vcpu, selector, &seg_desc);
+		ret = save_guest_segment_descriptor(vcpu, selector, &seg_desc);
+		if (ret != X86EMUL_CONTINUE)
+			return ret;
 	}
 load:
 	kvm_set_segment(vcpu, &kvm_seg, seg);
@@ -6157,7 +6168,10 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector,
 
 	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
 		cseg_desc.type &= ~(1 << 1); //clear the B flag
-		save_guest_segment_descriptor(vcpu, old_tss_sel, &cseg_desc);
+		ret = save_guest_segment_descriptor(vcpu, old_tss_sel,
+						    &cseg_desc);
+		if (ret != X86EMUL_CONTINUE)
+			return 1;
 	}
 
 	if (reason == TASK_SWITCH_IRET) {
