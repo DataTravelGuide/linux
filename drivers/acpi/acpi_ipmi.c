@@ -106,6 +106,9 @@ struct acpi_ipmi_buffer {
 	u8 data[64];
 };
 
+int acpi_ipmi_loaded;
+EXPORT_SYMBOL(acpi_ipmi_loaded);
+
 static void ipmi_register_bmc(int iface, struct device *dev);
 static void ipmi_bmc_gone(int iface);
 static void ipmi_probe_complete(void);
@@ -543,7 +546,7 @@ static int __init acpi_ipmi_init(void)
 {
 	int result = 0;
 
-	if (acpi_disabled)
+	if (acpi_disabled || !ipmi_si_loaded)
 		return result;
 
 	mutex_init(&driver_data.ipmi_lock);
@@ -553,6 +556,11 @@ static int __init acpi_ipmi_init(void)
 	if (!result)
 		result = ipmi_smi_probe_complete_register(&probe_complete);
 
+	if (!result)
+		acpi_ipmi_loaded = 1;
+	else
+		acpi_ipmi_loaded = 0;
+
 	return result;
 }
 
@@ -560,7 +568,7 @@ static void __exit acpi_ipmi_exit(void)
 {
 	struct acpi_ipmi_device *ipmi_device, *temp;
 
-	if (acpi_disabled)
+	if (acpi_disabled || !ipmi_si_loaded)
 		return;
 
 	ipmi_smi_probe_complete_unregister(&probe_complete);

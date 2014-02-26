@@ -103,6 +103,9 @@ enum si_intf_state {
 #define IPMI_BT_INTMASK_CLEAR_IRQ_BIT	2
 #define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
 
+int ipmi_si_loaded;
+EXPORT_SYMBOL(ipmi_si_loaded);
+
 enum si_type {
     SI_KCS, SI_SMIC, SI_BT
 };
@@ -3368,6 +3371,8 @@ static int __devinit init_ipmi_si(void)
 	struct smi_info *e;
 	enum ipmi_addr_src type = SI_INVALID;
 
+	ipmi_si_loaded = 0;
+
 #ifdef CONFIG_X86_UV
 	if (is_uv_system())	/* Not supported on SGI UV systems */
 		return -ENODEV;
@@ -3408,6 +3413,7 @@ static int __devinit init_ipmi_si(void)
 	mutex_lock(&smi_infos_lock);
 	if (!list_empty(&smi_infos)) {
 		mutex_unlock(&smi_infos_lock);
+		ipmi_si_loaded = 1;
 		return 0;
 	}
 	mutex_unlock(&smi_infos_lock);
@@ -3474,6 +3480,7 @@ static int __devinit init_ipmi_si(void)
 	if (type) {
 		mutex_unlock(&smi_infos_lock);
 		ipmi_smi_probe_complete();
+		ipmi_si_loaded = 1;
 		return 0;
 	}
 
@@ -3490,6 +3497,7 @@ static int __devinit init_ipmi_si(void)
 
 	if (type) {
 		ipmi_smi_probe_complete();
+		ipmi_si_loaded = 1;
 		return 0;
 	}
 
@@ -3514,6 +3522,7 @@ static int __devinit init_ipmi_si(void)
 	} else {
 		mutex_unlock(&smi_infos_lock);
 		ipmi_smi_probe_complete();
+		ipmi_si_loaded = 1;
 		return 0;
 	}
 }
