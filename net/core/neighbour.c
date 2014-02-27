@@ -2939,7 +2939,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	t->neigh_vars[12].data  = &p->retrans_time;
 	t->neigh_vars[13].data  = &p->base_reachable_time;
 
-	for (i = 0; i < ARRAY_SIZE(t->neigh_vars); i++) {
+	for (i = 0; i < 14; i++) {
 		t->neigh_vars[i].extra1 = dev;
 		t->neigh_vars[i].extra2 = p;
 	}
