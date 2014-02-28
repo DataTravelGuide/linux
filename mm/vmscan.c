@@ -3005,6 +3005,18 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	};
 	unsigned long slab_reclaimable;
 
+	/*
+	 * RHEL6: we have removed the ZONE_RECLAIM_LOCKED scheme in order to
+	 * allow reclaim threads performing concurrent scans for a given zone.
+	 * This bailout is now required here to avoid time wasting zone scans
+	 * when a thread is about to start scanning a zone that cannot satisfy
+	 * the scan requirements anymore. It's better to give up and go scan
+	 * another zone in fallback list to prevent wasting cycles on a scan
+	 * that will not produce good results for now.
+	 */
+	if (zone_pagecache_reclaimable(zone) < sc.nr_to_reclaim)
+		return ZONE_RECLAIM_NOSCAN;
+
 	disable_swap_token();
 	cond_resched();
 
