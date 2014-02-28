@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 28 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-447.el6]
+- [fs] Fix mountpoint reference leakage in linkat (Jeff Layton) [1059943]
+- [net] sock: Fix release_cb kABI brekage (Thomas Graf) [1039723]
+- [kvm] x86: use kvm_read/write_guest_virt_system in task switch (Paolo Bonzini) [1018581]
+- [kvm] x86: small cleanups to kvm_task_switch (Paolo Bonzini) [1018581]
+- [kvm] x86: propagate error from kvm_load_segment_descriptor (Paolo Bonzini) [1018581]
+- [kvm] x86: improve save_guest_segment_descriptor (Paolo Bonzini) [1018581]
+- [kvm] x86: introduce kvm_write_guest_virt_system (Paolo Bonzini) [1018581]
+- [kvm] x86: Fix task switch privilege checks (Paolo Bonzini) [1018581]
+
 * Mon Feb 24 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-446.el6]
 - [powerpc] Make function that parses RTAS error logs global (Steve Best) [1028682]
 - [powerpc] pseries: Add RTAS event log v6 definition (Steve Best) [1028682]
