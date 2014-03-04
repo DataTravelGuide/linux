@@ -1209,11 +1209,6 @@ int machine__resolve_callchain(struct machine *machine,
 	if (ret)
 		return ret;
 
-	return 0;
-
-#if 0
-XXX No dwarf unwind support in RHEL6
-
 	/* Can we do dwarf post unwind? */
 	if (!((evsel->attr.sample_type & PERF_SAMPLE_REGS_USER) &&
 	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
@@ -1227,6 +1222,4 @@ XXX No dwarf unwind support in RHEL6
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
 				   sample);
-
-#endif
 }

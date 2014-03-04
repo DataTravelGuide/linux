@@ -75,9 +75,6 @@ ifeq ($(ARCH),x86_64)
 	LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
 endif
 
-#XXX No dwarf unwind support in RHEL6
-NO_PERF_REGS := 1
-
 # Treat warnings as errors unless directed not to
 ifneq ($(WERROR),0)
 	CFLAGS_WERROR := -Werror

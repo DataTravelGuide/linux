@@ -529,8 +529,6 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	if (opts->call_graph) {
 		perf_evsel__set_sample_bit(evsel, CALLCHAIN);
-#if 0
-XXX No dwarf unwind support in RHEL6
 		if (opts->call_graph == CALLCHAIN_DWARF) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
@@ -538,7 +536,6 @@ XXX No dwarf unwind support in RHEL6
 			attr->sample_stack_user = opts->stack_dump_size;
 			attr->exclude_callchain_user = 1;
 		}
-#endif
 	}
 
 	if (perf_target__has_cpu(&opts->target))
@@ -1002,10 +999,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data)
 {
 	u64 type = evsel->attr.sample_type;
-#if 0
-XXX No dwarf unwind support in RHEL6
 	u64 regs_user = evsel->attr.sample_regs_user;
-#endif
 	bool swapped = evsel->needs_swap;
 	const u64 *array;
 
@@ -1144,8 +1138,6 @@ XXX No dwarf unwind support in RHEL6
 		array += sz;
 	}
 
-#if 0
-XXX No dwarf unwind support in RHEL6
 	if (type & PERF_SAMPLE_REGS_USER) {
 		/* First u64 tells us if we have any regs in sample. */
 		u64 avail = *array++;
@@ -1170,7 +1162,6 @@ XXX No dwarf unwind support in RHEL6
 			data->user_stack.size = *array;
 		}
 	}
-#endif
 	return 0;
 }
 
@@ -1375,13 +1366,7 @@ static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
 		bit_name(IP), bit_name(TID), bit_name(TIME), bit_name(ADDR),
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
-		bit_name(BRANCH_STACK),
-#if 0
-XXX RHEL6 regs and user stack sample
-    types are not supported in RHEL6
-
-		bit_name(REGS_USER), bit_name(STACK_USER),
-#endif
+		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
 		{ .name = NULL, }
 	};
 #undef bit_name

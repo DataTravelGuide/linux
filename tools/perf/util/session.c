@@ -801,14 +801,11 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		branch_stack__printf(sample);
 
-#if 0
-XXX No dwarf unwind support in RHEL6
 	if (sample_type & PERF_SAMPLE_REGS_USER)
 		regs_user__printf(sample, evsel->attr.sample_regs_user);
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
-#endif
 }
 
 static struct machine *
