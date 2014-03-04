@@ -70,6 +70,7 @@ ifeq ($(ARCH),i386)
 endif
 ifeq ($(ARCH),x86_64)
 	override ARCH := x86
+	ARCH_CFLAGS := -DARCH_X86_64
 	NO_PERF_REGS := 0
 	LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
 endif
@@ -854,6 +855,7 @@ SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
+ALL_CFLAGS += $(ARCH_CFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)
 
 export INSTALL SHELL_PATH
