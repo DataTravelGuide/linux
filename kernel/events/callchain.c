@@ -153,7 +153,8 @@ put_callchain_entry(int rctx)
 	put_recursion_context(__get_cpu_var(callchain_recursion), rctx);
 }
 
-struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
+struct perf_callchain_entry *
+perf_callchain(struct perf_event *event, struct pt_regs *regs)
 {
 	int rctx;
 	struct perf_callchain_entry *entry;
