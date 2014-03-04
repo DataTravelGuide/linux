@@ -1185,19 +1185,19 @@ static struct evlist_test test__events[] = {
 		.name  = "*:*",
 		.check = test__all_tracepoints,
 	},
-	[34] = {
+	[24] = {
 		.name  = "{cycles,cache-misses:G}:H",
 		.check = test__group_gh1,
 	},
-	[35] = {
+	[25] = {
 		.name  = "{cycles,cache-misses:H}:G",
 		.check = test__group_gh2,
 	},
-	[36] = {
+	[26] = {
 		.name  = "{cycles:G,cache-misses:H}:u",
 		.check = test__group_gh3,
 	},
-	[37] = {
+	[27] = {
 		.name  = "{cycles:G,cache-misses:H}:uG",
 		.check = test__group_gh4,
 	},
