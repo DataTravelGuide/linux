@@ -392,7 +392,7 @@ rh-help:
 	@echo  '  rh-cross-[ARCH]-rpm - [x86_64 only] execute rpm builds for specified'
 	@echo  '			ARCH using RHEL cross compiler'
 	@echo  '  rh-cross-build-beaker - uses beaker to git clone and run rh-cross-all-build'
-	@echo  '			  must \'git push \' changes first'
+	@echo  '			  must "git push" changes first'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@echo
