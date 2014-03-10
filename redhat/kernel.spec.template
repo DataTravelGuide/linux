@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 10 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.12.1.el6]
+- [mm] vmscan: re-introduce the ZONE_RECLAIM_NOSCAN bailout for zone_reclaim() (Rafael Aquini) [1073562 1039534]
+- [mm] vmscan: compaction works against zones, not lruvecs (Johannes Weiner) [1073564 982770]
+
 * Wed Feb 26 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.11.1.el6]
 - [net] netpoll: take rcu_read_lock_bh() in netpoll_send_skb_on_dev() (Florian Westphal) [1063271 1049052]
 - [fs] cifs: sanity check length of data to send before sending (Sachin Prabhu) [1065668 1062590] {CVE-2014-0069}
