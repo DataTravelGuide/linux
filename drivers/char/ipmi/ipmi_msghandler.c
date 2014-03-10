@@ -614,6 +614,7 @@ int ipmi_smi_probe_complete_register(struct ipmi_smi_probe_complete *probe_compl
 	mutex_unlock(&smi_probe_complete_mutex);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ipmi_smi_probe_complete_register);
 
 int ipmi_smi_probe_complete_unregister(struct ipmi_smi_probe_complete *probe_complete)
 {
@@ -622,6 +623,7 @@ int ipmi_smi_probe_complete_unregister(struct ipmi_smi_probe_complete *probe_com
 	mutex_unlock(&smi_probe_complete_mutex);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ipmi_smi_probe_complete_unregister);
 
 /*
  * Must be called with smi_watchers_mutex held.
@@ -1005,8 +1007,6 @@ out_kfree:
 }
 EXPORT_SYMBOL(ipmi_create_user);
 
-extern int ipmi_si_get_smi_info(void *send_info, struct ipmi_smi_info *data);
-
 int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 {
 	int           rv = 0;
@@ -1025,7 +1025,8 @@ int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 
 found:
 	handlers = intf->handlers;
-	rv = ipmi_si_get_smi_info(intf->send_info, data);
+	if (handlers->get_smi_info)
+		rv = handlers->get_smi_info(intf->send_info, data);
 	mutex_unlock(&ipmi_interfaces_mutex);
 
 	return rv;
@@ -2823,6 +2824,7 @@ void ipmi_smi_probe_complete(void)
 	}
 	mutex_unlock(&smi_probe_complete_mutex);
 }
+EXPORT_SYMBOL_GPL(ipmi_smi_probe_complete);
 
 int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,

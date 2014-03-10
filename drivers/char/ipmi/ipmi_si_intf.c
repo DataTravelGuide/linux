@@ -1195,6 +1195,7 @@ int ipmi_si_get_smi_info(void *send_info, struct ipmi_smi_info *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ipmi_si_get_smi_info);
 
 static void set_maintenance_mode(void *send_info, int enable)
 {
@@ -1207,6 +1208,7 @@ static void set_maintenance_mode(void *send_info, int enable)
 static struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
+	.get_smi_info           = ipmi_si_get_smi_info,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_maintenance_mode   = set_maintenance_mode,
