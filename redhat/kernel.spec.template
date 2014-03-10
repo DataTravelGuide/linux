@@ -1701,6 +1701,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 10 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-448.el6]
+- [x86] apic: Make disabled_cpu_apicid static read_mostly, fix typos (Nigel Croxon) [980621]
+- [x86] kexec: Add disable_cpu_apicid kernel parameter (Nigel Croxon) [980621]
+- [net] neigh: fix setting of default gc_* values (Jiri Pirko) [1070363]
+- [net] ipv4: fix route deletion for IPs on many subnets (Jiri Benc) [1056443]
+- [net] ipv4: match prefsrc when deleting routes (Jiri Benc) [1056443]
+- [net] tcp: tsq: restore minimal amount of queueing (Jiri Pirko) [1044053]
+- [net] ipv6: fix potential use after free in tcp_v6_do_rcv (Jiri Benc) [1004164]
+- [net] ipv6: Use ipv6_get_dsfield() instead of ipv6_tclass() (Jiri Benc) [1004164]
+- [fs] proc: meminfo: provide estimated available memory (Luiz Capitulino) [1032702]
+- [mm] vmscan: re-introduce the ZONE_RECLAIM_NOSCAN bailout for zone_reclaim() (Rafael Aquini) [1039534]
+- [mm] vmscan: compaction works against zones, not lruvecs (Johannes Weiner) [982770]
+
 * Fri Feb 28 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-447.el6]
 - [fs] Fix mountpoint reference leakage in linkat (Jeff Layton) [1059943]
 - [net] sock: Fix release_cb kABI brekage (Thomas Graf) [1039723]
