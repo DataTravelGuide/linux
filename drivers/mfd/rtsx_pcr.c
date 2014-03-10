@@ -77,9 +77,10 @@ void rtsx_pci_start_run(struct rtsx_pcr *pcr)
 		if (pcr->aspm_en)
 			rtsx_pci_write_config_byte(pcr, LCTLR, 0);
 	}
-
+	mutex_unlock(&pcr->pcr_mutex);
 	cancel_delayed_work_sync(&pcr->idle_work);
 	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
+	mutex_lock(&pcr->pcr_mutex);
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_start_run);
 
