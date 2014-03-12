@@ -68,23 +68,18 @@ static void free_bitset(unsigned long *bits)
  */
 struct dm_hook_info {
 	bio_end_io_t *bi_end_io;
-	void *bi_private;
 };
 
 static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
-			bio_end_io_t *bi_end_io, void *bi_private)
+			bio_end_io_t *bi_end_io)
 {
 	h->bi_end_io = bio->bi_end_io;
-	h->bi_private = bio->bi_private;
-
 	bio->bi_end_io = bi_end_io;
-	bio->bi_private = bi_private;
 }
 
 static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
-	bio->bi_private = h->bi_private;
 }
 
 /*----------------------------------------------------------------*/
@@ -294,6 +289,7 @@ struct dm_cache_wb_per_bio_data {
 	unsigned req_nr:2;
 	size_t data_size;
 	struct dm_deferred_entry *all_io_entry;
+	struct dm_cache_migration *mg;
 	struct dm_hook_info hook_info;
 };
 
@@ -305,6 +301,7 @@ struct per_bio_data {
 	unsigned req_nr:2;
 	size_t data_size;
 	struct dm_deferred_entry *all_io_entry;
+	struct dm_cache_migration *mg;
 	struct dm_hook_info hook_info;
 
 	/*
@@ -843,7 +840,7 @@ static void remap_to_origin_then_cache(struct cache *cache, struct bio *bio,
 
 	pb->cache = cache;
 	pb->cblock = cblock;
-	dm_hook_bio(&pb->hook_info, bio, writethrough_endio, NULL);
+	dm_hook_bio(&pb->hook_info, bio, writethrough_endio);
 	dm_bio_record(&pb->bio_details, bio);
 
 	remap_to_origin_clear_discard(pb->cache, bio, oblock);
@@ -1047,13 +1044,13 @@ static void issue_copy_real(struct dm_cache_migration *mg)
 
 static void overwrite_endio(struct bio *bio, int err)
 {
-	struct dm_cache_migration *mg = bio->bi_private;
+	struct per_bio_data *pb = get_per_bio_data(bio, 0);
+	struct dm_cache_migration *mg = pb->mg;
 	struct cache *cache = mg->cache;
-	size_t pb_data_size = get_per_bio_data_size(cache);
-	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 	unsigned long flags;
 
 	dm_unhook_bio(&pb->hook_info, bio);
+	pb->mg = NULL;
 
 	if (err)
 		mg->err = true;
@@ -1072,7 +1069,8 @@ static void issue_overwrite(struct dm_cache_migration *mg, struct bio *bio)
 	size_t pb_data_size = get_per_bio_data_size(mg->cache);
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
-	dm_hook_bio(&pb->hook_info, bio, overwrite_endio, mg);
+	pb->mg = mg;
+	dm_hook_bio(&pb->hook_info, bio, overwrite_endio);
 	remap_to_cache_dirty(mg->cache, bio, mg->new_oblock, mg->cblock);
 	generic_make_request(bio);
 }
