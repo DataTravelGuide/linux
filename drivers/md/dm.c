@@ -235,7 +235,8 @@ struct dm_md_mempools {
 	struct bio_set *bs;
 };
 
-#define MIN_IOS 256
+#define RESERVED_BIO_BASED_IOS		16
+#define RESERVED_REQUEST_BASED_IOS	256
 static struct kmem_cache *_io_cache;
 static struct kmem_cache *_tio_cache;
 static struct kmem_cache *_rq_tio_cache;
@@ -2892,20 +2893,21 @@ EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity)
 {
 	struct dm_md_mempools *pools = kmalloc(sizeof(*pools), GFP_KERNEL);
-	unsigned int pool_size = (type == DM_TYPE_BIO_BASED) ? 16 : MIN_IOS;
+	unsigned int pool_size = (type == DM_TYPE_BIO_BASED) ?
+		RESERVED_BIO_BASED_IOS : RESERVED_REQUEST_BASED_IOS;
 
 	if (!pools)
 		return NULL;
 
 	pools->io_pool = (type == DM_TYPE_BIO_BASED) ?
-			 mempool_create_slab_pool(MIN_IOS, _io_cache) :
-			 mempool_create_slab_pool(MIN_IOS, _rq_bio_info_cache);
+			 mempool_create_slab_pool(pool_size, _io_cache) :
+			 mempool_create_slab_pool(pool_size, _rq_bio_info_cache);
 	if (!pools->io_pool)
 		goto free_pools_and_out;
 
 	pools->tio_pool = (type == DM_TYPE_BIO_BASED) ?
-			  mempool_create_slab_pool(MIN_IOS, _tio_cache) :
-			  mempool_create_slab_pool(MIN_IOS, _rq_tio_cache);
+			  mempool_create_slab_pool(pool_size, _tio_cache) :
+			  mempool_create_slab_pool(pool_size, _rq_tio_cache);
 	if (!pools->tio_pool)
 		goto free_io_pool_and_out;
 
