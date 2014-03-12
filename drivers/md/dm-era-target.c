@@ -1360,6 +1360,7 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	char dummy;
 	struct era *era;
 	struct era_metadata *md;
+	static bool seen = false;
 
 	if (argc != 3) {
 		ti->error = "Invalid argument count";
@@ -1446,6 +1447,11 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->discards_supported = true;
 	era->callbacks.congested_fn = era_is_congested;
 	dm_table_add_target_callbacks(ti->table, &era->callbacks);
+
+	if (!seen) {
+		mark_tech_preview("DM era", THIS_MODULE);
+		seen = true;
+	}
 
 	return 0;
 }
