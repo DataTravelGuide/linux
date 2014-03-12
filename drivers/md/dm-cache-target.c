@@ -2535,20 +2535,19 @@ static int cache_map(struct dm_target *ti, struct bio *bio,
 	bool discarded_block;
 	struct dm_bio_prison_cell *cell;
 	struct policy_result lookup_result;
-	struct per_bio_data *pb;
+	struct per_bio_data *pb = init_per_bio_data(bio, pb_data_size, cache);
 
-	if (from_oblock(block) > from_oblock(cache->origin_blocks)) {
+	map_context->ptr = pb;
+
+	if (unlikely(from_oblock(block) >= from_oblock(cache->origin_blocks))) {
 		/*
 		 * This can only occur if the io goes to a partial block at
 		 * the end of the origin device.  We don't cache these.
 		 * Just remap to the origin and carry on.
 		 */
-		remap_to_origin_clear_discard(cache, bio, block);
+		remap_to_origin(cache, bio);
 		return DM_MAPIO_REMAPPED;
 	}
-
-	pb = init_per_bio_data(bio, pb_data_size, cache);
-	map_context->ptr = pb;
 
 	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA | BIO_DISCARD)) {
 		defer_bio(cache, bio);
