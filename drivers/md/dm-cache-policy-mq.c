@@ -425,8 +425,9 @@ static struct entry *hash_lookup(struct mq_policy *mq, dm_oblock_t oblock)
 	unsigned h = hash_64(from_oblock(oblock), mq->hash_bits);
 	struct hlist_head *bucket = mq->table + h;
 	struct entry *e;
+	struct hlist_node *tmp;
 
-	hlist_for_each_entry(e, bucket, hlist)
+	hlist_for_each_entry(e, tmp, bucket, hlist)
 		if (e->oblock == oblock) {
 			hlist_del(&e->hlist);
 			hlist_add_head(&e->hlist, bucket);

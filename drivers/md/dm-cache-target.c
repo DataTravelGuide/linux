@@ -89,6 +89,7 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 
 /*----------------------------------------------------------------*/
 
+#define PB_POOL_SIZE 1024
 #define PRISON_CELLS 1024
 #define MIGRATION_POOL_SIZE 128
 #define COMMIT_PERIOD HZ
@@ -252,6 +253,9 @@ struct cache {
 	struct dm_bio_prison *prison;
 	struct dm_deferred_set *all_io_ds;
 
+	mempool_t *wb_per_bio_data_pool;
+	mempool_t *wt_per_bio_data_pool;
+
 	mempool_t *migration_pool;
 	struct dm_cache_migration *next_migration;
 
@@ -279,6 +283,22 @@ struct cache {
 	struct list_head invalidation_requests;
 };
 
+/*
+ * All dm_cache_wb_per_bio_data will be cast as per_bio_data, see:
+ * init_per_bio_data().  This simplifies the RHEL-specific port of
+ * per-bio-data of writeback's memory reduction optimization:
+ * get_per_bio_data() always returns per_bio_data *.
+ */
+struct dm_cache_wb_per_bio_data {
+	bool tick:1;
+	unsigned req_nr:2;
+	struct dm_deferred_entry *all_io_entry;
+	struct dm_hook_info hook_info;
+};
+
+/*
+ * The struct name 'per_bio_data' is preserved to ease future backports.
+ */
 struct per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
@@ -630,24 +650,52 @@ static bool passthrough_mode(struct cache_features *f)
 	return f->io_mode == CM_IO_PASSTHROUGH;
 }
 
-static size_t get_per_bio_data_size(struct cache *cache)
+static size_t __get_per_bio_data_size(struct cache *cache)
 {
 	return writethrough_mode(&cache->features) ? PB_DATA_SIZE_WT : PB_DATA_SIZE_WB;
 }
 
-static struct per_bio_data *get_per_bio_data(struct bio *bio, size_t data_size)
+/*
+ * RHEL doesn't have per-bio data support in block layer so the value
+ * returned from get_per_bio_data_size() didn't matter for all callers
+ * except init_per_bio_data (which now uses __get_per_bio_data_size).
+ * Avoid the need to change all get_per_bio_data_size() callers to ease
+ * upstream portability, but optimize RHEL with a quick assignment
+ * rather than perform a compare, etc.
+ */
+#define get_per_bio_data_size(__unused_cache) ((size_t) 0)
+
+static struct per_bio_data *get_per_bio_data(struct bio *bio, size_t __unused_data_size)
 {
-	struct per_bio_data *pb = dm_per_bio_data(bio, data_size);
+	/*
+	 * NOTE: RHEL doesn't use @data_size to retrieve the per-bio data;
+	 * left args unchanged for upstream portability of all calling code.
+	 */
+	struct per_bio_data *pb = dm_get_mapinfo(bio)->ptr;
 	BUG_ON(!pb);
 	return pb;
 }
 
-static struct per_bio_data *init_per_bio_data(struct bio *bio, size_t data_size)
+static struct per_bio_data *init_per_bio_data(struct bio *bio, size_t data_size,
+					      struct cache *cache)
 {
-	struct per_bio_data *pb = get_per_bio_data(bio, data_size);
+	struct per_bio_data *pb = NULL;
+
+	data_size = __get_per_bio_data_size(cache);
+
+	/*
+	 * The size of the per-bio data needed for writeback support
+	 * is considerably smaller than that of writethrough support.
+	 * So 2 different mempools are used to optimize the writeback case.
+	 */
+	if (data_size == PB_DATA_SIZE_WB)
+		pb = (struct per_bio_data *)
+			mempool_alloc(cache->wb_per_bio_data_pool, GFP_NOIO);
+	else
+		pb = mempool_alloc(cache->wt_per_bio_data_pool, GFP_NOIO);
 
 	pb->tick = false;
-	pb->req_nr = dm_bio_get_target_bio_nr(bio);
+	pb->req_nr = dm_get_mapinfo(bio)->target_request_nr;
 	pb->all_io_entry = NULL;
 
 	return pb;
@@ -683,7 +731,7 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 
 	spin_lock_irqsave(&cache->lock, flags);
 	if (cache->need_tick_bio &&
-	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH | REQ_DISCARD))) {
+	    !(bio->bi_rw & (BIO_FUA | BIO_FLUSH | BIO_DISCARD))) {
 		pb->tick = true;
 		cache->need_tick_bio = false;
 	}
@@ -724,7 +772,7 @@ static dm_oblock_t get_bio_block(struct cache *cache, struct bio *bio)
 
 static int bio_triggers_commit(struct cache *cache, struct bio *bio)
 {
-	return bio->bi_rw & (REQ_FLUSH | REQ_FUA);
+	return bio->bi_rw & (BIO_FLUSH | BIO_FUA);
 }
 
 static void issue(struct cache *cache, struct bio *bio)
@@ -1485,9 +1533,9 @@ static void process_deferred_bios(struct cache *cache)
 
 		bio = bio_list_pop(&bios);
 
-		if (bio->bi_rw & REQ_FLUSH)
+		if (bio->bi_rw & BIO_FLUSH)
 			process_flush_bio(cache, bio);
-		else if (bio->bi_rw & REQ_DISCARD)
+		else if (bio->bi_rw & BIO_DISCARD)
 			process_discard_bio(cache, bio);
 		else
 			process_bio(cache, &structs, bio);
@@ -1763,6 +1811,12 @@ static void destroy(struct cache *cache)
 
 	if (cache->migration_pool)
 		mempool_destroy(cache->migration_pool);
+
+	if (cache->wb_per_bio_data_pool)
+		mempool_destroy(cache->wb_per_bio_data_pool);
+
+	if (cache->wt_per_bio_data_pool)
+		mempool_destroy(cache->wt_per_bio_data_pool);
 
 	if (cache->all_io_ds)
 		dm_deferred_set_destroy(cache->all_io_ds);
@@ -2093,6 +2147,8 @@ static int parse_cache_args(struct cache_args *ca, int argc, char **argv,
 /*----------------------------------------------------------------*/
 
 static struct kmem_cache *migration_cache;
+static struct kmem_cache *wb_per_bio_data_cache;
+static struct kmem_cache *wt_per_bio_data_cache;
 
 #define NOT_CORE_OPTION 1
 
@@ -2208,15 +2264,14 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache->ti = ca->ti;
 	ti->private = cache;
-	ti->num_flush_bios = 2;
+	ti->num_flush_requests = 2;
 	ti->flush_supported = true;
 
-	ti->num_discard_bios = 1;
+	ti->num_discard_requests = 1;
 	ti->discards_supported = true;
 	ti->discard_zeroes_data_unsupported = true;
 
 	cache->features = ca->features;
-	ti->per_bio_data_size = get_per_bio_data_size(cache);
 
 	cache->callbacks.congested_fn = cache_is_congested;
 	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
@@ -2359,6 +2414,20 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	cache->next_migration = NULL;
 
+	cache->wb_per_bio_data_pool = mempool_create_slab_pool(PB_POOL_SIZE,
+							       wb_per_bio_data_cache);
+	if (!cache->wb_per_bio_data_pool) {
+		*error = "Error creating cache's writeback per-bio-data mempool";
+		goto bad;
+	}
+
+	cache->wt_per_bio_data_pool = mempool_create_slab_pool(PB_POOL_SIZE,
+							       wt_per_bio_data_cache);
+	if (!cache->wt_per_bio_data_pool) {
+		*error = "Error creating cache's writethrough per-bio-data mempool";
+		goto bad;
+	}
+
 	cache->need_tick_bio = true;
 	cache->sized = false;
 	cache->invalidate = false;
@@ -2444,7 +2513,8 @@ out:
 	return r;
 }
 
-static int cache_map(struct dm_target *ti, struct bio *bio)
+static int cache_map(struct dm_target *ti, struct bio *bio,
+		     union map_info *map_context)
 {
 	struct cache *cache = ti->private;
 
@@ -2467,9 +2537,10 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 	}
 
-	pb = init_per_bio_data(bio, pb_data_size);
+	pb = init_per_bio_data(bio, pb_data_size, cache);
+	map_context->ptr = pb;
 
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD)) {
+	if (bio->bi_rw & (BIO_FLUSH | BIO_FUA | BIO_DISCARD)) {
 		defer_bio(cache, bio);
 		return DM_MAPIO_SUBMITTED;
 	}
@@ -2568,7 +2639,8 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	return r;
 }
 
-static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int cache_end_io(struct dm_target *ti, struct bio *bio, int error,
+			union map_info *map_context)
 {
 	struct cache *cache = ti->private;
 	unsigned long flags;
@@ -2584,6 +2656,11 @@ static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
 	}
 
 	check_for_quiesced_migrations(cache, pb);
+
+	if (pb_data_size == PB_DATA_SIZE_WB)
+		mempool_free(pb, cache->wb_per_bio_data_pool);
+	else
+		mempool_free(pb, cache->wt_per_bio_data_pool);
 
 	return 0;
 }
@@ -2836,8 +2913,8 @@ static void cache_resume(struct dm_target *ti)
  * <#core args> <core args>
  * <policy name> <#policy args> <policy args>*
  */
-static void cache_status(struct dm_target *ti, status_type_t type,
-			 unsigned status_flags, char *result, unsigned maxlen)
+static int cache_status(struct dm_target *ti, status_type_t type,
+			unsigned status_flags, char *result, unsigned maxlen)
 {
 	int r = 0;
 	unsigned i;
@@ -2926,10 +3003,11 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" %s", cache->ctr_args[cache->nr_ctr_args - 1]);
 	}
 
-	return;
+	return 0;
 
 err:
 	DMEMIT("Error");
+	return 0;
 }
 
 /*
@@ -3137,6 +3215,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
+	.features = DM_TARGET_STATUS_WITH_FLAGS,
 	.version = {1, 3, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
@@ -3146,7 +3225,7 @@ static struct target_type cache_target = {
 	.postsuspend = cache_postsuspend,
 	.preresume = cache_preresume,
 	.resume = cache_resume,
-	.status = cache_status,
+	.status_with_flags = cache_status,
 	.message = cache_message,
 	.iterate_devices = cache_iterate_devices,
 	.merge = cache_bvec_merge,
@@ -3163,19 +3242,44 @@ static int __init dm_cache_init(void)
 		return r;
 	}
 
+	r = -ENOMEM;
+
 	migration_cache = KMEM_CACHE(dm_cache_migration, 0);
-	if (!migration_cache) {
-		dm_unregister_target(&cache_target);
-		return -ENOMEM;
-	}
+	if (!migration_cache)
+		goto bad_cache_target;
+
+	wb_per_bio_data_cache = KMEM_CACHE(dm_cache_wb_per_bio_data, 0);
+	if (!wb_per_bio_data_cache)
+		goto bad_wb_per_bio_data_cache;
+
+	/*
+	 * Use kmem_cache_create() instead of KMEM_CACHE() to
+	 * set a descriptive name for the cache.
+	 */
+	wt_per_bio_data_cache = kmem_cache_create("dm_cache_wt_per_bio_data",
+						  sizeof(struct per_bio_data),
+						  0, 0, NULL);
+	if (!wt_per_bio_data_cache)
+		goto bad_wt_per_bio_data_cache;
 
 	return 0;
+
+bad_wt_per_bio_data_cache:
+	kmem_cache_destroy(wb_per_bio_data_cache);
+bad_wb_per_bio_data_cache:
+	kmem_cache_destroy(migration_cache);
+bad_cache_target:
+	dm_unregister_target(&cache_target);
+
+	return r;
 }
 
 static void __exit dm_cache_exit(void)
 {
 	dm_unregister_target(&cache_target);
 	kmem_cache_destroy(migration_cache);
+	kmem_cache_destroy(wb_per_bio_data_cache);
+	kmem_cache_destroy(wt_per_bio_data_cache);
 }
 
 module_init(dm_cache_init);
