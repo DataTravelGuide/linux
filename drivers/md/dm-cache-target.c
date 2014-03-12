@@ -292,6 +292,7 @@ struct cache {
 struct dm_cache_wb_per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
+	size_t data_size;
 	struct dm_deferred_entry *all_io_entry;
 	struct dm_hook_info hook_info;
 };
@@ -302,6 +303,7 @@ struct dm_cache_wb_per_bio_data {
 struct per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
+	size_t data_size;
 	struct dm_deferred_entry *all_io_entry;
 	struct dm_hook_info hook_info;
 
@@ -694,6 +696,7 @@ static struct per_bio_data *init_per_bio_data(struct bio *bio, size_t data_size,
 	else
 		pb = mempool_alloc(cache->wt_per_bio_data_pool, GFP_NOIO);
 
+	pb->data_size = data_size;
 	pb->tick = false;
 	pb->req_nr = dm_get_mapinfo(bio)->target_request_nr;
 	pb->all_io_entry = NULL;
@@ -2657,7 +2660,7 @@ static int cache_end_io(struct dm_target *ti, struct bio *bio, int error,
 
 	check_for_quiesced_migrations(cache, pb);
 
-	if (pb_data_size == PB_DATA_SIZE_WB)
+	if (pb->data_size == PB_DATA_SIZE_WB)
 		mempool_free(pb, cache->wb_per_bio_data_pool);
 	else
 		mempool_free(pb, cache->wt_per_bio_data_pool);
