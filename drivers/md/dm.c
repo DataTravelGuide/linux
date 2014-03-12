@@ -244,6 +244,11 @@ static struct kmem_cache *_rq_tio_cache;
 static struct kmem_cache *_rq_bio_info_cache;
 
 /*
+ * Bio-based DM's mempools' reserved IOs set by the user.
+ */
+static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
+
+/*
  * Request-based DM's mempools' reserved IOs set by the user.
  */
 static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
@@ -266,6 +271,13 @@ static unsigned __dm_get_reserved_ios(unsigned *reserved_ios,
 
 	return ios;
 }
+
+unsigned dm_get_reserved_bio_based_ios(void)
+{
+	return __dm_get_reserved_ios(&reserved_bio_based_ios,
+				     RESERVED_BIO_BASED_IOS, RESERVED_MAX_IOS);
+}
+EXPORT_SYMBOL_GPL(dm_get_reserved_bio_based_ios);
 
 unsigned dm_get_reserved_rq_based_ios(void)
 {
@@ -2926,7 +2938,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity)
 {
 	struct dm_md_mempools *pools = kmalloc(sizeof(*pools), GFP_KERNEL);
 	unsigned int pool_size = (type == DM_TYPE_BIO_BASED) ?
-		RESERVED_BIO_BASED_IOS : dm_get_reserved_rq_based_ios();
+		dm_get_reserved_bio_based_ios() : dm_get_reserved_rq_based_ios();
 
 	if (!pools)
 		return NULL;
@@ -3002,6 +3014,9 @@ module_exit(dm_exit);
 
 module_param(major, uint, 0);
 MODULE_PARM_DESC(major, "The major number of the device mapper");
+
+module_param(reserved_bio_based_ios, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reserved_bio_based_ios, "Reserved IOs in bio-based mempools");
 
 module_param(reserved_rq_based_ios, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(reserved_rq_based_ios, "Reserved IOs in request-based mempools");
