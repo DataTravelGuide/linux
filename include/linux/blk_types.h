@@ -91,6 +91,7 @@ enum bio_rw_flags {
 	BIO_RW_THROTTLED,
 };
 
+#define BIO_WRITE		(1 << BIO_RW)
 #define BIO_FLUSH		(1 << BIO_RW_FLUSH)
 #define BIO_FUA			(1 << BIO_RW_FUA)
 #define BIO_DISCARD		(1 << BIO_RW_DISCARD)
