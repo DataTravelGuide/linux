@@ -9180,6 +9180,9 @@ static void init_numa_sched_groups_power(struct sched_group *group_head)
 	if (!sg)
 		return;
 	do {
+		/* Estimate the final value to avoid /0 on weird topologies. */
+		sg->cpu_power = SCHED_LOAD_SCALE * cpumask_weight(
+		                    sched_group_cpus(sg));
 		for_each_cpu(j, sched_group_cpus(sg)) {
 			struct sched_domain *sd;
 
@@ -9193,6 +9196,9 @@ static void init_numa_sched_groups_power(struct sched_group *group_head)
 			}
 
 			sg->cpu_power += sd->groups->cpu_power;
+			/* Discharge initial estimate of updated cpus. */
+			sg->cpu_power -= SCHED_LOAD_SCALE * cpumask_weight(
+			                     sched_group_cpus(sd->groups));
 		}
 		sg = sg->next;
 	} while (sg != group_head);
