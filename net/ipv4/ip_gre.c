@@ -370,12 +370,9 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address. */
 	if (saddr)
 		memcpy(&iph->saddr, saddr, 4);
-
-	if (daddr) {
+	if (daddr)
 		memcpy(&iph->daddr, daddr, 4);
-		return t->hlen;
-	}
-	if (iph->daddr && !ipv4_is_multicast(iph->daddr))
+	if (iph->daddr)
 		return t->hlen;
 
 	return -(t->hlen + sizeof(*iph));
