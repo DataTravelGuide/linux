@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/rcupdate.h>
 #include <linux/hrtimer.h>
+#include <net/ll_poll.h>
 
 #include <asm/uaccess.h>
 
@@ -382,10 +383,11 @@ get_max:
 #define POLLEX_SET (POLLPRI)
 
 static inline void wait_key_set(poll_table *wait, unsigned long in,
-				unsigned long out, unsigned long bit)
+				unsigned long out, unsigned long bit,
+				unsigned int ll_flag)
 {
 	if (wait) {
-		wait->key = POLLEX_SET;
+		wait->key = POLLEX_SET | ll_flag;
 		if (in & bit)
 			wait->key |= POLLIN_SET;
 		if (out & bit)
@@ -400,6 +402,8 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	poll_table *wait;
 	int retval, i, timed_out = 0;
 	unsigned long slack = 0;
+	unsigned int ll_flag = POLL_LL;
+	u64 ll_time = ll_end_time();
 
 	rcu_read_lock();
 	retval = max_select_fd(n, fds);
@@ -422,6 +426,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	retval = 0;
 	for (;;) {
 		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+		bool can_ll = false;
 
 		inp = fds->in; outp = fds->out; exp = fds->ex;
 		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
@@ -450,7 +455,8 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 					f_op = file->f_op;
 					mask = DEFAULT_POLLMASK;
 					if (f_op && f_op->poll) {
-						wait_key_set(wait, in, out, bit);
+						wait_key_set(wait, in, out,
+							     bit, ll_flag);
 						mask = (*f_op->poll)(file, wait);
 					}
 					fput_light(file, fput_needed);
@@ -469,6 +475,11 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 						retval++;
 						wait = NULL;
 					}
+					if (mask & POLL_LL)
+						can_ll = true;
+					/* got something, stop busy polling */
+					if (retval)
+						ll_flag = 0;
 				}
 			}
 			if (res_in)
@@ -486,6 +497,9 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			retval = table.error;
 			break;
 		}
+
+		if (can_ll && can_poll_ll(ll_time))
+			continue;
 
 		/*
 		 * If this is the first loop and we have a timeout
@@ -706,7 +720,8 @@ struct poll_list {
  * pwait poll_table will be used by the fd-provided poll handler for waiting,
  * if non-NULL.
  */
-static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait)
+static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
+				     bool *can_ll, unsigned int ll_flag)
 {
 	unsigned int mask;
 	int fd;
@@ -722,10 +737,14 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait)
 		if (file != NULL) {
 			mask = DEFAULT_POLLMASK;
 			if (file->f_op && file->f_op->poll) {
-				if (pwait)
+				if (pwait) {
 					pwait->key = pollfd->events |
 							POLLERR | POLLHUP;
+					pwait->key |= ll_flag;
+				}
 				mask = file->f_op->poll(file, pwait);
+				if (mask & POLL_LL)
+					*can_ll = true;
 			}
 			/* Mask out unneeded events. */
 			mask &= pollfd->events | POLLERR | POLLHUP;
@@ -744,6 +763,8 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	ktime_t expire, *to = NULL;
 	int timed_out = 0, count = 0;
 	unsigned long slack = 0;
+	unsigned int ll_flag = POLL_LL;
+	u64 ll_time = ll_end_time();
 
 	/* Optimise the no-wait case */
 	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
@@ -756,6 +777,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 
 	for (;;) {
 		struct poll_list *walk;
+		bool can_ll = false;
 
 		for (walk = list; walk != NULL; walk = walk->next) {
 			struct pollfd * pfd, * pfd_end;
@@ -770,9 +792,10 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 				 * this. They'll get immediately deregistered
 				 * when we break out and return.
 				 */
-				if (do_pollfd(pfd, pt)) {
+				if (do_pollfd(pfd, pt, &can_ll, ll_flag)) {
 					count++;
 					pt = NULL;
+					ll_flag = 0;
 				}
 			}
 		}
@@ -789,6 +812,8 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 		if (count || timed_out)
 			break;
 
+		if (can_ll && can_poll_ll(ll_time))
+			continue;
 		/*
 		 * If this is the first loop and we have a timeout
 		 * given, then we convert to ktime_t and set the to
