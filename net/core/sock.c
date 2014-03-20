@@ -137,6 +137,8 @@
 #include <net/tcp.h>
 #endif
 
+#include <net/ll_poll.h>
+
 /*
  * Each address family might have different locking rules, so we have
  * one slock key per address family:
@@ -2004,6 +2006,9 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_stamp = ktime_set(-1L, 0);
 
+#ifdef CONFIG_NET_LL_RX_POLL
+	sk->sk_napi_id		=	0;
+#endif
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
 	 * (Documentation/RCU/rculist_nulls.txt for details)

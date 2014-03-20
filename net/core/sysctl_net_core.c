@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <net/ip.h>
 #include <net/sock.h>
+#include <net/ll_poll.h>
 
 static int rps_sock_flow_sysctl(ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
@@ -153,6 +154,15 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= rps_sock_flow_sysctl
 	},
+#ifdef CONFIG_NET_LL_RX_POLL
+	{
+		.procname	= "low_latency_poll",
+		.data		= &sysctl_net_ll_poll,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax
+	},
+#endif
 #endif /* CONFIG_NET */
 	{
 		.ctl_name	= NET_CORE_BUDGET,
