@@ -168,6 +168,7 @@ struct sock_common {
   *	@sk_forward_alloc: space allocated forward
   *	@sk_napi_id: id of the last napi context to receive data for sk
   *	@sk_allocation: allocation mode
+  *	@sk_ll_usec: usecs to busypoll when there is no data
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
   *		   %SO_OOBINLINE settings, %SO_TIMESTAMPING settings
@@ -311,6 +312,7 @@ struct sock {
 	void                    (*sk_destruct)(struct sock *sk);
 #ifdef CONFIG_NET_LL_RX_POLL
 	unsigned int		sk_napi_id;
+	unsigned int		sk_ll_usec;
 #endif
 };
 
