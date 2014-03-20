@@ -484,6 +484,7 @@ struct kvm_arch {
 	u64 last_tsc_nsec;
 	u64 last_tsc_offset;
 	u64 last_tsc_write;
+	struct delayed_work kvmclock_update_work;
 
         /* fields used by HYPER-V emulation */
         u64 hv_guest_os_id;
