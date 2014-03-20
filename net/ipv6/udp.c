@@ -45,6 +45,7 @@
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 #include <net/inet6_hashtables.h>
+#include <net/ll_poll.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -625,9 +626,10 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		goto discard;
 	}
 	bh_lock_sock(sk);
-	if (!sock_owned_by_user(sk))
+	if (!sock_owned_by_user(sk)) {
+		sk_mark_ll(sk, skb);
 		udpv6_queue_rcv_skb(sk, skb);
-	else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
+	} else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
 		atomic_inc(&sk->sk_drops);
 		bh_unlock_sock(sk);
 		sock_put(sk);
