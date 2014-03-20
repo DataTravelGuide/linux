@@ -28,7 +28,7 @@
 #define POLLRDHUP       0x2000
 #endif
 
-#define POLL_LL		0x8000
+#define POLL_BUSY_LOOP	0x8000
 
 struct pollfd {
 	int fd;
