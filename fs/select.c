@@ -402,7 +402,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	poll_table *wait;
 	int retval, i, timed_out = 0;
 	unsigned long slack = 0;
-	unsigned int ll_flag = POLL_LL;
+	unsigned int ll_flag = ll_get_flag();
 	u64 ll_time = ll_end_time();
 
 	rcu_read_lock();
@@ -498,7 +498,8 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			break;
 		}
 
-		if (can_ll && can_poll_ll(ll_time))
+		/* only if on, have sockets with POLL_LL and not out of time */
+		if (ll_flag && can_ll && can_poll_ll(ll_time))
 			continue;
 
 		/*
@@ -763,7 +764,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	ktime_t expire, *to = NULL;
 	int timed_out = 0, count = 0;
 	unsigned long slack = 0;
-	unsigned int ll_flag = POLL_LL;
+	unsigned int ll_flag = ll_get_flag();
 	u64 ll_time = ll_end_time();
 
 	/* Optimise the no-wait case */
@@ -812,8 +813,10 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 		if (count || timed_out)
 			break;
 
-		if (can_ll && can_poll_ll(ll_time))
+		/* only if on, have sockets with POLL_LL and not out of time */
+		if (ll_flag && can_ll && can_poll_ll(ll_time))
 			continue;
+
 		/*
 		 * If this is the first loop and we have a timeout
 		 * given, then we convert to ktime_t and set the to
