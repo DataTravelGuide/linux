@@ -26,7 +26,7 @@
 #include <linux/fs.h>
 #include <linux/rcupdate.h>
 #include <linux/hrtimer.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #include <asm/uaccess.h>
 

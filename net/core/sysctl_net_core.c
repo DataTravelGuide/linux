@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <net/ip.h>
 #include <net/sock.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 static int rps_sock_flow_sysctl(ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
