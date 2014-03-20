@@ -12052,6 +12052,10 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef NETDEV_FCOE_WWNN
 	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
 #endif
+
+#ifdef CONFIG_NET_LL_RX_POLL
+	.ndo_ll_poll		= bnx2x_low_latency_recv,
+#endif
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)

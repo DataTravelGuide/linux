@@ -24,6 +24,7 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
+#include <net/ll_poll.h>
 #include <linux/prefetch.h>
 #include "bnx2x_cmn.h"
 #include "bnx2x_init.h"
@@ -657,10 +658,21 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	}
 #endif
 	/* RHEL: separate RX path for VLAN */
-	if (vlan_tci)
-		vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
-	else
-		napi_gro_receive(&fp->napi, skb);
+
+
+	skb_mark_ll(skb, &fp->napi);
+
+	if (bnx2x_fp_ll_polling(fp)) {
+		if (vlan_tci)
+			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vlan_tci);
+		else
+			netif_receive_skb(skb);
+	} else {
+		if (vlan_tci)
+			vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
+		else
+			napi_gro_receive(&fp->napi, skb);
+	}
 }
 
 static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
@@ -1749,32 +1761,46 @@ static void bnx2x_napi_enable_cnic(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue_cnic(bp, i)
+	for_each_rx_queue_cnic(bp, i) {
+		bnx2x_fp_init_lock(&bp->fp[i]);
 		napi_enable(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static void bnx2x_napi_enable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_eth_queue(bp, i)
+	for_each_eth_queue(bp, i) {
+		bnx2x_fp_init_lock(&bp->fp[i]);
 		napi_enable(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static void bnx2x_napi_disable_cnic(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue_cnic(bp, i)
+	local_bh_disable();
+	for_each_rx_queue_cnic(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
+		while (!bnx2x_fp_lock_napi(&bp->fp[i]))
+			mdelay(1);
+	}
+	local_bh_enable();
 }
 
 static void bnx2x_napi_disable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_eth_queue(bp, i)
+	local_bh_disable();
+	for_each_eth_queue(bp, i) {
 		napi_disable(&bnx2x_fp(bp, i, napi));
+		while (!bnx2x_fp_lock_napi(&bp->fp[i]))
+			mdelay(1);
+	}
+	local_bh_enable();
 }
 
 void bnx2x_netif_start(struct bnx2x *bp)
@@ -3024,6 +3050,8 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 			return 0;
 		}
 #endif
+		if (!bnx2x_fp_lock_napi(fp))
+			return work_done;
 
 		for_each_cos_in_tx_queue(fp, cos)
 			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
@@ -3033,12 +3061,15 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 			work_done += bnx2x_rx_int(fp, budget - work_done);
 
 			/* must not complete if we consumed full budget */
-			if (work_done >= budget)
+			if (work_done >= budget) {
+				bnx2x_fp_unlock_napi(fp);
 				break;
+			}
 		}
 
 		/* Fall out from the NAPI loop if needed */
-		if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
+		if (!bnx2x_fp_unlock_napi(fp) &&
+		    !(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
 
 			/* No need to update SB for FCoE L2 ring as long as
 			 * it's connected to the default SB and the SB
@@ -3079,6 +3110,34 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 
 	return work_done;
 }
+
+#ifdef CONFIG_NET_LL_RX_POLL
+/* must be called with local_bh_disable()d */
+int bnx2x_low_latency_recv(struct napi_struct *napi)
+{
+	struct bnx2x_fastpath *fp = container_of(napi, struct bnx2x_fastpath,
+						 napi);
+	struct bnx2x *bp = fp->bp;
+	int found = 0;
+
+	if ((bp->state == BNX2X_STATE_CLOSED) ||
+	    (bp->state == BNX2X_STATE_ERROR) ||
+	    (bp->flags & (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG)))
+		return LL_FLUSH_FAILED;
+
+	if (!bnx2x_fp_lock_poll(fp))
+		return LL_FLUSH_BUSY;
+
+	if (bnx2x_has_rx_work(fp)) {
+		bnx2x_update_fpsb_idx(fp);
+		found = bnx2x_rx_int(fp, 4);
+	}
+
+	bnx2x_fp_unlock_poll(fp);
+
+	return found;
+}
+#endif
 
 /* we split the first BD into headers and data BDs
  * to ease the pain of our fellow microcode engineers
