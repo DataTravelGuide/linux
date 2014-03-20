@@ -660,7 +660,7 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	/* RHEL: separate RX path for VLAN */
 
 
-	skb_mark_ll(skb, &fp->napi);
+	skb_mark_napi_id(skb, &fp->napi);
 
 	if (bnx2x_fp_ll_polling(fp)) {
 		if (vlan_tci)

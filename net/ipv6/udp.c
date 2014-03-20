@@ -627,7 +627,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
-		sk_mark_ll(sk, skb);
+		sk_mark_napi_id(sk, skb);
 		udpv6_queue_rcv_skb(sk, skb);
 	} else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
 		atomic_inc(&sk->sk_drops);

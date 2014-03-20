@@ -1638,7 +1638,7 @@ process:
 	if (sk_filter(sk, skb))
 		goto discard_and_relse;
 
-	sk_mark_ll(sk, skb);
+	sk_mark_napi_id(sk, skb);
 	skb->dev = NULL;
 
 	inet_rps_save_rxhash(sk, skb->rxhash);
