@@ -55,7 +55,7 @@
 
 #include <net/busy_poll.h>
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 #define LL_EXTENDED_STATS
 #endif
 /* common prefix used by pr_<> macros */
@@ -364,7 +364,7 @@ struct ixgbe_q_vector {
 	int numa_node;
 	char name[IFNAMSIZ + 9];
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define IXGBE_QV_STATE_IDLE        0
 #define IXGBE_QV_STATE_NAPI	   1    /* NAPI owns this QV */
@@ -375,12 +375,12 @@ struct ixgbe_q_vector {
 #define IXGBE_QV_YIELD (IXGBE_QV_STATE_NAPI_YIELD | IXGBE_QV_STATE_POLL_YIELD)
 #define IXGBE_QV_USER_PEND (IXGBE_QV_STATE_POLL | IXGBE_QV_STATE_POLL_YIELD)
 	spinlock_t lock;
-#endif  /* CONFIG_NET_LL_RX_POLL */
+#endif  /* CONFIG_NET_RX_BUSY_POLL */
 
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 {
 
@@ -460,7 +460,7 @@ static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
 	WARN_ON(!(q_vector->state & IXGBE_QV_LOCKED));
 	return q_vector->state & IXGBE_QV_USER_PEND;
 }
-#else /* CONFIG_NET_LL_RX_POLL */
+#else /* CONFIG_NET_RX_BUSY_POLL */
 static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 {
 }
@@ -489,7 +489,7 @@ static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
 {
 	return false;
 }
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #ifdef CONFIG_IXGBE_HWMON
 

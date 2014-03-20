@@ -756,7 +756,7 @@ set_rcvbuf:
 			sock_reset_flag(sk, SOCK_RXQ_OVFL);
 		break;
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_BUSY_POLL:
 		/* allow unprivileged users to decrease the value */
 		if ((val > sk->sk_ll_usec) && !capable(CAP_NET_ADMIN))
@@ -998,7 +998,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = bpf_tell_extensions();
 		break;
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_BUSY_POLL:
 		v.val = sk->sk_ll_usec;
 		break;
@@ -2026,7 +2026,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_stamp = ktime_set(-1L, 0);
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	sk->sk_napi_id		=	0;
 	sk->sk_ll_usec		=	sysctl_net_busy_read;
 #endif

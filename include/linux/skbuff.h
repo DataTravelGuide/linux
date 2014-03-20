@@ -447,7 +447,7 @@ struct sk_buff {
 
 	/* 0/13 bit hole */
 
-#if defined CONFIG_NET_DMA || defined CONFIG_NET_LL_RX_POLL
+#if defined CONFIG_NET_DMA || defined CONFIG_NET_RX_BUSY_POLL
 	union {
 		unsigned int	napi_id;
 		dma_cookie_t	dma_cookie;
