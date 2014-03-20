@@ -97,7 +97,9 @@
 
 #include <net/sock.h>
 #include <linux/netfilter.h>
+#ifndef __GENKSYMS__
 #include <net/busy_poll.h>
+#endif
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 unsigned int sysctl_net_busy_read __read_mostly;

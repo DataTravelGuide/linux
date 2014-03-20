@@ -759,13 +759,13 @@ set_rcvbuf:
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_BUSY_POLL:
 		/* allow unprivileged users to decrease the value */
-		if ((val > sk->sk_ll_usec) && !capable(CAP_NET_ADMIN))
+		if ((val > sk_extended(sk)->sk_ll_usec) && !capable(CAP_NET_ADMIN))
 			ret = -EPERM;
 		else {
 			if (val < 0)
 				ret = -EINVAL;
 			else
-				sk->sk_ll_usec = val;
+				sk_extended(sk)->sk_ll_usec = val;
 		}
 		break;
 #endif
@@ -1000,7 +1000,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_BUSY_POLL:
-		v.val = sk->sk_ll_usec;
+		v.val = sk_extended(sk)->sk_ll_usec;
 		break;
 #endif
 
@@ -2027,8 +2027,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_stamp = ktime_set(-1L, 0);
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
-	sk->sk_napi_id		=	0;
-	sk->sk_ll_usec		=	sysctl_net_busy_read;
+	sk_extended(sk)->sk_napi_id =	0;
+	sk_extended(sk)->sk_ll_usec =	sysctl_net_busy_read;
 #endif
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory

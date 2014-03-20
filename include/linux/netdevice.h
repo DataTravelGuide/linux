@@ -360,8 +360,10 @@ struct napi_struct {
 	struct list_head	dev_list;
 	struct sk_buff		*gro_list;
 	struct sk_buff		*skb;
+#ifndef __GENKSYMS__
 	struct hlist_node	napi_hash_node;
 	unsigned int		napi_id;
+#endif
 };
 
 enum
@@ -850,9 +852,6 @@ struct net_device_ops {
 	void                    (*ndo_poll_controller)(struct net_device *dev);
 	void			(*ndo_netpoll_cleanup)(struct net_device *dev);
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	int			(*ndo_busy_poll)(struct napi_struct *dev);
-#endif
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
 						  int queue, u8 *mac);
 	int			(*ndo_set_vf_vlan)(struct net_device *dev,
@@ -1292,6 +1291,9 @@ struct net_device_extended {
 	struct netdev_rfs_info			rfs_data;
 #define GSO_MAX_SEGS		65535
 	u16			gso_max_segs;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	int			(*ndo_busy_poll)(struct napi_struct *dev);
+#endif
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \

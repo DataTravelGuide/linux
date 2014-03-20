@@ -6981,9 +6981,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= ixgbe_low_latency_recv,
-#endif
 #ifdef IXGBE_FCOE
 	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
 	.ndo_fcoe_ddp_done = ixgbe_fcoe_ddp_put,
@@ -7163,6 +7160,9 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef IXGBE_FCOE
 	netdev_extended(netdev)->ndo_fcoe_get_hbainfo = ixgbe_fcoe_get_hbainfo;
 #endif /* IXGBE_FCOE */
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	netdev_extended(netdev)->ndo_busy_poll = ixgbe_low_latency_recv;
+#endif
 	ixgbe_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);

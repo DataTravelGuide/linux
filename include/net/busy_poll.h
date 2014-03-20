@@ -66,7 +66,7 @@ static inline u64 busy_loop_us_clock(void)
 
 static inline unsigned long sk_busy_loop_end_time(struct sock *sk)
 {
-	return busy_loop_us_clock() + ACCESS_ONCE(sk->sk_ll_usec);
+	return busy_loop_us_clock() + ACCESS_ONCE(sk_extended(sk)->sk_ll_usec);
 }
 
 /* in poll/select we use the global sysctl_net_ll_poll value */
@@ -77,7 +77,7 @@ static inline unsigned long busy_loop_end_time(void)
 
 static inline bool sk_can_busy_loop(struct sock *sk)
 {
-	return sk->sk_ll_usec && sk->sk_napi_id &&
+	return sk_extended(sk)->sk_ll_usec && sk_extended(sk)->sk_napi_id &&
 	       !need_resched() && !signal_pending(current);
 }
 
@@ -95,7 +95,7 @@ static inline bool busy_loop_timeout(unsigned long end_time)
 static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 {
 	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
-	const struct net_device_ops *ops;
+	const struct net_device *dev;
 	struct napi_struct *napi;
 	int rc = false;
 
@@ -105,16 +105,16 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 	 */
 	rcu_read_lock_bh();
 
-	napi = napi_by_id(sk->sk_napi_id);
+	napi = napi_by_id(sk_extended(sk)->sk_napi_id);
 	if (!napi)
 		goto out;
 
-	ops = napi->dev->netdev_ops;
-	if (!ops->ndo_busy_poll)
+	dev = napi->dev;
+	if (!netdev_extended(dev)->ndo_busy_poll)
 		goto out;
 
 	do {
-		rc = ops->ndo_busy_poll(napi);
+		rc = netdev_extended(dev)->ndo_busy_poll(napi);
 
 		if (rc == LL_FLUSH_FAILED)
 			break; /* permanent failure */
@@ -143,7 +143,7 @@ static inline void skb_mark_napi_id(struct sk_buff *skb,
 /* used in the protocol hanlder to propagate the napi_id to the socket */
 static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
 {
-	sk->sk_napi_id = skb->napi_id;
+	sk_extended(sk)->sk_napi_id = skb->napi_id;
 }
 
 #else /* CONFIG_NET_RX_BUSY_POLL */

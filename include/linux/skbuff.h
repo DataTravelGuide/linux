@@ -447,11 +447,18 @@ struct sk_buff {
 
 	/* 0/13 bit hole */
 
+/* KABI note. We have CONFIG_NET_DMA=y so it is ok to put napi_id here */
+#ifdef __GENKSYMS__
+#ifdef CONFIG_NET_DMA
+	dma_cookie_t		dma_cookie;
+#endif
+#else
 #if defined CONFIG_NET_DMA || defined CONFIG_NET_RX_BUSY_POLL
 	union {
 		unsigned int	napi_id;
 		dma_cookie_t	dma_cookie;
 	};
+#endif
 #endif
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32			secmark;
