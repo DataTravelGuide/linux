@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 20 2014 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-431.13.1.el6]
+- [fs] dcache: fix cleanup on warning in d_splice_alias (J. Bruce Fields) [1063201 1042731]
+- [net] sctp: fix sctp_connectx abi for ia32 emulation/compat mode (Daniel Borkmann) [1076242 1053547]
+
 * Mon Mar 10 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.12.1.el6]
 - [mm] vmscan: re-introduce the ZONE_RECLAIM_NOSCAN bailout for zone_reclaim() (Rafael Aquini) [1073562 1039534]
 - [mm] vmscan: compaction works against zones, not lruvecs (Johannes Weiner) [1073564 982770]
