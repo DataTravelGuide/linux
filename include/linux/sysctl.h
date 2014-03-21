@@ -204,7 +204,6 @@ enum
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
 	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
-	VM_OVERCOMMIT_KBYTES=36, /* amount of RAM to allow overcommit in */
 };
 
 

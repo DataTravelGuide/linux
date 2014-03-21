@@ -1237,9 +1237,10 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(sysctl_overcommit_ratio),
 		.mode		= 0644,
 		.proc_handler	= overcommit_ratio_handler,
+		.strategy	= &sysctl_data,
 	},
 	{
-		.ctl_name	= VM_OVERCOMMIT_KBYTES,
+		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "overcommit_kbytes",
 		.data		= &sysctl_overcommit_kbytes,
 		.maxlen		= sizeof(sysctl_overcommit_kbytes),
