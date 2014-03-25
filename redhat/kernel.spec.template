@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 25 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.14.1.el6]
+- [net] ip_tunnel: (revert old)/fix ecn decapsulation behaviour (Jiri Pirko) [1078011 1059402]
+- [net] ipv6: del unreachable route when an addr is deleted on lo (Vivek Dasgupta) [1078798 1028372]
+- [net] ipv6: add ip6_route_lookup (Vivek Dasgupta) [1078798 1028372]
+- [net] packet: improve socket create/bind latency in some cases (Daniel Borkmann) [1079870 1045150]
+
 * Thu Mar 20 2014 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-431.13.1.el6]
 - [fs] dcache: fix cleanup on warning in d_splice_alias (J. Bruce Fields) [1063201 1042731]
 - [net] sctp: fix sctp_connectx abi for ia32 emulation/compat mode (Daniel Borkmann) [1076242 1053547]
