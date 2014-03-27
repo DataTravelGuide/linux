@@ -165,7 +165,7 @@ static int __init setup_smbios_26_uuid(char *str)
 	smbios_26_uuid = 1;
 	return 1;
 }
-__setup("smbios_26_uuid", setup_smbios_26_uuid);
+early_param("smbios_26_uuid", setup_smbios_26_uuid);
 
 static void __init dmi_save_uuid(const struct dmi_header *dm, int slot, int index)
 {
