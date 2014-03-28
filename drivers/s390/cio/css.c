@@ -558,7 +558,7 @@ static void css_slow_path_func(struct work_struct *unused)
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
-static DECLARE_WORK(slow_path_work, css_slow_path_func);
+static DECLARE_DELAYED_WORK(slow_path_work, css_slow_path_func);
 struct workqueue_struct *cio_work_q;
 
 void css_schedule_eval(struct subchannel_id schid)
@@ -568,7 +568,7 @@ void css_schedule_eval(struct subchannel_id schid)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_sch_add(slow_subchannel_set, schid);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(cio_work_q, &slow_path_work);
+	queue_delayed_work(cio_work_q, &slow_path_work, 0);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -579,7 +579,7 @@ void css_schedule_eval_all(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_fill(slow_subchannel_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(cio_work_q, &slow_path_work);
+	queue_delayed_work(cio_work_q, &slow_path_work, 0);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -592,7 +592,7 @@ static int __unset_registered(struct device *dev, void *data)
 	return 0;
 }
 
-void css_schedule_eval_all_unreg(void)
+void css_schedule_eval_all_unreg(unsigned long delay)
 {
 	unsigned long flags;
 	struct idset *unreg_set;
@@ -610,7 +610,7 @@ void css_schedule_eval_all_unreg(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_add_set(slow_subchannel_set, unreg_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(cio_work_q, &slow_path_work);
+	queue_delayed_work(cio_work_q, &slow_path_work, delay);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 	idset_free(unreg_set);
 }
@@ -623,7 +623,8 @@ void css_wait_for_slow_path(void)
 /* Schedule reprobing of all unregistered subchannels. */
 void css_schedule_reprobe(void)
 {
-	css_schedule_eval_all_unreg();
+	/* Schedule with a delay to allow merging of subsequent calls. */
+	css_schedule_eval_all_unreg(1 * HZ);
 }
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
