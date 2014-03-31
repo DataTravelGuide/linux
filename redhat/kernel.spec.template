@@ -1701,6 +1701,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Mar 31 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-453.el6]
+- [vhost] validate vhost_get_vq_desc return value (Michael S. Tsirkin) [1058677] {CVE-2014-0055}
+- [net] ip_gre: fix msg_name parsing for recvfrom/recvmsg (Jiri Pirko) [1076379]
+- [net] ip_tunnel: Fix a memory corruption in ip_tunnel_xmit (Jiri Pirko) [1076379]
+- [net] ip_gre: fix ipgre_header to return correct offset (Jiri Pirko) [1075579]
+- [net] gre: fix hard header destination address checking (Jiri Pirko) [1075579]
+- [x86] Adjust irq remapping quirk for older revisions of 5500/5520 chipsets (Neil Horman) [995262]
+- [x86] kvm: introduce periodic global clock updates (Andrew Jones) [1078929]
+- [x86] kvm: rate-limit global clock updates (Andrew Jones) [1072373]
+- [hid] wacom: Add reporting of wheel for Intuos4 WL (Aristeu Rozanski) [959596]
+- [netdrv] mlx4_en: Fixed crash when port type is changed (Amir Vadai) [1059586]
+- [netdrv] be2net: Warn users of possible broken functionality on BE2 cards with very old FW versions with latest driver (Ivan Vecera) [998013]
+- [pci] pciehp: replace unconditional sleep with config space access check (Myron Stowe) [988052]
+- [pci] Separate pci_bus_read_dev_vendor_id from pci_scan_device (Myron Stowe) [988052]
+- [pci] pciehp: wait 100 ms after Link Training check (Myron Stowe) [988052]
+- [pci] pciehp: wait 1000 ms before Link Training check (Myron Stowe) [988052]
+- [pci] pciehp: fix power fault interrupt storm problem (Myron Stowe) [988052]
+
 * Tue Mar 25 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-452.el6]
 - [netdrv] vmxnet3: fix netpoll race condition (Neil Horman) [1073218]
 - [net] ip_tunnel: Remove double unregister of the fallback device (Florian Westphal) [1020426]
