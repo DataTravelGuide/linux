@@ -668,7 +668,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	u32 dsmgmt;
 	int psegs = bio_phys_segments(ns->queue, bio);
 
-	if ((bio->bi_rw & REQ_FLUSH) && psegs) {
+	if (bio_rw_flagged(bio, BIO_RW_FLUSH) && psegs) {
 		result = nvme_submit_flush_data(nvmeq, ns);
 		if (result)
 			return result;
@@ -685,23 +685,23 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (unlikely(cmdid < 0))
 		goto free_iod;
 
-	if (bio->bi_rw & BIO_DISCARD) {
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD)) {
 		result = nvme_submit_discard(nvmeq, ns, bio, iod, cmdid);
 		if (result)
 			goto free_cmdid;
 		return result;
 	}
-	if ((bio->bi_rw & REQ_FLUSH) && !psegs)
+	if (bio_rw_flagged(bio, BIO_RW_FLUSH) && !psegs)
 		return nvme_submit_flush(nvmeq, ns, cmdid);
 
 	control = 0;
-	if (bio->bi_rw & REQ_FUA)
+	if (bio_rw_flagged(bio, BIO_RW_FUA))
 		control |= NVME_RW_FUA;
-	if (bio->bi_rw & (REQ_FAILFAST_DEV | BIO_RW_AHEAD))
+	if (bio_rw_flagged(bio, BIO_RW_FAILFAST_DEV) || bio_rw_flagged(bio, BIO_RW_AHEAD))
 		control |= NVME_RW_LR;
 
 	dsmgmt = 0;
-	if (bio->bi_rw & BIO_RW_AHEAD)
+	if (bio_rw_flagged(bio, BIO_RW_AHEAD))
 		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
 
 	cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
