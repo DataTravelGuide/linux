@@ -19,6 +19,7 @@
 #define MIN_ERA_VERSION 1
 #define MAX_ERA_VERSION 1
 #define INVALID_WRITESET_ROOT SUPERBLOCK_LOCATION
+#define MIN_BLOCK_SIZE 8
 
 /*----------------------------------------------------------------
  * Writeset
@@ -265,7 +266,7 @@ struct era_metadata {
 	dm_block_t block_size;
 	uint32_t nr_blocks;
 
-	atomic64_t current_era;
+	uint32_t current_era;
 
 	/*
 	 * We preallocate 2 writesets.  When an era rolls over we
@@ -287,7 +288,7 @@ struct era_metadata {
 	/*
 	 * A flag that is set whenever a writeset has been archived.
 	 */
-	atomic_t archived_writesets;
+	bool archived_writesets;
 };
 
 static int superblock_read_lock(struct era_metadata *md,
@@ -434,16 +435,22 @@ static int create_fresh_metadata(struct era_metadata *md)
 	r = dm_btree_empty(&md->writeset_tree_info, &md->writeset_tree_root);
 	if (r) {
 		DMERR("couldn't create new writeset tree");
-		return r;
+		goto bad;
 	}
 
 	r = dm_array_empty(&md->era_array_info, &md->era_array_root);
 	if (r) {
 		DMERR("couldn't create era array");
-		return r;
+		goto bad;
 	}
 
 	return 0;
+
+bad:
+	dm_sm_destroy(md->sm);
+	dm_tm_destroy(md->tm);
+
+	return r;
 }
 
 /*
@@ -475,7 +482,7 @@ static int prepare_superblock(struct era_metadata *md, struct superblock_disk *d
 	disk->data_block_size = cpu_to_le32(md->block_size);
 	disk->metadata_block_size = cpu_to_le32(DM_ERA_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
 	disk->nr_blocks = cpu_to_le32(md->nr_blocks);
-	disk->current_era = cpu_to_le32(atomic64_read(&md->current_era));
+	disk->current_era = cpu_to_le32(md->current_era);
 
 	ws_pack(&md->current_writeset->md, &disk->current_writeset);
 	disk->writeset_tree_root = cpu_to_le64(md->writeset_tree_root);
@@ -518,8 +525,11 @@ static int format_metadata(struct era_metadata *md)
 		return r;
 
 	r = write_superblock(md);
-	if (r)
+	if (r) {
+		dm_sm_destroy(md->sm);
+		dm_tm_destroy(md->tm);
 		return r;
+	}
 
 	return 0;
 }
@@ -550,12 +560,12 @@ static int open_metadata(struct era_metadata *md)
 
 	md->block_size = le32_to_cpu(disk->data_block_size);
 	md->nr_blocks = le32_to_cpu(disk->nr_blocks);
-	atomic64_set(&md->current_era, le32_to_cpu(disk->current_era));
+	md->current_era = le32_to_cpu(disk->current_era);
 
 	md->writeset_tree_root = le64_to_cpu(disk->writeset_tree_root);
 	md->era_array_root = le64_to_cpu(disk->era_array_root);
 	md->metadata_snap = le64_to_cpu(disk->metadata_snap);
-	atomic_set(&md->archived_writesets, 1);
+	md->archived_writesets = true;
 
 	return dm_bm_unlock(sblock);
 
@@ -778,11 +788,26 @@ static void metadata_close(struct era_metadata *md)
 	kfree(md);
 }
 
+static bool valid_nr_blocks(dm_block_t n)
+{
+	/*
+	 * dm_bitset restricts us to 2^32.  test_bit & co. restrict us
+	 * further to 2^31 - 1
+	 */
+	return n < (1ull << 31);
+}
+
 static int metadata_resize(struct era_metadata *md, void *arg)
 {
 	int r;
 	dm_block_t *new_size = arg;
 	__le32 value;
+
+	if (!valid_nr_blocks(*new_size)) {
+		DMERR("Invalid number of origin blocks %llu",
+		      (unsigned long long) *new_size);
+		return -EINVAL;
+	}
 
 	writeset_free(&md->writesets[0]);
 	writeset_free(&md->writesets[1]);
@@ -813,11 +838,6 @@ static int metadata_resize(struct era_metadata *md, void *arg)
 	return 0;
 }
 
-static uint32_t metadata_current_era(struct era_metadata *md)
-{
-	return (uint32_t) atomic64_read(&md->current_era);
-}
-
 static int metadata_era_archive(struct era_metadata *md)
 {
 	int r;
@@ -834,7 +854,7 @@ static int metadata_era_archive(struct era_metadata *md)
 	ws_pack(&md->current_writeset->md, &value);
 	md->current_writeset->md.root = INVALID_WRITESET_ROOT;
 
-	keys[0] = atomic64_read(&md->current_era);
+	keys[0] = md->current_era;
 	__dm_bless_for_disk(&value);
 	r = dm_btree_insert(&md->writeset_tree_info, md->writeset_tree_root,
 			    keys, &value, &md->writeset_tree_root);
@@ -844,7 +864,7 @@ static int metadata_era_archive(struct era_metadata *md)
 		return r;
 	}
 
-	atomic_set(&md->archived_writesets, 1);
+	md->archived_writesets = true;
 
 	return 0;
 }
@@ -867,7 +887,7 @@ static int metadata_new_era(struct era_metadata *md)
 	}
 
 	swap_writeset(md, new_writeset);
-	atomic64_inc(&md->current_era);
+	md->current_era++;
 
 	return 0;
 }
@@ -1020,11 +1040,6 @@ static int metadata_take_snap(struct era_metadata *md)
 	return 0;
 }
 
-static dm_block_t metadata_snap_root(struct era_metadata *md)
-{
-	return md->metadata_snap;
-}
-
 static int metadata_drop_snap(struct era_metadata *md)
 {
 	int r;
@@ -1071,6 +1086,39 @@ static int metadata_drop_snap(struct era_metadata *md)
 	return dm_sm_dec_block(md->sm, location);
 }
 
+struct metadata_stats {
+	dm_block_t used;
+	dm_block_t total;
+	dm_block_t snap;
+	uint32_t era;
+};
+
+static int metadata_get_stats(struct era_metadata *md, void *ptr)
+{
+	int r;
+	struct metadata_stats *s = ptr;
+	dm_block_t nr_free, nr_total;
+
+	r = dm_sm_get_nr_free(md->sm, &nr_free);
+	if (r) {
+		DMERR("dm_sm_get_nr_free returned %d", r);
+		return r;
+	}
+
+	r = dm_sm_get_nr_blocks(md->sm, &nr_total);
+	if (r) {
+		DMERR("dm_pool_get_metadata_dev_size returned %d", r);
+		return r;
+	}
+
+	s->used = nr_total - nr_free;
+	s->total = nr_total;
+	s->snap = md->metadata_snap;
+	s->era = md->current_era;
+
+	return 0;
+}
+
 /*----------------------------------------------------------------*/
 
 struct era {
@@ -1106,8 +1154,7 @@ struct rpc {
 	void *arg;
 	int result;
 
-	wait_queue_head_t wait;
-	atomic_t complete;
+	struct completion complete;
 };
 
 /*----------------------------------------------------------------
@@ -1163,7 +1210,6 @@ static void process_old_eras(struct era *era)
 static void process_deferred_bios(struct era *era)
 {
 	int r;
-	unsigned long flags;
 	struct bio_list deferred_bios, marked_bios;
 	struct bio *bio;
 	bool commit_needed = false;
@@ -1172,10 +1218,10 @@ static void process_deferred_bios(struct era *era)
 	bio_list_init(&deferred_bios);
 	bio_list_init(&marked_bios);
 
-	spin_lock_irqsave(&era->deferred_lock, flags);
+	spin_lock(&era->deferred_lock);
 	bio_list_merge(&deferred_bios, &era->deferred_bios);
 	bio_list_init(&era->deferred_bios);
-	spin_unlock_irqrestore(&era->deferred_lock, flags);
+	spin_unlock(&era->deferred_lock);
 
 	while ((bio = bio_list_pop(&deferred_bios))) {
 		r = writeset_test_and_set(&era->md->bitset_info,
@@ -1232,16 +1278,14 @@ static void process_rpc_calls(struct era *era)
 				rpc->result = r;
 	}
 
-	list_for_each_entry_safe(rpc, tmp, &calls, list) {
-		atomic_set(&rpc->complete, 1);
-		wake_up(&rpc->wait);
-	}
+	list_for_each_entry_safe(rpc, tmp, &calls, list)
+		complete(&rpc->complete);
 }
 
 static void kick_off_digest(struct era *era)
 {
-	if (atomic_read(&era->md->archived_writesets)) {
-		atomic_set(&era->md->archived_writesets, 0);
+	if (era->md->archived_writesets) {
+		era->md->archived_writesets = false;
 		metadata_digest_start(era->md, &era->digest);
 	}
 }
@@ -1271,15 +1315,14 @@ static void defer_bio(struct era *era, struct bio *bio)
 static int perform_rpc(struct era *era, struct rpc *rpc)
 {
 	rpc->result = 0;
-	init_waitqueue_head(&rpc->wait);
-	atomic_set(&rpc->complete, 0);
+	init_completion(&rpc->complete);
 
 	spin_lock(&era->rpc_lock);
 	list_add(&rpc->list, &era->rpc_calls);
 	spin_unlock(&era->rpc_lock);
 
 	wake_worker(era);
-	wait_event(rpc->wait, atomic_read(&rpc->complete));
+	wait_for_completion(&rpc->complete);
 
 	return rpc->result;
 }
@@ -1351,6 +1394,14 @@ static dm_block_t calc_nr_blocks(struct era *era)
 	return dm_sector_div_up(era->ti->len, era->sectors_per_block);
 }
 
+static bool valid_block_size(dm_block_t block_size)
+{
+	bool greater_than_zero = block_size > 0;
+	bool multiple_of_min_block_size = (block_size & (MIN_BLOCK_SIZE - 1)) == 0;
+
+	return greater_than_zero && multiple_of_min_block_size;
+}
+
 /*
  * <metadata dev> <data dev> <data block size (sectors)>
  */
@@ -1403,6 +1454,11 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		return -EINVAL;
 	}
 
+	if (!valid_block_size(era->sectors_per_block)) {
+		ti->error = "Invalid block size";
+		era_destroy(era);
+		return -EINVAL;
+	}
 	if (era->sectors_per_block & (era->sectors_per_block - 1))
 		era->sectors_per_block_shift = -1;
 	else
@@ -1474,7 +1530,11 @@ static int era_map(struct dm_target *ti, struct bio *bio,
 	 */
 	remap_to_origin(era, bio);
 
-	if (bio_data_dir(bio) == WRITE &&
+	/*
+	 * BIO_FLUSH bios carry no data, so we're not interested in them.
+	 */
+	if (!(bio->bi_rw & BIO_FLUSH) &&
+	    (bio_data_dir(bio) == WRITE) &&
 	    !metadata_current_marked(era->md, block)) {
 		defer_bio(era, bio);
 		return DM_MAPIO_SUBMITTED;
@@ -1534,36 +1594,23 @@ static int era_status(struct dm_target *ti, status_type_t type,
 	int r;
 	struct era *era = ti->private;
 	ssize_t sz = 0;
-	dm_block_t snap;
-	dm_block_t nr_md_free, nr_md_total;
+	struct metadata_stats stats;
 	char buf[BDEVNAME_SIZE];
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		/*
-		 * FIXME: do we need to protect this?
-		 */
-		r = dm_sm_get_nr_free(era->md->sm, &nr_md_free);
-		if (r) {
-			DMERR("dm_sm_get_nr_free returned %d", r);
+		r = in_worker1(era, metadata_get_stats, &stats);
+		if (r)
 			goto err;
-		}
-
-		r = dm_sm_get_nr_blocks(era->md->sm, &nr_md_total);
-		if (r) {
-			DMERR("dm_pool_get_metadata_dev_size returned %d", r);
-			goto err;
-		}
 
 		DMEMIT("%u %llu/%llu %u",
 		       (unsigned) (DM_ERA_METADATA_BLOCK_SIZE >> SECTOR_SHIFT),
-		       (unsigned long long) (nr_md_total - nr_md_free),
-		       (unsigned long long) nr_md_total,
-		       (unsigned) metadata_current_era(era->md));
+		       (unsigned long long) stats.used,
+		       (unsigned long long) stats.total,
+		       (unsigned) stats.era);
 
-		snap = metadata_snap_root(era->md);
-		if (snap != SUPERBLOCK_LOCATION)
-			DMEMIT(" %llu", snap);
+		if (stats.snap != SUPERBLOCK_LOCATION)
+			DMEMIT(" %llu", stats.snap);
 		else
 			DMEMIT(" -");
 		break;
