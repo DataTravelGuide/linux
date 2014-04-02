@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Apr 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.15.1.el6]
+- [kernel] sched: Avoid throttle_cfs_rq() racing with period_timer stopping (Seth Jennings) [1083350 844450]
+
 * Tue Mar 25 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.14.1.el6]
 - [net] ip_tunnel: (revert old)/fix ecn decapsulation behaviour (Jiri Pirko) [1078011 1059402]
 - [net] ipv6: del unreachable route when an addr is deleted on lo (Vivek Dasgupta) [1078798 1028372]
