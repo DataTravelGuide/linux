@@ -1433,7 +1433,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		sock_put(newsk);
 		goto exit;
 	}
-	__inet_hash_nolisten(newsk);
+	__inet_hash_nolisten(newsk, NULL);
 
 	return newsk;
 
