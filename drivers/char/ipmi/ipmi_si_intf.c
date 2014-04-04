@@ -2333,6 +2333,8 @@ static struct pnp_driver ipmi_pnp_driver = {
 	.remove		= __devexit_p(ipmi_pnp_remove),
 	.id_table	= pnp_dev_table,
 };
+
+MODULE_DEVICE_TABLE(pnp, pnp_dev_table);
 #endif
 
 #ifdef CONFIG_DMI
