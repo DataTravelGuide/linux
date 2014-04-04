@@ -1880,12 +1880,6 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		goto out_err;
 	}
 
-	rc = cifs_crypto_shash_allocate(tcp_ses);
-	if (rc) {
-		cERROR(1, "could not setup hash structures rc %d", rc);
-		goto out_err;
-	}
-
 	tcp_ses->hostname = extract_hostname(volume_info->UNC);
 	if (IS_ERR(tcp_ses->hostname)) {
 		rc = PTR_ERR(tcp_ses->hostname);
