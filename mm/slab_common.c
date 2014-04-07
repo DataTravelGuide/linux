@@ -273,39 +273,55 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
+static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+{
+	int rc;
+
+	if (!s->memcg_params ||
+	    !s->memcg_params->is_root_cache)
+		return 0;
+
+	mutex_unlock(&slab_mutex);
+	rc = __kmem_cache_destroy_memcg_children(s);
+	mutex_lock(&slab_mutex);
+
+	return rc;
+}
+
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	if (unlikely(!s))
-		return;
-
-	/* Destroy all the children caches if we aren't a memcg cache */
-	kmem_cache_destroy_memcg_children(s);
-
 	get_online_cpus();
 	mutex_lock(&slab_mutex);
+
 	s->refcount--;
-	if (!s->refcount) {
-		list_del(&s->list);
-		memcg_release_cache(s);
+	if (s->refcount)
+		goto out_unlock;
 
-		if (!__kmem_cache_shutdown(s)) {
-			mutex_unlock(&slab_mutex);
-			if (s->flags & SLAB_DESTROY_BY_RCU)
-				rcu_barrier();
+	if (kmem_cache_destroy_memcg_children(s) != 0)
+		goto out_unlock;
 
-			kfree(s->name);
-			kmem_cache_free(kmem_cache, s);
-		} else {
-			list_add(&s->list, &slab_caches);
-			memcg_register_cache(s);
-			mutex_unlock(&slab_mutex);
-			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
+	list_del(&s->list);
+	memcg_release_cache(s);
+
+	if (__kmem_cache_shutdown(s) != 0) {
+		list_add(&s->list, &slab_caches);
+		printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
 				s->name);
-			dump_stack();
-		}
-	} else {
-		mutex_unlock(&slab_mutex);
+		dump_stack();
+		goto out_unlock;
 	}
+
+	mutex_unlock(&slab_mutex);
+	if (s->flags & SLAB_DESTROY_BY_RCU)
+		rcu_barrier();
+
+	kfree(s->name);
+	kmem_cache_free(kmem_cache, s);
+	goto out_put_cpus;
+
+out_unlock:
+	mutex_unlock(&slab_mutex);
+out_put_cpus:
 	put_online_cpus();
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
