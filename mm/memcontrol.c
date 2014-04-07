@@ -3221,6 +3221,7 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
 		s->memcg_params->root_cache = root_cache;
 		INIT_WORK(&s->memcg_params->destroy,
 				kmem_cache_destroy_work_func);
+		css_get(&memcg->css);
 	} else
 		s->memcg_params->is_root_cache = true;
 
@@ -3247,6 +3248,7 @@ void memcg_release_cache(struct kmem_cache *s)
 	id  = memcg_cache_id(memcg);
 
 	root = s->memcg_params->root_cache;
+	VM_BUG_ON(root->memcg_params->memcg_caches[id] != s);
 	root->memcg_params->memcg_caches[id] = NULL;
 
 	mutex_lock(&memcg->slab_caches_mutex);
@@ -3254,6 +3256,7 @@ void memcg_release_cache(struct kmem_cache *s)
 	mutex_unlock(&memcg->slab_caches_mutex);
 
 	mem_cgroup_put(memcg);
+	css_put(&memcg->css);
 out:
 	kfree(s->memcg_params);
 }
