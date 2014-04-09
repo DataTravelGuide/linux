@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Apr 09 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.16.1.el6]
+- [scsi] vmw_pvscsi: Fix pvscsi_abort() function (Ewan Milne) [1077874 1002727]
+
 * Wed Apr 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.15.1.el6]
 - [kernel] sched: Avoid throttle_cfs_rq() racing with period_timer stopping (Seth Jennings) [1083350 844450]
 
