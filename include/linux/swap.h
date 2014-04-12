@@ -208,8 +208,8 @@ extern unsigned long totalram_pages;
 extern unsigned long totalreserve_pages;
 extern int min_free_kbytes;
 extern int extra_free_kbytes;
-extern unsigned int nr_free_buffer_pages(void);
-extern unsigned int nr_free_pagecache_pages(void);
+extern unsigned long nr_free_buffer_pages(void);
+extern unsigned long nr_free_pagecache_pages(void);
 
 /* Definition of global_page_state not available yet */
 #define nr_free_pages() global_page_state(NR_FREE_PAGES)
