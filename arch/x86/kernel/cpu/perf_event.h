@@ -505,6 +505,7 @@ static inline bool kernel_ip(unsigned long ip)
 }
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
+ssize_t intel_event_sysfs_show(char *page, u64 config);
 
 #ifdef CONFIG_CPU_SUP_AMD
 
