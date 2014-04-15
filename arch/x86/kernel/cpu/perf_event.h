@@ -34,6 +34,7 @@ enum extra_reg_type {
 	EXTRA_REG_RSP_0 = 0,	/* offcore_response_0 */
 	EXTRA_REG_RSP_1 = 1,	/* offcore_response_1 */
 	EXTRA_REG_LBR   = 2,	/* lbr_select */
+	EXTRA_REG_LDLAT = 3,	/* ld_lat_threshold */
 
 	EXTRA_REG_MAX		/* number of entries needed */
 };
@@ -49,6 +50,10 @@ struct event_constraint {
 	int	overlap;
 	int	flags;
 };
+/*
+ * struct event_constraint flags
+ */
+#define PERF_X86_EVENT_PEBS_LDLAT	0x1 /* ld+ldlat data address sampling */
 
 struct amd_nb {
 	int nb_id;  /* NorthBridge id */
@@ -201,6 +206,10 @@ struct cpu_hw_events {
 #define INTEL_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 
+#define INTEL_PLD_CONSTRAINT(c, n)	\
+	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK, \
+			   HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_LDLAT)
+
 #define EVENT_CONSTRAINT_END		\
 	EVENT_CONSTRAINT(0, 0, 0)
 
@@ -252,11 +261,21 @@ struct extra_reg {
 	.msr = (ms),		\
 	.config_mask = (m),	\
 	.valid_mask = (vm),	\
-	.idx = EXTRA_REG_##i	\
+	.idx = EXTRA_REG_##i,	\
 	}
 
 #define INTEL_EVENT_EXTRA_REG(event, msr, vm, idx)	\
 	EVENT_EXTRA_REG(event, msr, ARCH_PERFMON_EVENTSEL_EVENT, vm, idx)
+
+#define INTEL_UEVENT_EXTRA_REG(event, msr, vm, idx) \
+	EVENT_EXTRA_REG(event, msr, ARCH_PERFMON_EVENTSEL_EVENT | \
+			ARCH_PERFMON_EVENTSEL_UMASK, vm, idx)
+
+#define INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(c) \
+	INTEL_UEVENT_EXTRA_REG(c, \
+			       MSR_PEBS_LD_LAT_THRESHOLD, \
+			       0xffff, \
+			       LDLAT)
 
 #define EVENT_EXTRA_END EVENT_EXTRA_REG(0, 0, 0, 0, RSP_0)
 
@@ -322,6 +341,7 @@ struct x86_pmu {
 	 */
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
+	struct attribute **event_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
@@ -616,6 +636,9 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event);
 int p4_pmu_init(void);
 
 int p6_pmu_init(void);
+
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page);
 
 #else /* CONFIG_CPU_SUP_INTEL */
 
