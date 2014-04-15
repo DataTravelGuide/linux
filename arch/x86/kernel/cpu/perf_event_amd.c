@@ -593,6 +593,14 @@ amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, struct perf_event *ev
 	}
 }
 
+static ssize_t amd_event_sysfs_show(char *page, u64 config)
+{
+	u64 event = (config & ARCH_PERFMON_EVENTSEL_EVENT) |
+		    (config & AMD64_EVENTSEL_EVENT) >> 24;
+
+	return x86_event_sysfs_show(page, config, event);
+}
+
 static __initconst const struct x86_pmu amd_pmu_f15h = {
 	.name			= "AMD Family 15h",
 	.handle_irq		= x86_pmu_handle_irq,
@@ -622,6 +630,7 @@ static __initconst const struct x86_pmu amd_pmu_f15h = {
 #endif
 	.cpu_starting		= amd_pmu_cpu_starting,
 	.format_attrs		= amd_format_attr,
+	.events_sysfs_show	= amd_event_sysfs_show,
 };
 
 __init int amd_pmu_init(void)
