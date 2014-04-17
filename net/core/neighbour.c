@@ -2605,19 +2605,12 @@ static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
 			   size_t *lenp, loff_t *ppos)
 {
-	int size, ret;
 	ctl_table tmp = *ctl;
 
 	tmp.extra1 = &zero;
 	tmp.extra2 = &unres_qlen_max;
-	tmp.data = &size;
 
-	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-
-	if (write && !ret)
-		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
-	return ret;
+	return proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 }
 
 static struct neigh_parms *neigh_get_dev_parms_rcu(struct net_device *dev,
