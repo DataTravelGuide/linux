@@ -372,9 +372,10 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 					if (printk_ratelimit()) {
 						pr_notice("NFS: directory %s/%s contains a readdir loop."
 								"Please contact your server vendor.  "
-								"The file: %s has duplicate cookie %llu\n",
+								"The file: %.*s has duplicate cookie %llu\n",
 								desc->file->f_dentry->d_parent->d_name.name,
 								desc->file->f_dentry->d_name.name,
+								array->array[i].string.len,
 								array->array[i].string.name,
 								*desc->dir_cookie);
 					}
