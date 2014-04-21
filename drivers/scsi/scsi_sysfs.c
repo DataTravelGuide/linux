@@ -260,18 +260,18 @@ store_shost_eh_deadline(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	int ret = -EINVAL;
-	int eh_deadline;
+	int deadline;
 	unsigned long flags;
 
-	if (shost->transportt->eh_strategy_handler)
+	if (shost->transportt && shost->transportt->eh_strategy_handler)
 		return ret;
 
-	if (sscanf(buf, "%d\n", &eh_deadline) == 1) {
+	if (sscanf(buf, "%d\n", &deadline) == 1) {
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_in_recovery(shost))
 			ret = -EBUSY;
 		else {
-			shost->eh_deadline = eh_deadline * HZ;
+			shost->eh_deadline = deadline * HZ;
 			ret = count;
 		}
 		spin_unlock_irqrestore(shost->host_lock, flags);

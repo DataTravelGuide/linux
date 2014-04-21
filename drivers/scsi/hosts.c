@@ -306,7 +306,7 @@ static unsigned int shost_eh_deadline;
 
 module_param_named(eh_deadline, shost_eh_deadline, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(eh_deadline,
-		 "SCSI EH deadline in seconds (should be between 1 and 2^32-1)");
+		 "SCSI EH timeout in seconds (should be between 1 and 2^32-1)");
 
 static struct device_type scsi_host_type = {
 	.name =		"scsi_host",

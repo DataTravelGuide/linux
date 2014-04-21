@@ -149,6 +149,9 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
+	if (scmd->device->host->eh_deadline && !scmd->device->host->last_reset)
+		scmd->device->host->last_reset = jiffies;
+
 	if (scmd->device->host->transportt->eh_timed_out)
 		rtn = scmd->device->host->transportt->eh_timed_out(scmd);
 	else if (scmd->device->host->hostt->eh_timed_out)
