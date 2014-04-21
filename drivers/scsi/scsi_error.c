@@ -89,8 +89,15 @@ static int scsi_host_eh_past_deadline(struct Scsi_Host *shost)
 	if (!shost->last_reset || !shost->eh_deadline)
 		return 0;
 
-	if (time_before(jiffies,
-			shost->last_reset + shost->eh_deadline))
+	/*
+	 * 32bit accesses are guaranteed to be atomic
+	 * (on all supported architectures), so instead
+	 * of using a spinlock we can as well double check
+	 * if eh_deadline has been unset during the
+	 * time_before call.
+	 */
+	if (time_before(jiffies, shost->last_reset + shost->eh_deadline) &&
+	    shost->eh_deadline != 0)
 		return 0;
 
 	return 1;
@@ -1013,7 +1020,6 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	struct scsi_cmnd *scmd, *next;
 	struct Scsi_Host *shost;
 	int rtn;
-	unsigned long flags;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
@@ -1021,16 +1027,13 @@ int scsi_eh_get_sense(struct list_head *work_q,
 			continue;
 
 		shost = scmd->device->host;
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				shost_printk(KERN_INFO, shost,
 					    "skip %s, past eh deadline\n",
 					     __func__));
 			break;
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 		SCSI_LOG_ERROR_RECOVERY(2, scmd_printk(KERN_INFO, scmd,
 						  "%s: requesting sense\n",
 						  current->comm));
@@ -1116,17 +1119,13 @@ static int scsi_eh_test_devices(struct list_head *cmd_list,
 	struct scsi_cmnd *scmd, *next;
 	struct scsi_device *sdev;
 	int finish_cmds;
-	unsigned long flags;
 
 	while (!list_empty(cmd_list)) {
 		scmd = list_entry(cmd_list->next, struct scsi_cmnd, eh_entry);
 		sdev = scmd->device;
 
 		if (!try_stu) {
-			spin_lock_irqsave(sdev->host->host_lock, flags);
 			if (scsi_host_eh_past_deadline(sdev->host)) {
-				spin_unlock_irqrestore(sdev->host->host_lock,
-						       flags);
 				/* Push items back onto work_q */
 				list_splice_init(cmd_list, work_q);
 				SCSI_LOG_ERROR_RECOVERY(3,
@@ -1135,7 +1134,6 @@ static int scsi_eh_test_devices(struct list_head *cmd_list,
 						     __func__));
 				break;
 			}
-			spin_unlock_irqrestore(sdev->host->host_lock, flags);
 		}
 
 		finish_cmds = !scsi_device_online(scmd->device) ||
@@ -1174,15 +1172,12 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
 	LIST_HEAD(check_list);
 	int rtn;
 	struct Scsi_Host *shost;
-	unsigned long flags;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		if (!(scmd->eh_eflags & SCSI_EH_CANCEL_CMD))
 			continue;
 		shost = scmd->device->host;
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			list_splice_init(&check_list, work_q);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				shost_printk(KERN_INFO, shost,
@@ -1190,7 +1185,6 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
 					     __func__));
 			return list_empty(work_q);
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 		SCSI_LOG_ERROR_RECOVERY(3, printk("%s: aborting cmd:"
 						  "0x%p\n", current->comm,
 						  scmd));
@@ -1254,19 +1248,15 @@ static int scsi_eh_stu(struct Scsi_Host *shost,
 {
 	struct scsi_cmnd *scmd, *stu_scmd, *next;
 	struct scsi_device *sdev;
-	unsigned long flags;
 
 	shost_for_each_device(sdev, shost) {
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				shost_printk(KERN_INFO, shost,
 					    "skip %s, past eh deadline\n",
 					     __func__));
 			break;
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 		stu_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry)
 			if (scmd->device == sdev && SCSI_SENSE_VALID(scmd) &&
@@ -1319,20 +1309,16 @@ static int scsi_eh_bus_device_reset(struct Scsi_Host *shost,
 {
 	struct scsi_cmnd *scmd, *bdr_scmd, *next;
 	struct scsi_device *sdev;
-	unsigned long flags;
 	int rtn;
 
 	shost_for_each_device(sdev, shost) {
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				shost_printk(KERN_INFO, shost,
 					    "skip %s, past eh deadline\n",
 					     __func__));
 			break;
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 		bdr_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry)
 			if (scmd->device == sdev) {
@@ -1392,11 +1378,8 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 		struct scsi_cmnd *next, *scmd;
 		int rtn;
 		unsigned int id;
-		unsigned long flags;
 
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			/* push back on work queue for further processing */
 			list_splice_init(&check_list, work_q);
 			list_splice_init(&tmp_list, work_q);
@@ -1406,7 +1389,6 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 					     __func__));
 			return list_empty(work_q);
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 
 		scmd = list_entry(tmp_list.next, struct scsi_cmnd, eh_entry);
 		id = scmd_id(scmd);
@@ -1451,7 +1433,6 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 	LIST_HEAD(check_list);
 	unsigned int channel;
 	int rtn;
-	unsigned long flags;
 
 	/*
 	 * we really want to loop over the various channels, and do this on
@@ -1461,9 +1442,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 	 */
 
 	for (channel = 0; channel <= shost->max_channel; channel++) {
-		spin_lock_irqsave(shost->host_lock, flags);
 		if (scsi_host_eh_past_deadline(shost)) {
-			spin_unlock_irqrestore(shost->host_lock, flags);
 			list_splice_init(&check_list, work_q);
 			SCSI_LOG_ERROR_RECOVERY(3,
 				shost_printk(KERN_INFO, shost,
@@ -1471,7 +1450,6 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 					     __func__));
 			return list_empty(work_q);
 		}
-		spin_unlock_irqrestore(shost->host_lock, flags);
 
 		chan_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry) {
