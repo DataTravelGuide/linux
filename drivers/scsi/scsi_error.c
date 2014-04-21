@@ -86,18 +86,18 @@ EXPORT_SYMBOL_GPL(scsi_schedule_eh);
 
 static int scsi_host_eh_past_deadline(struct Scsi_Host *shost)
 {
-	if (!shost->last_reset || !shost->eh_deadline)
+	if (!shost->last_reset || shost->eh_deadline == -1)
 		return 0;
 
 	/*
 	 * 32bit accesses are guaranteed to be atomic
 	 * (on all supported architectures), so instead
 	 * of using a spinlock we can as well double check
-	 * if eh_deadline has been unset during the
+	 * if eh_deadline has been set to 'off' during the
 	 * time_before call.
 	 */
 	if (time_before(jiffies, shost->last_reset + shost->eh_deadline) &&
-	    shost->eh_deadline != 0)
+	    shost->eh_deadline > -1)
 		return 0;
 
 	return 1;
@@ -125,7 +125,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY))
 			goto out_unlock;
 
-	if (shost->eh_deadline && !shost->last_reset)
+	if (shost->eh_deadline != -1 && !shost->last_reset)
 		shost->last_reset = jiffies;
 
 	ret = 1;
@@ -156,7 +156,8 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
-	if (scmd->device->host->eh_deadline && !scmd->device->host->last_reset)
+	if (scmd->device->host->eh_deadline != -1 &&
+	    !scmd->device->host->last_reset)
 		scmd->device->host->last_reset = jiffies;
 
 	if (scmd->device->host->transportt->eh_timed_out)
@@ -1981,7 +1982,7 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 			scsi_eh_ready_devs(shost, &eh_work_q, &eh_done_q);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (shost->eh_deadline)
+	if (shost->eh_deadline != -1)
 		shost->last_reset = 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	scsi_eh_flush_done_q(&eh_done_q);
