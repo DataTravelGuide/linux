@@ -4236,10 +4236,12 @@ const struct rpc_call_ops nfs41_free_stateid_ops = {
 
 static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
+		struct rpc_cred *cred,
 		bool privileged)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FREE_STATEID],
+		.rpc_cred = cred,
 	};
 	struct rpc_task_setup task_setup = {
 		.rpc_client = server->client,
@@ -4272,15 +4274,19 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
  *
  * @server: server / transport on which to perform the operation
  * @stateid: state ID to release
+ * @cred: credential
  *
  * Returns NFS_OK if the server freed "stateid".  Otherwise a
  * negative NFS4ERR value is returned.
-static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
+ 
+static int nfs41_free_stateid(struct nfs_server *server,
+		nfs4_stateid *stateid,
+		struct rpc_cred *cred)
 {
 	struct rpc_task *task;
 	int ret;
 
-	task = _nfs41_free_stateid(server, stateid, true);
+	task = _nfs41_free_stateid(server, stateid, cred, true);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	ret = rpc_wait_for_completion_task(task);
@@ -4291,6 +4297,8 @@ static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 }
  * ANDROS: If/when test_stateid is backported, this function will be called.
  * Otherwise remove to fix compilier 'not used' complaints.
+ *
+ * ANDROS:bz 1079075 changed this function.
  */
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -6475,8 +6483,9 @@ out:
 static int nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
 	struct rpc_task *task;
+	struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
 
-	task = _nfs41_free_stateid(server, &lsp->ls_stateid, false);
+	task = _nfs41_free_stateid(server, &lsp->ls_stateid, cred, false);
 	nfs4_free_lock_state(server, lsp);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
