@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Apr 22 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.18.1.el6]
+- [block] fix race between request completion and timeout handling (Jeff Moyer) [1089915 919756]
+
 * Fri Apr 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.17.1.el6]
 - [scsi] qla2xxx: Fixup looking for a space in the outstanding_cmds array in qla2x00_alloc_iocbs() (Chad Dupuis) [1085660 1070856]
 - [scsi] isci: fix reset timeout handling (David Milburn) [1080600 1040393]
