@@ -757,6 +757,15 @@ static void rh_check_supported(void)
 	/* The RHEL kernel does not support this hardware.  The kernel will
 	 * attempt to boot, but no support is given for this hardware */
 
+
+	/*
+	* Check if we are running on VMware's hypervisor and bail out
+	* if we are.  They run their own hypervisor and have different
+	* support requirements than we do.
+	*/
+	if (x86_hyper == &x86_hyper_vmware)
+		return;
+
 	/* RHEL only supports Intel and AMD processors */
 	if ((boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) &&
 	    (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)) {
