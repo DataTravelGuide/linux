@@ -26,6 +26,7 @@
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
+#include <linux/cpu.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -116,6 +117,9 @@ struct virtnet_info
 
 	/* Does the affinity hint is set for virtqueues? */
 	bool affinity_hint_set;
+
+	/* Per-cpu variable to show the mapping from CPU to virtqueue */
+	int __percpu *vq_index;
 };
 
 struct skb_vnet_hdr {
@@ -991,6 +995,7 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 static void virtnet_set_affinity(struct virtnet_info *vi, bool set)
 {
 	int i;
+	int cpu;
 
 	/* In multiqueue mode, when the number of cpu is equal to the number of
 	 * queue pairs, we let the queue pairs to be private to one cpu by
@@ -998,22 +1003,40 @@ static void virtnet_set_affinity(struct virtnet_info *vi, bool set)
 	 */
 	if ((vi->curr_queue_pairs == 1 ||
 	     vi->max_queue_pairs != num_online_cpus()) && set) {
-		if (vi->affinity_hint_set)
+		if (vi->affinity_hint_set) {
 			set = false;
-		else
+		} else {
+			i = 0;
+			for_each_online_cpu(cpu)
+				*per_cpu_ptr(vi->vq_index, cpu) =
+					++i % vi->curr_queue_pairs;
 			return;
+		}
 	}
 
-	for (i = 0; i < vi->max_queue_pairs; i++) {
-		int cpu = set ? i : -1;
-		virtqueue_set_affinity(vi->rq[i].vq, cpu);
-		virtqueue_set_affinity(vi->sq[i].vq, cpu);
-	}
+	if (set) {
+		i = 0;
+		for_each_online_cpu(cpu) {
+			virtqueue_set_affinity(vi->rq[i].vq, cpu);
+			virtqueue_set_affinity(vi->sq[i].vq, cpu);
+			*per_cpu_ptr(vi->vq_index, cpu) = i;
+			i++;
+		}
 
-	if (set)
 		vi->affinity_hint_set = true;
-	else
+	} else {
+		for(i = 0; i < vi->max_queue_pairs; i++) {
+			virtqueue_set_affinity(vi->rq[i].vq, -1);
+			virtqueue_set_affinity(vi->sq[i].vq, -1);
+		}
+
+		i = 0;
+		for_each_online_cpu(cpu)
+			*per_cpu_ptr(vi->vq_index, cpu) =
+				++i % vi->curr_queue_pairs;
+
 		vi->affinity_hint_set = false;
+	}
 }
 
 /* TODO: Eliminate OOO packets during switching */
@@ -1033,6 +1056,7 @@ static int virtnet_set_channels(struct net_device *dev,
 	if (queue_pairs > vi->max_queue_pairs)
 		return -EINVAL;
 
+	get_online_cpus();
 	err = virtnet_set_queues(vi, queue_pairs);
 	if (!err) {
 		netif_set_real_num_tx_queues(dev, queue_pairs);
@@ -1040,6 +1064,7 @@ static int virtnet_set_channels(struct net_device *dev,
 
 		virtnet_set_affinity(vi, true);
 	}
+	put_online_cpus();
 
 	return err;
 }
@@ -1084,12 +1109,19 @@ static int virtnet_change_mtu(struct net_device *dev, int new_mtu)
 
 /* To avoid contending a lock hold by a vcpu who would exit to host, select the
  * txq based on the processor id.
- * TODO: handle cpu hotplug.
  */
 static u16 virtnet_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-	int txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) :
-		  smp_processor_id();
+	int txq;
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	if (skb_rx_queue_recorded(skb)) {
+		txq = skb_get_rx_queue(skb);
+	} else {
+		txq = *per_cpu_ptr(vi->vq_index, smp_processor_id());
+		if (txq == -1)
+			txq = 0;
+	}
 
 	while (unlikely(txq >= dev->real_num_tx_queues))
 		txq -= dev->real_num_tx_queues;
@@ -1333,7 +1365,10 @@ static int init_vqs(struct virtnet_info *vi)
 	if (ret)
 		goto err_free;
 
+	get_online_cpus();
 	virtnet_set_affinity(vi, true);
+	put_online_cpus();
+
 	return 0;
 
 err_free:
@@ -1414,6 +1449,11 @@ static int virtnet_probe(struct virtio_device *vdev)
 		goto free;
 	}
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
+
+	vi->vq_index = alloc_percpu(int);
+	if (vi->vq_index == NULL)
+		goto free_wq;
+
 	mutex_init(&vi->config_lock);
 	vi->config_enable = true;
 	INIT_WORK(&vi->config_work, virtnet_config_changed_work);
@@ -1437,7 +1477,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Allocate/initialize the rx/tx queues, and invoke find_vqs */
 	err = init_vqs(vi);
 	if (err)
-		goto free_wq;
+		goto free_index;
 
 	netif_set_real_num_tx_queues(dev, 1);
 	netif_set_real_num_rx_queues(dev, 1);
@@ -1483,6 +1523,8 @@ free_vqs:
 	virtnet_del_vqs(vi);
 free_wq:
 	destroy_workqueue(vi->st_wq);
+free_index:
+	free_percpu(vi->vq_index);
 free:
 	free_netdev(dev);
 	return err;
@@ -1517,6 +1559,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 
 	destroy_workqueue(vi->st_wq);
 
+	free_percpu(vi->vq_index);
 	free_netdev(vi->dev);
 }
 
