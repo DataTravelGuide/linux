@@ -992,7 +992,32 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
 }
 
-static void virtnet_set_affinity(struct virtnet_info *vi, bool set)
+static void virtnet_clean_affinity(struct virtnet_info *vi, long hcpu)
+{
+	int i;
+	int cpu;
+
+	if (vi->affinity_hint_set) {
+		for (i = 0; i < vi->max_queue_pairs; i++) {
+			virtqueue_set_affinity(vi->rq[i].vq, -1);
+			virtqueue_set_affinity(vi->sq[i].vq, -1);
+		}
+
+		vi->affinity_hint_set = false;
+	}
+
+	i = 0;
+	for_each_online_cpu(cpu) {
+		if (cpu == hcpu) {
+			*per_cpu_ptr(vi->vq_index, cpu) = -1;
+		} else {
+			*per_cpu_ptr(vi->vq_index, cpu) =
+				++i % vi->curr_queue_pairs;
+		}
+	}
+}
+
+static void virtnet_set_affinity(struct virtnet_info *vi)
 {
 	int i;
 	int cpu;
@@ -1001,42 +1026,21 @@ static void virtnet_set_affinity(struct virtnet_info *vi, bool set)
 	 * queue pairs, we let the queue pairs to be private to one cpu by
 	 * setting the affinity hint to eliminate the contention.
 	 */
-	if ((vi->curr_queue_pairs == 1 ||
-	     vi->max_queue_pairs != num_online_cpus()) && set) {
-		if (vi->affinity_hint_set) {
-			set = false;
-		} else {
-			i = 0;
-			for_each_online_cpu(cpu)
-				*per_cpu_ptr(vi->vq_index, cpu) =
-					++i % vi->curr_queue_pairs;
-			return;
-		}
+	if (vi->curr_queue_pairs == 1 ||
+	    vi->max_queue_pairs != num_online_cpus()) {
+		virtnet_clean_affinity(vi, -1);
+		return;
 	}
 
-	if (set) {
-		i = 0;
-		for_each_online_cpu(cpu) {
-			virtqueue_set_affinity(vi->rq[i].vq, cpu);
-			virtqueue_set_affinity(vi->sq[i].vq, cpu);
-			*per_cpu_ptr(vi->vq_index, cpu) = i;
-			i++;
-		}
-
-		vi->affinity_hint_set = true;
-	} else {
-		for(i = 0; i < vi->max_queue_pairs; i++) {
-			virtqueue_set_affinity(vi->rq[i].vq, -1);
-			virtqueue_set_affinity(vi->sq[i].vq, -1);
-		}
-
-		i = 0;
-		for_each_online_cpu(cpu)
-			*per_cpu_ptr(vi->vq_index, cpu) =
-				++i % vi->curr_queue_pairs;
-
-		vi->affinity_hint_set = false;
+	i = 0;
+	for_each_online_cpu(cpu) {
+		virtqueue_set_affinity(vi->rq[i].vq, cpu);
+		virtqueue_set_affinity(vi->sq[i].vq, cpu);
+		*per_cpu_ptr(vi->vq_index, cpu) = i;
+		i++;
 	}
+
+	vi->affinity_hint_set = true;
 }
 
 /* TODO: Eliminate OOO packets during switching */
@@ -1062,7 +1066,7 @@ static int virtnet_set_channels(struct net_device *dev,
 		netif_set_real_num_tx_queues(dev, queue_pairs);
 		netif_set_real_num_rx_queues(dev, queue_pairs);
 
-		virtnet_set_affinity(vi, true);
+		virtnet_set_affinity(vi);
 	}
 	put_online_cpus();
 
@@ -1242,7 +1246,7 @@ static void virtnet_del_vqs(struct virtnet_info *vi)
 {
 	struct virtio_device *vdev = vi->vdev;
 
-	virtnet_set_affinity(vi, false);
+	virtnet_clean_affinity(vi, -1);
 
 	vdev->config->del_vqs(vdev);
 
@@ -1366,7 +1370,7 @@ static int init_vqs(struct virtnet_info *vi)
 		goto err_free;
 
 	get_online_cpus();
-	virtnet_set_affinity(vi, true);
+	virtnet_set_affinity(vi);
 	put_online_cpus();
 
 	return 0;
