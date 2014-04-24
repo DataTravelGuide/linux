@@ -1907,15 +1907,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			pnfs_destroy_all_layouts(clp);
 		}
 
-		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
-			section = "check lease";
-			status = nfs4_check_lease(clp);
-			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-				continue;
-			if (status < 0 && status != -NFS4ERR_CB_PATH_DOWN)
-				goto out_error;
-		}
-
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)
 		   && nfs4_has_session(clp)) {
@@ -1924,6 +1915,15 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 				continue;
 			if (status < 0)
+				goto out_error;
+		}
+
+		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			section = "check lease";
+			status = nfs4_check_lease(clp);
+			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+				continue;
+			if (status < 0 && status != -NFS4ERR_CB_PATH_DOWN)
 				goto out_error;
 		}
 
