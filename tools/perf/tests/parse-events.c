@@ -1335,7 +1335,7 @@ static int test_pmu_events(void)
 
 	ret = stat(path, &st);
 	if (ret) {
-		pr_debug("ommiting PMU cpu events tests\n");
+		pr_debug("omitting PMU cpu events tests\n");
 		return 0;
 	}
 
