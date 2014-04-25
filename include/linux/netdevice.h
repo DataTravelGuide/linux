@@ -2441,7 +2441,7 @@ extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
 extern struct sk_buff *__skb_gso_segment(struct sk_buff *skb, int features, bool tx_path);
 extern struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb, int features);
-__be16 skb_network_protocol(struct sk_buff *skb);
+__be16 skb_network_protocol(struct sk_buff *skb, int *depth);
 
 static inline bool can_checksum_protocol(int features, __be16 protocol)
 {
