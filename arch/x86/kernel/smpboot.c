@@ -1353,6 +1353,11 @@ void cpu_disable_common(void)
 int native_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
+	int ret;
+
+	ret = check_irq_vectors_for_cpu_disable();
+	if (ret)
+		return ret;
 
 	/*
 	 * Perhaps use cpufreq to drop frequency, but that could go
