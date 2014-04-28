@@ -310,7 +310,7 @@ void fixup_irqs(void)
 		spin_lock(&desc->lock);
 
 		affinity = desc->affinity;
-		if (!irq_has_action(irq) ||
+		if (!irq_has_action(irq) || (desc->status & IRQ_PER_CPU) ||
 		    cpumask_equal(affinity, cpu_online_mask)) {
 			spin_unlock(&desc->lock);
 			continue;
