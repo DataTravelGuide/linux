@@ -575,6 +575,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 	struct sk_buff *skb;
 	size_t len = count, align = 0;
 	struct virtio_net_hdr gso = { 0 };
+	int linear, good_linear;
 	int offset = 0;
 
 	if (!(tun->flags & TUN_NO_PI)) {
@@ -609,7 +610,13 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 			return -EINVAL;
 	}
 
-	skb = tun_alloc_skb(tun, align, len, gso.hdr_len, noblock);
+	good_linear = SKB_MAX_HEAD(align);
+	if (gso.hdr_len > good_linear)
+		linear = good_linear;
+	else
+		linear = gso.hdr_len;
+
+	skb = tun_alloc_skb(tun, align, len, linear, noblock);
 	if (IS_ERR(skb)) {
 		if (PTR_ERR(skb) != -EAGAIN)
 			tun->dev->stats.rx_dropped++;
