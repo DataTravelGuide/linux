@@ -402,7 +402,9 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 			goto out;
 
 	add_timer(&ct->timeout);
-	nf_conntrack_get(&ct->ct_general);
+	smp_wmb();
+	/* The caller holds a reference to this object */
+	atomic_set(&ct->ct_general.use, 2);
 	__nf_conntrack_hash_insert(ct, hash, repl_hash);
 	NF_CT_STAT_INC(net, insert);
 	spin_unlock_bh(&nf_conntrack_lock);
@@ -631,11 +633,10 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 	ct->ct_net = net;
 #endif
 
-	/*
-	 * changes to lookup keys must be done before setting refcnt to 1
+	/* Because we use RCU lookups, we set ct_general.use to zero before
+	 * this is inserted in any list.
 	 */
-	smp_wmb();
-	atomic_set(&ct->ct_general.use, 1);
+	atomic_set(&ct->ct_general.use, 0);
 	return ct;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
@@ -643,6 +644,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 void nf_conntrack_free(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
+
+	/* A freed object has refcnt == 0, that's
+	 * the golden rule for SLAB_DESTROY_BY_RCU
+	 */
+	NF_CT_ASSERT(atomic_read(&ct->ct_general.use) == 0);
 
 	nf_ct_ext_destroy(ct);
 	nf_ct_ext_free(ct);
@@ -713,6 +719,9 @@ init_conntrack(struct net *net,
 		__nf_ct_try_assign_helper(ct, GFP_ATOMIC);
 		NF_CT_STAT_INC(net, new);
 	}
+
+	/* Now it is inserted into the unconfirmed list, bump refcount */
+	nf_conntrack_get(&ct->ct_general);
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
