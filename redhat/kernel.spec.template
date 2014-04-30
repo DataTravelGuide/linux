@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Apr 30 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.19.1.el6]
+- [kernel] sched: fix cpu_power initialization (Radim Krcmar) [1091826 1065304]
+- [fs] gfs2: Fix uninitialized VFS inode in gfs2_create_inode (Abhijith Das) [1092002 1059808]
+
 * Tue Apr 22 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.18.1.el6]
 - [block] fix race between request completion and timeout handling (Jeff Moyer) [1089915 919756]
 
