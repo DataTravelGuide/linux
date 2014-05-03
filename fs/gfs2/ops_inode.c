@@ -203,7 +203,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(dir, &dentry->d_name, ip, IF2DT(inode->i_mode));
+	error = gfs2_dir_add(dir, &dentry->d_name, ip);
 	if (error)
 		goto out_brelse;
 
@@ -704,10 +704,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	}
 
 	if (dir_rename) {
-		error = gfs2_change_nlink(ndip, +1);
-		if (error)
-			goto out_end_trans;
-
 		error = gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
 		if (error)
 			goto out_end_trans;
@@ -726,7 +722,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(ndir, &ndentry->d_name, ip, IF2DT(ip->i_inode.i_mode));
+	error = gfs2_dir_add(ndir, &ndentry->d_name, ip);
 	if (error)
 		goto out_end_trans;
 
