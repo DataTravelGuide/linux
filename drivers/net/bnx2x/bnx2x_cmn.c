@@ -977,7 +977,7 @@ reuse_rx:
 
 		skb_checksum_none_assert(skb);
 
-		if (bp->rx_csum)
+		if (bp->dev->features & NETIF_F_RXCSUM)
 			bnx2x_csum_validate(skb, cqe, fp,
 					    bnx2x_fp_qstats(bp, fp));
 
@@ -4374,6 +4374,38 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 
 	return bnx2x_reload_if_running(dev);
+}
+
+u32 bnx2x_fix_features(struct net_device *dev, u32 features)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	/* TPA requires Rx CSUM offloading */
+	if (!(features & NETIF_F_RXCSUM) || bp->disable_tpa)
+		features &= ~NETIF_F_LRO;
+
+	return features;
+}
+
+int bnx2x_set_features(struct net_device *dev, u32 features)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u32 flags = bp->flags;
+
+	if (features & NETIF_F_LRO)
+		flags |= TPA_ENABLE_FLAG;
+	else
+		flags &= ~TPA_ENABLE_FLAG;
+
+	if (flags ^ bp->flags) {
+		bp->flags = flags;
+
+		if (bp->recovery_state == BNX2X_RECOVERY_DONE)
+			return bnx2x_reload_if_running(dev);
+		/* else: bnx2x_nic_load() will be called at end of recovery */
+	}
+
+	return 0;
 }
 
 void bnx2x_tx_timeout(struct net_device *dev)

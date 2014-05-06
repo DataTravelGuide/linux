@@ -11599,8 +11599,6 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	if (BP_NOMCP(bp) && (func == 0))
 		dev_err(&bp->pdev->dev, "MCP disabled, must load devices in order!\n");
 
-	bp->dev->features |= NETIF_F_GRO;
-
 	bp->disable_tpa = disable_tpa;
 	bp->disable_tpa |= IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp);
 
@@ -11624,8 +11622,6 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	bp->tx_ring_size = IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL;
 	if (IS_VF(bp))
 		bp->rx_ring_size = MAX_RX_AVAIL;
-
-	bp->rx_csum = 1;
 
 	/* make sure that the numbers are in the right granularity */
 	bp->tx_ticks = (50 / BNX2X_BTR) * BNX2X_BTR;
@@ -12054,6 +12050,12 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 };
 
+static const struct net_device_ops_ext bnx2x_netdev_ops_ext = {
+	.size = sizeof(struct net_device_ops_ext),
+	.ndo_fix_features	= bnx2x_fix_features,
+	.ndo_set_features	= bnx2x_set_features,
+};
+
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)
 {
 	struct device *dev = &bp->pdev->dev;
@@ -12080,6 +12082,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	bool chip_is_e1x = (board_type == BCM57710 ||
 			    board_type == BCM57711 ||
 			    board_type == BCM57711E);
+	u32 hw_features;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -12211,21 +12214,21 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	netdev_extended(dev)->ndo_busy_poll = bnx2x_low_latency_recv;
 #endif
+	set_netdev_ops_ext(dev, &bnx2x_netdev_ops_ext);
 	bnx2x_set_ethtool_ops(bp, dev);
-	dev->features |= NETIF_F_SG;
-	dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXHASH;
+
+	hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_RXHASH |
+		NETIF_F_HW_VLAN_TX;
+	set_netdev_hw_features(dev, hw_features);
+
+	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;
+
+	dev->features |= hw_features | NETIF_F_HW_VLAN_RX;
 	if (bp->flags & USING_DAC_FLAG)
 		dev->features |= NETIF_F_HIGHDMA;
-	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
-	dev->features |= NETIF_F_TSO6;
-	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-
-	dev->vlan_features |= NETIF_F_SG;
-	dev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	if (bp->flags & USING_DAC_FLAG)
-		dev->vlan_features |= NETIF_F_HIGHDMA;
-	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
-	dev->vlan_features |= NETIF_F_TSO6;
 
 #ifdef BCM_DCBNL
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;

@@ -641,6 +641,9 @@ void bnx2x_free_mem_bp(struct bnx2x *bp);
  */
 int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
 
+u32 bnx2x_fix_features(struct net_device *dev, u32 features);
+int bnx2x_set_features(struct net_device *dev, u32 features);
+
 #ifdef NETDEV_FCOE_WWNN
 /**
  * bnx2x_fcoe_get_wwn - return the requested WWN value for this port
