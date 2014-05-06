@@ -35,6 +35,11 @@
  */
 #define KVM_MAX_VCPU_COUNT 160
 
+/* Limit for vcpu_id for all VCPUs. RHEL-specific, too (see above).
+ * KVM_CREATE_VCPU code ensures that all VCPUs have vcpu_id < KVM_MAX_VCPU_ID.
+ */
+#define KVM_MAX_VCPU_ID    255
+
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4

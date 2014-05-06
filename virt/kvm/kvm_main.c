@@ -2325,7 +2325,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	struct kvm_vcpu *vcpu, *v;
 
 	/* vcpu_id cannot exceed the max apic ID */
-	if (id >= 255)
+	if (id >= KVM_MAX_VCPU_ID)
 		return -EINVAL;
 
 	vcpu = kvm_arch_vcpu_create(kvm, id);
