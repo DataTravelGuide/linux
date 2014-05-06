@@ -30,10 +30,6 @@
 #define DRV_MODULE_RELDATE      "2013/04/11"
 #define BNX2X_BC_VER            0x040200
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define BCM_VLAN                       1
-#endif
-
 #if defined(CONFIG_DCB)
 #define BCM_DCBNL
 #endif

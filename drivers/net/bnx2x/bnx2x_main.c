@@ -3021,8 +3021,8 @@ static unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_MCAST, &flags);
 	}
 
-	if (bp->vlgrp)
-		__set_bit(BNX2X_Q_FLG_VLAN, &flags);
+	/* Always set HW VLAN stripping */
+	__set_bit(BNX2X_Q_FLG_VLAN, &flags);
 
 	/* configure silent vlan removal */
 	if (IS_MF_AFEX(bp))
@@ -12218,7 +12218,6 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->features |= NETIF_F_TSO6;
-#if defined(BCM_VLAN)
 	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
 
 	dev->vlan_features |= NETIF_F_SG;
@@ -12227,7 +12226,6 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		dev->vlan_features |= NETIF_F_HIGHDMA;
 	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->vlan_features |= NETIF_F_TSO6;
-#endif
 
 #ifdef BCM_DCBNL
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
