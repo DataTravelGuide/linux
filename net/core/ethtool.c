@@ -19,6 +19,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
+#include <linux/bitops.h>
 #include <asm/uaccess.h>
 
 #ifndef __GENKSYMS__
@@ -220,7 +221,7 @@ static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *use
 
 	/*
 	 * this method of obtaining string set info is deprecated;
-	 * consider using ETHTOOL_GSSET_INFO instead
+	 * Use ETHTOOL_GSSET_INFO instead.
 	 */
 	if (ops && ops->get_sset_count) {
 		int rc;
@@ -273,9 +274,7 @@ static noinline int ethtool_get_sset_info(struct net_device *dev,
 		return 0;
 
 	/* calculate size of return buffer */
-	for (i = 0; i < 64; i++)
-		if (sset_mask & (1ULL << i))
-			n_bits++;
+	n_bits = hweight64(sset_mask);
 
 	memset(&info, 0, sizeof(info));
 	info.cmd = ETHTOOL_GSSET_INFO;
