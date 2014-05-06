@@ -339,8 +339,8 @@ static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GS
 	/* NETIF_F_TSO_ECN */         "tx-tcp-ecn-segmentation",
 	/* NETIF_F_TSO6 */            "tx-tcp6-segmentation",
 	/* NETIF_F_FSO */             "tx-fcoe-segmentation",
-	"",
-	"",
+	/* NETIF_F_GSO_GRE */         "tx-gre-segmentation",
+	/* NETIF_F_GSO_UDP_TUNNEL */  "tx-udp_tnl-segmentation",
 
 	/* NETIF_F_FCOE_CRC */        "tx-checksum-fcoe-crc",
 	/* NETIF_F_SCTP_CSUM */       "tx-checksum-sctp",
