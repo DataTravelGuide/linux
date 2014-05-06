@@ -6012,6 +6012,23 @@ static void netdev_init_queue_locks(struct net_device *dev)
 
 unsigned long netdev_fix_features(unsigned long features, const char *name)
 {
+	/* Fix illegal checksum combinations */
+	if ((features & NETIF_F_HW_CSUM) &&
+	    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
+		if (name)
+			printk(KERN_NOTICE "%s: mixed HW and IP checksum settings.\n",
+				name);
+		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
+	}
+
+	if ((features & NETIF_F_NO_CSUM) &&
+	    (features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
+		if (name)
+			printk(KERN_NOTICE "%s: mixed no checksumming and other settings.\n",
+				name);
+		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
+	}
+
 	/* TSO requires that SG is present as well. */
 	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
 		if (name)
@@ -6171,21 +6188,6 @@ int register_netdevice(struct net_device *dev)
 	dev->ifindex = dev_new_index(net);
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
-
-	/* Fix illegal checksum combinations */
-	if ((dev->features & NETIF_F_HW_CSUM) &&
-	    (dev->features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		printk(KERN_NOTICE "%s: mixed HW and IP checksum settings.\n",
-		       dev->name);
-		dev->features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
-	}
-
-	if ((dev->features & NETIF_F_NO_CSUM) &&
-	    (dev->features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		printk(KERN_NOTICE "%s: mixed no checksumming and other settings.\n",
-		       dev->name);
-		dev->features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
-	}
 
 	dev->features = netdev_fix_features(dev->features, dev->name);
 
