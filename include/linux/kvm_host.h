@@ -202,7 +202,7 @@ struct kvm {
 	u32 bsp_vcpu_id;
 	struct kvm_vcpu *bsp_vcpu;
 #endif
-	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
+	struct kvm_vcpu *vcpus[KVM_MAX_VCPU_COUNT];
 	atomic_t online_vcpus;
 	int last_boosted_vcpu;
 	struct list_head vm_list;

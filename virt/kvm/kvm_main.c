@@ -2343,7 +2343,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		r = -EINVAL;
 		goto vcpu_destroy;
 	}
-	if (atomic_read(&kvm->online_vcpus) == KVM_MAX_VCPUS) {
+	if (atomic_read(&kvm->online_vcpus) == KVM_MAX_VCPU_COUNT) {
 		r = -EINVAL;
 		goto vcpu_destroy;
 	}

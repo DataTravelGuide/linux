@@ -27,7 +27,14 @@
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
 
-#define KVM_MAX_VCPUS 160
+/* KVM_MAX_VCPU_COUNT is RHEL6-only. Upstream uses KVM_MAX_VCPUS.
+ * The macro was renamed because upstream code has the implicit assumption that
+ * vcpu_id < KVM_MAX_VCPUS for all VCPUs, while on RHEL-6 we allow
+ * vcpu_id >= KVM_MAX_VCPUS on x86. This way we avoid inadvertently introducing
+ * security bugs while backporting upstream code.
+ */
+#define KVM_MAX_VCPU_COUNT 160
+
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
