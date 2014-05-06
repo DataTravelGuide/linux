@@ -1379,6 +1379,9 @@ netdev_extended(const struct net_device *dev)
 	return netdev_extended_frozen(dev)->dev_ext;
 }
 
+extern void set_netdev_hw_features(struct net_device *, u32);
+extern u32  get_netdev_hw_features(struct net_device *);
+
 extern void set_netdev_ops_ext(struct net_device *, const struct net_device_ops_ext *);
 extern const struct net_device_ops_ext *get_netdev_ops_ext(const struct net_device *);
 

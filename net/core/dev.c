@@ -6380,6 +6380,32 @@ out:
 EXPORT_SYMBOL(register_netdev);
 
 /**
+ * set_netdev_hw_features() - Set netdev's hw_features
+ * @netdev:       Network device
+ * @hw_features:  Bitmap of device's changeable features
+ *
+ * hw_features must not be changed after netdev initialization.
+ * Drivers that set hw_features must not have legacy ethtool ops.
+ */
+void set_netdev_hw_features(struct net_device *netdev, u32 hw_features)
+{
+	netdev_extended(netdev)->hw_features = hw_features;
+}
+EXPORT_SYMBOL(set_netdev_hw_features);
+
+/**
+ * get_netdev_hw_features() - Get netdev's hw_features
+ * @netdev:       Network device
+ *
+ * Returns net device's hw_features.
+ */
+u32 get_netdev_hw_features(struct net_device *netdev)
+{
+	return netdev_extended(netdev)->hw_features;
+}
+EXPORT_SYMBOL(get_netdev_hw_features);
+
+/**
  * set_netdev_ops_ext() - Assign netdev extended ops to netdev's netdev_ops_ext
  * @netdev:	Network device
  * @ops:	Extended ops structure
