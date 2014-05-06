@@ -6314,6 +6314,29 @@ out:
 }
 EXPORT_SYMBOL(register_netdev);
 
+/**
+ * set_netdev_ops_ext() - Assign netdev extended ops to netdev's netdev_ops_ext
+ * @netdev:	Network device
+ * @ops:	Extended ops structure
+ */
+void set_netdev_ops_ext(struct net_device *netdev, const struct net_device_ops_ext *ops)
+{
+	netdev_extended(netdev)->netdev_ops_ext = ops;
+}
+EXPORT_SYMBOL(set_netdev_ops_ext);
+
+/**
+ * get_netdev_ops_ext() - Return netdev extended ops from netdev
+ * @netdev:	Network device
+ *
+ * This function should be used through GET_NETDEV_OP_EXT() macro.
+ */
+const struct net_device_ops_ext *get_netdev_ops_ext(const struct net_device *netdev)
+{
+	return netdev_extended(netdev)->netdev_ops_ext;
+}
+EXPORT_SYMBOL(get_netdev_ops_ext);
+
 /*
  * netdev_wait_allrefs - wait until all references are gone.
  *

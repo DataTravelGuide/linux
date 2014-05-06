@@ -882,6 +882,18 @@ struct net_device_ops {
 #endif
 };
 
+/**
+ * struct net_device_ops_ext - structure for extending net_device_ops in RHEL
+ *
+ * New methods can be added at the end. Do not change existing ones.
+ *
+ * @size: This field should be initialized to the size of the structure
+ *	  by the drivers.
+ */
+struct net_device_ops_ext {
+	size_t			size;
+};
+
 typedef u64 netdev_features_t;
 
 /*
@@ -1294,6 +1306,7 @@ struct net_device_extended {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	int			(*ndo_busy_poll)(struct napi_struct *dev);
 #endif
+	const struct net_device_ops_ext		*netdev_ops_ext;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -1327,6 +1340,14 @@ netdev_extended(const struct net_device *dev)
 {
 	return netdev_extended_frozen(dev)->dev_ext;
 }
+
+extern void set_netdev_ops_ext(struct net_device *, const struct net_device_ops_ext *);
+extern const struct net_device_ops_ext *get_netdev_ops_ext(const struct net_device *);
+
+#define GET_NETDEV_OP_EXT(dev, op) \
+	({ const struct net_device_ops_ext *ops = get_netdev_ops_ext(dev); \
+	   ops && (offsetof(struct net_device_ops_ext, op) < ops->size) ? \
+	   ops->op : NULL; })
 
 extern void set_ethtool_ops_ext(struct net_device *, const struct ethtool_ops_ext *);
 extern const struct ethtool_ops_ext *get_ethtool_ops_ext(const struct net_device *);
