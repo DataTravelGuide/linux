@@ -934,17 +934,6 @@ static int virtnet_close(struct net_device *dev)
 	return 0;
 }
 
-static int virtnet_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_device *vdev = vi->vdev;
-
-	if (data && !virtio_has_feature(vdev, VIRTIO_NET_F_CSUM))
-		return -ENOSYS;
-
-	return ethtool_op_set_tx_hw_csum(dev, data);
-}
-
 static void virtnet_set_rx_mode(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -1159,10 +1148,6 @@ static void virtnet_get_channels(struct net_device *dev,
 }
 
 static const struct ethtool_ops virtnet_ethtool_ops = {
-	.set_tx_csum = virtnet_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.set_tso = ethtool_op_set_tso,
-	.set_ufo = ethtool_op_set_ufo,
 	.get_link = ethtool_op_get_link,
 };
 
@@ -1490,22 +1475,31 @@ static int virtnet_probe(struct virtio_device *vdev)
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
-	if (csum && virtio_has_feature(vdev, VIRTIO_NET_F_CSUM)) {
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_CSUM)) {
 		/* This opens up the world of extra features. */
-		dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_GSO)) {
-			dev->features |= NETIF_F_TSO | NETIF_F_UFO
+		u32 hw_features = NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
+		if (csum)
+			dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
+
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_GSO)) {
+			hw_features |= NETIF_F_TSO | NETIF_F_UFO
 				| NETIF_F_TSO_ECN | NETIF_F_TSO6;
 		}
 		/* Individual feature bits: what can host handle? */
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO4))
-			dev->features |= NETIF_F_TSO;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO6))
-			dev->features |= NETIF_F_TSO6;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_ECN))
-			dev->features |= NETIF_F_TSO_ECN;
-		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
-			dev->features |= NETIF_F_UFO;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO4))
+			hw_features |= NETIF_F_TSO;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO6))
+			hw_features |= NETIF_F_TSO6;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_ECN))
+			hw_features |= NETIF_F_TSO_ECN;
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
+			hw_features |= NETIF_F_UFO;
+
+		set_netdev_hw_features(dev, hw_features);
+
+		if (gso)
+			dev->features |= hw_features & (NETIF_F_ALL_TSO|NETIF_F_UFO);
+		/* (!csum && gso) case will be fixed by register_netdev() */
 	}
 
 	dev->vlan_features = dev->features;
