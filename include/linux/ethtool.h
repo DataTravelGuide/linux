@@ -669,6 +669,9 @@ enum ethtool_phys_id_state {
 	ETHTOOL_ID_OFF
 };
 
+/* needed by dev_disable_lro() */
+extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
+
 struct net_device;
 
 /**

@@ -1372,6 +1372,8 @@ EXPORT_SYMBOL(dev_close);
  */
 void dev_disable_lro(struct net_device *dev)
 {
+	u32 flags;
+
 	/*
 	 * If we're trying to disable lro on a vlan device
 	 * use the underlying physical device instead
@@ -1379,14 +1381,15 @@ void dev_disable_lro(struct net_device *dev)
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
 
-	if (dev->ethtool_ops && dev->ethtool_ops->get_flags &&
-	    dev->ethtool_ops->set_flags) {
-		u32 flags = dev->ethtool_ops->get_flags(dev);
-		if (flags & ETH_FLAG_LRO) {
-			flags &= ~ETH_FLAG_LRO;
-			dev->ethtool_ops->set_flags(dev, flags);
-		}
-	}
+	if (dev->ethtool_ops && dev->ethtool_ops->get_flags)
+		flags = dev->ethtool_ops->get_flags(dev);
+	else
+		flags = ethtool_op_get_flags(dev);
+
+	if (!(flags & ETH_FLAG_LRO))
+		return;
+
+	__ethtool_set_flags(dev, flags & ~ETH_FLAG_LRO);
 	WARN_ON(dev->features & NETIF_F_LRO);
 }
 EXPORT_SYMBOL(dev_disable_lro);
