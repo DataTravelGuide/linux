@@ -6251,8 +6251,6 @@ int register_netdevice(struct net_device *dev)
 	if (!(netdev_extended(dev)->wanted_features & NETIF_F_SG))
 		netdev_extended(dev)->wanted_features &= ~NETIF_F_GSO;
 
-	netdev_update_features(dev);
-
 	/* Enable GRO for vlans by default if dev->features has GRO also.
 	 * vlan_dev_init() will do the dev->features check.
 	 */
@@ -6269,6 +6267,8 @@ int register_netdevice(struct net_device *dev)
 	if (ret)
 		goto err_uninit;
 	dev->reg_state = NETREG_REGISTERED;
+
+	netdev_update_features(dev);
 
 	/*
 	 *	Default initial state at registry is that the
