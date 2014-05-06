@@ -470,11 +470,11 @@ static void *__ethtool_get_one_feature_actor(struct net_device *dev, u32 ethcmd)
 		return ops->get_tx_csum;
 	case ETHTOOL_GRXCSUM:
 		return ops->get_rx_csum;
-	case ETHTOOL_SSG:
+	case ETHTOOL_GSG:
 		return ops->get_sg;
-	case ETHTOOL_STSO:
+	case ETHTOOL_GTSO:
 		return ops->get_tso;
-	case ETHTOOL_SUFO:
+	case ETHTOOL_GUFO:
 		return ops->get_ufo;
 	default:
 		return NULL;
