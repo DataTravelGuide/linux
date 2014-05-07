@@ -144,6 +144,11 @@ static void update_pageblock_skip(struct compact_control *cc,
 	}
 }
 
+static inline bool should_release_lock(spinlock_t *lock)
+{
+	return need_resched() || spin_is_contended(lock);
+}
+
 /*
  * Compaction requires the taking of some coarse locks that are potentially
  * very heavily contended. Check if the process needs to be scheduled or
@@ -156,7 +161,7 @@ static void update_pageblock_skip(struct compact_control *cc,
 static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 				      bool locked, struct compact_control *cc)
 {
-	if (need_resched() || spin_is_contended(lock)) {
+	if (should_release_lock(lock)) {
 		if (locked) {
 			spin_unlock_irqrestore(lock, *flags);
 			locked = false;
@@ -420,7 +425,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
 	struct list_head *migratelist = &cc->migratepages;
 	isolate_mode_t mode = ISOLATE_ACTIVE|ISOLATE_INACTIVE;
 	unsigned long flags;
-	bool locked;
+	bool locked = false;
 	struct page *page = NULL, *valid_page = NULL;
 
 	/* Do not scan outside zone boundaries */
@@ -453,16 +458,12 @@ static unsigned long isolate_migratepages(struct zone *zone,
 	locked = true;
 	for (; low_pfn < end_pfn; low_pfn++) {
 		/* give a chance to irqs before checking need_resched() */
-		if (!((low_pfn+1) % SWAP_CLUSTER_MAX)) {
-			spin_unlock_irqrestore(&zone->lru_lock, flags);
-			locked = 0;
+		if (locked && !((low_pfn+1) % SWAP_CLUSTER_MAX)) {
+			if (should_release_lock(&zone->lru_lock)) {
+				spin_unlock_irqrestore(&zone->lru_lock, flags);
+				locked = false;
+			}
 		}
-
-		/* Check if it is ok to still hold the lock */
-		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-								locked, cc);
-		if (!locked)
-			break;
 
 		/*
 		 * migrate_pfn does not necessarily start aligned to a
@@ -509,21 +510,39 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		 */
 		if (!cc->sync && last_pageblock_nr != pageblock_nr &&
 				get_pageblock_migratetype(page) != MIGRATE_MOVABLE) {
-			low_pfn += pageblock_nr_pages;
-			low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
-			last_pageblock_nr = pageblock_nr;
-			cc->finished_update_migrate = true;
-			continue;
+			goto next_pageblock;
 		}
 
+		/* Check may be lockless but that's ok as we recheck later */
 		if (!PageLRU(page))
 			continue;
 
 		/*
-		 * PageLRU is set, and lru_lock excludes isolation,
-		 * splitting and collapsing (collapsing has already
-		 * happened if PageLRU is set).
+		 * PageLRU is set. lru_lock normally excludes isolation
+		 * splitting and collapsing (collapsing has already happened
+		 * if PageLRU is set) but the lock is not necessarily taken
+		 * here and it is wasteful to take it just to check transhuge.
+		 * Check TransHuge without lock and skip the whole pageblock if
+		 * it's either a transhuge or hugetlbfs page, as calling
+		 * compound_order() without preventing THP from splitting the
+		 * page underneath us may return surprising results.
 		 */
+		if (PageTransHuge(page)) {
+			if (!locked)
+				goto next_pageblock;
+			low_pfn += (1 << compound_order(page)) - 1;
+			continue;
+		}
+
+		/* Check if it is ok to still hold the lock */
+		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
+								locked, cc);
+		if (!locked || fatal_signal_pending(current))
+			break;
+
+		/* Recheck PageLRU and PageTransHuge under lock */
+		if (!PageLRU(page))
+			continue;
 		if (PageTransHuge(page)) {
 			low_pfn += (1 << compound_order(page)) - 1;
 			continue;
