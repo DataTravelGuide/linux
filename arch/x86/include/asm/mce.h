@@ -170,6 +170,7 @@ DECLARE_PER_CPU(struct sys_device, mce_dev);
 #ifdef CONFIG_X86_MCE_INTEL
 extern int mce_cmci_disabled;
 extern int mce_ignore_ce;
+extern int mce_bios_cmci_threshold;
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
