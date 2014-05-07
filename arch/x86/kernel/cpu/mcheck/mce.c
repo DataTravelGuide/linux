@@ -2168,11 +2168,6 @@ static struct sysdev_ext_attribute attr_cmci_disabled = {
 	&mce_cmci_disabled
 };
 
-static struct sysdev_ext_attribute attr_bios_cmci_threshold = {
-	_SYSDEV_ATTR(bios_cmci_threshold, 0644, sysdev_show_int, NULL),
-	&mce_bios_cmci_threshold
-};
-
 static struct sysdev_attribute *mce_attrs[] = {
 	&attr_tolerant.attr,
 	&attr_check_interval.attr,
@@ -2181,7 +2176,6 @@ static struct sysdev_attribute *mce_attrs[] = {
 	&attr_dont_log_ce.attr,
 	&attr_ignore_ce.attr,
 	&attr_cmci_disabled.attr,
-	&attr_bios_cmci_threshold.attr,
 	NULL
 };
 
