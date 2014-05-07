@@ -189,71 +189,6 @@ static inline bool compact_trylock_irqsave(spinlock_t *lock,
 	return compact_checklock_irqsave(lock, flags, false, cc);
 }
 
-/* Isolate free pages onto a private freelist. Must hold zone->lock */
-static unsigned long isolate_freepages_block(struct compact_control *cc,
-				struct zone *zone,
-				unsigned long blockpfn,
-				struct list_head *freelist)
-{
-	unsigned long zone_end_pfn, end_pfn;
-	int total_isolated = 0;
-	struct page *cursor, *valid_page = NULL;
-
-	/* Get the last PFN we should scan for free pages at */
-	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-
-	/*
-	 * As pfn may not start aligned, pfn+pageblock_nr_page
-	 * may cross a MAX_ORDER_NR_PAGES boundary and miss
-	 * a pfn_valid check. Ensure isolate_freepages_block()
-	 * only scans within a pageblock
-	 */
-	end_pfn = ALIGN(blockpfn + 1, pageblock_nr_pages);
-	end_pfn = min(end_pfn, zone_end_pfn);
-
-	/* Find the first usable PFN in the block to initialse page cursor */
-	for (; blockpfn < end_pfn; blockpfn++) {
-		if (pfn_valid_within(blockpfn))
-			break;
-	}
-	cursor = pfn_to_page(blockpfn);
-
-	/* Isolate free pages. This assumes the block is valid */
-	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
-		int isolated, i;
-		struct page *page = cursor;
-
-		if (!pfn_valid_within(blockpfn))
-			continue;
-
-		if (!valid_page)
-			valid_page = page;
-
-		if (!PageBuddy(page))
-			continue;
-
-		/* Found a free page, break it into order-0 pages */
-		isolated = split_free_page(page);
-		total_isolated += isolated;
-		for (i = 0; i < isolated; i++) {
-			list_add(&page->lru, freelist);
-			page++;
-		}
-
-		/* If a page was split, advance to the end of it */
-		if (isolated) {
-			blockpfn += isolated - 1;
-			cursor += isolated - 1;
-		}
-	}
-
-	/* Update the pageblock-skip if the whole pageblock was scanned */
-	if (blockpfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, total_isolated, false);
-
-	return total_isolated;
-}
-
 /* Returns true if the page is within a block suitable for migration to */
 static bool suitable_migration_target(struct page *page)
 {
@@ -276,6 +211,97 @@ static bool suitable_migration_target(struct page *page)
 	return false;
 }
 
+/* Isolate free pages onto a private freelist. Must hold zone->lock */
+static unsigned long isolate_freepages_block(struct compact_control *cc,
+				struct zone *zone,
+				unsigned long blockpfn,
+				struct list_head *freelist)
+{
+	unsigned long zone_end_pfn, end_pfn;
+	int total_isolated = 0;
+	struct page *cursor, *valid_page = NULL;
+	unsigned long flags;
+	bool locked = false;
+
+	/* Get the last PFN we should scan for free pages at */
+	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+
+	/*
+	 * As pfn may not start aligned, pfn+pageblock_nr_page
+	 * may cross a MAX_ORDER_NR_PAGES boundary and miss
+	 * a pfn_valid check. Ensure isolate_freepages_block()
+	 * only scans within a pageblock
+	 */
+	end_pfn = ALIGN(blockpfn + 1, pageblock_nr_pages);
+	end_pfn = min(end_pfn, zone_end_pfn);
+
+	/* Find the first usable PFN in the block to initialse page cursor */
+	for (; blockpfn < end_pfn; blockpfn++) {
+		if (pfn_valid_within(blockpfn))
+			break;
+	}
+	cursor = pfn_to_page(blockpfn);
+
+	/* Isolate free pages. */
+	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
+		int isolated, i;
+		struct page *page = cursor;
+
+		if (!pfn_valid_within(blockpfn))
+			continue;
+
+		if (!valid_page)
+			valid_page = page;
+
+		if (!PageBuddy(page))
+			continue;
+
+		/*
+		 * The zone lock must be held to isolate freepages. This
+		 * unfortunately this is a very coarse lock and can be
+		 * heavily contended if there are parallel allocations
+		 * or parallel compactions. For async compaction do not
+		 * spin on the lock and we acquire the lock as late as
+		 * possible.
+		 */
+		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
+								locked, cc);
+		if (!locked)
+			break;
+
+		/* Recheck this is a suitable migration target under lock */
+		if (!suitable_migration_target(page))
+			break;
+
+		/* Recheck this is a buddy page under lock */
+		if (!PageBuddy(page))
+			continue;
+
+		/* Found a free page, break it into order-0 pages */
+		isolated = split_free_page(page);
+		total_isolated += isolated;
+		for (i = 0; i < isolated; i++) {
+			list_add(&page->lru, freelist);
+			page++;
+		}
+
+		/* If a page was split, advance to the end of it */
+		if (isolated) {
+			blockpfn += isolated - 1;
+			cursor += isolated - 1;
+		}
+	}
+
+	if (locked)
+		spin_unlock_irqrestore(&cc->zone->lock, flags);
+
+	/* Update the pageblock-skip if the whole pageblock was scanned */
+	if (blockpfn == end_pfn)
+		update_pageblock_skip(cc, valid_page, total_isolated, false);
+
+	return total_isolated;
+}
+
 /*
  * Based on information in the current compact_control, find blocks
  * suitable for isolating free pages from and then isolate them.
@@ -285,7 +311,6 @@ static void isolate_freepages(struct zone *zone,
 {
 	struct page *page;
 	unsigned long high_pfn, low_pfn, pfn;
-	unsigned long flags;
 	int nr_freepages = cc->nr_freepages;
 	struct list_head *freelist = &cc->freepages;
 
@@ -331,28 +356,11 @@ static void isolate_freepages(struct zone *zone,
 		if (!suitable_migration_target(page))
 			continue;
 
-		/*
-		 * Found a block suitable for isolating free pages from. Now
-		 * we disabled interrupts, double check things are ok and
-		 * isolate the pages. This is to minimise the time IRQs
-		 * are disabled
-		 */
+		/* Found a block suitable for isolating free pages from */
 		isolated = 0;
 
-		/*
-		 * The zone lock must be held to isolate freepages. This
-		 * unfortunately this is a very coarse lock and can be
-		 * heavily contended if there are parallel allocations
-		 * or parallel compactions. For async compaction do not
-		 * spin on the lock
-		 */
-		if (!compact_trylock_irqsave(&zone->lock, &flags, cc))
-			break;
-		if (suitable_migration_target(page)) {
-			isolated = isolate_freepages_block(cc, zone, pfn, freelist);
-			nr_freepages += isolated;
-		}
-		spin_unlock_irqrestore(&zone->lock, flags);
+		isolated = isolate_freepages_block(cc, zone, pfn, freelist);
+		nr_freepages += isolated;
 
 		/*
 		 * Record the highest PFN we isolated pages from. When next
