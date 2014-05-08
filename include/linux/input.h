@@ -1126,8 +1126,6 @@ struct input_dev {
 	unsigned long ffbit[BITS_TO_LONGS(FF_CNT)];
 	unsigned long swbit[BITS_TO_LONGS(SW_CNT)];
 
-	unsigned int hint_events_per_packet;
-
 	unsigned int keycodemax;
 	unsigned int keycodesize;
 	void *keycode;
@@ -1180,6 +1178,7 @@ struct input_dev {
 	int slot;
 	int trkid;
 	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
+	unsigned int hint_events_per_packet;
 #endif
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
