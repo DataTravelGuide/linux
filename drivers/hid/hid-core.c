@@ -749,6 +749,10 @@ static int hid_scan_report(struct hid_device *hid)
 	    (hid->group == HID_GROUP_MULTITOUCH))
 		hid->group = HID_GROUP_MULTITOUCH_WIN_8;
 
+	/* disable auto-binding of hid-multitouch for Win 7 devices */
+	if (hid->group == HID_GROUP_MULTITOUCH)
+		hid->group = HID_GROUP_GENERIC;
+
 	vfree(parser);
 	return 0;
 }
