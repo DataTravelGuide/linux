@@ -720,6 +720,7 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
+s32 hid_snto32(__u32 value, unsigned n);
 
 /**
  * hid_map_usage - map usage input bits
