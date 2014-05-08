@@ -319,6 +319,7 @@ struct hid_item {
  * HID device groups
  */
 #define HID_GROUP_GENERIC			0x0001
+#define HID_GROUP_MULTITOUCH			0x0002
 
 /*
  * This is the global environment of the parser. This information is

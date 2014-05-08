@@ -652,6 +652,8 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
 
 static void hid_scan_usage(struct hid_device *hid, u32 usage)
 {
+	if (usage == HID_DG_CONTACTID)
+		hid->group = HID_GROUP_MULTITOUCH;
 }
 
 /*
