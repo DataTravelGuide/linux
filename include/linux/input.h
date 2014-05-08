@@ -1067,11 +1067,7 @@ struct ff_effect {
  * @sync: set to 1 when there were no new events since last EV_SYNC
  * @abs: current values for reports from absolute axes
  * @rep: current values for autorepeat parameters (delay, rate)
- * @mt: pointer to array of struct input_mt_slot holding current values
- *	of tracked contacts
- * @mtsize: number of MT slots the device uses
- * @slot: MT slot currently being transmitted
- * @trkid: stores MT tracking ID for the current contact
+ * @mt: pointer to multitouch state
  * @key: reflects current state of device's keys/buttons
  * @led: reflects current state of device's LEDs
  * @snd: reflects current state of sound effects
@@ -1177,12 +1173,9 @@ struct input_dev {
 
 #ifndef __GENKSYMS__
 	/* Currently used only by the synaptics driver */
-	struct input_mt_slot *mt;
-	int mtsize;
-	int slot;
-	int trkid;
 	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
 	unsigned int hint_events_per_packet;
+	struct input_mt *mt;
 #endif
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)

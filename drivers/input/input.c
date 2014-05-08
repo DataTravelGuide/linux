@@ -147,6 +147,7 @@ static void input_stop_autorepeat(struct input_dev *dev)
 static int input_handle_abs_event(struct input_dev *dev,
 				  unsigned int code, int *pval)
 {
+	struct input_mt *mt = dev->mt;
 	bool is_mt_event;
 	int *pold;
 
@@ -155,8 +156,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 		 * "Stage" the event; we'll flush it later, when we
 		 * get actiual touch data.
 		 */
-		if (*pval >= 0 && *pval < dev->mtsize)
-			dev->slot = *pval;
+		if (mt && *pval >= 0 && *pval < mt->num_slots)
+			mt->slot = *pval;
 
 		return INPUT_IGNORE_EVENT;
 	}
@@ -165,9 +166,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 
 	if (!is_mt_event) {
 		pold = &dev->abs[code];
-	} else if (dev->mt) {
-		struct input_mt_slot *mtslot = &dev->mt[dev->slot];
-		pold = &mtslot->abs[code - ABS_MT_FIRST];
+	} else if (mt) {
+		pold = &mt->slots[mt->slot].abs[code - ABS_MT_FIRST];
 	} else {
 		/*
 		 * Bypass filtering for multitouch events when
@@ -186,9 +186,9 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	/* Flush pending "slot" event */
-	if (is_mt_event && dev->slot != dev->abs[ABS_MT_SLOT]) {
-		dev->abs[ABS_MT_SLOT] = dev->slot;
-		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
+	if (is_mt_event && mt && mt->slot != dev->abs[ABS_MT_SLOT]) {
+		dev->abs[ABS_MT_SLOT] = mt->slot;
+		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, mt->slot);
 	}
 
 	return INPUT_PASS_TO_HANDLERS;
@@ -1534,8 +1534,8 @@ static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
 	int i;
 	unsigned int events;
 
-	if (dev->mtsize) {
-		mt_slots = dev->mtsize;
+	if (dev->mt) {
+		mt_slots = dev->mt->num_slots;
 	} else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit)) {
 		mt_slots = dev->absmax[ABS_MT_TRACKING_ID] -
 			   dev->absmin[ABS_MT_TRACKING_ID] + 1,
