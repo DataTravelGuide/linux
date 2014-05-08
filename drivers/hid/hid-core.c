@@ -1218,6 +1218,7 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 {
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_report *report;
+	struct hid_driver *hdrv;
 	unsigned int a;
 	int rsize, csize = size;
 	u8 *cdata = data;
@@ -1251,6 +1252,9 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 
 	for (a = 0; a < report->maxfield; a++)
 		hid_input_field(hid, report->field[a], cdata, interrupt);
+	hdrv = hid->driver;
+	if (hdrv && hdrv->report)
+		hdrv->report(hid, report);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
