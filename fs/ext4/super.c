@@ -715,6 +715,8 @@ static void ext4_put_super(struct super_block *sb)
 		invalidate_bdev(sbi->journal_bdev);
 		ext4_blkdev_remove(sbi);
 	}
+	if (sbi->s_mmp_tsk)
+		kthread_stop(sbi->s_mmp_tsk);
 	sb->s_fs_info = NULL;
 	/*
 	 * Now that we are completely done shutting down the
@@ -3308,6 +3310,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			  EXT4_HAS_INCOMPAT_FEATURE(sb,
 				    EXT4_FEATURE_INCOMPAT_RECOVER));
 
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_MMP) &&
+	    !(sb->s_flags & MS_RDONLY))
+		if (ext4_multi_mount_protect(sb, le64_to_cpu(es->s_mmp_block)))
+			goto failed_mount3;
+
 	/*
 	 * The first inode we look at is the journal inode.  Don't try
 	 * root first: it may be modified in the journal!
@@ -3576,6 +3583,8 @@ failed_mount3:
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	percpu_counter_destroy(&sbi->s_dirtyblocks_counter);
+	if (sbi->s_mmp_tsk)
+		kthread_stop(sbi->s_mmp_tsk);
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -4085,7 +4094,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	int enable_quota = 0;
 	ext4_group_t g;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
-	int err;
+	int err = 0;
 #ifdef CONFIG_QUOTA
 	int i;
 #endif
@@ -4213,6 +4222,13 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				goto restore_opts;
 			if (!ext4_setup_super(sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
+			if (EXT4_HAS_INCOMPAT_FEATURE(sb,
+						     EXT4_FEATURE_INCOMPAT_MMP))
+				if (ext4_multi_mount_protect(sb,
+						le64_to_cpu(es->s_mmp_block))) {
+					err = -EROFS;
+					goto restore_opts;
+				}
 			enable_quota = 1;
 		}
 	}
