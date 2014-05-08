@@ -409,7 +409,7 @@ void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	if (wacom_wac->features->device_type == BTN_TOOL_FINGER) {
 		input_dev->absbit[BIT_WORD(ABS_MISC)] &= ~BIT_MASK(ABS_MISC);
 
-		input_mt_init_slots(input_dev, 2);
+		input_mt_init_slots(input_dev, 2, 0);
 		input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 				     0, wacom_wac->features->x_max, 0, 0);
 		input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
