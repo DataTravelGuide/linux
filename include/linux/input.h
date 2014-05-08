@@ -1112,8 +1112,6 @@ struct input_dev {
 	const char *uniq;
 	struct input_id id;
 
-	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
-
 	unsigned long evbit[BITS_TO_LONGS(EV_CNT)];
 	unsigned long keybit[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long relbit[BITS_TO_LONGS(REL_CNT)];
@@ -1175,6 +1173,7 @@ struct input_dev {
 	int mtsize;
 	int slot;
 	int trkid;
+	unsigned long propbit[BITS_TO_LONGS(INPUT_PROP_CNT)];
 #endif
 };
 #define to_input_dev(d) container_of(d, struct input_dev, dev)
