@@ -1623,14 +1623,7 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 
-	if (!hid_match_device(hdev, hdrv))
-		return 0;
-
-	/* generic wants all non-blacklisted */
-	if (!strncmp(hdrv->name, "generic-", 8))
-		return !hid_match_id(hdev, hid_blacklist);
-
-	return 1;
+	return hid_match_device(hdev, hdrv) != NULL;
 }
 
 static int hid_device_probe(struct device *dev)
