@@ -18,7 +18,7 @@ static void copy_abs(struct input_dev *dev, unsigned int dst, unsigned int src)
 	if (test_bit(src, dev->absbit)) {
 		dev->absmax[dst] = dev->absmax[src];
 		dev->absmin[dst] = dev->absmin[src];
-		dev->absfuzz[dst] = dev->absfuzz[src];
+		dev->absfuzz[dst] = 0;
 		dev->absflat[dst] = dev->absflat[src];
 		dev->absres[dst] = dev->absres[src];
 		dev->absbit[BIT_WORD(dst)] |= BIT_MASK(dst);
