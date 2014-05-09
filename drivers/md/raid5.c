@@ -866,7 +866,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 				bi->bi_sector = (sh->sector
 						 + rdev->data_offset);
 			if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
-				bi->bi_rw |= BIO_FLUSH;
+				bi->bi_rw |= BIO_NOMERGE;
 
 			bi->bi_flags = 1 << BIO_UPTODATE;
 			bi->bi_idx = 0;
