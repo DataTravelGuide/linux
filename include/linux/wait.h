@@ -182,6 +182,50 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 #define wake_up_interruptible_sync_poll(x, m)				\
 	__wake_up_sync_key((x), TASK_INTERRUPTIBLE, 1, (void *) (m))
 
+#define ___wait_cond_timeout(condition, ret)				\
+({									\
+ 	bool __cond = (condition);					\
+ 	if (__cond && !ret)						\
+ 		ret = 1;						\
+ 	__cond || !ret;							\
+})
+
+#define ___wait_signal_pending(state)					\
+	((state == TASK_INTERRUPTIBLE && signal_pending(current)) ||	\
+	 (state == TASK_KILLABLE && fatal_signal_pending(current)))
+
+#define ___wait_nop_ret		int ret __always_unused
+
+#define ___wait_event(wq, condition, state, exclusive, ret, cmd)	\
+do {									\
+	__label__ __out;						\
+	DEFINE_WAIT(__wait);						\
+									\
+	for (;;) {							\
+		if (exclusive)						\
+			prepare_to_wait_exclusive(&wq, &__wait, state); \
+		else							\
+			prepare_to_wait(&wq, &__wait, state);		\
+									\
+		if (condition)						\
+			break;						\
+									\
+		if (___wait_signal_pending(state)) {			\
+			ret = -ERESTARTSYS;				\
+			if (exclusive) {				\
+				abort_exclusive_wait(&wq, &__wait, 	\
+						     state, NULL); 	\
+				goto __out;				\
+			}						\
+			break;						\
+		}							\
+									\
+		cmd;							\
+	}								\
+	finish_wait(&wq, &__wait);					\
+__out:	;								\
+} while (0)
+
 #define __wait_event(wq, condition) 					\
 do {									\
 	DEFINE_WAIT(__wait);						\
