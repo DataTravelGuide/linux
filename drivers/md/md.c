@@ -112,7 +112,7 @@ static inline int speed_max(struct mddev *mddev)
 
 static struct ctl_table_header *raid_table_header;
 
-static ctl_table raid_table[] = {
+static struct ctl_table raid_table[] = {
 	{
 		.ctl_name	= DEV_RAID_SPEED_LIMIT_MIN,
 		.procname	= "speed_limit_min",
@@ -132,7 +132,7 @@ static ctl_table raid_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table raid_dir_table[] = {
+static struct ctl_table raid_dir_table[] = {
 	{
 		.ctl_name	= DEV_RAID,
 		.procname	= "raid",
@@ -143,7 +143,7 @@ static ctl_table raid_dir_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table raid_root_table[] = {
+static struct ctl_table raid_root_table[] = {
 	{
 		.ctl_name	= CTL_DEV,
 		.procname	= "dev",
