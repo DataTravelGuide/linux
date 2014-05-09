@@ -1066,7 +1066,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	spin_lock_irq(&conf->resync_lock);
 
 	/* Wait until no block IO is waiting (unless 'force') */
-	wait_event_lock_irq(conf->wait_barrier, force || !conf->nr_waiting,
+	wait_event_lock_irq_cmd(conf->wait_barrier, force || !conf->nr_waiting,
 			    conf->resync_lock,
 			    md_raid10_unplug_device(conf));
 
@@ -1074,7 +1074,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	conf->barrier++;
 
 	/* No wait for all pending IO to complete */
-	wait_event_lock_irq(conf->wait_barrier,
+	wait_event_lock_irq_cmd(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock,
 			    md_raid10_unplug_device(conf));
@@ -1105,14 +1105,13 @@ static void wait_barrier(struct r10conf *conf)
 		 * that queue to get the nr_pending
 		 * count down.
 		 */
-		wait_event_lock_irq(conf->wait_barrier,
+		wait_event_lock_irq_cmd(conf->wait_barrier,
 				    !conf->barrier ||
 				    (conf->nr_pending &&
 				     current->bio_list &&
 				     current->bio_tail),
 				    conf->resync_lock,
-				    md_raid10_unplug_device(conf)
-			);
+				    md_raid10_unplug_device(conf));
 		conf->nr_waiting--;
 	}
 	conf->nr_pending++;
@@ -1145,11 +1144,12 @@ static void freeze_array(struct r10conf *conf, int extra)
 	spin_lock_irq(&conf->resync_lock);
 	conf->barrier++;
 	conf->nr_waiting++;
-	wait_event_lock_irq(conf->wait_barrier,
+	wait_event_lock_irq_cmd(conf->wait_barrier,
 				conf->nr_pending == conf->nr_queued+extra,
 				conf->resync_lock,
-			    ({ flush_pending_writes(conf);
-			       md_raid10_unplug_device(conf); }));
+			     ({ flush_pending_writes(conf);
+				md_raid10_unplug_device(conf); }));
+
 	spin_unlock_irq(&conf->resync_lock);
 }
 

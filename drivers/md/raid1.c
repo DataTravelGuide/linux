@@ -894,7 +894,7 @@ static void raise_barrier(struct r1conf *conf)
 	spin_lock_irq(&conf->resync_lock);
 
 	/* Wait until no block IO is waiting */
-	wait_event_lock_irq(conf->wait_barrier, !conf->nr_waiting,
+	wait_event_lock_irq_cmd(conf->wait_barrier, !conf->nr_waiting,
 			    conf->resync_lock,
 			    md_raid1_unplug_device(conf));
 
@@ -902,7 +902,7 @@ static void raise_barrier(struct r1conf *conf)
 	conf->barrier++;
 
 	/* Now wait for all pending IO to complete */
-	wait_event_lock_irq(conf->wait_barrier,
+	wait_event_lock_irq_cmd(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock,
 			    md_raid1_unplug_device(conf));
@@ -934,7 +934,7 @@ static void wait_barrier(struct r1conf *conf)
 		 * that queue to get the nr_pending
 		 * count down.
 		 */
-		wait_event_lock_irq(conf->wait_barrier,
+		wait_event_lock_irq_cmd(conf->wait_barrier,
 				    !conf->barrier ||
 				    (conf->nr_pending &&
 				     current->bio_list &&
@@ -974,7 +974,7 @@ static void freeze_array(struct r1conf *conf, int extra)
 	spin_lock_irq(&conf->resync_lock);
 	conf->barrier++;
 	conf->nr_waiting++;
-	wait_event_lock_irq(conf->wait_barrier,
+	wait_event_lock_irq_cmd(conf->wait_barrier,
 				conf->nr_pending == conf->nr_queued+extra,
 				conf->resync_lock,
 			    ({ flush_pending_writes(conf);
