@@ -199,6 +199,7 @@ enum reconstruct_states {
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
+	struct llist_node	release_list;
 	struct r5conf		*raid_conf;
 	short			generation;	/* increments with every
 						 * reshape */
@@ -322,6 +323,7 @@ enum {
 	STRIPE_COMPUTE_RUN,
 	STRIPE_OPS_REQ_PENDING,
 	STRIPE_DISCARD,
+	STRIPE_ON_RELEASE_LIST,
 };
 
 /*
@@ -449,6 +451,7 @@ struct r5conf {
 	 */
 	atomic_t		active_stripes;
 	struct list_head	inactive_list;
+	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	int			inactive_blocked;	/* release of inactive stripes blocked,

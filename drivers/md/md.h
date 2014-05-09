@@ -18,6 +18,7 @@
 #include <linux/blkdev.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
