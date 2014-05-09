@@ -27,6 +27,13 @@ struct dentry *mce_get_debugfs_dir(void);
 extern int mce_ser;
 
 extern struct mce_bank *mce_banks;
+extern mce_banks_t mce_banks_ce_disabled;
+
+#ifdef CONFIG_X86_MCE_INTEL
+void cmci_disable_bank(int bank);
+#else
+static inline void cmci_disable_bank(int bank) { }
+#endif
 
 #ifdef CONFIG_ACPI_APEI
 int apei_write_mce(struct mce *m);
