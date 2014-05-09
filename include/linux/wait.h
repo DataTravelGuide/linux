@@ -197,8 +197,9 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 #define ___wait_nop_ret		int ret __always_unused
 
 #define ___wait_event(wq, condition, state, exclusive, ret, cmd)	\
-do {									\
+({									\
 	__label__ __out;						\
+	long __ret = ret;						\
 	DEFINE_WAIT(__wait);						\
 									\
 	for (;;) {							\
@@ -211,7 +212,7 @@ do {									\
 			break;						\
 									\
 		if (___wait_signal_pending(state)) {			\
-			ret = -ERESTARTSYS;				\
+			__ret = -ERESTARTSYS;				\
 			if (exclusive) {				\
 				abort_exclusive_wait(&wq, &__wait, 	\
 						     state, NULL); 	\
@@ -223,8 +224,8 @@ do {									\
 		cmd;							\
 	}								\
 	finish_wait(&wq, &__wait);					\
-__out:	;								\
-} while (0)
+__out: __ret;								\
+})
 
 #define __wait_event(wq, condition) 					\
 do {									\
