@@ -2579,6 +2579,7 @@ unsigned long netdev_increment_features(unsigned long all, unsigned long one,
 					unsigned long mask);
 unsigned long netdev_fix_features(unsigned long features, const char *name);
 u32 netdev_fix_features_dev(struct net_device *dev, u32 features);
+int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,

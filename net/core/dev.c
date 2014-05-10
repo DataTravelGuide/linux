@@ -6118,7 +6118,7 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 	return 0;
 }
 
-void netdev_update_features(struct net_device *dev)
+int __netdev_update_features(struct net_device *dev)
 {
 	u32 features;
 	int err = 0;
@@ -6132,7 +6132,7 @@ void netdev_update_features(struct net_device *dev)
 	features = netdev_fix_features_dev(dev, features);
 
 	if (dev->features == features)
-		return;
+		return 0;
 
 	netdev_info(dev, "Features changed: 0x%08x -> 0x%08x\n",
 		(u32)dev->features, features);
@@ -6140,12 +6140,23 @@ void netdev_update_features(struct net_device *dev)
 	if (GET_NETDEV_OP_EXT(dev, ndo_set_features))
 		err = GET_NETDEV_OP_EXT(dev, ndo_set_features)(dev, features);
 
-	if (!err)
-		dev->features = features;
-	else if (err < 0)
+	if (unlikely(err < 0)) {
 		netdev_err(dev,
 			"set_features() failed (%d); wanted 0x%08x, left 0x%08x\n",
 			err, features, (u32)dev->features);
+		return -1;
+	}
+
+	if (!err)
+		dev->features = features;
+
+	return 1;
+}
+
+void netdev_update_features(struct net_device *dev)
+{
+	if (__netdev_update_features(dev))
+		netdev_features_change(dev);
 }
 EXPORT_SYMBOL(netdev_update_features);
 
@@ -6273,7 +6284,7 @@ int register_netdevice(struct net_device *dev)
 		goto err_uninit;
 	dev->reg_state = NETREG_REGISTERED;
 
-	netdev_update_features(dev);
+	__netdev_update_features(dev);
 
 	/*
 	 *	Default initial state at registry is that the

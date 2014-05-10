@@ -306,7 +306,7 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 
 	netdev_extended(dev)->wanted_features &= ~features[0].valid;
 	netdev_extended(dev)->wanted_features |= features[0].valid & features[0].requested;
-	netdev_update_features(dev);
+	__netdev_update_features(dev);
 
 	if ((netdev_extended(dev)->wanted_features ^ dev->features) & features[0].valid)
 		ret |= ETHTOOL_F_WISH;
@@ -503,7 +503,7 @@ static int ethtool_set_one_feature(struct net_device *dev,
 		else
 			netdev_extended(dev)->wanted_features &= ~mask;
 
-		netdev_update_features(dev);
+		__netdev_update_features(dev);
 		return 0;
 	}
 
@@ -555,7 +555,7 @@ int __ethtool_set_flags(struct net_device *dev, u32 data)
 	netdev_extended(dev)->wanted_features =
 		(netdev_extended(dev)->wanted_features & ~changed) | data;
 
-	netdev_update_features(dev);
+	__netdev_update_features(dev);
 
 	return 0;
 }
