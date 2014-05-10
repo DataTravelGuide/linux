@@ -6271,6 +6271,26 @@ int register_netdevice(struct net_device *dev)
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
 
+	/* Drivers using modern ndo features should not mix them
+	 * with legacy ethtool ops.
+	 */
+	WARN_ON((netdev_extended(dev)->hw_features ||
+	         GET_NETDEV_OP_EXT(dev, ndo_fix_features) ||
+	         GET_NETDEV_OP_EXT(dev, ndo_set_features)) &&
+	        dev->ethtool_ops &&
+	        (dev->ethtool_ops->get_rx_csum ||
+	         dev->ethtool_ops->set_rx_csum ||
+	         dev->ethtool_ops->get_tx_csum ||
+	         dev->ethtool_ops->set_tx_csum ||
+	         dev->ethtool_ops->get_sg      ||
+	         dev->ethtool_ops->set_sg      ||
+	         dev->ethtool_ops->get_tso     ||
+	         dev->ethtool_ops->set_tso     ||
+	         dev->ethtool_ops->get_ufo     ||
+	         dev->ethtool_ops->set_ufo     ||
+	         dev->ethtool_ops->get_flags   ||
+	         dev->ethtool_ops->set_flags));
+
 	/* Transfer changeable features to wanted_features and enable
 	 * software offloads (GSO and GRO).
 	 */
