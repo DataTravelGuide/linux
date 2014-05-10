@@ -1006,6 +1006,9 @@ struct net_device
 	 */
 #define NETIF_F_ALL_FOR_ALL	(NETIF_F_FSO)
 
+	/* changeable features with no special hardware requirements */
+#define NETIF_F_SOFT_FEATURES	(NETIF_F_GSO | NETIF_F_GRO)
+
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
 	int			iflink;

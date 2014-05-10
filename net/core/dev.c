@@ -6056,6 +6056,12 @@ static u32 __netdev_fix_features(struct net_device *dev, const char *name,
 		features &= ~NETIF_F_TSO6;
 	}
 
+	/* Software GSO depends on SG. */
+	if ((features & NETIF_F_GSO) && !(features & NETIF_F_SG)) {
+		netdev_feat_info(dev, name, "Dropping NETIF_F_GSO since no SG feature.\n");
+		features &= ~NETIF_F_GSO;
+	}
+
 	/* UFO needs SG and checksumming */
 	if (features & NETIF_F_UFO) {
 		/* maybe split UFO into V4 and V6? */
@@ -6202,11 +6208,15 @@ int register_netdevice(struct net_device *dev)
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
 
-	dev->features = netdev_fix_features_dev(dev, dev->features);
+	/* Enable software offloads by default - will be stripped in
+	 * netdev_fix_features() if not supported. */
+	dev->features |= NETIF_F_SOFT_FEATURES;
 
-	/* Enable software GSO if SG is supported. */
-	if (dev->features & NETIF_F_SG)
-		dev->features |= NETIF_F_GSO;
+	/* Avoid warning from netdev_fix_features() for GSO without SG */
+	if (!(dev->features & NETIF_F_SG))
+		dev->features &= ~NETIF_F_GSO;
+
+	dev->features = netdev_fix_features_dev(dev, dev->features);
 
 	/* Enable GRO for vlans by default if dev->features has GRO also.
 	 * vlan_dev_init() will do the dev->features check.
