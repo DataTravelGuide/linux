@@ -194,6 +194,17 @@ static void ethtool_get_features_compat(struct net_device *dev,
 		features[0].available |= NETIF_F_RXCSUM;
 	if (dev->ethtool_ops->set_flags)
 		features[0].available |= flags_dup_features;
+
+	/* wanted_features are not entirely meaningful for drivers using legacy
+	 * ethtool ops. The only working bits are the NETIF_F_SOFT_FEATURES.
+	 * Let's fake the other bits so that in "ethtool -k" it appears that
+	 * whatever features are currently set are wanted.
+	 */
+	if (netdev_extended(dev)->hw_features == NETIF_F_SOFT_FEATURES &&
+	    !GET_NETDEV_OP_EXT(dev, ndo_fix_features) &&
+	    !GET_NETDEV_OP_EXT(dev, ndo_set_features))
+		features[0].requested |=
+			features[0].active & ~NETIF_F_SOFT_FEATURES;
 }
 
 static int ethtool_set_feature_compat(struct net_device *dev,
