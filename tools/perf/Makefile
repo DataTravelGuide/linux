@@ -55,26 +55,20 @@ include config/utilities.mak
 $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
 
-uname_M := $(shell uname -m 2>/dev/null || echo not)
+# include config/Makefile by default and rule out
+# non-config cases
+config := 1
 
-ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
-				  -e s/arm.*/arm/ -e s/sa110/arm/ \
-				  -e s/s390x/s390/ -e s/parisc64/parisc/ \
-				  -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
-				  -e s/sh[234].*/sh/ )
-NO_PERF_REGS := 1
+NON_CONFIG_TARGETS := clean TAGS tags cscope help
 
-# Additional ARCH settings for x86
-ifeq ($(ARCH),i386)
-	override ARCH := x86
-	NO_PERF_REGS := 0
-	LIBUNWIND_LIBS = -lunwind -lunwind-x86
+ifdef MAKECMDGOALS
+ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
+  config := 0
 endif
-ifeq ($(ARCH),x86_64)
-	override ARCH := x86
-	ARCH_CFLAGS := -DARCH_X86_64
-	NO_PERF_REGS := 0
-	LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
+endif
+
+ifeq ($(config),1)
+include config/Makefile
 endif
 
 # Treat warnings as errors unless directed not to
@@ -199,7 +193,7 @@ ifneq ($(OUTPUT),)
 #$(info Determined 'OUTPUT' to be $(OUTPUT))
 endif
 
-BASIC_CFLAGS = \
+BASIC_CFLAGS += \
 	-Iutil/include \
 	-Iarch/$(ARCH)/include \
 	$(if $(objtree),-I$(objtree)/arch/$(ARCH)/include/generated/uapi) \
@@ -837,7 +831,6 @@ ifeq ($(NO_PERF_REGS),0)
 	ifeq ($(ARCH),x86)
 		LIB_H += arch/x86/include/perf_regs.h
 	endif
-	BASIC_CFLAGS += -DHAVE_PERF_REGS
 endif
 
 ifndef NO_STRLCPY
