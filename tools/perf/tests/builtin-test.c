@@ -67,7 +67,7 @@ static struct test {
 	},
 #endif
 	{
-		.desc = "Test matching and linking mutliple hists",
+		.desc = "Test matching and linking multiple hists",
 		.func = test__hists_link,
 	},
 	{
