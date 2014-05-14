@@ -6014,13 +6014,22 @@ static void netdev_init_queue_locks(struct net_device *dev)
 	__netdev_init_queue_locks_one(dev, &dev->rx_queue, NULL);
 }
 
-static void netdev_feat_info(struct net_device *dev, const char *name,
+static void netdev_feat_warn(struct net_device *dev, const char *name,
 			     const char *msg)
 {
 	if (dev)
-		netdev_info(dev, "%s", msg);
+		netdev_warn(dev, "%s", msg);
 	else if (name)
-		printk(KERN_INFO "%s: %s", name, msg);
+		printk(KERN_WARNING "%s: %s", name, msg);
+}
+
+static void netdev_feat_dbg(struct net_device *dev, const char *name,
+			    const char *msg)
+{
+	if (dev)
+		netdev_dbg(dev, "%s", msg);
+	else if (name)
+		printk(KERN_DEBUG "%s: %s", name, msg);
 }
 
 static u32 __netdev_fix_features(struct net_device *dev, const char *name,
@@ -6029,26 +6038,30 @@ static u32 __netdev_fix_features(struct net_device *dev, const char *name,
 	/* Fix illegal checksum combinations */
 	if ((features & NETIF_F_HW_CSUM) &&
 	    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		netdev_feat_info(dev, name, "mixed HW and IP checksum settings.\n");
+		netdev_feat_warn(dev, name,
+				 "mixed HW and IP checksum settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
 	}
 
 	if ((features & NETIF_F_NO_CSUM) &&
 	    (features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		netdev_feat_info(dev, name, "mixed no checksumming and other settings.\n");
+		netdev_feat_warn(dev, name,
+				 "mixed no checksumming and other settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
 	}
 
 	/* TSO requires that SG is present as well. */
 	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
-		netdev_feat_info(dev, name, "Dropping TSO features since no SG feature.\n");
+		netdev_feat_dbg(dev, name,
+				"Dropping TSO features since no SG feature.\n");
 		features &= ~NETIF_F_ALL_TSO;
 	}
 
 	if ((features & NETIF_F_TSO) && !(features & NETIF_F_HW_CSUM) &&
 					!(features & NETIF_F_NO_CSUM) &&
 					!(features & NETIF_F_IP_CSUM)) {
-		netdev_feat_info(dev, name, "Dropping TSO features since no CSUM feature.\n");
+		netdev_feat_dbg(dev, name,
+				"Dropping TSO features since no CSUM feature.\n");
 		features &= ~NETIF_F_TSO;
 		features &= ~NETIF_F_TSO_ECN;
 	}
@@ -6056,13 +6069,15 @@ static u32 __netdev_fix_features(struct net_device *dev, const char *name,
 	if ((features & NETIF_F_TSO6) && !(features & NETIF_F_HW_CSUM) &&
 					 !(features & NETIF_F_NO_CSUM) &&
 					 !(features & NETIF_F_IPV6_CSUM)) {
-		netdev_feat_info(dev, name, "Dropping TSO6 features since no CSUM feature.\n");
+		netdev_feat_dbg(dev, name,
+				"Dropping TSO6 features since no CSUM feature.\n");
 		features &= ~NETIF_F_TSO6;
 	}
 
 	/* Software GSO depends on SG. */
 	if ((features & NETIF_F_GSO) && !(features & NETIF_F_SG)) {
-		netdev_feat_info(dev, name, "Dropping NETIF_F_GSO since no SG feature.\n");
+		netdev_feat_dbg(dev, name,
+				"Dropping NETIF_F_GSO since no SG feature.\n");
 		features &= ~NETIF_F_GSO;
 	}
 
@@ -6072,14 +6087,14 @@ static u32 __netdev_fix_features(struct net_device *dev, const char *name,
 		if (!((features & NETIF_F_GEN_CSUM) ||
 		    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
 			    == (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-			netdev_feat_info(dev, name,
-				"Dropping NETIF_F_UFO since no checksum offload features.\n");
+			netdev_feat_dbg(dev, name,
+					"Dropping NETIF_F_UFO since no checksum offload features.\n");
 			features &= ~NETIF_F_UFO;
 		}
 
 		if (!(features & NETIF_F_SG)) {
-			netdev_feat_info(dev, name,
-				"Dropping NETIF_F_UFO since no NETIF_F_SG feature.\n");
+			netdev_feat_dbg(dev, name,
+					"Dropping NETIF_F_UFO since no NETIF_F_SG feature.\n");
 			features &= ~NETIF_F_UFO;
 		}
 	}
@@ -6263,12 +6278,6 @@ int register_netdevice(struct net_device *dev)
 	dev->features |= NETIF_F_SOFT_FEATURES;
 	netdev_extended(dev)->wanted_features =
 		dev->features & netdev_extended(dev)->hw_features;
-
-	/* Avoid warning from netdev_fix_features() for GSO without SG */
-	if (!(netdev_extended(dev)->wanted_features & NETIF_F_SG)) {
-		netdev_extended(dev)->wanted_features &= ~NETIF_F_GSO;
-		dev->features &= ~NETIF_F_GSO;
-	}
 
 	/* Enable GRO for vlans by default if dev->features has GRO also.
 	 * vlan_dev_init() will do the dev->features check.
