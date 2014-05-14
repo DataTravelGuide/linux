@@ -6010,38 +6010,41 @@ static void netdev_init_queue_locks(struct net_device *dev)
 	__netdev_init_queue_locks_one(dev, &dev->rx_queue, NULL);
 }
 
-unsigned long netdev_fix_features(unsigned long features, const char *name)
+static void netdev_feat_info(struct net_device *dev, const char *name,
+			     const char *msg)
+{
+	if (dev)
+		netdev_info(dev, "%s", msg);
+	else if (name)
+		printk(KERN_INFO "%s: %s", name, msg);
+}
+
+static u32 __netdev_fix_features(struct net_device *dev, const char *name,
+				 u32 features)
 {
 	/* Fix illegal checksum combinations */
 	if ((features & NETIF_F_HW_CSUM) &&
 	    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		if (name)
-			printk(KERN_NOTICE "%s: mixed HW and IP checksum settings.\n",
-				name);
+		netdev_feat_info(dev, name, "mixed HW and IP checksum settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM);
 	}
 
 	if ((features & NETIF_F_NO_CSUM) &&
 	    (features & (NETIF_F_HW_CSUM|NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-		if (name)
-			printk(KERN_NOTICE "%s: mixed no checksumming and other settings.\n",
-				name);
+		netdev_feat_info(dev, name, "mixed no checksumming and other settings.\n");
 		features &= ~(NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM|NETIF_F_HW_CSUM);
 	}
 
 	/* TSO requires that SG is present as well. */
 	if ((features & NETIF_F_ALL_TSO) && !(features & NETIF_F_SG)) {
-		if (name)
-			printk(KERN_NOTICE "%s: Dropping TSO features since no "
-			       "SG feature.\n", name);
+		netdev_feat_info(dev, name, "Dropping TSO features since no SG feature.\n");
 		features &= ~NETIF_F_ALL_TSO;
 	}
 
 	if ((features & NETIF_F_TSO) && !(features & NETIF_F_HW_CSUM) &&
 					!(features & NETIF_F_NO_CSUM) &&
 					!(features & NETIF_F_IP_CSUM)) {
-		printk(KERN_NOTICE "%s: Dropping TSO features since no CSUM "
-		       "feature.\n", name);
+		netdev_feat_info(dev, name, "Dropping TSO features since no CSUM feature.\n");
 		features &= ~NETIF_F_TSO;
 		features &= ~NETIF_F_TSO_ECN;
 	}
@@ -6049,33 +6052,43 @@ unsigned long netdev_fix_features(unsigned long features, const char *name)
 	if ((features & NETIF_F_TSO6) && !(features & NETIF_F_HW_CSUM) &&
 					 !(features & NETIF_F_NO_CSUM) &&
 					 !(features & NETIF_F_IPV6_CSUM)) {
-		printk("%s: Dropping TSO6 features since no CSUM feature.\n", name);
+		netdev_feat_info(dev, name, "Dropping TSO6 features since no CSUM feature.\n");
 		features &= ~NETIF_F_TSO6;
 	}
 
+	/* UFO needs SG and checksumming */
 	if (features & NETIF_F_UFO) {
 		/* maybe split UFO into V4 and V6? */
 		if (!((features & NETIF_F_GEN_CSUM) ||
 		    (features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
 			    == (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))) {
-			if (name)
-				printk(KERN_ERR "%s: Dropping NETIF_F_UFO "
-				       "since no checksum offload features.\n",
-				       name);
+			netdev_feat_info(dev, name,
+				"Dropping NETIF_F_UFO since no checksum offload features.\n");
 			features &= ~NETIF_F_UFO;
 		}
 
 		if (!(features & NETIF_F_SG)) {
-			if (name)
-				printk(KERN_ERR "%s: Dropping NETIF_F_UFO "
-				       "since no NETIF_F_SG feature.\n", name);
+			netdev_feat_info(dev, name,
+				"Dropping NETIF_F_UFO since no NETIF_F_SG feature.\n");
 			features &= ~NETIF_F_UFO;
 		}
 	}
 
 	return features;
 }
+
+unsigned long netdev_fix_features(unsigned long features, const char *name)
+{
+	return __netdev_fix_features(NULL, name, (u32)features);
+}
+
+u32 netdev_fix_features_dev(struct net_device *dev, u32 features)
+{
+	return __netdev_fix_features(dev, NULL, features);
+}
+
 EXPORT_SYMBOL(netdev_fix_features);
+EXPORT_SYMBOL(netdev_fix_features_dev);
 
 static int netif_alloc_rx_queues(struct net_device *dev)
 {
@@ -6189,7 +6202,7 @@ int register_netdevice(struct net_device *dev)
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
 
-	dev->features = netdev_fix_features(dev->features, dev->name);
+	dev->features = netdev_fix_features_dev(dev, dev->features);
 
 	/* Enable software GSO if SG is supported. */
 	if (dev->features & NETIF_F_SG)

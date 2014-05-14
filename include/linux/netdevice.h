@@ -2532,6 +2532,7 @@ extern void linkwatch_run_queue(void);
 unsigned long netdev_increment_features(unsigned long all, unsigned long one,
 					unsigned long mask);
 unsigned long netdev_fix_features(unsigned long features, const char *name);
+u32 netdev_fix_features_dev(struct net_device *dev, u32 features);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
