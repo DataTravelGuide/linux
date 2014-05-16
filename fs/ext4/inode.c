@@ -1307,8 +1307,10 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	if (retval > 0 && buffer_mapped(bh)) {
 		int ret = check_block_validity(inode, "file system corruption",
 					       block, bh->b_blocknr, retval);
-		if (ret != 0)
+		if (ret != 0) {
+			bh->b_blocknr = 0;
 			return ret;
+		}
 	}
 
 	/* If it is only a block(s) look up */
@@ -1391,8 +1393,10 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		int ret = check_block_validity(inode, "file system "
 					       "corruption after allocation",
 					       block, bh->b_blocknr, retval);
-		if (ret != 0)
+		if (ret != 0) {
+			bh->b_blocknr = 0;
 			return ret;
+		}
 	}
 	return retval;
 }
