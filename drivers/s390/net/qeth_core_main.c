@@ -1682,13 +1682,14 @@ int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 		QETH_QDIO_CLEANING)) {
 	case QETH_QDIO_ESTABLISHED:
 		if (card->info.type == QETH_CARD_TYPE_IQD)
-			rc = qdio_cleanup(CARD_DDEV(card),
+			rc = qdio_shutdown(CARD_DDEV(card),
 				QDIO_FLAG_CLEANUP_USING_HALT);
 		else
-			rc = qdio_cleanup(CARD_DDEV(card),
+			rc = qdio_shutdown(CARD_DDEV(card),
 				QDIO_FLAG_CLEANUP_USING_CLEAR);
 		if (rc)
 			QETH_DBF_TEXT_(TRACE, 3, "1err%d", rc);
+		qdio_free(CARD_DDEV(card));
 		atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
 		break;
 	case QETH_QDIO_CLEANING:
@@ -4668,11 +4669,18 @@ static int qeth_qdio_establish(struct qeth_card *card)
 
 	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ALLOCATED,
 		QETH_QDIO_ESTABLISHED) == QETH_QDIO_ALLOCATED) {
-		rc = qdio_initialize(&init_data);
-		if (rc)
+		rc = qdio_allocate(&init_data);
+		if (rc) {
 			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
+			goto out;
+		}
+		rc = qdio_establish(&init_data);
+		if (rc) {
+			atomic_set(&card->qdio.state, QETH_QDIO_ALLOCATED);
+			qdio_free(CARD_DDEV(card));
+		}
 	}
-
+out:
 	switch (card->options.cq) {
 	case QETH_CQ_ENABLED:
 		dev_info(&card->gdev->dev, "Completion Queue support enabled");
