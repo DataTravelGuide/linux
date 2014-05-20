@@ -436,6 +436,12 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br)
 {
 	return false;
 }
+static inline void br_mdb_init(void)
+{
+}
+static inline void br_mdb_uninit(void)
+{
+}
 #endif
 
 /* br_netfilter.c */
