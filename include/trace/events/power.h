@@ -77,7 +77,6 @@ TRACE_EVENT(pstate_sample,
 		u32 state,
 		u64 mperf,
 		u64 aperf,
-		u32 energy,
 		u32 freq
 		),
 
@@ -86,7 +85,6 @@ TRACE_EVENT(pstate_sample,
 		state,
 		mperf,
 		aperf,
-		energy,
 		freq
 		),
 
@@ -96,7 +94,6 @@ TRACE_EVENT(pstate_sample,
 		__field(u32, state)
 		__field(u64, mperf)
 		__field(u64, aperf)
-		__field(u32, energy)
 		__field(u32, freq)
 
 	),
@@ -107,17 +104,15 @@ TRACE_EVENT(pstate_sample,
 		__entry->state = state;
 		__entry->mperf = mperf;
 		__entry->aperf = aperf;
-		__entry->energy = energy;
 		__entry->freq = freq;
 		),
 
-	TP_printk("core_busy=%lu scaled=%lu state=%lu mperf=%llu aperf=%llu energy=%lu freq=%lu ",
+	TP_printk("core_busy=%lu scaled=%lu state=%lu mperf=%llu aperf=%llu freq=%lu ",
 		(unsigned long)__entry->core_busy,
 		(unsigned long)__entry->scaled_busy,
 		(unsigned long)__entry->state,
 		(unsigned long long)__entry->mperf,
 		(unsigned long long)__entry->aperf,
-		(unsigned long)__entry->energy,
 		(unsigned long)__entry->freq
 		)
 
