@@ -4696,6 +4696,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "net device registration failed.\n");
 		ql_release_all(pdev);
 		pci_disable_device(pdev);
+		free_netdev(ndev);
 		return err;
 	}
 	/* Start up the timer to trigger EEH if
