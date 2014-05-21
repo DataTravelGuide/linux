@@ -891,8 +891,11 @@ void intel_ds_init(void)
 
 void perf_restore_debug_store(void)
 {
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct debug_store *ds = cpuc->ds;
+
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return;
 
-	init_debug_store_on_cpu(smp_processor_id());
+	wrmsrl(MSR_IA32_DS_AREA, (unsigned long)ds);
 }
