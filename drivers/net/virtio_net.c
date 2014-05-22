@@ -28,6 +28,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/u64_stats_sync.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -41,6 +42,15 @@ module_param(gso, bool, 0444);
 #define GOOD_COPY_LEN	128
 
 #define VIRTNET_SEND_COMMAND_SG_MAX    2
+
+struct virtnet_stats {
+	struct u64_stats_sync syncp;
+	u64 tx_bytes;
+	u64 tx_packets;
+
+	u64 rx_bytes;
+	u64 rx_packets;
+};
 
 /* Internal representation of a send virtqueue */
 struct send_queue {
@@ -106,6 +116,9 @@ struct virtnet_info
 
 	/* enable config space updates */
 	bool config_enable;
+
+	/* Active statistics */
+	struct virtnet_stats __percpu *stats;
 
 	/* Work struct for refilling if we run low on memory. */
 	struct delayed_work refill;
@@ -338,6 +351,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			dev->stats.rx_length_errors++;
 			goto err_buf;
 		}
+
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
 
@@ -370,6 +384,7 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 {
 	struct virtnet_info *vi = rq->vq->vdev->priv;
 	struct net_device *dev = vi->dev;
+	struct virtnet_stats __percpu *stats = this_cpu_ptr(vi->stats);
 	struct sk_buff *skb;
 	struct skb_vnet_hdr *hdr;
 
@@ -394,8 +409,11 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 
 	hdr = skb_vnet_hdr(skb);
 	skb->truesize += skb->data_len;
-	dev->stats.rx_bytes += skb->len;
-	dev->stats.rx_packets++;
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_bytes += skb->len;
+	stats->rx_packets++;
+	u64_stats_update_end(&stats->syncp);
 
 	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
 		pr_debug("Needs csum!\n");
@@ -662,6 +680,14 @@ again:
 	return received;
 }
 
+static void virtnet_free(struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	free_percpu(vi->stats);
+	free_netdev(dev);
+}
+
 static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -683,11 +709,16 @@ static unsigned int free_old_xmit_skbs(struct send_queue *sq)
 	struct sk_buff *skb;
 	unsigned int len, tot_sgs = 0;
 	struct virtnet_info *vi = sq->vq->vdev->priv;
+	struct virtnet_stats __percpu *stats = this_cpu_ptr(vi->stats);
 
 	while ((skb = virtqueue_get_buf(sq->vq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
-		vi->dev->stats.tx_bytes += skb->len;
-		vi->dev->stats.tx_packets++;
+
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_bytes += skb->len;
+		stats->tx_packets++;
+		u64_stats_update_end(&stats->syncp);
+
 		tot_sgs += skb_vnet_hdr(skb)->num_sg;
 		dev_kfree_skb_any(skb);
 	}
@@ -881,6 +912,40 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	eth_commit_mac_addr_change(dev, p);
 
 	return 0;
+}
+
+static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
+					       struct rtnl_link_stats64 *tot)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	int cpu;
+	unsigned int start;
+
+	for_each_possible_cpu(cpu) {
+		struct virtnet_stats __percpu *stats
+			= per_cpu_ptr(vi->stats, cpu);
+		u64 tpackets, tbytes, rpackets, rbytes;
+
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tpackets = stats->tx_packets;
+			tbytes   = stats->tx_bytes;
+			rpackets = stats->rx_packets;
+			rbytes   = stats->rx_bytes;
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+		tot->rx_packets += rpackets;
+		tot->tx_packets += tpackets;
+		tot->rx_bytes   += rbytes;
+		tot->tx_bytes   += tbytes;
+	}
+
+	tot->tx_dropped = dev->stats.tx_dropped;
+	tot->rx_dropped = dev->stats.rx_dropped;
+	tot->rx_length_errors = dev->stats.rx_length_errors;
+	tot->rx_frame_errors = dev->stats.rx_frame_errors;
+
+	return tot;
 }
 
 static void virtnet_ack_link_announce(struct virtnet_info *vi)
@@ -1206,6 +1271,11 @@ static const struct net_device_ops virtnet_netdev = {
 #endif
 };
 
+static const struct net_device_ops_ext virtnet_netdev_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= virtnet_stats,
+};
+
 static void virtnet_config_changed_work(struct work_struct *work)
 {
 	struct virtnet_info *vi =
@@ -1469,7 +1539,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Set up network device as normal. */
 	netdev_extended(dev)->ext_priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->netdev_ops = &virtnet_netdev;
+	set_netdev_ops_ext(dev, &virtnet_netdev_ext);
 	dev->features = NETIF_F_HIGHDMA;
+	dev->destructor = virtnet_free;
+
 	SET_ETHTOOL_OPS(dev, &virtnet_ethtool_ops);
 	set_ethtool_ops_ext(dev, &virtnet_ethtool_ops_ext);
 	SET_NETDEV_DEV(dev, &vdev->dev);
@@ -1519,12 +1592,18 @@ static int virtnet_probe(struct virtio_device *vdev)
 	vi->dev = dev;
 	vi->vdev = vdev;
 	vdev->priv = vi;
+	vi->stats = alloc_percpu(struct virtnet_stats);
+	err = -ENOMEM;
+	if (vi->stats == NULL)
+		goto free;
+
 	vi->st_wq = create_singlethread_workqueue("virtio-net");
 	if (!vi->st_wq) {
 		/* Can't get a precise err from function above */
 		err = -ENOMEM;
-		goto free;
+		goto free_stats;
 	}
+
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 
 	vi->vq_index = alloc_percpu(int);
@@ -1605,10 +1684,12 @@ free_recv_bufs:
 free_vqs:
 	cancel_delayed_work_sync(&vi->refill);
 	virtnet_del_vqs(vi);
-free_wq:
-	destroy_workqueue(vi->st_wq);
 free_index:
 	free_percpu(vi->vq_index);
+free_wq:
+	destroy_workqueue(vi->st_wq);
+free_stats:
+	free_percpu(vi->stats);
 free:
 	free_netdev(dev);
 	return err;
