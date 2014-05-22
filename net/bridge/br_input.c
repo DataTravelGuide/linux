@@ -24,8 +24,10 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
 	struct net_device *vlan_dev = NULL;
 
+	u64_stats_update_begin(&brstats->syncp);
 	brstats->rx_packets++;
 	brstats->rx_bytes += skb->len;
+	u64_stats_update_end(&brstats->syncp);
 
 	/* If this frame came in through a HW-acclerated port find
 	 * the vlan device it belongs to.
