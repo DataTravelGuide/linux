@@ -1549,9 +1549,9 @@ static int vxlan_stop(struct net_device *dev)
 }
 
 /* Merge per-cpu statistics */
-static struct net_device_stats *vxlan_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *vxlan_stats64(struct net_device *dev,
+					       struct rtnl_link_stats64 *stats)
 {
-	struct net_device_stats *stats = &dev->stats;
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_stats tmp, sum = { 0 };
 	unsigned int cpu;
@@ -1602,11 +1602,15 @@ static const struct net_device_ops vxlan_netdev_ops = {
 	.ndo_open		= vxlan_open,
 	.ndo_stop		= vxlan_stop,
 	.ndo_start_xmit		= vxlan_xmit,
-	.ndo_get_stats		= vxlan_stats,
 	.ndo_set_rx_mode	= vxlan_set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+};
+
+static const struct net_device_ops_ext vxlan_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= vxlan_stats64,
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
@@ -1640,6 +1644,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
+	set_netdev_ops_ext(dev, &vxlan_netdev_ops_ext);
 	dev->destructor = free_netdev;
 	SET_NETDEV_DEVTYPE(dev, &vxlan_type);
 
