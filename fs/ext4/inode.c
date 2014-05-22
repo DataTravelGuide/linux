@@ -3829,22 +3829,18 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 		ret = ext4_convert_unwritten_extents(inode, offset, size);
 
 	if (ret < 0) {
-		printk(KERN_EMERG "%s: failed to convert unwritten"
-			"extents to written extents, error is %d"
-			" io is still on inode %lu aio dio list\n",
-                       __func__, ret, inode->i_ino);
-		return ret;
+		ext4_msg(inode->i_sb, KERN_EMERG,
+			 "failed to convert unwritten extents to written "
+			 "extents -- potential data loss!  "
+			 "(inode %lu, offset %llu, size %zd, error %d)",
+			 inode->i_ino, offset, size, ret);
 	}
 
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
-	/* clear the DIO AIO unwritten flag */
-	if (io->flag == DIO_AIO_UNWRITTEN) {
-		io->flag = 0;
-		/* Wake up anyone waiting on unwritten extent conversion */
-		if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
-			wake_up_all(to_aio_wq(io->inode));
-	}
+	/* Wake up anyone waiting on unwritten extent conversion */
+	if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
+		wake_up_all(to_aio_wq(io->inode));
 
 	return ret;
 }
@@ -3856,29 +3852,21 @@ static void ext4_end_aio_dio_work(struct work_struct *work)
 	ext4_io_end_t *io  = container_of(work, ext4_io_end_t, work);
 	struct inode *inode = io->inode;
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	int ret = 0;
 	unsigned long flags;
 
+	mutex_lock(&inode->i_mutex);
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	if (list_empty(&io->list)) {
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		goto free;
 	}
+	list_del_init(&io->list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
-	mutex_lock(&inode->i_mutex);
-	ret = ext4_end_aio_dio_nolock(io);
-	if (ret < 0){
-		mutex_unlock(&inode->i_mutex);
-		return;
-	}
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (!list_empty(&io->list))
-		list_del_init(&io->list);
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-	mutex_unlock(&inode->i_mutex);
+	(void) ext4_end_aio_dio_nolock(io);
 free:
 	ext4_free_io_end(io);
+	mutex_unlock(&inode->i_mutex);
 }
 /*
  * This function is called from ext4_sync_file().
@@ -3904,6 +3892,7 @@ int flush_aio_dio_completed_IO(struct inode *inode)
 	while (!list_empty(&EXT4_I(inode)->i_aio_dio_complete_list)){
 		io = list_entry(EXT4_I(inode)->i_aio_dio_complete_list.next,
 				ext4_io_end_t, list);
+		list_del_init(&io->list);
 		/*
 		 * Calling ext4_end_aio_dio_nolock() to convert completed
 		 * IO to written.
@@ -3920,11 +3909,9 @@ int flush_aio_dio_completed_IO(struct inode *inode)
 		 */
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		ret = ext4_end_aio_dio_nolock(io);
-		spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 		if (ret < 0)
 			ret2 = ret;
-		else
-			list_del_init(&io->list);
+		spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	}
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 	return (ret2 < 0) ? ret2 : 0;
