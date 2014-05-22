@@ -3773,6 +3773,8 @@ out:
 static void ext4_free_io_end(ext4_io_end_t *io)
 {
 	BUG_ON(!io);
+	BUG_ON(io->flag & DIO_AIO_UNWRITTEN);
+
 	iput(io->inode);
 	kfree(io);
 }
@@ -3818,6 +3820,8 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 	ssize_t size = io->size;
 	int ret = 0;
 
+	BUG_ON(!(io->flag & DIO_AIO_UNWRITTEN));
+
 	ext4_debug("end_aio_dio_onlock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 	           io, inode->i_ino, io->list.next, io->list.prev);
@@ -3836,6 +3840,7 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 			 inode->i_ino, offset, size, ret);
 	}
 
+	io->flag &= ~DIO_AIO_UNWRITTEN;
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 	/* Wake up anyone waiting on unwritten extent conversion */

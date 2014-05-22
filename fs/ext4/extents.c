@@ -3603,6 +3603,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		ret = ext4_split_unwritten_extents(handle,
 						inode, path, iblock,
 						max_blocks, flags);
+		if (ret <= 0)
+			goto out;
 		/*
 		 * Flag the inode(non aio case) or end_io struct (aio case)
 		 * that this IO needs to convertion to written when IO is
@@ -3741,6 +3743,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
 	ext4_io_end_t *io = ext4_inode_aio(inode);
+	int set_unwritten = 0;
 
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%u requested for inode %lu\n",
@@ -3908,16 +3911,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 * that we need to perform convertion when IO is done.
 		 */
 		if ((flags & ~EXT4_GET_BLOCKS_METADATA_NOFAIL) ==
-		    EXT4_GET_BLOCKS_DIO_CREATE_EXT) {
-			if (io) {
-				if (io->flag != DIO_AIO_UNWRITTEN) {
-					io->flag = DIO_AIO_UNWRITTEN;
-					atomic_inc(&EXT4_I(inode)->i_unwritten);
-				}
-			} else
-				ext4_set_inode_state(inode,
-						     EXT4_STATE_DIO_UNWRITTEN);
-		}
+		    EXT4_GET_BLOCKS_DIO_CREATE_EXT)
+			set_unwritten = 1;
 	}
 
 	err = check_eofblocks_fl(handle, inode, iblock, path, ar.len);
@@ -3935,6 +3930,17 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		ext4_free_blocks(handle, inode, ext4_ext_pblock(&newex),
 				 ext4_ext_get_actual_len(&newex), fb_flags);
 		goto out2;
+	}
+
+	if (set_unwritten) {
+		if (io) {
+			if (io->flag != DIO_AIO_UNWRITTEN) {
+				io->flag = DIO_AIO_UNWRITTEN;
+				atomic_inc(&EXT4_I(inode)->i_unwritten);
+			}
+		} else
+			ext4_set_inode_state(inode,
+					     EXT4_STATE_DIO_UNWRITTEN);
 	}
 
 	/* previous routine could use block we allocated */
