@@ -1960,7 +1960,6 @@ static int ext4_journalled_write_end(struct file *file,
  */
 static int ext4_da_reserve_space(struct inode *inode, sector_t lblock)
 {
-	int retries = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned long md_needed;
@@ -1970,7 +1969,6 @@ static int ext4_da_reserve_space(struct inode *inode, sector_t lblock)
 	 * in order to allocate nrblocks
 	 * worse case is one extent per block
 	 */
-repeat:
 	spin_lock(&ei->i_block_reservation_lock);
 	md_needed = ext4_calc_metadata_amount(inode, lblock);
 	spin_unlock(&ei->i_block_reservation_lock);
@@ -1989,10 +1987,6 @@ repeat:
 	 */
 	if (ext4_claim_free_blocks(sbi, md_needed + 1, 0)) {
 		vfs_dq_release_reservation_block(inode, 1);
-		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
-			yield();
-			goto repeat;
-		}
 		return -ENOSPC;
 	}
 	spin_lock(&ei->i_block_reservation_lock);
