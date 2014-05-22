@@ -3611,7 +3611,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		if (io) {
 			if (io->flag != DIO_AIO_UNWRITTEN) {
 				io->flag = DIO_AIO_UNWRITTEN;
-				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+				atomic_inc(&EXT4_I(inode)->i_unwritten);
 			}
 		} else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
@@ -3912,7 +3912,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			if (io) {
 				if (io->flag != DIO_AIO_UNWRITTEN) {
 					io->flag = DIO_AIO_UNWRITTEN;
-					atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+					atomic_inc(&EXT4_I(inode)->i_unwritten);
 				}
 			} else
 				ext4_set_inode_state(inode,

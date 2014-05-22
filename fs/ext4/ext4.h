@@ -836,7 +836,7 @@ struct ext4_inode_info {
 	/* completed async DIOs that might need unwritten extents handling */
 	struct list_head i_aio_dio_complete_list;
 	spinlock_t i_completed_io_lock;
-	atomic_t i_aiodio_unwritten; /* Number of inflight conversions pending */
+	atomic_t i_unwritten; /* Number of inflight conversions pending */
 	struct mutex i_aio_mutex; /* big hammer for unaligned AIO */
 
 	/*

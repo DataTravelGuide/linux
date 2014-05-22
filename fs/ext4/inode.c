@@ -3839,7 +3839,7 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 	/* Wake up anyone waiting on unwritten extent conversion */
-	if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
+	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
 		wake_up_all(to_aio_wq(io->inode));
 
 	return ret;
