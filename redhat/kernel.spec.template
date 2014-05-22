@@ -1701,6 +1701,38 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed May 21 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-469.el6]
+- [security] selinux: put the mmap() DAC controls before the MAC controls (Paul Moore) [1070859]
+- [serial] bring DTR up after speed change from B0 (Aristeu Rozanski) [991667]
+- [mm] compaction: acquire the zone->lock as late as possible (Jerome Marchand) [975902]
+- [mm] compaction: acquire the zone->lru_lock as late as possible (Jerome Marchand) [975902]
+- [mm] swap: do not skip lowest_bit in scan_swap_map() scan loop (Rafael Aquini) [1060886]
+- [mm] swap: fix shmem swapping when more than 8 areas (Rafael Aquini) [1060886]
+- [mm] swap: fix swapon size off-by-one (Rafael Aquini) [1060886]
+- [x86] mm: Add missing TLB page invalidation for hugetlb_cow() (Larry Woodman) [1097917]
+- [char] n_tty: Lock access to tty->pgrp for POSIX job control (Prarit Bhargava) [1098982]
+- [kernel] resource: correct the comment of allocate_resource() (Myron Stowe) [744239]
+- [kernel] resource: move EXPORT_SYMBOL right after definition (Myron Stowe) [744239]
+- [kernel] resource: fix wrong resource window calculation (Myron Stowe) [744239]
+- [kernel] resource: Add lookup_resource() (Myron Stowe) [744239]
+- [kernel] resource: handle reinsertion of an already-inserted resource (Myron Stowe) [744239]
+- [pm] intel_powerclamp: off by one in start_power_clamp() (Steve Best) [1036301]
+- [pm] Introduce Intel PowerClamp Driver (Steve Best) [1036301]
+- [s390] zcrypt: remove zcrypt kmsg documentation again (Hendrik Brueckner) [1053830]
+- [s390] zcrypt: add support for EP11 coprocessor cards (Hendrik Brueckner) [1053830]
+- [s390] crypto: fix des and des3_ede ctr concurrency issue (Hendrik Brueckner) [1065404]
+- [s390] crypto: fix des and des3_ede cbc concurrency issue (Hendrik Brueckner) [1065398]
+- [watchdog] hpwdt: patch to display informative string (Nigel Croxon) [1053685]
+- [netdrv] tg3: Poll cpmu link state on APE + ASF enabled devices (Ivan Vecera) [1057283]
+- [netdrv] virtio-net: make all RX paths handle errors consistently (Jason Wang) [1032458]
+- [netdrv] virtio-net: fix error handling for mergeable buffers (Jason Wang) [1032458]
+- [netdrv] bonding: use the correct ether type for alb (Veaceslav Falico) [1027480]
+- [netdrv] ether: add loopback type ETH_P_LOOPBACK (Veaceslav Falico) [1027480]
+- [kernel] futex: Forbid uaddr == uaddr2 in futex_wait_requeue_pi() (Mateusz Guzik) [1097760] {CVE-2012-6647}
+- [libata] ahci: accommodate tag ordered controller (David Milburn) [1083748]
+- [net] mac80211: crash dues to AP powersave TX vs. wakeup race (Jacob Tanenbaum) [1083532] {CVE-2014-2706}
+- [netdrv] ath9k: tid->sched race in ath_tx_aggr_sleep() (Jacob Tanenbaum) [1083250] {CVE-2014-2672}
+
 * Tue May 20 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-468.el6]
 - [perf] kvm: Fix kvm report without guestmount (Jiri Olsa) [1038418]
 - [perf] script: Fix broken include in Context.xs (Jiri Olsa) [1096519]
