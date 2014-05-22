@@ -144,6 +144,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
  
 		rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
 					smp_processor_id());
+		u64_stats_update_begin(&rx_stats->syncp);
 		rx_stats->rx_packets++;
 		rx_stats->rx_bytes += skb->len;
  
@@ -159,7 +160,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			break;
  
 		case PACKET_MULTICAST:
-			rx_stats->multicast++;
+			rx_stats->rx_multicast++;
 			break;
  
 		case PACKET_OTHERHOST:
@@ -175,6 +176,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		default:
 			break;
 		}
+		u64_stats_update_end(&rx_stats->syncp);
 	}
 
 	skb_pull_rcsum(skb, VLAN_HLEN);
@@ -685,6 +687,7 @@ static const struct header_ops vlan_header_ops = {
 };
 
 static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops;
+static const struct net_device_ops_ext vlan_netdev_ops_ext;
 
 static int vlan_dev_init(struct net_device *dev)
 {
@@ -720,10 +723,12 @@ static int vlan_dev_init(struct net_device *dev)
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
 		dev->netdev_ops = &vlan_netdev_accel_ops;
+		set_netdev_ops_ext(dev, &vlan_netdev_ops_ext);
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
 		dev->netdev_ops = &vlan_netdev_ops;
+		set_netdev_ops_ext(dev, &vlan_netdev_ops_ext);
 		/* TX checksum offload cannot work if both TX VLAN tag offload
 		 * and reorder_hdr are off.
 		 */
@@ -788,27 +793,35 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 	return dev_ethtool_get_flags(vlan->real_dev);
 }
 
-static struct net_device_stats *vlan_dev_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	struct net_device_stats *stats = &dev->stats;
-
-	dev_txq_stats_fold(dev, stats);
+	dev_txq_stats_fold64(dev, stats);
 
 	if (vlan_dev_info(dev)->vlan_rx_stats) {
-		struct vlan_rx_stats *p, rx = {0};
+		struct vlan_rx_stats *p, accum = {0};
 		int i;
 
 		for_each_possible_cpu(i) {
+			u64 rxpackets, rxbytes, rxmulticast;
+			unsigned int start;
+
 			p = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats, i);
-			rx.rx_packets += p->rx_packets;
-			rx.rx_bytes   += p->rx_bytes;
-			rx.rx_errors  += p->rx_errors;
-			rx.multicast  += p->multicast;
+			do {
+				start = u64_stats_fetch_begin_bh(&p->syncp);
+				rxpackets	= p->rx_packets;
+				rxbytes		= p->rx_bytes;
+				rxmulticast	= p->rx_multicast;
+			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+			accum.rx_packets += rxpackets;
+			accum.rx_bytes   += rxbytes;
+			accum.rx_multicast += rxmulticast;
+			/* rx_errors is an ulong, not protected by syncp */
+			accum.rx_errors  += p->rx_errors;
 		}
-		stats->rx_packets = rx.rx_packets;
-		stats->rx_bytes   = rx.rx_bytes;
-		stats->rx_errors  = rx.rx_errors;
-		stats->multicast  = rx.multicast;
+		stats->rx_packets = accum.rx_packets;
+		stats->rx_bytes   = accum.rx_bytes;
+		stats->rx_errors  = accum.rx_errors;
+		stats->multicast  = accum.rx_multicast;
 	}
 	return stats;
 }
@@ -855,7 +868,6 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
@@ -879,7 +891,6 @@ static const struct net_device_ops vlan_netdev_accel_ops = {
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-	.ndo_get_stats		= vlan_dev_get_stats,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
 	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
@@ -887,6 +898,11 @@ static const struct net_device_ops vlan_netdev_accel_ops = {
 	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
 	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
 #endif
+};
+
+static const struct net_device_ops_ext vlan_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= vlan_dev_get_stats64,
 };
 
 void vlan_setup(struct net_device *dev)

@@ -68,9 +68,9 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	skb->priority = vlan_get_ingress_priority(dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
-	rx_stats = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats,
-			       smp_processor_id());
+	rx_stats = this_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats);
 
+	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;
 	rx_stats->rx_bytes += skb->len;
 
@@ -78,7 +78,7 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	case PACKET_BROADCAST:
 		break;
 	case PACKET_MULTICAST:
-		rx_stats->multicast++;
+		rx_stats->rx_multicast++;
 		break;
 	case PACKET_OTHERHOST:
 		/* Our lower layer thinks this is not local, let's make sure.
@@ -88,7 +88,8 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 					dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 		break;
-	};
+	}
+	u64_stats_update_end(&rx_stats->syncp);
 	return 0;
 }
 
