@@ -512,38 +512,44 @@ void be_parse_stats(struct be_adapter *adapter)
 	}
 }
 
-static struct net_device_stats *be_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
+					struct rtnl_link_stats64 *stats)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_drv_stats *drvs = &adapter->drv_stats;
-	struct net_device_stats *dev_stats = &adapter->netdev->stats;
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
-	unsigned long pkts = 0, bytes = 0, mcast = 0, drops = 0;
+	u64 pkts, bytes;
+	unsigned int start;
 	int i;
 
 	for_all_rx_queues(adapter, rxo, i) {
-		pkts += rx_stats(rxo)->rx_pkts;
-		bytes += rx_stats(rxo)->rx_bytes;
-		mcast += rx_stats(rxo)->rx_mcast_pkts;
-		drops += rx_stats(rxo)->rx_drops_no_skbs +
-			rx_stats(rxo)->rx_drops_no_frags;
+		const struct be_rx_stats *rx_stats = rx_stats(rxo);
+		do {
+			start = u64_stats_fetch_begin_bh(&rx_stats->sync);
+			pkts = rx_stats(rxo)->rx_pkts;
+			bytes = rx_stats(rxo)->rx_bytes;
+		} while (u64_stats_fetch_retry_bh(&rx_stats->sync, start));
+		stats->rx_packets += pkts;
+		stats->rx_bytes += bytes;
+		stats->multicast += rx_stats(rxo)->rx_mcast_pkts;
+		stats->rx_dropped += rx_stats(rxo)->rx_drops_no_skbs +
+					rx_stats(rxo)->rx_drops_no_frags;
 	}
-	dev_stats->rx_packets = pkts;
-	dev_stats->rx_bytes = bytes;
-	dev_stats->multicast = mcast;
-	dev_stats->rx_dropped = drops;
 
-	pkts = bytes = 0;
 	for_all_tx_queues(adapter, txo, i) {
-		pkts += tx_stats(txo)->tx_pkts;
-		bytes += tx_stats(txo)->tx_bytes;
+		const struct be_tx_stats *tx_stats = tx_stats(txo);
+		do {
+			start = u64_stats_fetch_begin_bh(&tx_stats->sync);
+			pkts = tx_stats(txo)->tx_pkts;
+			bytes = tx_stats(txo)->tx_bytes;
+		} while (u64_stats_fetch_retry_bh(&tx_stats->sync, start));
+		stats->tx_packets += pkts;
+		stats->tx_bytes += bytes;
 	}
-	dev_stats->tx_packets = pkts;
-	dev_stats->tx_bytes = bytes;
 
 	/* bad pkts received */
-	dev_stats->rx_errors = drvs->rx_crc_errors +
+	stats->rx_errors = drvs->rx_crc_errors +
 		drvs->rx_alignment_symbol_errors +
 		drvs->rx_in_range_errors +
 		drvs->rx_out_range_errors +
@@ -555,21 +561,21 @@ static struct net_device_stats *be_get_stats(struct net_device *netdev)
 		drvs->rx_dropped_runt;
 
 	/* detailed rx errors */
-	dev_stats->rx_length_errors = drvs->rx_in_range_errors +
+	stats->rx_length_errors = drvs->rx_in_range_errors +
 		drvs->rx_out_range_errors +
 		drvs->rx_frame_too_long;
 
-	dev_stats->rx_crc_errors = drvs->rx_crc_errors;
+	stats->rx_crc_errors = drvs->rx_crc_errors;
 
 	/* frame alignment errors */
-	dev_stats->rx_frame_errors = drvs->rx_alignment_symbol_errors;
+	stats->rx_frame_errors = drvs->rx_alignment_symbol_errors;
 
 	/* receiver fifo overrun */
 	/* drops_no_pbuf is no per i/f, it's per BE card */
-	dev_stats->rx_fifo_errors = drvs->rxpp_fifo_overflow_drop +
+	stats->rx_fifo_errors = drvs->rxpp_fifo_overflow_drop +
 				drvs->rx_input_fifo_overflow_drop +
 				drvs->rx_drops_no_pbuf;
-	return dev_stats;
+	return stats;
 }
 
 void be_link_status_update(struct be_adapter *adapter, u8 link_status)
@@ -592,12 +598,14 @@ static void be_tx_stats_update(struct be_tx_obj *txo,
 {
 	struct be_tx_stats *stats = tx_stats(txo);
 
+	u64_stats_update_begin(&stats->sync);
 	stats->tx_reqs++;
 	stats->tx_wrbs += wrb_cnt;
 	stats->tx_bytes += copied;
 	stats->tx_pkts += (gso_segs ? gso_segs : 1);
 	if (stopped)
 		stats->tx_stops++;
+	u64_stats_update_end(&stats->sync);
 }
 
 /* Determine number of WRB entries needed to xmit data in an skb */
@@ -1258,7 +1266,8 @@ static void be_eqd_update(struct be_adapter *adapter, struct be_eq_obj *eqo)
 	struct be_rx_stats *stats = rx_stats(&adapter->rx_obj[eqo->idx]);
 	ulong now = jiffies;
 	ulong delta = now - stats->rx_jiffies;
-	u32 eqd;
+	u64 pkts;
+	unsigned int start, eqd;
 
 	if (!eqo->enable_aic) {
 		eqd = eqo->eqd;
@@ -1280,8 +1289,13 @@ static void be_eqd_update(struct be_adapter *adapter, struct be_eq_obj *eqo)
 	if (delta < HZ)
 		return;
 
-	stats->rx_pps = (unsigned long)(stats->rx_pkts - stats->rx_pkts_prev) / (delta / HZ);
-	stats->rx_pkts_prev = stats->rx_pkts;
+	do {
+		start = u64_stats_fetch_begin_bh(&stats->sync);
+		pkts = stats->rx_pkts;
+	} while (u64_stats_fetch_retry_bh(&stats->sync, start));
+
+	stats->rx_pps = (unsigned long)(pkts - stats->rx_pkts_prev) / (delta / HZ);
+	stats->rx_pkts_prev = pkts;
 	stats->rx_jiffies = now;
 	eqd = (stats->rx_pps / 110000) << 3;
 	eqd = min(eqd, eqo->max_eqd);
@@ -1301,6 +1315,7 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 {
 	struct be_rx_stats *stats = rx_stats(rxo);
 
+	u64_stats_update_begin(&stats->sync);
 	stats->rx_compl++;
 	stats->rx_bytes += rxcp->pkt_size;
 	stats->rx_pkts++;
@@ -1308,6 +1323,7 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 		stats->rx_mcast_pkts++;
 	if (rxcp->err)
 		stats->rx_compl_err++;
+	u64_stats_update_end(&stats->sync);
 }
 
 static inline bool csum_passed(struct be_rx_compl_info *rxcp)
@@ -2210,7 +2226,9 @@ static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 			netif_wake_subqueue(adapter->netdev, idx);
 		}
 
+		u64_stats_update_begin(&tx_stats(txo)->sync_compl);
 		tx_stats(txo)->tx_compl += work_done;
+		u64_stats_update_end(&tx_stats(txo)->sync_compl);
 	}
 	return (work_done < budget); /* Done */
 }
@@ -3781,7 +3799,6 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_set_rx_mode	= be_set_rx_mode,
 	.ndo_set_mac_address	= be_mac_addr_set,
 	.ndo_change_mtu		= be_change_mtu,
-	.ndo_get_stats		= be_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_vlan_rx_register	= be_vlan_register,
 	.ndo_vlan_rx_add_vid	= be_vlan_add_vid,
@@ -3793,6 +3810,11 @@ static struct net_device_ops be_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= be_netpoll,
 #endif
+};
+
+static struct net_device_ops_ext be_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= be_get_stats64,
 };
 
 static void be_netdev_init(struct net_device *netdev)
@@ -3817,6 +3839,7 @@ static void be_netdev_init(struct net_device *netdev)
 	netif_set_gso_max_size(netdev, 65535 - ETH_HLEN);
 
 	netdev->netdev_ops = &be_netdev_ops;
+	set_netdev_ops_ext(netdev, &be_netdev_ops_ext);
 
 	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
 	set_ethtool_ops_ext(netdev, &be_ethtool_ops_ext);

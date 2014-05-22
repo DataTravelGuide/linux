@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/u64_stats_sync.h>
 
 #include "be_hw.h"
 #include "be_roce.h"
@@ -214,6 +215,8 @@ struct be_tx_stats {
 	u64 tx_compl;
 	ulong tx_jiffies;
 	u32 tx_stops;
+	struct u64_stats_sync sync;
+	struct u64_stats_sync sync_compl;
 };
 
 struct be_tx_obj {
@@ -245,6 +248,7 @@ struct be_rx_stats {
 	u32 rx_mcast_pkts;
 	u32 rx_compl_err;	/* completions with err set */
 	u32 rx_pps;		/* pkts per second */
+	struct u64_stats_sync sync;
 };
 
 struct be_rx_compl_info {

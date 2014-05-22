@@ -354,7 +354,7 @@ be_get_ethtool_stats(struct net_device *netdev,
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
 	void *p;
-	unsigned int i, j, base = 0;
+	unsigned int i, j, base = 0, start;
 
 	for (i = 0; i < ETHTOOL_STATS_NUM; i++) {
 		p = (u8 *)&adapter->drv_stats + et_stats[i].offset;
@@ -365,8 +365,11 @@ be_get_ethtool_stats(struct net_device *netdev,
 	for_all_rx_queues(adapter, rxo, j) {
 		struct be_rx_stats *stats = rx_stats(rxo);
 
-		data[base] = stats->rx_bytes;
-		data[base + 1] = stats->rx_pkts;
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync);
+			data[base] = stats->rx_bytes;
+			data[base + 1] = stats->rx_pkts;
+		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
 
 		for (i = 2; i < ETHTOOL_RXSTATS_NUM; i++) {
 			p = (u8 *)stats + et_rx_stats[i].offset;
@@ -378,14 +381,20 @@ be_get_ethtool_stats(struct net_device *netdev,
 	for_all_tx_queues(adapter, txo, j) {
 		struct be_tx_stats *stats = tx_stats(txo);
 
-		data[base] = stats->tx_compl;
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync_compl);
+			data[base] = stats->tx_compl;
+		} while (u64_stats_fetch_retry_bh(&stats->sync_compl, start));
 
-		for (i = 1; i < ETHTOOL_TXSTATS_NUM; i++) {
-			p = (u8 *)stats + et_tx_stats[i].offset;
-			data[base + i] =
-				(et_tx_stats[i].size == sizeof(u64)) ?
-					*(u64 *)p : *(u32 *)p;
-		}
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->sync);
+			for (i = 1; i < ETHTOOL_TXSTATS_NUM; i++) {
+				p = (u8 *)stats + et_tx_stats[i].offset;
+				data[base + i] =
+					(et_tx_stats[i].size == sizeof(u64)) ?
+						*(u64 *)p : *(u32 *)p;
+			}
+		} while (u64_stats_fetch_retry_bh(&stats->sync, start));
 		base += ETHTOOL_TXSTATS_NUM;
 	}
 }
