@@ -74,7 +74,7 @@ struct pcpu_lstats {
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 				 struct net_device *dev)
 {
-	struct pcpu_lstats *pcpu_lstats, *lb_stats;
+	struct pcpu_lstats *lb_stats;
 	int len;
 
 	skb_orphan(skb);
@@ -82,8 +82,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
-	pcpu_lstats = dev->ml_priv;
-	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
+	lb_stats = this_cpu_ptr((void __percpu __force *)dev->ml_priv);
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
@@ -100,19 +99,17 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
 						      struct rtnl_link_stats64 *stats)
 {
-	const struct pcpu_lstats *pcpu_lstats;
 	u64 bytes = 0;
 	u64 packets = 0;
 	u64 drops = 0;
 	int i;
 
-	pcpu_lstats = dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
 		u64 tbytes, tpackets;
 		unsigned int start;
 
-		lb_stats = per_cpu_ptr(pcpu_lstats, i);
+		lb_stats = per_cpu_ptr((void __percpu __force *)dev->ml_priv, i);
 		do {
 			start = u64_stats_fetch_begin(&lb_stats->syncp);
 			tbytes = lb_stats->bytes;
@@ -142,21 +139,16 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats;
-
-	lstats = alloc_percpu(struct pcpu_lstats);
-	if (!lstats)
+	dev->ml_priv = (void __force *)alloc_percpu(struct pcpu_lstats);
+	if (!dev->ml_priv)
 		return -ENOMEM;
 
-	dev->ml_priv = lstats;
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats = dev->ml_priv;
-
-	free_percpu(lstats);
+	free_percpu((void __percpu __force *)dev->ml_priv);
 	free_netdev(dev);
 }
 
