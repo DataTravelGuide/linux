@@ -680,14 +680,6 @@ again:
 	return received;
 }
 
-static void virtnet_free(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-
-	free_percpu(vi->stats);
-	free_netdev(dev);
-}
-
 static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -1541,7 +1533,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	dev->netdev_ops = &virtnet_netdev;
 	set_netdev_ops_ext(dev, &virtnet_netdev_ext);
 	dev->features = NETIF_F_HIGHDMA;
-	dev->destructor = virtnet_free;
 
 	SET_ETHTOOL_OPS(dev, &virtnet_ethtool_ops);
 	set_ethtool_ops_ext(dev, &virtnet_ethtool_ops_ext);
@@ -1727,6 +1718,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 	destroy_workqueue(vi->st_wq);
 
 	free_percpu(vi->vq_index);
+	free_percpu(vi->stats);
 	free_netdev(vi->dev);
 }
 
