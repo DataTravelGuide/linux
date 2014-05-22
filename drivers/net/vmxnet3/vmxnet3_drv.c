@@ -2965,7 +2965,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_start_xmit = vmxnet3_xmit_frame,
 		.ndo_set_mac_address = vmxnet3_set_mac_addr,
 		.ndo_change_mtu = vmxnet3_change_mtu,
-		.ndo_get_stats = vmxnet3_get_stats,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
 		.ndo_vlan_rx_register = vmxnet3_vlan_rx_register,
 		.ndo_set_rx_mode = vmxnet3_set_mc,
@@ -2974,6 +2973,10 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		.ndo_poll_controller = vmxnet3_netpoll,
 #endif
+	};
+	static const struct net_device_ops_ext vmxnet3_netdev_ops_ext = {
+		.size			= sizeof(struct net_device_ops_ext),
+		.ndo_get_stats64	= vmxnet3_get_stats64,
 	};
 	int err;
 	bool dma64 = false; /* stupid gcc */
@@ -3109,6 +3112,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	memcpy(netdev->dev_addr,  mac, netdev->addr_len);
 
 	netdev->netdev_ops = &vmxnet3_netdev_ops;
+	set_netdev_ops_ext(netdev, &vmxnet3_netdev_ops_ext);
 	vmxnet3_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 
