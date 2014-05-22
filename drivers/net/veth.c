@@ -24,19 +24,15 @@
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
 #define MTU_PAD (ETH_HLEN + 4)  /* Max difference between L2 and L3 size MTU */
 
-struct veth_net_stats {
-	u64			rx_packets;
-	u64			tx_packets;
-	u64			rx_bytes;
-	u64			tx_bytes;
-	u64			rx_dropped;
-	u64			tx_dropped;
+struct pcpu_vstats {
+	u64			packets;
+	u64			bytes;
 	struct u64_stats_sync	syncp;
 };
 
 struct veth_priv {
-	struct net_device *peer;
-	struct veth_net_stats *stats;
+	struct net_device	*peer;
+	atomic64_t		dropped;
 };
 
 /*
@@ -108,61 +104,31 @@ static const struct ethtool_ops veth_ethtool_ops = {
 	.get_ethtool_stats	= veth_get_ethtool_stats,
 };
 
-/*
- * xmit
- */
-
 static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device *rcv = NULL;
-	struct veth_priv *priv, *rcv_priv;
-	struct veth_net_stats *stats, *rcv_stats;
-	int length, cpu;
-
-	priv = netdev_priv(dev);
-	rcv = priv->peer;
-	rcv_priv = netdev_priv(rcv);
-
-	cpu = smp_processor_id();
-	stats = per_cpu_ptr(priv->stats, cpu);
-	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
-
-	if (!(rcv->flags & IFF_UP))
-		goto tx_drop;
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device *rcv = priv->peer;
+	int length = skb->len;
 
 	/* don't change ip_summed == CHECKSUM_PARTIAL, as that
-	   will cause bad checksum on forwarded packets */
+	 * will cause bad checksum on forwarded packets
+	 */
 	if (skb->ip_summed == CHECKSUM_NONE &&
 	    rcv->features & NETIF_F_RXCSUM)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	length = skb->len;
-	if (dev_forward_skb(rcv, skb) != NET_RX_SUCCESS)
-		goto rx_drop;
+	if (likely(dev_forward_skb(rcv, skb) == NET_RX_SUCCESS)) {
+		struct pcpu_vstats *stats =
+			this_cpu_ptr((void __percpu __force *)dev->ml_priv);
 
-	u64_stats_update_begin(&stats->syncp);
-	stats->tx_bytes += length;
-	stats->tx_packets++;
-	u64_stats_update_end(&stats->syncp);
+		u64_stats_update_begin(&stats->syncp);
+		stats->bytes += length;
+		stats->packets++;
+		u64_stats_update_end(&stats->syncp);
+	} else {
+		atomic64_inc(&priv->dropped);
+	}
 
-	u64_stats_update_begin(&rcv_stats->syncp);
-	rcv_stats->rx_bytes += length;
-	rcv_stats->rx_packets++;
-	u64_stats_update_end(&rcv_stats->syncp);
-
-	return NETDEV_TX_OK;
-
-tx_drop:
-	kfree_skb(skb);
-	u64_stats_update_begin(&stats->syncp);
-	stats->tx_dropped++;
-	u64_stats_update_end(&stats->syncp);
-	return NETDEV_TX_OK;
-
-rx_drop:
-	u64_stats_update_begin(&rcv_stats->syncp);
-	rcv_stats->rx_dropped++;
-	u64_stats_update_end(&rcv_stats->syncp);
 	return NETDEV_TX_OK;
 }
 
@@ -170,34 +136,43 @@ rx_drop:
  * general routines
  */
 
-static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
-						  struct rtnl_link_stats64 *tot)
+static u64 veth_stats_one(struct pcpu_vstats *result, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int cpu;
 
+	result->packets = 0;
+	result->bytes = 0;
 	for_each_possible_cpu(cpu) {
-		struct veth_net_stats *stats = per_cpu_ptr(priv->stats, cpu);
-		u64 rx_packets, rx_bytes, rx_dropped;
-		u64 tx_packets, tx_bytes, tx_dropped;
+		struct pcpu_vstats *stats =
+			per_cpu_ptr((void __percpu __force *)dev->ml_priv, cpu);
+		u64 packets, bytes;
 		unsigned int start;
 
 		do {
 			start = u64_stats_fetch_begin_bh(&stats->syncp);
-			rx_packets = stats->rx_packets;
-			tx_packets = stats->tx_packets;
-			rx_bytes = stats->rx_bytes;
-			tx_bytes = stats->tx_bytes;
-			rx_dropped = stats->rx_dropped;
-			tx_dropped = stats->tx_dropped;
+			packets = stats->packets;
+			bytes = stats->bytes;
 		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
-		tot->rx_packets += rx_packets;
-		tot->tx_packets += tx_packets;
-		tot->rx_bytes   += rx_bytes;
-		tot->tx_bytes   += tx_bytes;
-		tot->rx_dropped += rx_dropped;
-		tot->tx_dropped += tx_dropped;
+		result->packets += packets;
+		result->bytes += bytes;
 	}
+	return atomic64_read(&priv->dropped);
+}
+
+static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
+						  struct rtnl_link_stats64 *tot)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	struct pcpu_vstats one;
+
+	tot->tx_dropped = veth_stats_one(&one, dev);
+	tot->tx_bytes = one.bytes;
+	tot->tx_packets = one.packets;
+
+	tot->rx_dropped = veth_stats_one(&one, priv->peer);
+	tot->rx_bytes = one.bytes;
+	tot->rx_packets = one.packets;
 
 	return tot;
 }
@@ -242,24 +217,16 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
-	struct veth_net_stats *stats;
-	struct veth_priv *priv;
-
-	stats = alloc_percpu(struct veth_net_stats);
-	if (stats == NULL)
+	dev->ml_priv = (void __force *)alloc_percpu(struct pcpu_vstats);
+	if (!dev->ml_priv)
 		return -ENOMEM;
 
-	priv = netdev_priv(dev);
-	priv->stats = stats;
 	return 0;
 }
 
 static void veth_dev_free(struct net_device *dev)
 {
-	struct veth_priv *priv;
-
-	priv = netdev_priv(dev);
-	free_percpu(priv->stats);
+	free_percpu((void __percpu __force *)dev->ml_priv);
 	free_netdev(dev);
 }
 
