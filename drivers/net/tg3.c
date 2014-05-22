@@ -9029,7 +9029,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 	return 0;
 }
 
-static void tg3_get_nstats(struct tg3 *);
+static void tg3_get_nstats(struct tg3 *, struct rtnl_link_stats64 *);
 static void tg3_get_estats(struct tg3 *, struct tg3_ethtool_stats *);
 
 /* tp->lock is held. */
@@ -9051,7 +9051,7 @@ static int tg3_halt(struct tg3 *tp, int kind, bool silent)
 
 	if (tp->hw_stats) {
 		/* Save the stats across chip resets... */
-		tg3_get_nstats(tp);
+		tg3_get_nstats(tp, &tp->net_stats_prev);
 		tg3_get_estats(tp, &tp->estats_prev);
 
 		/* And make sure the next sample is new data */
@@ -11448,24 +11448,12 @@ static int tg3_close(struct net_device *dev)
 	return 0;
 }
 
-static inline unsigned long get_stat64(tg3_stat64_t *val)
-{
-	unsigned long ret;
-
-#if (BITS_PER_LONG == 32)
-	ret = val->low;
-#else
-	ret = ((u64)val->high << 32) | ((u64)val->low);
-#endif
-	return ret;
-}
-
-static inline u64 get_estat64(tg3_stat64_t *val)
+static inline u64 get_stat64(tg3_stat64_t *val)
 {
        return ((u64)val->high << 32) | ((u64)val->low);
 }
 
-static unsigned long tg3_calc_crc_errors(struct tg3 *tp)
+static u64 tg3_calc_crc_errors(struct tg3 *tp)
 {
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
@@ -11491,7 +11479,7 @@ static unsigned long tg3_calc_crc_errors(struct tg3 *tp)
 
 #define ESTAT_ADD(member) \
 	estats->member =	old_estats->member + \
-				get_estat64(&hw_stats->member)
+				get_stat64(&hw_stats->member)
 
 static void tg3_get_estats(struct tg3 *tp, struct tg3_ethtool_stats *estats)
 {
@@ -11577,10 +11565,9 @@ static void tg3_get_estats(struct tg3 *tp, struct tg3_ethtool_stats *estats)
 	ESTAT_ADD(mbuf_lwm_thresh_hit);
 }
 
-static void tg3_get_nstats(struct tg3 *tp)
+static void tg3_get_nstats(struct tg3 *tp, struct rtnl_link_stats64 *stats)
 {
-	struct net_device_stats *stats = &tp->net_stats;
-	struct net_device_stats *old_stats = &tp->net_stats_prev;
+	struct rtnl_link_stats64 *old_stats = &tp->net_stats_prev;
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
 	stats->rx_packets = old_stats->rx_packets +
@@ -13878,10 +13865,10 @@ static const struct ethtool_ops_ext tg3_ethtool_ops_ext = {
 	.set_eee		= tg3_set_eee,
 };
 
-static struct net_device_stats *tg3_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *stats)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	struct net_device_stats *stats = &tp->net_stats;
 
 	spin_lock_bh(&tp->lock);
 	if (!tp->hw_stats) {
@@ -13889,7 +13876,7 @@ static struct net_device_stats *tg3_get_stats(struct net_device *dev)
 		return &tp->net_stats_prev;
 	}
 
-	tg3_get_nstats(tp);
+	tg3_get_nstats(tp, stats);
 	spin_unlock_bh(&tp->lock);
 
 	return stats;
@@ -13976,7 +13963,6 @@ static const struct net_device_ops tg3_netdev_ops = {
 	.ndo_open		= tg3_open,
 	.ndo_stop		= tg3_close,
 	.ndo_start_xmit		= tg3_start_xmit,
-	.ndo_get_stats		= tg3_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= tg3_set_rx_mode,
 	.ndo_set_mac_address	= tg3_set_mac_addr,
@@ -13989,6 +13975,11 @@ static const struct net_device_ops tg3_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tg3_poll_controller,
 #endif
+};
+
+static const struct net_device_ops_ext tg3_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= tg3_get_stats64,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
@@ -17442,6 +17433,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	set_ethtool_ops_ext(dev, &tg3_ethtool_ops_ext);
 	dev->watchdog_timeo = TG3_TX_TIMEOUT;
 	dev->netdev_ops = &tg3_netdev_ops;
+	set_netdev_ops_ext(dev, &tg3_netdev_ops_ext);
 	dev->irq = pdev->irq;
 
 	err = tg3_get_invariants(tp, ent);
