@@ -398,9 +398,9 @@ extern void bnad_dim_timer_start(struct bnad *bnad);
 
 /* Statistics */
 extern void bnad_netdev_qstats_fill(struct bnad *bnad,
-		struct net_device_stats *stats);
+				    struct rtnl_link_stats64 *stats);
 extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
-		struct net_device_stats *stats);
+				     struct rtnl_link_stats64 *stats);
 
 /* Debugfs */
 void	bnad_debugfs_init(struct bnad *bnad);

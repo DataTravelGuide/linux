@@ -2219,7 +2219,7 @@ bnad_restore_vlans(struct bnad *bnad, u32 rx_id)
 
 /* Statistics utilities */
 void
-bnad_netdev_qstats_fill(struct bnad *bnad, struct net_device_stats *stats)
+bnad_netdev_qstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats)
 {
 	int i, j;
 
@@ -2262,7 +2262,7 @@ bnad_netdev_qstats_fill(struct bnad *bnad, struct net_device_stats *stats)
  * Must be called with the bna_lock held.
  */
 void
-bnad_netdev_hwstats_fill(struct bnad *bnad, struct net_device_stats *stats)
+bnad_netdev_hwstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats)
 {
 	struct bfi_enet_stats_mac *mac_stats;
 	u32 bmap;
@@ -2938,11 +2938,10 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
  * Used spin_lock to synchronize reading of stats structures, which
  * is written by BNA under the same lock.
  */
-static struct net_device_stats *
-bnad_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *
+bnad_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct bnad *bnad = netdev_priv(netdev);
-	struct net_device_stats *stats = &netdev->stats;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -3177,7 +3176,6 @@ static const struct net_device_ops bnad_netdev_ops = {
 	.ndo_open		= bnad_open,
 	.ndo_stop		= bnad_stop,
 	.ndo_start_xmit		= bnad_start_xmit,
-	.ndo_get_stats		= bnad_get_stats,
 	.ndo_set_multicast_list = bnad_set_rx_mode,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = bnad_set_mac_address,
@@ -3188,6 +3186,11 @@ static const struct net_device_ops bnad_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller    = bnad_netpoll
 #endif
+};
+
+static const struct net_device_ops_ext bnad_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= bnad_get_stats64,
 };
 
 static void
@@ -3216,6 +3219,7 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 	netdev->mem_end = bnad->mmio_start + bnad->mmio_len - 1;
 
 	netdev->netdev_ops = &bnad_netdev_ops;
+	set_netdev_ops_ext(netdev, &bnad_netdev_ops_ext);
 	bnad_set_ethtool_ops(netdev);
 }
 

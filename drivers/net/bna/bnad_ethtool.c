@@ -34,7 +34,7 @@
 #define BNAD_NUM_TXQ_COUNTERS 5
 
 #define BNAD_ETHTOOL_STATS_NUM						\
-	(sizeof(struct net_device_stats) / sizeof(unsigned long) +	\
+	(sizeof(struct rtnl_link_stats64) / sizeof(u64) +	\
 	sizeof(struct bnad_drv_stats) / sizeof(u64) +		\
 	offsetof(struct bfi_enet_stats, rxf_stats[0]) / sizeof(u64))
 
@@ -910,7 +910,7 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	struct bnad *bnad = netdev_priv(netdev);
 	int i, j, bi;
 	unsigned long flags;
-	struct net_device_stats *net_stats;
+	struct rtnl_link_stats64 *net_stats64;
 	u64 *stats64;
 	u32 bmap;
 
@@ -928,11 +928,11 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	bi = 0;
 	memset(buf, 0, stats->n_stats * sizeof(u64));
 
-	net_stats = (struct net_device_stats *)buf;
-	bnad_netdev_qstats_fill(bnad, net_stats);
-	bnad_netdev_hwstats_fill(bnad, net_stats);
+	net_stats64 = (struct rtnl_link_stats64 *)buf;
+	bnad_netdev_qstats_fill(bnad, net_stats64);
+	bnad_netdev_hwstats_fill(bnad, net_stats64);
 
-	bi = sizeof(*net_stats) / sizeof(unsigned long);
+	bi = sizeof(*net_stats64) / sizeof(u64);
 
 	/* Get netif_queue_stopped from stack */
 	bnad->stats.drv_stats.netif_queue_stopped = netif_queue_stopped(netdev);
