@@ -3000,26 +3000,18 @@ static int vxge_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 /**
- * vxge_get_stats
+ * vxge_get_stats64
  * @dev: pointer to the device structure
+ * @stats: pointer to struct rtnl_link_stats64
  *
- * Updates the device statistics structure. This function updates the device
- * statistics structure in the net_device structure and returns a pointer
- * to the same.
  */
-static struct net_device_stats *
-vxge_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *
+vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 {
-	struct vxgedev *vdev;
-	struct net_device_stats *net_stats;
+	struct vxgedev *vdev = netdev_priv(dev);
 	int k;
 
-	vdev = netdev_priv(dev);
-
-	net_stats = &vdev->stats.net_stats;
-
-	memset(net_stats, 0, sizeof(struct net_device_stats));
-
+	/* net_stats already zeroed by caller */
 	for (k = 0; k < vdev->no_of_vpath; k++) {
 		net_stats->rx_packets += vdev->vpaths[k].ring.stats.rx_frms;
 		net_stats->rx_bytes += vdev->vpaths[k].ring.stats.rx_bytes;
@@ -3188,7 +3180,6 @@ vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 static const struct net_device_ops vxge_netdev_ops = {
 	.ndo_open               = vxge_open,
 	.ndo_stop               = vxge_close,
-	.ndo_get_stats          = vxge_get_stats,
 	.ndo_start_xmit         = vxge_xmit,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_multicast_list = vxge_set_multicast,
@@ -3205,6 +3196,11 @@ static const struct net_device_ops vxge_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller    = vxge_netpoll,
 #endif
+};
+
+static const struct net_device_ops_ext vxge_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64        = vxge_get_stats64,
 };
 
 int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
@@ -3255,6 +3251,7 @@ int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	ndev->base_addr = (unsigned long) hldev->bar0;
 
 	ndev->netdev_ops = &vxge_netdev_ops;
+	set_netdev_ops_ext(ndev, &vxge_netdev_ops_ext);
 
 	ndev->watchdog_timeo = VXGE_LL_WATCH_DOG_TIMEOUT;
 
