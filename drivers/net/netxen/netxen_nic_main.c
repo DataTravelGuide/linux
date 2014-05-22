@@ -91,7 +91,8 @@ static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_free_ip_list(struct netxen_adapter *, bool);
 static void netxen_restore_indev_addr(struct net_device *dev, unsigned long);
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats);
 static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 static int nx_dev_request_reset(struct netxen_adapter *adapter);
 
@@ -554,7 +555,6 @@ static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_open	   = netxen_nic_open,
 	.ndo_stop	   = netxen_nic_close,
 	.ndo_start_xmit    = netxen_nic_xmit_frame,
-	.ndo_get_stats	   = netxen_nic_get_stats,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_multicast_list = netxen_set_multicast_list,
 	.ndo_set_mac_address    = netxen_nic_set_mac,
@@ -564,6 +564,11 @@ static const struct net_device_ops netxen_netdev_ops = {
 	.ndo_poll_controller = netxen_nic_poll_controller,
 #endif
 	.ndo_vlan_rx_register   = netxen_vlan_rx_register,
+};
+
+static const struct net_device_ops_ext netxen_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= netxen_nic_get_stats,
 };
 
 static inline bool netxen_function_zero(struct pci_dev *pdev)
@@ -1355,6 +1360,7 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		adapter->max_mc_count = 16;
 
 	netdev->netdev_ops	   = &netxen_netdev_ops;
+	set_netdev_ops_ext(netdev, &netxen_netdev_ops_ext);
 	netdev->watchdog_timeo     = 5*HZ;
 
 	netxen_nic_change_mtu(netdev, netdev->mtu);
@@ -2288,10 +2294,10 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *netdev,
+						      struct rtnl_link_stats64 *stats)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct net_device_stats *stats = &netdev->stats;
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
