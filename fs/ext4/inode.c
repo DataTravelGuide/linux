@@ -4038,11 +4038,14 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		 * hook to the iocb.
  		 */
 		iocb->private = NULL;
-		EXT4_I(inode)->cur_aio_dio = NULL;
+		ext4_inode_aio_set(inode, NULL);
 		if (!is_sync_kiocb(iocb)) {
-			iocb->private = ext4_init_io_end(inode);
-			if (!iocb->private)
+			ext4_io_end_t *io_end =
+				ext4_init_io_end(inode);
+			if (!io_end)
 				return -ENOMEM;
+
+			iocb->private = io_end;
 			/*
 			 * we save the io structure for current async
 			 * direct IO, so that later ext4_get_blocks()
@@ -4050,7 +4053,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 			 * is a unwritten extents needs to be converted
 			 * when IO is completed.
 			 */
-			EXT4_I(inode)->cur_aio_dio = iocb->private;
+			ext4_inode_aio_set(inode, io_end);
 		}
 
 		ret = blockdev_direct_IO(rw, iocb, inode,
@@ -4059,7 +4062,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 					 ext4_get_block_dio_write,
 					 ext4_end_io_dio);
 		if (iocb->private)
-			EXT4_I(inode)->cur_aio_dio = NULL;
+			ext4_inode_aio_set(inode, NULL);
 		/*
 		 * The io_end structure takes a reference to the inode,
 		 * that structure needs to be destroyed and the

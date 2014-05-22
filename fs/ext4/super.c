@@ -765,7 +765,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 #endif
 	INIT_LIST_HEAD(&ei->i_aio_dio_complete_list);
 	spin_lock_init(&ei->i_completed_io_lock);
-	ei->cur_aio_dio = NULL;
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;
 	atomic_set(&ei->i_aiodio_unwritten, 0);

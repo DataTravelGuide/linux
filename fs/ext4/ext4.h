@@ -836,8 +836,6 @@ struct ext4_inode_info {
 	/* completed async DIOs that might need unwritten extents handling */
 	struct list_head i_aio_dio_complete_list;
 	spinlock_t i_completed_io_lock;
-	/* current io_end structure for async DIO write*/
-	ext4_io_end_t *cur_aio_dio;
 	atomic_t i_aiodio_unwritten; /* Number of inflight conversions pending */
 	struct mutex i_aio_mutex; /* big hammer for unaligned AIO */
 
@@ -1210,6 +1208,16 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 		ino == EXT4_RESIZE_INO ||
 		(ino >= EXT4_FIRST_INO(sb) &&
 		 ino <= le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count));
+}
+
+static inline ext4_io_end_t *ext4_inode_aio(struct inode *inode)
+{
+	return inode->i_private;
+}
+
+static inline void ext4_inode_aio_set(struct inode *inode, ext4_io_end_t *io)
+{
+	inode->i_private = io;
 }
 
 /*

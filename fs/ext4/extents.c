@@ -3583,7 +3583,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 {
 	int ret = 0;
 	int err = 0;
-	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
+	ext4_io_end_t *io = ext4_inode_aio(inode);
 
 	ext_debug("ext4_ext_handle_uninitialized_extents: inode %lu, logical"
 		  "block %llu, max_blocks %u, flags %d, allocated %u",
@@ -3740,7 +3740,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	int err = 0, depth, ret;
 	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
-	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
+	ext4_io_end_t *io = ext4_inode_aio(inode);
 
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%u requested for inode %lu\n",
