@@ -2526,6 +2526,8 @@ extern void		dev_mcast_init(void);
 extern const struct net_device_stats *dev_get_stats(struct net_device *dev);
 extern const struct rtnl_link_stats64 *dev_get_stats64(struct net_device *dev,
 						       struct rtnl_link_stats64 *storage);
+extern void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+				    const struct net_device_stats *netdev_stats);
 extern void		dev_txq_stats_fold(const struct net_device *dev, struct net_device_stats *stats);
 extern void		dev_txq_stats_fold64(const struct net_device *dev,
 					     struct rtnl_link_stats64 *stats);

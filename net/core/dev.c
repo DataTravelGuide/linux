@@ -6704,8 +6704,8 @@ EXPORT_SYMBOL(dev_get_stats);
 /* Convert net_device_stats to rtnl_link_stats64.  They have the same
  * fields in the same order, with only the type differing.
  */
-static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
-				    const struct net_device_stats *netdev_stats)
+void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+			     const struct net_device_stats *netdev_stats)
 {
 #if BITS_PER_LONG == 64
 	BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
@@ -6721,6 +6721,7 @@ static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 		dst[i] = src[i];
 #endif
 }
+EXPORT_SYMBOL(netdev_stats_to_stats64);
 
 /**
  *	dev_get_stats64	- get network device statistics
