@@ -44,7 +44,8 @@ module_param(gso, bool, 0444);
 #define VIRTNET_SEND_COMMAND_SG_MAX    2
 
 struct virtnet_stats {
-	struct u64_stats_sync syncp;
+	struct u64_stats_sync tx_syncp;
+	struct u64_stats_sync rx_syncp;
 	u64 tx_bytes;
 	u64 tx_packets;
 
@@ -410,10 +411,10 @@ static void receive_buf(struct receive_queue *rq, void *buf, unsigned int len)
 	hdr = skb_vnet_hdr(skb);
 	skb->truesize += skb->data_len;
 
-	u64_stats_update_begin(&stats->syncp);
+	u64_stats_update_begin(&stats->rx_syncp);
 	stats->rx_bytes += skb->len;
 	stats->rx_packets++;
-	u64_stats_update_end(&stats->syncp);
+	u64_stats_update_end(&stats->rx_syncp);
 
 	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
 		pr_debug("Needs csum!\n");
@@ -706,10 +707,10 @@ static unsigned int free_old_xmit_skbs(struct send_queue *sq)
 	while ((skb = virtqueue_get_buf(sq->vq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
 
-		u64_stats_update_begin(&stats->syncp);
+		u64_stats_update_begin(&stats->tx_syncp);
 		stats->tx_bytes += skb->len;
 		stats->tx_packets++;
-		u64_stats_update_end(&stats->syncp);
+		u64_stats_update_end(&stats->tx_syncp);
 
 		tot_sgs += skb_vnet_hdr(skb)->num_sg;
 		dev_kfree_skb_any(skb);
@@ -919,12 +920,16 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 		u64 tpackets, tbytes, rpackets, rbytes;
 
 		do {
-			start = u64_stats_fetch_begin(&stats->syncp);
+			start = u64_stats_fetch_begin(&stats->tx_syncp);
 			tpackets = stats->tx_packets;
 			tbytes   = stats->tx_bytes;
+		} while (u64_stats_fetch_retry(&stats->tx_syncp, start));
+
+		do {
+			start = u64_stats_fetch_begin(&stats->rx_syncp);
 			rpackets = stats->rx_packets;
 			rbytes   = stats->rx_bytes;
-		} while (u64_stats_fetch_retry(&stats->syncp, start));
+		} while (u64_stats_fetch_retry(&stats->rx_syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
