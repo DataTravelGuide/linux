@@ -816,6 +816,7 @@ struct fe_priv {
 	u64 stat_rx_packets;
 	u64 stat_rx_bytes; /* not always available in HW */
 	u64 stat_rx_missed_errors;
+	u64 stat_rx_dropped;
 
 	/* media detection workaround.
 	 * Locking: Within irq hander or disable_irq+spin_lock(&np->lock);
@@ -1774,6 +1775,7 @@ nv_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *storage)
 		syncp_start = u64_stats_fetch_begin(&np->swstats_rx_syncp);
 		storage->rx_packets       = np->stat_rx_packets;
 		storage->rx_bytes         = np->stat_rx_bytes;
+		storage->rx_dropped       = np->stat_rx_dropped;
 		storage->rx_missed_errors = np->stat_rx_missed_errors;
 	} while (u64_stats_fetch_retry(&np->swstats_rx_syncp, syncp_start));
 
@@ -1845,6 +1847,9 @@ static int nv_alloc_rx(struct net_device *dev)
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
 				np->put_rx_ctx = np->first_rx_ctx;
 		} else {
+			u64_stats_update_begin(&np->swstats_rx_syncp);
+			np->stat_rx_dropped++;
+			u64_stats_update_end(&np->swstats_rx_syncp);
 			return 1;
 		}
 	}
@@ -1878,6 +1883,9 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 			if (unlikely(np->put_rx_ctx++ == np->last_rx_ctx))
 				np->put_rx_ctx = np->first_rx_ctx;
 		} else {
+			u64_stats_update_begin(&np->swstats_rx_syncp);
+			np->stat_rx_dropped++;
+			u64_stats_update_end(&np->swstats_rx_syncp);
 			return 1;
 		}
 	}
