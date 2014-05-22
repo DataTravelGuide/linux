@@ -3773,12 +3773,13 @@ out:
 static void ext4_free_io_end(ext4_io_end_t *io)
 {
 	BUG_ON(!io);
+	BUG_ON(!list_empty(&io->list));
 	BUG_ON(io->flag & DIO_AIO_UNWRITTEN);
 
 	iput(io->inode);
 	kfree(io);
 }
-static void dump_aio_dio_list(struct inode * inode)
+static void dump_completed_IO(struct inode * inode)
 {
 #ifdef	EXT4_DEBUG
 	struct list_head *cur, *before, *after;
@@ -3792,7 +3793,6 @@ static void dump_aio_dio_list(struct inode * inode)
 	}
 
 	ext4_debug("Dump inode %lu aio_dio_completed_IO list \n", inode->i_ino);
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	list_for_each_entry(io, &EXT4_I(inode)->i_aio_dio_complete_list, list){
 		cur = &io->list;
 		before = cur->prev;
@@ -3803,31 +3803,20 @@ static void dump_aio_dio_list(struct inode * inode)
 		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
 			    io, inode->i_ino, io0, io1);
 	}
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 #endif
 }
 
-/*
- * check a range of space and convert unwritten extents to written.
- *
- * Called with inode->i_mutex; we depend on this when we manipulate
- * io->flag, since we could otherwise race with flush_aio_dio_completed_IO()
- */
-static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
+/* check a range of space and convert unwritten extents to written. */
+static int ext4_end_aio_dio(ext4_io_end_t *io)
 {
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	ssize_t size = io->size;
 	int ret = 0;
 
-	BUG_ON(!(io->flag & DIO_AIO_UNWRITTEN));
-
 	ext4_debug("end_aio_dio_onlock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 	           io, inode->i_ino, io->list.next, io->list.prev);
-
-	if (io->flag != DIO_AIO_UNWRITTEN)
-		return ret;
 
 	if (offset + size <= i_size_read(inode))
 		ret = ext4_convert_unwritten_extents(inode, offset, size);
@@ -3840,7 +3829,6 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 			 inode->i_ino, offset, size, ret);
 	}
 
-	io->flag &= ~DIO_AIO_UNWRITTEN;
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
 	/* Wake up anyone waiting on unwritten extent conversion */
@@ -3849,77 +3837,96 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 
 	return ret;
 }
+
+/* Add the io_end to per-inode completed end_io list. */
+void ext4_add_complete_io(ext4_io_end_t *io_end)
+{
+	struct ext4_inode_info *ei = EXT4_I(io_end->inode);
+	struct workqueue_struct *wq;
+	unsigned long flags;
+
+	BUG_ON(!(io_end->flag & DIO_AIO_UNWRITTEN));
+	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (list_empty(&ei->i_aio_dio_complete_list)) {
+		io_end->flag |= EXT4_IO_END_QUEUED;
+		queue_work(wq, &io_end->work);
+	}
+	list_add_tail(&io_end->list, &ei->i_aio_dio_complete_list);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+}
+
+static int ext4_do_flush_completed_IO(struct inode *inode,
+				      ext4_io_end_t *work_io)
+{
+	ext4_io_end_t *io;
+	struct list_head unwritten, complete, to_free;
+	unsigned long flags;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	int err, ret = 0;
+
+	INIT_LIST_HEAD(&complete);
+	INIT_LIST_HEAD(&to_free);
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	dump_completed_IO(inode);
+	list_replace_init(&ei->i_aio_dio_complete_list, &unwritten);
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+
+	while (!list_empty(&unwritten)) {
+		io = list_entry(unwritten.next, ext4_io_end_t, list);
+		BUG_ON(!(io->flag & DIO_AIO_UNWRITTEN));
+		list_del_init(&io->list);
+
+		err = ext4_end_aio_dio(io);
+		if (unlikely(!ret && err))
+			ret = err;
+
+		list_add_tail(&io->list, &complete);
+	}
+	/* It is important to update all flags for all end_io in one shot w/o
+	 * dropping the lock.*/
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	while (!list_empty(&complete)) {
+		io = list_entry(complete.next, ext4_io_end_t, list);
+		io->flag &= ~DIO_AIO_UNWRITTEN;
+		/* end_io context can not be destroyed now because it still
+		 * used by queued worker. Worker thread will destroy it later */
+		if (io->flag & EXT4_IO_END_QUEUED)
+			list_del_init(&io->list);
+		else
+			list_move(&io->list, &to_free);
+	}
+	/* If we are called from worker context, it is time to clear queued
+	 * flag, and destroy it's end_io if it was converted already */
+	if (work_io) {
+		work_io->flag &= ~EXT4_IO_END_QUEUED;
+		if (!(work_io->flag & DIO_AIO_UNWRITTEN))
+			list_add_tail(&work_io->list, &to_free);
+	}
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+
+	while (!list_empty(&to_free)) {
+		io = list_entry(to_free.next, ext4_io_end_t, list);
+		list_del_init(&io->list);
+		ext4_free_io_end(io);
+	}
+	return ret;
+}
+
 /*
  * work on completed aio dio IO, to convert unwritten extents to extents
  */
-static void ext4_end_aio_dio_work(struct work_struct *work)
+static void ext4_end_io_work(struct work_struct *work)
 {
-	ext4_io_end_t *io  = container_of(work, ext4_io_end_t, work);
-	struct inode *inode = io->inode;
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	unsigned long flags;
-
-	mutex_lock(&inode->i_mutex);
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (list_empty(&io->list)) {
-		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-		goto free;
-	}
-	list_del_init(&io->list);
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-
-	(void) ext4_end_aio_dio_nolock(io);
-free:
-	ext4_free_io_end(io);
-	mutex_unlock(&inode->i_mutex);
+	ext4_io_end_t *io = container_of(work, ext4_io_end_t, work);
+	ext4_do_flush_completed_IO(io->inode, io);
 }
-/*
- * This function is called from ext4_sync_file().
- *
- * When AIO DIO IO is completed, the work to convert unwritten
- * extents to written is queued on workqueue but may not get immediately
- * scheduled. When fsync is called, we need to ensure the
- * conversion is complete before fsync returns.
- * The inode keeps track of a list of completed AIO from DIO path
- * that might needs to do the conversion. This function walks through
- * the list and convert the related unwritten extents to written.
- */
-int flush_aio_dio_completed_IO(struct inode *inode)
-{
-	ext4_io_end_t *io;
-	int ret = 0;
-	int ret2 = 0;
-	unsigned long flags;
-	struct ext4_inode_info *ei = EXT4_I(inode);
 
-	dump_aio_dio_list(inode);
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	while (!list_empty(&EXT4_I(inode)->i_aio_dio_complete_list)){
-		io = list_entry(EXT4_I(inode)->i_aio_dio_complete_list.next,
-				ext4_io_end_t, list);
-		list_del_init(&io->list);
-		/*
-		 * Calling ext4_end_aio_dio_nolock() to convert completed
-		 * IO to written.
-		 *
-		 * When ext4_sync_file() is called, run_queue() may already
-		 * about to flush the work corresponding to this io structure.
-		 * It will be upset if it founds the io structure related
-		 * to the work-to-be schedule is freed.
-		 *
-		 * Thus we need to keep the io structure still valid here after
-		 * convertion finished. The io structure has a flag to
-		 * avoid double converting from both fsync and background work
-		 * queue work.
-		 */
-		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-		ret = ext4_end_aio_dio_nolock(io);
-		if (ret < 0)
-			ret2 = ret;
-		spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	}
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-	return (ret2 < 0) ? ret2 : 0;
+int ext4_flush_completed_IO(struct inode *inode)
+{
+	return ext4_do_flush_completed_IO(inode, NULL);
 }
 
 static ext4_io_end_t *ext4_init_io_end (struct inode *inode)
@@ -3937,7 +3944,7 @@ static ext4_io_end_t *ext4_init_io_end (struct inode *inode)
 		io->error = 0;
 		io->iocb = NULL;
 		io->result = 0;
-		INIT_WORK(&io->work, ext4_end_aio_dio_work);
+		INIT_WORK(&io->work, ext4_end_io_work);
 		INIT_LIST_HEAD(&io->list);
 	}
 
@@ -3949,15 +3956,10 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    bool is_async)
 {
         ext4_io_end_t *io_end = iocb->private;
-	struct ext4_inode_info *ei;
-	struct workqueue_struct *wq;
-	unsigned long flags;
 
 	/* if not async direct IO or dio with 0 bytes write, just return */
 	if (!io_end || !size)
 		goto out;
-
-	ei = EXT4_I(io_end->inode);
 
 	ext_debug("ext4_end_io_dio(): io_end 0x%p"
 		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
@@ -3981,16 +3983,7 @@ out:
 		io_end->iocb = iocb;
 		io_end->result = ret;
 	}
-	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
-
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	/* Add the io_end to per-inode completed aio dio list*/
-	list_add_tail(&io_end->list,
-		 &EXT4_I(io_end->inode)->i_aio_dio_complete_list);
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-
-	/* queue the work to convert unwritten extents to written */
-	queue_work(wq, &io_end->work);
+	ext4_add_complete_io(io_end);
 }
 /*
  * For ext4 extent files, ext4 will do direct-io write to holes,

@@ -168,7 +168,8 @@ struct mpage_da_data {
 	int pages_written;
 	int retval;
 };
-#define	DIO_AIO_UNWRITTEN	0x1
+#define	DIO_AIO_UNWRITTEN	0x0001
+#define EXT4_IO_END_QUEUED	0x0004
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
 	struct inode		*inode;		/* file being written to */
@@ -1787,7 +1788,7 @@ extern int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		loff_t length, int flags);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
-extern int flush_aio_dio_completed_IO(struct inode *inode);
+extern int ext4_flush_completed_IO(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
 /* ioctl.c */

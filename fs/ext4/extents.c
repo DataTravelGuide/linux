@@ -3994,7 +3994,7 @@ void ext4_ext_truncate(struct inode *inode)
 	 * finish any pending end_io work so we won't run the risk of
 	 * converting any truncated blocks to initialized later
 	 */
-	flush_aio_dio_completed_IO(inode);
+	ext4_flush_completed_IO(inode);
 
 	/*
 	 * probably first extent we're gonna free will be last in block
@@ -4138,7 +4138,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	}
 
 	/* Prevent race condition between unwritten */
-	flush_aio_dio_completed_IO(inode);
+	ext4_flush_completed_IO(inode);
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
@@ -4519,7 +4519,7 @@ int ext4_ext_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	}
 
 	/* finish any pending end_io work */
-	err = flush_aio_dio_completed_IO(inode);
+	err = ext4_flush_completed_IO(inode);
 	if (err)
 		goto out_mutex;
 
