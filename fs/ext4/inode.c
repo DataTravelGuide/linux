@@ -3807,6 +3807,9 @@ static void dump_aio_dio_list(struct inode * inode)
 
 /*
  * check a range of space and convert unwritten extents to written.
+ *
+ * Called with inode->i_mutex; we depend on this when we manipulate
+ * io->flag, since we could otherwise race with flush_aio_dio_completed_IO()
  */
 static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 {
@@ -3819,9 +3822,6 @@ static int ext4_end_aio_dio_nolock(ext4_io_end_t *io)
 	ext4_debug("end_aio_dio_onlock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 	           io, inode->i_ino, io->list.next, io->list.prev);
-
-	if (list_empty(&io->list))
-		return ret;
 
 	if (io->flag != DIO_AIO_UNWRITTEN)
 		return ret;
@@ -3862,6 +3862,13 @@ static void ext4_end_aio_dio_work(struct work_struct *work)
 	int ret = 0;
 	unsigned long flags;
 
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (list_empty(&io->list)) {
+		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+		goto free;
+	}
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+
 	mutex_lock(&inode->i_mutex);
 	ret = ext4_end_aio_dio_nolock(io);
 	if (ret < 0){
@@ -3872,8 +3879,9 @@ static void ext4_end_aio_dio_work(struct work_struct *work)
 	if (!list_empty(&io->list))
 		list_del_init(&io->list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-	ext4_free_io_end(io);
 	mutex_unlock(&inode->i_mutex);
+free:
+	ext4_free_io_end(io);
 }
 /*
  * This function is called from ext4_sync_file().
@@ -3893,9 +3901,6 @@ int flush_aio_dio_completed_IO(struct inode *inode)
 	int ret2 = 0;
 	unsigned long flags;
 	struct ext4_inode_info *ei = EXT4_I(inode);
-
-	if (list_empty(&EXT4_I(inode)->i_aio_dio_complete_list))
-		return ret;
 
 	dump_aio_dio_list(inode);
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
