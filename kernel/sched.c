@@ -771,8 +771,10 @@ struct rq {
 	u64 idle_stamp;
 	u64 avg_idle;
 
+#ifndef __GENKSYMS__
 	/* This is used to determine avg_idle's max value */
 	u64 max_idle_balance_cost;
+#endif
 #endif
 
 #ifndef __GENKSYMS__
