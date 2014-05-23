@@ -53,6 +53,3 @@ static inline void mutex_clear_owner(struct mutex *lock)
 		local_irq_restore(flags);		\
 		preempt_check_resched();		\
 	} while (0)
-
-#define mutex_add_waiter(waiter, list)	list_add_tail(waiter, list)
-#define mutex_waitlist_head(lock)	(lock)->wait_list.next
