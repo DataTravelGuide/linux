@@ -3789,6 +3789,7 @@ iscsi_conn_attr(ipv6_flow_label, ISCSI_PARAM_IPV6_FLOW_LABEL);
 iscsi_conn_attr(is_fw_assigned_ipv6, ISCSI_PARAM_IS_FW_ASSIGNED_IPV6);
 iscsi_conn_attr(tcp_xmit_wsf, ISCSI_PARAM_TCP_XMIT_WSF);
 iscsi_conn_attr(tcp_recv_wsf, ISCSI_PARAM_TCP_RECV_WSF);
+iscsi_conn_attr(local_ipaddr, ISCSI_PARAM_LOCAL_IPADDR);
 
 
 #define iscsi_conn_ep_attr_show(param)					\
@@ -3858,6 +3859,7 @@ static struct attribute *iscsi_conn_attrs[] = {
 	&dev_attr_conn_is_fw_assigned_ipv6.attr,
 	&dev_attr_conn_tcp_xmit_wsf.attr,
 	&dev_attr_conn_tcp_recv_wsf.attr,
+	&dev_attr_conn_local_ipaddr.attr,
 	NULL,
 };
 
@@ -3927,6 +3929,8 @@ static mode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_PARAM_TCP_XMIT_WSF;
 	else if (attr == &dev_attr_conn_tcp_recv_wsf.attr)
 		param = ISCSI_PARAM_TCP_RECV_WSF;
+	else if (attr == &dev_attr_conn_local_ipaddr.attr)
+		param = ISCSI_PARAM_LOCAL_IPADDR;
 	else {
 		WARN_ONCE(1, "Invalid conn attr");
 		return 0;
