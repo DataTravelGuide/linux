@@ -32,6 +32,13 @@
 #ifdef CONFIG_DEBUG_MUTEXES
 # include "mutex-debug.h"
 # include <asm-generic/mutex-null.h>
+/*
+ * Must be 0 for the debug case so we do not do the unlock outside of the
+ * wait_lock region. debug_mutex_unlock() will do the actual unlock in this
+ * case.
+ */
+# undef __mutex_slowpath_needs_to_unlock
+# define  __mutex_slowpath_needs_to_unlock()   0
 #else
 # include "mutex.h"
 # include <asm/mutex.h>
@@ -555,10 +562,6 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 	unsigned long flags;
 
-	spin_lock_mutex(&lock->wait_lock, flags);
-	mutex_release(&lock->dep_map, nested, _RET_IP_);
-	debug_mutex_unlock(lock);
-
 	/*
 	 * some architectures leave the lock unlocked in the fastpath failure
 	 * case, others need to leave it locked. In the later case we have to
@@ -566,6 +569,10 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
 	 */
 	if (__mutex_slowpath_needs_to_unlock())
 		atomic_set(&lock->count, 1);
+
+	spin_lock_mutex(&lock->wait_lock, flags);
+	mutex_release(&lock->dep_map, nested, _RET_IP_);
+	debug_mutex_unlock(lock);
 
 	if (!MUTEX_LIST_EMPTY(&lock->wait_list)) {
 		/* get the first entry from the wait-list: */
