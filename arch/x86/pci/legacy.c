@@ -32,7 +32,7 @@ static int __init pci_legacy_init(void)
 		return 0;
 
 	printk("PCI: Probing PCI hardware\n");
-	pci_root_bus = pcibios_scan_root(0);
+	pcibios_scan_root(0);
 	return 0;
 }
 
