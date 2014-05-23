@@ -1928,11 +1928,10 @@ static int efx_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
+static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	struct net_device_stats *stats = &net_dev->stats;
 
 	spin_lock_bh(&efx->stats_lock);
 
@@ -2066,7 +2065,6 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
-	.ndo_get_stats		= efx_net_stats,
 	.ndo_tx_timeout		= efx_watchdog,
 	.ndo_start_xmit		= efx_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2082,6 +2080,11 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
+};
+
+static const struct net_device_ops_ext efx_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= efx_net_stats,
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -2128,6 +2131,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->watchdog_timeo = 5 * HZ;
 	net_dev->irq = efx->pci_dev->irq;
 	net_dev->netdev_ops = &efx_netdev_ops;
+	set_netdev_ops_ext(net_dev, &efx_netdev_ops_ext);
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
 	set_ethtool_ops_ext(net_dev, &efx_ethtool_ops_ext);
 	
