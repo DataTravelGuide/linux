@@ -576,6 +576,7 @@ F:	net/mac80211/
 F:	net/wireless/
 
 XEN
+M:	Vitaly Kuznetsov <vkuznets@redhat.com>
 M:	Radim Krcmar <rkrcmar@redhat.com>
 M:	Igor Mammedov <imammedo@redhat.com>
 M:	Andrew Jones <drjones@redhat.com>
