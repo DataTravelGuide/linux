@@ -3198,6 +3198,7 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
+	int val;
 
 	switch(param) {
 	case ISCSI_PARAM_FAST_ABORT:
@@ -3292,6 +3293,10 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_DISCOVERY_PARENT_TYPE:
 		return iscsi_switch_str_param(&session->discovery_parent_type,
 					      buf);
+	case ISCSI_PARAM_DISCOVERY_SESS:
+		sscanf(buf, "%d", &val);
+		session->discovery_sess = !!val;
+		break;
 	default:
 		return -ENOSYS;
 	}
