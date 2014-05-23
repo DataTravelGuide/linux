@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
+#include <linux/percpu.h>
 
 /*
  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
@@ -119,61 +120,199 @@ EXPORT_SYMBOL(mutex_lock);
  * In order to avoid a stampede of mutex spinners from acquiring the mutex
  * more or less simultaneously, the spinners need to acquire a MCS lock
  * first before spinning on the owner field.
- *
- * We don't inline mspin_lock() so that perf can correctly account for the
- * time spent in this lock function.
  */
 struct mspin_node {
 	struct mspin_node *next ;
 	int		  locked;	/* 1 if lock acquired */
 };
-#define	MLOCK(mutex)	((struct mspin_node **)&((mutex)->spin_mlock))
 
-static noinline
-void mspin_lock(struct mutex *mutex, struct mspin_node *node)
+/*
+ * Cancellable version of the MCS lock above.
+ *
+ * Intended for adaptive spinning of sleeping locks:
+ * mutex_lock()/rwsem_down_{read,write}() etc.
+ */
+struct optimistic_spin_queue {
+	struct optimistic_spin_queue *next, *prev;
+	int locked; /* 1 if lock acquired */
+};
+#define OSQ_LOCK(mutex)	((struct optimistic_spin_queue **)&((mutex)->spin_mlock))
+
+/*
+ * An MCS like lock especially tailored for optimistic spinning for sleeping
+ * lock implementations (mutex, rwsem, etc).
+ *
+ * Using a single mcs node per CPU is safe because sleeping locks should not be
+ * called from interrupt context and we have preemption disabled while
+ * spinning.
+ */
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_queue, osq_node);
+
+/*
+ * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
+ * Can return NULL in case we were the last queued and we updated @lock instead.
+ */
+static inline struct optimistic_spin_queue *
+osq_wait_next(struct optimistic_spin_queue **lock,
+	      struct optimistic_spin_queue *node,
+	      struct optimistic_spin_queue *prev)
 {
-	struct mspin_node *prev;
+	struct optimistic_spin_queue *next = NULL;
 
-	/* Init node */
-	node->locked = 0;
-	node->next   = NULL;
+	for (;;) {
+		if (*lock == node && cmpxchg(lock, node, prev) == node) {
+			/*
+			 * We were the last queued, we moved @lock back. @prev
+			 * will now observe @lock and will complete its
+			 * unlock()/unqueue().
+			 */
+			break;
+		}
 
-	prev = xchg(MLOCK(mutex), node);
-	/*
-	 * An external kernel module may have a statically allocated mutex
-	 * initialized with the old initializer. As a result, a pointer to
-	 * wait_list should be treated as NULL.
-	 */
-	if (unlikely(prev == (struct mspin_node *)&mutex->wait_list))
-		prev = NULL;
-	if (likely(prev == NULL)) {
-		/* Lock acquired */
-		node->locked = 1;
-		return;
-	}
-	ACCESS_ONCE(prev->next) = node;
-	smp_wmb();
-	/* Wait until the lock holder passes the lock down */
-	while (!ACCESS_ONCE(node->locked))
+		/*
+		 * We must xchg() the @node->next value, because if we were to
+		 * leave it in, a concurrent unlock()/unqueue() from
+		 * @node->next might complete Step-A and think its @prev is
+		 * still valid.
+		 *
+		 * If the concurrent unlock()/unqueue() wins the race, we'll
+		 * wait for either @lock to point to us, through its Step-B, or
+		 * wait for a new @node->next from its Step-C.
+		 */
+		if (node->next) {
+			next = xchg(&node->next, NULL);
+			if (next)
+				break;
+		}
+
 		arch_mutex_cpu_relax();
+	}
+
+	return next;
 }
 
-static void mspin_unlock(struct mutex *mutex, struct mspin_node *node)
+bool osq_lock(struct mutex *mutex, struct optimistic_spin_queue **lock)
 {
-	struct mspin_node *next = ACCESS_ONCE(node->next);
+	struct optimistic_spin_queue *node
+					= this_cpu_ptr(&per_cpu_var(osq_node));
+	struct optimistic_spin_queue *prev, *next;
 
-	if (likely(!next)) {
+	node->locked = 0;
+	node->next = NULL;
+
+	prev = xchg(lock, node);
+	/*
+	 * In case the mutex is initialized with the DEFINE_MUTEX() macro,
+	 * the check below will correctly handle that initial value.
+	 */
+	if (unlikely(prev == (struct optimistic_spin_queue *)&mutex->wait_list))
+		prev = NULL;
+	node->prev = prev;
+	if (likely(prev == NULL))
+		return true;
+
+	ACCESS_ONCE(prev->next) = node;
+
+	/*
+	 * Normally @prev is untouchable after the above store; because at that
+	 * moment unlock can proceed and wipe the node element from stack.
+	 *
+	 * However, since our nodes are static per-cpu storage, we're
+	 * guaranteed their existence -- this allows us to apply
+	 * cmpxchg in an attempt to undo our queueing.
+	 */
+
+	while (!node->locked) {
 		/*
-		 * Release the lock by setting it to NULL
+		 * If we need to reschedule bail... so we can block.
 		 */
-		if (cmpxchg(MLOCK(mutex), node, NULL) == node)
-			return;
-		/* Wait until the next pointer is set */
-		while (!(next = ACCESS_ONCE(node->next)))
-			arch_mutex_cpu_relax();
+		if (need_resched())
+			goto unqueue;
+
+		arch_mutex_cpu_relax();
 	}
-	ACCESS_ONCE(next->locked) = 1;
-	smp_wmb();
+	return true;
+
+unqueue:
+	/*
+	 * Step - A  -- stabilize @prev
+	 *
+	 * Undo our @prev->next assignment; this will make @prev's
+	 * unlock()/unqueue() wait for a next pointer since @lock points to us
+	 * (or later).
+	 */
+
+	for (;;) {
+		if (prev->next == node &&
+		    cmpxchg(&prev->next, node, NULL) == node)
+			break;
+
+		/*
+		 * We can only fail the cmpxchg() racing against an unlock(),
+		 * in which case we should observe @node->locked becomming
+		 * true.
+		 */
+		if (node->locked)
+			return true;
+
+		arch_mutex_cpu_relax();
+
+		/*
+		 * Or we race against a concurrent unqueue()'s step-B, in which
+		 * case its step-C will write us a new @node->prev pointer.
+		 */
+		prev = ACCESS_ONCE(node->prev);
+	}
+
+	/*
+	 * Step - B -- stabilize @next
+	 *
+	 * Similar to unlock(), wait for @node->next or move @lock from @node
+	 * back to @prev.
+	 */
+
+	next = osq_wait_next(lock, node, prev);
+	if (!next)
+		return false;
+
+	/*
+	 * Step - C -- unlink
+	 *
+	 * @prev is stable because its still waiting for a new @prev->next
+	 * pointer, @next is stable because our @node->next pointer is NULL and
+	 * it will wait in Step-A.
+	 */
+
+	ACCESS_ONCE(next->prev) = prev;
+	ACCESS_ONCE(prev->next) = next;
+
+	return false;
+}
+
+void osq_unlock(struct optimistic_spin_queue **lock)
+{
+	struct optimistic_spin_queue *node
+					= this_cpu_ptr(&per_cpu_var(osq_node));
+	struct optimistic_spin_queue *next;
+
+	/*
+	 * Fast path for the uncontended case.
+	 */
+	if (likely(cmpxchg(lock, node, NULL) == node))
+		return;
+
+	/*
+	 * Second most likely case.
+	 */
+	next = xchg(&node->next, NULL);
+	if (next) {
+		ACCESS_ONCE(next->locked) = 1;
+		return;
+	}
+
+	next = osq_wait_next(lock, node, NULL);
+	if (next)
+		ACCESS_ONCE(next->locked) = 1;
 }
 
 #endif /* CONFIG_SMP && !CONFIG_DEBUG_MUTEXES &&
@@ -221,10 +360,6 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	struct task_struct *task = current;
 	struct mutex_waiter waiter;
 	unsigned long flags;
-#if defined(CONFIG_SMP) && !defined(CONFIG_DEBUG_MUTEXES) && \
-    !defined(CONFIG_HAVE_DEFAULT_NO_SPIN_MUTEXES)
-	struct mspin_node  node;
-#endif
 
 	preempt_disable();
 	mutex_acquire_nest(&lock->dep_map, subclass, 0, nest_lock, ip);
@@ -255,7 +390,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 
 	if (current->lock_depth >= 0)
 		goto slowpath;	/* Don't spin if we own BKL */
-	mspin_lock(lock, &node);
+	if (!osq_lock(lock, OSQ_LOCK(lock)))
+		goto slowpath;
 	for (;;) {
 		struct thread_info *owner;
 
@@ -278,7 +414,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		    (atomic_cmpxchg(&lock->count, 1, 0) == 1)) {
 			lock_acquired(&lock->dep_map, ip);
 			mutex_set_owner(lock);
-			mspin_unlock(lock, &node);
+			osq_unlock(OSQ_LOCK(lock));
 			preempt_enable();
 			return 0;
 		}
@@ -300,7 +436,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 */
 		arch_mutex_cpu_relax();
 	}
-	mspin_unlock(lock, &node);
+	osq_unlock(OSQ_LOCK(lock));
 slowpath:
 #endif
 	spin_lock_mutex(&lock->wait_lock, flags);
