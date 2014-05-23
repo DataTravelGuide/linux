@@ -2973,6 +2973,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	free_pages((unsigned long) conn->data,
 		   get_order(ISCSI_DEF_MAX_RECV_SEG_LEN));
 	kfree(conn->persistent_address);
+	kfree(conn->local_ipaddr);
 	__kfifo_put(session->cmdpool.queue, (void*)&conn->login_task,
 		    sizeof(void*));
 	if (session->leadconn == conn)
@@ -3297,6 +3298,8 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		sscanf(buf, "%d", &val);
 		session->discovery_sess = !!val;
 		break;
+	case ISCSI_PARAM_LOCAL_IPADDR:
+		return iscsi_switch_str_param(&conn->local_ipaddr, buf);
 	default:
 		return -ENOSYS;
 	}
@@ -3569,6 +3572,9 @@ int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		break;
 	case ISCSI_PARAM_TCP_RECV_WSF:
 		len = sprintf(buf, "%u\n", conn->tcp_recv_wsf);
+		break;
+	case ISCSI_PARAM_LOCAL_IPADDR:
+		len = sprintf(buf, "%s\n", conn->local_ipaddr);
 		break;
 	default:
 		return -ENOSYS;
