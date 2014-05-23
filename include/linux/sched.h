@@ -1014,10 +1014,6 @@ struct sched_domain {
 
 	u64 last_update;
 
-	/* idle_balance() stats */
-	u64 max_newidle_lb_cost;
-	unsigned long next_decay_max_lb_cost;
-
 #ifdef CONFIG_SCHEDSTATS
 	/* load_balance() stats */
 	unsigned int lb_count[CPU_MAX_IDLE_TYPES];
@@ -1067,6 +1063,11 @@ struct sched_domain {
 	 * time. (See 'struct static_sched_domain' in kernel/sched.c)
 	 */
 	unsigned long span[0];
+#ifndef __GENKSYMS__
+	/* idle_balance() stats */
+	u64 max_newidle_lb_cost;
+	unsigned long next_decay_max_lb_cost;
+#endif
 };
 
 static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
