@@ -398,7 +398,9 @@ static int __init amd_postcore_init(void)
 		return 0;
 
 	early_fill_mp_bus_info();
-	pci_io_ecs_init();
+
+	if (boot_cpu_data.x86 <= 0x16)
+		pci_io_ecs_init();
 
 	return 0;
 }
