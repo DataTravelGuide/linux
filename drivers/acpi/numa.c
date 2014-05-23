@@ -58,7 +58,7 @@ int node_to_pxm(int node)
 	return node_to_pxm_map[node];
 }
 
-void __acpi_map_pxm_to_node(int pxm, int node)
+static void __acpi_map_pxm_to_node(int pxm, int node)
 {
 	pxm_to_node_map[pxm] = node;
 	node_to_pxm_map[node] = pxm;
@@ -307,7 +307,7 @@ int __init acpi_numa_init(void)
 	return 0;
 }
 
-int acpi_get_pxm(acpi_handle h)
+static int acpi_get_pxm(acpi_handle h)
 {
 	unsigned long long pxm;
 	acpi_status status;
