@@ -2753,7 +2753,7 @@ static void qla4xxx_mem_free(struct scsi_qla_host *ha)
 		if (ha->nx_pcibase)
 			iounmap(
 			    (struct device_reg_82xx __iomem *)ha->nx_pcibase);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		if (ha->nx_pcibase)
 			iounmap(
 			    (struct device_reg_83xx __iomem *)ha->nx_pcibase);
@@ -2947,7 +2947,7 @@ static void qla4_8xxx_process_fw_error(struct scsi_qla_host *ha)
 				   __func__);
 		if (halt_status & HALT_STATUS_UNRECOVERABLE)
 			halt_status_unrecoverable = 1;
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		if (halt_status & QLA83XX_HALT_STATUS_FW_RESET)
 			ql4_printk(KERN_ERR, ha, "%s: Firmware error detected device is being reset\n",
 				   __func__);
@@ -3002,7 +3002,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 			ql4_printk(KERN_INFO, ha, "%s: HW State: NEED RESET!\n",
 				   __func__);
 
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				idc_ctrl = qla4_83xx_rd_reg(ha,
 							QLA83XX_IDC_DRV_CTRL);
 				if (!(idc_ctrl & GRACEFUL_RESET_BIT1)) {
@@ -3013,7 +3013,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 				}
 			}
 
-			if (is_qla8032(ha) ||
+			if ((is_qla8032(ha) || is_qla8042(ha)) ||
 			    (is_qla8022(ha) && !ql4xdontresethba)) {
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 				qla4xxx_wake_dpc(ha);
@@ -3397,7 +3397,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 
 	set_bit(DPC_RESET_ACTIVE, &ha->dpc_flags);
 
-	if (is_qla8032(ha) &&
+	if ((is_qla8032(ha) || is_qla8042(ha)) &&
 	    !test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags)) {
 		ql4_printk(KERN_INFO, ha, "%s: disabling pause transmit on port 0 & 1.\n",
 			   __func__);
@@ -3856,7 +3856,7 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 
 	if (is_qla80XX(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				ql4_printk(KERN_INFO, ha, "%s: disabling pause transmit on port 0 & 1.\n",
 					   __func__);
 				/* disable pause frame for ISP83xx */
@@ -3884,7 +3884,8 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 	    test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags))) {
 		if ((is_qla8022(ha) && ql4xdontresethba) ||
-		    (is_qla8032(ha) && qla4_83xx_idc_dontreset(ha))) {
+		    ((is_qla8032(ha) || is_qla8042(ha)) &&
+		     qla4_83xx_idc_dontreset(ha))) {
 			DEBUG2(printk("scsi%ld: %s: Don't Reset HBA\n",
 			    ha->host_no, __func__));
 			clear_bit(DPC_RESET_HA, &ha->dpc_flags);
@@ -3976,7 +3977,7 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 	} else if (is_qla8022(ha)) {
 		writel(0, &ha->qla4_82xx_reg->host_int);
 		readl(&ha->qla4_82xx_reg->host_int);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		writel(0, &ha->qla4_83xx_reg->risc_intr);
 		readl(&ha->qla4_83xx_reg->risc_intr);
 	}
@@ -4051,7 +4052,7 @@ int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 				     (ha->pdev->devfn << 11));
 		ha->nx_db_wr_ptr = (ha->pdev->devfn == 4 ? QLA82XX_CAM_RAM_DB1 :
 				    QLA82XX_CAM_RAM_DB2);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		ha->qla4_83xx_reg = (struct device_reg_83xx __iomem *)
 				    ((uint8_t *)ha->nx_pcibase);
 	}
@@ -7059,7 +7060,7 @@ static int qla4xxx_probe_adapter(struct pci_dev *pdev,
 			nx_legacy_intr->tgt_status_reg;
 		ha->nx_legacy_intr.tgt_mask_reg = nx_legacy_intr->tgt_mask_reg;
 		ha->nx_legacy_intr.pci_int_reg = nx_legacy_intr->pci_int_reg;
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		ha->isp_ops = &qla4_83xx_isp_ops;
 		ha->reg_tbl = (uint32_t *)qla4_83xx_reg_tbl;
 	} else {
@@ -7130,7 +7131,7 @@ static int qla4xxx_probe_adapter(struct pci_dev *pdev,
 	if (is_qla80XX(ha))
 		qla4_8xxx_get_flash_info(ha);
 
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		qla4_83xx_read_reset_template(ha);
 		/*
 		 * NOTE: If ql4dontresethba==1, set IDC_CTRL DONTRESET_BIT0.
@@ -7185,7 +7186,8 @@ skip_retry_init:
 		ql4_printk(KERN_WARNING, ha, "Failed to initialize adapter\n");
 
 		if ((is_qla8022(ha) && ql4xdontresethba) ||
-		    (is_qla8032(ha) && qla4_83xx_idc_dontreset(ha))) {
+		    ((is_qla8032(ha) || is_qla8042(ha)) &&
+		     qla4_83xx_idc_dontreset(ha))) {
 			/* Put the device in failed state. */
 			DEBUG2(printk(KERN_ERR "HW STATE: FAILED\n"));
 			ha->isp_ops->idc_lock(ha);
@@ -7794,16 +7796,16 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 
 	ha = to_qla_host(cmd->device->host);
 
-	if (is_qla8032(ha) && ql4xdontresethba)
+	if ((is_qla8032(ha) || is_qla8042(ha)) && ql4xdontresethba)
 		qla4_83xx_set_idc_dontreset(ha);
 
 	/*
-	 * For ISP8324, if IDC_CTRL DONTRESET_BIT0 is set by other
-	 * protocol drivers, we should not set device_state to
-	 * NEED_RESET
+	 * For ISP8324 and ISP8042, if IDC_CTRL DONTRESET_BIT0 is set by other
+	 * protocol drivers, we should not set device_state to NEED_RESET
 	 */
 	if (ql4xdontresethba ||
-	    (is_qla8032(ha) && qla4_83xx_idc_dontreset(ha))) {
+	    ((is_qla8032(ha) || is_qla8042(ha)) &&
+	     qla4_83xx_idc_dontreset(ha))) {
 		DEBUG2(printk("scsi%ld: %s: Don't Reset HBA\n",
 		     ha->host_no, __func__));
 
@@ -7927,9 +7929,10 @@ int qla4xxx_host_reset(struct scsi_qla_host *ha, int reset_type)
 	}
 
 recover_adapter:
-	/* For ISP83XX set graceful reset bit in IDC_DRV_CTRL if
+	/* For ISP8324 and ISP8042 set graceful reset bit in IDC_DRV_CTRL if
 	 * reset is issued by application */
-	if (is_qla8032(ha) && test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
+	if ((is_qla8032(ha) || is_qla8042(ha)) &&
+	    test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
 		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
 		qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
 				 (idc_ctrl | GRACEFUL_RESET_BIT1));
@@ -8223,6 +8226,12 @@ static struct pci_device_id qla4xxx_pci_tbl[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_QLOGIC,
 		.device		= PCI_DEVICE_ID_QLOGIC_ISP8324,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_QLOGIC,
+		.device		= PCI_DEVICE_ID_QLOGIC_ISP8042,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 	},
