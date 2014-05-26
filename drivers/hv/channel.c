@@ -47,8 +47,8 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 			(unsigned long *) vmbus_connection.send_int_page +
 			(channel->offermsg.child_relid >> 5));
 
-		monitorpage = vmbus_connection.monitor_pages;
-		monitorpage++; /* Get the child to parent monitor page */
+		/* Get the child to parent monitor page */
+		monitorpage = vmbus_connection.monitor_pages[1];
 
 		sync_set_bit(channel->monitor_bit,
 			(unsigned long *)&monitorpage->trigger_group
@@ -77,7 +77,7 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	       &channel->offermsg.offer.if_instance,
 	       sizeof(uuid_le));
 
-	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
+	monitorpage = vmbus_connection.monitor_pages[0];
 
 	debuginfo->monitorid = channel->offermsg.monitorid;
 
@@ -89,8 +89,7 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 			monitorpage->parameter[monitor_group]
 					[monitor_offset].connectionid.u.id;
 
-	monitorpage++;
-
+	monitorpage = vmbus_connection.monitor_pages[1];
 	debuginfo->clientmonitor_pending =
 			monitorpage->trigger_group[monitor_group].pending;
 	debuginfo->clientmonitor_latency =
