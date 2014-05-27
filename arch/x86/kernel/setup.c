@@ -783,6 +783,7 @@ static void rh_check_supported(void)
 		case 70: /* Crystal Well */
 		case 63: /* Grantley/Haswell EP */
 		case 62: /* Ivy Town */
+		case 61: /* Broadwell */
 			break;
 		default:
 			if (boot_cpu_data.x86_model > 60) {
