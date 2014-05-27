@@ -1196,7 +1196,7 @@ static void hpsa_monitor_offline_device(struct ctlr_info *h,
 static void hpsa_show_volume_status(struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *sd)
 {
-	if (sd->volume_offline == HPSA_VPD_LV_STATUS_UNSUPPORTED)
+	if (sd->volume_offline == (u8) HPSA_VPD_LV_STATUS_UNSUPPORTED)
 		dev_info(&h->pdev->dev,
 			"C%d:B%d:T%d:L%d Volume status is not available through vital product data pages.\n",
 			h->scsi_host->host_no,
@@ -2609,7 +2609,7 @@ exit_failed:
  *  # (integer code indicating one of several NOT READY states
  *     describing why a volume is to be kept offline)
  */
-static unsigned char hpsa_volume_offline(struct ctlr_info *h,
+static int hpsa_volume_offline(struct ctlr_info *h,
 					unsigned char scsi3addr[])
 {
 	struct CommandList *c;
@@ -2712,7 +2712,7 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		if (h->fw_support & MISC_FW_RAID_OFFLOAD_BASIC)
 			hpsa_get_ioaccel_status(h, scsi3addr, this_device);
 		this_device->volume_offline =
-			hpsa_volume_offline(h, scsi3addr);
+			(u8) hpsa_volume_offline(h, scsi3addr);
 	} else {
 		this_device->raid_level = RAID_UNKNOWN;
 		this_device->offload_config = 0;
