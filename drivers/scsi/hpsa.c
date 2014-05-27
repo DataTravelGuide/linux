@@ -48,7 +48,6 @@
 #include <linux/string.h>
 #include <linux/bitmap.h>
 #include <asm/atomic.h>
-#include <linux/kthread.h>
 #include <linux/jiffies.h>
 #include <asm/div64.h>
 #include "hpsa_cmd.h"
