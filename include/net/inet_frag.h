@@ -126,7 +126,8 @@ static inline void inet_frag_lru_move(struct inet_frag_queue *q)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
 	spin_lock(&nf_priv->lru_lock);
-	list_move_tail(&q->lru_list, &nf_priv->lru_list);
+	if (!list_empty(&nf_priv->lru_list))
+		list_move_tail(&q->lru_list, &nf_priv->lru_list);
 	spin_unlock(&nf_priv->lru_lock);
 }
 
@@ -134,7 +135,7 @@ static inline void inet_frag_lru_del(struct inet_frag_queue *q)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
 	spin_lock(&nf_priv->lru_lock);
-	list_del(&q->lru_list);
+	list_del_init(&q->lru_list);
 	nf_priv->nqueues--;
 	spin_unlock(&nf_priv->lru_lock);
 }
