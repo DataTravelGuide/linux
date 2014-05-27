@@ -248,8 +248,9 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	write_unlock(&f->lock);
 	inet_frag_lru_add(nf, qp);
+	write_unlock(&f->lock);
+
 	return qp;
 }
 
