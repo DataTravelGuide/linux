@@ -35,5 +35,6 @@ int test__task_exit(void);
 int test__sw_clock_freq(void);
 int test__code_reading(void);
 int test__sample_parsing(void);
+int test__keep_tracking(void);
 
 #endif /* TESTS_H */
