@@ -9,9 +9,10 @@
 
 #include <byteswap.h>
 #include <linux/bitops.h>
-#include "asm/bug.h"
 #include <lk/debugfs.h>
-#include "event-parse.h"
+#include <traceevent/event-parse.h>
+#include <linux/perf_event.h>
+#include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -21,9 +22,8 @@
 #include "target.h"
 /*
  * There's no support for HW_BREAKPOINT in RHEL6 yet.
-#include "../../../include/linux/hw_breakpoint.h"
+#include <linux/hw_breakpoint.h>
  */
-#include "../../include/linux/perf_event.h"
 #include "perf_regs.h"
 #include "debug.h"
 

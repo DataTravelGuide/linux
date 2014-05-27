@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/compiler.h>
+#include <traceevent/event-parse.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -13,7 +14,6 @@
 #include "sort.h"
 #include "util.h"
 #include "cpumap.h"
-#include "event-parse.h"
 #include "perf_regs.h"
 #include "vdso.h"
 
