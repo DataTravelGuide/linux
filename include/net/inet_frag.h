@@ -1,6 +1,8 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+#include <linux/percpu_counter.h>
+
 /* RedHat kABI: cannot change netns_frags, because its is part of
  * structs netns_ipv4, netns_ipv6 and netns_nf_frag.  Which in turn
  * is part of (include/net/net_namespace.h) struct net.
@@ -29,10 +31,10 @@ struct netns_frags_priv {
 	struct list_head        lru_list;
 	spinlock_t              lru_lock;
 	int			nqueues;
-	/* Its important for performance to keep lru_list and mem on
-	 * separate cachelines
+	/* The percpu_counter "mem" need to be cacheline aligned.
+	 *  mem.count must not share cacheline with other writers
 	 */
-	atomic_t		mem ____cacheline_aligned_in_smp;
+	struct percpu_counter   mem ____cacheline_aligned_in_smp;
 };
 #define netns_frags_priv(nf) ((struct netns_frags_priv *)(nf)->lru_list.next)
 
@@ -102,34 +104,41 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 
 /* Memory Tracking Functions. */
 
+/* The default percpu_counter batch size is not big enough to scale to
+ * fragmentation mem acct sizes.
+ * The mem size of a 64K fragment is approx:
+ *  (44 fragments * 2944 truesize) + frag_queue struct(200) = 129736 bytes
+ */
+static unsigned int frag_percpu_counter_batch = 130000;
+
 static inline int frag_mem_limit(struct netns_frags *nf)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
-	return atomic_read(&nf_priv->mem);
+	return percpu_counter_read(&nf_priv->mem);
 }
 
 static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
-	atomic_sub(i, &nf_priv->mem);
+	__percpu_counter_add(&nf_priv->mem, -i, frag_percpu_counter_batch);
 }
 
 static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
-	atomic_add(i, &nf_priv->mem);
+	__percpu_counter_add(&nf_priv->mem, i, frag_percpu_counter_batch);
 }
 
 static inline void init_frag_mem_limit(struct netns_frags *nf)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
-	atomic_set(&nf_priv->mem, 0);
+	percpu_counter_init(&nf_priv->mem, 0);
 }
 
 static inline int sum_frag_mem_limit(struct netns_frags *nf)
 {
 	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
-	return atomic_read(&nf_priv->mem);
+	return percpu_counter_sum_positive(&nf_priv->mem);
 }
 
 static inline void inet_frag_lru_move(struct inet_frag_queue *q)
