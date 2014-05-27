@@ -5,6 +5,7 @@ struct netns_frags {
 	int			nqueues;
 	atomic_t		mem;
 	struct list_head	lru_list;
+	spinlock_t		lru_lock;
 
 	/* sysctls */
 	int			timeout;
@@ -103,4 +104,25 @@ static inline int sum_frag_mem_limit(struct netns_frags *nf)
 	return atomic_read(&nf->mem);
 }
 
+static inline void inet_frag_lru_move(struct inet_frag_queue *q)
+{
+	spin_lock(&q->net->lru_lock);
+	list_move_tail(&q->lru_list, &q->net->lru_list);
+	spin_unlock(&q->net->lru_lock);
+}
+
+static inline void inet_frag_lru_del(struct inet_frag_queue *q)
+{
+	spin_lock(&q->net->lru_lock);
+	list_del(&q->lru_list);
+	spin_unlock(&q->net->lru_lock);
+}
+
+static inline void inet_frag_lru_add(struct netns_frags *nf,
+				     struct inet_frag_queue *q)
+{
+	spin_lock(&nf->lru_lock);
+	list_add_tail(&q->lru_list, &nf->lru_list);
+	spin_unlock(&nf->lru_lock);
+}
 #endif
