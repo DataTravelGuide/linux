@@ -33,5 +33,6 @@ int test__hists_link(void);
 int test__python_use(void);
 int test__task_exit(void);
 int test__sw_clock_freq(void);
+int test__code_reading(void);
 
 #endif /* TESTS_H */

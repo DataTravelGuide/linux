@@ -83,6 +83,10 @@ static struct test {
 		.func = test__sw_clock_freq,
 	},
 	{
+		.desc = "Test object code reading",
+		.func = test__code_reading,
+	},
+	{
 		.func = NULL,
 	},
 };
