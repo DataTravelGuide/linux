@@ -46,10 +46,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#define NF_CT_FRAG6_HIGH_THRESH 262144 /* == 256*1024 */
-#define NF_CT_FRAG6_LOW_THRESH 196608  /* == 192*1024 */
-#define NF_CT_FRAG6_TIMEOUT IPV6_FRAG_TIMEOUT
-
 struct nf_ct_frag6_skb_cb
 {
 	struct inet6_skb_parm	h;
@@ -628,9 +624,9 @@ void nf_ct_frag6_consume_orig(struct sk_buff *skb)
 
 static int nf_ct_net_init(struct net *net)
 {
-	net->nf_frag.frags.high_thresh = NF_CT_FRAG6_HIGH_THRESH;
-	net->nf_frag.frags.low_thresh = NF_CT_FRAG6_LOW_THRESH;
-	net->nf_frag.frags.timeout = NF_CT_FRAG6_TIMEOUT;
+	net->nf_frag.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->nf_frag.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
+	net->nf_frag.frags.timeout = IPV6_FRAG_TIMEOUT;
 	inet_frags_init_net(&net->nf_frag.frags);
 
 	return nf_ct_frag6_sysctl_register(net);

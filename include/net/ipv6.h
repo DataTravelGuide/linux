@@ -271,6 +271,8 @@ static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 int ip6_frag_nqueues(struct net *net);
 int ip6_frag_mem(struct net *net);
 
+#define IPV6_FRAG_HIGH_THRESH	262144		/* == 256*1024 */
+#define IPV6_FRAG_LOW_THRESH	196608		/* == 192*1024 */
 #define IPV6_FRAG_TIMEOUT	(60*HZ)		/* 60 seconds */
 
 extern int __ipv6_addr_type(const struct in6_addr *addr);
