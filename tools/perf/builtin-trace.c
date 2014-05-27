@@ -522,7 +522,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->tid);
+	thread = machine__findnew_thread(&trace->host, sample->pid,
+					 sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -573,7 +574,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->tid);
+	thread = machine__findnew_thread(&trace->host, sample->pid,
+					 sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -629,7 +631,9 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 {
         u64 runtime = perf_evsel__intval(evsel, sample, "runtime");
 	double runtime_ms = (double)runtime / NSEC_PER_MSEC;
-	struct thread *thread = machine__findnew_thread(&trace->host, sample->tid);
+	struct thread *thread = machine__findnew_thread(&trace->host,
+							sample->pid,
+							sample->tid);
 	struct thread_trace *ttrace = thread__trace(thread, trace->output);
 
 	if (ttrace == NULL)
