@@ -60,7 +60,7 @@ struct inet_frag_queue {
 	struct netns_frags	*net;
 };
 
-#define INETFRAGS_HASHSZ		64
+#define INETFRAGS_HASHSZ	1024
 
 struct inet_frag_bucket {
 	struct hlist_head	chain;
