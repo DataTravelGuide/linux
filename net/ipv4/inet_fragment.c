@@ -78,12 +78,12 @@ int inet_frags_init_net(struct netns_frags *nf)
 		return -ENOMEM;
 
 	nf_priv->nqueues = 0;
-	init_frag_mem_limit(nf);
 	INIT_LIST_HEAD(&nf_priv->lru_list);
 	spin_lock_init(&nf_priv->lru_lock);
 
 	 /* Red Hat: kABI hack using lru_list.next pointer */
 	nf->lru_list.next = (struct list_head *)nf_priv;
+	init_frag_mem_limit(nf);
 
 	return 0;
 }
@@ -266,13 +266,13 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 	if (q == NULL)
 		return NULL;
 
+	q->net = nf;
 	f->constructor(q, arg);
 	add_frag_mem_limit(q, f->qsize);
 
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);
-	q->net = nf;
 	INIT_LIST_HEAD(&q->lru_list);
 
 	return q;

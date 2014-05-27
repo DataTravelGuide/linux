@@ -10,10 +10,11 @@ struct netns_frags {
 /* Compile time catch, elements in struct that are not used any longer */
 #ifdef __GENKSYMS__
 	int			nqueues;
+	atomic_t		mem;
 #else
 	int			nqueues_kabi_build_err_not_used;
+	atomic_t		mem_kabi_build_err_not_used;
 #endif
-	atomic_t		mem;
 
 	/* RedHat abusing lru_list.next pointer for kABI workaround */
 	struct list_head	lru_list;
@@ -28,6 +29,10 @@ struct netns_frags_priv {
 	struct list_head        lru_list;
 	spinlock_t              lru_lock;
 	int			nqueues;
+	/* Its important for performance to keep lru_list and mem on
+	 * separate cachelines
+	 */
+	atomic_t		mem ____cacheline_aligned_in_smp;
 };
 #define netns_frags_priv(nf) ((struct netns_frags_priv *)(nf)->lru_list.next)
 
@@ -99,27 +104,32 @@ static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f
 
 static inline int frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
+	return atomic_read(&nf_priv->mem);
 }
 
 static inline void sub_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
-	atomic_sub(i, &q->net->mem);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
+	atomic_sub(i, &nf_priv->mem);
 }
 
 static inline void add_frag_mem_limit(struct inet_frag_queue *q, int i)
 {
-	atomic_add(i, &q->net->mem);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
+	atomic_add(i, &nf_priv->mem);
 }
 
 static inline void init_frag_mem_limit(struct netns_frags *nf)
 {
-	atomic_set(&nf->mem, 0);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
+	atomic_set(&nf_priv->mem, 0);
 }
 
 static inline int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	return atomic_read(&nf->mem);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
+	return atomic_read(&nf_priv->mem);
 }
 
 static inline void inet_frag_lru_move(struct inet_frag_queue *q)
