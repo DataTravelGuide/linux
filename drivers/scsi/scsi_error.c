@@ -886,7 +886,7 @@ retry:
 
 	scsi_eh_restore_cmnd(scmd, &ses);
 
-	if (sdrv->eh_action)
+	if (sdrv && sdrv->eh_action)
 		rtn = sdrv->eh_action(scmd, cmnd, cmnd_size, rtn);
 
 	return rtn;
