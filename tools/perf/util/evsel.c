@@ -31,6 +31,7 @@
 static struct {
 	bool sample_id_all;
 	bool exclude_guest;
+	bool mmap2;
 } perf_missing_features;
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
@@ -677,8 +678,9 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	if (opts->sample_weight)
 		attr->sample_type	|= PERF_SAMPLE_WEIGHT;
 
-	attr->mmap = track;
-	attr->comm = track;
+	attr->mmap  = track;
+	attr->mmap2 = track && !perf_missing_features.mmap2;
+	attr->comm  = track;
 
 	if (opts->sample_transaction)
 		attr->sample_type	|= PERF_SAMPLE_TRANSACTION;
@@ -1020,6 +1022,8 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	}
 
 fallback_missing_features:
+	if (perf_missing_features.mmap2)
+		evsel->attr.mmap2 = 0;
 	if (perf_missing_features.exclude_guest)
 		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
 retry_sample_id:
@@ -1084,8 +1088,11 @@ try_fallback:
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
-	if (!perf_missing_features.exclude_guest &&
-	    (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
+	if (!perf_missing_features.mmap2 && evsel->attr.mmap2) {
+		perf_missing_features.mmap2 = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.exclude_guest &&
+		   (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
 		perf_missing_features.exclude_guest = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.sample_id_all) {
@@ -1935,6 +1942,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 		if_print(exclude_hv);
 		if_print(exclude_idle);
 		if_print(mmap);
+		if_print(mmap2);
 		if_print(comm);
 		if_print(freq);
 		if_print(inherit_stat);
