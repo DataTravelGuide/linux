@@ -69,12 +69,23 @@ void inet_frags_init(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_init);
 
-void inet_frags_init_net(struct netns_frags *nf)
+int inet_frags_init_net(struct netns_frags *nf)
 {
+	struct netns_frags_priv *nf_priv;
+
+	nf_priv = kmalloc(sizeof(*nf_priv), GFP_KERNEL);
+	if (!nf_priv)
+		return -ENOMEM;
+
 	nf->nqueues = 0;
 	init_frag_mem_limit(nf);
-	INIT_LIST_HEAD(&nf->lru_list);
-	spin_lock_init(&nf->lru_lock);
+	INIT_LIST_HEAD(&nf_priv->lru_list);
+	spin_lock_init(&nf_priv->lru_lock);
+
+	 /* Red Hat: kABI hack using lru_list.next pointer */
+	nf->lru_list.next = (struct list_head *)nf_priv;
+
+	return 0;
 }
 EXPORT_SYMBOL(inet_frags_init_net);
 
@@ -86,11 +97,15 @@ EXPORT_SYMBOL(inet_frags_fini);
 
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 {
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
+
 	nf->low_thresh = 0;
 
 	local_bh_disable();
 	inet_frag_evictor(nf, f, true);
 	local_bh_enable();
+
+	kfree(nf_priv);
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
 
@@ -160,6 +175,7 @@ EXPORT_SYMBOL(inet_frag_destroy);
 int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 {
 	struct inet_frag_queue *q;
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
 	int work, evicted = 0;
 
 	if (!force) {
@@ -169,17 +185,17 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 
 	work = frag_mem_limit(nf) - nf->low_thresh;
 	while (work > 0) {
-		spin_lock(&nf->lru_lock);
+		spin_lock(&nf_priv->lru_lock);
 
-		if (list_empty(&nf->lru_list)) {
-			spin_unlock(&nf->lru_lock);
+		if (list_empty(&nf_priv->lru_list)) {
+			spin_unlock(&nf_priv->lru_lock);
 			break;
 		}
 
-		q = list_first_entry(&nf->lru_list,
+		q = list_first_entry(&nf_priv->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
-		spin_unlock(&nf->lru_lock);
+		spin_unlock(&nf_priv->lru_lock);
 
 		spin_lock(&q->lock);
 		if (!(q->last_in & INET_FRAG_COMPLETE))

@@ -1,17 +1,28 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+/* RedHat kABI: cannot change netns_frags, because its is part of
+ * structs netns_ipv4, netns_ipv6 and netns_nf_frag.  Which in turn
+ * is part of (include/net/net_namespace.h) struct net.
+ */
 struct netns_frags {
 	int			nqueues;
 	atomic_t		mem;
+
+	/* RedHat abusing lru_list.next pointer for kABI workaround */
 	struct list_head	lru_list;
-	spinlock_t		lru_lock;
 
 	/* sysctls */
 	int			timeout;
 	int			high_thresh;
 	int			low_thresh;
 };
+
+struct netns_frags_priv {
+	struct list_head        lru_list;
+	spinlock_t              lru_lock;
+};
+#define netns_frags_priv(nf) ((struct netns_frags_priv *)(nf)->lru_list.next)
 
 struct inet_frag_queue {
 	spinlock_t		lock;
@@ -60,7 +71,7 @@ struct inet_frags {
 void inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-void inet_frags_init_net(struct netns_frags *nf);
+int  inet_frags_init_net(struct netns_frags *nf);
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
@@ -106,23 +117,26 @@ static inline int sum_frag_mem_limit(struct netns_frags *nf)
 
 static inline void inet_frag_lru_move(struct inet_frag_queue *q)
 {
-	spin_lock(&q->net->lru_lock);
-	list_move_tail(&q->lru_list, &q->net->lru_list);
-	spin_unlock(&q->net->lru_lock);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
+	spin_lock(&nf_priv->lru_lock);
+	list_move_tail(&q->lru_list, &nf_priv->lru_list);
+	spin_unlock(&nf_priv->lru_lock);
 }
 
 static inline void inet_frag_lru_del(struct inet_frag_queue *q)
 {
-	spin_lock(&q->net->lru_lock);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
+	spin_lock(&nf_priv->lru_lock);
 	list_del(&q->lru_list);
-	spin_unlock(&q->net->lru_lock);
+	spin_unlock(&nf_priv->lru_lock);
 }
 
 static inline void inet_frag_lru_add(struct netns_frags *nf,
 				     struct inet_frag_queue *q)
 {
-	spin_lock(&nf->lru_lock);
-	list_add_tail(&q->lru_list, &nf->lru_list);
-	spin_unlock(&nf->lru_lock);
+	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
+	spin_lock(&nf_priv->lru_lock);
+	list_add_tail(&q->lru_list, &nf_priv->lru_list);
+	spin_unlock(&nf_priv->lru_lock);
 }
 #endif
