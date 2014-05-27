@@ -194,6 +194,9 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f, bool force)
 		q = list_first_entry(&nf_priv->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
+		/* Remove q from list to avoid several CPUs grabbing it */
+		list_del_init(&q->lru_list);
+
 		spin_unlock(&nf_priv->lru_lock);
 
 		spin_lock(&q->lock);
