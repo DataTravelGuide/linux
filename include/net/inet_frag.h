@@ -6,7 +6,13 @@
  * is part of (include/net/net_namespace.h) struct net.
  */
 struct netns_frags {
+
+/* Compile time catch, elements in struct that are not used any longer */
+#ifdef __GENKSYMS__
 	int			nqueues;
+#else
+	int			nqueues_kabi_build_err_not_used;
+#endif
 	atomic_t		mem;
 
 	/* RedHat abusing lru_list.next pointer for kABI workaround */
@@ -21,6 +27,7 @@ struct netns_frags {
 struct netns_frags_priv {
 	struct list_head        lru_list;
 	spinlock_t              lru_lock;
+	int			nqueues;
 };
 #define netns_frags_priv(nf) ((struct netns_frags_priv *)(nf)->lru_list.next)
 
@@ -128,6 +135,7 @@ static inline void inet_frag_lru_del(struct inet_frag_queue *q)
 	struct netns_frags_priv *nf_priv = netns_frags_priv(q->net);
 	spin_lock(&nf_priv->lru_lock);
 	list_del(&q->lru_list);
+	nf_priv->nqueues--;
 	spin_unlock(&nf_priv->lru_lock);
 }
 
@@ -137,6 +145,7 @@ static inline void inet_frag_lru_add(struct netns_frags *nf,
 	struct netns_frags_priv *nf_priv = netns_frags_priv(nf);
 	spin_lock(&nf_priv->lru_lock);
 	list_add_tail(&q->lru_list, &nf_priv->lru_list);
+	nf_priv->nqueues++;
 	spin_unlock(&nf_priv->lru_lock);
 }
 #endif

@@ -78,7 +78,8 @@ static struct inet_frags ip4_frags;
 
 int ip_frag_nqueues(struct net *net)
 {
-	return net->ipv4.frags.nqueues;
+	struct netns_frags_priv *nf_priv = netns_frags_priv(&net->ipv4.frags);
+	return nf_priv->nqueues;
 }
 
 int ip_frag_mem(struct net *net)

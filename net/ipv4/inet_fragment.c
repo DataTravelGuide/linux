@@ -77,7 +77,7 @@ int inet_frags_init_net(struct netns_frags *nf)
 	if (!nf_priv)
 		return -ENOMEM;
 
-	nf->nqueues = 0;
+	nf_priv->nqueues = 0;
 	init_frag_mem_limit(nf);
 	INIT_LIST_HEAD(&nf_priv->lru_list);
 	spin_lock_init(&nf_priv->lru_lock);
@@ -113,7 +113,6 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 {
 	write_lock(&f->lock);
 	hlist_del(&fq->list);
-	fq->net->nqueues--;
 	write_unlock(&f->lock);
 	inet_frag_lru_del(fq);
 }
@@ -249,7 +248,6 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	nf->nqueues++;
 	write_unlock(&f->lock);
 	inet_frag_lru_add(nf, qp);
 	return qp;
