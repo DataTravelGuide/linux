@@ -43,6 +43,17 @@ IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
 	%pISsc		1.2.3.4		or [1:2:3:4:5:6:7:8]%1234567890
 	%pISpfc		1.2.3.4:12345	or [1:2:3:4:5:6:7:8]:12345/123456789
 
+Raw buffer as a hex string:
+	%*ph	00 01 02  ...  3f
+	%*phC	00:01:02: ... :3f
+	%*phD	00-01-02- ... -3f
+	%*phN	000102 ... 3f
+
+	For printing a small buffers (up to 64 bytes long) as a hex string with
+	certain separator. For the larger buffers consider to use
+	print_hex_dump().
+
+
 u64 SHOULD be printed with %llu/%llx, (unsigned long long):
 
 	printk("%llu", (unsigned long long)u64_var);
