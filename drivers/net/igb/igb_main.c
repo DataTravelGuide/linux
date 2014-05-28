@@ -124,7 +124,7 @@ static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
 void igb_update_stats(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
-static void __devexit igb_remove(struct pci_dev *pdev);
+static void igb_remove(struct pci_dev *pdev);
 static int igb_sw_init(struct igb_adapter *);
 static int igb_open(struct net_device *);
 static int igb_close(struct net_device *);
@@ -244,7 +244,7 @@ static struct pci_driver igb_driver = {
 	.name     = igb_driver_name,
 	.id_table = igb_pci_tbl,
 	.probe    = igb_probe,
-	.remove   = __devexit_p(igb_remove),
+	.remove   = igb_remove,
 #ifdef CONFIG_PM
 	.driver.pm = &igb_pm_ops,
 #endif
@@ -1982,7 +1982,7 @@ static s32 igb_init_i2c(struct igb_adapter *adapter)
  *  The OS initialization, configuring of the adapter private structure,
  *  and a hardware reset occur.
  **/
-static int __devinit igb_probe(struct pci_dev *pdev,
+static int igb_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
@@ -2506,7 +2506,7 @@ static void igb_remove_i2c(struct igb_adapter *adapter)
  *  Hot-Plug event, or because the driver is going to be removed from
  *  memory.
  **/
-static void __devexit igb_remove(struct pci_dev *pdev)
+static void igb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2573,7 +2573,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
  *  mor expensive time wise to disable SR-IOV than it is to allocate and free
  *  the memory for the VFs.
  **/
-static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
+static void igb_probe_vfs(struct igb_adapter *adapter)
 {
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
@@ -2662,7 +2662,7 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
  *  Fields are initialized based on PCI device information and
  *  OS network device settings (MTU size).
  **/
-static int __devinit igb_sw_init(struct igb_adapter *adapter)
+static int igb_sw_init(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
