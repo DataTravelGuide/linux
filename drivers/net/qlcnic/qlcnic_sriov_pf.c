@@ -387,6 +387,15 @@ void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter)
 	if (!qlcnic_sriov_enable_check(adapter))
 		return;
 
+	if (pci_vfs_assigned(adapter->pdev)) {
+		netdev_err(adapter->netdev,
+			   "SR-IOV VFs belonging to port %d are assigned or in use. SR-IOV cannot be disabled on this port\n",
+			   adapter->portnum);
+		do {
+			msleep(1000);
+		} while (pci_vfs_assigned(adapter->pdev));
+	}
+
 	pci_disable_sriov(adapter->pdev);
 	netdev_info(adapter->netdev,
 		    "SR-IOV is disabled successfully on port %d\n",
