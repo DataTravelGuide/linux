@@ -55,6 +55,7 @@
 #define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & 0x000100) /* 2-button ClickPad */
 #define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
 #define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
+#define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & 0x000400)
 
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
@@ -80,6 +81,9 @@
 #define SYN_NEWABS_STRICT		1
 #define SYN_NEWABS_RELAXED		2
 #define SYN_OLDABS			3
+
+/* amount to fuzz position data when touchpad reports reduced filtering */
+#define SYN_REDUCED_FILTER_FUZZ		8
 
 /*
  * A structure to describe the state of the touchpad hardware (buttons and pad)
