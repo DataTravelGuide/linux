@@ -3346,7 +3346,8 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 
 	if (adapter->rss_indir_tbl_init != num_rx_queues) {
 		for (j = 0; j < IGB_RETA_SIZE; j++)
-			adapter->rss_indir_tbl[j] = (j * num_rx_queues) / IGB_RETA_SIZE;
+			adapter->rss_indir_tbl[j] =
+			(j * num_rx_queues) / IGB_RETA_SIZE;
 		adapter->rss_indir_tbl_init = num_rx_queues;
 	}
 	igb_write_rss_indir_tbl(adapter);
