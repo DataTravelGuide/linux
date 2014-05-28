@@ -580,12 +580,19 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 	WARN(!dmi_initialized, KERN_ERR "dmi check: not initialized yet.\n");
 
 	for (i = 0; i < ARRAY_SIZE(dmi->matches); i++) {
-		int s = dmi->matches[i].slot;
+		int s = dmi_strmatch_slot(&dmi->matches[i]);
+		bool exact_match = !!(dmi->matches[i].slot & __DMI_MATCH_EXACT);
 		if (s == DMI_NONE)
 			break;
-		if (dmi_ident[s]
-		    && strstr(dmi_ident[s], dmi->matches[i].substr))
-			continue;
+		if (dmi_ident[s]) {
+			if (!exact_match &&
+			    strstr(dmi_ident[s], dmi->matches[i].substr))
+				continue;
+			else if (exact_match &&
+				 !strcmp(dmi_ident[s], dmi->matches[i].substr))
+				continue;
+		}
+
 		/* No match */
 		return false;
 	}
@@ -598,7 +605,7 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
  */
 static bool dmi_is_end_of_table(const struct dmi_system_id *dmi)
 {
-	return dmi->matches[0].slot == DMI_NONE;
+	return dmi_strmatch_slot(&dmi->matches[0]) == DMI_NONE;
 }
 
 /**

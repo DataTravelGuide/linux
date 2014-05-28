@@ -747,8 +747,8 @@ static int do_dmi_entry(const char *filename, struct dmi_system_id *id,
 
 	for (i = 0; i < ARRAY_SIZE(dmi_fields); i++) {
 		for (j = 0; j < 4; j++) {
-			if (id->matches[j].slot &&
-			    id->matches[j].slot == dmi_fields[i].field) {
+			int s = dmi_strmatch_slot(&id->matches[j]);
+			if (s && s == dmi_fields[i].field) {
 				sprintf(alias + strlen(alias), ":%s*",
 					dmi_fields[i].prefix);
 				dmi_ascii_filter(alias + strlen(alias),
