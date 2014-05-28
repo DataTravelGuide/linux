@@ -194,6 +194,7 @@ struct igb_tx_buffer {
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	u16 gso_segs;
+
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	union skb_shared_tx shtx;
