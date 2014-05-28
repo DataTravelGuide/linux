@@ -1031,10 +1031,29 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, void *wcombo)
 	return wacom_bpt_pen(wacom, wc);
 }
 
-static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
+static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len,
+			      void *wcombo)
 {
-	if (len != WACOM_PKGLEN_WIRELESS)
+	unsigned char *data = wacom->data;
+	int connected;
+
+	if (len != WACOM_PKGLEN_WIRELESS || data[0] != 0x80)
 		return 0;
+
+	connected = data[1] & 0x01;
+	if (connected) {
+		int pid;
+
+		pid = get_unaligned_be16(&data[6]);
+		if (wacom->pid != pid) {
+			wacom->pid = pid;
+			wacom_schedule_work(wcombo);
+		}
+	} else if (wacom->pid != 0) {
+		/* disconnected while previously connected */
+		wacom->pid = 0;
+		wacom_schedule_work(wcombo);
+	}
 
 	return 0;
 }
@@ -1095,7 +1114,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 			return wacom_bpt_irq(wacom_wac, wcombo);
 
 		case WIRELESS:
-			return wacom_wireless_irq(wacom_wac, len);
+			return wacom_wireless_irq(wacom_wac, len, wcombo);
 
 		default:
 			return 0;
@@ -1267,7 +1286,7 @@ static struct wacom_features wacom_features[] = {
 #define USB_DEVICE_DETAILED(prod, class, sub, proto)			\
 	USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_WACOM, prod, class, \
 			      sub, proto),
-static struct usb_device_id wacom_ids[] = {
+const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x00) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x10) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x11) },

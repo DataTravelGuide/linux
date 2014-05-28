@@ -112,6 +112,7 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_wac *wacom_wac;
 	struct mutex lock;
+	struct work_struct work;
 	unsigned int open:1;
 	char phys[32];
 	struct wacom_led {
@@ -126,6 +127,13 @@ struct wacom_combo {
 	struct wacom *wacom;
 	struct urb *urb;
 };
+
+static inline void wacom_schedule_work(struct wacom_combo *wcombo)
+{
+	schedule_work(&wcombo->wacom->work);
+}
+
+extern const struct usb_device_id wacom_ids[];
 
 extern int wacom_wac_irq(struct wacom_wac * wacom_wac, void * wcombo);
 extern void wacom_report_abs(void *wcombo, unsigned int abs_type, int abs_data);

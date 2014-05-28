@@ -1190,6 +1190,69 @@ static int wacom_register_input(struct wacom *wacom)
 	return error;
 }
 
+static void wacom_wireless_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct usb_device *usbdev = wacom->usbdev;
+	struct wacom_wac *wacom_wac = wacom->wacom_wac;
+
+	/*
+	 * Regardless if this is a disconnect or a new tablet,
+	 * remove any existing input devices.
+	 */
+
+	/* Stylus interface */
+	wacom = usb_get_intfdata(usbdev->config->interface[1]);
+	if (wacom->dev)
+		input_unregister_device(wacom->dev);
+	wacom->dev = 0;
+
+	/* Touch interface */
+	wacom = usb_get_intfdata(usbdev->config->interface[2]);
+	if (wacom->dev)
+		input_unregister_device(wacom->dev);
+	wacom->dev = 0;
+
+	if (wacom_wac->pid == 0) {
+		printk(KERN_INFO "wacom: wireless tablet disconnected\n");
+	} else {
+		const struct usb_device_id *id = wacom_ids;
+
+		printk(KERN_INFO
+		       "wacom: wireless tablet connected with PID %x\n",
+		       wacom_wac->pid);
+
+		while (id->match_flags) {
+			if (id->idVendor == USB_VENDOR_ID_WACOM &&
+			    id->idProduct == wacom_wac->pid)
+				break;
+			id++;
+		}
+
+		if (!id->match_flags) {
+			printk(KERN_INFO
+			       "wacom: ignorning unknown PID.\n");
+			return;
+		}
+
+		/* Stylus interface */
+		wacom = usb_get_intfdata(usbdev->config->interface[1]);
+		wacom_wac = wacom->wacom_wac;
+		wacom_wac->features = *get_wacom_feature(id);
+		wacom_wac->features.device_type = BTN_TOOL_PEN;
+		wacom_register_input(wacom);
+
+		/* Touch interface */
+		wacom = usb_get_intfdata(usbdev->config->interface[2]);
+		wacom_wac = wacom->wacom_wac;
+		wacom_wac->features = *get_wacom_feature(id);
+		wacom_wac->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
+		wacom_wac->features.device_type = BTN_TOOL_FINGER;
+		wacom_wac->features.x_max = wacom_wac->features.y_max = 4096;
+		wacom_register_input(wacom);
+	}
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -1221,6 +1284,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
+	INIT_WORK(&wacom->work, wacom_wireless_work);
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
@@ -1320,6 +1384,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
+	cancel_work_sync(&wacom->work);
 	if (wacom->dev)
 		input_unregister_device(wacom->dev);
 	wacom_destroy_leds(wacom);
