@@ -1118,6 +1118,47 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 }
 
+static int wacom_register_input(struct wacom *wacom)
+{
+	struct input_dev *input_dev;
+	struct usb_interface *intf = wacom->intf;
+	struct usb_device *dev = interface_to_usbdev(intf);
+	struct wacom_wac *wacom_wac = wacom->wacom_wac;
+	struct wacom_features *features = &(wacom_wac->features);
+	int error;
+
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+
+	input_dev->name = wacom_wac->name;
+	input_dev->dev.parent = &intf->dev;
+	input_dev->open = wacom_open;
+	input_dev->close = wacom_close;
+	usb_to_input_id(dev, &input_dev->id);
+	input_set_drvdata(input_dev, wacom);
+
+	wacom->dev = input_dev;
+	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOUCH);
+	input_set_abs_params(input_dev, ABS_X, 0, features->x_max, 4, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max, 4, 0);
+	input_dev->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
+
+	if (features->device_type == BTN_TOOL_PEN)
+		input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max, 0, 0);
+
+	wacom_init_input_dev(input_dev, wacom_wac);
+
+	error = input_register_device(input_dev);
+	if (error) {
+		input_free_device(input_dev);
+		wacom->dev = NULL;
+	}
+
+	return error;
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -1125,13 +1166,11 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct wacom *wacom;
 	struct wacom_wac *wacom_wac;
 	struct wacom_features *features;
-	struct input_dev *input_dev;
 	int error;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	wacom_wac = kzalloc(sizeof(struct wacom_wac), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!wacom || !input_dev || !wacom_wac) {
+	if (!wacom || !wacom_wac) {
 		error = -ENOMEM;
 		goto fail1;
 	}
@@ -1149,7 +1188,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	wacom->usbdev = dev;
-	wacom->dev = input_dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
@@ -1169,14 +1207,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	wacom->wacom_wac = wacom_wac;
-	usb_to_input_id(dev, &input_dev->id);
-
-	input_dev->dev.parent = &intf->dev;
-
-	input_set_drvdata(input_dev, wacom);
-
-	input_dev->open = wacom_open;
-	input_dev->close = wacom_close;
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
@@ -1202,17 +1232,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		}
 	}
 
-	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOUCH);
-	input_set_abs_params(input_dev, ABS_X, 0, features->x_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max, 4, 0);
-	input_dev->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
-
-	if (features->device_type == BTN_TOOL_PEN)
-		input_set_abs_params(input_dev, ABS_PRESSURE, 0, features->pressure_max, 0, 0);
-
-	wacom_init_input_dev(input_dev, wacom_wac);
-
 	wacom_setup_device_quirks(features);
 
 	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
@@ -1225,8 +1244,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			sizeof(wacom_wac->name));
 	}
 
-	input_dev->name = wacom_wac->name;
-
 	usb_fill_int_urb(wacom->irq, dev,
 			 usb_rcvintpipe(dev, endpoint->bEndpointAddress),
 			 wacom_wac->data, features->pktlen,
@@ -1238,7 +1255,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
-	error = input_register_device(wacom->dev);
+	error = wacom_register_input(wacom);
 	if (error)
 		goto fail5;
 
@@ -1252,8 +1269,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_buffer_free(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
- fail1:	input_free_device(input_dev);
-	kfree(wacom);
+ fail1: kfree(wacom);
 	kfree(wacom_wac);
 	return error;
 }
