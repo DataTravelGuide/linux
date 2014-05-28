@@ -3043,6 +3043,6 @@ static const struct ethtool_ops_ext igb_ethtool_ops_ext = {
 
 void igb_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &igb_ethtool_ops);
+	netdev->ethtool_ops = &igb_ethtool_ops;
 	set_ethtool_ops_ext(netdev, &igb_ethtool_ops_ext);
 }
