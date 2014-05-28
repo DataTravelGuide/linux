@@ -1982,8 +1982,7 @@ static s32 igb_init_i2c(struct igb_adapter *adapter)
  *  The OS initialization, configuring of the adapter private structure,
  *  and a hardware reset occur.
  **/
-static int igb_probe(struct pci_dev *pdev,
-			       const struct pci_device_id *ent)
+static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct igb_adapter *adapter;
