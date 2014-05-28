@@ -4900,7 +4900,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	if (unlikely(shtx->hardware)) {
 		struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 
-		if (!(adapter->ptp_tx_skb)) {
+		if (!test_and_set_bit_lock(__IGB_PTP_TX_IN_PROGRESS,
+					   &adapter->state)) {
 			shtx->in_progress = 1;
 			tx_flags |= IGB_TX_FLAGS_TSTAMP;
 
