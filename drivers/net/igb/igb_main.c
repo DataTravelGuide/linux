@@ -4911,6 +4911,8 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		}
 	}
 
+	skb_tx_timestamp(skb);
+
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
 		tx_flags |= (vlan_tx_tag_get(skb) << IGB_TX_FLAGS_VLAN_SHIFT);
@@ -4918,8 +4920,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
-
-	skb_tx_timestamp(skb);
 
 	tso = igb_tso(tx_ring, skb, tx_flags, protocol, &hdr_len);
 	if (tso < 0) {
