@@ -667,7 +667,8 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			return wacom_set_device_mode (intf, 3, 4, 4);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
-		if (features->type <= BAMBOO_PT) {
+		if (features->type <= BAMBOO_PT ||
+		    features->type != WIRELESS) {
 			return wacom_set_device_mode(intf, 2, 2, 2);
 		}
 	}
@@ -684,6 +685,21 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 
 	/* default device to penabled */
 	features->device_type = BTN_TOOL_PEN;
+
+	/*
+	 * The wireless device HID is basic and layout conflicts with
+	 * other tablets (monitor and touch interface can look like pen).
+	 * Skip the query for this type and modify defaults based on
+	 * interface number.
+	 */
+	if (features->type == WIRELESS) {
+		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+			features->device_type = 0;
+		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
+			features->device_type = BTN_TOOL_DOUBLETAP;
+			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+		}
+	}
 
 	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
@@ -1118,8 +1134,19 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* these device have multiple inputs */
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    (features->type >= INTUOSPS && features->type <= INTUOSPL))
+	    (features->type >= INTUOSPS && features->type <= INTUOSPL) ||
+	    features->type == WIRELESS)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
+
+	if (features->type == WIRELESS) {
+
+		/* monitor never has input and pen/touch have delayed create */
+		features->quirks |= WACOM_QUIRK_NO_INPUT;
+
+		/* must be monitor interface if no device_type set */
+		if (!features->device_type)
+			features->quirks |= WACOM_QUIRK_MONITOR;
+	}
 }
 
 static int wacom_register_input(struct wacom *wacom)
@@ -1259,14 +1286,22 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
-	error = wacom_register_input(wacom);
-	if (error)
-		goto fail5;
+	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
+		error = wacom_register_input(wacom);
+		if (error)
+			goto fail5;
+	}
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
 
 	usb_set_intfdata(intf, wacom);
+
+	if (features->quirks & WACOM_QUIRK_MONITOR) {
+		if (usb_submit_urb(wacom->irq, GFP_KERNEL))
+			goto fail5;
+	}
+
 	return 0;
 
  fail5: wacom_destroy_leds(wacom);
@@ -1285,7 +1320,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
-	input_unregister_device(wacom->dev);
+	if (wacom->dev)
+		input_unregister_device(wacom->dev);
 	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);
 	usb_buffer_free(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
@@ -1319,7 +1355,8 @@ static int wacom_resume(struct usb_interface *intf)
 		wacom_query_tablet_data(intf, features);
 	wacom_led_control(wacom);
 
-	if (wacom->open && usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
+	if ((wacom->open || features->quirks & WACOM_QUIRK_MONITOR)
+	     && usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
 		rv = -EIO;
 
 	mutex_unlock(&wacom->lock);

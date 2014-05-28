@@ -1031,6 +1031,14 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, void *wcombo)
 	return wacom_bpt_pen(wacom, wc);
 }
 
+static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
+{
+	if (len != WACOM_PKGLEN_WIRELESS)
+		return 0;
+
+	return 0;
+}
+
 int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 {
 	struct urb *urb = ((struct wacom_combo *)wcombo)->urb;
@@ -1085,6 +1093,9 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 			return wacom_tpc_irq(wacom_wac, wcombo);
 		case BAMBOO_PT:
 			return wacom_bpt_irq(wacom_wac, wcombo);
+
+		case WIRELESS:
+			return wacom_wireless_irq(wacom_wac, len);
 
 		default:
 			return 0;
@@ -1249,6 +1260,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos Pro S",  WACOM_PKGLEN_INTUOS, 31496, 19685, 2047, 63, INTUOSPS },
 	{ "Wacom Intuos Pro M",  WACOM_PKGLEN_INTUOS, 44704, 27940, 2047, 63, INTUOSPM },
 	{ "Wacom Intuos Pro L",  WACOM_PKGLEN_INTUOS, 65024, 40640, 2047, 63, INTUOSPL },
+	{ "Wacom Wireless Receiver", WACOM_PKGLEN_WIRELESS, 0,   0,    0,  0, WIRELESS },
 	{ }
 };
 
@@ -1352,6 +1364,7 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_DETAILED(0x314, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x315, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_DETAILED(0x317, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x84) },
 	{ }
 };
 
