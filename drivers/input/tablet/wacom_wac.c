@@ -57,6 +57,7 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	int prox, pressure;
 
@@ -70,9 +71,9 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 	if (prox) {
 		wacom->id[0] = ERASER_DEVICE_ID;
 		pressure = (signed char)((data[7] << 1) | ((data[4] >> 2) & 1));
-		if (wacom->features->pressure_max > 255)
+		if (features->pressure_max > 255)
 			pressure = (pressure << 1) | ((data[4] >> 6) & 1);
-		pressure += (wacom->features->pressure_max + 1) / 2;
+		pressure += (features->pressure_max + 1) / 2;
 
 		/*
 		 * if going from out of proximity into proximity select between the eraser
@@ -154,7 +155,7 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_dtu_irq(struct wacom_wac *wacom, void *wcombo)
 {
-	struct wacom_features *features = wacom->features;
+	struct wacom_features *features = &wacom->features;
 	char *data = wacom->data;
 	int prox = data[1] & 0x20, pressure;
 
@@ -187,6 +188,7 @@ static int wacom_dtu_irq(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	int x, y, rw;
 
@@ -212,8 +214,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 			case 2: /* Mouse with wheel */
 				wacom_report_key(wcombo, BTN_MIDDLE, data[1] & 0x04);
-				if (wacom->features->type == WACOM_G4 ||
-						wacom->features->type == WACOM_MO) {
+				if (features->type == WACOM_G4 || features->type == WACOM_MO) {
 					rw = data[7] & 0x04 ? (data[7] & 0x03)-4 : (data[7] & 0x03);
 					wacom_report_rel(wcombo, REL_WHEEL, -rw);
 				} else
@@ -225,8 +226,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom->id[0] = CURSOR_DEVICE_ID;
 				wacom_report_key(wcombo, BTN_LEFT, data[1] & 0x01);
 				wacom_report_key(wcombo, BTN_RIGHT, data[1] & 0x02);
-				if (wacom->features->type == WACOM_G4 ||
-						wacom->features->type == WACOM_MO)
+				if (features->type == WACOM_G4 || features->type == WACOM_MO)
 					wacom_report_abs(wcombo, ABS_DISTANCE, data[6] & 0x3f);
 				else
 					wacom_report_abs(wcombo, ABS_DISTANCE, data[7] & 0x3f);
@@ -263,7 +263,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	/* send pad data */
-	switch (wacom->features->type) {
+	switch (features->type) {
 	    case WACOM_G4:
 		if (data[7] & 0xf8) {
 			wacom_input_sync(wcombo); /* sync last event */
@@ -316,11 +316,12 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	int idx = 0;
 
 	/* tool number */
-	if (wacom->features->type == INTUOS)
+	if (features->type == INTUOS)
 		idx = data[1] & 0x01;
 
 	/* Enter report */
@@ -397,8 +398,8 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 
 	/* older I4 styli don't work with new Cintiqs */
 	if (!((wacom->id[idx] >> 20) & 0x01) &&
-			(wacom->features->type >= WACOM_21UX2 &&
-			 wacom->features->type <= WACOM_24HD))
+			(features->type >= WACOM_21UX2 &&
+			 features->type <= WACOM_24HD))
 		return 1;
 
 	/* Exit report */
@@ -426,7 +427,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_STYLUS2, 0);
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
 			wacom_report_abs(wcombo, ABS_WHEEL, 0);
-			if (wacom->features->type >= INTUOS3S)
+			if (features->type >= INTUOS3S)
 				wacom_report_abs(wcombo, ABS_Z, 0);
 		}
 		wacom_report_key(wcombo, wacom->tool[idx], 0);
@@ -440,16 +441,17 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 
 static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	unsigned int t;
 
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
-                    (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L) ||
-			(wacom->features->type >= WACOM_21UX2 &&
-			wacom->features->type <= WACOM_24HD)) {
+		if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
+                    (features->type >= INTUOS5S && features->type <= INTUOS5L) ||
+			(features->type >= WACOM_21UX2 &&
+			 features->type <= WACOM_24HD)) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		wacom_report_abs(wcombo, ABS_PRESSURE, t);
@@ -474,6 +476,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
 	unsigned int t;
 	int idx = 0, result;
@@ -484,7 +487,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	/* tool number */
-	if (wacom->features->type == INTUOS)
+	if (features->type == INTUOS)
 		idx = data[1] & 0x01;
 
 	/* pad packets. Works as a second tool and is always in prox */
@@ -493,7 +496,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 		if (wacom->tool[1] != BTN_TOOL_FINGER)
 			wacom->tool[1] = BTN_TOOL_FINGER;
 
-		if (wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) {
+		if (features->type >= INTUOS4S && features->type <= INTUOS4L) {
 			wacom_report_key(wcombo, BTN_0, (data[2] & 0x01));
 			wacom_report_key(wcombo, BTN_1, (data[3] & 0x01));
 			wacom_report_key(wcombo, BTN_2, (data[3] & 0x02));
@@ -507,7 +510,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				/* Out of proximity, clear wheel value. */
 				wacom_report_abs(wcombo, ABS_WHEEL, 0);
 			}
-			if (wacom->features->type != INTUOS4S) {
+			if (features->type != INTUOS4S) {
 				wacom_report_key(wcombo, BTN_7, (data[3] & 0x40));
 				wacom_report_key(wcombo, BTN_8, (data[3] & 0x80));
 			}
@@ -518,7 +521,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_key(wcombo, wacom->tool[1], 0);
 				wacom_report_abs(wcombo, ABS_MISC, 0);
 			}
-		} else if (wacom->features->type == WACOM_24HD) {
+		} else if (features->type == WACOM_24HD) {
 			wacom_report_key(wcombo, BTN_0, (data[6] & 0x01));
 			wacom_report_key(wcombo, BTN_1, (data[6] & 0x02));
 			wacom_report_key(wcombo, BTN_2, (data[6] & 0x04));
@@ -568,7 +571,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_key(wcombo, wacom->tool[1], 0);
 				wacom_report_abs(wcombo, ABS_MISC, 0);
 			}
-		} else if (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L) {
+		} else if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
 			int i;
 
 			/* Touch ring mode switch has no capacitive sensor */
@@ -597,8 +600,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_abs(wcombo, ABS_MISC, 0);
 			}
 		} else {
-			if (wacom->features->type == WACOM_21UX2 ||
-			    wacom->features->type == WACOM_22HD) {
+			if (features->type == WACOM_21UX2 ||
+			    features->type == WACOM_22HD) {
 				wacom_report_key(wcombo, BTN_0, (data[5] & 0x01));
 				wacom_report_key(wcombo, BTN_1, (data[6] & 0x01));
 				wacom_report_key(wcombo, BTN_2, (data[6] & 0x02));
@@ -617,7 +620,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 				wacom_report_key(wcombo, BTN_Z, (data[8] & 0x20));
 				wacom_report_key(wcombo, BTN_BASE, (data[8] & 0x40));
 				wacom_report_key(wcombo, BTN_BASE2, (data[8] & 0x80));
-				if (wacom->features->type == WACOM_22HD) {
+				if (features->type == WACOM_22HD) {
 					wacom_report_key(wcombo, KEY_PROG1, data[9] & 0x01);
 					wacom_report_key(wcombo, KEY_PROG2, data[9] & 0x02);
 					wacom_report_key(wcombo, KEY_PROG3, data[9] & 0x04);
@@ -662,19 +665,19 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 
 	/* Only large Intuos support Lense Cursor */
 	if ((wacom->tool[idx] == BTN_TOOL_LENS)
-			&& ((wacom->features->type == INTUOS3)
-			|| (wacom->features->type == INTUOS3S)
-			|| (wacom->features->type == INTUOS4)
-			|| (wacom->features->type == INTUOS4S)
-			|| (wacom->features->type == INTUOS5)
-			|| (wacom->features->type == INTUOS5S)))
+			&& ((features->type == INTUOS3)
+			|| (features->type == INTUOS3S)
+			|| (features->type == INTUOS4)
+			|| (features->type == INTUOS4S)
+			|| (features->type == INTUOS5)
+			|| (features->type == INTUOS5S)))
 		return 0;
 
 	/* Cintiq doesn't send data when RDY bit isn't set */
-	if ((wacom->features->type == CINTIQ) && !(data[1] & 0x40))
+	if ((features->type == CINTIQ) && !(data[1] & 0x40))
                  return 0;
 
-	if (wacom->features->type >= INTUOS3S) {
+	if (features->type >= INTUOS3S) {
 		wacom_report_abs(wcombo, ABS_X, (data[2] << 9) | (data[3] << 1) | ((data[9] >> 1) & 1));
 		wacom_report_abs(wcombo, ABS_Y, (data[4] << 9) | (data[5] << 1) | (data[9] & 1));
 		wacom_report_abs(wcombo, ABS_DISTANCE, ((data[9] >> 2) & 0x3f));
@@ -692,7 +695,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 
 		if (data[1] & 0x02) {
 			/* Rotation packet */
-			if (wacom->features->type >= INTUOS3S) {
+			if (features->type >= INTUOS3S) {
 				/* I3 marker pen rotation */
 				t = (data[6] << 3) | ((data[7] >> 5) & 7);
 				t = (data[7] & 0x20) ? ((t > 900) ? ((t-1) / 2 - 1350) :
@@ -705,7 +708,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 					((t - 1) / 2) : -t / 2);
 			}
 
-		} else if (!(data[1] & 0x10) && wacom->features->type < INTUOS3S) {
+		} else if (!(data[1] & 0x10) && features->type < INTUOS3S) {
 			/* 4D mouse packet */
 			wacom_report_key(wcombo, BTN_LEFT,   data[8] & 0x01);
 			wacom_report_key(wcombo, BTN_MIDDLE, data[8] & 0x02);
@@ -718,8 +721,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 
 		} else if (wacom->tool[idx] == BTN_TOOL_MOUSE) {
 			/* I4 mouse */
-			if ((wacom->features->type >= INTUOS4S && wacom->features->type <= INTUOS4L) ||
-			    (wacom->features->type >= INTUOS5S && wacom->features->type <= INTUOS5L)) {
+			if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
+			    (features->type >= INTUOS5S && features->type <= INTUOS5L)) {
 				wacom_report_key(wcombo, BTN_LEFT,   data[6] & 0x01);
 				wacom_report_key(wcombo, BTN_MIDDLE, data[6] & 0x02);
 				wacom_report_key(wcombo, BTN_RIGHT,  data[6] & 0x04);
@@ -740,13 +743,13 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 						 - ((data[8] & 0x02) >> 1));
 
 				/* I3 2D mouse side buttons */
-				if (wacom->features->type >= INTUOS3S && wacom->features->type <= INTUOS3L) {
+				if (features->type >= INTUOS3S && features->type <= INTUOS3L) {
 					wacom_report_key(wcombo, BTN_SIDE,   data[8] & 0x40);
 					wacom_report_key(wcombo, BTN_EXTRA,  data[8] & 0x20);
 				}
 			}
-		} else if ((wacom->features->type < INTUOS3S || wacom->features->type == INTUOS3L ||
-			   wacom->features->type == INTUOS4L || wacom->features->type == INTUOS5L) &&
+		} else if ((features->type < INTUOS3S || features->type == INTUOS3L ||
+			   features->type == INTUOS4L || features->type == INTUOS5L) &&
 			   wacom->tool[idx] == BTN_TOOL_LENS) {
 			/* Lens cursor packets */
 			wacom_report_key(wcombo, BTN_LEFT,   data[8] & 0x01);
@@ -827,7 +830,7 @@ static int wacom_tpc_single_touch(struct wacom_wac *wacom, void *wcombo, size_t 
 
 static int wacom_tpc_pen(struct wacom_wac *wacom, void *wcombo)
 {
-	struct wacom_features *features = wacom->features;
+	struct wacom_features *features = &wacom->features;
 	char *data = wacom->data;
 	int pressure;
 	bool prox = data[1] & 0x20;
@@ -877,6 +880,7 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 
 static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 {
+	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wcombo->wacom->dev;
 	unsigned char *data = wacom->data;
 	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
@@ -915,8 +919,8 @@ static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 		 * touching and applying pressure; do not report negative
 		 * distance.
 		 */
-		if (data[8] <= wacom->features->distance_max)
-			d = wacom->features->distance_max - data[8];
+		if (data[8] <= features->distance_max)
+			d = features->distance_max - data[8];
 
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
@@ -955,7 +959,7 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, void *wcombo)
 
 int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 {
-	switch (wacom_wac->features->type) {
+	switch (wacom_wac->features.type) {
 		case PENPARTNER:
 			return wacom_penpartner_irq(wacom_wac, wcombo);
 
@@ -1004,7 +1008,9 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 
 void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	switch (wacom_wac->features->type) {
+	struct wacom_features *features = &wacom_wac->features;
+
+	switch (features->type) {
 		case WACOM_MO:
 			input_dev_mo(input_dev, wacom_wac);
 		case WACOM_G4:
@@ -1051,7 +1057,7 @@ void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_w
 			/* fall through */
 		case TABLETPC:
 			input_dev_tpc(input_dev, wacom_wac);
-			if (wacom_wac->features->device_type != BTN_TOOL_PEN)
+			if (features->device_type != BTN_TOOL_PEN)
 				break;  /* no need to process stylus stuff */
 
 			/* fall through */
