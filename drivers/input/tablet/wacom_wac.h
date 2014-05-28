@@ -10,7 +10,7 @@
 #define WACOM_WAC_H
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	32
+#define WACOM_PKGLEN_MAX	64
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -20,6 +20,7 @@
 #define WACOM_PKGLEN_PENABLED	 8
 #define WACOM_PKGLEN_TPC1FG	 5
 #define WACOM_PKGLEN_TPC2FG	14
+#define WACOM_PKGLEN_BBTOUCH3	64
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -49,6 +50,9 @@ enum {
 	INTUOS5S,
 	INTUOS5,
 	INTUOS5L,
+	INTUOSPS,
+	INTUOSPM,
+	INTUOSPL,
 	WACOM_21UX2,
 	WACOM_22HD,
 	WACOM_24HD,
