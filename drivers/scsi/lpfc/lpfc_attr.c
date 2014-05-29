@@ -2368,7 +2368,7 @@ lpfc_oas_tgt_store(struct device *dev, struct device_attribute *attr,
 	uint8_t wwpn[WWN_SZ];
 	int rc;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	/* count may include a LF at end of string */
@@ -2436,7 +2436,7 @@ lpfc_oas_vpt_store(struct device *dev, struct device_attribute *attr,
 	uint8_t wwpn[WWN_SZ];
 	int rc;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	/* count may include a LF at end of string */
@@ -2503,7 +2503,7 @@ lpfc_oas_lun_state_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	int val = 0;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	if (!isdigit(buf[0]))
@@ -2569,7 +2569,7 @@ lpfc_oas_lun_state_set(struct lpfc_hba *phba, uint8_t vpt_wwpn[],
 
 	int rc = 0;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	if (oas_state) {
@@ -2674,7 +2674,7 @@ lpfc_oas_lun_show(struct device *dev, struct device_attribute *attr,
 	uint64_t oas_lun;
 	int len = 0;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	if (wwn_to_u64(phba->cfg_oas_vpt_wwpn) == 0)
@@ -2720,7 +2720,7 @@ lpfc_oas_lun_store(struct device *dev, struct device_attribute *attr,
 	uint64_t scsi_lun;
 	ssize_t rc;
 
-	if (!phba->cfg_EnableXLane)
+	if (!phba->cfg_fof)
 		return -EPERM;
 
 	if (wwn_to_u64(phba->cfg_oas_vpt_wwpn) == 0)
