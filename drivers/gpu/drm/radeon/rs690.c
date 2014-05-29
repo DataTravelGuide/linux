@@ -162,6 +162,16 @@ static void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	/* Some boards seem to be configured for 128MB of sideport memory,
+	 * but really only have 64MB.  Just skip the sideport and use
+	 * UMA memory.
+	 */
+	if (rdev->mc.igp_sideport_enabled &&
+	    (rdev->mc.real_vram_size == (384 * 1024 * 1024))) {
+		base += 128 * 1024 * 1024;
+		rdev->mc.real_vram_size -= 128 * 1024 * 1024;
+		rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
+	}
 
 	/* Use K8 direct mapping for fast fb access. */ 
 	rdev->fastfb_working = false;
@@ -631,20 +641,27 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg));
 	r = RREG32(R_00007C_MC_DATA);
 	WREG32(R_000078_MC_INDEX, ~C_000078_MC_IND_ADDR);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_000078_MC_INDEX, S_000078_MC_IND_ADDR(reg) |
 		S_000078_MC_IND_WR_EN(1));
 	WREG32(R_00007C_MC_DATA, v);
 	WREG32(R_000078_MC_INDEX, 0x7F);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void rs690_mc_program(struct radeon_device *rdev)

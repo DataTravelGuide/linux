@@ -203,7 +203,9 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 
 static int radeon_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+
+	return drm_vma_node_verify_access(&rbo->gem_base.vma_node, filp);
 }
 
 static void radeon_move_null(struct ttm_buffer_object *bo,
@@ -710,6 +712,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
+	/* Change the size here instead of the init above so only lpfn is affected */
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM,
 			     NULL, &rdev->stollen_vga_memory);

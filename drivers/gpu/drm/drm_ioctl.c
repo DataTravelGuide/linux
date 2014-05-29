@@ -256,20 +256,9 @@ int drm_getstats(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv)
 {
 	struct drm_stats *stats = data;
-	int i;
 
+	/* Clear stats to prevent userspace from eating its stack garbage. */
 	memset(stats, 0, sizeof(*stats));
-
-	for (i = 0; i < dev->counters; i++) {
-		if (dev->types[i] == _DRM_STAT_LOCK)
-			stats->data[i].value =
-			    (file_priv->master->lock.hw_lock ? file_priv->master->lock.hw_lock->lock : 0);
-		else
-			stats->data[i].value = atomic_read(&dev->counts[i]);
-		stats->data[i].type = dev->types[i];
-	}
-
-	stats->count = dev->counters;
 
 	return 0;
 }
@@ -302,6 +291,9 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		break;
 	case DRM_CAP_TIMESTAMP_MONOTONIC:
 		req->value = drm_timestamp_monotonic;
+		break;
+	case DRM_CAP_ASYNC_PAGE_FLIP:
+		req->value = dev->mode_config.async_page_flip;
 		break;
 	default:
 		return -EINVAL;
@@ -352,9 +344,6 @@ int drm_setversion(struct drm_device *dev, void *data, struct drm_file *file_pri
 			retcode = -EINVAL;
 			goto done;
 		}
-
-		if (dev->driver->set_version)
-			dev->driver->set_version(dev, sv);
 	}
 
 done:

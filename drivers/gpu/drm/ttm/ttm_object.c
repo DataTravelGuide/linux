@@ -217,7 +217,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 					       uint32_t key)
 {
 	struct ttm_object_device *tdev = tfile->tdev;
-	struct ttm_base_object *base;
+	struct ttm_base_object *uninitialized_var(base);
 	struct drm_hash_item *hash;
 	int ret;
 
@@ -226,7 +226,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 
 	if (likely(ret == 0)) {
 		base = drm_hash_entry(hash, struct ttm_base_object, hash);
-		kref_get(&base->refcount);
+		ret = kref_get_unless_zero(&base->refcount) ? 0 : -EINVAL;
 	}
 	read_unlock(&tdev->object_lock);
 

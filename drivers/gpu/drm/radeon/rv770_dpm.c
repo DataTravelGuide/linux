@@ -2064,12 +2064,6 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
-	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
-	if (ret) {
-		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -2298,6 +2292,7 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 			 (power_state->v1.ucNonClockStateIndex *
 			  power_info->pplib.ucNonClockSize));
 		if (power_info->pplib.ucStateEntrySize - 1) {
+			u8 *idx;
 			ps = kzalloc(sizeof(struct rv7xx_ps), GFP_KERNEL);
 			if (ps == NULL) {
 				kfree(rdev->pm.dpm.ps);
@@ -2307,12 +2302,12 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 			rv7xx_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
 							 non_clock_info,
 							 power_info->pplib.ucNonClockSize);
+			idx = (u8 *)&power_state->v1.ucClockStateIndices[0];
 			for (j = 0; j < (power_info->pplib.ucStateEntrySize - 1); j++) {
 				clock_info = (union pplib_clock_info *)
 					(mode_info->atom_context->bios + data_offset +
 					 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset) +
-					 (power_state->v1.ucClockStateIndices[j] *
-					  power_info->pplib.ucClockInfoSize));
+					 (idx[j] * power_info->pplib.ucClockInfoSize));
 				rv7xx_parse_pplib_clock_info(rdev,
 							     &rdev->pm.dpm.ps[i], j,
 							     clock_info);
@@ -2332,6 +2327,12 @@ void rv770_get_engine_memory_ss(struct radeon_device *rdev)
 						       ASIC_INTERNAL_ENGINE_SS, 0);
 	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
 						       ASIC_INTERNAL_MEMORY_SS, 0);
+
+	/* disable ss, causes hangs on some cayman boards */
+	if (rdev->family == CHIP_CAYMAN) {
+		pi->sclk_ss = false;
+		pi->mclk_ss = false;
+	}
 
 	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
@@ -2529,6 +2530,12 @@ bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 	    (rdev->pdev->subsystem_vendor == 0x1043) &&
 	    (rdev->pdev->subsystem_device == 0x1c42))
 		switch_limit = 200;
+
+	/* RV770 */
+	/* mclk switching doesn't seem to work reliably on desktop RV770s */
+	if ((rdev->family == CHIP_RV770) &&
+	    !(rdev->flags & RADEON_IS_MOBILITY))
+		switch_limit = 0xffffffff; /* disable mclk switching */
 
 	if (vblank_time < switch_limit)
 		return true;
