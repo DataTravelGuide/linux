@@ -67,7 +67,6 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 	.nr_balance_failed	= 0,			\
-	.max_newidle_lb_cost	= 0,			\
 }
 
 extern int __node_distance(int, int);
