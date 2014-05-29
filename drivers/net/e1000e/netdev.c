@@ -5052,7 +5052,7 @@ static bool e1000_tx_csum(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	__be16 protocol;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		return 0;
+		return false;
 
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q))
 		protocol = vlan_eth_hdr(skb)->h_vlan_encapsulated_proto;
@@ -5097,7 +5097,7 @@ static bool e1000_tx_csum(struct e1000_ring *tx_ring, struct sk_buff *skb)
 		i = 0;
 	tx_ring->next_to_use = i;
 
-	return 1;
+	return true;
 }
 
 static int e1000_tx_map(struct e1000_ring *tx_ring, struct sk_buff *skb,
