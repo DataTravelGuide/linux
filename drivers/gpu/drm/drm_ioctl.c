@@ -217,29 +217,29 @@ int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;
-	struct drm_file *pt;
-	int idx;
-	int i;
 
-	idx = client->idx;
-	i = 0;
+	/*
+	 * Hollowed-out getclient ioctl to keep some dead old drm tests/tools
+	 * not breaking completely. Userspace tools stop enumerating one they
+	 * get -EINVAL, hence this is the return value we need to hand back for
+	 * no clients tracked.
+	 *
+	 * Unfortunately some clients (*cough* libva *cough*) use this in a fun
+	 * attempt to figure out whether they're authenticated or not. Since
+	 * that's the only thing they care about, give it to the directly
+	 * instead of walking one giant list.
+	 */
+	if (client->idx == 0) {
+		client->auth = file_priv->authenticated;
+		client->pid = file_priv->pid;
+		client->uid = file_priv->uid;
+		client->magic = 0;
+		client->iocs = 0;
 
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(pt, &dev->filelist, lhead) {
-		if (i++ >= idx) {
-			client->auth = pt->authenticated;
-			client->pid = pt->pid;
-			client->uid = pt->uid;
-			client->magic = pt->magic;
-			client->iocs = pt->ioctl_count;
-			mutex_unlock(&dev->struct_mutex);
-
-			return 0;
-		}
+		return 0;
+	} else {
+		return -EINVAL;
 	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return -EINVAL;
 }
 
 /**
@@ -294,6 +294,18 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		break;
 	case DRM_CAP_ASYNC_PAGE_FLIP:
 		req->value = dev->mode_config.async_page_flip;
+		break;
+	case DRM_CAP_CURSOR_WIDTH:
+		if (dev->mode_config.cursor_width)
+			req->value = dev->mode_config.cursor_width;
+		else
+			req->value = 64;
+		break;
+	case DRM_CAP_CURSOR_HEIGHT:
+		if (dev->mode_config.cursor_height)
+			req->value = dev->mode_config.cursor_height;
+		else
+			req->value = 64;
 		break;
 	default:
 		return -EINVAL;

@@ -138,6 +138,11 @@ void radeon_program_register_sequence(struct radeon_device *rdev,
 	}
 }
 
+void radeon_pci_config_reset(struct radeon_device *rdev)
+{
+	pci_write_config_dword(rdev->pdev, 0x7c, RADEON_ASIC_RESET_DATA);
+}
+
 /**
  * radeon_surface_init - Clear GPU surface registers.
  *
@@ -243,7 +248,7 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  * Init doorbell driver information (CIK)
  * Returns 0 on success, error on failure.
  */
-int radeon_doorbell_init(struct radeon_device *rdev)
+static int radeon_doorbell_init(struct radeon_device *rdev)
 {
 	/* doorbell bar mapping */
 	rdev->doorbell.base = pci_resource_start(rdev->pdev, 2);
@@ -272,7 +277,7 @@ int radeon_doorbell_init(struct radeon_device *rdev)
  *
  * Tear down doorbell driver information (CIK)
  */
-void radeon_doorbell_fini(struct radeon_device *rdev)
+static void radeon_doorbell_fini(struct radeon_device *rdev)
 {
 	iounmap(rdev->doorbell.ptr);
 	rdev->doorbell.ptr = NULL;
@@ -1311,6 +1316,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r)
 			return r;
 	}
+
 	if ((radeon_testing & 1)) {
 		if (rdev->accel_working)
 			radeon_test_moves(rdev);
@@ -1438,7 +1444,6 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 	radeon_save_bios_scratch_regs(rdev);
 
-	radeon_pm_suspend(rdev);
 	radeon_suspend(rdev);
 	radeon_hpd_fini(rdev);
 	/* evict remaining vram memory */
@@ -1491,12 +1496,24 @@ int radeon_resume_kms(struct drm_device *dev)
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
-	radeon_pm_resume(rdev);
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		/* do dpm late init */
+		r = radeon_pm_late_init(rdev);
+		if (r) {
+			rdev->pm.dpm_enabled = false;
+			DRM_ERROR("radeon_pm_late_init failed, disabling dpm\n");
+		}
+	} else {
+		/* resume old pm late */
+		radeon_pm_resume(rdev);
+	}
+
 	radeon_restore_bios_scratch_regs(rdev);
 
-	radeon_fbdev_set_suspend(rdev, 0);
-	console_unlock();
-
+	if (1) {
+		radeon_fbdev_set_suspend(rdev, 0);
+		console_unlock();
+	}
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);

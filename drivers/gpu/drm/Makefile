@@ -17,6 +17,7 @@ drm-y       :=	drm_auth.o drm_buffer.o drm_bufs.o drm_cache.o \
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_PCI) += ati_pcigart.o
+drm-$(CONFIG_DRM_PANEL) += drm_panel.o
 
 drm-usb-y   := drm_usb.o
 
@@ -28,6 +29,7 @@ obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
 CFLAGS_drm_trace_points.o := -I$(src)
 
 obj-$(CONFIG_DRM)	+= drm.o
+obj-$(CONFIG_DRM_MIPI_DSI) += drm_mipi_dsi.o
 obj-$(CONFIG_DRM_USB)   += drm_usb.o
 obj-$(CONFIG_DRM_TTM)	+= ttm/
 obj-$(CONFIG_DRM_TDFX)	+= tdfx/
@@ -41,3 +43,4 @@ obj-$(CONFIG_DRM_SAVAGE)+= savage/
 obj-$(CONFIG_DRM_VIA)	+=via/
 obj-$(CONFIG_DRM_NOUVEAU) +=nouveau/
 obj-y			+= i2c/
+obj-y			+= panel/

@@ -31,14 +31,6 @@
 #include "radeon.h"
 #include "atom.h"
 
-extern void
-radeon_combios_connected_scratch_regs(struct drm_connector *connector,
-				      struct drm_encoder *encoder,
-				      bool connected);
-extern void
-radeon_atombios_connected_scratch_regs(struct drm_connector *connector,
-				       struct drm_encoder *encoder,
-				       bool connected);
 
 void radeon_connector_hotplug(struct drm_connector *connector)
 {
