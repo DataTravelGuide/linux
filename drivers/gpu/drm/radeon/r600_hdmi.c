@@ -329,9 +329,14 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	u8 *sadb;
 	int sad_count;
 
+	/* XXX: setting this register causes hangs on some asics */
+	return;
+
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {
@@ -383,8 +388,10 @@ static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
 	};
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
 			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
 	}
 
 	if (!radeon_connector) {
@@ -401,20 +408,30 @@ static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 value = 0;
+		u8 stereo_freqs = 0;
+		int max_channels = -1;
 		int j;
 
 		for (j = 0; j < sad_count; j++) {
 			struct cea_sad *sad = &sads[j];
 
 			if (sad->format == eld_reg_to_type[i][1]) {
-				value = MAX_CHANNELS(sad->channels) |
-					DESCRIPTOR_BYTE_2(sad->byte2) |
-					SUPPORTED_FREQUENCIES(sad->freq);
+				if (sad->channels > max_channels) {
+					value = MAX_CHANNELS(sad->channels) |
+						DESCRIPTOR_BYTE_2(sad->byte2) |
+						SUPPORTED_FREQUENCIES(sad->freq);
+					max_channels = sad->channels;
+				}
+
 				if (sad->format == HDMI_AUDIO_CODING_TYPE_PCM)
-					value |= SUPPORTED_FREQUENCIES_STEREO(sad->freq);
-				break;
+					stereo_freqs |= sad->freq;
+				else
+					break;
 			}
 		}
+
+		value |= SUPPORTED_FREQUENCIES_STEREO(stereo_freqs);
+
 		WREG32(eld_reg_to_type[i][0], value);
 	}
 
@@ -442,10 +459,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	if (!dig->afmt->enabled)
 		return;
 	offset = dig->afmt->offset;
-
-	/* disable audio prior to setting up hw */
-	dig->afmt->pin = r600_audio_get_pin(rdev);
-	r600_audio_enable(rdev, dig->afmt->pin, false);
 
 	r600_audio_set_dto(encoder, mode->clock);
 
@@ -518,9 +531,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	r600_hdmi_audio_workaround(encoder);
-
-	/* enable audio after to setting up hw */
-	r600_audio_enable(rdev, dig->afmt->pin, true);
 }
 
 /*
@@ -640,6 +650,11 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
+
+	if (enable)
+		dig->afmt->pin = r600_audio_get_pin(rdev);
+	else
+		dig->afmt->pin = NULL;
 
 	/* Older chipsets require setting HDMI and routing manually */
 	if (!ASIC_IS_DCE3(rdev)) {

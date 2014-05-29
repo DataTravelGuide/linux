@@ -78,7 +78,7 @@ nv40_backlight_init(struct drm_connector *connector)
 	if (!(nv_rd32(device, NV40_PMC_BACKLIGHT) & NV40_PMC_BACKLIGHT_MASK))
 		return 0;
 
-	bd = backlight_device_register("nv_backlight", &connector->kdev, drm,
+	bd = backlight_device_register("nv_backlight", connector->kdev, drm,
 				       &nv40_bl_ops);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -197,7 +197,7 @@ nv50_backlight_init(struct drm_connector *connector)
 	else
 		ops = &nva3_bl_ops;
 
-	bd = backlight_device_register("nv_backlight", &connector->kdev,
+	bd = backlight_device_register("nv_backlight", connector->kdev,
 				       nv_encoder, ops);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);

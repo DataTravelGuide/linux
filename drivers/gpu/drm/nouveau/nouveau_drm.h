@@ -51,10 +51,12 @@ struct nouveau_drm_tile {
 };
 
 enum nouveau_drm_handle {
-	NVDRM_CLIENT = 0xffffffff,
-	NVDRM_DEVICE = 0xdddddddd,
-	NVDRM_PUSH   = 0xbbbb0000, /* |= client chid */
-	NVDRM_CHAN   = 0xcccc0000, /* |= client chid */
+	NVDRM_CLIENT  = 0xffffffff,
+	NVDRM_DEVICE  = 0xdddddddd,
+	NVDRM_CONTROL = 0xdddddddc,
+	NVDRM_PUSH    = 0xbbbb0000, /* |= client chid */
+	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
+	NVDRM_NVSW    = 0x55550000,
 };
 
 struct nouveau_cli {
@@ -125,10 +127,15 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
-	struct nouveau_eventh vblank[4];
 
 	/* power management */
-	struct nouveau_pm *pm;
+	struct nouveau_hwmon *hwmon;
+	struct nouveau_sysfs *sysfs;
+
+	/* display power reference */
+	bool have_disp_power_ref;
+
+	struct pci_dev *hdmi_device;
 };
 
 static inline struct nouveau_drm *

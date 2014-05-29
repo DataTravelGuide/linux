@@ -75,9 +75,11 @@
  *   2.32.0 - new info request for rings working
  *   2.33.0 - Add SI tiling mode array query
  *   2.34.0 - Add CIK tiling mode array query
+ *   2.35.0 - Add CIK macrotile mode array query
+ *   2.36.0 - Fix CIK DCE tiling setup
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	34
+#define KMS_DRIVER_MINOR	36
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -100,14 +102,14 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
 irqreturn_t radeon_driver_irq_handler_kms(DRM_IRQ_ARGS);
-int radeon_gem_object_init(struct drm_gem_object *obj);
 void radeon_gem_object_free(struct drm_gem_object *obj);
 int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
-				      int *vpos, int *hpos);
+				      int *vpos, int *hpos, ktime_t *stime,
+				      ktime_t *etime);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -408,7 +410,6 @@ static struct drm_driver kms_driver = {
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
 	.irq_handler = radeon_driver_irq_handler_kms,
 	.ioctls = radeon_ioctls_kms,
-	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,
 	.gem_open_object = radeon_gem_object_open,
 	.gem_close_object = radeon_gem_object_close,

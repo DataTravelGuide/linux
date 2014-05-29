@@ -25,6 +25,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_trace.h"
 #include "cikd.h"
 
 /* sdma */
@@ -87,6 +88,35 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 }
 
 /**
+ * cik_sdma_hdp_flush_ring_emit - emit an hdp flush on the DMA ring
+ *
+ * @rdev: radeon_device pointer
+ * @ridx: radeon ring index
+ *
+ * Emit an hdp flush packet on the requested DMA ring.
+ */
+static void cik_sdma_hdp_flush_ring_emit(struct radeon_device *rdev,
+					 int ridx)
+{
+	struct radeon_ring *ring = &rdev->ring[ridx];
+	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(1) |
+			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
+	u32 ref_and_mask;
+
+	if (ridx == R600_RING_TYPE_DMA_INDEX)
+		ref_and_mask = SDMA0;
+	else
+		ref_and_mask = SDMA1;
+
+	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
+	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE);
+	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ);
+	radeon_ring_write(ring, ref_and_mask); /* reference */
+	radeon_ring_write(ring, ref_and_mask); /* mask */
+	radeon_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
+}
+
+/**
  * cik_sdma_fence_ring_emit - emit a fence on the DMA ring
  *
  * @rdev: radeon_device pointer
@@ -101,14 +131,6 @@ void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
-	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(1) |
-			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
-	u32 ref_and_mask;
-
-	if (fence->ring == R600_RING_TYPE_DMA_INDEX)
-		ref_and_mask = SDMA0;
-	else
-		ref_and_mask = SDMA1;
 
 	/* write the fence */
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_FENCE, 0, 0));
@@ -118,12 +140,7 @@ void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 	/* generate an interrupt */
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_TRAP, 0, 0));
 	/* flush HDP */
-	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
-	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE);
-	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ);
-	radeon_ring_write(ring, ref_and_mask); /* REFERENCE */
-	radeon_ring_write(ring, ref_and_mask); /* MASK */
-	radeon_ring_write(ring, (4 << 16) | 10); /* RETRY_COUNT, POLL_INTERVAL */
+	cik_sdma_hdp_flush_ring_emit(rdev, fence->ring);
 }
 
 /**
@@ -137,7 +154,7 @@ void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
  * Add a DMA semaphore packet to the ring wait on or signal
  * other rings (CIK).
  */
-void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
+bool cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
 				  struct radeon_ring *ring,
 				  struct radeon_semaphore *semaphore,
 				  bool emit_wait)
@@ -148,6 +165,8 @@ void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SEMAPHORE, 0, extra_bits));
 	radeon_ring_write(ring, addr & 0xfffffff8);
 	radeon_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+
+	return true;
 }
 
 /**
@@ -450,13 +469,8 @@ int cik_copy_dma(struct radeon_device *rdev,
 		return r;
 	}
 
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
+	radeon_semaphore_sync_to(sem, *fence);
+	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_bytes = size_in_bytes;
@@ -653,11 +667,12 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			  uint64_t addr, unsigned count,
 			  uint32_t incr, uint32_t flags)
 {
-	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
 	uint64_t value;
 	unsigned ndw;
 
-	if (flags & RADEON_VM_PAGE_SYSTEM) {
+	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+
+	if (flags & R600_PTE_SYSTEM) {
 		while (count) {
 			ndw = count * 2;
 			if (ndw > 0xFFFFE)
@@ -669,16 +684,10 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 			ib->ptr[ib->length_dw++] = ndw;
 			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
-				}
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
 				addr += incr;
-				value |= r600_flags;
+				value |= flags;
 				ib->ptr[ib->length_dw++] = value;
 				ib->ptr[ib->length_dw++] = upper_32_bits(value);
 			}
@@ -689,7 +698,7 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			if (ndw > 0x7FFFF)
 				ndw = 0x7FFFF;
 
-			if (flags & RADEON_VM_PAGE_VALID)
+			if (flags & R600_PTE_VALID)
 				value = addr;
 			else
 				value = 0;
@@ -697,7 +706,7 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);
 			ib->ptr[ib->length_dw++] = pe; /* dst addr */
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
-			ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+			ib->ptr[ib->length_dw++] = flags; /* mask */
 			ib->ptr[ib->length_dw++] = 0;
 			ib->ptr[ib->length_dw++] = value; /* value */
 			ib->ptr[ib->length_dw++] = upper_32_bits(value);
@@ -724,17 +733,9 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 {
 	struct radeon_ring *ring = &rdev->ring[ridx];
-	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(1) |
-			  SDMA_POLL_REG_MEM_EXTRA_FUNC(3)); /* == */
-	u32 ref_and_mask;
 
 	if (vm == NULL)
 		return;
-
-	if (ridx == R600_RING_TYPE_DMA_INDEX)
-		ref_and_mask = SDMA0;
-	else
-		ref_and_mask = SDMA1;
 
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm->id < 8) {
@@ -770,12 +771,7 @@ void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm
 	radeon_ring_write(ring, VMID(0));
 
 	/* flush HDP */
-	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
-	radeon_ring_write(ring, GPU_HDP_FLUSH_DONE);
-	radeon_ring_write(ring, GPU_HDP_FLUSH_REQ);
-	radeon_ring_write(ring, ref_and_mask); /* REFERENCE */
-	radeon_ring_write(ring, ref_and_mask); /* MASK */
-	radeon_ring_write(ring, (4 << 16) | 10); /* RETRY_COUNT, POLL_INTERVAL */
+	cik_sdma_hdp_flush_ring_emit(rdev, ridx);
 
 	/* flush TLB */
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));

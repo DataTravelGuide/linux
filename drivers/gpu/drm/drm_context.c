@@ -345,7 +345,6 @@ int drm_addctx(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->ctxlist_mutex);
 	list_add(&ctx_entry->head, &dev->ctxlist);
-	++dev->ctx_count;
 	mutex_unlock(&dev->ctxlist_mutex);
 
 	return 0;
@@ -443,7 +442,6 @@ int drm_rmctx(struct drm_device *dev, void *data,
 			if (pos->handle == ctx->handle) {
 				list_del(&pos->head);
 				kfree(pos);
-				--dev->ctx_count;
 			}
 		}
 	}
