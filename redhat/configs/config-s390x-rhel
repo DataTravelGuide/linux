@@ -47,3 +47,4 @@ CONFIG_SCM_BLOCK_CLUSTER_WRITE=y
 # CONFIG_GFS2_FS is not set
 # CONFIG_XFS_FS is not set
 # CONFIG_SECCOMP is not set
+# CONFIG_POWERCAP is not set

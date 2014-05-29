@@ -63,3 +63,4 @@ CONFIG_BLK_DEV_RSXX=m
 # CONFIG_SPARSEMEM_VMEMMAP is not set
 # CONFIG_ZRAM is not set
 # CONFIG_ZRAM_DEBUG is not set
+# CONFIG_POWERCAP is not set
