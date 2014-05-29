@@ -28,6 +28,36 @@
 
 #define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
+#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
+
+/* discrete uvd clocks */
+#define	CG_UPLL_FUNC_CNTL				0x634
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_VCO_MODE_MASK			0x00000600
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define	CG_UPLL_FUNC_CNTL_2				0x638
+#	define UPLL_PDIV_A(x)				((x) << 0)
+#	define UPLL_PDIV_A_MASK				0x0000007F
+#	define UPLL_PDIV_B(x)				((x) << 8)
+#	define UPLL_PDIV_B_MASK				0x00007F00
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define	CG_UPLL_FUNC_CNTL_3				0x63C
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+#define	CG_UPLL_FUNC_CNTL_4                             0x644
+#	define UPLL_SPARE_ISPARE9			0x00020000
+#define	CG_UPLL_FUNC_CNTL_5				0x648
+#	define RESET_ANTI_MUX_MASK			0x00000200
+#define	CG_UPLL_SPREAD_SPECTRUM				0x650
+#	define SSEN_MASK				0x00000001
 
 #define	CG_MULT_THERMAL_STATUS					0x714
 #define		ASIC_MAX_TEMP(x)				((x) << 0)
@@ -66,6 +96,10 @@
 #define DMIF_ADDR_CONFIG  				0xBD4
 
 #define DMIF_ADDR_CALC  				0xC00
+
+#define	PIPE0_DMIF_BUFFER_CONTROL			  0x0ca0
+#       define DMIF_BUFFERS_ALLOCATED(x)                  ((x) << 0)
+#       define DMIF_BUFFERS_ALLOCATED_COMPLETED           (1 << 4)
 
 #define	SRBM_STATUS				        0xE50
 #define		GRBM_RQ_PENDING 			(1 << 5)
@@ -213,7 +247,7 @@
 #define		NOOFGROUPS_SHIFT				12
 #define		NOOFGROUPS_MASK					0x00001000
 
-#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x2808
+#define	MC_SEQ_TRAIN_WAKEUP_CNTL			0x28e8
 #define		TRAIN_DONE_D0      			(1 << 30)
 #define		TRAIN_DONE_D1      			(1 << 31)
 
@@ -360,7 +394,7 @@
 #       define GRPH_PFLIP_INT_MASK                      (1 << 0)
 #       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
 
-#define	DACA_AUTODETECT_INT_CONTROL			0x66c8
+#define	DAC_AUTODETECT_INT_CONTROL			0x67c8
 
 #define DC_HPD1_INT_STATUS                              0x601c
 #define DC_HPD2_INT_STATUS                              0x6028
@@ -800,6 +834,15 @@
 #       define THREAD_TRACE_FINISH                      (55 << 0)
 
 /*
+ * UVD
+ */
+#define UVD_UDEC_ADDR_CONFIG				0xEF4C
+#define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
@@ -885,7 +928,7 @@
  * 6. COMMAND [30:21] | BYTE_COUNT [20:0]
  */
 #              define PACKET3_CP_DMA_DST_SEL(x)    ((x) << 20)
-                /* 0 - SRC_ADDR
+                /* 0 - DST_ADDR
 		 * 1 - GDS
 		 */
 #              define PACKET3_CP_DMA_ENGINE(x)     ((x) << 27)
@@ -900,7 +943,7 @@
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
-#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)
+#              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
                 /* 0 - none
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32

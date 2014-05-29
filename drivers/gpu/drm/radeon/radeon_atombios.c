@@ -715,13 +715,16 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								(ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *)
 								(ctx->bios + data_offset +
 								 le16_to_cpu(router_obj->asObjects[k].usSrcDstTableOffset));
+							u8 *num_dst_objs = (u8 *)
+								((u8 *)router_src_dst_table + 1 +
+								 (router_src_dst_table->ucNumberOfSrc * 2));
+							u16 *dst_objs = (u16 *)(num_dst_objs + 1);
 							int enum_id;
 
 							router.router_id = router_obj_id;
-							for (enum_id = 0; enum_id < router_src_dst_table->ucNumberOfDst;
-							     enum_id++) {
+							for (enum_id = 0; enum_id < (*num_dst_objs); enum_id++) {
 								if (le16_to_cpu(path->usConnObjectId) ==
-								    le16_to_cpu(router_src_dst_table->usDstObjectID[enum_id]))
+								    le16_to_cpu(dst_objs[enum_id]))
 									break;
 							}
 
@@ -1651,7 +1654,9 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 								kfree(edid);
 						}
 					}
-					record += sizeof(ATOM_FAKE_EDID_PATCH_RECORD);
+					record += fake_edid_record->ucFakeEDIDLength ?
+						fake_edid_record->ucFakeEDIDLength + 2 :
+						sizeof(ATOM_FAKE_EDID_PATCH_RECORD);
 					break;
 				case LCD_PANEL_RESOLUTION_RECORD_TYPE:
 					panel_res_record = (ATOM_PANEL_RESOLUTION_PATCH_RECORD *)record;
@@ -2309,7 +2314,7 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-		if (ASIC_IS_DCE5(rdev) && !(rdev->flags & RADEON_IS_IGP)) {
+		if ((rdev->family >= CHIP_BARTS) && !(rdev->flags & RADEON_IS_IGP)) {
 			/* NI chips post without MC ucode, so default clocks are strobe mode only */
 			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
 			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
@@ -2347,7 +2352,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
 			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
 		}
-	} else if (ASIC_IS_DCE6(rdev)) {
+	} else if (rdev->family >= CHIP_TAHITI) {
 		sclk = le16_to_cpu(clock_info->si.usEngineClockLow);
 		sclk |= clock_info->si.ucEngineClockHigh << 16;
 		mclk = le16_to_cpu(clock_info->si.usMemoryClockLow);
@@ -2360,7 +2365,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			le16_to_cpu(clock_info->si.usVDDC);
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.vddci =
 			le16_to_cpu(clock_info->si.usVDDCI);
-	} else if (ASIC_IS_DCE4(rdev)) {
+	} else if (rdev->family >= CHIP_CEDAR) {
 		sclk = le16_to_cpu(clock_info->evergreen.usEngineClockLow);
 		sclk |= clock_info->evergreen.ucEngineClockHigh << 16;
 		mclk = le16_to_cpu(clock_info->evergreen.usMemoryClockLow);
@@ -2661,6 +2666,111 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.current_vddc = 0;
 }
 
+union get_clock_dividers {
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS v1;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V2 v2;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V3 v3;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 v4;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V5 v5;
+};
+
+int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
+				   u8 clock_type,
+				   u32 clock,
+				   bool strobe_mode,
+				   struct atom_clock_dividers *dividers)
+{
+	union get_clock_dividers args;
+	int index = GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL);
+	u8 frev, crev;
+
+	memset(&args, 0, sizeof(args));
+	memset(dividers, 0, sizeof(struct atom_clock_dividers));
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (crev) {
+	case 1:
+		/* r4xx, r5xx */
+		args.v1.ucAction = clock_type;
+		args.v1.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		dividers->post_div = args.v1.ucPostDiv;
+		dividers->fb_div = args.v1.ucFbDiv;
+		dividers->enable_post_div = true;
+		break;
+	case 2:
+	case 3:
+		/* r6xx, r7xx, evergreen, ni */
+		if (rdev->family <= CHIP_RV770) {
+			args.v2.ucAction = clock_type;
+			args.v2.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+			dividers->post_div = args.v2.ucPostDiv;
+			dividers->fb_div = le16_to_cpu(args.v2.usFbDiv);
+			dividers->ref_div = args.v2.ucAction;
+			if (rdev->family == CHIP_RV770) {
+				dividers->enable_post_div = (le32_to_cpu(args.v2.ulClock) & (1 << 24)) ?
+					true : false;
+				dividers->vco_mode = (le32_to_cpu(args.v2.ulClock) & (1 << 25)) ? 1 : 0;
+			} else
+				dividers->enable_post_div = (dividers->fb_div & 1) ? true : false;
+		} else {
+			if (clock_type == COMPUTE_ENGINE_PLL_PARAM) {
+				args.v3.ulClockParams = cpu_to_le32((clock_type << 24) | clock);
+
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+				dividers->post_div = args.v3.ucPostDiv;
+				dividers->enable_post_div = (args.v3.ucCntlFlag &
+							     ATOM_PLL_CNTL_FLAG_PLL_POST_DIV_EN) ? true : false;
+				dividers->enable_dithen = (args.v3.ucCntlFlag &
+							   ATOM_PLL_CNTL_FLAG_FRACTION_DISABLE) ? false : true;
+				dividers->fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDiv);
+				dividers->frac_fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDivFrac);
+				dividers->ref_div = args.v3.ucRefDiv;
+				dividers->vco_mode = (args.v3.ucCntlFlag &
+						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
+			} else {
+				args.v5.ulClockParams = cpu_to_le32((clock_type << 24) | clock);
+				if (strobe_mode)
+					args.v5.ucInputFlag = ATOM_PLL_INPUT_FLAG_PLL_STROBE_MODE_EN;
+
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+				dividers->post_div = args.v5.ucPostDiv;
+				dividers->enable_post_div = (args.v5.ucCntlFlag &
+							     ATOM_PLL_CNTL_FLAG_PLL_POST_DIV_EN) ? true : false;
+				dividers->enable_dithen = (args.v5.ucCntlFlag &
+							   ATOM_PLL_CNTL_FLAG_FRACTION_DISABLE) ? false : true;
+				dividers->whole_fb_div = le16_to_cpu(args.v5.ulFbDiv.usFbDiv);
+				dividers->frac_fb_div = le16_to_cpu(args.v5.ulFbDiv.usFbDivFrac);
+				dividers->ref_div = args.v5.ucRefDiv;
+				dividers->vco_mode = (args.v5.ucCntlFlag &
+						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
+			}
+		}
+		break;
+	case 4:
+		/* fusion */
+		args.v4.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		dividers->post_div = args.v4.ucPostDiv;
+		dividers->real_clock = le32_to_cpu(args.v4.ulClock);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
 {
 	DYNAMIC_CLOCK_GATING_PS_ALLOCATION args;
@@ -2815,6 +2925,10 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 
 	/* tell the bios not to handle mode switching */
 	bios_6_scratch |= ATOM_S6_ACC_BLOCK_DISPLAY_SWITCH;
+
+	/* clear the vbios dpms state */
+	if (ASIC_IS_DCE4(rdev))
+		bios_2_scratch &= ~ATOM_S2_DEVICE_DPMS_STATE;
 
 	if (rdev->family >= CHIP_R600) {
 		WREG32(R600_BIOS_2_SCRATCH, bios_2_scratch);

@@ -490,6 +490,18 @@
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
 /*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xEF00
+#define UVD_SEMA_ADDR_HIGH				0xEF04
+#define UVD_SEMA_CMD					0xEF08
+#define UVD_UDEC_ADDR_CONFIG				0xEF4C
+#define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
@@ -561,6 +573,7 @@
 #              define PACKET3_DB_ACTION_ENA        (1 << 26)
 #              define PACKET3_SH_ACTION_ENA        (1 << 27)
 #              define PACKET3_SX_ACTION_ENA        (1 << 28)
+#              define PACKET3_ENGINE_ME            (1 << 31)
 #define	PACKET3_ME_INITIALIZE				0x44
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
@@ -670,6 +683,11 @@
 
 #define DMA_IB_PACKET(cmd, vmid, n)	((((cmd) & 0xF) << 28) |	\
 					 (((vmid) & 0xF) << 20) |	\
+					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_PTE_PDE_PACKET(n)		((2 << 28) |			\
+					 (1 << 26) |			\
+					 (1 << 21) |			\
 					 (((n) & 0xFFFFF) << 0))
 
 /* async DMA Packet types */

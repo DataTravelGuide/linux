@@ -86,6 +86,7 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 	mutex_lock(&man->io_reserve_mutex);
 	return 0;
 }
+EXPORT_SYMBOL(ttm_mem_io_lock);
 
 void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 {
@@ -94,6 +95,7 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 
 	mutex_unlock(&man->io_reserve_mutex);
 }
+EXPORT_SYMBOL(ttm_mem_io_unlock);
 
 static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 {
@@ -111,8 +113,9 @@ static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)
 	return 0;
 }
 
-static int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
-			      struct ttm_mem_reg *mem)
+
+int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
+		       struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	int ret = 0;
@@ -134,9 +137,10 @@ retry:
 	}
 	return ret;
 }
+EXPORT_SYMBOL(ttm_mem_io_reserve);
 
-static void ttm_mem_io_free(struct ttm_bo_device *bdev,
-			    struct ttm_mem_reg *mem)
+void ttm_mem_io_free(struct ttm_bo_device *bdev,
+		     struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 
@@ -149,6 +153,7 @@ static void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		bdev->driver->io_mem_free(bdev, mem);
 
 }
+EXPORT_SYMBOL(ttm_mem_io_free);
 
 int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo)
 {
@@ -337,19 +342,25 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	if (ret)
 		goto out;
 
+	/*
+	 * Single TTM move. NOP.
+	 */
 	if (old_iomap == NULL && new_iomap == NULL)
 		goto out2;
+
+	/*
+	 * Move nonexistent data. NOP.
+	 */
 	if (old_iomap == NULL && ttm == NULL)
 		goto out2;
 
-	if (ttm->state == tt_unpopulated) {
+	/*
+	 * TTM might be null for moves within the same region.
+	 */
+	if (ttm && ttm->state == tt_unpopulated) {
 		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
-		if (ret) {
-			/* if we fail here don't nuke the mm node
-			 * as the bo still owns it */
-			old_copy.mm_node = NULL;
+		if (ret)
 			goto out1;
-		}
 	}
 
 	add = 0;
@@ -375,11 +386,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 						   prot);
 		} else
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
-		if (ret) {
-			/* failing here, means keep old copy as-is */
-			old_copy.mm_node = NULL;
+		if (ret)
 			goto out1;
-		}
 	}
 	mb();
 out2:
@@ -397,7 +405,12 @@ out1:
 	ttm_mem_reg_iounmap(bdev, old_mem, new_iomap);
 out:
 	ttm_mem_reg_iounmap(bdev, &old_copy, old_iomap);
-	ttm_bo_mem_put(bo, &old_copy);
+
+	/*
+	 * On error, keep the mm node!
+	 */
+	if (!ret)
+		ttm_bo_mem_put(bo, &old_copy);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);

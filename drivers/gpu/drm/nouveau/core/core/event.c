@@ -75,12 +75,13 @@ nouveau_event_get(struct nouveau_event *event, int index,
 		return;
 
 	spin_lock_irqsave(&event->lock, flags);
-	list_add(&handler->head, &event->index[index].list);
-	if (event->toggle_lock)
-		spin_lock(event->toggle_lock);
-	nouveau_event_enable_locked(event, index);
-	if (event->toggle_lock)
-		spin_unlock(event->toggle_lock);
+	if (index < event->index_nr) {
+		list_add(&handler->head, &event->index[index].list);
+		if (!event->index[index].refs++) {
+			if (event->enable)
+				event->enable(event, index);
+		}
+	}
 	spin_unlock_irqrestore(&event->lock, flags);
 }
 
