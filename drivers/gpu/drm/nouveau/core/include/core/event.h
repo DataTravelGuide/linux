@@ -12,7 +12,6 @@ struct nouveau_eventh {
 
 struct nouveau_event {
 	spinlock_t lock;
-	spinlock_t *toggle_lock;
 
 	void *priv;
 	void (*enable)(struct nouveau_event *, int index);
@@ -33,9 +32,5 @@ void nouveau_event_get(struct nouveau_event *, int index,
 		       struct nouveau_eventh *);
 void nouveau_event_put(struct nouveau_event *, int index,
 		       struct nouveau_eventh *);
-
-void nouveau_event_enable_locked(struct nouveau_event *event, int index);
-void nouveau_event_disable_locked(struct nouveau_event *event, int index,
-				  int refs);
 
 #endif

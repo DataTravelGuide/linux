@@ -46,7 +46,6 @@
 #include "nouveau_pm.h"
 #include "nouveau_acpi.h"
 #include "nouveau_bios.h"
-#include "nouveau_crtc.h"
 #include "nouveau_ioctl.h"
 #include "nouveau_abi16.h"
 #include "nouveau_fbcon.h"
@@ -72,13 +71,12 @@ module_param_named(modeset, nouveau_modeset, int, 0400);
 
 static struct drm_driver driver;
 
-int
+static int
 nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
 {
-	struct nouveau_crtc *nv_crtc =
-		container_of(event, struct nouveau_crtc, vblank);
-
-	drm_handle_vblank(nv_crtc->base.dev, head);
+	struct nouveau_drm *drm =
+		container_of(event, struct nouveau_drm, vblank[head]);
+	drm_handle_vblank(drm->dev, head);
 	return NVKM_EVENT_KEEP;
 }
 
@@ -88,9 +86,11 @@ nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 
-	if (head >= pdisp->vblank->index_nr)
+	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
 		return -EIO;
-	nouveau_event_enable_locked(pdisp->vblank, head);
+	WARN_ON_ONCE(drm->vblank[head].func);
+	drm->vblank[head].func = nouveau_drm_vblank_handler;
+	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
 	return 0;
 }
 
@@ -99,9 +99,11 @@ nouveau_drm_vblank_disable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-
-	if (head < pdisp->vblank->index_nr)
-		nouveau_event_disable_locked(pdisp->vblank, head, 1);
+	if (drm->vblank[head].func)
+		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
+	else
+		WARN_ON_ONCE(1);
+	drm->vblank[head].func = NULL;
 }
 
 static u64
@@ -190,6 +192,18 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
 		arg1 = 1;
+	} else
+	if (device->chipset >= 0xa3 &&
+	    device->chipset != 0xaa &&
+	    device->chipset != 0xac) {
+		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
+					  NVDRM_CHAN + 1, NvDmaFB, NvDmaTT,
+					  &drm->cechan);
+		if (ret)
+			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
+
+		arg0 = NvDmaFB;
+		arg1 = NvDmaTT;
 	} else {
 		arg0 = NvDmaFB;
 		arg1 = NvDmaTT;
@@ -282,8 +296,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static struct lock_class_key drm_client_lock_class_key;
-
 static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -295,7 +307,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = nouveau_cli_create(pdev, "DRM", sizeof(*drm), (void**)&drm);
 	if (ret)
 		return ret;
-	lockdep_set_class(&drm->client.mutex, &drm_client_lock_class_key);
 
 	dev->dev_private = drm;
 	drm->dev = dev;
@@ -336,8 +347,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 				 &drm->device);
 	if (ret)
 		goto fail_device;
-
-	dev->irq_enabled = true;
 
 	/* workaround an odd issue on nvc1 by disabling the device's
 	 * nosnoop capability.  hopefully won't cause issues until a
@@ -426,7 +435,6 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_object *device;
 
-	dev->irq_enabled = false;
 	device = drm->client.base.device;
 	drm_put_dev(dev);
 
@@ -703,6 +711,7 @@ driver = {
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = nouveau_gem_prime_pin,
+	.gem_prime_unpin = nouveau_gem_prime_unpin,
 	.gem_prime_get_sg_table = nouveau_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = nouveau_gem_prime_import_sg_table,
 	.gem_prime_vmap = nouveau_gem_prime_vmap,

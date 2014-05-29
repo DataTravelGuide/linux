@@ -11,6 +11,9 @@
 
 #include <linux/console.h>
 
+#include <linux/pci.h>
+#include <linux/pci_hotplug.h>
+
 #define in_dbg_master() (0)
 
 static inline void console_lock(void)

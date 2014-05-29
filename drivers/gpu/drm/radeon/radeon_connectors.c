@@ -711,39 +711,16 @@ static int radeon_vga_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static unsigned radeon_mode_bandwidth(struct drm_display_mode *mode, int bytes_per_pixel)
-{
-	unsigned a_active, a_total, tmp;
-
-	if (!mode->htotal || !mode->vtotal || !mode->clock) {
-		return 0;
-	}
-
-	a_active = mode->hdisplay * mode->vdisplay;
-	a_total = mode->htotal * mode->vtotal;
-	tmp = ((mode->clock >> 10) * bytes_per_pixel * (a_active >> 10)) * 1000;
-	return tmp/(a_total);
-}
-
 static int radeon_vga_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
+	/* XXX check mode bandwidth */
+
 	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
 		return MODE_CLOCK_HIGH;
-
-	/* XXX check mode bandwidth */
-	/* RN50 has very low bandwith ~300Mbytes/s to avoid having
-	 * issue reject video mode for which 4 bytes per pixel would
-	 * lead to go over this bandwidth. For other GPU we would need
-	 * change in modesetting API to get the number of bytes per
-	 * pixel.
-	 */
-	if (ASIC_IS_RN50(rdev) && radeon_mode_bandwidth(mode, 4) > 300) {
-		return MODE_CLOCK_HIGH;
-	}
 
 	return MODE_OK;
 }
@@ -1208,17 +1185,6 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 	/* check against the max pixel clock */
 	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
 		return MODE_CLOCK_HIGH;
-
-	/* XXX check mode bandwidth */
-	/* RN50 has very low bandwith ~300Mbytes/s to avoid having
-	 * issue reject video mode for which 4 bytes per pixel would
-	 * lead to go over this bandwidth. For other GPU we would need
-	 * change in modesetting API to get the number of bytes per
-	 * pixel.
-	 */
-	if (ASIC_IS_RN50(rdev) && radeon_mode_bandwidth(mode, 4) > 300) {
-		return MODE_CLOCK_HIGH;
-	}
 
 	return MODE_OK;
 }

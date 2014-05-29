@@ -141,7 +141,7 @@ i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)
 	for (page = 0; page < obj->size / PAGE_SIZE; page++) {
 		int i;
 
-		backing_map = kmap_atomic(obj->pages[page]);
+		backing_map = kmap_atomic(obj->pages[page], KM_USER0);
 
 		if (backing_map == NULL) {
 			DRM_ERROR("failed to map backing page\n");
@@ -165,13 +165,13 @@ i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)
 				}
 			}
 		}
-		kunmap_atomic(backing_map);
+		kunmap_atomic(backing_map, KM_USER0);
 		backing_map = NULL;
 	}
 
  out:
 	if (backing_map != NULL)
-		kunmap_atomic(backing_map);
+		kunmap_atomic(backing_map, KM_USER0);
 	iounmap(gtt_mapping);
 
 	/* give syslog time to catch up */

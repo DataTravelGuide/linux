@@ -72,7 +72,6 @@ int  nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 				  u32 handle);
 
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
-int nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head);
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 extern int nouveau_backlight_init(struct drm_device *);

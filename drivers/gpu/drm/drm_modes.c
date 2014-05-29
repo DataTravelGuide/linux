@@ -717,16 +717,17 @@ EXPORT_SYMBOL(drm_mode_set_crtcinfo);
  * LOCKING:
  * None.
  *
- * Copy an existing mode into another mode, preserving the object id
- * of the destination mode.
+ * Copy an existing mode into another mode, preserving the object id and
+ * list head of the destination mode.
  */
 void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src)
 {
 	int id = dst->base.id;
+	struct list_head head = dst->head;
 
 	*dst = *src;
 	dst->base.id = id;
-	INIT_LIST_HEAD(&dst->head);
+	dst->head = head;
 }
 EXPORT_SYMBOL(drm_mode_copy);
 
@@ -947,6 +948,11 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	diff = b->hdisplay * b->vdisplay - a->hdisplay * a->vdisplay;
 	if (diff)
 		return diff;
+
+	diff = b->vrefresh - a->vrefresh;
+	if (diff)
+		return diff;
+
 	diff = b->clock - a->clock;
 	return diff;
 }

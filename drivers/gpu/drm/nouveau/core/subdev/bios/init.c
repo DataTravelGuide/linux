@@ -10,7 +10,6 @@
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/init.h>
 #include <subdev/devinit.h>
-#include <subdev/clock.h>
 #include <subdev/i2c.h>
 #include <subdev/vga.h>
 #include <subdev/gpio.h>
@@ -300,9 +299,9 @@ init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 static void
 init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
 {
-	struct nouveau_clock *clk = nouveau_clock(init->bios);
-	if (clk && clk->pll_set && init_exec(init)) {
-		int ret = clk->pll_set(clk, id, freq);
+	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+	if (devinit->pll_set && init_exec(init)) {
+		int ret = devinit->pll_set(devinit, id, freq);
 		if (ret)
 			warn("failed to prog pll 0x%08x to %dkHz\n", id, freq);
 	}
@@ -366,13 +365,13 @@ static u16
 init_script(struct nouveau_bios *bios, int index)
 {
 	struct nvbios_init init = { .bios = bios };
-	u16 bmp_ver = bmp_version(bios), data;
+	u16 data;
 
-	if (bmp_ver && bmp_ver < 0x0510) {
-		if (index > 1 || bmp_ver < 0x0100)
+	if (bmp_version(bios) && bmp_version(bios) < 0x0510) {
+		if (index > 1)
 			return 0x0000;
 
-		data = bios->bmp_offset + (bmp_ver < 0x0200 ? 14 : 18);
+		data = bios->bmp_offset + (bios->version.major < 2 ? 14 : 18);
 		return nv_ro16(bios, data + (index * 2));
 	}
 
@@ -1295,11 +1294,7 @@ init_jump(struct nvbios_init *init)
 	u16 offset = nv_ro16(bios, init->offset + 1);
 
 	trace("JUMP\t0x%04x\n", offset);
-
-	if (init_exec(init))
-		init->offset = offset;
-	else
-		init->offset += 3;
+	init->offset = offset;
 }
 
 /**

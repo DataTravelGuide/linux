@@ -96,6 +96,7 @@ struct nouveau_drm {
 		int (*move)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
+		struct nouveau_channel *chan;
 		int mtrr;
 	} ttm;
 
@@ -124,6 +125,7 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
+	struct nouveau_eventh vblank[4];
 
 	/* power management */
 	struct nouveau_pm *pm;
