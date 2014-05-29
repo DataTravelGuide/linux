@@ -35,6 +35,7 @@ Currently, these files are in /proc/sys/vm:
 - legacy_va_layout
 - lowmem_reserve_ratio
 - max_map_count
+- meminfo_legacy_layout
 - memory_failure_early_kill
 - memory_failure_recovery
 - min_free_kbytes
@@ -317,6 +318,16 @@ programs, particularly malloc debuggers, may consume lots of them,
 e.g., up to one or two maps per allocation.
 
 The default value is 65536.
+
+=============================================================
+
+meminfo_legacy_layout:  (.el6 only, for backwards compatibility)
+
+If non-zero, the sysctl will disable the reporting of new entries
+introduced to /proc/meminfo and the kernel will keep the legacy (2.6.32)
+layout when reporting data through that interface.
+
+The default value is 1
 
 =============================================================
 

@@ -98,6 +98,11 @@ extern int kexec_load_disabled;
 int unmap_area_factor_sysctl_handler(ctl_table *table, int write,
 			void __user *buffer, size_t *length, loff_t *ppos);
 
+/* bz1032702 */
+extern unsigned int sysctl_meminfo_legacy_layout;
+int meminfo_legacy_layout_sysctl_handler(ctl_table *table, int write,
+			void __user *buffer, size_t *length, loff_t *ppos);
+
 int exec_shield = (1<<0);
 /* exec_shield is a bitmask:
  * 0: off; vdso at STACK_TOP, 1 page below TASK_SIZE
@@ -1421,6 +1426,14 @@ static struct ctl_table vm_table[] = {
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = unmap_area_factor_sysctl_handler,
+		.strategy       = &sysctl_intvec,
+	},
+	{
+		.procname       = "meminfo_legacy_layout",
+		.data           = &sysctl_meminfo_legacy_layout,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = meminfo_legacy_layout_sysctl_handler,
 		.strategy       = &sysctl_intvec,
 	},
 	{

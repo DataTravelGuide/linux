@@ -19,6 +19,22 @@ void __attribute__((weak)) arch_report_meminfo(struct seq_file *m)
 {
 }
 
+/*
+ * RHEL6 bz1032702
+ * It was backported from upstream a new entry for /proc/meminfo
+ * in order to report an estimate of available memory for starting
+ * applications without risking an overcommitment & swapping scenario.
+ * In order to keep backward compatibility with legacy 2.6.32 layout,
+ * we're making this new entry appearance conditional to explicitly
+ * disabling the following sysctl by user.
+ */
+unsigned int sysctl_meminfo_legacy_layout __read_mostly = 1;
+int meminfo_legacy_layout_sysctl_handler(ctl_table *table, int write,
+			void __user *buffer, size_t *length, loff_t *ppos)
+{
+        return proc_dointvec(table, write, buffer, length, ppos);
+}
+
 static int meminfo_proc_show(struct seq_file *m, void *v)
 {
 	struct sysinfo i;
@@ -87,7 +103,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	seq_printf(m,
 		"MemTotal:       %8lu kB\n"
 		"MemFree:        %8lu kB\n"
-		"MemAvailable:   %8lu kB\n"
 		"Buffers:        %8lu kB\n"
 		"Cached:         %8lu kB\n"
 		"SwapCached:     %8lu kB\n"
@@ -140,7 +155,6 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		,
 		K(i.totalram),
 		K(i.freeram),
-		K(available),
 		K(i.bufferram),
 		K(cached),
 		K(total_swapcache_pages),
@@ -202,6 +216,14 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	hugetlb_report_meminfo(m);
 
 	arch_report_meminfo(m);
+
+	/*
+	 * RHEL6 bz1032702
+	 * if backwards compatibility with legacy meminfo interface layout
+	 * is not required, include the new entries at the end of report
+	 */
+	if (!sysctl_meminfo_legacy_layout)
+		seq_printf(m, "MemAvailable:   %8lu kB\n", K(available));
 
 	return 0;
 #undef K
