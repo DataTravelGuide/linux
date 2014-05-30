@@ -385,7 +385,7 @@ struct cred *prepare_usermodehelper_creds(void)
 
 	new = kmem_cache_alloc(cred_jar, GFP_ATOMIC);
 	if (!new)
-		return NULL;
+		goto free_tgcred;
 
 	kdebug("prepare_usermodehelper_creds() alloc %p", new);
 
@@ -418,6 +418,10 @@ struct cred *prepare_usermodehelper_creds(void)
 
 error:
 	put_cred(new);
+free_tgcred:
+#ifdef CONFIG_KEYS
+	kfree(tgcred);
+#endif
 	return NULL;
 }
 
