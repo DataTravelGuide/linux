@@ -3119,10 +3119,17 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	 * configuration, the ARP probe will (hopefully) travel from
 	 * the active, through one switch, the router, then the other
 	 * switch before reaching the backup.
+	 *
+	 * We 'trust' the arp requests if there is an active slave and
+	 * it received valid arp reply(s) after it became active. This
+	 * is done to avoid endless looping when we can't reach the
+	 * arp_ip_target and fool ourselves with our own arp requests.
 	 */
 	if (slave->state == BOND_STATE_ACTIVE)
 		bond_validate_arp(bond, slave, sip, tip);
-	else
+	else if (bond->curr_active_slave &&
+		 time_after(slave_last_rx(bond, bond->curr_active_slave),
+			    bond->curr_active_slave->jiffies))
 		bond_validate_arp(bond, slave, tip, sip);
 
 out_unlock:
