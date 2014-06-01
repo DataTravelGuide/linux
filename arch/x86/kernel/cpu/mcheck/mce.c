@@ -663,6 +663,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		v = &get_cpu_var(mce_polled_error);
 		set_bit(0, v);
+		put_cpu_var(mce_polled_error);
 		/*
 		 * Uncorrected or signalled events are handled by the exception
 		 * handler when it is enabled, so don't process those here.

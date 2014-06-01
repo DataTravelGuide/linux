@@ -134,14 +134,14 @@ static void cmci_storm_disable_banks(void)
 	int bank;
 	u64 val;
 
-	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
+	spin_lock_irqsave(&cmci_discover_lock, flags);
 	owned = __get_cpu_var(mce_banks_owned);
 	for_each_set_bit(bank, owned, MAX_NR_BANKS) {
 		rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
 		val &= ~MCI_CTL2_CMCI_EN;
 		wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
 	}
-	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
+	spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
 static bool cmci_storm_detect(void)
