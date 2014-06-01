@@ -1634,21 +1634,26 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 	}
 }
 
+static void mce_start_timer(unsigned int cpu, struct timer_list *t)
+{
+	unsigned long *iv = &__get_cpu_var(mce_next_interval);
+
+	*iv = check_interval * HZ;
+
+	if (mce_ignore_ce || !*iv)
+		return;
+
+	t->expires = round_jiffies(jiffies + *iv);
+	add_timer_on(t, smp_processor_id());
+}
+
 static void __mcheck_cpu_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
-	unsigned long *iv = &__get_cpu_var(mce_next_interval);
+	unsigned int cpu = smp_processor_id();
 
-	setup_timer(t, mce_timer_fn, smp_processor_id());
-
-	if (mce_ignore_ce)
-		return;
-
-	*iv = check_interval * HZ;
-	if (!*iv)
-		return;
-	t->expires = round_jiffies(jiffies + *iv);
-	add_timer_on(t, smp_processor_id());
+	setup_timer(t, mce_timer_fn, cpu);
+	mce_start_timer(cpu, t);
 }
 
 /* Handle unconfigured int18 (should never happen) */
@@ -2342,12 +2347,8 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		if (!mce_ignore_ce && check_interval) {
-			t->expires = round_jiffies(jiffies +
-					per_cpu(mce_next_interval, cpu));
-			add_timer_on(t, cpu);
-		}
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
+		mce_start_timer(cpu, t);
 		break;
 	case CPU_POST_DEAD:
 		/* intentionally ignoring frozen here */
