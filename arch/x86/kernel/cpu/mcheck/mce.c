@@ -1644,6 +1644,7 @@ static void __mcheck_cpu_init_timer(void)
 	if (mce_ignore_ce)
 		return;
 
+	*iv = check_interval * HZ;
 	if (!*iv)
 		return;
 	t->expires = round_jiffies(jiffies + *iv);
