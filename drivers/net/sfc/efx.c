@@ -341,6 +341,7 @@ static void efx_init_eventq(struct efx_channel *channel)
 	channel->eventq_read_ptr = 0;
 
 	efx_nic_init_eventq(channel);
+	channel->eventq_init = true;
 }
 
 /* Enable event queue processing and NAPI */
@@ -369,10 +370,14 @@ static void efx_stop_eventq(struct efx_channel *channel)
 
 static void efx_fini_eventq(struct efx_channel *channel)
 {
+	if (!channel->eventq_init)
+		return;
+
 	netif_dbg(channel->efx, drv, channel->efx->net_dev,
 		  "chan %d fini event queue\n", channel->channel);
 
 	efx_nic_fini_eventq(channel);
+	channel->eventq_init = false;
 }
 
 static void efx_remove_eventq(struct efx_channel *channel)
