@@ -2229,6 +2229,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->num_discard_requests = 1;
 	ti->discards_supported = true;
 	ti->discard_zeroes_data_unsupported = true;
+	/* Discard bios must be split on a block boundary */
+	ti->split_discard_requests = true;
 
 	cache->features = ca->features;
 
