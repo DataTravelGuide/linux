@@ -6790,7 +6790,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			tg3_hwclock_to_timestamp(tp, tstamp,
 						 skb_hwtstamps(skb));
 
-		if ((tg3_flag(tp, RX_CHECKSUMS)) &&
+		if ((tp->dev->features & NETIF_F_RXCSUM) &&
 		    (desc->type_flags & RXD_FLAG_TCPUDP_CSUM) &&
 		    (((desc->ip_tcp_csum & RXD_TCPCSUM_MASK)
 		      >> RXD_TCPCSUM_SHIFT) == 0xffff))
@@ -8110,6 +8110,16 @@ static int tg3_phy_lpbk_set(struct tg3 *tp, u32 speed, bool extlpbk)
 	udelay(40);
 
 	return 0;
+}
+
+static u32 tg3_fix_features(struct net_device *dev, u32 features)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (dev->mtu > ETH_DATA_LEN && tg3_flag(tp, 5780_CLASS))
+		features &= ~NETIF_F_ALL_TSO;
+
+	return features;
 }
 
 static void tg3_rx_prodring_free(struct tg3 *tp,
@@ -11971,33 +11981,6 @@ static void tg3_set_msglevel(struct net_device *dev, u32 value)
 	tp->msg_enable = value;
 }
 
-static int tg3_set_tso(struct net_device *dev, u32 value)
-{
-	struct tg3 *tp = netdev_priv(dev);
-
-	if (!tg3_flag(tp, TSO_CAPABLE)) {
-		if (value)
-			return -EINVAL;
-		return 0;
-	}
-	if ((dev->features & NETIF_F_IPV6_CSUM) &&
-	    ((tg3_flag(tp, HW_TSO_2)) ||
-	     (tg3_flag(tp, HW_TSO_3)))) {
-		if (value) {
-			dev->features |= NETIF_F_TSO6;
-			if ((tg3_flag(tp, HW_TSO_3)) ||
-			    tg3_asic_rev(tp) == ASIC_REV_5761 ||
-			    (tg3_asic_rev(tp) == ASIC_REV_5784 &&
-			     tg3_chip_rev(tp) != CHIPREV_5784_AX) ||
-			    tg3_asic_rev(tp) == ASIC_REV_5785 ||
-			    tg3_asic_rev(tp) == ASIC_REV_57780)
-				dev->features |= NETIF_F_TSO_ECN;
-		} else
-			dev->features &= ~(NETIF_F_TSO6 | NETIF_F_TSO_ECN);
-	}
-	return ethtool_op_set_tso(dev, value);
-}
-
 static int tg3_nway_reset(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -12225,50 +12208,6 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 	tp->phy_flags |= TG3_PHYFLG_USER_CONFIGURED;
 
 	return err;
-}
-
-static u32 tg3_get_rx_csum(struct net_device *dev)
-{
-	struct tg3 *tp = netdev_priv(dev);
-	return (tg3_flag(tp, RX_CHECKSUMS)) != 0;
-}
-
-static int tg3_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct tg3 *tp = netdev_priv(dev);
-
-	if (tg3_flag(tp, BROKEN_CHECKSUMS)) {
-		if (data != 0)
-			return -EINVAL;
-		return 0;
-	}
-
-	spin_lock_bh(&tp->lock);
-	if (data)
-		tg3_flag_set(tp, RX_CHECKSUMS);
-	else
-		tg3_flag_clear(tp, RX_CHECKSUMS);
-	spin_unlock_bh(&tp->lock);
-
-	return 0;
-}
-
-static int tg3_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct tg3 *tp = netdev_priv(dev);
-
-	if (tg3_flag(tp, BROKEN_CHECKSUMS)) {
-		if (data != 0)
-			return -EINVAL;
-		return 0;
-	}
-
-	if (tg3_flag(tp, 5755_PLUS))
-		ethtool_op_set_tx_ipv6_csum(dev, data);
-	else
-		ethtool_op_set_tx_csum(dev, data);
-
-	return 0;
 }
 
 static int tg3_get_sset_count(struct net_device *dev, int sset)
@@ -13819,11 +13758,6 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_ringparam		= tg3_set_ringparam,
 	.get_pauseparam		= tg3_get_pauseparam,
 	.set_pauseparam		= tg3_set_pauseparam,
-	.get_rx_csum		= tg3_get_rx_csum,
-	.set_rx_csum		= tg3_set_rx_csum,
-	.set_tx_csum		= tg3_set_tx_csum,
-	.set_sg			= ethtool_op_set_sg,
-	.set_tso		= tg3_set_tso,
 	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
@@ -13882,14 +13816,16 @@ static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 
 	if (new_mtu > ETH_DATA_LEN) {
 		if (tg3_flag(tp, 5780_CLASS)) {
+			netdev_update_features(dev);
 			tg3_flag_clear(tp, TSO_CAPABLE);
-			ethtool_op_set_tso(dev, 0);
 		} else {
 			tg3_flag_set(tp, JUMBO_RING_ENABLE);
 		}
 	} else {
-		if (tg3_flag(tp, 5780_CLASS))
+		if (tg3_flag(tp, 5780_CLASS)) {
 			tg3_flag_set(tp, TSO_CAPABLE);
+			netdev_update_features(dev);
+		}
 		tg3_flag_clear(tp, JUMBO_RING_ENABLE);
 	}
 }
@@ -13959,6 +13895,7 @@ static const struct net_device_ops tg3_netdev_ops = {
 static const struct net_device_ops_ext tg3_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= tg3_get_stats64,
+	.ndo_fix_features	= tg3_fix_features,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
@@ -15660,11 +15597,6 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	tp->fw_ver[TG3_VER_SIZE - 1] = 0;
 }
 
-static inline void vlan_features_add(struct net_device *dev, unsigned long flags)
-{
-	dev->vlan_features |= flags;
-}
-
 static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
 {
 	if (tg3_flag(tp, LRG_PROD_RING_CAP))
@@ -17321,8 +17253,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-
 	tp = netdev_priv(dev);
 	tp->pdev = pdev;
 	tp->dev = dev;
@@ -17466,9 +17396,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * to hardware bugs.
 	 */
 	if (tg3_chip_rev_id(tp) != CHIPREV_ID_5700_B0) {
-		features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_GRO;
+		features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
-		tg3_flag_set(tp, RX_CHECKSUMS);
 		if (tg3_flag(tp, 5755_PLUS))
 			features |= NETIF_F_IPV6_CSUM;
 	}
@@ -17478,30 +17407,24 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * is off by default, but can be enabled using ethtool.
 	 */
 	if ((tg3_flag(tp, HW_TSO_1) ||
-	   tg3_flag(tp, HW_TSO_2) ||
-	   tg3_flag(tp, HW_TSO_3)) &&
-	    (features & NETIF_F_IP_CSUM)) {
+	     tg3_flag(tp, HW_TSO_2) ||
+	     tg3_flag(tp, HW_TSO_3)) &&
+	    (features & NETIF_F_IP_CSUM))
 		features |= NETIF_F_TSO;
-		vlan_features_add(dev, NETIF_F_TSO);
-	}
-
 	if (tg3_flag(tp, HW_TSO_2) || tg3_flag(tp, HW_TSO_3)) {
-		if (features & NETIF_F_IPV6_CSUM) {
+		if (features & NETIF_F_IPV6_CSUM)
 			features |= NETIF_F_TSO6;
-			vlan_features_add(dev, NETIF_F_TSO6);
-		}
 		if (tg3_flag(tp, HW_TSO_3) ||
 		    tg3_asic_rev(tp) == ASIC_REV_5761 ||
 		    (tg3_asic_rev(tp) == ASIC_REV_5784 &&
 		     tg3_chip_rev(tp) != CHIPREV_5784_AX) ||
 		    tg3_asic_rev(tp) == ASIC_REV_5785 ||
-		    tg3_asic_rev(tp) == ASIC_REV_57780) {
+		    tg3_asic_rev(tp) == ASIC_REV_57780)
 			features |= NETIF_F_TSO_ECN;
-			vlan_features_add(dev, NETIF_F_TSO_ECN);
-		}
 	}
 
 	dev->features |= features;
+	netdev_extended(dev)->hw_features |= features;
 	dev->vlan_features |= features;
 
 	if (tg3_chip_rev_id(tp) == CHIPREV_ID_5705_A1 &&
@@ -17628,7 +17551,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	netdev_info(dev, "RXcsums[%d] LinkChgREG[%d] MIirq[%d] ASF[%d] TSOcap[%d]\n",
-		    tg3_flag(tp, RX_CHECKSUMS) != 0,
+		    (dev->features & NETIF_F_RXCSUM) != 0,
 		    tg3_flag(tp, USE_LINKCHG_REG) != 0,
 		    (tp->phy_flags & TG3_PHYFLG_USE_MI_INTERRUPT) != 0,
 		    tg3_flag(tp, ENABLE_ASF) != 0,
