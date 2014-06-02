@@ -213,6 +213,7 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_TVDAC, "TV" },
 	{ DRM_MODE_ENCODER_VIRTUAL, "Virtual" },
 	{ DRM_MODE_ENCODER_DSI, "DSI" },
+	{ DRM_MODE_ENCODER_DPMST, "DP MST" },
 };
 
 void drm_connector_ida_init(void)
