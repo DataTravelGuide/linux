@@ -4262,6 +4262,7 @@ static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	if (hw->mac.ops.enable_tx_laser)
 		hw->mac.ops.enable_tx_laser(hw);
 
+	smp_mb__before_clear_bit();
 	clear_bit(__IXGBE_DOWN, &adapter->state);
 	ixgbe_napi_enable_all(adapter);
 
@@ -4514,7 +4515,8 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	int i;
 
 	/* signal that we are down to the interrupt handler */
-	set_bit(__IXGBE_DOWN, &adapter->state);
+	if (test_and_set_bit(__IXGBE_DOWN, &adapter->state))
+		return; /* do nothing if already down */
 
 	/* disable receives */
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
