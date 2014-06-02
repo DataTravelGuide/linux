@@ -6731,7 +6731,9 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	}
 
 #ifdef CONFIG_IXGBE_PTP
-	if (unlikely(skb_tx(skb)->hardware)) {
+	if (unlikely(skb_tx(skb)->hardware &&
+		     !test_and_set_bit_lock(__IXGBE_PTP_TX_IN_PROGRESS,
+					    &adapter->state))) {
 		skb_tx(skb)->in_progress = 1;
 		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
 
