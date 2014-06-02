@@ -67,8 +67,13 @@
 #endif
 
 /* PIO is a win only if write-combining is possible */
+/* RHEL6-specific, stop PIO because of possible data corruption */
+#if 0
 #ifdef ARCH_HAS_IOREMAP_WC
 #define EFX_USE_PIO 1
+#endif
+#else
+#undef EFX_USE_PIO
 #endif
 
 #ifdef EFX_USE_QWORD_IO
