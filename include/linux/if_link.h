@@ -4,9 +4,8 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 
-/* The struct should be in sync with struct net_device_stats */
-struct rtnl_link_stats
-{
+/* This struct should be in sync with struct rtnl_link_stats64 */
+struct rtnl_link_stats {
 	__u32	rx_packets;		/* total packets received	*/
 	__u32	tx_packets;		/* total packets transmitted	*/
 	__u32	rx_bytes;		/* total bytes received 	*/
@@ -38,6 +37,7 @@ struct rtnl_link_stats
 	__u32	tx_compressed;
 };
 
+/* The main device statistics structure */
 struct rtnl_link_stats64 {
 	__u64	rx_packets;		/* total packets received	*/
 	__u64	tx_packets;		/* total packets transmitted	*/

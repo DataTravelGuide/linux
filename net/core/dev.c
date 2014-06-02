@@ -4319,10 +4319,11 @@ void dev_seq_stop(struct seq_file *seq, void *v)
 
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 {
-	const struct net_device_stats *stats = dev_get_stats(dev);
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *stats = dev_get_stats64(dev, &temp);
 
-	seq_printf(seq, "%6s:%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
-		   "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
+	seq_printf(seq, "%6s: %7llu %7llu %4llu %4llu %4llu %5llu %10llu %9llu "
+		   "%8llu %7llu %4llu %4llu %4llu %5llu %7llu %10llu\n",
 		   dev->name, stats->rx_bytes, stats->rx_packets,
 		   stats->rx_errors,
 		   stats->rx_dropped + stats->rx_missed_errors,
@@ -6627,24 +6628,128 @@ void dev_txq_stats_fold(const struct net_device *dev,
 EXPORT_SYMBOL(dev_txq_stats_fold);
 
 /**
+ *	dev_txq_stats_fold - fold tx_queues stats
+ *	@dev: device to get statistics from
+ *	@stats: struct rtnl_link_stats64 to hold results
+ */
+void dev_txq_stats_fold64(const struct net_device *dev,
+			  struct rtnl_link_stats64 *stats)
+{
+	u64 tx_bytes = 0, tx_packets = 0, tx_dropped = 0;
+	unsigned int i;
+	struct netdev_queue *txq;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		txq = netdev_get_tx_queue(dev, i);
+		tx_bytes   += txq->tx_bytes;
+		tx_packets += txq->tx_packets;
+		tx_dropped += txq->tx_dropped;
+	}
+	if (tx_bytes || tx_packets || tx_dropped) {
+		stats->tx_bytes   = tx_bytes;
+		stats->tx_packets = tx_packets;
+		stats->tx_dropped = tx_dropped;
+	}
+}
+EXPORT_SYMBOL(dev_txq_stats_fold64);
+
+/* Convert rtnl_link_stats64 to net_device_stats.  They have the same
+ * fields in the same order, with only the type differing.
+ */
+static void netdev_stats64_to_stats(struct net_device_stats *netdev_stats,
+				    const struct rtnl_link_stats64 *stats64)
+{
+#if BITS_PER_LONG == 64
+	BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
+	memcpy(netdev_stats, stats64, sizeof(*stats64));
+#else
+	size_t i, n = sizeof(*stats64) / sizeof(u64);
+	const u64 *src = (const u64 *)stats64;
+	unsigned long *dst = (unsigned long *)netdev_stats;
+
+	BUILD_BUG_ON(sizeof(*netdev_stats) / sizeof(unsigned long) !=
+		     sizeof(*stats64) / sizeof(u64));
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+#endif
+}
+
+/**
  *	dev_get_stats	- get network device statistics
  *	@dev: device to get statistics from
  *
  *	Get network statistics from device. The device driver may provide
- *	its own method by setting dev->netdev_ops->get_stats; otherwise
- *	the internal statistics structure is used.
+ *	its own method by setting dev->netdev_ops->get_stats64 or
+ *	dev->netdev_ops->get_stats; otherwise the internal statistics
+ *	structure is used.
  */
 const struct net_device_stats *dev_get_stats(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
+	if (GET_NETDEV_OP_EXT(dev, ndo_get_stats64)) {
+		struct rtnl_link_stats64 temp;
+		memset(&temp, 0, sizeof(temp));
+		GET_NETDEV_OP_EXT(dev, ndo_get_stats64)(dev, &temp);
+		netdev_stats64_to_stats(&dev->stats, &temp);
+		return &dev->stats;
+	}
 	if (ops->ndo_get_stats)
 		return ops->ndo_get_stats(dev);
-
 	dev_txq_stats_fold(dev, &dev->stats);
 	return &dev->stats;
 }
 EXPORT_SYMBOL(dev_get_stats);
+
+/* Convert net_device_stats to rtnl_link_stats64.  They have the same
+ * fields in the same order, with only the type differing.
+ */
+static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+				    const struct net_device_stats *netdev_stats)
+{
+#if BITS_PER_LONG == 64
+	BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
+	memcpy(stats64, netdev_stats, sizeof(*stats64));
+#else
+	size_t i, n = sizeof(*stats64) / sizeof(u64);
+	const unsigned long *src = (const unsigned long *)netdev_stats;
+	u64 *dst = (u64 *)stats64;
+
+	BUILD_BUG_ON(sizeof(*netdev_stats) / sizeof(unsigned long) !=
+		     sizeof(*stats64) / sizeof(u64));
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+#endif
+}
+
+/**
+ *	dev_get_stats64	- get network device statistics
+ *	@dev: device to get statistics from
+ *	@storage: place to store stats
+ *
+ *	Get network statistics from device. The device driver may provide
+ *	its own method by setting dev->netdev_ops->get_stats64 or
+ *	dev->netdev_ops->get_stats; otherwise the internal statistics
+ *	structure is used.
+ */
+const struct rtnl_link_stats64 *dev_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *storage)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (GET_NETDEV_OP_EXT(dev, ndo_get_stats64)) {
+		memset(storage, 0, sizeof(*storage));
+		return GET_NETDEV_OP_EXT(dev, ndo_get_stats64)(dev, storage);
+	}
+	if (ops->ndo_get_stats) {
+		netdev_stats_to_stats64(storage, ops->ndo_get_stats(dev));
+		return storage;
+	}
+	netdev_stats_to_stats64(storage, &dev->stats);
+	dev_txq_stats_fold64(dev, storage);
+	return storage;
+}
+EXPORT_SYMBOL(dev_get_stats64);
 
 static void netdev_init_one_queue(struct net_device *dev,
 				  struct netdev_queue *queue,

@@ -128,45 +128,38 @@ typedef enum netdev_tx netdev_tx_t;
 #define MAX_HEADER (LL_MAX_HEADER + 48)
 #endif
 
-#endif  /*  __KERNEL__  */
-
 /*
- *	Network device statistics. Akin to the 2.0 ether stats but
- *	with byte counters.
+ *	Old network device statistics. Fields are native words
+ *	(unsigned long) so they can be read and written atomically.
  */
 
-struct net_device_stats
-{
-	unsigned long	rx_packets;		/* total packets received	*/
-	unsigned long	tx_packets;		/* total packets transmitted	*/
-	unsigned long	rx_bytes;		/* total bytes received 	*/
-	unsigned long	tx_bytes;		/* total bytes transmitted	*/
-	unsigned long	rx_errors;		/* bad packets received		*/
-	unsigned long	tx_errors;		/* packet transmit problems	*/
-	unsigned long	rx_dropped;		/* no space in linux buffers	*/
-	unsigned long	tx_dropped;		/* no space available in linux	*/
-	unsigned long	multicast;		/* multicast packets received	*/
+struct net_device_stats {
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	rx_errors;
+	unsigned long	tx_errors;
+	unsigned long	rx_dropped;
+	unsigned long	tx_dropped;
+	unsigned long	multicast;
 	unsigned long	collisions;
-
-	/* detailed rx_errors: */
 	unsigned long	rx_length_errors;
-	unsigned long	rx_over_errors;		/* receiver ring buff overflow	*/
-	unsigned long	rx_crc_errors;		/* recved pkt with crc error	*/
-	unsigned long	rx_frame_errors;	/* recv'd frame alignment error */
-	unsigned long	rx_fifo_errors;		/* recv'r fifo overrun		*/
-	unsigned long	rx_missed_errors;	/* receiver missed packet	*/
-
-	/* detailed tx_errors */
+	unsigned long	rx_over_errors;
+	unsigned long	rx_crc_errors;
+	unsigned long	rx_frame_errors;
+	unsigned long	rx_fifo_errors;
+	unsigned long	rx_missed_errors;
 	unsigned long	tx_aborted_errors;
 	unsigned long	tx_carrier_errors;
 	unsigned long	tx_fifo_errors;
 	unsigned long	tx_heartbeat_errors;
 	unsigned long	tx_window_errors;
-	
-	/* for cslip etc */
 	unsigned long	rx_compressed;
 	unsigned long	tx_compressed;
 };
+
+#endif  /*  __KERNEL__  */
 
 
 /* Media selection options. */
@@ -759,10 +752,19 @@ struct netdev_fcoe_hbainfo {
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
+ * struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev,
+ * 			struct rtnl_link_stats64 *storage);
  * struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
  *	Called when a user wants to get the network device usage
- *	statistics. If not defined, the counters in dev->stats will
- *	be used.
+ *	statistics. Drivers must do one of the following:
+ *	1. Define @ndo_get_stats64 to fill in a zero-initialised
+ *	   rtnl_link_stats64 structure passed by the caller.
+ *	2. Define @ndo_get_stats to update a net_device_stats64 structure
+ *	   (which should normally be dev->stats) and return a pointer to
+ *	   it. The structure may be changed asynchronously only if each
+ *	   field is written atomically.
+ *	3. Update dev->stats asynchronously and atomically, and define
+ *	   neither operation.
  *
  * void (*ndo_vlan_rx_register)(struct net_device *dev, struct vlan_group *grp);
  *	If device support VLAN receive accleration
@@ -908,6 +910,8 @@ struct net_device_ops_ext {
 						    u32 features);
 	int			(*ndo_set_features)(struct net_device *dev,
 						    u32 features);
+	struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev,
+						     struct rtnl_link_stats64 *storage);
 };
 
 typedef u64 netdev_features_t;
@@ -2520,7 +2524,11 @@ extern void		netdev_features_change(struct net_device *dev);
 extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
 extern const struct net_device_stats *dev_get_stats(struct net_device *dev);
+extern const struct rtnl_link_stats64 *dev_get_stats64(struct net_device *dev,
+						       struct rtnl_link_stats64 *storage);
 extern void		dev_txq_stats_fold(const struct net_device *dev, struct net_device_stats *stats);
+extern void		dev_txq_stats_fold64(const struct net_device *dev,
+					     struct rtnl_link_stats64 *stats);
 
 extern int		netdev_max_backlog;
 extern int		weight_p;
