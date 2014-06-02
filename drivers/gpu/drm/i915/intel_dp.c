@@ -412,6 +412,9 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	int try, precharge, clock = 0;
 	bool has_aux_irq = HAS_AUX_IRQ(dev);
 	uint32_t timeout;
+	bool vdd;
+
+	vdd = _ironlake_edp_panel_vdd_on(intel_dp);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
 	 * lowest possible wakeup latency and so prevent the cpu from going into
@@ -531,6 +534,9 @@ out:
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
 	intel_aux_display_runtime_put(dev_priv);
 
+	if (vdd)
+		ironlake_edp_panel_vdd_off(intel_dp, false);
+
 	return ret;
 }
 
@@ -643,8 +649,6 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	int reply_bytes;
 	int ret;
 
-	ironlake_edp_panel_vdd_on(intel_dp);
-	intel_dp_check_edp(intel_dp);
 	/* Set up the command byte */
 	if (mode & MODE_I2C_READ)
 		msg[0] = DP_AUX_I2C_READ << 4;
@@ -746,7 +750,6 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	ret = -EREMOTEIO;
 
 out:
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
 
