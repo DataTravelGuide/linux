@@ -2244,9 +2244,9 @@ static int efx_register_netdev(struct efx_nic *efx)
 	} else {
 		net_dev->netdev_ops = &efx_farch_netdev_ops;
 	}
-	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
+	net_dev->ethtool_ops = &efx_ethtool_ops;
 	set_ethtool_ops_ext(net_dev, &efx_ethtool_ops_ext);
-	
+
 	rtnl_lock();
 
 	/* Enable resets to be scheduled and check whether any were
