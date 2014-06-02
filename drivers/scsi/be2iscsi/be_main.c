@@ -4945,6 +4945,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	beiscsi_hba_attrs_init(phba);
 
 	phba->fw_timeout = false;
+	phba->mac_addr_set = false;
 
 
 	switch (pcidev->device) {
