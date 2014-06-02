@@ -4387,9 +4387,6 @@ static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 			e_crit(drv, "Fan has stopped, replace the adapter\n");
 	}
 
-	/* enable transmits */
-	netif_tx_start_all_queues(adapter->netdev);
-
 	/* bring the link up in the watchdog, this could race with our first
 	 * link up interrupt but shouldn't be a problem */
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
@@ -5833,6 +5830,9 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 
 	netif_carrier_on(netdev);
 	ixgbe_check_vf_rate_limit(adapter);
+
+	/* enable transmits */
+	netif_tx_wake_all_queues(adapter->netdev);
 
 	/* update the default user priority for VFs */
 	ixgbe_update_default_up(adapter);
