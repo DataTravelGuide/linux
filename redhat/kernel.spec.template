@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.21.1.el6]
+- [kvm] mmu: fix incorrect check of guest cr4 bits (Bandan Das) [1103821 1007164]
+- [drm] nouveau: fix nasty bug which can clobber SOR0's clock setup (Ben Skeggs) [1100574 1095796]
+- [net] tcp: tsq: restore minimal amount of queueing (Jiri Pirko) [1103825 1044053]
+
 * Wed May 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.20.1.el6]
 - [net] rtnetlink: Only supply IFLA_VF_PORTS information when RTEXT_FILTER_VF is set (Jiri Pirko) [1092870 1081282]
 - [net] rtnetlink: Warn when interface's information won't fit in our packet (Jiri Pirko) [1092870 1081282]
