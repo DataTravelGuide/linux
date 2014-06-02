@@ -831,8 +831,8 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 						     &to_intel_crtc(crtc)->config.adjusted_mode);
 }
 
-static bool intel_hpd_irq_event(struct drm_device *dev,
-				struct drm_connector *connector)
+bool intel_hpd_irq_event(struct drm_device *dev,
+			 struct drm_connector *connector)
 {
 	enum drm_connector_status old_status;
 
@@ -850,6 +850,71 @@ static bool intel_hpd_irq_event(struct drm_device *dev,
 		      drm_get_connector_status_name(connector->status));
 
 	return true;
+}
+
+static int port_to_hotplug_shift(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+	case PORT_E:
+	default:
+		return -1;
+	case PORT_B:
+		return 0;
+	case PORT_C:
+		return 8;
+	case PORT_D:
+		return 16;
+	}
+}
+static void i915_digport_work_func(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private, dig_port_work);
+	unsigned long irqflags;
+	u32 port_bits;
+	struct intel_digital_port *digport;
+	int i, ret;
+	u32 old_bits = 0;
+	u32 hotplug_reg, hpshift;
+	bool long_hpd = false;
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	port_bits = dev_priv->hpd_port;
+	dev_priv->hpd_port = 0;
+
+	hotplug_reg = I915_READ(PCH_PORT_HOTPLUG);
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug_reg);
+
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	for (i = 0; i < I915_MAX_PORTS; i++) {
+		if (port_bits & (1 << i)) {
+			digport = dev_priv->hpd_irq_port[i];
+
+			hpshift = port_to_hotplug_shift(i);
+
+			/* if we have no HPD bits for this */
+			if (!((hotplug_reg >> hpshift) & PORTB_HOTPLUG_STATUS_MASK)) {
+				DRM_DEBUG_KMS("got not regs for port %d %08x\n", i, hotplug_reg);
+				continue;
+			}
+
+			long_hpd = (hotplug_reg >> hpshift) & PORTB_HOTPLUG_LONG_DETECT;
+
+			ret = intel_dp_handle_hpd_irq(digport, long_hpd);
+			if (ret == 1) {
+				/* if we get 1 fallback to old school hpd */
+				old_bits |= (1 << digport->base.hpd_pin);
+			}
+		}
+	}
+
+	if (old_bits) {
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		dev_priv->hpd_event_bits = old_bits;
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		schedule_work(&dev_priv->hotplug_work);
+	}
 }
 
 /*
@@ -1242,18 +1307,46 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
+static inline enum port get_port_from_pin(enum hpd_pin pin)
+{
+	switch (pin) {
+	case HPD_PORT_B:
+		return PORT_B;
+	case HPD_PORT_C:
+		return PORT_C;
+	case HPD_PORT_D:
+		return PORT_D;
+	default:
+		return PORT_A; /* no hpd */
+	}
+}
+
 static inline void intel_hpd_irq_handler(struct drm_device *dev,
 					 u32 hotplug_trigger,
 					 const u32 *hpd)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
+	enum port port;
 	bool storm_detected = false;
-
+	bool queue_dig = false, queue_hp = false;
 	if (!hotplug_trigger)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
+	for (i = 1; i < HPD_NUM_PINS; i++) {
+		if (!(hpd[i] & hotplug_trigger))
+			continue;
+
+		port = get_port_from_pin(i);
+		if (port && dev_priv->hpd_irq_port[port]) {
+			DRM_DEBUG_DRIVER("digital hpd port %d\n", port);
+			dev_priv->hpd_port |= (1 << port);
+			hotplug_trigger &= ~hpd[i];
+			queue_dig = true;
+		}
+	}
+
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
 		WARN_ONCE(hpd[i] & hotplug_trigger &&
@@ -1266,6 +1359,7 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 			continue;
 
 		dev_priv->hpd_event_bits |= (1 << i);
+		queue_hp = true;
 		if (!time_in_range(jiffies, dev_priv->hpd_stats[i].hpd_last_jiffies,
 				   dev_priv->hpd_stats[i].hpd_last_jiffies
 				   + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD))) {
@@ -1294,7 +1388,10 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 	 * queue for otherwise the flush_work in the pageflip code will
 	 * deadlock.
 	 */
-	schedule_work(&dev_priv->hotplug_work);
+	if (queue_dig)
+		queue_work(dev_priv->dp_wq, &dev_priv->dig_port_work);
+	if (queue_hp)
+		schedule_work(&dev_priv->hotplug_work);
 }
 
 static void gmbus_irq_handler(struct drm_device *dev)
@@ -3806,6 +3903,7 @@ void intel_irq_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	INIT_WORK(&dev_priv->dig_port_work, i915_digport_work_func);
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
@@ -3898,7 +3996,9 @@ void intel_hpd_init(struct drm_device *dev)
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct intel_connector *intel_connector = to_intel_connector(connector);
 		connector->polled = intel_connector->polled;
-		if (!connector->polled && I915_HAS_HOTPLUG(dev) && intel_connector->encoder->hpd_pin > HPD_NONE)
+		if (connector->encoder && !connector->polled && I915_HAS_HOTPLUG(dev) && intel_connector->encoder->hpd_pin > HPD_NONE)
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
+		if (intel_connector->mst_port)
 			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
 

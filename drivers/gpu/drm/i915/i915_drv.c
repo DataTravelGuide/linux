@@ -525,7 +525,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 
-		drm_irq_uninstall(dev);
 		dev_priv->enable_hotplug_processing = false;
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
@@ -535,6 +534,9 @@ static int i915_drm_freeze(struct drm_device *dev)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 			dev_priv->display.crtc_disable(crtc);
 		mutex_unlock(&dev->mode_config.mutex);
+
+		intel_dp_mst_suspend(dev);
+		drm_irq_uninstall(dev);
 
 		intel_modeset_suspend_hw(dev);
 	}
@@ -647,6 +649,15 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 		intel_modeset_init_hw(dev);
 
+		{
+			unsigned long irqflags;
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			if (dev_priv->display.hpd_irq_setup)
+				dev_priv->display.hpd_irq_setup(dev);
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
+
+		intel_dp_mst_resume(dev);
 		drm_modeset_lock_all(dev);
 		drm_mode_config_reset(dev);
 		intel_modeset_setup_hw_state(dev, true);

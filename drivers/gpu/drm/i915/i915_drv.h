@@ -1520,6 +1520,18 @@ typedef struct drm_i915_private {
 
 	struct i915_package_c8 pc8;
 
+	struct intel_digital_port *hpd_irq_port[I915_MAX_PORTS];
+	u32 hpd_port;
+	struct work_struct dig_port_work;
+	/*
+	 * if we get a HPD irq from DP and a HPD irq from non-DP
+	 * the non-DP HPD could block the workqueue on a mode config
+	 * mutex getting, that userspace may have taken. However
+	 * userspace is waiting on the DP workqueue to run which is
+	 * blocked behind the non-DP one.
+	 */
+	struct workqueue_struct *dp_wq;
+
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
@@ -1950,6 +1962,9 @@ i915_enable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
 
 void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, enum pipe pipe, u32 mask);
+
+bool intel_hpd_irq_event(struct drm_device *dev,
+			 struct drm_connector *connector);
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
