@@ -386,11 +386,11 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			return err;
 		}
 
-		if (err < size)
-			return -EPROTO;
 
 		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
+			if (err < size)
+				return -EPROTO;
 			return err;
 
 		case DP_AUX_NATIVE_REPLY_NACK:
@@ -601,8 +601,6 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return err;
 		}
 
-		if (err < msg->size)
-			return -EPROTO;
 
 		switch (msg->reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
@@ -641,6 +639,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			 * Both native ACK and I2C ACK replies received. We
 			 * can assume the transfer was successful.
 			 */
+			if (err < msg->size)
+				return -EPROTO;
 			return 0;
 
 		case DP_AUX_I2C_REPLY_NACK:
