@@ -721,21 +721,10 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 #endif
 	skb_record_rx_queue(skb, fp->rx_queue);
 	/* RHEL: separate RX path for VLAN */
-
-
-	skb_mark_napi_id(skb, &fp->napi);
-
-	if (bnx2x_fp_ll_polling(fp)) {
-		if (vlan_tci)
-			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vlan_tci);
-		else
-			netif_receive_skb(skb);
-	} else {
-		if (vlan_tci)
-			vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
-		else
-			napi_gro_receive(&fp->napi, skb);
-	}
+	if (vlan_tci)
+		vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
+	else
+		napi_gro_receive(&fp->napi, skb);
 }
 
 static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
@@ -1065,13 +1054,23 @@ reuse_rx:
 					    bnx2x_fp_qstats(bp, fp));
 
 		skb_record_rx_queue(skb, fp->rx_queue);
+		skb_mark_napi_id(skb, &fp->napi);
 
-		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
-		    PARSING_FLAGS_VLAN)
-			vlan_gro_receive(&fp->napi, bp->vlgrp,
-				le16_to_cpu(cqe_fp->vlan_tag), skb);
-		else
-			napi_gro_receive(&fp->napi, skb);
+		if (bnx2x_fp_ll_polling(fp)) {
+			if (le16_to_cpu(cqe_fp->pars_flags.flags) &
+			    PARSING_FLAGS_VLAN)
+				vlan_hwaccel_receive_skb(skb, bp->vlgrp,
+					le16_to_cpu(cqe_fp->vlan_tag));
+			else
+				netif_receive_skb(skb);
+		} else {
+			if (le16_to_cpu(cqe_fp->pars_flags.flags) &
+			    PARSING_FLAGS_VLAN)
+				vlan_gro_receive(&fp->napi, bp->vlgrp,
+					le16_to_cpu(cqe_fp->vlan_tag), skb);
+			else
+				napi_gro_receive(&fp->napi, skb);
+		}
 next_rx:
 		rx_buf->data = NULL;
 
