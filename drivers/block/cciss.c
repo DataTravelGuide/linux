@@ -57,7 +57,7 @@
 #include <linux/kthread.h>
 
 #define CCISS_DRIVER_VERSION(maj,min,submin) ((maj<<16)|(min<<8)|(submin))
-#define DRIVER_NAME "HP CISS Driver (v 3.6.28-RH1)"
+#define DRIVER_NAME "HP CISS Driver (v 3.6.28-RH2)"
 #define DRIVER_VERSION CCISS_DRIVER_VERSION(3, 6, 28)
 
 /* Embedded module documentation macros - see modules.h */
