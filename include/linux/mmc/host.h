@@ -176,6 +176,10 @@ struct mmc_host {
 #define MMC_CAP_NONREMOVABLE	(1 << 8)	/* Nonremovable e.g. eMMC */
 #define MMC_CAP_WAIT_WHILE_BUSY	(1 << 9)	/* Waits while card is busy */
 #define MMC_CAP_ERASE		(1 << 10)	/* Allow erase/trim commands */
+#define MMC_CAP_1_8V_DDR	(1 << 11)	/* can support */
+						/* DDR mode at 1.8V */
+#define MMC_CAP_1_2V_DDR	(1 << 12)	/* can support */
+						/* DDR mode at 1.2V */
 #define MMC_CAP_UHS_SDR12	(1 << 15)	/* Host supports UHS SDR12 mode */
 #define MMC_CAP_UHS_SDR25	(1 << 16)	/* Host supports UHS SDR25 mode */
 #define MMC_CAP_UHS_SDR50	(1 << 17)	/* Host supports UHS SDR50 mode */
