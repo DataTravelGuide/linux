@@ -387,6 +387,7 @@ static void drm_put_minor(struct drm_minor *minor)
 	DRM_DEBUG("release secondary minor %d\n", minor->index);
 
 	drm_unplug_minor(minor);
+	drm_mode_group_destroy(&minor->mode_group);
 	kfree(minor);
 }
 

@@ -1263,6 +1263,12 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	return 0;
 }
 
+void drm_mode_group_destroy(struct drm_mode_group *group)
+{
+	kfree(group->id_list);
+	group->id_list = NULL;
+}
+
 int drm_mode_group_init_legacy_group(struct drm_device *dev,
 				     struct drm_mode_group *group)
 {
