@@ -17,7 +17,6 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
-#include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
@@ -882,10 +881,9 @@ void efx_link_status_changed(struct efx_nic *efx)
 	/* Status message for kernel log */
 	if (link_state->up)
 		netif_info(efx, link, efx->net_dev,
-			   "link up at %uMbps %s-duplex (MTU %d)%s\n",
+			   "link up at %uMbps %s-duplex (MTU %d)\n",
 			   link_state->speed, link_state->fd ? "full" : "half",
-			   efx->net_dev->mtu,
-			   (efx->promiscuous ? " [PROMISC]" : ""));
+			   efx->net_dev->mtu);
 	else
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
@@ -933,10 +931,6 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 	int rc;
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	/* Serialise the promiscuous flag with efx_set_multicast_list. */
-	netif_addr_lock_bh(efx->net_dev);
-	netif_addr_unlock_bh(efx->net_dev);
 
 	/* Disable PHY transmit in mac level loopbacks */
 	phy_mode = efx->phy_mode;
@@ -2041,34 +2035,9 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 static void efx_set_multicast_list(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct dev_mc_list *mc_list;
-	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-	u32 crc;
-	int bit;
-
-	efx->promiscuous = !!(net_dev->flags & IFF_PROMISC);
-
-	/* Build multicast hash table */
-	if (efx->promiscuous || (net_dev->flags & IFF_ALLMULTI)) {
-		memset(mc_hash, 0xff, sizeof(*mc_hash));
-	} else {
-		memset(mc_hash, 0x00, sizeof(*mc_hash));
-		netdev_for_each_mc_addr(mc_list, net_dev) {
-			crc = ether_crc_le(ETH_ALEN, mc_list->dmi_addr);
-			bit = crc & (EFX_MCAST_HASH_ENTRIES - 1);
-			__set_bit_le(bit, (void *)mc_hash);
-		}
-
-		/* Broadcast packets go through the multicast hash filter.
-		 * ether_crc_le() of the broadcast address is 0xbe2612ff
-		 * so we always add bit 0xff to the mask.
-		 */
-		__set_bit_le(0xff, (void *)mc_hash);
-	}
 
 	if (efx->port_enabled)
 		queue_work(efx->workqueue, &efx->mac_work);
-	/* Otherwise efx_start_port() will do this */
 }
 
 static const struct net_device_ops efx_netdev_ops = {
