@@ -12515,13 +12515,17 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
 		NETIF_F_RXHASH | NETIF_F_HW_VLAN_TX;
-	set_netdev_hw_features(dev, hw_features);
 
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;
 
 	dev->features |= hw_features | NETIF_F_HW_VLAN_RX;
 	dev->features |= NETIF_F_HIGHDMA;
+
+	/* Add Loopback capability to the device */
+	hw_features |= NETIF_F_LOOPBACK;
+
+	set_netdev_hw_features(dev, hw_features);
 
 #ifdef BCM_DCBNL
 	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
