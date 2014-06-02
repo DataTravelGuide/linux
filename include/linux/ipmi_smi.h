@@ -148,6 +148,13 @@ struct ipmi_shadow_smi_handlers {
 	 * ACPI device handle will be returned for the pnp_acpi IPMI device.
 	 */
 	int (*get_smi_info)(void *send_info, struct ipmi_smi_info *data);
+
+	/* Called by the upper layer when some user requires that the
+	   interface watch for events, received messages, watchdog
+	   pretimeouts, or not.  Used by the SMI to know if it should
+	   watch for these.  This may be NULL if the SMI does not
+	   implement it. */
+	void (*set_need_watch)(void *send_info, int enable);
 };
 
 struct ipmi_shadow_smi_handlers *ipmi_get_shadow_smi_handlers(void);
