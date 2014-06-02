@@ -782,8 +782,7 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 		BNX2X_ERR("NO MCP - can not dump\n");
 		return;
 	}
-	printk("%s", lvl);
-	netdev_printk("", bp->dev, "bc %d.%d.%d\n",
+	netdev_printk(lvl, bp->dev, "bc %d.%d.%d\n",
 		(bp->common.bc_ver & 0xff0000) >> 16,
 		(bp->common.bc_ver & 0xff00) >> 8,
 		(bp->common.bc_ver & 0xff));
