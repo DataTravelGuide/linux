@@ -1052,7 +1052,6 @@ reuse_rx:
 		}
 
 		skb_put(skb, len);
-
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
 		/* Set Toeplitz hash for a none-LRO skb */
@@ -1067,13 +1066,12 @@ reuse_rx:
 
 		skb_record_rx_queue(skb, fp->rx_queue);
 
-		if ((le16_to_cpu(cqe_fp->pars_flags.flags) &
-		     PARSING_FLAGS_VLAN))
+		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
+		    PARSING_FLAGS_VLAN)
 			vlan_gro_receive(&fp->napi, bp->vlgrp,
 				le16_to_cpu(cqe_fp->vlan_tag), skb);
 		else
 			napi_gro_receive(&fp->napi, skb);
-
 next_rx:
 		rx_buf->data = NULL;
 
