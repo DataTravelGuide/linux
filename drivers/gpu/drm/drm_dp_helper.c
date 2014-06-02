@@ -725,7 +725,8 @@ int drm_dp_aux_register_i2c_bus(struct drm_dp_aux *aux)
 	aux->ddc.owner = THIS_MODULE;
 	aux->ddc.dev.parent = aux->dev;
 
-	strncpy(aux->ddc.name, dev_name(aux->dev), sizeof(aux->ddc.name));
+	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
+		sizeof(aux->ddc.name));
 
 	return i2c_add_adapter(&aux->ddc);
 }
