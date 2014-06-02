@@ -71,6 +71,12 @@ module_param(cciss_tape_cmds, int, 0644);
 MODULE_PARM_DESC(cciss_tape_cmds,
 	"number of commands to allocate for tape devices (default: 6)");
 
+static int cciss_allow_hpsa;
+module_param(cciss_allow_hpsa, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cciss_allow_hpsa,
+	"Prevent cciss driver from accessing hardware known to be "
+	" supported by the hpsa driver");
+
 static struct proc_dir_entry *proc_cciss;
 
 #include "cciss_cmd.h"
@@ -4113,6 +4119,9 @@ static int __devinit cciss_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 		    subsystem_vendor_id;
 
 	for (i = 0; i < ARRAY_SIZE(products); i++) {
+		/* Stand aside for hpsa driver on request */
+		if (cciss_allow_hpsa)
+			return -ENODEV;
 		if (*board_id == products[i].board_id)
 			return i;
 	}
