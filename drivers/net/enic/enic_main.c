@@ -1042,6 +1042,16 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		skb_put(skb, bytes_written);
 		skb->protocol = eth_type_trans(skb, netdev);
+		skb_record_rx_queue(skb, q_number);
+		if (netdev->features & NETIF_F_RXHASH) {
+			skb->rxhash = rss_hash;
+#if 0 /* not in RHEL6 */
+			if (rss_type & (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
+					NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
+					NIC_CFG_RSS_HASH_TYPE_TCP_IPV4))
+				skb->l4_rxhash = true;
+#endif
+		}
 
 		if (enic->csum_rx_enabled && !csum_not_calc) {
 			skb->csum = htons(checksum);
@@ -2230,6 +2240,7 @@ static int __devinit enic_probe(struct pci_dev *pdev, const struct pci_device_id
 	}
 
 	netif_set_real_num_tx_queues(netdev, enic->wq_count);
+	netif_set_real_num_rx_queues(netdev, enic->rq_count);
 
 	/* Setup notification timer, HW reset task, and wq locks
 	 */
@@ -2281,6 +2292,8 @@ static int __devinit enic_probe(struct pci_dev *pdev, const struct pci_device_id
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
 	if (ENIC_SETTING(enic, LRO))
 		netdev->features |= NETIF_F_GRO;
+	if (ENIC_SETTING(enic, RSS))
+		netdev->features |= NETIF_F_RXHASH;
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
