@@ -66,12 +66,6 @@
 #define BAR_0	0
 #define BAR_2	2
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define TG3_VLAN_TAG_USED 1
-#else
-#define TG3_VLAN_TAG_USED 0
-#endif
-
 #include "tg3.h"
 
 /* Functions & macros to verify TG3_FLAGS types */
@@ -6815,11 +6809,9 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		if (desc->type_flags & RXD_FLAG_VLAN &&
 		    !(tp->rx_mode & RX_MODE_KEEP_VLAN_TAG)) {
 			vtag = desc->err_vlan & RXD_VLAN_MASK;
-#if TG3_VLAN_TAG_USED
 			if (vtag)
 				hw_vlan = true;
 			else
-#endif
 			{
 				struct vlan_ethhdr *ve = (struct vlan_ethhdr *)
 						    __skb_push(skb, VLAN_HLEN);
@@ -6831,11 +6823,9 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			}
 		}
 
-#if TG3_VLAN_TAG_USED
 		if (hw_vlan)
 			vlan_gro_receive(&tnapi->napi, tp->vlgrp, vtag, skb);
 		else
-#endif
 			napi_gro_receive(&tnapi->napi, skb);
 
 		received++;
@@ -8175,7 +8165,7 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 
 	if (tpr != &tp->napi[0].prodring) {
 		memset(&tpr->rx_std_buffers[0], 0,
-			TG3_RX_STD_BUFF_RING_SIZE(tp));
+		       TG3_RX_STD_BUFF_RING_SIZE(tp));
 		if (tpr->rx_jmb_buffers)
 			memset(&tpr->rx_jmb_buffers[0], 0,
 			       TG3_RX_JMB_BUFF_RING_SIZE(tp));
@@ -9446,17 +9436,9 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 	/* When ASF is in use, we always keep the RX_MODE_KEEP_VLAN_TAG
 	 * flag clear.
 	 */
-#if TG3_VLAN_TAG_USED
 	if (!tp->vlgrp &&
 	    !tg3_flag(tp, ENABLE_ASF))
 		rx_mode |= RX_MODE_KEEP_VLAN_TAG;
-#else
-	/* By definition, VLAN is disabled always in this
-	 * case.
-	 */
-	if (!tg3_flag(tp, ENABLE_ASF))
-		rx_mode |= RX_MODE_KEEP_VLAN_TAG;
-#endif
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Promiscuous mode. */
@@ -13682,7 +13664,6 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
-#if TG3_VLAN_TAG_USED
 static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -13705,7 +13686,7 @@ static void tg3_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 
 	tg3_full_unlock(tp);
 }
-#endif
+
 static int tg3_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -13969,9 +13950,7 @@ static const struct net_device_ops tg3_netdev_ops = {
 	.ndo_do_ioctl		= tg3_ioctl,
 	.ndo_tx_timeout		= tg3_tx_timeout,
 	.ndo_change_mtu		= tg3_change_mtu,
-#if TG3_VLAN_TAG_USED
 	.ndo_vlan_rx_register	= tg3_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tg3_poll_controller,
 #endif
@@ -15683,9 +15662,7 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 
 static inline void vlan_features_add(struct net_device *dev, unsigned long flags)
 {
-#if TG3_VLAN_TAG_USED
 	dev->vlan_features |= flags;
-#endif
 }
 
 static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
@@ -17344,9 +17321,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-#if TG3_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-#endif
+
 	tp = netdev_priv(dev);
 	tp->pdev = pdev;
 	tp->dev = dev;

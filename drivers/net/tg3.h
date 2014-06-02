@@ -3177,9 +3177,7 @@ struct tg3 {
 	u32				rxq_cnt;
 	u32				rxq_max;
 	bool				rx_refill;
-#if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
-#endif
 
 
 	/* begin "everything else" cacheline(s) section */
