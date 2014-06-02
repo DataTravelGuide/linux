@@ -1519,9 +1519,11 @@ static int efx_probe_nic(struct efx_nic *efx)
 	 * in MSI-X interrupts. */
 	rc = efx_probe_interrupts(efx);
 	if (rc)
-		goto fail;
-		
-	efx->type->dimension_resources(efx);
+		goto fail1;
+
+	rc = efx->type->dimension_resources(efx);
+	if (rc)
+		goto fail2;
 
 	if (efx->n_channels > 1)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
@@ -1538,7 +1540,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 
 	return 0;
 
-fail:
+fail2:
+	efx_remove_interrupts(efx);
+fail1:
 	efx->type->remove(efx);
 	return rc;
 }
