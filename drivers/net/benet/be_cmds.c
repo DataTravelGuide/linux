@@ -186,6 +186,9 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
 				opcode, subsystem, compl_status, extd_status);
+
+			if (extd_status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+				return extd_status;
 		}
 	}
 done:
@@ -1819,6 +1822,12 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 	} else if (flags & IFF_ALLMULTI) {
 		req->if_flags_mask = req->if_flags =
 				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+	} else if (flags & BE_FLAGS_VLAN_PROMISC) {
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
+
+		if (value == ON)
+			req->if_flags =
+				cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
 	} else {
 		struct dev_mc_list *mc;
 		int i = 0;
