@@ -2246,6 +2246,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 	net_dev->ethtool_ops = &efx_ethtool_ops;
 	set_ethtool_ops_ext(net_dev, &efx_ethtool_ops_ext);
+	netdev_extended(net_dev)->gso_max_segs = EFX_TSO_MAX_SEGS;
 
 	rtnl_lock();
 
