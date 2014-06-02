@@ -871,8 +871,6 @@ void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
                                    struct ixgbe_ring *ring);
 void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
                             struct ixgbe_ring *ring);
-
-bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 void ixgbe_set_rx_mode(struct net_device *netdev);
 void ixgbe_check_options(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_IXGBE_DCB
