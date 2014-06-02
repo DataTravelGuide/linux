@@ -1471,7 +1471,7 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo)
 
 	if (rx_page_info->last_page_user) {
 		dma_unmap_page(&adapter->pdev->dev,
-			       pci_unmap_addr(rx_page_info, bus),
+			       dma_unmap_addr(rx_page_info, bus),
 			       adapter->big_page_size, DMA_FROM_DEVICE);
 		rx_page_info->last_page_user = false;
 	}
@@ -1815,7 +1815,7 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp)
 		}
 		page_offset = page_info->page_offset;
 		page_info->page = pagep;
-		pci_unmap_addr_set(page_info, bus, page_dmaaddr);
+		dma_unmap_addr_set(page_info, bus, page_dmaaddr);
 		frag_dmaaddr = page_dmaaddr + page_info->page_offset;
 
 		rxd = queue_head_node(rxq);
