@@ -2152,6 +2152,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 
 	if (efx->port_enabled)
 		queue_work(efx->workqueue, &efx->mac_work);
+	/* Otherwise efx_start_port() will do this */
 }
 
 static const struct net_device_ops efx_farch_netdev_ops = {

@@ -495,9 +495,9 @@ static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 		return rc;
 
 	if (!(data & ETH_FLAG_NTUPLE))
-		efx_filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+		rc = efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
 
-	return 0;
+	return rc;
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
