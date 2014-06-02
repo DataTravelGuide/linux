@@ -3199,10 +3199,10 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 				DID_PASSTHROUGH : DID_ERROR);
 		break;
 	case CMD_UNABORTABLE:
-		dev_warn(&h->pdev->dev, "cmd unabortable\n");
+		dev_warn(&h->pdev->dev, "cmd %p unabortable\n", cmd);
 		rq->errors = make_status_bytes(SAM_STAT_GOOD,
 			cmd->err_info->CommandStatus, DRIVER_OK,
-			(cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC) ?
+			cmd->rq->cmd_type == REQ_TYPE_BLOCK_PC ?
 				DID_PASSTHROUGH : DID_ERROR);
 		break;
 	default:
