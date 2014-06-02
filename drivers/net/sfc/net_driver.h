@@ -1337,7 +1337,6 @@ static inline struct efx_rx_buffer *efx_rx_buffer(struct efx_rx_queue *rx_queue,
 	return &rx_queue->buffer[index];
 }
 
-
 /**
  * EFX_MAX_FRAME_LEN - calculate maximum frame length
  *
