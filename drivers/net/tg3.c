@@ -17786,15 +17786,9 @@ out:
 
 	return err;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(tg3_pm_ops, tg3_suspend, tg3_resume);
-#define TG3_PM_OPS (&tg3_pm_ops)
-
-#else
-
-#define TG3_PM_OPS NULL
-
-#endif /* CONFIG_PM_SLEEP */
 
 /**
  * tg3_io_error_detected - called when PCI error is detected
@@ -17950,7 +17944,7 @@ static struct pci_driver tg3_driver = {
 	.probe		= tg3_init_one,
 	.remove		= __devexit_p(tg3_remove_one),
 	.err_handler	= &tg3_err_handler,
-	.driver.pm	= TG3_PM_OPS,
+	.driver.pm	= &tg3_pm_ops,
 };
 
 module_pci_driver(tg3_driver);
