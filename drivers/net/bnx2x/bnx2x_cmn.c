@@ -4501,8 +4501,10 @@ u32 bnx2x_fix_features(struct net_device *dev, u32 features)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	/* TPA requires Rx CSUM offloading */
-	if (!(features & NETIF_F_RXCSUM) || bp->disable_tpa)
+	if (!(features & NETIF_F_RXCSUM) || bp->disable_tpa) {
 		features &= ~NETIF_F_LRO;
+		features &= ~NETIF_F_GRO;
+	}
 
 	return features;
 }
@@ -4516,6 +4518,11 @@ int bnx2x_set_features(struct net_device *dev, u32 features)
 		flags |= TPA_ENABLE_FLAG;
 	else
 		flags &= ~TPA_ENABLE_FLAG;
+
+	if (features & NETIF_F_GRO)
+		flags |= GRO_ENABLE_FLAG;
+	else
+		flags &= ~GRO_ENABLE_FLAG;
 
 	if (flags ^ bp->flags) {
 		bp->flags = flags;
