@@ -1149,6 +1149,9 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	if (lancer_chip(adapter) && vid == 0)
 		return;
 
+	if (adapter->vlan_tag[vid])
+		return;
+
 	adapter->vlan_tag[vid] = 1;
 	adapter->vlans_added++;
 
