@@ -364,6 +364,18 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	DRM_ERROR("FDI link training failed!\n");
 }
 
+void intel_ddi_mode_set_dp(struct intel_encoder *encoder)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *intel_dig_port =
+		enc_to_dig_port(&encoder->base);
+
+	intel_dp->DP = intel_dig_port->saved_port_bits |
+		DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
+	intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
+
+}
+
 static void intel_ddi_mode_set(struct intel_encoder *encoder)
 {
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
@@ -378,13 +390,7 @@ static void intel_ddi_mode_set(struct intel_encoder *encoder)
 	crtc->eld_vld = false;
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-		struct intel_digital_port *intel_dig_port =
-			enc_to_dig_port(&encoder->base);
-
-		intel_dp->DP = intel_dig_port->saved_port_bits |
-			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
-		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
-
+		intel_ddi_mode_set_dp(encoder);
 		if (intel_dp->has_audio) {
 			DRM_DEBUG_DRIVER("DP audio on pipe %c on DDI\n",
 					 pipe_name(crtc->pipe));
