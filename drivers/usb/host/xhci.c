@@ -3701,9 +3701,6 @@ disable_slot:
  * SetAddress request to the device.
  * We should be protected by the usb_address0_mutex in khubd's hub_port_init, so
  * we should only issue and wait on one address command at the same time.
- *
- * We add one to the device address issued by the hardware because the USB core
- * uses address 1 for the root hubs (even though they're not really devices).
  */
 static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 			     enum xhci_setup_dev setup)
@@ -3849,16 +3846,13 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
 	trace_xhci_address_ctx(xhci, virt_dev->out_ctx,
 				slot_ctx->dev_info >> 27);
-	/* Use kernel assigned address for devices; store xHC assigned
-	 * address locally. */
-	virt_dev->address = (le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK)
-		+ 1;
 	/* Zero the input context control for later use */
 	ctrl_ctx->add_flags = 0;
 	ctrl_ctx->drop_flags = 0;
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
-			"Internal device address = %d", virt_dev->address);
+		       "Internal device address = %d",
+		       le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK);
 
 	return 0;
 }
