@@ -80,8 +80,8 @@ huge pages although processes will also directly compact memory as required.
 
 dirty_background_bytes
 
-Contains the amount of dirty memory at which the pdflush background writeback
-daemon will start writeback.
+Contains the amount of dirty memory at which the background kernel
+flusher threads will start writeback.
 
 If dirty_background_bytes is written, dirty_background_ratio becomes a function
 of its value (dirty_background_bytes / the amount of dirtyable system memory).
@@ -91,7 +91,7 @@ of its value (dirty_background_bytes / the amount of dirtyable system memory).
 dirty_background_ratio
 
 Contains, as a percentage of total system memory, the number of pages at which
-the pdflush background writeback daemon will start writing out dirty data.
+the background kernel flusher threads will start writing out dirty data.
 
 ==============================================================
 
@@ -112,9 +112,9 @@ retained.
 dirty_expire_centisecs
 
 This tunable is used to define when dirty data is old enough to be eligible
-for writeout by the pdflush daemons.  It is expressed in 100'ths of a second.
-Data which has been dirty in-memory for longer than this interval will be
-written out next time a pdflush daemon wakes up.
+for writeout by the kernel flusher threads.  It is expressed in 100'ths
+of a second.  Data which has been dirty in-memory for longer than this
+interval will be written out next time a flusher thread wakes up.
 
 ==============================================================
 
@@ -128,7 +128,7 @@ data.
 
 dirty_writeback_centisecs
 
-The pdflush writeback daemons will periodically wake up and write `old' data
+The kernel flusher threads will periodically wake up and write `old' data
 out to disk.  This tunable expresses the interval between those wakeups, in
 100'ths of a second.
 
@@ -453,10 +453,9 @@ See Documentation/vm/hugetlbpage.txt
 nr_pdflush_threads
 
 The current number of pdflush threads.  This value is read-only.
-The value changes according to the number of dirty pages in the system.
 
-When necessary, additional pdflush threads are created, one per second, up to
-nr_pdflush_threads_max.
+Since pdflush mechanism is not used anymore, this value is always zero.
+This interface remains for compatibility only.
 
 ==============================================================
 
