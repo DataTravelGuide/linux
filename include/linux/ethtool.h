@@ -543,6 +543,35 @@ struct ethtool_rxfh_indir {
 };
 
 /**
+ * struct ethtool_rxfh - command to get/set RX flow hash indir or/and hash key.
+ * @cmd: Specific command number - %ETHTOOL_GRSSH or %ETHTOOL_SRSSH
+ * @rss_context: RSS context identifier.
+ * @indir_size: On entry, the array size of the user buffer, which may be zero.
+ *		On return from %ETHTOOL_GRSSH, the array size of the hardware
+ *		indirection table.
+ * @key_size:	On entry, the array size of the user buffer in bytes,
+ *		which may be zero.
+ *		On return from %ETHTOOL_GRSSH, the size of the RSS hash key.
+ * @rsvd:	Reserved for future extensions.
+ * @rss_config: RX ring/queue index for each hash value i.e., indirection table
+ *		of size @indir_size followed by hash key of size @key_size.
+ *
+ * For %ETHTOOL_GRSSH, a @indir_size and key_size of zero means that only the
+ * size should be returned.  For %ETHTOOL_SRSSH, a @indir_size of 0xDEADBEEF
+ * means that indir table setting is not requested and a @indir_size of zero
+ * means the indir table should be reset to default values.  This last feature
+ * is not supported by the original implementations.
+ */
+struct ethtool_rxfh {
+	__u32   cmd;
+	__u32	rss_context;
+	__u32   indir_size;
+	__u32   key_size;
+	__u32	rsvd[2];
+	__u32   rss_config[0];
+};
+
+/**
  * struct ethtool_ts_info - holds a device's timestamping and PHC association
  * @cmd: command number = %ETHTOOL_GET_TS_INFO
  * @so_timestamping: bit mask of the sum of the supported SO_TIMESTAMPING flags
@@ -842,7 +871,10 @@ struct ethtool_dump {
 struct  ethtool_ops_ext {
 	size_t    size;
 
+	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32     (*get_rxfh_indir_size)(struct net_device *);
+	int	(*get_rxfh)(struct net_device *, u32 *, u8 *);
+	int	(*set_rxfh)(struct net_device *, u32 *, u8 *);
 	int     (*get_rxfh_indir)(struct net_device *, u32 *);
 	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
@@ -938,6 +970,9 @@ struct  ethtool_ops_ext {
 #define ETHTOOL_GMODULEEEPROM	0x00000043 /* Get plug-in module eeprom */
 #define ETHTOOL_GEEE		0x00000044 /* Get EEE settings */
 #define ETHTOOL_SEEE		0x00000045 /* Set EEE settings */
+
+#define ETHTOOL_GRSSH		0x00000046 /* Get RX flow hash configuration */
+#define ETHTOOL_SRSSH		0x00000047 /* Set RX flow hash configuration */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
