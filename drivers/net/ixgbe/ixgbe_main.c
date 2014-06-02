@@ -6882,7 +6882,9 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 	switch (cmd) {
 #ifdef CONFIG_IXGBE_PTP
 	case SIOCSHWTSTAMP:
-		return ixgbe_ptp_hwtstamp_ioctl(adapter, req, cmd);
+		return ixgbe_ptp_set_ts_config(adapter, req);
+	case SIOCGHWTSTAMP:
+		return ixgbe_ptp_get_ts_config(adapter, req);
 #endif
 	default:
 		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
