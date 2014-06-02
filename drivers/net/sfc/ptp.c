@@ -535,10 +535,8 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 	MCDI_SET_DWORD(synch_buf, PTP_IN_OP, MC_CMD_PTP_OP_SYNCHRONIZE);
 	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_NUMTIMESETS,
 		       num_readings);
-	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR_LO,
-		       (u32)ptp->start.dma_addr);
-	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR_HI,
-		       (u32)((u64)ptp->start.dma_addr >> 32));
+	MCDI_SET_QWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR,
+		       ptp->start.dma_addr);
 
 	/* Clear flag that signals MC ready */
 	ACCESS_ONCE(*start) = 0;
@@ -1415,9 +1413,7 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 			 (PPB_EXTRA_BITS + MAX_PPB_BITS));
 
 	MCDI_SET_DWORD(inadj, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
-	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_FREQ_LO, (u32)adjustment_ns);
-	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_FREQ_HI,
-		       (u32)(adjustment_ns >> 32));
+	MCDI_SET_QWORD(inadj, PTP_IN_ADJUST_FREQ, adjustment_ns);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_SECONDS, 0);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_NANOSECONDS, 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inadj, sizeof(inadj),
@@ -1439,9 +1435,7 @@ static int efx_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ADJUST_LEN);
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
-	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_FREQ_LO, (u32)ptp_data->current_adjfreq);
-	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_FREQ_HI,
-		       (u32)(ptp_data->current_adjfreq >> 32));
+	MCDI_SET_QWORD(inbuf, PTP_IN_ADJUST_FREQ, ptp_data->current_adjfreq);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_SECONDS, (u32)delta_ts.tv_sec);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_NANOSECONDS, (u32)delta_ts.tv_nsec);
 	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
