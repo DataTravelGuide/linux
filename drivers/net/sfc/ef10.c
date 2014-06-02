@@ -279,11 +279,17 @@ fail1:
 
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
-	int rc = efx_mcdi_rpc(efx, MC_CMD_FREE_VIS, NULL, 0, NULL, 0, NULL);
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	size_t outlen;
+	int rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FREE_VIS, NULL, 0,
+				    outbuf, sizeof(outbuf), &outlen);
 
 	/* -EALREADY means nothing to free, so ignore */
 	if (rc == -EALREADY)
 		rc = 0;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_FREE_VIS, 0, outbuf, outlen,
+				       rc);
 	return rc;
 }
 
@@ -1245,7 +1251,6 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 
 fail:
 	WARN_ON(true);
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 }
 
 static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
@@ -1259,7 +1264,7 @@ static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
 	MCDI_SET_DWORD(inbuf, FINI_TXQ_IN_INSTANCE,
 		       tx_queue->queue);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_FINI_TXQ, inbuf, sizeof(inbuf),
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_TXQ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 
 	if (rc && rc != -EALREADY)
@@ -1268,7 +1273,8 @@ static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
 	return;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	efx_mcdi_display_error(efx, MC_CMD_FINI_TXQ, MC_CMD_FINI_TXQ_IN_LEN,
+			       outbuf, outlen, rc);
 }
 
 static void efx_ef10_tx_remove(struct efx_tx_queue *tx_queue)
@@ -1483,14 +1489,9 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, inlen,
 			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		goto fail;
+	WARN_ON(rc);
 
 	return;
-
-fail:
-	WARN_ON(true);
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 }
 
 static void efx_ef10_rx_fini(struct efx_rx_queue *rx_queue)
@@ -1504,7 +1505,7 @@ static void efx_ef10_rx_fini(struct efx_rx_queue *rx_queue)
 	MCDI_SET_DWORD(inbuf, FINI_RXQ_IN_INSTANCE,
 		       efx_rx_queue_index(rx_queue));
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_FINI_RXQ, inbuf, sizeof(inbuf),
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_RXQ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 
 	if (rc && rc != -EALREADY)
@@ -1513,7 +1514,8 @@ static void efx_ef10_rx_fini(struct efx_rx_queue *rx_queue)
 	return;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	efx_mcdi_display_error(efx, MC_CMD_FINI_RXQ, MC_CMD_FINI_RXQ_IN_LEN,
+			       outbuf, outlen, rc);
 }
 
 static void efx_ef10_rx_remove(struct efx_rx_queue *rx_queue)
@@ -1650,15 +1652,7 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_EVQ, inbuf, inlen,
 			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		goto fail;
-
 	/* IRQ return is ignored */
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1672,7 +1666,7 @@ static void efx_ef10_ev_fini(struct efx_channel *channel)
 
 	MCDI_SET_DWORD(inbuf, FINI_EVQ_IN_INSTANCE, channel->channel);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_FINI_EVQ, inbuf, sizeof(inbuf),
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FINI_EVQ, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);
 
 	if (rc && rc != -EALREADY)
@@ -1681,7 +1675,8 @@ static void efx_ef10_ev_fini(struct efx_channel *channel)
 	return;
 
 fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	efx_mcdi_display_error(efx, MC_CMD_FINI_EVQ, MC_CMD_FINI_EVQ_IN_LEN,
+			       outbuf, outlen, rc);
 }
 
 static void efx_ef10_ev_remove(struct efx_channel *channel)
