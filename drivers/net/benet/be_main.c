@@ -1465,7 +1465,7 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 
 	skb_fill_rx_data(rxo, skb, rxcp);
 
-	if (likely(adapter->rx_csum && csum_passed(rxcp)))
+	if (likely((netdev->features & NETIF_F_RXCSUM) && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);
@@ -3821,10 +3821,12 @@ static void be_netdev_init(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	netdev->features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+	netdev_extended(netdev)->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
+
+	netdev->features |= netdev_extended(netdev)->hw_features |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
-		NETIF_F_HW_VLAN_FILTER | NETIF_F_GRO;
+		NETIF_F_HW_VLAN_FILTER;
 
 	if (be_multi_rxq(adapter))
 		netdev->features |= NETIF_F_RXHASH;
@@ -3833,8 +3835,6 @@ static void be_netdev_init(struct net_device *netdev)
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
-
-	adapter->rx_csum = true;
 
 	netif_set_gso_max_size(netdev, 65535 - ETH_HLEN);
 
