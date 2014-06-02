@@ -1862,7 +1862,9 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 	}
 
 	if (cmd == SIOCSHWTSTAMP)
-		return efx_ptp_ioctl(efx, ifr, cmd);
+		return efx_ptp_set_ts_config(efx, ifr);
+	if (cmd == SIOCGHWTSTAMP)
+		return efx_ptp_get_ts_config(efx, ifr);
 
 	/* Convert phy_id from older PRTAD/DEVAD format */
 	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&
