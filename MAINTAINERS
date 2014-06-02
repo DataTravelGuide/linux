@@ -1260,7 +1260,7 @@ F:	drivers/net/bnx2.*
 F:	drivers/net/bnx2_*
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
-M:	Eilon Greenstein <eilong@broadcom.com>
+M:	Ariel Elior <ariel.elior@qlogic.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/bnx2x*
