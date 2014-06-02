@@ -3205,10 +3205,8 @@ int bnx2x_low_latency_recv(struct napi_struct *napi)
 	if (!bnx2x_fp_lock_poll(fp))
 		return LL_FLUSH_BUSY;
 
-	if (bnx2x_has_rx_work(fp)) {
-		bnx2x_update_fpsb_idx(fp);
+	if (bnx2x_has_rx_work(fp))
 		found = bnx2x_rx_int(fp, 4);
-	}
 
 	bnx2x_fp_unlock_poll(fp);
 
