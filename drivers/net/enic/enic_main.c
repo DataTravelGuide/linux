@@ -1752,6 +1752,7 @@ static void enic_reset(struct work_struct *work)
 
 	rtnl_lock();
 
+	spin_lock(&enic->enic_api_lock);
 	enic_dev_hang_notify(enic);
 	enic_stop(enic->netdev);
 	enic_dev_hang_reset(enic);
@@ -1760,6 +1761,7 @@ static void enic_reset(struct work_struct *work)
 	enic_set_rss_nic_cfg(enic);
 	enic_dev_set_ig_vlan_rewrite_mode(enic);
 	enic_open(enic->netdev);
+	spin_unlock(&enic->enic_api_lock);
 
 	rtnl_unlock();
 }
@@ -2174,6 +2176,7 @@ static int __devinit enic_probe(struct pci_dev *pdev, const struct pci_device_id
 	 */
 
 	spin_lock_init(&enic->devcmd_lock);
+	spin_lock_init(&enic->enic_api_lock);
 
 	/*
 	 * Set ingress vlan rewrite mode before vnic initialization
