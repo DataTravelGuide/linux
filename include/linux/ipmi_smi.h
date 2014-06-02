@@ -125,16 +125,32 @@ struct ipmi_smi_handlers {
 	   uses.  These may be NULL if this is not required. */
 	int (*inc_usecount)(void *send_info);
 	void (*dec_usecount)(void *send_info);
+};
 
-#ifndef __GENKSYMS__
-	/*
-	 * Get the detailed private info of the low level interface and store
+/*
+ * shadow struct of ipmi_smi_handlers to manage new fields backported
+ * from upstream.
+ *
+ * *** NOTE: This struct is not kabi protected. ***
+ */
+struct ipmi_shadow_smi_handlers {
+
+	/* Copy of pointer to caller's handlers for sanity checking.
+	 */
+	struct ipmi_smi_handlers *handlers;
+
+	/* Add new fields below this line
+	 * ----------------------------------------------------------
+	 */
+
+	/* Get the detailed private info of the low level interface and store
 	 * it into the structure of ipmi_smi_data. For example: the
 	 * ACPI device handle will be returned for the pnp_acpi IPMI device.
 	 */
 	int (*get_smi_info)(void *send_info, struct ipmi_smi_info *data);
-#endif
 };
+
+struct ipmi_shadow_smi_handlers *ipmi_get_shadow_smi_handlers(void);
 
 struct ipmi_device_id {
 	unsigned char device_id;

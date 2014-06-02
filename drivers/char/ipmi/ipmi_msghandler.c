@@ -436,6 +436,13 @@ struct ipmi_smi {
 };
 #define to_si_intf_from_dev(device) container_of(device, struct ipmi_smi, dev)
 
+struct ipmi_shadow_smi_handlers shadow_smi_handlers;
+struct ipmi_shadow_smi_handlers *ipmi_get_shadow_smi_handlers(void)
+{
+	return &shadow_smi_handlers;
+}
+EXPORT_SYMBOL_GPL(ipmi_get_shadow_smi_handlers);
+
 /**
  * The driver model view of the IPMI messaging driver.
  */
@@ -1025,8 +1032,10 @@ int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 
 found:
 	handlers = intf->handlers;
-	if (handlers->get_smi_info)
-		rv = handlers->get_smi_info(intf->send_info, data);
+	if(shadow_smi_handlers.get_smi_info) {
+		BUG_ON(shadow_smi_handlers.handlers != handlers);
+		rv = shadow_smi_handlers.get_smi_info(intf->send_info, data);
+	}
 	mutex_unlock(&ipmi_interfaces_mutex);
 
 	return rv;
@@ -2878,6 +2887,12 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	if (slave_addr != 0)
 		intf->channels[0].address = slave_addr;
 	INIT_LIST_HEAD(&intf->users);
+
+	/* RHEL6-only - Init shadow_smi_handlers structure
+	 */
+	shadow_smi_handlers.handlers = handlers;
+	shadow_smi_handlers.get_smi_info = NULL;
+
 	intf->handlers = handlers;
 	intf->send_info = send_info;
 	spin_lock_init(&intf->seq_lock);

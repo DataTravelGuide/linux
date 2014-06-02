@@ -1198,7 +1198,6 @@ int ipmi_si_get_smi_info(void *send_info, struct ipmi_smi_info *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ipmi_si_get_smi_info);
 
 static void set_maintenance_mode(void *send_info, int enable)
 {
@@ -1211,7 +1210,6 @@ static void set_maintenance_mode(void *send_info, int enable)
 static struct ipmi_smi_handlers handlers = {
 	.owner                  = THIS_MODULE,
 	.start_processing       = smi_start_processing,
-	.get_smi_info           = ipmi_si_get_smi_info,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_maintenance_mode   = set_maintenance_mode,
@@ -3147,6 +3145,7 @@ static int try_smi_init(struct smi_info *new_smi)
 {
 	int rv = 0;
 	int i;
+	struct ipmi_shadow_smi_handlers *shadow_handlers;
 
 	printk(KERN_INFO PFX "Trying %s-specified %s state"
 	       " machine at %s address 0x%lx, slave address 0x%x,"
@@ -3282,6 +3281,11 @@ static int try_smi_init(struct smi_info *new_smi)
 			rv);
 		goto out_err_stop_timer;
 	}
+
+	/* RHEL6-only - Init ipmi_shadow_smi_handlers
+	 */
+	shadow_handlers = ipmi_get_shadow_smi_handlers();
+	shadow_handlers->get_smi_info = ipmi_si_get_smi_info;
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
 				     type_file_read_proc,
