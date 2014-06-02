@@ -103,7 +103,6 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 #define RESET_KIND_INIT		1
 #define RESET_KIND_SUSPEND	2
 
-#define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
 #define TG3_DEF_TX_MODE		0
 #define TG3_DEF_MSG_ENABLE	  \
@@ -8120,16 +8119,8 @@ static void tg3_set_loopback(struct net_device *dev, u32 features)
 		if (tp->mac_mode & MAC_MODE_PORT_INT_LPBACK)
 			return;
 
-		/*
-		 * Clear MAC_MODE_HALF_DUPLEX or you won't get packets back in
-		 * loopback mode if Half-Duplex mode was negotiated earlier.
-		 */
-		tp->mac_mode &= ~MAC_MODE_HALF_DUPLEX;
-
-		/* Enable internal MAC loopback mode */
-		tp->mac_mode |= MAC_MODE_PORT_INT_LPBACK;
 		spin_lock_bh(&tp->lock);
-		tw32(MAC_MODE, tp->mac_mode);
+		tg3_mac_loopback(tp, true);
 		netif_carrier_on(tp->dev);
 		spin_unlock_bh(&tp->lock);
 		netdev_info(dev, "Internal MAC loopback mode enabled.\n");
@@ -8137,10 +8128,8 @@ static void tg3_set_loopback(struct net_device *dev, u32 features)
 		if (!(tp->mac_mode & MAC_MODE_PORT_INT_LPBACK))
 			return;
 
-		/* Disable internal MAC loopback mode */
-		tp->mac_mode &= ~MAC_MODE_PORT_INT_LPBACK;
 		spin_lock_bh(&tp->lock);
-		tw32(MAC_MODE, tp->mac_mode);
+		tg3_mac_loopback(tp, false);
 		/* Force link status check */
 		tg3_setup_phy(tp, true);
 		spin_unlock_bh(&tp->lock);
@@ -16495,7 +16484,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp,
 	if (tg3_flag(tp, ENABLE_APE))
 		tp->mac_mode = MAC_MODE_APE_TX_EN | MAC_MODE_APE_RX_EN;
 	else
-		tp->mac_mode = TG3_DEF_MAC_MODE;
+		tp->mac_mode = 0;
 
 	if (tg3_10_100_only_device(tp, ent))
 		tp->phy_flags |= TG3_PHYFLG_10_100_ONLY;
