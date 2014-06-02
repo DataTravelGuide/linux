@@ -533,15 +533,6 @@ enum nic_state {
 #define EFX_PAGE_IP_ALIGN NET_IP_ALIGN
 #endif
 
-/*
- * Alignment of the skb->head which wraps a page-allocated RX buffer
- *
- * The skb allocated to wrap an rx_buffer can have this alignment. Since
- * the data is memcpy'd from the rx_buf, it does not need to be equal to
- * EFX_PAGE_IP_ALIGN.
- */
-#define EFX_PAGE_SKB_ALIGN 2
-
 /* Forward declaration */
 struct efx_nic;
 
