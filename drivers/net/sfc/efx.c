@@ -2077,7 +2077,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 		queue_work(efx->workqueue, &efx->mac_work);
 }
 
-static const struct net_device_ops efx_netdev_ops = {
+static const struct net_device_ops efx_farch_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
 	.ndo_tx_timeout		= efx_watchdog,
@@ -2102,6 +2102,21 @@ static const struct net_device_ops_ext efx_netdev_ops_ext = {
 	.ndo_get_stats64	= efx_net_stats,
 };
 
+static const struct net_device_ops efx_ef10_netdev_ops = {
+	.ndo_open		= efx_net_open,
+	.ndo_stop		= efx_net_stop,
+	.ndo_tx_timeout		= efx_watchdog,
+	.ndo_start_xmit		= efx_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= efx_ioctl,
+	.ndo_change_mtu		= efx_change_mtu,
+	.ndo_set_mac_address	= efx_set_mac_address,
+	.ndo_set_multicast_list = efx_set_multicast_list,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= efx_netpoll,
+#endif
+};
+
 static void efx_update_name(struct efx_nic *efx)
 {
 	strcpy(efx->name, efx->net_dev->name);
@@ -2114,7 +2129,8 @@ static int efx_netdev_event(struct notifier_block *this,
 {
 	struct net_device *net_dev = ptr;
 
-	if (net_dev->netdev_ops == &efx_netdev_ops &&
+	if ((net_dev->netdev_ops == &efx_farch_netdev_ops ||
+	     net_dev->netdev_ops == &efx_ef10_netdev_ops) &&
 	    event == NETDEV_CHANGENAME)
 		efx_update_name(netdev_priv(net_dev));
 
@@ -2145,8 +2161,12 @@ static int efx_register_netdev(struct efx_nic *efx)
 #endif
 	net_dev->watchdog_timeo = 5 * HZ;
 	net_dev->irq = efx->pci_dev->irq;
-	net_dev->netdev_ops = &efx_netdev_ops;
 	set_netdev_ops_ext(net_dev, &efx_netdev_ops_ext);
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
+		net_dev->netdev_ops = &efx_ef10_netdev_ops;
+	} else {
+		net_dev->netdev_ops = &efx_farch_netdev_ops;
+	}
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
 	set_ethtool_ops_ext(net_dev, &efx_ethtool_ops_ext);
 	
@@ -2466,6 +2486,8 @@ static DEFINE_PCI_DEVICE_TABLE(efx_pci_table) = {
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{PCI_DEVICE(EFX_VENDID_SFC, SIENA_A_P_DEVID),
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
+	{PCI_DEVICE(EFX_VENDID_SFC, 0x0903),  /* SFC9120 PF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{0}			/* end of list */
 };
 
