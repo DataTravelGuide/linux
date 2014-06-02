@@ -1076,7 +1076,7 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
 static int be_vid_config(struct be_adapter *adapter)
 {
 	u16 vids[BE_NUM_VLANS_SUPPORTED];
-	u16 num = 0, i;
+	u16 num = 0, i = 0;
 	int status = 0;
 
 	/* No need to further configure vids if in promiscuous mode */
@@ -1087,9 +1087,8 @@ static int be_vid_config(struct be_adapter *adapter)
 		goto set_vlan_promisc;
 
 	/* Construct VLAN Table to give to HW */
-	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++)
-		if (adapter->vlan_tag[i])
-			vids[num++] = cpu_to_le16(i);
+	for_each_set_bit(i, adapter->vids, VLAN_GROUP_ARRAY_LEN)
+		vids[num++] = cpu_to_le16(i);
 
 	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num, 0);
 
@@ -1144,16 +1143,16 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 	if (lancer_chip(adapter) && vid == 0)
 		return;
 
-	if (adapter->vlan_tag[vid])
+	if (test_bit(vid, adapter->vids))
 		return;
 
-	adapter->vlan_tag[vid] = 1;
+	set_bit(vid, adapter->vids);
 	adapter->vlans_added++;
 
 	status = be_vid_config(adapter);
 	if (status) {
 		adapter->vlans_added--;
-		adapter->vlan_tag[vid] = 0;
+		clear_bit(vid, adapter->vids);
 	}
 }
 
@@ -1166,12 +1165,12 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	if (lancer_chip(adapter) && vid == 0)
 		return;
 
-	adapter->vlan_tag[vid] = 0;
+	clear_bit(vid, adapter->vids);
 	status = be_vid_config(adapter);
 	if (!status)
 		adapter->vlans_added--;
 	else
-		adapter->vlan_tag[vid] = 1;
+		set_bit(vid, adapter->vids);
 }
 
 static void be_clear_promisc(struct be_adapter *adapter)
@@ -1755,7 +1754,7 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 			rxcp->vlan_tag = swab16(rxcp->vlan_tag);
 
 		if (adapter->pvid == (rxcp->vlan_tag & VLAN_VID_MASK) &&
-		    !adapter->vlan_tag[rxcp->vlan_tag])
+		    !test_bit(rxcp->vlan_tag, adapter->vids))
 			rxcp->vlanf = 0;
 	}
 
