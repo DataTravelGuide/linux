@@ -2260,6 +2260,8 @@ static int efx_ef10_filter_push(struct efx_nic *efx,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc == 0)
 		*handle = MCDI_QWORD(outbuf, FILTER_OP_OUT_HANDLE);
+	if (rc == -ENOSPC)
+		rc = -EBUSY; /* to match efx_farch_filter_insert() */
 	return rc;
 }
 
