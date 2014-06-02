@@ -865,6 +865,7 @@ struct efx_nic {
 	struct work_struct mac_work;
 	bool port_enabled;
 
+	bool mc_bist_for_other_fn;
 	bool port_initialized;
 	struct net_device *net_dev;
 	bool rx_checksum_enabled;
