@@ -92,6 +92,7 @@
 
 /* Forward declare Precision Time Protocol (PTP) support structure. */
 struct efx_ptp_data;
+struct hwtstamp_config;
 
 struct efx_self_tests;
 
@@ -1056,6 +1057,10 @@ struct efx_mtd_partition {
  * @mtd_sync: Wait for write-back to complete on MTD partition.  This
  *	also notifies the driver that a writer has finished using this
  *	partition.
+ * @ptp_write_host_time: Send host time to MC as part of sync protocol
+ * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
+ *	and tx_type will already have been validated but this operation
+ *	must validate and update rx_filter.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1074,6 +1079,7 @@ struct efx_mtd_partition {
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  * @mcdi_max_ver: Maximum MCDI version supported
+ * @hwtstamp_filters: Mask of hardware timestamp filter types supported
  */
 struct efx_nic_type {
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
@@ -1175,6 +1181,8 @@ struct efx_nic_type {
 	int (*mtd_sync)(struct mtd_info *mtd);
 #endif
 	void (*ptp_write_host_time)(struct efx_nic *efx, u32 host_time);
+	int (*ptp_set_ts_config)(struct efx_nic *efx,
+				 struct hwtstamp_config *init);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1193,6 +1201,7 @@ struct efx_nic_type {
 	unsigned long offload_features;
 	int mcdi_max_ver;
 	unsigned int max_rx_ip_filters;
+	u32 hwtstamp_filters;
 };
 
 /**************************************************************************
