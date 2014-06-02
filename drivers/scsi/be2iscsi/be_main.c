@@ -4582,8 +4582,8 @@ beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 	doorbell |= (pwrb_handle->wrb_index & DB_DEF_PDU_WRB_INDEX_MASK)
 			     << DB_DEF_PDU_WRB_INDEX_SHIFT;
 	doorbell |= 1 << DB_DEF_PDU_NUM_POSTED_SHIFT;
-
-	iowrite32(doorbell, phba->db_va + DB_TXULP0_OFFSET);
+	iowrite32(doorbell, phba->db_va +
+		  beiscsi_conn->doorbell_offset);
 }
 
 static void beiscsi_parse_pdu(struct iscsi_conn *conn, itt_t itt,
@@ -4808,7 +4808,8 @@ int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
 		     DB_DEF_PDU_WRB_INDEX_MASK) <<
 		     DB_DEF_PDU_WRB_INDEX_SHIFT;
 	doorbell |= 1 << DB_DEF_PDU_NUM_POSTED_SHIFT;
-	iowrite32(doorbell, phba->db_va + DB_TXULP0_OFFSET);
+	iowrite32(doorbell, phba->db_va +
+		  beiscsi_conn->doorbell_offset);
 	return 0;
 }
 
@@ -4863,7 +4864,8 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 		     DB_DEF_PDU_WRB_INDEX_MASK) << DB_DEF_PDU_WRB_INDEX_SHIFT;
 	doorbell |= 1 << DB_DEF_PDU_NUM_POSTED_SHIFT;
 
-	iowrite32(doorbell, phba->db_va + DB_TXULP0_OFFSET);
+	iowrite32(doorbell, phba->db_va +
+		  beiscsi_conn->doorbell_offset);
 	return 0;
 }
 
@@ -4965,7 +4967,8 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	doorbell |= (io_task->pwrb_handle->wrb_index &
 		     DB_DEF_PDU_WRB_INDEX_MASK) << DB_DEF_PDU_WRB_INDEX_SHIFT;
 	doorbell |= 1 << DB_DEF_PDU_NUM_POSTED_SHIFT;
-	iowrite32(doorbell, phba->db_va + DB_TXULP0_OFFSET);
+	iowrite32(doorbell, phba->db_va +
+		  beiscsi_conn->doorbell_offset);
 	return 0;
 }
 
