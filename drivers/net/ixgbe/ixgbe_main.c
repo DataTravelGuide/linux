@@ -1495,7 +1495,7 @@ static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct net_device *dev = skb->dev;
 
-	if (ixgbe_qv_ll_polling(q_vector))
+	if (ixgbe_qv_busy_polling(q_vector))
 		netif_receive_skb(skb);
 	else if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
 		if ((dev->features & NETIF_F_HW_VLAN_RX) &&
@@ -2009,7 +2009,7 @@ static int ixgbe_low_latency_recv(struct napi_struct *napi)
 
 	ixgbe_for_each_ring(ring, q_vector->rx) {
 		found = ixgbe_clean_rx_irq(q_vector, ring, 4);
-#ifdef LL_EXTENDED_STATS
+#ifdef BP_EXTENDED_STATS
 		if (found)
 			ring->stats.cleaned += found;
 		else
