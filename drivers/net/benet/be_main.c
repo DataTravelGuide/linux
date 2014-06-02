@@ -480,7 +480,7 @@ static void accumulate_16bit_val(u32 *acc, u16 val)
 	ACCESS_ONCE(*acc) = newacc;
 }
 
-void populate_erx_stats(struct be_adapter *adapter,
+static void populate_erx_stats(struct be_adapter *adapter,
 			struct be_rx_obj *rxo,
 			u32 erx_stat)
 {
@@ -1489,8 +1489,9 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 }
 
 /* Process the RX completion indicated by rxcp when GRO is enabled */
-void be_rx_compl_process_gro(struct be_rx_obj *rxo, struct napi_struct *napi,
-			     struct be_rx_compl_info *rxcp)
+static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
+				    struct napi_struct *napi,
+				    struct be_rx_compl_info *rxcp)
 {
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_rx_page_info *page_info;
@@ -3284,7 +3285,7 @@ static void be_netpoll(struct net_device *netdev)
 #endif
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
-char flash_cookie[2][16] =      {"*** SE FLAS", "H DIRECTORY *** "};
+static char flash_cookie[2][16] =      {"*** SE FLAS", "H DIRECTORY *** "};
 
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
@@ -3341,7 +3342,7 @@ static bool is_comp_in_ufi(struct be_adapter *adapter,
 
 }
 
-struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
+static struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
 					 int header_size,
 					 const struct firmware *fw)
 {
