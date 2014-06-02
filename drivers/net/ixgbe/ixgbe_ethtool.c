@@ -427,7 +427,7 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
-static void ixgbe_do_reset(struct net_device *netdev)
+void ixgbe_do_reset(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
