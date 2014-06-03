@@ -988,6 +988,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_TX_INTR_SHARED		0x10000
 #define QLCNIC_LRO_WAS_ENABLED		0x20000
 #define QLCNIC_TSS_RSS			0x80000
+#define QLCNIC_VLAN_FILTERING		0x800000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
@@ -2296,6 +2297,16 @@ static inline bool qlcnic_83xx_vf_check(struct qlcnic_adapter *adapter)
 	unsigned short device = adapter->pdev->device;
 
 	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
+}
+
+static inline bool qlcnic_sriov_check(struct qlcnic_adapter *adapter)
+{
+	bool status;
+
+	status = (qlcnic_sriov_pf_check(adapter) ||
+		  qlcnic_sriov_vf_check(adapter)) ? true : false;
+
+	return status;
 }
 
 static inline u32 qlcnic_get_vnic_func_count(struct qlcnic_adapter *adapter)
