@@ -2362,6 +2362,7 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_detach_mailbox_work(adapter);
 		qlcnic_83xx_free_mailbox(ahw->mailbox);
+		kfree(ahw->fw_info);
 	}
 
 	qlcnic_detach(adapter);
