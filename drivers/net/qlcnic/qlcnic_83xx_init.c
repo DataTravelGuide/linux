@@ -2176,6 +2176,13 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (err)
 		goto detach_mbx;
 
+	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
+		qlcnic_83xx_read_flash_mfg_id(adapter);
+
+	err = qlcnic_83xx_idc_init(adapter);
+	if (err)
+		goto detach_mbx;
+
 	err = qlcnic_setup_intr(adapter, 0);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to setup interrupt\n");
@@ -2192,13 +2199,6 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 
 	/* register for NIC IDC AEN Events */
 	qlcnic_83xx_register_nic_idc_func(adapter, 1);
-
-	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
-		qlcnic_83xx_read_flash_mfg_id(adapter);
-
-	err = qlcnic_83xx_idc_init(adapter);
-	if (err)
-		goto disable_mbx_intr;
 
 	/* Configure default, SR-IOV or Virtual NIC mode of operation */
 	err = qlcnic_83xx_configure_opmode(adapter);
