@@ -74,6 +74,9 @@ struct ixgbevf_ring {
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
+	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_good;
+
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
 		      * for DCB and RSS modes */
