@@ -125,14 +125,16 @@
 inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
 				  struct qlcnic_host_tx_ring *tx_ring)
 {
-	if (qlcnic_check_multi_tx(adapter))
+	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test)
 		writel(0x0, tx_ring->crb_intr_mask);
 }
 
 static inline void qlcnic_disable_tx_int(struct qlcnic_adapter *adapter,
 					 struct qlcnic_host_tx_ring *tx_ring)
 {
-	if (qlcnic_check_multi_tx(adapter))
+	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test)
 		writel(1, tx_ring->crb_intr_mask);
 }
 
@@ -1457,6 +1459,7 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		if (qlcnic_check_multi_tx(adapter) &&
+		    !adapter->ahw->diag_test &&
 		    (adapter->max_drv_tx_rings > 1)) {
 			netif_napi_add(netdev, &sds_ring->napi, qlcnic_rx_poll,
 					QLCNIC_NETDEV_WEIGHT * 2);
@@ -1478,7 +1481,7 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 	}
 
-	if (qlcnic_check_multi_tx(adapter)) {
+	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test) {
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
 			netif_napi_add(netdev, &tx_ring->napi, qlcnic_tx_poll,
@@ -1503,7 +1506,7 @@ void qlcnic_82xx_napi_del(struct qlcnic_adapter *adapter)
 
 	qlcnic_free_sds_rings(adapter->recv_ctx);
 
-	if (qlcnic_check_multi_tx(adapter)) {
+	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test) {
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
 			netif_napi_del(&tx_ring->napi);
@@ -1531,6 +1534,7 @@ void qlcnic_82xx_napi_enable(struct qlcnic_adapter *adapter)
 
 	if (qlcnic_check_multi_tx(adapter) &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED) &&
+	    !adapter->ahw->diag_test &&
 	    (adapter->max_drv_tx_rings > 1)) {
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
@@ -1558,6 +1562,7 @@ void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 	}
 
 	if ((adapter->flags & QLCNIC_MSIX_ENABLED) &&
+	    !adapter->ahw->diag_test &&
 	    qlcnic_check_multi_tx(adapter)) {
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
