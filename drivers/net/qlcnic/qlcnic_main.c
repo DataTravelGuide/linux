@@ -2326,9 +2326,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err, pci_using_dac = -1;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
 
-	if (pdev->is_virtfn)
-		return -ENODEV;
-
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -2604,9 +2601,9 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 		return;
 
 	netdev = adapter->netdev;
-	qlcnic_sriov_pf_disable(adapter);
 
 	qlcnic_cancel_idc_work(adapter);
+	qlcnic_sriov_pf_disable(adapter);
 	ahw = adapter->ahw;
 
 	unregister_netdev(netdev);
