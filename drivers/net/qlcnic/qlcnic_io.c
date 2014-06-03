@@ -124,8 +124,8 @@
 #define qlcnic_83xx_is_ip_align(sts)	(((sts) >> 46) & 1)
 #define qlcnic_83xx_has_vlan_tag(sts)	(((sts) >> 47) & 1)
 
-inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
-				  struct qlcnic_host_tx_ring *tx_ring)
+static inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
+					 struct qlcnic_host_tx_ring *tx_ring)
 {
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !adapter->ahw->diag_test)
@@ -140,13 +140,13 @@ static inline void qlcnic_disable_tx_int(struct qlcnic_adapter *adapter,
 		writel(1, tx_ring->crb_intr_mask);
 }
 
-inline void qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
+static inline void qlcnic_83xx_enable_tx_intr(struct qlcnic_adapter *adapter,
 				       struct qlcnic_host_tx_ring *tx_ring)
 {
 	writel(0, tx_ring->crb_intr_mask);
 }
 
-inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
+static inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
 					struct qlcnic_host_tx_ring *tx_ring)
 {
 	writel(1, tx_ring->crb_intr_mask);
