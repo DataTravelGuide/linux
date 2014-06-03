@@ -454,17 +454,18 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 
 int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 {
+	struct qlcnic_mac_vlan_list *cur;
 	struct list_head *head;
-	struct qlcnic_mac_list_s *cur;
 
 	/* look up if already exists */
 	list_for_each(head, &adapter->mac_list) {
-		cur = list_entry(head, struct qlcnic_mac_list_s, list);
-		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0)
+		cur = list_entry(head, struct qlcnic_mac_vlan_list, list);
+		if (memcmp(addr, cur->mac_addr, ETH_ALEN) == 0 &&
+		    cur->vlan_id == vlan)
 			return 0;
 	}
 
-	cur = kzalloc(sizeof(struct qlcnic_mac_list_s), GFP_ATOMIC);
+	cur = kzalloc(sizeof(*cur), GFP_ATOMIC);
 	if (cur == NULL) {
 		dev_err(&adapter->netdev->dev,
 			"failed to add mac address filter\n");
@@ -478,6 +479,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 		return -EIO;
 	}
 
+	cur->vlan_id = vlan;
 	list_add_tail(&cur->list, &adapter->mac_list);
 	return 0;
 }
@@ -495,8 +497,7 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
-	if (!qlcnic_sriov_vf_check(adapter))
-		qlcnic_nic_add_mac(adapter, adapter->mac_addr, vlan);
+	qlcnic_nic_add_mac(adapter, adapter->mac_addr, vlan);
 	qlcnic_nic_add_mac(adapter, bcast_addr, vlan);
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -505,14 +506,10 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	} else if ((netdev->flags & IFF_ALLMULTI) ||
 		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
-	} else if (!netdev_mc_empty(netdev) &&
-		   !qlcnic_sriov_vf_check(adapter)) {
+	} else if (!netdev_mc_empty(netdev)) {
 		netdev_for_each_mc_addr(mc_ptr, netdev)
 			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr, vlan);
 	}
-
-	if (qlcnic_sriov_vf_check(adapter))
-		qlcnic_vf_add_mc_list(netdev, vlan);
 
 	/* configure unicast MAC address, if there is not sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
@@ -525,13 +522,11 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
 	}
 
-	if (!qlcnic_sriov_vf_check(adapter)) {
-		if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
-			qlcnic_alloc_lb_filters_mem(adapter);
-			adapter->mac_learn = 1;
-		} else {
-			adapter->mac_learn = 0;
-		}
+	if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
+		qlcnic_alloc_lb_filters_mem(adapter);
+		adapter->mac_learn = 1;
+	} else {
+		adapter->mac_learn = 0;
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);
@@ -540,16 +535,17 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 void qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_mac_vlan_list *cur;
 	struct dev_mc_list *mc_ptr;
-	struct qlcnic_mac_list_s *cur;
+	size_t temp;
 
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 	if (qlcnic_sriov_vf_check(adapter)) {
 		if (!netdev_mc_empty(netdev)) {
 			netdev_for_each_mc_addr(mc_ptr, netdev) {
-				cur = kzalloc(sizeof(struct qlcnic_mac_list_s),
-					      GFP_ATOMIC);
+				temp = sizeof(struct qlcnic_mac_vlan_list);
+				cur = kzalloc(temp, GFP_ATOMIC);
 				if (cur == NULL)
 					break;
 				memcpy(cur->mac_addr,
@@ -584,11 +580,11 @@ int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 
 void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter)
 {
-	struct qlcnic_mac_list_s *cur;
 	struct list_head *head = &adapter->mac_list;
+	struct qlcnic_mac_vlan_list *cur;
 
 	while (!list_empty(head)) {
-		cur = list_entry(head->next, struct qlcnic_mac_list_s, list);
+		cur = list_entry(head->next, struct qlcnic_mac_vlan_list, list);
 		qlcnic_sre_macaddr_change(adapter,
 				cur->mac_addr, 0, QLCNIC_MAC_DEL);
 		list_del(&cur->list);
