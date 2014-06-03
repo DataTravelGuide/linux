@@ -2169,10 +2169,8 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 
 	qlcnic_change_mtu(netdev, netdev->mtu);
 
-	if (qlcnic_sriov_vf_check(adapter))
-		SET_ETHTOOL_OPS(netdev, &qlcnic_sriov_vf_ethtool_ops);
-	else
-		SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
+	netdev->ethtool_ops = (qlcnic_sriov_vf_check(adapter)) ?
+		&qlcnic_sriov_vf_ethtool_ops : &qlcnic_ethtool_ops;
 
 	set_ethtool_ops_ext(netdev, &qlcnic_ethtool_ops_ext);
 
@@ -2568,7 +2566,7 @@ err_out_disable_pdev:
 err_out_maintenance_mode:
 	set_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state);
 	netdev->netdev_ops = &qlcnic_netdev_failed_ops;
-	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_failed_ops);
+	netdev->ethtool_ops = &qlcnic_ethtool_failed_ops;
 	ahw->port_type = QLCNIC_XGBE;
 
 	if (qlcnic_83xx_check(adapter))
