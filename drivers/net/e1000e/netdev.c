@@ -4361,12 +4361,18 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 static void e1000e_update_phy_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
-					struct e1000_adapter, update_phy_task);
+						     struct e1000_adapter,
+						     update_phy_task);
+	struct e1000_hw *hw = &adapter->hw;
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
 
-	e1000_get_phy_info(&adapter->hw);
+	e1000_get_phy_info(hw);
+
+	/* Enable EEE on 82579 after link up */
+	if (hw->phy.type == e1000_phy_82579)
+		e1000_set_eee_pchlan(hw);
 }
 
 /**
