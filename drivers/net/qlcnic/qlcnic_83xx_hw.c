@@ -944,6 +944,7 @@ void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *adapter)
 		return;
 
 	INIT_DELAYED_WORK(&adapter->mbx_poll_work, qlcnic_83xx_mbx_poll_work);
+	queue_delayed_work(adapter->qlcnic_wq, &adapter->mbx_poll_work, 0);
 }
 
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *adapter)
@@ -1330,8 +1331,10 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 
 	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
 		/* disable and free mailbox interrupt */
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+			qlcnic_83xx_enable_mbx_poll(adapter);
 			qlcnic_83xx_free_mbx_intr(adapter);
+		}
 		adapter->ahw->loopback_state = 0;
 		adapter->ahw->hw_ops->setup_link_event(adapter, 1);
 	}
@@ -1352,6 +1355,8 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
 			qlcnic_83xx_disable_intr(adapter, sds_ring);
+			if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+				qlcnic_83xx_enable_mbx_poll(adapter);
 		}
 	}
 
@@ -1361,6 +1366,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
 		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
 			err = qlcnic_83xx_setup_mbx_intr(adapter);
+			qlcnic_83xx_disable_mbx_poll(adapter);
 			if (err) {
 				dev_err(&adapter->pdev->dev,
 					"%s: failed to setup mbx interrupt\n",
@@ -1377,6 +1383,10 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 
 	if (netif_running(netdev))
 		__qlcnic_up(adapter, netdev);
+
+	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST &&
+	    !(adapter->flags & QLCNIC_MSIX_ENABLED))
+		qlcnic_83xx_disable_mbx_poll(adapter);
 out:
 	netif_device_attach(netdev);
 }
@@ -1661,8 +1671,6 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	/* Poll for link up event before running traffic */
 	do {
 		msleep(QLC_83XX_LB_MSLEEP_COUNT);
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-			qlcnic_83xx_process_aen(adapter);
 
 		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 			netdev_info(netdev,
@@ -1739,8 +1747,6 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(QLC_83XX_LB_MSLEEP_COUNT);
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-			qlcnic_83xx_process_aen(adapter);
 
 		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 			netdev_info(netdev,
@@ -1788,8 +1794,6 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(QLC_83XX_LB_MSLEEP_COUNT);
-		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
-			qlcnic_83xx_process_aen(adapter);
 
 		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 			netdev_info(netdev,
