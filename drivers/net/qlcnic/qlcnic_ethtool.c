@@ -1763,14 +1763,14 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	}
 
 	if (fw_dump->clr)
-		dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
+		dump->len = fw_dump->tmpl_hdr_size + fw_dump->size;
 	else
 		dump->len = 0;
 
 	if (!qlcnic_check_fw_dump_state(adapter))
 		dump->flag = 0;
 	else
-		dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+		dump->flag = fw_dump->cap_mask;
 
 	dump->version = adapter->fw_version;
 	return 0;
@@ -1795,9 +1795,10 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 		netdev_info(netdev, "Dump not available\n");
 		return -EINVAL;
 	}
+
 	/* Copy template header first */
-	copy_sz = fw_dump->tmpl_hdr->size;
-	hdr_ptr = (u32 *) fw_dump->tmpl_hdr;
+	copy_sz = fw_dump->tmpl_hdr_size;
+	hdr_ptr = (u32 *)fw_dump->tmpl_hdr;
 	data = buffer;
 	for (i = 0; i < copy_sz/sizeof(u32); i++)
 		*data++ = cpu_to_le32(*hdr_ptr++);
@@ -1805,7 +1806,7 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	/* Copy captured dump data */
 	memcpy(buffer + copy_sz, fw_dump->data, fw_dump->size);
 	dump->len = copy_sz + fw_dump->size;
-	dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+	dump->flag = fw_dump->cap_mask;
 
 	/* Free dump area once data has been captured */
 	vfree(fw_dump->data);
@@ -1827,7 +1828,11 @@ static int qlcnic_set_dump_mask(struct qlcnic_adapter *adapter, u32 mask)
 		return -EOPNOTSUPP;
 	}
 
-	fw_dump->tmpl_hdr->drv_cap_mask = mask;
+	fw_dump->cap_mask = mask;
+
+	/* Store new capture mask in template header as well*/
+	qlcnic_store_cap_mask(adapter, fw_dump->tmpl_hdr, mask);
+
 	netdev_info(netdev, "Driver mask changed to: 0x%x\n", mask);
 	return 0;
 }
