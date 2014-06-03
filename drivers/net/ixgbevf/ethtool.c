@@ -334,18 +334,18 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			tx_ring[i] = *adapter->tx_ring[i];
 			tx_ring[i].count = new_tx_count;
-			err = ixgbevf_setup_tx_resources(adapter, &tx_ring[i]);
-			if (!err)
-				continue;
-			while (i) {
-				i--;
-				ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
+			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_tx_resources(&tx_ring[i]);
+				}
+
+				vfree(tx_ring);
+				tx_ring = NULL;
+
+				goto clear_reset;
 			}
-
-			vfree(tx_ring);
-			tx_ring = NULL;
-
-			goto clear_reset;
 		}
 	}
 
@@ -360,18 +360,18 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 			/* clone ring and setup updated count */
 			rx_ring[i] = *adapter->rx_ring[i];
 			rx_ring[i].count = new_rx_count;
-			err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
-			if (!err)
-				continue;
-			while (i) {
-				i--;
-				ixgbevf_free_rx_resources(adapter, &rx_ring[i]);
+			err = ixgbevf_setup_rx_resources(&rx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_rx_resources(&rx_ring[i]);
+				}
+
+				vfree(rx_ring);
+				rx_ring = NULL;
+
+				goto clear_reset;
 			}
-
-			vfree(rx_ring);
-			rx_ring = NULL;
-
-			goto clear_reset;
 		}
 	}
 
@@ -381,7 +381,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Tx */
 	if (tx_ring) {
 		for (i = 0; i < adapter->num_tx_queues; i++) {
-			ixgbevf_free_tx_resources(adapter, adapter->tx_ring[i]);
+			ixgbevf_free_tx_resources(adapter->tx_ring[i]);
 			*adapter->tx_ring[i] = tx_ring[i];
 		}
 		adapter->tx_ring_count = new_tx_count;
@@ -393,7 +393,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	/* Rx */
 	if (rx_ring) {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			ixgbevf_free_rx_resources(adapter, adapter->rx_ring[i]);
+			ixgbevf_free_rx_resources(adapter->rx_ring[i]);
 			*adapter->rx_ring[i] = rx_ring[i];
 		}
 		adapter->rx_ring_count = new_rx_count;
@@ -409,7 +409,7 @@ clear_reset:
 	/* free Tx resources if Rx error is encountered */
 	if (tx_ring) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
+			ixgbevf_free_tx_resources(&tx_ring[i]);
 		vfree(tx_ring);
 	}
 
