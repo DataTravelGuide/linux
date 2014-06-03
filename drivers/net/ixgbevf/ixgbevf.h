@@ -326,7 +326,7 @@ struct ixgbevf_adapter {
 	u32 eims_other;
 
 	/* TX */
-	struct ixgbevf_ring *tx_ring;	/* One per active queue */
+	struct ixgbevf_ring *tx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	int num_tx_queues;
 	u64 restart_queue;
 	u64 hw_csum_tx_good;
@@ -336,7 +336,7 @@ struct ixgbevf_adapter {
 	u32 tx_timeout_count;
 
 	/* RX */
-	struct ixgbevf_ring *rx_ring;	/* One per active queue */
+	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	int num_rx_queues;
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
