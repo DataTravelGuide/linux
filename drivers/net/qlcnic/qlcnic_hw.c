@@ -478,6 +478,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct dev_mc_list *mc_ptr;
 	static const u8 bcast_addr[ETH_ALEN] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
@@ -494,25 +495,32 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
 			mode = VPORT_MISS_MODE_ACCEPT_ALL;
-		goto send_fw_cmd;
-	}
-
-	if ((netdev->flags & IFF_ALLMULTI) ||
-	    (netdev_mc_count(netdev) > adapter->ahw->max_mc_count)) {
-		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
-		goto send_fw_cmd;
-	}
-
-	if (!netdev_mc_empty(netdev) && !qlcnic_sriov_vf_check(adapter)) {
-		netdev_for_each_mc_addr(mc_ptr, netdev) {
-			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr, vlan);
+	} else if (netdev->flags & IFF_ALLMULTI) {
+		if (netdev_mc_count(netdev) > ahw->max_mc_count) {
+			mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+		} else if (!netdev_mc_empty(netdev) &&
+			   !qlcnic_sriov_vf_check(adapter)) {
+				netdev_for_each_mc_addr(mc_ptr, netdev)
+					qlcnic_nic_add_mac(adapter,
+							   mc_ptr->dmi_addr,
+							   vlan);
 		}
+		if (mode != VPORT_MISS_MODE_ACCEPT_MULTI &&
+		    qlcnic_sriov_vf_check(adapter))
+			qlcnic_vf_add_mc_list(netdev, vlan);
 	}
 
-	if (qlcnic_sriov_vf_check(adapter))
-		qlcnic_vf_add_mc_list(netdev, vlan);
+	/* configure unicast MAC address, if there is not sufficient space
+	 * to store all the unicast addresses then enable promiscuous mode
+	 */
+	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	} else if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+		netdev_for_each_uc_addr(ha, netdev)
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
+	}
 
-send_fw_cmd:
 	if (!qlcnic_sriov_vf_check(adapter)) {
 		if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
 			qlcnic_alloc_lb_filters_mem(adapter);
