@@ -1936,3 +1936,10 @@ const struct ethtool_ops_ext qlcnic_ethtool_ops_ext = {
 	.get_channels		= qlcnic_get_channels,
 	.set_channels		= qlcnic_set_channels,
 };
+
+const struct ethtool_ops qlcnic_ethtool_failed_ops = {
+	.get_settings	   	= qlcnic_get_settings,
+	.get_drvinfo	    	= qlcnic_get_drvinfo,
+	.set_msglevel	   	= qlcnic_set_msglevel,
+	.get_msglevel	   	= qlcnic_get_msglevel,
+};
