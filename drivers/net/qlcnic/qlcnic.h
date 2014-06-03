@@ -1074,6 +1074,7 @@ struct qlcnic_adapter {
 	u8 mac_addr[ETH_ALEN];
 
 	u8 mac_learn;
+	u8 rx_mac_learn;
 	u64 dev_rst_time;
 	u8 flash_mfg_id;
 

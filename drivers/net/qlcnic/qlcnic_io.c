@@ -152,9 +152,9 @@ static inline void qlcnic_83xx_disable_tx_intr(struct qlcnic_adapter *adapter,
 	writel(1, tx_ring->crb_intr_mask);
 }
 
-static inline u8 qlcnic_mac_hash(u64 mac)
+static inline u8 qlcnic_mac_hash(u64 mac, u16 vlan)
 {
-	return (u8)((mac & 0xff) ^ ((mac >> 40) & 0xff));
+	return (u8)((mac & 0xff) ^ ((mac >> 40) & 0xff) ^ (vlan & 0xff));
 }
 
 static inline u32 qlcnic_get_ref_handle(struct qlcnic_adapter *adapter,
@@ -217,8 +217,11 @@ void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter, struct sk_buff *skb,
 	u8 hindex, op;
 	int ret;
 
+	if (!qlcnic_sriov_pf_check(adapter) || (vlan_id == 0xffff))
+		vlan_id = 0;
+
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
-	hindex = qlcnic_mac_hash(src_addr) &
+	hindex = qlcnic_mac_hash(src_addr, vlan_id) &
 		 (adapter->fhash.fbucket_size - 1);
 
 	if (loopback_pkt) {
@@ -318,27 +321,43 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			       struct cmd_desc_type0 *first_desc,
 			       struct sk_buff *skb)
 {
+	struct vlan_ethhdr *vh = (struct vlan_ethhdr *)(skb->data);
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
+	struct net_device *netdev = adapter->netdev;
+	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_node *tmp_hnode, *n;
 	struct hlist_head *head;
-	struct net_device *netdev = adapter->netdev;
-	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	u64 src_addr = 0;
 	u16 vlan_id = 0;
-	u8 hindex;
+	u8 hindex, hval;
 
-	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
-		return;
+	if (!qlcnic_sriov_pf_check(adapter)) {
+		if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
+			return;
+	} else {
+		if (protocol == ETH_P_8021Q) {
+			vh = (struct vlan_ethhdr *)skb->data;
+			vlan_id = ntohs(vh->h_vlan_TCI);
+		} else if (vlan_tx_tag_present(skb)) {
+			vlan_id = vlan_tx_tag_get(skb);
+		}
+
+		if (!compare_ether_addr(phdr->h_source, adapter->mac_addr) &&
+		    !vlan_id)
+			return;
+	}
 
 	if (adapter->fhash.fnum >= adapter->fhash.fmax) {
 		adapter->stats.mac_filter_limit_overrun++;
-		netdev_info(netdev, "Can not add more than %d mac addresses\n",
-			    adapter->fhash.fmax);
+		netdev_info(netdev, "Can not add more than %d mac-vlan filters, configured %d\n",
+			    adapter->fhash.fmax, adapter->fhash.fnum);
 		return;
 	}
 
 	memcpy(&src_addr, phdr->h_source, ETH_ALEN);
-	hindex = qlcnic_mac_hash(src_addr) & (adapter->fhash.fbucket_size - 1);
+	hval = qlcnic_mac_hash(src_addr, vlan_id);
+	hindex = hval & (adapter->fhash.fbucket_size - 1);
 	head = &(adapter->fhash.fhead[hindex]);
 
 	hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
@@ -1592,7 +1611,8 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	struct sk_buff *skb;
 	struct qlcnic_host_rds_ring *rds_ring;
 	int index, length, cksum, is_lb_pkt;
-	u16 vid = 0xffff, t_vid;
+	u16 vid = 0xffff;
+	int err;
 
 	if (unlikely(ring >= adapter->max_rds_rings))
 		return NULL;
@@ -1610,19 +1630,19 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
-		t_vid = 0;
-		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 0);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
-	}
-
 	if (length > rds_ring->skb_size)
 		skb_put(skb, rds_ring->skb_size);
 	else
 		skb_put(skb, length);
 
-	if (unlikely(qlcnic_check_rx_tagging(adapter, skb, &vid))) {
+	err = qlcnic_check_rx_tagging(adapter, skb, &vid);
+
+	if (adapter->rx_mac_learn) {
+		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 0);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, vid);
+	}
+
+	if (unlikely(err)) {
 		adapter->stats.rxdropped++;
 		dev_kfree_skb(skb);
 		return buffer;
@@ -1656,7 +1676,8 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	int l2_hdr_offset, l4_hdr_offset;
 	int index, is_lb_pkt;
 	u16 lro_length, length, data_offset, gso_size;
-	u16 vid = 0xffff, t_vid;
+	u16 vid = 0xffff;
+	int err;
 
 	if (unlikely(ring > adapter->max_rds_rings))
 		return NULL;
@@ -1678,12 +1699,6 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	if (!skb)
 		return buffer;
 
-	if (adapter->mac_learn &&
-	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
-		t_vid = 0;
-		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 1);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
-	}
 	if (qlcnic_83xx_is_tstamp(sts_data[1]))
 		data_offset = l4_hdr_offset + QLCNIC_TCP_TS_HDR_SIZE;
 	else
@@ -1692,7 +1707,14 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	skb_put(skb, lro_length + data_offset);
 	skb_pull(skb, l2_hdr_offset);
 
-	if (unlikely(qlcnic_check_rx_tagging(adapter, skb, &vid))) {
+	err = qlcnic_check_rx_tagging(adapter, skb, &vid);
+
+	if (adapter->rx_mac_learn) {
+		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 1);
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, vid);
+	}
+
+	if (unlikely(err)) {
 		adapter->stats.rxdropped++;
 		dev_kfree_skb(skb);
 		return buffer;
