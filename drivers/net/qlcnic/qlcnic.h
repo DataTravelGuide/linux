@@ -1669,6 +1669,7 @@ int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
+int qlcnic_set_real_num_queues(struct qlcnic_adapter *, u8, u8);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
 void qlcnic_sriov_vf_schedule_multi(struct net_device *);
 int qlcnic_is_valid_nic_func(struct qlcnic_adapter *, u8);
@@ -1694,16 +1695,6 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 	else
 		return tx_ring->sw_consumer + tx_ring->num_desc -
 				tx_ring->producer;
-}
-
-static inline void qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
-					      struct net_device *netdev)
-{
-
-	netdev->num_tx_queues = adapter->drv_tx_rings;
-	netdev->real_num_tx_queues = adapter->drv_tx_rings;
-
-	netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
 }
 
 struct qlcnic_nic_template {
