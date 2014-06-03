@@ -2955,7 +2955,10 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 rctl, rfctl;
 	u32 pages = 0;
 
-	/* Workaround Si errata on PCHx - configure jumbo frame flow */
+	/* Workaround Si errata on PCHx - configure jumbo frame flow.
+	 * If jumbo frames not set, program related MAC/PHY registers
+	 * to h/w defaults
+	 */
 	if (hw->mac.type >= e1000_pch2lan) {
 		s32 ret_val;
 
@@ -2965,7 +2968,7 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
 
 		if (ret_val)
-			e_dbg("failed to enable jumbo frame workaround mode\n");
+			e_dbg("failed to enable|disable jumbo frame workaround mode\n");
 	}
 
 	/* Program MC offset vector base */
