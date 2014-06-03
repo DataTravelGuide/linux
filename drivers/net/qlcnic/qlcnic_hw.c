@@ -495,20 +495,17 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
 			mode = VPORT_MISS_MODE_ACCEPT_ALL;
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		if (netdev_mc_count(netdev) > ahw->max_mc_count) {
-			mode = VPORT_MISS_MODE_ACCEPT_MULTI;
-		} else if (!netdev_mc_empty(netdev) &&
-			   !qlcnic_sriov_vf_check(adapter)) {
-				netdev_for_each_mc_addr(mc_ptr, netdev)
-					qlcnic_nic_add_mac(adapter,
-							   mc_ptr->dmi_addr,
-							   vlan);
-		}
-		if (mode != VPORT_MISS_MODE_ACCEPT_MULTI &&
-		    qlcnic_sriov_vf_check(adapter))
-			qlcnic_vf_add_mc_list(netdev, vlan);
+	} else if ((netdev->flags & IFF_ALLMULTI) ||
+		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
+		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+	} else if (!netdev_mc_empty(netdev) &&
+		   !qlcnic_sriov_vf_check(adapter)) {
+		netdev_for_each_mc_addr(mc_ptr, netdev)
+			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr, vlan);
 	}
+
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_vf_add_mc_list(netdev, vlan);
 
 	/* configure unicast MAC address, if there is not sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
