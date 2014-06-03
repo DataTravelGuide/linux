@@ -2,6 +2,16 @@
 # Makefile for Qlogic 1G/10G Ethernet Driver for CNA devices
 #
 
+export CONFIG_QLCNIC_DCB := y
+
+ifdef CONFIG_QLCNIC_DCB
+ifndef CONFIG_DCB
+$(warning Kernel does not support DCB)
+override CONFIG_QLCNIC_DCB :=
+$(warning => DCB functionality will be disabled)
+endif
+endif
+
 obj-$(CONFIG_QLCNIC) := qlcnic.o
 
 qlcnic-y := qlcnic_hw.o qlcnic_main.o qlcnic_init.o \
@@ -11,3 +21,5 @@ qlcnic-y := qlcnic_hw.o qlcnic_main.o qlcnic_init.o \
 	qlcnic_minidump.o qlcnic_sriov_common.o
 
 qlcnic-$(CONFIG_QLCNIC_SRIOV) += qlcnic_sriov_pf.o
+
+qlcnic-$(CONFIG_QLCNIC_DCB) += qlcnic_dcb.o
