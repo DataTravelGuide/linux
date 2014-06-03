@@ -546,28 +546,14 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 void qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct qlcnic_mac_vlan_list *cur;
-	struct dev_mc_list *mc_ptr;
-	size_t temp;
 
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
-	if (qlcnic_sriov_vf_check(adapter)) {
-		if (!netdev_mc_empty(netdev)) {
-			netdev_for_each_mc_addr(mc_ptr, netdev) {
-				temp = sizeof(struct qlcnic_mac_vlan_list);
-				cur = kzalloc(temp, GFP_ATOMIC);
-				if (cur == NULL)
-					break;
-				memcpy(cur->mac_addr,
-				       mc_ptr->dmi_addr, ETH_ALEN);
-				list_add_tail(&cur->list, &adapter->vf_mc_list);
-			}
-		}
-		qlcnic_sriov_vf_schedule_multi(adapter->netdev);
-		return;
-	}
-	__qlcnic_set_multi(netdev, 0);
+
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_sriov_vf_set_multi(netdev);
+	else
+		__qlcnic_set_multi(netdev, 0);
 }
 
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
