@@ -22,6 +22,8 @@
 #define FLAGS_VLAN_TAGGED	0x10
 #define FLAGS_VLAN_OOB		0x40
 
+#define NAPI_POLL_WEIGHT 64
+
 #define qlcnic_set_tx_vlan_tci(cmd_desc, v)	\
 	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
 #define qlcnic_set_cmd_desc_port(cmd_desc, var)	\
@@ -1449,7 +1451,7 @@ void qlcnic_82xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 			 struct net_device *netdev)
 {
-	int ring, max_sds_rings;
+	int ring;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct qlcnic_host_tx_ring *tx_ring;
@@ -1457,25 +1459,22 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 	if (qlcnic_alloc_sds_rings(recv_ctx, adapter->max_sds_rings))
 		return -ENOMEM;
 
-	max_sds_rings = adapter->max_sds_rings;
-
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		if (qlcnic_check_multi_tx(adapter) &&
 		    !adapter->ahw->diag_test &&
 		    (adapter->max_drv_tx_rings > 1)) {
 			netif_napi_add(netdev, &sds_ring->napi, qlcnic_rx_poll,
-					QLCNIC_NETDEV_WEIGHT * 2);
+				       NAPI_POLL_WEIGHT);
 		} else {
 			if (ring == (adapter->max_sds_rings - 1))
 				netif_napi_add(netdev, &sds_ring->napi,
 					       qlcnic_poll,
-					       QLCNIC_NETDEV_WEIGHT /
-					       max_sds_rings);
+					       NAPI_POLL_WEIGHT);
 			else
 				netif_napi_add(netdev, &sds_ring->napi,
 					       qlcnic_rx_poll,
-					       QLCNIC_NETDEV_WEIGHT * 2);
+					       NAPI_POLL_WEIGHT);
 		}
 	}
 
@@ -1488,7 +1487,7 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 			tx_ring = &adapter->tx_ring[ring];
 			netif_napi_add(netdev, &tx_ring->napi, qlcnic_tx_poll,
-				       QLCNIC_NETDEV_WEIGHT);
+				       NAPI_POLL_WEIGHT);
 		}
 	}
 
@@ -1954,7 +1953,7 @@ void qlcnic_83xx_napi_disable(struct qlcnic_adapter *adapter)
 int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 			 struct net_device *netdev)
 {
-	int ring, max_sds_rings, temp;
+	int ring;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
@@ -1962,25 +1961,22 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 	if (qlcnic_alloc_sds_rings(recv_ctx, adapter->max_sds_rings))
 		return -ENOMEM;
 
-	max_sds_rings = adapter->max_sds_rings;
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		if (adapter->flags & QLCNIC_MSIX_ENABLED) {
-			if (!(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
+			if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
 				netif_napi_add(netdev, &sds_ring->napi,
 					       qlcnic_83xx_rx_poll,
-					       QLCNIC_NETDEV_WEIGHT * 2);
-			} else {
-				temp = QLCNIC_NETDEV_WEIGHT / max_sds_rings;
+					       NAPI_POLL_WEIGHT);
+			else
 				netif_napi_add(netdev, &sds_ring->napi,
 					       qlcnic_83xx_msix_sriov_vf_poll,
-					       temp);
-			}
+					       NAPI_POLL_WEIGHT);
 
 		} else {
 			netif_napi_add(netdev, &sds_ring->napi,
 				       qlcnic_83xx_poll,
-				       QLCNIC_NETDEV_WEIGHT / max_sds_rings);
+				       NAPI_POLL_WEIGHT);
 		}
 	}
 
@@ -1995,7 +1991,7 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 			tx_ring = &adapter->tx_ring[ring];
 			netif_napi_add(netdev, &tx_ring->napi,
 				       qlcnic_83xx_msix_tx_poll,
-				       QLCNIC_NETDEV_WEIGHT);
+				       NAPI_POLL_WEIGHT);
 		}
 	}
 
