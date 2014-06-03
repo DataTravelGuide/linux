@@ -1879,7 +1879,6 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
-	u32 state;
 	bool valid_mask = false;
 	int i, ret = 0;
 
