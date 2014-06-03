@@ -285,13 +285,13 @@ int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	rsp_size = SIZEOF_CARDRSP_RX(struct qlcnic_cardrsp_rx_ctx, nrds_rings,
 				     nsds_rings);
 
-	addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
+	addr = dma_zalloc_coherent(&adapter->pdev->dev, rq_size,
 				  &hostrq_phys_addr, GFP_KERNEL);
 	if (addr == NULL)
 		return -ENOMEM;
 	prq = addr;
 
-	addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
+	addr = dma_zalloc_coherent(&adapter->pdev->dev, rsp_size,
 			&cardrsp_phys_addr, GFP_KERNEL);
 	if (addr == NULL) {
 		err = -ENOMEM;
@@ -456,13 +456,13 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 	*(tx_ring->hw_consumer) = 0;
 
 	rq_size = SIZEOF_HOSTRQ_TX(struct qlcnic_hostrq_tx_ctx);
-	rq_addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
+	rq_addr = dma_zalloc_coherent(&adapter->pdev->dev, rq_size,
 			&rq_phys_addr, GFP_KERNEL);
 	if (!rq_addr)
 		return -ENOMEM;
 
 	rsp_size = SIZEOF_CARDRSP_TX(struct qlcnic_cardrsp_tx_ctx);
-	rsp_addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
+	rsp_addr = dma_zalloc_coherent(&adapter->pdev->dev, rsp_size,
 			&rsp_phys_addr, GFP_KERNEL);
 	if (!rsp_addr) {
 		err = -ENOMEM;
@@ -595,7 +595,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 
 	for (ring = 0; ring < adapter->max_drv_tx_rings; ring++) {
 		tx_ring = &adapter->tx_ring[ring];
-		ptr = (__le32 *)dma_alloc_coherent(&pdev->dev, sizeof(u32),
+		ptr = (__le32 *)dma_zalloc_coherent(&pdev->dev, sizeof(u32),
 						   &tx_ring->hw_cons_phys_addr,
 						   GFP_KERNEL);
 
@@ -605,7 +605,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		}
 		tx_ring->hw_consumer = ptr;
 		/* cmd desc ring */
-		addr = dma_alloc_coherent(&pdev->dev, TX_DESC_RINGSIZE(tx_ring),
+		addr = dma_zalloc_coherent(&pdev->dev, TX_DESC_RINGSIZE(tx_ring),
 					  &tx_ring->phys_addr,
 					  GFP_KERNEL);
 
@@ -621,7 +621,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
-		addr = dma_alloc_coherent(&adapter->pdev->dev,
+		addr = dma_zalloc_coherent(&adapter->pdev->dev,
 				RCV_DESC_RINGSIZE(rds_ring),
 				&rds_ring->phys_addr, GFP_KERNEL);
 		if (addr == NULL) {
@@ -637,7 +637,7 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 
-		addr = dma_alloc_coherent(&adapter->pdev->dev,
+		addr = dma_zalloc_coherent(&adapter->pdev->dev,
 				STATUS_DESC_RINGSIZE(sds_ring),
 				&sds_ring->phys_addr, GFP_KERNEL);
 		if (addr == NULL) {
@@ -884,7 +884,7 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 	struct qlcnic_cmd_args cmd;
 	size_t  nic_size = sizeof(struct qlcnic_info_le);
 
-	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
+	nic_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, nic_size,
 				&nic_dma_t, GFP_KERNEL);
 	if (!nic_info_addr)
 		return -ENOMEM;
@@ -939,7 +939,7 @@ int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *adapter,
 	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return err;
 
-	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
+	nic_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, nic_size,
 			&nic_dma_t, GFP_KERNEL);
 	if (!nic_info_addr)
 		return -ENOMEM;
@@ -993,7 +993,7 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
 	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
 
-	pci_info_addr = dma_alloc_coherent(&adapter->pdev->dev, pci_size,
+	pci_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, pci_size,
 			&pci_info_dma_t, GFP_KERNEL);
 	if (!pci_info_addr)
 		return -ENOMEM;
@@ -1095,7 +1095,7 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 		return -EIO;
 	}
 
-	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
+	stats_addr = dma_zalloc_coherent(&adapter->pdev->dev, stats_size,
 			&stats_dma_t, GFP_KERNEL);
 	if (!stats_addr) {
 		dev_err(&adapter->pdev->dev, "Unable to allocate memory\n");
@@ -1154,7 +1154,7 @@ int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 	if (mac_stats == NULL)
 		return -ENOMEM;
 
-	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
+	stats_addr = dma_zalloc_coherent(&adapter->pdev->dev, stats_size,
 			&stats_dma_t, GFP_KERNEL);
 	if (!stats_addr) {
 		dev_err(&adapter->pdev->dev,
