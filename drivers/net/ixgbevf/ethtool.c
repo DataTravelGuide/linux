@@ -127,17 +127,15 @@ static int ixgbevf_get_settings(struct net_device *netdev,
 
 static u32 ixgbevf_get_rx_csum(struct net_device *netdev)
 {
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
+	return netdev->features & NETIF_F_RXCSUM;
 }
 
 static int ixgbevf_set_rx_csum(struct net_device *netdev, u32 data)
 {
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	if (data)
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
+		netdev->features |= NETIF_F_RXCSUM;
 	else
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+		netdev->features &= ~NETIF_F_RXCSUM;
 
 	return 0;
 }

@@ -323,7 +323,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_adapter *adapter,
 	skb_checksum_none_assert(skb);
 
 	/* Rx csum disabled */
-	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
+	if (!(adapter->netdev->features & NETIF_F_RXCSUM))
 		return;
 
 	/* if IP and error */
@@ -2120,9 +2120,6 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBEVF_DEFAULT_TXD;
 	adapter->rx_ring_count = IXGBEVF_DEFAULT_RXD;
-
-	/* enable rx csum by default */
-	adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
 
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
 	return 0;
