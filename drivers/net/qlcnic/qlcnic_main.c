@@ -1988,6 +1988,8 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 		return err;
 	}
 
+	qlcnic_dcb_init_dcbnl_ops(adapter);
+
 	return 0;
 }
 
