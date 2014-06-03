@@ -4,7 +4,7 @@
  *
  * See LICENSE.qlcnic for copyright and licensing details.
  */
-
+#include <linux/netdevice.h>
 #include "qlcnic.h"
 #include "qlcnic_hdr.h"
 
