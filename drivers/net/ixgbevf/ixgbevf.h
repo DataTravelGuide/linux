@@ -296,6 +296,8 @@ extern void ixgbevf_free_tx_resources(struct ixgbevf_adapter *,
 extern void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
 extern int ethtool_ioctl(struct ifreq *ifr);
 
+extern void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector);
+
 extern void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 extern void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 
