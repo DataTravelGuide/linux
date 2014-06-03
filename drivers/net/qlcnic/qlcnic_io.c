@@ -124,6 +124,13 @@
 #define qlcnic_83xx_is_ip_align(sts)	(((sts) >> 46) & 1)
 #define qlcnic_83xx_has_vlan_tag(sts)	(((sts) >> 47) & 1)
 
+static int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring,
+				   int max);
+
+static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *,
+					    struct qlcnic_host_rds_ring *,
+					    u16, u16);
+
 static inline void qlcnic_enable_tx_intr(struct qlcnic_adapter *adapter,
 					 struct qlcnic_host_tx_ring *tx_ring)
 {
@@ -206,8 +213,8 @@ static struct qlcnic_filter *qlcnic_find_mac_filter(struct hlist_head *head,
 	return NULL;
 }
 
-void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter, struct sk_buff *skb,
-			  int loopback_pkt, u16 vlan_id)
+static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
+				 struct sk_buff *skb, int loopback_pkt, u16 vlan_id)
 {
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	struct qlcnic_filter *fil, *tmp_fil;
@@ -1248,7 +1255,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	return buffer;
 }
 
-int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
+static int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
 {
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct qlcnic_adapter *adapter = sds_ring->adapter;
@@ -2040,8 +2047,8 @@ void qlcnic_83xx_napi_del(struct qlcnic_adapter *adapter)
 	qlcnic_free_tx_rings(adapter);
 }
 
-void qlcnic_83xx_process_rcv_diag(struct qlcnic_adapter *adapter,
-				  int ring, u64 sts_data[])
+static void qlcnic_83xx_process_rcv_diag(struct qlcnic_adapter *adapter,
+					 int ring, u64 sts_data[])
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct sk_buff *skb;

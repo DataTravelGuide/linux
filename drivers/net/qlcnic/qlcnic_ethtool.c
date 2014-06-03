@@ -278,21 +278,8 @@ qlcnic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->version));
 }
 
-static int
-qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if (qlcnic_82xx_check(adapter))
-		return qlcnic_82xx_get_settings(adapter, ecmd);
-	else if (qlcnic_83xx_check(adapter))
-		return qlcnic_83xx_get_settings(adapter, ecmd);
-
-	return -EIO;
-}
-
-int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
-			     struct ethtool_cmd *ecmd)
+static int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
+				    struct ethtool_cmd *ecmd)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 speed, reg;
@@ -432,6 +419,20 @@ skip:
 
 	return 0;
 }
+
+static int qlcnic_get_settings(struct net_device *dev,
+			       struct ethtool_cmd *ecmd)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	if (qlcnic_82xx_check(adapter))
+		return qlcnic_82xx_get_settings(adapter, ecmd);
+	else if (qlcnic_83xx_check(adapter))
+		return qlcnic_83xx_get_settings(adapter, ecmd);
+
+	return -EIO;
+}
+
 
 static int qlcnic_set_port_config(struct qlcnic_adapter *adapter,
 				  struct ethtool_cmd *ecmd)
