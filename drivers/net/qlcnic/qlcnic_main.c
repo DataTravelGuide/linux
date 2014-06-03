@@ -2031,7 +2031,7 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 		return err;
 	}
 
-	qlcnic_dcb_init_dcbnl_ops(adapter);
+	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
 
 	return 0;
 }
@@ -2129,17 +2129,6 @@ void qlcnic_set_drv_version(struct qlcnic_adapter *adapter)
 		qlcnic_fw_cmd_set_drv_version(adapter, fw_cmd);
 }
 
-static int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
-{
-	return __qlcnic_register_dcb(adapter);
-}
-
-void qlcnic_clear_dcb_ops(struct qlcnic_adapter *adapter)
-{
-	kfree(adapter->dcb);
-	adapter->dcb = NULL;
-}
-
 static int __devinit
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -2148,6 +2137,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct qlcnic_hardware_context *ahw;
 	int err, pci_using_dac = -1;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
+	struct qlcnic_dcb *dcb;
 
 	if (pdev->is_virtfn)
 		return -ENODEV;
@@ -2267,8 +2257,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		adapter->flags |= QLCNIC_NEED_FLR;
 
-		if (adapter->dcb && qlcnic_dcb_attach(adapter))
-			qlcnic_clear_dcb_ops(adapter);
+		dcb = adapter->dcb;
+
+		if (dcb && qlcnic_dcb_attach(dcb))
+			qlcnic_clear_dcb_ops(dcb);
 
 	} else if (qlcnic_83xx_check(adapter)) {
 		adapter->max_drv_tx_rings = 1;
@@ -2411,7 +2403,7 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_cancel_idc_work(adapter);
 	ahw = adapter->ahw;
 
-	qlcnic_dcb_free(adapter);
+	qlcnic_dcb_free(adapter->dcb);
 
 	unregister_netdev(netdev);
 	qlcnic_sriov_cleanup(adapter);
@@ -3290,7 +3282,7 @@ qlcnic_attach_work(struct work_struct *work)
 		return;
 	}
 attach:
-	qlcnic_dcb_get_info(adapter);
+	qlcnic_dcb_get_info(adapter->dcb);
 
 	if (netif_running(netdev)) {
 		if (qlcnic_up(adapter, netdev))
