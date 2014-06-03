@@ -416,6 +416,7 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 		return -EPERM;
 	}
 
+	rtnl_lock();
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);
 
@@ -426,12 +427,15 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 	/* After disabling SRIOV re-init the driver in default mode
 	   configure opmode based on op_mode of function
 	 */
-	if (qlcnic_83xx_configure_opmode(adapter))
+	if (qlcnic_83xx_configure_opmode(adapter)) {
+		rtnl_unlock();
 		return -EIO;
+	}
 
 	if (netif_running(netdev))
 		__qlcnic_up(adapter, netdev);
 
+	rtnl_unlock();
 	return 0;
 }
 
@@ -552,6 +556,7 @@ static int qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter, int num_vfs)
 		return -EIO;
 	}
 
+	rtnl_lock();
 	if (netif_running(netdev))
 		__qlcnic_down(adapter, netdev);
 
@@ -574,6 +579,7 @@ static int qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter, int num_vfs)
 		__qlcnic_up(adapter, netdev);
 
 error:
+	rtnl_unlock();
 	return err;
 }
 
