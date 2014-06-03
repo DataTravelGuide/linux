@@ -917,158 +917,6 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 	return size;
 }
 
-int qlcnic_validate_max_rss(struct qlcnic_adapter *adapter,
-			    __u32 val)
-{
-	struct net_device *netdev = adapter->netdev;
-	u8 max_hw = adapter->ahw->max_rx_ques;
-	u32 max_allowed;
-
-	if (val > QLC_MAX_SDS_RINGS) {
-		netdev_err(netdev, "RSS value should not be higher than %u\n",
-			   QLC_MAX_SDS_RINGS);
-		return -EINVAL;
-	}
-
-	max_allowed = rounddown_pow_of_two(
-				min_t(int, max_hw, num_online_cpus()));
-	if ((val > max_allowed) || (val <  2) || !is_power_of_2(val)) {
-		if (!is_power_of_2(val))
-			netdev_err(netdev, "RSS value should be a power of 2\n");
-
-		if (val < 2)
-			netdev_err(netdev, "RSS value should not be lower than 2\n");
-
-		if (val > max_hw)
-			netdev_err(netdev,
-				   "RSS value should not be higher than[%u], the max RSS rings supported by the adapter\n",
-				   max_hw);
-
-		if (val > num_online_cpus())
-			netdev_err(netdev,
-				   "RSS value should not be higher than[%u], number of online CPUs in the system\n",
-				   num_online_cpus());
-
-		netdev_err(netdev, "Unable to configure %u RSS rings\n", val);
-
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
-{
-	int err;
-	struct net_device *netdev = adapter->netdev;
-
-	rtnl_lock();
-	netif_device_detach(netdev);
-	if (netif_running(netdev))
-		__qlcnic_down(adapter, netdev);
-
-	qlcnic_detach(adapter);
-
-	if (qlcnic_83xx_check(adapter)) {
-		qlcnic_83xx_enable_mbx_poll(adapter);
-		qlcnic_83xx_free_mbx_intr(adapter);
-	}
-
-	qlcnic_teardown_intr(adapter);
-	err = qlcnic_setup_intr(adapter, data);
-	if (err) {
-		kfree(adapter->msix_entries);
-		dev_err(&adapter->pdev->dev, "failed to setup interrupt\n");
-		return err;
-	}
-
-	if (qlcnic_83xx_check(adapter)) {
-		/* Register for NIC IDC AEN Events */
-		qlcnic_83xx_register_nic_idc_func(adapter, 1);
-
-		err = qlcnic_83xx_setup_mbx_intr(adapter);
-		qlcnic_83xx_disable_mbx_poll(adapter);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-				"failed to setup mbx interrupt\n");
-			goto done;
-		}
-	}
-
-	if (netif_running(netdev)) {
-		err = qlcnic_attach(adapter);
-		if (err)
-			goto done;
-		err = __qlcnic_up(adapter, netdev);
-		if (err)
-			goto done;
-		qlcnic_restore_indev_addr(netdev, NETDEV_UP);
-	}
-	err = len;
- done:
-	netif_device_attach(netdev);
-	rtnl_unlock();
-	return err;
-
-}
-
-static ssize_t qlcnic_store_max_rss(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t len)
-{
-	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
-	struct net_device *netdev = adapter->netdev;
-	unsigned long data;
-	int err;
-
-	if (qlcnic_sriov_vf_check(adapter))
-		return -EOPNOTSUPP;
-
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return -EBUSY;
-
-	if (strict_strtoul(buf, 10, &data)) {
-		err = -EINVAL;
-		goto done;
-	}
-
-	if (!(adapter->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))) {
-		netdev_err(netdev, "no msix or msi support, hence no rss\n");
-		err = -EINVAL;
-		goto done;
-	}
-
-	if (data == adapter->max_sds_rings) {
-		err = len;
-		goto done;
-	}
-
-	err = qlcnic_validate_max_rss(adapter, data);
-	if (err) {
-		netdev_err(netdev,
-			   "rss_ring valid range[1 - %d] in powers of 2\n",
-			    err);
-		err = -EINVAL;
-		goto done;
-	}
-
-	err = qlcnic_set_max_rss(adapter, data, len);
- done:
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	netdev_info(netdev, "allocated 0x%x sds rings\n",
-			adapter->max_sds_rings);
-	return err;
-}
-
-static ssize_t qlcnic_show_max_rss(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
-{
-	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", adapter->max_sds_rings);
-}
-
 static ssize_t qlcnic_show_elb_mode(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
@@ -1350,12 +1198,6 @@ static struct device_attribute dev_attr_elb_mode = {
 	.store = qlcnic_store_elb_mode,
 };
 
-static struct device_attribute dev_attr_max_rss = {
-	.attr = {.name = "max_rss", .mode = (S_IRUGO | S_IWUSR)},
-	.show = qlcnic_show_max_rss,
-	.store = qlcnic_store_max_rss,
-};
-
 static struct device_attribute dev_attr_bridged_mode = {
        .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
        .show = qlcnic_show_bridged_mode,
@@ -1473,8 +1315,6 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 
 	if (device_create_file(dev, &dev_attr_beacon))
 		dev_info(dev, "failed to create beacon sysfs entry");
-	if (device_create_file(dev, &dev_attr_max_rss))
-		dev_info(dev, "failed to create rss sysfs entry\n");
 	if (device_create_file(dev, &dev_attr_elb_mode))
 		dev_info(dev, "failed to create elb_mode sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_pci_config))
@@ -1505,7 +1345,6 @@ void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
 	device_remove_file(dev, &dev_attr_beacon);
-	device_remove_file(dev, &dev_attr_max_rss);
 	device_remove_file(dev, &dev_attr_elb_mode);
 	device_remove_bin_file(dev, &bin_attr_pci_config);
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
@@ -1548,15 +1387,10 @@ void qlcnic_83xx_remove_sysfs(struct qlcnic_adapter *adapter)
 
 void qlcnic_sriov_vf_add_sysfs(struct qlcnic_adapter *adapter)
 {
-	struct device *dev = &adapter->pdev->dev;
-
-	if (device_create_file(dev, &dev_attr_max_rss))
-		dev_info(dev, "failed to create rss sysfs entry\n");
+	return;
 }
 
 void qlcnic_sriov_vf_remove_sysfs(struct qlcnic_adapter *adapter)
 {
-	struct device *dev = &adapter->pdev->dev;
-
-	device_remove_file(dev, &dev_attr_max_rss);
+	return;
 }
