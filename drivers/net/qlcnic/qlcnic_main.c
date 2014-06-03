@@ -2455,8 +2455,6 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_cancel_idc_work(adapter);
 	ahw = adapter->ahw;
 
-	qlcnic_dcb_free(adapter->dcb);
-
 	unregister_netdev(netdev);
 	qlcnic_sriov_cleanup(adapter);
 
@@ -2468,6 +2466,8 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 		qlcnic_83xx_free_mailbox(ahw->mailbox);
 		kfree(ahw->fw_info);
 	}
+
+	qlcnic_dcb_free(adapter->dcb);
 
 	qlcnic_detach(adapter);
 
