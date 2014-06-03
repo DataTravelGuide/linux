@@ -526,10 +526,10 @@ static void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 		qlcnic_alloc_lb_filters_mem(adapter);
 		adapter->mac_learn = 1;
 		if (adapter->flags & QLCNIC_ESWITCH_ENABLED)
-			adapter->rx_mac_learn = 1;
+			adapter->rx_mac_learn = true;
 	} else {
 		adapter->mac_learn = 0;
-		adapter->rx_mac_learn = 0;
+		adapter->rx_mac_learn = false;
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);
