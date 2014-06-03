@@ -139,12 +139,6 @@ static int ixgbevf_set_rx_csum(struct net_device *netdev, u32 data)
 	else
 		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
 
-	if (netif_running(netdev)) {
-		ixgbevf_reinit_locked(adapter);
-	} else {
-		ixgbevf_reset(adapter);
-	}
-
 	return 0;
 }
 
