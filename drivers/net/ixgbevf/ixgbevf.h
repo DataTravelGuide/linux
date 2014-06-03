@@ -37,6 +37,7 @@
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 #include <net/busy_poll.h>
+#define BP_EXTENDED_STATS
 #endif
 
 /* wrapper around a pointer to a socket buffer,
@@ -72,14 +73,18 @@ struct ixgbevf_ring {
 		struct ixgbevf_rx_buffer *rx_buffer_info;
 	};
 
-	u16 head;
-	u16 tail;
-
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
 	u64 hw_csum_rx_error;
 	u64 hw_csum_rx_good;
+#ifdef BP_EXTENDED_STATS
+	u64 bp_yields;
+	u64 bp_misses;
+	u64 bp_cleaned;
+#endif
+	u16 head;
+	u16 tail;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
@@ -178,6 +183,9 @@ static inline bool ixgbevf_qv_lock_napi(struct ixgbevf_q_vector *q_vector)
 		WARN_ON(q_vector->state & IXGBEVF_QV_STATE_NAPI);
 		q_vector->state |= IXGBEVF_QV_STATE_NAPI_YIELD;
 		rc = false;
+#ifdef BP_EXTENDED_STATS
+		q_vector->tx.ring->bp_yields++;
+#endif
 	} else {
 		/* we don't care if someone yielded */
 		q_vector->state = IXGBEVF_QV_STATE_NAPI;
@@ -210,6 +218,9 @@ static inline bool ixgbevf_qv_lock_poll(struct ixgbevf_q_vector *q_vector)
 	if ((q_vector->state & IXGBEVF_QV_LOCKED)) {
 		q_vector->state |= IXGBEVF_QV_STATE_POLL_YIELD;
 		rc = false;
+#ifdef BP_EXTENDED_STATS
+		q_vector->rx.ring->bp_yields++;
+#endif
 	} else {
 		/* preserve yield marks */
 		q_vector->state |= IXGBEVF_QV_STATE_POLL;
@@ -356,6 +367,16 @@ struct ixgbevf_adapter {
 	u64 tx_busy;
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
+
+#ifdef BP_EXTENDED_STATS
+	u64 bp_rx_yields;
+	u64 bp_rx_cleaned;
+	u64 bp_rx_missed;
+
+	u64 bp_tx_yields;
+	u64 bp_tx_cleaned;
+	u64 bp_tx_missed;
+#endif
 
 	u32 link_speed;
 	bool link_up;
