@@ -2646,7 +2646,7 @@ que_init:
 	}
 
 	if (IS_QLAFX00(ha))
-		host->can_queue = 1024;
+		host->can_queue = QLAFX00_MAX_CANQUEUE;
 	else
 		host->can_queue = req->num_outstanding_cmds - 10;
 
