@@ -59,7 +59,7 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 
 int cap_netlink_recv(struct sk_buff *skb, int cap)
 {
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
+	if (!cap_raised(current_cap(), cap))
 		return -EPERM;
 	return 0;
 }
