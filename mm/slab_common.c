@@ -301,7 +301,6 @@ void kmem_cache_destroy(struct kmem_cache *s)
 		goto out_unlock;
 
 	list_del(&s->list);
-	memcg_release_cache(s);
 
 	if (__kmem_cache_shutdown(s) != 0) {
 		list_add(&s->list, &slab_caches);
@@ -314,6 +313,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	mutex_unlock(&slab_mutex);
 	if (s->flags & SLAB_DESTROY_BY_RCU)
 		rcu_barrier();
+
+	memcg_free_cache_params(s);
 
 	kfree(s->name);
 	kmem_cache_free(kmem_cache, s);
