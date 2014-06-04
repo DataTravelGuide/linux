@@ -3215,6 +3215,7 @@ struct qla_hw_data {
 	uint16_t	thermal_support;
 #define THERMAL_SUPPORT_I2C BIT_0
 #define THERMAL_SUPPORT_ISP BIT_1
+	int	allow_cna_fw_dump;
 };
 
 /*
