@@ -3475,7 +3475,6 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	unsigned long flags;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	struct device_reg_25xxmq __iomem *reg;
 	struct qla_hw_data *ha = vha->hw;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10d3,
@@ -3495,9 +3494,6 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	mcp->mb[13] = req->rid;
 	if (IS_QLA83XX(ha))
 		mcp->mb[15] = 0;
-
-	reg = (struct device_reg_25xxmq __iomem *)((ha->mqiobase) +
-		QLA_QUE_PAGE * req->id);
 
 	mcp->mb[4] = req->id;
 	/* que in ptr index */
@@ -3520,12 +3516,10 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(req->options & BIT_0)) {
-		WRT_REG_DWORD(&reg->req_q_in, 0);
+		WRT_REG_DWORD(req->req_q_in, 0);
 		if (!IS_QLA83XX(ha))
-			WRT_REG_DWORD(&reg->req_q_out, 0);
+			WRT_REG_DWORD(req->req_q_out, 0);
 	}
-	req->req_q_in = &reg->req_q_in;
-	req->req_q_out = &reg->req_q_out;
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -3547,7 +3541,6 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	unsigned long flags;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	struct device_reg_25xxmq __iomem *reg;
 	struct qla_hw_data *ha = vha->hw;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10d6,
@@ -3564,9 +3557,6 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mcp->mb[13] = rsp->rid;
 	if (IS_QLA83XX(ha))
 		mcp->mb[15] = 0;
-
-	reg = (struct device_reg_25xxmq __iomem *)((ha->mqiobase) +
-		QLA_QUE_PAGE * rsp->id);
 
 	mcp->mb[4] = rsp->id;
 	/* que in ptr index */
@@ -3591,9 +3581,9 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(rsp->options & BIT_0)) {
-		WRT_REG_DWORD(&reg->rsp_q_out, 0);
+		WRT_REG_DWORD(rsp->rsp_q_out, 0);
 		if (!IS_QLA83XX(ha))
-			WRT_REG_DWORD(&reg->rsp_q_in, 0);
+			WRT_REG_DWORD(rsp->rsp_q_in, 0);
 	}
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
