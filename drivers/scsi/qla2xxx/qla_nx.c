@@ -2212,8 +2212,8 @@ qla82xx_poll(int irq, void *dev_id)
 			    stat * 0xff);
 			break;
 		}
+		WRT_REG_DWORD(&reg->host_int, 0);
 	}
-	WRT_REG_DWORD(&reg->host_int, 0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
