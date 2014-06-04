@@ -3290,9 +3290,10 @@ typedef struct scsi_qla_host {
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 #define SCR_PENDING		21	/* SCR in target mode */
-#define PORT_UPDATE_NEEDED	22
-#define FX00_RESET_RECOVERY	23
-#define FX00_TARGET_SCAN	24
+#define PORT_UPDATE_NEEDED	24
+#define FX00_RESET_RECOVERY	25
+#define FX00_TARGET_SCAN	26
+#define FX00_CRITEMP_RECOVERY	27
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
