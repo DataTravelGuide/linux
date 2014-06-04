@@ -114,6 +114,7 @@ extern int ql2xmdcapmask;
 extern int ql2xmdenable;
 extern int ql2xenabledif;
 extern int ql2xenablehba_err_chk;
+extern int ql2xtargetreset;
 extern int ql2xasynclogin;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
@@ -592,6 +593,7 @@ extern void qlafx00_abort_iocb(srb_t *, struct abort_iocb_entry_fx00 *);
 extern void qlafx00_fxdisc_iocb(srb_t *, struct fxdisc_entry_fx00 *);
 extern void qlafx00_timer_routine(scsi_qla_host_t *);
 extern int qlafx00_rescan_isp(scsi_qla_host_t *);
+extern int qlafx00_loop_reset(scsi_qla_host_t *vha);
 
 /* qla82xx related functions */
 
