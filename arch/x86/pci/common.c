@@ -432,7 +432,7 @@ void __init dmi_check_pciprobe(void)
 	dmi_check_system(pciprobe_dmi_table);
 }
 
-void pcibios_scan_root(int busnum)
+void __devinit pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus;
 	struct pci_sysdata *sd;
