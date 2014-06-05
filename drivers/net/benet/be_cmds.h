@@ -1537,12 +1537,17 @@ struct be_cmd_req_set_mac_list {
 } __packed;
 
 /*********************** HSW Config ***********************/
+#define PORT_FWD_TYPE_VEPA		0x3
+#define PORT_FWD_TYPE_VEB		0x2
+
 struct amap_set_hsw_context {
 	u8 interface_id[16];
 	u8 rsvd0[14];
 	u8 pvid_valid;
-	u8 rsvd1;
-	u8 rsvd2[16];
+	u8 pport;
+	u8 rsvd1[6];
+	u8 port_fwd_type[3];
+	u8 rsvd2[7];
 	u8 pvid[16];
 	u8 rsvd3[32];
 	u8 rsvd4[32];
@@ -1567,7 +1572,9 @@ struct amap_get_hsw_req_context {
 } __packed;
 
 struct amap_get_hsw_resp_context {
-	u8 rsvd1[16];
+	u8 rsvd0[6];
+	u8 port_fwd_type[3];
+	u8 rsvd1[7];
 	u8 pvid[16];
 	u8 rsvd2[32];
 	u8 rsvd3[32];
@@ -2036,10 +2043,10 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac);
 int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);
 int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom);
-int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
-			  u16 intf_id);
-int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
-			  u16 intf_id);
+int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
+			  u32 domain, u16 intf_id, u16 hsw_mode);
+int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
+			  u32 domain, u16 intf_id, u8 *mode);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 int be_cmd_get_ext_fat_capabilites(struct be_adapter *adapter,
 				   struct be_dma_mem *cmd);
