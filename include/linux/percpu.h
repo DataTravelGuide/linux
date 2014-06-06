@@ -183,8 +183,8 @@ extern void __percpu *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void __percpu *__pdata);
 extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
-#define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type), \
-						       __alignof__(type))
+#define alloc_percpu(type)	\
+	(typeof(type) *)__alloc_percpu(sizeof(type), __alignof__(type))
 
 /*
  * Optional methods for optimized non-lvalue per-cpu variable access.
