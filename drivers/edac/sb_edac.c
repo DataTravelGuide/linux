@@ -311,8 +311,6 @@ struct sbridge_channel {
 };
 
 struct pci_id_descr {
-	int			dev;
-	int			func;
 	int 			dev_id;
 	int			optional;
 };
@@ -362,31 +360,29 @@ struct sbridge_pvt {
 	u64			tolm, tohm;
 };
 
-#define PCI_DESCR(device, function, device_id, opt)	\
-	.dev = (device),				\
-	.func = (function),				\
-	.dev_id = (device_id),				\
+#define PCI_DESCR(device_id, opt)	\
+	.dev_id = (device_id),		\
 	.optional = opt
 
 static const struct pci_id_descr pci_dev_descr_sbridge[] = {
 		/* Processor Home Agent */
-	{ PCI_DESCR(14, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0, 0)	},
 
 		/* Memory controller */
-	{ PCI_DESCR(15, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA, 0)	},
-	{ PCI_DESCR(15, 1, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS, 0)	},
-	{ PCI_DESCR(15, 2, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0, 0)	},
-	{ PCI_DESCR(15, 3, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1, 0)	},
-	{ PCI_DESCR(15, 4, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2, 0)	},
-	{ PCI_DESCR(15, 5, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3, 0)	},
-	{ PCI_DESCR(17, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO, 1)	},
 
 		/* System Address Decoder */
-	{ PCI_DESCR(12, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0, 0)		},
-	{ PCI_DESCR(12, 7, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1, 0)	},
 
 		/* Broadcast Registers */
-	{ PCI_DESCR(13, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
 };
 
 #define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
@@ -423,34 +419,34 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 
 static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 		/* Processor Home Agent */
-	{ PCI_DESCR(14, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0, 0)		},
 
 		/* Memory controller */
-	{ PCI_DESCR(15, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA, 0)	},
-	{ PCI_DESCR(15, 1, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS, 0)	},
-	{ PCI_DESCR(15, 2, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0, 0)	},
-	{ PCI_DESCR(15, 3, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(15, 4, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2, 0)	},
-	{ PCI_DESCR(15, 5, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3, 0)	},
 
 		/* System Address Decoder */
-	{ PCI_DESCR(22, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_SAD, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_SAD, 0)			},
 
 		/* Broadcast Registers */
-	{ PCI_DESCR(22, 1, PCI_DEVICE_ID_INTEL_IBRIDGE_BR0, 1)		},
-	{ PCI_DESCR(22, 2, PCI_DEVICE_ID_INTEL_IBRIDGE_BR1, 0)		},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR0, 1)			},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_BR1, 0)			},
 
 		/* Optional, mode 2HA */
-	{ PCI_DESCR(28, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1, 1)		},
 #if 0
-	{ PCI_DESCR(29, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA, 1)	},
-	{ PCI_DESCR(29, 1, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TA, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_RAS, 1)	},
 #endif
-	{ PCI_DESCR(29, 2, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0, 1)	},
-	{ PCI_DESCR(29, 3, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1, 1)	},
 
-	{ PCI_DESCR(17, 0, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0, 1) },
-	{ PCI_DESCR(17, 4, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0, 1) },
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0, 1)	},
 };
 
 static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
@@ -633,28 +629,18 @@ static inline u8 sad_pkg_ha(u8 pkg)
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
-static struct pci_dev *get_pdev_slot_func(u8 bus, unsigned slot,
-					  unsigned func)
+
+static struct pci_dev *get_pdev_same_bus(u8 bus, u32 id)
 {
-	struct sbridge_dev *sbridge_dev = get_sbridge_dev(bus);
-	int i;
+	struct pci_dev *pdev = NULL;
 
-	if (!sbridge_dev)
-		return NULL;
+	do {
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, id, pdev);
+		if (pdev && pdev->bus->number == bus)
+			break;
+	} while (pdev);
 
-	for (i = 0; i < sbridge_dev->n_devs; i++) {
-		if (!sbridge_dev->pdev[i])
-			continue;
-
-		if (PCI_SLOT(sbridge_dev->pdev[i]->devfn) == slot &&
-		    PCI_FUNC(sbridge_dev->pdev[i]->devfn) == func) {
-			debugf1("Associated %02x.%02x.%d with %p\n",
-				bus, slot, func, sbridge_dev->pdev[i]);
-			return sbridge_dev->pdev[i];
-		}
-	}
-
-	return NULL;
+	return pdev;
 }
 
 /**
@@ -677,17 +663,22 @@ static int sbridge_get_active_channels(const u8 bus, enum type type,
 {
 	struct pci_dev *pdev = NULL;
 	int i, j;
-	u32 mcmtr;
+	u32 mcmtr, id;
 	bool ha2 = false;
 
 	*channels = 0;
 	*csrows = 0;
 
-	pdev = get_pdev_slot_func(bus, 15, 0);
+	if (type == IVY_BRIDGE)
+		id = PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA;
+	else
+		id = PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA;
+
+	pdev = get_pdev_same_bus(bus, id);
 	if (!pdev) {
 		sbridge_printk(KERN_ERR, "Couldn't find PCI device "
-					"%2x.%02d.%d!!!\n",
-					bus, 15, 0);
+					"%04x:%04x! on bus %02d\n",
+					PCI_VENDOR_ID_INTEL, id, bus);
 		return -ENODEV;
 	}
 
@@ -697,7 +688,7 @@ static int sbridge_get_active_channels(const u8 bus, enum type type,
 		return -ENODEV;
 	}
 
-	if (type == IVY_BRIDGE && get_pdev_slot_func(bus, 28, 0))
+	if (type == IVY_BRIDGE && get_pdev_same_bus(bus, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1))
 		ha2 = true;
 
 	for (i = 0; i < NUM_CHANNELS; i++) {
@@ -705,14 +696,14 @@ static int sbridge_get_active_channels(const u8 bus, enum type type,
 
 		if (type == SANDY_BRIDGE) {
 			/* Device 15 functions 2 - 5  */
-			pdev = get_pdev_slot_func(bus, 15, 2 + i);
+			pdev = get_pdev_same_bus(bus, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0 + i);
 		} else {
 			/* In 2HA mode, channels 2, 3 are in a different
 			 * device */
 			if (i < 2 || !ha2)
-				pdev = get_pdev_slot_func(bus, 15, 2 + i);
+				pdev = get_pdev_same_bus(bus, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0 + i);
 			else
-				pdev = get_pdev_slot_func(bus, 29, i);
+				pdev = get_pdev_same_bus(bus, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0 + (i - 2));
 		}
 		if (!pdev) {
 			sbridge_printk(KERN_ERR, "Couldn't find PCI device "
@@ -1353,13 +1344,11 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 {
 	struct sbridge_dev *sbridge_dev;
 	const struct pci_id_descr *dev_descr = &table->descr[devno];
-
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
 
 	sbridge_printk(KERN_INFO,
-		"Seeking for: dev %02x.%d PCI ID %04x:%04x\n",
-		dev_descr->dev, dev_descr->func,
+		"Seeking for: PCI ID %04x:%04x\n",
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
@@ -1374,12 +1363,12 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 		if (dev_descr->optional)
 			return 0;
 
+		/* if the HA wasn't found */
 		if (devno == 0)
 			return -ENODEV;
 
 		sbridge_printk(KERN_INFO,
-			"Device not found: dev %02x.%d PCI ID %04x:%04x\n",
-			dev_descr->dev, dev_descr->func,
+			"Device not found: %04x:%04x\n",
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 		/* End of list, leave */
@@ -1399,9 +1388,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 
 	if (sbridge_dev->pdev[devno]) {
 		sbridge_printk(KERN_ERR,
-			"Duplicated device for "
-			"dev %02x:%d.%d PCI ID %04x:%04x\n",
-			bus, dev_descr->dev, dev_descr->func,
+			"Duplicated device for %04x:%04x\n",
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 		pci_dev_put(pdev);
 		return -ENODEV;
@@ -1409,31 +1396,15 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 
 	sbridge_dev->pdev[devno] = pdev;
 
-	/* Sanity check */
-	if (unlikely(PCI_SLOT(pdev->devfn) != dev_descr->dev ||
-			PCI_FUNC(pdev->devfn) != dev_descr->func)) {
-		sbridge_printk(KERN_ERR,
-			"Device PCI ID %04x:%04x "
-			"has dev %02x:%d.%d instead of dev %02x:%02x.%d\n",
-			PCI_VENDOR_ID_INTEL, dev_descr->dev_id,
-			bus, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-			bus, dev_descr->dev, dev_descr->func);
-		return -ENODEV;
-	}
-
 	/* Be sure that the device is enabled */
 	if (unlikely(pci_enable_device(pdev) < 0)) {
 		sbridge_printk(KERN_ERR,
-			"Couldn't enable "
-			"dev %02x:%d.%d PCI ID %04x:%04x\n",
-			bus, dev_descr->dev, dev_descr->func,
+			"Couldn't enable %04x:%04x\n",
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 		return -ENODEV;
 	}
 
-	debugf0("Detected dev %02x:%d.%d PCI ID %04x:%04x\n",
-		bus, dev_descr->dev,
-		dev_descr->func,
+	debugf0("Detected %04x:%04x\n",
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 	/*
@@ -1450,8 +1421,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 
 /*
  * sbridge_get_all_devices - Find and perform 'get' operation on the MCH's
- *			     device/functions we want to reference for this driver.
- *			     Need to 'get' device 16 func 1 and func 2.
+ *			     devices we want to reference for this driver.
  * @num_mc: pointer to the memory controllers count, to be incremented in case
  * 	    of success.
  * @table: model specific table
@@ -1491,79 +1461,51 @@ static int sbridge_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
-	int i, func, slot;
+	int i;
 
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
 		pdev = sbridge_dev->pdev[i];
 		if (!pdev)
 			continue;
-		slot = PCI_SLOT(pdev->devfn);
-		func = PCI_FUNC(pdev->devfn);
-		switch (slot) {
-		case 12:
-			switch (func) {
-			case 6:
-				pvt->pci_sad0 = pdev;
-				break;
-			case 7:
-				pvt->pci_sad1 = pdev;
-				break;
-			default:
-				goto error;
-			}
+
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0:
+			pvt->pci_sad0 = pdev;
 			break;
-		case 13:
-			switch (func) {
-			case 6:
-				pvt->pci_br0 = pdev;
-				break;
-			default:
-				goto error;
-			}
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1:
+			pvt->pci_sad1 = pdev;
 			break;
-		case 14:
-			switch (func) {
-			case 0:
-				pvt->pci_ha0 = pdev;
-				break;
-			default:
-				goto error;
-			}
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_BR:
+			pvt->pci_br0 = pdev;
 			break;
-		case 15:
-			switch (func) {
-			case 0:
-				pvt->pci_ta = pdev;
-				break;
-			case 1:
-				pvt->pci_ras = pdev;
-				break;
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-				pvt->pci_tad[func - 2] = pdev;
-				break;
-			default:
-				goto error;
-			}
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0:
+			pvt->pci_ha0 = pdev;
 			break;
-		case 17:
-			switch (func) {
-			case 0:
-				pvt->pci_ddrio = pdev;
-				break;
-			default:
-				goto error;
-			}
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA:
+			pvt->pci_ta = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS:
+			pvt->pci_ras = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0:
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1:
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2:
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0;
+			pvt->pci_tad[id] = pdev;
+		}
+			break;
+		case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO:
+			pvt->pci_ddrio = pdev;
 			break;
 		default:
 			goto error;
 		}
 
-		debugf0("Associated PCI %02x.%02d.%d with dev = %p\n",
+		debugf0("Associated PCI %02x:%02x, bus %d with dev = %p\n",
+			pdev->vendor, pdev->device,
 			sbridge_dev->bus,
-			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 			pdev);
 	}
 
@@ -1583,9 +1525,8 @@ enodev:
 	return -ENODEV;
 
 error:
-	sbridge_printk(KERN_ERR, "Device %d, function %d "
-		      "is out of the expected range\n",
-		      slot, func);
+	sbridge_printk(KERN_ERR, "Unexpected device %02x:%02x\n",
+		       PCI_VENDOR_ID_INTEL, pdev->device);
 	return -EINVAL;
 }
 
@@ -1594,7 +1535,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev, *tmp;
-	int i, func, slot;
+	int i;
 	bool mode_2ha = false;
 
 	tmp = pci_get_device(PCI_VENDOR_ID_INTEL,
@@ -1608,79 +1549,60 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 		pdev = sbridge_dev->pdev[i];
 		if (!pdev)
 			continue;
-		slot = PCI_SLOT(pdev->devfn);
-		func = PCI_FUNC(pdev->devfn);
 
-		switch (slot) {
-		case 14:
-			if (func == 0) {
-				pvt->pci_ha0 = pdev;
-				break;
-			}
-			goto error;
-		case 15:
-			switch (func) {
-			case 0:
-				pvt->pci_ta = pdev;
-				break;
-			case 1:
-				pvt->pci_ras = pdev;
-				break;
-			case 4:
-			case 5:
-				/* if we have 2 HAs active, channels 2 and 3
-				 * are in other device */
-				if (mode_2ha)
-					break;
-				/* fall through */
-			case 2:
-			case 3:
-				pvt->pci_tad[func - 2] = pdev;
-				break;
-			default:
-				goto error;
-			}
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0:
+			pvt->pci_ha0 = pdev;
 			break;
-		case 17:
-			if (func == 4) {
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
+			pvt->pci_ta = pdev;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS:
+			pvt->pci_ras = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD2:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD3:
+			/* if we have 2 HAs active, channels 2 and 3
+			 * are in other device */
+			if (mode_2ha)
+				break;
+			/* fall through */
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD1:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TAD0;
+			pvt->pci_tad[id] = pdev;
+		}
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_2HA_DDRIO0:
+			pvt->pci_ddrio = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_1HA_DDRIO0:
+			if (!mode_2ha)
 				pvt->pci_ddrio = pdev;
-				break;
-			} else if (func == 0) {
-				if (!mode_2ha)
-					pvt->pci_ddrio = pdev;
-				break;
-			}
-			goto error;
-		case 22:
-			switch (func) {
-			case 0:
-				pvt->pci_sad0 = pdev;
-				break;
-			case 1:
-				pvt->pci_br0 = pdev;
-				break;
-			case 2:
-				pvt->pci_br1 = pdev;
-				break;
-			default:
-				goto error;
-			}
 			break;
-		case 28:
-			if (func == 0) {
-				pvt->pci_ha1 = pdev;
-				break;
-			}
-			goto error;
-		case 29:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_SAD:
+			pvt->pci_sad0 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_BR0:
+			pvt->pci_br0 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_BR1:
+			pvt->pci_br1 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1:
+			pvt->pci_ha1 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0:
+		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD1:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA1_TAD0 + 2;
+
 			/* we shouldn't have this device if we have just one
 			 * HA present */
 			WARN_ON(!mode_2ha);
-			if (func == 2 || func == 3) {
-				pvt->pci_tad[func] = pdev;
-				break;
-			}
-			goto error;
+			pvt->pci_tad[id] = pdev;
+		}
+			break;
 		default:
 			goto error;
 		}
@@ -1709,8 +1631,8 @@ enodev:
 
 error:
 	sbridge_printk(KERN_ERR,
-		       "Device %d, function %d is out of the expected range\n",
-		       slot, func);
+		       "Unexpected device %02x:%02x\n", PCI_VENDOR_ID_INTEL,
+			pdev->device);
 	return -EINVAL;
 }
 
