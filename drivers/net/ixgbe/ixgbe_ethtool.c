@@ -1186,9 +1186,10 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
                                     struct ethtool_stats *stats, u64 *data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_ring *ring;
 	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *net_stats;
+	unsigned int start;
+	struct ixgbe_ring *ring;
 	int i, j;
 	char *p = NULL;
 
@@ -1228,9 +1229,10 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 		}
 
 		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
 			data[i]   = ring->stats.packets;
 			data[i+1] = ring->stats.bytes;
-		} while (0);
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
 		i += 2;
 #ifdef BP_EXTENDED_STATS
 		data[i] = ring->stats.yields;
@@ -1255,9 +1257,10 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 		}
 
 		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
 			data[i]   = ring->stats.packets;
 			data[i+1] = ring->stats.bytes;
-		} while (0);
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
 		i += 2;
 #ifdef BP_EXTENDED_STATS
 		data[i] = ring->stats.yields;

@@ -36,6 +36,7 @@
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
+#include <linux/u64_stats_sync.h>
 
 #ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
@@ -272,6 +273,7 @@ struct ixgbe_ring {
 
 	u8 dcb_tc;
 	struct ixgbe_queue_stats stats;
+	struct u64_stats_sync syncp;
 	union {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
