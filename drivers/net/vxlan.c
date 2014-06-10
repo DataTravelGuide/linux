@@ -1562,9 +1562,9 @@ static struct rtnl_link_stats64 *vxlan_stats64(struct net_device *dev,
 			= per_cpu_ptr(vxlan->stats, cpu);
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->syncp);
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
 			memcpy(&tmp, stats, sizeof(tmp));
-		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 
 		sum.tx_bytes   += tmp.tx_bytes;
 		sum.tx_packets += tmp.tx_packets;
