@@ -782,6 +782,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	enum {ACTION_FAIL, ACTION_REPREP, ACTION_RETRY,
 	      ACTION_DELAYED_RETRY} action;
 	char *description = NULL;
+	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
 					  DEFAULT_RATELIMIT_BURST);
 
@@ -971,6 +972,12 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	} else {
 		description = "Unhandled error code";
 		action = ACTION_FAIL;
+	}
+
+	if (action != ACTION_FAIL &&
+	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+		action = ACTION_FAIL;
+		description = "Command timed out";
 	}
 
 	switch (action) {
