@@ -313,10 +313,10 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
-	adapter->netdev->stats.tx_bytes += total_bytes;
-	adapter->netdev->stats.tx_packets += total_packets;
+	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->stats.bytes += total_bytes;
 	tx_ring->stats.packets += total_packets;
+	u64_stats_update_end(&tx_ring->syncp);
 	q_vector->tx.total_bytes += total_bytes;
 	q_vector->tx.total_packets += total_packets;
 
@@ -592,10 +592,10 @@ next_desc:
 	if (cleaned_count)
 		ixgbevf_alloc_rx_buffers(rx_ring, cleaned_count);
 
-	q_vector->adapter->netdev->stats.rx_bytes += total_rx_bytes;
-	q_vector->adapter->netdev->stats.rx_packets += total_rx_packets;
+	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
+	u64_stats_update_end(&rx_ring->syncp);
 	q_vector->rx.total_packets += total_rx_packets;
 	q_vector->rx.total_bytes += total_rx_bytes;
 
@@ -2333,10 +2333,6 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 	UPDATE_VF_COUNTER_32bit(IXGBE_VFMPRC, adapter->stats.last_vfmprc,
 				adapter->stats.vfmprc);
 
-	/* Fill out the OS statistics structure */
-	adapter->netdev->stats.multicast = adapter->stats.vfmprc -
-		adapter->stats.base_vfmprc;
-
 	for (i = 0;  i  < adapter->num_rx_queues;  i++) {
 		adapter->hw_csum_rx_error +=
 			adapter->rx_ring[i]->hw_csum_rx_error;
@@ -3399,6 +3395,44 @@ static void ixgbevf_shutdown(struct pci_dev *pdev)
 	ixgbevf_suspend(pdev, PMSG_SUSPEND);
 }
 
+static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
+						struct rtnl_link_stats64 *stats)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	unsigned int start;
+	u64 bytes, packets;
+	const struct ixgbevf_ring *ring;
+	int i;
+
+	ixgbevf_update_stats(adapter);
+
+	stats->multicast = adapter->stats.vfmprc - adapter->stats.base_vfmprc;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		ring = adapter->rx_ring[i];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			bytes = ring->stats.bytes;
+			packets = ring->stats.packets;
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		stats->rx_bytes += bytes;
+		stats->rx_packets += packets;
+	}
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		ring = adapter->tx_ring[i];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			bytes = ring->stats.bytes;
+			packets = ring->stats.packets;
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		stats->tx_bytes += bytes;
+		stats->tx_packets += packets;
+	}
+
+	return stats;
+}
+
 static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_open		= ixgbevf_open,
 	.ndo_stop		= ixgbevf_close,
@@ -3413,12 +3447,18 @@ static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
 };
 
+static const struct net_device_ops_ext ixgbevf_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= ixgbevf_get_stats,
+};
+
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)
 {
 	dev->netdev_ops = &ixgbevf_netdev_ops;
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	netdev_extended(dev)->ndo_busy_poll = ixgbevf_busy_poll_recv;
 #endif
+	set_netdev_ops_ext(dev, &ixgbevf_netdev_ops_ext);
 	ixgbevf_set_ethtool_ops(dev);
 	dev->watchdog_timeo = 5 * HZ;
 }

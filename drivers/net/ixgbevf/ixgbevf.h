@@ -32,6 +32,7 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/netdevice.h>
+#include <linux/u64_stats_sync.h>
 
 #include "vf.h"
 
@@ -99,6 +100,7 @@ struct ixgbevf_ring {
 	};
 
 	struct ixgbevf_stats stats;
+	struct u64_stats_sync	syncp;
 	union {
 		struct ixgbevf_tx_queue_stats tx_stats;
 		struct ixgbevf_rx_queue_stats rx_stats;
