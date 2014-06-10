@@ -201,31 +201,6 @@ err_free:
 	return NET_RX_DROP;
 }
 
-static inline u16
-__vlan_dev_get_egress_qos_mask(struct net_device *dev, u32 skprio)
-{
-	struct vlan_priority_tci_mapping *mp;
-
-	smp_rmb(); /* coupled with smp_wmb() in vlan_dev_set_egress_priority() */
-
-	mp = vlan_dev_info(dev)->egress_priority_map[(skprio & 0xF)];
-	while (mp) {
-		if (mp->priority == skprio) {
-			return mp->vlan_qos; /* This should already be shifted
-					      * to mask correctly with the
-					      * VLAN's TCI */
-		}
-		mp = mp->next;
-	}
-	return 0;
-}
-
-u16 vlan_dev_get_egress_qos_mask(struct net_device *dev, u32 skprio)
-{
-	return __vlan_dev_get_egress_qos_mask(dev, skprio);
-}
-EXPORT_SYMBOL(vlan_dev_get_egress_qos_mask);
-
 /*
  *	Create the VLAN header for an arbitrary protocol layer
  *
@@ -252,7 +227,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		vhdr = (struct vlan_hdr *) skb_push(skb, VLAN_HLEN);
 
 		vlan_tci = vlan_dev_info(dev)->vlan_id;
-		vlan_tci |= __vlan_dev_get_egress_qos_mask(dev, skb->priority);
+		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
 		vhdr->h_vlan_TCI = htons(vlan_tci);
 
 		/*
@@ -302,7 +277,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
 		vlan_tci = vlan_dev_info(dev)->vlan_id;
-		vlan_tci |= __vlan_dev_get_egress_qos_mask(dev, skb->priority);
+		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
 		skb = __vlan_put_tag(skb, vlan_tci);
 		if (!skb) {
 			struct vlan_pcpu_stats *st;
@@ -346,7 +321,7 @@ static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	int ret;
 
 	vlan_tci = vlan_dev_info(dev)->vlan_id;
-	vlan_tci |= __vlan_dev_get_egress_qos_mask(dev, skb->priority);
+	vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
 	skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 
 	skb->dev = vlan_dev_info(dev)->real_dev;
@@ -429,7 +404,7 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 	np->vlan_qos = vlan_qos;
 	/* Before inserting this element in hash table, make sure all its fields
 	 * are committed to memory.
-	 * coupled with smp_rmb() in __vlan_dev_get_egress_qos_mask()
+	 * coupled with smp_rmb() in vlan_dev_get_egress_qos_mask()
 	 */
 	smp_wmb();
 	vlan->egress_priority_map[skb_prio & 0xF] = np;
