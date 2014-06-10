@@ -36,6 +36,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/pci.h>
 #include <linux/mdio.h>
+#include <linux/u64_stats_sync.h>
 
 struct igb_adapter;
 
@@ -206,6 +207,7 @@ struct igb_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
 	u64 restart_queue;
+	u64 restart_queue2;
 };
 
 struct igb_rx_queue_stats {
@@ -252,11 +254,14 @@ struct igb_ring {
 		/* TX */
 		struct {
 			struct igb_tx_queue_stats tx_stats;
+			struct u64_stats_sync tx_syncp;
+			struct u64_stats_sync tx_syncp2;
 		};
 		/* RX */
 		struct {
 			struct sk_buff *skb;
 			struct igb_rx_queue_stats rx_stats;
+			struct u64_stats_sync rx_syncp;
 		};
 	};
 } ____cacheline_internodealigned_in_smp;
@@ -386,6 +391,9 @@ struct igb_adapter {
 	/* OS defined structs */
 	struct pci_dev *pdev;
 
+	spinlock_t stats64_lock;
+	struct rtnl_link_stats64 stats64;
+
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
 	struct e1000_hw_stats stats;
@@ -505,7 +513,7 @@ void igb_setup_rctl(struct igb_adapter *);
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *, struct igb_ring *);
 void igb_unmap_and_free_tx_resource(struct igb_ring *, struct igb_tx_buffer *);
 void igb_alloc_rx_buffers(struct igb_ring *, u16);
-void igb_update_stats(struct igb_adapter *);
+void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 bool igb_has_link(struct igb_adapter *adapter);
 void igb_set_ethtool_ops(struct net_device *);
 void igb_power_up_link(struct igb_adapter *);

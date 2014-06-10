@@ -117,7 +117,6 @@ static int igb_setup_all_rx_resources(struct igb_adapter *);
 static void igb_free_all_tx_resources(struct igb_adapter *);
 static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
-void igb_update_stats(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void igb_remove(struct pci_dev *pdev);
 static int igb_sw_init(struct igb_adapter *);
@@ -134,7 +133,8 @@ static void igb_set_rx_mode(struct net_device *);
 static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
-static struct net_device_stats *igb_get_stats(struct net_device *);
+static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *dev,
+						 struct rtnl_link_stats64 *stats);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
@@ -1808,7 +1808,9 @@ void igb_down(struct igb_adapter *adapter)
 	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
-	igb_update_stats(adapter);
+	spin_lock(&adapter->stats64_lock);
+	igb_update_stats(adapter, &adapter->stats64);
+	spin_unlock(&adapter->stats64_lock);
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
@@ -2042,7 +2044,6 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
 	.ndo_start_xmit		= igb_xmit_frame,
-	.ndo_get_stats		= igb_get_stats,
 	.ndo_set_rx_mode	= igb_set_rx_mode,
 	.ndo_set_mac_address	= igb_set_mac,
 	.ndo_change_mtu		= igb_change_mtu,
@@ -2059,6 +2060,11 @@ static const struct net_device_ops igb_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= igb_netpoll,
 #endif
+};
+
+static const struct net_device_ops_ext igb_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= igb_get_stats64,
 };
 
 /**
@@ -2269,6 +2275,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 
 	netdev->netdev_ops = &igb_netdev_ops;
+	set_netdev_ops_ext(netdev, &igb_netdev_ops_ext);
 	igb_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 
@@ -2909,6 +2916,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 				  VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
+	spin_lock_init(&adapter->stats64_lock);
 #ifdef CONFIG_PCI_IOV
 	switch (hw->mac.type) {
 	case e1000_82576:
@@ -4253,7 +4261,9 @@ static void igb_watchdog_task(struct work_struct *work)
 		}
 	}
 
-	igb_update_stats(adapter);
+	spin_lock(&adapter->stats64_lock);
+	igb_update_stats(adapter, &adapter->stats64);
+	spin_unlock(&adapter->stats64_lock);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = adapter->tx_ring[i];
@@ -4852,7 +4862,11 @@ static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 
 	/* A reprieve! */
 	netif_wake_subqueue(netdev, tx_ring->queue_index);
-	tx_ring->tx_stats.restart_queue++;
+
+	u64_stats_update_begin(&tx_ring->tx_syncp2);
+	tx_ring->tx_stats.restart_queue2++;
+	u64_stats_update_end(&tx_ring->tx_syncp2);
+
 	return 0;
 }
 
@@ -5013,16 +5027,22 @@ static void igb_reset_task(struct work_struct *work)
 }
 
 /**
- *  igb_get_stats - Get System Network Statistics
- *  @netdev: network interface device structure
+ * igb_get_stats64 - Get System Network Statistics
+ * @netdev: network interface device structure
+ * @stats: rtnl_link_stats64 pointer
  *
- *  Returns the address of the device statistics structure.
- *  The statistics are actually updated from the timer callback.
  **/
-static struct net_device_stats *igb_get_stats(struct net_device *netdev)
+static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *netdev,
+						 struct rtnl_link_stats64 *stats)
 {
-	/* only return the current stats */
-	return &netdev->stats;
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	spin_lock(&adapter->stats64_lock);
+	igb_update_stats(adapter, &adapter->stats64);
+	memcpy(stats, &adapter->stats64, sizeof(*stats));
+	spin_unlock(&adapter->stats64_lock);
+
+	return stats;
 }
 
 /**
@@ -5081,15 +5101,17 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
  *  @adapter: board private structure
  **/
 
-void igb_update_stats(struct igb_adapter *adapter)
+void igb_update_stats(struct igb_adapter *adapter,
+		      struct rtnl_link_stats64 *net_stats)
 {
-	struct net_device_stats *net_stats = igb_get_stats(adapter->netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 reg, mpc;
 	u16 phy_tmp;
 	int i;
 	u64 bytes, packets;
+	unsigned int start;
+	u64 _bytes, _packets;
 
 #define PHY_IDLE_ERROR_COUNT_MASK 0x00FF
 
@@ -5116,8 +5138,13 @@ void igb_update_stats(struct igb_adapter *adapter)
 			net_stats->rx_fifo_errors += rqdpc;
 		}
 
-		bytes += ring->rx_stats.bytes;
-		packets += ring->rx_stats.packets;
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->rx_syncp);
+			_bytes = ring->rx_stats.bytes;
+			_packets = ring->rx_stats.packets;
+		} while (u64_stats_fetch_retry_bh(&ring->rx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
 	}
 
 	net_stats->rx_bytes = bytes;
@@ -5127,8 +5154,13 @@ void igb_update_stats(struct igb_adapter *adapter)
 	packets = 0;
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *ring = adapter->tx_ring[i];
-		bytes += ring->tx_stats.bytes;
-		packets += ring->tx_stats.packets;
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->tx_syncp);
+			_bytes = ring->tx_stats.bytes;
+			_packets = ring->tx_stats.packets;
+		} while (u64_stats_fetch_retry_bh(&ring->tx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
 	}
 	net_stats->tx_bytes = bytes;
 	net_stats->tx_packets = packets;
@@ -6304,8 +6336,10 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
+	u64_stats_update_begin(&tx_ring->tx_syncp);
 	tx_ring->tx_stats.bytes += total_bytes;
 	tx_ring->tx_stats.packets += total_packets;
+	u64_stats_update_end(&tx_ring->tx_syncp);
 	q_vector->tx.total_bytes += total_bytes;
 	q_vector->tx.total_packets += total_packets;
 
@@ -6365,7 +6399,9 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 			netif_wake_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 
+			u64_stats_update_begin(&tx_ring->tx_syncp);
 			tx_ring->tx_stats.restart_queue++;
+			u64_stats_update_end(&tx_ring->tx_syncp);
 		}
 	}
 
@@ -6589,7 +6625,9 @@ static inline void igb_rx_checksum(struct igb_ring *ring,
 		 */
 		if (!((skb->len == 60) &&
 		      test_bit(IGB_RING_FLAG_RX_SCTP_CSUM, &ring->flags))) {
+			u64_stats_update_begin(&ring->rx_syncp);
 			ring->rx_stats.csum_err++;
+			u64_stats_update_end(&ring->rx_syncp);
 		}
 		/* let the stack verify checksum errors */
 		return;
@@ -6931,8 +6969,10 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 	/* place incomplete frames back on ring for completion */
 	rx_ring->skb = skb;
 
+	u64_stats_update_begin(&rx_ring->rx_syncp);
 	rx_ring->rx_stats.packets += total_packets;
 	rx_ring->rx_stats.bytes += total_bytes;
+	u64_stats_update_end(&rx_ring->rx_syncp);
 	q_vector->rx.total_packets += total_packets;
 	q_vector->rx.total_bytes += total_bytes;
 
