@@ -138,6 +138,8 @@ static inline int is_vlan_dev(struct net_device *dev)
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
+extern u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
+					u32 skprio);
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
 extern int vlan_hwaccel_do_receive(struct sk_buff *skb);
@@ -170,6 +172,12 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 {
 	BUG();
 	return NET_XMIT_SUCCESS;
+}
+
+static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
+					       u32 skprio)
+{
+	return 0;
 }
 
 static inline int vlan_hwaccel_do_receive(struct sk_buff *skb)
