@@ -213,6 +213,7 @@ struct synthvid_msg {
 
 struct hvfb_par {
 	struct fb_info *info;
+	struct apertures_struct *apertures;
 	struct resource mem;
 	bool fb_ready; /* fb device is ready */
 	struct completion wait;
@@ -667,9 +668,18 @@ static int hvfb_getmem(struct fb_info *info)
 	if (!fb_virt)
 		goto err2;
 
+	par->apertures = alloc_apertures(1);
+	if (!par->apertures)
+		goto err3;
+
+	par->apertures->ranges[0].base = screen_info.lfb_base;
+	par->apertures->ranges[0].size = screen_info.lfb_size;
+
 	if (gen2vm) {
 		info->aperture_base = screen_info.lfb_base;
 		info->aperture_size = screen_info.lfb_size;
+		remove_conflicting_framebuffers(par->apertures,
+						KBUILD_MODNAME, false);
 	} else {
 		info->aperture_base = pci_resource_start(pdev, 0);
 		info->aperture_size = pci_resource_len(pdev, 0);
@@ -685,6 +695,8 @@ static int hvfb_getmem(struct fb_info *info)
 
 	return 0;
 
+err3:
+	iounmap(fb_virt);
 err2:
 	release_resource(&par->mem);
 err1:
@@ -720,6 +732,7 @@ static int hvfb_probe(struct hv_device *hdev,
 	par = info->par;
 	par->info = info;
 	par->fb_ready = false;
+	par->apertures = NULL;
 	init_completion(&par->wait);
 	INIT_DELAYED_WORK(&par->dwork, hvfb_update_work);
 
@@ -812,6 +825,8 @@ static int hvfb_remove(struct hv_device *hdev)
 
 	unregister_framebuffer(info);
 	cancel_delayed_work_sync(&par->dwork);
+	if (par->apertures)
+		kfree(par->apertures);
 
 	vmbus_close(hdev->channel);
 	hv_set_drvdata(hdev, NULL);
