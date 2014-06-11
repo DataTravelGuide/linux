@@ -1022,6 +1022,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			struct ifla_vf_vlan vf_vlan;
 			struct ifla_vf_tx_rate vf_tx_rate;
 			struct ifla_vf_spoofchk vf_spoofchk;
+			struct ifla_vf_link_state vf_linkstate;
 
 			/*
 			 * Not all SR-IOV capable drivers support the
@@ -1031,18 +1032,24 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			 */
 			ivi.spoofchk = -1;
 			memset(ivi.mac, 0, sizeof(ivi.mac));
+			/* The default value for VF link state is "auto"
+			 * IFLA_VF_LINK_STATE_AUTO which equals zero
+			 */
+			ivi.linkstate = 0;
 			if (dev->netdev_ops->ndo_get_vf_config(dev, i, &ivi))
 				break;
 			vf_mac.vf =
 				vf_vlan.vf =
 				vf_tx_rate.vf =
-				vf_spoofchk.vf = ivi.vf;
+				vf_spoofchk.vf =
+				vf_linkstate.vf = ivi.vf;
 
 			memcpy(vf_mac.mac, ivi.mac, sizeof(ivi.mac));
 			vf_vlan.vlan = ivi.vlan;
 			vf_vlan.qos = ivi.qos;
 			vf_tx_rate.rate = ivi.tx_rate;
 			vf_spoofchk.setting = ivi.spoofchk;
+			vf_linkstate.link_state = ivi.linkstate;
 			vf = nla_nest_start(skb, IFLA_VF_INFO);
 			if (!vf) {
 				nla_nest_cancel(skb, vfinfo);
@@ -1054,6 +1061,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 				&vf_tx_rate);
 			NLA_PUT(skb, IFLA_VF_SPOOFCHK, sizeof(vf_spoofchk),
 				&vf_spoofchk);
+			NLA_PUT(skb, IFLA_VF_LINK_STATE, sizeof(vf_linkstate),
+				&vf_linkstate);
 			nla_nest_end(skb, vf);
 		}
 		nla_nest_end(skb, vfinfo);
@@ -1331,6 +1340,19 @@ static int do_setvfinfo(struct net_device *dev, struct nlattr *attr)
 				err = ops_ext->
 					ndo_set_vf_spoofchk(dev, ivs->vf,
 							    ivs->setting);
+			}
+			break;
+		}
+		case IFLA_VF_LINK_STATE: {
+			struct ifla_vf_link_state *ivl;
+			ivl = nla_data(vf);
+			err = -EOPNOTSUPP;
+			if (GET_NETDEV_OP_EXT(dev, ndo_set_vf_link_state)) {
+				const struct net_device_ops_ext *ops_ext =
+					get_netdev_ops_ext(dev);
+				err = ops_ext->
+					ndo_set_vf_link_state(dev, ivl->vf,
+							      ivl->link_state);
 			}
 			break;
 		}
