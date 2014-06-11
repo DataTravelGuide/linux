@@ -1408,6 +1408,11 @@ M:	Govindarajulu Varadarajan <govindarajulu90@gmail.com>
 S:	Supported
 F:	drivers/net/enic/
 
+CISCO VIC LOW LATENCY NIC DRIVER
+M:      Upinder Malhi <umalhi@cisco.com>
+S:      Supported
+F:      drivers/infiniband/hw/usnic
+
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	netdev@vger.kernel.org
