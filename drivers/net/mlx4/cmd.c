@@ -2201,6 +2201,8 @@ struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
 		return ERR_PTR(-ENOMEM);
 	}
 
+	memset(mailbox->buf, 0, MLX4_MAILBOX_SIZE);
+
 	return mailbox;
 }
 EXPORT_SYMBOL_GPL(mlx4_alloc_cmd_mailbox);
