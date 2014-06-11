@@ -2654,6 +2654,9 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	void *ib_spec;
 	int i;
 
+	if (ucore->inlen < sizeof(cmd))
+		return -EINVAL;
+
 	if (ucore->outlen < sizeof(resp))
 		return -ENOSPC;
 
@@ -2803,6 +2806,9 @@ int ib_uverbs_ex_destroy_flow(struct ib_uverbs_file *file,
 	struct ib_flow			*flow_id;
 	struct ib_uobject		*uobj;
 	int				ret;
+
+	if (ucore->inlen < sizeof(cmd))
+		return -EINVAL;
 
 	ret = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
 	if (ret)
