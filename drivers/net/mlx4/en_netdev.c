@@ -2167,6 +2167,27 @@ static int mlx4_en_set_vf_link_state(struct net_device *dev, int vf, int link_st
 
 	return mlx4_set_vf_link_state(mdev->dev, en_priv->port, vf, link_state);
 }
+
+#define PORT_ID_BYTE_LEN 8
+static int mlx4_en_get_phys_port_id(struct net_device *dev,
+				    struct netdev_phys_port_id *ppid)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_dev *mdev = priv->mdev->dev;
+	int i;
+	u64 phys_port_id = mdev->caps.phys_port_id[priv->port];
+
+	if (!phys_port_id)
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(phys_port_id);
+	for (i = PORT_ID_BYTE_LEN - 1; i >= 0; --i) {
+		ppid->id[i] =  phys_port_id & 0xff;
+		phys_port_id >>= 8;
+	}
+	return 0;
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2211,6 +2232,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 static const struct net_device_ops_ext mlx4_netdev_ops_master_ext = {
 	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
 	.ndo_set_vf_link_state	= mlx4_en_set_vf_link_state,
+	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
