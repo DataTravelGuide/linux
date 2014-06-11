@@ -2615,6 +2615,7 @@ static struct pci_driver mlx4_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mlx4_pci_table,
 	.probe		= mlx4_init_one,
+	.shutdown	= __devexit_p(mlx4_remove_one),
 	.remove		= __devexit_p(mlx4_remove_one),
 	.err_handler    = &mlx4_err_handler,
 };
