@@ -2106,6 +2106,14 @@ static int mlx4_en_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_
 	return mlx4_get_vf_config(mdev->dev, en_priv->port, vf, ivf);
 }
 
+static int mlx4_en_set_vf_spoofchk(struct net_device *dev, int vf, bool setting)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_set_vf_spoofchk(mdev->dev, en_priv->port, vf, setting);
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2145,6 +2153,10 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
 #endif
+};
+
+static const struct net_device_ops_ext mlx4_netdev_ops_master_ext = {
+	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -2272,9 +2284,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Initialize netdev entry points
 	 */
-	if (mlx4_is_master(priv->mdev->dev))
+	if (mlx4_is_master(priv->mdev->dev)) {
+		set_netdev_ops_ext(dev, &mlx4_netdev_ops_master_ext);
 		dev->netdev_ops = &mlx4_netdev_ops_master;
-	else
+	} else
 		dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
