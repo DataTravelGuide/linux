@@ -64,5 +64,6 @@ struct legacy_pic {
 
 extern struct legacy_pic *legacy_pic;
 extern struct legacy_pic null_legacy_pic;
+extern int using_null_legacy_pic;
 
 #endif /* _ASM_X86_I8259_H */
