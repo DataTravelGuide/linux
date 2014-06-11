@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.22.1.el6]
+- [fs] cifs: Check if prefixpath starts with '\' in cifs_parse_mount_options (Sachin Prabhu) [1107503 1104268]
+- [virt] kvm: enable PCI multiple-segments for pass-through device (Michael S. Tsirkin) [1103972 1103471]
+- [fs] GFS2: Lock i_mutex and use a local gfs2_holder for fallocate (Robert S Peterson) [1102313 1061910]
+
 * Mon Jun 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.21.1.el6]
 - [kvm] mmu: fix incorrect check of guest cr4 bits (Bandan Das) [1103821 1007164]
 - [drm] nouveau: fix nasty bug which can clobber SOR0's clock setup (Ben Skeggs) [1100574 1095796]
