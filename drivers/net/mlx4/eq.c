@@ -270,7 +270,10 @@ enum slave_port_state mlx4_get_slave_port_state(struct mlx4_dev *dev, int slave,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *s_state = priv->mfunc.master.slave_state;
-	if (slave >= dev->num_slaves || port > MLX4_MAX_PORTS) {
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+
+	if (slave >= dev->num_slaves || port > dev->caps.num_ports ||
+	    port <= 0 || !test_bit(port - 1, actv_ports.ports)) {
 		pr_err("%s: Error: asking for slave:%d, port:%d\n",
 		       __func__, slave, port);
 		return SLAVE_PORT_DOWN;
@@ -284,8 +287,10 @@ static int mlx4_set_slave_port_state(struct mlx4_dev *dev, int slave, u8 port,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *s_state = priv->mfunc.master.slave_state;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
 
-	if (slave >= dev->num_slaves || port > MLX4_MAX_PORTS || port == 0) {
+	if (slave >= dev->num_slaves || port > dev->caps.num_ports ||
+	    port <= 0 || !test_bit(port - 1, actv_ports.ports)) {
 		pr_err("%s: Error: asking for slave:%d, port:%d\n",
 		       __func__, slave, port);
 		return -1;
@@ -299,9 +304,13 @@ static void set_all_slave_state(struct mlx4_dev *dev, u8 port, int event)
 {
 	int i;
 	enum slave_port_gen_event gen_event;
+	struct mlx4_slaves_pport slaves_pport = mlx4_phys_to_slaves_pport(dev,
+									  port);
 
-	for (i = 0; i < dev->num_slaves; i++)
-		set_and_calc_slave_port_state(dev, i, port, event, &gen_event);
+	for (i = 0; i < dev->num_vfs + 1; i++)
+		if (test_bit(i, slaves_pport.slaves))
+			set_and_calc_slave_port_state(dev, i, port,
+						      event, &gen_event);
 }
 /**************************************************************************
 	The function get as input the new event to that port,
@@ -320,12 +329,14 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 	struct mlx4_slave_state *ctx = NULL;
 	unsigned long flags;
 	int ret = -1;
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
 	enum slave_port_state cur_state =
 		mlx4_get_slave_port_state(dev, slave, port);
 
 	*gen_event = SLAVE_PORT_GEN_EVENT_NONE;
 
-	if (slave >= dev->num_slaves || port > MLX4_MAX_PORTS || port == 0) {
+	if (slave >= dev->num_slaves || port > dev->caps.num_ports ||
+	    port <= 0 || !test_bit(port - 1, actv_ports.ports)) {
 		pr_err("%s: Error: asking for slave:%d, port:%d\n",
 		       __func__, slave, port);
 		return ret;
@@ -541,15 +552,19 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				       be64_to_cpu(eqe->event.cmd.out_param));
 			break;
 
-		case MLX4_EVENT_TYPE_PORT_CHANGE:
+		case MLX4_EVENT_TYPE_PORT_CHANGE: {
+			struct mlx4_slaves_pport slaves_port;
 			port = be32_to_cpu(eqe->event.port_change.port) >> 28;
+			slaves_port = mlx4_phys_to_slaves_pport(dev, port);
 			if (eqe->subtype == MLX4_PORT_CHANGE_SUBTYPE_DOWN) {
 				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_DOWN,
 						    port);
 				mlx4_priv(dev)->sense.do_sense_port[port] = 1;
 				if (!mlx4_is_master(dev))
 					break;
-				for (i = 0; i < dev->num_slaves; i++) {
+				for (i = 0; i < dev->num_vfs + 1; i++) {
+					if (!test_bit(i, slaves_port.slaves))
+						continue;
 					if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH) {
 						if (i == mlx4_master_func_num(dev))
 							continue;
@@ -579,7 +594,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				if (!mlx4_is_master(dev))
 					break;
 				if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-					for (i = 0; i < dev->num_slaves; i++) {
+					for (i = 0; i < dev->num_vfs + 1; i++) {
+						if (!test_bit(i, slaves_port.slaves))
+							continue;
 						if (i == mlx4_master_func_num(dev))
 							continue;
 						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
@@ -593,6 +610,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					set_all_slave_state(dev, port, MLX4_DEV_EVENT_PORT_UP);
 			}
 			break;
+		}
 
 		case MLX4_EVENT_TYPE_CQ_ERROR:
 			mlx4_warn(dev, "CQ %s on CQN %06x\n",
