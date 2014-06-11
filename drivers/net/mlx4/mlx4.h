@@ -481,6 +481,7 @@ struct mlx4_vport_state {
 	u8  default_qos;
 	u32 tx_rate;
 	bool spoofchk;
+	u32 link_state;
 };
 
 struct mlx4_vf_admin_state {
