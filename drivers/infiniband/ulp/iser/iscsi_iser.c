@@ -144,8 +144,8 @@ static int iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 int iser_initialize_task_headers(struct iscsi_task *task,
 						struct iser_tx_desc *tx_desc)
 {
-	struct iscsi_iser_conn *iser_conn = task->conn->dd_data;
-	struct iser_device     *device    = iser_conn->ib_conn->device;
+	struct iser_conn       *ib_conn   = task->conn->dd_data;
+	struct iser_device     *device    = ib_conn->device;
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	u64 dma_addr;
 
@@ -159,7 +159,7 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 	tx_desc->tx_sg[0].length = ISER_HEADERS_LEN;
 	tx_desc->tx_sg[0].lkey   = device->mr->lkey;
 
-	iser_task->iser_conn		= iser_conn;
+	iser_task->ib_conn = ib_conn;
 	return 0;
 }
 /**
@@ -286,10 +286,9 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_tx_desc	*tx_desc = &iser_task->desc;
-
-	struct iscsi_iser_conn *iser_conn = task->conn->dd_data;
-	struct iser_device     *device    = iser_conn->ib_conn->device;
+	struct iser_tx_desc    *tx_desc   = &iser_task->desc;
+	struct iser_conn       *ib_conn	  = task->conn->dd_data;
+	struct iser_device     *device	  = ib_conn->device;
 
 	ib_dma_unmap_single(device->ib_device,
 		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
@@ -321,9 +320,8 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 {
 	struct iscsi_conn *conn;
 	struct iscsi_cls_conn *cls_conn;
-	struct iscsi_iser_conn *iser_conn;
 
-	cls_conn = iscsi_conn_setup(cls_session, sizeof(*iser_conn), conn_idx);
+	cls_conn = iscsi_conn_setup(cls_session, 0, conn_idx);
 	if (!cls_conn)
 		return NULL;
 	conn = cls_conn->dd_data;
@@ -334,10 +332,6 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	 */
 	conn->max_recv_dlength = ISER_RECV_DATA_SEG_LEN;
 
-	iser_conn = conn->dd_data;
-	conn->dd_data = iser_conn;
-	iser_conn->iscsi_conn = conn;
-
 	return cls_conn;
 }
 
@@ -345,8 +339,7 @@ static void
 iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-	struct iser_conn *ib_conn = iser_conn->ib_conn;
+	struct iser_conn *ib_conn = conn->dd_data;
 
 	iscsi_conn_teardown(cls_conn);
 	/*
@@ -355,7 +348,7 @@ iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	 * we free it here.
 	 */
 	if (ib_conn) {
-		ib_conn->iser_conn = NULL;
+		ib_conn->iscsi_conn = NULL;
 		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
 	}
 }
@@ -366,7 +359,6 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 		     int is_leading)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_iser_conn *iser_conn;
 	struct iscsi_session *session;
 	struct iser_conn *ib_conn;
 	struct iscsi_endpoint *ep;
@@ -393,11 +385,11 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
 	 * connection pointers */
-	iser_info("binding iscsi/iser conn %p %p to ib_conn %p\n",
-		  conn, conn->dd_data, ib_conn);
-	iser_conn = conn->dd_data;
-	ib_conn->iser_conn = iser_conn;
-	iser_conn->ib_conn  = ib_conn;
+	iser_info("binding iscsi conn %p to ib_conn %p\n", conn, ib_conn);
+
+	conn->dd_data = ib_conn;
+	ib_conn->iscsi_conn = conn;
+
 	iser_conn_get(ib_conn); /* ref iscsi/ib conn binding */
 	return 0;
 }
@@ -406,8 +398,7 @@ static void
 iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-	struct iser_conn *ib_conn = iser_conn->ib_conn;
+	struct iser_conn *ib_conn = conn->dd_data;
 
 	/*
 	 * Userspace may have goofed up and not bound the connection or
@@ -421,7 +412,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 		 */
 		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
 	}
-	iser_conn->ib_conn = NULL;
+	conn->dd_data = NULL;
 }
 
 static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
@@ -659,7 +650,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	struct iser_conn *ib_conn;
 
 	ib_conn = ep->dd_data;
-	if (ib_conn->iser_conn)
+	if (ib_conn->iscsi_conn)
 		/*
 		 * Must suspend xmit path if the ep is bound to the
 		 * iscsi_conn, so we know we are not accessing the ib_conn
@@ -667,7 +658,7 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 		 *
 		 * This may not be bound if the ep poll failed.
 		 */
-		iscsi_suspend_tx(ib_conn->iser_conn->iscsi_conn);
+		iscsi_suspend_tx(ib_conn->iscsi_conn);
 
 
 	iser_info("ib conn %p state %d\n", ib_conn, ib_conn->state);
