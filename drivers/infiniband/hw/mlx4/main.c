@@ -1708,9 +1708,7 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev)
 						iboe->netdevs[port - 1], port);
 		if (iboe->netdevs[port - 1] &&
 		    netif_is_bond_slave(iboe->netdevs[port - 1])) {
-			rtnl_lock();
 			iboe->masters[port - 1] = iboe->netdevs[port - 1]->master;
-			rtnl_unlock();
 		}
 		curr_master = iboe->masters[port - 1];
 
@@ -2100,7 +2098,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			}
 		}
 #endif
+		rtnl_lock();
 		mlx4_ib_scan_netdevs(ibdev);
+		rtnl_unlock();
 		mlx4_ib_init_gid_table(ibdev);
 	}
 
