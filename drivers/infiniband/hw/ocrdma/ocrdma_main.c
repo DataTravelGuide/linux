@@ -551,6 +551,11 @@ static void ocrdma_unregister_inet6addr_notifier(void)
 #endif
 }
 
+static void ocrdma_unregister_inetaddr_notifier(void)
+{
+	unregister_inetaddr_notifier(&ocrdma_inetaddr_notifier);
+}
+
 static int __init ocrdma_init_module(void)
 {
 	int status;
@@ -564,13 +569,19 @@ static int __init ocrdma_init_module(void)
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	status = register_inet6addr_notifier(&ocrdma_inet6addr_notifier);
 	if (status)
-		return status;
+		goto err_notifier6;
 #endif
 
 	status = be_roce_register_driver(&ocrdma_drv);
 	if (status)
-		ocrdma_unregister_inet6addr_notifier();
+		goto err_be_reg;
 
+	return 0;
+
+err_be_reg:
+	ocrdma_unregister_inet6addr_notifier();
+err_notifier6:
+	ocrdma_unregister_inetaddr_notifier();
 	return status;
 }
 
@@ -578,6 +589,7 @@ static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
 	ocrdma_unregister_inet6addr_notifier();
+	ocrdma_unregister_inetaddr_notifier();
 	ocrdma_rem_debugfs();
 }
 
