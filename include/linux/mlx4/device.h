@@ -37,6 +37,7 @@
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
 #include <linux/cpu_rmap.h>
+#include <linux/if_ether.h>
 
 #include <asm/atomic.h>
 
