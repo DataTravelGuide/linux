@@ -220,6 +220,13 @@ enum {
 #define GET_AVG_PERF_COUNTER(cnt)	(0)
 #endif /* MLX4_EN_PERF_STAT */
 
+/* Constants for TX flow */
+enum {
+	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
+	MAX_BF = 256,
+	MIN_PKT_LEN = 17,
+};
+
 /*
  * Configurables
  */
@@ -300,6 +307,7 @@ struct mlx4_en_tx_ring {
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	int hwtstamp_tx_type;
+	int inline_thold;
 };
 
 struct mlx4_en_rx_desc {
@@ -375,6 +383,7 @@ struct mlx4_en_port_profile {
 	u8 tx_pause;
 	u8 tx_ppp;
 	int rss_rings;
+	int inline_thold;
 };
 
 struct mlx4_en_profile {
