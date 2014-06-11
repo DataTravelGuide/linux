@@ -128,7 +128,7 @@ void __init init_ISA_irqs(void)
 	/*
 	 * 16 old-style INTA-cycle interrupts:
 	 */
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
 
 		desc->status = IRQ_DISABLED;
