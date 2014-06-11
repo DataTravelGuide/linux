@@ -1770,9 +1770,9 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 		}
 		local_bh_enable();
 
-		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 		while (test_bit(NAPI_STATE_SCHED, &cq->napi.state))
 			msleep(1);
+		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
 	}
 }
