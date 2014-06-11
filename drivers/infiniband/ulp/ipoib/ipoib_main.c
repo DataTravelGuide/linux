@@ -121,7 +121,7 @@ int ipoib_open(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring up any child interfaces too */
-		mutex_lock(&priv->vlan_mutex);
+		down_read(&priv->vlan_rwsem);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -131,7 +131,7 @@ int ipoib_open(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags | IFF_UP);
 		}
-		mutex_unlock(&priv->vlan_mutex);
+		up_read(&priv->vlan_rwsem);
 	}
 
 	netif_start_queue(dev);
@@ -164,7 +164,7 @@ static int ipoib_stop(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring down any child interfaces too */
-		mutex_lock(&priv->vlan_mutex);
+		down_read(&priv->vlan_rwsem);
 		list_for_each_entry(cpriv, &priv->child_intfs, list) {
 			int flags;
 
@@ -174,7 +174,7 @@ static int ipoib_stop(struct net_device *dev)
 
 			dev_change_flags(cpriv->dev, flags & ~IFF_UP);
 		}
-		mutex_unlock(&priv->vlan_mutex);
+		up_read(&priv->vlan_rwsem);
 	}
 
 	return 0;
@@ -1328,7 +1328,7 @@ void ipoib_setup(struct net_device *dev)
 
 	spin_lock_init(&priv->lock);
 
-	mutex_init(&priv->vlan_mutex);
+	init_rwsem(&priv->vlan_rwsem);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
