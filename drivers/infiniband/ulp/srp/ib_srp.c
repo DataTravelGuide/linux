@@ -126,6 +126,7 @@ static struct ib_client srp_client = {
 static struct ib_sa_client srp_sa_client;
 
 static struct workqueue_struct *srp_wq;
+static struct workqueue_struct *srp_long_wq;
 
 static int srp_tmo_get(char *buffer, struct kernel_param *kp)
 {
@@ -592,6 +593,7 @@ static void srp_remove_target(struct srp_target_port *target)
 	srp_disconnect_target(target);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
+	cancel_work_sync(&target->tl_err_work);
 	srp_rport_put(target->rport);
 	srp_free_req_data(target);
 	scsi_host_put(target->scsi_host);
@@ -1361,6 +1363,21 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 			     PFX "Recv failed with error code %d\n", res);
 }
 
+/**
+ * srp_tl_err_work() - handle a transport layer error
+ *
+ * Note: This function may get invoked before the rport has been created,
+ * hence the target->rport test.
+ */
+static void srp_tl_err_work(struct work_struct *work)
+{
+	struct srp_target_port *target;
+
+	target = container_of(work, struct srp_target_port, tl_err_work);
+	if (target->rport)
+		srp_start_tl_fail_timers(target->rport);
+}
+
 static void srp_handle_qp_err(enum ib_wc_status wc_status,
 			      enum ib_wc_opcode wc_opcode,
 			      struct srp_target_port *target)
@@ -1370,6 +1387,7 @@ static void srp_handle_qp_err(enum ib_wc_status wc_status,
 			     PFX "failed %s status %d\n",
 			     wc_opcode & IB_WC_RECV ? "receive" : "send",
 			     wc_status);
+		queue_work(srp_long_wq, &target->tl_err_work);
 	}
 	target->qp_in_error = true;
 }
@@ -1736,6 +1754,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		if (ib_send_cm_drep(cm_id, NULL, 0))
 			shost_printk(KERN_ERR, target->scsi_host,
 				     PFX "Sending CM DREP failed\n");
+		queue_work(srp_long_wq, &target->tl_err_work);
 		break;
 
 	case IB_CM_TIMEWAIT_EXIT:
@@ -2422,6 +2441,7 @@ static ssize_t srp_create_target(struct device *dev,
 			     sizeof (struct srp_indirect_buf) +
 			     target->cmd_sg_cnt * sizeof (struct srp_direct_buf);
 
+	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
 	INIT_LIST_HEAD(&target->free_tx);
@@ -2738,12 +2758,19 @@ static int __init srp_init_module(void)
 		return -ENOMEM;
 	}
 
+	srp_long_wq = create_workqueue("srp_long_wq");
+	if (!srp_long_wq) {
+		pr_err("couldn't create long workqueue\n");
+		ret = -ENOMEM;
+		goto rm_wq1;
+	}
+
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);
 	if (!ib_srp_transport_template) {
 		pr_err("couldn't attach transport\n");
 		ret = -ENOMEM;
-		goto rm_wq;
+		goto rm_wq2;
 	}
 
 	ret = class_register(&srp_class);
@@ -2762,7 +2789,9 @@ static int __init srp_init_module(void)
 	class_unregister(&srp_class);
 rm_transport:
 	srp_release_transport(ib_srp_transport_template);
-rm_wq:
+rm_wq2:
+	destroy_workqueue(srp_long_wq);
+rm_wq1:
 	destroy_workqueue(srp_wq);
 	return ret;
 }
@@ -2773,6 +2802,7 @@ static void __exit srp_cleanup_module(void)
 	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
 	srp_release_transport(ib_srp_transport_template);
+	destroy_workqueue(srp_long_wq);
 	destroy_workqueue(srp_wq);
 }
 
