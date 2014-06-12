@@ -450,6 +450,27 @@ efivar_unregister(struct efivar_entry *var)
 
 #ifdef CONFIG_PSTORE
 
+static int efi_status_to_err(efi_status_t status)
+{
+	int err;
+
+	switch (status) {
+	case EFI_SUCCESS:
+		err = 0;
+		break;
+	case EFI_INVALID_PARAMETER:
+		err = -EINVAL;
+		break;
+	case EFI_NOT_FOUND:
+		err = -ENOENT;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
 static int efi_pstore_open(struct pstore_info *psi)
 {
 	struct efivars *efivars = psi->data;
