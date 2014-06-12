@@ -477,6 +477,8 @@ int register_efivars(struct efivars *efivars,
 		     struct kobject *parent_kobj);
 void unregister_efivars(struct efivars *efivars);
 
+#define EFIVARS_DATA_SIZE_MAX 1024
+
 #endif /* CONFIG_EFI_VARS */
 
 #endif /* _LINUX_EFI_H */
