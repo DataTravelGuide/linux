@@ -450,6 +450,28 @@ efivar_unregister(struct efivar_entry *var)
 
 #ifdef CONFIG_PSTORE
 
+/**
+ * efivar_entry_iter_begin - begin iterating the variable list
+ *
+ * Lock the variable list to prevent entry insertion and removal until
+ * efivar_entry_iter_end() is called. This function is usually used in
+ * conjunction with __efivar_entry_iter() or efivar_entry_iter().
+ */
+static void efivar_entry_iter_begin(void)
+{
+	spin_lock_irq(&__efivars.lock);
+}
+
+/**
+ * efivar_entry_iter_end - finish iterating the variable list
+ *
+ * Unlock the variable list and allow modifications to the list again.
+ */
+static void efivar_entry_iter_end(void)
+{
+	spin_unlock_irq(&__efivars.lock);
+}
+
 static int efi_status_to_err(efi_status_t status)
 {
 	int err;
@@ -471,82 +493,164 @@ static int efi_status_to_err(efi_status_t status)
 	return err;
 }
 
+/**
+ * __efivar_entry_size - obtain the size of a variable
+ * @entry: entry for this variable
+ * @size: location to store the variable's size
+ *
+ * The caller MUST call efivar_entry_iter_begin() and
+ * efivar_entry_iter_end() before and after the invocation of this
+ * function, respectively.
+ */
+static int __efivar_entry_size(struct efivar_entry *entry, unsigned long *size)
+{
+	const struct efivar_operations *ops = __efivars.ops;
+	efi_status_t status;
+
+	WARN_ON(!spin_is_locked(&__efivars.lock));
+
+	*size = 0;
+	status = ops->get_variable(entry->var.VariableName,
+	&entry->var.VendorGuid, NULL, size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return efi_status_to_err(status);
+
+	return 0;
+}
+
+
+/**
+ * __efivar_entry_iter - iterate over variable list
+ * @func: callback function
+ * @head: head of the variable list
+ * @data: function-specific data to pass to callback
+ * @prev: entry to begin iterating from
+ *
+ * Iterate over the list of EFI variables and call @func with every
+ * entry on the list. It is safe for @func to remove entries in the
+ * list via efivar_entry_delete().
+ *
+ * You MUST call efivar_enter_iter_begin() before this function, and
+ * efivar_entry_iter_end() afterwards.
+ *
+ * It is possible to begin iteration from an arbitrary entry within
+ * the list by passing @prev. @prev is updated on return to point to
+ * the last entry passed to @func. To begin iterating from the
+ * beginning of the list @prev must be %NULL.
+ *
+ * The restrictions for @func are the same as documented for
+ * efivar_entry_iter().
+ */
+static int __efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
+			struct list_head *head, void *data,
+			struct efivar_entry **prev)
+{
+	struct efivar_entry *entry, *n;
+	int err = 0;
+
+	if (!prev || !*prev) {
+		list_for_each_entry_safe(entry, n, head, list) {
+			err = func(entry, data);
+			if (err)
+				break;
+		}
+
+		if (prev)
+			*prev = entry;
+
+		return err;
+	}
+
+
+	list_for_each_entry_safe_continue((*prev), n, head, list) {
+		err = func(*prev, data);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int efi_pstore_open(struct pstore_info *psi)
 {
-	struct efivars *efivars = psi->data;
-
-	spin_lock_irq(&efivars->lock);
-	efivars->walk_entry = list_first_entry(&efivars->list,
-					       struct efivar_entry, list);
+	efivar_entry_iter_begin();
+	psi->data = NULL;
 	return 0;
 }
 
 static int efi_pstore_close(struct pstore_info *psi)
 {
-	struct efivars *efivars = psi->data;
-
-	spin_unlock_irq(&efivars->lock);
+	efivar_entry_iter_end();
+	psi->data = NULL;
 	return 0;
+}
+
+struct pstore_read_data {
+	u64 *id;
+	enum pstore_type_id *type;
+	int *count;
+	struct timespec *timespec;
+	char **buf;
+};
+
+static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
+{
+	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
+	struct pstore_read_data *cb_data = data;
+	char name[DUMP_NAME_LEN];
+	int i;
+	int cnt;
+	unsigned int part;
+	unsigned long time, size;
+
+	if (efi_guidcmp(entry->var.VendorGuid, vendor))
+		return 0;
+
+	for (i = 0; i < DUMP_NAME_LEN; i++)
+		name[i] = entry->var.VariableName[i];
+
+	if (sscanf(name, "dump-type%u-%u-%d-%lu",
+		   cb_data->type, &part, &cnt, &time) == 4) {
+		*cb_data->id = part;
+		*cb_data->count = cnt;
+		cb_data->timespec->tv_sec = time;
+		cb_data->timespec->tv_nsec = 0;
+	} else if (sscanf(name, "dump-type%u-%u-%lu",
+		cb_data->type, &part, &time) == 3) {
+		/*
+		 * Check if an old format,
+		 * which doesn't support holding
+		 * multiple logs, remains.
+		 */
+		*cb_data->id = part;
+		*cb_data->count = 0;
+		cb_data->timespec->tv_sec = time;
+		cb_data->timespec->tv_nsec = 0;
+	} else
+		return 0;
+
+	__efivar_entry_size(entry, &size);
+	*cb_data->buf = kmalloc(size, GFP_KERNEL);
+	if (*cb_data->buf == NULL)
+		return -ENOMEM;
+	memcpy(*cb_data->buf, entry->var.Data, size);
+	return size;
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 			       int *count, struct timespec *timespec,
 			       char **buf, struct pstore_info *psi)
 {
-	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	struct efivars *efivars = psi->data;
-	char name[DUMP_NAME_LEN];
-	int i;
-	int cnt;
-	unsigned int part, size;
-	unsigned long time;
+	struct pstore_read_data data;
 
-	while (&efivars->walk_entry->list != &efivars->list) {
-		if (!efi_guidcmp(efivars->walk_entry->var.VendorGuid,
-				 vendor)) {
-			for (i = 0; i < DUMP_NAME_LEN; i++) {
-				name[i] = efivars->walk_entry->var.VariableName[i];
-			}
-			if (sscanf(name, "dump-type%u-%u-%d-%lu",
-				   type, &part, &cnt, &time) == 4) {
-				*id = part;
-				*count = cnt;
-				timespec->tv_sec = time;
-				timespec->tv_nsec = 0;
-			} else if (sscanf(name, "dump-type%u-%u-%lu",
-				   type, &part, &time) == 3) {
-				/*
-				 * Check if an old format,
-				 * which doesn't support holding
-				 * multiple logs, remains.
-				 */
-				*id = part;
-				*count = 0;
-				timespec->tv_sec = time;
-				timespec->tv_nsec = 0;
-			} else {
-				efivars->walk_entry = list_entry(
-						efivars->walk_entry->list.next,
-						struct efivar_entry, list);
-				continue;
-			}
+	data.id = id;
+	data.type = type;
+	data.count = count;
+	data.timespec = timespec;
+	data.buf = buf;
 
-			get_var_data_locked(efivars, &efivars->walk_entry->var);
-			size = efivars->walk_entry->var.DataSize;
-			*buf = kmalloc(size, GFP_KERNEL);
-			if (*buf == NULL)
-				return -ENOMEM;
-			memcpy(*buf, efivars->walk_entry->var.Data,
-			       size);
-			efivars->walk_entry = list_entry(
-					efivars->walk_entry->list.next,
-					struct efivar_entry, list);
-			return size;
-		}
-		efivars->walk_entry = list_entry(efivars->walk_entry->list.next,
-						 struct efivar_entry, list);
-	}
-	return 0;
+	return __efivar_entry_iter(efi_pstore_read_func, &__efivars.list, &data,
+				   (struct efivar_entry **)&psi->data);
 }
 
 static int efi_pstore_write(enum pstore_type_id type,
@@ -557,7 +661,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	struct efivars *efivars = psi->data;
+	struct efivars *efivars = &__efivars;
 	int i, ret = 0;
 	u64 storage_space, remaining_space, max_variable_size;
 	efi_status_t status = EFI_NOT_FOUND;
@@ -606,7 +710,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	char name_old[DUMP_NAME_LEN];
 	efi_char16_t efi_name_old[DUMP_NAME_LEN];
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
-	struct efivars *efivars = psi->data;
+	struct efivars *efivars = &__efivars;
 	struct efivar_entry *entry, *found = NULL;
 	int i;
 

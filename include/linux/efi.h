@@ -469,7 +469,6 @@ struct efivars {
 	struct kset *kset;
 	struct bin_attribute *new_var, *del_var;
 	const struct efivar_operations *ops;
-	struct efivar_entry *walk_entry;
 	struct pstore_info efi_pstore_info;
 };
 
