@@ -494,28 +494,29 @@ static int efi_status_to_err(efi_status_t status)
 }
 
 /**
- * __efivar_entry_size - obtain the size of a variable
- * @entry: entry for this variable
- * @size: location to store the variable's size
+ * __efivar_entry_get - call get_variable()
+ * @entry: read data for this variable
+ * @attributes: variable attributes
+ * @size: size of @data buffer
+ * @data: buffer to store variable data
  *
  * The caller MUST call efivar_entry_iter_begin() and
  * efivar_entry_iter_end() before and after the invocation of this
  * function, respectively.
  */
-static int __efivar_entry_size(struct efivar_entry *entry, unsigned long *size)
+static int __efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
+			      unsigned long *size, void *data)
 {
 	const struct efivar_operations *ops = __efivars.ops;
 	efi_status_t status;
 
 	WARN_ON(!spin_is_locked(&__efivars.lock));
 
-	*size = 0;
 	status = ops->get_variable(entry->var.VariableName,
-	&entry->var.VendorGuid, NULL, size, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return efi_status_to_err(status);
+				   &entry->var.VendorGuid,
+				   attributes, size, data);
 
-	return 0;
+	return efi_status_to_err(status);
 }
 
 
@@ -629,7 +630,11 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 	} else
 		return 0;
 
-	__efivar_entry_size(entry, &size);
+	entry->var.DataSize = 1024;
+	__efivar_entry_get(entry, &entry->var.Attributes,
+			   &entry->var.DataSize, entry->var.Data);
+	size = entry->var.DataSize;
+
 	*cb_data->buf = kmalloc(size, GFP_KERNEL);
 	if (*cb_data->buf == NULL)
 		return -ENOMEM;
