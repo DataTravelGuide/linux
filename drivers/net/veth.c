@@ -425,12 +425,13 @@ static void veth_dellink(struct net_device *dev)
 	 * not being freed before one RCU grace period.
 	 */
 	RCU_INIT_POINTER(priv->peer, NULL);
-
-	priv = netdev_priv(peer);
-	RCU_INIT_POINTER(priv->peer, NULL);
-
 	unregister_netdevice(dev);
-	unregister_netdevice(peer);
+
+	if (peer) {
+		priv = netdev_priv(peer);
+		RCU_INIT_POINTER(priv->peer, NULL);
+		unregister_netdevice(peer);
+	}
 }
 
 static const struct nla_policy veth_policy[VETH_INFO_MAX + 1] = {
