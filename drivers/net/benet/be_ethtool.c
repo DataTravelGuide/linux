@@ -892,17 +892,6 @@ static int be_read_eeprom(struct net_device *netdev,
 	return status;
 }
 
-static int be_set_flags(struct net_device *netdev, u32 data)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-	int rc = -1;
-
-	if (be_multi_rxq(adapter) && !(data & ~ETH_FLAG_RXHASH))
-		rc = ethtool_op_set_flags(netdev, data);
-
-	return rc;
-}
-
 static u32 be_get_msg_level(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -1189,7 +1178,6 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
-	.set_flags = be_set_flags,
 	.get_rxnfc = be_get_rxnfc,
 	.set_rxnfc = be_set_rxnfc,
 };
