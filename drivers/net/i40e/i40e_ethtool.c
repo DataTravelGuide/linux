@@ -1704,6 +1704,6 @@ static const struct ethtool_ops_ext i40e_ethtool_ops_ext = {
 
 void i40e_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &i40e_ethtool_ops);
+	netdev->ethtool_ops = &i40e_ethtool_ops;
 	set_ethtool_ops_ext(netdev, &i40e_ethtool_ops_ext);
 }
