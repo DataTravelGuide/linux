@@ -422,9 +422,10 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 				pm8001_printk("PCI: bar %d, logicalBar %d ",
 				bar, logicalBar));
 			PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
-				"base addr %llx virt_addr %p len=%d\n",
+				"base addr %llx virt_addr %llx len=%d\n",
 				(u64)pm8001_ha->io_mem[logicalBar].membase,
-				(void __iomem *)pm8001_ha->io_mem[logicalBar].memvirtaddr,
+				(u64)(unsigned long)
+				pm8001_ha->io_mem[logicalBar].memvirtaddr,
 				pm8001_ha->io_mem[logicalBar].memsize));
 		} else {
 			pm8001_ha->io_mem[logicalBar].membase	= 0;
