@@ -73,6 +73,7 @@ static struct acpi_interface_info acpi_interfaces_supported[] = {
 	{"Windows 2006 SP1", ACPI_OSI_WIN_VISTA_SP1},	/* Windows Vista SP1 - Added 09/2009 */
 	{"Windows 2006 SP2", ACPI_OSI_WIN_VISTA_SP2},	/* Windows Vista SP2 - Added 09/2010 */
 	{"Windows 2009", ACPI_OSI_WIN_7},	/* Windows 7 and Server 2008 R2 - Added 09/2009 */
+	{"Windows 2012", ACPI_OSI_WIN_8},	/* Windows 8 and Server 2012 - Added 08/2012 */
 
 	/* Feature Group Strings */
 
