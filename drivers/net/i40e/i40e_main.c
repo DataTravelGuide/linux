@@ -31,7 +31,7 @@
 #include <net/vxlan.h>
 #endif
 
-const char i40e_driver_name[] = "i40e";
+char i40e_driver_name[] = "i40e";
 static const char i40e_driver_string[] =
 			"Intel(R) Ethernet Connection XL710 Network Driver";
 
@@ -1398,7 +1398,7 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 	struct i40e_mac_filter *f, *ftmp;
 	struct i40e_vsi *vsi = np->vsi;
 	struct netdev_hw_addr *uca;
-	struct netdev_hw_addr *mca;
+	struct dev_mc_list *mca;
 	struct netdev_hw_addr *ha;
 
 	/* add addr if not already in the filter list */
@@ -1414,12 +1414,12 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 	}
 
 	netdev_for_each_mc_addr(mca, netdev) {
-		if (!i40e_find_mac(vsi, mca->addr, false, true)) {
+		if (!i40e_find_mac(vsi, mca->dmi_addr, false, true)) {
 			if (i40e_is_vsi_in_vlan(vsi))
-				i40e_put_mac_in_vlan(vsi, mca->addr,
+				i40e_put_mac_in_vlan(vsi, mca->dmi_addr,
 						     false, true);
 			else
-				i40e_add_filter(vsi, mca->addr, I40E_VLAN_ANY,
+				i40e_add_filter(vsi, mca->dmi_addr, I40E_VLAN_ANY,
 						false, true);
 		}
 	}
@@ -1433,7 +1433,7 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 
 		if (is_multicast_ether_addr(f->macaddr)) {
 			netdev_for_each_mc_addr(mca, netdev) {
-				if (ether_addr_equal(mca->addr, f->macaddr)) {
+				if (ether_addr_equal(mca->dmi_addr, f->macaddr)) {
 					found = true;
 					break;
 				}
@@ -1797,12 +1797,14 @@ void i40e_vlan_stripping_disable(struct i40e_vsi *vsi)
  * @netdev: network interface to be adjusted
  * @features: netdev features to test if VLAN offload is enabled or not
  **/
-static void i40e_vlan_rx_register(struct net_device *netdev, u32 features)
+static void i40e_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+	vsi->vlgrp = grp;
+
+	if (grp)
 		i40e_vlan_stripping_enable(vsi);
 	else
 		i40e_vlan_stripping_disable(vsi);
@@ -1969,15 +1971,14 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
  *
  * net_device_ops implementation for adding vlan ids
  **/
-static int i40e_vlan_rx_add_vid(struct net_device *netdev,
-				__always_unused __be16 proto, u16 vid)
+static void i40e_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	int ret = 0;
 
 	if (vid > 4095)
-		return -EINVAL;
+		return;
 
 	netdev_info(netdev, "adding %pM vid=%d\n", netdev->dev_addr, vid);
 
@@ -1990,10 +1991,10 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 	if (vid)
 		ret = i40e_vsi_add_vlan(vsi, vid);
 
-	if (!ret && (vid < VLAN_N_VID))
+	if (!ret && (vid < VLAN_GROUP_ARRAY_LEN))
 		set_bit(vid, vsi->active_vlans);
 
-	return ret;
+	return;
 }
 
 /**
@@ -2003,8 +2004,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
  *
  * net_device_ops implementation for removing vlan ids
  **/
-static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
-				 __always_unused __be16 proto, u16 vid)
+static void i40e_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -2019,7 +2019,7 @@ static int i40e_vlan_rx_kill_vid(struct net_device *netdev,
 
 	clear_bit(vid, vsi->active_vlans);
 
-	return 0;
+	return;
 }
 
 /**
@@ -2033,11 +2033,11 @@ static void i40e_restore_vlan(struct i40e_vsi *vsi)
 	if (!vsi->netdev)
 		return;
 
-	i40e_vlan_rx_register(vsi->netdev, vsi->netdev->features);
+	i40e_vlan_rx_register(vsi->netdev, vsi->vlgrp);
 
-	for_each_set_bit(vid, vsi->active_vlans, VLAN_N_VID)
-		i40e_vlan_rx_add_vid(vsi->netdev, htons(ETH_P_8021Q),
-				     vid);
+	for_each_set_bit(vid, vsi->active_vlans, VLAN_GROUP_ARRAY_LEN)
+               i40e_vlan_rx_add_vid(vsi->netdev,
+				    vid);
 }
 
 /**
@@ -2180,6 +2180,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		ring->atr_sample_rate = 0;
 	}
 
+#if 0 /* RHEL6 */
 	/* initialize XPS */
 	if (ring->q_vector && ring->netdev &&
 	    vsi->tc_config.numtc <= 1 &&
@@ -2187,6 +2188,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		netif_set_xps_queue(ring->netdev,
 				    &ring->q_vector->affinity_mask,
 				    ring->queue_index);
+#endif /* RHEL6 */
 
 	/* clear the context structure first */
 	memset(&tx_ctx, 0, sizeof(tx_ctx));
@@ -2457,12 +2459,12 @@ static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
 {
 	struct i40e_fdir_filter *filter;
 	struct i40e_pf *pf = vsi->back;
-	struct hlist_node *node;
+	struct hlist_node *node, *node2;
 
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return;
 
-	hlist_for_each_entry_safe(filter, node,
+	hlist_for_each_entry_safe(filter, node, node2,
 				  &pf->fdir_filter_list, fdir_node) {
 		i40e_add_del_fdir(vsi, filter, true);
 	}
@@ -3619,6 +3621,7 @@ static u8 i40e_dcb_get_enabled_tc(struct i40e_dcbx_config *dcbcfg)
 	return enabled_tc;
 }
 
+#if 0 /* RHEL6 */
 /**
  * i40e_pf_get_num_tc - Get enabled traffic classes for PF
  * @pf: PF being queried
@@ -3649,6 +3652,7 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	/* SFP mode will be enabled for all TCs on port */
 	return i40e_dcb_get_num_tc(dcbcfg);
 }
+#endif /* RHEL6 */
 
 /**
  * i40e_pf_get_default_tc - Get bitmap for first enabled TC
@@ -4184,6 +4188,7 @@ void i40e_down(struct i40e_vsi *vsi)
 	}
 }
 
+#if 0 /* RHEL6 */
 /**
  * i40e_setup_tc - configure multiple traffic classes
  * @netdev: net device to configure
@@ -4241,6 +4246,7 @@ static int i40e_setup_tc(struct net_device *netdev, u8 tc)
 exit:
 	return ret;
 }
+#endif /* RHEL6 */
 
 /**
  * i40e_open - Called when a network interface is made active
@@ -4321,7 +4327,7 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 			goto err_setup_rx;
 
 		/* Notify the stack of the actual queue counts. */
-		err = netif_set_real_num_tx_queues(vsi->netdev,
+		netif_set_real_num_tx_queues(vsi->netdev,
 						   vsi->num_queue_pairs);
 		if (err)
 			goto err_set_queues;
@@ -4370,9 +4376,9 @@ err_setup_tx:
 static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 {
 	struct i40e_fdir_filter *filter;
-	struct hlist_node *node2;
+	struct hlist_node *node, *node2;
 
-	hlist_for_each_entry_safe(filter, node2,
+	hlist_for_each_entry_safe(filter, node, node2,
 				  &pf->fdir_filter_list, fdir_node) {
 		hlist_del(&filter->fdir_node);
 		kfree(filter);
@@ -6495,14 +6501,14 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
  * @features: the feature set that the stack is suggesting
  **/
 static int i40e_set_features(struct net_device *netdev,
-			     netdev_features_t features)
+			     u32 features)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	bool need_reset;
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (features & NETIF_F_HW_VLAN_RX)
 		i40e_vlan_stripping_enable(vsi);
 	else
 		i40e_vlan_stripping_disable(vsi);
@@ -6707,25 +6713,28 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
 	.ndo_start_xmit		= i40e_lan_xmit_frame,
-	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
 	.ndo_set_rx_mode	= i40e_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= i40e_set_mac,
 	.ndo_change_mtu		= i40e_change_mtu,
 	.ndo_do_ioctl		= i40e_ioctl,
 	.ndo_tx_timeout		= i40e_tx_timeout,
+	.ndo_vlan_rx_register	= i40e_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40e_netpoll,
 #endif
+#if 0 /* RHEL6 */
 	.ndo_setup_tc		= i40e_setup_tc,
-	.ndo_set_features	= i40e_set_features,
+#endif /* RHEL6 */
 	.ndo_set_vf_mac		= i40e_ndo_set_vf_mac,
 	.ndo_set_vf_vlan	= i40e_ndo_set_vf_port_vlan,
 	.ndo_set_vf_tx_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
+#if 0 /* RHEL6 */
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
+#endif /* RHEL6 */
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
@@ -6737,6 +6746,12 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_fdb_dump		= i40e_ndo_fdb_dump,
 #endif
 #endif
+};
+
+static const struct net_device_ops_ext i40e_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
+	.ndo_set_features	= i40e_set_features,
 };
 
 /**
@@ -6764,18 +6779,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM	 |
-				  NETIF_F_GSO_UDP_TUNNEL |
-				  NETIF_F_TSO;
-
 	netdev->features = NETIF_F_SG		       |
 			   NETIF_F_IP_CSUM	       |
 			   NETIF_F_SCTP_CSUM	       |
 			   NETIF_F_HIGHDMA	       |
 			   NETIF_F_GSO_UDP_TUNNEL      |
-			   NETIF_F_HW_VLAN_CTAG_TX     |
-			   NETIF_F_HW_VLAN_CTAG_RX     |
-			   NETIF_F_HW_VLAN_CTAG_FILTER |
+			   NETIF_F_HW_VLAN_TX     |
+			   NETIF_F_HW_VLAN_RX     |
+			   NETIF_F_HW_VLAN_FILTER |
 			   NETIF_F_IPV6_CSUM	       |
 			   NETIF_F_TSO		       |
 			   NETIF_F_TSO_ECN	       |
@@ -6788,7 +6799,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 		netdev->features |= NETIF_F_NTUPLE;
 
 	/* copy netdev features into list of user selectable features */
-	netdev->hw_features |= netdev->features;
+	netdev_extended(netdev)->hw_features |= netdev->features;
 
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
@@ -6807,15 +6818,18 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	/* vlan gets same features (except vlan offload)
 	 * after any tweaks for specific VSI types
 	 */
-	netdev->vlan_features = netdev->features & ~(NETIF_F_HW_VLAN_CTAG_TX |
-						     NETIF_F_HW_VLAN_CTAG_RX |
-						   NETIF_F_HW_VLAN_CTAG_FILTER);
+	netdev->vlan_features = netdev->features & ~(NETIF_F_HW_VLAN_TX |
+						     NETIF_F_HW_VLAN_RX |
+						   NETIF_F_HW_VLAN_FILTER);
+#if 0 /* RHEL6 */
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
+#endif /* RHEL6 */
 	/* Setup netdev TC information */
 	i40e_vsi_config_netdev_tc(vsi, vsi->tc_config.enabled_tc);
 
 	netdev->netdev_ops = &i40e_netdev_ops;
+	set_netdev_ops_ext(netdev, &i40e_netdev_ops_ext);
 	netdev->watchdog_timeo = 5 * HZ;
 	i40e_set_ethtool_ops(netdev);
 
@@ -8753,6 +8767,10 @@ static const struct pci_error_handlers i40e_err_handler = {
 	.resume = i40e_pci_error_resume,
 };
 
+static struct pci_driver_rh i40e_driver_rh = {
+	.sriov_configure = i40e_pci_sriov_configure,
+};
+
 static struct pci_driver i40e_driver = {
 	.name     = i40e_driver_name,
 	.id_table = i40e_pci_tbl,
@@ -8764,7 +8782,7 @@ static struct pci_driver i40e_driver = {
 #endif
 	.shutdown = i40e_shutdown,
 	.err_handler = &i40e_err_handler,
-	.sriov_configure = i40e_pci_sriov_configure,
+	.rh_reserved = &i40e_driver_rh,
 };
 
 /**

@@ -2296,19 +2296,21 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	ivi->vlan = le16_to_cpu(vsi->info.pvid) & I40E_VLAN_MASK;
 	ivi->qos = (le16_to_cpu(vsi->info.pvid) & I40E_PRIORITY_MASK) >>
 		   I40E_VLAN_PRIORITY_SHIFT;
+#if 0 /* RHEL6 */
 	if (vf->link_forced == false)
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->link_up == true)
 		ivi->linkstate = IFLA_VF_LINK_STATE_ENABLE;
 	else
 		ivi->linkstate = IFLA_VF_LINK_STATE_DISABLE;
-
+#endif /* RHEL6 */
 	ret = 0;
 
 error_param:
 	return ret;
 }
 
+#if 0 /* RHEL6 */
 /**
  * i40e_ndo_set_vf_link_state
  * @netdev: network interface device structure
@@ -2369,3 +2371,4 @@ int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link)
 error_out:
 	return ret;
 }
+#endif /* RHEL6 */

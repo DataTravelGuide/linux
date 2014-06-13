@@ -27,6 +27,8 @@
 #ifndef _I40E_TXRX_H_
 #define _I40E_TXRX_H_
 
+#include <linux/u64_stats_sync.h>
+
 /* Interrupt Throttling and Rate Limiting (storm control) Goodies */
 
 #define I40E_MAX_ITR               0x0FF0  /* reg uses 2 usec resolution */

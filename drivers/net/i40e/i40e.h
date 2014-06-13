@@ -97,9 +97,11 @@
 #define STRINGIFY(foo)  #foo
 #define XSTRINGIFY(bar) STRINGIFY(bar)
 
+#if 0 /* RHEL6 */
 #ifndef ARCH_HAS_PREFETCH
 #define prefetch(X)
 #endif
+#endif /* RHEL6 */
 
 #define I40E_RX_DESC(R, i)			\
 	((ring_is_16byte_desc_enabled(R))	\
@@ -374,7 +376,8 @@ struct i40e_veb {
 /* struct that defines a VSI, associated with a dev */
 struct i40e_vsi {
 	struct net_device *netdev;
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_GROUP_ARRAY_LEN)];
+	struct vlan_group *vlgrp;
 	bool netdev_registered;
 	bool stat_offsets_loaded;
 
@@ -541,7 +544,7 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 /* needed by i40e_ethtool.c */
 int i40e_up(struct i40e_vsi *vsi);
 void i40e_down(struct i40e_vsi *vsi);
-extern const char i40e_driver_name[];
+extern char i40e_driver_name[];
 extern const char i40e_driver_version_str[];
 void i40e_do_reset_safe(struct i40e_pf *pf, u32 reset_flags);
 void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags);

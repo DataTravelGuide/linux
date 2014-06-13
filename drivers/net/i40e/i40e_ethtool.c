@@ -1138,14 +1138,14 @@ static int i40e_get_ethtool_fdir_all(struct i40e_pf *pf,
 				     u32 *rule_locs)
 {
 	struct i40e_fdir_filter *rule;
-	struct hlist_node *node2;
+	struct hlist_node *node, *node2;
 	int cnt = 0;
 
 	/* report total rule count */
 	cmd->data = pf->hw.fdir_shared_filter_count +
 		    pf->fdir_pf_filter_count;
 
-	hlist_for_each_entry_safe(rule, node2,
+	hlist_for_each_entry_safe(rule, node, node2,
 				  &pf->fdir_filter_list, fdir_node) {
 		if (cnt == cmd->rule_cnt)
 			return -EMSGSIZE;
@@ -1175,13 +1175,13 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 	struct ethtool_rx_flow_spec *fsp =
 			(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct i40e_fdir_filter *rule = NULL;
-	struct hlist_node *node2;
+	struct hlist_node *node, *node2;
 
 	/* report total rule count */
 	cmd->data = pf->hw.fdir_shared_filter_count +
 		    pf->fdir_pf_filter_count;
 
-	hlist_for_each_entry_safe(rule, node2,
+	hlist_for_each_entry_safe(rule, node, node2,
 				  &pf->fdir_filter_list, fdir_node) {
 		if (fsp->location <= rule->fd_id)
 			break;
@@ -1214,7 +1214,7 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
  * Returns Success if the command is supported.
  **/
 static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
-			  u32 *rule_locs)
+			  void *rule_locs)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -1406,13 +1406,13 @@ static int i40e_update_ethtool_fdir_entry(struct i40e_vsi *vsi,
 {
 	struct i40e_fdir_filter *rule, *parent;
 	struct i40e_pf *pf = vsi->back;
-	struct hlist_node *node2;
+	struct hlist_node *node, *node2;
 	int err = -EINVAL;
 
 	parent = NULL;
 	rule = NULL;
 
-	hlist_for_each_entry_safe(rule, node2,
+	hlist_for_each_entry_safe(rule, node, node2,
 				  &pf->fdir_filter_list, fdir_node) {
 		/* hash found, or no matching entry */
 		if (rule->fd_id >= sw_idx)
@@ -1688,11 +1688,15 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.set_rxnfc		= i40e_set_rxnfc,
 	.self_test		= i40e_diag_test,
 	.get_strings		= i40e_get_strings,
-	.set_phys_id		= i40e_set_phys_id,
 	.get_sset_count		= i40e_get_sset_count,
 	.get_ethtool_stats	= i40e_get_ethtool_stats,
 	.get_coalesce		= i40e_get_coalesce,
 	.set_coalesce		= i40e_set_coalesce,
+};
+
+static const struct ethtool_ops_ext i40e_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	.set_phys_id		= i40e_set_phys_id,
 	.get_channels		= i40e_get_channels,
 	.set_channels		= i40e_set_channels,
 	.get_ts_info		= i40e_get_ts_info,
@@ -1701,4 +1705,5 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 void i40e_set_ethtool_ops(struct net_device *netdev)
 {
 	SET_ETHTOOL_OPS(netdev, &i40e_ethtool_ops);
+	set_ethtool_ops_ext(netdev, &i40e_ethtool_ops_ext);
 }
