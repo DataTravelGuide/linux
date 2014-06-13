@@ -221,6 +221,11 @@ M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/e1000e/
 
+INTEL I40E ETHERNET DRIVERS (i40e)
+M:	Stefan Assmann <sassmann@redhat.com>
+S:	Maintained
+F:	drivers/net/i40e/
+
 INTEL IGB ETHERNET DRIVERS (igb)
 M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
