@@ -703,7 +703,7 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 	u64 flags = vsi->back->flags;
 
 	if (vlan_tag & VLAN_VID_MASK)
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+		__vlan_hwaccel_put_tag(skb, vlan_tag);
 
 	if (flags & I40E_FLAG_IN_NETPOLL)
 		netif_rx(skb);
@@ -767,8 +767,7 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 					(ip_hdr(skb)->ihl * 4);
 
 		/* Add 4 bytes for VLAN tagged packets */
-		skb->transport_header += (skb->protocol == htons(ETH_P_8021Q) ||
-					  skb->protocol == htons(ETH_P_8021AD))
+		skb->transport_header += (skb->protocol == htons(ETH_P_8021Q))
 					  ? VLAN_HLEN : 0;
 
 		rx_udp_csum = udp_csum(skb);
@@ -1128,26 +1127,23 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 		return err;
 
 	if (protocol == htons(ETH_P_IP)) {
-		iph = skb->encapsulation ? inner_ip_hdr(skb) : ip_hdr(skb);
-		tcph = skb->encapsulation ? inner_tcp_hdr(skb) : tcp_hdr(skb);
+		iph = ip_hdr(skb);
+		tcph = tcp_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
 		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
 						 0, IPPROTO_TCP, 0);
 	} else if (skb_is_gso_v6(skb)) {
 
-		ipv6h = skb->encapsulation ? inner_ipv6_hdr(skb)
-					   : ipv6_hdr(skb);
-		tcph = skb->encapsulation ? inner_tcp_hdr(skb) : tcp_hdr(skb);
+		ipv6h = ipv6_hdr(skb);
+		tcph = tcp_hdr(skb);
 		ipv6h->payload_len = 0;
 		tcph->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
 					       0, IPPROTO_TCP, 0);
 	}
 
-	l4len = skb->encapsulation ? inner_tcp_hdrlen(skb) : tcp_hdrlen(skb);
-	*hdr_len = (skb->encapsulation
-		    ? (skb_inner_transport_header(skb) - skb->data)
-		    : skb_transport_offset(skb)) + l4len;
+	l4len = tcp_hdrlen(skb);
+	*hdr_len = skb_transport_offset(skb) + l4len;
 
 	/* find the field values */
 	cd_cmd = I40E_TX_CTX_DESC_TSO;
@@ -1179,6 +1175,7 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 	u32 network_hdr_len;
 	u8 l4_hdr = 0;
 
+#if 0 /* RHEL6 */
 	if (skb->encapsulation) {
 		network_hdr_len = skb_inner_network_header_len(skb);
 		this_ip_hdr = inner_ip_hdr(skb);
@@ -1211,8 +1208,9 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 				   ((skb_inner_network_offset(skb) -
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;
-
 	} else {
+#endif /* RHEL6 */
+	{
 		network_hdr_len = skb_network_header_len(skb);
 		this_ip_hdr = ip_hdr(skb);
 		this_ipv6_hdr = ipv6_hdr(skb);

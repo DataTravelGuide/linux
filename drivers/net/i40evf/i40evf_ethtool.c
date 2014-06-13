@@ -431,7 +431,7 @@ static int i40evf_get_rss_hash_opts(struct i40evf_adapter *adapter,
  **/
 static int i40evf_get_rxnfc(struct net_device *netdev,
 			    struct ethtool_rxnfc *cmd,
-			    u32 *rule_locs)
+			    void *rule_locs)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	int ret = -EOPNOTSUPP;
@@ -690,6 +690,10 @@ static struct ethtool_ops i40evf_ethtool_ops = {
 	.set_coalesce		= i40evf_set_coalesce,
 	.get_rxnfc		= i40evf_get_rxnfc,
 	.set_rxnfc		= i40evf_set_rxnfc,
+};
+
+static const struct ethtool_ops_ext i40e_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
 	.get_rxfh_indir_size	= i40evf_get_rxfh_indir_size,
 	.get_rxfh_indir		= i40evf_get_rxfh_indir,
 	.set_rxfh_indir		= i40evf_set_rxfh_indir,

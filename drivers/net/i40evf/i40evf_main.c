@@ -698,14 +698,13 @@ static void i40evf_del_vlan(struct i40evf_adapter *adapter, u16 vlan)
  * @netdev: network device struct
  * @vid: VLAN tag
  **/
-static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
-			 __always_unused __be16 proto, u16 vid)
+static void i40evf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	if (i40evf_add_vlan(adapter, vid) == NULL)
-		return -ENOMEM;
-	return 0;
+		return;
+	return;
 }
 
 /**
@@ -713,13 +712,18 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
  * @netdev: network device struct
  * @vid: VLAN tag
  **/
-static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
-			  __always_unused __be16 proto, u16 vid)
+static void i40evf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	i40evf_del_vlan(adapter, vid);
-	return 0;
+	return;
+}
+
+static void i40evf_vlan_rx_register(struct net_device *netdev,
+				    struct vlan_group *grp)
+{
+
 }
 
 /**
@@ -826,14 +830,14 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40evf_mac_filter *f, *ftmp;
 	struct netdev_hw_addr *uca;
-	struct netdev_hw_addr *mca;
+	struct dev_mc_list *mca;
 
 	/* add addr if not already in the filter list */
 	netdev_for_each_uc_addr(uca, netdev) {
 		i40evf_add_filter(adapter, uca->addr);
 	}
 	netdev_for_each_mc_addr(mca, netdev) {
-		i40evf_add_filter(adapter, mca->addr);
+		i40evf_add_filter(adapter, mca->dmi_addr);
 	}
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
@@ -845,7 +849,7 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 
 		if (f->macaddr[0] & 0x01) {
 			netdev_for_each_mc_addr(mca, netdev) {
-				if (ether_addr_equal(mca->addr, f->macaddr)) {
+				if (ether_addr_equal(mca->dmi_addr, f->macaddr)) {
 					found = true;
 					break;
 				}
@@ -1912,6 +1916,7 @@ static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_set_mac_address	= i40evf_set_mac,
 	.ndo_change_mtu		= i40evf_change_mtu,
 	.ndo_tx_timeout		= i40evf_tx_timeout,
+	.ndo_vlan_rx_register	= i40evf_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= i40evf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40evf_vlan_rx_kill_vid,
 };
@@ -2069,14 +2074,14 @@ static void i40evf_init_task(struct work_struct *work)
 	if (adapter->vf_res->vf_offload_flags
 	    & I40E_VIRTCHNL_VF_OFFLOAD_VLAN) {
 		netdev->vlan_features = netdev->features;
-		netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
-				    NETIF_F_HW_VLAN_CTAG_RX |
-				    NETIF_F_HW_VLAN_CTAG_FILTER;
+		netdev->features |= NETIF_F_HW_VLAN_TX |
+				    NETIF_F_HW_VLAN_RX |
+				    NETIF_F_HW_VLAN_FILTER;
 	}
 
 	/* copy netdev features into list of user selectable features */
-	netdev->hw_features |= netdev->features;
-	netdev->hw_features &= ~NETIF_F_RXCSUM;
+	netdev_extended(netdev)->hw_features |= netdev->features;
+	netdev_extended(netdev)->hw_features &= ~NETIF_F_RXCSUM;
 
 	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
 		dev_info(&pdev->dev, "Invalid MAC address %pMAC, using random\n",
