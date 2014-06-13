@@ -226,6 +226,11 @@ M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/i40e/
 
+INTEL I40EVF ETHERNET DRIVERS (i40evf)
+M:	Stefan Assmann <sassmann@redhat.com>
+S:	Maintained
+F:	drivers/net/i40evf/
+
 INTEL IGB ETHERNET DRIVERS (igb)
 M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
