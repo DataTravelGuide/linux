@@ -4,10 +4,17 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 
+struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+					   void *data,
+					   int node,
+					   const char namefmt[], ...)
+	__attribute__((format(printf, 4, 5)));
+
 struct task_struct *kthread_create(int (*threadfn)(void *data),
 				   void *data,
 				   const char namefmt[], ...)
 	__attribute__((format(printf, 3, 4)));
+
 
 /**
  * kthread_run - create and wake a thread.
@@ -33,6 +40,7 @@ int kthread_should_stop(void);
 
 int kthreadd(void *unused);
 extern struct task_struct *kthreadd_task;
+extern int tsk_fork_get_node(struct task_struct *tsk);
 
 /*
  * Simple work processor based on kthread.

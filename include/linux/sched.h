@@ -1666,7 +1666,7 @@ struct task_struct {
 	/* bitmask of trace recursion */
 	unsigned long trace_recursion;
 #endif /* CONFIG_TRACING */
-	/* reserved for Red Hat */
+	/* padding reserved by Red Hat for non-kABI breaking extensions */
 	unsigned long rh_reserved[2];
 #ifndef __GENKSYMS__
 	struct perf_event_context *perf_event_ctxp[perf_nr_task_contexts];
@@ -1677,6 +1677,9 @@ struct task_struct {
 		unsigned long bytes; 		/* uncharged usage */
 		unsigned long memsw_bytes; /* uncharged mem+swap usage */
 	} memcg_batch;
+#endif
+#ifdef CONFIG_NUMA
+	short pref_node_fork;
 #endif
 #endif
 };
