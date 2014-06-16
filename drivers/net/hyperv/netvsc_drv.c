@@ -641,7 +641,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	}
 	skb->vlan_tci = packet->vlan_tci;
 
-	skb_record_rx_queue(skb, packet->xfer_page_pkt->channel->
+	skb_record_rx_queue(skb, packet->channel->
 			    offermsg.offer.sub_channel_index %
 			    nvdev->num_chn);
 
