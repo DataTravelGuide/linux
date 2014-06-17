@@ -445,7 +445,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		for_each_cpu(i, cpu_sibling_setup_mask) {
 			struct cpuinfo_x86 *o = &cpu_data(i);
 
-			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
+			if (cpu_has_topoext) {
 				if (c->phys_proc_id == o->phys_proc_id &&
 				    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i) &&
 				    c->compute_unit_id == o->compute_unit_id)
