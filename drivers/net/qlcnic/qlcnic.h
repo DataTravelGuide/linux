@@ -31,7 +31,6 @@
 #include <asm/byteorder.h>
 
 #include "qlcnic_hdr.h"
-#include "qlcnic_compat.h"
 #include "qlcnic_hw.h"
 #include "qlcnic_83xx_hw.h"
 
