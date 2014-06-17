@@ -338,6 +338,7 @@ struct x86_pmu {
 	unsigned	eventsel;
 	unsigned	perfctr;
 	int		(*addr_offset)(int index, bool eventsel);
+	int		(*rdpmc_index)(int index);
 	u64		(*event_map)(int);
 	int		max_events;
 	int		num_counters;
@@ -509,6 +510,11 @@ static inline unsigned int x86_pmu_event_addr(int index)
 {
 	return x86_pmu.perfctr + (x86_pmu.addr_offset ?
 				  x86_pmu.addr_offset(index, false) : index);
+}
+
+static inline int x86_pmu_rdpmc_index(int index)
+{
+	return x86_pmu.rdpmc_index ? x86_pmu.rdpmc_index(index) : index;
 }
 
 int x86_setup_perfctr(struct perf_event *event);
