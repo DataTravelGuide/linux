@@ -172,6 +172,19 @@ struct x86_pmu_capability {
 #define IBSCTL_LVT_OFFSET_VALID		(1ULL<<8)
 #define IBSCTL_LVT_OFFSET_MASK		0x0F
 
+/*
+ * IBS randomization macros
+ */
+#define IBS_RANDOM_BITS			12
+#define IBS_RANDOM_MASK			((1ULL << IBS_RANDOM_BITS) - 1)
+#define IBS_RANDOM_MAXCNT_OFFSET	(1ULL << (IBS_RANDOM_BITS - 5))
+
+#ifdef CONFIG_X86_LOCAL_APIC
+extern u32 get_ibs_caps(void);
+#else
+static inline u32 get_ibs_caps(void) { return 0; }
+#endif
+
 /* IbsFetchCtl bits/masks */
 #define IBS_FETCH_RAND_EN	(1ULL<<57)
 #define IBS_FETCH_VAL		(1ULL<<49)

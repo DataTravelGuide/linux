@@ -68,34 +68,6 @@ static struct ibs_config ibs_config;
 static struct ibs_state ibs_state;
 
 /*
- * IBS randomization macros
- */
-#define IBS_RANDOM_BITS			12
-#define IBS_RANDOM_MASK			((1ULL << IBS_RANDOM_BITS) - 1)
-#define IBS_RANDOM_MAXCNT_OFFSET	(1ULL << (IBS_RANDOM_BITS - 5))
-
-static u32 get_ibs_caps(void)
-{
-	u32 ibs_caps;
-	unsigned int max_level;
-
-	if (!boot_cpu_has(X86_FEATURE_IBS))
-		return 0;
-
-	/* check IBS cpuid feature flags */
-	max_level = cpuid_eax(0x80000000);
-	if (max_level < IBS_CPUID_FEATURES)
-		return IBS_CAPS_DEFAULT;
-
-	ibs_caps = cpuid_eax(IBS_CPUID_FEATURES);
-	if (!(ibs_caps & IBS_CAPS_AVAIL))
-		/* cpuid flags not valid */
-		return IBS_CAPS_DEFAULT;
-
-	return ibs_caps;
-}
-
-/*
  * 16-bit Linear Feedback Shift Register (LFSR)
  *
  *                       16   14   13    11
