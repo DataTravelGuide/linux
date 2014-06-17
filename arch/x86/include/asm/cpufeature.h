@@ -216,6 +216,8 @@
 #define X86_FEATURE_AVX512PF	(9*32+26) /* AVX-512 Prefetch */
 #define X86_FEATURE_AVX512ER	(9*32+27) /* AVX-512 Exponential and Reciprocal */
 #define X86_FEATURE_AVX512CD	(9*32+28) /* AVX-512 Conflict Detection */
+#define X86_FEATURE_RDSEED	(9*32+18) /* The RDSEED instruction */
+#define X86_FEATURE_ADX		(9*32+19) /* The ADCX and ADOX instructions */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
