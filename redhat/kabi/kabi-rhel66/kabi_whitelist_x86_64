@@ -1504,6 +1504,7 @@
 	uart_register_driver
 	uart_remove_one_port
 	uart_unregister_driver
+	uart_write_wakeup
 	uio_event_notify
 	uio_unregister_device
 	unlock_buffer

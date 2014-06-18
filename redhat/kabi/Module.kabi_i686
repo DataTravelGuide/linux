@@ -1497,6 +1497,7 @@
 0x25a0430c	uart_register_driver	vmlinux	EXPORT_SYMBOL
 0x1bdd9f95	uart_remove_one_port	vmlinux	EXPORT_SYMBOL
 0x328de86a	uart_unregister_driver	vmlinux	EXPORT_SYMBOL
+0x088c19d6	uart_write_wakeup	vmlinux	EXPORT_SYMBOL
 0x6dda64c9	uio_event_notify	drivers/uio/uio	EXPORT_SYMBOL_GPL
 0xd69ee0f8	uio_unregister_device	drivers/uio/uio	EXPORT_SYMBOL_GPL
 0x14b835d8	unlock_buffer	vmlinux	EXPORT_SYMBOL
