@@ -358,6 +358,7 @@
 	dev_kfree_skb_irq
 	dev_mc_add
 	dev_mc_delete
+	dev_notice
 	dev_open
 	dev_printk
 	dev_queue_xmit

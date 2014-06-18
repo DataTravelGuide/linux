@@ -357,6 +357,7 @@
 0xc1c5f9df	dev_kfree_skb_irq	vmlinux	EXPORT_SYMBOL
 0x2eca93b2	dev_mc_add	vmlinux	EXPORT_SYMBOL
 0x7a2b8dd9	dev_mc_delete	vmlinux	EXPORT_SYMBOL
+0x4317b09e	dev_notice	vmlinux	EXPORT_SYMBOL
 0xbce22f90	dev_open	vmlinux	EXPORT_SYMBOL
 0x167118d3	dev_printk	vmlinux	EXPORT_SYMBOL
 0x104c28fd	dev_queue_xmit	vmlinux	EXPORT_SYMBOL

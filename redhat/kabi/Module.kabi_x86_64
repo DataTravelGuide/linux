@@ -366,6 +366,7 @@
 0xef026125	dev_kfree_skb_irq	vmlinux	EXPORT_SYMBOL
 0xf784b6f8	dev_mc_add	vmlinux	EXPORT_SYMBOL
 0xbb231f0c	dev_mc_delete	vmlinux	EXPORT_SYMBOL
+0xb96418d4	dev_notice	vmlinux	EXPORT_SYMBOL
 0xbabeee9e	dev_open	vmlinux	EXPORT_SYMBOL
 0xabd7b07b	dev_printk	vmlinux	EXPORT_SYMBOL
 0x0d110dab	dev_queue_xmit	vmlinux	EXPORT_SYMBOL
