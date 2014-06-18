@@ -382,6 +382,7 @@
 	dev_unicast_add
 	dev_unicast_delete
 	dev_valid_name
+	dev_warn
 	device_add
 	device_create
 	device_create_file

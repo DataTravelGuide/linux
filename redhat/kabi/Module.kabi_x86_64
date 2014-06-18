@@ -381,6 +381,7 @@
 0x2fa52655	dev_unicast_add	vmlinux	EXPORT_SYMBOL
 0x9b574672	dev_unicast_delete	vmlinux	EXPORT_SYMBOL
 0x65414e67	dev_valid_name	vmlinux	EXPORT_SYMBOL
+0x7b274cdb	dev_warn	vmlinux	EXPORT_SYMBOL
 0xc482542c	device_add	vmlinux	EXPORT_SYMBOL_GPL
 0x02d2cf7d	device_create	vmlinux	EXPORT_SYMBOL_GPL
 0x7477dbc6	device_create_file	vmlinux	EXPORT_SYMBOL_GPL
