@@ -646,6 +646,7 @@
 0xc5534d64	ioread16	vmlinux	EXPORT_SYMBOL
 0xe484e35f	ioread32	vmlinux	EXPORT_SYMBOL
 0xf10de535	ioread8	vmlinux	EXPORT_SYMBOL
+0x068c7263	ioremap_cache	vmlinux	EXPORT_SYMBOL
 0x42c8de35	ioremap_nocache	vmlinux	EXPORT_SYMBOL
 0x1e0c2be4	ioremap_wc	vmlinux	EXPORT_SYMBOL
 0xedc03953	iounmap	vmlinux	EXPORT_SYMBOL

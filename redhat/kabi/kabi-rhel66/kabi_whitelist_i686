@@ -647,6 +647,7 @@
 	ioread16
 	ioread32
 	ioread8
+	ioremap_cache
 	ioremap_nocache
 	ioremap_wc
 	iounmap
