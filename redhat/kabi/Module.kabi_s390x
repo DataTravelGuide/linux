@@ -199,6 +199,7 @@
 0x2ce5c6e3	bus_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0x9bfc8246	bus_find_device	vmlinux	EXPORT_SYMBOL_GPL
 0x5596480c	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
+0xf55203cc	bus_for_each_drv	vmlinux	EXPORT_SYMBOL_GPL
 0x2a31207c	bus_register	vmlinux	EXPORT_SYMBOL_GPL
 0xb138c7da	bus_register_notifier	vmlinux	EXPORT_SYMBOL_GPL
 0xaba365e0	bus_remove_file	vmlinux	EXPORT_SYMBOL_GPL

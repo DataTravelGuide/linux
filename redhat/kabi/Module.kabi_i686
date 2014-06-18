@@ -240,6 +240,7 @@
 0x6e5c727a	bus_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0xa4f5a95a	bus_find_device	vmlinux	EXPORT_SYMBOL_GPL
 0x6a3d9aa7	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
+0xe1a1fb62	bus_for_each_drv	vmlinux	EXPORT_SYMBOL_GPL
 0xc1d7dcea	bus_register	vmlinux	EXPORT_SYMBOL_GPL
 0x7ecd9fe1	bus_register_notifier	vmlinux	EXPORT_SYMBOL_GPL
 0x89248c64	bus_remove_file	vmlinux	EXPORT_SYMBOL_GPL

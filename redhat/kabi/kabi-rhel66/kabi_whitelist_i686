@@ -241,6 +241,7 @@
 	bus_create_file
 	bus_find_device
 	bus_for_each_dev
+	bus_for_each_drv
 	bus_register
 	bus_register_notifier
 	bus_remove_file
