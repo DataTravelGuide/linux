@@ -664,6 +664,7 @@
 	ioread8
 	ioremap_cache
 	ioremap_nocache
+	ioremap_prot
 	ioremap_wc
 	iounmap
 	iowrite16
