@@ -790,6 +790,7 @@
 	net_ratelimit
 	netdev_alert
 	netdev_crit
+	netdev_emerg
 	netdev_err
 	netdev_features_change
 	netdev_fix_features

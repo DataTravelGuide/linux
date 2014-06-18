@@ -835,6 +835,7 @@
 0xf6ebc03b	net_ratelimit	vmlinux	EXPORT_SYMBOL
 0x5ececdfa	netdev_alert	vmlinux	EXPORT_SYMBOL
 0xf7257514	netdev_crit	vmlinux	EXPORT_SYMBOL
+0xb4d9a263	netdev_emerg	vmlinux	EXPORT_SYMBOL
 0x09650dff	netdev_err	vmlinux	EXPORT_SYMBOL
 0x031770cd	netdev_features_change	vmlinux	EXPORT_SYMBOL
 0x416983d9	netdev_fix_features	vmlinux	EXPORT_SYMBOL
