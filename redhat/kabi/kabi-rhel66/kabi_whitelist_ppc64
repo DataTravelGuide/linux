@@ -149,6 +149,7 @@
 	bio_put
 	bitrev32
 	blk_alloc_queue
+	blk_alloc_queue_node
 	blk_cleanup_queue
 	blk_complete_request
 	blk_end_request_all

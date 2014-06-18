@@ -124,6 +124,7 @@
 0x63f91922	bio_put	vmlinux	EXPORT_SYMBOL
 0xfaf98462	bitrev32	vmlinux	EXPORT_SYMBOL
 0xbc7eb1cd	blk_alloc_queue	vmlinux	EXPORT_SYMBOL
+0x5f4e277a	blk_alloc_queue_node	vmlinux	EXPORT_SYMBOL
 0xe455fca9	blk_cleanup_queue	vmlinux	EXPORT_SYMBOL
 0xe8717318	blk_complete_request	vmlinux	EXPORT_SYMBOL
 0x4e477ccd	blk_end_request_all	vmlinux	EXPORT_SYMBOL
