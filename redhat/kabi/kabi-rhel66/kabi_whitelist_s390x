@@ -1123,6 +1123,7 @@
 	tty_register_device
 	tty_register_driver
 	tty_register_ldisc
+	tty_schedule_flip
 	tty_set_operations
 	tty_std_termios
 	tty_termios_baud_rate

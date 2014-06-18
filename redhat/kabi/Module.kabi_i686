@@ -1485,6 +1485,7 @@
 0xb7c43ba0	tty_register_device	vmlinux	EXPORT_SYMBOL
 0xd19f59ab	tty_register_driver	vmlinux	EXPORT_SYMBOL
 0x2bb0b2da	tty_register_ldisc	vmlinux	EXPORT_SYMBOL
+0x25bd73d6	tty_schedule_flip	vmlinux	EXPORT_SYMBOL
 0x8fe21d02	tty_set_operations	vmlinux	EXPORT_SYMBOL
 0x67b27ec1	tty_std_termios	vmlinux	EXPORT_SYMBOL
 0x409873e3	tty_termios_baud_rate	vmlinux	EXPORT_SYMBOL
