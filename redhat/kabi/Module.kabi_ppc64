@@ -664,6 +664,7 @@
 0x8a4adcbd	kill_fasync	vmlinux	EXPORT_SYMBOL
 0xd8a71b3b	kill_pid	vmlinux	EXPORT_SYMBOL
 0x26773e3e	kmem_cache_alloc	vmlinux	EXPORT_SYMBOL
+0x29736230	kmem_cache_alloc_node	vmlinux	EXPORT_SYMBOL
 0x166b3e47	kmem_cache_alloc_node_notrace	vmlinux	EXPORT_SYMBOL
 0xa07c62cd	kmem_cache_alloc_notrace	vmlinux	EXPORT_SYMBOL
 0xf975b269	kmem_cache_alloc_trace	vmlinux	EXPORT_SYMBOL

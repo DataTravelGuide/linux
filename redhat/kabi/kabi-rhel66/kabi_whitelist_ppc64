@@ -665,6 +665,7 @@
 	kill_fasync
 	kill_pid
 	kmem_cache_alloc
+	kmem_cache_alloc_node
 	kmem_cache_alloc_node_notrace
 	kmem_cache_alloc_notrace
 	kmem_cache_alloc_trace
