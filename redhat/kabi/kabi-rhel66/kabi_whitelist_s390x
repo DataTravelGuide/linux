@@ -197,6 +197,7 @@
 	blocking_notifier_chain_register
 	blocking_notifier_chain_unregister
 	boot_tvec_bases
+	bus_for_each_dev
 	bus_register
 	bus_register_notifier
 	bus_unregister

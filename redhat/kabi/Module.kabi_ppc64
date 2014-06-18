@@ -220,6 +220,7 @@
 0x4d41592c	blocking_notifier_chain_register	vmlinux	EXPORT_SYMBOL_GPL
 0x585b4f76	blocking_notifier_chain_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0x6cbfe63b	boot_tvec_bases	vmlinux	EXPORT_SYMBOL
+0xa34cb30f	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
 0x2cd5ec11	bus_register	vmlinux	EXPORT_SYMBOL_GPL
 0x47d3ff93	bus_register_notifier	vmlinux	EXPORT_SYMBOL_GPL
 0x8179ab7d	bus_unregister	vmlinux	EXPORT_SYMBOL_GPL
