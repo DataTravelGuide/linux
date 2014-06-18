@@ -794,6 +794,7 @@
 0x5ab9e60c	netdev_notice	vmlinux	EXPORT_SYMBOL
 0x492fbb26	netdev_printk	vmlinux	EXPORT_SYMBOL
 0x0fe37d36	netdev_set_master	vmlinux	EXPORT_SYMBOL
+0x294930f0	netdev_warn	vmlinux	EXPORT_SYMBOL
 0xabab1354	netif_carrier_off	vmlinux	EXPORT_SYMBOL
 0x40b559ea	netif_carrier_on	vmlinux	EXPORT_SYMBOL
 0x4ccc1848	netif_device_attach	vmlinux	EXPORT_SYMBOL

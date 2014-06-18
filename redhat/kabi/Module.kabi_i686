@@ -840,6 +840,7 @@
 0xe33f28a8	netdev_notice	vmlinux	EXPORT_SYMBOL
 0xc584ac1b	netdev_printk	vmlinux	EXPORT_SYMBOL
 0x058a2cd7	netdev_set_master	vmlinux	EXPORT_SYMBOL
+0x2298c1d5	netdev_warn	vmlinux	EXPORT_SYMBOL
 0xc431d8b0	netif_carrier_off	vmlinux	EXPORT_SYMBOL
 0xa96f9d93	netif_carrier_on	vmlinux	EXPORT_SYMBOL
 0x0d0753c8	netif_device_attach	vmlinux	EXPORT_SYMBOL
