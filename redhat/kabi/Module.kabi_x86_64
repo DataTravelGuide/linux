@@ -843,6 +843,7 @@
 0x352a1ba5	netdev_features_change	vmlinux	EXPORT_SYMBOL
 0x416983d9	netdev_fix_features	vmlinux	EXPORT_SYMBOL
 0xb22fe6a3	netdev_increment_features	vmlinux	EXPORT_SYMBOL
+0x65d6881a	netdev_info	vmlinux	EXPORT_SYMBOL
 0x5c2307b2	netdev_printk	vmlinux	EXPORT_SYMBOL
 0xe5a61107	netdev_set_master	vmlinux	EXPORT_SYMBOL
 0xf77cb70a	netif_carrier_off	vmlinux	EXPORT_SYMBOL
