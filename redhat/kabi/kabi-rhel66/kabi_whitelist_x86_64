@@ -698,6 +698,7 @@
 	jiffies_to_timeval
 	jiffies_to_usecs
 	kasprintf
+	kblockd_schedule_work
 	kernel_bind
 	kernel_getsockopt
 	kernel_recvmsg

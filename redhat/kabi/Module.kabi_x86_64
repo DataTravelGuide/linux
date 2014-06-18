@@ -697,6 +697,7 @@
 0xcfb9006e	jiffies_to_timeval	vmlinux	EXPORT_SYMBOL
 0x7f24de73	jiffies_to_usecs	vmlinux	EXPORT_SYMBOL
 0xda1a7335	kasprintf	vmlinux	EXPORT_SYMBOL
+0xd127aa22	kblockd_schedule_work	vmlinux	EXPORT_SYMBOL
 0x957e225b	kernel_bind	vmlinux	EXPORT_SYMBOL
 0xd32851d0	kernel_getsockopt	vmlinux	EXPORT_SYMBOL
 0xe17a262a	kernel_recvmsg	vmlinux	EXPORT_SYMBOL
