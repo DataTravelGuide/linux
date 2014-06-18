@@ -377,6 +377,7 @@
 	dmam_alloc_coherent
 	do_gettimeofday
 	do_mmap_pgoff
+	do_munmap
 	do_sync_read
 	do_sync_write
 	down

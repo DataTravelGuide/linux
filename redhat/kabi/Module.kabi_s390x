@@ -344,6 +344,7 @@
 0xeb5b773d	dma_get_required_mask	vmlinux	EXPORT_SYMBOL_GPL
 0x1d2e87c6	do_gettimeofday	vmlinux	EXPORT_SYMBOL
 0xda1e6694	do_mmap_pgoff	vmlinux	EXPORT_SYMBOL
+0x155b557d	do_munmap	vmlinux	EXPORT_SYMBOL
 0x3815b96e	do_sync_read	vmlinux	EXPORT_SYMBOL
 0x748f46a8	do_sync_write	vmlinux	EXPORT_SYMBOL
 0xa74250b8	down	vmlinux	EXPORT_SYMBOL

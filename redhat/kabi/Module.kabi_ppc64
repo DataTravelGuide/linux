@@ -376,6 +376,7 @@
 0x154c7c5a	dmam_alloc_coherent	vmlinux	EXPORT_SYMBOL
 0x1d2e87c6	do_gettimeofday	vmlinux	EXPORT_SYMBOL
 0x15d0edc8	do_mmap_pgoff	vmlinux	EXPORT_SYMBOL
+0x22915328	do_munmap	vmlinux	EXPORT_SYMBOL
 0x88c964c0	do_sync_read	vmlinux	EXPORT_SYMBOL
 0xefd1e524	do_sync_write	vmlinux	EXPORT_SYMBOL
 0x54470367	down	vmlinux	EXPORT_SYMBOL
