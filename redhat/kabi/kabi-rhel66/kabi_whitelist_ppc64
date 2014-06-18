@@ -875,6 +875,7 @@
 	pci_bus_write_config_word
 	pci_choose_state
 	pci_cleanup_aer_uncorrect_error_status
+	pci_clear_master
 	pci_clear_mwi
 	pci_dev_driver
 	pci_dev_get

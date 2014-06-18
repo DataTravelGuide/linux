@@ -921,6 +921,7 @@
 0x2107fe08	pci_bus_write_config_word	vmlinux	EXPORT_SYMBOL
 0xa7e4ae64	pci_choose_state	vmlinux	EXPORT_SYMBOL
 0x0cf02d49	pci_cleanup_aer_uncorrect_error_status	vmlinux	EXPORT_SYMBOL_GPL
+0x25b99178	pci_clear_master	vmlinux	EXPORT_SYMBOL
 0x52085e44	pci_clear_mwi	vmlinux	EXPORT_SYMBOL
 0xed461cc5	pci_dev_driver	vmlinux	EXPORT_SYMBOL
 0x0619e8f2	pci_dev_get	vmlinux	EXPORT_SYMBOL
