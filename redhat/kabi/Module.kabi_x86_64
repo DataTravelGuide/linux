@@ -840,6 +840,7 @@
 0xa43636ec	net_assign_generic	vmlinux	EXPORT_SYMBOL_GPL
 0xa20ce1b8	net_msg_warn	vmlinux	EXPORT_SYMBOL
 0xf6ebc03b	net_ratelimit	vmlinux	EXPORT_SYMBOL
+0x1db032b5	netdev_alert	vmlinux	EXPORT_SYMBOL
 0xa27e4a02	netdev_crit	vmlinux	EXPORT_SYMBOL
 0xe451c5ff	netdev_err	vmlinux	EXPORT_SYMBOL
 0x352a1ba5	netdev_features_change	vmlinux	EXPORT_SYMBOL
