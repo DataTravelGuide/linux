@@ -1424,6 +1424,7 @@
 0x3df29ebb	tty_unregister_driver	vmlinux	EXPORT_SYMBOL
 0xa120d33c	tty_unregister_ldisc	vmlinux	EXPORT_SYMBOL
 0xe6d6a28f	tty_wakeup	vmlinux	EXPORT_SYMBOL_GPL
+0xd3d332a5	uart_add_one_port	vmlinux	EXPORT_SYMBOL
 0x65a78695	uart_remove_one_port	vmlinux	EXPORT_SYMBOL
 0xa39b4cf2	udelay	vmlinux	EXPORT_SYMBOL
 0x747198f2	uio_event_notify	drivers/uio/uio	EXPORT_SYMBOL_GPL

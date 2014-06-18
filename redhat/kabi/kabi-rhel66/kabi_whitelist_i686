@@ -1492,6 +1492,7 @@
 	tty_unregister_driver
 	tty_unregister_ldisc
 	tty_wakeup
+	uart_add_one_port
 	uart_remove_one_port
 	uio_event_notify
 	uio_unregister_device
