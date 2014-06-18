@@ -201,6 +201,7 @@
 0x5596480c	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
 0x2a31207c	bus_register	vmlinux	EXPORT_SYMBOL_GPL
 0xb138c7da	bus_register_notifier	vmlinux	EXPORT_SYMBOL_GPL
+0xaba365e0	bus_remove_file	vmlinux	EXPORT_SYMBOL_GPL
 0x2bf9b488	bus_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0x6a673006	bus_unregister_notifier	vmlinux	EXPORT_SYMBOL_GPL
 0x4c759827	byte_rev_table	vmlinux	EXPORT_SYMBOL_GPL

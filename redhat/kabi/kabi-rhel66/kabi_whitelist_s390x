@@ -202,6 +202,7 @@
 	bus_for_each_dev
 	bus_register
 	bus_register_notifier
+	bus_remove_file
 	bus_unregister
 	bus_unregister_notifier
 	byte_rev_table
