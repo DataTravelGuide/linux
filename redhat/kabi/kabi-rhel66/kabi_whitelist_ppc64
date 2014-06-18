@@ -159,6 +159,7 @@
 	blk_get_backing_dev_info
 	blk_get_request
 	blk_init_queue
+	blk_init_queue_node
 	blk_init_tags
 	blk_insert_request
 	blk_integrity_register

@@ -158,6 +158,7 @@
 0xfd6bed32	blk_get_backing_dev_info	vmlinux	EXPORT_SYMBOL
 0x53dcdb8a	blk_get_request	vmlinux	EXPORT_SYMBOL
 0x898992e9	blk_init_queue	vmlinux	EXPORT_SYMBOL
+0x7b2a3c54	blk_init_queue_node	vmlinux	EXPORT_SYMBOL
 0x9b1b0a1e	blk_init_tags	vmlinux	EXPORT_SYMBOL
 0xe76eb091	blk_insert_request	vmlinux	EXPORT_SYMBOL
 0x7e8f477f	blk_integrity_register	vmlinux	EXPORT_SYMBOL
