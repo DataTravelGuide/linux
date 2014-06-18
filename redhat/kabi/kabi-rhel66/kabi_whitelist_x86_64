@@ -461,6 +461,7 @@
 	ec_read
 	ec_write
 	efi
+	efi_enabled
 	emergency_restart
 	enable_irq
 	end_page_writeback
