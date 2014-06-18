@@ -305,6 +305,7 @@
 0x6e6bbe4d	dev_close	vmlinux	EXPORT_SYMBOL
 0x517bfe54	dev_crit	vmlinux	EXPORT_SYMBOL
 0x1ce7f3cc	dev_driver_string	vmlinux	EXPORT_SYMBOL
+0xd594184c	dev_emerg	vmlinux	EXPORT_SYMBOL
 0xe0899a7a	dev_err	vmlinux	EXPORT_SYMBOL
 0xbd163714	dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0xc57e76dc	dev_get_by_name	vmlinux	EXPORT_SYMBOL

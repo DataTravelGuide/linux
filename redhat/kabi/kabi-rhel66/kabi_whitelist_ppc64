@@ -329,6 +329,7 @@
 	dev_close
 	dev_crit
 	dev_driver_string
+	dev_emerg
 	dev_err
 	dev_get_by_index
 	dev_get_by_name
