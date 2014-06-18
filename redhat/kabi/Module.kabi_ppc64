@@ -334,6 +334,7 @@
 0x3151ef92	dev_mc_add	vmlinux	EXPORT_SYMBOL
 0x91ed6884	dev_mc_delete	vmlinux	EXPORT_SYMBOL
 0xc5eddcb0	dev_open	vmlinux	EXPORT_SYMBOL
+0x8fadc9c3	dev_printk	vmlinux	EXPORT_SYMBOL
 0xd9fd6b0d	dev_queue_xmit	vmlinux	EXPORT_SYMBOL
 0xca323acc	dev_remove_pack	vmlinux	EXPORT_SYMBOL
 0xb50aa5ed	dev_set_allmulti	vmlinux	EXPORT_SYMBOL

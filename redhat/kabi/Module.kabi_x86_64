@@ -366,6 +366,7 @@
 0xf784b6f8	dev_mc_add	vmlinux	EXPORT_SYMBOL
 0xbb231f0c	dev_mc_delete	vmlinux	EXPORT_SYMBOL
 0xbabeee9e	dev_open	vmlinux	EXPORT_SYMBOL
+0xabd7b07b	dev_printk	vmlinux	EXPORT_SYMBOL
 0x0d110dab	dev_queue_xmit	vmlinux	EXPORT_SYMBOL
 0x9900a644	dev_remove_pack	vmlinux	EXPORT_SYMBOL
 0x1b9bf587	dev_set_allmulti	vmlinux	EXPORT_SYMBOL

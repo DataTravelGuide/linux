@@ -358,6 +358,7 @@
 	dev_mc_add
 	dev_mc_delete
 	dev_open
+	dev_printk
 	dev_queue_xmit
 	dev_remove_pack
 	dev_set_allmulti
