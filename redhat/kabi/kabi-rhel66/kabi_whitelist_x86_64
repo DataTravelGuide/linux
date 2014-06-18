@@ -1406,6 +1406,7 @@
 	srandom32
 	sscanf
 	starget_for_each_device
+	strcasecmp
 	strcat
 	strchr
 	strcmp

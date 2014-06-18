@@ -1331,6 +1331,7 @@
 0xb89af9bf	srandom32	vmlinux	EXPORT_SYMBOL
 0x42224298	sscanf	vmlinux	EXPORT_SYMBOL
 0x303ed4d6	starget_for_each_device	vmlinux	EXPORT_SYMBOL
+0xaafdc258	strcasecmp	vmlinux	EXPORT_SYMBOL
 0x061651be	strcat	vmlinux	EXPORT_SYMBOL
 0x349cba85	strchr	vmlinux	EXPORT_SYMBOL
 0xe2d5255a	strcmp	vmlinux	EXPORT_SYMBOL
