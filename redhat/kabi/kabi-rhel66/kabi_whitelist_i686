@@ -454,6 +454,7 @@
 	dynamic_debug_enabled2
 	ec_read
 	ec_write
+	efi
 	emergency_restart
 	enable_irq
 	end_page_writeback

@@ -453,6 +453,7 @@
 0x2bd43d13	dynamic_debug_enabled2	vmlinux	EXPORT_SYMBOL_GPL
 0xba2d8594	ec_read	vmlinux	EXPORT_SYMBOL
 0x876dafc3	ec_write	vmlinux	EXPORT_SYMBOL
+0x4c11ca9f	efi	vmlinux	EXPORT_SYMBOL
 0xd0c05159	emergency_restart	vmlinux	EXPORT_SYMBOL_GPL
 0xfcec0987	enable_irq	vmlinux	EXPORT_SYMBOL
 0x5effbcb0	end_page_writeback	vmlinux	EXPORT_SYMBOL
