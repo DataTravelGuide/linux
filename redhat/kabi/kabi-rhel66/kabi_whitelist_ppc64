@@ -788,6 +788,7 @@
 	net_assign_generic
 	net_msg_warn
 	net_ratelimit
+	netdev_err
 	netdev_features_change
 	netdev_fix_features
 	netdev_increment_features
