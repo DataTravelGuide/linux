@@ -414,6 +414,7 @@
 0xf9765833	dmi_match	vmlinux	EXPORT_SYMBOL_GPL
 0x56947347	dmi_walk	vmlinux	EXPORT_SYMBOL_GPL
 0x1d2e87c6	do_gettimeofday	vmlinux	EXPORT_SYMBOL
+0x3d229f1f	do_mmap_pgoff	vmlinux	EXPORT_SYMBOL
 0xff4c055a	do_sync_read	vmlinux	EXPORT_SYMBOL
 0xfb5fac1a	do_sync_write	vmlinux	EXPORT_SYMBOL
 0x748caf40	down	vmlinux	EXPORT_SYMBOL

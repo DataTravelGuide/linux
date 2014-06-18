@@ -376,6 +376,7 @@
 	dma_pool_free
 	dmam_alloc_coherent
 	do_gettimeofday
+	do_mmap_pgoff
 	do_sync_read
 	do_sync_write
 	down

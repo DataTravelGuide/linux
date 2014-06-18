@@ -421,6 +421,7 @@
 	dmi_match
 	dmi_walk
 	do_gettimeofday
+	do_mmap_pgoff
 	do_sync_read
 	do_sync_write
 	down
