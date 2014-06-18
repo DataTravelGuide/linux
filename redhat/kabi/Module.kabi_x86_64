@@ -357,6 +357,7 @@
 0xf12bb3b8	dev_alloc_skb	vmlinux	EXPORT_SYMBOL
 0xd1f91bcd	dev_base_lock	vmlinux	EXPORT_SYMBOL
 0x380e3a6a	dev_close	vmlinux	EXPORT_SYMBOL
+0xe14ace2c	dev_crit	vmlinux	EXPORT_SYMBOL
 0xf18b1317	dev_driver_string	vmlinux	EXPORT_SYMBOL
 0x8502d858	dev_err	vmlinux	EXPORT_SYMBOL
 0x345a809b	dev_get_by_index	vmlinux	EXPORT_SYMBOL

@@ -358,6 +358,7 @@
 	dev_alloc_skb
 	dev_base_lock
 	dev_close
+	dev_crit
 	dev_driver_string
 	dev_err
 	dev_get_by_index
