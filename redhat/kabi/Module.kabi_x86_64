@@ -879,6 +879,7 @@
 0xf7c5e068	nobh_write_end	vmlinux	EXPORT_SYMBOL
 0x8eebfc67	nobh_writepage	vmlinux	EXPORT_SYMBOL
 0xc4061f09	node_states	vmlinux	EXPORT_SYMBOL
+0x6001e01c	node_to_cpumask_map	vmlinux	EXPORT_SYMBOL
 0x1932bfb8	nonseekable_open	vmlinux	EXPORT_SYMBOL
 0xb8f0cbe0	noop_qdisc	vmlinux	EXPORT_SYMBOL
 0xb2176f2a	notify_change	vmlinux	EXPORT_SYMBOL
