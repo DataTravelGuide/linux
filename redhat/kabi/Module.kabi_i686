@@ -86,6 +86,7 @@
 0x2727da5d	_atomic_dec_and_lock	vmlinux	EXPORT_SYMBOL
 0xa1c76e0a	_cond_resched	vmlinux	EXPORT_SYMBOL
 0x8d3894f2	_ctype	vmlinux	EXPORT_SYMBOL
+0x47468292	_dev_info	vmlinux	EXPORT_SYMBOL
 0x1a75caa3	_read_lock	vmlinux	EXPORT_SYMBOL
 0xe4c1df3e	_read_lock_bh	vmlinux	EXPORT_SYMBOL
 0x2eb9a0e8	_read_lock_irq	vmlinux	EXPORT_SYMBOL

@@ -74,6 +74,7 @@
 0x16250200	_atomic_dec_and_lock	vmlinux	EXPORT_SYMBOL
 0xa1c76e0a	_cond_resched	vmlinux	EXPORT_SYMBOL
 0x8d3894f2	_ctype	vmlinux	EXPORT_SYMBOL
+0x971850ca	_dev_info	vmlinux	EXPORT_SYMBOL
 0x61eef2c9	_insb	vmlinux	EXPORT_SYMBOL
 0x05a514a1	_insl_ns	vmlinux	EXPORT_SYMBOL
 0x6da928f4	_insw_ns	vmlinux	EXPORT_SYMBOL

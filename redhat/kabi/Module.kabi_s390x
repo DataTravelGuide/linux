@@ -72,6 +72,7 @@
 0xe85d9c50	_atomic_dec_and_lock	vmlinux	EXPORT_SYMBOL
 0xa1c76e0a	_cond_resched	vmlinux	EXPORT_SYMBOL
 0x8d3894f2	_ctype	vmlinux	EXPORT_SYMBOL
+0x93f8050e	_dev_info	vmlinux	EXPORT_SYMBOL
 0x36a2b52a	_ni_bitmap	vmlinux	EXPORT_SYMBOL
 0xabad545c	_oi_bitmap	vmlinux	EXPORT_SYMBOL
 0xf01df025	_raw_read_lock_wait	vmlinux	EXPORT_SYMBOL

@@ -87,6 +87,7 @@
 	_atomic_dec_and_lock
 	_cond_resched
 	_ctype
+	_dev_info
 	_read_lock
 	_read_lock_bh
 	_read_lock_irq

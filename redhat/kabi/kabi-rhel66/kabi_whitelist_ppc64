@@ -75,6 +75,7 @@
 	_atomic_dec_and_lock
 	_cond_resched
 	_ctype
+	_dev_info
 	_insb
 	_insl_ns
 	_insw_ns

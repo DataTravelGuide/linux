@@ -73,6 +73,7 @@
 	_atomic_dec_and_lock
 	_cond_resched
 	_ctype
+	_dev_info
 	_ni_bitmap
 	_oi_bitmap
 	_raw_read_lock_wait
