@@ -345,6 +345,7 @@
 	dev_add_pack
 	dev_addr_add
 	dev_addr_del
+	dev_alert
 	dev_alloc_name
 	dev_alloc_skb
 	dev_base_lock

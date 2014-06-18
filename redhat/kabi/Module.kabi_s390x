@@ -298,6 +298,7 @@
 0x722808d6	dev_add_pack	vmlinux	EXPORT_SYMBOL
 0x99bab21e	dev_addr_add	vmlinux	EXPORT_SYMBOL
 0xe85042e4	dev_addr_del	vmlinux	EXPORT_SYMBOL
+0x26ff4602	dev_alert	vmlinux	EXPORT_SYMBOL
 0xae99b845	dev_alloc_name	vmlinux	EXPORT_SYMBOL
 0xb9a63d7c	dev_alloc_skb	vmlinux	EXPORT_SYMBOL
 0x01ab0f38	dev_base_lock	vmlinux	EXPORT_SYMBOL

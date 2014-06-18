@@ -344,6 +344,7 @@
 0xc5e9e9de	dev_add_pack	vmlinux	EXPORT_SYMBOL
 0xb3e4cfff	dev_addr_add	vmlinux	EXPORT_SYMBOL
 0xaf63ae2a	dev_addr_del	vmlinux	EXPORT_SYMBOL
+0x0ff443d0	dev_alert	vmlinux	EXPORT_SYMBOL
 0x9b343574	dev_alloc_name	vmlinux	EXPORT_SYMBOL
 0xfd86943d	dev_alloc_skb	vmlinux	EXPORT_SYMBOL
 0xd1f91bcd	dev_base_lock	vmlinux	EXPORT_SYMBOL
