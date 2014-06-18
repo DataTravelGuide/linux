@@ -660,6 +660,7 @@
 0x416983d9	netdev_fix_features	vmlinux	EXPORT_SYMBOL
 0xb22fe6a3	netdev_increment_features	vmlinux	EXPORT_SYMBOL
 0xaae27b8f	netdev_info	vmlinux	EXPORT_SYMBOL
+0xba1fc4f1	netdev_notice	vmlinux	EXPORT_SYMBOL
 0xc078f13c	netdev_printk	vmlinux	EXPORT_SYMBOL
 0x7fb18bf3	netdev_set_master	vmlinux	EXPORT_SYMBOL
 0x5cbab8a8	netif_carrier_off	vmlinux	EXPORT_SYMBOL

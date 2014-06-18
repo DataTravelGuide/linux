@@ -661,6 +661,7 @@
 	netdev_fix_features
 	netdev_increment_features
 	netdev_info
+	netdev_notice
 	netdev_printk
 	netdev_set_master
 	netif_carrier_off
