@@ -679,6 +679,7 @@
 	kref_init
 	kref_put
 	kset_create_and_add
+	kset_register
 	kset_unregister
 	kstrdup
 	kstrndup

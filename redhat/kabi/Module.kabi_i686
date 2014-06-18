@@ -718,6 +718,7 @@
 0x3ae831b6	kref_init	vmlinux	EXPORT_SYMBOL
 0xcff53400	kref_put	vmlinux	EXPORT_SYMBOL
 0x5edae721	kset_create_and_add	vmlinux	EXPORT_SYMBOL_GPL
+0x41be7307	kset_register	vmlinux	EXPORT_SYMBOL
 0xe0ad24c4	kset_unregister	vmlinux	EXPORT_SYMBOL
 0xc499ae1e	kstrdup	vmlinux	EXPORT_SYMBOL
 0x51ef33b8	kstrndup	vmlinux	EXPORT_SYMBOL
