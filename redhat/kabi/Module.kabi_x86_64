@@ -242,6 +242,7 @@
 0x40be2c41	blocking_notifier_chain_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0xdd822018	boot_cpu_data	vmlinux	EXPORT_SYMBOL
 0xfc6256b9	boot_tvec_bases	vmlinux	EXPORT_SYMBOL
+0xfbfc2531	bus_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0xdafa1651	bus_find_device	vmlinux	EXPORT_SYMBOL_GPL
 0x71b5a4c7	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
 0x350759b7	bus_register	vmlinux	EXPORT_SYMBOL_GPL

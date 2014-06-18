@@ -196,6 +196,7 @@
 0xdad4d14f	blocking_notifier_chain_register	vmlinux	EXPORT_SYMBOL_GPL
 0x63ddca9c	blocking_notifier_chain_unregister	vmlinux	EXPORT_SYMBOL_GPL
 0xb1a4cbca	boot_tvec_bases	vmlinux	EXPORT_SYMBOL
+0x2ce5c6e3	bus_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0x9bfc8246	bus_find_device	vmlinux	EXPORT_SYMBOL_GPL
 0x5596480c	bus_for_each_dev	vmlinux	EXPORT_SYMBOL_GPL
 0x2a31207c	bus_register	vmlinux	EXPORT_SYMBOL_GPL

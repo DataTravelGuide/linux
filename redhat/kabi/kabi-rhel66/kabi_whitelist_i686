@@ -238,6 +238,7 @@
 	blocking_notifier_chain_unregister
 	boot_cpu_data
 	boot_tvec_bases
+	bus_create_file
 	bus_find_device
 	bus_for_each_dev
 	bus_register
