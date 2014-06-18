@@ -326,6 +326,7 @@
 0xc1ba49a9	dev_base_lock	vmlinux	EXPORT_SYMBOL
 0x2eb2bf4e	dev_close	vmlinux	EXPORT_SYMBOL
 0x54511274	dev_driver_string	vmlinux	EXPORT_SYMBOL
+0x7f1e3b9e	dev_err	vmlinux	EXPORT_SYMBOL
 0x05691168	dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x482f0264	dev_get_by_name	vmlinux	EXPORT_SYMBOL
 0x595c390b	dev_get_drvdata	vmlinux	EXPORT_SYMBOL

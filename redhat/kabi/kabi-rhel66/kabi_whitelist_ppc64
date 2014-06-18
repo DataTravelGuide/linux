@@ -327,6 +327,7 @@
 	dev_base_lock
 	dev_close
 	dev_driver_string
+	dev_err
 	dev_get_by_index
 	dev_get_by_name
 	dev_get_drvdata
