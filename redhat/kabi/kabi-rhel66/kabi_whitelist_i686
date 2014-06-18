@@ -1495,6 +1495,7 @@
 	tty_wakeup
 	uart_add_one_port
 	uart_remove_one_port
+	uart_unregister_driver
 	uio_event_notify
 	uio_unregister_device
 	unlock_buffer
