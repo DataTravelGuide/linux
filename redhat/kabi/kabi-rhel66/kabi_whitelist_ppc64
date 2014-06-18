@@ -686,6 +686,7 @@
 	kset_unregister
 	kstrdup
 	kstrndup
+	kthread_bind
 	kthread_create
 	kthread_should_stop
 	kthread_stop

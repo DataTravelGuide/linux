@@ -728,6 +728,7 @@
 0xe0ad24c4	kset_unregister	vmlinux	EXPORT_SYMBOL
 0xc499ae1e	kstrdup	vmlinux	EXPORT_SYMBOL
 0x51ef33b8	kstrndup	vmlinux	EXPORT_SYMBOL
+0xf5c1f598	kthread_bind	vmlinux	EXPORT_SYMBOL
 0xc780a542	kthread_create	vmlinux	EXPORT_SYMBOL
 0xd2965f6f	kthread_should_stop	vmlinux	EXPORT_SYMBOL
 0xc8f024fb	kthread_stop	vmlinux	EXPORT_SYMBOL

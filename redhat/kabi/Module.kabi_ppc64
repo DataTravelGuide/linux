@@ -685,6 +685,7 @@
 0xd529ece3	kset_unregister	vmlinux	EXPORT_SYMBOL
 0xc499ae1e	kstrdup	vmlinux	EXPORT_SYMBOL
 0xbaa2782a	kstrndup	vmlinux	EXPORT_SYMBOL
+0x237b633a	kthread_bind	vmlinux	EXPORT_SYMBOL
 0x5ce3cc93	kthread_create	vmlinux	EXPORT_SYMBOL
 0xd2965f6f	kthread_should_stop	vmlinux	EXPORT_SYMBOL
 0x0e67fd60	kthread_stop	vmlinux	EXPORT_SYMBOL
