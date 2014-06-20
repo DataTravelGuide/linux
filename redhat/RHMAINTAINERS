@@ -77,6 +77,11 @@ F:	include/linux/acpi.h
 F:	include/acpi/
 F:	arch/x86/kernel/acpi/
 
+AF_PACKET
+M:	Daniel Borkmann <dborkman@redhat.com>
+S:	Maintained
+F:	net/packet/
+
 AIO
 M:	Jeff Moyer <jmoyer@redhat.com>
 S:	Maintained
@@ -287,13 +292,21 @@ IPMI SUBSYSTEM
 M:	Tony Camuso <tcamuso@redhat.com>
 S:	Maintained
 
-IPV4/IPV6 PROTOCOLS
+IPV4 PROTOCOL
+M:	Jiri Benc <jbenc@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
-M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
 F:	net/ipv4
+F:	include/linux/ip.h
+F:	include/net/ip.h
+
+IPV6 PROTOCOL
+M:	Hannes Frederic Sowa <hsowa@redhat.com>
+M:	Neil Horman <nhorman@redhat.com>
+S:	Maintained
 F:	net/ipv6
-F:	include/net
+F:	include/linux/ipv6.h
+F:	include/net/ipv6.h
 
 ISMT SMBUS DRIVER
 M:	Neil Horman <nhorman@redhat.com>
@@ -326,22 +339,60 @@ S:	Maintained
 F:	drivers/net/myri10ge/
 
 NETLINK
-M:	Thomas Graf <tgraf@redhat.com>
+M:	Daniel Borkmann <dborkman@redhat.com>
 S:	Maintained
 F:	net/netlink/
 F:	include/linux/netlink.h
+F:	include/linux/rtnetlink.h
+F:	include/linux/genetlink.h
 F:	include/net/netlink.h
+F:	include/net/rtnetlink.h
+F:	include/net/genetlink.h
 
 NETWORKING [GENERAL]
+M:	Jiri Benc <jbenc@redhat.com>
+M:	Daniel Borkmann <dborkman@redhat.com>
+M:	Rashid Khan <rkhan@redhat.com>
 M:	Andy Gospodarek <agospoda@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
-M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
 F:	net/
+F:	Documentation/networking/
+F:	drivers/net/loopback.c
+F:	drivers/net/Space.c
 F:	include/net/
-F:	include/linux/in.h
-F:	include/linux/net.h
-F:	include/linux/netdevice.h
+F:	include/linux/eth*
+F:	include/linux/filter.h
+F:	include/linux/icmp*
+F:	include/linux/if*
+F:	include/linux/in[.6e_]*
+F:	include/linux/ip[.6svx_]*
+F:	include/linux/llc.h
+F:	include/linux/mroute*
+F:	include/linux/ne*
+F:	include/linux/pfkeyv2.h
+F:	include/linux/skbuff.h
+F:	include/linux/sock*
+F:	include/linux/tc_*/*
+F:	include/linux/tcp.h
+F:	include/linux/udp.h
+X:	include/net/*80211*
+X:	include/net/*80215*
+X:	include/net/bluetooth/
+X:	include/net/irda/
+X:	include/net/iucv/
+X:	include/net/iw*
+X:	include/net/regulatory.h
+X:	net/bluetooth/
+X:	net/ieee802154/
+X:	net/irda/
+X:	net/iucv/
+X:	net/mac80211/
+X:	net/rds/
+X:	net/rfkill/
+X:	net/sunrpc/
+X:	net/wimax/
+X:	net/wireless/
 
 NETXEN (1/10) GbE SUPPORT
 M:	Chad Dupuis <cdupuis@redhat.com>
@@ -379,6 +430,12 @@ S:	Maintained
 F:	drivers/block/nvme-core.c
 F:	drivers/block/nvme-scsi.c
 F:	include/linux/nvme.h
+
+OPENVSWITCH (OVS)
+M:	Flavio Leitner <fbl@redhat.com>
+S:	Maintained
+F:	net/openvswitch/
+F:	include/linux/openvswitch.h
 
 PCI SUBSYSTEM
 M:	Myron Stowe <mstowe@redhat.com>
@@ -469,10 +526,11 @@ S:	Maintained
 F:	drivers/scsi/
 
 SCTP PROTOCOL
+M:	Daniel Borkmann <dborkman@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
-M:	Thomas Graf <tgraf@redhat.com>
 S:	Maintained
 F:	net/sctp/
+F:	include/linux/sctp.h
 F:	include/net/sctp/
 
 SECURITY RELATED FIXES
