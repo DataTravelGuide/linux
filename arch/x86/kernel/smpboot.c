@@ -861,10 +861,12 @@ do_rest:
 	 * Kick the secondary CPU. Use the method in the APIC driver
 	 * if it's defined - or use an INIT boot APIC message otherwise:
 	 */
+	preempt_disable();
 	if (apic->wakeup_secondary_cpu)
 		boot_error = apic->wakeup_secondary_cpu(apicid, start_ip);
 	else
 		boot_error = wakeup_secondary_cpu_via_init(apicid, start_ip);
+	preempt_enable();
 
 	if (!boot_error) {
 		/*
