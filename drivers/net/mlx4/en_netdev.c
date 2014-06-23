@@ -2193,6 +2193,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 };
 
 static const struct net_device_ops_ext mlx4_netdev_ops_ext = {
+	.size                   = sizeof(struct net_device_ops_ext),
 	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
 };
 
@@ -2218,6 +2219,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 };
 
 static const struct net_device_ops_ext mlx4_netdev_ops_master_ext = {
+	.size                   = sizeof(struct net_device_ops_ext),
 	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
 	.ndo_set_vf_link_state	= mlx4_en_set_vf_link_state,
 	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
