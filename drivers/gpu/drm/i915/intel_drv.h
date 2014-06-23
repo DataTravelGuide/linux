@@ -665,7 +665,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_config *pipe_config);
 
 void intel_ddi_mode_set_dp(struct intel_encoder *encoder);
-void intel_ddi_force_act(struct intel_encoder *encoder, bool state);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 
 /* intel_display.c */

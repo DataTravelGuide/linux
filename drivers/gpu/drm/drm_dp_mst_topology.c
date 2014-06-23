@@ -851,6 +851,8 @@ static void drm_dp_destroy_port(struct kref *kref)
 			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 	}
 	kfree(port);
+
+	(*mgr->cbs->hotplug)(mgr);
 }
 
 static void drm_dp_put_port(struct drm_dp_mst_port *port)
@@ -1618,7 +1620,9 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 				mgr->payloads[i].num_slots = 0;
 				drm_dp_destroy_payload_step1(mgr, port, i + 1, &mgr->payloads[i]);
 				req_payload.payload_state = mgr->payloads[i].payload_state;
-			}
+			} else
+				req_payload.payload_state = 0;
+
 			mgr->payloads[i].start_slot = req_payload.start_slot;
 			mgr->payloads[i].payload_state = req_payload.payload_state;
 		}
@@ -2097,14 +2101,8 @@ int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handl
 	*handled = false;
 	sc = esi[0] & 0x3f;
 	if (sc != mgr->sink_count) {
-
-		if (mgr->mst_primary && mgr->sink_count == 0 && sc) {
-			mgr->mst_primary->link_address_sent = false;
-			queue_work(dp_mst_wq, &mgr->work);
-		}
 		mgr->sink_count = sc;
 		*handled = true;
-
 	}
 
 	if (esi[1] & DP_DOWN_REP_MSG_RDY) {

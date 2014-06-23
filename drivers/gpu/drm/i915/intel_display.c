@@ -4437,6 +4437,9 @@ static void intel_connector_check_state(struct intel_connector *connector)
 			      connector->base.base.id,
 			      drm_get_connector_name(&connector->base));
 
+		/* there is no real hw state for MST connectors */
+		if (connector->mst_port)
+			return;
 		WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
 		     "wrong connector dpms state\n");
 		WARN(connector->base.encoder != &encoder->base,

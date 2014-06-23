@@ -214,19 +214,6 @@ void intel_prepare_ddi(struct drm_device *dev)
 		intel_prepare_ddi_buffers(dev, port);
 }
 
-void intel_ddi_force_act(struct intel_encoder *encoder, bool state)
-{
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	enum port port = intel_ddi_get_encoder_port(encoder);
-	u32 val;
-	val = I915_READ(DP_TP_CTL(port));
-	if (state == true)
-		val |= DP_TP_CTL_FORCE_ACT;
-	else
-		val &= ~DP_TP_CTL_FORCE_ACT;
-	I915_WRITE(DP_TP_CTL(port), val);
-}
-
 static const long hsw_ddi_buf_ctl_values[] = {
 	DDI_BUF_EMP_400MV_0DB_HSW,
 	DDI_BUF_EMP_400MV_3_5DB_HSW,

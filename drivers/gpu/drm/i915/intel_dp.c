@@ -3886,6 +3886,7 @@ int intel_dp_handle_hpd_irq(struct intel_digital_port *intel_dig_port,
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (!intel_dp->output_reg)
@@ -3895,6 +3896,9 @@ int intel_dp_handle_hpd_irq(struct intel_digital_port *intel_dig_port,
 		      hpd_long ? "long" : "short");
 	/* we have to re-read DPCD only on a long irq */
 	if (hpd_long) {
+		if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
+			goto mst_fail;
+
 		if (!intel_dp_get_dpcd(intel_dp))
 			goto mst_fail;
 
@@ -3907,8 +3911,10 @@ int intel_dp_handle_hpd_irq(struct intel_digital_port *intel_dig_port,
 	if (intel_dp->is_mst) {
 		ret = intel_dp_check_mst_status(intel_dp);
 		if (ret == -EINVAL)
-			return 1;
-	} else {
+			goto mst_fail;
+	}
+
+	if (!intel_dp->is_mst) {
 		intel_dp_check_link_status(intel_dp);
 		return 1;
 	}
@@ -3921,7 +3927,6 @@ mst_fail:
 		DRM_DEBUG_KMS("failed to get ESI - device may have failed %d vs %d\n", intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
 		intel_dp->is_mst = false;
 		drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
-		drm_kms_helper_hotplug_event(dev);
 	}
 	return 1;
 }
