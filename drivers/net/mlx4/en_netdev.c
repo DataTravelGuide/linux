@@ -2192,6 +2192,10 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #endif
 };
 
+static const struct net_device_ops_ext mlx4_netdev_ops_ext = {
+	.ndo_get_phys_port_id	= mlx4_en_get_phys_port_id,
+};
+
 static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2346,8 +2350,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	if (mlx4_is_master(priv->mdev->dev)) {
 		set_netdev_ops_ext(dev, &mlx4_netdev_ops_master_ext);
 		dev->netdev_ops = &mlx4_netdev_ops_master;
-	} else
+	} else {
+		set_netdev_ops_ext(dev, &mlx4_netdev_ops_ext);
 		dev->netdev_ops = &mlx4_netdev_ops;
+	}
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
