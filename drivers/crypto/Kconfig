@@ -224,7 +224,7 @@ config CRYPTO_DEV_IXP4XX
 	  Driver for the IXP4xx NPE crypto engine.
 
 config CRYPTO_DEV_NX
-	tristate "Support for Power7+ in-Nest cryptographic accleration"
+	tristate "Support for Power7+ in-Nest cryptographic acceleration"
 	depends on PPC64 && IBMVIO
 	select CRYPTO_AES
 	select CRYPTO_CBC
