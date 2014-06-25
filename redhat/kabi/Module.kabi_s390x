@@ -182,6 +182,7 @@
 0xcd5f734c	blk_queue_stack_limits	vmlinux	EXPORT_SYMBOL
 0x1569f2df	blk_remove_plug	vmlinux	EXPORT_SYMBOL
 0x7ca2b04b	blk_requeue_request	vmlinux	EXPORT_SYMBOL
+0xa52bce2a	blk_rq_init	vmlinux	EXPORT_SYMBOL
 0x062e6a52	blk_rq_map_sg	vmlinux	EXPORT_SYMBOL
 0x6c09b8ee	blk_rq_map_user	vmlinux	EXPORT_SYMBOL
 0xa90049a2	blk_rq_unmap_user	vmlinux	EXPORT_SYMBOL
