@@ -11,6 +11,7 @@
 0x18402d6b	__blk_end_request	vmlinux	EXPORT_SYMBOL
 0x71dbb3c7	__blk_end_request_all	vmlinux	EXPORT_SYMBOL
 0xa8b947f7	__blk_put_request	vmlinux	EXPORT_SYMBOL_GPL
+0xe02976d5	__blk_run_queue	vmlinux	EXPORT_SYMBOL
 0x09df001b	__bread	vmlinux	EXPORT_SYMBOL
 0xdcdb9558	__brelse	vmlinux	EXPORT_SYMBOL
 0x7ede2c87	__class_create	vmlinux	EXPORT_SYMBOL_GPL
