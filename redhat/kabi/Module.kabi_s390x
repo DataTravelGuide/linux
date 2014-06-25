@@ -524,6 +524,7 @@
 0x8a1c11dd	invalidate_bdev	vmlinux	EXPORT_SYMBOL
 0xab1d229b	invalidate_inode_pages2_range	vmlinux	EXPORT_SYMBOL_GPL
 0xd1c571b4	invalidate_mapping_pages	vmlinux	EXPORT_SYMBOL
+0x8ec26367	ioctl_by_bdev	vmlinux	EXPORT_SYMBOL
 0x69a358a6	iomem_resource	vmlinux	EXPORT_SYMBOL
 0xff7559e4	ioport_resource	vmlinux	EXPORT_SYMBOL
 0x18b5a41d	ip6_route_output	net/ipv6/ipv6	EXPORT_SYMBOL

@@ -627,6 +627,7 @@
 	invalidate_bdev
 	invalidate_inode_pages2_range
 	invalidate_mapping_pages
+	ioctl_by_bdev
 	iomem_resource
 	ioport_resource
 	ioread16

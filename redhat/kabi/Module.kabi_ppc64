@@ -626,6 +626,7 @@
 0xf1491272	invalidate_bdev	vmlinux	EXPORT_SYMBOL
 0xcfaa64f8	invalidate_inode_pages2_range	vmlinux	EXPORT_SYMBOL_GPL
 0xff4b6a24	invalidate_mapping_pages	vmlinux	EXPORT_SYMBOL
+0xc0698d0e	ioctl_by_bdev	vmlinux	EXPORT_SYMBOL
 0x69a358a6	iomem_resource	vmlinux	EXPORT_SYMBOL
 0xff7559e4	ioport_resource	vmlinux	EXPORT_SYMBOL
 0xc5534d64	ioread16	vmlinux	EXPORT_SYMBOL
