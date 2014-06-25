@@ -1700,6 +1700,7 @@
 	wait_for_completion_interruptible_timeout
 	wait_for_completion_timeout
 	wait_on_page_bit
+	wait_on_sync_kiocb
 	wake_up_process
 	warn_slowpath_fmt
 	warn_slowpath_null

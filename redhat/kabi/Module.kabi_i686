@@ -1691,6 +1691,7 @@
 0xa44ad274	wait_for_completion_interruptible_timeout	vmlinux	EXPORT_SYMBOL
 0x3e1f073d	wait_for_completion_timeout	vmlinux	EXPORT_SYMBOL
 0x02981ade	wait_on_page_bit	vmlinux	EXPORT_SYMBOL
+0xeeb0bd26	wait_on_sync_kiocb	vmlinux	EXPORT_SYMBOL
 0x2c3f6ab6	wake_up_process	vmlinux	EXPORT_SYMBOL
 0x08d66a3a	warn_slowpath_fmt	vmlinux	EXPORT_SYMBOL
 0x16305289	warn_slowpath_null	vmlinux	EXPORT_SYMBOL

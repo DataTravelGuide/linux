@@ -1227,6 +1227,7 @@
 0x18659780	wait_for_completion_interruptible_timeout	vmlinux	EXPORT_SYMBOL
 0x95b68387	wait_for_completion_timeout	vmlinux	EXPORT_SYMBOL
 0x00cda22b	wait_on_page_bit	vmlinux	EXPORT_SYMBOL
+0xb08db302	wait_on_sync_kiocb	vmlinux	EXPORT_SYMBOL
 0xda0a4301	wake_up_process	vmlinux	EXPORT_SYMBOL
 0xf9ffd9ad	write_one_page	vmlinux	EXPORT_SYMBOL
 0x6549b877	xfrm_register_mode	vmlinux	EXPORT_SYMBOL

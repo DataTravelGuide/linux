@@ -1621,6 +1621,7 @@
 0xbf82ea61	wait_for_completion_interruptible_timeout	vmlinux	EXPORT_SYMBOL
 0xc6b6d78c	wait_for_completion_timeout	vmlinux	EXPORT_SYMBOL
 0xf069a1b5	wait_on_page_bit	vmlinux	EXPORT_SYMBOL
+0x3d6bae5b	wait_on_sync_kiocb	vmlinux	EXPORT_SYMBOL
 0xc7f625f6	wake_up_process	vmlinux	EXPORT_SYMBOL
 0x5cd52664	wireless_send_event	vmlinux	EXPORT_SYMBOL
 0x273fbe27	write_one_page	vmlinux	EXPORT_SYMBOL
