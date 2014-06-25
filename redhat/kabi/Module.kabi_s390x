@@ -781,6 +781,7 @@
 0x42acbf72	posix_acl_from_xattr    vmlinux EXPORT_SYMBOL
 0xb055d8da	posix_acl_to_xattr      vmlinux EXPORT_SYMBOL
 0xaed013b9	posix_acl_valid vmlinux EXPORT_SYMBOL
+0x6b4a2c3a	posix_lock_file	vmlinux	EXPORT_SYMBOL
 0x6ea9f43a	prepare_to_wait	vmlinux	EXPORT_SYMBOL
 0xdc22c9e0	prepare_to_wait_exclusive	vmlinux	EXPORT_SYMBOL
 0xead58fb9	print_hex_dump	vmlinux	EXPORT_SYMBOL

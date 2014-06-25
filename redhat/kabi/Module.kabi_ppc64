@@ -1003,6 +1003,7 @@
 0x42acbf72	posix_acl_from_xattr    vmlinux EXPORT_SYMBOL
 0xb055d8da	posix_acl_to_xattr      vmlinux EXPORT_SYMBOL
 0xaed013b9	posix_acl_valid vmlinux EXPORT_SYMBOL
+0x87016ed0	posix_lock_file	vmlinux	EXPORT_SYMBOL
 0xd98e52a1	ppp_input	drivers/net/ppp_generic	EXPORT_SYMBOL
 0x65f4af5f	prepare_to_wait	vmlinux	EXPORT_SYMBOL
 0x339d4841	prepare_to_wait_exclusive	vmlinux	EXPORT_SYMBOL
