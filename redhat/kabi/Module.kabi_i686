@@ -13,6 +13,7 @@
 0xa9283c8c	__blk_end_request_all	vmlinux	EXPORT_SYMBOL
 0x3e817701	__blk_put_request	vmlinux	EXPORT_SYMBOL_GPL
 0x9a83d91c	__blk_run_queue	vmlinux	EXPORT_SYMBOL
+0xfe9fb19b	__blockdev_direct_IO	vmlinux	EXPORT_SYMBOL
 0x1d7c552e	__bread	vmlinux	EXPORT_SYMBOL
 0x8ee0686e	__brelse	vmlinux	EXPORT_SYMBOL
 0x8fe748ab	__class_create	vmlinux	EXPORT_SYMBOL_GPL
