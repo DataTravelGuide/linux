@@ -24,6 +24,12 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 
+/*
+ * Set oops header version to distingush between old and new format header.
+ * lnx,oops-log partition max size is 4000, header version > 4000 will
+ * help in identifying new header.
+ */
+#define OOPS_HDR_VERSION 5000
 
 static unsigned int nvram_size;
 static int nvram_fetch, nvram_store;
@@ -63,6 +69,12 @@ static const char *const pseries_nvram_os_partitions[] = {
 	NULL
 };
 
+struct oops_log_info {
+	u16 version;
+	u16 report_length;
+	u64 timestamp;
+} __attribute__((packed));
+
 static void oops_to_nvram(struct kmsg_dumper *dumper,
 		enum kmsg_dump_reason reason,
 		const char *old_msgs, unsigned long old_len,
@@ -77,6 +89,8 @@ static struct kmsg_dumper nvram_kmsg_dumper = {
 static unsigned long last_unread_rtas_event;	/* timestamp */
 
 /* We preallocate oops_buf during init to avoid kmalloc during oops/panic. */
+static char *oops_data;
+static size_t oops_data_sz;
 static char *oops_buf;
 
 static ssize_t pSeries_nvram_read(char *buf, size_t count, loff_t *index)
@@ -398,6 +412,14 @@ static void __init nvram_init_oops_partition(int rtas_partition_exists)
 						sizeof(rtas_log_partition));
 	}
 	oops_buf = kmalloc(oops_log_partition.size, GFP_KERNEL);
+	if (!oops_buf) {
+		pr_err("nvram: No memory for %s partition\n",
+						 oops_log_partition.name);
+		return;
+	}
+	oops_data = oops_buf + sizeof(struct oops_log_info);
+	oops_data_sz = oops_log_partition.size - sizeof(struct oops_log_info);
+
 	rc = kmsg_dump_register(&nvram_kmsg_dumper);
 	if (rc != 0) {
 		pr_err("nvram: kmsg_dump_register() failed; returned %d\n", rc);
@@ -490,6 +512,7 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		const char *old_msgs, unsigned long old_len,
 		const char *new_msgs, unsigned long new_len)
 {
+	struct oops_log_info *oops_hdr = (struct oops_log_info *)oops_buf;
 	static unsigned int oops_count = 0;
 	size_t text_len;
 
@@ -497,7 +520,12 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		return;
 
 	text_len = capture_last_msgs(old_msgs, old_len, new_msgs, new_len,
-					oops_buf, oops_log_partition.size);
-	nvram_write_os_partition(&oops_log_partition, oops_buf, text_len,
+					oops_data, oops_data_sz);
+	oops_hdr->version = OOPS_HDR_VERSION;
+	oops_hdr->report_length = (u16) text_len;
+	oops_hdr->timestamp = get_seconds();
+
+	nvram_write_os_partition(&oops_log_partition, oops_buf,
+				(int) (sizeof(*oops_hdr) + text_len),
 				ERR_TYPE_KERNEL_PANIC, ++oops_count);
 }
