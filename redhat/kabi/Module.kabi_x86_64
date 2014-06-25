@@ -203,6 +203,7 @@
 0xb8a7a752	blk_queue_alignment_offset	vmlinux	EXPORT_SYMBOL
 0x97b2b7ab	blk_queue_bounce	vmlinux	EXPORT_SYMBOL
 0xeb40cd13	blk_queue_bounce_limit	vmlinux	EXPORT_SYMBOL
+0xd29d1a1b	blk_queue_dma_alignment	vmlinux	EXPORT_SYMBOL
 0x63decdb8	blk_queue_end_tag	vmlinux	EXPORT_SYMBOL
 0x5eb3bf66	blk_queue_flush	vmlinux	EXPORT_SYMBOL_GPL
 0x8deeca98	blk_queue_free_tags	vmlinux	EXPORT_SYMBOL

@@ -204,6 +204,7 @@
 	blk_queue_alignment_offset
 	blk_queue_bounce
 	blk_queue_bounce_limit
+	blk_queue_dma_alignment
 	blk_queue_end_tag
 	blk_queue_flush
 	blk_queue_free_tags

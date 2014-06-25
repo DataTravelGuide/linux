@@ -198,6 +198,7 @@
 0x02fe9cb8	blk_queue_alignment_offset	vmlinux	EXPORT_SYMBOL
 0x024fcfaf	blk_queue_bounce	vmlinux	EXPORT_SYMBOL
 0x783f9083	blk_queue_bounce_limit	vmlinux	EXPORT_SYMBOL
+0x7cfa9de4	blk_queue_dma_alignment	vmlinux	EXPORT_SYMBOL
 0x098544a8	blk_queue_end_tag	vmlinux	EXPORT_SYMBOL
 0x581a9706	blk_queue_flush	vmlinux	EXPORT_SYMBOL_GPL
 0xf37cce19	blk_queue_free_tags	vmlinux	EXPORT_SYMBOL
