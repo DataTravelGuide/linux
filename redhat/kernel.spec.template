@@ -1701,6 +1701,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 25 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.24.1.el6]
+- [alsa] aloop: Close races at restarting the stream (Jaroslav Kysela) [1112492 1078592]
+- [alsa] aloop: Export snd_pcm_constraint_mask64() (Jaroslav Kysela) [1112492 1078592]
+- [alsa] pcm: Warn when buffer preallocation fails (Jaroslav Kysela) [1112492 1078592]
+- [alsa] aloop: Add SNDRV_PCM_STATE_PAUSED case in wait_for_avail function (Jaroslav Kysela) [1112492 1078592]
+- [alsa] jack: Unregister input device at disconnection (Jaroslav Kysela) [1112492 1078592]
+- [alsa] aloop: Optimize module name check (Jaroslav Kysela) [1112492 1078592]
+- [alsa] pcm: Add fallthru comments (Jaroslav Kysela) [1112492 1078592]
+- [alsa] aloop: Fix Oops while PM resume (Jaroslav Kysela) [1112492 1078592]
+- [alsa] aloop: add locking to timer access (Jaroslav Kysela) [1112492 1078592]
+
 * Mon Jun 23 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.23.1.el6]
 - [net] ip_tunnel: fix ip_tunnel_find to return NULL in case the tunnel is not there (Jiri Pirko) [1107931 1104503]
 - [netdrv] bnx2x: Fix kernel crash and data miscompare after EEH recovery (Michal Schmidt) [1109269 1029600]
