@@ -223,6 +223,7 @@
 0xc19c28be	blk_remove_plug	vmlinux	EXPORT_SYMBOL
 0xf95df667	blk_requeue_request	vmlinux	EXPORT_SYMBOL
 0x0a547601	blk_rq_init	vmlinux	EXPORT_SYMBOL
+0x4c66d5a4	blk_rq_map_kern	vmlinux	EXPORT_SYMBOL
 0x92da12f7	blk_rq_map_sg	vmlinux	EXPORT_SYMBOL
 0x8ba1ed68	blk_rq_map_user	vmlinux	EXPORT_SYMBOL
 0x2976eb3d	blk_rq_unmap_user	vmlinux	EXPORT_SYMBOL

@@ -224,6 +224,7 @@
 	blk_remove_plug
 	blk_requeue_request
 	blk_rq_init
+	blk_rq_map_kern
 	blk_rq_map_sg
 	blk_rq_map_user
 	blk_rq_unmap_user
