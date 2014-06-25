@@ -12,6 +12,7 @@
 	__bitmap_weight
 	__blk_end_request
 	__blk_end_request_all
+	__blk_put_request
 	__bread
 	__brelse
 	__class_create

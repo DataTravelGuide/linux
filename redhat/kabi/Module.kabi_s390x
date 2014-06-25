@@ -10,6 +10,7 @@
 0x4cbbd171	__bitmap_weight	vmlinux	EXPORT_SYMBOL
 0x1b58e616	__blk_end_request	vmlinux	EXPORT_SYMBOL
 0x8958aba8	__blk_end_request_all	vmlinux	EXPORT_SYMBOL
+0x59e3ab33	__blk_put_request	vmlinux	EXPORT_SYMBOL_GPL
 0x129e978d	__bread	vmlinux	EXPORT_SYMBOL
 0xc30c53b0	__brelse	vmlinux	EXPORT_SYMBOL
 0xf993c87d	__class_create	vmlinux	EXPORT_SYMBOL_GPL
