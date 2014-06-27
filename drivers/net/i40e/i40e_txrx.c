@@ -1170,13 +1170,16 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 	struct i40e_vsi *vsi = rx_ring->vsi;
 	u64 flags = vsi->back->flags;
 
-	if (vlan_tag & VLAN_VID_MASK)
-		__vlan_hwaccel_put_tag(skb, vlan_tag);
-
-	if (flags & I40E_FLAG_IN_NETPOLL)
-		netif_rx(skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
+	/* changes due to RHEL6 VLAN model */
+	if (vlan_tag & VLAN_VID_MASK) {
+		vlan_gro_receive(&q_vector->napi, vsi->vlgrp,
+				 vlan_tag, skb);
+	} else {
+		if (flags & I40E_FLAG_IN_NETPOLL)
+			netif_rx(skb);
+		else
+			napi_gro_receive(&q_vector->napi, skb);
+	}
 }
 
 /**
