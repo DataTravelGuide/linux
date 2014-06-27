@@ -327,7 +327,8 @@ static int ecb_aes_crypt(struct blkcipher_desc *desc, long func, void *param,
 		u8 *in = walk->src.virt.addr;
 
 		ret = crypt_s390_km(func, param, out, in, n);
-		BUG_ON((ret < 0) || (ret != n));
+		if (ret < 0 || ret != n)
+			return -EIO;
 
 		nbytes &= AES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -460,7 +461,8 @@ static int cbc_aes_crypt(struct blkcipher_desc *desc, long func, void *param,
 		u8 *in = walk->src.virt.addr;
 
 		ret = crypt_s390_kmc(func, param, out, in, n);
-		BUG_ON((ret < 0) || (ret != n));
+		if (ret < 0 || ret != n)
+			return -EIO;
 
 		nbytes &= AES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -633,7 +635,8 @@ static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
 	memcpy(pcc_param.tweak, walk->iv, sizeof(pcc_param.tweak));
 	memcpy(pcc_param.key, xts_ctx->pcc_key, 32);
 	ret = crypt_s390_pcc(func, &pcc_param.key[offset]);
-	BUG_ON(ret < 0);
+	if (ret < 0)
+		return -EIO;
 
 	memcpy(xts_param.key, xts_ctx->key, 32);
 	memcpy(xts_param.init, pcc_param.xts, 16);
@@ -644,7 +647,8 @@ static int xts_aes_crypt(struct blkcipher_desc *desc, long func,
 		in = walk->src.virt.addr;
 
 		ret = crypt_s390_km(func, &xts_param.key[offset], out, in, n);
-		BUG_ON(ret < 0 || ret != n);
+		if (ret < 0 || ret != n)
+			return -EIO;
 
 		nbytes &= AES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -794,7 +798,11 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, long func,
 				n = AES_BLOCK_SIZE;
 			ret = crypt_s390_kmctr(func, sctx->key, out, in,
 					       n, ctrptr);
-			BUG_ON(ret < 0 || ret != n);
+			if (ret < 0 || ret != n) {
+				if (ctrptr == ctrblk)
+					spin_unlock(&ctrblk_lock);
+				return -EIO;
+			}
 			if (n > AES_BLOCK_SIZE)
 				memcpy(ctrptr, ctrptr + n - AES_BLOCK_SIZE,
 				       AES_BLOCK_SIZE);
@@ -823,7 +831,8 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, long func,
 		in = walk->src.virt.addr;
 		ret = crypt_s390_kmctr(func, sctx->key, buf, in,
 				       AES_BLOCK_SIZE, ctrbuf);
-		BUG_ON(ret < 0 || ret != AES_BLOCK_SIZE);
+		if (ret < 0 || ret != AES_BLOCK_SIZE)
+			return -EIO;
 		memcpy(out, buf, nbytes);
 		crypto_inc(ctrbuf, AES_BLOCK_SIZE);
 		ret = blkcipher_walk_done(desc, walk, 0);
