@@ -14,18 +14,15 @@
  *
  */
 
-#include <crypto/algapi.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/crypto.h>
+#include <crypto/algapi.h>
+#include <crypto/des.h>
 
 #include "crypt_s390.h"
-#include "crypto_des.h"
-
-#define DES_BLOCK_SIZE 8
-#define DES_KEY_SIZE 8
 
 #define DES3_192_KEY_SIZE	(3 * DES_KEY_SIZE)
-#define DES3_192_BLOCK_SIZE	DES_BLOCK_SIZE
 
 #define DES3_KEY_SIZE           (3 * DES_KEY_SIZE)
 
@@ -42,13 +39,16 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 {
 	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 	u32 *flags = &tfm->crt_flags;
-	int ret;
+	u32 tmp[DES_EXPKEY_WORDS];
 
-	/* test if key is valid (not a weak key) */
-	ret = crypto_des_check_key(key, keylen, flags);
-	if (ret == 0)
-		memcpy(dctx->key, key, keylen);
-	return ret;
+	/* check for weak keys */
+	if (!des_ekey(tmp, key) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
+		return -EINVAL;
+	}
+
+	memcpy(dctx->key, key, keylen);
+	return 0;
 }
 
 static void des_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
@@ -361,9 +361,7 @@ static struct crypto_alg ctr_des_alg = {
 static int des3_192_setkey(struct crypto_tfm *tfm, const u8 *key,
 			   unsigned int keylen)
 {
-	int i, ret;
 	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
-	const u8 *temp_key = key;
 	u32 *flags = &tfm->crt_flags;
 
 	if (!(memcmp(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
@@ -372,11 +370,6 @@ static int des3_192_setkey(struct crypto_tfm *tfm, const u8 *key,
 	    (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
-	}
-	for (i = 0; i < 3; i++, temp_key += DES_KEY_SIZE) {
-		ret = crypto_des_check_key(temp_key, DES_KEY_SIZE, flags);
-		if (ret < 0)
-			return ret;
 	}
 	memcpy(dctx->key, key, keylen);
 	return 0;
@@ -387,7 +380,7 @@ static void des3_192_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_192_ENCRYPT, dctx->key, dst, (void*)src,
-		      DES3_192_BLOCK_SIZE);
+		      DES_BLOCK_SIZE);
 }
 
 static void des3_192_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
@@ -395,7 +388,7 @@ static void des3_192_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	struct crypt_s390_des_ctx *dctx = crypto_tfm_ctx(tfm);
 
 	crypt_s390_km(KM_TDEA_192_DECRYPT, dctx->key, dst, (void*)src,
-		      DES3_192_BLOCK_SIZE);
+		      DES_BLOCK_SIZE);
 }
 
 static struct crypto_alg des3_192_alg = {
@@ -403,7 +396,7 @@ static struct crypto_alg des3_192_alg = {
 	.cra_driver_name	=	"des3_ede-s390",
 	.cra_priority		=	CRYPT_S390_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	DES3_192_BLOCK_SIZE,
+	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(des3_192_alg.cra_list),
@@ -445,7 +438,7 @@ static struct crypto_alg ecb_des3_192_alg = {
 	.cra_driver_name	=	"ecb-des3_ede-s390",
 	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		=	DES3_192_BLOCK_SIZE,
+	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
@@ -487,7 +480,7 @@ static struct crypto_alg cbc_des3_192_alg = {
 	.cra_driver_name	=	"cbc-des3_ede-s390",
 	.cra_priority		=	CRYPT_S390_COMPOSITE_PRIORITY,
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
-	.cra_blocksize		=	DES3_192_BLOCK_SIZE,
+	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct crypt_s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
@@ -497,7 +490,7 @@ static struct crypto_alg cbc_des3_192_alg = {
 		.blkcipher = {
 			.min_keysize		=	DES3_192_KEY_SIZE,
 			.max_keysize		=	DES3_192_KEY_SIZE,
-			.ivsize			=	DES3_192_BLOCK_SIZE,
+			.ivsize			=	DES_BLOCK_SIZE,
 			.setkey			=	des3_192_setkey,
 			.encrypt		=	cbc_des3_192_encrypt,
 			.decrypt		=	cbc_des3_192_decrypt,
@@ -615,7 +608,7 @@ des_err:
 	goto out;
 }
 
-static void __exit des_s390_fini(void)
+static void __exit des_s390_exit(void)
 {
 	if (ctrblk) {
 		crypto_unregister_alg(&ctr_des_alg);
@@ -631,7 +624,7 @@ static void __exit des_s390_fini(void)
 }
 
 module_init(des_s390_init);
-module_exit(des_s390_fini);
+module_exit(des_s390_exit);
 
 MODULE_ALIAS("des");
 MODULE_ALIAS("des3_ede");
