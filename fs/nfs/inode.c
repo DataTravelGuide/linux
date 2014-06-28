@@ -1403,6 +1403,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			     new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
+				invalid &= ~NFS_INO_REVAL_PAGECACHE;
 			}
 			dprintk("NFS: isize change on server for file %s/%ld\n",
 					inode->i_sb->s_id, inode->i_ino);
