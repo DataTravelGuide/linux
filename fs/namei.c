@@ -1686,13 +1686,13 @@ mountpoint_last(struct nameidata *nd, struct path *path)
 			goto out_unlock;
 		}
 		dentry = dir->i_op->lookup(dir, new, nd);
-		if (IS_ERR(dentry)) {
-			error = PTR_ERR(dentry);
-			goto out_unlock;
-		}
-		if (dentry)
+		if (dentry) {
 			dput(new);
-		else
+			if (IS_ERR(dentry)) {
+				error = PTR_ERR(dentry);
+				goto out_unlock;
+			}
+		} else
 			dentry = new;
 	}
 	mutex_unlock(&dir->i_mutex);
