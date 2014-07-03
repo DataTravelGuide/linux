@@ -746,7 +746,7 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 }
 EXPORT_SYMBOL(blk_init_allocated_queue_node);
 
-bool blk_get_queue(struct request_queue *q)
+bool blk_get_request_queue(struct request_queue *q)
 {
 	if (likely(!blk_queue_dead(q))) {
 		__blk_get_queue(q);
@@ -755,7 +755,7 @@ bool blk_get_queue(struct request_queue *q)
 
 	return false;
 }
-EXPORT_SYMBOL(blk_get_queue);
+EXPORT_SYMBOL(blk_get_request_queue);
 
 static inline void blk_free_request(struct request_queue *q, struct request *rq)
 {
