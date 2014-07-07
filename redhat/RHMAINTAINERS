@@ -247,12 +247,12 @@ S:	Maintained
 F:	drivers/net/igbvf/
 
 INTEL IXGBE ETHERNET DRIVER (ixgbe)
-M:	Andy Gospodarek <agospoda@redhat.com>
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/ixgbe/
 
 INTEL IXGBEVF ETHERNET DRIVER (ixgbevf)
-M:	Andy Gospodarek <agospoda@redhat.com>
+M:	John Greene <jogreene@redhat.com>
 S:	Maintained
 F:	drivers/net/ixgbevf/
 
