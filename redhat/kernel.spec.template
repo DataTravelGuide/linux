@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 07 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.25.1.el6]
+- [net] sctp: Fix sk_ack_backlog wrap-around problem (Daniel Borkmann) [1113969 1085932] {CVE-2014-4667}
+
 * Wed Jun 25 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.24.1.el6]
 - [alsa] aloop: Close races at restarting the stream (Jaroslav Kysela) [1112492 1078592]
 - [alsa] aloop: Export snd_pcm_constraint_mask64() (Jaroslav Kysela) [1112492 1078592]
