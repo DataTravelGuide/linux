@@ -127,7 +127,6 @@ struct futex_q {
  * waiting on a futex.
  */
 struct futex_hash_bucket {
-	atomic_t waiters;
 	spinlock_t lock;
 	struct plist_head chain;
 } ____cacheline_aligned_in_smp;
@@ -147,37 +146,22 @@ static inline void futex_get_mm(union futex_key *key)
 	smp_mb__after_atomic_inc();
 }
 
-/*
- * Reflects a new waiter being added to the waitqueue.
- */
-static inline void hb_waiters_inc(struct futex_hash_bucket *hb)
+static inline bool hb_waiters_pending(struct futex_hash_bucket *hb)
 {
 #ifdef CONFIG_SMP
-	atomic_inc(&hb->waiters);
 	/*
-	 * Full barrier (A), see the ordering comment above.
+	 * Tasks trying to enter the critical region are most likely
+	 * potential waiters that will be added to the plist. Ensure
+	 * that wakers won't miss to-be-slept tasks in the window between
+	 * the wait call and the actual plist_add.
 	 */
-	smp_mb__after_atomic_inc();
-#endif
-}
+	if (spin_is_locked(&hb->lock))
+		return true;
+	smp_rmb(); /* Make sure we check the lock state first */
 
-/*
- * Reflects a waiter being removed from the waitqueue by wakeup
- * paths.
- */
-static inline void hb_waiters_dec(struct futex_hash_bucket *hb)
-{
-#ifdef CONFIG_SMP
-	atomic_dec(&hb->waiters);
-#endif
-}
-
-static inline int hb_waiters_pending(struct futex_hash_bucket *hb)
-{
-#ifdef CONFIG_SMP
-	return atomic_read(&hb->waiters);
+	return !plist_head_empty(&hb->chain);
 #else
-	return 1;
+	return true;
 #endif
 }
 
@@ -955,25 +939,6 @@ retry:
 	return ret;
 }
 
-/**
- * __unqueue_futex() - Remove the futex_q from its futex_hash_bucket
- * @q:	The futex_q to unqueue
- *
- * The q->lock_ptr must not be NULL and must be held by the caller.
- */
-static void __unqueue_futex(struct futex_q *q)
-{
-	struct futex_hash_bucket *hb;
-
-	if (WARN_ON_SMP(!q->lock_ptr || !spin_is_locked(q->lock_ptr))
-	    || WARN_ON(plist_node_empty(&q->list)))
-		return;
-
-	hb = container_of(q->lock_ptr, struct futex_hash_bucket, lock);
-	plist_del(&q->list, &q->list.plist);
-	hb_waiters_dec(hb);
-}
-
 /*
  * The hash bucket lock must be held when this is called.
  * Afterwards, the futex_q must not be accessed.
@@ -991,7 +956,7 @@ static void wake_futex(struct futex_q *q)
 	 */
 	get_task_struct(p);
 
-	__unqueue_futex(q);
+	plist_del(&q->list, &q->list.plist);
 	/*
 	 * The waiting task can free the futex_q as soon as
 	 * q->lock_ptr = NULL is written, without taking any locks. A
@@ -1269,9 +1234,7 @@ void requeue_futex(struct futex_q *q, struct futex_hash_bucket *hb1,
 	 */
 	if (likely(&hb1->chain != &hb2->chain)) {
 		plist_del(&q->list, &hb1->chain);
-		hb_waiters_dec(hb1);
 		plist_add(&q->list, &hb2->chain);
-		hb_waiters_inc(hb2);
 		q->lock_ptr = &hb2->lock;
 #ifdef CONFIG_DEBUG_PI_LIST
 		q->list.plist.lock = &hb2->lock;
@@ -1302,7 +1265,8 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
 	get_futex_key_refs(key);
 	q->key = *key;
 
-	__unqueue_futex(q);
+	WARN_ON(plist_node_empty(&q->list));
+	plist_del(&q->list, &q->list.plist);
 
 	WARN_ON(!q->rt_waiter);
 	q->rt_waiter = NULL;
@@ -1632,17 +1596,6 @@ static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
 
 	get_futex_key_refs(&q->key);
 	hb = hash_futex(&q->key);
-
-	/*
-	 * Increment the counter before taking the lock so that
-	 * a potential waker won't miss a to-be-slept task that is
-	 * waiting for the spinlock. This is safe as all queue_lock()
-	 * users end up calling queue_me(). Similarly, for housekeeping,
-	 * decrement the counter at queue_unlock() when some error has
-	 * occurred and we don't end up adding the task to the list.
-	 */
-	hb_waiters_inc(hb);
-
 	q->lock_ptr = &hb->lock;
 
 	spin_lock(&hb->lock); /* implies MB (A) */
@@ -1653,7 +1606,6 @@ static inline void
 queue_unlock(struct futex_q *q, struct futex_hash_bucket *hb)
 {
 	spin_unlock(&hb->lock);
-	hb_waiters_dec(hb);
 	drop_futex_key_refs(&q->key);
 }
 
@@ -1731,7 +1683,8 @@ retry:
 			spin_unlock(lock_ptr);
 			goto retry;
 		}
-		__unqueue_futex(q);
+		WARN_ON(plist_node_empty(&q->list));
+		plist_del(&q->list, &q->list.plist);
 
 		BUG_ON(q->pi_state);
 
@@ -1750,7 +1703,8 @@ retry:
  */
 static void unqueue_me_pi(struct futex_q *q)
 {
-	__unqueue_futex(q);
+	WARN_ON(plist_node_empty(&q->list));
+	plist_del(&q->list, &q->list.plist);
 
 	BUG_ON(!q->pi_state);
 	free_pi_state(q->pi_state);
@@ -2418,7 +2372,6 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 		 * Unqueue the futex_q and determine which it was.
 		 */
 		plist_del(&q->list, &q->list.plist);
-		hb_waiters_dec(hb);
 
 		/* Handle spurious wakeups gracefully */
 		ret = -EWOULDBLOCK;
@@ -2957,7 +2910,6 @@ static int __init futex_init(void)
 		futex_cmpxchg_enabled = 1;
 
 	for (i = 0; i < futex_hashsize; i++) {
-		atomic_set(&futex_queues[i].waiters, 0);
 		plist_head_init(&futex_queues[i].chain, &futex_queues[i].lock);
 		spin_lock_init(&futex_queues[i].lock);
 	}
