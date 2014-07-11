@@ -823,7 +823,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	if (error)
 		goto out;
 
-	error = xfs_itruncate_finish(&trans, dp, 0LL, XFS_ATTR_FORK);
+	error = xfs_itruncate_extents(&trans, dp, XFS_ATTR_FORK, 0);
 	if (error)
 		goto out;
 

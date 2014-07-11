@@ -307,8 +307,7 @@ restart:
 			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		} else if (iattr->ia_size <= old_size ||
 			   (iattr->ia_size == 0 && ip->i_d.di_nextents)) {
-			code = xfs_itruncate_finish(&tp, ip, iattr->ia_size,
-						    XFS_DATA_FORK);
+			code = xfs_itruncate_data(&tp, ip, iattr->ia_size);
 			if (code)
 				goto abort_return;
 			/*
@@ -640,13 +639,12 @@ xfs_free_eofblocks(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip);
 
-		error = xfs_itruncate_finish(&tp, ip, XFS_ISIZE(ip),
-					     XFS_DATA_FORK);
-		/*
-		 * If we get an error at this point we
-		 * simply don't bother truncating the file.
-		 */
+		error = xfs_itruncate_data(&tp, ip, XFS_ISIZE(ip));
 		if (error) {
+			/*
+			 * If we get an error at this point we simply don't
+			 * bother truncating the file.
+			 */
 			xfs_trans_cancel(tp,
 					 (XFS_TRANS_RELEASE_LOG_RES |
 					  XFS_TRANS_ABORT));
@@ -1084,7 +1082,7 @@ xfs_inactive(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip);
 
-		error = xfs_itruncate_finish(&tp, ip, 0, XFS_DATA_FORK);
+		error = xfs_itruncate_data(&tp, ip, 0);
 		if (error) {
 			xfs_trans_cancel(tp,
 				XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
