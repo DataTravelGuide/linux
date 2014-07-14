@@ -26,8 +26,7 @@
 #include <core/parent.h>
 #include <core/handle.h>
 #include <core/class.h>
-
-#include <engine/disp.h>
+#include <core/enum.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>

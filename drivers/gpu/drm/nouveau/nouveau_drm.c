@@ -574,12 +574,11 @@ int nouveau_pmops_resume(struct device *dev)
 	ret = nouveau_do_resume(drm_dev);
 	if (ret)
 		return ret;
-	if (drm_dev->mode_config.num_crtc)
-		nouveau_fbcon_set_suspend(drm_dev, 0);
-
-	nouveau_fbcon_zfill_all(drm_dev);
-	if (drm_dev->mode_config.num_crtc)
+	if (drm_dev->mode_config.num_crtc) {
 		nouveau_display_resume(drm_dev);
+		nouveau_fbcon_set_suspend(drm_dev, 0);
+		nouveau_fbcon_zfill_all(drm_dev);
+	}
 	return 0;
 }
 
@@ -605,11 +604,11 @@ static int nouveau_pmops_thaw(struct device *dev)
 	ret = nouveau_do_resume(drm_dev);
 	if (ret)
 		return ret;
-	if (drm_dev->mode_config.num_crtc)
-		nouveau_fbcon_set_suspend(drm_dev, 0);
-	nouveau_fbcon_zfill_all(drm_dev);
-	if (drm_dev->mode_config.num_crtc)
+	if (drm_dev->mode_config.num_crtc) {
 		nouveau_display_resume(drm_dev);
+		nouveau_fbcon_set_suspend(drm_dev, 0);
+		nouveau_fbcon_zfill_all(drm_dev);
+	}
 	return 0;
 }
 
