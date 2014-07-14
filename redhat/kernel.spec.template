@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.26.1.el6]
+- [net] gro: fix deliver of trunk packets to VLAN interfaces (Marcelo Ricardo Leitner) [1116231 1112324]
+
 * Mon Jul 07 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.25.1.el6]
 - [net] sctp: Fix sk_ack_backlog wrap-around problem (Daniel Borkmann) [1113969 1085932] {CVE-2014-4667}
 
