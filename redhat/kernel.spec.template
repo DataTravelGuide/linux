@@ -1701,6 +1701,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 16 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-492.el6]
+- [crypto] md5: Set statesize (Mike Snitzer) [1114137]
+- [crypto] hash: Fix async import on shash algorithm (Mike Snitzer) [1114137]
+- [crypto] drbg: Enable DRBG by default (Herbert Xu) [1105601]
+- [crypto] drbg: drbg_exit() can be static (Herbert Xu) [1105601]
+- [crypto] drbg: HMAC-SHA1 DRBG has crypto strength of 128 bits (Herbert Xu) [1105601]
+- [crypto] drbg: Mix a time stamp into DRBG state (Herbert Xu) [1105601]
+- [crypto] drbg: Select correct DRBG core for stdrng (Herbert Xu) [1105601]
+- [crypto] drbg: Call CTR DRBG DF function only once (Herbert Xu) [1105601]
+- [crypto] drbg: Fix format string for debugging statements (Herbert Xu) [1105601]
+- [crypto] drbg: cleanup of preprocessor macros (Herbert Xu) [1105601]
+- [crypto] drbg: Use Kconfig to ensure at least one RNG option is set (Herbert Xu) [1105601]
+- [crypto] drbg: use of kernel linked list (Herbert Xu) [1105601]
+- [crypto] drbg: fix memory corruption for AES192 (Herbert Xu) [1105601]
+- [crypto] drbg: simplify ordering of linked list in drbg_ctr_df (Herbert Xu) [1105601]
+- [crypto] drbg: Add DRBG test code to testmgr (Herbert Xu) [1105601]
+- [crypto] drbg: DRBG testmgr test vectors (Herbert Xu) [1105601]
+- [crypto] drbg: compile the DRBG code (Herbert Xu) [1105601]
+- [crypto] drbg: DRBG kernel configuration options (Herbert Xu) [1105601]
+- [crypto] drbg: header file for DRBG (Herbert Xu) [1105601]
+- [crypto] drbg: SP800-90A Deterministic Random Bit Generator (Herbert Xu) [1105601]
+
 * Sat Jul 12 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-491.el6]
 - [crypto] fips: only panic on bad/missing crypto mod signatures (Jarod Wilson) [1105596]
 - [kernel] futex: avoid race between requeue and wake (Larry Woodman) [1118434]
