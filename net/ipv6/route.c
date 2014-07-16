@@ -2013,7 +2013,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    int anycast)
 {
 	struct net *net = dev_net(idev->dev);
-	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, 0);
+	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, DST_NOCOUNT);
 	struct neighbour *neigh;
 
 	if (rt == NULL)
