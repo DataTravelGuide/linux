@@ -22,7 +22,7 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/mmu.h>
 
-
+#include "../../kernel/cacheinfo.h"
 
 /*
  * Routines for "runtime" addition and removal of device tree nodes.
@@ -492,6 +492,28 @@ static int do_update_property(char *buf, size_t bufsize)
 	return 0;
 }
 
+static int pSeries_reconfig_add_cache_list(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		cacheinfo_cpu_online(cpu);
+
+	return 0;
+}
+
+static int pSeries_reconfig_delete_cache_list(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) 
+		cacheinfo_cpu_offline(cpu);
+
+	return 0;
+
+}
+
+
 /**
  * ofdt_write - perform operations on the Open Firmware device tree
  *
@@ -540,6 +562,10 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 		rv = do_remove_property(tmp, count - (tmp - kbuf));
 	else if (!strcmp(kbuf, "update_property"))
 		rv = do_update_property(tmp, count - (tmp - kbuf));
+	else if (!strcmp(kbuf, "start_update"))
+		rv = pSeries_reconfig_delete_cache_list();
+	else if (!strcmp(kbuf, "end_update"))
+		rv = pSeries_reconfig_add_cache_list();
 	else
 		rv = -EINVAL;
 out:
