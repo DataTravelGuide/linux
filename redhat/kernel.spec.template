@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 17 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.27.1.el6]
+- [scsi] fix performance regression due to inverted blk_get_queue return (Mike Snitzer) [1117582 1098658]
+- [net] openvswitch: fix use-after-free bug in netns (Flavio Leitner) [1120651 1100127]
+
 * Mon Jul 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.26.1.el6]
 - [net] gro: fix deliver of trunk packets to VLAN interfaces (Marcelo Ricardo Leitner) [1116231 1112324]
 
