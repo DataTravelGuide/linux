@@ -2452,9 +2452,15 @@ void t4_sge_init(struct adapter *adap)
 			 RXPKTCPLMODE |
 			 (STAT_LEN == 128 ? EGRSTATUSPAGESIZE : 0));
 
+	/*
+	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
+	 * and generate an interrupt when this occurs so we can recover.
+	 */
 	t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
-			V_HP_INT_THRESH(5) | V_LP_INT_THRESH(5),
-			V_HP_INT_THRESH(5) | V_LP_INT_THRESH(5));
+			V_HP_INT_THRESH(M_HP_INT_THRESH) |
+			V_LP_INT_THRESH(M_LP_INT_THRESH),
+			V_HP_INT_THRESH(dbfifo_int_thresh) |
+			V_LP_INT_THRESH(dbfifo_int_thresh));
 	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
 			F_ENABLE_DROP);
 
