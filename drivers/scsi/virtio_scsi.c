@@ -543,6 +543,8 @@ static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
 	if (virtscsi_kick_cmd(tgt, req_vq, cmd,
 			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd) >= 0)
 		ret = 0;
+	else
+		mempool_free(cmd, virtscsi_cmd_pool);
 
 out:
 	return ret;
