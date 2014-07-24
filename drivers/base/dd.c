@@ -51,12 +51,17 @@ static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
 static struct workqueue_struct *deferred_wq;
+struct deferred_dev {
+	struct device		*dev;
+	struct list_head	deferred_probe;
+};
 
 /**
  * deferred_probe_work_func() - Retry probing devices in the active list.
  */
 static void deferred_probe_work_func(struct work_struct *work)
 {
+	struct deferred_dev *dd;
 	struct device *dev;
 	/*
 	 * This block processes every device in the deferred 'active' list.
@@ -72,9 +77,11 @@ static void deferred_probe_work_func(struct work_struct *work)
 	 */
 	mutex_lock(&deferred_probe_mutex);
 	while (!list_empty(&deferred_probe_active_list)) {
-		dev = list_first_entry(&deferred_probe_active_list,
-					typeof(*dev), deferred_probe);
-		list_del_init(&dev->deferred_probe);
+		dd = list_first_entry(&deferred_probe_active_list,
+					typeof(*dd), deferred_probe);
+		list_del_init(&dd->deferred_probe);
+		dev = dd->dev;
+		kfree(dd);
 
 		get_device(dev);
 
@@ -91,22 +98,56 @@ static void deferred_probe_work_func(struct work_struct *work)
 }
 static DECLARE_WORK(deferred_probe_work, deferred_probe_work_func);
 
+static struct deferred_dev *driver_deferred_probe_find(struct device *dev)
+{
+	struct list_head *lh;
+	struct deferred_dev *dd;
+
+	list_for_each(lh, &deferred_probe_active_list) {
+		dd = list_entry(lh, struct deferred_dev, deferred_probe);
+		if (dd->dev == dev)
+			return dd;
+	}
+	list_for_each(lh, &deferred_probe_pending_list) {
+		dd = list_entry(lh, struct deferred_dev, deferred_probe);
+		if (dd->dev == dev)
+			return dd;
+	}
+	return NULL;
+}
+
 static void driver_deferred_probe_add(struct device *dev)
 {
+	struct deferred_dev *dd;
+
+	/*
+	 * I chose to use GFP_ATOMIC because we are likely doing this during
+	 * early system init when memory should be readily available, and we
+	 * should have very few of these allocations anyway, so this is just
+	 * an easy way to guarantee we get our memory.
+	 */
+	dd = kzalloc(sizeof(*dd), GFP_ATOMIC);
+	dd->dev = dev;
+	INIT_LIST_HEAD(&dd->deferred_probe);
 	mutex_lock(&deferred_probe_mutex);
-	if (list_empty(&dev->deferred_probe)) {
+	if (driver_deferred_probe_find(dev))
+		kfree(dd);
+	else {
 		dev_dbg(dev, "Added to deferred list\n");
-		list_add(&dev->deferred_probe, &deferred_probe_pending_list);
+		list_add(&dd->deferred_probe, &deferred_probe_pending_list);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
 
 void driver_deferred_probe_del(struct device *dev)
 {
+	struct deferred_dev *dd;
+
 	mutex_lock(&deferred_probe_mutex);
-	if (!list_empty(&dev->deferred_probe)) {
+	if ((dd = driver_deferred_probe_find(dev)) != NULL) {
 		dev_dbg(dev, "Removed from deferred list\n");
-		list_del_init(&dev->deferred_probe);
+		list_del_init(&dd->deferred_probe);
+		kfree(dd);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
