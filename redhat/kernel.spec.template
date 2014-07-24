@@ -1701,6 +1701,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 24 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-493.el6]
+- [drm] nouveau: backport display fixes from upstream (Ben Skeggs) [1105194]
+- [drivers] platform: use always ->name for uevent (Prarit Bhargava) [1120675]
+- [hv] remove meaningless pr_err() in vmbus_recvpacket_raw() (Jason Wang) [1112076]
+- [x86] mm: fix crash when booting as a hyperv NUMA guest (Luiz Capitulino) [979364]
+- [powerpc] kexec: fix access to kexec_state table (Gustavo Duarte) [1118904]
+- [powerpc] Dynamic update cache list during suspend and resume (Gustavo Duarte) [1087793]
+- [netdrv] qlcnic: Initialize mailbox cmd structure to zero (Chad Dupuis) [1115438]
+- [netdrv] qlcnic: Fix NULL pointer dereference bug (Chad Dupuis) [1110938]
+- [x86] hpet: Fix bogus error check in hpet_assign_irq() (Prarit Bhargava) [1117874]
+- [pci] dmar: Fix return value check of create_irq() (Prarit Bhargava) [1117874]
+- [md] dm-thin: relax external origin size constraints (Mike Snitzer) [1030411]
+- [md] dm-thin: switch to an atomic_t for tracking pending new block preparations (Mike Snitzer) [1030411]
+- [scsi] ibmvfc: Fix for offlining devices during error recovery (Gustavo Duarte) [1108718]
+- [scsi] ibmvfc: Suppress ABTS if target gone (Gustavo Duarte) [1108718]
+- [scsi] ibmvfc: Send cancel when link is down (Gustavo Duarte) [1108718]
+- [scsi] ibmvfc: Support FAST_IO_FAIL in EH handlers (Gustavo Duarte) [1108718]
+- [scsi] ibmvfc: Properly set cancel flags when cancelling abort (Gustavo Duarte) [1108718]
+- [scsi] bnx2i: Update driver version to 2.7.10.1 (Maurizio Lombardi) [1120723]
+- [net] l2tp: don't fall back on UDP getsockopt / setsockopt (Petr  Matousek) [1119462] {CVE-2014-4943}
+
 * Wed Jul 16 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-492.el6]
 - [crypto] md5: Set statesize (Mike Snitzer) [1114137]
 - [crypto] hash: Fix async import on shash algorithm (Mike Snitzer) [1114137]
