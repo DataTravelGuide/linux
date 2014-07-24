@@ -648,12 +648,12 @@ static int sf1_read(struct adapter *adapter, unsigned int byte_cnt, int cont,
 
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & BUSY)
+	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
 		return -EBUSY;
 	cont = cont ? SF_CONT : 0;
 	lock = lock ? SF_LOCK : 0;
 	t4_write_reg(adapter, SF_OP, lock | cont | BYTECNT(byte_cnt - 1));
-	ret = t4_wait_op_done(adapter, SF_OP, BUSY, 0, SF_ATTEMPTS, 5);
+	ret = t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
 	if (!ret)
 		*valp = t4_read_reg(adapter, SF_DATA);
 	return ret;
@@ -676,14 +676,14 @@ static int sf1_write(struct adapter *adapter, unsigned int byte_cnt, int cont,
 {
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & BUSY)
+	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
 		return -EBUSY;
 	cont = cont ? SF_CONT : 0;
 	lock = lock ? SF_LOCK : 0;
 	t4_write_reg(adapter, SF_DATA, val);
 	t4_write_reg(adapter, SF_OP, lock |
 		     cont | BYTECNT(byte_cnt - 1) | OP_WR);
-	return t4_wait_op_done(adapter, SF_OP, BUSY, 0, SF_ATTEMPTS, 5);
+	return t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
 }
 
 /**
@@ -2252,14 +2252,14 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 		t4_write_reg(adap, EPIO_REG(DATA0), mask0);
 		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i) | EPIOWR);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
 			return -ETIMEDOUT;
 
 		/* write CRC */
 		t4_write_reg(adap, EPIO_REG(DATA0), crc);
 		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i + 32) | EPIOWR);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
 			return -ETIMEDOUT;
 	}
 #undef EPIO_REG
@@ -2403,93 +2403,95 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
        unsigned int master_mbox;
        int retries = FW_CMD_HELLO_RETRIES;
 retry:
-       memset(&c, 0, sizeof(c));
-       INIT_CMD(c, HELLO, WRITE);
-       c.err_to_mbasyncnot = htonl(
-               FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
-               FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
-               FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
-                                     FW_HELLO_CMD_MBMASTER_MASK) |
-               FW_HELLO_CMD_MBASYNCNOT(evt_mbox) |
-               FW_HELLO_CMD_STAGE(fw_hello_cmd_stage_os) |
-               FW_HELLO_CMD_CLEARINIT);
-       /*
-        * Issue the HELLO command to the firmware.  If it's not successful
-        * but indicates that we got a "busy" or "timeout" condition, retry
-        * the HELLO until we exhaust our retry limit.
-        */
-       ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-       if (ret < 0) {
-               if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
-                       goto retry;
-               return ret;
-       }
+	memset(&c, 0, sizeof(c));
+	INIT_CMD(c, HELLO, WRITE);
+	c.err_to_clearinit = htonl(
+		FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
+		FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
+		FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
+				      FW_HELLO_CMD_MBMASTER_MASK) |
+		FW_HELLO_CMD_MBASYNCNOT(evt_mbox) |
+		FW_HELLO_CMD_STAGE(fw_hello_cmd_stage_os) |
+		FW_HELLO_CMD_CLEARINIT);
 
-       v = ntohl(c.err_to_mbasyncnot);
-       master_mbox = FW_HELLO_CMD_MBMASTER_GET(v);
-       if (state) {
-               if (v & FW_HELLO_CMD_ERR)
-                       *state = DEV_STATE_ERR;
-               else if (v & FW_HELLO_CMD_INIT)
-                       *state = DEV_STATE_INIT;
-                else
-                        *state = DEV_STATE_UNINIT;
-        }
+	/*
+	 * Issue the HELLO command to the firmware.  If it's not successful
+	 * but indicates that we got a "busy" or "timeout" condition, retry
+	 * the HELLO until we exhaust our retry limit.
+	 */
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret < 0) {
+		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
+			goto retry;
+		return ret;
+	}
 
-       /*
-        * If we're not the Master PF then we need to wait around for the
-        * Master PF Driver to finish setting up the adapter.
-        *
-        * Note that we also do this wait if we're a non-Master-capable PF and
-        * there is no current Master PF; a Master PF may show up momentarily
-        * and we wouldn't want to fail pointlessly.  (This can happen when an
-        * OS loads lots of different drivers rapidly at the same time).  In
-        * this case, the Master PF returned by the firmware will be
-        * FW_PCIE_FW_MASTER_MASK so the test below will work ...
-        */
-      if ((v & (FW_HELLO_CMD_ERR|FW_HELLO_CMD_INIT)) == 0 &&
-           master_mbox != mbox) {
-               int waiting = FW_CMD_HELLO_TIMEOUT;
-               /*
-                * Wait for the firmware to either indicate an error or
-                * initialized state.  If we see either of these we bail out
-                * and report the issue to the caller.  If we exhaust the
-                * "hello timeout" and we haven't exhausted our retries, try
-                * again.  Otherwise bail with a timeout error.
-                */
-               for (;;) {
-                       u32 pcie_fw;
+	v = ntohl(c.err_to_clearinit);
+	master_mbox = FW_HELLO_CMD_MBMASTER_GET(v);
+	if (state) {
+		if (v & FW_HELLO_CMD_ERR)
+			*state = DEV_STATE_ERR;
+		else if (v & FW_HELLO_CMD_INIT)
+			*state = DEV_STATE_INIT;
+		else
+			*state = DEV_STATE_UNINIT;
+	}
 
-                       msleep(50);
-                       waiting -= 50;
+	/*
+	 * If we're not the Master PF then we need to wait around for the
+	 * Master PF Driver to finish setting up the adapter.
+	 *
+	 * Note that we also do this wait if we're a non-Master-capable PF and
+	 * there is no current Master PF; a Master PF may show up momentarily
+	 * and we wouldn't want to fail pointlessly.  (This can happen when an
+	 * OS loads lots of different drivers rapidly at the same time).  In
+	 * this case, the Master PF returned by the firmware will be
+	 * FW_PCIE_FW_MASTER_MASK so the test below will work ...
+	 */
+	if ((v & (FW_HELLO_CMD_ERR|FW_HELLO_CMD_INIT)) == 0 &&
+	    master_mbox != mbox) {
+		int waiting = FW_CMD_HELLO_TIMEOUT;
 
-                       /*
-                        * If neither Error nor Initialialized are indicated
-                        * by the firmware keep waiting till we exaust our
-                        * timeout ... and then retry if we haven't exhausted
-                        * our retries ...
-                        */
-                       pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
-                       if (!(pcie_fw & (FW_PCIE_FW_ERR|FW_PCIE_FW_INIT))) {
-                               if (waiting <= 0) {
-                                       if (retries-- > 0)
-                                               goto retry;
+		/*
+		 * Wait for the firmware to either indicate an error or
+		 * initialized state.  If we see either of these we bail out
+		 * and report the issue to the caller.  If we exhaust the
+		 * "hello timeout" and we haven't exhausted our retries, try
+		 * again.  Otherwise bail with a timeout error.
+		 */
+		for (;;) {
+			u32 pcie_fw;
 
-                                       return -ETIMEDOUT;
-                               }
-                               continue;
-                       }
+			msleep(50);
+			waiting -= 50;
 
-                       /*
-                        * We either have an Error or Initialized condition
-                        * report errors preferentially.
-                        */
-                       if (state) {
-                               if (pcie_fw & FW_PCIE_FW_ERR)
-                                       *state = DEV_STATE_ERR;
-                               else if (pcie_fw & FW_PCIE_FW_INIT)
-                                       *state = DEV_STATE_INIT;
-                       }
+			/*
+			 * If neither Error nor Initialialized are indicated
+			 * by the firmware keep waiting till we exaust our
+			 * timeout ... and then retry if we haven't exhausted
+			 * our retries ...
+			 */
+			pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
+			if (!(pcie_fw & (FW_PCIE_FW_ERR|FW_PCIE_FW_INIT))) {
+				if (waiting <= 0) {
+					if (retries-- > 0)
+						goto retry;
+
+					return -ETIMEDOUT;
+				}
+				continue;
+			}
+
+			/*
+			 * We either have an Error or Initialized condition
+			 * report errors preferentially.
+			 */
+			if (state) {
+				if (pcie_fw & FW_PCIE_FW_ERR)
+					*state = DEV_STATE_ERR;
+				else if (pcie_fw & FW_PCIE_FW_INIT)
+					*state = DEV_STATE_INIT;
+			}
 
 			/*
    			* If we arrived before a Master PF was selected and
@@ -2773,7 +2775,7 @@ int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_READ);
-	caps_cmd.retval_len16 =
+	caps_cmd.cfvalid_to_len16 =
 		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
 		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
 		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
@@ -2796,7 +2798,7 @@ int t4_fw_config_file(struct adapter *adap, unsigned int mbox,
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_WRITE);
-	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	return t4_wr_mbox(adap, mbox, &caps_cmd, sizeof(caps_cmd), NULL);
 }
 

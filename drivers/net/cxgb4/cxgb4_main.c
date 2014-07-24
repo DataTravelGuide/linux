@@ -3172,7 +3172,7 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	memset(c, 0, sizeof(*c));
 	c->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 			       FW_CMD_REQUEST | FW_CMD_READ);
-	c->retval_len16 = htonl(FW_LEN16(*c));
+	c->cfvalid_to_len16 = htonl(FW_LEN16(*c));
 	ret = t4_wr_mbox(adap, adap->fn, c, sizeof(*c), c);
 	if (ret < 0)
 		return ret;
@@ -3366,7 +3366,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_READ);
-	caps_cmd.retval_len16 =
+	caps_cmd.cfvalid_to_len16 =
 		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
 		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
 		      FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(maddr >> 16) |
@@ -3391,7 +3391,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 		      FW_CMD_REQUEST |
 		      FW_CMD_WRITE);
-	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 NULL);
 	if (ret < 0)
@@ -3466,7 +3466,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
 	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 				     FW_CMD_REQUEST | FW_CMD_READ);
-	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
 	if (ret < 0)
@@ -3898,7 +3898,7 @@ static int adap_init0(struct adapter *adap)
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
 	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 				     FW_CMD_REQUEST | FW_CMD_READ);
-	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
+	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
 	if (ret < 0)
