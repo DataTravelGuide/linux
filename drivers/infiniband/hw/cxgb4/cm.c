@@ -1328,11 +1328,13 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	if (mpa->revision > mpa_rev) {
 		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
 		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
+		stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
 
 	if (memcmp(mpa->key, MPA_KEY_REQ, sizeof(mpa->key))) {
+		stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1343,6 +1345,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * Fail if there's too much private data.
 	 */
 	if (plen > MPA_MAX_PRIVATE_DATA) {
+		stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1351,6 +1354,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * If plen does not account for pkt size
 	 */
 	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen)) {
+		stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -3309,8 +3313,14 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	/*
 	 * Wake up any threads in rdma_init() or rdma_fini().
+	 * However, if we are on MPAv2 and want to retry with MPAv1
+	 * then, don't wake up yet.
 	 */
-	c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+	if (mpa_rev == 2 && !ep->tried_with_mpa_v1) {
+		if (ep->com.state != MPA_REQ_SENT)
+			c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+	} else
+		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 	sched(dev, skb);
 	return 0;
 }
