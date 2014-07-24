@@ -1896,7 +1896,19 @@ static int set_tso(struct net_device *dev, u32 value)
 	return 0;
 }
 
-static const struct ethtool_ops cxgb_ethtool_ops = {
+static int set_flags(struct net_device *dev, u32 flags)
+{
+	if (flags & ~ETH_FLAG_RXHASH)
+		return -EOPNOTSUPP;
+
+	if (flags & ETH_FLAG_RXHASH)
+		dev->features |= NETIF_F_RXHASH;
+	else
+		dev->features &= ~NETIF_F_RXHASH;
+	return 0;
+}
+
+static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
 	.get_drvinfo       = get_drvinfo,
@@ -1925,6 +1937,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_wol           = get_wol,
 	.set_wol           = set_wol,
 	.set_tso           = set_tso,
+	.set_flags         = set_flags,
 	.flash_device      = set_flash,
 };
 
@@ -3786,7 +3799,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 		netdev->features |= NETIF_F_SG | TSO_FLAGS;
 		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->features |= NETIF_F_GRO | highdma;
+		netdev->features |= NETIF_F_GRO | NETIF_F_RXHASH | highdma;
 		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
