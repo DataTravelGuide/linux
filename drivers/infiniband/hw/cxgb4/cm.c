@@ -2679,8 +2679,8 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = lookup_tid(t, tid);
 	if (!ep) {
-		printk(KERN_ERR "%s abort on non existant endpoint tid %d\n", __func__,
-		     tid);
+		printk(KERN_WARNING MOD
+		       "Abort on non-existent endpoint, tid %d\n", tid);
 		kfree_skb(skb);
 		return 0;
 	}
