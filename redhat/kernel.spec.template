@@ -1701,6 +1701,27 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 24 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.28.1.el6]
+- [kernel] auditsc: audit_krule mask accesses need bounds checking (Denys Vlasenko) [1102704 1102705] {CVE-2014-3917}
+- [net] ipv4: fix route cache rebuilds (Jiri Pirko) [1113824 1111631]
+- [fs] nfsd: notify_change needs elevated write count (Mateusz Guzik) [1110177 1105057]
+- [fs] nfsv4: close needs to handle NFS4ERR_ADMIN_REVOKED (Dave Wysochanski) [1096397 1082127]
+- [fs] pipe: skip file_update_time on frozen fs (Eric Sandeen) [1114405 1093077]
+- [fs] nfs: Fail the truncate() if the lock/open stateid is invalid (Steve Dickson) [1090613 1075123]
+- [fs] nfs: Servers should only check SETATTR stateid open mode on size change (Steve Dickson) [1090613 1075123]
+- [fs] nfs: Fail data server I/O if stateid represents a lost lock (Steve Dickson) [1090613 1075123]
+- [fs] nfs: Fix the return value of nfs4_select_rw_stateid (Steve Dickson) [1090613 1075123]
+- [fs] nfs: Use the open stateid if the delegation has the wrong mode (Steve Dickson) [1090613 1075123]
+- [fs] nfs: nfs4_stateid_is_current should return 'true' for an invalid stateid (Steve Dickson) [1090613 1075123]
+- [fs] nfs: fix error return in nfs4_select_rw_stateid (Steve Dickson) [1090613 1075123]
+- [fs] nfs: Document the recover_lost_locks kernel parameter (Jeff Layton) [1089359 963785]
+- [fs] nfs: Don't try to recover NFSv4 locks when they are lost (Jeff Layton) [1089359 963785]
+- [fs] nfs: Fix handling of partially delegated locks (Jeff Layton) [1120074 959788]
+- [fs] nfs: Convert the nfs4_lock_state->ls_flags to a bit field (Jeff Layton) [1120074 959788]
+- [x86] Optimize switch_mm() for multi-threaded workloads (Rik van Riel) [1115821 991518]
+- [netdrv] pppol2tp: fail when socket option level is not SOL_PPPOL2TP [1119461 1119462] {CVE-2014-4943}
+- [kernel] utrace: force IRET path after utrace_finish_vfork() (Oleg Nesterov) [1115932 1115933] {CVE-2014-4699}
+
 * Thu Jul 17 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.27.1.el6]
 - [scsi] fix performance regression due to inverted blk_get_queue return (Mike Snitzer) [1117582 1098658]
 - [net] openvswitch: fix use-after-free bug in netns (Flavio Leitner) [1120651 1100127]
