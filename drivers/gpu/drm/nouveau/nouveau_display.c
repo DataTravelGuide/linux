@@ -432,10 +432,10 @@ nouveau_display_resume(struct drm_device *dev)
 			NV_ERROR(drm, "Could not pin/map cursor.\n");
 	}
 
+	nouveau_display_init(dev);
+
 	nouveau_fbcon_set_suspend(dev, 0);
 	nouveau_fbcon_zfill_all(dev);
-
-	nouveau_display_init(dev);
 
 	/* Force CLUT to get re-loaded during modeset */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

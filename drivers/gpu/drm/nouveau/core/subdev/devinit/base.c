@@ -27,6 +27,7 @@
 #include <subdev/devinit.h>
 #include <subdev/bios.h>
 #include <subdev/bios/init.h>
+#include <subdev/vga.h>
 
 int
 nouveau_devinit_init(struct nouveau_devinit *devinit)
@@ -44,6 +45,8 @@ nouveau_devinit_fini(struct nouveau_devinit *devinit, bool suspend)
 	/* force full reinit on resume */
 	if (suspend)
 		devinit->post = true;
+
+	nv_lockvgac(devinit, false);
 
 	return nouveau_subdev_fini(&devinit->base, suspend);
 }
