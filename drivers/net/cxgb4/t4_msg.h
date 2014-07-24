@@ -86,6 +86,7 @@ enum {
 	CPL_SGE_EGR_UPDATE    = 0xA5,
 
 	CPL_TRACE_PKT         = 0xB0,
+	CPL_ISCSI_DATA        = 0xB2,
 
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
@@ -270,6 +271,8 @@ struct cpl_pass_accept_rpl {
 #define RX_COALESCE_VALID(x) ((x) << 11)
 #define RX_COALESCE(x)       ((x) << 12)
 #define PACE(x)	      ((x) << 16)
+#define RX_FC_VALID         ((1U) << 19)
+#define RX_FC_DISABLE       ((1U) << 20)
 #define TX_QUEUE(x)          ((x) << 23)
 #define RX_CHANNEL(x)        ((x) << 26)
 #define CCTRL_ECN(x)         ((x) << 27)
@@ -817,6 +820,7 @@ struct ulp_mem_io {
 	WR_HDR;
 	__be32 cmd;
 #define ULP_MEMIO_ORDER(x) ((x) << 23)
+#define T5_ULP_MEMIO_IMM(x) ((x) << 23)
 	__be32 len16;             /* command length */
 	__be32 dlen;              /* data length in 32-byte units */
 #define ULP_MEMIO_DATA_LEN(x) ((x) << 0)

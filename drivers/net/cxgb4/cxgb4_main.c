@@ -3232,8 +3232,8 @@ static int tid_init(struct tid_info *t)
 	return 0;
 }
 
-static int cxgb4_clip_get(const struct net_device *dev,
-			  const struct in6_addr *lip)
+int cxgb4_clip_get(const struct net_device *dev,
+		   const struct in6_addr *lip)
 {
 	struct adapter *adap;
 	struct fw_clip_cmd c;
@@ -3247,9 +3247,10 @@ static int cxgb4_clip_get(const struct net_device *dev,
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
+EXPORT_SYMBOL(cxgb4_clip_get);
 
-static int cxgb4_clip_release(const struct net_device *dev,
-			      const struct in6_addr *lip)
+int cxgb4_clip_release(const struct net_device *dev,
+		       const struct in6_addr *lip)
 {
 	struct adapter *adap;
 	struct fw_clip_cmd c;
@@ -3263,6 +3264,7 @@ static int cxgb4_clip_release(const struct net_device *dev,
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
 }
+EXPORT_SYMBOL(cxgb4_clip_release);
 
 /**
  *	cxgb4_create_server - create an IP server
@@ -3530,6 +3532,31 @@ void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 	spin_unlock(&adap->stats_lock);
 }
 EXPORT_SYMBOL(cxgb4_get_tcp_stats);
+
+
+/**
+ *     cxgb4_root_dev - get the root net_device of a physical net_device
+ *     @dev: the net device
+ *     @vlan: the VLAN id or -1 if we shouldn't traverse VLAN devices
+ *
+ *     Return the root bonding or VLAN device for the given device.
+ *     It assumes that VLAN devices are layered on top of bonding devices.
+ */
+struct net_device *cxgb4_root_dev(struct net_device *dev, int vlan)
+{
+	 struct vlan_group *grp = netdev2pinfo(dev)->vlan_grp;
+
+	while (dev->master) {
+		dev = dev->master;
+		grp = NULL;
+       }
+       if (vlan >= 0)
+		dev = grp ? vlan_group_get_device(grp, vlan) : NULL;
+       return dev;
+}
+EXPORT_SYMBOL(cxgb4_root_dev);
+
+
 
 void cxgb4_iscsi_init(struct net_device *dev, unsigned int tag_mask,
 		      const unsigned int *pgsz_order)
