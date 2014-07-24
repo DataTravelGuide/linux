@@ -251,16 +251,14 @@ u32 c4iw_pblpool_alloc(struct c4iw_rdev *rdev, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev->pbl_pool, size);
 	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
-	if (!addr)
-		printk_ratelimited(KERN_WARNING MOD "%s: Out of PBL memory\n",
-		       pci_name(rdev->lldi.pdev));
+	mutex_lock(&rdev->stats.lock);
 	if (addr) {
-		mutex_lock(&rdev->stats.lock);
 		rdev->stats.pbl.cur += roundup(size, 1 << MIN_PBL_SHIFT);
 		if (rdev->stats.pbl.cur > rdev->stats.pbl.max)
 			rdev->stats.pbl.max = rdev->stats.pbl.cur;
-		mutex_unlock(&rdev->stats.lock);
-	}
+	} else
+		rdev->stats.pbl.fail++;
+	mutex_unlock(&rdev->stats.lock);
 	return (u32)addr;
 }
 
@@ -326,13 +324,14 @@ u32 c4iw_rqtpool_alloc(struct c4iw_rdev *rdev, int size)
 	if (!addr)
 		printk_ratelimited(KERN_WARNING MOD "%s: Out of RQT memory\n",
 		       pci_name(rdev->lldi.pdev));
+	mutex_lock(&rdev->stats.lock);
 	if (addr) {
-		mutex_lock(&rdev->stats.lock);
 		rdev->stats.rqt.cur += roundup(size << 6, 1 << MIN_RQT_SHIFT);
 		if (rdev->stats.rqt.cur > rdev->stats.rqt.max)
 			rdev->stats.rqt.max = rdev->stats.rqt.cur;
-		mutex_unlock(&rdev->stats.lock);
-	}
+	} else
+		rdev->stats.rqt.fail++;
+	mutex_unlock(&rdev->stats.lock);
 	return (u32)addr;
 }
 
