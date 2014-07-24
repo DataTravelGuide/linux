@@ -2464,95 +2464,6 @@ static struct notifier_block cxgb4_netevent_nb = {
 	.notifier_call = netevent_cb
 };
 
-static void drain_db_fifo(struct adapter *adap, int usecs)
-{
-	u32 v;
-
-	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(usecs_to_jiffies(usecs));
-		v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
-		if (G_LP_COUNT(v) == 0 && G_HP_COUNT(v) == 0)
-			break;
-	} while (1);
-}
-
-static void disable_txq_db(struct sge_txq *q)
-{
-	spin_lock_irq(&q->db_lock);
-	q->db_disabled = 1;
-	spin_unlock_irq(&q->db_lock);
-}
-
-static void enable_txq_db(struct sge_txq *q)
-{
-	spin_lock_irq(&q->db_lock);
-	q->db_disabled = 0;
-	spin_unlock_irq(&q->db_lock);
-}
-
-static void disable_dbs(struct adapter *adap)
-{
-	int i;
-
-	for_each_ethrxq(&adap->sge, i)
-		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
-		disable_txq_db(&adap->sge.ofldtxq[i].q);
-	for_each_port(adap, i)
-		disable_txq_db(&adap->sge.ctrlq[i].q);
-}
-
-static void enable_dbs(struct adapter *adap)
-{
-	int i;
-
-	for_each_ethrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
-		enable_txq_db(&adap->sge.ofldtxq[i].q);
-	for_each_port(adap, i)
-		enable_txq_db(&adap->sge.ctrlq[i].q);
-}
-
-static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
-{
-	u16 hw_pidx, hw_cidx;
-	int ret;
-
-	spin_lock_bh(&q->db_lock);
-	ret = read_eq_indices(adap, (u16)q->cntxt_id, &hw_pidx, &hw_cidx);
-	if (ret)
-		goto out;
-	if (q->db_pidx != hw_pidx) {
-		u16 delta;
-
-		if (q->db_pidx >= hw_pidx)
-			delta = q->db_pidx - hw_pidx;
-		else
-			delta = q->size - hw_pidx + q->db_pidx;
-		wmb();
-		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
-				V_QID(q->cntxt_id) | V_PIDX(delta));
-	}
-out:
-	q->db_disabled = 0;
-	spin_unlock_bh(&q->db_lock);
-	if (ret)
-		CH_WARN(adap, "DB drop recovery failed.\n");
-}
-static void recover_all_queues(struct adapter *adap)
-{
-	int i;
-
-	for_each_ethrxq(&adap->sge, i)
-		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldrxq(&adap->sge, i)
-		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
-	for_each_port(adap, i)
-		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
-}
-
 static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
 {
 	mutex_lock(&uld_mutex);
@@ -2565,34 +2476,50 @@ static void notify_rdma_uld(struct adapter *adap, enum cxgb4_control cmd)
 static void process_db_full(struct work_struct *work)
 {
 	struct adapter *adap;
+	static int delay = 1000;
+	u32 v;
 
 	adap = container_of(work, struct adapter, db_full_task);
 
+
+	/* stop LLD queues */
+
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
-	drain_db_fifo(adap, dbfifo_drain_delay);
-	t4_set_reg_field(adap, A_SGE_INT_ENABLE3,
-			F_DBFIFO_HP_INT | F_DBFIFO_LP_INT,
-			F_DBFIFO_HP_INT | F_DBFIFO_LP_INT);
+	do {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(delay));
+		v = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
+		if (G_LP_COUNT(v) == 0 && G_HP_COUNT(v) == 0)
+			break;
+	} while (1);
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
+
+
+	/*
+	 * The more we get db full interrupts, the more we'll delay
+	 * in re-enabling db rings on queues, capped off at 200ms.
+	 */
+	delay = min(delay << 1, 200000);
+
+	/* resume LLD queues */
 }
 
 static void process_db_drop(struct work_struct *work)
 {
 	struct adapter *adap;
-
 	adap = container_of(work, struct adapter, db_drop_task);
 
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_DROPPED_DB, 0);
-	disable_dbs(adap);
+
+	/*
+	 * sync the PIDX values in HW and SW for LLD queues.
+	 */
+
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_DROP);
-	drain_db_fifo(adap, 1);
-	recover_all_queues(adap);
-	enable_dbs(adap);
 }
 
 void t4_db_full(struct adapter *adap)
 {
-	queue_work(workq, &adap->db_full_task);
+	schedule_work(&adap->db_full_task);
 }
 
 void t4_db_dropped(struct adapter *adap)
