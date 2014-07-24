@@ -210,18 +210,8 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
  * ======================
  */
 
-/*
- * Record our new VLAN Group and enable/disable hardware VLAN Tag extraction
- * based on whether the specified VLAN Group pointer is NULL or not.
- */
-static void cxgb4vf_vlan_rx_register(struct net_device *dev,
-				     struct vlan_group *grp)
-{
-	struct port_info *pi = netdev_priv(dev);
 
-	pi->vlan_grp = grp;
-	t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1, grp != NULL, 0);
-}
+
 
 /*
  * Perform the MAC and PHY actions needed to enable a "port" (Virtual
@@ -234,9 +224,9 @@ static int link_start(struct net_device *dev)
 
 	/*
 	 * We do not set address filters and promiscuity here, the stack does
-	 * that step explicitly.
+	 * that step explicitly. Enable vlan accel.
 	 */
-	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, -1,
+	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, 1,
 			      true);
 	if (ret == 0) {
 		ret = t4vf_change_mac(pi->adapter, pi->viid,
@@ -1100,6 +1090,7 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 		dev->mtu = new_mtu;
 	return ret;
 }
+
 
 /*
  * Change the devices MAC address.
@@ -2462,7 +2453,6 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
-	.ndo_vlan_rx_register	= cxgb4vf_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cxgb4vf_poll_controller,
 #endif
@@ -2631,15 +2621,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features = (NETIF_F_SG | TSO_FLAGS |
-				    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				    NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-				    NETIF_F_GRO);
-		if (pci_using_dac)
-			netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features =
-			(netdev->features &
-			 ~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX));
 
 #ifdef HAVE_NET_DEVICE_OPS
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
