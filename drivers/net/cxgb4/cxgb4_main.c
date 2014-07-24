@@ -3273,6 +3273,10 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 
 	adap = netdev2adap(dev);
 
+	/* Adjust stid to correct filter index */
+	stid -= adap->tids.nstids;
+	stid += adap->tids.nftids;
+
 	/* Check to make sure the filter requested is writable ...
 	 */
 	f = &adap->tids.ftid_tab[stid];
@@ -3321,6 +3325,11 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
+
+	/* Adjust stid to correct filter index */
+	stid -= adap->tids.nstids;
+	stid += adap->tids.nftids;
+
 	f = &adap->tids.ftid_tab[stid];
 	/* Unlock the filter */
 	f->locked = 0;
