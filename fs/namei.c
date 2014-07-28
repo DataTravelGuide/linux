@@ -1751,8 +1751,11 @@ path_mountpoint(int dfd, struct filename *s, struct path *path, unsigned int fla
 		struct path link = *path;
 		err = -ELOOP;
 		current->total_link_count++;
-		if (current->total_link_count >= 40)
+		if (current->total_link_count >= 40) {
+			dput(path->dentry);
+			path_put(&nd.path);
 			break;
+		}
 		nd.flags |= LOOKUP_PARENT;
 		err = __do_follow_link(&link, &nd);
 		if (err)
