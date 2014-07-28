@@ -1704,11 +1704,12 @@ done:
 		goto out;
 	}
 	path->dentry = dentry;
-	path->mnt = mntget(nd->path.mnt);
+	path->mnt = nd->path.mnt;
 	if (nd->flags & LOOKUP_FOLLOW) {
 		if (unlikely(dentry->d_inode->i_op->follow_link))
 			return 1;
 	}
+	mntget(path->mnt);
 	follow_mount(path);
 	error = 0;
 	goto out;
