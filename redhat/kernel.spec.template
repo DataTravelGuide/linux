@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jul 29 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-494.el6]
+- [netdrv] sfc: Add 40G link capability decoding (Nikolay Aleksandrov) [1111076]
+- [netdrv] sfc: Adding PCI ID for Solarflare 7000 series 40G network adapter (Nikolay Aleksandrov) [1111076]
+- [scsi] ibmvscsi: Add memory barriers for send / receive (Gustavo Duarte) [1099590]
+- [scsi] ibmvscsi: Abort init sequence during error recovery (Gustavo Duarte) [1099590]
+- [driver] core: fix addition of delayed probe infrastructure (Doug Ledford) [1116871]
+- [uapi] rdma_user_cm.h: include socket.h (Doug Ledford) [1072857]
+- [netdrv] bnx2x: fix set_setting for some PHYs (Michal Schmidt) [1009332]
+- [net] bridge: unregister rtnl message types correctly (Jiri Benc) [1114445]
+
 * Thu Jul 24 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-493.el6]
 - [drm] nouveau: backport display fixes from upstream (Ben Skeggs) [1105194]
 - [drivers] platform: use always ->name for uevent (Prarit Bhargava) [1120675]
