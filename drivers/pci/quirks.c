@@ -2834,6 +2834,22 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	pci_do_fixups(dev, start, end);
 }
 
+
+/*
+ * The global variable 'pci_fixup_final_inited' is being used as a interim
+ * solution for calling the final quirks only during hot-plug events (not
+ * during boot processing).
+ *
+ * When the boot path's PCI device setup sequencing is addressed, we can
+ * remove the instance, and usages of, 'pci_fixup_final_inited' along with
+ * removing 'fs_initcall_sync(pci_apply_final_quirks);' and end up with a
+ * single, uniform, solution that satisfies both the boot path and the
+ * various hot-plug event paths.
+ *
+ * ToDo: Remove 'pci_fixup_final_inited'
+ */
+bool pci_fixup_final_inited;
+
 static int __init pci_apply_final_quirks(void)
 {
 	struct pci_dev *dev = NULL;
@@ -2841,6 +2857,7 @@ static int __init pci_apply_final_quirks(void)
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		pci_fixup_device(pci_fixup_final, dev);
 	}
+	pci_fixup_final_inited = 1;
 
 	return 0;
 }
