@@ -1047,7 +1047,7 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
 		/* Hook up default DMA ops */
-		sd->dma_ops = pci_dma_ops;
+		set_dma_ops(&dev->dev, pci_dma_ops);
 		set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
 
 		/* Additional platform DMA/iommu setup */
