@@ -695,7 +695,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		masked_flags = flags & flags_cksum_prot_mask;
 
 		if (likely
-		    (bnad->rx_csum &&
+		    ((bnad->netdev->features & NETIF_F_RXCSUM) &&
 		     ((masked_flags == flags_tcp4) ||
 		      (masked_flags == flags_udp4) ||
 		      (masked_flags == flags_tcp6) ||
@@ -3459,23 +3459,20 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 {
 	struct net_device *netdev = bnad->netdev;
 
-	netdev->features |= NETIF_F_IPV6_CSUM;
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
+	netdev_extended(netdev)->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_TX;
 
-	netdev->features |= NETIF_F_GRO;
-	pr_warning("bna: GRO enabled, using kernel stack GRO\n");
+	netdev->vlan_features = NETIF_F_SG | NETIF_F_HIGHDMA |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6;
 
-	netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	netdev->features |= netdev_extended(netdev)->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	netdev->features |=
-		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		NETIF_F_HW_VLAN_FILTER;
-
-	netdev->vlan_features = netdev->features;
 	netdev->mem_start = bnad->mmio_start;
 	netdev->mem_end = bnad->mmio_start + bnad->mmio_len - 1;
 
@@ -3527,7 +3524,6 @@ bnad_init(struct bnad *bnad,
 
 	bnad->txq_depth = BNAD_TXQ_DEPTH;
 	bnad->rxq_depth = BNAD_RXQ_DEPTH;
-	bnad->rx_csum = true;
 
 	bnad->tx_coalescing_timeo = BFI_TX_COALESCING_TIMEO;
 	bnad->rx_coalescing_timeo = BFI_RX_COALESCING_TIMEO;

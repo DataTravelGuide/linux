@@ -311,8 +311,6 @@ struct bnad {
 	struct bna_rx_config rx_config[BNAD_MAX_RX] ____cacheline_aligned;
 	struct bna_tx_config tx_config[BNAD_MAX_TX] ____cacheline_aligned;
 
-	u32		rx_csum;
-
 	void __iomem		*bar0;	/* BAR0 address */
 
 	struct bna bna;
