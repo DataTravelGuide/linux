@@ -525,6 +525,12 @@ M:	Doug Ledford <dledford@redhat.com>
 S:	Maintained
 F:	drivers/scsi/
 
+SCSI TARGET (LIO)
+M:	Andy Grover <agrover@redhat.com>
+S:	Maintained
+F:	drivers/target/
+F:	include/target/
+
 SCTP PROTOCOL
 M:	Daniel Borkmann <dborkman@redhat.com>
 M:	Neil Horman <nhorman@redhat.com>
