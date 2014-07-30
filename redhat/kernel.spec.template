@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 30 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.30.1.el6]
+- [drm] nouveau: backport display fixes from upstream (Ben Skeggs) [1122102 1105194]
+
 * Mon Jul 28 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.29.1.el6]
 - [mm] hugetlb: ensure hugepage access is denied if hugepages are not supported (Gustavo Duarte) [1118782 1086450]
 - [security] keys: Increase root_maxkeys and root_maxbytes sizes (Steve Dickson) [1115542 1113607]
