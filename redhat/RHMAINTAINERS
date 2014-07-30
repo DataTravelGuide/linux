@@ -579,11 +579,6 @@ SUSPEND/RESUME
 M:	Lenny Szubowicz <lszubowi@redhat.com>
 S:	Maintained
 
-X86 ARCHITECTURE (32-BIT AND 64-BIT)
-M:	Prarit Bhargava <prarit@redhat.com>
-S:	Maintained
-F:	arch/x86/
-
 UNIVERSAL EXTENSIBLE FIRMWARE INTERFACE (UEFI/EFI)
 M:	Lenny Szubowicz <lszubowi@redhat.com>
 M:	Myron Stowe <mstowe@redhat.com>
@@ -642,6 +637,11 @@ S:	Maintained
 F:	drivers/net/wireless/
 F:	net/mac80211/
 F:	net/wireless/
+
+X86 ARCHITECTURE (32-BIT AND 64-BIT)
+M:	Prarit Bhargava <prarit@redhat.com>
+S:	Maintained
+F:	arch/x86/
 
 XEN
 M:	Vitaly Kuznetsov <vkuznets@redhat.com>
