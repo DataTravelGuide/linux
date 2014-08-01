@@ -86,7 +86,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb, int features)
 
 	/* Check if there is enough headroom to insert fragment header. */
 	tnl_hlen = skb_tnl_header_len(skb);
-	if (skb_headroom(skb) < (tnl_hlen + frag_hdr_sz)) {
+	if ((skb_mac_header(skb) - skb->head) < (tnl_hlen + frag_hdr_sz)) {
 		if (gso_pskb_expand_head(skb, tnl_hlen + frag_hdr_sz))
 			goto out;
 	}
