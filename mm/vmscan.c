@@ -1708,7 +1708,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 static void get_scan_ratio(struct mem_cgroup_zone *mz, struct scan_control *sc,
 					unsigned long *percent)
 {
-	unsigned long anon, file, free;
+	unsigned long anon, file, free, zonefile;
 	unsigned long anon_prio, file_prio;
 	unsigned long ap, fp;
 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
@@ -1720,9 +1720,12 @@ static void get_scan_ratio(struct mem_cgroup_zone *mz, struct scan_control *sc,
 
 	if (global_reclaim(sc)) {
 		free  = zone_page_state(mz->zone, NR_FREE_PAGES);
+		zonefile =
+		    zone_page_state(mz->zone, NR_LRU_BASE + LRU_ACTIVE_FILE) +
+		    zone_page_state(mz->zone, NR_LRU_BASE + LRU_INACTIVE_FILE);
 		/* If we have very few page cache pages,
 		   force-scan anon pages. */
-		if (unlikely(file + free <= high_wmark_pages(mz->zone))) {
+		if (unlikely(zonefile + free <= high_wmark_pages(mz->zone))) {
 			percent[0] = 100;
 			percent[1] = 0;
 			return;
