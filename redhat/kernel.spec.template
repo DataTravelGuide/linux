@@ -1701,6 +1701,42 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 01 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-495.el6]
+- [powerpc] pci: Improve device hotplug initialization (Gustavo Duarte) [1084398]
+- [powerpc] pci: fix PCI-e devices rescan issue on powerpc platform (Gustavo Duarte) [1084398]
+- [powerpc] pci: Cleanup device dma setup code (Gustavo Duarte) [1084398]
+- [pci] Add pcibios_add_device (Gustavo Duarte) [1084398]
+- [pci] fix undefined reference to 'pci_fixup_final_inited' (Gustavo Duarte) [1084398]
+- [pci] call final fixups hot-added devices (Gustavo Duarte) [1084398]
+- [mm] vmscan: Fix memcg forced scan of anonymous pages (Jerome Marchand) [1124895]
+- [mm] try_to_unmap_cluster() should lock_page() before mlocking (Jacob Tanenbaum) [1093081] {CVE-2014-3122}
+- [video] fbmem: convert fb_mmap to vm_iomap_memory() helper (Jacob Tanenbaum) [1035242] {CVE-2013-2596}
+- [s390] add dummy io_remap_pfn_range() to asm/pgtable.h (Jacob Tanenbaum) [1035242] {CVE-2013-2596}
+- [mm] add vm_iomap_memory() helper function (Jacob Tanenbaum) [1035242] {CVE-2013-2596}
+- [hv] hv_fcopy: fix a race condition for SMP guest (Jason Wang) [1118123]
+- [hv] util: Fix a bug in the KVP code (Jason Wang) [1118123]
+- [hv] vmbus: Fix a bug in the channel callback dispatch code (Jason Wang) [1118123]
+- [scsi] virtio_scsi: fix memory leak on full queue condition (Fam Zheng) [1111485]
+- [scsi] storvsc: Correctly handle TEST_UNIT_READY failure (Jason Wang) [1120468]
+- [scsi] storvsc: Set srb_flags in all cases (Jason Wang) [1120468]
+- [scsi] storvsc: Implement a eh_timed_out handler (Jason Wang) [1120468]
+- [scsi] storvsc: Fix a bug in handling VMBUS protocol version (Jason Wang) [1120468]
+- [scsi] storvsc: Filter commands based on the storage protocol version (Jason Wang) [1120468]
+- [scsi] storvsc: Set cmd_per_lun to reflect value supported by the Host (Jason Wang) [1120468]
+- [scsi] storvsc: Change the limits to reflect the values on the host (Jason Wang) [1120468]
+- [fs] xfs: always do log forces via the workqueue (Eric Sandeen) [1028831]
+- [fs] xfs: Do background CIL flushes via a workqueue (Eric Sandeen) [1028831]
+- [fs] vfs: fix ELOOP error handling in path_mountpoint() (Ian Kent) [1121323] {CVE-2014-5045}
+- [fs] vfs: fix ref count leak in path_mountpoint() (Ian Kent) [1121323] {CVE-2014-5045}
+- [fs] xfs: remove xfs_itruncate_data (Brian Foster) [1113418]
+- [fs] xfs: split xfs_itruncate_finish (Brian Foster) [1113418]
+- [fs] xfs: kill xfs_itruncate_start (Brian Foster) [1113418]
+- [fs] xfs: factor extent map manipulations out of xfs_bmapi (Brian Foster) [1113418]
+- [fs] gfs2: Allow caching of glocks for flock (Robert S Peterson) [1110421]
+- [fs] gfs2: Allow flocks to use normal glock dq rather than dq_wait (Robert S Peterson) [1110421]
+- [fs] xfs: don't log dummy transaction on frozen fs (Eric Sandeen) [1076286]
+- [fs] ext4: set extents flag when migrating file to use extents (Eric Sandeen) [952005]
+
 * Tue Jul 29 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-494.el6]
 - [netdrv] sfc: Add 40G link capability decoding (Nikolay Aleksandrov) [1111076]
 - [netdrv] sfc: Adding PCI ID for Solarflare 7000 series 40G network adapter (Nikolay Aleksandrov) [1111076]
