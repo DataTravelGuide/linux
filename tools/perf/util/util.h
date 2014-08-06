@@ -281,4 +281,5 @@ void dump_stack(void);
 extern unsigned int page_size;
 
 void get_term_dimensions(struct winsize *ws);
+int filename__read_str(const char *filename, char **buf, size_t *sizep);
 #endif /* GIT_COMPAT_UTIL_H */
