@@ -3915,7 +3915,9 @@ int intel_dp_handle_hpd_irq(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (!intel_dp->is_mst) {
+		mutex_lock(&dev->mode_config.mutex);
 		intel_dp_check_link_status(intel_dp);
+		mutex_unlock(&dev->mode_config.mutex);
 		return 1;
 	}
 
