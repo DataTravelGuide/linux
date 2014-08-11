@@ -1905,10 +1905,12 @@ struct be_nic_res_desc {
 	u16 cq_count;
 	u16 toe_conn_count;
 	u16 eq_count;
-	u32 rsvd5;
+	u16 vlan_id;
+	u16 iface_count;
 	u32 cap_flags;
 	u8 link_param;
-	u8 rsvd6[3];
+	u8 rsvd6;
+	u16 channel_id_param;
 	u32 bw_min;
 	u32 bw_max;
 	u8 acpi_params;
@@ -1962,8 +1964,8 @@ struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
 	u32 desc_count;
-	u8 desc[RESOURCE_DESC_SIZE_V1];
-};
+	u8 desc[2 * RESOURCE_DESC_SIZE_V1];
+} __packed;
 
 struct be_cmd_resp_set_profile_config {
 	struct be_cmd_resp_hdr hdr;
@@ -2149,8 +2151,6 @@ int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain);
-int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
-			      int size, u8 version, u8 domain);
 int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
@@ -2158,3 +2158,5 @@ int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);
 int be_cmd_intr_set(struct be_adapter *adapter, bool intr_enable);
 int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port);
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
+int be_cmd_set_sriov_config(struct be_adapter *adapter,
+			    struct be_resources res, u16 num_vfs);
