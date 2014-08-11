@@ -781,7 +781,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	int sense_deferred = 0;
 	enum {ACTION_FAIL, ACTION_REPREP, ACTION_RETRY,
 	      ACTION_DELAYED_RETRY} action;
-	char *description = NULL;
 	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
 					  DEFAULT_RATELIMIT_BURST);
@@ -885,7 +884,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				 * and quietly refuse further access.
 				 */
 				cmd->device->changed = 1;
-				description = "Media Changed";
 				action = ACTION_FAIL;
 			} else {
 				/* Must have been a power glitch, or a
@@ -913,7 +911,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				cmd->device->use_10_for_rw = 0;
 				action = ACTION_REPREP;
 			} else if (sshdr.asc == 0x10) /* DIX */ {
-				description = "Host Data Integrity Failure";
 				action = ACTION_FAIL;
 				error = -EILSEQ;
 			/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
@@ -921,7 +918,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				   (cmd->cmnd[0] == UNMAP ||
 				    cmd->cmnd[0] == WRITE_SAME_16 ||
 				    cmd->cmnd[0] == WRITE_SAME)) {
-				description = "Discard failure";
 				action = ACTION_FAIL;
 				error = -EREMOTEIO;
 			} else
@@ -929,10 +925,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			break;
 		case ABORTED_COMMAND:
 			action = ACTION_FAIL;
-			if (sshdr.asc == 0x10) { /* DIF */
-				description = "Target Data Integrity Failure";
+			if (sshdr.asc == 0x10) /* DIF */
 				error = -EILSEQ;
-			}
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming
@@ -951,43 +945,32 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					action = ACTION_DELAYED_RETRY;
 					break;
 				default:
-					description = "Device not ready";
 					action = ACTION_FAIL;
 					break;
 				}
-			} else {
-				description = "Device not ready";
+			} else
 				action = ACTION_FAIL;
-			}
 			break;
 		case VOLUME_OVERFLOW:
 			/* See SSC3rXX or current. */
 			action = ACTION_FAIL;
 			break;
 		default:
-			description = "Unhandled sense code";
 			action = ACTION_FAIL;
 			break;
 		}
-	} else {
-		description = "Unhandled error code";
+	} else
 		action = ACTION_FAIL;
-	}
 
 	if (action != ACTION_FAIL &&
-	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies))
 		action = ACTION_FAIL;
-		description = "Command timed out";
-	}
 
 	switch (action) {
 	case ACTION_FAIL:
 		/* Give up and fail the remainder of the request */
 		scsi_release_buffers(cmd);
 		if (!(req->cmd_flags & REQ_QUIET) && __ratelimit(&rs)) {
-			if (description)
-				scmd_printk(KERN_INFO, cmd, "%s\n",
-					    description);
 			scsi_print_result(cmd);
 			if (driver_byte(result) & DRIVER_SENSE)
 				scsi_print_sense("", cmd);
