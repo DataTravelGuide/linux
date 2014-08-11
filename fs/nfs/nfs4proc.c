@@ -1816,7 +1816,7 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata, struct
 static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 		fmode_t fmode,
 		int flags,
-		struct nfs4_state **res)
+		struct nfs_open_context *ctx)
 {
 	struct nfs4_state_owner *sp = opendata->owner;
 	struct nfs_server *server = sp->so_server;
@@ -1841,9 +1841,9 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	if (ret != 0)
 		goto out;
 
+	ctx->state = state;
 	if (read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
 		nfs4_schedule_stateid_recovery(server, state);
-	*res = state;
 out:
 	return ret;
 }
@@ -1854,8 +1854,7 @@ out:
 static int _nfs4_do_open(struct inode *dir,
 			struct nfs_open_context *ctx,
 			int flags,
-			struct iattr *sattr,
-			struct nfs4_state **res)
+			struct iattr *sattr)
 {
 	struct nfs4_state_owner  *sp;
 	struct nfs4_state     *state = NULL;
@@ -1889,9 +1888,10 @@ static int _nfs4_do_open(struct inode *dir,
 	if (dentry->d_inode != NULL)
 		opendata->state = nfs4_get_open_state(dentry->d_inode, sp);
 
-	status = _nfs4_open_and_get_state(opendata, fmode, flags, &state);
+	status = _nfs4_open_and_get_state(opendata, fmode, flags, ctx);
 	if (status != 0)
 		goto err_opendata_put;
+	state = ctx->state;
 
 	if ((opendata->o_arg.open_flags & O_EXCL) &&
 	    (opendata->o_arg.createmode != NFS4_CREATE_GUARDED)) {
@@ -1907,14 +1907,12 @@ static int _nfs4_do_open(struct inode *dir,
 	}
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
-	*res = state;
 	return 0;
 err_opendata_put:
 	nfs4_opendata_put(opendata);
 err_put_state_owner:
 	nfs4_put_state_owner(sp);
 out_err:
-	*res = NULL;
 	return status;
 }
 
@@ -1930,7 +1928,8 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 	int status;
 
 	do {
-		status = _nfs4_do_open(dir, ctx, flags, sattr, &res);
+		status = _nfs4_do_open(dir, ctx, flags, sattr);
+		res = ctx->state;
 		if (status == 0)
 			break;
 		/* NOTE: BAD_SEQID means the server and client disagree about the
@@ -2278,7 +2277,6 @@ nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx, int open_flags
 	state = nfs4_do_open(dir, ctx, open_flags, attr);
 	if (IS_ERR(state))
 		return ERR_CAST(state);
-	ctx->state = state;
 	return igrab(state->inode);
 }
 
@@ -2849,7 +2847,6 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	}
 	d_add(dentry, igrab(state->inode));
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-	ctx->state = state;
 out:
 	return status;
 }
