@@ -221,7 +221,6 @@ struct net_bridge
 	struct timer_list		multicast_querier_timer;
 	struct timer_list		multicast_query_timer;
 #endif
-	struct vlan_group		*vlgrp;
 
 	struct timer_list		hello_timer;
 	struct timer_list		tcn_timer;
