@@ -22,23 +22,14 @@ static int br_pass_frame_up(struct sk_buff *skb)
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
 	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
-	struct net_device *vlan_dev = NULL;
 
 	u64_stats_update_begin(&brstats->syncp);
 	brstats->rx_packets++;
 	brstats->rx_bytes += skb->len;
 	u64_stats_update_end(&brstats->syncp);
 
-	/* If this frame came in through a HW-acclerated port find
-	 * the vlan device it belongs to.
-	 */
-	if (vlan_tx_tag_present(skb)) {
-		struct net_bridge *br = netdev_priv(brdev);
-		vlan_dev = vlan_hwaccel_dev(skb, br->vlgrp);
-	}
-
 	indev = skb->dev;
-	skb->dev = vlan_dev ? vlan_dev : brdev;
+	skb->dev = brdev;
 
 	return NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
 		       netif_receive_skb);
