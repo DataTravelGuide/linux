@@ -605,12 +605,12 @@ err_out:
 static struct rt6_info *find_route_ipv6(const struct in6_addr *saddr,
 					const struct in6_addr *daddr)
 {
-	struct flowi6 fl;
+	struct flowi fl;
 
 	if (saddr)
-		memcpy(&fl.saddr, saddr, sizeof(struct in6_addr));
+		ipv6_addr_copy(&fl.fl6_src, saddr);
 	if (daddr)
-		memcpy(&fl.daddr, daddr, sizeof(struct in6_addr));
+		ipv6_addr_copy(&fl.fl6_dst, daddr);
 	return (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
 }
 
@@ -638,10 +638,10 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 
-	dst = &rt->dst;
-
-	n = dst_neigh_lookup(dst, &daddr6->sin6_addr);
-
+	dst = &rt->u.dst;
+	
+	n = dst->neighbour;
+	
 	if (!n) {
 		pr_info("%pI6, port %u, dst no neighbour.\n",
 			daddr6->sin6_addr.s6_addr,
@@ -707,12 +707,12 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 	return csk;
 
 rel_rt:
-	if (n)
-		neigh_release(n);
+	if (rt)
+		dst_release(&rt->u.dst);
 
-	ip6_rt_put(rt);
 	if (csk)
 		cxgbi_sock_closed(csk);
+
 err_out:
 	return ERR_PTR(err);
 }
