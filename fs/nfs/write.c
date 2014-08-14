@@ -863,11 +863,15 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
  */
 static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
+
 	if (nfs_have_delegated_attributes(inode))
 		goto out;
-	if (NFS_I(inode)->cache_validity & (NFS_INO_INVALID_DATA|NFS_INO_REVAL_PAGECACHE))
+	if (nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
 		return false;
 out:
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+		return false;
 	return PageUptodate(page) != 0;
 }
 
