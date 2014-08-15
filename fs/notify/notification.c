@@ -99,7 +99,7 @@ void fsnotify_put_event(struct fsnotify_event *event)
 
 struct fsnotify_event_holder *fsnotify_alloc_event_holder(void)
 {
-	return kmem_cache_alloc(fsnotify_event_holder_cachep, GFP_KERNEL);
+	return kmem_cache_alloc(fsnotify_event_holder_cachep, GFP_NOFS);
 }
 
 void fsnotify_destroy_event_holder(struct fsnotify_event_holder *holder)
