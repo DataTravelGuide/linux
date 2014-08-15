@@ -307,7 +307,9 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 			if (priv)
 				group->ops->free_event_priv(priv);
 		}
+		mutex_unlock(&group->notification_mutex);
 		fsnotify_put_event(event); /* matches fsnotify_add_notify_event */
+		mutex_lock(&group->notification_mutex);
 	}
 	mutex_unlock(&group->notification_mutex);
 }
