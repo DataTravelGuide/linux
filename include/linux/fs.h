@@ -1483,6 +1483,8 @@ struct super_block {
 	char *s_options;
 #ifndef __GENKSYMS__
 	struct sb_writers	s_writers;
+	atomic_t		s_fsnotify_marks;
+	wait_queue_head_t	s_fsnotify_marks_wq;
 #endif
 };
 
