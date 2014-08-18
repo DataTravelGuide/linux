@@ -33,7 +33,7 @@
  * vcpu_id >= KVM_MAX_VCPUS on x86. This way we avoid inadvertently introducing
  * security bugs while backporting upstream code.
  */
-#define KVM_MAX_VCPU_COUNT 240
+#define KVM_MAX_VCPU_COUNT 160
 
 /* Limit for vcpu_id for all VCPUs. RHEL-specific, too (see above).
  * KVM_CREATE_VCPU code ensures that all VCPUs have vcpu_id < KVM_MAX_VCPU_ID.
