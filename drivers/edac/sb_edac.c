@@ -2143,6 +2143,9 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mem_ctl_info *mci;
 	struct sbridge_pvt *pvt;
 
+	if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
+		return NOTIFY_DONE;
+
 	mci = get_mci_for_node_id(mce->socketid);
 	if (!mci)
 		return NOTIFY_BAD;
@@ -2479,9 +2482,10 @@ static int __init sbridge_init(void)
 	opstate_init();
 
 	pci_rc = pci_register_driver(&sbridge_driver);
-
 	if (pci_rc >= 0) {
 		mce_register_decode_chain(&sbridge_mce_dec);
+		if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
+			sbridge_printk(KERN_WARNING, "Loading driver, error reporting disabled.\n");
 		return 0;
 	}
 
