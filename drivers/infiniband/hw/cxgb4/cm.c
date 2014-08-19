@@ -488,7 +488,7 @@ static void send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_RCVNXT;
 	flowc->mnemval[5].val = cpu_to_be32(ep->rcv_seq);
 	flowc->mnemval[6].mnemonic = FW_FLOWC_MNEM_SNDBUF;
-	flowc->mnemval[6].val = cpu_to_be32(snd_win);
+	flowc->mnemval[6].val = cpu_to_be32(ep->snd_win);
 	flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 	flowc->mnemval[7].val = cpu_to_be32(ep->emss);
 	/* Pad WR to 16 byte boundary */
@@ -581,6 +581,7 @@ static int send_connect(struct c4iw_ep *ep)
 	struct sockaddr_in *ra = (struct sockaddr_in *)&ep->com.remote_addr;
 	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
 	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	int win;
 
 	wrlen = (ep->com.remote_addr.ss_family == AF_INET) ?
 			roundup(sizev4, 16) :
@@ -599,6 +600,15 @@ static int send_connect(struct c4iw_ep *ep)
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		 enable_tcp_timestamps);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
+
 	opt0 = (nocong ? NO_CONG(1) : 0) |
 	       KEEP_ALIVE(1) |
 	       DELACK(1) |
@@ -609,7 +619,7 @@ static int send_connect(struct c4iw_ep *ep)
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
 	       ULP_MODE(ULP_MODE_TCPDDP) |
-	       RCV_BUFSIZ(rcv_win>>10);
+	       RCV_BUFSIZ(win);
 	opt2 = RX_CHANNEL(0) |
 	       CCTRL_ECN(enable_ecn) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
@@ -1190,6 +1200,14 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 		return 0;
 	}
 
+	/*
+	 * If we couldn't specify the entire rcv window at connection setup
+	 * due to the limit in the number of bits in the RCV_BUFSIZ field,
+	 * then add the overage in to the credits returned.
+	 */
+	if (ep->rcv_win > RCV_BUFSIZ_MASK * 1024)
+		credits += ep->rcv_win - RCV_BUFSIZ_MASK * 1024;
+
 	req = (struct cpl_rx_data_ack *) skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
 	INIT_TP_WR(req, ep->hwtid);
@@ -1663,6 +1681,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	unsigned int mtu_idx;
 	int wscale;
 	struct sockaddr_in *sin;
+	int win;
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
@@ -1688,6 +1707,15 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		 enable_tcp_timestamps);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
+
 	req->tcb.opt0 = (__force __be64) (TCAM_BYPASS(1) |
 		(nocong ? NO_CONG(1) : 0) |
 		KEEP_ALIVE(1) |
@@ -1699,7 +1727,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 		SMAC_SEL(ep->smac_idx) |
 		DSCP(ep->tos) |
 		ULP_MODE(ULP_MODE_TCPDDP) |
-		RCV_BUFSIZ(rcv_win >> 10));
+		RCV_BUFSIZ(win));
 	req->tcb.opt2 = (__force __be32) (PACE(1) |
 		TX_QUEUE(ep->com.dev->rdev.lldi.tx_modq[ep->tx_chan]) |
 		RX_CHANNEL(0) |
@@ -1734,6 +1762,13 @@ static int is_neg_adv(unsigned int status)
 	return status == CPL_ERR_RTX_NEG_ADVICE ||
 	       status == CPL_ERR_PERSIST_NEG_ADVICE ||
 	       status == CPL_ERR_KEEPALV_NEG_ADVICE;
+}
+
+static void set_tcp_window(struct c4iw_ep *ep, struct port_info *pi)
+{
+	ep->snd_win = snd_win;
+	ep->rcv_win = rcv_win;
+	PDBG("%s snd_win %d rcv_win %d\n", __func__, ep->snd_win, ep->rcv_win);
 }
 
 #define ACT_OPEN_RETRY_COUNT 2
@@ -1784,6 +1819,7 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		ep->ctrlq_idx = cxgb4_port_idx(pdev);
 		ep->rss_qid = cdev->rdev.lldi.rxq_ids[
 			cxgb4_port_idx(pdev) * step];
+		set_tcp_window(ep, (struct port_info *)netdev_priv(pdev));
 		dev_put(pdev);
 	} else {
 		pdev = get_real_dev(n->dev);
@@ -2033,6 +2069,7 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	u32 opt2;
 	int wscale;
 	struct cpl_t5_pass_accept_rpl *rpl5 = NULL;
+	int win;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	BUG_ON(skb_cloned(skb));
@@ -2053,6 +2090,14 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx,
 		 enable_tcp_timestamps && req->tcpopt.tstamp);
 	wscale = compute_wscale(rcv_win);
+
+	/*
+	 * Specify the largest window that will fit in opt0. The
+	 * remainder will be specified in the rx_data_ack.
+	 */
+	win = ep->rcv_win >> 10;
+	if (win > RCV_BUFSIZ_MASK)
+		win = RCV_BUFSIZ_MASK;
 	opt0 = (nocong ? NO_CONG(1) : 0) |
 	       KEEP_ALIVE(1) |
 	       DELACK(1) |
@@ -2063,7 +2108,7 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos >> 2) |
 	       ULP_MODE(ULP_MODE_TCPDDP) |
-	       RCV_BUFSIZ(rcv_win>>10);
+	       RCV_BUFSIZ(win);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
 
