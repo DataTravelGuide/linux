@@ -1723,7 +1723,8 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		return handle_trace_pkt(q->adap, si);
 
 	pkt = (const struct cpl_rx_pkt *)rsp;
-	csum_ok = pkt->csum_calc && !pkt->err_vec;
+	csum_ok = pkt->csum_calc && !pkt->err_vec &&
+		  (q->netdev->features & NETIF_F_RXCSUM);
 	if ((pkt->l2info & htonl(RXF_TCP)) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
 		do_gro(rxq, si, pkt);
@@ -1747,8 +1748,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pi->rx_offload & RX_CSO) &&
-	    (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
+	if (csum_ok && (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
 		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			rxq->stats.rx_cso++;
