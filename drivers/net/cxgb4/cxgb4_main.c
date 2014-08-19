@@ -3841,6 +3841,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	unsigned short i;
 
 	lli.pdev = adap->pdev;
+	lli.pf = adap->fn;
 	lli.l2t = adap->l2t;
 	lli.tids = &adap->tids;
 	lli.ports = adap->port;
@@ -6078,13 +6079,6 @@ static int init_one(struct pci_dev *pdev,
 		return err;
 	}
 
-	/* We control everything through one PF */
-	func = PCI_FUNC(pdev->devfn);
-	if (func != ent->driver_data) {
-		pci_save_state(pdev);        /* to restore SR-IOV later */
-		goto sriov;
-	}
-
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "cannot enable PCI device\n");
@@ -6126,6 +6120,15 @@ static int init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "cannot map device registers\n");
 		err = -ENOMEM;
 		goto out_free_adapter;
+	}
+
+	/* We control everything through one PF */
+	func = SOURCEPF_GET(readl(adapter->regs + PL_WHOAMI));
+	if ((pdev->device == 0xa000 && func != 0) ||
+	    func != ent->driver_data) {
+		pci_save_state(pdev);        /* to restore SR-IOV later */
+		err = 0;
+		goto out_unmap_bar0;
 	}
 
 	adapter->pdev = pdev;
@@ -6283,7 +6286,6 @@ static int init_one(struct pci_dev *pdev,
 	if (is_offload(adapter))
 		attach_ulds(adapter);
 
-sriov:
 #ifdef CONFIG_PCI_IOV
 	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0)
 		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
