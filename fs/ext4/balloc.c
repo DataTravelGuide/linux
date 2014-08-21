@@ -350,12 +350,16 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 			    block_group, bitmap_blk);
 		return NULL;
 	}
-	ext4_valid_block_bitmap(sb, desc, block_group, bh);
+
+	if (ext4_valid_block_bitmap(sb, desc, block_group, bh))
+		return bh;
 	/*
 	 * file system mounted not to panic on error,
-	 * continue with corrupt bitmap
+	 * return NULL so that allocator try to use
+	 * different block group.
 	 */
-	return bh;
+	put_bh(bh);
+	return NULL;
 }
 
 /**
