@@ -1701,6 +1701,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Aug 21 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.32.1.el6]
+- [fs] nfs: Don't mark the data cache as invalid if it has been flushed (Benjamin Coddington) [1114406 1109365]
+- [fs] nfs: Clear NFS_INO_REVAL_PAGECACHE when we update the file size (Benjamin Coddington) [1114406 1109365]
+- [fs] nfs: Fix cache_validity check in nfs_write_pageuptodate() (Benjamin Coddington) [1114406 1109365]
+- [fs] bio: modify __bio_add_page to accept pages that dont start a new segment (Maurizio Lombardi) [1131137 885517]
+- [fs] bio: modify __bio_add_page() to accept pages that don't start a new segment (Maurizio Lombardi) [1131137 885517]
+
 * Tue Aug 05 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.31.1.el6]
 - [net] netpoll: netpoll_poll_dev() should access dev->flags (Florian Westphal) [1125994 1095252]
 
