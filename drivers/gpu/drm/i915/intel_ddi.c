@@ -1678,7 +1678,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
 	if (init_dp) {
-		if (intel_ddi_init_dp_connector(intel_dig_port))
+		if (!intel_ddi_init_dp_connector(intel_dig_port))
 			goto err;
 		dev_priv->hpd_irq_port[port] = intel_dig_port;
 	}
