@@ -1701,6 +1701,26 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 22 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-498.el6]
+- [drm] i915: fix backport typo (Rob Clark) [1131218]
+- [net] revert: bridge: Provide VLAN registration and GRO acceleration for ports (Jiri Pirko) [1121991]
+- [net] revert: bridge: Correctly receive hw-accelerated vlan traffic (Jiri Pirko) [1121991]
+- [net] revert: vlan: Allow accelerated packets to flow through the bridge (Jiri Pirko) [1121991]
+- [net] ipv6: fix calculation of option len in ip6_append_data (Hannes Frederic Sowa) [1127225]
+- [net] ipv6: pmtudisc setting not respected with UFO/CORK (Hannes Frederic Sowa) [1127225]
+- [net] ipv4: fix DO and PROBE pmtu mode regarding local fragmentation with UFO/CORK (Hannes Frederic Sowa) [1127225]
+- [net] rtnetlink: fix VF info size (Jiri Benc) [1126761]
+- [scsi] fc: ensure scan_work isn't active when freeing fc_rport (Maurizio Lombardi) [1120036]
+- [netdrv] bnx2x: Safe bnx2x_panic_dump() (Michal Schmidt) [1121539]
+- [netdrv] bnx2x: Enlarge the dorq threshold for VFs (Michal Schmidt) [1123412]
+- [netdrv] bnx2x: Fix 1G-baseT link (Michal Schmidt) [1123412]
+- [netdrv] bnx2x: Fix link for KR with swapped polarity lane (Michal Schmidt) [1123412]
+- [md] raid: avoid data corruption during recovery of double-degraded RAID6 (Jes Sorensen) [1090423]
+- [perf] tools: Show better error message in case we fail to open counters due to EBUSY error (Jiri Olsa) [1103196]
+- [perf] tools: Add filename__read_str util function (Jiri Olsa) [1103196]
+- [kvm] revert "x86: increase VCPU limit to 240" (Radim Krcmar) [864242]
+- [virt] revert "virtio-net: initialize vlan_features" (Nikolay Aleksandrov) [1132588]
+
 * Fri Aug 15 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-497.el6]
 - [net] ipv6: fix headroom calculation in udp6_ufo_fragment (Nikolay Aleksandrov) [1121522]
 - [net] udp6: Fix udp fragmentation for tunnel traffic (Nikolay Aleksandrov) [1121522]
