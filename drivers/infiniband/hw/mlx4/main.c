@@ -1669,6 +1669,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 	struct inet6_dev *in6_dev;
 	union ib_gid  *pgid;
 	struct inet6_ifaddr *ifp;
+	union ib_gid default_gid;
 #endif
 	union ib_gid gid;
 
@@ -1689,6 +1690,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 		in_dev_put(in_dev);
 	}
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	mlx4_make_default_gid(dev, &default_gid);
 	/* IPv6 gids */
 	in6_dev = in6_dev_get(dev);
 	if (in6_dev) {
@@ -1697,6 +1699,8 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 		     ifp != NULL;
 		     ifp = ifp->lst_next) {
 			pgid = (union ib_gid *)&ifp->addr;
+			if (!memcmp(pgid, &default_gid, sizeof(*pgid)))
+				continue;
 			update_gid_table(ibdev, port, pgid, 0, 0);
 		}
 		read_unlock_bh(&in6_dev->lock);
