@@ -324,10 +324,8 @@ __amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *ev
 	if (!c)
 		c = &unconstrained;
 
-#if 0 /* NOT IN RHEL */
 	if (cpuc->is_fake)
 		return c;
-#endif
 
 	/*
 	 * detect if already present, if so reuse
