@@ -6773,6 +6773,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 
 void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvm_x86_ops->sched_in(vcpu, cpu);
 }
 
 struct  kvm *kvm_arch_create_vm(void)

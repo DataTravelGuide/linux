@@ -633,6 +633,8 @@ struct kvm_x86_ops {
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment, bool host);
 	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);
+
+	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;

@@ -4499,6 +4499,10 @@ static int vmx_get_lpage_level(void)
 		return PT_PDPE_LEVEL;
 }
 
+static void vmx_sched_in(struct kvm_vcpu *vcpu, int cpu)
+{
+}
+
 static struct kvm_x86_ops vmx_x86_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -4572,6 +4576,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
 	.compute_tsc_offset = vmx_compute_tsc_offset,
+
+	.sched_in = vmx_sched_in,
 };
 
 static int __init vmx_init(void)

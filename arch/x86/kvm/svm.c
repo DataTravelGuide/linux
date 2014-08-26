@@ -3383,6 +3383,10 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	mark_dirty(svm->vmcb, VMCB_CR);
 }
 
+static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
+{
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -3458,6 +3462,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.write_tsc_offset = svm_write_tsc_offset,
 	.adjust_tsc_offset = svm_adjust_tsc_offset,
 	.compute_tsc_offset = svm_compute_tsc_offset,
+
+	.sched_in = svm_sched_in,
 };
 
 static int __init svm_init(void)
