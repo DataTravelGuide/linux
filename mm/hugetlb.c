@@ -630,6 +630,7 @@ static void free_huge_page(struct page *page)
 	BUG_ON(page_mapcount(page));
 	INIT_LIST_HEAD(&page->lru);
 	restore_reserve = PagePrivate(page);
+	ClearPagePrivate(page);
 
 	spin_lock(&hugetlb_lock);
 
