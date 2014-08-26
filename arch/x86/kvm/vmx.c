@@ -159,6 +159,10 @@ struct vcpu_vmx {
 	ktime_t entry_time;
 	s64 vnmi_blocked_time;
 	u32 exit_reason;
+
+	/* Dynamic PLE window. */
+	int ple_window;
+	bool ple_window_dirty;
 };
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
@@ -2735,7 +2739,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	if (ple_gap) {
 		vmcs_write32(PLE_GAP, ple_gap);
-		vmcs_write32(PLE_WINDOW, ple_window);
+		vmx->ple_window = ple_window;
+		vmx->ple_window_dirty = true;
 	}
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, !!bypass_guest_pf);
@@ -4177,6 +4182,11 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required && emulate_invalid_guest_state) {
 		handle_invalid_guest_state(vcpu);
 		return;
+	}
+
+	if (vmx->ple_window_dirty) {
+		vmx->ple_window_dirty = false;
+		vmcs_write32(PLE_WINDOW, vmx->ple_window);
 	}
 
 	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
