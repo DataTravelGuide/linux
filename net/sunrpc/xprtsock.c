@@ -2168,10 +2168,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		 */
 		xs_tcp_force_close(xprt);
 		break;
-	case -ECONNREFUSED:
-	case -ECONNRESET:
-	case -ENETUNREACH:
-		/* retry with existing socket, after a delay */
 	case 0:
 	case -EINPROGRESS:
 	case -EALREADY:
@@ -2182,6 +2178,10 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 		/* Happens, for instance, if the user specified a link
 		 * local IPv6 address without a scope-id.
 		 */
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		/* retry with existing socket, after a delay */
 		goto out;
 	}
 out_eagain:
