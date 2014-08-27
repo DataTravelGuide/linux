@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <asm/errno.h>
+#include <linux/err.h>
 #include "local.h"
 
 static inline uint32_t buffer_to_u32(const uint8_t *buffer)
@@ -239,12 +240,13 @@ static int ksign_parse_key(const uint8_t *datap, const uint8_t *endp,
 		datap += remaining;
 	}
 
-	rc = -ENOMEM;
-
 	tfm = crypto_alloc_shash("sha1", 0, 0);
-	if (!tfm)
+	if (IS_ERR(tfm)) {
+		rc = PTR_ERR(tfm);
 		goto cleanup_pubkey;
+	}
 
+	rc = -ENOMEM;
 	digest = kmalloc(sizeof(*digest) + crypto_shash_descsize(tfm),
 			 GFP_KERNEL);
 	if (!digest)

@@ -16,6 +16,7 @@
 #include <linux/elf.h>
 #include <linux/crypto/ksign.h>
 #include <linux/modsign.h>
+#include <linux/err.h>
 #include "module-verify.h"
 
 #undef MODSIGN_DEBUG
@@ -154,10 +155,12 @@ int module_verify_signature(struct module_verify_data *mvdata,
 	 * - !!! if this tries to load the sha256.ko module, we will deadlock!!!
 	 */
 	tfm = crypto_alloc_shash(digest_algo, 0, 0);
-	if (!tfm) {
+	if (IS_ERR(tfm)) {
+		ret = PTR_ERR(tfm);
 		printk(KERN_ERR
-		       "Couldn't load module - SHA256 transform unavailable\n");
-		return -EPERM;
+		       "Couldn't load module - SHA256 transform unavailable (%d)\n",
+		       ret);
+		return ret;
 	}
 
 	mvdata->hash = kmalloc(sizeof(*mvdata->hash) +
