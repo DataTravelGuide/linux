@@ -1185,7 +1185,7 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	if (epi->nwait < 0)
 		goto error_unregister;
 
-	if (!is_file_epoll(tfile)) {
+	if (full_check && !is_file_epoll(tfile)) {
 		error = add_to_tfile_check(&epi->ffd);
 		if (error)
 			goto error_unregister;
