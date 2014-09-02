@@ -781,12 +781,9 @@ static void rh_check_supported(void)
 		switch (boot_cpu_data.x86_model) {
 		case 77: /* Atom Avoton */
 		case 70: /* Crystal Well */
-		case 63: /* Grantley/Haswell EP */
-		case 62: /* Ivy Town */
-		case 61: /* Broadwell */
 			break;
 		default:
-			if (boot_cpu_data.x86_model > 60) {
+			if (boot_cpu_data.x86_model > 63) {
 				printk(KERN_CRIT
 				       "Detected CPU family %d model %d\n",
 				       boot_cpu_data.x86,
