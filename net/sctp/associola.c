@@ -1096,7 +1096,7 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		}
 
 		if (chunk->transport)
-			chunk->transport->last_time_heard = jiffies;
+			chunk->transport->last_time_heard = ktime_get();
 
 		/* Run through the state machine. */
 		error = sctp_do_sm(SCTP_EVENT_T_CHUNK, subtype,
@@ -1348,11 +1348,13 @@ static void sctp_select_active_and_retran_path(struct sctp_association *asoc)
 		    trans->state == SCTP_PF)
 			continue;
 		if (trans_pri == NULL ||
-		    trans->last_time_heard > trans_pri->last_time_heard) {
+		    ktime_after(trans->last_time_heard,
+				trans_pri->last_time_heard)) {
 			trans_sec = trans_pri;
 			trans_pri = trans;
 		} else if (trans_sec == NULL ||
-			   trans->last_time_heard > trans_sec->last_time_heard) {
+			   ktime_after(trans->last_time_heard,
+				       trans_sec->last_time_heard)) {
 			trans_sec = trans;
 		}
 	}
