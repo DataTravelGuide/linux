@@ -6100,13 +6100,8 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	pci_write_config_word(pdev, 4, command_register);
 
 	/* Some devices (notably the HP Smart Array 5i Controller)
-	 * need a little pause here.  Not all controllers though,
-	 * and for some we will miss the transition to NOT READY
-	 * if we wait here.   As a heuristic, if either doorbell
-	 * reset method is supported, we'll skip this sleep.
-	 */
-	if (!use_doorbell)
-		msleep(HPSA_POST_RESET_PAUSE_MSECS);
+	 * need a little pause here */
+	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
 	if (rc) {
