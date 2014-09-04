@@ -1701,6 +1701,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 04 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.33.1.el6]
+- [net] openvswitch: fix panic with multiple vlan headers (Jiri Benc) [1134258 1122405]
+- [net] bridge: explictly tag vlan-accelerated frames destined to the host (Vlad Yasevich) [1131697 1121991]
+- [net] revert: bridge: Provide VLAN registration and GRO acceleration for ports (Jiri Pirko) [1131697 1121991]
+- Revert: [net] bridge: Correctly receive hw-accelerated vlan traffic (Vlad Yasevich) [1131697 1121991]
+- Revert: [net] vlan: Allow accelerated packets to flow through the bridge (Vlad Yasevich) [1131697 1121991]
+
 * Thu Aug 21 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.32.1.el6]
 - [fs] nfs: Don't mark the data cache as invalid if it has been flushed (Benjamin Coddington) [1114406 1109365]
 - [fs] nfs: Clear NFS_INO_REVAL_PAGECACHE when we update the file size (Benjamin Coddington) [1114406 1109365]
