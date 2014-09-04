@@ -933,8 +933,9 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	start_params->sd_vlan_tag = bp->mf_ov;
 	start_params->network_cos_mode = OVERRIDE_COS;
 
-	start_params->gre_tunnel_mode = L2GRE_TUNNEL;
-	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
+	start_params->tunnel_mode	= TUNN_MODE_GRE;
+	start_params->gre_tunnel_type	= IPGRE_TUNNEL;
+	start_params->inner_gre_rss_en	= 1;
 
 	return bnx2x_func_state_change(bp, &func_params);
 }

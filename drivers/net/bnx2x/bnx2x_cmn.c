@@ -2054,6 +2054,10 @@ int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 			__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
 		if (rss_obj->udp_rss_v6)
 			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+
+		if (!CHIP_IS_E1x(bp))
+			/* valid only for TUNN_MODE_GRE tunnel mode */
+			__set_bit(BNX2X_RSS_GRE_INNER_HDRS, &params.rss_flags);
 	} else {
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
 	}
@@ -3386,17 +3390,6 @@ exit_lbl:
 }
 #endif
 
-static void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
-				 u32 xmit_type)
-{
-	*parsing_data |= (skb_shinfo(skb)->gso_size <<
-			      ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT) &
-			      ETH_TX_PARSE_BD_E2_LSO_MSS;
-	if ((xmit_type & XMIT_GSO_V6) &&
-	    (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
-		*parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
-}
-
 /**
  * bnx2x_set_pbd_gso - update PBD in GSO case.
  *
@@ -3406,7 +3399,6 @@ static void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
  */
 static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 			      struct eth_tx_parse_bd_e1x *pbd,
-			      struct eth_tx_start_bd *tx_start_bd,
 			      u32 xmit_type)
 {
 	pbd->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
@@ -3419,9 +3411,6 @@ static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 			bswab16(~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 						   ip_hdr(skb)->daddr,
 						   0, IPPROTO_TCP, 0));
-
-		/* GSO on 57710/57711 needs FW to calculate IP checksum */
-		tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_IP_CSUM;
 	} else {
 		pbd->tcp_pseudo_csum =
 			bswab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
@@ -3531,6 +3520,20 @@ static u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 	}
 
 	return hlen;
+}
+
+static inline void bnx2x_set_ipv6_ext_e2(struct sk_buff *skb, u32 *parsing_data,
+					 u32 xmit_type)
+{
+	struct ipv6hdr *ipv6;
+
+	if (!(xmit_type & XMIT_GSO_V6))
+		return;
+
+	ipv6 = ipv6_hdr(skb);
+
+	if (ipv6->nexthdr == NEXTHDR_IPV6)
+		*parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
 }
 
 /* called with netif_tx_lock
@@ -3711,6 +3714,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						     &pbd_e2_parsing_data,
 						     xmit_type);
 
+		bnx2x_set_ipv6_ext_e2(skb, &pbd_e2_parsing_data, xmit_type);
 		/* Add the macs to the parsing BD if this is a vf or if
 		 * Tx Switching is enabled.
 		 */
@@ -3776,10 +3780,12 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						 bd_prod);
 		}
 		if (!CHIP_IS_E1x(bp))
-			bnx2x_set_pbd_gso_e2(skb, &pbd_e2_parsing_data,
-					     xmit_type);
+			pbd_e2_parsing_data |=
+				(skb_shinfo(skb)->gso_size <<
+				 ETH_TX_PARSE_BD_E2_LSO_MSS_SHIFT) &
+				 ETH_TX_PARSE_BD_E2_LSO_MSS;
 		else
-			bnx2x_set_pbd_gso(skb, pbd_e1x, first_bd, xmit_type);
+			bnx2x_set_pbd_gso(skb, pbd_e1x, xmit_type);
 	}
 
 	/* Set the PBD's parsing_data field if not zero
