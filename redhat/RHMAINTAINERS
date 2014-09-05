@@ -165,12 +165,12 @@ F:	drivers/cpufreq/
 F:	arch/x86/kernel/cpu/cpufreq/
 
 CXGB3 ETHERNET DRIVER (cxgb3)
-M:	Jay Fenlason <fenlason@redhat.com>
+M:	Sai Vemuri <svemuri@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb3/
 
 CXGB4 ETHERNET DRIVER (cxgb4)
-M:	Jay Fenlason <fenlason@redhat.com>
+M:	Sai Vemuri <svemuri@redhat.com>
 S:	Maintained
 F:	drivers/net/cxgb4/
 
@@ -201,7 +201,7 @@ S:	Maintained
 F:	drivers/net/forcedeth.c
 
 FIREWIRE SUBSYSTEM
-M:	Jay Fenlason <fenlason@redhat.com>
+M:     Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/firewire/
 F:	include/linux/firewire*.h
@@ -284,7 +284,6 @@ F:	drivers/net/ibmveth.*
 
 INFINIBAND SUBSYSTEM
 M:	Doug Ledford <dledford@redhat.com>
-M:	Jay Fenlason <fenlason@redhat.com>
 S:	Maintained
 F:	drivers/infiniband/
 
@@ -599,7 +598,7 @@ S:	Maintained
 F:	drivers/usb/
 
 UVC WEBCAM DRIVER
-M:	Jay Fenlason <fenlason@redhat.com>
+M:	Tony Camuso <tcamuso@redhat.com>
 S:	Maintained
 F:	drivers/media/video/uvc/
 
