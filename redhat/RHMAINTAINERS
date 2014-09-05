@@ -153,7 +153,7 @@ S:	Maintained
 F:	fs/cifs/
 
 CISCO VIC ETHERNET NIC DRIVER
-M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Stefan Assmann <sassmann@redhat.com>
 S:	Maintained
 F:	drivers/net/enic/
 
