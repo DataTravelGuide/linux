@@ -2140,7 +2140,7 @@ EXPORT_SYMBOL(netdev_rx_csum_fault);
  * 2. No high memory really exists on this machine.
  */
 
-static int illegal_highdma(const struct net_device *dev, struct sk_buff *skb)
+static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_HIGHMEM
 	int i;
@@ -2207,48 +2207,46 @@ static int dev_gso_segment(struct sk_buff *skb, int features)
 	return 0;
 }
 
-static int harmonize_features(struct sk_buff *skb, __be16 protocol,
-			      const struct net_device *dev,
-			      int features)
+static int harmonize_features(struct sk_buff *skb, __be16 protocol, int features)
 {
 	int tmp;
 
 	if (skb->ip_summed != CHECKSUM_NONE &&
 	    !can_checksum_protocol(features, skb_network_protocol(skb, &tmp))) {
 		features &= ~NETIF_F_ALL_CSUM;
-	} else if (illegal_highdma(dev, skb)) {
+	} else if (illegal_highdma(skb->dev, skb)) {
 		features &= ~NETIF_F_SG;
 	}
 
 	return features;
 }
 
-int netif_skb_dev_features(struct sk_buff *skb, const struct net_device *dev)
+int netif_skb_features(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
-	int features = dev->features;
+	int features = skb->dev->features;
 
-	if (skb_shinfo(skb)->gso_segs > netdev_extended(dev)->gso_max_segs)
+	if (skb_shinfo(skb)->gso_segs > netdev_extended(skb->dev)->gso_max_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 		protocol = veh->h_vlan_encapsulated_proto;
 	} else if (!vlan_tx_tag_present(skb)) {
-		return harmonize_features(skb, protocol, dev, features);
+		return harmonize_features(skb, protocol, features);
 	}
 
-	features &= (dev->vlan_features | NETIF_F_HW_VLAN_TX);
+	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_TX);
 
 	if (protocol != htons(ETH_P_8021Q)) {
-		return harmonize_features(skb, protocol, dev, features);
+		return harmonize_features(skb, protocol, features);
 	} else {
 		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
 				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_TX;
-		return harmonize_features(skb, protocol, dev, features);
+		return harmonize_features(skb, protocol, features);
 	}
 }
-EXPORT_SYMBOL(netif_skb_dev_features);
+EXPORT_SYMBOL(netif_skb_features);
 
 /*
  * Returns true if either:
