@@ -2208,6 +2208,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= mlx4_en_change_mtu,
 	.ndo_tx_timeout		= mlx4_en_tx_timeout,
+	.ndo_vlan_rx_register	= mlx4_en_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
 	.ndo_set_vf_mac		= mlx4_en_set_vf_mac,
