@@ -99,6 +99,7 @@ struct net {
 #endif
 #endif
 	unsigned int		proc_inum;
+	unsigned int		dev_unreg_count;
 #endif
 };
 

@@ -5876,10 +5876,12 @@ static int dev_new_index(struct net *net)
 
 /* Delayed registration/unregisteration */
 static LIST_HEAD(net_todo_list);
+static DECLARE_WAIT_QUEUE_HEAD(netdev_unregistering_wq);
 
 static void net_set_todo(struct net_device *dev)
 {
 	list_add_tail(&dev->todo_list, &net_todo_list);
+	dev_net(dev)->dev_unreg_count++;
 }
 
 static void rollback_registered_many(struct list_head *head)
@@ -6563,6 +6565,12 @@ void netdev_run_todo(void)
 
 		if (dev->destructor)
 			dev->destructor(dev);
+
+		/* Report a network device has been unregistered */
+		rtnl_lock();
+		dev_net(dev)->dev_unreg_count--;
+		__rtnl_unlock();
+		wake_up(&netdev_unregistering_wq);
 
 		/* Free network device */
 		kobject_put(&dev->dev.kobj);
