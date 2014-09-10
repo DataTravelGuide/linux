@@ -1701,6 +1701,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Sep 10 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.34.1.el6]
+- [virt] revert "virtio-net: initialize vlan_features" (Petr Holasek) [1135393 1132588]
+- [fs] nfsd: allow turning off nfsv3 readdir_plus (J. Bruce Fields) [1133834 1117468]
+- [perf] x86: ignore CondChgd bit to avoid false NMI handling (Don Zickus) [1134696 1116947]
+- [s390] fix restore of invalid floating-point-control (Hendrik Brueckner) [1127580 1121962]
+- [net] bridge: unregister rtnl message types correctly (Jiri Benc) [1126681 1114445]
+- [drivers] platform: use always ->name for uevent (Prarit Bhargava) [1125980 1120675]
+- [scsi] lpfc: Add iotag memory barrier (Rob Evers) [1129994 1109274]
+- [s390] fix save and restore of the floating-point-control register (Hendrik Brueckner) [1110839 1034270]
+- [s390] signal: change return values to -EFAULT (Hendrik Brueckner) [1110839 1034270]
+
 * Thu Sep 04 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.33.1.el6]
 - [net] openvswitch: fix panic with multiple vlan headers (Jiri Benc) [1134258 1122405]
 - [net] bridge: explictly tag vlan-accelerated frames destined to the host (Vlad Yasevich) [1131697 1121991]
