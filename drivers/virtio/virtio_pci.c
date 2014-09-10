@@ -621,6 +621,13 @@ static int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
+static const char *vp_bus_name(struct virtio_device *vdev)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	return pci_name(vp_dev->pci_dev);
+}
+
 static struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
@@ -632,6 +639,7 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.set_vq_affinity = vp_set_vq_affinity,
+	.bus_name	= vp_bus_name,
 };
 
 static void virtio_pci_release_dev(struct device *_d)
