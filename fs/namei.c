@@ -1761,6 +1761,12 @@ path_mountpoint(int dfd, struct filename *s, struct path *path, unsigned int fla
 		if (err)
 			break;
 		err = mountpoint_last(&nd, path);
+		/*
+		 * remember to replace with put_link() when/if we get
+		 * to backporting commit def4af30.
+		 */
+		if (nd.last_type == LAST_NORM)
+			__putname(nd.last.name);
 	}
 out:
 	if (nd.root.mnt)
