@@ -2276,7 +2276,6 @@ static void __devinit cfg_queues(struct adapter *adapter)
 {
 	struct sge *s = &adapter->sge;
 	int q10g, n10g, qidx, pidx, qs;
-	size_t iqe_size;
 
 	/*
 	 * We should not be called till we know how many Queue Sets we can
@@ -2321,13 +2320,6 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	s->ethqsets = qidx;
 
 	/*
-	 * The Ingress Queue Entry Size for our various Response Queues needs
-	 * to be big enough to accommodate the largest message we can receive
-	 * from the chip/firmware; which is 64 bytes ...
-	 */
-	iqe_size = 64;
-
-	/*
 	 * Set up default Queue Set parameters ...  Start off with the
 	 * shortest interrupt holdoff timer.
 	 */
@@ -2335,7 +2327,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 		struct sge_eth_rxq *rxq = &s->ethrxq[qs];
 		struct sge_eth_txq *txq = &s->ethtxq[qs];
 
-		init_rspq(&rxq->rspq, 0, 0, 1024, iqe_size);
+		init_rspq(&rxq->rspq, 0, 0, 1024, L1_CACHE_BYTES);
 		rxq->fl.size = 72;
 		txq->q.size = 1024;
 	}
@@ -2344,7 +2336,8 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	 * The firmware event queue is used for link state changes and
 	 * notifications of TX DMA completions.
 	 */
-	init_rspq(&s->fw_evtq, SGE_TIMER_RSTRT_CNTR, 0, 512, iqe_size);
+	init_rspq(&s->fw_evtq, SGE_TIMER_RSTRT_CNTR, 0, 512,
+		  L1_CACHE_BYTES);
 
 	/*
 	 * The forwarded interrupt queue is used when we're in MSI interrupt
@@ -2360,7 +2353,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	 * any time ...
 	 */
 	init_rspq(&s->intrq, SGE_TIMER_RSTRT_CNTR, 0, MSIX_ENTRIES + 1,
-		  iqe_size);
+		  L1_CACHE_BYTES);
 }
 
 /*
