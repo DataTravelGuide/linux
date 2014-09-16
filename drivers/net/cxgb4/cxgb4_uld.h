@@ -131,14 +131,7 @@ static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
 
 static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 {
-	/* Is it a server filter TID? */
-	if (t->nsftids && (stid >= t->sftid_base)) {
-		stid -= t->sftid_base;
-		stid += t->nstids;
-	} else {
-		stid -= t->stid_base;
-	}
-
+	stid -= t->stid_base;
 	return stid < (t->nstids + t->nsftids) ? t->stid_tab[stid].data : NULL;
 }
 
