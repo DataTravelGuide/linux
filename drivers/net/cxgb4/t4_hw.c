@@ -408,18 +408,13 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 			__be32 *buf, int dir)
 {
 	u32 pos, start, end, offset, memoffset;
-	int ret = 0;
-	__be32 *data;
+	int ret;
 
 	/*
 	 * Argument sanity checks ...
 	 */
 	if ((addr & 0x3) || (len & 0x3))
 		return -EINVAL;
-
-	data = vmalloc(MEMWIN0_APERTURE/sizeof(__be32));
-	if (!data)
-		return -ENOMEM;
 
 	/*
 	 * Offset into the region of memory which is being accessed
@@ -443,6 +438,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	offset = (addr - start)/sizeof(__be32);
 
 	for (pos = start; pos < end; pos += MEMWIN0_APERTURE, offset = 0) {
+		__be32 data[MEMWIN0_APERTURE/sizeof(__be32)];
 
 		/*
 		 * If we're writing, copy the data from the caller's memory
@@ -456,7 +452,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 			if (offset || len < MEMWIN0_APERTURE) {
 				ret = t4_mem_win_rw(adap, pos, data, 1);
 				if (ret)
-					break;
+					return ret;
 			}
 			while (offset < (MEMWIN0_APERTURE/sizeof(__be32)) &&
 			       len > 0) {
@@ -470,7 +466,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 		 */
 		ret = t4_mem_win_rw(adap, pos, data, dir);
 		if (ret)
-			break;
+			return ret;
 
 		/*
 		 * If we're reading, copy the data into the caller's memory
@@ -484,8 +480,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 			}
 	}
 
-	vfree(data);
-	return ret;
+	return 0;
 }
 
 int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
@@ -524,21 +519,16 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	u32 cclk_param, cclk_val;
 	int i, ret;
 	int ec, sn;
-	u8 *vpd, csum;
+	u8 vpd[VPD_LEN], csum;
 	unsigned int vpdr_len, kw_offset, id_len;
 
-	vpd = vmalloc(VPD_LEN);
-	if (!vpd)
-		return -ENOMEM;
-
-	ret = pci_read_vpd(adapter->pdev, VPD_BASE, VPD_LEN, vpd);
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), vpd);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (vpd[0] != PCI_VPD_LRDT_ID_STRING) {
 		dev_err(adapter->pdev_dev, "missing VPD ID string\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	id_len = pci_vpd_lrdt_size(vpd);
@@ -548,24 +538,21 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_find_tag(vpd, 0, VPD_LEN, PCI_VPD_LRDT_RO_DATA);
 	if (i < 0) {
 		dev_err(adapter->pdev_dev, "missing VPD-R section\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	vpdr_len = pci_vpd_lrdt_size(&vpd[i]);
 	kw_offset = i + PCI_VPD_LRDT_TAG_SIZE;
 	if (vpdr_len + kw_offset > VPD_LEN) {
 		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 #define FIND_VPD_KW(var, name) do { \
 	var = pci_vpd_find_info_keyword(vpd, kw_offset, vpdr_len, name); \
 	if (var < 0) { \
 		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
-		ret = -EINVAL; \
-		goto out; \
+		return -EINVAL; \
 	} \
 	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
 } while (0)
@@ -577,8 +564,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (csum) {
 		dev_err(adapter->pdev_dev,
 			"corrupted VPD EEPROM, actual csum %u\n", csum);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	FIND_VPD_KW(ec, "EC");
@@ -601,9 +587,6 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		      FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_CCLK));
 	ret = t4_query_params(adapter, adapter->mbox, 0, 0,
 			      1, &cclk_param, &cclk_val);
-
-out:
-	vfree(vpd);
 	if (ret)
 		return ret;
 	p->cclk = cclk_val;
