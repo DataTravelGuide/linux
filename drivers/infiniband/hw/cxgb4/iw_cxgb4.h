@@ -126,9 +126,6 @@ struct c4iw_stats {
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
 	struct c4iw_stat ocqp;
-	u64  db_full;
-	u64  db_empty;
-	u64  db_drop;
 };
 
 struct c4iw_rdev {
@@ -261,7 +258,7 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 		if (lock)
 			spin_lock_irq(&rhp->lock);
 		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(newid != id);
+		BUG_ON(!ret && newid != id);
 		if (lock)
 			spin_unlock_irq(&rhp->lock);
 	} while (ret == -EAGAIN);
@@ -280,7 +277,6 @@ static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
 {
 	return _insert_handle(rhp, idr, handle, id, 0);
 }
-
 
 static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
 				   u32 id, int lock)
