@@ -309,7 +309,6 @@ struct adapter_params {
 	unsigned char bypass;
 
 	unsigned int ofldq_wr_cred;
-	bool ulptx_memwrite_dsgl;          /* use of T5 DSGL allowed */
 };
 
 #include "t4fw_api.h"
