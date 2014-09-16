@@ -282,7 +282,6 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
  *	t4_mc_read - read from MC through backdoor accesses
  *	@adap: the adapter
  *	@addr: address of first byte requested
- *	@idx: which MC to access
  *	@data: 64 bytes of data containing the requested address
  *	@ecc: where to store the corresponding 64-bit ECC word
  *
@@ -290,38 +289,22 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
  *	that covers the requested address @addr.  If @parity is not %NULL it
  *	is assigned the 64-bit ECC word for the read data.
  */
-int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
+int t4_mc_read(struct adapter *adap, u32 addr, __be32 *data, u64 *ecc)
 {
 	int i;
-	u32 mc_bist_cmd, mc_bist_cmd_addr, mc_bist_cmd_len;
-	u32 mc_bist_status_rdata, mc_bist_data_pattern;
 
-	if (is_t4(adap->chip)) {
-		mc_bist_cmd = MC_BIST_CMD;
-		mc_bist_cmd_addr = MC_BIST_CMD_ADDR;
-		mc_bist_cmd_len = MC_BIST_CMD_LEN;
-		mc_bist_status_rdata = MC_BIST_STATUS_RDATA;
-		mc_bist_data_pattern = MC_BIST_DATA_PATTERN;
-	} else {
-		mc_bist_cmd = MC_REG(MC_P_BIST_CMD, idx);
-		mc_bist_cmd_addr = MC_REG(MC_P_BIST_CMD_ADDR, idx);
-		mc_bist_cmd_len = MC_REG(MC_P_BIST_CMD_LEN, idx);
-		mc_bist_status_rdata = MC_REG(MC_P_BIST_STATUS_RDATA, idx);
-		mc_bist_data_pattern = MC_REG(MC_P_BIST_DATA_PATTERN, idx);
-	}
-
-	if (t4_read_reg(adap, mc_bist_cmd) & START_BIST)
+	if (t4_read_reg(adap, MC_BIST_CMD) & START_BIST)
 		return -EBUSY;
-	t4_write_reg(adap, mc_bist_cmd_addr, addr & ~0x3fU);
-	t4_write_reg(adap, mc_bist_cmd_len, 64);
-	t4_write_reg(adap, mc_bist_data_pattern, 0xc);
-	t4_write_reg(adap, mc_bist_cmd, BIST_OPCODE(1) | START_BIST |
+	t4_write_reg(adap, MC_BIST_CMD_ADDR, addr & ~0x3fU);
+	t4_write_reg(adap, MC_BIST_CMD_LEN, 64);
+	t4_write_reg(adap, MC_BIST_DATA_PATTERN, 0xc);
+	t4_write_reg(adap, MC_BIST_CMD, BIST_OPCODE(1) | START_BIST |
 		     BIST_CMD_GAP(1));
-	i = t4_wait_op_done(adap, mc_bist_cmd, START_BIST, 0, 10, 1);
+	i = t4_wait_op_done(adap, MC_BIST_CMD, START_BIST, 0, 10, 1);
 	if (i)
 		return i;
 
-#define MC_DATA(i) MC_BIST_STATUS_REG(mc_bist_status_rdata, i)
+#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA, i)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(t4_read_reg(adap, MC_DATA(i)));
@@ -346,39 +329,20 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 {
 	int i;
-	u32 edc_bist_cmd, edc_bist_cmd_addr, edc_bist_cmd_len;
-	u32 edc_bist_cmd_data_pattern, edc_bist_status_rdata;
 
-	if (is_t4(adap->chip)) {
-		edc_bist_cmd = EDC_REG(EDC_BIST_CMD, idx);
-		edc_bist_cmd_addr = EDC_REG(EDC_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len = EDC_REG(EDC_BIST_CMD_LEN, idx);
-		edc_bist_cmd_data_pattern = EDC_REG(EDC_BIST_DATA_PATTERN,
-						    idx);
-		edc_bist_status_rdata = EDC_REG(EDC_BIST_STATUS_RDATA,
-						    idx);
-	} else {
-		edc_bist_cmd = EDC_REG_T5(EDC_H_BIST_CMD, idx);
-		edc_bist_cmd_addr = EDC_REG_T5(EDC_H_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len = EDC_REG_T5(EDC_H_BIST_CMD_LEN, idx);
-		edc_bist_cmd_data_pattern =
-			EDC_REG_T5(EDC_H_BIST_DATA_PATTERN, idx);
-		edc_bist_status_rdata =
-			 EDC_REG_T5(EDC_H_BIST_STATUS_RDATA, idx);
-	}
-
-	if (t4_read_reg(adap, edc_bist_cmd) & START_BIST)
+	idx *= EDC_STRIDE;
+	if (t4_read_reg(adap, EDC_BIST_CMD + idx) & START_BIST)
 		return -EBUSY;
-	t4_write_reg(adap, edc_bist_cmd_addr, addr & ~0x3fU);
-	t4_write_reg(adap, edc_bist_cmd_len, 64);
-	t4_write_reg(adap, edc_bist_cmd_data_pattern, 0xc);
-	t4_write_reg(adap, edc_bist_cmd,
+	t4_write_reg(adap, EDC_BIST_CMD_ADDR + idx, addr & ~0x3fU);
+	t4_write_reg(adap, EDC_BIST_CMD_LEN + idx, 64);
+	t4_write_reg(adap, EDC_BIST_DATA_PATTERN + idx, 0xc);
+	t4_write_reg(adap, EDC_BIST_CMD + idx,
 		     BIST_OPCODE(1) | BIST_CMD_GAP(1) | START_BIST);
-	i = t4_wait_op_done(adap, edc_bist_cmd, START_BIST, 0, 10, 1);
+	i = t4_wait_op_done(adap, EDC_BIST_CMD + idx, START_BIST, 0, 10, 1);
 	if (i)
 		return i;
 
-#define EDC_DATA(i) (EDC_BIST_STATUS_REG(edc_bist_status_rdata, i))
+#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA, i) + idx)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(t4_read_reg(adap, EDC_DATA(i)));
@@ -402,7 +366,6 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
 {
 	int i;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
 
 	/*
 	 * Setup offset into PCIE memory window.  Address must be a
@@ -411,7 +374,7 @@ static int t4_mem_win_rw(struct adapter *adap, u32 addr, __be32 *data, int dir)
 	 * values.)
 	 */
 	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~(MEMWIN0_APERTURE - 1)) | win_pf);
+		     addr & ~(MEMWIN0_APERTURE - 1));
 	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
 
 	/* Collecting data 4 bytes at a time upto MEMWIN0_APERTURE */
@@ -447,7 +410,6 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 			__be32 *buf, int dir)
 {
 	u32 pos, start, end, offset, memoffset;
-	u32 edc_size, mc_size;
 	int ret = 0;
 	__be32 *data;
 
@@ -461,21 +423,13 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	if (!data)
 		return -ENOMEM;
 
-	/* Offset into the region of memory which is being accessed
+	/*
+	 * Offset into the region of memory which is being accessed
 	 * MEM_EDC0 = 0
 	 * MEM_EDC1 = 1
-	 * MEM_MC   = 2 -- T4
-	 * MEM_MC0  = 2 -- For T5
-	 * MEM_MC1  = 3 -- For T5
+	 * MEM_MC   = 2
 	 */
-	edc_size  = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM0_BAR));
-	if (mtype != MEM_MC1)
-		memoffset = (mtype * (edc_size * 1024 * 1024));
-	else {
-		mc_size = EXT_MEM_SIZE_GET(t4_read_reg(adap,
-						       MA_EXT_MEMORY_BAR));
-		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
-	}
+	memoffset = (mtype * (5 * 1024 * 1024));
 
 	/* Determine the PCIE_MEM_ACCESS_OFFSET */
 	addr = addr + memoffset;
@@ -2457,24 +2411,24 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
  *     @addr: address of first byte requested aligned on 32b.
  *     @data: len bytes to hold the data read
  *     @len: amount of data to read from window.  Must be <=
- *            MEMWIN0_APERATURE after adjusting for 16B for T4 and
- *            128B for T5 alignment requirements of the the memory window.
+ *            MEMWIN0_APERATURE after adjusting for 16B alignment
+ *            requirements of the the memory window.
  *
  *     Read len bytes of data from MC starting at @addr.
  */
 int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len)
 {
-	int i, off;
-	u32 win_pf = is_t4(adap->chip) ? 0 : V_PFNUM(adap->fn);
+	int i;
+	int off;
 
-	/* Align on a 2KB boundary.
+	/*
+	 * Align on a 16B boundary.
 	 */
-	off = addr & MEMWIN0_APERTURE;
+	off = addr & 15;
 	if ((addr & 3) || (len + off) > MEMWIN0_APERTURE)
 		return -EINVAL;
 
-	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET,
-		     (addr & ~MEMWIN0_APERTURE) | win_pf);
+	t4_write_reg(adap, PCIE_MEM_ACCESS_OFFSET, addr & ~15);
 	t4_read_reg(adap, PCIE_MEM_ACCESS_OFFSET);
 
 	for (i = 0; i < len; i += 4)
