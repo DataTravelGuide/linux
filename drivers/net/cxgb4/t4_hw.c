@@ -1720,24 +1720,16 @@ static void mps_intr_handler(struct adapter *adapter)
  */
 static void mem_intr_handler(struct adapter *adapter, int idx)
 {
-	static const char name[4][7] = { "EDC0", "EDC1", "MC/MC0", "MC1" };
+	static const char name[3][5] = { "EDC0", "EDC1", "MC" };
 
 	unsigned int addr, cnt_addr, v;
 
 	if (idx <= MEM_EDC1) {
 		addr = EDC_REG(EDC_INT_CAUSE, idx);
 		cnt_addr = EDC_REG(EDC_ECC_STATUS, idx);
-	} else if (idx == MEM_MC) {
-		if (is_t4(adapter->params.chip)) {
-			addr = MC_INT_CAUSE;
-			cnt_addr = MC_ECC_STATUS;
-		} else {
-			addr = MC_P_INT_CAUSE;
-			cnt_addr = MC_P_ECC_STATUS;
-		}
 	} else {
-		addr = MC_REG(MC_P_INT_CAUSE, 1);
-		cnt_addr = MC_REG(MC_P_ECC_STATUS, 1);
+		addr = MC_INT_CAUSE;
+		cnt_addr = MC_ECC_STATUS;
 	}
 
 	v = t4_read_reg(adapter, addr) & MEM_INT_MASK;
@@ -1901,8 +1893,6 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		pcie_intr_handler(adapter);
 	if (cause & MC)
 		mem_intr_handler(adapter, MEM_MC);
-	if (!is_t4(adapter->params.chip) && (cause & MC1))
-		mem_intr_handler(adapter, MEM_MC1);
 	if (cause & EDC0)
 		mem_intr_handler(adapter, MEM_EDC0);
 	if (cause & EDC1)
