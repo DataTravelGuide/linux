@@ -43,7 +43,6 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
-#include <linux/vmalloc.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 #include "t4_hw.h"
