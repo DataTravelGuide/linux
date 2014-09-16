@@ -134,11 +134,6 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 		stag_idx = c4iw_get_resource(&rdev->resource.tpt_table);
 		if (!stag_idx)
 			return -ENOMEM;
-		mutex_lock(&rdev->stats.lock);
-		rdev->stats.stag.cur += 32;
-		if (rdev->stats.stag.cur > rdev->stats.stag.max)
-			rdev->stats.stag.max = rdev->stats.stag.cur;
-		mutex_unlock(&rdev->stats.lock);
 		*stag = (stag_idx << 8) | (atomic_inc_return(&key) & 0xff);
 	}
 	PDBG("%s stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
@@ -169,12 +164,8 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 				(rdev->lldi.vr->stag.start >> 5),
 				sizeof(tpt), &tpt);
 
-	if (reset_tpt_entry) {
+	if (reset_tpt_entry)
 		c4iw_put_resource(&rdev->resource.tpt_table, stag_idx);
-		mutex_lock(&rdev->stats.lock);
-		rdev->stats.stag.cur -= 32;
-		mutex_unlock(&rdev->stats.lock);
-	}
 	return err;
 }
 
