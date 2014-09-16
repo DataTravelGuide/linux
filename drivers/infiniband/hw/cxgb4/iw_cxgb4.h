@@ -45,6 +45,7 @@
 #include <linux/kref.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 
@@ -115,7 +116,6 @@ struct c4iw_stat {
 	u64 total;
 	u64 cur;
 	u64 max;
-	u64 fail;
 };
 
 struct c4iw_stats {
@@ -262,7 +262,7 @@ static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 		if (lock)
 			spin_lock_irq(&rhp->lock);
 		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(!ret && newid != id);
+		BUG_ON(newid != id);
 		if (lock)
 			spin_unlock_irq(&rhp->lock);
 	} while (ret == -EAGAIN);
