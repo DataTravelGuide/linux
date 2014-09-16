@@ -777,7 +777,7 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	ep->mpa_skb = skb;
 	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 	start_ep_timer(ep);
-	__state_set(&ep->com, MPA_REQ_SENT);
+	state_set(&ep->com, MPA_REQ_SENT);
 	ep->mpa_attr.initiator = 1;
 	ep->snd_seq += mpalen;
 	return;
@@ -943,7 +943,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	skb_get(skb);
 	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	ep->mpa_skb = skb;
-	__state_set(&ep->com, MPA_REP_SENT);
+	state_set(&ep->com, MPA_REP_SENT);
 	ep->snd_seq += mpalen;
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
@@ -961,7 +961,6 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	PDBG("%s ep %p tid %u snd_isn %u rcv_isn %u\n", __func__, ep, tid,
 	     be32_to_cpu(req->snd_isn), be32_to_cpu(req->rcv_isn));
 
-	mutex_lock(&ep->com.mutex);
 	dst_confirm(ep->dst);
 
 	/* setup the hwtid for this connection */
@@ -985,7 +984,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 		send_mpa_req(ep, skb, 1);
 	else
 		send_mpa_req(ep, skb, mpa_rev);
-	mutex_unlock(&ep->com.mutex);
+
 	return 0;
 }
 
@@ -2529,28 +2528,22 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-	int err = 0;
-	int disconnect = 0;
+	int err;
 	struct c4iw_ep *ep = to_ep(cm_id);
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
-	mutex_lock(&ep->com.mutex);
-	if (ep->com.state == DEAD) {
-		mutex_unlock(&ep->com.mutex);
+	if (state_read(&ep->com) == DEAD) {
 		c4iw_put_ep(&ep->com);
 		return -ECONNRESET;
 	}
 	set_bit(ULP_REJECT, &ep->com.history);
-	BUG_ON(ep->com.state != MPA_REQ_RCVD);
+	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
 		err = send_mpa_reject(ep, pdata, pdata_len);
-		disconnect = 1;
-	}
-	mutex_unlock(&ep->com.mutex);
-	if (disconnect)
 		err = c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
+	}
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
@@ -2565,14 +2558,12 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_qp *qp = get_qhp(h, conn_param->qpn);
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-
-	mutex_lock(&ep->com.mutex);
-	if (ep->com.state == DEAD) {
+	if (state_read(&ep->com) == DEAD) {
 		err = -ECONNRESET;
 		goto err;
 	}
 
-	BUG_ON(ep->com.state != MPA_REQ_RCVD);
+	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	BUG_ON(!qp);
 
 	set_bit(ULP_ACCEPT, &ep->com.history);
@@ -2641,16 +2632,14 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (err)
 		goto err1;
 
-	__state_set(&ep->com, FPDU_MODE);
+	state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
-	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	return 0;
 err1:
 	ep->com.cm_id = NULL;
 	cm_id->rem_ref(cm_id);
 err:
-	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	return err;
 }
