@@ -2842,7 +2842,7 @@ static void passive_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 	struct cpl_pass_accept_req *cpl;
 	int ret;
 
-	rpl_skb = (struct sk_buff *)(unsigned long)req->cookie;
+	rpl_skb = (__force struct sk_buff *)cpu_to_be64(req->cookie);
 	BUG_ON(!rpl_skb);
 	if (req->retval) {
 		PDBG("%s passive open failure %d\n", __func__, req->retval);
@@ -2986,7 +2986,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	 * TP will ignore any value > 0 for MSS index.
 	 */
 	req->tcb.opt0 = cpu_to_be64(V_MSS_IDX(0xF));
-	req->cookie = (unsigned long)skb;
+	req->cookie = (__force __u64) cpu_to_be64((u64)skb);
 
 	set_wr_txq(req_skb, CPL_PRIORITY_CONTROL, port_id);
 	cxgb4_ofld_send(dev->rdev.lldi.ports[0], req_skb);
