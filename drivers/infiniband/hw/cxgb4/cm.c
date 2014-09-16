@@ -164,12 +164,10 @@ static void start_ep_timer(struct c4iw_ep *ep)
 {
 	PDBG("%s ep %p\n", __func__, ep);
 	if (timer_pending(&ep->timer)) {
-		pr_err("%s timer already started! ep %p\n",
-		       __func__, ep);
-		return;
-	}
-	clear_bit(TIMEOUT, &ep->com.flags);
-	c4iw_get_ep(&ep->com);
+		PDBG("%s stopped / restarted timer ep %p\n", __func__, ep);
+		del_timer_sync(&ep->timer);
+	} else
+		c4iw_get_ep(&ep->com);
 	ep->timer.expires = jiffies + ep_timeout_secs * HZ;
 	ep->timer.data = (unsigned long)ep;
 	ep->timer.function = ep_timeout;
@@ -178,10 +176,14 @@ static void start_ep_timer(struct c4iw_ep *ep)
 
 static void stop_ep_timer(struct c4iw_ep *ep)
 {
-	PDBG("%s ep %p stopping\n", __func__, ep);
+	PDBG("%s ep %p\n", __func__, ep);
+	if (!timer_pending(&ep->timer)) {
+		WARN(1, "%s timer stopped when its not running! "
+		       "ep %p state %u\n", __func__, ep, ep->com.state);
+		return;
+	}
 	del_timer_sync(&ep->timer);
-	if (!test_and_set_bit(TIMEOUT, &ep->com.flags))
-		c4iw_put_ep(&ep->com);
+	c4iw_put_ep(&ep->com);
 }
 
 static int c4iw_l2t_send(struct c4iw_rdev *rdev, struct sk_buff *skb,
@@ -3212,16 +3214,11 @@ static DECLARE_WORK(skb_work, process_work);
 static void ep_timeout(unsigned long arg)
 {
 	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
-	int kickit = 0;
 
 	spin_lock(&timeout_lock);
-	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
-		list_add_tail(&ep->entry, &timeout_list);
-		kickit = 1;
-	}
+	list_add_tail(&ep->entry, &timeout_list);
 	spin_unlock(&timeout_lock);
-	if (kickit)
-		queue_work(workq, &skb_work);
+	queue_work(workq, &skb_work);
 }
 
 /*
