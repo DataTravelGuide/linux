@@ -848,6 +848,5 @@ enum {                     /* TCP congestion control algorithms */
 #define V_CONG_CNTRL(x) ((x) << S_CONG_CNTRL)
 #define G_CONG_CNTRL(x) (((x) >> S_CONG_CNTRL) & M_CONG_CNTRL)
 
-#define CONG_CNTRL_VALID   (1 << 18)
 
 #endif /* _T4FW_RI_API_H_ */
