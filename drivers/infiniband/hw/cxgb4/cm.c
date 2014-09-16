@@ -1013,7 +1013,7 @@ static void close_complete_upcall(struct c4iw_ep *ep, int status)
 static int abort_connection(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 {
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	__state_set(&ep->com, ABORTING);
+	state_set(&ep->com, ABORTING);
 	set_bit(ABORT_CONN, &ep->com.history);
 	return send_abort(ep, skb, gfp);
 }
@@ -1171,7 +1171,7 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	return credits;
 }
 
-static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
+static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 {
 	struct mpa_message *mpa;
 	struct mpa_v2_conn_params *mpa_v2_params;
@@ -1181,7 +1181,6 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	struct c4iw_qp_attributes attrs;
 	enum c4iw_qp_attr_mask mask;
 	int err;
-	int disconnect = 0;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
@@ -1191,7 +1190,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * will abort the connection.
 	 */
 	if (stop_ep_timer(ep))
-		return 0;
+		return;
 
 	/*
 	 * If we get more than the supported amount of private data
@@ -1213,7 +1212,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * if we don't even have the mpa message, then bail.
 	 */
 	if (ep->mpa_pkt_len < sizeof(*mpa))
-		return 0;
+		return;
 	mpa = (struct mpa_message *) ep->mpa_pkt;
 
 	/* Validate MPA header. */
@@ -1253,7 +1252,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * We'll continue process when more data arrives.
 	 */
 	if (ep->mpa_pkt_len < (sizeof(*mpa) + plen))
-		return 0;
+		return;
 
 	if (mpa->flags & MPA_REJECT) {
 		err = -ECONNREFUSED;
@@ -1355,11 +1354,9 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_NOMATCH_RTR;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
-		attrs.send_term = 1;
 		err = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-				C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+				C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 		err = -ENOMEM;
-		disconnect = 1;
 		goto out;
 	}
 
@@ -1375,11 +1372,9 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_INSUFF_IRD;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
-		attrs.send_term = 1;
 		err = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-				C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+				C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 		err = -ENOMEM;
-		disconnect = 1;
 		goto out;
 	}
 	goto out;
@@ -1388,7 +1383,7 @@ err:
 	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
-	return disconnect;
+	return;
 }
 
 static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
@@ -1546,7 +1541,6 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	unsigned int tid = GET_TID(hdr);
 	struct tid_info *t = dev->rdev.lldi.tids;
 	__u8 status = hdr->status;
-	int disconnect = 0;
 
 	ep = lookup_tid(t, tid);
 	if (!ep)
@@ -1562,7 +1556,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
 		ep->rcv_seq += dlen;
-		disconnect = process_mpa_reply(ep, skb);
+		process_mpa_reply(ep, skb);
 		break;
 	case MPA_REQ_WAIT:
 		ep->rcv_seq += dlen;
@@ -1578,16 +1572,13 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 			       ep->com.state, ep->hwtid, status);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
-		disconnect = 1;
+			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 		break;
 	}
 	default:
 		break;
 	}
 	mutex_unlock(&ep->com.mutex);
-	if (disconnect)
-		c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
 	return 0;
 }
 
@@ -3508,9 +3499,9 @@ static void process_timeout(struct c4iw_ep *ep)
 			__func__, ep, ep->hwtid, ep->com.state);
 		abort = 0;
 	}
+	mutex_unlock(&ep->com.mutex);
 	if (abort)
 		abort_connection(ep, NULL, GFP_KERNEL);
-	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 }
 
