@@ -734,7 +734,6 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		swsqe->idx = qhp->wq.sq.pidx;
 		swsqe->complete = 0;
 		swsqe->signaled = (wr->send_flags & IB_SEND_SIGNALED);
-		swsqe->flushed = 0;
 		swsqe->wr_id = wr->wr_id;
 
 		init_wr_hdr(wqe, qhp->wq.sq.pidx, fw_opcode, fw_flags, len16);
@@ -1004,15 +1003,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, flag);
 	spin_lock(&qhp->lock);
-
-	if (qhp->wq.flushed) {
-		spin_unlock(&qhp->lock);
-		spin_unlock_irqrestore(&rchp->lock, flag);
-		return;
-	}
-	qhp->wq.flushed = 1;
-
-	c4iw_flush_hw_cq(rchp);
+	c4iw_flush_hw_cq(&rchp->cq);
 	c4iw_count_rcqes(&rchp->cq, &qhp->wq, &count);
 	flushed = c4iw_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
@@ -1026,9 +1017,9 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, flag);
 	spin_lock(&qhp->lock);
-	if (schp != rchp)
-		c4iw_flush_hw_cq(schp);
-	flushed = c4iw_flush_sq(qhp);
+	c4iw_flush_hw_cq(&schp->cq);
+	c4iw_count_scqes(&schp->cq, &qhp->wq, &count);
+	flushed = c4iw_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, flag);
 	if (flushed) {
@@ -1043,11 +1034,11 @@ static void flush_qp(struct c4iw_qp *qhp)
 	struct c4iw_cq *rchp, *schp;
 	unsigned long flag;
 
-	rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
-	schp = to_c4iw_cq(qhp->ibqp.send_cq);
+	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
+	schp = get_chp(qhp->rhp, qhp->attr.scq);
 
-	t4_set_wq_in_error(&qhp->wq);
 	if (qhp->ibqp.uobject) {
+		t4_set_wq_in_error(&qhp->wq);
 		t4_set_cq_in_error(&rchp->cq);
 		spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
@@ -1336,7 +1327,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 				disconnect = 1;
 				c4iw_get_ep(&qhp->ep->com);
 			}
-			t4_set_wq_in_error(&qhp->wq);
+			if (qhp->ibqp.uobject)
+				t4_set_wq_in_error(&qhp->wq);
 			ret = rdma_fini(rhp, qhp, ep);
 			if (ret)
 				goto err;
@@ -1345,7 +1337,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			set_state(qhp, C4IW_QP_STATE_TERMINATE);
 			qhp->attr.layer_etype = attrs->layer_etype;
 			qhp->attr.ecode = attrs->ecode;
-			t4_set_wq_in_error(&qhp->wq);
+			if (qhp->ibqp.uobject)
+				t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
 			if (!internal)
 				terminate = 1;
@@ -1354,7 +1347,8 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			break;
 		case C4IW_QP_STATE_ERROR:
 			set_state(qhp, C4IW_QP_STATE_ERROR);
-			t4_set_wq_in_error(&qhp->wq);
+			if (qhp->ibqp.uobject)
+				t4_set_wq_in_error(&qhp->wq);
 			if (!internal) {
 				abort = 1;
 				disconnect = 1;
@@ -1555,12 +1549,12 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 
 	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
+
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
 		return ERR_PTR(-ENOMEM);
 	qhp->wq.sq.size = sqsize;
 	qhp->wq.sq.memsize = (sqsize + 1) * sizeof *qhp->wq.sq.queue;
-	qhp->wq.sq.flush_cidx = -1;
 	qhp->wq.rq.size = rqsize;
 	qhp->wq.rq.memsize = (rqsize + 1) * sizeof *qhp->wq.rq.queue;
 
