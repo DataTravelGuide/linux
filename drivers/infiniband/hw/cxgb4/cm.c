@@ -148,18 +148,6 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status);
 static LIST_HEAD(timeout_list);
 static spinlock_t timeout_lock;
 
-static void deref_qp(struct c4iw_ep *ep)
-{
-	c4iw_qp_rem_ref(&ep->com.qp->ibqp);
-	clear_bit(QP_REFERENCED, &ep->com.flags);
-}
-
-static void ref_qp(struct c4iw_ep *ep)
-{
-	set_bit(QP_REFERENCED, &ep->com.flags);
-	c4iw_qp_add_ref(&ep->com.qp->ibqp);
-}
-
 static void start_ep_timer(struct c4iw_ep *ep)
 {
 	PDBG("%s ep %p\n", __func__, ep);
@@ -288,8 +276,6 @@ void _c4iw_free_ep(struct kref *kref)
 
 	ep = container_of(kref, struct c4iw_ep, com.kref);
 	PDBG("%s ep %p state %s\n", __func__, ep, states[state_read(&ep->com)]);
-	if (test_bit(QP_REFERENCED, &ep->com.flags))
-		deref_qp(ep);
 	if (test_bit(RELEASE_RESOURCES, &ep->com.flags)) {
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
 		dst_release(ep->dst);
@@ -905,6 +891,7 @@ static void close_complete_upcall(struct c4iw_ep *ep)
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
 		ep->com.cm_id = NULL;
+		ep->com.qp = NULL;
 		set_bit(CLOSE_UPCALL, &ep->com.history);
 	}
 }
@@ -947,6 +934,7 @@ static void peer_abort_upcall(struct c4iw_ep *ep)
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
 		ep->com.cm_id = NULL;
+		ep->com.qp = NULL;
 		set_bit(ABORT_UPCALL, &ep->com.history);
 	}
 }
@@ -986,6 +974,7 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 	if (status < 0) {
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
 		ep->com.cm_id = NULL;
+		ep->com.qp = NULL;
 	}
 }
 
@@ -2469,7 +2458,6 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_id->add_ref(cm_id);
 	ep->com.cm_id = cm_id;
 	ep->com.qp = qp;
-	ref_qp(ep);
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
@@ -2500,6 +2488,7 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	return 0;
 err1:
 	ep->com.cm_id = NULL;
+	ep->com.qp = NULL;
 	cm_id->rem_ref(cm_id);
 err:
 	c4iw_put_ep(&ep->com);
@@ -2540,7 +2529,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.cm_id = cm_id;
 	ep->com.qp = get_qhp(dev, conn_param->qpn);
 	BUG_ON(!ep->com.qp);
-	ref_qp(ep);
 	PDBG("%s qpn 0x%x qp %p cm_id %p\n", __func__, conn_param->qpn,
 	     ep->com.qp, cm_id);
 
