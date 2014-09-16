@@ -564,13 +564,8 @@ struct sge {
 	u32 pktshift;               /* padding between CPL & packet data */
 	u32 fl_align;               /* response queue message alignment */
 	u32 fl_starve_thres;        /* Free List starvation threshold */
-
-	/* State variables for detecting an SGE Ingress DMA hang */
-	unsigned int idma_1s_thresh;/* SGE same State Counter 1s threshold */
-	unsigned int idma_stalled[2];/* SGE synthesized stalled timers in HZ */
-	unsigned int idma_state[2]; /* SGE IDMA Hang detect state */
-	unsigned int idma_qid[2];   /* SGE IDMA Hung Ingress Queue ID */
-
+	unsigned int starve_thres;
+	u8 idma_state[2];
 	unsigned int egr_start;
 	unsigned int ingr_start;
 	void *egr_map[MAX_EGRQ];    /* qid->queue egress queue map */
