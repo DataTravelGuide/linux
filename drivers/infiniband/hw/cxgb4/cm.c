@@ -156,8 +156,9 @@ static void stop_ep_timer(struct c4iw_ep *ep)
 {
 	PDBG("%s ep %p\n", __func__, ep);
 	if (!timer_pending(&ep->timer)) {
-		WARN(1, "%s timer stopped when its not running! "
+		printk(KERN_ERR "%s timer stopped when its not running! "
 		       "ep %p state %u\n", __func__, ep, ep->com.state);
+		WARN_ON(1);
 		return;
 	}
 	del_timer_sync(&ep->timer);
@@ -2565,8 +2566,9 @@ static void process_timeout(struct c4iw_ep *ep)
 		__state_set(&ep->com, ABORTING);
 		break;
 	default:
-		WARN(1, "%s unexpected state ep %p tid %u state %u\n",
+		printk(KERN_ERR "%s unexpected state ep %p tid %u state %u\n",
 			__func__, ep, ep->hwtid, ep->com.state);
+		WARN_ON(1);
 		abort = 0;
 	}
 	mutex_unlock(&ep->com.mutex);
