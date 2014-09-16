@@ -303,7 +303,6 @@ struct t4_sq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
-	u16 wq_pidx_inc;
 	u16 flags;
 	short flush_cidx;
 };
@@ -328,7 +327,6 @@ struct t4_rq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
-	u16 wq_pidx_inc;
 };
 
 struct t4_wq {
@@ -614,7 +612,3 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 	((struct t4_status_page *)&cq->queue[cq->size])->qp_err = 1;
 }
 #endif
-
-struct t4_dev_status_page {
-	u8 db_off;
-};
