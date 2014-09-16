@@ -129,7 +129,6 @@ struct c4iw_stats {
 	u64  db_full;
 	u64  db_empty;
 	u64  db_drop;
-	u64  db_state_transitions;
 };
 
 struct c4iw_rdev {
@@ -281,6 +280,7 @@ static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
 {
 	return _insert_handle(rhp, idr, handle, id, 0);
 }
+
 
 static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
 				   u32 id, int lock)

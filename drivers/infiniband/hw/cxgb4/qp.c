@@ -44,7 +44,6 @@ module_param(db_fc_threshold, int, 0644);
 MODULE_PARM_DESC(db_fc_threshold, "QP count/threshold that triggers automatic "
 		 "db flow control mode (default = 2000)");
 
-
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
 	unsigned long flag;
@@ -1146,19 +1145,13 @@ static int ring_kernel_db(struct c4iw_qp *qhp, u32 qid, u16 inc)
 
 	mutex_lock(&qhp->rhp->db_mutex);
 	do {
-
-		/*
-		 * The interrupt threshold is dbfifo_int_thresh << 6. So
-		 * make sure we don't cross that and generate an interrupt.
-		 */
-		if (cxgb4_dbfifo_count(qhp->rhp->rdev.lldi.ports[0], 1) <
-		    (qhp->rhp->rdev.lldi.dbfifo_int_thresh << 5)) {
+		if (cxgb4_dbfifo_count(qhp->rhp->rdev.lldi.ports[0], 1) < 768) {
 			writel(V_QID(qid) | V_PIDX(inc), qhp->wq.db);
 			break;
 		}
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(usecs_to_jiffies(delay));
-		delay = min(delay << 1, 2000);
+		delay = min(delay << 1, 200000);
 	} while (1);
 	mutex_unlock(&qhp->rhp->db_mutex);
 	return 0;
@@ -1427,7 +1420,6 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 	rhp->qpcnt--;
 	BUG_ON(rhp->qpcnt < 0);
 	if (rhp->qpcnt <= db_fc_threshold && rhp->db_state == FLOW_CONTROL) {
-		rhp->rdev.stats.db_state_transitions++;
 		rhp->db_state = NORMAL;
 		idr_for_each(&rhp->qpidr, enable_qp_db, NULL);
 	}
@@ -1542,11 +1534,6 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	spin_lock_irq(&rhp->lock);
 	if (rhp->db_state != NORMAL)
 		t4_disable_wq_db(&qhp->wq);
-	if (++rhp->qpcnt > db_fc_threshold && rhp->db_state == NORMAL) {
-		rhp->rdev.stats.db_state_transitions++;
-		rhp->db_state = FLOW_CONTROL;
-		idr_for_each(&rhp->qpidr, disable_qp_db, NULL);
-	}
 	ret = insert_handle_nolock(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
 	spin_unlock_irq(&rhp->lock);
 	if (ret)
