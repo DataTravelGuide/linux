@@ -927,23 +927,10 @@ static int upgrade_fw(struct adapter *adap)
 	 */
 	if (FW_HDR_FW_VER_MAJOR_GET(adap->params.fw_vers) != FW_VERSION_MAJOR ||
 	    vers > adap->params.fw_vers) {
-		dev_info(dev, "upgrading firmware ...\n");
-		ret = t4_fw_upgrade(adap, adap->mbox, fw->data, fw->size,
-				    /*force=*/false);
+		ret = -t4_load_fw(adap, fw->data, fw->size);
 		if (!ret)
-			dev_info(dev, "firmware successfully upgraded to "
-				 FW_FNAME " (%d.%d.%d.%d)\n",
-				 FW_HDR_FW_VER_MAJOR_GET(vers),
-				 FW_HDR_FW_VER_MINOR_GET(vers),
-				 FW_HDR_FW_VER_MICRO_GET(vers),
-				 FW_HDR_FW_VER_BUILD_GET(vers));
-		else
-			dev_err(dev, "firmware upgrade failed! err=%d\n", -ret);
-	} else {
-		/*
-		 * Tell our caller that we didn't upgrade the firmware.
-		 */
-		ret = -EINVAL;
+			dev_info(dev, "firmware upgraded to version %pI4 from "
+				 FW_FNAME "\n", &hdr->fw_ver);
 	}
 out:	release_firmware(fw);
 	return ret;
