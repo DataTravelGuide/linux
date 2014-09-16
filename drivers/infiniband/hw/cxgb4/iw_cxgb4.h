@@ -368,6 +368,7 @@ struct c4iw_fr_page_list {
 	DECLARE_PCI_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
+	int size;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
@@ -938,7 +939,6 @@ extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
 extern int db_fc_threshold;
 extern int db_coalescing_threshold;
-extern int use_dsgl;
 
 
 #endif
