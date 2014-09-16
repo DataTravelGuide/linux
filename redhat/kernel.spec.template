@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Sep 16 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.36.1.el6]
+- [kernel] futex: Fix errors in nested key ref-counting (Denys Vlasenko) [1094457 1094458] {CVE-2014-0205}
+- [net] vxlan: fix NULL pointer dereference (Jiri Benc) [1114549 1096351] {CVE-2014-3535}
+
 * Mon Sep 15 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.35.1.el6]
 - [netdrv] bnx2x: fix set_setting for some PHYs (Petr Holasek) [1138301 1009332]
 - [fs] nfs: Close another NFSv4 recovery race (Steve Dickson) [1138341 1093922]
