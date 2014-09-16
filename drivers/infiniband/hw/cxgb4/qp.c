@@ -135,25 +135,19 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		return -ENOMEM;
 
 	wq->rq.qid = c4iw_get_qpid(rdev, uctx);
-	if (!wq->rq.qid) {
-		ret = -ENOMEM;
-		goto free_sq_qid;
-	}
+	if (!wq->rq.qid)
+		goto err1;
 
 	if (!user) {
 		wq->sq.sw_sq = kzalloc(wq->sq.size * sizeof *wq->sq.sw_sq,
 				 GFP_KERNEL);
-		if (!wq->sq.sw_sq) {
-			ret = -ENOMEM;
-			goto free_rq_qid;
-		}
+		if (!wq->sq.sw_sq)
+			goto err2;
 
 		wq->rq.sw_rq = kzalloc(wq->rq.size * sizeof *wq->rq.sw_rq,
 				 GFP_KERNEL);
-		if (!wq->rq.sw_rq) {
-			ret = -ENOMEM;
-			goto free_sw_sq;
-		}
+		if (!wq->rq.sw_rq)
+			goto err3;
 	}
 
 	/*
@@ -161,23 +155,15 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	 */
 	wq->rq.rqt_size = roundup_pow_of_two(wq->rq.size);
 	wq->rq.rqt_hwaddr = c4iw_rqtpool_alloc(rdev, wq->rq.rqt_size);
-	if (!wq->rq.rqt_hwaddr) {
-		ret = -ENOMEM;
-		goto free_sw_rq;
-	}
+	if (!wq->rq.rqt_hwaddr)
+		goto err4;
 
 	if (user) {
-		ret = alloc_oc_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
-
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_sq;
+		if (alloc_oc_sq(rdev, &wq->sq) && alloc_host_sq(rdev, &wq->sq))
+			goto err5;
 	} else
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
+		if (alloc_host_sq(rdev, &wq->sq))
+			goto err5;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
 	pci_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
@@ -185,7 +171,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 					  wq->rq.memsize, &(wq->rq.dma_addr),
 					  GFP_KERNEL);
 	if (!wq->rq.queue)
-		goto free_sq;
+		goto err6;
 	PDBG("%s sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx\n",
 		__func__, wq->sq.queue,
 		(unsigned long long)virt_to_phys(wq->sq.queue),
@@ -213,7 +199,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
 		ret = -ENOMEM;
-		goto free_dma;
+		goto err7;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
@@ -278,33 +264,33 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret)
-		goto free_dma;
+		goto err7;
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, wq->sq.qid, __func__);
 	if (ret)
-		goto free_dma;
+		goto err7;
 
 	PDBG("%s sqid 0x%x rqid 0x%x kdb 0x%p squdb 0x%llx rqudb 0x%llx\n",
 	     __func__, wq->sq.qid, wq->rq.qid, wq->db,
 	     (unsigned long long)wq->sq.udb, (unsigned long long)wq->rq.udb);
 
 	return 0;
-free_dma:
+err7:
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  wq->rq.memsize, wq->rq.queue,
-			  dma_unmap_addr(&wq->rq, mapping));
-free_sq:
+			  pci_unmap_addr(&wq->rq, mapping));
+err6:
 	dealloc_sq(rdev, &wq->sq);
-free_hwaddr:
+err5:
 	c4iw_rqtpool_free(rdev, wq->rq.rqt_hwaddr, wq->rq.rqt_size);
-free_sw_rq:
+err4:
 	kfree(wq->rq.sw_rq);
-free_sw_sq:
+err3:
 	kfree(wq->sq.sw_sq);
-free_rq_qid:
+err2:
 	c4iw_put_qpid(rdev, wq->rq.qid, uctx);
-free_sq_qid:
+err1:
 	c4iw_put_qpid(rdev, wq->sq.qid, uctx);
-	return ret;
+	return -ENOMEM;
 }
 
 static int build_immd(struct t4_sq *sq, struct fw_ri_immd *immdp,
