@@ -259,12 +259,8 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 
 	if ((!reset_tpt_entry) && (*stag == T4_STAG_UNSET)) {
 		stag_idx = c4iw_get_resource(&rdev->resource.tpt_table);
-		if (!stag_idx) {
-			mutex_lock(&rdev->stats.lock);
-			rdev->stats.stag.fail++;
-			mutex_unlock(&rdev->stats.lock);
+		if (!stag_idx)
 			return -ENOMEM;
-		}
 		mutex_lock(&rdev->stats.lock);
 		rdev->stats.stag.cur += 32;
 		if (rdev->stats.stag.cur > rdev->stats.stag.max)
