@@ -280,7 +280,9 @@ static void name_msix_vecs(struct adapter *adapter)
 		const struct port_info *pi = netdev_priv(dev);
 		int qs, msi;
 
-		for (qs = 0, msi = MSIX_IQFLINT; qs < pi->nqsets; qs++, msi++) {
+		for (qs = 0, msi = MSIX_NIQFLINT;
+		     qs < pi->nqsets;
+		     qs++, msi++) {
 			snprintf(adapter->msix_info[msi].desc, namelen,
 				 "%s-%d", dev->name, qs);
 			adapter->msix_info[msi].desc[namelen] = 0;
@@ -307,7 +309,7 @@ static int request_msix_queue_irqs(struct adapter *adapter)
 	/*
 	 * Ethernet queues.
 	 */
-	msi = MSIX_IQFLINT;
+	msi = MSIX_NIQFLINT;
 	for_each_ethrxq(s, rxq) {
 		err = request_irq(adapter->msix_info[msi].vec,
 				  t4vf_sge_intr_msix, 0,
@@ -335,7 +337,7 @@ static void free_msix_queue_irqs(struct adapter *adapter)
 	int rxq, msi;
 
 	free_irq(adapter->msix_info[MSIX_FW].vec, &s->fw_evtq);
-	msi = MSIX_IQFLINT;
+	msi = MSIX_NIQFLINT;
 	for_each_ethrxq(s, rxq)
 		free_irq(adapter->msix_info[msi++].vec,
 			 &s->ethrxq[rxq].rspq);
@@ -525,7 +527,7 @@ static int setup_sge_queues(struct adapter *adapter)
 	 * brought up at which point lots of things get nailed down
 	 * permanently ...
 	 */
-	msix = MSIX_IQFLINT;
+	msix = MSIX_NIQFLINT;
 	for_each_port(adapter, pidx) {
 		struct net_device *dev = adapter->port[pidx];
 		struct port_info *pi = netdev_priv(dev);
@@ -2467,6 +2469,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		printk(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 		version_printed = 1;
 	}
+
 
 	/*
 	 * Initialize generic PCI device state.
