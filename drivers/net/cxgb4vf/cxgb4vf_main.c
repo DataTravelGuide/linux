@@ -1346,8 +1346,6 @@ struct queue_port_stats {
 	u64 rx_csum;
 	u64 vlan_ex;
 	u64 vlan_ins;
-	u64 lro_pkts;
-	u64 lro_merged;
 };
 
 /*
@@ -1385,8 +1383,6 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxCsumGood        ",
 	"VLANextractions   ",
 	"VLANinsertions    ",
-	"GROPackets        ",
-	"GROMerged         ",
 };
 
 /*
@@ -1436,8 +1432,6 @@ static void collect_sge_port_stats(const struct adapter *adapter,
 		stats->rx_csum += rxq->stats.rx_cso;
 		stats->vlan_ex += rxq->stats.vlan_ex;
 		stats->vlan_ins += txq->vlan_ins;
-		stats->lro_pkts += rxq->stats.lro_pkts;
-		stats->lro_merged += rxq->stats.lro_merged;
 	}
 }
 
