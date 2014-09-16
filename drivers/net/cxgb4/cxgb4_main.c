@@ -442,10 +442,7 @@ int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
 module_param(dbfifo_int_thresh, int, 0644);
 MODULE_PARM_DESC(dbfifo_int_thresh, "doorbell fifo interrupt threshold");
 
-/*
- * usecs to sleep while draining the dbfifo
- */
-static int dbfifo_drain_delay = 1000;
+int dbfifo_drain_delay = 1000; /* usecs to sleep while draining the dbfifo */
 module_param(dbfifo_drain_delay, int, 0644);
 MODULE_PARM_DESC(dbfifo_drain_delay,
 		 "usecs to sleep while draining the dbfifo");
@@ -638,7 +635,7 @@ static void name_msix_vecs(struct adapter *adap)
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi_index = 2;
+	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
 			  adap->msix_info[1].desc, &s->fw_evtq);
@@ -646,60 +643,56 @@ static int request_msix_queue_irqs(struct adapter *adap)
 		return err;
 
 	for_each_ethrxq(s, ethqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
+		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
+				  adap->msix_info[msi].desc,
 				  &s->ethrxq[ethqidx].rspq);
 		if (err)
 			goto unwind;
-		msi_index++;
+		msi++;
 	}
 	for_each_ofldrxq(s, ofldqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
+		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
+				  adap->msix_info[msi].desc,
 				  &s->ofldrxq[ofldqidx].rspq);
 		if (err)
 			goto unwind;
-		msi_index++;
+		msi++;
 	}
 	for_each_rdmarxq(s, rdmaqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
-				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
+		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
+				  adap->msix_info[msi].desc,
 				  &s->rdmarxq[rdmaqidx].rspq);
 		if (err)
 			goto unwind;
-		msi_index++;
+		msi++;
 	}
 	return 0;
 
 unwind:
 	while (--rdmaqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
+		free_irq(adap->msix_info[--msi].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
 	while (--ofldqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
+		free_irq(adap->msix_info[--msi].vec,
 			 &s->ofldrxq[ofldqidx].rspq);
 	while (--ethqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->ethrxq[ethqidx].rspq);
+		free_irq(adap->msix_info[--msi].vec, &s->ethrxq[ethqidx].rspq);
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	return err;
 }
 
 static void free_msix_queue_irqs(struct adapter *adap)
 {
-	int i, msi_index = 2;
+	int i, msi = 2;
 	struct sge *s = &adap->sge;
 
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	for_each_ethrxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->ethrxq[i].rspq);
+		free_irq(adap->msix_info[msi++].vec, &s->ethrxq[i].rspq);
 	for_each_ofldrxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->ofldrxq[i].rspq);
+		free_irq(adap->msix_info[msi++].vec, &s->ofldrxq[i].rspq);
 	for_each_rdmarxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
+		free_irq(adap->msix_info[msi++].vec, &s->rdmarxq[i].rspq);
 }
 
 /**
@@ -2494,8 +2487,9 @@ static int read_eq_indices(struct adapter *adap, u16 qid, u16 *pidx, u16 *cidx)
 
 	ret = t4_mem_win_read_len(adap, addr, (__be32 *)&indices, 8);
 	if (!ret) {
-		*cidx = (be64_to_cpu(indices) >> 25) & 0xffff;
-		*pidx = (be64_to_cpu(indices) >> 9) & 0xffff;
+		indices = be64_to_cpu(indices);
+		*cidx = (indices >> 25) & 0xffff;
+		*pidx = (indices >> 9) & 0xffff;
 	}
 	return ret;
 }
@@ -3609,10 +3603,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 * field selections will fit in the 36-bit budget.
 	 */
 	if (tp_vlan_pri_map != TP_VLAN_PRI_MAP_DEFAULT) {
-		int j, bits = 0;
+		int i, bits = 0;
 
-		for (j = TP_VLAN_PRI_MAP_FIRST; j <= TP_VLAN_PRI_MAP_LAST; j++)
-			switch (tp_vlan_pri_map & (1 << j)) {
+		for (i = TP_VLAN_PRI_MAP_FIRST; i <= TP_VLAN_PRI_MAP_LAST; i++)
+			switch (tp_vlan_pri_map & (1 << i)) {
 			case 0:
 				/* compressed filter field not enabled */
 				break;
