@@ -1097,6 +1097,4 @@
 
 #define A_TP_TX_SCHED_PCMD 0x25
 
-#define S_PORT    1
-
 #endif /* __T4_REGS_H */
