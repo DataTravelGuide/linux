@@ -446,7 +446,6 @@ struct sge_txq {
 	spinlock_t db_lock;
 	int db_disabled;
 	unsigned short db_pidx;
-	u64 udb;
 };
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
@@ -551,7 +550,6 @@ enum chip_type {
 
 struct adapter {
 	void __iomem *regs;
-	void __iomem *bar2;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned int mbox;
