@@ -2038,7 +2038,7 @@ static int __devinit setup_debugfs(struct adapter *adapter)
 {
 	int i;
 
-	BUG_ON(IS_ERR_OR_NULL(adapter->debugfs_root));
+	BUG_ON(adapter->debugfs_root == NULL);
 
 	/*
 	 * Debugfs support is best effort.
@@ -2059,7 +2059,7 @@ static int __devinit setup_debugfs(struct adapter *adapter)
  */
 static void cleanup_debugfs(struct adapter *adapter)
 {
-	BUG_ON(IS_ERR_OR_NULL(adapter->debugfs_root));
+	BUG_ON(adapter->debugfs_root == NULL);
 
 	/*
 	 * Unlike our sister routine cleanup_proc(), we don't need to remove
@@ -2698,11 +2698,11 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	/*
 	 * Set up our debugfs entries.
 	 */
-	if (!IS_ERR_OR_NULL(cxgb4vf_debugfs_root)) {
+	if (cxgb4vf_debugfs_root) {
 		adapter->debugfs_root =
 			debugfs_create_dir(pci_name(pdev),
 					   cxgb4vf_debugfs_root);
-		if (IS_ERR_OR_NULL(adapter->debugfs_root))
+		if (adapter->debugfs_root == NULL)
 			dev_warn(&pdev->dev, "could not create debugfs"
 				 " directory");
 		else
@@ -2757,7 +2757,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 */
 
 err_free_debugfs:
-	if (!IS_ERR_OR_NULL(adapter->debugfs_root)) {
+	if (adapter->debugfs_root) {
 		cleanup_debugfs(adapter);
 		debugfs_remove_recursive(adapter->debugfs_root);
 	}
@@ -2826,7 +2826,7 @@ static void __devexit cxgb4vf_pci_remove(struct pci_dev *pdev)
 		/*
 		 * Tear down our debugfs entries.
 		 */
-		if (!IS_ERR_OR_NULL(adapter->debugfs_root)) {
+		if (adapter->debugfs_root) {
 			cleanup_debugfs(adapter);
 			debugfs_remove_recursive(adapter->debugfs_root);
 		}
@@ -2914,12 +2914,12 @@ static int __init cxgb4vf_module_init(void)
 
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
+	if (!cxgb4vf_debugfs_root)
 		printk(KERN_WARNING KBUILD_MODNAME ": could not create"
 		       " debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4vf_driver);
-	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
+	if (ret < 0)
 		debugfs_remove(cxgb4vf_debugfs_root);
 	return ret;
 }
