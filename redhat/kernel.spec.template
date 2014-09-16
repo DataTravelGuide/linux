@@ -1701,6 +1701,42 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Sep 15 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-503.el6]
+- [kernel] futex: Fix errors in nested key ref-counting (Denys Vlasenko) [1094458] {CVE-2014-0205}
+- [fs] vfs: add missing __putname() in patch_mountpoint() (Ian Kent) [1135165]
+- [fs] nfs: Don't busy-wait on SIGKILL in __nfs_iocounter_wait (Benjamin Coddington) [1113269]
+- [netdrv] mlx4: add vlan_rx_register to the master ops (Doug Ledford) [1133506]
+- [infiniband] ocrdma: use right macro in query ah (Doug Ledford) [1133506]
+- [infiniband] ocrdma: resolve L2 address when creating user AH (Doug Ledford) [1133506]
+- [infiniband] ocrdma: get vlan tag from ib_qp_attrs (Doug Ledford) [1133506]
+- [infiniband] ocrdma: add default gid at index 0 (Doug Ledford) [1133506]
+- [infiniband] ocrdma: obtain sl from deivce structure (Doug Ledford) [1133506]
+- [infiniband] ocrdma: do not skip setting deffered_arm (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Initialize the GID table while registering the device (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Increase the size of STAG array in dev structure to 16K (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Add missing adapter mailbox opcodes (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Return proper value for max_mr_size (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Allow only SEND opcode in case of UD QPs (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Avoid reporting wrong completions in case of error CQEs (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Query and initalize the PFC SL (Doug Ledford) [1133506]
+- [infiniband] ocrdma: Avoid posting DPP requests for RDMA READ (Doug Ledford) [1133506]
+- [infiniband] core: When marsheling uverbs path, clear unused fields (Amir Vadai) [1130394]
+- [infiniband] mlx4: Avoid executing gid task when device is being removed (Amir Vadai) [1130394]
+- [infiniband] mlx4: Fix lockdep splat for the iboe lock (Amir Vadai) [1130394]
+- [infiniband] mlx4: Get upper dev addresses as RoCE GIDs when port comes up (Amir Vadai) [1130394]
+- [infiniband] mlx4: Reorder steps in RoCE GID table initialization (Amir Vadai) [1130394]
+- [infiniband] mlx4: Don't duplicate the default RoCE GID (Amir Vadai) [1130394]
+- [infiniband] mlx4: Avoid null pointer dereference in mlx4_ib_scan_netdevs() (Amir Vadai) [1130394]
+- [netdrv] b43: fix the wrong assignment of status.freq in b43_rx() (John Greene) [1132160]
+- [lib] lzo: properly check for overruns (Denys Vlasenko) [1113901] {CVE-2014-4608}
+- [lib] lzo: Update LZO compression to current upstream version (Denys Vlasenko) [1113901] {CVE-2014-4608}
+- [drm] nouveau: add more checks to PRAMIN image fetching (Ben Skeggs) [1133695 1076733]
+- [drm] nouveau: allow non-optimus setups to load vbios from acpi (Ben Skeggs) [1133695 1076733]
+- [drm] nouveau: fix a potential NULL deref in the PROM shadowing function (Ben Skeggs) [1133695 1076733]
+- [drm] nouveau: fetch the vbios from PROM using only aligned 32-bit accesses (Ben Skeggs) [1133695 1076733]
+- [net] Revert "introduce netif_skb_dev_features" (Florian Westphal) [1029603]
+- [net] revert "ip, ipv6: handle gso skbs in forwarding path" (Florian Westphal) [1029603]
+
 * Mon Sep 08 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-502.el6]
 - [kernel] audit: audit_log_start running on auditd should not stop (Richard Guy Briggs) [1019898]
 - [kernel] audit: drop audit_cmd_lock in AUDIT_USER family of cases (Richard Guy Briggs) [1019898]
