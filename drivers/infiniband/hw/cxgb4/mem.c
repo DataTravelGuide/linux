@@ -51,7 +51,7 @@ module_param(inline_threshold, int, 0644);
 MODULE_PARM_DESC(inline_threshold, "inline vs dsgl threshold (default=128)");
 
 static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
-				       u32 len, dma_addr_t data, int wait)
+				       u32 len, void *data, int wait)
 {
 	struct sk_buff *skb;
 	struct ulp_mem_io *req;
@@ -88,7 +88,7 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	sgl->cmd_nsge = cpu_to_be32(ULPTX_CMD(ULP_TX_SC_DSGL) |
 				    ULPTX_NSGE(1));
 	sgl->len0 = cpu_to_be32(len);
-	sgl->addr0 = cpu_to_be64(data);
+	sgl->addr0 = cpu_to_be64(virt_to_phys(data));
 
 	ret = c4iw_ofld_send(rdev, skb);
 	if (ret)
@@ -178,13 +178,6 @@ int _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 	u32 remain = len;
 	u32 dmalen;
 	int ret = 0;
-	dma_addr_t daddr;
-	dma_addr_t save;
-
-	daddr = dma_map_single(&rdev->lldi.pdev->dev, data, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(&rdev->lldi.pdev->dev, daddr))
-		return -1;
-	save = daddr;
 
 	while (remain > inline_threshold) {
 		if (remain < T4_ULPTX_MAX_DMA) {
@@ -195,18 +188,16 @@ int _c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 		} else
 			dmalen = T4_ULPTX_MAX_DMA;
 		remain -= dmalen;
-		ret = _c4iw_write_mem_dma_aligned(rdev, addr, dmalen, daddr,
+		ret = _c4iw_write_mem_dma_aligned(rdev, addr, dmalen, data,
 						 !remain);
 		if (ret)
 			goto out;
 		addr += dmalen >> 5;
 		data += dmalen;
-		daddr += dmalen;
 	}
 	if (remain)
 		ret = _c4iw_write_mem_inline(rdev, addr, remain, data);
 out:
-	dma_unmap_single(&rdev->lldi.pdev->dev, save, len, DMA_TO_DEVICE);
 	return ret;
 }
 
@@ -218,17 +209,9 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 			     void *data)
 {
 	if (is_t5(rdev->lldi.adapter_type) && use_dsgl) {
-		if (len > inline_threshold) {
-			if (_c4iw_write_mem_dma(rdev, addr, len, data)) {
-				printk_ratelimited(KERN_WARNING
-						   "%s: dma map"
-						   " failure (non fatal)\n",
-						   pci_name(rdev->lldi.pdev));
-				return _c4iw_write_mem_inline(rdev, addr, len,
-							      data);
-			} else
-				return 0;
-		} else
+		if (len > inline_threshold)
+			return _c4iw_write_mem_dma(rdev, addr, len, data);
+		else
 			return _c4iw_write_mem_inline(rdev, addr, len, data);
 	} else
 		return _c4iw_write_mem_inline(rdev, addr, len, data);
