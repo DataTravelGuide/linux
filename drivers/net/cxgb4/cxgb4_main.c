@@ -2929,14 +2929,7 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data)
 	if (stid >= 0) {
 		t->stid_tab[stid].data = data;
 		stid += t->stid_base;
-		/* IPv6 requires max of 520 bits or 16 cells in TCAM
-		 * This is equivalent to 4 TIDs. With CLIP enabled it
-		 * needs 2 TIDs.
-		 */
-		if (family == PF_INET)
-			t->stids_in_use++;
-		else
-			t->stids_in_use += 4;
+		t->stids_in_use++;
 	}
 	spin_unlock_bh(&t->stid_lock);
 	return stid;
@@ -2989,10 +2982,7 @@ void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family)
 	else
 		bitmap_release_region(t->stid_bmap, stid, 2);
 	t->stid_tab[stid].data = NULL;
-	if (family == PF_INET)
-		t->stids_in_use--;
-	else
-		t->stids_in_use -= 4;
+	t->stids_in_use--;
 	spin_unlock_bh(&t->stid_lock);
 }
 EXPORT_SYMBOL(cxgb4_free_stid);
