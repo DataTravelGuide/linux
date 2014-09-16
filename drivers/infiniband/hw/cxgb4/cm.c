@@ -2955,8 +2955,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	/*
 	 * Allocate a server TID.
 	 */
-	if (dev->rdev.lldi.enable_fw_ofld_conn &&
-	    ep->com.local_addr.ss_family == AF_INET)
+	if (dev->rdev.lldi.enable_fw_ofld_conn)
 		ep->stid = cxgb4_alloc_sftid(dev->rdev.lldi.tids,
 					     cm_id->local_addr.ss_family, ep);
 	else
