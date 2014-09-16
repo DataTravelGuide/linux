@@ -749,19 +749,13 @@ static int cxgb4vf_open(struct net_device *dev)
 	netif_set_real_num_tx_queues(dev, pi->nqsets);
 	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
 	if (err)
-		goto err_unwind;
+		return err;
+	set_bit(pi->port_id, &adapter->open_device_map);
 	err = link_start(dev);
 	if (err)
-		goto err_unwind;
-
+		return err;
 	netif_tx_start_all_queues(dev);
-	set_bit(pi->port_id, &adapter->open_device_map);
 	return 0;
-
-err_unwind:
-	if (adapter->open_device_map == 0)
-		adapter_down(adapter);
-	return err;
 }
 
 /*
@@ -770,12 +764,13 @@ err_unwind:
  */
 static int cxgb4vf_stop(struct net_device *dev)
 {
+	int ret;
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	t4vf_enable_vi(adapter, pi->viid, false, false);
+	ret = t4vf_enable_vi(adapter, pi->viid, false, false);
 	pi->link_cfg.link_ok = 0;
 
 	clear_bit(pi->port_id, &adapter->open_device_map);
