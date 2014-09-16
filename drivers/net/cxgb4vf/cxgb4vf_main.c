@@ -2789,9 +2789,11 @@ err_unmap_bar:
 
 err_free_adapter:
 	kfree(adapter);
+	pci_set_drvdata(pdev, NULL);
 
 err_release_regions:
 	pci_release_regions(pdev);
+	pci_set_drvdata(pdev, NULL);
 	pci_clear_master(pdev);
 
 err_disable_device:
@@ -2856,6 +2858,7 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 		}
 		iounmap(adapter->regs);
 		kfree(adapter);
+		pci_set_drvdata(pdev, NULL);
 	}
 
 	/*
