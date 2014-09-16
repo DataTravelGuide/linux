@@ -33,8 +33,7 @@
  * SOFTWARE.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
+#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -198,10 +197,11 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 			break;
 		}
 
-		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s, fc);
+		printk(KERN_INFO "%s: link up, %s, full-duplex, %s PAUSE\n",
+		       dev->name, s, fc);
 	} else {
 		netif_carrier_off(dev);
-		netdev_info(dev, "link down\n");
+		printk(KERN_INFO "%s: link down\n", dev->name);
 	}
 }
 
@@ -2467,6 +2467,8 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
+	static int version_printed;
+
 	int pci_using_dac;
 	int err, pidx;
 	unsigned int pmask;
@@ -2478,7 +2480,10 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Print our driver banner the first time we're called to initialize a
 	 * device.
 	 */
-	pr_info_once("%s - version %s\n", DRV_DESC, DRV_VERSION);
+	if (version_printed == 0) {
+		printk(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
+		version_printed = 1;
+	}
 
 	/*
 	 * Initialize generic PCI device state.
@@ -2922,15 +2927,18 @@ static int __init cxgb4vf_module_init(void)
 	 * Vet our module parameters.
 	 */
 	if (msi != MSI_MSIX && msi != MSI_MSI) {
-		pr_warn("bad module parameter msi=%d; must be %d (MSI-X or MSI) or %d (MSI)\n",
-			msi, MSI_MSIX, MSI_MSI);
+		printk(KERN_WARNING KBUILD_MODNAME
+		       ": bad module parameter msi=%d; must be %d"
+		       " (MSI-X or MSI) or %d (MSI)\n",
+		       msi, MSI_MSIX, MSI_MSI);
 		return -EINVAL;
 	}
 
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
-		pr_warn("could not create debugfs entry, continuing\n");
+		printk(KERN_WARNING KBUILD_MODNAME ": could not create"
+		       " debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4vf_driver);
 	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
