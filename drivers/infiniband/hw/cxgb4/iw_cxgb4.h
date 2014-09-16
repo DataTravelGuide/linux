@@ -372,7 +372,6 @@ struct c4iw_fr_page_list {
 	DECLARE_PCI_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
-	int pll_len;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
