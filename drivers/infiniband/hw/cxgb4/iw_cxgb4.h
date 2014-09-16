@@ -149,8 +149,6 @@ struct c4iw_rdev {
 	struct gen_pool *ocqp_pool;
 	u32 flags;
 	struct cxgb4_lld_info lldi;
-	unsigned long bar2_pa;
-	void __iomem *bar2_kva;
 	unsigned long oc_mw_pa;
 	void __iomem *oc_mw_kva;
 	struct c4iw_stats stats;
