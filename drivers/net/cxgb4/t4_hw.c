@@ -417,7 +417,7 @@ static int t4_memory_rw(struct adapter *adap, int mtype, u32 addr, u32 len,
 	if ((addr & 0x3) || (len & 0x3))
 		return -EINVAL;
 
-	data = vmalloc(MEMWIN0_APERTURE);
+	data = vmalloc(MEMWIN0_APERTURE/sizeof(__be32));
 	if (!data)
 		return -ENOMEM;
 
