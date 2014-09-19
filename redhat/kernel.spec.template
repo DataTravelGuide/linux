@@ -1701,6 +1701,34 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Sep 19 2014 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-431.37.1.el6]
+- [net] vlan: Allow accelerated packets to flow through the bridge (Vlad Yasevich) [1131697 1121991]
+- [net] bridge: Correctly receive hw-accelerated vlan traffic (Vlad Yasevich) [1131697 1121991]
+- Revert: [net] revert: bridge: Provide VLAN registration and GRO acceleration for ports (Jiri Pirko) [1131697 1121991]
+- Revert: [net] bridge: explictly tag vlan-accelerated frames destined to the host (Vlad Yasevich) [1131697 1121991]
+- [kernel] futex: Fix errors in nested key ref-counting (Denys Vlasenko) [1094457 1094458] {CVE-2014-0205}
+- Revert: [fs] epoll: optimize EPOLL_CTL_DEL using rcu (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] futex: Increase hash table size for better performance (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] sched: Reduce overestimating rq->avg_idle (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] sched: Consider max cost of idle balance per sched domain (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] sched: Periodically decay max cost of idle balance (Larry Woodman) [1122134 1100855]
+- Revert: [redhat] prevent kabi breakage in kernel/sched.c: struct rq and include/linux/sched.h: struct sched_domain (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Make more scalable & Back out architecture specific check (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Queue mutex spinners with MCS lock to reduce cacheline contention (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Modify the way optimistic spinners are queued (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Introduce cancelable MCS lock for adaptive spinning (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Do not unnecessarily deal with waiters (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] mutex: Unlock the mutex without the wait_lock (Larry Woodman) [1122134 1100855]
+- Revert: [fs] epoll: fix spurious lockdep warnings (Larry Woodman) [1122134 1100855]
+- Revert: [fs] epoll: do not take global 'epmutex' for simple topologies (Larry Woodman) [1122134 1100855]
+- Revert: [fs] epoll: do not take the nested ep->mtx on EPOLL_CTL_DEL (Larry Woodman) [1122134 1100855]
+- Revert: [kernel] futex: Avoid taking the hb->lock if there's nothing to wake up (Larry Woodman) [1122133 1118434]
+- Revert: [kernel] futex: revert back to the explicit waiter counting code (Larry Woodman) [1122133 1118434]
+- Revert: [kernel] futex: avoid race between requeue and wake (Larry Woodman) [1122133 1118434]
+- Revert: [kernel] sched: Move idle_balance() stats back where they were instead of at the end of the sched_domain (Larry Woodman) [1141883 1119156]
+- Revert: [fs] Add full_check test before calling add_to_tfile_check() to prevent panic in reverse_path_check_proc() (Larry Woodman) [1140352 1130730]
+- Revert: [kernel] futex: Fix errors in nested key ref-counting (Denys Vlasenko) [1094457 1094458] {CVE-2014-0205}
+
 * Tue Sep 16 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.36.1.el6]
 - [kernel] futex: Fix errors in nested key ref-counting (Denys Vlasenko) [1094457 1094458] {CVE-2014-0205}
 - [net] vxlan: fix NULL pointer dereference (Jiri Benc) [1114549 1096351] {CVE-2014-3535}
