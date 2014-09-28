@@ -36,6 +36,11 @@ void __gnet_stats_copy_basic(struct gnet_stats_basic_packed *bstats,
 int gnet_stats_copy_rate_est(struct gnet_dump *d,
 			     const struct gnet_stats_basic_packed *b,
 			     struct gnet_stats_rate_est64 *r);
+int gnet_stats_copy_queue(struct gnet_dump *d,
+			  struct gnet_stats_queue *q, __u32 len);
+int gnet_stats_copy_app(struct gnet_dump *d, void *st, int len);
+
+int gnet_stats_finish_copy(struct gnet_dump *d);
 extern int gnet_stats_start_copy_compat(struct sk_buff *skb, int type,
 					int tc_stats_type,int xstats_type,
 					spinlock_t *lock, struct gnet_dump *d);
