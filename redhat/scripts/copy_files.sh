@@ -41,6 +41,11 @@ fi
 # spec file, special case since it's a different name
 cp $spec $local_spec || die "Unable to copy spec file";
 
+# copy the kabi_whitelists file
+distro_build=$(awk '/^\%define distro_build / {print $3}' $local_spec | head -1)
+kabi_whitelists="$sources/kernel-abi-whitelists-${distro_build}.tar.bz2"
+cp $kabi_whitelists . || die "Unable to copy kabi_whitelists file";
+
 # copy the other files
 cp $(cat $redhat/cvs/files | sed -e "s,^,$sources/,") . || die "Unable to copy files";
 git add $(cat $redhat/cvs/files);

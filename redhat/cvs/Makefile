@@ -4,8 +4,9 @@ DETAILED_SPEC := kernel.spec.full
 KSB_SPEC := kernel.spec.ksb
 BACKUP_SPEC := .kernel.spec
 internal_release := $(shell rpm -q --qf "%{RELEASE}\n" --specfile $(DETAILED_SPEC) | head -1)
+distro_build := $(shell echo $(internal_release) | sed -e 's|\(^[0-9]\{1,4\}.*\)\.el6.*|\1|')
 FULL_TARBALL := linux-$(VERSION)-$(internal_release).tar.bz2
-KABI_WHITELISTS_TARBALL := kernel-abi-whitelists.tar.bz2
+KABI_WHITELISTS_TARBALL := kernel-abi-whitelists-$(distro_build).tar.bz2
 
 all:
 
@@ -30,7 +31,9 @@ update-spec:
 		sed -e "s,%define\ kversion\ 2.6.%{base_sublevel},%define\ kversion\ $(VERSION)-$(internal_release)," | \
 		sed -e "s,linux-2.6.32.tar.bz2,$(FULL_TARBALL),">$(MAIN_SPEC);
 	@make update-ksb-spec
+	@# keep the "old" source-packages checksum in the lookaside buffer
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
+	@md5sum kernel-abi-whitelists.tar.bz2 >>sources;
 	@git add kernel.spec*
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 

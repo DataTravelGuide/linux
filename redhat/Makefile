@@ -247,7 +247,7 @@ sources-rh: rh-create-tarball $(RC_PATCH) $(GIT_PATCH)
 	configs/{config-*,merge.pl} extrakeys.pub tests/submit-beaker-test.sh cvs/Makefile $(SOURCES)/
 	@(cd kabi && \
 	git archive --format=tar HEAD kabi-rhel6* | \
-	bzip2 > $(SOURCES)/kernel-abi-whitelists.tar.bz2)
+	bzip2 > $(SOURCES)/kernel-abi-whitelists-$(BUILD).tar.bz2)
 
 rh-sources: setup-source sources-rh
 

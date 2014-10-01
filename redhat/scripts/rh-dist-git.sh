@@ -42,14 +42,6 @@ echo "Updating spec file and single tarball (please be patient)"
 # run update-spec
 make update-spec >/dev/null || die "updating spec";
 
-# copy the new kernel-abi-whitelists tarball
-echo "Updating kernel-abi-whitelists source package"
-# This copyfile step has to be done here, otherwise the 'rhpkg prep' step
-# taken at 'make update-spec' would overwrite the new kabi-whitelists tarball
-# with the old source file from the lookaside buffer.
-kabi_whitelists="$redhat/rpm/SOURCES/kernel-abi-whitelists.tar.bz2"
-cp $kabi_whitelists . || die "Unable to update $kabi_whitelists"
-
 echo "Uploading new tarball"
 # upload tarball
 make tarball-upload >/dev/null || die "uploading tarball";

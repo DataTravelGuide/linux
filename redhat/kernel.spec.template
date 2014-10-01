@@ -570,7 +570,7 @@ Source34: Module.kabi_greylist_i686
 Source35: Module.kabi_greylist_ppc64
 Source36: Module.kabi_greylist_s390x
 Source37: Module.kabi_greylist_x86_64
-Source38: kernel-abi-whitelists.tar.bz2
+Source38: kernel-abi-whitelists-%{distro_build}.tar.bz2
 
 %%CONFIGS%%
 
