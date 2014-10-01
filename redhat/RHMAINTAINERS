@@ -142,7 +142,7 @@ S:	Maintained
 F:	drivers/net/tg3.*
 
 BONDING DRIVER
-M:	Veaceslav Falico <vfalico@redhat.com>
+M:	Nikolay Aleksandrov <naleksan@redhat.com>
 S:	Maintained
 F:	drivers/net/bonding/
 F:	include/linux/if_bonding.h
@@ -566,7 +566,7 @@ S:	Maintained
 F:	drivers/net/skge.*
 
 SKY2 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Andy Gospodarek <agospoda@redhat.com>
+M:	Nikolay Aleksandrov <naleksan@redhat.com>
 S:	Maintained
 F:	drivers/net/sky2.*
 
