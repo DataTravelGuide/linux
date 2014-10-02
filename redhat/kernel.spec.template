@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.38.1.el6]
+- [scsi] Fix erratic device offline during EH (Gustavo Duarte) [1148527 1126088]
+
 * Fri Sep 19 2014 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-431.37.1.el6]
 - [net] vlan: Allow accelerated packets to flow through the bridge (Vlad Yasevich) [1131697 1121991]
 - [net] bridge: Correctly receive hw-accelerated vlan traffic (Vlad Yasevich) [1131697 1121991]
