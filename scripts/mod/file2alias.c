@@ -973,6 +973,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct mdio_device_id), "mdio",
 			 do_mdio_entry, mod);
+	else if (sym_is(symname, "__mod_x86cpu_device_table"))
+		do_table(symval, sym->st_size,
+			sizeof(struct x86_cpu_id), "x86cpu",
+			do_x86cpu_entry, mod);
 	free(zeros);
 }
 
