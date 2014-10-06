@@ -595,8 +595,9 @@ static int intel_idle_cpu_init(int cpu)
 		intel_idle_cpuidle_devices_uninit();
 		return -EIO;
 	}
+
 	if (auto_demotion_disable_flags)
-		smp_call_function(auto_demotion_disable, NULL, 1);
+		smp_call_function_single(auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
