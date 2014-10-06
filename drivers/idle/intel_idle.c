@@ -107,6 +107,16 @@ static struct cpuidle_state *cpuidle_state_table;
 #define CPUIDLE_FLAG_TLB_FLUSHED	0x10000
 
 /*
+ * MWAIT takes an 8-bit "hint" in EAX "suggesting"
+ * the C-state (top nibble) and sub-state (bottom nibble)
+ * 0x00 means "MWAIT(C1)", 0x10 means "MWAIT(C2)" etc.
+ *
+ * We store the hint at the top of our "flags" for each state.
+ */
+#define flg2MWAIT(flags) (((flags) >> 24) & 0xFF)
+#define MWAIT2flg(eax) ((eax & 0xFF) << 24)
+
+/*
  * States are indexed by the cstate number,
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
@@ -116,7 +126,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "NHM-C1",
 		.desc = "MWAIT 0x00",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 3,
 		.power_usage = 1000,
 		.target_residency = 6,
@@ -124,7 +134,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "NHM-C3",
 		.desc = "MWAIT 0x10",
-		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
 		.power_usage = 500,
 		.target_residency = 80,
@@ -132,7 +142,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C3 */
 		.name = "NHM-C6",
 		.desc = "MWAIT 0x20",
-		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 350,
 		.target_residency = 800,
@@ -144,28 +154,28 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "SNB-C1",
 		.desc = "MWAIT 0x00",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.target_residency = 1,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
 		.name = "SNB-C3",
 		.desc = "MWAIT 0x10",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 80,
 		.target_residency = 211,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
 		.name = "SNB-C6",
 		.desc = "MWAIT 0x20",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 104,
 		.target_residency = 345,
 		.enter = &intel_idle },
 	{ /* MWAIT C4 */
 		.name = "SNB-C7",
 		.desc = "MWAIT 0x30",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 109,
 		.target_residency = 345,
 		.enter = &intel_idle },
@@ -176,28 +186,28 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "C1-IVB",
 		.desc = "MWAIT 0x00",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.target_residency = 1,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
 		.name = "C3-IVB",
 		.desc = "MWAIT 0x10",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 59,
 		.target_residency = 156,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
 		.name = "C6-IVB",
 		.desc = "MWAIT 0x20",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 80,
 		.target_residency = 300,
 		.enter = &intel_idle },
 	{ /* MWAIT C4 */
 		.name = "C7-IVB",
 		.desc = "MWAIT 0x30",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 87,
 		.target_residency = 300,
 		.enter = &intel_idle },
@@ -261,7 +271,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "ATM-C1",
 		.desc = "MWAIT 0x00",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.power_usage = 1000,
 		.target_residency = 4,
@@ -269,7 +279,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "ATM-C2",
 		.desc = "MWAIT 0x10",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 20,
 		.power_usage = 500,
 		.target_residency = 80,
@@ -278,7 +288,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C4 */
 		.name = "ATM-C4",
 		.desc = "MWAIT 0x30",
-		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
 		.power_usage = 250,
 		.target_residency = 400,
@@ -287,41 +297,12 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C6 */
 		.name = "ATM-C6",
 		.desc = "MWAIT 0x40",
-		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x52) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 150,
 		.target_residency = 800,
 		.enter = NULL },	/* disabled */
 };
-
-static int get_driver_data(int cstate)
-{
-	int driver_data;
-	switch (cstate) {
-
-	case 1:	/* MWAIT C1 */
-		driver_data = 0x00;
-		break;
-	case 2:	/* MWAIT C2 */
-		driver_data = 0x10;
-		break;
-	case 3:	/* MWAIT C3 */
-		driver_data = 0x20;
-		break;
-	case 4:	/* MWAIT C4 */
-		driver_data = 0x30;
-		break;
-	case 5:	/* MWAIT C5 */
-		driver_data = 0x40;
-		break;
-	case 6:	/* MWAIT C6 */
-		driver_data = 0x52;
-		break;
-	default:
-		driver_data = 0x00;
-	}
-	return driver_data;
-}
 
 /**
  * intel_idle
@@ -333,7 +314,7 @@ static int intel_idle(struct cpuidle_device *dev, int index)
 {
 	unsigned long ecx = 1; /* break on interrupt flag */
 	struct cpuidle_state *state = &dev->states[index];
-	unsigned long eax = (unsigned long)cpuidle_get_statedata(state);
+	unsigned long eax = flg2MWAIT(state->flags);
 	unsigned int cstate;
 	ktime_t kt_before, kt_after;
 	s64 usec_delta;
