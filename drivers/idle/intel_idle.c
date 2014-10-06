@@ -122,7 +122,7 @@ static struct cpuidle_state *cpuidle_state_table;
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
  */
-static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state nehalem_cstates[] = {
 	{
 		.name = "C1-NHM",
 		.desc = "MWAIT 0x00",
@@ -158,7 +158,7 @@ static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state snb_cstates[] = {
 	{
 		.name = "C1-SNB",
 		.desc = "MWAIT 0x00",
@@ -198,7 +198,7 @@ static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state ivb_cstates[] = {
 	{
 		.name = "C1-IVB",
 		.desc = "MWAIT 0x00",
@@ -238,7 +238,7 @@ static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state hsw_cstates[] = {
 	{
 		.name = "C1-HSW",
 		.desc = "MWAIT 0x00",
@@ -299,7 +299,7 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state atom_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state atom_cstates[] = {
 	{
 		.name = "C1E-ATM",
 		.desc = "MWAIT 0x00",
@@ -600,7 +600,7 @@ static int intel_idle_cpu_init(int cpu)
 		int num_substates, mwait_hint, mwait_cstate, mwait_substate;
 
 		if (cpuidle_state_table[cstate].enter == NULL)
-			continue;
+			break;
 
 		if (cstate + 1 > max_cstate) {
 			printk(PREFIX "max_cstate %d reached\n",
