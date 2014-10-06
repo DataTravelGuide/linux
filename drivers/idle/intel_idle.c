@@ -109,7 +109,6 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "NHM-C1",
 		.desc = "MWAIT 0x00",
-		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 3,
 		.power_usage = 1000,
@@ -118,7 +117,6 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "NHM-C3",
 		.desc = "MWAIT 0x10",
-		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
 		.power_usage = 500,
@@ -127,7 +125,6 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C3 */
 		.name = "NHM-C6",
 		.desc = "MWAIT 0x20",
-		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 350,
@@ -140,7 +137,6 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "SNB-C1",
 		.desc = "MWAIT 0x00",
-		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.target_residency = 1,
@@ -148,7 +144,6 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "SNB-C3",
 		.desc = "MWAIT 0x10",
-		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 80,
 		.target_residency = 211,
@@ -156,7 +151,6 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C3 */
 		.name = "SNB-C6",
 		.desc = "MWAIT 0x20",
-		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 104,
 		.target_residency = 345,
@@ -164,7 +158,6 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C4 */
 		.name = "SNB-C7",
 		.desc = "MWAIT 0x30",
-		.driver_data = (void *) 0x30,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 109,
 		.target_residency = 345,
@@ -176,7 +169,6 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "C1-IVB",
 		.desc = "MWAIT 0x00",
-		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.target_residency = 1,
@@ -184,7 +176,6 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "C3-IVB",
 		.desc = "MWAIT 0x10",
-		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 59,
 		.target_residency = 156,
@@ -192,7 +183,6 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C3 */
 		.name = "C6-IVB",
 		.desc = "MWAIT 0x20",
-		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 80,
 		.target_residency = 300,
@@ -200,7 +190,6 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C4 */
 		.name = "C7-IVB",
 		.desc = "MWAIT 0x30",
-		.driver_data = (void *) 0x30,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 87,
 		.target_residency = 300,
@@ -212,7 +201,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "C1-HSW",
 		.desc = "MWAIT 0x00",
-		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 2,
 		.target_residency = 2,
@@ -220,7 +208,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "C3-HSW",
 		.desc = "MWAIT 0x10",
-		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 33,
 		.target_residency = 100,
@@ -228,7 +215,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C3 */
 		.name = "C6-HSW",
 		.desc = "MWAIT 0x20",
-		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 133,
 		.target_residency = 400,
@@ -236,7 +222,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C4 */
 		.name = "C7s-HSW",
 		.desc = "MWAIT 0x32",
-		.driver_data = (void *) 0x32,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 166,
 		.target_residency = 500,
@@ -244,7 +229,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{
 		.name = "C8-HSW",
 		.desc = "MWAIT 0x40",
-		.driver_data = (void *) 0x40,
 		.flags = CPUIDLE_FLAG_TIME_VALID, 
 		.exit_latency = 300,
 		.target_residency = 900,
@@ -252,7 +236,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{
 		.name = "C9-HSW",
 		.desc = "MWAIT 0x50",
-		.driver_data = (void *) 0x50,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 600,
 		.target_residency = 1800,
@@ -260,7 +243,6 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{
 		.name = "C10-HSW",
 		.desc = "MWAIT 0x60",
-		.driver_data = (void *) 0x60,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 2600,
 		.target_residency = 7700,
@@ -272,7 +254,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C1 */
 		.name = "ATM-C1",
 		.desc = "MWAIT 0x00",
-		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.power_usage = 1000,
@@ -281,7 +262,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C2 */
 		.name = "ATM-C2",
 		.desc = "MWAIT 0x10",
-		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 20,
 		.power_usage = 500,
@@ -291,7 +271,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C4 */
 		.name = "ATM-C4",
 		.desc = "MWAIT 0x30",
-		.driver_data = (void *) 0x30,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
 		.power_usage = 250,
@@ -301,13 +280,41 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C6 */
 		.name = "ATM-C6",
 		.desc = "MWAIT 0x40",
-		.driver_data = (void *) 0x40,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 150,
 		.target_residency = 800,
 		.enter = NULL },	/* disabled */
 };
+
+static int get_driver_data(int cstate)
+{
+	int driver_data;
+	switch (cstate) {
+
+	case 1:	/* MWAIT C1 */
+		driver_data = 0x00;
+		break;
+	case 2:	/* MWAIT C2 */
+		driver_data = 0x10;
+		break;
+	case 3:	/* MWAIT C3 */
+		driver_data = 0x20;
+		break;
+	case 4:	/* MWAIT C4 */
+		driver_data = 0x30;
+		break;
+	case 5:	/* MWAIT C5 */
+		driver_data = 0x40;
+		break;
+	case 6:	/* MWAIT C6 */
+		driver_data = 0x52;
+		break;
+	default:
+		driver_data = 0x00;
+	}
+	return driver_data;
+}
 
 /**
  * intel_idle
