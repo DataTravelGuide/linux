@@ -124,7 +124,7 @@ static struct cpuidle_state *cpuidle_state_table;
 static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
-		.name = "NHM-C1",
+		.name = "C1-NHM",
 		.desc = "MWAIT 0x00",
 		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 3,
@@ -132,7 +132,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.target_residency = 6,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
-		.name = "NHM-C3",
+		.name = "C3-NHM",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
@@ -140,7 +140,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.target_residency = 80,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
-		.name = "NHM-C6",
+		.name = "C6-NHM",
 		.desc = "MWAIT 0x20",
 		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
@@ -152,28 +152,28 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
-		.name = "SNB-C1",
+		.name = "C1-SNB",
 		.desc = "MWAIT 0x00",
 		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
 		.target_residency = 1,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
-		.name = "SNB-C3",
+		.name = "C3-SNB",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 80,
 		.target_residency = 211,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
-		.name = "SNB-C6",
+		.name = "C6-SNB",
 		.desc = "MWAIT 0x20",
 		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 104,
 		.target_residency = 345,
 		.enter = &intel_idle },
 	{ /* MWAIT C4 */
-		.name = "SNB-C7",
+		.name = "C7-SNB",
 		.desc = "MWAIT 0x30",
 		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 109,
@@ -269,7 +269,7 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
-		.name = "ATM-C1",
+		.name = "C1-ATM",
 		.desc = "MWAIT 0x00",
 		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
@@ -277,7 +277,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.target_residency = 4,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
-		.name = "ATM-C2",
+		.name = "C2-ATM",
 		.desc = "MWAIT 0x10",
 		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 20,
@@ -286,7 +286,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */ },
 	{ /* MWAIT C4 */
-		.name = "ATM-C4",
+		.name = "C4-ATM",
 		.desc = "MWAIT 0x30",
 		.flags = MWAIT2flg(0x30) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
@@ -295,7 +295,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 	{ /* MWAIT C5 */ },
 	{ /* MWAIT C6 */
-		.name = "ATM-C6",
+		.name = "C6-ATM",
 		.desc = "MWAIT 0x40",
 		.flags = MWAIT2flg(0x52) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
