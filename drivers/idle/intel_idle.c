@@ -73,7 +73,7 @@ static struct cpuidle_driver intel_idle_driver = {
 	.owner = THIS_MODULE,
 };
 /* intel_idle.max_cstate=0 disables driver */
-static int max_cstate = MWAIT_MAX_NUM_CSTATES - 1;
+static int max_cstate = CPUIDLE_STATE_MAX - 1;
 
 static unsigned int mwait_substates;
 
@@ -121,7 +121,7 @@ static struct cpuidle_state *cpuidle_state_table;
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
  */
-static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
+static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
 		.name = "C1-NHM",
@@ -149,7 +149,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
-static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
+static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
 		.name = "C1-SNB",
@@ -181,7 +181,7 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
-static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
+static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
 		.name = "C1-IVB",
@@ -213,7 +213,7 @@ static struct cpuidle_state ivb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
-static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
+static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
 		.name = "C1-HSW",
@@ -266,7 +266,7 @@ static struct cpuidle_state hsw_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
-static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
+static struct cpuidle_state atom_cstates[CPUIDLE_STATE_MAX] = {
 	{ /* MWAIT C0 */ },
 	{ /* MWAIT C1 */
 		.name = "C1-ATM",
@@ -553,7 +553,7 @@ static int intel_idle_cpu_init(int cpu)
 
 	dev->state_count = 1;
 
-	for (cstate = 1; cstate < MWAIT_MAX_NUM_CSTATES; ++cstate) {
+	for (cstate = 1; cstate < CPUIDLE_STATE_MAX; ++cstate) {
 		int num_substates;
 
 		if (cstate > max_cstate) {
