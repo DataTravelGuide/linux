@@ -87,11 +87,12 @@ static void __exit_signal(struct task_struct *tsk)
 
 	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
+	atomic_dec(&sig->count);
 
 	posix_cpu_timers_exit(tsk);
-	if (atomic_dec_and_test(&sig->count))
+	if (thread_group_leader(tsk)) {
 		posix_cpu_timers_exit_group(tsk);
-	else {
+	} else {
 		/*
 		 * This can only happen if the caller is de_thread().
 		 * FIXME: this is the temporary hack, we should teach
