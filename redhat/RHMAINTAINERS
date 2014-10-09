@@ -312,6 +312,21 @@ M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/i2c/busses/i2c-ismt.c
 
+Hyper-V CORE AND DRIVERS
+M:	Jason Wang <jasowang@redhat.com>
+M:	Vitaly Kuznetsov <vkuznets@redhat.com>
+S:	Maintained
+F:	arch/x86/include/asm/hyperv.h
+F:	arch/x86/include/asm/mshyperv.h
+F:	arch/x86/kernel/cpu/mshyperv.c
+F:	drivers/hid/hid-hyperv.c
+F:	drivers/hv/
+F:	drivers/input/serio/hyperv-keyboard.c
+F:	drivers/net/hyperv/
+F:	drivers/scsi/storvsc_drv.c
+F:	drivers/video/hyperv_fb.c
+F:	include/linux/hyperv.h
+
 MACHINE CHECK ERROR (MCE) SUBSYSTEM
 M:	Prarit Bhargava <prarit@redhat.com>
 S:	Maintained
