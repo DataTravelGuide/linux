@@ -4122,7 +4122,7 @@ static int bond_close(struct net_device *bond_dev)
 		bond_unregister_lacpdu(bond);
 	}
 
-	if (bond->params.arp_interval && bond->params.arp_validate)
+	if (bond->params.arp_validate)
 		bond_unregister_arp(bond);
 
 	write_lock_bh(&bond->lock);
