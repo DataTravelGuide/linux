@@ -655,8 +655,7 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	netdev_extended(dev)->hw_features = real_dev->vlan_features |
-					    NETIF_F_ALL_CSUM | NETIF_F_SG |
+	netdev_extended(dev)->hw_features = NETIF_F_ALL_CSUM | NETIF_F_SG |
 					    NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |
 					    NETIF_F_HIGHDMA | NETIF_F_SCTP_CSUM;
 
@@ -723,9 +722,11 @@ static u32 vlan_dev_fix_features(struct net_device *dev, u32 features)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
-	features &= (real_dev->features | NETIF_F_LLTX);
+	features &= real_dev->features;
+	features &= real_dev->vlan_features;
 	if (dev_ethtool_get_rx_csum(real_dev))
 		features |= NETIF_F_RXCSUM;
+	features |= NETIF_F_LLTX;
 
 	return features;
 }
