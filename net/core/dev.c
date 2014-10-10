@@ -3322,7 +3322,7 @@ another_round:
 	__get_cpu_var(netdev_rx_stat).total++;
 
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
-		skb = vlan_untag(skb);
+		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			goto out;
 	}
