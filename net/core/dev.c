@@ -3337,7 +3337,6 @@ int __netif_receive_skb(struct sk_buff *skb)
 	struct net_device *master;
 	struct net_device *null_or_orig;
 	struct net_device *null_or_bond;
-	struct net_device *exact_dev;
 	int ret = NET_RX_DROP;
 	__be16 type;
 
@@ -3441,14 +3440,12 @@ ncls:
 		null_or_bond = vlan_dev_real_dev(skb->dev);
 	}
 
-	/* either one will determine the exact match */
-	exact_dev = skb->deliver_no_wcard ? null_or_orig : null_or_bond;
 	type = skb->protocol;
 	list_for_each_entry_rcu(ptype,
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
-		if (ptype->type == type && (ptype->dev == skb->dev ||
-		    ptype->dev == orig_dev || ptype->dev == exact_dev ||
-		    (!skb->deliver_no_wcard && ptype->dev == NULL))) {
+		if (ptype->type == type && (ptype->dev == null_or_orig ||
+		     ptype->dev == skb->dev || ptype->dev == orig_dev ||
+		     ptype->dev == null_or_bond)) {
 			if (pt_prev)
 				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
