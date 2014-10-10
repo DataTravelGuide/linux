@@ -121,6 +121,8 @@ static inline int is_vlan_dev(struct net_device *dev)
 }
 
 #define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
+#define vlan_tx_nonzero_tag_present(__skb) \
+	(vlan_tx_tag_present(__skb) && ((__skb)->vlan_tci & VLAN_VID_MASK))
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
@@ -218,7 +220,7 @@ vlan_dev_get_egress_qos_mask(struct net_device *dev, u32 skprio)
 
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
-extern bool vlan_do_receive(struct sk_buff **skb, bool last_handler);
+extern bool vlan_do_receive(struct sk_buff **skb);
 extern int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 			    unsigned int vlan_tci, struct sk_buff *skb);
 extern gro_result_t
@@ -256,10 +258,8 @@ static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
 	return 0;
 }
 
-static inline bool vlan_do_receive(struct sk_buff **skb, bool last_handler)
+static inline bool vlan_do_receive(struct sk_buff **skb)
 {
-	if (((*skb)->vlan_tci & VLAN_VID_MASK) && last_handler)
-		(*skb)->pkt_type = PACKET_OTHERHOST;
 	return false;
 }
 
