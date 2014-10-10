@@ -264,6 +264,9 @@ struct bonding {
 #endif
 };
 
+#define bond_slave_get_rcu(dev) \
+	((struct slave *) rcu_dereference(netdev_extended(dev)->rx_handler_data))
+
 /**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
  *
