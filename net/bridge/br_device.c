@@ -257,6 +257,29 @@ void br_netpoll_disable(struct net_bridge_port *p)
 
 #endif
 
+static void br_vlan_rx_register(struct net_device *br_dev, struct vlan_group *grp)
+{
+	struct net_bridge *br = netdev_priv(br_dev);
+	struct net_bridge_port *p, *n;
+	const struct net_device_ops *ops;
+
+	/* RHEL6 specific!
+	 * Although vlan groups are no longer used in rx path due to vlan
+	 * centralization, some drivers still turn on vlan accel
+	 * only in case vlan group is registered to them. So do it here.
+	 */
+
+	br->vlgrp = grp;
+	list_for_each_entry_safe(p, n, &br->port_list, list) {
+		if (!p->dev)
+			continue;
+
+		ops = p->dev->netdev_ops;
+		if (ops->ndo_vlan_rx_register)
+			ops->ndo_vlan_rx_register(p->dev, grp);
+	}
+}
+
 static const struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo    = br_getinfo,
 	.get_link	= ethtool_op_get_link,
@@ -270,6 +293,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
 	.ndo_change_mtu		 = br_change_mtu,
 	.ndo_do_ioctl		 = br_dev_ioctl,
+	.ndo_vlan_rx_register	 = br_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
 	.ndo_poll_controller	 = br_poll_controller,
