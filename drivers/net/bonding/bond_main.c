@@ -458,67 +458,6 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 	return 0;
 }
 
-static void bond_vlan_rcu_free(struct rcu_head *rcu)
-{
-	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
-}
-
-static struct vlan_group *bond_vlan_get_slave_group(struct net_device * sdev)
-{
-	const struct net_device_ops *slave_ops = sdev->netdev_ops;
-	struct vlan_group *sgrp;
-
-	sgrp = vlan_find_group(sdev);
-	if (sgrp)
-		return sgrp;
-
-	sgrp = vlan_group_alloc(sdev);
-	if (!sgrp) {
-		pr_err(DRV_NAME ": %s: Failed to create vlan group\n",
-		       sdev->name);
-		return NULL;
-	}
-
-	if (vlan_gvrp_init_applicant(sdev) < 0) {
-		pr_err(DRV_NAME ": %s: Failed to init gvrp app\n",
-		       sdev->name);
-		goto out_free_group;
-	}
-
-	if ((sdev->features & NETIF_F_HW_VLAN_RX) &&
-	    slave_ops->ndo_vlan_rx_register)
-		slave_ops->ndo_vlan_rx_register(sdev, sgrp);
-
-	return sgrp;
-
-out_free_group:
-	hlist_del_rcu(&sgrp->hlist);
-	/* Free the group, after all cpu's are done. */
-	call_rcu(&sgrp->rcu, bond_vlan_rcu_free);
-
-	return NULL;
-}
-
-static void bond_vlan_del_empty_slave_group(struct net_device *sdev)
-{
-	const struct net_device_ops *slave_ops = sdev->netdev_ops;
-	struct vlan_group *sgrp;
-
-	sgrp = vlan_find_group(sdev);
-	if (!sgrp || sgrp->nr_vlans)
-		return;
-
-	vlan_gvrp_uninit_applicant(sdev);
-
-	if ((sdev->features & NETIF_F_HW_VLAN_RX) &&
-	    slave_ops->ndo_vlan_rx_register)
-		slave_ops->ndo_vlan_rx_register(sdev, NULL);
-
-	hlist_del_rcu(&sgrp->hlist);
-	/* Free the group, after all cpu's are done. */
-	call_rcu(&sgrp->rcu, bond_vlan_rcu_free);
-}
-
 /*
  * In the following 3 functions, bond_vlan_rx_register(), bond_vlan_rx_add_vid
  * and bond_vlan_rx_kill_vid, We don't protect the slave list iteration with a
@@ -547,21 +486,46 @@ static void bond_vlan_rx_register(struct net_device *bond_dev,
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int i;
+	struct vlan_group *sgrp;
 
-	/*
-	 * If master vlan group is being deregistered, ensure empty
-	 * slave groups are gone.
-	 */
-	if (bond->vlgrp && !grp) {
-		bond_for_each_slave(bond, slave, i) {
-			bond_vlan_del_empty_slave_group(slave->dev);
-		}
-	}
+	int i;
 
 	write_lock(&bond->lock);
 	bond->vlgrp = grp;
 	write_unlock(&bond->lock);
+
+	/*
+	 * Since slave vlan_groups are a superset of the bond, we handle their
+	 * removal in the kill_vid path
+ 	 */
+	if (!grp)
+		return;
+
+	bond_for_each_slave(bond, slave, i) {
+		struct net_device *slave_dev = slave->dev;
+		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
+
+		if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
+		    slave_ops->ndo_vlan_rx_register) {
+
+			sgrp = vlan_find_group(slave->dev);
+			if (!sgrp) {
+				sgrp = vlan_group_alloc(slave->dev);
+				if (!sgrp) {
+					pr_err(DRV_NAME ": %s: Failed to create vlan group\n",
+						slave->dev->name);
+					continue;
+				}
+			}
+
+			slave_ops->ndo_vlan_rx_register(slave->dev, sgrp);
+		}
+	}
+}
+
+static void bond_vlan_rcu_free(struct rcu_head *rcu)
+{
+	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
 }
 
 /**
@@ -577,23 +541,26 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 	struct net_device *vdev;
 	int i, res;
 
-	vdev = (bond->vlgrp && vid) ?
-		vlan_group_get_device(bond->vlgrp, vid) : NULL;
+	vdev = vid ? vlan_group_get_device(bond->vlgrp, vid) : NULL;
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
 		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
+
 		/* We only inform the hardware of vlan 0, don't store it in the group */
-		if (vdev) {
-			sgrp = bond_vlan_get_slave_group(slave_dev);
-			if (!sgrp)
+		if (vid) {
+			sgrp = vlan_find_group(slave->dev);
+			if (!sgrp) {
+				pr_err(DRV_NAME ": %s: Could not find vlan group\n",
+					slave->dev->name);
 				continue;
+			}
 
 			/* Cant add the vid if we can't alloc storage for it */
 			if (vlan_group_prealloc_vid(sgrp, vid)) {
 				pr_err(DRV_NAME ": %s: Could not prealloc vid array\n",
-					slave_dev->name);
+					slave->dev->name);
 				continue;
 			}
 
@@ -609,7 +576,6 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 			vlan_group_set_device(sgrp, vid, vdev);
 			sgrp->nr_vlans++;
 		}
-
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 		     slave_ops->ndo_vlan_rx_add_vid)
 			slave_ops->ndo_vlan_rx_add_vid(slave_dev, vid);
@@ -636,34 +602,44 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 	struct net_device *vdev;
 	int i, res;
 
-	vdev = (bond->vlgrp && vid) ?
-		vlan_group_get_device(bond->vlgrp, vid) : NULL;
+	vdev = bond->vlgrp ? vlan_group_get_device(bond->vlgrp, vid) : NULL;
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
 		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
-		sgrp = vlan_find_group(slave_dev);
-		if (vdev && !sgrp) {
-			pr_err(DRV_NAME ": %s: Could not find vlan group\n",
-				slave_dev->name);
+		sgrp = vlan_find_group(slave->dev);
+		if (!sgrp && vid)
 			continue;
-		}
 
 		/*
 		 * Check if the slave has a different vlan on this vid than the
 		 * bond.  If so, don't remove it
 		 */
-		if (vdev && vdev != vlan_group_get_device(sgrp, vid))
+		if (vid && vdev != vlan_group_get_device(sgrp, vid))
 			continue;
 
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 		    slave_ops->ndo_vlan_rx_kill_vid)
 			slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vid);
 
-		if (vdev) {
+		if (vid) {
+
 			vlan_group_set_device(sgrp, vid, NULL);
 			sgrp->nr_vlans--;
+
+			/* If the group is now empty, kill off the group. */
+			if (sgrp->nr_vlans == 0) {
+
+				if ((slave->dev->features & NETIF_F_HW_VLAN_RX) &&
+				    slave_ops->ndo_vlan_rx_register)
+					slave_ops->ndo_vlan_rx_register(slave->dev, NULL);
+
+				hlist_del_rcu(&sgrp->hlist);
+
+				/* Free the group, after all cpu's are done. */
+				call_rcu(&sgrp->rcu, bond_vlan_rcu_free);
+			}
 		}
 	}
 
@@ -678,58 +654,32 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *slave_dev)
 {
 	struct vlan_entry *vlan;
-	struct net_device *vdev;
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct vlan_group *sgrp;
 
 	if (!bond->vlgrp)
 		return;
 
-	sgrp = bond_vlan_get_slave_group(slave_dev);
-	if (!sgrp)
+	sgrp = vlan_find_group(slave_dev);
+	if (!sgrp) {
+		sgrp = vlan_group_alloc(slave_dev);
+		if (!sgrp) {
+			pr_err(DRV_NAME ": %s: Failed to create vlan group\n",
+					slave_dev->name);
+			return;
+		}
+	}
+
+	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
+	    slave_ops->ndo_vlan_rx_register)
+		slave_ops->ndo_vlan_rx_register(slave_dev, sgrp);
+
+	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
+	    !(slave_ops->ndo_vlan_rx_add_vid))
 		return;
 
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-
-		/* We only inform the hardware of vlan 0,
-		 * don't store it in the group
-		 */
-		if (!vlan->vlan_id)
-			goto add_vid;
-
-		vdev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
-		if (!vdev) {
-			pr_err(DRV_NAME ": %s: vid %d doesn't exist on bond!\n",
-			       bond->dev->name, vlan->vlan_id);
-			continue;
-		}
-
-		/* Cant add the vid if we can't alloc storage for it */
-		if (vlan_group_prealloc_vid(sgrp, vlan->vlan_id)) {
-			pr_err(DRV_NAME ": %s: Could not prealloc vid array\n",
-			       slave_dev->name);
-			continue;
-		}
-
-		/*
-		 * If the slave already has a vlan on that vid, don't
-		 * overwrite it
-		 */
-		if (vlan_group_get_device(sgrp, vlan->vlan_id)) {
-			pr_err(DRV_NAME ": %s: vid %d already exists on %s\n",
-			       bond->dev->name, vlan->vlan_id, slave_dev->name);
-			continue;
-		}
-
-		vlan_group_set_device(sgrp, vlan->vlan_id, vdev);
-		sgrp->nr_vlans++;
-
-add_vid:
-		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		    (slave_ops->ndo_vlan_rx_add_vid))
-			slave_ops->ndo_vlan_rx_add_vid(slave_dev,
-						       vlan->vlan_id);
-	}
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list)
+		slave_ops->ndo_vlan_rx_add_vid(slave_dev, vlan->vlan_id);
 }
 
 static void bond_del_vlans_from_slave(struct bonding *bond,
@@ -740,38 +690,41 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 	struct net_device *vlan_dev;
 	struct vlan_group *sgrp;
 
+	if (!bond->vlgrp)
+		return;
+
 	sgrp = vlan_find_group(slave_dev);
 	if (!sgrp)
 		return;
 
-	if (bond->vlgrp) {
-		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
+	    !(slave_ops->ndo_vlan_rx_kill_vid))
+		goto unreg;
 
-			if (!vlan->vlan_id)
-				continue;
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+		if (!vlan->vlan_id)
+			continue;
+		/* Save and then restore vlan_dev in the grp array,
+		 * since the slave's driver might clear it.
+		 */
+		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
+		vlan_group_set_device(sgrp, vlan->vlan_id, NULL);
 
-			/*
-			 * Check if the slave has a different vlan on this
-			 * vid than the bond.  If so, don't remove it
-			 */
-			vlan_dev = vlan_group_get_device(bond->vlgrp,
-							 vlan->vlan_id);
-			if (vlan_dev != vlan_group_get_device(sgrp,
-							      vlan->vlan_id))
-				continue;
-
-			if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-			    (slave_ops->ndo_vlan_rx_kill_vid))
-				slave_ops->ndo_vlan_rx_kill_vid(slave_dev,
-								vlan->vlan_id);
-
-			vlan_group_set_device(sgrp, vlan->vlan_id, NULL);
-			sgrp->nr_vlans--;
-		}
+		slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
+		sgrp->nr_vlans--;
+		vlan_group_set_device(bond->vlgrp, vlan->vlan_id, vlan_dev);
 	}
 
-	/* If the group is now empty, kill off the group. */
-	bond_vlan_del_empty_slave_group(slave_dev);
+unreg:
+	if (sgrp->nr_vlans == 0) {
+		if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
+		    slave_ops->ndo_vlan_rx_register)
+			slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
+		hlist_del_rcu(&sgrp->hlist);
+
+		/* Free the group, after all cpu's are done. */
+		call_rcu(&sgrp->rcu, bond_vlan_rcu_free);
+	}
 }
 
 /*------------------------------- Link status -------------------------------*/
