@@ -368,8 +368,6 @@ static ssize_t bonding_store_mode(struct device *d,
 	if (bond->params.mode == BOND_MODE_ALB)
 		bond_unset_master_alb_flags(bond);
 
-	/* don't cache arp_validate between modes */
-	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
 	pr_info(DRV_NAME ": %s: setting mode to %s (%d).\n",
@@ -451,8 +449,8 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct bonding *bond = to_bond(d);
 	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -464,7 +462,7 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
+	if (new_value && (bond->params.mode != BOND_MODE_ACTIVEBACKUP)) {
 		pr_err(DRV_NAME
 		       ": %s: arp_validate only supported in active-backup mode.\n",
 		       bond->dev->name);
@@ -475,12 +473,11 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	       bond->dev->name, arp_validate_tbl[new_value].modename,
 	       new_value);
 
-	if ((bond->dev->flags & IFF_UP) && bond->params.arp_interval) {
-		if (!bond->params.arp_validate && new_value)
-			bond_register_arp(bond);
-		else if (bond->params.arp_validate && !new_value)
-			bond_unregister_arp(bond);
-	}
+	if (!bond->params.arp_validate && new_value)
+		bond_register_arp(bond);
+	else if (bond->params.arp_validate && !new_value)
+		bond_unregister_arp(bond);
+
 	bond->params.arp_validate = new_value;
 out:
 	rtnl_unlock();
@@ -596,7 +593,7 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value, old_value, ret = count;
+	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
 	if (!rtnl_trylock())
@@ -626,7 +623,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	pr_info(DRV_NAME
 	       ": %s: Setting ARP monitoring interval to %d.\n",
 	       bond->dev->name, new_value);
-	old_value = bond->params.arp_interval;
 	bond->params.arp_interval = new_value;
 	if (bond->params.arp_interval)
 		bond->dev->priv_flags |= IFF_MASTER_ARPMON;
@@ -653,10 +649,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		 * timer will get fired off when the open function
 		 * is called.
 		 */
-		if (!old_value && new_value && bond->params.arp_validate)
-			bond_register_arp(bond);
-		else if (old_value && !new_value && bond->params.arp_validate)
-			bond_unregister_arp(bond);
 		if (!delayed_work_pending(&bond->arp_work)) {
 			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP)
 				INIT_DELAYED_WORK(&bond->arp_work,
