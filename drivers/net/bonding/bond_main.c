@@ -547,38 +547,39 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 		struct net_device *slave_dev = slave->dev;
 		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
-
-		/* We only inform the hardware of vlan 0, don't store it in the group */
-		if (vid) {
-			sgrp = vlan_find_group(slave->dev);
-			if (!sgrp) {
-				pr_err(DRV_NAME ": %s: Could not find vlan group\n",
-					slave->dev->name);
-				continue;
-			}
-
-			/* Cant add the vid if we can't alloc storage for it */
-			if (vlan_group_prealloc_vid(sgrp, vid)) {
-				pr_err(DRV_NAME ": %s: Could not prealloc vid array\n",
-					slave->dev->name);
-				continue;
-			}
-
-			/*
-			 * If the slave already has a vlan on that vid, don't overwrite it
-			 */
-			if (vlan_group_get_device(sgrp, vid)) {
-				pr_err(DRV_NAME ": %s: vid %d already exists on %s\n",
-					bond_dev->name, vid, slave_dev->name);
-				continue;
-			}
-
-			vlan_group_set_device(sgrp, vid, vdev);
-			sgrp->nr_vlans++;
-		}
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		     slave_ops->ndo_vlan_rx_add_vid)
+		    slave_ops->ndo_vlan_rx_add_vid) {
+
+			/* We only inform the hardware of vlan 0, don't store it in the group */
+			if (vid) {
+				sgrp = vlan_find_group(slave->dev);
+				if (!sgrp) {
+					pr_err(DRV_NAME ": %s: Could not find vlan group\n",
+						slave->dev->name);
+					continue;
+				}
+
+				/* Cant add the vid if we can't alloc storage for it */
+				if (vlan_group_prealloc_vid(sgrp, vid)) {
+					pr_err(DRV_NAME ": %s: Could not prealloc vid array\n",
+						slave->dev->name);
+					continue;
+				}
+
+				/*
+				 * If the slave already has a vlan on that vid, don't overwrite it
+				 */
+				if (vlan_group_get_device(sgrp, vid)) {
+					pr_err(DRV_NAME ": %s: vid %d already exists on %s\n",
+						bond_dev->name, vid, slave_dev->name);
+					continue;
+				}
+
+				vlan_group_set_device(sgrp, vid, vdev);
+				sgrp->nr_vlans++;
+			}
 			slave_ops->ndo_vlan_rx_add_vid(slave_dev, vid);
+		}
 	}
 
 	res = bond_add_vlan(bond, vid);
