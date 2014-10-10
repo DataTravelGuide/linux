@@ -322,21 +322,13 @@ static void vlan_sync_address(struct net_device *dev,
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
 }
 
-void vlan_transfer_features(struct net_device *dev, struct net_device *vlandev)
+static void vlan_transfer_features(struct net_device *dev,
+				   struct net_device *vlandev)
 {
 	unsigned long old_features = vlandev->features;
-	unsigned long new_features = ((old_features & ~dev->vlan_features) |
-				      (dev->features & dev->vlan_features));
 
-	/* TX checksum offload cannot work if both TX VLAN tag offload
-	 * and reorder_hdr are off.
-	 */
-	if (!(dev->features & NETIF_F_HW_VLAN_TX) &&
-	    !(vlan_dev_info(vlandev)->flags & VLAN_FLAG_REORDER_HDR))
-		new_features &= ~(NETIF_F_ALL_CSUM | NETIF_F_SG |
-				  NETIF_F_GSO | NETIF_F_GSO_MASK |
-				  NETIF_F_FCOE_CRC);
-	vlandev->features = new_features;
+	vlandev->features &= ~dev->vlan_features;
+	vlandev->features |= dev->features & dev->vlan_features;
 	vlandev->gso_max_size = dev->gso_max_size;
 
 	if (dev->features & NETIF_F_HW_VLAN_TX)
