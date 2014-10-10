@@ -473,11 +473,6 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	       bond->dev->name, arp_validate_tbl[new_value].modename,
 	       new_value);
 
-	if (!bond->params.arp_validate && new_value)
-		bond_register_arp(bond);
-	else if (bond->params.arp_validate && !new_value)
-		bond_unregister_arp(bond);
-
 	bond->params.arp_validate = new_value;
 out:
 	rtnl_unlock();
@@ -1156,7 +1151,6 @@ static ssize_t bonding_store_miimon(struct device *d,
 			bond->params.arp_interval = 0;
 			bond->dev->priv_flags &= ~IFF_MASTER_ARPMON;
 			if (bond->params.arp_validate) {
-				bond_unregister_arp(bond);
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
