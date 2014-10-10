@@ -147,6 +147,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	list_del_rcu(&p->list);
 
+	netdev_rx_handler_unregister(dev);
 	rcu_assign_pointer(dev->br_port, NULL);
 
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
@@ -436,6 +437,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	rcu_assign_pointer(dev->br_port, p);
 
+	err = netdev_rx_handler_register(dev, br_handle_frame);
+	if (err)
+		goto err4;
+
 	dev_disable_lro(dev);
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
@@ -459,6 +464,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
+err4:
+	rcu_assign_pointer(dev->br_port, NULL);
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
