@@ -48,11 +48,6 @@ const char vlan_version[] = DRV_VERSION;
 static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
 static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
-static struct packet_type vlan_packet_type __read_mostly = {
-	.type = cpu_to_be16(ETH_P_8021Q),
-	.func = vlan_skb_recv, /* VLAN receive method */
-};
-
 /* End of global variables definitions. */
 
 static void vlan_group_free(struct vlan_group *grp)
@@ -695,7 +690,6 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err4;
 
-	dev_add_pack(&vlan_packet_type);
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
@@ -715,8 +709,6 @@ static void __exit vlan_cleanup_module(void)
 	vlan_netlink_fini();
 
 	unregister_netdevice_notifier(&vlan_notifier_block);
-
-	dev_remove_pack(&vlan_packet_type);
 
 	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
