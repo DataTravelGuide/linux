@@ -111,8 +111,11 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	netdev_vport->dev->ax25_ptr = vport;
 
+	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook);
+	if (err)
+		goto error_null_priv;
+
 	atomic_inc(&nr_bridges);
-	openvswitch_handle_frame_hook = ovs_netdev_frame_hook;
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
@@ -120,6 +123,8 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	return vport;
 
+error_null_priv:
+	netdev_vport->dev->ax25_ptr = NULL;
 error_unlock:
 	rtnl_unlock();
 error_put:
@@ -145,10 +150,8 @@ static void netdev_destroy(struct vport *vport)
 
 	rtnl_lock();
 	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
+	netdev_rx_handler_unregister(netdev_vport->dev);
 	netdev_vport->dev->ax25_ptr = NULL;
-
-	if (atomic_dec_and_test(&nr_bridges))
-		openvswitch_handle_frame_hook = NULL;
 
 	dev_set_promiscuity(netdev_vport->dev, -1);
 	rtnl_unlock();
