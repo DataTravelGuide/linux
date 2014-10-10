@@ -18,9 +18,8 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		skb->deliver_no_wcard = 1;
 
 	skb->iif = skb->dev->ifindex;
+	__vlan_hwaccel_put_tag(skb, vlan_tci);
 	vlan_id = vlan_tci & VLAN_VID_MASK;
-	if (vlan_id)
-		__vlan_hwaccel_put_tag(skb, vlan_tci);
 	vlan_dev = vlan_group_get_device(grp, vlan_id);
 
 	if (vlan_dev)
