@@ -206,7 +206,6 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	memcpy(br->group_addr, br_reserved_address, ETH_ALEN);
 
-	br->feature_mask = dev->features;
 	br->stp_enabled = BR_NO_STP;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
@@ -367,15 +366,15 @@ int br_min_mtu(const struct net_bridge *br)
 /*
  * Recomputes features using slave's features
  */
-void br_features_recompute(struct net_bridge *br)
+u32 br_features_recompute(struct net_bridge *br, u32 features)
 {
 	struct net_bridge_port *p;
-	unsigned long features, mask;
+	unsigned long mask;
 
-	features = mask = br->feature_mask;
 	if (list_empty(&br->port_list))
-		goto done;
+		return features;
 
+	mask = features;
 	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	list_for_each_entry(p, &br->port_list, list) {
@@ -383,9 +382,7 @@ void br_features_recompute(struct net_bridge *br)
 						     p->dev->features, mask);
 	}
 
-done:
-	br->dev->features = netdev_fix_features_dev(br->dev, features);
-	netdev_features_change(br->dev);
+	return features;
 }
 
 /* called with RTNL */
@@ -445,7 +442,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	list_add_rcu(&p->list, &br->port_list);
 
-	br_features_recompute(br);
+	netdev_update_features(br->dev);
 
 	spin_lock_bh(&br->lock);
 	br_stp_recalculate_bridge_id(br);
@@ -491,7 +488,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	br_stp_recalculate_bridge_id(br);
 	spin_unlock_bh(&br->lock);
 
-	br_features_recompute(br);
+	netdev_update_features(br->dev);
 
 	return 0;
 }
