@@ -141,6 +141,9 @@ static void del_nbp(struct net_bridge_port *p)
 	br_stp_disable_port(p);
 	spin_unlock_bh(&br->lock);
 
+	if (br->vlgrp && dev->netdev_ops->ndo_vlan_rx_register)
+		dev->netdev_ops->ndo_vlan_rx_register(dev, NULL);
+
 	br_ifinfo_notify(RTM_DELLINK, p);
 
 	br_fdb_delete_by_port(br, p, 1);
@@ -456,6 +459,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	    (br->dev->flags & IFF_UP))
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
+
+	if (br->vlgrp && dev->netdev_ops->ndo_vlan_rx_register)
+		dev->netdev_ops->ndo_vlan_rx_register(dev, br->vlgrp);
 
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
