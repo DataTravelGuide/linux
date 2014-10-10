@@ -6315,10 +6315,11 @@ int register_netdevice(struct net_device *dev)
 	netdev_extended(dev)->wanted_features =
 		dev->features & netdev_extended(dev)->hw_features;
 
-	/* Enable GRO for vlans by default if dev->features has GRO also.
-	 * vlan_dev_init() will do the dev->features check.
+	/* Enable GRO and NETIF_F_HIGHDMA for vlans by default,
+	 * vlan_dev_init() will do the dev->features check, so these features
+	 * are enabled only if supported by underlying device.
 	 */
-	dev->vlan_features |= NETIF_F_GRO;
+	dev->vlan_features |= (NETIF_F_GRO | NETIF_F_HIGHDMA);
 
 	netdev_initialize_kobject(dev);
 
