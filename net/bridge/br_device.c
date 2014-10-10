@@ -21,6 +21,9 @@
 #include <asm/uaccess.h>
 #include "br_private.h"
 
+#define COMMON_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | \
+			 NETIF_F_GSO_MASK | NETIF_F_NO_CSUM)
+
 /* net device transmit always called with no BH (preempt_disabled) */
 netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -303,11 +306,8 @@ void br_dev_setup(struct net_device *dev)
 	dev->priv_flags = IFF_EBRIDGE;
 	netdev_extended(dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX |
-			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_TX;
-	netdev_extended(dev)->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
-					    NETIF_F_HIGHDMA | NETIF_F_GSO_MASK |
-					    NETIF_F_NO_CSUM |
-					    NETIF_F_HW_VLAN_TX;
+	dev->features = COMMON_FEATURES | NETIF_F_LLTX | NETIF_F_NETNS_LOCAL |
+			NETIF_F_HW_VLAN_TX;
+	netdev_extended(dev)->hw_features = COMMON_FEATURES | NETIF_F_HW_VLAN_TX;
+	dev->vlan_features = COMMON_FEATURES;
 }
