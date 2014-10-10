@@ -91,11 +91,6 @@ struct vlan_group {
 	struct rcu_head		rcu;
 };
 
-struct vlan_group* vlan_find_group(struct net_device *dev);
-struct vlan_group *vlan_group_alloc(struct net_device *real_dev);
-void vlan_group_free(struct vlan_group *grp);
-int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id);
-
 static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
 						       u16 vlan_id)
 {
