@@ -232,8 +232,8 @@ struct bonding {
 	struct   slave *primary_slave;
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
-	int     (*recv_probe)(struct sk_buff *, struct bonding *,
-			       struct slave *);
+	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
+			      struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
