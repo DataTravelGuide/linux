@@ -3144,11 +3144,6 @@ static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 	    (port = rcu_dereference(skb->dev->br_port)) == NULL)
 		return skb;
 
-	/* RHEL only: skbs received on inactive slaves
-	 * due the vlan hwaccel path should not pass along */
-	if (skb->deliver_no_wcard)
-		return skb;
-
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
