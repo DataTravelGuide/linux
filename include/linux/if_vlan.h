@@ -262,7 +262,8 @@ static inline u16 vlan_dev_get_egress_qos_mask(struct net_device *dev,
 
 static inline bool vlan_hwaccel_do_receive(struct sk_buff **skb)
 {
-	BUG();
+	if ((*skb)->vlan_tci & VLAN_VID_MASK)
+		(*skb)->pkt_type = PACKET_OTHERHOST;
 	return false;
 }
 
