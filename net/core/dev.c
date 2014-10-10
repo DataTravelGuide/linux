@@ -3327,18 +3327,18 @@ another_round:
 ncls:
 #endif
 
+	rx_handler = rcu_dereference(netdev_extended(skb->dev)->rx_handler);
 	if (vlan_tx_tag_present(skb)) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		if (vlan_do_receive(&skb))
+		if (vlan_do_receive(&skb, !rx_handler))
 			goto another_round;
 		else if (unlikely(!skb))
 			goto out;
 	}
 
-	rx_handler = rcu_dereference(netdev_extended(skb->dev)->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
