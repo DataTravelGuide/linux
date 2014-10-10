@@ -1569,8 +1569,9 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
-	void (*recv_probe)(struct sk_buff *, struct bonding *,
+	int (*recv_probe)(struct sk_buff *, struct bonding *,
 				struct slave *);
+	int ret = RX_HANDLER_ANOTHER;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1589,8 +1590,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(nskb)) {
-			recv_probe(nskb, bond, slave);
+			ret = recv_probe(nskb, bond, slave);
 			dev_kfree_skb(nskb);
+			if (ret == RX_HANDLER_CONSUMED) {
+				consume_skb(skb);
+				return ret;
+			}
 		}
 	}
 
@@ -1611,7 +1616,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		memcpy(eth_hdr(skb)->h_dest, bond->dev->dev_addr, ETH_ALEN);
 	}
 
-	return RX_HANDLER_ANOTHER;
+	return ret;
 }
 
 /* enslave device <slave> to bond device <master> */
@@ -3001,7 +3006,7 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	slave->target_last_arp_rx[i] = jiffies;
 }
 
-static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
+static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 			 struct slave *slave)
 {
 	struct arphdr *arp;
@@ -3009,10 +3014,10 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 	__be32 sip, tip;
 
 	if (dev_net(bond->dev) != &init_net)
-		goto out;
+		return RX_HANDLER_ANOTHER;
 
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
-		return;
+		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
 
@@ -3064,6 +3069,7 @@ static void bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 
 out_unlock:
 	read_unlock(&bond->lock);
+	return RX_HANDLER_ANOTHER;
 }
 
 /*
