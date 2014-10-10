@@ -267,58 +267,13 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	 */
 	if (veth->h_vlan_proto != htons(ETH_P_8021Q) ||
 	    vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR) {
-		unsigned int orig_headroom = skb_headroom(skb);
 		u16 vlan_tci;
-
-		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
 		vlan_tci = vlan_dev_info(dev)->vlan_id;
 		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
-		skb = __vlan_put_tag(skb, vlan_tci);
-		if (!skb) {
-			struct vlan_pcpu_stats *st;
-			st = this_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats);
-			st->tx_dropped++;
 
-			return NETDEV_TX_OK;
-		}
-
-		if (orig_headroom < VLAN_HLEN)
-			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
+		skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 	}
-
-
-	skb->dev = vlan_dev_info(dev)->real_dev;
-	len = skb->len;
-	ret = dev_queue_xmit(skb);
-
-	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		struct vlan_pcpu_stats *stats;
-
-		stats = this_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats);
-		u64_stats_update_begin(&stats->syncp);
-		stats->tx_packets++;
-		stats->tx_bytes += len;
-		u64_stats_update_end(&stats->syncp);
-	} else {
-		struct vlan_pcpu_stats *st;
-		st = this_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats);
-		st->tx_dropped++;
-	}
-
-	return NETDEV_TX_OK;
-}
-
-static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
-						    struct net_device *dev)
-{
-	u16 vlan_tci;
-	unsigned int len;
-	int ret;
-
-	vlan_tci = vlan_dev_info(dev)->vlan_id;
-	vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
-	skb = __vlan_hwaccel_put_tag(skb, vlan_tci);
 
 	skb->dev = vlan_dev_info(dev)->real_dev;
 	len = skb->len;
@@ -695,8 +650,7 @@ static const struct header_ops vlan_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-static const struct net_device_ops vlan_netdev_ops, vlan_netdev_accel_ops,
-		    vlan_netdev_ops_sq, vlan_netdev_accel_ops_sq;
+static const struct net_device_ops vlan_netdev_ops, vlan_netdev_ops_sq;
 static const struct net_device_ops_ext vlan_netdev_ops_ext;
 
 static int vlan_dev_init(struct net_device *dev)
@@ -734,18 +688,10 @@ static int vlan_dev_init(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
-		if (real_dev->netdev_ops->ndo_select_queue)
-			dev->netdev_ops = &vlan_netdev_accel_ops_sq;
-		else
-			dev->netdev_ops = &vlan_netdev_accel_ops;
 		set_netdev_ops_ext(dev, &vlan_netdev_ops_ext);
 	} else {
 		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
-		if (real_dev->netdev_ops->ndo_select_queue)
-			dev->netdev_ops = &vlan_netdev_ops_sq;
-		else
-			dev->netdev_ops = &vlan_netdev_ops;
 		set_netdev_ops_ext(dev, &vlan_netdev_ops_ext);
 		/* TX checksum offload cannot work if both TX VLAN tag offload
 		 * and reorder_hdr are off.
@@ -755,6 +701,11 @@ static int vlan_dev_init(struct net_device *dev)
 					   NETIF_F_GSO | NETIF_F_GSO_MASK |
 					   NETIF_F_FCOE_CRC);
 	}
+
+	if (real_dev->netdev_ops->ndo_select_queue)
+		dev->netdev_ops = &vlan_netdev_ops_sq;
+	else
+		dev->netdev_ops = &vlan_netdev_ops;
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
@@ -898,29 +849,6 @@ static const struct net_device_ops vlan_netdev_ops = {
 #endif
 };
 
-static const struct net_device_ops vlan_netdev_accel_ops = {
-	.ndo_change_mtu		= vlan_dev_change_mtu,
-	.ndo_init		= vlan_dev_init,
-	.ndo_uninit		= vlan_dev_uninit,
-	.ndo_open		= vlan_dev_open,
-	.ndo_stop		= vlan_dev_stop,
-	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= vlan_dev_set_mac_address,
-	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
-	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
-	.ndo_do_ioctl		= vlan_dev_ioctl,
-	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
-	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
-	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
-	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
-	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
-	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
-#endif
-};
-
 static const struct net_device_ops vlan_netdev_ops_sq = {
 	.ndo_select_queue	= vlan_dev_select_queue,
 	.ndo_change_mtu		= vlan_dev_change_mtu,
@@ -929,30 +857,6 @@ static const struct net_device_ops vlan_netdev_ops_sq = {
 	.ndo_open		= vlan_dev_open,
 	.ndo_stop		= vlan_dev_stop,
 	.ndo_start_xmit =  vlan_dev_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= vlan_dev_set_mac_address,
-	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
-	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
-	.ndo_do_ioctl		= vlan_dev_ioctl,
-	.ndo_neigh_setup	= vlan_dev_neigh_setup,
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
-	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
-	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
-	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
-	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
-	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
-#endif
-};
-
-static const struct net_device_ops vlan_netdev_accel_ops_sq = {
-	.ndo_select_queue	= vlan_dev_select_queue,
-	.ndo_change_mtu		= vlan_dev_change_mtu,
-	.ndo_init		= vlan_dev_init,
-	.ndo_uninit		= vlan_dev_uninit,
-	.ndo_open		= vlan_dev_open,
-	.ndo_stop		= vlan_dev_stop,
-	.ndo_start_xmit =  vlan_dev_hwaccel_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= vlan_dev_set_mac_address,
 	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
