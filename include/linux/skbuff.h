@@ -428,11 +428,20 @@ struct sk_buff {
 
 	kmemcheck_bitfield_begin(flags2);
 	__u16			queue_mapping:16;
+#ifdef __GENKSYMS__
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2,
 				deliver_no_wcard:1;
 #else
 	__u8			deliver_no_wcard:1;
+#endif
+#else
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	__u8			ndisc_nodetype:2,
+				__RH_UNUSED:1;
+#else
+	__u8			__RH_UNUSED:1;
+#endif
 #endif
 #ifndef __GENKSYMS__
 	__u8			ooo_okay:1;

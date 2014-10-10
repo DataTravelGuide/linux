@@ -59,18 +59,19 @@ error:
 }
 
 /* Called with rcu_read_lock and bottom-halves disabled. */
-struct sk_buff *ovs_netdev_frame_hook(struct sk_buff *skb)
+static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 {
+	struct sk_buff *skb = *pskb;
 	struct vport *vport;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
-		return skb;
+		return RX_HANDLER_PASS;
 
 	vport = ovs_netdev_get_vport(skb->dev);
 
 	netdev_port_receive(vport, skb);
 
-	return NULL;
+	return RX_HANDLER_CONSUMED;
 }
 
 static struct vport *netdev_create(const struct vport_parms *parms)
