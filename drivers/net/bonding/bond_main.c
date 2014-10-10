@@ -496,7 +496,7 @@ static void bond_vlan_rx_register(struct net_device *bond_dev,
 
 	/*
 	 * Since slave vlan_groups are a superset of the bond, we handle their
-	 * removal in the kill_vid path
+ 	 * removal in the kill_vid path
  	 */
 	if (!grp)
 		return;
@@ -656,24 +656,13 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 {
 	struct vlan_entry *vlan;
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
-	struct vlan_group *sgrp;
 
 	if (!bond->vlgrp)
 		return;
 
-	sgrp = vlan_find_group(slave_dev);
-	if (!sgrp) {
-		sgrp = vlan_group_alloc(slave_dev);
-		if (!sgrp) {
-			pr_err(DRV_NAME ": %s: Failed to create vlan group\n",
-					slave_dev->name);
-			return;
-		}
-	}
-
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    slave_ops->ndo_vlan_rx_register)
-		slave_ops->ndo_vlan_rx_register(slave_dev, sgrp);
+		slave_ops->ndo_vlan_rx_register(slave_dev, bond->vlgrp);
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
 	    !(slave_ops->ndo_vlan_rx_add_vid))
@@ -689,13 +678,8 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
-	struct vlan_group *sgrp;
 
 	if (!bond->vlgrp)
-		return;
-
-	sgrp = vlan_find_group(slave_dev);
-	if (!sgrp)
 		return;
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
@@ -709,23 +693,14 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 		 * since the slave's driver might clear it.
 		 */
 		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
-		vlan_group_set_device(sgrp, vlan->vlan_id, NULL);
-
 		slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
-		sgrp->nr_vlans--;
 		vlan_group_set_device(bond->vlgrp, vlan->vlan_id, vlan_dev);
 	}
 
 unreg:
-	if (sgrp->nr_vlans == 0) {
-		if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
-		    slave_ops->ndo_vlan_rx_register)
-			slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
-		hlist_del_rcu(&sgrp->hlist);
-
-		/* Free the group, after all cpu's are done. */
-		call_rcu(&sgrp->rcu, bond_vlan_rcu_free);
-	}
+	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
+	    slave_ops->ndo_vlan_rx_register)
+		slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
 }
 
 /*------------------------------- Link status -------------------------------*/
