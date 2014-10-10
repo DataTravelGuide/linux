@@ -3328,8 +3328,8 @@ int __netif_receive_skb(struct sk_buff *skb)
 		net_timestamp(skb);
 
 	trace_netif_receive_skb(skb);
-	if (vlan_tx_tag_present(skb) && vlan_hwaccel_do_receive(skb))
-		return NET_RX_SUCCESS;
+	if (vlan_tx_tag_present(skb))
+		vlan_hwaccel_do_receive(skb);
 
 	/* if we've gotten here through NAPI, check netpoll */
 	if (netpoll_receive_skb(skb))
