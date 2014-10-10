@@ -17,8 +17,6 @@ static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
 }
 
 /* found in vlan_dev.c */
-int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-		  struct packet_type *ptype, struct net_device *orig_dev);
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);
 int vlan_dev_set_egress_priority(const struct net_device *dev,

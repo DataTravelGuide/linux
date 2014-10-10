@@ -4,7 +4,7 @@
 #include <linux/netpoll.h>
 #include "vlan.h"
 
-bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
+bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
@@ -119,3 +119,53 @@ int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 		? NET_RX_DROP : NET_RX_SUCCESS;
 }
 EXPORT_SYMBOL(vlan_gro_frags);
+
+static struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
+{
+	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
+		if (skb_cow(skb, skb_headroom(skb)) < 0)
+			skb = NULL;
+		if (skb) {
+			/* Lifted from Gleb's VLAN code... */
+			memmove(skb->data - ETH_HLEN,
+				skb->data - VLAN_ETH_HLEN, 12);
+			skb->mac_header += VLAN_HLEN;
+		}
+	}
+	return skb;
+}
+
+struct sk_buff *vlan_untag(struct sk_buff *skb)
+{
+	struct vlan_hdr *vhdr;
+	u16 vlan_tci;
+
+	if (unlikely(vlan_tx_tag_present(skb))) {
+		/* vlan_tci is already set-up so leave this for another time */
+		return skb;
+	}
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		goto err_free;
+
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
+		goto err_free;
+
+	vhdr = (struct vlan_hdr *) skb->data;
+	vlan_tci = ntohs(vhdr->h_vlan_TCI);
+	__vlan_hwaccel_put_tag(skb, vlan_tci);
+
+	skb_pull_rcsum(skb, VLAN_HLEN);
+	vlan_set_encap_proto(skb, vhdr);
+
+	skb = vlan_check_reorder_header(skb);
+	if (unlikely(!skb))
+		goto err_free;
+
+	return skb;
+
+err_free:
+	kfree_skb(skb);
+	return NULL;
+}
