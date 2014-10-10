@@ -1124,7 +1124,7 @@ struct net_device
 
 
 	/* Protocol specific pointers */
-	
+
 #ifdef CONFIG_NET_DSA
 	void			*dsa_ptr;	/* dsa specific data */
 #endif
@@ -1369,6 +1369,9 @@ struct net_device_extended {
 	u32			hw_features;
 	/* user-requested features */
 	u32			wanted_features;
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	struct vlan_group	*vlgrp;		/* VLAN group */
+#endif
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
