@@ -1467,6 +1467,7 @@ int elantech_init(struct psmouse *psmouse)
 	return 0;
 
  init_fail:
+	psmouse_reset(psmouse);
 	kfree(etd);
 	return -1;
 }
