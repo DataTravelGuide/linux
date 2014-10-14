@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Oct 14 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.1.1.el6]
+- [fs] call d_op->d_hash on last component of umount path (Abhijith Das) [1145193 1129712]
+- [usb] serial: memory corruption flaw (Jacob Tanenbaum) [1141401 1141402] {CVE-2014-3185}
+- [char] ipmi: Clear drvdata when interface is removed (Tony Camuso) [1149578 1135910]
+- [char] ipmi: init shadow_ipmi_smi_handlers early in ipmi_si_intf (Tony Camuso) [1149580 1139464]
+- [net] ipsec: update MAX_AH_AUTH_LEN to support sha512 (Herbert Xu) [1149083 1140103]
+- [net] revert "bridge: Set vlan_features to allow offloads on vlans" (Vlad Yasevich) [1144442 1121991]
+- [netdrv] virtio-net: fix big buffer receiving (Jason Wang) [1148693 1144073]
+- [netdrv] tg3: prevent ifup/ifdown during PCI error recovery (Ivan Vecera) [1142570 1117009]
+
 * Tue Sep 16 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-504.el6]
 - [netdrv] revert "cxgb4: set skb->rxhash" (Prarit Bhargava) [1140743]
 - [netdrv] revert "cxgb4: Use netif_set_real_num_rx/tx_queues()" (Prarit Bhargava) [1140743]
