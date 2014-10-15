@@ -1701,6 +1701,37 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 15 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-506.el6]
+- [acpi] intel_idle: simplify test for leave_mm() (Neil Horman) [1035906]
+- [intel_idle] close avn_cstates array with correct marker (Neil Horman) [1035906]
+- [intel_idle] Fixed C6 state on Avoton/Rangeley processors (Neil Horman) [1035906]
+- [intel_idle] Support Intel Atom Processor C2000 Product Family (Neil Horman) [1035906]
+- [intel_idle] shrink states tables (Neil Horman) [1035906]
+- [intel_idle] export both C1 and C1E (Neil Horman) [1035906]
+- [intel_idle] remove assumption of one C-state per MWAIT flag (Neil Horman) [1035906]
+- [x86] intel_idle: remove use and definition of MWAIT_MAX_NUM_CSTATES (Neil Horman) [1035906]
+- [acpi] intel_idle: Rename cpuidle states (Neil Horman) [1035906]
+- [intel_idle] stop using driver_data for static flags (Neil Horman) [1035906]
+- [x86] turbostat: decode MSR_IA32_POWER_CTL (Neil Horman) [1035906]
+- [intel_idle] support Haswell (Neil Horman) [1035906]
+- [acpi] Fix suspend/resume regression caused by cpuidle cleanup (Neil Horman) [1035906]
+- [intel_idle] Revert change of auto_demotion_disable_flags for Nehalem (Neil Horman) [1035906]
+- [x86] intel-idle: convert to x86_cpu_id auto probing (Neil Horman) [1035906]
+- [x86] Add driver auto probing for x86 features v4 (Neil Horman) [1035906]
+- [intel_idle] Split up and provide per CPU initialization func (Neil Horman) [1035906]
+- [cpuidle] Split cpuidle_state structure and move per-cpu statistics fields (Neil Horman) [1035906]
+- [acpi] cpuidle: Remove acpi_idle_suspend to fix suspend regression (Neil Horman) [1035906]
+- [cpuidle] Move dev->last_residency update to driver enter routine; remove dev->last_state (Neil Horman) [1035906]
+- [cpuidle] CPUIDLE_FLAG_TLB_FLUSHED is specific to intel_idle (Neil Horman) [1035906]
+- [intel_idle] Voluntary leave_mm before entering deeper (Neil Horman) [1035906]
+- [fs] autofs4: fix false positive compile error (Ian Kent) [858164]
+- [fs] autofs4: translate pids to the right namespace for the daemon (Ian Kent) [858164]
+- [fs] autofs4: allow autofs to work outside the initial PID namespace (Ian Kent) [858164]
+- [fs] autofs4: Do not potentially dereference NULL pointer returned by fget() in autofs_dev_ioctl_setpipefd() (Ian Kent) [858164]
+- [fs] gfs2: fix bad inode i_goal values during block allocation (Abhijith Das) [1130684]
+- [net] guard tcp_set_keepalive() to tcp sockets (Florian Westphal) [1141746] {CVE-2012-6657}
+- [kernel] init: add initcall_blacklist kernel parameter (Prarit Bhargava) [1112284]
+
 * Mon Oct 06 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-505.el6]
 - [fs] call d_op->d_hash on last component of umount path (Abhijith Das) [1129712]
 - [usb] serial: memory corruption flaw (Jacob Tanenbaum) [1141402] {CVE-2014-3185}
