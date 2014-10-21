@@ -3045,7 +3045,7 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 
 		r = dm_pool_get_metadata_dev_size(pool->pmd, &nr_blocks_metadata);
 		if (r) {
-			DMERR("%s: dm_pool_get_data_dev_size returned %d",
+			DMERR("%s: dm_pool_get_metadata_dev_size returned %d",
 			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
