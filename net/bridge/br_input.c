@@ -144,14 +144,37 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 	p = rcu_dereference(skb->dev->br_port);
 
 	if (unlikely(is_link_local_ether_addr(dest))) {
-		/* Pause frames shouldn't be passed up by driver anyway */
-		if (skb->protocol == htons(ETH_P_PAUSE))
+		/*
+		 * See IEEE 802.1D Table 7-10 Reserved addresses
+		 *
+		 * Assignment		 		Value
+		 * Bridge Group Address		01-80-C2-00-00-00
+		 * (MAC Control) 802.3		01-80-C2-00-00-01
+		 * (Link Aggregation) 802.3	01-80-C2-00-00-02
+		 * 802.1X PAE address		01-80-C2-00-00-03
+		 *
+		 * 802.1AB LLDP 		01-80-C2-00-00-0E
+		 *
+		 * Others reserved for future standardization
+		 */
+		switch (dest[5]) {
+		case 0x00:	/* Bridge Group Address */
+			/* If STP is turned off,
+			   then must forward to keep loop detection */
+			if (p->br->stp_enabled == BR_NO_STP)
+				goto forward;
+			break;
+
+		case 0x01:	/* IEEE MAC (Pause) */
 			goto drop;
 
-		/* If STP is turned off, then forward */
-		if (p->br->stp_enabled == BR_NO_STP && dest[5] == 0)
-			goto forward;
+		default:
+			/* Allow selective forwarding for most other protocols */
+			if (p->br->group_fwd_mask & (1u << dest[5]))
+				goto forward;
+		}
 
+		/* Deliver packet to local host only */
 		if (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
 			    NULL, br_handle_local_finish)) {
 			return RX_HANDLER_CONSUMED; /* consumed by filter */

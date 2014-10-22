@@ -211,6 +211,8 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 	memcpy(br->group_addr, br_reserved_address, ETH_ALEN);
 
 	br->stp_enabled = BR_NO_STP;
+	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;
+
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
 	br->root_port = 0;
