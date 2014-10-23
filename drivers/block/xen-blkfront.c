@@ -287,7 +287,7 @@ static int blkif_queue_request(struct request *req)
 	info->shadow[id].request = req;
 
 	ring_req->id = id;
-	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
+	ring_req->u.rw.sector_number = (blkif_sector_t)blk_rq_pos(req);
 	ring_req->handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
@@ -321,7 +321,7 @@ static int blkif_queue_request(struct request *req)
 				rq_data_dir(req) );
 
 		info->shadow[id].frame[i] = mfn_to_pfn(buffer_mfn);
-		ring_req->seg[i] =
+		ring_req->u.rw.seg[i] =
 				(struct blkif_request_segment) {
 					.gref       = ref,
 					.first_sect = fsect,
@@ -688,7 +688,7 @@ static void blkif_completion(struct blk_shadow *s)
 {
 	int i;
 	for (i = 0; i < s->req.nr_segments; i++)
-		gnttab_end_foreign_access(s->req.seg[i].gref, 0, 0UL);
+		gnttab_end_foreign_access(s->req.u.rw.seg[i].gref, 0, 0UL);
 }
 
 static irqreturn_t blkif_interrupt(int irq, void *dev_id)
@@ -1051,7 +1051,7 @@ static int blkif_recover(struct blkfront_info *info)
 		/* Rewrite any grant references invalidated by susp/resume. */
 		for (j = 0; j < req->nr_segments; j++)
 			gnttab_grant_foreign_access_ref(
-				req->seg[j].gref,
+				req->u.rw.seg[j].gref,
 				info->xbdev->otherend_id,
 				pfn_to_mfn(info->shadow[req->id].frame[j]),
 				rq_data_dir(info->shadow[req->id].request));
