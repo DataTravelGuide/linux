@@ -1701,6 +1701,25 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 23 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.39.1.el6]
+- [infiniband] ipoib: No longer use flush as a parameter (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Make ipoib_mcast_stop_thread flush the workqueue (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Use dedicated workqueues per interface (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: change init sequence ordering (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: fix mcast_dev_flush/mcast_restart_task race (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: fix MCAST_FLAG_BUSY usage (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Make the carrier_on_task race aware (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Consolidate rtnl_lock tasks in workqueue (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Avoid multicast join attempts with invalid P_key (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Avoid flushing the workqueue from worker context (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Use P_Key change event instead of P_Key polling mechanism (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Start multicast join process only on active ports (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Add path query flushing in ipoib_ib_dev_cleanup (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Fix usage of uninitialized multicast objects (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Avoid flushing the driver workqueue on dev_down (Doug Ledford) [1131520 1111073]
+- [infiniband] ipoib: Fix deadlock between dev_change_flags() and __ipoib_dev_flush() (Doug Ledford) [1131520 1111073]
+- [netdrv] ipoib: Fix crash in dev_open error flow (Doug Ledford) [1131520 1111073]
+
 * Thu Oct 02 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.38.1.el6]
 - [scsi] Fix erratic device offline during EH (Gustavo Duarte) [1148527 1126088]
 
