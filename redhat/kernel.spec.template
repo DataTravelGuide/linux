@@ -1701,6 +1701,22 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Oct 24 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.40.1.el6]
+- [net] sock_queue_err_skb() dont mess with sk_forward_alloc (Jiri Benc) [1155426 1148257]
+- [fs] nfs: Don't busy-wait on SIGKILL in __nfs_iocounter_wait (Benjamin Coddington) [1156064 1113269]
+- [fs] locks: eliminate BUG() call when there's an unexpected lock on file close (Benjamin Coddington) [1156066 1113096]
+- [md] raid: avoid data corruption during recovery of double-degraded RAID6 (Jes Sorensen) [1131395 1090423]
+- [fs] sunrpc: Fix a livelock problem in the xprt->backlog queue (Steve Dickson) [1099548 1075170]
+- [fs] sunrpc: Fix an RCU dereference in xprt_reserve (Steve Dickson) [1099548 1075170]
+- [fs] sunrpc: Fix infinite loop in RPC state machine (Steve Dickson) [1099548 1075170]
+- [fs] sunrpc: Fix races in xs_nospace() (Steve Dickson) [1099548 1075170]
+- [fs] sunrpc: Fix a UDP transport regression (Jeff Layton) [1156282 906809]
+- [fs] sunrpc: do not fail gss proc NULL calls with EACCES (Steve Dickson) [1126415 1079562]
+- [netdrv] macvtap: limit head length of skb allocated (Jason Wang) [1092353 1029381]
+- [netdrv] macvtap: do not zerocopy if iov needs more pages than MAX_SKB_FRAGS (Jason Wang) [1092353 1029381]
+- [netdrv] macvtap: correctly linearize skb when zerocopy is used (Jason Wang) [1092353 1029381]
+- [netdrv] tuntap: limit head length of skb allocated (Frantisek Hrbata) [1092353 1029381]
+
 * Thu Oct 23 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.39.1.el6]
 - [infiniband] ipoib: No longer use flush as a parameter (Doug Ledford) [1131520 1111073]
 - [infiniband] ipoib: Make ipoib_mcast_stop_thread flush the workqueue (Doug Ledford) [1131520 1111073]
