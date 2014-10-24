@@ -292,8 +292,17 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
-	if (req->cmd_flags & (REQ_HARDBARRIER | REQ_FLUSH))
+	if (req->cmd_flags & (REQ_FLUSH | REQ_HARDBARRIER | REQ_FUA)) {
+		/*
+		 * Ideally we could just do an unordered
+		 * flush-to-disk, but all we have is a full write
+		 * barrier at the moment.  However, a barrier write is
+		 * a superset of FUA, so we can implement it the same
+		 * way.  (It's also a FLUSH+FUA, since it is
+		 * guaranteed ordered WRT previous writes.)
+		 */
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
+	}
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
 	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -1181,7 +1190,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	info->feature_flush = 0;
 
 	if (!err && barrier)
-		info->feature_flush = REQ_FLUSH;
+		info->feature_flush = REQ_FLUSH | REQ_FUA;
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
