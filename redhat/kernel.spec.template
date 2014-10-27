@@ -1701,6 +1701,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 27 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-507.el6]
+- [fs] xfs: xlog_cil_force_lsn doesn't always wait correctly (Eric Sandeen) [1133304]
+- [netdrv] ixgbe: allow TXDCTL.WRTHRESH to be 1 will small ITR values (John Greene) [1132267]
+- [netdrv] ixgbe: Intel Change to allow itr changes without CONFIG_BQL support (John Greene) [1132267]
+- [video] offb: Fix setting of the pseudo-palette for >8bpp (Gerd Hoffmann) [1142450]
+- [video] offb: Add palette hack for qemu "standard vga" framebuffer (Gerd Hoffmann) [1142450]
+- [video] offb: Fix bug in calculating requested vram size (Gerd Hoffmann) [1142450]
+- [s390] zcrypt: toleration of new crypto adapter hardware (Hendrik Brueckner) [1134984]
+- [s390] zcrypt: support for extended number of ap domains (Hendrik Brueckner) [1134984]
+- [net] sock_queue_err_skb() dont mess with sk_forward_alloc (Jiri Benc) [1148257]
+
 * Wed Oct 15 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-506.el6]
 - [acpi] intel_idle: simplify test for leave_mm() (Neil Horman) [1035906]
 - [intel_idle] close avn_cstates array with correct marker (Neil Horman) [1035906]
