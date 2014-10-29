@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 29 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.41.1.el6]
+- [netdrv] ixgbe: allow TXDCTL.WRTHRESH to be 1 will small ITR values (John Greene) [1158324 1132267]
+- [netdrv] ixgbe: Intel Change to allow itr changes without CONFIG_BQL support (John Greene) [1158324 1132267]
+
 * Fri Oct 24 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.40.1.el6]
 - [net] sock_queue_err_skb() dont mess with sk_forward_alloc (Jiri Benc) [1155426 1148257]
 - [fs] nfs: Don't busy-wait on SIGKILL in __nfs_iocounter_wait (Benjamin Coddington) [1156064 1113269]
