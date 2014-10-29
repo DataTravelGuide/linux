@@ -312,6 +312,11 @@ M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
 F:	drivers/i2c/busses/i2c-ismt.c
 
+Lenovo Hardware Support
+M:      Adrian Huang <ahuang@redhat.com>
+S:      Maintained
+F:      drivers/gpu/drm/ast/
+
 Hyper-V CORE AND DRIVERS
 M:	Jason Wang <jasowang@redhat.com>
 M:	Vitaly Kuznetsov <vkuznets@redhat.com>
