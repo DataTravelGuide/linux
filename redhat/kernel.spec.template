@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 29 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.1.2.el6]
+- [x86] kvm: fix PIT timer race condition (mguzik) [1149592 1149593] {CVE-2014-3611}
+- [x86] kvm: vmx: handle invept and invvpid vm exits gracefull (mguzik) [1144826 1144837 1144827 1144838] {CVE-2014-3646 CVE-2014-3645}
+
 * Tue Oct 14 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.1.1.el6]
 - [fs] call d_op->d_hash on last component of umount path (Abhijith Das) [1145193 1129712]
 - [usb] serial: memory corruption flaw (Jacob Tanenbaum) [1141401 1141402] {CVE-2014-3185}
