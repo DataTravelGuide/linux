@@ -510,13 +510,13 @@ int lmb_is_memory(u64 addr)
 
 int lmb_is_region_memory(u64 base, u64 size)
 {
-	int idx = lmb_search(&lmb.reserved, base);
+	int idx = lmb_search(&lmb.memory, base);
 
 	if (idx == -1)
 		return 0;
-	return lmb.reserved.region[idx].base <= base &&
-		(lmb.reserved.region[idx].base +
-		 lmb.reserved.region[idx].size) >= (base + size);
+	return lmb.memory.region[idx].base <= base &&
+		(lmb.memory.region[idx].base +
+		 lmb.memory.region[idx].size) >= (base + size);
 }
 
 /*
