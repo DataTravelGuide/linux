@@ -4879,6 +4879,12 @@ static int bond_ethtool_set_flags(struct net_device *dev, u32 flags)
 	u32 dflags, ndflags;
 	int i;
 
+	/*
+	 * The only flag we're willing to toggle here is the LRO flag
+	 */
+	if ((flags & ~ETH_FLAG_LRO) != (dev->features & ~ETH_FLAG_LRO))
+		return -EOPNOTSUPP;
+
 	bond_for_each_slave(bond, slave, i) {
 		if (!slave->dev->ethtool_ops->get_flags)
 			continue;
@@ -4892,12 +4898,6 @@ static int bond_ethtool_set_flags(struct net_device *dev, u32 flags)
 		if (ndflags != dflags)
 			slave->dev->ethtool_ops->set_flags(slave->dev, ndflags);
 	}
-
-	if (flags & ETH_FLAG_LRO)
-		dev->features |= NETIF_F_LRO;
-	else
-		dev->features &= ~NETIF_F_LRO;
-
 
 	return 0;
 }
