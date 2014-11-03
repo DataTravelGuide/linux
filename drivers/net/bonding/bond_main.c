@@ -2958,12 +2958,13 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 					    arp_work.work);
 	struct slave *slave, *oldcurrent;
 	int do_failover = 0;
-	int delta_in_ticks;
+	int delta_in_ticks, extra_ticks;
 	int i;
 
 	read_lock(&bond->lock);
 
 	delta_in_ticks = msecs_to_jiffies(bond->params.arp_interval);
+	extra_ticks = delta_in_ticks / 2;
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
@@ -2986,10 +2987,10 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 		if (slave->link != BOND_LINK_UP) {
 			if (time_in_range(jiffies,
 				trans_start - delta_in_ticks,
-				trans_start + delta_in_ticks) &&
+				trans_start + delta_in_ticks + extra_ticks) &&
 			    time_in_range(jiffies,
 				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + delta_in_ticks)) {
+				slave->dev->last_rx + delta_in_ticks + extra_ticks)) {
 
 				slave->link  = BOND_LINK_UP;
 				bond_set_active_slave(slave);
@@ -3019,10 +3020,10 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			 */
 			if (!time_in_range(jiffies,
 				trans_start - delta_in_ticks,
-				trans_start + 2 * delta_in_ticks) ||
+				trans_start + 2 * delta_in_ticks + extra_ticks) ||
 			    !time_in_range(jiffies,
 				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + 2 * delta_in_ticks)) {
+				slave->dev->last_rx + 2 * delta_in_ticks + extra_ticks)) {
 
 				slave->link  = BOND_LINK_DOWN;
 				bond_set_backup_slave(slave);
@@ -3080,6 +3081,14 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 	struct slave *slave;
 	int i, commit = 0;
 	unsigned long trans_start;
+	int extra_ticks;
+
+	/* All the time comparisons below need some extra time. Otherwise, on
+	 * fast networks the ARP probe/reply may arrive within the same jiffy
+	 * as it was sent.  Then, the next time the ARP monitor is run, one
+	 * arp_interval will already have passed in the comparisons.
+	 */
+	extra_ticks = delta_in_ticks / 2;
 
 	bond_for_each_slave(bond, slave, i) {
 		slave->new_link = BOND_LINK_NOCHANGE;
@@ -3087,7 +3096,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		if (slave->link != BOND_LINK_UP) {
 			if (time_in_range(jiffies,
 				slave_last_rx(bond, slave) - delta_in_ticks,
-				slave_last_rx(bond, slave) + delta_in_ticks)) {
+				slave_last_rx(bond, slave) + delta_in_ticks + extra_ticks)) {
 
 				slave->new_link = BOND_LINK_UP;
 				commit++;
@@ -3103,7 +3112,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 */
 		if (time_in_range(jiffies,
 				  slave->jiffies - delta_in_ticks,
-				  slave->jiffies + 2 * delta_in_ticks))
+				  slave->jiffies + 2 * delta_in_ticks + extra_ticks))
 			continue;
 
 		/*
@@ -3123,7 +3132,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		    !bond->current_arp_slave &&
 		    !time_in_range(jiffies,
 			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 3 * delta_in_ticks)) {
+			slave_last_rx(bond, slave) + 3 * delta_in_ticks + extra_ticks)) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -3139,10 +3148,10 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		if (bond_is_active_slave(slave) &&
 		    (!time_in_range(jiffies,
 			trans_start - delta_in_ticks,
-			trans_start + 2 * delta_in_ticks) ||
+			trans_start + 2 * delta_in_ticks + extra_ticks) ||
 		     !time_in_range(jiffies,
 			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 2 * delta_in_ticks))) {
+			slave_last_rx(bond, slave) + 2 * delta_in_ticks + extra_ticks))) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -3174,7 +3183,7 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 			if ((!bond->curr_active_slave &&
 			     time_in_range(jiffies,
 					   trans_start - delta_in_ticks,
-					   trans_start + delta_in_ticks)) ||
+					   trans_start + delta_in_ticks + delta_in_ticks / 2)) ||
 			    bond->curr_active_slave != slave) {
 				slave->link = BOND_LINK_UP;
 				if (bond->current_arp_slave) {
