@@ -1312,7 +1312,6 @@ void bond_select_active_slave(struct bonding *bond)
 static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
 {
 	list_add_tail_rcu(&new_slave->list, &bond->slave_list);
-	bond->slave_cnt++;
 }
 
 /*
@@ -1328,7 +1327,6 @@ static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
 static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 {
 	list_del_rcu(&slave->list);
-	bond->slave_cnt--;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1803,20 +1801,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_add_vlans_on_slave(bond, slave_dev);
 
-	write_lock_bh(&bond->lock);
-
 	prev_slave = bond_last_slave(bond);
 
 	new_slave->delay = 0;
 	new_slave->link_failure_count = 0;
 
-	write_unlock_bh(&bond->lock);
-
-	bond_compute_features(bond);
-
 	bond_update_speed_duplex(new_slave);
-
-	read_lock(&bond->lock);
 
 	new_slave->last_arp_rx = jiffies -
 		(msecs_to_jiffies(bond->params.arp_interval) + 1);
@@ -1878,12 +1868,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	write_lock_bh(&bond->curr_slave_lock);
-
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
 		bond_set_slave_inactive_flags(new_slave);
-		bond_select_active_slave(bond);
 		break;
 	case BOND_MODE_8023AD:
 		/* in 802.3ad mode, the internal mechanism
@@ -1909,7 +1896,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_ALB:
 		bond_set_active_slave(new_slave);
 		bond_set_slave_inactive_flags(new_slave);
-		bond_select_active_slave(bond);
 		break;
 	default:
 		pr_debug("This slave is always active in trunk mode\n");
@@ -1927,10 +1913,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		break;
 	} /* switch(bond_mode) */
 
-	write_unlock_bh(&bond->curr_slave_lock);
-
-	bond_set_carrier(bond);
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	slave_dev->npinfo = bond->dev->npinfo;
 	if (slave_dev->npinfo) {
@@ -1944,8 +1926,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 #endif
-
-	read_unlock(&bond->lock);
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
 	if (res)
@@ -1964,6 +1944,18 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_unregister;
 	}
 	bond_attach_slave(bond, new_slave);
+
+	bond->slave_cnt++;
+	bond_compute_features(bond);
+	bond_set_carrier(bond);
+
+	if (USES_PRIMARY(bond->params.mode)) {
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_select_active_slave(bond);
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+	}
 
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
@@ -2025,7 +2017,6 @@ err_free:
 	kfree(new_slave);
 
 err_undo_flags:
-	bond_compute_features(bond);
 	/* Enslave of first slave has failed and we need to fix master's mac */
 	if (!bond_has_slaves(bond) &&
 	    ether_addr_equal(bond_dev->dev_addr, slave_dev->dev_addr))
@@ -2081,6 +2072,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	/* release the slave from its bond */
 	bond_detach_slave(bond, slave);
+	bond->slave_cnt--;
+
 	bond_upper_dev_unlink(bond_dev, slave_dev);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
