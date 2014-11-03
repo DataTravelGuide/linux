@@ -1419,16 +1419,14 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 
 static u32 bond_fix_features(struct net_device *dev, u32 features)
 {
-	struct slave *slave;
 	struct bonding *bond = netdev_priv(dev);
+	struct slave *slave;
 	u32 mask;
-
-	read_lock(&bond->lock);
 
 	if (list_empty(&bond->slave_list)) {
 		/* Disable adding VLANs to empty bond. But why? --mq */
 		features |= NETIF_F_VLAN_CHALLENGED;
-		goto out;
+		return features;
 	}
 
 	mask = features;
@@ -1442,8 +1440,6 @@ static u32 bond_fix_features(struct net_device *dev, u32 features)
 	}
 	features = netdev_add_tso_features(features, mask);
 
-out:
-	read_unlock(&bond->lock);
 	return features;
 }
 
