@@ -181,8 +181,6 @@ struct bond_parm_tbl {
 	int mode;
 };
 
-#define BOND_MAX_MODENAME_LEN 20
-
 struct vlan_entry {
 	struct list_head vlan_list;
 	unsigned short vlan_id;
