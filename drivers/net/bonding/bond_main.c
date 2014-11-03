@@ -2021,7 +2021,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	/* release the slave from its bond */
 	bond_detach_slave(bond, slave);
-	bond->slave_cnt--;
 
 	bond_upper_dev_unlink(bond_dev, slave_dev);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
@@ -2103,6 +2102,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	unblock_netpoll_tx();
 	synchronize_rcu();
+	bond->slave_cnt--;
 
 	if (!bond_has_slaves(bond)) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
