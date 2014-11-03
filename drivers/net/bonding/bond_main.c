@@ -1508,6 +1508,7 @@ static u32 bond_fix_features(struct net_device *dev, u32 features)
 						     slave->dev->features,
 						     mask);
 	}
+	features = netdev_add_tso_features(features, mask);
 
 out:
 	read_unlock(&bond->lock);
