@@ -1907,9 +1907,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	bond_set_carrier(bond);
 
 	if (USES_PRIMARY(bond->params.mode)) {
+		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
+		unblock_netpoll_tx();
 	}
 
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
@@ -1941,11 +1943,13 @@ err_detach:
 	if (bond->primary_slave == new_slave)
 		bond->primary_slave = NULL;
 	if (bond->curr_active_slave == new_slave) {
+		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_unicast_sync(bond, bond->curr_active_slave, NULL);
 		bond_change_active_slave(bond, NULL);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
+		unblock_netpoll_tx();
 	}
 	slave_disable_netpoll(new_slave);
 
@@ -3240,9 +3244,12 @@ static int bond_slave_netdev_event(unsigned long event,
 		pr_info("%s: Primary slave changed to %s, reselecting active slave.\n",
 			bond->dev->name, bond->primary_slave ? slave_dev->name :
 							       "none");
+
+		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
+		unblock_netpoll_tx();
 		break;
 	case NETDEV_FEAT_CHANGE:
 		bond_compute_features(bond);
