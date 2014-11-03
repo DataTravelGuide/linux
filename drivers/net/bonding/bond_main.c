@@ -2108,7 +2108,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	block_netpoll_tx();
-	call_netdevice_notifiers(NETDEV_RELEASE, bond_dev);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -2210,8 +2209,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 
-	if (bond->slave_cnt == 0)
+	if (bond->slave_cnt == 0) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
+		call_netdevice_notifiers(NETDEV_RELEASE, bond->dev);
+	}
 
 	bond_compute_features(bond);
 	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
