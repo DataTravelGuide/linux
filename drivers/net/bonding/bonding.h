@@ -188,9 +188,7 @@ struct slave {
 
 /*
  * Here are the locking policies for the two bonding locks:
- *
- * 1) Get rcu_read_lock when reading or RTNL when writing slave list.
- * 2) Get bond->curr_slave_lock when reading/writing bond->curr_active_slave.
+ * Get rcu_read_lock when reading or RTNL when writing slave list.
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
@@ -234,10 +232,6 @@ struct bonding {
 
 #define bond_slave_get_rtnl(dev) \
 	((struct slave *) rtnl_dereference(netdev_extended(dev)->rx_handler_data))
-
-#define bond_deref_active_protected(bond)				   \
-	rcu_dereference_protected(bond->curr_active_slave,		   \
-				  lockdep_is_held(&bond->curr_slave_lock))
 
 /**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
