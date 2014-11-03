@@ -1573,28 +1573,26 @@ static bool bond_should_deliver_exact_match(struct sk_buff *skb,
 	return false;
 }
 
-static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
+static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct net_device *bond_dev;
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		return NULL;
 
 	slave = bond_slave_get_rcu(skb->dev);
 	bond_dev = ACCESS_ONCE(slave->dev->master);
 	if (unlikely(!bond_dev))
-		return RX_HANDLER_PASS;
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (unlikely(!skb))
-		return RX_HANDLER_CONSUMED;
-
-	*pskb = skb;
+		return skb;
 
 	if (bond_dev->priv_flags & IFF_MASTER_ARPMON)
 		slave->dev->last_rx = jiffies;
 
 	if (bond_should_deliver_exact_match(skb, slave->dev, bond_dev)) {
-		return RX_HANDLER_EXACT;
+		skb->deliver_no_wcard = 1;
+		return skb;
 	}
 
 	skb->dev = bond_dev;
@@ -1605,12 +1603,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		if (unlikely(skb_cow_head(skb,
 					  skb->data - skb_mac_header(skb)))) {
 			kfree_skb(skb);
-			return RX_HANDLER_CONSUMED;
+			return NULL;
 		}
 		memcpy(eth_hdr(skb)->h_dest, bond_dev->dev_addr, ETH_ALEN);
 	}
 
-	return RX_HANDLER_ANOTHER;
+	return skb;
 }
 
 /* enslave device <slave> to bond device <master> */
