@@ -100,6 +100,10 @@
 	(list_empty(&(bond)->slave_list) ? NULL : \
 					   bond_to_slave((bond)->slave_list.prev))
 
+/* Caller must have rcu_read_lock */
+#define bond_first_slave_rcu(bond) \
+	list_first_entry_or_null(&(bond)->slave_list, struct slave, list)
+
 #define bond_is_first_slave(bond, pos) ((pos)->list.prev == &(bond)->slave_list)
 #define bond_is_last_slave(bond, pos) ((pos)->list.next == &(bond)->slave_list)
 
