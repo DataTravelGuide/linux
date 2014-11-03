@@ -4919,6 +4919,7 @@ static int __init bonding_init(void)
 out:
 	return res;
 err:
+	bond_destroy_debugfs();
 	bond_netlink_fini();
 err_link:
 	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
