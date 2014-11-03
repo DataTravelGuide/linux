@@ -672,8 +672,7 @@ down:
 static int bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
-	struct ethtool_cmd etool = { .cmd = ETHTOOL_GSET };
-	u32 slave_speed;
+	struct ethtool_cmd etool;
 	int res;
 
 	/* Fake speed and duplex */
@@ -687,8 +686,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 	if (res < 0)
 		return -1;
 
-	slave_speed = ethtool_cmd_speed(&etool);
-	if (slave_speed == 0 || slave_speed == ((__u32) -1))
+	if (etool.speed == 0 || etool.speed == ((__u16) -1))
 		return -1;
 
 	switch (etool.duplex) {
@@ -699,7 +697,7 @@ static int bond_update_speed_duplex(struct slave *slave)
 		return -1;
 	}
 
-	slave->speed = slave_speed;
+	slave->speed = etool.speed;
 	slave->duplex = etool.duplex;
 
 	return 0;
@@ -2557,11 +2555,10 @@ static void bond_miimon_commit(struct bonding *bond)
 				slave->state = BOND_STATE_BACKUP;
 			}
 
-			bond_update_speed_duplex(slave);
-
-			pr_info("%s: link status definitely up for interface %s, %u Mbps %s duplex.\n",
-				bond->dev->name, slave->dev->name,
-				slave->speed, slave->duplex ? "full" : "half");
+			pr_info(DRV_NAME
+			       ": %s: link status definitely "
+			       "up for interface %s.\n",
+			       bond->dev->name, slave->dev->name);
 
 			/* notify ad that the link status has changed */
 			if (bond->params.mode == BOND_MODE_8023AD)
@@ -3535,8 +3532,6 @@ static void bond_info_show_slave(struct seq_file *seq,
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
 		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
-	seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
-	seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
 	seq_printf(seq, "Link Failure Count: %u\n",
 		   slave->link_failure_count);
 
@@ -3727,7 +3722,7 @@ static int bond_slave_netdev_event(unsigned long event,
 
 			slave = bond_get_slave_by_dev(bond, slave_dev);
 			if (slave) {
-				u32 old_speed = slave->speed;
+				u16 old_speed = slave->speed;
 				u16 old_duplex = slave->duplex;
 
 				bond_update_speed_duplex(slave);

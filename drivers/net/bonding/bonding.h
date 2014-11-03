@@ -194,12 +194,12 @@ struct slave {
 	s8     new_link;
 	s8     state;   /* one of BOND_STATE_XXXX */
 	u32    original_flags;
-	u8     duplex;
 	u32    original_mtu;
 	u32    link_failure_count;
-	u32    speed;
-	u16    queue_id;
 	u8     perm_hwaddr[ETH_ALEN];
+	u16    speed;
+	u8     duplex;
+	u16    queue_id;
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 };
