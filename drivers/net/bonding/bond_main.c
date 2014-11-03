@@ -909,6 +909,7 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 	struct vlan_entry *vlan;
 
 	read_lock(&bond->lock);
+	rcu_read_lock();
 
 	bond_dev = bond->dev;
 
@@ -934,10 +935,18 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 				__bond_resend_igmp_join_requests(vlan_dev);
 		}
 	}
+	rcu_read_unlock();
 
-	if (--bond->igmp_retrans > 0)
+	/* We use curr_slave_lock to protect against concurrent access to
+	 * igmp_retrans from multiple running instances of this function and
+	 * bond_change_active_slave
+	 */
+	write_lock_bh(&bond->curr_slave_lock);
+	if (bond->igmp_retrans > 1) {
+		bond->igmp_retrans--;
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-
+	}
+	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
 }
 
