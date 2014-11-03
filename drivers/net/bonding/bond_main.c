@@ -856,8 +856,6 @@ static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
 {
 	struct dev_mc_list *dmi;
 
-	ASSERT_RTNL();
-
 	if (old_active) {
 		if (bond->dev->flags & IFF_PROMISC)
 			dev_set_promiscuity(old_active->dev, -1);
@@ -1177,6 +1175,8 @@ void bond_select_active_slave(struct bonding *bond)
 {
 	struct slave *best_slave, *old_active;
 	int rv;
+
+	ASSERT_RTNL();
 
 	old_active = bond->curr_active_slave;
 	best_slave = bond_find_best_slave(bond);
@@ -2342,7 +2342,6 @@ static void bond_miimon_commit(struct bonding *bond)
 		}
 
 do_failover:
-		ASSERT_RTNL();
 		block_netpoll_tx();
 		bond_select_active_slave(bond);
 		unblock_netpoll_tx();
@@ -2894,7 +2893,6 @@ static void bond_ab_arp_commit(struct bonding *bond)
 		}
 
 do_failover:
-		ASSERT_RTNL();
 		block_netpoll_tx();
 		bond_select_active_slave(bond);
 		unblock_netpoll_tx();
