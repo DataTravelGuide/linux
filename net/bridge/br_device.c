@@ -227,7 +227,7 @@ int br_netpoll_enable(struct net_bridge_port *p)
 
 	np->dev = p->dev;
 
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, p->dev);
 	if (err) {
 		kfree(np);
 		goto out;
