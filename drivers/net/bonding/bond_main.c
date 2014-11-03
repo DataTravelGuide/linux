@@ -1737,6 +1737,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		memcpy(bond->dev->dev_addr, slave_dev->dev_addr,
 		       slave_dev->addr_len);
 
+	call_netdevice_notifiers(NETDEV_JOIN, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
 	if (!new_slave) {
