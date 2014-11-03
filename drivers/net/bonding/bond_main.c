@@ -993,9 +993,11 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(old_active->dev, -1);
 
+		netif_addr_lock_bh(bond->dev);
 		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
 			dev_mc_delete(old_active->dev, dmi->dmi_addr,
 				      dmi->dmi_addrlen, 0);
+		netif_addr_unlock_bh(bond->dev);
 	}
 
 	if (new_active) {
@@ -1006,9 +1008,11 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(new_active->dev, 1);
 
+		netif_addr_lock_bh(bond->dev);
 		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
 			dev_mc_add(new_active->dev, dmi->dmi_addr,
 				   dmi->dmi_addrlen, 0);
+		netif_addr_unlock_bh(bond->dev);
 	}
 }
 
