@@ -805,15 +805,15 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
 static void bond_mc_add(struct bonding *bond, void *addr, int alen)
 {
 	struct list_head *iter;
+	struct slave *slave;
 
 	if (USES_PRIMARY(bond->params.mode)) {
+		slave = rcu_dereference(bond->curr_active_slave);
 		/* write lock already acquired */
-		if (bond->curr_active_slave)
-			dev_mc_add(bond->curr_active_slave->dev, addr, alen, 0);
+		if (slave)
+			dev_mc_add(slave->dev, addr, alen, 0);
 	} else {
-		struct slave *slave;
-
-		bond_for_each_slave(bond, slave, iter)
+		bond_for_each_slave_rcu(bond, slave, iter)
 			dev_mc_add(slave->dev, addr, alen, 0);
 	}
 }
@@ -825,15 +825,15 @@ static void bond_mc_add(struct bonding *bond, void *addr, int alen)
 static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
 {
 	struct list_head *iter;
+	struct slave *slave;
 
 	if (USES_PRIMARY(bond->params.mode)) {
+		slave = rcu_dereference(bond->curr_active_slave);
 		/* write lock already acquired */
-		if (bond->curr_active_slave)
-			dev_mc_delete(bond->curr_active_slave->dev, addr,
-				      alen, 0);
+		if (slave)
+			dev_mc_delete(slave->dev, addr, alen, 0);
 	} else {
-		struct slave *slave;
-		bond_for_each_slave(bond, slave, iter) {
+		bond_for_each_slave_rcu(bond, slave, iter) {
 			dev_mc_delete(slave->dev, addr, alen, 0);
 		}
 	}
@@ -3743,8 +3743,7 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct dev_mc_list *dmi;
 	struct slave *slave;
 
-	ASSERT_RTNL();
-
+	rcu_read_lock();
 	/* looking for addresses to add to slaves' mc list */
 	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
 		if (!bond_mc_list_find_dmi(dmi, bond->mc_list))
@@ -3758,12 +3757,11 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	}
 
 	if (USES_PRIMARY(bond->params.mode)) {
-		read_lock(&bond->curr_slave_lock);
-		slave = rtnl_dereference(bond->curr_active_slave);
+		slave = rcu_dereference(bond->curr_active_slave);
 		if (slave)
 			dev_unicast_sync(slave->dev, bond_dev);
-		read_unlock(&bond->curr_slave_lock);
 	}
+	rcu_read_unlock();
 
 	/* save master's multicast list */
 	bond_mc_list_destroy(bond);
