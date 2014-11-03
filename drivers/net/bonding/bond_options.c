@@ -757,7 +757,7 @@ static int bond_option_active_slave_set(struct bonding *bond,
 				bond->dev->name, new_active->dev->name);
 		} else {
 			if (old_active && (new_active->link == BOND_LINK_UP) &&
-			    IS_UP(new_active->dev)) {
+			    bond_slave_is_up(new_active)) {
 				pr_info("%s: Setting %s as active slave\n",
 					bond->dev->name, new_active->dev->name);
 				bond_unicast_sync(bond, old_active, new_active);
