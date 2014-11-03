@@ -62,9 +62,6 @@ extern struct list_head bond_dev_list;
 		 ((mode) == BOND_MODE_TLB)          ||	\
 		 ((mode) == BOND_MODE_ALB))
 
-#define TX_QUEUE_OVERRIDE(mode)				\
-			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
-			 ((mode) == BOND_MODE_ROUNDROBIN))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -136,8 +133,6 @@ struct bond_params {
 	char primary[IFNAMSIZ];
 	int primary_reselect;
 	__be32 arp_targets[BOND_MAX_ARP_TARGETS];
-	int tx_queues;
-	int all_slaves_active;
 };
 
 struct bond_parm_tbl {
@@ -172,7 +167,6 @@ struct slave {
 	u8     perm_hwaddr[ETH_ALEN];
 	u16    speed;
 	u8     duplex;
-	u16    queue_id;
 	struct ad_slave_info ad_info; /* HUGE - better to dynamically alloc */
 	struct tlb_slave_info tlb_info;
 };
@@ -300,8 +294,7 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (!bond_is_lb(bond))
 		slave->state = BOND_STATE_BACKUP;
-	if (!bond->params.all_slaves_active)
-		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+	slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 	if (slave_do_arp_validate(bond, slave))
 		slave->dev->priv_flags |= IFF_SLAVE_NEEDARP;
 }
