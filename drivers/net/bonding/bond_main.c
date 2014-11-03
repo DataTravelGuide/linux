@@ -2685,10 +2685,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 		rv = ip_route_output_key(dev_net(bond->dev), &rt, &fl);
 		if (rv) {
-			if (net_ratelimit()) {
-				pr_warning("%s: no route to arp_ip_target %pI4\n",
-					   bond->dev->name, &fl.fl4_dst);
-			}
+			pr_debug("%s: no route to arp_ip_target %pI4\n",
+				 bond->dev->name, &targets[i]);
 			continue;
 		}
 
@@ -2724,12 +2722,11 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 				      addr, vlan_id);
 			continue;
 		}
+		/* Not our device - skip */
+		pr_debug("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
+			 bond->dev->name, &targets[i],
+			 rt->u.dst.dev ? rt->u.dst.dev->name : "NULL");
 
-		if (net_ratelimit()) {
-			pr_warning("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
-				   bond->dev->name, &fl.fl4_dst,
-				   rt->u.dst.dev ? rt->u.dst.dev->name : "NULL");
-		}
 		ip_rt_put(rt);
 	}
 }
