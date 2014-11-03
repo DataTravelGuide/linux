@@ -5062,7 +5062,7 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 
 static int bond_check_params(struct bond_params *params)
 {
-	int arp_validate_value, fail_over_mac_value, primary_reselect_value, i;
+	int arp_validate_value, fail_over_mac_value, primary_reselect_value;
 
 	/*
 	 * Convert string parameters.
@@ -5292,21 +5292,21 @@ static int bond_check_params(struct bond_params *params)
 		arp_interval = BOND_LINK_ARP_INTERV;
 	}
 
-	for (arp_ip_count = 0, i = 0;
-	     (arp_ip_count < BOND_MAX_ARP_TARGETS) && arp_ip_target[i];
-	     i++) {
+	for (arp_ip_count = 0;
+	     (arp_ip_count < BOND_MAX_ARP_TARGETS) && arp_ip_target[arp_ip_count];
+	     arp_ip_count++) {
 		/* not complete check, but should be good enough to
 		   catch mistakes */
-		__be32 ip = in_aton(arp_ip_target[i]);
-		if (!isdigit(arp_ip_target[i][0]) || ip == 0 ||
-		    ip == htonl(INADDR_BROADCAST)) {
+		__be32 ip = in_aton(arp_ip_target[arp_ip_count]);
+		if (!isdigit(arp_ip_target[arp_ip_count][0]) ||
+		    ip == 0 || ip == htonl(INADDR_BROADCAST)) {
 			pr_warning(DRV_NAME
 			       ": Warning: bad arp_ip_target module parameter "
 			       "(%s), ARP monitoring will not be performed\n",
-			       arp_ip_target[i]);
+			       arp_ip_target[arp_ip_count]);
 			arp_interval = 0;
 		} else {
-			arp_target[arp_ip_count++] = ip;
+			arp_target[arp_ip_count] = ip;
 		}
 	}
 
@@ -5348,6 +5348,8 @@ static int bond_check_params(struct bond_params *params)
 		       ": MII link monitoring set to %d ms\n",
 		       miimon);
 	} else if (arp_interval) {
+		int i;
+
 		pr_info(DRV_NAME ": ARP monitoring set to %d ms,"
 		       " validate %s, with %d target(s):",
 		       arp_interval,
