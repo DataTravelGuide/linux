@@ -359,41 +359,6 @@ out:
 }
 
 /**
- * bond_next_vlan - safely skip to the next item in the vlans list.
- * @bond: the bond we're working on
- * @curr: item we're advancing from
- *
- * Returns %NULL if list is empty, bond->next_vlan if @curr is %NULL,
- * or @curr->next otherwise (even if it is @curr itself again).
- *
- * Caller must hold bond->lock
- */
-struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
-{
-	struct vlan_entry *next, *last;
-
-	if (list_empty(&bond->vlan_list))
-		return NULL;
-
-	if (!curr) {
-		next = list_entry(bond->vlan_list.next,
-				  struct vlan_entry, vlan_list);
-	} else {
-		last = list_entry(bond->vlan_list.prev,
-				  struct vlan_entry, vlan_list);
-		if (last == curr) {
-			next = list_entry(bond->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		} else {
-			next = list_entry(curr->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		}
-	}
-
-	return next;
-}
-
-/**
  * bond_dev_queue_xmit - Prepare skb for xmit.
  *
  * @bond: bond device that got this skb for tx.
