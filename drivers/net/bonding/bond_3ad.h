@@ -264,8 +264,7 @@ struct ad_bond_info {
 struct ad_slave_info {
 	struct aggregator aggregator;	    // 802.3ad aggregator structure
 	struct port port;		    // 802.3ad port structure
-	spinlock_t state_machine_lock; /* mutex state machines vs.
-					  incoming LACPDU */
+	spinlock_t rx_machine_lock; // To avoid race condition between callback and receive interrupt
 	u16 id;
 };
 
