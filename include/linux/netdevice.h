@@ -1361,8 +1361,9 @@ struct netdev_qos_info {
 };
 
 struct netdev_netpoll_ext_info {
-	int (*ndo_netpoll_setup)(struct net_device *dev,
-	     struct netpoll_info *info);
+	int			(*ndo_netpoll_setup)(struct net_device *dev,
+						     struct netpoll_info *info,
+						     gfp_t gfp);
 };
 
 struct netdev_priomap_info {
