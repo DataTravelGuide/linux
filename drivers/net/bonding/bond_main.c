@@ -2865,15 +2865,9 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	 *       so it can wait
 	 */
 	bond_for_each_slave(bond, slave, i) {
-		unsigned long trans_start = dev_trans_start(slave->dev);
-
 		if (slave->link != BOND_LINK_UP) {
-			if (time_in_range(jiffies,
-				trans_start - delta_in_ticks,
-				trans_start + delta_in_ticks) &&
-			    time_in_range(jiffies,
-				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + delta_in_ticks)) {
+			if (time_before_eq(jiffies, dev_trans_start(slave->dev) + delta_in_ticks) &&
+			    time_before_eq(jiffies, slave->dev->last_rx + delta_in_ticks)) {
 
 				slave->link  = BOND_LINK_UP;
 				slave->state = BOND_STATE_ACTIVE;
@@ -2904,12 +2898,8 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			 * when the source ip is 0, so don't take the link down
 			 * if we don't know our ip yet
 			 */
-			if (!time_in_range(jiffies,
-				trans_start - delta_in_ticks,
-				trans_start + 2 * delta_in_ticks) ||
-			    !time_in_range(jiffies,
-				slave->dev->last_rx - delta_in_ticks,
-				slave->dev->last_rx + 2 * delta_in_ticks)) {
+			if (time_after_eq(jiffies, dev_trans_start(slave->dev) + 2*delta_in_ticks) ||
+			    (time_after_eq(jiffies, slave->dev->last_rx + 2*delta_in_ticks))) {
 
 				slave->link  = BOND_LINK_DOWN;
 				slave->state = BOND_STATE_BACKUP;
@@ -2965,16 +2955,13 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 {
 	struct slave *slave;
 	int i, commit = 0;
-	unsigned long trans_start;
 
 	bond_for_each_slave(bond, slave, i) {
 		slave->new_link = BOND_LINK_NOCHANGE;
 
 		if (slave->link != BOND_LINK_UP) {
-			if (time_in_range(jiffies,
-				slave_last_rx(bond, slave) - delta_in_ticks,
-				slave_last_rx(bond, slave) + delta_in_ticks)) {
-
+			if (time_before_eq(jiffies, slave_last_rx(bond, slave) +
+					   delta_in_ticks)) {
 				slave->new_link = BOND_LINK_UP;
 				commit++;
 			}
@@ -2987,9 +2974,8 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 * active.  This avoids bouncing, as the last receive
 		 * times need a full ARP monitor cycle to be updated.
 		 */
-		if (time_in_range(jiffies,
-				  slave->jiffies - delta_in_ticks,
-				  slave->jiffies + 2 * delta_in_ticks))
+		if (!time_after_eq(jiffies, slave->jiffies +
+				   2 * delta_in_ticks))
 			continue;
 
 		/*
@@ -3007,10 +2993,8 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 */
 		if (slave->state == BOND_STATE_BACKUP &&
 		    !bond->current_arp_slave &&
-		    !time_in_range(jiffies,
-			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 3 * delta_in_ticks)) {
-
+		    time_after(jiffies, slave_last_rx(bond, slave) +
+			       3 * delta_in_ticks)) {
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
 		}
@@ -3021,15 +3005,11 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 * - (more than 2*delta since receive AND
 		 *    the bond has an IP address)
 		 */
-		trans_start = dev_trans_start(slave->dev);
 		if ((slave->state == BOND_STATE_ACTIVE) &&
-		    (!time_in_range(jiffies,
-			trans_start - delta_in_ticks,
-			trans_start + 2 * delta_in_ticks) ||
-		     !time_in_range(jiffies,
-			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 2 * delta_in_ticks))) {
-
+		    (time_after_eq(jiffies, dev_trans_start(slave->dev) +
+				    2 * delta_in_ticks) ||
+		      (time_after_eq(jiffies, slave_last_rx(bond, slave)
+				     + 2 * delta_in_ticks)))) {
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
 		}
@@ -3048,7 +3028,6 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 {
 	struct slave *slave;
 	int i;
-	unsigned long trans_start;
 
 	bond_for_each_slave(bond, slave, i) {
 		switch (slave->new_link) {
@@ -3056,11 +3035,10 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 			continue;
 
 		case BOND_LINK_UP:
-			trans_start = dev_trans_start(slave->dev);
 			if ((!bond->curr_active_slave &&
-			     time_in_range(jiffies,
-					   trans_start - delta_in_ticks,
-					   trans_start + delta_in_ticks)) ||
+			     time_before_eq(jiffies,
+					    dev_trans_start(slave->dev) +
+					    delta_in_ticks)) ||
 			    bond->curr_active_slave != slave) {
 				slave->link = BOND_LINK_UP;
 				bond->current_arp_slave = NULL;
