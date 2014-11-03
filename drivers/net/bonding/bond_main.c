@@ -981,9 +981,6 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	read_lock(&bond->lock);
 
-	if (bond->kill_timers)
-		goto out;
-
 	/* rejoin all groups on bond device */
 	__bond_resend_igmp_join_requests(bond->dev);
 
@@ -997,9 +994,9 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		}
 	}
 
-	if ((--bond->igmp_retrans > 0) && !bond->kill_timers)
+	if (--bond->igmp_retrans > 0)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-out:
+
 	read_unlock(&bond->lock);
 }
 
@@ -2686,7 +2683,7 @@ void bond_mii_monitor(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.miimon && !bond->kill_timers)
+	if (bond->params.miimon)
 		queue_delayed_work(bond->wq, &bond->mii_work,
 				   msecs_to_jiffies(bond->params.miimon));
 out:
@@ -3104,7 +3101,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
@@ -3387,7 +3384,7 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 	bond_ab_arp_probe(bond);
 
 re_arm:
-	if (bond->params.arp_interval && !bond->kill_timers)
+	if (bond->params.arp_interval)
 		queue_delayed_work(bond->wq, &bond->arp_work, delta_in_ticks);
 out:
 	read_unlock(&bond->lock);
