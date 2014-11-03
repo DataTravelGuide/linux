@@ -60,6 +60,11 @@
 #define TX_QUEUE_OVERRIDE(mode)				\
 			(((mode) == BOND_MODE_ACTIVEBACKUP) ||	\
 			 ((mode) == BOND_MODE_ROUNDROBIN))
+
+#define BOND_MODE_IS_LB(mode)			\
+		(((mode) == BOND_MODE_TLB) ||	\
+		 ((mode) == BOND_MODE_ALB))
+
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.
@@ -277,8 +282,7 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 
 static inline bool bond_is_lb(const struct bonding *bond)
 {
-	return (bond->params.mode == BOND_MODE_TLB ||
-		bond->params.mode == BOND_MODE_ALB);
+	return BOND_MODE_IS_LB(bond->params.mode);
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
@@ -450,6 +454,7 @@ int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
 		       unsigned int *real_num_queues);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
+int bond_option_mode_set(struct bonding *bond, int mode);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
