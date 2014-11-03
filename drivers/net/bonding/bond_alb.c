@@ -1013,25 +1013,14 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 {
 	struct bonding *bond = bond_get_bond_by_slave(slave);
+	struct vlan_entry *vlan;
 	u16 vlan_id;
-	int i;
 
-	for (i = 0; i < MAX_LP_BURST; i++) {
-		vlan_id = 0;
+	if (!bond->vlgrp)
+		return;
 
-		if (bond->vlgrp) {
-			struct vlan_entry *vlan;
-
-			vlan = bond_next_vlan(bond,
-					      bond->alb_info.current_alb_vlan);
-
-			bond->alb_info.current_alb_vlan = vlan;
-			if (!vlan)
-				continue;
-
-			vlan_id = vlan->vlan_id;
-		}
-
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+		vlan_id = vlan->vlan_id;
 		alb_send_lp_vid(slave, mac_addr, vlan_id);
 	}
 }
