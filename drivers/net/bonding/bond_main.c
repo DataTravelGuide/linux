@@ -2025,6 +2025,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	block_netpoll_tx();
+	netdev_bonding_change(bond_dev, NETDEV_RELEASE);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -2141,9 +2142,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
-
-	if (bond->slave_cnt == 0)
-		call_netdevice_notifiers(NETDEV_RELEASE, bond->dev);
 
 	/* must do this from outside any spinlocks */
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
