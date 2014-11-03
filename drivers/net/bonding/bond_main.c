@@ -2514,13 +2514,13 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 			 NULL, slave_dev->dev_addr, NULL);
 
 	if (!skb) {
-		pr_err("ARP packet allocation failed\n");
+		net_err_ratelimited("ARP packet allocation failed\n");
 		return;
 	}
 	if (vlan_id) {
 		skb = vlan_put_tag(skb, vlan_id);
 		if (!skb) {
-			pr_err("failed to insert VLAN tag\n");
+			net_err_ratelimited("failed to insert inner VLAN tag\n");
 			return;
 		}
 	}
@@ -2566,9 +2566,10 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			/* there's no route to target - try to send arp
 			 * probe to generate any traffic (arp_validate=0)
 			 */
-			if (bond->params.arp_validate && net_ratelimit())
-				pr_warn("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
-					bond->dev->name, &targets[i]);
+			if (bond->params.arp_validate)
+				net_warn_ratelimited("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
+						     bond->dev->name,
+						     &targets[i]);
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i], 0, 0);
 			continue;
 		}
