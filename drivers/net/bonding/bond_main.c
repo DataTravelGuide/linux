@@ -462,6 +462,8 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 		skb->dev = slave_dev;
 	}
 
+	skb->priority = 1;
+
 	skb->queue_mapping = bond_queue_mapping(skb);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
