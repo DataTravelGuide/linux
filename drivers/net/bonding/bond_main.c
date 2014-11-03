@@ -168,7 +168,7 @@ MODULE_PARM_DESC(resend_igmp, "Number of IGMP membership reports to send on link
 /*----------------------------- Global variables ----------------------------*/
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-atomic_t netpoll_block_tx = ATOMIC_INIT(0);
+cpumask_var_t netpoll_block_tx;
 #endif
 
 static const char * const version =
@@ -5508,6 +5508,13 @@ static int __init bonding_init(void)
 	if (res)
 		goto out;
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	if (!alloc_cpumask_var(&netpoll_block_tx, GFP_KERNEL)) {
+		res = -ENOMEM;
+		goto out;
+	}
+#endif
+
 	bond_create_proc_dir();
 
 	for (i = 0; i < max_bonds; i++) {
@@ -5529,6 +5536,9 @@ err:
 	rtnl_lock();
 	bond_free_all();
 	rtnl_unlock();
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	free_cpumask_var(netpoll_block_tx);
+#endif
 out:
 	return res;
 
@@ -5547,10 +5557,7 @@ static void __exit bonding_exit(void)
 	rtnl_unlock();
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	/*
-	 * Make sure we don't have an imbalance on our netpoll blocking
-	 */
-	WARN_ON(atomic_read(&netpoll_block_tx));
+	free_cpumask_var(netpoll_block_tx);
 #endif
 }
 

@@ -121,22 +121,26 @@ extern struct list_head bond_dev_list;
 
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern atomic_t netpoll_block_tx;
+extern cpumask_var_t netpoll_block_tx;
 
 static inline void block_netpoll_tx(void)
 {
-	atomic_inc(&netpoll_block_tx);
+	preempt_disable();
+	BUG_ON(cpumask_test_and_set_cpu(smp_processor_id(),
+					netpoll_block_tx));
 }
 
 static inline void unblock_netpoll_tx(void)
 {
-	atomic_dec(&netpoll_block_tx);
+	BUG_ON(!cpumask_test_and_clear_cpu(smp_processor_id(),
+					   netpoll_block_tx));
+	preempt_enable();
 }
 
 static inline int is_netpoll_tx_blocked(struct net_device *dev)
 {
 	if (unlikely(dev->priv_flags & IFF_IN_NETPOLL))
-		return atomic_read(&netpoll_block_tx);
+		return cpumask_test_cpu(smp_processor_id(), netpoll_block_tx);
 	return 0;
 }
 #else
