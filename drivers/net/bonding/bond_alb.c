@@ -1736,8 +1736,7 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * Set the bond->curr_active_slave to @new_slave and handle
  * mac address swapping and promiscuity changes as needed.
  *
- * If new_slave is NULL, caller must hold curr_slave_lock or
- * bond->lock for write.
+ * If new_slave is NULL, caller must hold curr_slave_lock for write
  *
  * If new_slave is not NULL, caller must hold RTNL, curr_slave_lock
  * for write.  Processing here may sleep, so no other locks may be held.
@@ -1817,12 +1816,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	write_lock_bh(&bond->curr_slave_lock);
 }
 
-/*
- * Called with RTNL
- */
+/* Called with RTNL */
 int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
-	__acquires(&bond->lock)
-	__releases(&bond->lock)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct sockaddr *sa = addr;
@@ -1855,13 +1850,11 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 	} else {
 		alb_set_slave_mac_addr(curr_active, bond_dev->dev_addr);
 
-		read_lock(&bond->lock);
 		alb_send_learning_packets(curr_active, bond_dev->dev_addr);
 		if (bond->alb_info.rlb_enabled) {
 			/* inform clients mac address has changed */
 			rlb_req_update_slave_clients(bond, curr_active);
 		}
-		read_unlock(&bond->lock);
 	}
 
 	return 0;
