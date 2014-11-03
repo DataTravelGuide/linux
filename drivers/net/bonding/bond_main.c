@@ -3296,7 +3296,7 @@ static void bond_remove_proc_entry(struct bonding *bond)
 /* Create the bonding directory under /proc/net, if doesn't exist yet.
  * Caller must hold rtnl_lock.
  */
-static void bond_create_proc_dir(struct bond_net *bn)
+static void __net_init bond_create_proc_dir(struct bond_net *bn)
 {
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
@@ -3309,7 +3309,7 @@ static void bond_create_proc_dir(struct bond_net *bn)
 /* Destroy the bonding directory under /proc/net, if empty.
  * Caller must hold rtnl_lock.
  */
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {
 	if (bn->proc_dir) {
 		remove_proc_entry(DRV_NAME, bn->net->proc_net);
@@ -3327,11 +3327,11 @@ static void bond_remove_proc_entry(struct bonding *bond)
 {
 }
 
-static void bond_create_proc_dir(struct bond_net *bn)
+static inline void bond_create_proc_dir(struct bond_net *bn)
 {
 }
 
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static inline void bond_destroy_proc_dir(struct bond_net *bn)
 {
 }
 
@@ -4944,7 +4944,7 @@ out_netdev:
 	goto out;
 }
 
-static int bond_net_init(struct net *net)
+static int __net_init bond_net_init(struct net *net)
 {
 	struct bond_net *bn;
 	int err;
@@ -4969,7 +4969,7 @@ out_free:
 	goto out;
 }
 
-static void bond_net_exit(struct net *net)
+static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn;
 
