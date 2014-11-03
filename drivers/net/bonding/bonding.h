@@ -25,6 +25,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/if_link.h>
+
 #include "bond_3ad.h"
 #include "bond_alb.h"
 #include "bond_options.h"
@@ -179,6 +181,7 @@ struct slave {
 	struct netpoll *np;
 #endif
 	struct kobject kobj;
+	struct rtnl_link_stats64 slave_stats;
 };
 
 /*
@@ -232,6 +235,7 @@ struct bonding {
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	struct rtnl_link_stats64 bond_stats;
 };
 
 #define bond_slave_get_rcu(dev) \
