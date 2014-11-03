@@ -658,6 +658,22 @@ static void bond_update_speed_duplex(struct slave *slave)
 	return;
 }
 
+const char *bond_slave_link_status(s8 link)
+{
+	switch (link) {
+	case BOND_LINK_UP:
+		return "up";
+	case BOND_LINK_FAIL:
+		return "going down";
+	case BOND_LINK_DOWN:
+		return "down";
+	case BOND_LINK_BACK:
+		return "going back";
+	default:
+		return "unknown";
+	}
+}
+
 /*
  * if <dev> supports MII link status reporting, check its link status.
  *
@@ -1937,6 +1953,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 	bond_attach_slave(bond, new_slave);
 
+	res = bond_sysfs_slave_add(new_slave);
+	if (res) {
+		pr_debug("Error %d calling bond_sysfs_slave_add\n", res);
+		goto err_upper_unlink;
+	}
+
 	bond->slave_cnt++;
 	bond_compute_features(bond);
 	bond_set_carrier(bond);
@@ -1956,6 +1978,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	return 0;
 
 /* Undo stages on error */
+err_upper_unlink:
+	bond_detach_slave(bond, new_slave);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
+
 err_unregister:
 	netdev_rx_handler_unregister(slave_dev);
 
@@ -2050,6 +2076,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 		unblock_netpoll_tx();
 		return -EINVAL;
 	}
+
+	bond_sysfs_slave_del(slave);
 
 	/* release the slave from its bond */
 	bond_detach_slave(bond, slave);
