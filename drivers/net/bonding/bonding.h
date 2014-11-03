@@ -635,4 +635,9 @@ extern struct bond_parm_tbl ad_select_tbl[];
 /* exported from bond_netlink.c */
 extern struct rtnl_link_ops bond_link_ops;
 
+static inline void bond_tx_drop(struct net_device *dev, struct sk_buff *skb)
+{
+	kfree_skb(skb);
+}
+
 #endif /* _LINUX_BONDING_H */

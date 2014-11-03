@@ -1298,7 +1298,7 @@ static int bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 	}
 
 	/* no suitable interface, frame not sent */
-	kfree_skb(skb);
+	bond_tx_drop(bond->dev, skb);
 out:
 	return NETDEV_TX_OK;
 }
