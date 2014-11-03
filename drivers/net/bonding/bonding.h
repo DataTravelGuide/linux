@@ -88,11 +88,6 @@
 #define bond_is_first_slave(bond, pos) ((pos)->list.prev == &(bond)->slave_list)
 #define bond_is_last_slave(bond, pos) ((pos)->list.next == &(bond)->slave_list)
 
-/* Since bond_first/last_slave can return NULL, these can return NULL too */
-#define bond_next_slave(bond, pos) \
-	(bond_is_last_slave(bond, pos) ? bond_first_slave(bond) : \
-					 bond_to_slave((pos)->list.next))
-
 /**
  * bond_for_each_slave - iterate over all slaves
  * @bond:	the bond holding this list
