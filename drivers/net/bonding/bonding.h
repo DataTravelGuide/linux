@@ -322,7 +322,7 @@ static inline void bond_set_slave_state(struct slave *slave,
 
 	slave->backup = slave_state;
 	if (notify) {
-		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0);
 		slave->should_notify = 0;
 	} else {
 		if (slave->should_notify)
@@ -342,6 +342,19 @@ static inline void bond_slave_state_change(struct bonding *bond)
 			bond_set_active_slave(tmp);
 		else if (tmp->link == BOND_LINK_DOWN)
 			bond_set_backup_slave(tmp);
+	}
+}
+
+static inline void bond_slave_state_notify(struct bonding *bond)
+{
+	struct list_head *iter;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, iter) {
+		if (tmp->should_notify) {
+			rtmsg_ifinfo(RTM_NEWLINK, tmp->dev, 0);
+			tmp->should_notify = 0;
+		}
 	}
 }
 
