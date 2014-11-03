@@ -951,6 +951,8 @@ static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
 {
 	struct dev_mc_list *dmi;
 
+	ASSERT_RTNL();
+
 	if (old_active) {
 		if (bond->dev->flags & IFF_PROMISC)
 			dev_set_promiscuity(old_active->dev, -1);
@@ -3758,7 +3760,7 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct dev_mc_list *dmi;
 	struct slave *slave;
 
-	read_lock(&bond->lock);
+	ASSERT_RTNL();
 
 	/* looking for addresses to add to slaves' mc list */
 	for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
@@ -3774,7 +3776,7 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 
 	if (USES_PRIMARY(bond->params.mode)) {
 		read_lock(&bond->curr_slave_lock);
-		slave = bond->curr_active_slave;
+		slave = rtnl_dereference(bond->curr_active_slave);
 		if (slave)
 			dev_unicast_sync(slave->dev, bond_dev);
 		read_unlock(&bond->curr_slave_lock);
@@ -3783,8 +3785,6 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	/* save master's multicast list */
 	bond_mc_list_destroy(bond);
 	bond_mc_list_copy(bond_dev->mc_list, bond, GFP_ATOMIC);
-
-	read_unlock(&bond->lock);
 }
 
 static int bond_neigh_init(struct neighbour *n)
