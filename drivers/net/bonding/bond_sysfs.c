@@ -248,7 +248,7 @@ static ssize_t bonding_show_mode(struct device *d,
 				 struct device_attribute *attr, char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_MODE, bond->params.mode);
 
@@ -279,7 +279,7 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_XMIT_HASH, bond->params.xmit_policy);
 
@@ -310,7 +310,7 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_ARP_VALIDATE,
 			       bond->params.arp_validate);
@@ -342,7 +342,7 @@ static ssize_t bonding_show_arp_all_targets(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_ARP_ALL_TARGETS,
 			       bond->params.arp_all_targets);
@@ -376,7 +376,7 @@ static ssize_t bonding_show_fail_over_mac(struct device *d,
 					  char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
 			       bond->params.fail_over_mac);
@@ -533,7 +533,7 @@ static ssize_t bonding_show_lacp(struct device *d,
 				 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_LACP_RATE, bond->params.lacp_fast);
 
@@ -586,7 +586,7 @@ static ssize_t bonding_show_ad_select(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_AD_SELECT, bond->params.ad_select);
 
@@ -714,7 +714,7 @@ static ssize_t bonding_show_primary_reselect(struct device *d,
 					     char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
 			       bond->params.primary_reselect);

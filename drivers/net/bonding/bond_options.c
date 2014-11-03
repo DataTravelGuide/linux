@@ -20,7 +20,59 @@
 #include <linux/inet.h>
 #include "bonding.h"
 
-static struct bond_opt_value bond_mode_tbl[] = {
+static int bond_option_active_slave_set(struct bonding *bond,
+					struct bond_opt_value *newval);
+static int bond_option_miimon_set(struct bonding *bond,
+				  struct bond_opt_value *newval);
+static int bond_option_updelay_set(struct bonding *bond,
+				   struct bond_opt_value *newval);
+static int bond_option_downdelay_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
+static int bond_option_use_carrier_set(struct bonding *bond,
+				       struct bond_opt_value *newval);
+static int bond_option_arp_interval_set(struct bonding *bond,
+					struct bond_opt_value *newval);
+static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
+static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
+static int bond_option_arp_ip_targets_set(struct bonding *bond,
+					  struct bond_opt_value *newval);
+static int bond_option_arp_validate_set(struct bonding *bond,
+					struct bond_opt_value *newval);
+static int bond_option_arp_all_targets_set(struct bonding *bond,
+					   struct bond_opt_value *newval);
+static int bond_option_primary_set(struct bonding *bond,
+				   struct bond_opt_value *newval);
+static int bond_option_primary_reselect_set(struct bonding *bond,
+					    struct bond_opt_value *newval);
+static int bond_option_fail_over_mac_set(struct bonding *bond,
+					 struct bond_opt_value *newval);
+static int bond_option_xmit_hash_policy_set(struct bonding *bond,
+					    struct bond_opt_value *newval);
+static int bond_option_resend_igmp_set(struct bonding *bond,
+				       struct bond_opt_value *newval);
+static int bond_option_num_peer_notif_set(struct bonding *bond,
+					  struct bond_opt_value *newval);
+static int bond_option_all_slaves_active_set(struct bonding *bond,
+					     struct bond_opt_value *newval);
+static int bond_option_min_links_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
+static int bond_option_lp_interval_set(struct bonding *bond,
+				       struct bond_opt_value *newval);
+static int bond_option_pps_set(struct bonding *bond,
+			       struct bond_opt_value *newval);
+static int bond_option_lacp_rate_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
+static int bond_option_ad_select_set(struct bonding *bond,
+				     struct bond_opt_value *newval);
+static int bond_option_queue_id_set(struct bonding *bond,
+				    struct bond_opt_value *newval);
+static int bond_option_mode_set(struct bonding *bond,
+				struct bond_opt_value *newval);
+static int bond_option_slaves_set(struct bonding *bond,
+				  struct bond_opt_value *newval);
+
+
+static const struct bond_opt_value bond_mode_tbl[] = {
 	{ "balance-rr",    BOND_MODE_ROUNDROBIN,   BOND_VALFLAG_DEFAULT},
 	{ "active-backup", BOND_MODE_ACTIVEBACKUP, 0},
 	{ "balance-xor",   BOND_MODE_XOR,          0},
@@ -31,20 +83,20 @@ static struct bond_opt_value bond_mode_tbl[] = {
 	{ NULL,            -1,                     0},
 };
 
-static struct bond_opt_value bond_pps_tbl[] = {
+static const struct bond_opt_value bond_pps_tbl[] = {
 	{ "default", 1,         BOND_VALFLAG_DEFAULT},
 	{ "maxval",  USHRT_MAX, BOND_VALFLAG_MAX},
 	{ NULL,      -1,        0},
 };
 
-static struct bond_opt_value bond_xmit_hashtype_tbl[] = {
+static const struct bond_opt_value bond_xmit_hashtype_tbl[] = {
 	{ "layer2",   BOND_XMIT_POLICY_LAYER2, BOND_VALFLAG_DEFAULT},
 	{ "layer3+4", BOND_XMIT_POLICY_LAYER34, 0},
 	{ "layer2+3", BOND_XMIT_POLICY_LAYER23, 0},
 	{ NULL,       -1,                       0},
 };
 
-static struct bond_opt_value bond_arp_validate_tbl[] = {
+static const struct bond_opt_value bond_arp_validate_tbl[] = {
 	{ "none",		BOND_ARP_VALIDATE_NONE,		BOND_VALFLAG_DEFAULT},
 	{ "active",		BOND_ARP_VALIDATE_ACTIVE,	0},
 	{ "backup",		BOND_ARP_VALIDATE_BACKUP,	0},
@@ -55,76 +107,76 @@ static struct bond_opt_value bond_arp_validate_tbl[] = {
 	{ NULL,			-1,				0},
 };
 
-static struct bond_opt_value bond_arp_all_targets_tbl[] = {
+static const struct bond_opt_value bond_arp_all_targets_tbl[] = {
 	{ "any", BOND_ARP_TARGETS_ANY, BOND_VALFLAG_DEFAULT},
 	{ "all", BOND_ARP_TARGETS_ALL, 0},
 	{ NULL,  -1,                   0},
 };
 
-static struct bond_opt_value bond_fail_over_mac_tbl[] = {
+static const struct bond_opt_value bond_fail_over_mac_tbl[] = {
 	{ "none",   BOND_FOM_NONE,   BOND_VALFLAG_DEFAULT},
 	{ "active", BOND_FOM_ACTIVE, 0},
 	{ "follow", BOND_FOM_FOLLOW, 0},
 	{ NULL,     -1,              0},
 };
 
-static struct bond_opt_value bond_intmax_tbl[] = {
+static const struct bond_opt_value bond_intmax_tbl[] = {
 	{ "off",     0,       BOND_VALFLAG_DEFAULT},
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
 };
 
-static struct bond_opt_value bond_lacp_rate_tbl[] = {
+static const struct bond_opt_value bond_lacp_rate_tbl[] = {
 	{ "slow", AD_LACP_SLOW, 0},
 	{ "fast", AD_LACP_FAST, 0},
 	{ NULL,   -1,           0},
 };
 
-static struct bond_opt_value bond_ad_select_tbl[] = {
+static const struct bond_opt_value bond_ad_select_tbl[] = {
 	{ "stable",    BOND_AD_STABLE,    BOND_VALFLAG_DEFAULT},
 	{ "bandwidth", BOND_AD_BANDWIDTH, 0},
 	{ "count",     BOND_AD_COUNT,     0},
 	{ NULL,        -1,                0},
 };
 
-static struct bond_opt_value bond_num_peer_notif_tbl[] = {
+static const struct bond_opt_value bond_num_peer_notif_tbl[] = {
 	{ "off",     0,   0},
 	{ "maxval",  255, BOND_VALFLAG_MAX},
 	{ "default", 1,   BOND_VALFLAG_DEFAULT},
 	{ NULL,      -1,  0}
 };
 
-static struct bond_opt_value bond_primary_reselect_tbl[] = {
+static const struct bond_opt_value bond_primary_reselect_tbl[] = {
 	{ "always",  BOND_PRI_RESELECT_ALWAYS,  BOND_VALFLAG_DEFAULT},
 	{ "better",  BOND_PRI_RESELECT_BETTER,  0},
 	{ "failure", BOND_PRI_RESELECT_FAILURE, 0},
 	{ NULL,      -1},
 };
 
-static struct bond_opt_value bond_use_carrier_tbl[] = {
+static const struct bond_opt_value bond_use_carrier_tbl[] = {
 	{ "off", 0,  0},
 	{ "on",  1,  BOND_VALFLAG_DEFAULT},
 	{ NULL,  -1, 0}
 };
 
-static struct bond_opt_value bond_all_slaves_active_tbl[] = {
+static const struct bond_opt_value bond_all_slaves_active_tbl[] = {
 	{ "off", 0,  BOND_VALFLAG_DEFAULT},
 	{ "on",  1,  0},
 	{ NULL,  -1, 0}
 };
 
-static struct bond_opt_value bond_resend_igmp_tbl[] = {
+static const struct bond_opt_value bond_resend_igmp_tbl[] = {
 	{ "off",     0,   0},
 	{ "maxval",  255, BOND_VALFLAG_MAX},
 	{ "default", 1,   BOND_VALFLAG_DEFAULT},
 	{ NULL,      -1,  0}
 };
 
-static struct bond_opt_value bond_lp_interval_tbl[] = {
+static const struct bond_opt_value bond_lp_interval_tbl[] = {
 	{ "minval",  1,       BOND_VALFLAG_MIN | BOND_VALFLAG_DEFAULT},
 	{ "maxval",  INT_MAX, BOND_VALFLAG_MAX},
 };
 
-static struct bond_option bond_opts[] = {
+static const struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
 		.name = "mode",
@@ -313,9 +365,9 @@ static struct bond_option bond_opts[] = {
 };
 
 /* Searches for a value in opt's values[] table */
-struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val)
+const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val)
 {
-	struct bond_option *opt;
+	const struct bond_option *opt;
 	int i;
 
 	opt = bond_opt_get(option);
@@ -329,7 +381,7 @@ struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val)
 }
 
 /* Searches for a value in opt's values[] table which matches the flagmask */
-static struct bond_opt_value *bond_opt_get_flags(const struct bond_option *opt,
+static const struct bond_opt_value *bond_opt_get_flags(const struct bond_option *opt,
 						 u32 flagmask)
 {
 	int i;
@@ -346,7 +398,7 @@ static struct bond_opt_value *bond_opt_get_flags(const struct bond_option *opt,
  */
 static bool bond_opt_check_range(const struct bond_option *opt, u64 val)
 {
-	struct bond_opt_value *minval, *maxval;
+	const struct bond_opt_value *minval, *maxval;
 
 	minval = bond_opt_get_flags(opt, BOND_VALFLAG_MIN);
 	maxval = bond_opt_get_flags(opt, BOND_VALFLAG_MAX);
@@ -366,11 +418,12 @@ static bool bond_opt_check_range(const struct bond_option *opt, u64 val)
  * or the struct_opt_value that matched. It also strips the new line from
  * @val->string if it's present.
  */
-struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
-				      struct bond_opt_value *val)
+const struct bond_opt_value *bond_opt_parse(const struct bond_option *opt,
+					    struct bond_opt_value *val)
 {
 	char *p, valstr[BOND_OPT_MAX_NAMELEN + 1] = { 0, };
-	struct bond_opt_value *tbl, *ret = NULL;
+	const struct bond_opt_value *tbl;
+	const struct bond_opt_value *ret = NULL;
 	bool checkval;
 	int i, rv;
 
@@ -574,7 +627,7 @@ int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf)
  * This function checks if option is valid and if so returns a pointer
  * to its entry in the bond_opts[] option array.
  */
-struct bond_option *bond_opt_get(unsigned int option)
+const struct bond_option *bond_opt_get(unsigned int option)
 {
 	if (!BOND_OPT_VALID(option))
 		return NULL;
@@ -619,8 +672,8 @@ struct net_device *bond_option_active_slave_get(struct bonding *bond)
 	return __bond_option_active_slave_get(bond, bond->curr_active_slave);
 }
 
-int bond_option_active_slave_set(struct bonding *bond,
-				 struct bond_opt_value *newval)
+static int bond_option_active_slave_set(struct bonding *bond,
+					struct bond_opt_value *newval)
 {
 	char ifname[IFNAMSIZ] = { 0, };
 	struct net_device *slave_dev;
@@ -690,7 +743,8 @@ int bond_option_active_slave_set(struct bonding *bond,
 	return ret;
 }
 
-int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval)
+static int bond_option_miimon_set(struct bonding *bond,
+				  struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting MII monitoring interval to %llu\n",
 		bond->dev->name, newval->value);
@@ -727,7 +781,8 @@ int bond_option_miimon_set(struct bonding *bond, struct bond_opt_value *newval)
 	return 0;
 }
 
-int bond_option_updelay_set(struct bonding *bond, struct bond_opt_value *newval)
+static int bond_option_updelay_set(struct bonding *bond,
+				   struct bond_opt_value *newval)
 {
 	int value = newval->value;
 
@@ -750,8 +805,8 @@ int bond_option_updelay_set(struct bonding *bond, struct bond_opt_value *newval)
 	return 0;
 }
 
-int bond_option_downdelay_set(struct bonding *bond,
-			      struct bond_opt_value *newval)
+static int bond_option_downdelay_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
 	int value = newval->value;
 
@@ -774,8 +829,8 @@ int bond_option_downdelay_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_use_carrier_set(struct bonding *bond,
-				struct bond_opt_value *newval)
+static int bond_option_use_carrier_set(struct bonding *bond,
+				       struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting use_carrier to %llu\n",
 		bond->dev->name, newval->value);
@@ -784,8 +839,8 @@ int bond_option_use_carrier_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_arp_interval_set(struct bonding *bond,
-				 struct bond_opt_value *newval)
+static int bond_option_arp_interval_set(struct bonding *bond,
+					struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting ARP monitoring interval to %llu\n",
 		bond->dev->name, newval->value);
@@ -866,7 +921,7 @@ static int _bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 	return 0;
 }
 
-int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
+static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 {
 	int ret;
 
@@ -878,7 +933,7 @@ int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target)
 	return ret;
 }
 
-int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
+static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target)
 {
 	__be32 *targets = bond->params.arp_targets;
 	struct list_head *iter;
@@ -934,8 +989,8 @@ void bond_option_arp_ip_targets_clear(struct bonding *bond)
 	write_unlock_bh(&bond->lock);
 }
 
-int bond_option_arp_ip_targets_set(struct bonding *bond,
-				   struct bond_opt_value *newval)
+static int bond_option_arp_ip_targets_set(struct bonding *bond,
+					  struct bond_opt_value *newval)
 {
 	int ret = -EPERM;
 	__be32 target;
@@ -961,8 +1016,8 @@ int bond_option_arp_ip_targets_set(struct bonding *bond,
 	return ret;
 }
 
-int bond_option_arp_validate_set(struct bonding *bond,
-				 struct bond_opt_value *newval)
+static int bond_option_arp_validate_set(struct bonding *bond,
+					struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting arp_validate to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -978,8 +1033,8 @@ int bond_option_arp_validate_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_arp_all_targets_set(struct bonding *bond,
-				    struct bond_opt_value *newval)
+static int bond_option_arp_all_targets_set(struct bonding *bond,
+					   struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting arp_all_targets to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -988,7 +1043,8 @@ int bond_option_arp_all_targets_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_primary_set(struct bonding *bond, struct bond_opt_value *newval)
+static int bond_option_primary_set(struct bonding *bond,
+				   struct bond_opt_value *newval)
 {
 	char *p, *primary = newval->string;
 	struct list_head *iter;
@@ -1040,8 +1096,8 @@ out:
 	return 0;
 }
 
-int bond_option_primary_reselect_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+static int bond_option_primary_reselect_set(struct bonding *bond,
+					    struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting primary_reselect to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1056,8 +1112,8 @@ int bond_option_primary_reselect_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_fail_over_mac_set(struct bonding *bond,
-				  struct bond_opt_value *newval)
+static int bond_option_fail_over_mac_set(struct bonding *bond,
+					 struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting fail_over_mac to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1066,8 +1122,8 @@ int bond_option_fail_over_mac_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_xmit_hash_policy_set(struct bonding *bond,
-				     struct bond_opt_value *newval)
+static int bond_option_xmit_hash_policy_set(struct bonding *bond,
+					    struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting xmit hash policy to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1076,8 +1132,8 @@ int bond_option_xmit_hash_policy_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_resend_igmp_set(struct bonding *bond,
-				struct bond_opt_value *newval)
+static int bond_option_resend_igmp_set(struct bonding *bond,
+				       struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting resend_igmp to %llu\n",
 		bond->dev->name, newval->value);
@@ -1086,7 +1142,7 @@ int bond_option_resend_igmp_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_num_peer_notif_set(struct bonding *bond,
+static int bond_option_num_peer_notif_set(struct bonding *bond,
 				   struct bond_opt_value *newval)
 {
 	bond->params.num_peer_notif = newval->value;
@@ -1094,8 +1150,8 @@ int bond_option_num_peer_notif_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_all_slaves_active_set(struct bonding *bond,
-				      struct bond_opt_value *newval)
+static int bond_option_all_slaves_active_set(struct bonding *bond,
+					     struct bond_opt_value *newval)
 {
 	struct list_head *iter;
 	struct slave *slave;
@@ -1115,8 +1171,8 @@ int bond_option_all_slaves_active_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_min_links_set(struct bonding *bond,
-			      struct bond_opt_value *newval)
+static int bond_option_min_links_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting min links value to %llu\n",
 		bond->dev->name, newval->value);
@@ -1125,15 +1181,16 @@ int bond_option_min_links_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_lp_interval_set(struct bonding *bond,
-				struct bond_opt_value *newval)
+static int bond_option_lp_interval_set(struct bonding *bond,
+				       struct bond_opt_value *newval)
 {
 	bond->params.lp_interval = newval->value;
 
 	return 0;
 }
 
-int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval)
+static int bond_option_pps_set(struct bonding *bond,
+			       struct bond_opt_value *newval)
 {
 	bond->params.packets_per_slave = newval->value;
 	if (newval->value > 0) {
@@ -1149,8 +1206,8 @@ int bond_option_pps_set(struct bonding *bond, struct bond_opt_value *newval)
 	return 0;
 }
 
-int bond_option_lacp_rate_set(struct bonding *bond,
-			      struct bond_opt_value *newval)
+static int bond_option_lacp_rate_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting LACP rate to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1160,8 +1217,8 @@ int bond_option_lacp_rate_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_ad_select_set(struct bonding *bond,
-			      struct bond_opt_value *newval)
+static int bond_option_ad_select_set(struct bonding *bond,
+				     struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting ad_select to %s (%llu)\n",
 		bond->dev->name, newval->string, newval->value);
@@ -1170,8 +1227,8 @@ int bond_option_ad_select_set(struct bonding *bond,
 	return 0;
 }
 
-int bond_option_queue_id_set(struct bonding *bond,
-			     struct bond_opt_value *newval)
+static int bond_option_queue_id_set(struct bonding *bond,
+				    struct bond_opt_value *newval)
 {
 	struct slave *slave, *update_slave;
 	struct net_device *sdev;
@@ -1231,7 +1288,8 @@ err_no_cmd:
 
 }
 
-int bond_option_slaves_set(struct bonding *bond, struct bond_opt_value *newval)
+static int bond_option_slaves_set(struct bonding *bond,
+				  struct bond_opt_value *newval)
 {
 	char command[IFNAMSIZ + 1] = { 0, };
 	struct net_device *dev;

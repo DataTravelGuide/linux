@@ -526,8 +526,6 @@ int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
 		       unsigned int *real_num_queues);
 int bond_netlink_init(void);
 void bond_netlink_fini(void);
-int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
-int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 struct net_device *bond_option_active_slave_get_rcu(struct bonding *bond);
 struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
