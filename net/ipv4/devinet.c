@@ -1802,4 +1802,3 @@ EXPORT_SYMBOL(inet_select_addr);
 EXPORT_SYMBOL(inetdev_by_index);
 EXPORT_SYMBOL(register_inetaddr_notifier);
 EXPORT_SYMBOL(unregister_inetaddr_notifier);
-EXPORT_SYMBOL(inet_confirm_addr);
