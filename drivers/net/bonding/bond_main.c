@@ -105,7 +105,6 @@ static char *arp_validate;
 static char *fail_over_mac;
 static int all_slaves_active = 0;
 static struct bond_params bonding_defaults;
-static int resend_igmp = BOND_DEFAULT_RESEND_IGMP;
 
 module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
@@ -160,8 +159,6 @@ module_param(all_slaves_active, int, 0);
 MODULE_PARM_DESC(all_slaves_active, "Keep all frames received on an interface"
 				     "by setting active flag for all slaves.  "
 				     "0 for never (default), 1 for always.");
-module_param(resend_igmp, int, 0);
-MODULE_PARM_DESC(resend_igmp, "Number of IGMP membership reports to send on link failure");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -894,13 +891,18 @@ static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
 }
 
 
-static void __bond_resend_igmp_join_requests(struct net_device *dev)
+/*
+ * Retrieve the list of registered multicast addresses for the bonding
+ * device and retransmit an IGMP JOIN request to the current active
+ * slave.
+ */
+static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
 	struct in_device *in_dev;
 	struct ip_mc_list *im;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dev);
+	in_dev = __in_dev_get_rcu(bond->dev);
 	if (in_dev) {
 		for (im = in_dev->mc_list; im; im = im->next)
 			ip_mc_rejoin_group(im);
@@ -951,44 +953,6 @@ static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
 	}
 
 	return 0;
-}
-
-/*
- * Retrieve the list of registered multicast addresses for the bonding
- * device and retransmit an IGMP JOIN request to the current active
- * slave.
- */
-static void bond_resend_igmp_join_requests(struct bonding *bond)
-{
-	struct net_device *vlan_dev;
-	struct vlan_entry *vlan;
-
-	read_lock(&bond->lock);
-
-	/* rejoin all groups on bond device */
-	__bond_resend_igmp_join_requests(bond->dev);
-
-	/* rejoin all groups on vlan devices */
-	if (bond->vlgrp) {
-		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-			vlan_dev = vlan_group_get_device(bond->vlgrp,
-							 vlan->vlan_id);
-			if (vlan_dev)
-				__bond_resend_igmp_join_requests(vlan_dev);
-		}
-	}
-
-	if (--bond->igmp_retrans > 0)
-		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
-
-	read_unlock(&bond->lock);
-}
-
-void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
-{
-	struct bonding *bond = container_of(work, struct bonding,
-							mcast_work.work);
-	bond_resend_igmp_join_requests(bond);
 }
 
 /*
@@ -1052,6 +1016,7 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		for (dmi = bond->dev->mc_list; dmi; dmi = dmi->next)
 			dev_mc_add(new_active->dev, dmi->dmi_addr,
 				   dmi->dmi_addrlen, 0);
+		bond_resend_igmp_join_requests(bond);
 	}
 }
 
@@ -1278,13 +1243,11 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
 
-			if (netif_running(bond->dev)) {
-				bond->send_grat_arp = bond->params.num_grat_arp;
-				bond_send_gratuitous_arp(bond);
+			bond->send_grat_arp = bond->params.num_grat_arp;
+			bond_send_gratuitous_arp(bond);
 
-				bond->send_unsol_na = bond->params.num_unsol_na;
-				bond_send_unsolicited_na(bond);
-			}
+			bond->send_unsol_na = bond->params.num_unsol_na;
+			bond_send_unsolicited_na(bond);
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -1296,13 +1259,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		}
 	}
 
-	/* resend IGMP joins since active slave has changed or
-	 * all were sent on curr_active_slave */
-	if (((USES_PRIMARY(bond->params.mode) && new_active) ||
-	     bond->params.mode == BOND_MODE_ROUNDROBIN) &&
-	    netif_running(bond->dev)) {
-		bond->igmp_retrans = bond->params.resend_igmp;
-		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
+	/* resend IGMP joins since all were sent on curr_active_slave */
+	if (bond->params.mode == BOND_MODE_ROUNDROBIN) {
+		bond_resend_igmp_join_requests(bond);
 	}
 }
 
@@ -3877,8 +3836,6 @@ static int bond_open(struct net_device *bond_dev)
 
 	bond->kill_timers = 0;
 
-	INIT_DELAYED_WORK(&bond->mcast_work, bond_resend_igmp_join_requests_delayed);
-
 	if (bond_is_lb(bond)) {
 		/* bond_alb_initialize must be called before the timer
 		 * is started.
@@ -3963,8 +3920,6 @@ static int bond_close(struct net_device *bond_dev)
 		break;
 	}
 
-	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
 
 	if (bond_is_lb(bond)) {
 		/* Must be called only after all
@@ -4815,9 +4770,6 @@ static void bond_work_cancel_all(struct bonding *bond)
 	if (bond->params.mode == BOND_MODE_8023AD &&
 	    delayed_work_pending(&bond->ad_work))
 		cancel_delayed_work(&bond->ad_work);
-
-	if (delayed_work_pending(&bond->mcast_work))
-		cancel_delayed_work(&bond->mcast_work);
 }
 
 /* De-initialize device specific data.
@@ -5038,13 +4990,6 @@ static int bond_check_params(struct bond_params *params)
 		all_slaves_active = 0;
 	}
 
-	if (resend_igmp < 0 || resend_igmp > 255) {
-		pr_warning("Warning: resend_igmp (%d) should be between "
-			   "0 and 255, resetting to %d\n",
-			   resend_igmp, BOND_DEFAULT_RESEND_IGMP);
-		resend_igmp = BOND_DEFAULT_RESEND_IGMP;
-	}
-
 	/* reset values for TLB/ALB */
 	if ((bond_mode == BOND_MODE_TLB) ||
 	    (bond_mode == BOND_MODE_ALB)) {
@@ -5259,7 +5204,6 @@ static int bond_check_params(struct bond_params *params)
 	params->fail_over_mac = fail_over_mac_value;
 	params->tx_queues = tx_queues;
 	params->all_slaves_active = all_slaves_active;
-	params->resend_igmp = resend_igmp;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);
