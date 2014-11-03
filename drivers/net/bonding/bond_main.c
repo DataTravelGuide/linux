@@ -432,7 +432,7 @@ static void bond_vlan_rx_register(struct net_device *bond_dev,
 static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
+	struct slave *slave, *rollback_slave;
 	int res;
 
 	bond_for_each_slave(bond, slave) {
@@ -455,10 +455,16 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 	return;
 
 unwind:
-	/* unwind from the slave that failed */
-	bond_for_each_slave_continue_reverse(bond, slave) {
-		struct net_device *slave_dev = slave->dev;
-		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
+	/* unwind to the slave that failed */
+	bond_for_each_slave(bond, rollback_slave) {
+		struct net_device *slave_dev;
+		const struct net_device_ops *slave_ops;
+
+		if (rollback_slave == slave)
+			break;
+
+		slave_dev = rollback_slave->dev;
+		slave_ops = slave_dev->netdev_ops;
 
 		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 		    slave_ops->ndo_vlan_rx_kill_vid)
@@ -3807,7 +3813,7 @@ static int bond_neigh_setup(struct net_device *dev,
 static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
+	struct slave *slave, *rollback_slave;
 	int res = 0;
 
 	pr_debug("bond=%p, name=%s, new_mtu=%d\n", bond,
@@ -3856,13 +3862,16 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 
 unwind:
 	/* unwind from head to the slave that failed */
-	bond_for_each_slave_continue_reverse(bond, slave) {
+	bond_for_each_slave(bond, rollback_slave) {
 		int tmp_res;
 
-		tmp_res = dev_set_mtu(slave->dev, bond_dev->mtu);
+		if (rollback_slave == slave)
+			break;
+
+		tmp_res = dev_set_mtu(rollback_slave->dev, bond_dev->mtu);
 		if (tmp_res) {
 			pr_debug("unwind err %d dev %s\n",
-				 tmp_res, slave->dev->name);
+				 tmp_res, rollback_slave->dev->name);
 		}
 	}
 
@@ -3879,8 +3888,8 @@ unwind:
 static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave, *rollback_slave;
 	struct sockaddr *sa = addr, tmp_sa;
-	struct slave *slave;
 	int res = 0;
 
 	if (bond->params.mode == BOND_MODE_ALB)
@@ -3946,13 +3955,16 @@ unwind:
 	tmp_sa.sa_family = bond_dev->type;
 
 	/* unwind from head to the slave that failed */
-	bond_for_each_slave_continue_reverse(bond, slave) {
+	bond_for_each_slave(bond, rollback_slave) {
 		int tmp_res;
 
-		tmp_res = dev_set_mac_address(slave->dev, &tmp_sa);
+		if (rollback_slave == slave)
+			break;
+
+		tmp_res = dev_set_mac_address(rollback_slave->dev, &tmp_sa);
 		if (tmp_res) {
 			pr_debug("unwind err %d dev %s\n",
-				 tmp_res, slave->dev->name);
+				 tmp_res, rollback_slave->dev->name);
 		}
 	}
 
