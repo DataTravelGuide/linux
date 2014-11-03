@@ -3476,6 +3476,27 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 	return bond_xmit_hash_policy_l2(skb, count);
 }
 
+int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count)
+{
+	int slave = 0;
+
+	switch (bond->params.xmit_policy) {
+	case BOND_XMIT_POLICY_LAYER2:
+		slave = bond_xmit_hash_policy_l2(skb, count);
+		break;
+	case BOND_XMIT_POLICY_LAYER34:
+		slave = bond_xmit_hash_policy_l34(skb, count);
+		break;
+	case BOND_XMIT_POLICY_LAYER23:
+		slave = bond_xmit_hash_policy_l23(skb, count);
+		break;
+	default:
+		break;
+	}
+
+	return slave % count;
+}
+
 /*-------------------------- Device entry points ----------------------------*/
 
 static void bond_work_init_all(struct bonding *bond)
@@ -4072,8 +4093,7 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 	return NETDEV_TX_OK;
 }
 
-/*
- * In bond_xmit_xor() , we determine the output device by using a pre-
+/* In bond_xmit_xor() , we determine the output device by using a pre-
  * determined xmit_hash_policy(), If the selected device is not enabled,
  * find the next active slave.
  */
@@ -4081,8 +4101,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
-	bond_xmit_slave_id(bond, skb,
-			   bond->xmit_hash_policy(skb, bond->slave_cnt));
+	bond_xmit_slave_id(bond, skb, bond_xmit_hash(bond, skb, bond->slave_cnt));
 
 	return NETDEV_TX_OK;
 }
@@ -4118,22 +4137,6 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 }
 
 /*------------------------- Device initialization ---------------------------*/
-
-static void bond_set_xmit_hash_policy(struct bonding *bond)
-{
-	switch (bond->params.xmit_policy) {
-	case BOND_XMIT_POLICY_LAYER23:
-		bond->xmit_hash_policy = bond_xmit_hash_policy_l23;
-		break;
-	case BOND_XMIT_POLICY_LAYER34:
-		bond->xmit_hash_policy = bond_xmit_hash_policy_l34;
-		break;
-	case BOND_XMIT_POLICY_LAYER2:
-	default:
-		bond->xmit_hash_policy = bond_xmit_hash_policy_l2;
-		break;
-	}
-}
 
 /*
  * Lookup the slave that corresponds to a qid
@@ -4245,38 +4248,6 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-/*
- * set bond mode specific net device operations
- */
-void bond_set_mode_ops(struct bonding *bond, int mode)
-{
-	struct net_device *bond_dev = bond->dev;
-
-	switch (mode) {
-	case BOND_MODE_ROUNDROBIN:
-		break;
-	case BOND_MODE_ACTIVEBACKUP:
-		break;
-	case BOND_MODE_XOR:
-		bond_set_xmit_hash_policy(bond);
-		break;
-	case BOND_MODE_BROADCAST:
-		break;
-	case BOND_MODE_8023AD:
-		bond_set_xmit_hash_policy(bond);
-		break;
-	case BOND_MODE_ALB:
-		/* FALLTHRU */
-	case BOND_MODE_TLB:
-		break;
-	default:
-		/* Should never happen, mode already checked */
-		pr_err("%s: Error: Unknown bonding mode %d\n",
-		       bond_dev->name, mode);
-		break;
-	}
-}
-
 static int bond_ethtool_get_settings(struct net_device *bond_dev,
 				     struct ethtool_cmd *ecmd)
 {
@@ -4384,7 +4355,6 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->netdev_ops = &bond_netdev_ops;
 	set_netdev_ops_ext(bond_dev, &bond_netdev_ops_ext);
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
-	bond_set_mode_ops(bond, bond->params.mode);
 
 	bond_dev->destructor = bond_destructor;
 
