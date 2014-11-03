@@ -1641,6 +1641,22 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	return ret;
 }
 
+static int bond_master_upper_dev_link(struct net_device *bond_dev,
+				      struct net_device *slave_dev)
+{
+	int err;
+
+	err = netdev_set_master(slave_dev, bond_dev);
+
+	return err;
+}
+
+static void bond_upper_dev_unlink(struct net_device *bond_dev,
+				  struct net_device *slave_dev)
+{
+	netdev_set_master(slave_dev, NULL);
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
@@ -1800,9 +1816,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 	}
 
-	res = netdev_set_master(slave_dev, bond_dev);
+	res = bond_master_upper_dev_link(bond_dev, slave_dev);
 	if (res) {
-		pr_debug("Error %d calling netdev_set_master\n", res);
+		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
 		goto err_restore_mac;
 	}
 
@@ -2037,7 +2053,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_unset_master:
-	netdev_set_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 err_restore_mac:
 	if (!bond->params.fail_over_mac) {
@@ -2226,7 +2242,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		netif_addr_unlock_bh(bond_dev);
 	}
 
-	netdev_set_master(slave_dev, NULL);
+	bond_upper_dev_unlink(bond_dev, slave_dev);
 
 	slave_disable_netpoll(slave);
 
@@ -2341,7 +2357,7 @@ static int bond_release_all(struct net_device *bond_dev)
 			netif_addr_unlock_bh(bond_dev);
 		}
 
-		netdev_set_master(slave_dev, NULL);
+		bond_upper_dev_unlink(bond_dev, slave_dev);
 
 		slave_disable_netpoll(slave);
 
@@ -2405,7 +2421,7 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 	if (!USES_PRIMARY(bond->params.mode))
 		return -EINVAL;
 
-	/* Verify that master_dev is indeed the master of slave_dev */
+	/* Verify that bond_dev is indeed the master of slave_dev */
 	if (!(slave_dev->flags & IFF_SLAVE) || (slave_dev->master != bond_dev))
 		return -EINVAL;
 
@@ -3405,36 +3421,32 @@ static int bond_master_netdev_event(unsigned long event,
 static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
-	struct net_device *bond_dev = slave_dev->master;
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave = NULL;
+	struct slave *slave = bond_slave_get_rtnl(slave_dev);
+	struct bonding *bond = slave->bond;
+	struct net_device *bond_dev = slave->bond->dev;
+	u32 old_speed;
+	u8 old_duplex;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		if (bond_dev) {
-			if (bond->setup_by_slave)
-				bond_release_and_destroy(bond_dev, slave_dev);
-			else
-				bond_release(bond_dev, slave_dev);
-		}
+		if (bond->setup_by_slave)
+			bond_release_and_destroy(bond_dev, slave_dev);
+		else
+			bond_release(bond_dev, slave_dev);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		slave = bond_get_slave_by_dev(bond, slave_dev);
-		if (slave) {
-			u32 old_speed = slave->speed;
-			u8  old_duplex = slave->duplex;
+		old_speed = slave->speed;
+		old_duplex = slave->duplex;
 
-			bond_update_speed_duplex(slave);
+		bond_update_speed_duplex(slave);
 
-			if (bond->params.mode == BOND_MODE_8023AD) {
-				if (old_speed != slave->speed)
-					bond_3ad_adapter_speed_changed(slave);
-				if (old_duplex != slave->duplex)
-					bond_3ad_adapter_duplex_changed(slave);
-			}
+		if (bond->params.mode == BOND_MODE_8023AD) {
+			if (old_speed != slave->speed)
+				bond_3ad_adapter_speed_changed(slave);
+			if (old_duplex != slave->duplex)
+				bond_3ad_adapter_duplex_changed(slave);
 		}
-
 		break;
 	case NETDEV_DOWN:
 		/*
