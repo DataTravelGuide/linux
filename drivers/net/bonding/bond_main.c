@@ -3315,12 +3315,12 @@ static struct notifier_block bond_netdev_notifier = {
 /*
  * Hash for the output device based upon layer 2 data
  */
-static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
+static u32 bond_xmit_hash_policy_l2(struct sk_buff *skb)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 
 	if (skb_headlen(skb) >= offsetof(struct ethhdr, h_proto))
-		return (data->h_dest[5] ^ data->h_source[5]) % count;
+		return (data->h_dest[5] ^ data->h_source[5]);
 
 	return 0;
 }
@@ -3329,7 +3329,7 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
  * Hash for the output device based upon layer 2 and layer 3 data. If
  * the packet is not IP, fall back on bond_xmit_hash_policy_l2()
  */
-static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
+static u32 bond_xmit_hash_policy_l23(struct sk_buff *skb)
 {
 	const struct ethhdr *data;
 	const struct iphdr *iph;
@@ -3342,7 +3342,7 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 		iph = ip_hdr(skb);
 		data = (struct ethhdr *)skb->data;
 		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
-			(data->h_dest[5] ^ data->h_source[5])) % count;
+			(data->h_dest[5] ^ data->h_source[5]));
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
 		   pskb_network_may_pull(skb, sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
@@ -3351,10 +3351,10 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 		d = &ipv6h->daddr.s6_addr32[0];
 		v6hash = (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
 		v6hash ^= (v6hash >> 24) ^ (v6hash >> 16) ^ (v6hash >> 8);
-		return (v6hash ^ data->h_dest[5] ^ data->h_source[5]) % count;
+		return (v6hash ^ data->h_dest[5] ^ data->h_source[5]);
 	}
 
-	return bond_xmit_hash_policy_l2(skb, count);
+	return bond_xmit_hash_policy_l2(skb);
 }
 
 /*
@@ -3362,7 +3362,7 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
  * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
  * altogether not IP, fall back on bond_xmit_hash_policy_l2()
  */
-static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
+static u32 bond_xmit_hash_policy_l34(struct sk_buff *skb)
 {
 	u32 layer4_xor = 0;
 	const struct iphdr *iph;
@@ -3385,7 +3385,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 				layer4_xor = ntohs(l4[0] ^ l4[1]);
 		}
 		return (layer4_xor ^
-			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
+			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff));
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
 		   pskb_may_pull(skb, noff + sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
@@ -3401,31 +3401,31 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 		layer4_xor ^= (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
 		layer4_xor ^= (layer4_xor >> 24) ^ (layer4_xor >> 16) ^
 			       (layer4_xor >> 8);
-		return layer4_xor % count;
+		return layer4_xor;
 	}
 
-	return bond_xmit_hash_policy_l2(skb, count);
+	return bond_xmit_hash_policy_l2(skb);
 }
 
-int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count)
+u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 {
-	int slave = 0;
+	u32 hash = 0;
 
 	switch (bond->params.xmit_policy) {
 	case BOND_XMIT_POLICY_LAYER2:
-		slave = bond_xmit_hash_policy_l2(skb, count);
+		hash = bond_xmit_hash_policy_l2(skb);
 		break;
 	case BOND_XMIT_POLICY_LAYER34:
-		slave = bond_xmit_hash_policy_l34(skb, count);
+		hash = bond_xmit_hash_policy_l34(skb);
 		break;
 	case BOND_XMIT_POLICY_LAYER23:
-		slave = bond_xmit_hash_policy_l23(skb, count);
+		hash = bond_xmit_hash_policy_l23(skb);
 		break;
 	default:
 		break;
 	}
 
-	return slave % count;
+	return hash;
 }
 
 /*-------------------------- Device entry points ----------------------------*/
@@ -4054,7 +4054,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
-	bond_xmit_slave_id(bond, skb, bond_xmit_hash(bond, skb, bond->slave_cnt));
+	bond_xmit_slave_id(bond, skb, bond_xmit_hash(bond, skb) % bond->slave_cnt);
 
 	return NETDEV_TX_OK;
 }
