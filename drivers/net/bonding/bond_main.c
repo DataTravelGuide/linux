@@ -4567,8 +4567,6 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	list_del(&bond->bond_list);
 
-	bond_work_cancel_all(bond);
-
 	bond_debug_unregister(bond);
 
 	netif_addr_lock_bh(bond_dev);
