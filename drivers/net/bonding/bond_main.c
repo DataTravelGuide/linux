@@ -1144,21 +1144,25 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	if (bond_is_lb(bond)) {
 		bond_alb_handle_active_change(bond, new_active);
 		if (old_active)
-			bond_set_slave_inactive_flags(old_active);
+			bond_set_slave_inactive_flags(old_active,
+						      BOND_SLAVE_NOTIFY_NOW);
 		if (new_active)
-			bond_set_slave_active_flags(new_active);
+			bond_set_slave_active_flags(new_active,
+						    BOND_SLAVE_NOTIFY_NOW);
 	} else {
 		rcu_assign_pointer(bond->curr_active_slave, new_active);
 	}
 
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP) {
 		if (old_active)
-			bond_set_slave_inactive_flags(old_active);
+			bond_set_slave_inactive_flags(old_active,
+						      BOND_SLAVE_NOTIFY_NOW);
 
 		if (new_active) {
 			bool should_notify_peers = false;
 
-			bond_set_slave_active_flags(new_active);
+			bond_set_slave_active_flags(new_active,
+						    BOND_SLAVE_NOTIFY_NOW);
 
 			if (bond->params.fail_over_mac)
 				bond_do_fail_over_mac(bond, new_active,
@@ -1810,14 +1814,15 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
-		bond_set_slave_inactive_flags(new_slave);
+		bond_set_slave_inactive_flags(new_slave,
+					      BOND_SLAVE_NOTIFY_NOW);
 		break;
 	case BOND_MODE_8023AD:
 		/* in 802.3ad mode, the internal mechanism
 		 * will activate the slaves in the selected
 		 * aggregator
 		 */
-		bond_set_slave_inactive_flags(new_slave);
+		bond_set_slave_inactive_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
 		/* if this is the first slave */
 		if (!prev_slave) {
 			SLAVE_AD_INFO(new_slave).id = 1;
@@ -1835,7 +1840,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
 		bond_set_active_slave(new_slave);
-		bond_set_slave_inactive_flags(new_slave);
+		bond_set_slave_inactive_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
 		break;
 	default:
 		pr_debug("This slave is always active in trunk mode\n");
@@ -2377,7 +2382,8 @@ static void bond_miimon_commit(struct bonding *bond)
 
 			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
 			    bond->params.mode == BOND_MODE_8023AD)
-				bond_set_slave_inactive_flags(slave);
+				bond_set_slave_inactive_flags(slave,
+							      BOND_SLAVE_NOTIFY_NOW);
 
 			pr_info("%s: link status definitely down for interface %s, disabling it\n",
 				bond->dev->name, slave->dev->name);
@@ -2924,7 +2930,8 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				slave->link = BOND_LINK_UP;
 				if (bond->current_arp_slave) {
 					bond_set_slave_inactive_flags(
-						bond->current_arp_slave);
+						bond->current_arp_slave,
+						BOND_SLAVE_NOTIFY_NOW);
 					bond->current_arp_slave = NULL;
 				}
 
@@ -2944,7 +2951,8 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				slave->link_failure_count++;
 
 			slave->link = BOND_LINK_DOWN;
-			bond_set_slave_inactive_flags(slave);
+			bond_set_slave_inactive_flags(slave,
+						      BOND_SLAVE_NOTIFY_NOW);
 
 			pr_info("%s: link status definitely down for interface %s, disabling it\n",
 				bond->dev->name, slave->dev->name);
@@ -3019,7 +3027,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 		}
 	}
 
-	bond_set_slave_inactive_flags(curr_arp_slave);
+	bond_set_slave_inactive_flags(curr_arp_slave, BOND_SLAVE_NOTIFY_NOW);
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (!found && !before && IS_UP(slave->dev))
@@ -3039,7 +3047,8 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 			if (slave->link_failure_count < UINT_MAX)
 				slave->link_failure_count++;
 
-			bond_set_slave_inactive_flags(slave);
+			bond_set_slave_inactive_flags(slave,
+						      BOND_SLAVE_NOTIFY_NOW);
 
 			pr_info("%s: backup interface %s is now down\n",
 				bond->dev->name, slave->dev->name);
@@ -3057,7 +3066,7 @@ static bool bond_ab_arp_probe(struct bonding *bond)
 	}
 
 	new_slave->link = BOND_LINK_BACK;
-	bond_set_slave_active_flags(new_slave);
+	bond_set_slave_active_flags(new_slave, BOND_SLAVE_NOTIFY_NOW);
 	bond_arp_send_all(bond, new_slave);
 	new_slave->last_link_up = jiffies;
 	rcu_assign_pointer(bond->current_arp_slave, new_slave);
@@ -3441,9 +3450,11 @@ static int bond_open(struct net_device *bond_dev)
 		bond_for_each_slave(bond, slave, iter) {
 			if ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
 				&& (slave != bond->curr_active_slave)) {
-				bond_set_slave_inactive_flags(slave);
+				bond_set_slave_inactive_flags(slave,
+							      BOND_SLAVE_NOTIFY_NOW);
 			} else {
-				bond_set_slave_active_flags(slave);
+				bond_set_slave_active_flags(slave,
+							    BOND_SLAVE_NOTIFY_NOW);
 			}
 		}
 		read_unlock(&bond->curr_slave_lock);
