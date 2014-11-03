@@ -448,9 +448,11 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
 		struct netpoll *np = bond->dev->npinfo->netpoll;
 		slave_dev->npinfo = bond->dev->npinfo;
+		np->real_dev = np->dev = skb->dev;
 		slave_dev->priv_flags |= IFF_IN_NETPOLL;
-		netpoll_send_skb_on_dev(np, skb, slave_dev);
+		netpoll_send_skb(np, skb);
 		slave_dev->priv_flags &= ~IFF_IN_NETPOLL;
+		np->dev = bond->dev;
 	} else
 #endif
 		dev_queue_xmit(skb);
@@ -1428,14 +1430,9 @@ static bool slaves_support_netpoll(struct net_device *bond_dev)
 
 static void bond_poll_controller(struct net_device *bond_dev)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
-	int i;
-
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev && IS_UP(slave->dev))
-			netpoll_poll_dev(slave->dev);
-	}
+	struct net_device *dev = bond_dev->npinfo->netpoll->real_dev;
+	if (dev != bond_dev)
+		netpoll_poll_dev(dev);
 }
 
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
