@@ -845,24 +845,6 @@ static void bond_mc_delete(struct bonding *bond, void *addr, int alen)
 	}
 }
 
-
-static void __bond_resend_igmp_join_requests(struct net_device *dev)
-{
-	struct in_device *in_dev;
-	struct ip_mc_list *im;
-
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev) {
-		read_lock(&in_dev->mc_list_lock);
-		for (im = in_dev->mc_list; im; im = im->next)
-			ip_mc_rejoin_group(im);
-		read_unlock(&in_dev->mc_list_lock);
-	}
-
-	rcu_read_unlock();
-}
-
 /*
  * Totally destroys the mc_list in bond
  */
@@ -914,37 +896,12 @@ static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct net_device *bond_dev, *vlan_dev, *master_dev;
-	struct vlan_entry *vlan;
-
-	read_lock(&bond->lock);
-	rcu_read_lock();
-
-	bond_dev = bond->dev;
-
-	/* rejoin all groups on bond device */
-	__bond_resend_igmp_join_requests(bond_dev);
-
-	/*
-	 * if bond is enslaved to a bridge,
-	 * then rejoin all groups on its master
-	 */
-	rcu_read_lock();
-	master_dev = br_get_br_dev_for_port_rcu(bond_dev);
-	if (master_dev)
-		__bond_resend_igmp_join_requests(master_dev);
-	rcu_read_unlock();
-
-	/* rejoin all groups on vlan devices */
-	if (bond->vlgrp) {
-		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-			vlan_dev = vlan_group_get_device(bond->vlgrp,
-							 vlan->vlan_id);
-			if (vlan_dev)
-				__bond_resend_igmp_join_requests(vlan_dev);
-		}
+	if (!rtnl_trylock()) {
+		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
+		return;
 	}
-	rcu_read_unlock();
+	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
+	rtnl_unlock();
 
 	/* We use curr_slave_lock to protect against concurrent access to
 	 * igmp_retrans from multiple running instances of this function and
@@ -3455,6 +3412,10 @@ static int bond_slave_netdev_event(unsigned long event,
 		break;
 	case NETDEV_FEAT_CHANGE:
 		bond_compute_features(bond);
+		break;
+	case NETDEV_RESEND_IGMP:
+		/* Propagate to master device */
+		call_netdevice_notifiers(event, slave->bond->dev);
 		break;
 	default:
 		break;
