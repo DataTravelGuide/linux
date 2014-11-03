@@ -173,6 +173,7 @@ struct bond_params {
 	int resend_igmp;
 	int lp_interval;
 	int packets_per_slave;
+	int tlb_dynamic_lb;
 };
 
 struct bond_parm_tbl {
