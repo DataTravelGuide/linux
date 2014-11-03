@@ -1575,22 +1575,21 @@ static bool bond_should_deliver_exact_match(struct sk_buff *skb,
 
 static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
 {
-	struct slave *slave;
+	struct net_device *slave_dev;
 	struct net_device *bond_dev;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return NULL;
-
-	slave = bond_slave_get_rcu(skb->dev);
-	bond_dev = ACCESS_ONCE(slave->dev->master);
+	slave_dev = skb->dev;
+	bond_dev = ACCESS_ONCE(slave_dev->master);
 	if (unlikely(!bond_dev))
 		return skb;
 
 	if (bond_dev->priv_flags & IFF_MASTER_ARPMON)
-		slave->dev->last_rx = jiffies;
+		slave_dev->last_rx = jiffies;
 
-	if (bond_should_deliver_exact_match(skb, slave->dev, bond_dev)) {
+	if (bond_should_deliver_exact_match(skb, slave_dev, bond_dev)) {
 		skb->deliver_no_wcard = 1;
 		return skb;
 	}
@@ -1804,8 +1803,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		pr_debug("Error %d calling netdev_set_master\n", res);
 		goto err_restore_mac;
 	}
-	res = netdev_rx_handler_register(slave_dev, bond_handle_frame,
-					 new_slave);
+	res = netdev_rx_handler_register(slave_dev, bond_handle_frame, NULL);
 	if (res) {
 		pr_debug("Error %d calling netdev_rx_handler_register\n", res);
 		goto err_unset_master;
@@ -2032,7 +2030,6 @@ err_close:
 
 err_unreg_rxhandler:
 	netdev_rx_handler_unregister(slave_dev);
-	synchronize_net();
 
 err_unset_master:
 	netdev_set_master(slave_dev, NULL);
@@ -2232,7 +2229,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	netdev_rx_handler_unregister(slave_dev);
-	synchronize_net();
 	netdev_set_master(slave_dev, NULL);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2381,7 +2377,6 @@ static int bond_release_all(struct net_device *bond_dev)
 		}
 
 		netdev_rx_handler_unregister(slave_dev);
-		synchronize_net();
 		netdev_set_master(slave_dev, NULL);
 
 		/* close slave before restoring its mac address */
