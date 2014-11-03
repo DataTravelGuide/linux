@@ -1644,10 +1644,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
-			else {
+			else
 				ether_setup(bond_dev);
-				netdev_extended(bond_dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
-			}
 
 			netdev_bonding_change(bond_dev, NETDEV_BONDING_NEWTYPE);
 		}
@@ -4915,7 +4913,6 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
 	bond_dev->priv_flags |= IFF_BONDING;
 	bond_dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
-	netdev_extended(bond_dev)->ext_priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	if (bond->params.arp_interval)
 		bond_dev->priv_flags |= IFF_MASTER_ARPMON;
