@@ -4183,7 +4183,7 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * If we risk deadlock from transmitting this in the
 	 * netpoll path, tell netpoll to queue the frame for later tx
 	 */
-	if (is_netpoll_tx_blocked(dev))
+	if (unlikely(is_netpoll_tx_blocked(dev)))
 		return NETDEV_TX_BUSY;
 
 	rcu_read_lock();
