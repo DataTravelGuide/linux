@@ -251,11 +251,7 @@ static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
 	INIT_LIST_HEAD(&vlan->vlan_list);
 	vlan->vlan_id = vlan_id;
 
-	write_lock_bh(&bond->lock);
-
-	list_add_tail(&vlan->vlan_list, &bond->vlan_list);
-
-	write_unlock_bh(&bond->lock);
+	list_add_tail_rcu(&vlan->vlan_list, &bond->vlan_list);
 
 	netdev_dbg(bond->dev, "added VLAN ID %d\n", vlan_id);
 
@@ -277,11 +273,10 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 	netdev_dbg(bond->dev, "vlan id %d\n", vlan_id);
 
 	block_netpoll_tx();
-	write_lock_bh(&bond->lock);
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (vlan->vlan_id == vlan_id) {
-			list_del(&vlan->vlan_list);
+			list_del_rcu(&vlan->vlan_list);
 
 			if (bond_is_lb(bond))
 				bond_alb_clear_vlan(bond, vlan_id);
@@ -289,6 +284,7 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 			netdev_dbg(bond->dev, "removed VLAN ID %d\n",
 				   vlan_id);
 
+			synchronize_rcu();
 			kfree(vlan);
 
 			res = 0;
@@ -299,7 +295,6 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 	netdev_dbg(bond->dev, "couldn't find VLAN ID %d\n", vlan_id);
 
 out:
-	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 	return res;
 }
@@ -354,9 +349,7 @@ static void bond_vlan_rx_register(struct net_device *bond_dev,
 	struct list_head *iter;
 	struct slave *slave;
 
-	write_lock_bh(&bond->lock);
 	bond->vlgrp = grp;
-	write_unlock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, iter) {
 		struct net_device *slave_dev = slave->dev;
@@ -457,10 +450,8 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 	struct vlan_entry *vlan;
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
-	write_lock_bh(&bond->lock);
-
 	if (!bond->vlgrp)
-		goto out;
+		return;
 
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    slave_ops->ndo_vlan_rx_register)
@@ -468,13 +459,10 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
 	    !(slave_ops->ndo_vlan_rx_add_vid))
-		goto out;
+		return;
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list)
 		slave_ops->ndo_vlan_rx_add_vid(slave_dev, vlan->vlan_id);
-
-out:
-	write_unlock_bh(&bond->lock);
 }
 
 static void bond_del_vlans_from_slave(struct bonding *bond,
@@ -484,10 +472,8 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
 
-	write_lock_bh(&bond->lock);
-
 	if (!bond->vlgrp)
-		goto out;
+		return;
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
 	    !(slave_ops->ndo_vlan_rx_kill_vid))
@@ -508,9 +494,6 @@ unreg:
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    slave_ops->ndo_vlan_rx_register)
 		slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
-
-out:
-	write_unlock_bh(&bond->lock);
 }
 
 /*------------------------------- Link status -------------------------------*/
@@ -1253,8 +1236,6 @@ void bond_select_active_slave(struct bonding *bond)
 
 /*
  * This function attaches the slave to the end of list.
- *
- * bond->lock held for writing by caller.
  */
 static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
 {
@@ -1268,8 +1249,6 @@ static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
  * Nothing is freed on return, structures are just unchained.
  * If any slave pointer in bond was pointing to <slave>,
  * it should be changed by the calling function.
- *
- * bond->lock held for writing by caller.
  */
 static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 {
@@ -2497,7 +2476,7 @@ static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 	if (ip == bond_confirm_addr(bond->dev, 0, ip))
 		return 1;
 
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+	list_for_each_entry_rcu(vlan, &bond->vlan_list, vlan_list) {
 		if (!bond->vlgrp)
 			continue;
 		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
@@ -2599,7 +2578,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		}
 
 		vlan_id = 0;
-		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+		list_for_each_entry_rcu(vlan, &bond->vlan_list, vlan_list) {
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
 			if (vlan_dev == rt->u.dst.dev) {
 				vlan_id = vlan->vlan_id;
@@ -4320,6 +4299,7 @@ static void bond_uninit(struct net_device *bond_dev)
 	struct vlan_entry *vlan, *tmp;
 	struct list_head *iter;
 	struct slave *slave;
+	LIST_HEAD(list);
 
 	bond_netpoll_cleanup(bond_dev);
 
@@ -4337,6 +4317,11 @@ static void bond_uninit(struct net_device *bond_dev)
 	netif_addr_unlock_bh(bond_dev);
 
 	list_for_each_entry_safe(vlan, tmp, &bond->vlan_list, vlan_list) {
+		list_del_rcu(&vlan->vlan_list);
+		list_add_tail_rcu(&vlan->vlan_list, &list);
+	}
+	synchronize_rcu();
+	list_for_each_entry_safe(vlan, tmp, &list, vlan_list) {
 		list_del(&vlan->vlan_list);
 		kfree(vlan);
 	}
