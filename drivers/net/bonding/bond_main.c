@@ -719,11 +719,11 @@ static int bond_set_promiscuity(struct bonding *bond, int inc)
 	int err = 0;
 
 	if (bond_uses_primary(bond)) {
+		struct slave *curr_active = bond_deref_active_protected(bond);
+
 		/* write lock already acquired */
-		if (bond->curr_active_slave) {
-			err = dev_set_promiscuity(bond->curr_active_slave->dev,
-						  inc);
-		}
+		if (curr_active)
+			err = dev_set_promiscuity(curr_active->dev, inc);
 	} else {
 		struct slave *slave;
 
@@ -745,11 +745,11 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
 	int err = 0;
 
 	if (bond_uses_primary(bond)) {
+		struct slave *curr_active = bond_deref_active_protected(bond);
+
 		/* write lock already acquired */
-		if (bond->curr_active_slave) {
-			err = dev_set_allmulti(bond->curr_active_slave->dev,
-					       inc);
-		}
+		if (curr_active)
+			err = dev_set_allmulti(curr_active->dev, inc);
 	} else {
 		struct slave *slave;
 
@@ -1028,7 +1028,7 @@ out:
 static bool bond_should_change_active(struct bonding *bond)
 {
 	struct slave *prim = bond->primary_slave;
-	struct slave *curr = bond->curr_active_slave;
+	struct slave *curr = bond_deref_active_protected(bond);
 
 	if (!prim || !curr || curr->link != BOND_LINK_UP)
 		return true;
@@ -1107,7 +1107,11 @@ static bool bond_should_notify_peers(struct bonding *bond)
  */
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 {
-	struct slave *old_active = bond->curr_active_slave;
+	struct slave *old_active;
+
+	old_active = rcu_dereference_protected(bond->curr_active_slave,
+					       !new_active ||
+					       lockdep_is_held(&bond->curr_slave_lock));
 
 	if (old_active == new_active)
 		return;
@@ -1236,7 +1240,7 @@ void bond_select_active_slave(struct bonding *bond)
 
 	old_active = bond->curr_active_slave;
 	best_slave = bond_find_best_slave(bond);
-	if (best_slave != bond->curr_active_slave) {
+	if (best_slave != bond_deref_active_protected(bond)) {
 		bond_change_active_slave(bond, best_slave);
 		bond_unicast_sync(bond, old_active, best_slave);
 		rv = bond_set_carrier(bond);
@@ -1882,7 +1886,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		 * anyway (it holds no special properties of the bond device),
 		 * so we can change it without calling change_active_interface()
 		 */
-		if (!bond->curr_active_slave && new_slave->link == BOND_LINK_UP)
+		if (!rcu_access_pointer(bond->curr_active_slave) &&
+		    new_slave->link == BOND_LINK_UP)
 			rcu_assign_pointer(bond->curr_active_slave, new_slave);
 
 		break;
@@ -1964,7 +1969,7 @@ err_detach:
 	bond_del_vlans_from_slave(bond, slave_dev);
 	if (bond->primary_slave == new_slave)
 		bond->primary_slave = NULL;
-	if (bond->curr_active_slave == new_slave) {
+	if (rcu_access_pointer(bond->curr_active_slave) == new_slave) {
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_unicast_sync(bond, bond->curr_active_slave, NULL);
@@ -2070,7 +2075,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 		bond_is_active_slave(slave) ? "active" : "backup",
 		slave_dev->name);
 
-	oldcurrent = bond->curr_active_slave;
+	oldcurrent = rcu_access_pointer(bond->curr_active_slave);
 
 	bond->current_arp_slave = NULL;
 
@@ -2251,7 +2256,7 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 
 /*-------------------------------- Monitoring -------------------------------*/
 
-
+/* called with rcu_read_lock() */
 static int bond_miimon_inspect(struct bonding *bond)
 {
 	int link_state, commit = 0;
@@ -2259,7 +2264,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 	struct slave *slave;
 	bool ignore_updelay;
 
-	ignore_updelay = !bond->curr_active_slave ? true : false;
+	ignore_updelay = !rcu_dereference(bond->curr_active_slave);
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		slave->new_link = BOND_LINK_NOCHANGE;
@@ -2419,7 +2424,7 @@ static void bond_miimon_commit(struct bonding *bond)
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_DOWN);
 
-			if (slave == bond->curr_active_slave)
+			if (slave == rcu_access_pointer(bond->curr_active_slave))
 				goto do_failover;
 
 			continue;
@@ -2764,7 +2769,7 @@ static void bond_loadbalance_arp_mon(struct work_struct *work)
 
 	rcu_read_lock();
 
-	oldcurrent = ACCESS_ONCE(bond->curr_active_slave);
+	oldcurrent = rcu_dereference(bond->curr_active_slave);
 	/* see if any of the previous devices are up now (i.e. they have
 	 * xmt and rcv traffic). the curr_active_slave does not come into
 	 * the picture unless it is null. also, slave->last_link_up is not
@@ -2955,8 +2960,8 @@ static void bond_ab_arp_commit(struct bonding *bond)
 
 		case BOND_LINK_UP:
 			trans_start = dev_trans_start(slave->dev);
-			if (bond->curr_active_slave != slave ||
-			    (!bond->curr_active_slave &&
+			if (rtnl_dereference(bond->curr_active_slave) != slave ||
+			    (!rtnl_dereference(bond->curr_active_slave) &&
 			     bond_time_in_interval(bond, trans_start, 1))) {
 				slave->link = BOND_LINK_UP;
 				if (bond->current_arp_slave) {
@@ -2969,7 +2974,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 				pr_info("%s: link status definitely up for interface %s\n",
 					bond->dev->name, slave->dev->name);
 
-				if (!bond->curr_active_slave ||
+				if (!rtnl_dereference(bond->curr_active_slave) ||
 				    (slave == bond->primary_slave))
 					goto do_failover;
 
@@ -2988,7 +2993,7 @@ static void bond_ab_arp_commit(struct bonding *bond)
 			pr_info("%s: link status definitely down for interface %s, disabling it\n",
 				bond->dev->name, slave->dev->name);
 
-			if (slave == bond->curr_active_slave) {
+			if (slave == rtnl_dereference(bond->curr_active_slave)) {
 				bond->current_arp_slave = NULL;
 				goto do_failover;
 			}
@@ -3481,8 +3486,8 @@ static int bond_open(struct net_device *bond_dev)
 	if (bond_has_slaves(bond)) {
 		read_lock(&bond->curr_slave_lock);
 		bond_for_each_slave(bond, slave, iter) {
-			if (bond_uses_primary(bond)
-				&& (slave != bond->curr_active_slave)) {
+			if (bond_uses_primary(bond) &&
+			    slave != rcu_access_pointer(bond->curr_active_slave)) {
 				bond_set_slave_inactive_flags(slave,
 							      BOND_SLAVE_NOTIFY_NOW);
 			} else {
