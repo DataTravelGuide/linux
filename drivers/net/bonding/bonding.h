@@ -237,6 +237,7 @@ struct bonding {
 	s8	 send_unsol_na;
 	s8	 setup_by_slave;
 	s8	 igmp_retrans;
+	struct   net_device_stats stats;
 #ifdef CONFIG_PROC_FS
 	struct   proc_dir_entry *proc_entry;
 	char     proc_file_name[IFNAMSIZ];
