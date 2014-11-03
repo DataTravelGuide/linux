@@ -416,6 +416,8 @@ void bond_debug_register(struct bonding *bond);
 void bond_debug_unregister(struct bonding *bond);
 void bond_debug_reregister(struct bonding *bond);
 const char *bond_mode_name(int mode);
+void bond_unicast_sync(struct bonding *bond, struct slave *old_active,
+		       struct slave *new_active);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */

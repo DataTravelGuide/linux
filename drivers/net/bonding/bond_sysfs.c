@@ -1242,6 +1242,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 						" slave.\n",
 						bond->dev->name,
 						slave->dev->name);
+					bond_unicast_sync(bond, old_active, new_active);
 					bond_change_active_slave(bond,
 								 new_active);
 				}

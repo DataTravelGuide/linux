@@ -970,21 +970,15 @@ static void bond_mc_list_flush(struct net_device *bond_dev,
 
 /*--------------------------- Active slave change ---------------------------*/
 
-/*
- * Update the mc list and multicast-related flags for the new and
- * old active slaves (if any) according to the multicast mode, and
- * promiscuous flags unconditionally.
+/* Update the hardware address list and promisc/allmulti for the new and
+ * old active slaves (if any).  Modes that are !USES_PRIMARY keep all
+ * slaves up date at all times; only the USES_PRIMARY modes need to call
+ * this function to swap these settings during a failover.
  */
-static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
-			 struct slave *old_active)
+static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
+			      struct slave *old_active)
 {
 	struct dev_mc_list *dmi;
-
-	if (!USES_PRIMARY(bond->params.mode))
-		/* nothing to do -  mc list is already up-to-date on
-		 * all slaves
-		 */
-		return;
 
 	if (old_active) {
 		if (bond->dev->flags & IFF_PROMISC)
@@ -1230,7 +1224,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	}
 
 	if (USES_PRIMARY(bond->params.mode))
-		bond_mc_swap(bond, new_active, old_active);
+		bond_hw_addr_swap(bond, new_active, old_active);
 
 	if (bond_is_lb(bond)) {
 		bond_alb_handle_active_change(bond, new_active);
@@ -1287,6 +1281,28 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	}
 }
 
+/* Sync bond's unicast list to the new active slave in USES_PRIMARY modes */
+void bond_unicast_sync(struct bonding *bond, struct slave *old_active,
+		       struct slave *new_active)
+{
+	if (!USES_PRIMARY(bond->params.mode))
+		return;
+
+	ASSERT_RTNL();
+
+	write_unlock_bh(&bond->curr_slave_lock);
+	read_unlock(&bond->lock);
+	if (old_active)
+		dev_unicast_unsync(old_active->dev, bond->dev);
+	if (new_active) {
+		netif_addr_lock_bh(bond->dev);
+		dev_unicast_sync(new_active->dev, bond->dev);
+		netif_addr_unlock_bh(bond->dev);
+	}
+	read_lock(&bond->lock);
+	write_lock_bh(&bond->curr_slave_lock);
+}
+
 /**
  * bond_select_active_slave - select a new active slave, if needed
  * @bond: our bonding struct
@@ -1300,12 +1316,14 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
  */
 void bond_select_active_slave(struct bonding *bond)
 {
-	struct slave *best_slave;
+	struct slave *best_slave, *old_active;
 	int rv;
 
+	old_active = bond->curr_active_slave;
 	best_slave = bond_find_best_slave(bond);
 	if (best_slave != bond->curr_active_slave) {
 		bond_change_active_slave(bond, best_slave);
+		bond_unicast_sync(bond, old_active, best_slave);
 		rv = bond_set_carrier(bond);
 		if (!rv)
 			return;
@@ -2210,6 +2228,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
 
+		bond_unicast_sync(bond, oldcurrent, NULL);
 		bond_select_active_slave(bond);
 
 		write_unlock_bh(&bond->curr_slave_lock);
@@ -2365,6 +2384,7 @@ static int bond_ioctl_change_active(struct net_device *bond_dev, struct net_devi
 		block_netpoll_tx();
 		write_lock_bh(&bond->curr_slave_lock);
 		bond_change_active_slave(bond, new_active);
+		bond_unicast_sync(bond, old_active, new_active);
 		write_unlock_bh(&bond->curr_slave_lock);
 		unblock_netpoll_tx();
 	} else
@@ -3810,10 +3830,11 @@ static void bond_change_rx_flags(struct net_device *bond_dev, int change)
 				  bond_dev->flags & IFF_ALLMULTI ? 1 : -1);
 }
 
-static void bond_set_multicast_list(struct net_device *bond_dev)
+static void bond_set_rx_mode(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct dev_mc_list *dmi;
+	struct slave *slave;
 
 	read_lock(&bond->lock);
 
@@ -3827,6 +3848,14 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	for (dmi = bond->mc_list; dmi; dmi = dmi->next) {
 		if (!bond_mc_list_find_dmi(dmi, bond_dev->mc_list))
 			bond_mc_delete(bond, dmi->dmi_addr, dmi->dmi_addrlen);
+	}
+
+	if (USES_PRIMARY(bond->params.mode)) {
+		read_lock(&bond->curr_slave_lock);
+		slave = bond->curr_active_slave;
+		if (slave)
+			dev_unicast_sync(slave->dev, bond_dev);
+		read_unlock(&bond->curr_slave_lock);
 	}
 
 	/* save master's multicast list */
@@ -4438,7 +4467,7 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_select_queue	= bond_select_queue,
 	.ndo_do_ioctl		= bond_do_ioctl,
 	.ndo_change_rx_flags	= bond_change_rx_flags,
-	.ndo_set_rx_mode	= bond_set_multicast_list,
+	.ndo_set_rx_mode	= bond_set_rx_mode,
 	.ndo_change_mtu		= bond_change_mtu,
 	.ndo_set_mac_address 	= bond_set_mac_address,
 	.ndo_neigh_setup	= bond_neigh_setup,
