@@ -1278,8 +1278,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 					bond->dev->name,
 					slave->dev->name);
 				goto out;
-			}
-			else {
+			} else {
 				if ((new_active) &&
 				    (old_active) &&
 				    (new_active->link == BOND_LINK_UP) &&
@@ -1291,8 +1290,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 					bond_unicast_sync(bond, old_active, new_active);
 					bond_change_active_slave(bond,
 								 new_active);
-				}
-				else {
+				} else {
 					pr_info("%s: Could not set %s as"
 						" active slave; either %s is"
 						" down or the link is down.\n",
