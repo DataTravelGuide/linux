@@ -1563,7 +1563,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	int link_reporting;
 	int old_features = bond_dev->features;
 	int res = 0;
-	u32 flags, orig_flags;
 
 	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
 		slave_ops->ndo_do_ioctl == NULL) {
@@ -1583,20 +1582,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (slave_dev->flags & IFF_SLAVE) {
 		pr_debug("Error, Device was already enslaved\n");
 		return -EBUSY;
-	}
-
-	/*
-	 * Sync the slaves vlan state with the bonds vlan state
-	 */
-	if (slave_dev->ethtool_ops->get_flags &&
-	    slave_dev->ethtool_ops->set_flags) {
-		orig_flags = slave_dev->ethtool_ops->get_flags(slave_dev);	
-		if (bond_dev->features & NETIF_F_LRO)
-			flags = orig_flags | NETIF_F_LRO;
-		else
-			flags = orig_flags & ~NETIF_F_LRO;
-		if (flags != orig_flags)
-			slave_dev->ethtool_ops->set_flags(slave_dev, flags);
 	}
 
 	/* vlan challenged mutual exclusion */
@@ -4855,36 +4840,6 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 	snprintf(drvinfo->fw_version, 32, "%d", BOND_ABI_VERSION);
 }
 
-static int bond_ethtool_set_flags(struct net_device *dev, u32 flags)
-{
-	struct bonding *bond = netdev_priv(dev);
-	struct slave *slave;
-	u32 dflags, ndflags;
-	int i;
-
-	/*
-	 * The only flag we're willing to toggle here is the LRO flag
-	 */
-	if ((flags & ~ETH_FLAG_LRO) != (dev->features & ~ETH_FLAG_LRO))
-		return -EOPNOTSUPP;
-
-	bond_for_each_slave(bond, slave, i) {
-		if (!slave->dev->ethtool_ops->get_flags)
-			continue;
-		if (!slave->dev->ethtool_ops->set_flags)
-			continue;
-		dflags = slave->dev->ethtool_ops->get_flags(slave->dev);
-		if (flags & ETH_FLAG_LRO)
-			ndflags = dflags | ETH_FLAG_LRO;
-		else
-			ndflags = dflags & ~ETH_FLAG_LRO;
-		if (ndflags != dflags)
-			slave->dev->ethtool_ops->set_flags(slave->dev, ndflags);
-	}
-
-	return 0;
-}
-
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -4893,7 +4848,6 @@ static const struct ethtool_ops bond_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.get_ufo		= ethtool_op_get_ufo,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= bond_ethtool_set_flags,
 };
 
 static const struct net_device_ops bond_netdev_ops = {
@@ -4968,11 +4922,6 @@ static void bond_setup(struct net_device *bond_dev)
 	/* don't acquire bond device's netif_tx_lock when
 	 * transmitting */
 	bond_dev->features |= NETIF_F_LLTX;
-
-	/*
-	 * Mark bond as supporting LRO
-	 */
-	bond_dev->features |= NETIF_F_LRO;
 
 	/* By default, we declare the bond to be fully
 	 * VLAN hardware accelerated capable. Special
