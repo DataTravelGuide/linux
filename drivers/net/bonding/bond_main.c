@@ -1806,7 +1806,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	write_lock_bh(&bond->lock);
 
 	prev_slave = bond_last_slave(bond);
-	bond_attach_slave(bond, new_slave);
 
 	new_slave->delay = 0;
 	new_slave->link_failure_count = 0;
@@ -1964,7 +1963,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		pr_debug("Error %d calling bond_master_upper_dev_link\n", res);
 		goto err_unregister;
 	}
-
+	bond_attach_slave(bond, new_slave);
 
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
@@ -1989,7 +1988,6 @@ err_detach:
 	}
 	bond_del_vlans_from_slave(bond, slave_dev);
 	write_lock_bh(&bond->lock);
-	bond_detach_slave(bond, new_slave);
 	if (bond->primary_slave == new_slave)
 		bond->primary_slave = NULL;
 	if (bond->curr_active_slave == new_slave) {
@@ -2080,6 +2078,8 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	write_unlock_bh(&bond->lock);
 
+	/* release the slave from its bond */
+	bond_detach_slave(bond, slave);
 	bond_upper_dev_unlink(bond_dev, slave_dev);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
@@ -2103,9 +2103,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	oldcurrent = bond->curr_active_slave;
 
 	bond->current_arp_slave = NULL;
-
-	/* release the slave from its bond */
-	bond_detach_slave(bond, slave);
 
 	if (!all && !bond->params.fail_over_mac) {
 		if (ether_addr_equal(bond_dev->dev_addr, slave->perm_hwaddr) &&
