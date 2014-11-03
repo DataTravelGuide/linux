@@ -1132,12 +1132,6 @@ void netdev_state_change(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_state_change);
 
-int netdev_bonding_change(struct net_device *dev, unsigned long event)
-{
-	return call_netdevice_notifiers(event, dev);
-}
-EXPORT_SYMBOL(netdev_bonding_change);
-
 /**
  *	dev_load 	- load a network module
  *	@net: the applicable net namespace
