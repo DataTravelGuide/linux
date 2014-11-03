@@ -2563,6 +2563,13 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		if (rv) {
 			pr_debug("%s: no route to arp_ip_target %pI4\n",
 				 bond->dev->name, &targets[i]);
+			/* there's no route to target - try to send arp
+			 * probe to generate any traffic (arp_validate=0)
+			 */
+			if (bond->params.arp_validate && net_ratelimit())
+				pr_warn("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
+					bond->dev->name, &targets[i]);
+			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i], 0, 0);
 			continue;
 		}
 
