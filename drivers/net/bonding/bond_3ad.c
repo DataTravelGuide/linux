@@ -2379,17 +2379,16 @@ int __bond_3ad_get_active_agg_info(struct bonding *bond,
 		}
 	}
 
-	if (aggregator) {
-		ad_info->aggregator_id = aggregator->aggregator_identifier;
-		ad_info->ports = aggregator->num_of_ports;
-		ad_info->actor_key = aggregator->actor_oper_aggregator_key;
-		ad_info->partner_key = aggregator->partner_oper_aggregator_key;
-		memcpy(ad_info->partner_system,
-		       aggregator->partner_system.mac_addr_value, ETH_ALEN);
-		return 0;
-	}
+	if (!aggregator)
+		return -1;
 
-	return -1;
+	ad_info->aggregator_id = aggregator->aggregator_identifier;
+	ad_info->ports = aggregator->num_of_ports;
+	ad_info->actor_key = aggregator->actor_oper_aggregator_key;
+	ad_info->partner_key = aggregator->partner_oper_aggregator_key;
+	memcpy(ad_info->partner_system,
+	       aggregator->partner_system.mac_addr_value, ETH_ALEN);
+	return 0;
 }
 
 /* Wrapper used to hold bond->lock so no slave manipulation can occur */
