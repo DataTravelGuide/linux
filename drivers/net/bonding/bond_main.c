@@ -4452,6 +4452,14 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= bond_vlan_rx_kill_vid,
 };
 
+static void bond_destructor(struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	if (bond->wq)
+		destroy_workqueue(bond->wq);
+	free_netdev(bond_dev);
+}
+
 static void bond_setup(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -4472,7 +4480,7 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 	bond_set_mode_ops(bond, bond->params.mode);
 
-	bond_dev->destructor = free_netdev;
+	bond_dev->destructor = bond_destructor;
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -4543,9 +4551,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	bond_work_cancel_all(bond);
 
 	bond_remove_proc_entry(bond);
-
-	if (bond->wq)
-		destroy_workqueue(bond->wq);
 
 	netif_addr_lock_bh(bond_dev);
 	bond_mc_list_destroy(bond);
@@ -4958,8 +4963,8 @@ int bond_create(struct net *net, const char *name)
 				bond_setup);
 	if (!bond_dev) {
 		pr_err("%s: eek! can't alloc netdev!\n", name);
-		res = -ENOMEM;
-		goto out;
+		rtnl_unlock();
+		return -ENOMEM;
 	}
 
 	dev_net_set(bond_dev, net);
@@ -4968,19 +4973,16 @@ int bond_create(struct net *net, const char *name)
 	if (!name) {
 		res = dev_alloc_name(bond_dev, "bond%d");
 		if (res < 0)
-			goto out_netdev;
+			goto out;
 	}
 
 	res = register_netdevice(bond_dev);
-	if (res < 0)
-		goto out_netdev;
 
 out:
 	rtnl_unlock();
+	if (res < 0)
+		bond_destructor(bond_dev);
 	return res;
-out_netdev:
-	free_netdev(bond_dev);
-	goto out;
 }
 
 static int __net_init bond_net_init(struct net *net)
