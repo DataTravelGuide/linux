@@ -447,9 +447,6 @@ int bond_create_slave_symlinks(struct net_device *master, struct net_device *sla
 void bond_destroy_slave_symlinks(struct net_device *master, struct net_device *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
-void bond_mii_monitor(struct work_struct *);
-void bond_loadbalance_arp_mon(struct work_struct *);
-void bond_activebackup_arp_mon(struct work_struct *);
 int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count);
 int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
