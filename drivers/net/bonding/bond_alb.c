@@ -702,7 +702,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			client_info->ntt = 0;
 		}
 
-		if (bond->vlgrp) {
+		if (!list_empty(&bond->vlan_list)) {
 			if (!vlan_get_tag(skb, &client_info->vlan_id))
 				client_info->tag = 1;
 		}
@@ -925,7 +925,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 		skb->priority = TC_PRIO_CONTROL;
 		skb->dev = slave->dev;
 
-		if (bond->vlgrp) {
+		if (!list_empty(&bond->vlan_list)) {
 			struct vlan_entry *vlan;
 
 			vlan = bond_next_vlan(bond,
