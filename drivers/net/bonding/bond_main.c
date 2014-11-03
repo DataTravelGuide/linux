@@ -912,13 +912,25 @@ static int bond_mc_list_copy(struct dev_mc_list *mc_list, struct bonding *bond,
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct net_device *vlan_dev;
+	struct net_device *bond_dev, *vlan_dev, *master_dev;
 	struct vlan_entry *vlan;
 
 	read_lock(&bond->lock);
 
+	bond_dev = bond->dev;
+
 	/* rejoin all groups on bond device */
-	__bond_resend_igmp_join_requests(bond->dev);
+	__bond_resend_igmp_join_requests(bond_dev);
+
+	/*
+	 * if bond is enslaved to a bridge,
+	 * then rejoin all groups on its master
+	 */
+	rcu_read_lock();
+	master_dev = br_get_br_dev_for_port_rcu(bond_dev);
+	if (master_dev)
+		__bond_resend_igmp_join_requests(master_dev);
+	rcu_read_unlock();
 
 	/* rejoin all groups on vlan devices */
 	if (bond->vlgrp) {
