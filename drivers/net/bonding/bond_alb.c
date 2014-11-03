@@ -723,7 +723,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 		}
 
 		if (bond->vlgrp) {
-			if (!vlan_get_tag(skb, &client_info->vlan_id))
+			if (vlan_get_tag(skb, &client_info->vlan_id))
 				client_info->vlan_id = 0;
 		}
 
