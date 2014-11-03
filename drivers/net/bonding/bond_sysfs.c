@@ -192,12 +192,12 @@ void bond_destroy_slave_symlinks(struct net_device *master,
 static ssize_t bonding_show_slaves(struct device *d,
 				   struct device_attribute *attr, char *buf)
 {
-	struct slave *slave;
-	int i, res = 0;
 	struct bonding *bond = to_bond(d);
+	struct slave *slave;
+	int res = 0;
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
@@ -210,6 +210,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 	read_unlock(&bond->lock);
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
+
 	return res;
 }
 
@@ -308,7 +309,7 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
-	if (bond->slave_cnt > 0) {
+	if (!list_empty(&bond->slave_list)) {
 		pr_err("unable to update mode of %s because it has slaves.\n",
 			bond->dev->name);
 		ret = -EPERM;
@@ -490,7 +491,7 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (bond->slave_cnt != 0) {
+	if (!list_empty(&bond->slave_list)) {
 		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
 		       bond->dev->name);
 		ret = -EPERM;
@@ -651,7 +652,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			 &newtarget);
 		/* not to race with bond_arp_rcv */
 		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, i)
+		bond_for_each_slave(bond, slave)
 			slave->target_last_arp_rx[ind] = jiffies;
 		targets[ind] = newtarget;
 		write_unlock_bh(&bond->lock);
@@ -677,7 +678,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			&newtarget);
 
 		write_lock_bh(&bond->lock);
-		bond_for_each_slave(bond, slave, i) {
+		bond_for_each_slave(bond, slave) {
 			targets_rx = slave->target_last_arp_rx;
 			j = ind;
 			for (; (j < BOND_MAX_ARP_TARGETS-1) && targets[j+1]; j++)
@@ -1068,10 +1069,9 @@ static ssize_t bonding_store_primary(struct device *d,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	int i;
-	struct slave *slave;
 	struct bonding *bond = to_bond(d);
 	char ifname[IFNAMSIZ];
+	struct slave *slave;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1097,7 +1097,7 @@ static ssize_t bonding_store_primary(struct device *d,
 		goto out;
 	}
 
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 			pr_info("%s: Setting %s as primary slave.\n",
 				bond->dev->name, slave->dev->name);
@@ -1243,16 +1243,14 @@ static ssize_t bonding_store_active_slave(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int i;
-	struct slave *slave;
-	struct slave *old_active = NULL;
-	struct slave *new_active = NULL;
+	struct slave *slave, *old_active, *new_active;
 	struct bonding *bond = to_bond(d);
 	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
+	old_active = new_active = NULL;
 	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
@@ -1274,7 +1272,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 		goto out;
 	}
 
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 			old_active = bond->curr_active_slave;
 			new_active = slave;
@@ -1459,15 +1457,15 @@ static ssize_t bonding_show_queue_id(struct device *d,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct slave *slave;
-	int i, res = 0;
 	struct bonding *bond = to_bond(d);
+	struct slave *slave;
+	int res = 0;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
 			/* not enough space for another interface_name:queue_id pair */
 			if ((PAGE_SIZE - res) > 10)
@@ -1482,6 +1480,7 @@ static ssize_t bonding_show_queue_id(struct device *d,
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
 	rtnl_unlock();
+
 	return res;
 }
 
@@ -1496,7 +1495,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 	struct slave *slave, *update_slave;
 	struct bonding *bond = to_bond(d);
 	u16 qid;
-	int i, ret = count;
+	int ret = count;
 	char *delim;
 	struct net_device *sdev = NULL;
 
@@ -1531,7 +1530,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 
 	/* Search for thes slave and check for duplicate qids */
 	update_slave = NULL;
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (sdev == slave->dev)
 			/*
 			 * We don't need to check the matching
@@ -1583,8 +1582,8 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	int i, new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
 	struct slave *slave;
 
 	if (sscanf(buf, "%d", &new_value) != 1) {
@@ -1607,7 +1606,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	read_lock(&bond->lock);
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (!bond_is_active_slave(slave)) {
 			if (new_value)
 				slave->inactive = 0;
