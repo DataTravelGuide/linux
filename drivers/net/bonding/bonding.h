@@ -156,7 +156,6 @@ struct bond_params {
 	int num_unsol_na;
 	int arp_interval;
 	int arp_validate;
-	int arp_all_targets;
 	int use_carrier;
 	int fail_over_mac;
 	int updelay;
@@ -193,7 +192,6 @@ struct slave {
 	int    delay;
 	unsigned long jiffies;
 	unsigned long last_arp_rx;
-	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
 	s8     state;   /* one of BOND_STATE_XXXX */
@@ -306,9 +304,6 @@ static inline bool bond_is_lb(const struct bonding *bond)
 #define BOND_FOM_ACTIVE			1
 #define BOND_FOM_FOLLOW			2
 
-#define BOND_ARP_TARGETS_ANY		0
-#define BOND_ARP_TARGETS_ALL		1
-
 #define BOND_ARP_VALIDATE_NONE		0
 #define BOND_ARP_VALIDATE_ACTIVE	(1 << BOND_STATE_ACTIVE)
 #define BOND_ARP_VALIDATE_BACKUP	(1 << BOND_STATE_BACKUP)
@@ -321,31 +316,11 @@ static inline int slave_do_arp_validate(struct bonding *bond,
 	return bond->params.arp_validate & (1 << slave->state);
 }
 
-/* Get the oldest arp which we've received on this slave for bond's
- * arp_targets.
- */
-static inline unsigned long slave_oldest_target_arp_rx(struct bonding *bond,
-						       struct slave *slave)
-{
-	int i = 1;
-	unsigned long ret = slave->target_last_arp_rx[0];
-
-	for (; (i < BOND_MAX_ARP_TARGETS) && bond->params.arp_targets[i]; i++)
-		if (time_before(slave->target_last_arp_rx[i], ret))
-			ret = slave->target_last_arp_rx[i];
-
-	return ret;
-}
-
 static inline unsigned long slave_last_rx(struct bonding *bond,
 					struct slave *slave)
 {
-	if (slave_do_arp_validate(bond, slave)) {
-		if (bond->params.arp_all_targets == BOND_ARP_TARGETS_ALL)
-			return slave_oldest_target_arp_rx(bond, slave);
-		else
-			return slave->last_arp_rx;
-	}
+	if (slave_do_arp_validate(bond, slave))
+		return slave->last_arp_rx;
 
 	return slave->dev->last_rx;
 }
@@ -446,7 +421,6 @@ extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl bond_mode_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];
-extern const struct bond_parm_tbl arp_all_targets_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
