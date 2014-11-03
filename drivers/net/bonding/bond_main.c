@@ -696,8 +696,15 @@ static int bond_update_speed_duplex(struct slave *slave)
 	if (res < 0)
 		return -1;
 
-	if (etool.speed == 0 || etool.speed == ((__u16) -1))
+	switch (etool.speed) {
+	case SPEED_10:
+	case SPEED_100:
+	case SPEED_1000:
+	case SPEED_10000:
+		break;
+	default:
 		return -1;
+	}
 
 	switch (etool.duplex) {
 	case DUPLEX_FULL:
