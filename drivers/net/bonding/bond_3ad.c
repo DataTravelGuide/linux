@@ -1883,7 +1883,7 @@ void bond_3ad_bind_slave(struct slave *slave)
 void bond_3ad_unbind_slave(struct slave *slave)
 {
 	struct port *port, *prev_port, *temp_port;
-	struct aggregator *aggregator, *new_aggregator, *temp_aggregator;
+	struct aggregator *aggregator, *new_aggregator = NULL, *temp_aggregator;
 	int select_new_active_agg = 0;
 	struct bonding *bond = slave->bond;
 	struct slave *slave_iter;
