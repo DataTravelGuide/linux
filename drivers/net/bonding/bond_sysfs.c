@@ -332,6 +332,8 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
+	/* don't cache arp_validate between modes */
+	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = new_value;
 	bond_set_mode_ops(bond, bond->params.mode);
 	pr_info("%s: setting mode to %s (%d).\n",
@@ -402,8 +404,8 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -414,7 +416,7 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (new_value && (bond->params.mode != BOND_MODE_ACTIVEBACKUP)) {
+	if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 		pr_err("%s: arp_validate only supported in active-backup mode.\n",
 		       bond->dev->name);
 		ret = -EINVAL;
@@ -424,6 +426,12 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
 
+	if (bond->dev->flags & IFF_UP) {
+		if (!new_value)
+			bond->recv_probe = NULL;
+		else if (bond->params.arp_interval)
+			bond->recv_probe = bond_arp_rcv;
+	}
 	bond->params.arp_validate = new_value;
 out:
 	rtnl_unlock();
@@ -544,8 +552,8 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -588,8 +596,13 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		 * is called.
 		 */
 		if (!new_value) {
+			if (bond->params.arp_validate)
+				bond->recv_probe = NULL;
 			cancel_delayed_work_sync(&bond->arp_work);
 		} else {
+			/* arp_validate can be set only in active-backup mode */
+			if (bond->params.arp_validate)
+				bond->recv_probe = bond_arp_rcv;
 			cancel_delayed_work_sync(&bond->mii_work);
 			queue_delayed_work(bond->wq, &bond->arp_work, 0);
 		}
