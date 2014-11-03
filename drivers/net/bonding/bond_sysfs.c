@@ -272,6 +272,13 @@ static ssize_t bonding_store_slaves(struct device *d,
 		pr_info(DRV_NAME ": %s: Adding slave %s.\n",
 			bond->dev->name, ifname);
 
+		/* If this is the first slave, then we need to set
+		   the master's hardware address to be the same as the
+		   slave's. */
+		if (is_zero_ether_addr(bond->dev->dev_addr))
+			memcpy(bond->dev->dev_addr, dev->dev_addr,
+			       dev->addr_len);
+
 		res = bond_enslave(bond->dev, dev);
 		if (res)
 			ret = res;
