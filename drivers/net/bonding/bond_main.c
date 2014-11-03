@@ -5309,7 +5309,7 @@ static int bond_check_params(struct bond_params *params)
 		/* miimon and arp_interval not set, we need one so things
 		 * work as expected, see bonding.txt for details
 		 */
-		pr_debug(DRV_NAME
+		pr_warning(DRV_NAME
 		       ": Warning: either miimon or arp_interval and "
 		       "arp_ip_target module parameters must be specified, "
 		       "otherwise bonding will not detect link failures! see "
