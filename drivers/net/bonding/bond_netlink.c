@@ -131,7 +131,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
 
 		if (arp_interval && miimon) {
-			pr_err("%s: ARP monitoring cannot be used with MII monitoring.\n",
+			pr_err("%s: ARP monitoring cannot be used with MII monitoring\n",
 			       bond->dev->name);
 			return -EINVAL;
 		}
@@ -157,7 +157,7 @@ static int bond_changelink(struct net_device *bond_dev,
 			i++;
 		}
 		if (i == 0 && bond->params.arp_interval)
-			pr_warn("%s: removing last arp target with arp_interval on\n",
+			pr_warn("%s: Removing last arp target with arp_interval on\n",
 				bond->dev->name);
 		if (err)
 			return err;
@@ -166,7 +166,7 @@ static int bond_changelink(struct net_device *bond_dev,
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			pr_err("%s: ARP validating cannot be used with MII monitoring.\n",
+			pr_err("%s: ARP validating cannot be used with MII monitoring\n",
 			       bond->dev->name);
 			return -EINVAL;
 		}
