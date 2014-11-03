@@ -5051,8 +5051,6 @@ static int bond_init(struct net_device *bond_dev)
 
 	bond_set_lockdep_class(bond_dev);
 
-	netif_carrier_off(bond_dev);
-
 	bond_create_proc_entry(bond);
 	list_add_tail(&bond->bond_list, &bn->dev_list);
 
@@ -5120,6 +5118,8 @@ int bond_create(struct net *net, const char *name)
 	}
 
 	res = register_netdevice(bond_dev);
+
+	netif_carrier_off(bond_dev);
 
 out:
 	rtnl_unlock();
