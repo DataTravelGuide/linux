@@ -112,14 +112,17 @@
  * bond_for_each_slave - iterate over all slaves
  * @bond:	the bond holding this list
  * @pos:	current slave
+ * @iter:	list_head * iterator
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave(bond, pos) \
+#define bond_for_each_slave(bond, pos, iter)	\
+	iter = &(bond)->slave_list;		\
 	list_for_each_entry(pos, &(bond)->slave_list, list)
 
 /* Caller must have rcu_read_lock */
-#define bond_for_each_slave_rcu(bond, pos) \
+#define bond_for_each_slave_rcu(bond, pos, iter)	\
+	iter = &(bond)->slave_list;			\
 	list_for_each_entry_rcu(pos, &(bond)->slave_list, list)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -277,8 +280,9 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 						  struct net_device *slave_dev)
 {
 	struct slave *slave = NULL;
+	struct list_head *iter;
 
-	bond_for_each_slave(bond, slave)
+	bond_for_each_slave(bond, slave, iter)
 		if (slave->dev == slave_dev)
 			return slave;
 
@@ -497,9 +501,10 @@ static inline void bond_destroy_proc_dir(struct bond_net *bn)
 static inline struct slave *bond_slave_has_mac(struct bonding *bond,
 					       const u8 *mac)
 {
+	struct list_head *iter;
 	struct slave *tmp;
 
-	bond_for_each_slave(bond, tmp)
+	bond_for_each_slave(bond, tmp, iter)
 		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
 			return tmp;
 
