@@ -5272,12 +5272,13 @@ void dev_unicast_unsync(struct net_device *to, struct net_device *from)
 }
 EXPORT_SYMBOL(dev_unicast_unsync);
 
-static void dev_unicast_flush(struct net_device *dev)
+void dev_unicast_flush(struct net_device *dev)
 {
 	netif_addr_lock_bh(dev);
 	__hw_addr_flush(&dev->uc);
 	netif_addr_unlock_bh(dev);
 }
+EXPORT_SYMBOL(dev_unicast_flush);
 
 static void dev_unicast_init(struct net_device *dev)
 {
@@ -5299,7 +5300,7 @@ static void __dev_addr_discard(struct dev_addr_list **list)
 	}
 }
 
-static void dev_addr_discard(struct net_device *dev)
+void dev_addr_discard(struct net_device *dev)
 {
 	netif_addr_lock_bh(dev);
 
@@ -5308,6 +5309,7 @@ static void dev_addr_discard(struct net_device *dev)
 
 	netif_addr_unlock_bh(dev);
 }
+EXPORT_SYMBOL(dev_addr_discard);
 
 /**
  *	dev_get_flags - get flags reported to userspace
