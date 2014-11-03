@@ -19,7 +19,6 @@
 #include <linux/proc_fs.h>
 #include <linux/if_bonding.h>
 #include <linux/kobject.h>
-#include <linux/cpumask.h>
 #include <linux/in6.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -119,35 +118,6 @@ extern struct list_head bond_dev_list;
 #define bond_for_each_slave(bond, pos, cnt)	\
 		bond_for_each_slave_from(bond, pos, cnt, (bond)->first_slave)
 
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-extern cpumask_var_t netpoll_block_tx;
-
-static inline void block_netpoll_tx(void)
-{
-	preempt_disable();
-	BUG_ON(cpumask_test_and_set_cpu(smp_processor_id(),
-					netpoll_block_tx));
-}
-
-static inline void unblock_netpoll_tx(void)
-{
-	BUG_ON(!cpumask_test_and_clear_cpu(smp_processor_id(),
-					   netpoll_block_tx));
-	preempt_enable();
-}
-
-static inline int is_netpoll_tx_blocked(struct net_device *dev)
-{
-	if (unlikely(dev->priv_flags & IFF_IN_NETPOLL))
-		return cpumask_test_cpu(smp_processor_id(), netpoll_block_tx);
-	return 0;
-}
-#else
-#define block_netpoll_tx()
-#define unblock_netpoll_tx()
-#define is_netpoll_tx_blocked(dev) (0)
-#endif
 
 struct bond_params {
 	int mode;
