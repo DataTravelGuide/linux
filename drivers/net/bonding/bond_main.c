@@ -3582,6 +3582,8 @@ static int bond_event_changename(struct bonding *bond)
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
 
+	bond_debug_reregister(bond);
+
 	return NOTIFY_DONE;
 }
 
@@ -4850,6 +4852,8 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	bond_remove_proc_entry(bond);
 
+	bond_debug_unregister(bond);
+
 	netif_addr_lock_bh(bond_dev);
 	bond_mc_list_destroy(bond);
 	netif_addr_unlock_bh(bond_dev);
@@ -5253,6 +5257,9 @@ static int bond_init(struct net_device *bond_dev)
 	list_add_tail(&bond->bond_list, &bn->dev_list);
 
 	bond_prepare_sysfs_group(bond);
+
+	bond_debug_register(bond);
+
 	return 0;
 }
 
@@ -5380,6 +5387,8 @@ static int __init bonding_init(void)
 	if (res)
 		goto err_link;
 
+	bond_create_debugfs();
+
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
 		if (res)
@@ -5389,7 +5398,6 @@ static int __init bonding_init(void)
 	res = bond_create_sysfs();
 	if (res)
 		goto err;
-
 
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
@@ -5411,6 +5419,7 @@ static void __exit bonding_exit(void)
 	bond_unregister_ipv6_notifier();
 
 	bond_destroy_sysfs();
+	bond_destroy_debugfs();
 
 	rtnl_link_unregister(&bond_link_ops);
 	unregister_pernet_gen_subsys(bond_net_id, &bond_net_ops);
