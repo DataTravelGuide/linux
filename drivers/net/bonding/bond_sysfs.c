@@ -655,7 +655,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 const char *buf, size_t count)
 {
 	__be32 newtarget;
-	int i = 0, ret = -EINVAL;
+	int i = 0, done = 0, ret = count;
 	struct bonding *bond = to_bond(d);
 	__be32 *targets;
 
@@ -667,48 +667,63 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			pr_err(DRV_NAME
 			       ": %s: invalid ARP target %pI4 specified for addition\n",
 			       bond->dev->name, &newtarget);
+			ret = -EINVAL;
 			goto out;
 		}
-
-		if (bond_get_targets_ip(targets, newtarget) != -1) { /* dup */
-			pr_err(DRV_NAME
-			       ": %s: ARP target %pI4 is already present\n",
-			       bond->dev->name, &newtarget);
-			goto out;
+		/* look for an empty slot to put the target in, and check for dupes */
+		for (i = 0; (i < BOND_MAX_ARP_TARGETS) && !done; i++) {
+			if (targets[i] == newtarget) { /* duplicate */
+				pr_err(DRV_NAME
+				       ": %s: ARP target %pI4 is already present\n",
+				       bond->dev->name, &newtarget);
+				ret = -EINVAL;
+				goto out;
+			}
+			if (targets[i] == 0) {
+				pr_info(DRV_NAME
+				       ": %s: adding ARP target %pI4.\n",
+				       bond->dev->name, &newtarget);
+				done = 1;
+				targets[i] = newtarget;
+			}
 		}
-
-		i = bond_get_targets_ip(targets, 0); /* first free slot */
-		if (i == -1) {
+		if (!done) {
 			pr_err(DRV_NAME
 			       ": %s: ARP target table is full!\n",
 			       bond->dev->name);
+			ret = -EINVAL;
 			goto out;
 		}
 
-		pr_info(DRV_NAME ": %s: adding ARP target %pI4.\n", bond->dev->name,
-			&newtarget);
-		targets[i] = newtarget;
 	} else if (buf[0] == '-')	{
 		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			pr_err(DRV_NAME
 			       ": %s: invalid ARP target %pI4 specified for removal\n",
 			       bond->dev->name, &newtarget);
+			ret = -EINVAL;
 			goto out;
 		}
 
-		i = bond_get_targets_ip(targets, newtarget);
-		if (i == -1) {
+		for (i = 0; (i < BOND_MAX_ARP_TARGETS) && !done; i++) {
+			if (targets[i] == newtarget) {
+				int j;
+				pr_info(DRV_NAME
+				       ": %s: removing ARP target %pI4.\n",
+				       bond->dev->name, &newtarget);
+				for (j = i; (j < (BOND_MAX_ARP_TARGETS-1)) && targets[j+1]; j++)
+					targets[j] = targets[j+1];
+
+				targets[j] = 0;
+				done = 1;
+			}
+		}
+		if (!done) {
 			pr_info(DRV_NAME
 			       ": %s: unable to remove nonexistent ARP target %pI4.\n",
 			       bond->dev->name, &newtarget);
+			ret = -EINVAL;
 			goto out;
 		}
-
-		pr_info(DRV_NAME "%s: removing ARP target %pI4.\n", bond->dev->name,
-			&newtarget);
-		for (; (i < BOND_MAX_ARP_TARGETS-1) && targets[i+1]; i++)
-			targets[i] = targets[i+1];
-		targets[i] = 0;
 	} else {
 		pr_err(DRV_NAME ": no command found in arp_ip_targets file"
 		       " for bond %s. Use +<addr> or -<addr>.\n",
@@ -717,7 +732,6 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 		goto out;
 	}
 
-	ret = count;
 out:
 	return ret;
 }
