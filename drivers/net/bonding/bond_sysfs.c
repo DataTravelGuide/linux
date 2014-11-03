@@ -1178,7 +1178,6 @@ static ssize_t bonding_store_primary(struct device *d,
 	int i;
 	struct slave *slave;
 	struct bonding *bond = to_bond(d);
-	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1188,38 +1187,37 @@ static ssize_t bonding_store_primary(struct device *d,
 
 	if (!USES_PRIMARY(bond->params.mode)) {
 		pr_info(DRV_NAME
-			": %s: Unable to set primary slave; %s is in mode %d\n",
-			bond->dev->name, bond->dev->name, bond->params.mode);
-		goto out;
-	}
+		       ": %s: Unable to set primary slave; %s is in mode %d\n",
+		       bond->dev->name, bond->dev->name, bond->params.mode);
+	} else {
+		bond_for_each_slave(bond, slave, i) {
+			if (strnicmp
+			    (slave->dev->name, buf,
+			     strlen(slave->dev->name)) == 0) {
+				pr_info(DRV_NAME
+				       ": %s: Setting %s as primary slave.\n",
+				       bond->dev->name, slave->dev->name);
+				bond->primary_slave = slave;
+				strcpy(bond->params.primary, slave->dev->name);
+				bond_select_active_slave(bond);
+				goto out;
+			}
+		}
 
-	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+		/* if we got here, then we didn't match the name of any slave */
 
-	/* check to see if we are clearing primary */
-	if (!strlen(ifname) || buf[0] == '\n') {
-		pr_info(DRV_NAME
-		       ": %s: Setting primary slave to None.\n",
-		       bond->dev->name);
-		bond->primary_slave = NULL;
-		bond_select_active_slave(bond);
-		goto out;
-	}
-
-	bond_for_each_slave(bond, slave, i) {
-		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
+		if (strlen(buf) == 0 || buf[0] == '\n') {
 			pr_info(DRV_NAME
-			       ": %s: Setting %s as primary slave.\n",
-			       bond->dev->name, slave->dev->name);
-			bond->primary_slave = slave;
-			strcpy(bond->params.primary, slave->dev->name);
-			bond_select_active_slave(bond);
-			goto out;
+			       ": %s: Setting primary slave to None.\n",
+			       bond->dev->name);
+			bond->primary_slave = NULL;
+				bond_select_active_slave(bond);
+		} else {
+			pr_info(DRV_NAME
+			       ": %s: Unable to set %.*s as primary slave as it is not a slave.\n",
+			       bond->dev->name, (int)strlen(buf) - 1, buf);
 		}
 	}
-
-	pr_info(DRV_NAME
-		": %s: Unable to set %.*s as primary slave.\n",
-		bond->dev->name, (int)strlen(buf) - 1, buf);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1357,7 +1355,6 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	struct slave *old_active = NULL;
 	struct slave *new_active = NULL;
 	struct bonding *bond = to_bond(d);
-	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1366,68 +1363,60 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode)) {
-		pr_info(DRV_NAME
-			": %s: Unable to change active slave;"
+	if (!USES_PRIMARY(bond->params.mode))
+		pr_info(DRV_NAME ": %s: Unable to change active slave;"
 			" %s is in mode %d\n",
 			bond->dev->name, bond->dev->name, bond->params.mode);
-		goto out;
-	}
-
-	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
-
-	/* check to see if we are clearing primary */
-	if (!strlen(ifname) || buf[0] == '\n') {
-		pr_info(DRV_NAME
-			": %s: Clearing current active slave.\n",
-			bond->dev->name);
-		bond->curr_active_slave = NULL;
-		bond_select_active_slave(bond);
-		goto out;
-	}
-
-	bond_for_each_slave(bond, slave, i) {
-		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-			old_active = bond->curr_active_slave;
-			new_active = slave;
-			if (new_active == old_active) {
-				/* do nothing */
-				pr_info(DRV_NAME
-					": %s: %s is already the current"
-					" active slave.\n",
-					bond->dev->name,
-					slave->dev->name);
-				goto out;
-			}
-			else {
-				if ((new_active) &&
-				    (old_active) &&
-				    (new_active->link == BOND_LINK_UP) &&
-				    IS_UP(new_active->dev)) {
+	else {
+		bond_for_each_slave(bond, slave, i) {
+			if (strnicmp
+			    (slave->dev->name, buf,
+			     strlen(slave->dev->name)) == 0) {
+        			old_active = bond->curr_active_slave;
+        			new_active = slave;
+        			if (new_active == old_active) {
+					/* do nothing */
 					pr_info(DRV_NAME
-						": %s: Setting %s as active"
-						" slave.\n",
-						bond->dev->name,
-						slave->dev->name);
-					bond_change_active_slave(bond,
-								 new_active);
+						": %s: %s is already the current active slave.\n",
+						bond->dev->name, slave->dev->name);
+					goto out;
 				}
 				else {
-					pr_info(DRV_NAME
-						": %s: Could not set %s as"
-						" active slave; either %s is"
-						" down or the link is down.\n",
-						bond->dev->name,
-						slave->dev->name,
-						slave->dev->name);
+        				if ((new_active) &&
+            				    (old_active) &&
+				            (new_active->link == BOND_LINK_UP) &&
+				            IS_UP(new_active->dev)) {
+						pr_info(DRV_NAME
+							": %s: Setting %s as active slave.\n",
+							bond->dev->name, slave->dev->name);
+							bond_change_active_slave(bond, new_active);
+        				}
+					else {
+						pr_info(DRV_NAME
+							": %s: Could not set %s as active slave; "
+							"either %s is down or the link is down.\n",
+							bond->dev->name, slave->dev->name,
+							slave->dev->name);
+					}
+					goto out;
 				}
-				goto out;
 			}
 		}
-	}
 
-	pr_info("%s: Unable to set %.*s as active slave.\n",
-		bond->dev->name, (int)strlen(buf) - 1, buf);
+		/* if we got here, then we didn't match the name of any slave */
+
+		if (strlen(buf) == 0 || buf[0] == '\n') {
+			pr_info(DRV_NAME
+				": %s: Setting active slave to None.\n",
+				bond->dev->name);
+			bond->primary_slave = NULL;
+			bond_select_active_slave(bond);
+		} else {
+			pr_info(DRV_NAME ": %s: Unable to set %.*s"
+				" as active slave as it is not a slave.\n",
+				bond->dev->name, (int)strlen(buf) - 1, buf);
+		}
+	}
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
