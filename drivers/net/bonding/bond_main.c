@@ -1209,11 +1209,6 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			write_lock_bh(&bond->curr_slave_lock);
 		}
 	}
-
-	/* resend IGMP joins since all were sent on curr_active_slave */
-	if (bond->params.mode == BOND_MODE_ROUNDROBIN) {
-		bond_resend_igmp_join_requests(bond);
-	}
 }
 
 /**
@@ -4214,41 +4209,22 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *start_at;
 	int i, slave_no, res = 1;
-	struct iphdr *iph = ip_hdr(skb);
 
 	read_lock(&bond->lock);
 
 	if (!BOND_IS_OK(bond))
 		goto out;
+
 	/*
-	 * Start with the curr_active_slave that joined the bond as the
-	 * default for sending IGMP traffic.  For failover purposes one
-	 * needs to maintain some consistency for the interface that will
-	 * send the join/membership reports.  The curr_active_slave found
-	 * will send all of this type of traffic.
+	 * Concurrent TX may collide on rr_tx_counter; we accept that
+	 * as being rare enough not to justify using an atomic op here
 	 */
-	if ((iph->protocol == IPPROTO_IGMP) &&
-	    (skb->protocol == htons(ETH_P_IP))) {
+	slave_no = bond->rr_tx_counter++ % bond->slave_cnt;
 
-		read_lock(&bond->curr_slave_lock);
-		slave = bond->curr_active_slave;
-		read_unlock(&bond->curr_slave_lock);
-
-		if (!slave)
-			goto out;
-	} else {
-		/*
-		 * Concurrent TX may collide on rr_tx_counter; we accept
-		 * that as being rare enough not to justify using an
-		 * atomic op here.
-		 */
-		slave_no = bond->rr_tx_counter++ % bond->slave_cnt;
-
-		bond_for_each_slave(bond, slave, i) {
-			slave_no--;
-			if (slave_no < 0)
-				break;
-		}
+	bond_for_each_slave(bond, slave, i) {
+		slave_no--;
+		if (slave_no < 0)
+			break;
 	}
 
 	start_at = slave;
