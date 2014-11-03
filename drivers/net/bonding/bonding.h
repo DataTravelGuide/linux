@@ -444,6 +444,12 @@ void bond_debug_reregister(struct bonding *bond);
 const char *bond_mode_name(int mode);
 void bond_unicast_sync(struct bonding *bond, struct slave *old_active,
 		       struct slave *new_active);
+void bond_setup(struct net_device *bond_dev);
+int bond_get_tx_queues(struct net *net, struct nlattr *tb[],
+		       unsigned int *num_queues,
+		       unsigned int *real_num_queues);
+int bond_netlink_init(void);
+void bond_netlink_fini(void);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
@@ -529,5 +535,8 @@ extern const struct bond_parm_tbl arp_all_targets_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
+
+/* exported from bond_netlink.c */
+extern struct rtnl_link_ops bond_link_ops;
 
 #endif /* _LINUX_BONDING_H */
