@@ -3322,13 +3322,13 @@ static struct notifier_block bond_netdev_notifier = {
 /*
  * Hash for the output device based upon layer 2 data
  */
-static u32 bond_xmit_hash_policy_l2(struct sk_buff *skb)
+static inline u32 bond_xmit_hash_policy_l2(struct sk_buff *skb)
 {
-	struct ethhdr *data = (struct ethhdr *)skb->data;
+	struct ethhdr *ep, hdr_tmp;
 
-	if (skb_headlen(skb) >= offsetof(struct ethhdr, h_proto))
-		return (data->h_dest[5] ^ data->h_source[5]);
-
+	ep = skb_header_pointer(skb, 0, sizeof(hdr_tmp), &hdr_tmp);
+	if (ep)
+		return ep->h_dest[5] ^ ep->h_source[5] ^ ep->h_proto;
 	return 0;
 }
 
