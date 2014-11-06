@@ -1767,16 +1767,6 @@ static int trace__process_sample(struct perf_tool *tool,
 	return err;
 }
 
-static bool
-perf_session__has_tp(struct perf_session *session, const char *name)
-{
-	struct perf_evsel *evsel;
-
-	evsel = perf_evlist__find_tracepoint_by_name(session->evlist, name);
-
-	return evsel != NULL;
-}
-
 static int parse_target_str(struct trace *trace)
 {
 	if (trace->opts.target.pid) {
@@ -2013,8 +2003,6 @@ out_error:
 static int trace__replay(struct trace *trace)
 {
 	const struct perf_evsel_str_handler handlers[] = {
-		{ "syscalls:sys_enter",  trace__sys_enter, },
-		{ "syscalls:sys_exit",   trace__sys_exit, },
 		{ "probe:vfs_getname",   trace__vfs_getname, },
 	};
 	struct perf_data_file file = {
@@ -2022,6 +2010,7 @@ static int trace__replay(struct trace *trace)
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	struct perf_session *session;
+	struct perf_evsel *evsel;
 	int err = -1;
 
 	trace->tool.sample	  = trace__process_sample;
@@ -2053,13 +2042,29 @@ static int trace__replay(struct trace *trace)
 	if (err)
 		goto out;
 
-	if (!perf_session__has_tp(session, "syscalls:sys_enter")) {
-		pr_err("Data file does not have syscalls:sys_enter events\n");
+	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+						     "syscalls:sys_enter");
+	if (evsel == NULL) {
+		pr_err("Data file does not have syscalls:sys_enter event\n");
 		goto out;
 	}
 
-	if (!perf_session__has_tp(session, "syscalls:sys_exit")) {
-		pr_err("Data file does not have syscalls:sys_exit events\n");
+	if (perf_evsel__init_syscall_tp(evsel, trace__sys_enter) < 0 ||
+	    perf_evsel__init_sc_tp_ptr_field(evsel, args)) {
+		pr_err("Error during initialize syscalls:sys_enter event\n");
+		goto out;
+	}
+
+	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+						     "syscalls:sys_exit");
+	if (evsel == NULL) {
+		pr_err("Data file does not have syscalls:sys_exit event\n");
+		goto out;
+	}
+
+	if (perf_evsel__init_syscall_tp(evsel, trace__sys_exit) < 0 ||
+	    perf_evsel__init_sc_tp_uint_field(evsel, ret)) {
+		pr_err("Error during initialize syscalls:sys_exit event\n");
 		goto out;
 	}
 
