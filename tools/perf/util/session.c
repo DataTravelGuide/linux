@@ -1658,9 +1658,9 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 			continue;
 
 		err = -EEXIST;
-		if (evsel->handler.func != NULL)
+		if (evsel->handler != NULL)
 			goto out;
-		evsel->handler.func = assocs[i].handler;
+		evsel->handler = assocs[i].handler;
 	}
 
 	err = 0;
