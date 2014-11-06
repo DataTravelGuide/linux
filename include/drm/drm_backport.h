@@ -9,6 +9,13 @@
 #ifndef DRM_BACKPORT_H_
 #define DRM_BACKPORT_H_
 
+/* config option was renamed upstream in d3f138106b4b40 .. add compat
+ * glue so that we can use the new #define in drm code
+ */
+#ifdef CONFIG_DMAR
+#  define CONFIG_INTEL_IOMMU 1
+#endif
+
 #include <linux/console.h>
 
 #include <linux/pci.h>
