@@ -30,6 +30,10 @@ ifeq ($(ARCH),x86_64)
   endif
   NO_PERF_REGS := 0
 endif
+ifeq ($(ARCH),arm)
+  NO_PERF_REGS := 0
+  LIBUNWIND_LIBS = -lunwind -lunwind-arm
+endif
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
@@ -304,8 +308,7 @@ ifndef NO_LIBELF
   endif # NO_DWARF
 endif # NO_LIBELF
 
-# There's only x86 (both 32 and 64) support for CFI unwind so far
-ifneq ($(ARCH),x86)
+ifeq ($(LIBUNWIND_LIBS),)
   NO_LIBUNWIND := 1
 endif
 
