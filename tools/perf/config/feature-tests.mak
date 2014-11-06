@@ -216,6 +216,7 @@ endif
 ifndef NO_LIBAUDIT
 define SOURCE_LIBAUDIT
 #include <libaudit.h>
+#include <stdio.h>
 
 int main(void)
 {
