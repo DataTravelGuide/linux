@@ -646,7 +646,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		}
 	}
 
-	if (target__has_cpu(&opts->target))
+	if (target__has_cpu(&opts->target) || opts->target.force_per_cpu)
 		perf_evsel__set_sample_bit(evsel, CPU);
 
 	if (opts->period)
@@ -654,7 +654,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	if (!perf_missing_features.sample_id_all &&
 	    (opts->sample_time || !opts->no_inherit ||
-	     target__has_cpu(&opts->target)))
+	     target__has_cpu(&opts->target) || opts->target.force_per_cpu))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples) {
