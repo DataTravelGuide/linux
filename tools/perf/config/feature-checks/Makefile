@@ -75,6 +75,9 @@ test-libnuma:
 test-libunwind:
 	$(BUILD) $(LIBUNWIND_LIBS) -lelf
 
+test-libunwind-debug-frame:
+	$(BUILD) $(LIBUNWIND_LIBS) -lelf
+
 test-libaudit:
 	$(BUILD) -laudit
 
