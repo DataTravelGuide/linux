@@ -2,10 +2,10 @@
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"
-#include "sysfs.h"
 /* XXX There's no support for HW_BREAKPOINT in RHEL6 yet.
 #include "../../../include/linux/hw_breakpoint.h"
 */
+#include "fs.h"
 #include <lk/debugfs.h>
 #include "tests.h"
 
