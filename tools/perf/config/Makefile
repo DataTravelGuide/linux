@@ -123,6 +123,7 @@ FEATURE_TESTS =				\
 	strlcpy				\
 	libbfd				\
 	on-exit				\
+	backtrace			\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -447,7 +448,7 @@ ifndef NO_ON_EXIT
 endif
 
 ifndef NO_BACKTRACE
-  ifeq ($(call try-cc,$(SOURCE_BACKTRACE),,-DHAVE_BACKTRACE_SUPPORT),y)
+  ifeq ($(feature-backtrace), 1)
     CFLAGS += -DHAVE_BACKTRACE_SUPPORT
   endif
 endif
