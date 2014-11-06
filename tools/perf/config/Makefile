@@ -65,6 +65,10 @@ ifneq ($(WERROR),0)
   CFLAGS += -Werror
 endif
 
+ifndef DEBUG
+  DEBUG := 0
+endif
+
 ifeq ($(DEBUG),0)
   CFLAGS += -O6
 endif
