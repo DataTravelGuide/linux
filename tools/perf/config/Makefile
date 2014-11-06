@@ -120,6 +120,7 @@ FEATURE_TESTS =				\
 	libperl				\
 	libpython			\
 	libpython-version		\
+	strlcpy				\
 	libbfd				\
 	libnuma
 
@@ -433,7 +434,7 @@ else
 endif
 
 ifndef NO_STRLCPY
-  ifeq ($(call try-cc,$(SOURCE_STRLCPY),,-DHAVE_STRLCPY_SUPPORT),y)
+  ifeq ($(feature-strlcpy), 1)
     CFLAGS += -DHAVE_STRLCPY_SUPPORT
   endif
 endif
