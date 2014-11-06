@@ -656,7 +656,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 		 * before that, leaving at a higher verbosity level till that is
 		 * explained. Reproduced with plain ftrace with:
 		 *
-		 * echo 1 > /t/events/raw_syscalls/sys_exit/enable
+		 * echo 1 > /t/events/syscalls/sys_exit/enable
 		 * grep "NR -1 " /t/trace_pipe
 		 *
 		 * After generating some load on the machine.
@@ -916,7 +916,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	if (perf_evlist__add_newtp(evlist, "syscalls", "sys_enter", trace__sys_enter) ||
 	    perf_evlist__add_newtp(evlist, "syscalls", "sys_exit", trace__sys_exit)) {
-		fprintf(trace->output, "Couldn't read the raw_syscalls tracepoints information!\n");
+		fprintf(trace->output, "Couldn't read the syscalls tracepoints information!\n");
 		goto out_delete_evlist;
 	}
 
@@ -1048,8 +1048,8 @@ out:
 static int trace__replay(struct trace *trace)
 {
 	const struct perf_evsel_str_handler handlers[] = {
-		{ "raw_syscalls:sys_enter",  trace__sys_enter, },
-		{ "raw_syscalls:sys_exit",   trace__sys_exit, },
+		{ "syscalls:sys_enter",  trace__sys_enter, },
+		{ "syscalls:sys_exit",   trace__sys_exit, },
 	};
 
 	struct perf_session *session;
@@ -1083,13 +1083,13 @@ static int trace__replay(struct trace *trace)
 	if (err)
 		goto out;
 
-	if (!perf_session__has_tp(session, "raw_syscalls:sys_enter")) {
-		pr_err("Data file does not have raw_syscalls:sys_enter events\n");
+	if (!perf_session__has_tp(session, "syscalls:sys_enter")) {
+		pr_err("Data file does not have syscalls:sys_enter events\n");
 		goto out;
 	}
 
-	if (!perf_session__has_tp(session, "raw_syscalls:sys_exit")) {
-		pr_err("Data file does not have raw_syscalls:sys_exit events\n");
+	if (!perf_session__has_tp(session, "syscalls:sys_exit")) {
+		pr_err("Data file does not have syscalls:sys_exit events\n");
 		goto out;
 	}
 
