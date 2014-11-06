@@ -646,7 +646,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		}
 	}
 
-	if (perf_target__has_cpu(&opts->target))
+	if (target__has_cpu(&opts->target))
 		perf_evsel__set_sample_bit(evsel, CPU);
 
 	if (opts->period)
@@ -654,7 +654,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	if (!perf_missing_features.sample_id_all &&
 	    (opts->sample_time || !opts->no_inherit ||
-	     perf_target__has_cpu(&opts->target)))
+	     target__has_cpu(&opts->target)))
 		perf_evsel__set_sample_bit(evsel, TIME);
 
 	if (opts->raw_samples) {
@@ -697,7 +697,7 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	 * Setting enable_on_exec for independent events and
 	 * group leaders for traced executed by perf.
 	 */
-	if (perf_target__none(&opts->target) && perf_evsel__is_group_leader(evsel))
+	if (target__none(&opts->target) && perf_evsel__is_group_leader(evsel))
 		attr->enable_on_exec = 1;
 }
 
@@ -2007,8 +2007,7 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 	return false;
 }
 
-int perf_evsel__open_strerror(struct perf_evsel *evsel,
-			      struct perf_target *target,
+int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size)
 {
 	switch (err) {

@@ -813,8 +813,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist,
-			     struct perf_target *target)
+int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
 	evlist->threads = thread_map__new_str(target->pid, target->tid,
 					      target->uid);
@@ -822,9 +821,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (perf_target__has_task(target))
+	if (target__has_task(target))
 		evlist->cpus = cpu_map__dummy_new();
-	else if (!perf_target__has_cpu(target) && !target->uses_mmap)
+	else if (!target__has_cpu(target) && !target->uses_mmap)
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(target->cpu_list);
@@ -1033,8 +1032,7 @@ out_err:
 	return err;
 }
 
-int perf_evlist__prepare_workload(struct perf_evlist *evlist,
-				  struct perf_target *target,
+int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *target,
 				  const char *argv[], bool pipe_output,
 				  bool want_signal)
 {
@@ -1086,7 +1084,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		exit(-1);
 	}
 
-	if (perf_target__none(target))
+	if (target__none(target))
 		evlist->threads->map[0] = evlist->workload.pid;
 
 	close(child_ready_pipe[1]);
