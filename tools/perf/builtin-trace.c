@@ -612,8 +612,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		struct format_field *field;
 		u8 mask = 0, bit = 1;
 
-		/* No need to skip 'nr' field, since it's not in RHEL6 yet. */
-		for (field = sc->tp_format->format.fields; field;
+		for (field = sc->tp_format->format.fields->next; field;
 		     field = field->next, ++i, bit <<= 1) {
 			if (mask & bit)
 				continue;
