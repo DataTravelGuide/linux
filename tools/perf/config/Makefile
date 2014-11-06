@@ -376,11 +376,11 @@ ifndef NO_GTK2
     NO_GTK2 := 1
   else
     ifeq ($(feature-gtk2-infobar), 1)
-      CFLAGS += -DHAVE_GTK_INFO_BAR_SUPPORT
+      GTK_CFLAGS := -DHAVE_GTK_INFO_BAR_SUPPORT
     endif
     CFLAGS += -DHAVE_GTK2_SUPPORT
-    CFLAGS += $(shell pkg-config --cflags gtk+-2.0 2>/dev/null)
-    EXTLIBS += $(shell pkg-config --libs gtk+-2.0 2>/dev/null)
+    GTK_CFLAGS += $(shell pkg-config --cflags gtk+-2.0 2>/dev/null)
+    GTK_LIBS := $(shell pkg-config --libs gtk+-2.0 2>/dev/null)
   endif
 endif
 
@@ -553,7 +553,12 @@ else
 sysconfdir = $(prefix)/etc
 ETC_PERFCONFIG = etc/perfconfig
 endif
+ifeq ($(IS_X86_64),1)
+lib = lib64
+else
 lib = lib
+endif
+libdir = $(prefix)/$(lib)
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
 ETC_PERFCONFIG_SQ = $(subst ','\'',$(ETC_PERFCONFIG))
@@ -566,6 +571,7 @@ template_dir_SQ = $(subst ','\'',$(template_dir))
 htmldir_SQ = $(subst ','\'',$(htmldir))
 prefix_SQ = $(subst ','\'',$(prefix))
 sysconfdir_SQ = $(subst ','\'',$(sysconfdir))
+libdir_SQ = $(subst ','\'',$(libdir))
 
 ifneq ($(filter /%,$(firstword $(perfexecdir))),)
 perfexec_instdir = $(perfexecdir)
