@@ -1701,6 +1701,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Nov 06 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-509.el6]
+- [fs] udf: Avoid infinite loop when processing indirect ICBs (Jacob Tanenbaum) [1142320] {CVE-2014-6410}
+- [fs] isofs: unbound recursion when processing relocated directories (Jacob Tanenbaum) [1142269] {CVE-2014-5471 CVE-2014-5472}
+- [net] ipv6: delete expired route in ip6_pmtu_deliver (Hannes Frederic Sowa) [1156137]
+- [net] sctp: fix remote memory pressure from excessive queueing (Daniel Borkmann) [1154676] {CVE-2014-3688}
+- [net] sctp: fix panic on duplicate ASCONF chunks (Daniel Borkmann) [1154676] {CVE-2014-3687}
+- [net] sctp: fix skb_over_panic when receiving malformed ASCONF chunks (Daniel Borkmann) [1154676] {CVE-2014-3673}
+- [net] sctp: handle association restarts when the socket is closed (Daniel Borkmann) [1154676]
+- [s390] mm: fix SIGBUS handling (Hendrik Brueckner) [1145070]
+- [usb] ehci: Fix a regression in the ISO scheduler (Gustavo Duarte) [1145805]
+- [powerpc] crashdump: Fix page frame number check in copy_oldmem_page (Gustavo Duarte) [1117401]
+- [lib] memblock: fix memblock_is_region_memory() (Gustavo Duarte) [1117401]
+- [lib] memblock: Implement memblock_is_memory and memblock_is_region_memory (Gustavo Duarte) [1117401]
+- [thermal] intel_powerclamp: add newer cpu ids (Steve Best) [1135911]
+- [powercap] rapl: add new CPU IDs (Steve Best) [1136929]
+- [powercap] intel_rapl: spell out SoC names (Steve Best) [1136929]
+- [powercap] rapl: add support for ValleyView Soc (Steve Best) [1136929]
+
 * Fri Oct 31 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-508.el6]
 - [md] dm-thin: refactor requeue_io to eliminate spinlock bouncing (Mike Snitzer) [1142773 1145230]
 - [md] dm-thin: optimize retry_bios_on_resume (Mike Snitzer) [1142773 1145230]
