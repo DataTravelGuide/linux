@@ -108,6 +108,7 @@ FEATURE_TESTS =				\
 	fortify-source			\
 	bionic				\
 	libelf				\
+	glibc				\
 	libnuma
 
 $(foreach test,$(FEATURE_TESTS),$(call feature_check,$(test),$(test)))
@@ -165,8 +166,7 @@ ifdef NO_LIBELF
   NO_LIBUNWIND := 1
 else
   ifeq ($(feature-libelf), 0)
-    FLAGS_GLIBC=$(CFLAGS) $(LDFLAGS)
-    ifeq ($(call try-cc,$(SOURCE_GLIBC),$(FLAGS_GLIBC),glibc),y)
+    ifeq ($(feature-glibc), 1)
       LIBC_SUPPORT := 1
     endif
     ifeq ($(BIONIC),1)
