@@ -120,7 +120,6 @@ FEATURE_TESTS =				\
 	libperl				\
 	libpython			\
 	libpython-version		\
-	strlcpy				\
 	libbfd				\
 	on-exit				\
 	backtrace			\
@@ -432,12 +431,6 @@ else
         endif
       endif
     endif
-  endif
-endif
-
-ifndef NO_STRLCPY
-  ifeq ($(feature-strlcpy), 1)
-    CFLAGS += -DHAVE_STRLCPY_SUPPORT
   endif
 endif
 
