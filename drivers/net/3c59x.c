@@ -2139,7 +2139,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					cpu_to_le32(skb_frag_dma_map(
 						&VORTEX_PCI(vp)->dev,
 						frag,
-						frag->page_offset, frag->size, DMA_TO_DEVICE));
+						0, frag->size, DMA_TO_DEVICE));
 
 			if (i == skb_shinfo(skb)->nr_frags-1)
 					vp->tx_ring[entry].frag[i+1].length = cpu_to_le32(frag->size|LAST_FRAG);
