@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.43.1.el6]
+- [netdrv] tg3: Clear NETIF_F_TSO6 flag before doing software GSO (Ivan Vecera) [1162748 1108572]
+
 * Fri Nov 07 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.42.1.el6]
 - [netdrv] tg3: Prevent page allocation failure during TSO workaround (Petr Holasek) [1158889 1029192]
 - [netdrv] tg3: Don't modify ip header fields when doing GSO (Petr Holasek) [1158889 1029192]
