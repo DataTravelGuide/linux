@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 11 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-510.el6]
+- [fs] ext4: don't leave i_crtime.tv_sec uninitialized (Carlos Maiolino) [1144263]
+- [fs] ext4: zero out nanosecond timestamps for small inodes (Carlos Maiolino) [1144263]
+- [fs] nfsd: don't halt scanning the DRC LRU list when there's an RC_INPROG entry (J. Bruce Fields) [1150675]
+- [fs] nfsd: Decode and send 64bit time values (Benjamin Coddington) [1139909]
+- [fs] nfs: Make sure pre_change_attr is initialized correctly (Scott Mayhew) [1160042]
+- [dma] ioatdma: Adding Haswell devid for ioatdma (Prarit Bhargava) [1104761]
+- [x86] mtrr: return lowest common cache mode for range overlapping several mtrr (Larry Woodman) [973804]
+- [virtio] enable virtio_net to return bus_info in ethtool -i consistent with emulated NICs (Amos Kong) [994870]
+
 * Thu Nov 06 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-509.el6]
 - [fs] udf: Avoid infinite loop when processing indirect ICBs (Jacob Tanenbaum) [1142320] {CVE-2014-6410}
 - [fs] isofs: unbound recursion when processing relocated directories (Jacob Tanenbaum) [1142269] {CVE-2014-5471 CVE-2014-5472}
