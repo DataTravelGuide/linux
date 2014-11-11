@@ -3546,12 +3546,18 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		limits->max_sectors = limits->max_hw_sectors;
 
 	if (limits->max_sectors < pool->sectors_per_block) {
-		while (!is_factor(pool->sectors_per_block, limits->max_sectors))
+		while (!is_factor(pool->sectors_per_block, limits->max_sectors)) {
+			if ((limits->max_sectors & (limits->max_sectors - 1)) == 0)
+				limits->max_sectors--;
 			limits->max_sectors = rounddown_pow_of_two(limits->max_sectors);
+		}
 	} else if (block_size_is_power_of_two(pool)) {
 		/* max_sectors_kb is >= power-of-2 thinp blocksize */
-		while (!is_factor(limits->max_sectors, pool->sectors_per_block))
+		while (!is_factor(limits->max_sectors, pool->sectors_per_block)) {
+			if ((limits->max_sectors & (limits->max_sectors - 1)) == 0)
+				limits->max_sectors--;
 			limits->max_sectors = rounddown_pow_of_two(limits->max_sectors);
+		}
 	}
 
 	/*
