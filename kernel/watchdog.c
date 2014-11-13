@@ -54,6 +54,25 @@ static int hardlockup_panic =
 static int hardlockup_enable = 
 			CONFIG_BOOTPARAM_HARDLOCKUP_ENABLED_VALUE;
 
+static bool hardlockup_detector_enabled = true;
+/*
+ * We may not want to enable hard lockup detection by default in all cases,
+ * for example when running the kernel as a guest on a hypervisor. In these
+ * cases this function can be called to disable hard lockup detection. This
+ * function should only be executed once by the boot processor before the
+ * kernel command line parameters are parsed, because otherwise it is not
+ * possible to override this in hardlockup_panic_setup().
+ */
+void watchdog_enable_hardlockup_detector(bool val)
+{
+	hardlockup_detector_enabled = val;
+}
+
+bool watchdog_hardlockup_detector_is_enabled(void)
+{
+	return hardlockup_detector_enabled;
+}
+
 static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
@@ -64,10 +83,16 @@ static int __init hardlockup_panic_setup(char *str)
 		watchdog_enabled = 0;
 	else if (!strncmp(str, "1", 1) ||
 		 !strncmp(str, "2", 1))
+	{
 		hardlockup_enable = 1;
+		watchdog_enable_hardlockup_detector(true);
+	}
 	else if (!strncmp(str, "lapic", 5) ||
 		 !strncmp(str, "ioapic", 6))
+	{
 		hardlockup_enable = 1;
+		watchdog_enable_hardlockup_detector(true);
+	}
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
@@ -380,6 +405,15 @@ static int watchdog_nmi_enable(int cpu)
 	if (!hardlockup_enable)
 		return 0;
 
+	/*
+	 * Some kernels need to default hard lockup detection to
+	 * 'disabled', for example a guest on a hypervisor.
+	 */
+	if (!watchdog_hardlockup_detector_is_enabled()) {
+		event = ERR_PTR(-ENOENT);
+		goto handle_err;
+	}
+
 	/* is it already setup and enabled? */
 	if (event && event->state > PERF_EVENT_STATE_OFF)
 		goto out;
@@ -394,6 +428,7 @@ static int watchdog_nmi_enable(int cpu)
 	/* Try to register using hardware perf events */
 	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
 
+handle_err:
 	/* save cpu0 error for future comparision */
 	if (cpu == 0 && IS_ERR(event))
 		cpu0_err = PTR_ERR(event);
@@ -520,6 +555,7 @@ static void watchdog_enable_all_cpus(void)
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 	/* user is explicitly enabling this */
 	hardlockup_enable = 1;
+	watchdog_enable_hardlockup_detector(true);
 #endif
 	for_each_online_cpu(cpu)
 		if (!watchdog_enable(cpu))
