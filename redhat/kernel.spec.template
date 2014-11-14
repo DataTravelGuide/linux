@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Nov 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.44.1.el6]
+- [kernel] cgroups: fix a css_set not found bug in cgroup_attach_proc (Petr Oros) [1163397 1078263]
+
 * Tue Nov 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.43.1.el6]
 - [netdrv] tg3: Clear NETIF_F_TSO6 flag before doing software GSO (Ivan Vecera) [1162748 1108572]
 
