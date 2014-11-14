@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Nov 14 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.3.1.el6]
+- [s390] zcrypt: toleration of new crypto adapter hardware (Hendrik Brueckner) [1158311 1134984]
+- [s390] zcrypt: support for extended number of ap domains (Hendrik Brueckner) [1158311 1134984]
+- [md] dm-thin: fix potential for infinite loop in pool_io_hints (Mike Snitzer) [1161420 1161421 1142773 1145230]
+
 * Mon Nov 10 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.2.1.el6]
 - [fs] udf: Avoid infinite loop when processing indirect ICBs (Jacob Tanenbaum) [1142319 1142320] {CVE-2014-6410}
 - [fs] isofs: unbound recursion when processing relocated directories (Jacob Tanenbaum) [1142268 1142269] {CVE-2014-5472 CVE-2014-5471}
