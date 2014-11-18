@@ -1701,6 +1701,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 18 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-512.el6]
+- [net] sctp: fix NULL pointer dereference in af->from_addr_param on malformed packet (Daniel Borkmann) [1153980] {CVE-2014-7841}
+- [idle] intel_idle: fix IVT idle state table setting (Erik Arfvidson) [1120327]
+- [idle] intel_idle: fine-tune IVT residency targets (Erik Arfvidson) [1120327]
+- [netdrv] hyperv: Fix the total_data_buflen in send path (Jason Wang) [1132918]
+- [netdrv] hyperv: Fix a bug in netvsc_send() (Jason Wang) [1149925]
+- [netdrv] hyperv: Fix a bug in netvsc_start_xmit() (Jason Wang) [1149921]
+- [netdrv] hyperv: NULL dereference on error (Jason Wang) [1149921]
+- [netdrv] hyperv: Fix error return code in netvsc_init_buf() (Jason Wang) [1149921]
+- [netdrv] hyperv: Add netpoll support (Jason Wang) [1129966]
+- [netdrv] hyperv: remove unnecessary null test before kfree (Jason Wang) [1149921]
+- [netdrv] hyperv: fix apparent cut-n-paste error in send path teardown (Jason Wang) [1149921]
+- [netdrv] e100: fix typo in MDI/MDI-X eeprom check in e100_phy_init (John Greene) [1156417]
+- [powerpc] Disable /dev/port interface on systems without an ISA bridge (Gustavo Duarte) [1132045]
+- [powerpc] Add smp_mb()s to arch_spin_unlock_wait() (Gustavo Duarte) [1136224]
+- [powerpc] Add smp_mb() to arch_spin_is_locked() (Gustavo Duarte) [1136224]
+
 * Fri Nov 14 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-511.el6]
 - [net] vlan: Don't propagate flag changes on down interfaces (Jiri Pirko) [1135347]
 - [net] bridge: register vlan group for br ports (Jiri Pirko) [1135347]
