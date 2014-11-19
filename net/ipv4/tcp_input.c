@@ -4401,7 +4401,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		__skb_unlink(skb, &tp->out_of_order_queue);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-		if (tcp_hdr(skb)->fin)
+		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			tcp_fin(sk);
 	}
 }
@@ -4695,7 +4695,7 @@ restart:
 		 * - bloated or contains data before "start" or
 		 *   overlaps to the next one.
 		 */
-		if (!tcp_hdr(skb)->syn && !tcp_hdr(skb)->fin &&
+		if (!(TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)) &&
 		    (tcp_win_from_space(skb->truesize) > skb->len ||
 		     before(TCP_SKB_CB(skb)->seq, start))) {
 			end_of_skbs = false;
@@ -4714,7 +4714,8 @@ restart:
 		/* Decided to skip this, advance start seq. */
 		start = TCP_SKB_CB(skb)->end_seq;
 	}
-	if (end_of_skbs || tcp_hdr(skb)->syn || tcp_hdr(skb)->fin)
+	if (end_of_skbs ||
+	    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 		return;
 
 	while (before(start, end)) {
@@ -4761,8 +4762,7 @@ restart:
 				skb = tcp_collapse_one(sk, skb, list);
 				if (!skb ||
 				    skb == tail ||
-				    tcp_hdr(skb)->syn ||
-				    tcp_hdr(skb)->fin)
+				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 					return;
 			}
 		}
