@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Nov 20 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.4.1.el6]
+- [fs] nfs: Make sure pre_change_attr is initialized correctly (Scott Mayhew) [1163214 1160042]
+- [usb] ehci: Fix a regression in the ISO scheduler (Gustavo Duarte) [1162072 1145805]
+
 * Fri Nov 14 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.3.1.el6]
 - [s390] zcrypt: toleration of new crypto adapter hardware (Hendrik Brueckner) [1158311 1134984]
 - [s390] zcrypt: support for extended number of ap domains (Hendrik Brueckner) [1158311 1134984]
