@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Nov 20 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.45.1.el6]
+- [netdrv] e100: fix typo in MDI/MDI-X eeprom check in e100_phy_init (John Greene) [1165984 1156417]
+
 * Fri Nov 14 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.44.1.el6]
 - [kernel] cgroups: fix a css_set not found bug in cgroup_attach_proc (Petr Oros) [1163397 1078263]
 
