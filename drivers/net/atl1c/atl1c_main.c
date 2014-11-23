@@ -471,7 +471,7 @@ static int atl1c_set_mac_addr(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
+	netdev->addr_assign_type = NET_ADDR_PERM;
 
 	atl1c_hw_set_mac_addr(&adapter->hw, adapter->hw.mac_addr);
 
@@ -2515,7 +2515,7 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 	}
 	if (atl1c_read_mac_addr(&adapter->hw)) {
 		/* got a random MAC address, set NET_ADDR_RANDOM to netdev */
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);

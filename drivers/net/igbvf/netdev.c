@@ -1765,7 +1765,7 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 		return -EADDRNOTAVAIL;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
+	netdev->addr_assign_type = NET_ADDR_PERM;
 
 	return 0;
 }
@@ -2759,7 +2759,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 
 	/* workaround for RHEL6 */
 	if (is_local_ether_addr(netdev->dev_addr))
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
