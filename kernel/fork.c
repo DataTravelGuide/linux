@@ -1412,6 +1412,13 @@ bad_fork_cleanup_count:
 bad_fork_free:
 	free_task(p);
 fork_out:
+	/*
+	 * HACK. A buggy subsystem can clear TIF_SIGPENDING in between.
+	 * In particular, there are a lot of sigprocmask() users, and
+	 * recalc_sigpending() is simply wrong in this case.
+	 */
+	if (unlikely(retval == -ERESTARTNOINTR))
+		set_thread_flag(TIF_SIGPENDING);
 	return ERR_PTR(retval);
 }
 
