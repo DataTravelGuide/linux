@@ -97,6 +97,7 @@ int __init oprofile_timer_init(struct oprofile_operations *ops)
 	ops->start = oprofile_hrtimer_start;
 	ops->stop = oprofile_hrtimer_stop;
 	ops->cpu_type = "timer";
+	printk(KERN_INFO "oprofile: using timer interrupt.\n");
 	return 0;
 }
 
