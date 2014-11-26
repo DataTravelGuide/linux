@@ -1701,6 +1701,24 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Nov 25 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-514.el6]
+- [fs] ext4: don't count external journal blocks as overhead (Eric Sandeen) [1163811]
+- [md] dm-thin: fix pool_io_hints to avoid looking at max_hw_sectors (Mike Snitzer) [1142773]
+- [hv] vmbus: incorrect device name is printed when child device is unregistered (Vitaly Kuznetsov) [1149920]
+- [xen] pvhvm: Fix vcpu hotplugging hanging (Vitaly Kuznetsov) [1164278]
+- [xen] pvhvm: Don't point per_cpu(xen_vpcu, 33 and larger) to shared_info (Vitaly Kuznetsov) [1164278]
+- [xen] enable PVHVM VCPU placement when using more than 32 CPUs (Vitaly Kuznetsov) [1164278]
+- [xen] support large numbers of CPUs with vcpu info placement (Vitaly Kuznetsov) [1164278]
+- [drm] backport: CONFIG_DMAR vs CONFIG_INTEL_IOMMU (Rob Clark) [1144143]
+- [x86] kvm: ensure hard lockup detection is disabled by default (Andrew Jones) [1111822]
+- [kernel] watchdog: control hard lockup detection default (Andrew Jones) [1111822]
+- [kernel] watchdog: Fix print-once on enable (Andrew Jones) [1111822]
+- [kernel] watchdog: Quiet down the boot messages (Andrew Jones) [1111822]
+- [kernel] Revert "watchdog: quiet down the boot messages" (Andrew Jones) [1111822]
+- [kernel] hrtimer: Prevent hrtimer_enqueue_reprogram race (Prarit Bhargava) [1154512]
+- [kernel] hrtimer: Preserve timer state in remove_hrtimer() (Prarit Bhargava) [1154512]
+- [serial] 8250: increase PASS_LIMIT (Seth Jennings) [986761]
+
 * Thu Nov 20 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-513.el6]
 - [scsi] sym53c8xx_2: Set DID_REQUEUE return code when aborting squeue (Mikulas Patocka) [1128952]
 - [input] mouse: elantech - add support for trackpoint found on some v3 models (Aristeu Rozanski) [1064994]

@@ -5,7 +5,7 @@ EXTRAVERSION =
 NAME = Man-Eating Seals of Antiquity
 RHEL_MAJOR = 6
 RHEL_MINOR = 7
-RHEL_RELEASE = 513
+RHEL_RELEASE = 514
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
