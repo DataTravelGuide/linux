@@ -554,7 +554,6 @@ enum ethtool_stringset {
 	ETH_SS_NTUPLE_FILTERS,
 	ETH_SS_FEATURES,
 	ETH_SS_RSS_HASH_FUNCS,
-	ETH_SS_TUNABLES,
 };
 
 /**

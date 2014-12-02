@@ -1171,6 +1171,9 @@ static int fm10k_get_rssh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
 	err = fm10k_get_reta(netdev, indir);
 	if (err || !key)
 		return err;
@@ -1187,6 +1190,10 @@ static int fm10k_set_rssh(struct net_device *netdev, const u32 *indir,
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_hw *hw = &interface->hw;
 	int i, err;
+
+	/* We do not allow change in unsupported parameters */
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
 
 	/* We do not allow change in unsupported parameters */
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)

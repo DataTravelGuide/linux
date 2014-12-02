@@ -120,6 +120,12 @@ tunable_strings[__ETHTOOL_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_TX_COPYBREAK]	= "tx-copybreak",
 };
 
+static const char
+rss_hash_func_strings[ETH_RSS_HASH_FUNCS_COUNT][ETH_GSTRING_LEN] = {
+	[ETH_RSS_HASH_TOP_BIT] =	"toeplitz",
+	[ETH_RSS_HASH_XOR_BIT] =	"xor",
+};
+
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gfeatures cmd = {
@@ -211,6 +217,9 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_TUNABLES)
 		return ARRAY_SIZE(tunable_strings);
 
+	if (sset == ETH_SS_RSS_HASH_FUNCS)
+		return ARRAY_SIZE(rss_hash_func_strings);
+
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
 	else
@@ -225,6 +234,12 @@ static void __ethtool_get_strings(struct net_device *dev,
 	if (stringset == ETH_SS_FEATURES)
 		memcpy(data, netdev_features_strings,
 			sizeof(netdev_features_strings));
+	else if (stringset == ETH_SS_RSS_HASH_FUNCS)
+		memcpy(data, rss_hash_func_strings,
+		       sizeof(rss_hash_func_strings));
+	else
+		/* ops->get_strings is valid because checked earlier */
+		ops->get_strings(dev, stringset, data);
 	else if (stringset == ETH_SS_RSS_HASH_FUNCS)
 		memcpy(data, rss_hash_func_strings,
 		       sizeof(rss_hash_func_strings));
@@ -1077,7 +1092,7 @@ static int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
 	while (dev_size--)
 		current_max = max(current_max, indir[dev_size]);
 
-	*max = current_max;
+	ret = ops->set_rxfh(dev, indir, NULL, ETH_RSS_HASH_NO_CHANGE);
 
 out:
 	kfree(indir);
@@ -1215,7 +1230,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	u8 *rss_config;
 
 	if (!ops->get_rxfh)
-		    return -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
@@ -1240,12 +1255,23 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if ((user_indir_size && (user_indir_size != dev_indir_size)) ||
 	    (user_key_size && (user_key_size != dev_key_size)))
 		return -EINVAL;
+	if (user_key_size)
+		hkey = rss_config + indir_bytes;
 
-	indir_bytes = user_indir_size * sizeof(indir[0]);
-	total_size = indir_bytes + user_key_size;
-	rss_config = kzalloc(total_size, GFP_USER);
-	if (!rss_config)
-		return -ENOMEM;
+	ret = dev->ethtool_ops->get_rxfh(dev, indir, hkey, &dev_hfunc);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, hfunc),
+			 &dev_hfunc, sizeof(rxfh.hfunc))) {
+		ret = -EFAULT;
+	} else if (copy_to_user(useraddr +
+			      offsetof(struct ethtool_rxfh, rss_config[0]),
+			      rss_config, total_size)) {
+		ret = -EFAULT;
+	}
+out:
+	kfree(rss_config);
 
 	if (user_indir_size)
 		indir = (u32 *)rss_config;
@@ -1290,7 +1316,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
 	if (ops->get_rxfh_key_size)
-		dev_key_size = ops->get_rxfh_key_size(dev);
+		dev_key_size = dev->ethtool_ops->get_rxfh_key_size(dev);
 
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
@@ -1312,7 +1338,10 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EINVAL;
 
 	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
-		indir_bytes = dev_indir_size * sizeof(indir[0]);
+		}
+	}
+
+	ret = ops->set_rxfh(dev, indir, hkey, rxfh.hfunc);
 
 	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
 	if (!rss_config)

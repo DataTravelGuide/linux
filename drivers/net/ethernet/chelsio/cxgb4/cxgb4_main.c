@@ -2572,10 +2572,37 @@ static void detach_ulds(struct adapter *adap)
 	spin_unlock(&adap_rcu_lock);
 }
 
-static void notify_ulds(struct adapter *adap, enum cxgb4_state new_state)
+static int get_rss_table(struct net_device *dev, u32 *p, u8 *key, u8 *hfunc)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	unsigned int n = pi->rss_size;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!p)
+		return 0;
+	while (n--)
+		p[n] = pi->rss[n];
+	return 0;
+}
+
+static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
+			 const u8 hfunc)
 {
 	unsigned int i;
 
+	/* We require at least one supported parameter to be changed and no
+	 * change in any of the unsupported parameters
+	 */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!p)
+		return 0;
+
+	for (i = 0; i < pi->rss_size; i++)
+		pi->rss[i] = p[i];
+	if (pi->adapter->flags & FULL_INIT_DONE)
 	mutex_lock(&uld_mutex);
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
 		if (adap->uld_handle[i])

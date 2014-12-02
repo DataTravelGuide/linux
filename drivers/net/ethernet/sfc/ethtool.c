@@ -187,15 +187,32 @@ static void efx_ethtool_get_regs(struct net_device *net_dev,
 	efx_nic_get_regs(efx, buf);
 }
 
-static u32 efx_ethtool_get_msglevel(struct net_device *net_dev)
+static int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
+				u8 *hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	return efx->msg_enable;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (indir)
+		memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
+	return 0;
 }
 
-static void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
+static int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
+				const u8 *key, const u8 hfunc)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!indir)
+		return 0;
+	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
+	efx->type->rx_push_rss_config(efx);
+	return 0;
 	efx->msg_enable = msg_enable;
 }
 
