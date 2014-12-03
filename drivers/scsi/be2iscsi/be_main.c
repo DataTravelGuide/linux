@@ -3446,7 +3446,7 @@ static void hwi_cleanup(struct beiscsi_hba *phba)
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	struct hwi_async_pdu_context *pasync_ctx;
-	int i, eq_num;
+	int i, eq_for_mcc;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -3473,16 +3473,17 @@ static void hwi_cleanup(struct beiscsi_hba *phba)
 		if (q->created)
 			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_CQ);
 	}
+
+	be_mcc_queues_destroy(phba);
 	if (phba->msix_enabled)
-		eq_num = 1;
+		eq_for_mcc = 1;
 	else
-		eq_num = 0;
-	for (i = 0; i < (phba->num_cpus + eq_num); i++) {
+		eq_for_mcc = 0;
+	for (i = 0; i < (phba->num_cpus + eq_for_mcc); i++) {
 		q = &phwi_context->be_eq[i].q;
 		if (q->created)
 			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
 	}
-	be_mcc_queues_destroy(phba);
 
 	pasync_ctx = phwi_ctrlr->phwi_ctxt->pasync_ctx;
 	kfree(pasync_ctx->async_entry);
