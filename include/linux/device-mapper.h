@@ -69,6 +69,7 @@ typedef int (*dm_request_endio_fn) (struct dm_target *ti,
 
 typedef void (*dm_flush_fn) (struct dm_target *ti);
 typedef void (*dm_presuspend_fn) (struct dm_target *ti);
+typedef void (*dm_presuspend_undo_fn) (struct dm_target *ti);
 typedef void (*dm_postsuspend_fn) (struct dm_target *ti);
 typedef int (*dm_preresume_fn) (struct dm_target *ti);
 typedef void (*dm_resume_fn) (struct dm_target *ti);
@@ -189,6 +190,7 @@ struct target_type {
 
 #ifndef __GENKSYMS__
 	dm_status_with_flags_fn status_with_flags;
+	dm_presuspend_undo_fn presuspend_undo;
 #endif
 };
 
@@ -219,6 +221,13 @@ struct target_type {
 #define DM_TARGET_STATUS_WITH_FLAGS	0x00000008
 #define dm_target_provides_status_with_flags(type) \
 		((type)->features & DM_TARGET_STATUS_WITH_FLAGS)
+
+/*
+ * Target provides the .presuspend_undo method
+ */
+#define DM_TARGET_PRESUSPEND_UNDO	0x00000016
+#define dm_target_provides_presuspend_undo(type) \
+		((type)->features & DM_TARGET_PRESUSPEND_UNDO)
 
 struct dm_target {
 	uint64_t features;	/* 3rd party driver must initialize to zero */
