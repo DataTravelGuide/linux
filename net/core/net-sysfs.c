@@ -1251,7 +1251,7 @@ int netdev_register_kobject(struct net_device *net)
 
 #ifdef CONFIG_SYSFS
 	/* Allow for a device specific group */
-	if (*groups) {
+	if (*groups && *groups != &netstat_group) {
 		netdev_extended(net)->sysfs_groups[0] = *groups;
 		groups = netdev_extended(net)->sysfs_groups;
 		dev->groups = groups;
