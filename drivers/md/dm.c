@@ -159,9 +159,6 @@ struct mapped_device {
 	atomic_t holders;
 	atomic_t open_count;
 
-	struct list_head table_devices;
-	struct mutex table_devices_lock;
-
 	unsigned long flags;
 
 	struct request_queue *queue;
@@ -195,7 +192,11 @@ struct mapped_device {
 	 * Use dm_get_live_table{_fast} or take suspend_lock for
 	 * dereference.
 	 */
+#ifdef __GENKSYMS__
+	struct dm_table *map;
+#else
 	struct dm_table __rcu *map;
+#endif
 
 	/*
 	 * io objects are allocated from here.
@@ -239,6 +240,9 @@ struct mapped_device {
 
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
+
+	struct list_head table_devices;
+	struct mutex table_devices_lock;
 #endif
 };
 
