@@ -1701,6 +1701,38 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Dec 08 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-516.el6]
+- [kernel] ipc/sem: Fully initialize sem_array before making it visible (Rik van Riel) [1165277]
+- [kernel] ipc/sem: synchronize semop and semctl with IPC_RMID (Rik van Riel) [1165277]
+- [kernel] ipc/sem: update sem_otime for all operations (Larry Woodman) [1168588]
+- [fs] fuse: prevent null nd panic on dentry revalidate (Brian Foster) [1162782]
+- [hv] vmbus: Properly protect calls to smp_processor_id() (Vitaly Kuznetsov) [1149924]
+- [hv] vmbus: Cleanup hv_post_message() (Vitaly Kuznetsov) [1149924]
+- [net] ipv4: Fix incorrect error code when adding an unreachable route (Panu Matilainen) [1119544]
+- [net] tcp: do not copy headers in tcp_collapse() (Alexander Duyck) [1156289]
+- [net] tcp: use tcp_flags in tcp_data_queue() (Alexander Duyck) [1156289]
+- [net] tcp: use TCP_SKB_CB(skb)->tcp_flags in input path (Alexander Duyck) [1156289]
+- [net] tcp: remove unused tcp_fin() parameters (Alexander Duyck) [1156289]
+- [net] tcp: rename tcp_skb_cb flags (Alexander Duyck) [1156289]
+- [net] tcp: unify tcp flag macros (Alexander Duyck) [1156289]
+- [net] tcp: unalias tcp_skb_cb flags and ip_dsfield (Alexander Duyck) [1156289]
+- [net] netfilter: ipset: timeout values corrupted on set resize (Marcelo Leitner) [1152754]
+- [net] tcp: zero retrans_stamp if all retrans were acked (Marcelo Leitner) [1127553]
+- [net] tcp: fix retrans_stamp advancing in error cases (Marcelo Leitner) [1127553]
+- [net] bridge: allow forwarding some link local frames (Marcelo Leitner) [1144330]
+- [net] netfilter: fix xt_TCPOPTSTRIP in forwarding path (Marcelo Leitner) [1135650]
+- [net] ipv4: fix nexthop attlen check in fib_nh_match (Jiri Pirko) [1151899]
+- [net] netfilter: conntrack: disable generic tracking for known protocols (Daniel Borkmann) [1114697]
+- [net] netns: xfrm: ipcomp support (Jiri Pirko) [1112926]
+- [usb] ehci: Fix panic on hotplug race condition (Don Zickus) [1107010]
+- [usb] usb_wwan: replace release and disconnect with a port_remove hook (Stanislaw Gruszka) [1148615]
+- [x86] perf: Rework AMD PMU init code (Jiri Olsa) [1141914]
+- [char] hwrng: pseries - fix stack corruption (Gustavo Duarte) [1164436]
+- [scsi] storvsc: get rid of overly verbose warning messages (Vitaly Kuznetsov) [1167967]
+- [scsi] storvsc: NULL pointer dereference fix (Vitaly Kuznetsov) [1167967]
+- [security] selinux: Permit bounded transitions under NO_NEW_PRIVS or NOSUID (Denys Vlasenko) [1104568] {CVE-2014-3215}
+- [security] Add PR_<GET, SET>_NO_NEW_PRIVS to prevent execve from granting privs (Denys Vlasenko) [1104568] {CVE-2014-3215}
+
 * Wed Nov 26 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-515.el6]
 - [netdrv] set dev->addr_assign_type correctly (Nikolay Aleksandrov) [1159818]
 - [netdrv] bonding: fix curr_active_slave/carrier with loadbalance arp monitoring (Nikolay Aleksandrov) [1159818]
