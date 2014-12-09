@@ -1701,6 +1701,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 09 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.6.1.el6]
+- [fs] ext4: don't count external journal blocks as overhead (Eric Sandeen) [1168504 1163811]
+- [net] sctp: fix NULL pointer dereference in af->from_addr_param on malformed packet (Daniel Borkmann) [1163090 1153980] {CVE-2014-7841}
+- [netdrv] e100: fix typo in MDI/MDI-X eeprom check in e100_phy_init (John Greene) [1165985 1156417]
+- [powerpc] Add smp_mb()s to arch_spin_unlock_wait() (Gustavo Duarte) [1165986 1136224]
+- [powerpc] Add smp_mb() to arch_spin_is_locked() (Gustavo Duarte) [1165986 1136224]
+- [kernel] cpuset: PF_SPREAD_PAGE and PF_SPREAD_SLAB should be atomic flags (Aaron Tomlin) [1165002 1045310]
+- [documentation] cpuset: Update the cpuset flag file (Aaron Tomlin) [1165002 1045310]
+- [alsa] control: Make sure that id->index does not overflow (Jacob Tanenbaum) [1149140 1117312] {CVE-2014-4656}
+- [alsa] control: Handle numid overflow (Jacob Tanenbaum) [1149140 1117312] {CVE-2014-4656}
+- [s390] mm: fix SIGBUS handling (Hendrik Brueckner) [1169433 1145070]
+- [fs] gfs2: fix bad inode i_goal values during block allocation (Abhijith Das) [1165001 1130684]
+- [md] dm-thin: fix pool_io_hints to avoid looking at max_hw_sectors (Mike Snitzer) [1161420 1161421 1142773 1145230]
+
 * Wed Dec 03 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.5.1.el6]
 - [fs] nfsd: don't halt scanning the DRC LRU list when there's an RC_INPROG entry (J. Bruce Fields) [1168129 1150675]
 
