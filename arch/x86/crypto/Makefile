@@ -30,4 +30,5 @@ aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o
 
 ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
 crc32c-intel-y := crc32c-intel_glue.o
+crc32c-intel-$(CONFIG_CRYPTO_CRC32C_X86_64) += crc32c-pcl-intel-asm_64.o
 crct10dif-pclmul-y := crct10dif-pcl-asm_64.o crct10dif-pclmul_glue.o
