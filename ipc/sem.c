@@ -174,7 +174,7 @@ static inline void sem_lock_and_putref(struct sem_array *sma)
 
 static inline void sem_getref_and_unlock(struct sem_array *sma)
 {
-	ipc_rcu_getref(sma);
+	WARN_ON_ONCE(!ipc_rcu_getref(sma));
 	ipc_unlock(&(sma)->sem_perm);
 }
 
@@ -722,7 +722,11 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		int i;
 		struct sem_undo *un;
 
-		sem_getref_and_unlock(sma);
+		if (!ipc_rcu_getref(sma)) {
+			ipc_unlock(&(sma)->sem_perm);
+			return -EIDRM;
+		}
+		ipc_unlock(&(sma)->sem_perm);
 
 		if(nsems > SEMMSL_FAST) {
 			sem_io = ipc_alloc(sizeof(ushort)*nsems);
@@ -1013,7 +1017,12 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 		return ERR_PTR(PTR_ERR(sma));
 
 	nsems = sma->sem_nsems;
-	sem_getref_and_unlock(sma);
+	if (!ipc_rcu_getref(sma)) {
+		ipc_unlock(&(sma)->sem_perm);
+		un = ERR_PTR(-EIDRM);
+		goto out;
+	}
+	ipc_unlock(&(sma)->sem_perm);
 
 	/* step 2: allocate new undo structure */
 	new = kzalloc(sizeof(struct sem_undo) + sizeof(short)*nsems, GFP_KERNEL);
