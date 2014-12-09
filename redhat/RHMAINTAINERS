@@ -570,6 +570,24 @@ F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
 
+SGI SPECIFIC
+M:	George Beshers <gbeshers@redhat.com>
+M:	Frank Ramsay <framsay@redhat.com>
+M:	Russ Anderson <randerso@redhat.com>
+S:	Maintained
+F:	arch/x86/include/asm/uv/
+F:	arch/x86/include/asm/visws/sgivw.h
+F:	arch/x86/kernel/apic/x2apic_uv_x.c
+F:	arch/x86/kernel/bios_uv.c
+F:	arch/x86/kernel/tlb_uv.c
+F:	arch/x86/kernel/uv_irq.c
+F:	arch/x86/kernel/uv_sysfs.c
+F:	arch/x86/kernel/uv_time.c
+F:	drivers/char/uv_mmtimer.c
+F:	drivers/ide/sgiioc4.c
+F:	drivers/misc/sgi-gru/
+F:	drivers/misc/sgi-xp/
+
 SIERRA_NET USB BROADBAND MODEM
 M:	Neil Horman <nhorman@redhat.com>
 S:	Maintained
