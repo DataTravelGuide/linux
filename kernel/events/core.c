@@ -5545,10 +5545,14 @@ static int tp_perf_event_init(struct perf_event *event)
 	/*
 	 * Raw tracepoint data is a severe data leak, only allow root to
 	 * have these.
+	 *
+	 * We checked and allowed to create parent,
+	 * allow children without checking.
 	 */
 	if ((event->attr.sample_type & PERF_SAMPLE_RAW) &&
 			perf_paranoid_tracepoint_raw() &&
-			!capable(CAP_SYS_ADMIN))
+			!capable(CAP_SYS_ADMIN) &&
+			!event->parent)
 		return -EPERM;
 
 	if (ftrace_profile_enable(event->attr.config))
