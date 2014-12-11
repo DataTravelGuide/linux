@@ -303,6 +303,9 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 	per_cpu(kernel_stack, cpu) =
 		(unsigned long)task_stack_page(idle) -
 		KERNEL_STACK_OFFSET + THREAD_SIZE;
+	per_cpu(kernel_stack8k, cpu) =
+		(unsigned long)task_stack_page(idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE - 8192;
 #endif
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);

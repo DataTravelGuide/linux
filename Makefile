@@ -1090,7 +1090,8 @@ define filechk_version.h
 	echo '#define RHEL_RELEASE_VERSION(a,b) (((a) << 8) + (b))'; \
 	echo '#define RHEL_RELEASE_CODE \
 		$(shell expr $(RHEL_MAJOR) \* 256 + $(RHEL_MINOR))'; \
-	echo '#define RHEL_RELEASE "$(RHEL_RELEASE)"';)
+	echo '#define RHEL_RELEASE $(RHEL_RELEASE)'; \
+	echo '#define RHEL_16KSTACK_BUILD 520';)
 endef
 
 include/linux/version.h: $(srctree)/Makefile FORCE
