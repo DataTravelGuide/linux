@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Dec 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.47.1.el6]
+- [net] netfilter: ipset: timeout values corrupted on set resize (Marcelo Leitner) [1172763 1152754]
+- [net] netfilter: fix xt_TCPOPTSTRIP in forwarding path (Marcelo Leitner) [1172026 1135650]
+
 * Fri Dec 05 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.46.1.el6]
 - [scsi] be2iscsi: Fix destroy MCC-CQ before MCC-EQ is destroyed (Rob Evers) [1167209 1054371]
 - [scsi] be2iscsi: Invalidate WRB in Abort/Reset Path (Rob Evers) [1167209 1054371]
