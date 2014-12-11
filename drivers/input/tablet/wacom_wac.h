@@ -26,6 +26,7 @@
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
+#define WACOM_BYTES_PER_24HDT_PACKET	14
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -35,6 +36,7 @@
 #define PAD_DEVICE_ID		0x0F
 
 #define WACOM_REPORT_TPCMT		13
+#define WACOM_REPORT_24HDT		1
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -69,6 +71,7 @@ enum {
 	WACOM_MO,
 	WIRELESS,
 	BAMBOO_PT,
+	WACOM_24HDT,
 	TABLETPC,
 	TABLETPC2FG,
 	MTSCREEN,

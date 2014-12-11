@@ -412,6 +412,18 @@ void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	}
 }
 
+void input_dev_24hdt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+{
+	struct wacom_features *features = &wacom_wac->features;
+
+	if (features->device_type == BTN_TOOL_FINGER) {
+		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_WIDTH_MINOR, 0, features->y_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+	}
+}
+
 int input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
@@ -578,16 +590,27 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
 						}
 
-						if (features->type == MTSCREEN)
+						if (features->type == MTSCREEN ||
+						    features->type == WACOM_24HDT)
 							features->pktlen = WACOM_PKGLEN_MTOUCH;
 
-						features->x_max =
-							wacom_le16_to_cpu(&report[i + 3]);
-						features->x_phy =
-							wacom_le16_to_cpu(&report[i + 6]);
-						features->unit = report[i + 9];
-						features->unitExpo = report[i + 11];
-						i += 12;
+						if (features->type == WACOM_24HDT) {
+							features->x_max =
+								wacom_le16_to_cpu(&report[i + 3]);
+							features->x_phy =
+								wacom_le16_to_cpu(&report[i + 8]);
+							features->unit = report[i - 1];
+							features->unitExpo = report[i - 3];
+							i += 12;
+						} else {
+							features->x_max =
+								wacom_le16_to_cpu(&report[i + 3]);
+							features->x_phy =
+								wacom_le16_to_cpu(&report[i + 6]);
+							features->unit = report[i + 9];
+							features->unitExpo = report[i + 11];
+							i += 12;
+						}
 					} else if (pen) {
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG ||
@@ -616,6 +639,12 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 								wacom_le16_to_cpu(&report[i + 3]);
 							features->y_phy =
 								wacom_le16_to_cpu(&report[i + 6]);
+							i += 7;
+						} else if (features->type == WACOM_24HDT) {
+							features->y_max =
+								wacom_le16_to_cpu(&report[i + 3]);
+							features->y_phy =
+								wacom_le16_to_cpu(&report[i - 2]);
 							i += 7;
 						} else {
 							features->y_max =
@@ -702,6 +731,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 			/* MT Tablet PC touch */
 			return wacom_set_device_mode (intf, 3, 4, 4);
 		}
+		else if (features->type == WACOM_24HDT) {
+			return wacom_set_device_mode(intf, 18, 3, 2);
+		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
 			return wacom_set_device_mode(intf, 2, 2, 2);
@@ -737,10 +769,9 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	}
 
 	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
-	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
+	if (features->type < WACOM_24HDT &&
 	    (features->type < INTUOSPS || features->type > INTUOSPL) &&
 	    features->type != MTSCREEN)
-
 		goto out;
 
 	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {

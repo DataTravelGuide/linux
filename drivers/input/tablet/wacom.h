@@ -159,6 +159,7 @@ extern void input_dev_i4(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_24hdt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern int input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_mo(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_bee(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
