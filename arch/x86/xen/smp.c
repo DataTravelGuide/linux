@@ -366,8 +366,7 @@ static void xen_cpu_die(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
-	if (xen_pv_domain())
-		xen_teardown_timer(cpu);
+	xen_teardown_timer(cpu);
 
 	if (num_online_cpus() == 1)
 		alternatives_smp_switch(0);
