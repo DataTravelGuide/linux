@@ -1110,7 +1110,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, void *wcombo,
 	if (touch) {
 		int x = (data[2] << 4) | (data[4] >> 4);
 		int y = (data[3] << 4) | (data[4] & 0x0f);
-		int width, height;
+		int width = 0, height = 0;
 
 		if (features->type >= INTUOSPS && features->type <= INTUOSPL) {
 			width  = data[5];
