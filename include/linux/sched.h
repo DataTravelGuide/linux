@@ -1685,11 +1685,16 @@ struct task_struct {
 		unsigned long bytes; 		/* uncharged usage */
 		unsigned long memsw_bytes; /* uncharged mem+swap usage */
 	} memcg_batch;
-#endif /* __GENKYSMS__ */
+#endif
 #ifdef CONFIG_NUMA
 	short pref_node_fork;
 #endif
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+	struct memcg_oom_info {
+		unsigned int may_oom:1;
+	} memcg_oom;
 #endif
+#endif /* __GENKYSMS__ */
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */

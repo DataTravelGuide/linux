@@ -1835,7 +1835,7 @@ again:
 		}
 
                 if (!nr_retries--) {
-			if (!oom)
+			if (!oom || !current->memcg_oom.may_oom)
 				goto nomem;
 			if (mem_cgroup_handle_oom(mem_over_limit, gfp_mask)) {
 				nr_retries = MEM_CGROUP_RECLAIM_RETRIES;

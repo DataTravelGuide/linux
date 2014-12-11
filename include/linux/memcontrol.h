@@ -126,6 +126,37 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page);
 extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 					struct task_struct *p);
 
+/**
+ * mem_cgroup_toggle_oom - toggle the memcg OOM killer for the current task
+ * @new: true to enable, false to disable
+ *
+ * Toggle whether a failed memcg charge should invoke the OOM killer
+ * or just return -ENOMEM.  Returns the previous toggle state.
+ */
+static inline bool mem_cgroup_toggle_oom(bool new)
+{
+	bool old;
+
+	old = current->memcg_oom.may_oom;
+	current->memcg_oom.may_oom = new;
+
+	return old;
+}
+
+static inline void mem_cgroup_enable_oom(void)
+{
+	bool old = mem_cgroup_toggle_oom(true);
+
+	WARN_ON(old == true);
+}
+
+static inline void mem_cgroup_disable_oom(void)
+{
+	bool old = mem_cgroup_toggle_oom(false);
+
+	WARN_ON(old == false);
+}
+
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
 #endif
@@ -296,6 +327,19 @@ static inline int
 mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *zone)
 {
 	return 1;
+}
+
+static inline bool mem_cgroup_toggle_oom(bool new)
+{
+	return false;
+}
+
+static inline void mem_cgroup_enable_oom(void)
+{
+}
+
+static inline void mem_cgroup_disable_oom(void)
+{
 }
 
 static inline int
