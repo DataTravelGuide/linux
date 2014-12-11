@@ -28,6 +28,7 @@
 #define HID_USAGE_Y_TILT		0x3e
 #define HID_USAGE_FINGER		0x22
 #define HID_USAGE_STYLUS		0x20
+#define HID_USAGE_CONTACTMAX		0x55
 #define HID_COLLECTION			0xc0
 
 enum {
@@ -487,6 +488,27 @@ void input_dev_ipros(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	}
 }
 
+static void wacom_retrieve_report_data(struct usb_interface *intf,
+				       struct wacom_features *features)
+{
+	int result = 0;
+	unsigned char *rep_data;
+
+	rep_data = kmalloc(2, GFP_KERNEL);
+	if (rep_data) {
+
+		rep_data[0] = 12;
+		result = wacom_get_report(intf, WAC_HID_FEATURE_REPORT,
+					  rep_data[0], &rep_data, 2,
+					  WAC_MSG_RETRIES);
+
+		if (result >= 0 && rep_data[1] > 2)
+			features->touch_max = rep_data[1];
+
+		kfree(rep_data);
+	}
+}
+
 static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hid_desc,
 			   struct wacom_features *features)
 {
@@ -609,6 +631,12 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 
 			case HID_USAGE_STYLUS:
 				pen = 1;
+				i++;
+				break;
+
+			case HID_USAGE_CONTACTMAX:
+				if (!features->touch_max)
+					wacom_retrieve_report_data(intf, features);
 				i++;
 				break;
 			}
@@ -1324,7 +1352,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
-	/* Retrieve the physical and logical size for OEM devices */
+	/* Retrieve the physical and logical size for touch devices */
 	error = wacom_retrieve_hid_descriptor(intf, features);
 	if (error)
 		goto fail3;

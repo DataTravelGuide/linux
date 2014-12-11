@@ -82,6 +82,7 @@ struct wacom_features {
 	unsigned char unit;
 	unsigned char unitExpo;
 	unsigned quirks;
+	unsigned touch_max;
 	int oVid;
 	int oPid;
 };
