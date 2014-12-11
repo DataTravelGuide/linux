@@ -112,8 +112,6 @@
 #define RT_FL_TOS(oldflp) \
     ((u32)(oldflp->fl4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
 
-#define IP_MAX_MTU	0xFFF0
-
 #define RT_GC_TIMEOUT (300*HZ)
 
 static int ip_rt_max_size;

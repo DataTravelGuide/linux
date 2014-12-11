@@ -39,6 +39,9 @@
 #warning This file is not supposed to be used outside of kernel.
 #endif
 
+/* IPv4 datagram length is stored into 16bit field (tot_len) */
+#define IP_MAX_MTU	0xFFF0U
+
 #define RTO_ONLINK	0x01
 
 #define RTO_CONN	0
@@ -216,17 +219,6 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 static inline int inet_iif(const struct sk_buff *skb)
 {
 	return skb_rtable(skb)->rt_iif;
-}
-
-static inline bool ip_sk_use_pmtu(const struct sock *sk)
-{
-	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_PROBE;
-}
-
-static inline int ip_skb_dst_mtu(const struct sk_buff *skb)
-{
-	return (!skb->sk || ip_sk_use_pmtu(skb->sk)) ?
-	       dst_mtu(skb_dst(skb)) : skb_dst(skb)->dev->mtu;
 }
 
 #endif	/* _ROUTE_H */
