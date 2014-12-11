@@ -82,6 +82,8 @@ struct wacom_features {
 	unsigned char unit;
 	unsigned char unitExpo;
 	unsigned quirks;
+	int oVid;
+	int oPid;
 };
 
 struct wacom_shared {
