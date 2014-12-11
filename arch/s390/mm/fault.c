@@ -305,6 +305,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
+	unsigned int flags = 0;
 	unsigned long address;
 	int fault;
 
@@ -322,6 +323,11 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	fault = VM_FAULT_BADCONTEXT;
 	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
 		goto out;
+
+	flags |= FAULT_FLAG_USER;
+
+	if (access == VM_WRITE)
+		flags |= FAULT_FLAG_WRITE;
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	/*
@@ -360,8 +366,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address,
-				(access == VM_WRITE) ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, address, flags);
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
