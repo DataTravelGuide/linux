@@ -168,5 +168,11 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
+static inline bool ip6_sk_local_df(const struct sock *sk)
+{
+	return inet6_sk(sk)->pmtudisc < IPV6_PMTUDISC_DO ||
+	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;
+}
+
 #endif
 #endif
