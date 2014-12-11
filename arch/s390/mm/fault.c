@@ -270,9 +270,13 @@ static noinline void do_fault_error(struct pt_regs *regs, long int_code,
 		do_no_context(regs, int_code, trans_exc_code);
 		break;
 	default: /* fault & VM_FAULT_ERROR */
-		if (fault & VM_FAULT_OOM)
-			pagefault_out_of_memory();
-		else if (fault & VM_FAULT_SIGBUS) {
+		if (fault & VM_FAULT_OOM) {
+			/* Kernel mode? Handle exceptions or die */
+			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+				do_no_context(regs, int_code, trans_exc_code);
+			else
+				pagefault_out_of_memory();
+		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!(regs->psw.mask & PSW_MASK_PSTATE))
 				do_no_context(regs, int_code, trans_exc_code);
