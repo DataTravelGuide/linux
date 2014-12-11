@@ -1436,7 +1436,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 },
 #endif
-	{ "Wacom Cintiq 22HDT",  WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_24HD,
+	{ "Wacom Cintiq 22HDT",  WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_22HD,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e },
 	{ "Wacom Cintiq 22HDT",  WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_24HDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 },
