@@ -1691,11 +1691,9 @@ struct task_struct {
 #endif
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 	struct memcg_oom_info {
+		struct mem_cgroup *memcg;
+		gfp_t gfp_mask;
 		unsigned int may_oom:1;
-		unsigned int in_memcg_oom:1;
-		unsigned int oom_locked:1;
-		int wakeups;
-		struct mem_cgroup *wait_on_memcg;
 	} memcg_oom;
 #endif
 #endif /* __GENKYSMS__ */

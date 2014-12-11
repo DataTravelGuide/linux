@@ -767,7 +767,7 @@ out:
  */
 void pagefault_out_of_memory(void)
 {
-	if (mem_cgroup_oom_synchronize())
+	if (mem_cgroup_oom_synchronize(true))
 		return;
 
 	if (try_set_system_oom()) {
