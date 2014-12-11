@@ -222,14 +222,6 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	return -EINVAL;
 }
 
-static inline int ip_skb_dst_mtu(struct sk_buff *skb)
-{
-	struct inet_sock *inet = skb->sk ? inet_sk(skb->sk) : NULL;
-
-	return (inet && inet->pmtudisc == IP_PMTUDISC_PROBE) ?
-	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
-}
-
 static int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
@@ -1046,7 +1038,6 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 			 struct inet_cork_extended* cork_ext,
 			 struct ipcm_cookie *ipc, struct rtable **rtp)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options *opt;
 	struct rtable *rt;
 
@@ -1072,8 +1063,8 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	 * We steal reference to this route, caller should not release it
 	 */
 	*rtp = NULL;
-	cork->fragsize = inet->pmtudisc == IP_PMTUDISC_PROBE ?
-			 rt->u.dst.dev->mtu : dst_mtu(rt->u.dst.path);
+	cork->fragsize = ip_sk_use_pmtu(sk) ?
+			 dst_mtu(&rt->u.dst) : rt->u.dst.dev->mtu;
 	cork->dst = &rt->u.dst;
 	cork->length = 0;
 	cork_ext->ttl = ipc->ttl;
@@ -1323,7 +1314,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	/* DF bit is set when we want to see DF on outgoing frames.
 	 * If local_df is set too, we still allow to fragment this frame
 	 * locally. */
-	if (inet->pmtudisc >= IP_PMTUDISC_DO ||
+	if (inet->pmtudisc == IP_PMTUDISC_DO ||
+	    inet->pmtudisc == IP_PMTUDISC_PROBE ||
 	    (skb->len <= dst_mtu(&rt->u.dst) &&
 	     ip_dont_fragment(sk, &rt->u.dst)))
 		df = htons(IP_DF);
