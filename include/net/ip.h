@@ -280,6 +280,12 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 		 !(dst_metric_locked(dst, RTAX_MTU))));
 }
 
+static inline bool ip_sk_local_df(const struct sock *sk)
+{
+	return inet_sk(sk)->pmtudisc < IP_PMTUDISC_DO ||
+	       inet_sk(sk)->pmtudisc == IP_PMTUDISC_OMIT;
+}
+
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);
 
 static inline void ip_select_ident(struct iphdr *iph, struct dst_entry *dst, struct sock *sk)
