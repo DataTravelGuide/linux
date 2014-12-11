@@ -1357,6 +1357,10 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 			"disable enable wars warshw warwaits\n");
 	}
 	if (cpu < num_possible_cpus() && cpu_online(cpu)) {
+		if (nobau) {
+			seq_printf(file, "cpu %d disabled\n", cpu);
+			return 0;
+		}
 		stat = &per_cpu(ptcstats, cpu);
 		/* source side statistics */
 		seq_printf(file,
