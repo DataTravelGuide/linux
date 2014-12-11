@@ -1746,7 +1746,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 		goto bypass;
 
 	if (unlikely(task_in_memcg_oom(current)))
-		goto bypass;
+		goto nomem;
 
 	if (gfp_mask & __GFP_NOFAIL)
 		oom = false;
@@ -1834,8 +1834,10 @@ again:
 			batch = PAGE_SIZE;
 			continue;
 		}
-		if (!(gfp_mask & __GFP_WAIT))
+		if (!(gfp_mask & __GFP_WAIT)) {
+			css_put(&mem->css);
 			goto nomem;
+		}
 
 		mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
 
@@ -1886,6 +1888,7 @@ again:
                 if (!nr_retries--) {
 			if (oom)
 				mem_cgroup_oom(mem_over_limit, gfp_mask);
+			css_put(&mem->css);
 			goto nomem;
                 }
 
@@ -1904,7 +1907,6 @@ done:
 	return 0;
 nomem:
 	*memcg = NULL;
-	css_put(&mem->css);
 	if (gfp_mask & __GFP_NOFAIL)
 		return 0;
 	return -ENOMEM;
