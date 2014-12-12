@@ -52,7 +52,11 @@ static const char Unused_file[] = "Unused swap file entry ";
 static const char Bad_offset[] = "Bad swap offset entry ";
 static const char Unused_offset[] = "Unused swap offset entry ";
 
-static struct swap_list_t swap_list = {-1, -1};
+/*
+ * all active swap_info_structs
+ * protected with swap_lock, and ordered by priority.
+ */
+static LIST_HEAD(swap_list_head);
 
 static struct swap_info_struct *swap_info[MAX_SWAPFILES];
 
@@ -439,38 +443,50 @@ no_page:
 
 swp_entry_t get_swap_page(void)
 {
-	struct swap_info_struct *si;
+	struct swap_info_struct *si, *next;
 	pgoff_t offset;
-	int type, next;
-	int wrapped = 0;
+	struct list_head *tmp;
 
 	spin_lock(&swap_lock);
 	if (nr_swap_pages <= 0)
 		goto noswap;
 	nr_swap_pages--;
 
-	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
-		si = swap_info[type];
-		next = si->next;
-		if (next < 0 ||
-		    (!wrapped && si->prio != swap_info[next]->prio)) {
-			next = swap_list.head;
-			wrapped++;
+	list_for_each(tmp, &swap_list_head) {
+		si = list_entry(tmp, typeof(*si), list);
+		if (!si->highest_bit || !(si->flags & SWP_WRITEOK))
+			continue;
+
+		/*
+		 * rotate the current swap_info that we're going to use
+		 * to after any other swap_info that have the same prio,
+		 * so that all equal-priority swap_info get used equally
+		 */
+		next = si;
+		list_for_each_entry_continue(next, &swap_list_head, list) {
+			if (si->prio != next->prio)
+				break;
+			list_rotate_left(&si->list);
+			next = si;
 		}
 
-		if (!si->highest_bit)
-			continue;
-		if (!(si->flags & SWP_WRITEOK))
-			continue;
-
-		swap_list.next = next;
 		/* This is called for allocating swap entry for cache */
 		offset = scan_swap_map(si, SWAP_HAS_CACHE);
 		if (offset) {
 			spin_unlock(&swap_lock);
-			return swp_entry(type, offset);
+			return swp_entry(si->type, offset);
 		}
-		next = swap_list.next;
+		/*
+		 * if we got here, it's likely that si was almost full before,
+		 * and since scan_swap_map() can drop the si->lock, multiple
+		 * callers probably all tried to get a page from the same si
+		 * and it filled up before we could get one.  So we need to
+		 * try again.  Since we dropped the swap_lock, there may now
+		 * be non-full higher priority swap_infos, and this si may have
+		 * even been removed from the list (although very unlikely).
+		 * Let's start over.
+		 */
+		tmp = &swap_list_head;
 	}
 
 	nr_swap_pages++;
@@ -580,9 +596,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 			p->lowest_bit = offset;
 		if (offset > p->highest_bit)
 			p->highest_bit = offset;
-		if (swap_list.next >= 0 &&
-		    p->prio > swap_info[swap_list.next]->prio)
-			swap_list.next = p->type;
 		nr_swap_pages++;
 		p->inuse_pages--;
 		if ((p->flags & SWP_BLKDEV) &&
@@ -1550,15 +1563,14 @@ bad_bmap:
 
 SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 {
-	struct swap_info_struct *p = NULL;
+	struct swap_info_struct *p = NULL, *si;
 	unsigned char *swap_map;
 	struct file *swap_file, *victim;
 	struct address_space *mapping;
 	struct inode *inode;
 	struct filename *pathname;
 	int oom_score_adj;
-	int i, type, prev;
-	int err;
+	int err, found = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1573,17 +1585,16 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		goto out;
 
 	mapping = victim->f_mapping;
-	prev = -1;
 	spin_lock(&swap_lock);
-	for (type = swap_list.head; type >= 0; type = swap_info[type]->next) {
-		p = swap_info[type];
+	list_for_each_entry(p, &swap_list_head, list) {
 		if (p->flags & SWP_WRITEOK) {
-			if (p->swap_file->f_mapping == mapping)
+			if (p->swap_file->f_mapping == mapping) {
+				found = 1;
 				break;
+			}
 		}
-		prev = type;
 	}
-	if (type < 0) {
+	if (!found) {
 		err = -EINVAL;
 		spin_unlock(&swap_lock);
 		goto out_dput;
@@ -1595,44 +1606,48 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		spin_unlock(&swap_lock);
 		goto out_dput;
 	}
-	if (prev < 0)
-		swap_list.head = p->next;
-	else
-		swap_info[prev]->next = p->next;
-	if (type == swap_list.next) {
-		/* just pick something that's safe... */
-		swap_list.next = swap_list.head;
-	}
 	if (p->prio < 0) {
-		for (i = p->next; i >= 0; i = swap_info[i]->next)
-			swap_info[i]->prio = p->prio--;
+		si = p;
+
+		list_for_each_entry_continue(si, &swap_list_head, list) {
+			si->prio++;
+		}
 		least_priority++;
 	}
 	nr_swap_pages -= p->pages;
+	list_del_init(&p->list);
 	total_swap_pages -= p->pages;
 	p->flags &= ~SWP_WRITEOK;
 	spin_unlock(&swap_lock);
 
 	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
-	err = try_to_unuse(type);
+	err = try_to_unuse(p->type);
 	test_set_oom_score_adj(oom_score_adj);
 
 	if (err) {
+		struct list_head *next_head = &swap_list_head;
+
 		/* re-insert swap space back into swap_list */
 		spin_lock(&swap_lock);
 		if (p->prio < 0)
 			p->prio = --least_priority;
-		prev = -1;
-		for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
-			if (p->prio >= swap_info[i]->prio)
+		BUG_ON(!list_empty(&p->list));
+		/*
+		 * insert into swap list; the list is in priority order,
+		 * so that get_swap_page() can get a page from the highest
+		 * priority swap_info_struct with available page(s), and
+		 * swapoff can adjust the auto-assigned (i.e. negative) prio
+		 * values for any lower-priority swap_info_structs when
+		 * removing a negative-prio swap_info_struct
+		 */
+		list_for_each_entry(si, &swap_list_head, list) {
+			if (p->prio >= si->prio) {
+				next_head = &si->list;
 				break;
-			prev = i;
+			}
 		}
-		p->next = i;
-		if (prev < 0)
-			swap_list.head = swap_list.next = type;
-		else
-			swap_info[prev]->next = type;
+		list_add_tail(&p->list, next_head);
+
 		nr_swap_pages += p->pages;
 		total_swap_pages += p->pages;
 		p->flags |= SWP_WRITEOK;
@@ -1669,8 +1684,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	spin_unlock(&swap_lock);
 	mutex_unlock(&swapon_mutex);
 	vfree(swap_map);
-	/* Destroy swap account informatin */
-	swap_cgroup_swapoff(type);
+	/* Destroy swap account information */
+	swap_cgroup_swapoff(p->type);
 
 	inode = mapping->host;
 	if (S_ISBLK(inode->i_mode)) {
@@ -1824,13 +1839,14 @@ static bool swap_discardable(struct swap_info_struct *si)
  */
 SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 {
-	struct swap_info_struct *p;
+	struct swap_info_struct *p, *si;
+	struct list_head *next_head = &swap_list_head;
 	struct filename *name = NULL;
 	struct block_device *bdev = NULL;
 	struct file *swap_file = NULL;
 	struct address_space *mapping;
 	unsigned int type;
-	int i, prev;
+	int i;
 	int error;
 	union swap_header *swap_header;
 	unsigned int nr_good_pages;
@@ -1883,8 +1899,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		 */
 	}
 	INIT_LIST_HEAD(&p->first_swap_extent.list);
+	INIT_LIST_HEAD(&p->list);
 	p->flags = SWP_USED;
-	p->next = -1;
 	spin_unlock(&swap_lock);
 
 	name = getname(specialfile);
@@ -2122,18 +2138,23 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		(p->flags & SWP_AREA_DISCARD) ? "s" : "",
 		(p->flags & SWP_PAGE_DISCARD) ? "c" : "");
 
-	/* insert swap space into swap_list: */
-	prev = -1;
-	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
-		if (p->prio >= swap_info[i]->prio)
+	BUG_ON(!list_empty(&p->list));
+	/*
+	 * insert into swap list; the list is in priority order,
+	 * so that get_swap_page() can get a page from the highest
+	 * priority swap_info_struct with available page(s), and
+	 * swapoff can adjust the auto-assigned (i.e. negative) prio
+	 * values for any lower-priority swap_info_structs when
+	 * removing a negative-prio swap_info_struct
+	 */
+	list_for_each_entry(si, &swap_list_head, list) {
+		if (p->prio >= si->prio) {
+			next_head = &si->list;
 			break;
-		prev = i;
+		}
 	}
-	p->next = i;
-	if (prev < 0)
-		swap_list.head = swap_list.next = type;
-	else
-		swap_info[prev]->next = type;
+	list_add_tail(&p->list, next_head);
+
 	spin_unlock(&swap_lock);
 	mutex_unlock(&swapon_mutex);
 	error = 0;

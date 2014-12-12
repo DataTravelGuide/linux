@@ -190,8 +190,8 @@ enum {
 struct swap_info_struct {
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
+	struct list_head list;		/* entry in swap list */
 	signed char	type;		/* strange name for an index */
-	signed char	next;		/* next type on the swap list */
 	struct file *swap_file;
 	struct block_device *bdev;
 	struct swap_extent first_swap_extent;
@@ -207,11 +207,6 @@ struct swap_info_struct {
 	unsigned int max;
 	unsigned int inuse_pages;
 	unsigned int old_block_size;
-};
-
-struct swap_list_t {
-	int head;	/* head of priority-ordered swapfile list */
-	int next;	/* swapfile to be used next */
 };
 
 /* Swap 50% full? Release swapcache more aggressively.. */
