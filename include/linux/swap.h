@@ -190,7 +190,8 @@ enum {
 struct swap_info_struct {
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
-	struct list_head list;		/* entry in swap list */
+	struct plist_node list;		/* entry in swap_active_head */
+	struct plist_node avail_list;	/* entry in swap_avail_head */
 	signed char	type;		/* strange name for an index */
 	struct file *swap_file;
 	struct block_device *bdev;
