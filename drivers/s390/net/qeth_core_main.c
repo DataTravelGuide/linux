@@ -23,6 +23,7 @@
 #include <net/iucv/af_iucv.h>
 
 #include <asm/ebcdic.h>
+#include <asm/chpid.h>
 #include <asm/io.h>
 #include <asm/sysinfo.h>
 
@@ -1353,16 +1354,7 @@ static void qeth_clean_channel(struct qeth_channel *channel)
 static void qeth_get_channel_path_desc(struct qeth_card *card)
 {
 	struct ccw_device *ccwdev;
-	struct channelPath_dsc {
-		u8 flags;
-		u8 lsn;
-		u8 desc;
-		u8 chpid;
-		u8 swla;
-		u8 zeroes;
-		u8 chla;
-		u8 chpp;
-	} *chp_dsc;
+	struct channel_path_desc *chp_dsc;
 
 	QETH_DBF_TEXT(SETUP, 2, "chp_desc");
 
