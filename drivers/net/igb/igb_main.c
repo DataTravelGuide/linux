@@ -2059,6 +2059,7 @@ static int igb_set_features(struct net_device *netdev, u32 features)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
 	u32 changed = netdev->features ^ features;
+	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		if (features & NETIF_F_RXCSUM)
@@ -2069,6 +2070,13 @@ static int igb_set_features(struct net_device *netdev, u32 features)
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		igb_vlan_mode(netdev, features);
+
+	netdev->features = features;
+
+	if (netif_running(netdev))
+		igb_reinit_locked(adapter);
+	else
+		igb_reset(adapter);
 
 	return 0;
 }
