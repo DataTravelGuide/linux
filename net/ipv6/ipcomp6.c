@@ -81,7 +81,7 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 		goto out;
 
 	t->id.proto = IPPROTO_IPV6;
-	t->id.spi = xfrm6_tunnel_alloc_spi((xfrm_address_t *)&x->props.saddr);
+	t->id.spi = xfrm6_tunnel_alloc_spi(&init_net, (xfrm_address_t *)&x->props.saddr);
 	if (!t->id.spi)
 		goto error;
 
@@ -114,7 +114,7 @@ static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 	__be32 spi;
 	u32 mark = x->mark.m & x->mark.v;
 
-	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&x->props.saddr);
+	spi = xfrm6_tunnel_spi_lookup(&init_net, (xfrm_address_t *)&x->props.saddr);
 	if (spi)
 		t = xfrm_state_lookup_with_mark(&init_net, mark, (xfrm_address_t *)&x->id.daddr,
 				      spi, IPPROTO_IPV6, AF_INET6);
