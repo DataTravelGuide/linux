@@ -428,67 +428,6 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	return retval;
 }
 
-static u32 igb_get_rx_csum(struct net_device *netdev)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	return test_bit(IGB_RING_FLAG_RX_CSUM, &adapter->rx_ring[0]->flags);
-}
-
-static int igb_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-	int i;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		if (data)
-			set_bit(IGB_RING_FLAG_RX_CSUM,
-				&adapter->rx_ring[i]->flags);
-		else
-			clear_bit(IGB_RING_FLAG_RX_CSUM,
-				  &adapter->rx_ring[i]->flags);
-	}
-
-	return 0;
-}
-
-static u32 igb_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
-}
-
-static int igb_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
-		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		if (adapter->hw.mac.type >= e1000_82576)
-			netdev->features |= NETIF_F_SCTP_CSUM;
-	} else {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		                      NETIF_F_SCTP_CSUM);
-	}
-
-	return 0;
-}
-
-static int igb_set_tso(struct net_device *netdev, u32 data)
-{
-	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-	}
-
-	dev_info(&adapter->pdev->dev, "TSO is %s\n",
-		 data ? "Enabled" : "Disabled");
-	return 0;
-}
-
 static u32 igb_get_msglevel(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -3071,14 +3010,6 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_ringparam		= igb_set_ringparam,
 	.get_pauseparam		= igb_get_pauseparam,
 	.set_pauseparam		= igb_set_pauseparam,
-	.get_rx_csum		= igb_get_rx_csum,
-	.set_rx_csum		= igb_set_rx_csum,
-	.get_tx_csum		= igb_get_tx_csum,
-	.set_tx_csum		= igb_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
-	.set_tso		= igb_set_tso,
 	.self_test		= igb_diag_test,
 	.get_strings		= igb_get_strings,
 	.get_sset_count		= igb_get_sset_count,

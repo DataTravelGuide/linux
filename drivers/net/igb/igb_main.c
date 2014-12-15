@@ -2040,6 +2040,21 @@ void igb_reset(struct igb_adapter *adapter)
 	igb_get_phy_info(hw);
 }
 
+static int igb_set_features(struct net_device *netdev, u32 features)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		if (features & NETIF_F_RXCSUM)
+			adapter->rx_ring[i]->flags |= IGB_RING_FLAG_RX_CSUM;
+		else
+			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
@@ -2065,6 +2080,7 @@ static const struct net_device_ops igb_netdev_ops = {
 static const struct net_device_ops_ext igb_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= igb_get_stats64,
+	.ndo_set_features	= igb_set_features,
 };
 
 /**
@@ -2348,8 +2364,10 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
-	if (hw->mac.type >= e1000_82576)
+	if (hw->mac.type >= e1000_82576) {
+		netdev_extended(netdev)->hw_features |= NETIF_F_SCTP_CSUM;
 		netdev->features |= NETIF_F_SCTP_CSUM;
+	}
 
 	adapter->en_mng_pt = igb_enable_mng_pass_thru(hw);
 
