@@ -201,19 +201,6 @@ extern struct key *key_alloc(struct key_type *type,
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
 
-/* Use in place of key_invalidate which hasn't been backported to RHEL 6 yet */
-static inline void rh_key_invalidate(struct key *key)
-{
-	key_revoke(key);
-	/*
-	 * At this time gc has been set by key_revoke() above.
-	 * Simply set expiry time to 'now'.
-	 */
-	down_write(&key->sem);
-	key->expiry = current_kernel_time().tv_sec;
-	up_write(&key->sem);
-}
-
 extern void key_put(struct key *key);
 
 static inline struct key *key_get(struct key *key)
