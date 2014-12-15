@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/bitops.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/netdevice.h>
@@ -153,7 +154,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *, int);
 static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
-static void igb_vlan_rx_register(struct net_device *, struct vlan_group *);
+static void igb_vlan_mode(struct net_device *netdev, u32 features);
 static void igb_vlan_rx_add_vid(struct net_device *, u16);
 static void igb_vlan_rx_kill_vid(struct net_device *, u16);
 static void igb_restore_vlan(struct igb_adapter *);
@@ -1548,7 +1549,7 @@ static void igb_update_mng_vlan(struct igb_adapter *adapter)
 
 	if ((old_vid != (u16)IGB_MNG_VLAN_NONE) &&
 	    (vid != old_vid) &&
-	    !vlan_group_get_device(adapter->vlgrp, old_vid)) {
+	    !test_bit(old_vid, adapter->active_vlans)) {
 		/* remove VID from filter table */
 		igb_vfta_set(hw, old_vid, false);
 	}
@@ -2040,10 +2041,24 @@ void igb_reset(struct igb_adapter *adapter)
 	igb_get_phy_info(hw);
 }
 
+static u32 igb_fix_features(struct net_device *netdev, u32 features)
+{
+	/* Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
 static int igb_set_features(struct net_device *netdev, u32 features)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
+	u32 changed = netdev->features ^ features;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		if (features & NETIF_F_RXCSUM)
@@ -2051,6 +2066,9 @@ static int igb_set_features(struct net_device *netdev, u32 features)
 		else
 			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
 	}
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		igb_vlan_mode(netdev, features);
 
 	return 0;
 }
@@ -2065,7 +2083,6 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_do_ioctl		= igb_ioctl,
 	.ndo_tx_timeout		= igb_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_vlan_rx_register	= igb_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= igb_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= igb_vlan_rx_kill_vid,
 	.ndo_set_vf_mac		= igb_ndo_set_vf_mac,
@@ -2080,6 +2097,7 @@ static const struct net_device_ops igb_netdev_ops = {
 static const struct net_device_ops_ext igb_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= igb_get_stats64,
+	.ndo_fix_features	= igb_fix_features,
 	.ndo_set_features	= igb_set_features,
 };
 
@@ -2519,6 +2537,8 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+	igb_vlan_mode(netdev, netdev->features);
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
@@ -5874,7 +5894,7 @@ static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
 		 * because the PF is in promiscuous mode.
 		 */
 		if ((vlvf & VLAN_VID_MASK) == vid &&
-		    !adapter->vlgrp &&
+		    !test_bit(vid, adapter->active_vlans) &&
 		    !bits)
 			igb_vlvf_set(adapter, vid, add,
 				     adapter->vfs_allocated_count);
@@ -6430,25 +6450,6 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 }
 
 /**
- * igb_receive_skb - helper function to handle rx indications
- * @q_vector: structure containing interrupt and ring information
- * @skb: packet to send up
- * @vlan_tag: vlan tag for packet
- **/
-static void igb_receive_skb(struct igb_q_vector *q_vector,
-                            struct sk_buff *skb,
-                            u16 vlan_tag)
-{
-	struct igb_adapter *adapter = q_vector->adapter;
-
-	if (vlan_tag)
-		vlan_gro_receive(&q_vector->napi, adapter->vlgrp,
-		                 vlan_tag, skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
-}
-
-/**
  *  igb_reuse_rx_page - page flip buffer and store it back on the ring
  *  @rx_ring: rx descriptor ring to store buffers on
  *  @old_buff: donor buffer to have page reused
@@ -6912,6 +6913,8 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 				   union e1000_adv_rx_desc *rx_desc,
 				   struct sk_buff *skb)
 {
+	struct net_device *dev = rx_ring->netdev;
+
 	igb_rx_hash(rx_ring, rx_desc, skb);
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
@@ -6919,6 +6922,19 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
 	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
 		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
+
+	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
+		u16 vid;
+
+		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
+		    test_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &rx_ring->flags))
+			vid = be16_to_cpu(rx_desc->wb.upper.vlan);
+		else
+			vid = le16_to_cpu(rx_desc->wb.upper.vlan);
+
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -6930,7 +6946,6 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 	struct igb_ring *rx_ring = q_vector->rx.ring;
 	struct sk_buff *skb = rx_ring->skb;
 	unsigned int total_bytes = 0, total_packets = 0;
-	u16 vlan_tag = 0;
 	u16 cleaned_count = igb_desc_unused(rx_ring);
 
 	while (likely(total_packets < budget)) {
@@ -6972,13 +6987,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 		/* populate checksum, timestamp, VLAN, and protocol */
 		igb_process_skb_fields(rx_ring, rx_desc, skb);
 
-		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
-		    test_bit(IGB_RING_FLAG_RX_LB_VLAN_BSWAP, &rx_ring->flags))
-			vlan_tag = be16_to_cpu(rx_desc->wb.upper.vlan);
-		else
-			vlan_tag = le16_to_cpu(rx_desc->wb.upper.vlan);
-
-		igb_receive_skb(q_vector, skb, vlan_tag);
+		napi_gro_receive(&q_vector->napi, skb);
 
 		/* reset skb pointer */
 		skb = NULL;
@@ -7173,17 +7182,15 @@ s32 igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 	return 0;
 }
 
-static void igb_vlan_rx_register(struct net_device *netdev,
-				 struct vlan_group *grp)
+static void igb_vlan_mode(struct net_device *netdev, u32 features)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl, rctl;
 
 	igb_irq_disable(adapter);
-	adapter->vlgrp = grp;
 
-	if (grp) {
+	if (features & NETIF_F_HW_VLAN_RX) {
 		/* enable VLAN tag insert/strip */
 		ctrl = rd32(E1000_CTRL);
 		ctrl |= E1000_CTRL_VME;
@@ -7217,6 +7224,8 @@ static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 
 	/* add the filter since PF can receive vlans w/o entry in vlvf */
 	igb_vfta_set(hw, vid, true);
+
+	set_bit(vid, adapter->active_vlans);
 }
 
 static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -7227,7 +7236,6 @@ static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	s32 err;
 
 	igb_irq_disable(adapter);
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 
 	if (!test_bit(__IGB_DOWN, &adapter->state))
 		igb_irq_enable(adapter);
@@ -7238,20 +7246,16 @@ static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	/* if vid was not present in VLVF just remove it from table */
 	if (err)
 		igb_vfta_set(hw, vid, false);
+
+	clear_bit(vid, adapter->active_vlans);
 }
 
 static void igb_restore_vlan(struct igb_adapter *adapter)
 {
-	igb_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+	u16 vid;
 
-	if (adapter->vlgrp) {
-		u16 vid;
-		for (vid = 0; vid < VLAN_N_VID; vid++) {
-			if (!vlan_group_get_device(adapter->vlgrp, vid))
-				continue;
-			igb_vlan_rx_add_vid(adapter->netdev, vid);
-		}
-	}
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+		igb_vlan_rx_add_vid(adapter->netdev, vid);
 }
 
 int igb_set_spd_dplx(struct igb_adapter *adapter, u32 spd, u8 dplx)

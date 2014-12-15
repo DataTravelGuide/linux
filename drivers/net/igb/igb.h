@@ -32,6 +32,8 @@
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/bitops.h>
+#include <linux/if_vlan.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/pci.h>
@@ -372,8 +374,7 @@ struct igb_adapter {
 
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
-
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 mng_vlan_id;
 	u32 bd_number;
 	u32 wol;
