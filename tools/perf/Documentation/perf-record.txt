@@ -59,8 +59,7 @@ OPTIONS
 --realtime=::
 	Collect data with this RT SCHED_FIFO priority.
 
--D::
---no-delay::
+--no-buffering::
 	Collect data without buffering.
 
 -c::
