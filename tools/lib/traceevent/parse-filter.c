@@ -246,15 +246,19 @@ static void free_arg(struct filter_arg *arg)
 	free(arg);
 }
 
-static void add_event(struct event_list **events,
+static int add_event(struct event_list **events,
 		      struct event_format *event)
 {
 	struct event_list *list;
 
-	list = malloc_or_die(sizeof(*list));
+	list = malloc(sizeof(*list));
+	if (list == NULL)
+		return -1;
+
 	list->next = *events;
 	*events = list;
 	list->event = event;
+	return 0;
 }
 
 static int event_match(struct event_format *event,
@@ -277,6 +281,7 @@ find_event(struct pevent *pevent, struct event_list **events,
 	regex_t ereg;
 	regex_t sreg;
 	int match = 0;
+	int fail = 0;
 	char *reg;
 	int ret;
 	int i;
@@ -311,7 +316,10 @@ find_event(struct pevent *pevent, struct event_list **events,
 		event = pevent->events[i];
 		if (event_match(event, sys_name ? &sreg : NULL, &ereg)) {
 			match = 1;
-			add_event(events, event);
+			if (add_event(events, event) < 0) {
+				fail = 1;
+				break;
+			}
 		}
 	}
 
@@ -321,6 +329,8 @@ find_event(struct pevent *pevent, struct event_list **events,
 
 	if (!match)
 		return -1;
+	if (fail)
+		return -2;
 
 	return 0;
 }
