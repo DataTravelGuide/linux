@@ -74,8 +74,9 @@ $(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
 	@touch $(OUTPUT)PERF-VERSION-FILE
 
-CC      = gcc
-AR      = ar
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
+PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
 RM      = rm -f
 LN      = ln -f
