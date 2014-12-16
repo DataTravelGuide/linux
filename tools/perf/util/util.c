@@ -518,3 +518,17 @@ int filename__read_int(const char *filename, int *value)
 	close(fd);
 	return err;
 }
+
+const char *get_filename_for_perf_kvm(void)
+{
+	const char *filename;
+
+	if (perf_host && !perf_guest)
+		filename = strdup("perf.data.host");
+	else if (!perf_host && perf_guest)
+		filename = strdup("perf.data.guest");
+	else
+		filename = strdup("perf.data.kvm");
+
+	return filename;
+}

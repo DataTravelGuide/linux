@@ -322,4 +322,6 @@ char *get_srcline(struct dso *dso, unsigned long addr);
 void free_srcline(char *srcline);
 
 int filename__read_int(const char *filename, int *value);
+
+const char *get_filename_for_perf_kvm(void);
 #endif /* GIT_COMPAT_UTIL_H */
