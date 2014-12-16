@@ -1015,10 +1015,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			/*
 			 * Change: router to host
 			 */
-			struct rt6_info *rt;
-			rt = rt6_get_dflt_router(saddr, dev);
-			if (rt)
-				ip6_del_rt(rt);
+			rt6_clean_tohost(dev_net(dev),  saddr);
 		}
 
 out:

@@ -124,6 +124,7 @@ extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
 extern void rt6_ifdown(struct net *net, struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 extern void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
+extern void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 
 /*
  *	Store a destination cache entry in a socket
