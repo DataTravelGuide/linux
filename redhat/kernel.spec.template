@@ -1321,7 +1321,7 @@ find Documentation -type d | xargs chmod u+w
 %endif
 
 %global perf_make \
-  make %{?_smp_mflags} -C tools/perf -s V=1 prefix=%{_prefix}
+  make %{?_smp_mflags} -C tools/perf -s V=1 prefix=%{_prefix} lib=%{_lib}
 %if %{with_perf}
 %{perf_make} all
 %{perf_make} man || %{doc_build_fail}
@@ -1618,6 +1618,7 @@ fi
 %{_bindir}/perf
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
+%{_libdir}/traceevent
 %{_mandir}/man[1-8]/*
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
 %config(noreplace) %{_sysconfdir}/bash_completion.d/perf
