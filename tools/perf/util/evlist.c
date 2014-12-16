@@ -1031,7 +1031,7 @@ out_err:
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *target,
 				  const char *argv[], bool pipe_output,
-				  bool want_signal)
+				  void (*exec_error)(int signo, siginfo_t *info, void *ucontext))
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -1075,7 +1075,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 
 		execvp(argv[0], (char **)argv);
 
-		if (want_signal) {
+		if (exec_error) {
 			union sigval val;
 
 			val.sival_int = errno;
@@ -1084,6 +1084,14 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 		} else
 			perror(argv[0]);
 		exit(-1);
+	}
+
+	if (exec_error) {
+		struct sigaction act = {
+			.sa_flags     = SA_SIGINFO,
+			.sa_sigaction = exec_error,
+		};
+		sigaction(SIGUSR1, &act, NULL);
 	}
 
 	if (target__none(target))
