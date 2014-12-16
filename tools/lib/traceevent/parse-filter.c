@@ -1362,8 +1362,10 @@ enum pevent_errno pevent_filter_add_filter_str(struct event_filter *filter,
 		if (ret >= 0 && pevent->test_filters) {
 			char *test;
 			test = pevent_filter_make_string(filter, event->event->id);
-			printf(" '%s: %s'\n", event->event->name, test);
-			free(test);
+			if (test) {
+				printf(" '%s: %s'\n", event->event->name, test);
+				free(test);
+			}
 		}
 	}
 
@@ -2051,7 +2053,6 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 	int left_val = -1;
 	int right_val = -1;
 	int val;
-	int len;
 
 	switch (arg->op.type) {
 	case FILTER_OP_AND:
@@ -2098,11 +2099,7 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 				default:
 					break;
 				}
-				str = malloc_or_die(6);
-				if (val)
-					strcpy(str, "TRUE");
-				else
-					strcpy(str, "FALSE");
+				asprintf(&str, val ? "TRUE" : "FALSE");
 				break;
 			}
 		}
@@ -2120,10 +2117,7 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 			break;
 		}
 
-		len = strlen(left) + strlen(right) + strlen(op) + 10;
-		str = malloc_or_die(len);
-		snprintf(str, len, "(%s) %s (%s)",
-			 left, op, right);
+		asprintf(&str, "(%s) %s (%s)", left, op, right);
 		break;
 
 	case FILTER_OP_NOT:
@@ -2139,16 +2133,10 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 			right_val = 0;
 		if (right_val >= 0) {
 			/* just return the opposite */
-			str = malloc_or_die(6);
-			if (right_val)
-				strcpy(str, "FALSE");
-			else
-				strcpy(str, "TRUE");
+			asprintf(&str, right_val ? "FALSE" : "TRUE");
 			break;
 		}
-		len = strlen(right) + strlen(op) + 3;
-		str = malloc_or_die(len);
-		snprintf(str, len, "%s(%s)", op, right);
+		asprintf(&str, "%s(%s)", op, right);
 		break;
 
 	default:
@@ -2162,11 +2150,9 @@ static char *op_to_str(struct event_filter *filter, struct filter_arg *arg)
 
 static char *val_to_str(struct event_filter *filter, struct filter_arg *arg)
 {
-	char *str;
+	char *str = NULL;
 
-	str = malloc_or_die(30);
-
-	snprintf(str, 30, "%lld", arg->value.val);
+	asprintf(&str, "%lld", arg->value.val);
 
 	return str;
 }
@@ -2182,7 +2168,6 @@ static char *exp_to_str(struct event_filter *filter, struct filter_arg *arg)
 	char *rstr;
 	char *op;
 	char *str = NULL;
-	int len;
 
 	lstr = arg_to_str(filter, arg->exp.left);
 	rstr = arg_to_str(filter, arg->exp.right);
@@ -2221,12 +2206,11 @@ static char *exp_to_str(struct event_filter *filter, struct filter_arg *arg)
 		op = "^";
 		break;
 	default:
-		die("oops in exp");
+		op = "[ERROR IN EXPRESSION TYPE]";
+		break;
 	}
 
-	len = strlen(op) + strlen(lstr) + strlen(rstr) + 4;
-	str = malloc_or_die(len);
-	snprintf(str, len, "%s %s %s", lstr, op, rstr);
+	asprintf(&str, "%s %s %s", lstr, op, rstr);
 out:
 	free(lstr);
 	free(rstr);
@@ -2240,7 +2224,6 @@ static char *num_to_str(struct event_filter *filter, struct filter_arg *arg)
 	char *rstr;
 	char *str = NULL;
 	char *op = NULL;
-	int len;
 
 	lstr = arg_to_str(filter, arg->num.left);
 	rstr = arg_to_str(filter, arg->num.right);
@@ -2271,10 +2254,7 @@ static char *num_to_str(struct event_filter *filter, struct filter_arg *arg)
 		if (!op)
 			op = "<=";
 
-		len = strlen(lstr) + strlen(op) + strlen(rstr) + 4;
-		str = malloc_or_die(len);
-		sprintf(str, "%s %s %s", lstr, op, rstr);
-
+		asprintf(&str, "%s %s %s", lstr, op, rstr);
 		break;
 
 	default:
@@ -2292,7 +2272,6 @@ static char *str_to_str(struct event_filter *filter, struct filter_arg *arg)
 {
 	char *str = NULL;
 	char *op = NULL;
-	int len;
 
 	switch (arg->str.type) {
 	case FILTER_CMP_MATCH:
@@ -2310,12 +2289,8 @@ static char *str_to_str(struct event_filter *filter, struct filter_arg *arg)
 		if (!op)
 			op = "!~";
 
-		len = strlen(arg->str.field->name) + strlen(op) +
-			strlen(arg->str.val) + 6;
-		str = malloc_or_die(len);
-		snprintf(str, len, "%s %s \"%s\"",
-			 arg->str.field->name,
-			 op, arg->str.val);
+		asprintf(&str, "%s %s \"%s\"",
+			 arg->str.field->name, op, arg->str.val);
 		break;
 
 	default:
@@ -2327,15 +2302,11 @@ static char *str_to_str(struct event_filter *filter, struct filter_arg *arg)
 
 static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg)
 {
-	char *str;
+	char *str = NULL;
 
 	switch (arg->type) {
 	case FILTER_ARG_BOOLEAN:
-		str = malloc_or_die(6);
-		if (arg->boolean.value)
-			strcpy(str, "TRUE");
-		else
-			strcpy(str, "FALSE");
+		asprintf(&str, arg->boolean.value ? "TRUE" : "FALSE");
 		return str;
 
 	case FILTER_ARG_OP:
@@ -2370,7 +2341,7 @@ static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg)
  *
  * Returns a string that displays the filter contents.
  *  This string must be freed with free(str).
- *  NULL is returned if no filter is found.
+ *  NULL is returned if no filter is found or allocation failed.
  */
 char *
 pevent_filter_make_string(struct event_filter *filter, int event_id)
