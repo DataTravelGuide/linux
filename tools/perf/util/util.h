@@ -304,7 +304,6 @@ void dump_stack(void);
 extern unsigned int page_size;
 
 void get_term_dimensions(struct winsize *ws);
-int filename__read_str(const char *filename, char **buf, size_t *sizep);
 bool find_process(const char *name);
 
 struct parse_tag {
@@ -322,6 +321,8 @@ char *get_srcline(struct dso *dso, unsigned long addr);
 void free_srcline(char *srcline);
 
 int filename__read_int(const char *filename, int *value);
+int filename__read_str(const char *filename, char **buf, size_t *sizep);
+int perf_event_paranoid(void);
 
 const char *get_filename_for_perf_kvm(void);
 #endif /* GIT_COMPAT_UTIL_H */
