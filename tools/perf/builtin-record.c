@@ -500,7 +500,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * (apart from group members) have enable_on_exec=1 set,
 	 * so don't spoil it by prematurely enabling them.
 	 */
-	if (!target__none(&opts->target))
+	if (!target__none(&opts->target) && !opts->initial_delay)
 		perf_evlist__enable(rec->evlist);
 
 	/*
@@ -508,6 +508,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 */
 	if (forks)
 		perf_evlist__start_workload(rec->evlist);
+
+	if (opts->initial_delay) {
+		usleep(opts->initial_delay * 1000);
+		perf_evlist__enable(rec->evlist);
+	}
 
 	for (;;) {
 		int hits = rec->samples;
@@ -878,6 +883,8 @@ const struct option record_options[] = {
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
+	OPT_UINTEGER(0, "initial-delay", &record.opts.initial_delay,
+		  "ms to wait before starting measurement after program start"),
 	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
 		   "user to profile"),
 	OPT_CALLBACK_NOOPT('b', "branch-any", &record.opts.branch_stack,
