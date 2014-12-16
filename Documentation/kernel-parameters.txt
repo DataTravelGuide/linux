@@ -1933,6 +1933,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	panic=		[KNL] Kernel behaviour on panic
 			Format: <timeout>
 
+	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
+			on a WARN().
+
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
 			Format: <parport#>
