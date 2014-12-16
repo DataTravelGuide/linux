@@ -140,7 +140,6 @@ CORE_FEATURE_TESTS =			\
 	libslang			\
 	libunwind			\
 	on-exit				\
-	stackprotector			\
 	stackprotector-all		\
 	timerfd
 
@@ -206,10 +205,6 @@ endif
 
 ifeq ($(feature-stackprotector-all), 1)
   CFLAGS += -fstack-protector-all
-endif
-
-ifeq ($(feature-stackprotector), 1)
-  CFLAGS += -Wstack-protector
 endif
 
 ifeq ($(DEBUG),0)
