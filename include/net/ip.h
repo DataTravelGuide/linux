@@ -198,13 +198,6 @@ static inline __u8 ip_reply_arg_flowi_flags(const struct ip_reply_arg *arg)
 void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
 		   unsigned int len); 
 
-struct ipv4_config
-{
-	int	log_martians;
-	int	no_pmtu_disc;
-};
-
-extern struct ipv4_config ipv4_config;
 #define IP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.ip_statistics, field)
 #define IP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.ip_statistics, field)
 #define IP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.ip_statistics, field, val)

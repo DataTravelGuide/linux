@@ -1685,7 +1685,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 	__be32  daddr = iph->daddr;
 	unsigned short est_mtu = 0;
 
-	if (ipv4_config.no_pmtu_disc)
+	if (net->sysctl_ip_no_pmtu_disc);
 		return 0;
 
 	for (k = 0; k < 2; k++) {
