@@ -1587,6 +1587,8 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->flags = 0;
 		priv->x_max = 1360;
 		priv->y_max = 660;
+		priv->x_bits = 23;
+		priv->y_bits = 12;
 		break;
 	}
 }
