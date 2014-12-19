@@ -33,12 +33,6 @@
 /*
  * Definitions for ALPS version 3 and 4 command mode protocol
  */
-#define ALPS_V3_X_MAX	2000
-#define ALPS_V3_Y_MAX	1400
-
-#define ALPS_BITMAP_X_BITS	15
-#define ALPS_BITMAP_Y_BITS	11
-
 #define ALPS_CMD_NIBBLE_10	0x01f2
 
 #define ALPS_REG_BASE_RUSHMORE	0xc2c0
@@ -322,7 +316,7 @@ static int alps_process_bitmap(struct alps_data *priv,
 	 * y bitmap is reversed for what we need (lower positions are in
 	 * higher bits), so we process from the top end.
 	 */
-	y_map = y_map << (sizeof(y_map) * BITS_PER_BYTE - ALPS_BITMAP_Y_BITS);
+	y_map = y_map << (sizeof(y_map) * BITS_PER_BYTE - priv->y_bits);
 	prev_bit = 0;
 	point = &y_low;
 	for (i = 0; y_map != 0; i++, y_map <<= 1) {
@@ -368,16 +362,18 @@ static int alps_process_bitmap(struct alps_data *priv,
 		}
 	}
 
-	*x1 = (ALPS_V3_X_MAX * (2 * x_low.start_bit + x_low.num_bits - 1)) /
-	      (2 * (ALPS_BITMAP_X_BITS - 1));
-	*y1 = (ALPS_V3_Y_MAX * (2 * y_low.start_bit + y_low.num_bits - 1)) /
-	      (2 * (ALPS_BITMAP_Y_BITS - 1));
+	*x1 = (priv->x_max * (2 * x_low.start_bit + x_low.num_bits - 1)) /
+	      (2 * (priv->x_bits - 1));
+	*y1 = (priv->y_max * (2 * y_low.start_bit + y_low.num_bits - 1)) /
+	      (2 * (priv->y_bits - 1));
 
 	if (fingers > 1) {
-		*x2 = (ALPS_V3_X_MAX * (2 * x_high.start_bit + x_high.num_bits - 1)) /
-		      (2 * (ALPS_BITMAP_X_BITS - 1));
-		*y2 = (ALPS_V3_Y_MAX * (2 * y_high.start_bit + y_high.num_bits - 1)) /
-		      (2 * (ALPS_BITMAP_Y_BITS - 1));
+		*x2 = (priv->x_max *
+		       (2 * x_high.start_bit + x_high.num_bits - 1)) /
+		      (2 * (priv->x_bits - 1));
+		*y2 = (priv->y_max *
+		       (2 * y_high.start_bit + y_high.num_bits - 1)) /
+		      (2 * (priv->y_bits - 1));
 	}
 
 	return fingers;
@@ -1554,6 +1550,8 @@ static void alps_set_defaults(struct alps_data *priv)
 
 	priv->x_max = 2000;
 	priv->y_max = 1400;
+	priv->x_bits = 15;
+	priv->y_bits = 11;
 
 	switch (priv->proto_version) {
 	case ALPS_PROTO_V1:
