@@ -1660,6 +1660,8 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 
 		priv->hw_init = alps_hw_init_rushmore_v3;
 		priv->decode_fields = alps_decode_rushmore;
+		priv->x_bits = 16;
+		priv->y_bits = 12;
 
 		/* hack to make addr_command, nibble_command available */
 		psmouse->private = priv;
