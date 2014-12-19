@@ -2239,7 +2239,7 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		return 0;
 	}
 
-	dbg("Unknown ALPS touchpad: E7=%2.2x %2.2x %2.2x, EC=%2.2x %2.2x %2.2x\n",
+	dbg("Likely not an ALPS touchpad: E7=%2.2x %2.2x %2.2x, EC=%2.2x %2.2x %2.2x\n",
 	    e7[0], e7[1], e7[2], ec[0], ec[1], ec[2]);
 
 	return -EINVAL;
