@@ -353,11 +353,7 @@ static void kvm_extint_handler(u16 code)
 	config_changed =  (*(int *)  __LC_EXT_PARAMS & 1);
 
 	if (config_changed) {
-		struct virtio_driver *drv;
-		drv = container_of(vq->vdev->dev.driver,
-				   struct virtio_driver, driver);
-		if (drv->config_changed)
-			drv->config_changed(vq->vdev);
+		virtio_config_changed(vq->vdev);
 	} else
 		vring_interrupt(0, vq);
 }

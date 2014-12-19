@@ -192,12 +192,8 @@ static void vp_notify(struct virtqueue *vq)
 static irqreturn_t vp_config_changed(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
-	struct virtio_driver *drv;
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
 
-	if (drv && drv->config_changed)
-		drv->config_changed(&vp_dev->vdev);
+	virtio_config_changed(&vp_dev->vdev);
 	return IRQ_HANDLED;
 }
 

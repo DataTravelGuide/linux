@@ -121,6 +121,8 @@ struct virtio_device {
 int register_virtio_device(struct virtio_device *dev);
 void unregister_virtio_device(struct virtio_device *dev);
 
+void virtio_config_changed(struct virtio_device *dev);
+
 /**
  * virtio_driver - operations for a virtio I/O driver
  * @driver: underlying device driver (populate name and owner).
