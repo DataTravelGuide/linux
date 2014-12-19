@@ -33,6 +33,9 @@ struct alps_nibble_commands {
 
 /**
  * struct alps_fields - decoded version of the report packet
+ * @x_map: Bitmap of active X positions for MT.
+ * @y_map: Bitmap of active Y positions for MT.
+ * @fingers: Number of fingers for MT.
  * @x: X position for ST.
  * @y: Y position for ST.
  * @z: Z position for ST.
@@ -46,6 +49,9 @@ struct alps_nibble_commands {
  * @ts_middle: Middle trackstick button is active.
  */
 struct alps_fields {
+	unsigned int x_map;
+	unsigned int y_map;
+	unsigned int fingers;
 	unsigned int x;
 	unsigned int y;
 	unsigned int z;
@@ -79,6 +85,7 @@ struct alps_data {
 
 	int prev_fin;			/* Finger bit from previous packet */
 	int multi_packet;		/* Multi-packet data in progress */
+	unsigned char multi_data[6];	/* Saved multi-packet data */
 	u8 quirks;
 	struct timer_list timer;
 };
