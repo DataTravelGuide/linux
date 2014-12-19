@@ -20,13 +20,17 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 
 	sh = skb_header_pointer(skb, iph.len, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
+	if (sh == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
 
 	sch = skb_header_pointer(skb, iph.len + sizeof(sctp_sctphdr_t),
 				 sizeof(_schunkh), &_schunkh);
-	if (sch == NULL)
+	if (sch == NULL) {
+		*verdict = NF_DROP;
 		return 0;
+	}
 
 	if ((sch->type == SCTP_CID_INIT) &&
 	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol,
