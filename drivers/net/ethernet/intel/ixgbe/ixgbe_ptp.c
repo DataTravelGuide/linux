@@ -457,7 +457,7 @@ static int ixgbe_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
-	timecounter_adjtime(&adapter->hw_tc, delta);
+	timecounter_adjtime(&adapter->tc, delta);
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
 
 	if (adapter->ptp_setup_sdp)
