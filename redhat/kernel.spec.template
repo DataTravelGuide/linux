@@ -1705,6 +1705,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Dec 23 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-520.el6]
+- [fs] proc/task_mmu: missing check during hugepage migration (Jacob Tanenbaum) [1105038] {CVE-2014-3940}
+- [fs] proc: use unsigned long inside /proc/*/statm (Rafael Aquini) [810317]
+- [net] ipv6: update Destination Cache entries when gateway turn into host (Jiri Pirko) [1174697]
+- [net] ipv6: increase ip6_rt_max_size to 16384 (Hannes Frederic Sowa) [1112946]
+- [net] ipv6: don't set DST_NOCOUNT for remotely added routes (Hannes Frederic Sowa) [1112946]
+- [net] ipv6: don't count addrconf generated routes against gc limit (Hannes Frederic Sowa) [1112946]
+- [net] ipv6: Don't put artificial limit on routing table size (Hannes Frederic Sowa) [1112946]
+- [scsi] bnx2fc: fix tgt spinlock locking (Maurizio Lombardi) [1079656]
+- [acpi] acpica: Remove FORCE_DELETE option for global reference count mechanism (Adrian Huang) [1155774]
+- [input] wacom: silence warning introduced in 6986e2c7 (Aristeu Rozanski) [1093435]
+- [input] wacom: fix retrieving touch_max bug (Aristeu Rozanski) [1093435]
+- [input] wacom: fix a typo for Cintiq 22HDT (Aristeu Rozanski) [1093435]
+- [input] wacom: add three new display tablets (Aristeu Rozanski) [1093435]
+- [input] wacom: add touch sensor support for Cintiq 24HD touch (Aristeu Rozanski) [1093435]
+- [input] wacom: add 0xE5 (MT device) support (Aristeu Rozanski) [1093435]
+- [input] wacom: retrieve maximum number of touch points (Aristeu Rozanski) [1093435]
+- [input] wacom: handle split-sensor devices with internal hubs (Aristeu Rozanski) [1093435]
+- [input] usb: move children to struct usb_port (Aristeu Rozanski) [1093435]
+- [media] gspca: ov519: Fix sensor detection problems (Gopal Tiwari) [1043584]
+- [kernel] module: fix kabi for 16k stacks (Johannes Weiner) [1045190 1060721]
+- [kernel] x86_64: expand kernel stack to 16K (Johannes Weiner) [1045190 1060721]
+- [kernel] hung_task: debugging: Add tracepoint to report the hang (Oleg Nesterov) [977930]
+
 * Tue Dec 16 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-519.el6]
 - [crypto] crc32c: Kill pointless CRYPTO_CRC32C_X86_64 option (Jarod Wilson) [1036212]
 - [crypto] testmgr: add larger crc32c test vector to test FPU path in crc32c_intel (Jarod Wilson) [1036212]
