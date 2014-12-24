@@ -1813,7 +1813,7 @@ int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val)
 	int err = -ENOENT;
 	u32 old;
 
-	spin_lock(&br->multicast_lock);
+	spin_lock_bh(&br->multicast_lock);
 	if (!netif_running(br->dev))
 		goto unlock;
 
@@ -1843,7 +1843,7 @@ rollback:
 	}
 
 unlock:
-	spin_unlock(&br->multicast_lock);
+	spin_unlock_bh(&br->multicast_lock);
 
 	return err;
 }
