@@ -1705,6 +1705,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Dec 25 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-521.el6]
+- [fs] cifs: don't compare uniqueids in cifs_prime_dcache unless server inode numbers are in use (Sachin Prabhu) [1163010]
+- [fs] cifs: always update the inode cache with the results from a FIND_* (Sachin Prabhu) [1163010]
+- [fs] nfsd: disable 4.1 in rhel6 (J. Bruce Fields) [1122493]
+- [x86] kvm: allow bit 10 to be cleared in MSR_IA32_MC4_CTL (Eduardo Habkost) [1025868]
+- [scsi] be2iscsi: Bump driver version (Rob Evers) [1133543]
+- [scsi] be2iscsi: Fix kernel panic during reboot/shutdown (Rob Evers) [1133543]
+- [firmware] iscsi_ibft: Fix finding Broadcom specific ibft sign (Maurizio Lombardi) [1095187]
+- [firmware] ibft: Fix finding IBFT ACPI table on UEFI (Maurizio Lombardi) [1095187]
+- [scsi] st: add a debug_flag module parameter request (Maurizio Lombardi) [1153819]
+- [scsi] bnx2fc: fix incorrect DMA memory mapping in bnx2fc_unmap_sg_list() (Maurizio Lombardi) [1119623]
+- [scsi] sd: fix a bug in deriving the FLUSH_TIMEOUT from the basic I/O timeout (Ewan Milne) [1104782]
+- [scsi] sd: Derive the FLUSH_TIMEOUT from the basic I/O timeout (Ewan Milne) [1104782]
+
 * Tue Dec 23 2014 Rafael Aquini <aquini@redhat.com> [2.6.32-520.el6]
 - [fs] proc/task_mmu: missing check during hugepage migration (Jacob Tanenbaum) [1105038] {CVE-2014-3940}
 - [fs] proc: use unsigned long inside /proc/*/statm (Rafael Aquini) [810317]
