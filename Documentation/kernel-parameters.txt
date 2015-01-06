@@ -736,6 +736,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	edd=		[EDD]
 			Format: {"off" | "on" | "skip[mbr]"}
 
+	efi_smbios_addr= [X86,EFI]
+			Parameter used to specify location of SMBIOS for
+			EFI systems.  Used by kexec-tools for kdump.
+
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
 
