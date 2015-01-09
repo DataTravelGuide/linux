@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jan 09 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.48.1.el6]
+- [netdrv] tg3: Don't check undefined error bits in RXBD (Ivan Vecera) [1180405 1054558]
+- [x86] traps: stop using IST for #SS (Petr Matousek) [1173085 1172811] {CVE-2014-9322}
+
 * Thu Dec 11 2014 Petr Holasek <pholasek@redhat.com> [2.6.32-431.47.1.el6]
 - [net] netfilter: ipset: timeout values corrupted on set resize (Marcelo Leitner) [1172763 1152754]
 - [net] netfilter: fix xt_TCPOPTSTRIP in forwarding path (Marcelo Leitner) [1172026 1135650]
