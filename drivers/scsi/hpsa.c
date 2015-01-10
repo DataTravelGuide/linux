@@ -49,6 +49,7 @@
 #include <linux/bitmap.h>
 #include <asm/atomic.h>
 #include <linux/jiffies.h>
+#include <linux/percpu-defs.h>
 #include <linux/percpu.h>
 #include <asm/div64.h>
 #include "hpsa_cmd.h"
@@ -194,12 +195,13 @@ static int number_of_controllers;
 
 static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
-static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg);
+static int hpsa_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static void lock_and_start_io(struct ctlr_info *h);
 static void start_io(struct ctlr_info *h, unsigned long *flags);
 
 #ifdef CONFIG_COMPAT
-static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg);
+static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd,
+	void __user *arg);
 #endif
 
 static void cmd_free(struct ctlr_info *h, struct CommandList *c);
@@ -3006,8 +3008,8 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	return 0;
 }
 
-u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
-	int nphysicals, int nlogicals,
+static u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position,
+	int i, int nphysicals, int nlogicals,
 	struct ReportExtendedLUNdata *physdev_list,
 	struct ReportLUNdata *logdev_list)
 {
@@ -4442,7 +4444,7 @@ static struct CommandList *hpsa_find_cmd_in_queue(struct ctlr_info *h,
 	struct CommandList *c = NULL;	/* ptr into cmpQ */
 
 	if (!find)
-		return 0;
+		return NULL;
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(c, queue_head, list) {
 		if (c->scsi_cmd == NULL) /* e.g.: passthru ioctl */
@@ -4819,7 +4821,8 @@ static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
 
 #ifdef CONFIG_COMPAT
 
-static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd,
+	void __user *arg)
 {
 	IOCTL32_Command_struct __user *arg32 =
 	    (IOCTL32_Command_struct __user *) arg;
@@ -4844,7 +4847,7 @@ static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 	if (err)
 		return -EFAULT;
 
-	err = hpsa_ioctl(dev, CCISS_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_PASSTHRU, p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
@@ -4855,7 +4858,7 @@ static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 }
 
 static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
-	int cmd, void *arg)
+	int cmd, void __user *arg)
 {
 	BIG_IOCTL32_Command_struct __user *arg32 =
 	    (BIG_IOCTL32_Command_struct __user *) arg;
@@ -4882,7 +4885,7 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	if (err)
 		return -EFAULT;
 
-	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
@@ -4892,7 +4895,7 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	return err;
 }
 
-static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 {
 	switch (cmd) {
 	case CCISS_GETPCIINFO:
@@ -5240,7 +5243,7 @@ static void decrement_passthru_count(struct ctlr_info *h)
 /*
  * ioctl
  */
-static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
+static int hpsa_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 {
 	struct ctlr_info *h;
 	void __user *argp = (void __user *)arg;
@@ -5852,7 +5855,7 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
 static int hpsa_controller_hard_reset(struct pci_dev *pdev,
-	void * __iomem vaddr, u32 use_doorbell)
+	void __iomem *vaddr, u32 use_doorbell)
 {
 	u16 pmcsr;
 	int pos;
@@ -6115,7 +6118,7 @@ unmap_vaddr:
  *   the io functions.
  *   This is for debug only.
  */
-static void print_cfg_table(struct device *dev, struct CfgTable *tb)
+static void print_cfg_table(struct device *dev, struct CfgTable __iomem *tb)
 {
 #ifdef HPSA_DEBUG
 	int i;
