@@ -1311,8 +1311,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	 * sd[] and remove them from h->dev[], and for any
 	 * devices which have changed, remove the old device
 	 * info and add the new device info.
-         * If minor device attributes change, just update
-         * the existing device structure.
+	 * If minor device attributes change, just update
+	 * the existing device structure.
 	 */
 	i = 0;
 	nremoved = 0;
@@ -1438,7 +1438,7 @@ free_and_out:
 }
 
 /*
- * Lookup bus/target/lun and retrun corresponding struct hpsa_scsi_dev_t *
+ * Lookup bus/target/lun and return corresponding struct hpsa_scsi_dev_t *
  * Assume's h->devlock is held.
  */
 static struct hpsa_scsi_dev_t *lookup_hpsa_scsi_dev(struct ctlr_info *h,
@@ -1839,7 +1839,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	case CMD_PROTOCOL_ERR:
 		cmd->result = DID_ERROR << 16;
 		dev_warn(&h->pdev->dev, "cp %p has "
-			"protocol error \n", cp);
+			"protocol error\n", cp);
 		break;
 	case CMD_HARDWARE_ERR:
 		cmd->result = DID_ERROR << 16;
@@ -2646,7 +2646,7 @@ static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
 {
 	int i;
 
-	for (i = 0; ext_target_model[i]; i++) 
+	for (i = 0; ext_target_model[i]; i++)
 		if (strncmp(device->model, ext_target_model[i],
 			strlen(ext_target_model[i])) == 0)
 			return 1;
@@ -2654,7 +2654,7 @@ static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
 }
 
 /* Helper function to assign bus, target, lun mapping of devices.
- * Puts non-external target logical volumes on bus 0, external target logical 
+ * Puts non-external target logical volumes on bus 0, external target logical
  * volumes on bus 1, physical devices on bus 2. and the hba on bus 3.
  * Logical drive target and lun are assigned at this time, but
  * physical device lun and target assignment are deferred (assigned
@@ -3006,7 +3006,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	for (i = 0; i < ndevs_to_allocate; i++) {
 		if (i >= HPSA_MAX_DEVICES) {
 			dev_warn(&h->pdev->dev, "maximum devices (%d) exceeded."
-			    "  %d devices ignored.\n", HPSA_MAX_DEVICES,
+				"  %d devices ignored.\n", HPSA_MAX_DEVICES,
 				ndevs_to_allocate - HPSA_MAX_DEVICES);
 			break;
 		}
@@ -4024,7 +4024,6 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 	/* the cmd'll come back via intr handler in complete_scsi_command()  */
 	return 0;
 }
-
 
 static int do_not_scan_if_controller_locked_up(struct ctlr_info *h)
 {
@@ -5509,6 +5508,7 @@ static inline u32 hpsa_tag_to_index(u32 tag)
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
+
 static inline u32 hpsa_tag_discard_error_bits(struct ctlr_info *h, u32 tag)
 {
 #define HPSA_PERF_ERROR_BITS ((1 << DIRECT_LOOKUP_SHIFT) - 1)
@@ -5658,7 +5658,7 @@ static irqreturn_t do_hpsa_intr_msi(int irq, void *queue)
 	return IRQ_HANDLED;
 }
 
-/* Send a message CDB to the firmware.  Careful, this only works
+/* Send a message CDB to the firmware. Careful, this only works
  * in simple mode, not performant mode due to the tag lookup.
  * We only ever use this immediately after a controller reset.
  */
@@ -5819,31 +5819,6 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 	return 0;
 }
 
-static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
-	void __iomem *vaddr, int wait_for_ready)
-{
-	int i, iterations;
-	u32 scratchpad;
-	if (wait_for_ready)
-		iterations = HPSA_BOARD_READY_ITERATIONS;
-	else
-		iterations = HPSA_BOARD_NOT_READY_ITERATIONS;
-
-	for (i = 0; i < iterations; i++) {
-		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (wait_for_ready) {
-			if (scratchpad == HPSA_FIRMWARE_READY)
-				return 0;
-		} else {
-			if (scratchpad != HPSA_FIRMWARE_READY)
-				return 0;
-		}
-		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
-	}
-	dev_warn(&pdev->dev, "board not ready, timed out.\n");
-	return -ENODEV;
-}
-
 static __devinit void init_driver_version(char *driver_version, int len)
 {
 	memset(driver_version, 0, len);
@@ -5879,6 +5854,7 @@ static __devinit void read_driver_ver_from_cfgtable(
 static __devinit bool controller_reset_failed(
 	struct CfgTable __iomem *cfgtable)
 {
+
 	char *driver_ver, *old_driver_ver;
 	int rc, size = sizeof(cfgtable->driver_version);
 
@@ -5896,7 +5872,6 @@ static __devinit bool controller_reset_failed(
 	kfree(old_driver_ver);
 	return rc;
 }
-
 /* This does a hard reset of the controller using PCI power management
  * states or the using the doorbell register.
  */
@@ -5989,7 +5964,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	pci_write_config_word(pdev, 4, command_register);
 
 	/* Some devices (notably the HP Smart Array 5i Controller)
-	 * need a little pause here */
+	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
 	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
@@ -6188,6 +6163,31 @@ static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
+static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
+	void __iomem *vaddr, int wait_for_ready)
+{
+	int i, iterations;
+	u32 scratchpad;
+	if (wait_for_ready)
+		iterations = HPSA_BOARD_READY_ITERATIONS;
+	else
+		iterations = HPSA_BOARD_NOT_READY_ITERATIONS;
+
+	for (i = 0; i < iterations; i++) {
+		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (wait_for_ready) {
+			if (scratchpad == HPSA_FIRMWARE_READY)
+				return 0;
+		} else {
+			if (scratchpad != HPSA_FIRMWARE_READY)
+				return 0;
+		}
+		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
+	}
+	dev_warn(&pdev->dev, "board not ready, timed out.\n");
+	return -ENODEV;
+}
+
 static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
 	u64 *cfg_offset)
@@ -6216,8 +6216,7 @@ static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 	if (rc)
 		return rc;
 	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
-				cfg_base_addr_index) + cfg_offset,
-				sizeof(*h->cfgtable));
+		       cfg_base_addr_index) + cfg_offset, sizeof(*h->cfgtable));
 	if (!h->cfgtable)
 		return -ENOMEM;
 	rc = write_driver_ver_to_cfgtable(h->cfgtable);
@@ -6410,7 +6409,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	pci_set_master(h->pdev);
 
 	hpsa_interrupt_mode(h);
-
 	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
 		goto err_out_free_res;
@@ -6422,7 +6420,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	err = hpsa_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY);
 	if (err)
 		goto err_out_free_res;
-
 	err = hpsa_find_cfgtables(h);
 	if (err)
 		goto err_out_free_res;
