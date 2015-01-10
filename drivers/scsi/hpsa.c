@@ -1477,13 +1477,6 @@ static void hpsa_slave_destroy(struct scsi_device *sdev)
 	/* nothing to do. */
 }
 
-static void hpsa_scsi_setup(struct ctlr_info *h)
-{
-	h->ndevices = 0;
-	h->scsi_host = NULL;
-	spin_lock_init(&h->devlock);
-}
-
 static void hpsa_free_sg_chain_blocks(struct ctlr_info *h)
 {
 	int i;
@@ -7016,7 +7009,6 @@ reinit_after_soft_reset:
 	h->scan_finished = 1; /* no scan currently in progress */
 
 	pci_set_drvdata(pdev, h);
-	hpsa_scsi_setup(h);
 	h->ndevices = 0;
 	h->hba_mode_enabled = 0;
 	h->scsi_host = NULL;
