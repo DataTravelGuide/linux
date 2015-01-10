@@ -5883,6 +5883,8 @@ static __devinit bool controller_reset_failed(
 	int rc, size = sizeof(cfgtable->driver_version);
 
 	old_driver_ver = kmalloc(2 * size, GFP_KERNEL);
+	if (!old_driver_ver)
+		return -ENOMEM;
 	driver_ver = old_driver_ver + size;
 
 	/* After a reset, the 32 bytes of "driver version" in the cfgtable
