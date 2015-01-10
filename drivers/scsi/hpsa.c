@@ -1211,7 +1211,7 @@ static void hpsa_monitor_offline_device(struct ctlr_info *h,
 static void hpsa_show_volume_status(struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *sd)
 {
-	if (sd->volume_offline == (u8) HPSA_VPD_LV_STATUS_UNSUPPORTED)
+	if (sd->volume_offline == HPSA_VPD_LV_STATUS_UNSUPPORTED)
 		dev_info(&h->pdev->dev,
 			"C%d:B%d:T%d:L%d Volume status is not available through vital product data pages.\n",
 			h->scsi_host->host_no,
