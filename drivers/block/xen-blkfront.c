@@ -99,7 +99,6 @@ struct blkfront_info
 	struct blk_shadow shadow[BLK_RING_SIZE];
 	unsigned long shadow_free;
 	unsigned int feature_flush;
-	unsigned int flush_op;
 	unsigned int feature_discard;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
@@ -325,7 +324,19 @@ static int blkif_queue_request(struct request *req)
 		 * way.  (It's also a FLUSH+FUA, since it is
 		 * guaranteed ordered WRT previous writes.)
 		 */
-		ring_req->operation = info->flush_op;
+		switch (info->feature_flush &
+			((REQ_FLUSH|REQ_FUA))) {
+		case REQ_FLUSH|REQ_FUA:
+			ring_req->operation =
+				BLKIF_OP_WRITE_BARRIER;
+			break;
+		case REQ_FLUSH:
+			ring_req->operation =
+				BLKIF_OP_FLUSH_DISKCACHE;
+			break;
+		default:
+			ring_req->operation = 0;
+		}
 	}
 
 	if (unlikely(req->cmd_flags & REQ_DISCARD)) {
@@ -481,16 +492,23 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	return 0;
 }
 
+static const char *flush_info(unsigned int feature_flush)
+{
+	switch (feature_flush & ((REQ_FLUSH | REQ_FUA))) {
+	case REQ_FLUSH|REQ_FUA:
+		return "barrier: enabled;";
+	case REQ_FLUSH:
+		return "flush diskcache: enabled;";
+	default:
+		return "barrier or flush: disabled;";
+	}
+}
 
 static void xlvbd_flush(struct blkfront_info *info)
 {
 	blk_queue_flush(info->rq, info->feature_flush);
-	printk(KERN_INFO "blkfront: %s: %s: %s\n",
-	       info->gd->disk_name,
-	       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
-		"barrier" : (info->flush_op == BLKIF_OP_FLUSH_DISKCACHE ?
-		"flush diskcache" : "barrier or flush"),
-	       info->feature_flush ? "enabled" : "disabled");
+	pr_info("blkfront: %s: %s\n",
+		info->gd->disk_name, flush_info(info->feature_flush));
 }
 
 static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
@@ -819,7 +837,6 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				if (error == -EOPNOTSUPP)
 					error = 0;
 				info->feature_flush = 0;
-				info->flush_op = 0;
 				xlvbd_flush(info);
 			}
 			/* fall through */
@@ -1286,7 +1303,6 @@ static void blkfront_connect(struct blkfront_info *info)
 	}
 
 	info->feature_flush = 0;
-	info->flush_op = 0;
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			    "feature-barrier", "%d", &barrier,
@@ -1299,10 +1315,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	 *
 	 * If there are barriers, then we use flush.
 	 */
-	if (!err && barrier) {
+	if (!err && barrier)
 		info->feature_flush = REQ_FLUSH | REQ_FUA;
-		info->flush_op = BLKIF_OP_WRITE_BARRIER;
-	}
 	/*
 	 * And if there is "feature-flush-cache" use that above
 	 * barriers.
@@ -1311,10 +1325,8 @@ static void blkfront_connect(struct blkfront_info *info)
 			    "feature-flush-cache", "%d", &flush,
 			    NULL);
 
-	if (!err && flush) {
+	if (!err && flush)
 		info->feature_flush = REQ_FLUSH;
-		info->flush_op = BLKIF_OP_FLUSH_DISKCACHE;
-	}
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			    "feature-discard", "%d", &discard,
