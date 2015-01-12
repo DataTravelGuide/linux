@@ -729,9 +729,7 @@ extern void pci_remove_bus(struct pci_bus *b);
  * pci_stop_and_remove_bus_device instead
  */
 extern void pci_remove_bus_device(struct pci_dev *dev);
-extern void __pci_remove_bus_device(struct pci_dev *dev);
 extern void pci_stop_and_remove_bus_device(struct pci_dev *dev);
-extern void pci_stop_bus_device(struct pci_dev *dev);
 void pci_setup_cardbus(struct pci_bus *bus);
 extern void pci_sort_breadthfirst(void);
 #define dev_is_pci(d) ((d)->bus == &pci_bus_type)

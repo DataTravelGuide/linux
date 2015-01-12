@@ -78,6 +78,8 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 EXPORT_SYMBOL(pci_remove_bus);
 
 static void __pci_remove_behind_bridge(struct pci_dev *dev);
+static void pci_stop_bus_device(struct pci_dev *dev);
+
 /**
  * pci_stop_and_remove_bus_device - remove a PCI device and any children
  * @dev: the device to remove
@@ -90,7 +92,7 @@ static void __pci_remove_behind_bridge(struct pci_dev *dev);
  * device lists, remove the /proc entry, and notify userspace
  * (/sbin/hotplug).
  */
-void __pci_remove_bus_device(struct pci_dev *dev)
+static void __pci_remove_bus_device(struct pci_dev *dev)
 {
 	if (dev->subordinate) {
 		struct pci_bus *b = dev->subordinate;
@@ -102,7 +104,6 @@ void __pci_remove_bus_device(struct pci_dev *dev)
 
 	pci_destroy_dev(dev);
 }
-EXPORT_SYMBOL(__pci_remove_bus_device);
 
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 {
@@ -169,7 +170,7 @@ static void pci_stop_bus_devices(struct pci_bus *bus)
  * and so on). This also stop any subordinate buses and children in a
  * depth-first manner.
  */
-void pci_stop_bus_device(struct pci_dev *dev)
+static void pci_stop_bus_device(struct pci_dev *dev)
 {
 	if (dev->subordinate)
 		pci_stop_bus_devices(dev->subordinate);
@@ -188,4 +189,3 @@ EXPORT_SYMBOL(pci_remove_bus_device);
 
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
 EXPORT_SYMBOL(pci_stop_and_remove_behind_bridge);
-EXPORT_SYMBOL_GPL(pci_stop_bus_device);
