@@ -43,18 +43,18 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	pci_dev_put(dev);
 }
 
-void pci_remove_bus(struct pci_bus *pci_bus)
+void pci_remove_bus(struct pci_bus *bus)
 {
-	pci_proc_detach_bus(pci_bus);
+	pci_proc_detach_bus(bus);
 
 	down_write(&pci_bus_sem);
-	list_del(&pci_bus->node);
+	list_del(&bus->node);
 	up_write(&pci_bus_sem);
-	if (!pci_bus->is_added)
+	if (!bus->is_added)
 		return;
 
-	pci_remove_legacy_files(pci_bus);
-	device_unregister(&pci_bus->dev);
+	pci_remove_legacy_files(bus);
+	device_unregister(&bus->dev);
 }
 EXPORT_SYMBOL(pci_remove_bus);
 
