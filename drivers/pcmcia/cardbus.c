@@ -248,5 +248,5 @@ void cb_free(struct pcmcia_socket * s)
 	cb_release_cis_mem(s);
 
 	if (bridge)
-		pci_remove_behind_bridge(bridge);
+		pci_stop_and_remove_behind_bridge(bridge);
 }
