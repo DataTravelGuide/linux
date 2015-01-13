@@ -1059,7 +1059,7 @@ static void __ref acpi_processor_hotplug_notify(acpi_handle handle,
 	 * re-enabled for 32-bit
 	 */
 
-	mark_hardware_unsupported("CPU Hot Add is not supported for x86 32-bit.\n");
+	pr_crit("CPU Hot Add is not supported for x86 32-bit.\n");
 #endif
 
 	switch (event) {
