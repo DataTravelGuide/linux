@@ -34,6 +34,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define TOSHIBA_ACPI_VERSION	"0.19"
 #define PROC_INTERFACE_VERSION	1
 
@@ -55,11 +57,6 @@
 MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
 MODULE_LICENSE("GPL");
-
-#define MY_LOGPREFIX "toshiba_acpi: "
-#define MY_ERR KERN_ERR MY_LOGPREFIX
-#define MY_NOTICE KERN_NOTICE MY_LOGPREFIX
-#define MY_INFO KERN_INFO MY_LOGPREFIX
 
 /* Toshiba ACPI method paths */
 #define METHOD_LCD_BRIGHTNESS	"\\_SB_.PCI0.VGA_.LCD_._BCM"
@@ -416,7 +413,7 @@ static int lcd_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "brightness_levels:       %d\n",
 			     HCI_LCD_BRIGHTNESS_LEVELS);
 	} else {
-		printk(MY_ERR "Error reading LCD brightness\n");
+		pr_err("Error reading LCD brightness\n");
 	}
 
 	return 0;
@@ -491,7 +488,7 @@ static int video_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "crt_out:                 %d\n", is_crt);
 		seq_printf(m, "tv_out:                  %d\n", is_tv);
 	} else {
-		printk(MY_ERR "Error reading video out status\n");
+		pr_err("Error reading video out status\n");
 	}
 
 	return 0;
@@ -585,7 +582,7 @@ static int fan_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "running:                 %d\n", (value > 0));
 		seq_printf(m, "force_on:                %d\n", force_fan);
 	} else {
-		printk(MY_ERR "Error reading fan status\n");
+		pr_err("Error reading fan status\n");
 	}
 
 	return 0;
@@ -649,9 +646,9 @@ static int keys_proc_show(struct seq_file *m, void *v)
 			 * some machines where system events sporadically
 			 * become disabled. */
 			hci_write1(HCI_SYSTEM_EVENT, 1, &hci_result);
-			printk(MY_NOTICE "Re-enabled hotkeys\n");
+			pr_notice("Re-enabled hotkeys\n");
 		} else {
-			printk(MY_ERR "Error reading hotkey status\n");
+			pr_err("Error reading hotkey status\n");
 			goto end;
 		}
 	}
@@ -821,7 +818,7 @@ static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 			key = toshiba_acpi_get_entry_by_scancode
 				(value);
 			if (!key) {
-				printk(MY_INFO "Unknown key %x\n",
+				pr_info("Unknown key %x\n",
 				       value);
 				continue;
 			}
@@ -836,7 +833,7 @@ static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 			 * some machines where system events sporadically
 			 * become disabled. */
 			hci_write1(HCI_SYSTEM_EVENT, 1, &hci_result);
-			printk(MY_NOTICE "Re-enabled hotkeys\n");
+			pr_notice("Re-enabled hotkeys\n");
 		}
 	} while (hci_result != HCI_EMPTY);
 }
@@ -850,7 +847,7 @@ static int toshiba_acpi_setup_keyboard(char *device)
 
 	status = acpi_get_handle(NULL, device, &handle);
 	if (ACPI_FAILURE(status)) {
-		printk(MY_INFO "Unable to get notification device\n");
+		pr_info("Unable to get notification device\n");
 		return -ENODEV;
 	}
 
@@ -858,20 +855,20 @@ static int toshiba_acpi_setup_keyboard(char *device)
 
 	status = acpi_evaluate_object(handle, "ENAB", NULL, NULL);
 	if (ACPI_FAILURE(status)) {
-		printk(MY_INFO "Unable to enable hotkeys\n");
+		pr_info("Unable to enable hotkeys\n");
 		return -ENODEV;
 	}
 
 	status = acpi_install_notify_handler(handle, ACPI_DEVICE_NOTIFY,
 					      toshiba_acpi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
-		printk(MY_INFO "Unable to install hotkey notification\n");
+		pr_info("Unable to install hotkey notification\n");
 		return -ENODEV;
 	}
 
 	toshiba_acpi.hotkey_dev = input_allocate_device();
 	if (!toshiba_acpi.hotkey_dev) {
-		printk(MY_INFO "Unable to register input device\n");
+		pr_info("Unable to register input device\n");
 		return -ENOMEM;
 	}
 
@@ -888,7 +885,7 @@ static int toshiba_acpi_setup_keyboard(char *device)
 
 	result = input_register_device(toshiba_acpi.hotkey_dev);
 	if (result) {
-		printk(MY_INFO "Unable to register input device\n");
+		pr_info("Unable to register input device\n");
 		return result;
 	}
 
@@ -934,17 +931,17 @@ static int __init toshiba_acpi_init(void)
 	if (is_valid_acpi_path(TOSH_INTERFACE_1 GHCI_METHOD)) {
 		method_hci = TOSH_INTERFACE_1 GHCI_METHOD;
 		if (toshiba_acpi_setup_keyboard(TOSH_INTERFACE_1))
-			printk(MY_INFO "Unable to activate hotkeys\n");
+			pr_info("Unable to activate hotkeys\n");
 	} else if (is_valid_acpi_path(TOSH_INTERFACE_2 GHCI_METHOD)) {
 		method_hci = TOSH_INTERFACE_2 GHCI_METHOD;
 		if (toshiba_acpi_setup_keyboard(TOSH_INTERFACE_2))
-			printk(MY_INFO "Unable to activate hotkeys\n");
+			pr_info("Unable to activate hotkeys\n");
 	} else
 		return -ENODEV;
 
-	printk(MY_INFO "Toshiba Laptop ACPI Extras version %s\n",
+	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);
-	printk(MY_INFO "    HCI method: %s\n", method_hci);
+	pr_info("    HCI method: %s\n", method_hci);
 
 	mutex_init(&toshiba_acpi.mutex);
 
@@ -952,7 +949,7 @@ static int __init toshiba_acpi_init(void)
 							      -1, NULL, 0);
 	if (IS_ERR(toshiba_acpi.p_dev)) {
 		ret = PTR_ERR(toshiba_acpi.p_dev);
-		printk(MY_ERR "unable to register platform device\n");
+		pr_err("unable to register platform device\n");
 		toshiba_acpi.p_dev = NULL;
 		toshiba_acpi_exit();
 		return ret;
@@ -979,7 +976,7 @@ static int __init toshiba_acpi_init(void)
         if (IS_ERR(toshiba_backlight_device)) {
 		ret = PTR_ERR(toshiba_backlight_device);
 
-		printk(KERN_ERR "Could not register toshiba backlight device\n");
+		pr_err("Could not register toshiba backlight device\n");
 		toshiba_backlight_device = NULL;
 		toshiba_acpi_exit();
 		return ret;
@@ -994,14 +991,14 @@ static int __init toshiba_acpi_init(void)
 						   &toshiba_rfk_ops,
 						   &toshiba_acpi);
 		if (!toshiba_acpi.bt_rfk) {
-			printk(MY_ERR "unable to allocate rfkill device\n");
+			pr_err("unable to allocate rfkill device\n");
 			toshiba_acpi_exit();
 			return -ENOMEM;
 		}
 
 		ret = rfkill_register(toshiba_acpi.bt_rfk);
 		if (ret) {
-			printk(MY_ERR "unable to register rfkill device\n");
+			pr_err("unable to register rfkill device\n");
 			rfkill_destroy(toshiba_acpi.bt_rfk);
 			toshiba_acpi_exit();
 			return ret;
