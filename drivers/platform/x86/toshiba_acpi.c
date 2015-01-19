@@ -91,6 +91,8 @@ MODULE_LICENSE("GPL");
 #define HCI_WIRELESS			0x0056
 
 /* field definitions */
+#define HCI_HOTKEY_DISABLE		0x0b
+#define HCI_HOTKEY_ENABLE		0x09
 #define HCI_LCD_BRIGHTNESS_BITS		3
 #define HCI_LCD_BRIGHTNESS_SHIFT	(16-HCI_LCD_BRIGHTNESS_BITS)
 #define HCI_LCD_BRIGHTNESS_LEVELS	(1 << HCI_LCD_BRIGHTNESS_BITS)
@@ -117,9 +119,13 @@ struct toshiba_acpi_dev {
 	unsigned int video_supported:1;
 	unsigned int fan_supported:1;
 	unsigned int system_event_supported:1;
+	unsigned int ntfy_supported:1;
+	unsigned int info_supported:1;
 
 	struct mutex mutex;
 };
+
+static struct toshiba_acpi_dev *toshiba_acpi;
 
 static const struct acpi_device_id toshiba_device_ids[] = {
 	{"TOS6200", 0},
@@ -809,11 +815,57 @@ static int toshiba_acpi_setkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
+/*
+ * Returns hotkey scancode, or < 0 on failure.
+ */
+static int toshiba_acpi_query_hotkey(struct toshiba_acpi_dev *dev)
+{
+	struct acpi_buffer buf;
+	union acpi_object out_obj;
+	acpi_status status;
+
+	buf.pointer = &out_obj;
+	buf.length = sizeof(out_obj);
+
+	status = acpi_evaluate_object(dev->acpi_dev->handle, "INFO",
+				      NULL, &buf);
+	if (ACPI_FAILURE(status) || out_obj.type != ACPI_TYPE_INTEGER) {
+		pr_err("ACPI INFO method execution failed\n");
+		return -EIO;
+	}
+
+	return out_obj.integer.value;
+}
+
+static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
+				       int scancode)
+{
+	struct key_entry *key;
+	if (scancode == 0x100)
+		return;
+
+	/* act on key press; ignore key release */
+	if (scancode & 0x80)
+		return;
+
+	key = toshiba_acpi_get_entry_by_scancode(scancode);
+	if (!key) {
+		pr_info("Unknown key %x\n", scancode);
+		return;
+	}
+	input_report_key(dev->hotkey_dev, key->keycode, 1);
+	input_sync(dev->hotkey_dev);
+	input_report_key(dev->hotkey_dev, key->keycode, 0);
+	input_sync(dev->hotkey_dev);
+}
+
 static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
+	acpi_handle handle;
 	int error;
 	const struct key_entry *key;
+	u32 hci_result;
 
 	dev->hotkey_dev = input_allocate_device();
 	if (!dev->hotkey_dev) {
@@ -832,6 +884,25 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 		set_bit(key->keycode, dev->hotkey_dev->keybit);
 	}
 
+	/*
+	 * Determine hotkey query interface. Prefer using the INFO
+	 * method when it is available.
+	 */
+	status = acpi_get_handle(dev->acpi_dev->handle, "INFO", &handle);
+	if (ACPI_SUCCESS(status)) {
+		dev->info_supported = 1;
+	} else {
+		hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
+		if (hci_result == HCI_SUCCESS)
+			dev->system_event_supported = 1;
+	}
+
+	if (!dev->info_supported && !dev->system_event_supported) {
+		pr_warn("No hotkey query interface found\n");
+		error = -ENODEV;
+		goto err_free_dev;
+	}
+
 	status = acpi_evaluate_object(dev->acpi_dev->handle, "ENAB", NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		pr_info("Unable to enable hotkeys\n");
@@ -845,6 +916,7 @@ static int __devinit toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 		goto err_free_dev;
 	}
 
+	hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE, &hci_result);
 	return 0;
 
  err_free_dev:
@@ -869,6 +941,9 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
 
 	if (dev->backlight_dev)
 		backlight_device_unregister(dev->backlight_dev);
+
+	if (toshiba_acpi)
+		toshiba_acpi = NULL;
 
 	kfree(dev);
 
@@ -895,10 +970,12 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
-	u32 hci_result;
 	u32 dummy;
 	bool bt_present;
 	int ret = 0;
+
+	if (toshiba_acpi)
+		return -EBUSY;
 
 	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);
@@ -920,11 +997,6 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 		pr_info("Unable to activate hotkeys\n");
 
 	mutex_init(&dev->mutex);
-
-	/* enable event fifo */
-	hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
-	if (hci_result == HCI_SUCCESS)
-		dev->system_event_supported = 1;
 
 	dev->backlight_dev = backlight_device_register("toshiba",
 						       &acpi_dev->dev,
@@ -970,6 +1042,8 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	create_toshiba_proc_entries(dev);
 
+	toshiba_acpi = dev;
+
 	return 0;
 
 error:
@@ -981,50 +1055,62 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 	u32 hci_result, value;
-	struct key_entry *key;
 	int retries = 3;
+	int scancode;
 
-	if (!dev->system_event_supported || event != 0x80)
+	if (event != 0x80)
 		return;
 
-	do {
-		hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
-		switch (hci_result) {
-		case HCI_SUCCESS:
-			if (value == 0x100)
-				continue;
-			/* act on key press; ignore key release */
-			if (value & 0x80)
-				continue;
-
-			key = toshiba_acpi_get_entry_by_scancode
-				(value);
-			if (!key) {
-				pr_info("Unknown key %x\n",
-				       value);
-				continue;
+	if (dev->info_supported) {
+		scancode = toshiba_acpi_query_hotkey(dev);
+		if (scancode < 0)
+			pr_err("Failed to query hotkey event\n");
+		else if (scancode != 0)
+			toshiba_acpi_report_hotkey(dev, scancode);
+	} else if (dev->system_event_supported) {
+		do {
+			hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
+			switch (hci_result) {
+			case HCI_SUCCESS:
+				toshiba_acpi_report_hotkey(dev, value);
+				break;
+			case HCI_NOT_SUPPORTED:
+				/* This is a workaround for an unresolved issue on
+				* some machines where system events sporadically
+				* become disabled. */
+				hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
+				pr_notice("Re-enabled hotkeys\n");
+				/* fall through */
+			default:
+				retries--;
+				break;
 			}
-			input_report_key(dev->hotkey_dev,
-					 key->keycode, 1);
-			input_sync(dev->hotkey_dev);
-			input_report_key(dev->hotkey_dev,
-					 key->keycode, 0);
-			input_sync(dev->hotkey_dev);
-			break;
-		case HCI_NOT_SUPPORTED:
-			/* This is a workaround for an unresolved issue on
-			 * some machines where system events sporadically
-			 * become disabled. */
-			hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
-			pr_notice("Re-enabled hotkeys\n");
-			/* fall through */
-		default:
-			retries--;
-			break;
-		}
-	} while (retries && hci_result != HCI_EMPTY);
+		} while (retries && hci_result != HCI_EMPTY);
+	}
 }
 
+static int toshiba_acpi_suspend(struct acpi_device *acpi_dev,
+				pm_message_t state)
+{
+	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	u32 result;
+
+	if (dev->hotkey_dev)
+		hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_DISABLE, &result);
+
+	return 0;
+}
+
+static int toshiba_acpi_resume(struct acpi_device *acpi_dev)
+{
+	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	u32 result;
+
+	if (dev->hotkey_dev)
+		hci_write1(dev, HCI_HOTKEY_EVENT, HCI_HOTKEY_ENABLE, &result);
+
+	return 0;
+}
 
 static struct acpi_driver toshiba_acpi_driver = {
 	.name	= "Toshiba ACPI driver",
@@ -1035,6 +1121,8 @@ static struct acpi_driver toshiba_acpi_driver = {
 		.add		= toshiba_acpi_add,
 		.remove		= toshiba_acpi_remove,
 		.notify		= toshiba_acpi_notify,
+		.suspend	= toshiba_acpi_suspend,
+		.resume		= toshiba_acpi_resume,
 	},
 };
 
