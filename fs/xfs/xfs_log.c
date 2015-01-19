@@ -1224,7 +1224,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	bp = xfs_buf_alloc(mp->m_logdev_targp, 0, log->l_iclog_size, 0);
 	if (!bp)
 		goto out_free_log;
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
+	bp->b_iodone = xlog_iodone;
 	XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
 	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
@@ -1259,7 +1259,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		if (!bp)
 			goto out_free_iclog;
 
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
+		bp->b_iodone = xlog_iodone;
 		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
 		iclog->ic_bp = bp;
 		iclog->ic_data = bp->b_addr;

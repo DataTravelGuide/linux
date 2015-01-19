@@ -290,10 +290,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
 #define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
 
-#define XFS_BUF_IODONE_FUNC(bp)			((bp)->b_iodone)
-#define XFS_BUF_SET_IODONE_FUNC(bp, func)	((bp)->b_iodone = (func))
-#define XFS_BUF_CLR_IODONE_FUNC(bp)		((bp)->b_iodone = NULL)
-
 #define XFS_BUF_FSPRIVATE(bp, type)		((type)(bp)->b_fspriv)
 #define XFS_BUF_SET_FSPRIVATE(bp, val)		((bp)->b_fspriv = (void*)(val))
 #define XFS_BUF_FSPRIVATE2(bp, type)		((type)(bp)->b_fspriv2)

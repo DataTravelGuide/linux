@@ -613,8 +613,8 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, xfs_trans_t *) == tp);
 	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
 	ASSERT((first <= last) && (last < XFS_BUF_COUNT(bp)));
-	ASSERT((XFS_BUF_IODONE_FUNC(bp) == NULL) ||
-	       (XFS_BUF_IODONE_FUNC(bp) == xfs_buf_iodone_callbacks));
+	ASSERT(bp->b_iodone == NULL ||
+	       bp->b_iodone == xfs_buf_iodone_callbacks);
 
 	/*
 	 * Mark the buffer as needing to be written out eventually,
@@ -631,7 +631,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 
 	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
-	XFS_BUF_SET_IODONE_FUNC(bp, xfs_buf_iodone_callbacks);
+	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
 
 	trace_xfs_trans_log_buf(bip);

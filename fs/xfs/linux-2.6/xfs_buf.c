@@ -1118,7 +1118,7 @@ xfs_bioerror_relse(
 	XFS_BUF_UNDELAYWRITE(bp);
 	XFS_BUF_DONE(bp);
 	XFS_BUF_STALE(bp);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
+	bp->b_iodone = NULL;
 	if (!(fl & XBF_ASYNC)) {
 		/*
 		 * Mark b_error and B_ERROR _both_.
