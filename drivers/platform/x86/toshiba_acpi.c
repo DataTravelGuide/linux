@@ -135,12 +135,14 @@ struct key_entry {
 	u16 keycode;
 };
 
-enum {KE_KEY, KE_END};
+enum {KE_KEY, KE_IGNORE, KE_END};
 
 static struct key_entry toshiba_acpi_keymap[]  = {
 	{KE_KEY, 0x101, KEY_MUTE},
 	{KE_KEY, 0x102, KEY_ZOOMOUT},
 	{KE_KEY, 0x103, KEY_ZOOMIN},
+	{KE_KEY, 0x12c, KEY_KBDILLUMTOGGLE},
+	{KE_KEY, 0x139, KEY_ZOOMRESET},
 	{KE_KEY, 0x13b, KEY_COFFEE},
 	{KE_KEY, 0x13c, KEY_BATTERY},
 	{KE_KEY, 0x13d, KEY_SLEEP},
@@ -149,7 +151,7 @@ static struct key_entry toshiba_acpi_keymap[]  = {
 	{KE_KEY, 0x140, KEY_BRIGHTNESSDOWN},
 	{KE_KEY, 0x141, KEY_BRIGHTNESSUP},
 	{KE_KEY, 0x142, KEY_WLAN},
-	{KE_KEY, 0x143, KEY_PROG1},
+	{KE_KEY, 0x143, KEY_TOUCHPAD_TOGGLE},
 	{KE_KEY, 0x17f, KEY_FN},
 	{KE_KEY, 0xb05, KEY_PROG2},
 	{KE_KEY, 0xb06, KEY_WWW},
@@ -159,6 +161,7 @@ static struct key_entry toshiba_acpi_keymap[]  = {
 	{KE_KEY, 0xb32, KEY_NEXTSONG},
 	{KE_KEY, 0xb33, KEY_PLAYPAUSE},
 	{KE_KEY, 0xb5a, KEY_MEDIA},
+	{KE_IGNORE, 0x1430, KEY_RESERVED},
 	{KE_END, 0, 0},
 };
 
@@ -754,7 +757,7 @@ static struct key_entry *toshiba_acpi_get_entry_by_scancode(int code)
 	struct key_entry *key;
 
 	for (key = toshiba_acpi_keymap; key->type != KE_END; key++)
-		if (code == key->code)
+		if (code == key->code && key->type == KE_KEY)
 			return key;
 
 	return NULL;
