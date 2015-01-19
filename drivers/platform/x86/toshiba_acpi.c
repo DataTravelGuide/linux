@@ -114,9 +114,9 @@ struct toshiba_acpi_dev {
 	int last_key_event;
 	int key_event_valid;
 
-	int video_supported:1;
-	int fan_supported:1;
-	int system_event_supported:1;
+	unsigned int video_supported:1;
+	unsigned int fan_supported:1;
+	unsigned int system_event_supported:1;
 
 	struct mutex mutex;
 };
