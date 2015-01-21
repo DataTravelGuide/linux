@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jan 21 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.50.1.el6]
+- [kernel] ipc, sem: change refcount to atomic_t (Petr Holasek) [1024869 1024265] {CVE-2013-4483}
+- [block] nvme: Clear QUEUE_FLAG_STACKABLE (David Milburn) [1180554 1155715]
+- [net] sctp: fix NULL pointer dereference in af->from_addr_param on malformed packet (Daniel Borkmann) [1163097 1153980] {CVE-2014-7841}
+- [x86] kvm: fix PIT timer race condition (Mateusz Guzik) [1172498 1149593] {CVE-2014-3611}
+- [x86] kvm: vmx: handle invept and invvpid vm exits gracefull (Mateusz Guzik) [1174854 1144827] {CVE-2014-3646}
+- [usb] serial: memory corruption flaw (Jacob Tanenbaum) [1173714 1141402] {CVE-2014-3185}
+
 * Thu Jan 15 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.49.1.el6]
 - [net] netfilter: conntrack: disable generic tracking for known protocols (Daniel Borkmann) [1182072 1114697] {CVE-2014-8160}
 
