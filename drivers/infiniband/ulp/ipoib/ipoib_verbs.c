@@ -258,6 +258,9 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
+	if (priv->wq)
+		flush_workqueue(priv->wq);
+
 	if (priv->qp) {
 		if (ib_destroy_qp(priv->qp))
 			ipoib_warn(priv, "ib_qp_destroy failed\n");
@@ -281,7 +284,6 @@ void ipoib_transport_dev_cleanup(struct net_device *dev)
 		ipoib_warn(priv, "ib_dealloc_pd failed\n");
 
 	if (priv->wq) {
-		flush_workqueue(priv->wq);
 		destroy_workqueue(priv->wq);
 		priv->wq = NULL;
 	}
