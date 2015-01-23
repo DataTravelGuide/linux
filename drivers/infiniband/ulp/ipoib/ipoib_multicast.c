@@ -628,8 +628,6 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	}
 
 	ipoib_dbg_mcast(priv, "successfully joined all multicast groups\n");
-
-	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
 }
 
 int ipoib_mcast_start_thread(struct net_device *dev)
@@ -639,8 +637,8 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	ipoib_dbg_mcast(priv, "starting multicast thread\n");
 
 	mutex_lock(&mcast_mutex);
-	if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
-		queue_delayed_work(priv->wq, &priv->mcast_task, 0);
+	set_bit(IPOIB_MCAST_RUN, &priv->flags);
+	queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 	mutex_unlock(&mcast_mutex);
 
 	return 0;
@@ -723,7 +721,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 		memcpy(mcast->mcmember.mgid.raw, mgid, sizeof (union ib_gid));
 		__ipoib_mcast_add(dev, mcast);
 		list_add_tail(&mcast->list, &priv->multicast_list);
-		if (!test_and_set_bit(IPOIB_MCAST_RUN, &priv->flags))
+		if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
 			queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 	}
 
@@ -951,7 +949,8 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	/*
 	 * Restart our join task if needed
 	 */
-	ipoib_mcast_start_thread(dev);
+	if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
+		queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 	rtnl_unlock();
 }
 
