@@ -42,8 +42,59 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
+static DEFINE_MUTEX(registration_lock);
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
 int num_registered_fb __read_mostly;
+
+static struct {
+	atomic_t count;
+	struct fb_info *fb_info;
+} count_fb[FB_MAX];
+
+static struct fb_info *get_fb_info(unsigned int idx)
+{
+	struct fb_info *fb_info;
+	unsigned int cfb_idx;
+
+	if (idx >= FB_MAX)
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&registration_lock);
+
+	fb_info = registered_fb[idx];
+	if (fb_info) {
+		for (cfb_idx = 0; cfb_idx < FB_MAX; cfb_idx++)
+			if (count_fb[cfb_idx].fb_info == fb_info)
+				break;
+		if (cfb_idx < FB_MAX)
+			atomic_inc(&count_fb[idx].count);
+	}
+	mutex_unlock(&registration_lock);
+
+	return fb_info;
+}
+
+static void put_fb_info(struct fb_info *fb_info)
+{
+	unsigned int cfb_idx;
+
+	for (cfb_idx = 0; cfb_idx < FB_MAX; cfb_idx++) {
+		if (count_fb[cfb_idx].fb_info == fb_info)
+			break;
+	}
+
+	if (cfb_idx == FB_MAX ||
+	    !atomic_dec_and_test(&count_fb[cfb_idx].count))
+		return;
+	/*
+	 * Make sure count is zero when we reset fb_info as the slot can be
+	 * reused right after we do that.
+	 */
+	smp_wmb();
+	count_fb[cfb_idx].fb_info = NULL;
+	if (fb_info->fbops->fb_destroy)
+		fb_info->fbops->fb_destroy(fb_info);
+}
 
 int lock_fb_info(struct fb_info *info)
 {
@@ -647,6 +698,7 @@ int fb_show_logo(struct fb_info *info, int rotate) { return 0; }
 
 static void *fb_seq_start(struct seq_file *m, loff_t *pos)
 {
+	mutex_lock(&registration_lock);
 	return (*pos < FB_MAX) ? pos : NULL;
 }
 
@@ -658,6 +710,7 @@ static void *fb_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void fb_seq_stop(struct seq_file *m, void *v)
 {
+	mutex_unlock(&registration_lock);
 }
 
 static int fb_seq_show(struct seq_file *m, void *v)
@@ -1367,14 +1420,16 @@ __releases(&info->lock)
 	struct fb_info *info;
 	int res = 0;
 
-	if (fbidx >= FB_MAX)
-		return -ENODEV;
-	info = registered_fb[fbidx];
-	if (!info)
+	info = get_fb_info(fbidx);
+	if (!info) {
 		request_module("fb%d", fbidx);
-	info = registered_fb[fbidx];
-	if (!info)
-		return -ENODEV;
+		info = get_fb_info(fbidx);
+		if (!info)
+			return -ENODEV;
+	}
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
 	mutex_lock(&info->lock);
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
@@ -1392,6 +1447,8 @@ __releases(&info->lock)
 #endif
 out:
 	mutex_unlock(&info->lock);
+	if (res)
+		put_fb_info(info);
 	return res;
 }
 
@@ -1407,6 +1464,7 @@ __releases(&info->lock)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
 	mutex_unlock(&info->lock);
+	put_fb_info(info);
 	return 0;
 }
 
@@ -1540,7 +1598,7 @@ EXPORT_SYMBOL(remove_conflicting_framebuffers);
 int
 register_framebuffer(struct fb_info *fb_info)
 {
-	int i;
+	int i, cfb_idx;
 	struct fb_event event;
 	struct fb_videomode mode;
 	struct apertures_struct *fb_aper;
@@ -1562,11 +1620,23 @@ register_framebuffer(struct fb_info *fb_info)
 					 fb_is_primary_device(fb_info));
 	kfree(fb_aper);
 
-	num_registered_fb++;
+	mutex_lock(&registration_lock);
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
 			break;
+	for (cfb_idx = 0 ; cfb_idx < FB_MAX; cfb_idx++)
+		if (!count_fb[cfb_idx].fb_info)
+			break;
+	if (cfb_idx == FB_MAX) {
+		/*
+		 * Too many open framebuffers, we are out of slots in count_fb.
+		 */
+		mutex_unlock(&registration_lock);
+		return -ENXIO;
+	}
+	num_registered_fb++;
 	fb_info->node = i;
+	atomic_set(&count_fb[cfb_idx].count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
 
@@ -1603,6 +1673,8 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_var_to_videomode(&mode, &fb_info->var);
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
+	count_fb[cfb_idx].fb_info = fb_info;
+	mutex_unlock(&registration_lock);
 
 	event.info = fb_info;
 	if (!lock_fb_info(fb_info))
@@ -1636,6 +1708,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	struct fb_event event;
 	int i, ret = 0;
 
+	mutex_lock(&registration_lock);
 	i = fb_info->node;
 	if (!registered_fb[i]) {
 		ret = -EINVAL;
@@ -1658,7 +1731,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
-	registered_fb[i]=NULL;
+	registered_fb[i] = NULL;
 	num_registered_fb--;
 	fb_cleanup_device(fb_info);
 	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
@@ -1666,9 +1739,9 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 
 	/* this may free fb info */
-	if (fb_info->fbops->fb_destroy)
-		fb_info->fbops->fb_destroy(fb_info);
+	put_fb_info(fb_info);
 done:
+	mutex_unlock(&registration_lock);
 	return ret;
 }
 
