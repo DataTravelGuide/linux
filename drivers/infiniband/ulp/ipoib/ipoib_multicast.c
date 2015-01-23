@@ -495,12 +495,10 @@ static int ipoib_mcast_join_complete(int status,
 		__ipoib_mcast_continue_join_thread(priv, mcast, 1);
 	}
 out:
-	spin_lock_irq(&priv->lock);
 	clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
 	if (status)
 		mcast->mc = NULL;
 	complete(&mcast->done);
-	spin_unlock_irq(&priv->lock);
 	mutex_unlock(&mcast_mutex);
 
 	return status;
