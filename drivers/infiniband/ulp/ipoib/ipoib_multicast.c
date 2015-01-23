@@ -709,6 +709,8 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 
 	if (!IS_ERR_OR_NULL(mcast->mc))
 		ib_sa_free_multicast(mcast->mc);
+	else
+		ipoib_dbg(priv, "ipoib_mcast_leave with mcast->mc invalid\n");
 
 	if (test_and_clear_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags)) {
 		ipoib_dbg_mcast(priv, "leaving MGID %pI6\n",
@@ -719,7 +721,9 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 				      be16_to_cpu(mcast->mcmember.mlid));
 		if (ret)
 			ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
-	}
+	} else if (!test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
+		ipoib_dbg(priv, "leaving with no mcmember but not a "
+			  "SENDONLY join\n");
 
 	return 0;
 }
@@ -770,11 +774,6 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}
-
-		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-			ipoib_dbg_mcast(priv, "no address vector, "
-					"but multicast join already started\n");
-
 		/*
 		 * If lookup completes between here and out:, don't
 		 * want to send packet twice.
