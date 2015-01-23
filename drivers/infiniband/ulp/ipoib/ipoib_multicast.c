@@ -313,8 +313,10 @@ ipoib_mcast_sendonly_join_complete(int status,
 	mutex_lock(&mcast_mutex);
 
 	/* We trap for port events ourselves. */
-	if (status == -ENETRESET)
+	if (status == -ENETRESET) {
+		status = 0;
 		goto out;
+	}
 
 	if (!status)
 		status = ipoib_mcast_join_finish(mcast, &multicast->rec);
@@ -342,8 +344,6 @@ out:
 	if (status)
 		mcast->mc = NULL;
 	complete(&mcast->done);
-	if (status == -ENETRESET)
-		status = 0;
 	__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	mutex_unlock(&mcast_mutex);
 	return status;
@@ -460,8 +460,10 @@ static int ipoib_mcast_join_complete(int status,
 	mutex_lock(&mcast_mutex);
 
 	/* We trap for port events ourselves. */
-	if (status == -ENETRESET)
+	if (status == -ENETRESET) {
+		status = 0;
 		goto out;
+	}
 
 	if (!status)
 		status = ipoib_mcast_join_finish(mcast, &multicast->rec);
@@ -497,8 +499,6 @@ out:
 	if (status)
 		mcast->mc = NULL;
 	complete(&mcast->done);
-	if (status == -ENETRESET)
-		status = 0;
 	spin_unlock_irq(&priv->lock);
 	mutex_unlock(&mcast_mutex);
 
