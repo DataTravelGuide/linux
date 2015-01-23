@@ -870,6 +870,9 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	unsigned long flags;
 	struct ib_sa_mcmember_rec rec;
 
+	if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+		return;
+
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
 	local_irq_save(flags);
@@ -965,21 +968,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
 			wait_for_completion(&mcast->done);
 
-	/*
-	 * We have to cancel outside of the spinlock, but we have to
-	 * take the rtnl lock or else we race with the removal of
-	 * entries from the remove list in mcast_dev_flush as part
-	 * of ipoib_stop().  We detect the drop of the ADMIN_UP flag
-	 * to signal that we have hit this particular race, and we
-	 * return since we know we don't need to do anything else
-	 * anyway.
-	 */
-	while (!rtnl_trylock()) {
-		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-			return;
-		else
-			msleep(20);
-	}
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
 		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
@@ -988,7 +976,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	 * Restart our join task thread if needed
 	 */
 	__ipoib_mcast_continue_join_thread(priv, NULL, 0);
-	rtnl_unlock();
 }
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
