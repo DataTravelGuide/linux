@@ -65,10 +65,34 @@ struct ipoib_mcast_iter {
 };
 
 static void __ipoib_mcast_continue_join_thread(struct ipoib_dev_priv *priv,
+					       struct ipoib_mcast *mcast,
 					       int delay)
 {
-	if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
+	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
+		/*
+		 * Mark this mcast for its delay and set a timer to kick the
+		 * thread when the delay completes
+		 */
+		if (mcast && delay) {
+			mcast->backoff *= 2;
+			if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
+				mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
+			mcast->delay_until = jiffies + (mcast->backoff * HZ);
+			queue_delayed_work(priv->wq, &priv->mcast_task,
+					   mcast->backoff * HZ);
+		} else if (delay) {
+			/* Special case of retrying after a failure to
+			 * allocate the broadcast multicast group, wait
+			 * 1 second and try again
+			 */
+			queue_delayed_work(priv->wq, &priv->mcast_task, HZ);
+		}
+		/*
+		 * But also rekick the thread immediately for any other
+		 * tasks in queue behind this one
+		 */
 		queue_delayed_work(priv->wq, &priv->mcast_task, delay);
+	}
 }
 
 static void ipoib_mcast_free(struct ipoib_mcast *mcast)
@@ -108,6 +132,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 
 	mcast->dev = dev;
 	mcast->created = jiffies;
+	mcast->delay_until = jiffies;
 	mcast->backoff = 1;
 
 	INIT_LIST_HEAD(&mcast->list);
@@ -307,6 +332,10 @@ ipoib_mcast_sendonly_join_complete(int status,
 			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 		}
 		netif_tx_unlock_bh(dev);
+	} else {
+		/* Join completed, so reset any backoff parameters */
+		mcast->backoff = 1;
+		mcast->delay_until = jiffies;
 	}
 out:
 	clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
@@ -315,7 +344,7 @@ out:
 	complete(&mcast->done);
 	if (status == -ENETRESET)
 		status = 0;
-	__ipoib_mcast_continue_join_thread(priv, 0);
+	__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	mutex_unlock(&mcast_mutex);
 	return status;
 }
@@ -367,7 +396,7 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 		complete(&mcast->done);
 		ipoib_warn(priv, "ib_sa_join_multicast for sendonly join "
 			   "failed (ret = %d)\n", ret);
-		__ipoib_mcast_continue_join_thread(priv, 0);
+		__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	} else {
 		ipoib_dbg_mcast(priv, "no multicast record for %pI6, starting "
 				"sendonly join\n", mcast->mcmember.mgid.raw);
@@ -439,7 +468,8 @@ static int ipoib_mcast_join_complete(int status,
 
 	if (!status) {
 		mcast->backoff = 1;
-		__ipoib_mcast_continue_join_thread(priv, 0);
+		mcast->delay_until = jiffies;
+		__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 
 		/*
 		 * Defer carrier on work to priv->wq to avoid a
@@ -458,16 +488,8 @@ static int ipoib_mcast_join_complete(int status,
 			}
 		}
 
-		mcast->backoff *= 2;
-		if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
-			mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
-		/*
-		 * XXX - This is wrong.  *Our* join failed, but because the
-		 * join thread does the joins in a serial fashion, if there
-		 * are any joins behind ours waiting to complete, they should
-		 * not be subjected to our backoff delay.
-		 */
-		__ipoib_mcast_continue_join_thread(priv, mcast->backoff * HZ);
+		/* Requeue this join task with a backoff delay */
+		__ipoib_mcast_continue_join_thread(priv, mcast, 1);
 	}
 out:
 	spin_lock_irq(&priv->lock);
@@ -539,17 +561,8 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		complete(&mcast->done);
 		ret = PTR_ERR(mcast->mc);
 		ipoib_warn(priv, "ib_sa_join_multicast failed, status %d\n", ret);
-
-		mcast->backoff *= 2;
-		if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
-			mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
-		/*
-		 * XXX - This is wrong.  *Our* join failed, but because the
-		 * join thread does the joins in a serial fashion, if there
-		 * are any joins behind ours waiting to complete, they should
-		 * not be subjected to our backoff delay.
-		 */
-		__ipoib_mcast_continue_join_thread(priv, mcast->backoff * HZ);
+		/* Requeue this join task with a backoff delay */
+		__ipoib_mcast_continue_join_thread(priv, mcast, 1);
 	}
 	mutex_unlock(&mcast_mutex);
 }
@@ -587,7 +600,13 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		if (!broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
 			mutex_lock(&mcast_mutex);
-			__ipoib_mcast_continue_join_thread(priv, HZ);
+			/*
+			 * Restart us after a 1 second delay to retry
+			 * creating our broadcast group and attaching to
+			 * it.  Until this succeeds, this ipoib dev is
+			 * completely stalled (multicast wise).
+			 */
+			__ipoib_mcast_continue_join_thread(priv, NULL, 1);
 			mutex_unlock(&mcast_mutex);
 			return;
 		}
@@ -621,7 +640,10 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		list_for_each_entry(mcast, &priv->multicast_list, list) {
 			if (IS_ERR_OR_NULL(mcast->mc) &&
 			    !test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags) &&
-			    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags)) {
+			    !test_bit(IPOIB_MCAST_FLAG_ATTACHED,
+				      &mcast->flags) &&
+			    (mcast->backoff == 1 ||
+			     time_after_eq(jiffies, mcast->delay_until))) {
 				/* Found the next unjoined group */
 				break;
 			}
@@ -630,7 +652,11 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		mutex_unlock(&mcast_mutex);
 
 		if (&mcast->list == &priv->multicast_list) {
-			/* All done */
+			/* All done, unless we have delayed work from
+			 * backoff retransmissions, but we will get
+			 * restarted when the time is right, so we are
+			 * done for now
+			 */
 			break;
 		}
 
@@ -735,7 +761,7 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 		memcpy(mcast->mcmember.mgid.raw, mgid, sizeof (union ib_gid));
 		__ipoib_mcast_add(dev, mcast);
 		list_add_tail(&mcast->list, &priv->multicast_list);
-		__ipoib_mcast_continue_join_thread(priv, 0);
+		__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	}
 
 	if (!mcast->ah) {
@@ -962,7 +988,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	/*
 	 * Restart our join task thread if needed
 	 */
-	__ipoib_mcast_continue_join_thread(priv, 0);
+	__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	rtnl_unlock();
 }
 
