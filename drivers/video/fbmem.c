@@ -1615,9 +1615,6 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	if (!fb_aper)
 		return -ENOMEM;
 
-	if (num_registered_fb == FB_MAX)
-		return -ENXIO;
-
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
@@ -1627,6 +1624,9 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	do_remove_conflicting_framebuffers(fb_aper, fb_info->fix.id,
 					 fb_is_primary_device(fb_info));
 	kfree(fb_aper);
+
+	if (num_registered_fb == FB_MAX)
+		return -ENXIO;
 
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
@@ -1695,7 +1695,7 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	int i, ret = 0;
 
 	i = fb_info->node;
-	if (!registered_fb[i])
+	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
 		return -EINVAL;
 
 	if (!lock_fb_info(fb_info))
