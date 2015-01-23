@@ -334,17 +334,18 @@ ipoib_mcast_sendonly_join_complete(int status,
 			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 		}
 		netif_tx_unlock_bh(dev);
+		__ipoib_mcast_continue_join_thread(priv, mcast, 1);
 	} else {
 		/* Join completed, so reset any backoff parameters */
 		mcast->backoff = 1;
 		mcast->delay_until = jiffies;
+		__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	}
 out:
 	clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
 	if (status)
 		mcast->mc = NULL;
 	complete(&mcast->done);
-	__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	mutex_unlock(&mcast_mutex);
 	return status;
 }
