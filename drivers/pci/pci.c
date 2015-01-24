@@ -2567,8 +2567,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 	if (pci_wait_for_pending(dev, pos + PCI_AF_STATUS, PCI_AF_STATUS_TP))
 		goto clear;
 
-	dev_err(&dev->dev, "transaction is not cleared; "
-			"proceeding with reset anyway\n");
+	dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
 clear:
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
