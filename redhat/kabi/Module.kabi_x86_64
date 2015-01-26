@@ -50,6 +50,7 @@
 0xf666cbb3	__memcpy_fromio	vmlinux	EXPORT_SYMBOL
 0x5252f304	__memcpy_toio	vmlinux	EXPORT_SYMBOL
 0xfbdea30a	__mmdrop	vmlinux	EXPORT_SYMBOL_GPL
+0xdff4a14d	__mmu_notifier_register	vmlinux	EXPORT_SYMBOL_GPL
 0x4bf79039	__mutex_init	vmlinux	EXPORT_SYMBOL
 0xca19d240	__napi_complete	vmlinux	EXPORT_SYMBOL
 0xbb0c1c6f	__napi_schedule	vmlinux	EXPORT_SYMBOL

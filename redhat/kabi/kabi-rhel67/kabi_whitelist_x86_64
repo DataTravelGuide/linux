@@ -51,6 +51,7 @@
 	__memcpy_fromio
 	__memcpy_toio
 	__mmdrop
+	__mmu_notifier_register
 	__mutex_init
 	__napi_complete
 	__napi_schedule
