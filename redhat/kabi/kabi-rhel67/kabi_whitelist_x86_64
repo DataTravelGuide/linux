@@ -10,6 +10,7 @@
 	__bitmap_empty
 	__bitmap_equal
 	__bitmap_intersects
+	__bitmap_subset
 	__bitmap_weight
 	__blk_end_request
 	__blk_end_request_all

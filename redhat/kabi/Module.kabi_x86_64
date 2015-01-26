@@ -9,6 +9,7 @@
 0x6d27ef64	__bitmap_empty	vmlinux	EXPORT_SYMBOL
 0xc256e762	__bitmap_equal	vmlinux	EXPORT_SYMBOL
 0xea10655a	__bitmap_intersects	vmlinux	EXPORT_SYMBOL
+0x4a358252	__bitmap_subset	vmlinux	EXPORT_SYMBOL
 0x4cbbd171	__bitmap_weight	vmlinux	EXPORT_SYMBOL
 0x8c963758	__blk_end_request	vmlinux	EXPORT_SYMBOL
 0x12884d17	__blk_end_request_all	vmlinux	EXPORT_SYMBOL
