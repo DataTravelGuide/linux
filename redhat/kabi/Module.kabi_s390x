@@ -992,6 +992,7 @@
 0x2c4ca765	shmem_file_setup	vmlinux	EXPORT_SYMBOL_GPL
 0x43940b3b	shrink_dcache_parent	vmlinux	EXPORT_SYMBOL
 0xb4725759	shrink_dcache_sb	vmlinux	EXPORT_SYMBOL
+0xb3a307c6	si_meminfo	vmlinux	EXPORT_SYMBOL
 0x6a5fa363	sigprocmask	vmlinux	EXPORT_SYMBOL
 0x9da1a62c	simple_empty	vmlinux	EXPORT_SYMBOL
 0x5a5e7ea3	simple_read_from_buffer	vmlinux	EXPORT_SYMBOL

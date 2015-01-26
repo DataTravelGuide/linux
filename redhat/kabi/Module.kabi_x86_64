@@ -1307,6 +1307,7 @@
 0x233a8735	shmem_file_setup	vmlinux	EXPORT_SYMBOL_GPL
 0x864d686b	shrink_dcache_parent	vmlinux	EXPORT_SYMBOL
 0xcebc6a65	shrink_dcache_sb	vmlinux	EXPORT_SYMBOL
+0xb3a307c6	si_meminfo	vmlinux	EXPORT_SYMBOL
 0x6a5fa363	sigprocmask	vmlinux	EXPORT_SYMBOL
 0xf27f427d	simple_empty	vmlinux	EXPORT_SYMBOL
 0x5a5e7ea3	simple_read_from_buffer	vmlinux	EXPORT_SYMBOL
