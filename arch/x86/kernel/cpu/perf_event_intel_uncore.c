@@ -1898,8 +1898,8 @@ static int __init uncore_pci_init(void)
 	case 45: /* Sandy Bridge-EP */
 		ret = snbep_uncore_pci_init();
 		break;
-	case 62: /* IvyTown */
-		ret = ivt_uncore_pci_init();
+	case 62: /* Ivy Bridge-EP */
+		ret = ivbep_uncore_pci_init();
 		break;
 	default:
 		return 0;
@@ -2179,8 +2179,8 @@ static int __init uncore_cpu_init(void)
 			nhmex_uncore_cbox.num_boxes = max_cores;
 		uncore_msr_uncores = nhmex_msr_uncores;
 		break;
-	case 62: /* IvyTown */
-		ivt_uncore_cpu_init();
+	case 62: /* Ivy Bridge-EP */
+		ivbep_uncore_cpu_init();
 		break;
 
 	default:
