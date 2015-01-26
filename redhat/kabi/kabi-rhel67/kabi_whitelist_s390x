@@ -132,6 +132,7 @@
 	bio_get_nr_vecs
 	bio_put
 	bitmap_find_free_region
+	bitmap_release_region
 	bitrev32
 	blk_alloc_queue
 	blk_alloc_queue_node
