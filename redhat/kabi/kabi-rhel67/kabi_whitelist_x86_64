@@ -50,6 +50,7 @@
 	__memcpy
 	__memcpy_fromio
 	__memcpy_toio
+	__mmdrop
 	__mutex_init
 	__napi_complete
 	__napi_schedule

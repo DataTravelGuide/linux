@@ -39,6 +39,7 @@
 0xd4c62af1	__lock_buffer	vmlinux	EXPORT_SYMBOL
 0xdf3f8ab8	__lock_page	vmlinux	EXPORT_SYMBOL
 0x387d109f	__mark_inode_dirty	vmlinux	EXPORT_SYMBOL
+0x2cd14af2	__mmdrop	vmlinux	EXPORT_SYMBOL_GPL
 0xa71a791c	__mutex_init	vmlinux	EXPORT_SYMBOL
 0x1831b7d8	__napi_complete	vmlinux	EXPORT_SYMBOL
 0xc94686f8	__napi_schedule	vmlinux	EXPORT_SYMBOL

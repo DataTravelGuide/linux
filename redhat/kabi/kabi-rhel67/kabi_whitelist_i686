@@ -47,6 +47,7 @@
 	__lock_buffer
 	__lock_page
 	__mark_inode_dirty
+	__mmdrop
 	__mutex_init
 	__napi_complete
 	__napi_schedule
