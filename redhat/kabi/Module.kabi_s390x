@@ -250,6 +250,7 @@
 0xe38ecf1f	consume_skb	vmlinux	EXPORT_SYMBOL
 0x0f31ac28	contig_page_data	vmlinux	EXPORT_SYMBOL
 0xc4e9c01c	cpu_active_mask	vmlinux	EXPORT_SYMBOL
+0x50b319ce	cpu_bit_bitmap	vmlinux	EXPORT_SYMBOL_GPL
 0x3109b751	cpu_clock	vmlinux	EXPORT_SYMBOL_GPL
 0x7d6bb587	cpu_online_mask	vmlinux	EXPORT_SYMBOL
 0xb2e55898	cpu_possible_mask	vmlinux	EXPORT_SYMBOL

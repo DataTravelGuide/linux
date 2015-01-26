@@ -299,6 +299,7 @@
 	copy_from_user
 	copy_to_user
 	cpu_active_mask
+	cpu_bit_bitmap
 	cpu_clock
 	cpu_khz
 	cpu_online_mask
