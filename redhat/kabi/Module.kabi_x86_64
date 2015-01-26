@@ -1740,6 +1740,7 @@
 0xbbda233c	xt_unregister_target	vmlinux	EXPORT_SYMBOL
 0x9ca70c75	xt_unregister_targets	vmlinux	EXPORT_SYMBOL
 0x760a0f4f	yield	vmlinux	EXPORT_SYMBOL
+0x70bf9cac	zap_vma_ptes	vmlinux	EXPORT_SYMBOL_GPL
 0x881039d0	zlib_inflate	vmlinux	EXPORT_SYMBOL
 0x77ecac9f	zlib_inflateEnd	vmlinux	EXPORT_SYMBOL
 0x4211c3c1	zlib_inflateInit2	vmlinux	EXPORT_SYMBOL

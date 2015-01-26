@@ -1260,6 +1260,7 @@
 	xt_unregister_target
 	xt_unregister_targets
 	yield
+	zap_vma_ptes
 	zlib_inflate
 	zlib_inflateEnd
 	zlib_inflateInit2
