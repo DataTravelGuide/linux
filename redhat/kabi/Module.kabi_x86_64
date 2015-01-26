@@ -1595,6 +1595,7 @@
 0x32e36503	unregister_sysctl_table	vmlinux	EXPORT_SYMBOL
 0x846629e9	unregister_sysrq_key	vmlinux	EXPORT_SYMBOL
 0xf05bac6d	unregister_tcf_proto_ops	vmlinux	EXPORT_SYMBOL
+0x4e2d7db0	unuse_mm	vmlinux	EXPORT_SYMBOL_GPL
 0x3f1899f1	up	vmlinux	EXPORT_SYMBOL
 0xe23d7acb	up_read	vmlinux	EXPORT_SYMBOL
 0xd851af78	up_write	vmlinux	EXPORT_SYMBOL

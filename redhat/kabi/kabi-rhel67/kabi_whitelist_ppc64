@@ -1513,6 +1513,7 @@
 	unregister_sysctl_table
 	unregister_sysrq_key
 	unregister_tcf_proto_ops
+	unuse_mm
 	up
 	up_read
 	up_write

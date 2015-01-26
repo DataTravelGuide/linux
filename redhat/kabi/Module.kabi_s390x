@@ -1208,6 +1208,7 @@
 0xd6c2e1a7	unregister_sysctl_table	vmlinux	EXPORT_SYMBOL
 0xeb7ab81e	unregister_sysrq_key	vmlinux	EXPORT_SYMBOL
 0xe6bf1273	unregister_tcf_proto_ops	vmlinux	EXPORT_SYMBOL
+0x2f2e936d	unuse_mm	vmlinux	EXPORT_SYMBOL_GPL
 0x16d43d66	up	vmlinux	EXPORT_SYMBOL
 0x4b32bdc7	up_read	vmlinux	EXPORT_SYMBOL
 0x4ca4a02e	up_write	vmlinux	EXPORT_SYMBOL
