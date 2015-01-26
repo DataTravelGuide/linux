@@ -55,6 +55,7 @@
 0xbc0d78f9	__netif_schedule	vmlinux	EXPORT_SYMBOL
 0x993e6e37	__next_cpu	vmlinux	EXPORT_SYMBOL
 0x064c8a4d	__nf_ct_refresh_acct	net/netfilter/nf_conntrack	EXPORT_SYMBOL_GPL
+0x46c47fb6	__node_distance	vmlinux	EXPORT_SYMBOL
 0xdfef4b40	__pagevec_release	vmlinux	EXPORT_SYMBOL
 0x5f07b9f3	__pci_register_driver	vmlinux	EXPORT_SYMBOL
 0x32047ad5	__per_cpu_offset	vmlinux	EXPORT_SYMBOL
