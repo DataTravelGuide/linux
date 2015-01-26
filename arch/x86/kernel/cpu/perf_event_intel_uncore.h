@@ -511,3 +511,5 @@ int snbep_uncore_pci_init(void);
 void snbep_uncore_cpu_init(void);
 int ivbep_uncore_pci_init(void);
 void ivbep_uncore_cpu_init(void);
+int hswep_uncore_pci_init(void);
+void hswep_uncore_cpu_init(void);
