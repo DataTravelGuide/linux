@@ -50,6 +50,7 @@
 0x8e4a7c5b	__mutex_init	vmlinux	EXPORT_SYMBOL
 0xf6e962bb	__napi_complete	vmlinux	EXPORT_SYMBOL
 0xf4620319	__napi_schedule	vmlinux	EXPORT_SYMBOL
+0xdf8c695a	__ndelay	vmlinux	EXPORT_SYMBOL
 0x2f6ec30e	__neigh_event_send	vmlinux	EXPORT_SYMBOL
 0xfc6a5247	__netdev_alloc_page	vmlinux	EXPORT_SYMBOL
 0x351f0776	__netdev_alloc_skb	vmlinux	EXPORT_SYMBOL

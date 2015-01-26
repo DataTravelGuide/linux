@@ -55,6 +55,7 @@
 	__mutex_init
 	__napi_complete
 	__napi_schedule
+	__ndelay
 	__neigh_event_send
 	__netdev_alloc_page
 	__netdev_alloc_skb
