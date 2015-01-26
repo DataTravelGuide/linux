@@ -1092,6 +1092,7 @@
 	putname
 	pv_cpu_ops
 	pv_irq_ops
+	pv_mmu_ops
 	qdisc_calculate_pkt_len
 	qdisc_create_dflt
 	qdisc_destroy

@@ -1091,6 +1091,7 @@
 0x2b4c47df	putname	vmlinux	EXPORT_SYMBOL
 0x6bd8f8d5	pv_cpu_ops	vmlinux	EXPORT_SYMBOL
 0x8ff4079b	pv_irq_ops	vmlinux	EXPORT_SYMBOL
+0x428587c2	pv_mmu_ops	vmlinux	EXPORT_SYMBOL
 0xe8d71647	qdisc_calculate_pkt_len	vmlinux	EXPORT_SYMBOL
 0x975b7974	qdisc_create_dflt	vmlinux	EXPORT_SYMBOL
 0x5dd90db8	qdisc_destroy	vmlinux	EXPORT_SYMBOL
