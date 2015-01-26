@@ -641,6 +641,7 @@
 0xde0bdcff	memset	vmlinux	EXPORT_SYMBOL
 0x5cd0b62f	misc_deregister	vmlinux	EXPORT_SYMBOL
 0xc1109064	misc_register	vmlinux	EXPORT_SYMBOL
+0xa3d338b6	mmput	vmlinux	EXPORT_SYMBOL_GPL
 0xa946da62	mnt_drop_write	vmlinux	EXPORT_SYMBOL_GPL
 0xcd3d276f	mnt_want_write	vmlinux	EXPORT_SYMBOL_GPL
 0xca4f9038	mod_timer	vmlinux	EXPORT_SYMBOL

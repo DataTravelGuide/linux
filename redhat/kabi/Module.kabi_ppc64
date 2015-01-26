@@ -773,6 +773,7 @@
 0x07dba4d0	mii_nway_restart	drivers/net/mii	EXPORT_SYMBOL
 0xf2d893f2	misc_deregister	vmlinux	EXPORT_SYMBOL
 0x2bfb6a77	misc_register	vmlinux	EXPORT_SYMBOL
+0x0b6c26da	mmput	vmlinux	EXPORT_SYMBOL_GPL
 0x4ec0cab2	mnt_drop_write	vmlinux	EXPORT_SYMBOL_GPL
 0xd4ad9dbf	mnt_want_write	vmlinux	EXPORT_SYMBOL_GPL
 0x620060ec	mod_timer	vmlinux	EXPORT_SYMBOL

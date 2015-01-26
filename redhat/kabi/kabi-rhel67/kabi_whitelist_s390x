@@ -642,6 +642,7 @@
 	memset
 	misc_deregister
 	misc_register
+	mmput
 	mnt_drop_write
 	mnt_want_write
 	mod_timer
