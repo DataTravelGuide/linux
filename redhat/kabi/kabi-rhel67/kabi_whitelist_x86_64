@@ -581,6 +581,7 @@
 	get_sb_bdev
 	get_sb_nodev
 	get_seconds
+	get_task_mm
 	get_user_pages
 	get_write_access
 	get_zeroed_page

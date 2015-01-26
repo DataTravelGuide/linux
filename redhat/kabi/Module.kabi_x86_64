@@ -580,6 +580,7 @@
 0xddbd934c	get_sb_bdev	vmlinux	EXPORT_SYMBOL
 0x5c7e09d7	get_sb_nodev	vmlinux	EXPORT_SYMBOL
 0x405c1144	get_seconds	vmlinux	EXPORT_SYMBOL
+0x3adff8b3	get_task_mm	vmlinux	EXPORT_SYMBOL_GPL
 0x6e293b8e	get_user_pages	vmlinux	EXPORT_SYMBOL
 0xfd423e5b	get_write_access	vmlinux	EXPORT_SYMBOL
 0x9b388444	get_zeroed_page	vmlinux	EXPORT_SYMBOL
