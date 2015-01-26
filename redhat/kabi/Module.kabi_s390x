@@ -379,6 +379,7 @@
 0x6386d48a	down_trylock	vmlinux	EXPORT_SYMBOL
 0xf9c9080e	down_write	vmlinux	EXPORT_SYMBOL
 0x13b7fb38	down_write_trylock	vmlinux	EXPORT_SYMBOL
+0x5315721c	downgrade_write	vmlinux	EXPORT_SYMBOL
 0xdecde7f8	dput	vmlinux	EXPORT_SYMBOL
 0x437f8459	driver_create_file	vmlinux	EXPORT_SYMBOL_GPL
 0xaee9d1a6	driver_for_each_device	vmlinux	EXPORT_SYMBOL_GPL
