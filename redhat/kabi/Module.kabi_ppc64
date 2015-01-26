@@ -155,6 +155,7 @@
 0x484296e1	bio_endio	vmlinux	EXPORT_SYMBOL
 0x942634bd	bio_get_nr_vecs	vmlinux	EXPORT_SYMBOL
 0x767ff12f	bio_put	vmlinux	EXPORT_SYMBOL
+0x1551dc51	bitmap_find_free_region	vmlinux	EXPORT_SYMBOL
 0xfaf98462	bitrev32	vmlinux	EXPORT_SYMBOL
 0xe9f201a2	blk_alloc_queue	vmlinux	EXPORT_SYMBOL
 0x8f33c044	blk_alloc_queue_node	vmlinux	EXPORT_SYMBOL

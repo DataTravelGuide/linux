@@ -178,6 +178,7 @@
 0x4c75ad64	bio_endio	vmlinux	EXPORT_SYMBOL
 0x4289dd9c	bio_get_nr_vecs	vmlinux	EXPORT_SYMBOL
 0x3f194fa5	bio_put	vmlinux	EXPORT_SYMBOL
+0x1551dc51	bitmap_find_free_region	vmlinux	EXPORT_SYMBOL
 0xfaf98462	bitrev32	vmlinux	EXPORT_SYMBOL
 0x3b700c52	blk_alloc_queue	vmlinux	EXPORT_SYMBOL
 0xff957530	blk_alloc_queue_node	vmlinux	EXPORT_SYMBOL
