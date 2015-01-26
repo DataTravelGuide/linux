@@ -601,6 +601,7 @@
 0x057ce975	hex_dump_to_buffer	vmlinux	EXPORT_SYMBOL
 0x8a7d1c31	high_memory	vmlinux	EXPORT_SYMBOL
 0x63583f91	hrtimer_cancel	vmlinux	EXPORT_SYMBOL_GPL
+0x68a668cb	hrtimer_forward	vmlinux	EXPORT_SYMBOL_GPL
 0x1697136d	hrtimer_init	vmlinux	EXPORT_SYMBOL_GPL
 0xd03fdcc0	hrtimer_start	vmlinux	EXPORT_SYMBOL_GPL
 0xe8cd902e	hweight16	vmlinux	EXPORT_SYMBOL

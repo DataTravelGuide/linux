@@ -609,6 +609,7 @@
 	hex_dump_to_buffer
 	high_memory
 	hrtimer_cancel
+	hrtimer_forward
 	hrtimer_init
 	hrtimer_start
 	hweight16
