@@ -1212,6 +1212,7 @@
 0x16d43d66	up	vmlinux	EXPORT_SYMBOL
 0x4b32bdc7	up_read	vmlinux	EXPORT_SYMBOL
 0x4ca4a02e	up_write	vmlinux	EXPORT_SYMBOL
+0x3b080782	use_mm	vmlinux	EXPORT_SYMBOL_GPL
 0xb54533f7	usecs_to_jiffies	vmlinux	EXPORT_SYMBOL
 0x999e8297	vfree	vmlinux	EXPORT_SYMBOL
 0x6effced8	vfs_rename	vmlinux	EXPORT_SYMBOL

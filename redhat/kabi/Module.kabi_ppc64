@@ -1593,6 +1593,7 @@
 0x8deb15b2	usbnet_stop	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
 0x539315cd	usbnet_suspend	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
 0xde1a0705	usbnet_tx_timeout	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
+0x94ef5250	use_mm	vmlinux	EXPORT_SYMBOL_GPL
 0xb54533f7	usecs_to_jiffies	vmlinux	EXPORT_SYMBOL
 0xf82d2dab	v4l2_chip_ident_i2c_client	drivers/media/video/v4l2-common	EXPORT_SYMBOL
 0x42c8e001	v4l2_ctrl_next	drivers/media/video/v4l2-common	EXPORT_SYMBOL

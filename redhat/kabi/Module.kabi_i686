@@ -1664,6 +1664,7 @@
 0x504fef57	usbnet_stop	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
 0xbb806061	usbnet_suspend	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
 0x6d927d43	usbnet_tx_timeout	drivers/net/usb/usbnet	EXPORT_SYMBOL_GPL
+0xc1710f47	use_mm	vmlinux	EXPORT_SYMBOL_GPL
 0xb54533f7	usecs_to_jiffies	vmlinux	EXPORT_SYMBOL
 0x1636fe91	v4l2_chip_ident_i2c_client	drivers/media/video/v4l2-common	EXPORT_SYMBOL
 0x42c8e001	v4l2_ctrl_next	drivers/media/video/v4l2-common	EXPORT_SYMBOL

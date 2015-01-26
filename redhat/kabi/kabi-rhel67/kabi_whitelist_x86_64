@@ -1675,6 +1675,7 @@
 	usbnet_stop
 	usbnet_suspend
 	usbnet_tx_timeout
+	use_mm
 	usecs_to_jiffies
 	v4l2_chip_ident_i2c_client
 	v4l2_ctrl_next

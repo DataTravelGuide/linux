@@ -1212,6 +1212,7 @@
 	up
 	up_read
 	up_write
+	use_mm
 	usecs_to_jiffies
 	vfree
 	vfs_rename
