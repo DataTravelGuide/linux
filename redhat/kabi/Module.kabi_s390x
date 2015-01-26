@@ -131,6 +131,7 @@
 0x5f4e277a	blk_alloc_queue_node	vmlinux	EXPORT_SYMBOL
 0xe455fca9	blk_cleanup_queue	vmlinux	EXPORT_SYMBOL
 0xe8717318	blk_complete_request	vmlinux	EXPORT_SYMBOL
+0x051dbfb4	blk_end_request	vmlinux	EXPORT_SYMBOL
 0x4e477ccd	blk_end_request_all	vmlinux	EXPORT_SYMBOL
 0x1f4130c2	blk_execute_rq	vmlinux	EXPORT_SYMBOL
 0x44f9c91e	blk_execute_rq_nowait	vmlinux	EXPORT_SYMBOL_GPL

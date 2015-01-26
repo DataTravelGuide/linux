@@ -177,6 +177,7 @@
 	blk_alloc_queue_node
 	blk_cleanup_queue
 	blk_complete_request
+	blk_end_request
 	blk_end_request_all
 	blk_execute_rq
 	blk_execute_rq_nowait
