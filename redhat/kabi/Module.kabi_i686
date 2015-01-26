@@ -648,6 +648,7 @@
 0x18367e8d	iget_locked	vmlinux	EXPORT_SYMBOL
 0x52c36508	igrab	vmlinux	EXPORT_SYMBOL
 0x1deb36cc	ilookup5	vmlinux	EXPORT_SYMBOL
+0xaccabc6a	in4_pton	vmlinux	EXPORT_SYMBOL
 0x1b6314fd	in_aton	vmlinux	EXPORT_SYMBOL
 0xd4f75f88	in_dev_finish_destroy	vmlinux	EXPORT_SYMBOL
 0x7fd6cbb5	inc_zone_page_state	vmlinux	EXPORT_SYMBOL

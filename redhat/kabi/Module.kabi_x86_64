@@ -655,6 +655,7 @@
 0x45303fbc	iget_locked	vmlinux	EXPORT_SYMBOL
 0x7c78e36a	igrab	vmlinux	EXPORT_SYMBOL
 0x082f711a	ilookup5	vmlinux	EXPORT_SYMBOL
+0xaccabc6a	in4_pton	vmlinux	EXPORT_SYMBOL
 0x1b6314fd	in_aton	vmlinux	EXPORT_SYMBOL
 0x70ab2581	in_dev_finish_destroy	vmlinux	EXPORT_SYMBOL
 0x7d82881a	inc_zone_page_state	vmlinux	EXPORT_SYMBOL

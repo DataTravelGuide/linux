@@ -510,6 +510,7 @@
 0x96c49a69	iget_locked	vmlinux	EXPORT_SYMBOL
 0xef83e5a3	igrab	vmlinux	EXPORT_SYMBOL
 0x0d24117f	ilookup5	vmlinux	EXPORT_SYMBOL
+0xaccabc6a	in4_pton	vmlinux	EXPORT_SYMBOL
 0x1b6314fd	in_aton	vmlinux	EXPORT_SYMBOL
 0x0a191241	in_dev_finish_destroy	vmlinux	EXPORT_SYMBOL
 0x1da095f2	inc_zone_page_state	vmlinux	EXPORT_SYMBOL

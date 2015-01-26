@@ -649,6 +649,7 @@
 	iget_locked
 	igrab
 	ilookup5
+	in4_pton
 	in_aton
 	in_dev_finish_destroy
 	inc_zone_page_state
