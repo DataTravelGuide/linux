@@ -250,50 +250,6 @@ static int snbep_uncore_hw_config(struct intel_uncore_box *box, struct perf_even
 
 	return 0;
 }
-#if 0
-static struct event_constraint *
-snbep_uncore_get_constraint(struct intel_uncore_box *box,
-			    struct perf_event *event)
-{
-	struct intel_uncore_extra_reg *er;
-	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
-	unsigned long flags;
-	bool ok = false;
-
-	if (reg1->idx == EXTRA_REG_NONE || (box->phys_id >= 0 && reg1->alloc))
-		return NULL;
-
-	er = &box->shared_regs[reg1->idx];
-	raw_spin_lock_irqsave(&er->lock, flags);
-	if (!atomic_read(&er->ref) || er->config1 == reg1->config) {
-		atomic_inc(&er->ref);
-		er->config1 = reg1->config;
-		ok = true;
-	}
-	raw_spin_unlock_irqrestore(&er->lock, flags);
-
-	if (ok) {
-		if (box->phys_id >= 0)
-			reg1->alloc = 1;
-		return NULL;
-	}
-	return &constraint_empty;
-}
-
-static void snbep_uncore_put_constraint(struct intel_uncore_box *box,
-					struct perf_event *event)
-{
-	struct intel_uncore_extra_reg *er;
-	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
-
-	if (box->phys_id < 0 || !reg1->alloc)
-		return;
-
-	er = &box->shared_regs[reg1->idx];
-	atomic_dec(&er->ref);
-	reg1->alloc = 0;
-}
-#endif
 
 static struct attribute *snbep_uncore_formats_attr[] = {
 	&format_attr_event.attr,
