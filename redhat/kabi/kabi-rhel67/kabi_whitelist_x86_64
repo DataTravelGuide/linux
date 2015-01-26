@@ -300,6 +300,7 @@
 	copy_in_user
 	copy_to_user
 	copy_user_generic
+	cpu_active_mask
 	cpu_clock
 	cpu_khz
 	cpu_online_mask

@@ -244,6 +244,7 @@
 	congestion_wait
 	consume_skb
 	contig_page_data
+	cpu_active_mask
 	cpu_clock
 	cpu_online_mask
 	cpu_possible_mask

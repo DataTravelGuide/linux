@@ -273,6 +273,7 @@
 0x0d6c963c	copy_from_user	vmlinux	EXPORT_SYMBOL
 0x8d944cbb	copy_in_user	vmlinux	EXPORT_SYMBOL
 0x2f287f0d	copy_to_user	vmlinux	EXPORT_SYMBOL
+0xb3bf73df	cpu_active_mask	vmlinux	EXPORT_SYMBOL
 0x3109b751	cpu_clock	vmlinux	EXPORT_SYMBOL_GPL
 0x0a3d0644	cpu_online_mask	vmlinux	EXPORT_SYMBOL
 0x005a4975	cpu_possible_mask	vmlinux	EXPORT_SYMBOL

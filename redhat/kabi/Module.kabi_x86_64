@@ -299,6 +299,7 @@
 0xcaa7eb52	copy_in_user	vmlinux	EXPORT_SYMBOL
 0x85f8a266	copy_to_user	vmlinux	EXPORT_SYMBOL
 0xeb77efbb	copy_user_generic	vmlinux	EXPORT_SYMBOL
+0x2c8d8a69	cpu_active_mask	vmlinux	EXPORT_SYMBOL
 0x3109b751	cpu_clock	vmlinux	EXPORT_SYMBOL_GPL
 0xd6b33026	cpu_khz	vmlinux	EXPORT_SYMBOL
 0x950ffff2	cpu_online_mask	vmlinux	EXPORT_SYMBOL
