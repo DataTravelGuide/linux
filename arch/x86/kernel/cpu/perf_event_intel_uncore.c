@@ -37,8 +37,6 @@ DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
 DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
-DEFINE_UNCORE_FORMAT_ATTR(cmask5, cmask, "config:24-28");
-DEFINE_UNCORE_FORMAT_ATTR(cmask8, cmask, "config:24-31");
 DEFINE_UNCORE_FORMAT_ATTR(thresh8, thresh, "config:24-31");
 DEFINE_UNCORE_FORMAT_ATTR(thresh5, thresh, "config:24-28");
 DEFINE_UNCORE_FORMAT_ATTR(occ_sel, occ_sel, "config:14-15");
@@ -1613,165 +1611,6 @@ static struct pci_driver ivt_uncore_pci_driver = {
 	.id_table	= ivt_uncore_pci_ids,
 };
 /* end of IvyTown uncore support */
-
-/* Sandy Bridge uncore support */
-static void snb_uncore_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (hwc->idx < UNCORE_PMC_IDX_FIXED)
-		wrmsrl(hwc->config_base, hwc->config | SNB_UNC_CTL_EN);
-	else
-		wrmsrl(hwc->config_base, SNB_UNC_CTL_EN);
-}
-
-static void snb_uncore_msr_disable_event(struct intel_uncore_box *box, struct perf_event *event)
-{
-	wrmsrl(event->hw.config_base, 0);
-}
-
-static void snb_uncore_msr_init_box(struct intel_uncore_box *box)
-{
-	if (box->pmu->pmu_idx == 0) {
-		wrmsrl(SNB_UNC_PERF_GLOBAL_CTL,
-			SNB_UNC_GLOBAL_CTL_EN | SNB_UNC_GLOBAL_CTL_CORE_ALL);
-	}
-}
-
-static struct uncore_event_desc snb_uncore_events[] = {
-	INTEL_UNCORE_EVENT_DESC(clockticks, "event=0xff,umask=0x00"),
-	{ /* end: all zeroes */ },
-};
-
-static struct attribute *snb_uncore_formats_attr[] = {
-	&format_attr_event.attr,
-	&format_attr_umask.attr,
-	&format_attr_edge.attr,
-	&format_attr_inv.attr,
-	&format_attr_cmask5.attr,
-	NULL,
-};
-
-static struct attribute_group snb_uncore_format_group = {
-	.name		= "format",
-	.attrs		= snb_uncore_formats_attr,
-};
-
-static struct intel_uncore_ops snb_uncore_msr_ops = {
-	.init_box	= snb_uncore_msr_init_box,
-	.disable_event	= snb_uncore_msr_disable_event,
-	.enable_event	= snb_uncore_msr_enable_event,
-	.read_counter	= uncore_msr_read_counter,
-};
-
-static struct event_constraint snb_uncore_cbox_constraints[] = {
-	UNCORE_EVENT_CONSTRAINT(0x80, 0x1),
-	UNCORE_EVENT_CONSTRAINT(0x83, 0x1),
-	EVENT_CONSTRAINT_END
-};
-
-static struct intel_uncore_type snb_uncore_cbox = {
-	.name		= "cbox",
-	.num_counters   = 2,
-	.num_boxes	= 4,
-	.perf_ctr_bits	= 44,
-	.fixed_ctr_bits	= 48,
-	.perf_ctr	= SNB_UNC_CBO_0_PER_CTR0,
-	.event_ctl	= SNB_UNC_CBO_0_PERFEVTSEL0,
-	.fixed_ctr	= SNB_UNC_FIXED_CTR,
-	.fixed_ctl	= SNB_UNC_FIXED_CTR_CTRL,
-	.single_fixed	= 1,
-	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
-	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
-	.constraints	= snb_uncore_cbox_constraints,
-	.ops		= &snb_uncore_msr_ops,
-	.format_group	= &snb_uncore_format_group,
-	.event_descs	= snb_uncore_events,
-};
-
-static struct intel_uncore_type *snb_msr_uncores[] = {
-	&snb_uncore_cbox,
-	NULL,
-};
-/* end of Sandy Bridge uncore support */
-
-/* Nehalem uncore support */
-static void nhm_uncore_msr_disable_box(struct intel_uncore_box *box)
-{
-	wrmsrl(NHM_UNC_PERF_GLOBAL_CTL, 0);
-}
-
-static void nhm_uncore_msr_enable_box(struct intel_uncore_box *box)
-{
-	wrmsrl(NHM_UNC_PERF_GLOBAL_CTL, NHM_UNC_GLOBAL_CTL_EN_PC_ALL | NHM_UNC_GLOBAL_CTL_EN_FC);
-}
-
-static void nhm_uncore_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (hwc->idx < UNCORE_PMC_IDX_FIXED)
-		wrmsrl(hwc->config_base, hwc->config | SNB_UNC_CTL_EN);
-	else
-		wrmsrl(hwc->config_base, NHM_UNC_FIXED_CTR_CTL_EN);
-}
-
-static struct attribute *nhm_uncore_formats_attr[] = {
-	&format_attr_event.attr,
-	&format_attr_umask.attr,
-	&format_attr_edge.attr,
-	&format_attr_inv.attr,
-	&format_attr_cmask8.attr,
-	NULL,
-};
-
-static struct attribute_group nhm_uncore_format_group = {
-	.name = "format",
-	.attrs = nhm_uncore_formats_attr,
-};
-
-static struct uncore_event_desc nhm_uncore_events[] = {
-	INTEL_UNCORE_EVENT_DESC(clockticks,                "event=0xff,umask=0x00"),
-	INTEL_UNCORE_EVENT_DESC(qmc_writes_full_any,       "event=0x2f,umask=0x0f"),
-	INTEL_UNCORE_EVENT_DESC(qmc_normal_reads_any,      "event=0x2c,umask=0x0f"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_reads,     "event=0x20,umask=0x01"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_ioh_writes,    "event=0x20,umask=0x02"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_remote_reads,  "event=0x20,umask=0x04"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_remote_writes, "event=0x20,umask=0x08"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_local_reads,   "event=0x20,umask=0x10"),
-	INTEL_UNCORE_EVENT_DESC(qhl_request_local_writes,  "event=0x20,umask=0x20"),
-	{ /* end: all zeroes */ },
-};
-
-static struct intel_uncore_ops nhm_uncore_msr_ops = {
-	.disable_box	= nhm_uncore_msr_disable_box,
-	.enable_box	= nhm_uncore_msr_enable_box,
-	.disable_event	= snb_uncore_msr_disable_event,
-	.enable_event	= nhm_uncore_msr_enable_event,
-	.read_counter	= uncore_msr_read_counter,
-};
-
-static struct intel_uncore_type nhm_uncore = {
-	.name		= "",
-	.num_counters   = 8,
-	.num_boxes	= 1,
-	.perf_ctr_bits	= 48,
-	.fixed_ctr_bits	= 48,
-	.event_ctl	= NHM_UNC_PERFEVTSEL0,
-	.perf_ctr	= NHM_UNC_UNCORE_PMC0,
-	.fixed_ctr	= NHM_UNC_FIXED_CTR,
-	.fixed_ctl	= NHM_UNC_FIXED_CTR_CTRL,
-	.event_mask	= NHM_UNC_RAW_EVENT_MASK,
-	.event_descs	= nhm_uncore_events,
-	.ops		= &nhm_uncore_msr_ops,
-	.format_group	= &nhm_uncore_format_group,
-};
-
-static struct intel_uncore_type *nhm_msr_uncores[] = {
-	&nhm_uncore,
-	NULL,
-};
-/* end of Nehalem uncore support */
 
 /* Nehalem-EX uncore support */
 DEFINE_UNCORE_FORMAT_ATTR(event5, event, "config:1-5");
@@ -3528,6 +3367,9 @@ static int __init uncore_pci_init(void)
 		return 0;
 	}
 
+	if (ret)
+		return ret;
+
 	ret = uncore_types_init(uncore_pci_uncores);
 	if (ret)
 		return ret;
@@ -3781,13 +3623,11 @@ static int __init uncore_cpu_init(void)
 	case 30:
 	case 37: /* Westmere */
 	case 44:
-		uncore_msr_uncores = nhm_msr_uncores;
+		nhm_uncore_cpu_init();
 		break;
 	case 42: /* Sandy Bridge */
 	case 58: /* Ivy Bridge */
-		if (snb_uncore_cbox.num_boxes > max_cores)
-			snb_uncore_cbox.num_boxes = max_cores;
-		uncore_msr_uncores = snb_msr_uncores;
+		snb_uncore_cpu_init();
 		break;
 	case 45: /* Sandy Bridge-EP */
 		if (snbep_uncore_cbox.num_boxes > max_cores)
