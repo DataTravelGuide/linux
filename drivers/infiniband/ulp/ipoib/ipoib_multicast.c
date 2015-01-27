@@ -69,29 +69,28 @@ static void __ipoib_mcast_continue_join_thread(struct ipoib_dev_priv *priv,
 					       int delay)
 {
 	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
-		/*
-		 * Mark this mcast for its delay and set a timer to kick the
-		 * thread when the delay completes
-		 */
 		if (mcast && delay) {
 			mcast->backoff *= 2;
 			if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
 				mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
 			mcast->delay_until = jiffies + (mcast->backoff * HZ);
-			queue_delayed_work(priv->wq, &priv->mcast_task,
-					   mcast->backoff * HZ);
+			/*
+			 * Mark this mcast for its delay, but restart the
+			 * task immediately.  It will make sure to clear
+			 * out all entries without delays, and then
+			 * schedule itself for run again when the delay
+			 * expires
+			 */
+			queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 		} else if (delay) {
-			/* Special case of retrying after a failure to
+			/*
+			 * Special case of retrying after a failure to
 			 * allocate the broadcast multicast group, wait
 			 * 1 second and try again
 			 */
 			queue_delayed_work(priv->wq, &priv->mcast_task, HZ);
-		}
-		/*
-		 * But also rekick the thread immediately for any other
-		 * tasks in queue behind this one
-		 */
-		queue_delayed_work(priv->wq, &priv->mcast_task, delay);
+		} else
+			queue_delayed_work(priv->wq, &priv->mcast_task, 0);
 	}
 }
 
@@ -566,6 +565,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	struct ib_port_attr port_attr;
 	struct ipoib_mcast *mcast = NULL;
 	int create = 1;
+	unsigned long delay_until = 0;
 
 	if (!test_bit(IPOIB_MCAST_RUN, &priv->flags))
 		return;
@@ -634,11 +634,14 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	list_for_each_entry(mcast, &priv->multicast_list, list) {
 		if (IS_ERR_OR_NULL(mcast->mc) &&
 		    !test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags) &&
-		    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags) &&
-		    (mcast->backoff == 1 ||
-		     time_after_eq(jiffies, mcast->delay_until))) {
-			/* Found the next unjoined group */
-			break;
+		    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &mcast->flags)) {
+			if (mcast->backoff == 1 ||
+			    time_after_eq(jiffies, mcast->delay_until))
+				/* Found the next unjoined group */
+				break;
+			else if (!delay_until ||
+				 time_before(mcast->delay_until, delay_until))
+				delay_until = mcast->delay_until;
 		}
 	}
 
@@ -651,6 +654,9 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		mcast = NULL;
 		ipoib_dbg_mcast(priv, "successfully joined all "
 				"multicast groups\n");
+		if (delay_until)
+			queue_delayed_work(priv->wq, &priv->mcast_task,
+					   delay_until - jiffies);
 	}
 
 out:
@@ -764,6 +770,13 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 		memcpy(mcast->mcmember.mgid.raw, mgid, sizeof (union ib_gid));
 		__ipoib_mcast_add(dev, mcast);
 		list_add_tail(&mcast->list, &priv->multicast_list);
+		/*
+		 * Make sure that if we are currently waiting for a backoff
+		 * delay to expire, that we cancel that, run immediately,
+		 * and then requeue our task to fire when the backoff
+		 * timer is over.
+		 */
+		cancel_delayed_work(&priv->mcast_task);
 		__ipoib_mcast_continue_join_thread(priv, NULL, 0);
 	}
 
