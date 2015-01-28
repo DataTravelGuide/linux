@@ -1888,7 +1888,7 @@ static int rtl8169_set_features(struct net_device *dev, u32 features)
 	features &= NETIF_F_RXALL | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_RX;
 
 	rtl_lock_work(tp);
-	if (features ^ dev->features);
+	if (features ^ dev->features)
 		__rtl8169_set_features(dev, features);
 	rtl_unlock_work(tp);
 
