@@ -7142,7 +7142,7 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	SET_ETHTOOL_OPS(dev, &rtl8169_ethtool_ops);
+	dev->ethtool_ops = &rtl8169_ethtool_ops;
 	set_ethtool_ops_ext(dev, &rtl8169_ethtool_ops_ext);
 	dev->watchdog_timeo = RTL8169_TX_TIMEOUT;
 
