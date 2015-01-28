@@ -975,6 +975,9 @@ Version: 0.0.3
 File: rtl_nic/rtl8168g-2.fw
 Version: 0.0.1
 
+File: rtl_nic/rtl8168g-3.fw
+Version: 0.0.1
+
 Licence:
  * Copyright (c) 2010, Realtek Semiconductor Corporation
  *
