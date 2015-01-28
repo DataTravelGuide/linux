@@ -969,21 +969,20 @@ static sector_t wait_barrier(struct r1conf *conf, struct bio *bio)
 		 * However if there are already pending
 		 * requests (preventing the barrier from
 		 * rising completely), and the
-		 * pre-process bio queue isn't empty,
+		 * per-process bio queue isn't empty,
 		 * then don't wait, as we need to empty
-		 * that queue to get the nr_pending
-		 * count down.
+		 * that queue to allow conf->start_next_window
+		 * to increase.
 		 */
 		wait_event_lock_irq_cmd(conf->wait_barrier,
 				    !conf->array_frozen &&
 				    (!conf->barrier ||
-				    ((conf->start_next_window <
-				      conf->next_resync + RESYNC_SECTORS) &&
-				     current->bio_list &&
-				     current->bio_tail)),
+				     ((conf->start_next_window <
+				       conf->next_resync + RESYNC_SECTORS) &&
+				      current->bio_list &&
+				      current->bio_tail)),
 				    conf->resync_lock,
-				    md_raid1_unplug_device(conf)
-			);
+				    md_raid1_unplug_device(conf));
 		conf->nr_waiting--;
 	}
 
