@@ -2021,6 +2021,11 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 };
 
+static const struct ethtool_ops_ext rtl8169_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	.get_ts_info		= ethtool_op_get_ts_info,
+};
+
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 				    struct net_device *dev, u8 default_version)
 {
@@ -6913,6 +6918,7 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	SET_ETHTOOL_OPS(dev, &rtl8169_ethtool_ops);
+	set_ethtool_ops_ext(dev, &rtl8169_ethtool_ops_ext);
 	dev->watchdog_timeo = RTL8169_TX_TIMEOUT;
 
 	netif_napi_add(dev, &tp->napi, rtl8169_poll, R8169_NAPI_WEIGHT);
