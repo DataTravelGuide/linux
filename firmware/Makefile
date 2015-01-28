@@ -138,7 +138,11 @@ fw-shipped-$(CONFIG_R8169) += rtl_nic/rtl8168d-1.fw \
 			      rtl_nic/rtl8106e-2.fw \
 			      rtl_nic/rtl8168g-1.fw \
 			      rtl_nic/rtl8168g-2.fw \
-			      rtl_nic/rtl8168g-3.fw
+			      rtl_nic/rtl8168g-3.fw \
+			      rtl_nic/rtl8168h-1.fw \
+			      rtl_nic/rtl8168h-2.fw \
+			      rtl_nic/rtl8107e-1.fw \
+			      rtl_nic/rtl8107e-2.fw
 fw-shipped-$(CONFIG_MYRI10GE) += myri10ge_eth_z8e.dat \
 				 myri10ge_ethp_z8e.dat \
 				 myri10ge_rss_eth_z8e.dat \
