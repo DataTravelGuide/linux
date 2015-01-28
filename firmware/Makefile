@@ -133,6 +133,7 @@ fw-shipped-$(CONFIG_R8169) += rtl_nic/rtl8168d-1.fw \
 			      rtl_nic/rtl8168f-2.fw \
 			      rtl_nic/rtl8402-1.fw \
 			      rtl_nic/rtl8411-1.fw \
+			      rtl_nic/rtl8411-2.fw \
 			      rtl_nic/rtl8106e-1.fw \
 			      rtl_nic/rtl8106e-2.fw \
 			      rtl_nic/rtl8168g-1.fw \
