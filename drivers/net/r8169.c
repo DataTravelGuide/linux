@@ -1758,34 +1758,46 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return ret;
 }
 
-static u32 rtl8169_get_rx_csum(struct net_device *dev)
+static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	return tp->cp_cmd & RxChkSum;
+	if (dev->mtu > TD_MSS_MAX)
+		features &= ~NETIF_F_ALL_TSO;
+
+	if (dev->mtu > JUMBO_1K &&
+	    !rtl_chip_infos[tp->mac_version].jumbo_tx_csum)
+		features &= ~NETIF_F_IP_CSUM;
+
+	return features;
 }
 
-static void __rtl8169_set_rx_csum(struct net_device *dev, u32 data)
+static void __rtl8169_set_features(struct net_device *dev, u32 features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
 	void __iomem *ioaddr = tp->mmio_addr;
 
-	if (data)
+	if (features & NETIF_F_RXCSUM)
 		tp->cp_cmd |= RxChkSum;
 	else
 		tp->cp_cmd &= ~RxChkSum;
+
+	if (dev->features & NETIF_F_HW_VLAN_RX)
+		tp->cp_cmd |= RxVlan;
+	else
+		tp->cp_cmd &= ~RxVlan;
 
 	RTL_W16(CPlusCmd, tp->cp_cmd);
 	RTL_R16(CPlusCmd);
 }
 
-static int rtl8169_set_rx_csum(struct net_device *dev, u32 data)
+static int rtl8169_set_features(struct net_device *dev, u32 features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
 	rtl_lock_work(tp);
-	__rtl8169_set_rx_csum(dev, data);
+	__rtl8169_set_features(dev, features);
 	rtl_unlock_work(tp);
 
 	return 0;
@@ -1796,24 +1808,6 @@ static inline u32 rtl8169_tx_vlan_tag(struct rtl8169_private *tp,
 {
 	return (vlan_tx_tag_present(skb)) ?
 		TxVlanTag | swab16(vlan_tx_tag_get(skb)) : 0x00;
-}
-
-#define NETIF_F_HW_VLAN_TX_RX	(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX)
-
-static void rtl8169_vlan_mode(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-
-	if (dev->features & NETIF_F_HW_VLAN_RX)
-		tp->cp_cmd |= RxVlan;
-	else
-		tp->cp_cmd &= ~RxVlan;
-	RTL_W16(CPlusCmd, tp->cp_cmd);
-	/* PCI commit */
-	RTL_R16(CPlusCmd);
-
-	dev->vlan_features = dev->features &~ NETIF_F_HW_VLAN_TX_RX;
 }
 
 static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
@@ -1993,28 +1987,6 @@ static void rtl8169_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
-static int rtl8169_set_flags(struct net_device *dev, u32 data)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	unsigned long old_feat = dev->features;
-	int rc;
-
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_05) &&
-	    !(data & ETH_FLAG_RXVLAN)) {
-		netif_info(tp, drv, dev, "8110SCd requires hardware Rx VLAN\n");
-		return -EINVAL;
-	}
-
-	rc = ethtool_op_set_flags(dev, data);
-	if (rc)
-		return rc;
-
-	if ((old_feat ^ dev->features) & NETIF_F_HW_VLAN_RX)
-		rtl8169_vlan_mode(dev);
-
-	return 0;
-}
-
 static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
@@ -2023,19 +1995,12 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.set_settings		= rtl8169_set_settings,
 	.get_msglevel		= rtl8169_get_msglevel,
 	.set_msglevel		= rtl8169_set_msglevel,
-	.get_rx_csum		= rtl8169_get_rx_csum,
-	.set_rx_csum		= rtl8169_set_rx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.set_sg			= ethtool_op_set_sg,
-	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= rtl8169_get_regs,
 	.get_wol		= rtl8169_get_wol,
 	.set_wol		= rtl8169_set_wol,
 	.get_strings		= rtl8169_get_strings,
 	.get_sset_count		= rtl8169_get_sset_count,
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
-	.set_flags		= rtl8169_set_flags,
-	.get_flags		= ethtool_op_get_flags,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
@@ -5476,14 +5441,7 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 		rtl_hw_jumbo_disable(tp);
 
 	dev->mtu = new_mtu;
-
-	if (dev->mtu > TD_MSS_MAX)
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6 |
-				   NETIF_F_TSO_ECN);
-
-	if (dev->mtu > JUMBO_1K &&
-	    !rtl_chip_infos[tp->mac_version].jumbo_tx_csum)
-		dev->features &= ~NETIF_F_IP_CSUM;
+	netdev_update_features(dev);
 
 	return 0;
 }
@@ -6331,7 +6289,7 @@ static int rtl_open(struct net_device *dev)
 
 	rtl8169_init_phy(dev, tp);
 
-	rtl8169_vlan_mode(dev);
+	__rtl8169_set_features(dev, dev->features);
 
 	rtl_pll_power_up(tp);
 
@@ -6629,6 +6587,8 @@ static const struct net_device_ops rtl_netdev_ops = {
 static const struct net_device_ops_ext rtl_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= rtl8169_get_stats64,
+	.ndo_fix_features	= rtl8169_fix_features,
+	.ndo_set_features	= rtl8169_set_features,
 };
 
 static const struct rtl_cfg_info {
@@ -6924,10 +6884,18 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* don't enable SG, IP_CSUM and TSO by default - it might not work
 	 * properly for all devices */
-	dev->features |= NETIF_F_HW_VLAN_TX_RX | NETIF_F_GRO;
+	dev->features |= NETIF_F_RXCSUM |
+		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 
+	netdev_extended(dev)->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_TSO | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_TX |
+		NETIF_F_HW_VLAN_RX;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
-		NETIF_F_GRO | NETIF_F_HIGHDMA;
+		NETIF_F_HIGHDMA;
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		/* 8110SCd requires hardware Rx VLAN - disallow toggling */
+		netdev_extended(dev)->hw_features &= ~NETIF_F_HW_VLAN_RX;
 
 	tp->hw_start = cfg->hw_start;
 	tp->event_slow = cfg->event_slow;
