@@ -186,14 +186,15 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 		/* New Raid map will not set totalSize, so keep expected value
 		 * for legacy code in ValidateMapInfo
 		 */
-		pDrvRaidMap->totalSize = sizeof(struct MR_FW_RAID_MAP_EXT);
+		pDrvRaidMap->totalSize =
+			cpu_to_le32(sizeof(struct MR_FW_RAID_MAP_EXT));
 	} else {
 		fw_map_old = (struct MR_FW_RAID_MAP_ALL *)
 			fusion->ld_map[(instance->map_id & 1)];
 		pFwRaidMap = &fw_map_old->raidMap;
 
 #if VD_EXT_DEBUG
-		for (i = 0; i < pFwRaidMap->ldCount; i++) {
+		for (i = 0; i < le16_to_cpu(pFwRaidMap->ldCount); i++) {
 			dev_dbg(&instance->pdev->dev, "(%d) :Index 0x%x "
 				"Target Id 0x%x Seq Num 0x%x Size 0/%llx\n",
 				instance->unique_id, i,
@@ -205,12 +206,12 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 
 		memset(drv_map, 0, fusion->drv_map_sz);
 		pDrvRaidMap->totalSize = pFwRaidMap->totalSize;
-		pDrvRaidMap->ldCount = pFwRaidMap->ldCount;
+		pDrvRaidMap->ldCount = (__le16)pFwRaidMap->ldCount;
 		pDrvRaidMap->fpPdIoTimeoutSec = pFwRaidMap->fpPdIoTimeoutSec;
 		for (i = 0; i < MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS; i++)
 			pDrvRaidMap->ldTgtIdToLd[i] =
 				(u8)pFwRaidMap->ldTgtIdToLd[i];
-		for (i = 0; i < pDrvRaidMap->ldCount; i++) {
+		for (i = 0; i < le16_to_cpu(pDrvRaidMap->ldCount); i++) {
 			pDrvRaidMap->ldSpanMap[i] = pFwRaidMap->ldSpanMap[i];
 #if VD_EXT_DEBUG
 			dev_dbg(&instance->pdev->dev,
@@ -271,7 +272,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	else
 		expected_size =
 			(sizeof(struct MR_FW_RAID_MAP) - sizeof(struct MR_LD_SPAN_MAP) +
-			(sizeof(struct MR_LD_SPAN_MAP) * le32_to_cpu(pDrvRaidMap->ldCount)));
+			(sizeof(struct MR_LD_SPAN_MAP) * le16_to_cpu(pDrvRaidMap->ldCount)));
 
 	if (le32_to_cpu(pDrvRaidMap->totalSize) != expected_size) {
 		dev_err(&instance->pdev->dev, "map info structure size 0x%x is not matching with ld count\n",
@@ -287,7 +288,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 
 	mr_update_load_balance_params(drv_map, lbInfo);
 
-	num_lds = le32_to_cpu(drv_map->raidMap.ldCount);
+	num_lds = le16_to_cpu(drv_map->raidMap.ldCount);
 
 	/*Convert Raid capability values to CPU arch */
 	for (ldCount = 0; ldCount < num_lds; ldCount++) {
@@ -460,7 +461,7 @@ u32 mr_spanset_get_span_block(struct megasas_instance *instance,
 				quad = &map->raidMap.ldSpanMap[ld].
 					spanBlock[span].
 					block_span_info.quad[info];
-				if (le32_to_cpu(quad->diff == 0))
+				if (le32_to_cpu(quad->diff) == 0)
 					return SPAN_INVALID;
 				if (le64_to_cpu(quad->logStart) <= row  &&
 					row <= le64_to_cpu(quad->logEnd)  &&
@@ -523,7 +524,7 @@ static u64  get_row_from_strip(struct megasas_instance *instance,
 				span_set->span_row_data_width) * span_set->diff;
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
 			if (le32_to_cpu(map->raidMap.ldSpanMap[ld].spanBlock[span].
-				block_span_info.noElements >= info+1)) {
+				block_span_info.noElements) >= info+1) {
 				if (strip_offset >=
 					span_set->strip_offset[span])
 					span_offset++;
