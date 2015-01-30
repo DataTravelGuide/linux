@@ -1701,6 +1701,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jan 30 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.51.1.el6]
+- [infiniband] ipoib: don't queue a work struct up twice (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: make sure we reap all our ah on shutdown (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: cleanup a couple debug messages (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: flush the ipoib_workqueue on unregister (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: fix ipoib_mcast_restart_task (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: fix race between mcast_dev_flush and mcast_join (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: remove unneeded locks (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: don't restart our thread on ENETRESET (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: Handle -ENETRESET properly in our callback (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: make delayed tasks not hold up everything (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: Add a helper to restart the multicast task (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: fix IPOIB_MCAST_RUN flag usage (Doug Ledford) [1187665 1187663 1184072 1159925]
+- [infiniband] ipoib: Remove unnecessary port query (Doug Ledford) [1187665 1187663 1184072 1159925]
+
 * Wed Jan 21 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.50.1.el6]
 - [kernel] ipc, sem: change refcount to atomic_t (Petr Holasek) [1024869 1024265] {CVE-2013-4483}
 - [block] nvme: Clear QUEUE_FLAG_STACKABLE (David Milburn) [1180554 1155715]
