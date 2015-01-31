@@ -2394,8 +2394,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->num_discard_requests = 1;
 	ti->discards_supported = true;
 	ti->discard_zeroes_data_unsupported = true;
-	/* Discard bios must be split on a block boundary */
-	ti->split_discard_requests = true;
+	ti->split_discard_requests = false;
 
 	cache->features = ca->features;
 
@@ -2495,7 +2494,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	cache->discard_block_size =
 		calculate_discard_block_size(cache->sectors_per_block,
 					     cache->origin_sectors);
-	cache->discard_nr_blocks = oblock_to_dblock(cache, cache->origin_blocks);
+	cache->discard_nr_blocks = to_dblock(dm_sector_div_up(cache->origin_sectors,
+							      cache->discard_block_size));
 	cache->discard_bitset = alloc_bitset(from_dblock(cache->discard_nr_blocks));
 	if (!cache->discard_bitset) {
 		*error = "could not allocate discard bitset";
