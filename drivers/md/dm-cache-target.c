@@ -2620,7 +2620,6 @@ static int cache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	int r = -EINVAL;
 	struct cache_args *ca;
 	struct cache *cache = NULL;
-	static bool seen = false;
 
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 	if (!ca) {
@@ -2645,10 +2644,6 @@ static int cache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ti->private = cache;
 
-	if (!seen) {
-		mark_tech_preview("DM cache", THIS_MODULE);
-		seen = true;
-	}
 out:
 	destroy_cache_args(ca);
 	return r;
