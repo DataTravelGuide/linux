@@ -2622,7 +2622,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio,
 		     union map_info *map_context)
 {
 	int r;
-	struct dm_bio_prison_cell *cell;
+	struct dm_bio_prison_cell *cell = NULL;
 	struct cache *cache = ti->private;
 	size_t pb_data_size = get_per_bio_data_size(cache);
 	struct per_bio_data *pb = init_per_bio_data(bio, pb_data_size, cache);
@@ -2630,7 +2630,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio,
 	map_context->ptr = pb;
 
 	r = __cache_map(cache, bio, &cell, pb);
-	if (r == DM_MAPIO_REMAPPED) {
+	if (r == DM_MAPIO_REMAPPED && cell) {
 		inc_ds(cache, bio, cell);
 		cell_defer(cache, cell, false);
 	}
