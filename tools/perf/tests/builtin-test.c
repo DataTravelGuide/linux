@@ -111,6 +111,10 @@ static struct test {
 		.func = test__hists_filter,
 	},
 	{
+		.desc = "Test mmap thread lookup",
+		.func = test__mmap_thread_lookup,
+	},
+	{
 		.func = NULL,
 	},
 };
