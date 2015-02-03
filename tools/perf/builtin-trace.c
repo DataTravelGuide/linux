@@ -174,7 +174,7 @@ out_delete:
 
 static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("syscalls", direction);
+	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
 	if (evsel == NULL)
