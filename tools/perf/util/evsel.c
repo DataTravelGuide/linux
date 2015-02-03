@@ -1024,10 +1024,10 @@ retry_sample_id:
 				pid = threads->map[thread];
 
 			group_fd = get_group_fd(evsel, cpu, thread);
+retry_open:
 			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx\n",
 				  pid, cpus->map[cpu], group_fd, flags);
 
-retry_open:
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
 								     pid,
 								     cpus->map[cpu],
