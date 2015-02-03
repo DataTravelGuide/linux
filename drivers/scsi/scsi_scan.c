@@ -1423,9 +1423,9 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 
 	num_luns = (length / sizeof(struct scsi_lun));
 	if (num_luns > max_scsi_report_luns) {
-		printk(KERN_WARNING "scsi: On %s only %d (max_scsi_report_luns)"
+		printk(KERN_WARNING "scsi: On %s only %d (max_report_luns)"
 		       " of %d luns reported, try increasing"
-		       " max_scsi_report_luns.\n", devname,
+		       " max_report_luns.\n", devname,
 		       max_scsi_report_luns, num_luns);
 		num_luns = max_scsi_report_luns;
 	}
