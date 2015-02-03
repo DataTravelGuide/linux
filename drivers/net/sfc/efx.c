@@ -1615,6 +1615,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 			ethtool_rxfh_indir_default(i, efx->rss_spread);
 
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
+	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 
 	/* Initialise the interrupt moderation settings */
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
