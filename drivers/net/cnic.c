@@ -375,10 +375,8 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 		if (l5_cid >= MAX_CM_SK_TBL_SZ)
 			break;
 
-		rcu_read_lock();
 		if (!rcu_access_pointer(cp->ulp_ops[CNIC_ULP_L4])) {
 			rc = -ENODEV;
-			rcu_read_unlock();
 			break;
 		}
 		csk = &cp->csk_tbl[l5_cid];
@@ -407,7 +405,6 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 			}
 		}
 		csk_put(csk);
-		rcu_read_unlock();
 		rc = 0;
 	}
 	}
@@ -608,7 +605,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
 
 	mutex_lock(&cnic_lock);
-	if (rcu_dereference(cp->ulp_ops[ulp_type])) {
+	if (rcu_access_pointer(cp->ulp_ops[ulp_type])) {
 		rcu_assign_pointer(cp->ulp_ops[ulp_type], NULL);
 		cnic_put(dev);
 	} else {
