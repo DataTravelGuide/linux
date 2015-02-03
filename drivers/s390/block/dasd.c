@@ -2240,6 +2240,12 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 		rc = maincqr->intrc;
 	else
 		rc = -EIO;
+
+	/* kick tasklets */
+	dasd_schedule_device_bh(device);
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
+
 	return rc;
 }
 
