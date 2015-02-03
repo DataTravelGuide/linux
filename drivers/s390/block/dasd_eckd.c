@@ -2089,11 +2089,12 @@ dasd_eckd_fill_geometry(struct dasd_block *block, struct hd_geometry *geo)
 
 static struct dasd_ccw_req *
 dasd_eckd_build_format(struct dasd_device *base,
-		       struct format_data_t *fdata)
+		       struct format_data_t *fdata,
+		       int enable_PAV)
 {
 	struct dasd_eckd_private *base_priv;
 	struct dasd_eckd_private *start_priv;
-	struct dasd_device *startdev;
+	struct dasd_device *startdev = NULL;
 	struct dasd_ccw_req *fcp;
 	struct eckd_count *ect;
 	struct ch_t address;
@@ -2107,7 +2108,9 @@ dasd_eckd_build_format(struct dasd_device *base,
 	int nr_tracks;
 	int use_prefix;
 
-	startdev = dasd_alias_get_start_dev(base);
+	if (enable_PAV)
+		startdev = dasd_alias_get_start_dev(base);
+
 	if (!startdev)
 		startdev = base;
 
@@ -2335,6 +2338,7 @@ dasd_eckd_build_format(struct dasd_device *base,
 
 	fcp->startdev = startdev;
 	fcp->memdev = startdev;
+	fcp->basedev = base;
 	fcp->retries = 256;
 	fcp->expires = startdev->default_expires * HZ;
 	fcp->buildclk = get_clock();
@@ -2345,7 +2349,8 @@ dasd_eckd_build_format(struct dasd_device *base,
 
 static int
 dasd_eckd_format_device(struct dasd_device *base,
-			struct format_data_t *fdata)
+			struct format_data_t *fdata,
+			int enable_PAV)
 {
 	struct dasd_ccw_req *cqr, *n;
 	struct dasd_block *block;
@@ -2353,7 +2358,7 @@ dasd_eckd_format_device(struct dasd_device *base,
 	struct list_head format_queue;
 	struct dasd_device *device;
 	int old_stop, format_step;
-	int step, rc = 0;
+	int step, rc = 0, sleep_rc;
 
 	block = base->block;
 	private = (struct dasd_eckd_private *) base->private;
@@ -2387,11 +2392,11 @@ dasd_eckd_format_device(struct dasd_device *base,
 	}
 
 	INIT_LIST_HEAD(&format_queue);
-	old_stop = fdata->stop_unit;
 
+	old_stop = fdata->stop_unit;
 	while (fdata->start_unit <= 1) {
 		fdata->stop_unit = fdata->start_unit;
-		cqr = dasd_eckd_build_format(base, fdata);
+		cqr = dasd_eckd_build_format(base, fdata, enable_PAV);
 		list_add(&cqr->blocklist, &format_queue);
 
 		fdata->stop_unit = old_stop;
@@ -2409,7 +2414,7 @@ retry:
 		if (step > format_step)
 			fdata->stop_unit = fdata->start_unit + format_step - 1;
 
-		cqr = dasd_eckd_build_format(base, fdata);
+		cqr = dasd_eckd_build_format(base, fdata, enable_PAV);
 		if (IS_ERR(cqr)) {
 			if (PTR_ERR(cqr) == -ENOMEM) {
 				/*
@@ -2429,7 +2434,7 @@ retry:
 	}
 
 sleep:
-	dasd_sleep_on_queue(&format_queue);
+	sleep_rc = dasd_sleep_on_queue(&format_queue);
 
 	list_for_each_entry_safe(cqr, n, &format_queue, blocklist) {
 		device = cqr->startdev;
@@ -2440,6 +2445,9 @@ sleep:
 		dasd_sfree_request(cqr, device);
 		private->count--;
 	}
+
+	if (sleep_rc)
+		return sleep_rc;
 
 	/*
 	 * in case of ENOMEM we need to retry after
