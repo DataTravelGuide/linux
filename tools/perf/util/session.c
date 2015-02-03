@@ -705,7 +705,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	}
 }
 
-__maybe_unused static void regs_user__printf(struct perf_sample *sample, u64 mask)
+static void regs_user__printf(struct perf_sample *sample, u64 mask)
 {
 	struct regs_dump *user_regs = &sample->user_regs;
 
@@ -715,7 +715,7 @@ __maybe_unused static void regs_user__printf(struct perf_sample *sample, u64 mas
 	}
 }
 
-__maybe_unused static void stack_user__printf(struct stack_dump *dump)
+static void stack_user__printf(struct stack_dump *dump)
 {
 	printf("... ustack: size %" PRIu64 ", offset 0x%x\n",
 	       dump->size, dump->offset);
