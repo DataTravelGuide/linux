@@ -51,6 +51,18 @@ static int show_warning = 1;
 			warning(fmt, ##__VA_ARGS__);	\
 	} while (0)
 
+#define do_warning_event(event, fmt, ...)			\
+	do {							\
+		if (!show_warning)				\
+			continue;				\
+								\
+		if (event)					\
+			warning("[%s:%s] " fmt, event->system,	\
+				event->name, ##__VA_ARGS__);	\
+		else						\
+			warning(fmt, ##__VA_ARGS__);		\
+	} while (0)
+
 static void init_input_buf(const char *buf, unsigned long long size)
 {
 	input_buf = buf;
@@ -1356,7 +1368,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		}
 
 		if (!field->type) {
-			do_warning("%s: no type found", __func__);
+			do_warning_event(event, "%s: no type found", __func__);
 			goto fail;
 		}
 		field->name = last_token;
@@ -1403,7 +1415,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				free_token(token);
 				type = read_token(&token);
 				if (type == EVENT_NONE) {
-					do_warning("failed to find token");
+					do_warning_event(event, "failed to find token");
 					goto fail;
 				}
 			}
@@ -1636,7 +1648,7 @@ process_cond(struct event_format *event, struct print_arg *top, char **tok)
 	right = alloc_arg();
 
 	if (!arg || !left || !right) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		/* arg will be freed at out_free */
 		free_arg(left);
 		free_arg(right);
@@ -1686,7 +1698,7 @@ process_array(struct event_format *event, struct print_arg *top, char **tok)
 
 	arg = alloc_arg();
 	if (!arg) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		/* '*tok' is set to top->op.op.  No need to free. */
 		*tok = NULL;
 		return EVENT_ERROR;
@@ -1792,7 +1804,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	if (arg->type == PRINT_OP && !arg->op.left) {
 		/* handle single op */
 		if (token[1]) {
-			do_warning("bad op token %s", token);
+			do_warning_event(event, "bad op token %s", token);
 			goto out_free;
 		}
 		switch (token[0]) {
@@ -1802,7 +1814,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		case '-':
 			break;
 		default:
-			do_warning("bad op token %s", token);
+			do_warning_event(event, "bad op token %s", token);
 			goto out_free;
 
 		}
@@ -1886,7 +1898,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 			char *new_atom;
 
 			if (left->type != PRINT_ATOM) {
-				do_warning("bad pointer type");
+				do_warning_event(event, "bad pointer type");
 				goto out_free;
 			}
 			new_atom = realloc(left->atom.atom,
@@ -1928,7 +1940,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		type = process_array(event, arg, tok);
 
 	} else {
-		do_warning("unknown op '%s'", token);
+		do_warning_event(event, "unknown op '%s'", token);
 		event->flags |= EVENT_FL_FAILED;
 		/* the arg is now the left side */
 		goto out_free;
@@ -1949,7 +1961,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 	return type;
 
 out_warn_free:
-	do_warning("%s: not enough memory!", __func__);
+	do_warning_event(event, "%s: not enough memory!", __func__);
 out_free:
 	free_token(token);
 	*tok = NULL;
@@ -2383,7 +2395,7 @@ process_flags(struct event_format *event, struct print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		goto out_free;
 	}
 
@@ -2436,7 +2448,7 @@ process_symbols(struct event_format *event, struct print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		goto out_free;
 	}
 
@@ -2475,7 +2487,7 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		goto out_free;
 	}
 
@@ -2490,7 +2502,7 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		*tok = NULL;
 		return EVENT_ERROR;
 	}
@@ -2553,7 +2565,7 @@ process_dynamic_array(struct event_format *event, struct print_arg *arg, char **
 	free_token(token);
 	arg = alloc_arg();
 	if (!arg) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: not enough memory!", __func__);
 		*tok = NULL;
 		return EVENT_ERROR;
 	}
@@ -2612,13 +2624,14 @@ process_paren(struct event_format *event, struct print_arg *arg, char **tok)
 
 		/* prevous must be an atom */
 		if (arg->type != PRINT_ATOM) {
-			do_warning("previous needed to be PRINT_ATOM");
+			do_warning_event(event, "previous needed to be PRINT_ATOM");
 			goto out_free;
 		}
 
 		item_arg = alloc_arg();
 		if (!item_arg) {
-			do_warning("%s: not enough memory!", __func__);
+			do_warning_event(event, "%s: not enough memory!",
+					 __func__);
 			goto out_free;
 		}
 
@@ -2719,7 +2732,8 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	for (i = 0; i < func->nr_args; i++) {
 		farg = alloc_arg();
 		if (!farg) {
-			do_warning("%s: not enough memory!", __func__);
+			do_warning_event(event, "%s: not enough memory!",
+					 __func__);
 			return EVENT_ERROR;
 		}
 
@@ -2790,7 +2804,7 @@ process_function(struct event_format *event, struct print_arg *arg,
 		return process_func_handler(event, func, arg, tok);
 	}
 
-	do_warning("function %s not defined", token);
+	do_warning_event(event, "function %s not defined", token);
 	free_token(token);
 	return EVENT_ERROR;
 }
@@ -2876,7 +2890,7 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 
 	case EVENT_ERROR ... EVENT_NEWLINE:
 	default:
-		do_warning("unexpected type %d", type);
+		do_warning_event(event, "unexpected type %d", type);
 		return EVENT_ERROR;
 	}
 	*tok = token;
@@ -2899,7 +2913,8 @@ static int event_read_print_args(struct event_format *event, struct print_arg **
 
 		arg = alloc_arg();
 		if (!arg) {
-			do_warning("%s: not enough memory!", __func__);
+			do_warning_event(event, "%s: not enough memory!",
+					 __func__);
 			return -1;
 		}
 
@@ -3479,11 +3494,12 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 	return val;
 
 out_warning_op:
-	do_warning("%s: unknown op '%s'", __func__, arg->op.op);
+	do_warning_event(event, "%s: unknown op '%s'", __func__, arg->op.op);
 	return 0;
 
 out_warning_field:
-	do_warning("%s: field %s not found", __func__, arg->field.name);
+	do_warning_event(event, "%s: field %s not found",
+			 __func__, arg->field.name);
 	return 0;
 }
 
@@ -3589,7 +3605,8 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		}
 		str = malloc(len + 1);
 		if (!str) {
-			do_warning("%s: not enough memory!", __func__);
+			do_warning_event(event, "%s: not enough memory!",
+					 __func__);
 			return;
 		}
 		memcpy(str, data + field->offset, len);
@@ -3695,7 +3712,8 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	return;
 
 out_warning_field:
-	do_warning("%s: field %s not found", __func__, arg->field.name);
+	do_warning_event(event, "%s: field %s not found",
+			 __func__, arg->field.name);
 }
 
 static unsigned long long
@@ -3740,14 +3758,16 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			trace_seq_terminate(&str);
 			string = malloc(sizeof(*string));
 			if (!string) {
-				do_warning("%s(%d): malloc str", __func__, __LINE__);
+				do_warning_event(event, "%s(%d): malloc str",
+						 __func__, __LINE__);
 				goto out_free;
 			}
 			string->next = strings;
 			string->str = strdup(str.buffer);
 			if (!string->str) {
 				free(string);
-				do_warning("%s(%d): malloc str", __func__, __LINE__);
+				do_warning_event(event, "%s(%d): malloc str",
+						 __func__, __LINE__);
 				goto out_free;
 			}
 			args[i] = (uintptr_t)string->str;
@@ -3759,7 +3779,7 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			 * Something went totally wrong, this is not
 			 * an input error, something in this code broke.
 			 */
-			do_warning("Unexpected end of arguments\n");
+			do_warning_event(event, "Unexpected end of arguments\n");
 			goto out_free;
 		}
 		farg = farg->next;
@@ -3809,12 +3829,12 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	if (!field) {
 		field = pevent_find_field(event, "buf");
 		if (!field) {
-			do_warning("can't find buffer field for binary printk");
+			do_warning_event(event, "can't find buffer field for binary printk");
 			return NULL;
 		}
 		ip_field = pevent_find_field(event, "ip");
 		if (!ip_field) {
-			do_warning("can't find ip field for binary printk");
+			do_warning_event(event, "can't find ip field for binary printk");
 			return NULL;
 		}
 		pevent->bprint_buf_field = field;
@@ -3828,7 +3848,8 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 	 */
 	args = alloc_arg();
 	if (!args) {
-		do_warning("%s(%d): not enough memory!", __func__, __LINE__);
+		do_warning_event(event, "%s(%d): not enough memory!",
+				 __func__, __LINE__);
 		return NULL;
 	}
 	arg = args;
@@ -3894,7 +3915,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				bptr += vsize;
 				arg = alloc_arg();
 				if (!arg) {
-					do_warning("%s(%d): not enough memory!",
+					do_warning_event(event, "%s(%d): not enough memory!",
 						   __func__, __LINE__);
 					goto out_free;
 				}
@@ -3917,7 +3938,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 			case 's':
 				arg = alloc_arg();
 				if (!arg) {
-					do_warning("%s(%d): not enough memory!",
+					do_warning_event(event, "%s(%d): not enough memory!",
 						   __func__, __LINE__);
 					goto out_free;
 				}
@@ -3957,7 +3978,7 @@ get_bprint_format(void *data, int size __maybe_unused,
 	if (!field) {
 		field = pevent_find_field(event, "fmt");
 		if (!field) {
-			do_warning("can't find format field for binary printk");
+			do_warning_event(event, "can't find format field for binary printk");
 			return NULL;
 		}
 		pevent->bprint_fmt_field = field;
@@ -4001,8 +4022,8 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 		arg->field.field =
 			pevent_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
-			do_warning("%s: field %s not found",
-				   __func__, arg->field.name);
+			do_warning_event(event, "%s: field %s not found",
+					 __func__, arg->field.name);
 			return;
 		}
 	}
@@ -4173,7 +4194,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case '*':
 				/* The argument is the length. */
 				if (!arg) {
-					do_warning("no argument match");
+					do_warning_event(event, "no argument match");
 					event->flags |= EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -4210,7 +4231,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 			case 'X':
 			case 'u':
 				if (!arg) {
-					do_warning("no argument match");
+					do_warning_event(event, "no argument match");
 					event->flags |= EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -4220,7 +4241,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 
 				/* should never happen */
 				if (len > 31) {
-					do_warning("bad format!");
+					do_warning_event(event, "bad format!");
 					event->flags |= EVENT_FL_FAILED;
 					len = 31;
 				}
@@ -4287,13 +4308,13 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						trace_seq_printf(s, format, (long long)val);
 					break;
 				default:
-					do_warning("bad count (%d)", ls);
+					do_warning_event(event, "bad count (%d)", ls);
 					event->flags |= EVENT_FL_FAILED;
 				}
 				break;
 			case 's':
 				if (!arg) {
-					do_warning("no matching argument");
+					do_warning_event(event, "no matching argument");
 					event->flags |= EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -4303,7 +4324,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 
 				/* should never happen */
 				if (len > 31) {
-					do_warning("bad format!");
+					do_warning_event(event, "bad format!");
 					event->flags |= EVENT_FL_FAILED;
 					len = 31;
 				}
