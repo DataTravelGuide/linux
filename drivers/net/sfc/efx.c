@@ -2154,6 +2154,17 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 	/* Otherwise efx_start_port() will do this */
 }
 
+static int efx_set_features(struct net_device *net_dev, u32 data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	/* If disabling RX n-tuple filtering, clear existing filters */
+	if (net_dev->features & ~data & NETIF_F_NTUPLE)
+		return efx->type->filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
+
+	return 0;
+}
+
 static const struct net_device_ops efx_farch_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
@@ -2177,6 +2188,7 @@ static const struct net_device_ops efx_farch_netdev_ops = {
 static const struct net_device_ops_ext efx_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= efx_net_stats,
+	.ndo_set_features	= efx_set_features,
 };
 
 static const struct net_device_ops efx_ef10_netdev_ops = {
@@ -2664,7 +2676,6 @@ static int efx_init_struct(struct efx_nic *efx,
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
-	efx->rx_checksum_enabled = true;
 	efx->rx_prefix_size = efx->type->rx_prefix_size;
 	efx->rx_ip_align =
 		EFX_PAGE_IP_ALIGN ? (efx->rx_prefix_size + EFX_PAGE_IP_ALIGN) % 4 : 0;
@@ -2927,12 +2938,15 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	efx->type = (const struct efx_nic_type *) entry->driver_data;
 	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
 			      NETIF_F_HIGHDMA | NETIF_F_TSO |
-			      NETIF_F_GRO);
+			      NETIF_F_RXCSUM);
 	if (efx->type->offload_features & NETIF_F_V6_CSUM)
 		net_dev->features |= NETIF_F_TSO6;
 	/* Mask for features that also apply to VLAN devices */
 	net_dev->vlan_features |= (NETIF_F_ALL_CSUM | NETIF_F_SG |
-				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO);
+				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
+				   NETIF_F_RXCSUM);
+	/* All offloads can be toggled */
+	netdev_extended(net_dev)->hw_features = net_dev->features & ~NETIF_F_HIGHDMA;
 	efx = netdev_priv(net_dev);
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);

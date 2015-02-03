@@ -659,7 +659,7 @@ void __efx_rx_packet(struct efx_channel *channel)
 		goto out;
 	}
 
-	if (unlikely(!efx->rx_checksum_enabled))
+	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
 	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
