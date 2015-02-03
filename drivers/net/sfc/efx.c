@@ -1316,7 +1316,7 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	/* If RSS is requested for the PF *and* VFs then we can't write RSS
 	 * table entries that are inaccessible to VFs
 	 */
-	if (efx_siena_sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
+	if (efx->type->sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
 	    count > efx_vf_size(efx)) {
 		netif_warn(efx, probe, efx->net_dev,
 			   "Reducing number of RSS channels from %u to %u for "
@@ -1428,8 +1428,9 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* RSS might be usable on VFs even if it is disabled on the PF */
+
 	efx->rss_spread = ((efx->n_rx_channels > 1 ||
-			    !efx_siena_sriov_wanted(efx)) ?
+			    !efx->type->sriov_wanted(efx)) ?
 			   efx->n_rx_channels : efx_vf_size(efx));
 
 	return 0;
@@ -2178,7 +2179,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	}
 
 	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);
-	efx_siena_sriov_mac_address_changed(efx);
+	efx->type->sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
@@ -2441,7 +2442,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (rc)
 		goto fail;
 	efx_restore_filters(efx);
-	efx_siena_sriov_reset(efx);
+	efx->type->sriov_reset(efx);
 
 	mutex_unlock(&efx->mac_lock);
 
@@ -2834,7 +2835,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_disable_interrupts(efx);
 	rtnl_unlock();
 
-	efx_siena_sriov_fini(efx);
+	efx->type->sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -3032,7 +3033,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto fail4;
 
-	rc = efx_siena_sriov_init(efx);
+	rc = efx->type->sriov_init(efx);
 	if (rc)
 		netif_err(efx, probe, efx->net_dev,
 			  "SR-IOV can't be enabled rc %d\n", rc);
