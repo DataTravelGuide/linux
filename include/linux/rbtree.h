@@ -132,9 +132,11 @@ static inline void rb_set_color(struct rb_node *rb, int color)
 #define RB_ROOT	(struct rb_root) { NULL, }
 #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
 
-#define RB_EMPTY_ROOT(root)	((root)->rb_node == NULL)
-#define RB_EMPTY_NODE(node)	(rb_parent(node) == node)
-#define RB_CLEAR_NODE(node)	(rb_set_parent(node, node))
+#define RB_EMPTY_ROOT(root)  ((root)->rb_node == NULL)
+
+/* 'empty' nodes are nodes that are known not to be inserted in an rbree */
+#define RB_EMPTY_NODE(node)  ((node)->rb_parent_color == (unsigned long)(node))
+#define RB_CLEAR_NODE(node)  ((node)->rb_parent_color = (unsigned long)(node))
 
 static inline void rb_init_node(struct rb_node *rb)
 {
