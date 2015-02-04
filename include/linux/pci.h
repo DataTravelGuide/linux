@@ -331,6 +331,7 @@ struct pci_dev_rh1 {
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
 						   decoding during bar sizing */
+	unsigned int	ignore_hotplug:1;	/* Ignore hotplug events */
 	u16		pcie_flags_reg;	/* cached PCI-E Capabilities Register */
 };
 
@@ -928,6 +929,12 @@ enum pci_obff_signal_type {
 };
 int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
 void pci_disable_obff(struct pci_dev *dev);
+
+static inline void pci_ignore_hotplug(struct pci_dev *dev)
+{
+	struct pci_dev_rh1 *rdev = dev->rh_reserved1;
+	rdev->ignore_hotplug = 1;
+}
 
 bool pci_ltr_supported(struct pci_dev *dev);
 int pci_enable_ltr(struct pci_dev *dev);
