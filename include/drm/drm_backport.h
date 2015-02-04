@@ -227,6 +227,91 @@ do {									\
 	__ret;								\
 })
 
+/**
+ * reinit_completion - reinitialize a completion structure
+ * @x:  pointer to completion structure that is to be reinitialized
+ *
+ * This inline function should be used to reinitialize a completion structure so it can
+ * be reused. This is especially important after complete_all() is used.
+ */
+static inline void reinit_completion(struct completion *x)
+{
+	x->done = 0;
+}
+
+/**
+ * list_last_entry - get the last element from a list
+ * @ptr:	the list head to take the element from.
+ * @type:	the type of the struct this is embedded in.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * Note, that list is expected to be not empty.
+ */
+#define list_last_entry(ptr, type, member) \
+	list_entry((ptr)->prev, type, member)
+
+#define module_param_named_unsafe(name, value, type, perm)		\
+	module_param_named(name, value, type, perm)
+
+static inline u64 ktime_get_raw_ns(void)
+{
+	struct timespec now;
+	getrawmonotonic(&now);
+	return timespec_to_ns(&now);
+}
+
+/**
+ * ktime_mono_to_real - Convert monotonic time to clock realtime
+ */
+static inline ktime_t ktime_mono_to_real(ktime_t mono)
+{
+	return ktime_sub(mono, ktime_get_monotonic_offset());
+}
+
+static inline unsigned long vm_mmap(struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long offset)
+{
+	unsigned long ret;
+	down_write(&current->mm->mmap_sem);
+	ret = do_mmap(file, addr, len, prot, flag, offset);
+	up_write(&current->mm->mmap_sem);
+	return ret;
+}
+
+static inline int kref_put_mutex(struct kref *kref,
+				 void (*release)(struct kref *kref),
+				 struct mutex *lock)
+{
+	WARN_ON(release == NULL);
+	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
+		mutex_lock(lock);
+		if (unlikely(!atomic_dec_and_test(&kref->refcount))) {
+			mutex_unlock(lock);
+			return 0;
+		}
+		release(kref);
+		return 1;
+	}
+	return 0;
+}
+
+
+typedef struct {
+	uid_t val;
+} kuid_t;
+
+static inline uid_t from_kuid_munged(struct user_namespace *targ, kuid_t kuid)
+{
+	return kuid.val;
+}
+
+static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
+{
+	return NULL;
+}
+
+static const char power_group_name[] = "power";
 
 #include <linux/mm.h>
 
@@ -294,6 +379,37 @@ struct shrinker2 {
 };
 void register_shrinker2(struct shrinker2 *shrinker);
 void unregister_shrinker2(struct shrinker2 *shrinker);
+
+extern struct workqueue_struct *system_wq;
+extern struct workqueue_struct *system_long_wq;
+extern struct workqueue_struct *system_power_efficient_wq;
+
+#define VM_DONTDUMP VM_RESERVED   /* not entirely true, but works for drm usages */
+
+static inline void pm_runtime_mark_last_busy(struct device *dev) {}
+static inline void pm_runtime_set_autosuspend_delay(struct device *dev, int delay) {}
+static inline void pm_runtime_use_autosuspend(struct device *dev) {}
+static inline int pm_runtime_put_autosuspend(struct device *dev) { return 0; }
+static inline int pm_runtime_autosuspend(struct device *dev) { return 0; }
+
+struct dev_pm_domain {
+	struct dev_pm_ops	ops;
+	void (*detach)(struct device *dev, bool power_off);
+};
+
+#include <linux/vga_switcheroo.h>
+static inline void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev, enum vga_switcheroo_state dynamic) {}
+static inline int vga_switcheroo_init_domain_pm_ops(struct device *dev, struct dev_pm_domain *domain) { return 0; }
+static inline void vga_switcheroo_fini_domain_pm_ops(struct device *dev) {}
+
+
+static inline unsigned long get_num_physpages(void)
+{
+	return num_physpages;
+}
+
+char *simple_dname(struct dentry *dentry, char *buffer, int buflen);
+struct inode *alloc_anon_inode(struct super_block *mnt_sb);
 
 
 int __init drm_backport_init(void);
