@@ -6,6 +6,7 @@ ccflags-y := -Iinclude/drm
 ccflags-y += -I$(src)/core/include
 ccflags-y += -I$(src)/core
 ccflags-y += -I$(src)
+ccflags-y += -include drm/drm_backport.h
 
 nouveau-y := core/core/client.o
 nouveau-y += core/core/engctx.o

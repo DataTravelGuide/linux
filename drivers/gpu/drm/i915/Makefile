@@ -3,6 +3,7 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y := -Iinclude/drm
+ccflags-y += -include drm/drm_backport.h
 i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  i915_gpu_error.o \
           i915_suspend.o \
