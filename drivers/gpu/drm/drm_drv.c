@@ -182,6 +182,10 @@ static int __init drm_core_init(void)
 {
 	int ret = -ENOMEM;
 
+	ret = drm_backport_init();
+	if (ret)
+		goto err_p1;
+
 	drm_global_init();
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
@@ -225,6 +229,7 @@ static void __exit drm_core_exit(void)
 
 	drm_connector_ida_destroy();
 	idr_destroy(&drm_minors_idr);
+	drm_backport_exit();
 }
 
 module_init(drm_core_init);

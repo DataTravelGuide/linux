@@ -15,6 +15,8 @@ drm-y       :=	drm_auth.o drm_buffer.o drm_bufs.o drm_cache.o \
 		drm_trace_points.o drm_global.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o
 
+drm-y += idr2.o drm_backport.o
+
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_PCI) += ati_pcigart.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o

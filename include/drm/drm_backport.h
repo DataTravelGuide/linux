@@ -227,6 +227,8 @@ do {									\
 	__ret;								\
 })
 
+int __init drm_backport_init(void);
+void __exit drm_backport_exit(void);
 
 #endif /* DRM_BACKPORT_H_ */
 
