@@ -6,6 +6,9 @@ NAME = Man-Eating Seals of Antiquity
 RHEL_MAJOR = 6
 RHEL_MINOR = 7
 RHEL_RELEASE = 529
+RHEL_DRM_VERSION = 3
+RHEL_DRM_PATCHLEVEL = 14
+RHEL_DRM_SUBLEVEL = 2
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
