@@ -9,6 +9,46 @@
 #include <drm/drm_backport.h>
 #include <drm/idr2.h>
 
+
+/*
+ * shrinker
+ */
+
+#undef shrinker
+#undef register_shrinker
+#undef unregister_shrinker
+
+static int shrinker2_shrink(struct shrinker *shrinker, int nr_to_scan, gfp_t gfp_mask)
+{
+	struct shrinker2 *s2 = container_of(shrinker, struct shrinker2, compat);
+	struct shrink_control sc = {
+			.nr_to_scan = nr_to_scan,
+			.gfp_mask = gfp_mask,
+	};
+	int count;
+
+	s2->scan_objects(s2, &sc);
+	count = s2->count_objects(s2, &sc);
+	shrinker->seeks = s2->seeks;
+
+	return count;
+}
+
+void register_shrinker2(struct shrinker2 *s2)
+{
+	s2->compat.shrink = shrinker2_shrink;
+	s2->compat.seeks = s2->seeks;
+	register_shrinker(&s2->compat);
+}
+EXPORT_SYMBOL(register_shrinker2);
+
+void unregister_shrinker2(struct shrinker2 *s2)
+{
+	unregister_shrinker(&s2->compat);
+}
+EXPORT_SYMBOL(unregister_shrinker2);
+
+
 int __init drm_backport_init(void)
 {
 	idr2_init_cache();
