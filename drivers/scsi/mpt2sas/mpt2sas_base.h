@@ -674,7 +674,7 @@ typedef void (*MPT2SAS_FLUSH_RUNNING_CMDS)(struct MPT2SAS_ADAPTER *ioc);
  * @shost_recovery: host reset in progress
  * @ioc_reset_in_progress_lock:
  * @ioc_link_reset_in_progress: phy/hard reset in progress
- * @ignore_loginfos: ignore loginfos during task managment
+ * @ignore_loginfos: ignore loginfos during task management
  * @remove_host: flag for when driver unloads, to avoid sending dev resets
  * @pci_error_recovery: flag to prevent ioc access until slot reset completes
  * @wait_for_discovery_to_complete: flag set at driver load time when
