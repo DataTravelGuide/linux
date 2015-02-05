@@ -1096,7 +1096,7 @@ _transport_get_expander_phy_error_log(struct MPT2SAS_ADAPTER *ioc,
 	u32 sz;
 	u16 wait_state_count;
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;
@@ -1922,7 +1922,6 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		    "missing\n", ioc->name, __func__);
 		return -EINVAL;
 	}
-
 	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);

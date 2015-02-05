@@ -129,7 +129,7 @@ static int mpt2sas_remove_dead_ioc_func(void *arg)
 		pdev = ioc->pdev;
 		if ((pdev == NULL))
 			return -1;
-		pci_stop_and_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device_locked(pdev);
 		return 0;
 }
 
@@ -1013,6 +1013,7 @@ _base_interrupt(int irq, void *bus_id)
 	atomic_dec(&reply_q->busy);
 	return IRQ_HANDLED;
 }
+
 /**
  * _base_is_controller_msix_enabled - is controller support muli-reply queues
  * @ioc: per adapter object
@@ -1056,6 +1057,7 @@ mpt2sas_base_flush_reply_queues(struct MPT2SAS_ADAPTER *ioc)
 		_base_interrupt(reply_q->vector, (void *)reply_q);
 	}
 }
+
 /**
  * mpt2sas_base_release_callback_handler - clear interrupt callback handler
  * @cb_idx: callback index
@@ -1278,9 +1280,9 @@ _base_free_irq(struct MPT2SAS_ADAPTER *ioc)
 /**
  * _base_request_irq - request irq
  * @ioc: per adapter object
- *
  * @index: msix index into vector table
  * @vector: irq vector
+ *
  * Inserting respective reply_queue into the list.
  */
 static int
@@ -1334,7 +1336,7 @@ _base_assign_reply_queues(struct MPT2SAS_ADAPTER *ioc)
 	struct adapter_reply_queue *reply_q;
 	int cpu_id;
 	int cpu_grouping, loop, grouping, grouping_mod;
- 
+
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
 
@@ -1378,7 +1380,7 @@ _base_assign_reply_queues(struct MPT2SAS_ADAPTER *ioc)
 			}
 		}
 	}
-}	
+}
 
 /**
  * _base_disable_msix - disables msix
@@ -4443,8 +4445,8 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->ctl_cmds.reply = NULL;
 	ioc->base_cmds.reply = NULL;
 	ioc->tm_cmds.reply = NULL;
-	ioc->transport_cmds.reply = NULL;
 	ioc->scsih_cmds.reply = NULL;
+	ioc->transport_cmds.reply = NULL;
 	ioc->config_cmds.reply = NULL;
 	ioc->pfacts = NULL;
 	return r;

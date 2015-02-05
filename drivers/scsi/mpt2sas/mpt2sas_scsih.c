@@ -3116,7 +3116,7 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	u16 smid;
 	struct _sas_device *sas_device;
 	struct MPT2SAS_TARGET *sas_target_priv_data = NULL;
-	u64 sas_address;
+	u64 sas_address = 0;
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
 	u32 ioc_state;
@@ -3209,7 +3209,6 @@ _scsih_sas_control_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 {
 	Mpi2SasIoUnitControlReply_t *mpi_reply =
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
-
 	if (likely(mpi_reply)) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
 		"sc_complete:handle(0x%04x), (open) "
@@ -3241,7 +3240,8 @@ _scsih_tm_tr_volume_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	u16 smid;
 	struct _tr_list *delayed_tr;
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return;
@@ -3292,7 +3292,8 @@ _scsih_tm_volume_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 	Mpi2SCSITaskManagementReply_t *mpi_reply =
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return 1;
@@ -5813,10 +5814,9 @@ _scsih_sas_broadcast_primitive_event(struct MPT2SAS_ADAPTER *ioc,
 	u16 ioc_status;
 	unsigned long flags;
 	int r;
-
 	u8 max_retries = 0;
 	u8 task_abort_retries;
- 
+
 	mutex_lock(&ioc->tm_cmds.mutex);
 	pr_info(MPT2SAS_FMT
 		"%s: enter: phy number(%d), width(%d)\n",
