@@ -24,6 +24,32 @@
 #include <linux/errno.h>
 #include <sound/core.h>
 
+static const int _snd_device_weight[] = {
+	SNDRV_DEV_LOWLEVEL,
+	SNDRV_DEV_CONTROL,
+	SNDRV_DEV_INFO,
+	SNDRV_DEV_BUS,
+	SNDRV_DEV_CODEC,
+	SNDRV_DEV_PCM,
+	SNDRV_DEV_RAWMIDI,
+	SNDRV_DEV_TIMER,
+	SNDRV_DEV_SEQUENCER,
+	SNDRV_DEV_HWDEP,
+	SNDRV_DEV_JACK,
+	-1
+};
+
+static int snd_device_weight(int type)
+{
+	const int *w;
+	int r = 0;
+
+	for (w = _snd_device_weight; *w >= 0; w++, r++)
+		if (*w == type)
+			return r;
+	return r;
+}
+
 /**
  * snd_device_new - create an ALSA device component
  * @card: the card instance
@@ -44,6 +70,8 @@ int snd_device_new(struct snd_card *card, snd_device_type_t type,
 		   void *device_data, struct snd_device_ops *ops)
 {
 	struct snd_device *dev;
+	struct list_head *p;
+	int weight = snd_device_weight(type);
 
 	if (snd_BUG_ON(!card || !device_data || !ops))
 		return -ENXIO;
@@ -52,12 +80,20 @@ int snd_device_new(struct snd_card *card, snd_device_type_t type,
 		dev_err(card->dev, "Cannot allocate device, type=%d\n", type);
 		return -ENOMEM;
 	}
+	INIT_LIST_HEAD(&dev->list);
 	dev->card = card;
 	dev->type = type;
 	dev->state = SNDRV_DEV_BUILD;
 	dev->device_data = device_data;
 	dev->ops = ops;
-	list_add(&dev->list, &card->devices);	/* add to the head of list */
+
+	/* insert the entry in an incrementally sorted list */
+	list_for_each_prev(p, &card->devices) {
+		struct snd_device *pdev = list_entry(p, struct snd_device, list);
+		if (snd_device_weight(pdev->type) <= weight)
+			break;
+	}
+	list_add(&dev->list, p);
 	return 0;
 }
 
@@ -224,7 +260,7 @@ int snd_device_disconnect_all(struct snd_card *card)
  */
 int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd)
 {
-	struct snd_device *dev;
+	struct snd_device *dev, *next;
 	int err;
 	unsigned int range_low, range_high, type;
 
@@ -232,13 +268,11 @@ int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd)
 		return -ENXIO;
 	range_low = (__force unsigned int)cmd * SNDRV_DEV_TYPE_RANGE_SIZE;
 	range_high = range_low + SNDRV_DEV_TYPE_RANGE_SIZE - 1;
-      __again:
-	list_for_each_entry(dev, &card->devices, list) {
+	list_for_each_entry_safe_reverse(dev, next, &card->devices, list) {
 		type = (__force unsigned int)dev->type;
 		if (type >= range_low && type <= range_high) {
 			if ((err = snd_device_free(card, dev->device_data)) < 0)
 				return err;
-			goto __again;
 		}
 	}
 	return 0;
