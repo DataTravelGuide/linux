@@ -865,6 +865,10 @@ static int azx_runtime_suspend(struct device *dev)
 	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
 		return 0;
 
+	/* enable controller wake up event */
+	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) |
+		  STATESTS_INT_MASK);
+
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
@@ -879,6 +883,9 @@ static int azx_runtime_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hda_bus *bus;
+	struct hda_codec *codec;
+	int status;
 
 	if (!card)
 		return 0;
@@ -898,6 +905,25 @@ static int azx_runtime_resume(struct device *dev)
 
 	azx_init_pci(chip);
 	azx_init_chip(chip, true);
+
+	/* Read STATESTS before controller reset */
+	status = azx_readw(chip, STATESTS);
+
+	azx_init_pci(chip);
+	azx_init_chip(chip, true);
+
+	bus = chip->bus;
+	if (status && bus) {
+		list_for_each_entry(codec, &bus->codec_list, list)
+			if (status & (1 << codec->addr))
+				queue_delayed_work(codec->bus->workq,
+						   &codec->jackpoll_work, codec->jackpoll_interval);
+	}
+
+	/* disable controller Wake Up event*/
+	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) &
+			~STATESTS_INT_MASK);
+
 	return 0;
 }
 
