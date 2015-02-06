@@ -72,6 +72,26 @@ enum {
 	POS_FIX_COMBO,
 };
 
+/* Defines for ATI HD Audio support in SB450 south bridge */
+#define ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR   0x42
+#define ATI_SB450_HDAUDIO_ENABLE_SNOOP      0x02
+
+/* Defines for Nvidia HDA support */
+#define NVIDIA_HDA_TRANSREG_ADDR      0x4e
+#define NVIDIA_HDA_ENABLE_COHBITS     0x0f
+#define NVIDIA_HDA_ISTRM_COH          0x4d
+#define NVIDIA_HDA_OSTRM_COH          0x4c
+#define NVIDIA_HDA_ENABLE_COHBIT      0x01
+
+/* Defines for Intel SCH HDA snoop control */
+#define INTEL_SCH_HDA_DEVC      0x78
+#define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
+
+/* Define IN stream 0 FIFO size offset in VIA controller */
+#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
+/* Define VIA HD Audio Device ID*/
+#define VIA_HDAC_DEVICE_ID		0x3288
+
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -294,8 +314,25 @@ static char *driver_short_names[] = {
 
 struct hda_intel {
 	struct azx chip;
-};
 
+	/* for pending irqs */
+	struct work_struct irq_pending_work;
+
+	/* sync probing */
+	struct completion probe_wait;
+	struct work_struct probe_work;
+
+	/* card list (for power_save trigger) */
+	struct list_head list;
+
+	/* extra flags */
+	unsigned int irq_pending_warned:1;
+
+	/* VGA-switcheroo setup */
+	unsigned int use_vga_switcheroo:1;
+	unsigned int vga_switcheroo_registered:1;
+	unsigned int init_failed:1; /* delayed init failed */
+};
 
 #ifdef CONFIG_X86
 static void __mark_pages_wc(struct azx *chip, struct snd_dma_buffer *dmab, bool on)
@@ -462,6 +499,7 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
 /* called from IRQ */
 static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int ok;
 
 	ok = azx_position_ok(chip, azx_dev);
@@ -471,7 +509,7 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 	} else if (ok == 0 && chip->bus && chip->bus->workq) {
 		/* bogus IRQ, process it later */
 		azx_dev->irq_pending = 1;
-		queue_work(chip->bus->workq, &chip->irq_pending_work);
+		queue_work(chip->bus->workq, &hda->irq_pending_work);
 	}
 	return 0;
 }
@@ -532,14 +570,15 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
  */
 static void azx_irq_pending_work(struct work_struct *work)
 {
-	struct azx *chip = container_of(work, struct azx, irq_pending_work);
+	struct hda_intel *hda = container_of(work, struct hda_intel, irq_pending_work);
+	struct azx *chip = &hda->chip;
 	int i, pending, ok;
 
-	if (!chip->irq_pending_warned) {
+	if (!hda->irq_pending_warned) {
 		dev_info(chip->card->dev,
 			 "IRQ timing workaround is activated for card #%d. Suggest a bigger bdl_pos_adj.\n",
 			 chip->card->number);
-		chip->irq_pending_warned = 1;
+		hda->irq_pending_warned = 1;
 	}
 
 	for (;;) {
@@ -659,21 +698,24 @@ static LIST_HEAD(card_list);
 
 static void azx_add_card_list(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	mutex_lock(&card_list_lock);
-	list_add(&chip->list, &card_list);
+	list_add(&hda->list, &card_list);
 	mutex_unlock(&card_list_lock);
 }
 
 static void azx_del_card_list(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	mutex_lock(&card_list_lock);
-	list_del_init(&chip->list);
+	list_del_init(&hda->list);
 	mutex_unlock(&card_list_lock);
 }
 
 /* trigger power-save check at writing parameter */
 static int param_set_xint(const char *val, struct kernel_param *kp)
 {
+	struct hda_intel *hda;
 	struct azx *chip;
 	struct hda_codec *c;
 	int prev = power_save;
@@ -683,7 +725,8 @@ static int param_set_xint(const char *val, struct kernel_param *kp)
 		return ret;
 
 	mutex_lock(&card_list_lock);
-	list_for_each_entry(chip, &card_list, list) {
+	list_for_each_entry(hda, &card_list, list) {
+		chip = &hda->chip;
 		if (!chip->bus || chip->disabled)
 			continue;
 		list_for_each_entry(c, &chip->bus->codec_list, list)
@@ -847,10 +890,11 @@ static void azx_vs_set_state(struct pci_dev *pci,
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	bool disabled;
 
-	wait_for_completion(&chip->probe_wait);
-	if (chip->init_failed)
+	wait_for_completion(&hda->probe_wait);
+	if (hda->init_failed)
 		return;
 
 	disabled = (state == VGA_SWITCHEROO_OFF);
@@ -864,7 +908,7 @@ static void azx_vs_set_state(struct pci_dev *pci,
 				 "Start delayed initialization\n");
 			if (azx_probe_continue(chip) < 0) {
 				dev_err(chip->card->dev, "initialization error\n");
-				chip->init_failed = true;
+				hda->init_failed = true;
 			}
 		}
 	} else {
@@ -888,9 +932,10 @@ static bool azx_vs_can_switch(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	wait_for_completion(&chip->probe_wait);
-	if (chip->init_failed)
+	wait_for_completion(&hda->probe_wait);
+	if (hda->init_failed)
 		return false;
 	if (chip->disabled || !chip->bus)
 		return true;
@@ -902,11 +947,12 @@ static bool azx_vs_can_switch(struct pci_dev *pci)
 
 static void init_vga_switcheroo(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	struct pci_dev *p = get_bound_vga(chip->pci);
 	if (p) {
 		dev_info(chip->card->dev,
 			 "Handle VGA-switcheroo audio client\n");
-		chip->use_vga_switcheroo = 1;
+		hda->use_vga_switcheroo = 1;
 		pci_dev_put(p);
 	}
 }
@@ -918,9 +964,10 @@ static const struct vga_switcheroo_client_ops azx_vs_ops = {
 
 static int register_vga_switcheroo(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int err;
 
-	if (!chip->use_vga_switcheroo)
+	if (!hda->use_vga_switcheroo)
 		return 0;
 	/* FIXME: currently only handling DIS controller
 	 * is there any machine with two switchable HDMI audio controllers?
@@ -930,7 +977,7 @@ static int register_vga_switcheroo(struct azx *chip)
 						    chip->bus != NULL);
 	if (err < 0)
 		return err;
-	chip->vga_switcheroo_registered = 1;
+	hda->vga_switcheroo_registered = 1;
 	return 0;
 }
 #else
@@ -945,20 +992,19 @@ static int register_vga_switcheroo(struct azx *chip)
 static int azx_free(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-
 	int i;
 
 	azx_del_card_list(chip);
 
 	azx_notifier_unregister(chip);
 
-	chip->init_failed = 1; /* to be sure */
-	complete_all(&chip->probe_wait);
+	hda->init_failed = 1; /* to be sure */
+	complete_all(&hda->probe_wait);
 
-	if (use_vga_switcheroo(chip)) {
+	if (use_vga_switcheroo(hda)) {
 		if (chip->disabled && chip->bus)
 			snd_hda_unlock_devices(chip->bus);
-		if (chip->vga_switcheroo_registered)
+		if (hda->vga_switcheroo_registered)
 			vga_switcheroo_unregister_client(chip->pci);
 	}
 
@@ -1277,11 +1323,11 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	check_msi(chip);
 	chip->dev_index = dev;
 	chip->jackpoll_ms = jackpoll_ms;
-	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 	INIT_LIST_HEAD(&chip->pcm_list);
-	INIT_LIST_HEAD(&chip->list);
+	INIT_WORK(&hda->irq_pending_work, azx_irq_pending_work);
+	INIT_LIST_HEAD(&hda->list);
 	init_vga_switcheroo(chip);
-	init_completion(&chip->probe_wait);
+	init_completion(&hda->probe_wait);
 
 	assign_position_fix(chip, check_position_fix(chip, position_fix[dev]));
 
@@ -1632,6 +1678,7 @@ static int azx_probe(struct pci_dev *pci,
 {
 	static int dev;
 	struct snd_card *card;
+	struct hda_intel *hda;
 	struct azx *chip;
 	bool probe_now;
 	int err;
@@ -1663,6 +1710,7 @@ retry:
 		snd_card_free(card);
 		goto retry;
 	}
+	hda = container_of(chip, struct hda_intel, chip);
 
 	pci_set_drvdata(pci, card);
 
@@ -1704,7 +1752,7 @@ retry:
 
 	dev++;
 	if (chip->disabled)
-		complete_all(&chip->probe_wait);
+		complete_all(&hda->probe_wait);
 	return 0;
 
 out_free:
@@ -1720,6 +1768,7 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
 
 static int azx_probe_continue(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int dev = chip->dev_index;
 	int err;
 
@@ -1777,8 +1826,8 @@ static int azx_probe_continue(struct azx *chip)
 
 out_free:
 	if (err < 0)
-		chip->init_failed = 1;
-	complete_all(&chip->probe_wait);
+		hda->init_failed = 1;
+	complete_all(&hda->probe_wait);
 	return err;
 }
 
