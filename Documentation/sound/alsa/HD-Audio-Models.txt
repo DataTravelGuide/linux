@@ -281,6 +281,11 @@ STAC92HD83*
   hp-dv7-4000	HP dv-7 4000
   auto		BIOS setup (default)
 
+STAC92HD95
+==========
+  hp-led	LED support for HP laptops
+  hp-bass	Bass HPF setup for HP Spectre 13
+
 STAC9872
 ========
   vaio		VAIO laptop without SPDIF
