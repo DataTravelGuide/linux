@@ -40,8 +40,8 @@ config SND_HDA_HWDEP
 	  with codecs for debugging purposes.
 
 config SND_HDA_RECONFIG
-	bool "Allow dynamic codec reconfiguration (EXPERIMENTAL)"
-	depends on SND_HDA_HWDEP && EXPERIMENTAL
+	bool "Allow dynamic codec reconfiguration"
+	depends on SND_HDA_HWDEP
 	help
 	  Say Y here to enable the HD-audio codec re-configuration feature.
 	  This adds the sysfs interfaces to allow user to clear the whole
@@ -78,15 +78,12 @@ config SND_HDA_PATCH_LOADER
 	bool "Support initialization patch loading for HD-audio"
 	depends on EXPERIMENTAL
 	select FW_LOADER
-	select SND_HDA_HWDEP
 	select SND_HDA_RECONFIG
 	help
 	  Say Y here to allow the HD-audio driver to load a pseudo
 	  firmware file ("patch") for overriding the BIOS setup at
 	  start up.  The "patch" file can be specified via patch module
 	  option, such as patch=hda-init.
-
-	  This option turns on hwdep and reconfig features automatically.
 
 config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
