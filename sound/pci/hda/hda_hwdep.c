@@ -164,8 +164,7 @@ static ssize_t power_on_acct_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	snd_hda_update_power_acct(codec);
 	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_on_acct));
 }
@@ -174,8 +173,7 @@ static ssize_t power_off_acct_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	snd_hda_update_power_acct(codec);
 	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
 }
@@ -252,8 +250,7 @@ static ssize_t type##_show(struct device *dev,			\
 			   struct device_attribute *attr,	\
 			   char *buf)				\
 {								\
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
-	struct hda_codec *codec = hwdep->private_data;		\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	return sprintf(buf, "0x%x\n", codec->type);		\
 }
 
@@ -262,8 +259,7 @@ static ssize_t type##_show(struct device *dev,			\
 			     struct device_attribute *attr,	\
 					char *buf)		\
 {								\
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
-	struct hda_codec *codec = hwdep->private_data;		\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	return sprintf(buf, "%s\n",				\
 		       codec->type ? codec->type : "");		\
 }
@@ -282,8 +278,7 @@ static ssize_t type##_store(struct device *dev,			\
 			    struct device_attribute *attr,	\
 			    const char *buf, size_t count)	\
 {								\
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
-	struct hda_codec *codec = hwdep->private_data;		\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	unsigned long val;					\
 	int err = kstrtoul(buf, 0, &val);			\
 	if (err < 0)						\
@@ -297,8 +292,7 @@ static ssize_t type##_store(struct device *dev,			\
 			    struct device_attribute *attr,	\
 			    const char *buf, size_t count)	\
 {								\
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
-	struct hda_codec *codec = hwdep->private_data;		\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	char *s = kstrndup_noeol(buf, 64);			\
 	if (!s)							\
 		return -ENOMEM;					\
@@ -319,8 +313,7 @@ static ssize_t type##_store(struct device *dev,			\
 			    struct device_attribute *attr,	\
 			    const char *buf, size_t count)	\
 {								\
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
-	struct hda_codec *codec = hwdep->private_data;		\
+	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	int err = 0;						\
 	if (*buf)						\
 		err = type##_codec(codec);			\
@@ -334,8 +327,7 @@ static ssize_t init_verbs_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
 	for (i = 0; i < codec->init_verbs.used; i++) {
@@ -374,8 +366,7 @@ static ssize_t init_verbs_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	int err = parse_init_verbs(codec, buf);
 	if (err < 0)
 		return err;
@@ -386,8 +377,7 @@ static ssize_t hints_show(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
 	for (i = 0; i < codec->hints.used; i++) {
@@ -481,8 +471,7 @@ static ssize_t hints_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	int err = parse_hints(codec, buf);
 	if (err < 0)
 		return err;
@@ -508,8 +497,7 @@ static ssize_t init_pin_configs_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	return pin_configs_show(codec, &codec->init_pins, buf);
 }
 
@@ -517,8 +505,7 @@ static ssize_t user_pin_configs_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	return pin_configs_show(codec, &codec->user_pins, buf);
 }
 
@@ -526,8 +513,7 @@ static ssize_t driver_pin_configs_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	return pin_configs_show(codec, &codec->driver_pins, buf);
 }
 
@@ -551,8 +537,7 @@ static ssize_t user_pin_configs_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
-	struct hda_codec *codec = hwdep->private_data;
+	struct hda_codec *codec = dev_get_drvdata(dev);
 	int err = parse_user_pin_configs(codec, buf);
 	if (err < 0)
 		return err;
