@@ -320,16 +320,6 @@ static int snd_usb_audio_dev_free(struct snd_device *device)
 	return snd_usb_audio_free(chip);
 }
 
-static void remove_trailing_spaces(char *str)
-{
-	char *p;
-
-	if (!*str)
-		return;
-	for (p = str + strlen(str) - 1; p >= str && isspace(*p); p--)
-		*p = 0;
-}
-
 /*
  * create a chip instance and set its names.
  */
@@ -413,7 +403,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 				USB_ID_PRODUCT(chip->usb_id));
 		}
 	}
-	remove_trailing_spaces(card->shortname);
+	strim(card->shortname);
 
 	/* retrieve the vendor and device strings as longname */
 	if (quirk && quirk->vendor_name && *quirk->vendor_name) {
@@ -427,7 +417,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 		/* we don't really care if there isn't any vendor string */
 	}
 	if (len > 0) {
-		remove_trailing_spaces(card->longname);
+		strim(card->longname);
 		if (*card->longname)
 			strlcat(card->longname, " ", sizeof(card->longname));
 	}
