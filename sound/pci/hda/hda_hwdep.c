@@ -156,6 +156,9 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 	snd_array_init(&codec->hints, sizeof(struct hda_hint), 32);
 	snd_array_init(&codec->user_pins, sizeof(struct hda_pincfg), 16);
 
+	/* link to codec */
+	((struct snd_hwdep2 *)hwdep)->dev = &codec->dev;
+
 	return 0;
 }
 
