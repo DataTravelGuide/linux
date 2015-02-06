@@ -788,7 +788,6 @@ static int param_set_xint(const char *val, struct kernel_param *kp)
  */
 static int azx_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
@@ -817,9 +816,9 @@ static int azx_suspend(struct device *dev)
 
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(chip->pci);
+	pci_save_state(chip->pci);
+	pci_set_power_state(chip->pci, PCI_D3hot);
 	return 0;
 }
 
