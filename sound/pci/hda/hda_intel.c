@@ -765,9 +765,10 @@ static int azx_suspend(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	struct azx_pcm *p;
 
-	if (chip->disabled)
+	if (chip->disabled || hda->init_failed)
 		return 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -796,8 +797,9 @@ static int azx_resume(struct device *dev)
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	if (chip->disabled)
+	if (chip->disabled || hda->init_failed)
 		return 0;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -830,8 +832,9 @@ static int azx_runtime_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	if (chip->disabled)
+	if (chip->disabled || hda->init_failed)
 		return 0;
 
 	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
@@ -847,8 +850,9 @@ static int azx_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	if (chip->disabled)
+	if (chip->disabled || hda->init_failed)
 		return 0;
 
 	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
@@ -863,8 +867,9 @@ static int azx_runtime_idle(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	if (chip->disabled)
+	if (chip->disabled || hda->init_failed)
 		return 0;
 
 	if (!power_save_controller ||
