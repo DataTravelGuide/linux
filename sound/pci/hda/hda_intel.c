@@ -831,6 +831,12 @@ static int azx_runtime_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
+	if (chip->disabled)
+		return 0;
+
+	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+		return 0;
+
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
@@ -842,6 +848,12 @@ static int azx_runtime_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
+	if (chip->disabled)
+		return 0;
+
+	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
+		return 0;
+
 	azx_init_pci(chip);
 	azx_init_chip(chip, true);
 	return 0;
@@ -851,6 +863,9 @@ static int azx_runtime_idle(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
+
+	if (chip->disabled)
+		return 0;
 
 	if (!power_save_controller ||
 	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
@@ -908,13 +923,19 @@ static void azx_vs_set_state(struct pci_dev *pci,
 		dev_info(chip->card->dev, "%s via VGA-switcheroo\n",
 			 disabled ? "Disabling" : "Enabling");
 		if (disabled) {
+			pm_runtime_set_suspended(&pci->dev);
 			azx_suspend(&pci->dev);
+			/* when we get suspended by vga switcheroo we end up in D3cold,
+			 * however we have no ACPI handle, so pci/acpi can't put us there,
+			 * put ourselves there */
+			pci->current_state = PCI_D3cold;
 			chip->disabled = true;
 			if (snd_hda_lock_devices(chip->bus))
 				dev_warn(chip->card->dev,
 					 "Cannot lock devices!\n");
 		} else {
 			snd_hda_unlock_devices(chip->bus);
+			pm_runtime_get_noresume(&pci->dev);
 			chip->disabled = false;
 			azx_resume(card->dev);
 		}
@@ -1816,6 +1837,10 @@ static int azx_probe_continue(struct azx *chip)
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
+	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME) || use_vga_switcheroo(hda))
+		pm_runtime_put_noidle(&chip->pci->dev);
+
+	return 0;
 
 out_free:
 	if (err < 0)
