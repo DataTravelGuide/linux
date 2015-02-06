@@ -2827,6 +2827,12 @@ static int init_slave_unmute(struct hda_codec *codec,
 	return put_kctl_with_value(slave, 1);
 }
 
+static int add_slave(struct hda_codec *codec,
+		     void *data, struct snd_kcontrol *slave)
+{
+	return snd_ctl_add_slave(data, slave);
+}
+
 /**
  * snd_hda_add_vmaster - create a virtual master control and add slaves
  * @codec: HD-audio codec
@@ -2869,8 +2875,7 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	if (err < 0)
 		return err;
 
-	err = map_slaves(codec, slaves, suffix,
-			 (map_slave_func_t)snd_ctl_add_slave, kctl);
+	err = map_slaves(codec, slaves, suffix, add_slave, kctl);
 	if (err < 0)
 		return err;
 
