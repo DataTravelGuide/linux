@@ -1577,7 +1577,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	u8 sd_status;
 	int i;
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
 	        if (chip->pci->dev.power.runtime_status != RPM_ACTIVE)
 			return IRQ_NONE;
