@@ -105,6 +105,7 @@ static int __init alsa_seq_init(void)
 	if ((err = snd_seq_system_client_init()) < 0)
 		goto error;
 
+	snd_seq_autoload_init();
  error:
 	snd_seq_autoload_unlock();
 	return err;
@@ -126,6 +127,8 @@ static void __exit alsa_seq_exit(void)
 
 	/* release event memory */
 	snd_sequencer_memory_done();
+
+	snd_seq_autoload_exit();
 }
 
 module_init(alsa_seq_init)
