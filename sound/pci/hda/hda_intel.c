@@ -1079,6 +1079,10 @@ static int azx_free(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int i;
 
+	if ((chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
+			&& chip->running)
+		pm_runtime_get_noresume(&chip->pci->dev);
+
 	azx_del_card_list(chip);
 
 	azx_notifier_unregister(chip);
@@ -1857,9 +1861,6 @@ retry:
 	if (probe_now)
 		schedule_work(&hda->probe_work);
 
-	if (pci_dev_run_wake(pci))
-		pm_runtime_put_noidle(&pci->dev);
-
 	dev++;
 	if (chip->disabled)
 		complete_all(&hda->probe_wait);
@@ -1958,9 +1959,6 @@ out_free:
 static void azx_remove(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
-
-	if (pci_dev_run_wake(pci))
-		pm_runtime_get_noresume(&pci->dev);
 
 	if (card)
 		snd_card_free(card);
