@@ -1778,9 +1778,7 @@ static void debug_show_configs(struct hda_codec *codec,
 			       struct auto_pin_cfg *cfg)
 {
 	struct hda_gen_spec *spec = codec->spec;
-#ifdef DEBUG_BADNESS
 	static const char * const lo_type[3] = { "LO", "SP", "HP" };
-#endif
 	int i;
 
 	debug_badness("multi_outs = %x/%x/%x/%x : %x/%x/%x/%x (type %s)\n",

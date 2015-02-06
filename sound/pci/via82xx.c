@@ -2471,7 +2471,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 	w = snd_pci_quirk_lookup(pci, dxs_whitelist);
 	if (w) {
 		snd_printdd(KERN_INFO "via82xx: DXS white list for %s found\n",
-			    w->name);
+			    snd_pci_quirk_name(w));
 		return w->value;
 	}
 
