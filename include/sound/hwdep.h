@@ -60,6 +60,7 @@ struct snd_hwdep {
 	int iface;
 
 #ifdef CONFIG_SND_OSSEMUL
+	char oss_dev[32];
 	int oss_type;
 	int ossreg;
 #endif
@@ -68,12 +69,16 @@ struct snd_hwdep {
 	wait_queue_head_t open_wait;
 	void *private_data;
 	void (*private_free) (struct snd_hwdep *hwdep);
-	struct device *dev;
 
 	struct mutex open_mutex;
 	int used;			/* reference counter */
 	unsigned int dsp_loaded;	/* bit fields of loaded dsp indices */
 	unsigned int exclusive:1;	/* exclusive access mode */
+};
+
+struct snd_hwdep2 {
+	struct snd_hwdep hwdep;
+	struct device *dev;
 };
 
 extern int snd_hwdep_new(struct snd_card *card, char *id, int device,

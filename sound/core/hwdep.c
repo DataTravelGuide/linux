@@ -362,7 +362,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		return -ENXIO;
 	if (rhwdep)
 		*rhwdep = NULL;
-	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
+	hwdep = kzalloc(sizeof(struct snd_hwdep2), GFP_KERNEL);
 	if (hwdep == NULL) {
 		dev_err(card->dev, "hwdep: cannot allocate\n");
 		return -ENOMEM;
@@ -416,7 +416,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 	}
 	list_add_tail(&hwdep->list, &snd_hwdep_devices);
 	sprintf(name, "hwC%iD%i", hwdep->card->number, hwdep->device);
-	dev = hwdep->dev;
+	dev = ((struct snd_hwdep2 *)hwdep)->dev;
 	if (!dev)
 		dev = snd_card_get_device_link(hwdep->card);
 	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_HWDEP,
