@@ -89,6 +89,7 @@ config SND_HDA_CODEC_REALTEK
 	bool "Build Realtek HD-audio codec support"
 	default y
 	select SND_HDA_GENERIC
+	select INPUT
 	help
 	  Say Y here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
