@@ -453,7 +453,7 @@ static void lx_trigger_start(struct lx6464es *chip, struct lx_stream *lx_stream)
 				     &buffer_index);
 
 		snd_printdd(LXP "starting: buffer index %x on %p (%d bytes)\n",
-			    buffer_index, (void *)buf, period_bytes);
+			    buffer_index, (void *)(uintptr_t)buf, period_bytes);
 		buf += period_bytes;
 	}
 

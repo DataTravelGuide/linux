@@ -368,7 +368,7 @@ static struct snd_kcontrol_new snd_audigy2nx_control = {
 	.put = snd_audigy2nx_led_put,
 };
 
-static const char * const snd_audigy2nx_led_names[] = {
+static char * const snd_audigy2nx_led_names[] = {
 	"CMSS LED Switch",
 	"Power LED Switch",
 	"Dolby Digital LED Switch",
@@ -395,7 +395,7 @@ static int snd_audigy2nx_controls_create(struct usb_mixer_interface *mixer)
 			break; 
 
 		knew = snd_audigy2nx_control;
-		knew.name = snd_audigy2nx_led_names[i];
+		knew.name = (char *)snd_audigy2nx_led_names[i];
 		knew.private_value = (1 << 8) | i; /* LED on as default */
 		err = add_single_ctl_with_resume(mixer, 0,
 						 snd_audigy2nx_led_resume,
