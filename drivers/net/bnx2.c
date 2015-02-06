@@ -7662,6 +7662,10 @@ bnx2_set_flags(struct net_device *dev, u32 data)
 	    !(data & ETH_FLAG_RXVLAN))
 		return -EOPNOTSUPP;
 
+	/* TSO with VLAN tag won't work with current firmware */
+	if (!(data & ETH_FLAG_TXVLAN))
+		return -EINVAL;
+
 	/* ethtool_op_set_flags handles only RXHASH and LRO */
 	rc = ethtool_op_set_flags(dev, data & ETH_FLAG_RXHASH);
 	if (rc)
