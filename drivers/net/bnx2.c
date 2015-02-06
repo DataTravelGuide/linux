@@ -70,7 +70,7 @@
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (5*HZ)
 
-static char version[] __devinitdata =
+static char version[] =
 	"Broadcom NetXtreme II Gigabit Ethernet Driver " DRV_MODULE_NAME " v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Michael Chan <mchan@broadcom.com>");
@@ -105,7 +105,7 @@ typedef enum {
 /* indexed by board_t, above */
 static struct {
 	char *name;
-} board_info[] __devinitdata = {
+} board_info[] = {
 	{ "Broadcom NetXtreme II BCM5706 1000Base-T" },
 	{ "HP NC370T Multifunction Gigabit Server Adapter" },
 	{ "HP NC370i Multifunction Gigabit Server Adapter" },
@@ -7892,7 +7892,7 @@ poll_bnx2(struct net_device *dev)
 }
 #endif
 
-static void __devinit
+static void
 bnx2_get_5709_media(struct bnx2 *bp)
 {
 	u32 val = BNX2_RD(bp, BNX2_MISC_DUAL_MEDIA_CTRL);
@@ -7930,7 +7930,7 @@ bnx2_get_5709_media(struct bnx2 *bp)
 	}
 }
 
-static void __devinit
+static void
 bnx2_get_pci_speed(struct bnx2 *bp)
 {
 	u32 reg;
@@ -7982,7 +7982,7 @@ bnx2_get_pci_speed(struct bnx2 *bp)
 
 }
 
-static void __devinit
+static void
 bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 {
 	int rc, i, j;
@@ -8050,7 +8050,7 @@ vpd_done:
 	kfree(data);
 }
 
-static int __devinit
+static int
 bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	struct bnx2 *bp;
@@ -8441,7 +8441,7 @@ err_out:
 	return rc;
 }
 
-static char * __devinit
+static char *
 bnx2_bus_string(struct bnx2 *bp, char *str)
 {
 	char *s = str;
@@ -8511,7 +8511,7 @@ static const struct net_device_ops_ext bnx2_netdev_ops_ext = {
 	.ndo_set_features	= bnx2_set_features,
 };
 
-static int __devinit
+static int
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed = 0;
@@ -8581,7 +8581,7 @@ err_free:
 	return rc;
 }
 
-static void __devexit
+static void
 bnx2_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -8770,7 +8770,7 @@ static struct pci_driver bnx2_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= bnx2_pci_tbl,
 	.probe		= bnx2_init_one,
-	.remove		= __devexit_p(bnx2_remove_one),
+	.remove		= bnx2_remove_one,
 	.driver.pm	= BNX2_PM_OPS,
 	.err_handler	= &bnx2_err_handler,
 };
