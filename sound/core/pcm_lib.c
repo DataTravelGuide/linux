@@ -2395,7 +2395,7 @@ static int pcm_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 static void pcm_chmap_ctl_private_free(struct snd_kcontrol *kcontrol)
 {
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
-	info->pcm->streams[info->stream].chmap_kctl = NULL;
+	((struct snd_pcm2 *)info->pcm)->chmap_kctl[info->stream] = NULL;
 	kfree(info);
 }
 
@@ -2453,7 +2453,7 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
 	err = snd_ctl_add(pcm->card, info->kctl);
 	if (err < 0)
 		return err;
-	pcm->streams[stream].chmap_kctl = info->kctl;
+	((struct snd_pcm2 *)pcm)->chmap_kctl[stream] = info->kctl;
 	if (info_ret)
 		*info_ret = info;
 	return 0;

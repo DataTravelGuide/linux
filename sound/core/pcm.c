@@ -1075,9 +1075,9 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 			break;
 		}
 		snd_unregister_device(devtype, pcm->card, pcm->device);
-		if (pcm->streams[cidx].chmap_kctl) {
-			snd_ctl_remove(pcm->card, pcm->streams[cidx].chmap_kctl);
-			pcm->streams[cidx].chmap_kctl = NULL;
+		if (((struct snd_pcm2 *)pcm)->chmap_kctl[cidx]) {
+			snd_ctl_remove(pcm->card, ((struct snd_pcm2 *)pcm)->chmap_kctl[cidx]);
+			((struct snd_pcm2 *)pcm)->chmap_kctl[cidx] = NULL;
 		}
 	}
 	mutex_unlock(&pcm->open_mutex);

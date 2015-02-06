@@ -436,7 +436,6 @@ struct snd_pcm_str {
 	struct snd_info_entry *proc_xrun_debug_entry;
 #endif
 #endif
-	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
 };
 
 struct snd_pcm {
@@ -463,6 +462,7 @@ struct snd_pcm2 {
 	struct snd_pcm_oss oss;
 	struct snd_pcm_oss_stream oss_streams[2];
 #endif
+	struct snd_kcontrol *chmap_kctl[2]; /* channel-mapping controls */
 };
 
 struct snd_pcm_notify {
