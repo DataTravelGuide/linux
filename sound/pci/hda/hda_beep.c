@@ -196,6 +196,11 @@ static void snd_hda_do_unregister(struct work_struct *work)
 	mutex_unlock(&beep->mutex);
 }
 
+/**
+ * snd_hda_enable_beep_device - Turn on/off beep sound
+ * @codec: the HDA codec
+ * @enable: flag to turn on/off
+ */
 int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 {
 	struct hda_beep *beep = codec->beep;
@@ -221,6 +226,20 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 }
 EXPORT_SYMBOL_GPL(snd_hda_enable_beep_device);
 
+/**
+ * snd_hda_attach_beep_device - Attach a beep input device
+ * @codec: the HDA codec
+ * @nid: beep NID
+ *
+ * Attach a beep object to the given widget.  If beep hint is turned off
+ * explicitly or beep_mode of the codec is turned off, this doesn't nothing.
+ *
+ * The attached beep device has to be registered via
+ * snd_hda_register_beep_device() and released via snd_hda_detach_beep_device()
+ * appropriately.
+ *
+ * Currently, only one beep device is allowed to each codec.
+ */
 int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 {
 	struct hda_beep *beep;
@@ -262,6 +281,10 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 }
 EXPORT_SYMBOL_GPL(snd_hda_attach_beep_device);
 
+/**
+ * snd_hda_detach_beep_device - Detach the beep device
+ * @codec: the HDA codec
+ */
 void snd_hda_detach_beep_device(struct hda_codec *codec)
 {
 	struct hda_beep *beep = codec->beep;
@@ -276,6 +299,10 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hda_detach_beep_device);
 
+/**
+ * snd_hda_register_beep_device - Register the beep device
+ * @codec: the HDA codec
+ */
 int snd_hda_register_beep_device(struct hda_codec *codec)
 {
 	struct hda_beep *beep = codec->beep;
@@ -305,6 +332,12 @@ static bool ctl_has_mute(struct snd_kcontrol *kcontrol)
 }
 
 /* get/put callbacks for beep mute mixer switches */
+
+/**
+ * snd_hda_mixer_amp_switch_get_beep - Get callback for beep controls
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
+ */
 int snd_hda_mixer_amp_switch_get_beep(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
@@ -319,6 +352,11 @@ int snd_hda_mixer_amp_switch_get_beep(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_get_beep);
 
+/**
+ * snd_hda_mixer_amp_switch_put_beep - Put callback for beep controls
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
+ */
 int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
