@@ -617,7 +617,7 @@ const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 	struct hda_hint *hint = get_hint(codec, key);
 	return hint ? hint->val : NULL;
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_hint);
+EXPORT_SYMBOL_GPL(snd_hda_get_hint);
 
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 {
@@ -643,7 +643,7 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 	mutex_unlock(&codec->user_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_bool_hint);
+EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
 
 int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 {
@@ -664,7 +664,7 @@ int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 	mutex_unlock(&codec->user_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_HDA(snd_hda_get_int_hint);
+EXPORT_SYMBOL_GPL(snd_hda_get_int_hint);
 #endif /* CONFIG_SND_HDA_RECONFIG */
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
@@ -852,5 +852,5 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t fw_size, const void *fw_buf)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_load_patch);
+EXPORT_SYMBOL_GPL(snd_hda_load_patch);
 #endif /* CONFIG_SND_HDA_PATCH_LOADER */
