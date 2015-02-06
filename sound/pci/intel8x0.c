@@ -3100,8 +3100,6 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*r_intel8x0 = chip;
 	return 0;
 }
@@ -3166,7 +3164,7 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	int err;
 	struct shortname_table *name;
 
-	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
