@@ -15,11 +15,11 @@ ALC260
 
 ALC262
 ======
-  N/A
+  inv-dmic	Inverted internal mic workaround
 
 ALC267/268
 ==========
-  N/A
+  inv-dmic	Inverted internal mic workaround
 
 ALC269/270/275/276/280/282
 ======
@@ -33,6 +33,7 @@ ALC269/270/275/276/280/282
 
 ALC662/663/272
 ==============
+  mario		Chromebook mario model fixup
   asus-mode1	ASUS
   asus-mode2	ASUS
   asus-mode3	ASUS
