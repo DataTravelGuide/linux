@@ -628,7 +628,7 @@ static int azx_resume(struct device *dev)
 	pm_runtime_set_active(&pci->dev);
 	azx_init_pci(chip);
 
-	azx_init_chip(chip, 1);
+	azx_init_chip(chip, true);
 
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -654,7 +654,7 @@ static int azx_runtime_resume(struct device *dev)
 	struct azx *chip = card->private_data;
 
 	azx_init_pci(chip);
-	azx_init_chip(chip, 1);
+	azx_init_chip(chip, true);
 	return 0;
 }
 
