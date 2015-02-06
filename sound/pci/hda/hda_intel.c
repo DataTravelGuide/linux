@@ -286,12 +286,13 @@ enum {
 
 #define AZX_DCAPS_INTEL_HASWELL \
 	(/*AZX_DCAPS_ALIGN_BUFSIZE |*/ AZX_DCAPS_COUNT_LPIB_DELAY |\
-	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_SNOOP_TYPE(SCH))
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
+	 AZX_DCAPS_SNOOP_TYPE(SCH))
 
 /* Broadwell HDMI can't use position buffer reliably, force to use LPIB */
 #define AZX_DCAPS_INTEL_BROADWELL \
-	(/* AZX_DCAPS_ALIGN_BUFSIZE | */ \
-	 AZX_DCAPS_POSFIX_LPIB | AZX_DCAPS_PM_RUNTIME | \
+	(/* AZX_DCAPS_ALIGN_BUFSIZE | */ AZX_DCAPS_POSFIX_LPIB |\
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
 	 AZX_DCAPS_SNOOP_TYPE(SCH))
 
 #define AZX_DCAPS_INTEL_SKYLAKE \
@@ -797,6 +798,8 @@ static int azx_suspend(struct device *dev)
 	pci_disable_device(chip->pci);
 	pci_save_state(chip->pci);
 	pci_set_power_state(chip->pci, PCI_D3hot);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		hda_display_power(false);
 	return 0;
 }
 
@@ -815,6 +818,8 @@ static int azx_resume(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		hda_display_power(true);
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
@@ -861,6 +866,8 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		hda_display_power(false);
 	return 0;
 }
 
@@ -881,6 +888,8 @@ static int azx_runtime_resume(struct device *dev)
 	if (!(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
 		return 0;
 
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		hda_display_power(true);
 	azx_init_pci(chip);
 	azx_init_chip(chip, true);
 	return 0;
@@ -1074,6 +1083,10 @@ static int azx_free(struct azx *chip)
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	release_firmware(chip->fw);
 #endif
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		hda_display_power(false);
+		hda_i915_exit();
+	}
 	kfree(hda);
 
 	return 0;
@@ -1325,6 +1338,12 @@ static void azx_check_snoop_available(struct azx *chip)
 		dev_info(chip->card->dev, "Force to non-snoop mode\n");
 }
 
+static void azx_probe_work(struct work_struct *work)
+{
+	struct hda_intel *hda = container_of(work, struct hda_intel, probe_work);
+	azx_probe_continue(&hda->chip);
+}
+
 /*
  * constructor
  */
@@ -1397,6 +1416,9 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		azx_free(chip);
 		return err;
 	}
+
+	/* continue probing in work context as may trigger request module */
+	INIT_WORK(&hda->probe_work, azx_probe_work);
 
 	*rchip = chip;
 	return 0;
@@ -1795,11 +1817,9 @@ retry:
 	}
 #endif /* CONFIG_SND_HDA_PATCH_LOADER */
 
-	if (probe_now) {
-		err = azx_probe_continue(chip);
-		if (err < 0)
-			goto out_free;
-	}
+	/* continue probing in work context, avoid request_module deadlock */
+	if (probe_now)
+		schedule_work(&hda->probe_work);
 
 	if (pci_dev_run_wake(pci))
 		pm_runtime_put_noidle(&pci->dev);
@@ -1825,6 +1845,16 @@ static int azx_probe_continue(struct azx *chip)
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 	int dev = chip->dev_index;
 	int err;
+
+	/* Request power well for Haswell HDA controller and codec */
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+#ifdef CONFIG_SND_HDA_I915
+		err = hda_i915_init();
+		if (err < 0)
+			goto out_free;
+		hda_display_power(true);
+#endif
+	}
 
 	err = azx_first_init(chip);
 	if (err < 0)

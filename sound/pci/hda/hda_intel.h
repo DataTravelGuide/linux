@@ -40,4 +40,20 @@ struct hda_intel {
 	unsigned int init_failed:1; /* delayed init failed */
 };
 
+#ifdef CONFIG_SND_HDA_I915
+void hda_display_power(bool enable);
+int hda_i915_init(void);
+int hda_i915_exit(void);
+#else
+static inline void hda_display_power(bool enable) {}
+static inline int hda_i915_init(void)
+{
+	return -ENODEV;
+}
+static inline int hda_i915_exit(void)
+{
+	return 0;
+}
+#endif
+
 #endif
