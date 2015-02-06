@@ -6605,17 +6605,17 @@ struct l2_fhdr {
 struct bnx2_sw_bd {
 	struct sk_buff		*skb;
 	struct l2_fhdr		*desc;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct bnx2_sw_pg {
 	struct page		*page;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct bnx2_sw_tx_bd {
 	struct sk_buff		*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 	unsigned short		is_gso;
 	unsigned short		nr_frags;
 };
