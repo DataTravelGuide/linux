@@ -1046,11 +1046,13 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 	case 0x5209:
 		rts5209_init_params(pcr);
 		break;
+#endif
 
 	case 0x5229:
 		rts5229_init_params(pcr);
 		break;
 
+#if 0
 	case 0x5289:
 		rtl8411_init_params(pcr);
 		break;
