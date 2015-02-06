@@ -242,6 +242,14 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 }
 EXPORT_SYMBOL(snd_card_new);
 
+int snd_card_create(int idx, const char *id,
+		    struct module *module, int extra_size,
+		    struct snd_card **card_ret)
+{
+	return snd_card_new(NULL, idx, id, module, extra_size, card_ret);
+}
+EXPORT_SYMBOL(snd_card_create);
+
 /* return non-zero if a card is already locked */
 int snd_card_locked(int card)
 {

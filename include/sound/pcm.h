@@ -497,7 +497,7 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 int snd_pcm_status(struct snd_pcm_substream *substream,
 		   struct snd_pcm_status *status);
 int snd_pcm_start(struct snd_pcm_substream *substream);
-int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t status);
+int snd_pcm_stop(struct snd_pcm_substream *substream, int status);
 int snd_pcm_drain_done(struct snd_pcm_substream *substream);
 #ifdef CONFIG_PM
 int snd_pcm_suspend(struct snd_pcm_substream *substream);
