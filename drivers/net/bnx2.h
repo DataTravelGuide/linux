@@ -6796,8 +6796,6 @@ struct bnx2 {
 	u32			rx_max_ring_idx;
 	u32			rx_max_pg_ring_idx;
 
-	u32			rx_csum;
-
 	/* TX constants */
 	int		tx_ring_size;
 	u32		tx_wake_thresh;

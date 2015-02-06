@@ -3219,7 +3219,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		}
 
 		skb_checksum_none_assert(skb);
-		if (bp->rx_csum &&
+		if ((bp->dev->features & NETIF_F_RXCSUM) &&
 			(status & (L2_FHDR_STATUS_TCP_SEGMENT |
 			L2_FHDR_STATUS_UDP_DATAGRAM))) {
 
@@ -7301,38 +7301,6 @@ bnx2_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *epause)
 	return 0;
 }
 
-static u32
-bnx2_get_rx_csum(struct net_device *dev)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	return bp->rx_csum;
-}
-
-static int
-bnx2_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	bp->rx_csum = data;
-	return 0;
-}
-
-static int
-bnx2_set_tso(struct net_device *dev, u32 data)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	if (data) {
-		dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-		if (BNX2_CHIP(bp) == BNX2_CHIP_5709)
-			dev->features |= NETIF_F_TSO6;
-	} else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6 |
-				   NETIF_F_TSO_ECN);
-	return 0;
-}
-
 static struct {
 	char string[ETH_GSTRING_LEN];
 } bnx2_stats_str_arr[] = {
@@ -7643,53 +7611,38 @@ bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 	return 0;
 }
 
-static int
-bnx2_set_tx_csum(struct net_device *dev, u32 data)
+static u32
+bnx2_fix_features(struct net_device *dev, u32 features)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	if (BNX2_CHIP(bp) == BNX2_CHIP_5709)
-		return ethtool_op_set_tx_ipv6_csum(dev, data);
-	else
-		return ethtool_op_set_tx_csum(dev, data);
+	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
+		features |= NETIF_F_HW_VLAN_RX;
+
+	return features;
 }
 
 static int
-bnx2_set_flags(struct net_device *dev, u32 data)
+bnx2_set_features(struct net_device *dev, u32 features)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-	int rc;
-
-	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN) &&
-	    !(data & ETH_FLAG_RXVLAN))
-		return -EOPNOTSUPP;
 
 	/* TSO with VLAN tag won't work with current firmware */
-	if (!(data & ETH_FLAG_TXVLAN))
-		return -EINVAL;
-
-	/* ethtool_op_set_flags handles only RXHASH and LRO */
-	rc = ethtool_op_set_flags(dev, data & ETH_FLAG_RXHASH);
-	if (rc)
-		return rc;
-
-	/* ETH_FLAG_RXVLAN & ETH_FLAG_TXVLAN flags has to be handled here */
-	if (data & ETH_FLAG_RXVLAN)
-		dev->features |= ETH_FLAG_RXVLAN;
+	if (features & NETIF_F_HW_VLAN_TX)
+		dev->vlan_features |= (get_netdev_hw_features(dev) &
+			NETIF_F_ALL_TSO);
 	else
-		dev->features &= ~ETH_FLAG_RXVLAN;
-	if (data & ETH_FLAG_TXVLAN)
-		dev->features |= ETH_FLAG_TXVLAN;
-	else
-		dev->features &= ~ETH_FLAG_TXVLAN;
+		dev->vlan_features &= ~NETIF_F_ALL_TSO;
 
-	if ((!!(data & ETH_FLAG_RXVLAN) !=
+	if ((!!(features & NETIF_F_HW_VLAN_RX) !=
 	    !!(bp->rx_mode & BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG)) &&
 	    netif_running(dev)) {
 		bnx2_netif_stop(bp, false);
+		dev->features = features;
 		bnx2_set_rx_mode(dev);
 		bnx2_fw_sync(bp, BNX2_DRV_MSG_CODE_KEEP_VLAN_UPDATE, 0, 1);
 		bnx2_netif_start(bp, false);
+		return 1;
 	}
 
 	return 0;
@@ -7714,17 +7667,10 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_ringparam		= bnx2_set_ringparam,
 	.get_pauseparam		= bnx2_get_pauseparam,
 	.set_pauseparam		= bnx2_set_pauseparam,
-	.get_rx_csum		= bnx2_get_rx_csum,
-	.set_rx_csum		= bnx2_set_rx_csum,
-	.set_tx_csum		= bnx2_set_tx_csum,
-	.set_sg			= ethtool_op_set_sg,
-	.set_tso		= bnx2_set_tso,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
 	.get_ethtool_stats	= bnx2_get_ethtool_stats,
 	.get_sset_count		= bnx2_get_sset_count,
-	.set_flags		= bnx2_set_flags,
-	.get_flags		= ethtool_op_get_flags,
 };
 
 static const struct ethtool_ops_ext bnx2_ethtool_ops_ext = {
@@ -8238,8 +8184,6 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->tx_ring_size = BNX2_MAX_TX_DESC_CNT;
 	bnx2_set_rx_ring_size(bp, 255);
 
-	bp->rx_csum = 1;
-
 	bp->tx_quick_cons_trip_int = 2;
 	bp->tx_quick_cons_trip = 20;
 	bp->tx_ticks_int = 18;
@@ -8448,12 +8392,9 @@ static const struct net_device_ops bnx2_netdev_ops = {
 static const struct net_device_ops_ext bnx2_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= bnx2_get_stats64,
+	.ndo_fix_features	= bnx2_fix_features,
+	.ndo_set_features	= bnx2_set_features,
 };
-
-static inline void vlan_features_add(struct net_device *dev, u32 flags)
-{
-	dev->vlan_features |= flags;
-}
 
 static int __devinit
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -8493,20 +8434,19 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
 	memcpy(dev->perm_addr, bp->mac_addr, ETH_ALEN);
 
-	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_GRO |
-			 NETIF_F_RXHASH;
-	vlan_features_add(dev, NETIF_F_IP_CSUM | NETIF_F_SG);
-	if (BNX2_CHIP(bp) == BNX2_CHIP_5709) {
-		dev->features |= NETIF_F_IPV6_CSUM;
-		vlan_features_add(dev, NETIF_F_IPV6_CSUM);
-	}
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-	vlan_features_add(dev, NETIF_F_TSO | NETIF_F_TSO_ECN);
-	if (BNX2_CHIP(bp) == BNX2_CHIP_5709) {
-		dev->features |= NETIF_F_TSO6;
-		vlan_features_add(dev, NETIF_F_TSO6);
-	}
+	set_netdev_hw_features(dev, NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO |
+			       NETIF_F_TSO_ECN | NETIF_F_RXHASH |
+			       NETIF_F_RXCSUM);
+
+	if (BNX2_CHIP(bp) == BNX2_CHIP_5709)
+		netdev_extended(dev)->hw_features |= NETIF_F_IPV6_CSUM |
+			NETIF_F_TSO6;
+
+	dev->vlan_features = get_netdev_hw_features(dev);
+	netdev_extended(dev)->hw_features |= NETIF_F_HW_VLAN_TX |
+		NETIF_F_HW_VLAN_RX;
+	dev->features |= get_netdev_hw_features(dev);
+
 	if ((rc = register_netdev(dev))) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto error;
