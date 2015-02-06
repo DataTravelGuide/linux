@@ -518,7 +518,7 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *nid)
 	while (1) {
 	      	if (loops-- == 0) {
 			snd_printk(KERN_ERR "unable to set card id (%s)\n", id);
-      			strcpy(card->id, card->proc_root->name);
+      			strlcpy(card->id, card->proc_root->name, sizeof(card->id));
       			return;
       		}
 	      	if (!snd_info_check_reserved_words(id))
