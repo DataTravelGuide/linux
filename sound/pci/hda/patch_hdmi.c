@@ -1646,7 +1646,7 @@ static int hdmi_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = info->private_data;
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx = kcontrol->private_value;
-	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(per_pin->chmap); i++)
@@ -1661,7 +1661,7 @@ static int hdmi_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = info->private_data;
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx = kcontrol->private_value;
-	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	unsigned int ctl_idx;
 	struct snd_pcm_substream *substream;
 	unsigned char chmap[8];
@@ -1908,6 +1908,7 @@ static void intel_haswell_fixup_connect_list(struct hda_codec *codec,
 
 	/* override pins connection list */
 	snd_printdd("hdmi: haswell: override pin connection 0x%x\n", nid);
+	nconns = max(spec->num_cvts, 4);
 	snd_hda_override_conn_list(codec, nid, spec->num_cvts, spec->cvt_nids);
 }
 
@@ -2469,13 +2470,17 @@ static int nvhdmi_7x_8ch_build_pcms(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	int err = simple_playback_build_pcms(codec);
-	spec->pcm_rec[0].own_chmap = true;
+	if (!err) {
+		struct hda_pcm *info = get_pcm_rec(spec, 0);
+		info->own_chmap = true;
+	}
 	return err;
 }
 
 static int nvhdmi_7x_8ch_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
+	struct hda_pcm *info;
 	struct snd_pcm_chmap *chmap;
 	int err;
 
@@ -2484,7 +2489,8 @@ static int nvhdmi_7x_8ch_build_controls(struct hda_codec *codec)
 		return err;
 
 	/* add channel maps */
-	err = snd_pcm_add_chmap_ctls(spec->pcm_rec[0].pcm,
+	info = get_pcm_rec(spec, 0);
+	err = snd_pcm_add_chmap_ctls(info->pcm,
 				     SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps, 8, 0, &chmap);
 	if (err < 0)
