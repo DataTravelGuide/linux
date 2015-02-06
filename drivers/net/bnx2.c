@@ -2811,6 +2811,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	struct bnx2_tx_ring_info *txr = &bnapi->tx_ring;
 	u16 hw_cons, sw_cons, sw_ring_cons;
 	int tx_pkt = 0, index;
+	unsigned int tx_bytes = 0;
 	struct netdev_queue *txq;
 
 	index = (bnapi - bp->bnx2_napi);
@@ -2866,6 +2867,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 		sw_cons = BNX2_NEXT_TX_BD(sw_cons);
 
+		tx_bytes += skb->len;
 		dev_kfree_skb(skb);
 		tx_pkt++;
 		if (tx_pkt == budget)
@@ -2875,6 +2877,7 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 			hw_cons = bnx2_get_hw_tx_cons(bnapi);
 	}
 
+	netdev_tx_completed_queue(txq, tx_pkt, tx_bytes);
 	txr->hw_tx_cons = hw_cons;
 	txr->tx_cons = sw_cons;
 
@@ -5386,6 +5389,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 			}
 			dev_kfree_skb(skb);
 		}
+		netdev_tx_reset_queue(netdev_get_tx_queue(bp->dev, i));
 	}
 }
 
@@ -6618,6 +6622,8 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Sync BD data before updating TX mailbox */
 	wmb();
+
+	netdev_tx_sent_queue(txq, skb->len);
 
 	prod = BNX2_NEXT_TX_BD(prod);
 	txr->tx_prod_bseq += skb->len;
