@@ -4314,11 +4314,11 @@ static int check_auto_mic_availability(struct hda_codec *codec)
 }
 
 /* power_filter hook; make inactive widgets into power down */
-static unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
+unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 						  hda_nid_t nid,
 						  unsigned int power_state)
 {
-	if (power_state != AC_PWRST_D0)
+	if (power_state != AC_PWRST_D0 || nid == codec->afg)
 		return power_state;
 	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
 		return power_state;
@@ -4326,6 +4326,7 @@ static unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 		return power_state;
 	return AC_PWRST_D3;
 }
+EXPORT_SYMBOL_GPL(snd_hda_gen_path_power_filter);
 
 /* mute all aamix inputs initially; parse up to the first leaves */
 static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
