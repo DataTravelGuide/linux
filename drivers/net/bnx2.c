@@ -3044,7 +3044,7 @@ bnx2_rx_skb(struct bnx2 *bp, struct bnx2_rx_ring_info *rxr, struct sk_buff *skb,
 				} else {
 					skb_frag_t *frag =
 						&skb_shinfo(skb)->frags[i - 1];
-					frag->size -= tail;
+					skb_frag_size_sub(frag, tail);
 					skb->data_len -= tail;
 				}
 				return 0;
@@ -5379,7 +5379,7 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 				tx_buf = &txr->tx_buf_ring[BNX2_TX_RING_IDX(j)];
 				dma_unmap_page(&bp->pdev->dev,
 					dma_unmap_addr(tx_buf, mapping),
-					skb_shinfo(skb)->frags[k].size,
+					skb_frag_size(&skb_shinfo(skb)->frags[k]),
 					PCI_DMA_TODEVICE);
 			}
 			dev_kfree_skb(skb);
@@ -6591,13 +6591,13 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_buf->is_gso = skb_is_gso(skb);
 
 	for (i = 0; i < last_frag; i++) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		prod = BNX2_NEXT_TX_BD(prod);
 		ring_prod = BNX2_TX_RING_IDX(prod);
 		txbd = &txr->tx_desc_ring[ring_prod];
 
-		len = frag->size;
+		len = skb_frag_size(frag);
 		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0, len,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(&bp->pdev->dev, mapping))
@@ -6658,7 +6658,7 @@ dma_error:
 		ring_prod = BNX2_TX_RING_IDX(prod);
 		tx_buf = &txr->tx_buf_ring[ring_prod];
 		dma_unmap_page(&bp->pdev->dev, dma_unmap_addr(tx_buf, mapping),
-			       skb_shinfo(skb)->frags[i].size,
+			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
 			       PCI_DMA_TODEVICE);
 	}
 
