@@ -291,6 +291,12 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
+
+struct hda_intel {
+	struct azx chip;
+};
+
+
 #ifdef CONFIG_X86
 static void __mark_pages_wc(struct azx *chip, struct snd_dma_buffer *dmab, bool on)
 {
@@ -717,6 +723,7 @@ static int azx_suspend(struct device *dev)
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
+
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
 	pci_disable_device(pci);
@@ -937,6 +944,8 @@ static int register_vga_switcheroo(struct azx *chip)
  */
 static int azx_free(struct azx *chip)
 {
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+
 	int i;
 
 	azx_del_card_list(chip);
@@ -976,7 +985,7 @@ static int azx_free(struct azx *chip)
 	if (chip->fw)
 		release_firmware(chip->fw);
 #endif
-	kfree(chip);
+	kfree(hda);
 
 	return 0;
 }
@@ -1239,6 +1248,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	static struct snd_device_ops ops = {
 		.dev_free = azx_dev_free,
 	};
+	struct hda_intel *hda;
 	struct azx *chip;
 	int err;
 
@@ -1248,13 +1258,14 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (!chip) {
-		dev_err(card->dev, "Cannot allocate chip\n");
+	hda = kzalloc(sizeof(*hda), GFP_KERNEL);
+	if (!hda) {
+		dev_err(card->dev, "Cannot allocate hda\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
 
+	chip = &hda->chip;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
