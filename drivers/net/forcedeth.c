@@ -2894,7 +2894,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		dprintk(KERN_DEBUG "%s: nv_rx_process: %d bytes, proto %d accepted.\n",
 					dev->name, len, skb->protocol);
 #ifdef CONFIG_FORCEDETH_NAPI
-		netif_receive_skb(skb);
+		napi_gro_receive(&np->napi, skb);
 #else
 		netif_rx(skb);
 #endif
@@ -2989,7 +2989,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 
 			if (likely(!np->vlangrp)) {
 #ifdef CONFIG_FORCEDETH_NAPI
-				netif_receive_skb(skb);
+				napi_gro_receive(&np->napi, skb);
 #else
 				netif_rx(skb);
 #endif
@@ -2997,15 +2997,15 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 				vlanflags = le32_to_cpu(np->get_rx.ex->buflow);
 				if (vlanflags & NV_RX3_VLAN_TAG_PRESENT) {
 #ifdef CONFIG_FORCEDETH_NAPI
-					vlan_hwaccel_receive_skb(skb, np->vlangrp,
-								 vlanflags & NV_RX3_VLAN_TAG_MASK);
+					vlan_gro_receive(&np->napi, np->vlangrp,
+							 vlanflags & NV_RX3_VLAN_TAG_MASK, skb);
 #else
 					vlan_hwaccel_rx(skb, np->vlangrp,
 							vlanflags & NV_RX3_VLAN_TAG_MASK);
 #endif
 				} else {
 #ifdef CONFIG_FORCEDETH_NAPI
-					netif_receive_skb(skb);
+					napi_gro_receive(&np->napi, skb);
 #else
 					netif_rx(skb);
 #endif
@@ -5807,6 +5807,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		dev->features |= NETIF_F_TSO;
+#ifdef CONFIG_FORCEDETH_NAPI
+		dev->features |= NETIF_F_GRO;
+#endif
 	}
 
 	np->vlanctl_bits = 0;
