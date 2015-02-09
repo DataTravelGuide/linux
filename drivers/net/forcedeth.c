@@ -5183,6 +5183,11 @@ static const struct ethtool_ops ops = {
 	.self_test = nv_self_test,
 };
 
+static const struct ethtool_ops_ext ops_ext = {
+	.size = sizeof(struct ethtool_ops_ext),
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /* The mgmt unit and driver use a semaphore to access the phy during init */
 static int nv_mgmt_acquire_sema(struct net_device *dev)
 {
@@ -5683,6 +5688,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
 	SET_ETHTOOL_OPS(dev, &ops);
+	set_ethtool_ops_ext(dev, &ops_ext);
 	dev->watchdog_timeo = NV_WATCHDOG_TIMEO;
 
 	pci_set_drvdata(pci_dev, dev);
