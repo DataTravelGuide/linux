@@ -3488,7 +3488,8 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			spin_unlock_irqrestore(&np->lock, flags);
-			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_tx.\n", dev->name, i);
+			netdev_dbg(dev, "%s: too many iterations (%d)\n",
+				   __func__, i);
 			break;
 		}
 
@@ -3603,7 +3604,8 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			spin_unlock_irqrestore(&np->lock, flags);
-			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_rx.\n", dev->name, i);
+			netdev_dbg(dev, "%s: too many iterations (%d)\n",
+				   __func__, i);
 			break;
 		}
 	}
@@ -3667,7 +3669,8 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 				mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 			}
 			spin_unlock_irqrestore(&np->lock, flags);
-			printk(KERN_DEBUG "%s: too many iterations (%d) in nv_nic_irq_other.\n", dev->name, i);
+			netdev_dbg(dev, "%s: too many iterations (%d)\n",
+				   __func__, i);
 			break;
 		}
 
@@ -5562,7 +5565,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
 		dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
 		writel(txreg|NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
-		printk(KERN_DEBUG "nv_probe: set workaround bit for reversed mac addr\n");
+		dev_dbg(&pci_dev->dev,
+			"%s: set workaround bit for reversed mac addr\n",
+			__func__);
 	}
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
@@ -5572,11 +5577,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		 * to 01:23:45:67:89:ab
 		 */
 		dev_err(&pci_dev->dev,
-			"Invalid MAC address detected: %pM\n",
+			"Invalid MAC address detected: %pM - Please complain to your hardware vendor.\n",
 			dev->dev_addr);
-		dev_err(&pci_dev->dev,
-			"Please complain to your hardware vendor. Switched to a random MAC address.\n");
 		random_ether_addr(dev->dev_addr);
+		dev_err(&pci_dev->dev,
+			"Using random MAC address: %pM\n", dev->dev_addr);
 	}
 
 	/* set mac address */
