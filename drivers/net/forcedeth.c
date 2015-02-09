@@ -5843,7 +5843,7 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nv_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -5894,6 +5894,11 @@ static int nv_resume(struct device *device)
 static SIMPLE_DEV_PM_OPS(nv_pm_ops, nv_suspend, nv_resume);
 #define NV_PM_OPS (&nv_pm_ops)
 
+#else
+#define NV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
 static void nv_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -5921,7 +5926,6 @@ static void nv_shutdown(struct pci_dev *pdev)
 	}
 }
 #else
-#define NV_PM_OPS NULL
 #define nv_shutdown NULL
 #endif /* CONFIG_PM */
 
