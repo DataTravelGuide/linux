@@ -5524,7 +5524,7 @@ static const struct net_device_ops_ext nv_netdev_ops_ext = {
 	.ndo_set_features	= nv_set_features,
 };
 
-static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
+static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	struct net_device *dev;
 	struct fe_priv *np;
@@ -6001,7 +6001,7 @@ static void nv_restore_mac_addr(struct pci_dev *pci_dev)
 	       base + NvRegTransmitPoll);
 }
 
-static void __devexit nv_remove(struct pci_dev *pci_dev)
+static void nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
 
@@ -6277,7 +6277,7 @@ static struct pci_driver driver = {
 	.name		= DRV_NAME,
 	.id_table	= pci_tbl,
 	.probe		= nv_probe,
-	.remove		= __devexit_p(nv_remove),
+	.remove		= nv_remove,
 	.shutdown	= nv_shutdown,
 	.driver.pm	= NV_PM_OPS,
 };
