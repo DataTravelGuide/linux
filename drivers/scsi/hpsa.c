@@ -6879,14 +6879,14 @@ static int hpsa_offline_devices_ready(struct ctlr_info *h)
 	return 0;
 }
 
-
-static void hpsa_monitor_ctlr_worker(struct work_struct *work)
+static void hpsa_rescan_ctlr_worker(struct work_struct *work)
 {
 	unsigned long flags;
 	struct ctlr_info *h = container_of(to_delayed_work(work),
-					struct ctlr_info, monitor_ctlr_work);
-	detect_controller_lockup(h);
-	if (lockup_detected(h))
+					struct ctlr_info, rescan_ctlr_work);
+
+
+	if (h->remove_in_progress)
 		return;
 
 	if (hpsa_ctlr_needs_rescan(h) || hpsa_offline_devices_ready(h)) {
@@ -6896,15 +6896,42 @@ static void hpsa_monitor_ctlr_worker(struct work_struct *work)
 		hpsa_scan_start(h->scsi_host);
 		scsi_host_put(h->scsi_host);
 	}
-
 	spin_lock_irqsave(&h->lock, flags);
-	if (h->remove_in_progress) {
-		spin_unlock_irqrestore(&h->lock, flags);
-		return;
-	}
-	schedule_delayed_work(&h->monitor_ctlr_work,
+	if (!h->remove_in_progress)
+		queue_delayed_work(h->rescan_ctlr_wq, &h->rescan_ctlr_work,
 				h->heartbeat_sample_interval);
 	spin_unlock_irqrestore(&h->lock, flags);
+}
+
+static void hpsa_monitor_ctlr_worker(struct work_struct *work)
+{
+	unsigned long flags;
+	struct ctlr_info *h = container_of(to_delayed_work(work),
+					struct ctlr_info, monitor_ctlr_work);
+
+	detect_controller_lockup(h);
+	if (lockup_detected(h))
+		return;
+
+	spin_lock_irqsave(&h->lock, flags);
+	if (!h->remove_in_progress)
+		schedule_delayed_work(&h->monitor_ctlr_work,
+				h->heartbeat_sample_interval);
+	spin_unlock_irqrestore(&h->lock, flags);
+}
+
+static struct workqueue_struct *hpsa_create_controller_wq(struct ctlr_info *h,
+						char *name)
+{
+	struct workqueue_struct *wq = NULL;
+	char wq_name[20];
+
+	snprintf(wq_name, sizeof(wq_name), "%s_%d_hpsa", name, h->ctlr);
+	wq = alloc_ordered_workqueue(wq_name, 0);
+	if (!wq)
+		dev_err(&h->pdev->dev, "failed to create %s workqueue\n", name);
+
+	return wq;
 }
 
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
@@ -6951,6 +6978,12 @@ reinit_after_soft_reset:
 	spin_lock_init(&h->offline_device_lock);
 	spin_lock_init(&h->scan_lock);
 	spin_lock_init(&h->passthru_count_lock);
+
+	h->rescan_ctlr_wq = hpsa_create_controller_wq(h, "rescan");
+	if (!h->rescan_ctlr_wq) {
+		rc = -ENOMEM;
+		goto clean1;
+	}
 
 	/* Allocate and clear per-cpu variable lockup_detected */
 	h->lockup_detected = alloc_percpu(u32);
@@ -7075,6 +7108,9 @@ reinit_after_soft_reset:
 	INIT_DELAYED_WORK(&h->monitor_ctlr_work, hpsa_monitor_ctlr_worker);
 	schedule_delayed_work(&h->monitor_ctlr_work,
 				h->heartbeat_sample_interval);
+	INIT_DELAYED_WORK(&h->rescan_ctlr_work, hpsa_rescan_ctlr_worker);
+	queue_delayed_work(h->rescan_ctlr_wq, &h->rescan_ctlr_work,
+				h->heartbeat_sample_interval);
 	return 0;
 
 clean4:
@@ -7083,6 +7119,8 @@ clean4:
 	free_irqs(h);
 clean2:
 clean1:
+	if (h->rescan_ctlr_wq)
+		destroy_workqueue(h->rescan_ctlr_wq);
 	if (h->lockup_detected)
 		free_percpu(h->lockup_detected);
 	kfree(h);
@@ -7156,9 +7194,10 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	/* Get rid of any controller monitoring work items */
 	spin_lock_irqsave(&h->lock, flags);
 	h->remove_in_progress = 1;
-	cancel_delayed_work(&h->monitor_ctlr_work);
 	spin_unlock_irqrestore(&h->lock, flags);
-
+	cancel_delayed_work_sync(&h->monitor_ctlr_work);
+	cancel_delayed_work_sync(&h->rescan_ctlr_work);
+	destroy_workqueue(h->rescan_ctlr_wq);
 	hpsa_unregister_scsi(h);	/* unhook from SCSI subsystem */
 	hpsa_shutdown(pdev);
 	iounmap(h->vaddr);
