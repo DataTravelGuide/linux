@@ -1701,13 +1701,6 @@ fi
 
 %changelog
 %%CHANGELOG%%
-* Thu Jan 08 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.9.1.el6]
-- [net] ipv6: increase ip6_rt_max_size to 16384 (Hannes Frederic Sowa) [1177581 1112946]
-- [net] ipv6: don't set DST_NOCOUNT for remotely added routes (Hannes Frederic Sowa) [1177581 1112946]
-- [net] ipv6: don't count addrconf generated routes against gc limit (Hannes Frederic Sowa) [1177581 1112946]
-- [net] ipv6: Don't put artificial limit on routing table size (Hannes Frederic Sowa) [1177581 1112946]
-- [scsi] bnx2fc: fix tgt spinlock locking (Maurizio Lombardi) [1179098 1079656]
-
 * Mon Dec 22 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.8.1.el6]
 - [crypto] crc32c: Kill pointless CRYPTO_CRC32C_X86_64 option (Jarod Wilson) [1175509 1036212]
 - [crypto] testmgr: add larger crc32c test vector to test FPU path in crc32c_intel (Jarod Wilson) [1175509 1036212]
