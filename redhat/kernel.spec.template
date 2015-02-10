@@ -1701,13 +1701,6 @@ fi
 
 %changelog
 %%CHANGELOG%%
-* Mon Dec 22 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.8.1.el6]
-- [crypto] crc32c: Kill pointless CRYPTO_CRC32C_X86_64 option (Jarod Wilson) [1175509 1036212]
-- [crypto] testmgr: add larger crc32c test vector to test FPU path in crc32c_intel (Jarod Wilson) [1175509 1036212]
-- [crypto] tcrypt: Added speed test in tcrypt for crc32c (Jarod Wilson) [1175509 1036212]
-- [crypto] crc32c: Optimize CRC32C calculation with PCLMULQDQ instruction (Jarod Wilson) [1175509 1036212]
-- [crypto] crc32c: Rename crc32c-intel.c to crc32c-intel_glue.c (Jarod Wilson) [1175509 1036212]
-
 * Thu Dec 11 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.7.1.el6]
 - [kernel] ipc/sem: Fully initialize sem_array before making it visible (Rik van Riel) [1172029 1165277]
 - [kernel] ipc/sem: synchronize semop and semctl with IPC_RMID (Rik van Riel) [1172029 1165277]
