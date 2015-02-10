@@ -22,6 +22,7 @@
 #include "enic_res.h"
 #include "enic.h"
 #include "enic_dev.h"
+#include "enic_clsf.h"
 
 struct enic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -282,6 +283,24 @@ static int enic_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			  void *rule_locs)
+{
+	struct enic *enic = netdev_priv(dev);
+	int ret = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = enic->rq_count;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct ethtool_ops enic_ethtool_ops = {
 	.get_settings = enic_get_settings,
 	.get_drvinfo = enic_get_drvinfo,
@@ -293,6 +312,7 @@ static const struct ethtool_ops enic_ethtool_ops = {
 	.get_ethtool_stats = enic_get_ethtool_stats,
 	.get_coalesce = enic_get_coalesce,
 	.set_coalesce = enic_set_coalesce,
+	.get_rxnfc = enic_get_rxnfc,
 };
 
 void enic_set_ethtool_ops(struct net_device *netdev)
