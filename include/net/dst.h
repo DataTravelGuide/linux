@@ -48,7 +48,6 @@ struct dst_entry
 #define DST_NOXFRM		2
 #define DST_NOPOLICY		4
 #define DST_NOHASH		8
-#define DST_NOCOUNT		16
 #define DST_FAKE_RTABLE		0x0080
 	unsigned long		expires;
 
@@ -252,7 +251,6 @@ static inline struct dst_entry *dst_pop(struct dst_entry *dst)
 
 extern int dst_discard(struct sk_buff *skb);
 extern void * dst_alloc(struct dst_ops * ops);
-extern void *__dst_alloc(struct dst_ops * ops, int flags);
 extern void __dst_free(struct dst_entry * dst);
 extern struct dst_entry *dst_destroy(struct dst_entry * dst);
 
