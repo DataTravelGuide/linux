@@ -1701,19 +1701,6 @@ fi
 
 %changelog
 %%CHANGELOG%%
-* Thu Dec 11 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.7.1.el6]
-- [kernel] ipc/sem: Fully initialize sem_array before making it visible (Rik van Riel) [1172029 1165277]
-- [kernel] ipc/sem: synchronize semop and semctl with IPC_RMID (Rik van Riel) [1172029 1165277]
-- [kernel] ipc/sem: update sem_otime for all operations (Larry Woodman) [1172025 1168588]
-- [fs] fuse: prevent null nd panic on dentry revalidate (Brian Foster) [1172022 1162782]
-- [net] netfilter: ipset: timeout values corrupted on set resize (Marcelo Leitner) [1172764 1152754]
-- [net] netfilter: fix xt_TCPOPTSTRIP in forwarding path (Marcelo Leitner) [1172027 1135650]
-- [usb] ehci: Fix panic on hotplug race condition (Don Zickus) [1172024 1107010]
-- [usb] usb_wwan: replace release and disconnect with a port_remove hook (Stanislaw Gruszka) [1172030 1148615]
-- [security] selinux: Permit bounded transitions under NO_NEW_PRIVS or NOSUID (Denys Vlasenko) [1104567 1104568] {CVE-2014-3215}
-- [security] Add PR_<GET, SET>_NO_NEW_PRIVS to prevent execve from granting privs (Denys Vlasenko) [1104567 1104568] {CVE-2014-3215}
-- [kvm] x86_64, traps: stop using IST for #SS (Petr  Matousek) [1172810 1172811] {CVE-2014-9322}
-
 * Tue Dec 09 2014 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.6.1.el6]
 - [fs] ext4: don't count external journal blocks as overhead (Eric Sandeen) [1168504 1163811]
 - [net] sctp: fix NULL pointer dereference in af->from_addr_param on malformed packet (Daniel Borkmann) [1163090 1153980] {CVE-2014-7841}
