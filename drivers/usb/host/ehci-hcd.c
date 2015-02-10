@@ -856,7 +856,7 @@ dead:
 		bh = 1;
 	}
 
-	if ((bh) && likely(ehci->async))
+	if (bh)
 		ehci_work (ehci);
 	spin_unlock (&ehci->lock);
 	if (pcd_status)
