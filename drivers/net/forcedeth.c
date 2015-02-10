@@ -6001,7 +6001,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	nv_start_tx(dev);
 	nv_stop_tx(dev);
 
-	nv_vlan_mode(dev, dev->features);
+	if (id->driver_data & DEV_HAS_VLAN)
+		nv_vlan_mode(dev, dev->features);
 
 	dev_info(&pci_dev->dev, "ifname %s, PHY OUI 0x%x @ %d, addr %pM\n",
 		 dev->name, np->phy_oui, np->phyaddr, dev->dev_addr);
