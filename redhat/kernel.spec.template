@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.11.1.el6]
+- [virt] kvm: excessive pages un-pinning in kvm_iommu_map error path (Jacob Tanenbaum) [1156520 1156521] {CVE-2014-8369}
+- [x86] crypto: Add support for 192 & 256 bit keys to AESNI RFC4106 (Jarod Wilson) [1184332 1176211]
+- [block] nvme: Clear QUEUE_FLAG_STACKABLE (David Milburn) [1180555 1155715]
+- [net] netfilter: conntrack: disable generic tracking for known protocols (Daniel Borkmann) [1182071 1114697] {CVE-2014-8160}
+- [xen] pvhvm: Fix vcpu hotplugging hanging (Vitaly Kuznetsov) [1179343 1164278]
+- [xen] pvhvm: Don't point per_cpu(xen_vpcu, 33 and larger) to shared_info (Vitaly Kuznetsov) [1179343 1164278]
+- [xen] enable PVHVM VCPU placement when using more than 32 CPUs (Vitaly Kuznetsov) [1179343 1164278]
+- [xen] support large numbers of CPUs with vcpu info placement (Vitaly Kuznetsov) [1179343 1164278]
+
 * Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.10.1.el6]
 - [netdrv] tg3: Change nvram command timeout value to 50ms (Ivan Vecera) [1182903 1176230]
 
