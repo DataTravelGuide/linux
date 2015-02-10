@@ -120,7 +120,6 @@ struct enic {
 	unsigned int priv_flags;
 	unsigned int mc_count;
 	unsigned int uc_count;
-	int csum_rx_enabled;
 	u32 port_mtu;
 	struct enic_rx_coal rx_coalesce_setting;
 	u32 rx_coalesce_usecs;

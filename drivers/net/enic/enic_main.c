@@ -1097,7 +1097,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		 * checksum but not provide us the checksum value. use
 		 * CHECSUM_UNNECESSARY.
 		 */
-		if (enic->csum_rx_enabled && tcp_udp_csum_ok &&
+		if ((netdev->features & NETIF_F_RXCSUM) && tcp_udp_csum_ok &&
 		    ipv4_csum_ok)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -2447,18 +2447,19 @@ static int __devinit enic_probe(struct pci_dev *pdev, const struct pci_device_id
 		dev_info(dev, "loopback tag=0x%04x\n", enic->loop_tag);
 	}
 	if (ENIC_SETTING(enic, TXCSUM))
-		netdev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
+		netdev_extended(netdev)->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (ENIC_SETTING(enic, TSO))
-		netdev->features |= NETIF_F_TSO |
+		netdev_extended(netdev)->hw_features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
-	if (ENIC_SETTING(enic, LRO))
-		netdev->features |= NETIF_F_GRO;
 	if (ENIC_SETTING(enic, RSS))
 		netdev->features |= NETIF_F_RXHASH;
+	if (ENIC_SETTING(enic, RXCSUM))
+		netdev_extended(netdev)->hw_features |= NETIF_F_RXCSUM;
+
+	netdev->features |= netdev_extended(netdev)->hw_features;
+
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
-
-	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
 
 	err = register_netdev(netdev);
 	if (err) {
