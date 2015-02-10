@@ -24,6 +24,8 @@
 #include <linux/power_supply.h>
 #include <linux/clk.h>
 
+#include <drm/drm_backport.h>
+
 #include <asm/unaligned.h>
 
 #ifndef ioread32_native

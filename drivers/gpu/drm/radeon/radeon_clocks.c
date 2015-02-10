@@ -99,7 +99,7 @@ uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 static bool radeon_read_clocks_OF(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	struct device_node *dp = rdev->pdev->dev.of_node;
+	struct device_node *dp = rdev->pdev->dev.archdata.of_node;
 	const u32 *val;
 	struct radeon_pll *p1pll = &rdev->clock.p1pll;
 	struct radeon_pll *p2pll = &rdev->clock.p2pll;

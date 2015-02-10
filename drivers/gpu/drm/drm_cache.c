@@ -125,11 +125,12 @@ drm_clflush_sg(struct sg_table *st)
 EXPORT_SYMBOL(drm_clflush_sg);
 
 void
-drm_clflush_virt_range(void *addr, unsigned long length)
+drm_clflush_virt_range(void *addrv, unsigned long length)
 {
 #if defined(CONFIG_X86)
+	char *addr = addrv;
 	if (cpu_has_clflush) {
-		void *end = addr + length;
+		char *end = addr + length;
 		mb();
 		for (; addr < end; addr += boot_cpu_data.x86_clflush_size)
 			clflush(addr);

@@ -26,8 +26,6 @@
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
-#include <asm/intel-mid.h>
-#include <asm/intel_scu_ipc.h>
 #include "mid_bios.h"
 #include "intel_bios.h"
 
@@ -139,7 +137,7 @@ static int device_backlight_init(struct drm_device *dev)
 	return 0;
 }
 
-static const struct backlight_ops oaktrail_ops = {
+static struct backlight_ops oaktrail_ops = {
 	.get_brightness = oaktrail_get_brightness,
 	.update_status  = oaktrail_set_brightness,
 };
@@ -148,14 +146,9 @@ static int oaktrail_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
-	struct backlight_properties props;
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = 100;
-	props.type = BACKLIGHT_PLATFORM;
 
 	oaktrail_backlight_device = backlight_device_register("oaktrail-bl",
-				NULL, (void *)dev, &oaktrail_ops, &props);
+				NULL, (void *)dev, &oaktrail_ops);
 
 	if (IS_ERR(oaktrail_backlight_device))
 		return PTR_ERR(oaktrail_backlight_device);

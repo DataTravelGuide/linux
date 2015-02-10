@@ -1749,7 +1749,7 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 	struct dcb_table *dcb = &bios->dcb;
 	int all_heads = (nv_two_heads(dev) ? 3 : 1);
 
-#ifdef __powerpc__
+#ifdef CONFIG_PPC_PMAC
 	/* Apple iMac G4 NV17 */
 	if (of_machine_is_compatible("PowerMac4,5")) {
 		fabricate_dcb_output(dcb, DCB_OUTPUT_TMDS, 0, all_heads, 1);

@@ -29,7 +29,7 @@
 #include "nouveau_sysfs.h"
 
 MODULE_PARM_DESC(pstate, "enable sysfs pstate file, which will be moved in the future");
-static int nouveau_pstate;
+int nouveau_pstate;
 module_param_named(pstate, nouveau_pstate, int, 0400);
 
 static inline struct drm_device *
@@ -192,7 +192,7 @@ nouveau_sysfs_init(struct drm_device *dev)
 			       NVIF_IOCTL_NEW_V0_CONTROL, NULL, 0,
 			      &sysfs->ctrl);
 	if (ret == 0)
-		ret = device_create_file(nv_device_base(device), &dev_attr_pstate);
+		ret = device_create_file(nv_device_base(nvkm_device(device)), &dev_attr_pstate);
 
-	return ret;
+	return 0;
 }

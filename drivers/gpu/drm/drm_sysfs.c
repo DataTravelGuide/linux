@@ -21,6 +21,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
+#include "drm_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -30,14 +31,14 @@ static struct device_type drm_sysfs_device_minor = {
 };
 
 /**
- * drm_class_suspend - DRM class suspend hook
+ * __drm_class_suspend - internal DRM class suspend routine
  * @dev: Linux device to suspend
  * @state: power state to enter
  *
  * Just figures out what the actual struct drm_device associated with
  * @dev is and calls its suspend hook, if present.
  */
-static int drm_class_suspend(struct device *dev, pm_message_t state)
+static int __drm_class_suspend(struct device *dev, pm_message_t state)
 {
 	if (dev->type == &drm_sysfs_device_minor) {
 		struct drm_minor *drm_minor = to_drm_minor(dev);
@@ -49,6 +50,16 @@ static int drm_class_suspend(struct device *dev, pm_message_t state)
 			return drm_dev->driver->suspend(drm_dev, state);
 	}
 	return 0;
+}
+
+/**
+ * drm_class_suspend - internal DRM class suspend hook. Simply calls
+ * __drm_class_suspend() with the correct pm state.
+ * @dev: Linux device to suspend
+ */
+static int drm_class_suspend(struct device *dev, pm_message_t state)
+{
+	return __drm_class_suspend(dev, state);
 }
 
 /**
