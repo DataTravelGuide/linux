@@ -7,8 +7,8 @@ ccflags-y += -include drm/drm_backport.h
 
 drm-y       :=	drm_auth.o drm_buffer.o drm_bufs.o drm_cache.o \
 		drm_context.o drm_dma.o \
-		drm_drv.o drm_fops.o drm_gem.o drm_ioctl.o drm_irq.o \
-		drm_lock.o drm_memory.o drm_stub.o drm_vm.o \
+		drm_fops.o drm_gem.o drm_ioctl.o drm_irq.o \
+		drm_lock.o drm_memory.o drm_drv.o drm_vm.o \
 		drm_agpsupport.o drm_scatter.o drm_pci.o \
 		drm_platform.o drm_sysfs.o drm_hashtab.o drm_mm.o \
 		drm_crtc.o drm_modes.o drm_edid.o \
@@ -27,7 +27,7 @@ drm-$(CONFIG_DRM_PANEL) += drm_panel.o
 drm-usb-y   := drm_usb.o
 
 drm_kms_helper-y := drm_crtc_helper.o drm_dp_helper.o drm_probe_helper.o \
-		drm_plane_helper.o
+		drm_plane_helper.o drm_dp_mst_topology.o
 drm_kms_helper-$(CONFIG_DRM_LOAD_EDID_FIRMWARE) += drm_edid_load.o
 drm_kms_helper-$(CONFIG_DRM_KMS_FB_HELPER) += drm_fb_helper.o
 drm_kms_helper-$(CONFIG_DRM_KMS_CMA_HELPER) += drm_fb_cma_helper.o
