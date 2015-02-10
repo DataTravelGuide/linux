@@ -1701,6 +1701,18 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.13.1.el6]
+- [netdrv] enic: fix rx skb checksum (Stefan Assmann) [1189068 1115505]
+- [scsi] Revert "fix our current target reap infrastructure" (David Milburn) [1188941 1168072]
+- [scsi] Revert "dual scan thread bug fix" (David Milburn) [1188941 1168072]
+- [net] tcp: do not copy headers in tcp_collapse() (Alexander Duyck) [1188838 1156289]
+- [net] tcp: use tcp_flags in tcp_data_queue() (Alexander Duyck) [1188838 1156289]
+- [net] tcp: use TCP_SKB_CB(skb)->tcp_flags in input path (Alexander Duyck) [1188838 1156289]
+- [net] tcp: remove unused tcp_fin() parameters (Alexander Duyck) [1188838 1156289]
+- [net] tcp: rename tcp_skb_cb flags (Alexander Duyck) [1188838 1156289]
+- [net] tcp: unify tcp flag macros (Alexander Duyck) [1188838 1156289]
+- [net] tcp: unalias tcp_skb_cb flags and ip_dsfield (Alexander Duyck) [1188838 1156289]
+
 * Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.12.1.el6]
 - [fs] splice: perform generic write checks (Eric Sandeen) [1163798 1155900] {CVE-2014-7822}
 
