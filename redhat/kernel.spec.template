@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.12.1.el6]
+- [fs] splice: perform generic write checks (Eric Sandeen) [1163798 1155900] {CVE-2014-7822}
+
 * Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.11.1.el6]
 - [virt] kvm: excessive pages un-pinning in kvm_iommu_map error path (Jacob Tanenbaum) [1156520 1156521] {CVE-2014-8369}
 - [x86] crypto: Add support for 192 & 256 bit keys to AESNI RFC4106 (Jarod Wilson) [1184332 1176211]
