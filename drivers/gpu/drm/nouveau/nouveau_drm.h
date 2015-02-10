@@ -73,6 +73,8 @@ nouveau_cli(struct drm_file *fpriv)
 	return fpriv ? fpriv->driver_priv : NULL;
 }
 
+extern int nouveau_runtime_pm;
+
 struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
@@ -136,6 +138,7 @@ struct nouveau_drm {
 	/* display power reference */
 	bool have_disp_power_ref;
 
+	struct dev_pm_domain vga_pm_domain;
 	struct pci_dev *hdmi_device;
 };
 
@@ -158,10 +161,7 @@ int nouveau_pmops_resume(struct device *);
 #define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
 #define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)
 #define NV_INFO(cli, fmt, args...) nv_info((cli), fmt, ##args)
-#define NV_DEBUG(cli, fmt, args...) do {                                       \
-	if (drm_debug & DRM_UT_DRIVER)                                         \
-		nv_info((cli), fmt, ##args);                                   \
-} while (0)
+#define NV_DEBUG(cli, fmt, args...) nv_debug((cli), fmt, ##args)
 
 extern int nouveau_modeset;
 

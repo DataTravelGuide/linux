@@ -181,7 +181,6 @@ struct drm_mode_get_plane_res {
 #define DRM_MODE_ENCODER_TVDAC	4
 #define DRM_MODE_ENCODER_VIRTUAL 5
 #define DRM_MODE_ENCODER_DSI	6
-#define DRM_MODE_ENCODER_DPMST	7
 
 struct drm_mode_get_encoder {
 	__u32 encoder_id;

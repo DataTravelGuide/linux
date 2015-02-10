@@ -191,8 +191,9 @@ int drm_clients_info(struct seq_file *m, void *data)
 		seq_printf(m, "%c %3d %5d %5d %10u\n",
 			   priv->authenticated ? 'y' : 'n',
 			   priv->minor->index,
-			   priv->pid,
-			   priv->uid, priv->magic);
+			   pid_vnr(priv->pid),
+			   from_kuid_munged(seq_user_ns(m), priv->uid),
+			   priv->magic);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return 0;

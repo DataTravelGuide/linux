@@ -380,6 +380,10 @@ struct shrinker2 {
 void register_shrinker2(struct shrinker2 *shrinker);
 void unregister_shrinker2(struct shrinker2 *shrinker);
 
+#define shrinker            shrinker2
+#define register_shrinker   register_shrinker2
+#define unregister_shrinker unregister_shrinker2
+
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
@@ -402,6 +406,34 @@ static inline void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev, enum 
 static inline int vga_switcheroo_init_domain_pm_ops(struct device *dev, struct dev_pm_domain *domain) { return 0; }
 static inline void vga_switcheroo_fini_domain_pm_ops(struct device *dev) {}
 
+
+/* redirect things to our own idr/ida: */
+#define __IDR_H__
+#include <drm/idr2.h>
+#define idr                idr2
+#define idr_find_slowpath  idr2_find_slowpath
+#define idr_preload        idr2_preload
+#define idr_alloc          idr2_alloc
+#define idr_alloc_cyclic   idr2_alloc_cyclic
+#define idr_for_each       idr2_for_each
+#define idr_get_next       idr2_get_next
+#define idr_replace        idr2_replace
+#define idr_remove         idr2_remove
+#define idr_destroy        idr2_destroy
+#define idr_init           idr2_init
+#define idr_is_empty       idr2_is_empty
+#define idr_preload_end    idr2_preload_end
+#define idr_find           idr2_find
+#define idr_for_each_entry idr2_for_each_entry
+#define ida                ida2
+#define ida_pre_get        ida2_pre_get
+#define ida_get_new_above  ida2_get_new_above
+#define ida_remove         ida2_remove
+#define ida_destroy        ida2_destroy
+#define ida_init           ida2_init
+#define ida_simple_get     ida2_simple_get
+#define ida_simple_remove  ida2_simple_remove
+#define ida_get_new        ida2_get_new
 
 static inline unsigned long get_num_physpages(void)
 {

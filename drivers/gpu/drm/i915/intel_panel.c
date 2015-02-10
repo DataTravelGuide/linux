@@ -33,8 +33,6 @@
 #include <linux/moduleparam.h>
 #include "intel_drv.h"
 
-#define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
-
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
@@ -325,100 +323,6 @@ out:
 	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
-static int is_backlight_combination_mode(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_GEN4(dev))
-		return I915_READ(BLC_PWM_CTL2) & BLM_COMBINATION_MODE;
-
-	if (IS_GEN2(dev))
-		return I915_READ(BLC_PWM_CTL) & BLM_LEGACY_MODE;
-
-	return 0;
-}
-
-/* XXX: query mode clock or hardware clock and program max PWM appropriately
- * when it's 0.
- */
-static u32 i915_read_blc_pwm_ctl(struct drm_device *dev, enum pipe pipe)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-
-	/* Restore the CTL value if it lost, e.g. GPU reset */
-
-	if (HAS_PCH_SPLIT(dev_priv->dev)) {
-		val = I915_READ(BLC_PWM_PCH_CTL2);
-		if (dev_priv->regfile.saveBLC_PWM_CTL2 == 0) {
-			dev_priv->regfile.saveBLC_PWM_CTL2 = val;
-		} else if (val == 0) {
-			val = dev_priv->regfile.saveBLC_PWM_CTL2;
-			I915_WRITE(BLC_PWM_PCH_CTL2, val);
-		}
-	} else if (IS_VALLEYVIEW(dev)) {
-		val = I915_READ(VLV_BLC_PWM_CTL(pipe));
-		if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
-			dev_priv->regfile.saveBLC_PWM_CTL = val;
-			dev_priv->regfile.saveBLC_PWM_CTL2 =
-				I915_READ(VLV_BLC_PWM_CTL2(pipe));
-		} else if (val == 0) {
-			val = dev_priv->regfile.saveBLC_PWM_CTL;
-			I915_WRITE(VLV_BLC_PWM_CTL(pipe), val);
-			I915_WRITE(VLV_BLC_PWM_CTL2(pipe),
-				   dev_priv->regfile.saveBLC_PWM_CTL2);
-		}
-
-		if (!val)
-			val = 0x0f42ffff;
-	} else {
-		val = I915_READ(BLC_PWM_CTL);
-		if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
-			dev_priv->regfile.saveBLC_PWM_CTL = val;
-			if (INTEL_INFO(dev)->gen >= 4)
-				dev_priv->regfile.saveBLC_PWM_CTL2 =
-					I915_READ(BLC_PWM_CTL2);
-		} else if (val == 0) {
-			val = dev_priv->regfile.saveBLC_PWM_CTL;
-			I915_WRITE(BLC_PWM_CTL, val);
-			if (INTEL_INFO(dev)->gen >= 4)
-				I915_WRITE(BLC_PWM_CTL2,
-					   dev_priv->regfile.saveBLC_PWM_CTL2);
-		}
-	}
-
-	return val;
-}
-
-static u32 intel_panel_get_max_backlight(struct drm_device *dev,
-					 enum pipe pipe)
-{
-	u32 max;
-
-	max = i915_read_blc_pwm_ctl(dev, pipe);
-
-	if (HAS_PCH_SPLIT(dev)) {
-		max >>= 16;
-	} else {
-		if (INTEL_INFO(dev)->gen < 4)
-			max >>= 17;
-		else
-			max >>= 16;
-
-		if (is_backlight_combination_mode(dev))
-			max *= 0xff;
-	}
-
-	return max;
-}
-
-static int i915_panel_invert_brightness;
-MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness "
-	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
-	"report PCI device ID, subsystem vendor and subsystem device ID "
-	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
-	"It will then be included in an upcoming module version.");
-module_param_named(invert_brightness, i915_panel_invert_brightness, int, 0600);
 static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 					  u32 val)
 {
@@ -428,10 +332,10 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	WARN_ON(panel->backlight.max == 0);
 
-	if (i915_panel_invert_brightness < 0)
+	if (i915.invert_brightness < 0)
 		return val;
 
-	if (i915_panel_invert_brightness > 0 ||
+	if (i915.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
 		return panel->backlight.max - val;
 	}
@@ -588,6 +492,7 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 freq;
 	unsigned long flags;
+	u64 n;
 
 	if (!panel->backlight.present || pipe == INVALID_PIPE)
 		return;
@@ -598,10 +503,9 @@ void intel_panel_set_backlight(struct intel_connector *connector, u32 level,
 
 	/* scale to hardware max, but be careful to not overflow */
 	freq = panel->backlight.max;
-	if (freq < max)
-		level = level * freq / max;
-	else
-		level = freq / max * level;
+	n = (u64)level * freq;
+	do_div(n, max);
+	level = n;
 
 	panel->backlight.level = level;
 	if (panel->backlight.device)
@@ -897,13 +801,13 @@ intel_panel_detect(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Assume that the BIOS does not lie through the OpRegion... */
-	if (!i915_panel_ignore_lid && dev_priv->opregion.lid_state) {
+	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
 			connector_status_connected :
 			connector_status_disconnected;
 	}
 
-	switch (i915_panel_ignore_lid) {
+	switch (i915.panel_ignore_lid) {
 	case -2:
 		return connector_status_connected;
 	case -1:
@@ -978,7 +882,7 @@ static int intel_backlight_device_register(struct intel_connector *connector)
 	}
 	mutex_lock(&dev->mode_config.mutex);
 	pipe = intel_get_pipe_from_connector(connector);
-	panel->backlight.device->props.max_brightness = intel_panel_get_max_backlight(dev, pipe);
+	panel->backlight.device->props.max_brightness = panel->backlight.max;
 	mutex_unlock(&dev->mode_config.mutex);
 	panel->backlight.device->props.brightness = intel_panel_get_backlight(connector);
 	return 0;
@@ -1162,6 +1066,11 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	unsigned long flags;
 	int ret;
 
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("native backlight control not available per VBT\n");
+		return 0;
+	}
+
 	/* set level and max in panel struct */
 	spin_lock_irqsave(&dev_priv->backlight_lock, flags);
 	ret = dev_priv->display.setup_backlight(intel_connector);
@@ -1287,9 +1196,11 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 }
 
 int intel_panel_init(struct intel_panel *panel,
-		     struct drm_display_mode *fixed_mode)
+		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *downclock_mode)
 {
 	panel->fixed_mode = fixed_mode;
+	panel->downclock_mode = downclock_mode;
 
 	return 0;
 }

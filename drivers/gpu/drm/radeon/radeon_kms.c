@@ -32,6 +32,13 @@
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
+
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_has_atpx(void);
+#else
+static inline bool radeon_has_atpx(void) { return false; }
+#endif
 
 /**
  * radeon_driver_unload_kms - Main unload function for KMS.
@@ -50,9 +57,14 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
+
 	if (rdev->rmmio == NULL)
 		goto done_free;
+
+	pm_runtime_get_sync(dev->dev);
+
 	radeon_acpi_fini(rdev);
+	
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 
@@ -95,6 +107,11 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		flags |= RADEON_IS_PCI;
 	}
 
+	if ((radeon_runtime_pm != 0) &&
+	    radeon_has_atpx() &&
+	    ((flags & RADEON_IS_IGP) == 0))
+		flags |= RADEON_IS_PX;
+
 	/* radeon_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
 	 * or memory manager initialization failure, it must
@@ -125,9 +142,20 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
+	if (radeon_is_px(dev)) {
+		pm_runtime_use_autosuspend(dev->dev);
+		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
+		pm_runtime_set_active(dev->dev);
+		pm_runtime_allow(dev->dev);
+		pm_runtime_mark_last_busy(dev->dev);
+		pm_runtime_put_autosuspend(dev->dev);
+	}
+
 out:
 	if (r)
 		radeon_driver_unload_kms(dev);
+
+
 	return r;
 }
 
@@ -417,6 +445,9 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		case RADEON_CS_RING_UVD:
 			*value = rdev->ring[R600_RING_TYPE_UVD_INDEX].ready;
 			break;
+		case RADEON_CS_RING_VCE:
+			*value = rdev->ring[TN_RING_TYPE_VCE1_INDEX].ready;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -461,6 +492,27 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		else
 			*value = rdev->pm.default_sclk * 10;
 		break;
+	case RADEON_INFO_VCE_FW_VERSION:
+		*value = rdev->vce.fw_version;
+		break;
+	case RADEON_INFO_VCE_FB_VERSION:
+		*value = rdev->vce.fb_version;
+		break;
+	case RADEON_INFO_NUM_BYTES_MOVED:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->num_bytes_moved);
+		break;
+	case RADEON_INFO_VRAM_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->vram_usage);
+		break;
+	case RADEON_INFO_GTT_USAGE:
+		value = (uint32_t*)&value64;
+		value_size = sizeof(uint64_t);
+		value64 = atomic64_read(&rdev->gtt_usage);
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
@@ -500,8 +552,13 @@ void radeon_driver_lastclose_kms(struct drm_device *dev)
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	int r;
 
 	file_priv->driver_priv = NULL;
+
+	r = pm_runtime_get_sync(dev->dev);
+	if (r < 0)
+		return r;
 
 	/* new gpu have virtual address space support */
 	if (rdev->family >= CHIP_CAYMAN) {
@@ -514,29 +571,40 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			return -ENOMEM;
 		}
 
-		radeon_vm_init(rdev, &fpriv->vm);
-
-		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-		if (r)
-			return r;
-
-		/* map the ib pool buffer read only into
-		 * virtual address space */
-		bo_va = radeon_vm_bo_add(rdev, &fpriv->vm,
-					 rdev->ring_tmp_bo.bo);
-		r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
-					  RADEON_VM_PAGE_READABLE |
-					  RADEON_VM_PAGE_SNOOPED);
-
-		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
+		r = radeon_vm_init(rdev, &fpriv->vm);
 		if (r) {
-			radeon_vm_fini(rdev, &fpriv->vm);
 			kfree(fpriv);
 			return r;
 		}
 
+		if (rdev->accel_working) {
+			r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
+			if (r) {
+				radeon_vm_fini(rdev, &fpriv->vm);
+				kfree(fpriv);
+				return r;
+			}
+
+			/* map the ib pool buffer read only into
+			 * virtual address space */
+			bo_va = radeon_vm_bo_add(rdev, &fpriv->vm,
+						 rdev->ring_tmp_bo.bo);
+			r = radeon_vm_bo_set_addr(rdev, bo_va, RADEON_VA_IB_OFFSET,
+						  RADEON_VM_PAGE_READABLE |
+						  RADEON_VM_PAGE_SNOOPED);
+
+			radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
+			if (r) {
+				radeon_vm_fini(rdev, &fpriv->vm);
+				kfree(fpriv);
+				return r;
+			}
+		}
 		file_priv->driver_priv = fpriv;
 	}
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 	return 0;
 }
 
@@ -559,13 +627,15 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 		struct radeon_bo_va *bo_va;
 		int r;
 
-		r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
-		if (!r) {
-			bo_va = radeon_vm_bo_find(&fpriv->vm,
-						  rdev->ring_tmp_bo.bo);
-			if (bo_va)
-				radeon_vm_bo_rmv(rdev, bo_va);
-			radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
+		if (rdev->accel_working) {
+			r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
+			if (!r) {
+				bo_va = radeon_vm_bo_find(&fpriv->vm,
+							  rdev->ring_tmp_bo.bo);
+				if (bo_va)
+					radeon_vm_bo_rmv(rdev, bo_va);
+				radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
+			}
 		}
 
 		radeon_vm_fini(rdev, &fpriv->vm);
@@ -592,6 +662,7 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 	if (rdev->cmask_filp == file_priv)
 		rdev->cmask_filp = NULL;
 	radeon_uvd_free_handles(rdev, file_priv);
+	radeon_vce_free_handles(rdev, file_priv);
 }
 
 /*
@@ -786,5 +857,6 @@ const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_OP, radeon_gem_op_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

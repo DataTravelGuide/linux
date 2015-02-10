@@ -1474,8 +1474,11 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		case 0:
 			entry->dpconf.link_bw = 162000;
 			break;
-		default:
+		case 1:
 			entry->dpconf.link_bw = 270000;
+			break;
+		default:
+			entry->dpconf.link_bw = 540000;
 			break;
 		}
 		switch ((conf & 0x0f000000) >> 24) {
@@ -1743,7 +1746,7 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 	struct dcb_table *dcb = &bios->dcb;
 	int all_heads = (nv_two_heads(dev) ? 3 : 1);
 
-#ifdef CONFIG_PPC_PMAC
+#ifdef __powerpc__
 	/* Apple iMac G4 NV17 */
 	if (of_machine_is_compatible("PowerMac4,5")) {
 		fabricate_dcb_output(dcb, DCB_OUTPUT_TMDS, 0, all_heads, 1);
@@ -2068,6 +2071,10 @@ nouveau_bios_init(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	int ret;
+
+	/* only relevant for PCI devices */
+	if (!dev->pdev)
+		return 0;
 
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;

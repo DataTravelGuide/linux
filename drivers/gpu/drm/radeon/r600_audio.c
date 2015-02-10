@@ -62,7 +62,7 @@ static int r600_audio_chipset_supported(struct radeon_device *rdev)
 
 struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 {
-	struct r600_audio_pin status = {0};
+	struct r600_audio_pin status;
 	uint32_t value;
 
 	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);

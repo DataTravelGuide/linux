@@ -231,8 +231,9 @@ int drm_getclient(struct drm_device *dev, void *data,
 	 */
 	if (client->idx == 0) {
 		client->auth = file_priv->authenticated;
-		client->pid = file_priv->pid;
-		client->uid = file_priv->uid;
+		client->pid = pid_vnr(file_priv->pid);
+		client->uid = from_kuid_munged(current_user_ns(),
+					       file_priv->uid);
 		client->magic = 0;
 		client->iocs = 0;
 
@@ -326,6 +327,13 @@ drm_setclientcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		if (req->value > 1)
 			return -EINVAL;
 		file_priv->stereo_allowed = req->value;
+		break;
+	case DRM_CLIENT_CAP_UNIVERSAL_PLANES:
+		if (!drm_universal_planes)
+			return -EINVAL;
+		if (req->value > 1)
+			return -EINVAL;
+		file_priv->universal_planes = req->value;
 		break;
 	default:
 		return -EINVAL;

@@ -59,6 +59,10 @@ struct atpx_mux {
 	u16 mux;
 } __packed;
 
+bool radeon_has_atpx(void) {
+	return radeon_atpx_priv.atpx_detected;
+}
+
 /**
  * radeon_atpx_call - call an ATPX method
  *
