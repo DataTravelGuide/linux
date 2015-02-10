@@ -2213,13 +2213,13 @@ int qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	qlcnic_set_real_num_queues(adapter, adapter->drv_tx_rings,
 				   adapter->drv_sds_rings);
 
+	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
+
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register net device\n");
 		return err;
 	}
-
-	qlcnic_dcb_init_dcbnl_ops(adapter->dcb);
 
 	return 0;
 }
