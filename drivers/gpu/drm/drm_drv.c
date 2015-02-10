@@ -182,10 +182,6 @@ static int __init drm_core_init(void)
 {
 	int ret = -ENOMEM;
 
-	ret = drm_backport_init();
-	if (ret)
-		goto err_p1;
-
 	drm_global_init();
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
@@ -229,7 +225,6 @@ static void __exit drm_core_exit(void)
 
 	drm_connector_ida_destroy();
 	idr_destroy(&drm_minors_idr);
-	drm_backport_exit();
 }
 
 module_init(drm_core_init);
@@ -424,8 +419,9 @@ long drm_ioctl(struct file *filp,
 			retcode = -EFAULT;
 			goto err_i1;
 		}
-	} else
+	} else if (cmd & IOC_OUT) {
 		memset(kdata, 0, usize);
+	}
 
 	if (ioctl->flags & DRM_UNLOCKED)
 		retcode = func(dev, kdata, file_priv);

@@ -158,7 +158,7 @@ nouveau_sysfs_init(struct drm_device *dev)
 	ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE, NVDRM_CONTROL,
 				 NV_CONTROL_CLASS, NULL, 0, &sysfs->ctrl);
 	if (ret == 0)
-		device_create_file(nv_device_base(device), &dev_attr_pstate);
+		ret = device_create_file(nv_device_base(device), &dev_attr_pstate);
 
-	return 0;
+	return ret;
 }
