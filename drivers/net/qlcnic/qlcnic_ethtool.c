@@ -1338,6 +1338,8 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 			tx_ring = &adapter->tx_ring[ring];
 			data = qlcnic_fill_tx_queue_stats(data, tx_ring);
 			qlcnic_update_stats(adapter);
+		} else {
+			data += QLCNIC_TX_STATS_LEN;
 		}
 	}
 
