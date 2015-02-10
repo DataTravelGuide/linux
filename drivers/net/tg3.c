@@ -12527,7 +12527,7 @@ static u32 tg3_get_rxfh_indir_size(struct net_device *dev)
 	return size;
 }
 
-static int tg3_get_rxfh_indir(struct net_device *dev, u32 *indir)
+static int tg3_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int i;
@@ -12538,7 +12538,7 @@ static int tg3_get_rxfh_indir(struct net_device *dev, u32 *indir)
 	return 0;
 }
 
-static int tg3_set_rxfh_indir(struct net_device *dev, const u32 *indir)
+static int tg3_set_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	size_t i;
@@ -14073,8 +14073,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 static const struct ethtool_ops_ext tg3_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 	.get_rxfh_indir_size	= tg3_get_rxfh_indir_size,
-	.get_rxfh_indir		= tg3_get_rxfh_indir,
-	.set_rxfh_indir		= tg3_set_rxfh_indir,
+	.get_rxfh		= tg3_get_rxfh,
+	.set_rxfh		= tg3_set_rxfh,
 	.get_channels		= tg3_get_channels,
 	.set_channels		= tg3_set_channels,
 	.get_ts_info		= tg3_get_ts_info,
