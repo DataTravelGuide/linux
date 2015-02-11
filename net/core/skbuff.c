@@ -2725,7 +2725,6 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		tail = nskb;
 
 		__copy_skb_header(nskb, skb);
-		nskb->mac_len = skb->mac_len;
 
 		/* nskb and skb might have different headroom
 		 * RHEL: we leave csum_start update here as our version of
@@ -2735,6 +2734,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 			nskb->csum_start += skb_headroom(nskb) - headroom;
 
 		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom);
+		skb_reset_mac_len(nskb);
 
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,
