@@ -3317,7 +3317,7 @@ static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
-static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
+static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
@@ -3341,14 +3341,15 @@ static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
 	return 0;
 }
 
-static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
+static int bnx2x_set_rxfh(struct net_device *dev, u32 *indir,
+			  u8 *key)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
 		/*
-		 * The same as in bnx2x_get_rxfh_indir: we can't use a memcpy()
+		 * The same as in bnx2x_get_rxfh: we can't use a memcpy()
 		 * as an internal storage of an indirection table is a u8 array
 		 * while indir->ring_index points to an array of u32.
 		 *
@@ -3474,8 +3475,8 @@ static const struct ethtool_ops_ext bnx2x_ethtool_ops_ext = {
 
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
-	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
-	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
+	.get_rxfh		= bnx2x_get_rxfh,
+	.set_rxfh		= bnx2x_set_rxfh,
 	.get_channels		= bnx2x_get_channels,
 	.set_channels		= bnx2x_set_channels,
 	.get_dump_flag		= bnx2x_get_dump_flag,
@@ -3509,8 +3510,8 @@ static const struct ethtool_ops_ext bnx2x_vf_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 
 	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
-	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
-	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
+	.get_rxfh		= bnx2x_get_rxfh,
+	.set_rxfh		= bnx2x_set_rxfh,
 	.get_channels		= bnx2x_get_channels,
 	.set_channels		= bnx2x_set_channels,
 };
