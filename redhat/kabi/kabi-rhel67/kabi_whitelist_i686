@@ -1695,7 +1695,6 @@
 	wake_up_process
 	warn_slowpath_fmt
 	warn_slowpath_null
-	wireless_send_event
 	write_one_page
 	x86_dma_fallback_dev
 	xfrm_register_mode

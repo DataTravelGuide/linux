@@ -1695,7 +1695,6 @@
 0x2c3f6ab6	wake_up_process	vmlinux	EXPORT_SYMBOL
 0x08d66a3a	warn_slowpath_fmt	vmlinux	EXPORT_SYMBOL
 0x16305289	warn_slowpath_null	vmlinux	EXPORT_SYMBOL
-0xbab2c360	wireless_send_event	vmlinux	EXPORT_SYMBOL
 0x446008e8	write_one_page	vmlinux	EXPORT_SYMBOL
 0x99b12865	x86_dma_fallback_dev	vmlinux	EXPORT_SYMBOL
 0x4d3f4941	xfrm_register_mode	vmlinux	EXPORT_SYMBOL
