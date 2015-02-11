@@ -137,6 +137,7 @@ static void igb_watchdog_task(struct work_struct *);
 static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *dev,
 						 struct rtnl_link_stats64 *stats);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
+static void igb_xmit_flush(struct net_device *netdev, u16 queue);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
 static void igb_set_uta(struct igb_adapter *adapter);
@@ -4890,13 +4891,6 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->next_to_use = i;
 
-	writel(i, tx_ring->tail);
-
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
-
 	return;
 
 dma_error:
@@ -5031,15 +5025,18 @@ out_drop:
 	return NETDEV_TX_OK;
 }
 
-static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
-						    struct sk_buff *skb)
+static struct igb_ring *__igb_tx_queue_mapping(struct igb_adapter *adapter, unsigned int r_idx)
 {
-	unsigned int r_idx = skb->queue_mapping;
-
 	if (r_idx >= adapter->num_tx_queues)
 		r_idx = r_idx % adapter->num_tx_queues;
 
 	return adapter->tx_ring[r_idx];
+}
+
+static inline struct igb_ring *igb_tx_queue_mapping(struct igb_adapter *adapter,
+						    struct sk_buff *skb)
+{
+	return __igb_tx_queue_mapping(adapter, skb->queue_mapping);
 }
 
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
@@ -5068,6 +5065,21 @@ static netdev_tx_t igb_xmit_frame(struct sk_buff *skb,
 	}
 
 	return igb_xmit_frame_ring(skb, igb_tx_queue_mapping(adapter, skb));
+}
+
+static void igb_xmit_flush(struct net_device *netdev, u16 queue)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct igb_ring *tx_ring;
+
+	tx_ring = __igb_tx_queue_mapping(adapter, queue);
+
+	writel(tx_ring->next_to_use, tx_ring->tail);
+
+	/* we need this if more than one processor can write to our tail
+	 * at a time, it synchronizes IO on IA64/Altix systems
+	 */
+	mmiowb();
 }
 
 /**
