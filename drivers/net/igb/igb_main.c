@@ -4778,6 +4778,41 @@ static __le32 igb_tx_olinfo_status(u32 tx_flags, unsigned int paylen,
 	return cpu_to_le32(olinfo_status);
 }
 
+static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
+{
+	struct net_device *netdev = tx_ring->netdev;
+
+	netif_stop_subqueue(netdev, tx_ring->queue_index);
+
+	/* Herbert's original patch had:
+	 *  smp_mb__after_netif_stop_queue();
+	 * but since that doesn't exist yet, just open code it.
+	 */
+	smp_mb();
+
+	/* We need to check again in a case another CPU has just
+	 * made room available.
+	 */
+	if (igb_desc_unused(tx_ring) < size)
+		return -EBUSY;
+
+	/* A reprieve! */
+	netif_wake_subqueue(netdev, tx_ring->queue_index);
+
+	u64_stats_update_begin(&tx_ring->tx_syncp2);
+	tx_ring->tx_stats.restart_queue2++;
+	u64_stats_update_end(&tx_ring->tx_syncp2);
+
+	return 0;
+}
+
+static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
+{
+	if (igb_desc_unused(tx_ring) >= size)
+		return 0;
+	return __igb_maybe_stop_tx(tx_ring, size);
+}
+
 static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 		       struct igb_tx_buffer *first, u32 tx_flags,
 		       const u8 hdr_len)
@@ -4890,6 +4925,9 @@ static void igb_tx_map(struct igb_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->next_to_use = i;
 
+	/* Make sure there is space in the ring for the next send. */
+	igb_maybe_stop_tx(tx_ring, DESC_NEEDED);
+
 	/* RHEL6: hardcode skb->xmit_more here */
 	if (1) {
 		writel(i, tx_ring->tail);
@@ -4916,41 +4954,6 @@ dma_error:
 	}
 
 	tx_ring->next_to_use = i;
-}
-
-static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
-{
-	struct net_device *netdev = tx_ring->netdev;
-
-	netif_stop_subqueue(netdev, tx_ring->queue_index);
-
-	/* Herbert's original patch had:
-	 *  smp_mb__after_netif_stop_queue();
-	 * but since that doesn't exist yet, just open code it.
-	 */
-	smp_mb();
-
-	/* We need to check again in a case another CPU has just
-	 * made room available.
-	 */
-	if (igb_desc_unused(tx_ring) < size)
-		return -EBUSY;
-
-	/* A reprieve! */
-	netif_wake_subqueue(netdev, tx_ring->queue_index);
-
-	u64_stats_update_begin(&tx_ring->tx_syncp2);
-	tx_ring->tx_stats.restart_queue2++;
-	u64_stats_update_end(&tx_ring->tx_syncp2);
-
-	return 0;
-}
-
-static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
-{
-	if (igb_desc_unused(tx_ring) >= size)
-		return 0;
-	return __igb_maybe_stop_tx(tx_ring, size);
 }
 
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
@@ -5022,9 +5025,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	}
 
 	igb_tx_map(tx_ring, skb, first, tx_flags, hdr_len);
-
-	/* Make sure there is space in the ring for the next send. */
-	igb_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
 
