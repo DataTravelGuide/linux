@@ -1475,6 +1475,7 @@ struct bnx2x {
 	union pf_vf_bulletin   *pf2vf_bulletin;
 	dma_addr_t		pf2vf_bulletin_mapping;
 
+	union pf_vf_bulletin		shadow_bulletin;
 	struct pf_vf_bulletin_content	old_bulletin;
 
 	u16 requested_nr_virtfn;
@@ -1923,6 +1924,8 @@ struct bnx2x {
 	struct semaphore			stats_sema;
 
 	u8					phys_port_id[ETH_ALEN];
+
+	struct bnx2x_link_report_data		vf_link_vars;
 };
 
 /* Tx queues may be less or equal to Rx queues */
