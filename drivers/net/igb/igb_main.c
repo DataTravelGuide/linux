@@ -2367,6 +2367,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    NETIF_F_RXCSUM |
 			    NETIF_F_HW_VLAN_RX |
 			    NETIF_F_HW_VLAN_TX;
+
 	/* copy netdev features into list of user selectable features */
 	netdev_extended(netdev)->hw_features |= netdev->features;
 
