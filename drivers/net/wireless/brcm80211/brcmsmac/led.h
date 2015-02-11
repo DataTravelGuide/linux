@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2012 Broadcom Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,13 +14,23 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifndef _BRCM_LED_H_
+#define _BRCM_LED_H_
+struct brcms_led {
+	char name[32];
+	unsigned gpio;
+	bool active_low;
+};
 
-#ifndef _BRCM_PMU_H_
-#define _BRCM_PMU_H_
+#ifdef CONFIG_BCMA_DRIVER_GPIO
+void brcms_led_unregister(struct brcms_info *wl);
+int brcms_led_register(struct brcms_info *wl);
+#else
+static inline void brcms_led_unregister(struct brcms_info *wl) {};
+static inline int brcms_led_register(struct brcms_info *wl)
+{
+	return -ENOTSUPP;
+};
+#endif
 
-#include "types.h"
-
-u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
-u32 si_pmu_measure_alpclk(struct si_pub *sih);
-
-#endif /* _BRCM_PMU_H_ */
+#endif /* _BRCM_LED_H_ */
