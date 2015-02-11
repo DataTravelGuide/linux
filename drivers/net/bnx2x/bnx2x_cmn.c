@@ -708,7 +708,7 @@ static void bnx2x_gro_csum(struct bnx2x *bp, struct sk_buff *skb,
 #endif
 
 static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
-			       struct sk_buff *skb, u16 vlan_tci)
+			       struct sk_buff *skb)
 {
 #ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
@@ -726,11 +726,7 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	}
 #endif
 	skb_record_rx_queue(skb, fp->rx_queue);
-	/* RHEL: separate RX path for VLAN */
-	if (vlan_tci)
-		vlan_gro_receive(&fp->napi, bp->vlgrp, vlan_tci, skb);
-	else
-		napi_gro_receive(&fp->napi, skb);
+	napi_gro_receive(&fp->napi, skb);
 }
 
 static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
@@ -784,9 +780,8 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		if (!bnx2x_fill_frag_skb(bp, fp, tpa_info, pages,
 					 skb, cqe, cqe_idx)) {
 			if (tpa_info->parsing_flags & PARSING_FLAGS_VLAN)
-				bnx2x_gro_receive(bp, fp, skb, VLAN_TAG_PRESENT | tpa_info->vlan_tag);
-			else
-				bnx2x_gro_receive(bp, fp, skb, 0);
+				__vlan_hwaccel_put_tag(skb, tpa_info->vlan_tag);
+			bnx2x_gro_receive(bp, fp, skb);
 		} else {
 			DP(NETIF_MSG_RX_STATUS,
 			   "Failed to allocate new pages - dropping packet!\n");
@@ -1061,23 +1056,18 @@ reuse_rx:
 					    bnx2x_fp_qstats(bp, fp));
 
 		skb_record_rx_queue(skb, fp->rx_queue);
+
+		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
+		    PARSING_FLAGS_VLAN)
+			__vlan_hwaccel_put_tag(skb,
+					       le16_to_cpu(cqe_fp->vlan_tag));
+
 		skb_mark_napi_id(skb, &fp->napi);
 
-		if (bnx2x_fp_ll_polling(fp)) {
-			if (le16_to_cpu(cqe_fp->pars_flags.flags) &
-			    PARSING_FLAGS_VLAN)
-				vlan_hwaccel_receive_skb(skb, bp->vlgrp,
-					le16_to_cpu(cqe_fp->vlan_tag));
-			else
-				netif_receive_skb(skb);
-		} else {
-			if (le16_to_cpu(cqe_fp->pars_flags.flags) &
-			    PARSING_FLAGS_VLAN)
-				vlan_gro_receive(&fp->napi, bp->vlgrp,
-					le16_to_cpu(cqe_fp->vlan_tag), skb);
-			else
-				napi_gro_receive(&fp->napi, skb);
-		}
+		if (bnx2x_fp_ll_polling(fp))
+			netif_receive_skb(skb);
+		else
+			napi_gro_receive(&fp->napi, skb);
 next_rx:
 		rx_buf->data = NULL;
 
@@ -4599,14 +4589,6 @@ void bnx2x_tx_timeout(struct net_device *dev)
 
 	/* This allows the netif to be shutdown gracefully before resetting */
 	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_TX_TIMEOUT, 0);
-}
-
-/* called with rtnl_lock */
-void bnx2x_vlan_rx_register(struct net_device *dev, struct vlan_group *vlgrp)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-
-	bp->vlgrp = vlgrp;
 }
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)

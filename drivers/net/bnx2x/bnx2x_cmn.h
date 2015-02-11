@@ -615,15 +615,6 @@ int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type);
  */
 void bnx2x_tx_timeout(struct net_device *dev);
 
-/**
- * vlan rx register netdev callback
- *
- * @dev:	net device
- * @vlgrp:	VLAN group
- */
-void bnx2x_vlan_rx_register(struct net_device *dev,
-				   struct vlan_group *vlgrp);
-
 
 /*********************** Inlines **********************************/
 /*********************** Fast path ********************************/

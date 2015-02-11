@@ -12392,7 +12392,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_do_ioctl		= bnx2x_ioctl,
 	.ndo_change_mtu		= bnx2x_change_mtu,
 	.ndo_tx_timeout		= bnx2x_tx_timeout,
-	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
