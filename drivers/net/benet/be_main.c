@@ -127,6 +127,7 @@ static const char * const ue_status_hi_desc[] = {
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
+
 	if (mem->va) {
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
@@ -188,6 +189,7 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 {
 	u32 val = 0;
+
 	val |= qid & DB_RQ_RING_ID_MASK;
 	val |= posted << DB_RQ_NUM_POSTED_SHIFT;
 
@@ -199,6 +201,7 @@ static void be_txq_notify(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  u16 posted)
 {
 	u32 val = 0;
+
 	val |= txo->q.id & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
 
@@ -210,6 +213,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 			 bool arm, bool clear_int, u16 num_popped)
 {
 	u32 val = 0;
+
 	val |= qid & DB_EQ_RING_ID_MASK;
 	val |= ((qid & DB_EQ_RING_ID_EXT_MASK) << DB_EQ_RING_ID_EXT_MASK_SHIFT);
 
@@ -228,6 +232,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
+
 	val |= qid & DB_CQ_RING_ID_MASK;
 	val |= ((qid & DB_CQ_RING_ID_EXT_MASK) <<
 			DB_CQ_RING_ID_EXT_MASK_SHIFT);
@@ -589,6 +594,7 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 
 	for_all_rx_queues(adapter, rxo, i) {
 		const struct be_rx_stats *rx_stats = rx_stats(rxo);
+
 		do {
 			start = u64_stats_fetch_begin_irq(&rx_stats->sync);
 			pkts = rx_stats(rxo)->rx_pkts;
@@ -603,6 +609,7 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 
 	for_all_tx_queues(adapter, txo, i) {
 		const struct be_tx_stats *tx_stats = tx_stats(txo);
+
 		do {
 			start = u64_stats_fetch_begin_irq(&tx_stats->sync);
 			pkts = tx_stats(txo)->tx_pkts;
@@ -789,6 +796,7 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 
 	if (skb->len > skb->data_len) {
 		int len = skb_headlen(skb);
+
 		busaddr = dma_map_single(dev, skb->data, len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
 			goto dma_err;
@@ -802,6 +810,7 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+
 		busaddr = skb_frag_dma_map(dev, frag, 0,
 					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, busaddr))
