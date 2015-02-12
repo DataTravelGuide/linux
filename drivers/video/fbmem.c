@@ -1199,7 +1199,9 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (!lock_fb_info(info))
 			return -ENODEV;
 		event.info = info;
+		acquire_console_sem();
 		ret = fb_notifier_call_chain(FB_EVENT_SET_CONSOLE_MAP, &event);
+		release_console_sem();
 		unlock_fb_info(info);
 		break;
 	case FBIOBLANK:
