@@ -333,6 +333,7 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	blk_free_devt(dev->devt);
 	free_part_stats(p);
 	kfree(p);
 }
@@ -369,7 +370,6 @@ void delete_partition(struct gendisk *disk, int partno)
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
-	blk_free_devt(part_devt(part));
 
 	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }
@@ -688,5 +688,4 @@ void del_gendisk(struct gendisk *disk)
 	sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 #endif
 	device_del(disk_to_dev(disk));
-	blk_free_devt(disk_to_dev(disk)->devt);
 }
