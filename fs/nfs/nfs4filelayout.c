@@ -96,8 +96,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	/* MDS state errors */
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_ADMIN_REVOKED:
-	case -NFS4ERR_BAD_STATEID:
-		nfs_remove_bad_delegation(state->inode);
 	case -NFS4ERR_OPENMODE:
 		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
 			goto out_bad_stateid;
