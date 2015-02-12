@@ -2227,6 +2227,13 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2271:
+		ha->device_type |= DT_ISP2271;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
+		break;
 	}
 
 	if (IS_QLA82XX(ha))
@@ -2303,7 +2310,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2031 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8031 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISPF001 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2071) {
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2071 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2271) {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM);
 		mem_only = 1;
 		ql_dbg_pci(ql_dbg_init, pdev, 0x0007,
@@ -5093,7 +5101,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 #define FW_ISP82XX	7
 #define FW_ISP2031	8
 #define FW_ISP8031	9
-#define FW_ISP2071	10
+#define FW_ISP27XX	10
 
 #define FW_FILE_ISP21XX	"ql2100_fw.bin"
 #define FW_FILE_ISP22XX	"ql2200_fw.bin"
@@ -5105,7 +5113,7 @@ qla2x00_timer(scsi_qla_host_t *vha)
 #define FW_FILE_ISP82XX	"ql8200_fw.bin"
 #define FW_FILE_ISP2031	"ql2600_fw.bin"
 #define FW_FILE_ISP8031	"ql8300_fw.bin"
-#define FW_FILE_ISP2071	"ql2700_fw.bin"
+#define FW_FILE_ISP27XX	"ql2700_fw.bin"
 
 
 static DEFINE_MUTEX(qla_fw_lock);
@@ -5121,7 +5129,7 @@ static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
 	{ .name = FW_FILE_ISP82XX, },
 	{ .name = FW_FILE_ISP2031, },
 	{ .name = FW_FILE_ISP8031, },
-	{ .name = FW_FILE_ISP2071, },
+	{ .name = FW_FILE_ISP27XX, },
 };
 
 struct fw_blob *
@@ -5150,8 +5158,8 @@ qla2x00_request_firmware(scsi_qla_host_t *vha)
 		blob = &qla_fw_blobs[FW_ISP2031];
 	} else if (IS_QLA8031(ha)) {
 		blob = &qla_fw_blobs[FW_ISP8031];
-	} else if (IS_QLA2071(ha)) {
-		blob = &qla_fw_blobs[FW_ISP2071];
+	} else if (IS_QLA27XX(ha)) {
+		blob = &qla_fw_blobs[FW_ISP27XX];
 	} else {
 		return NULL;
 	}
@@ -5480,6 +5488,7 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP8031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISPF001) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2071) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2271) },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);
