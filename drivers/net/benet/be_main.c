@@ -4296,7 +4296,7 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev_extended(netdev)->ndo_busy_poll = be_busy_poll;
 #endif
 
-	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
+	netdev->ethtool_ops = &be_ethtool_ops;
 	set_ethtool_ops_ext(netdev, &be_ethtool_ops_ext);
 }
 
