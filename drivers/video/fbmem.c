@@ -1702,8 +1702,10 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 
 	if (!lock_fb_info(fb_info))
 		return -ENODEV;
+	acquire_console_sem();
 	event.info = fb_info;
 	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+	release_console_sem();
 	unlock_fb_info(fb_info);
 
 	if (ret)
@@ -1718,7 +1720,9 @@ static int do_unregister_framebuffer(struct fb_info *fb_info)
 	fb_cleanup_device(fb_info);
 	device_destroy(fb_class, MKDEV(FB_MAJOR, i));
 	event.info = fb_info;
+	acquire_console_sem();
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+	release_console_sem();
 
 	/* this may free fb info */
 	put_fb_info(fb_info);
