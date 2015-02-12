@@ -3259,6 +3259,7 @@ static int vt_unbind(struct con_driver *con)
 {
 	const struct consw *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
+	int ret;
 
  	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
 	    con_is_graphics(con->con, con->first, con->last))
@@ -3282,8 +3283,11 @@ static int vt_unbind(struct con_driver *con)
 		if (first == 0 && last == MAX_NR_CONSOLES -1)
 			deflt = 1;
 
-		if (first != -1)
-			unbind_con_driver(csw, first, last, deflt);
+		if (first != -1) {
+			ret = unbind_con_driver(csw, first, last, deflt);
+			if (ret != 0)
+				return ret;
+		}
 
 		first = -1;
 		last = -1;
