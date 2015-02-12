@@ -70,6 +70,8 @@
 #define NFS4_POLL_RETRY_MIN	(HZ/10)
 #define NFS4_POLL_RETRY_MAX	(15*HZ)
 
+static unsigned short max_session_slots = NFS4_DEF_SLOT_TABLE_SIZE;
+
 struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
@@ -5611,7 +5613,7 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 	args->fc_attrs.max_rqst_sz = mxrqst_sz;
 	args->fc_attrs.max_resp_sz = mxresp_sz;
 	args->fc_attrs.max_ops = NFS4_MAX_OPS;
-	args->fc_attrs.max_reqs = NFS4_MAX_SLOT_TABLE;
+	args->fc_attrs.max_reqs = max_session_slots;
 
 	dprintk("%s: Fore Channel : max_rqst_sz=%u max_resp_sz=%u "
 		"max_ops=%u max_reqs=%u\n",
@@ -6683,6 +6685,10 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.open_context	= nfs4_atomic_open,
 	.init_client	= nfs4_init_client,
 };
+
+module_param(max_session_slots, ushort, 0644);
+MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
+		"requests the client will negotiate");
 
 /*
  * Local variables:
