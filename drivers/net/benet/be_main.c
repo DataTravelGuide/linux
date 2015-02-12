@@ -651,7 +651,7 @@ void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 		adapter->flags |= BE_FLAGS_LINK_STATUS_INIT;
 	}
 
-	if ((link_status & LINK_STATUS_MASK) == LINK_UP)
+	if (link_status)
 		netif_carrier_on(netdev);
 	else
 		netif_carrier_off(netdev);
@@ -1290,6 +1290,7 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 	vi->vlan = vf_cfg->vlan_tag & VLAN_VID_MASK;
 	vi->qos = vf_cfg->vlan_tag >> VLAN_PRIO_SHIFT;
 	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
+	vi->linkstate = adapter->vf_cfg[vf].plink_tracking;
 
 	return 0;
 }
@@ -1348,6 +1349,24 @@ static int be_set_vf_tx_rate(struct net_device *netdev, int vf, int rate)
 			"tx rate %d on VF %d failed\n", rate, vf);
 	else
 		adapter->vf_cfg[vf].tx_rate = rate;
+	return status;
+}
+static int be_set_vf_link_state(struct net_device *netdev, int vf,
+				int link_state)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
+
+	if (!sriov_enabled(adapter))
+		return -EPERM;
+
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
+	status = be_cmd_set_logical_link_config(adapter, link_state, vf+1);
+	if (!status)
+		adapter->vf_cfg[vf].plink_tracking = link_state;
+
 	return status;
 }
 
@@ -3115,8 +3134,12 @@ static int be_vf_setup(struct be_adapter *adapter)
 		if (!status)
 			vf_cfg->tx_rate = lnk_speed;
 
-		if (!old_vfs)
+		if (!old_vfs) {
 			be_cmd_enable_vf(adapter, vf + 1);
+			be_cmd_set_logical_link_config(adapter,
+						       IFLA_VF_LINK_STATE_AUTO,
+						       vf+1);
+		}
 	}
 
 	if (!old_vfs) {
@@ -3532,6 +3555,10 @@ static int be_setup(struct be_adapter *adapter)
 	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc)
 		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
+
+	if (be_physfn(adapter))
+		be_cmd_set_logical_link_config(adapter,
+					       IFLA_VF_LINK_STATE_AUTO, 0);
 
 	if (adapter->num_vfs)
 		be_vf_setup(adapter);
@@ -4236,6 +4263,7 @@ static struct net_device_ops be_netdev_ops = {
 static struct net_device_ops_ext be_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= be_get_stats64,
+	.ndo_set_vf_link_state  = be_set_vf_link_state,
 #if 0 /* Not in RHEL6 yet */
 	.ndo_bridge_setlink	= be_ndo_bridge_setlink,
 	.ndo_bridge_getlink	= be_ndo_bridge_getlink,

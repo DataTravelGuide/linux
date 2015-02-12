@@ -216,6 +216,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PORT_NAME			77
+#define OPCODE_COMMON_SET_LOGICAL_LINK_CONFIG		80
 #define OPCODE_COMMON_SET_INTERRUPT_ENABLE		89
 #define OPCODE_COMMON_SET_FN_PRIVILEGES			100
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
@@ -2016,6 +2017,13 @@ struct be_cmd_resp_get_iface_list {
 	struct be_if_desc if_desc;
 };
 
+/*************** Set logical link ********************/
+#define PLINK_TRACK_SHIFT	8
+struct be_cmd_req_set_ll_link {
+	struct be_cmd_req_hdr hdr;
+	u32 link_config; /* Bit 0: UP_DOWN, Bit 9: PLINK */
+};
+
 /************** Manage IFACE Filters *******************/
 #define OP_CONVERT_NORMAL_TO_TUNNEL		0
 #define OP_CONVERT_TUNNEL_TO_NORMAL		1
@@ -2156,6 +2164,8 @@ int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
 int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);
 int be_cmd_intr_set(struct be_adapter *adapter, bool intr_enable);
+int be_cmd_set_logical_link_config(struct be_adapter *adapter,
+					  int link_state, u8 domain);
 int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port);
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
