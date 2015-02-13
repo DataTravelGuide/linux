@@ -229,7 +229,8 @@ fw-shipped-$(CONFIG_ATH9K_HTC) += htc_7010.fw htc_9271.fw
 # in the base kernel.  So, force them to fw-shipped-m below.
 fw-shipped-m += iwlwifi-105-6.ucode iwlwifi-135-6.ucode iwlwifi-2000-6.ucode \
 		iwlwifi-2030-6.ucode iwlwifi-6000g2a-6.ucode iwlwifi-6000g2b-6.ucode \
-		iwlwifi-7260-7.ucode iwlwifi-3160-7.ucode
+		iwlwifi-7260-7.ucode iwlwifi-3160-7.ucode \
+		iwlwifi-7260-9.ucode iwlwifi-3160-9.ucode iwlwifi-7265-9.ucode
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
