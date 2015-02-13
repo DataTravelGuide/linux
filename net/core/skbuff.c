@@ -2727,14 +2727,14 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		__copy_skb_header(nskb, skb);
 		nskb->mac_len = skb->mac_len;
 
-		/* nskb and skb might have different headroom */
+		/* nskb and skb might have different headroom
+		 * RHEL: we leave csum_start update here as our version of
+		 * skb_headers_offset_update function does not update it.
+		 */
 		if (nskb->ip_summed == CHECKSUM_PARTIAL)
 			nskb->csum_start += skb_headroom(nskb) - headroom;
 
-		skb_reset_mac_header(nskb);
-		skb_set_network_header(nskb, skb->mac_len);
-		nskb->transport_header = (nskb->network_header +
-					  skb_network_header_len(skb));
+		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom);
 
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,
