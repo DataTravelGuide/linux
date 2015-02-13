@@ -218,6 +218,7 @@ fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 fw-shipped-$(CONFIG_BRCMSMAC) += brcm/bcm43xx-0.fw brcm/bcm43xx_hdr-0.fw
 
 fw-shipped-$(CONFIG_RT2800PCI) += rt2860.bin
+fw-shipped-$(CONFIG_RT2800PCI) += rt3290.bin
 fw-shipped-$(CONFIG_RT2800USB) += rt2870.bin
 
 fw-shipped-$(CONFIG_CARL9170) += carl9170-1.fw
