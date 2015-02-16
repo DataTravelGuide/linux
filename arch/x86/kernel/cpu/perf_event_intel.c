@@ -1082,15 +1082,11 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	/*
-	 * Some chipsets need to unmask the LVTPC in a particular spot
-	 * inside the nmi handler.  As a result, the unmasking was pushed
-	 * into all the nmi handlers.
-	 *
-	 * This handler doesn't seem to have any issues with the unmasking
-	 * so it was left at the top.
+	 * No known reason to not always do late ACK,
+	 * but just in case do it opt-in.
 	 */
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-
+	if (!x86_pmu.late_ack)
+		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	intel_pmu_disable_all();
 	handled = intel_pmu_drain_bts_buffer();
 	status = intel_pmu_get_status();
@@ -1156,6 +1152,13 @@ again:
 
 done:
 	intel_pmu_enable_all(0);
+	/*
+	 * Only unmask the NMI after the overflow counters
+	 * have been reset. This avoids spurious NMIs on
+	 * Haswell CPUs.
+	 */
+	if (x86_pmu.late_ack)
+		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	return handled;
 }
 
@@ -1977,6 +1980,13 @@ __init int intel_pmu_init(void)
 		pr_cont("IvyBridge events, ");
 		break;
 
+	case 60: /* 22nm Haswell Core */
+	case 63: /* 22nm Haswell Server */
+	case 69: /* 22nm Haswell ULT */
+	case 70: /* 22nm Haswell + GT3e (Intel Iris Pro graphics) */
+                x86_pmu.late_ack = true;
+
+		/* RHEL6 - falling through intentionaly */
 
 	default:
 		switch (x86_pmu.version) {
