@@ -41,6 +41,7 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 #include <asm/smp.h>
+#include <asm/processor.h>
 
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
@@ -1570,6 +1571,18 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 int __init acpi_boot_table_init(void)
 {
 	int error;
+
+	/*
+	 * Disable ACPI OSI Win8 for everyone except Intel Broadwell.
+	 * Note, if necessary, dmi_check_system or acpi_blacklisted
+	 * can disable OSI Win8 for specific Broadwell-based systems.
+	 */
+	if (!((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
+	      (boot_cpu_data.x86 == 6) &&
+	      (boot_cpu_data.x86_model == 61))) {
+		acpi_osi_setup("!Windows 2012");
+		acpi_osi_setup("!Windows 2013");
+	}
 
 	dmi_check_system(acpi_dmi_table);
 
