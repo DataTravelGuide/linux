@@ -34,6 +34,10 @@ update-spec:
 	@# keep the "old" source-packages checksum in the lookaside buffer
 	@md5sum linux-$(VERSION).tar.bz2 >sources;
 	@md5sum kernel-abi-whitelists.tar.bz2 >>sources;
+	@# update sources-ksb to allow KSB build brew-side scripts grabbing theright sources
+	@echo "c761eb05631f8ce888fd361883324d9c  linux-2.6.32-71.el6.tar.bz2" >sources-ksb;
+	@md5sum kernel-abi-whitelists.tar.bz2 >>sources-ksb;
+	@md5sum $(KABI_WHITELISTS_TARBALL) >>sources-ksb;
 	@git add kernel.spec*
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
