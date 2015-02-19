@@ -935,6 +935,7 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	 */
 	j = nfs4_fl_calc_j_index(lseg, req_offset(req));
 	i = select_bucket_index(fl, j);
+	spin_lock(cinfo->lock);
 	buckets = cinfo->ds->buckets;
 	list = &buckets[i].written;
 	if (list_empty(list)) {
@@ -948,6 +949,7 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
+	spin_unlock(cinfo->lock);
 	return list;
 }
 
@@ -1038,6 +1040,7 @@ transfer_commit_list(struct list_head *src, struct list_head *dst,
 	return ret;
 }
 
+/* Note called with cinfo->lock held. */
 static int
 filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 			       struct nfs_commit_info *cinfo,
@@ -1082,15 +1085,19 @@ static void filelayout_recover_commit_reqs(struct list_head *dst,
 					   struct nfs_commit_info *cinfo)
 {
 	struct pnfs_commit_bucket *b;
+	struct pnfs_layout_segment *freeme;
 	int i;
 
+restart:
 	spin_lock(cinfo->lock);
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
 		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
 			spin_unlock(cinfo->lock);
-			put_lseg(b->wlseg);
+			freeme = b->wlseg;
 			b->wlseg = NULL;
-			spin_lock(cinfo->lock);
+			spin_unlock(cinfo->lock);
+			put_lseg(freeme);
+			goto restart;
 		}
 	}
 	cinfo->ds->nwritten = 0;
@@ -1105,6 +1112,7 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 	struct nfs_commit_data *data;
 	int i, j;
 	unsigned int nreq = 0;
+	struct pnfs_layout_segment *freeme;
 
 	fl_cinfo = cinfo->ds;
 	bucket = fl_cinfo->buckets;
@@ -1115,8 +1123,10 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 		if (!data)
 			break;
 		data->ds_commit_index = i;
+		spin_lock(cinfo->lock);
 		data->lseg = bucket->clseg;
 		bucket->clseg = NULL;
+		spin_unlock(cinfo->lock);
 		list_add(&data->pages, list);
 		nreq++;
 	}
@@ -1126,8 +1136,11 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 		if (list_empty(&bucket->committing))
 			continue;
 		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
-		put_lseg(bucket->clseg);
+		spin_lock(cinfo->lock);
+		freeme = bucket->clseg;
 		bucket->clseg = NULL;
+		spin_unlock(cinfo->lock);
+		put_lseg(freeme);
 	}
 	/* Caller will clean up entries put on list */
 	return nreq;
