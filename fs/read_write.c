@@ -245,7 +245,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 	int fput_needed;
 
 	retval = -EBADF;
-	file = fget_light(fd, &fput_needed);
+	file = fget_light_pos(fd, &fput_needed);
 	if (!file)
 		goto bad;
 
@@ -263,7 +263,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 			retval = 0;
 	}
 out_putf:
-	fput_light(file, fput_needed);
+	fput_light_pos(file, fput_needed);
 bad:
 	return retval;
 }
