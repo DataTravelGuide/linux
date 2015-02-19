@@ -1084,17 +1084,17 @@ static void filelayout_recover_commit_reqs(struct list_head *dst,
 	struct pnfs_commit_bucket *b;
 	int i;
 
-	/* NOTE cinfo->lock is NOT held, relying on fact that this is
-	 * only called on single thread per dreq.
-	 * Can't take the lock because need to do put_lseg
-	 */
+	spin_lock(cinfo->lock);
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
 		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
+			spin_unlock(cinfo->lock);
 			put_lseg(b->wlseg);
 			b->wlseg = NULL;
+			spin_lock(cinfo->lock);
 		}
 	}
 	cinfo->ds->nwritten = 0;
+	spin_unlock(cinfo->lock);
 }
 
 static unsigned int
