@@ -400,7 +400,6 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
-	int status;
 
 	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
 		__func__, hdr->inode->i_ino,
@@ -432,9 +431,8 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	data->mds_offset = offset;
 
 	/* Perform an asynchronous read to ds */
-	status = nfs_initiate_read(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_read(ds->ds_clp->cl_rpcclient, data,
 				   &filelayout_read_call_ops);
-	BUG_ON(status != 0);
 	return PNFS_ATTEMPTED;
 }
 
@@ -448,7 +446,6 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
-	int status;
 
 	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
 		return PNFS_NOT_ATTEMPTED;
@@ -480,9 +477,8 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
-	status = nfs_initiate_write(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_write(ds->ds_clp->cl_rpcclient, data,
 				    &filelayout_write_call_ops, sync);
-	BUG_ON(status != 0);
 	return PNFS_ATTEMPTED;
 }
 
@@ -815,7 +811,7 @@ void
 filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 			struct nfs_page *req)
 {
-	BUG_ON(pgio->pg_lseg != NULL);
+	WARN_ON_ONCE(pgio->pg_lseg != NULL);
 
 	if (req->wb_offset != req->wb_pgbase) {
 		/*
@@ -845,7 +841,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	struct nfs_commit_info cinfo;
 	int status;
 
-	BUG_ON(pgio->pg_lseg != NULL);
+	WARN_ON_ONCE(pgio->pg_lseg != NULL);
 
 	if (req->wb_offset != req->wb_pgbase)
 		goto out_mds;
@@ -1094,7 +1090,6 @@ static void filelayout_recover_commit_reqs(struct list_head *dst,
 	 */
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
 		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
-			BUG_ON(!list_empty(&b->written));
 			put_lseg(b->wlseg);
 			b->wlseg = NULL;
 		}
