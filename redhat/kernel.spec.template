@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Feb 19 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.14.1.el6]
+- [s390] crypto: kernel oops at insmod of the z90crypt device driver (Hendrik Brueckner) [1191916 1172137]
+- [sound] alsa: usb-audio: Fix crash at re-preparing the PCM stream (Jerry Snitselaar) [1192105 1167059]
+- [usb] ehci: bugfix: urb->hcpriv should not be NULL (Jerry Snitselaar) [1192105 1167059]
+- [mm] mmap: uncached vma support with writenotify (Jerry Snitselaar) [1192105 1167059]
+- [kernel] futex: Mention key referencing differences between shared and private futexes (Larry Woodman) [1192107 1167405]
+- [kernel] futex: Ensure get_futex_key_refs() always implies a barrier (Larry Woodman) [1192107 1167405]
+
 * Tue Feb 10 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.13.1.el6]
 - [netdrv] enic: fix rx skb checksum (Stefan Assmann) [1189068 1115505]
 - [scsi] Revert "fix our current target reap infrastructure" (David Milburn) [1188941 1168072]
