@@ -5605,9 +5605,7 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 	void __iomem *vaddr;
 	int i, err;
 
-	/* kernel.org uses pci_remap_bar() here, but 2.6.27 doesn't have it.*/
-	vaddr = ioremap_nocache(pci_resource_start(pdev, 0),
-					pci_resource_len(pdev, 0));
+	vaddr = pci_ioremap_bar(pdev, 0);
 	if (vaddr == NULL)
 		return -ENOMEM;
 
@@ -6146,7 +6144,7 @@ static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 	}
 	rc = write_driver_ver_to_cfgtable(h->cfgtable);
 	if (rc)
-		return -ENOMEM;
+		return rc;
 	/* Find performant mode table. */
 	trans_offset = readl(&h->cfgtable->TransMethodOffset);
 	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
