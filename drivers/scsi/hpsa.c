@@ -6952,12 +6952,12 @@ reinit_after_soft_reset:
 		goto clean1;
 	}
 
-	h->resubmit_wq = hpsa_create_controller_wq(h, "hpsa");
+	h->resubmit_wq = hpsa_create_controller_wq(h, "resubmit");
 	if (!h->resubmit_wq) {
-		dev_err(&h->pdev->dev, "Failed to allocate work queue\n");
 		rc = -ENOMEM;
 		goto clean1;
 	}
+
 	/* Allocate and clear per-cpu variable lockup_detected */
 	h->lockup_detected = alloc_percpu(u32);
 	if (!h->lockup_detected) {
