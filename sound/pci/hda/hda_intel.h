@@ -41,12 +41,12 @@ struct hda_intel {
 };
 
 #ifdef CONFIG_SND_HDA_I915
-void hda_display_power(bool enable);
+int hda_display_power(bool enable);
 void haswell_set_bclk(struct azx *chip);
 int hda_i915_init(void);
 int hda_i915_exit(void);
 #else
-static inline void hda_display_power(bool enable) {}
+static inline int hda_display_power(bool enable) {}
 static inline void haswell_set_bclk(struct azx *chip) { return; }
 static inline int hda_i915_init(void)
 {

@@ -1889,7 +1889,12 @@ static int azx_probe_continue(struct azx *chip)
 		err = hda_i915_init();
 		if (err < 0)
 			goto out_free;
-		hda_display_power(true);
+		err = hda_display_power(true);
+		if (err < 0) {
+			dev_err(chip->card->dev,
+				"Cannot turn on display power on i915\n");
+			goto out_free;
+		}
 #endif
 	}
 
