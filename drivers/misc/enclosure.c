@@ -431,8 +431,20 @@ static ssize_t enclosure_show_components(struct device *cdev,
 	return snprintf(buf, 40, "%d\n", edev->components);
 }
 
+static ssize_t id_show(struct device *cdev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct enclosure_device *edev = to_enclosure_device(cdev);
+
+	if (edev->cb->show_id)
+		return edev->cb->show_id(edev, buf);
+	return -EINVAL;
+}
+
 static struct device_attribute enclosure_attrs[] = {
 	__ATTR(components, S_IRUGO, enclosure_show_components, NULL),
+	__ATTR(id, S_IRUGO, id_show, NULL),
 	__ATTR_NULL
 };
 
