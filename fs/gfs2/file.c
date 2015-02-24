@@ -659,6 +659,23 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return generic_file_aio_write(iocb, iov, nr_segs, pos);
 }
 
+static ssize_t gfs2_file_splice_write(struct pipe_inode_info *pipe,
+				      struct file *out, loff_t *ppos,
+				      size_t len, unsigned int flags)
+{
+	int error;
+	struct inode *inode = out->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+
+	error = gfs2_rs_alloc(ip);
+	if (error)
+		return (ssize_t)error;
+
+	gfs2_size_hint(inode, *ppos, len);
+
+	return generic_file_splice_write(pipe, out, ppos, len, flags);
+}
+
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
@@ -807,23 +824,6 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	} else {
 		return do_flock(file, cmd, fl);
 	}
-}
-
-static ssize_t gfs2_file_splice_write(struct pipe_inode_info *pipe,
-				      struct file *out, loff_t *ppos,
-				      size_t len, unsigned int flags)
-{
-	int error;
-	struct inode *inode = out->f_mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-
-	error = gfs2_rs_alloc(ip);
-	if (error)
-		return (ssize_t)error;
-
-	gfs2_size_hint(inode, *ppos, len);
-
-	return generic_file_splice_write(pipe, out, ppos, len, flags);
 }
 
 const struct file_operations gfs2_file_fops = {
