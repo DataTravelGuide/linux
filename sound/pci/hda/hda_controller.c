@@ -858,7 +858,6 @@ static int azx_alloc_cmd_io(struct azx *chip)
 		dev_err(chip->card->dev, "cannot allocate CORB/RIRB\n");
 	return err;
 }
-EXPORT_SYMBOL_GPL(azx_alloc_cmd_io);
 
 static void azx_init_cmd_io(struct azx *chip)
 {
@@ -923,7 +922,6 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writeb(chip, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
 	spin_unlock_irq(&chip->reg_lock);
 }
-EXPORT_SYMBOL_GPL(azx_init_cmd_io);
 
 static void azx_free_cmd_io(struct azx *chip)
 {
@@ -933,7 +931,6 @@ static void azx_free_cmd_io(struct azx *chip)
 	azx_writeb(chip, CORBCTL, 0);
 	spin_unlock_irq(&chip->reg_lock);
 }
-EXPORT_SYMBOL_GPL(azx_free_cmd_io);
 
 static unsigned int azx_command_addr(u32 cmd)
 {
@@ -1213,7 +1210,6 @@ static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
 	else
 		return azx_corb_send_cmd(bus, val);
 }
-EXPORT_SYMBOL_GPL(azx_send_cmd);
 
 /* get a response */
 static unsigned int azx_get_response(struct hda_bus *bus,
@@ -1227,7 +1223,6 @@ static unsigned int azx_get_response(struct hda_bus *bus,
 	else
 		return azx_rirb_get_response(bus, addr);
 }
-EXPORT_SYMBOL_GPL(azx_get_response);
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 /*
