@@ -38,6 +38,7 @@ update-spec:
 	@echo "c761eb05631f8ce888fd361883324d9c  linux-2.6.32-71.el6.tar.bz2" >sources-ksb;
 	@md5sum kernel-abi-whitelists.tar.bz2 >>sources-ksb;
 	@md5sum $(KABI_WHITELISTS_TARBALL) >>sources-ksb;
+	@git add sources-ksb
 	@git add kernel.spec*
 	@echo -e "\nDon't forget to upload the new patch file with 'make tarball-upload'"
 
