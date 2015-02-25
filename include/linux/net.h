@@ -267,7 +267,6 @@ do {								\
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
 			   atomic_t *done_key);
 
-/* BE CAREFUL: this function is not interrupt safe */
 #define net_get_random_once(buf, nbytes)				\
 	({								\
 		bool ___ret = false;					\
