@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Feb 25 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.52.1.el6]
+- [char] raw: Return short read or 0 at end of a raw device, not EIO (Jeff Moyer) [1195746 1142314]
+
 * Fri Jan 30 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.51.1.el6]
 - [infiniband] ipoib: don't queue a work struct up twice (Doug Ledford) [1187665 1187663 1184072 1159925]
 - [infiniband] ipoib: make sure we reap all our ah on shutdown (Doug Ledford) [1187665 1187663 1184072 1159925]
