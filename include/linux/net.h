@@ -272,12 +272,12 @@ bool __net_get_random_once(void *buf, int nbytes, bool *done,
 	({								\
 		bool ___ret = false;					\
 		static bool ___done = false;				\
-		static atomic_t ___done_key = ATOMIC_INIT(0);		\
-		if (!likely(atomic_read(&___done_key)))			\
+		static atomic_t ___once_key = ATOMIC_INIT(1);		\
+		if (likely(atomic_read(&___once_key)))			\
 			___ret = __net_get_random_once(buf,		\
 						       nbytes,		\
 						       &___done,	\
-						       &___done_key);	\
+						       &___once_key);	\
 		___ret;							\
 	})
 

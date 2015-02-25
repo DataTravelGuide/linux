@@ -326,8 +326,8 @@ static void __net_random_once_deferred(struct work_struct *w)
 {
 	struct __net_random_once_work *work =
 		container_of(w, struct __net_random_once_work, work);
-	if (!(atomic_read(work->key) > 0))
-		atomic_inc(work->key);
+	BUG_ON(atomic_read(work->key) < 1);
+	atomic_dec(work->key);
 	kfree(work);
 }
 
@@ -345,7 +345,7 @@ static void __net_random_once_disable_jump(atomic_t *key)
 }
 
 bool __net_get_random_once(void *buf, int nbytes, bool *done,
-			   atomic_t *done_key)
+			   atomic_t *once_key)
 {
 	static DEFINE_SPINLOCK(lock);
 
@@ -359,7 +359,7 @@ bool __net_get_random_once(void *buf, int nbytes, bool *done,
 	*done = true;
 	spin_unlock_bh(&lock);
 
-	__net_random_once_disable_jump(done_key);
+	__net_random_once_disable_jump(once_key);
 
 	return true;
 }
