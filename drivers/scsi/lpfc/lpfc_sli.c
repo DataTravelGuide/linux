@@ -12884,8 +12884,8 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
  * memory this function will return -ENOMEM. If the queue create mailbox command
  * fails this function will return -ENXIO.
  **/
-uint32_t
-lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
+int
+lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint32_t startq)
 {
 	struct lpfc_mbx_modify_eq_delay *eq_delay;
 	LPFC_MBOXQ_t *mbox;
@@ -13002,11 +13002,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	bf_set(lpfc_eq_context_size, &eq_create->u.request.context,
 	       LPFC_EQE_SIZE);
 	bf_set(lpfc_eq_context_valid, &eq_create->u.request.context, 1);
-	/* Calculate delay multiper from maximum interrupt per second */
-	if (imax > LPFC_DMULT_CONST)
-		dmult = 0;
-	else
-		dmult = LPFC_DMULT_CONST/imax - 1;
+	dmult = 0;
 	bf_set(lpfc_eq_context_delay_multi, &eq_create->u.request.context,
 	       dmult);
 	switch (eq->entry_count) {
