@@ -42,6 +42,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/aer.h>
 #include <linux/prefetch.h>
+#include <linux/clocksource.h>
 
 #include "e1000.h"
 
