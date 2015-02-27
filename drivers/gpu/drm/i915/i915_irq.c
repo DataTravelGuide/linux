@@ -494,6 +494,13 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
+	/* As irq's are installed before all the CRTCs are setup (and
+	 * pipe_to_crtc_mapping populated) we could end up with an
+	 * immediate underrun irq leading to null ptr deref.
+	 */
+	if (!crtc)
+		return false;
+
 	old = !intel_crtc->cpu_fifo_underrun_disabled;
 	intel_crtc->cpu_fifo_underrun_disabled = !enable;
 
