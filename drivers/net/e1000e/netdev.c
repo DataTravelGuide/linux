@@ -6645,7 +6645,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_hw_init;
 
 	if ((adapter->flags & FLAG_IS_ICH) &&
-	    (adapter->flags & FLAG_READ_ONLY_NVM))
+	    (adapter->flags & FLAG_READ_ONLY_NVM) &&
+	    (hw->mac.type < e1000_pch_spt))
 		e1000e_write_protect_nvm_ich8lan(&adapter->hw);
 
 	hw->mac.ops.get_bus_info(&adapter->hw);
