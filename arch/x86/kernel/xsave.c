@@ -165,8 +165,6 @@ int save_i387_xstate(void __user *buf)
 	if (__copy_to_user(buf, &tsk->thread.xstate->fxsave, xstate_size))
 		return -1;
 
-	clear_used_math(); /* trigger finit */
-
 	if (use_xsave()) {
 		struct _fpstate __user *fx = buf;
 		struct _xstate __user *x = buf;
