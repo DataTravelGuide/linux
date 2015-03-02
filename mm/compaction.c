@@ -601,7 +601,13 @@ next_pageblock:
 	if (low_pfn == end_pfn)
 		update_pageblock_skip(cc, valid_page, cc->nr_migratepages, true);
 
-	cc->migrate_pfn = low_pfn;
+	/*
+	 * Record where migration scanner will be restarted. If we end up in
+	 * the same pageblock as the free scanner, make the scanners fully
+	 * meet so that compact_finished() terminates compaction.
+	 */
+	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
+
 	return cc->nr_migratepages;
 }
 
