@@ -1818,17 +1818,7 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
-	if (unlikely(core_waiters < 0))
-		goto fail;
-
-	/*
-	 * Make sure nobody is waiting for us to release the VM,
-	 * otherwise we can deadlock when we wait on each other
-	 */
-	if (tsk->vfork_done)
-		complete_vfork_done(tsk);
-
-	if (core_waiters) {
+	if (core_waiters > 0) {
 		struct core_thread *ptr;
 
 		wait_for_completion(&core_state->startup);
@@ -1843,7 +1833,7 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 			ptr = ptr->next;
 		}
 	}
-fail:
+
 	return core_waiters;
 }
 
