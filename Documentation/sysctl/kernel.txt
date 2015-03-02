@@ -62,6 +62,7 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
+- softlockup_all_cpu_backtrace
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
@@ -497,6 +498,22 @@ This value can be used to lower the softlockup tolerance threshold.  The
 default threshold is 60 seconds.  If a cpu is locked up for 60 seconds,
 the kernel complains.  Valid values are 1-60 seconds.  Setting this
 tunable to zero will disable the softlockup detection altogether.
+
+==============================================================
+
+softlockup_all_cpu_backtrace:
+
+This value controls the soft lockup detector thread's behavior
+when a soft lockup condition is detected as to whether or not
+to gather further debug information. If enabled, each cpu will
+be issued an NMI and instructed to capture stack trace.
+
+This feature is only applicable for architectures which support
+NMI.
+
+0: do nothing. This is the default behavior.
+
+1: on detection capture more debug information.
 
 ==============================================================
 

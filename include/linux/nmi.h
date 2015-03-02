@@ -73,6 +73,7 @@ static inline bool trigger_allbutself_cpu_backtrace(void)
 int hw_nmi_is_cpu_stuck(struct pt_regs *);
 u64 hw_nmi_get_sample_period(void);
 extern int watchdog_enabled;
+extern int sysctl_softlockup_all_cpu_backtrace;
 struct ctl_table;
 extern int proc_dowatchdog_enabled(struct ctl_table *, int ,
 			void __user *, size_t *, loff_t *);
