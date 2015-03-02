@@ -194,7 +194,7 @@ static const struct tnt tnts[] = {
 	{ TAINT_FIRMWARE_WORKAROUND,	'I', ' ' },
 	{ TAINT_12,			'?', '-' },
 	{ TAINT_13,			'?', '-' },
-	{ TAINT_14,			'?', '-' },
+	{ TAINT_SOFTLOCKUP,		'L', ' ' },
 	{ TAINT_15,			'?', '-' },
 	{ TAINT_16,			'?', '-' },
 	{ TAINT_17,			'?', '-' },

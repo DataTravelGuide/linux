@@ -379,6 +379,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 			smp_mb__after_clear_bit();
 		}
 
+		add_taint(TAINT_SOFTLOCKUP);
 		if (softlockup_panic)
 			panic("softlockup: hung tasks");
 		__get_cpu_var(soft_watchdog_warn) = true;
