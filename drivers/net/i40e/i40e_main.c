@@ -7491,7 +7491,7 @@ static const struct net_device_ops_ext i40e_netdev_ops_ext = {
 	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
 	.ndo_set_features	= i40e_set_features,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
-	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
+	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
 	.ndo_get_phys_port_id	= i40e_get_phys_port_id,
 };
 
