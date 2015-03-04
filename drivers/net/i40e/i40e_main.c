@@ -7024,6 +7024,22 @@ static void i40e_del_vxlan_port(struct net_device *netdev,
 }
 
 #endif
+static int i40e_get_phys_port_id(struct net_device *netdev,
+				 struct netdev_phys_port_id *ppid)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+
+	if (!(pf->flags & I40E_FLAG_PORT_ID_VALID))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = min_t(int, sizeof(hw->mac.port_addr), sizeof(ppid->id));
+	memcpy(ppid->id, hw->mac.port_addr, ppid->id_len);
+
+	return 0;
+}
+
 #ifdef HAVE_FDB_OPS
 #ifdef USE_CONST_DEV_UC_CHAR
 static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
@@ -7157,6 +7173,7 @@ static const struct net_device_ops_ext i40e_netdev_ops_ext = {
 	.ndo_set_features	= i40e_set_features,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
+	.ndo_get_phys_port_id	= i40e_get_phys_port_id,
 };
 
 /**
@@ -8698,6 +8715,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	dev_info(&pdev->dev, "MAC address: %pM\n", hw->mac.addr);
 	ether_addr_copy(hw->mac.perm_addr, hw->mac.addr);
+	i40e_get_port_mac_addr(hw, hw->mac.port_addr);
+	if (is_valid_ether_addr(hw->mac.port_addr))
+		pf->flags |= I40E_FLAG_PORT_ID_VALID;
 
 	pci_set_drvdata(pdev, pf);
 	pci_save_state(pdev);
