@@ -1936,6 +1936,9 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * we are not already transmitting a packet to be timestamped
 	 */
 	pf = i40e_netdev_to_pf(tx_ring->netdev);
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return 0;
+
 	if (pf->ptp_tx && !pf->ptp_tx_skb) {
 		skb_tx(skb)->in_progress = 1;
 		pf->ptp_tx_skb = skb_get(skb);
