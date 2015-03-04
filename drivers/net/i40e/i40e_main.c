@@ -6732,9 +6732,6 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_vlan	= i40e_ndo_set_vf_port_vlan,
 	.ndo_set_vf_tx_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
-#if 0 /* RHEL6 */
-	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
-#endif /* RHEL6 */
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
@@ -6752,6 +6749,7 @@ static const struct net_device_ops_ext i40e_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
 	.ndo_set_features	= i40e_set_features,
+	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
 };
 
 /**
