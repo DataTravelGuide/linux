@@ -1701,6 +1701,18 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Mar 04 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.15.1.el6]
+- [netdrv] ixgbe: remove CIAA/D register reads from bad VF check (John Greene) [1196312 1156061]
+- [pci] Make FLR and AF FLR reset warning messages different (Myron Stowe) [1192365 1184540]
+- [pci] Fix unaligned access in AF transaction pending test (Myron Stowe) [1192365 1184540]
+- [pci] Merge multi-line quoted strings (Myron Stowe) [1192365 1184540]
+- [pci] Wrong register used to check pending traffic (Myron Stowe) [1192365 1184540]
+- [pci] Add pci_wait_for_pending() -- refactor pci_wait_for_pending_transaction() (Myron Stowe) [1192365 1184540]
+- [pci] Use pci_wait_for_pending_transaction() instead of for loop (Myron Stowe) [1192365 1184540]
+- [pci] Add pci_wait_for_pending_transaction() (Myron Stowe) [1192365 1184540]
+- [pci] Wait for pending transactions to complete before 82599 FLR (Myron Stowe) [1192365 1184540]
+- [scsi] storvsc: fix a bug in storvsc limits (Vitaly Kuznetsov) [1196532 1174168]
+
 * Thu Feb 19 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.14.1.el6]
 - [s390] crypto: kernel oops at insmod of the z90crypt device driver (Hendrik Brueckner) [1191916 1172137]
 - [sound] alsa: usb-audio: Fix crash at re-preparing the PCM stream (Jerry Snitselaar) [1192105 1167059]
