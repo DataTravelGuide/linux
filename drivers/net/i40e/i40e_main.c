@@ -8930,7 +8930,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		i40e_config_rss(pf);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_update_link_info(&pf->hw, true);
+	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
@@ -8938,7 +8938,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 				  I40E_AQ_AN_COMPLETED) ? true : false);
 
 	/* fill in link information and enable LSE reporting */
-	i40e_update_link_info(&pf->hw, true);
+	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
 	i40e_link_event(pf);
 
 	/* Initialize user-specific link properties */
