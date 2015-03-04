@@ -444,7 +444,7 @@ _xfs_buf_find(
 	range_length = (isize << BBSHIFT);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(range_length < (1 << btp->bt_sshift)));
+	ASSERT(!(range_length < (btp->bt_ssize)));
 	ASSERT(!(range_base & (xfs_off_t)btp->bt_smask));
 
 	/* get tree root */
@@ -1487,8 +1487,7 @@ xfs_setsize_buftarg(
 	unsigned int		blocksize,
 	unsigned int		sectorsize)
 {
-	btp->bt_bsize = blocksize;
-	btp->bt_sshift = ffs(sectorsize) - 1;
+	btp->bt_ssize = sectorsize;
 	btp->bt_smask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
