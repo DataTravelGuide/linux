@@ -969,6 +969,7 @@ static int i40e_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	return i40e_fcoe_ddp_setup(netdev, xid, sgl, sgc, 0);
 }
 
+#if 0 /* RHEL6 */
 /**
  * i40e_fcoe_ddp_target - called to set up ddp context in target mode
  * @netdev: the corresponding net_device
@@ -989,6 +990,7 @@ static int i40e_fcoe_ddp_target(struct net_device *netdev, u16 xid,
 {
 	return i40e_fcoe_ddp_setup(netdev, xid, sgl, sgc, 1);
 }
+#endif
 
 /**
  * i40e_fcoe_program_ddp - programs the HW DDP related descriptors
@@ -1437,12 +1439,12 @@ static int i40e_fcoe_change_mtu(struct net_device *netdev, int new_mtu)
  *
  **/
 static int i40e_fcoe_set_features(struct net_device *netdev,
-				  netdev_features_t features)
+				  u32 features)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (features & NETIF_F_HW_VLAN_RX)
 		i40e_vlan_stripping_enable(vsi);
 	else
 		i40e_vlan_stripping_disable(vsi);
@@ -1454,7 +1456,6 @@ static int i40e_fcoe_set_features(struct net_device *netdev,
 static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
-	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
 	.ndo_set_rx_mode	= i40e_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= i40e_set_mac,
@@ -1463,7 +1464,9 @@ static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_tx_timeout		= i40e_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
+#if 0 /* RHEL6 */
 	.ndo_setup_tc		= i40e_setup_tc,
+#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40e_netpoll,
@@ -1473,9 +1476,17 @@ static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_fcoe_disable	= i40e_fcoe_disable,
 	.ndo_fcoe_ddp_setup	= i40e_fcoe_ddp_get,
 	.ndo_fcoe_ddp_done	= i40e_fcoe_ddp_put,
+#if 0 /* RHEL6 */
 	.ndo_fcoe_ddp_target	= i40e_fcoe_ddp_target,
+#endif
+};
+
+static const struct net_device_ops_ext i40e_fcoe_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_get_stats64	= i40e_get_netdev_stats_struct,
 	.ndo_set_features	= i40e_fcoe_set_features,
 };
+
 
 /**
  * i40e_fcoe_config_netdev - prepares the VSI context for creating a FCoE VSI
@@ -1492,20 +1503,24 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	if (vsi->type != I40E_VSI_FCOE)
 		return;
 
-	netdev->features = (NETIF_F_HW_VLAN_CTAG_TX |
-			    NETIF_F_HW_VLAN_CTAG_RX |
-			    NETIF_F_HW_VLAN_CTAG_FILTER);
+	netdev->features = (NETIF_F_HW_VLAN_TX |
+			    NETIF_F_HW_VLAN_RX |
+			    NETIF_F_HW_VLAN_FILTER);
 
 	netdev->vlan_features = netdev->features;
-	netdev->vlan_features &= ~(NETIF_F_HW_VLAN_CTAG_TX |
-				   NETIF_F_HW_VLAN_CTAG_RX |
-				   NETIF_F_HW_VLAN_CTAG_FILTER);
+	netdev->vlan_features &= ~(NETIF_F_HW_VLAN_TX |
+				   NETIF_F_HW_VLAN_RX |
+				   NETIF_F_HW_VLAN_FILTER);
 	netdev->fcoe_ddp_xid = I40E_FCOE_DDP_MAX - 1;
+#if 0 /* RHEL6 */
 	netdev->features |= NETIF_F_ALL_FCOE;
 	netdev->vlan_features |= NETIF_F_ALL_FCOE;
-	netdev->hw_features |= netdev->features;
+#endif
+	netdev_extended(netdev)->hw_features |= netdev->features;
+#if 0 /* RHEL6 */
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
+#endif
 
 	strlcpy(netdev->name, "fcoe%d", IFNAMSIZ-1);
 	netdev->mtu = FCOE_MTU;
