@@ -1487,6 +1487,7 @@ xfs_setsize_buftarg(
 	unsigned int		blocksize,
 	unsigned int		sectorsize)
 {
+	/* Set up metadata sector size info */
 	btp->bt_meta_sectorsize = sectorsize;
 	btp->bt_meta_sectormask = sectorsize - 1;
 
@@ -1496,6 +1497,10 @@ xfs_setsize_buftarg(
 			sectorsize, XFS_BUFTARG_NAME(btp));
 		return EINVAL;
 	}
+
+	/* Set up device logical sector size mask */
+	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
 
 	return 0;
 }
