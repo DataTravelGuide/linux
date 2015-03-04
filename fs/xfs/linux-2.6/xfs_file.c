@@ -250,8 +250,7 @@ xfs_file_aio_read(
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
-		if ((iocb->ki_pos & target->bt_smask) ||
-		    (size & target->bt_smask)) {
+		if ((iocb->ki_pos | size) & target->bt_meta_sectormask) {
 			if (iocb->ki_pos == i_size_read(inode))
 				return 0;
 			return -XFS_ERROR(EINVAL);
@@ -630,7 +629,7 @@ xfs_file_dio_aio_write(
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
 
-	if ((pos & target->bt_smask) || (count & target->bt_smask))
+	if ((pos | count) & target->bt_meta_sectormask)
 		return -XFS_ERROR(EINVAL);
 
 	if ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask))
