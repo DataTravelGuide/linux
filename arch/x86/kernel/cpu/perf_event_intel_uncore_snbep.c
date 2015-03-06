@@ -1014,7 +1014,7 @@ static struct intel_uncore_type *snbep_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snbep_uncore_pci_ids) = {
+static const struct pci_device_id snbep_uncore_pci_ids[] = {
 	{ /* Home Agent */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_UNC_HA),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNBEP_PCI_UNCORE_HA, 0),
@@ -1607,7 +1607,7 @@ static struct intel_uncore_type *ivbep_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(ivbep_uncore_pci_ids) = {
+static const struct pci_device_id ivbep_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe30),
 		.driver_data = UNCORE_PCI_DEV_DATA(IVBEP_PCI_UNCORE_HA, 0),
@@ -2159,7 +2159,7 @@ static struct intel_uncore_type *hswep_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(hswep_uncore_pci_ids) = {
+static const struct pci_device_id hswep_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(HSWEP_PCI_UNCORE_HA, 0),
