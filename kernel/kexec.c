@@ -1588,6 +1588,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 #ifdef CONFIG_MEMORY_FAILURE
 	VMCOREINFO_NUMBER(PG_hwpoison);
 #endif
+	VMCOREINFO_NUMBER(PG_head_mask);
 
 	arch_crash_save_vmcoreinfo();
 	update_vmcoreinfo_note();
