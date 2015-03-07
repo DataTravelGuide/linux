@@ -1701,6 +1701,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sat Mar 07 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.53.1.el6]
+- [net] sctp: fix slab corruption from use after free on INIT collisions (Daniel Borkmann) [1196593 1135425] {CVE-2015-1421}
+- [x86] kvm: vmx: invalid host cr4 handling across vm entries (Jacob Tanenbaum) [1170559 1153327] {CVE-2014-3690}
+- [media] ttusb-dec: buffer overflow in ioctl (Alexander Gordeev) [1170972 1167115] {CVE-2014-8884}
+- [fs] nfs: Fix a delegation callback race (Dave Wysochanski) [1187638 1149831]
+- [fs] nfs: Don't use the delegation->inode in nfs_mark_return_delegation() (Dave Wysochanski) [1187638 1149831]
+- [fs] isofs: unbound recursion when processing relocated directories (Jacob Tanenbaum) [1196306 1142269] {CVE-2014-5472 CVE-2014-5471}
+- [video] fbmem: convert fb_mmap to vm_iomap_memory() helper (Jacob Tanenbaum) [1035241 1035242] {CVE-2013-2596}
+- [s390] add dummy io_remap_pfn_range() to asm/pgtable.h (Jacob Tanenbaum) [1035241 1035242] {CVE-2013-2596}
+- [mm] add vm_iomap_memory() helper function (Jacob Tanenbaum) [1035241 1035242] {CVE-2013-2596}
+
 * Wed Feb 25 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.52.1.el6]
 - [char] raw: Return short read or 0 at end of a raw device, not EIO (Jeff Moyer) [1195746 1142314]
 
