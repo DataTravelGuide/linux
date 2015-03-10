@@ -235,6 +235,8 @@ extern int flush_work(struct work_struct *work);
 extern int cancel_work_sync(struct work_struct *work);
 
 extern unsigned int work_busy(struct work_struct *work);
+extern bool mod_delayed_work(struct workqueue_struct *wq,
+			     struct delayed_work *dwork, unsigned long delay);
 
 /*
  * Kill off a pending schedule_delayed_work().  Note that the work callback

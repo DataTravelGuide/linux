@@ -45,26 +45,6 @@ static inline struct inode *file_inode(struct file *f)
 
 #define SIZE_MAX ULONG_MAX
 
-/**
- * mod_delayed_work - modify delay of or queue a delayed work
- * @wq: workqueue to use
- * @dwork: work to queue
- * @delay: number of jiffies to wait before queueing
- *
- * mod_delayed_work_on() on local CPU.
- *
- * WARNING: unlike upstream mod_delayed_work() from newer kernel,
- * this is not safe for atomic ctx!  Be sure to review call sites.
- */
-static inline bool mod_delayed_work(struct workqueue_struct *wq,
-				    struct delayed_work *dwork,
-				    unsigned long delay)
-{
-	int ret = cancel_delayed_work(dwork);
-	queue_delayed_work(wq, dwork, delay);
-	return ret;
-}
-
 #define __wait_event_lock_irq(wq, condition, lock, cmd)			\
 do {									\
 	DEFINE_WAIT(__wait);						\

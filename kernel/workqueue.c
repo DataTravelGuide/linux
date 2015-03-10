@@ -261,6 +261,27 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 }
 EXPORT_SYMBOL_GPL(queue_delayed_work_on);
 
+/**
+ * mod_delayed_work - modify delay of or queue a delayed work
+ * @wq: workqueue to use
+ * @dwork: work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * WARNING: unlike upstream mod_delayed_work() from newer kernel,
+ * this is not safe for atomic ctx!  Be sure to review call sites.
+ */
+bool mod_delayed_work(struct workqueue_struct *wq,
+		      struct delayed_work *dwork, unsigned long delay)
+{
+	bool ret;
+
+	WARN_ON_ONCE(in_irq());
+	ret = cancel_delayed_work(dwork);
+	queue_delayed_work(wq, dwork, delay);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mod_delayed_work);
+
 static void run_workqueue(struct cpu_workqueue_struct *cwq)
 {
 	spin_lock_irq(&cwq->lock);
