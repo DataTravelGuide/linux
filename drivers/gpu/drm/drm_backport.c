@@ -122,25 +122,12 @@ EXPORT_SYMBOL(unregister_shrinker2);
  *
  */
 
-struct workqueue_struct *system_wq __read_mostly;
-EXPORT_SYMBOL(system_wq);
-struct workqueue_struct *system_long_wq __read_mostly;
-EXPORT_SYMBOL_GPL(system_long_wq);
-struct workqueue_struct *system_power_efficient_wq __read_mostly;
-EXPORT_SYMBOL_GPL(system_power_efficient_wq);
-
 int __init drm_backport_init(void)
 {
-	system_wq = create_workqueue("events");
-	system_long_wq = create_workqueue("events_long");
-	system_power_efficient_wq = create_workqueue("events_power_efficient");
 	idr2_init_cache();
 	return 0;
 }
 
 void __exit drm_backport_exit(void)
 {
-	destroy_workqueue(system_wq);
-	destroy_workqueue(system_long_wq);
-	destroy_workqueue(system_power_efficient_wq);
 }

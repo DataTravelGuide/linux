@@ -364,10 +364,6 @@ void unregister_shrinker2(struct shrinker2 *shrinker);
 #define register_shrinker   register_shrinker2
 #define unregister_shrinker unregister_shrinker2
 
-extern struct workqueue_struct *system_wq;
-extern struct workqueue_struct *system_long_wq;
-extern struct workqueue_struct *system_power_efficient_wq;
-
 #define VM_DONTDUMP VM_RESERVED   /* not entirely true, but works for drm usages */
 
 static inline void pm_runtime_mark_last_busy(struct device *dev) {}

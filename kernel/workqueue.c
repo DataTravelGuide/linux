@@ -615,6 +615,13 @@ EXPORT_SYMBOL(cancel_delayed_work_sync);
 
 static struct workqueue_struct *keventd_wq __read_mostly;
 
+struct workqueue_struct *system_wq __read_mostly;
+EXPORT_SYMBOL(system_wq);
+struct workqueue_struct *system_long_wq __read_mostly;
+EXPORT_SYMBOL_GPL(system_long_wq);
+struct workqueue_struct *system_power_efficient_wq __read_mostly;
+EXPORT_SYMBOL_GPL(system_power_efficient_wq);
+
 /**
  * schedule_work - put work task in global workqueue
  * @work: job to be done
@@ -1102,5 +1109,9 @@ void __init init_workqueues(void)
 	cpu_singlethread_map = cpumask_of(singlethread_cpu);
 	hotcpu_notifier(workqueue_cpu_callback, 0);
 	keventd_wq = create_workqueue("events");
-	BUG_ON(!keventd_wq);
+	system_wq = create_workqueue("events");
+	system_long_wq = create_workqueue("events_long");
+	system_power_efficient_wq = create_workqueue("events_power_efficient");
+	BUG_ON(!keventd_wq || !system_wq || !system_long_wq ||
+	       !system_power_efficient_wq);
 }
