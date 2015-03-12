@@ -1705,6 +1705,36 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Mar 11 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-544.el6]
+- [crypto] sha512: Create module providing optimized SHA512 routines using SSSE3, AVX or AVX2 instructions (Herbert Xu) [1036216]
+- [crypto] sha512: Optimized SHA512 x86_64 assembly routine using AVX2 RORX instruction (Herbert Xu) [1036216]
+- [crypto] sha512: Optimized SHA512 x86_64 assembly routine using AVX instructions (Herbert Xu) [1036216]
+- [crypto] sha512: Optimized SHA512 x86_64 assembly routine using Supplemental SSE3 instructions (Herbert Xu) [1036216]
+- [crypto] sha512: Expose generic sha512 routine to be callable from other modules (Herbert Xu) [1036216]
+- [crypto] sha256: Create module providing optimized SHA256 routines using SSSE3, AVX or AVX2 instructions (Herbert Xu) [1036216]
+- [crypto] sha256: Optimized sha256 x86_64 routine using AVX2's RORX instructions (Herbert Xu) [1036216]
+- [crypto] sha256: Optimized sha256 x86_64 assembly routine with AVX instructions (Herbert Xu) [1036216]
+- [crypto] sha256: Optimized sha256 x86_64 assembly routine using Supplemental SSE3 instructions (Herbert Xu) [1036216]
+- [crypto] sha256: Expose SHA256 generic routine to be callable externally (Herbert Xu) [1036216]
+- [crypto] rng: RNGs must return 0 in success case (Herbert Xu) [1199230]
+- [hv] hv_balloon: keep locks balanced on add_memory() failure (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: refuse to balloon below the floor (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: report offline pages as being used (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: eliminate the trylock path in acquire/release_region_mutex (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: Don't post pressure status from interrupt context (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: Fix a locking bug in the balloon driver (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: Make adjustments in computing the floor (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: avoid memory leak on alloc_error of 2MB memory block (Vitaly Kuznetsov) [1006234]
+- [fs] isofs: infinite loop in CE record entries (Jacob Tanenbaum) [1175245] {CVE-2014-9420}
+- [x86] intel_pstate: Add support for SkyLake (Steve Best) [1189313]
+- [x86] vdso: ASLR bruteforce possible for vdso library (Jacob Tanenbaum) [1184897] {CVE-2014-9585}
+- [kernel] time: ntp: Correct TAI offset during leap second (Prarit Bhargava) [1199134]
+- [kernel] kexec: fix build error when hugetlbfs is disabled (Minfei Huang) [1121663]
+- [kernel] kexec: export free_huge_page to VMCOREINFO (Minfei Huang) [1121663]
+- [kernel] kexec: save PG_head_mask in VMCOREINFO (Minfei Huang) [1121663]
+- [mm] Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED (Minfei Huang) [1121663]
+- [scsi] lpfc: correct device removal deadlock after link bounce (Rob Evers) [1194793]
+
 * Mon Mar 09 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-543.el6]
 - [netdrv] i40evf: TCP/IPv6 over Vxlan Tx checksum offload fix (Stefan Assmann) [1150337]
 - [netdrv] i40e: fix race in hang check (Stefan Assmann) [1150337]
