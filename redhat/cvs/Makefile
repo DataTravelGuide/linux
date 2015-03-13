@@ -4,7 +4,7 @@ DETAILED_SPEC := kernel.spec.full
 KSB_SPEC := kernel.spec.ksb
 BACKUP_SPEC := .kernel.spec
 internal_release := $(shell rpm -q --qf "%{RELEASE}\n" --specfile $(DETAILED_SPEC) | head -1)
-distro_build := $(shell echo $(internal_release) | sed -e 's|\(^[0-9]\{1,4\}.*\)\.el6.*|\1|')
+distro_build := $(shell echo $(internal_release) | sed -e 's|\(^[0-9]\{1,4\}\)\..*|\1|')
 FULL_TARBALL := linux-$(VERSION)-$(internal_release).tar.bz2
 KABI_WHITELISTS_TARBALL := kernel-abi-whitelists-$(distro_build).tar.bz2
 
