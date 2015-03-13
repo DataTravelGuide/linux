@@ -26,7 +26,7 @@ buildid: notes
 sources: buildid 
 	echo $(BUILDID) > ../../localversion
 	$(MAKE) -C ../ rh-sources
-	mv -f ../rpm/SOURCES/* .
+	find ../rpm/SOURCES/ -type f -print0 | xargs -0 mv -ft .
 	rm -f ./kernel.spec
 	mv ../rpm/SPECS/kernel.spec .
 
