@@ -58,7 +58,8 @@ extern struct kmem_cache *kvm_vcpu_cache;
  * in one place.
  */
 struct kvm_io_bus {
-	int                   dev_count;
+	int dev_count;
+	int ioeventfd_count;
 #define NR_IOBUS_DEVS 200
 	struct kvm_io_device *devs[NR_IOBUS_DEVS];
 };
