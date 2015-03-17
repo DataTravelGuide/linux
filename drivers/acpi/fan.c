@@ -33,6 +33,7 @@
 #include <linux/thermal.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/sort.h>
 
 #define ACPI_FAN_CLASS			"fan"
 #define ACPI_FAN_FILE_STATE		"state"
@@ -52,6 +53,29 @@ static const struct acpi_device_id fan_device_ids[] = {
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, fan_device_ids);
+
+struct acpi_fan_fps {
+	u64 control;
+	u64 trip_point;
+	u64 speed;
+	u64 noise_level;
+	u64 power;
+};
+
+struct acpi_fan_fif {
+	u64 revision;
+	u64 fine_grain_ctrl;
+	u64 step_size;
+	u64 low_speed_notification;
+};
+
+struct acpi_fan {
+	bool acpi4;
+	struct acpi_fan_fif fif;
+	struct acpi_fan_fps *fps;
+	int fps_count;
+	struct thermal_cooling_device *cdev;
+};
 
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
@@ -78,20 +102,61 @@ static struct acpi_driver acpi_fan_driver = {
 static int fan_get_max_state(struct thermal_cooling_device *cdev, unsigned long
 			     *state)
 {
-	/* ACPI fan device only support two states: ON/OFF */
-	*state = 1;
+	struct acpi_device *device = cdev->devdata;
+	struct acpi_fan *fan = acpi_driver_data(device);
+
+	if (fan->acpi4)
+		*state = fan->fps_count - 1;
+	else
+		*state = 1;
 	return 0;
 }
 
-static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
-			     *state)
+static int fan_get_state_acpi4(struct acpi_device *device, unsigned long *state)
 {
-	struct acpi_device *device = cdev->devdata;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_fan *fan = acpi_driver_data(device);
+	union acpi_object *obj;
+	acpi_status status;
+	int control, i;
+
+	status = acpi_evaluate_object(device->handle, "_FST", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&device->dev, "Get fan state failed\n");
+		return status;
+	}
+
+	obj = buffer.pointer;
+	if (!obj || obj->type != ACPI_TYPE_PACKAGE ||
+	    obj->package.count != 3 ||
+	    obj->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		dev_err(&device->dev, "Invalid _FST data\n");
+		status = -EINVAL;
+		goto err;
+	}
+
+	control = obj->package.elements[1].integer.value;
+	for (i = 0; i < fan->fps_count; i++) {
+		if (control == fan->fps[i].control)
+			break;
+	}
+	if (i == fan->fps_count) {
+		dev_dbg(&device->dev, "Invalid control value returned\n");
+		status = -EINVAL;
+		goto err;
+	}
+
+	*state = i;
+
+err:
+	kfree(obj);
+	return status;
+}
+
+static int fan_get_state(struct acpi_device *device, unsigned long *state)
+{
 	int result;
 	int acpi_state = ACPI_STATE_D0;
-
-	if (!device)
-		return -EINVAL;
 
 	result = acpi_bus_get_power(device->handle, &acpi_state);
 	if (result)
@@ -102,19 +167,64 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 	return 0;
 }
 
+static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
+			     *state)
+{
+	struct acpi_device *device = cdev->devdata;
+	struct acpi_fan *fan = acpi_driver_data(device);
+
+	if (fan->acpi4)
+		return fan_get_state_acpi4(device, state);
+	else
+		return fan_get_state(device, state);
+}
+
+static int fan_set_state(struct acpi_device *device, unsigned long state)
+{
+	int ret;
+
+	if (state != 0 && state != 1)
+		return -EINVAL;
+
+	device->flags.force_power_state = 1;
+	ret = acpi_bus_set_power(device->handle,
+				     state ? ACPI_STATE_D0 : ACPI_STATE_D3);
+	device->flags.force_power_state = 0;
+
+	return ret;
+}
+
+static int fan_set_state_acpi4(struct acpi_device *device, unsigned long state)
+{
+	struct acpi_fan *fan = acpi_driver_data(device);
+	acpi_status status;
+	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list args = { 1, &arg0 };
+
+	if (state >= fan->fps_count)
+		return -EINVAL;
+
+	arg0.integer.value = fan->fps[state].control;
+
+	status = acpi_evaluate_object(device->handle, "_FSL", &args, NULL);
+	if (ACPI_FAILURE(status)) {
+		dev_dbg(&device->dev, "Failed to set state by _FSL\n");
+		return status;
+	}
+
+	return 0;
+}
+
 static int
 fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
-	int result;
+	struct acpi_fan *fan = acpi_driver_data(device);
 
-	if (!device || (state != 0 && state != 1))
-		return -EINVAL;
-
-	result = acpi_bus_set_power(device->handle,
-				state ? ACPI_STATE_D0 : ACPI_STATE_D3);
-
-	return result;
+	if (fan->acpi4)
+		return fan_set_state_acpi4(device, state);
+	else
+		return fan_set_state(device, state);
 }
 
 static struct thermal_cooling_device_ops fan_cooling_ops = {
@@ -244,19 +354,129 @@ static int acpi_fan_remove_fs(struct acpi_device *device)
  * --------------------------------------------------------------------------
 */
 
+static bool acpi_fan_is_acpi4(struct acpi_device *device)
+{
+	acpi_handle tmp;
+
+	return ACPI_SUCCESS(acpi_get_handle(device->handle, "_FIF", &tmp)) &&
+	       ACPI_SUCCESS(acpi_get_handle(device->handle, "_FPS", &tmp)) &&
+	       ACPI_SUCCESS(acpi_get_handle(device->handle, "_FSL", &tmp)) &&
+	       ACPI_SUCCESS(acpi_get_handle(device->handle, "_FST", &tmp));
+}
+
+static int acpi_fan_get_fif(struct acpi_device *device)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_fan *fan = acpi_driver_data(device);
+	struct acpi_buffer format = { sizeof("NNNN"), "NNNN" };
+	struct acpi_buffer fif = { sizeof(fan->fif), &fan->fif };
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = acpi_evaluate_object(device->handle, "_FIF", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	obj = buffer.pointer;
+	if (!obj || obj->type != ACPI_TYPE_PACKAGE) {
+		dev_err(&device->dev, "Invalid _FIF data\n");
+		status = -EINVAL;
+		goto err;
+	}
+
+	status = acpi_extract_package(obj, &format, &fif);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&device->dev, "Invalid _FIF element\n");
+		status = -EINVAL;
+	}
+
+err:
+	kfree(obj);
+	return status;
+}
+
+static int acpi_fan_speed_cmp(const void *a, const void *b)
+{
+	const struct acpi_fan_fps *fps1 = a;
+	const struct acpi_fan_fps *fps2 = b;
+	return fps1->speed - fps2->speed;
+}
+
+static int acpi_fan_get_fps(struct acpi_device *device)
+{
+	struct acpi_fan *fan = acpi_driver_data(device);
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+	int i;
+
+	status = acpi_evaluate_object(device->handle, "_FPS", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	obj = buffer.pointer;
+	if (!obj || obj->type != ACPI_TYPE_PACKAGE || obj->package.count < 2) {
+		dev_err(&device->dev, "Invalid _FPS data\n");
+		status = -EINVAL;
+		goto err;
+	}
+
+	fan->fps_count = obj->package.count - 1; /* minus revision field */
+	fan->fps = devm_kzalloc(&device->dev,
+				fan->fps_count * sizeof(struct acpi_fan_fps),
+				GFP_KERNEL);
+	if (!fan->fps) {
+		dev_err(&device->dev, "Not enough memory\n");
+		status = -ENOMEM;
+		goto err;
+	}
+	for (i = 0; i < fan->fps_count; i++) {
+		struct acpi_buffer format = { sizeof("NNNNN"), "NNNNN" };
+		struct acpi_buffer fps = { sizeof(fan->fps[i]), &fan->fps[i] };
+		status = acpi_extract_package(&obj->package.elements[i + 1],
+					      &format, &fps);
+		if (ACPI_FAILURE(status)) {
+			dev_err(&device->dev, "Invalid _FPS element\n");
+			break;
+		}
+	}
+
+	/* sort the state array according to fan speed in increase order */
+	sort(fan->fps, fan->fps_count, sizeof(*fan->fps),
+	     acpi_fan_speed_cmp, NULL);
+
+err:
+	kfree(obj);
+	return status;
+}
+
 static int acpi_fan_add(struct acpi_device *device)
 {
 	int result = 0;
 	int state = 0;
+	struct acpi_fan *fan;
 	struct thermal_cooling_device *cdev;
 
 	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
 
+	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
+	if (!fan) {
+		dev_err(&device->dev, "No memory for fan\n");
+		return -ENOMEM;
+	}
+	device->driver_data = fan;
+
+	if (acpi_fan_is_acpi4(device)) {
+		if (acpi_fan_get_fif(device) || acpi_fan_get_fps(device))
+			goto end;
+		fan->acpi4 = true;
+	} else {
 	result = acpi_bus_get_power(device->handle, &state);
-	if (result) {
-		dev_err(&device->dev, "Setting initial power state\n");
-		goto end;
+		if (result) {
+			dev_err(&device->dev, "Setting initial power state\n");
+			goto end;
+		}
 	}
 
 	device->flags.force_power_state = 1;
@@ -273,6 +493,7 @@ static int acpi_fan_add(struct acpi_device *device)
 	dev_dbg(&device->dev, "registered as cooling_device%d\n", cdev->id);
 
 	device->driver_data = cdev;
+	fan->cdev = cdev;
 	result = sysfs_create_link(&device->dev.kobj,
 				   &cdev->device.kobj,
 				   "thermal_cooling");
@@ -290,29 +511,32 @@ static int acpi_fan_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	dev_info(&device->dev, "ACPI: %s [%s] (%s)\n",
-	       acpi_device_name(device), acpi_device_bid(device),
-	       !device->power.state ? "on" : "off");
-
 end:
 	return result;
 }
 
 static int acpi_fan_remove(struct acpi_device *device, int type)
 {
-	struct thermal_cooling_device *cdev = acpi_driver_data(device);
+	struct acpi_fan *fan = acpi_driver_data(device);
 
 	acpi_fan_remove_fs(device);
 	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
-	sysfs_remove_link(&cdev->device.kobj, "device");
-	thermal_cooling_device_unregister(cdev);
+	sysfs_remove_link(&fan->cdev->device.kobj, "device");
+	thermal_cooling_device_unregister(fan->cdev);
 
 	return 0;
 }
 
 static int acpi_fan_suspend(struct device *dev)
 {
-	acpi_bus_set_power(to_acpi_device(dev)->handle, ACPI_STATE_D0);
+	struct acpi_device *adev = to_acpi_device(dev);
+	struct acpi_fan *fan = acpi_driver_data(adev);
+	if (fan->acpi4)
+		return 0;
+
+	adev->flags.force_power_state = 1;
+	acpi_bus_set_power(adev->handle, ACPI_STATE_D0);
+	adev->flags.force_power_state = 0;
 
 	return AE_OK;
 }
@@ -321,6 +545,10 @@ static int acpi_fan_resume(struct device *dev)
 {
 	int result = 0;
 	int power_state = 0;
+	struct acpi_fan *fan = dev_get_drvdata(dev);
+
+	if (fan->acpi4)
+		return 0;
 
 	result = acpi_bus_get_power(to_acpi_device(dev)->handle, NULL);
 	if (result) {
