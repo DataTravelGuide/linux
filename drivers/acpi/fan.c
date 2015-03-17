@@ -457,6 +457,7 @@ static int acpi_fan_add(struct acpi_device *device)
 	int state = 0;
 	struct acpi_fan *fan;
 	struct thermal_cooling_device *cdev;
+	char *name;
 
 	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
@@ -484,7 +485,12 @@ static int acpi_fan_add(struct acpi_device *device)
 	acpi_bus_set_power(device->handle, state);
 	device->flags.force_power_state = 0;
 
-	cdev = thermal_cooling_device_register("Fan", device,
+	if (!strncmp(acpi_device_hid(device), "PNP0C0B", strlen("PNP0C0B")))
+		name = "Fan";
+	else
+		name = acpi_device_bid(device);
+
+	cdev = thermal_cooling_device_register(name, device,
 						&fan_cooling_ops);
 	if (IS_ERR(cdev)) {
 		result = PTR_ERR(cdev);
