@@ -84,6 +84,10 @@
 #define SYN_CAP_EXT_BUTTONS_STICK(ex10)	((ex10) & 0x010000)
 #define SYN_CAP_SECUREPAD(ex10)		((ex10) & 0x020000)
 
+#define SYN_CAP_EXT_BUTTON_STICK_L(eb)	(!!((eb) & 0x01))
+#define SYN_CAP_EXT_BUTTON_STICK_M(eb)	(!!((eb) & 0x02))
+#define SYN_CAP_EXT_BUTTON_STICK_R(eb)	(!!((eb) & 0x04))
+
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
 #define SYN_MODE_RATE(m)		((m) & (1 << 6))
@@ -149,6 +153,7 @@ struct synaptics_data {
 	int scroll;
 
 	struct serio *pt_port;			/* Pass-through serio port */
+	unsigned char pt_buttons;		/* Pass-through buttons */
 
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet
