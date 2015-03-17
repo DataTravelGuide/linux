@@ -299,9 +299,13 @@ static int acpi_fan_add(struct acpi_device *device)
 
 static int acpi_fan_remove(struct acpi_device *device, int type)
 {
-	struct thermal_cooling_device *cdev = acpi_driver_data(device);
+	struct thermal_cooling_device *cdev;
 
-	if (!device || !cdev)
+	if (!device)
+		return -EINVAL;
+
+	cdev =  acpi_driver_data(device);
+	if (!cdev)
 		return -EINVAL;
 
 	acpi_fan_remove_fs(device);
