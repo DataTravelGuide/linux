@@ -29,12 +29,10 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/thermal.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
-
-#define PREFIX "ACPI: "
 
 #define ACPI_FAN_CLASS			"fan"
 #define ACPI_FAN_FILE_STATE		"state"
@@ -242,8 +240,9 @@ static int acpi_fan_remove_fs(struct acpi_device *device)
 }
 #endif
 /* --------------------------------------------------------------------------
-                                 Driver Interface
-   -------------------------------------------------------------------------- */
+ *                               Driver Interface
+ * --------------------------------------------------------------------------
+*/
 
 static int acpi_fan_add(struct acpi_device *device)
 {
@@ -259,7 +258,7 @@ static int acpi_fan_add(struct acpi_device *device)
 
 	result = acpi_bus_get_power(device->handle, &state);
 	if (result) {
-		printk(KERN_ERR PREFIX "Reading power state\n");
+		dev_err(&device->dev, "Setting initial power state\n");
 		goto end;
 	}
 
@@ -288,14 +287,13 @@ static int acpi_fan_add(struct acpi_device *device)
 				   &device->dev.kobj,
 				   "device");
 	if (result)
-		dev_err(&device->dev, "Failed to create sysfs link "
-			"'device'\n");
+		dev_err(&device->dev, "Failed to create sysfs link 'device'\n");
 
 	result = acpi_fan_add_fs(device);
 	if (result)
 		goto end;
 
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
+	dev_info(&device->dev, "ACPI: %s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
@@ -342,8 +340,7 @@ static int acpi_fan_resume(struct device *dev)
 
 	result = acpi_bus_get_power(to_acpi_device(dev)->handle, NULL);
 	if (result) {
-		printk(KERN_ERR PREFIX
-				  "Error reading fan power state\n");
+		dev_err(dev, "Error updating fan power state\n");
 		return result;
 	}
 
