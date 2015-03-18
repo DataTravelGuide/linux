@@ -41,6 +41,7 @@
 #include <linux/cdrom.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
+#include <linux/bitmap.h>
 
 #include <xen/xenbus.h>
 #include <xen/grant_table.h>
@@ -199,8 +200,7 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 
 	spin_lock(&minor_lock);
 	if (find_next_bit(minors, end, minor) >= end) {
-		for (; minor < end; ++minor)
-			__set_bit(minor, minors);
+		bitmap_set(minors, minor, nr);
 		rc = 0;
 	} else
 		rc = -EBUSY;
@@ -215,8 +215,7 @@ static void xlbd_release_minors(unsigned int minor, unsigned int nr)
 
 	BUG_ON(end > nr_minors);
 	spin_lock(&minor_lock);
-	for (; minor < end; ++minor)
-		__clear_bit(minor, minors);
+	bitmap_clear(minors,  minor, nr);
 	spin_unlock(&minor_lock);
 }
 
