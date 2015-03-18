@@ -1465,6 +1465,15 @@ free:
 
 	free_unity_maps();
 
+#ifdef CONFIG_GART_IOMMU
+	/*
+	 * We failed to initialize the AMD IOMMU - try fallback to GART
+	 * if possible.
+	 */
+	gart_iommu_init();
+
+#endif
+
 	goto out;
 }
 
