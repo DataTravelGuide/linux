@@ -76,7 +76,6 @@ struct grant {
 struct blk_shadow {
 	struct blkif_request req;
 	struct request *request;
-	unsigned long frame[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct grant *grants_used[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
@@ -357,7 +356,6 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 static int blkif_queue_request(struct request *req)
 {
 	struct blkfront_info *info = req->rq_disk->private_data;
-	unsigned long buffer_mfn;
 	struct blkif_request *ring_req;
 	unsigned long id;
 	unsigned int fsect, lsect;
@@ -443,7 +441,6 @@ static int blkif_queue_request(struct request *req)
 
 			gnt_list_entry = get_grant(&gref_head, info);
 			ref = gnt_list_entry->gref;
-			buffer_mfn = pfn_to_mfn(gnt_list_entry->pfn);
 
 			info->shadow[id].grants_used[i] = gnt_list_entry;
 
@@ -475,7 +472,6 @@ static int blkif_queue_request(struct request *req)
 				kunmap_atomic(shared_data, KM_IRQ0);
 			}
 
-			info->shadow[id].frame[i] = mfn_to_pfn(buffer_mfn);
 			ring_req->u.rw.seg[i] =
 					(struct blkif_request_segment) {
 						.gref       = ref,
@@ -1323,7 +1319,7 @@ static int blkif_recover(struct blkfront_info *info)
 			gnttab_grant_foreign_access_ref(
 				req->u.rw.seg[j].gref,
 				info->xbdev->otherend_id,
-				pfn_to_mfn(info->shadow[req->u.rw.id].frame[j]),
+				pfn_to_mfn(copy[i].grants_used[j]->pfn),
 				0);
 		info->shadow[req->u.rw.id].req = *req;
 
