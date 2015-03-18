@@ -662,8 +662,7 @@ void __init detect_intel_iommu(void)
 			pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
 #endif
 #ifdef CONFIG_DMAR
-		if (ret && !no_iommu && !iommu_detected && !swiotlb &&
-		    !dmar_disabled) {
+		if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 			iommu_detected = 1;
 			/* Make sure ACS will be enabled */
 			pci_request_acs();
