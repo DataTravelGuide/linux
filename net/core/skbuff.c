@@ -2728,12 +2728,22 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 
 		/* nskb and skb might have different headroom
 		 * RHEL: we leave csum_start update here as our version of
-		 * skb_headers_offset_update function does not update it.
+		 * skb_headers_offset_update function does not update it. We
+		 * also need to further adjust header pointers (in
+		 * !NET_SKBUFF_DATA_USES_OFFSET case) as the head may have
+		 * been reallocated by skb_cow_head or the skb may be
+		 * freshly allocated and the pointers may point into the old
+		 * buffer at this point.
 		 */
 		if (nskb->ip_summed == CHECKSUM_PARTIAL)
 			nskb->csum_start += skb_headroom(nskb) - headroom;
 
+#ifndef NET_SKBUFF_DATA_USES_OFFSET
+		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom +
+						(nskb->head - skb->head));
+#else
 		skb_headers_offset_update(nskb, skb_headroom(nskb) - headroom);
+#endif
 		skb_reset_mac_len(nskb);
 
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
