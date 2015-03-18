@@ -37,7 +37,6 @@ extern int gart_iommu_aperture_disabled;
 
 extern void early_gart_iommu_check(void);
 extern void gart_iommu_init(void);
-extern void gart_iommu_shutdown(void);
 extern void __init gart_parse_options(char *);
 extern void gart_iommu_hole_init(void);
 
@@ -50,9 +49,6 @@ static inline void early_gart_iommu_check(void)
 {
 }
 static inline void gart_iommu_init(void)
-{
-}
-static inline void gart_iommu_shutdown(void)
 {
 }
 static inline void gart_parse_options(char *options)
