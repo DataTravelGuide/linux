@@ -629,6 +629,7 @@ wait:
 }
 
 static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
+				unsigned int physical_sector_size,
 				unsigned int segments)
 {
 	struct request_queue *rq;
@@ -649,6 +650,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
 	blk_queue_logical_block_size(rq, sector_size);
+	blk_queue_physical_block_size(rq, physical_sector_size);
 	blk_queue_max_hw_sectors(rq, 512);
 
 	/* Each segment in a request is up to an aligned page in size. */
@@ -753,7 +755,8 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 
 static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 			       struct blkfront_info *info,
-			       u16 vdisk_info, u16 sector_size)
+			       u16 vdisk_info, u16 sector_size,
+			       unsigned int physical_sector_size)
 {
 	struct gendisk *gd;
 	int nr_minors = 1;
@@ -824,7 +827,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	gd->driverfs_dev = &(info->xbdev->dev);
 	set_capacity(gd, capacity);
 
-	if (xlvbd_init_blk_queue(gd, sector_size,
+	if (xlvbd_init_blk_queue(gd, sector_size, physical_sector_size,
 				 info->max_indirect_segments ? :
 				 BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		del_gendisk(gd);
@@ -1736,6 +1739,7 @@ static void blkfront_connect(struct blkfront_info *info)
 {
 	unsigned long long sectors;
 	unsigned long sector_size;
+	unsigned int physical_sector_size;
 	unsigned int binfo;
 	int err;
 	int barrier, flush, discard, persistent;
@@ -1790,6 +1794,16 @@ static void blkfront_connect(struct blkfront_info *info)
 		return;
 	}
 
+	/*
+	 * physcial-sector-size is a newer field, so old backends may not
+	 * provide this. Assume physical sector size to be the same as
+	 * sector_size in that case.
+	 */
+	err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
+			   "physical-sector-size", "%u", &physical_sector_size);
+	if (err != 1)
+		physical_sector_size = sector_size;
+
 	info->feature_flush = 0;
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
@@ -1838,7 +1852,8 @@ static void blkfront_connect(struct blkfront_info *info)
 		return;
 	}
 
-	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
+	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size,
+				  physical_sector_size);
 	if (err) {
 		xenbus_dev_fatal(info->xbdev, err, "xlvbd_add at %s",
 				 info->xbdev->otherend);
