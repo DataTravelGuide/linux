@@ -120,10 +120,6 @@ bool amd_iommu_dump;
 
 static int __initdata amd_iommu_detected;
 
-/* original values for gart fallback on initialization failure */
-static int __initdata __gart_iommu_aperture_disabled;
-static int __initdata __gart_iommu_aperture;
-
 u16 amd_iommu_last_bdf;			/* largest PCI device id we have
 					   to handle */
 LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
@@ -1478,15 +1474,6 @@ free:
 
 	free_unity_maps();
 
-#ifdef CONFIG_GART_IOMMU
-	/*
-	 * We failed to initialize the AMD IOMMU - try fallback to GART
-	 * if possible.
-	 */
-	gart_iommu_aperture_disabled = __gart_iommu_aperture_disabled;
-	gart_iommu_aperture = __gart_iommu_aperture;
-#endif
-
 	goto out;
 }
 
@@ -1517,8 +1504,6 @@ void __init amd_iommu_detect(void)
 		iommu_detected = 1;
 		amd_iommu_detected = 1;
 #ifdef CONFIG_GART_IOMMU
-		__gart_iommu_aperture_disabled = gart_iommu_aperture_disabled;
-		__gart_iommu_aperture = gart_iommu_aperture;
 		gart_iommu_aperture_disabled = 1;
 		gart_iommu_aperture = 0;
 #endif
