@@ -45,7 +45,8 @@ column lists the sections below which describe in detail what is needed:
       / Bugzilla: <bugzilla reference>
    __|  Upstream Status: <upstream status>
 [III]|  Build Info: <brew build reference or cross-compiler output>
-      \ Tested: <testing data>
+     |  Tested: <testing data>
+      \ Conflicts: <optional, if required>
 
       / commit 7fff4beb311dfab4f18ff2cd64f78scd9296a39a
      |  Author: John Upstream <john.upstream@someupstreamplace.com>
@@ -340,6 +341,12 @@ acceptable, provided the test environment is known to adequately test a patch.
 For patchsets, the build and testing status can be mentioned a single time in
 the cover letter.
 
+e) Conflicts:
+[Suggested]: A short explanation of how the patch differs from upstream.
+
+    If the submitted patch differs from the original upstream patch, a
+short description of those changes should be included to aid reviewers in
+understanding those specific changes.
 
 IV.  CHANGELOG
 --------------
