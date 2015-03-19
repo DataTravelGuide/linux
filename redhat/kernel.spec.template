@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 19 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.18.1.el6]
+- [fs] cifs: Use key_invalidate instead of the rh_key_invalidate() (Sachin Prabhu) [1203366 885899]
+- [fs] KEYS: Add invalidation support (Sachin Prabhu) [1203366 885899]
+- [infiniband] core: Prevent integer overflow in ib_umem_get address arithmetic (Doug Ledford) [1181173 1179327] {CVE-2014-8159}
+
 * Tue Mar 10 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.17.1.el6]
 - [x86] fpu: shift clear_used_math() from save_i387_xstate() to handle_signal() (Oleg Nesterov) [1199900 1196262]
 - [x86] fpu: change save_i387_xstate() to rely on unlazy_fpu() (Oleg Nesterov) [1199900 1196262]
