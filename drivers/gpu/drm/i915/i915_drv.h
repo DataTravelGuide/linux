@@ -70,7 +70,7 @@
 		if (i915.verbose_state_checks)				\
 			WARN(1, format);				\
 		else 							\
-			DRM_ERROR(format);				\
+			drm_ut_debug_printk(__func__, format);		\
 	}								\
 	unlikely(__ret_warn_on);					\
 })
@@ -81,7 +81,7 @@
 		if (i915.verbose_state_checks)				\
 			WARN(1, "WARN_ON(" #condition ")\n");		\
 		else 							\
-			DRM_ERROR("WARN_ON(" #condition ")\n");		\
+			drm_ut_debug_printk(__func__, "WARN_ON(" #condition ")\n"); \
 	}								\
 	unlikely(__ret_warn_on);					\
 })
