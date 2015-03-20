@@ -65,7 +65,7 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 	int __ret = 0;							     \
 	if (unlikely((dynamic_debug_enabled & (1LL << DEBUG_HASH)) &&	     \
 			(dynamic_debug_enabled2 & (1LL << DEBUG_HASH2))))   \
-				if (unlikely(dd.flags))			     \
+				if (unlikely(dd.flags & _DPRINTK_FLAGS_PRINT)) \
 					__ret = 1;			     \
 	__ret; })
 
