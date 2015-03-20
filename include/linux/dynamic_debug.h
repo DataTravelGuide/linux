@@ -31,6 +31,10 @@ struct _ddebug {
 	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
 #define _DPRINTK_FLAGS_PRINT   (1<<0)  /* printk() a message using the format */
+#define _DPRINTK_FLAGS_INCL_MODNAME	(1<<1)
+#define _DPRINTK_FLAGS_INCL_FUNCNAME	(1<<2)
+#define _DPRINTK_FLAGS_INCL_LINENO	(1<<3)
+#define _DPRINTK_FLAGS_INCL_TID		(1<<4)
 #define _DPRINTK_FLAGS_DEFAULT 0
 	unsigned int flags:8;
 } __attribute__((aligned(8)));
@@ -41,6 +45,8 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 extern int ddebug_remove_module(const char *mod_name);
+extern int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #define __dynamic_dbg_enabled(dd)  ({	     \
 	int __ret = 0;							     \
@@ -57,7 +63,7 @@ extern int ddebug_remove_module(const char *mod_name);
 	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
 		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
 	if (__dynamic_dbg_enabled(descriptor))				\
-		printk(KERN_DEBUG pr_fmt(fmt),	##__VA_ARGS__);		\
+		__dynamic_pr_debug(&descriptor, pr_fmt(fmt), ##__VA_ARGS__); \
 	} while (0)
 
 
