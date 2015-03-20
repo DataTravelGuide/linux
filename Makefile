@@ -8,7 +8,7 @@ RHEL_MINOR = 7
 RHEL_RELEASE = 546
 RHEL_DRM_VERSION = 3
 RHEL_DRM_PATCHLEVEL = 18
-RHEL_DRM_SUBLEVEL = 0
+RHEL_DRM_SUBLEVEL = 9
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
