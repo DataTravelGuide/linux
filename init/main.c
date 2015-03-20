@@ -286,7 +286,8 @@ early_param("loglevel", loglevel);
  * Unknown boot options get handed to init, unless they look like
  * unused parameters (modprobe will find them in /proc/cmdline).
  */
-static int __init unknown_bootoption(char *param, char *val)
+static int __init unknown_bootoption(char *param, char *val,
+				const char *unused)
 {
 	/* Change NUL term back to "=", to make "param" the whole string. */
 	if (val) {
@@ -487,7 +488,7 @@ static noinline void __init_refok rest_init(void)
 }
 
 /* Check for early params. */
-static int __init do_early_param(char *param, char *val)
+static int __init do_early_param(char *param, char *val, const char *unused)
 {
 	struct obs_kernel_param *p;
 
@@ -872,7 +873,6 @@ int do_one_initcall(initcall_t fn)
 
 	return ret.result;
 }
-
 
 extern initcall_t __initcall_start[], __initcall_end[], __early_initcall_end[];
 
