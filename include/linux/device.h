@@ -442,13 +442,6 @@ struct device_dma_parameters {
  * 		gone away. This should be set by the allocator of the
  * 		device (i.e. the bus driver that discovered the device).
  *
- * Past End of original GA struct and protected from GENKSYMS
- *
- * @deferred_probe: entry in deferred_probe_list which is used to retry the
- * 		binding of drivers which were unable to get all the resources
- * 		needed by the device; typically because it depends on another
- * 		driver getting probed first.
- *
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
  * that the device model core needs to model the system. Most subsystems,
@@ -506,10 +499,6 @@ struct device {
 	const struct attribute_group **groups;	/* optional groups */
 
 	void	(*release)(struct device *dev);
-
-#ifndef __GENKSYMS__
-	struct list_head	deferred_probe;
-#endif
 };
 
 /* Get the wakeup routines, which depend on struct device */
