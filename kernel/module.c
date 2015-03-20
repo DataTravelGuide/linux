@@ -2526,7 +2526,9 @@ static noinline struct module *load_module(void __user *umod,
 	 */
 	list_add_rcu(&mod->list, &modules);
 
-	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
+	/* Module is ready to execute: parsing args may do that. */
+	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
+			 &ddebug_dyndbg_module_param_cb);
 	if (err < 0)
 		goto unlink;
 
