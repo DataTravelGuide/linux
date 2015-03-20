@@ -385,7 +385,7 @@ static int check_set(const char **dest, char *src, char *name)
  * Returns 0 on success, <0 on error.
  */
 static int ddebug_parse_query(char *words[], int nwords,
-			       struct ddebug_query *query)
+			struct ddebug_query *query, const char *modname)
 {
 	unsigned int i;
 	int rc;
@@ -394,6 +394,10 @@ static int ddebug_parse_query(char *words[], int nwords,
 	if (nwords % 2 != 0)
 		return -EINVAL;
 	memset(query, 0, sizeof(*query));
+
+	if (modname)
+		/* support $modname.dyndbg=<multiple queries> */
+		query->module = modname;
 
 	for (i = 0 ; i < nwords ; i += 2) {
 		if (!strcmp(words[i], "func"))
@@ -491,7 +495,7 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 	return 0;
 }
 
-static int ddebug_exec_query(char *query_string)
+static int ddebug_exec_query(char *query_string, const char *modname)
 {
 	unsigned int flags = 0, mask = 0;
 	struct ddebug_query query;
@@ -502,7 +506,7 @@ static int ddebug_exec_query(char *query_string)
 	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
 	if (nwords <= 0)
 		return -EINVAL;
-	if (ddebug_parse_query(words, nwords-1, &query))
+	if (ddebug_parse_query(words, nwords-1, &query, modname))
 		return -EINVAL;
 	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
 		return -EINVAL;
@@ -518,7 +522,7 @@ static int ddebug_exec_query(char *query_string)
    last error or number of matching callsites.  Module name is either
    in param (for boot arg) or perhaps in query string.
 */
-static int ddebug_exec_queries(char *query)
+static int ddebug_exec_queries(char *query, const char *modname)
 {
 	char *split;
 	int i, errs = 0, exitcode = 0, rc, nfound = 0;
@@ -534,7 +538,7 @@ static int ddebug_exec_queries(char *query)
 
 		vpr_info("query %d: \"%s\"\n", i, query);
 
-		rc = ddebug_exec_query(query);
+		rc = ddebug_exec_query(query, modname);
 		if (rc < 0) {
 			errs++;
 			exitcode = rc;
@@ -699,7 +703,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 	tmpbuf[len] = '\0';
 	vpr_info("read %d bytes from userspace\n", (int)len);
 
-	ret = ddebug_exec_queries(tmpbuf);
+	ret = ddebug_exec_queries(tmpbuf, NULL);
 	kfree(tmpbuf);
 	if (ret < 0)
 		return ret;
@@ -926,7 +930,8 @@ static int ddebug_dyndbg_param_cb(char *param, char *val,
 	if (strcmp(param, "dyndbg"))
 		return on_err; /* determined by caller */
 
-	ddebug_exec_queries(val ? val : "+p");
+	ddebug_exec_queries((val ? val : "+p"), modname);
+
 	return 0; /* query failure shouldnt stop module load */
 }
 
@@ -1059,7 +1064,7 @@ static int __init dynamic_debug_init(void)
 	if (ddebug_setup_string[0] != '\0') {
 		pr_warn("ddebug_query param name is deprecated,"
 			" change it to dyndbg\n");
-		ret = ddebug_exec_queries(ddebug_setup_string);
+		ret = ddebug_exec_queries(ddebug_setup_string, NULL);
 		if (ret < 0)
 			pr_warn("Invalid ddebug boot param %s",
 				ddebug_setup_string);
