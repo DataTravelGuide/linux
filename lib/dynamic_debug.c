@@ -28,6 +28,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/hardirq.h>
+#include <linux/sched.h>
 
 extern struct _ddebug __start___verbose[];
 extern struct _ddebug __stop___verbose[];
