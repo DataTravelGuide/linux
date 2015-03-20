@@ -55,6 +55,13 @@ extern int __dynamic_dev_dbg(struct _ddebug *descriptor,
 			     const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
 
+struct net_device;
+
+extern int __dynamic_netdev_dbg(struct _ddebug *descriptor,
+			     const struct net_device *dev,
+			     const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
+
 #define __dynamic_dbg_enabled(dd)  ({	     \
 	int __ret = 0;							     \
 	if (unlikely((dynamic_debug_enabled & (1LL << DEBUG_HASH)) &&	     \
@@ -81,6 +88,16 @@ extern int __dynamic_dev_dbg(struct _ddebug *descriptor,
 		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
 	if (__dynamic_dbg_enabled(descriptor))				\
 		__dynamic_dev_dbg(&descriptor, dev, fmt, ##__VA_ARGS__);	\
+	} while (0)
+
+#define dynamic_netdev_dbg(dev, fmt, ...) do {				\
+	static struct _ddebug descriptor				\
+	__used								\
+	__attribute__((section("__verbose"), aligned(8))) =		\
+	{ KBUILD_MODNAME, __func__, __FILE__, fmt, DEBUG_HASH,	\
+		DEBUG_HASH2, __LINE__, _DPRINTK_FLAGS_DEFAULT };	\
+	if (__dynamic_dbg_enabled(descriptor))				\
+		__dynamic_netdev_dbg(&descriptor, dev, fmt, ##__VA_ARGS__);\
 	} while (0)
 
 #else

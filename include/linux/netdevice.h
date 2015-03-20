@@ -2766,6 +2766,9 @@ static inline const char *netdev_name(const struct net_device *dev)
 	return dev->name;
 }
 
+extern int __netdev_printk(const char *level, const struct net_device *dev,
+			struct va_format *vaf);
+
 extern __printf(3, 4)
 int netdev_printk(const char *level, const struct net_device *dev,
 		  const char *format, ...);
@@ -2793,8 +2796,7 @@ int netdev_info(const struct net_device *dev, const char *format, ...);
 #elif defined(CONFIG_DYNAMIC_DEBUG)
 #define netdev_dbg(__dev, format, args...)			\
 do {								\
-	dynamic_dev_dbg((__dev)->dev.parent, "%s: " format,	\
-			netdev_name(__dev), ##args);		\
+	dynamic_netdev_dbg(__dev, format, ##args);		\
 } while (0)
 #else
 #define netdev_dbg(__dev, format, args...)			\
