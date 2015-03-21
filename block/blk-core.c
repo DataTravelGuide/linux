@@ -699,6 +699,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 }
 EXPORT_SYMBOL(blk_init_queue_node);
 
+static int blk_queue_bio(struct request_queue *q, struct bio *bio);
+
 struct request_queue *
 blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 			 spinlock_t *lock)
@@ -1378,7 +1380,7 @@ static void blk_account_io_front_merge(struct request *req, sector_t newsector)
 	}
 }
 
-int blk_queue_bio(struct request_queue *q, struct bio *bio)
+static int blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
 	int el_ret;
@@ -1534,7 +1536,6 @@ out_unlock:
 	spin_unlock_irq(q->queue_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(blk_queue_bio);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location
