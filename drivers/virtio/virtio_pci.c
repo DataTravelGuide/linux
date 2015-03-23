@@ -643,6 +643,9 @@ static void virtio_pci_release_dev(struct device *_d)
 	struct pci_dev *pci_dev = to_pci_dev(_d);
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
+	/* As struct device is a kobject, it's not safe to
+	 * free the memory (including the reference counter itself)
+	 * until it's release callback. */
 	kfree(vp_dev);
 }
 
