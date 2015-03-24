@@ -106,6 +106,9 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
 				     IXGBE_FLAG2_RSC_ENABLED);
 
+		/* enable spoof checking for all VFs */
+		for (i = 0; i < adapter->num_vfs; i++)
+			adapter->vfinfo[i].spoofchk_enabled = true;
 		return 0;
 	}
 
@@ -855,17 +858,10 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 
 		/*
 		 * If the VF is allowed to set MAC filters then turn off
-		 * anti-spoofing to avoid false positives.  An index
-		 * greater than 0 will indicate the VF is setting a
-		 * macvlan MAC filter.
+		 * anti-spoofing to avoid false positives.
 		 */
-		if (index > 0 && adapter->antispoofing_enabled) {
-			struct ixgbe_hw *hw = &adapter->hw;
-			hw->mac.ops.set_mac_anti_spoofing(hw, false,
-							  adapter->num_vfs);
-			hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
-			adapter->antispoofing_enabled = false;
-		}
+		if (adapter->vfinfo[vf].spoofchk_enabled)
+			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
 	}
 
 	err = ixgbe_set_vf_macvlan(adapter, vf, index, new_mac);
@@ -1104,8 +1100,9 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 			goto out;
 		ixgbe_set_vmvir(adapter, vlan, qos, vf);
 		ixgbe_set_vmolr(hw, vf, false);
-		if (adapter->antispoofing_enabled)
+		if (adapter->vfinfo[vf].spoofchk_enabled)
 			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+		adapter->vfinfo[vf].vlan_count++;
 		adapter->vfinfo[vf].pf_vlan = vlan;
 		adapter->vfinfo[vf].pf_qos = qos;
 		dev_info(&adapter->pdev->dev,
@@ -1124,6 +1121,8 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		ixgbe_clear_vmvir(adapter, vf);
 		ixgbe_set_vmolr(hw, vf, true);
 		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
+		if (adapter->vfinfo[vf].vlan_count)
+			adapter->vfinfo[vf].vlan_count--;
 		adapter->vfinfo[vf].pf_vlan = 0;
 		adapter->vfinfo[vf].pf_qos = 0;
        }
@@ -1251,6 +1250,32 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 	return 0;
 }
 
+int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 regval;
+
+	adapter->vfinfo[vf].spoofchk_enabled = setting;
+
+	regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
+	regval &= ~(1 << vf_target_shift);
+	regval |= (setting << vf_target_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+
+	if (adapter->vfinfo[vf].vlan_count) {
+		vf_target_shift += IXGBE_SPOOF_VLANAS_SHIFT;
+		regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
+		regval &= ~(1 << vf_target_shift);
+		regval |= (setting << vf_target_shift);
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+	}
+
+	return 0;
+}
+
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi)
 {
@@ -1262,5 +1287,6 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 	ivi->tx_rate = adapter->vfinfo[vf].tx_rate;
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
+	ivi->spoofchk = adapter->vfinfo[vf].spoofchk_enabled;
 	return 0;
 }
