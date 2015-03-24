@@ -931,6 +931,7 @@ static inline void ixgbe_dbg_exit(void) {}
 
 #ifdef CONFIG_IXGBE_PTP
 void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
+void ixgbe_ptp_suspend(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
 void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
