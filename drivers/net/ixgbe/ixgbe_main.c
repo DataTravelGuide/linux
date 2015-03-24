@@ -7129,22 +7129,39 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i;
 
-	/* accurate rx/tx bytes/packets stats */
-	dev_txq_stats_fold64(netdev, stats);
+	rcu_read_lock();
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbe_ring *ring = adapter->rx_ring[i];
+		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->rx_ring[i]);
 		u64 bytes, packets;
 		unsigned int start;
 
-		do {
-			start = u64_stats_fetch_begin_irq(&ring->syncp);
-			packets = ring->stats.packets;
-			bytes   = ring->stats.bytes;
-		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
-		stats->rx_packets += packets;
-		stats->rx_bytes   += bytes;
+		if (ring) {
+			do {
+				start = u64_stats_fetch_begin_irq(&ring->syncp);
+				packets = ring->stats.packets;
+				bytes   = ring->stats.bytes;
+			} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+			stats->rx_packets += packets;
+			stats->rx_bytes   += bytes;
+		}
 	}
 
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->tx_ring[i]);
+		u64 bytes, packets;
+		unsigned int start;
+
+		if (ring) {
+			do {
+				start = u64_stats_fetch_begin_irq(&ring->syncp);
+				packets = ring->stats.packets;
+				bytes   = ring->stats.bytes;
+			} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+			stats->tx_packets += packets;
+			stats->tx_bytes   += bytes;
+		}
+	}
+	rcu_read_unlock();
 	/* following stats updated by ixgbe_watchdog_task() */
 	stats->multicast	= netdev->stats.multicast;
 	stats->rx_errors	= netdev->stats.rx_errors;
