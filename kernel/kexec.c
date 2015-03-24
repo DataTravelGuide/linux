@@ -1369,8 +1369,7 @@ static int __init parse_crashkernel_simple(char 		*cmdline,
 }
 
 #ifdef CONFIG_KEXEC_AUTO_RESERVE
-#ifndef arch_default_crash_size
-unsigned long long __init arch_default_crash_size(unsigned long long total_size)
+unsigned long long __init __weak arch_default_crash_size(unsigned long long total_size)
 {
 	/*
 	 * BIOS usually will reserve some memory regions for it's own use.
@@ -1391,17 +1390,12 @@ unsigned long long __init arch_default_crash_size(unsigned long long total_size)
 				/ (1ULL<<14), 1ULL<<20);
 	}
 }
-#define arch_default_crash_size arch_default_crash_size
-#endif
 
-#ifndef arch_default_crash_base
-unsigned long long __init arch_default_crash_base(void)
+unsigned long long __init __weak arch_default_crash_base(void)
 {
 	/* 0 means find the base address automatically. */
 	return 0;
 }
-#define arch_default_crash_base arch_default_crash_base
-#endif
 
 #endif /*CONFIG_KEXEC_AUTO_RESERVE*/
 
