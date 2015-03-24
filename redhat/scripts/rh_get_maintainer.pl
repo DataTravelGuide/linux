@@ -2,11 +2,14 @@
 # (c) 2007, Joe Perches <joe@perches.com>
 #           created from checkpatch.pl
 #
+# (c) 2015, Red Hat Kernel Team <rhkernel-list@redhat.com>
+# 	    dervied from upstream's get_maintainer.pl
+#
 # Print selected MAINTAINERS information for
 # the files modified in a patch or for a file
 #
-# usage: perl scripts/get_maintainer.pl [OPTIONS] <patch>
-#        perl scripts/get_maintainer.pl [OPTIONS] -f <file>
+# usage: perl redhat/scripts/rh_get_maintainer.pl [OPTIONS] <patch>
+#        perl redhat/scripts/rh_get_maintainer.pl [OPTIONS] -f <file>
 #
 # Licensed under the terms of the GNU GPL License version 2
 
@@ -24,8 +27,7 @@ my $email_maintainer = 1;
 my $email_list = 1;
 my $email_subscriber_list = 0;
 my $email_git = 1;
-my $email_git_penguin_chiefs = 0;
-my $email_git_min_signatures = 1;
+my $email_git_min_authors = 1;
 my $email_git_max_maintainers = 5;
 my $email_git_min_percent = 5;
 my $email_git_since = "1-year-ago";
@@ -45,19 +47,6 @@ my $help = 0;
 
 my $exit = 0;
 
-my @penguin_chief = ();
-push(@penguin_chief,"Aristeu Rozanski:arozansk\@redhat.com");
-
-my @penguin_chief_names = ();
-foreach my $chief (@penguin_chief) {
-    if ($chief =~ m/^(.*):(.*)/) {
-	my $chief_name = $1;
-	my $chief_addr = $2;
-	push(@penguin_chief_names, $chief_name);
-    }
-}
-my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
-
 # rfc822 email address - preloaded methods go here.
 my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
 my $rfc822_char = '[\\000-\\377]';
@@ -65,8 +54,7 @@ my $rfc822_char = '[\\000-\\377]';
 if (!GetOptions(
 		'email!' => \$email,
 		'git!' => \$email_git,
-		'git-chief-penguins!' => \$email_git_penguin_chiefs,
-		'git-min-signatures=i' => \$email_git_min_signatures,
+		'git-min-authors=i' => \$email_git_min_authors,
 		'git-max-maintainers=i' => \$email_git_max_maintainers,
 		'git-min-percent=i' => \$email_git_min_percent,
 		'git-since=s' => \$email_git_since,
@@ -119,7 +107,7 @@ if ($selections == 0) {
 
 if ($email &&
     ($email_maintainer + $email_list + $email_subscriber_list +
-     $email_git + $email_git_penguin_chiefs + $email_git_blame) == 0) {
+     $email_git + $email_git_blame) == 0) {
     usage();
     die "$P: Please select at least 1 email option\n";
 }
@@ -302,7 +290,7 @@ foreach my $file (@files) {
     }
 
     if ($email && $email_git) {
-	recent_git_signoffs($file);
+	recent_git_authors($file);
     }
 
     if ($email && $email_git_blame) {
@@ -314,21 +302,6 @@ if ($keywords) {
     @keyword_tvi = sort_and_uniq(@keyword_tvi);
     foreach my $line (@keyword_tvi) {
 	add_categories($line);
-    }
-}
-
-if ($email) {
-    foreach my $chief (@penguin_chief) {
-	if ($chief =~ m/^(.*):(.*)/) {
-	    my $email_address;
-
-	    $email_address = format_email($1, $2);
-	    if ($email_git_penguin_chiefs) {
-		push(@email_to, $email_address);
-	    } else {
-		@email_to = grep(!/${email_address}/, @email_to);
-	    }
-	}
     }
 }
 
@@ -392,8 +365,7 @@ version: $V
 MAINTAINER field selection options:
   --email => print email address(es) if any
     --git => include recent git \*-by: signers
-    --git-chief-penguins => include ${penguin_chiefs}
-    --git-min-signatures => number of signatures required (default: 1)
+    --git-min-authors => number of authors required (default: 1)
     --git-max-maintainers => maximum maintainers to add (default: 5)
     --git-min-percent => minimum percentage of commits required (default: 5)
     --git-since => git history to use (default: 1-year-ago)
@@ -703,16 +675,17 @@ sub mailmap {
     return @lines;
 }
 
-sub recent_git_signoffs {
+sub recent_git_authors {
     my ($file) = @_;
 
-    my $sign_offs = "";
+    my $authors = "";
     my $cmd = "";
     my $output = "";
     my $count = 0;
     my @lines = ();
+    my @author = ();
     my %hash;
-    my $total_sign_offs;
+    my $total_authors;
 
     if (which("git") eq "") {
 	warn("$P: git not found.  Add --nogit to options?\n");
@@ -731,31 +704,23 @@ sub recent_git_signoffs {
 
     @lines = split("\n", $output);
 
-    @lines = grep(/^[-_ 	a-z]+by:.*\@.*$/i, @lines);
-    if (!$email_git_penguin_chiefs) {
-	@lines = grep(!/${penguin_chiefs}/i, @lines);
-    }
+    @author = grep(/^Author: .*\@.*$/i, @lines);
+    @author = grep(/\@redhat\.com/, @author);
     # cut -f2- -d":"
-    s/.*:\s*(.+)\s*/$1/ for (@lines);
+    s/.*:\s*(.+)\s*/$1/ for (@author);
 
-    $total_sign_offs = @lines;
-
-    if ($email_remove_duplicates) {
-	@lines = mailmap(@lines);
-    }
-
-    @lines = sort(@lines);
+    $total_authors = @author;
 
     # uniq -c
-    $hash{$_}++ for @lines;
+    $hash{$_}++ for @author;
 
     # sort -rn
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
-	my $sign_offs = $hash{$line};
+	my $authors = $hash{$line};
 	$count++;
-	last if ($sign_offs < $email_git_min_signatures ||
+	last if ($authors < $email_git_min_authors ||
 		 $count > $email_git_max_maintainers ||
-		 $sign_offs * 100 / $total_sign_offs < $email_git_min_percent);
+		 $authors * 100 / $total_authors < $email_git_min_percent);
 	push_email_address($line);
     }
 }
@@ -780,11 +745,12 @@ sub git_assign_blame {
     my ($file) = @_;
 
     my @lines = ();
+    my @author = ();
     my @commits = ();
     my $cmd;
     my $output;
     my %hash;
-    my $total_sign_offs;
+    my $total_authors;
     my $count;
 
     if (@range) {
@@ -804,7 +770,7 @@ sub git_assign_blame {
 	}
     }
 
-    $total_sign_offs = 0;
+    $total_authors = 0;
     @commits = uniq(@commits);
     foreach my $commit (@commits) {
 	$cmd = "git log -1 ${commit}";
@@ -813,30 +779,28 @@ sub git_assign_blame {
 	$output =~ s/^\s*//gm;
 	@lines = split("\n", $output);
 
-	@lines = grep(/^[-_ 	a-z]+by:.*\@.*$/i, @lines);
-	if (!$email_git_penguin_chiefs) {
-	    @lines = grep(!/${penguin_chiefs}/i, @lines);
-	}
+	@author = grep(/^Author: .*\@.*$/i, @lines);
+	@author = grep(!/\@redhat\.com/, @author);
 
 	# cut -f2- -d":"
-	s/.*:\s*(.+)\s*/$1/ for (@lines);
+	s/.*:\s*(.+)\s*/$1/ for (@author);
 
-	$total_sign_offs += @lines;
+	$total_authors += @author;
 
 	if ($email_remove_duplicates) {
-	    @lines = mailmap(@lines);
+	    @lines = mailmap(@author);
 	}
 
-	$hash{$_}++ for @lines;
+	$hash{$_}++ for @author;
     }
 
     $count = 0;
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
-	my $sign_offs = $hash{$line};
+	my $authors = $hash{$line};
 	$count++;
-	last if ($sign_offs < $email_git_min_signatures ||
+	last if ($authors < $email_git_min_authors ||
 		 $count > $email_git_max_maintainers ||
-		 $sign_offs * 100 / $total_sign_offs < $email_git_min_percent);
+		 $authors * 100 / $total_authors < $email_git_min_percent);
 	push_email_address($line);
     }
 }
