@@ -460,7 +460,6 @@ static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 			break;
 		default:
 			return -EINVAL;
-			break;
 		}
 	} else {
 		return -EINVAL;

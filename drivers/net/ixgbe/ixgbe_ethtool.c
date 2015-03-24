@@ -1509,7 +1509,6 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 	default:
 		*data = 1;
 		return 1;
-		break;
 	}
 
 	/*
@@ -3035,7 +3034,6 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 #endif /* CONFIG_IXGBE_PTP */
 	default:
 		return ethtool_op_get_ts_info(dev, info);
-		break;
 	}
 	return 0;
 }
