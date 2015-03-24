@@ -698,7 +698,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 				      int vectors)
 {
-	int vector_threshold;
+	int i, vector_threshold;
 
 	/* We'll want at least 2 (vector_threshold):
 	 * 1) TxQ[0] + RxQ[0] handler
@@ -712,6 +712,15 @@ static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 	 * Right now, we simply care about how many we'll get; we'll
 	 * set them up later while requesting irq's.
 	 */
+	adapter->msix_entries = kcalloc(vectors,
+					sizeof(struct msix_entry),
+					GFP_KERNEL);
+	if (!adapter->msix_entries)
+		return -ENOMEM;
+
+	for (i = 0; i < vectors; i++)
+		adapter->msix_entries[i].entry = i;
+
 	vectors = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
 					vector_threshold, vectors);
 
@@ -1043,7 +1052,7 @@ static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
 static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int vector, v_budget, err;
+	int v_budget, err;
 
 	if (!(adapter->flags & IXGBE_FLAG_MSIX_CAPABLE))
 		goto try_msi;
@@ -1069,15 +1078,8 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
 	 * mean we disable MSI-X capabilities of the adapter. */
-	adapter->msix_entries = kcalloc(v_budget,
-					sizeof(struct msix_entry), GFP_KERNEL);
-	if (adapter->msix_entries) {
-		for (vector = 0; vector < v_budget; vector++)
-			adapter->msix_entries[vector].entry = vector;
-
-		if (!ixgbe_acquire_msix_vectors(adapter, v_budget))
-			return;
-	}
+	if (!ixgbe_acquire_msix_vectors(adapter, v_budget))
+		return;
 
 try_msi:
 	/* At this point, we do not have MSI-X capabilities. We need to
