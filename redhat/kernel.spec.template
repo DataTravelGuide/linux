@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Mar 24 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.54.1.el6]
+- [perf] x86: Move NMI clearing to end of PMI handler (Jiri Olsa) [1204808 829875]
+- [infiniband] core: Prevent integer overflow in ib_umem_get address arithmetic (Doug Ledford) [1181179 1179327] {CVE-2014-8159}
+
 * Sat Mar 07 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.53.1.el6]
 - [net] sctp: fix slab corruption from use after free on INIT collisions (Daniel Borkmann) [1196593 1135425] {CVE-2015-1421}
 - [x86] kvm: vmx: invalid host cr4 handling across vm entries (Jacob Tanenbaum) [1170559 1153327] {CVE-2014-3690}
