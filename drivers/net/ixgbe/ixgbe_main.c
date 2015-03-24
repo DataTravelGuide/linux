@@ -8025,6 +8025,9 @@ static void __exit ixgbe_exit_module(void)
 	pci_unregister_driver(&ixgbe_driver);
 
 	ixgbe_dbg_exit();
+
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
+
 }
 
 #ifdef CONFIG_IXGBE_DCA
