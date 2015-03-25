@@ -656,8 +656,6 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 
 	dn = pci_device_to_OF_node(dev);
 	eeh_dn_check_failure (dn, dev);
-
-	pci_dev_put(dev);
 	return val;
 }
 
@@ -1234,7 +1232,6 @@ void eeh_add_device_late(struct pci_dev *dev)
 	}
 	WARN_ON(pdn->pcidev);
 
-	pci_dev_get (dev);
 	pdn->pcidev = dev;
 
 	pci_addr_cache_insert_device(dev);
@@ -1281,7 +1278,6 @@ void eeh_remove_device(struct pci_dev *dev)
 		return;
 	}
 	PCI_DN(dn)->pcidev = NULL;
-	pci_dev_put (dev);
 
 	pci_addr_cache_remove_device(dev);
 	eeh_sysfs_remove_device(dev);
