@@ -1294,7 +1294,6 @@ static void __init enable_timeouts(void)
 		mmr_image |= (1L << SOFTACK_MSHIFT);
 		if (is_uv2_hub()) {
 			/* do not touch the legacy mode bit */
-			mmr_image &= ~(1L << UV2_LEG_SHFT);
 			mmr_image |= (1L << UV2_EXT_SHFT);
 		} else if (is_uv3_hub()) {
 			mmr_image &= ~(1L << PREFETCH_HINT_SHFT);
