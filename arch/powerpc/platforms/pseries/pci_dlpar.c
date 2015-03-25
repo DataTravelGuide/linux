@@ -66,6 +66,17 @@ pcibios_find_pci_bus(struct device_node *dn)
 EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
 
 /**
+ * pcibios_release_device - release PCI device
+ * @dev: PCI device
+ *
+ * The function is called before releasing the indicated PCI device.
+ */
+void pcibios_release_device(struct pci_dev *dev)
+{
+	eeh_remove_device(dev);
+}
+
+/**
  * pcibios_remove_pci_devices - remove all devices under this bus
  *
  * Remove all of the PCI devices under this bus both from the
