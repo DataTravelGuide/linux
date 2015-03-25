@@ -1431,6 +1431,10 @@ struct net_device_extended {
 	void			*rx_handler_data;
 	/* space for optional device, statistics, and wireless sysfs groups */
 	const struct attribute_group *sysfs_groups[6];
+	unsigned short          dev_port;	/* Used to differentiate
+						 * devices that share the same
+						 * function
+						 */
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
