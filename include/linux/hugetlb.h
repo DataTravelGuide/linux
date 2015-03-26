@@ -188,7 +188,8 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 
 extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
-struct file *hugetlb_file_setup(const char *name, size_t size, int acct,
+struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+				size_t size, int acct,
 				struct user_struct **user, int creat_flags);
 
 static inline int is_file_hugepages(struct file *file)
@@ -209,7 +210,8 @@ static inline void set_file_hugepages(struct file *file)
 
 #define is_file_hugepages(file)			0
 #define set_file_hugepages(file)		BUG()
-static inline struct file *hugetlb_file_setup(const char *name, size_t size,
+static inline struct file *
+hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
 		int acctflag, struct user_struct **user, int creat_flags)
 {
 	return ERR_PTR(-ENOSYS);
