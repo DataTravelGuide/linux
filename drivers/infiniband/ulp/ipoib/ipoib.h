@@ -149,7 +149,6 @@ struct ipoib_mcast {
 
 	unsigned long created;
 	unsigned long backoff;
-	unsigned long delay_until;
 
 	unsigned long flags;
 	unsigned char logcount;
