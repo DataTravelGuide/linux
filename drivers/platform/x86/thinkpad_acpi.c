@@ -315,6 +315,7 @@ static struct {
 
 static struct {
 	u16 hotkey_mask_ff:1;
+	u16 volume_ctrl_forbidden:1;
 } tp_warned;
 
 struct thinkpad_id_data {
@@ -6446,6 +6447,7 @@ static enum tpacpi_volume_access_mode volume_mode =
 	TPACPI_VOL_MODE_MAX;
 
 static enum tpacpi_volume_capabilities volume_capabilities;
+static int volume_control_allowed;
 
 /*
  * Used to syncronize writers to TP_EC_AUDIO and
@@ -6460,6 +6462,8 @@ static void tpacpi_volume_checkpoint_nvram(void)
 	u8 ec_mask;
 
 	if (volume_mode != TPACPI_VOL_MODE_ECNVRAM)
+		return;
+	if (!volume_control_allowed)
 		return;
 
 	vdbg_printk(TPACPI_DBG_MIXER,
@@ -6703,13 +6707,19 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 			"mute is supported, volume control is %s\n",
 			str_supported(!tp_features.mixer_no_level_control));
 
+	printk(TPACPI_INFO
+		"Console audio control enabled, mode: %s\n",
+		(volume_control_allowed) ?
+			"override (read/write)" :
+			"monitor (read only)");
+
 	return 0;
 }
 
 static int volume_read(struct seq_file *m)
 {
 	u8 status;
- 
+
 	if (volume_get_status(&status) < 0) {
 		seq_printf(m, "level:\t\tunreadable\n");
 	} else {
@@ -6718,11 +6728,20 @@ static int volume_read(struct seq_file *m)
 		else
 			seq_printf(m, "level:\t\t%d\n",
 					status & TP_EC_AUDIO_LVL_MSK);
-		seq_printf(m, "mute:\t\t%s\n", onoff(status, 6));
-		if (!tp_features.mixer_no_level_control) {
-			seq_printf(m, "commands:\tup, down, mute\n");
-			seq_printf(m, "commands:\tlevel <level>"
-				" (<level> is 0-%d)\n", TP_EC_VOLUME_MAX);
+
+		seq_printf(m, "mute:\t\t%s\n",
+				onoff(status, TP_EC_AUDIO_MUTESW));
+
+		if (volume_control_allowed) {
+			seq_printf(m, "commands:\tunmute, mute\n");
+			if (!tp_features.mixer_no_level_control) {
+				seq_printf(m,
+					       "commands:\tup, down\n");
+				seq_printf(m,
+					       "commands:\tlevel <level>"
+					       " (<level> is 0-%d)\n",
+					       TP_EC_VOLUME_MAX);
+			}
 		}
 	}
 
@@ -6736,6 +6755,23 @@ static int volume_write(char *buf)
 	int l;
 	char *cmd;
 	int rc;
+
+	/*
+	 * We do allow volume control at driver startup, so that the
+	 * user can set initial state through the volume=... parameter hack.
+	 */
+	if (!volume_control_allowed && tpacpi_lifecycle != TPACPI_LIFE_INIT) {
+		if (unlikely(!tp_warned.volume_ctrl_forbidden)) {
+			tp_warned.volume_ctrl_forbidden = 1;
+			printk(TPACPI_NOTICE
+				"Console audio control in monitor mode, "
+				"changes are not allowed.\n");
+			printk(TPACPI_NOTICE
+				"Use the volume_control=1 module parameter "
+				"to enable volume control\n");
+		}
+		return -EPERM;
+	}
 
 	rc = volume_get_status(&s);
 	if (rc < 0)
@@ -8626,6 +8662,11 @@ module_param_named(volume_capabilities, volume_capabilities, uint, 0444);
 MODULE_PARM_DESC(volume_capabilities,
 		 "Selects the mixer capabilites: "
 		 "0=auto, 1=volume and mute, 2=mute only");
+
+module_param_named(volume_control, volume_control_allowed, bool, 0444);
+MODULE_PARM_DESC(volume_control,
+		 "Enables software override for the console audio "
+		 "control when true");
 
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
