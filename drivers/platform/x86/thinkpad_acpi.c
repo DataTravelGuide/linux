@@ -9144,6 +9144,7 @@ static void thinkpad_acpi_module_exit(void)
 	kfree(thinkpad_id.bios_version_str);
 	kfree(thinkpad_id.ec_version_str);
 	kfree(thinkpad_id.model_str);
+	kfree(thinkpad_id.nummodel_str);
 }
 
 
