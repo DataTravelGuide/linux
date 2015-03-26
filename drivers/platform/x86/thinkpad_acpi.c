@@ -482,6 +482,15 @@ static unsigned long __init tpacpi_check_quirks(
 	return 0;
 }
 
+static inline bool __pure __init tpacpi_is_lenovo(void)
+{
+	return thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO;
+}
+
+static inline bool __pure __init tpacpi_is_ibm(void)
+{
+	return thinkpad_id.vendor == PCI_VENDOR_ID_IBM;
+}
 
 /****************************************************************************
  ****************************************************************************
@@ -1891,7 +1900,9 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 		(thinkpad_id.ec_version_str) ?
 			thinkpad_id.ec_version_str : "unknown");
 
-	if (thinkpad_id.vendor && thinkpad_id.model_str)
+	BUG_ON(!thinkpad_id.vendor);
+
+	if (thinkpad_id.model_str)
 		printk(TPACPI_INFO "%s %s, model %s\n",
 			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
 				"IBM" : ((thinkpad_id.vendor ==
@@ -3367,7 +3378,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		goto err_exit;
 	}
 
-	if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+	if (tpacpi_is_lenovo()) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			   "using Lenovo default hot key map\n");
 		memcpy(hotkey_keycode_map, &lenovo_keycode_map,
@@ -4437,7 +4448,8 @@ static int __init video_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing video subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(vid);
-	TPACPI_ACPIHANDLE_INIT(vid2);
+	if (tpacpi_is_ibm())
+		TPACPI_ACPIHANDLE_INIT(vid2);
 
 	if (vid2_handle && acpi_evalf(NULL, &ivga, "\\IVGA", "d") && ivga)
 		/* G41, assume IVGA doesn't change */
@@ -4446,10 +4458,12 @@ static int __init video_init(struct ibm_init_struct *iibm)
 	if (!vid_handle)
 		/* video switching not supported on R30, R31 */
 		video_supported = TPACPI_VIDEO_NONE;
-	else if (acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
+	else if (tpacpi_is_ibm() &&
+		 acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
 		/* 570 */
 		video_supported = TPACPI_VIDEO_570;
-	else if (acpi_evalf(vid_handle, &video_orig_autosw, "^VADL", "qd"))
+	else if (tpacpi_is_ibm() &&
+		 acpi_evalf(vid_handle, &video_orig_autosw, "^VADL", "qd"))
 		/* 600e/x, 770e, 770x */
 		video_supported = TPACPI_VIDEO_770;
 	else
@@ -4826,8 +4840,10 @@ static int __init light_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
 
-	TPACPI_ACPIHANDLE_INIT(ledb);
-	TPACPI_ACPIHANDLE_INIT(lght);
+	if (tpacpi_is_ibm()) {
+		TPACPI_ACPIHANDLE_INIT(ledb);
+		TPACPI_ACPIHANDLE_INIT(lght);
+	}
 	TPACPI_ACPIHANDLE_INIT(cmos);
 	INIT_WORK(&tpacpi_led_thinklight.work, light_set_status_worker);
 
@@ -5299,10 +5315,10 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	if (!led_handle)
 		/* led not supported on R30, R31 */
 		led_supported = TPACPI_LED_NONE;
-	else if (strlencmp(led_path, "SLED") == 0)
+	else if (tpacpi_is_ibm() && strlencmp(led_path, "SLED") == 0)
 		/* 570 */
 		led_supported = TPACPI_LED_570;
-	else if (strlencmp(led_path, "SYSL") == 0)
+	else if (tpacpi_is_ibm() && strlencmp(led_path, "SYSL") == 0)
 		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
 		led_supported = TPACPI_LED_OLD;
 	else
@@ -5756,11 +5772,12 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 			    TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
 		}
 	} else if (acpi_tmp7) {
-		if (acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
+		if (tpacpi_is_ibm() &&
+		    acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
 			/* 600e/x, 770e, 770x */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_UPDT;
 		} else {
-			/* Standard ACPI TMPx access, max 8 sensors */
+			/* IBM/LENOVO DSDT EC.TMPx access, max 8 sensors */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
 		}
 	} else {
@@ -6263,7 +6280,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 
 	/* Safety */
-	if (thinkpad_id.vendor != PCI_VENDOR_ID_IBM &&
+	if (!tpacpi_is_ibm() &&
 	    (brightness_mode == TPACPI_BRGHT_MODE_ECNVRAM ||
 	     brightness_mode == TPACPI_BRGHT_MODE_EC))
 		return -EINVAL;
@@ -7981,9 +7998,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	tp_features.second_fan = 0;
 	fan_control_desired_level = 7;
 
-	TPACPI_ACPIHANDLE_INIT(fans);
-	TPACPI_ACPIHANDLE_INIT(gfan);
-	TPACPI_ACPIHANDLE_INIT(sfan);
+	if (tpacpi_is_ibm()) {
+		TPACPI_ACPIHANDLE_INIT(fans);
+		TPACPI_ACPIHANDLE_INIT(gfan);
+		TPACPI_ACPIHANDLE_INIT(sfan);
+	}
 
 	quirks = tpacpi_check_quirks(fan_quirk_table,
 				     ARRAY_SIZE(fan_quirk_table));
@@ -8775,6 +8794,10 @@ static int __init probe_for_thinkpad(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
+	/* It would be dangerous to run the driver in this case */
+	if (!tpacpi_is_ibm() && !tpacpi_is_lenovo())
+		return -ENODEV;
+
 	/*
 	 * Non-ancient models have better DMI tagging, but very old models
 	 * don't.  tpacpi_is_fw_known() is a cheat to help in that case.
@@ -9176,9 +9199,7 @@ static int __init thinkpad_acpi_module_init(void)
 		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
 		tpacpi_inputdev->phys = TPACPI_DRVR_NAME "/input0";
 		tpacpi_inputdev->id.bustype = BUS_HOST;
-		tpacpi_inputdev->id.vendor = (thinkpad_id.vendor) ?
-						thinkpad_id.vendor :
-						PCI_VENDOR_ID_IBM;
+		tpacpi_inputdev->id.vendor = thinkpad_id.vendor;
 		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
 		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
 		tpacpi_inputdev->dev.parent = &tpacpi_pdev->dev;
