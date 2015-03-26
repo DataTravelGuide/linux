@@ -188,8 +188,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 
 extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
-struct file *hugetlb_file_setup(const char *name, unsigned long addr,
-				size_t size, int acct,
+struct file *hugetlb_file_setup(const char *name, size_t size, int acct,
 				struct user_struct **user, int creat_flags);
 
 static inline int is_file_hugepages(struct file *file)
@@ -211,8 +210,8 @@ static inline void set_file_hugepages(struct file *file)
 #define is_file_hugepages(file)			0
 #define set_file_hugepages(file)		BUG()
 static inline struct file *
-hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
-		int acctflag, struct user_struct **user, int creat_flags)
+hugetlb_file_setup(const char *name, size_t size, int acctflag,
+		struct user_struct **user, int creat_flags)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -279,6 +278,13 @@ static inline struct hstate *hstate_inode(struct inode *i)
 static inline struct hstate *hstate_file(struct file *f)
 {
 	return hstate_inode(f->f_dentry->d_inode);
+}
+
+static inline struct hstate *hstate_sizelog(int page_size_log)
+{
+	if (!page_size_log)
+		return &default_hstate;
+	return size_to_hstate(1 << page_size_log);
 }
 
 static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
@@ -353,11 +359,12 @@ static inline pgoff_t basepage_index(struct page *page)
 	return __basepage_index(page);
 }
 
-#else
+#else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
 #define alloc_huge_page_node(h, nid) NULL
 #define alloc_bootmem_huge_page(h) NULL
 #define hstate_file(f) NULL
+#define hstate_sizelog(s) NULL
 #define hstate_vma(v) NULL
 #define hstate_inode(i) NULL
 #define huge_page_size(h) PAGE_SIZE
@@ -376,6 +383,7 @@ static inline pgoff_t basepage_index(struct page *page)
 {
 	return page->index;
 }
-#endif
+#define hstate_index(h) 0
+#endif	/* CONFIG_HUGETLB_PAGE */
 
 #endif /* _LINUX_HUGETLB_H */
