@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Mar 27 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.19.1.el6]
+- [mm] memcg: fix crash in re-entrant cgroup_clear_css_refs() (Johannes Weiner) [1204626 1168185]
+
 * Thu Mar 19 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.18.1.el6]
 - [fs] cifs: Use key_invalidate instead of the rh_key_invalidate() (Sachin Prabhu) [1203366 885899]
 - [fs] KEYS: Add invalidation support (Sachin Prabhu) [1203366 885899]
