@@ -3251,8 +3251,7 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	struct kvm_io_bus *new_bus, *bus;
 
 	bus = kvm->buses[bus_idx];
-	/* exclude ioeventfd which is limited by maximum fd */
-	if (bus->dev_count - bus->ioeventfd_count > NR_IOBUS_DEVS - 1)
+	if (bus->dev_count > NR_IOBUS_DEVS-1)
 		return -ENOSPC;
 
 	new_bus = kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL);
