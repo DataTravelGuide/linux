@@ -1705,6 +1705,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Mar 27 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-548.el6]
+- [fs] dcache: return -ESTALE not -EBUSY on distributed fs race (J. Bruce Fields) [1061994]
+- [fs] fuse: revalidate when may_open() returns ESTALE (Zorro Lang) [1142355]
+- [md] dm: impose configurable deadline for dm_request_fn's merge heuristic (Mike Snitzer) [1163769]
+- [md] dm-sysfs: introduce ability to add writable attributes (Mike Snitzer) [1163769]
+- [md] dm: don't start current request if it would've merged with the previous (Mike Snitzer) [1163769]
+- [md] dm: don't schedule delayed run of the queue if nothing to do (Mike Snitzer) [1163769]
+- [md] dm: only run the queue on completion if congested or no requests pending (Mike Snitzer) [1163769]
+- [md] dm: remove request-based logic from make_request_fn wrapper (Mike Snitzer) [1163769]
+- [md] dm: remove request-based DM queue's lld_busy_fn hook (Mike Snitzer) [1163769]
+- [md] dm: remove unnecessary wrapper around blk_lld_busy (Mike Snitzer) [1163769]
+- [kernel] panic: add TAINT_SOFTLOCKUP (Aaron Tomlin) [1184512]
+- [kernel] watchdog: print traces for all cpus on lockup detection (Aaron Tomlin) [1184512]
+- [x86] nmi: provide the option to issue an NMI back trace to every cpu but current (Aaron Tomlin) [1184512]
+- [x86] kernel: Avoid calling arch_trigger_all_cpu_backtrace() at the same time (Aaron Tomlin) [1184512]
+- [net] ipvs: allow rescheduling of new connections when port reuse is detected (Marcelo Leitner) [1108514]
+- [net] ipvs: Fix reuse connection if real server is dead (Marcelo Leitner) [1108514]
+- [net] neigh: Keep neighbour cache entries if number of them is small enough (Jiri Pirko) [1199856]
+- [net] gso: fix skb_segment for non-offset skb pointers (Jiri Benc) [1200533]
+- [netdrv] mlx4_en: Expose port number through sysfs (Amir Vadai) [1119772]
+- [net] core: Add sysfs file for port number (Amir Vadai) [1119772]
+
 * Wed Mar 25 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-547.el6]
 - [kernel] dynamic_debug: fix comment (Michal Schmidt) [1203349]
 - [kernel] lib: dynamic_debug: use seq_open_private() instead of seq_open() (Michal Schmidt) [1203349]
