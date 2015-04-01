@@ -228,6 +228,7 @@ struct acpi_processor {
 	struct thermal_cooling_device *cdev;
 	/* the _PDC objects for this processor, if any */
 	struct acpi_object_list *pdc;
+	u32 apic_id;
 };
 
 struct acpi_processor_errata {
@@ -328,6 +329,10 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 	return 0;
 }
 #endif				/* CONFIG_CPU_FREQ */
+
+/* in processor_core.c */
+int acpi_get_apicid(acpi_handle, int type, u32 acpi_id);
+int acpi_map_cpuid(int apic_id, u32 acpi_id);
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);
