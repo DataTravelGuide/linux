@@ -291,6 +291,15 @@ static inline void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx
 }
 #endif
 
+#ifdef CONFIG_SMP
+int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
+#else
+static inline int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
+{
+	return -1;
+}
+#endif
+
 /* in processor_perflib.c */
 
 #ifdef CONFIG_CPU_FREQ
