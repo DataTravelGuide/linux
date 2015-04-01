@@ -496,10 +496,10 @@ found:
 static int map_madt_entry(int type, u32 acpi_id)
 {
 	unsigned long madt_end, entry;
-	int apic_id = -1;
+	int phys_id = -1;	/* CPU hardware ID */
 
 	if (!madt)
-		return apic_id;
+		return phys_id;
 
 	entry = (unsigned long)madt;
 	madt_end = entry + madt->header.length;
@@ -511,18 +511,18 @@ static int map_madt_entry(int type, u32 acpi_id)
 		struct acpi_subtable_header *header =
 			(struct acpi_subtable_header *)entry;
 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
-			if (map_lapic_id(header, acpi_id, &apic_id))
+			if (map_lapic_id(header, acpi_id, &phys_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
-			if (map_x2apic_id(header, type, acpi_id, &apic_id))
+			if (map_x2apic_id(header, type, acpi_id, &phys_id))
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
-			if (map_lsapic_id(header, type, acpi_id, &apic_id))
+			if (map_lsapic_id(header, type, acpi_id, &phys_id))
 				break;
 		}
 		entry += header->length;
 	}
-	return apic_id;
+	return phys_id;
 }
 
 static int map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
@@ -530,7 +530,7 @@ static int map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 	struct acpi_subtable_header *header;
-	int apic_id = -1;
+	int phys_id = -1;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
 		goto exit;
@@ -546,39 +546,39 @@ static int map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 
 	header = (struct acpi_subtable_header *)obj->buffer.pointer;
 	if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
-		map_lapic_id(header, acpi_id, &apic_id);
+		map_lapic_id(header, acpi_id, &phys_id);
 	} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
-		map_lsapic_id(header, type, acpi_id, &apic_id);
+		map_lsapic_id(header, type, acpi_id, &phys_id);
 	} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
-		map_x2apic_id(header, type, acpi_id, &apic_id);
+		map_x2apic_id(header, type, acpi_id, &phys_id);
 	}
 
 exit:
 	if (buffer.pointer)
 		kfree(buffer.pointer);
-	return apic_id;
+	return phys_id;
 }
 
-int acpi_get_apicid(acpi_handle handle, int type, u32 acpi_id)
+int acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
 {
-	int apic_id = -1;
+	int phys_id;
 
-	apic_id = map_mat_entry(handle, type, acpi_id);
-	if (apic_id == -1)
-		apic_id = map_madt_entry(type, acpi_id);
+	phys_id = map_mat_entry(handle, type, acpi_id);
+	if (phys_id == -1)
+		phys_id = map_madt_entry(type, acpi_id);
 
-	return apic_id;
+	return phys_id;
 }
 
-int acpi_map_cpuid(int apic_id, u32 acpi_id)
+int acpi_map_cpuid(int phys_id, u32 acpi_id)
 {
 	int i;
 
-	if (apic_id == -1)
-		return apic_id;
+	if (phys_id == -1)
+		return phys_id;
 
 	for_each_possible_cpu(i) {
-		if (cpu_physical_id(i) == apic_id)
+		if (cpu_physical_id(i) == phys_id)
 			return i;
 	}
 	return -1;
@@ -586,11 +586,11 @@ int acpi_map_cpuid(int apic_id, u32 acpi_id)
 
 int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 {
-	int apic_id;
+	int phys_id;
 
-	apic_id = acpi_get_apicid(handle, type, acpi_id);
+	phys_id = acpi_get_phys_id(handle, type, acpi_id);
 
-	return acpi_map_cpuid(apic_id, acpi_id);
+	return acpi_map_cpuid(phys_id, acpi_id);
 }
 EXPORT_SYMBOL_GPL(acpi_get_cpuid);
 #endif
@@ -605,8 +605,8 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr;
-	int apic_id, cpu_index, device_declaration = 0;
 	static int cpu0_initialized;
+	int phys_id, cpu_index, device_declaration = 0;
 
 	pr = acpi_driver_data(device);
 	if (!pr)
@@ -663,17 +663,20 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		pr->acpi_id = value;
 	}
 
-	apic_id = acpi_get_apicid(pr->handle, device_declaration, pr->acpi_id);
-	if (apic_id < 0) {
+	phys_id = acpi_get_phys_id(pr->handle, device_declaration, pr->acpi_id);
+	if (phys_id < 0) {
 		acpi_handle_err(pr->handle, "failed to get CPU APIC ID.\n");
 		return -ENODEV;
 	}
-	pr->apic_id = apic_id;
+	pr->phys_id = phys_id;
 
-	cpu_index = acpi_map_cpuid(pr->apic_id, pr->acpi_id);
+	cpu_index = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
 	if (!cpu0_initialized) {
 		cpu0_initialized = 1;
-		/* Handle UP system running SMP kernel, with no LAPIC in MADT */
+		/*
+		 * Handle UP system running SMP kernel, with no CPU
+		 * entry in MADT
+		 */
 		if ((cpu_index == -1) && (num_online_cpus() == 1))
 			cpu_index = 0;
 	}
@@ -1218,7 +1221,7 @@ static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
 		return AE_ERROR;
 	}
 
-	if (acpi_map_lsapic(handle, pr->apic_id, &pr->id))
+	if (acpi_map_lsapic(handle, pr->phys_id, &pr->id))
 		return AE_ERROR;
 
 	if (arch_register_cpu(pr->id)) {

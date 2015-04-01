@@ -214,7 +214,7 @@ struct acpi_processor_flags {
 struct acpi_processor {
 	acpi_handle handle;
 	u32 acpi_id;
-	u32 id;
+	u32 id;		/* CPU logical ID allocated by OS */
 	u32 pblk;
 	int performance_platform_limit;
 	int throttling_platform_limit;
@@ -228,7 +228,7 @@ struct acpi_processor {
 	struct thermal_cooling_device *cdev;
 	/* the _PDC objects for this processor, if any */
 	struct acpi_object_list *pdc;
-	u32 apic_id;
+	u32 phys_id;	/* CPU hardware ID such as APIC ID for x86 */
 };
 
 struct acpi_processor_errata {
@@ -331,8 +331,8 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 #endif				/* CONFIG_CPU_FREQ */
 
 /* in processor_core.c */
-int acpi_get_apicid(acpi_handle, int type, u32 acpi_id);
-int acpi_map_cpuid(int apic_id, u32 acpi_id);
+int acpi_get_phys_id(acpi_handle, int type, u32 acpi_id);
+int acpi_map_cpuid(int phys_id, u32 acpi_id);
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);
