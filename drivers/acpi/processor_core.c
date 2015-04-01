@@ -1212,7 +1212,7 @@ static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
 		return AE_ERROR;
 	}
 
-	if (acpi_map_lsapic(handle, &pr->id))
+	if (acpi_map_lsapic(handle, pr->apic_id, &pr->id))
 		return AE_ERROR;
 
 	if (arch_register_cpu(pr->id)) {
