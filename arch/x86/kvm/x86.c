@@ -3444,10 +3444,9 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	n = kvm_dirty_bitmap_bytes(memslot);
 
 	r = -ENOMEM;
-	dirty_bitmap = vmalloc(n);
+	dirty_bitmap = vzalloc(n);
 	if (!dirty_bitmap)
 		goto out;
-	memset(dirty_bitmap, 0, n);
 
 	for (i = 0; !is_dirty && i < n/sizeof(long); i++)
 		is_dirty = memslot->dirty_bitmap[i];
