@@ -1380,6 +1380,39 @@ static void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
 		       reg_idx);
 }
 
+static void ixgbevf_setup_vfmrqc(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vfmrqc = 0, vfreta = 0;
+	u32 rss_key[10];
+	u16 rss_i = adapter->num_rx_queues;
+	int i, j;
+
+	/* Fill out hash function seeds */
+	netdev_rss_key_fill(rss_key, sizeof(rss_key));
+	for (i = 0; i < 10; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), rss_key[i]);
+
+	/* Fill out redirection table */
+	for (i = 0, j = 0; i < 64; i++, j++) {
+		if (j == rss_i)
+			j = 0;
+		vfreta = (vfreta << 8) | (j * 0x1);
+		if ((i & 3) == 3)
+			IXGBE_WRITE_REG(hw, IXGBE_VFRETA(i >> 2), vfreta);
+	}
+
+	/* Perform hash on these packet types */
+	vfmrqc |= IXGBE_VFMRQC_RSS_FIELD_IPV4 |
+		IXGBE_VFMRQC_RSS_FIELD_IPV4_TCP |
+		IXGBE_VFMRQC_RSS_FIELD_IPV6 |
+		IXGBE_VFMRQC_RSS_FIELD_IPV6_TCP;
+
+	vfmrqc |= IXGBE_VFMRQC_RSSEN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFMRQC, vfmrqc);
+}
+
 static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 				      struct ixgbevf_ring *ring)
 {
@@ -1431,8 +1464,11 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 {
 	int i;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	ixgbevf_setup_psrtype(adapter);
+	if (hw->mac.type >= ixgbe_mac_X550_vf)
+		ixgbevf_setup_vfmrqc(adapter);
 
 	/* set_rx_buffer_len must be called before ring initialization */
 	ixgbevf_set_rx_buffer_len(adapter);
