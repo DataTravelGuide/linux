@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Apr 02 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.19.2.el6]
+- [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1202860 1185166] {CVE-2015-1805}
+
 * Fri Mar 27 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.19.1.el6]
 - [mm] memcg: fix crash in re-entrant cgroup_clear_css_refs() (Johannes Weiner) [1204626 1168185]
 
