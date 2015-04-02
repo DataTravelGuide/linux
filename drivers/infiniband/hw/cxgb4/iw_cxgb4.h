@@ -117,6 +117,7 @@ struct c4iw_stat {
 	u64 total;
 	u64 cur;
 	u64 max;
+	u64 fail;
 };
 
 struct c4iw_stats {
