@@ -1582,11 +1582,11 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 	struct neighbour *n;
 	int err, step;
 
-	rcu_read_lock();
-	n = dst_get_neighbour_noref(dst);
-	err = -ENODEV;
+	n = dst->neighbour;
 	if (!n)
-		goto out;
+		return -ENODEV;
+
+	rcu_read_lock();
 	err = -ENOMEM;
 	if (n->dev->flags & IFF_LOOPBACK) {
 		struct net_device *pdev;
@@ -1637,6 +1637,8 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 	err = 0;
 out:
 	rcu_read_unlock();
+
+	neigh_release(n);
 
 	return err;
 }
