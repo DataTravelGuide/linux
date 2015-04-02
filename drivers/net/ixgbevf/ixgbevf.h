@@ -29,9 +29,11 @@
 #define _IXGBEVF_H_
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/u64_stats_sync.h>
 
 #include "vf.h"
@@ -338,9 +340,7 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 /* board specific private data structure */
 struct ixgbevf_adapter {
 	struct timer_list watchdog_timer;
-#ifdef NETIF_F_HW_VLAN_TX
-	struct vlan_group *vlgrp;
-#endif
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 

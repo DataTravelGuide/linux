@@ -33,6 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -352,29 +353,18 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 				union ixgbe_adv_rx_desc *rx_desc)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	bool is_vlan = (status & IXGBE_RXD_STAT_VP), used_vlan = false;
-	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
+	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
 
 	if (is_vlan) {
-		rcu_read_lock();
-		if (vlan_group_get_device(adapter->vlgrp, tag & VLAN_VID_MASK))
-			used_vlan = true;
-		rcu_read_unlock();
+		u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
+
+		__vlan_hwaccel_put_tag(skb, tag);
 	}
 
-	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-		if (used_vlan)
-			vlan_gro_receive(&q_vector->napi,
-					 adapter->vlgrp,
-					 tag, skb);
-		else
-			napi_gro_receive(&q_vector->napi, skb);
-	} else {
-		if (used_vlan)
-			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
-		else
-			netif_rx(skb);
-	}
+	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
+		napi_gro_receive(&q_vector->napi, skb);
+	else
+		netif_rx(skb);
 }
 
 /**
@@ -1405,24 +1395,6 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		ixgbevf_configure_rx_ring(adapter, adapter->rx_ring[i]);
 }
 
-static void ixgbevf_vlan_rx_register(struct net_device *netdev,
-				     struct vlan_group *grp)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	int i, j;
-	u32 ctrl;
-
-	adapter->vlgrp = grp;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		j = adapter->rx_ring[i]->reg_idx;
-		ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
-		ctrl |= IXGBE_RXDCTL_VME;
-		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(j), ctrl);
-	}
-}
-
 static void ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
@@ -1431,9 +1403,11 @@ static void ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	spin_lock_bh(&adapter->mbx_lock);
 
 	/* add VID to filter table */
-	hw->mac.ops.set_vfta(hw, vid, 0, true);
+	if (hw->mac.ops.set_vfta)
+		hw->mac.ops.set_vfta(hw, vid, 0, true);
 
 	spin_unlock_bh(&adapter->mbx_lock);
+	set_bit(vid, adapter->active_vlans);
 }
 
 static void ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -1441,34 +1415,23 @@ static void ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-		ixgbevf_irq_disable(adapter);
-
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
-
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-		ixgbevf_irq_enable(adapter);
-
 	spin_lock_bh(&adapter->mbx_lock);
 
 	/* remove VID from filter table */
-	hw->mac.ops.set_vfta(hw, vid, 0, false);
+	if (hw->mac.ops.set_vfta)
+		hw->mac.ops.set_vfta(hw, vid, 0, false);
 
 	spin_unlock_bh(&adapter->mbx_lock);
+
+	clear_bit(vid, adapter->active_vlans);
 }
 
 static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 {
-	ixgbevf_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+	u16 vid;
 
-	if (adapter->vlgrp) {
-		u16 vid;
-		for (vid = 0; vid < VLAN_N_VID; vid++) {
-			if (!vlan_group_get_device(adapter->vlgrp, vid))
-				continue;
-			ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
-		}
-	}
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+		ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
 }
 
 static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
@@ -3217,7 +3180,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
@@ -3442,7 +3405,6 @@ static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_set_mac_address	= ixgbevf_set_mac,
 	.ndo_change_mtu		= ixgbevf_change_mtu,
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
-	.ndo_vlan_rx_register	= ixgbevf_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
 };
