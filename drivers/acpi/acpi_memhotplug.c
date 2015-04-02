@@ -497,6 +497,16 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+static bool __initdata acpi_no_memhotplug;
+
+static int __init disable_acpi_memory_hotplug(char *str)
+{
+	acpi_no_memhotplug = true;
+	return 1;
+}
+
+__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+
 /*
  * Helper function to check for memory device
  */
@@ -564,6 +574,8 @@ static int __init acpi_memory_device_init(void)
 	int result;
 	acpi_status status;
 
+	if (acpi_no_memhotplug)
+		return -EPERM;
 
 	result = acpi_bus_register_driver(&acpi_memory_device_driver);
 
