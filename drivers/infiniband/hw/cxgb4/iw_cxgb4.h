@@ -126,6 +126,10 @@ struct c4iw_stats {
 	struct c4iw_stat pbl;
 	struct c4iw_stat rqt;
 	struct c4iw_stat ocqp;
+	u64  db_empty;
+	u64  db_drop;
+	u64  db_state_transitions;
+	u64  tcam_full;
 };
 
 struct c4iw_rdev {
