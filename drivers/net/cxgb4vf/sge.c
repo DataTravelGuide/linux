@@ -1522,7 +1522,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 {
 	struct sk_buff *skb;
 	const struct cpl_rx_pkt *pkt = (void *)rsp;
-	bool csum_ok = pkt->csum_calc && !pkt->err_vec;
+	bool csum_ok = pkt->csum_calc && !pkt->err_vec &&
+		       (rspq->netdev->features & NETIF_F_RXCSUM);
 	struct sge_eth_rxq *rxq = container_of(rspq, struct sge_eth_rxq, rspq);
 
 	/*
