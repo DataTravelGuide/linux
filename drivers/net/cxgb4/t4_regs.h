@@ -1301,4 +1301,13 @@
 #define S_FT_VNID_ID_VLD                16
 #define V_FT_VNID_ID_VLD(x)             ((x) << S_FT_VNID_ID_VLD)
 
+#define A_PL_VF_REV 0x4
+#define A_PL_VF_WHOAMI 0x0
+#define A_PL_VF_REVISION 0x8
+
+#define S_CHIPID    4
+#define M_CHIPID    0xfU
+#define V_CHIPID(x) ((x) << S_CHIPID)
+#define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
+
 #endif /* __T4_REGS_H */
