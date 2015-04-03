@@ -80,9 +80,9 @@ module_param(brightness_switch_enabled, bool, 0644);
  * For Windows 8 systems: used to decide if video module
  * should skip registering backlight interface of its own.
  */
-static int use_native_backlight_param = 1;
+static int use_native_backlight_param = -1;
 module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
-static bool use_native_backlight_dmi = false;
+static bool use_native_backlight_dmi = true;
 
 static int register_count = 0;
 static struct mutex video_list_lock;
