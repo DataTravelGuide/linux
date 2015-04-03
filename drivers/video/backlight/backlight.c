@@ -289,6 +289,13 @@ struct backlight_device *backlight_device_register(const char *name,
 	dev_set_name(&new_bd->dev, name);
 	dev_set_drvdata(&new_bd->dev, devdata);
 
+	/*
+	 * RHEL only:
+	 * no driver sets the backlight type, so just use a plain BACKLIGHT_RAW.
+	 */
+	/* Set default properties */
+	new_bd->props.type = BACKLIGHT_RAW;
+
 	rc = device_register(&new_bd->dev);
 	if (rc) {
 		kfree(new_bd);
