@@ -77,11 +77,12 @@ static int brightness_switch_enabled = 0;
 module_param(brightness_switch_enabled, bool, 0644);
 
 /*
- * For Windows 8 systems: if set ture and the GPU driver has
- * registered a backlight interface, skip registering ACPI video's.
+ * For Windows 8 systems: used to decide if video module
+ * should skip registering backlight interface of its own.
  */
-static bool use_native_backlight = false;
-module_param(use_native_backlight, bool, 0644);
+static int use_native_backlight_param = -1;
+module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
+static bool use_native_backlight_dmi = false;
 
 static int register_count = 0;
 static struct mutex video_list_lock;
@@ -338,9 +339,17 @@ static int acpi_video_device_get_state(struct acpi_video_device *device,
 static int acpi_video_output_get(struct output_device *od);
 static int acpi_video_device_set_state(struct acpi_video_device *device, int state);
 
+static bool acpi_video_use_native_backlight(void)
+{
+	if (use_native_backlight_param != -1)
+		return use_native_backlight_param;
+	else
+		return use_native_backlight_dmi;
+}
+
 static bool acpi_video_verify_backlight_support(void)
 {
-	if (acpi_osi_is_win8() && use_native_backlight &&
+	if (acpi_osi_is_win8() && acpi_video_use_native_backlight() &&
 	    backlight_device_registered(BACKLIGHT_RAW))
 		return false;
 	return acpi_video_backlight_support();
