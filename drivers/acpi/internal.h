@@ -70,4 +70,11 @@ static inline int acpi_sleep_proc_init(void) { return 0; }
   -------------------------------------------------------------------------- */
 extern int acpi_ipmi_loaded;
 
+/*--------------------------------------------------------------------------
+					Video
+  -------------------------------------------------------------------------- */
+#if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
+bool acpi_osi_is_win8(void);
+#endif
+
 #endif /* _ACPI_INTERNAL_H_ */
