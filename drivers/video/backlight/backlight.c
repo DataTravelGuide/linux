@@ -18,6 +18,9 @@
 #include <asm/backlight.h>
 #endif
 
+static struct list_head backlight_dev_list;
+static struct mutex backlight_dev_list_mutex;
+
 #if defined(CONFIG_FB) || (defined(CONFIG_FB_MODULE) && \
 			   defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE))
 /* This callback gets called when something important happens inside a
@@ -317,9 +320,31 @@ struct backlight_device *backlight_device_register(const char *name,
 	mutex_unlock(&pmac_backlight_mutex);
 #endif
 
+	mutex_lock(&backlight_dev_list_mutex);
+	list_add(&new_bd->entry, &backlight_dev_list);
+	mutex_unlock(&backlight_dev_list_mutex);
+
 	return new_bd;
 }
 EXPORT_SYMBOL(backlight_device_register);
+
+bool backlight_device_registered(enum backlight_type type)
+{
+	bool found = false;
+	struct backlight_device *bd;
+
+	mutex_lock(&backlight_dev_list_mutex);
+	list_for_each_entry(bd, &backlight_dev_list, entry) {
+		if (bd->props.type == type) {
+			found = true;
+			break;
+		}
+	}
+	mutex_unlock(&backlight_dev_list_mutex);
+
+	return found;
+}
+EXPORT_SYMBOL(backlight_device_registered);
 
 /**
  * backlight_device_unregister - unregisters a backlight device object.
@@ -331,6 +356,10 @@ void backlight_device_unregister(struct backlight_device *bd)
 {
 	if (!bd)
 		return;
+
+	mutex_lock(&backlight_dev_list_mutex);
+	list_del(&bd->entry);
+	mutex_unlock(&backlight_dev_list_mutex);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	mutex_lock(&pmac_backlight_mutex);
@@ -364,6 +393,8 @@ static int __init backlight_class_init(void)
 	backlight_class->dev_attrs = bl_device_attributes;
 	backlight_class->suspend = backlight_suspend;
 	backlight_class->resume = backlight_resume;
+	INIT_LIST_HEAD(&backlight_dev_list);
+	mutex_init(&backlight_dev_list_mutex);
 	return 0;
 }
 
