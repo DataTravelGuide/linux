@@ -46,6 +46,8 @@
 #include <linux/suspend.h>
 #include <acpi/video.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
@@ -325,7 +327,7 @@ static int acpi_video_device_get_state(struct acpi_video_device *device,
 static int acpi_video_output_get(struct output_device *od);
 static int acpi_video_device_set_state(struct acpi_video_device *device, int state);
 
-/*backlight device sysfs support*/
+/* backlight device sysfs support */
 static int acpi_video_get_brightness(struct backlight_device *bd)
 {
 	unsigned long long cur_level;
