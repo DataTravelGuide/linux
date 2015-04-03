@@ -69,8 +69,6 @@ struct backlight_properties {
 	/* FB Blanking active? (values as for power) */
 	/* Due to be removed, please use (state & BL_CORE_FBBLANK) */
 	int fb_blank;
-	/* Backlight type */
-	enum backlight_type type;
 	/* Flags used to signal drivers of state changes */
 	/* Upper 4 bits are reserved for driver internal use */
 	unsigned int state;
@@ -100,10 +98,20 @@ struct backlight_device {
 	/* The framebuffer notifier block */
 	struct notifier_block fb_notif;
 
+	struct device dev;
+
+#ifndef __GENKSYMS__
+	/*
+	 * Currently used only by acpi_video driver through
+	 * backlight_device_registered.
+	 */
+
 	/* list entry of all registered backlight devices */
 	struct list_head entry;
 
-	struct device dev;
+	/* Backlight type */
+	enum backlight_type type;
+#endif
 };
 
 static inline void backlight_update_status(struct backlight_device *bd)

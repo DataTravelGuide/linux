@@ -297,7 +297,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	 * no driver sets the backlight type, so just use a plain BACKLIGHT_RAW.
 	 */
 	/* Set default properties */
-	new_bd->props.type = BACKLIGHT_RAW;
+	new_bd->type = BACKLIGHT_RAW;
 
 	rc = device_register(&new_bd->dev);
 	if (rc) {
@@ -335,7 +335,7 @@ bool backlight_device_registered(enum backlight_type type)
 
 	mutex_lock(&backlight_dev_list_mutex);
 	list_for_each_entry(bd, &backlight_dev_list, entry) {
-		if (bd->props.type == type) {
+		if (bd->type == type) {
 			found = true;
 			break;
 		}
