@@ -87,6 +87,9 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	if (dentry) {
 		inode = dentry->d_inode;
 		if (inode) {
+			if (d_mountpoint(dentry))
+				return dentry;
+
 			/*
 			 * If we're generating inode numbers, then we don't
 			 * want to clobber the existing one with the one that
