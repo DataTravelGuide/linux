@@ -1014,7 +1014,6 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	fnic_iounmap(fnic);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	scsi_host_put(lp->host);
 }
 
