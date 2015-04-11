@@ -1112,7 +1112,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, void *wcombo,
 		int y = (data[3] << 4) | (data[4] & 0x0f);
 		int width = 0, height = 0;
 
-		if (features->type >= INTUOSPS && features->type <= INTUOSPL) {
+		if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 			width  = data[5];
 			height = data[6];
 		}
@@ -1216,6 +1216,9 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case DTU:
 			return wacom_dtu_irq(wacom_wac, wcombo);
 
+		case INTUOS5S:
+		case INTUOS5:
+		case INTUOS5L:
 		case INTUOSPS:
 		case INTUOSPM:
 		case INTUOSPL:
@@ -1235,9 +1238,6 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case INTUOS4S:
 		case INTUOS4:
 		case INTUOS4L:
-		case INTUOS5S:
-		case INTUOS5:
-		case INTUOS5L:
 		case CINTIQ:
 		case WACOM_BEE:
 		case WACOM_21UX2:
@@ -1312,7 +1312,9 @@ int wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 			/* fall through */
 		case INTUOS5S:
 		case INTUOS4S:
-			input_dev_i4s(input_dev, wacom_wac);
+			rc = input_dev_i4s(input_dev, wacom_wac);
+			if (rc)
+				return rc;
 			input_dev_i(input_dev, wacom_wac);
 			break;
 		case WACOM_24HDT:
@@ -1518,15 +1520,9 @@ const struct usb_device_id wacom_ids[] = {
 			      USB_INTERFACE_PROTOCOL_MOUSE) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xF0) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xF4) },
-	{ USB_DEVICE_DETAILED(0x26, USB_CLASS_HID,
-			      USB_INTERFACE_SUBCLASS_BOOT,
-			      USB_INTERFACE_PROTOCOL_MOUSE) },
-	{ USB_DEVICE_DETAILED(0x27, USB_CLASS_HID,
-			      USB_INTERFACE_SUBCLASS_BOOT,
-			      USB_INTERFACE_PROTOCOL_MOUSE) },
-	{ USB_DEVICE_DETAILED(0x28, USB_CLASS_HID,
-			      USB_INTERFACE_SUBCLASS_BOOT,
-			      USB_INTERFACE_PROTOCOL_MOUSE) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x26) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x27) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x28) },
 	{ USB_DEVICE_DETAILED(0x29, USB_CLASS_HID,
 			      USB_INTERFACE_SUBCLASS_BOOT,
 			      USB_INTERFACE_PROTOCOL_MOUSE) },

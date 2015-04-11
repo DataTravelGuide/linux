@@ -154,7 +154,7 @@ extern void input_dev_c21ux2(struct input_dev *input_dev, struct wacom_wac *waco
 extern void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
-extern void input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern int input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac);

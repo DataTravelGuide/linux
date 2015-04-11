@@ -318,12 +318,36 @@ void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
 }
 
-void input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+int input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
+	struct wacom_features *features = &wacom_wac->features;
+	int i;
+
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_FINGER);
 	input_dev->keybit[BIT_WORD(BTN_MISC)] |= BIT_MASK(BTN_0) | BIT_MASK(BTN_1) | BIT_MASK(BTN_2) | BIT_MASK(BTN_3);
 	input_dev->keybit[BIT_WORD(BTN_MISC)] |= BIT_MASK(BTN_4) | BIT_MASK(BTN_5) | BIT_MASK(BTN_6);
 	input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+
+	if (features->device_type == BTN_TOOL_FINGER) {
+		wacom_wac->slots = kmalloc(features->touch_max * sizeof(int),
+					   GFP_KERNEL);
+		if (!wacom_wac->slots)
+			return -ENOMEM;
+
+		for (i = 0; i < features->touch_max; i++)
+			wacom_wac->slots[i] = -1;
+
+		input_mt_init_slots(input_dev, features->touch_max, 0);
+		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_WIDTH_MINOR, 0, features->y_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+				     0, features->x_max, 0, 0);
+		input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+				     0, features->y_max, 0, 0);
+	}
+	return 0;
 }
 
 void input_dev_i4(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
@@ -614,7 +638,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 					} else if (pen) {
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG ||
-						    (features->type >= INTUOSPS && features->type <= INTUOSPL))
+						    (features->type >= INTUOS5S && features->type <= INTUOSPL))
 							features->pktlen = WACOM_PKGLEN_PENABLED;
 						features->device_type = BTN_TOOL_PEN;
 						features->x_max =
@@ -770,7 +794,7 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 
 	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
 	if (features->type < WACOM_24HDT &&
-	    (features->type < INTUOSPS || features->type > INTUOSPL) &&
+	    (features->type < INTUOS5S || features->type > INTUOSPL) &&
 	    features->type != MTSCREEN)
 		goto out;
 
@@ -1227,7 +1251,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* these device have multiple inputs */
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    (features->type >= INTUOSPS && features->type <= INTUOSPL) ||
+	    (features->type >= INTUOS5S && features->type <= INTUOSPL) ||
 	    features->type == WIRELESS || (features->oVid && features->oPid) ||
 	    features->type == MTSCREEN)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
@@ -1411,7 +1435,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	 * HID descriptor. If this is the touch interface (wMaxPacketSize
 	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
 	 */
-	if (features->type >= INTUOSPS && features->type <= INTUOSPL) {
+	if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
