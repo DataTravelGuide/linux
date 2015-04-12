@@ -30,6 +30,7 @@
 
 /* Stores the physical address of elf header of crash image. */
 unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
+EXPORT_SYMBOL(elfcorehdr_addr);
 
 #ifndef CONFIG_RELOCATABLE
 void __init reserve_kdump_trampoline(void)
