@@ -4297,6 +4297,13 @@ static int update_root_dev_clip(struct net_device *dev)
 		return ret;
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
+	root_dev = dev->master;
+	if (root_dev) {
+		ret = update_dev_clip(root_dev, dev);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < VLAN_N_VID; i++) {
 		grp = netdev2pinfo(dev)->vlan_grp;
 		root_dev = vlan_group_get_device(grp, i);
