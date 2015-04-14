@@ -2967,6 +2967,8 @@ static DEFINE_PCI_DEVICE_TABLE(cxgb4vf_pci_tbl) = {
 	CH_DEVICE(0x5884),
 	CH_DEVICE(0x5885),
 	CH_DEVICE(0x5886),
+	CH_DEVICE(0x5887),
+	CH_DEVICE(0x5888),
 	{ 0, }
 };
 
