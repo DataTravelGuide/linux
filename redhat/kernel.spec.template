@@ -1705,6 +1705,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Apr 14 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-554.el6]
+- [kabi] Adding symbol si_meminfo (Petr Oros) [1150668]
+- [kabi] Adding symbol pv_mmu_ops (Petr Oros) [1177818]
+- [kabi] Adding symbol mmput (Petr Oros) [1177818]
+- [kabi] Adding symbol get_task_mm (Petr Oros) [1177818]
+- [kabi] Adding symbol cpu_active_mask (Petr Oros) [1177818]
+- [kabi] Adding symbol __node_distance (Petr Oros) [1177818]
+
 * Tue Apr 14 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-553.el6]
 - [scsi] fnic: IOMMU Fault occurs when IO and abort IO is out of order (Chris Leech) [1024066]
 - [scsi] fnic Driver crashed with NULL pointer reference (Chris Leech) [1024066]
