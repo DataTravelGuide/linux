@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Apr 16 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.21.1.el6]
+- [netdrv] ixgbe: Fix memory leak in ixgbe_free_q_vector, missing rcu (John Greene) [1210901 1150343]
+- [netdrv] ixgbe: Fix tx_packets and tx_bytes stats not updating (John Greene) [1210901 1150343]
+- [netdrv] qlcnic: Fix update of ethtool stats (Chad Dupuis) [1210902 1148019]
+
 * Thu Apr 16 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.20.1.el6]
 - [fs] exec: do not abuse ->cred_guard_mutex in threadgroup_lock() (Petr Oros) [1208620 1169225]
 - [kernel] cgroup: always lock threadgroup during migration (Petr Oros) [1208620 1169225]
