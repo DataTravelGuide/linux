@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Apr 16 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.20.1.el6]
+- [fs] exec: do not abuse ->cred_guard_mutex in threadgroup_lock() (Petr Oros) [1208620 1169225]
+- [kernel] cgroup: always lock threadgroup during migration (Petr Oros) [1208620 1169225]
+- [kernel] threadgroup: extend threadgroup_lock() to cover exit and exec (Petr Oros) [1208620 1169225]
+- [kernel] threadgroup: rename signal->threadgroup_fork_lock to ->group_rwsem (Petr Oros) [1208620 1169225]
+
 * Fri Mar 27 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.19.1.el6]
 - [mm] memcg: fix crash in re-entrant cgroup_clear_css_refs() (Johannes Weiner) [1204626 1168185]
 
