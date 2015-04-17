@@ -163,8 +163,7 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 
 static inline bool vlan_hwaccel_do_receive(struct sk_buff **skb)
 {
-	if ((*skb)->vlan_tci & VLAN_VID_MASK)
-		(*skb)->pkt_type = PACKET_OTHERHOST;
+	BUG();
 	return false;
 }
 
