@@ -124,12 +124,9 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 	}
 
 	for (p = napi->gro_list; p; p = p->next) {
-		unsigned long diffs;
-
-		diffs = (unsigned long)p->dev ^ (unsigned long)skb->dev;
-		diffs |= compare_ether_header(skb_mac_header(p),
-					      skb_gro_mac_header(skb));
-		NAPI_GRO_CB(p)->same_flow = !diffs;
+		NAPI_GRO_CB(p)->same_flow =
+			p->dev == skb->dev && !compare_ether_header(
+				skb_mac_header(p), skb_gro_mac_header(skb));
 		NAPI_GRO_CB(p)->flush = 0;
 	}
 
