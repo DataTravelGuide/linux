@@ -414,8 +414,7 @@ int vlan_dev_change_flags(struct net_device *dev, u32 flags, u32 mask)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	u32 old_flags = vlan->flags;
 
-	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP |
-		     VLAN_FLAG_LOOSE_BINDING))
+	if (mask & ~(VLAN_FLAG_REORDER_HDR | VLAN_FLAG_GVRP))
 		return -EINVAL;
 
 	/* TX checksum offload cannot work if both TX VLAN tag offload
@@ -453,8 +452,7 @@ static int vlan_dev_open(struct net_device *dev)
 	struct net_device *real_dev = vlan->real_dev;
 	int err;
 
-	if (!(real_dev->flags & IFF_UP) &&
-	    !(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
+	if (!(real_dev->flags & IFF_UP))
 		return -ENETDOWN;
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr)) {
