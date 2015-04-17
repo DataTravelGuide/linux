@@ -403,7 +403,7 @@ struct be_adapter {
 
 	struct vlan_group *vlan_grp;
 	u16 vlans_added;
-	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
+	u8 vlan_tag[VLAN_N_VID];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
