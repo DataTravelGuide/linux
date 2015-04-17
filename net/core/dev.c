@@ -3353,8 +3353,7 @@ ncls:
 	list_for_each_entry_rcu(ptype,
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
 		if (ptype->type == type &&
-		    (ptype->dev == null_or_dev || ptype->dev == skb->dev ||
-		     ptype->dev == orig_dev)) {
+		    (ptype->dev == null_or_dev || ptype->dev == skb->dev)) {
 			if (pt_prev)
 				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
