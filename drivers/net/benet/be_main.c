@@ -999,7 +999,7 @@ static int be_vid_config(struct be_adapter *adapter)
 		goto set_vlan_promisc;
 
 	/* Construct VLAN Table to give to HW */
-	for (i = 0; i < VLAN_N_VID; i++)
+	for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++)
 		if (adapter->vlan_tag[i])
 			vids[num++] = cpu_to_le16(i);
 
