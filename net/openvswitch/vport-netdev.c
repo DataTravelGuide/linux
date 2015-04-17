@@ -32,9 +32,6 @@
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 
-
-static atomic_t nr_bridges = ATOMIC_INIT(0);
-
 /* Must be called with rcu_read_lock. */
 static void netdev_port_receive(struct vport *vport, struct sk_buff *skb)
 {
@@ -111,11 +108,10 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	netdev_vport->dev->ax25_ptr = vport;
 
-	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook);
+	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
+					 NULL);
 	if (err)
 		goto error_null_priv;
-
-	atomic_inc(&nr_bridges);
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
