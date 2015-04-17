@@ -226,6 +226,8 @@ struct net_bridge
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
+
+	struct vlan_group		*vlgrp;
 };
 
 struct br_input_skb_cb {
