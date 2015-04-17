@@ -1705,6 +1705,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Apr 17 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-555.el6]
+- [crypto] testmgr: fix RNG return code enforcement (Herbert Xu) [1208804]
+- [netdrv] i40e: Fix RSS size at init since default num queue calculation has changed (Stefan Assmann) [1209444]
+- [netdrv] i40e: Move RSS table size for VSIs to the VSI struct (Stefan Assmann) [1209444]
+- [netdrv] i40e: Enable more than 64 qps for the Main VSI (Stefan Assmann) [1209444]
+- [netdrv] i40e: use netdev_rss_key_fill() helper (Stefan Assmann) [1209444]
+- [net] netfilter: xtables: make use of caller family rather than target family (Florian Westphal) [1210697]
+- [s390] dasd: fix panic in DASD driver during boot (Hendrik Brueckner) [1193535]
+- [md] dm-io: fix a race condition in the wake up code for sync_io (Mike Snitzer) [1205853]
+- [edac] sb_edac: fix corruption/crash on imbalanced Haswell home agents (Seth Jennings) [1210148]
+- [fs] proc: show all supplementary groups in /proc/pid/status (Jerome Marchand) [960050]
+- [kernel] futex: Take hugepages into account when generating futex_key (Jerome Marchand) [1193250]
+
 * Tue Apr 14 2015 Rafael Aquini <aquini@redhat.com> [2.6.32-554.el6]
 - [kabi] Adding symbol si_meminfo (Petr Oros) [1150668]
 - [kabi] Adding symbol pv_mmu_ops (Petr Oros) [1177818]
