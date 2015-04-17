@@ -101,11 +101,17 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 		goto error_put;
 	}
 
+	err = -EBUSY;
 	rtnl_lock();
-	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
-					 vport);
-	if (err)
+	if (netdev_vport->dev->ax25_ptr)
 		goto error_unlock;
+
+	netdev_vport->dev->ax25_ptr = vport;
+
+	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
+					 NULL);
+	if (err)
+		goto error_null_priv;
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
@@ -113,6 +119,8 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	return vport;
 
+error_null_priv:
+	netdev_vport->dev->ax25_ptr = NULL;
 error_unlock:
 	rtnl_unlock();
 error_put:
@@ -193,7 +201,7 @@ struct vport *ovs_netdev_get_vport(struct net_device *dev)
 {
 	if (likely(dev->priv_flags & IFF_OVS_DATAPATH))
 		return (struct vport *)
-			rcu_dereference_rtnl(netdev_extended(dev)->rx_handler_data);
+			rcu_dereference_rtnl(dev->ax25_ptr);
 	else
 		return NULL;
 }
