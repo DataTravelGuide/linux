@@ -388,6 +388,8 @@ typedef enum gro_result __bitwise__ gro_result_t;
 #define GRO_NORMAL	((__force gro_result_t) GRO_NORMAL)
 #define GRO_DROP	((__force gro_result_t) GRO_DROP)
 
+typedef struct sk_buff *rx_handler_func_t(struct sk_buff *skb);
+
 extern void __napi_schedule(struct napi_struct *n);
 
 static inline int napi_disable_pending(struct napi_struct *n)
@@ -1273,6 +1275,7 @@ struct net_device_extended {
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 	struct vlan_group	*vlgrp;		/* VLAN group */
 #endif
+	rx_handler_func_t	*rx_handler;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -2008,6 +2011,10 @@ static inline void napi_free_frags(struct napi_struct *napi)
 	kfree_skb(napi->skb);
 	napi->skb = NULL;
 }
+
+extern int netdev_rx_handler_register(struct net_device *dev,
+				      rx_handler_func_t *rx_handler);
+extern void netdev_rx_handler_unregister(struct net_device *dev);
 
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
