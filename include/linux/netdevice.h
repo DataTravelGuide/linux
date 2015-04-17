@@ -1276,7 +1276,6 @@ struct net_device_extended {
 	struct vlan_group	*vlgrp;		/* VLAN group */
 #endif
 	rx_handler_func_t	*rx_handler;
-	void			*rx_handler_data;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
@@ -2014,8 +2013,7 @@ static inline void napi_free_frags(struct napi_struct *napi)
 }
 
 extern int netdev_rx_handler_register(struct net_device *dev,
-				      rx_handler_func_t *rx_handler,
-				      void *rx_handler_data);
+				      rx_handler_func_t *rx_handler);
 extern void netdev_rx_handler_unregister(struct net_device *dev);
 
 extern int		dev_valid_name(const char *name);
