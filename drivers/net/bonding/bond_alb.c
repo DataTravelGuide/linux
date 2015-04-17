@@ -386,29 +386,29 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 	_unlock_rx_hashtbl_bh(bond);
 }
 
-static int rlb_arp_recv(struct sk_buff *skb, struct bonding *bond,
-			struct slave *slave)
+static void rlb_arp_recv(struct sk_buff *skb, struct bonding *bond,
+			 struct slave *slave)
 {
 	struct arp_pkt *arp;
 
 	if (dev_net(bond->dev) != &init_net)
-		goto out;
+		return;
 
 	if (skb->protocol != cpu_to_be16(ETH_P_ARP))
-		goto out;
+		return;
 
 	arp = (struct arp_pkt *) skb->data;
 	if (!arp) {
 		pr_debug("Packet has no ARP data\n");
-		goto out;
+		return;
 	}
 
 	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
-		goto out;
+		return;
 
 	if (skb->len < sizeof(struct arp_pkt)) {
 		pr_debug("Packet is too small to be an ARP\n");
-		goto out;
+		return;
 	}
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
@@ -416,8 +416,6 @@ static int rlb_arp_recv(struct sk_buff *skb, struct bonding *bond,
 		rlb_update_entry_from_arp(bond, arp);
 		pr_debug("Server received an ARP Reply from client\n");
 	}
-out:
-	return RX_HANDLER_ANOTHER;
 }
 
 /* Caller must hold bond lock for read */
