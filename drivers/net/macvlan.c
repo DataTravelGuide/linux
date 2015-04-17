@@ -146,11 +146,10 @@ static void macvlan_broadcast(struct sk_buff *skb,
 }
 
 /* called under rcu_read_lock() from netif_receive_skb */
-static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
+static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 {
-	struct macvlan_port *port;
-	struct sk_buff *skb = *pskb;
 	const struct ethhdr *eth = eth_hdr(skb);
+	struct macvlan_port *port;
 	const struct macvlan_dev *vlan;
 	const struct macvlan_dev *src;
 	struct net_device *dev;
@@ -158,7 +157,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 
 	port = rcu_dereference(skb->dev->macvlan_port);
 	if (port == NULL)
-		return RX_HANDLER_PASS;
+		return skb;
 
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		src = macvlan_hash_lookup(port, eth->h_source);
@@ -181,7 +180,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			 */
 			macvlan_broadcast(skb, port, src->dev,
 					  MACVLAN_MODE_VEPA);
-		return RX_HANDLER_PASS;
+		return skb;
 	}
 
 	if (port->passthru)
@@ -190,25 +189,25 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	else
 		vlan = macvlan_hash_lookup(port, eth->h_dest);
 	if (vlan == NULL)
-		return RX_HANDLER_PASS;
+		return skb;
 
 	dev = vlan->dev;
 
 	if (unlikely(!(dev->flags & IFF_UP))) {
 		kfree_skb(skb);
-		return RX_HANDLER_CONSUMED;
+		return NULL;
 	}
 	len = skb->len + ETH_HLEN;
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	macvlan_count_rx(vlan, len, skb != NULL, 0);
 	if (!skb)
-		return RX_HANDLER_CONSUMED;
+		return NULL;
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
 
 	vlan->receive(skb);
-	return RX_HANDLER_CONSUMED;
+	return NULL;
 }
 
 static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)

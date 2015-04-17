@@ -120,22 +120,21 @@ static int br_handle_local_finish(struct sk_buff *skb)
  * note: already called with rcu_read_lock (preempt_disabled) from
  * netif_receive_skb
  */
-rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
+struct sk_buff *br_handle_frame(struct sk_buff *skb)
 {
 	struct net_bridge_port *p;
-	struct sk_buff *skb = *pskb;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	int (*rhook)(struct sk_buff *skb);
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
-		return RX_HANDLER_PASS;
+		return skb;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
-		return RX_HANDLER_CONSUMED;
+		return NULL;
 
 	p = rcu_dereference(skb->dev->br_port);
 
@@ -149,12 +148,10 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			goto forward;
 
 		if (NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
-			    NULL, br_handle_local_finish)) {
-			return RX_HANDLER_CONSUMED; /* consumed by filter */
-		} else {
-			*pskb = skb;
-			return RX_HANDLER_PASS;	/* continue processing */
-		}
+			    NULL, br_handle_local_finish))
+			return NULL;	/* frame consumed by filter */
+		else
+			return skb;	/* continue processing */
 	}
 
 forward:
@@ -162,10 +159,8 @@ forward:
 	case BR_STATE_FORWARDING:
 		rhook = rcu_dereference(br_should_route_hook);
 		if (rhook != NULL) {
-			if (rhook(skb)) {
-				*pskb = skb;
-				return RX_HANDLER_PASS;
-			}
+			if (rhook(skb))
+				return skb;
 			dest = eth_hdr(skb)->h_dest;
 		}
 		/* fall through */
@@ -180,5 +175,5 @@ forward:
 drop:
 		kfree_skb(skb);
 	}
-	return RX_HANDLER_CONSUMED;
+	return NULL;
 }
