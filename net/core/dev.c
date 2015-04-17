@@ -3262,8 +3262,7 @@ static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
  * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
  * ARP on active-backup slaves with arp_validate enabled.
  */
-static int __skb_bond_should_drop(struct sk_buff *skb,
-				  struct net_device *master)
+int __skb_bond_should_drop(struct sk_buff *skb, struct net_device *master)
 {
 	struct net_device *dev = skb->dev;
 
@@ -3296,6 +3295,7 @@ static int __skb_bond_should_drop(struct sk_buff *skb,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(__skb_bond_should_drop);
 
 int __netif_receive_skb(struct sk_buff *skb)
 {
@@ -3333,7 +3333,7 @@ int __netif_receive_skb(struct sk_buff *skb)
 	if (skb->deliver_no_wcard)
 		null_or_orig = orig_dev;
 	else if (master) {
-		if (__skb_bond_should_drop(skb, master)) {
+		if (skb_bond_should_drop(skb, master)) {
 			skb->deliver_no_wcard = 1;
 			null_or_orig = orig_dev; /* deliver only exact match */
 		} else
