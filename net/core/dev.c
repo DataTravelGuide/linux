@@ -3294,6 +3294,17 @@ another_round:
 ncls:
 #endif
 
+	if (vlan_tx_tag_present(skb)) {
+		if (pt_prev) {
+			ret = deliver_skb(skb, pt_prev, orig_dev);
+			pt_prev = NULL;
+		}
+		if (vlan_do_receive(&skb))
+			goto another_round;
+		else if (unlikely(!skb))
+			goto out;
+	}
+
 	rx_handler = rcu_dereference(netdev_extended(skb->dev)->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {
@@ -3312,17 +3323,6 @@ ncls:
 		default:
 			BUG();
 		}
-	}
-
-	if (vlan_tx_tag_present(skb)) {
-		if (pt_prev) {
-			ret = deliver_skb(skb, pt_prev, orig_dev);
-			pt_prev = NULL;
-		}
-		if (vlan_do_receive(&skb))
-			goto another_round;
-		else if (unlikely(!skb))
-			goto out;
 	}
 
 	/* deliver only exact match when indicated */
