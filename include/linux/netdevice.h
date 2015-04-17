@@ -1023,7 +1023,7 @@ struct net_device
 
 
 	/* Protocol specific pointers */
-	
+
 #ifdef CONFIG_NET_DSA
 	void			*dsa_ptr;	/* dsa specific data */
 #endif
@@ -1260,6 +1260,19 @@ struct net_device_extended {
 	struct netdev_rfs_info			rfs_data;
 #define GSO_MAX_SEGS		65535
 	u16			gso_max_segs;
+
+/* KABI: rhel6.6 has couple more items here, so to keep the offset
+ * of vlgrp the same put some reserves here.
+ */
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	void			*__rh_reserved1;
+#endif
+	void			*__rh_reserved2;
+	u32			__rh_reserved3;
+	u32			__rh_reserved4;
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	struct vlan_group	*vlgrp;		/* VLAN group */
+#endif
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \
