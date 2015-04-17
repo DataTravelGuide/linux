@@ -474,6 +474,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	struct vlan_group *grp;
 	int i, flgs;
 	struct net_device *vlandev;
+	struct vlan_dev_info *vlan;
 
 	if (is_vlan_dev(dev))
 		__vlan_device_event(dev, event);
@@ -567,7 +568,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!(flgs & IFF_UP))
 				continue;
 
-			dev_change_flags(vlandev, flgs & ~IFF_UP);
+			vlan = vlan_dev_info(vlandev);
+			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
+				dev_change_flags(vlandev, flgs & ~IFF_UP);
 			netif_stacked_transfer_operstate(dev, vlandev);
 		}
 		break;
@@ -585,7 +588,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (flgs & IFF_UP)
 				continue;
 
-			dev_change_flags(vlandev, flgs | IFF_UP);
+			vlan = vlan_dev_info(vlandev);
+			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
+				dev_change_flags(vlandev, flgs | IFF_UP);
 			netif_stacked_transfer_operstate(dev, vlandev);
 		}
 		break;
