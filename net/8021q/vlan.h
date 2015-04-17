@@ -42,6 +42,8 @@ struct vlan_rx_stats {
  *	@real_dev: underlying netdevice
  *	@real_dev_addr: address of underlying netdevice
  *	@dent: proc dir entry
+ *	@cnt_inc_headroom_on_tx: statistic - number of skb expansions on TX
+ *	@cnt_encap_on_xmit: statistic - number of skb encapsulations on TX
  *	@vlan_rx_stats: ptr to percpu rx stats
  */
 struct vlan_dev_info {
@@ -57,6 +59,8 @@ struct vlan_dev_info {
 	unsigned char				real_dev_addr[ETH_ALEN];
 
 	struct proc_dir_entry			*dent;
+	unsigned long				cnt_inc_headroom_on_tx;
+	unsigned long				cnt_encap_on_xmit;
 	struct vlan_rx_stats			*vlan_rx_stats;
 };
 
