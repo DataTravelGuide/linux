@@ -2447,23 +2447,41 @@ out:
 	return NETDEV_TX_OK;
 }
 
-void bond_3ad_lacpdu_recv(struct sk_buff *skb, struct bonding *bond,
-			  struct slave *slave)
+int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev)
 {
-	if (dev_net(bond->dev) != &init_net)
-		return;
+	struct bonding *bond = netdev_priv(dev);
+	struct slave *slave = NULL;
+	int ret = NET_RX_DROP;
 
-	if (skb->protocol != PKT_TYPE_LACPDU)
-		return;
+	if (dev_net(dev) != &init_net)
+		goto out;
+
+	if (!(dev->flags & IFF_MASTER))
+		goto out;
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		goto out;
 
 	if (!pskb_may_pull(skb, sizeof(struct lacpdu)))
-		return;
+		goto out;
 
 	read_lock(&bond->lock);
+	slave = bond_get_slave_by_dev((struct bonding *)netdev_priv(dev),
+					orig_dev);
+	if (!slave)
+		goto out_unlock;
 
 	bond_3ad_rx_indication((struct lacpdu *) skb->data, slave, skb->len);
 
+	ret = NET_RX_SUCCESS;
+
+out_unlock:
 	read_unlock(&bond->lock);
+out:
+	dev_kfree_skb(skb);
+
+	return ret;
 }
 
 /*
