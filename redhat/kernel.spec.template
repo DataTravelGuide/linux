@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Apr 20 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.56.1.el6]
+- [net] dynticks: avoid flow_cache_flush() interrupting every core (Marcelo Leitner) [1210594 1191559]
+- [fs] dcache: return -ESTALE not -EBUSY on distributed fs race (J. Bruce Fields) [1207814 1061994]
+- [net] neigh: Keep neighbour cache entries if number of them is small enough (Jiri Pirko) [1207351 1199856]
+- [kernel] time: ntp: Correct TAI offset during leap second (Prarit Bhargava) [1201673 1199134]
+
 * Fri Apr 10 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.55.1.el6]
 - [tools] perf: Fix race in build_id_cache__add_s() (Milos Vyletel) [1210592 1204102]
 
