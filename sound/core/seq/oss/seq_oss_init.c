@@ -29,6 +29,7 @@
 #include "seq_oss_event.h"
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/workqueue.h>
 
 /*
  * common variables
@@ -58,6 +59,14 @@ static void free_devinfo(void *private);
 #define call_ctl(type,rec) snd_seq_kernel_client_ctl(system_client, type, rec)
 
 
+/* call snd_seq_oss_midi_lookup_ports() asynchronously */
+static void async_call_lookup_ports(struct work_struct *work)
+{
+	snd_seq_oss_midi_lookup_ports(system_client);
+}
+
+static DECLARE_WORK(async_lookup_work, async_call_lookup_ports);
+
 /*
  * create sequencer client for OSS sequencer
  */
@@ -81,9 +90,6 @@ snd_seq_oss_create_client(void)
 		goto __error;
 
 	system_client = rc;
-
-	/* look up midi devices */
-	snd_seq_oss_midi_lookup_ports(system_client);
 
 	/* create annoucement receiver port */
 	memset(port, 0, sizeof(*port));
@@ -111,6 +117,9 @@ snd_seq_oss_create_client(void)
 		call_ctl(SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT, &subs);
 	}
 	rc = 0;
+
+	/* look up midi devices */
+	schedule_work(&async_lookup_work);
 
  __error:
 	kfree(port);
@@ -157,6 +166,7 @@ receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic
 int
 snd_seq_oss_delete_client(void)
 {
+	cancel_work_sync(&async_lookup_work);
 	if (system_client >= 0)
 		snd_seq_delete_kernel_client(system_client);
 
