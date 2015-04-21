@@ -321,7 +321,6 @@ void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 int input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
-	int i;
 
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_FINGER);
 	input_dev->keybit[BIT_WORD(BTN_MISC)] |= BIT_MASK(BTN_0) | BIT_MASK(BTN_1) | BIT_MASK(BTN_2) | BIT_MASK(BTN_3);
@@ -329,14 +328,6 @@ int input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
 	if (features->device_type == BTN_TOOL_FINGER) {
-		wacom_wac->slots = kmalloc(features->touch_max * sizeof(int),
-					   GFP_KERNEL);
-		if (!wacom_wac->slots)
-			return -ENOMEM;
-
-		for (i = 0; i < features->touch_max; i++)
-			wacom_wac->slots[i] = -1;
-
 		input_mt_init_slots(input_dev, features->touch_max, 0);
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
 		input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
@@ -450,17 +441,7 @@ void input_dev_24hdt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 
 int input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	struct wacom_features *features = &wacom_wac->features;
-	int i;
-
 	if (wacom_wac->features.device_type == BTN_TOOL_FINGER) {
-		wacom_wac->slots = kmalloc(features->touch_max * sizeof(int),
-					   GFP_KERNEL);
-		if (!wacom_wac->slots)
-			return -ENOMEM;
-
-		for (i = 0; i < features->touch_max; i++)
-			wacom_wac->slots[i] = -1;
 		input_dev->absbit[BIT_WORD(ABS_MISC)] &= ~BIT_MASK(ABS_MISC);
 
 		input_mt_init_slots(input_dev, 2, 0);

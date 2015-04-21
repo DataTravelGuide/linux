@@ -112,7 +112,6 @@ struct wacom_wac {
 	struct wacom_shared *shared;
 	int pid;
 	int num_contacts_left;
-	int *slots;
 };
 
 #endif

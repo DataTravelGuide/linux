@@ -774,25 +774,6 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
-static int find_slot_from_contactid(struct wacom_wac *wacom, int contactid)
-{
-	int touch_max = wacom->features.touch_max;
-	int i;
-
-	if (!wacom->slots)
-		return -1;
-
-	for (i = 0; i < touch_max; ++i) {
-		if (wacom->slots[i] == contactid)
-			return i;
-	}
-	for (i = 0; i < touch_max; ++i) {
-		if (wacom->slots[i] == -1)
-			return i;
-	}
-	return -1;
-}
-
 static int wacom_mt_touch(struct wacom_wac *wacom, void *wcombo)
 {
 	char *data = wacom->data;
@@ -813,8 +794,7 @@ static int wacom_mt_touch(struct wacom_wac *wacom, void *wcombo)
 	for (i = 0; i < contacts_to_send; i++) {
 		int offset = (WACOM_BYTES_PER_MT_PACKET * i) + 3;
 		bool touch = data[offset] & 0x1;
-		int id = le16_to_cpup((__le16 *)&data[offset + 1]);
-		int slot = find_slot_from_contactid(wacom, id);
+		int slot = wacom_mt_get_slot_by_key(wcombo, data[offset + 1]);
 
 		if (slot < 0)
 			continue;
@@ -827,7 +807,6 @@ static int wacom_mt_touch(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_MT_POSITION_X, x);
 			wacom_report_abs(wcombo, ABS_MT_POSITION_Y, y);
 		}
-		wacom->slots[slot] = touch ? id : -1;
 	}
 
 	wacom_mt_report_pointer_emulation(wcombo, true);
@@ -868,7 +847,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom, void *wcombo)
 		int offset = (WACOM_BYTES_PER_24HDT_PACKET * i) + 1;
 		bool touch = data[offset] & 0x1 && !wacom->shared->stylus_in_proximity;
 		int id = data[offset + 1];
-		int slot = find_slot_from_contactid(wacom, id);
+		int slot = wacom_mt_get_slot_by_key(wcombo, id);
 
 		if (slot < 0)
 			continue;
@@ -890,7 +869,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_MT_WIDTH_MINOR, min(w, h));
 			wacom_report_abs(wcombo, ABS_MT_ORIENTATION, w > h);
 		}
-		wacom->slots[slot] = touch ? id : -1;
 	}
 
 	wacom_mt_report_pointer_emulation(wcombo, true);
