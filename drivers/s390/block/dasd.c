@@ -584,7 +584,8 @@ void dasd_kick_device(struct dasd_device *device)
 {
 	dasd_get_device(device);
 	/* queue call to dasd_kick_device to the kernel event daemon. */
-	schedule_work(&device->kick_work);
+	if (!schedule_work(&device->kick_work))
+		dasd_put_device(device);
 }
 
 /*
@@ -603,7 +604,8 @@ void dasd_reload_device(struct dasd_device *device)
 {
 	dasd_get_device(device);
 	/* queue call to dasd_reload_device to the kernel event daemon. */
-	schedule_work(&device->reload_device);
+	if (!schedule_work(&device->reload_device))
+		dasd_put_device(device);
 }
 EXPORT_SYMBOL(dasd_reload_device);
 
@@ -623,7 +625,8 @@ void dasd_restore_device(struct dasd_device *device)
 {
 	dasd_get_device(device);
 	/* queue call to dasd_restore_device to the kernel event daemon. */
-	schedule_work(&device->restore_device);
+	if (!schedule_work(&device->restore_device))
+		dasd_put_device(device);
 }
 
 /*
