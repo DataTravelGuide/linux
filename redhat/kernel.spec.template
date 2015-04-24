@@ -1705,6 +1705,30 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Apr 24 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-556.el6]
+- [mm] readahead: get back a sensible upper limit (Rafael Aquini) [1187940]
+- [fs] quota: Properly invalidate caches even for filesystems with blocksize < pagesize (Lukas Czerner) [893926]
+- [fs] xfs: fix behaviour of XFS_IOC_FSSETXATTR on directories (Zorro Lang) [1200705]
+- [fs] xfs: allow logical-sector-sized DIO (Eric Sandeen) [1197195]
+- [fs] xfs: rename xfs_buftarg structure members (Eric Sandeen) [1197195]
+- [fs] xfs: clean up xfs_buftarg (Eric Sandeen) [1197195]
+- [fs] xfs: simplify xfs_setsize_buftarg callchain; remove unused arg (Eric Sandeen) [1197195]
+- [fs] fuse: avoid scheduling while atomic (Brian Foster) [1144128]
+- [fs] pipe: kill ->map() and ->unmap() (Brian Foster) [1144128]
+- [fs] fuse: use clear_highpage() and KM_USER0 instead of KM_USER1 (Brian Foster) [1144128]
+- [s390] af_iucv: fix AF_IUCV sendmsg() errno (Hendrik Brueckner) [1211173]
+- [s390] zcrypt: improve device probing for zcrypt adapter cards (Hendrik Brueckner) [1211174]
+- [cpufreq] fix null ptr dereference (Petr Oros) [1186720]
+- [powerpc] eeh: Remove reference to PCI device (Gustavo Duarte) [1189019]
+- [powerpc] pci: Override pcibios_release_device() (Gustavo Duarte) [1189019]
+- [powerpc] eeh: Export functions for hotplug (Gustavo Duarte) [1189019]
+- [pci] Add pcibios_release_device() (Gustavo Duarte) [1189019]
+- [netdrv] mlx4_en: do not ignore autoneg in mlx4_en_set_pauseparam (Amir Vadai) [1121491]
+- [netdrv] mlx4_core: Replace pr_warning with pr_warn (Amir Vadai) [1136753]
+- [netdrv] mlx4_core: Deprecate use_prio module parameter (Amir Vadai) [1136753]
+- [x86] intel_pstate: Add CPUID for BDW-H CPU (Steve Best) [1164883]
+- [x86] crypto: aesni - fix memory usage in GCM decryption (Kurt Stutsman) [1213330] {CVE-2015-3331}
+
 * Fri Apr 17 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-555.el6]
 - [crypto] testmgr: fix RNG return code enforcement (Herbert Xu) [1208804]
 - [netdrv] i40e: Fix RSS size at init since default num queue calculation has changed (Stefan Assmann) [1209444]
