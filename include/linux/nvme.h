@@ -17,7 +17,6 @@
 
 #include <uapi/nvme.h>
 #include <linux/pci.h>
-#include <linux/miscdevice.h>
 #include <linux/kref.h>
 
 struct nvme_bar {
@@ -87,7 +86,7 @@ struct nvme_dev {
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
-	struct miscdevice miscdev;
+	struct device *device;
 	struct work_struct reset_work;
 	struct work_struct cpu_work;
 	char name[12];
