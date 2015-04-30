@@ -3813,6 +3813,7 @@ static void be_reset_nic_desc(struct be_nic_res_desc *nic)
 	nic->wol_param = 0x0F;
 	nic->tunnel_iface_count = 0xFFFF;
 	nic->direct_tenant_iface_count = 0xFFFF;
+	nic->bw_min = 0xFFFFFFFF;
 	nic->bw_max = 0xFFFFFFFF;
 }
 
