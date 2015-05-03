@@ -1283,7 +1283,7 @@ reserve:
 	}
 
 done:
-	return num ? -ENOSPC : 0;
+	return num ? -EINVAL : 0;
 }
 
 PMU_FORMAT_ATTR(cccr, "config:0-31" );
