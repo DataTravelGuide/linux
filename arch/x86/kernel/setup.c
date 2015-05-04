@@ -781,6 +781,7 @@ static void rh_check_supported(void)
 		switch (boot_cpu_data.x86_model) {
 		case 94: /* Skylake-S */
 		case 86: /* Broadwell-DE */
+		case 79: /* Broadwell-EP */
 		case 78: /* Skylake-Y */
 		case 77: /* Atom Avoton */
 		case 70: /* Crystal Well */
