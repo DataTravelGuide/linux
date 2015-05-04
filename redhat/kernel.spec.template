@@ -1705,6 +1705,22 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Sun May 03 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-558.el6]
+- [x86] mm: Linux stack ASLR implementation (Jacob Tanenbaum) [1195683] {CVE-2015-1593}
+- [scsi] megaraid_sas: do not process IOCTLs and SCSI commands during driver removal - a fix (Tomas Henzl) [1212364]
+- [fs] xfs: DIO write completion size updates race (Brian Foster) [1198440]
+- [x86] KVM: Fix lost interrupt on irr_pending race (Paolo Bonzini) [1213741]
+- [sound] ALSA: seq-oss: Initialize MIDI clients asynchronously (Jaroslav Kysela) [1212596]
+- [net] ipv6: Don't reduce hop limit for an interface (Denys Vlasenko) [1208493] {CVE-2015-2922}
+- [net] vlan: more careful checksum features handling (Vlad Yasevich) [1212384]
+- [kernel] tracing: Export tracing clock functions (Jerry Snitselaar) [1212502]
+- [input] wacom - use new input-mt routines (Aristeu Rozanski) [1111332 1111333]
+- [input] wacom: enable touch on Intuos 5 (Aristeu Rozanski) [1111332 1111333]
+- [netdrv] bnx2x: Fix kdump when iommu=on (Michal Schmidt) [1211695]
+- [netdrv] bnx2x: Fix busy_poll vs netpoll (Michal Schmidt) [1212365]
+- [netdrv] bnx2x: Fix statistics locking scheme (Michal Schmidt) [1211695]
+- [netdrv] bnx2x: Fix kdump on 4-port device (Michal Schmidt) [1211695]
+
 * Fri May 01 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-557.el6]
 - [firmware] cxgb4: update firmware to revision 1.13.32.0 for T4 and T5 (Jarod Wilson) [1189255]
 - [netdrv] cxgb4: Add warning msg when attaching to adapters which have FLASHes smaller than 2Mb (Sai Vemuri) [1211742]
