@@ -52,6 +52,11 @@ Red Hat Maintainers List (try to look for most precise areas first)
 
 		-----------------------------------
 
+Kernel Maintainer
+M:      Kurt Stutsman <kstutsma@redhat.com>
+S:      Maintained
+F:      redhat/
+
 8169 10/100/1000 GIGABIT ETHERNET DRIVER (r8169)
 M:	Ivan Vecera <ivecera@redhat.com>
 S:	Maintained
