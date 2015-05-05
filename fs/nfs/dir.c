@@ -1721,6 +1721,11 @@ static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
 	if (IS_ERR(ctx))
 		goto out_err_drop;
 
+	if (open_flags & O_TRUNC) {
+		attr.ia_valid |= ATTR_SIZE;
+		attr.ia_size = 0;
+	}
+
 	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, ctx);
 	if (error != 0)
 		goto out_put_ctx;
