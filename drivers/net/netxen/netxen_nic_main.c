@@ -500,11 +500,12 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	for (i = 0; i < 6; i++)
 		netdev->dev_addr[i] = *(p + 5 - i);
 
+	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
 	/* set station address */
 
-	if (!is_valid_ether_addr(netdev->dev_addr))
+	if (!is_valid_ether_addr(netdev->perm_addr))
 		dev_warn(&pdev->dev, "Bad MAC address %pM.\n", netdev->dev_addr);
 
 	return 0;
