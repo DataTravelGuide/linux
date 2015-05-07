@@ -66,6 +66,7 @@
 #include "t4_regs.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
+#include "t4fw_version.h"
 #include "l2t.h"
 
 #include <../drivers/net/bonding/bonding.h>
