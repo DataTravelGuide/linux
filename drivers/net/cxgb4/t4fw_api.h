@@ -99,7 +99,7 @@ enum fw_wr_opcodes {
 	FW_RI_BIND_MW_WR               = 0x18,
 	FW_RI_FR_NSMR_WR               = 0x19,
 	FW_RI_INV_LSTAG_WR             = 0x1a,
-	FW_LASTC2E_WR                  = 0x40
+	FW_LASTC2E_WR                  = 0x70
 };
 
 struct fw_wr_hdr {
@@ -875,6 +875,7 @@ enum fw_memtype_cf {
 	FW_MEMTYPE_CF_EXTMEM		= 0x2,
 	FW_MEMTYPE_CF_FLASH		= 0x4,
 	FW_MEMTYPE_CF_INTERNAL		= 0x5,
+	FW_MEMTYPE_CF_EXTMEM1           = 0x6,
 };
 
 struct fw_caps_config_cmd {
@@ -909,6 +910,7 @@ enum fw_params_mnem {
 	FW_PARAMS_MNEM_PFVF		= 2,	/* function params */
 	FW_PARAMS_MNEM_REG		= 3,	/* limited register access */
 	FW_PARAMS_MNEM_DMAQ		= 4,	/* dma queue params */
+	FW_PARAMS_MNEM_CHNET            = 5,    /* chnet params */
 	FW_PARAMS_MNEM_LAST
 };
 
@@ -2212,5 +2214,37 @@ enum fw_hdr_intfver {
 enum fw_hdr_flags {
 	FW_HDR_FLAGS_RESET_HALT = 0x00000001,
 };
+
+/* P C I E   F W   P F 7   R E G I S T E R */
+
+/* PF7 stores the Firmware Device Log parameters which allows Host Drivers to
+ * access the "devlog" which needing to contact firmware.  The encoding is
+ * mostly the same as that returned by the DEVLOG command except for the size
+ * which is encoded as the number of entries in multiples-1 of 128 here rather
+ * than the memory size as is done in the DEVLOG command.  Thus, 0 means 128
+ * and 15 means 2048.  This of course in turn constrains the allowed values
+ * for the devlog size ...
+ */
+#define PCIE_FW_PF_DEVLOG		7
+
+#define PCIE_FW_PF_DEVLOG_NENTRIES128_S	28
+#define PCIE_FW_PF_DEVLOG_NENTRIES128_M	0xf
+#define PCIE_FW_PF_DEVLOG_NENTRIES128_V(x) \
+	((x) << PCIE_FW_PF_DEVLOG_NENTRIES128_S)
+#define PCIE_FW_PF_DEVLOG_NENTRIES128_G(x) \
+	(((x) >> PCIE_FW_PF_DEVLOG_NENTRIES128_S) & \
+	 PCIE_FW_PF_DEVLOG_NENTRIES128_M)
+
+#define PCIE_FW_PF_DEVLOG_ADDR16_S	4
+#define PCIE_FW_PF_DEVLOG_ADDR16_M	0xffffff
+#define PCIE_FW_PF_DEVLOG_ADDR16_V(x)	((x) << PCIE_FW_PF_DEVLOG_ADDR16_S)
+#define PCIE_FW_PF_DEVLOG_ADDR16_G(x) \
+	(((x) >> PCIE_FW_PF_DEVLOG_ADDR16_S) & PCIE_FW_PF_DEVLOG_ADDR16_M)
+
+#define PCIE_FW_PF_DEVLOG_MEMTYPE_S	0
+#define PCIE_FW_PF_DEVLOG_MEMTYPE_M	0xf
+#define PCIE_FW_PF_DEVLOG_MEMTYPE_V(x)	((x) << PCIE_FW_PF_DEVLOG_MEMTYPE_S)
+#define PCIE_FW_PF_DEVLOG_MEMTYPE_G(x) \
+	(((x) >> PCIE_FW_PF_DEVLOG_MEMTYPE_S) & PCIE_FW_PF_DEVLOG_MEMTYPE_M)
 
 #endif /* _T4FW_INTERFACE_H_ */
