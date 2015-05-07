@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu May 07 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.57.1.el6]
+- [kernel] sched: Fix clock_gettime(CLOCK_[PROCESS/THREAD]_CPUTIME_ID) monotonicity (Seth Jennings) [1219500 1140024]
+- [kernel] sched: Replace use of entity_key() (Larry Woodman) [1219121 1124603]
+
 * Mon Apr 20 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.56.1.el6]
 - [net] dynticks: avoid flow_cache_flush() interrupting every core (Marcelo Leitner) [1210594 1191559]
 - [fs] dcache: return -ESTALE not -EBUSY on distributed fs race (J. Bruce Fields) [1207814 1061994]
