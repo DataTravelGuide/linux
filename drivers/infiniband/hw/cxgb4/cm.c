@@ -419,19 +419,16 @@ static struct dst_entry *find_route(struct c4iw_dev *dev, __be32 local_ip,
 			.dport = peer_port}
 		}
 	};
-
 	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
 		return NULL;
-	 n = dst_get_neighbour_noref(&rt->u.dst);
+	n = dst_get_neighbour_noref(&rt->u.dst);
 	if (!n)
 		return NULL;
 	if (!our_interface(dev, n->dev) &&
 	    !(n->dev->flags & IFF_LOOPBACK)) {
-		neigh_release(n);
 		dst_release(&rt->u.dst);
 		return NULL;
 	}
-	neigh_release(n);
 	return &rt->u.dst;
 }
 
@@ -1902,8 +1899,6 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 	err = 0;
 out:
 	rcu_read_unlock();
-
-	neigh_release(n);
 
 	return err;
 }
@@ -3585,7 +3580,6 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		pi = (struct port_info *)netdev_priv(pdev);
 		tx_chan = cxgb4_port_chan(pdev);
 	}
-	neigh_release(neigh);
 	if (!e) {
 		pr_err("%s - failed to allocate l2t entry!\n",
 		       __func__);
