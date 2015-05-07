@@ -328,6 +328,7 @@ int input_dev_i4s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 
 	if (features->device_type == BTN_TOOL_FINGER) {
+		__clear_bit(ABS_MISC, input_dev->absbit);
 		input_mt_init_slots(input_dev, features->touch_max, 0);
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, features->x_max, 0, 0);
 		input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, features->x_max, 0, 0);
