@@ -774,37 +774,50 @@ static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
 static int __cpuinit cache_shared_amd_cpu_map_setup(unsigned int cpu, int index)
 {
 	struct _cpuid4_info *this_leaf;
-	int ret, i, sibling;
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	int i, sibling;
 
-	ret = 0;
-	if (index == 3) {
-		ret = 1;
-		for_each_cpu(i, c->llc_shared_map) {
+	if (cpu_has_topoext) {
+		unsigned int apicid, nshared, first, last;
+
+		if (!per_cpu(cpuid4_info, cpu))
+			return 0;
+
+		this_leaf = CPUID4_INFO_IDX(cpu, index);
+		nshared = this_leaf->eax.split.num_threads_sharing + 1;
+		apicid = cpu_data(cpu).apicid;
+		first = apicid - (apicid % nshared);
+		last = first + nshared - 1;
+
+		for_each_online_cpu(i) {
+			apicid = cpu_data(i).apicid;
+			if ((apicid < first) || (apicid > last))
+				continue;
 			if (!per_cpu(cpuid4_info, i))
 				continue;
 			this_leaf = CPUID4_INFO_IDX(i, index);
-			for_each_cpu(sibling, c->llc_shared_map) {
-				if (!cpu_online(sibling))
+
+			for_each_online_cpu(sibling) {
+				apicid = cpu_data(sibling).apicid;
+				if ((apicid < first) || (apicid > last))
 					continue;
 				set_bit(sibling, this_leaf->shared_cpu_map);
 			}
 		}
-	} else if ((c->x86 == 0x15) && ((index == 1) || (index == 2))) {
-		ret = 1;
+	} else if (index == 3) {
 		for_each_cpu(i, cpu_sibling_mask(cpu)) {
 			if (!per_cpu(cpuid4_info, i))
 				continue;
 			this_leaf = CPUID4_INFO_IDX(i, index);
-			for_each_cpu(sibling, cpu_sibling_mask(cpu)) {
+			for_each_cpu(i, cpu_sibling_mask(cpu)) {
 				if (!cpu_online(sibling))
 					continue;
 				set_bit(sibling, this_leaf->shared_cpu_map);
 			}
 		}
-	}
+	} else
+		return 0;
 
-	return ret;
+	return 1;
 }
 
 static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
