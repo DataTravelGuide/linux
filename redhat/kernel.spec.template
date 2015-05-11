@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 11 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.23.1.el6]
+- [x86] crypto: sha256_ssse3 - fix stack corruption with SSSE3 and AVX implementations (Herbert Xu) [1218681 1201490]
+- [scsi] storvsc: ring buffer failures may result in I/O freeze (Vitaly Kuznetsov) [1215754 1171676]
+- [scsi] storvsc: get rid of overly verbose warning messages (Vitaly Kuznetsov) [1215753 1167967]
+- [scsi] storvsc: NULL pointer dereference fix (Vitaly Kuznetsov) [1215753 1167967]
+- [netdrv] ixgbe: fix detection of SFP+ capable interfaces (John Greene) [1213664 1150343]
+- [x86] crypto: aesni - fix memory usage in GCM decryption (Kurt Stutsman) [1213329 1213330] {CVE-2015-3331}
+
 * Wed Apr 22 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.22.1.el6]
 - [kernel] hrtimer: Prevent hrtimer_enqueue_reprogram race (Prarit Bhargava) [1211940 1136958]
 - [kernel] hrtimer: Preserve timer state in remove_hrtimer() (Prarit Bhargava) [1211940 1136958]
