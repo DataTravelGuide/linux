@@ -784,6 +784,7 @@ static void rh_check_supported(void)
 		case 79: /* Broadwell-EP */
 		case 78: /* Skylake-Y */
 		case 77: /* Atom Avoton */
+		case 71: /* Broadwell-H */
 		case 70: /* Crystal Well */
 			break;
 		default:
