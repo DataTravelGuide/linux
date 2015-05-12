@@ -3070,9 +3070,6 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer_event *event;
 	int nr_loops = 0;
 
-	if (ring_buffer_iter_empty(iter))
-		return NULL;
-
 	cpu_buffer = iter->cpu_buffer;
 	buffer = cpu_buffer->buffer;
 
@@ -3086,6 +3083,9 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 		rb_iter_reset(iter);
 
  again:
+	if (ring_buffer_iter_empty(iter))
+		return NULL;
+
 	/*
 	 * We repeat when a timestamp is encountered.
 	 * We can get multiple timestamps by nested interrupts or also
@@ -3099,6 +3099,11 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
+
+	if (iter->head >= local_read(&iter->head_page->page->commit)) {
+		rb_inc_iter(iter);
+		goto again;
+	}
 
 	event = rb_iter_head_event(iter);
 
