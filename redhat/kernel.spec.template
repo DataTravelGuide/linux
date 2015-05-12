@@ -1705,6 +1705,20 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue May 12 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-559.el6]
+- [x86] perf: Add cpu_<prepare|starting|dying> for core_pmu (Jiri Olsa) [1188336]
+- [block] NVMe: Initialize device list head before starting (David Milburn) [1158606]
+- [block] NVMe: Fix potential corruption on sync commands (David Milburn) [1158606]
+- [block] NVMe: Fix potential corruption during shutdown (David Milburn) [1158606]
+- [block] NVMe: Asynchronous controller probe (David Milburn) [1158606]
+- [block] NVMe: Register management handle under nvme class (David Milburn) [1158606]
+- [block] NVMe: Update module version (David Milburn) [1158606]
+- [block] NVMe: Handling devices incapable of I/O (David Milburn) [1158606]
+- [x86] Mark Intel Broadwell-EP processor as supported (Steve Best) [1132146]
+- [fs] nfs: Don't attempt to decode missing directory entries (Benjamin Coddington) [1182830]
+- [acpi] Skip creation of /proc/acpi/power_resource/ entries for duplicate power resource names (Lenny Szubowicz) [1206643]
+- [powerpc] perf: Cap 64bit userspace backtraces to PERF_MAX_STACK_DEPTH (Steve Best) [1213966]
+
 * Sun May 03 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-558.el6]
 - [x86] mm: Linux stack ASLR implementation (Jacob Tanenbaum) [1195683] {CVE-2015-1593}
 - [scsi] megaraid_sas: do not process IOCTLs and SCSI commands during driver removal - a fix (Tomas Henzl) [1212364]
