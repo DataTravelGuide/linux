@@ -35,7 +35,7 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"06.806.08.00-rh2"
+#define MEGASAS_VERSION				"06.806.08.00-rh3"
 #define MEGASAS_RELDATE				"Sep. 4, 2014"
 #define MEGASAS_EXT_VERSION			"Thu. Sep. 4 17:00:00 PDT 2014"
 
@@ -1879,7 +1879,7 @@ struct megasas_cmd {
 
 	u32 index;
 	u8 sync_cmd;
-	u8 cmd_status;
+	u8 cmd_status_drv;
 	u8 abort_aen;
 	u8 retry_for_fw_reset;
 
