@@ -906,7 +906,7 @@ gpe0_done:
 	lpc_ich_enable_gpio_space(dev);
 
 	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_GPIO]);
-	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_GPIO],
+	ret = mfd_add_devices(&dev->dev, -2, &lpc_ich_cells[LPC_GPIO],
 				1, NULL, 0);
 
 gpio_done:
@@ -977,7 +977,7 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev)
 	}
 
 	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_WDT]);
-	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_WDT],
+	ret = mfd_add_devices(&dev->dev, -2, &lpc_ich_cells[LPC_WDT],
 				1, NULL, 0);
 
 wdt_done:
