@@ -23,9 +23,15 @@ static int mfd_add_device(struct device *parent, int id,
 	struct resource *res;
 	struct platform_device *pdev;
 	int ret = -ENOMEM;
+	int platform_id;
 	int r;
 
-	pdev = platform_device_alloc(cell->name, id + cell->id);
+	if (id < 0)
+		platform_id = id;
+	else
+		platform_id = id + cell->id;
+
+	pdev = platform_device_alloc(cell->name, platform_id);
 	if (!pdev)
 		goto fail_alloc;
 
