@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu May 14 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.24.1.el6]
+- [mm] readahead: get back a sensible upper limit (Rafael Aquini) [1215755 1187940]
+
 * Mon May 11 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.23.1.el6]
 - [x86] crypto: sha256_ssse3 - fix stack corruption with SSSE3 and AVX implementations (Herbert Xu) [1218681 1201490]
 - [scsi] storvsc: ring buffer failures may result in I/O freeze (Vitaly Kuznetsov) [1215754 1171676]
