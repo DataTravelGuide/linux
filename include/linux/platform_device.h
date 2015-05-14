@@ -14,6 +14,9 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 
+#define PLATFORM_DEVID_NONE	(-1)
+#define PLATFORM_DEVID_AUTO	(-2)
+
 struct platform_device {
 	const char	* name;
 	int		id;
@@ -25,6 +28,9 @@ struct platform_device {
 
 	/* arch specific additions */
 	struct pdev_archdata	archdata;
+#ifndef __GENKSYMS__
+	bool		id_auto;
+#endif
 };
 
 #define platform_get_device_id(pdev)	((pdev)->id_entry)
