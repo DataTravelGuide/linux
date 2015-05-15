@@ -1482,6 +1482,8 @@ restart:
 				clear_bit(NFS_STATE_RECLAIM_NOGRACE,
 					&state->flags);
 				nfs4_put_open_state(state);
+				clear_bit(NFS4CLNT_RECLAIM_NOGRACE,
+					&state->flags);
 				spin_lock(&sp->so_lock);
 				goto restart;
 			}
