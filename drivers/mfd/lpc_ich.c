@@ -861,7 +861,6 @@ static int __devinit lpc_ich_init_gpio(struct pci_dev *dev)
 	u32 base_addr_cfg;
 	u32 base_addr;
 	int ret;
-	bool acpi_conflict = false;
 	struct resource *res;
 
 	/* Setup power management base register */
@@ -876,18 +875,7 @@ static int __devinit lpc_ich_init_gpio(struct pci_dev *dev)
 	res = &gpio_ich_res[ICH_RES_GPE0];
 	res->start = base_addr + ACPIBASE_GPE_OFF;
 	res->end = base_addr + ACPIBASE_GPE_END;
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		/*
-		 * This isn't fatal for the GPIO, but we have to make sure that
-		 * the platform_device subsystem doesn't see this resource
-		 * or it will register an invalid region.
-		 */
-		lpc_ich_cells[LPC_GPIO].num_resources--;
-		acpi_conflict = true;
-	} else {
-		lpc_ich_enable_acpi_space(dev);
-	}
+	lpc_ich_enable_acpi_space(dev);
 
 gpe0_done:
 	/* Setup GPIO base register */
@@ -912,12 +900,6 @@ gpe0_done:
 		break;
 	}
 
-	ret = acpi_check_resource_conflict(res);
-	if (ret) {
-		/* this isn't necessarily fatal for the GPIO */
-		acpi_conflict = true;
-		goto gpio_done;
-	}
 #if 0
 	lpc_chipset_info[priv->chipset].use_gpio = ret;
 #endif
@@ -928,9 +910,6 @@ gpe0_done:
 				1, NULL, 0);
 
 gpio_done:
-	if (acpi_conflict)
-		pr_warn("Resource conflict(s) found affecting %s\n",
-				lpc_ich_cells[LPC_GPIO].name);
 	return ret;
 }
 
