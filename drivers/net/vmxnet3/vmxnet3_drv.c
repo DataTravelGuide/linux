@@ -1294,7 +1294,8 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 					(union Vmxnet3_GenericDesc *)rcd);
 			skb->protocol = eth_type_trans(skb, adapter->netdev);
 
-			if (unlikely(adapter->vlan_grp && rcd->ts)) {
+
+			if (unlikely(rcd->ts)) {
 				vlan_hwaccel_receive_skb(skb,
 						adapter->vlan_grp, rcd->tci);
 			} else {
