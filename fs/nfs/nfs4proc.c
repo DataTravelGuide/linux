@@ -442,6 +442,7 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 {
 	unsigned long timestamp;
 	struct nfs_client *clp;
+	int ret = 1;
 
 	/*
 	 * sr_status remains 1 if an RPC level error occurred. The server
@@ -478,6 +479,16 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 			res->sr_slot - res->sr_session->fc_slot_table.slots,
 			res->sr_slot->seq_nr);
 		goto out_retry;
+	case -NFS4ERR_BADSLOT:
+		/*
+		 * The slot id we used was probably retired. Try again
+		 * using a different slot id.
+		 */
+		if (rpc_restart_call_prepare(task)) {
+			task->tk_status = 0;
+			ret = 0;
+		}
+		break;
 	default:
 		/* Just update the slot sequence no. */
 		++res->sr_slot->seq_nr;
@@ -486,7 +497,7 @@ out:
 	/* The session may be reset by one of the error handlers. */
 	dprintk("%s: Error %d free the slot \n", __func__, res->sr_status);
 	nfs41_sequence_free_slot(res);
-	return 1;
+	return ret;
 out_retry:
 	if (!rpc_restart_call(task))
 		goto out;
