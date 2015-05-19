@@ -1705,6 +1705,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon May 18 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-562.el6]
+- [rpm] kernel.spec: fix 561.el6 changelog (Kurt Stutsman)
+
 * Mon May 18 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-561.el6]
 - [net] Reinstate WIRELESS_EXT_SYSFS in net/wireless/Kconfig (John Linville) [1219434]
 - [netdrv] cxgb4: Firmware macro changes for fw verison 1.13.32.0 (Sai Vemuri) [1219233]
