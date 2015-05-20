@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed May 20 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.25.1.el6]
+- [net] ipvs: allow rescheduling of new connections when port reuse is detected (Marcelo Leitner) [1222771 1108514]
+- [net] ipvs: Fix reuse connection if real server is dead (Marcelo Leitner) [1222771 1108514]
+- [netdrv] bonding: fix locking in enslave failure path (Nikolay Aleksandrov) [1222483 1221856]
+- [netdrv] bonding: primary_slave & curr_active_slave are not cleaned on enslave failure (Nikolay Aleksandrov) [1222483 1221856]
+- [netdrv] bonding: vlans don't get deleted on enslave failure (Nikolay Aleksandrov) [1222483 1221856]
+- [netdrv] bonding: mc addresses don't get deleted on enslave failure (Nikolay Aleksandrov) [1222483 1221856]
+- [netdrv] bonding: IFF_BONDING is not stripped on enslave failure (Nikolay Aleksandrov) [1222483 1221856]
+- [netdrv] bonding: fix error handling if slave is busy v2 (Nikolay Aleksandrov) [1222483 1221856]
+
 * Thu May 14 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.24.1.el6]
 - [mm] readahead: get back a sensible upper limit (Rafael Aquini) [1215755 1187940]
 
