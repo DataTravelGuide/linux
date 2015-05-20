@@ -155,13 +155,26 @@ static inline size_t drbg_max_request_bytes(struct drbg_state *drbg)
 static inline size_t drbg_max_addtl(struct drbg_state *drbg)
 {
 	/* SP800-90A requires 2**35 bytes additional info str / pers str */
+#if (__BITS_PER_LONG == 32)
+	/*
+	 * SP800-90A allows smaller maximum numbers to be returned -- we
+	 * return SIZE_MAX - 1 to allow the verification of the enforcement
+	 * of this value in drbg_healthcheck_sanity.
+	 */
+	return ((~(size_t)0) - 1);
+#else
 	return (1UL<<35);
+#endif
 }
 
 static inline size_t drbg_max_requests(struct drbg_state *drbg)
 {
 	/* SP800-90A requires 2**48 maximum requests before reseeding */
+#if (__BITS_PER_LONG == 32)
+	return (~(size_t)0);
+#else
 	return (1UL<<48);
+#endif
 }
 
 /*
