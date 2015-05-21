@@ -4738,6 +4738,9 @@ static void dasd_eckd_handle_cuir(struct dasd_device *device, void *messages,
 	int pos, response;
 	ccw_device_get_schid(device->cdev, &sch_id);
 
+	if (MACHINE_IS_VM)
+		return;
+
 	/* get position of path in mask */
 	pos = 8 - ffs(lpum);
 	/* get channel path descriptor from this position */
