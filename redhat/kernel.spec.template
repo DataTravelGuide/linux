@@ -1705,6 +1705,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri May 22 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-563.el6]
+- [net] tcp: relax tcp_paws_check() (Thadeu Lima de Souza Cascardo) [1209147]
+- [x86] Mark Intel Broadwell-H processor as supported (Steve Best) [1132147]
+- [x86] kernel: ignore NMI IOCK when in kdump kernel (Jerry Snitselaar) [1196263]
+- [kernel] virtio: don't expose u16 in userspace api (Michael S. Tsirkin) [1154634]
+- [x86] apic/uv: Update the UV APIC HUB check (George Beshers) [1219207]
+- [x86] apic/uv: Update the UV APIC driver check (George Beshers) [1219207]
+- [x86] apic/uv: Update the APIC UV OEM check (George Beshers) [1219207]
+
 * Mon May 18 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-562.el6]
 - [rpm] kernel.spec: fix 561.el6 changelog (Kurt Stutsman)
 
