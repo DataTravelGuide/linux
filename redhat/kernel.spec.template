@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri May 22 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.26.1.el6]
+- [kernel] sched: Fix clock_gettime(CLOCK_[PROCESS/THREAD]_CPUTIME_ID) monotonicity (Seth Jennings) [1219501 1140024]
+- [kernel] sched: Replace use of entity_key() (Larry Woodman) [1219123 1124603]
+
 * Wed May 20 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.25.1.el6]
 - [net] ipvs: allow rescheduling of new connections when port reuse is detected (Marcelo Leitner) [1222771 1108514]
 - [net] ipvs: Fix reuse connection if real server is dead (Marcelo Leitner) [1222771 1108514]
