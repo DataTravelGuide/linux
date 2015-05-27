@@ -474,9 +474,11 @@ static int max_cb_time(void)
 
 int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
+	int maxtime = max_cb_time();
 	struct rpc_timeout	timeparms = {
-		.to_initval	= max_cb_time(),
+		.to_initval	= maxtime,
 		.to_retries	= 0,
+		.to_maxval	= maxtime,
 	};
 	struct rpc_create_args args = {
 		.net		= &init_net,
