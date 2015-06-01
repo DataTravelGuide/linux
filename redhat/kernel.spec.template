@@ -1701,6 +1701,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 01 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.27.1.el6]
+- [netdrv] mlx4_en: current_mac isn't updated in port up (Amir Vadai) [1224383 1081667]
+- [netdrv] mlx4_en: Fix mac_hash database inconsistency (Amir Vadai) [1224383 1081667]
+- [netdrv] mlx4_en: Protect MAC address modification with the state_lock mutex (Amir Vadai) [1224383 1081667]
+- [netdrv] mlx4_en: Fix errors in MAC address changing when port is down (Amir Vadai) [1224383 1081667]
+- [netdrv] mlx4: Verify port number in __mlx4_unregister_mac (Amir Vadai) [1224383 1081667]
+- [netdrv] mlx4_en: Adding missing initialization of perm_addr (Amir Vadai) [1225489 1120930]
+
 * Fri May 22 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.26.1.el6]
 - [kernel] sched: Fix clock_gettime(CLOCK_[PROCESS/THREAD]_CPUTIME_ID) monotonicity (Seth Jennings) [1219501 1140024]
 - [kernel] sched: Replace use of entity_key() (Larry Woodman) [1219123 1124603]
