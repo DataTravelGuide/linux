@@ -494,6 +494,10 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	BUG_ON(atomic_read(&sub_info->cred->usage) != 1);
 	validate_creds(sub_info->cred);
 
+	if (!sub_info->path) {
+		call_usermodehelper_freeinfo(sub_info);
+		return -EINVAL;
+	}
 	helper_lock();
 	if (!khelper_wq || usermodehelper_disabled) {
 		retval = -EBUSY;
