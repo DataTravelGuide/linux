@@ -1705,6 +1705,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 02 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-565.el6]
+- [x86] perf/intel: Add INST_RETIRED.ALL workarounds (Jiri Olsa) [1189949]
+- [x86] perf/intel: Add Broadwell core support (Jiri Olsa) [1189949]
+- [x86] perf/intel: Add new cache events table for Haswell (Jiri Olsa) [1189949]
+
 * Mon Jun 01 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-564.el6]
 - [tools] perf trace: Handle legacy syscalls tracepoints (Jiri Olsa) [1212402]
 - [scsi] qla2xxx: fix busy wait regression (Chad Dupuis) [1207270]
