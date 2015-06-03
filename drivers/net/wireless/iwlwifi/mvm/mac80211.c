@@ -87,6 +87,7 @@
 #include "testmode.h"
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
+#include "iwl-csr.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
