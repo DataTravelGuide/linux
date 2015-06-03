@@ -589,6 +589,7 @@ struct iwl_mvm {
 	struct mutex mutex;
 	struct list_head async_handlers_list;
 	spinlock_t async_handlers_lock;
+	struct workqueue_struct *workqueue;
 	struct work_struct async_handlers_wk;
 
 	struct work_struct roc_done_wk;

@@ -139,7 +139,7 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	 * it will of course synchronize the TX path to make sure that
 	 * any *new* TX will be rejected.
 	 */
-	schedule_work(&mvm->roc_done_wk);
+	queue_work(mvm->workqueue, &mvm->roc_done_wk);
 }
 
 static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)

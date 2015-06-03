@@ -796,7 +796,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		 * Don't rely on iwl_mvm_rm_sta to see the empty Tx queues.
 		 */
 		set_bit(sta_id, mvm->sta_drained);
-		schedule_work(&mvm->sta_drained_wk);
+		queue_work(mvm->workqueue, &mvm->sta_drained_wk);
 	}
 
 out:

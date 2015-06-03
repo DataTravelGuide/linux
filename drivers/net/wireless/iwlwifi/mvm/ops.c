@@ -452,6 +452,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_LIST_HEAD(&mvm->async_handlers_list);
 	spin_lock_init(&mvm->time_event_lock);
 
+	mvm->workqueue = create_singlethread_workqueue(DRV_NAME);
+	if (!mvm->workqueue) {
+		ieee80211_free_hw(mvm->hw);
+		return NULL;
+	}
+
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
 	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
@@ -593,6 +599,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	kfree(mvm->scan_cmd);
 	if (!cfg->no_power_up_nic_in_init || !mvm->nvm_file_name)
 		iwl_trans_op_mode_leave(trans);
+	destroy_workqueue(mvm->workqueue);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
 }
@@ -629,6 +636,8 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	iwl_free_nvm_data(mvm->nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
+
+	destroy_workqueue(mvm->workqueue);
 
 	ieee80211_free_hw(mvm->hw);
 }
@@ -754,7 +763,7 @@ static int iwl_mvm_rx_dispatch(struct iwl_op_mode *op_mode,
 		spin_lock(&mvm->async_handlers_lock);
 		list_add_tail(&entry->list, &mvm->async_handlers_list);
 		spin_unlock(&mvm->async_handlers_lock);
-		schedule_work(&mvm->async_handlers_wk);
+		queue_work(mvm->workqueue, &mvm->async_handlers_wk);
 		break;
 	}
 
@@ -935,7 +944,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		}
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
-		schedule_work(&reprobe->work);
+		queue_work(mvm->workqueue, &reprobe->work);
 	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -1303,7 +1312,7 @@ int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm)
 						   iwl_mvm_exit_d0i3_iterator,
 						   mvm);
 out:
-	schedule_work(&mvm->d0i3_exit_work);
+	queue_work(mvm->workqueue, &mvm->d0i3_exit_work);
 	return ret;
 }
 
