@@ -1366,7 +1366,7 @@ static int atmel_close(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
@@ -4053,7 +4053,7 @@ static int reset_atmel_card(struct net_device *dev)
 		wrqu.data.length = 0;
 		wrqu.data.flags = 0;
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
