@@ -3798,6 +3798,14 @@ static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 		nla_put_u64(msg, NL80211_STA_INFO_T_OFFSET,
 			    sinfo->t_offset))
 		goto nla_put_failure;
+	if ((sinfo->filled & STATION_INFO_BEACON_RX) &&
+	    nla_put_u64(msg, NL80211_STA_INFO_BEACON_RX,
+			sinfo->rx_beacon))
+		goto nla_put_failure;
+	if ((sinfo->filled & STATION_INFO_BEACON_SIGNAL_AVG) &&
+	    nla_put_u8(msg, NL80211_STA_INFO_BEACON_SIGNAL_AVG,
+		       sinfo->rx_beacon_signal_avg))
+		goto nla_put_failure;
 	nla_nest_end(msg, sinfoattr);
 
 	if ((sinfo->filled & STATION_INFO_ASSOC_REQ_IES) &&

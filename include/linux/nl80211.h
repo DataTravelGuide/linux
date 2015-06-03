@@ -2320,6 +2320,9 @@ enum nl80211_sta_bss_param {
  *	Same format as NL80211_STA_INFO_CHAIN_SIGNAL.
  * @NL80211_STA_EXPECTED_THROUGHPUT: expected throughput considering also the
  *	802.11 header (u32, kbps)
+ * @NL80211_STA_INFO_BEACON_RX: number of beacons received from this peer (u64)
+ * @NL80211_STA_INFO_BEACON_SIGNAL_AVG: signal strength average
+ *	for beacons only (u8, dBm)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -2352,7 +2355,8 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_CHAIN_SIGNAL,
 	NL80211_STA_INFO_CHAIN_SIGNAL_AVG,
 	NL80211_STA_INFO_EXPECTED_THROUGHPUT,
-
+	NL80211_STA_INFO_BEACON_RX,
+	NL80211_STA_INFO_BEACON_SIGNAL_AVG,
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
 	NL80211_STA_INFO_MAX = __NL80211_STA_INFO_AFTER_LAST - 1

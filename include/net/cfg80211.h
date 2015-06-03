@@ -931,6 +931,8 @@ enum station_info_flags {
 	STATION_INFO_CHAIN_SIGNAL		= BIT(26),
 	STATION_INFO_CHAIN_SIGNAL_AVG		= BIT(27),
 	STATION_INFO_EXPECTED_THROUGHPUT	= BIT(28),
+	STATION_INFO_BEACON_RX			= BIT(29),
+	STATION_INFO_BEACON_SIGNAL_AVG		= BIT(30),
 };
 
 /**
@@ -1054,6 +1056,9 @@ struct sta_bss_parameters {
  * @nonpeer_pm: non-peer mesh STA power save mode
  * @expected_throughput: expected throughput in kbps (including 802.11 headers)
  *	towards this station.
+ * @rx_beacon: number of beacons received from this peer
+ * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
+ *	from this peer
  */
 struct station_info {
 	u32 filled;
@@ -1094,6 +1099,8 @@ struct station_info {
 
 	u32 expected_throughput;
 
+	u64 rx_beacon;
+	u8 rx_beacon_signal_avg;
 	/*
 	 * Note: Add a new enum station_info_flags value for each new field and
 	 * use it to check which fields are initialized.
