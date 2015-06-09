@@ -3997,6 +3997,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 	 */
 	set_bit(__E1000_DOWN, &adapter->state);
 
+	netif_carrier_off(netdev);
+
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
 	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
@@ -4020,8 +4022,6 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
-
-	netif_carrier_off(netdev);
 
 	spin_lock(&adapter->stats64_lock);
 	e1000e_update_stats(adapter);
