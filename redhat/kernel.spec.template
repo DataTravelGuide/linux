@@ -1701,6 +1701,50 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 09 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.28.1.el6]
+- [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1202860 1185166] {CVE-2015-1805}
+- [net] ipv4: Missing sk_nulls_node_init in ping_unhash (Denys Vlasenko) [1218102 1218103] {CVE-2015-3636}
+- [net] conntrack: RFC5961 challenge ACK confuse conntrack LAST-ACK transition (Jesper Brouer) [1227467 1227468 1212801 1200541]
+- [net] tcp: Restore RFC5961-compliant behavior for SYN packets (Jesper Brouer) [1227467 1227468 1212801 1200541]
+- [x86] kernel: ignore NMI IOCK when in kdump kernel (Jerry Snitselaar) [1225054 1196263]
+- [x86] asm/entry/64: Remove a bogus 'ret_from_fork' optimization (Mateusz Guzik) [1209232 1209233] {CVE-2015-2830}
+- [fs] gfs2: try harder to obtain journal lock during recovery (Abhijith Das) [1222588 1110846]
+- [x86] perf: Add cpu_<prepare|starting|dying> for core_pmu (Jiri Olsa) [1219149 1188336]
+- [x86] mm: Linux stack ASLR implementation (Jacob Tanenbaum) [1195682 1195683] {CVE-2015-1593}
+- [fs] xfs: DIO write completion size updates race (Brian Foster) [1218499 1198440]
+- [net] ipv6: Don't reduce hop limit for an interface (Denys Vlasenko) [1208492 1208493] {CVE-2015-2922}
+- [net] vlan: more careful checksum features handling (Vlad Yasevich) [1221844 1212384]
+- [kernel] tracing: Export tracing clock functions (Jerry Snitselaar) [1217986 1212502]
+- [edac] sb_edac: fix corruption/crash on imbalanced Haswell home agents (Seth Jennings) [1213468 1210148]
+- [netdrv] tun: Fix csum_start with VLAN acceleration (Jason Wang) [1217189 1036482]
+- [netdrv] tun: unbreak truncated packet signalling (Jason Wang) [1217189 1036482]
+- [netdrv] tuntap: hardware vlan tx support (Jason Wang) [1217189 1036482]
+- [vhost] vhost-net: fix handle_rx buffer size (Jason Wang) [1217189 1036482]
+- [netdrv] ixgbe: fix X540 Completion timeout (John Greene) [1215855 1150343]
+- [char] tty: drop driver reference in tty_open fail path (Mateusz Guzik) [1201893 1201894] {CVE-2011-5321}
+- [netdrv] macvtap: Fix csum_start when VLAN tags are present (Vlad Yasevich) [1215914 1123697]
+- [netdrv] macvtap: signal truncated packets (Vlad Yasevich) [1215914 1123697]
+- [netdrv] macvtap: restore vlan header on user read (Vlad Yasevich) [1215914 1123697]
+- [netdrv] macvlan: Initialize vlan_features to turn on offload support (Vlad Yasevich) [1215914 1123697]
+- [netdrv] macvlan: Add support for 'always_on' offload features (Vlad Yasevich) [1215914 1123697]
+- [netdrv] mactap: Fix checksum errors for non-gso packets in bridge mode (Vlad Yasevich) [1215914 1123697]
+- [netdrv] revert "macvlan: fix checksums error when we are in bridge mode" (Vlad Yasevich) [1215914 1123697]
+- [net] core: Correctly set segment mac_len in skb_segment() (Vlad Yasevich) [1215914 1123697]
+- [net] core: generalize skb_segment() (Vlad Yasevich) [1215914 1123697]
+- [net] core: Add skb_headers_offset_update helper function (Vlad Yasevich) [1215914 1123697]
+- [netdrv] ixgbe: Correctly disable VLAN filter in promiscuous mode (Vlad Yasevich) [1215914 1123697]
+- [netdrv] ixgbe: remove vlan_filter_disable and enable functions (Vlad Yasevich) [1215914 1123697]
+- [netdrv] qlge: Fix TSO for non-accelerated vlan traffic (Vlad Yasevich) [1215914 1123697]
+- [netdrv] i40evf: Fix TSO and hw checksums for non-accelerated vlan packets (Vlad Yasevich) [1215914 1123697]
+- [netdrv] i40e: Fix TSO and hw checksums for non-accelerated vlan packets (Vlad Yasevich) [1215914 1123697]
+- [netdrv] ehea: Fix TSO and hw checksums with non-accelerated vlan packets (Vlad Yasevich) [1215914 1123697]
+- [netdrv] e1000: Fix TSO for non-accelerated vlan traffic (Vlad Yasevich) [1215914 1123697]
+- [kernel] ipc: sysv shared memory limited to 8TiB (George Beshers) [1224301 1171218]
+- [mm] hugetlb: improve page-fault scalability (Larry Woodman) [1212300 1120365]
+- [netdrv] hyperv: Fix the total_data_buflen in send path (Jason Wang) [1222556 1132918]
+- [crypto] drbg: fix maximum value checks on 32 bit systems (Herbert Xu) [1225950 1219907]
+- [crypto] drbg: remove configuration of fixed values (Herbert Xu) [1225950 1219907]
+
 * Mon Jun 01 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.27.1.el6]
 - [netdrv] mlx4_en: current_mac isn't updated in port up (Amir Vadai) [1224383 1081667]
 - [netdrv] mlx4_en: Fix mac_hash database inconsistency (Amir Vadai) [1224383 1081667]
