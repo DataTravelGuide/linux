@@ -1705,6 +1705,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 09 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-567.el6]
+- [serial] add ability to set IRQ via module parameter (Prarit Bhargava) [1210848]
+- [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1185166] {CVE-2015-1805}
+- [netdrv] macvlan: add VLAN filters to lowerdev (Ivan Vecera) [1213846]
+- [x86] Mark Intel Broadwell-DE processor as unsupported (Steve Best) [1226904]
+- [net] ipv6: reallocate addrconf router for ipv6 address when lo device up (Hannes Frederic Sowa) [1223610]
+- [mm] memory-failure: move refcount only in !MF_COUNT_INCREASED (Rafael Aquini) [1222832]
+- [mm] memory-failure: shift page lock from head page to tail page after thp split (Rafael Aquini) [1222832]
+- [mm] memory-failure: transfer page count from head page to tail page after split thp (Rafael Aquini) [1222832]
+- [scsi] lpfc: Correct loss of target discovery after cable swap (Rob Evers) [1226779]
+
 * Mon Jun 08 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-566.el6]
 - [netdrv] iwlwifi: use custom workqueue (Stanislaw Gruszka) [1134606]
 - [netdrv] iwlwifi: remove not used *bt-coex* files (Stanislaw Gruszka) [1134606]
