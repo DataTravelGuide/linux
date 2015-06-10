@@ -1005,6 +1005,15 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 		interface->xcast_mode = xcast_mode;
 	}
 
+	/* synchronize all of the addresses */
+	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
+		netdev_for_each_uc_addr(ha, dev)
+			fm10k_uc_unsync(dev, ha->addr);
+		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
+			netdev_for_each_mc_addr(mclist, dev)
+				fm10k_mc_sync(dev, mclist->da_addr);
+	}
+
 	fm10k_mbx_unlock(interface);
 }
 
@@ -1066,6 +1075,9 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
+	/* update xcast mode before syncronizing addresses */
+	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
+
 	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		netdev_for_each_uc_addr(ha, netdev)
@@ -1076,9 +1088,6 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 				fm10k_mc_sync(netdev, mclist->da_addr);	
 			}
 	}
-
-	/* update xcast mode */
-	hw->mac.ops.update_xcast_mode(hw, glort, xcast_mode);
 
 	fm10k_mbx_unlock(interface);
 
