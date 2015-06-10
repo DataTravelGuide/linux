@@ -360,7 +360,7 @@ static void fm10k_free_all_rx_resources(struct fm10k_intfc *interface)
  * fm10k_request_glort_range - Request GLORTs for use in configuring rules
  * @interface: board private structure
  *
- * This function allocates a range of glorts for this inteface to use.
+ * This function allocates a range of glorts for this interface to use.
  **/
 static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 {
@@ -790,7 +790,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 
 	fm10k_mbx_lock(interface);
 
-	/* only need to update the VLAN if not in promiscous mode */
+	/* only need to update the VLAN if not in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = hw->mac.ops.update_vlan(hw, vid, 0, set);
 		if (err)
@@ -981,7 +981,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	fm10k_mbx_lock(interface);
 
-	/* syncronize all of the addresses */
+	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		netdev_for_each_uc_addr(ha, dev)
 			fm10k_uc_unsync(dev, ha->addr);
@@ -1066,7 +1066,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
-	/* syncronize all of the addresses */
+	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		netdev_for_each_uc_addr(ha, netdev)
 			fm10k_uc_unsync(netdev, ha->addr);
