@@ -1451,15 +1451,13 @@ struct net_device *fm10k_alloc_netdev(void)
 	dev->vlan_features |= dev->features;
 
 #if 0
-	/* configure tunnel offloads */
-	/* NOT IN RHEL6 */
-	dev->hw_enc_features = NETIF_F_IP_CSUM |
-			       NETIF_F_TSO |
-			       NETIF_F_TSO6 |
-			       NETIF_F_TSO_ECN |
-			       NETIF_F_GSO_UDP_TUNNEL |
-			       NETIF_F_IPV6_CSUM |
-			       NETIF_F_SG;
+	/* NOT IN RHEL 6 */
+	dev->hw_enc_features |= NETIF_F_IP_CSUM |
+				NETIF_F_TSO |
+				NETIF_F_TSO6 |
+				NETIF_F_TSO_ECN |
+				NETIF_F_GSO_UDP_TUNNEL |
+				NETIF_F_IPV6_CSUM;
 #endif
 
 	/* we want to leave these both on as we cannot disable VLAN tag
