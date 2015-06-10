@@ -554,6 +554,8 @@ int fm10k_open(struct net_device *netdev)
 	fm10k_request_glort_range(interface);
 
 	/* Notify the stack of the actual queue counts */
+	netif_set_real_num_tx_queues(netdev,
+				     interface->num_tx_queues);
 
 	err = netif_set_real_num_rx_queues(netdev,
 					   interface->num_rx_queues);
@@ -610,7 +612,7 @@ int fm10k_close(struct net_device *netdev)
 static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	unsigned int r_idx = 0;
+	unsigned int r_idx = skb->queue_mapping;
 	int err;
 
 	if ((skb->protocol ==  htons(ETH_P_8021Q)) &&
