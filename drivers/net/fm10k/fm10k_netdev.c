@@ -1376,6 +1376,19 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 }
 #endif
 
+#if 0
+/* NOT IN RHEL6 */
+static netdev_features_t fm10k_features_check(struct sk_buff *skb,
+					      struct net_device *dev,
+					      netdev_features_t features)
+{
+	if (!skb->encapsulation || fm10k_tx_encap_offload(skb))
+		return features;
+
+	return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+}
+#endif
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -1404,6 +1417,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 #if 0
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
+	.ndo_features_check	= fm10k_features_check,
 #endif
 };
 
