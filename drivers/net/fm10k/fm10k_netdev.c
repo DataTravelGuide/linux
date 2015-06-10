@@ -20,6 +20,10 @@
 
 #include "fm10k.h"
 #include <linux/vmalloc.h>
+#if 0
+/* NO VXLAN SUPPORT HERE YET */ 
+#include <net/vxlan.h>
+#endif /* CONFIG_VXLAN */
 
 /**
  * fm10k_setup_tx_resources - allocate Tx resources (Descriptors)
@@ -373,6 +377,131 @@ static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 }
 
 /**
+ * fm10k_del_vxlan_port_all
+ * @interface: board private structure
+ *
+ * This function frees the entire vxlan_port list
+ **/
+static void fm10k_del_vxlan_port_all(struct fm10k_intfc *interface)
+{
+	struct fm10k_vxlan_port *vxlan_port;
+
+	/* flush all entries from list */
+	vxlan_port = list_first_entry_or_null(&interface->vxlan_port,
+					      struct fm10k_vxlan_port, list);
+	while (vxlan_port) {
+		list_del(&vxlan_port->list);
+		kfree(vxlan_port);
+		vxlan_port = list_first_entry_or_null(&interface->vxlan_port,
+						      struct fm10k_vxlan_port,
+						      list);
+	}
+}
+
+/**
+ * fm10k_restore_vxlan_port
+ * @interface: board private structure
+ *
+ * This function restores the value in the tunnel_cfg register after reset
+ **/
+static void fm10k_restore_vxlan_port(struct fm10k_intfc *interface)
+{
+	struct fm10k_hw *hw = &interface->hw;
+	struct fm10k_vxlan_port *vxlan_port;
+
+	/* only the PF supports configuring tunnels */
+	if (hw->mac.type != fm10k_mac_pf)
+		return;
+
+	vxlan_port = list_first_entry_or_null(&interface->vxlan_port,
+					      struct fm10k_vxlan_port, list);
+
+	/* restore tunnel configuration register */
+	fm10k_write_reg(hw, FM10K_TUNNEL_CFG,
+			(vxlan_port ? ntohs(vxlan_port->port) : 0) |
+			(ETH_P_TEB << FM10K_TUNNEL_CFG_NVGRE_SHIFT));
+}
+
+#if 0
+/* NOT IN RHEL6 */
+/**
+ * fm10k_add_vxlan_port
+ * @netdev: network interface device structure
+ * @sa_family: Address family of new port
+ * @port: port number used for VXLAN
+ *
+ * This funciton is called when a new VXLAN interface has added a new port
+ * number to the range that is currently in use for VXLAN.  The new port
+ * number is always added to the tail so that the port number list should
+ * match the order in which the ports were allocated.  The head of the list
+ * is always used as the VXLAN port number for offloads.
+ **/
+static void fm10k_add_vxlan_port(struct net_device *dev,
+				 sa_family_t sa_family, __be16 port) {
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_vxlan_port *vxlan_port;
+
+	/* only the PF supports configuring tunnels */
+	if (interface->hw.mac.type != fm10k_mac_pf)
+		return;
+
+	/* existing ports are pulled out so our new entry is always last */
+	fm10k_vxlan_port_for_each(vxlan_port, interface) {
+		if ((vxlan_port->port == port) &&
+		    (vxlan_port->sa_family == sa_family)) {
+			list_del(&vxlan_port->list);
+			goto insert_tail;
+		}
+	}
+
+	/* allocate memory to track ports */
+	vxlan_port = kmalloc(sizeof(*vxlan_port), GFP_ATOMIC);
+	if (!vxlan_port)
+		return;
+	vxlan_port->port = port;
+	vxlan_port->sa_family = sa_family;
+
+insert_tail:
+	/* add new port value to list */
+	list_add_tail(&vxlan_port->list, &interface->vxlan_port);
+
+	fm10k_restore_vxlan_port(interface);
+}
+
+/**
+ * fm10k_del_vxlan_port
+ * @netdev: network interface device structure
+ * @sa_family: Address family of freed port
+ * @port: port number used for VXLAN
+ *
+ * This funciton is called when a new VXLAN interface has freed a port
+ * number from the range that is currently in use for VXLAN.  The freed
+ * port is removed from the list and the new head is used to determine
+ * the port number for offloads.
+ **/
+static void fm10k_del_vxlan_port(struct net_device *dev,
+				 sa_family_t sa_family, __be16 port) {
+	struct fm10k_intfc *interface = netdev_priv(dev);
+	struct fm10k_vxlan_port *vxlan_port;
+
+	if (interface->hw.mac.type != fm10k_mac_pf)
+		return;
+
+	/* find the port in the list and free it */
+	fm10k_vxlan_port_for_each(vxlan_port, interface) {
+		if ((vxlan_port->port == port) &&
+		    (vxlan_port->sa_family == sa_family)) {
+			list_del(&vxlan_port->list);
+			kfree(vxlan_port);
+			break;
+		}
+	}
+
+	fm10k_restore_vxlan_port(interface);
+}
+#endif
+
+/**
  * fm10k_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -414,6 +543,12 @@ int fm10k_open(struct net_device *netdev)
 	if (err)
 		goto err_set_queues;
 
+#if 0
+	/* RH CAN'T SUPPORT VXLANS HERE YET */ 
+	/* update VXLAN port configuration */
+	vxlan_get_rx_port(netdev);
+
+#endif
 	fm10k_up(interface);
 
 	return 0;
@@ -446,6 +581,8 @@ int fm10k_close(struct net_device *netdev)
 	fm10k_down(interface);
 
 	fm10k_qv_free_irq(interface);
+
+	fm10k_del_vxlan_port_all(interface);
 
 	fm10k_free_all_tx_resources(interface);
 	fm10k_free_all_rx_resources(interface);
@@ -907,6 +1044,9 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 
 	/* record updated xcast mode state */
 	interface->xcast_mode = xcast_mode;
+
+	/* Restore tunnel configuration */
+	fm10k_restore_vxlan_port(interface);
 }
 
 void fm10k_reset_rx_state(struct fm10k_intfc *interface)
@@ -1046,6 +1186,8 @@ static const struct net_device_ops fm10k_netdev_ops = {
 #if 0
 	/* NOT IN RHEL6 */
 	.ndo_setup_tc		= fm10k_setup_tc,
+	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
+	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
 #endif
 };
 
@@ -1076,7 +1218,15 @@ struct net_device *fm10k_alloc_netdev(void)
 	interface->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	/* configure default features */
-	dev->features |= NETIF_F_SG;
+	dev->features |= NETIF_F_IP_CSUM |
+			 NETIF_F_IPV6_CSUM |
+			 NETIF_F_SG |
+			 NETIF_F_TSO |
+			 NETIF_F_TSO6 |
+			 NETIF_F_TSO_ECN |
+			 NETIF_F_GSO_UDP_TUNNEL |
+			 NETIF_F_RXHASH |
+			 NETIF_F_RXCSUM;
 
 	/* all features defined to this point should be changeable */
 	netdev_extended(dev)->hw_features |= dev->features;
@@ -1086,7 +1236,14 @@ struct net_device *fm10k_alloc_netdev(void)
 
 #if 0
 	/* configure tunnel offloads */
-	dev->hw_enc_features = NETIF_F_SG;
+	/* NOT IN RHEL6 */
+	dev->hw_enc_features = NETIF_F_IP_CSUM |
+			       NETIF_F_TSO |
+			       NETIF_F_TSO6 |
+			       NETIF_F_TSO_ECN |
+			       NETIF_F_GSO_UDP_TUNNEL |
+			       NETIF_F_IPV6_CSUM |
+			       NETIF_F_SG;
 #endif
 
 	/* we want to leave these both on as we cannot disable VLAN tag
