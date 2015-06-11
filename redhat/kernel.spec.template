@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jun 11 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.29.1.el6]
+- [net] gso: fix skb_segment for non-offset skb pointers (Jiri Benc) [1229586 1200533]
+
 * Tue Jun 09 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.28.1.el6]
 - [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1202860 1185166] {CVE-2015-1805}
 - [net] ipv4: Missing sk_nulls_node_init in ping_unhash (Denys Vlasenko) [1218102 1218103] {CVE-2015-3636}
