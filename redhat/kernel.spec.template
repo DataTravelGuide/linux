@@ -1705,6 +1705,26 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jun 11 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-568.el6]
+- [base] reduce boot delay on large memory systems (Seth Jennings) [1221389]
+- [md] dm: run queue on re-queue (Mike Snitzer) [1225158]
+- [fs] take i_mutex during prepare_binprm for set<u,g>id executables (Mateusz Guzik) [1216269] {CVE-2015-3339}
+- [netdrv] i40e: Make sure to be in VEB mode if SRIOV is enabled at probe (Stefan Assmann) [1206000]
+- [netdrv] i40e: start up in VEPA mode by default (Stefan Assmann) [1206000]
+- [netdrv] e1000e: Bump the version to 3.2.5 (John Greene) [1211531]
+- [netdrv] e1000e: fix unit hang during loopback test (John Greene) [1211531]
+- [netdrv] e1000e: fix systim issues (John Greene) [1211531]
+- [netdrv] e1000e: fix legacy interrupt handling in i219 (John Greene) [1211531]
+- [netdrv] e1000e: fix flush_desc_ring implementation (John Greene) [1211531]
+- [netdrv] e1000e: fix logical error in flush_desc_rings (John Greene) [1211531]
+- [netdrv] e1000e: remove call to do_div and sign mismatch warning (John Greene) [1211531]
+- [netdrv] e1000e: i219 execute unit hang fix on every reset or power state transition (John Greene) [1211531]
+- [netdrv] e1000e: i219 fix unit hang on reset and runtime D3 (John Greene) [1211531]
+- [netdrv] e1000e: fix call to do_div to use u64 arg (John Greene) [1211531]
+- [netdrv] e1000e: Cleanup handling of VLAN_HLEN as a part of max frame size (John Greene) [1211531]
+- [netdrv] e1000e: Correctly include VLAN_HLEN when changing interface MTU (John Greene) [1211531]
+- [netdrv] e1000e: call netif_carrier_off early on down (John Greene) [1211531]
+
 * Tue Jun 09 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-567.el6]
 - [serial] add ability to set IRQ via module parameter (Prarit Bhargava) [1210848]
 - [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1185166] {CVE-2015-1805}
