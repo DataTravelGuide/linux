@@ -1134,18 +1134,21 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
+				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
+						CIFSSEC_MAY_SIGN;
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlmv2", 6) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
+				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
+						CIFSSEC_MAY_SIGN;
 			} else if (strnicmp(value, "ntlmi", 5) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLM |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlm", 4) == 0) {
 				/* ntlm is default so can be turned off too */
-				vol->secFlg |= CIFSSEC_MAY_NTLM;
+				vol->secFlg |= CIFSSEC_MAY_NTLM |
+						CIFSSEC_MAY_SIGN;
 			} else if (strnicmp(value, "nontlm", 6) == 0) {
 				/* BB is there a better way to do this? */
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
