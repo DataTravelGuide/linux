@@ -1705,6 +1705,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 15 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-569.el6]
+- [gpu] drm/radeon: fix freeze for laptop with Turks/Thames GPU (Jerome Glisse) [1213297]
+- [md] dm: fix casting bug in dm_merge_bvec (Mike Snitzer) [1226453]
+- [fs] nfs: Send the size attribute on open(O_TRUNC) (Benjamin Coddington) [1208065]
+- [net] inet: fix processing of ICMP frag_needed messages (Sabrina Dubroca) [1210321]
+- [net] tcp: double default TSQ output bytes limit (Hannes Frederic Sowa) [1140590]
+- [hv] hv_balloon: correctly handle num_pages>INT_MAX case (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: correctly handle val.freeram<num_pages case (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: survive ballooning request with num_pages=0 (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: eliminate jumps in piecewiese linear floor function (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: do not online pages in offline blocks (Vitaly Kuznetsov) [1006234]
+- [hv] hv_balloon: don't lose memory when onlining order is not natural (Vitaly Kuznetsov) [1006234]
+
 * Thu Jun 11 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-568.el6]
 - [base] reduce boot delay on large memory systems (Seth Jennings) [1221389]
 - [md] dm: run queue on re-queue (Mike Snitzer) [1225158]
