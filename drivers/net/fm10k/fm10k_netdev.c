@@ -1023,6 +1023,7 @@ struct net_device *fm10k_alloc_netdev(void)
 
 	/* set net device and ethtool ops */
 	dev->netdev_ops = &fm10k_netdev_ops;
+	fm10k_set_ethtool_ops(dev);
 
 	set_netdev_ops_ext(dev, &fm10k_netdev_ops_ext);
 
