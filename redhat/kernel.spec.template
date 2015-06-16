@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jun 16 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.60.1.el6]
+- [fs] nfs: Don't attempt to decode missing directory entries (Benjamin Coddington) [1232133 1182830]
+
 * Fri May 29 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.59.1.el6]
 - [fs] pipe: fix pipe corruption and iovec overrun on partial copy (Seth Jennings) [1203784 1185166] {CVE-2015-1805}
 - [fs] xfs: DIO write completion size updates race (Brian Foster) [1218498 1198440]
