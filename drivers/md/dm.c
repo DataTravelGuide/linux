@@ -1154,7 +1154,6 @@ void dm_requeue_unmapped_request(struct request *clone)
 	if (elv_queue_empty(q))
 		blk_plug_device(q);
 	blk_requeue_request(q, rq);
-	blk_run_queue_async(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	rq_completed(md, rw, 0);
