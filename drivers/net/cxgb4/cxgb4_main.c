@@ -318,8 +318,8 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	{ 0, }
 };
 
-#define FW4_FNAME "cxgb4/t4fw.bin"
-#define FW5_FNAME "cxgb4/t5fw.bin"
+#define FW4_FNAME "cxgb4/t4fw-1.13.32.0.bin"
+#define FW5_FNAME "cxgb4/t5fw-1.13.32.0.bin"
 #define FW4_CFNAME "cxgb4/t4-config.txt"
 #define FW5_CFNAME "cxgb4/t5-config.txt"
 
