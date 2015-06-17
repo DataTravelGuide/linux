@@ -2134,6 +2134,9 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			goto fail_dropcount;
 		}
 
+		if (!helper_argv[0])
+			goto fail_dropcount;
+
 		cprm.limit = RLIM_INFINITY;
 
 		/* SIGPIPE can happen, but it's just never processed */
