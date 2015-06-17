@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 17 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.30.1.el6]
+- [net] Fix checksum features handling in netif_skb_features() (Vlad Yasevich) [1231690 1220247]
+
 * Thu Jun 11 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.29.1.el6]
 - [net] gso: fix skb_segment for non-offset skb pointers (Jiri Benc) [1229586 1200533]
 
