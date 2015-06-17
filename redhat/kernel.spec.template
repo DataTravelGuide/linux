@@ -1705,6 +1705,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jun 17 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-570.el6]
+- [block] fix ext_dev_lock lockdep report (Jeff Moyer) [1230927]
+- [md] Revert "md dm: run queue on re-queue" (Mike Snitzer) [1232007]
+- [firmware] another cxgb4 firmware load fixup (Sai Vemuri) [1189255]
+- [char] tty: Don't protect atomic operation with mutex (Aristeu Rozanski) [1184182]
+- [edac] i5100 add 6 ranks per channel (Aristeu Rozanski) [1171333]
+- [edac] i5100 clean controller to channel terms (Aristeu Rozanski) [1171333]
+- [crypto] rng - Remove krng (Herbert Xu) [1226418]
+- [crypto] drbg - Add stdrng alias and increase priority (Herbert Xu) [1226418]
+- [crypto] seqiv - Move IV seeding into init function (Herbert Xu) [1226418]
+- [crypto] eseqiv - Move IV seeding into init function (Herbert Xu) [1226418]
+- [crypto] chainiv - Move IV seeding into init function (Herbert Xu) [1226418]
+
 * Mon Jun 15 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-569.el6]
 - [gpu] drm/radeon: fix freeze for laptop with Turks/Thames GPU (Jerome Glisse) [1213297]
 - [md] dm: fix casting bug in dm_merge_bvec (Mike Snitzer) [1226453]
