@@ -2648,6 +2648,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	snd-ymfpci=	[HW,ALSA]
 
+	softirq_2ms_loop [KNL] Set softirq handling to 2ms maximum.  Default
+			 is existing RHEL6 behaviour.
+
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
 
