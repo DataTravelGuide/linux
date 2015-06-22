@@ -1705,6 +1705,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jun 22 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-571.el6]
+- [netdrv] bnx2x: Move statistics implementation into semaphores (Michal Schmidt) [1231348]
+- [scsi] storvsc: Set the SRB flags correctly when no data transfer is needed (Vitaly Kuznetsov) [1221404]
+
 * Wed Jun 17 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-570.el6]
 - [block] fix ext_dev_lock lockdep report (Jeff Moyer) [1230927]
 - [md] Revert "md dm: run queue on re-queue" (Mike Snitzer) [1232007]
