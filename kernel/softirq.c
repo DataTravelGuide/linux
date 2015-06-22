@@ -203,26 +203,11 @@ EXPORT_SYMBOL(local_bh_enable_ip);
  * should not be able to lock up the box.
  */
 #define MAX_SOFTIRQ_TIME  msecs_to_jiffies(2)
-#define MAX_SOFTIRQ_RESTART 10
-
-/* RHEL6: keep the default softirq processing window the same.
- * The softirq_2ms_loop kernel parameter allows one to use the
- * 2ms processing window. */
-static int softirq_2ms_loop;
-static int __init softirq_2ms_loop_setup(char *s)
-{
-	softirq_2ms_loop=1;
-	return 1;
-}
-
-__setup("softirq_2ms_loop", softirq_2ms_loop_setup);
-
 
 asmlinkage void __do_softirq(void)
 {
 	struct softirq_action *h;
 	__u32 pending;
-	int max_restart = MAX_SOFTIRQ_RESTART;
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	int cpu;
 
@@ -269,16 +254,10 @@ restart:
 
 	pending = local_softirq_pending();
 	if (pending) {
-		if (!softirq_2ms_loop) {
-			if (--max_restart)
-				goto restart;
-			wakeup_softirqd();
-		} else {
-			if (time_before(jiffies, end) && !need_resched())
-				goto restart;
+		if (time_before(jiffies, end) && !need_resched())
+			goto restart;
 
-			wakeup_softirqd();
-		}
+		wakeup_softirqd();
 	}
 
 	lockdep_softirq_exit();
