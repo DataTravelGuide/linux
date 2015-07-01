@@ -46,22 +46,21 @@ void _raw_spin_lock_wait(raw_spinlock_t *lp)
 	unsigned int owner;
 
 	while (1) {
-		owner = lp->owner_cpu;
+		owner = lp->lock;
 		if (!owner || smp_vcpu_scheduled(~owner)) {
 			for (count = spin_retry; count > 0; count--) {
 				if (__raw_spin_is_locked(lp))
 					continue;
-				if (_raw_compare_and_swap(&lp->owner_cpu, 0,
-							  cpu) == 0)
+				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 					return;
 			}
 			if (!MACHINE_IS_VM)
 				continue;
 		}
-		owner = lp->owner_cpu;
+		owner = lp->lock;
 		if (owner)
 			_raw_yield_cpu(~owner);
-		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
+		if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 			return;
 	}
 }
@@ -75,49 +74,33 @@ void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
 
 	local_irq_restore(flags);
 	while (1) {
-		owner = lp->owner_cpu;
+		owner = lp->lock;
 		if (!owner || smp_vcpu_scheduled(~owner)) {
 			for (count = spin_retry; count > 0; count--) {
 				if (__raw_spin_is_locked(lp))
 					continue;
 				local_irq_disable();
-				if (_raw_compare_and_swap(&lp->owner_cpu, 0,
-							  cpu) == 0)
+				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 					return;
 				local_irq_restore(flags);
 			}
 			if (!MACHINE_IS_VM)
 				continue;
 		}
-		owner = lp->owner_cpu;
+		owner = lp->lock;
 		if (owner)
 			_raw_yield_cpu(~owner);
 		local_irq_disable();
-		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
+		if (_raw_compare_and_swap(&lp->lock, 0, cpu))
 			return;
 		local_irq_restore(flags);
 	}
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait_flags);
 
-int _raw_spin_trylock_retry(raw_spinlock_t *lp)
+void _raw_spin_relax(raw_spinlock_t *lp)
 {
-	unsigned int cpu = ~smp_processor_id();
-	int count;
-
-	for (count = spin_retry; count > 0; count--) {
-		if (__raw_spin_is_locked(lp))
-			continue;
-		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
-			return 1;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(_raw_spin_trylock_retry);
-
-void _raw_spin_relax(raw_spinlock_t *lock)
-{
-	unsigned int cpu = lock->owner_cpu;
+	unsigned int cpu = lp->lock;
 	if (cpu != 0) {
 		if (MACHINE_IS_VM || MACHINE_IS_KVM ||
 		    !smp_vcpu_scheduled(~cpu))
@@ -125,6 +108,20 @@ void _raw_spin_relax(raw_spinlock_t *lock)
 	}
 }
 EXPORT_SYMBOL(_raw_spin_relax);
+
+int _raw_spin_trylock_retry(raw_spinlock_t *lp)
+{
+	int count;
+
+	for (count = spin_retry; count > 0; count--) {
+		if (__raw_spin_is_locked(lp))
+			continue;
+		if (__raw_spin_trylock_once(lp))
+			return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(_raw_spin_trylock_retry);
 
 void _raw_read_lock_wait(raw_rwlock_t *rw)
 {
@@ -139,7 +136,7 @@ void _raw_read_lock_wait(raw_rwlock_t *rw)
 		if (!__raw_read_can_lock(rw))
 			continue;
 		old = rw->lock & 0x7fffffffU;
-		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
+		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return;
 	}
 }
@@ -160,7 +157,7 @@ void _raw_read_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 			continue;
 		old = rw->lock & 0x7fffffffU;
 		local_irq_disable();
-		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
+		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return;
 	}
 }
@@ -175,7 +172,7 @@ int _raw_read_trylock_retry(raw_rwlock_t *rw)
 		if (!__raw_read_can_lock(rw))
 			continue;
 		old = rw->lock & 0x7fffffffU;
-		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
+		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return 1;
 	}
 	return 0;
@@ -193,7 +190,7 @@ void _raw_write_lock_wait(raw_rwlock_t *rw)
 		}
 		if (!__raw_write_can_lock(rw))
 			continue;
-		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
+		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return;
 	}
 }
@@ -212,7 +209,7 @@ void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 		if (!__raw_write_can_lock(rw))
 			continue;
 		local_irq_disable();
-		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
+		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return;
 	}
 }
@@ -225,7 +222,7 @@ int _raw_write_trylock_retry(raw_rwlock_t *rw)
 	while (count-- > 0) {
 		if (!__raw_write_can_lock(rw))
 			continue;
-		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
+		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return 1;
 	}
 	return 0;
