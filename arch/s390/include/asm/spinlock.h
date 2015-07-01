@@ -83,11 +83,6 @@ static inline int __raw_spin_trylock_once(raw_spinlock_t *lp)
 		      _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL));
 }
 
-static inline int __raw_spin_tryrelease_once(raw_spinlock_t *lp)
-{
-	return _raw_compare_and_swap(&lp->lock, SPINLOCK_LOCKVAL, 0);
-}
-
 static inline void __raw_spin_lock(raw_spinlock_t *lp)
 {
 	if (!__raw_spin_trylock_once(lp))
@@ -110,7 +105,13 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lp)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lp)
 {
-	__raw_spin_tryrelease_once(lp);
+	typecheck(unsigned int, lp->lock);
+	asm volatile(
+		"bcr	15,0\n"
+		"st	%1,%0\n"
+		: "+Q" (lp->lock)
+		: "d" (0)
+		: "cc", "memory");
 }
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
@@ -198,7 +199,13 @@ static inline void __raw_write_lock_flags(raw_rwlock_t *rw, unsigned long flags)
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	_raw_compare_and_swap(&rw->lock, 0x80000000, 0);
+	typecheck(unsigned int, rw->lock);
+	asm volatile(
+		"bcr	15,0\n"
+		"st	%1,%0\n"
+		: "+Q" (rw->lock)
+		: "d" (0)
+		: "cc", "memory");
 }
 
 static inline int __raw_read_trylock(raw_rwlock_t *rw)
