@@ -62,6 +62,11 @@ extern void _raw_spin_lock_wait_flags(raw_spinlock_t *, unsigned long flags);
 extern int _raw_spin_trylock_retry(raw_spinlock_t *);
 extern void _raw_spin_relax(raw_spinlock_t *lock);
 
+static inline int __raw_spin_value_unlocked(raw_spinlock_t lock)
+{
+	return lock.lock == 0;
+}
+
 static inline void __raw_spin_lock(raw_spinlock_t *lp)
 {
 	int old;
