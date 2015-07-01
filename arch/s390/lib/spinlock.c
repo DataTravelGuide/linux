@@ -46,22 +46,31 @@ void _raw_spin_lock_wait(raw_spinlock_t *lp)
 	unsigned int owner;
 
 	while (1) {
-		owner = lp->lock;
-		if (!owner || smp_vcpu_scheduled(~owner)) {
-			for (count = spin_retry; count > 0; count--) {
-				if (__raw_spin_is_locked(lp))
-					continue;
-				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
-					return;
-			}
-			if (!MACHINE_IS_VM)
-				continue;
+		owner = ACCESS_ONCE(lp->lock);
+		/* Try to get the lock if it is free. */
+		if (!owner) {
+			if (_raw_compare_and_swap(&lp->lock, 0, cpu))
+				return;
+			continue;
 		}
-		owner = lp->lock;
-		if (owner)
+		/* Check if the lock owner is running. */
+		if (!smp_vcpu_scheduled(~owner)) {
 			_raw_yield_cpu(~owner);
-		if (_raw_compare_and_swap(&lp->lock, 0, cpu))
-			return;
+			continue;
+		}
+		/* Loop for a while on the lock value. */
+		count = spin_retry;
+		do {
+			owner = ACCESS_ONCE(lp->lock);
+		} while (owner && count-- > 0);
+		if (!owner)
+			continue;
+		/*
+		 * For multiple layers of hypervisors, e.g. z/VM + LPAR
+		 * yield the CPU if the lock is still unavailable.
+		 */
+		if (MACHINE_IS_VM)
+			_raw_yield_cpu(~owner);
 	}
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait);
@@ -74,26 +83,32 @@ void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
 
 	local_irq_restore(flags);
 	while (1) {
-		owner = lp->lock;
-		if (!owner || smp_vcpu_scheduled(~owner)) {
-			for (count = spin_retry; count > 0; count--) {
-				if (__raw_spin_is_locked(lp))
-					continue;
-				local_irq_disable();
-				if (_raw_compare_and_swap(&lp->lock, 0, cpu))
-					return;
-				local_irq_restore(flags);
-			}
-			if (!MACHINE_IS_VM)
-				continue;
+		owner = ACCESS_ONCE(lp->lock);
+		/* Try to get the lock if it is free. */
+		if (!owner) {
+			local_irq_disable();
+			if (_raw_compare_and_swap(&lp->lock, 0, cpu))
+				return;
+			local_irq_restore(flags);
 		}
-		owner = lp->lock;
-		if (owner)
+		/* Check if the lock owner is running. */
+		if (!smp_vcpu_scheduled(~owner)) {
 			_raw_yield_cpu(~owner);
-		local_irq_disable();
-		if (_raw_compare_and_swap(&lp->lock, 0, cpu))
-			return;
-		local_irq_restore(flags);
+			continue;
+		}
+		/* Loop for a while on the lock value. */
+		count = spin_retry;
+		do {
+			owner = ACCESS_ONCE(lp->lock);
+		} while (owner && count-- > 0);
+		if (!owner)
+			continue;
+		/*
+		 * For multiple layers of hypervisors, e.g. z/VM + LPAR
+		 * yield the CPU if the lock is still unavailable.
+		 */
+		if (MACHINE_IS_VM)
+			_raw_yield_cpu(~owner);
 	}
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait_flags);
