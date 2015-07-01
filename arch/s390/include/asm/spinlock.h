@@ -13,6 +13,8 @@
 
 #include <linux/smp.h>
 
+#define SPINLOCK_LOCKVAL (S390_lowcore.spinlock_lockval)
+
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 
 static inline int
@@ -59,6 +61,11 @@ int _raw_spin_trylock_retry(raw_spinlock_t *);
 void _raw_spin_relax(raw_spinlock_t *);
 void _raw_spin_lock_wait_flags(raw_spinlock_t *, unsigned long flags);
 
+static inline u32 __raw_spin_lockval(int cpu)
+{
+	return ~cpu;
+}
+
 static inline int __raw_spin_value_unlocked(raw_spinlock_t lock)
 {
 	return lock.lock == 0;
@@ -71,16 +78,12 @@ static inline int __raw_spin_is_locked(raw_spinlock_t *lp)
 
 static inline int __raw_spin_trylock_once(raw_spinlock_t *lp)
 {
-	unsigned int new = ~smp_processor_id();
-
-	return _raw_compare_and_swap(&lp->lock, 0, new);
+	return _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL);
 }
 
 static inline int __raw_spin_tryrelease_once(raw_spinlock_t *lp)
 {
-	unsigned int old = ~smp_processor_id();
-
-	return _raw_compare_and_swap(&lp->lock, old, 0);
+	return _raw_compare_and_swap(&lp->lock, SPINLOCK_LOCKVAL, 0);
 }
 
 static inline void __raw_spin_lock(raw_spinlock_t *lp)

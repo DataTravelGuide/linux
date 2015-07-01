@@ -42,7 +42,7 @@ static inline void _raw_yield_cpu(int cpu)
 void _raw_spin_lock_wait(raw_spinlock_t *lp)
 {
 	int count = spin_retry;
-	unsigned int cpu = ~smp_processor_id();
+	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
 
 	while (1) {
@@ -69,7 +69,7 @@ EXPORT_SYMBOL(_raw_spin_lock_wait);
 void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
 {
 	int count = spin_retry;
-	unsigned int cpu = ~smp_processor_id();
+	unsigned int cpu = SPINLOCK_LOCKVAL;
 	unsigned int owner;
 
 	local_irq_restore(flags);

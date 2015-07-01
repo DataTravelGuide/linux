@@ -482,6 +482,11 @@ setup_lowcore(void)
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
 	lc->ftrace_func = S390_lowcore.ftrace_func;
+
+#ifdef CONFIG_SMP
+	lc->spinlock_lockval = __raw_spin_lockval(0);
+#endif
+
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
 }
