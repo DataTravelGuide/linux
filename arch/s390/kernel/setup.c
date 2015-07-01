@@ -563,7 +563,7 @@ setup_resources(void)
 unsigned long real_memory_size;
 EXPORT_SYMBOL_GPL(real_memory_size);
 
-static void __init init_storage_keys(unsigned long start, unsigned long end)
+void storage_key_init_range(unsigned long start, unsigned long end)
 {
 	unsigned long boundary, function, size;
 
@@ -964,7 +964,7 @@ setup_memory(void)
 			continue;
 		add_active_range(0, start_chunk, end_chunk);
 		pfn = max(start_chunk, start_pfn);
-		init_storage_keys(PFN_PHYS(pfn), PFN_PHYS(end_chunk));
+		storage_key_init_range(PFN_PHYS(pfn), PFN_PHYS(end_chunk));
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
