@@ -351,7 +351,17 @@ out:
 
 static int sclp_assign_storage(u16 rn)
 {
-	return do_assign_storage(0x000d0001, rn);
+	unsigned long long start, address;
+	int rc;
+
+	rc = do_assign_storage(0x000d0001, rn);
+	if (rc)
+		goto out;
+	start = address = rn2addr(rn);
+	for (; address < start + rzm; address += PAGE_SIZE)
+		page_set_storage_key(address, PAGE_DEFAULT_KEY);
+out:
+	return rc;
 }
 
 static int sclp_unassign_storage(u16 rn)
