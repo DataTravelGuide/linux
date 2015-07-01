@@ -252,17 +252,6 @@ static noinline __init void setup_lowcore_early(void)
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 }
 
-static noinline __init void setup_hpage(void)
-{
-	unsigned int facilities;
-
-	facilities = stfl();
-	if (!(facilities & (1UL << 23)) || !(facilities & (1UL << 29)))
-		return;
-	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
-	__ctl_set_bit(0, 23);
-}
-
 static __init void detect_mvpg(void)
 {
 #ifndef CONFIG_64BIT
@@ -354,10 +343,12 @@ static __init void detect_machine_facilities(void)
 	unsigned long long facility_bits;
 
 	facilities = stfl();
+	if (facilities & (1 << 23)) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
+		__ctl_set_bit(0,23);
+	}
 	if (facilities & (1 << 28))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (facilities & (1 << 23))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
 	if (facilities & (1 << 4))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if ((stfle(&facility_bits, 1) > 0) &&
@@ -457,7 +448,6 @@ void __init startup_init(void)
 	detect_diag9c();
 	detect_diag44();
 	detect_machine_facilities();
-	setup_hpage();
 	setup_transactional_execution();
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);
