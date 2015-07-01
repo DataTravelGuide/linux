@@ -1366,11 +1366,11 @@ static void blk_account_io_front_merge(struct request *req, sector_t newsector)
 				  &oldpart, &newpart)) {
 			if (oldpart) {
 				part_round_stats(cpu, oldpart);
-				oldpart->in_flight[rq_data_dir(req)]--;
+				atomic_dec(&oldpart->in_flight[rq_data_dir(req)]);
 			}
 			if (newpart) {
 				part_round_stats(cpu, newpart);
-				newpart->in_flight[rq_data_dir(req)]++;
+				atomic_inc(&newpart->in_flight[rq_data_dir(req)]);
 			}
 		}
 		part_stat_unlock();
