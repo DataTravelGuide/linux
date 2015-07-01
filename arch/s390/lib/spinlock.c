@@ -113,12 +113,9 @@ int _raw_spin_trylock_retry(raw_spinlock_t *lp)
 {
 	int count;
 
-	for (count = spin_retry; count > 0; count--) {
-		if (__raw_spin_is_locked(lp))
-			continue;
+	for (count = spin_retry; count > 0; count--)
 		if (__raw_spin_trylock_once(lp))
 			return 1;
-	}
 	return 0;
 }
 EXPORT_SYMBOL(_raw_spin_trylock_retry);
@@ -133,9 +130,9 @@ void _raw_read_lock_wait(raw_rwlock_t *rw)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_read_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if ((int) old < 0)
 			continue;
-		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return;
 	}
@@ -153,9 +150,9 @@ void _raw_read_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_read_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if ((int) old < 0)
 			continue;
-		old = rw->lock & 0x7fffffffU;
 		local_irq_disable();
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return;
@@ -169,9 +166,9 @@ int _raw_read_trylock_retry(raw_rwlock_t *rw)
 	int count = spin_retry;
 
 	while (count-- > 0) {
-		if (!__raw_read_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if ((int) old < 0)
 			continue;
-		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1))
 			return 1;
 	}
@@ -181,6 +178,7 @@ EXPORT_SYMBOL(_raw_read_trylock_retry);
 
 void _raw_write_lock_wait(raw_rwlock_t *rw)
 {
+	unsigned int old;
 	int count = spin_retry;
 
 	while (1) {
@@ -188,7 +186,8 @@ void _raw_write_lock_wait(raw_rwlock_t *rw)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_write_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if (old)
 			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return;
@@ -198,6 +197,7 @@ EXPORT_SYMBOL(_raw_write_lock_wait);
 
 void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 {
+	unsigned int old;
 	int count = spin_retry;
 
 	local_irq_restore(flags);
@@ -206,7 +206,8 @@ void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
 			_raw_yield();
 			count = spin_retry;
 		}
-		if (!__raw_write_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if (old)
 			continue;
 		local_irq_disable();
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
@@ -217,10 +218,12 @@ EXPORT_SYMBOL(_raw_write_lock_wait_flags);
 
 int _raw_write_trylock_retry(raw_rwlock_t *rw)
 {
+	unsigned int old;
 	int count = spin_retry;
 
 	while (count-- > 0) {
-		if (!__raw_write_can_lock(rw))
+		old = ACCESS_ONCE(rw->lock);
+		if (old)
 			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000))
 			return 1;

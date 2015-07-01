@@ -78,7 +78,9 @@ static inline int __raw_spin_is_locked(raw_spinlock_t *lp)
 
 static inline int __raw_spin_trylock_once(raw_spinlock_t *lp)
 {
-	return _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL);
+	barrier();
+	return likely(__raw_spin_value_unlocked(*lp) &&
+		      _raw_compare_and_swap(&lp->lock, 0, SPINLOCK_LOCKVAL));
 }
 
 static inline int __raw_spin_tryrelease_once(raw_spinlock_t *lp)
@@ -88,20 +90,20 @@ static inline int __raw_spin_tryrelease_once(raw_spinlock_t *lp)
 
 static inline void __raw_spin_lock(raw_spinlock_t *lp)
 {
-	if (unlikely(!__raw_spin_trylock_once(lp)))
+	if (!__raw_spin_trylock_once(lp))
 		_raw_spin_lock_wait(lp);
 }
 
 static inline void __raw_spin_lock_flags(raw_spinlock_t *lp,
 					 unsigned long flags)
 {
-	if (unlikely(!__raw_spin_trylock_once(lp)))
+	if (!__raw_spin_trylock_once(lp))
 		_raw_spin_lock_wait_flags(lp, flags);
 }
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lp)
 {
-	if (unlikely(!__raw_spin_trylock_once(lp)))
+	if (!__raw_spin_trylock_once(lp))
 		return _raw_spin_trylock_retry(lp);
 	return 1;
 }
@@ -147,19 +149,29 @@ extern void _raw_write_lock_wait(raw_rwlock_t *lp);
 extern void _raw_write_lock_wait_flags(raw_rwlock_t *lp, unsigned long flags);
 extern int _raw_write_trylock_retry(raw_rwlock_t *lp);
 
+static inline int __raw_read_trylock_once(raw_rwlock_t *rw)
+{
+	unsigned int old = ACCESS_ONCE(rw->lock);
+	return likely((int) old >= 0 &&
+		      _raw_compare_and_swap(&rw->lock, old, old + 1));
+}
+
+static inline int __raw_write_trylock_once(raw_rwlock_t *rw)
+{
+	unsigned int old = ACCESS_ONCE(rw->lock);
+	return likely(old == 0 &&
+		      _raw_compare_and_swap(&rw->lock, 0, 0x80000000));
+}
+
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
-	unsigned int old;
-	old = rw->lock & 0x7fffffffU;
-	if (!_raw_compare_and_swap(&rw->lock, old, old + 1))
+	if (!__raw_read_trylock_once(rw))
 		_raw_read_lock_wait(rw);
 }
 
 static inline void __raw_read_lock_flags(raw_rwlock_t *rw, unsigned long flags)
 {
-	unsigned int old;
-	old = rw->lock & 0x7fffffffU;
-	if (!_raw_compare_and_swap(&rw->lock, old, old + 1))
+	if (!__raw_read_trylock_once(rw))
 		_raw_read_lock_wait_flags(rw, flags);
 }
 
@@ -174,13 +186,13 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
-	if (unlikely(!_raw_compare_and_swap(&rw->lock, 0, 0x80000000)))
+	if (!__raw_write_trylock_once(rw))
 		_raw_write_lock_wait(rw);
 }
 
 static inline void __raw_write_lock_flags(raw_rwlock_t *rw, unsigned long flags)
 {
-	if (unlikely(!_raw_compare_and_swap(&rw->lock, 0, 0x80000000)))
+	if (!__raw_write_trylock_once(rw))
 		_raw_write_lock_wait_flags(rw, flags);
 }
 
@@ -191,18 +203,16 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 
 static inline int __raw_read_trylock(raw_rwlock_t *rw)
 {
-	unsigned int old;
-	old = rw->lock & 0x7fffffffU;
-	if (likely(_raw_compare_and_swap(&rw->lock, old, old + 1)))
-		return 1;
-	return _raw_read_trylock_retry(rw);
+	if (!__raw_read_trylock_once(rw))
+		return _raw_read_trylock_retry(rw);
+	return 1;
 }
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
-	if (likely(_raw_compare_and_swap(&rw->lock, 0, 0x80000000)))
-		return 1;
-	return _raw_write_trylock_retry(rw);
+	if (!__raw_write_trylock_once(rw))
+		return _raw_write_trylock_retry(rw);
+	return 1;
 }
 
 #define _raw_read_relax(lock)	cpu_relax()
