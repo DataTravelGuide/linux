@@ -37,8 +37,8 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 	if (count >= batch || count <= -batch) {
 		spin_lock(&fbc->lock);
 		fbc->count += count;
-		__this_cpu_write(*fbc->counters, 0);
 		spin_unlock(&fbc->lock);
+		__this_cpu_write(*fbc->counters, 0);
 	} else {
 		__this_cpu_write(*fbc->counters, count);
 	}
