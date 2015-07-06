@@ -9,8 +9,10 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 
+#ifdef CONFIG_HOTPLUG_CPU
 static LIST_HEAD(percpu_counters);
 static DEFINE_SPINLOCK(percpu_counters_lock);
+#endif
 
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
