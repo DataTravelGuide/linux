@@ -2028,7 +2028,7 @@ static void dm_request_fn(struct request_queue *q)
 	while (!blk_queue_plugged(q) && !blk_queue_stopped(q)) {
 		rq = blk_peek_request(q);
 		if (!rq)
-			goto out;
+			goto plug_and_out;
 
 		/* always use block 0 to find the target for flushes for now */
 		pos = 0;
