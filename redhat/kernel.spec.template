@@ -1701,6 +1701,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 09 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.32.1.el6]
+- [redhat] spec: Update dracut dependency to pull in drbg module (Frantisek Hrbata) [1241517 1241338]
+- [net] bridge: netfilter: don't call iptables on vlan packets if sysctl is off (Florian Westphal) [1238943 1236551]
+- [net] ebtables: Allow filtering of hardware accelerated vlan frames (Florian Westphal) [1238943 1236551]
+- [crypto] rng: Remove krng (Herbert Xu) [1233512 1226418]
+- [crypto] drbg: Add stdrng alias and increase priority (Herbert Xu) [1233512 1226418]
+- [crypto] seqiv: Move IV seeding into init function (Herbert Xu) [1233512 1226418]
+- [crypto] eseqiv: Move IV seeding into init function (Herbert Xu) [1233512 1226418]
+- [crypto] chainiv: Move IV seeding into init function (Herbert Xu) [1233512 1226418]
+- [virt] revert "revert "virtio-net: initialize vlan_features"" (Vlad Yasevich) [1240988 1132972]
+- [block] fix non-atomic access to genhd inflight structures (Jeff Moyer) [1230291 1151109]
+- [mm] mmap: change nr_ptes BUG_ON to WARN_ON (Oleg Nesterov) [1235931 1168780]
+
 * Tue Jun 23 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.31.1.el6]
 - [base] reduce boot delay on large memory systems (Seth Jennings) [1231643 1221389]
 - [fs] nfs: Don't attempt to decode missing directory entries (Benjamin Coddington) [1231075 1182830]
