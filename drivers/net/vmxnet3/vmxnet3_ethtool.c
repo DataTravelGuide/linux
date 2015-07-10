@@ -138,7 +138,7 @@ vmxnet3_rq_driver_stats[] = {
 					  rx_buf_alloc_failure) },
 };
 
-/* gloabl stats maintained by the driver */
+/* global stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_global_stats[] = {
 	/* description,         offset */
@@ -304,7 +304,7 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data) {
 		/* Update private LRO flag */
 		adapter->lro = lro_requested;
 
-		/* update harware LRO capability accordingly */
+		/* update hardware LRO capability accordingly */
 		if (lro_requested)
 			adapter->shared->devRead.misc.uptFeatures |=
 						cpu_to_le64(UPT1_F_LRO);
