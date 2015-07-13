@@ -1705,6 +1705,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 13 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.1.1.el6]
+- [redhat] Update dracut dependency to pull in drbg module (Herbert Xu) [1241518 1241338]
+
 * Wed Jul 01 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-573.el6]
 - [security] selinux: don't waste ebitmap space when importing NetLabel categories (Paul Moore) [1130197]
 - [x86] Revert "Add driver auto probing for x86 features v4" (Prarit Bhargava) [1231280]
