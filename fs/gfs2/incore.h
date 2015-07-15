@@ -177,6 +177,7 @@ struct gfs2_glock_operations {
 	const int go_type;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1
+#define GLOF_LRU    4
 };
 
 enum {
