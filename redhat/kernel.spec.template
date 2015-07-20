@@ -1705,6 +1705,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Jul 20 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-574.el6]
+- [fs] vfs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1241030]
+- [fs] vfs: Prevent syncing frozen file system (Lukas Czerner) [1241791]
+- [fs] vfs: Prevent freeing unlinked file to be indefinitely delayed (Lukas Czerner) [1236736]
+- [fs] vmcore: continue vmcore initialization if PT_NOTE is found empty (Baoquan He) [1236437]
+- [fs] vmcore: prevent PT_NOTE p_memsz overflow during header update (Baoquan He) [1236437]
+- [kernel] audit/fix non-modular users of module_init in core code (Baoquan He) [1236437]
+
 * Wed Jul 01 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-573.el6]
 - [security] selinux: don't waste ebitmap space when importing NetLabel categories (Paul Moore) [1130197]
 - [x86] Revert "Add driver auto probing for x86 features v4" (Prarit Bhargava) [1231280]
