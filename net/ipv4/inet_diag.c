@@ -129,6 +129,10 @@ static int inet_csk_diag_fill(struct sock *sk,
 			       &np->rcv_saddr);
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
 			       &np->daddr);
+
+		if (ipv6_only_sock(sk) &&
+		    nla_put_u8(skb, INET_DIAG_SKV6ONLY, 1))
+			goto nlmsg_failure;
 	}
 #endif
 
