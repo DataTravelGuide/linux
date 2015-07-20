@@ -130,8 +130,8 @@ static int inet_csk_diag_fill(struct sock *sk,
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
 			       &np->daddr);
 
-		if (ipv6_only_sock(sk) &&
-		    nla_put_u8(skb, INET_DIAG_SKV6ONLY, 1))
+		if (((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)) &&
+		    nla_put_u8(skb, INET_DIAG_SKV6ONLY, ipv6_only_sock(sk)))
 			goto nlmsg_failure;
 	}
 #endif
