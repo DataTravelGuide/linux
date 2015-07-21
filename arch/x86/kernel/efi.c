@@ -55,6 +55,7 @@ struct efi __read_mostly efi = {
 	.acpi       = EFI_INVALID_TABLE_ADDR,
 	.acpi20     = EFI_INVALID_TABLE_ADDR,
 	.smbios     = EFI_INVALID_TABLE_ADDR,
+	.smbios3    = EFI_INVALID_TABLE_ADDR,
 	.sal_systab = EFI_INVALID_TABLE_ADDR,
 	.boot_info  = EFI_INVALID_TABLE_ADDR,
 	.hcdp       = EFI_INVALID_TABLE_ADDR,
@@ -594,6 +595,10 @@ void __init efi_init(void)
 					SMBIOS_TABLE_GUID)) {
 			efi.smbios = config_tables[i].table;
 			printk(" SMBIOS=0x%lx ", config_tables[i].table);
+		} else if (!efi_guidcmp(config_tables[i].guid,
+					SMBIOS3_TABLE_GUID)) {
+			efi.smbios3 = config_tables[i].table;
+			printk(" SMBIOS3=0x%lx ", config_tables[i].table);
 #ifdef CONFIG_X86_UV
 		} else if (!efi_guidcmp(config_tables[i].guid,
 					UV_SYSTEM_TABLE_GUID)) {
