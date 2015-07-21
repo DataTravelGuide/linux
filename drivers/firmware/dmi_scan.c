@@ -80,9 +80,9 @@ static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	We have to be cautious here. We have seen BIOSes with DMI pointers
  *	pointing to completely the wrong place for example
  */
-static void dmi_table(u8 *buf,
-		      void (*decode)(const struct dmi_header *, void *),
-		      void *private_data)
+static void dmi_decode_table(u8 *buf,
+			     void (*decode)(const struct dmi_header *, void *),
+			     void *private_data)
 {
 	u8 *data = buf;
 	int i = 0;
@@ -135,7 +135,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, decode, NULL);
+	dmi_decode_table(buf, decode, NULL);
 
 	dmi_early_unmap(buf, dmi_len);
 	return 0;
@@ -1000,7 +1000,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *, void *),
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, decode, private_data);
+	dmi_decode_table(buf, decode, private_data);
 
 	dmi_unmap(buf);
 	return 0;
