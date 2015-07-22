@@ -1705,6 +1705,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 22 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.2.1.el6]
+- [net] udp: fix behavior of wrong checksums (Denys Vlasenko) [1240758 1240759] {CVE-2015-5364 CVE-2015-5366}
+- [fs] vfs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1243400 1241030]
+- [fs] vfs: Prevent syncing frozen file system (Lukas Czerner) [1243404 1241791]
+- [fs] vfs: Prevent freeing unlinked file to be indefinitely delayed (Lukas Czerner) [1243406 1236736]
+- [fs] vmcore: continue vmcore initialization if PT_NOTE is found empty (Baoquan He) [1245195 1236437]
+- [fs] vmcore: prevent PT_NOTE p_memsz overflow during header update (Baoquan He) [1245195 1236437]
+- [kernel] audit/fix non-modular users of module_init in core code (Baoquan He) [1245195 1236437]
+
 * Mon Jul 13 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.1.1.el6]
 - [redhat] Update dracut dependency to pull in drbg module (Herbert Xu) [1241518 1241338]
 
