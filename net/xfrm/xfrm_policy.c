@@ -1761,6 +1761,13 @@ int __xfrm_lookup(struct net *net, struct dst_entry **dst_p, struct flowi *fl,
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
 	int i, err, num_pols, num_xfrms, drop_pols = 0;
 
+	/* __xfrm{4,6}_selector_match() depend on this being
+	 * correctly set to allow for policy matching based
+	 * on outgoing interface, so populate it with what
+	 * the routing decision came up with. */
+	if (!fl->oif)
+		fl->oif = dst_orig->dev->ifindex;
+
 restart:
 	dst = NULL;
 	xdst = NULL;
