@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Jul 23 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.62.1.el6]
+- [netdrv] vmxnet3: prevent receive getting out of sequence on napi poll (Neil Horman) [1246089 1236564]
+
 * Thu Jul 09 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.61.1.el6]
 - [net] fix wrong mac_len calculation for vlans (Nikolay Aleksandrov) [1241450 1102044]
 - [kernel] audit: Call tty_audit_push_task() outside preempt disabled (Mateusz Guzik) [1236103 1097315]
