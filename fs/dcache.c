@@ -715,6 +715,55 @@ out:
 }
 
 /*
+ * Unhash all children of the dentry and evict those with zero refcount.
+ * This needs to be called from d_delete to make sure that this dentry
+ * (which belongs to a directory) can be safely killed.
+ */
+static void unhash_offsprings(struct dentry *dentry)
+{
+	struct dentry *loop;
+	LIST_HEAD(tmp);
+
+	if (list_empty(&dentry->d_subdirs))
+		return;
+
+	list_for_each_entry(loop, &dentry->d_subdirs,
+			    d_u.d_child) {
+		spin_lock(&loop->d_lock);
+		if (d_unhashed(loop)) {
+			spin_unlock(&loop->d_lock);
+			continue;
+		}
+
+		if (atomic_read(&loop->d_count)) {
+			__d_drop(loop);
+			spin_unlock(&loop->d_lock);
+			continue;
+		}
+
+		list_move_tail(&loop->d_lru, &tmp);
+		spin_unlock(&loop->d_lock);
+	}
+
+	while (!list_empty(&tmp)) {
+		loop = list_entry(tmp.prev, struct dentry, d_lru);
+		dentry_lru_del_init(loop);
+		spin_lock(&loop->d_lock);
+		/*
+		 * This should never happen as the directory is already
+		 * removed.
+		 */
+		if (atomic_read(&loop->d_count)) {
+			__d_drop(loop);
+			spin_unlock(&loop->d_lock);
+			WARN_ON(1);
+			continue;
+		}
+		prune_one_dentry(loop);
+	}
+}
+
+/*
  * destroy the dentries attached to a superblock on unmounting
  * - we don't need to use dentry->d_lock, and only need dcache_lock when
  *   removing the dentry from the system lists and hashes because:
@@ -1564,8 +1613,11 @@ void d_delete(struct dentry * dentry)
 
 	if (!d_unhashed(dentry))
 		__d_drop(dentry);
-
 	spin_unlock(&dentry->d_lock);
+
+	if (isdir)
+		unhash_offsprings(dentry);
+
 	spin_unlock(&dcache_lock);
 
 	fsnotify_nameremove(dentry, isdir);
