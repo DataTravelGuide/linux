@@ -58,7 +58,7 @@ S:      Maintained
 F:      redhat/
 
 8169 10/100/1000 GIGABIT ETHERNET DRIVER (r8169)
-M:	Ivan Vecera <ivecera@redhat.com>
+M:	Corinna Vinschen <vinschen@redhat.com>
 S:	Maintained
 F:	drivers/net/r8169.c
 
@@ -68,7 +68,7 @@ S:	Maintained
 F:	drivers/net/8139cp.c
 
 8139TOO 10/100/1000 GIGABIT ETHERNET DRIVER (8139too)
-M:	Ivan Vecera <ivecera@redhat.com>
+M:	Corinna Vinschen <vinschen@redhat.com>
 S:	Maintained
 F:	drivers/net/8139too.c
 
