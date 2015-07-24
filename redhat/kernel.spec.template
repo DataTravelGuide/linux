@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Jul 24 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.33.1.el6]
+- [fs] vfs: Prevent syncing frozen file system (Lukas Czerner) [1243402 1241791]
+- [fs] vfs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1243397 1241030]
+- [fs] vfs: Prevent freeing unlinked file to be indefinitely delayed (Lukas Czerner) [1243405 1236736]
+
 * Thu Jul 09 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.32.1.el6]
 - [redhat] spec: Update dracut dependency to pull in drbg module (Frantisek Hrbata) [1241517 1241338]
 - [net] bridge: netfilter: don't call iptables on vlan packets if sysctl is off (Florian Westphal) [1238943 1236551]
