@@ -1701,6 +1701,16 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jul 29 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.34.1.el6]
+- [kernel] sched, cgroup: replace signal_struct->group_rwsem with a global percpu_rwsem (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu_rw_semaphore: add lockdep annotations (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu_rw_semaphore: kill ->writer_mutex, add ->write_ctr (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu_rw_semaphore: reimplement to not block the readers unnecessarily (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu-rwsem: use synchronize_sched_expedited (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu-rw-semaphores: use rcu_read_lock_sched (Oleg Nesterov) [1246080 1198732]
+- [kernel] percpu-rw-semaphores: use light/heavy barriers (Oleg Nesterov) [1246080 1198732]
+- [kernel] blockdev: turn a rw semaphore into a percpu rw semaphore (Oleg Nesterov) [1246080 1198732]
+
 * Fri Jul 24 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.33.1.el6]
 - [fs] vfs: Prevent syncing frozen file system (Lukas Czerner) [1243402 1241791]
 - [fs] vfs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1243397 1241030]
