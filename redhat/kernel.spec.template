@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 03 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.63.1.el6]
+- [net] ipv6: fix headroom calculation in udp6_ufo_fragment (Nikolay Aleksandrov) [1248945 1121522]
+- [net] udp6: Fix udp fragmentation for tunnel traffic (Nikolay Aleksandrov) [1248945 1121522]
+
 * Thu Jul 23 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.62.1.el6]
 - [netdrv] vmxnet3: prevent receive getting out of sequence on napi poll (Neil Horman) [1246089 1236564]
 
