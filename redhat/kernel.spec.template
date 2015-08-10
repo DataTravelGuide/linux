@@ -1705,6 +1705,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 10 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.3.1.el6]
+- [md] Revert "dm: don't schedule delayed run of the queue if nothing to do" (Mike Snitzer) [1246095 1240767]
+- [md] Revert "dm: only run the queue on completion if congested or no requests pending" (Mike Snitzer) [1246095 1240767]
+
 * Wed Jul 22 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.2.1.el6]
 - [net] udp: fix behavior of wrong checksums (Denys Vlasenko) [1240758 1240759] {CVE-2015-5364 CVE-2015-5366}
 - [fs] vfs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1243400 1241030]
