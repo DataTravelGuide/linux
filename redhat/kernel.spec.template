@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 12 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.35.1.el6]
+- [kernel] cgroup: fix cgroup_rmdir vs close<eventfd> race (Johannes Weiner) [1251183 1167772]
+
 * Wed Jul 29 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.34.1.el6]
 - [kernel] sched, cgroup: replace signal_struct->group_rwsem with a global percpu_rwsem (Oleg Nesterov) [1246080 1198732]
 - [kernel] percpu_rw_semaphore: add lockdep annotations (Oleg Nesterov) [1246080 1198732]
