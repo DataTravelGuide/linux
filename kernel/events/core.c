@@ -3205,6 +3205,7 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 	struct ring_buffer *rb;
 	unsigned int events = POLL_HUP;
 
+	poll_wait(file, &event->waitq, wait);
 	/*
 	 * Race between perf_event_set_output() and perf_poll(): perf_poll()
 	 * grabs the rb reference but perf_event_set_output() overrides it.
@@ -3231,9 +3232,6 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 	rcu_read_unlock();
 
 	mutex_unlock(&event->mmap_mutex);
-
-	poll_wait(file, &event->waitq, wait);
-
 	return events;
 }
 
