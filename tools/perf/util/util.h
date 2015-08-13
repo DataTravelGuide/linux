@@ -75,6 +75,7 @@
 #include <api/fs/debugfs.h>
 #include <termios.h>
 #include <linux/bitops.h>
+#include <termios.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -311,6 +312,7 @@ extern int cacheline_size;
 
 void get_term_dimensions(struct winsize *ws);
 bool find_process(const char *name);
+void set_term_quiet_input(struct termios *old);
 
 struct parse_tag {
 	char tag;
