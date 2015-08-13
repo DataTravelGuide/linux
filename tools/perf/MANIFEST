@@ -27,3 +27,4 @@ include/linux/hw_breakpoint.h
 arch/x86/include/asm/svm.h
 arch/x86/include/asm/vmx.h
 arch/x86/include/asm/kvm_host.h
+arch/x86/include/asm/kvm_perf.h
