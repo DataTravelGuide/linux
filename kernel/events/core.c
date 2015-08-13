@@ -260,14 +260,9 @@ static inline void perf_get_cgroup(struct perf_event *event)
 	css_get(&event->cgrp->css);
 }
 
-static inline void perf_put_cgroup(struct perf_event *event)
-{
-	css_put(&event->cgrp->css);
-}
-
 static inline void perf_detach_cgroup(struct perf_event *event)
 {
-	perf_put_cgroup(event);
+	css_put(&event->cgrp->css);
 	event->cgrp = NULL;
 }
 
