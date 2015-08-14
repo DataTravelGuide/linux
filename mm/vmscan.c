@@ -241,6 +241,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 		unsigned long max_pass;
 
 		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
+		/* -> shrink returns an int; many have overflow issues */
+		if (max_pass > INT_MAX)
+			max_pass = INT_MAX;
 		delta = (4 * scanned) / shrinker->seeks;
 		delta *= max_pass;
 		do_div(delta, lru_pages + 1);
