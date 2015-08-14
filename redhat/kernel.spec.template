@@ -1705,6 +1705,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 12 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-577.el6]
+- [net] Always propagate flag changes to interfaces (Jarod Wilson) [1222823]
+- [s390] zcrypt: Fixed reset and interrupt handling of AP queues (Hendrik Brueckner) [1238308]
+- [scsi] zfcp: Use correct length for FCP_RSP_INFO (Hendrik Brueckner) [1223105]
+- [tools] perf: avoid possible race condition in copyfile (Milos Vyletel) [1229673]
+- [tools] perf: Introduce copyfile_offset function (Milos Vyletel) [1229673]
+- [tools] perfs: Add rm_rf utility function (Milos Vyletel) [1229673]
+
 * Tue Aug 04 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-576.el6]
 - [netdrv] fm10k: Bump driver version to 0.15.2 (Neil Horman) [1150346]
 - [netdrv] fm10k: corrected VF multicast update (Neil Horman) [1150346]
