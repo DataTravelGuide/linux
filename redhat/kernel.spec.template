@@ -1705,6 +1705,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 14 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.4.1.el6]
+- [firmware] add iwlwifi-8000C-13 ucode (Stanislaw Gruszka) [1242969 1134603]
+- [net] Always propagate flag changes to interfaces (Jarod Wilson) [1253734 1222823]
+- [s390] zcrypt: Fixed reset and interrupt handling of AP queues (Hendrik Brueckner) [1253729 1238308]
+- [scsi] zfcp: Use correct length for FCP_RSP_INFO (Hendrik Brueckner) [1253728 1223105]
+- [tools] perf: avoid possible race condition in copyfile (Milos Vyletel) [1253733 1229673]
+- [tools] perf: Introduce copyfile_offset function (Milos Vyletel) [1253733 1229673]
+- [tools] perfs: Add rm_rf utility function (Milos Vyletel) [1253733 1229673]
+- [net] vlan: restore VLAN_GROUP_ARRAY_LEN definition (Michal Schmidt) [1246102 1242145]
+- [md] dm btree remove: fix bug in redistribute3 (Mike Snitzer) [1246105 1242023]
+- [netdrv] vmxnet3: prevent receive getting out of sequence on napi poll (Neil Horman) [1246092 1236564]
+- [kernel] sched, cgroup: replace signal_struct->group_rwsem with a global percpu_rwsem (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu_rw_semaphore: add lockdep annotations (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu_rw_semaphore: kill ->writer_mutex, add ->write_ctr (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu_rw_semaphore: reimplement to not block the readers unnecessarily (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu-rwsem: use synchronize_sched_expedited (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu-rw-semaphores: use rcu_read_lock_sched (Oleg Nesterov) [1246081 1198732]
+- [kernel] percpu-rw-semaphores: use light/heavy barriers (Oleg Nesterov) [1246081 1198732]
+- [kernel] blockdev: turn a rw semaphore into a percpu rw semaphore (Oleg Nesterov) [1246081 1198732]
+- [kernel] softirq: Add softirq_2ms_loop and default to existing RHEL6 behaviour (Prarit Bhargava) [1246064 970263]
+- [kernel] softirq: reduce latencies (Prarit Bhargava) [1246064 970263]
+
 * Mon Aug 10 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.3.1.el6]
 - [md] Revert "dm: don't schedule delayed run of the queue if nothing to do" (Mike Snitzer) [1246095 1240767]
 - [md] Revert "dm: only run the queue on completion if congested or no requests pending" (Mike Snitzer) [1246095 1240767]
