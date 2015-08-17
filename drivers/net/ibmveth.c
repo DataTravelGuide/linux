@@ -57,7 +57,7 @@ static struct kobj_type ktype_veth_pool;
 
 static const char ibmveth_driver_name[] = "ibmveth";
 static const char ibmveth_driver_string[] = "IBM Power Virtual Ethernet Driver";
-#define ibmveth_driver_version "1.04"
+#define ibmveth_driver_version "1.05"
 
 MODULE_AUTHOR("Santiago Leon <santil@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("IBM Power Virtual Ethernet Driver");
@@ -99,6 +99,7 @@ struct ibmveth_stat ibmveth_stats[] = {
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
 	{ "fw_enabled_ipv6_csum", IBMVETH_STAT_OFF(fw_ipv6_csum_support) },
+	{ "tx_large_packets", IBMVETH_STAT_OFF(tx_large_packets) },
 };
 
 /* simple methods of getting data from the current rxq entry */
@@ -893,6 +894,18 @@ static int ibmveth_set_tx_csum(struct net_device *dev, u32 data)
 	return rc;
 }
 
+static int ibmveth_set_tso(struct net_device *dev, u32 data)
+{
+	if (data) {
+		dev->features |= NETIF_F_TSO;
+		netdev_info(dev, "TSO feature requires all partitions to have updated driver");
+	} else {
+		dev->features &= ~NETIF_F_TSO;
+	}
+
+	return 0;
+}
+
 static u32 ibmveth_get_rx_csum(struct net_device *dev)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
@@ -937,6 +950,8 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.set_tx_csum		= ibmveth_set_tx_csum,
 	.get_rx_csum		= ibmveth_get_rx_csum,
 	.set_rx_csum		= ibmveth_set_rx_csum,
+	.set_tso		= ibmveth_set_tso,
+	.get_tso		= ethtool_op_get_tso,
 	.get_strings		= ibmveth_get_strings,
 	.get_sset_count		= ibmveth_get_sset_count,
 	.get_ethtool_stats	= ibmveth_get_ethtool_stats,
@@ -1074,6 +1089,15 @@ retry_bounce:
 
 		descs[i+1].fields.flags_len = desc_flags | frag->size;
 		descs[i+1].fields.address = dma_addr;
+	}
+
+	if (skb_is_gso(skb) && !skb_is_gso_v6(skb)) {
+		/* Put -1 in the IP checksum to tell phyp it
+		 *  is a largesend packet and put the mss in the TCP checksum.
+		 */
+		ip_hdr(skb)->check = 0xffff;
+		tcp_hdr(skb)->check = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		adapter->tx_large_packets++;
 	}
 
 	if (ibmveth_send(adapter, descs)) {
