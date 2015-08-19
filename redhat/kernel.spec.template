@@ -1705,6 +1705,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 19 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-578.el6]
+- [edac] pci: avoid negative reference count of edac_class (Herton R. Krzesinski) [1227845]
+- [scsi] ipr: Increase default adapter init stage change timeout (Steve Best) [1229209]
+- [fs] nfs4: Avoid NULL reference or double free in nfsd4_fslocs_free() (J. Bruce Fields) [1113914]
+- [firmware] add iwlwifi-8000C-13 ucode (Stanislaw Gruszka) [1134603]
+- [netdrv] ixgbe: Cleanup probe to remove redundant attempt to ID PHY (John Greene) [1232125]
+
 * Wed Aug 12 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-577.el6]
 - [net] Always propagate flag changes to interfaces (Jarod Wilson) [1222823]
 - [s390] zcrypt: Fixed reset and interrupt handling of AP queues (Hendrik Brueckner) [1238308]
