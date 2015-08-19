@@ -767,7 +767,7 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 
 	dev_info(&dev->dev,
 			"HP Watchdog Timer Driver: NMI decoding initialized"
-			", allow kernel dump: %s (default = 0/OFF)"
+			", allow kernel dump: %s (default = 1/ON)\n"
 			", priority: %s (default = 0/LAST).\n",
 			(allow_kdump == 0) ? "OFF" : "ON",
 			(priority == 0) ? "LAST" : "FIRST");
