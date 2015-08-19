@@ -528,6 +528,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	 */
 	rcu_read_lock();
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		struct net_device *odev;
+
 		if (!laddr->valid)
 			continue;
 
@@ -539,6 +541,18 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		fl->fl_ip_sport = laddr->a.v4.sin_port;
 		if (ip_route_output_key(&init_net, &rt, fl))
 			continue;
+
+		/* Ensure the src address belongs to the output
+		 * interface.
+		 */
+		odev = ip_dev_find(sock_net(sk), laddr->a.v4.sin_addr.s_addr);
+		if (!odev)
+			continue;
+		if (odev->ifindex != rt->rt_iif) {
+			dev_put(odev);
+			continue;
+		}
+		dev_put(odev);
 
 		dst = &rt->u.dst;
 		break;
