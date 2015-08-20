@@ -17,6 +17,7 @@
 #include "filter.h"
 #include "mcdi_pcol.h"
 #include "farch_regs.h"
+#include "siena_sriov.h"
 #include "vfdi.h"
 
 /* Number of longs required to track all the VIs in a VF */
@@ -1574,7 +1575,6 @@ int efx_init_sriov(void)
 	vfdi_workqueue = create_singlethread_workqueue("sfc_vfdi");
 	if (!vfdi_workqueue)
 		return -ENOMEM;
-
 	return 0;
 }
 
@@ -1583,9 +1583,8 @@ void efx_fini_sriov(void)
 	destroy_workqueue(vfdi_workqueue);
 }
 
-int efx_siena_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
+int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 
 	if (vf_i >= efx->vf_init_count)
@@ -1600,10 +1599,9 @@ int efx_siena_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
 	return 0;
 }
 
-int efx_siena_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i,
 				u16 vlan, u8 qos)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	u16 tci;
 
@@ -1620,10 +1618,9 @@ int efx_siena_sriov_set_vf_vlan(struct net_device *net_dev, int vf_i,
 	return 0;
 }
 
-int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
 				    bool spoofchk)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	int rc;
 
@@ -1644,10 +1641,9 @@ int efx_siena_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf_i,
 	return rc;
 }
 
-int efx_siena_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
+int efx_siena_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 				  struct ifla_vf_info *ivi)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_vf *vf;
 	u16 tci;
 
@@ -1665,3 +1661,7 @@ int efx_siena_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	return 0;
 }
 
+bool efx_siena_sriov_wanted(struct efx_nic *efx)
+{
+	return efx->vf_count != 0;
+}
