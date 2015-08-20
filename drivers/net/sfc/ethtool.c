@@ -1079,7 +1079,7 @@ static int efx_ethtool_set_rxnfc(struct net_device *net_dev,
 static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	
+
 	return ((efx_nic_rev(efx) < EFX_REV_FALCON_B0 ||
 		efx->n_rx_channels == 1) ?
 	               0 : ARRAY_SIZE(efx->rx_indir_table));
@@ -1088,7 +1088,7 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev, u32 *indir)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	
+
 	memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
 	return 0;
 }
@@ -1097,10 +1097,8 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 				      const u32 *indir)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	
-	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
-	efx->type->rx_push_rss_config(efx);
-	return 0;
+
+	return efx->type->rx_push_rss_config(efx, true, indir);
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
