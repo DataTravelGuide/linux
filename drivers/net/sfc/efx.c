@@ -1203,9 +1203,11 @@ static int efx_init_io(struct efx_nic *efx)
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
 	unsigned int mem_map_size = efx->type->mem_map_size(efx);
-	int rc;
+	int rc, bar;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
+
+	bar = efx->type->mem_bar;
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1237,8 +1239,8 @@ static int efx_init_io(struct efx_nic *efx)
 	netif_dbg(efx, probe, efx->net_dev,
 		  "using DMA mask %llx\n", (unsigned long long) dma_mask);
 
-	efx->membase_phys = pci_resource_start(efx->pci_dev, EFX_MEM_BAR);
-	rc = pci_request_region(pci_dev, EFX_MEM_BAR, "sfc");
+	efx->membase_phys = pci_resource_start(efx->pci_dev, bar);
+	rc = pci_request_region(pci_dev, bar, "sfc");
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "request for memory BAR failed\n");
@@ -1261,7 +1263,7 @@ static int efx_init_io(struct efx_nic *efx)
 	return 0;
 
  fail4:
-	pci_release_region(efx->pci_dev, EFX_MEM_BAR);
+	pci_release_region(efx->pci_dev, bar);
  fail3:
 	efx->membase_phys = 0;
  fail2:
@@ -1272,6 +1274,8 @@ static int efx_init_io(struct efx_nic *efx)
 
 static void efx_fini_io(struct efx_nic *efx)
 {
+	int bar;
+
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
 	if (efx->membase) {
@@ -1280,7 +1284,8 @@ static void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		pci_release_region(efx->pci_dev, EFX_MEM_BAR);
+		bar = efx->type->mem_bar;
+		pci_release_region(efx->pci_dev, bar);
 		efx->membase_phys = 0;
 	}
 
