@@ -163,8 +163,8 @@ static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
 	if (outlen < MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)
 		return -EIO;
 
-	memcpy(mac_address,
-	       MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE), ETH_ALEN);
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
 	return 0;
 }
 
@@ -3173,12 +3173,10 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		table->dev_uc_count = -1;
 	} else {
 		table->dev_uc_count = 1 + netdev_uc_count(net_dev);
-		memcpy(table->dev_uc_list[0].addr, net_dev->dev_addr,
-		       ETH_ALEN);
+		ether_addr_copy(table->dev_uc_list[0].addr, net_dev->dev_addr);
 		i = 1;
 		netdev_for_each_uc_addr(uc, net_dev) {
-			memcpy(table->dev_uc_list[i].addr,
-			       uc->addr, ETH_ALEN);
+			ether_addr_copy(table->dev_uc_list[i].addr, uc->addr);
 			i++;
 		}
 	}
@@ -3190,8 +3188,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		eth_broadcast_addr(table->dev_mc_list[0].addr);
 		i = 1;
 		netdev_for_each_mc_addr(mc, net_dev) {
-			memcpy(table->dev_mc_list[i].addr,
-			       mc->dmi_addr, ETH_ALEN);
+			ether_addr_copy(table->dev_mc_list[i].addr, mc->dmi_addr);
 			i++;
 		}
 	}

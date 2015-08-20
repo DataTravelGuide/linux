@@ -1114,7 +1114,7 @@ static void efx_siena_sriov_peer_work(struct work_struct *data)
 
 	/* Fill the remaining addresses */
 	list_for_each_entry(local_addr, &nic_data->local_addr_list, link) {
-		memcpy(peer->mac_addr, local_addr->addr, ETH_ALEN);
+		ether_addr_copy(peer->mac_addr, local_addr->addr);
 		peer->tci = 0;
 		++peer;
 		++peer_count;
@@ -1325,8 +1325,7 @@ int efx_siena_sriov_init(struct efx_nic *efx)
 		goto fail_vfs;
 
 	rtnl_lock();
-	memcpy(vfdi_status->peers[0].mac_addr,
-	       net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(vfdi_status->peers[0].mac_addr, net_dev->dev_addr);
 	efx->vf_init_count = efx->vf_count;
 	rtnl_unlock();
 
@@ -1476,8 +1475,8 @@ void efx_siena_sriov_mac_address_changed(struct efx_nic *efx)
 
 	if (!efx->vf_init_count)
 		return;
-	memcpy(vfdi_status->peers[0].mac_addr,
-	       efx->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(vfdi_status->peers[0].mac_addr,
+			efx->net_dev->dev_addr);
 	queue_work(vfdi_workqueue, &nic_data->peer_work);
 }
 
@@ -1594,7 +1593,7 @@ int efx_siena_sriov_set_vf_mac(struct net_device *net_dev, int vf_i, u8 *mac)
 	vf = efx->vf + vf_i;
 
 	mutex_lock(&vf->status_lock);
-	memcpy(vf->addr.mac_addr, mac, ETH_ALEN);
+	ether_addr_copy(vf->addr.mac_addr, mac);
 	__efx_siena_sriov_update_vf_addr(vf);
 	mutex_unlock(&vf->status_lock);
 
@@ -1657,7 +1656,7 @@ int efx_siena_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	vf = efx->vf + vf_i;
 
 	ivi->vf = vf_i;
-	memcpy(ivi->mac, vf->addr.mac_addr, ETH_ALEN);
+	ether_addr_copy(ivi->mac, vf->addr.mac_addr);
 	ivi->tx_rate = 0;
 	tci = ntohs(vf->addr.tci);
 	ivi->vlan = tci & VLAN_VID_MASK;
