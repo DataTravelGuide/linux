@@ -2299,6 +2299,7 @@ static const struct net_device_ops_ext efx_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= efx_net_stats,
 	.ndo_set_features	= efx_set_features,
+	.ndo_set_vf_link_state  = efx_sriov_set_vf_link_state,
 };
 
 static void efx_update_name(struct efx_nic *efx)
