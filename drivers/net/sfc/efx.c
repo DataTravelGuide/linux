@@ -3063,6 +3063,26 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	return rc;
 }
 
+/* efx_pci_sriov_configure returns the actual number of Virtual Functions
+ * enabled on success
+ */
+#ifdef CONFIG_SFC_SRIOV
+static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+	int rc;
+	struct efx_nic *efx = pci_get_drvdata(dev);
+
+	if (efx->type->sriov_configure) {
+		rc = efx->type->sriov_configure(efx, num_vfs);
+		if (rc)
+			return rc;
+		else
+			return num_vfs;
+	} else
+		return -EOPNOTSUPP;
+}
+#endif
+
 static int efx_pm_freeze(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
@@ -3278,6 +3298,12 @@ static struct pci_error_handlers efx_err_handlers = {
 	.resume		= efx_io_resume,
 };
 
+static struct pci_driver_rh efx_pci_driver_rh = {
+#ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_pci_sriov_configure,
+#endif
+};
+
 static struct pci_driver efx_pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= efx_pci_table,
@@ -3285,6 +3311,7 @@ static struct pci_driver efx_pci_driver = {
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
 	.err_handler	= &efx_err_handlers,
+	.rh_reserved	= &efx_pci_driver_rh,
 };
 
 /**************************************************************************
