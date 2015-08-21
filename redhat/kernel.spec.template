@@ -1701,6 +1701,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Aug 21 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-504.36.1.el6]
+- [edac] pci: avoid negative reference count of edac_class (Herton R. Krzesinski) [1255491 1227845]
+- [tools] perf: avoid possible race condition in copyfile (Milos Vyletel) [1253732 1229673]
+- [tools] perf: Introduce copyfile_offset function (Milos Vyletel) [1253732 1229673]
+- [tools] perfs: Add rm_rf utility function (Milos Vyletel) [1253732 1229673]
+- [perf] tools: Add copyfile_mode() (Jiri Olsa) [1253732 1229673]
+- [net] vlan: restore VLAN_GROUP_ARRAY_LEN definition (Michal Schmidt) [1246100 1242145]
+- [netdrv] vmxnet3: prevent receive getting out of sequence on napi poll (Neil Horman) [1246090 1236564]
+- [x86] KVM: Fix lost interrupt on irr_pending race (Paolo Bonzini) [1242438 1213741]
+- Revert: [virt] revert "revert "virtio-net: initialize vlan_features"" (Vlad Yasevich) [1240988 1132972]
+
 * Wed Aug 12 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.35.1.el6]
 - [kernel] cgroup: fix cgroup_rmdir vs close<eventfd> race (Johannes Weiner) [1251183 1167772]
 
