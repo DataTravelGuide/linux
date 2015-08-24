@@ -1701,6 +1701,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Aug 24 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.64.1.el6]
+- [edac] pci: avoid negative reference count of edac_class (Herton R. Krzesinski) [1255490 1227845]
+- [tools] perf: avoid possible race condition in copyfile (Milos Vyletel) [1253731 1229673]
+- [tools] perf: Introduce copyfile_offset function (Milos Vyletel) [1253731 1229673]
+- [tools] perfs: Add rm_rf utility function (Petr Holasek) [1253731 1229673]
+- [perf] tools: Add copyfile_mode() (Jiri Olsa) [1253731 1229673]
+- [net] vlan: restore VLAN_GROUP_ARRAY_LEN definition (Michal Schmidt) [1246098 1242145]
+- [fs] nfsd: don't halt scanning the DRC LRU list when there's an RC_INPROG entry (J. Bruce Fields) [1165480 1150675]
+
 * Mon Aug 03 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.63.1.el6]
 - [net] ipv6: fix headroom calculation in udp6_ufo_fragment (Nikolay Aleksandrov) [1248945 1121522]
 - [net] udp6: Fix udp fragmentation for tunnel traffic (Nikolay Aleksandrov) [1248945 1121522]
