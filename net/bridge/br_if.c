@@ -396,6 +396,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 	int err = 0;
+	bool changed_addr;
 
 	/* Don't allow bridging non-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) ||
@@ -455,7 +456,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	netdev_update_features(br->dev);
 
 	spin_lock_bh(&br->lock);
-	br_stp_recalculate_bridge_id(br);
+	changed_addr = br_stp_recalculate_bridge_id(br);
 
 	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev) &&
 	    (br->dev->flags & IFF_UP))
@@ -466,6 +467,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		dev->netdev_ops->ndo_vlan_rx_register(dev, br->vlgrp);
 
 	br_ifinfo_notify(RTM_NEWLINK, p);
+
+	if (changed_addr)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
