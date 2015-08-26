@@ -959,6 +959,7 @@ static const struct x86_cpu_id rapl_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 0x47},/* Broadwell-H */
 	{ X86_VENDOR_INTEL, 6, 0x4E},/* Skylake */
 	{ X86_VENDOR_INTEL, 6, 0x56},/* Future Xeon */
+	{ X86_VENDOR_INTEL, 6, 0x5E},/* Skylake-H/S */
 	/* TODO: Add more CPU IDs after testing */
 	{}
 };
