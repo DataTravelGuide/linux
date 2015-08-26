@@ -2582,7 +2582,7 @@ static int __devinit sbridge_probe(struct pci_dev *pdev,
 		rc = sbridge_get_all_devices(&num_mc, pci_dev_descr_ibridge_table);
 		type = IVY_BRIDGE;
 		break;
-	case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA:
+	case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0:
 		rc = sbridge_get_all_devices(&num_mc, pci_dev_descr_sbridge_table);
 		type = SANDY_BRIDGE;
 		break;
@@ -2595,8 +2595,11 @@ static int __devinit sbridge_probe(struct pci_dev *pdev,
 		type = BROADWELL;
 		break;
 	}
-	if (unlikely(rc < 0))
+	if (unlikely(rc < 0)) {
+		debugf0("couldn't get all devices for 0x%x\n", pdev->device);
 		goto fail0;
+	}
+
 	mc = 0;
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list) {
@@ -2607,7 +2610,7 @@ static int __devinit sbridge_probe(struct pci_dev *pdev,
 			goto fail1;
 	}
 
-	sbridge_printk(KERN_INFO, "Driver loaded.\n");
+	sbridge_printk(KERN_INFO, "%s\n", SBRIDGE_REVISION);
 
 	mutex_unlock(&sbridge_edac_lock);
 	return 0;
