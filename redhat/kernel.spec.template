@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Aug 26 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.65.1.el6]
+- [kernel] cpuset: PF_SPREAD_PAGE and PF_SPREAD_SLAB should be atomic flags (Aaron Tomlin) [1254174 1045310]
+- [documentation] cpuset: Update the cpuset flag file (Aaron Tomlin) [1254174 1045310]
+
 * Mon Aug 24 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.64.1.el6]
 - [edac] pci: avoid negative reference count of edac_class (Herton R. Krzesinski) [1255490 1227845]
 - [tools] perf: avoid possible race condition in copyfile (Milos Vyletel) [1253731 1229673]
