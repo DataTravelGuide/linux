@@ -1705,6 +1705,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Sep 01 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.5.1.el6]
+- [fs] autofs4 - fix uid and gid assignment in mount request (Ian Kent) [1258581 1248820]
+
 * Fri Aug 14 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.4.1.el6]
 - [firmware] add iwlwifi-8000C-13 ucode (Stanislaw Gruszka) [1242969 1134603]
 - [net] Always propagate flag changes to interfaces (Jarod Wilson) [1253734 1222823]
