@@ -33,6 +33,7 @@
 #include <linux/bootmem.h>
 #include <linux/fs_struct.h>
 #include <linux/hardirq.h>
+#include <linux/ratelimit.h>
 #include "internal.h"
 
 int sysctl_vfs_cache_pressure __read_mostly = 100;
@@ -1926,6 +1927,12 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 				/* Check for loops */
 				actual = ERR_PTR(-ELOOP);
 				write_sequnlock(&rename_lock);
+				pr_warn_ratelimited(
+					"VFS: Lookup of '%s' in %s %s"
+					" would have caused loop\n",
+					dentry->d_name.name,
+					inode->i_sb->s_type->name,
+					inode->i_sb->s_id);
 				dput(alias);
 				goto out_unlock_dcache;
 			} else if (IS_ROOT(alias)) {
