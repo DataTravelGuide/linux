@@ -1705,6 +1705,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Sep 02 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.6.1.el6]
+- [mm] swap: make nr_swap_pages atomic (Jerome Marchand) [1259362 1252362]
+
 * Tue Sep 01 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.5.1.el6]
 - [fs] autofs4 - fix uid and gid assignment in mount request (Ian Kent) [1258581 1248820]
 
