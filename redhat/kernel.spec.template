@@ -1705,6 +1705,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 03 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-579.el6]
+- [mm] swap: make nr_swap_pages atomic (Jerome Marchand) [1252362]
+- [fs] autofs4 - fix uid and gid assignment in mount request (Ian Kent) [1248820]
+- [netdrv] bna: fix interrupts storm caused by erroneous packets (Ivan Vecera) [1241287]
+- [x86] intel_pstate: Add SKY-S support (Steve Best) [1199344]
+
 * Wed Aug 19 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-578.el6]
 - [edac] pci: avoid negative reference count of edac_class (Herton R. Krzesinski) [1227845]
 - [scsi] ipr: Increase default adapter init stage change timeout (Steve Best) [1229209]
