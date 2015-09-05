@@ -929,14 +929,16 @@ void svc_close_xprt(struct svc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
-static void svc_close_list(struct list_head *xprt_list)
+static void svc_close_list(struct svc_serv *serv, struct list_head *xprt_list)
 {
 	struct svc_xprt *xprt;
 
+	spin_lock(&serv->sv_lock);
 	list_for_each_entry(xprt, xprt_list, xpt_list) {
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		set_bit(XPT_BUSY, &xprt->xpt_flags);
 	}
+	spin_unlock(&serv->sv_lock);
 }
 
 static void svc_clear_pools(struct svc_serv *serv)
@@ -957,21 +959,26 @@ static void svc_clear_pools(struct svc_serv *serv)
 	}
 }
 
-static void svc_clear_list(struct list_head *xprt_list)
+static void svc_clear_list(struct svc_serv *serv, struct list_head *xprt_list)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *tmp;
+	LIST_HEAD(victims);
 
+	spin_lock(&serv->sv_lock);
 	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
-		svc_delete_xprt(xprt);
+		list_move(&xprt->xpt_list, &victims);
 	}
-	BUG_ON(!list_empty(xprt_list));
+	spin_unlock(&serv->sv_lock);
+
+	list_for_each_entry_safe(xprt, tmp, &victims, xpt_list)
+		svc_delete_xprt(xprt);
 }
 
 void svc_close_all(struct svc_serv *serv)
 {
-	svc_close_list(&serv->sv_tempsocks);
-	svc_close_list(&serv->sv_permsocks);
+	svc_close_list(serv, &serv->sv_tempsocks);
+	svc_close_list(serv, &serv->sv_permsocks);
 
 	svc_clear_pools(serv);
 	/*
@@ -979,8 +986,8 @@ void svc_close_all(struct svc_serv *serv)
 	 * svc_enqueue will not add new entries without taking the
 	 * sp_lock and checking XPT_BUSY.
 	 */
-	svc_clear_list(&serv->sv_tempsocks);
-	svc_clear_list(&serv->sv_permsocks);
+	svc_clear_list(serv, &serv->sv_tempsocks);
+	svc_clear_list(serv, &serv->sv_permsocks);
 }
 
 /*
