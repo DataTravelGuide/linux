@@ -506,7 +506,7 @@ unreg:
  *
  * Returns zero if carrier state does not change, nonzero if it does.
  */
-static int bond_set_carrier(struct bonding *bond)
+int bond_set_carrier(struct bonding *bond)
 {
 	struct list_head *iter;
 	struct slave *slave;
