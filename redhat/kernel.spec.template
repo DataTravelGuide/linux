@@ -1705,6 +1705,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Sep 10 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.7.1.el6]
+- Revert: [kernel] softirq: reduce latencies (Prarit Bhargava) [1246064 970263]
+- Revert: [kernel] softirq: Add softirq_2ms_loop and default to existing RHEL6 behaviour (Prarit Bhargava) [1246064 970263]
+
 * Wed Sep 02 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.6.1.el6]
 - [mm] swap: make nr_swap_pages atomic (Jerome Marchand) [1259362 1252362]
 
