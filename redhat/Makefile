@@ -187,8 +187,8 @@ rh-create-tarball:
 
 	@#verify 2.6.32 cached tarball matches checksum
 	@if [ -f linux-$(KVERSION).tar.bz2 -a \
-	     "$(shell md5sum linux-$(KVERSION).tar.bz2)" != \
-	     "$(shell cat sources|grep linux-$(KVERSION).tar.bz)" ]; then \
+	      "$(shell md5sum linux-$(KVERSION).tar.bz2)" != \
+	      "$(shell grep linux-$(KVERSION).tar.bz2 sources)" ]; then \
 		echo "Bad cached linux-$(KVERSION).tar.bz2, removing"; \
 		rm linux-$(KVERSION).tar.bz2; \
 	fi
