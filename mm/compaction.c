@@ -408,8 +408,8 @@ static void acct_isolated(struct zone *zone, bool locked, struct compact_control
 		__mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
 		__mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
 	} else {
-		mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-		mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
+		mod_zone_page_state(zone, NR_ISOLATED_ANON, cc->nr_anon);
+		mod_zone_page_state(zone, NR_ISOLATED_FILE, cc->nr_file);
 	}
 }
 
