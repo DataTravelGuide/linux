@@ -593,6 +593,7 @@ Linux operating system.  The kernel handles the basic functions
 of the operating system: memory allocation, process allocation, device
 input and output, etc.
 
+%%EXTRA_DESC%%
 
 %package doc
 Summary: Various documentation bits found in the kernel source

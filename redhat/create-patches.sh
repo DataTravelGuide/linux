@@ -292,6 +292,13 @@ if [ -n "$QUICK_BUILD" ]; then
 	rm $sfile
 fi
 
+# add extra description if localdesc file is found. useful for
+# test builds that go to customer (added disclaimer)
+EXTRA_DESC=../localdesc
+if [ -f "$EXTRA_DESC" ]; then
+	sed -i -e "/%%EXTRA_DESC/r $EXTRA_DESC" $SPECFILE
+fi
+
 test -n "$SPECFILE" &&
         sed -i -e "/%%PATCH_LIST%%/r $PATCHF
         /%%PATCH_LIST%%/d
@@ -303,6 +310,7 @@ test -n "$SPECFILE" &&
 	/%%CHANGELOG%%/d
 	s/%%BUILD%%/$BUILD/
 	/%%SCRATCH_FLAGS%%/d
+	/%%EXTRA_DESC%%/d
 	s/%%SUBLEVEL%%/$SUBLEVEL/
 	s/%%RCREV%%/$RCREV/
 	s/%%GITREV%%/$GITREV/
