@@ -2940,6 +2940,21 @@ static void free_event_rcu(struct rcu_head *head)
 
 static void ring_buffer_put(struct ring_buffer *rb);
 
+static void __free_event(struct perf_event *event)
+{
+	if (!event->parent) {
+		if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
+			put_callchain_buffers();
+	}
+
+	if (event->destroy)
+		event->destroy(event);
+
+	if (event->ctx)
+		put_ctx(event->ctx);
+
+	call_rcu(&event->rcu_head, free_event_rcu);
+}
 static void free_event(struct perf_event *event)
 {
 	irq_work_sync(&event->pending);
@@ -2953,8 +2968,6 @@ static void free_event(struct perf_event *event)
 			atomic_dec(&nr_comm_events);
 		if (event->attr.task)
 			atomic_dec(&nr_task_events);
-		if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
-			put_callchain_buffers();
 		if (is_cgroup_event(event)) {
 			atomic_dec(&per_cpu(perf_cgroup_events, event->cpu));
 			atomic_dec(&perf_sched_events);
@@ -2977,13 +2990,8 @@ static void free_event(struct perf_event *event)
 	if (is_cgroup_event(event))
 		perf_detach_cgroup(event);
 
-	if (event->destroy)
-		event->destroy(event);
 
-	if (event->ctx)
-		put_ctx(event->ctx);
-
-	call_rcu(&event->rcu_head, free_event_rcu);
+	__free_event(event);
 }
 
 int perf_event_release_kernel(struct perf_event *event)
@@ -6278,6 +6286,29 @@ unlock:
 	return pmu;
 }
 
+static void account_event(struct perf_event *event)
+{
+	if (event->attach_state & PERF_ATTACH_TASK)
+		atomic_inc(&perf_sched_events);
+	if (event->attr.mmap || event->attr.mmap_data)
+		atomic_inc(&nr_mmap_events);
+	if (event->attr.comm)
+		atomic_inc(&nr_comm_events);
+	if (event->attr.task)
+		atomic_inc(&nr_task_events);
+	if (has_branch_stack(event)) {
+		atomic_inc(&perf_sched_events);
+		if (!(event->attach_state & PERF_ATTACH_TASK))
+			atomic_inc(&per_cpu(perf_branch_stack_events,
+					    event->cpu));
+	}
+
+	if (is_cgroup_event(event)) {
+		atomic_inc(&per_cpu(perf_cgroup_events, event->cpu));
+		atomic_inc(&perf_sched_events);
+	}
+}
+
 /*
  * Allocate and initialize a event structure
  */
@@ -6379,21 +6410,6 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 			err = get_callchain_buffers();
 			if (err)
 				goto err_pmu;
-		}
-
-		if (event->attach_state & PERF_ATTACH_TASK)
-			atomic_inc(&perf_sched_events);
-		if (event->attr.mmap || event->attr.mmap_data)
-			atomic_inc(&nr_mmap_events);
-		if (event->attr.comm)
-			atomic_inc(&nr_comm_events);
-		if (event->attr.task)
-			atomic_inc(&nr_task_events);
-		if (has_branch_stack(event)) {
-			atomic_inc(&perf_sched_events);
-			if (!(event->attach_state & PERF_ATTACH_TASK))
-				atomic_inc(&per_cpu(perf_branch_stack_events,
-						    event->cpu));
 		}
 	}
 
@@ -6685,16 +6701,13 @@ SYSCALL_DEFINE5(perf_event_open,
 
 	if (flags & PERF_FLAG_PID_CGROUP) {
 		err = perf_cgroup_connect(pid, event, &attr, group_leader);
-		if (err)
-			goto err_alloc;
-		/*
-		 * one more event:
-		 * - that has cgroup constraint on event->cpu
-		 * - that may need work on context switch
-		 */
-		atomic_inc(&per_cpu(perf_cgroup_events, event->cpu));
-		atomic_inc(&perf_sched_events);
+		if (err) {
+			__free_event(event);
+			goto err_task;
+		}
 	}
+
+	account_event(event);
 
 	/*
 	 * Special case software events and allow them to be part of
@@ -6890,6 +6903,8 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		err = PTR_ERR(event);
 		goto err;
 	}
+
+	account_event(event);
 
 	ctx = find_get_context(event->pmu, task, cpu);
 	if (IS_ERR(ctx)) {
