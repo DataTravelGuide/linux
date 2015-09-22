@@ -5,6 +5,7 @@
  */
 
 #include <linux/perf_event.h>
+#include <linux/hardirq.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
 #include "perf_event.h"
@@ -973,6 +974,14 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	 */
 	if (!cqm_group_leader(event))
 		return 0;
+
+	/*
+	 * Getting up-to-date values requires an SMP IPI which is not
+	 * possible if we're being called in interrupt context. Return
+	 * the cached values instead.
+	 */
+	if (unlikely(in_interrupt()))
+		goto out;
 
 	/*
 	 * Notice that we don't perform the reading of an RMID
