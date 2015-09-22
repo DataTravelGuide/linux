@@ -6537,9 +6537,12 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	if (task) {
 		event->attach_state = PERF_ATTACH_TASK;
-
-		if (attr->type == PERF_TYPE_INTEL_CQM)
-			event->hw.cqm_target = task;
+		/*
+		 * XXX pmu::event_init needs to know what task to account to
+		 * and we cannot use the ctx information because we need the
+		 * pmu before we get a ctx.
+		 */
+		event->hw.target = task;
 	}
 
 	if (!overflow_handler && parent_event) {
