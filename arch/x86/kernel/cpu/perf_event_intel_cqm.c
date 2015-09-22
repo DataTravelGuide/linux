@@ -16,18 +16,32 @@
 static unsigned int cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 
-struct intel_cqm_state {
+/**
+ * struct intel_pqr_state - State cache for the PQR MSR
+ * @rmid:		The cached Resource Monitoring ID
+ * @closid:		The cached Class Of Service ID
+ * @rmid_usecnt:	The usage counter for rmid
+ *
+ * The upper 32 bits of MSR_IA32_PQR_ASSOC contain closid and the
+ * lower 10 bits rmid. The update to MSR_IA32_PQR_ASSOC always
+ * contains both parts, so we need to cache them.
+ *
+ * The cache also helps to avoid pointless updates if the value does
+ * not change.
+ */
+struct intel_pqr_state {
 	u32			rmid;
-	int			cnt;
+	u32			closid;
+	int			rmid_usecnt;
 };
 
 /*
- * The cached intel_cqm_state is strictly per CPU and can never be
+ * The cached intel_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Both functions which modify the state
  * (intel_cqm_event_start and intel_cqm_event_stop) are called with
  * interrupts disabled, which is sufficient for the protection.
  */
-static DEFINE_PER_CPU(struct intel_cqm_state, cqm_state);
+static DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
 
 /*
  * Protects cache_cgroups and cqm_rmid_free_lru and cqm_rmid_limbo_lru.
@@ -989,7 +1003,7 @@ out:
 
 static void intel_cqm_event_start(struct perf_event *event, int mode)
 {
-	struct intel_cqm_state *state = this_cpu_ptr(&per_cpu_var(cqm_state));
+	struct intel_pqr_state *state = this_cpu_ptr(&per_cpu_var(pqr_state));
 	u32 rmid = event->hw.cqm_rmid;
 
 	if (!(event->hw.cqm_state & PERF_HES_STOPPED))
@@ -997,7 +1011,7 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 
 	event->hw.cqm_state &= ~PERF_HES_STOPPED;
 
-	if (state->cnt++) {
+	if (state->rmid_usecnt++) {
 		if (!WARN_ON_ONCE(state->rmid != rmid))
 			return;
 	} else {
@@ -1005,17 +1019,12 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 	}
 
 	state->rmid = rmid;
-	/*
-	 * This is actually wrong, as the upper 32 bit MSR contain the
-	 * closid which is used for configuring the Cache Allocation
-	 * Technology component.
-	 */
-	wrmsr(MSR_IA32_PQR_ASSOC, rmid, 0);
+	wrmsr(MSR_IA32_PQR_ASSOC, rmid, state->closid);
 }
 
 static void intel_cqm_event_stop(struct perf_event *event, int mode)
 {
-	struct intel_cqm_state *state = this_cpu_ptr(&per_cpu_var(cqm_state));
+	struct intel_pqr_state *state = this_cpu_ptr(&per_cpu_var(pqr_state));
 
 	if (event->hw.cqm_state & PERF_HES_STOPPED)
 		return;
@@ -1024,15 +1033,9 @@ static void intel_cqm_event_stop(struct perf_event *event, int mode)
 
 	intel_cqm_event_read(event);
 
-	if (!--state->cnt) {
+	if (!--state->rmid_usecnt) {
 		state->rmid = 0;
-		/*
-		 * This is actually wrong, as the upper 32 bit of the
-		 * MSR contain the closid which is used for
-		 * configuring the Cache Allocation Technology
-		 * component.
-		 */
-		wrmsr(MSR_IA32_PQR_ASSOC, 0, 0);
+		wrmsr(MSR_IA32_PQR_ASSOC, 0, state->closid);
 	} else {
 		WARN_ON_ONCE(!state->rmid);
 	}
@@ -1270,11 +1273,12 @@ static inline void cqm_pick_event_reader(int cpu)
 
 static void intel_cqm_cpu_prepare(unsigned int cpu)
 {
-	struct intel_cqm_state *state = &per_cpu(cqm_state, cpu);
+	struct intel_pqr_state *state = &per_cpu(pqr_state, cpu);
 	struct cpuinfo_x86_rh *rh_c = &cpu_data_rh(cpu);
 
 	state->rmid = 0;
-	state->cnt  = 0;
+	state->closid = 0;
+	state->rmid_usecnt = 0;
 
 	WARN_ON(rh_c->x86_cache_max_rmid != cqm_max_rmid);
 	WARN_ON(rh_c->x86_cache_occ_scale != cqm_l3_scale);
