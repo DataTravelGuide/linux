@@ -6535,8 +6535,12 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	event->state		= PERF_EVENT_STATE_INACTIVE;
 
-	if (task)
+	if (task) {
 		event->attach_state = PERF_ATTACH_TASK;
+
+		if (attr->type == PERF_TYPE_INTEL_CQM)
+			event->hw.cqm_target = task;
+	}
 
 	if (!overflow_handler && parent_event) {
 		overflow_handler = parent_event->overflow_handler;
