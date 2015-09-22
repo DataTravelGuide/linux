@@ -842,6 +842,13 @@ struct hw_perf_event {
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
+		struct { /* intel_cqm */
+			int			cqm_state;
+			int			cqm_rmid;
+			struct list_head	cqm_events_entry;
+			struct list_head	cqm_groups_entry;
+			struct list_head	cqm_group_entry;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
 			struct arch_hw_breakpoint	info;
