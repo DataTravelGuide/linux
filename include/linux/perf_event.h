@@ -752,6 +752,7 @@ struct perf_guest_info_callbacks {
 #include <linux/device.h>
 #endif
 #include <linux/perf_regs.h>
+#include <linux/cgroup.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -1015,6 +1016,18 @@ struct perf_cgroup {
 	struct				cgroup_subsys_state css;
 	struct				perf_cgroup_info *info;	/* timing info, one per cpu */
 };
+
+/*
+ * Must ensure cgroup is pinned (css_get) before calling
+ * this function. In other words, we cannot call this function
+ * if there is no cgroup event for the current CPU context.
+ */
+static inline struct perf_cgroup *
+perf_cgroup_from_task(struct task_struct *task)
+{
+	return container_of(task_subsys_state(task, perf_subsys_id),
+			struct perf_cgroup, css);
+}
 #endif
 
 struct ring_buffer;
