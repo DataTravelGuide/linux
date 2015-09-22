@@ -17,11 +17,16 @@ static unsigned int cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 
 struct intel_cqm_state {
-	spinlock_t		lock;
 	u32			rmid;
 	int			cnt;
 };
 
+/*
+ * The cached intel_cqm_state is strictly per CPU and can never be
+ * updated from a remote CPU. Both functions which modify the state
+ * (intel_cqm_event_start and intel_cqm_event_stop) are called with
+ * interrupts disabled, which is sufficient for the protection.
+ */
 static DEFINE_PER_CPU(struct intel_cqm_state, cqm_state);
 
 /*
@@ -986,14 +991,11 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 {
 	struct intel_cqm_state *state = this_cpu_ptr(&per_cpu_var(cqm_state));
 	u32 rmid = event->hw.cqm_rmid;
-	unsigned long flags;
 
 	if (!(event->hw.cqm_state & PERF_HES_STOPPED))
 		return;
 
 	event->hw.cqm_state &= ~PERF_HES_STOPPED;
-
-	spin_lock_irqsave(&state->lock, flags);
 
 	if (state->cnt++)
 		WARN_ON_ONCE(state->rmid != rmid);
@@ -1007,21 +1009,17 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 	 * Technology component.
 	 */
 	wrmsr(MSR_IA32_PQR_ASSOC, rmid, 0);
-
-	spin_unlock_irqrestore(&state->lock, flags);
 }
 
 static void intel_cqm_event_stop(struct perf_event *event, int mode)
 {
 	struct intel_cqm_state *state = this_cpu_ptr(&per_cpu_var(cqm_state));
-	unsigned long flags;
 
 	if (event->hw.cqm_state & PERF_HES_STOPPED)
 		return;
 
 	event->hw.cqm_state |= PERF_HES_STOPPED;
 
-	spin_lock_irqsave(&state->lock, flags);
 	intel_cqm_event_read(event);
 
 	if (!--state->cnt) {
@@ -1036,8 +1034,6 @@ static void intel_cqm_event_stop(struct perf_event *event, int mode)
 	} else {
 		WARN_ON_ONCE(!state->rmid);
 	}
-
-	spin_unlock_irqrestore(&state->lock, flags);
 }
 
 static int intel_cqm_event_add(struct perf_event *event, int mode)
@@ -1280,7 +1276,6 @@ static void intel_cqm_cpu_prepare(unsigned int cpu)
 	struct intel_cqm_state *state = &per_cpu(cqm_state, cpu);
 	struct cpuinfo_x86_rh *rh_c = &cpu_data_rh(cpu);
 
-	spin_lock_init(&state->lock);
 	state->rmid = 0;
 	state->cnt  = 0;
 
