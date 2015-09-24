@@ -1705,6 +1705,21 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Sep 23 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-580.el6]
+- [netdrv] bonding: fix LACP PDU not sent on slave port sometimes (Jarod Wilson) [1258446]
+- [netdrv] bonding: fix incorrect lacp mux state when agg not active (Jarod Wilson) [1258446]
+- [netdrv] bonding: fix bond_open don't always set slave active flag (Jarod Wilson) [1258446]
+- [netdrv] bonding: update bond carrier state when min_links option changes (Jarod Wilson) [1258446]
+- [netdrv] bonding: change AD_LINK_SPEED_BITMASK to enum to suport more speed (Jarod Wilson) [1258446]
+- [virt] kvm: ioapic: conditionally delay irq delivery duringeoi broadcast (Fam Zheng) [1199155]
+- [kernel] ipc, sem: fix use after free on IPC_RMID after a task using same semaphore set exits (Herton R. Krzesinski) [1233300]
+- [fs] xfs: extent size hints can round up extents past MAXEXTLEN (Leonardo Menezes Vaz) [1211110]
+- [fs] Remove BUG_ON in nfs_clear_inode (Frank Sorenson) [1224343]
+- [net] use address assign type "SET" (Jarod Wilson) [1225359]
+- [net] ethtool: set addr_assign_type to NET_ADDR_SET when addr is passed on create (Jarod Wilson) [1225359]
+- [net] rtnl: use dev_set_mac_address() instead of plain ndo_ (Jarod Wilson) [1225359]
+- [net] ipv4: inet_fragmentation: compute work more accurate (Hannes Frederic Sowa) [1235465]
+
 * Thu Sep 03 2015 Kurt Stutsman <kstutsma@redhat.com> [2.6.32-579.el6]
 - [mm] swap: make nr_swap_pages atomic (Jerome Marchand) [1252362]
 - [fs] autofs4 - fix uid and gid assignment in mount request (Ian Kent) [1248820]
