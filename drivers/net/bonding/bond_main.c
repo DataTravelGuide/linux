@@ -78,9 +78,9 @@
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
 #include <linux/reciprocal_div.h>
-#include "bonding.h"
-#include "bond_3ad.h"
-#include "bond_alb.h"
+#include <net/bonding.h>
+#include <net/bond_3ad.h>
+#include <net/bond_alb.h>
 
 /*---------------------------- Module parameters ----------------------------*/
 
