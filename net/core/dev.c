@@ -132,6 +132,7 @@
 #include <trace/events/napi.h>
 #include <trace/events/net.h>
 #include <trace/events/skb.h>
+#include <net/bonding.h>
 #endif
 #include <linux/cpu_rmap.h>
 #include <linux/net_tstamp.h>
@@ -1386,6 +1387,15 @@ void dev_disable_lro(struct net_device *dev)
 	__ethtool_set_flags(dev, flags & ~ETH_FLAG_LRO);
 	if (unlikely(dev->features & NETIF_F_LRO))
 		netdev_WARN(dev, "failed to disable LRO!\n");
+
+	/* if dev is a bond master, disable LRO for all its slaves */
+	if (netif_is_bond_master(dev)) {
+		struct bonding *bond = netdev_priv(dev);
+		struct list_head *iter;
+		struct slave *slave;
+		bond_for_each_slave(bond, slave, iter)
+			dev_disable_lro(slave->dev);
+	}
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
