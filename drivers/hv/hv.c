@@ -402,7 +402,6 @@ void hv_synic_cleanup(void *arg)
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_scontrol sctrl;
-	int cpu = smp_processor_id();
 
 	if (!hv_context.synic_initialized)
 		return;
@@ -431,6 +430,4 @@ void hv_synic_cleanup(void *arg)
 	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
 	sctrl.enable = 0;
 	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
-
-	hv_synic_free_cpu(cpu);
 }
