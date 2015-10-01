@@ -310,6 +310,7 @@ static int hidp_send_report(struct hidp_session *session, struct hid_report *rep
 
 	hid_output_report(report, buf);
 
+	rsize = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	ret = hidp_queue_report(session, buf, rsize);
 
 	kfree(buf);
