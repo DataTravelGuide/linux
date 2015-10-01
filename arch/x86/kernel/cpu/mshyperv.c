@@ -18,6 +18,7 @@
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
@@ -27,12 +28,15 @@
 #include <asm/irq_regs.h>
 #include <asm/kvm_para.h>
 #include <asm/timer.h>
+#include <asm/reboot.h>
 
 #include <xen/xen.h>
 #include <asm/i8259.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
+
+static void (*hv_kexec_handler)(void);
 
 #if defined(CONFIG_HYPERV) || defined(CONFIG_HYPERV_MODULE)
 static void (*vmbus_handler)(void);
@@ -75,7 +79,26 @@ void hv_remove_vmbus_irq(void)
 }
 EXPORT_SYMBOL_GPL(hv_setup_vmbus_irq);
 EXPORT_SYMBOL_GPL(hv_remove_vmbus_irq);
+
+void hv_setup_kexec_handler(void (*handler)(void))
+{
+	hv_kexec_handler = handler;
+}
+EXPORT_SYMBOL_GPL(hv_setup_kexec_handler);
+
+void hv_remove_kexec_handler(void)
+{
+	hv_kexec_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_kexec_handler);
 #endif
+
+static void hv_machine_shutdown(void)
+{
+	if (kexec_in_progress && hv_kexec_handler)
+		hv_kexec_handler();
+	native_machine_shutdown();
+}
 
 static bool __init ms_hyperv_platform(void)
 {
@@ -154,6 +177,8 @@ static void __init ms_hyperv_init_platform(void)
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
 #endif
+
+	machine_ops.shutdown = hv_machine_shutdown;
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
