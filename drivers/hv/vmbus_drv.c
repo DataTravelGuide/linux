@@ -931,6 +931,7 @@ static void __exit vmbus_exit(void)
 	int cpu;
 
 	vmbus_connection.conn_state = DISCONNECTED;
+	vmbus_disconnect();
 	hv_remove_vmbus_irq();
 	vmbus_free_channels();
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
@@ -943,7 +944,6 @@ static void __exit vmbus_exit(void)
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	vmbus_disconnect();
 	hv_cpu_hotplug_quirk(false);
 }
 
