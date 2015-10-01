@@ -37,6 +37,7 @@ struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
 
 static void (*hv_kexec_handler)(void);
+static void (*hv_crash_handler)(struct pt_regs *regs);
 
 #if defined(CONFIG_HYPERV) || defined(CONFIG_HYPERV_MODULE)
 static void (*vmbus_handler)(void);
@@ -91,6 +92,18 @@ void hv_remove_kexec_handler(void)
 	hv_kexec_handler = NULL;
 }
 EXPORT_SYMBOL_GPL(hv_remove_kexec_handler);
+
+void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs))
+{
+	hv_crash_handler = handler;
+}
+EXPORT_SYMBOL_GPL(hv_setup_crash_handler);
+
+void hv_remove_crash_handler(void)
+{
+	hv_crash_handler = NULL;
+}
+EXPORT_SYMBOL_GPL(hv_remove_crash_handler);
 #endif
 
 static void hv_machine_shutdown(void)
@@ -99,6 +112,14 @@ static void hv_machine_shutdown(void)
 		hv_kexec_handler();
 	native_machine_shutdown();
 }
+
+static void hv_machine_crash_shutdown(struct pt_regs *regs)
+{
+	if (hv_crash_handler)
+		hv_crash_handler(regs);
+	native_machine_crash_shutdown(regs);
+}
+
 
 static bool __init ms_hyperv_platform(void)
 {
@@ -179,6 +200,7 @@ static void __init ms_hyperv_init_platform(void)
 #endif
 
 	machine_ops.shutdown = hv_machine_shutdown;
+	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {
