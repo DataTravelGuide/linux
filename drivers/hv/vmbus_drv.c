@@ -933,6 +933,7 @@ static void __exit vmbus_exit(void)
 	vmbus_connection.conn_state = DISCONNECTED;
 	vmbus_disconnect();
 	hv_remove_vmbus_irq();
+	tasklet_kill(&msg_dpc);
 	vmbus_free_channels();
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		unregister_die_notifier(&hyperv_die_block);
@@ -941,8 +942,10 @@ static void __exit vmbus_exit(void)
 	}
 	bus_unregister(&hv_bus);
 	hv_cleanup();
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
+		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+	}
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 	hv_cpu_hotplug_quirk(false);
 }
