@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Oct 02 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.66.1.el6]
+- [virt] kvm: ioapic: conditionally delay irq delivery duringeoi broadcast (Fam Zheng) [1266367 1199155]
+- [fs] vfs: plug dentry leak in mountpoint_last (Mateusz Guzik) [1261292 1114387]
+
 * Wed Aug 26 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.65.1.el6]
 - [kernel] cpuset: PF_SPREAD_PAGE and PF_SPREAD_SLAB should be atomic flags (Aaron Tomlin) [1254174 1045310]
 - [documentation] cpuset: Update the cpuset flag file (Aaron Tomlin) [1254174 1045310]
