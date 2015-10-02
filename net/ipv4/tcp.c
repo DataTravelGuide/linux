@@ -2410,6 +2410,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	spin_lock_bh(&sk->sk_lock.slock);
 	info->tcpi_bytes_acked = tp->tcpi_acked;
+	info->tcpi_bytes_received = tp->bytes_received;
 	spin_unlock_bh(&sk->sk_lock.slock);
 }
 

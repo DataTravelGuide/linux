@@ -161,6 +161,7 @@ struct tcp_info
 
 	__u32	tcpi_total_retrans;
 	__u64	tcpi_bytes_acked; /* RFC4898 tcpEStatsAppHCThruOctetsAcked */
+	__u64	tcpi_bytes_received; /* RFC4898 tcpEStatsAppHCThruOctetsReceived */
 };
 
 /* for TCP_MD5SIG socket option */
@@ -425,6 +426,10 @@ struct tcp_sock {
 	unsigned long	tsq_flags;
 	u64	tcpi_acked;	/* RFC4898 tcpEStatsAppHCThruOctetsAcked
 				 * sum(delta(snd_una)), or how many bytes
+				 * were acked.
+				 */
+	u64	bytes_received;	/* RFC4898 tcpEStatsAppHCThruOctetsReceived
+				 * sum(delta(rcv_nxt)), or how many bytes
 				 * were acked.
 				 */
 #endif
