@@ -160,6 +160,7 @@ struct tcp_info
 	__u32	tcpi_rcv_space;
 
 	__u32	tcpi_total_retrans;
+	__u64	tcpi_bytes_acked; /* RFC4898 tcpEStatsAppHCThruOctetsAcked */
 };
 
 /* for TCP_MD5SIG socket option */
@@ -422,6 +423,10 @@ struct tcp_sock {
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 	unsigned long	tsq_flags;
+	u64	tcpi_acked;	/* RFC4898 tcpEStatsAppHCThruOctetsAcked
+				 * sum(delta(snd_una)), or how many bytes
+				 * were acked.
+				 */
 #endif
 };
 

@@ -2407,6 +2407,10 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_rcv_space = tp->rcvq_space.space;
 
 	info->tcpi_total_retrans = tp->total_retrans;
+
+	spin_lock_bh(&sk->sk_lock.slock);
+	info->tcpi_bytes_acked = tp->tcpi_acked;
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 
 EXPORT_SYMBOL_GPL(tcp_get_info);
