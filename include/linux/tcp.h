@@ -181,6 +181,7 @@ struct tcp_md5sig {
 
 #include <linux/skbuff.h>
 #include <linux/dmaengine.h>
+#include <linux/u64_stats_sync.h>
 #include <net/sock.h>
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
@@ -426,6 +427,8 @@ struct tcp_sock {
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 	unsigned long	tsq_flags;
+
+	struct u64_stats_sync syncp; /* protects 64bit vars (cf tcp_get_info()) */
 	u64	tcpi_acked;	/* RFC4898 tcpEStatsAppHCThruOctetsAcked
 				 * sum(delta(snd_una)), or how many bytes
 				 * were acked.
