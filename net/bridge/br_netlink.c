@@ -765,6 +765,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_QUERY_USE_IFADDR] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_QUERIER] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_HASH_ELASTICITY] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_HASH_MAX] = { .type = NLA_U32 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -897,6 +898,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 
 		br->hash_elasticity = val;
 	}
+
+	if (data[IFLA_BR_MCAST_HASH_MAX]) {
+		u32 hash_max = nla_get_u32(data[IFLA_BR_MCAST_HASH_MAX]);
+
+		err = br_multicast_set_hash_max(br, hash_max);
+		if (err)
+			return err;
+	}
 #endif
 
 	return 0;
@@ -932,6 +941,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERY_USE_IFADDR */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERIER */
 	       nla_total_size(sizeof(u32)) +     /* IFLA_BR_MCAST_HASH_ELASTICITY */
+	       nla_total_size(sizeof(u32)) +     /* IFLA_BR_MCAST_HASH_MAX */
 #endif
 	       0;
 }
@@ -996,7 +1006,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		       br->multicast_query_use_ifaddr) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER, br->multicast_querier) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY,
-			br->hash_elasticity))
+			br->hash_elasticity) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max))
 		return -EMSGSIZE;
 #endif
 
