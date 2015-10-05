@@ -153,8 +153,6 @@ struct bond_params {
 	int mode;
 	int xmit_policy;
 	int miimon;
-	int num_grat_arp;
-	int num_unsol_na;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
@@ -181,9 +179,6 @@ struct bond_parm_tbl {
 struct vlan_entry {
 	struct list_head vlan_list;
 	unsigned short vlan_id;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct in6_addr vlan_ipv6;
-#endif
 };
 
 struct slave {
@@ -235,8 +230,6 @@ struct bonding {
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
-	s8	 send_grat_arp;
-	s8	 send_unsol_na;
 	s8	 setup_by_slave;
 	s8	 igmp_retrans;
 	struct   net_device_stats stats;
@@ -418,25 +411,6 @@ extern const struct bond_parm_tbl arp_validate_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern const struct bond_parm_tbl pri_reselect_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
-
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-void bond_send_unsolicited_na(struct bonding *bond);
-void bond_register_ipv6_notifier(void);
-void bond_unregister_ipv6_notifier(void);
-#else
-static inline void bond_send_unsolicited_na(struct bonding *bond)
-{
-	return;
-}
-static inline void bond_register_ipv6_notifier(void)
-{
-	return;
-}
-static inline void bond_unregister_ipv6_notifier(void)
-{
-	return;
-}
-#endif
 
 #endif /* _LINUX_BONDING_H */
 
