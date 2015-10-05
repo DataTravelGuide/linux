@@ -153,6 +153,7 @@ struct bond_params {
 	int mode;
 	int xmit_policy;
 	int miimon;
+	u8 num_peer_notif;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
@@ -230,6 +231,7 @@ struct bonding {
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
+	u8	 send_peer_notif;
 	s8	 setup_by_slave;
 	s8	 igmp_retrans;
 	struct   net_device_stats stats;
