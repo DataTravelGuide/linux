@@ -90,8 +90,6 @@
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
 static int tx_queues	= BOND_DEFAULT_TX_QUEUES;
-static int num_grat_arp = 1;
-static int num_unsol_na = 1;
 static int miimon	= BOND_LINK_MON_INTERV;
 static int updelay;
 static int downdelay;
@@ -115,12 +113,6 @@ module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
 module_param(tx_queues, int, 0);
 MODULE_PARM_DESC(tx_queues, "Max number of transmit queues (default = 16)");
-module_param(num_grat_arp, int, 0644);
-MODULE_PARM_DESC(num_grat_arp, "Number of gratuitous ARP packets to send on "
-				"failover event");
-module_param(num_unsol_na, int, 0644);
-MODULE_PARM_DESC(num_unsol_na, "Number of unsolicited IPv6 Neighbor "
-		"Advertisements packets to send on failover event");
 module_param(miimon, int, 0);
 MODULE_PARM_DESC(miimon, "Link check interval in milliseconds");
 module_param(updelay, int, 0);
@@ -262,7 +254,6 @@ struct bond_parm_tbl ad_select_tbl[] = {
 
 /*-------------------------- Forward declarations ---------------------------*/
 
-static void bond_send_gratuitous_arp(struct bonding *bond);
 static int bond_init(struct net_device *bond_dev);
 static void bond_deinit(struct net_device *bond_dev);
 
@@ -1293,14 +1284,6 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			if (bond->params.fail_over_mac)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
-
-			if (netif_running(bond->dev)) {
-				bond->send_grat_arp = bond->params.num_grat_arp;
-				bond_send_gratuitous_arp(bond);
-
-				bond->send_unsol_na = bond->params.num_unsol_na;
-				bond_send_unsolicited_na(bond);
-			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -2790,18 +2773,6 @@ void bond_mii_monitor(struct work_struct *work)
 	if (bond->slave_cnt == 0)
 		goto re_arm;
 
-	if (bond->send_grat_arp) {
-		read_lock(&bond->curr_slave_lock);
-		bond_send_gratuitous_arp(bond);
-		read_unlock(&bond->curr_slave_lock);
-	}
-
-	if (bond->send_unsol_na) {
-		read_lock(&bond->curr_slave_lock);
-		bond_send_unsolicited_na(bond);
-		read_unlock(&bond->curr_slave_lock);
-	}
-
 	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
 		rtnl_lock();
@@ -2953,58 +2924,6 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		}
 		ip_rt_put(rt);
 	}
-}
-
-/*
- * Kick out a gratuitous ARP for an IP on the bonding master plus one
- * for each VLAN above us.
- *
- * Caller must hold curr_slave_lock for read or better
- */
-static void bond_send_gratuitous_arp(struct bonding *bond)
-{
-	struct slave *slave = bond->curr_active_slave;
-	struct vlan_entry *vlan;
-	struct net_device *vlan_dev;
-	struct in_device *in_dev;
-	__be32 ip;
-
-	pr_debug("bond_send_grat_arp: bond %s slave %s\n", bond->dev->name,
-				slave ? slave->dev->name : "NULL");
-
-	if (!slave || !bond->send_grat_arp ||
-	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
-		return;
-
-	bond->send_grat_arp--;
-
-	/* need to run through list of addresses on the device */
-	rcu_read_lock();
-	if ((in_dev = __in_dev_get_rcu(bond->dev))) {
-		for_ifa(in_dev) {
-			if ((ip = ifa->ifa_local))
-				bond_arp_send(slave->dev, ARPOP_REPLY, ip, ip, 0);
-		} endfor_ifa(in_dev);
-	}
-	rcu_read_unlock();
-
-	if (!bond->vlgrp)
-		return;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
-		if (vlan_dev && (in_dev = __in_dev_get_rcu(vlan_dev))) {
-			if (in_dev) {
-				for_ifa(in_dev) {
-					if ((ip = ifa->ifa_local))
-						bond_arp_send(slave->dev, ARPOP_REPLY, ip,
-							      ip, vlan->vlan_id);
-				} endfor_ifa(in_dev);
-			}
-		}
-	}
-	rcu_read_unlock();
 }
 
 static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 sip, __be32 tip)
@@ -3481,18 +3400,6 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 	if (bond->slave_cnt == 0)
 		goto re_arm;
-
-	if (bond->send_grat_arp) {
-		read_lock(&bond->curr_slave_lock);
-		bond_send_gratuitous_arp(bond);
-		read_unlock(&bond->curr_slave_lock);
-	}
-
-	if (bond->send_unsol_na) {
-		read_lock(&bond->curr_slave_lock);
-		bond_send_unsolicited_na(bond);
-		read_unlock(&bond->curr_slave_lock);
-	}
 
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
@@ -4083,9 +3990,6 @@ static int bond_close(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 
 	write_lock_bh(&bond->lock);
-
-	bond->send_grat_arp = 0;
-	bond->send_unsol_na = 0;
 
 	/* signal timers not to re-arm */
 	bond->kill_timers = 1;
@@ -5246,20 +5150,6 @@ static int bond_check_params(struct bond_params *params)
 		use_carrier = 1;
 	}
 
-	if (num_grat_arp < 0 || num_grat_arp > 255) {
-		pr_warning(DRV_NAME
-		       ": Warning: num_grat_arp (%d) not in range 0-255 so it "
-		       "was reset to 1 \n", num_grat_arp);
-		num_grat_arp = 1;
-	}
-
-	if (num_unsol_na < 0 || num_unsol_na > 255) {
-		pr_warning(DRV_NAME
-		       ": Warning: num_unsol_na (%d) not in range 0-255 so it "
-		       "was reset to 1 \n", num_unsol_na);
-		num_unsol_na = 1;
-	}
-
 	/* reset values for 802.3ad */
 	if (bond_mode == BOND_MODE_8023AD) {
 		if (!miimon) {
@@ -5510,8 +5400,6 @@ static int bond_check_params(struct bond_params *params)
 	params->mode = bond_mode;
 	params->xmit_policy = xmit_hashtype;
 	params->miimon = miimon;
-	params->num_grat_arp = num_grat_arp;
-	params->num_unsol_na = num_unsol_na;
 	params->arp_interval = arp_interval;
 	params->arp_validate = arp_validate_value;
 	params->arp_all_targets = arp_all_targets_value;
@@ -5667,7 +5555,6 @@ static int __init bonding_init(void)
 		goto err;
 
 	register_netdevice_notifier(&bond_netdev_notifier);
-	bond_register_ipv6_notifier();
 
 	goto out;
 err:
@@ -5682,7 +5569,6 @@ out:
 static void __exit bonding_exit(void)
 {
 	unregister_netdevice_notifier(&bond_netdev_notifier);
-	bond_unregister_ipv6_notifier();
 
 	bond_destroy_sysfs();
 
