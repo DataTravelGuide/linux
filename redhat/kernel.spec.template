@@ -1701,6 +1701,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Oct 05 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.38.1.el6]
+- [virt] kvm: ioapic: conditionally delay irq delivery duringeoi broadcast (Fam Zheng) [1266368 1199155]
+- [kernel] ipc, sem: fix use after free on IPC_RMID after a task using same semaphore set exits (Herton R. Krzesinski) [1267457 1233300]
+- [fs] xfs: extent size hints can round up extents past MAXEXTLEN (Leonardo Menezes Vaz) [1266371 1211110]
+
 * Wed Sep 09 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.37.1.el6]
 - [netdrv] bna: fix interrupts storm caused by erroneous packets (Ivan Vecera) [1260534 1241287]
 
