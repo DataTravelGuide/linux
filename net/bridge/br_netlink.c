@@ -133,6 +133,11 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_DESIGNATED_COST */
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_ID */
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_NO */
+		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_TOPOLOGY_CHANGE_ACK */
+		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_CONFIG_PENDING */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_MESSAGE_AGE_TIMER */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_FORWARD_DELAY_TIMER */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_HOLD_TIMER */
 		+ 0;
 }
 
@@ -154,6 +159,7 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 			      const struct net_bridge_port *p)
 {
 	u8 mode = !!(p->flags & BR_HAIRPIN_MODE);
+	u64 timerval;
 
 	if (nla_put_u8(skb, IFLA_BRPORT_STATE, p->state) ||
 	    nla_put_u16(skb, IFLA_BRPORT_PRIORITY, p->priority) ||
@@ -176,6 +182,16 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u16(skb, IFLA_BRPORT_DESIGNATED_COST, p->designated_cost) ||
 	    nla_put_u16(skb, IFLA_BRPORT_ID, p->port_id) ||
 	    nla_put_u16(skb, IFLA_BRPORT_NO, p->port_no))
+		return -EMSGSIZE;
+
+	timerval = br_timer_value(&p->message_age_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_MESSAGE_AGE_TIMER, timerval))
+		return -EMSGSIZE;
+	timerval = br_timer_value(&p->forward_delay_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_FORWARD_DELAY_TIMER, timerval))
+		return -EMSGSIZE;
+	timerval = br_timer_value(&p->hold_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_HOLD_TIMER, timerval))
 		return -EMSGSIZE;
 
 	return 0;
