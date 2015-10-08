@@ -317,6 +317,7 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 	.priv_size	= sizeof(struct net_bridge),
 	.setup		= br_dev_setup,
 	.validate	= br_validate,
+	.dellink	= br_dev_delete,
 	.get_size	= br_get_size,
 	.fill_info	= br_fill_info,
 };
