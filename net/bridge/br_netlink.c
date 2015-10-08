@@ -11,9 +11,11 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/etherdevice.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+
 #include "br_private.h"
 
 static inline size_t br_nlmsg_size(void)
@@ -182,15 +184,39 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
+static int br_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	if (tb[IFLA_ADDRESS]) {
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+			return -EINVAL;
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+			return -EADDRNOTAVAIL;
+	}
+
+	return 0;
+}
+
+static struct rtnl_link_ops br_link_ops __read_mostly = {
+	.kind		= "bridge",
+	.priv_size	= sizeof(struct net_bridge),
+	.setup		= br_dev_setup,
+	.validate	= br_validate,
+};
 
 int __init br_netlink_init(void)
 {
+	int err;
+
+	err = rtnl_link_register(&br_link_ops);
+	if (err < 0)
+		goto err1;
+
 	/* be sure to remove RHEL-specific rtnl_unregister's in
 	 * br_netlink_fini if you're backporting upstream commit
 	 * e5a55a898720 */
 	if (__rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL,
 			      br_dump_ifinfo, NULL))
-		return -ENOBUFS;
+		goto err2;
 
 	/* Only the first call to __rtnl_register can fail */
 	__rtnl_register(PF_BRIDGE, RTM_SETLINK,
@@ -198,10 +224,17 @@ int __init br_netlink_init(void)
 
 	br_mdb_init();
 	return 0;
+
+err2:
+	rtnl_link_unregister(&br_link_ops);
+
+err1:
+	return err;
 }
 
 void __exit br_netlink_fini(void)
 {
+	rtnl_link_unregister(&br_link_ops);
 	rtnl_unregister(PF_BRIDGE, RTM_SETLINK);
 	rtnl_unregister(PF_BRIDGE, RTM_GETLINK);
 	br_mdb_uninit();
