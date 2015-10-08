@@ -210,6 +210,18 @@ enum
 
 #define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
 
+/* Bridge section */
+
+enum {
+	IFLA_BR_UNSPEC,
+	IFLA_BR_FORWARD_DELAY,
+	IFLA_BR_HELLO_TIME,
+	IFLA_BR_MAX_AGE,
+	__IFLA_BR_MAX,
+};
+
+#define IFLA_BR_MAX	(__IFLA_BR_MAX - 1)
+
 struct ifla_cacheinfo
 {
 	__u32	max_reasm_len;

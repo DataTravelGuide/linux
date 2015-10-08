@@ -135,6 +135,29 @@ skip:
 	return skb->len;
 }
 
+static size_t br_get_size(const struct net_device *brdev)
+{
+	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
+	       0;
+}
+
+static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
+{
+	struct net_bridge *br = netdev_priv(brdev);
+	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
+	u32 hello_time = jiffies_to_clock_t(br->hello_time);
+	u32 age_time = jiffies_to_clock_t(br->max_age);
+
+	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
+	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
+	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 /*
  * Change state of port (ie from forwarding to blocking etc)
  * Used by spanning tree in user space.
@@ -201,6 +224,8 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 	.priv_size	= sizeof(struct net_bridge),
 	.setup		= br_dev_setup,
 	.validate	= br_validate,
+	.get_size	= br_get_size,
+	.fill_info	= br_fill_info,
 };
 
 int __init br_netlink_init(void)
