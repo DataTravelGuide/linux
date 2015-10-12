@@ -553,7 +553,11 @@ struct pci_error_handlers {
 struct module;
 struct pci_driver {
 	struct list_head node;
+#ifndef __GENKSYMS__
+	const char *name;
+#else
 	char *name;
+#endif
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe to be called */
 	int  (*probe)  (struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove) (struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
