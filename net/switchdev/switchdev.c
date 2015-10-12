@@ -16,7 +16,7 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
-#include <linux/list.h>
+#include <linux/if_vlan.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
 
@@ -715,7 +715,9 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
 		vinfo = nla_data(attr);
-		vlan.flags = vinfo->flags;
+		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
+			return -EINVAL;
+		vlan->flags = vinfo->flags;
 		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
 			if (vlan.vid_begin)
 				return -EINVAL;
