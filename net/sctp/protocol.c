@@ -546,10 +546,13 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		 * interface.
 		 */
 		odev = ip_dev_find(sock_net(sk), laddr->a.v4.sin_addr.s_addr);
-		if (!odev)
+		if (!odev) {
+			dst_release(&rt->u.dst);
 			continue;
+		}
 		if (odev->ifindex != rt->rt_iif) {
 			dev_put(odev);
+			dst_release(&rt->u.dst);
 			continue;
 		}
 		dev_put(odev);
