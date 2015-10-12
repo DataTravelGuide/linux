@@ -667,8 +667,9 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	dma_addr_t blp;
 	dma_addr_t bloutp = 0;
 	struct scatterlist *sg;
-	size_t sz_out, sz = sizeof(struct qat_alg_buf_list) +
-			((1 + n + assoc_n) * sizeof(struct qat_alg_buf));
+	size_t sz_out = 0;
+	size_t sz = sizeof(struct qat_alg_buf_list) +
+		          ((1 + n + assoc_n) * sizeof(struct qat_alg_buf));
 
 	if (unlikely(!n))
 		return -EINVAL;
@@ -793,7 +794,7 @@ err:
 				dma_unmap_single(dev, buflout->bufers[i].addr,
 						 buflout->bufers[i].len,
 						 DMA_BIDIRECTIONAL);
-		if (!dma_mapping_error(dev, bloutp))
+		if (sz_out && !dma_mapping_error(dev, bloutp))
 			dma_unmap_single(dev, bloutp, sz_out, DMA_TO_DEVICE);
 		kfree(buflout);
 	}
