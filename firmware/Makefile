@@ -227,6 +227,8 @@ fw-shipped-$(CONFIG_CARL9170) += carl9170-1.fw
 
 fw-shipped-$(CONFIG_ATH9K_HTC) += htc_7010.fw htc_9271.fw
 
+fw-shipped-$(CONFIG_CRYPTO_DEV_QAT_DH895xCC) += qat_895xcc.bin
+
 # This section is firmware required by the integrated compat-wireless
 # build.  All of those drivers are modules, and their config is turned-off
 # in the base kernel.  So, force them to fw-shipped-m below.
