@@ -144,20 +144,29 @@ xfs_iomap_write_direct(
 	uint		qblocks, resblks, resrtextents;
 	int		committed;
 	int		error;
-
-	error = xfs_qm_dqattach(ip, 0);
-	if (error)
-		return XFS_ERROR(error);
+	int		lockmode;
 
 	rt = XFS_IS_REALTIME_INODE(ip);
 	extsz = xfs_get_extsz_hint(ip);
+	lockmode = XFS_ILOCK_SHARED;	/* locked by caller */
+
+	ASSERT(xfs_isilocked(ip, lockmode));
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
 	if ((offset + count) > XFS_ISIZE(ip)) {
+		/*
+		 * Assert that the in-core extent list is present since this can
+		 * call xfs_iread_extents() and we only have the ilock shared.
+		 * This should be safe because the lock was held around a bmapi
+		 * call in the caller and we only need it to access the in-core
+		 * list.
+		 */
+		ASSERT(XFS_IFORK_PTR(ip, XFS_DATA_FORK)->if_flags &
+								XFS_IFEXTENTS);
 		error = xfs_iomap_eof_align_last_fsb(mp, ip, extsz, &last_fsb);
 		if (error)
-			return XFS_ERROR(error);
+			goto out_unlock;
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
 			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
@@ -187,6 +196,15 @@ xfs_iomap_write_direct(
 	}
 
 	/*
+	 * Drop the shared lock acquired by the caller, attach the dquot if
+	 * necessary and move on to transaction setup.
+	 */
+	xfs_iunlock(ip, lockmode);
+	error = xfs_qm_dqattach(ip, 0);
+	if (error)
+		return error;
+
+	/*
 	 * Allocate and setup the transaction
 	 */
 	tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
@@ -202,7 +220,8 @@ xfs_iomap_write_direct(
 		return XFS_ERROR(error);
 	}
 
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	lockmode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, lockmode);
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
 	if (error)
@@ -249,7 +268,7 @@ xfs_iomap_write_direct(
 		error = xfs_alert_fsblock_zero(ip, imap);
 
 out_unlock:
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	xfs_iunlock(ip, lockmode);
 	return error;
 
 out_bmap_cancel:
