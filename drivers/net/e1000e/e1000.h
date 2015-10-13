@@ -428,12 +428,11 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define FLAG_LSC_GIG_SPEED_DROP           (1 << 25)
 #define FLAG_SMART_POWER_DOWN             (1 << 26)
 #define FLAG_MSI_ENABLED                  (1 << 27)
-#define FLAG_RX_CSUM_ENABLED              (1 << 28)
+/* reserved (1 << 28) */
 #define FLAG_TSO_FORCE                    (1 << 29)
 #define FLAG_RESTART_NOW                  (1 << 30)
 #define FLAG_MSI_TEST_FAILED              (1 << 31)
 
-/* CRC Stripping defines */
 #define FLAG2_CRC_STRIPPING               (1 << 0)
 #define FLAG2_HAS_PHY_WAKEUP              (1 << 1)
 #define FLAG2_IS_DISCARDING               (1 << 2)
