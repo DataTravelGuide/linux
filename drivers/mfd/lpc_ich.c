@@ -506,7 +506,7 @@ struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
 	},
 	[LPC_AVN] = {
 		.name = "Avoton SoC",
-		.iTCO_version = 1,
+		.iTCO_version = 3,
 		.gpio_version = AVOTON_GPIO,
 	},
 	[LPC_WPT_LP] = {
