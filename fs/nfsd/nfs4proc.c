@@ -1133,6 +1133,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			goto encode_op;
 		}
 
+		fh_clear_wcc(&cstate->current_fh);
+
 		if (opdesc->op_func)
 			op->status = opdesc->op_func(rqstp, cstate, &op->u);
 		else
