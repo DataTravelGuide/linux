@@ -1701,6 +1701,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 15 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.67.1.el6]
+- [net] ipv6: ndisc: Use pre-defined in6addr_linklocal_allnodes (Jarod Wilson) [1258479 1204804]
+- [net] ipv6: send unsolicited neighbour advertisements to all-nodes (Jarod Wilson) [1258479 1204804]
+- [netdrv] bonding: Restore control over number of peer notifications (Jarod Wilson) [1258479 1204804]
+- [netdrv] bonding, ipv4, ipv6, vlan: Handle NETDEV_BONDING_FAILOVER like NETDEV_NOTIFY_PEERS (Jarod Wilson) [1258479 1204804]
+- [net] ipv6: Send unsolicited neighbour advertismements when notified (Jarod Wilson) [1258479 1204804]
+
 * Fri Oct 02 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.66.1.el6]
 - [virt] kvm: ioapic: conditionally delay irq delivery duringeoi broadcast (Fam Zheng) [1266367 1199155]
 - [fs] vfs: plug dentry leak in mountpoint_last (Mateusz Guzik) [1261292 1114387]
