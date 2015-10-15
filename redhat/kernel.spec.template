@@ -1705,6 +1705,15 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Oct 15 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-582.el6]
+- [netdrv] r8169: Revert use of ndo_set_multicast_list (Corinna Vinschen) [1238914]
+- [netdrv] 3c59x: Fix deadlock between boomerang_interrupt and boomerang_start_tx (Neil Horman) [1232452]
+- [idle] intel_idle: Skylake Client Support (Steve Best) [1189311]
+- [powercap] RAPL: Add support for Skylake H/S (Steve Best) [1249852]
+- [powercap] RAPL: Add support for Broadwell-H (Steve Best) [1249857]
+- [hid] fix unused rsize usage (Don Zickus) [1256568]
+- [hid] fix data access in implement() (Don Zickus) [1256568]
+
 * Tue Oct 13 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-581.el6]
 - [fs] vfs: avoid creation of inode number 0 in new_inode (Carlos Maiolino) [1066751]
 - [fs] NFS: Hold i_lock in nfs_wb_page_cancel() while locking a request (Benjamin Coddington) [1135601]
