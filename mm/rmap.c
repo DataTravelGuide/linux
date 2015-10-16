@@ -69,7 +69,15 @@ static struct kmem_cache *anon_vma_chain_cachep;
 
 static inline struct anon_vma *anon_vma_alloc(void)
 {
-	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
+	struct anon_vma *anon_vma;
+
+	anon_vma =  kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
+	if (anon_vma) {
+		anon_vma->degree = 1;	/* Reference for first vma */
+		anon_vma->parent = anon_vma;
+	}
+
+	return anon_vma;
 }
 
 void anon_vma_free(struct anon_vma *anon_vma)
@@ -151,6 +159,8 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 			avc->vma = vma;
 			list_add(&avc->same_vma, &vma->anon_vma_chain);
 			list_add_tail(&avc->same_anon_vma, &anon_vma->head);
+			/* vma reference or self-parent link for new root */
+			anon_vma->degree++;
 			allocated = NULL;
 			avc = NULL;
 		}
@@ -214,6 +224,14 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 /*
  * Attach the anon_vmas from src to dst.
  * Returns 0 on success, -ENOMEM on failure.
+ *
+ * If dst->anon_vma is NULL this function tries to find and reuse existing
+ * anon_vma which has no vmas and only one child anon_vma. This prevents
+ * degradation of anon_vma hierarchy to endless linear chain in case of
+ * constantly forking task. On the other hand, an anon_vma with more than one
+ * child isn't reused even if there was no alive vma, thus rmap walker has a
+ * good chance of avoiding scanning the whole hierarchy when it searches where
+ * page is mapped.
  */
 int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
@@ -234,7 +252,21 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 		anon_vma = pavc->anon_vma;
 		root = lock_anon_vma_root(root, anon_vma);
 		anon_vma_chain_link(dst, avc, anon_vma);
+
+		/*
+		 * Reuse existing anon_vma if its degree lower than two,
+		 * that means it has no vma and only one anon_vma child.
+		 *
+		 * Do not chose parent anon_vma, otherwise first child
+		 * will always reuse it. Root anon_vma is never reused:
+		 * it has self-parent reference and at least one child.
+		 */
+		if (!dst->anon_vma && anon_vma != src->anon_vma &&
+				anon_vma->degree < 2)
+			dst->anon_vma = anon_vma;
 	}
+	if (dst->anon_vma)
+		dst->anon_vma->degree++;
 	unlock_anon_vma_root(root);
 	return 0;
 
@@ -257,12 +289,19 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	if (!pvma->anon_vma)
 		return 0;
 
+	/* Drop inherited anon_vma, we'll reuse existing or allocate new. */
+	vma->anon_vma = NULL;
+
 	/*
 	 * First, attach the new VMA to the parent VMA's anon_vmas,
 	 * so rmap can find non-COWed pages in child processes.
 	 */
 	if (anon_vma_clone(vma, pvma))
 		return -ENOMEM;
+
+	/* An existing anon_vma has been reused, all done then. */
+	if (vma->anon_vma)
+		return 0;
 
 	/* Then add our own anon_vma. */
 	anon_vma = anon_vma_alloc();
@@ -273,6 +312,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 		goto out_error_free_anon_vma;
 
 	anon_vma->root = pvma->anon_vma->root;
+	anon_vma->parent = pvma->anon_vma;
 	/*
 	 * With KSM refcounts, an anon_vma can stay around longer than the
 	 * process it belongs to.  The root anon_vma needs to be pinned
@@ -283,6 +323,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	vma->anon_vma = anon_vma;
 	anon_vma_lock(anon_vma);
 	anon_vma_chain_link(vma, avc, anon_vma);
+	anon_vma->parent->degree++;
 	anon_vma_unlock(anon_vma);
 
 	return 0;
@@ -310,12 +351,16 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 		 * Leave empty anon_vmas on the list - we'll need
 		 * to free them outside the lock.
 		 */
-		if (list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma))
+		if (list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma)) {
+			anon_vma->parent->degree--;
 			continue;
+		}
 
 		list_del(&avc->same_vma);
 		anon_vma_chain_free(avc);
 	}
+	if (vma->anon_vma)
+		vma->anon_vma->degree--;
 	unlock_anon_vma_root(root);
 
 	/*
@@ -325,6 +370,8 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 	 */
 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
 		struct anon_vma *anon_vma = avc->anon_vma;
+
+		BUG_ON(anon_vma->degree);
 
 		/* We no longer need the root anon_vma */
 		if (anon_vma->root != anon_vma)
