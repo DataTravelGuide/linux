@@ -908,8 +908,10 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 
 	/* reuse the packet for version range supported */
@@ -966,8 +968,10 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 	/*
 	 * Check to see if multi-channel support is there.
@@ -1003,8 +1007,10 @@ static int storvsc_channel_init(struct hv_device *device)
 	}
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
-	    vstor_packet->status != 0)
+	    vstor_packet->status != 0) {
+		ret = -EINVAL;
 		goto cleanup;
+	}
 
 	if (process_sub_channels)
 		handle_multichannel_storage(device, max_chns);
