@@ -590,10 +590,8 @@ again:			remove_next = 1 + (end > next->vm_end);
 		 */
 		if (exporter && exporter->anon_vma && !importer->anon_vma) {
 			importer->anon_vma = exporter->anon_vma;
-			if (anon_vma_clone(importer, exporter)) {
-				importer->anon_vma = NULL;
+			if (anon_vma_clone(importer, exporter))
 				return -ENOMEM;
-			}
 		}
 	}
 
