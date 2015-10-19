@@ -517,6 +517,14 @@ void input_dev_ipros(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	}
 }
 
+void input_dev_cintiq27qhd(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+{
+	__set_bit(KEY_PROG1, input_dev->keybit);
+	__set_bit(KEY_PROG2, input_dev->keybit);
+	__set_bit(KEY_PROG3, input_dev->keybit);
+	__set_bit(INPUT_PROP_ACCELEROMETER, input_dev->propbit);
+}
+
 static void wacom_retrieve_report_data(struct usb_interface *intf,
 				       struct wacom_features *features)
 {
@@ -739,6 +747,9 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 		}
 		else if (features->type == WACOM_24HDT) {
 			return wacom_set_device_mode(intf, 18, 3, 2);
+		}
+		else if (features->type == WACOM_27QHDT) {
+			return wacom_set_device_mode(intf, 131, 3, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {

@@ -10,7 +10,7 @@
 #define WACOM_WAC_H
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	64
+#define WACOM_PKGLEN_MAX	192
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -27,6 +27,7 @@
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
 #define WACOM_BYTES_PER_24HDT_PACKET	14
+#define WACOM_BYTES_PER_QHDTHID_PACKET	 6
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -37,6 +38,8 @@
 
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_24HDT		1
+#define WACOM_REPORT_CINTIQ		16
+#define WACOM_REPORT_CINTIQPAD		17
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
@@ -66,12 +69,14 @@ enum {
 	WACOM_21UX2,
 	WACOM_22HD,
 	WACOM_24HD,
+	WACOM_27QHD,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_MO,
 	WIRELESS,
 	BAMBOO_PT,
 	WACOM_24HDT,
+	WACOM_27QHDT,
 	TABLETPC,
 	TABLETPC2FG,
 	MTSCREEN,
