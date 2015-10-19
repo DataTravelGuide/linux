@@ -449,6 +449,112 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 	return 0;
 }
 
+static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len,
+			    void *wcombo)
+{
+	unsigned char *data = wacom_wac->data;
+	__u32 serial;
+	int i, touch_ring_mode;
+
+	if (data[0] != WACOM_REPORT_REMOTE) {
+		printk(KERN_DEBUG
+			"%s: received unknown report #%d", __func__, data[0]);
+		return 0;
+	}
+
+	serial = data[3] + (data[4] << 8) + (data[5] << 16);
+	wacom_wac->id[0] = PAD_DEVICE_ID;
+
+	wacom_report_key(wcombo, BTN_0, (data[9] & 0x01));
+	wacom_report_key(wcombo, BTN_1, (data[9] & 0x02));
+	wacom_report_key(wcombo, BTN_2, (data[9] & 0x04));
+	wacom_report_key(wcombo, BTN_3, (data[9] & 0x08));
+	wacom_report_key(wcombo, BTN_4, (data[9] & 0x10));
+	wacom_report_key(wcombo, BTN_5, (data[9] & 0x20));
+	wacom_report_key(wcombo, BTN_6, (data[9] & 0x40));
+	wacom_report_key(wcombo, BTN_7, (data[9] & 0x80));
+
+	wacom_report_key(wcombo, BTN_8, (data[10] & 0x01));
+	wacom_report_key(wcombo, BTN_9, (data[10] & 0x02));
+	wacom_report_key(wcombo, BTN_A, (data[10] & 0x04));
+	wacom_report_key(wcombo, BTN_B, (data[10] & 0x08));
+	wacom_report_key(wcombo, BTN_C, (data[10] & 0x10));
+	wacom_report_key(wcombo, BTN_X, (data[10] & 0x20));
+	wacom_report_key(wcombo, BTN_Y, (data[10] & 0x40));
+	wacom_report_key(wcombo, BTN_Z, (data[10] & 0x80));
+
+	wacom_report_key(wcombo, BTN_BASE, (data[11] & 0x01));
+	wacom_report_key(wcombo, BTN_BASE2, (data[11] & 0x02));
+
+	if (data[12] & 0x80)
+		wacom_report_abs(wcombo, ABS_WHEEL, (data[12] & 0x7f));
+	else
+		wacom_report_abs(wcombo, ABS_WHEEL, 0);
+
+	if (data[9] | data[10] | (data[11] & 0x03) | data[12])
+		wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
+	else
+		wacom_report_abs(wcombo, ABS_MISC, 0);
+
+	wacom_input_event(wcombo, EV_MSC, MSC_SERIAL, serial);
+
+	/*Which mode select (LED light) is currently on?*/
+	touch_ring_mode = (data[11] & 0xC0) >> 6;
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		if (wacom_wac->serial[i] == serial)
+			wacom_set_led_status(wcombo, i, touch_ring_mode);
+	}
+
+	return 1;
+}
+
+static int wacom_remote_status_irq(struct wacom_wac *wacom_wac, size_t len, void *wcombo)
+{
+	unsigned char *data = wacom_wac->data;
+	int i;
+
+	if (data[0] != WACOM_REPORT_DEVICE_LIST)
+		return 0;
+
+	for (i = 0; i < WACOM_MAX_REMOTES; i++) {
+		int j = i * 6;
+		int serial = (data[j+6] << 16) + (data[j+5] << 8) + data[j+4];
+		bool connected = data[j+2];
+
+		if (connected) {
+			int k;
+
+			if (wacom_wac->serial[i] == serial)
+				continue;
+
+			if (wacom_wac->serial[i]) {
+				wacom_remote_destroy_attr_group(wcombo,
+							wacom_wac->serial[i]);
+			}
+
+			/* A remote can pair more than once with an EKR,
+			 * check to make sure this serial isn't already paired.
+			 */
+			for (k = 0; k < WACOM_MAX_REMOTES; k++) {
+				if (wacom_wac->serial[k] == serial)
+					break;
+			}
+
+			if (k < WACOM_MAX_REMOTES) {
+				wacom_wac->serial[i] = serial;
+				continue;
+			}
+			wacom_remote_create_attr_group(wcombo, serial, i);
+		} else if (wacom_wac->serial[i]) {
+			wacom_remote_destroy_attr_group(wcombo,
+							wacom_wac->serial[i]);
+		}
+	}
+
+	return 0;
+}
+
 static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 {
 	struct wacom_features *features = &wacom->features;
@@ -1271,6 +1377,13 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case WIRELESS:
 			return wacom_wireless_irq(wacom_wac, len, wcombo);
 
+		case REMOTE:
+			if (wacom_wac->data[0] == WACOM_REPORT_DEVICE_LIST)
+				return wacom_remote_status_irq(wacom_wac, len, wcombo);
+			else
+				return wacom_remote_irq(wacom_wac, len, wcombo);
+			break;
+
 		default:
 			return 0;
 	}
@@ -1365,6 +1478,8 @@ int wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wa
 		case BAMBOO_PT:
 			input_dev_bamboo_pt(input_dev, wacom_wac);
 			break;
+		case REMOTE:
+			input_dev_remote(input_dev, wacom_wac);
 	}
 	return 0;
 }
@@ -1477,6 +1592,7 @@ static struct wacom_features wacom_features[] = {
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32C },
 	{ "Wacom Cintiq 27QHD touch", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32B, .touch_max = 10 },
+	{ "Wacom Express Key Remote", WACOM_PKGLEN_WIRELESS, 0, 0, 0, 0, REMOTE },
 	{ }
 };
 
@@ -1585,6 +1701,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x32A) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x32B) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x32C) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x331) },
 	{ }
 };
 
