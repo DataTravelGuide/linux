@@ -16,6 +16,10 @@
 #include "wacom.h"
 #include "wacom_wac.h"
 
+/* Newer Cintiq and DTU have an offset between tablet and screen areas */
+#define WACOM_DTU_OFFSET	200
+#define WACOM_CINTIQ_OFFSET	400
+
 static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
@@ -1386,7 +1390,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Cintiq 12WX",   WACOM_PKGLEN_INTUOS, 53020, 33440, 1023, 63, WACOM_BEE },
 	{ "Wacom DTU1931",       WACOM_PKGLEN_GRAPHIRE, 37832, 30305,  511,  0, PL },
 	{ "Wacom Cintiq 21UX2",  WACOM_PKGLEN_INTUOS, 87200, 65600, 2047, 63, WACOM_21UX2,
-		.x_min = 200, .y_min = 200, },
+		.x_min = WACOM_CINTIQ_OFFSET, .y_min = WACOM_CINTIQ_OFFSET, },
 	{ "Wacom ISDv4 90",      WACOM_PKGLEN_GRAPHIRE, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom ISDv4 93",      WACOM_PKGLEN_GRAPHIRE, 26202, 16325,  255,  0, TABLETPC },
 	{ "Wacom ISDv4 9A",      WACOM_PKGLEN_GRAPHIRE, 26202, 16325,  255,  0, TABLETPC },
@@ -1394,7 +1398,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom DTU2231",       WACOM_PKGLEN_GRAPHIRE, 47864, 27011,  511,  0, DTU },
 	{ "Wacom DTU1631",       WACOM_PKGLEN_GRAPHIRE, 34623, 19553,  511,  0, DTU },
 	{ "Wacom Cintiq 24HD",   WACOM_PKGLEN_INTUOS,104480, 65600, 2047, 63, WACOM_24HD,
-		.x_min = 200, .y_min = 200, },
+		.x_min = WACOM_CINTIQ_OFFSET, .y_min = WACOM_CINTIQ_OFFSET, },
 	{ "Wacom Intuos5 touch S", WACOM_PKGLEN_INTUOS,31496,19685, 2047, 63, INTUOS5S,
 	  .touch_max = 16 },
 	{ "Wacom Intuos5 touch M", WACOM_PKGLEN_INTUOS,44704,27940, 2047, 63, INTUOS5,
@@ -1405,7 +1409,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Intuos5 M",     WACOM_PKGLEN_INTUOS, 44704, 27940, 2047, 63, INTUOS5 },
 	{ "Wacom Bamboo Pen",	 WACOM_PKGLEN_BBFUN, 14720,  9200, 1023, 31, BAMBOO_PT },
 	{ "Wacom Cintiq 22HD",	 WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_22HD,
-		.x_min = 200, .y_min = 200, },
+		.x_min = WACOM_CINTIQ_OFFSET, .y_min = WACOM_CINTIQ_OFFSET, },
 	{ "Wacom ISDv4 E6",      WACOM_PKGLEN_TPC2FG, 27760, 15694,  255,  0, TABLETPC2FG,
 	  .touch_max = 16 },
 	{ "Wacom Intuos Pro S",  WACOM_PKGLEN_INTUOS, 31496, 19685, 2047, 63, INTUOSPS },
@@ -1415,12 +1419,14 @@ static struct wacom_features wacom_features[] = {
 #if 0	/* Disabled until tested with hardware */
 	{ "Wacom ISDv4 E5",      WACOM_PKGLEN_MTOUCH, 26202, 16325,  255,  0, MTSCREEN },
 	{ "Wacom Cintiq 24HD touch", WACOM_PKGLEN_INTUOS,104480,65600,2047,63, WACOM_24HD,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6, .x_min = 200, .y_min = 200, },/* Pen */
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6, .x_min = WACOM_CINTIQ_OFFSET,
+	  .y_min = WACOM_CINTIQ_OFFSET, },/* Pen */
 	{ "Wacom Cintiq 24HD touch", .type = WACOM_24HDT, /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10 },
 #endif
 	{ "Wacom Cintiq 22HDT",  WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_22HD,
-	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e, .x_min = 200, .y_min = 200, },
+	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e, .x_min = WACOM_CINTIQ_OFFSET,
+	  .y_min = WACOM_CINTIQ_OFFSET, },
 	{ "Wacom Cintiq 22HDT",  WACOM_PKGLEN_INTUOS, 95840, 54260, 2047, 63, WACOM_24HDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5b, .touch_max = 10 },
 	{ }
