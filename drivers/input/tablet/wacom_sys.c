@@ -1274,8 +1274,8 @@ static int wacom_register_input(struct wacom *wacom)
 	wacom->dev = input_dev;
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOUCH);
-	input_set_abs_params(input_dev, ABS_X, 0, features->x_max, 4, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, features->y_max, 4, 0);
+	input_set_abs_params(input_dev, ABS_X, features->x_min, features->x_max, 4, 0);
+	input_set_abs_params(input_dev, ABS_Y, features->y_min, features->y_max, 4, 0);
 	input_dev->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
 
 	if (features->device_type == BTN_TOOL_PEN)

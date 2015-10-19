@@ -95,6 +95,8 @@ struct wacom_features {
 	unsigned touch_max;
 	int oVid;
 	int oPid;
+	int x_min;
+	int y_min;
 };
 
 struct wacom_shared {
