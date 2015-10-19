@@ -620,6 +620,11 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_abs(wcombo, ABS_X, be16_to_cpup((__be16 *)&data[4]));
 			wacom_report_abs(wcombo, ABS_Y, be16_to_cpup((__be16 *)&data[6]));
 			wacom_report_abs(wcombo, ABS_Z, be16_to_cpup((__be16 *)&data[8]));
+			if ((data[2] & 0x07) | data[4] | data[5] | data[6] | data[7] | data[8] | data[9]) {
+				wacom_report_abs(wcombo, ABS_MISC, PAD_DEVICE_ID);
+			} else {
+				wacom_report_abs(wcombo, ABS_MISC, 0);
+			}
 		} else {
 			if (features->type == WACOM_21UX2 ||
 			    features->type == WACOM_22HD) {
@@ -1466,7 +1471,8 @@ static struct wacom_features wacom_features[] = {
 	 * Upstream doesn't use pktlen anymore. Using WACOM_PKGLEN_INTUOS,
 	 * it can be adjusted later in the HID parsing
 	 */
-	{ "Wacom Cintiq 27QHD", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHD },
+	{ "Wacom Cintiq 27QHD", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHD,
+		.x_min = WACOM_CINTIQ_OFFSET, .y_min = WACOM_CINTIQ_OFFSET, },
 	{ "Wacom Cintiq 27QHD touch", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHD,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32C },
 	{ "Wacom Cintiq 27QHD touch", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHDT,
