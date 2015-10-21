@@ -1705,6 +1705,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Oct 21 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-583.el6]
+- [block] NVMe: Add shutdown timeout as module parameter (David Milburn) [1227888]
+- [mm] hugetlb: fix race in region tracking (Herton R. Krzesinski) [1260755]
+- [mm] hugetlb: improve, cleanup resv_map parameters (Herton R. Krzesinski) [1260755]
+- [mm] hugetlb: unify region structure handling (Herton R. Krzesinski) [1260755]
+- [mm] hugetlb: change variable name reservations to resv (Herton R. Krzesinski) [1260755]
+- [virt] virtio-net: drop NETIF_F_FRAGLIST (Michael S. Tsirkin) [1245996] {CVE-2015-5156}
+
 * Thu Oct 15 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-582.el6]
 - [netdrv] r8169: Revert use of ndo_set_multicast_list (Corinna Vinschen) [1238914]
 - [netdrv] 3c59x: Fix deadlock between boomerang_interrupt and boomerang_start_tx (Neil Horman) [1232452]
