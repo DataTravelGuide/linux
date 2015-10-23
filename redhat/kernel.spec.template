@@ -1705,6 +1705,14 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Oct 23 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.9.1.el6]
+- [mm] hugetlb: fix race in region tracking (Herton R. Krzesinski) [1274599 1260755]
+- [mm] hugetlb: improve, cleanup resv_map parameters (Herton R. Krzesinski) [1274599 1260755]
+- [mm] hugetlb: unify region structure handling (Herton R. Krzesinski) [1274599 1260755]
+- [mm] hugetlb: change variable name reservations to resv (Herton R. Krzesinski) [1274599 1260755]
+- [fs] dcache: Log ELOOP rather than creating a loop (Benjamin Coddington) [1272858 1254020]
+- [fs] dcache: Fix loop checks in d_materialise_unique (Benjamin Coddington) [1272858 1254020]
+
 * Fri Sep 25 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.8.1.el6]
 - [netdrv] bonding: fix LACP PDU not sent on slave port sometimes (Jarod Wilson) [1266366 1258446]
 - [netdrv] bonding: fix incorrect lacp mux state when agg not active (Jarod Wilson) [1266366 1258446]
