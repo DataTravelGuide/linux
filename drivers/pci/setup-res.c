@@ -244,6 +244,7 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 	resource_size_t new_size;
 	int ret;
 
+	res->flags |= IORESOURCE_UNSET;
 	if (!res->parent) {
 		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resouce %pR "
 			 "\n", resno, res);
@@ -254,6 +255,7 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 	new_size = resource_size(res) + addsize;
 	ret = _pci_assign_resource(dev, resno, new_size, min_align);
 	if (!ret) {
+		res->flags &= ~IORESOURCE_UNSET;
 		res->flags &= ~IORESOURCE_STARTALIGN;
 		dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
 		if (resno < PCI_BRIDGE_RESOURCES)
@@ -270,6 +272,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	int ret;
 	struct pci_dev_rh1 *rh1_pci_dev = dev->rh_reserved1;
 
+	res->flags |= IORESOURCE_UNSET;
 	align = pci_resource_alignment(dev, res);
 	if (!align) {
 		dev_info(&dev->dev, "BAR %d: can't assign %pR "
@@ -290,6 +293,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 		ret = pci_revert_fw_address(res, dev, resno, size);
 
 	if (!ret) {
+		res->flags &= ~IORESOURCE_UNSET;
 		res->flags &= ~IORESOURCE_STARTALIGN;
 		dev_info(&dev->dev, "BAR %d: assigned %pR\n", resno, res);
 		if (resno < PCI_BRIDGE_RESOURCES)

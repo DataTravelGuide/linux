@@ -283,6 +283,7 @@ static void __devinit quirk_s3_64M(struct pci_dev *dev)
 	struct resource *r = &dev->resource[0];
 
 	if ((r->start & 0x3ffffff) || r->end != r->start + 0x3ffffff) {
+		r->flags |= IORESOURCE_UNSET;
 		r->start = 0;
 		r->end = 0x3ffffff;
 	}
@@ -902,6 +903,8 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_FE_GATE_700C
 static void __devinit quirk_dunord ( struct pci_dev * dev )
 {
 	struct resource *r = &dev->resource [1];
+
+	r->flags |= IORESOURCE_UNSET;
 	r->start = 0;
 	r->end = 0xffffff;
 }
@@ -1693,6 +1696,7 @@ static void __init quirk_tc86c001_ide(struct pci_dev *dev)
 	struct resource *r = &dev->resource[0];
 
 	if (r->start & 0x8) {
+		r->flags |= IORESOURCE_UNSET;
 		r->start = 0;
 		r->end = 0xf;
 	}
@@ -1722,6 +1726,7 @@ static void __devinit quirk_plx_pci9050(struct pci_dev *dev)
 			dev_info(&dev->dev,
 				 "Re-allocating PLX PCI 9050 BAR %u to length 256 to avoid bit 7 bug\n",
 				 bar);
+			r->flags |= IORESOURCE_UNSET;
 			r->start = 0;
 			r->end = 0xff;
 		}
