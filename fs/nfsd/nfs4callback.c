@@ -582,8 +582,6 @@ void nfsd4_probe_callback(struct nfs4_client *clp)
 
 void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
-	BUG_ON(atomic_read(&clp->cl_cb_set));
-
 	spin_lock(&clp->cl_lock);
 	memcpy(&clp->cl_cb_conn, conn, sizeof(struct nfs4_cb_conn));
 	spin_unlock(&clp->cl_lock);
