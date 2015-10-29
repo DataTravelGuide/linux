@@ -238,7 +238,7 @@ int __weak pcibios_sriov_disable(struct pci_dev *pdev)
 static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 {
 	int rc;
-	int i, j;
+	int i;
 	int nres;
 	u16 offset, stride, initial;
 	struct resource *res;
@@ -340,8 +340,8 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	return 0;
 
 failed:
-	for (j = 0; j < i; j++)
-		pci_iov_remove_virtfn(dev, j, 0);
+	while (i--)
+		virtfn_remove(dev, i, 0);
 
 	pcibios_sriov_disable(dev);
 err_pcibios:
