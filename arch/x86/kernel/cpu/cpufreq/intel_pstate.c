@@ -984,6 +984,7 @@ module_exit(intel_pstate_exit);
 
 static int __initdata no_load;
 static int __initdata no_hwp;
+static unsigned int force_load;
 
 static int intel_pstate_msrs_not_valid(void)
 {
@@ -1130,7 +1131,8 @@ static bool intel_pstate_platform_pwr_mgmt_exists(void)
 			case PSS:
 				return intel_pstate_no_acpi_pss();
 			case PPC:
-				return intel_pstate_has_acpi_ppc();
+				return intel_pstate_has_acpi_ppc() &&
+					(!force_load);
 			}
 	}
 
@@ -1214,6 +1216,8 @@ static int __init intel_pstate_setup(char *str)
 		no_load = 1;
 	if (!strcmp(str, "no_hwp"))
 		no_hwp = 1;
+	if (!strcmp(str, "force"))
+		force_load = 1;
 	return 0;
 }
 early_param("intel_pstate", intel_pstate_setup);
