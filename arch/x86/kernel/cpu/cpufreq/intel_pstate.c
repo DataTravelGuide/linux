@@ -707,18 +707,20 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
-static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
+static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate, bool force)
 {
 	int max_perf, min_perf;
 
-	update_turbo_state();
+	if (force) {
+		update_turbo_state();
 
-	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
+		intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
 
-	pstate = clamp_t(int, pstate, min_perf, max_perf);
+		pstate = clamp_t(int, pstate, min_perf, max_perf);
 
-	if (pstate == cpu->pstate.current_pstate)
-		return;
+		if (pstate == cpu->pstate.current_pstate)
+			return;
+	}
 
 #ifndef MODULE
 	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
@@ -737,7 +739,7 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
-	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
+	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate, false);
 }
 
 static inline void intel_pstate_calc_busy(struct cpudata *cpu)
@@ -857,7 +859,7 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 	ctl = pid_calc(pid, busy_scaled);
 
 	/* Negative values of ctl increase the pstate and vice versa */
-	intel_pstate_set_pstate(cpu, cpu->pstate.current_pstate - ctl);
+	intel_pstate_set_pstate(cpu, cpu->pstate.current_pstate - ctl, true);
 
 	sample = &cpu->sample;
 #ifndef MODULE
@@ -1023,7 +1025,7 @@ static int __cpuinit intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 	if (hwp_active)
 		return 0;
 
-	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
+	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate, false);
 
 	return 0;
 }
