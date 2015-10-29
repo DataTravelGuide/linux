@@ -54,6 +54,8 @@ acpi_status
 acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 			u32 status_code, struct acpi_buffer *status_buf);
 
+bool acpi_has_method(acpi_handle handle, char *name);
+
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
