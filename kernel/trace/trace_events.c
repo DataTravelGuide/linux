@@ -1335,25 +1335,41 @@ __trace_module_add_events(struct module *mod,
 static void trace_module_add_events(struct module *mod)
 {
 	struct ftrace_module_file_ops *file_ops = NULL;
-	struct ftrace_event_call *call, *start, *end;
+	struct ftrace_event_call *call, *start = NULL, *end;
+	struct ftrace_event_call **pcall, **pstart = NULL, **pend;
 	struct dentry *d_events;
 	int ret;
 
-	start = mod->trace_events;
-	end = mod->trace_events + mod->num_trace_events;
+	if (module_has_ftrace_events_ptrs(mod)) {
+		pstart = module_ftrace_events_ptrs_unmask(mod->trace_events.ptrs);
+		pend   = pstart + mod->num_trace_events;
+	} else {
+		start = mod->trace_events.events;
+		end   = mod->trace_events.events + mod->num_trace_events;
+	}
 
-	if (start == end)
+	if (start == NULL && pstart == NULL)
 		return;
 
 	d_events = event_trace_events_dir();
 	if (!d_events)
 		return;
 
-	for_each_event(call, start, end) {
-		ret = __trace_module_add_events(mod, call,
-						&file_ops, d_events);
-		if (ret < 0)
-			return;
+	if (pstart) {
+		for_each_event(pcall, pstart, pend) {
+			call = *pcall;
+			ret = __trace_module_add_events(mod, call,
+							&file_ops, d_events);
+			if (ret < 0)
+				return;
+		}
+	} else {
+		for_each_event(call, start, end) {
+			ret = __trace_module_add_events(mod, call,
+							&file_ops, d_events);
+			if (ret < 0)
+				return;
+		}
 	}
 }
 
