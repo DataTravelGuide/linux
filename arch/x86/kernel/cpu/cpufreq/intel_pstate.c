@@ -31,6 +31,7 @@
 #include <asm/div64.h>
 #include <asm/msr.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpufeature.h>
 
 #define BYT_RATIOS		0x66a
 #define BYT_VIDS		0x66b
@@ -1235,8 +1236,7 @@ static int __init intel_pstate_init(void)
 {
 	int cpu, rc = 0;
 	const struct x86_cpu_id *id;
-	struct cpu_defaults *cpu_info;
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	struct cpu_defaults *cpu_def;
 
 	if (no_load)
 		return -ENODEV;
@@ -1252,10 +1252,10 @@ static int __init intel_pstate_init(void)
 	if (intel_pstate_platform_pwr_mgmt_exists())
 		return -ENODEV;
 
-	cpu_info = (struct cpu_defaults *)id->driver_data;
+	cpu_def = (struct cpu_defaults *)id->driver_data;
 
-	copy_pid_params(&cpu_info->pid_policy);
-	copy_cpu_funcs(&cpu_info->funcs);
+	copy_pid_params(&cpu_def->pid_policy);
+	copy_cpu_funcs(&cpu_def->funcs);
 
 	if (intel_pstate_msrs_not_valid())
 		return -ENODEV;
@@ -1266,7 +1266,7 @@ static int __init intel_pstate_init(void)
 	if (!all_cpu_data)
 		return -ENOMEM;
 
-	if (cpu_has(c,X86_FEATURE_HWP) && !no_hwp)
+	if (boot_cpu_has(X86_FEATURE_HWP) && !no_hwp)
 		intel_pstate_hwp_enable();
 
 	if (!hwp_active && hwp_only)
