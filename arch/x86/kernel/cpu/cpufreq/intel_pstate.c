@@ -718,11 +718,12 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
-static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate, bool force)
+static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate,
+				    bool force_state)
 {
 	int max_perf, min_perf;
 
-	if (force) {
+	if (force_state) {
 		update_turbo_state();
 
 		intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
@@ -1125,9 +1126,9 @@ static void intel_pstate_exit(void)
 module_exit(intel_pstate_exit);
 
 static int __initdata no_load;
-static int __initdata no_hwp;
-static int __initdata hwp_only;
-static unsigned int force_load;
+static int no_hwp;
+static int hwp_only;
+static unsigned int force;
 
 static int intel_pstate_msrs_not_valid(void)
 {
@@ -1264,8 +1265,7 @@ static bool intel_pstate_platform_pwr_mgmt_exists(void)
 			case PSS:
 				return intel_pstate_no_acpi_pss();
 			case PPC:
-				return intel_pstate_has_acpi_ppc() &&
-					(!force_load);
+				return intel_pstate_has_acpi_ppc() && (!force);
 			}
 	}
 
@@ -1352,13 +1352,21 @@ static int __init intel_pstate_setup(char *str)
 	if (!strcmp(str, "no_hwp"))
 		no_hwp = 1;
 	if (!strcmp(str, "force"))
-		force_load = 1;
+		force_load = 1; /* renamed to force */
 	if (!strcmp(str, "hwp_only"))
 		hwp_only = 1;
 	return 0;
 }
 early_param("intel_pstate", intel_pstate_setup);
 #endif
+
+/* Module parameters based on upstream kernel parameter options */
+module_param(no_hwp, int, 0644);
+MODULE_PARM_DESC(no_hwp, "Do not enable hardware P state control (HWP) if available.");
+module_param(force, uint, 0644);
+MODULE_PARM_DESC(force, "Enable intel_pstate on systems that prohibit it by default in favor of acpi-cpufreq. Forcing the intel_pstate driver instead of acpi-cpufreq may disable platform features, such as thermal controls and power capping, that rely on ACPI P-States information being indicated to OSPM and therefore should be used with caution. This option does not work with processors that aren't supported by the intel_pstate driver or on platforms that use pcc-cpufreq instead of acpi-cpufreq.");
+module_param(hwp_only, int, 0644);
+MODULE_PARM_DESC(hwp_only, "Only load intel_pstate on systems which support hardware P state control (HWP) if available.");
 
 MODULE_AUTHOR("Dirk Brandewie <dirk.j.brandewie@intel.com>");
 MODULE_DESCRIPTION("'intel_pstate' - P state driver Intel Core processors");
