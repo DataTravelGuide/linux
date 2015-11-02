@@ -1941,6 +1941,7 @@ again:
 				break;
 		}
 		anon_vma_unlock(anon_vma);
+		cond_resched();
 		if (!mapcount)
 			goto out;
 	}
@@ -1993,6 +1994,7 @@ again:
 			}
 		}
 		anon_vma_unlock(anon_vma);
+		cond_resched();
 	}
 	if (!search_new_forks++)
 		goto again;
@@ -2044,6 +2046,7 @@ again:
 			}
 		}
 		anon_vma_unlock(anon_vma);
+		cond_resched();
 	}
 	if (!search_new_forks++)
 		goto again;
