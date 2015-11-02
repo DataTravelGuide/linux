@@ -581,7 +581,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 			dprintk("svc: recvfrom returned error %d\n", -err);
 			set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		}
-		return -EAGAIN;
+		return 0;
 	}
 	len = svc_addr_len(svc_addr(rqstp));
 	rqstp->rq_addrlen = len;
@@ -1146,13 +1146,13 @@ error:
 	if (len != -EAGAIN)
 		goto err_other;
 	dprintk("RPC: TCP recvfrom got EAGAIN\n");
-	return -EAGAIN;
+	return 0;
 err_other:
 	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
 	       svsk->sk_xprt.xpt_server->sv_name, -len);
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 err_noclose:
-	return -EAGAIN;	/* record not complete */
+	return 0;	/* record not complete */
 }
 
 /*
