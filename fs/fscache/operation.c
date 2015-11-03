@@ -19,6 +19,10 @@
 atomic_t fscache_op_debug_id;
 EXPORT_SYMBOL(fscache_op_debug_id);
 
+static void fscache_operation_dummy_cancel(struct fscache_operation *op)
+{
+}
+
 /**
  * fscache_operation_init - Do basic initialisation of an operation
  * @op: The operation to initialise
@@ -30,12 +34,14 @@ EXPORT_SYMBOL(fscache_op_debug_id);
  */
 void fscache_operation_init(struct fscache_operation *op,
 			    fscache_operation_processor_t processor,
+			    fscache_operation_cancel_t cancel,
 			    fscache_operation_release_t release)
 {
 	atomic_set(&op->usage, 1);
 	op->state = FSCACHE_OP_ST_INITIALISED;
 	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
 	op->processor = processor;
+	op->cancel = cancel ?: fscache_operation_dummy_cancel;
 	op->release = release;
 	INIT_LIST_HEAD(&op->pend_link);
 	fscache_set_op_state(op, "Init");
@@ -174,9 +180,11 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 	flags = ACCESS_ONCE(object->flags);
 	if (unlikely(!(flags & BIT(FSCACHE_OBJECT_IS_LIVE)))) {
 		fscache_stat(&fscache_n_op_rejected);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	} else if (unlikely(fscache_cache_is_broken(object))) {
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -EIO;
 	} else if (flags & BIT(FSCACHE_OBJECT_IS_AVAILABLE)) {
@@ -210,10 +218,12 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
 	} else if (flags & BIT(FSCACHE_OBJECT_KILLED_BY_CACHE)) {
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	} else {
 		fscache_report_unexpected_submission(object, op, ostate);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	}
@@ -257,9 +267,11 @@ int fscache_submit_op(struct fscache_object *object,
 	flags = ACCESS_ONCE(object->flags);
 	if (unlikely(!(flags & BIT(FSCACHE_OBJECT_IS_LIVE)))) {
 		fscache_stat(&fscache_n_op_rejected);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	} else if (unlikely(fscache_cache_is_broken(object))) {
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -EIO;
 	} else if (flags & BIT(FSCACHE_OBJECT_IS_AVAILABLE)) {
@@ -288,11 +300,13 @@ int fscache_submit_op(struct fscache_object *object,
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
 	} else if (flags & BIT(FSCACHE_OBJECT_KILLED_BY_CACHE)) {
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	} else {
 		fscache_report_unexpected_submission(object, op, ostate);
 		ASSERT(!fscache_object_is_active(object));
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		ret = -ENOBUFS;
 	}
@@ -347,7 +361,6 @@ void fscache_start_operations(struct fscache_object *object)
  * cancel an operation that's pending on an object
  */
 int fscache_cancel_op(struct fscache_operation *op,
-		      void (*do_cancel)(struct fscache_operation *),
 		      bool cancel_in_progress_op)
 {
 	struct fscache_object *object = op->object;
@@ -367,9 +380,9 @@ int fscache_cancel_op(struct fscache_operation *op,
 		ASSERT(!list_empty(&op->pend_link));
 		list_del_init(&op->pend_link);
 		put = true;
+
 		fscache_stat(&fscache_n_op_cancelled);
-		if (do_cancel)
-			do_cancel(op);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
 			object->n_exclusive--;
@@ -385,8 +398,7 @@ int fscache_cancel_op(struct fscache_operation *op,
 			fscache_start_operations(object);
 
 		fscache_stat(&fscache_n_op_cancelled);
-		if (do_cancel)
-			do_cancel(op);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
 			object->n_exclusive--;
@@ -420,6 +432,7 @@ void fscache_cancel_all_ops(struct fscache_object *object)
 		list_del_init(&op->pend_link);
 
 		ASSERTCMP(op->state, ==, FSCACHE_OP_ST_PENDING);
+		op->cancel(op);
 		op->state = FSCACHE_OP_ST_CANCELLED;
 
 		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
@@ -452,8 +465,12 @@ void fscache_op_complete(struct fscache_operation *op, bool cancelled)
 
 	spin_lock(&object->lock);
 
-	op->state = cancelled ?
-		FSCACHE_OP_ST_CANCELLED : FSCACHE_OP_ST_COMPLETE;
+	if (!cancelled) {
+		op->state = FSCACHE_OP_ST_COMPLETE;
+	} else {
+		op->cancel(op);
+		op->state = FSCACHE_OP_ST_CANCELLED;
+	}
 
 	if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
 		object->n_exclusive--;
