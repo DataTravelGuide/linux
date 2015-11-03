@@ -242,7 +242,7 @@ nobufs_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs:
 	spin_unlock(&cookie->lock);
-	kfree(op);
+	fscache_put_operation(op);
 	if (wake_cookie)
 		__fscache_wake_unused_cookie(cookie);
 	fscache_stat(&fscache_n_attr_changed_nobufs);
@@ -531,7 +531,7 @@ nobufs_unlock:
 	spin_unlock(&cookie->lock);
 	if (wake_cookie)
 		__fscache_wake_unused_cookie(cookie);
-	kfree(op);
+	fscache_put_retrieval(op);
 nobufs:
 	fscache_stat(&fscache_n_retrievals_nobufs);
 	_leave(" = -ENOBUFS");
@@ -682,7 +682,7 @@ nobufs_unlock_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
-	kfree(op);
+	fscache_put_retrieval(op);
 	if (wake_cookie)
 		__fscache_wake_unused_cookie(cookie);
 nobufs:
@@ -777,7 +777,7 @@ nobufs_unlock_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
-	kfree(op);
+	fscache_put_retrieval(op);
 	if (wake_cookie)
 		__fscache_wake_unused_cookie(cookie);
 nobufs:
@@ -1074,7 +1074,7 @@ already_pending:
 	spin_unlock(&object->lock);
 	spin_unlock(&cookie->lock);
 	radix_tree_preload_end();
-	kfree(op);
+	fscache_put_operation(&op->op);
 	fscache_stat(&fscache_n_stores_ok);
 	_leave(" = 0");
 	return 0;
@@ -1094,7 +1094,7 @@ nobufs_unlock_obj:
 nobufs:
 	spin_unlock(&cookie->lock);
 	radix_tree_preload_end();
-	kfree(op);
+	fscache_put_operation(&op->op);
 	if (wake_cookie)
 		__fscache_wake_unused_cookie(cookie);
 	fscache_stat(&fscache_n_stores_nobufs);
@@ -1102,7 +1102,7 @@ nobufs:
 	return -ENOBUFS;
 
 nomem_free:
-	kfree(op);
+	fscache_put_operation(&op->op);
 nomem:
 	fscache_stat(&fscache_n_stores_oom);
 	_leave(" = -ENOMEM");
