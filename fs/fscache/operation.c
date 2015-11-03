@@ -39,6 +39,7 @@ void fscache_operation_init(struct fscache_operation *op,
 	op->release = release;
 	INIT_LIST_HEAD(&op->pend_link);
 	fscache_set_op_state(op, "Init");
+	fscache_stat(&fscache_n_op_initialised);
 }
 EXPORT_SYMBOL(fscache_operation_init);
 
