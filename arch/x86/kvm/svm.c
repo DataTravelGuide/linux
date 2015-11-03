@@ -790,7 +790,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 	control->intercept_exceptions = (1 << PF_VECTOR) |
 					(1 << UD_VECTOR) |
-					(1 << MC_VECTOR);
+					(1 << MC_VECTOR) |
+					(1 << AC_VECTOR);
 
 
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
@@ -1489,6 +1490,12 @@ static int ud_interception(struct vcpu_svm *svm)
 	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
 	if (er != EMULATE_DONE)
 		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
+	return 1;
+}
+
+static int ac_interception(struct vcpu_svm *svm)
+{
+	kvm_queue_exception_e(&svm->vcpu, AC_VECTOR, 0);
 	return 1;
 }
 
@@ -2785,6 +2792,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
 	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,
 	[SVM_EXIT_EXCP_BASE + MC_VECTOR] 	= mc_interception,
+	[SVM_EXIT_EXCP_BASE + AC_VECTOR] 	= ac_interception,
 	[SVM_EXIT_INTR] 			= intr_interception,
 	[SVM_EXIT_NMI]				= nmi_interception,
 	[SVM_EXIT_SMI]				= nop_on_interception,
