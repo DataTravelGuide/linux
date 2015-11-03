@@ -214,8 +214,8 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 		return -ENOMEM;
 	}
 
-	fscache_operation_init(op, NULL);
-	fscache_operation_init_slow(op, fscache_attr_changed_op);
+	fscache_operation_init(op, fscache_attr_changed_op, NULL);
+	fscache_operation_init_slow(op);
 	op->flags = FSCACHE_OP_SLOW |
 		(1 << FSCACHE_OP_EXCLUSIVE) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
@@ -306,7 +306,7 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 		return NULL;
 	}
 
-	fscache_operation_init(&op->op, fscache_release_retrieval_op);
+	fscache_operation_init(&op->op, NULL, fscache_release_retrieval_op);
 	op->op.flags	= FSCACHE_OP_MYTHREAD |
 		(1UL << FSCACHE_OP_WAITING) |
 		(1UL << FSCACHE_OP_UNUSE_COOKIE);
@@ -1000,8 +1000,9 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	if (!op)
 		goto nomem;
 
-	fscache_operation_init(&op->op, fscache_release_write_op);
-	fscache_operation_init_slow(&op->op, fscache_write_op);
+	fscache_operation_init(&op->op, fscache_write_op,
+			       fscache_release_write_op);
+	fscache_operation_init_slow(&op->op);
 	op->op.flags = FSCACHE_OP_SLOW |
 		(1 << FSCACHE_OP_WAITING) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);

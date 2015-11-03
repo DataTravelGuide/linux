@@ -20,6 +20,29 @@ atomic_t fscache_op_debug_id;
 EXPORT_SYMBOL(fscache_op_debug_id);
 
 /**
+ * fscache_operation_init - Do basic initialisation of an operation
+ * @op: The operation to initialise
+ * @processor: The processor function to assign
+ * @release: The release function to assign
+ *
+ * Do basic initialisation of an operation.  The caller must still set flags,
+ * object and processor if needed.
+ */
+void fscache_operation_init(struct fscache_operation *op,
+			    fscache_operation_processor_t processor,
+			    fscache_operation_release_t release)
+{
+	atomic_set(&op->usage, 1);
+	op->state = FSCACHE_OP_ST_INITIALISED;
+	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
+	op->processor = processor;
+	op->release = release;
+	INIT_LIST_HEAD(&op->pend_link);
+	fscache_set_op_state(op, "Init");
+}
+EXPORT_SYMBOL(fscache_operation_init);
+
+/**
  * fscache_enqueue_operation - Enqueue an operation for processing
  * @op: The operation to enqueue
  *

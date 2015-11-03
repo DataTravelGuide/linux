@@ -133,38 +133,19 @@ extern const struct slow_work_ops fscache_op_slow_work_ops;
 extern void fscache_enqueue_operation(struct fscache_operation *);
 extern void fscache_op_complete(struct fscache_operation *, bool);
 extern void fscache_put_operation(struct fscache_operation *);
-
-/**
- * fscache_operation_init - Do basic initialisation of an operation
- * @op: The operation to initialise
- * @release: The release function to assign
- *
- * Do basic initialisation of an operation.  The caller must still set flags,
- * object, either fast_work or slow_work if necessary, and processor if needed.
- */
-static inline void fscache_operation_init(struct fscache_operation *op,
-					  fscache_operation_release_t release)
-{
-	atomic_set(&op->usage, 1);
-	op->state = FSCACHE_OP_ST_INITIALISED;
-	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
-	op->release = release;
-	INIT_LIST_HEAD(&op->pend_link);
-	fscache_set_op_state(op, "Init");
-}
+extern void fscache_operation_init(struct fscache_operation *,
+				   fscache_operation_processor_t,
+				   fscache_operation_release_t);
 
 /**
  * fscache_operation_init_slow - Do additional initialisation of a slow op
  * @op: The operation to initialise
- * @processor: The processor function to assign
  *
  * Do additional initialisation of an operation as required for slow work.
  */
 static inline
-void fscache_operation_init_slow(struct fscache_operation *op,
-				 fscache_operation_processor_t processor)
+void fscache_operation_init_slow(struct fscache_operation *op)
 {
-	op->processor = processor;
 	slow_work_init(&op->slow_work, &fscache_op_slow_work_ops);
 }
 
