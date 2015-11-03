@@ -162,14 +162,12 @@ static void fscache_attr_changed_op(struct fscache_operation *op)
 
 	fscache_stat(&fscache_n_attr_changed_calls);
 
-	if (fscache_object_is_active(object) &&
-	    fscache_use_cookie(object)) {
+	if (fscache_object_is_active(object)) {
 		fscache_set_op_state(op, "CallFS");
 		fscache_stat(&fscache_n_cop_attr_changed);
 		ret = object->cache->ops->attr_changed(object);
 		fscache_stat_d(&fscache_n_cop_attr_changed);
 		fscache_set_op_state(op, "Done");
-		fscache_unuse_cookie(object);
 		if (ret < 0)
 			fscache_abort_object(object);
 	}
@@ -185,6 +183,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
+	bool wake_cookie;
 
 	_enter("%p", cookie);
 
@@ -201,7 +200,9 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 
 	fscache_operation_init(op, NULL);
 	fscache_operation_init_slow(op, fscache_attr_changed_op);
-	op->flags = FSCACHE_OP_SLOW | (1 << FSCACHE_OP_EXCLUSIVE);
+	op->flags = FSCACHE_OP_SLOW |
+		(1 << FSCACHE_OP_EXCLUSIVE) |
+		(1 << FSCACHE_OP_UNUSE_COOKIE);
 	fscache_set_op_name(op, "Attr");
 
 	spin_lock(&cookie->lock);
@@ -211,6 +212,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
 
+	__fscache_use_cookie(cookie);
 	if (fscache_submit_exclusive_op(object, op) < 0)
 		goto nobufs;
 	spin_unlock(&cookie->lock);
@@ -220,8 +222,11 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 	return 0;
 
 nobufs:
+	wake_cookie = __fscache_unuse_cookie(cookie);
 	spin_unlock(&cookie->lock);
 	kfree(op);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 	fscache_stat(&fscache_n_attr_changed_nobufs);
 	_leave(" = %d", -ENOBUFS);
 	return -ENOBUFS;
@@ -284,7 +289,6 @@ static struct fscache_retrieval *fscache_alloc_retrieval(
 	}
 
 	fscache_operation_init(&op->op, fscache_release_retrieval_op);
-	atomic_inc(&cookie->n_active);
 	op->op.flags	= FSCACHE_OP_MYTHREAD |
 		(1UL << FSCACHE_OP_WAITING) |
 		(1UL << FSCACHE_OP_UNUSE_COOKIE);
@@ -407,6 +411,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 {
 	struct fscache_retrieval *op;
 	struct fscache_object *object;
+	bool wake_cookie = false;
 	int ret;
 
 	_enter("%p,%p,,,", cookie, page);
@@ -445,6 +450,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 
 	ASSERT(test_bit(FSCACHE_OBJECT_IS_LOOKED_UP, &object->flags));
 
+	__fscache_use_cookie(cookie);
 	atomic_inc(&object->n_reads);
 	__set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
 
@@ -499,9 +505,11 @@ error:
 
 nobufs_unlock_dec:
 	atomic_dec(&object->n_reads);
+	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
-	atomic_dec(&cookie->n_active);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 	kfree(op);
 nobufs:
 	fscache_stat(&fscache_n_retrievals_nobufs);
@@ -538,6 +546,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 {
 	struct fscache_retrieval *op;
 	struct fscache_object *object;
+	bool wake_cookie = false;
 	int ret;
 
 	_enter("%p,,%d,,,", cookie, *nr_pages);
@@ -572,6 +581,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
 
+	__fscache_use_cookie(cookie);
 	atomic_inc(&object->n_reads);
 	__set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
 
@@ -647,10 +657,12 @@ error:
 
 nobufs_unlock_dec:
 	atomic_dec(&object->n_reads);
+	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
-	atomic_dec(&cookie->n_active);
 	kfree(op);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 nobufs:
 	fscache_stat(&fscache_n_retrievals_nobufs);
 	_leave(" = -ENOBUFS");
@@ -672,6 +684,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 {
 	struct fscache_retrieval *op;
 	struct fscache_object *object;
+	bool wake_cookie = false;
 	int ret;
 
 	_enter("%p,%p,,,", cookie, page);
@@ -705,8 +718,9 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
 
+	__fscache_use_cookie(cookie);
 	if (fscache_submit_op(object, &op->op) < 0)
-		goto nobufs_unlock;
+		goto nobufs_unlock_dec;
 	spin_unlock(&cookie->lock);
 
 	fscache_stat(&fscache_n_alloc_ops);
@@ -736,10 +750,13 @@ error:
 	_leave(" = %d", ret);
 	return ret;
 
+nobufs_unlock_dec:
+	wake_cookie = __fscache_unuse_cookie(cookie);
 nobufs_unlock:
 	spin_unlock(&cookie->lock);
-	atomic_dec(&cookie->n_active);
 	kfree(op);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 nobufs:
 	fscache_stat(&fscache_n_allocs_nobufs);
 	_leave(" = -ENOBUFS");
@@ -941,6 +958,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 {
 	struct fscache_storage *op;
 	struct fscache_object *object;
+	bool wake_cookie = false;
 	int ret;
 
 	_enter("%p,%x,", cookie, (u32) page->flags);
@@ -1010,7 +1028,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	op->op.debug_id	= atomic_inc_return(&fscache_op_debug_id);
 	op->store_limit = object->store_limit;
 
-	atomic_inc(&cookie->n_active);
+	__fscache_use_cookie(cookie);
 	if (fscache_submit_op(object, &op->op) < 0)
 		goto submit_failed;
 
@@ -1037,10 +1055,10 @@ already_pending:
 	return 0;
 
 submit_failed:
-	atomic_dec(&cookie->n_active);
 	spin_lock(&cookie->stores_lock);
 	radix_tree_delete(&cookie->stores, page->index);
 	spin_unlock(&cookie->stores_lock);
+	wake_cookie = __fscache_unuse_cookie(cookie);
 	page_cache_release(page);
 	ret = -ENOBUFS;
 	goto nobufs;
@@ -1052,6 +1070,8 @@ nobufs:
 	spin_unlock(&cookie->lock);
 	radix_tree_preload_end();
 	kfree(op);
+	if (wake_cookie)
+		__fscache_wake_unused_cookie(cookie);
 	fscache_stat(&fscache_n_stores_nobufs);
 	_leave(" = -ENOBUFS");
 	return -ENOBUFS;
