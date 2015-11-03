@@ -1,4 +1,4 @@
-ifeq ($(filter rh-%,$(MAKECMDGOALS)),)
+ifeq ($(filter rh-% rhg-%,$(MAKECMDGOALS)),)
 	include Makefile
 endif
 
