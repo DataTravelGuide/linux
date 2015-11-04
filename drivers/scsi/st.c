@@ -86,7 +86,8 @@ static int debug_flag;
 static int st_dev_max;
 static int st_nr_dev;
 
-static struct class *st_sysfs_class;
+static struct class st_sysfs_class;
+static struct device_attribute st_dev_attrs[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -4184,7 +4185,7 @@ out_free_tape:
 			if (STm->cdevs[j]) {
 				if (cdev == STm->cdevs[j])
 					cdev = NULL;
-					device_destroy(st_sysfs_class,
+					device_destroy(&st_sysfs_class,
 						       MKDEV(SCSI_TAPE_MAJOR,
 							     TAPE_MINOR(i, mode, j)));
 				cdev_del(STm->cdevs[j]);
@@ -4225,7 +4226,7 @@ static int st_remove(struct device *dev)
 					  "tape");
 			for (mode = 0; mode < ST_NBR_MODES; ++mode) {
 				for (j=0; j < 2; j++) {
-					device_destroy(st_sysfs_class,
+					device_destroy(&st_sysfs_class,
 						       MKDEV(SCSI_TAPE_MAJOR,
 							     TAPE_MINOR(i, mode, j)));
 					cdev_del(tpnt->modes[mode].cdevs[j]);
@@ -4272,6 +4273,11 @@ static void scsi_tape_release(struct kref *kref)
 	return;
 }
 
+static struct class st_sysfs_class = {
+	.name = "scsi_tape",
+	.dev_attrs = st_dev_attrs,
+};
+
 static int __init init_st(void)
 {
 	int err;
@@ -4287,10 +4293,10 @@ static int __init init_st(void)
 			debugging);
 	}
 
-	st_sysfs_class = class_create(THIS_MODULE, "scsi_tape");
-	if (IS_ERR(st_sysfs_class)) {
-		printk(KERN_ERR "Unable create sysfs class for SCSI tapes\n");
-		return PTR_ERR(st_sysfs_class);
+	err = class_register(&st_sysfs_class);
+	if (err) {
+		pr_err("Unable register sysfs class for SCSI tapes\n");
+		return err;
 	}
 
 	err = register_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
@@ -4317,7 +4323,7 @@ err_chrdev:
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
 err_class:
-	class_destroy(st_sysfs_class);
+	class_unregister(&st_sysfs_class);
 	return err;
 }
 
@@ -4327,7 +4333,7 @@ static void __exit exit_st(void)
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
-	class_destroy(st_sysfs_class);
+	class_unregister(&st_sysfs_class);
 	kfree(scsi_tapes);
 	printk(KERN_INFO "st: Unloaded.\n");
 }
@@ -4400,10 +4406,9 @@ static void do_remove_sysfs_files(void)
 	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 }
 
-
 /* The sysfs simple class interface */
 static ssize_t
-st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
+defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4412,10 +4417,9 @@ st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(defined, S_IRUGO, st_defined_show, NULL);
-
 static ssize_t
-st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
+default_blksize_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4424,10 +4428,10 @@ st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(default_blksize, S_IRUGO, st_defblk_show, NULL);
 
 static ssize_t
-st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
+default_density_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4438,11 +4442,9 @@ st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(default_density, S_IRUGO, st_defdensity_show, NULL);
-
 static ssize_t
-st_defcompression_show(struct device *dev, struct device_attribute *attr,
-		       char *buf)
+default_compression_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4451,10 +4453,8 @@ st_defcompression_show(struct device *dev, struct device_attribute *attr,
 	return l;
 }
 
-DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
-
 static ssize_t
-st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
+options_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	struct scsi_tape *STp;
@@ -4492,7 +4492,14 @@ st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
+static struct device_attribute st_dev_attrs[] = {
+	__ATTR_RO(defined),
+	__ATTR_RO(default_blksize),
+	__ATTR_RO(default_density),
+	__ATTR_RO(default_compression),
+	__ATTR_RO(options),
+	__ATTR_NULL,
+};
 
 static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 {
@@ -4507,7 +4514,8 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			device_create(st_sysfs_class, &STp->device->sdev_gendev,
+			device_create(&st_sysfs_class,
+				      &STp->device->sdev_gendev,
 				      MKDEV(SCSI_TAPE_MAJOR,
 					    TAPE_MINOR(dev_num, mode, rew)),
 				      &STp->modes[mode], "%s", name);
@@ -4517,22 +4525,6 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 			error = PTR_ERR(st_class_member);
 			goto out;
 		}
-
-		error = device_create_file(st_class_member,
-					   &dev_attr_defined);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_blksize);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_density);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_compression);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_options);
-		if (error) goto out;
 
 		if (mode == 0 && rew == 0) {
 			error = sysfs_create_link(&STp->device->sdev_gendev.kobj,
