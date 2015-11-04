@@ -85,7 +85,7 @@ static int try_wdio = 1;
 static int debug_flag;
 
 static struct class st_sysfs_class;
-static struct device_attribute st_dev_attrs[];
+static const struct attribute_group *st_dev_groups[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -4017,6 +4017,13 @@ static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
 
 	STm->devs[rew] = dev;
 
+	error = sysfs_create_groups(&dev->kobj, st_dev_groups);
+	if (error < 0) {
+		pr_err("st%d: Can't create sysfs files\n", dev_num);
+		device_unregister(dev);
+		goto out_free;
+	}
+
 	return 0;
 out_free:
 	cdev_del(STm->cdevs[rew]);
@@ -4044,14 +4051,18 @@ static int create_cdevs(struct scsi_tape *tape)
 static void remove_cdevs(struct scsi_tape *tape)
 {
 	int mode, rew;
+	int i;
 	sysfs_remove_link(&tape->device->sdev_gendev.kobj, "tape");
 	for (mode = 0; mode < ST_NBR_MODES; mode++) {
 		struct st_modedef *STm = &(tape->modes[mode]);
 		for (rew = 0; rew < 2; rew++) {
 			if (STm->cdevs[rew])
 				cdev_del(STm->cdevs[rew]);
-			if (STm->devs[rew])
+			if (STm->devs[rew]) {
+				for (i = 0; st_dev_groups[i]; ++i)
+					sysfs_remove_group(&STm->devs[rew]->kobj, st_dev_groups[i]);
 				device_unregister(STm->devs[rew]);
+			}
 		}
 	}
 }
@@ -4270,7 +4281,6 @@ static void scsi_tape_release(struct kref *kref)
 
 static struct class st_sysfs_class = {
 	.name = "scsi_tape",
-	.dev_attrs = st_dev_attrs,
 };
 
 static int __init init_st(void)
@@ -4410,6 +4420,7 @@ defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->defined);
 	return l;
 }
+static DEVICE_ATTR_RO(defined);
 
 static ssize_t
 default_blksize_show(struct device *dev, struct device_attribute *attr,
@@ -4421,7 +4432,7 @@ default_blksize_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_blksize);
 	return l;
 }
-
+static DEVICE_ATTR_RO(default_blksize);
 
 static ssize_t
 default_density_show(struct device *dev, struct device_attribute *attr,
@@ -4435,6 +4446,7 @@ default_density_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, fmt, STm->default_density);
 	return l;
 }
+static DEVICE_ATTR_RO(default_density);
 
 static ssize_t
 default_compression_show(struct device *dev, struct device_attribute *attr,
@@ -4446,6 +4458,7 @@ default_compression_show(struct device *dev, struct device_attribute *attr,
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_compression - 1);
 	return l;
 }
+static DEVICE_ATTR_RO(default_compression);
 
 static ssize_t
 options_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -4473,14 +4486,24 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
 	return l;
 }
+static DEVICE_ATTR_RO(options);
 
-static struct device_attribute st_dev_attrs[] = {
-	__ATTR_RO(defined),
-	__ATTR_RO(default_blksize),
-	__ATTR_RO(default_density),
-	__ATTR_RO(default_compression),
-	__ATTR_RO(options),
-	__ATTR_NULL,
+static struct attribute *st_dev_attrs[] = {
+	&dev_attr_defined.attr,
+	&dev_attr_default_blksize.attr,
+	&dev_attr_default_density.attr,
+	&dev_attr_default_compression.attr,
+	&dev_attr_options.attr,
+	NULL,
+};
+
+static struct attribute_group st_group = {
+	.attrs = st_dev_attrs,
+};
+
+static const struct attribute_group *st_dev_groups[] = {
+	&st_group,
+	NULL,
 };
 
 /* The following functions may be useful for a larger audience. */
