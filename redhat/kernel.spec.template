@@ -1705,6 +1705,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Nov 06 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.10.1.el6]
+- [sound] Fix USB audio issues (wrong URB_ISO_ASAP semantics) (Jaroslav Kysela) [1273916 1255071]
+- [security] keys: Don't permit request_key() to construct a new keyring (David Howells) [1275927 1273463] {CVE-2015-7872}
+- [security] keys: Fix crash when attempt to garbage collect an uninstantiated keyring (David Howells) [1275927 1273463] {CVE-2015-7872}
+- [security] keys: Fix race between key destruction and finding a keyring by name (David Howells) [1275927 1273463] {CVE-2015-7872}
+- [ipc] Initialize msg/shm IPC objects before doing ipc_addid() (Stanislav Kozina) [1271504 1271505] {CVE-2015-7613}
+- [fs] vfs: Test for and handle paths that are unreachable from their mnt_root (Eric W. Biederman) [1209368 1209369] {CVE-2015-2925}
+- [fs] dcache: Handle escaped paths in prepend_path (Eric W. Biederman) [1209368 1209369] {CVE-2015-2925}
+- [netdrv] igb: add support for 1512 PHY (Stefan Assmann) [1278275 1238551]
+- [hid] fix unused rsize usage (Don Zickus) [1268203 1256568]
+- [hid] fix data access in implement() (Don Zickus) [1268203 1256568]
+- [fs] NFS: Hold i_lock in nfs_wb_page_cancel() while locking a request (Benjamin Coddington) [1273721 1135601]
+
 * Fri Oct 23 2015 Frantisek Hrbata <fhrbata@redhat.com> [2.6.32-573.9.1.el6]
 - [mm] hugetlb: fix race in region tracking (Herton R. Krzesinski) [1274599 1260755]
 - [mm] hugetlb: improve, cleanup resv_map parameters (Herton R. Krzesinski) [1274599 1260755]
