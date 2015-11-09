@@ -58,8 +58,8 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 #define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
 #ifdef CONFIG_SMP
-#define TO_PHYS_ID(cpu)		cpu_data(cpu).phys_proc_id
-#define TO_CORE_ID(cpu)		cpu_data(cpu).cpu_core_id
+#define TO_PHYS_ID(cpu)		(cpu_data(cpu).phys_proc_id)
+#define TO_CORE_ID(cpu)		(cpu_data(cpu).cpu_core_id)
 #define for_each_sibling(i, cpu)	for_each_cpu(i, cpu_sibling_mask(cpu))
 #else
 #define TO_PHYS_ID(cpu)		(cpu)
