@@ -1293,7 +1293,12 @@ retry:
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && (pos + count) > inode->i_size) {
+		struct timespec now;
+
 		i_size_write(inode, pos + count);
+		now = current_fs_time(inode->i_sb);
+		inode->i_mtime = now;
+		inode->i_ctime = now;
 		mark_inode_dirty(inode);
 	}
 
