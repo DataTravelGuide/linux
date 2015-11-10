@@ -791,6 +791,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	control->intercept_exceptions = (1 << PF_VECTOR) |
 					(1 << UD_VECTOR) |
 					(1 << MC_VECTOR) |
+					(1 << DB_VECTOR) |
 					(1 << AC_VECTOR);
 
 
@@ -1278,21 +1279,14 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 	mark_dirty(svm->vmcb, VMCB_SEG);
 }
 
-static void update_db_intercept(struct kvm_vcpu *vcpu)
+static void update_bp_intercept(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.intercept_exceptions &=
-		~((1 << DB_VECTOR) | (1 << BP_VECTOR));
-
-	if (vcpu->arch.singlestep)
-		svm->vmcb->control.intercept_exceptions |= (1 << DB_VECTOR);
+		~(1 << BP_VECTOR);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
-		if (vcpu->guest_debug &
-		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			svm->vmcb->control.intercept_exceptions |=
-				1 << DB_VECTOR;
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
 			svm->vmcb->control.intercept_exceptions |=
 				1 << BP_VECTOR;
@@ -1309,7 +1303,7 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 
 	vcpu->guest_debug = dbg->control;
 
-	update_db_intercept(vcpu);
+	update_bp_intercept(vcpu);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
 		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
@@ -1458,11 +1452,10 @@ static int db_interception(struct vcpu_svm *svm)
 		if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP))
 			svm->vmcb->save.rflags &=
 				~(X86_EFLAGS_TF | X86_EFLAGS_RF);
-		update_db_intercept(&svm->vcpu);
 	}
 
 	if (svm->vcpu.guest_debug &
-	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)){
+	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) {
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		kvm_run->debug.arch.pc =
 			svm->vmcb->save.cs.base + svm->vmcb->save.rip;
@@ -3037,7 +3030,6 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	   shadow) */
 	vcpu->arch.singlestep = true;
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
-	update_db_intercept(vcpu);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
