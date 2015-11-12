@@ -68,8 +68,9 @@
 static const struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
+struct kset *xfs_kset;			/* top-level xfs sysfs dir */
+static struct xfs_kobj xfs_stats_kobj;	/* global stats sysfs attrs */
 
-struct kset *xfs_kset;                 /* top-level xfs sysfs dir */
 #ifdef DEBUG
 static struct xfs_kobj xfs_dbg_kobj;   /* global debug sysfs attrs */
 #endif
@@ -1749,20 +1750,26 @@ init_xfs_fs(void)
 	xfs_kset = kset_create_and_add("xfs", NULL, fs_kobj);
 	if (!xfs_kset) {
 		error = -ENOMEM;
-		goto out_sysctl_unregister;;
+		goto out_sysctl_unregister;
 	}
+
+	xfs_stats_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&xfs_stats_kobj, &xfs_stats_ktype, NULL,
+			       "stats");
+	if (error)
+		goto out_kset_unregister;
 
 #ifdef DEBUG
 	xfs_dbg_kobj.kobject.kset = xfs_kset;
 	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
 	if (error)
-		goto out_kset_unregister;
+		goto out_remove_stats_kobj;
 #endif
 
 	xfs_alloc_wq = create_workqueue("xfsalloc");
 	if (!xfs_alloc_wq) {
 		error = ENOMEM;
-		goto out_remove_kobj;
+		goto out_remove_dbg_kobj;
 	}
 
 	xfs_eofblocks_wq = create_workqueue("xfseofblocks");
@@ -1782,11 +1789,13 @@ init_xfs_fs(void)
 	destroy_workqueue(xfs_eofblocks_wq);
  out_destroy_alloc_wq:
 	destroy_workqueue(xfs_alloc_wq);
- out_remove_kobj:
+ out_remove_dbg_kobj:
 #ifdef DEBUG
 	xfs_sysfs_del(&xfs_dbg_kobj);
- out_kset_unregister:
+ out_remove_stats_kobj:
 #endif
+	xfs_sysfs_del(&xfs_stats_kobj);
+ out_kset_unregister:
 	kset_unregister(xfs_kset);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
@@ -1814,6 +1823,7 @@ exit_xfs_fs(void)
 #ifdef DEBUG
 	xfs_sysfs_del(&xfs_dbg_kobj);
 #endif
+	xfs_sysfs_del(&xfs_stats_kobj);
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
