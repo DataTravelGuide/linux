@@ -1784,13 +1784,13 @@ init_xfs_fs(void)
 
 	xfs_alloc_wq = create_workqueue("xfsalloc");
 	if (!xfs_alloc_wq) {
-		error = ENOMEM;
+		error = -ENOMEM;
 		goto out_remove_dbg_kobj;
 	}
 
 	xfs_eofblocks_wq = create_workqueue("xfseofblocks");
 	if (!xfs_eofblocks_wq) {
-		error = ENOMEM;
+		error = -ENOMEM;
 		goto out_destroy_alloc_wq;
 	}
 
