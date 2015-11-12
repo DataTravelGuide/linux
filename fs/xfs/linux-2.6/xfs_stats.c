@@ -18,18 +18,18 @@
 #include "xfs.h"
 #include <linux/proc_fs.h>
 
-DEFINE_PER_CPU(struct xfsstats, xfsstats);
+struct xstats xfsstats;
 
-static int counter_val(int idx)
+static int counter_val(struct xfsstats __percpu *stats, int idx)
 {
 	int val = 0, cpu;
 
 	for_each_possible_cpu(cpu)
-		val += *(((__u32 *)&per_cpu(xfsstats, cpu) + idx));
+		val += *(((__u32 *)per_cpu_ptr(stats, cpu) + idx));
 	return val;
 }
 
-int xfs_stats_format(char *buf)
+int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 {
 	int		i, j;
 	int		len = 0;
@@ -70,14 +70,14 @@ int xfs_stats_format(char *buf)
 		/* inner loop does each group */
 		for (; j < xstats[i].endpoint; j++)
 			len += snprintf(buf + len, PATH_MAX - len, " %u",
-					counter_val(j));
+					counter_val(stats, j));
 		len += snprintf(buf + len, PATH_MAX - len, "\n");
 	}
 	/* extra precision counters */
 	for_each_possible_cpu(i) {
-		xs_xstrat_bytes += per_cpu(xfsstats, i).xs_xstrat_bytes;
-		xs_write_bytes += per_cpu(xfsstats, i).xs_write_bytes;
-		xs_read_bytes += per_cpu(xfsstats, i).xs_read_bytes;
+		xs_xstrat_bytes += per_cpu_ptr(stats, i)->xs_xstrat_bytes;
+		xs_write_bytes += per_cpu_ptr(stats, i)->xs_write_bytes;
+		xs_read_bytes += per_cpu_ptr(stats, i)->xs_read_bytes;
 	}
 
 	len += snprintf(buf + len, PATH_MAX-len, "xpc %Lu %Lu %Lu\n",
@@ -92,7 +92,7 @@ int xfs_stats_format(char *buf)
 	return len;
 }
 
-void xfs_stats_clearall(void)
+void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
 	int		c;
 	__uint32_t	vn_active;
@@ -101,9 +101,9 @@ void xfs_stats_clearall(void)
 	for_each_possible_cpu(c) {
 		preempt_disable();
 		/* save vn_active, it's a universal truth! */
-		vn_active = per_cpu(xfsstats, c).vn_active;
-		memset(&per_cpu(xfsstats, c), 0, sizeof(struct xfsstats));
-		per_cpu(xfsstats, c).vn_active = vn_active;
+		vn_active = per_cpu_ptr(stats, c)->vn_active;
+		memset(per_cpu_ptr(stats, c), 0, sizeof(*stats));
+		per_cpu_ptr(stats, c)->vn_active = vn_active;
 		preempt_enable();
 	}
 }

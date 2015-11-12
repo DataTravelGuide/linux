@@ -162,6 +162,13 @@ struct xfs_kobj {
 	struct completion	complete;
 };
 
+struct xstats {
+	struct xfsstats __percpu	*xs_stats;
+	struct xfs_kobj			xs_kobj;
+};
+
+extern struct xstats xfsstats;
+
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
