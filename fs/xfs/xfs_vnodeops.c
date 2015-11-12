@@ -422,7 +422,7 @@ restart:
 		    ATTR_ATIME|ATTR_CTIME|ATTR_MTIME))
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	XFS_STATS_INC(xs_ig_attrchg);
+	XFS_STATS_INC(mp, xs_ig_attrchg);
 
 	/*
 	 * If this is a synchronous mount, make sure that the

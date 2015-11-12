@@ -884,7 +884,7 @@ xfs_fs_destroy_inode(
 
 	trace_xfs_destroy_inode(ip);
 
-	XFS_STATS_INC(vn_reclaim);
+	XFS_STATS_INC(ip->i_mount, vn_reclaim);
 
 	/* bad inode, get out here ASAP */
 	if (is_bad_inode(inode))
@@ -1024,9 +1024,9 @@ xfs_fs_clear_inode(
 
 	trace_xfs_clear_inode(ip);
 
-	XFS_STATS_INC(vn_rele);
-	XFS_STATS_INC(vn_remove);
-	XFS_STATS_DEC(vn_active);
+	XFS_STATS_INC(ip->i_mount, vn_rele);
+	XFS_STATS_INC(ip->i_mount, vn_remove);
+	XFS_STATS_DEC(ip->i_mount, vn_active);
 
 	/*
 	 * The iolock is used by the file system to coordinate reads,
