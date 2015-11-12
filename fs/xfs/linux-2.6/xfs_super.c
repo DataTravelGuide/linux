@@ -67,6 +67,7 @@
 static const struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
+struct kset *xfs_kset;
 
 #define MNTOPT_LOGBUFS	"logbufs"	/* number of XFS log buffers */
 #define MNTOPT_LOGBSIZE	"logbsize"	/* size of XFS log buffers */
@@ -1740,10 +1741,16 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
+	xfs_kset = kset_create_and_add("xfs", NULL, fs_kobj);
+	if (!xfs_kset) {
+		error = -ENOMEM;
+		goto out_sysctl_unregister;;
+	}
+
 	xfs_alloc_wq = create_workqueue("xfsalloc");
 	if (!xfs_alloc_wq) {
 		error = ENOMEM;
-		goto out_sysctl_unregister;
+		goto out_kset_unregister;
 	}
 
 	xfs_eofblocks_wq = create_workqueue("xfseofblocks");
@@ -1763,6 +1770,8 @@ init_xfs_fs(void)
 	destroy_workqueue(xfs_eofblocks_wq);
  out_destroy_alloc_wq:
 	destroy_workqueue(xfs_alloc_wq);
+ out_kset_unregister:
+	kset_unregister(xfs_kset);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
@@ -1786,6 +1795,7 @@ exit_xfs_fs(void)
 	unregister_filesystem(&xfs_fs_type);
 	destroy_workqueue(xfs_eofblocks_wq);
 	destroy_workqueue(xfs_alloc_wq);
+	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_buf_terminate();
