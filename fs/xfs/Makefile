@@ -82,6 +82,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
 				   xfs_rename.o \
+				   xfs_sysfs.o \
 				   xfs_trans.o \
 				   xfs_trans_ail.o \
 				   xfs_trans_buf.o \

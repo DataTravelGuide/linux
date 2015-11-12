@@ -30,6 +30,7 @@
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_dinode.h"
+#include "xfs_sysfs.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
@@ -114,6 +115,8 @@ static const struct {
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
 static uuid_t *xfs_uuid_table;
+
+extern struct kset *xfs_kset;
 
 /*
  * See if the UUID is unique among mounted XFS filesystems.
@@ -1211,9 +1214,14 @@ xfs_mountfs(
 
 	mp->m_maxioffset = xfs_max_file_offset(sbp->sb_blocklog);
 
-	error = xfs_uuid_mount(mp);
+	mp->m_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype, NULL, mp->m_fsname);
 	if (error)
 		goto out;
+
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out_remove_sysfs;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -1456,6 +1464,8 @@ xfs_mountfs(
 	xfs_free_perag(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_sysfs:
+	xfs_sysfs_del(&mp->m_kobj);
  out:
 	return error;
 }
@@ -1551,6 +1561,8 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
+
+	xfs_sysfs_del(&mp->m_kobj);
 }
 
 int
