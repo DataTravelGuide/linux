@@ -53,6 +53,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_sync.h"
 #include "xfs_trace.h"
+#include "xfs_sysfs.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -67,7 +68,11 @@
 static const struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
-struct kset *xfs_kset;
+
+struct kset *xfs_kset;                 /* top-level xfs sysfs dir */
+#ifdef DEBUG
+static struct xfs_kobj xfs_dbg_kobj;   /* global debug sysfs attrs */
+#endif
 
 #define MNTOPT_LOGBUFS	"logbufs"	/* number of XFS log buffers */
 #define MNTOPT_LOGBSIZE	"logbsize"	/* size of XFS log buffers */
@@ -1747,10 +1752,17 @@ init_xfs_fs(void)
 		goto out_sysctl_unregister;;
 	}
 
+#ifdef DEBUG
+	xfs_dbg_kobj.kobject.kset = xfs_kset;
+	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
+	if (error)
+		goto out_kset_unregister;
+#endif
+
 	xfs_alloc_wq = create_workqueue("xfsalloc");
 	if (!xfs_alloc_wq) {
 		error = ENOMEM;
-		goto out_kset_unregister;
+		goto out_remove_kobj;
 	}
 
 	xfs_eofblocks_wq = create_workqueue("xfseofblocks");
@@ -1770,7 +1782,11 @@ init_xfs_fs(void)
 	destroy_workqueue(xfs_eofblocks_wq);
  out_destroy_alloc_wq:
 	destroy_workqueue(xfs_alloc_wq);
+ out_remove_kobj:
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
  out_kset_unregister:
+#endif
 	kset_unregister(xfs_kset);
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
@@ -1795,6 +1811,9 @@ exit_xfs_fs(void)
 	unregister_filesystem(&xfs_fs_type);
 	destroy_workqueue(xfs_eofblocks_wq);
 	destroy_workqueue(xfs_alloc_wq);
+#ifdef DEBUG
+	xfs_sysfs_del(&xfs_dbg_kobj);
+#endif
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
