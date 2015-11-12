@@ -43,7 +43,6 @@ endif
 
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= $(XFS_LINUX)/xfs_acl.o
-xfs-$(CONFIG_PROC_FS)		+= $(XFS_LINUX)/xfs_stats.o
 xfs-$(CONFIG_SYSCTL)		+= $(XFS_LINUX)/xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= $(XFS_LINUX)/xfs_ioctl32.o
 
@@ -107,6 +106,7 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_ioctl.o \
 				   xfs_iops.o \
 				   xfs_message.o \
+				   xfs_stats.o \
 				   xfs_super.o \
 				   xfs_sync.o \
 				   xfs_xattr.o)
