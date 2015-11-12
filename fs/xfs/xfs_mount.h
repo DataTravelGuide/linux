@@ -218,6 +218,7 @@ typedef struct xfs_mount {
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
 	char			m_cil_wq_name[32];
+	struct xstats		m_stats;	/* per-fs stats */
 	struct workqueue_struct	*m_cil_workqueue;
 } xfs_mount_t;
 
