@@ -160,6 +160,13 @@ struct tcp_info
 	__u32	tcpi_rcv_space;
 
 	__u32	tcpi_total_retrans;
+
+	/* the following two fields are here just to keep uapi consistent
+	 * with upstream; they are left zeroed
+	 */
+	__u64	rh_reserved_tcpi_pacing_rate;
+	__u64	rh_reserved_tcpi_max_pacing_rate;
+
 	__u64	tcpi_bytes_acked; /* RFC4898 tcpEStatsAppHCThruOctetsAcked */
 	__u64	tcpi_bytes_received; /* RFC4898 tcpEStatsAppHCThruOctetsReceived */
 	__u32	tcpi_segs_out;	     /* RFC4898 tcpEStatsPerfSegsOut */
