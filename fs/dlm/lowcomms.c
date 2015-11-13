@@ -151,6 +151,7 @@ static DEFINE_SPINLOCK(dlm_node_addrs_spin);
 
 static struct sockaddr_storage *dlm_local_addr[DLM_MAX_ADDR_COUNT];
 static int dlm_local_count;
+static int dlm_allow_conn;
 
 /* Work queues */
 static struct workqueue_struct *recv_workqueue;
@@ -835,6 +836,13 @@ static int tcp_accept_from_sock(struct connection *con)
 	int nodeid;
 	struct connection *newcon;
 	struct connection *addcon;
+
+	mutex_lock(&connections_lock);
+	if (!dlm_allow_conn) {
+		mutex_unlock(&connections_lock);
+		return -1;
+	}
+	mutex_unlock(&connections_lock);
 
 	memset(&peeraddr, 0, sizeof(peeraddr));
 	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_STREAM,
@@ -1645,6 +1653,7 @@ void dlm_lowcomms_stop(void)
 	   socket activity.
 	*/
 	mutex_lock(&connections_lock);
+	dlm_allow_conn = 0;
 	foreach_conn(stop_conn);
 	mutex_unlock(&connections_lock);
 
@@ -1672,7 +1681,7 @@ int dlm_lowcomms_start(void)
 	if (!dlm_local_count) {
 		error = -ENOTCONN;
 		log_print("no local IP address has been set");
-		goto out;
+		goto fail;
 	}
 
 	error = -ENOMEM;
@@ -1680,7 +1689,13 @@ int dlm_lowcomms_start(void)
 				      __alignof__(struct connection), 0,
 				      NULL);
 	if (!con_cache)
-		goto out;
+		goto fail;
+
+	error = work_start();
+	if (error)
+		goto fail_destroy;
+
+	dlm_allow_conn = 1;
 
 	/* Start listening */
 	if (dlm_config.ci_protocol == 0)
@@ -1690,21 +1705,18 @@ int dlm_lowcomms_start(void)
 	if (error)
 		goto fail_unlisten;
 
-	error = work_start();
-	if (error)
-		goto fail_unlisten;
-
 	return 0;
 
 fail_unlisten:
+	dlm_allow_conn = 0;
 	con = nodeid2con(0,0);
 	if (con) {
 		close_connection(con, false);
 		kmem_cache_free(con_cache, con);
 	}
+fail_destroy:
 	kmem_cache_destroy(con_cache);
-
-out:
+fail:
 	return error;
 }
 
