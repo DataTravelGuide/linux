@@ -57,8 +57,9 @@ void br_stp_enable_bridge(struct net_bridge *br)
 		if (netif_running(p->dev) && netif_oper_up(p->dev))
 			br_stp_enable_port(p);
 
-	}
-	spin_unlock_bh(&br->lock);
+	err = switchdev_port_attr_set(p->dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(p->dev, "failed to set HW ageing time\n");
 }
 
 /* NO locks held */
