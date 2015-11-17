@@ -24,6 +24,7 @@
 #ifndef _E1000_H_
 #define _E1000_H_
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -32,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/crc32.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
@@ -214,7 +216,7 @@ struct e1000_adapter {
 
 	const struct e1000_info *ei;
 
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u32 bd_number;
 	u32 rx_buffer_len;
 	u16 mng_vlan_id;
