@@ -1264,6 +1264,18 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	return status;
 }
 
+static inline bool nfs_fileid_valid(struct nfs_inode *nfsi,
+				    struct nfs_fattr *fattr)
+{
+	bool ret1 = true, ret2 = true;
+
+	if (fattr->valid & NFS_ATTR_FATTR_FILEID)
+		ret1 = (nfsi->fileid == fattr->fileid);
+	if (fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID)
+		ret2 = (nfsi->fileid == fattr->mounted_on_fileid);
+	return ret1 || ret2;
+}
+
 static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
 {
 	unsigned long invalid = NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
@@ -1377,7 +1389,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfs_display_fhandle_hash(NFS_FH(inode)),
 			atomic_read(&inode->i_count), fattr->valid);
 
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid)
+	if (!nfs_fileid_valid(nfsi, fattr))
 		goto out_fileid;
 
 	/*

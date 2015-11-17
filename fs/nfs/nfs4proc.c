@@ -126,6 +126,7 @@ const u32 nfs4_fattr_bitmap[2] = {
 	| FATTR4_WORD1_TIME_ACCESS
 	| FATTR4_WORD1_TIME_METADATA
 	| FATTR4_WORD1_TIME_MODIFY
+	| FATTR4_WORD1_MOUNTED_ON_FILEID
 };
 
 const u32 nfs4_statfs_bitmap[2] = {
