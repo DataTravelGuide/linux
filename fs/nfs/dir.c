@@ -1531,6 +1531,11 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	if (!is_atomic_open(nd))
 		goto no_open;
 
+	open_flags = nd->intent.open.flags;
+	err = nfs_check_flags(open_flags);
+	if (err)
+		return ERR_PTR(err);
+
 	if (dentry->d_name.len > NFS_SERVER(dir)->namelen) {
 		res = ERR_PTR(-ENAMETOOLONG);
 		goto out;
@@ -1544,7 +1549,6 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		goto out;
 	}
 
-	open_flags = nd->intent.open.flags;
 
 	ctx = create_nfs_open_context(dentry, open_flags);
 	res = ERR_CAST(ctx);

@@ -256,6 +256,9 @@ extern void nfs_force_use_readdirplus(struct inode *dir);
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
 					int nr_to_scan, gfp_t gfp_mask);
 
+/* file.c */
+int nfs_check_flags(int);
+
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
