@@ -636,6 +636,12 @@ nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_s
 		if (IS_ERR(p))
 			goto out_overflow_exit;
 		entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
+
+		if (entry->fattr->fileid != entry->ino) {
+			entry->fattr->mounted_on_fileid = entry->ino;
+			entry->fattr->valid |= NFS_ATTR_FATTR_MOUNTED_ON_FILEID;
+		}
+
 		/* In fact, a post_op_fh3: */
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(!p))
