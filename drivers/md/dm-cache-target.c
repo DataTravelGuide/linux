@@ -1997,6 +1997,7 @@ static int commit_if_needed(struct cache *cache)
 
 static void process_deferred_bios(struct cache *cache)
 {
+	bool prealloc_used = false;
 	unsigned long flags;
 	struct bio_list bios;
 	struct bio *bio;
@@ -2031,13 +2032,16 @@ static void process_deferred_bios(struct cache *cache)
 			process_discard_bio(cache, &structs, bio);
 		else
 			process_bio(cache, &structs, bio);
+		prealloc_used = true;
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 static void process_deferred_cells(struct cache *cache)
 {
+	bool prealloc_used = false;
 	unsigned long flags;
 	struct dm_bio_prison_cell *cell, *tmp;
 	struct list_head cells;
@@ -2065,9 +2069,11 @@ static void process_deferred_cells(struct cache *cache)
 		}
 
 		process_cell(cache, &structs, cell);
+		prealloc_used = true;
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 static void process_deferred_flush_bios(struct cache *cache, bool submit_bios)
@@ -2112,6 +2118,7 @@ static void process_deferred_writethrough_bios(struct cache *cache)
 
 static void writeback_some_dirty_blocks(struct cache *cache)
 {
+	bool prealloc_used = false;
 	dm_oblock_t oblock;
 	dm_cblock_t cblock;
 	struct prealloc structs;
@@ -2131,9 +2138,11 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 		}
 
 		writeback(cache, &structs, oblock, cblock, old_ocell);
+		prealloc_used = true;
 	}
 
-	prealloc_free_structs(cache, &structs);
+	if (prealloc_used)
+		prealloc_free_structs(cache, &structs);
 }
 
 /*----------------------------------------------------------------
