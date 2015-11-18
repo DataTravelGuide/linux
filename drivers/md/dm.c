@@ -95,6 +95,9 @@ struct dm_rq_target_io {
 	struct request *orig, clone;
 	int error;
 	union map_info info;
+	struct dm_stats_aux stats_aux;
+	unsigned long duration_jiffies;
+	unsigned n_sectors;
 };
 
 /*
@@ -1055,6 +1058,17 @@ static void end_clone_bio(struct bio *clone, int error)
 	blk_update_request(tio->orig, 0, nr_bytes);
 }
 
+static void rq_end_stats(struct mapped_device *md, struct request *orig,
+			 struct dm_rq_target_io *tio)
+{
+	if (unlikely(dm_stats_used(&md->stats))) {
+		tio->duration_jiffies = jiffies - tio->duration_jiffies;
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, true, tio->duration_jiffies,
+				    &tio->stats_aux);
+	}
+}
+
 /*
  * Don't touch any member of the md after calling this function because
  * the md may be freed in dm_put() at the end of this function.
@@ -1115,6 +1129,7 @@ static void dm_end_request(struct request *clone, int error)
 			rq->sense_len = clone->sense_len;
 	}
 
+	rq_end_stats(md, rq, tio);
 	free_rq_clone(clone);
 	blk_end_request_all(rq, error);
 	rq_completed(md, rw, true);
@@ -1142,6 +1157,7 @@ void dm_requeue_unmapped_request(struct request *clone)
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
+	rq_end_stats(md, rq, tio);
 	dm_unprep_request(rq);
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -1953,6 +1969,14 @@ static struct request *dm_start_request(struct mapped_device *md, struct request
 		md->last_rq_pos = rq_end_sector(orig);
 		md->last_rq_rw = rq_data_dir(orig);
 		md->last_rq_start_time = ktime_get();
+	}
+
+	if (unlikely(dm_stats_used(&md->stats))) {
+		struct dm_rq_target_io *tio = clone->end_io_data;
+		tio->duration_jiffies = jiffies;
+		tio->n_sectors = blk_rq_sectors(orig);
+		dm_stats_account_io(&md->stats, orig->cmd_flags, blk_rq_pos(orig),
+				    tio->n_sectors, false, 0, &tio->stats_aux);
 	}
 
 	/*
