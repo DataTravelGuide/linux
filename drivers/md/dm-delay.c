@@ -248,7 +248,7 @@ static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 	unsigned long expires = 0;
 
 	if (!delay || !atomic_read(&dc->may_delay))
-		return 1;
+		return DM_MAPIO_REMAPPED;
 
 	delayed = mempool_alloc(dc->delayed_pool, GFP_NOIO);
 
@@ -269,7 +269,7 @@ static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 
 	queue_timeout(dc, expires);
 
-	return 0;
+	return DM_MAPIO_SUBMITTED;
 }
 
 static void delay_presuspend(struct dm_target *ti)
