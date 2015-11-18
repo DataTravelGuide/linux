@@ -2017,6 +2017,7 @@ static void process_deferred_bios(struct cache *cache)
 		 * this bio might require one, we pause until there are some
 		 * prepared mappings to process.
 		 */
+		prealloc_used = true;
 		if (prealloc_data_structs(cache, &structs)) {
 			spin_lock_irqsave(&cache->lock, flags);
 			bio_list_merge(&cache->deferred_bios, &bios);
@@ -2032,7 +2033,6 @@ static void process_deferred_bios(struct cache *cache)
 			process_discard_bio(cache, &structs, bio);
 		else
 			process_bio(cache, &structs, bio);
-		prealloc_used = true;
 	}
 
 	if (prealloc_used)
@@ -2061,6 +2061,7 @@ static void process_deferred_cells(struct cache *cache)
 		 * this bio might require one, we pause until there are some
 		 * prepared mappings to process.
 		 */
+		prealloc_used = true;
 		if (prealloc_data_structs(cache, &structs)) {
 			spin_lock_irqsave(&cache->lock, flags);
 			list_splice(&cells, &cache->deferred_cells);
@@ -2069,7 +2070,6 @@ static void process_deferred_cells(struct cache *cache)
 		}
 
 		process_cell(cache, &structs, cell);
-		prealloc_used = true;
 	}
 
 	if (prealloc_used)
@@ -2131,6 +2131,7 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 		if (policy_writeback_work(cache->policy, &oblock, &cblock, busy))
 			break; /* no work to do */
 
+		prealloc_used = true;
 		if (prealloc_data_structs(cache, &structs) ||
 		    get_cell(cache, oblock, &structs, &old_ocell)) {
 			policy_set_dirty(cache->policy, oblock);
@@ -2138,7 +2139,6 @@ static void writeback_some_dirty_blocks(struct cache *cache)
 		}
 
 		writeback(cache, &structs, oblock, cblock, old_ocell);
-		prealloc_used = true;
 	}
 
 	if (prealloc_used)
