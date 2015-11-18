@@ -3465,6 +3465,7 @@ static void emit_flags(struct pool_features *pf, char *result,
  * Status line is:
  *    <transaction id> <used metadata sectors>/<total metadata sectors>
  *    <used data sectors>/<total data sectors> <held metadata root>
+ *    <pool mode> <discard config> <no space config> <needs_check>
  */
 static int pool_status(struct dm_target *ti, status_type_t type,
 		       unsigned status_flags, char *result, unsigned maxlen)
@@ -3565,6 +3566,11 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("error_if_no_space ");
 		else
 			DMEMIT("queue_if_no_space ");
+
+		if (dm_pool_metadata_needs_check(pool->pmd))
+			DMEMIT("needs_check ");
+		else
+			DMEMIT("- ");
 
 		break;
 
@@ -3687,7 +3693,7 @@ static struct target_type pool_target = {
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE | DM_TARGET_STATUS_WITH_FLAGS |
 		    DM_TARGET_PRESUSPEND_UNDO,
-	.version = {1, 14, 1},
+	.version = {1, 16, 1},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -4068,7 +4074,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 14, 1},
+	.version = {1, 16, 1},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
