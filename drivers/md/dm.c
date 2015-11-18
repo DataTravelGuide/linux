@@ -1381,7 +1381,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		clone->bi_private = md->bs;
 		bio_put(clone);
 		free_tio(md, tio);
-	} else if (r) {
+	} else if (r != DM_MAPIO_SUBMITTED) {
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();
 	}
