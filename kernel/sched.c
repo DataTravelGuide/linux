@@ -190,22 +190,11 @@ static inline int rt_bandwidth_enabled(void)
 
 static void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
-	unsigned long delta;
-	ktime_t soft, hard, now;
+	if (hrtimer_active(period_timer))
+		return;
 
-	for (;;) {
-		if (hrtimer_active(period_timer))
-			break;
-
-		now = hrtimer_cb_get_time(period_timer);
-		hrtimer_forward(period_timer, now, period);
-
-		soft = hrtimer_get_softexpires(period_timer);
-		hard = hrtimer_get_expires(period_timer);
-		delta = ktime_to_ns(ktime_sub(hard, soft));
-		__hrtimer_start_range_ns(period_timer, soft, delta,
-					 HRTIMER_MODE_ABS_PINNED, 0);
-	}
+	hrtimer_forward_now(period_timer, period);
+	hrtimer_start_expires(period_timer, HRTIMER_MODE_ABS_PINNED);
 }
 
 static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
@@ -1367,8 +1356,8 @@ static __init void init_hrtick(void)
  */
 static void hrtick_start(struct rq *rq, u64 delay)
 {
-	__hrtimer_start_range_ns(&rq->hrtick_timer, ns_to_ktime(delay), 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(&rq->hrtick_timer, ns_to_ktime(delay),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
 static inline void init_hrtick(void)
