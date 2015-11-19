@@ -1499,7 +1499,7 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	cfs_rq->throttled = 1;
 	cfs_rq->throttled_timestamp = rq->clock;
 	spin_lock(&cfs_b->lock);
-	empty = list_empty(&cfs_rq->throttled_list);
+	empty = list_empty(&cfs_b->throttled_cfs_rq);
 
 	/*
 	 * Add to the _head_ of the list, so that an already-started
