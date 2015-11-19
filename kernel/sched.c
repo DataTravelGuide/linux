@@ -153,19 +153,20 @@ static enum hrtimer_restart sched_rt_period_timer(struct hrtimer *timer)
 {
 	struct rt_bandwidth *rt_b =
 		container_of(timer, struct rt_bandwidth, rt_period_timer);
-	ktime_t now;
-	int overrun;
 	int idle = 0;
+	int overrun;
 
+	spin_lock(&rt_b->rt_runtime_lock);
 	for (;;) {
-		now = hrtimer_cb_get_time(timer);
-		overrun = hrtimer_forward(timer, now, rt_b->rt_period);
-
+		overrun = hrtimer_forward_now(timer, rt_b->rt_period);
 		if (!overrun)
 			break;
 
+		spin_unlock(&rt_b->rt_runtime_lock);
 		idle = do_sched_rt_period_timer(rt_b, overrun);
+		spin_lock(&rt_b->rt_runtime_lock);
 	}
+	spin_unlock(&rt_b->rt_runtime_lock);
 
 	return idle ? HRTIMER_NORESTART : HRTIMER_RESTART;
 }
@@ -190,19 +191,19 @@ static inline int rt_bandwidth_enabled(void)
 
 static void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
-	if (hrtimer_active(period_timer))
-		return;
+	/*
+	 * Do not forward the expiration time of active timers;
+	 * we do not want to loose an overrun.
+	 */
+	if (!hrtimer_active(period_timer))
+		hrtimer_forward_now(period_timer, period);
 
-	hrtimer_forward_now(period_timer, period);
 	hrtimer_start_expires(period_timer, HRTIMER_MODE_ABS_PINNED);
 }
 
 static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 {
 	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
-		return;
-
-	if (hrtimer_active(&rt_b->rt_period_timer))
 		return;
 
 	spin_lock(&rt_b->rt_runtime_lock);
@@ -239,7 +240,7 @@ struct cfs_bandwidth {
 	s64 hierarchal_quota;
 	u64 runtime_expires;
 
-	int idle, timer_active;
+	int idle;
 	struct hrtimer period_timer, slack_timer;
 	struct list_head throttled_cfs_rq;
 
@@ -516,6 +517,7 @@ static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
 		container_of(timer, struct cfs_bandwidth, slack_timer);
+
 	do_sched_cfs_slack_timer(cfs_b);
 
 	return HRTIMER_NORESTART;
@@ -525,15 +527,12 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 {
 	struct cfs_bandwidth *cfs_b =
 		container_of(timer, struct cfs_bandwidth, period_timer);
-	ktime_t now;
 	int overrun;
 	int idle = 0;
 
 	spin_lock(&cfs_b->lock);
 	for (;;) {
-		now = hrtimer_cb_get_time(timer);
-		overrun = hrtimer_forward(timer, now, cfs_b->period);
-
+		overrun = hrtimer_forward_now(timer, cfs_b->period);
 		if (!overrun)
 			break;
 
@@ -565,29 +564,8 @@ static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 }
 
 /* requires cfs_b->lock, may release to reprogram timer */
-static void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force)
+static void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 {
-	/*
-	 * The timer may be active because we're trying to set a new bandwidth
-	 * period or because we're racing with the tear-down path
-	 * (timer_active==0 becomes visible before the hrtimer call-back
-	 * terminates).  In either case we ensure that it's re-programmed
-	 */
-	while (unlikely(hrtimer_active(&cfs_b->period_timer)) &&
-	       hrtimer_try_to_cancel(&cfs_b->period_timer) < 0) {
-		/* bounce the lock to allow do_sched_cfs_period_timer to run */
-		spin_unlock(&cfs_b->lock);
-		cpu_relax();
-		/* ensure cfs_b->lock is available while we wait */
-		hrtimer_cancel(&cfs_b->period_timer);
-
-		spin_lock(&cfs_b->lock);
-		/* if someone else restarted the timer then we're done */
-		if (!force && cfs_b->timer_active)
-			return;
-	}
-
-	cfs_b->timer_active = 1;
 	start_bandwidth_timer(&cfs_b->period_timer, cfs_b->period);
 }
 
@@ -11651,10 +11629,8 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 
 	__refill_cfs_bandwidth_runtime(cfs_b);
 	/* restart the period timer (if active) to handle new period expiry */
-	if (runtime_enabled && cfs_b->timer_active) {
-		/* force a reprogram */
-		__start_cfs_bandwidth(cfs_b, true);
-	}
+	if (runtime_enabled)
+		start_cfs_bandwidth(cfs_b);
 	spin_unlock_irq(&cfs_b->lock);
 
 	for_each_possible_cpu(i) {

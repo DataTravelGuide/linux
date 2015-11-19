@@ -1319,16 +1319,7 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	if (cfs_b->quota == RUNTIME_INF)
 		amount = min_amount;
 	else {
-		/*
-		 * If the bandwidth pool has become inactive, then at least one
-		 * period must have elapsed since the last consumption.
-		 * Refresh the global state and ensure bandwidth timer becomes
-		 * active.
-		 */
-		if (!cfs_b->timer_active) {
-			__refill_cfs_bandwidth_runtime(cfs_b);
-			__start_cfs_bandwidth(cfs_b, false);
-		}
+		start_cfs_bandwidth(cfs_b);
 
 		if (cfs_b->runtime > 0) {
 			amount = min(cfs_b->runtime, min_amount);
@@ -1477,6 +1468,7 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
 	struct sched_entity *se;
 	long task_delta, dequeue = 1;
+	bool empty;
 
 	se = cfs_rq->tg->se[cpu_of(rq_of(cfs_rq))];
 
@@ -1507,13 +1499,21 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	cfs_rq->throttled = 1;
 	cfs_rq->throttled_timestamp = rq->clock;
 	spin_lock(&cfs_b->lock);
+	empty = list_empty(&cfs_rq->throttled_list);
+
 	/*
 	 * Add to the _head_ of the list, so that an already-started
 	 * distribute_cfs_runtime will not see us
 	 */
 	list_add_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
-	if (!cfs_b->timer_active)
-		__start_cfs_bandwidth(cfs_b, false);
+
+	/*
+	 * If we're the first throttled task, make sure the bandwidth
+	 * timer is running.
+	 */
+	if (empty)
+		start_cfs_bandwidth(cfs_b);
+
 	spin_unlock(&cfs_b->lock);
 }
 
@@ -1666,13 +1666,6 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	if (cfs_b->idle && !throttled)
 		goto out_deactivate;
 
-	/*
-	 * if we have relooped after returning idle once, we need to update our
-	 * status as actually running, so that other cpus doing
-	 * __start_cfs_bandwidth will stop trying to cancel us.
-	 */
-	cfs_b->timer_active = 1;
-
 	__refill_cfs_bandwidth_runtime(cfs_b);
 
 	if (!throttled) {
@@ -1717,7 +1710,6 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	return 0;
 
 out_deactivate:
-	cfs_b->timer_active = 0;
 	return 1;
 }
 
