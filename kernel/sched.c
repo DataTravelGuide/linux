@@ -143,7 +143,9 @@ struct rt_bandwidth {
 	ktime_t			rt_period;
 	u64			rt_runtime;
 	struct hrtimer		rt_period_timer;
+#ifndef __GENKSYMS__
 	unsigned int		rt_period_active;
+#endif
 };
 
 static struct rt_bandwidth def_rt_bandwidth;
