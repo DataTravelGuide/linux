@@ -2139,6 +2139,9 @@ static int __devinit try_init_spmi(struct SPMITable *spmi)
 	case 3:	/* BT */
 		info->si_type = SI_BT;
 		break;
+	case 4: /* SSIF, just ignore */
+		kfree(info);
+		return -EIO;
 	default:
 		printk(KERN_INFO PFX "Unknown ACPI/SPMI SI type %d\n",
 		       spmi->InterfaceType);
@@ -2254,6 +2257,8 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	case 3:
 		info->si_type = SI_BT;
 		break;
+	case 4: /* SSIF, just ignore */
+		goto err_free;
 	default:
 		dev_info(&dev->dev, "unknown IPMI type %lld\n", tmp);
 		goto err_free;
