@@ -3064,6 +3064,7 @@ static int mtip_free_orphan(struct driver_data *dd)
 			return -2;
 
 		bdput(dd->bdev);
+		put_disk(dd->disk);
 		dd->bdev = NULL;
 	}
 
@@ -4329,12 +4330,12 @@ static int mtip_block_remove(struct driver_data *dd)
 			dd->bdev = NULL;
 		}
 		if (dd->disk) {
+			del_gendisk(dd->disk);
 			if (dd->disk->queue) {
-				del_gendisk(dd->disk);
 				blk_cleanup_queue(dd->queue);
 				dd->queue = NULL;
-			} else
-				put_disk(dd->disk);
+			}
+			put_disk(dd->disk);
 		}
 		dd->disk  = NULL;
 
@@ -4371,11 +4372,11 @@ static int mtip_block_shutdown(struct driver_data *dd)
 		dev_info(&dd->pdev->dev,
 			"Shutting down %s ...\n", dd->disk->disk_name);
 
+		del_gendisk(dd->disk);
 		if (dd->disk->queue) {
-			del_gendisk(dd->disk);
 			blk_cleanup_queue(dd->queue);
-		} else
-			put_disk(dd->disk);
+		}
+		put_disk(dd->disk);
 		dd->disk  = NULL;
 		dd->queue = NULL;
 	}
