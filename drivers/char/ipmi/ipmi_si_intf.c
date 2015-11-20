@@ -2249,6 +2249,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	acpi_handle handle;
 	acpi_status status;
 	unsigned long long tmp;
+	int rv = -EINVAL;
 
 	acpi_dev = pnp_acpi_device(dev);
 	if (!acpi_dev)
@@ -2280,6 +2281,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 		info->si_type = SI_BT;
 		break;
 	case 4: /* SSIF, just ignore */
+		rv = -ENODEV;
 		goto err_free;
 	default:
 		dev_info(&dev->dev, "unknown IPMI type %lld\n", tmp);
@@ -2339,7 +2341,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 
 err_free:
 	kfree(info);
-	return -EINVAL;
+	return rv;
 }
 
 static void __devexit ipmi_pnp_remove(struct pnp_dev *dev)
