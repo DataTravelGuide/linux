@@ -943,9 +943,6 @@ static void sender(void                *send_info,
 	enum si_sm_result result;
 	unsigned long     flags;
 
-	BUG_ON(smi_info->waiting_msg);
-	smi_info->waiting_msg = msg;
-
 	debug_timestamp("Enqueue");
 
 	if (smi_info->run_to_completion) {
@@ -953,7 +950,7 @@ static void sender(void                *send_info,
 		 * If we are running to completion, start it and run
 		 * transactions until everything is clear.
 		 */
-		smi_info->curr_msg = smi_info->waiting_msg;
+		smi_info->curr_msg = msg;
 		smi_info->waiting_msg = NULL;
 
 		/*
@@ -971,6 +968,15 @@ static void sender(void                *send_info,
 	}
 
 	spin_lock_irqsave(&smi_info->si_lock, flags);
+	/*
+	 * The following two lines don't need to be under the lock for
+	 * the lock's sake, but they do need SMP memory barriers to
+	 * avoid getting things out of order.  We are already claiming
+	 * the lock, anyway, so just do it under the lock to avoid the
+	 * ordering problem.
+	 */
+	BUG_ON(smi_info->waiting_msg);
+	smi_info->waiting_msg = msg;
 	check_start_timer_thread(smi_info);
 	spin_unlock_irqrestore(&smi_info->si_lock, flags);
 }
