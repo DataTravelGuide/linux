@@ -1570,11 +1570,10 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 {
 	struct rt6_info *rt, *nrt = NULL;
 	struct netevent_redirect netevent;
-	struct net *net = dev_net(neigh->dev);
 
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
-	if (rt == net->ipv6.ip6_null_entry) {
+	if (rt->rt6i_flags & RTF_REJECT) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "rt6_redirect: source isn't a valid nexthop "
 			       "for redirect target\n");
