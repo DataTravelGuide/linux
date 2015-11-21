@@ -82,7 +82,7 @@ static struct test {
 		.func = test__hists_link,
 	},
 	{
-		.desc = "Try 'use perf' in python, checking link problems",
+		.desc = "Try 'import perf' in python, checking link problems",
 		.func = test__python_use,
 	},
 	{
