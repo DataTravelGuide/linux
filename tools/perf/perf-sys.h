@@ -6,7 +6,6 @@
 #include <sys/syscall.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
-#include <asm/unistd.h>
 
 #if defined(__i386__)
 #include "../../arch/x86/include/asm/unistd.h"
