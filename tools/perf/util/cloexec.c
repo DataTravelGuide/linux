@@ -42,7 +42,7 @@ static int perf_flag_probe(void)
 		return 1;
 	}
 
-	WARN_ONCE(err != EINVAL,
+	WARN_ONCE(err != EINVAL && err != EBUSY,
 		  "perf_event_open(..., PERF_FLAG_FD_CLOEXEC) failed with unexpected error %d (%s)\n",
 		  err, strerror_r(err, sbuf, sizeof(sbuf)));
 
@@ -50,7 +50,7 @@ static int perf_flag_probe(void)
 	fd = sys_perf_event_open(&attr, pid, cpu, -1, 0);
 	err = errno;
 
-	if (WARN_ONCE(fd < 0,
+	if (WARN_ONCE(fd < 0 && err != EBUSY,
 		      "perf_event_open(..., 0) failed unexpectedly with error %d (%s)\n",
 		      err, strerror_r(err, sbuf, sizeof(sbuf))))
 		return -1;
