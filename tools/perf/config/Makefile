@@ -199,7 +199,8 @@ CORE_FEATURE_TESTS =			\
 	libunwind			\
 	stackprotector-all		\
 	timerfd				\
-	libdw-dwarf-unwind
+	libdw-dwarf-unwind		\
+	zlib
 
 LIB_FEATURE_TESTS =			\
 	dwarf				\
@@ -213,7 +214,8 @@ LIB_FEATURE_TESTS =			\
 	libpython			\
 	libslang			\
 	libunwind			\
-	libdw-dwarf-unwind
+	libdw-dwarf-unwind		\
+	zlib
 
 VF_FEATURE_TESTS =			\
 	backtrace			\
@@ -601,6 +603,15 @@ endif
 
 ifneq ($(filter -lbfd,$(EXTLIBS)),)
   CFLAGS += -DHAVE_LIBBFD_SUPPORT
+endif
+
+ifndef NO_ZLIB
+  ifeq ($(feature-zlib), 1)
+    CFLAGS += -DHAVE_ZLIB_SUPPORT
+    EXTLIBS += -lz
+  else
+    NO_ZLIB := 1
+  endif
 endif
 
 ifndef NO_BACKTRACE
