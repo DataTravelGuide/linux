@@ -818,8 +818,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	 * update that instead if possible
 	 */
 	if (ktype->update) {
-		key_ref = __keyring_search_one(keyring_ref, ktype, description,
-					       0);
+		key_ref = __keyring_search_one(keyring_ref, ktype, description);
 		if (!IS_ERR(key_ref))
 			goto found_matching_key;
 	}

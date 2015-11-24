@@ -100,8 +100,7 @@ extern void __key_link_end(struct key *keyring,
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 				      const struct key_type *type,
-				      const char *description,
-				      key_perm_t perm);
+				      const char *description);
 
 extern struct key *keyring_search_instkey(struct key *keyring,
 					  key_serial_t target_id);
