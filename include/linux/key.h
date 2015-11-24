@@ -191,6 +191,9 @@ struct key {
 		void			*data;
 		struct keyring_list	*subscriptions;
 	} payload;
+#ifndef __GENKSYMS__
+	time_t			last_used_at;	/* last time used for LRU keyring discard */
+#endif
 };
 
 extern struct key *key_alloc(struct key_type *type,
