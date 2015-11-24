@@ -165,6 +165,7 @@ struct key {
 #define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
 #define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
 #define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
+#define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
 
 	/* the description string
 	 * - this is used to match a key against search criteria
