@@ -1426,23 +1426,33 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	cmd.delete_queue.opcode = opcode;
 	cmd.delete_queue.qid = cpu_to_le16(nvmeq->qid);
 
-	req = nvme_alloc_request(nvmeq->dev->ctrl.admin_q, &cmd, 0);
+	req = blk_mq_alloc_request(q, write, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	req->timeout = ADMIN_TIMEOUT;
-	req->end_io_data = nvmeq;
+	struct nvme_cmd_info *cmd_info;
+	struct request *req;
 
-	blk_execute_rq_nowait(q, NULL, req, false,
-			opcode == nvme_admin_delete_cq ?
-				nvme_del_cq_end : nvme_del_queue_end);
-	return 0;
-}
+	req = blk_mq_alloc_request(dev->admin_q, WRITE,
+			BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
-static void nvme_disable_io_queues(struct nvme_dev *dev)
-{
-	int pass, queues = dev->online_queues - 1;
-	unsigned long timeout;
+	struct request *req;
+	struct nvme_cmd_info *cmd_rq;
+
+	req = blk_mq_alloc_request(dev->admin_q, WRITE, 0);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	if (!dev->abort_limit)
+		return;
+
+	abort_req = blk_mq_alloc_request(dev->admin_q, WRITE,
+			BLK_MQ_REQ_NOWAIT);
+	if (IS_ERR(abort_req))
+		return;
+
 	u8 opcode = nvme_admin_delete_sq;
 
 	for (pass = 0; pass < 2; pass++) {

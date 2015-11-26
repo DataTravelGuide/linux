@@ -473,7 +473,9 @@ static int null_add_dev(void)
 		goto out;
 	}
 
-	spin_lock_init(&nullb->lock);
+	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
+	if (IS_ERR(rq))
+		return -ENOMEM;
 
 	rv = setup_queues(nullb);
 	if (rv)
