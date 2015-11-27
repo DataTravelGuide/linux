@@ -872,12 +872,14 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 				    struct flowi *fl)
 {
 	int flags = 0;
+	bool any_src;
 
+	any_src = ipv6_addr_any(&fl->fl6_src);
 	if ((sk && sk->sk_bound_dev_if) || rt6_need_strict(&fl->fl6_dst) ||
-	    fl->oif)
+	    (fl->oif && any_src))
 		flags |= RT6_LOOKUP_F_IFACE;
 
-	if (!ipv6_addr_any(&fl->fl6_src))
+	if (!any_src)
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 	else if (sk) {
 		unsigned int prefs = inet6_sk(sk)->srcprefs;
