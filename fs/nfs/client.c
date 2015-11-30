@@ -79,7 +79,7 @@ retry:
 	if (!idr_pre_get(&cb_ident_idr, GFP_KERNEL))
 		return -ENOMEM;
 	spin_lock(&nfs_client_lock);
-	ret = idr_get_new(&cb_ident_idr, clp, &clp->cl_cb_ident);
+	ret = idr_get_new_above(&cb_ident_idr, clp, 1, &clp->cl_cb_ident);
 	spin_unlock(&nfs_client_lock);
 	if (ret == -EAGAIN)
 		goto retry;
