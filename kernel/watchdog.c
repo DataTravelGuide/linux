@@ -622,6 +622,7 @@ static void watchdog_disable_all_cpus(void)
 
 /* sysctl functions */
 #ifdef CONFIG_SYSCTL
+static DEFINE_MUTEX(watchdog_proc_mutex);
 /*
  * proc handler for /proc/sys/kernel/nmi_watchdog
  */
@@ -629,6 +630,7 @@ static void watchdog_disable_all_cpus(void)
 int proc_dowatchdog_enabled(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *length, loff_t *ppos)
 {
+	mutex_lock(&watchdog_proc_mutex);
 	proc_dointvec(table, write, buffer, length, ppos);
 
 	if (write) {
@@ -637,6 +639,7 @@ int proc_dowatchdog_enabled(struct ctl_table *table, int write,
 		else
 			watchdog_disable_all_cpus();
 	}
+	mutex_unlock(&watchdog_proc_mutex);
 	return 0;
 }
 
@@ -644,7 +647,10 @@ int proc_dowatchdog_thresh(struct ctl_table *table, int write,
 			     void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
 {
-	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	mutex_lock(&watchdog_proc_mutex);
+	proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	mutex_unlock(&watchdog_proc_mutex);
+	return;
 }
 #endif /* CONFIG_SYSCTL */
 
