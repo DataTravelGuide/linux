@@ -118,7 +118,7 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
 	seq_printf(p, "  Machine check polls\n");
 #endif
-	seq_printf(p, "%*s: ", prec, "THR");
+	seq_printf(p, "%*s: ", prec, "HYP");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", rh_irq_stats(j)->irq_hv_callback_count);
 	seq_printf(p, "  Hypervisor callback interrupts\n");
