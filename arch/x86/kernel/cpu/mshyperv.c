@@ -48,12 +48,8 @@ void hyperv_vector_handler(struct pt_regs *regs)
 
 	irq_enter();
 	exit_idle();
-	
-	/*
-	 * RHEL6 doesn't have irq_hv_callback_count in irq_cpustat_t and thus
-	 * these callback can't be accounted with
-	 *   inc_irq_stat(irq_hv_callback_count);
-	 */
+
+	rh_inc_irq_stat(irq_hv_callback_count);
 	if (vmbus_handler)
 		vmbus_handler();
 
