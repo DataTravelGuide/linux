@@ -673,6 +673,7 @@ static DEFINE_MUTEX(watchdog_proc_mutex);
 int proc_dowatchdog_enabled(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *length, loff_t *ppos)
 {
+	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
 	proc_dointvec(table, write, buffer, length, ppos);
 
@@ -683,6 +684,7 @@ int proc_dowatchdog_enabled(struct ctl_table *table, int write,
 			watchdog_disable_all_cpus();
 	}
 	mutex_unlock(&watchdog_proc_mutex);
+	put_online_cpus();
 	return 0;
 }
 
@@ -692,6 +694,7 @@ int proc_dowatchdog_thresh(struct ctl_table *table, int write,
 {
 	int err;
 
+	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (err || !write)
@@ -701,6 +704,7 @@ int proc_dowatchdog_thresh(struct ctl_table *table, int write,
 		update_timers_all_cpus();
 out:
 	mutex_unlock(&watchdog_proc_mutex);
+	put_online_cpus();
 	return err;
 }
 #endif /* CONFIG_SYSCTL */
