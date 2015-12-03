@@ -1662,8 +1662,7 @@ void drop_anon_vma(struct anon_vma *anon_vma)
  * rmap_walk() and its helpers rmap_walk_anon() and rmap_walk_file():
  * Called by migrate.c to remove migration ptes, but might be used more later.
  */
-static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
-		struct vm_area_struct *, unsigned long, void *), void *arg)
+static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
 {
 	struct anon_vma *anon_vma;
 	struct anon_vma_chain *avc;
@@ -1684,7 +1683,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
 		unsigned long address = vma_address(page, vma);
 		if (address == -EFAULT)
 			continue;
-		ret = rmap_one(page, vma, address, arg);
+		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
 			break;
 	}
@@ -1692,8 +1691,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
 	return ret;
 }
 
-static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
-		struct vm_area_struct *, unsigned long, void *), void *arg)
+static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
 {
 	struct address_space *mapping = page->mapping;
 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
@@ -1708,7 +1706,7 @@ static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
 		unsigned long address = vma_address(page, vma);
 		if (address == -EFAULT)
 			continue;
-		ret = rmap_one(page, vma, address, arg);
+		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
 			break;
 	}
@@ -1721,17 +1719,16 @@ static int rmap_walk_file(struct page *page, int (*rmap_one)(struct page *,
 	return ret;
 }
 
-int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
-		struct vm_area_struct *, unsigned long, void *), void *arg)
+int rmap_walk(struct page *page, struct rmap_walk_control *rwc)
 {
 	VM_BUG_ON(!PageLocked(page));
 
 	if (unlikely(PageKsm(page)))
-		return rmap_walk_ksm(page, rmap_one, arg);
+		return rmap_walk_ksm(page, rwc);
 	else if (PageAnon(page))
-		return rmap_walk_anon(page, rmap_one, arg);
+		return rmap_walk_anon(page, rwc);
 	else
-		return rmap_walk_file(page, rmap_one, arg);
+		return rmap_walk_file(page, rwc);
 }
 #endif /* CONFIG_MIGRATION */
 
