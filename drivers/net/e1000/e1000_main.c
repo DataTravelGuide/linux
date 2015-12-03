@@ -1443,7 +1443,7 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	int size;
 
-	size = sizeof(struct e1000_buffer) * txdr->count;
+	size = sizeof(struct e1000_tx_buffer) * txdr->count;
 	txdr->buffer_info = vzalloc(size);
 	if (!txdr->buffer_info)
 		return -ENOMEM;
@@ -1877,8 +1877,9 @@ void e1000_free_all_tx_resources(struct e1000_adapter *adapter)
 		e1000_free_tx_resources(adapter, &adapter->tx_ring[i]);
 }
 
-static void e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
-					     struct e1000_buffer *buffer_info)
+static void
+e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
+				 struct e1000_tx_buffer *buffer_info)
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
@@ -1908,7 +1909,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter,
 				struct e1000_tx_ring *tx_ring)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	unsigned long size;
 	unsigned int i;
 
@@ -1919,7 +1920,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter,
 		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 	}
 
-	size = sizeof(struct e1000_buffer) * tx_ring->count;
+	size = sizeof(struct e1000_tx_buffer) * tx_ring->count;
 	memset(tx_ring->buffer_info, 0, size);
 
 	/* Zero out the descriptor ring */
@@ -2616,7 +2617,7 @@ static int e1000_tso(struct e1000_adapter *adapter,
 		     __be16 protocol)
 {
 	struct e1000_context_desc *context_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	unsigned int i;
 	u32 cmd_length = 0;
 	u16 ipcse = 0, tucse, mss;
@@ -2688,7 +2689,7 @@ static bool e1000_tx_csum(struct e1000_adapter *adapter,
 			  __be16 protocol)
 {
 	struct e1000_context_desc *context_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	unsigned int i;
 	u8 css;
 	u32 cmd_len = E1000_TXD_CMD_DEXT;
@@ -2747,7 +2748,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	unsigned int len = skb_headlen(skb);
 	unsigned int offset = 0, size, count = 0, i;
 	unsigned int f, bytecount, segs;
@@ -2887,7 +2888,7 @@ static void e1000_tx_queue(struct e1000_adapter *adapter,
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_tx_desc *tx_desc = NULL;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	u32 txd_upper = 0, txd_lower = E1000_TXD_CMD_IFCS;
 	unsigned int i;
 
@@ -3290,7 +3291,7 @@ static void e1000_dump(struct e1000_adapter *adapter)
 
 	for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
 		struct e1000_tx_desc *tx_desc = E1000_TX_DESC(*tx_ring, i);
-		struct e1000_buffer *buffer_info = &tx_ring->buffer_info[i];
+		struct e1000_tx_buffer *buffer_info = &tx_ring->buffer_info[i];
 		struct my_u { u64 a; u64 b; };
 		struct my_u *u = (struct my_u *)tx_desc;
 		printk(KERN_INFO "T%c[0x%03X]    %016llX %016llX %016llX %04X  %3X "
@@ -3742,7 +3743,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_desc *tx_desc, *eop_desc;
-	struct e1000_buffer *buffer_info;
+	struct e1000_tx_buffer *buffer_info;
 	unsigned int i, eop;
 	unsigned int count = 0;
 	unsigned int total_tx_bytes=0, total_tx_packets=0;
