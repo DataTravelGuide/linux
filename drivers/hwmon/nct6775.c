@@ -1075,6 +1075,7 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 static inline void nct6775_set_bank(struct nct6775_data *data, u16 reg)
 {
 	u8 bank = reg >> 8;
+
 	if (data->bank != bank) {
 		outb_p(NCT6775_REG_BANK, data->addr + ADDR_REG_OFFSET);
 		outb_p(bank, data->addr + DATA_REG_OFFSET);
@@ -1312,6 +1313,7 @@ static void nct6775_update_pwm(struct device *dev)
 		if (!data->target_speed_tolerance[i] ||
 		    data->pwm_enable[i] == speed_cruise) {
 			u8 t = fanmodecfg & 0x0f;
+
 			if (data->REG_TOLERANCE_H) {
 				t |= (nct6775_read_value(data,
 				      data->REG_TOLERANCE_H[i]) & 0x70) >> 1;
@@ -1486,6 +1488,7 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 		data->alarms = 0;
 		for (i = 0; i < NUM_REG_ALARM; i++) {
 			u8 alarm;
+
 			if (!data->REG_ALARM[i])
 				continue;
 			alarm = nct6775_read_value(data, data->REG_ALARM[i]);
@@ -1495,6 +1498,7 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 		data->beeps = 0;
 		for (i = 0; i < NUM_REG_BEEP; i++) {
 			u8 beep;
+
 			if (!data->REG_BEEP[i])
 				continue;
 			beep = nct6775_read_value(data, data->REG_BEEP[i]);
@@ -1517,8 +1521,9 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int nr = sattr->nr;
 	int index = sattr->index;
+	int nr = sattr->nr;
+
 	return sprintf(buf, "%ld\n", in_from_reg(data->in[nr][index], nr));
 }
 
@@ -1528,10 +1533,12 @@ store_in_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
-	int nr = sattr->nr;
 	int index = sattr->index;
+	int nr = sattr->nr;
 	unsigned long val;
-	int err = kstrtoul(buf, 10, &val);
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 	mutex_lock(&data->update_lock);
@@ -1548,6 +1555,7 @@ show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = data->ALARM_BITS[sattr->index];
+
 	return sprintf(buf, "%u\n",
 		       (unsigned int)((data->alarms >> nr) & 0x01));
 }
@@ -1583,6 +1591,7 @@ show_temp_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 	nr = find_temp_source(data, sattr->index, data->num_temp_alarms);
 	if (nr >= 0) {
 		int bit = data->ALARM_BITS[nr + TEMP_ALARM_BASE];
+
 		alarm = (data->alarms >> bit) & 0x01;
 	}
 	return sprintf(buf, "%u\n", alarm);
@@ -1608,8 +1617,9 @@ store_beep(struct device *dev, struct device_attribute *attr, const char *buf,
 	int nr = data->BEEP_BITS[sattr->index];
 	int regindex = nr >> 3;
 	unsigned long val;
+	int err;
 
-	int err = kstrtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 	if (val > 1)
@@ -1642,6 +1652,7 @@ show_temp_beep(struct device *dev, struct device_attribute *attr, char *buf)
 	nr = find_temp_source(data, sattr->index, data->num_temp_beeps);
 	if (nr >= 0) {
 		int bit = data->BEEP_BITS[nr + TEMP_ALARM_BASE];
+
 		beep = (data->beeps >> bit) & 0x01;
 	}
 	return sprintf(buf, "%u\n", beep);
@@ -1655,8 +1666,9 @@ store_temp_beep(struct device *dev, struct device_attribute *attr,
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int nr, bit, regindex;
 	unsigned long val;
+	int err;
 
-	int err = kstrtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 	if (val > 1)
@@ -1728,6 +1740,7 @@ show_fan(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
+
 	return sprintf(buf, "%d\n", data->rpm[nr]);
 }
 
@@ -1737,6 +1750,7 @@ show_fan_min(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
+
 	return sprintf(buf, "%d\n",
 		       data->fan_from_reg_min(data->fan_min[nr],
 					      data->fan_div[nr]));
@@ -1748,6 +1762,7 @@ show_fan_div(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
+
 	return sprintf(buf, "%u\n", div_from_reg(data->fan_div[nr]));
 }
 
@@ -1759,9 +1774,9 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
 	unsigned long val;
-	int err;
 	unsigned int reg;
 	u8 new_div;
+	int err;
 
 	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
@@ -1945,6 +1960,7 @@ show_temp_label(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
+
 	return sprintf(buf, "%s\n", data->temp_label[data->temp_src[nr]]);
 }
 
@@ -2021,6 +2037,7 @@ show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
 	struct nct6775_data *data = nct6775_update_device(dev);
 	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
 	int nr = sattr->index;
+
 	return sprintf(buf, "%d\n", (int)data->temp_type[nr]);
 }
 
@@ -3021,6 +3038,7 @@ static ssize_t
 show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
+
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
