@@ -2427,7 +2427,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 
 /* lots and lots of room for performance fixes in the end_bio funcs */
 
-int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
+void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
 	struct extent_io_tree *tree;
@@ -2448,7 +2448,6 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 		ret = ret < 0 ? ret : -EIO;
 		mapping_set_error(page->mapping, ret);
 	}
-	return 0;
 }
 
 /*
@@ -2490,9 +2489,7 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
-		if (end_extent_writepage(page, err, start, end))
-			continue;
-
+		end_extent_writepage(page, bio->bi_error, start, end);
 		end_page_writeback(page);
 	}
 
