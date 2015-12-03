@@ -1708,13 +1708,18 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
 			continue;
 		ret = rwc->rmap_one(page, vma, address, rwc->arg);
 		if (ret != SWAP_AGAIN)
-			break;
+			goto done;
 	}
-	/*
-	 * No nonlinear handling: being always shared, nonlinear vmas
-	 * never contain migration ptes.  Decide what to do about this
-	 * limitation to linear when we need rmap_walk() on nonlinear.
-	 */
+
+	if (!rwc->file_nonlinear)
+		goto done;
+
+	if (list_empty(&mapping->i_mmap_nonlinear))
+		goto done;
+
+	ret = rwc->file_nonlinear(page, mapping, rwc->arg);
+
+done:
 	spin_unlock(&mapping->i_mmap_lock);
 	return ret;
 }

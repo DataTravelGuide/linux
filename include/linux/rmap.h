@@ -263,6 +263,7 @@ struct rmap_walk_control {
 	void *arg;
 	int (*rmap_one)(struct page *page, struct vm_area_struct *vma,
 					unsigned long addr, void *arg);
+	int (*file_nonlinear)(struct page *, struct address_space *, void *arg);
 };
 
 /*
