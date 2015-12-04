@@ -523,8 +523,6 @@ static void intel_pstate_sysfs_expose_params(void)
 
 static void intel_pstate_hwp_enable(struct cpudata *cpudata)
 {
-	pr_info("intel_pstate: HWP enabled\n");
-
 	wrmsrl_on_cpu(cpudata->cpu, MSR_PM_ENABLE, 0x1);
 }
 
@@ -1385,8 +1383,10 @@ static int __init intel_pstate_init(void)
 	if (!all_cpu_data)
 		return -ENOMEM;
 
-	if (boot_cpu_has(X86_FEATURE_HWP) && !no_hwp)
+	if (boot_cpu_has(X86_FEATURE_HWP) && !no_hwp) {
+		pr_info("intel_pstate: HWP enabled\n");
 		hwp_active++;
+	}
 
 	if (!hwp_active && hwp_only)
 		goto out;
@@ -1424,8 +1424,10 @@ static int __init intel_pstate_setup(char *str)
 
 	if (!strcmp(str, "disable"))
 		no_load = 1;
-	if (!strcmp(str, "no_hwp"))
+	if (!strcmp(str, "no_hwp")) {
+		pr_info("intel_pstate: HWP disabled\n");
 		no_hwp = 1;
+	}
 	if (!strcmp(str, "force"))
 		force_load = 1; /* renamed to force */
 	if (!strcmp(str, "hwp_only"))
