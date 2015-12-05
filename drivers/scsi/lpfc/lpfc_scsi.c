@@ -5098,7 +5098,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 		if (status != IOCB_SUCCESS ||
 		    iocbqrsp->iocb.ulpStatus != IOSTAT_FCP_RSP_ERROR)
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-					 "0727 TMF %s to TGT %d LUN %llu "
+					 "0727 TMF %s to TGT %d LUN %d "
 					 "failed (%d, %d) iocb_flag x%x\n",
 					 lpfc_taskmgmt_name(task_mgmt_cmd),
 					 tgt_id, lun_id,
