@@ -1876,14 +1876,11 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 * breaks.
 	 */
 	err = sctp_primitive_SEND(asoc, datamsg);
-	/* Did the lower layer accept the chunk? */
-	if (err)
-		sctp_datamsg_free(datamsg);
-	else
-		sctp_datamsg_put(datamsg);
+	sctp_datamsg_put(datamsg);
 
 	SCTP_DEBUG_PRINTK("We sent primitively.\n");
 
+	/* Did the lower layer accept the chunk? */
 	if (err)
 		goto out_free;
 	else
