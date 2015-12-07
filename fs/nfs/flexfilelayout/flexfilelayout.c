@@ -1537,11 +1537,6 @@ static void ff_layout_write_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs_pgio_header *hdr = data;
 
-	nfs4_ff_layout_stat_io_end_write(task,
-			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
-			hdr->args.count, hdr->res.count,
-			hdr->res.verf->committed);
-
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags) &&
 	    task->tk_status == 0) {
 		nfs4_sequence_done(task, &hdr->res.seq_res);
@@ -1555,6 +1550,11 @@ static void ff_layout_write_call_done(struct rpc_task *task, void *data)
 static void ff_layout_write_count_stats(struct rpc_task *task, void *data)
 {
 	struct nfs_pgio_header *hdr = data;
+
+	nfs4_ff_layout_stat_io_end_write(task,
+			FF_LAYOUT_COMP(hdr->lseg, hdr->pgio_mirror_idx),
+			hdr->args.count, hdr->res.count,
+			hdr->res.verf->committed);
 
 	rpc_count_iostats_metrics(task,
 	    &NFS_CLIENT(hdr->inode)->cl_metrics[NFSPROC4_CLNT_WRITE]);
@@ -1588,6 +1588,11 @@ static void ff_layout_commit_prepare_v4(struct rpc_task *task, void *data)
 
 static void ff_layout_commit_done(struct rpc_task *task, void *data)
 {
+	pnfs_generic_write_commit_done(task, data);
+}
+
+static void ff_layout_commit_count_stats(struct rpc_task *task, void *data)
+{
 	struct nfs_commit_data *cdata = data;
 	struct nfs_page *req;
 	__u64 count = 0;
@@ -1600,13 +1605,6 @@ static void ff_layout_commit_done(struct rpc_task *task, void *data)
 	nfs4_ff_layout_stat_io_end_write(task,
 			FF_LAYOUT_COMP(cdata->lseg, cdata->ds_commit_index),
 			count, count, NFS_FILE_SYNC);
-
-	pnfs_generic_write_commit_done(task, data);
-}
-
-static void ff_layout_commit_count_stats(struct rpc_task *task, void *data)
-{
-	struct nfs_commit_data *cdata = data;
 
 	rpc_count_iostats_metrics(task,
 	    &NFS_CLIENT(cdata->inode)->cl_metrics[NFSPROC4_CLNT_COMMIT]);
