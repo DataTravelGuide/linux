@@ -28,6 +28,9 @@ static int pci_msi_enable = 1;
 static int pci_msi_enable = 0;
 #endif /*CONFIG_PCI_MSI_DEFAULT_ON*/
 
+#define msix_table_size(flags)	((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
+
+
 /* Arch hooks */
 
 #ifndef arch_msi_check_device
@@ -682,7 +685,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		PCI_MSIX_FLAGS, control);
 
 	/* Request & Map MSI-X table region */
-	base = msix_map_region(dev, multi_msix_capable(control));
+	base = msix_map_region(dev, msix_table_size(control));
 	if (!base)
 		return -ENOMEM;
 
@@ -898,7 +901,7 @@ int pci_msix_vec_count(struct pci_dev *dev)
 	pci_read_config_word(dev,
 	  ((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap + PCI_MSIX_FLAGS,
 	  &control);
-	return multi_msix_capable(control);
+	return msix_table_size(control);
 }
 EXPORT_SYMBOL(pci_msix_vec_count);
 
