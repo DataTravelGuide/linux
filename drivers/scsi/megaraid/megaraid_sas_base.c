@@ -135,6 +135,10 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* Invader */
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FURY)},
 	/* Fury */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_INTRUDER)},
+	/* Intruder */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_INTRUDER_24)},
+	/* Intruder 24 port*/
 	{}
 };
 
@@ -4663,6 +4667,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	case PCI_DEVICE_ID_LSI_PLASMA:
 	case PCI_DEVICE_ID_LSI_INVADER:
 	case PCI_DEVICE_ID_LSI_FURY:
+	case PCI_DEVICE_ID_LSI_INTRUDER:
+	case PCI_DEVICE_ID_LSI_INTRUDER_24:
 		instance->instancet = &megasas_instance_template_fusion;
 		break;
 	case PCI_DEVICE_ID_LSI_SAS1078R:
@@ -5359,6 +5365,8 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	case PCI_DEVICE_ID_LSI_PLASMA:
 	case PCI_DEVICE_ID_LSI_INVADER:
 	case PCI_DEVICE_ID_LSI_FURY:
+	case PCI_DEVICE_ID_LSI_INTRUDER:
+	case PCI_DEVICE_ID_LSI_INTRUDER_24:
 	{
 		instance->ctrl_context_pages =
 			get_order(sizeof(struct fusion_context));
