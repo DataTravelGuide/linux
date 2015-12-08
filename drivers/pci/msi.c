@@ -526,14 +526,15 @@ out_unroll:
 static int msi_capability_init(struct pci_dev *dev, int nvec)
 {
 	struct msi_desc *entry;
-	int pos, ret;
+	int ret;
 	u16 control;
 	unsigned mask;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	msi_set_enable(dev, 0);	/* Disable MSI during set up */
 
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
+	pci_read_config_word(dev,
+	    msi_control_reg(((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap),
+	    &control);
 	/* MSI Entry Initialization */
 	entry = alloc_msi_entry(dev);
 	if (!entry)
@@ -544,9 +545,12 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	entry->msi_attrib.entry_nr	= 0;
 	entry->msi_attrib.maskbit	= is_mask_bit_support(control);
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
-	entry->msi_attrib.pos		= pos;
+	entry->msi_attrib.pos		=
+			((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap;
 
-	entry->mask_pos = msi_mask_reg(pos, entry->msi_attrib.is_64);
+	entry->mask_pos =
+		msi_mask_reg(((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap,
+		entry->msi_attrib.is_64);
 	/* All MSIs are unmasked by default, Mask them all */
 	if (entry->msi_attrib.maskbit)
 		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
@@ -787,13 +791,15 @@ static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
  */
 int pci_enable_msi_block(struct pci_dev *dev, unsigned int nvec)
 {
-	int status, pos, maxvec;
+	int status, maxvec;
 	u16 msgctl;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	if (!pos)
+	if (!((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap)
 		return -EINVAL;
-	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &msgctl);
+
+	pci_read_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap +
+		PCI_MSI_FLAGS, &msgctl);
 	maxvec = 1 << ((msgctl & PCI_MSI_FLAGS_QMASK) >> 1);
 	if (nvec > maxvec)
 		return maxvec;
