@@ -26,6 +26,10 @@
 #include <linux/list.h>
 #include <net/pkt_sched.h>
 
+/* Qdisc to use by default */
+struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
+EXPORT_SYMBOL(default_qdisc_ops);
+
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
