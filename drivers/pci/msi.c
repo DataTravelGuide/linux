@@ -583,14 +583,15 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	return 0;
 }
 
-static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
-							unsigned nr_entries)
+static void __iomem *msix_map_region(struct pci_dev *dev, unsigned nr_entries)
 {
 	resource_size_t phys_addr;
 	u32 table_offset;
 	u8 bir;
 
-	pci_read_config_dword(dev, msix_table_offset_reg(pos), &table_offset);
+	pci_read_config_dword(dev, msix_table_offset_reg(
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap),
+		&table_offset);
 	bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
 	table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
 	phys_addr = pci_resource_start(dev, bir) + table_offset;
@@ -598,9 +599,8 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
 	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
 }
 
-static int msix_setup_entries(struct pci_dev *dev, unsigned pos,
-				void __iomem *base, struct msix_entry *entries,
-				int nvec)
+static int msix_setup_entries(struct pci_dev *dev, void __iomem *base,
+			      struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *entry;
 	int i;
@@ -620,7 +620,8 @@ static int msix_setup_entries(struct pci_dev *dev, unsigned pos,
 		entry->msi_attrib.is_64		= 1;
 		entry->msi_attrib.entry_nr	= entries[i].entry;
 		entry->msi_attrib.default_irq	= dev->irq;
-		entry->msi_attrib.pos		= pos;
+		entry->msi_attrib.pos		=
+			((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap;
 		entry->mask_base		= base;
 
 		list_add_tail(&entry->list, &dev->msi_list);
@@ -630,7 +631,7 @@ static int msix_setup_entries(struct pci_dev *dev, unsigned pos,
 }
 
 static void msix_program_entries(struct pci_dev *dev,
-					struct msix_entry *entries)
+				 struct msix_entry *entries)
 {
 	struct msi_desc *entry;
 	int i = 0;
@@ -660,23 +661,26 @@ static void msix_program_entries(struct pci_dev *dev,
 static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
-	int pos, ret;
+	int ret;
 	u16 control;
 	void __iomem *base;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
+	pci_read_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, &control);
 
 	/* Ensure MSI-X is disabled while it is set up */
 	control &= ~PCI_MSIX_FLAGS_ENABLE;
-	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
+	pci_write_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, control);
 
 	/* Request & Map MSI-X table region */
-	base = msix_map_region(dev, pos, multi_msix_capable(control));
+	base = msix_map_region(dev, multi_msix_capable(control));
 	if (!base)
 		return -ENOMEM;
 
-	ret = msix_setup_entries(dev, pos, base, entries, nvec);
+	ret = msix_setup_entries(dev, base, entries, nvec);
 	if (ret)
 		return ret;
 
@@ -690,7 +694,9 @@ static int msix_capability_init(struct pci_dev *dev,
 	 * interrupts coming in before they're fully set up.
 	 */
 	control |= PCI_MSIX_FLAGS_MASKALL | PCI_MSIX_FLAGS_ENABLE;
-	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
+	pci_write_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, control);
 
 	msix_program_entries(dev, entries);
 
@@ -705,7 +711,9 @@ static int msix_capability_init(struct pci_dev *dev,
 	dev->msix_enabled = 1;
 
 	control &= ~PCI_MSIX_FLAGS_MASKALL;
-	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
+	pci_write_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, control);
 
 	return 0;
 
@@ -876,14 +884,14 @@ EXPORT_SYMBOL(pci_disable_msi);
  **/
 int pci_msix_vec_count(struct pci_dev *dev)
 {
-	int pos;
 	u16 control;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (!pos)
+	if (!((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap)
 		return -EINVAL;
 
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
+	pci_read_config_word(dev,
+	  msi_control_reg(((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap),
+	  &control);
 	return multi_msix_capable(control);
 }
 EXPORT_SYMBOL(pci_msix_vec_count);
