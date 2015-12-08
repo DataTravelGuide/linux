@@ -216,11 +216,11 @@ void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 		int pos = ((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap;
 		u16 data;
 
-		pci_read_config_dword(dev, msi_lower_address_reg(pos),
-					&msg->address_lo);
+		pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
+				      &msg->address_lo);
 		if (entry->msi_attrib.is_64) {
-			pci_read_config_dword(dev, msi_upper_address_reg(pos),
-						&msg->address_hi);
+			pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
+					      &msg->address_hi);
 			pci_read_config_word(dev, msi_data_reg(pos, 1), &data);
 		} else {
 			msg->address_hi = 0;
@@ -280,11 +280,11 @@ void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 		msgctl |= entry->msi_attrib.multiple << 4;
 		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, msgctl);
 
-		pci_write_config_dword(dev, msi_lower_address_reg(pos),
-					msg->address_lo);
+		pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_LO,
+				       msg->address_lo);
 		if (entry->msi_attrib.is_64) {
-			pci_write_config_dword(dev, msi_upper_address_reg(pos),
-						msg->address_hi);
+			pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
+					       msg->address_hi);
 			pci_write_config_word(dev, msi_data_reg(pos, 1),
 						msg->data);
 		} else {
