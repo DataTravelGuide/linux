@@ -221,10 +221,10 @@ void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 		if (entry->msi_attrib.is_64) {
 			pci_read_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
 					      &msg->address_hi);
-			pci_read_config_word(dev, msi_data_reg(pos, 1), &data);
+			pci_read_config_word(dev, pos + PCI_MSI_DATA_64, &data);
 		} else {
 			msg->address_hi = 0;
-			pci_read_config_word(dev, msi_data_reg(pos, 0), &data);
+			pci_read_config_word(dev, pos + PCI_MSI_DATA_32, &data);
 		}
 		msg->data = data;
 	}
@@ -285,11 +285,11 @@ void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 		if (entry->msi_attrib.is_64) {
 			pci_write_config_dword(dev, pos + PCI_MSI_ADDRESS_HI,
 					       msg->address_hi);
-			pci_write_config_word(dev, msi_data_reg(pos, 1),
-						msg->data);
+			pci_write_config_word(dev, pos + PCI_MSI_DATA_64,
+					      msg->data);
 		} else {
-			pci_write_config_word(dev, msi_data_reg(pos, 0),
-						msg->data);
+			pci_write_config_word(dev, pos + PCI_MSI_DATA_32,
+					      msg->data);
 		}
 	}
 	entry->msg = *msg;
