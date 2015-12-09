@@ -1258,3 +1258,64 @@ void __init early_platform_cleanup(void)
 	}
 }
 
+
+/**
+ * platform_device_register_full - add a platform-level device with
+ * resources and platform-specific data
+ *
+ * @pdevinfo: data used to create device
+ *
+ * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
+ */
+struct platform_device *platform_device_register_full(
+		struct platform_device_info *pdevinfo)
+{
+	int ret = -ENOMEM;
+	struct platform_device *pdev;
+	struct resource *res = (struct resource *)pdevinfo->res;
+
+	pdev = platform_device_alloc(pdevinfo->name, pdevinfo->id);
+	if (!pdev)
+		goto err_alloc;
+
+	pdev->dev.parent = pdevinfo->parent;
+
+	if (pdevinfo->dma_mask) {
+		/*
+		 * This memory isn't freed when the device is put,
+		 * I don't have a nice idea for that though.  Conceptually
+		 * dma_mask in struct device should not be a pointer.
+		 * See http://thread.gmane.org/gmane.linux.kernel.pci/9081
+		 */
+		pdev->dev.dma_mask =
+			kmalloc(sizeof(*pdev->dev.dma_mask), GFP_KERNEL);
+		if (!pdev->dev.dma_mask)
+			goto err;
+
+		*pdev->dev.dma_mask = pdevinfo->dma_mask;
+		pdev->dev.coherent_dma_mask = pdevinfo->dma_mask;
+	}
+
+	ret = platform_device_add_resources(pdev,
+			res, pdevinfo->num_res);
+	if (ret)
+		goto err;
+
+	ret = platform_device_add_data(pdev,
+			pdevinfo->data, pdevinfo->size_data);
+	if (ret)
+		goto err;
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+err:
+		kfree(pdev->dev.dma_mask);
+
+err_alloc:
+		platform_device_put(pdev);
+		return ERR_PTR(ret);
+	}
+
+	return pdev;
+}
+EXPORT_SYMBOL_GPL(platform_device_register_full);

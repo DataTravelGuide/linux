@@ -74,6 +74,55 @@ struct platform_driver {
 extern int platform_driver_register(struct platform_driver *);
 extern void platform_driver_unregister(struct platform_driver *);
 
+struct platform_device_info {
+		struct device *parent;
+
+		const char *name;
+		int id;
+
+		const struct resource *res;
+		unsigned int num_res;
+
+		const void *data;
+		size_t size_data;
+		u64 dma_mask;
+};
+extern struct platform_device *platform_device_register_full(
+		struct platform_device_info *pdevinfo);
+
+/**
+ * platform_device_register_resndata - add a platform-level device with
+ * resources and platform-specific data
+ *
+ * @parent: parent device for the device we're adding
+ * @name: base name of the device we're adding
+ * @id: instance id
+ * @res: set of resources that needs to be allocated for the device
+ * @num: number of resources
+ * @data: platform specific data for this platform device
+ * @size: size of platform specific data
+ *
+ * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
+ */
+static inline struct platform_device *platform_device_register_resndata(
+		struct device *parent, const char *name, int id,
+		const struct resource *res, unsigned int num,
+		const void *data, size_t size) {
+
+	struct platform_device_info pdevinfo = {
+		.parent = parent,
+		.name = name,
+		.id = id,
+		.res = res,
+		.num_res = num,
+		.data = data,
+		.size_data = size,
+		.dma_mask = 0,
+	};
+
+	return platform_device_register_full(&pdevinfo);
+}
+
 /* non-hotpluggable platform devices may use this so that probe() and
  * its support may live in __init sections, conserving runtime memory.
  */
