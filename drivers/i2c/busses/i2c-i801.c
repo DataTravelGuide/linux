@@ -87,6 +87,8 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/dmi.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/itco_wdt.h>
 
 /* I801 SMBus address offsets */
 #define SMBHSTSTS(p)	(0 + (p)->smba)
@@ -105,6 +107,16 @@
 #define SMBPCICTL	0x004
 #define SMBPCISTS	0x006
 #define SMBHSTCFG	0x040
+#define TCOBASE		0x050
+#define TCOCTL		0x054
+
+#define ACPIBASE		0x040
+#define ACPIBASE_SMI_OFF	0x030
+#define ACPICTRL		0x044
+#define ACPICTRL_EN		0x080
+
+#define SBREG_BAR		0x10
+#define SBREG_SMBCTRL		0xc6000c
 
 /* Host status bits for SMBPCISTS */
 #define SMBPCISTS_INTS		0x08
@@ -117,7 +129,10 @@
 #define SMBHSTCFG_SMB_SMI_EN	2
 #define SMBHSTCFG_I2C_EN	4
 
-/* Auxillary control register bits, ICH4+ only */
+/* TCO configuration bits for TCOCTL */
+#define TCOCTL_EN		0x0100
+
+/* Auxiliary control register bits, ICH4+ only */
 #define SMBAUXCTL_CRC		1
 #define SMBAUXCTL_E32B		2
 
@@ -187,6 +202,7 @@ struct i801_priv {
 	/* isr processing */
 	wait_queue_head_t waitq;
 	u8 status;
+	struct platform_device *tco_pdev;
 };
 
 static struct pci_driver i801_driver;
@@ -196,6 +212,7 @@ static struct pci_driver i801_driver;
 #define FEATURE_BLOCK_PROC	(1 << 2)
 #define FEATURE_I2C_BLOCK_READ	(1 << 3)
 #define FEATURE_IRQ		(1 << 4)
+#define FEATURE_TCO		(1 << 16)
 
 static const char *i801_feature_names[] = {
 	"SMBus PEC",
@@ -836,6 +853,95 @@ static void __devinit dmi_check_onboard_devices(const struct dmi_header *dm,
 }
 #endif
 
+static const struct itco_wdt_platform_data tco_platform_data = {
+	.name = "Intel PCH",
+	.version = 4,
+};
+
+static DEFINE_SPINLOCK(p2sb_spinlock);
+
+static void i801_add_tco(struct i801_priv *priv)
+{
+	struct pci_dev *pci_dev = priv->pci_dev;
+	struct resource tco_res[3], *res;
+	struct platform_device *pdev;
+	unsigned int devfn;
+	u32 tco_base, tco_ctl;
+	u32 base_addr, ctrl_val;
+	u64 base64_addr;
+
+	if (!(priv->features & FEATURE_TCO))
+		return;
+
+	pci_read_config_dword(pci_dev, TCOBASE, &tco_base);
+	pci_read_config_dword(pci_dev, TCOCTL, &tco_ctl);
+	if (!(tco_ctl & TCOCTL_EN))
+		return;
+
+	memset(tco_res, 0, sizeof(tco_res));
+
+	res = &tco_res[ICH_RES_IO_TCO];
+	res->start = tco_base & ~1;
+	res->end = res->start + 32 - 1;
+	res->flags = IORESOURCE_IO;
+
+	/*
+	 * Power Management registers.
+	 */
+	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 2);
+	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPIBASE, &base_addr);
+
+	res = &tco_res[ICH_RES_IO_SMI];
+	res->start = (base_addr & ~1) + ACPIBASE_SMI_OFF;
+	res->end = res->start + 3;
+	res->flags = IORESOURCE_IO;
+
+	/*
+	 * Enable the ACPI I/O space.
+	 */
+	pci_bus_read_config_dword(pci_dev->bus, devfn, ACPICTRL, &ctrl_val);
+	ctrl_val |= ACPICTRL_EN;
+	pci_bus_write_config_dword(pci_dev->bus, devfn, ACPICTRL, ctrl_val);
+
+	/*
+	 * We must access the NO_REBOOT bit over the Primary to Sideband
+	 * bridge (P2SB). The BIOS prevents the P2SB device from being
+	 * enumerated by the PCI subsystem, so we need to unhide/hide it
+	 * to lookup the P2SB BAR.
+	 */
+	spin_lock(&p2sb_spinlock);
+
+	devfn = PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 1);
+
+	/* Unhide the P2SB device */
+	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x0);
+
+	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR, &base_addr);
+	base64_addr = base_addr & 0xfffffff0;
+
+	pci_bus_read_config_dword(pci_dev->bus, devfn, SBREG_BAR + 0x4, &base_addr);
+	base64_addr |= (u64)base_addr << 32;
+
+	/* Hide the P2SB device */
+	pci_bus_write_config_byte(pci_dev->bus, devfn, 0xe1, 0x1);
+	spin_unlock(&p2sb_spinlock);
+
+	res = &tco_res[ICH_RES_MEM_OFF];
+	res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL;
+	res->end = res->start + 3;
+	res->flags = IORESOURCE_MEM;
+
+	pdev = platform_device_register_resndata(&pci_dev->dev, "iTCO_wdt", -1,
+						 tco_res, 3, &tco_platform_data,
+						 sizeof(tco_platform_data));
+	if (IS_ERR(pdev)) {
+		dev_warn(&pci_dev->dev, "failed to create iTCO device\n");
+		return;
+	}
+
+	priv->tco_pdev = pdev;
+}
+
 static int __devinit i801_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
@@ -866,6 +972,15 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	case PCI_DEVICE_ID_INTEL_82801AB_3:
 	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS:
+	case PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS:
+		priv->features |= FEATURE_I2C_BLOCK_READ;
+		priv->features |= FEATURE_IRQ;
+		priv->features |= FEATURE_SMBUS_PEC;
+		priv->features |= FEATURE_BLOCK_BUFFER;
+		priv->features |= FEATURE_TCO;
+		break;
+
 	}
 
 	/* IRQ processing only tested on CougarPoint PCH */
@@ -962,6 +1077,8 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	dev_info(&dev->dev, "SMBus using %s\n",
 		 priv->features & FEATURE_IRQ ? "PCI interrupt" : "polling");
 
+	i801_add_tco(priv);
+
 	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &dev->dev;
 
@@ -1015,6 +1132,8 @@ static void __devexit i801_remove(struct pci_dev *dev)
 	if (priv->features & FEATURE_IRQ)
 		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
+
+	platform_device_unregister(priv->tco_pdev);
 
 	pci_set_drvdata(dev, NULL);
 	kfree(priv);
