@@ -69,13 +69,16 @@
   Block process call transaction   no
   I2C block read transaction       yes  (doesn't use the block buffer)
   Slave mode                       no
+  Interrupt processing             yes
 
   See the file Documentation/i2c/busses/i2c-i801 for details.
 */
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include <linux/stddef.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -99,7 +102,11 @@
 
 /* PCI Address Constants */
 #define SMBBAR		4
+#define SMBPCISTS	0x006
 #define SMBHSTCFG	0x040
+
+/* Host status bits for SMBPCISTS */
+#define SMBPCISTS_INTS		0x08
 
 /* Host configuration bits for SMBHSTCFG */
 #define SMBHSTCFG_HST_EN	1
@@ -172,6 +179,10 @@ struct i801_priv {
 	unsigned char original_hstcfg;
 	struct pci_dev *pci_dev;
 	unsigned int features;
+
+	/* isr processing */
+	wait_queue_head_t waitq;
+	u8 status;
 };
 
 static struct pci_driver i801_driver;
@@ -180,12 +191,14 @@ static struct pci_driver i801_driver;
 #define FEATURE_BLOCK_BUFFER	(1 << 1)
 #define FEATURE_BLOCK_PROC	(1 << 2)
 #define FEATURE_I2C_BLOCK_READ	(1 << 3)
+#define FEATURE_IRQ		(1 << 4)
 
 static const char *i801_feature_names[] = {
 	"SMBus PEC",
 	"Block buffer",
 	"Block process call",
 	"I2C block read",
+	"Interrupt",
 };
 
 static unsigned int disable_features;
@@ -226,7 +239,12 @@ static int i801_check_post(struct i801_priv *priv, int status, int timeout)
 {
 	int result = 0;
 
-	/* If the SMBus is still busy, we give up */
+	/*
+	 * If the SMBus is still busy, we give up
+	 * Note: This timeout condition only happens when using polling
+	 * transactions.  For interrupt operation, NAK/timeout is indicated by
+	 * DEV_ERR.
+	 */
 	if (timeout) {
 		dev_err(&priv->pci_dev->dev, "Transaction timeout\n");
 		/* try to stop the current command */
@@ -283,6 +301,14 @@ static int i801_transaction(struct i801_priv *priv, int xact)
 	result = i801_check_pre(priv);
 	if (result < 0)
 		return result;
+
+	if (priv->features & FEATURE_IRQ) {
+		outb_p(xact | SMBHSTCNT_INTREN | SMBHSTCNT_START,
+		       SMBHSTCNT(priv));
+		wait_event(priv->waitq, (status = priv->status));
+		priv->status = 0;
+		return i801_check_post(priv, status, timeout > MAX_RETRIES);
+	}
 
 	/* the current contents of SMBHSTCNT can be overwritten, since PEC,
 	 * INTREN, SMBSCMD are passed in xact */
@@ -352,6 +378,44 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 			data->block[i + 1] = inb_p(SMBBLKDAT(priv));
 	}
 	return 0;
+}
+
+/*
+ * i801 signals transaction completion with one of these interrupts:
+ *   INTR - Success
+ *   DEV_ERR - Invalid command, NAK or communication timeout
+ *   BUS_ERR - SMI# transaction collision
+ *   FAILED - transaction was canceled due to a KILL request
+ * When any of these occur, update ->status and wake up the waitq.
+ * ->status must be cleared before kicking off the next transaction.
+ */
+static irqreturn_t i801_isr(int irq, void *dev_id)
+{
+	struct i801_priv *priv = dev_id;
+	u16 pcists;
+	u8 status;
+
+	/* Confirm this is our interrupt */
+	pci_read_config_word(priv->pci_dev, SMBPCISTS, &pcists);
+	if (!(pcists & SMBPCISTS_INTS))
+		return IRQ_NONE;
+
+	status = inb_p(SMBHSTSTS(priv));
+	if (status != 0x42)
+		dev_dbg(&priv->pci_dev->dev, "irq: status = %02x\n", status);
+
+	/*
+	 * Clear irq sources and report transaction result.
+	 * ->status must be cleared before the next transaction is started.
+	 */
+	status &= SMBHSTSTS_INTR | STATUS_ERROR_FLAGS;
+	if (status) {
+		outb_p(status, SMBHSTSTS(priv));
+		priv->status |= status;
+		wake_up(&priv->waitq);
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
@@ -800,6 +864,10 @@ static int __devinit i801_probe(struct pci_dev *dev,
 		break;
 	}
 
+	/* IRQ processing only tested on CougarPoint PCH */
+	if (dev->device == PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS)
+		priv->features |= FEATURE_IRQ;
+
 	/* Disable features on user request */
 	for (i = 0; i < ARRAY_SIZE(i801_feature_names); i++) {
 		if (priv->features & disable_features & (1 << i))
@@ -847,15 +915,30 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	}
 	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, temp);
 
-	if (temp & SMBHSTCFG_SMB_SMI_EN)
+	if (temp & SMBHSTCFG_SMB_SMI_EN) {
 		dev_dbg(&dev->dev, "SMBus using interrupt SMI#\n");
-	else
+		/* Disable SMBus interrupt feature if SMBus using SMI# */
+		priv->features &= ~FEATURE_IRQ;
+	} else {
 		dev_dbg(&dev->dev, "SMBus using PCI Interrupt\n");
+	}
 
 	/* Clear special mode bits */
 	if (priv->features & (FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER))
 		outb_p(inb_p(SMBAUXCTL(priv)) &
 		       ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B), SMBAUXCTL(priv));
+
+	if (priv->features & FEATURE_IRQ) {
+		init_waitqueue_head(&priv->waitq);
+
+		err = request_irq(dev->irq, i801_isr, IRQF_SHARED,
+				  i801_driver.name, priv);
+		if (err) {
+			dev_err(&dev->dev, "Failed to allocate irq %d: %d\n",
+				dev->irq, err);
+			goto exit_release;
+		}
+	}
 
 	/* set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = &dev->dev;
@@ -868,7 +951,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		dev_err(&dev->dev, "Failed to add SMBus adapter\n");
-		goto exit_release;
+		goto exit_free_irq;
 	}
 
 	/* Register optional slaves */
@@ -888,8 +971,12 @@ static int __devinit i801_probe(struct pci_dev *dev,
 #endif
 
 	pci_set_drvdata(dev, priv);
+
 	return 0;
 
+exit_free_irq:
+	if (priv->features & FEATURE_IRQ)
+		free_irq(dev->irq, priv);
 exit_release:
 	pci_release_region(dev, SMBBAR);
 exit:
@@ -903,7 +990,11 @@ static void __devexit i801_remove(struct pci_dev *dev)
 
 	i2c_del_adapter(&priv->adapter);
 	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
+
+	if (priv->features & FEATURE_IRQ)
+		free_irq(dev->irq, priv);
 	pci_release_region(dev, SMBBAR);
+
 	pci_set_drvdata(dev, NULL);
 	kfree(priv);
 	/*
