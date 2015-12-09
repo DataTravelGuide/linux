@@ -793,7 +793,7 @@ static int nvme_submit_iod(struct nvme_queue *nvmeq, struct nvme_iod *iod)
 	u16 control;
 	u32 dsmgmt;
 
-	if (!nvmeq->q_suspended)
+	if (nvmeq->q_suspended)
 		return -EBUSY;
 
 	cmdid = alloc_cmdid(nvmeq, iod, bio_completion, NVME_IO_TIMEOUT);
