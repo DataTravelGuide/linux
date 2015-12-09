@@ -40,6 +40,13 @@ static int mfd_add_device(struct device *parent, int id,
 		goto fail_device;
 
 	pdev->dev.parent = parent;
+	if (cell->data_size) {
+		ret = platform_device_add_data(pdev,
+					cell->platform_data, cell->data_size);
+		if (ret)
+			goto fail_res;
+	}
+
 	platform_set_drvdata(pdev, cell->driver_data);
 
 	ret = platform_device_add_data(pdev,
