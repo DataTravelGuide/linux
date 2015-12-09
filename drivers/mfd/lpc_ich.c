@@ -66,6 +66,7 @@
 #include <linux/pci.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/lpc_ich.h>
+#include <linux/platform_data/itco_wdt.h>
 
 #define ACPIBASE		0x40
 #define ACPIBASE_GPE_OFF	0x28
@@ -822,9 +823,31 @@ static void lpc_ich_enable_pmc_space(struct pci_dev *dev)
 	priv->actrl_pbase_save = reg_save;
 }
 
-static void __devinit lpc_ich_finalize_cell(struct pci_dev *dev, struct mfd_cell *cell)
+static int __devinit lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
+{
+	struct itco_wdt_platform_data *pdata;
+	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	struct lpc_ich_info *info;
+	struct mfd_cell *cell = &lpc_ich_cells[LPC_WDT];
+
+	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	info = &lpc_chipset_info[priv->chipset];
+
+	pdata->version = info->iTCO_version;
+	strlcpy(pdata->name, info->name, sizeof(pdata->name));
+
+	cell->platform_data = pdata;
+	cell->data_size = sizeof(*pdata);
+	return 0;
+}
+
+static void lpc_ich_finalize_gpio_cell(struct pci_dev *dev)
 {
 	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	struct mfd_cell *cell = &lpc_ich_cells[LPC_GPIO];
 
 	cell->platform_data = &lpc_chipset_info[priv->chipset];
 	cell->data_size = sizeof(struct lpc_ich_info);
@@ -905,7 +928,7 @@ gpe0_done:
 #endif
 	lpc_ich_enable_gpio_space(dev);
 
-	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_GPIO]);
+	lpc_ich_finalize_gpio_cell(dev);
 	ret = mfd_add_devices(&dev->dev, -2, &lpc_ich_cells[LPC_GPIO],
 				1, NULL, 0);
 
@@ -976,7 +999,10 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev)
 		res->end = base_addr + ACPIBASE_PMC_END;
 	}
 
-	lpc_ich_finalize_cell(dev, &lpc_ich_cells[LPC_WDT]);
+	ret = lpc_ich_finalize_wdt_cell(dev);
+	if (ret)
+		goto wdt_done;
+
 	ret = mfd_add_devices(&dev->dev, -2, &lpc_ich_cells[LPC_WDT],
 				1, NULL, 0);
 
