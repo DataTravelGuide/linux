@@ -63,4 +63,7 @@ static inline u8 map_sd_drive(int idx)
 #define rtl8411_reg_to_sd30_drive_sel_3v3(reg)	(((reg) >> 5) & 0x07)
 #define rtl8411b_reg_to_sd30_drive_sel_3v3(reg)	((reg) & 0x03)
 
+/* generic operations */
+int rtsx_gops_pm_reset(struct rtsx_pcr *pcr);
+
 #endif
