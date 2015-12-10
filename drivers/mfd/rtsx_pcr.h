@@ -27,6 +27,9 @@
 #define MIN_DIV_N_PCR		80
 #define MAX_DIV_N_PCR		208
 
+int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val);
+int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
+
 void rts5209_init_params(struct rtsx_pcr *pcr);
 void rts5229_init_params(struct rtsx_pcr *pcr);
 void rtl8411_init_params(struct rtsx_pcr *pcr);
