@@ -6227,13 +6227,14 @@ static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep, bool wake)
 }
 
 /**
- * e1000e_disable_aspm - Disable ASPM states
+ * __e1000e_disable_aspm - Disable ASPM states
  * @pdev: pointer to PCI device struct
  * @state: bit-mask of ASPM states to disable
+ * @locked: indication if this context holds pci_bus_sem locked.
  *
  * Some devices *must* have certain ASPM states disabled per hardware errata.
  **/
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state, int locked)
 {
 	struct pci_dev *parent = pdev->bus->self;
 	u16 aspm_dis_mask = 0;
@@ -6272,7 +6273,10 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 		 "L1" : "");
 
 #ifdef CONFIG_PCIEASPM
-	pci_disable_link_state_locked(pdev, state);
+	if (locked)
+		pci_disable_link_state_locked(pdev, state);
+	else
+		pci_disable_link_state(pdev, state);
 
 	/* Double-check ASPM control.  If not disabled by the above, the
 	 * BIOS is preventing that from happening (or CONFIG_PCIEASPM is
@@ -6293,6 +6297,32 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 	if (parent)
 		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
 					   aspm_dis_mask);
+}
+
+/**
+ * e1000e_disable_aspm - Disable ASPM states.
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * This function acquires the pci_bus_sem!
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+{
+	__e1000e_disable_aspm(pdev, state, 0);
+}
+
+/**
+ * e1000e_disable_aspm_locked   Disable ASPM states.
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * This function must be called with pci_bus_sem acquired!
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm_locked(struct pci_dev *pdev, u16 state)
+{
+	__e1000e_disable_aspm(pdev, state, 1);
 }
 
 #ifdef CONFIG_PM
@@ -6321,7 +6351,7 @@ static int e1000_resume(struct pci_dev *pdev)
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
 		aspm_disable_flag |= PCIE_LINK_STATE_L1;
 	if (aspm_disable_flag)
-		e1000e_disable_aspm(pdev, aspm_disable_flag);
+		e1000e_disable_aspm_locked(pdev, aspm_disable_flag);
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
