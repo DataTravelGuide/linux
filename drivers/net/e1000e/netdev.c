@@ -39,7 +39,7 @@
 #include <linux/if_vlan.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/aer.h>
 #include <linux/prefetch.h>
 #include <linux/clocksource.h>
@@ -4505,6 +4505,8 @@ static int e1000_open(struct net_device *netdev)
 	return 0;
 
 err_req_irq:
+	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
+				  adapter->netdev->name);
 	e1000e_release_hw_control(adapter);
 	e1000_power_down_phy(adapter);
 	e1000e_free_rx_resources(adapter->rx_ring);
