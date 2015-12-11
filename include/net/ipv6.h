@@ -504,6 +504,11 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 
 extern void ipv6_select_ident(struct frag_hdr *fhdr, struct in6_addr *addr);
 
+static inline __be32 ip6_flowlabel(const struct ipv6hdr *hdr)
+{
+	return *(__be32 *)hdr & IPV6_FLOWLABEL_MASK;
+}
+
 /*
  *	Prototypes exported by ipv6
  */
