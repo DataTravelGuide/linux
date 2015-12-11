@@ -359,6 +359,7 @@ struct napi_struct {
 	struct hlist_node	napi_hash_node;
 	unsigned int		napi_id;
 	size_t			size;
+	struct hrtimer		timer;
 #endif
 };
 
@@ -490,14 +491,24 @@ static inline int napi_reschedule(struct napi_struct *napi)
 	return 0;
 }
 
+void __napi_complete(struct napi_struct *n);
+void napi_complete_done(struct napi_struct *n, int work_done);
 /**
  *	napi_complete - NAPI processing complete
  *	@n: napi context
  *
  * Mark NAPI processing as complete.
+ * Consider using napi_complete_done() instead.
  */
-extern void __napi_complete(struct napi_struct *n);
-extern void napi_complete(struct napi_struct *n);
+static inline void _napi_complete(struct napi_struct *n)
+{
+	return napi_complete_done(n, 0);
+}
+
+/* RHEL has napi_complete in KABI so we need to keep it for binary
+ * modules. Newly compiled modules will use inlined function. */
+void napi_complete(struct napi_struct *n);
+#define napi_complete _napi_complete
 
 /**
  *	napi_by_id - lookup a NAPI by napi_id
@@ -532,15 +543,7 @@ extern void napi_hash_del(struct napi_struct *napi);
  * Stop NAPI from being scheduled on this context.
  * Waits till any outstanding processing completes.
  */
-static inline void napi_disable(struct napi_struct *n)
-{
-	set_bit(NAPI_STATE_DISABLE, &n->state);
-	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
-		msleep(1);
-	while (test_and_set_bit(NAPI_STATE_NPSVC, &n->state))
-		msleep(1);
-	clear_bit(NAPI_STATE_DISABLE, &n->state);
-}
+void napi_disable(struct napi_struct *n);
 
 /**
  *	napi_enable - enable NAPI scheduling
@@ -1444,6 +1447,7 @@ struct net_device_extended {
 						 * devices that share the same
 						 * function
 						 */
+	unsigned long		gro_flush_timeout;
 };
 
 #define NET_DEVICE_EXTENDED_SIZE \

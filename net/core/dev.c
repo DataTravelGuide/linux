@@ -137,6 +137,7 @@
 #include <linux/cpu_rmap.h>
 #include <linux/net_tstamp.h>
 #include <linux/hashtable.h>
+#include <linux/hrtimer.h>
 
 #include "net-sysfs.h"
 
@@ -3869,7 +3870,6 @@ EXPORT_SYMBOL(__napi_schedule);
 void __napi_complete(struct napi_struct *n)
 {
 	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
-	BUG_ON(n->gro_list);
 
 	list_del(&n->poll_list);
 	smp_mb__before_clear_bit();
@@ -3877,7 +3877,7 @@ void __napi_complete(struct napi_struct *n)
 }
 EXPORT_SYMBOL(__napi_complete);
 
-void napi_complete(struct napi_struct *n)
+void napi_complete_done(struct napi_struct *n, int work_done)
 {
 	unsigned long flags;
 
@@ -3889,9 +3889,29 @@ void napi_complete(struct napi_struct *n)
 		return;
 
 	napi_gro_flush(n);
+	if (n->gro_list) {
+		unsigned long timeout = 0;
+
+		if (work_done)
+			timeout = netdev_extended(n->dev)->gro_flush_timeout;
+
+		if (timeout)
+			hrtimer_start(&n->timer, ns_to_ktime(timeout),
+				      HRTIMER_MODE_REL_PINNED);
+		else
+			napi_gro_flush(n);
+	}
 	local_irq_save(flags);
 	__napi_complete(n);
 	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(napi_complete_done);
+
+/* This is a version for old binary modules compiled against older kernels. */
+#undef napi_complete
+void napi_complete(struct napi_struct *n)
+{
+	return napi_complete_done(n, 0);
 }
 EXPORT_SYMBOL(napi_complete);
 
@@ -3948,6 +3968,17 @@ void napi_hash_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL_GPL(napi_hash_del);
 
+static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
+{
+	struct napi_struct *napi;
+
+	napi = container_of(timer, struct napi_struct, timer);
+	if (napi->gro_list)
+		napi_schedule(napi);
+
+	return HRTIMER_NORESTART;
+}
+
 void __netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		      int (*poll)(struct napi_struct *, int), int weight,
 		      size_t size)
@@ -3957,6 +3988,11 @@ void __netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		set_bit(NAPI_STATE_EXT, &napi->state); /* Mark as extended */
 	}
 	INIT_LIST_HEAD(&napi->poll_list);
+	if (NAPI_STRUCT_HAS(napi, timer)) {
+		hrtimer_init(&napi->timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_PINNED);
+		napi->timer.function = napi_watchdog;
+	}
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
 	napi->skb = NULL;
@@ -3986,6 +4022,23 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 			 offsetof(struct napi_struct, size));
 }
 EXPORT_SYMBOL(netif_napi_add);
+
+void napi_disable(struct napi_struct *n)
+{
+	might_sleep();
+	set_bit(NAPI_STATE_DISABLE, &n->state);
+
+	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
+		msleep(1);
+	while (test_and_set_bit(NAPI_STATE_NPSVC, &n->state))
+		msleep(1);
+
+	if (NAPI_STRUCT_HAS(n, timer))
+		hrtimer_cancel(&n->timer);
+
+	clear_bit(NAPI_STATE_DISABLE, &n->state);
+}
+EXPORT_SYMBOL(napi_disable);
 
 void netif_napi_del(struct napi_struct *napi)
 {
