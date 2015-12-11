@@ -918,18 +918,48 @@ struct ethtool_dump {
  *	Will not be called if @get_rxfh_indir_size returns zero.
  * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
  *	Will not be called if @get_rxfh_indir_size returns zero.
+ * @get_channels: Get number of channels.
+ * @set_channels: Set number of channels.  Returns a negative error code or
+ *	zero.
+ * @get_dump_flag: Get dump flag indicating current dump length, version,
+ *	and flag of the device.
+ * @get_dump_data: Get dump data.
+ * @set_dump: Set dump specific flags to the device.
+ * @get_module_info: Get the size and type of the eeprom contained within
+ *	a plug-in module.
+ * @get_module_eeprom: Get the eeprom information from the plug-in module
+ * @set_phys_id: Identify the physical devices, e.g. by flashing an LED
+ *	attached to it.  The implementation may update the indicator
+ *	asynchronously or synchronously, but in either case it must return
+ *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
+ *	and must either activate asynchronous updates and return zero, return
+ *	a negative error or return a positive frequency for synchronous
+ *	indication (e.g. 1 for one on/off cycle per second).  If it returns
+ *	a frequency then it will be called again at intervals with the
+ *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
+ *	the indicator accordingly.  Finally, it is called with the argument
+ *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
+ *	negative error code or zero.
+ * @reset: Reset (part of) the device, as specified by a bitmask of
+ *	flags from &enum ethtool_reset_flags.  Returns a negative
+ *	error code or zero.
+ * @get_eee: Get Energy-Efficient (EEE) supported and status.
+ * @set_eee: Set EEE status (enable/disable) as well as LPI timers.
+ * @get_ts_info: Get the time stamping and PTP hardware clock capabilities.
+ *	Drivers supporting transmit time stamps in software should set this to
+ *	ethtool_op_get_ts_info().
  */
 struct  ethtool_ops_ext {
 	size_t    size;
 
 	u32	(*get_rxfh_key_size)(struct net_device *);
-	u32     (*get_rxfh_indir_size)(struct net_device *);
+	u32	(*get_rxfh_indir_size)(struct net_device *);
 	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key,
 			    u8 *hfunc);
 	int	(*set_rxfh)(struct net_device *, const u32 *indir,
 			    const u8 *key, const u8 hfunc);
-	int     (*get_rxfh_indir)(struct net_device *, u32 *);
-	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
+	int	(*get_rxfh_indir)(struct net_device *, u32 *);
+	int	(*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);

@@ -753,7 +753,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	struct ethtool_rxnfc info;
 	size_t info_size = sizeof(info);
 	int rc;
-	
+
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
 
@@ -874,7 +874,7 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_value reset;
 	int ret;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, reset))
 		return -EOPNOTSUPP;
 
@@ -921,7 +921,7 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_eee edata;
 	int rc;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, get_eee))
 		return -EOPNOTSUPP;
 
@@ -941,7 +941,7 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_eee edata;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, set_eee))
 		return -EOPNOTSUPP;
 
@@ -1140,7 +1140,7 @@ static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels = { .cmd = ETHTOOL_GCHANNELS };
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, get_channels))
 		return -EOPNOTSUPP;
 
@@ -1155,7 +1155,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, set_channels))
 		return -EOPNOTSUPP;
 
@@ -1375,7 +1375,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 	if (rc == 0) {
 		/* Driver will handle this itself */
 		schedule_timeout_interruptible(
-			id.data ? (id.data * HZ) : MAX_SCHEDULE_TIMEOUT);	
+			id.data ? (id.data * HZ) : MAX_SCHEDULE_TIMEOUT);
 	} else {
 		/* Driver expects to be called at twice the frequency in rc */
 		int n = rc * 2, i, interval = HZ / n;
@@ -1582,7 +1582,7 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 	*/
 	if (user_size < dev_size)
 		return user_size == 0 ? 0 : -EINVAL;
-        
+
 	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
@@ -1592,7 +1592,7 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 		GET_ETHTOOL_OP_EXT(dev, get_rxfh_indir)(dev, indir);
 	if (ret)
 		goto out;
-                                  
+
 	if (copy_to_user(useraddr +
 			 offsetof(struct ethtool_rxfh_indir, ring_index[0]),
 			 indir, dev_size * sizeof(indir[0])))
@@ -1847,7 +1847,7 @@ static int ethtool_set_dump(struct net_device *dev,
 			void __user *useraddr)
 {
 	struct ethtool_dump dump;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, set_dump))
 		return -EOPNOTSUPP;
 
@@ -1862,7 +1862,7 @@ static int ethtool_get_dump_flag(struct net_device *dev,
 {
 	int ret;
 	struct ethtool_dump dump;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, get_dump_flag))
 		return -EOPNOTSUPP;
 
@@ -1885,7 +1885,7 @@ static int ethtool_get_dump_data(struct net_device *dev,
 	__u32 len;
 	struct ethtool_dump dump, tmp;
 	void *data = NULL;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, get_dump_data) || !GET_ETHTOOL_OP_EXT(dev, get_dump_flag))
 		return -EOPNOTSUPP;
 
@@ -1948,7 +1948,7 @@ static int ethtool_get_module_eeprom(struct net_device *dev,
 {
 	int ret;
 	struct ethtool_modinfo modinfo;
-	
+
 	if (!GET_ETHTOOL_OP_EXT(dev, get_module_info) || !GET_ETHTOOL_OP_EXT(dev, get_module_eeprom))
 		return -EOPNOTSUPP;
 
@@ -2174,11 +2174,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_FLASHDEV:
 		rc = ethtool_flash_device(dev, useraddr);
 		break;
-	
 	case ETHTOOL_GRXFHINDIR:
 		rc = ethtool_get_rxfh_indir(dev, useraddr);
 		break;
-		
 	case ETHTOOL_SRXFHINDIR:
 		rc = ethtool_set_rxfh_indir(dev, useraddr);
 		break;
