@@ -733,7 +733,7 @@ next:
 		}
 	}
 
-	napi_gro_flush(&rx_ctrl->napi);
+	napi_gro_flush(&rx_ctrl->napi, false);
 	if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags)))
 		bna_ib_ack_disable_irq(ccb->i_dbell, packets);
 

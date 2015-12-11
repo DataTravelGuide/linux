@@ -763,11 +763,7 @@ restart:
 		iwl_pcie_rxq_restock(trans);
 
 	if (trans_pcie->napi.poll)
-#if 0 /* Not in RHEL */
 		napi_gro_flush(&trans_pcie->napi, false);
-#else
-		napi_gro_flush(&trans_pcie->napi);
-#endif
 }
 
 /*
