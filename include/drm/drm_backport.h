@@ -208,18 +208,6 @@ do {									\
 })
 
 /**
- * reinit_completion - reinitialize a completion structure
- * @x:  pointer to completion structure that is to be reinitialized
- *
- * This inline function should be used to reinitialize a completion structure so it can
- * be reused. This is especially important after complete_all() is used.
- */
-static inline void reinit_completion(struct completion *x)
-{
-	x->done = 0;
-}
-
-/**
  * list_last_entry - get the last element from a list
  * @ptr:	the list head to take the element from.
  * @type:	the type of the struct this is embedded in.
