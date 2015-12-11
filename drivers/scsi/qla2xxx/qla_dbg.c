@@ -47,7 +47,7 @@
  * | Virtual Port                 |       0xa007       |		|
  * | ISP82XX Specific             |       0xb157       | 0xb002,0xb024  |
  * | MultiQ                       |       0xc00c       |		|
- * | Misc                         |       0xd213       | 0xd011-0xd017	|
+ * | Misc                         |       0xd213       | 0xd016-0xd017	|
  * |                              |                    | 0xd021,0xd024	|
  * |                              |                    | 0xd025,0xd029	|
  * |                              |                    | 0xd02a,0xd02e	|
