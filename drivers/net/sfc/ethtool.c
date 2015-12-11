@@ -1085,7 +1085,7 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 	               0 : ARRAY_SIZE(efx->rx_indir_table));
 }
 
-static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev, u32 *indir)
+static int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1093,8 +1093,8 @@ static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev, u32 *indir)
 	return 0;
 }
 
-static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
-				      const u32 *indir)
+static int efx_ethtool_set_rxfh(struct net_device *net_dev,
+				const u32 *indir, const u8 *key)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -1178,8 +1178,8 @@ const struct ethtool_ops_ext efx_ethtool_ops_ext = {
 	.size			= sizeof(struct ethtool_ops_ext),
 	
 	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
-	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
-	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
+	.get_rxfh		= efx_ethtool_get_rxfh,
+	.set_rxfh		= efx_ethtool_set_rxfh,
 	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
