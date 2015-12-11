@@ -3948,9 +3948,14 @@ void napi_hash_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL_GPL(napi_hash_del);
 
-void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
-		    int (*poll)(struct napi_struct *, int), int weight)
+void __netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		      int (*poll)(struct napi_struct *, int), int weight,
+		      size_t size)
 {
+	if (size > offsetof(struct napi_struct, size)) {
+		napi->size = size;
+		set_bit(NAPI_STATE_EXT, &napi->state); /* Mark as extended */
+	}
 	INIT_LIST_HEAD(&napi->poll_list);
 	napi->gro_count = 0;
 	napi->gro_list = NULL;
@@ -3967,6 +3972,18 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	napi->poll_owner = -1;
 #endif
 	set_bit(NAPI_STATE_SCHED, &napi->state);
+}
+EXPORT_SYMBOL(__netif_napi_add);
+
+/* This is a version for old binary modules compiled against older kernels
+ * without extended napi_struct.
+ */
+#undef netif_napi_add
+void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
+		    int (*poll)(struct napi_struct *, int), int weight)
+{
+	__netif_napi_add(dev, napi, poll, weight,
+			 offsetof(struct napi_struct, size));
 }
 EXPORT_SYMBOL(netif_napi_add);
 
