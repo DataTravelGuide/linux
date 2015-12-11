@@ -1374,6 +1374,11 @@ static inline void skb_reset_mac_len(struct sk_buff *skb)
 }
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
+static inline bool skb_transport_header_was_set(const struct sk_buff *skb)
+{
+	return skb->transport_header != ~0U;
+}
+
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
 	return skb->head + skb->transport_header;
@@ -1429,6 +1434,11 @@ static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 }
 
 #else /* NET_SKBUFF_DATA_USES_OFFSET */
+
+static inline bool skb_transport_header_was_set(const struct sk_buff *skb)
+{
+	return skb->transport_header != NULL;
+}
 
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
