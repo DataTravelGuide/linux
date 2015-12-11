@@ -38,4 +38,6 @@ static inline __be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8
 {
 	return __skb_flow_get_ports(skb, thoff, ip_proto, NULL, 0);
 }
+unsigned int flow_get_hlen(const unsigned char *data, unsigned int max_len,
+			   __be16 protocol);
 #endif
