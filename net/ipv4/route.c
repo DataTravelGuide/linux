@@ -2581,7 +2581,7 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	unsigned flags = 0;
 	struct net_device *dev_out = NULL;
 	int free_res = 0;
-	int err;
+	int err = -ENETUNREACH;
 
 
 	res.fi		= NULL;
@@ -2685,7 +2685,8 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		goto make_route;
 	}
 
-	if (fib_lookup(net, &fl, &res)) {
+	err = fib_lookup(net, &fl, &res);
+	if (err) {
 		res.fi = NULL;
 		if (oldflp->oif) {
 			/* Apparently, routing tables are wrong. Assume,
@@ -2714,7 +2715,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		}
 		if (dev_out)
 			dev_put(dev_out);
-		err = -ENETUNREACH;
 		goto out;
 	}
 	free_res = 1;

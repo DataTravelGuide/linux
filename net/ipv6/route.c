@@ -1301,9 +1301,11 @@ int ip6_route_add(struct fib6_config *cfg)
 			rt->u.dst.input = ip6_pkt_prohibit;
 			break;
 		case RTN_THROW:
+		case RTN_UNREACHABLE:
 		default:
 			rt->u.dst.error = (cfg->fc_type == RTN_THROW) ? -EAGAIN
-					  : -ENETUNREACH;
+					  : (cfg->fc_type == RTN_UNREACHABLE)
+					  ? -EHOSTUNREACH : -ENETUNREACH;
 			rt->u.dst.output = ip6_pkt_discard_out;
 			rt->u.dst.input = ip6_pkt_discard;
 			break;
