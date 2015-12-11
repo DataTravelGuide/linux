@@ -655,7 +655,8 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
  * Returns -EINVAL if the table specifies an inavlid queue id, otherwise
  * returns 0 after programming the table.
  **/
-static int i40evf_set_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
+static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
+			   const u8 *key)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40e_hw *hw = &adapter->hw;

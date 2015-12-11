@@ -12555,7 +12555,8 @@ static int tg3_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 	return 0;
 }
 
-static int tg3_set_rxfh(struct net_device *dev, u32 *indir, u8 *key)
+static int tg3_set_rxfh(struct net_device *dev, const u32 *indir,
+			const u8 *key)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	size_t i;

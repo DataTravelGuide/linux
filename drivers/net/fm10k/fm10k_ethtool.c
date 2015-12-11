@@ -960,8 +960,8 @@ static int fm10k_get_rssh(struct net_device *netdev, u32 *indir, u8 *key)
 	return 0;
 }
 
-static int fm10k_set_rssh(struct net_device *netdev, u32 *indir,
-			  u8 *key)
+static int fm10k_set_rssh(struct net_device *netdev, const u32 *indir,
+			  const u8 *key)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_hw *hw = &interface->hw;

@@ -3382,8 +3382,8 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key)
 	return 0;
 }
 
-static int bnx2x_set_rxfh(struct net_device *dev, u32 *indir,
-			  u8 *key)
+static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
+			  const u8 *key)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;

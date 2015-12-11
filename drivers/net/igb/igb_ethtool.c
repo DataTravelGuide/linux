@@ -2888,8 +2888,8 @@ void igb_write_rss_indir_tbl(struct igb_adapter *adapter)
 	}
 }
 
-static int igb_set_rxfh(struct net_device *netdev, u32 *indir,
-			u8 *key)
+static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
+			const u8 *key)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
