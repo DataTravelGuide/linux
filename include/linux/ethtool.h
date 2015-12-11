@@ -877,15 +877,33 @@ struct ethtool_dump {
  * ethtool_ops_ext - structure used to extend ethtool_ops methods
  * @size: This field should be initialized to the size of the structure 
  *	  by the drivers.
- *
+ * @get_rxfh_key_size: Get the size of the RX flow hash key.
+ *	Returns zero if not supported for this specific device.
+ * @get_rxfh_indir_size: Get the size of the RX flow hash indirection table.
+ *	Returns zero if not supported for this specific device.
+ * @get_rxfh: Get the contents of the RX flow hash indirection table and hash
+ *	key.
+ *	Will only be called if one or both of @get_rxfh_indir_size and
+ *	@get_rxfh_key_size are implemented and return non-zero.
+ *	Returns a negative error code or zero.
+ * @set_rxfh: Set the contents of the RX flow hash indirection table and/or
+ *	hash key.  Either or both arguments may be %NULL if that attribute
+ *	is not to be changed.
+ *	Will only be called if one or both of @get_rxfh_indir_size and
+ *	@get_rxfh_key_size are implemented and return non-zero.
+ *	Returns a negative error code or zero.
+ * @get_rxfh_indir: Get the contents of the RX flow hash indirection table.
+ *	Will not be called if @get_rxfh_indir_size returns zero.
+ * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
+ *	Will not be called if @get_rxfh_indir_size returns zero.
  */
 struct  ethtool_ops_ext {
 	size_t    size;
 
 	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32     (*get_rxfh_indir_size)(struct net_device *);
-	int	(*get_rxfh)(struct net_device *, u32 *, u8 *);
-	int	(*set_rxfh)(struct net_device *, u32 *, u8 *);
+	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key);
+	int	(*set_rxfh)(struct net_device *, u32 *indir, u8 *key);
 	int     (*get_rxfh_indir)(struct net_device *, u32 *);
 	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
