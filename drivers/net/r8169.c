@@ -8372,7 +8372,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->ethtool_ops = &rtl8169_ethtool_ops;
 	set_ethtool_ops_ext(dev, &rtl8169_ethtool_ops_ext);

@@ -1722,7 +1722,6 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->dev_addr[3] = (u8)(u64temp>>16);
 	netdev->dev_addr[4] = (u8)(u64temp>>8);
 	netdev->dev_addr[5] = (u8)u64temp;
-	memcpy(netdev->perm_addr, netdev->dev_addr, 6);
 
 	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV)) {
 		netdev->features |= NETIF_F_TSO | NETIF_F_SG | NETIF_F_IP_CSUM;

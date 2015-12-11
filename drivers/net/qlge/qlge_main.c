@@ -4617,7 +4617,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		goto err_out2;
 	}
 
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 	/* Keep local copy of current mac address. */
 	memcpy(qdev->current_mac_addr, ndev->dev_addr, ndev->addr_len);
 

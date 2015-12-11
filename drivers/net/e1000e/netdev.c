@@ -6954,11 +6954,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 			"NVM Read Error while reading MAC address\n");
 
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
-			netdev->perm_addr);
+			netdev->dev_addr);
 		err = -EIO;
 		goto err_eeprom;
 	}

@@ -2764,8 +2764,6 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	if (is_local_ether_addr(netdev->dev_addr))
 		netdev->addr_assign_type = NET_ADDR_RANDOM;
 
-	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
-
 	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
 	            (unsigned long) adapter);
 

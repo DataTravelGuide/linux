@@ -8575,7 +8575,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
-	memcpy(dev->perm_addr, bp->mac_addr, ETH_ALEN);
 
 	set_netdev_hw_features(dev, NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO |
 			       NETIF_F_TSO_ECN | NETIF_F_RXHASH |

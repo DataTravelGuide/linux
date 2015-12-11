@@ -351,7 +351,6 @@ static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 
 	memcpy(dev->dev_addr, "\xba\xbe\xca\xfe\xde\xad\xbe\xef",
 			dev->addr_len);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	phy->channels_supported = (1 << 27) - 1;
 	phy->transmit_power = 0xbf;
