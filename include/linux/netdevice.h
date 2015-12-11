@@ -1709,6 +1709,9 @@ struct napi_gro_cb {
 
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
+
+	/* used in skb_gro_receive() slow path */
+	struct sk_buff *last;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
