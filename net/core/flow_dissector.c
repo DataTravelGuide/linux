@@ -13,9 +13,35 @@
 #include <net/flow_keys.h>
 
 
+/**
+ * skb_flow_get_ports - extract the upper layer ports and return them
+ * @skb: buffer to extract the ports from
+ * @thoff: transport header offset
+ * @ip_proto: protocol for which to get port offset
+ *
+ * The function will try to retrieve the ports at offset thoff + poff where poff
+ * is the protocol port offset returned from proto_ports_offset
+ */
+__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto)
+{
+	int poff = proto_ports_offset(ip_proto);
+
+	if (poff >= 0) {
+		__be32 *ports, _ports;
+
+		ports = skb_header_pointer(skb, thoff + poff,
+					   sizeof(_ports), &_ports);
+		if (ports)
+			return *ports;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(skb_flow_get_ports);
+
 bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 {
-	int poff, nhoff = skb_network_offset(skb);
+	int nhoff = skb_network_offset(skb);
 	u8 ip_proto;
 	__be16 proto = skb->protocol;
 
@@ -134,16 +160,7 @@ ipv6:
 	}
 
 	flow->ip_proto = ip_proto;
-	poff = proto_ports_offset(ip_proto);
-	if (poff >= 0) {
-		__be32 *ports, _ports;
-
-		ports = skb_header_pointer(skb, nhoff + poff,
-					   sizeof(_ports), &_ports);
-		if (ports)
-			flow->ports = *ports;
-	}
-
+	flow->ports = skb_flow_get_ports(skb, nhoff, ip_proto);
 	flow->thoff = (u16) nhoff;
 
 	return true;
