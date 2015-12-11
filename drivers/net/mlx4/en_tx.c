@@ -628,8 +628,8 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (netdev_get_num_tc(dev))
 		return skb_tx_hash(dev, skb);
 
-	if (vlan_tx_tag_present(skb))
-		up = vlan_tx_tag_get(skb) >> VLAN_PRIO_SHIFT;
+	if (skb_vlan_tag_present(skb))
+		up = skb_vlan_tag_get(skb) >> VLAN_PRIO_SHIFT;
 
 	return __netdev_pick_tx(dev, skb) % rings_p_up + up * rings_p_up;
 }
@@ -680,8 +680,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_ind = skb->queue_mapping;
 	ring = priv->tx_ring[tx_ind];
-	if (vlan_tx_tag_present(skb))
-		vlan_tag = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb))
+		vlan_tag = skb_vlan_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
 	if (unlikely(((int)(ring->prod - ring->cons)) >
@@ -797,7 +797,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * whether LSO is used */
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
 	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
-		!!vlan_tx_tag_present(skb);
+		!!skb_vlan_tag_present(skb);
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 	tx_desc->ctrl.srcrb_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
 						MLX4_WQE_CTRL_SOLICITED);
@@ -861,7 +861,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
-	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tx_tag_present(skb)) {
+	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !skb_vlan_tag_present(skb)) {
 		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
 
 		op_own |= htonl((bf_index & 0xffff) << 8);

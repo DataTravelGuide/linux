@@ -1654,14 +1654,14 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 	ctrl = 0;
 #ifdef SKY2_VLAN_TAG_USED
 	/* Add VLAN tag, can piggyback on LRGLEN or ADDR64 */
-	if (sky2->vlgrp && vlan_tx_tag_present(skb)) {
+	if (sky2->vlgrp && skb_vlan_tag_present(skb)) {
 		if (!le) {
 			le = get_tx_le(sky2, &slot);
 			le->addr = 0;
 			le->opcode = OP_VLAN|HW_OWNER;
 		} else
 			le->opcode |= OP_VLAN;
-		le->length = cpu_to_be16(vlan_tx_tag_get(skb));
+		le->length = cpu_to_be16(skb_vlan_tag_get(skb));
 		ctrl |= INS_VLAN;
 	}
 #endif

@@ -745,7 +745,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 	int vlan_offset = 0, copied;
 	int vlan_hlen = 0;
 
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		vlan_hlen = VLAN_HLEN;
 
 	if (!(tun->flags & TUN_NO_PI)) {
@@ -822,7 +822,7 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 		} veth;
 
 		veth.h_vlan_proto = htons(ETH_P_8021Q);
-		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
+		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
 

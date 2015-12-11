@@ -764,8 +764,8 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	}
 
 #if CP_VLAN_TAG_USED
-	if (cp->vlgrp && vlan_tx_tag_present(skb))
-		vlan_tag = TxVlanTag | swab16(vlan_tx_tag_get(skb));
+	if (cp->vlgrp && skb_vlan_tag_present(skb))
+		vlan_tag = TxVlanTag | swab16(skb_vlan_tag_get(skb));
 #endif
 
 	entry = cp->tx_head;

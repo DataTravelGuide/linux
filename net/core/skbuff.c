@@ -3309,7 +3309,7 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb)
 	struct vlan_hdr *vhdr;
 	u16 vlan_tci;
 
-	if (unlikely(vlan_tx_tag_present(skb))) {
+	if (unlikely(skb_vlan_tag_present(skb))) {
 		/* vlan_tci is already set-up so leave this for another time */
 		return skb;
 	}

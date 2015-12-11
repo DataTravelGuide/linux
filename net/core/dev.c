@@ -2209,7 +2209,7 @@ int netif_skb_features(struct sk_buff *skb)
 	if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 		protocol = veh->h_vlan_encapsulated_proto;
-	} else if (!vlan_tx_tag_present(skb)) {
+	} else if (!skb_vlan_tag_present(skb)) {
 		return harmonize_features(skb, protocol, features);
 	}
 
@@ -2260,9 +2260,9 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		features = netif_skb_features(skb);
 
-		if (vlan_tx_tag_present(skb) &&
+		if (skb_vlan_tag_present(skb) &&
 		    !(features & NETIF_F_HW_VLAN_TX)) {
-			skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
+			skb = __vlan_put_tag(skb, skb_vlan_tag_get(skb));
 			if (unlikely(!skb))
 				goto out;
 
@@ -3310,7 +3310,7 @@ another_round:
 ncls:
 #endif
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
@@ -3341,8 +3341,8 @@ ncls:
 		}
 	}
 
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		if (vlan_tx_tag_get_id(skb))
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		if (skb_vlan_tag_get_id(skb))
 			skb->pkt_type = PACKET_OTHERHOST;
 		/* Note: we might in the future use prio bits
 		 * and set skb->priority like in vlan_do_receive()
