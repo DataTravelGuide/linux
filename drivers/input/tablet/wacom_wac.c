@@ -1161,16 +1161,21 @@ static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 	 *
 	 * Hardware does report zero in most out-of-prox cases but not all.
 	 */
-	if (prox) {
-		if (!wacom->tool[0]) {
-			if (data[1] & 0x08) {
-				wacom->tool[0] = BTN_TOOL_RUBBER;
-				wacom->id[0] = ERASER_DEVICE_ID;
-			} else {
-				wacom->tool[0] = BTN_TOOL_PEN;
-				wacom->id[0] = STYLUS_DEVICE_ID;
-			}
+	if (!wacom->shared->stylus_in_proximity) {
+		if (data[1] & 0x08) {
+			wacom->tool[0] = BTN_TOOL_RUBBER;
+			wacom->id[0] = ERASER_DEVICE_ID;
+		} else {
+			wacom->tool[0] = BTN_TOOL_PEN;
+			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
+	}
+
+	wacom->shared->stylus_in_proximity = prox;
+	if (wacom->shared->touch_down)
+		return 0;
+
+	if (prox) {
 		x = le16_to_cpup((__le16 *)&data[2]);
 		y = le16_to_cpup((__le16 *)&data[4]);
 		p = le16_to_cpup((__le16 *)&data[6]);
@@ -1186,6 +1191,8 @@ static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 		pen = data[1] & 0x01;
 		btn1 = data[1] & 0x02;
 		btn2 = data[1] & 0x04;
+	} else {
+		wacom->id[0] = 0;
 	}
 
 	input_report_key(input, BTN_TOUCH, pen);
@@ -1196,9 +1203,6 @@ static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 	input_report_abs(input, ABS_Y, y);
 	input_report_abs(input, ABS_PRESSURE, p);
 	input_report_abs(input, ABS_DISTANCE, d);
-
-	if (!prox)
-		wacom->id[0] = 0;
 
 	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
 	input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
@@ -1262,7 +1266,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
 	int count = data[1] & 0x07;
-	int i;
+	int touch_changed = 0, i;
 
 	if (data[0] != 0x02)
 		return 0;
@@ -1272,12 +1276,17 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom, void *wcombo)
 		int offset = (8 * i) + 2;
 		int msg_id = data[offset];
 
-		if (msg_id >= 2 && msg_id <= 17)
+		if (msg_id >= 2 && msg_id <= 17) {
 			wacom_bpt3_touch_msg(wacom, wcombo, data + offset);
+			touch_changed++;
+		}
 		else if (msg_id == 128)
 			wacom_bpt3_button_msg(wacom, wcombo, data + offset);
 	}
-	wacom_mt_report_pointer_emulation(wcombo, true);
+	if (touch_changed) {
+		wacom_mt_report_pointer_emulation(wcombo, true);
+		wacom->shared->touch_down = wacom_wac_finger_count_touches(wcombo);
+	}
 
 	wacom_input_sync(wcombo);
 
