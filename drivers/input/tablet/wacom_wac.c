@@ -1148,7 +1148,7 @@ static int wacom_bpt_pen(struct wacom_wac *wacom, struct wacom_combo *wcombo)
 	unsigned char *data = wacom->data;
 	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
 
-	if (data[0] != 0x02)
+	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
 	prox = (data[1] & 0x20) == 0x20;
@@ -1232,7 +1232,7 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, void *wcombo,
 		int y = (data[3] << 4) | (data[4] & 0x0f);
 		int width = 0, height = 0;
 
-		if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
+		if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
 			width  = data[5];
 			height = data[6];
 		}
@@ -1244,11 +1244,19 @@ static void wacom_bpt3_touch_msg(struct wacom_wac *wacom, void *wcombo,
 	}
 }
 
-static void wacom_bpt3_button_msg(void *wcombo, unsigned char *data)
+static void wacom_bpt3_button_msg(struct wacom_wac *wacom, void *wcombo,
+				  unsigned char *data)
 {
-        wacom_report_key(wcombo, BTN_LEFT, (data[1] & 0x08) != 0);
+	struct wacom_features *features = &wacom->features;
+
+	if (features->type == INTUOSHT) {
+		wacom_report_key(wcombo, BTN_LEFT, (data[1] & 0x02) != 0);
+		wacom_report_key(wcombo, BTN_BACK, (data[1] & 0x08) != 0);
+	} else {
+		wacom_report_key(wcombo, BTN_BACK, (data[1] & 0x02) != 0);
+		wacom_report_key(wcombo, BTN_LEFT, (data[1] & 0x08) != 0);
+	}
         wacom_report_key(wcombo, BTN_FORWARD, (data[1] & 0x04) != 0);
-        wacom_report_key(wcombo, BTN_BACK, (data[1] & 0x02) != 0);
         wacom_report_key(wcombo, BTN_RIGHT, (data[1] & 0x01) != 0);
 }
 
@@ -1269,7 +1277,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom, void *wcombo)
 		if (msg_id >= 2 && msg_id <= 17)
 			wacom_bpt3_touch_msg(wacom, wcombo, data + offset);
 		else if (msg_id == 128)
-			wacom_bpt3_button_msg(wcombo, data + offset);
+			wacom_bpt3_button_msg(wacom, wcombo, data + offset);
 	}
 	wacom_mt_report_pointer_emulation(wcombo, true);
 
@@ -1281,8 +1289,11 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom, void *wcombo)
 static int wacom_bpt_irq(struct wacom_wac *wacom, void *wcombo)
 {
 	struct wacom_combo *wc = wcombo;
+	int len = wc->urb->actual_length;
 
-	/* currently only CTL-460 (Bamboo pen) is supported */
+	if (len == WACOM_PKGLEN_BBTOUCH3)
+		return wacom_bpt3_touch(wacom, wcombo);
+
 	return wacom_bpt_pen(wacom, wc);
 }
 
@@ -1292,7 +1303,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len,
 	unsigned char *data = wacom->data;
 	int connected;
 
-	if (len != WACOM_PKGLEN_WIRELESS || data[0] != 0x80)
+	if (len != WACOM_PKGLEN_WIRELESS || data[0] != WACOM_REPORT_WL)
 		return 0;
 
 	connected = data[1] & 0x01;
@@ -1372,6 +1383,7 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 		case MTSCREEN:
 			return wacom_tpc_irq(wacom_wac, wcombo);
 		case BAMBOO_PT:
+		case INTUOSHT:
 			return wacom_bpt_irq(wacom_wac, wcombo);
 
 		case WIRELESS:
@@ -1476,6 +1488,7 @@ int wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wa
                         input_dev_cintiq(input_dev, wacom_wac);
                         break;
 		case BAMBOO_PT:
+		case INTUOSHT:
 			input_dev_bamboo_pt(input_dev, wacom_wac);
 			break;
 		case REMOTE:
@@ -1593,6 +1606,11 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom Cintiq 27QHD touch", WACOM_PKGLEN_INTUOS, 119740, 67520, 2047, 63, WACOM_27QHDT,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32B, .touch_max = 10 },
 	{ "Wacom Express Key Remote", WACOM_PKGLEN_WIRELESS, 0, 0, 0, 0, REMOTE },
+	{ "Wacom Intuos PT S", WACOM_PKGLEN_BBPEN, 15200,  9500, 1023, 31, INTUOSHT,
+	  .touch_max = 16 },
+	{ "Wacom Intuos PT M", WACOM_PKGLEN_BBPEN, 21600, 13500, 1023, 31, INTUOSHT,
+	  .touch_max = 16 },
+	{ "Wacom Intuos S", WACOM_PKGLEN_BBPEN, 15200, 9500, 1023, 31, INTUOSHT },
 	{ }
 };
 
@@ -1702,6 +1720,9 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x32B) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x32C) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x331) },
+	{ USB_DEVICE_DETAILED(0x302, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x303, USB_CLASS_HID, 0, 0) },
+	{ USB_DEVICE_DETAILED(0x30E, USB_CLASS_HID, 0, 0) },
 	{ }
 };
 

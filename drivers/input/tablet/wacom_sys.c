@@ -623,12 +623,65 @@ void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 
 void input_dev_bamboo_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
+	struct wacom_features *features = &wacom_wac->features;
+
 	input_dev->absbit[BIT_WORD(ABS_MISC)] &= ~ABS_MISC;
-	/* for now, BAMBOO_PT will only handle pen */
-	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_RUBBER) |
-		BIT_MASK(BTN_STYLUS2);
-	input_set_abs_params(input_dev, ABS_DISTANCE, 0,
-			     wacom_wac->features.distance_max, 0, 0);
+
+	if (features->type == BAMBOO_PT) {
+		/* for now, BAMBOO_PT will only handle pen */
+		input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_RUBBER) |
+			BIT_MASK(BTN_STYLUS2);
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+				     wacom_wac->features.distance_max, 0, 0);
+		return;
+	}
+
+	if (features->device_type == BTN_TOOL_FINGER) {
+		__set_bit(BTN_LEFT, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_RIGHT, input_dev->keybit);
+
+		if (features->touch_max) {
+			/* touch interface */
+			unsigned int flags = INPUT_MT_POINTER;
+
+			__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+			if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
+				input_set_abs_params(input_dev,
+					     ABS_MT_TOUCH_MAJOR,
+					     0, features->x_max, 0, 0);
+				input_set_abs_params(input_dev,
+					     ABS_MT_TOUCH_MINOR,
+					     0, features->y_max, 0, 0);
+			} else {
+				__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+				__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
+				flags = 0;
+			}
+			if (features->touch_max > 1) {
+				input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+						     0, features->x_max, 0, 0);
+				input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+						     0, features->y_max, 0, 0);
+			}
+			input_mt_init_slots(input_dev, features->touch_max, flags);
+		} else {
+			/* buttons/keys only interface */
+			__clear_bit(ABS_X, input_dev->absbit);
+			__clear_bit(ABS_Y, input_dev->absbit);
+			__clear_bit(BTN_TOUCH, input_dev->keybit);
+		}
+	} else if (features->device_type == BTN_TOOL_PEN) {
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
+		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
+		__set_bit(BTN_STYLUS, input_dev->keybit);
+		__set_bit(BTN_STYLUS2, input_dev->keybit);
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+				     features->distance_max,
+				     0, 0);
+	}
 }
 
 void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
@@ -1502,7 +1555,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
 	    (features->type >= INTUOS5S && features->type <= INTUOSPL) ||
 	    features->type == WIRELESS || (features->oVid && features->oPid) ||
-	    features->type == MTSCREEN)
+	    features->type == MTSCREEN || features->type == INTUOSHT)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	if (features->type == WIRELESS) {
@@ -1684,7 +1737,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	 * HID descriptor. If this is the touch interface (wMaxPacketSize
 	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
 	 */
-	if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
+	if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
