@@ -407,6 +407,25 @@ int wacom_mt_get_slot_by_key(void *wcombo, int key)
 	return input_mt_get_slot_by_key(get_input_dev((struct wacom_combo *)wcombo), key);
 }
 
+int wacom_wac_finger_count_touches(void *wc)
+{
+	struct wacom_combo *wcombo = (struct wacom_combo *)wc;
+	struct wacom *wacom = wcombo->wacom;
+	struct input_dev *input = wacom->dev;
+	int count = 0;
+	int i;
+
+	for (i = 0; i < input->mt->num_slots; i++) {
+		struct input_mt_slot *ps = &input->mt->slots[i];
+		int id = input_mt_get_value(ps, ABS_MT_TRACKING_ID);
+		if (id >= 0)
+			count++;
+	}
+
+	return count;
+}
+
+
 static int wacom_open(struct input_dev *dev)
 {
 	struct wacom *wacom = input_get_drvdata(dev);

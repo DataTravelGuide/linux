@@ -1027,7 +1027,6 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom, void *wcombo)
 static int wacom_tpc_mt_touch(struct wacom_wac *wacom, void *wcombo)
 {
 	unsigned char *data = wacom->data;
-	int contact_with_no_pen_down_count = 0;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -1042,12 +1041,11 @@ static int wacom_tpc_mt_touch(struct wacom_wac *wacom, void *wcombo)
 
 			wacom_report_abs(wcombo, ABS_MT_POSITION_X, x);
 			wacom_report_abs(wcombo, ABS_MT_POSITION_Y, y);
-			contact_with_no_pen_down_count++;
 		}
 	}
 
 	/* keep touch state for pen event */
-	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+	wacom->shared->touch_down = wacom_wac_finger_count_touches(wcombo);
 
 	wacom_mt_report_pointer_emulation(wcombo, true);
 

@@ -179,5 +179,6 @@ extern struct wacom_features *get_wacom_feature(const struct usb_device_id *id);
 extern const struct usb_device_id *get_device_table(void);
 int wacom_remote_create_attr_group(void *wcombo, __u32 serial, int index);
 void wacom_remote_destroy_attr_group(void *wcombo, __u32 serial);
+int wacom_wac_finger_count_touches(void *wcombo);
 
 #endif
