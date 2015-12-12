@@ -329,6 +329,8 @@ struct pci_dev_rh1 {
 	resource_size_t	fw_addr[DEVICE_COUNT_RESOURCE];	/* FW-assigned addr */
 #ifdef CONFIG_PCI_MSI
 	struct kset *msi_kset;
+	u8		msi_cap;	/* MSI capability offset */
+	u8		msix_cap;	/* MSI-X capability offset */
 #endif
 	u8		pcie_mpss:3;	/* PCI-E Max Payload Size Supported */
 	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem

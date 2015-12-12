@@ -78,32 +78,34 @@ void arch_teardown_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-static void msi_set_enable(struct pci_dev *dev, int pos, int enable)
+static void msi_set_enable(struct pci_dev *dev, int enable)
 {
 	u16 control;
 
-	BUG_ON(!pos);
-
-	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
+	pci_read_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap +
+		PCI_MSI_FLAGS, &control);
 	control &= ~PCI_MSI_FLAGS_ENABLE;
 	if (enable)
 		control |= PCI_MSI_FLAGS_ENABLE;
-	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
+	pci_write_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap +
+		PCI_MSI_FLAGS, control);
 }
 
 static void msix_set_enable(struct pci_dev *dev, int enable)
 {
-	int pos;
 	u16 control;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
-		control &= ~PCI_MSIX_FLAGS_ENABLE;
-		if (enable)
-			control |= PCI_MSIX_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
-	}
+	pci_read_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, &control);
+	control &= ~PCI_MSIX_FLAGS_ENABLE;
+	if (enable)
+		control |= PCI_MSIX_FLAGS_ENABLE;
+	pci_write_config_word(dev,
+		((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap +
+		PCI_MSIX_FLAGS, control);
 }
 
 static inline __attribute_const__ u32 msi_mask(unsigned x)
@@ -368,7 +370,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	pos = entry->msi_attrib.pos;
 
 	pci_intx_for_msi(dev, 0);
-	msi_set_enable(dev, pos, 0);
+	msi_set_enable(dev, 0);
 	write_msi_msg(dev->irq, &entry->msg);
 
 	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
@@ -529,7 +531,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	unsigned mask;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
-	msi_set_enable(dev, pos, 0);	/* Disable MSI during set up */
+	msi_set_enable(dev, 0);	/* Disable MSI during set up */
 
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
@@ -570,7 +572,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 
 	/* Set MSI enabled bits	 */
 	pci_intx_for_msi(dev, 0);
-	msi_set_enable(dev, pos, 1);
+	msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
 	dev->irq = entry->irq;
@@ -831,7 +833,7 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	desc = list_first_entry(&dev->msi_list, struct msi_desc, list);
 	pos = desc->msi_attrib.pos;
 
-	msi_set_enable(dev, pos, 0);
+	msi_set_enable(dev, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 
@@ -1015,6 +1017,20 @@ void pci_yes_msi(void)
 void pci_msi_init_pci_dev(struct pci_dev *dev)
 {
 	INIT_LIST_HEAD(&dev->msi_list);
+
+	/* Disable the msi hardware to avoid screaming interrupts
+	 * during boot.  This is the power on reset default so
+	 * usually this should be a noop.
+	 */
+        ((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap =
+				pci_find_capability(dev, PCI_CAP_ID_MSI);
+        if (((struct pci_dev_rh1 *)dev->rh_reserved1)->msi_cap)
+		msi_set_enable(dev, 0);
+
+        ((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap =
+				pci_find_capability(dev, PCI_CAP_ID_MSIX);
+        if (((struct pci_dev_rh1 *)dev->rh_reserved1)->msix_cap)
+		msix_set_enable(dev, 0);
 }
 
 /**
