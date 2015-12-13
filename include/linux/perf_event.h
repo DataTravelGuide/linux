@@ -1236,6 +1236,7 @@ struct perf_event_context {
 #ifndef __GENKSYMS__ /* kabi tool is crap */
 	int				nr_cgroups; /* cgroup events present */
 	int				nr_branch_stack; /* branch_stack evt */
+	struct list_head		active_ctx_list;
 #endif
 };
 
@@ -1255,7 +1256,15 @@ struct perf_cpu_context {
 	int				exclusive;
 	struct hrtimer			hrtimer;
 	ktime_t				hrtimer_interval;
+/*
+ * RHEL6 The rotation_list is deprecated in favor of
+ * perf_event_context::active_ctx_list.
+ */
+#ifdef __GENKSYMS__
 	struct list_head		rotation_list;
+#else
+	struct list_head		rh_reserved_rotation_list;
+#endif
 	struct pmu			*unique_pmu;
 	struct perf_cgroup		*cgrp;
 };
