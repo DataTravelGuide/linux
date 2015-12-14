@@ -150,10 +150,6 @@ struct hv_netvsc_packet {
 	void *send_completion_ctx;
 	void (*send_completion)(void *context);
 
-
-	/* This points to the memory after page_buf */
-	struct rndis_message *rndis_msg;
-
 	/* Points to the send/receive buffer where the ethernet frame is */
 	void *data;
 	struct hv_page_buffer *page_buf;
@@ -187,10 +183,12 @@ struct rndis_device {
 
 
 /* Interface */
+struct rndis_message;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
-		struct hv_netvsc_packet *packet);
+		struct hv_netvsc_packet *packet,
+		struct rndis_message *rndis_msg);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				unsigned int status);
 void netvsc_xmit_completion(void *context);
