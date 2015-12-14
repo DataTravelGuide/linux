@@ -419,6 +419,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		return NETDEV_TX_OK;
 	}
 
+	/* We don't have xmit_more in RHEL6 */
+	packet->xmit_more = false;
+
 	packet->vlan_tci = skb->vlan_tci;
 
 	packet->q_idx = skb_get_queue_mapping(skb);
