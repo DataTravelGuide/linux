@@ -395,7 +395,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 net_trans_info;
 	u32 hash;
 	u32 skb_length;
-	u32 pkt_sz;
 	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
 
 
@@ -423,16 +422,21 @@ check_size:
 		goto check_size;
 	}
 
-	pkt_sz = sizeof(struct hv_netvsc_packet) + RNDIS_AND_PPI_SIZE;
-
-	ret = skb_cow_head(skb, pkt_sz);
+	/*
+	 * Place the rndis header in the skb head room and
+	 * the skb->cb will be used for hv_netvsc_packet
+	 * structure.
+	 */
+	ret = skb_cow_head(skb, RNDIS_AND_PPI_SIZE);
 	if (ret) {
 		netdev_err(net, "unable to alloc hv_netvsc_packet\n");
 		ret = -ENOMEM;
 		goto drop;
 	}
-	/* Use the headroom for building up the packet */
-	packet = (struct hv_netvsc_packet *)skb->head;
+	/* Use the skb control buffer for building up the packet */
+	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
+			FIELD_SIZEOF(struct sk_buff, cb));
+	packet = (struct hv_netvsc_packet *)skb->cb;
 
 	packet->status = 0;
 	/* We don't have xmit_more in RHEL6 */
@@ -446,8 +450,7 @@ check_size:
 	packet->is_data_pkt = true;
 	packet->total_data_buflen = skb->len;
 
-	rndis_msg = (struct rndis_message *)((unsigned long)packet +
-				sizeof(struct hv_netvsc_packet));
+	rndis_msg = (struct rndis_message *)skb->head;
 
 	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
 
@@ -835,15 +838,11 @@ static int netvsc_probe(struct hv_device *dev,
 	struct netvsc_device_info device_info;
 	struct netvsc_device *nvdev;
 	int ret;
-	u32 max_needed_headroom;
 
 	net = alloc_etherdev_mq(sizeof(struct net_device_context),
 				num_online_cpus());
 	if (!net)
 		return -ENOMEM;
-
-	max_needed_headroom = sizeof(struct hv_netvsc_packet) +
-			      RNDIS_AND_PPI_SIZE;
 
 	netif_carrier_off(net);
 
@@ -867,13 +866,6 @@ static int netvsc_probe(struct hv_device *dev,
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);
-
-	/*
-	 * Request additional head room in the skb.
-	 * We will use this space to build the rndis
-	 * heaser and other state we need to maintain.
-	 */
-	net->needed_headroom = max_needed_headroom;
 
 	/* Notify the netvsc driver of the new device */
 	device_info.ring_size = ring_size;
