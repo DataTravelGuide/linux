@@ -3192,49 +3192,35 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
  */
 static int bnx2x_poll(struct napi_struct *napi, int budget)
 {
-	int work_done = 0;
-	u8 cos;
 	struct bnx2x_fastpath *fp = container_of(napi, struct bnx2x_fastpath,
 						 napi);
 	struct bnx2x *bp = fp->bp;
+	int rx_work_done;
+	u8 cos;
 
-	while (1) {
 #ifdef BNX2X_STOP_ON_ERROR
-		if (unlikely(bp->panic)) {
-			napi_complete(napi);
-			return 0;
-		}
+	if (unlikely(bp->panic)) {
+		napi_complete(napi);
+		return 0;
+	}
 #endif
-		if (!bnx2x_fp_lock_napi(fp))
-			return budget;
+	if (!bnx2x_fp_lock_napi(fp))
+		return budget;
 
-		for_each_cos_in_tx_queue(fp, cos)
-			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
-				bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
+	for_each_cos_in_tx_queue(fp, cos)
+		if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
+			bnx2x_tx_int(bp, fp->txdata_ptr[cos]);
 
-		if (bnx2x_has_rx_work(fp)) {
-			work_done += bnx2x_rx_int(fp, budget - work_done);
+	rx_work_done = (bnx2x_has_rx_work(fp)) ? bnx2x_rx_int(fp, budget) : 0;
 
-			/* must not complete if we consumed full budget */
-			if (work_done >= budget) {
-				bnx2x_fp_unlock_napi(fp);
-				break;
-			}
-		}
-
-		bnx2x_fp_unlock_napi(fp);
-
-		/* Fall out from the NAPI loop if needed */
-		if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-
-			/* No need to update SB for FCoE L2 ring as long as
-			 * it's connected to the default SB and the SB
-			 * has been updated when NAPI was scheduled.
-			 */
-			if (IS_FCOE_FP(fp)) {
-				napi_complete(napi);
-				break;
-			}
+	if (rx_work_done < budget) {
+		/* No need to update SB for FCoE L2 ring as long as
+		 * it's connected to the default SB and the SB
+		 * has been updated when NAPI was scheduled.
+		 */
+		if (IS_FCOE_FP(fp)) {
+			napi_complete(napi);
+		} else {
 			bnx2x_update_fpsb_idx(fp);
 			/* bnx2x_has_rx_work() reads the status block,
 			 * thus we need to ensure that status block indices
@@ -3259,12 +3245,15 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 				bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID,
 					     le16_to_cpu(fp->fp_hc_idx),
 					     IGU_INT_ENABLE, 1);
-				break;
+			} else {
+				rx_work_done = budget;
 			}
 		}
 	}
 
-	return work_done;
+	bnx2x_fp_unlock_napi(fp);
+
+	return rx_work_done;
 }
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
