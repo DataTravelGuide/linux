@@ -13076,8 +13076,10 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 			bp->accept_any_vlan = true;
 		else
 			hw_features |= NETIF_F_HW_VLAN_FILTER;
+#ifdef CONFIG_BNX2X_SRIOV
 	} else if (bp->acquire_resp.pfdev_info.pf_cap & PFVF_CAP_VLAN_FILTER) {
 		hw_features |= NETIF_F_HW_VLAN_FILTER;
+#endif
 	}
 
 	dev->features |= hw_features | NETIF_F_HW_VLAN_RX;
