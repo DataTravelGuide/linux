@@ -66,11 +66,10 @@ static LIST_HEAD(lru_list);
 static atomic_t lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(lru_lock);
 
-#define GFS2_GL_HASH_SHIFT      15
-#define GFS2_GL_HASH_SIZE       (1 << GFS2_GL_HASH_SHIFT)
-#define GFS2_GL_HASH_MASK       (GFS2_GL_HASH_SIZE - 1)
+static size_t gl_hash_size = 0;
+static size_t gl_hash_mask = 0;
 
-static struct hlist_bl_head gl_hash_table[GFS2_GL_HASH_SIZE];
+static struct hlist_bl_head *gl_hash_table;
 static struct dentry *gfs2_root;
 
 /**
@@ -88,7 +87,7 @@ static unsigned int gl_hash(const struct gfs2_sbd *sdp,
 	h = jhash(&name->ln_number, sizeof(u64), 0);
 	h = jhash(&name->ln_type, sizeof(unsigned int), h);
 	h = jhash(&sdp, sizeof(struct gfs2_sbd *), h);
-	h &= GFS2_GL_HASH_MASK;
+	h &= gl_hash_mask;
 
 	return h;
 }
@@ -1470,9 +1469,9 @@ static void examine_bucket(glock_examiner examiner, const struct gfs2_sbd *sdp,
 
 static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 {
-	unsigned x;
+	size_t x;
 
-	for (x = 0; x < GFS2_GL_HASH_SIZE; x++)
+	for (x = 0; x < gl_hash_size; x++)
 		examine_bucket(examiner, sdp, x);
 }
 
@@ -1802,13 +1801,23 @@ static int gfs2_sbstats_seq_show(struct seq_file *seq, void *iter_ptr)
 	return 0;
 }
 
-int __init gfs2_glock_init(void)
+int __init gfs2_glock_init(size_t hash_size)
 {
-	unsigned i;
-	for(i = 0; i < GFS2_GL_HASH_SIZE; i++) {
-		INIT_HLIST_BL_HEAD(&gl_hash_table[i]);
-	}
+	size_t i;
 
+	gl_hash_size = hash_size;
+	gl_hash_table = kmalloc(gl_hash_size * sizeof(struct hlist_bl_head),
+				GFP_NOFS);
+	if (gl_hash_table == NULL) {
+		printk(KERN_ERR "Can't allocate memory for gl_hash_size %lu\n",
+		       (unsigned long)gl_hash_size);
+		return -ENOMEM;
+	}
+	
+	for(i = 0; i < hash_size; i++)
+		INIT_HLIST_BL_HEAD(&gl_hash_table[i]);
+
+	gl_hash_mask = hash_size - 1;
 	glock_workqueue = create_workqueue("glock_workqueue");
 	if (IS_ERR(glock_workqueue))
 		return PTR_ERR(glock_workqueue);
@@ -1825,6 +1834,7 @@ int __init gfs2_glock_init(void)
 
 void gfs2_glock_exit(void)
 {
+	kfree(gl_hash_table);
 	unregister_shrinker(&glock_shrinker);
 	destroy_workqueue(glock_workqueue);
 	destroy_workqueue(gfs2_delete_workqueue);
@@ -1852,7 +1862,7 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 			gi->gl = glock_hash_next(gl);
 			gi->nhash++;
 		} else {
-			if (gi->hash >= GFS2_GL_HASH_SIZE) {
+			if (gi->hash >= gl_hash_size) {
 				rcu_read_unlock();
 				return 1;
 			}
@@ -1861,7 +1871,7 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 		}
 		while (gi->gl == NULL) {
 			gi->hash++;
-			if (gi->hash >= GFS2_GL_HASH_SIZE) {
+			if (gi->hash >= gl_hash_size) {
 				rcu_read_unlock();
 				return 1;
 			}

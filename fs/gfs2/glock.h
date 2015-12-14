@@ -241,7 +241,7 @@ extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
 extern void gfs2_glock_free(struct gfs2_glock *gl);
 
-extern int __init gfs2_glock_init(void);
+extern int __init gfs2_glock_init(size_t hash_size);
 extern void gfs2_glock_exit(void);
 
 extern int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
