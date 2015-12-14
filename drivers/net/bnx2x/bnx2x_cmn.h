@@ -958,7 +958,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 		   start_params->c2s_pri_default);
 	}
 
-	start_params->vxlan_dst_port = cpu_to_le16(bp->vxlan_dst_port);
+	start_params->vxlan_dst_port = bp->vxlan_dst_port;
 
 	start_params->inner_rss = 1;
 
