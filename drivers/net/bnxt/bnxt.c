@@ -5617,7 +5617,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->vlan_features = netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
 	netdev_extended(dev)->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
 	dev->features |= netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
-	dev->priv_flags |= IFF_UNICAST_FLT;
 
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
