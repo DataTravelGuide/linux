@@ -5524,10 +5524,12 @@ static int bnxt_get_max_irq(struct pci_dev *pdev)
 {
 	u16 ctrl;
 
-	if (!pdev->msix_cap)
+	if (!((struct pci_dev_rh1 *)pdev->rh_reserved1)->msix_cap)
 		return 1;
 
-	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &ctrl);
+	pci_read_config_word(pdev,
+			     ((struct pci_dev_rh1 *)pdev->rh_reserved1)->msix_cap + PCI_MSIX_FLAGS,
+			     &ctrl);
 	return (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 }
 
@@ -5576,7 +5578,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (bnxt_vf_pciid(ent->driver_data))
 		bp->flags |= BNXT_FLAG_VF;
 
-	if (pdev->msix_cap) {
+	if (((struct pci_dev_rh1 *)pdev->rh_reserved1)->msix_cap) {
 		bp->flags |= BNXT_FLAG_MSIX_CAP;
 		if (BNXT_PF(bp))
 			bp->flags |= BNXT_FLAG_RFS;
