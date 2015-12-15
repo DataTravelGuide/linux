@@ -359,7 +359,7 @@ fltr_err:
 }
 
 static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			  u32 *rule_locs)
+			  void *rule_locs)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
