@@ -4033,9 +4033,7 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 	struct netdev_rfs_info *rfinfo = &netdev_extended(dev)->rfs_data;
 #endif
 
-	rc = netif_set_real_num_tx_queues(dev, bp->tx_nr_rings);
-	if (rc)
-		return rc;
+	netif_set_real_num_tx_queues(dev, bp->tx_nr_rings);
 
 	rc = netif_set_real_num_rx_queues(dev, bp->rx_nr_rings);
 	if (rc)
