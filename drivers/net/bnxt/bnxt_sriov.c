@@ -92,8 +92,7 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	vf = &bp->pf.vf[vf_id];
 
 	memcpy(&ivi->mac, vf->mac_addr, ETH_ALEN);
-	ivi->max_tx_rate = vf->max_tx_rate;
-	ivi->min_tx_rate = vf->min_tx_rate;
+	ivi->tx_rate = vf->max_tx_rate;
 	ivi->vlan = vf->vlan;
 	ivi->qos = vf->flags & BNXT_VF_QOS;
 	ivi->spoofchk = vf->flags & BNXT_VF_SPOOFCHK;
@@ -169,8 +168,7 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos)
 	return rc;
 }
 
-int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int min_tx_rate,
-		   int max_tx_rate)
+int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int tx_rate)
 {
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt *bp = netdev_priv(dev);
@@ -184,30 +182,30 @@ int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int min_tx_rate,
 
 	vf = &bp->pf.vf[vf_id];
 	pf_link_speed = bnxt_fw_to_ethtool_speed(bp->link_info.link_speed);
-	if (max_tx_rate > pf_link_speed) {
+	if (tx_rate > pf_link_speed) {
 		netdev_info(bp->dev, "max tx rate %d exceed PF link speed for VF %d\n",
-			    max_tx_rate, vf_id);
+			    tx_rate, vf_id);
 		return -EINVAL;
 	}
 
-	if (min_tx_rate > pf_link_speed || min_tx_rate > max_tx_rate) {
+	if (0 > pf_link_speed || 0 > tx_rate) {
 		netdev_info(bp->dev, "min tx rate %d is invalid for VF %d\n",
-			    min_tx_rate, vf_id);
+			    tx_rate, vf_id);
 		return -EINVAL;
 	}
-	if (min_tx_rate == vf->min_tx_rate && max_tx_rate == vf->max_tx_rate)
+	if (0 == vf->min_tx_rate && tx_rate == vf->max_tx_rate)
 		return 0;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 	req.vf_id = cpu_to_le16(vf->fw_fid);
 	req.flags = cpu_to_le32(vf->func_flags);
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MAX_BW);
-	req.max_bw = cpu_to_le32(max_tx_rate);
+	req.max_bw = cpu_to_le32(tx_rate);
 	req.enables |= cpu_to_le32(FUNC_CFG_REQ_ENABLES_MIN_BW);
-	req.min_bw = cpu_to_le32(min_tx_rate);
+	req.min_bw = 0;
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
-		vf->min_tx_rate = min_tx_rate;
-		vf->max_tx_rate = max_tx_rate;
+		vf->min_tx_rate = 0;
+		vf->max_tx_rate = tx_rate;
 	}
 	return rc;
 }

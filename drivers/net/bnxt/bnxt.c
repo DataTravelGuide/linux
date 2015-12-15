@@ -5496,7 +5496,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_get_vf_config	= bnxt_get_vf_config,
 	.ndo_set_vf_mac		= bnxt_set_vf_mac,
 	.ndo_set_vf_vlan	= bnxt_set_vf_vlan,
-	.ndo_set_vf_rate	= bnxt_set_vf_bw,
+	.ndo_set_vf_tx_rate	= bnxt_set_vf_bw,
 	.ndo_set_vf_link_state	= bnxt_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 #endif
