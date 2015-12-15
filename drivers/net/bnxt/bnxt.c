@@ -214,9 +214,9 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				 skb_vlan_tag_get(skb);
 		/* Currently supports 8021Q, 8021AD vlan offloads
 		 * QINQ1, QINQ2, QINQ3 vlan headers are deprecated
+		 * (RHEL6 only supports 8021Q)
 		 */
-		if (skb->vlan_proto == htons(ETH_P_8021Q))
-			vlan_tag_flags |= 1 << TX_BD_CFA_META_TPID_SHIFT;
+		vlan_tag_flags |= 1 << TX_BD_CFA_META_TPID_SHIFT;
 	}
 
 	if (free_size == bp->tx_ring_size && length <= bp->tx_push_thresh) {
@@ -1012,11 +1012,9 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		u16 vlan_proto = tpa_info->metadata >>
 			RX_CMP_FLAGS2_METADATA_TPID_SFT;
 
-		if (((features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		     vlan_proto == ETH_P_8021Q) ||
-		    ((features & NETIF_F_HW_VLAN_STAG_RX) &&
-		     vlan_proto == ETH_P_8021AD)) {
-			__vlan_hwaccel_put_tag(skb, htons(vlan_proto),
+		if ((features & NETIF_F_HW_VLAN_RX) &&
+		     vlan_proto == ETH_P_8021Q) {
+			__vlan_hwaccel_put_tag(skb,
 					       tpa_info->metadata &
 					       RX_CMP_FLAGS2_METADATA_VID_MASK);
 		}
@@ -1172,11 +1170,9 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		u32 meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
 		u16 vlan_proto = meta_data >> RX_CMP_FLAGS2_METADATA_TPID_SFT;
 
-		if (((features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		     vlan_proto == ETH_P_8021Q) ||
-		    ((features & NETIF_F_HW_VLAN_STAG_RX) &&
-		     vlan_proto == ETH_P_8021AD))
-			__vlan_hwaccel_put_tag(skb, htons(vlan_proto),
+		if ((features & NETIF_F_HW_VLAN_RX) &&
+		     vlan_proto == ETH_P_8021Q)
+			__vlan_hwaccel_put_tag(skb,
 					       meta_data &
 					       RX_CMP_FLAGS2_METADATA_VID_MASK);
 	}
@@ -4962,7 +4958,7 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	if (features & NETIF_F_LRO)
 		flags |= BNXT_FLAG_LRO;
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (features & NETIF_F_HW_VLAN_RX)
 		flags |= BNXT_FLAG_STRIP_VLAN;
 
 	if (features & NETIF_F_NTUPLE)
@@ -5664,8 +5660,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT;
 	dev->vlan_features = dev->hw_features | NETIF_F_HIGHDMA;
-	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX |
-			    NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX;
+	dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
 	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
@@ -5717,7 +5712,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bp->cp_nr_rings = max_t(int, bp->rx_nr_rings, bp->tx_nr_rings);
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
-	if (dev->hw_features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (dev->hw_features & NETIF_F_HW_VLAN_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
 
 	rc = bnxt_probe_phy(bp);
