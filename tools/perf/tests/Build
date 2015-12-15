@@ -33,6 +33,7 @@ perf-y += keep-tracking.o
 perf-y += code-reading.o
 perf-y += sample-parsing.o
 perf-y += parse-no-sample-id-all.o
+perf-y += kmod-path.o
 
 ifeq ($(ARCH),$(filter $(ARCH),x86 arm))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
