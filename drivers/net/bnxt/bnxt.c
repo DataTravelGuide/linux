@@ -5696,14 +5696,18 @@ init_err_free:
 	return rc;
 }
 
+static struct pci_driver_rh bnxt_pci_driver_rh = {
+#if defined(CONFIG_BNXT_SRIOV)
+	.sriov_configure = bnxt_sriov_configure,
+#endif
+};
+
 static struct pci_driver bnxt_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= bnxt_pci_tbl,
 	.probe		= bnxt_init_one,
 	.remove		= bnxt_remove_one,
-#if defined(CONFIG_BNXT_SRIOV)
-	.sriov_configure = bnxt_sriov_configure,
-#endif
+	.rh_reserved	= &bnxt_pci_driver_rh,
 };
 
 module_pci_driver(bnxt_pci_driver);
