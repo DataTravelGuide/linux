@@ -331,4 +331,8 @@ const char *get_filename_for_perf_kvm(void);
 int gzip_decompress_to_file(const char *input, int output_fd);
 #endif
 
+#ifdef HAVE_LZMA_SUPPORT
+int lzma_decompress_to_file(const char *input, int output_fd);
+#endif
+
 #endif /* GIT_COMPAT_UTIL_H */
