@@ -314,6 +314,7 @@ extern int proc_dowatchdog_thresh(struct ctl_table *table, int write,
 				  size_t *lenp, loff_t *ppos);
 extern unsigned int  softlockup_panic;
 extern int softlockup_thresh;
+extern unsigned int  hardlockup_panic;
 void lockup_detector_init(void);
 #else
 static inline void touch_softlockup_watchdog(void)

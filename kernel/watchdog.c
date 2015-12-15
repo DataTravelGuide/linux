@@ -58,7 +58,7 @@ static unsigned long soft_lockup_nmi_warn;
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
-static int hardlockup_panic = 
+unsigned int __read_mostly hardlockup_panic =
 			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
 static int hardlockup_enable = 
 			CONFIG_BOOTPARAM_HARDLOCKUP_ENABLED_VALUE;
