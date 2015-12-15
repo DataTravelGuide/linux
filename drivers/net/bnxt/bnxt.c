@@ -760,7 +760,7 @@ static inline struct sk_buff *bnxt_copy_skb(struct bnxt_napi *bnapi, u8 *data,
 	struct pci_dev *pdev = bp->pdev;
 	struct sk_buff *skb;
 
-	skb = napi_alloc_skb(&bnapi->napi, len);
+	skb = netdev_alloc_skb_ip_align(bnapi->bp->dev, len);
 	if (!skb)
 		return NULL;
 
