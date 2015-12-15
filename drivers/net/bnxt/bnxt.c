@@ -4932,13 +4932,12 @@ skip_uc:
 			   rc);
 }
 
-static netdev_features_t bnxt_fix_features(struct net_device *dev,
-					   netdev_features_t features)
+static u32 bnxt_fix_features(struct net_device *dev, u32 features)
 {
 	return features;
 }
 
-static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
+static int bnxt_set_features(struct net_device *dev, u32 features)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	u32 flags = bp->flags;
@@ -5433,28 +5432,32 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
 	.ndo_stop		= bnxt_close,
-	.ndo_get_stats64	= bnxt_get_stats64,
 	.ndo_set_rx_mode	= bnxt_set_rx_mode,
 	.ndo_do_ioctl		= bnxt_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= bnxt_change_mac_addr,
 	.ndo_change_mtu		= bnxt_change_mtu,
-	.ndo_fix_features	= bnxt_fix_features,
-	.ndo_set_features	= bnxt_set_features,
 	.ndo_tx_timeout		= bnxt_tx_timeout,
 #ifdef CONFIG_BNXT_SRIOV
 	.ndo_get_vf_config	= bnxt_get_vf_config,
 	.ndo_set_vf_mac		= bnxt_set_vf_mac,
 	.ndo_set_vf_vlan	= bnxt_set_vf_vlan,
 	.ndo_set_vf_tx_rate	= bnxt_set_vf_bw,
-	.ndo_set_vf_link_state	= bnxt_set_vf_link_state,
-	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bnxt_poll_controller,
 #endif
 	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
+};
+
+static const struct net_device_ops_ext bnxt_netdev_ops_ext = {
+	.size			= sizeof(struct net_device_ops_ext),
+	.ndo_fix_features	= bnxt_fix_features,
+	.ndo_set_features	= bnxt_set_features,
+	.ndo_get_stats64	= bnxt_get_stats64,
+	.ndo_set_vf_link_state	= bnxt_set_vf_link_state,
+	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -5584,6 +5587,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_free;
 
 	dev->netdev_ops = &bnxt_netdev_ops;
+	set_netdev_ops_ext(dev, &bnxt_netdev_ops_ext);
 	dev->watchdog_timeo = BNXT_TX_TIMEOUT;
 	dev->ethtool_ops = &bnxt_ethtool_ops;
 	set_ethtool_ops_ext(dev, &bnxt_ethtool_ops_ext);
