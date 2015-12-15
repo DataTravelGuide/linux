@@ -2976,7 +2976,6 @@ config BNX2X_SRIOV
 
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
-	depends on BROKEN
 	depends on PCI
 	select FW_LOADER
 	select LIBCRC32C
