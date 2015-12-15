@@ -121,6 +121,8 @@ ifdef PARSER_DEBUG
   PARSER_DEBUG_BISON := -t
   PARSER_DEBUG_FLEX  := -d
   CFLAGS             += -DPARSER_DEBUG
+  $(call detected_var,PARSER_DEBUG_BISON)
+  $(call detected_var,PARSER_DEBUG_FLEX)
 endif
 
 ifndef NO_LIBPYTHON
@@ -834,3 +836,6 @@ endif
 $(call detected_var,htmldir_SQ)
 $(call detected_var,infodir_SQ)
 $(call detected_var,mandir_SQ)
+$(call detected_var,ETC_PERFCONFIG_SQ)
+$(call detected_var,prefix_SQ)
+$(call detected_var,perfexecdir_SQ)
