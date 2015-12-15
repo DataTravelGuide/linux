@@ -1132,8 +1132,7 @@ static int snbep_pci2phy_map_init(int devid)
 		}
 	}
 
-	if (ubox_dev)
-		pci_dev_put(ubox_dev);
+	pci_dev_put(ubox_dev);
 
 /*
  * RHEL6 specific, upstream contains:
