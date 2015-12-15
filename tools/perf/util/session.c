@@ -18,6 +18,11 @@
 #include "asm/bug.h"
 
 #include "../compat.h"
+static int machines__deliver_event(struct machines *machines,
+				   struct perf_evlist *evlist,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct perf_tool *tool, u64 file_offset);
 
 static int perf_session__open(struct perf_session *session)
 {
@@ -89,6 +94,14 @@ static void perf_session__set_comm_exec(struct perf_session *session)
 	machines__set_comm_exec(&session->machines, comm_exec);
 }
 
+static int ordered_events__deliver_event(struct ordered_events *oe,
+					 struct ordered_event *event,
+					 struct perf_sample *sample)
+{
+	return machines__deliver_event(oe->machines, oe->evlist, event->event,
+				       sample, oe->tool, event->file_offset);
+}
+
 struct perf_session *perf_session__new(struct perf_data_file *file,
 				       bool repipe, struct perf_tool *tool)
 {
@@ -128,8 +141,10 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
-	} else
-		ordered_events__init(&session->ordered_events, &session->machines, session->evlist, tool);
+	} else {
+		ordered_events__init(&session->ordered_events, &session->machines,
+				     session->evlist, tool, ordered_events__deliver_event);
+	}
 
 	return session;
 
@@ -891,11 +906,11 @@ static int
 					    &sample->read.one, machine);
 }
 
-int machines__deliver_event(struct machines *machines,
-				struct perf_evlist *evlist,
-				union perf_event *event,
-				struct perf_sample *sample,
-				struct perf_tool *tool, u64 file_offset)
+static int machines__deliver_event(struct machines *machines,
+				   struct perf_evlist *evlist,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct perf_tool *tool, u64 file_offset)
 {
 	struct perf_evsel *evsel;
 	struct machine *machine;
