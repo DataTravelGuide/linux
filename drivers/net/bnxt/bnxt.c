@@ -2432,6 +2432,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
 {
 #ifdef CONFIG_RFS_ACCEL
 	int i;
+	struct hlist_node *node;
 
 	/* Under rtnl_lock and all our NAPIs have been disabled.  It's
 	 * safe to delete the hash table.
@@ -2442,7 +2443,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
 		struct bnxt_ntuple_filter *fltr;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
-		hlist_for_each_entry_safe(fltr, tmp, head, hash) {
+		hlist_for_each_entry_safe(fltr, node, tmp, head, hash) {
 			hlist_del(&fltr->hash);
 			kfree(fltr);
 		}
@@ -5272,6 +5273,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
 	int rc = 0, idx;
 	struct hlist_head *head;
+	struct hlist_node *node;
 
 	if (skb->encapsulation)
 		return -EPROTONOSUPPORT;
@@ -5297,7 +5299,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	idx = skb->rxhash & BNXT_NTP_FLTR_HASH_MASK;
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(fltr, head, hash) {
+	hlist_for_each_entry_rcu(fltr, node, head, hash) {
 		if (bnxt_fltr_match(fltr, new_fltr)) {
 			rcu_read_unlock();
 			rc = 0;
@@ -5333,6 +5335,7 @@ err_free:
 
 static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 {
+	struct hlist_node *node;
 	int i;
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
@@ -5342,7 +5345,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 		int rc;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
-		hlist_for_each_entry_safe(fltr, tmp, head, hash) {
+		hlist_for_each_entry_safe(fltr, node, tmp, head, hash) {
 			bool del = false;
 
 			if (test_bit(BNXT_FLTR_VALID, &fltr->state)) {

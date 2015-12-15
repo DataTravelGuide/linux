@@ -287,11 +287,12 @@ static int bnxt_grxclsrlall(struct bnxt *bp, struct ethtool_rxnfc *cmd,
 	cmd->data = bp->ntp_fltr_count;
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
 		struct hlist_head *head;
+		struct hlist_node *node;
 		struct bnxt_ntuple_filter *fltr;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
+		hlist_for_each_entry_rcu(fltr, node, head, hash) {
 			if (j == cmd->rule_cnt)
 				break;
 			rule_locs[j++] = fltr->sw_id;
@@ -317,10 +318,11 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
 		struct hlist_head *head;
+		struct hlist_node *node;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
+		hlist_for_each_entry_rcu(fltr, node, head, hash) {
 			if (fltr->sw_id == fs->location)
 				goto fltr_found;
 		}
