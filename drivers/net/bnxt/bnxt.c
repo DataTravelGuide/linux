@@ -1018,7 +1018,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	skb_checksum_none_assert(skb);
 	if (likely(tpa_info->flags2 & RX_TPA_START_CMP_FLAGS2_L4_CS_CALC)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		skb->csum_level =
+		skb->encapsulation =
 			(tpa_info->flags2 & RX_CMP_FLAGS2_T_L4_CS_CALC) >> 3;
 	}
 
@@ -1176,7 +1176,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	if (RX_CMP_L4_CS_OK(rxcmp1)) {
 		if (dev->features & NETIF_F_RXCSUM) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			skb->csum_level = RX_CMP_ENCAP(rxcmp1);
+			skb->encapsulation = RX_CMP_ENCAP(rxcmp1);
 		}
 	} else {
 		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS)
