@@ -657,7 +657,7 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 		return NULL;
 	}
 
-	skb = build_skb(data, 0);
+	skb = build_skb(data);
 	dma_unmap_single(&bp->pdev->dev, dma_addr, bp->rx_buf_use_size,
 			 PCI_DMA_FROMDEVICE);
 	if (!skb) {
@@ -982,7 +982,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		tpa_info->data = new_data;
 		tpa_info->mapping = new_mapping;
 
-		skb = build_skb(data, 0);
+		skb = build_skb(data);
 		dma_unmap_single(&bp->pdev->dev, mapping, bp->rx_buf_use_size,
 				 PCI_DMA_FROMDEVICE);
 
