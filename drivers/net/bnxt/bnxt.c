@@ -4592,9 +4592,6 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	}
 
 	if (irq_re_init) {
-#if defined(CONFIG_VXLAN) || defined(CONFIG_VXLAN_MODULE)
-		vxlan_get_rx_port(bp->dev);
-#endif
 		if (!bnxt_hwrm_tunnel_dst_port_alloc(
 				bp, htons(0x17c1),
 				TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE))
@@ -5381,49 +5378,6 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 
 #endif /* CONFIG_RFS_ACCEL */
 
-static void bnxt_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				__be16 port)
-{
-	struct bnxt *bp = netdev_priv(dev);
-
-	if (!netif_running(dev))
-		return;
-
-	if (sa_family != AF_INET6 && sa_family != AF_INET)
-		return;
-
-	if (bp->vxlan_port_cnt && bp->vxlan_port != port)
-		return;
-
-	bp->vxlan_port_cnt++;
-	if (bp->vxlan_port_cnt == 1) {
-		bp->vxlan_port = port;
-		set_bit(BNXT_VXLAN_ADD_PORT_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
-	}
-}
-
-static void bnxt_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
-				__be16 port)
-{
-	struct bnxt *bp = netdev_priv(dev);
-
-	if (!netif_running(dev))
-		return;
-
-	if (sa_family != AF_INET6 && sa_family != AF_INET)
-		return;
-
-	if (bp->vxlan_port_cnt && bp->vxlan_port == port) {
-		bp->vxlan_port_cnt--;
-
-		if (bp->vxlan_port_cnt == 0) {
-			set_bit(BNXT_VXLAN_DEL_PORT_SP_EVENT, &bp->sp_event);
-			schedule_work(&bp->sp_task);
-		}
-	}
-}
-
 static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
@@ -5443,8 +5397,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bnxt_poll_controller,
 #endif
-	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
-	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
 };
 
 static const struct net_device_ops_ext bnxt_netdev_ops_ext = {
