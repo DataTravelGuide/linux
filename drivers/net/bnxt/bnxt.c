@@ -50,6 +50,7 @@
 #include <linux/aer.h>
 #include <linux/bitmap.h>
 #include <linux/cpu_rmap.h>
+#include <linux/hash.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -2828,16 +2829,16 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.ethertype = htons(ETH_P_IP);
 	memcpy(req.src_macaddr, fltr->src_mac_addr, ETH_ALEN);
 	req.ipaddr_type = 4;
-	req.ip_protocol = keys->basic.ip_proto;
+	req.ip_protocol = keys->ip_proto;
 
-	req.src_ipaddr[0] = keys->addrs.v4addrs.src;
+	req.src_ipaddr[0] = keys->src;
 	req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-	req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
+	req.dst_ipaddr[0] = keys->dst;
 	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 
-	req.src_port = keys->ports.src;
+	req.src_port = keys->port16[0];
 	req.src_port_mask = cpu_to_be16(0xffff);
-	req.dst_port = keys->ports.dst;
+	req.dst_port = keys->port16[1];
 	req.dst_port_mask = cpu_to_be16(0xffff);
 
 	req.dst_vnic_id = cpu_to_le16(vnic->fw_vnic_id);
@@ -4037,6 +4038,9 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 {
 	int rc;
 	struct net_device *dev = bp->dev;
+#ifdef CONFIG_RFS_ACCEL
+	struct netdev_rfs_info *rfinfo = &netdev_extended(dev)->rfs_data;
+#endif
 
 	rc = netif_set_real_num_tx_queues(dev, bp->tx_nr_rings);
 	if (rc)
@@ -4048,8 +4052,8 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 
 #ifdef CONFIG_RFS_ACCEL
 	if (bp->rx_nr_rings)
-		dev->rx_cpu_rmap = alloc_irq_cpu_rmap(bp->rx_nr_rings);
-	if (!dev->rx_cpu_rmap)
+		rfinfo->rx_cpu_rmap = alloc_irq_cpu_rmap(bp->rx_nr_rings);
+	if (!rfinfo->rx_cpu_rmap)
 		rc = -ENOMEM;
 #endif
 
@@ -4175,10 +4179,13 @@ static void bnxt_free_irq(struct bnxt *bp)
 {
 	struct bnxt_irq *irq;
 	int i;
+#ifdef CONFIG_RFS_ACCEL
+	struct netdev_rfs_info *rfinfo = &netdev_extended(bp->dev)->rfs_data;
+#endif
 
 #ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(bp->dev->rx_cpu_rmap);
-	bp->dev->rx_cpu_rmap = NULL;
+	free_irq_cpu_rmap(rfinfo->rx_cpu_rmap);
+	rfinfo->rx_cpu_rmap = NULL;
 #endif
 	if (!bp->irq_tbl)
 		return;
@@ -4200,7 +4207,8 @@ static int bnxt_request_irq(struct bnxt *bp)
 	int i, rc = 0;
 	unsigned long flags = 0;
 #ifdef CONFIG_RFS_ACCEL
-	struct cpu_rmap *rmap = bp->dev->rx_cpu_rmap;
+	struct netdev_rfs_info *rfinfo = &netdev_extended(bp->dev)->rfs_data;
+	struct cpu_rmap *rmap = rfinfo->rx_cpu_rmap;
 #endif
 
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX))
@@ -5298,11 +5306,10 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	struct flow_keys *keys1 = &f1->fkeys;
 	struct flow_keys *keys2 = &f2->fkeys;
 
-	if (keys1->addrs.v4addrs.src == keys2->addrs.v4addrs.src &&
-	    keys1->addrs.v4addrs.dst == keys2->addrs.v4addrs.dst &&
-	    keys1->ports.ports == keys2->ports.ports &&
-	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
-	    keys1->basic.n_proto == keys2->basic.n_proto &&
+	if (keys1->src == keys2->src &&
+	    keys1->dst == keys2->dst &&
+	    keys1->ports == keys2->ports &&
+	    keys1->ip_proto == keys2->ip_proto &&
 	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr))
 		return true;
 
@@ -5327,21 +5334,20 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		return -ENOMEM;
 
 	fkeys = &new_fltr->fkeys;
-	if (!skb_flow_dissect_flow_keys(skb, fkeys, 0)) {
+	if (!skb_flow_dissect(skb, fkeys)) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
 
-	if ((fkeys->basic.n_proto != htons(ETH_P_IP)) ||
-	    ((fkeys->basic.ip_proto != IPPROTO_TCP) &&
-	     (fkeys->basic.ip_proto != IPPROTO_UDP))) {
+	if (((fkeys->ip_proto != IPPROTO_TCP) &&
+	     (fkeys->ip_proto != IPPROTO_UDP))) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
 
 	memcpy(new_fltr->src_mac_addr, eth->h_source, ETH_ALEN);
 
-	idx = skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
+	idx = skb->rxhash & BNXT_NTP_FLTR_HASH_MASK;
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(fltr, head, hash) {
@@ -5498,9 +5504,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_poll_controller	= bnxt_poll_controller,
 #endif
 	.ndo_setup_tc           = bnxt_setup_tc,
-#ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer	= bnxt_rx_flow_steer,
-#endif
 	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -5607,6 +5610,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct bnxt *bp;
 	int rc, max_rx_rings, max_tx_rings, max_irqs, dflt_rings;
+#ifdef CONFIG_RFS_ACCEL
+	struct netdev_rfs_info *rfinfo;
+#endif
 
 	if (version_printed++ == 0)
 		pr_info("%s", version);
@@ -5634,6 +5640,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &bnxt_netdev_ops;
 	dev->watchdog_timeo = BNXT_TX_TIMEOUT;
 	dev->ethtool_ops = &bnxt_ethtool_ops;
+#ifdef CONFIG_RFS_ACCEL
+	rfinfo = &netdev_extended(bp->dev)->rfs_data;
+	rfinfo->ndo_rx_flow_steer = bnxt_rx_flow_steer;
+#endif
 
 	pci_set_drvdata(pdev, dev);
 

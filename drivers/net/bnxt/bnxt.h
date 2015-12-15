@@ -10,6 +10,8 @@
 #ifndef BNXT_H
 #define BNXT_H
 
+#include <net/flow_keys.h>
+
 #define DRV_MODULE_NAME		"bnxt_en"
 #define DRV_MODULE_VERSION	"0.1.24"
 
