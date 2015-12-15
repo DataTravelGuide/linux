@@ -1264,7 +1264,6 @@ struct perf_event_context {
 	struct rcu_head			rcu_head;
 #ifndef __GENKSYMS__ /* kabi tool is crap */
 	int				nr_cgroups; /* cgroup events present */
-	int				nr_branch_stack; /* branch_stack evt */
 	struct list_head		active_ctx_list;
 #endif
 };
