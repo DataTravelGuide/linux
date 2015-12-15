@@ -910,13 +910,8 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt_tpa_info *tpa_info,
 			if (iph->nexthdr == IPPROTO_UDP)
 				uh = (struct udphdr *)(iph + 1);
 		}
-		if (uh) {
-			if (uh->check)
-				skb_shinfo(skb)->gso_type |=
-					SKB_GSO_UDP_TUNNEL_CSUM;
-			else
-				skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-		}
+		if (uh)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
 	}
 #endif
 	return skb;
