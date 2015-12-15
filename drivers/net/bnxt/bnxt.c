@@ -4788,7 +4788,7 @@ static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)
 {
 	struct net_device *dev = bp->dev;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
-	struct netdev_hw_addr *ha;
+	struct dev_mc_list *ha;
 	u8 *haddr;
 	int mc_count = 0;
 	bool update = false;
@@ -4800,7 +4800,7 @@ static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)
 			vnic->mc_list_count = 0;
 			return false;
 		}
-		haddr = ha->addr;
+		haddr = ha->dmi_addr;
 		if (!ether_addr_equal(haddr, vnic->mc_list + off)) {
 			memcpy(vnic->mc_list + off, haddr, ETH_ALEN);
 			update = true;
