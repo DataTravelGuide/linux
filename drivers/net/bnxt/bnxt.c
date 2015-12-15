@@ -310,13 +310,8 @@ normal_tx:
 	if (skb_is_gso(skb)) {
 		u32 hdr_len;
 
-		if (skb->encapsulation)
-			hdr_len = skb_inner_network_offset(skb) +
-				skb_inner_network_header_len(skb) +
-				inner_tcp_hdrlen(skb);
-		else
-			hdr_len = skb_transport_offset(skb) +
-				tcp_hdrlen(skb);
+		hdr_len = skb_transport_offset(skb) +
+			tcp_hdrlen(skb);
 
 		txbd1->tx_bd_hsize_lflags = cpu_to_le32(TX_BD_FLAGS_LSO |
 					TX_BD_FLAGS_T_IPID |
@@ -5613,10 +5608,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (bp->flags & BNXT_FLAG_RFS)
 		netdev_extended(dev)->hw_features |= NETIF_F_NTUPLE;
 
-	dev->hw_enc_features =
-			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
-			NETIF_F_TSO | NETIF_F_TSO6 |
-			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE;
 	dev->vlan_features = netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
 	netdev_extended(dev)->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
 	dev->features |= netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
