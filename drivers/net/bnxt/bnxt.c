@@ -5640,6 +5640,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &bnxt_netdev_ops;
 	dev->watchdog_timeo = BNXT_TX_TIMEOUT;
 	dev->ethtool_ops = &bnxt_ethtool_ops;
+	set_ethtool_ops_ext(dev, &bnxt_ethtool_ops_ext);
 #ifdef CONFIG_RFS_ACCEL
 	rfinfo = &netdev_extended(bp->dev)->rfs_data;
 	rfinfo->ndo_rx_flow_steer = bnxt_rx_flow_steer;

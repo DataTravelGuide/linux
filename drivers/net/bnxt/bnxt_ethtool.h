@@ -11,6 +11,7 @@
 #define BNXT_ETHTOOL_H
 
 extern const struct ethtool_ops bnxt_ethtool_ops;
+extern const struct ethtool_ops_ext bnxt_ethtool_ops_ext;
 
 u32 bnxt_fw_to_ethtool_speed(u16);
 

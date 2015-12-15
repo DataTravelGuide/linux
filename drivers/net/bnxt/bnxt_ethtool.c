@@ -1133,17 +1133,21 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_ethtool_stats	= bnxt_get_ethtool_stats,
 	.set_ringparam		= bnxt_set_ringparam,
 	.get_ringparam		= bnxt_get_ringparam,
-	.get_channels		= bnxt_get_channels,
-	.set_channels		= bnxt_set_channels,
 #ifdef CONFIG_RFS_ACCEL
 	.get_rxnfc		= bnxt_get_rxnfc,
 #endif
-	.get_rxfh_indir_size    = bnxt_get_rxfh_indir_size,
-	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
-	.get_rxfh               = bnxt_get_rxfh,
 	.flash_device		= bnxt_flash_device,
 	.get_eeprom_len         = bnxt_get_eeprom_len,
 	.get_eeprom             = bnxt_get_eeprom,
 	.set_eeprom		= bnxt_set_eeprom,
 	.get_link		= bnxt_get_link,
+};
+
+const struct ethtool_ops_ext bnxt_ethtool_ops_ext = {
+	.size			= sizeof(struct ethtool_ops_ext),
+	.get_channels		= bnxt_get_channels,
+	.set_channels		= bnxt_set_channels,
+	.get_rxfh_indir_size    = bnxt_get_rxfh_indir_size,
+	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
+	.get_rxfh               = bnxt_get_rxfh,
 };
