@@ -5254,47 +5254,6 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int bnxt_setup_tc(struct net_device *dev, u8 tc)
-{
-	struct bnxt *bp = netdev_priv(dev);
-
-	if (tc > bp->max_tc) {
-		netdev_err(dev, "too many traffic classes requested: %d Max supported is %d\n",
-			   tc, bp->max_tc);
-		return -EINVAL;
-	}
-
-	if (netdev_get_num_tc(dev) == tc)
-		return 0;
-
-	if (tc) {
-		int max_rx_rings, max_tx_rings;
-
-		bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
-		if (bp->tx_nr_rings_per_tc * tc > max_tx_rings)
-			return -ENOMEM;
-	}
-
-	/* Needs to close the device and do hw resource re-allocations */
-	if (netif_running(bp->dev))
-		bnxt_close_nic(bp, true, false);
-
-	if (tc) {
-		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc;
-		netdev_set_num_tc(dev, tc);
-	} else {
-		bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
-		netdev_reset_tc(dev);
-	}
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
-	bp->num_stat_ctxs = bp->cp_nr_rings;
-
-	if (netif_running(bp->dev))
-		return bnxt_open_nic(bp, true, false);
-
-	return 0;
-}
-
 #ifdef CONFIG_RFS_ACCEL
 static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 			    struct bnxt_ntuple_filter *f2)
@@ -5499,7 +5458,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= bnxt_poll_controller,
 #endif
-	.ndo_setup_tc           = bnxt_setup_tc,
 	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
 };
