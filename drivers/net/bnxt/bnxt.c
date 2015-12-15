@@ -5502,9 +5502,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_setup_tc           = bnxt_setup_tc,
 	.ndo_add_vxlan_port	= bnxt_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnxt_del_vxlan_port,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= bnxt_busy_poll,
-#endif
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -5640,6 +5637,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_RFS_ACCEL
 	rfinfo = &netdev_extended(bp->dev)->rfs_data;
 	rfinfo->ndo_rx_flow_steer = bnxt_rx_flow_steer;
+#endif
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	netdev_extended(dev)->ndo_busy_poll = bnxt_busy_poll;
 #endif
 
 	pci_set_drvdata(pdev, dev);
