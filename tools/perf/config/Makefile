@@ -517,6 +517,7 @@ else
   else
     LDFLAGS += $(PERL_EMBED_LDFLAGS)
     EXTLIBS += $(PERL_EMBED_LIBADD)
+    $(call detected,CONFIG_LIBPERL)
   endif
 endif
 
@@ -576,6 +577,7 @@ else
           LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
           EXTLIBS += $(PYTHON_EMBED_LIBADD)
           LANG_BINDINGS += $(obj-perf)python/perf.so
+          $(call detected,CONFIG_LIBPYTHON)
         endif
       endif
     endif
@@ -846,3 +848,5 @@ $(call detected_var,prefix_SQ)
 $(call detected_var,perfexecdir_SQ)
 $(call detected_var,LIBDIR)
 $(call detected_var,GTK_CFLAGS)
+$(call detected_var,PERL_EMBED_CCOPTS)
+$(call detected_var,PYTHON_EMBED_CCOPTS)
