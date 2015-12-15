@@ -4564,7 +4564,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if ((bp->flags & BNXT_FLAG_RFS) &&
 	    !(bp->flags & BNXT_FLAG_USING_MSIX)) {
 		/* disable RFS if falling back to INTA */
-		bp->dev->hw_features &= ~NETIF_F_NTUPLE;
+		netdev_extended(bp->dev)->hw_features &= ~NETIF_F_NTUPLE;
 		bp->flags &= ~BNXT_FLAG_RFS;
 	}
 
@@ -5601,7 +5601,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
+	netdev_extended(dev)->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
 			   NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			   NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
@@ -5609,16 +5609,16 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO;
 
 	if (bp->flags & BNXT_FLAG_RFS)
-		dev->hw_features |= NETIF_F_NTUPLE;
+		netdev_extended(dev)->hw_features |= NETIF_F_NTUPLE;
 
 	dev->hw_enc_features =
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_TSO6 |
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT;
-	dev->vlan_features = dev->hw_features | NETIF_F_HIGHDMA;
-	dev->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
-	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
+	dev->vlan_features = netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
+	netdev_extended(dev)->hw_features |= NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX;
+	dev->features |= netdev_extended(dev)->hw_features | NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -5669,7 +5669,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bp->cp_nr_rings = max_t(int, bp->rx_nr_rings, bp->tx_nr_rings);
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
-	if (dev->hw_features & NETIF_F_HW_VLAN_RX)
+	if (netdev_extended(dev)->hw_features & NETIF_F_HW_VLAN_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
 
 	rc = bnxt_probe_phy(bp);
