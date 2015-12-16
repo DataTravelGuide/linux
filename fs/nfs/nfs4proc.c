@@ -1934,7 +1934,8 @@ static int _nfs4_do_open(struct inode *dir,
 
 	/* Protect against reboot recovery conflicts */
 	status = -ENOMEM;
-	if (!(sp = nfs4_get_state_owner(server, cred))) {
+	sp = nfs4_get_state_owner(server, cred, GFP_KERNEL);
+	if (sp == NULL) {
 		dprintk("nfs4_do_open: nfs4_get_state_owner failed!\n");
 		goto out_err;
 	}
