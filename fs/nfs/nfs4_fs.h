@@ -86,6 +86,7 @@ struct nfs4_minor_version_ops {
 
 #define NFS_SEQID_CONFIRMED 1
 struct nfs_seqid_counter {
+	ktime_t create_time;
 	int owner_id;
 	int flags;
 	u32 counter;
