@@ -89,6 +89,7 @@ obj-$(CONFIG_TIGON3) += tg3.o
 obj-$(CONFIG_BNX2) += bnx2.o
 obj-$(CONFIG_CNIC) += cnic.o
 obj-$(CONFIG_BNX2X) += bnx2x/
+obj-$(CONFIG_BNXT) += bnxt/
 spidernet-y += spider_net.o spider_net_ethtool.o
 obj-$(CONFIG_SPIDER_NET) += spidernet.o sungem_phy.o
 obj-$(CONFIG_GELIC_NET) += ps3_gelic.o
