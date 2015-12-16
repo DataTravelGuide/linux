@@ -1934,6 +1934,16 @@ static int __init uncore_pci_init(void)
 	case 86: /* BDX-DE */
 		ret = bdx_uncore_pci_init();
 		break;
+	case 42: /* Sandy Bridge */
+		ret = snb_uncore_pci_init();
+		break;
+	case 58: /* Ivy Bridge */
+		ret = ivb_uncore_pci_init();
+		break;
+	case 60: /* Haswell */
+	case 69: /* Haswell Celeron */
+		ret = hsw_uncore_pci_init();
+		break;
 	default:
 		return 0;
 	}
