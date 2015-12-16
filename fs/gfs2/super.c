@@ -78,6 +78,8 @@ enum {
 	Opt_quota_quantum,
 	Opt_barrier,
 	Opt_nobarrier,
+	Opt_loccookie,
+	Opt_noloccookie,
 	Opt_error,
 };
 
@@ -114,6 +116,8 @@ static const match_table_t tokens = {
 	{Opt_quota_quantum, "quota_quantum=%d"},
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_loccookie, "loccookie"},
+	{Opt_noloccookie, "noloccookie"},
 	{Opt_error, NULL}
 };
 
@@ -265,6 +269,12 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			break;
 		case Opt_nobarrier:
 			args->ar_nobarrier = 1;
+			break;
+		case Opt_loccookie:
+			args->ar_loccookie = 1;
+			break;
+		case Opt_noloccookie:
+			args->ar_loccookie = 0;
 			break;
 		case Opt_error:
 		default:
@@ -1392,6 +1402,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",nobarrier");
 	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
 		seq_printf(s, ",demote_interface_used");
+	if (args->ar_loccookie)
+		seq_puts(s, ",loccookie");
 	return 0;
 }
 
