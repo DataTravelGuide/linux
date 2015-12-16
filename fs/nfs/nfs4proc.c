@@ -899,7 +899,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 				  NFS4_ACCESS_EXTEND | NFS4_ACCESS_EXECUTE;
 	}
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
-	p->o_arg.id = sp->so_owner_id.id;
+	p->o_arg.id = sp->so_owner_id;
 	p->o_arg.name = &dentry->d_name;
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
@@ -1542,7 +1542,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		rcu_read_unlock();
 	}
 	/* Update sequence id. */
-	data->o_arg.id = sp->so_owner_id.id;
+	data->o_arg.id = sp->so_owner_id;
 	data->o_arg.clientid = clp->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];

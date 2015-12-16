@@ -115,7 +115,6 @@ struct nfs_unique_id {
  * semantics by allowing the server to identify replayed requests.
  */
 struct nfs4_state_owner {
-	struct nfs_unique_id so_owner_id;
 	struct nfs_server    *so_server;
 	struct list_head     so_lru;
 	unsigned long        so_expires;
@@ -130,6 +129,7 @@ struct nfs4_state_owner {
 	struct nfs_seqid_counter so_seqid;
 	seqcount_t	     so_reclaim_seqcount;
 	struct mutex	     so_delegreturn_mutex;
+	int		     so_owner_id;
 };
 
 enum {
