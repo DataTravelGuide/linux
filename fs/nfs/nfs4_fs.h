@@ -84,21 +84,13 @@ struct nfs4_minor_version_ops {
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
 };
 
-/*
- * struct rpc_sequence ensures that RPC calls are sent in the exact
- * order that they appear on the list.
- */
-struct rpc_sequence {
-	struct rpc_wait_queue	wait;	/* RPC call delay queue */
-	spinlock_t lock;		/* Protects the list */
-	struct list_head list;		/* Defines sequence of RPC calls */
-};
-
 #define NFS_SEQID_CONFIRMED 1
 struct nfs_seqid_counter {
-	struct rpc_sequence *sequence;
 	int flags;
 	u32 counter;
+	spinlock_t lock;		/* Protects the list */
+	struct list_head list;		/* Defines sequence of RPC calls */
+	struct rpc_wait_queue	wait;	/* RPC call delay queue */
 };
 
 struct nfs_seqid {
@@ -137,7 +129,6 @@ struct nfs4_state_owner {
 	struct list_head     so_states;
 	struct nfs_seqid_counter so_seqid;
 	seqcount_t	     so_reclaim_seqcount;
-	struct rpc_sequence  so_sequence;
 	struct mutex	     so_delegreturn_mutex;
 };
 
@@ -180,7 +171,6 @@ struct nfs4_lock_state {
 #define NFS_LOCK_LOST        1
 	unsigned long		ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
-	struct rpc_sequence	ls_sequence;
 	struct nfs_unique_id	ls_id;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
