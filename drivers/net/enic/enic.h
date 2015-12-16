@@ -154,6 +154,7 @@ struct enic {
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
 	u32 rx_copybreak;
+	u8 rss_key[ENIC_RSS_LEN];
 	struct vnic_gen_stats gen_stats;
 };
 
@@ -227,5 +228,6 @@ int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
 int enic_is_dynamic(struct enic *enic);
 void enic_set_ethtool_ops(struct net_device *netdev);
+int __enic_set_rsskey(struct enic *enic);
 
 #endif /* _ENIC_H_ */
