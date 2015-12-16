@@ -1236,6 +1236,9 @@ struct perf_event {
 	int				cgrp_defer_enabled;
 #endif
 
+#ifndef __GENKSYMS__
+	struct list_head		active_entry;
+#endif
 #endif /* CONFIG_PERF_EVENTS */
 };
 
