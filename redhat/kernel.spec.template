@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Dec 16 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.69.1.el6]
+- [kernel] hrtimer: add force_hrtimer_reprogram kernel parameter (Prarit Bhargava) [1292080 1285142]
+
 * Fri Nov 13 2015 Petr Holasek <pholasek@redhat.com> [2.6.32-431.68.1.el6]
 - [hid] fix unused rsize usage (Petr Holasek) [1268201 1256568]
 - [hid] fix data access in implement() (Petr Holasek) [1268201 1256568]
