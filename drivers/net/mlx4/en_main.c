@@ -224,20 +224,15 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	static int mlx4_en_version_printed;
 	struct mlx4_en_dev *mdev;
 	int i;
-	int err;
 
 	if (!mlx4_en_version_printed) {
 		printk(KERN_INFO "%s", mlx4_en_version);
 		mlx4_en_version_printed++;
 	}
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
-	if (!mdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
-		err = -ENOMEM;
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
 		goto err_free_res;
-	}
 
 	if (mlx4_pd_alloc(dev, &mdev->priv_pdn))
 		goto err_free_dev;
@@ -272,8 +267,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	}
 
 	/* Build device profile according to supplied module parameters */
-	err = mlx4_en_get_profile(mdev);
-	if (err) {
+	if (mlx4_en_get_profile(mdev)) {
 		mlx4_err(mdev, "Bad module parameters, aborting\n");
 		goto err_mr;
 	}
@@ -294,10 +288,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
-	if (!mdev->workqueue) {
-		err = -ENOMEM;
+	if (!mdev->workqueue)
 		goto err_mr;
-	}
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
