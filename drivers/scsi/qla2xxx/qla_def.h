@@ -3590,7 +3590,6 @@ enum nexus_wait_type {
 
 #define QLA_DSDS_PER_IOCB	37
 
-#define FC_PORTSPEED_32GBIT           0x20
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
