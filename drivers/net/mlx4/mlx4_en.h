@@ -825,7 +825,7 @@ extern const struct ethtool_ops_ext mlx4_en_ethtool_ops_ext;
 
 __printf(3, 4)
 void en_print(const char *level, const struct mlx4_en_priv *priv,
-	     const char *format, ...);
+	      const char *format, ...);
 
 #define en_dbg(mlevel, priv, format, ...)				\
 do {									\

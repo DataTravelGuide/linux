@@ -82,7 +82,7 @@ MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
 #define MAX_PFC_RX     0xff
 
 void en_print(const char *level, const struct mlx4_en_priv *priv,
-		const char *format, ...)
+	      const char *format, ...)
 {
 	va_list args;
 	struct va_format vaf;
@@ -94,9 +94,9 @@ void en_print(const char *level, const struct mlx4_en_priv *priv,
 		printk("%s%s: %s: %pV",
 		       level, DRV_NAME, priv->dev->name, &vaf);
 	else
-	printk("%s%s: %s: Port %d: %pV",
-	       level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
-	       priv->port, &vaf);
+		printk("%s%s: %s: Port %d: %pV",
+		       level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
+		       priv->port, &vaf);
 	va_end(args);
 }
 
