@@ -1261,7 +1261,7 @@ int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc)
 {
 	struct fw_port_cmd c;
-	unsigned int fc = 0, mdi = FW_PORT_MDI(FW_PORT_MDI_AUTO);
+	unsigned int fc = 0, mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
 
 	lc->link_ok = 0;
 	if (lc->requested_fc & PAUSE_RX)
@@ -1271,8 +1271,8 @@ int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = htonl(FW_CMD_OP_V(FW_PORT_CMD) | FW_CMD_REQUEST_F |
-			       FW_CMD_EXEC_F | FW_PORT_CMD_PORTID(port));
-	c.action_to_len16 = htonl(FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
+			       FW_CMD_EXEC_F | FW_PORT_CMD_PORTID_V(port));
+	c.action_to_len16 = htonl(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
 				  FW_LEN16(c));
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
@@ -1301,8 +1301,8 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = htonl(FW_CMD_OP_V(FW_PORT_CMD) | FW_CMD_REQUEST_F |
-			       FW_CMD_EXEC_F | FW_PORT_CMD_PORTID(port));
-	c.action_to_len16 = htonl(FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
+			       FW_CMD_EXEC_F | FW_PORT_CMD_PORTID_V(port));
+	c.action_to_len16 = htonl(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
 				  FW_LEN16(c));
 	c.u.l1cfg.rcap = htonl(FW_PORT_CAP_ANEG);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
@@ -3402,9 +3402,9 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_VI_CMD) | FW_CMD_REQUEST_F |
 			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
-			    FW_VI_CMD_PFN(pf) | FW_VI_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_VI_CMD_ALLOC | FW_LEN16(c));
-	c.portid_pkd = FW_VI_CMD_PORTID(port);
+			    FW_VI_CMD_PFN_V(pf) | FW_VI_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_VI_CMD_ALLOC_F | FW_LEN16(c));
+	c.portid_pkd = FW_VI_CMD_PORTID_V(port);
 	c.nmac = nmac - 1;
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
@@ -3425,8 +3425,8 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		}
 	}
 	if (rss_size)
-		*rss_size = FW_VI_CMD_RSSSIZE_GET(ntohs(c.rsssize_pkd));
-	return FW_VI_CMD_VIID_GET(ntohs(c.type_viid));
+		*rss_size = FW_VI_CMD_RSSSIZE_G(ntohs(c.rsssize_pkd));
+	return FW_VI_CMD_VIID_G(ntohs(c.type_viid));
 }
 
 /**
@@ -3453,23 +3453,23 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	if (mtu < 0)
 		mtu = FW_RXMODE_MTU_NO_CHG;
 	if (promisc < 0)
-		promisc = FW_VI_RXMODE_CMD_PROMISCEN_MASK;
+		promisc = FW_VI_RXMODE_CMD_PROMISCEN_M;
 	if (all_multi < 0)
-		all_multi = FW_VI_RXMODE_CMD_ALLMULTIEN_MASK;
+		all_multi = FW_VI_RXMODE_CMD_ALLMULTIEN_M;
 	if (bcast < 0)
-		bcast = FW_VI_RXMODE_CMD_BROADCASTEN_MASK;
+		bcast = FW_VI_RXMODE_CMD_BROADCASTEN_M;
 	if (vlanex < 0)
-		vlanex = FW_VI_RXMODE_CMD_VLANEXEN_MASK;
+		vlanex = FW_VI_RXMODE_CMD_VLANEXEN_M;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_RXMODE_CMD) | FW_CMD_REQUEST_F |
-			     FW_CMD_WRITE_F | FW_VI_RXMODE_CMD_VIID(viid));
+			     FW_CMD_WRITE_F | FW_VI_RXMODE_CMD_VIID_V(viid));
 	c.retval_len16 = htonl(FW_LEN16(c));
-	c.mtu_to_vlanexen = htonl(FW_VI_RXMODE_CMD_MTU(mtu) |
-				  FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
-				  FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
-				  FW_VI_RXMODE_CMD_BROADCASTEN(bcast) |
-				  FW_VI_RXMODE_CMD_VLANEXEN(vlanex));
+	c.mtu_to_vlanexen = htonl(FW_VI_RXMODE_CMD_MTU_V(mtu) |
+				  FW_VI_RXMODE_CMD_PROMISCEN_V(promisc) |
+				  FW_VI_RXMODE_CMD_ALLMULTIEN_V(all_multi) |
+				  FW_VI_RXMODE_CMD_BROADCASTEN_V(bcast) |
+				  FW_VI_RXMODE_CMD_VLANEXEN_V(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
 }
 
@@ -3512,13 +3512,13 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_MAC_CMD) | FW_CMD_REQUEST_F |
 			     FW_CMD_WRITE_F | (free ? FW_CMD_EXEC_F : 0) |
-			     FW_VI_MAC_CMD_VIID(viid));
-	c.freemacs_to_len16 = htonl(FW_VI_MAC_CMD_FREEMACS(free) |
+			     FW_VI_MAC_CMD_VIID_V(viid));
+	c.freemacs_to_len16 = htonl(FW_VI_MAC_CMD_FREEMACS_V(free) |
 				    FW_CMD_LEN16_V((naddr + 2) / 2));
 
 	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		p->valid_to_idx = htons(FW_VI_MAC_CMD_VALID |
-				      FW_VI_MAC_CMD_IDX(FW_VI_MAC_ADD_MAC));
+		p->valid_to_idx = htons(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
 		memcpy(p->macaddr, addr[i], sizeof(p->macaddr));
 	}
 
@@ -3527,7 +3527,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		return ret;
 
 	for (i = 0, p = c.u.exact; i < naddr; i++, p++) {
-		u16 index = FW_VI_MAC_CMD_IDX_GET(ntohs(p->valid_to_idx));
+		u16 index = FW_VI_MAC_CMD_IDX_G(ntohs(p->valid_to_idx));
 
 		if (idx)
 			idx[i] = index >= max_naddr ? 0xffff : index;
@@ -3574,16 +3574,16 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_MAC_CMD) | FW_CMD_REQUEST_F |
-			     FW_CMD_WRITE_F | FW_VI_MAC_CMD_VIID(viid));
+			     FW_CMD_WRITE_F | FW_VI_MAC_CMD_VIID_V(viid));
 	c.freemacs_to_len16 = htonl(FW_CMD_LEN16_V(1));
-	p->valid_to_idx = htons(FW_VI_MAC_CMD_VALID |
-				FW_VI_MAC_CMD_SMAC_RESULT(mode) |
-				FW_VI_MAC_CMD_IDX(idx));
+	p->valid_to_idx = htons(FW_VI_MAC_CMD_VALID_F |
+				FW_VI_MAC_CMD_SMAC_RESULT_V(mode) |
+				FW_VI_MAC_CMD_IDX_V(idx));
 	memcpy(p->macaddr, addr, sizeof(p->macaddr));
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0) {
-		ret = FW_VI_MAC_CMD_IDX_GET(ntohs(p->valid_to_idx));
+		ret = FW_VI_MAC_CMD_IDX_G(ntohs(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
 	}
@@ -3608,9 +3608,9 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_MAC_CMD) | FW_CMD_REQUEST_F |
-			     FW_CMD_WRITE_F | FW_VI_ENABLE_CMD_VIID(viid));
-	c.freemacs_to_len16 = htonl(FW_VI_MAC_CMD_HASHVECEN |
-				    FW_VI_MAC_CMD_HASHUNIEN(ucast) |
+			     FW_CMD_WRITE_F | FW_VI_ENABLE_CMD_VIID_V(viid));
+	c.freemacs_to_len16 = htonl(FW_VI_MAC_CMD_HASHVECEN_F |
+				    FW_VI_MAC_CMD_HASHUNIEN_V(ucast) |
 				    FW_CMD_LEN16_V(1));
 	c.u.hash.hashvec = cpu_to_be64(vec);
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
@@ -3655,8 +3655,8 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST_F |
-			     FW_CMD_EXEC_F | FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
+			     FW_CMD_EXEC_F | FW_VI_ENABLE_CMD_VIID_V(viid));
+	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_LED_F | FW_LEN16(c));
 	c.blinkdur = htons(nblinks);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -3682,10 +3682,10 @@ int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_IQ_CMD_PFN(pf) |
-			    FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_FREE | FW_LEN16(c));
-	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(iqtype));
+			    FW_CMD_EXEC_F | FW_IQ_CMD_PFN_V(pf) |
+			    FW_IQ_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_IQ_CMD_FREE_F | FW_LEN16(c));
+	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE_V(iqtype));
 	c.iqid = htons(iqid);
 	c.fl0id = htons(fl0id);
 	c.fl1id = htons(fl1id);
@@ -3709,10 +3709,10 @@ int t4_eth_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_ETH_CMD_PFN(pf) |
-			    FW_EQ_ETH_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(FW_EQ_ETH_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_ETH_CMD_PFN_V(pf) |
+			    FW_EQ_ETH_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_FREE_F | FW_LEN16(c));
+	c.eqid_pkd = htonl(FW_EQ_ETH_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3733,10 +3733,10 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_CTRL_CMD_PFN(pf) |
-			    FW_EQ_CTRL_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_FREE | FW_LEN16(c));
-	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_CTRL_CMD_PFN_V(pf) |
+			    FW_EQ_CTRL_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_FREE_F | FW_LEN16(c));
+	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3757,10 +3757,10 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
-			    FW_CMD_EXEC_F | FW_EQ_OFLD_CMD_PFN(pf) |
-			    FW_EQ_OFLD_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_FREE | FW_LEN16(c));
-	c.eqid_pkd = htonl(FW_EQ_OFLD_CMD_EQID(eqid));
+			    FW_CMD_EXEC_F | FW_EQ_OFLD_CMD_PFN_V(pf) |
+			    FW_EQ_OFLD_CMD_VFN_V(vf));
+	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_FREE_F | FW_LEN16(c));
+	c.eqid_pkd = htonl(FW_EQ_OFLD_CMD_EQID_V(eqid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3778,25 +3778,25 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 	if (opcode == FW_PORT_CMD) {    /* link/module state change message */
 		int speed = 0, fc = 0;
 		const struct fw_port_cmd *p = (void *)rpl;
-		int chan = FW_PORT_CMD_PORTID_GET(ntohl(p->op_to_portid));
+		int chan = FW_PORT_CMD_PORTID_G(ntohl(p->op_to_portid));
 		int port = adap->chan_map[chan];
 		struct port_info *pi = adap2pinfo(adap, port);
 		struct link_config *lc = &pi->link_cfg;
 		u32 stat = ntohl(p->u.info.lstatus_to_modtype);
-		int link_ok = (stat & FW_PORT_CMD_LSTATUS) != 0;
-		u32 mod = FW_PORT_CMD_MODTYPE_GET(stat);
+		int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
+		u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
 
-		if (stat & FW_PORT_CMD_RXPAUSE)
+		if (stat & FW_PORT_CMD_RXPAUSE_F)
 			fc |= PAUSE_RX;
-		if (stat & FW_PORT_CMD_TXPAUSE)
+		if (stat & FW_PORT_CMD_TXPAUSE_F)
 			fc |= PAUSE_TX;
-		if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_100M))
+		if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
 			speed = 100;
-		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_1G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
 			speed = 1000;
-		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_10G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
-		else if (stat & FW_PORT_CMD_LSPEED(FW_PORT_CAP_SPEED_40G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
@@ -4094,9 +4094,9 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 
 		c.op_to_portid = htonl(FW_CMD_OP_V(FW_PORT_CMD) |
 				       FW_CMD_REQUEST_F | FW_CMD_READ_F |
-				       FW_PORT_CMD_PORTID(j));
+				       FW_PORT_CMD_PORTID_V(j));
 		c.action_to_len16 = htonl(
-			FW_PORT_CMD_ACTION(FW_PORT_ACTION_GET_PORT_INFO) |
+			FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
 			FW_LEN16(c));
 		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 		if (ret)
@@ -4115,9 +4115,9 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		netdev_extended(adap->port[i])->dev_port = j;
 
 		ret = ntohl(c.u.info.lstatus_to_modtype);
-		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP) ?
-			FW_PORT_CMD_MDIOADDR_GET(ret) : -1;
-		p->port_type = FW_PORT_CMD_PTYPE_GET(ret);
+		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
+			FW_PORT_CMD_MDIOADDR_G(ret) : -1;
+		p->port_type = FW_PORT_CMD_PTYPE_G(ret);
 		p->mod_type = FW_PORT_MOD_TYPE_NA;
 
 		rvc.op_to_viid = htonl(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
