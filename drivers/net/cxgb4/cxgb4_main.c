@@ -1221,8 +1221,8 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
 	 * filter specification structure but for now it's easiest to simply
 	 * put this fairly direct code in line ...
 	 */
-	fwr->op_pkd = htonl(FW_WR_OP(FW_FILTER_WR));
-	fwr->len16_pkd = htonl(FW_WR_LEN16(sizeof(*fwr)/16));
+	fwr->op_pkd = htonl(FW_WR_OP_V(FW_FILTER_WR));
+	fwr->len16_pkd = htonl(FW_WR_LEN16_V(sizeof(*fwr)/16));
 	fwr->tid_to_iq =
 		htonl(V_FW_FILTER_WR_TID(ftid) |
 		      V_FW_FILTER_WR_RQTYPE(f->fs.type) |
@@ -3197,8 +3197,8 @@ int cxgb4_clip_get(const struct net_device *dev,
 
 	adap = netdev2adap(dev);
 	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
-			FW_CMD_REQUEST | FW_CMD_WRITE);
+	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
+			FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
@@ -3214,8 +3214,8 @@ int cxgb4_clip_release(const struct net_device *dev,
 
 	adap = netdev2adap(dev);
 	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP(FW_CLIP_CMD) |
-			FW_CMD_REQUEST | FW_CMD_READ);
+	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
+			FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
@@ -3604,7 +3604,7 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 {
 	struct adapter *adap;
 	u32 offset, memtype, memaddr;
-	u32 edc0_size, edc1_size, mc0_size, mc1_size;
+	u32 edc0_size, edc1_size, mc0_size, mc1_size, size;
 	u32 edc0_end, edc1_end, mc0_end, mc1_end;
 	int ret;
 
@@ -3618,9 +3618,12 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 	 * and EDC1.  Some cards will have neither MC0 nor MC1, most cards have
 	 * MC0, and some have both MC0 and MC1.
 	 */
-	edc0_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM0_BAR)) << 20;
-	edc1_size = EDRAM_SIZE_GET(t4_read_reg(adap, MA_EDRAM1_BAR)) << 20;
-	mc0_size = EXT_MEM_SIZE_GET(t4_read_reg(adap, MA_EXT_MEMORY_BAR)) << 20;
+	size = t4_read_reg(adap, MA_EDRAM0_BAR_A);
+	edc0_size = EDRAM0_SIZE_G(size) << 20;
+	size = t4_read_reg(adap, MA_EDRAM1_BAR_A);
+	edc1_size = EDRAM1_SIZE_G(size) << 20;
+	size = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+	mc0_size = EXT_MEM0_SIZE_G(size) << 20;
 
 	edc0_end = edc0_size;
 	edc1_end = edc0_end + edc1_size;
@@ -3640,9 +3643,8 @@ int cxgb4_read_tpte(struct net_device *dev, u32 stag, __be32 *tpte)
 			/* T4 only has a single memory channel */
 			goto err;
 		} else {
-			mc1_size = EXT_MEM_SIZE_GET(
-					t4_read_reg(adap,
-						    MA_EXT_MEMORY1_BAR)) << 20;
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			mc1_size = EXT_MEM1_SIZE_G(size) << 20;
 			mc1_end = mc0_end + mc1_size;
 			if (offset < mc1_end) {
 				memtype = MEM_MC1;
@@ -4689,9 +4691,9 @@ static u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
 	 */
 	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
 	ldst_cmd.op_to_addrspace =
-		htonl(FW_CMD_OP(FW_LDST_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ |
+		htonl(FW_CMD_OP_V(FW_LDST_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_READ_F |
 		      FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
 	ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
 	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
@@ -4783,8 +4785,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	/* get device capabilities */
 	memset(c, 0, sizeof(*c));
-	c->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			       FW_CMD_REQUEST | FW_CMD_READ);
+	c->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			       FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	c->cfvalid_to_len16 = htonl(FW_LEN16(*c));
 	ret = t4_wr_mbox(adap, adap->fn, c, sizeof(*c), c);
 	if (ret < 0)
@@ -4800,8 +4802,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 		dev_err(adap->pdev_dev, "virtualization ACLs not supported");
 		return ret;
 	}
-	c->op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			       FW_CMD_REQUEST | FW_CMD_WRITE);
+	c->op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			       FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	ret = t4_wr_mbox(adap, adap->fn, c, sizeof(*c), NULL);
 	if (ret < 0)
 		return ret;
@@ -5027,9 +5029,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
 	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_READ);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 =
 		htonl(FW_CAPS_CONFIG_CMD_CFVALID |
 		      FW_CAPS_CONFIG_CMD_MEMTYPE_CF(mtype) |
@@ -5047,9 +5049,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	if (ret == -ENOENT) {
 		memset(&caps_cmd, 0, sizeof(caps_cmd));
 		caps_cmd.op_to_write =
-			htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-					FW_CMD_REQUEST |
-					FW_CMD_READ);
+			htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+					FW_CMD_REQUEST_F |
+					FW_CMD_READ_F);
 		caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 		ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd,
 				sizeof(caps_cmd), &caps_cmd);
@@ -5072,9 +5074,9 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 * And now tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd.op_to_write =
-		htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-		      FW_CMD_REQUEST |
-		      FW_CMD_WRITE);
+		htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+		      FW_CMD_REQUEST_F |
+		      FW_CMD_WRITE_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 NULL);
@@ -5145,8 +5147,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 * Get device capabilities and select which we'll be using.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
@@ -5162,8 +5164,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 		dev_err(adapter->pdev_dev, "virtualization ACLs not supported");
 		goto bye;
 	}
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-			      FW_CMD_REQUEST | FW_CMD_WRITE);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+			      FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
 	ret = t4_wr_mbox(adapter, adapter->mbox, &caps_cmd, sizeof(caps_cmd),
 			 NULL);
 	if (ret < 0)
@@ -5531,7 +5533,6 @@ static int adap_init0(struct adapter *adap)
 	} else {
 		dev_info(adap->pdev_dev, "Coming up as MASTER: "\
 			 "Initializing adapter\n");
-
 		/*
 		 * If the firmware doesn't support Configuration
 		 * Files warn user and exit,
@@ -5575,6 +5576,7 @@ static int adap_init0(struct adapter *adap)
 					    "No Configuration File present "
 					    "on adapter. Using hard-wired "
 					    "configuration parameters.\n");
+					goto bye;
 					ret = adap_init0_no_config(adap, reset);
 				}
 			}
@@ -5674,8 +5676,8 @@ static int adap_init0(struct adapter *adap)
 	 * to manage.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
-				     FW_CMD_REQUEST | FW_CMD_READ);
+	caps_cmd.op_to_write = htonl(FW_CMD_OP_V(FW_CAPS_CONFIG_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F);
 	caps_cmd.cfvalid_to_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
 			 &caps_cmd);
