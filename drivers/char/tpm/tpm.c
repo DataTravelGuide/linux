@@ -531,7 +531,7 @@ void tpm_gen_interrupt(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL_GPL(tpm_gen_interrupt);
 
-void tpm_get_timeouts(struct tpm_chip *chip)
+int tpm_get_timeouts(struct tpm_chip *chip)
 {
 	struct tpm_cmd_t tpm_cmd;
 	struct timeout_t *timeout_cap;
@@ -553,7 +553,7 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
 	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 4 * sizeof(u32))
-		return;
+		return -EINVAL;
 
 	timeout_cap = &tpm_cmd.params.getcap_out.cap.timeout;
 	/* Don't overwrite default if value is 0 */
@@ -584,12 +584,12 @@ duration:
 	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
 			"attempting to determine the durations");
 	if (rc)
-		return;
+		return rc;
 
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
 	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 3 * sizeof(u32))
-		return;
+		return -EINVAL;
 
 	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
 	chip->vendor.duration[TPM_SHORT] =
@@ -611,6 +611,7 @@ duration:
 		chip->vendor.duration_adjusted = true;
 		dev_info(chip->dev, "Adjusting TPM timeout parameters.");
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
 
