@@ -767,6 +767,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						gro_skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
 
 					skb_record_rx_queue(gro_skb, cq->ring);
+					skb_mark_napi_id(gro_skb, &cq->napi);
 
 					if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 						timestamp = mlx4_en_get_cqe_ts(cqe);
