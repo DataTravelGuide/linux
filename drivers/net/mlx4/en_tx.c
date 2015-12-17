@@ -36,6 +36,7 @@
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #include <linux/vmalloc.h>
 #include <linux/tcp.h>
 
@@ -252,6 +253,11 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	struct sk_buff *skb = tx_info->skb;
 	int nr_maps = tx_info->nr_maps;
 	int i;
+
+	/* We do not touch skb here, so prefetch skb->users location
+	 * to speedup consume_skb()
+	 */
+	prefetchw(&skb->users);
 
 	if (unlikely(timestamp)) {
 		struct skb_shared_hwtstamps hwts;
