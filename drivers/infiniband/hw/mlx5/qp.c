@@ -1317,9 +1317,9 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 	path->rlid	= cpu_to_be16(ah->dlid);
 
 	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->mdev->caps.port[port - 1].gid_table_len) {
+		if (ah->grh.sgid_index >= gen->port[port - 1].gid_table_len) {
 			pr_err(KERN_ERR "sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->mdev->caps.port[port - 1].gid_table_len);
+			       ah->grh.sgid_index, gen->port[port - 1].gid_table_len);
 			return -EINVAL;
 		}
 		path->grh_mlid |= 1 << 7;
@@ -2029,17 +2029,17 @@ static u8 bs_selector(int block_size)
 }
 
 static void mlx5_fill_inl_bsf(struct ib_sig_domain *domain,
-			      struct mlx5_bsf_inl *inl)
+			     struct mlx5_bsf_inl *inl)
 {
 	/* Valid inline section and allow BSF refresh */
 	inl->vld_refresh = cpu_to_be16(MLX5_BSF_INL_VALID |
 				       MLX5_BSF_REFRESH_DIF);
 	inl->dif_apptag = cpu_to_be16(domain->sig.dif.app_tag);
 	inl->dif_reftag = cpu_to_be32(domain->sig.dif.ref_tag);
-	/* repeating block */
-	inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
-	inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
-			MLX5_DIF_CRC : MLX5_DIF_IPCS;
+		/* repeating block */
+		inl->rp_inv_seed = MLX5_BSF_REPEAT_BLOCK;
+		inl->sig_type = domain->sig.dif.bg_type == IB_T10DIF_CRC ?
+				MLX5_DIF_CRC : MLX5_DIF_IPCS;
 
 	if (domain->sig.dif.ref_remap)
 		inl->dif_inc_ref_guard_check |= MLX5_BSF_INC_REFTAG;
@@ -2072,24 +2072,15 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 	basic->check_byte_mask = sig_attrs->check_mask;
 	basic->raw_data_size = cpu_to_be32(data_size);
 
-	/* Memory domain */
-	switch (sig_attrs->mem.sig_type) {
-	case IB_SIG_TYPE_NONE:
-		break;
-	case IB_SIG_TYPE_T10_DIF:
-		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
-		basic->m_bfs_psv = cpu_to_be32(msig->psv_memory.psv_idx);
-		mlx5_fill_inl_bsf(mem, &bsf->m_inl);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* Wire domain */
+	/* Memory & Wire domain */
 	switch (sig_attrs->wire.sig_type) {
 	case IB_SIG_TYPE_NONE:
 		break;
 	case IB_SIG_TYPE_T10_DIF:
+		/* Basic + Extended + Inline */
+		basic->bsf_size_sbs = 1 << 7;
+		/* Input domain check byte mask */
+		basic->check_byte_mask = sig_attrs->check_mask;
 		if (mem->sig.dif.pi_interval == wire->sig.dif.pi_interval &&
 		    mem->sig_type == wire->sig_type) {
 			/* Same block structure */
@@ -2103,8 +2094,12 @@ static int mlx5_set_bsf(struct ib_mr *sig_mr,
 		} else
 			basic->wire.bs_selector = bs_selector(wire->sig.dif.pi_interval);
 
+		basic->mem.bs_selector = bs_selector(mem->sig.dif.pi_interval);
+		basic->raw_data_size = cpu_to_be32(data_size);
+		basic->m_bfs_psv = cpu_to_be32(msig->psv_memory.psv_idx);
 		basic->w_bfs_psv = cpu_to_be32(msig->psv_wire.psv_idx);
 		mlx5_fill_inl_bsf(wire, &bsf->w_inl);
+		mlx5_fill_inl_bsf(mem, &bsf->m_inl);
 		break;
 	default:
 		return -EINVAL;
