@@ -623,8 +623,12 @@ static int link_start(struct net_device *dev)
 	if (ret == 0)
 		ret = t4_link_start(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
-	if (ret == 0)
+	if (ret == 0) {
+		local_bh_disable();
 		ret = t4_enable_vi(pi->adapter, mb, pi->viid, true, true);
+		local_bh_enable();
+	}
+
 	return ret;
 }
 
