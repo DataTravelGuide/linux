@@ -813,8 +813,14 @@ static void quiesce_rx(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(adap->sge.ingr_map); i++) {
 		struct sge_rspq *q = adap->sge.ingr_map[i];
 
-		if (q && q->handler)
+		if (q && q->handler) {
 			napi_disable(&q->napi);
+			local_bh_disable();
+			while (!cxgb_poll_lock_napi(q))
+				mdelay(1);
+			local_bh_enable();
+		}
+
 	}
 }
 
@@ -830,8 +836,10 @@ static void enable_rx(struct adapter *adap)
 
 		if (!q)
 			continue;
-		if (q->handler)
+		if (q->handler) {
+			cxgb_busy_poll_init_lock(q);
 			napi_enable(&q->napi);
+		}
 		/* 0-increment GTS to start the timer and enable interrupts */
 		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
 			     SEINTARM_V(q->intr_params) |
@@ -4365,6 +4373,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller  = cxgb_netpoll,
 #endif
+
 };
 
 static const struct net_device_ops_ext cxgb4_netdev_ops_ext = {
@@ -5855,6 +5864,9 @@ static int init_one(struct pci_dev *pdev,
 		set_netdev_ops_ext(netdev, &cxgb4_netdev_ops_ext);
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 		set_ethtool_ops_ext(netdev, &cxgb_ethtool_ops_ext);
+#ifdef CONFIG_NET_RX_BUSY_POLL
+		netdev_extended(netdev)->ndo_busy_poll = cxgb_busy_poll;
+#endif
 	}
 
 	pci_set_drvdata(pdev, adapter);
