@@ -39,8 +39,6 @@
 
 #define OCRDMA_VID_PCP_SHIFT	0xD
 
-#define OCRDMA_VID_PCP_SHIFT	0xD
-
 static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 			struct ib_ah_attr *attr, union ib_gid *sgid,
 			int pdid, bool *isvlan)
