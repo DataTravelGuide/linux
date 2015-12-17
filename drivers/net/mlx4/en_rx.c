@@ -39,6 +39,10 @@
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 
+#if IS_ENABLED(CONFIG_IPV6)
+#include <net/ip6_checksum.h>
+#endif
+
 #include "mlx4_en.h"
 
 static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
@@ -134,9 +138,10 @@ static void mlx4_en_free_frag(struct mlx4_en_priv *priv,
 	const struct mlx4_en_frag_info *frag_info = &priv->frag_info[i];
 	u32 next_frag_end = frags[i].page_offset + 2 * frag_info->frag_stride;
 
+
 	if (next_frag_end > frags[i].page_size)
 		dma_unmap_page(priv->ddev, frags[i].dma, frags[i].page_size,
-					 PCI_DMA_FROMDEVICE);
+			       PCI_DMA_FROMDEVICE);
 
 	if (frags[i].page)
 		put_page(frags[i].page);
@@ -370,19 +375,20 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	if (!ring->rx_info) {
 		ring->rx_info = vmalloc(tmp);
 		if (!ring->rx_info) {
-			en_err(priv, "Failed allocating rx_info ring\n");
+		en_err(priv, "Failed allocating rx_info ring\n");
 			err = -ENOMEM;
 			goto err_ring;
 		}
 	}
+
 	en_dbg(DRV, priv, "Allocated rx_info ring at addr:%p size:%d\n",
 		 ring->rx_info, tmp);
 
 	/* Allocate HW buffers on provided NUMA node */
-	set_dev_node(&mdev->dev->pdev->dev, node);
+	set_dev_node(&mdev->dev->persist->pdev->dev, node);
 	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres,
 				 ring->buf_size, 2 * PAGE_SIZE);
-	set_dev_node(&mdev->dev->pdev->dev, mdev->dev->numa_node);
+	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err)
 		goto err_info;
 
@@ -537,6 +543,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		skb->truesize += frag_info->frag_stride;
 		frags[nr].page = NULL;
 	}
+
 	/* Adjust size of last fragment to match actual length */
 	if (nr > 0)
 		skb_frags_rx[nr - 1].size = length -
@@ -637,6 +644,86 @@ static void mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
 	}
 }
 
+/* When hardware doesn't strip the vlan, we need to calculate the checksum
+ * over it and add it to the hardware's checksum calculation
+ */
+static inline __wsum get_fixed_vlan_csum(__wsum hw_checksum,
+					 struct vlan_hdr *vlanh)
+{
+	return csum_add(hw_checksum, *(__wsum *)vlanh);
+}
+
+/* Although the stack expects checksum which doesn't include the pseudo
+ * header, the HW adds it. To address that, we are subtracting the pseudo
+ * header checksum from the checksum value provided by the HW.
+ */
+static void get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
+				struct iphdr *iph)
+{
+	__u16 length_for_csum = 0;
+	__wsum csum_pseudo_header = 0;
+
+	length_for_csum = (be16_to_cpu(iph->tot_len) - (iph->ihl << 2));
+	csum_pseudo_header = csum_tcpudp_nofold(iph->saddr, iph->daddr,
+						length_for_csum, iph->protocol, 0);
+	skb->csum = csum_sub(hw_checksum, csum_pseudo_header);
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+/* In IPv6 packets, besides subtracting the pseudo header checksum,
+ * we also compute/add the IP header checksum which
+ * is not added by the HW.
+ */
+static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
+			       struct ipv6hdr *ipv6h)
+{
+	__wsum csum_pseudo_hdr = 0;
+
+	if (ipv6h->nexthdr == IPPROTO_FRAGMENT || ipv6h->nexthdr == IPPROTO_HOPOPTS)
+		return -1;
+	hw_checksum = csum_add(hw_checksum, (__force __wsum)(ipv6h->nexthdr << 8));
+
+	csum_pseudo_hdr = csum_partial(&ipv6h->saddr,
+				       sizeof(ipv6h->saddr) + sizeof(ipv6h->daddr), 0);
+	csum_pseudo_hdr = csum_add(csum_pseudo_hdr, (__force __wsum)ipv6h->payload_len);
+	csum_pseudo_hdr = csum_add(csum_pseudo_hdr, (__force __wsum)ntohs(ipv6h->nexthdr));
+
+	skb->csum = csum_sub(hw_checksum, csum_pseudo_hdr);
+	skb->csum = csum_add(skb->csum, csum_partial(ipv6h, sizeof(struct ipv6hdr), 0));
+	return 0;
+}
+#endif
+static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
+		      int hwtstamp_rx_filter)
+{
+	__wsum hw_checksum = 0;
+
+	void *hdr = (u8 *)va + sizeof(struct ethhdr);
+
+	hw_checksum = csum_unfold((__force __sum16)cqe->checksum);
+
+	if (((struct ethhdr *)va)->h_proto == htons(ETH_P_8021Q) &&
+	    hwtstamp_rx_filter != HWTSTAMP_FILTER_NONE) {
+		/* next protocol non IPv4 or IPv6 */
+		if (((struct vlan_hdr *)hdr)->h_vlan_encapsulated_proto
+		    != htons(ETH_P_IP) &&
+		    ((struct vlan_hdr *)hdr)->h_vlan_encapsulated_proto
+		    != htons(ETH_P_IPV6))
+			return -1;
+		hw_checksum = get_fixed_vlan_csum(hw_checksum, hdr);
+		hdr += sizeof(struct vlan_hdr);
+	}
+
+	if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4))
+		get_fixed_ipv4_csum(hw_checksum, skb, hdr);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV6))
+		if (get_fixed_ipv6_csum(hw_checksum, skb, hdr))
+			return -1;
+#endif
+	return 0;
+}
+
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -708,7 +795,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			if (is_multicast_ether_addr(ethh->h_dest)) {
 				struct mlx4_mac_entry *entry;
-				struct hlist_node *n;
+			struct hlist_node *n;
 				struct hlist_head *bucket;
 				unsigned int mac_hash;
 
@@ -716,8 +803,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				mac_hash = ethh->h_source[MLX4_EN_MAC_HASH_IDX];
 				bucket = &priv->mac_hash[mac_hash];
 				rcu_read_lock();
-				hlist_for_each_entry_rcu(entry, n, bucket, hlist) {
-					if (!compare_ether_addr_64bits(entry->mac,
+			hlist_for_each_entry_rcu(entry, n, bucket, hlist) {
+				if (!compare_ether_addr_64bits(entry->mac,
 								    ethh->h_source)) {
 						rcu_read_unlock();
 						goto next;
@@ -735,61 +822,68 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		ring->bytes += length;
 		ring->packets++;
 
-		if (likely(priv->rx_csum)) {
-			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
+	if (likely(priv->rx_csum)) {
+				if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 			    (cqe->checksum == cpu_to_be16(0xffff))) {
-				ring->csum_ok++;
-				/* This packet is eligible for GRO if it is:
-				 * - DIX Ethernet (type interpretation)
-				 * - TCP/IP (v4)
-				 * - without IP options
-				 * - not an IP fragment
-				 * - no LLS polling in progress
-				 */
+					ring->csum_ok++;
+		/* This packet is eligible for GRO if it is:
+		 * - DIX Ethernet (type interpretation)
+		 * - TCP/IP (v4)
+		 * - without IP options
+		 * - not an IP fragment
+		 * - no LLS polling in progress
+		 */
 				if (!mlx4_en_cq_ll_polling(cq) &&
-				    (dev->features & NETIF_F_GRO)) {
-					struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
-					if (!gro_skb)
-						goto next;
+		    (dev->features & NETIF_F_GRO)) {
+			struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
+			if (!gro_skb)
+				goto next;
 
-					nr = mlx4_en_complete_rx_desc(priv,
-						rx_desc, frags, gro_skb,
-						length);
-					if (!nr)
-						goto next;
+			nr = mlx4_en_complete_rx_desc(priv,
+				rx_desc, frags, gro_skb,
+				length);
+			if (!nr)
+				goto next;
 
-					skb_shinfo(gro_skb)->nr_frags = nr;
-					gro_skb->len = length;
-					gro_skb->data_len = length;
+			skb_shinfo(gro_skb)->nr_frags = nr;
+			gro_skb->len = length;
+			gro_skb->data_len = length;
 					gro_skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-					if (dev->features & NETIF_F_RXHASH)
+			if (dev->features & NETIF_F_RXHASH)
 						gro_skb->rxhash = be32_to_cpu(cqe->immed_rss_invalid);
 
-					skb_record_rx_queue(gro_skb, cq->ring);
-					skb_mark_napi_id(gro_skb, &cq->napi);
+			skb_record_rx_queue(gro_skb, cq->ring);
+			skb_mark_napi_id(gro_skb, &cq->napi);
 
-					if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
-						timestamp = mlx4_en_get_cqe_ts(cqe);
-						mlx4_en_fill_hwtstamps(mdev,
-									skb_hwtstamps(gro_skb),
-									timestamp);
-					}
+			if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
+				timestamp = mlx4_en_get_cqe_ts(cqe);
+				mlx4_en_fill_hwtstamps(mdev,
+						       skb_hwtstamps(gro_skb),
+						       timestamp);
+			}
 
 					if ((cqe->vlan_my_qpn & 
 					     cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
 					     (dev->features & NETIF_F_HW_VLAN_RX))
 						vlan_gro_frags(&cq->napi, priv->vlgrp, be16_to_cpu(cqe->sl_vid));
 					else
-						napi_gro_frags(&cq->napi);
-					goto next;
-				}
+			napi_gro_frags(&cq->napi);
+			goto next;
+		}
 
-				/* GRO not possible, complete processing here */
+		/* GRO not possible, complete processing here */
 				ip_summed = CHECKSUM_UNNECESSARY;
 			} else {
-				ip_summed = CHECKSUM_NONE;
-				ring->csum_none++;
+				if (priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
+				    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
+							       MLX4_CQE_STATUS_IPV6))) {
+					ip_summed = CHECKSUM_COMPLETE;
+					ring->csum_complete++;
+				} else {
+					ip_summed = CHECKSUM_NONE;
+					ring->csum_none++;
+				}
 			}
 		} else {
 			ip_summed = CHECKSUM_NONE;
@@ -807,6 +901,14 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
+		if (ip_summed == CHECKSUM_COMPLETE) {
+			if (check_csum(cqe, skb, skb->data, ring->hwtstamp_rx_filter)) {
+				ip_summed = CHECKSUM_NONE;
+				ring->csum_complete--;
+				ring->csum_none++;
+			}
+		}
+
 		skb->ip_summed = ip_summed;
 		skb->protocol = eth_type_trans(skb, dev);
 		skb_record_rx_queue(skb, cq->ring);
@@ -817,7 +919,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 			timestamp = mlx4_en_get_cqe_ts(cqe);
 			mlx4_en_fill_hwtstamps(mdev, skb_hwtstamps(skb),
-			timestamp);
+					       timestamp);
 		}
 
 		skb_mark_napi_id(skb, &cq->napi);
@@ -883,9 +985,9 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 	if (done == budget)
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 	else {
-		/* Done for now */
+	/* Done for now */
 		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
+	mlx4_en_arm_cq(priv, cq);
 	}
 	return done;
 }

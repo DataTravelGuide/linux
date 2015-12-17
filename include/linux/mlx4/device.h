@@ -487,6 +487,8 @@ struct mlx4_caps {
 	u32			function_caps;  /* VFs must be aware of these */
 	u16			hca_core_clock;
 	u64			phys_port_id[MLX4_MAX_PORTS + 1];
+	int			tunnel_offload_mode;
+	u8			rx_checksum_flags_port[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {
