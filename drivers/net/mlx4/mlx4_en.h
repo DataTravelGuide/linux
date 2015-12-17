@@ -532,6 +532,7 @@ struct mlx4_en_priv {
 	unsigned max_mtu;
 	int base_qpn;
 	int cqe_factor;
+	int cqe_size;
 
 	struct mlx4_en_rss_map rss_map;
 	u32 flags;
@@ -592,6 +593,11 @@ struct mlx4_mac_entry {
 	u64 reg_id;
 	struct rcu_head rcu;
 };
+
+static inline struct mlx4_cqe *mlx4_en_get_cqe(void *buf, int idx, int cqe_sz)
+{
+	return buf + idx * cqe_sz;
+}
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
