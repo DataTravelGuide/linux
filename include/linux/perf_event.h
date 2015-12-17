@@ -812,6 +812,7 @@ struct perf_raw_record {
  *
  *     in_tx: running in a hardware transaction
  *     abort: aborting a hardware transaction
+ *    cycles: cycles from last branch (or 0 if not supported)
  */
 struct perf_branch_entry {
 	__u64	from;
@@ -820,7 +821,8 @@ struct perf_branch_entry {
 		predicted:1,/* target predicted */
 		in_tx:1,    /* in transaction */
 		abort:1,    /* transaction abort */
-		reserved:60;
+		cycles:16,  /* cycle count to last branch */
+		reserved:44;
 };
 
 /*
