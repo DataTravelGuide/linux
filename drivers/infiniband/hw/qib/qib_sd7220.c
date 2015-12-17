@@ -258,6 +258,7 @@ static int qib_ibsd_reset(struct qib_devdata *dd, int assert_rst)
 		 * it again during startup.
 		 */
 		u64 val;
+
 		rst_val &= ~(1ULL);
 		qib_write_kreg(dd, kr_hwerrmask,
 			       dd->cspec->hwerrmask &
@@ -589,6 +590,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		 * Both should be clear
 		 */
 		u64 newval = 0;
+
 		qib_write_kreg(dd, acc, newval);
 		/* First read after write is not trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
@@ -600,6 +602,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		/* Need to claim */
 		u64 pollval;
 		u64 newval = EPB_ACC_REQ | oct_sel;
+
 		qib_write_kreg(dd, acc, newval);
 		/* First read after write is not trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
@@ -811,6 +814,7 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 			if (!sofar) {
 				/* Only set address at start of chunk */
 				int addrbyte = (addr + sofar) >> 8;
+
 				transval = csbit | EPB_MADDRH | addrbyte;
 				tries = epb_trans(dd, trans, transval,
 						  &transval);
@@ -1070,6 +1074,7 @@ static int qib_sd_setvals(struct qib_devdata *dd)
 		dds_reg_map >>= 4;
 		for (midx = 0; midx < DDS_ROWS; ++midx) {
 			u64 __iomem *daddr = taddr + ((midx << 4) + idx);
+
 			data = dds_init_vals[midx].reg_vals[idx];
 			writeq(data, daddr);
 			mmiowb();
