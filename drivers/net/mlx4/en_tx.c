@@ -512,29 +512,32 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 	return ring->buf + index * TXBB_SIZE;
 }
 
+/* Decide if skb can be inlined in tx descriptor to avoid dma mapping
+ *
+ * It seems strange we do not simply use skb_copy_bits().
+ * This would allow to inline all skbs iff skb->len <= inline_thold
+ *
+ * Note that caller already checked skb was not a gso packet
+ */
 static bool is_inline(int inline_thold, const struct sk_buff *skb,
 		      const struct skb_shared_info *shinfo,
 		      void **pfrag)
 {
 	void *ptr;
 
-	if (inline_thold && !skb_is_gso(skb) && skb->len <= inline_thold) {
-		if (shinfo->nr_frags == 1) {
-			ptr = skb_frag_address_safe(&shinfo->frags[0]);
-			if (unlikely(!ptr))
-				return 0;
+	if (skb->len > inline_thold || !inline_thold)
+		return false;
 
-			if (pfrag)
-				*pfrag = ptr;
-
-			return 1;
-		} else if (unlikely(shinfo->nr_frags))
-			return 0;
-		else
-			return 1;
+	if (shinfo->nr_frags == 1) {
+		ptr = skb_frag_address_safe(&shinfo->frags[0]);
+		if (unlikely(!ptr))
+			return false;
+		*pfrag = ptr;
+		return true;
 	}
-
-	return 0;
+	if (shinfo->nr_frags)
+		return false;
+	return true;
 }
 
 static int inline_size(const struct sk_buff *skb)
@@ -551,12 +554,15 @@ static int inline_size(const struct sk_buff *skb)
 static int get_real_size(const struct sk_buff *skb,
 			 const struct skb_shared_info *shinfo,
 			 struct net_device *dev,
-			 int *lso_header_size)
+			 int *lso_header_size,
+			 bool *inline_ok,
+			 void **pfrag)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int real_size;
 
 	if (shinfo->gso_size) {
+		*inline_ok = false;
 		*lso_header_size = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		real_size = CTRL_SIZE + shinfo->nr_frags * DS_SIZE +
 			ALIGN(*lso_header_size + 4, DS_SIZE);
@@ -573,10 +579,14 @@ static int get_real_size(const struct sk_buff *skb,
 		}
 	} else {
 		*lso_header_size = 0;
-		if (!is_inline(priv->prof->inline_thold, skb, shinfo, NULL))
-			real_size = CTRL_SIZE + (shinfo->nr_frags + 1) * DS_SIZE;
-		else
+		*inline_ok = is_inline(priv->prof->inline_thold, skb,
+				       shinfo, pfrag);
+
+		if (*inline_ok)
 			real_size = inline_size(skb);
+		else
+			real_size = CTRL_SIZE +
+				    (shinfo->nr_frags + 1) * DS_SIZE;
 	}
 
 	return real_size;
@@ -670,9 +680,10 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 vlan_tag = 0;
 	int i_frag;
 	int lso_header_size;
-	void *fragptr;
+	void *fragptr = NULL;
 	bool bounce = false;
 	union skb_shared_tx *shtx = skb_tx(skb);
+	bool inline_ok;
 	u32 ring_cons;
 
 	if (!priv->port_up)
@@ -684,7 +695,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* fetch ring->cons far ahead before needing it to avoid stall */
 	ring_cons = ACCESS_ONCE(ring->cons);
 
-	real_size = get_real_size(skb, shinfo, dev, &lso_header_size);
+	real_size = get_real_size(skb, shinfo, dev, &lso_header_size,
+				  &inline_ok, &fragptr);
 	if (unlikely(!real_size))
 		goto tx_drop;
 
@@ -755,15 +767,15 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* valid only for none inline segments */
 	tx_info->data_offset = (void *)data - (void *)tx_desc;
 
+	tx_info->inl = inline_ok;
+
 	tx_info->linear = (lso_header_size < skb_headlen(skb) &&
-			   !is_inline(ring->inline_thold, skb, shinfo, NULL)) ? 1 : 0;
+			   !inline_ok) ? 1 : 0;
 
 	tx_info->nr_maps = shinfo->nr_frags + tx_info->linear;
 	data += tx_info->nr_maps - 1;
 
-	if (is_inline(ring->inline_thold, skb, shinfo, &fragptr)) {
-		tx_info->inl = 1;
-	} else {
+	if (!tx_info->inl) {
 		dma_addr_t dma = 0;
 		u32 byte_count = 0;
 
@@ -801,7 +813,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			wmb();
 			data->byte_count = cpu_to_be32(byte_count);
 		}
-		tx_info->inl = 0;
 		/* tx completion can avoid cache line miss for common cases */
 		tx_info->map0_dma = dma;
 		tx_info->map0_byte_count = byte_count;
@@ -811,6 +822,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * For timestamping add flag to skb_shinfo and
 	 * set flag for further reference
 	 */
+	tx_info->ts_requested = 0;
 	if (ring->hwtstamp_tx_type == HWTSTAMP_TX_ON &&
 	    shtx->hardware) {
 		shtx->in_progress = 1;
@@ -869,11 +881,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
-	if (tx_info->inl) {
+	if (tx_info->inl)
 		build_inline_wqe(tx_desc, skb, shinfo, real_size, &vlan_tag,
 				 tx_ind, fragptr);
-		tx_info->inl = 1;
-	}
 
 	ring->prod += nr_txbb;
 
