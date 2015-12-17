@@ -2169,6 +2169,103 @@ static int mlx4_en_get_phys_port_id(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_MLX4_EN_VXLAN
+static void mlx4_en_add_vxlan_offloads(struct work_struct *work)
+{
+	int ret;
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 vxlan_add_task);
+
+	ret = mlx4_config_vxlan_port(priv->mdev->dev, priv->vxlan_port);
+	if (ret)
+		goto out;
+
+	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
+				  VXLAN_STEER_BY_OUTER_MAC, 1);
+out:
+	if (ret) {
+		en_err(priv, "failed setting L2 tunnel configuration ret %d\n", ret);
+		return;
+	}
+
+	/* set offloads */
+	priv->dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->features    |= NETIF_F_GSO_UDP_TUNNEL;
+}
+
+static void mlx4_en_del_vxlan_offloads(struct work_struct *work)
+{
+	int ret;
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 vxlan_del_task);
+	/* unset offloads */
+	priv->dev->hw_enc_features &= ~(NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
+				      NETIF_F_TSO | NETIF_F_GSO_UDP_TUNNEL);
+	priv->dev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+	priv->dev->features    &= ~NETIF_F_GSO_UDP_TUNNEL;
+
+	ret = mlx4_SET_PORT_VXLAN(priv->mdev->dev, priv->port,
+				  VXLAN_STEER_BY_OUTER_MAC, 0);
+	if (ret)
+		en_err(priv, "failed setting L2 tunnel configuration ret %d\n", ret);
+
+	priv->vxlan_port = 0;
+}
+
+static void mlx4_en_add_vxlan_port(struct  net_device *dev,
+				   sa_family_t sa_family, __be16 port)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	__be16 current_port;
+
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+		return;
+
+	if (sa_family == AF_INET6)
+		return;
+
+	current_port = priv->vxlan_port;
+	if (current_port && current_port != port) {
+		en_warn(priv, "vxlan port %d configured, can't add port %d\n",
+			ntohs(current_port), ntohs(port));
+		return;
+	}
+
+	priv->vxlan_port = port;
+	queue_work(priv->mdev->workqueue, &priv->vxlan_add_task);
+}
+
+static void mlx4_en_del_vxlan_port(struct  net_device *dev,
+				   sa_family_t sa_family, __be16 port)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	__be16 current_port;
+
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+		return;
+
+	if (sa_family == AF_INET6)
+		return;
+
+	current_port = priv->vxlan_port;
+	if (current_port != port) {
+		en_dbg(DRV, priv, "vxlan port %d isn't configured, ignoring\n", ntohs(port));
+		return;
+	}
+
+	queue_work(priv->mdev->workqueue, &priv->vxlan_del_task);
+}
+
+static netdev_features_t mlx4_en_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	return vxlan_features_check(skb, features);
+}
+#endif
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
