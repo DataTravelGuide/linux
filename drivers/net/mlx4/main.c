@@ -2645,6 +2645,11 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 		}
 	}
 
+	/* on load remove any previous indication of internal error,
+	 * device is up.
+	 */
+	dev->persist->state = MLX4_DEVICE_STATE_UP;
+
 slave_start:
 	err = mlx4_cmd_init(dev);
 	if (err) {
@@ -3130,6 +3135,7 @@ static int __devinit mlx4_init_one(struct pci_dev *pdev,
 	dev->persist->dev = dev;
 	pci_set_drvdata(pdev, dev->persist);
 	priv->pci_dev_data = id->driver_data;
+	mutex_init(&dev->persist->device_state_mutex);
 
 	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
 	if (ret) {
