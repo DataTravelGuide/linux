@@ -2270,7 +2270,8 @@ static irqreturn_t t4_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
 
-	t4_slow_intr_handler(adap);
+	if (adap->flags & MASTER_PF)
+		t4_slow_intr_handler(adap);
 	process_intrq(adap);
 	return IRQ_HANDLED;
 }
@@ -2285,7 +2286,8 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
 	struct adapter *adap = cookie;
 
 	t4_write_reg(adap, MYPF_REG(PCIE_PF_CLI_A), 0);
-	if (t4_slow_intr_handler(adap) | process_intrq(adap))
+	if (((adap->flags & MASTER_PF) && t4_slow_intr_handler(adap)) |
+	    process_intrq(adap))
 		return IRQ_HANDLED;
 	return IRQ_NONE;             /* probably shared interrupt */
 }
