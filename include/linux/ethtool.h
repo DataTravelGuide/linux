@@ -332,6 +332,7 @@ enum ethtool_stringset {
 	ETH_SS_PRIV_FLAGS,
 	ETH_SS_NTUPLE_FILTERS,
 	ETH_SS_FEATURES,
+	ETH_SS_RSS_HASH_FUNCS,
 };
 
 /* for passing string sets for data tagging */
@@ -560,6 +561,8 @@ struct ethtool_rxfh_indir {
  * 	the array size of the hardware indirection table.
  * @key_size: On entry, the array size of the user buffer for the hash key,
  * 	which may be zero.  On return from %ETHTOOL_GRSSH, the size of the
+ * @hfunc: Defines the current RSS hash function used by HW (or to be set to).
+ * 	Valid values are one of the %ETH_RSS_HASH_*.
  * 	hardware hash key.
  * @rsvd:	Reserved for future extensions.
  * @rss_config: RX ring/queue index for each hash value i.e., indirection table
@@ -577,7 +580,9 @@ struct ethtool_rxfh {
 	__u32	rss_context;
 	__u32   indir_size;
 	__u32   key_size;
-	__u32	rsvd[2];
+	__u8	hfunc;
+	__u8	rsvd8[3];
+	__u32	rsvd32;
 	__u32   rss_config[0];
 };
 #define ETH_RXFH_INDIR_NO_CHANGE	0xffffffff
@@ -708,6 +713,26 @@ enum ethtool_phys_id_state {
 	ETHTOOL_ID_ON,
 	ETHTOOL_ID_OFF
 };
+
+enum {
+	ETH_RSS_HASH_TOP_BIT, /* Configurable RSS hash function - Toeplitz */
+	ETH_RSS_HASH_XOR_BIT, /* Configurable RSS hash function - Xor */
+
+	/*
+	 * Add your fresh new hash function bits above and remember to update
+	 * rss_hash_func_strings[] in ethtool.c
+	 */
+	ETH_RSS_HASH_FUNCS_COUNT
+};
+
+#define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
+#define __ETH_RSS_HASH(name)	__ETH_RSS_HASH_BIT(ETH_RSS_HASH_##name##_BIT)
+
+#define ETH_RSS_HASH_TOP	__ETH_RSS_HASH(TOP)
+#define ETH_RSS_HASH_XOR	__ETH_RSS_HASH(XOR)
+
+#define ETH_RSS_HASH_UNKNOWN	0
+#define ETH_RSS_HASH_NO_CHANGE	0
 
 /* needed by dev_disable_lro() */
 extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
@@ -881,17 +906,14 @@ struct ethtool_dump {
  *	Returns zero if not supported for this specific device.
  * @get_rxfh_indir_size: Get the size of the RX flow hash indirection table.
  *	Returns zero if not supported for this specific device.
- * @get_rxfh: Get the contents of the RX flow hash indirection table and hash
- *	key.
- *	Will only be called if one or both of @get_rxfh_indir_size and
- *	@get_rxfh_key_size are implemented and return non-zero.
+ * @get_rxfh: Get the contents of the RX flow hash indirection table, hash key
+ *	and/or hash function.
  *	Returns a negative error code or zero.
- * @set_rxfh: Set the contents of the RX flow hash indirection table and/or
- *	hash key.  In case only the indirection table or hash key is to be
- *	changed, the other argument will be %NULL.
- *	Will only be called if one or both of @get_rxfh_indir_size and
- *	@get_rxfh_key_size are implemented and return non-zero.
- *	Returns a negative error code or zero.
+ * @set_rxfh: Set the contents of the RX flow hash indirection table, hash
+ *	key, and/or hash function.  Arguments which are set to %NULL or zero
+ *	will remain unchanged.
+ *	Returns a negative error code or zero. An error code must be returned
+ *	if at least one unsupported change was requested.
  * @get_rxfh_indir: Get the contents of the RX flow hash indirection table.
  *	Will not be called if @get_rxfh_indir_size returns zero.
  * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
@@ -902,9 +924,10 @@ struct  ethtool_ops_ext {
 
 	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32     (*get_rxfh_indir_size)(struct net_device *);
-	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key);
+	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key,
+			    u8 *hfunc);
 	int	(*set_rxfh)(struct net_device *, const u32 *indir,
-			    const u8 *key);
+			    const u8 *key, const u8 hfunc);
 	int     (*get_rxfh_indir)(struct net_device *, u32 *);
 	int     (*set_rxfh_indir)(struct net_device *, const u32 *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
