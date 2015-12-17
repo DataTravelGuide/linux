@@ -196,7 +196,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17,
 	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
 	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19,
-	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 20
+	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 20,
+	MLX4_DEV_CAP_FLAG2_PORT_REMAP		= 1LL <<  21
 };
 
 enum {
@@ -248,7 +249,12 @@ enum {
 	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
 	MLX4_BMME_FLAG_RESERVED_LKEY	= 1 << 10,
 	MLX4_BMME_FLAG_FAST_REG_WR	= 1 << 11,
+	MLX4_BMME_FLAG_PORT_REMAP	= 1 << 24,
 	MLX4_BMME_FLAG_VSD_INIT2RTR	= 1 << 28,
+};
+
+enum {
+	MLX4_FLAG_PORT_REMAP		= MLX4_BMME_FLAG_PORT_REMAP
 };
 
 enum mlx4_event {
@@ -1343,14 +1349,14 @@ int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port);
 
 int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port);
 
-int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port);
-
 /* Returns true if running in low memory profile (kdump kernel) */
 static inline bool mlx4_low_memory_profile(void)
 {
 	return is_kdump_kernel();
 }
 
+int mlx4_disable_rx_port_check(struct mlx4_dev *dev, bool dis);
+int mlx4_virt2phy_port_map(struct mlx4_dev *dev, u32 port1, u32 port2);
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port);
 int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port);
 int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
