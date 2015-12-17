@@ -174,8 +174,8 @@ static void set_timeout(unsigned long time)
 	cancel_delayed_work(&work);
 
 	delay = time - jiffies;
-	if ((long)delay <= 0)
-		delay = 1;
+	if ((long)delay < 0)
+		delay = 0;
 
 	queue_delayed_work(addr_wq, &work, delay);
 }
