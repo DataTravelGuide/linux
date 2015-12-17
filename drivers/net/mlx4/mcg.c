@@ -887,7 +887,7 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 		ret = parse_trans_rule(dev, cur, mailbox->buf + size);
 		if (ret < 0) {
 			mlx4_free_cmd_mailbox(dev, mailbox);
-			return -EINVAL;
+			return ret;
 		}
 		size += ret;
 	}
