@@ -73,6 +73,7 @@ libperf-y += srcline.o
 libperf-y += data.o
 libperf-y += cloexec.o
 libperf-y += thread-stack.o
+libperf-y += parse-branch-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
