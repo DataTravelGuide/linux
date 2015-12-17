@@ -644,6 +644,8 @@ static inline bool kernel_ip(unsigned long ip)
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
 ssize_t intel_event_sysfs_show(char *page, u64 config);
 
+struct attribute **merge_attr(struct attribute **a, struct attribute **b);
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
