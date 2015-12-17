@@ -370,13 +370,17 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	int factor = priv->cqe_factor;
 	u64 timestamp = 0;
 	int done = 0;
+	u32 last_nr_txbb;
+	u32 ring_cons;
 
 	if (!priv->port_up)
 		return 0;
 
 	index = cons_index & size_mask;
 	cqe = mlx4_en_get_cqe(buf, index, priv->cqe_size) + factor;
-	ring_index = ring->cons & size_mask;
+	last_nr_txbb = ACCESS_ONCE(ring->last_nr_txbb);
+	ring_cons = ACCESS_ONCE(ring->cons);
+	ring_index = ring_cons & size_mask;
 	stamp_index = ring_index;
 
 	/* Process all completed CQEs */
@@ -401,19 +405,19 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 		new_index = be16_to_cpu(cqe->wqe_index) & size_mask;
 
 		do {
-			txbbs_skipped += ring->last_nr_txbb;
-			ring_index = (ring_index + ring->last_nr_txbb) & size_mask;
+			txbbs_skipped += last_nr_txbb;
+			ring_index = (ring_index + last_nr_txbb) & size_mask;
 			if (ring->tx_info[ring_index].ts_requested)
 				timestamp = mlx4_en_get_cqe_ts(cqe);
 
 			/* free next descriptor */
-			ring->last_nr_txbb = mlx4_en_free_tx_desc(
+			last_nr_txbb = mlx4_en_free_tx_desc(
 					priv, ring, ring_index,
-					!!((ring->cons + txbbs_skipped) &
+					!!((ring_cons + txbbs_skipped) &
 					ring->size), timestamp);
 
 			mlx4_en_stamp_wqe(priv, ring, stamp_index,
-					  !!((ring->cons + txbbs_stamp) &
+					  !!((ring_cons + txbbs_stamp) &
 						ring->size));
 			stamp_index = ring_index;
 			txbbs_stamp = txbbs_skipped;
@@ -432,7 +436,10 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	mcq->cons_index = cons_index;
 	mlx4_cq_set_ci(mcq);
 	wmb();
-	ring->cons += txbbs_skipped;
+
+	/* we want to dirty this cache line once */
+	ACCESS_ONCE(ring->last_nr_txbb) = last_nr_txbb;
+	ACCESS_ONCE(ring->cons) = ring_cons + txbbs_skipped;
 
 	/*
 	 * Wakeup Tx queue if this stopped, and at least 1 packet
