@@ -575,6 +575,12 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	/* get the timeouts before testing for irqs */
 	tpm_get_timeouts(chip);
 
+	if (tpm_do_selftest(chip)) {
+		dev_err(dev, "TPM self test failed\n");
+		rc = -ENODEV;
+		goto out_err;
+	}
+
 	/* INTERRUPT Setup */
 	init_waitqueue_head(&chip->vendor.read_queue);
 	init_waitqueue_head(&chip->vendor.int_queue);
@@ -681,7 +687,6 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	list_add(&chip->vendor.list, &tis_chips);
 	spin_unlock(&tis_lock);
 
-	tpm_continue_selftest(chip);
 
 	return 0;
 out_err:
@@ -749,7 +754,7 @@ static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 
 	ret = tpm_pm_resume(&dev->dev);
 	if (!ret)
-		tpm_continue_selftest(chip);
+		tpm_do_selftest(chip);
 
 	return ret;
 }
