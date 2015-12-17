@@ -44,6 +44,7 @@
 #include <net/tcp.h>
 #include "cxgb4.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
 
@@ -539,10 +540,12 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 {
 	u32 val;
 	if (q->pend_cred >= 8) {
-		val = PIDX(q->pend_cred / 8);
-		if (!is_t4(adap->params.chip))
-			val |= DBTYPE(1);
-		val |= DBPRIO(1);
+		if (is_t4(adap->params.chip))
+			val = PIDX_V(q->pend_cred / 8);
+		else
+			val = PIDX_T5_V(q->pend_cred / 8) |
+				DBTYPE_F;
+		val |= DBPRIO_F;
 		wmb();
 
 		/* If we don't have access to the new User Doorbell (T5+), use
@@ -550,10 +553,10 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 		 * mechanism.
 		 */
 		if (unlikely(q->bar2_addr == NULL)) {
-			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-				     val | QID(q->cntxt_id));
+			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL_A),
+				     val | QID_V(q->cntxt_id));
 		} else {
-			writel(val | QID(q->bar2_qid),
+			writel(val | QID_V(q->bar2_qid),
 			       q->bar2_addr + SGE_UDB_KDOORBELL);
 
 			/* This Write memory Barrier will force the write to
@@ -901,7 +904,7 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
 	 */
 	if (unlikely(q->bar2_addr == NULL)) {
-		u32 val = PIDX(n);
+		u32 val = PIDX_V(n);
 		unsigned long flags;
 
 		/* For T4 we need to participate in the Doorbell Recovery
@@ -909,14 +912,14 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 		 */
 		spin_lock_irqsave(&q->db_lock, flags);
 		if (!q->db_disabled)
-			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-				     QID(q->cntxt_id) | val);
+			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL_A),
+				     QID_V(q->cntxt_id) | val);
 		else
 			q->db_pidx_inc += n;
 		q->db_pidx = q->pidx;
 		spin_unlock_irqrestore(&q->db_lock, flags);
 	} else {
-		u32 val = PIDX_T5(n);
+		u32 val = PIDX_T5_V(n);
 
 		/* T4 and later chips share the same PIDX field offset within
 		 * the doorbell, but T5 and later shrank the field in order to
@@ -924,7 +927,7 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 		 * large in the first place (14 bits) so we just use the T5
 		 * and later limits and warn if a Queue ID is too large.
 		 */
-		WARN_ON(val & DBPRIO(1));
+		WARN_ON(val & DBPRIO_F);
 
 		/* If we're only writing a single TX Descriptor and we can use
 		 * Inferred QID registers, we can use the Write Combining
@@ -940,7 +943,7 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 				      (q->bar2_addr + SGE_UDB_WCDOORBELL),
 				      wr);
 		} else {
-			writel(val | QID(q->bar2_qid),
+			writel(val | QID_V(q->bar2_qid),
 			       q->bar2_addr + SGE_UDB_KDOORBELL);
 		}
 
@@ -2034,16 +2037,16 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	} else
 		params = QINTR_TIMER_IDX(7);
 
-	val = CIDXINC(work_done) | SEINTARM(params);
+	val = CIDXINC_V(work_done) | SEINTARM_V(params);
 
 	/* If we don't have access to the new User GTS (T5+), use the old
 	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
 	 */
 	if (unlikely(q->bar2_addr == NULL)) {
-		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS),
-			     val | INGRESSQID((u32)q->cntxt_id));
+		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS_A),
+			     val | INGRESSQID_V((u32)q->cntxt_id));
 	} else {
-		writel(val | INGRESSQID(q->bar2_qid),
+		writel(val | INGRESSQID_V(q->bar2_qid),
 		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
@@ -2089,16 +2092,16 @@ static unsigned int process_intrq(struct adapter *adap)
 		rspq_next(q);
 	}
 
-	val =  CIDXINC(credits) | SEINTARM(q->intr_params);
+	val =  CIDXINC_V(credits) | SEINTARM_V(q->intr_params);
 
 	/* If we don't have access to the new User GTS (T5+), use the old
 	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
 	 */
 	if (unlikely(q->bar2_addr == NULL)) {
-		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS),
-			     val | INGRESSQID(q->cntxt_id));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
+			     val | INGRESSQID_V(q->cntxt_id));
 	} else {
-		writel(val | INGRESSQID(q->bar2_qid),
+		writel(val | INGRESSQID_V(q->bar2_qid),
 		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
@@ -2801,8 +2804,8 @@ static int t4_sge_init_soft(struct adapter *adap)
 	 * process_responses() and that only packet data is going to the
 	 * Free Lists.
 	 */
-	if ((t4_read_reg(adap, SGE_CONTROL) & RXPKTCPLMODE_MASK) !=
-	    RXPKTCPLMODE(X_RXPKTCPLMODE_SPLIT)) {
+	if ((t4_read_reg(adap, SGE_CONTROL_A) & RXPKTCPLMODE_F) !=
+	    RXPKTCPLMODE_V(RXPKTCPLMODE_SPLIT_X)) {
 		dev_err(adap->pdev_dev, "bad SGE CPL MODE\n");
 		return -EINVAL;
 	}
@@ -2816,7 +2819,7 @@ static int t4_sge_init_soft(struct adapter *adap)
 	 * XXX meet our needs!
 	 */
 	#define READ_FL_BUF(x) \
-		t4_read_reg(adap, SGE_FL_BUFFER_SIZE0+(x)*sizeof(u32))
+		t4_read_reg(adap, SGE_FL_BUFFER_SIZE0_A+(x)*sizeof(u32))
 
 	fl_small_pg = READ_FL_BUF(RX_SMALL_PG_BUF);
 	fl_large_pg = READ_FL_BUF(RX_LARGE_PG_BUF);
@@ -2870,11 +2873,11 @@ static int t4_sge_init_soft(struct adapter *adap)
 	s->timer_val[5] = core_ticks_to_us(adap,
 		TIMERVALUE5_GET(timer_value_4_and_5));
 
-	ingress_rx_threshold = t4_read_reg(adap, SGE_INGRESS_RX_THRESHOLD);
-	s->counter_val[0] = THRESHOLD_0_GET(ingress_rx_threshold);
-	s->counter_val[1] = THRESHOLD_1_GET(ingress_rx_threshold);
-	s->counter_val[2] = THRESHOLD_2_GET(ingress_rx_threshold);
-	s->counter_val[3] = THRESHOLD_3_GET(ingress_rx_threshold);
+	ingress_rx_threshold = t4_read_reg(adap, SGE_INGRESS_RX_THRESHOLD_A);
+	s->counter_val[0] = THRESHOLD_0_G(ingress_rx_threshold);
+	s->counter_val[1] = THRESHOLD_1_G(ingress_rx_threshold);
+	s->counter_val[2] = THRESHOLD_2_G(ingress_rx_threshold);
+	s->counter_val[3] = THRESHOLD_3_G(ingress_rx_threshold);
 
 	return 0;
 }
@@ -2887,8 +2890,12 @@ static int t4_sge_init_hard(struct adapter *adap)
 	 * Set up our basic SGE mode to deliver CPL messages to our Ingress
 	 * Queue and Packet Date to the Free List.
 	 */
-	t4_set_reg_field(adap, SGE_CONTROL, RXPKTCPLMODE_MASK,
-			 RXPKTCPLMODE_MASK);
+	t4_set_reg_field(adap, SGE_CONTROL_A, RXPKTCPLMODE_F, RXPKTCPLMODE_F);
+
+	/*
+	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
+	 * and generate an interrupt when this occurs so we can recover.
+	 */
 	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
 				V_HP_INT_THRESH(M_HP_INT_THRESH) |
@@ -2913,22 +2920,22 @@ static int t4_sge_init_hard(struct adapter *adap)
 	s->fl_pg_order = FL_PG_ORDER;
 	if (s->fl_pg_order)
 		t4_write_reg(adap,
-			     SGE_FL_BUFFER_SIZE0+RX_LARGE_PG_BUF*sizeof(u32),
+			     SGE_FL_BUFFER_SIZE0_A+RX_LARGE_PG_BUF*sizeof(u32),
 			     PAGE_SIZE << FL_PG_ORDER);
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0+RX_SMALL_MTU_BUF*sizeof(u32),
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0_A+RX_SMALL_MTU_BUF*sizeof(u32),
 		     FL_MTU_SMALL_BUFSIZE(adap));
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0+RX_LARGE_MTU_BUF*sizeof(u32),
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0_A+RX_LARGE_MTU_BUF*sizeof(u32),
 		     FL_MTU_LARGE_BUFSIZE(adap));
 
 	/*
 	 * Note that the SGE Ingress Packet Count Interrupt Threshold and
 	 * Timer Holdoff values must be supplied by our caller.
 	 */
-	t4_write_reg(adap, SGE_INGRESS_RX_THRESHOLD,
-		     THRESHOLD_0(s->counter_val[0]) |
-		     THRESHOLD_1(s->counter_val[1]) |
-		     THRESHOLD_2(s->counter_val[2]) |
-		     THRESHOLD_3(s->counter_val[3]));
+	t4_write_reg(adap, SGE_INGRESS_RX_THRESHOLD_A,
+		     THRESHOLD_0_V(s->counter_val[0]) |
+		     THRESHOLD_1_V(s->counter_val[1]) |
+		     THRESHOLD_2_V(s->counter_val[2]) |
+		     THRESHOLD_3_V(s->counter_val[3]));
 	t4_write_reg(adap, SGE_TIMER_VALUE_0_AND_1,
 		     TIMERVALUE0(us_to_core_ticks(adap, s->timer_val[0])) |
 		     TIMERVALUE1(us_to_core_ticks(adap, s->timer_val[1])));
@@ -2953,9 +2960,9 @@ int t4_sge_init(struct adapter *adap)
 	 * Ingress Padding Boundary and Egress Status Page Size are set up by
 	 * t4_fixup_host_params().
 	 */
-	sge_control = t4_read_reg(adap, SGE_CONTROL);
-	s->pktshift = PKTSHIFT_GET(sge_control);
-	s->stat_len = (sge_control & EGRSTATUSPAGESIZE_MASK) ? 128 : 64;
+	sge_control = t4_read_reg(adap, SGE_CONTROL_A);
+	s->pktshift = PKTSHIFT_G(sge_control);
+	s->stat_len = (sge_control & EGRSTATUSPAGESIZE_F) ? 128 : 64;
 
 	/* T4 uses a single control field to specify both the PCIe Padding and
 	 * Packing Boundary.  T5 introduced the ability to specify these
@@ -2963,8 +2970,8 @@ int t4_sge_init(struct adapter *adap)
 	 * within Packed Buffer Mode is the maximum of these two
 	 * specifications.
 	 */
-	ingpadboundary = 1 << (INGPADBOUNDARY_GET(sge_control) +
-			       X_INGPADBOUNDARY_SHIFT);
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) +
+			       INGPADBOUNDARY_SHIFT_X);
 	if (is_t4(adap->params.chip)) {
 		s->fl_align = ingpadboundary;
 	} else {
@@ -3001,11 +3008,11 @@ int t4_sge_init(struct adapter *adap)
 	 * buffers and a new field which only applies to Packed Mode Free List
 	 * buffers.
 	 */
-	sge_conm_ctrl = t4_read_reg(adap, SGE_CONM_CTRL);
+	sge_conm_ctrl = t4_read_reg(adap, SGE_CONM_CTRL_A);
 	if (is_t4(adap->params.chip))
-		egress_threshold = EGRTHRESHOLD_GET(sge_conm_ctrl);
+		egress_threshold = EGRTHRESHOLD_G(sge_conm_ctrl);
 	else
-		egress_threshold = EGRTHRESHOLDPACKING_GET(sge_conm_ctrl);
+		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
