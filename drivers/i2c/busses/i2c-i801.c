@@ -62,6 +62,8 @@
   Wildcat Point (PCH)   0x8ca2     32     hard     yes     yes     yes
   Sunrise Point-H (PCH) 0xa123     32     hard     yes     yes     yes
   Sunrise Point-LP (PCH)0x9d23     32     hard     yes     yes     yes
+  Lewisburg (PCH)       0xa1a3     32     hard     yes     yes     yes
+  Lewisburg Supersku (PCH) 0xa223     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -193,6 +195,8 @@
 #define PCI_DEVICE_ID_INTEL_WILDCATPOINT_LP_SMBUS	0x9ca2
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS	0xa123
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS	0x9d23
+#define PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS		0xa1a3
+#define PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS	0xa223
 
 struct i801_priv {
 	struct i2c_adapter adapter;
@@ -749,6 +753,8 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WILDCATPOINT_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_LEWISBURG_SSKU_SMBUS) },
 	{ 0, }
 };
 
