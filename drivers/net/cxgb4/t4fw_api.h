@@ -671,6 +671,7 @@ enum fw_cmd_opcodes {
 	FW_RSS_IND_TBL_CMD             = 0x20,
 	FW_RSS_GLB_CONFIG_CMD          = 0x22,
 	FW_RSS_VI_CONFIG_CMD           = 0x23,
+	FW_DEVLOG_CMD                  = 0x25,
 	FW_CLIP_CMD                    = 0x28,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
@@ -2983,36 +2984,84 @@ enum fw_hdr_flags {
 	FW_HDR_FLAGS_RESET_HALT = 0x00000001,
 };
 
-/* P C I E   F W   P F 7   R E G I S T E R */
+/* length of the formatting string  */
+#define FW_DEVLOG_FMT_LEN	192
 
-/* PF7 stores the Firmware Device Log parameters which allows Host Drivers to
- * access the "devlog" which needing to contact firmware.  The encoding is
- * mostly the same as that returned by the DEVLOG command except for the size
- * which is encoded as the number of entries in multiples-1 of 128 here rather
- * than the memory size as is done in the DEVLOG command.  Thus, 0 means 128
- * and 15 means 2048.  This of course in turn constrains the allowed values
- * for the devlog size ...
- */
-#define PCIE_FW_PF_DEVLOG		7
+/* maximum number of the formatting string parameters */
+#define FW_DEVLOG_FMT_PARAMS_NUM 8
 
-#define PCIE_FW_PF_DEVLOG_NENTRIES128_S	28
-#define PCIE_FW_PF_DEVLOG_NENTRIES128_M	0xf
-#define PCIE_FW_PF_DEVLOG_NENTRIES128_V(x) \
-	((x) << PCIE_FW_PF_DEVLOG_NENTRIES128_S)
-#define PCIE_FW_PF_DEVLOG_NENTRIES128_G(x) \
-	(((x) >> PCIE_FW_PF_DEVLOG_NENTRIES128_S) & \
-	 PCIE_FW_PF_DEVLOG_NENTRIES128_M)
+/* priority levels */
+enum fw_devlog_level {
+	FW_DEVLOG_LEVEL_EMERG	= 0x0,
+	FW_DEVLOG_LEVEL_CRIT	= 0x1,
+	FW_DEVLOG_LEVEL_ERR	= 0x2,
+	FW_DEVLOG_LEVEL_NOTICE	= 0x3,
+	FW_DEVLOG_LEVEL_INFO	= 0x4,
+	FW_DEVLOG_LEVEL_DEBUG	= 0x5,
+	FW_DEVLOG_LEVEL_MAX	= 0x5,
+};
 
-#define PCIE_FW_PF_DEVLOG_ADDR16_S	4
-#define PCIE_FW_PF_DEVLOG_ADDR16_M	0xffffff
-#define PCIE_FW_PF_DEVLOG_ADDR16_V(x)	((x) << PCIE_FW_PF_DEVLOG_ADDR16_S)
-#define PCIE_FW_PF_DEVLOG_ADDR16_G(x) \
-	(((x) >> PCIE_FW_PF_DEVLOG_ADDR16_S) & PCIE_FW_PF_DEVLOG_ADDR16_M)
+/* facilities that may send a log message */
+enum fw_devlog_facility {
+	FW_DEVLOG_FACILITY_CORE		= 0x00,
+	FW_DEVLOG_FACILITY_CF		= 0x01,
+	FW_DEVLOG_FACILITY_SCHED	= 0x02,
+	FW_DEVLOG_FACILITY_TIMER	= 0x04,
+	FW_DEVLOG_FACILITY_RES		= 0x06,
+	FW_DEVLOG_FACILITY_HW		= 0x08,
+	FW_DEVLOG_FACILITY_FLR		= 0x10,
+	FW_DEVLOG_FACILITY_DMAQ		= 0x12,
+	FW_DEVLOG_FACILITY_PHY		= 0x14,
+	FW_DEVLOG_FACILITY_MAC		= 0x16,
+	FW_DEVLOG_FACILITY_PORT		= 0x18,
+	FW_DEVLOG_FACILITY_VI		= 0x1A,
+	FW_DEVLOG_FACILITY_FILTER	= 0x1C,
+	FW_DEVLOG_FACILITY_ACL		= 0x1E,
+	FW_DEVLOG_FACILITY_TM		= 0x20,
+	FW_DEVLOG_FACILITY_QFC		= 0x22,
+	FW_DEVLOG_FACILITY_DCB		= 0x24,
+	FW_DEVLOG_FACILITY_ETH		= 0x26,
+	FW_DEVLOG_FACILITY_OFLD		= 0x28,
+	FW_DEVLOG_FACILITY_RI		= 0x2A,
+	FW_DEVLOG_FACILITY_ISCSI	= 0x2C,
+	FW_DEVLOG_FACILITY_FCOE		= 0x2E,
+	FW_DEVLOG_FACILITY_FOISCSI	= 0x30,
+	FW_DEVLOG_FACILITY_FOFCOE	= 0x32,
+	FW_DEVLOG_FACILITY_MAX		= 0x32,
+};
 
-#define PCIE_FW_PF_DEVLOG_MEMTYPE_S	0
-#define PCIE_FW_PF_DEVLOG_MEMTYPE_M	0xf
-#define PCIE_FW_PF_DEVLOG_MEMTYPE_V(x)	((x) << PCIE_FW_PF_DEVLOG_MEMTYPE_S)
-#define PCIE_FW_PF_DEVLOG_MEMTYPE_G(x) \
-	(((x) >> PCIE_FW_PF_DEVLOG_MEMTYPE_S) & PCIE_FW_PF_DEVLOG_MEMTYPE_M)
+/* log message format */
+struct fw_devlog_e {
+	__be64	timestamp;
+	__be32	seqno;
+	__be16	reserved1;
+	__u8	level;
+	__u8	facility;
+	__u8	fmt[FW_DEVLOG_FMT_LEN];
+	__be32	params[FW_DEVLOG_FMT_PARAMS_NUM];
+	__be32	reserved3[4];
+};
+
+struct fw_devlog_cmd {
+	__be32 op_to_write;
+	__be32 retval_len16;
+	__u8   level;
+	__u8   r2[7];
+	__be32 memtype_devlog_memaddr16_devlog;
+	__be32 memsize_devlog;
+	__be32 r3[2];
+};
+
+#define FW_DEVLOG_CMD_MEMTYPE_DEVLOG_S		28
+#define FW_DEVLOG_CMD_MEMTYPE_DEVLOG_M		0xf
+#define FW_DEVLOG_CMD_MEMTYPE_DEVLOG_G(x)	\
+	(((x) >> FW_DEVLOG_CMD_MEMTYPE_DEVLOG_S) & \
+	 FW_DEVLOG_CMD_MEMTYPE_DEVLOG_M)
+
+#define FW_DEVLOG_CMD_MEMADDR16_DEVLOG_S	0
+#define FW_DEVLOG_CMD_MEMADDR16_DEVLOG_M	0xfffffff
+#define FW_DEVLOG_CMD_MEMADDR16_DEVLOG_G(x)	\
+	(((x) >> FW_DEVLOG_CMD_MEMADDR16_DEVLOG_S) & \
+	 FW_DEVLOG_CMD_MEMADDR16_DEVLOG_M)
 
 #endif /* _T4FW_INTERFACE_H_ */
