@@ -10,6 +10,7 @@
 #include <linux/file.h>
 #include <linux/audit.h>
 #include <linux/swap.h>
+#include <linux/vmalloc.h>
 
 #include <asm/uaccess.h>
 #include <linux/kmemtrace.h>
@@ -377,6 +378,14 @@ unsigned long vm_commit_limit(void)
 	return allowed;
 }
 
+void kvfree(const void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+EXPORT_SYMBOL(kvfree);
 
 /* Tracepoints definitions. */
 EXPORT_TRACEPOINT_SYMBOL(kmalloc);
