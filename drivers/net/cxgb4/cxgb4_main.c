@@ -1455,14 +1455,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			"%u.%u.%u.%u, TP %u.%u.%u.%u",
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.fw_vers),
-			FW_HDR_FW_VER_MAJOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MINOR_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_MICRO_GET(adapter->params.tp_vers),
-			FW_HDR_FW_VER_BUILD_GET(adapter->params.tp_vers));
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers),
+			FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
+			FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -2796,7 +2796,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	int ret;
 	const struct firmware *fw;
 	struct adapter *adap = netdev2adap(netdev);
-	unsigned int mbox = FW_PCIE_FW_MASTER_MASK + 1;
+	unsigned int mbox = PCIE_FW_MASTER_M + 1;
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
 	ret = request_firmware(&fw, ef->data, adap->pdev_dev);
@@ -3200,7 +3200,7 @@ int cxgb4_clip_get(const struct net_device *dev,
 	memset(&c, 0, sizeof(c));
 	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
 			FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_ALLOC_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -3217,7 +3217,7 @@ int cxgb4_clip_release(const struct net_device *dev,
 	memset(&c, 0, sizeof(c));
 	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
 			FW_CMD_REQUEST_F | FW_CMD_READ_F);
-	c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
+	c.alloc_to_len16 = htonl(FW_CLIP_CMD_FREE_F | FW_LEN16(c));
 	c.ip_hi = *(__be64 *)(lip->s6_addr);
 	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
 	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
@@ -4808,8 +4808,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	ret = t4_config_glbl_rss(adap, adap->fn,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP);
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F);
 	if (ret < 0)
 		return ret;
 
@@ -5185,10 +5185,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	adapter->flags |= RSS_TNLALLLOOKUP;
 	ret = t4_config_glbl_rss(adapter, adapter->mbox,
 				 FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
+				 FW_RSS_GLB_CONFIG_CMD_TNLMAPEN_F |
+				 FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ_F |
 				 ((adapter->flags & RSS_TNLALLLOOKUP) ?
-					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP : 0));
+					FW_RSS_GLB_CONFIG_CMD_TNLALLLKP_F : 0));
 	if (ret < 0)
 		goto bye;
 
