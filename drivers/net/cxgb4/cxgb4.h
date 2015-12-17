@@ -383,6 +383,10 @@ enum {
 struct adapter;
 struct sge_rspq;
 
+#ifdef CONFIG_CHELSIO_T4_FCOE
+#include "cxgb4_fcoe.h"
+#endif /* CONFIG_CHELSIO_T4_FCOE */
+
 struct port_info {
 	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
@@ -401,6 +405,9 @@ struct port_info {
 	u8     rss_mode;
 	struct link_config link_cfg;
 	u16   *rss;
+#ifdef CONFIG_CHELSIO_T4_FCOE
+	struct cxgb_fcoe fcoe;
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 };
 
 /* port_info.rx_offload flags */
