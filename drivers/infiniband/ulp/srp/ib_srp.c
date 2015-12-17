@@ -132,6 +132,7 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr);
 static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event);
 
 static struct scsi_transport_template *ib_srp_transport_template;
+static struct workqueue_struct *srp_remove_wq;
 
 static struct ib_client srp_client = {
 	.name   = "srp",
@@ -141,7 +142,6 @@ static struct ib_client srp_client = {
 
 static struct ib_sa_client srp_sa_client;
 
-static struct workqueue_struct *srp_wq;
 static struct workqueue_struct *srp_long_wq;
 
 static int srp_tmo_get(char *buffer, struct kernel_param *kp)
@@ -731,7 +731,7 @@ static bool srp_queue_remove_work(struct srp_target_port *target)
 	spin_unlock_irq(&target->lock);
 
 	if (changed)
-		queue_work(srp_wq, &target->remove_work);
+		queue_work(srp_remove_wq, &target->remove_work);
 
 	return changed;
 }
@@ -3263,9 +3263,9 @@ static void srp_remove_one(struct ib_device *device)
 		spin_unlock(&host->target_lock);
 
 		/*
-		 * Wait for target port removal tasks.
+		 * Wait for tl_err and target port removal tasks.
 		 */
-		flush_workqueue(srp_wq);
+		flush_workqueue(srp_remove_wq);
 
 		kfree(host);
 	}
@@ -3315,48 +3315,54 @@ static int __init srp_init_module(void)
 		indirect_sg_entries = cmd_sg_entries;
 	}
 
-	srp_wq = create_singlethread_workqueue("srp_wq");
-	if (!srp_wq) {
-		pr_err("couldn't create workqueue\n");
-		return -ENOMEM;
+	srp_long_wq = create_workqueue("srp_long");
+	if (IS_ERR(srp_long_wq)) {
+		ret = PTR_ERR(srp_long_wq);
+		goto out;
 	}
 
-	srp_long_wq = create_workqueue("srp_long_wq");
-	if (!srp_long_wq) {
-		pr_err("couldn't create long workqueue\n");
-		ret = -ENOMEM;
-		goto rm_wq1;
+	srp_remove_wq = create_workqueue("srp_remove");
+	if (IS_ERR(srp_remove_wq)) {
+		ret = PTR_ERR(srp_remove_wq);
+		goto destroy_long_wq;
 	}
 
+	ret = -ENOMEM;
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);
-	if (!ib_srp_transport_template) {
-		pr_err("couldn't attach transport\n");
-		ret = -ENOMEM;
-		goto rm_wq2;
-	}
+	if (!ib_srp_transport_template)
+		goto destroy_remove_wq;
 
 	ret = class_register(&srp_class);
 	if (ret) {
 		pr_err("couldn't register class infiniband_srp\n");
-		goto rm_transport;
+		goto release_tr;
 	}
 
 	ib_sa_register_client(&srp_sa_client);
 
 	ret = ib_register_client(&srp_client);
-	if (ret == 0)
-		return 0;
-	pr_err("couldn't register IB client\n");
+	if (ret) {
+		pr_err("couldn't register IB client\n");
+		goto unreg_sa;
+	}
+
+out:
+	return ret;
+
+unreg_sa:
 	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
-rm_transport:
+
+release_tr:
 	srp_release_transport(ib_srp_transport_template);
-rm_wq2:
+
+destroy_remove_wq:
+	destroy_workqueue(srp_remove_wq);
+
+destroy_long_wq:
 	destroy_workqueue(srp_long_wq);
-rm_wq1:
-	destroy_workqueue(srp_wq);
-	return ret;
+	goto out;
 }
 
 static void __exit srp_cleanup_module(void)
@@ -3365,8 +3371,7 @@ static void __exit srp_cleanup_module(void)
 	ib_sa_unregister_client(&srp_sa_client);
 	class_unregister(&srp_class);
 	srp_release_transport(ib_srp_transport_template);
-	destroy_workqueue(srp_long_wq);
-	destroy_workqueue(srp_wq);
+	destroy_workqueue(srp_remove_wq);
 }
 
 module_init(srp_init_module);
