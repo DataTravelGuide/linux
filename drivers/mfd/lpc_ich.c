@@ -54,6 +54,7 @@
  *	document number TBD : Avoton SoC
  *	document number TBD : Wildcat Point-LP
  *	document number TBD : Coleto Creek
+ *	document number TBD : Lewisburg
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -222,6 +223,7 @@ enum lpc_chipsets {
 	LPC_BAYTRAIL,   /* Bay Trail SoC */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
 	LPC_COLETO,	/* Coleto Creek */
+	LPC_LEWISBURG,	/* Lewisburg */
 };
 
 struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
@@ -524,6 +526,10 @@ struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
 		.name = "Coleto Creek",
 		.iTCO_version = 2,
 	},
+	[LPC_LEWISBURG] = {
+		.name = "Lewisburg",
+		.iTCO_version = 2,
+	},
 };
 
 /*
@@ -750,6 +756,15 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9cc7), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc9), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x2390), LPC_COLETO},
+	{ PCI_VDEVICE(INTEL, 0xa1c1), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c2), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c3), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c4), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c5), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c6), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa1c7), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa242), LPC_LEWISBURG},
+	{ PCI_VDEVICE(INTEL, 0xa243), LPC_LEWISBURG},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
