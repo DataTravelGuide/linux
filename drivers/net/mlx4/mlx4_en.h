@@ -62,39 +62,6 @@
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
-#define en_print(level, priv, format, arg...)			\
-	{							\
-	if ((priv)->registered)					\
-		printk(level "%s: %s: " format, DRV_NAME,	\
-			(priv->dev)->name, ## arg);		\
-	else							\
-		printk(level "%s: %s: Port %d: " format,	\
-			DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
-			(priv)->port, ## arg);			\
-	}
-
-#define en_dbg(mlevel, priv, format, arg...)			\
-	{							\
-	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
-		en_print(KERN_DEBUG, priv, format, ## arg)	\
-	}
-#define en_warn(priv, format, arg...)				\
-	en_print(KERN_WARNING, priv, format, ## arg)
-#define en_err(priv, format, arg...)				\
-	en_print(KERN_ERR, priv, format, ## arg)
-#define en_info(priv, format, arg...)				\
-	en_print(KERN_INFO, priv, format, ## arg)
-
-#define mlx4_err(mdev, format, arg...) \
-	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_info(mdev, format, arg...) \
-	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_warn(mdev, format, arg...) \
-	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-
 /*
  * Device constants
  */
@@ -845,4 +812,37 @@ int mlx4_en_timestamp_config(struct net_device *dev,
  */
 extern const struct ethtool_ops mlx4_en_ethtool_ops;
 extern const struct ethtool_ops_ext mlx4_en_ethtool_ops_ext;
+
+
+
+/*
+ * printk / logging functions
+ */
+
+__printf(3, 4)
+void en_print(const char *level, const struct mlx4_en_priv *priv,
+	     const char *format, ...);
+
+#define en_dbg(mlevel, priv, format, ...)				\
+do {									\
+	if (NETIF_MSG_##mlevel & (priv)->msg_enable)			\
+		en_print(KERN_DEBUG, priv, format, ##__VA_ARGS__);	\
+} while (0)
+#define en_warn(priv, format, ...)					\
+	en_print(KERN_WARNING, priv, format, ##__VA_ARGS__)
+#define en_err(priv, format, ...)					\
+	en_print(KERN_ERR, priv, format, ##__VA_ARGS__)
+#define en_info(priv, format, ...)					\
+	en_print(KERN_INFO, priv, format, ##__VA_ARGS__)
+
+#define mlx4_err(mdev, format, ...)					\
+	pr_err(DRV_NAME " %s: " format,					\
+	       dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
+#define mlx4_info(mdev, format, ...)					\
+	pr_info(DRV_NAME " %s: " format,				\
+		dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
+#define mlx4_warn(mdev, format, ...)					\
+	pr_warn(DRV_NAME " %s: " format,				\
+		dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
+
 #endif

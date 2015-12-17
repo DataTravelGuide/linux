@@ -1527,7 +1527,7 @@ int mlx4_en_start_port(struct net_device *dev)
 			cq->buf[j].owner_sr_opcode = MLX4_CQE_OWNER_MASK;
 		err = mlx4_en_set_cq_moder(priv, cq);
 		if (err) {
-			en_err(priv, "Failed setting cq moderation parameters");
+			en_err(priv, "Failed setting cq moderation parameters\n");
 			mlx4_en_deactivate_cq(priv, cq);
 			goto cq_err;
 		}
@@ -1566,7 +1566,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		}
 		err = mlx4_en_set_cq_moder(priv, cq);
 		if (err) {
-			en_err(priv, "Failed setting cq moderation parameters");
+			en_err(priv, "Failed setting cq moderation parameters\n");
 			mlx4_en_deactivate_cq(priv, cq);
 			goto tx_err;
 		}
@@ -2433,8 +2433,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 				    prof->tx_pause, prof->tx_ppp,
 				    prof->rx_pause, prof->rx_ppp);
 	if (err) {
-		en_err(priv, "Failed setting port general configurations "
-		       "for port %d, with error %d\n", priv->port, err);
+		en_err(priv, "Failed setting port general configurations for port %d, with error %d\n",
+		       priv->port, err);
 		goto out;
 	}
 
