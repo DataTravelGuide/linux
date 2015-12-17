@@ -265,11 +265,10 @@ MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
+static int tpm_tis_send_data(struct tpm_chip *chip, u8 *buf, size_t len)
 {
 	int rc, status, burstcnt;
 	size_t count = 0;
-	u32 ordinal;
 
 	if (request_locality(chip, 0) < 0)
 		return -EBUSY;
@@ -313,6 +312,28 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 		goto out_err;
 	}
 
+	return 0;
+
+out_err:
+	tpm_tis_ready(chip);
+	release_locality(chip, chip->vendor.locality, 0);
+	return rc;
+}
+
+/*
+ * If interrupts are used (signaled by an irq set in the vendor structure)
+ * tpm.c can skip polling for the data to be available as the interrupt is
+ * waited for here
+ */
+static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
+{
+	int rc;
+	u32 ordinal;
+
+	rc = tpm_tis_send_data(chip, buf, len);
+	if (rc < 0)
+		return rc;
+
 	/* go and do it */
 	iowrite8(TPM_STS_GO,
 		 chip->vendor.iobase + TPM_STS(chip->vendor.locality));
@@ -331,6 +352,47 @@ static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 out_err:
 	tpm_tis_ready(chip);
 	release_locality(chip, chip->vendor.locality, 0);
+	return rc;
+}
+
+/*
+ * Early probing for iTPM with STS_DATA_EXPECT flaw.
+ * Try sending command without itpm flag set and if that
+ * fails, repeat with itpm flag set.
+ */
+static int probe_itpm(struct tpm_chip *chip)
+{
+	int rc = 0;
+	u8 cmd_getticks[] = {
+		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a,
+		0x00, 0x00, 0x00, 0xf1
+	};
+	size_t len = sizeof(cmd_getticks);
+	int rem_itpm = itpm;
+
+	itpm = 0;
+
+	rc = tpm_tis_send_data(chip, cmd_getticks, len);
+	if (rc == 0)
+		goto out;
+
+	tpm_tis_ready(chip);
+	release_locality(chip, chip->vendor.locality, 0);
+
+	itpm = 1;
+
+	rc = tpm_tis_send_data(chip, cmd_getticks, len);
+	if (rc == 0) {
+		dev_info(chip->dev, "Detected an iTPM.\n");
+		rc = 1;
+	} else
+		rc = -EFAULT;
+
+out:
+	itpm = rem_itpm;
+	tpm_tis_ready(chip);
+	release_locality(chip, chip->vendor.locality, 0);
+
 	return rc;
 }
 
@@ -472,6 +534,14 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	dev_info(dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
+
+	if (!itpm) {
+		itpm = probe_itpm(chip);
+		if (itpm < 0) {
+			rc = -ENODEV;
+			goto out_err;
+		}
+	}
 
 	if (itpm)
 		dev_info(dev, "Intel iTPM workaround enabled\n");
