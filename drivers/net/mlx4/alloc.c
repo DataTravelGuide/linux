@@ -591,7 +591,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		buf->nbufs        = 1;
 		buf->npages       = 1;
 		buf->page_shift   = get_order(size) + PAGE_SHIFT;
-		buf->direct.buf   = dma_alloc_coherent(&dev->pdev->dev,
+		buf->direct.buf   = dma_alloc_coherent(&dev->persist->pdev->dev,
 						       size, &t, gfp);
 		if (!buf->direct.buf)
 			return -ENOMEM;
@@ -618,7 +618,8 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 
 		for (i = 0; i < buf->nbufs; ++i) {
 			buf->page_list[i].buf =
-				dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
+				dma_alloc_coherent(&dev->persist->pdev->dev,
+						   PAGE_SIZE,
 						   &t, gfp);
 			if (!buf->page_list[i].buf)
 				goto err_free;
@@ -656,7 +657,8 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 	int i;
 
 	if (buf->nbufs == 1)
-		dma_free_coherent(&dev->pdev->dev, size, buf->direct.buf,
+		dma_free_coherent(&dev->persist->pdev->dev, size,
+				  buf->direct.buf,
 				  buf->direct.map);
 	else {
 		if (BITS_PER_LONG == 64 && buf->direct.buf)
@@ -664,7 +666,8 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)
-				dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+				dma_free_coherent(&dev->persist->pdev->dev,
+						  PAGE_SIZE,
 						  buf->page_list[i].buf,
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
@@ -737,7 +740,7 @@ int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order, gfp_t gfp
 		if (!mlx4_alloc_db_from_pgdir(pgdir, db, order))
 			goto out;
 
-	pgdir = mlx4_alloc_db_pgdir(&(dev->pdev->dev), gfp);
+	pgdir = mlx4_alloc_db_pgdir(&dev->persist->pdev->dev, gfp);
 	if (!pgdir) {
 		ret = -ENOMEM;
 		goto out;
@@ -774,7 +777,7 @@ void mlx4_db_free(struct mlx4_dev *dev, struct mlx4_db *db)
 	set_bit(i, db->u.pgdir->bits[o]);
 
 	if (bitmap_full(db->u.pgdir->order1, MLX4_DB_PER_PAGE / 2)) {
-		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+		dma_free_coherent(&dev->persist->pdev->dev, PAGE_SIZE,
 				  db->u.pgdir->db_page, db->u.pgdir->db_dma);
 		list_del(&db->u.pgdir->list);
 		kfree(db->u.pgdir);
