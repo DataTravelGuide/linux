@@ -598,13 +598,16 @@ int cifs_get_inode_info(struct inode **pinode,
 	const unsigned char *full_path, FILE_ALL_INFO *pfindData,
 	struct super_block *sb, int xid, const __u16 *pfid)
 {
-	int rc = 0, tmprc;
+	bool validinum = false;
+	__u16 srchflgs;
+	int rc = 0, tmprc = ENOSYS;
 	struct cifs_tcon *pTcon;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *buf = NULL;
 	bool adjustTZ = false;
 	struct cifs_fattr fattr;
+	struct cifs_search_info *srchinf = NULL;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -652,9 +655,39 @@ int cifs_get_inode_info(struct inode **pinode,
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, sb);
 		rc = 0;
-	} else {
+	} else if (rc == -EACCES && backup_cred(cifs_sb)) {
+		srchinf = kzalloc(sizeof(struct cifs_search_info),
+					 GFP_KERNEL);
+		if (srchinf == NULL) {
+			rc = -ENOMEM;
+			goto cgii_exit;
+		}
+
+		srchinf->endOfSearch = false;
+		srchinf->info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
+
+		srchflgs = CIFS_SEARCH_CLOSE_ALWAYS |
+				CIFS_SEARCH_CLOSE_AT_END |
+				CIFS_SEARCH_BACKUP_SEARCH;
+
+		rc = CIFSFindFirst(xid, pTcon, full_path,
+			cifs_sb, NULL, srchflgs, srchinf, false);
+		if (!rc) {
+			pfindData =
+			(FILE_ALL_INFO *)srchinf->srch_entries_start;
+
+			cifs_dir_info_to_fattr(&fattr,
+			(FILE_DIRECTORY_INFO *)pfindData, cifs_sb);
+			fattr.cf_uniqueid = le64_to_cpu(
+			((SEARCH_ID_FULL_DIR_INFO *)pfindData)->UniqueId);
+			validinum = true;
+
+			cifs_buf_release(srchinf->ntwrk_buf_start);
+		}
+		kfree(srchinf);
+
+	} else
 		goto cgii_exit;
-	}
 
 	/*
 	 * If an inode wasn't passed in, then get the inode number
@@ -675,24 +708,24 @@ int cifs_get_inode_info(struct inode **pinode,
 	 */
 	if (*pinode == NULL) {
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
-			int rc1 = 0;
+			if (validinum == false) {
+				int rc1 = 0;
 
-			rc1 = CIFSGetSrvInodeNumber(xid, pTcon,
-					full_path, &fattr.cf_uniqueid,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc1 || !fattr.cf_uniqueid) {
-				cFYI(1, "GetSrvInodeNum rc %d", rc1);
-				fattr.cf_uniqueid = iunique(sb, ROOT_I);
-				cifs_autodisable_serverino(cifs_sb);
+				rc1 = CIFSGetSrvInodeNumber(xid, pTcon,
+						full_path, &fattr.cf_uniqueid,
+						cifs_sb->local_nls,
+						cifs_sb->mnt_cifs_flags &
+							CIFS_MOUNT_MAP_SPECIAL_CHR);
+				if (rc1 || !fattr.cf_uniqueid) {
+					cFYI(1, "GetSrvInodeNum rc %d", rc1);
+					fattr.cf_uniqueid = iunique(sb, ROOT_I);
+					cifs_autodisable_serverino(cifs_sb);
+				}
 			}
-		} else {
+		} else
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
-		}
-	} else {
+	} else
 		fattr.cf_uniqueid = CIFS_I(*pinode)->uniqueid;
-	}
 
 	/* query for SFU type info if supported and needed */
 	if (fattr.cf_cifsattrs & ATTR_SYSTEM &&
