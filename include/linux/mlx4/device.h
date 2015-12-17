@@ -1206,4 +1206,8 @@ static inline bool mlx4_low_memory_profile(void)
 	return is_kdump_kernel();
 }
 
+int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port);
+int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port);
+int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
+				 int enable);
 #endif /* MLX4_DEVICE_H */
