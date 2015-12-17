@@ -91,7 +91,8 @@ enum {
 
 enum {
 	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
-	IB_USER_VERBS_EX_CMD_DESTROY_FLOW
+	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
+	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
 };
 
 /*
@@ -200,6 +201,18 @@ struct ib_uverbs_query_device_resp {
 	__u8  phys_port_cnt;
 	__u8  reserved[4];
 };
+
+struct ib_uverbs_ex_query_device {
+       __u32 comp_mask;
+       __u32 reserved;
+};
+
+struct ib_uverbs_ex_query_device_resp {
+       struct ib_uverbs_query_device_resp base;
+       __u32 comp_mask;
+       __u32 response_length;
+};
+
 
 struct ib_uverbs_query_port {
 	__u64 response;
