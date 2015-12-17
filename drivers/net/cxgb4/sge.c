@@ -871,10 +871,9 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
  * writes). For coalesced WR SGE, fetches data from the FIFO instead of from
  * Host.
  */
-static void cxgb_pio_copy(u64 __iomem *dst, struct tx_desc *desc)
+static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
 {
-	int count = sizeof(*desc) / sizeof(u64);
-	u64 *src = (u64 *)desc;
+	int count = 8;
 
 	while (count) {
 		writeq(*src, dst);
@@ -933,8 +932,12 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 				     ? (q->pidx - 1)
 				     : (q->size - 1));
 
-			cxgb_pio_copy(adap->bar2 + q->udb + SGE_UDB_WCDOORBELL,
-				      q->desc + index);
+			u64 *wr = (u64 *)&q->desc[index];
+
+			cxgb_pio_copy((u64 __iomem *)
+				      (adap->bar2 + q->udb +
+				       SGE_UDB_WCDOORBELL),
+				      (u64 *)wr);
 		} else {
 			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
 		}
