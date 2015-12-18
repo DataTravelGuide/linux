@@ -945,20 +945,14 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 	for (j = 0; j < NUM_URBS; ++j) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		mos7840_port->write_urb_pool[j] = urb;
-
-		if (urb == NULL) {
-			dev_err(&port->dev, "No more urbs???\n");
+		if (!urb)
 			continue;
-		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 								GFP_KERNEL);
 		if (!urb->transfer_buffer) {
 			usb_free_urb(urb);
 			mos7840_port->write_urb_pool[j] = NULL;
-			dev_err(&port->dev,
-				"%s-out of memory for urb buffers.\n",
-				__func__);
 			continue;
 		}
 	}
@@ -1460,11 +1454,8 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 		urb->transfer_buffer =
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 
-		if (urb->transfer_buffer == NULL) {
-			dev_err(&port->dev, "%s no more kernel memory...\n",
-				__func__);
+		if (urb->transfer_buffer == NULL)
 			goto exit;
-		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
@@ -2346,10 +2337,8 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 
 	dev_dbg(&port->dev, "mos7840_startup: configuring port %d\n", pnum);
 	mos7840_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
-	if (mos7840_port == NULL) {
-		dev_err(&port->dev, "%s - Out of memory\n", __func__);
+	if (!mos7840_port)
 		return -ENOMEM;
-	}
 
 	/* Initialize all port interrupt end point to port 0 int
 	 * endpoint. Our device has only one interrupt end point
