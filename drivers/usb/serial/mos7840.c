@@ -1356,8 +1356,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	    mos7840_port->shadowLCR);
 	mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER,
 			     mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -1588,8 +1586,6 @@ static void mos7840_throttle(struct tty_struct *tty)
 		if (status < 0)
 			return;
 	}
-
-	return;
 }
 
 /*****************************************************************************
@@ -2064,8 +2060,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	mos7840_port->delta_msr_cond = 1;
 	dbg("mos7840_change_port_settings mos7840_port->shadowLCR is End %x",
 	    mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -2134,7 +2128,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 			mos7840_port->read_urb_busy = false;
 		}
 	}
-	return;
 }
 
 /*****************************************************************************
