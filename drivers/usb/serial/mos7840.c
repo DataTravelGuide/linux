@@ -2157,8 +2157,6 @@ static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
 	if (mos7840_port == NULL)
 		return -1;
 
-	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
-
 	switch (cmd) {
 		/* return number of bytes available */
 
