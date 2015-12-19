@@ -84,8 +84,8 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 	 * If the default thread isn't there, make sure we add it. When
 	 * it gets created and wakes up, we'll run this work.
 	 */
-	if (unlikely(list_empty_careful(&bdi->wb_list))) {
-		 trace_writeback_nothread(bdi, work);
+	if (unlikely(!bdi->wb.task)) {
+		trace_writeback_nothread(bdi, work);
 		wake_up_process(default_backing_dev_info.wb.task);
 	} else {
 		struct bdi_writeback *wb = &bdi->wb;
