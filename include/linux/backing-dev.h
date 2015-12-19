@@ -46,6 +46,7 @@ enum bdi_stat_item {
 
 struct bdi_wb_aux {
 	unsigned long last_active;	/* last time bdi thread was active */
+	struct timer_list wakeup_timer; /* used for delayed bdi thread wakeup */
 };
 
 struct bdi_writeback {
@@ -115,6 +116,7 @@ void bdi_start_background_writeback(struct backing_dev_info *bdi);
 int bdi_writeback_thread(void *data);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
 void bdi_arm_supers_timer(void);
+void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi);
 
 extern spinlock_t bdi_lock;
 extern struct list_head bdi_list;
