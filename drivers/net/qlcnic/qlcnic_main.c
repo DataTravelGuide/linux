@@ -7,11 +7,6 @@
 
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
-
-#include "qlcnic.h"
-#include "qlcnic_sriov.h"
-#include "qlcnic_hw.h"
-
 #include <linux/swab.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
@@ -21,6 +16,10 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 #include <linux/pci.h>
+
+#include "qlcnic.h"
+#include "qlcnic_sriov.h"
+#include "qlcnic_hw.h"
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");

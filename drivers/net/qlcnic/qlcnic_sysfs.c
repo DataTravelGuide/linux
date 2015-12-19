@@ -7,10 +7,6 @@
 
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-
-#include "qlcnic.h"
-#include "qlcnic_hw.h"
-
 #include <linux/swab.h>
 #include <linux/dma-mapping.h>
 #include <net/ip.h>
@@ -24,6 +20,9 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #endif
+
+#include "qlcnic.h"
+#include "qlcnic_hw.h"
 
 static const u32 FW_DUMP_LEVELS[] = {
 	0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
