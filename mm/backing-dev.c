@@ -546,6 +546,9 @@ int bdi_init(struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&bdi->work_list);
 
 	bdi_wb_init(&bdi->wb, bdi);
+	bdi->wb.aux = kmalloc(sizeof(struct bdi_wb_aux), GFP_KERNEL);
+	if (!bdi->wb.aux)
+		return -ENOMEM;
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
 		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
@@ -590,6 +593,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
 
 	prop_local_destroy_percpu(&bdi->completions);
+	kfree(bdi->wb.aux);
 }
 EXPORT_SYMBOL(bdi_destroy);
 
