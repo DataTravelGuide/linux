@@ -341,6 +341,7 @@ static int bdi_forker_thread(void *ptr)
 			wb_do_writeback(me, 0);
 
 		spin_lock_bh(&bdi_lock);
+		set_current_state(TASK_INTERRUPTIBLE);
 
 		/*
 		 * Check if any existing bdi's have dirty data without
@@ -355,8 +356,6 @@ static int bdi_forker_thread(void *ptr)
 
 			bdi_add_default_flusher_thread(bdi);
 		}
-
-		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (list_empty(&bdi_pending_list)) {
 			unsigned long wait;
