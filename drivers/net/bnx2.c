@@ -7707,17 +7707,6 @@ bnx2_set_phys_id(struct net_device *dev, enum ethtool_phys_id_state state)
 	return 0;
 }
 
-static u32
-bnx2_fix_features(struct net_device *dev, u32 features)
-{
-	struct bnx2 *bp = netdev_priv(dev);
-
-	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
-		features |= NETIF_F_HW_VLAN_RX;
-
-	return features;
-}
-
 static int
 bnx2_set_features(struct net_device *dev, u32 features)
 {
@@ -8537,7 +8526,6 @@ static const struct net_device_ops bnx2_netdev_ops = {
 static const struct net_device_ops_ext bnx2_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= bnx2_get_stats64,
-	.ndo_fix_features	= bnx2_fix_features,
 	.ndo_set_features	= bnx2_set_features,
 };
 
@@ -8586,6 +8574,9 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev_extended(dev)->hw_features |= NETIF_F_HW_VLAN_TX |
 		NETIF_F_HW_VLAN_RX;
 	dev->features |= get_netdev_hw_features(dev);
+
+	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
+		netdev_extended(dev)->hw_features &= ~NETIF_F_HW_VLAN_RX;
 
 	if ((rc = register_netdev(dev))) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
