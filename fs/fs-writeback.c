@@ -78,21 +78,17 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 
 	spin_lock(&bdi->wb_lock);
 	list_add_tail(&work->list, &bdi->work_list);
-	spin_unlock(&bdi->wb_lock);
-
-	/*
-	 * If the default thread isn't there, make sure we add it. When
-	 * it gets created and wakes up, we'll run this work.
-	 */
-	if (unlikely(!bdi->wb.task)) {
+	if (bdi->wb.task) {
+		wake_up_process(bdi->wb.task);
+	} else {
+		/*
+		 * The bdi thread isn't there, wake up the forker thread which
+		 * will create and run it.
+		 */
 		trace_writeback_nothread(bdi, work);
 		wake_up_process(default_backing_dev_info.wb.task);
-	} else {
-		struct bdi_writeback *wb = &bdi->wb;
-
-		if (wb->task)
-			wake_up_process(wb->task);
 	}
+	spin_unlock(&bdi->wb_lock);
 }
 
 static void
@@ -786,7 +782,6 @@ int bdi_writeback_thread(void *data)
 {
 	struct bdi_writeback *wb = data;
 	struct backing_dev_info *bdi = wb->bdi;
-	unsigned long wait_jiffies = -1UL;
 	long pages_written;
 
 	trace_writeback_task_start(wb->bdi);
@@ -800,13 +795,6 @@ int bdi_writeback_thread(void *data)
 	 */
 	set_user_nice(current, 0);
 
-	/*
-	 * Clear pending bit and wakeup anybody waiting to tear us down
-	 */
-	clear_bit(BDI_pending, &bdi->state);
-	smp_mb__after_clear_bit();
-	wake_up_bit(&bdi->state, BDI_pending);
-
 	while (!kthread_should_stop()) {
 		pages_written = wb_do_writeback(wb, 0);
 
@@ -814,18 +802,6 @@ int bdi_writeback_thread(void *data)
 
 		if (pages_written)
 			wb->aux->last_active = jiffies;
-		else if (wait_jiffies != -1UL) {
-			unsigned long max_idle;
-
-			/*
-			 * Longest period of inactivity that we tolerate. If we
-			 * see dirty data again later, the thread will get
-			 * recreated automatically.
-			 */
-			max_idle = max(5UL * 60 * HZ, wait_jiffies);
-			if (time_after(jiffies, max_idle + wb->aux->last_active))
-				break;
-		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!list_empty(&bdi->work_list)) {
@@ -833,10 +809,9 @@ int bdi_writeback_thread(void *data)
 			continue;
 		}
 
-		if (dirty_writeback_interval) {
-			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-			schedule_timeout(wait_jiffies);
-		} else
+		if (dirty_writeback_interval)
+			schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
+		else
 			schedule();
 
 		try_to_freeze();
@@ -844,12 +819,7 @@ int bdi_writeback_thread(void *data)
 
 	trace_writeback_task_stop(wb->bdi);
 
-	wb->task = NULL;
-
-	/*
-	 * Flush any work that raced with us exiting. No new work
-	 * will be added, since this bdi isn't discoverable anymore.
-	 */
+	/* Flush any work that raced with us exiting */
 	if (!list_empty(&bdi->work_list))
 		wb_do_writeback(wb, 1);
 	return 0;
