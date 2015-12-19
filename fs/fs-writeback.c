@@ -792,13 +792,6 @@ int bdi_writeback_thread(void *data)
 
 	trace_writeback_task_start(wb->bdi);
 
-	/*
-	 * Add us to the active bdi_list
-	 */
-	spin_lock_bh(&bdi_lock);
-	list_add_rcu(&bdi->bdi_list, &bdi_list);
-	spin_unlock_bh(&bdi_lock);
-
 	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
 	set_freezable();
 
