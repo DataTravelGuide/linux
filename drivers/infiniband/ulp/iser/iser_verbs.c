@@ -720,7 +720,7 @@ static void iser_connect_error(struct rdma_cm_id *cma_id)
 	struct iser_conn *iser_conn;
 
 	iser_conn = (struct iser_conn *)cma_id->context;
-	iser_conn->state = ISER_CONN_DOWN;
+	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
 /**
