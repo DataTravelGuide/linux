@@ -8484,6 +8484,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			   NETIF_F_SCTP_CSUM	       |
 			   NETIF_F_HIGHDMA	       |
 			   NETIF_F_GSO_UDP_TUNNEL      |
+			   NETIF_F_GSO_GRE	       |
 			   NETIF_F_HW_VLAN_TX     |
 			   NETIF_F_HW_VLAN_RX     |
 			   NETIF_F_HW_VLAN_FILTER |
