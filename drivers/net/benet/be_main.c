@@ -5062,6 +5062,35 @@ static inline char *nic_name(struct pci_dev *pdev)
 	}
 }
 
+/* Wait for the FW to be ready and perform the required initialization */
+static int be_func_init(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
+
+	if (be_reset_required(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			return status;
+
+		/* Wait for interrupts to quiesce after an FLR */
+		msleep(100);
+	}
+
+	/* Tell FW we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		return status;
+
+	/* Allow interrupts for other ULPs running on NIC function */
+	be_intr_set(adapter, true);
+
+	return 0;
+}
+
 static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 {
 	struct be_adapter *adapter;
@@ -5121,27 +5150,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	if (status)
 		goto unmap_bars;
 
-	/* sync up with fw's ready state */
-	if (be_physfn(adapter)) {
-		status = be_fw_wait_ready(adapter);
-		if (status)
-			goto drv_cleanup;
-	}
-
-	if (be_reset_required(adapter)) {
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			goto drv_cleanup;
-
-		/* Wait for interrupts to quiesce after an FLR */
-		msleep(100);
-	}
-
-	/* Allow interrupts for other ULPs running on NIC function */
-	be_intr_set(adapter, true);
-
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
+	status = be_func_init(adapter);
 	if (status)
 		goto drv_cleanup;
 
@@ -5221,17 +5230,7 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 
-	status = be_fw_wait_ready(adapter);
-	if (status)
-		return status;
-
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		return status;
-
-	be_intr_set(adapter, true);
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
+	status = be_func_init(adapter);
 	if (status)
 		return status;
 
@@ -5349,18 +5348,7 @@ static void be_eeh_resume(struct pci_dev *pdev)
 
 	pci_save_state(pdev);
 
-	status = be_cmd_reset_function(adapter);
-	if (status)
-		goto err;
-
-	/* On some BE3 FW versions, after a HW reset,
-	 * interrupts will remain disabled for each function.
-	 * So, explicitly enable interrupts
-	 */
-	be_intr_set(adapter, true);
-
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
+	status = be_func_init(adapter);
 	if (status)
 		goto err;
 
