@@ -77,10 +77,14 @@ LIST_HEAD(mpt3sas_ioc_list);
 DEFINE_SPINLOCK(gioc_lock);
 
 MODULE_AUTHOR(MPT3SAS_AUTHOR);
+#ifdef MPT2SAS_SCSI
+MODULE_DESCRIPTION(MPT2SAS_DESCRIPTION);
+MODULE_VERSION(MPT2SAS_DRIVER_VERSION);
+#else
 MODULE_DESCRIPTION(MPT3SAS_DESCRIPTION);
-MODULE_LICENSE("GPL");
 MODULE_VERSION(MPT3SAS_DRIVER_VERSION);
-MODULE_ALIAS("mpt2sas");
+#endif /* MPT2SAS_SCSI */
+MODULE_LICENSE("GPL");
 
 /* local parameters */
 static u8 scsi_io_cb_idx = -1;
@@ -118,13 +122,6 @@ MODULE_PARM_DESC(missing_delay, " device missing delay , io missing delay");
 static int max_lun = MPT3SAS_MAX_LUN;
 module_param(max_lun, int, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
-
-static ushort hbas_to_enumerate;
-module_param(hbas_to_enumerate, ushort, 0);
-MODULE_PARM_DESC(hbas_to_enumerate,
-		" 0 - enumerates both SAS 2.0 & SAS 3.0 generation HBAs\n \
-		  1 - enumerates only SAS 2.0 generation HBAs\n \
-		  2 - enumerates only SAS 3.0 generation HBAs (default=0)");
 
 /* diag_buffer_enable is bitwise
  * bit 0 set = TRACE
@@ -8395,6 +8392,7 @@ static struct scsi_host_template mpt2sas_driver_template = {
 	.lockless			= 1,
 };
 
+#ifdef MPT2SAS_SCSI
 /* raid transport support for SAS 2.0 HBA devices */
 static struct raid_function_template mpt2sas_raid_functions = {
 	.cookie		= &mpt2sas_driver_template,
@@ -8402,6 +8400,7 @@ static struct raid_function_template mpt2sas_raid_functions = {
 	.get_resync	= scsih_get_resync,
 	.get_state	= scsih_get_state,
 };
+#endif /* MPT2SAS_SCSI */
 
 /* shost template for SAS 3.0 HBA devices */
 static struct scsi_host_template mpt3sas_driver_template = {
@@ -8434,6 +8433,7 @@ static struct scsi_host_template mpt3sas_driver_template = {
 	.lockless			= 1,
 };
 
+#ifndef MPT2SAS_SCSI
 /* raid transport support for SAS 3.0 HBA devices */
 static struct raid_function_template mpt3sas_raid_functions = {
 	.cookie		= &mpt3sas_driver_template,
@@ -8441,6 +8441,7 @@ static struct raid_function_template mpt3sas_raid_functions = {
 	.get_resync	= scsih_get_resync,
 	.get_state	= scsih_get_state,
 };
+#endif /* MPT2SAS_SCSI */
 
 /**
  * _scsih_determine_hba_mpi_version - determine in which MPI version class
@@ -8502,18 +8503,6 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Determine in which MPI version class this pci device belongs */
 	hba_mpi_version = _scsih_determine_hba_mpi_version(pdev);
 	if (hba_mpi_version == 0)
-		return -ENODEV;
-
-	/* Enumerate only SAS 2.0 HBA's if hbas_to_enumerate is one,
-	 * for other generation HBA's return with -ENODEV
-	 */
-	if ((hbas_to_enumerate == 1) && (hba_mpi_version !=  MPI2_VERSION))
-		return -ENODEV;
-
-	/* Enumerate only SAS 3.0 HBA's if hbas_to_enumerate is two,
-	 * for other generation HBA's return with -ENODEV
-	 */
-	if ((hbas_to_enumerate == 2) && (hba_mpi_version !=  MPI25_VERSION))
 		return -ENODEV;
 
 	switch (hba_mpi_version) {
@@ -8868,6 +8857,7 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
  * The pci device ids are defined in mpi/mpi2_cnfg.h.
  */
 static const struct pci_device_id mpt3sas_pci_table[] = {
+#ifdef MPT2SAS_SCSI
 	/* Spitfire ~ 2004 */
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2004,
 		PCI_ANY_ID, PCI_ANY_ID },
@@ -8909,6 +8899,7 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 	/* SSS6200 */
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SSS6200,
 		PCI_ANY_ID, PCI_ANY_ID },
+#else
 	/* Fury ~ 3004 and 3008 */
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3004,
 		PCI_ANY_ID, PCI_ANY_ID },
@@ -8923,6 +8914,7 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI25_MFGPAGE_DEVID_SAS3108_6,
 		PCI_ANY_ID, PCI_ANY_ID },
+#endif /* MPT2SAS_SCSI */
 	{0}     /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(pci, mpt3sas_pci_table);
@@ -8935,7 +8927,12 @@ static struct pci_error_handlers _mpt3sas_err_handler = {
 };
 
 static struct pci_driver mpt3sas_driver = {
+#ifdef MPT2SAS_SCSI
+	.name		= MPT2SAS_DRIVER_NAME,
+#else
 	.name		= MPT3SAS_DRIVER_NAME,
+#endif /* MPT2SAS_SCSI */
+
 	.id_table	= mpt3sas_pci_table,
 	.probe		= _scsih_probe,
 	.remove		= __devexit_p(scsih_remove),
@@ -9020,10 +9017,11 @@ scsih_exit(void)
 	mpt3sas_base_release_callback_handler(tm_sas_control_cb_idx);
 
 /* raid transport support */
-	if (hbas_to_enumerate != 1)
-		raid_class_release(mpt3sas_raid_template);
-	if (hbas_to_enumerate != 2)
-		raid_class_release(mpt2sas_raid_template);
+#ifdef MPT2SAS_SCSI
+	raid_class_release(mpt2sas_raid_template);
+#else
+	raid_class_release(mpt3sas_raid_template);
+#endif /* MPT2SAS_SCSI */
 	sas_release_transport(mpt3sas_transport_template);
 }
 
@@ -9037,37 +9035,32 @@ _mpt3sas_init(void)
 {
 	int error;
 
+#ifdef MPT2SAS_SCSI
+	pr_info("%s version %s loaded\n", MPT2SAS_DRIVER_NAME,
+					MPT2SAS_DRIVER_VERSION);
+#else
 	pr_info("%s version %s loaded\n", MPT3SAS_DRIVER_NAME,
 					MPT3SAS_DRIVER_VERSION);
+#endif /* MPT2SAS_SCSI */
 
 	mpt3sas_transport_template =
 	    sas_attach_transport(&mpt3sas_transport_functions);
 	if (!mpt3sas_transport_template)
 		return -ENODEV;
 
-	/* No need attach mpt3sas raid functions template
-	 * if hbas_to_enumarate value is one.
-	 */
-	if (hbas_to_enumerate != 1) {
-		mpt3sas_raid_template =
-				raid_class_attach(&mpt3sas_raid_functions);
-		if (!mpt3sas_raid_template) {
-			sas_release_transport(mpt3sas_transport_template);
-			return -ENODEV;
-		}
+#ifdef MPT2SAS_SCSI
+	mpt2sas_raid_template =	raid_class_attach(&mpt2sas_raid_functions);
+	if (!mpt2sas_raid_template) {
+		sas_release_transport(mpt3sas_transport_template);
+		return -ENODEV;
 	}
-
-	/* No need to attach mpt2sas raid functions template
-	 * if hbas_to_enumarate value is two
-	 */
-	if (hbas_to_enumerate != 2) {
-		mpt2sas_raid_template =
-				raid_class_attach(&mpt2sas_raid_functions);
-		if (!mpt2sas_raid_template) {
-			sas_release_transport(mpt3sas_transport_template);
-			return -ENODEV;
-		}
+#else
+	mpt3sas_raid_template = raid_class_attach(&mpt3sas_raid_functions);
+	if (!mpt3sas_raid_template) {
+		sas_release_transport(mpt3sas_transport_template);
+		return -ENODEV;
 	}
+#endif /* MPT2SAS_SCSI */
 
 	error = scsih_init();
 	if (error) {
@@ -9075,7 +9068,11 @@ _mpt3sas_init(void)
 		return error;
 	}
 
-	mpt3sas_ctl_init(hbas_to_enumerate);
+#ifdef MPT2SAS_SCSI
+	mpt3sas_ctl_init(1);
+#else
+	mpt3sas_ctl_init(2);
+#endif /* MPT2SAS_SCSI */
 
 	error = pci_register_driver(&mpt3sas_driver);
 	if (error)
@@ -9096,7 +9093,11 @@ _mpt3sas_exit(void)
 
 	pci_unregister_driver(&mpt3sas_driver);
 
-	mpt3sas_ctl_exit(hbas_to_enumerate);
+#ifdef MPT2SAS_SCSI
+	mpt3sas_ctl_exit(1);
+#else
+	mpt3sas_ctl_exit(2);
+#endif /* MPT2SAS_SCSI */
 
 	scsih_exit();
 }
