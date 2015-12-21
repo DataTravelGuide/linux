@@ -718,6 +718,21 @@ static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
 	return vlan_tag;
 }
 
+static inline bool be_is_txq_full(struct be_tx_obj *txo)
+{
+	return atomic_read(&txo->q.used) + BE_MAX_TX_FRAG_COUNT >= txo->q.len;
+}
+
+static inline bool be_can_txq_wake(struct be_tx_obj *txo)
+{
+	return atomic_read(&txo->q.used) < txo->q.len / 2;
+}
+
+static inline bool be_is_tx_compl_pending(struct be_tx_obj *txo)
+{
+	return atomic_read(&txo->q.used) > txo->pend_wrb_cnt;
+}
+
 static void be_get_wrb_params_from_skb(struct be_adapter *adapter,
 				       struct sk_buff *skb,
 				       struct be_wrb_params *wrb_params)
@@ -1115,7 +1130,6 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u16 q_idx = skb_get_queue_mapping(skb);
 	struct be_tx_obj *txo = &adapter->tx_obj[q_idx];
 	struct be_wrb_params wrb_params = { 0 };
-	struct be_queue_info *txq = &txo->q;
 	bool flush = true /* Not in RHEL6 - !skb->xmit_more */;
 	u16 wrb_cnt;
 
@@ -1131,7 +1145,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto drop;
 	}
 
-	if ((atomic_read(&txq->used) + BE_MAX_TX_FRAG_COUNT) >= txq->len) {
+	if (be_is_txq_full(txo)) {
 		netif_stop_subqueue(netdev, q_idx);
 		tx_stats(txo)->tx_stops++;
 	}
@@ -2187,7 +2201,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 				atomic_sub(num_wrbs, &txq->used);
 				timeo = 0;
 			}
-			if (atomic_read(&txq->used) == txo->pend_wrb_cnt)
+			if (!be_is_tx_compl_pending(txo))
 				pending_txqs--;
 		}
 
@@ -2596,7 +2610,7 @@ static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 		/* As Tx wrbs have been freed up, wake up netdev queue
 		 * if it was stopped due to lack of tx wrbs.  */
 		if (__netif_subqueue_stopped(adapter->netdev, idx) &&
-		    atomic_read(&txo->q.used) < txo->q.len / 2) {
+		    be_can_txq_wake(txo)) {
 			netif_wake_subqueue(adapter->netdev, idx);
 		}
 
