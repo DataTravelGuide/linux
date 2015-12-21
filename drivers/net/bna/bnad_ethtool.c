@@ -1143,6 +1143,6 @@ static const struct ethtool_ops_ext bnad_ethtool_ops_ext = {
 void
 bnad_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &bnad_ethtool_ops);
+	netdev->ethtool_ops = &bnad_ethtool_ops;
 	set_ethtool_ops_ext(netdev, &bnad_ethtool_ops_ext);
 }
