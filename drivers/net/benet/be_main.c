@@ -5178,7 +5178,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 	status = be_setup(adapter);
 	if (status)
-		goto msix_disable;
+		goto stats_clean;
 
 	be_netdev_init(netdev);
 	status = register_netdev(netdev);
@@ -5197,8 +5197,6 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 
 unsetup:
 	be_clear(adapter);
-msix_disable:
-	be_msix_disable(adapter);
 stats_clean:
 	be_stats_cleanup(adapter);
 ctrl_clean:
