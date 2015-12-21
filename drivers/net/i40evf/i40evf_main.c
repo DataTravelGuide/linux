@@ -1012,7 +1012,6 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	    adapter->state != __I40EVF_RESETTING) {
 		/* cancel any current operation */
 		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
-		adapter->aq_pending = 0;
 		/* Schedule operations to close down the HW. Don't wait
 		 * here for this to complete. The watchdog is still running
 		 * and it will take care of this.
@@ -1339,7 +1338,6 @@ static void i40evf_watchdog_task(struct work_struct *work)
 			 */
 			return;
 		}
-		adapter->aq_pending = 0;
 		adapter->aq_required = 0;
 		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 		goto watchdog_done;
@@ -1359,7 +1357,6 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
 		schedule_work(&adapter->reset_task);
-		adapter->aq_pending = 0;
 		adapter->aq_required = 0;
 		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 		goto watchdog_done;
@@ -1368,7 +1365,7 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	/* Process admin queue tasks. After init, everything gets done
 	 * here so we don't race on the admin queue.
 	 */
-	if (adapter->aq_pending) {
+	if (adapter->current_op) {
 		if (!i40evf_asq_done(hw)) {
 			dev_dbg(&adapter->pdev->dev, "Admin queue timeout\n");
 			i40evf_send_api_ver(adapter);
@@ -2254,7 +2251,6 @@ static void i40evf_shutdown(struct pci_dev *pdev)
 	/* Prevent the watchdog from running. */
 	adapter->state = __I40EVF_REMOVE;
 	adapter->aq_required = 0;
-	adapter->aq_pending = 0;
 
 #ifdef CONFIG_PM
 	pci_save_state(pdev);
@@ -2472,7 +2468,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 	/* Shut down all the garbage mashers on the detention level */
 	adapter->state = __I40EVF_REMOVE;
 	adapter->aq_required = 0;
-	adapter->aq_pending = 0;
 	i40evf_request_reset(adapter);
 	msleep(20);
 	/* If the FW isn't responding, kick it once, but only once. */
