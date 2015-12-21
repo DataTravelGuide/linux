@@ -1702,7 +1702,7 @@ bnad_ioc_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_nw_ioc_timeout((void *) &bnad->bna.ioceth.ioc);
+	bfa_nw_ioc_timeout(&bnad->bna.ioceth.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -1713,7 +1713,7 @@ bnad_ioc_hb_check(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_nw_ioc_hb_check((void *) &bnad->bna.ioceth.ioc);
+	bfa_nw_ioc_hb_check(&bnad->bna.ioceth.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -1724,7 +1724,7 @@ bnad_iocpf_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_nw_iocpf_timeout((void *) &bnad->bna.ioceth.ioc);
+	bfa_nw_iocpf_timeout(&bnad->bna.ioceth.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -1735,7 +1735,7 @@ bnad_iocpf_sem_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_nw_iocpf_sem_timeout((void *) &bnad->bna.ioceth.ioc);
+	bfa_nw_iocpf_sem_timeout(&bnad->bna.ioceth.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
