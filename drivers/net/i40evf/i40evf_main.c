@@ -28,8 +28,6 @@
 #include "i40e_prototype.h"
 static int i40evf_setup_all_tx_resources(struct i40evf_adapter *adapter);
 static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter);
-static void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
-static void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 static int i40evf_close(struct net_device *netdev);
 
 char i40evf_driver_name[] = "i40evf";
@@ -1362,6 +1360,11 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 	}
 
+	if (adapter->aq_required & I40EVF_FLAG_AQ_DISABLE_QUEUES) {
+		i40evf_disable_queues(adapter);
+		goto watchdog_done;
+	}
+
 	if (adapter->aq_required & I40EVF_FLAG_AQ_MAP_VECTORS) {
 		i40evf_map_queues(adapter);
 		goto watchdog_done;
@@ -1384,11 +1387,6 @@ static void i40evf_watchdog_task(struct work_struct *work)
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_DEL_VLAN_FILTER) {
 		i40evf_del_vlans(adapter);
-		goto watchdog_done;
-	}
-
-	if (adapter->aq_required & I40EVF_FLAG_AQ_DISABLE_QUEUES) {
-		i40evf_disable_queues(adapter);
 		goto watchdog_done;
 	}
 
@@ -1728,7 +1726,7 @@ out:
  *
  * Free all transmit software resources
  **/
-static void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter)
+void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
 
@@ -1798,7 +1796,7 @@ static int i40evf_setup_all_rx_resources(struct i40evf_adapter *adapter)
  *
  * Free all receive software resources
  **/
-static void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
+void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter)
 {
 	int i;
 
@@ -1828,7 +1826,7 @@ static int i40evf_open(struct net_device *netdev)
 		dev_err(&adapter->pdev->dev, "Unable to open device due to PF driver failure.\n");
 		return -EIO;
 	}
-	if (adapter->state != __I40EVF_DOWN)
+	if (adapter->state != __I40EVF_DOWN || adapter->aq_required)
 		return -EBUSY;
 
 	/* allocate transmit descriptors */
@@ -1891,9 +1889,6 @@ static int i40evf_close(struct net_device *netdev)
 	i40evf_down(adapter);
 	adapter->state = __I40EVF_DOWN;
 	i40evf_free_traffic_irqs(adapter);
-
-	i40evf_free_all_tx_resources(adapter);
-	i40evf_free_all_rx_resources(adapter);
 
 	return 0;
 }
@@ -2509,6 +2504,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 	iounmap(hw->hw_addr);
 	pci_release_regions(pdev);
 
+	i40evf_free_all_tx_resources(adapter);
+	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_queues(adapter);
 	kfree(adapter->vf_res);
 	/* If we got removed before an up/down sequence, we've got a filter
