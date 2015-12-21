@@ -259,7 +259,7 @@ static const struct net_device_ops_ext veth_netdev_ops_ext = {
 };
 
 #define VETH_FEATURES (NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |    \
-		       NETIF_F_NO_CSUM | NETIF_F_RXCSUM | NETIF_F_HIGHDMA | \
+		       NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HIGHDMA | \
 		       NETIF_F_HW_VLAN_TX)
 
 static void veth_setup(struct net_device *dev)
