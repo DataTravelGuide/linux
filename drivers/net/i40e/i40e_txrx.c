@@ -2598,6 +2598,8 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 						   tx_ring->queue_index)))
 #endif
 		writel(i, tx_ring->tail);
+	else
+		prefetchw(tx_desc + 1);
 
 	return;
 
