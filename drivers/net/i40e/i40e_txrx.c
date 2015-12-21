@@ -1428,7 +1428,8 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	 * so the total length of IPv4 header is IHL*4 bytes
 	 * The UDP_0 bit *may* bet set if the *inner* header is UDP
 	 */
-	if (ipv4_tunnel) {
+	if (!(vsi->back->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE) &&
+	    (ipv4_tunnel)) {
 		skb->transport_header = skb->mac_header +
 					sizeof(struct ethhdr) +
 					(ip_hdr(skb)->ihl * 4);
@@ -2326,6 +2327,15 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 *tx_flags,
 		if (this_ip_hdr->version == 6) {
 			*tx_flags &= ~I40E_TX_FLAGS_IPV4;
 			*tx_flags |= I40E_TX_FLAGS_IPV6;
+		}
+		if ((tx_ring->flags & I40E_TXR_FLAGS_OUTER_UDP_CSUM) &&
+		    (l4_tunnel == I40E_TXD_CTX_UDP_TUNNELING)        &&
+		    (*cd_tunneling & I40E_TXD_CTX_QW0_EXT_IP_MASK)) {
+			oudph->check = ~csum_tcpudp_magic(oiph->saddr,
+					oiph->daddr,
+					(skb->len - skb_transport_offset(skb)),
+					IPPROTO_UDP, 0);
+			*cd_tunneling |= I40E_TXD_CTX_QW0_L4T_CS_MASK;
 		}
 	} else {
 #endif /* RHEL6 */
