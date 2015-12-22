@@ -2402,8 +2402,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 
 	if (mdev->dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED)
-		dev->features |= NETIF_F_NTUPLE;
+	    MLX4_STEERING_MODE_DEVICE_MANAGED &&
+	    mdev->dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
+		set_netdev_hw_features(dev, NETIF_F_NTUPLE);
+
+	if (mdev->dev->caps.steering_mode == MLX4_STEERING_MODE_A0)
+		netdev_extended(dev)->ext_priv_flags |= IFF_NO_UNICAST_FLT;
 
 	/* Setting a default hash function value */
 	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS_TOP) {
