@@ -1140,6 +1140,37 @@ Licence: Redistributable. See LICENCE.broadcom_bcm43xx for details.
 
 --------------------------------------------------------------------------
 
+Driver: brcmfmac - Broadcom 802.11n fullmac wireless LAN driver.
+
+File: brcm/bcm4329-fullmac-4.bin
+File: brcm/brcmfmac43236b.bin
+File: brcm/brcmfmac4329-sdio.bin
+File: brcm/brcmfmac4330-sdio.bin
+File: brcm/brcmfmac4334-sdio.bin
+File: brcm/brcmfmac43340-sdio.bin
+File: brcm/brcmfmac4335-sdio.bin
+File: brcm/brcmfmac43362-sdio.bin
+File: brcm/brcmfmac4339-sdio.bin
+File: brcm/brcmfmac43241b0-sdio.bin
+File: brcm/brcmfmac43241b4-sdio.bin
+File: brcm/brcmfmac43241b5-sdio.bin
+File: brcm/brcmfmac43242a.bin
+File: brcm/brcmfmac43143.bin
+File: brcm/brcmfmac43143-sdio.bin
+File: brcm/brcmfmac43455-sdio.bin
+File: brcm/brcmfmac4350-pcie.bin
+File: brcm/brcmfmac4354-sdio.bin
+File: brcm/brcmfmac4356-pcie.bin
+File: brcm/brcmfmac43569.bin
+File: brcm/brcmfmac43570-pcie.bin
+File: brcm/brcmfmac43602-pcie.bin
+File: brcm/brcmfmac43602-pcie.ap.bin
+File: brcm/brcmfmac4371-pcie.bin
+
+Licence: Redistributable. See LICENCE.broadcom_bcm43xx for details.
+
+--------------------------------------------------------------------------
+
 Driver: carl9170 -- Atheros AR9170 802.11 draft-n USB driver
 
 File: carl9170-1.fw

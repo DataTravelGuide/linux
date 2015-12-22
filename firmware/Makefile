@@ -224,6 +224,29 @@ fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
 fw-shipped-$(CONFIG_BRCMSMAC) += brcm/bcm43xx-0.fw brcm/bcm43xx_hdr-0.fw
+fw-shipped-$(CONFIG_BRCMFMAC) += brcm/brcmfmac43143-sdio.bin \
+				brcm/brcmfmac43143.bin \
+				brcm/brcmfmac43236b.bin \
+				brcm/brcmfmac43241b0-sdio.bin \
+				brcm/brcmfmac43241b4-sdio.bin \
+				brcm/brcmfmac43241b5-sdio.bin \
+				brcm/brcmfmac43242a.bin \
+				brcm/brcmfmac4329-sdio.bin \
+				brcm/brcmfmac4330-sdio.bin \
+				brcm/brcmfmac4334-sdio.bin \
+				brcm/brcmfmac43340-sdio.bin \
+				brcm/brcmfmac4335-sdio.bin \
+				brcm/brcmfmac43362-sdio.bin \
+				brcm/brcmfmac4339-sdio.bin \
+				brcm/brcmfmac43455-sdio.bin \
+				brcm/brcmfmac4350-pcie.bin \
+				brcm/brcmfmac4354-sdio.bin \
+				brcm/brcmfmac4356-pcie.bin \
+				brcm/brcmfmac43569.bin \
+				brcm/brcmfmac43570-pcie.bin \
+				brcm/brcmfmac43602-pcie.ap.bin \
+				brcm/brcmfmac43602-pcie.bin \
+				brcm/brcmfmac4371-pcie.bin
 
 fw-shipped-$(CONFIG_RT2800PCI) += rt2860.bin
 fw-shipped-$(CONFIG_RT2800PCI) += rt3290.bin
