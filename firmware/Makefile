@@ -252,6 +252,15 @@ fw-shipped-$(CONFIG_RT2800PCI) += rt2860.bin
 fw-shipped-$(CONFIG_RT2800PCI) += rt3290.bin
 fw-shipped-$(CONFIG_RT2800USB) += rt2870.bin
 
+fw-shipped-$(CONFIG_RTL8192CE) += rtlwifi/rtl8192cfw.bin rtlwifi/rtl8192cfwU.bin rtlwifi/rtl8192cfwU_B.bin
+fw-shipped-$(CONFIG_RTL8192SE) += rtlwifi/rtl8192sefw.bin
+fw-shipped-$(CONFIG_RTL8192DE) += rtlwifi/rtl8192defw.bin
+fw-shipped-$(CONFIG_RTL8723BE) += rtlwifi/rtl8723befw.bin
+fw-shipped-$(CONFIG_RTL8188EE) += rtlwifi/rtl8188efw.bin
+fw-shipped-$(CONFIG_RTL8192EE) += rtlwifi/rtl8192eefw.bin
+fw-shipped-$(CONFIG_RTL8821AE) += rtlwifi/rtl8821aefw.bin
+fw-shipped-$(CONFIG_RTL8192CU) += rtlwifi/rtl8192cufw.bin rtlwifi/rtl8192cufw_A.bin rtlwifi/rtl8192cufw_B.bin rtlwifi/rtl8192cufw_TMSC.bin
+
 fw-shipped-$(CONFIG_CARL9170) += carl9170-1.fw
 
 fw-shipped-$(CONFIG_ATH9K_HTC) += htc_7010.fw htc_9271.fw

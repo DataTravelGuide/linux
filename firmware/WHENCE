@@ -943,6 +943,95 @@ SOLELY OR IN COMBINATION WITH THIS PROGRAM.
 Found in hex form in kernel source.
 --------------------------------------------------------------------------
 
+Driver: rtl8192ce - Realtek 802.11n WLAN driver for RTL8192CE
+
+File: rtlwifi/rtl8192cfw.bin
+File: rtlwifi/rtl8192cfwU.bin
+File: rtlwifi/rtl8192cfwU_B.bin
+Info: From Vendor's realtek/rtlwifi_linux_mac80211_0019.0320.2014V628 driver
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8192cu - Realtek 802.11n WLAN driver for RTL8192CU
+
+File: rtlwifi/rtl8192cufw.bin
+File: rtlwifi/rtl8192cufw_A.bin
+File: rtlwifi/rtl8192cufw_B.bin
+File: rtlwifi/rtl8192cufw_TMSC.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8192se - Realtek 802.11n WLAN driver for RTL8192SE
+
+Info: updated from rtl_92ce_92se_92de_linux_mac80211_0004.0816.2011 driver version
+File: rtlwifi/rtl8192sefw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8192de - Realtek 802.11n WLAN driver for RTL8192DE
+
+Info: Updated from Realtek version rtl_92ce_92se_92de_8723ae_linux_mac80211_0007.0809.2012
+File: rtlwifi/rtl8192defw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8723be - Realtek 802.11n WLAN driver for RTL8723BE
+
+Info: From Vendor's realtek/rtlwifi_linux_mac80211_0019.0320.2014V628 driver
+File: rtlwifi/rtl8723befw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8188ee - Realtek 802.11n WLAN driver for RTL8188EE
+
+Info: Taken from Realtek version rtl_92ce_92se_92de_8723ae_88ee_linux_mac80211_0010.0109.2013
+File: rtlwifi/rtl8188efw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8188eu - Realtek 802.11n WLAN driver for RTL8188EU
+
+Info: Taken from Realtek version RTL8188EUS_linux_v4.1.4_6773.20130222
+File: rtlwifi/rtl8188eufw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8821ae - Realtek 802.11n WLAN driver for RTL8821AE
+
+Info: From Vendor's realtek/rtlwifi_linux_mac80211_0019.0320.2014V628 driver
+File: rtlwifi/rtl8821aefw.bin
+File: rtlwifi/rtl8821aefw_wowlan.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
+Driver: rtl8192ee - Realtek 802.11n WLAN driver for RTL8192EE
+
+Info: Initial version taken from Realtek version
+      rtl_92ce_92se_92de_8723ae_88ee_8723be_92ee_linux_mac80211_0017.1224.2013
+      Updated Jan. 14, 2015 with file added by Realtek to
+      http://github.com/lwfinger/rtlwifi_new.git.
+File: rtlwifi/rtl8192eefw.bin
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
+
+--------------------------------------------------------------------------
+
 Driver: r8169 - RealTek 8169/8168/8101 ethernet driver.
 
 File: rtl_nic/rtl8168d-1.fw
