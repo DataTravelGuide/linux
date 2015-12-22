@@ -15,9 +15,43 @@
 # OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# common flags
-subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DDEBUG
+ccflags-y += \
+	-Idrivers/net/wireless/brcm80211/brcmfmac	\
+	-Idrivers/net/wireless/brcm80211/include
 
-obj-$(CONFIG_BRCMUTIL)	+= brcmutil/
-obj-$(CONFIG_BRCMFMAC)	+= brcmfmac/
-obj-$(CONFIG_BRCMSMAC)	+= brcmsmac/
+ccflags-y += -D__CHECK_ENDIAN__
+
+obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
+brcmfmac-objs += \
+		cfg80211.o \
+		chip.o \
+		fwil.o \
+		fweh.o \
+		fwsignal.o \
+		p2p.o \
+		proto.o \
+		common.o \
+		core.o \
+		firmware.o \
+		feature.o \
+		btcoex.o \
+		vendor.o
+brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
+		bcdc.o
+brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \
+		commonring.o \
+		flowring.o \
+		msgbuf.o
+brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
+		sdio.o \
+		bcmsdh.o
+brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
+		usb.o
+brcmfmac-$(CONFIG_BRCMFMAC_PCIE) += \
+		pcie.o
+brcmfmac-$(CONFIG_BRCMDBG) += \
+		debug.o
+brcmfmac-$(CONFIG_BRCM_TRACING) += \
+		tracepoint.o
+#brcmfmac-$(CONFIG_OF) += \
+#		of.o
