@@ -5,8 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +41,7 @@
  *    notice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
  *    distribution.
  *  * Neither the name Intel Corporation nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -60,80 +60,54 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_notif_wait_h__
-#define __iwl_notif_wait_h__
-
-#include <linux/wait.h>
-
+#include <linux/kernel.h>
 #include "iwl-trans.h"
 
-struct iwl_notif_wait_data {
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
-};
+struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
+				  struct device *dev,
+				  const struct iwl_cfg *cfg,
+				  const struct iwl_trans_ops *ops,
+				  size_t dev_cmd_headroom)
+{
+	struct iwl_trans *trans;
+#ifdef CONFIG_LOCKDEP
+	static struct lock_class_key __key;
+#endif
 
-#define MAX_NOTIF_CMDS	5
+	trans = kzalloc(sizeof(*trans) + priv_size, GFP_KERNEL);
+	if (!trans)
+		return NULL;
 
-/**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: Function called with the notification. If the function
- *	returns true, the wait is over, if it returns false then
- *	the waiter stays blocked. If no function is given, any
- *	of the listed commands will unblock the waiter.
- * @cmds: command IDs
- * @n_cmds: number of command IDs
- * @triggered: waiter should be woken up
- * @aborted: wait was aborted
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
+#ifdef CONFIG_LOCKDEP
+	lockdep_init_map(&trans->sync_cmd_lockdep_map, "sync_cmd_lockdep_map",
+			 &__key, 0);
+#endif
 
-	bool (*fn)(struct iwl_notif_wait_data *notif_data,
-		   struct iwl_rx_packet *pkt, void *data);
-	void *fn_data;
+	trans->dev = dev;
+	trans->cfg = cfg;
+	trans->ops = ops;
+	trans->dev_cmd_headroom = dev_cmd_headroom;
 
-	u16 cmds[MAX_NOTIF_CMDS];
-	u8 n_cmds;
-	bool triggered, aborted;
-};
+	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
+		 "iwl_cmd_pool:%s", dev_name(trans->dev));
+	trans->dev_cmd_pool =
+		kmem_cache_create(trans->dev_cmd_pool_name,
+				  sizeof(struct iwl_device_cmd)
+				  + trans->dev_cmd_headroom,
+				  sizeof(void *),
+				  SLAB_HWCACHE_ALIGN,
+				  NULL);
+	if (!trans->dev_cmd_pool)
+		goto free;
 
+	return trans;
+ free:
+	kfree(trans);
+	return NULL;
+}
 
-/* caller functions */
-void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_data);
-void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_data,
-				  struct iwl_rx_packet *pkt);
-void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_data);
-
-/* user functions */
-void __acquires(wait_entry)
-iwl_init_notification_wait(struct iwl_notif_wait_data *notif_data,
-			   struct iwl_notification_wait *wait_entry,
-			   const u16 *cmds, int n_cmds,
-			   bool (*fn)(struct iwl_notif_wait_data *notif_data,
-				      struct iwl_rx_packet *pkt, void *data),
-			   void *fn_data);
-
-int __must_check __releases(wait_entry)
-iwl_wait_notification(struct iwl_notif_wait_data *notif_data,
-		      struct iwl_notification_wait *wait_entry,
-		      unsigned long timeout);
-
-void __releases(wait_entry)
-iwl_remove_notification(struct iwl_notif_wait_data *notif_data,
-			struct iwl_notification_wait *wait_entry);
-
-#endif /* __iwl_notif_wait_h__ */
+void iwl_trans_free(struct iwl_trans *trans)
+{
+	kmem_cache_destroy(trans->dev_cmd_pool);
+	kfree(trans);
+}
