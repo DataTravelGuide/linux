@@ -497,19 +497,30 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		WARN_ON((desc - host->adma_desc) > (128 * 2 + 1) * 4);
 	}
 
-	/*
-	 * Add a terminating entry.
-	 */
-	desc[7] = 0;
-	desc[6] = 0;
-	desc[5] = 0;
-	desc[4] = 0;
+	if (host->quirks & SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC) {
+		/*
+		* Mark the last descriptor as the terminating descriptor
+		*/
+		if (desc != host->adma_desc) {
+			desc -= 8;
+			desc[0] |= 0x2; /* end */
+		}
+	} else {
+		/*
+		* Add a terminating entry.
+		*/
 
-	desc[3] = 0;
-	desc[2] = 0;
+		desc[7] = 0;
+		desc[6] = 0;
+		desc[5] = 0;
+		desc[4] = 0;
 
-	desc[1] = 0x00;
-	desc[0] = 0x03; /* nop, end, valid */
+		desc[3] = 0;
+		desc[2] = 0;
+
+		desc[1] = 0x00;
+		desc[0] = 0x03; /* nop, end, valid */
+	}
 
 	/*
 	 * Resync align buffer as we might have changed it.
