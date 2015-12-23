@@ -14,6 +14,8 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
+#include <linux/mmc/host.h>
+
 /*
  * Controller registers
  */
