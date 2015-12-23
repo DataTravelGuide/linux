@@ -60,6 +60,11 @@ enum {
 };
 
 enum {
+	T4_REGMAP_SIZE = (160 * 1024),
+	T5_REGMAP_SIZE = (332 * 1024),
+};
+
+enum {
 	MEM_EDC0,
 	MEM_EDC1,
 	MEM_MC,
@@ -374,6 +379,17 @@ enum {
 };
 
 enum {
+	MAX_TXQ_ENTRIES      = 16384,
+	MAX_CTRL_TXQ_ENTRIES = 1024,
+	MAX_RSPQ_ENTRIES     = 16384,
+	MAX_RX_BUFFERS       = 16384,
+	MIN_TXQ_ENTRIES      = 32,
+	MIN_CTRL_TXQ_ENTRIES = 32,
+	MIN_RSPQ_ENTRIES     = 128,
+	MIN_FL_ENTRIES       = 16
+};
+
+enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
 	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES
@@ -555,6 +571,8 @@ struct sge_txq {
 	void __iomem *bar2_addr;    /* address of BAR2 Queue registers */
 	unsigned int bar2_qid;      /* Queue ID for BAR2 Queue registers */
 };
+
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	struct sge_txq q;
@@ -999,6 +1017,30 @@ static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
 }
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
+/* Return a version number to identify the type of adapter.  The scheme is:
+ * - bits 0..9: chip version
+ * - bits 10..15: chip revision
+ * - bits 16..23: register dump version
+ */
+static inline unsigned int mk_adap_vers(struct adapter *ap)
+{
+	return CHELSIO_CHIP_VERSION(ap->params.chip) |
+		(CHELSIO_CHIP_RELEASE(ap->params.chip) << 10) | (1 << 16);
+}
+
+/* Return a queue's interrupt hold-off time in us.  0 means no timer. */
+static inline unsigned int qtimer_val(const struct adapter *adap,
+				      const struct sge_rspq *q)
+{
+	unsigned int idx = q->intr_params >> 1;
+
+	return idx < SGE_NTIMERS ? adap->sge.timer_val[idx] : 0;
+}
+
+/* driver version & name used for ethtool_drvinfo */
+extern char cxgb4_driver_name[];
+extern const char cxgb4_driver_version[];
+
 void t4_os_portmod_changed(const struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
@@ -1028,6 +1070,10 @@ int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
 int cxgb_busy_poll(struct napi_struct *napi);
+int cxgb4_set_rspq_intr_params(struct sge_rspq *q, unsigned int us,
+			       unsigned int cnt);
+void cxgb4_set_ethtool_ops(struct net_device *netdev);
+int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
 extern int dbfifo_int_thresh;
 
 #define for_each_port(adapter, iter) \
@@ -1116,6 +1162,9 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 	return t4_memory_rw(adap, 0, mtype, addr, len, buf, 0);
 }
 
+unsigned int t4_get_regs_len(struct adapter *adapter);
+void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size);
+
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
@@ -1141,7 +1190,7 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 		      unsigned int *pbar2_qid);
 
 unsigned int qtimer_val(const struct adapter *adap,
-			const struct sge_rspq *q);
+                        const struct sge_rspq *q);
 
 int t4_init_devlog_params(struct adapter *adapter);
 int t4_init_sge_params(struct adapter *adapter);
@@ -1256,4 +1305,5 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
 void t4_free_mem(void *addr);
+
 #endif /* __CXGB4_H__ */
