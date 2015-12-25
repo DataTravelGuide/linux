@@ -163,8 +163,9 @@ static int
 rpcrdma_sendcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 {
 	struct ib_wc *wcs;
-	int count, rc;
+	int budget, count, rc;
 
+	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
 	do {
 		wcs = ep->rep_send_wcs;
 
@@ -175,7 +176,7 @@ rpcrdma_sendcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 		count = rc;
 		while (count-- > 0)
 			rpcrdma_sendcq_process_wc(wcs++);
-	} while (rc == RPCRDMA_POLLSIZE);
+	} while (rc == RPCRDMA_POLLSIZE && --budget);
 	return 0;
 }
 
@@ -252,8 +253,9 @@ static int
 rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 {
 	struct ib_wc *wcs;
-	int count, rc;
+	int budget, count, rc;
 
+	budget = RPCRDMA_WC_BUDGET / RPCRDMA_POLLSIZE;
 	do {
 		wcs = ep->rep_recv_wcs;
 
@@ -264,7 +266,7 @@ rpcrdma_recvcq_poll(struct ib_cq *cq, struct rpcrdma_ep *ep)
 		count = rc;
 		while (count-- > 0)
 			rpcrdma_recvcq_process_wc(wcs++);
-	} while (rc == RPCRDMA_POLLSIZE);
+	} while (rc == RPCRDMA_POLLSIZE && --budget);
 	return 0;
 }
 
