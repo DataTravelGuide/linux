@@ -333,15 +333,14 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 		xprt->address_strings[RPC_DISPLAY_ADDR] =
 						kstrdup(buf, GFP_KERNEL);
 		sin = xs_addr_in(xprt);
-		(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
-					NIPQUAD(sin->sin_addr.s_addr));
+		snprintf(buf, sizeof(buf), "%08x", ntohl(sin->sin_addr.s_addr));
 		break;
 	case AF_INET6:
 		(void)rpc_ntop(sap, buf, sizeof(buf));
 		xprt->address_strings[RPC_DISPLAY_ADDR] =
 						kstrdup(buf, GFP_KERNEL);
 		sin6 = xs_addr_in6(xprt);
-		(void)snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
+		snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
 		break;
 	default:
 		BUG();
