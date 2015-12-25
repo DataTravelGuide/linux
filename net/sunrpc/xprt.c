@@ -731,7 +731,7 @@ void xprt_connect(struct rpc_task *task)
 		if (xprt_test_and_set_connecting(xprt))
 			return;
 		xprt->stat.connect_start = jiffies;
-		xprt->ops->connect(task);
+		xprt->ops->connect(xprt, task);
 	}
 }
 
