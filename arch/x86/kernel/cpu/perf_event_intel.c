@@ -2087,7 +2087,7 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	xl = &excl_cntrs->states[tid];
 
 	xl->sched_started = true;
-
+	xl->num_alloc_cntrs = 0;
 	/*
 	 * lock shared state until we are done scheduling
 	 * in stop_event_scheduling()
@@ -2153,7 +2153,6 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 	if (cpuc->is_fake)
 		return c;
-
 	/*
 	 * event requires exclusive counter access
 	 * across HT threads
@@ -2166,6 +2165,18 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 	xl = &excl_cntrs->states[tid];
 	xlo = &excl_cntrs->states[o_tid];
+
+	/*
+	 * do not allow scheduling of more than max_alloc_cntrs
+	 * which is set to half the available generic counters.
+	 * this helps avoid counter starvation of sibling thread
+	 * by ensuring at most half the counters cannot be in
+	 * exclusive mode. There is not designated counters for the
+	 * limits. Any N/2 counters can be used. This helps with
+	 * events with specifix counter constraints
+	 */
+	if (xl->num_alloc_cntrs++ == xl->max_alloc_cntrs)
+		return &emptyconstraint;
 
 	cx = c;
 
@@ -2776,6 +2787,8 @@ static void intel_pmu_cpu_starting(int cpu)
 		cpuc->lbr_sel = &cpuc->shared_regs->regs[EXTRA_REG_LBR];
 
 	if (x86_pmu.flags & PMU_FL_EXCL_CNTRS) {
+		int h = x86_pmu.num_counters >> 1;
+
 		for_each_cpu(i, topology_thread_cpumask(cpu)) {
 			struct intel_excl_cntrs *c;
 
@@ -2789,6 +2802,11 @@ static void intel_pmu_cpu_starting(int cpu)
 		}
 		cpuc->excl_cntrs->core_id = core_id;
 		cpuc->excl_cntrs->refcnt++;
+		/*
+		 * set hard limit to half the number of generic counters
+		 */
+		cpuc->excl_cntrs->states[0].max_alloc_cntrs = h;
+		cpuc->excl_cntrs->states[1].max_alloc_cntrs = h;
 	}
 }
 
