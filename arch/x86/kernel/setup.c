@@ -533,8 +533,21 @@ unsigned long long __init find_and_reserve_crashkernel(unsigned long long size)
 		int ret;
 
 		start = find_e820_area(start, ULONG_MAX, size, alignment);
-		if (start == -1ULL)
-			return start;
+
+		if (start == -1ULL) {
+			pr_info("crashkernel reservation failed. "
+				"No suitable area found.\n");
+			return -1ULL;
+		}
+
+
+		if (start + size >= KEXEC_RESERVE_UPPER_LIMIT) {
+			pr_info("crashkernel reservation failed. "
+				"found area can not be reserved: "
+				"start=0x%llx, size=0x%llx \n",
+				start, size);
+			return -1ULL;
+		}
 
 		/* try to reserve it */
 		ret = reserve_bootmem_generic(start, size, BOOTMEM_EXCLUSIVE);
@@ -569,16 +582,23 @@ static void __init reserve_crashkernel(void)
 			&crash_size, &crash_base);
 	if (ret != 0 || crash_size <= 0)
 		return;
+	if (crash_size >= KEXEC_RESERVE_UPPER_LIMIT) {
+		pr_info("crashkernel reservation failed. "
+			"specified size is too big.\n");
+		return;
+	}
 
 	/* 0 means: find the address automatically */
 	if (crash_base <= 0) {
 		crash_base = find_and_reserve_crashkernel(crash_size);
-		if (crash_base == -1ULL) {
+		if (crash_base == -1ULL)
+			return;
+	} else {
+		if (crash_base + crash_size >= KEXEC_RESERVE_UPPER_LIMIT) {
 			pr_info("crashkernel reservation failed. "
-				"No suitable area found.\n");
+				"specified region can not be reserved.\n");
 			return;
 		}
-	} else {
 		ret = reserve_bootmem_generic(crash_base, crash_size,
 					BOOTMEM_EXCLUSIVE);
 		if (ret < 0) {
