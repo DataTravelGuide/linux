@@ -1701,6 +1701,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 05 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.42.1.el6]
+- [fs] jbd2: Fix oops in jbd2_journal_remove_journal_head() (Lukas Czerner) [1291346 914809]
+- [fs] jbd: Fix oops in journal_remove_journal_head() (Lukas Czerner) [1291346 914809]
+
 * Fri Dec 11 2015 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.41.1.el6]
 - [mm] fix anon_vma->degree underflow in anon_vma endless growing prevention (Jerome Marchand) [1285692 1151823]
 - [mm] fix corner case in anon_vma endless growing prevention (Jerome Marchand) [1285692 1151823]
