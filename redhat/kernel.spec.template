@@ -1706,6 +1706,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Jan 05 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-596.el6]
+- [netdrv] bonding: "primary_reselect" with "failure" is not working properly (Jarod Wilson) [1290672]
+
 * Thu Dec 17 2015 Aristeu Rozanski <aris@redhat.com> [2.6.32-595.el6]
 - [net] sctp: start t5 timer only when peer rwnd is 0 and local state is SHUTDOWN_PENDING (Xin Long) [855392]
 - [net] sctp: convert sack_needed and sack_generation to bits (Xin Long) [855392]
