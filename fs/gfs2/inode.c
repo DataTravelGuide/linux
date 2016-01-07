@@ -858,7 +858,7 @@ fail_gunlock2:
 fail_free_inode:
 	if (ip->i_gl)
 		gfs2_glock_put(ip->i_gl);
-	gfs2_rs_delete(ip);
+	gfs2_rs_delete(ip, NULL);
 	free_vfs_inode = 1;
 fail_gunlock:
 	gfs2_glock_dq_uninit(ghs);
