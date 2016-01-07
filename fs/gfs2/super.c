@@ -1264,7 +1264,7 @@ static void gfs2_clear_inode(struct inode *inode)
 		return;
 
 	gfs2_dir_hash_inval(ip);
-	gfs2_rs_delete(ip);
+	gfs2_rsqa_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
 	ip->i_gl->gl_object = NULL;
 	flush_delayed_work(&ip->i_gl->gl_work);
@@ -1597,7 +1597,7 @@ out_unlock:
 out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
-	gfs2_rs_delete(ip, NULL);
+	gfs2_rsqa_delete(ip, NULL);
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 }
