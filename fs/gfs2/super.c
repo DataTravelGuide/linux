@@ -1583,8 +1583,8 @@ out_truncate:
 
 out_unlock:
 	/* Error path for case 1 */
-	if (gfs2_rs_active(ip->i_res))
-		gfs2_rs_deltree(ip->i_res);
+	if (gfs2_rs_active(&ip->i_res))
+		gfs2_rs_deltree(&ip->i_res);
 
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
@@ -1611,7 +1611,8 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
 		ip->i_rgd = NULL;
-		ip->i_res = NULL;
+		memset(&ip->i_res, 0, sizeof(ip->i_res));
+		RB_CLEAR_NODE(&ip->i_res.rs_node);
 	}
 	return &ip->i_inode;
 }

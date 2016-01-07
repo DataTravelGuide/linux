@@ -932,10 +932,6 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (!(attr->ia_valid & ATTR_GID) || ogid == ngid)
 		ogid = ngid = NO_QUOTA_CHANGE;
 
-	error = get_write_access(inode);
-	if (error)
-		return error;
-
 	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
 		error = gfs2_rsqa_alloc(ip);
 		if (error)
@@ -982,7 +978,6 @@ out_end_trans:
 out_gunlock_q:
 	gfs2_quota_unlock(ip);
 out:
-	put_write_access(inode);
 	return error;
 }
 
@@ -1186,7 +1181,7 @@ static void calc_max_reserv(struct gfs2_inode *ip, loff_t max, loff_t *len,
 {
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	unsigned int max_blocks = ip->i_rgd->rd_free_clone -
-		ip->i_rgd->rd_reserved + (ip->i_res ? ip->i_res->rs_free : 0);
+		ip->i_rgd->rd_reserved + ip->i_res.rs_free;
 	unsigned int tmp, max_data = max_blocks - 3 * (sdp->sd_max_height - 1);
 
 	for (tmp = max_data; tmp > sdp->sd_diptrs;) {
@@ -1345,7 +1340,7 @@ static long gfs2_fallocate(struct inode *inode, int mode, loff_t offset, loff_t 
 
 	ret = __gfs2_fallocate(inode, mode, offset, len);
 	if (ret)
-		gfs2_rsqa_deltree(ip->i_res);
+		gfs2_rs_deltree(&ip->i_res);
 out_putw:
 	put_write_access(inode);
 out_unlock:
