@@ -735,7 +735,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	struct gfs2_inode *ip = GFS2_I(file->f_path.dentry->d_inode);
 	struct gfs2_glock *gl;
 	unsigned int state;
-	int flags;
+	u16 flags;
 	int error = 0;
 	int sleeptime;
 
