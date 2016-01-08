@@ -1685,19 +1685,13 @@ static int
 _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 {
 	struct sysinfo s;
-	u64 consistent_dma_mask;
-
-	if (ioc->dma_mask)
-		consistent_dma_mask = DMA_BIT_MASK(64);
-	else
-		consistent_dma_mask = DMA_BIT_MASK(32);
 
 	if (sizeof(dma_addr_t) > 4) {
 		const uint64_t required_mask =
 		    dma_get_required_mask(&pdev->dev);
 		if ((required_mask > DMA_BIT_MASK(32)) &&
 		    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
-		    !pci_set_consistent_dma_mask(pdev, consistent_dma_mask)) {
+		    !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
 			ioc->base_add_sg_single = &_base_add_sg_single_64;
 			ioc->sge_size = sizeof(Mpi2SGESimple64_t);
 			ioc->dma_mask = 64;
@@ -1719,17 +1713,6 @@ _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 		"%d BIT PCI BUS DMA ADDRESSING SUPPORTED, total mem (%ld kB)\n",
 		ioc->name, ioc->dma_mask, convert_to_kb(s.totalram));
 
-	return 0;
-}
-
-static int
-_base_change_consistent_dma_mask(struct MPT3SAS_ADAPTER *ioc,
-				      struct pci_dev *pdev)
-{
-	if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
-			return -ENODEV;
-	}
 	return 0;
 }
 
@@ -3029,6 +3012,43 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * release_bad_memory_pools - release bad reply post queue pools
+ * @ioc: per adapter object
+ *
+ * Free bad reply post queue pools.
+ *
+ * Return nothing.
+ */
+void
+release_bad_memory_pools(struct MPT3SAS_ADAPTER *ioc)
+{
+       struct bad_reply_post_pools *bad_reply_post_pool, *next;
+
+       list_for_each_entry_safe(bad_reply_post_pool, next,
+		&ioc->bad_reply_post_pool_list, list) {
+
+	if (bad_reply_post_pool->is_8_reply_queue_pool)
+		pci_pool_free(
+			ioc->reply_post_free_dma_pool,
+			bad_reply_post_pool->reply_post_free,
+			bad_reply_post_pool->reply_post_free_dma);
+	else
+		pci_pool_free(
+			ioc->reply_post_free_dma_pool_mod_8,
+			bad_reply_post_pool->reply_post_free,
+	bad_reply_post_pool->reply_post_free_dma);
+
+	dinitprintk(ioc, printk(MPT3SAS_FMT
+		"bad reply post free pool (0x%p): free\n",
+		ioc->name, bad_reply_post_pool->reply_post_free));
+	bad_reply_post_pool->reply_post_free = NULL;
+
+	list_del(&bad_reply_post_pool->list);
+	kfree(bad_reply_post_pool);
+	}
+}
+
+/**
  * _base_release_memory_pools - release memory
  * @ioc: per adapter object
  *
@@ -3087,22 +3107,40 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->reply_post) {
 		do {
-			rps = &ioc->reply_post[i];
-			if (rps->reply_post_free) {
-				pci_pool_free(
-				    ioc->reply_post_free_dma_pool,
-				    rps->reply_post_free,
-				    rps->reply_post_free_dma);
-				dexitprintk(ioc, pr_info(MPT3SAS_FMT
-				    "reply_post_free_pool(0x%p): free\n",
-				    ioc->name, rps->reply_post_free));
-				rps->reply_post_free = NULL;
+			if (!ioc->rdpq_array_enable ||
+			((i%8 == 0) && ((i+7) < ioc->reply_queue_count))) {
+				rps = &ioc->reply_post[i];
+				if (rps->reply_post_free) {
+					pci_pool_free(
+					ioc->reply_post_free_dma_pool,
+					rps->reply_post_free,
+					rps->reply_post_free_dma);
+					dexitprintk(ioc, pr_info(MPT3SAS_FMT
+					"reply_post_free_pool(0x%p): free\n",
+					ioc->name, rps->reply_post_free));
+					rps->reply_post_free = NULL;
+				}
+			} else if (i%8 == 0) {
+				rps = &ioc->reply_post[i];
+				if (rps->reply_post_free) {
+					pci_pool_free(
+					ioc->reply_post_free_dma_pool_mod_8,
+					rps->reply_post_free,
+					rps->reply_post_free_dma);
+					dexitprintk(ioc, pr_info(MPT3SAS_FMT
+					"reply_post_free_pool(0x%p): free\n",
+					ioc->name, rps->reply_post_free));
+					rps->reply_post_free = NULL;
+				}
 			}
+
 		} while (ioc->rdpq_array_enable &&
 			   (++i < ioc->reply_queue_count));
 
 		if (ioc->reply_post_free_dma_pool)
 			pci_pool_destroy(ioc->reply_post_free_dma_pool);
+		if (ioc->reply_post_free_dma_pool_mod_8)
+			pci_pool_destroy(ioc->reply_post_free_dma_pool_mod_8);
 		kfree(ioc->reply_post);
 	}
 
@@ -3133,6 +3171,30 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc->chain_lookup = NULL;
 	}
 }
+/**
+ * is_MSB_are_same - checks whether all reply queues in a set are
+ *                  having same upper 32bits in their base memory address.
+ * @reply_pool_start_address: Base address of a reply queue set
+ * @pool_sz: Size of single Reply Descriptor Post Queues pool size
+ *
+ * Returns 1 if reply queues in a set have a same upper 32bits in their base memory address,
+ * else 0
+ */
+
+static int
+is_MSB_are_same(long reply_pool_start_address, u32 pool_sz)
+{
+	long reply_pool_end_address;
+	unsigned long bit_divisor_16 = 0x10000;
+
+	reply_pool_end_address = reply_pool_start_address + pool_sz;
+
+	if (((reply_pool_start_address / bit_divisor_16) / (bit_divisor_16)) ==
+		((reply_pool_end_address / bit_divisor_16) / bit_divisor_16))
+		return 1;
+	else
+		return 0;
+}
 
 /**
  * _base_allocate_memory_pools - allocate start of day memory pools
@@ -3147,12 +3209,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	struct mpt3sas_facts *facts;
 	u16 max_sge_elements;
 	u16 chains_needed_per_io;
-	u32 sz, total_sz, reply_post_free_sz;
+	u32 sz, total_sz, reply_post_free_sz, mod_sz = 0;
 	u32 retry_sz;
 	u16 max_request_credit;
 	unsigned short sg_tablesize;
 	u16 sge_size;
-	int i;
+	int i, rc = 0;
+	struct bad_reply_post_pools *bad_reply_post_pool;
 
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3264,10 +3327,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	reply_post_free_sz = ioc->reply_post_queue_depth *
 	    sizeof(Mpi2DefaultReplyDescriptor_t);
 
-	sz = reply_post_free_sz;
-	if (_base_is_controller_msix_enabled(ioc) && !ioc->rdpq_array_enable)
-		sz *= ioc->reply_queue_count;
-
 	ioc->reply_post = kcalloc((ioc->rdpq_array_enable) ?
 	    (ioc->reply_queue_count):1,
 	    sizeof(struct reply_post_struct), GFP_KERNEL);
@@ -3275,49 +3334,133 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->reply_post) {
 		pr_err(MPT3SAS_FMT "reply_post_free pool: kcalloc failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
+
+	sz = reply_post_free_sz;
+	if (ioc->rdpq_array_enable) {
+		sz *= 8;
+		INIT_LIST_HEAD(&ioc->bad_reply_post_pool_list);
+	} else if (_base_is_controller_msix_enabled(ioc))
+		sz *= ioc->reply_queue_count;
+
 	ioc->reply_post_free_dma_pool = pci_pool_create("reply_post_free pool",
 	    ioc->pdev, sz, 16, 0);
 	if (!ioc->reply_post_free_dma_pool) {
 		pr_err(MPT3SAS_FMT
 		 "reply_post_free pool: pci_pool_create failed\n",
 		 ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
-	i = 0;
-	do {
-		ioc->reply_post[i].reply_post_free =
-		    pci_pool_alloc(ioc->reply_post_free_dma_pool,
-		    GFP_KERNEL,
-		    &ioc->reply_post[i].reply_post_free_dma);
-		if (!ioc->reply_post[i].reply_post_free) {
-			pr_err(MPT3SAS_FMT
-			"reply_post_free pool: pci_pool_alloc failed\n",
-			ioc->name);
+
+	if (ioc->rdpq_array_enable && ioc->reply_queue_count % 8) {
+		mod_sz = reply_post_free_sz * (ioc->reply_queue_count % 8);
+		ioc->reply_post_free_dma_pool_mod_8 =
+		pci_pool_create("reply_post_free_mod_8 pool",
+			ioc->pdev, mod_sz, 16, 0);
+		if (!ioc->reply_post_free_dma_pool_mod_8) {
+			pr_err(MPT3SAS_FMT "reply_post_free_mod_8 pool: "
+				"pci_pool_create failed\n", ioc->name);
+			rc = -ENOMEM;
 			goto out;
 		}
-		memset(ioc->reply_post[i].reply_post_free, 0, sz);
+	}
+
+	i = 0;
+	do {
+retry_memory_allocation:
+		if (!ioc->rdpq_array_enable ||
+			((i % 8 == 0) && ((i + 7) < ioc->reply_queue_count))) {
+			ioc->reply_post[i].reply_post_free =
+			pci_pool_alloc(ioc->reply_post_free_dma_pool,
+			GFP_KERNEL,
+			&ioc->reply_post[i].reply_post_free_dma);
+			if (!ioc->reply_post[i].reply_post_free) {
+				pr_err(MPT3SAS_FMT
+				"reply_post_free pool: pci_pool_alloc failed\n",
+				ioc->name);
+				rc = -ENOMEM;
+				goto out;
+			}
+
+			if (ioc->rdpq_array_enable &&
+				!is_MSB_are_same((long)ioc->reply_post[i].reply_post_free, sz)) {
+				dinitprintk(ioc, pr_info(MPT3SAS_FMT
+				    "bad reply post free pool (0x%p), reply_post_free_dma = (0x%llx)\n",
+				    ioc->name, ioc->reply_post[i].reply_post_free,
+				    (unsigned long long)ioc->reply_post[i].reply_post_free_dma));
+				bad_reply_post_pool = kzalloc(sizeof(struct bad_reply_post_pools), GFP_KERNEL);
+				if(!bad_reply_post_pool) {
+					pr_err(MPT3SAS_FMT
+					"bad_reply_post_pool: memory allocation failed\n",
+					ioc->name);
+					rc = -ENOMEM;
+					goto out;
+				}
+				bad_reply_post_pool->reply_post_free = ioc->reply_post[i].reply_post_free;
+				bad_reply_post_pool->reply_post_free_dma = ioc->reply_post[i].reply_post_free_dma;
+				bad_reply_post_pool->is_8_reply_queue_pool = 1;
+				list_add_tail(&bad_reply_post_pool->list,
+				&ioc->bad_reply_post_pool_list);
+				ioc->reply_post[i].reply_post_free = NULL;
+				ioc->reply_post[i].reply_post_free_dma = 0;
+				goto retry_memory_allocation;
+			}
+			memset(ioc->reply_post[i].reply_post_free, 0, sz);
+			total_sz += sz;
+		} else if (i % 8 == 0) {
+			ioc->reply_post[i].reply_post_free =
+			pci_pool_alloc(ioc->reply_post_free_dma_pool_mod_8,
+				GFP_KERNEL,
+				&ioc->reply_post[i].reply_post_free_dma);
+			if (!ioc->reply_post[i].reply_post_free) {
+				pr_err(MPT3SAS_FMT "reply_post_free pool: "
+				"pci_pool_alloc failed\n", ioc->name);
+				rc = -ENOMEM;
+				goto out;
+			}
+			if (!is_MSB_are_same((long)ioc->reply_post[i].reply_post_free, mod_sz)) {
+				dinitprintk(ioc, pr_info(MPT3SAS_FMT
+				    "bad reply post free pool (0x%p), reply_post_free_dma = (0x%llx)\n", ioc->name,
+				    ioc->reply_post[i].reply_post_free,
+				    (unsigned long long)ioc->reply_post[i].reply_post_free_dma));
+				bad_reply_post_pool = kzalloc(sizeof(struct bad_reply_post_pools), GFP_KERNEL);
+				if(!bad_reply_post_pool) {
+					pr_err(MPT3SAS_FMT
+					"bad_reply_post_pool: memory allocation failed\n",
+					ioc->name);
+					rc = -ENOMEM;
+					goto out;
+				}
+				bad_reply_post_pool->reply_post_free = ioc->reply_post[i].reply_post_free;
+				bad_reply_post_pool->reply_post_free_dma = ioc->reply_post[i].reply_post_free_dma;
+				bad_reply_post_pool->is_8_reply_queue_pool = 0;
+				list_add_tail(&bad_reply_post_pool->list,
+					&ioc->bad_reply_post_pool_list);
+				ioc->reply_post[i].reply_post_free = NULL;
+				ioc->reply_post[i].reply_post_free_dma = 0;
+				goto retry_memory_allocation;
+		}
+		memset(ioc->reply_post[i].reply_post_free, 0, mod_sz);
+		total_sz += mod_sz;
+	} else {
+		ioc->reply_post[i].reply_post_free = (Mpi2ReplyDescriptorsUnion_t *)
+			((long)ioc->reply_post[i-1].reply_post_free + reply_post_free_sz);
+		ioc->reply_post[i].reply_post_free_dma = (dma_addr_t)
+		(ioc->reply_post[i-1].reply_post_free_dma + reply_post_free_sz);
+	}
 		dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		    "reply post free pool (0x%p): depth(%d),"
 		    "element_size(%d), pool_size(%d kB)\n", ioc->name,
 		    ioc->reply_post[i].reply_post_free,
-		    ioc->reply_post_queue_depth, 8, sz/1024));
+		    ioc->reply_post_queue_depth, 8, sz/(8*1024)));
 		dinitprintk(ioc, pr_info(MPT3SAS_FMT
 		    "reply_post_free_dma = (0x%llx)\n", ioc->name,
 		    (unsigned long long)
 		    ioc->reply_post[i].reply_post_free_dma));
-		total_sz += sz;
 	} while (ioc->rdpq_array_enable && (++i < ioc->reply_queue_count));
-
-	if (ioc->dma_mask == 64) {
-		if (_base_change_consistent_dma_mask(ioc, ioc->pdev) != 0) {
-			pr_warn(MPT3SAS_FMT
-			    "no suitable consistent DMA mask for %s\n",
-			    ioc->name, pci_name(ioc->pdev));
-			goto out;
-		}
-	}
 
 	ioc->scsiio_depth = ioc->hba_queue_depth -
 	    ioc->hi_priority_depth - ioc->internal_depth;
@@ -3350,8 +3493,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		    "failed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), "
 		    "total(%d kB)\n", ioc->name, ioc->hba_queue_depth,
 		    ioc->chains_needed_per_io, ioc->request_sz, sz/1024);
-		if (ioc->scsiio_depth < MPT3SAS_SAS_QUEUE_DEPTH)
+		if (ioc->scsiio_depth < MPT3SAS_SAS_QUEUE_DEPTH) {
+			rc = -ENOMEM;
 			goto out;
+		}
 		retry_sz += 64;
 		ioc->hba_queue_depth = max_request_credit - retry_sz;
 		goto retry_allocation;
@@ -3391,6 +3536,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->scsi_lookup) {
 		pr_err(MPT3SAS_FMT "scsi_lookup: get_free_pages failed, sz(%d)\n",
 			ioc->name, (int)sz);
+		rc = -ENOMEM;
 		goto out;
 	}
 
@@ -3405,6 +3551,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->chain_lookup) {
 		pr_err(MPT3SAS_FMT "chain_lookup: __get_free_pages failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
@@ -3412,6 +3559,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->chain_dma_pool) {
 		pr_err(MPT3SAS_FMT "chain_dma_pool: pci_pool_create failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	for (i = 0; i < ioc->chain_depth; i++) {
@@ -3436,6 +3584,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->hpr_lookup) {
 		pr_err(MPT3SAS_FMT "hpr_lookup: kcalloc failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->hi_priority_smid = ioc->scsiio_depth + 1;
@@ -3450,6 +3599,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->internal_lookup) {
 		pr_err(MPT3SAS_FMT "internal_lookup: kcalloc failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->internal_smid = ioc->hi_priority_smid + ioc->hi_priority_depth;
@@ -3465,6 +3615,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->sense_dma_pool) {
 		pr_err(MPT3SAS_FMT "sense pool: pci_pool_create failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->sense = pci_pool_alloc(ioc->sense_dma_pool , GFP_KERNEL,
@@ -3472,6 +3623,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->sense) {
 		pr_err(MPT3SAS_FMT "sense pool: pci_pool_alloc failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3489,6 +3641,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->reply_dma_pool) {
 		pr_err(MPT3SAS_FMT "reply pool: pci_pool_create failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->reply = pci_pool_alloc(ioc->reply_dma_pool , GFP_KERNEL,
@@ -3496,6 +3649,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->reply) {
 		pr_err(MPT3SAS_FMT "reply pool: pci_pool_alloc failed\n",
 		    ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->reply_dma_min_address = (u32)(ioc->reply_dma);
@@ -3515,6 +3669,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->reply_free_dma_pool) {
 		pr_err(MPT3SAS_FMT "reply_free pool: pci_pool_create failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	ioc->reply_free = pci_pool_alloc(ioc->reply_free_dma_pool , GFP_KERNEL,
@@ -3522,6 +3677,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	if (!ioc->reply_free) {
 		pr_err(MPT3SAS_FMT "reply_free pool: pci_pool_alloc failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	memset(ioc->reply_free, 0, sz);
@@ -3540,6 +3696,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		pr_err(MPT3SAS_FMT
 			"config page: pci_pool_alloc failed\n",
 			ioc->name);
+		rc = -ENOMEM;
 		goto out;
 	}
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT
@@ -3559,7 +3716,9 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 	return 0;
 
  out:
-	return -ENOMEM;
+	if (ioc->rdpq_array_enable)
+		release_bad_memory_pools(ioc);
+	return rc;
 }
 
 /**

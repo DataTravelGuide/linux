@@ -766,6 +766,22 @@ struct reply_post_struct {
 };
 
 /**
+ * struct bad_reply_post_pools - per bad reply post pool which doesn't
+ *                     satisfy MPI SPEC rule of having same upper 32bits
+ *                     of memory address in a set of 8 reply queues
+ * @reply_post_free: virtual address of reply post pool
+ * @reply_post_free_dma: Physical address of reply post pool
+ * @is_8_reply_queue_pool: is this pool contains 8 reply queues
+ * @list: Bad reply post pool list
+ */
+struct bad_reply_post_pools {
+       Mpi2ReplyDescriptorsUnion_t     *reply_post_free;
+       dma_addr_t                      reply_post_free_dma;
+       u8                              is_8_reply_queue_pool;
+       struct list_head                list;
+};
+
+/**
  * enum mutex_type - task management mutex type
  * @TM_MUTEX_OFF: mutex is not required becuase calling function is acquiring it
  * @TM_MUTEX_ON: mutex is required
@@ -908,9 +924,11 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @reply_free: pool for reply free queue (32 bit addr)
  * @reply_free_dma:
  * @reply_free_dma_pool:
+ * @reply_post_free_dma_pool_mod_8:
  * @reply_free_host_index: tail index in pool to insert free replys
  * @reply_post_queue_depth: reply post queue depth
  * @reply_post_struct: struct for reply_post_free physical & virt address
+ * @bad_reply_post_pool_list: list of bad reply post queue pools
  * @rdpq_array_capable: FW supports multiple reply queue addresses in ioc_init
  * @rdpq_array_enable: rdpq_array support is enabled in the driver
  * @rdpq_array_enable_assigned: this ensures that rdpq_array_enable flag
@@ -1129,10 +1147,12 @@ struct MPT3SAS_ADAPTER {
 	/* reply post queue */
 	u16		reply_post_queue_depth;
 	struct reply_post_struct *reply_post;
+	struct list_head bad_reply_post_pool_list;
 	u8		rdpq_array_capable;
 	u8		rdpq_array_enable;
 	u8		rdpq_array_enable_assigned;
 	struct dma_pool *reply_post_free_dma_pool;
+	struct dma_pool *reply_post_free_dma_pool_mod_8;
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
 
