@@ -795,6 +795,9 @@ struct user_struct {
 					     /* descriptors currently watched */
 #endif
 #endif
+#ifndef __GENKSYMS__
+	unsigned long unix_inflight;	/* How many files in flight in unix sockets */
+#endif
 };
 
 extern int uids_sysfs_init(void);
