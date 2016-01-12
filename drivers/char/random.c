@@ -1410,6 +1410,7 @@ ctl_table random_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= &proc_dointvec,
+		.strategy	= &sysctl_intvec,
 	},
 	{
 		.ctl_name	= RANDOM_ENTROPY_COUNT,
@@ -1417,6 +1418,7 @@ ctl_table random_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.proc_handler	= &proc_do_entropy,
+		.strategy	= &sysctl_intvec,
 		.data		= &input_pool.entropy_count,
 	},
 	{
