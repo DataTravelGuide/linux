@@ -373,7 +373,7 @@ struct mlx5_uar {
 	u32			index;
 	struct list_head	bf_list;
 	unsigned		free_bf_bmap;
-	void __iomem	       *wc_map;
+	void __iomem	       *bf_map;
 	void __iomem	       *map;
 };
 
@@ -427,6 +427,8 @@ struct mlx5_priv {
 	struct mlx5_irq_info	*irq_info;
 	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
+
+	struct io_mapping	*bf_mapping;
 
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;
