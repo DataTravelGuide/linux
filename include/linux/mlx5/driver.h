@@ -814,6 +814,11 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 
+static inline int fw_initializing(struct mlx5_core_dev *dev)
+{
+	return ioread32be(&dev->iseg->initializing) >> 31;
+}
+
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {
 	return mkey >> 8;
