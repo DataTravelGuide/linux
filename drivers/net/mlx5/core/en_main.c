@@ -1363,13 +1363,13 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 	err = mlx5e_set_dev_port_mtu(netdev);
 	if (err)
-		return err;
+		goto err_clear_state_opened_flag;
 
 	err = mlx5e_open_channels(priv);
 	if (err) {
 		netdev_err(netdev, "%s: mlx5e_open_channels failed, %d\n",
 			   __func__, err);
-		return err;
+		goto err_clear_state_opened_flag;
 	}
 
 	err = mlx5e_add_all_vlan_rules(priv);
@@ -1388,7 +1388,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 err_close_channels:
 	mlx5e_close_channels(priv);
-
+err_clear_state_opened_flag:
+	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 	return err;
 }
 
