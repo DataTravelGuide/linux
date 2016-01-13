@@ -681,10 +681,16 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	void *fragptr;
 	bool bounce = false;
 	union skb_shared_tx *shtx = skb_tx(skb);
-
+	u32 ring_cons;
 
 	if (!priv->port_up)
 		goto tx_drop;
+
+	tx_ind = skb_get_queue_mapping(skb);
+	ring = priv->tx_ring[tx_ind];
+
+	/* fetch ring->cons far ahead before needing it to avoid stall */
+	ring_cons = ACCESS_ONCE(ring->cons);
 
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
@@ -699,13 +705,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_drop;
 	}
 
-	tx_ind = skb->queue_mapping;
-	ring = priv->tx_ring[tx_ind];
 	if (skb_vlan_tag_present(skb))
 		vlan_tag = skb_vlan_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
-	if (unlikely(((int)(ring->prod - ring->cons)) >
+	if (unlikely(((int)(ring->prod - ring_cons)) >
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
 		netif_tx_stop_queue(netdev_get_tx_queue(dev, tx_ind));
@@ -719,7 +723,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		wmb();
 
-		if (unlikely(((int)(ring->prod - ring->cons)) <=
+		ring_cons = ACCESS_ONCE(ring->cons);
+		if (unlikely(((int)(ring->prod - ring_cons)) <=
 			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 			netif_tx_wake_queue(netdev_get_tx_queue(dev, tx_ind));
 			ring->wake_queue++;
@@ -730,7 +735,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Track current inflight packets for performance analysis */
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32) (ring->prod - ring->cons - 1));
+			 (u32)(ring->prod - ring_cons - 1));
 
 	/* Packet is good - grab an index and transmit it */
 	index = ring->prod & ring->size_mask;
