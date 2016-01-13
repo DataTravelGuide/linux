@@ -211,6 +211,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	int err = -ENOMEM;
 	int max_rq_sg;
 	int max_sq_sg;
+	u64 min_page_size = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
 
 	memset(props, 0, sizeof(*props));
 	err = mlx5_query_system_image_guid(ibdev,
@@ -260,7 +261,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->hw_ver		   = mdev->pdev->revision;
 
 	props->max_mr_size	   = ~0ull;
-	props->page_size_cap	   = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
+	props->page_size_cap	   = ~(min_page_size - 1);
 	props->max_qp		   = 1 << MLX5_CAP_GEN(mdev, log_max_qp);
 	props->max_qp_wr	   = 1 << MLX5_CAP_GEN(mdev, log_max_qp_sz);
 	max_rq_sg =  MLX5_CAP_GEN(mdev, max_wqe_sz_rq) /
