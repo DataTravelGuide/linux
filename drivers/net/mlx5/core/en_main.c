@@ -1328,6 +1328,42 @@ static int mlx5e_modify_tir_lro(struct mlx5e_priv *priv, int tt)
 	return err;
 }
 
+static int mlx5e_refresh_tir_self_loopback_enable(struct mlx5_core_dev *mdev,
+						  u32 tirn)
+{
+	void *in;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
+
+	err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
+
+	kvfree(in);
+
+	return err;
+}
+
+static int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5e_priv *priv)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < MLX5E_NUM_TT; i++) {
+		err = mlx5e_refresh_tir_self_loopback_enable(priv->mdev,
+							     priv->tirn[i]);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -1379,6 +1415,13 @@ int mlx5e_open_locked(struct net_device *netdev)
 		goto err_close_channels;
 	}
 
+	err = mlx5e_refresh_tirs_self_loopback_enable(priv);
+	if (err) {
+		netdev_err(netdev, "%s: mlx5e_refresh_tirs_self_loopback_enable failed, %d\n",
+			   __func__, err);
+		goto err_del_all_vlan_rules;
+	}
+
 	mlx5e_update_carrier(priv);
 	mlx5e_redirect_rqts(priv);
 	mlx5e_set_rx_mode_core(priv);
@@ -1386,6 +1429,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 	schedule_delayed_work(&priv->update_stats_work, 0);
 	return 0;
 
+err_del_all_vlan_rules:
+	mlx5e_del_all_vlan_rules(priv);
 err_close_channels:
 	mlx5e_close_channels(priv);
 err_clear_state_opened_flag:
@@ -1920,6 +1965,9 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 			       "Not creating net device, some required device capabilities are missing\n");
 		return -ENOTSUPP;
 	}
+	if (!MLX5_CAP_ETH(mdev, self_lb_en_modifiable))
+		mlx5_core_warn(mdev, "Self loop back prevention is not supported\n");
+
 	return 0;
 }
 
