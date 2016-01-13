@@ -295,6 +295,8 @@ struct sdhci_host {
 
 /* Controller is missing device caps. Use caps provided by host */
 #define SDHCI_QUIRK_MISSING_CAPS			(1<<28)
+/* Controller uses Auto CMD12 command to stop the transfer */
+#define SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12		(1<<29)
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
 
