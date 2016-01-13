@@ -273,7 +273,8 @@ struct mlx5e_params {
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u8  rss_hfunc;
-	u8 toeplitz_hash_key[40];
+	u8  toeplitz_hash_key[40];
+	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 };
 
 enum {
@@ -569,6 +570,8 @@ void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
 int mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
+
+int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
