@@ -1701,6 +1701,12 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Jan 13 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.43.1.el6]
+- [kernel] hrtimer: add force_hrtimer_reprogram kernel parameter (Prarit Bhargava) [1292081 1285142]
+- [net] netpoll: Close race condition between poll_one_napi and napi_disable (Neil Horman) [1295368 1252212]
+- [fs] fs: Unhash and evict unused children dentries after rmdir (Lukas Czerner) [1282620 1241030]
+- [fs] revert 'vfs: Unhash and evict unused children dentries after rmdir' (Carlos Maiolino) [1282620 1241030]
+
 * Tue Jan 05 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.42.1.el6]
 - [fs] jbd2: Fix oops in jbd2_journal_remove_journal_head() (Lukas Czerner) [1291346 914809]
 - [fs] jbd: Fix oops in journal_remove_journal_head() (Lukas Czerner) [1291346 914809]
