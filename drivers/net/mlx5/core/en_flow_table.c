@@ -925,7 +925,7 @@ static void mlx5e_destroy_vlan_flow_table(struct mlx5e_priv *priv)
 	mlx5_destroy_flow_table(priv->ft.vlan);
 }
 
-int mlx5e_open_flow_table(struct mlx5e_priv *priv)
+int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 {
 	int err;
 
@@ -945,7 +945,7 @@ err_destroy_main_flow_table:
 	return err;
 }
 
-void mlx5e_close_flow_table(struct mlx5e_priv *priv)
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
 {
 	mlx5e_destroy_vlan_flow_table(priv);
 	mlx5e_destroy_main_flow_table(priv);
