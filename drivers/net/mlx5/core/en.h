@@ -272,6 +272,7 @@ struct mlx5e_params {
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u8  rss_hfunc;
+	u8 toeplitz_hash_key[40];
 };
 
 enum {
