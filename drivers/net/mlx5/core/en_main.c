@@ -2006,6 +2006,7 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 		netdev->vlan_features    |= NETIF_F_LRO;
 
 	netdev->features       = netdev->vlan_features;
+	netdev->features      |= NETIF_F_HW_VLAN_TX;
 	netdev->features      |= NETIF_F_HW_VLAN_RX;
 	netdev->features      |= NETIF_F_HW_VLAN_FILTER;
 
