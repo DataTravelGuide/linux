@@ -1025,6 +1025,8 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	 * between rings
 	 */
 	for (i = 0; i < priv->rx_ring_num; i++) {
+		if (!ring_index)
+			continue;
 		if (i > 0 && !ring_index[i] && !rss_rings)
 			rss_rings = i;
 
@@ -1039,14 +1041,17 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	if (!is_power_of_2(rss_rings))
 		return -EINVAL;
 
+	if (key)
+		memcpy(priv->rss_key, key, MLX4_EN_RSS_KEY_SIZE);
+
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	priv->prof->rss_rings = rss_rings;
-
+	if (ring_index)
+		priv->prof->rss_rings = rss_rings;
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
 		if (err)

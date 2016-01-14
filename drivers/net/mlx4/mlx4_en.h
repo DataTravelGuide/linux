@@ -604,7 +604,8 @@ struct mlx4_en_priv {
 	struct list_head filters;
 	struct hlist_head filter_hash[1 << MLX4_EN_FILTER_HASH_SHIFT];
 #endif
-
+	u32 pflags;
+	u8 rss_key[MLX4_EN_RSS_KEY_SIZE];
 };
 
 enum mlx4_en_wol {
