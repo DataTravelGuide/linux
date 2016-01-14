@@ -672,6 +672,7 @@
 0xbe74c448	mutex_unlock	vmlinux	EXPORT_SYMBOL
 0x95b60a00	napi_complete	vmlinux	EXPORT_SYMBOL
 0x67a240bc	napi_complete_done	vmlinux	EXPORT_SYMBOL
+0xdacc5ee7	napi_disable	vmlinux	EXPORT_SYMBOL
 0x7fc13a6a	napi_get_frags	vmlinux	EXPORT_SYMBOL
 0xea95be5a	napi_gro_frags	vmlinux	EXPORT_SYMBOL
 0x0e02d23f	napi_gro_receive	vmlinux	EXPORT_SYMBOL

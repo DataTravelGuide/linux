@@ -851,6 +851,7 @@
 	mutex_unlock
 	napi_complete
 	napi_complete_done
+	napi_disable
 	napi_get_frags
 	napi_gro_frags
 	napi_gro_receive

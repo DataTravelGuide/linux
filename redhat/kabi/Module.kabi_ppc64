@@ -804,6 +804,7 @@
 0x50e03f67	mutex_unlock	vmlinux	EXPORT_SYMBOL
 0x2d23e12a	napi_complete	vmlinux	EXPORT_SYMBOL
 0xdcbf6fe9	napi_complete_done	vmlinux	EXPORT_SYMBOL
+0xb2d1cd43	napi_disable	vmlinux	EXPORT_SYMBOL
 0x076c3662	napi_get_frags	vmlinux	EXPORT_SYMBOL
 0x8de3148b	napi_gro_frags	vmlinux	EXPORT_SYMBOL
 0x03c7d9e6	napi_gro_receive	vmlinux	EXPORT_SYMBOL
