@@ -849,6 +849,7 @@
 0x4c8953f9	mutex_trylock	vmlinux	EXPORT_SYMBOL
 0x1ece28e2	mutex_unlock	vmlinux	EXPORT_SYMBOL
 0x7c85ef3b	napi_complete	vmlinux	EXPORT_SYMBOL
+0xf28441b1	napi_complete_done	vmlinux	EXPORT_SYMBOL
 0x7f616229	napi_get_frags	vmlinux	EXPORT_SYMBOL
 0xdf7229c7	napi_gro_frags	vmlinux	EXPORT_SYMBOL
 0x12f52882	napi_gro_receive	vmlinux	EXPORT_SYMBOL
