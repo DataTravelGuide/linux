@@ -1166,6 +1166,54 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 	return 0;
 }
 
+#ifdef not_rhel6_yet
+static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
+			     select_queue_fallback_t fallback)
+{
+	int txq;
+
+#ifdef CONFIG_CHELSIO_T4_DCB
+	/* If a Data Center Bridging has been successfully negotiated on this
+	 * link then we'll use the skb's priority to map it to a TX Queue.
+	 * The skb's priority is determined via the VLAN Tag Priority Code
+	 * Point field.
+	 */
+	if (cxgb4_dcb_enabled(dev)) {
+		u16 vlan_tci;
+		int err;
+
+		err = vlan_get_tag(skb, &vlan_tci);
+		if (unlikely(err)) {
+			if (net_ratelimit())
+				netdev_warn(dev,
+					    "TX Packet without VLAN Tag on DCB Link\n");
+			txq = 0;
+		} else {
+			txq = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+#ifdef CONFIG_CHELSIO_T4_FCOE
+			if (skb->protocol == htons(ETH_P_FCOE))
+				txq = skb->priority & 0x7;
+#endif /* CONFIG_CHELSIO_T4_FCOE */
+		}
+		return txq;
+	}
+#endif /* CONFIG_CHELSIO_T4_DCB */
+
+	if (select_queue) {
+		txq = (skb_rx_queue_recorded(skb)
+			? skb_get_rx_queue(skb)
+			: smp_processor_id());
+
+		while (unlikely(txq >= dev->real_num_tx_queues))
+			txq -= dev->real_num_tx_queues;
+
+		return txq;
+	}
+
+	return fallback(dev, skb) % dev->real_num_tx_queues;
+}
+#endif /* not_rhel6_yet */
+
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
@@ -4405,7 +4453,10 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller  = cxgb_netpoll,
 #endif
-
+#ifdef CONFIG_CHELSIO_T4_FCOE
+	.ndo_fcoe_enable      = cxgb_fcoe_enable,
+	.ndo_fcoe_disable     = cxgb_fcoe_disable,
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 };
 
 static const struct net_device_ops_ext cxgb4_netdev_ops_ext = {
