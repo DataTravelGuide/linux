@@ -49,6 +49,7 @@
 0xd8f5c5cd	__neigh_event_send	vmlinux	EXPORT_SYMBOL
 0xa2bb4580	__netdev_alloc_page	vmlinux	EXPORT_SYMBOL
 0x847e5f39	__netdev_alloc_skb	vmlinux	EXPORT_SYMBOL
+0x2aa0e0f7	__netif_napi_add	vmlinux	EXPORT_SYMBOL
 0xcb7a0918	__netif_schedule	vmlinux	EXPORT_SYMBOL
 0x1a2f6945	__next_cpu	vmlinux	EXPORT_SYMBOL
 0x6179d0b7	__nf_ct_refresh_acct	net/netfilter/nf_conntrack	EXPORT_SYMBOL_GPL

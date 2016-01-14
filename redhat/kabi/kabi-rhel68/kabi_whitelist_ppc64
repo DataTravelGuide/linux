@@ -50,6 +50,7 @@
 	__neigh_event_send
 	__netdev_alloc_page
 	__netdev_alloc_skb
+	__netif_napi_add
 	__netif_schedule
 	__next_cpu
 	__nf_ct_refresh_acct
