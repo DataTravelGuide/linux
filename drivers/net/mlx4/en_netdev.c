@@ -2411,6 +2411,17 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	    MLX4_STEERING_MODE_DEVICE_MANAGED)
 		dev->features |= NETIF_F_NTUPLE;
 
+	/* Setting a default hash function value */
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS_TOP) {
+		priv->rss_hash_fn = ETH_RSS_HASH_TOP;
+	} else if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS_XOR) {
+		priv->rss_hash_fn = ETH_RSS_HASH_XOR;
+	} else {
+		en_warn(priv,
+			"No RSS hash capabilities exposed, using Toeplitz\n");
+		priv->rss_hash_fn = ETH_RSS_HASH_TOP;
+	}
+
 	mdev->pndev[port] = dev;
 
 	netif_carrier_off(dev);
