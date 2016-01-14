@@ -683,6 +683,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	void *fragptr = NULL;
 	bool bounce = false;
 	union skb_shared_tx *shtx = skb_tx(skb);
+	bool stop_queue;
 	bool inline_ok;
 	u32 ring_cons;
 
@@ -712,30 +713,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_vlan_tag_present(skb))
 		vlan_tag = skb_vlan_tag_get(skb);
 
-	/* Check available TXBBs And 2K spare for prefetch */
-	if (unlikely(((int)(ring->prod - ring_cons)) >
-		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
-		/* every full Tx ring stops queue */
-		netif_tx_stop_queue(netdev_get_tx_queue(dev, tx_ind));
-		ring->queue_stopped++;
-
-		/* If queue was emptied after the if, and before the
-		 * stop_queue - need to wake the queue, or else it will remain
-		 * stopped forever.
-		 * Need a memory barrier to make sure ring->cons was not
-		 * updated before queue was stopped.
-		 */
-		wmb();
-
-		ring_cons = ACCESS_ONCE(ring->cons);
-		if (unlikely(((int)(ring->prod - ring_cons)) <=
-			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
-			netif_tx_wake_queue(netdev_get_tx_queue(dev, tx_ind));
-			ring->wake_queue++;
-		} else {
-			return NETDEV_TX_BUSY;
-		}
-	}
 
 	/* Track current inflight packets for performance analysis */
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
@@ -893,6 +870,16 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
+	/* Check available TXBBs And 2K spare for prefetch */
+	stop_queue = (int)(ring->prod - ring_cons) >
+		      ring->size - HEADROOM - MAX_DESC_TXBBS;
+	if (unlikely(stop_queue)) {
+		netif_tx_stop_queue(ring->tx_queue);
+		ring->queue_stopped++;
+	}
+
+	real_size = (real_size / 16) & 0x3f;
+
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !skb_vlan_tag_present(skb)) {
 		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
 
@@ -925,6 +912,22 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		iowrite32be(ring->doorbell_qpn, ring->bf.uar->map + MLX4_SEND_DOORBELL);
 	}
 
+	if (unlikely(stop_queue)) {
+		/* If queue was emptied after the if (stop_queue) , and before
+		 * the netif_tx_stop_queue() - need to wake the queue,
+		 * or else it will remain stopped forever.
+		 * Need a memory barrier to make sure ring->cons was not
+		 * updated before queue was stopped.
+		 */
+		smp_rmb();
+
+		ring_cons = ACCESS_ONCE(ring->cons);
+		if (unlikely(((int)(ring->prod - ring_cons)) <=
+			     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
+			netif_tx_wake_queue(ring->tx_queue);
+			ring->wake_queue++;
+		}
+	}
 	return NETDEV_TX_OK;
 
 tx_drop_unmap:
