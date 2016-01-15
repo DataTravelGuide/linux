@@ -2097,6 +2097,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int entry = vp->cur_tx % TX_RING_SIZE;
 	struct boom_tx_desc *prev_entry = &vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
 	unsigned long flags;
+	dma_addr_t dma_addr;
 
 	if (vortex_debug > 6) {
 		pr_debug("boomerang_start_xmit()\n");
@@ -2131,24 +2132,48 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded | AddTCPChksum | AddUDPChksum);
 
 	if (!skb_shinfo(skb)->nr_frags) {
-		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb->len, PCI_DMA_TODEVICE));
+		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data, skb->len,
+					  PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+			goto out_dma_err;
+
+		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
 		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb->len | LAST_FRAG);
 	} else {
 		int i;
 
-		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb->len-skb->data_len, PCI_DMA_TODEVICE));
+		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data,
+					  skb_headlen(skb), PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+			goto out_dma_err;
+
+		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
 		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb->len-skb->data_len);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
+			dma_addr = skb_frag_dma_map(&VORTEX_PCI(vp)->dev, frag,
+						    frag->page_offset,
+						    frag->size,
+						    DMA_TO_DEVICE);
+			if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr)) {
+				for(i = i-1; i >= 0; i--)
+					dma_unmap_page(&VORTEX_PCI(vp)->dev,
+						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].addr),
+						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].length),
+						       DMA_TO_DEVICE);
+
+				pci_unmap_single(VORTEX_PCI(vp),
+						 le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
+						 le32_to_cpu(vp->tx_ring[entry].frag[0].length),
+						 PCI_DMA_TODEVICE);
+
+				goto out_dma_err;
+			}
+
 			vp->tx_ring[entry].frag[i+1].addr =
-					cpu_to_le32(skb_frag_dma_map(
-						&VORTEX_PCI(vp)->dev,
-						frag,
-						0, frag->size, DMA_TO_DEVICE));
+						cpu_to_le32(dma_addr);
 
 			if (i == skb_shinfo(skb)->nr_frags-1)
 					vp->tx_ring[entry].frag[i+1].length = cpu_to_le32(frag->size|LAST_FRAG);
@@ -2157,7 +2182,10 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #else
-	vp->tx_ring[entry].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, skb->len, PCI_DMA_TODEVICE));
+	dma_addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, skb->len, PCI_DMA_TODEVICE));
+	if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+		goto out_dma_err;
+	vp->tx_ring[entry].addr = cpu_to_le32(dma_addr);
 	vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
 	vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 #endif
@@ -2185,7 +2213,11 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
 	dev->trans_start = jiffies;
+out:
 	return NETDEV_TX_OK;
+out_dma_err:
+	dev_err(&VORTEX_PCI(vp)->dev, "Error mapping dma buffer\n");
+	goto out;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up
