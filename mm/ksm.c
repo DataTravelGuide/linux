@@ -901,6 +901,7 @@ static int remove_stable_node_chain(struct stable_node *stable_node,
 		VM_BUG_ON(!is_stable_node_dup(dup));
 		if (remove_stable_node(dup))
 			return true;
+		cond_resched();
 	}
 	BUG_ON(!hlist_empty(&stable_node->hlist));
 	free_stable_node_chain(stable_node, root);
@@ -952,6 +953,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 		mm = mm_slot->mm;
 		down_read(&mm->mmap_sem);
 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			cond_resched();
 			if (ksm_test_exit(mm))
 				break;
 			if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
