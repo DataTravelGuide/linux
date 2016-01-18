@@ -528,6 +528,7 @@
 0xb6cb9a20	fb_set_var	vmlinux	EXPORT_SYMBOL
 0x50d9bee9	fc_attach_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xa3f29ecd	fc_exch_mgr_alloc	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
+0x882fad5b	fc_exch_mgr_free	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x15fcb12e	fc_release_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xbe9011cf	fc_remote_port_add	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xff9505a4	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL

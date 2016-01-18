@@ -521,6 +521,7 @@
 	fb_set_var
 	fc_attach_transport
 	fc_exch_mgr_alloc
+	fc_exch_mgr_free
 	fc_release_transport
 	fc_remote_port_add
 	fc_remote_port_delete
