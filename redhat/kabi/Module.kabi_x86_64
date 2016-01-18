@@ -27,6 +27,7 @@
 0xb1ef2b2a	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0x6a6d551b	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x5a4767f7	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
+0x143fdc68	__elv_add_request	vmlinux	EXPORT_SYMBOL
 0xffd35acd	__free_pages	vmlinux	EXPORT_SYMBOL
 0xc436680c	__generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0x93fca811	__get_free_pages	vmlinux	EXPORT_SYMBOL

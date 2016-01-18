@@ -26,6 +26,7 @@
 	__dec_zone_page_state
 	__dev_get_by_index
 	__dev_get_by_name
+	__elv_add_request
 	__free_pages
 	__generic_file_aio_write
 	__get_free_pages

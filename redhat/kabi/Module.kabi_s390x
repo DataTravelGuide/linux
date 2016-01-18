@@ -24,6 +24,7 @@
 0x04c92ea7	__dec_zone_page_state	vmlinux	EXPORT_SYMBOL
 0x83737efc	__dev_get_by_index	vmlinux	EXPORT_SYMBOL
 0x02f0e0ac	__dev_get_by_name	vmlinux	EXPORT_SYMBOL
+0x7ce755f0	__elv_add_request	vmlinux	EXPORT_SYMBOL
 0x91d1bbc3	__free_pages	vmlinux	EXPORT_SYMBOL
 0x99f2b5fb	__generic_file_aio_write	vmlinux	EXPORT_SYMBOL
 0x93fca811	__get_free_pages	vmlinux	EXPORT_SYMBOL
