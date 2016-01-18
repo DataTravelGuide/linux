@@ -84,6 +84,9 @@ struct timekeeper {
 
 	/* Seqlock for all timekeeper values */
 	seqlock_t lock;
+
+	/* The sequence number of clock was set events */
+	unsigned int clock_was_set_seq;
 };
 
 static struct timekeeper timekeeper;
@@ -227,6 +230,9 @@ static void timekeeping_update(bool clearntp, bool clock_set)
 	update_rt_offset();
 	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
 			 timekeeper.clock, timekeeper.mult);
+
+	if (clock_set)
+		timekeeper.clock_was_set_seq++;
 }
 
 
@@ -1317,6 +1323,7 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
 #ifdef CONFIG_HIGH_RES_TIMERS
 /**
  * ktime_get_update_offsets - hrtimer helper
+ * @cwsseq:     pointer to check and store the clock was set sequence number
  * @offs_real:	pointer to storage for monotonic -> realtime offset
  *
  * Returns current monotonic time and updates the offsets
@@ -1324,7 +1331,7 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
  *
  * RHEL6: We do not have real vs boot clocks in RHEL.
  */
-ktime_t ktime_get_update_offsets(ktime_t *offs_real)
+ktime_t ktime_get_update_offsets(unsigned int *cwsseq, ktime_t *offs_real)
 {
 	unsigned int seq;
 	ktime_t base;
@@ -1339,7 +1346,10 @@ ktime_t ktime_get_update_offsets(ktime_t *offs_real)
 		/* If arch requires, add in gettimeoffset() */
 		nsecs += arch_gettimeoffset();
 
-		*offs_real = timekeeper.offs_real;
+		if (*cwsseq != timekeeper.clock_was_set_seq) {
+			*cwsseq = timekeeper.clock_was_set_seq;
+			*offs_real = timekeeper.offs_real;
+		}
 	} while (read_seqretry(&timekeeper.lock, seq));
 
 	return ktime_add_ns(base, nsecs);
