@@ -434,6 +434,7 @@
 	fc_remove_host
 	fc_set_mfs
 	fcoe_ctlr_destroy
+	fcoe_ctlr_els_send
 	fd_install
 	fget
 	file_fsync

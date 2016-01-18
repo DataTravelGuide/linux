@@ -534,6 +534,7 @@
 0x2e1ae29c	fc_remove_host	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x40340ce6	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x7d936a44	fcoe_ctlr_destroy	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
+0xe1fcc2ec	fcoe_ctlr_els_send	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xd03c087d	fd_install      vmlinux EXPORT_SYMBOL
 0x132c01d1	fget	vmlinux	EXPORT_SYMBOL
 0xff69926a	file_fsync	vmlinux	EXPORT_SYMBOL
