@@ -574,6 +574,24 @@ int do_adjtimex(struct timex *txc)
 	if (!(time_status & STA_NANO))
 		txc->time.tv_usec /= NSEC_PER_USEC;
 
+	/* Handle leapsec adjustments */
+	if (unlikely(ts.tv_sec >= ntp_next_leap_sec)) {
+		if ((time_state == TIME_INS) && (time_status & STA_INS)) {
+			result = TIME_OOP;
+			txc->tai++;
+			txc->time.tv_sec--;
+		}
+		if ((time_state == TIME_DEL) && (time_status & STA_DEL)) {
+			result = TIME_WAIT;
+			txc->tai--;
+			txc->time.tv_sec++;
+		}
+		if ((time_state == TIME_OOP) &&
+					(ts.tv_sec == ntp_next_leap_sec)) {
+			result = TIME_WAIT;
+		}
+	}
+
 	tk_update_leap_state();
 	notify_cmos_timer();
 
