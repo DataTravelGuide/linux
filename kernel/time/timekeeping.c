@@ -43,6 +43,10 @@ struct timekeeper {
 
 	/* Clock shifted nano seconds remainder not stored in xtime.tv_nsec. */
 	u64	xtime_nsec;
+
+	/* Monotonic base time */
+	ktime_t base_mono;
+
 	/* Difference between accumulated time and NTP time in ntp
 	 * shifted nano seconds. */
 	s64	ntp_error;
@@ -187,6 +191,29 @@ static void update_rt_offset(void)
 	timekeeper.offs_real = timespec_to_ktime(tmp);
 }
 
+/*
+ * Update the ktime_t based scalar nsec members of the timekeeper
+ */
+static inline void tk_update_ktime_data(struct timekeeper *tk)
+{
+	s64 nsec;
+
+	/*
+	 * The xtime based monotonic readout is:
+	 *      nsec = (xtime_sec + wtm_sec) * 1e9 + wtm_nsec + now();
+	 * The ktime based monotonic readout is:
+	 *      nsec = base_mono + now();
+	 * ==> base_mono = (xtime_sec + wtm_sec) * 1e9 + wtm_nsec
+	 *
+	 * RHEL6: timekeeper still uses xtime for tracking tv_sec
+	 * unlike upstream, so use xtime.tv_sec here.
+	 */
+	nsec = (s64)(tk->xtime.tv_sec + tk->wall_to_monotonic.tv_sec);
+	nsec *= NSEC_PER_SEC;
+	nsec += tk->wall_to_monotonic.tv_nsec;
+	tk->base_mono = ns_to_ktime(nsec);
+}
+
 /* must hold write on timekeeper.lock */
 static void timekeeping_update(bool clearntp, bool clock_set)
 {
@@ -194,6 +221,9 @@ static void timekeeping_update(bool clearntp, bool clock_set)
 		timekeeper.ntp_error = 0;
 		ntp_clear();
 	}
+
+	tk_update_ktime_data(&timekeeper);
+
 	update_rt_offset();
 	update_vsyscall(&timekeeper.xtime, &timekeeper.wall_to_monotonic,
 			 timekeeper.clock, timekeeper.mult);
