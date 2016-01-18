@@ -1326,14 +1326,14 @@ void get_xtime_and_monotonic_and_sleep_offset(struct timespec *xtim,
  */
 ktime_t ktime_get_update_offsets(ktime_t *offs_real)
 {
-	ktime_t now;
 	unsigned int seq;
-	u64 secs, nsecs;
+	ktime_t base;
+	u64 nsecs;
 
 	do {
 		seq = read_seqbegin(&timekeeper.lock);
 
-		secs = timekeeper.xtime.tv_sec;
+		base = timekeeper.base_mono;
 		nsecs = timekeeper.xtime.tv_nsec;
 		nsecs += timekeeping_get_ns();
 		/* If arch requires, add in gettimeoffset() */
@@ -1342,9 +1342,7 @@ ktime_t ktime_get_update_offsets(ktime_t *offs_real)
 		*offs_real = timekeeper.offs_real;
 	} while (read_seqretry(&timekeeper.lock, seq));
 
-	now = ktime_add_ns(ktime_set(secs, 0), nsecs);
-	now = ktime_sub(now, *offs_real);
-	return now;
+	return ktime_add_ns(base, nsecs);
 }
 #endif
 
