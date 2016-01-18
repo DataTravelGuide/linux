@@ -432,6 +432,7 @@
 0xde146fb2	fc_remote_port_rolechg	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xcdcdcf97	fc_remove_host	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xa864cf9b	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
+0xaa7a11fa	fcoe_ctlr_destroy	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0x14fa3e0e	fd_install      vmlinux EXPORT_SYMBOL
 0xf08496a7	fget	vmlinux	EXPORT_SYMBOL
 0x44c0c09b	file_fsync	vmlinux	EXPORT_SYMBOL
