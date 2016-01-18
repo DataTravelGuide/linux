@@ -122,6 +122,7 @@
 	bcd2bin
 	bd_claim
 	bd_release
+	bd_set_size
 	bdevname
 	bdget
 	bdget_disk

@@ -121,6 +121,7 @@
 0xfec3c2f2	bcd2bin	vmlinux	EXPORT_SYMBOL
 0x91a390fb	bd_claim	vmlinux	EXPORT_SYMBOL
 0x0003194f	bd_release	vmlinux	EXPORT_SYMBOL
+0x935908e0	bd_set_size	vmlinux	EXPORT_SYMBOL
 0x0f62c285	bdevname	vmlinux	EXPORT_SYMBOL
 0x47ec8216	bdget	vmlinux	EXPORT_SYMBOL
 0x513602b8	bdget_disk	vmlinux	EXPORT_SYMBOL
