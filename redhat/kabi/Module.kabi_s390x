@@ -434,6 +434,7 @@
 0xa864cf9b	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0xaa7a11fa	fcoe_ctlr_destroy	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xb0a9e7cd	fcoe_ctlr_els_send	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
+0x467f458e	fcoe_ctlr_init	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0x14fa3e0e	fd_install      vmlinux EXPORT_SYMBOL
 0xf08496a7	fget	vmlinux	EXPORT_SYMBOL
 0x44c0c09b	file_fsync	vmlinux	EXPORT_SYMBOL

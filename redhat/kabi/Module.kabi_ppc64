@@ -494,6 +494,7 @@
 0x7ae9a6e9	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x53f4e67d	fcoe_ctlr_destroy	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0x82ecfb12	fcoe_ctlr_els_send	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
+0x611d4a92	fcoe_ctlr_init	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xf480c9ff	fd_install      vmlinux EXPORT_SYMBOL
 0x49abfe85	fget	vmlinux	EXPORT_SYMBOL
 0xfe25a6bb	file_fsync	vmlinux	EXPORT_SYMBOL
