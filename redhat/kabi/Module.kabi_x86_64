@@ -544,6 +544,7 @@
 0x1468c03c	fcoe_ctlr_destroy	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xa00ff34d	fcoe_ctlr_els_send	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0x8d77f82d	fcoe_ctlr_init	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
+0x5034bdc0	fcoe_ctlr_link_down	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xfd8ec3c2	fd_install      vmlinux EXPORT_SYMBOL
 0x92375255	fget	vmlinux	EXPORT_SYMBOL
 0x77045cfa	file_fsync	vmlinux	EXPORT_SYMBOL
