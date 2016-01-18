@@ -15,6 +15,8 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 
+#include "timekeeping_internal.h"
+
 /*
  * NTP timekeeping variables:
  */
@@ -75,6 +77,9 @@ long				time_adjust;
 
 /* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
 static s64			ntp_tick_adj;
+
+/* second value of the next pending leapsecond, or TIME64_MAX if no leap */
+static time64_t			ntp_next_leap_sec = TIME64_MAX;
 
 /*
  * NTP methods:
@@ -181,6 +186,9 @@ void ntp_clear(void)
 
 	tick_length	= tick_length_base;
 	time_offset	= 0;
+
+	ntp_next_leap_sec = TIME64_MAX;
+
 	spin_unlock_irqrestore(&ntp_lock, flags);
 
 }
@@ -197,6 +205,21 @@ u64 ntp_tick_length(void)
 	return ret;
 }
 
+/**
+ * ntp_get_next_leap - Returns the next leapsecond in CLOCK_REALTIME ktime_t
+ *
+ * Provides the time of the next leapsecond against CLOCK_REALTIME in
+ * a ktime_t format. Returns KTIME_MAX if no leapsecond is pending.
+ */
+ktime_t ntp_get_next_leap(void)
+{
+	ktime_t ret;
+
+	if ((time_state == TIME_INS) && (time_status & STA_INS))
+		return ktime_set(ntp_next_leap_sec, 0);
+	ret.tv64 = KTIME_MAX;
+	return ret;
+}
 
 /*
  * this routine handles the overflow of the microsecond field
@@ -223,15 +246,21 @@ int second_overflow(unsigned long secs)
 	 */
 	switch (time_state) {
 	case TIME_OK:
-		if (time_status & STA_INS)
+		if (time_status & STA_INS) {
 			time_state = TIME_INS;
-		else if (time_status & STA_DEL)
+			ntp_next_leap_sec = secs + SECS_PER_DAY -
+						(secs % SECS_PER_DAY);
+		} else if (time_status & STA_DEL) {
 			time_state = TIME_DEL;
+			ntp_next_leap_sec = secs + SECS_PER_DAY -
+						((secs + 1) % SECS_PER_DAY);
+		}
 		break;
 	case TIME_INS:
-		if (!(time_status & STA_INS))
+		if (!(time_status & STA_INS)) {
+			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_OK;
-		else if (secs % SECS_PER_DAY == 0) {
+		} else if (secs % SECS_PER_DAY == 0) {
 			leap = -1;
 			time_state = TIME_OOP;
 			time_tai++;
@@ -240,17 +269,20 @@ int second_overflow(unsigned long secs)
 		}
 		break;
 	case TIME_DEL:
-		if (!(time_status & STA_DEL))
+		if (!(time_status & STA_DEL)) {
+			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_OK;
-		else if ((secs + 1) % SECS_PER_DAY == 0) {
+		} else if ((secs + 1) % SECS_PER_DAY == 0) {
 			leap = 1;
 			time_tai--;
+			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_WAIT;
 			printk(KERN_NOTICE
 				"Clock: deleting leap second 23:59:59 UTC\n");
 		}
 		break;
 	case TIME_OOP:
+		ntp_next_leap_sec = TIME64_MAX;
 		time_state = TIME_WAIT;
 		break;
 
@@ -377,6 +409,7 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
 		time_state = TIME_OK;
 		time_status = STA_UNSYNC;
+		ntp_next_leap_sec = TIME64_MAX;
 	}
 
 	/*
@@ -541,6 +574,7 @@ int do_adjtimex(struct timex *txc)
 	if (!(time_status & STA_NANO))
 		txc->time.tv_usec /= NSEC_PER_USEC;
 
+	tk_update_leap_state();
 	notify_cmos_timer();
 
 	return result;

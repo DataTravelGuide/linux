@@ -82,6 +82,9 @@ struct timekeeper {
 	/* Offset clock monotonic -> clock boottime */
 	ktime_t offs_boot;
 
+	/* CLOCK_MONOTONIC time value of a pending leap-second */
+	ktime_t next_leap_ktime;
+
 	/* Seqlock for all timekeeper values */
 	seqlock_t lock;
 
@@ -195,6 +198,26 @@ static void update_rt_offset(void)
 }
 
 /*
+ * tk_update_leap_state - helper to update the next_leap_ktime
+ */
+static inline void __tk_update_leap_state(struct timekeeper *tk)
+{
+	tk->next_leap_ktime = ntp_get_next_leap();
+	if (tk->next_leap_ktime.tv64 != KTIME_MAX)
+		/* convert to monotonic time */
+		tk->next_leap_ktime = ktime_sub(tk->next_leap_ktime, tk->offs_real);
+}
+
+void tk_update_leap_state(void)
+{
+	unsigned long flags;
+
+	write_seqlock_irqsave(&timekeeper.lock, flags);
+	__tk_update_leap_state(&timekeeper);
+	write_sequnlock_irqrestore(&timekeeper.lock, flags);
+}
+
+/*
  * Update the ktime_t based scalar nsec members of the timekeeper
  */
 static inline void tk_update_ktime_data(struct timekeeper *tk)
@@ -225,6 +248,7 @@ static void timekeeping_update(bool clearntp, bool clock_set)
 		ntp_clear();
 	}
 
+	__tk_update_leap_state(&timekeeper);
 	tk_update_ktime_data(&timekeeper);
 
 	update_rt_offset();
@@ -1345,14 +1369,20 @@ ktime_t ktime_get_update_offsets(unsigned int *cwsseq, ktime_t *offs_real)
 		nsecs += timekeeping_get_ns();
 		/* If arch requires, add in gettimeoffset() */
 		nsecs += arch_gettimeoffset();
+		base = ktime_add_ns(base, nsecs);
 
 		if (*cwsseq != timekeeper.clock_was_set_seq) {
 			*cwsseq = timekeeper.clock_was_set_seq;
 			*offs_real = timekeeper.offs_real;
 		}
+
+		/* Handle leapsecond insertion adjustments */
+		if (unlikely(base.tv64 >= timekeeper.next_leap_ktime.tv64))
+			*offs_real = ktime_sub(timekeeper.offs_real, ktime_set(1, 0));
+
 	} while (read_seqretry(&timekeeper.lock, seq));
 
-	return ktime_add_ns(base, nsecs);
+	return base;
 }
 #endif
 
