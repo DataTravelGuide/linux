@@ -439,6 +439,7 @@
 	fcoe_ctlr_link_down
 	fcoe_ctlr_link_up
 	fcoe_ctlr_recv
+	fcoe_ctlr_recv_flogi
 	fd_install
 	fget
 	file_fsync
