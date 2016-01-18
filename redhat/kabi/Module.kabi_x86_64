@@ -250,6 +250,7 @@
 0xc3084fde	blk_start_queue	vmlinux	EXPORT_SYMBOL
 0x0c9dbb7a	blk_start_request	vmlinux	EXPORT_SYMBOL
 0xf125e4ec	blk_stop_queue	vmlinux	EXPORT_SYMBOL
+0x519a9788	blk_unplug	vmlinux	EXPORT_SYMBOL
 0x0e0a5f00	blkcipher_walk_done	vmlinux	EXPORT_SYMBOL_GPL
 0xeffddba4	blkcipher_walk_virt	vmlinux	EXPORT_SYMBOL_GPL
 0x0deb9153	blkdev_get	vmlinux	EXPORT_SYMBOL

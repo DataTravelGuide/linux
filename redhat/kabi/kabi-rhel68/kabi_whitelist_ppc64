@@ -228,6 +228,7 @@
 	blk_start_queue
 	blk_start_request
 	blk_stop_queue
+	blk_unplug
 	blkcipher_walk_done
 	blkcipher_walk_virt
 	blkdev_get

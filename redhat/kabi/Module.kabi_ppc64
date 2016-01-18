@@ -227,6 +227,7 @@
 0x3995fefe	blk_start_queue	vmlinux	EXPORT_SYMBOL
 0xa4ed8c5a	blk_start_request	vmlinux	EXPORT_SYMBOL
 0x385bc925	blk_stop_queue	vmlinux	EXPORT_SYMBOL
+0x730c95fe	blk_unplug	vmlinux	EXPORT_SYMBOL
 0xa03cbd97	blkcipher_walk_done	vmlinux	EXPORT_SYMBOL_GPL
 0x2379c242	blkcipher_walk_virt	vmlinux	EXPORT_SYMBOL_GPL
 0x8023658a	blkdev_get	vmlinux	EXPORT_SYMBOL
