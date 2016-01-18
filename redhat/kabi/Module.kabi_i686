@@ -523,6 +523,7 @@
 0xc85c327b	fc_exch_mgr_free	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x07bc198c	fc_exch_recv	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x5d2d544c	fc_fabric_login	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
+0xfe464934	fc_fabric_logoff	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x4e82a9bf	fc_release_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x44975217	fc_remote_port_add	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xfa03c413	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
