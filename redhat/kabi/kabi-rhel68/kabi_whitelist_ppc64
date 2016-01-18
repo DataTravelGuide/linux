@@ -484,6 +484,7 @@
 	fc_exch_recv
 	fc_fabric_login
 	fc_fabric_logoff
+	fc_lport_bsg_request
 	fc_release_transport
 	fc_remote_port_add
 	fc_remote_port_delete
