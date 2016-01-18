@@ -206,6 +206,7 @@
 0x9b8a8095	blkcipher_walk_done	vmlinux	EXPORT_SYMBOL_GPL
 0x9ff0faa5	blkcipher_walk_virt	vmlinux	EXPORT_SYMBOL_GPL
 0x299d6115	blkdev_get	vmlinux	EXPORT_SYMBOL
+0x0a58f875	blkdev_issue_discard	vmlinux	EXPORT_SYMBOL
 0x563ceada	blkdev_put	vmlinux	EXPORT_SYMBOL
 0x85138095	block_commit_write	vmlinux	EXPORT_SYMBOL
 0xfbfc4d2b	block_prepare_write	vmlinux	EXPORT_SYMBOL

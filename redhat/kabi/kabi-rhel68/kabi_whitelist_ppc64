@@ -232,6 +232,7 @@
 	blkcipher_walk_done
 	blkcipher_walk_virt
 	blkdev_get
+	blkdev_issue_discard
 	blkdev_put
 	block_commit_write
 	block_prepare_write

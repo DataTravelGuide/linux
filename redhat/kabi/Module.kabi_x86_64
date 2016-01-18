@@ -254,6 +254,7 @@
 0x0e0a5f00	blkcipher_walk_done	vmlinux	EXPORT_SYMBOL_GPL
 0xeffddba4	blkcipher_walk_virt	vmlinux	EXPORT_SYMBOL_GPL
 0x0deb9153	blkdev_get	vmlinux	EXPORT_SYMBOL
+0x6db4d885	blkdev_issue_discard	vmlinux	EXPORT_SYMBOL
 0x9fafa033	blkdev_put	vmlinux	EXPORT_SYMBOL
 0xa7f21efc	block_commit_write	vmlinux	EXPORT_SYMBOL
 0x49345de2	block_prepare_write	vmlinux	EXPORT_SYMBOL
