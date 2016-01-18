@@ -585,6 +585,7 @@
 	free_pages
 	free_percpu
 	free_vm_area
+	fsync_bdev
 	generic_block_bmap
 	generic_delete_inode
 	generic_drop_inode

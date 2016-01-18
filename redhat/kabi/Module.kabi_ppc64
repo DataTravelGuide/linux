@@ -533,6 +533,7 @@
 0x4302d0eb	free_pages	vmlinux	EXPORT_SYMBOL
 0xc9ec4e21	free_percpu	vmlinux	EXPORT_SYMBOL_GPL
 0x74fe953a	free_vm_area	vmlinux	EXPORT_SYMBOL_GPL
+0x6a682c49	fsync_bdev	vmlinux	EXPORT_SYMBOL
 0x7930d6c0	generic_block_bmap	vmlinux	EXPORT_SYMBOL
 0x6e61ef86	generic_delete_inode	vmlinux	EXPORT_SYMBOL
 0x441e9be2	generic_drop_inode	vmlinux	EXPORT_SYMBOL_GPL
