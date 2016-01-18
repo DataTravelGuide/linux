@@ -532,6 +532,7 @@
 0xfa03c413	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x5d9c013b	fc_remote_port_rolechg	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x2e1ae29c	fc_remove_host	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
+0x40340ce6	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0xd03c087d	fd_install      vmlinux EXPORT_SYMBOL
 0x132c01d1	fget	vmlinux	EXPORT_SYMBOL
 0xff69926a	file_fsync	vmlinux	EXPORT_SYMBOL

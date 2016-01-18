@@ -491,6 +491,7 @@
 0x222355f8	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0x1f38da7f	fc_remote_port_rolechg	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xafaa8d99	fc_remove_host	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
+0x7ae9a6e9	fc_set_mfs	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0xf480c9ff	fd_install      vmlinux EXPORT_SYMBOL
 0x49abfe85	fget	vmlinux	EXPORT_SYMBOL
 0xfe25a6bb	file_fsync	vmlinux	EXPORT_SYMBOL

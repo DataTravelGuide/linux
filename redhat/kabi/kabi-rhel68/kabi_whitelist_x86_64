@@ -541,6 +541,7 @@
 	fc_remote_port_delete
 	fc_remote_port_rolechg
 	fc_remove_host
+	fc_set_mfs
 	fd_install
 	fget
 	file_fsync
