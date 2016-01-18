@@ -546,6 +546,7 @@
 	fcoe_ctlr_els_send
 	fcoe_ctlr_init
 	fcoe_ctlr_link_down
+	fcoe_ctlr_link_up
 	fd_install
 	fget
 	file_fsync
