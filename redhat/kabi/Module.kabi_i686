@@ -540,6 +540,7 @@
 0xea6a13d1	fcoe_ctlr_link_up	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xd0ef12bf	fcoe_ctlr_recv	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
 0xfa1b4205	fcoe_ctlr_recv_flogi	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL
+0x64e5a521	fcoe_libfc_config	drivers/scsi/fcoe/libfcoe	EXPORT_SYMBOL_GPL
 0xd03c087d	fd_install      vmlinux EXPORT_SYMBOL
 0x132c01d1	fget	vmlinux	EXPORT_SYMBOL
 0xff69926a	file_fsync	vmlinux	EXPORT_SYMBOL

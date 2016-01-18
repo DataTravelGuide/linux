@@ -440,6 +440,7 @@
 	fcoe_ctlr_link_up
 	fcoe_ctlr_recv
 	fcoe_ctlr_recv_flogi
+	fcoe_libfc_config
 	fd_install
 	fget
 	file_fsync
