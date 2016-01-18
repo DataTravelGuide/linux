@@ -188,7 +188,7 @@ static void update_rt_offset(void)
 }
 
 /* must hold write on timekeeper.lock */
-static void timekeeping_update(bool clearntp)
+static void timekeeping_update(bool clearntp, bool clock_set)
 {
 	if (clearntp) {
 		timekeeper.ntp_error = 0;
@@ -354,7 +354,7 @@ int do_settimeofday(const struct timespec *tv)
 			timespec_sub(timekeeper.wall_to_monotonic, ts_delta);
 
 	timekeeper.xtime = *tv;
-	timekeeping_update(true);
+	timekeeping_update(true, true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -397,7 +397,7 @@ int timekeeping_inject_offset(struct timespec *ts)
 				timespec_sub(timekeeper.wall_to_monotonic, *ts);
 
 error: /* even if we error out, we forwarded the time, so call update */
-	timekeeping_update(true);
+	timekeeping_update(true, true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -429,7 +429,7 @@ static int change_clocksource(void *data)
 		if (old->disable)
 			old->disable(old);
 	}
-	timekeeping_update(true);
+	timekeeping_update(true, true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -662,7 +662,7 @@ void timekeeping_inject_sleeptime(struct timespec *delta)
 
 	__timekeeping_inject_sleeptime(delta);
 
-	timekeeping_update(true);
+	timekeeping_update(true, true);
 
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
@@ -698,7 +698,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	timekeeper.clock->cycle_last = timekeeper.clock->read(timekeeper.clock);
 	timekeeper.ntp_error = 0;
 	timekeeping_suspended = 0;
-	timekeeping_update(false);
+	timekeeping_update(false, true);
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
 
 	touch_softlockup_watchdog();
@@ -1101,7 +1101,7 @@ static void update_wall_time(void)
 			clock_set = true;
 	}
 
-	timekeeping_update(false);
+	timekeeping_update(false, clock_set);
 
 out:
 	write_sequnlock_irqrestore(&timekeeper.lock, flags);
