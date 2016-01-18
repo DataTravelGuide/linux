@@ -425,6 +425,7 @@
 0x02ab5eaf	fc_fabric_logoff	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x09cc2c83	fc_lport_bsg_request	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0x6edf9cb9	fc_lport_config	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
+0xd482974a	fc_lport_destroy	drivers/scsi/libfc/libfc	EXPORT_SYMBOL
 0xd4e3b413	fc_release_transport	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xe2da3adc	fc_remote_port_add	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL
 0xfa6420da	fc_remote_port_delete	drivers/scsi/scsi_transport_fc	EXPORT_SYMBOL

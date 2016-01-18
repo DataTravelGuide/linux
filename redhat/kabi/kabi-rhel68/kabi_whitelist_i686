@@ -527,6 +527,7 @@
 	fc_fabric_logoff
 	fc_lport_bsg_request
 	fc_lport_config
+	fc_lport_destroy
 	fc_release_transport
 	fc_remote_port_add
 	fc_remote_port_delete
