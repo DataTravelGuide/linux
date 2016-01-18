@@ -547,6 +547,7 @@
 	fcoe_ctlr_init
 	fcoe_ctlr_link_down
 	fcoe_ctlr_link_up
+	fcoe_ctlr_recv
 	fd_install
 	fget
 	file_fsync
