@@ -6452,8 +6452,12 @@ static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 	}
-	if (res->raw_mode && ipr_is_af_dasd_device(res))
+	if (res->raw_mode && ipr_is_af_dasd_device(res)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_PIPE;
+
+		if (scsi_cmd->underflow == 0)
+			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
+	}
 
 	if (likely(rc == 0)) {
 		if (ioa_cfg->sis64)
