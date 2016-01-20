@@ -15,7 +15,7 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_info.o drm_debugfs.o drm_encoder_slave.o \
 		drm_trace_points.o drm_global.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
-		drm_modeset_lock.o drm_atomic.o
+		drm_modeset_lock.o drm_atomic.o drm_bridge.o
 
 drm-y += idr2.o drm_backport.o
 
