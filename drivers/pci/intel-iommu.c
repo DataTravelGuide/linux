@@ -355,6 +355,9 @@ int dmar_disabled = 0;
 int dmar_disabled = 1;
 #endif /*CONFIG_DMAR_DEFAULT_ON*/
 
+int intel_iommu_enabled = 0;
+EXPORT_SYMBOL_GPL(intel_iommu_enabled);
+
 static int dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
@@ -3558,6 +3561,8 @@ int __init intel_iommu_init(void)
 	register_iommu(&intel_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
+
+	intel_iommu_enabled = 1;
 
 	return 0;
 }
