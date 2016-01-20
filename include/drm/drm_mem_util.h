@@ -28,7 +28,6 @@
 #define _DRM_MEM_UTIL_H_
 
 #include <linux/vmalloc.h>
-#include <drm/drm_backport.h>
 
 static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
 {

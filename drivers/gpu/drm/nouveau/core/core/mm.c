@@ -22,8 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <drm/drm_backport.h>
-
 #include "core/os.h"
 #include "core/mm.h"
 

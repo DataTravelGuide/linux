@@ -23,8 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 #include <linux/clk.h>
-
-#include <drm/drm_backport.h>
+#include <linux/regulator/consumer.h>
 
 #include <asm/unaligned.h>
 

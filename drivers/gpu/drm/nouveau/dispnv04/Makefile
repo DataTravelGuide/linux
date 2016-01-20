@@ -1,4 +1,3 @@
-ccflags-y += -include drm/drm_backport.h
 nouveau-y += dispnv04/arb.o
 nouveau-y += dispnv04/crtc.o
 nouveau-y += dispnv04/cursor.o

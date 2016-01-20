@@ -337,7 +337,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret) {
 		NV_ERROR(drm, "failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -494,6 +494,23 @@ nouveau_fbcon_set_suspend_work(struct work_struct *work)
 	console_unlock();
 }
 
+void
+nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	if (drm->fbcon) {
+		if (state == FBINFO_STATE_RUNNING) {
+			schedule_work(&drm->fbcon->work);
+			return;
+		}
+		flush_work(&drm->fbcon->work);
+		console_lock();
+		fb_set_suspend(drm->fbcon->helper.fbdev, state);
+		nouveau_fbcon_accel_save_disable(dev);
+		console_unlock();
+	}
+}
+
 int
 nouveau_fbcon_init(struct drm_device *dev)
 {
@@ -552,21 +569,4 @@ nouveau_fbcon_fini(struct drm_device *dev)
 	nouveau_fbcon_destroy(dev, drm->fbcon);
 	kfree(drm->fbcon);
 	drm->fbcon = NULL;
-}
-
-void
-nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon) {
-		if (state == FBINFO_STATE_RUNNING) {
-			schedule_work(&drm->fbcon->work);
-			return;
-		}
-		flush_work(&drm->fbcon->work);
-		console_lock();
-		fb_set_suspend(drm->fbcon->helper.fbdev, state);
-		nouveau_fbcon_accel_save_disable(dev);
-		console_unlock();
-	}
 }

@@ -30,7 +30,6 @@
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_
 
-#include <drm/drm_backport.h>
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_memory.h>
 #include <ttm/ttm_module.h>

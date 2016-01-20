@@ -129,11 +129,11 @@ mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
 	obj = retn.pointer;
 	if (obj->type == ACPI_TYPE_BUFFER) {
 		mxm->mxms = kmemdup(obj->buffer.pointer,
-					 obj->buffer.length, GFP_KERNEL);
+				obj->buffer.length, GFP_KERNEL);
 	} else
-	if (obj->type == ACPI_TYPE_INTEGER) {
-		nv_debug(mxm, "DSM MXMS returned 0x%llx\n", obj->integer.value);
-	}
+		if (obj->type == ACPI_TYPE_INTEGER) {
+			nv_debug(mxm, "DSM MXMS returned 0x%llx\n", obj->integer.value);
+		}
 
 	kfree(obj);
 	return mxm->mxms != NULL;

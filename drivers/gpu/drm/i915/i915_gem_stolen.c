@@ -485,7 +485,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 			stolen_offset, gtt_offset, size);
 
 	/* KISS and expect everything to be page-aligned */
-	if (WARN_ON(size == 0 || stolen_offset & 4095 || size & 4095))
+	BUG_ON(stolen_offset & 4095);
+	BUG_ON(size & 4095);
+
+	if (WARN_ON(size == 0))
 		return NULL;
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
@@ -534,7 +537,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		}
 	}
 
-	obj->has_global_gtt_mapping = 1;
+	vma->bound |= GLOBAL_BIND;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &ggtt->inactive_list);

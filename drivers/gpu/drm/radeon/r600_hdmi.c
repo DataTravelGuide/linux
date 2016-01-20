@@ -84,8 +84,6 @@ static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 	struct r600_audio_pin status;
 	uint32_t value;
 
-	memset(&status, 0, sizeof(status));
-
 	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
 
 	/* number of channels */

@@ -118,7 +118,8 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 		mode->status = MODE_UNVERIFIED;
 
 	if (connector->force) {
-		if (connector->force == DRM_FORCE_ON)
+		if (connector->force == DRM_FORCE_ON ||
+		    connector->force == DRM_FORCE_ON_DIGITAL)
 			connector->status = connector_status_connected;
 		else
 			connector->status = connector_status_disconnected;
@@ -151,7 +152,6 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 			struct edid *edid = (struct edid *) connector->edid_blob_ptr->data;
 
 			count = drm_add_edid_modes(connector, edid);
-			drm_edid_to_eld(connector, edid);
 		} else
 			count = (*connector_funcs->get_modes)(connector);
 	}
