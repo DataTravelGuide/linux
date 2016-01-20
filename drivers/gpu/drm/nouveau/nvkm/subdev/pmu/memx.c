@@ -124,7 +124,7 @@ nvkm_memx_wait_vblank(struct nvkm_memx *memx)
 {
 	struct nvkm_pmu *pmu = memx->pmu;
 	u32 heads, x, y, px = 0;
-	int i, head_sync;
+	int i, head_sync = 0;
 
 	if (nv_device(pmu)->chipset < 0xd0) {
 		heads = nv_rd32(pmu, 0x610050);

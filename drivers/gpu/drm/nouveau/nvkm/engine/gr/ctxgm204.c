@@ -947,10 +947,20 @@ static void
 gm204_grctx_generate_405b60(struct gf100_gr_priv *priv)
 {
 	const u32 dist_nr = DIV_ROUND_UP(priv->tpc_total, 4);
-	u32 dist[TPC_MAX] = {};
-	u32 gpcs[GPC_MAX] = {};
-	u8  tpcnr[GPC_MAX];
+	struct {
+		u32 dist[TPC_MAX];
+		u32 gpcs[GPC_MAX];
+		u8  tpcnr[GPC_MAX];
+	} *stackvars;
+	u32 *dist;
+	u32 *gpcs;
+	u8  *tpcnr;
 	int tpc, gpc, i;
+
+	stackvars = kzalloc(sizeof(*stackvars), GFP_KERNEL);
+	dist = stackvars->dist;
+	gpcs = stackvars->gpcs;
+	tpcnr = stackvars->tpcnr;
 
 	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
 
@@ -972,6 +982,8 @@ gm204_grctx_generate_405b60(struct gf100_gr_priv *priv)
 		nv_wr32(priv, 0x405b60 + (i * 4), dist[i]);
 	for (i = 0; i < priv->gpc_nr; i++)
 		nv_wr32(priv, 0x405ba0 + (i * 4), gpcs[i]);
+
+	kfree(stackvars);
 }
 
 void

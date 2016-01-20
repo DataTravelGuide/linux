@@ -58,7 +58,7 @@ enum r600_hdmi_iec_status_bits {
 
 static struct r600_audio_pin r600_audio_status(struct radeon_device *rdev)
 {
-	struct r600_audio_pin status;
+	struct r600_audio_pin status = {0};
 	uint32_t value;
 
 	value = RREG32(R600_AUDIO_RATE_BPS_CHANNEL);
