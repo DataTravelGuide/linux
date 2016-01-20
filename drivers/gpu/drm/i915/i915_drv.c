@@ -652,6 +652,14 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_dp_mst_suspend(dev);
 
+	/* There's no guarantee we've actually finished suspending mst at this
+	 * point, so we need to call this here to make sure we don't go ahead
+	 * and disable all interrupts until we know we've finished dealing with
+	 * whatever interrupts we've gotten in response to
+	 * intel_dp_mst_suspend(dev)
+	 */
+	intel_hpd_cancel_work(dev_priv);
+
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
 
