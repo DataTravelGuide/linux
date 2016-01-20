@@ -424,6 +424,8 @@ static inline void __iomem *pci_platform_rom(struct pci_dev *pdev, size_t *size)
 #define DIV_ROUND_CLOSEST_ULL(ll, d)    \
  ({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
 
+#define atomic_or(mask, v) atomic_set_mask(mask, v)
+
 int __init drm_backport_init(void);
 void __exit drm_backport_exit(void);
 

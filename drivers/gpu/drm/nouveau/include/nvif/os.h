@@ -24,6 +24,8 @@
 #include <linux/power_supply.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/agp_backend.h>
+#include <linux/iommu.h>
 
 #include <asm/unaligned.h>
 
@@ -40,5 +42,4 @@
 #define iowrite32_native iowrite32
 #endif /* def __BIG_ENDIAN else */
 #endif /* !ioread32_native */
-
 #endif

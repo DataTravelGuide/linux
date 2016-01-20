@@ -34,6 +34,8 @@
 #include <linux/moduleparam.h>
 #include "intel_drv.h"
 
+#define CRC_PMIC_PWM_PERIOD_NS	21333
+
 void
 intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
