@@ -1338,3 +1338,13 @@ Licence:
 47 COMBINATION WITH THIS SOFTWARE.
 
 --------------------------------------------------------------------------
+
+Driver: i915 -- Intel Integrated Graphics driver
+
+File: i915/skl_dmc_ver1_23.bin
+File: i915/skl_dmc_ver1.bin
+Version: DMC API/ABI ver 1 - release 23 for Skylake
+
+License: Redistributable. See LICENSE.i915 for details
+
+--------------------------------------------------------------------------

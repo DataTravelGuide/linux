@@ -269,6 +269,8 @@ fw-shipped-$(CONFIG_CRYPTO_DEV_QAT_DH895xCC) += qat_895xcc.bin
 
 fw-shipped-$(CONFIG_SND_HDA_CODEC_CA0132_DSP) += ctefx.bin
 
+fw-shipped-$(CONFIG_DRM_I915) += i915/skl_dmc_ver1.bin
+
 # This section is firmware required by the integrated compat-wireless
 # build.  All of those drivers are modules, and their config is turned-off
 # in the base kernel.  So, force them to fw-shipped-m below.
