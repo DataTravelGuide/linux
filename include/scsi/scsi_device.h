@@ -164,6 +164,7 @@ struct scsi_device {
 	unsigned is_visible:1;	/* is the device visible in sysfs */
 #ifndef __GENKSYMS__
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
+	unsigned skip_vpd_pages:1;	/* do not read VPD pages */
 #endif
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
@@ -295,6 +296,8 @@ struct scsi_target {
 	unsigned int		expecting_lun_change:1;	/* A device has reported
 						 * a 3F/0E UA, other devices on
 						 * the same target will also. */
+	unsigned int		no_report_luns:1;	/* Don't use
+						 * REPORT LUNS for scanning. */
 #endif
 	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
 						/* means no lun present */
