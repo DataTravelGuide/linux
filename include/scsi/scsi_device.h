@@ -166,6 +166,7 @@ struct scsi_device {
 	unsigned no_dif:1;	/* T10 PI (DIF) should be disabled */
 	unsigned skip_vpd_pages:1;	/* do not read VPD pages */
 	unsigned try_rc_10_first:1;	/* Try READ_CAPACACITY_10 first */
+	unsigned lun_in_cdb:1;		/* Store LUN bits in CDB[1] */
 #endif
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
