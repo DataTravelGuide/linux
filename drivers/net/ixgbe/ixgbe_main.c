@@ -7045,8 +7045,8 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 		default:
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
-				 "partial checksum but proto=%x!\n",
-				 first->protocol);
+					 "partial checksum but proto=%x!\n",
+					 first->protocol);
 			}
 			break;
 		}
@@ -8069,6 +8069,21 @@ static netdev_tx_t ixgbe_fwd_xmit(struct sk_buff *skb,
 
 	return __ixgbe_xmit_frame(skb, dev, tx_ring);
 }
+
+#define IXGBE_MAX_TUNNEL_HDR_LEN 80
+static netdev_features_t
+ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features)
+{
+	if (!skb->encapsulation)
+		return features;
+
+	if (unlikely(skb_inner_mac_header(skb) - skb_transport_header(skb) >
+		     IXGBE_MAX_TUNNEL_HDR_LEN))
+		return features & ~NETIF_F_ALL_CSUM;
+
+	return features;
+}
 #endif /* RHEL 6 */
 
 static const struct net_device_ops ixgbe_netdev_ops = {
@@ -8108,6 +8123,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 #if 0 /* not in RHEL 6 */
 	.ndo_add_vxlan_port	= ixgbe_add_vxlan_port,
 	.ndo_del_vxlan_port	= ixgbe_del_vxlan_port,
+	.ndo_features_check	= ixgbe_features_check,
 #endif /* RHEL 6 */
 };
 
@@ -8460,6 +8476,11 @@ skip_sriov:
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 #endif
 
+#if 0
+	/* not in RHEL 6 */
+	netdev->hw_enc_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
+				   NETIF_F_IPV6_CSUM;
+#endif
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
