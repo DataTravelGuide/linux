@@ -3799,6 +3799,12 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 		/* enable ethertype anti spoofing if hw supports it */
 		if (hw->mac.ops.set_ethertype_anti_spoofing)
 			hw->mac.ops.set_ethertype_anti_spoofing(hw, true, i);
+#if 0
+		/* RHEL 6 unsupported */
+		/* Enable/Disable RSS query feature  */
+		ixgbe_ndo_set_vf_rss_query_en(adapter->netdev, i,
+					  adapter->vfinfo[i].rss_query_enabled);
+#endif
 	}
 }
 
@@ -8049,6 +8055,9 @@ static const struct net_device_ops_ext ixgbe_netdev_ops_ext = {
 	.size			= sizeof(struct net_device_ops_ext),
 	.ndo_get_stats64	= ixgbe_get_stats64,
 	.ndo_set_vf_spoofchk    = ixgbe_ndo_set_vf_spoofchk,
+#if 0 /* Not in RHEL 6 */
+	.ndo_set_vf_rss_query_en = ixgbe_ndo_set_vf_rss_query_en,
+#endif
 };
 
 /**
