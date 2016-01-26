@@ -216,21 +216,16 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	if (adapter->ring_feature[RING_F_VMDQ].limit == 1) {
 		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
-		rss = min_t(int, ixgbe_max_rss_indices(adapter),
-			    num_online_cpus());
+		rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
 	} else {
 		rss = min_t(int, IXGBE_MAX_L2A_QUEUES, num_online_cpus());
 	}
 
 	adapter->ring_feature[RING_F_VMDQ].offset = 0;
-
-	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
 	adapter->ring_feature[RING_F_RSS].limit = rss;
 
 	/* take a breather then clean up driver data */
 	msleep(100);
-
-	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 	return 0;
 }
 
@@ -292,13 +287,10 @@ static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
 	err = ixgbe_disable_sriov(adapter);
 
 	/* Only reinit if no error and state changed */
-	if (!err && current_flags != adapter->flags) {
-		/* ixgbe_disable_sriov() doesn't clear VMDQ flag */
-		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
 #ifdef CONFIG_PCI_IOV
+	if (!err && current_flags != adapter->flags)
 		ixgbe_sriov_reinit(adapter);
 #endif
-	}
 
 	return err;
 }
