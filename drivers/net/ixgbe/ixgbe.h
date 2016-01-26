@@ -619,9 +619,10 @@ static inline void ixgbe_write_tail(struct ixgbe_ring *ring, u32 value)
 
 struct ixgbe_mac_addr {
 	u8 addr[ETH_ALEN];
-	u16 queue;
+	u16 pool;
 	u16 state; /* bitmask */
 };
+
 #define IXGBE_MAC_STATE_DEFAULT		0x1
 #define IXGBE_MAC_STATE_MODIFIED	0x2
 #define IXGBE_MAC_STATE_IN_USE		0x4
@@ -922,9 +923,9 @@ void ixgbe_set_fdir_flags(struct ixgbe_adapter *adapter, u32 flags);
 void ixgbe_full_sync_mac_table(struct ixgbe_adapter *adapter);
 #endif
 int ixgbe_add_mac_filter(struct ixgbe_adapter *adapter,
-			 u8 *addr, u16 queue);
+			 const u8 *addr, u16 queue);
 int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter,
-			 u8 *addr, u16 queue);
+			 const u8 *addr, u16 queue);
 void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
 netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *, struct ixgbe_adapter *,
 				  struct ixgbe_ring *);
