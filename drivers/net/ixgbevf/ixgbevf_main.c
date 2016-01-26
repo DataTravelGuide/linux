@@ -3694,12 +3694,15 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_sw_init;
 	}
 
-	netdev->features = NETIF_F_SG |
+	netdev_extended(netdev)->hw_features =
+			   NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_IPV6_CSUM |
 			   NETIF_F_TSO |
 			   NETIF_F_TSO6 |
-			   NETIF_F_RXCSUM |
+			   NETIF_F_RXCSUM;
+
+	netdev->features = netdev_extended(netdev)->hw_features |
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
