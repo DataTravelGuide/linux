@@ -1908,7 +1908,6 @@ static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
 	.get_mac_addr			= &ixgbe_get_mac_addr_generic, \
 	.get_device_caps		= &ixgbe_get_device_caps_generic, \
 	.stop_adapter			= &ixgbe_stop_adapter_generic, \
-	.get_bus_info			= &ixgbe_get_bus_info_generic, \
 	.set_lan_id			= &ixgbe_set_lan_id_multi_port_pcie, \
 	.read_analog_reg8		= NULL, \
 	.write_analog_reg8		= NULL, \
