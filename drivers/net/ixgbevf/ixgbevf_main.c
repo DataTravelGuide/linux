@@ -428,10 +428,8 @@ static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
 		return;
 	}
 #endif /* CONFIG_NET_RX_BUSY_POLL */
-	if (!(q_vector->adapter->flags & IXGBE_FLAG_IN_NETPOLL))
-		napi_gro_receive(&q_vector->napi, skb);
-	else
-		netif_rx(skb);
+
+	napi_gro_receive(&q_vector->napi, skb);
 }
 
 /* ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
@@ -988,12 +986,10 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
-	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	ixgbevf_for_each_ring(ring, q_vector->rx)
 		clean_complete &= (ixgbevf_clean_rx_irq(q_vector, ring,
 							per_ring_budget)
 				   < per_ring_budget);
-	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	ixgbevf_qv_unlock_napi(q_vector);
@@ -3648,6 +3644,26 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+#if 0
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/* Polling 'interrupt' - used by things like netconsole to send skbs
+ * without having to re-enable interrupts. It's not called while
+ * the interrupt routine is executing.
+ */
+static void ixgbevf_netpoll(struct net_device *netdev)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	/* if interface is down do nothing */
+	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
+		return;
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		ixgbevf_msix_clean_rings(0, adapter->q_vector[i]);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+#endif
+
 static int ixgbevf_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -3780,6 +3796,9 @@ static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	/* .ndo_poll_controller	= ixgbevf_netpoll, */
+#endif
 };
 
 static const struct net_device_ops_ext ixgbevf_netdev_ops_ext = {
