@@ -62,6 +62,7 @@
 #include <asm/compat.h>
 #include <asm/kvm_virtio.h>
 #include <asm/diag.h>
+#include <asm/sclp.h>
 
 long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
 			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
@@ -598,8 +599,9 @@ static void __init setup_memory_end(void)
 
 
 #ifdef CONFIG_ZFCPDUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !OLDMEM_BASE) {
-		memory_end = ZFCPDUMP_HSA_SIZE;
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
+	    !OLDMEM_BASE && sclp_get_hsa_size()) {
+		memory_end = sclp_get_hsa_size();
 		memory_end_set = 1;
 	}
 #endif
@@ -729,7 +731,7 @@ static unsigned long __init find_crash_base(unsigned long crash_size,
 		crash_base = (chunk->addr + chunk->size) - crash_size;
 		if (crash_base < crash_size)
 			continue;
-		if (crash_base < ZFCPDUMP_HSA_SIZE_MAX)
+		if (crash_base < sclp_get_hsa_size())
 			continue;
 		if (crash_base < (unsigned long) INITRD_START + INITRD_SIZE)
 			continue;
