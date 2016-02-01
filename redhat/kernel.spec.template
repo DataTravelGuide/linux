@@ -1706,6 +1706,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 01 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-611.el6]
+- [target] fcoe: Add tag support to tcm_fc (Andy Grover) [882092]
+- [scsi] don't store LUN bits in CDB byte 1 for USB mass-storage devices (Ewan Milne) [1255846]
+- [scsi] usb-storage: add try_rc_10_first flag (Ewan Milne) [1255846]
+- [scsi] usb-storage: add flags for VPD pages and REPORT LUNS (Ewan Milne) [1255846]
+- [mm] hugetlbfs: skip shared VMAs when unmapping private pages to satisfy a fault (Andrea Arcangeli) [1291248]
+
 * Thu Jan 28 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-610.el6]
 - [infiniband] mlx4_core: Fix fallback from MSI-X to INTx (Don Dutile) [1120022 1142056 1192551 1246059 1253021 1271492]
 - [infiniband] ib/cma: Fix broken AF_IB UD support (Don Dutile) [1120022 1142056 1192551 1246059 1253021 1271492]
