@@ -816,6 +816,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Prepare ctrl segement apart opcode+ownership, which depends on
 	 * whether LSO is used */
+	tx_desc->ctrl.srcrb_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
+						MLX4_WQE_CTRL_SOLICITED);
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		if (!skb->encapsulation)
 			tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
@@ -892,7 +894,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	real_size = (real_size / 16) & 0x3f;
 
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !skb_vlan_tag_present(skb)) {
-		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
+		tx_desc->ctrl.bf_qpn = ring->doorbell_qpn |
+				       cpu_to_be32(real_size);
 
 		op_own |= htonl((bf_index & 0xffff) << 8);
 		/* Ensure new descirptor hits memory
