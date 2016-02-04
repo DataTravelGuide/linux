@@ -786,28 +786,14 @@ static void
 chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 			  struct cmg_chars *chars)
 {
-	switch (chp->cmg) {
-	case 2:
-	case 3:
-		chp->cmg_chars = kmalloc(sizeof(struct cmg_chars),
-					 GFP_KERNEL);
-		if (chp->cmg_chars) {
-			int i, mask;
-			struct cmg_chars *cmg_chars;
+	int i, mask;
 
-			cmg_chars = chp->cmg_chars;
-			for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
-				mask = 0x80 >> (i + 3);
-				if (cmcv & mask)
-					cmg_chars->values[i] = chars->values[i];
-				else
-					cmg_chars->values[i] = 0;
-			}
-		}
-		break;
-	default:
-		/* No cmg-dependent data. */
-		break;
+	for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
+		mask = 0x80 >> (i + 3);
+		if (cmcv & mask)
+			chp->cmg_chars.values[i] = chars->values[i];
+		else
+			chp->cmg_chars.values[i] = 0;
 	}
 }
 
