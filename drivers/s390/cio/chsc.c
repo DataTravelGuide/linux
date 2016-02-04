@@ -822,6 +822,12 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 data[NR_MEASUREMENT_CHARS];
 	} __attribute__ ((packed)) *scmc_area;
 
+	chp->cmg = -1;
+	chp->shared = -1;
+
+	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
+		return 0;
+
 	scmc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scmc_area)
 		return -ENOMEM;
@@ -841,16 +847,14 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	ret = chsc_error_from_response(scmc_area->response.code);
 	if (ret == 0) {
 		/* Success. */
-		if (!scmc_area->not_valid) {
-			chp->cmg = scmc_area->cmg;
-			chp->shared = scmc_area->shared;
-			chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
-						  (struct cmg_chars *)
-						  &scmc_area->data);
-		} else {
-			chp->cmg = -1;
-			chp->shared = -1;
-		}
+		if (scmc_area->not_valid)
+			goto out;
+
+		chp->cmg = scmc_area->cmg;
+		chp->shared = scmc_area->shared;
+		chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
+					  (struct cmg_chars *)
+					  &scmc_area->data);
 	} else {
 		CIO_CRW_EVENT(2, "chsc: scmc failed (rc=%04x)\n",
 			      scmc_area->response.code);
