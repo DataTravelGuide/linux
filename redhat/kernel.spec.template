@@ -1706,6 +1706,17 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Feb 03 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-613.el6]
+- [drm] nouveau: remove stray header (Rob Clark) [1249807]
+- [kernel] ntp: Do leapsecond adjustment in adjtimex read path (Jerry Snitselaar) [1224408]
+- [kernel] time: Prevent early expiry of hrtimers CLOCK_REALTIME at the leap second edge (Jerry Snitselaar) [1224408]
+- [kernel] ntp: Introduce and use SECS_PER_DAY macro instead of 86400 (Jerry Snitselaar) [1224408]
+- [kernel] hrtimer: Make offset update smarter (Jerry Snitselaar) [1224408]
+- [kernel] timekeeping: Use ktime_t data for ktime_get_update_offsets (Jerry Snitselaar) [1224408]
+- [kernel] timekeeping: Provide internal ktime_t based data (Jerry Snitselaar) [1224408]
+- [kernel] timekeeping: indicate clock was set (Jerry Snitselaar) [1224408]
+- [kernel] timekeeping: Avoid possible deadlock from clock_was_set_delayed (Jerry Snitselaar) [1224408]
+
 * Tue Feb 02 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-612.el6]
 - [netdrv] ixgbevf: Minor cleanups (John Greene) [1249245]
 - [netdrv] ixgbevf: fix spoofed packets with random MAC (John Greene) [1249245]
