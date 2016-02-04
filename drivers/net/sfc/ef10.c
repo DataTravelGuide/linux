@@ -3244,7 +3244,8 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 
 		new_spec.priority = EFX_FILTER_PRI_AUTO;
 		new_spec.flags = (EFX_FILTER_FLAG_RX |
-				  EFX_FILTER_FLAG_RX_RSS);
+				  (efx_rss_enabled(efx) ?
+				   EFX_FILTER_FLAG_RX_RSS : 0));
 		new_spec.dmaq_id = 0;
 		new_spec.rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
 		rc = efx_ef10_filter_push(efx, &new_spec,
@@ -3771,6 +3772,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	struct net_device *net_dev = efx->net_dev;
+	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	bool remove_failed = false;
 	struct netdev_hw_addr *uc;
@@ -3828,12 +3830,13 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	}
 	netif_addr_unlock_bh(net_dev);
 
+	filter_flags = efx_rss_enabled(efx) ? EFX_FILTER_FLAG_RX_RSS : 0;
+
 	/* Insert/renew unicast filters */
 	if (table->dev_uc_count >= 0) {
 		for (i = 0; i < table->dev_uc_count; i++) {
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-					   EFX_FILTER_FLAG_RX_RSS,
-					   0);
+					   filter_flags, 0);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 table->dev_uc_list[i].addr);
 			rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3851,8 +3854,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	}
 	if (table->dev_uc_count < 0) {
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+				   filter_flags, 0);
 		efx_filter_set_uc_def(&spec);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
 		if (rc < 0) {
@@ -3867,8 +3869,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	if (table->dev_mc_count >= 0) {
 		for (i = 0; i < table->dev_mc_count; i++) {
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-					   EFX_FILTER_FLAG_RX_RSS,
-					   0);
+					   filter_flags, 0);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 table->dev_mc_list[i].addr);
 			rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3886,8 +3887,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	}
 	if (table->dev_mc_count < 0) {
 		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
-				   EFX_FILTER_FLAG_RX_RSS,
-				   0);
+				   filter_flags, 0);
 		efx_filter_set_mc_def(&spec);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
 		if (rc < 0) {
