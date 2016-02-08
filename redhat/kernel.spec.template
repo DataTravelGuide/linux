@@ -1710,6 +1710,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 08 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-614.el6]
+- [powerpc] pseries: Limit EPOW reset event warnings (Gustavo Duarte) [1300202]
+- [perf] tools: Do not show trace command if it's not compiled in (Jiri Olsa) [1212539]
+- [perf] tools spec: Disable trace command on ppc arch (Jiri Olsa) [1212539]
+- [netdrv] mlx4_en: Fix the blueflame in TX path (Kamal Heib) [1295872 1303661 1303863 1304272]
+- [netdrv] mlx4_en: Fix HW timestamp init issue upon system startup (Kamal Heib) [1295872 1304272]
+- [netdrv] mlx4_en: Remove dependency between timestamping capability and service_task (Kamal Heib) [1295872 1304272]
+- [netdrv] mlx5_core: Fix trimming down IRQ number (Kamal Heib) [1304272]
+- [x86] Mark Intel Broadwell-DE SoC supported (Steve Best) [1253856]
+- [s390] zfcpdump: Fix collecting of registers (Hendrik Brueckner) [1303558]
+- [s390] dasd: fix failfast for disconnected devices (Hendrik Brueckner) [1303559]
+- [netdrv] bnxt_en: Fix crash in bnxt_free_tx_skbs() during tx timeout (John Linville) [1303703]
+- [netdrv] bnxt_en: Exclude rx_drop_pkts hw counter from the stack's rx_dropped counter (John Linville) [1303703]
+- [netdrv] bnxt_en: Ring free response from close path should use completion ring (John Linville) [1303703]
+- [block] Fix q_suspended logic error for io submission (David Milburn) [1227342]
+- [block] nvme: No lock while DMA mapping data (David Milburn) [1227342]
+
 * Wed Feb 03 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-613.el6]
 - [drm] nouveau: remove stray header (Rob Clark) [1249807]
 - [kernel] ntp: Do leapsecond adjustment in adjtimex read path (Jerry Snitselaar) [1224408]
