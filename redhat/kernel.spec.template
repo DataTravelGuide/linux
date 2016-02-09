@@ -1710,6 +1710,10 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 09 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-615.el6]
+- [s390] qeth: initialize net_device with carrier off (Hendrik Brueckner) [1198666]
+- [netdrv] Add rtlwifi driver from linux 4.3 (Stanislaw Gruszka) [1245452 1263386 1289574 761525]
+
 * Mon Feb 08 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-614.el6]
 - [powerpc] pseries: Limit EPOW reset event warnings (Gustavo Duarte) [1300202]
 - [perf] tools: Do not show trace command if it's not compiled in (Jiri Olsa) [1212539]
