@@ -1470,7 +1470,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 		if (!dquots[cnt])
 			continue;
 		if (check_bdq(dquots[cnt], number,
-		    !(flags & DQUOT_SPACE_WARN), &warn[cnt])
+		    (flags & DQUOT_SPACE_WARN), &warn[cnt])
 		    == NO_QUOTA && !(flags & DQUOT_SPACE_NOFAIL)) {
 			ret = NO_QUOTA;
 			spin_unlock(&dq_data_lock);
