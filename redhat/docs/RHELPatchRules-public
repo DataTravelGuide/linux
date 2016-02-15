@@ -34,7 +34,7 @@ lists the sections below which describe in detail what is needed:
 [I]--|  Date: Thu, 16 Feb 2012 16:10:05 -0500
       \ 
 
-[II]--  Subject: [RHELX.Y PATCH] subsystem: nice summary of what was fixed
+[II]--  Subject: [RHELX.Y] subsystem: nice summary of what was fixed
 
       / Bugzilla: <bugzilla reference>
    __|  Upstream Status: <upstream status>
@@ -99,13 +99,13 @@ properly reviewed by Red Hat Engineering.
 
 a) Information in []s
 
-[Required] Each patch subject starts with "[RHELX PATCH]".
+[Required] Each patch subject starts with "[RHELX]".
 
-    This information must include 'RHELX PATCH'.  This part determines which
+    This information must include 'RHELX'.  This part determines which
 OS version the patch is targetted for, and in some cases which engineering
 staff will review a patch.
 
-[Suggested] Alternatively, each patch subject can start with "[RHELX.Y PATCH]".
+[Suggested] Alternatively, each patch subject can start with "[RHELX.Y]".
 
     Including the Y release information can be useful to both the reviewers
 if the patch is targetted for a later release.  The current in-development
@@ -114,7 +114,7 @@ release is considered to be the target release if no Y is provided.
 [Required] Patchsets include X/Y series numbers inside the leading []s.
 
     For patchsets, all patch series numbers, X/Y, and version info are expected
-to be inside []s.  ex) [RHEL6 PATCH 2/3]
+to be inside []s.  ex) [RHEL6 2/3]
 
 b) Information not in []s
 
@@ -149,13 +149,13 @@ series of patches.
 
 Some good examples of subject lines)
 
-	Subject: [RHEL6 PATCH] x86: rework mtrr code
-	Subject: [RHEL6 PATCH] x86, irq: support ioapic device hotplug for x86
-	Subject: [RHEL6.2 PATCH] pci: restore locking in pci_func()
-	Subject: [RHEL6.2 PATCH 3/4] x86: rework mtrr code
-	Subject: [RHEL6.2 PATCH v2] x86: rework mtrr code
-	Subject: [RHEL6 PATCH] [v2] pci: restore locking in pci_func()
-	Subject: [RHEL6 PATCH 3/4] x86: rework mtrr code [v2]
+	Subject: [RHEL6] x86: rework mtrr code
+	Subject: [RHEL6] x86, irq: support ioapic device hotplug for x86
+	Subject: [RHEL6.2] pci: restore locking in pci_func()
+	Subject: [RHEL6.2 3/4] x86: rework mtrr code
+	Subject: [RHEL6.2 v2] x86: rework mtrr code
+	Subject: [RHEL6] [v2] pci: restore locking in pci_func()
+	Subject: [RHEL6 3/4] x86: rework mtrr code [v2]
 
 Note in the last two examples, that it is possible to have multiple sets of
 brackets.
@@ -165,10 +165,10 @@ Some bad examples of subject lines)
 	Subject: x86, rework mtrr code
 	Subject: x86, RHEL6 PATCH rework mtrr code
 	Subject: [PATCH] RHEL6 pci, restore locking in pci_func()
-	Subject: [RHEL6 PATCH 3/4]: ab234e x86, rework mtrr code
+	Subject: [RHEL6 3/4]: ab234e x86, rework mtrr code
 	Subject: [PATCH] fix panic on ia64
-	Subject: [RHEL6.2 PATCH] Fixes Red Star panic
-	Subject: [RHEL6.2 PATCH] Merge upstream branch foo of tree ba
+	Subject: [RHEL6.2] Fixes Red Star panic
+	Subject: [RHEL6.2] Merge upstream branch foo of tree ba
 
 Note in the last two examples that the subject line is a copy of the upstream
 commit message, however, the upstream commit message does not adequately

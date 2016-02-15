@@ -40,7 +40,7 @@ column lists the sections below which describe in detail what is needed:
       / From: Joe Developer <joed@redhat.com>
 [I]--|  To: Red Hat Kernel <rhkernel-list@redhat.com>
       \ Date: Thu, 16 Feb 2012 16:10:05 -0500
-[II]--  Subject: [RHELX.Y PATCH] subsystem: nice summary of what was fixed
+[II]--  Subject: [RHELX.Y] subsystem: nice summary of what was fixed
 
       / Bugzilla: <bugzilla reference>
    __|  Upstream Status: <upstream status>
@@ -145,19 +145,25 @@ a) Information in []s
 outside of the Red Hat git trees.  However, note that the original full subject
 will be retained within the body of the patch commit message in the git trees.
 
-[Required] Each patch subject starts with "[RHELX PATCH]".
+[Required] Each patch subject starts with "[RHELX]".
 
-    This information must include 'RHELX PATCH'.  This part determines which
+    This information must include 'RHELX'.  This part determines which
 maintainer needs to track the patch.  If there is no RHEL release information,
 the patch will not be filtered into any of the maintainers' patch queues, and
 risks going unnoticed.
 
-[Suggested] Alternatively, each patch subject can start with "[RHELX.Y PATCH]".
+[Suggested] Alternatively, each patch subject can start with "[RHELX.Y]".
 
     Including the Y release information can be useful to both the reviewers
 and maintainers if the patch is targetted for a later release.  The current
 in-development release is considered to be the target release if no Y is
 provided.
+
+[Optional] The subject line can include the PATCH keyword in the []s.
+
+    The 'PATCH' keyword is ignored by the maintainers' scripts and its
+inclusion in the brackets in the subject is solely at the discretion of the
+patch submitter.
 
 [Suggested] The subject line can include a bugzilla number in the []s.
 
@@ -171,7 +177,7 @@ limited by most email programs.
 [Required] Patchsets include X/Y series numbers inside the leading []s.
 
     For patchsets, all patch series numbers, X/Y, and version info are expected
-to be inside []s.  ex) [RHEL6 PATCH 2/3]
+to be inside []s.  ex) [RHEL6 2/3]
 
 b) Information not in []s
 
@@ -206,14 +212,14 @@ series of patches.
 
 Some good examples of subject lines)
 
-	Subject: [RHEL6 PATCH] x86: rework mtrr code
-	Subject: [RHEL6 PATCH] x86, irq: support ioapic device hotplug for x86
-	Subject: [RHEL6.2 PATCH] pci: restore locking in pci_func()
-	Subject: [RHEL6.2 PATCH BZ 732411 3/4] x86: rework mtrr code
-	Subject: [RHEL6 PATCH BZ 732411 ab234e 3/4] x86: rework mtrr code
-	Subject: [RHEL6.2 PATCH BZ 732411 v2] x86: rework mtrr code
-	Subject: [RHEL6 PATCH BZ 732411] [v2] pci: restore locking in pci_func()
-	Subject: [RHEL6 PATCH BZ 732411 3/4] x86: rework mtrr code [v2]
+	Subject: [RHEL6] x86: rework mtrr code
+	Subject: [RHEL6] x86, irq: support ioapic device hotplug for x86
+	Subject: [RHEL6.2] pci: restore locking in pci_func()
+	Subject: [RHEL6.2 BZ 732411 3/4] x86: rework mtrr code
+	Subject: [RHEL6 BZ 732411 ab234e 3/4] x86: rework mtrr code
+	Subject: [RHEL6.2 BZ 732411 v2] x86: rework mtrr code
+	Subject: [RHEL6 BZ 732411] [v2] pci: restore locking in pci_func()
+	Subject: [RHEL6 BZ 732411 3/4] x86: rework mtrr code [v2]
 
 Note in the last two examples, that it is possible to have multiple sets of
 brackets.
@@ -223,10 +229,10 @@ Some bad examples of subject lines)
 	Subject: x86, rework mtrr code
 	Subject: x86, RHEL6 PATCH rework mtrr code
 	Subject: [PATCH] RHEL6 pci, restore locking in pci_func()
-	Subject: [RHEL6 PATCH BZ 732441 3/4]: ab234e x86, rework mtrr code
+	Subject: [RHEL6 BZ 732441 3/4]: ab234e x86, rework mtrr code
 	Subject: [PATCH] fix panic on ia64
-	Subject: [RHEL6.2 PATCH BZ 732411] Fixes Ubuntu panic
-	Subject: [RHEL6.2 PATCH BZ 732411] Merge upstream branch foo of tree ba
+	Subject: [RHEL6.2 BZ 732411] Fixes Ubuntu panic
+	Subject: [RHEL6.2 BZ 732411] Merge upstream branch foo of tree ba
 
 Note in the last two examples that the subject line is a copy of the upstream
 commit message, however, the upstream commit message does not adequately
