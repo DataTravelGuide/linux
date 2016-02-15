@@ -2740,13 +2740,6 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	dev_priv->wm.hw = *results;
 }
 
-static bool ilk_disable_lp_wm(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
-}
-
 /*
  * On gen9, we need to allocate Display Data Buffer (DDB) portions to the
  * different active planes.
@@ -3058,18 +3051,9 @@ static void skl_compute_wm_global_parameters(struct drm_device *dev,
 					     struct intel_wm_config *config)
 {
 	struct drm_crtc *crtc;
-	struct drm_plane *plane;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		config->num_pipes_active += to_intel_crtc(crtc)->active;
-
-	/* FIXME: I don't think we need those two global parameters on SKL */
-	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		struct intel_plane *intel_plane = to_intel_plane(plane);
-
-		config->sprites_enabled |= intel_plane->wm.enabled;
-		config->sprites_scaled |= intel_plane->wm.scaled;
-	}
 }
 
 static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
@@ -3654,39 +3638,6 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	dev_priv->wm.skl_hw = *results;
 }
 
-static void
-skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
-		     uint32_t sprite_width, uint32_t sprite_height,
-		     int pixel_size, bool enabled, bool scaled)
-{
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct drm_framebuffer *fb = plane->state->fb;
-
-	intel_plane->wm.enabled = enabled;
-	intel_plane->wm.scaled = scaled;
-	intel_plane->wm.horiz_pixels = sprite_width;
-	intel_plane->wm.vert_pixels = sprite_height;
-	intel_plane->wm.tiling = DRM_FORMAT_MOD_NONE;
-
-	/* For planar: Bpp is for UV plane, y_Bpp is for Y plane */
-	intel_plane->wm.bytes_per_pixel =
-		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
-		drm_format_plane_cpp(plane->state->fb->pixel_format, 1) : pixel_size;
-	intel_plane->wm.y_bytes_per_pixel =
-		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
-		drm_format_plane_cpp(plane->state->fb->pixel_format, 0) : 0;
-
-	/*
-	 * Framebuffer can be NULL on plane disable, but it does not
-	 * matter for watermarks if we assume no tiling in that case.
-	 */
-	if (fb)
-		intel_plane->wm.tiling = fb->modifier[0];
-	intel_plane->wm.rotation = plane->state->rotation;
-
-	skl_update_wm(crtc);
-}
-
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -3731,28 +3682,6 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 	ilk_compute_wm_results(dev, best_lp_wm, partitioning, &results);
 
 	ilk_write_wm_values(dev_priv, &results);
-}
-
-static void
-ilk_update_sprite_wm(struct drm_plane *plane,
-		     struct drm_crtc *crtc,
-		     uint32_t sprite_width, uint32_t sprite_height,
-		     int pixel_size, bool enabled, bool scaled)
-{
-	struct drm_device *dev = plane->dev;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-
-	/*
-	 * IVB workaround: must disable low power watermarks for at least
-	 * one frame before enabling scaling.  LP watermarks can be re-enabled
-	 * when scaling is disabled.
-	 *
-	 * WaCxSRDisabledForSpriteScaling:ivb
-	 */
-	if (IS_IVYBRIDGE(dev) && scaled && ilk_disable_lp_wm(dev))
-		intel_wait_for_vblank(dev, intel_plane->pipe);
-
-	ilk_update_wm(crtc);
 }
 
 static void skl_pipe_wm_active_state(uint32_t val,
@@ -4130,21 +4059,6 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(crtc);
-}
-
-void intel_update_sprite_watermarks(struct drm_plane *plane,
-				    struct drm_crtc *crtc,
-				    uint32_t sprite_width,
-				    uint32_t sprite_height,
-				    int pixel_size,
-				    bool enabled, bool scaled)
-{
-	struct drm_i915_private *dev_priv = plane->dev->dev_private;
-
-	if (dev_priv->display.update_sprite_wm)
-		dev_priv->display.update_sprite_wm(plane, crtc,
-						   sprite_width, sprite_height,
-						   pixel_size, enabled, scaled);
 }
 
 /**
@@ -7057,7 +6971,6 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.init_clock_gating =
 				bxt_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
-		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 
@@ -7066,7 +6979,6 @@ void intel_init_pm(struct drm_device *dev)
 		    (!IS_GEN5(dev) && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.update_wm = ilk_update_wm;
-			dev_priv->display.update_sprite_wm = ilk_update_sprite_wm;
 		} else {
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
