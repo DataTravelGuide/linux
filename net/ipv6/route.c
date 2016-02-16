@@ -2963,6 +2963,7 @@ int __init ip6_route_init(void)
 		goto out_kmem_cache;
 
 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
+	dst_ops_extend_register(&ip6_dst_blackhole_ops, ip6_default_advmss);
 
 	/* Registering of the loopback is done before this portion of code,
 	 * the loopback reference in rt6_info will not be taken, do it
@@ -3026,6 +3027,7 @@ void ip6_route_cleanup(void)
 	fib6_rules_cleanup();
 	xfrm6_fini();
 	fib6_gc_cleanup();
+	dst_ops_extend_unregister(&ip6_dst_blackhole_ops);
 	unregister_pernet_subsys(&ip6_route_net_ops);
 	kmem_cache_destroy(ip6_dst_ops_template.kmem_cachep);
 }

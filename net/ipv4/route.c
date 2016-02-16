@@ -3521,6 +3521,7 @@ int __init ip_rt_init(void)
 	ip_rt_max_size = (rt_hash_mask + 1) * 16;
 
 	dst_ops_extend_register(&ipv4_dst_ops, ipv4_default_advmss);
+	dst_ops_extend_register(&ipv4_dst_blackhole_ops, ipv4_default_advmss);
 
 	devinet_init();
 	ip_fib_init();
