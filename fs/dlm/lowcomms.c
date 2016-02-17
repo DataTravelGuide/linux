@@ -471,10 +471,8 @@ static void lowcomms_error_report(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 	struct sockaddr_storage saddr;
-	int buflen;
 
-	if (con->sock == NULL ||
-	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr, &buflen)) {
+	if (nodeid_to_addr(con->nodeid, &saddr, NULL)) {
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "sending to node %d, port %d, "
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
