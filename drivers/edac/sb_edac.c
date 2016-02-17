@@ -994,6 +994,12 @@ static int sbridge_get_active_channels(const u8 bus, enum type type,
 			else
 				id = PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA1_TAD0 + (i - 2);
 		}
+		else if (type == BROADWELL) {
+			if (i < 4)
+				id = PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0 + i;
+			else
+				id = PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1 + i;
+		}
 		pdev = get_pdev_same_bus(bus, id);
 		if (!pdev)
 			continue;
