@@ -4746,8 +4746,6 @@ static int init_one(struct pci_dev *pdev,
 			err = -ENOMEM;
 			goto out_free_adapter;
 		}
-		t4_write_reg(adapter, SGE_STAT_CFG_A,
-			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 	}
 
 	setup_memwin(adapter);
@@ -4758,6 +4756,11 @@ static int init_one(struct pci_dev *pdev,
 	setup_memwin_rdma(adapter);
 	if (err)
 		goto out_unmap_bar;
+
+	/* configure SGE_STAT_CFG_A to read WC stats */
+	if (!is_t4(adapter->params.chip))
+		t4_write_reg(adapter, SGE_STAT_CFG_A,
+			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 
 	for_each_port(adapter, i) {
 		struct net_device *netdev;
