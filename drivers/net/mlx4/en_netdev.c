@@ -1581,6 +1581,8 @@ int mlx4_en_start_port(struct net_device *dev)
 			goto tx_err;
 		}
 
+		tx_ring->tx_queue = netdev_get_tx_queue(dev,i);
+
 		/* Arm CQ for TX completions */
 		mlx4_en_arm_cq(priv, cq);
 
