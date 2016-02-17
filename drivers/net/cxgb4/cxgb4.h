@@ -688,7 +688,7 @@ struct adapter {
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned int mbox;
-	unsigned int fn;
+	unsigned int pf;
 	unsigned int flags;
 	enum chip_type chip;
 
