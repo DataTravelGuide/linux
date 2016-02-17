@@ -2396,5 +2396,8 @@ int t4_setup_debugfs(struct adapter *adap)
 				 &flash_debugfs_fops);
 	set_debugfs_file_size(de, adap->params.sf_size);
 
+	debugfs_create_bool("use_backdoor", S_IWUSR | S_IRUSR,
+			    adap->debugfs_root, &adap->use_bd);
+
 	return 0;
 }
