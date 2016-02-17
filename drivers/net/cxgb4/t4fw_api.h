@@ -2253,6 +2253,14 @@ enum fw_port_l2cfg_ctlbf {
 	FW_PORT_L2_CTLBF_TXIPG	= 0x20
 };
 
+enum fw_port_dcb_versions {
+	FW_PORT_DCB_VER_UNKNOWN,
+	FW_PORT_DCB_VER_CEE1D0,
+	FW_PORT_DCB_VER_CEE1D01,
+	FW_PORT_DCB_VER_IEEE,
+	FW_PORT_DCB_VER_AUTO = 7
+};
+
 enum fw_port_dcb_cfg {
 	FW_PORT_DCB_CFG_PG	= 0x01,
 	FW_PORT_DCB_CFG_PFC	= 0x02,
@@ -2333,6 +2341,7 @@ struct fw_port_cmd {
 				__u8   r10_lo[5];
 				__u8   num_tcs_supported;
 				__u8   pgrate[8];
+				__u8   tsa[8];
 			} pgrate;
 			struct fw_port_dcb_priorate {
 				__u8   type;
@@ -2359,7 +2368,7 @@ struct fw_port_cmd {
 			struct fw_port_dcb_control {
 				__u8   type;
 				__u8   all_syncd_pkd;
-				__be16 pfc_state_to_app_state;
+				__be16 dcb_version_to_app_state;
 				__be32 r11;
 				__be64 r12;
 			} control;
@@ -2461,6 +2470,7 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_ALL_SYNCD_S		7
 #define FW_PORT_CMD_ALL_SYNCD_V(x)	((x) << FW_PORT_CMD_ALL_SYNCD_S)
 #define FW_PORT_CMD_ALL_SYNCD_F	FW_PORT_CMD_ALL_SYNCD_V(1U)
+#define FW_PORT_CMD_DCB_VERSION_GET(x) (((x) >> 8) & 0xf)
 
 #define FW_PORT_CMD_DCB_VERSION_S	12
 #define FW_PORT_CMD_DCB_VERSION_M	0x7
