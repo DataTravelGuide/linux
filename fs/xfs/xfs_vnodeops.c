@@ -285,6 +285,38 @@ restart:
 			goto error_return;
 		truncate_setsize(inode, newsize);
 
+		/*
+		* The "we can't serialise against page faults" pain gets worse.
+		*
+		* If the file is mapped then we have to clean the page at the
+		* old EOF when extending the file. Extending the file can expose
+		* changes the underlying page mapping (e.g. from beyond EOF to a
+		* hole or unwritten), and so on the next attempt to write to
+		* that page we need to remap it for write. i.e. we need
+		* .page_mkwrite() to be called. Hence we need to clean the page
+		* to clean the pte and so a new write fault will be triggered
+		* appropriately.
+		*
+		* If we do it before we change the inode size, then we can race
+		* with a page fault that maps the page with exactly the same
+		* problem. If we do it after we change the file size, then a new
+		* page fault can come in and allocate space before we've run the
+		* rest of the truncate transaction. That's kinda grotesque, but
+		* it's better than have data over a hole, and so that's the
+		* lesser evil that has been chosen here.
+		*
+		* The real solution, however, is to have some mechanism for
+		* locking out page faults while a truncate is in progress.
+		*/
+		if (newsize > oldsize && mapping_mapped(VFS_I(ip)->i_mapping)) {
+			code = filemap_write_and_wait_range(
+					VFS_I(ip)->i_mapping,
+					round_down(oldsize, PAGE_CACHE_SIZE),
+					round_up(oldsize, PAGE_CACHE_SIZE) - 1);
+			if (code)
+				goto error_return;
+		}
+
 		tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 		code = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
 					 XFS_TRANS_PERM_LOG_RES,
