@@ -1710,6 +1710,28 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Wed Feb 17 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-616.el6]
+- [kernel] isolcpus: Output warning when the 'isolcpus=' kernel parameter is invalid (Prarit Bhargava) [1304216]
+- [mmc] Prevent 1.8V switch for SD hosts that don't support UHS modes (Petr Oros) [1307065]
+- [mmc] sdhci-pci-o2micro: Fix Dell E5440 issue (Petr Oros) [1307065]
+- [mmc] sdhci-pci-o2micro: Add SeaBird SeaEagle SD3 support (Petr Oros) [1307065]
+- [watchdog] hung task debugging: Inject NMI when hung and going to panic (Don Zickus) [1305919]
+- [watchdog] add sysctl knob hardlockup_panic (Don Zickus) [1305919]
+- [watchdog] perform all-CPU backtrace in case of hard lockup (Don Zickus) [1305919]
+- [drm] i915: Drop intel_update_sprite_watermarks (Lyude) [1306425]
+- [drm] i915: Setup DDI clk for MST on SKLi (Lyude) [1306425]
+- [drm] i915: Explicitly check for eDP in skl_ddi_pll_select (Lyude) [1306425]
+- [drm] i915: Don't skip mst encoders in skl_ddi_pll_select (Lyude) [1306425]
+- [scsi] qla2xxx: Set relogin flag when we fail to queue login requests (Chad Dupuis) [1306033]
+- [s390] kernel/syscalls: correct syscall number for __NR_setns (Hendrik Brueckner) [1219586]
+- [edac] sb_edac: fix channel/csrow emulation on Broadwell (Aristeu Rozanski) [1301230]
+- [usb] xhci: Workaround to get Intel xHCI reset working more reliably (Gopal Tiwari) [1146875]
+- [fs] revert "revert "dlm: print kernel message when we get an error from kernel_sendpage" (Robert S Peterson) [1264492]
+- [fs] revert "[fs] dlm: Replace nodeid_to_addr with kernel_getpeername" (Robert S Peterson) [1264492]
+- [s390] sclp: Determine HSA size dynamically for zfcpdump (Hendrik Brueckner) [1303557]
+- [s390] sclp: Move declarations for sclp_sdias into separate header file (Hendrik Brueckner) [1303557]
+- [netdrv] mlx4_en: add missing tx_queue init in en_start_port (Don Dutile) [1304016]
+
 * Tue Feb 09 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-615.el6]
 - [s390] qeth: initialize net_device with carrier off (Hendrik Brueckner) [1198666]
 - [netdrv] Add rtlwifi driver from linux 4.3 (Stanislaw Gruszka) [1245452 1263386 1289574 761525]
