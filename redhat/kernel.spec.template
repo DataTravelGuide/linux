@@ -1701,6 +1701,19 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Feb 18 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.44.1.el6]
+- [net] sctp: fix suboptimal edge-case on non-active active/retrans path selection (Daniel Borkmann) [1306565 1090561]
+- [net] sctp: spare unnecessary comparison in sctp_trans_elect_best (Daniel Borkmann) [1306565 1090561]
+- [net] sctp: improve sctp_select_active_and_retran_path selection (Daniel Borkmann) [1306565 1090561]
+- [net] sctp: migrate most recently used transport to ktime (Daniel Borkmann) [1306565 1090561]
+- [net] sctp: refactor active path selection (Daniel Borkmann) [1306565 1090561]
+- [kernel] ktime: add ktime_after and ktime_before helper (Daniel Borkmann) [1306565 1090561]
+- [net] sctp: migrate cookie life from timeval to ktime (Daniel Borkmann) [1306565 1090561]
+- [kernel] ktime: add ms_to_ktime() and ktime_add_ms() helpers (Daniel Borkmann) [1306565 1090561]
+- [net] pktgen: clean up ktime_t helpers (Daniel Borkmann) [1306565 1090561]
+- [net] pktgen: remove ndelay() call (Daniel Borkmann) [1306565 1090561]
+- [net] pktgen: increasing transmission granularity (Daniel Borkmann) [1306565 1090561]
+
 * Wed Jan 13 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.43.1.el6]
 - [kernel] hrtimer: add force_hrtimer_reprogram kernel parameter (Prarit Bhargava) [1292081 1285142]
 - [net] netpoll: Close race condition between poll_one_napi and napi_disable (Neil Horman) [1295368 1252212]
