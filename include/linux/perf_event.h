@@ -1315,8 +1315,12 @@ struct perf_cpu_context {
 	struct perf_event_context	*task_ctx;
 	int				active_oncpu;
 	int				exclusive;
+
+	spinlock_t			hrtimer_lock;
 	struct hrtimer			hrtimer;
 	ktime_t				hrtimer_interval;
+	unsigned int			hrtimer_active;
+
 /*
  * RHEL6 The rotation_list is deprecated in favor of
  * perf_event_context::active_ctx_list.
