@@ -1710,6 +1710,23 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Fri Feb 19 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-617.el6]
+- [infiniband] rdma/ocrdma: Bump up ocrdma version number to 11.0.0.0 (Don Dutile) [1253021]
+- [infiniband] rdma/ocrdma: Prevent CQ-Doorbell floods (Don Dutile) [1253021]
+- [infiniband] rdma/ocrdma: Check resource ids received in Async CQE (Don Dutile) [1253021]
+- [infiniband] rdma/ocrdma: Avoid a possible crash in ocrdma_rem_port_stats (Don Dutile) [1253021]
+- [kernel] driver core : Fix use after free of dev->parent in device_shutdown (Tomas Henzl) [1303215]
+- [kernel] driver core: fix shutdown races with probe/remove (Tomas Henzl) [1303215]
+- [kernel] driver core: Protect device shutdown from hot unplug events (Tomas Henzl) [1303215]
+- [netdrv] bnx2x: Add new device ids under the Qlogic vendor (Michal Schmidt) [1304252]
+- [kernel] klist: fix starting point removed bug in klist iterators (Ewan Milne) [1190273]
+- [md] raid1: extend spinlock to protect raid1_end_read_request against inconsistencies (Jes Sorensen) [1309154]
+- [md] raid1: fix test for 'was read error from last working device' (Jes Sorensen) [1309154]
+- [s390] cio: update measurement characteristics (Hendrik Brueckner) [1304257]
+- [s390] cio: ensure consistent measurement state (Hendrik Brueckner) [1304257]
+- [s390] cio: fix measurement characteristics memleak (Hendrik Brueckner) [1304257]
+- [fs] pipe: fix offset and len mismatch on pipe_iov_copy_to_user failure (Seth Jennings) [1302223] {CVE-2016-0774}
+
 * Wed Feb 17 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-616.el6]
 - [kernel] isolcpus: Output warning when the 'isolcpus=' kernel parameter is invalid (Prarit Bhargava) [1304216]
 - [mmc] Prevent 1.8V switch for SD hosts that don't support UHS modes (Petr Oros) [1307065]
