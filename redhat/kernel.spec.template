@@ -1710,6 +1710,11 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Mon Feb 22 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-620.el6]
+- [netdrv] mlx4-en: disable traffic class queueing by default (Don Dutile) [1309893]
+- [netdrv] mlx4-en: add missing patch to init rss_rings in get_profile (Don Dutile) [1309893]
+- [netdrv] net/mlx4_core: Fix mailbox leak in error flow when performing update qp (Don Dutile) [1309893]
+
 * Sun Feb 21 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-619.el6]
 - [netdrv] cxgb4: add device ID for few T5 adapters (Sai Vemuri) [1252598]
 - [netdrv] cxgb4: Fix for write-combining stats configuration (Sai Vemuri) [1252598]
