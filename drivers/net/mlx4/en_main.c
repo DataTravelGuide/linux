@@ -146,6 +146,7 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].tx_ring_num = params->num_tx_rings_p_up *
 			MLX4_EN_NUM_UP;
 		params->prof[i].inline_thold = inline_thold;
+		params->prof[i].rss_rings = 0;
 	}
 
 	if ( num_lro != ~0 || rss_mask != ~0 || rss_xor != ~0 )
