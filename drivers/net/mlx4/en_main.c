@@ -74,7 +74,7 @@ MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 MLX4_EN_PARM_INT(num_lro, ~0, "Dummy parameter for backward compatibility" );
 MLX4_EN_PARM_INT(rss_mask, ~0, "Dummy parameter for backward compatibility" );
 MLX4_EN_PARM_INT(rss_xor, ~0, "Dummy parameter for backward compatibility" );
-MLX4_EN_PARM_INT(enable_tc, 0, "Enable separate queues for traffic classes" );
+MLX4_EN_PARM_INT(enable_tc, 1, "Enable separate queues for traffic classes" );
 MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
 		 "Threshold for using inline data (range: 17-104, default: 104)");
 
