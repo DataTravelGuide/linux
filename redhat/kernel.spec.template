@@ -1701,6 +1701,9 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Tue Feb 23 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.45.1.el6]
+- [fs] pipe: fix offset and len mismatch on pipe_iov_copy_to_user failure (Seth Jennings) [1310149 1302223] {CVE-2016-0774}
+
 * Thu Feb 18 2016 Radomir Vrbovsky <rvrbovsk@redhat.com> [2.6.32-504.44.1.el6]
 - [net] sctp: fix suboptimal edge-case on non-active active/retrans path selection (Daniel Borkmann) [1306565 1090561]
 - [net] sctp: spare unnecessary comparison in sctp_trans_elect_best (Daniel Borkmann) [1306565 1090561]
