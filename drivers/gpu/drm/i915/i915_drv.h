@@ -90,7 +90,7 @@
 		if (i915.verbose_state_checks)				\
 			WARN(1, format);				\
 		else 							\
-			DRM_ERROR(format);				\
+			DRM_INFO(format);				\
 	}								\
 	unlikely(__ret_warn_on);					\
 })
@@ -101,7 +101,7 @@
 		if (i915.verbose_state_checks)				\
 			WARN(1, "WARN_ON(" #condition ")\n");		\
 		else 							\
-			DRM_ERROR("WARN_ON(" #condition ")\n");		\
+			DRM_INFO("WARN_ON(" #condition ")\n");		\
 	}								\
 	unlikely(__ret_warn_on);					\
 })
