@@ -5888,7 +5888,16 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
 			unsigned int viid, bool rx_en, bool tx_en, bool dcb_en)
 {
-	return t4_enable_vi_params(adap, mbox, viid, rx_en, tx_en, 0);
+	struct fw_vi_enable_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = htonl(FW_CMD_OP_V(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST_F |
+			     FW_CMD_EXEC_F | FW_VI_ENABLE_CMD_VIID_V(viid));
+
+	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN_V(rx_en) |
+			       FW_VI_ENABLE_CMD_EEN_V(tx_en) | FW_LEN16(c) |
+			       FW_VI_ENABLE_CMD_DCB_INFO_V(dcb_en));
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
 
 /**
