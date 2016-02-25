@@ -1859,18 +1859,11 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 			     PKT_HASH_TYPE_L3);
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct port_info *pi = netdev_priv(rxq->rspq.netdev);
-		struct vlan_group *grp = pi->vlan_grp;
-
+		 __vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp)) {
-			ret = vlan_gro_frags_gr(&rxq->rspq.napi, grp,
-						ntohs(pkt->vlan));
-			goto stats;
-		}
 	}
 	ret = napi_gro_frags_gr(&rxq->rspq.napi);
-stats:	if (ret == GRO_HELD)
+	if (ret == GRO_HELD)
 		rxq->stats.lro_pkts++;
 	else if (ret == GRO_MERGED || ret == GRO_MERGED_FREE)
 		rxq->stats.lro_merged++;
@@ -1961,13 +1954,8 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	}
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct vlan_group *grp = pi->vlan_grp;
-
+	 __vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp))
-			vlan_hwaccel_receive_skb(skb, grp, ntohs(pkt->vlan));
-		else
-			dev_kfree_skb_any(skb);
 	}
 	skb_mark_napi_id(skb, &q->napi);
 	netif_receive_skb(skb);
