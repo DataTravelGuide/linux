@@ -115,6 +115,30 @@ enum tpm2_startup_types {
 	TPM2_SU_STATE	= 0x0001,
 };
 
+enum tpm2_start_method {
+	TPM2_START_ACPI = 2,
+	TPM2_START_FIFO = 6,
+	TPM2_START_CRB = 7,
+	TPM2_START_CRB_WITH_ACPI = 8,
+};
+
+/*
+ * RHEL6: we don't have the tpm2 bits in actbl2.h, but
+ * have them in tpm_crb.c, so moving them here to make
+ * use of them in tpm_tis.c
+ */
+#ifdef CONFIG_ACPI
+#define ACPI_SIG_TPM2 "TPM2"
+
+struct acpi_tpm2 {
+	struct acpi_table_header hdr;
+	u16 platform_class;
+	u16 reserved;
+	u64 control_area_pa;
+	u32 start_method;
+} __packed;
+#endif /* CONFIG_ACPI */
+
 struct tpm_chip;
 
 struct tpm_vendor_specific {
