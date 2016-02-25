@@ -3643,28 +3643,11 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_clear_rscctl - disable RSC for the indicated ring
- * @adapter: address of board private structure
- * @ring: structure containing ring specific data
- **/
-void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
-                        struct ixgbe_ring *ring)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 rscctrl;
-	u8 reg_idx = ring->reg_idx;
-
-	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(reg_idx));
-	rscctrl &= ~IXGBE_RSCCTL_RSCEN;
-	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(reg_idx), rscctrl);
-}
-
-/**
  * ixgbe_configure_rscctl - enable RSC for the indicated ring
  * @adapter:    address of board private structure
  * @index:      index of ring to set
  **/
-void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
+static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -8237,6 +8220,104 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 }
 #endif /* RHEL 6 */
 
+void ixgbe_do_reset(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (netif_running(netdev))
+		ixgbe_reinit_locked(adapter);
+	else
+		ixgbe_reset(adapter);
+}
+
+static u32 ixgbe_fix_features(struct net_device *netdev, u32 data)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+#ifdef CONFIG_DCB
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
+		data &= ~NETIF_F_HW_VLAN_RX;
+#endif
+
+	/* return error if RXHASH is being enabled when RSS is not supported */
+#if 0
+	/* NOT yet in RHEL6 */
+	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		data &= ~NETIF_F_RXHASH;
+#endif
+
+	/* If Rx checksum is disabled, then RSC/LRO should also be disabled */
+	if (!(data & NETIF_F_RXCSUM))
+		data &= ~NETIF_F_LRO;
+
+	/* Turn off LRO if not RSC capable or invalid ITR settings */
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)) {
+		data &= ~NETIF_F_LRO;
+	} else if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
+		   (adapter->rx_itr_setting != 1 &&
+		    adapter->rx_itr_setting > IXGBE_MAX_RSC_INT_RATE)) {
+		data &= ~NETIF_F_LRO;
+		e_info(probe, "rx-usecs set too low, not enabling RSC\n");
+	}
+
+	return data;
+}
+
+static int ixgbe_set_features(struct net_device *netdev, u32 data)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	bool need_reset = false;
+
+	/* If Rx checksum is disabled, then RSC/LRO should also be disabled */
+#if 0
+	if (!(data & NETIF_F_RXCSUM))
+		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+	else
+		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
+#endif
+	/* Make sure RSC matches LRO, reset if change */
+	if (!!(data & NETIF_F_LRO) !=
+	     !!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)) {
+		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_X540:
+		case ixgbe_mac_82599EB:
+			need_reset = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+		/* turn off ATR, enable perfect filters and reset */
+		if (data & NETIF_F_NTUPLE) {
+			adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+			adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+			need_reset = true;
+		}
+	} else if (!(data & NETIF_F_NTUPLE)) {
+		/* turn off Flow Director, set ATR and reset */
+		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+#if 0
+		if ((adapter->flags &  IXGBE_FLAG_RSS_ENABLED) &&
+		    !(adapter->flags &  IXGBE_FLAG_DCB_ENABLED))
+			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+#endif
+		need_reset = true;
+	}
+
+	if (need_reset)
+		ixgbe_do_reset(netdev);
+
+	return 0;
+
+}
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
@@ -8285,6 +8366,8 @@ static const struct net_device_ops_ext ixgbe_netdev_ops_ext = {
 #if 0 /* Not in RHEL 6 */
 	.ndo_set_vf_rss_query_en = ixgbe_ndo_set_vf_rss_query_en,
 #endif
+	.ndo_set_features = ixgbe_set_features,
+	.ndo_fix_features = ixgbe_fix_features,
 };
 
 /**
@@ -8605,12 +8688,16 @@ skip_sriov:
 			   /* RHEL 6 */
 			   /* NETIF_F_HW_L2FW_DOFFLOAD; */
 
+	netdev_extended(netdev)->hw_features = netdev->features;
+
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 		netdev->features |= NETIF_F_SCTP_CSUM;
+		netdev_extended(netdev)->hw_features |= NETIF_F_SCTP_CSUM |
+							NETIF_F_NTUPLE;
 		break;
 	default:
 		break;
@@ -8671,6 +8758,8 @@ skip_sriov:
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
+	if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)
+		netdev_extended(netdev)->hw_features |= NETIF_F_LRO;
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
 		netdev->features |= NETIF_F_LRO;
 

@@ -953,10 +953,6 @@ s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 					  u16 soft_id);
 void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 					  union ixgbe_atr_input *mask);
-void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
-                                   struct ixgbe_ring *ring);
-void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
-                            struct ixgbe_ring *ring);
 void ixgbe_set_rx_mode(struct net_device *netdev);
 void ixgbe_check_options(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_IXGBE_DCB
