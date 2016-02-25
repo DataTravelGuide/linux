@@ -1794,5 +1794,15 @@ static inline bool pci_is_pcie(struct pci_dev *dev)
 	return !!pci_pcie_cap(dev);
 }
 
+/**
+ * pci_ari_enabled - query ARI forwarding status
+ * @bus: the PCI bus
+ *
+ * Returns true if ARI forwarding is enabled.
+ */
+static inline bool pci_ari_enabled(struct pci_bus *bus)
+{
+	return bus->self && bus->self->ari_enabled;
+}
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

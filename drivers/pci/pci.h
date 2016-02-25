@@ -209,16 +209,6 @@ extern int pci_resource_bar(struct pci_dev *dev, int resno,
 			    enum pci_bar_type *type);
 extern int pci_bus_add_child(struct pci_bus *bus);
 extern void pci_enable_ari(struct pci_dev *dev);
-/**
- * pci_ari_enabled - query ARI forwarding status
- * @bus: the PCI bus
- *
- * Returns 1 if ARI forwarding is enabled, or 0 if not enabled;
- */
-static inline int pci_ari_enabled(struct pci_bus *bus)
-{
-	return bus->self && bus->self->ari_enabled;
-}
 
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
 extern void pci_disable_bridge_window(struct pci_dev *dev);
