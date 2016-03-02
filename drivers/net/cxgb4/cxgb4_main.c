@@ -131,8 +131,8 @@ struct filter_entry {
 
 #include "t4_pci_id_tbl.h"
 
-#define FW4_FNAME "cxgb4/t4fw-1.13.32.0.bin"
-#define FW5_FNAME "cxgb4/t5fw-1.13.32.0.bin"
+#define FW4_FNAME "cxgb4/t4fw-1.14.4.0.bin"
+#define FW5_FNAME "cxgb4/t5fw-1.14.4.0.bin"
 #define FW6_FNAME "cxgb4/t6fw.bin"
 #define FW4_CFNAME "cxgb4/t4-config.txt"
 #define FW5_CFNAME "cxgb4/t5-config.txt"
