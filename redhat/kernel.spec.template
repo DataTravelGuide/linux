@@ -1710,6 +1710,13 @@ fi
 
 %changelog
 %%CHANGELOG%%
+* Thu Mar 03 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-624.el6]
+- [netdrv] tg3: Fix for tg3 transmit queue 0 timed out when too many gso_segs (Ivan Vecera) [1222426]
+- [netdrv] bna: fix list corruption (Ivan Vecera) [1310957]
+- [netdrv] cxgb4 : Add cxgb4 T4/T5 firmware version 1.14.4.0, hardcode driver to the same (Sai Vemuri) [1270347]
+- [drm] i915: WaRsDisableCoarsePowerGating (Rob Clark) [1302269]
+- [drm] i915/skl: Add SKL GT4 PCI IDs (Rob Clark) [1302269]
+
 * Wed Mar 02 2016 Aristeu Rozanski <aris@redhat.com> [2.6.32-623.el6]
 - [perf] revert "perf/x86/intel uncore: Move uncore_box_init() out of driver initialization" (Jiri Olsa) [1313062]
 - [net] udp: move logic out of udp[46]_ufo_send_check (Sabrina Dubroca) [1299975]
