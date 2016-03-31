@@ -128,18 +128,6 @@ enum tpm2_startup_types {
 	TPM2_SU_STATE	= 0x0001,
 };
 
-struct tpm_chip;
-
-struct tpm_vendor_specific {
-	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
-	bool timeout_adjusted;
-	unsigned long duration[3]; /* jiffies */
-	bool duration_adjusted;
-	void *priv;
-};
-
-#define TPM_VPRIV(c)     ((c)->vendor.priv)
-
 #define TPM_VID_INTEL    0x8086
 #define TPM_VID_WINBOND  0x1050
 #define TPM_VID_STM      0x104A
@@ -170,7 +158,9 @@ struct tpm_chip {
 
 	struct mutex tpm_mutex;	/* tpm is processing */
 
-	struct tpm_vendor_specific vendor;
+	unsigned long timeout_a; /* jiffies */
+	unsigned long timeout_b; /* jiffies */
+	unsigned long timeout_c; /* jiffies */
 
 	struct dentry **bios_dir;
 
