@@ -295,15 +295,8 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 	memset(&bh, 0, sizeof(bh));
 	bh.b_bdev = inode->i_sb->s_bdev;
 
-	if ((flags & DIO_LOCKING) && (rw == READ)) {
-		struct address_space *mapping = inode->i_mapping;
-		mutex_lock(&inode->i_mutex);
-		retval = filemap_write_and_wait_range(mapping, pos, end - 1);
-		if (retval) {
-			mutex_unlock(&inode->i_mutex);
-			goto out;
-		}
-	}
+	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
+		inode_lock(inode);
 
 	/* Protects against truncate */
 	if (!(flags & DIO_SKIP_DIO_COUNT))
@@ -319,7 +312,6 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
 
 	if (!(flags & DIO_SKIP_DIO_COUNT))
 		inode_dio_end(inode);
- out:
 	return retval;
 }
 EXPORT_SYMBOL_GPL(dax_do_io);
