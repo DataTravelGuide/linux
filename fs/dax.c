@@ -631,19 +631,13 @@ static int dax_insert_mapping(struct inode *inode, struct buffer_head *bh,
  * @vma: The virtual memory area where the fault occurred
  * @vmf: The description of the fault
  * @get_block: The filesystem method used to translate file offsets to blocks
- * @complete_unwritten: The filesystem method used to convert unwritten blocks
- *	to written so the data written to them is exposed. This is required for
- *	required by write faults for filesystems that will return unwritten
- *	extent mappings from @get_block, but it is optional for reads as
- *	dax_insert_mapping() will always zero unwritten blocks. If the fs does
- *	not support unwritten extents, the it should pass NULL.
  *
  * When a page fault occurs, filesystems may call this helper in their
  * fault handler for DAX files. __dax_fault() assumes the caller has done all
  * the necessary locking for the page fault to proceed successfully.
  */
 int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block, dax_iodone_t complete_unwritten)
+			get_block_t get_block)
 {
 	struct file *file = vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
@@ -746,23 +740,9 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		page = NULL;
 	}
 
-	/*
-	 * If we successfully insert the new mapping over an unwritten extent,
-	 * we need to ensure we convert the unwritten extent. If there is an
-	 * error inserting the mapping, the filesystem needs to leave it as
-	 * unwritten to prevent exposure of the stale underlying data to
-	 * userspace, but we still need to call the completion function so
-	 * the private resources on the mapping buffer can be released. We
-	 * indicate what the callback should do via the uptodate variable, same
-	 * as for normal BH based IO completions.
-	 */
+	/* Filesystem should not return unwritten buffers to us! */
+	WARN_ON_ONCE(buffer_unwritten(&bh));
 	error = dax_insert_mapping(inode, &bh, vma, vmf);
-	if (buffer_unwritten(&bh)) {
-		if (complete_unwritten)
-			complete_unwritten(&bh, !error);
-		else
-			WARN_ON_ONCE(!(vmf->flags & FAULT_FLAG_WRITE));
-	}
 
  out:
 	if (error == -ENOMEM)
@@ -791,7 +771,7 @@ EXPORT_SYMBOL(__dax_fault);
  * fault handler for DAX files.
  */
 int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-	      get_block_t get_block, dax_iodone_t complete_unwritten)
+	      get_block_t get_block)
 {
 	int result;
 	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
@@ -800,7 +780,7 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
 	}
-	result = __dax_fault(vma, vmf, get_block, complete_unwritten);
+	result = __dax_fault(vma, vmf, get_block);
 	if (vmf->flags & FAULT_FLAG_WRITE)
 		sb_end_pagefault(sb);
 
@@ -816,8 +796,7 @@ EXPORT_SYMBOL_GPL(dax_fault);
 #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
 
 int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-		pmd_t *pmd, unsigned int flags, get_block_t get_block,
-		dax_iodone_t complete_unwritten)
+		pmd_t *pmd, unsigned int flags, get_block_t get_block)
 {
 	struct file *file = vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
@@ -865,6 +844,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		if (get_block(inode, block, &bh, 1) != 0)
 			return VM_FAULT_SIGBUS;
 		alloc = true;
+		WARN_ON_ONCE(buffer_unwritten(&bh));
 	}
 
 	bdev = bh.b_bdev;
@@ -996,9 +976,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
  out:
 	mutex_unlock(&mapping->i_mmap_mutex);
 
-	if (buffer_unwritten(&bh))
-		complete_unwritten(&bh, !(result & VM_FAULT_ERROR));
-
 	return result;
 
  fallback:
@@ -1018,8 +995,7 @@ EXPORT_SYMBOL_GPL(__dax_pmd_fault);
  * pmd_fault handler for DAX files.
  */
 int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-			pmd_t *pmd, unsigned int flags, get_block_t get_block,
-			dax_iodone_t complete_unwritten)
+			pmd_t *pmd, unsigned int flags, get_block_t get_block)
 {
 	int result;
 	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
@@ -1028,8 +1004,7 @@ int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		sb_start_pagefault(sb);
 		file_update_time(vma->vm_file);
 	}
-	result = __dax_pmd_fault(vma, address, pmd, flags, get_block,
-				complete_unwritten);
+	result = __dax_pmd_fault(vma, address, pmd, flags, get_block);
 	if (flags & FAULT_FLAG_WRITE)
 		sb_end_pagefault(sb);
 

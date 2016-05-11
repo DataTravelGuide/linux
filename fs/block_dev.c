@@ -1006,7 +1006,7 @@ static int add_symlink(struct kobject *from, struct kobject *to)
 
 static void del_symlink(struct kobject *from, struct kobject *to)
 {
-	sysfs_remove_link(from, kobject_name(to));
+	return __dax_fault(vma, vmf, blkdev_get_block);
 }
 
 /**
@@ -1751,6 +1751,10 @@ ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 	blk_finish_plug(&plug);
 	return ret;
+static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+		pmd_t *pmd, unsigned int flags)
+{
+	return __dax_pmd_fault(vma, addr, pmd, flags, blkdev_get_block);
 }
 EXPORT_SYMBOL_GPL(blkdev_aio_write);
 
