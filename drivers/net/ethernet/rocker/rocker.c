@@ -3713,6 +3713,9 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 	if (afspec) {
 		attr = nla_find_nested(afspec, IFLA_BRIDGE_MODE);
 		if (attr) {
+			if (nla_len(attr) < sizeof(mode))
+				return -EINVAL;
+
 			mode = nla_get_u16(attr);
 			if (mode != BRIDGE_MODE_SWDEV)
 				return -EINVAL;
@@ -3722,6 +3725,9 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 	if (protinfo) {
 		attr = nla_find_nested(protinfo, IFLA_BRPORT_LEARNING);
 		if (attr) {
+			if (nla_len(attr) < sizeof(u8))
+				return -EINVAL;
+
 			if (nla_get_u8(attr))
 				rocker_port->brport_flags |= BR_LEARNING;
 			else
@@ -3732,6 +3738,9 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 		}
 		attr = nla_find_nested(protinfo, IFLA_BRPORT_LEARNING_SYNC);
 		if (attr) {
+			if (nla_len(attr) < sizeof(u8))
+				return -EINVAL;
+
 			if (nla_get_u8(attr))
 				rocker_port->brport_flags |= BR_LEARNING_SYNC;
 			else
