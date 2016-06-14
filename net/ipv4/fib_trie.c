@@ -1623,7 +1623,7 @@ void fib_table_flush_external(struct fib_table *tb)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
+			if (!fi || !(fi->fib_flags & RTNH_F_OFFLOAD))
 				continue;
 
 			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
