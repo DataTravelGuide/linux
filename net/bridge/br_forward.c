@@ -35,11 +35,6 @@ static inline int should_deliver(const struct net_bridge_port *p,
 		p->state == BR_STATE_FORWARDING;
 }
 
-static inline unsigned int packet_length(const struct sk_buff *skb)
-{
-	return skb->len - (skb->protocol == htons(ETH_P_8021Q) ? VLAN_HLEN : 0);
-}
-
 int br_dev_queue_push_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	if (!is_skb_forwardable(skb->dev, skb))
@@ -87,7 +82,7 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 	skb->dev = to->dev;
 
 	if (unlikely(netpoll_tx_running(to->br->dev))) {
-		if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+		if (!is_skb_forwardable(skb->dev, skb))
 			kfree_skb(skb);
 		else {
 			skb_push(skb, ETH_HLEN);
