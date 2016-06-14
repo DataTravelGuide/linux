@@ -3995,6 +3995,11 @@ static inline bool netif_supports_nofcs(struct net_device *dev)
 	return dev->priv_flags & IFF_SUPP_NOFCS;
 }
 
+static inline bool netif_is_bridge_master(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_EBRIDGE;
+}
+
 static inline bool netif_is_ovs_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_OPENVSWITCH;
