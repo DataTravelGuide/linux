@@ -34,6 +34,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* shared max_buff limits for dynamic threshold for SBCM, SBPM */
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MIN 1
+#define MLXSW_REG_SBXX_DYN_MAX_BUFF_MAX 14
+
+/* reg_sbcm_max_buff
+ * When the pool associated to the port-pg/tclass is configured to
+ * static, Maximum buffer size for the limiter configured in cells.
 /* reg_pbmc_buf_xoff_threshold
  * Once the amount of data in the buffer goes above this value, device
  * starts sending PFC frames for all priorities associated with the
