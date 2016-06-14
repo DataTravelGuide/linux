@@ -806,6 +806,7 @@ struct tc_to_netdev {
 	};
 };
 
+struct fib_info;
 
 /* This structure defines the management hooks for network devices.
  * It is an extension of net_device_ops. Drivers that want to use any of the
@@ -847,6 +848,14 @@ struct tc_to_netdev {
  * int (*ndo_switch_port_stp_update)(struct net_device *dev, u8 state);
  *	Called to notify switch device port of bridge port STP
  *	state change.
+ * int (*ndo_sw_parent_fib_ipv4_add)(struct net_device *dev, __be32 dst,
+ *				     int dst_len, struct fib_info *fi,
+ *				     u8 tos, u8 type, u32 tb_id);
+ *	Called to add/modify IPv4 route to switch device.
+ * int (*ndo_sw_parent_fib_ipv4_del)(struct net_device *dev, __be32 dst,
+ *				     int dst_len, struct fib_info *fi,
+ *				     u8 tos, u8 type, u32 tb_id);
+ *	Called to delete IPv4 route from switch device.
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -872,6 +881,18 @@ struct net_device_ops_extended {
 							    struct netdev_phys_item_id *psid);
 	int			(*ndo_switch_port_stp_update)(struct net_device *dev,
 							      u8 state);
+	int			(*ndo_switch_fib_ipv4_add)(struct net_device *dev,
+							   __be32 dst,
+							   int dst_len,
+							   struct fib_info *fi,
+							   u8 tos, u8 type,
+							   u32 tb_id);
+	int			(*ndo_switch_fib_ipv4_del)(struct net_device *dev,
+							   __be32 dst,
+							   int dst_len,
+							   struct fib_info *fi,
+							   u8 tos, u8 type,
+							   u32 tb_id);
 };
 
 /*
