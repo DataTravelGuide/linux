@@ -1662,6 +1662,10 @@ struct net_device {
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
 
+#ifdef CONFIG_NET_SWITCHDEV
+	RH_KABI_FILL_HOLE(u32	offload_fwd_mark)
+#endif
+
 #ifdef CONFIG_XPS
 	struct xps_dev_maps __rcu *xps_maps;
 #endif
