@@ -138,6 +138,7 @@ source "drivers/net/ethernet/qlogic/Kconfig"
 source "drivers/net/ethernet/realtek/Kconfig"
 source "drivers/net/ethernet/renesas/Kconfig"
 source "drivers/net/ethernet/rdc/Kconfig"
+source "drivers/net/ethernet/rocker/Kconfig"
 
 config S6GMAC
 	tristate "S6105 GMAC ethernet support"
