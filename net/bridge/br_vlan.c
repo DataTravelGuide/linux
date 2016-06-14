@@ -53,8 +53,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		dev = br->dev;
 	}
 
-	/* Toggle HW filters when filtering is enabled */
-	if (p && p->br->vlan_enabled) {
+	if (p) {
 		/* Add VLAN to the device filter if it is supported.
 		 * Stricly speaking, this is not necessary now, since
 		 * devices are made promiscuous by the bridge, but if
@@ -80,7 +79,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 	return 0;
 
 out_filt:
-	if (p && p->br->vlan_enabled)
+	if (p)
 		vlan_vid_del(dev, br->vlan_proto, vid);
 	return err;
 }
@@ -95,10 +94,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	if (v->port_idx) {
 		struct net_bridge_port *p = v->parent.port;
-
-		/* Toggle HW filters when filtering is enabled */
-		if (p->br->vlan_enabled)
-			vlan_vid_del(p->dev, p->br->vlan_proto, vid);
+		vlan_vid_del(p->dev, p->br->vlan_proto, vid);
 	}
 
 	clear_bit(vid, v->vlan_bitmap);
@@ -382,72 +378,6 @@ out:
 	return found;
 }
 
-static void br_set_hw_filters(struct net_bridge *br)
-{
-	struct net_bridge_port *p;
-	struct net_port_vlans *pv;
-	u16 vid, errvid;
-	int err;
-
-	/* For each port, walk the vlan bitmap and write the vlan
-	 * info to port driver.
-	 */
-	list_for_each_entry(p, &br->port_list, list) {
-		pv = rtnl_dereference(p->vlan_info);
-		if (!pv)
-			continue;
-
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
-			err = vlan_vid_add(p->dev, br->vlan_proto, vid);
-			if (err)
-				goto err_flt;
-		}
-	}
-
-	return;
-
-err_flt:
-	errvid = vid;
-	for_each_set_bit(vid, pv->vlan_bitmap, errvid)
-		vlan_vid_del(p->dev, br->vlan_proto, vid);
-
-	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
-		pv = rtnl_dereference(p->vlan_info);
-		if (!pv)
-			continue;
-
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
-			vlan_vid_del(p->dev, br->vlan_proto, vid);
-	}
-}
-
-static void br_clear_hw_filters(struct net_bridge *br)
-{
-	struct net_bridge_port *p;
-	struct net_port_vlans *pv;
-	u16 vid;
-
-	/* For each port, walk the vlan bitmap and clear
-	 * the vlan info from the port driver.
-	 */
-	list_for_each_entry(p, &br->port_list, list) {
-		pv = rtnl_dereference(p->vlan_info);
-		if (!pv)
-			continue;
-
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
-			vlan_vid_del(p->dev, br->vlan_proto, vid);
-	}
-}
-
-static void br_manage_vlans(struct net_bridge *br)
-{
-	if (br->vlan_enabled)
-		br_set_hw_filters(br);
-	else
-		br_clear_hw_filters(br);
-}
-
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
 	if (!rtnl_trylock())
@@ -457,7 +387,6 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 		goto unlock;
 
 	br->vlan_enabled = val;
-	br_manage_vlans(br);
 	br_manage_promisc(br);
 
 unlock:
@@ -667,10 +596,8 @@ void nbp_vlan_flush(struct net_bridge_port *port)
 	if (!pv)
 		return;
 
-	if (port->br->vlan_enabled) {
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
-			vlan_vid_del(port->dev, port->br->vlan_proto, vid);
-	}
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+		vlan_vid_del(port->dev, port->br->vlan_proto, vid);
 
 	__vlan_flush(pv);
 }
