@@ -2418,7 +2418,8 @@ MLXSW_ITEM32(reg, mfsc, pwm, 0x00, 24, 3);
  * represent duty cycle of 0%...100%.
  * Access: RW
  */
-MLXSW_ITEM32(reg, mfsc, pwm_duty_cycle, 0x04, 0, 8);
+#define MLXSW_REG_PBMC_ID 0x500C
+#define MLXSW_REG_PBMC_LEN 0x6C
 
 static inline void mlxsw_reg_mfsc_pack(char *payload, u8 pwm,
 				       u8 pwm_duty_cycle)
