@@ -42,6 +42,8 @@ struct netns_ipv4 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	int			fib_num_tclassid_users;
 #endif
+	RH_KABI_FILL_HOLE(bool	fib_offload_disabled)
+	/* Hole - 3 bytes remain */
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
