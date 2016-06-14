@@ -266,7 +266,11 @@ static void switchdev_port_attr_set_work(struct work_struct *work)
 	rtnl_unlock();
 
 	dev_put(asw->dev);
-	kfree(work);
+	if (err && err != -EOPNOTSUPP)
+		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
+			   err, attr->id);
+	if (attr->complete)
+		attr->complete(dev, err, attr->complete_priv);
 }
 
 static int switchdev_port_attr_set_defer(struct net_device *dev,
@@ -449,6 +453,8 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_add_defer(struct net_device *dev,
@@ -517,6 +523,8 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
 			   err, obj->id);
+	if (obj->complete)
+		obj->complete(dev, err, obj->complete_priv);
 }
 
 static int switchdev_port_obj_del_defer(struct net_device *dev,
