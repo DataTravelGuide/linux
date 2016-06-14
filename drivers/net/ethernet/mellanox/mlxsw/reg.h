@@ -2450,8 +2450,11 @@ static inline void mlxsw_reg_pptb_pack(char *payload, u8 local_port)
 	mlxsw_reg_pptb_pm_set(payload, MLXSW_REG_PPTB_ALL_PRIO);
 }
 
-/* PBMC - Port Buffer Management Control Register
- * ----------------------------------------------
+/* SBPM - Shared Buffer Port Management Register
+ * ---------------------------------------------
+ * The SBPM register configures and retrieves the shared buffer allocation
+ * and configuration according to Port-Pool, including the definition
+ * of the associated quota.
  * The PBMC register configures and retrieves the port packet buffer
 /* PSPA - Port Switch Partition Allocation
  * ---------------------------------------
