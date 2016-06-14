@@ -2454,6 +2454,11 @@ MLXSW_ITEM32(reg, mfsm, tacho, 0x00, 24, 4);
  */
 MLXSW_ITEM32(reg, mfsm, rpm, 0x04, 0, 16);
 
+#define MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX 11
+
+/* reg_pbmc_buf_lossy
+ * The field indicates if the buffer is lossy.
+ * 0 - Lossless
 static inline void mlxsw_reg_mfsm_pack(char *payload, u8 tacho)
 {
 	MLXSW_REG_ZERO(mfsm, payload);
