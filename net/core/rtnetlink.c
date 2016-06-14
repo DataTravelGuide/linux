@@ -2932,13 +2932,14 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (cb->args[1] == -EMSGSIZE)
 			break;
 
-		idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
 		if (get_ndo_ext(dev->netdev_ops, ndo_fdb_dump))
 			idx = get_ndo_ext(dev->netdev_ops, ndo_fdb_dump)
-				(skb, cb, bdev, dev, idx);
+				(skb, cb, dev, NULL, idx);
 		else if (dev->netdev_ops->ndo_fdb_dump_rh72)
 			idx = dev->netdev_ops->ndo_fdb_dump_rh72(skb, cb, dev,
 								 idx);
+		else
+			idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
 		if (cb->args[1] == -EMSGSIZE)
 			break;
 

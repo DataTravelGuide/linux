@@ -688,6 +688,9 @@ int br_fdb_dump(struct sk_buff *skb,
 	if (!(dev->priv_flags & IFF_EBRIDGE))
 		goto out;
 
+	if (!filter_dev)
+		idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
+
 	for (i = 0; i < BR_HASH_SIZE; i++) {
 		struct net_bridge_fdb_entry *f;
 
@@ -701,7 +704,7 @@ int br_fdb_dump(struct sk_buff *skb,
 			    (!f->dst || f->dst->dev != filter_dev)) {
 				if (filter_dev != dev)
 					goto skip;
-				/* !f->dst is a speacial case for bridge
+				/* !f->dst is a special case for bridge
 				 * It means the MAC belongs to the bridge
 				 * Therefore need a little more filtering
 				 * we only want to dump the !f->dst case
@@ -709,6 +712,8 @@ int br_fdb_dump(struct sk_buff *skb,
 				if (f->dst)
 					goto skip;
 			}
+			if (!filter_dev && f->dst)
+				goto skip;
 
 			err = fdb_fill_info(skb, br, f,
 					    NETLINK_CB(cb->skb).portid,
