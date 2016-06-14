@@ -806,8 +806,6 @@ struct tc_to_netdev {
 	};
 };
 
-struct fib_info;
-
 /* This structure defines the management hooks for network devices.
  * It is an extension of net_device_ops. Drivers that want to use any of the
  * fields defined here must initialize net_device_ops->ndo_size to
@@ -840,22 +838,6 @@ struct fib_info;
  *		       int idx)
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
- * int (*ndo_switch_parent_id_get)(struct net_device *dev,
- *				   struct netdev_phys_item_id *psid);
- *	Called to get an ID of the switch chip this port is part of.
- *	If driver implements this, it indicates that it represents a port
- *	of a switch chip.
- * int (*ndo_switch_port_stp_update)(struct net_device *dev, u8 state);
- *	Called to notify switch device port of bridge port STP
- *	state change.
- * int (*ndo_sw_parent_fib_ipv4_add)(struct net_device *dev, __be32 dst,
- *				     int dst_len, struct fib_info *fi,
- *				     u8 tos, u8 type, u32 nlflags, u32 tb_id);
- *	Called to add/modify IPv4 route to switch device.
- * int (*ndo_sw_parent_fib_ipv4_del)(struct net_device *dev, __be32 dst,
- *				     int dst_len, struct fib_info *fi,
- *				     u8 tos, u8 type, u32 tb_id);
- *	Called to delete IPv4 route from switch device.
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -877,23 +859,6 @@ struct net_device_ops_extended {
 						struct net_device *dev,
 						struct net_device *filter_dev,
 						int idx);
-	int			(*ndo_switch_parent_id_get)(struct net_device *dev,
-							    struct netdev_phys_item_id *psid);
-	int			(*ndo_switch_port_stp_update)(struct net_device *dev,
-							      u8 state);
-	int			(*ndo_switch_fib_ipv4_add)(struct net_device *dev,
-							   __be32 dst,
-							   int dst_len,
-							   struct fib_info *fi,
-							   u8 tos, u8 type,
-							   u32 nlflags,
-							   u32 tb_id);
-	int			(*ndo_switch_fib_ipv4_del)(struct net_device *dev,
-							   __be32 dst,
-							   int dst_len,
-							   struct fib_info *fi,
-							   u8 tos, u8 type,
-							   u32 tb_id);
 };
 
 /*
