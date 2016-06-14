@@ -1849,7 +1849,7 @@ struct net_device {
 	RH_KABI_USE_P(12, close_list.prev)
 	RH_KABI_USE_P(13, close_list.next)
 #endif
-	RH_KABI_RESERVE_P(14)
+	RH_KABI_USE_P(14, const struct swdev_ops *swdev_ops)
 	RH_KABI_RESERVE_P(15)
 	RH_KABI_RESERVE_P(16)
 };
