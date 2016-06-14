@@ -587,29 +587,6 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static size_t br_get_size(const struct net_device *brdev)
-{
-	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
-	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
-	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
-	       0;
-}
-
-static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
-{
-	struct net_bridge *br = netdev_priv(brdev);
-	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
-	u32 hello_time = jiffies_to_clock_t(br->hello_time);
-	u32 age_time = jiffies_to_clock_t(br->max_age);
-
-	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
-	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
-	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
-		return -EMSGSIZE;
-
-	return 0;
-}
-
 static int br_dev_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
@@ -645,6 +622,29 @@ static size_t br_port_get_slave_size(const struct net_device *brdev,
 				     const struct net_device *dev)
 {
 	return br_port_info_size();
+}
+
+static size_t br_get_size(const struct net_device *brdev)
+{
+	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
+	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
+	       0;
+}
+
+static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
+{
+	struct net_bridge *br = netdev_priv(brdev);
+	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
+	u32 hello_time = jiffies_to_clock_t(br->hello_time);
+	u32 age_time = jiffies_to_clock_t(br->max_age);
+
+	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
+	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
+	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
+		return -EMSGSIZE;
+
+	return 0;
 }
 
 static size_t br_get_link_af_size(const struct net_device *dev)
