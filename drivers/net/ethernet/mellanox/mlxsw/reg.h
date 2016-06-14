@@ -2642,9 +2642,10 @@ static const struct mlxsw_reg_info mlxsw_reg_hpkt = {
 	.len = MLXSW_REG_HPKT_LEN,
 };
 
-enum {
-	MLXSW_REG_HPKT_ACK_NOT_REQUIRED,
-	MLXSW_REG_HPKT_ACK_REQUIRED,
+/* shared direstion enum for SBPR, SBCM, SBPM */
+enum mlxsw_reg_sbxx_dir {
+	MLXSW_REG_SBXX_DIR_INGRESS,
+	MLXSW_REG_SBXX_DIR_EGRESS,
 };
 
 /* reg_hpkt_ack
@@ -2711,7 +2712,9 @@ enum {
  */
 MLXSW_ITEM32(reg, hpkt, ctrl, 0x04, 16, 2);
 
-static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
+static inline void mlxsw_reg_sbpr_pack(char *payload, u8 pool,
+				       enum mlxsw_reg_sbxx_dir dir,
+				       enum mlxsw_reg_sbpr_mode mode, u32 size)
 {
 	enum mlxsw_reg_htgt_trap_group trap_group;
 
@@ -3128,10 +3131,10 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
  * Switch partition ID with which to associate the port.
  * Access: Index
  */
-MLXSW_ITEM32(reg, pude, swid, 0x00, 24, 8);
+MLXSW_ITEM32(reg, sbcm, pg_buff, 0x00, 8, 6);
 
-/* reg_pude_local_port
- * Local port number.
+/* reg_sbcm_dir
+ * Direction.
  * Access: Index
  */
 MLXSW_ITEM32(reg, pude, local_port, 0x00, 16, 8);
@@ -3157,4 +3160,22 @@ MLXSW_ITEM32(reg, pude, admin_status, 0x00, 8, 4);
  */
 MLXSW_ITEM32(reg, pude, oper_status, 0x00, 0, 4);
 
+static inline void mlxsw_reg_sbcm_pack(char *payload, u8 local_port, u8 pg_buff,
+				       enum mlxsw_reg_sbxx_dir dir,
+				       u32 min_buff, u32 max_buff, u8 pool)
+{
+	MLXSW_REG_ZERO(sbcm, payload);
 #endif
+ */
+MLXSW_ITEM32(reg, sbpm, pool, 0x00, 8, 4);
+
+/* reg_sbpm_dir
+ * Direction.
+ * Access: Index
+MLXSW_ITEM32(reg, sbpm, max_buff, 0x1C, 0, 24);
+
+static inline void mlxsw_reg_sbpm_pack(char *payload, u8 local_port, u8 pool,
+				       enum mlxsw_reg_sbxx_dir dir,
+				       u32 min_buff, u32 max_buff)
+{
+	MLXSW_REG_ZERO(sbpm, payload);
