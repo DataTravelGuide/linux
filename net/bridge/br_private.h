@@ -95,7 +95,8 @@ struct net_bridge_fdb_entry
 	__u16				vlan_id;
 	unsigned char			is_local:1,
 					is_static:1,
-					added_by_user:1;
+					added_by_user:1,
+					added_by_external_learn:1;
 	struct rcu_head			rcu;
 };
 
