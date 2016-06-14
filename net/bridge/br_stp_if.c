@@ -35,6 +35,11 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 /* called under bridge lock */
 void br_init_port(struct net_bridge_port *p)
 {
+	struct switchdev_attr attr = {
+		.orig_dev = p->dev,
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
+		.u.ageing_time = p->br->ageing_time,
 	p->port_id = br_make_port_id(p->priority, p->port_no);
 	br_become_designated_port(p);
 	br_set_state(p, BR_STATE_BLOCKING);
