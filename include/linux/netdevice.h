@@ -844,6 +844,9 @@ struct tc_to_netdev {
  *	Called to get an ID of the switch chip this port is part of.
  *	If driver implements this, it indicates that it represents a port
  *	of a switch chip.
+ * int (*ndo_switch_port_stp_update)(struct net_device *dev, u8 state);
+ *	Called to notify switch device port of bridge port STP
+ *	state change.
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -867,6 +870,8 @@ struct net_device_ops_extended {
 						int idx);
 	int			(*ndo_switch_parent_id_get)(struct net_device *dev,
 							    struct netdev_phys_item_id *psid);
+	int			(*ndo_switch_port_stp_update)(struct net_device *dev,
+							      u8 state);
 };
 
 /*
