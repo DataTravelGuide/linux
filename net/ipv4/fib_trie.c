@@ -1156,13 +1156,13 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 			new_fa->fa_slen = fa->fa_slen;
 
-			err = netdev_switch_fib_ipv4_add(key, plen, fi,
-							 new_fa->fa_tos,
-							 cfg->fc_type,
-							 cfg->fc_nlflags,
-							 tb->tb_id);
+			err = switchdev_fib_ipv4_add(key, plen, fi,
+						     new_fa->fa_tos,
+						     cfg->fc_type,
+						     cfg->fc_nlflags,
+						     tb->tb_id);
 			if (err) {
-				netdev_switch_fib_ipv4_abort(fi);
+				switchdev_fib_ipv4_abort(fi);
 				kmem_cache_free(fn_alias_kmem, new_fa);
 				goto out;
 			}
@@ -1205,12 +1205,10 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	new_fa->fa_slen = slen;
 
 	/* (Optionally) offload fib entry to switch hardware. */
-	err = netdev_switch_fib_ipv4_add(key, plen, fi, tos,
-					 cfg->fc_type,
-					 cfg->fc_nlflags,
-					 tb->tb_id);
+	err = switchdev_fib_ipv4_add(key, plen, fi, tos, cfg->fc_type,
+				     cfg->fc_nlflags, tb->tb_id);
 	if (err) {
-		netdev_switch_fib_ipv4_abort(fi);
+		switchdev_fib_ipv4_abort(fi);
 		goto out_free_new_fa;
 	}
 
@@ -1229,7 +1227,7 @@ succeeded:
 	return 0;
 
 out_sw_fib_del:
-	netdev_switch_fib_ipv4_del(key, plen, fi, tos, cfg->fc_type, tb->tb_id);
+	switchdev_fib_ipv4_del(key, plen, fi, tos, cfg->fc_type, tb->tb_id);
 out_free_new_fa:
 	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
@@ -1505,8 +1503,8 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (!fa_to_delete)
 		return -ESRCH;
 
-	netdev_switch_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
-				   cfg->fc_type, tb->tb_id);
+	switchdev_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
+			       cfg->fc_type, tb->tb_id);
 
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
@@ -1628,10 +1626,9 @@ void fib_table_flush_external(struct fib_table *tb)
 			if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
 				continue;
 
-			netdev_switch_fib_ipv4_del(n->key,
-						   KEYLENGTH - fa->fa_slen,
-						   fi, fa->fa_tos,
-						   fa->fa_type, tb->tb_id);
+			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
+					       fi, fa->fa_tos, fa->fa_type,
+					       tb->tb_id);
 		}
 	}
 }
@@ -1686,10 +1683,9 @@ int fib_table_flush(struct fib_table *tb)
 				continue;
 			}
 
-			netdev_switch_fib_ipv4_del(n->key,
-						   KEYLENGTH - fa->fa_slen,
-						   fi, fa->fa_tos,
-						   fa->fa_type, tb->tb_id);
+			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
+					       fi, fa->fa_tos, fa->fa_type,
+					       tb->tb_id);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);
