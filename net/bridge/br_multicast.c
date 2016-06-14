@@ -692,7 +692,7 @@ static int br_multicast_add_group(struct net_bridge *br,
 	if (unlikely(!p))
 		goto err;
 	rcu_assign_pointer(*pp, p);
-	br_mdb_notify(br->dev, port, group, RTM_NEWMDB);
+	br_mdb_notify(br->dev, port, group, RTM_NEWMDB, MDB_TEMPORARY);
 
 found:
 	mod_timer(&p->timer, now + br->multicast_membership_interval);
@@ -1378,8 +1378,9 @@ br_multicast_leave_group(struct net_bridge *br,
 			rcu_assign_pointer(*pp, p->next);
 			hlist_del_init(&p->mglist);
 			del_timer(&p->timer);
+			br_mdb_notify(br->dev, port, group, RTM_DELMDB,
+				      p->state);
 			call_rcu_bh(&p->rcu, br_multicast_free_pg);
-			br_mdb_notify(br->dev, port, group, RTM_DELMDB);
 
 			if (!mp->ports && !mp->mglist &&
 			    netif_running(br->dev))
