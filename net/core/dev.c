@@ -5359,7 +5359,7 @@ void __netdev_adjacent_dev_unlink_neighbour(struct net_device *dev,
 
 static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
-				   void *private)
+				   void *upper_priv)
 {
 	struct netdev_notifier_changeupper_info changeupper_info;
 	struct netdev_adjacent *i, *j, *to_i, *to_j;
@@ -5390,7 +5390,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, private,
+	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, upper_priv,
 						   master);
 	if (ret)
 		return ret;
@@ -5495,6 +5495,7 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * netdev_master_upper_dev_link - Add a master link to the upper device
  * @dev: device
  * @upper_dev: new upper device
+ * @upper_priv: upper device private
  *
  * Adds a link to device which is upper to this one. In this case, only
  * one master upper device can be linked, although other non-master devices
@@ -5502,20 +5503,25 @@ EXPORT_SYMBOL(netdev_upper_dev_link);
  * On a failure a negative errno code is returned. On success the reference
  * counts are adjusted and the function returns zero.
  */
+int netdev_master_upper_dev_link_rh(struct net_device *dev,
+				    struct net_device *upper_dev,
+				    void *upper_priv)
+{
+	return __netdev_upper_dev_link(dev, upper_dev, true, upper_priv);
+}
+EXPORT_SYMBOL(netdev_master_upper_dev_link_rh);
+
+/*
+ * We need to preserve older implementation of netdev_master_upper_dev_link
+ * that takes only 2 parameters for old binary modules.
+ */
+#undef netdev_master_upper_dev_link
 int netdev_master_upper_dev_link(struct net_device *dev,
 				 struct net_device *upper_dev)
 {
 	return __netdev_upper_dev_link(dev, upper_dev, true, NULL);
 }
 EXPORT_SYMBOL(netdev_master_upper_dev_link);
-
-int netdev_master_upper_dev_link_private(struct net_device *dev,
-					 struct net_device *upper_dev,
-					 void *private)
-{
-	return __netdev_upper_dev_link(dev, upper_dev, true, private);
-}
-EXPORT_SYMBOL(netdev_master_upper_dev_link_private);
 
 /**
  * netdev_upper_dev_unlink - Removes a link to upper device

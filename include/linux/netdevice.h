@@ -3738,9 +3738,10 @@ struct net_device *netdev_master_upper_dev_get_rcu(struct net_device *dev);
 int netdev_upper_dev_link(struct net_device *dev, struct net_device *upper_dev);
 int netdev_master_upper_dev_link(struct net_device *dev,
 				 struct net_device *upper_dev);
-int netdev_master_upper_dev_link_private(struct net_device *dev,
-					 struct net_device *upper_dev,
-					 void *private);
+int netdev_master_upper_dev_link_rh(struct net_device *dev,
+				    struct net_device *upper_dev,
+				    void *upper_priv);
+#define netdev_master_upper_dev_link netdev_master_upper_dev_link_rh
 void netdev_upper_dev_unlink(struct net_device *dev,
 			     struct net_device *upper_dev);
 void netdev_adjacent_rename_links(struct net_device *dev, char *oldname);
