@@ -839,6 +839,11 @@ struct tc_to_netdev {
  *		       int idx)
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
+ * int (*ndo_switch_parent_id_get)(struct net_device *dev,
+ *				   struct netdev_phys_item_id *psid);
+ *	Called to get an ID of the switch chip this port is part of.
+ *	If driver implements this, it indicates that it represents a port
+ *	of a switch chip.
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -860,6 +865,8 @@ struct net_device_ops_extended {
 						struct net_device *dev,
 						struct net_device *filter_dev,
 						int idx);
+	int			(*ndo_switch_parent_id_get)(struct net_device *dev,
+							    struct netdev_phys_item_id *psid);
 };
 
 /*
