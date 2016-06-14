@@ -1554,6 +1554,60 @@ found:
 	return n;
 }
 
+/* Caller must hold RTNL */
+void fib_table_flush_external(struct fib_table *tb)
+{
+	struct trie *t = (struct trie *)tb->tb_data;
+	struct key_vector *pn = t->kv;
+	unsigned long cindex = 1;
+	struct hlist_node *tmp;
+	struct fib_alias *fa;
+
+	/* walk trie in reverse order */
+	for (;;) {
+		struct key_vector *n;
+
+		if (!(cindex--)) {
+			t_key pkey = pn->key;
+
+			/* cannot resize the trie vector */
+			if (IS_TRIE(pn))
+				break;
+
+			/* no need to resize like in flush below */
+			pn = node_parent(pn);
+			cindex = get_index(pkey, pn);
+
+			continue;
+		}
+
+		/* grab the next available node */
+		n = get_child(pn, cindex);
+		if (!n)
+			continue;
+
+		if (IS_TNODE(n)) {
+			/* record pn and cindex for leaf walking */
+			pn = n;
+			cindex = 1ul << n->bits;
+
+			continue;
+		}
+
+		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
+			struct fib_info *fi = fa->fa_info;
+
+			if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
+				continue;
+
+			netdev_switch_fib_ipv4_del(n->key,
+						   KEYLENGTH - fa->fa_slen,
+						   fi, fa->fa_tos,
+						   fa->fa_type, tb->tb_id);
+		}
+	}
+}
+
 /* Caller must hold RTNL. */
 int fib_table_flush(struct fib_table *tb)
 {
