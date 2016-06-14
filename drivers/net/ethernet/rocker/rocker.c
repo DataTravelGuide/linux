@@ -4409,7 +4409,7 @@ static int rocker_port_vlan_add(struct rocker_port *rocker_port,
 
 static int rocker_port_vlans_add(struct rocker_port *rocker_port,
 				 struct switchdev_trans *trans,
-				 const struct switchdev_obj_vlan *vlan)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	u16 vid;
 	int err;
@@ -4481,7 +4481,7 @@ static int rocker_port_vlan_del(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_vlans_del(struct rocker_port *rocker_port,
-				 const struct switchdev_obj_vlan *vlan)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	u16 vid;
 	int err;
@@ -4566,7 +4566,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 }
 
 static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
-				 struct switchdev_obj_vlan *vlan,
+				 struct switchdev_obj_port_vlan *vlan,
 				int (*cb)(void *obj))
 {
 	u16 vid;
