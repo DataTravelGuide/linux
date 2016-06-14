@@ -1983,6 +1983,7 @@ static int team_change_carrier(struct net_device *dev, bool new_carrier)
 }
 
 static const struct net_device_ops team_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_init		= team_init,
 	.ndo_uninit		= team_uninit,
 	.ndo_open		= team_open,
@@ -2008,6 +2009,9 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
 	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
 	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
+	.ndo_fdb_add		= switchdev_port_fdb_add,
+	.ndo_fdb_del		= switchdev_port_fdb_del,
+	.extended.ndo_fdb_dump	= switchdev_port_fdb_dump,
 	.ndo_features_check	= passthru_features_check,
 };
 
