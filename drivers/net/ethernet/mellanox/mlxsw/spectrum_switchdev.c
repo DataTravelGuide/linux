@@ -967,6 +967,24 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 		return;
 	}
 
+	if (mlxsw_sp_fid_is_vfid(fid)) {
+		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
+		struct mlxsw_sp_port *mlxsw_sp_vport;
+
+		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_vfid(mlxsw_sp_port,
+								  vfid);
+		if (!mlxsw_sp_vport) {
+			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
+			return;
+		}
+
+		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		/* Override the physical port with the vPort. */
+		mlxsw_sp_port = mlxsw_sp_vport;
+	} else {
+		vid = fid;
+	}
+
 	err = mlxsw_sp_port_fdb_uc_op(mlxsw_sp_port, mac, fid,
 				      adding && mlxsw_sp_port->learning, true);
 	if (err) {
@@ -974,8 +992,6 @@ static void mlxsw_sp_fdb_notify_mac_process(struct mlxsw_sp *mlxsw_sp,
 			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
 		return;
 	}
-
-	vid = fid;
 
 	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
 				    mlxsw_sp_port->learning_sync,
@@ -999,6 +1015,24 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 		return;
 	}
 
+	if (mlxsw_sp_fid_is_vfid(fid)) {
+		u16 vfid = mlxsw_sp_fid_to_vfid(fid);
+		struct mlxsw_sp_port *mlxsw_sp_vport;
+
+		mlxsw_sp_vport = mlxsw_sp_port_vport_find_by_vfid(mlxsw_sp_port,
+								  vfid);
+		if (!mlxsw_sp_vport) {
+			netdev_err(mlxsw_sp_port->dev, "Failed to find a matching vPort following FDB notification\n");
+			return;
+		}
+
+		vid = mlxsw_sp_vport_vid_get(mlxsw_sp_vport);
+		/* Override the physical port with the vPort. */
+		mlxsw_sp_port = mlxsw_sp_vport;
+	} else {
+		vid = fid;
+	}
+
 	err = mlxsw_sp_port_fdb_uc_lag_op(mlxsw_sp, lag_id, mac, fid,
 					  adding && mlxsw_sp_port->learning,
 					  true);
@@ -1007,8 +1041,6 @@ static void mlxsw_sp_fdb_notify_mac_lag_process(struct mlxsw_sp *mlxsw_sp,
 			netdev_err(mlxsw_sp_port->dev, "Failed to set FDB entry\n");
 		return;
 	}
-
-	vid = fid;
 
 	mlxsw_sp_fdb_call_notifiers(mlxsw_sp_port->learning,
 				    mlxsw_sp_port->learning_sync,
