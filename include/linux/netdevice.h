@@ -850,7 +850,7 @@ struct fib_info;
  *	state change.
  * int (*ndo_sw_parent_fib_ipv4_add)(struct net_device *dev, __be32 dst,
  *				     int dst_len, struct fib_info *fi,
- *				     u8 tos, u8 type, u32 tb_id);
+ *				     u8 tos, u8 type, u32 nlflags, u32 tb_id);
  *	Called to add/modify IPv4 route to switch device.
  * int (*ndo_sw_parent_fib_ipv4_del)(struct net_device *dev, __be32 dst,
  *				     int dst_len, struct fib_info *fi,
@@ -886,6 +886,7 @@ struct net_device_ops_extended {
 							   int dst_len,
 							   struct fib_info *fi,
 							   u8 tos, u8 type,
+							   u32 nlflags,
 							   u32 tb_id);
 	int			(*ndo_switch_fib_ipv4_del)(struct net_device *dev,
 							   __be32 dst,
