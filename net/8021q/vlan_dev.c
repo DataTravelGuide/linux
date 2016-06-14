@@ -29,6 +29,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <net/arp.h>
+#include <net/switchdev.h>
 
 #include "vlan.h"
 #include "vlanproc.h"
@@ -760,6 +761,7 @@ static const struct ethtool_ops vlan_ethtool_ops = {
 };
 
 static const struct net_device_ops vlan_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_change_mtu		= vlan_dev_change_mtu,
 	.ndo_init		= vlan_dev_init,
 	.ndo_uninit		= vlan_dev_uninit,
@@ -787,6 +789,12 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= vlan_dev_netpoll_cleanup,
 #endif
 	.ndo_fix_features	= vlan_dev_fix_features,
+	.ndo_fdb_add		= switchdev_port_fdb_add,
+	.ndo_fdb_del		= switchdev_port_fdb_del,
+	.extended.ndo_fdb_dump	= switchdev_port_fdb_dump,
+	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
+	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
+	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
 	.ndo_get_iflink		= vlan_dev_get_iflink,
 };
 
