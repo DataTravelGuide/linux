@@ -369,8 +369,8 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct net_device *dev = mlxsw_sp_port->dev;
+	u16 vid, last_visited_vid, old_pvid;
 	enum mlxsw_reg_svfa_mt mt;
-	u16 vid, vid_e;
 	int err;
 
 	/* In case this is invoked with BRIDGE_FLAGS_SELF and port is
@@ -398,15 +398,18 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			if (err) {
 				netdev_err(dev, "Failed to create FID=VID=%d mapping\n",
 					   vid);
-				return err;
+				goto err_port_vid_to_fid_set;
 			}
 		}
+	}
 
-		/* Set FID mapping according to port's mode */
+	/* Set FID mapping according to port's mode */
+	for (vid = vid_begin; vid <= vid_end; vid++) {
 		err = mlxsw_sp_port_fid_map(mlxsw_sp_port, vid);
 		if (err) {
 			netdev_err(dev, "Failed to map FID=%d", vid);
-			return err;
+			last_visited_vid = --vid;
+			goto err_port_fid_map;
 		}
 
 		err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, vid, true,
@@ -421,9 +424,8 @@ static int __mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
 					true, flag_untagged);
 	if (err) {
-		netdev_err(dev, "Unable to add VIDs %d-%d\n", vid_begin,
-			   vid_end);
-		return err;
+		netdev_err(dev, "Failed to configure flooding\n");
+		goto err_port_flood_set;
 	}
 
 	vid = vid_begin;
