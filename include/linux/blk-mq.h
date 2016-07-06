@@ -135,6 +135,7 @@ typedef int (init_request_fn)(void *, struct request *, unsigned int,
 		unsigned int, unsigned int);
 typedef void (exit_request_fn)(void *, struct request *, unsigned int,
 		unsigned int);
+typedef int (reinit_request_fn)(void *, struct request *);
 
 typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 		bool);
@@ -184,8 +185,9 @@ struct blk_mq_ops {
 	 * set up, allowing the driver to allocate/init matching structures.
 	 * Ditto for exit/teardown.
 	 */
-	init_hctx_fn		*init_hctx;
-	exit_hctx_fn		*exit_hctx;
+	init_request_fn		*init_request;
+	exit_request_fn		*exit_request;
+	reinit_request_fn	*reinit_request;
 };
 
 enum {
@@ -282,6 +284,7 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_unfreeze_queue(struct request_queue *q);
 void blk_mq_freeze_queue_start(struct request_queue *q);
+int blk_mq_reinit_tagset(struct blk_mq_tag_set *set);
 
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
