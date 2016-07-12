@@ -546,7 +546,10 @@ probe_cache__find(struct probe_cache *pcache, struct perf_probe_event *pev)
 	if (!cmd)
 		return NULL;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
+		if (pev->sdt) {
+			if (entry->pev.event &&
+			    streql(entry->pev.event, pev->event) &&
 		/* Hit if same event name or same command-string */
 		if ((pev->event &&
 		     (streql(entry->pev.group, pev->group) &&
@@ -567,7 +570,7 @@ probe_cache__find_by_name(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry = NULL;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		/* Hit if same event name or same command-string */
 		if (streql(entry->pev.group, group) &&
 		    streql(entry->pev.event, event))
@@ -739,7 +742,7 @@ int probe_cache__commit(struct probe_cache *pcache)
 	if (ret < 0)
 		goto out;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		ret = probe_cache_entry__write(entry, pcache->fd);
 		pr_debug("Cache committed: %d\n", ret);
 		if (ret < 0)
@@ -781,7 +784,7 @@ static int probe_cache__show_entries(struct probe_cache *pcache,
 {
 	struct probe_cache_entry *entry;
 
-	list_for_each_entry(entry, &pcache->entries, node) {
+	for_each_probe_cache_entry(entry, pcache) {
 		if (probe_cache_entry__compare(entry, filter))
 			printf("%s\n", entry->spev);
 	}
