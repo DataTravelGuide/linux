@@ -61,7 +61,9 @@ FEATURE_TESTS_BASIC :=			\
 	libdw-dwarf-unwind		\
 	zlib				\
 	lzma				\
-	get_cpuid
+	get_cpuid			\
+	bpf				\
+	sdt
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
 # of all feature tests
