@@ -1212,6 +1212,19 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (!arg)
 		return -EINVAL;
 
+	/*
+	 * If the probe point starts with '%',
+	 * or starts with "sdt_" and has a ':' but no '=',
+	 * then it should be a SDT/cached probe point.
+	 */
+	if (arg[0] == '%' ||
+	    (!strncmp(arg, "sdt_", 4) &&
+	     !!strchr(arg, ':') && !strchr(arg, '='))) {
+		pev->sdt = true;
+		if (arg[0] == '%')
+			arg++;
+	}
+
 	ptr = strpbrk(arg, ";=@+%");
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
