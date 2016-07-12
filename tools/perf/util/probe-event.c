@@ -1234,8 +1234,24 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		if (!is_c_func_name(arg)) {
 not_fname:
 			semantic_error("%s is bad for event name -it must "
-				       "follow C symbol-naming rule.\n", arg);
-			return -EINVAL;
+	ptr = strpbrk(arg, ";=@+%");
+	if (pev->sdt) {
+		if (ptr) {
+			if (*ptr != '@') {
+				semantic_error("%s must be an SDT name.\n",
+					       arg);
+				return -EINVAL;
+			}
+			/* This must be a target file name or build id */
+			tmp = build_id_cache__complement(ptr + 1);
+			if (tmp) {
+				pev->target = build_id_cache__origname(tmp);
+				free(tmp);
+			} else
+				pev->target = strdup(ptr + 1);
+			if (!pev->target)
+				return -ENOMEM;
+			*ptr = '\0';
 		}
 		pev->event = strdup(arg);
 		if (pev->event == NULL)
