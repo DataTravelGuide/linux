@@ -1346,6 +1346,9 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	int pid = -1, err;
 	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
 
+	if (perf_missing_features.write_backward && evsel->attr.write_backward)
+		return -EINVAL;
+
 	if (evsel->system_wide)
 		nthreads = 1;
 	else
@@ -1370,11 +1373,6 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
-	if (perf_missing_features.write_backward) {
-		if (evsel->overwrite)
-			return -EINVAL;
-		evsel->attr.write_backward = false;
-	}
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1445,6 +1443,9 @@ try_fallback:
 
 	if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
 		perf_missing_features.write_backward = true;
+		goto out_close;
+	} else if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
+		perf_missing_features.clockid_wrong = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
@@ -2348,7 +2349,7 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	"We found oprofile daemon running, please stop it and try again.");
 		break;
 	case EINVAL:
-		if (evsel->overwrite && perf_missing_features.write_backward)
+		if (evsel->attr.write_backward && perf_missing_features.write_backward)
 			return scnprintf(msg, size, "Reading from overwrite event is not supported by this kernel.");
 	default:
 		break;
