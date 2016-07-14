@@ -44,6 +44,8 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_CALLGRAPH,
 	PERF_EVSEL__CONFIG_TERM_STACK_USER,
 	PERF_EVSEL__CONFIG_TERM_INHERIT,
+	PERF_EVSEL__CONFIG_TERM_MAX_STACK,
+	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -57,6 +59,7 @@ struct perf_evsel_config_term {
 		char	*callgraph;
 		u64	stack_user;
 		bool	inherit;
+		bool	overwrite;
 	} val;
 };
 
