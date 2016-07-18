@@ -76,4 +76,3 @@ arch/*/lib/memcpy*.S
 arch/*/lib/memset*.S
 arch/*/include/asm/*features.h
 include/linux/poison.h
-include/uapi/linux/const.h
