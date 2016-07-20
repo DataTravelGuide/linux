@@ -1625,7 +1625,13 @@ xfs_filemap_page_mkwrite(
 	}
 
 	data = *to;
-	ret = mapping->a_ops->direct_IO(iocb, &data);
+	if (IS_DAX(inode)) {
+		ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
+				NULL, 0);
+	} else {
+		ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
+				xfs_get_blocks_direct, NULL, NULL, 0);
+	}
 	if (ret > 0) {
 		iocb->ki_pos += ret;
 		iov_iter_advance(to, ret);
@@ -1738,7 +1744,15 @@ xfs_filemap_pfn_mkwrite(
 	sb_end_pagefault(inode->i_sb);
 	return ret;
 
-}
+	data = *from;
+	if (IS_DAX(inode)) {
+		ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
+				xfs_end_io_direct_write, 0);
+	} else {
+		ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
+				xfs_get_blocks_direct, xfs_end_io_direct_write,
+				NULL, DIO_ASYNC_EXTEND);
+	}
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= xfs_filemap_fault,
