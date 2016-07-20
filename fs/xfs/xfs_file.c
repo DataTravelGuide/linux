@@ -312,16 +312,13 @@ xfs_file_aio_read(
 	if (XFS_IS_REALTIME_INODE(ip))
 		target = ip->i_mount->m_rtdev_targp;
 	else
-	if ((iocb->ki_flags & IOCB_DIRECT) && !IS_DAX(inode)) {
-		xfs_buftarg_t	*target =
-			XFS_IS_REALTIME_INODE(ip) ?
-				mp->m_rtdev_targp : mp->m_ddev_targp;
-		/* DIO must be aligned to device logical sector size */
-		if ((iocb->ki_pos | count) & target->bt_logical_sectormask) {
-			if (iocb->ki_pos == isize)
-				return 0;
-			return -EINVAL;
-		}
+		target = ip->i_mount->m_ddev_targp;
+
+	/* DIO must be aligned to device logical sector size */
+	if ((iocb->ki_pos | count) & target->bt_logical_sectormask) {
+		if (iocb->ki_pos == isize)
+			return 0;
+		return -EINVAL;
 	}
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -1625,13 +1622,37 @@ xfs_filemap_page_mkwrite(
 	}
 
 	data = *to;
-	if (IS_DAX(inode)) {
-		ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
-				NULL, 0);
-	} else {
-		ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
-				xfs_get_blocks_direct, NULL, NULL, 0);
+	ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
+			xfs_get_blocks_direct, NULL, NULL, 0);
+	if (ret > 0) {
+		iocb->ki_pos += ret;
+		iov_iter_advance(to, ret);
 	}
+	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
+
+	file_accessed(iocb->ki_filp);
+	return ret;
+}
+
+STATIC ssize_t
+xfs_file_dax_read(
+	struct kiocb		*iocb,
+	struct iov_iter		*to)
+{
+	struct address_space	*mapping = iocb->ki_filp->f_mapping;
+	struct inode		*inode = mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct iov_iter		data = *to;
+	size_t			count = iov_iter_count(to);
+	ssize_t			ret = 0;
+
+	trace_xfs_file_dax_read(ip, count, iocb->ki_pos);
+
+	if (!count)
+		return 0; /* skip atime */
+
+	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
+	ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct, NULL, 0);
 	if (ret > 0) {
 		iocb->ki_pos += ret;
 		iov_iter_advance(to, ret);
@@ -1722,16 +1743,26 @@ xfs_filemap_pfn_mkwrite(
 	struct vm_area_struct	*vma,
 	struct vm_fault		*vmf)
 {
+	struct inode		*inode = file_inode(iocb->ki_filp);
+	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
+	ssize_t			ret = 0;
 
-	struct inode		*inode = file_inode(vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	int			ret = VM_FAULT_NOPAGE;
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	if (IS_DAX(inode))
+		ret = xfs_file_dax_read(iocb, to);
+	else if (iocb->ki_flags & IOCB_DIRECT)
+		ret = xfs_file_dio_aio_read(iocb, to);
+	else
+		ret = xfs_file_buffered_aio_read(iocb, to);
 	loff_t			size;
 
 	trace_xfs_filemap_pfn_mkwrite(ip);
 
-	sb_start_pagefault(inode->i_sb);
-	file_update_time(vma->vm_file);
+	/* DIO must be aligned to device logical sector size */
+	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
+		return -EINVAL;
 
 	/* check if the faulting page hasn't raced with truncate */
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
@@ -1745,14 +1776,9 @@ xfs_filemap_pfn_mkwrite(
 	return ret;
 
 	data = *from;
-	if (IS_DAX(inode)) {
-		ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
-				xfs_end_io_direct_write, 0);
-	} else {
-		ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
-				xfs_get_blocks_direct, xfs_end_io_direct_write,
-				NULL, DIO_ASYNC_EXTEND);
-	}
+	ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
+			xfs_get_blocks_direct, xfs_end_io_direct_write,
+			NULL, DIO_ASYNC_EXTEND);
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= xfs_filemap_fault,
@@ -1770,9 +1796,74 @@ xfs_file_mmap(
 	file_accessed(filp);
 	vma->vm_ops = &xfs_file_vm_ops;
 	if (IS_DAX(file_inode(filp)))
-		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
-	vma->vm_flags2 |= VM_PFN_MKWRITE | VM_PMD_FAULT;
-	return 0;
+	xfs_rw_iunlock(ip, iolock);
+
+	/*
+	 * No fallback to buffered IO on errors for XFS, direct IO will either
+	 * complete fully or fail.
+	 */
+	ASSERT(ret < 0 || ret == count);
+	return ret;
+}
+
+STATIC ssize_t
+xfs_file_dax_write(
+	struct kiocb		*iocb,
+	struct iov_iter		*from)
+{
+	struct address_space	*mapping = iocb->ki_filp->f_mapping;
+	struct inode		*inode = mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	ssize_t			ret = 0;
+	int			unaligned_io = 0;
+	int			iolock;
+	struct iov_iter		data;
+
+	/* "unaligned" here means not aligned to a filesystem block */
+	if ((iocb->ki_pos & mp->m_blockmask) ||
+	    ((iocb->ki_pos + iov_iter_count(from)) & mp->m_blockmask)) {
+		unaligned_io = 1;
+		iolock = XFS_IOLOCK_EXCL;
+	} else if (mapping->nrpages) {
+		iolock = XFS_IOLOCK_EXCL;
+	} else {
+		iolock = XFS_IOLOCK_SHARED;
+	}
+	xfs_rw_ilock(ip, iolock);
+
+	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
+	if (ret)
+		goto out;
+
+	/*
+	 * Yes, even DAX files can have page cache attached to them:  A zeroed
+	 * page is inserted into the pagecache when we have to serve a write
+	 * fault on a hole.  It should never be dirtied and can simply be
+	 * dropped from the pagecache once we get real data for the page.
+	 */
+	if (mapping->nrpages) {
+		ret = invalidate_inode_pages2(mapping);
+		WARN_ON_ONCE(ret);
+	}
+
+	if (iolock == XFS_IOLOCK_EXCL && !unaligned_io) {
+		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
+		iolock = XFS_IOLOCK_SHARED;
+	}
+
+	trace_xfs_file_dax_write(ip, iov_iter_count(from), iocb->ki_pos);
+
+	data = *from;
+	ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
+			xfs_end_io_direct_write, 0);
+	if (ret > 0) {
+		iocb->ki_pos += ret;
+		iov_iter_advance(from, ret);
+	}
+out:
+	xfs_rw_iunlock(ip, iolock);
+	return ret;
 }
 
 const struct file_operations xfs_file_operations = {
@@ -1794,6 +1885,12 @@ const struct file_operations xfs_file_operations = {
 	.fallocate	= xfs_file_fallocate,
 };
 
+	if (IS_DAX(inode))
+		ret = xfs_file_dax_write(iocb, from);
+	else if (iocb->ki_flags & IOCB_DIRECT)
+		ret = xfs_file_dio_aio_write(iocb, from);
+	else
+		ret = xfs_file_buffered_aio_write(iocb, from);
 const struct file_operations xfs_dir_file_operations = {
 	.open		= xfs_dir_open,
 	.read		= generic_read_dir,
