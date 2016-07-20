@@ -294,18 +294,31 @@ xfs_file_aio_read(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	size_t			size = 0;
+	struct address_space	*mapping = iocb->ki_filp->f_mapping;
+	struct inode		*inode = mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	loff_t			isize = i_size_read(inode);
+	size_t			count = iov_iter_count(to);
+	struct iov_iter		data;
+	struct xfs_buftarg	*target;
 	ssize_t			ret = 0;
 	loff_t			pos = iocb->ki_pos;
 
 	XFS_STATS_INC(mp, xs_read_calls);
 
+	if (!count)
+		return 0; /* skip atime */
+
+	if (XFS_IS_REALTIME_INODE(ip))
+		target = ip->i_mount->m_rtdev_targp;
+	else
 	if ((iocb->ki_flags & IOCB_DIRECT) && !IS_DAX(inode)) {
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 		/* DIO must be aligned to device logical sector size */
-		if ((pos | size) & target->bt_logical_sectormask) {
-			if (pos == i_size_read(inode))
+		if ((iocb->ki_pos | count) & target->bt_logical_sectormask) {
+			if (iocb->ki_pos == isize)
 				return 0;
 			return -EINVAL;
 		}
@@ -1586,9 +1599,15 @@ xfs_filemap_page_mkwrite(
 		ret = block_page_mkwrite_return(ret);
 	}
 
-	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	sb_end_pagefault(inode->i_sb);
+	data = *to;
+	ret = mapping->a_ops->direct_IO(iocb, &data);
+	if (ret > 0) {
+		iocb->ki_pos += ret;
+		iov_iter_advance(to, ret);
+	}
+	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 
+	file_accessed(iocb->ki_filp);
 	return ret;
 }
 
