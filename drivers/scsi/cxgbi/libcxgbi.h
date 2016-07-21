@@ -24,8 +24,11 @@
 #include <linux/scatterlist.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
 #include <scsi/scsi_device.h>
 #include <scsi/libiscsi_tcp.h>
+
+#include <libcxgb_ppm.h>
 
 enum cxgbi_dbg_flag {
 	CXGBI_DBG_ISCSI,
@@ -166,10 +169,6 @@ struct cxgbi_ddp_info {
 #define PPOD_TAG_SHIFT		6
 #define PPOD_TAG(x)		((x) << PPOD_TAG_SHIFT)
 
-#define PPOD_VALID_SHIFT	24
-#define PPOD_VALID(x)		((x) << PPOD_VALID_SHIFT)
-#define PPOD_VALID_FLAG		PPOD_VALID(1U)
-
 /*
  * sge_opaque_hdr -
  * Opaque version of structure the SGE stores at skb->head of TX_DATA packets
@@ -279,6 +278,8 @@ struct cxgbi_skb_tx_cb {
 
 enum cxgbi_skcb_flags {
 	SKCBF_TX_NEED_HDR,	/* packet needs a header */
+	SKCBF_TX_MEM_WRITE,     /* memory write */
+	SKCBF_TX_FLAG_COMPL,    /* wr completion flag */
 	SKCBF_RX_COALESCED,	/* received whole pdu */
 	SKCBF_RX_HDR,		/* received pdu header */
 	SKCBF_RX_DATA,		/* received pdu payload */
@@ -528,6 +529,9 @@ struct cxgbi_ports_map {
 #define CXGBI_FLAG_DEV_T4		0x2
 #define CXGBI_FLAG_ADAPTER_RESET	0x4
 #define CXGBI_FLAG_IPV4_SET		0x10
+#define CXGBI_FLAG_USE_PPOD_OFLDQ       0x40
+#define CXGBI_FLAG_DDP_OFF		0x100
+
 struct cxgbi_device {
 	struct list_head list_head;
 	struct list_head rcu_node;
@@ -553,6 +557,15 @@ struct cxgbi_device {
 	struct cxgbi_ddp_info *ddp;
 
 	void (*dev_ddp_cleanup)(struct cxgbi_device *);
+	struct cxgbi_ppm* (*cdev2ppm)(struct cxgbi_device *);
+	int (*csk_ddp_set_map)(struct cxgbi_ppm *, struct cxgbi_sock *,
+			       struct cxgbi_task_tag_info *);
+	void (*csk_ddp_clear_map)(struct cxgbi_device *cdev,
+				  struct cxgbi_ppm *,
+				  struct cxgbi_task_tag_info *);
+	int (*csk_ddp_setup_digest)(struct cxgbi_sock *,
+				unsigned int, int, int, int);
+	int (*csk_ddp_setup_pgidx)(struct cxgbi_sock *,
 	int (*csk_ddp_set)(struct cxgbi_sock *, struct cxgbi_pagepod_hdr *,
 				unsigned int, unsigned int,
 				struct cxgbi_gather_list *);
@@ -581,6 +594,8 @@ struct cxgbi_conn {
 	struct iscsi_conn *iconn;
 	struct cxgbi_hba *chba;
 	u32 task_idx_bits;
+	unsigned int ddp_full;
+	unsigned int ddp_tag_full;
 };
 
 struct cxgbi_endpoint {
@@ -594,9 +609,11 @@ struct cxgbi_task_data {
 	unsigned short nr_frags;
 	struct page_frag frags[MAX_PDU_FRAGS];
 	struct sk_buff *skb;
+	unsigned int dlen;
 	unsigned int offset;
 	unsigned int count;
 	unsigned int sgoffset;
+	struct cxgbi_task_tag_info ttinfo;
 };
 #define iscsi_task_cxgbi_data(task) \
 	((task)->dd_data + sizeof(struct iscsi_tcp_task))
@@ -750,7 +767,11 @@ int cxgbi_ddp_init(struct cxgbi_device *, unsigned int, unsigned int,
 			unsigned int, unsigned int);
 int cxgbi_ddp_cleanup(struct cxgbi_device *);
 void cxgbi_ddp_page_size_factor(int *);
-void cxgbi_ddp_ppod_clear(struct cxgbi_pagepod *);
-void cxgbi_ddp_ppod_set(struct cxgbi_pagepod *, struct cxgbi_pagepod_hdr *,
-			struct cxgbi_gather_list *, unsigned int);
+void cxgbi_ddp_set_one_ppod(struct cxgbi_pagepod *,
+			    struct cxgbi_task_tag_info *,
+			    struct scatterlist **sg_pp, unsigned int *sg_off);
+void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *,
+			 struct cxgbi_tag_format *, unsigned int ppmax,
+			 unsigned int llimit, unsigned int start,
+			 unsigned int rsvd_factor);
 #endif	/*__LIBCXGBI_H__*/
