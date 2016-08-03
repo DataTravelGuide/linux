@@ -23,6 +23,7 @@
 #include <linux/audit.h>
 #include <linux/skbuff.h>
 #include <uapi/linux/mqueue.h>
+#include <linux/tty.h>
 
 #ifdef __GENKSYMS__
 #define AUDIT_DEBUG 0
@@ -262,6 +263,9 @@ extern void audit_free_rule_rcu(struct rcu_head *);
 extern struct list_head audit_filter_list[];
 
 extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
+
+extern struct tty_struct *audit_get_tty(struct task_struct *tsk);
+extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch functions */
 #ifdef CONFIG_AUDIT_WATCH
