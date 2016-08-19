@@ -111,9 +111,10 @@ struct be_mcc_obj {
 
 struct beiscsi_mcc_tag_state {
 	unsigned long tag_state;
-#define MCC_TAG_STATE_RUNNING	1
-#define MCC_TAG_STATE_TIMEOUT	2
-#define MCC_TAG_STATE_ASYNC	3
+#define MCC_TAG_STATE_RUNNING	0
+#define MCC_TAG_STATE_TIMEOUT	1
+#define MCC_TAG_STATE_ASYNC	2
+#define MCC_TAG_STATE_IGNORE	3
 	void (*cbfn)(struct beiscsi_hba *, unsigned int);
 	struct be_dma_mem tag_mem_state;
 };
