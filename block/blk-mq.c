@@ -2036,7 +2036,6 @@ void blk_mq_release(struct request_queue *q)
 	queue_for_each_hw_ctx(q, hctx, i)
 		kfree(hctx);
 
-	kfree(q->mq_map);
 	q->mq_map = NULL;
 
 	kfree(q->queue_hw_ctx);
@@ -2135,9 +2134,7 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (!q->queue_hw_ctx)
 		goto err_percpu;
 
-	q->mq_map = blk_mq_make_queue_map(set);
-	if (!q->mq_map)
-		goto err_map;
+	q->mq_map = set->mq_map;
 
 	blk_mq_realloc_hw_ctxs(set, q);
 	if (!q->nr_hw_queues)
@@ -2187,8 +2184,6 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	return q;
 
 err_hctxs:
-	kfree(q->mq_map);
-err_map:
 	kfree(q->queue_hw_ctx);
 err_percpu:
 	free_percpu(q->queue_ctx);
@@ -2412,14 +2407,22 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (!set->tags)
 		return -ENOMEM;
 
+	set->mq_map = blk_mq_make_queue_map(set);
+	if (!set->mq_map)
+		goto out_free_tags;
+
 	if (blk_mq_alloc_rq_maps(set))
-		goto enomem;
+		goto out_free_mq_map;
 
 	mutex_init(&set->tag_list_lock);
 	INIT_LIST_HEAD(&set->tag_list);
 
 	return 0;
-enomem:
+
+out_free_mq_map:
+	kfree(set->mq_map);
+	set->mq_map = NULL;
+out_free_tags:
 	kfree(set->tags);
 	set->tags = NULL;
 	return -ENOMEM;
@@ -2434,6 +2437,9 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 		if (set->tags[i])
 			blk_mq_free_rq_map(set, set->tags[i], i);
 	}
+
+	kfree(set->mq_map);
+	set->mq_map = NULL;
 
 	kfree(set->tags);
 	set->tags = NULL;

@@ -80,8 +80,8 @@ struct blk_mq_hw_ctx {
 	RH_KABI_EXTEND(struct srcu_struct	queue_rq_srcu)
 };
 
-#ifdef __GENKSYMS__
-struct blk_mq_reg {
+struct blk_mq_tag_set {
+	unsigned int		*mq_map;
 	struct blk_mq_ops	*ops;
 	unsigned int		nr_hw_queues;
 	unsigned int		queue_depth;	/* max hw supported */
