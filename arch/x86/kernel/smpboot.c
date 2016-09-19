@@ -1299,6 +1299,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		uv_system_init();
 
 	set_mtrr_aps_delayed_init();
+
+	smp_quirk_init_udelay();
 out:
 	preempt_enable();
 }
@@ -1306,8 +1308,6 @@ out:
 void arch_enable_nonboot_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
-
-	smp_quirk_init_udelay();
 }
 
 void arch_enable_nonboot_cpus_end(void)
