@@ -70,8 +70,8 @@ static int mlx4_alloc_pages(struct mlx4_en_priv *priv,
 			return -ENOMEM;
 	}
 	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE << order,
-			   PCI_DMA_FROMDEVICE);
-	if (dma_mapping_error(priv->ddev, dma)) {
+			   frag_info->dma_dir);
+	if (unlikely(dma_mapping_error(priv->ddev, dma))) {
 		put_page(page);
 		return -ENOMEM;
 	}
@@ -107,7 +107,8 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 		    ring_alloc[i].page_size)
 			continue;
 
-		if (mlx4_alloc_pages(priv, &page_alloc[i], frag_info, gfp))
+		if (unlikely(mlx4_alloc_pages(priv, &page_alloc[i],
+					      frag_info, gfp)))
 			goto out;
 	}
 
@@ -541,7 +542,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		frag_info = &priv->frag_info[nr];
 		if (length <= frag_info->frag_prefix_size)
 			break;
-		if (!frags[nr].page)
+		if (unlikely(!frags[nr].page))
 			goto fail;
 
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
@@ -581,7 +582,7 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 	dma_addr_t dma;
 
 	skb = netdev_alloc_skb(priv->dev, SMALL_PACKET_SIZE + NET_IP_ALIGN);
-	if (!skb) {
+	if (unlikely(!skb)) {
 		en_dbg(RX_ERR, priv, "Failed allocating skb\n");
 		return NULL;
 	}
@@ -692,7 +693,8 @@ static int get_fixed_ipv6_csum(__wsum hw_checksum, struct sk_buff *skb,
 {
 	__wsum csum_pseudo_hdr = 0;
 
-	if (ipv6h->nexthdr == IPPROTO_FRAGMENT || ipv6h->nexthdr == IPPROTO_HOPOPTS)
+	if (unlikely(ipv6h->nexthdr == IPPROTO_FRAGMENT ||
+		     ipv6h->nexthdr == IPPROTO_HOPOPTS))
 		return -1;
 	hw_checksum = csum_add(hw_checksum, (__force __wsum)htons(ipv6h->nexthdr));
 
@@ -725,7 +727,7 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 		get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV6))
-		if (get_fixed_ipv6_csum(hw_checksum, skb, hdr))
+		if (unlikely(get_fixed_ipv6_csum(hw_checksum, skb, hdr)))
 			return -1;
 #endif
 	return 0;
@@ -749,10 +751,10 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	u64 timestamp;
 	bool l2_tunnel;
 
-	if (!priv->port_up)
+	if (unlikely(!priv->port_up))
 		return 0;
 
-	if (budget <= 0)
+	if (unlikely(budget <= 0))
 		return polled;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
@@ -855,8 +857,15 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			}
 		} else {
 			ip_summed = CHECKSUM_NONE;
-			ring->csum_none++;
-		}
+			case XDP_PASS:
+				break;
+			case XDP_TX:
+				if (likely(!mlx4_en_xmit_frame(frags, dev,
+							length, tx_index,
+							&doorbell_pending)))
+					goto consumed;
+				goto xdp_drop; /* Drop on xmit failure */
+			default:
 
 		/* This packet is eligible for GRO if it is:
 		 * - DIX Ethernet (type interpretation)
@@ -865,8 +874,11 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		 * - not an IP fragment
 		 */
 		if (dev->features & NETIF_F_GRO) {
-			struct sk_buff *gro_skb = napi_get_frags(&cq->napi);
-			if (!gro_skb)
+			case XDP_ABORTED:
+			case XDP_DROP:
+xdp_drop:
+				if (likely(mlx4_en_rx_recycle(ring, frags)))
+					goto consumed;
 				goto next;
 
 			nr = mlx4_en_complete_rx_desc(priv,
@@ -929,7 +941,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		/* GRO not possible, complete processing here */
 		skb = mlx4_en_rx_skb(priv, rx_desc, frags, length);
-		if (!skb) {
+		if (unlikely(!skb)) {
 			ring->dropped++;
 			goto next;
 		}
