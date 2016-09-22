@@ -35,6 +35,7 @@ static struct {
 	bool mmap2;
 	bool cloexec;
 	bool lbr_flags;
+	bool write_backward;
 } perf_missing_features;
 
 static int perf_evsel__no_extra_init(struct perf_evsel *evsel __maybe_unused)
@@ -1351,6 +1352,8 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
+	if (perf_missing_features.write_backward)
+		evsel->attr.write_backward = false;
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1386,6 +1389,12 @@ retry_open:
 				goto try_fallback;
 			}
 			set_rlimit = NO_CHANGE;
+
+			if (evsel->overwrite &&
+			    perf_missing_features.write_backward) {
+				err = -EINVAL;
+				goto out_close;
+			}
 		}
 	}
 
@@ -1437,6 +1446,10 @@ try_fallback:
 			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.write_backward &&
+			evsel->attr.write_backward) {
+		perf_missing_features.write_backward = true;
 		goto fallback_missing_features;
 	}
 
