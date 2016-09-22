@@ -32,6 +32,7 @@
 #include "util/tsc.h"
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
+#include "util/trigger.h"
 #include "asm/bug.h"
 
 #include <unistd.h>
@@ -125,44 +126,8 @@ static volatile int done;
 static volatile int signr = -1;
 static volatile int child_finished;
 
-static volatile enum {
-	AUXTRACE_SNAPSHOT_OFF = -1,
-	AUXTRACE_SNAPSHOT_DISABLED = 0,
-	AUXTRACE_SNAPSHOT_ENABLED = 1,
-} auxtrace_snapshot_state = AUXTRACE_SNAPSHOT_OFF;
-
-static inline void
-auxtrace_snapshot_on(void)
-{
-	auxtrace_snapshot_state = AUXTRACE_SNAPSHOT_DISABLED;
-}
-
-static inline void
-auxtrace_snapshot_enable(void)
-{
-	if (auxtrace_snapshot_state == AUXTRACE_SNAPSHOT_OFF)
-		return;
-	auxtrace_snapshot_state = AUXTRACE_SNAPSHOT_ENABLED;
-}
-
-static inline void
-auxtrace_snapshot_disable(void)
-{
-	if (auxtrace_snapshot_state == AUXTRACE_SNAPSHOT_OFF)
-		return;
-	auxtrace_snapshot_state = AUXTRACE_SNAPSHOT_DISABLED;
-}
-
-static inline bool
-auxtrace_snapshot_is_enabled(void)
-{
-	if (auxtrace_snapshot_state == AUXTRACE_SNAPSHOT_OFF)
-		return false;
-	return auxtrace_snapshot_state == AUXTRACE_SNAPSHOT_ENABLED;
-}
-
-static volatile int auxtrace_snapshot_err;
 static volatile int auxtrace_record__snapshot_started;
+static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
 
 static void sig_handler(int sig)
 {
@@ -280,11 +245,12 @@ static void record__read_auxtrace_snapshot(struct record *rec)
 {
 	pr_debug("Recording AUX area tracing snapshot\n");
 	if (record__auxtrace_read_snapshot_all(rec) < 0) {
-		auxtrace_snapshot_err = -1;
+		trigger_error(&auxtrace_snapshot_trigger);
 	} else {
-		auxtrace_snapshot_err = auxtrace_record__snapshot_finish(rec->itr);
-		if (!auxtrace_snapshot_err)
-			auxtrace_snapshot_enable();
+		if (auxtrace_record__snapshot_finish(rec->itr))
+			trigger_error(&auxtrace_snapshot_trigger);
+		else
+			trigger_ready(&auxtrace_snapshot_trigger);
 	}
 }
 
@@ -684,7 +650,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (rec->opts.auxtrace_snapshot_mode) {
 		signal(SIGUSR2, snapshot_sig_handler);
-		auxtrace_snapshot_on();
+		trigger_on(&auxtrace_snapshot_trigger);
 	} else {
 		signal(SIGUSR2, SIG_IGN);
 	}
@@ -803,21 +769,21 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		perf_evlist__enable(rec->evlist);
 	}
 
-	auxtrace_snapshot_enable();
+	trigger_ready(&auxtrace_snapshot_trigger);
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
 		if (record__mmap_read_all(rec) < 0) {
-			auxtrace_snapshot_disable();
+			trigger_error(&auxtrace_snapshot_trigger);
 			err = -1;
 			goto out_child;
 		}
 
 		if (auxtrace_record__snapshot_started) {
 			auxtrace_record__snapshot_started = 0;
-			if (!auxtrace_snapshot_err)
+			if (!trigger_is_error(&auxtrace_snapshot_trigger))
 				record__read_auxtrace_snapshot(rec);
-			if (auxtrace_snapshot_err) {
+			if (trigger_is_error(&auxtrace_snapshot_trigger)) {
 				pr_err("AUX area tracing snapshot failed\n");
 				err = -1;
 				goto out_child;
@@ -846,12 +812,12 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * disable events in this case.
 		 */
 		if (done && !disabled && !target__none(&opts->target)) {
-			auxtrace_snapshot_disable();
+			trigger_off(&auxtrace_snapshot_trigger);
 			perf_evlist__disable(rec->evlist);
 			disabled = true;
 		}
 	}
-	auxtrace_snapshot_disable();
+	trigger_off(&auxtrace_snapshot_trigger);
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
@@ -1318,9 +1284,10 @@ out_symbol_exit:
 
 static void snapshot_sig_handler(int sig __maybe_unused)
 {
-	if (!auxtrace_snapshot_is_enabled())
-		return;
-	auxtrace_snapshot_disable();
-	auxtrace_snapshot_err = auxtrace_record__snapshot_start(record.itr);
-	auxtrace_record__snapshot_started = 1;
+	if (trigger_is_ready(&auxtrace_snapshot_trigger)) {
+		trigger_hit(&auxtrace_snapshot_trigger);
+		auxtrace_record__snapshot_started = 1;
+		if (auxtrace_record__snapshot_start(record.itr))
+			trigger_error(&auxtrace_snapshot_trigger);
+	}
 }
