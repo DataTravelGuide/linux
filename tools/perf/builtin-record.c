@@ -56,6 +56,7 @@ struct record {
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	bool			timestamp_filename;
+	bool			switch_output;
 	unsigned long long	samples;
 };
 
@@ -128,6 +129,7 @@ static volatile int child_finished;
 
 static volatile int auxtrace_record__snapshot_started;
 static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
+static DEFINE_TRIGGER(switch_output_trigger);
 
 static void sig_handler(int sig)
 {
@@ -496,6 +498,8 @@ record__finish_output(struct record *rec)
 	return;
 }
 
+static int record__synthesize(struct record *rec);
+
 static int
 record__switch_output(struct record *rec, bool at_exit)
 {
@@ -524,6 +528,11 @@ record__switch_output(struct record *rec, bool at_exit)
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Dump %s.%s ]\n",
 			file->path, timestamp);
+
+	/* Output tracking events */
+	if (!at_exit)
+		record__synthesize(rec);
+
 	return fd;
 }
 
@@ -648,9 +657,12 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
-	if (rec->opts.auxtrace_snapshot_mode) {
+	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output) {
 		signal(SIGUSR2, snapshot_sig_handler);
-		trigger_on(&auxtrace_snapshot_trigger);
+		if (rec->opts.auxtrace_snapshot_mode)
+			trigger_on(&auxtrace_snapshot_trigger);
+		if (rec->switch_output)
+			trigger_on(&switch_output_trigger);
 	} else {
 		signal(SIGUSR2, SIG_IGN);
 	}
@@ -770,11 +782,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	}
 
 	trigger_ready(&auxtrace_snapshot_trigger);
+	trigger_ready(&switch_output_trigger);
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
 		if (record__mmap_read_all(rec) < 0) {
 			trigger_error(&auxtrace_snapshot_trigger);
+			trigger_error(&switch_output_trigger);
 			err = -1;
 			goto out_child;
 		}
@@ -786,6 +800,22 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			if (trigger_is_error(&auxtrace_snapshot_trigger)) {
 				pr_err("AUX area tracing snapshot failed\n");
 				err = -1;
+				goto out_child;
+			}
+		}
+
+		if (trigger_is_hit(&switch_output_trigger)) {
+			trigger_ready(&switch_output_trigger);
+
+			if (!quiet)
+				fprintf(stderr, "[ perf record: dump data: Woken up %ld times ]\n",
+					waking);
+			waking = 0;
+			fd = record__switch_output(rec, false);
+			if (fd < 0) {
+				pr_err("Failed to switch to new file\n");
+				trigger_error(&switch_output_trigger);
+				err = fd;
 				goto out_child;
 			}
 		}
@@ -818,6 +848,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 	}
 	trigger_off(&auxtrace_snapshot_trigger);
+	trigger_off(&switch_output_trigger);
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
@@ -1158,6 +1189,8 @@ struct option __record_options[] = {
 		    "Record build-id of all DSOs regardless of hits"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
+	OPT_BOOLEAN(0, "switch-output", &record.switch_output,
+		    "Switch output when receive SIGUSR2"),
 	OPT_END()
 };
 
@@ -1290,4 +1323,7 @@ static void snapshot_sig_handler(int sig __maybe_unused)
 		if (auxtrace_record__snapshot_start(record.itr))
 			trigger_error(&auxtrace_snapshot_trigger);
 	}
+
+	if (trigger_is_ready(&switch_output_trigger))
+		trigger_hit(&switch_output_trigger);
 }
