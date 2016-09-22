@@ -33,6 +33,7 @@
 #include "util/stat.h"
 #include "trace-event.h"
 #include "util/parse-events.h"
+#include "callchain.h"
 #include "syscalltbl.h"
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
@@ -2199,6 +2200,21 @@ signed_print:
 		goto signed_print;
 
 	fputc('\n', trace->output);
+
+	if (sample->callchain) {
+		struct addr_location al;
+		/* TODO: user-configurable print_opts */
+		const unsigned int print_opts = PRINT_IP_OPT_SYM
+					      | PRINT_IP_OPT_DSO;
+
+		if (machine__resolve(trace->host, &al, sample) < 0) {
+			pr_err("problem processing %d event, skipping it.\n",
+			       event->header.type);
+			goto out_put;
+		}
+		perf_evsel__print_ip(evsel, sample, &al, 38, print_opts,
+				     scripting_max_stack, trace->output);
+	}
 out:
 	ttrace->entry_pending = false;
 	err = 0;
@@ -3216,6 +3232,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
 	OPT_BOOLEAN('f', "force", &trace.force, "don't complain, do it"),
+	OPT_CALLBACK(0, "call-graph", &trace.opts,
+		     "record_mode[,record_size]", record_callchain_help,
+		     &record_parse_callchain_opt),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_END()
@@ -3243,6 +3262,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.opts.callgraph_set)
+		symbol_conf.use_callchain = true;
 
 	if (trace.evlist->nr_entries > 0)
 		evlist__set_evsel_handler(trace.evlist, trace__event_handler);
