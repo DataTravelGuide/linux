@@ -2495,7 +2495,8 @@ static int find_probe_functions(struct map *map, char *name,
 
 void __weak arch__fix_tev_from_maps(struct perf_probe_event *pev __maybe_unused,
 				struct probe_trace_event *tev __maybe_unused,
-				struct map *map __maybe_unused) { }
+				struct map *map __maybe_unused,
+				struct symbol *sym __maybe_unused) { }
 
 /*
  * Find probe function addresses from map.
@@ -2621,7 +2622,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					strdup_or_goto(pev->args[i].type,
 							nomem_out);
 		}
-		arch__fix_tev_from_maps(pev, tev, map);
+		arch__fix_tev_from_maps(pev, tev, map, sym);
 	}
 	if (ret == skipped) {
 		ret = -ENOENT;
