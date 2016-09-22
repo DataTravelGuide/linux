@@ -342,7 +342,8 @@ struct perf_event_attr {
 #else
 				comm_exec      :  1, /* flag comm events that are due to an exec */
 				context_switch :  1, /* context switch data */
-				__reserved_1   : 38;
+				write_backward :  1, /* Write ring buffer from end to beginning */
+				__reserved_1   : 37;
 #endif
 
 	union {
