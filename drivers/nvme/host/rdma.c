@@ -543,7 +543,6 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 
 	queue = &ctrl->queues[idx];
 	queue->ctrl = ctrl;
-	queue->flags = 0;
 	init_completion(&queue->cm_done);
 
 	if (idx > 0)
@@ -577,6 +576,7 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 		goto out_destroy_cm_id;
 	}
 
+	clear_bit(NVME_RDMA_Q_DELETING, &queue->flags);
 	set_bit(NVME_RDMA_Q_CONNECTED, &queue->flags);
 
 	return 0;
