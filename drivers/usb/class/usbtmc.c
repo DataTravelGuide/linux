@@ -156,6 +156,7 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	}
 
 	data = usb_get_intfdata(intf);
+	/* Protect reference to data from file structure until release */
 	kref_get(&data->kref);
 
 	/* Store pointer in file structure's private data field */
@@ -530,7 +531,7 @@ static int usbtmc488_ioctl_simple(struct usbtmc_device_data *data,
 }
 
 /*
- * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-IN endpoint.
+ * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-OUT endpoint.
  * @transfer_size: number of bytes to request from the device.
  *
  * See the USBTMC specification, Table 4.
@@ -1470,7 +1471,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 		if (!data->iin_urb)
 			goto error_register;
 
-		/* will reference data in int urb */
+		/* Protect interrupt in endpoint data until iin_urb is freed */
 		kref_get(&data->kref);
 
 		/* allocate buffer for interrupt in */
