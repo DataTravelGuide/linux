@@ -786,7 +786,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
  			 "I/O %d QID %d timeout, reset controller\n",
 			 req->tag, nvmeq->qid);
 		nvme_dev_disable(dev, false);
-		queue_work(nvme_workq, &dev->reset_work);
+		nvme_reset(dev);
 
 		/*
 		 * Mark the request as handled, since the inline shutdown
@@ -1186,7 +1186,7 @@ static void nvme_watchdog_timer(unsigned long data)
 
 	/* Skip controllers under certain specific conditions. */
 	if (nvme_should_reset(dev, csts)) {
-		if (queue_work(nvme_workq, &dev->reset_work))
+		if (!nvme_reset(dev))
 			dev_warn(dev->dev,
 				"Failed status: 0x%x, reset controller.\n",
 				csts);
@@ -1780,11 +1780,10 @@ static int nvme_reset(struct nvme_dev *dev)
 {
 	if (!dev->ctrl.admin_q || blk_queue_dying(dev->ctrl.admin_q))
 		return -ENODEV;
-
+	if (work_busy(&dev->reset_work))
+		return -ENODEV;
 	if (!queue_work(nvme_workq, &dev->reset_work))
 		return -EBUSY;
-
-	flush_work(&dev->reset_work);
 	return 0;
 }
 
@@ -2040,7 +2039,12 @@ static pci_ers_result_t nvme_slot_reset(struct pci_dev *pdev)
 
 static void nvme_error_resume(struct pci_dev *pdev)
 {
-	pci_cleanup_aer_uncorrect_error_status(pdev);
+	struct nvme_dev *dev = to_nvme_dev(ctrl);
+	int ret = nvme_reset(dev);
+
+	if (!ret)
+		flush_work(&dev->reset_work);
+	return ret;
 }
 
 static const struct pci_error_handlers nvme_err_handler = {
@@ -2049,7 +2053,10 @@ static const struct pci_error_handlers nvme_err_handler = {
 	.resume		= nvme_error_resume,
 };
 
-/* Move to pci_ids.h later */
+	nvme_reset(ndev);
+	return 0;
+}
+#endif
 #define PCI_CLASS_STORAGE_EXPRESS	0x010802
 
 static const struct pci_device_id nvme_id_table[] = {
