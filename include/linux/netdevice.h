@@ -1804,8 +1804,17 @@ struct net_device {
 	RH_KABI_USE_P(9, const struct forwarding_accel_ops *fwd_ops)
 	RH_KABI_USE_P(10, const struct dcbnl_rtnl_ops_ext *dcbnl_ops_ext)
 	RH_KABI_USE_P(11, struct wpan_dev *ieee802154_ptr)
-	RH_KABI_RESERVE_P(12)
-	RH_KABI_RESERVE_P(13)
+#ifndef __GENKSYMS__
+	/*
+	 * We can't use the RH_KABI_* helpers cleanly here, since
+	 * list_head requires two reserved fields.
+	 * Mark them as used anyway.
+	 */
+	struct list_head	close_list;
+#else
+	RH_KABI_USE_P(12, close_list.prev)
+	RH_KABI_USE_P(13, close_list.next)
+#endif
 	RH_KABI_RESERVE_P(14)
 	RH_KABI_RESERVE_P(15)
 	RH_KABI_RESERVE_P(16)
