@@ -553,6 +553,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int offset = offset_in_page(data);
 	unsigned int len = skb_headlen(skb);
 	unsigned long flags;
+	struct sk_buff *nskb;
 
 	/* If skb->len is too big for wire format, drop skb and alert
 	 * user about misconfiguration.
@@ -573,6 +574,22 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto drop;
 		data = skb->data;
 		offset = offset_in_page(data);
+		len = skb_headlen(skb);
+	}
+
+	offset = offset_in_page(skb->data);
+
+	/* The first req should be at least ETH_HLEN size or the packet will be
+	 * dropped by netback.
+	 */
+	if (unlikely(PAGE_SIZE - offset < ETH_HLEN)) {
+		nskb = skb_copy(skb, GFP_ATOMIC);
+		if (!nskb)
+			goto drop;
+		dev_kfree_skb_any(skb);
+		skb = nskb;
+		data = skb->data;
+		offset = offset_in_page(skb->data);
 		len = skb_headlen(skb);
 	}
 
