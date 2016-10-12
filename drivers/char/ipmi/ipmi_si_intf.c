@@ -2579,7 +2579,6 @@ static const struct of_device_id of_ipmi_match[] = {
 	  .data = (void *)(unsigned long) SI_BT },
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_ipmi_match);
 
 static int of_ipmi_probe(struct platform_device *dev)
 {
@@ -2596,6 +2595,9 @@ static int of_ipmi_probe(struct platform_device *dev)
 	match = of_match_device(of_ipmi_match, &dev->dev);
 	if (!match)
 		return -ENODEV;
+
+	if (!of_device_is_available(np))
+		return -EINVAL;
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
