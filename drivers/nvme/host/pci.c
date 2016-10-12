@@ -1793,19 +1793,33 @@ static int nvme_pci_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 	return 0;
 }
 
-static int nvme_pci_reset_ctrl(struct nvme_ctrl *ctrl)
+static void nvme_disable_io_queues(struct nvme_dev *dev, int queues)
 {
-	return nvme_reset(to_nvme_dev(ctrl));
-}
+	int pass;
+	unsigned long timeout;
+	u8 opcode = nvme_admin_delete_sq;
 
-static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
-	.name			= "pcie",
-	.module			= THIS_MODULE,
-	.reg_read32		= nvme_pci_reg_read32,
-	.reg_write32		= nvme_pci_reg_write32,
-	.reg_read64		= nvme_pci_reg_read64,
-	.reset_ctrl		= nvme_pci_reset_ctrl,
-	.free_ctrl		= nvme_pci_free_ctrl,
+
+static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
+{
+	int i, queues;
+	u32 csts = -1;
+
+	del_timer_sync(&dev->watchdog_timer);
+		csts = readl(dev->bar + NVME_REG_CSTS);
+	}
+
+	queues = dev->online_queues - 1;
+	for (i = dev->queue_count - 1; i > 0; i--)
+		nvme_suspend_queue(dev->queues[i]);
+
+		if (dev->queue_count)
+			nvme_suspend_queue(dev->queues[0]);
+	} else {
+		nvme_disable_io_queues(dev, queues);
+		nvme_disable_admin_queue(dev, shutdown);
+	}
+	nvme_pci_disable(dev);
 	.post_scan		= nvme_pci_post_scan,
 	.submit_async_event	= nvme_pci_submit_async_event,
 };
