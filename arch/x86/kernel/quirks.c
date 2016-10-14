@@ -615,6 +615,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0xA147,
 			 quirk_intel_kabylake_sunrisepoint_variant);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0xA148,
 			 quirk_intel_kabylake_sunrisepoint_variant);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0xA149,
+			 quirk_intel_kabylake_sunrisepoint_variant);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0xA14D,
 			 quirk_intel_kabylake_sunrisepoint_variant);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0xA14E,
