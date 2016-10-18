@@ -1689,10 +1689,6 @@ static void free_dev(struct mapped_device *md)
 	if (md->bs)
 		bioset_free(md->bs);
 
-	cleanup_srcu_struct(&md->io_barrier);
-	free_table_devices(&md->table_devices);
-	dm_stats_cleanup(&md->stats);
-
 	spin_lock(&_minor_lock);
 	md->disk->private_data = NULL;
 	spin_unlock(&_minor_lock);
@@ -1701,6 +1697,11 @@ static void free_dev(struct mapped_device *md)
 	del_gendisk(md->disk);
 	put_disk(md->disk);
 	blk_cleanup_queue(md->queue);
+
+	cleanup_srcu_struct(&md->io_barrier);
+	free_table_devices(&md->table_devices);
+	dm_stats_cleanup(&md->stats);
+
 	dm_mq_cleanup_mapped_device(md);
 	bdput(md->bdev);
 	free_minor(minor);
