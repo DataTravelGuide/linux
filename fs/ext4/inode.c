@@ -2975,8 +2975,13 @@ static int ext4_get_block_overwrite(struct inode *inode, sector_t iblock,
 }
 
 #ifdef CONFIG_FS_DAX
-int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
-			    struct buffer_head *bh_result, int create)
+/*
+ * Get block function for DAX IO and mmap faults. It takes care of converting
+ * unwritten extents to written ones and initializes new / converted blocks
+ * to zeros.
+ */
+int ext4_dax_get_block(struct inode *inode, sector_t iblock,
+		       struct buffer_head *bh_result, int create)
 {
 	int ret, err;
 	int credits;
@@ -2984,8 +2989,7 @@ int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
 	handle_t *handle = NULL;
 	int flags = 0;
 
-	ext4_debug("ext4_dax_mmap_get_block: inode %lu, create flag %d\n",
-		   inode->i_ino, create);
+	ext4_debug("inode %lu, create flag %d\n", inode->i_ino, create);
 	map.m_lblk = iblock;
 	map.m_len = bh_result->b_size >> inode->i_blkbits;
 	credits = ext4_chunk_trans_blocks(inode, map.m_len);
@@ -3010,9 +3014,9 @@ int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
 		int err2;
 
 		/*
-		 * We are protected by i_mmap_sem so we know block cannot go
-		 * away from under us even though we dropped i_data_sem.
-		 * Convert extent to written and write zeros there.
+		 * We are protected by i_mmap_sem or i_mutex so we know block
+		 * cannot go away from under us even though we dropped
+		 * i_data_sem. Convert extent to written and write zeros there.
 		 *
 		 * Note: We may get here even when create == 0.
 		 */
@@ -3045,6 +3049,14 @@ out:
 		ret = 0;
 	}
 	return ret;
+}
+#else
+/* Just define empty function, it will never get called. */
+int ext4_dax_get_block(struct inode *inode, sector_t iblock,
+		       struct buffer_head *bh_result, int create)
+{
+	BUG();
+	return 0;
 }
 #endif
 
@@ -3165,13 +3177,25 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 
 	if (overwrite) {
 		get_block_func = ext4_get_block_overwrite;
+	} else if (IS_DAX(inode)) {
+		/*
+		 * We can avoid zeroing for aligned DAX writes beyond EOF. Other
+		 * writes need zeroing either because they can race with page
+		 * faults or because they use partial blocks.
+		 */
+		if (round_down(offset, 1<<inode->i_blkbits) >= inode->i_size &&
+		    ext4_aligned_io(inode, offset, count))
+			get_block_func = ext4_get_block;
+		else
+			get_block_func = ext4_dax_get_block;
+		dio_flags = DIO_LOCKING;
 	} else {
 		get_block_func = ext4_get_block_write;
 		dio_flags = DIO_LOCKING;
 	}
 	if (IS_DAX(inode))
 		ret = dax_do_io(rw, iocb, inode, iov, offset, nr_segs,
-				ext4_get_block, ext4_end_io_dio, dio_flags);
+				get_block_func, ext4_end_io_dio, dio_flags);
 	else
 		ret = __blockdev_direct_IO(rw, iocb, inode,
 					   inode->i_sb->s_bdev, iov, offset,
