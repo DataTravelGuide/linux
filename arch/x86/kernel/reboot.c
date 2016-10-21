@@ -637,12 +637,17 @@ static void native_machine_emergency_restart(void)
 
 void native_machine_shutdown(void)
 {
-	/* Stop the cpus and apics */
 #ifdef CONFIG_SMP
-
 	/* The boot cpu is always logical cpu 0 */
 	int reboot_cpu_id = 0;
+#endif
 
+	/* Stop the cpus and apics */
+#ifdef CONFIG_X86_IO_APIC
+	disable_IO_APIC();
+#endif
+
+#ifdef CONFIG_SMP
 	/* See if there has been given a command line override */
 	if ((reboot_cpu != -1) && (reboot_cpu < nr_cpu_ids) &&
 		cpu_online(reboot_cpu))
@@ -665,10 +670,6 @@ void native_machine_shutdown(void)
 #endif
 
 	lapic_shutdown();
-
-#ifdef CONFIG_X86_IO_APIC
-	disable_IO_APIC();
-#endif
 
 #ifdef CONFIG_HPET_TIMER
 	hpet_disable();
