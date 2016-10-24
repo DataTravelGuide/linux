@@ -873,7 +873,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		if (!new_skb) {
 			ip_rt_put(rt);
 			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
@@ -901,7 +901,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
@@ -942,7 +942,7 @@ static netdev_tx_t sit_tunnel_xmit(struct sk_buff *skb,
 
 tx_err:
 	dev->stats.tx_errors++;
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 
 }
