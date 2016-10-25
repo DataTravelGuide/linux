@@ -79,10 +79,3 @@ arch/*/include/asm/*features.h
 include/linux/poison.h
 include/uapi/linux/const.h
 include/uapi/linux/swab.h
-arch/x86/include/asm/svm.h
-arch/x86/include/asm/vmx.h
-arch/x86/include/asm/kvm_host.h
-arch/x86/include/uapi/asm/svm.h
-arch/x86/include/uapi/asm/vmx.h
-arch/x86/include/uapi/asm/kvm.h
-arch/x86/include/uapi/asm/kvm_perf.h
