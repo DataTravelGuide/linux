@@ -71,7 +71,7 @@ include/linux/stringify.h
 include/linux/swab.h
 arch/*/include/asm/unistd*.h
 arch/*/include/uapi/asm/unistd*.h
-arch/*/include/uapi/asm/perf_regs.h
+tools/arch/*/include/uapi/asm/perf_regs.h
 arch/*/lib/memcpy*.S
 arch/*/lib/memset*.S
 arch/*/include/asm/*features.h
