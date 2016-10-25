@@ -3,12 +3,13 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <sys/utsname.h>
-#include "util.h"
 #include "debug.h"
 #include "llvm-utils.h"
 #include "config.h"
+#include <stdlib.h>
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ $CLANG_OPTIONS "	\
@@ -325,12 +326,20 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 		      size_t *p_obj_buf_sz)
 {
 	int err;
-	char clang_path[PATH_MAX];
 	const char *clang_opt = llvm_param.clang_opt;
+	char clang_path[PATH_MAX], abspath[PATH_MAX];
+	char serr[STRERR_BUFSIZE];
 	const char *template = llvm_param.clang_bpf_cmd_template;
 	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
 	void *obj_buf = NULL;
 	size_t obj_buf_sz;
+
+	if (path[0] != '-' && realpath(path, abspath) == NULL) {
+		err = errno;
+		pr_err("ERROR: problems with path %s: %s\n",
+		       path, strerror_r(err, serr, sizeof(serr)));
+		return -err;
+	}
 
 	if (!template)
 		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
@@ -363,8 +372,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	 * stdin to be source file (testing).
 	 */
 	force_set_env("CLANG_SOURCE",
-		      (path[0] == '-') ? path :
-		      make_nonrelative_path(path));
+		      (path[0] == '-') ? path : abspath);
 
 	pr_debug("llvm compiling command template: %s\n", template);
 	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);

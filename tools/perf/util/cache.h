@@ -28,7 +28,6 @@ static inline int is_absolute_path(const char *path)
 	return path[0] == '/';
 }
 
-const char *make_nonrelative_path(const char *path);
 char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 
 #endif /* __PERF_CACHE_H */
