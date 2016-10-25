@@ -52,6 +52,7 @@ tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/uapi/linux/hw_breakpoint.h
 tools/include/uapi/linux/perf_event.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
@@ -76,10 +77,8 @@ arch/*/lib/memcpy*.S
 arch/*/lib/memset*.S
 arch/*/include/asm/*features.h
 include/linux/poison.h
-include/linux/hw_breakpoint.h
 include/uapi/linux/const.h
 include/uapi/linux/swab.h
-include/uapi/linux/hw_breakpoint.h
 arch/x86/include/asm/svm.h
 arch/x86/include/asm/vmx.h
 arch/x86/include/asm/kvm_host.h
