@@ -41,7 +41,6 @@
 #include <stdlib.h>
 #include <linux/err.h>
 #include <linux/audit.h>
-#include <sys/ptrace.h>
 #include <linux/random.h>
 #include <linux/stringify.h>
 
