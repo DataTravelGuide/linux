@@ -8,7 +8,7 @@
 #include "util.h"
 #include "debug.h"
 #include "llvm-utils.h"
-#include "cache.h"
+#include "config.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ $CLANG_OPTIONS "	\
