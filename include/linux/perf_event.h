@@ -438,6 +438,11 @@ struct swevent_hlist {
 struct perf_cgroup;
 struct ring_buffer;
 
+struct pmu_event_list {
+	raw_spinlock_t		lock;
+	struct list_head	list;
+};
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -592,7 +597,7 @@ struct perf_event {
 	/* vma address array for file-based filders */
 	RH_KABI_EXTEND(unsigned long			*addr_filters_offs)
 	RH_KABI_EXTEND(unsigned long			 addr_filters_gen)
-
+	RH_KABI_EXTEND(struct list_head			 sb_list)
 #endif /* CONFIG_PERF_EVENTS */
 };
 
