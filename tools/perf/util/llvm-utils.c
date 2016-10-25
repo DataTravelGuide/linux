@@ -3,6 +3,7 @@
  * Copyright (C) 2015, Huawei Inc.
  */
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <sys/utsname.h>
@@ -10,6 +11,7 @@
 #include "llvm-utils.h"
 #include "config.h"
 #include <stdlib.h>
+#include "util.h"
 
 #define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
 		"$CLANG_EXEC -D__KERNEL__ $CLANG_OPTIONS "	\
