@@ -1352,8 +1352,11 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
-	if (perf_missing_features.write_backward)
+	if (perf_missing_features.write_backward) {
+		if (evsel->overwrite)
+			return -EINVAL;
 		evsel->attr.write_backward = false;
+	}
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1389,12 +1392,6 @@ retry_open:
 				goto try_fallback;
 			}
 			set_rlimit = NO_CHANGE;
-
-			if (evsel->overwrite &&
-			    perf_missing_features.write_backward) {
-				err = -EINVAL;
-				goto out_close;
-			}
 		}
 	}
 
@@ -1428,7 +1425,10 @@ try_fallback:
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
-	if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
+	if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
+		perf_missing_features.write_backward = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.mmap2 && evsel->attr.mmap2) {
@@ -1447,12 +1447,7 @@ try_fallback:
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
 		goto fallback_missing_features;
-	} else if (!perf_missing_features.write_backward &&
-			evsel->attr.write_backward) {
-		perf_missing_features.write_backward = true;
-		goto fallback_missing_features;
 	}
-
 out_close:
 	do {
 		while (--thread >= 0) {
@@ -2334,6 +2329,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	"The PMU counters are busy/taken by another profiler.\n"
 	"We found oprofile daemon running, please stop it and try again.");
 		break;
+	case EINVAL:
+		if (evsel->overwrite && perf_missing_features.write_backward)
+			return scnprintf(msg, size, "Reading from overwrite event is not supported by this kernel.");
 	default:
 		break;
 	}
