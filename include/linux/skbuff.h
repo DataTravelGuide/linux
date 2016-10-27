@@ -886,6 +886,11 @@ static inline bool skb_fclone_busy(const struct sock *sk,
 	       fclones->skb2.fclone == SKB_FCLONE_CLONE &&
 	       fclones->skb2.sk == sk;
 }
+struct sk_buff *alloc_skb_with_frags(unsigned long header_len,
+				     unsigned long data_len,
+				     int max_page_order,
+				     int *errcode,
+				     gfp_t gfp_mask);
 
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 					       gfp_t priority)
