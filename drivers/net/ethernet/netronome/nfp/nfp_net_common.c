@@ -1295,6 +1295,20 @@ static void nfp_net_set_hash(struct net_device *netdev, struct sk_buff *skb,
 	}
 }
 
+static void
+nfp_net_rx_drop(struct nfp_net_r_vector *r_vec, struct nfp_net_rx_ring *rx_ring,
+		struct nfp_net_rx_buf *rxbuf, struct sk_buff *skb)
+{
+	u64_stats_update_begin(&r_vec->rx_sync);
+	r_vec->rx_drops++;
+	u64_stats_update_end(&r_vec->rx_sync);
+
+	if (rxbuf)
+		nfp_net_rx_give_one(rx_ring, rxbuf->skb, rxbuf->dma_addr);
+	if (skb)
+		dev_kfree_skb_any(skb);
+}
+
 /**
  * nfp_net_rx() - receive up to @budget packets on @rx_ring
  * @rx_ring:   RX ring to receive from
@@ -1337,11 +1351,8 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		new_skb = nfp_net_rx_alloc_one(rx_ring, &new_dma_addr,
 					       nn->fl_bufsz);
 		if (!new_skb) {
-			nfp_net_rx_give_one(rx_ring, rx_ring->rxbufs[idx].skb,
-					    rx_ring->rxbufs[idx].dma_addr);
-			u64_stats_update_begin(&r_vec->rx_sync);
-			r_vec->rx_drops++;
-			u64_stats_update_end(&r_vec->rx_sync);
+			nfp_net_rx_drop(r_vec, rx_ring, &rx_ring->rxbufs[idx],
+					NULL);
 			continue;
 		}
 
@@ -1383,10 +1394,13 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb_record_rx_queue(skb, rx_ring->idx);
 		skb->protocol = eth_type_trans(skb, nn->netdev);
 
-		nfp_net_rx_csum(nn, r_vec, rxd, skb);
-
-		if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+			end = nfp_net_parse_meta(nn->netdev, skb, meta_len);
+			if (unlikely(end != skb->data)) {
+				nn_warn_ratelimit(nn, "invalid RX packet metadata\n");
+				nfp_net_rx_drop(r_vec, rx_ring, NULL, skb);
+				continue;
+			}
+		}
 					       le16_to_cpu(rxd->rxd.vlan));
 
 		napi_gro_receive(&rx_ring->r_vec->napi, skb);
