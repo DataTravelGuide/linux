@@ -506,11 +506,11 @@ struct nfp_net {
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
 
-	int max_tx_rings;
-	int max_rx_rings;
+	unsigned int max_tx_rings;
+	unsigned int max_rx_rings;
 
-	int num_tx_rings;
-	int num_rx_rings;
+	unsigned int num_tx_rings;
+	unsigned int num_rx_rings;
 
 	int stride_tx;
 	int stride_rx;
@@ -518,8 +518,8 @@ struct nfp_net {
 	int txd_cnt;
 	int rxd_cnt;
 
-	u8 num_irqs;
-	u8 num_r_vecs;
+	unsigned int num_irqs;
+	unsigned int num_r_vecs;
 	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
 	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
 
@@ -722,8 +722,9 @@ extern const char nfp_net_driver_version[];
 void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
-struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
-				     int max_tx_rings, int max_rx_rings);
+struct nfp_net *
+nfp_net_netdev_alloc(struct pci_dev *pdev,
+		     unsigned int max_tx_rings, unsigned int max_rx_rings);
 void nfp_net_netdev_free(struct nfp_net *nn);
 int nfp_net_netdev_init(struct net_device *netdev);
 void nfp_net_netdev_clean(struct net_device *netdev);
