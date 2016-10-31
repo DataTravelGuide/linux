@@ -411,7 +411,6 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @netdev:             Backpointer to net_device structure
  * @nfp_fallback:       Is the driver used in fallback mode?
  * @is_vf:              Is the driver attached to a VF?
- * @is_nfp3200:         Is the driver for a NFP-3200 card?
  * @fw_loaded:          Is the firmware loaded?
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
@@ -471,7 +470,6 @@ struct nfp_net {
 
 	unsigned nfp_fallback:1;
 	unsigned is_vf:1;
-	unsigned is_nfp3200:1;
 	unsigned fw_loaded:1;
 
 	u32 ctrl;
@@ -583,15 +581,15 @@ static inline u64 nn_readq(struct nfp_net *nn, int off)
 	return readq(nn->ctrl_bar + off);
 }
 
-static inline void nn_writeq(struct nfp_net *nn, int off, u64 val)
+static inline u16 nn_readw(struct nfp_net *nn, int off)
 {
-	writeq(val, nn->ctrl_bar + off);
+	return readw(nn->ctrl_bar + off);
 }
 
 /* Flush posted PCI writes by reading something without side effects */
 static inline void nn_pci_flush(struct nfp_net *nn)
 {
-	nn_readl(nn, NFP_NET_CFG_VERSION);
+	writew(val, nn->ctrl_bar + off);
 }
 
 /* Queue Controller Peripheral access functions and definitions.
@@ -612,7 +610,7 @@ static inline void nn_pci_flush(struct nfp_net *nn)
 #define NFP_QCP_QUEUE_STS_HI			0x000c
 #define NFP_QCP_QUEUE_STS_HI_WRITEPTR_mask	0x3ffff
 
-/* The offset of a QCP queues in the PCIe Target (same on NFP3200 and NFP6000 */
+/* The offset of a QCP queues in the PCIe Target */
 #define NFP_PCIE_QUEUE(_q) (0x80000 + (NFP_QCP_QUEUE_ADDR_SZ * ((_q) & 0xff)))
 
 /* nfp_qcp_ptr - Read or Write Pointer of a queue */
