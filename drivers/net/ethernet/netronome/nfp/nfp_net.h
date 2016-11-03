@@ -562,6 +562,7 @@ struct nfp_net {
 };
 
 struct nfp_net_ring_set {
+	unsigned int n_rings;
 	unsigned int mtu;
 	unsigned int dcnt;
 	void *rings;
