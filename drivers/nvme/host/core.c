@@ -222,12 +222,7 @@ struct request *nvme_alloc_request(struct request_queue *q,
 
 	req->cmd_type = REQ_TYPE_DRV_PRIV;
 	req->cmd_flags |= REQ_FAILFAST_DRIVER;
-	req->__data_len = 0;
-	req->__sector = (sector_t) -1;
-	req->bio = req->biotail = NULL;
-
-	req->cmd = (unsigned char *)cmd;
-	req->cmd_len = sizeof(struct nvme_command);
+	nvme_req(req)->cmd = cmd;
 
 	return req;
 }
@@ -313,8 +308,8 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 	int ret = 0;
 
 	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
-		memcpy(cmd, req->cmd, sizeof(*cmd));
-	else if (req->cmd_flags & REQ_FLUSH)
+		memcpy(cmd, nvme_req(req)->cmd, sizeof(*cmd));
+	else if (req_op(req) == REQ_OP_FLUSH)
 		nvme_setup_flush(ns, cmd);
 	else if (req->cmd_flags & REQ_DISCARD)
 		ret = nvme_setup_discard(ns, req, cmd);
@@ -332,7 +327,7 @@ EXPORT_SYMBOL_GPL(nvme_setup_cmd);
  * if the result is positive, it's an NVM Express status code
  */
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
-		struct nvme_completion *cqe, void *buffer, unsigned bufflen,
+		union nvme_result *result, void *buffer, unsigned bufflen,
 		unsigned timeout, int qid, int at_head, int flags)
 {
 	struct request *req;
@@ -343,7 +338,6 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		return PTR_ERR(req);
 
 	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
-	req->special = cqe;
 
 	if (buffer && bufflen) {
 		ret = blk_rq_map_kern(q, req, buffer, bufflen, __GFP_WAIT);
@@ -352,6 +346,8 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	}
 
 	blk_execute_rq(req->q, NULL, req, at_head);
+	if (result)
+		*result = nvme_req(req)->result;
 	ret = req->errors;
  out:
 	blk_mq_free_request(req);
@@ -373,7 +369,6 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 		u32 *result, unsigned timeout)
 {
 	bool write = nvme_is_write(cmd);
-	struct nvme_completion cqe;
 	struct nvme_ns *ns = q->queuedata;
 	struct gendisk *disk = ns ? ns->disk : NULL;
 	struct request *req;
@@ -386,7 +381,6 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 		return PTR_ERR(req);
 
 	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
-	req->special = &cqe;
 
 	if (ubuffer && bufflen) {
 		ret = blk_rq_map_user(q, req, NULL, ubuffer, bufflen, __GFP_WAIT);
@@ -440,7 +434,7 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 	blk_execute_rq(req->q, disk, req, 0);
 	ret = req->errors;
 	if (result)
-		*result = le32_to_cpu(cqe.result);
+		*result = le32_to_cpu(nvme_req(req)->result.u32);
 	if (meta && !ret && !write) {
 		if (copy_to_user(meta_buffer, meta, meta_len))
 			ret = -EFAULT;
@@ -587,7 +581,7 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 					dma_addr_t dma_addr, u32 *result)
 {
 	struct nvme_command c;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	int ret;
 
 	memset(&c, 0, sizeof(c));
@@ -596,10 +590,10 @@ int nvme_get_features(struct nvme_ctrl *dev, unsigned fid, unsigned nsid,
 	c.features.dptr.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &res, buffer, buflen, 0,
 			NVME_QID_ANY, 0, 0);
 	if (ret >= 0 && result)
-		*result = le32_to_cpu(cqe.result);
+		*result = le32_to_cpu(res.u32);
 	return ret;
 }
 
@@ -607,7 +601,7 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 					dma_addr_t dma_addr, u32 *result)
 {
 	struct nvme_command c;
-	struct nvme_completion cqe;
+	union nvme_result res;
 	int ret;
 
 	memset(&c, 0, sizeof(c));
@@ -616,10 +610,10 @@ int nvme_set_features(struct nvme_ctrl *dev, unsigned fid, unsigned dword11,
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
 
-	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &cqe, NULL, 0, 0,
-			NVME_QID_ANY, 0, 0);
+	ret = __nvme_submit_sync_cmd(dev->admin_q, &c, &res,
+			buffer, buflen, 0, NVME_QID_ANY, 0, 0);
 	if (ret >= 0 && result)
-		*result = le32_to_cpu(cqe.result);
+		*result = le32_to_cpu(res.u32);
 	return ret;
 }
 
@@ -1837,7 +1831,7 @@ void nvme_complete_async_event(struct nvme_ctrl *ctrl,
 		struct nvme_completion *cqe)
 {
 	u16 status = le16_to_cpu(cqe->status) >> 1;
-	u32 result = le32_to_cpu(cqe->result);
+	u32 result = le32_to_cpu(cqe->result.u32);
 
 	if (status == NVME_SC_SUCCESS || status == NVME_SC_ABORT_REQ) {
 		++ctrl->event_limit;
