@@ -176,6 +176,8 @@ static const char * const f17h_if_mce_desc[] = {
 	"BPQ snoop parity on Thread 1",
 	"L1 BTB multi-match error",
 	"L2 BTB multi-match error",
+	"L2 Cache Response Poison error",
+	"System Read Data error",
 };
 
 static const char * const f17h_l2_mce_desc[] = {
@@ -189,6 +191,7 @@ static const char * const f17h_de_mce_desc[] = {
 	"uop cache tag parity error",
 	"uop cache data parity error",
 	"Insn buffer parity error",
+	"uop queue parity error",
 	"Insn dispatch queue parity error",
 	"Fetch address FIFO parity",
 	"Patch RAM data parity",
@@ -205,6 +208,9 @@ static const char * const f17h_ex_mce_desc[] = {
 	"EX payload parity",
 	"Checkpoint queue parity",
 	"Retire dispatch queue parity",
+	"Retire status queue parity error",
+	"Scheduling queue parity error",
+	"Branch buffer queue parity error",
 };
 
 static const char * const f17h_fp_mce_desc[] = {
@@ -214,6 +220,7 @@ static const char * const f17h_fp_mce_desc[] = {
 	"NSQ parity error",
 	"Retire queue parity",
 	"Status register file parity",
+	"Hardware assertion",
 };
 
 static const char * const f17h_l3_mce_desc[] = {
