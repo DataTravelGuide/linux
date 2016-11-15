@@ -257,6 +257,11 @@
 #define X86_FEATURE_CQM_MBM_TOTAL (12*32+ 1) /* LLC Total MBM monitoring */
 #define X86_FEATURE_CQM_MBM_LOCAL (12*32+ 2) /* LLC Local MBM monitoring */
 
+/* AMD-defined CPU features, CPUID level 0x80000007 (ebx), word 17 */
+#define X86_FEATURE_OVERFLOW_RECOV (17*32+0) /* MCA overflow recovery support */
+#define X86_FEATURE_SUCCOR	(17*32+1) /* Uncorrectable error containment and recovery */
+#define X86_FEATURE_SMCA	(17*32+3) /* Scalable MCA */
+
 /*
  * BUG word(s)
  */
@@ -291,6 +296,8 @@ enum cpuid_leafs
 	CPUID_8000_0008_EBX,
 	CPUID_6_EAX,
 	CPUID_8000_000A_EDX,
+	CPUID_7_ECX,
+	CPUID_8000_0007_EBX,
 };
 
 extern const char * const x86_cap_flags[NCAPINTS*32];
