@@ -1655,6 +1655,9 @@ static int do_setvfinfo(struct net_device *dev, struct nlattr **tb)
 
 			len++;
 		}
+		if (len == 0)
+			return -EINVAL;
+
 		if (get_ndo_ext(ops, ndo_set_vf_vlan))
 			err = get_ndo_ext(ops, ndo_set_vf_vlan)(dev,
 								ivvl[0]->vf,
