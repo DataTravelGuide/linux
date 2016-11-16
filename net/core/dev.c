@@ -2781,7 +2781,7 @@ static struct sk_buff *validate_xmit_vlan(struct sk_buff *skb,
 	return skb;
 }
 
-struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
+static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device *dev)
 {
 	netdev_features_t features;
 
@@ -2833,6 +2833,30 @@ out_null:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(dev_hard_start_xmit);
+
+struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *dev)
+{
+	struct sk_buff *next, *head = NULL, *tail;
+
+	while (skb) {
+		next = skb->next;
+		skb->next = NULL;
+		skb = validate_xmit_skb(skb, dev);
+		if (skb) {
+			struct sk_buff *end = skb;
+
+			while (end->next)
+				end = end->next;
+			if (!head)
+				head = skb;
+			else
+				tail->next = skb;
+			tail = end;
+		}
+		skb = next;
+	}
+	return head;
+}
 
 static void qdisc_pkt_len_init(struct sk_buff *skb)
 {
@@ -2898,8 +2922,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 
 		qdisc_bstats_update(q, skb);
 
-		skb = validate_xmit_skb(skb, dev);
-		if (skb && sch_direct_xmit(skb, q, dev, txq, root_lock)) {
+		if (sch_direct_xmit(skb, q, dev, txq, root_lock, true)) {
 			if (unlikely(contended)) {
 				spin_unlock(&q->busylock);
 				contended = false;
