@@ -214,7 +214,9 @@ struct sctp_sock {
 	struct sctp_paddrparams paddrparam;
 	struct sctp_event_subscribe subscribe;
 	struct sctp_assocparams assocparams;
+
 	int user_frag;
+
 	__u32 autoclose;
 	__u32 adaptation_ind;
 	__u32 pd_point;
@@ -222,7 +224,7 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
-		_reserved1:1,
+		recvrcvinfo:1,
 		_reserved2:1,
 		data_ready_signalled:1;
 
