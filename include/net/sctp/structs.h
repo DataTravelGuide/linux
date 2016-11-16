@@ -225,7 +225,7 @@ struct sctp_sock {
 		v4mapped:1,
 		frag_interleave:1,
 		recvrcvinfo:1,
-		_reserved2:1,
+		recvnxtinfo:1,
 		data_ready_signalled:1;
 
 	atomic_t pd_mode;
