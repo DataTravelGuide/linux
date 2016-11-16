@@ -484,8 +484,13 @@ struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
 		goto out_neigh_release;
 	}
 
-	if (dev->netdev_ops->ndo_neigh_construct) {
-		error = dev->netdev_ops->ndo_neigh_construct(n);
+	if (get_ndo_ext(dev->netdev_ops, ndo_neigh_construct) ||
+	    dev->netdev_ops->ndo_neigh_construct_rh73) {
+		if (get_ndo_ext(dev->netdev_ops, ndo_neigh_construct))
+			error = get_ndo_ext(dev->netdev_ops,
+					    ndo_neigh_construct)(dev, n);
+		else
+			error = dev->netdev_ops->ndo_neigh_construct_rh73(n);
 		if (error < 0) {
 			rc = ERR_PTR(error);
 			goto out_neigh_release;
@@ -712,8 +717,10 @@ void neigh_destroy(struct neighbour *neigh)
 	write_unlock_bh(&neigh->lock);
 	neigh->arp_queue_len_bytes = 0;
 
-	if (dev->netdev_ops->ndo_neigh_destroy)
-		dev->netdev_ops->ndo_neigh_destroy(neigh);
+	if (get_ndo_ext(dev->netdev_ops, ndo_neigh_destroy))
+		get_ndo_ext(dev->netdev_ops, ndo_neigh_destroy)(dev, neigh);
+	else if (dev->netdev_ops->ndo_neigh_destroy_rh73)
+		dev->netdev_ops->ndo_neigh_destroy_rh73(neigh);
 
 	dev_put(dev);
 	neigh_parms_put(neigh->parms);

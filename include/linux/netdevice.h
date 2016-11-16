@@ -895,6 +895,10 @@ struct net_device_ops_extended {
 						      struct udp_tunnel_info *ti);
 	void			(*ndo_udp_tunnel_del)(struct net_device *dev,
 						      struct udp_tunnel_info *ti);
+	int			(*ndo_neigh_construct)(struct net_device *dev,
+						       struct neighbour *n);
+	void			(*ndo_neigh_destroy)(struct net_device *dev,
+						     struct neighbour *n);
 };
 
 /*
@@ -1265,8 +1269,10 @@ struct net_device_ops {
 						    netdev_features_t features);
 	int			(*ndo_set_features)(struct net_device *dev,
 						    netdev_features_t features);
-	int			(*ndo_neigh_construct)(struct neighbour *n);
-	void			(*ndo_neigh_destroy)(struct neighbour *n);
+	RH_KABI_RENAME(int	(*ndo_neigh_construct),
+		       int	(*ndo_neigh_construct_rh73))(struct neighbour *n);
+	RH_KABI_RENAME(void	(*ndo_neigh_destroy),
+		       void	(*ndo_neigh_destroy_rh73))(struct neighbour *n);
 
 	RH_KABI_RENAME(int	(*ndo_fdb_add),
 		       int	(*ndo_fdb_add_rh72))(struct ndmsg *ndm,
