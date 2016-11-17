@@ -185,7 +185,8 @@ void panic(const char *fmt, ...)
 	 *
 	 * Bypass the panic_cpu check and call __crash_kexec directly.
 	 */
-	__crash_kexec(NULL);
+	if (crash_kexec_post_notifiers)
+		__crash_kexec(NULL);
 
 	bust_spinlocks(0);
 
