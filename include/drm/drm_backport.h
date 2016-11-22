@@ -112,30 +112,6 @@ extern struct workqueue_struct *system_power_efficient_wq;
 
 #include <linux/rculist.h>
 
-/**
- * hlist_add_behind_rcu
- * @n: the new element to add to the hash list.
- * @prev: the existing element to add the new element after.
- *
- * Description:
- * Adds the specified element to the specified hlist
- * after the specified node while permitting racing traversals.
- *
- * The caller must take whatever precautions are necessary
- * (such as holding appropriate locks) to avoid racing
- * with another list-mutation primitive, such as hlist_add_head_rcu()
- * or hlist_del_rcu(), running on this same list.
- * However, it is perfectly legal to run concurrently with
- * the _rcu list-traversal primitives, such as
- * hlist_for_each_entry_rcu(), used to prevent memory-consistency
- * problems on Alpha CPUs.
- */
-static inline void hlist_add_behind_rcu(struct hlist_node *n,
-                                       struct hlist_node *prev)
-{
-	hlist_add_after_rcu(prev, n);
-}
-
 /* stubs, we don't have mipi-dsi.. */
 struct mipi_dsi_device;
 struct mipi_dsi_packet;

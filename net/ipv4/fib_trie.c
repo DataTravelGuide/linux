@@ -1051,7 +1051,7 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 		}
 
 		if (fa)
-			hlist_add_after_rcu(&fa->fa_list, &new->fa_list);
+			hlist_add_behind_rcu(&new->fa_list, &fa->fa_list);
 		else
 			hlist_add_head_rcu(&new->fa_list, &l->leaf);
 	}
