@@ -2250,12 +2250,6 @@ out:
 	return 0;
 }
 
-static inline void csum_replace_by_diff(__sum16 *sum, __wsum diff)
-{
-	*sum = csum_fold(csum_add(diff, ~csum_unfold(*sum)));
-}
-
-
 /**
  * i40e_tso - set up the tso context descriptor
  * @skb:      ptr to the skb we're sending
