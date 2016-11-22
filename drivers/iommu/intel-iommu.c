@@ -3128,11 +3128,6 @@ static int __init init_dmars(void)
 	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
 
-	if (is_kdump_kernel()) {
-		iommu_identity_mapping = 0;
-		pr_info("Passthrough mode disabled on Kexec kernel\n");
-	}
-
 	if (iommu_identity_mapping) {
 		ret = si_domain_init(hw_pass_through);
 		if (ret)
