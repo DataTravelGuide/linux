@@ -1644,6 +1644,8 @@ static struct packet_offload ip_packet_offload __read_mostly = {
 static const struct net_offload ipip_offload = {
 	.callbacks = {
 		.gso_segment	= inet_gso_segment,
+		.gro_receive	= inet_gro_receive,
+		.gro_complete	= inet_gro_complete,
 	},
 };
 
