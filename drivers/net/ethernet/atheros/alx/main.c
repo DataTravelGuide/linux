@@ -51,9 +51,9 @@
 
 const char alx_drv_name[] = "alx";
 
-static bool msix = false;
+static bool msix = true;
 module_param(msix, bool, 0);
-MODULE_PARM_DESC(msix, "Enable msi-x interrupt support");
+MODULE_PARM_DESC(msix, "Enable msi-x interrupt support (default: true)");
 
 static void alx_free_txbuf(struct alx_tx_queue *txq, int entry)
 {
