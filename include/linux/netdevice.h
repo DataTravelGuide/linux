@@ -66,6 +66,7 @@ struct wpan_dev;
 /* UDP Tunnel offloads */
 struct udp_tunnel_info;
 
+struct net_device_extended;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -1843,19 +1844,13 @@ struct net_device {
 	 * struct list_head contains two pointers, no easy way to make use of
 	 * two reserved pointers in a single RH_KABI_* macro, so we're going
 	 * old school and using __GENKSYMS wrappers directly here.
-	 * RH_KABI_RESERVE_P(3) -> void (*rh_reserved3)(void);
-	 * RH_KABI_RESERVE_P(4) -> void (*rh_reserved4)(void);
-	 * RH_KABI_RESERVE_P(5) -> void (*rh_reserved5)(void);
-	 * RH_KABI_RESERVE_P(6) -> void (*rh_reserved6)(void);
-	 * RH_KABI_RESERVE_P(7) -> void (*rh_reserved7)(void);
-	 * RH_KABI_RESERVE_P(8) -> void (*rh_reserved8)(void);
 	 */
-	void (*rh_reserved3)(void);
-	void (*rh_reserved4)(void);
-	void (*rh_reserved5)(void);
-	void (*rh_reserved6)(void);
-	void (*rh_reserved7)(void);
-	void (*rh_reserved8)(void);
+	RH_KABI_USE_P(3, lower_dev_list.prev)
+	RH_KABI_USE_P(4, lower_dev_list.next)
+	RH_KABI_USE_P(5, adj_list.upper.prev)
+	RH_KABI_USE_P(6, adj_list.upper.next)
+	RH_KABI_USE_P(7, adj_list.lower.prev)
+	RH_KABI_USE_P(8, adj_list.lower.next)
 #endif
 	RH_KABI_USE_P(9, const struct forwarding_accel_ops *fwd_ops)
 	RH_KABI_USE_P(10, const struct dcbnl_rtnl_ops_ext *dcbnl_ops_ext)
@@ -1873,8 +1868,19 @@ struct net_device {
 #endif
 	RH_KABI_USE_P(14, const struct switchdev_ops *switchdev_ops)
 	RH_KABI_USE_P(15, netdev_features_t gso_partial_features)
-	RH_KABI_RESERVE_P(16)
+	RH_KABI_USE_P(16, struct net_device_extended *extended)
 };
+
+/* RHEL specific: Extension of struct net_device. Place new fields at the
+ * end of this struct. Be careful, we're not guarded by the automatic kABI
+ * checks, yet any changes here are kABI protected.
+ * This means only appends to this structure are allowed. Changes are
+ * generally disallowed with the exception of field renames (but not type
+ * changes nor any shuffling!).
+ */
+struct net_device_extended {
+};
+
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32

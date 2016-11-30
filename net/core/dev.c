@@ -7226,7 +7226,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *dev;
-	size_t alloc_size;
+	size_t alloc_size, ext_offset;
 	struct net_device *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
@@ -7249,6 +7249,11 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 		alloc_size = ALIGN(alloc_size, NETDEV_ALIGN);
 		alloc_size += sizeof_priv;
 	}
+	/* allocate memory for extended structure after priv */
+	/* ensure 32-byte alignment of extended area */
+	alloc_size = ALIGN(alloc_size, NETDEV_ALIGN);
+	ext_offset = alloc_size;
+	alloc_size += sizeof(struct net_device_extended);
 	/* ensure 32-byte alignment of whole construct */
 	alloc_size += NETDEV_ALIGN - 1;
 
@@ -7260,6 +7265,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
+	dev->extended = (void *)dev + ext_offset;
 
 	dev->pcpu_refcnt = alloc_percpu(int);
 	if (!dev->pcpu_refcnt)
