@@ -436,13 +436,15 @@ enum {
 	SKB_GSO_SCTP = 1 << 14,
 
 	SKB_GSO_TCP_FIXEDID = 1 << 15,
+
+	SKB_GSO_PARTIAL = 1 << 16,
 };
 
 /* NETIF_F_GSO flags are no longer part of a single range */
 #define SKB_GSO1_MASK (SKB_GSO_GRE_CSUM - 1)
 #define SKB_GSO2_MASK (SKB_GSO_GRE_CSUM|SKB_GSO_UDP_TUNNEL_CSUM|\
 		       SKB_GSO_TUNNEL_REMCSUM|SKB_GSO_SCTP|\
-		       SKB_GSO_TCP_FIXEDID)
+		       SKB_GSO_TCP_FIXEDID|SKB_GSO_PARTIAL)
 
 #if BITS_PER_LONG > 32
 #define NET_SKBUFF_DATA_USES_OFFSET 1
@@ -3411,7 +3413,10 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
  * Keeps track of level of encapsulation of network headers.
  */
 struct skb_gso_cb {
-	int	mac_offset;
+	union {
+		int	mac_offset;
+		int	data_offset;
+	};
 	int	encap_level;
 	__wsum	csum;
 	__u16	csum_start;

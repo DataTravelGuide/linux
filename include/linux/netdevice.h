@@ -1844,7 +1844,7 @@ struct net_device {
 	RH_KABI_USE_P(13, close_list.next)
 #endif
 	RH_KABI_USE_P(14, const struct switchdev_ops *switchdev_ops)
-	RH_KABI_RESERVE_P(15)
+	RH_KABI_USE_P(15, netdev_features_t gso_partial_features)
 	RH_KABI_RESERVE_P(16)
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
@@ -3959,6 +3959,7 @@ static inline bool net_gso_ok(netdev_features_t features, int gso_type)
 	BUILD_BUG_ON(SKB_GSO_TUNNEL_REMCSUM != (NETIF_F_GSO_TUNNEL_REMCSUM >> NETIF_F_GSO2_SHIFT));
 	BUILD_BUG_ON(SKB_GSO_SCTP    != (NETIF_F_GSO_SCTP >> NETIF_F_GSO2_SHIFT));
 	BUILD_BUG_ON(SKB_GSO_TCP_FIXEDID != (NETIF_F_TSO_MANGLEID >> NETIF_F_GSO2_SHIFT));
+	BUILD_BUG_ON(SKB_GSO_PARTIAL != (NETIF_F_GSO_PARTIAL >> NETIF_F_GSO2_SHIFT));
 
 	return (features & feature) == feature;
 }

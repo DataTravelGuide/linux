@@ -1212,7 +1212,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	const struct net_offload *ops;
 	unsigned int offset = 0;
 	struct iphdr *iph;
-	int proto;
+	int proto, tot_len;
 	int nhoff;
 	int ihl;
 	int id;
@@ -1268,10 +1268,21 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 			if (skb->next != NULL)
 				iph->frag_off |= htons(IP_MF);
 			offset += skb->len - nhoff - ihl;
-		} else if (!fixedid) {
-			iph->id = htons(id++);
+			tot_len = skb->len - nhoff;
+		} else if (skb_is_gso(skb)) {
+			if (!fixedid) {
+				iph->id = htons(id);
+				id += skb_shinfo(skb)->gso_segs;
+			}
+			tot_len = skb_shinfo(skb)->gso_size +
+				  SKB_GSO_CB(skb)->data_offset +
+				  skb->head - (unsigned char *)iph;
+		} else {
+			if (!fixedid)
+				iph->id = htons(id++);
+			tot_len = skb->len - nhoff;
 		}
-		iph->tot_len = htons(skb->len - nhoff);
+		iph->tot_len = htons(tot_len);
 		ip_send_check(iph);
 		if (encap)
 			skb_reset_inner_headers(skb);

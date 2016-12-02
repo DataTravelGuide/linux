@@ -68,6 +68,10 @@ enum {
 	NETIF_F_GSO_TUNNEL_REMCSUM_BIT, /* ... TUNNEL with TSO & REMCSUM */
 	NETIF_F_GSO_SCTP_BIT,		/* ... SCTP fragmentation */
 	NETIF_F_TSO_MANGLEID_BIT,	/* ... IPV4 ID mangling allowed */
+	NETIF_F_GSO_PARTIAL_BIT,	/* ... Only segment inner-most L4
+					 *     in hardware and all other
+					 *     headers in software.
+					 */
 
 	/*
 	 * RHEL only: Make sure to leave space to allow adding new GSO bits
@@ -87,7 +91,6 @@ enum {
 	__NETIF_F_GSO2_PLACEHOLDER_3,
 	__NETIF_F_GSO2_PLACEHOLDER_4,
 	__NETIF_F_GSO2_PLACEHOLDER_5,
-	__NETIF_F_GSO2_PLACEHOLDER_6,
 
 	NETIF_F_HW_L2FW_DOFFLOAD_BIT,	/* Allow L2 Forwarding in Hardware */
 
@@ -145,6 +148,7 @@ enum {
 #define NETIF_F_GSO_UDP_TUNNEL	__NETIF_F(GSO_UDP_TUNNEL)
 #define NETIF_F_GSO_UDP_TUNNEL_CSUM __NETIF_F(GSO_UDP_TUNNEL_CSUM)
 #define NETIF_F_TSO_MANGLEID	__NETIF_F(TSO_MANGLEID)
+#define NETIF_F_GSO_PARTIAL	 __NETIF_F(GSO_PARTIAL)
 #define NETIF_F_GSO_MPLS	__NETIF_F(GSO_MPLS)
 #define NETIF_F_GSO_TUNNEL_REMCSUM __NETIF_F(GSO_TUNNEL_REMCSUM)
 #define NETIF_F_GSO_SCTP	__NETIF_F(GSO_SCTP)
@@ -171,7 +175,7 @@ enum {
 /* Segmentation offload feature mask */
 #define NETIF_F_GSO2_MASK (NETIF_F_GSO_GRE_CSUM|NETIF_F_GSO_UDP_TUNNEL_CSUM|\
 			   NETIF_F_GSO_TUNNEL_REMCSUM|NETIF_F_GSO_SCTP|\
-			   NETIF_F_TSO_MANGLEID)
+			   NETIF_F_TSO_MANGLEID|NETIF_F_GSO_PARTIAL)
 #define NETIF_F_GSO_MASK	((__NETIF_F_BIT(NETIF_F_GSO_LAST + 1) - \
 				 __NETIF_F_BIT(NETIF_F_GSO_SHIFT)) | \
 				NETIF_F_GSO2_MASK)
