@@ -20,21 +20,23 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 					     netdev_features_t features),
 	__be16 new_protocol, bool is_ipv6)
 {
+	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	bool remcsum, need_csum, offload_csum;
+	struct udphdr *uh = udp_hdr(skb);
 	u16 mac_offset = skb->mac_header;
-	int mac_len = skb->mac_len;
-	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
 	__be16 protocol = skb->protocol;
-	netdev_features_t enc_features;
+	u16 mac_len = skb->mac_len;
 	int udp_offset, outer_hlen;
-	unsigned int oldlen;
-
-	oldlen = (u16)~skb->len;
+	u32 partial;
 
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
 
+	/* adjust partial header checksum to negate old length */
+	partial = (__force u32)uh->check + (__force u16)~uh->len;
+
+	/* setup inner skb. */
 	skb->encapsulation = 0;
 	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
@@ -69,9 +71,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	udp_offset = outer_hlen - tnl_hlen;
 	skb = segs;
 	do {
-		struct udphdr *uh;
-		int len;
-		__be32 delta;
+		__be16 len;
 
 		if (remcsum)
 			skb->ip_summed = CHECKSUM_NONE;
@@ -85,22 +85,22 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 		skb->mac_len = mac_len;
 		skb->protocol = protocol;
 
-		skb_push(skb, outer_hlen);
+		__skb_push(skb, outer_hlen);
 		skb_reset_mac_header(skb);
 		skb_set_network_header(skb, mac_len);
 		skb_set_transport_header(skb, udp_offset);
-		len = skb->len - udp_offset;
+		len = htons(skb->len - udp_offset);
 		uh = udp_hdr(skb);
-		uh->len = htons(len);
+		uh->len = len;
 
 		if (!need_csum)
 			continue;
 
-		delta = htonl(oldlen + len);
-
 		uh->check = ~csum_fold((__force __wsum)
-				       ((__force u32)uh->check +
-					(__force u32)delta));
+				       ((__force u32)len + partial));
+
+		if (skb->encapsulation || !offload_csum) {
+			uh->check = gso_make_checksum(skb, ~uh->check);
 		if (offload_csum) {
 			skb->ip_summed = CHECKSUM_PARTIAL;
 			skb->csum_start = skb_transport_header(skb) - skb->head;
