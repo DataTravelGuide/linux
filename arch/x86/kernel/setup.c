@@ -896,6 +896,7 @@ static void rh_check_supported(void)
 		case 94: /* Skylake-S */
 		case 87: /* Knights Landing */
 		case 86: /* Broadwell-DE SoC */
+		case 85: /* Purley */
 		case 79: /* Broadwell-EP and EX */
 		case 78: /* Skylake-Y */
 		case 77: /* Atom Avoton */
@@ -903,9 +904,6 @@ static void rh_check_supported(void)
 		case 70: /* Crystal Well */
 		case 69: /* Haswell ULT */
 			break;
-		case 85: /* Purley 2S */
-			if (dmi_socket_count == 2)
-				break;
 		default:
 			if (boot_cpu_data.x86_model > 63) {
 				printk(KERN_CRIT
