@@ -153,6 +153,8 @@ struct eeh_dev {
 	RH_KABI_EXTEND(int aer_cap)	/* Saved AER capability		*/
 	RH_KABI_EXTEND(struct pci_dev *physfn)	/* Associated SRIOV PF	*/
 	RH_KABI_EXTEND(int af_cap)	/* Saved AF capability		*/
+	RH_KABI_EXTEND(struct list_head rmv_list)	/* Record the removed edevs	*/
+	RH_KABI_EXTEND(bool in_error)	/* Error flag for edev		*/
 };
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
