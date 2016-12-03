@@ -150,6 +150,7 @@ struct eeh_dev {
 	RH_KABI_EXTEND(int pcix_cap)	/* Saved PCIx capability	*/
 	RH_KABI_EXTEND(int pcie_cap)	/* Saved PCIe capability	*/
 	RH_KABI_EXTEND(int aer_cap)	/* Saved AER capability		*/
+	RH_KABI_EXTEND(struct pci_dev *physfn)	/* Associated SRIOV PF	*/
 };
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
