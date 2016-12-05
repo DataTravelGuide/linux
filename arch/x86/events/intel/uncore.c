@@ -1,3 +1,4 @@
+#include <linux/crash_dump.h>
 #include "uncore.h"
 
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
@@ -1388,6 +1389,9 @@ static int __init intel_uncore_init(void)
 		return -ENODEV;
 
 	if (cpu_has_hypervisor)
+		return -ENODEV;
+
+	if (is_kdump_kernel())
 		return -ENODEV;
 
 	max_packages = topology_max_packages();
