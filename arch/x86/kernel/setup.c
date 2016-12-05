@@ -1305,11 +1305,16 @@ void __init setup_arch(char **cmdline_p)
 	if (smp_found_config)
 		get_smp_config();
 
+	/*
+	 * Systems w/o ACPI and mptables might not have it mapped the local
+	 * APIC yet, but prefill_possible_map() might need to access it.
+	 */
+	init_apic_mappings();
+
 	prefill_possible_map();
 
 	init_cpu_to_node();
 
-	init_apic_mappings();
 	if (x86_io_apic_ops.init)
 		x86_io_apic_ops.init();
 
