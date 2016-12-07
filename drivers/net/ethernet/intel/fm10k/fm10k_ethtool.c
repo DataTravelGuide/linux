@@ -81,17 +81,6 @@ static const struct fm10k_stats fm10k_gstrings_global_stats[] = {
 	FM10K_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
 };
 
-static const struct fm10k_stats fm10k_gstrings_debug_stats[] = {
-	FM10K_STAT("hw_sm_mbx_full", hw_sm_mbx_full),
-	FM10K_STAT("hw_csum_tx_good", hw_csum_tx_good),
-	FM10K_STAT("hw_csum_rx_good", hw_csum_rx_good),
-	FM10K_STAT("rx_switch_errors", rx_switch_errors),
-	FM10K_STAT("rx_drops", rx_drops),
-	FM10K_STAT("rx_pp_errors", rx_pp_errors),
-	FM10K_STAT("rx_link_errors", rx_link_errors),
-	FM10K_STAT("rx_length_errors", rx_length_errors),
-};
-
 static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 	FM10K_STAT("timeout", stats.timeout.count),
 	FM10K_STAT("ur", stats.ur.count),
@@ -144,7 +133,6 @@ static const struct fm10k_stats fm10k_gstrings_queue_stats[] = {
 };
 
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
-#define FM10K_DEBUG_STATS_LEN ARRAY_SIZE(fm10k_gstrings_debug_stats)
 #define FM10K_PF_STATS_LEN ARRAY_SIZE(fm10k_gstrings_pf_stats)
 #define FM10K_MBX_STATS_LEN ARRAY_SIZE(fm10k_gstrings_mbx_stats)
 #define FM10K_QUEUE_STATS_LEN ARRAY_SIZE(fm10k_gstrings_queue_stats)
@@ -165,18 +153,15 @@ enum fm10k_self_test_types {
 };
 
 enum {
-	FM10K_PRV_FLAG_DEBUG_STATS,
 	FM10K_PRV_FLAG_LEN,
 };
 
 static const char fm10k_prv_flags[FM10K_PRV_FLAG_LEN][ETH_GSTRING_LEN] = {
-	"debug-statistics",
 };
 
 static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_iov_data *iov_data = interface->iov_data;
 	char *p = (char *)data;
 	unsigned int i;
 	unsigned int j;
@@ -1058,22 +1043,33 @@ static u32 fm10k_get_priv_flags(struct net_device *netdev)
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	u32 priv_flags = 0;
 
-	if (interface->flags & FM10K_FLAG_DEBUG_STATS)
-		priv_flags |= BIT(FM10K_PRV_FLAG_DEBUG_STATS);
+	fm10k_add_stat_strings(&p, "", fm10k_gstrings_mbx_stats,
+			       FM10K_MBX_STATS_LEN);
 
-	return priv_flags;
-}
+		fm10k_add_stat_strings(&p, "", fm10k_gstrings_pf_stats,
+				       FM10K_PF_STATS_LEN);
+
+	for (i = 0; i < interface->hw.mac.max_queues; i++) {
+		char prefix[ETH_GSTRING_LEN];
 
 static int fm10k_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
+	struct net_device_stats *net_stats = &netdev->stats;
+	int i;
 
-	if (priv_flags >= BIT(FM10K_PRV_FLAG_LEN))
-		return -EINVAL;
+	fm10k_add_ethtool_stats(&data, interface, fm10k_gstrings_global_stats,
+				FM10K_GLOBAL_STATS_LEN);
 
-	if (priv_flags & BIT(FM10K_PRV_FLAG_DEBUG_STATS))
-		interface->flags |= FM10K_FLAG_DEBUG_STATS;
-	else
+	fm10k_add_ethtool_stats(&data, &interface->hw.mbx,
+				fm10k_gstrings_mbx_stats,
+				FM10K_MBX_STATS_LEN);
+					FM10K_PF_STATS_LEN);
+	}
+
+	for (i = 0; i < interface->hw.mac.max_queues; i++) {
+		struct fm10k_ring *ring;
+
 		interface->flags &= ~FM10K_FLAG_DEBUG_STATS;
 
 	return 0;
