@@ -132,6 +132,17 @@ static const struct fm10k_stats fm10k_gstrings_queue_stats[] = {
 	FM10K_QUEUE_STAT("bytes", stats.bytes),
 };
 
+#define FM10K_QUEUE_STAT(_name, _stat) { \
+	.stat_string = _name, \
+	.sizeof_stat = FIELD_SIZEOF(struct fm10k_ring, _stat), \
+	.stat_offset = offsetof(struct fm10k_ring, _stat) \
+}
+
+static const struct fm10k_stats fm10k_gstrings_queue_stats[] = {
+	FM10K_QUEUE_STAT("packets", stats.packets),
+	FM10K_QUEUE_STAT("bytes", stats.bytes),
+};
+
 #define FM10K_GLOBAL_STATS_LEN ARRAY_SIZE(fm10k_gstrings_global_stats)
 #define FM10K_DEBUG_STATS_LEN ARRAY_SIZE(fm10k_gstrings_debug_stats)
 #define FM10K_PF_STATS_LEN ARRAY_SIZE(fm10k_gstrings_pf_stats)
@@ -190,10 +201,18 @@ static void fm10k_get_stat_strings(struct net_device *dev, u8 *data)
 		}
 	}
 
-	for (i = 0; i < FM10K_MBX_STATS_LEN; i++) {
-		memcpy(p, fm10k_gstrings_mbx_stats[i].stat_string,
-		       ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
+	for (i = 0; i < interface->hw.mac.max_queues; i++) {
+		char prefix[ETH_GSTRING_LEN];
+
+		snprintf(prefix, ETH_GSTRING_LEN, "tx_queue_%u_", i);
+		fm10k_add_stat_strings(&p, prefix,
+				       fm10k_gstrings_queue_stats,
+				       FM10K_QUEUE_STATS_LEN);
+
+		snprintf(prefix, ETH_GSTRING_LEN, "rx_queue_%u_", i);
+		fm10k_add_stat_strings(&p, prefix,
+				       fm10k_gstrings_queue_stats,
+				       FM10K_QUEUE_STATS_LEN);
 	}
 
 	if (interface->hw.mac.type != fm10k_mac_vf) {
@@ -500,6 +519,13 @@ static void fm10k_get_regs(struct net_device *netdev,
 		/* memory is not zero allocated so we have to clear it */
 		for (i = 0; i < size; i++)
 			*((*data)++) = 0;
+	unsigned int i;
+	char *p;
+
+	if (!pointer) {
+		/* memory is not zero allocated so we have to clear it */
+		for (i = 0; i < size; i++)
+			*((*data)++) = 0;
 		return;
 	}
 }
@@ -577,6 +603,8 @@ static u32 fm10k_get_msglevel(struct net_device *netdev)
 	struct fm10k_iov_data *iov_data = interface->iov_data;
 	struct net_device_stats *net_stats = &netdev->stats;
 	int i;
+
+	fm10k_update_stats(interface);
 
 	return interface->msg_enable;
 }
