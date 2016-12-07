@@ -1236,8 +1236,34 @@ xfs_vm_releasepage(
 	gfp_t			gfp_mask)
 {
 	int			delalloc, unwritten;
+	struct buffer_head	*bh, *head;
 
 	trace_xfs_releasepage(page->mapping->host, page, 0, 0);
+
+	/*
+	 * mm accommodates an old ext3 case where clean pages might not have had
+	 * the dirty bit cleared. Thus, it can send actual dirty pages to
+	 * ->releasepage() via shrink_active_list(). Conversely,
+	 * block_invalidatepage() can send pages that are still marked dirty
+	 * but otherwise have invalidated buffers.
+	 *
+	 * We've historically freed buffers on the latter. Instead, quietly
+	 * filter out all dirty pages to avoid spurious buffer state warnings.
+	 * This can likely be removed once shrink_active_list() is fixed.
+	 *
+	 * RHEL7: Actually, XFS and the buffered write mechanism in RHEL can
+	 * also result in dirty pages with clean buffers in the event of a write
+	 * failure on fs' with sub-page sized blocks. Explicitly check for dirty
+	 * buffers to allow page release in this case. This is not possible
+	 * upstream as of the iomap buffered write implementation.
+	 */
+	if (PageDirty(page)) {
+		bh = head = page_buffers(page);
+		do {
+			if (buffer_dirty(bh))
+				return 0;
+		} while ((bh = bh->b_this_page) != head);
+	}
 
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
