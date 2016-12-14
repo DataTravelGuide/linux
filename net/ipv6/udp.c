@@ -495,7 +495,7 @@ try_again:
 	}
 	if (is_udp4) {
 		if (inet->cmsg_flags)
-			ip_cmsg_recv(msg, skb);
+			ip_cmsg_recv_sk(msg, sk, skb);
 	} else {
 		if (np->rxopt.all)
 			ip6_datagram_recv_ctl(sk, msg, skb);
