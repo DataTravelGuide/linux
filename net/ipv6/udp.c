@@ -403,7 +403,6 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int is_udplite = IS_UDPLITE(sk);
 	bool checksum_valid = false;
 	int is_udp4;
-	bool slow;
 
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len, addr_len);
@@ -507,13 +506,12 @@ try_again:
 		err = ulen;
 
 out_free:
-	skb_free_datagram_locked(sk, skb);
+	skb_consume_udp(sk, skb, 0);
 out:
 	return err;
 
 csum_copy_err:
-	slow = lock_sock_fast(sk);
-	if (!skb_kill_datagram(sk, skb, flags)) {
+	if (!__sk_queue_drop_skb(sk, skb, flags)) {
 		if (is_udp4) {
 			UDP_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_CSUMERRORS, is_udplite);
@@ -526,7 +524,7 @@ csum_copy_err:
 					UDP_MIB_INERRORS, is_udplite);
 		}
 	}
-	unlock_sock_fast(sk, slow);
+	kfree_skb(skb);
 
 	/* starting over for a new packet, but check if we need to yield */
 	cond_resched();
@@ -591,7 +589,7 @@ static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		sk_mark_napi_id(sk, skb);
 	}
 
-	rc = sock_queue_rcv_skb(sk, skb);
+	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {
 		int is_udplite = IS_UDPLITE(sk);
 
@@ -603,6 +601,7 @@ static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		kfree_skb(skb);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -624,7 +623,6 @@ EXPORT_SYMBOL(udpv6_encap_enable);
 int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_sock *up = udp_sk(sk);
-	int rc;
 	int is_udplite = IS_UDPLITE(sk);
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
@@ -684,27 +682,16 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	if (rcu_access_pointer(sk->sk_filter)) {
+	if (rcu_access_pointer(sk->sk_filter))  {
 		if (udp_lib_checksum_complete(skb))
 			goto csum_error;
+		if (sk_filter(sk, skb))
+			goto drop;
 	}
-
-	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf))
-		goto drop;
 
 	skb_dst_drop(skb);
 
-	bh_lock_sock(sk);
-	rc = 0;
-	if (!sock_owned_by_user(sk))
-		rc = __udpv6_queue_rcv_skb(sk, skb);
-	else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
-		bh_unlock_sock(sk);
-		goto drop;
-	}
-	bh_unlock_sock(sk);
-
-	return rc;
+	return __udpv6_queue_rcv_skb(sk, skb);
 csum_error:
 	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
 drop:
@@ -1530,12 +1517,12 @@ struct proto udpv6_prot = {
 	.connect	   = ip6_datagram_connect,
 	.disconnect	   = udp_disconnect,
 	.ioctl		   = udp_ioctl,
+	.init		   = udp_init_sock,
 	.destroy	   = udpv6_destroy_sock,
 	.setsockopt	   = udpv6_setsockopt,
 	.getsockopt	   = udpv6_getsockopt,
 	.sendmsg	   = udpv6_sendmsg,
 	.recvmsg	   = udpv6_recvmsg,
-	.backlog_rcv	   = __udpv6_queue_rcv_skb,
 	.release_cb	   = ip6_datagram_release_cb,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
