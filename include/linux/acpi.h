@@ -699,6 +699,15 @@ do {									\
 #endif
 #endif
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
+int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index);
+#else
+static inline int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+{
+	return -ENXIO;
+}
+#endif
+
 /* Device properties */
 
 #define MAX_ACPI_REFERENCE_ARGS	8

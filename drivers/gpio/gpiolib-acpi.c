@@ -360,6 +360,35 @@ struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	return lookup.desc ? lookup.desc : ERR_PTR(-ENOENT);
 }
 
+/**
+ * acpi_dev_gpio_irq_get() - Find GpioInt and translate it to Linux IRQ number
+ * @adev: pointer to a ACPI device to get IRQ from
+ * @index: index of GpioInt resource (starting from %0)
+ *
+ * If the device has one or more GpioInt resources, this function can be
+ * used to translate from the GPIO offset in the resource to the Linux IRQ
+ * number.
+ *
+ * Return: Linux IRQ number (>%0) on success, negative errno on failure.
+ */
+int acpi_dev_gpio_irq_get(struct acpi_device *adev, int index)
+{
+	int idx, i;
+
+	for (i = 0, idx = 0; idx <= index; i++) {
+		struct acpi_gpio_info info;
+		struct gpio_desc *desc;
+
+		desc = acpi_get_gpiod_by_index(adev, NULL, i, &info);
+		if (IS_ERR(desc))
+			break;
+		if (info.gpioint && idx++ == index)
+			return gpiod_to_irq(desc);
+	}
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_gpio_irq_get);
+
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	acpi_gpiochip_request_interrupts(chip);
