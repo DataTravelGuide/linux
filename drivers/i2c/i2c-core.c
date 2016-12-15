@@ -240,6 +240,20 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
+	if (!client->irq) {
+		int irq = -ENOENT;
+
+		if (ACPI_COMPANION(dev))
+			irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
+
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (irq < 0)
+			irq = 0;
+
+		client->irq = irq;
+	}
+
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->probe || !driver->id_table)
 		return -ENODEV;
