@@ -1843,6 +1843,8 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	sector_t size;
 	int merge_is_optional;
 
+	lockdep_assert_held(&md->suspend_lock);
+
 	size = dm_table_get_size(t);
 
 	/*
@@ -2291,6 +2293,8 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	bool do_lockfs = suspend_flags & DM_SUSPEND_LOCKFS_FLAG;
 	bool noflush = suspend_flags & DM_SUSPEND_NOFLUSH_FLAG;
 	int r;
+
+	lockdep_assert_held(&md->suspend_lock);
 
 	/*
 	 * DMF_NOFLUSH_SUSPENDING must be set before presuspend.
