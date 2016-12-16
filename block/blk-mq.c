@@ -1317,9 +1317,9 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_put_ctx(data.ctx);
 		if (!old_rq)
 			return;
-		if (!blk_mq_direct_issue_request(old_rq))
-			return;
-		blk_mq_insert_request(old_rq, false, true, true);
+		if (test_bit(BLK_MQ_S_STOPPED, &data.hctx->state) ||
+		    blk_mq_direct_issue_request(old_rq) != 0)
+			blk_mq_insert_request(old_rq, false, true, true);
 		return;
 	}
 
