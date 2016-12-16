@@ -1236,17 +1236,19 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	return rq;
 }
 
-static int blk_mq_direct_issue_request(struct request *rq)
+static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
+				      struct request *rq)
 {
 	int ret;
 	struct request_queue *q = rq->q;
-	struct blk_mq_hw_ctx *hctx = q->mq_ops->map_queue(q,
-			rq->mq_ctx->cpu);
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
 		.list = NULL,
 		.last = 1
 	};
+
+	if (blk_mq_hctx_stopped(hctx))
+		goto insert;
 
 	/*
 	 * For OK queue, we are done. For error, kill it. Any other
@@ -1255,17 +1257,18 @@ static int blk_mq_direct_issue_request(struct request *rq)
 	 */
 	ret = q->mq_ops->queue_rq(hctx, &bd);
 	if (ret == BLK_MQ_RQ_QUEUE_OK)
-		return 0;
-	else {
-		__blk_mq_requeue_request(rq);
+		return;
 
-		if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
-			rq->errors = -EIO;
-			blk_mq_end_request(rq, rq->errors);
-			return 0;
-		}
-		return -1;
+	__blk_mq_requeue_request(rq);
+
+	if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
+		rq->errors = -EIO;
+		blk_mq_end_request(rq, rq->errors);
+		return;
 	}
+
+insert:
+	blk_mq_insert_request(rq, false, true, true);
 }
 
 /*
@@ -1337,9 +1340,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_mq_put_ctx(data.ctx);
 		if (!old_rq)
 			return;
-		if (blk_mq_hctx_stopped(data.hctx) ||
-		    blk_mq_direct_issue_request(old_rq) != 0)
-			blk_mq_insert_request(old_rq, false, true, true);
+		blk_mq_try_issue_directly(data.hctx, old_rq);
 		return;
 	}
 
