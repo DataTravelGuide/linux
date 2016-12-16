@@ -1543,6 +1543,14 @@ static void activate_path(struct work_struct *work)
 static int noretry_error(int error)
 {
 	switch (error) {
+	case -EBADE:
+		/*
+		 * EBADE signals an reservation conflict.
+		 * We shouldn't fail the path here as we can communicate with
+		 * the target.  We should failover to the next path, but in
+		 * doing so we might be causing a ping-pong between paths.
+		 * So just return the reservation conflict error.
+		 */
 	case -EOPNOTSUPP:
 	case -EREMOTEIO:
 	case -EILSEQ:
@@ -1587,9 +1595,6 @@ static int do_end_io(struct multipath *m, struct request *clone,
 		if (!test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
 			if (!must_push_back_rq(m))
 				r = -EIO;
-		} else {
-			if (error == -EBADE)
-				r = error;
 		}
 	}
 
@@ -1638,9 +1643,6 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 			if (!must_push_back_bio(m))
 				return -EIO;
 			return DM_ENDIO_REQUEUE;
-		} else {
-			if (error == -EBADE)
-				return error;
 		}
 	}
 
