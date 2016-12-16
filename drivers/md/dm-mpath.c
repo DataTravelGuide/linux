@@ -682,9 +682,11 @@ static int multipath_map_bio(struct dm_target *ti, struct bio *bio)
 	return __multipath_map_bio(m, bio, mpio);
 }
 
-static void process_queued_bios_list(struct multipath *m)
+static void process_queued_io_list(struct multipath *m)
 {
-	if (m->queue_mode == DM_TYPE_BIO_BASED)
+	if (m->queue_mode == DM_TYPE_MQ_REQUEST_BASED)
+		dm_mq_kick_requeue_list(dm_table_get_md(m->ti->table));
+	else if (m->queue_mode == DM_TYPE_BIO_BASED)
 		queue_work(kmultipathd, &m->process_queued_bios);
 }
 
@@ -753,7 +755,7 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 
 	if (!queue_if_no_path) {
 		dm_table_run_md_queue_async(m->ti->table);
-		process_queued_bios_list(m);
+		process_queued_io_list(m);
 	}
 
 	return 0;
@@ -1317,7 +1319,7 @@ out:
 	spin_unlock_irqrestore(&m->lock, flags);
 	if (run_queue) {
 		dm_table_run_md_queue_async(m->ti->table);
-		process_queued_bios_list(m);
+		process_queued_io_list(m);
 	}
 
 	return r;
@@ -1515,7 +1517,7 @@ static void pg_init_done(void *data, int errors)
 	}
 	clear_bit(MPATHF_QUEUE_IO, &m->flags);
 
-	process_queued_bios_list(m);
+	process_queued_io_list(m);
 
 	/*
 	 * Wake up any thread waiting to suspend.
@@ -1950,7 +1952,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 		if (test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags))
 			pg_init_all_paths(m);
 		dm_table_run_md_queue_async(m->ti->table);
-		process_queued_bios_list(m);
+		process_queued_io_list(m);
 	}
 
 	/*
