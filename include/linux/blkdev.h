@@ -525,12 +525,14 @@ struct request_queue {
 
 	RH_KABI_EXTEND(struct list_head		requeue_list)
 	RH_KABI_EXTEND(spinlock_t			requeue_lock)
-	RH_KABI_EXTEND(struct work_struct		requeue_work)
+	/* requeue_work's type is changed from 'work_struct' to 'delayed_work' below */
+	RH_KABI_EXTEND(struct work_struct	rh_reserved_requeue_work)
 	RH_KABI_EXTEND(atomic_t				mq_freeze_depth)
 	RH_KABI_EXTEND(struct blk_flush_queue   *fq)
 	RH_KABI_EXTEND(struct percpu_ref	q_usage_counter)
 	RH_KABI_EXTEND(bool			mq_sysfs_init_done)
 	RH_KABI_EXTEND(struct work_struct	timeout_work)
+	RH_KABI_EXTEND(struct delayed_work	requeue_work)
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
