@@ -1066,10 +1066,14 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_osn_ops);
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
-		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
-		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+			card->dev->vlan_features |= NETIF_F_IP_CSUM;
+		}
+		if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_RXCSUM;
+			card->dev->vlan_features |= NETIF_F_RXCSUM;
+		}
 	}
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
