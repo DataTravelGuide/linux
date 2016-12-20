@@ -198,5 +198,7 @@ int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
 			void *data);
 
 const char *rpc_proc_name(const struct rpc_task *task);
+
+void rpc_clnt_xprt_switch_put(struct rpc_clnt *);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */
