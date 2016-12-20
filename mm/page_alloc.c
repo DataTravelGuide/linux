@@ -288,18 +288,23 @@ static inline bool update_defer_init(pg_data_t *pgdat,
 				unsigned long zone_end,
 				unsigned long *nr_initialised)
 {
+	unsigned long max_initialise;
+
 	/* Always populate low zones for address-contrained allocations */
 	if (zone_end < pgdat_end_pfn(pgdat))
 		return true;
 
 	/*
-	 * Initialise at least 2G plus 1/256 of the available pages (for struct
-	 * page_cgroup when memory cgroup is enabled) of the highest zone.
+	 * Initialise at least 2G or 1/256 of the available pages (for struct
+	 * page_cgroup when memory cgroup is enabled) of the highest zone plus
+	 * two large system hashes that can take up 1GB for 0.25TB/node.
 	 */
+	max_initialise = max((2UL << (30 - PAGE_SHIFT)),
+		(page_cgroup_size(zone_size) +
+		(pgdat->node_spanned_pages >> 8)));
 
 	(*nr_initialised)++;
-	if (*nr_initialised > (2UL << (30 - PAGE_SHIFT)) +
-			      page_cgroup_size(zone_size) &&
+	if ((*nr_initialised > max_initialise) &&
 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
 		pgdat->first_deferred_pfn = pfn;
 		return false;
