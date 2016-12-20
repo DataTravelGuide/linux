@@ -114,6 +114,11 @@ struct audit_names {
 #endif
 };
 
+struct audit_proctitle {
+	int	len;	/* length of the cmdline field. */
+	char	*value;	/* the cmdline field */
+};
+
 /* The per-task audit context. */
 struct audit_context {
 	int		    dummy;	/* must be the first element */
@@ -212,6 +217,7 @@ struct audit_context {
 			char			*name;
 		} module;)
 	};
+	RH_KABI_EXTEND(struct audit_proctitle proctitle;)
 	int fds[2];
 };
 
