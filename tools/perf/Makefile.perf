@@ -370,6 +370,18 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../arch/s390/include/uapi/asm/kvm.h && ( \
          (diff -B ../arch/s390/include/uapi/asm/kvm.h ../../arch/s390/include/uapi/asm/kvm.h >/dev/null) \
          || echo "Warning: tools/arch/s390/include/uapi/asm/kvm.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
+         (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
+         || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
+	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/linux/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
