@@ -54,7 +54,7 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 	return ins__raw_scnprintf(ins, bf, size, ops);
 }
 
-static int call__parse(struct ins_operands *ops)
+static int call__parse(struct ins_operands *ops, struct map *map)
 {
 	char *endptr, *tok, *name;
 
@@ -82,9 +82,13 @@ static int call__parse(struct ins_operands *ops)
 	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
-	tok = strchr(endptr, '(');
-	if (tok != NULL) {
-		ops->target.addr = 0;
+	tok = strchr(endptr, '*');
+	if (tok == NULL) {
+		struct symbol *sym = map__find_symbol(map, map->map_ip(map, ops->target.addr));
+		if (sym != NULL)
+			ops->target.name = strdup(sym->name);
+		else
+			ops->target.addr = 0;
 		return 0;
 	}
 
