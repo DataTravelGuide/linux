@@ -410,8 +410,8 @@ static void svc_data_ready(struct sock *sk, int count)
 			svsk, sk, count,
 			test_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags));
 		svsk->sk_odata(sk, count);
-		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-		svc_xprt_enqueue(&svsk->sk_xprt);
+		if (!test_and_set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags))
+			svc_xprt_enqueue(&svsk->sk_xprt);
 	}
 }
 
