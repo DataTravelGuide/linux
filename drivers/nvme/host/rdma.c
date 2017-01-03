@@ -1367,7 +1367,8 @@ static int nvme_rdma_cm_handler(struct rdma_cm_id *cm_id,
 static enum blk_eh_timer_return
 nvme_rdma_timeout(struct request *rq, bool reserved)
 {
-	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
+	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags))) {
+		struct nvme_command *cmd = nvme_req(rq)->cmd;
 
 	/* queue error recovery */
 	nvme_rdma_error_recovery(req->queue->ctrl);
