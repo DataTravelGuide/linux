@@ -1082,6 +1082,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
+	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
+		 policy->cpuinfo.max_freq, policy->max);
+
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE &&
 	    policy->max >= policy->cpuinfo.max_freq) {
 		pr_debug("intel_pstate: set performance\n");
@@ -1108,7 +1111,6 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 				   limits->max_sysfs_pct);
 	limits->max_perf_pct = max(limits->min_policy_pct,
 				   limits->max_perf_pct);
-	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
 	/* Make sure min_perf_pct <= max_perf_pct */
 	limits->min_perf_pct = min(limits->max_perf_pct, limits->min_perf_pct);
@@ -1117,6 +1119,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 				  int_tofp(100));
 	limits->max_perf = div_fp(int_tofp(limits->max_perf_pct),
 				  int_tofp(100));
+	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
 	if (hwp_active)
 		intel_pstate_hwp_set(policy->cpus);
