@@ -77,6 +77,7 @@ struct blk_mq_hw_ctx {
 	RH_KABI_EXTEND(atomic_t		nr_active)
 
 	RH_KABI_EXTEND(struct blk_flush_queue	*fq)
+	RH_KABI_EXTEND(struct srcu_struct	queue_rq_srcu)
 };
 
 #ifdef __GENKSYMS__
