@@ -187,6 +187,11 @@ static inline bool tick_nohz_full_cpu(int cpu)
 	return cpumask_test_cpu(cpu, tick_nohz_full_mask);
 }
 
+static inline int housekeeping_any_cpu(void)
+{
+	return cpumask_any_and(housekeeping_mask, cpu_online_mask);
+}
+
 extern void tick_nohz_init(void);
 extern void __tick_nohz_full_check(void);
 extern void tick_nohz_full_kick(void);
@@ -194,6 +199,11 @@ extern void tick_nohz_full_kick_cpu(int cpu);
 extern void tick_nohz_full_kick_all(void);
 extern void __tick_nohz_task_switch(struct task_struct *tsk);
 #else
+static inline int housekeeping_any_cpu(void)
+{
+	return smp_processor_id();
+}
+
 static inline void tick_nohz_init(void) { }
 static inline bool tick_nohz_full_enabled(void) { return false; }
 static inline bool tick_nohz_full_cpu(int cpu) { return false; }
