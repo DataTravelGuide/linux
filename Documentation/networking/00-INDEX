@@ -36,6 +36,8 @@ bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
 can.txt
 	- documentation on CAN protocol family.
+checksum-offloads.txt
+	- Explanation of checksum offloads; LCO, RCO
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
