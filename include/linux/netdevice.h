@@ -63,6 +63,9 @@ struct phy_device;
 struct wireless_dev;
 /* 802.15.4 specific */
 struct wpan_dev;
+/* UDP Tunnel offloads */
+struct udp_tunnel_info;
+
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
@@ -850,6 +853,19 @@ struct tc_to_netdev {
  *	This function is used to pass protocol port error state information
  *	to the switch driver. The switch driver can react to the proto_down
  *      by doing a phys down on the associated switch port.
+ * void (*ndo_udp_tunnel_add)(struct net_device *dev,
+ *			      struct udp_tunnel_info *ti);
+ *	Called by UDP tunnel to notify a driver about the UDP port and socket
+ *	address family that a UDP tunnel is listnening to. It is called only
+ *	when a new port starts listening. The operation is protected by the
+ *	RTNL.
+ *
+ * void (*ndo_udp_tunnel_del)(struct net_device *dev,
+ *			      struct udp_tunnel_info *ti);
+ *	Called by UDP tunnel to notify the driver about a UDP port and socket
+ *	address family that the UDP tunnel is not listening to anymore. The
+ *	operation is protected by the RTNL.
+ *
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -875,6 +891,10 @@ struct net_device_ops_extended {
 							  char *name, size_t len);
 	int			(*ndo_change_proto_down)(struct net_device *dev,
 							 bool proto_down);
+	void			(*ndo_udp_tunnel_add)(struct net_device *dev,
+						      struct udp_tunnel_info *ti);
+	void			(*ndo_udp_tunnel_del)(struct net_device *dev,
+						      struct udp_tunnel_info *ti);
 };
 
 /*
@@ -2269,6 +2289,7 @@ struct netdev_lag_lower_state_info {
 #define NETDEV_CHANGELOWERSTATE	0x001B
 #define NETDEV_OFFLOAD_PUSH_VXLAN	0x001C
 #define NETDEV_OFFLOAD_PUSH_GENEVE	0x001D
+#define NETDEV_UDP_TUNNEL_PUSH_INFO	0x001E
 
 /* (Un)registration functions for the notifiers that takes
  * 'struct net_device *' as parameter

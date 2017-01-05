@@ -1510,7 +1510,8 @@ static int geneve_netdevice_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (event == NETDEV_OFFLOAD_PUSH_GENEVE)
+	if (event == NETDEV_OFFLOAD_PUSH_GENEVE ||
+	    event == NETDEV_UDP_TUNNEL_PUSH_INFO)
 		geneve_push_rx_ports(dev);
 
 	return NOTIFY_DONE;
