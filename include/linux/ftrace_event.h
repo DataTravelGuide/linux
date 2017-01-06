@@ -39,6 +39,10 @@ const char *ftrace_print_symbols_seq_u64(struct trace_seq *p,
 const char *ftrace_print_hex_seq(struct trace_seq *p,
 				 const unsigned char *buf, int len);
 
+const char *ftrace_print_array_seq(struct trace_seq *p,
+				   const void *buf, int buf_len,
+				   size_t el_size);
+
 struct trace_iterator;
 struct trace_event;
 
