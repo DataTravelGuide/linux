@@ -123,9 +123,9 @@ static inline void kvm_lapic_set_irr(int vec, struct kvm_lapic *apic)
 	apic->irr_pending = true;
 }
 
-static inline u32 kvm_apic_get_reg(struct kvm_lapic *apic, int reg_off)
+static inline u32 kvm_lapic_get_reg(struct kvm_lapic *apic, int reg_off)
 {
-	        return *((u32 *) (apic->regs + reg_off));
+	return *((u32 *) (apic->regs + reg_off));
 }
 
 static inline void kvm_lapic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
