@@ -228,4 +228,7 @@ static inline int kvm_arch_dev_ioctl_check_extension(long ext)
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
 
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+
 #endif /* __ARM_KVM_HOST_H__ */
