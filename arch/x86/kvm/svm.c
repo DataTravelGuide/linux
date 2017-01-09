@@ -181,6 +181,7 @@ struct vcpu_svm {
 	u32 ldr_reg;
 	struct page *avic_backing_page;
 	u64 *avic_physical_id_cache;
+	bool avic_is_running;
 };
 
 #define AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK	(0xFF)
@@ -1307,6 +1308,72 @@ free_avic:
 	return err;
 }
 
+/**
+ * This function is called during VCPU halt/unhalt.
+ */
+static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
+{
+	u64 entry;
+	int h_physical_id = __default_cpu_present_to_apicid(vcpu->cpu);
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	svm->avic_is_running = is_run;
+
+	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
+	if (WARN_ON(h_physical_id >= AVIC_MAX_PHYSICAL_ID_COUNT))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	WARN_ON(is_run == !!(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK));
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	if (is_run)
+		entry |= AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
+}
+
+static void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	u64 entry;
+	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
+	int h_physical_id = __default_cpu_present_to_apicid(cpu);
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	if (WARN_ON(h_physical_id >= AVIC_MAX_PHYSICAL_ID_COUNT))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	WARN_ON(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK;
+	entry |= (h_physical_id & AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK);
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	if (svm->avic_is_running)
+		entry |= AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
+}
+
+static void avic_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	u64 entry;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
+}
+
 static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1369,6 +1436,11 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		if (err)
 			goto free_page4;
 	}
+
+	/* We initialize this flag to true to make sure that the is_running
+	 * bit would be set the first time the vcpu is loaded.
+	 */
+	svm->avic_is_running = true;
 
 	svm->nested.hsave = page_address(hsave_page);
 
@@ -1443,12 +1515,16 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
 		}
 	}
+
+	avic_vcpu_load(vcpu, cpu);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int i;
+
+	avic_vcpu_put(vcpu);
 
 	++vcpu->stat.host_state_reload;
 	kvm_load_ldt(svm->host.ldt);
@@ -1463,6 +1539,16 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 #endif
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
+}
+
+static void svm_vcpu_blocking(struct kvm_vcpu *vcpu)
+{
+	avic_set_running(vcpu, false);
+}
+
+static void svm_vcpu_unblocking(struct kvm_vcpu *vcpu)
+{
+	avic_set_running(vcpu, true);
 }
 
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
@@ -4820,6 +4906,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
+	.vcpu_blocking = svm_vcpu_blocking,
+	.vcpu_unblocking = svm_vcpu_unblocking,
 
 	.update_bp_intercept = update_bp_intercept,
 	.get_msr = svm_get_msr,
