@@ -1269,4 +1269,14 @@ static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 		kvm_x86_ops->vcpu_unblocking(vcpu);
 }
 
+static inline int kvm_cpu_get_apicid(int mps_cpu)
+{
+#ifdef CONFIG_X86_LOCAL_APIC
+	return __default_cpu_present_to_apicid(mps_cpu);
+#else
+	WARN_ON_ONCE(1);
+	return BAD_APICID;
+#endif
+}
+
 #endif /* _ASM_X86_KVM_HOST_H */
