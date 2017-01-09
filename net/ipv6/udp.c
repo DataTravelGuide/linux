@@ -411,8 +411,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 		return ipv6_recv_rxpmtu(sk, msg, len, addr_len);
 
 try_again:
-	skb = __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				  &peeked, &off, &err);
+	skb = __skb_recv_udp(sk, flags, noblock, &peeked, &off, &err);
 	if (!skb)
 		goto out;
 

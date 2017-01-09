@@ -2123,7 +2123,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skip = sk_peek_offset(sk, flags);
 
-	skb = __skb_recv_datagram(sk, flags, &peeked, &skip, &err);
+	skb = __skb_recv_datagram(sk, flags, NULL, &peeked, &skip, &err);
 	if (!skb) {
 		unix_state_lock(sk);
 		/* Signal EOF on disconnected non-blocking SEQPACKET socket. */
