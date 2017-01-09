@@ -57,7 +57,8 @@ void init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 		{ X86_FEATURE_DECODEASSISTS,	CR_EDX, 7, 0x8000000a, 0 },
 		{ X86_FEATURE_PAUSEFILTER,	CR_EDX,10, 0x8000000a, 0 },
 		{ X86_FEATURE_PFTHRESHOLD,	CR_EDX,12, 0x8000000a, 0 },
-		{ 0, 0, 0, 0, 0 }
+		{ X86_FEATURE_AVIC,       	CR_EDX,13, 0x8000000a, 0 },
+		{ 0, 0, 0, 0 }
 	};
 
 	for (cb = cpuid_bits; cb->feature; cb++) {
