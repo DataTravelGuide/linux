@@ -680,6 +680,10 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+
+	/* Struct members for AVIC */
+	struct page *avic_logical_id_table_page;
+	struct page *avic_physical_id_table_page;
 };
 
 struct kvm_vm_stat {
