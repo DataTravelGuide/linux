@@ -103,7 +103,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	 * complain:
 	 */
 	if (sysctl_hung_task_warnings) {
-		sysctl_hung_task_warnings--;
+		if (sysctl_hung_task_warnings > 0)
+			sysctl_hung_task_warnings--;
 		printk(KERN_ERR "INFO: task %s:%d blocked for more than "
 				"%ld seconds.\n", t->comm, t->pid, timeout);
 		printk(KERN_ERR "\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
