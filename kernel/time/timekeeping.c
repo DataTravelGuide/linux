@@ -259,18 +259,18 @@ static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
  * slightly wrong timestamp (a few nanoseconds). See
  * @ktime_get_mono_fast_ns.
  */
-static void update_fast_timekeeper(struct tk_read_base *tkr)
+static void update_fast_timekeeper(struct tk_read_base *tkr, struct tk_fast *tkf)
 {
-	struct tk_read_base *base = tk_fast_mono.base;
+	struct tk_read_base *base = tkf->base;
 
 	/* Force readers off to base[1] */
-	raw_write_seqcount_latch(&tk_fast_mono.seq);
+	raw_write_seqcount_latch(&tkf->seq);
 
 	/* Update base[0] */
 	memcpy(base, tkr, sizeof(*base));
 
 	/* Force readers back to base[0] */
-	raw_write_seqcount_latch(&tk_fast_mono.seq);
+	raw_write_seqcount_latch(&tkf->seq);
 
 	/* Update base[1] */
 	memcpy(base + 1, base, sizeof(*base));
@@ -308,19 +308,24 @@ static void update_fast_timekeeper(struct tk_read_base *tkr)
  * of the following timestamps. Callers need to be aware of that and
  * deal with it.
  */
-u64 notrace ktime_get_mono_fast_ns(void)
+static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
 {
 	struct tk_read_base *tkr;
 	unsigned int seq;
 	u64 now;
 
 	do {
-		seq = raw_read_seqcount(&tk_fast_mono.seq);
-		tkr = tk_fast_mono.base + (seq & 0x01);
+		seq = raw_read_seqcount(&tkf->seq);
+		tkr = tkf->base + (seq & 0x01);
 		now = ktime_to_ns(tkr->base) + timekeeping_get_ns(tkr);
+	} while (read_seqcount_retry(&tkf->seq, seq));
 
-	} while (read_seqcount_retry(&tk_fast_mono.seq, seq));
 	return now;
+}
+
+u64 ktime_get_mono_fast_ns(void)
+{
+	return __ktime_get_fast_ns(&tk_fast_mono);
 }
 EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
 
@@ -431,7 +436,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 	if (action & TK_MIRROR)
 		memcpy(&shadow_timekeeper, &timekeeper, sizeof(timekeeper));
 
-	update_fast_timekeeper(&tk->tkr_mono);
+	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
 }
 
 /**
