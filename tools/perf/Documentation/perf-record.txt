@@ -371,6 +371,13 @@ symbolic names, e.g. on x86, ax, si. To list the available registers use
 --running-time::
 Record running and enabled time for read events (:S)
 
+-k::
+--clockid::
+Sets the clock id to use for the various time fields in the perf_event_type
+records. See clock_gettime(). In particular CLOCK_MONOTONIC and
+CLOCK_MONOTONIC_RAW are supported, some events might also allow
+CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
+
 -S::
 --snapshot::
 Select AUX area tracing Snapshot Mode. This option is valid only with an

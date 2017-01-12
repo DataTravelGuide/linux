@@ -34,9 +34,13 @@ static struct {
 	bool exclude_guest;
 	bool mmap2;
 	bool cloexec;
+	bool clockid;
+	bool clockid_wrong;
 	bool lbr_flags;
 	bool write_backward;
 } perf_missing_features;
+
+static clockid_t clockid;
 
 static int perf_evsel__no_extra_init(struct perf_evsel *evsel __maybe_unused)
 {
@@ -935,6 +939,12 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		attr->enable_on_exec = 0;
 	}
 
+	clockid = opts->clockid;
+	if (opts->use_clockid) {
+		attr->use_clockid = 1;
+		attr->clockid = opts->clockid;
+	}
+
 	if (evsel->precise_max)
 		perf_event_attr__set_max_precise_ip(attr);
 
@@ -1357,6 +1367,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(exclude_callchain_user, p_unsigned);
 	PRINT_ATTRf(mmap2, p_unsigned);
 	PRINT_ATTRf(comm_exec, p_unsigned);
+	PRINT_ATTRf(use_clockid, p_unsigned);
 	PRINT_ATTRf(context_switch, p_unsigned);
 	PRINT_ATTRf(write_backward, p_unsigned);
 
@@ -1367,6 +1378,7 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	PRINT_ATTRf(branch_sample_type, p_branch_sample_type);
 	PRINT_ATTRf(sample_regs_user, p_hex);
 	PRINT_ATTRf(sample_stack_user, p_unsigned);
+	PRINT_ATTRf(clockid, p_signed);
 	PRINT_ATTRf(sample_regs_intr, p_hex);
 	PRINT_ATTRf(aux_watermark, p_unsigned);
 
@@ -1405,6 +1417,12 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	}
 
 fallback_missing_features:
+	if (perf_missing_features.clockid_wrong)
+		evsel->attr.clockid = CLOCK_MONOTONIC; /* should always work */
+	if (perf_missing_features.clockid) {
+		evsel->attr.use_clockid = 0;
+		evsel->attr.clockid = 0;
+	}
 	if (perf_missing_features.cloexec)
 		flags &= ~(unsigned long)PERF_FLAG_FD_CLOEXEC;
 	if (perf_missing_features.mmap2)
@@ -1449,6 +1467,17 @@ retry_open:
 				goto try_fallback;
 			}
 			set_rlimit = NO_CHANGE;
+
+			/*
+			 * If we succeeded but had to kill clockid, fail and
+			 * have perf_evsel__open_strerror() print us a nice
+			 * error.
+			 */
+			if (perf_missing_features.clockid ||
+			    perf_missing_features.clockid_wrong) {
+				err = -EINVAL;
+				goto out_close;
+			}
 		}
 	}
 
@@ -1482,11 +1511,18 @@ try_fallback:
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
+	/*
+	 * Must probe features in the order they were added to the
+	 * perf_event_attr interface.
+	 */
 	if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
 		perf_missing_features.write_backward = true;
 		goto out_close;
 	} else if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
 		perf_missing_features.clockid_wrong = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.clockid && evsel->attr.use_clockid) {
+		perf_missing_features.clockid = true;
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
@@ -2390,6 +2426,11 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EINVAL:
 		if (evsel->attr.write_backward && perf_missing_features.write_backward)
 			return scnprintf(msg, size, "Reading from overwrite event is not supported by this kernel.");
+		if (perf_missing_features.clockid)
+			return scnprintf(msg, size, "clockid feature not supported.");
+		if (perf_missing_features.clockid_wrong)
+			return scnprintf(msg, size, "wrong clockid (%d).", clockid);
+		break;
 	default:
 		break;
 	}
