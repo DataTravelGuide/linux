@@ -183,6 +183,7 @@ static inline u64 ktime_get_boot_ns(void)
 }
 
 extern u64 ktime_get_mono_fast_ns(void);
+extern u64 ktime_get_raw_fast_ns(void);
 
 /*
  * Get cross timestamp between system clock and device clock
