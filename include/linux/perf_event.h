@@ -195,6 +195,7 @@ struct perf_event;
  * pmu::capabilities flags
  */
 #define PERF_PMU_CAP_NO_INTERRUPT		0x01
+#define PERF_PMU_CAP_NO_NMI			0x02
 #define PERF_PMU_CAP_AUX_NO_SG			0x04
 #define PERF_PMU_CAP_AUX_SW_DOUBLEBUF		0x08
 #define PERF_PMU_CAP_EXCLUSIVE			0x10
@@ -598,6 +599,7 @@ struct perf_event {
 	RH_KABI_EXTEND(unsigned long			*addr_filters_offs)
 	RH_KABI_EXTEND(unsigned long			 addr_filters_gen)
 	RH_KABI_EXTEND(struct list_head			 sb_list)
+	RH_KABI_EXTEND(u64				(*clock)(void))
 #endif /* CONFIG_PERF_EVENTS */
 };
 
