@@ -240,7 +240,7 @@ static int cap_inode_listsecurity(struct inode *inode, char *buffer,
 	return 0;
 }
 
-static void cap_inode_getsecid(const struct inode *inode, u32 *secid)
+static void cap_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	*secid = 0;
 }
