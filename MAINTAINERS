@@ -2543,6 +2543,14 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell-laptop.c
 
+DELL LAPTOP RBTN DRIVER
+M:	Pali RohÃÂ¡r <pali.rohar@gmail.com>
+S:	Maintained
+F:	drivers/platform/x86/dell-rbtn.*
+
+DELL LAPTOP FREEFALL DRIVER
+M:	Pali RohÃÂ¡r <pali.rohar@gmail.com>
+S:	Maintained
 DELL LAPTOP SMM DRIVER
 S:	Orphan
 F:	drivers/char/i8k.c
