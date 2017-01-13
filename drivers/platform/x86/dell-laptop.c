@@ -2,11 +2,9 @@
  *  Driver for Dell laptop extras
  *
  *  Copyright (c) Red Hat <mjg@redhat.com>
- *  Copyright (c) 2014 Gabriele Mazzotta <gabriele.mzt@gmail.com>
- *  Copyright (c) 2014 Pali RohÃÂ¡r <pali.rohar@gmail.com>
  *
- *  Based on documentation in the libsmbios package:
- *  Copyright (C) 2005-2014 Dell Inc.
+ *  Based on documentation in the libsmbios package, Copyright (C) 2005 Dell
+ *  Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -34,13 +32,6 @@
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
-#define KBD_LED_OFF_TOKEN 0x01E1
-#define KBD_LED_ON_TOKEN 0x01E2
-#define KBD_LED_AUTO_TOKEN 0x01E3
-#define KBD_LED_AUTO_25_TOKEN 0x02EA
-#define KBD_LED_AUTO_50_TOKEN 0x02EB
-#define KBD_LED_AUTO_75_TOKEN 0x02EC
-#define KBD_LED_AUTO_100_TOKEN 0x02F6
 
 /* This structure will be modified by the firmware when we enter
  * system management mode, hence the volatiles */
@@ -71,13 +62,6 @@ struct calling_interface_structure {
 
 struct quirk_entry {
 	u8 touchpad_led;
-
-	int needs_kbd_timeouts;
-	/*
-	 * Ordered list of timeouts expressed in seconds.
-	 * The list must end with -1
-	 */
-	int kbd_timeouts[];
 };
 
 static struct quirk_entry *quirks;
@@ -91,15 +75,6 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 	quirks = dmi->driver_data;
 	return 1;
 }
-
-/*
- * These values come from Windows utility provided by Dell. If any other value
- * is used then BIOS silently set timeout to 0 without any error message.
- */
-static struct quirk_entry quirk_dell_xps13_9333 = {
-	.needs_kbd_timeouts = 1,
-	.kbd_timeouts = { 0, 5, 15, 60, 5 * 60, 15 * 60, -1 },
-};
 
 static int da_command_address;
 static int da_command_code;
@@ -293,15 +268,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 		},
 		.driver_data = &quirk_dell_vostro_v130,
 	},
-	{
-		.callback = dmi_matched,
-		.ident = "Dell XPS13 9333",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS13 9333"),
-		},
-		.driver_data = &quirk_dell_xps13_9333,
-	},
 	{ }
 };
 
@@ -366,27 +332,15 @@ static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-static int find_token_id(int tokenid)
+static int find_token_location(int tokenid)
 {
 	int i;
-
 	for (i = 0; i < da_num_tokens; i++) {
 		if (da_tokens[i].tokenID == tokenid)
-			return i;
+			return da_tokens[i].location;
 	}
 
 	return -1;
-}
-
-static int find_token_location(int tokenid)
-{
-	int id;
-
-	id = find_token_id(tokenid);
-	if (id == -1)
-		return -1;
-
-	return da_tokens[id].location;
 }
 
 static struct calling_interface_buffer *
@@ -407,20 +361,6 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
 	dcdbas_smi_request(&command);
 
 	return buffer;
-}
-
-static inline int dell_smi_error(int value)
-{
-	switch (value) {
-	case 0: /* Completed successfully */
-		return 0;
-	case -1: /* Completed with error */
-		return -EIO;
-	case -2: /* Function not supported */
-		return -ENXIO;
-	default: /* Unknown error */
-		return -EINVAL;
-	}
 }
 
 /* Derived from information in DellWirelessCtl.cpp:
@@ -777,7 +717,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 	else
 		dell_send_request(buffer, 1, 1);
 
- out:
+out:
 	release_buffer();
 	return ret;
 }
@@ -801,7 +741,7 @@ static int dell_get_intensity(struct backlight_device *bd)
 
 	ret = buffer->output[1];
 
- out:
+out:
 	release_buffer();
 	return ret;
 }
@@ -847,6 +787,12 @@ static int __init touchpad_led_init(struct device *dev)
 
 static void touchpad_led_exit(void)
 {
+	led_classdev_unregister(&touchpad_led);
+}
+
+static int __init dell_init(void)
+{
+	int max_intensity = 0;
 	led_classdev_unregister(&touchpad_led);
 }
 
@@ -1914,8 +1860,6 @@ static int __init dell_init(void)
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_init(&platform_device->dev);
 
-	kbd_led_init(&platform_device->dev);
-
 	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
 	if (dell_laptop_dir != NULL)
 		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
@@ -1983,7 +1927,6 @@ static void __exit dell_exit(void)
 	debugfs_remove_recursive(dell_laptop_dir);
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
-	kbd_led_exit();
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);
@@ -2000,7 +1943,5 @@ module_init(dell_init);
 module_exit(dell_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
-MODULE_AUTHOR("Gabriele Mazzotta <gabriele.mzt@gmail.com>");
-MODULE_AUTHOR("Pali RohÃÂ¡r <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("Dell laptop driver");
 MODULE_LICENSE("GPL");
