@@ -175,4 +175,5 @@ struct r1bio {
  */
 #define	R1BIO_MadeGood 7
 #define	R1BIO_WriteError 8
+#define	R1BIO_FailFast 9
 #endif
