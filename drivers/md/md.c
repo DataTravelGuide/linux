@@ -2390,15 +2390,11 @@ repeat:
 	md_super_wait(mddev);
 	/* if there was a failure, MD_CHANGE_DEVS was set, and we re-write super */
 
-	spin_lock(&mddev->lock);
 	if (mddev->in_sync != sync_req ||
-	    test_bit(MD_CHANGE_DEVS, &mddev->flags)) {
+	    !bit_clear_unless(&mddev->flags, BIT(MD_CHANGE_PENDING),
+			       BIT(MD_CHANGE_DEVS) | BIT(MD_CHANGE_CLEAN)))
 		/* have to write it out again */
-		spin_unlock(&mddev->lock);
 		goto repeat;
-	}
-	clear_bit(MD_CHANGE_PENDING, &mddev->flags);
-	spin_unlock(&mddev->lock);
 	wake_up(&mddev->sb_wait);
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
@@ -8288,6 +8284,7 @@ EXPORT_SYMBOL(md_finish_reshape);
 int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 		       int is_new)
 {
+	struct mddev *mddev = rdev->mddev;
 	int rv;
 	if (is_new)
 		s += rdev->new_data_offset;
@@ -8297,8 +8294,8 @@ int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 	if (rv == 0) {
 		/* Make sure they get written out promptly */
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
-		set_bit(MD_CHANGE_CLEAN, &rdev->mddev->flags);
-		set_bit(MD_CHANGE_PENDING, &rdev->mddev->flags);
+		set_mask_bits(&mddev->flags, 0,
+			      BIT(MD_CHANGE_CLEAN) | BIT(MD_CHANGE_PENDING));
 		md_wakeup_thread(rdev->mddev->thread);
 		return 1;
 	} else
