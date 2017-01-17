@@ -1581,6 +1581,9 @@ static void bitmap_free(struct bitmap *bitmap)
 	if (!bitmap) /* there was no bitmap */
 		return;
 
+	if (bitmap->sysfs_can_clear)
+		sysfs_put(bitmap->sysfs_can_clear);
+
 	/* Shouldn't be needed - but just in case.... */
 	wait_event(bitmap->write_wait,
 		   atomic_read(&bitmap->pending_writes) == 0);
@@ -1616,15 +1619,13 @@ void bitmap_destroy(struct mddev *mddev)
 	if (mddev->thread)
 		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 
-	if (bitmap->sysfs_can_clear)
-		sysfs_put(bitmap->sysfs_can_clear);
-
 	bitmap_free(bitmap);
 }
 
 /*
  * initialize the bitmap structure
  * if this returns an error, bitmap_destroy must be called to do clean up
+ * once mddev->bitmap is set
  */
 int bitmap_create(struct mddev *mddev)
 {
@@ -2015,13 +2016,13 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 				rv = bitmap_create(mddev);
 				if (!rv)
 					rv = bitmap_load(mddev);
+				if (rv)
+					mddev->bitmap_info.offset = 0;
+				mddev->pers->quiesce(mddev, 0);
 				if (rv) {
 					bitmap_destroy(mddev);
-					mddev->bitmap_info.offset = 0;
-				}
-				mddev->pers->quiesce(mddev, 0);
-				if (rv)
 					return rv;
+				}
 			}
 		}
 	}
