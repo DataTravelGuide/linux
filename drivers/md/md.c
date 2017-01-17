@@ -2542,8 +2542,10 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		else {
 			struct mddev *mddev = rdev->mddev;
 			md_kick_rdev_from_array(rdev);
-			if (mddev->pers)
-				md_update_sb(mddev, 1);
+			if (mddev->pers) {
+				set_bit(MD_CHANGE_DEVS, &mddev->flags);
+				md_wakeup_thread(mddev->thread);
+			}
 			md_new_event(mddev);
 			err = 0;
 		}
@@ -6044,7 +6046,11 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 
 kick_rdev:
 	md_kick_rdev_from_array(rdev);
-	md_update_sb(mddev, 1);
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	if (mddev->thread)
+		md_wakeup_thread(mddev->thread);
+	else
+		md_update_sb(mddev, 1);
 	md_new_event(mddev);
 
 	return 0;
@@ -6108,8 +6114,9 @@ static int hot_add_disk(struct mddev *mddev, dev_t dev)
 
 	rdev->raid_disk = -1;
 
-	md_update_sb(mddev, 1);
-
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	if (!mddev->thread)
+		md_update_sb(mddev, 1);
 	/*
 	 * Kick recovery, maybe this spare has to be added to the
 	 * array immediately.
