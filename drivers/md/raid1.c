@@ -418,7 +418,24 @@ static void raid1_end_write_request(struct bio *bio, int error)
 			set_bit(MD_RECOVERY_NEEDED, &
 				conf->mddev->recovery);
 
-		set_bit(R1BIO_WriteError, &r1_bio->state);
+		if (test_bit(FailFast, &rdev->flags) &&
+		    (bio->bi_rw & MD_FAILFAST) &&
+		    /* We never try FailFast to WriteMostly devices */
+		    !test_bit(WriteMostly, &rdev->flags)) {
+			md_error(r1_bio->mddev, rdev);
+			if (!test_bit(Faulty, &rdev->flags))
+				/* This is the only remaining device,
+				 * We need to retry the write without
+				 * FailFast
+				 */
+				set_bit(R1BIO_WriteError, &r1_bio->state);
+			else {
+				/* Finished with this branch */
+				r1_bio->bios[mirror] = NULL;
+				to_put = bio;
+			}
+		} else
+			set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else {
 		/*
 		 * Set R1BIO_Uptodate in our master bio, so that we
@@ -1390,6 +1407,10 @@ read_again:
 		mbio->bi_end_io	= raid1_end_write_request;
 		mbio->bi_rw =
 			WRITE | do_flush_fua | do_sync | do_discard | do_same;
+		if (test_bit(FailFast, &conf->mirrors[i].rdev->flags) &&
+		    !test_bit(WriteMostly, &conf->mirrors[i].rdev->flags) &&
+		    conf->raid_disks - mddev->degraded > 1)
+			mbio->bi_rw |= MD_FAILFAST;
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);
@@ -2061,6 +2082,9 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 			continue;
 
 		wbio->bi_rw = WRITE;
+		if (test_bit(FailFast, &conf->mirrors[i].rdev->flags))
+			wbio->bi_rw |= MD_FAILFAST;
+
 		wbio->bi_end_io = end_sync_write;
 		atomic_inc(&r1_bio->remaining);
 		md_sync_acct(conf->mirrors[i].rdev->bdev, bio_sectors(wbio));
