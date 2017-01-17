@@ -96,6 +96,9 @@ EXPORT_SYMBOL_GPL(raid6_datap_recov);
 
 const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
+#ifdef CONFIG_AS_AVX512
+	&raid6_recov_avx512,
+#endif
 #ifdef CONFIG_AS_AVX2
 	&raid6_recov_avx2,
 #endif
