@@ -211,6 +211,14 @@ extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 			      int is_new);
 extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				int is_new);
+struct md_cluster_info;
+
+enum mddev_sb_flags {
+	MD_SB_CHANGE_DEVS,		/* Some device status has changed */
+	MD_SB_CHANGE_CLEAN,	/* transition to or from 'clean' */
+	MD_SB_CHANGE_PENDING,	/* switch from 'clean' to 'active' in progress */
+	MD_SB_NEED_REWRITE,	/* metadata write needs to be repeated */
+};
 
 struct mddev {
 	void				*private;
@@ -219,10 +227,6 @@ struct mddev {
 	int				md_minor;
 	struct list_head		disks;
 	unsigned long			flags;
-#define MD_CHANGE_DEVS	0	/* Some device status has changed */
-#define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
-#define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
-#define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
 #define MD_CLOSING	4	/* If set, we are closing the array, do not open
 				 * it then */
@@ -233,6 +237,7 @@ struct mddev {
 				 * never cause the array to become failed.
 				 */
 #define	MD_NEED_REWRITE	8	/* metadata write needs to be repeated */
+	unsigned long			sb_flags;
 
 	int				suspended;
 	atomic_t			active_io;
