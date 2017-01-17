@@ -2608,18 +2608,19 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 
 	while (sect_to_write) {
 		struct bio *wbio;
+		sector_t wsector;
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
 		wbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		bio_trim(wbio, sector - bio->bi_sector, sectors);
-		wbio->bi_sector = (r10_bio->devs[i].addr+
-				   choose_data_offset(r10_bio, rdev) +
-				   (sector - r10_bio->sector));
+		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
+		wbio->bi_sector = wsector +
+				   choose_data_offset(r10_bio, rdev);
 		wbio->bi_bdev = rdev->bdev;
 		if (submit_bio_wait(WRITE, wbio) < 0)
 			/* Failure! */
-			ok = rdev_set_badblocks(rdev, sector,
+			ok = rdev_set_badblocks(rdev, wsector,
 						sectors, 0)
 				&& ok;
 
