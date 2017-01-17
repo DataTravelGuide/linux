@@ -143,8 +143,8 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 		sector_t sectors;
 
 		if (j < 0 || j >= raid_disks || disk->rdev) {
-			printk(KERN_ERR "md/linear:%s: disk numbering problem. Aborting!\n",
-			       mdname(mddev));
+			pr_warn("md/linear:%s: disk numbering problem. Aborting!\n",
+				mdname(mddev));
 			goto out;
 		}
 
@@ -165,8 +165,8 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 			discard_supported = true;
 	}
 	if (cnt != raid_disks) {
-		printk(KERN_ERR "md/linear:%s: not enough drives present. Aborting!\n",
-		       mdname(mddev));
+		pr_warn("md/linear:%s: not enough drives present. Aborting!\n",
+			mdname(mddev));
 		goto out;
 	}
 
@@ -274,9 +274,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		     || (bio->bi_sector < start_sector))) {
 		char b[BDEVNAME_SIZE];
 
-		printk(KERN_ERR
-		       "md/linear:%s: make_request: Sector %llu out of bounds on "
-		       "dev %s: %llu sectors, offset %llu\n",
+		pr_err("md/linear:%s: make_request: Sector %llu out of bounds on dev %s: %llu sectors, offset %llu\n",
 		       mdname(mddev),
 		       (unsigned long long)bio->bi_sector,
 		       bdevname(tmp_dev->rdev->bdev, b),
@@ -316,7 +314,6 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 
 static void linear_status (struct seq_file *seq, struct mddev *mddev)
 {
-
 	seq_printf(seq, " %dk rounding", mddev->chunk_sectors / 2);
 }
 
