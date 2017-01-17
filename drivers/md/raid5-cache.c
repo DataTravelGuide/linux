@@ -1415,7 +1415,6 @@ r5l_recovery_create_empty_meta_block(struct r5l_log *log,
 				     sector_t pos, u64 seq)
 {
 	struct r5l_meta_block *mb;
-	u32 crc;
 
 	mb = page_address(page);
 	clear_page(mb);
@@ -1424,19 +1423,21 @@ r5l_recovery_create_empty_meta_block(struct r5l_log *log,
 	mb->meta_size = cpu_to_le32(sizeof(struct r5l_meta_block));
 	mb->seq = cpu_to_le64(seq);
 	mb->position = cpu_to_le64(pos);
-	crc = crc32c_le(log->uuid_checksum, mb, PAGE_SIZE);
-	mb->checksum = cpu_to_le32(crc);
 }
 
 static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 					  u64 seq)
 {
 	struct page *page;
+	struct r5l_meta_block *mb;
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 	r5l_recovery_create_empty_meta_block(log, page, pos, seq);
+	mb = page_address(page);
+	mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
+					     mb, PAGE_SIZE));
 	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page,
 			  WRITE_FUA, false)) {
 		__free_page(page);
@@ -2010,7 +2011,8 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 			}
 		}
 		mb->meta_size = cpu_to_le32(offset);
-		mb->checksum = crc32c_le(log->uuid_checksum, mb, PAGE_SIZE);
+		mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
+						     mb, PAGE_SIZE));
 		sync_page_io(log->rdev, ctx->pos, PAGE_SIZE, page,
 			     WRITE_FUA, false);
 		sh->log_start = ctx->pos;
