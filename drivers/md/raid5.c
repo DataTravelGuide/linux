@@ -7881,7 +7881,7 @@ static void *raid5_takeover_raid1(struct mddev *mddev)
 	mddev->new_chunk_sectors = chunksect;
 
 	ret = setup_conf(mddev);
-	if (!IS_ERR_VALUE(ret))
+	if (!IS_ERR(ret))
 		clear_bit(MD_FAILFAST_SUPPORTED, &mddev->flags);
 	return ret;
 }
