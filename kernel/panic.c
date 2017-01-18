@@ -281,45 +281,41 @@ void panic(const char *fmt, ...)
 
 EXPORT_SYMBOL(panic);
 
-
-struct tnt {
-	u8	bit;
-	char	true;
-	char	false;
-};
-
-static const struct tnt tnts[] = {
-	{ TAINT_PROPRIETARY_MODULE,	'P', 'G' },
-	{ TAINT_FORCED_MODULE,		'F', ' ' },
-	{ TAINT_UNSAFE_SMP,		'S', ' ' },
-	{ TAINT_FORCED_RMMOD,		'R', ' ' },
-	{ TAINT_MACHINE_CHECK,		'M', ' ' },
-	{ TAINT_BAD_PAGE,		'B', ' ' },
-	{ TAINT_USER,			'U', ' ' },
-	{ TAINT_DIE,			'D', ' ' },
-	{ TAINT_OVERRIDDEN_ACPI_TABLE,	'A', ' ' },
-	{ TAINT_WARN,			'W', ' ' },
-	{ TAINT_CRAP,			'C', ' ' },
-	{ TAINT_FIRMWARE_WORKAROUND,	'I', ' ' },
-	{ TAINT_OOT_MODULE,		'O', ' ' },
-	{ TAINT_UNSIGNED_MODULE,	'E', ' ' },
-	{ TAINT_SOFTLOCKUP,		'L', ' ' },
-	{ TAINT_LIVEPATCH,		'K', ' ' },
-	{ TAINT_16,			'?', '-' },
-	{ TAINT_17,			'?', '-' },
-	{ TAINT_18,			'?', '-' },
-	{ TAINT_19,			'?', '-' },
-	{ TAINT_20,			'?', '-' },
-	{ TAINT_21,			'?', '-' },
-	{ TAINT_22,			'?', '-' },
-	{ TAINT_23,			'?', '-' },
-	{ TAINT_24,			'?', '-' },
-	{ TAINT_25,			'?', '-' },
-	{ TAINT_26,			'?', '-' },
-	{ TAINT_27,			'?', '-' },
-	{ TAINT_HARDWARE_UNSUPPORTED,	'H', ' ' },
-	{ TAINT_TECH_PREVIEW,		'T', ' ' },
-
+/*
+ * TAINT_FORCED_RMMOD could be a per-module flag but the module
+ * is being removed anyway.
+ */
+const struct taint_flag taint_flags[TAINT_FLAGS_COUNT] = {
+	{ 'P', 'G', true },	/* TAINT_PROPRIETARY_MODULE */
+	{ 'F', ' ', true },	/* TAINT_FORCED_MODULE */
+	{ 'S', ' ', false },	/* TAINT_CPU_OUT_OF_SPEC */
+	{ 'R', ' ', false },	/* TAINT_FORCED_RMMOD */
+	{ 'M', ' ', false },	/* TAINT_MACHINE_CHECK */
+	{ 'B', ' ', false },	/* TAINT_BAD_PAGE */
+	{ 'U', ' ', false },	/* TAINT_USER */
+	{ 'D', ' ', false },	/* TAINT_DIE */
+	{ 'A', ' ', false },	/* TAINT_OVERRIDDEN_ACPI_TABLE */
+	{ 'W', ' ', false },	/* TAINT_WARN */
+	{ 'C', ' ', true },	/* TAINT_CRAP */
+	{ 'I', ' ', false },	/* TAINT_FIRMWARE_WORKAROUND */
+	{ 'O', ' ', true },	/* TAINT_OOT_MODULE */
+	{ 'E', ' ', true },	/* TAINT_UNSIGNED_MODULE */
+	{ 'L', ' ', false },	/* TAINT_SOFTLOCKUP */
+	{ 'K', ' ', true },	/* TAINT_LIVEPATCH */
+	{ '?', '-', false },	/* TAINT_16 */
+	{ '?', '-', false },	/* TAINT_17 */
+	{ '?', '-', false },	/* TAINT_18 */
+	{ '?', '-', false },	/* TAINT_19 */
+	{ '?', '-', false },	/* TAINT_20 */
+	{ '?', '-', false },	/* TAINT_21 */
+	{ '?', '-', false },	/* TAINT_22 */
+	{ '?', '-', false },	/* TAINT_23 */
+	{ '?', '-', false },	/* TAINT_24 */
+	{ '?', '-', false },	/* TAINT_25 */
+	{ '?', '-', false },	/* TAINT_26 */
+	{ '?', '-', false },	/* TAINT_27 */
+	{ 'H', ' ', false },	/* TAINT_HARDWARE_UNSUPPORTED */
+	{ 'T', ' ', true },	/* TAINT_TECH_PREVIEW */
 };
 
 /**
@@ -346,16 +342,16 @@ static const struct tnt tnts[] = {
  */
 const char *print_tainted(void)
 {
-	static char buf[ARRAY_SIZE(tnts) + sizeof("Tainted: ")];
+	static char buf[TAINT_FLAGS_COUNT + sizeof("Tainted: ")];
 
 	if (tainted_mask) {
 		char *s;
 		int i;
 
 		s = buf + sprintf(buf, "Tainted: ");
-		for (i = 0; i < ARRAY_SIZE(tnts); i++) {
-			const struct tnt *t = &tnts[i];
-			*s++ = test_bit(t->bit, &tainted_mask) ?
+		for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
+			const struct taint_flag *t = &taint_flags[i];
+			*s++ = test_bit(i, &tainted_mask) ?
 					t->true : t->false;
 		}
 		*s = 0;

@@ -520,8 +520,15 @@ extern enum system_states {
 /* Bits 30 - 31 are reserved for Red Hat use only */
 #define TAINT_RESERVED30		30
 #define TAINT_RESERVED31		31
+#define TAINT_FLAGS_COUNT		32
 
+struct taint_flag {
+	char true;	/* character printed when tainted */
+	char false;	/* character printed when not tainted */
+	bool module;	/* also show as a per-module taint flag */
+};
 
+extern const struct taint_flag taint_flags[TAINT_FLAGS_COUNT];
 
 extern const char hex_asc[];
 #define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]

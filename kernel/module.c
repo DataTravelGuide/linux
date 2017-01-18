@@ -1107,26 +1107,13 @@ static inline int module_unload_init(struct module *mod)
 static size_t module_flags_taint(struct module *mod, char *buf)
 {
 	size_t l = 0;
+	int i;
 
-	if (mod->taints & (1 << TAINT_PROPRIETARY_MODULE))
-		buf[l++] = 'P';
-	if (mod->taints & (1 << TAINT_OOT_MODULE))
-		buf[l++] = 'O';
-	if (mod->taints & (1 << TAINT_FORCED_MODULE))
-		buf[l++] = 'F';
-	if (mod->taints & (1 << TAINT_CRAP))
-		buf[l++] = 'C';
-	if (mod->taints & (1 << TAINT_UNSIGNED_MODULE))
-		buf[l++] = 'E';
-	if (mod->taints & (1 << TAINT_LIVEPATCH))
-		buf[l++] = 'K';
-	if (mod->taints & (1 << TAINT_TECH_PREVIEW))
-		buf[l++] = 'T';
-	/*
-	 * TAINT_FORCED_RMMOD: could be added.
-	 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
-	 * apply to modules.
-	 */
+	for (i = 0; i < TAINT_FLAGS_COUNT; i++) {
+		if (taint_flags[i].module && (mod->taints & (1U << i)))
+			buf[l++] = taint_flags[i].true;
+	}
+
 	return l;
 }
 
@@ -3808,6 +3795,10 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 }
 #endif /* CONFIG_KALLSYMS */
 
+/* Maximum number of characters written by module_flags() */
+#define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)
+
+/* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */
 static char *module_flags(struct module *mod, char *buf)
 {
 	int bx = 0;
@@ -3852,7 +3843,7 @@ static void m_stop(struct seq_file *m, void *p)
 static int m_show(struct seq_file *m, void *p)
 {
 	struct module *mod = list_entry(p, struct module, list);
-	char buf[8];
+	char buf[MODULE_FLAGS_BUF_SIZE];
 
 	/* We always ignore unformed modules. */
 	if (mod->state == MODULE_STATE_UNFORMED)
@@ -4022,7 +4013,7 @@ EXPORT_SYMBOL_GPL(__module_text_address);
 void print_modules(void)
 {
 	struct module *mod;
-	char buf[8];
+	char buf[MODULE_FLAGS_BUF_SIZE];
 
 	printk(KERN_DEFAULT "Modules linked in:");
 	/* Most callers should already have preempt disabled, but make sure */
