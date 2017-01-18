@@ -25,7 +25,7 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version);
 
 struct net_device *gretap_fb_dev_create(struct net *net, const char *name);
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
-		     bool *csum_err, int *hdr_len);
+		     bool *csum_err);
 
 static inline int gre_calc_hlen(__be16 o_flags)
 {
