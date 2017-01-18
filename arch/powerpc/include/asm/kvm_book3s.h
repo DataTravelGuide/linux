@@ -103,6 +103,7 @@ struct kvmppc_vcore {
 	ulong dpdes;		/* doorbell state (POWER8) */
 	ulong vtb;		/* virtual timebase */
 	ulong conferring_threads;
+	unsigned int halt_poll_ns;
 };
 
 struct kvmppc_vcpu_book3s {
