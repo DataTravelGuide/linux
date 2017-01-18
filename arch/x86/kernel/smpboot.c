@@ -113,6 +113,7 @@ static unsigned long *logical_package_map  __read_mostly;
 static unsigned int max_physical_pkg_id __read_mostly;
 unsigned int __max_logical_packages __read_mostly;
 EXPORT_SYMBOL(__max_logical_packages);
+static unsigned int logical_packages __read_mostly;
 
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
@@ -243,9 +244,14 @@ static void notrace start_secondary(void *unused)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
-int topology_update_package_map(unsigned int apicid, unsigned int cpu)
+/**
+ * topology_update_package_map - Update the physical to logical package map
+ * @pkg:	The physical package id as retrieved via CPUID
+ * @cpu:	The cpu for which this is updated
+ */
+int topology_update_package_map(unsigned int pkg, unsigned int cpu)
 {
-	unsigned int new, pkg = apicid >> boot_cpu_data.x86_coreid_bits;
+	unsigned int new;
 
 	/* Called from early boot ? */
 	if (!physical_package_map)
@@ -258,16 +264,17 @@ int topology_update_package_map(unsigned int apicid, unsigned int cpu)
 	if (test_and_set_bit(pkg, physical_package_map))
 		goto found;
 
-	new = find_first_zero_bit(logical_package_map, __max_logical_packages);
-	if (new >= __max_logical_packages) {
-		physical_to_logical_pkg[pkg] = -1;
-		pr_warn("APIC(%x) Package %u exceeds logical package map\n",
-			apicid, pkg);
+	if (logical_packages >= __max_logical_packages) {
+		pr_warn("Package %u of CPU %u exceeds BIOS package data %u.\n",
+			logical_packages, cpu, __max_logical_packages);
 		return -ENOSPC;
 	}
-	set_bit(new, logical_package_map);
-	pr_info("APIC(%x) Converting physical %u to logical package %u\n",
-		apicid, pkg, new);
+
+	new = logical_packages++;
+	if (new != pkg) {
+		pr_info("CPU %u Converting physical %u to logical package %u\n",
+			cpu, pkg, new);
+	}
 	physical_to_logical_pkg[pkg] = new;
 
 found:
@@ -288,9 +295,9 @@ int topology_phys_to_logical_pkg(unsigned int phys_pkg)
 }
 EXPORT_SYMBOL(topology_phys_to_logical_pkg);
 
-static void __init smp_init_package_map(void)
+static void __init smp_init_package_map(struct cpuinfo_x86 *c, unsigned int cpu)
 {
-	unsigned int ncpus, cpu;
+	unsigned int ncpus;
 	size_t size;
 
 	/*
@@ -338,18 +345,9 @@ static void __init smp_init_package_map(void)
 
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
-	for_each_present_cpu(cpu) {
-		unsigned int apicid = apic->cpu_present_to_apicid(cpu);
+	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
-		if (apicid == BAD_APICID || !apic->apic_id_valid(apicid))
-			continue;
-		if (!topology_update_package_map(apicid, cpu))
-			continue;
-		pr_warn("CPU %u APICId %x disabled\n", cpu, apicid);
-		per_cpu(x86_bios_cpu_apicid, cpu) = BAD_APICID;
-		set_cpu_possible(cpu, false);
-		set_cpu_present(cpu, false);
-	}
+	topology_update_package_map(c->phys_proc_id, cpu);
 }
 
 void __init smp_store_boot_cpu_info(void)
@@ -361,7 +359,7 @@ void __init smp_store_boot_cpu_info(void)
 	*c = boot_cpu_data;
 	c->cpu_index = id;
 	*rh_c = rh_boot_cpu_data;
-	smp_init_package_map();
+	smp_init_package_map(c, id);
 }
 
 /*
