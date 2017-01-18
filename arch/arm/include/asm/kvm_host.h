@@ -141,13 +141,13 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_vcpu_stat {
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_wakeup;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_wakeup;
 };
 
 int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
