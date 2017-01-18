@@ -261,7 +261,8 @@ static __be32 tunnel_id_to_key(__be64 x)
 #endif
 }
 
-static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
+static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
+		     int hdr_len)
 {
 	struct net *net = dev_net(skb->dev);
 	struct metadata_dst *tun_dst = NULL;
@@ -279,6 +280,9 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 				  iph->saddr, iph->daddr, tpi->key);
 
 	if (tunnel) {
+		if (iptunnel_pull_header(skb, hdr_len, tpi->proto, false) < 0)
+			goto drop;
+
 		skb_pop_mac_header(skb);
 		if (tunnel->collect_md) {
 			__be16 flags;
@@ -295,6 +299,10 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 		return PACKET_RCVD;
 	}
 	return PACKET_REJECT;
+
+drop:
+	kfree_skb(skb);
+	return PACKET_RCVD;
 }
 
 static int gre_rcv(struct sk_buff *skb)
@@ -315,10 +323,7 @@ static int gre_rcv(struct sk_buff *skb)
 	if (hdr_len < 0)
 		goto drop;
 
-	if (iptunnel_pull_header(skb, hdr_len, tpi.proto, false))
-		goto drop;
-
-	if (ipgre_rcv(skb, &tpi) == PACKET_RCVD)
+	if (ipgre_rcv(skb, &tpi, hdr_len) == PACKET_RCVD)
 		return 0;
 
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
