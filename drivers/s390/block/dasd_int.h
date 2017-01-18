@@ -235,6 +235,13 @@ struct dasd_ccw_req {
 					 * stolen. Should not be combined with
 					 * DASD_CQR_FLAGS_USE_ERP
 					 */
+/*
+ * The following flags are used to suppress output of certain errors.
+ * These flags should only be used for format checks!
+ */
+#define DASD_CQR_SUPPRESS_NRF	4	/* Suppress 'No Record Found' error */
+#define DASD_CQR_SUPPRESS_FP	5	/* Suppress 'File Protected' error*/
+#define DASD_CQR_SUPPRESS_IL	6	/* Suppress 'Incorrect Length' error */
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
@@ -317,7 +324,8 @@ struct dasd_discipline {
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and
 	 * term_IO cancels it (e.g. in case of a timeout). format_device
-	 * returns a ccw chain to be used to format the device.
+	 * formats the device and check_device_format compares the format of
+	 * a device with the expected format_data.
 	 * handle_terminated_request allows to examine a cqr and prepare
 	 * it for retry.
 	 */
@@ -328,7 +336,9 @@ struct dasd_discipline {
 	int (*term_IO) (struct dasd_ccw_req *);
 	void (*handle_terminated_request) (struct dasd_ccw_req *);
 	int (*format_device) (struct dasd_device *,
-			      struct format_data_t *, int enable_PAV);
+			      struct format_data_t *, int);
+	int (*check_device_format)(struct dasd_device *,
+				   struct format_check_t *, int);
 	int (*free_cp) (struct dasd_ccw_req *, struct request *);
 
 	/*
@@ -464,7 +474,7 @@ struct dasd_device {
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
 	struct dasd_discipline *base_discipline;
-	char *private;
+	void *private;
 	struct dasd_path path[8];
 	__u8 opm;
 
