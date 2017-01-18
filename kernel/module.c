@@ -1118,6 +1118,8 @@ static size_t module_flags_taint(struct module *mod, char *buf)
 		buf[l++] = 'C';
 	if (mod->taints & (1 << TAINT_UNSIGNED_MODULE))
 		buf[l++] = 'E';
+	if (mod->taints & (1 << TAINT_LIVEPATCH))
+		buf[l++] = 'K';
 	if (mod->taints & (1 << TAINT_TECH_PREVIEW))
 		buf[l++] = 'T';
 	/*
@@ -2591,6 +2593,14 @@ static int elf_header_check(struct load_info *info)
 	return 0;
 }
 
+static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
+{
+	if (get_modinfo(info, "livepatch"))
+		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+
+	return 0;
+}
+
 /* Sets info->hdr and info->len. */
 static int copy_module_from_user(const void __user *umod, unsigned long len,
 				  struct load_info *info)
@@ -2808,6 +2818,10 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 		       " the quality is unknown, you have been warned.\n",
 		       mod->name);
 	}
+
+	err = check_modinfo_livepatch(mod, info);
+	if (err)
+		return err;
 
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(info, "license"));
