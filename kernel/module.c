@@ -2595,8 +2595,11 @@ static int elf_header_check(struct load_info *info)
 
 static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 {
-	if (get_modinfo(info, "livepatch"))
+	if (get_modinfo(info, "livepatch")) {
 		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+		pr_notice_once("%s: tainting kernel with TAINT_LIVEPATCH\n",
+			       mod->name);
+	}
 
 	return 0;
 }
