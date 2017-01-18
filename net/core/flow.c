@@ -504,3 +504,17 @@ void flow_cache_fini(struct net *net)
 	fc->percpu = NULL;
 }
 EXPORT_SYMBOL(flow_cache_fini);
+
+__u32 __get_hash_from_flowi4(struct flowi4 *fl4, struct flow_keys *keys)
+{
+	memset(keys, 0, sizeof(*keys));
+
+	keys->src = fl4->saddr;
+	keys->dst = fl4->daddr;
+	keys->port16[0] = fl4->fl4_sport;
+	keys->port16[1] = fl4->fl4_dport;
+	keys->ip_proto = fl4->flowi4_proto;
+
+	return flow_hash_from_keys(keys);
+}
+EXPORT_SYMBOL(__get_hash_from_flowi4);

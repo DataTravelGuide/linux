@@ -11,6 +11,7 @@
 #include <linux/in6.h>
 #include <linux/atomic.h>
 #include <linux/rh_kabi.h>
+#include <linux/skbuff.h>
 
 struct flowi_tunnel {
 	__be64			tun_id;
@@ -268,5 +269,14 @@ void flow_cache_fini(struct net *net);
 void flow_cache_flush(struct net *net);
 void flow_cache_flush_deferred(struct net *net);
 extern atomic_t flow_cache_genid;
+
+__u32 __get_hash_from_flowi4(struct flowi4 *fl4, struct flow_keys *keys);
+
+static inline __u32 get_hash_from_flowi4(struct flowi4 *fl4)
+{
+	struct flow_keys keys;
+
+	return __get_hash_from_flowi4(fl4, &keys);
+}
 
 #endif
