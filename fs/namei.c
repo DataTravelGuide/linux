@@ -2150,37 +2150,10 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
  * needs parent already locked. Doesn't follow mounts.
  * SMP-safe.
  */
-static struct dentry *lookup_hash_locked(struct nameidata *nd)
+static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	return __lookup_hash(&nd->last, nd->path.dentry, nd->flags);
 }
-
-/**
- * lookup_hash - lookup single pathname component on already hashed name
- * @name:	name and hash to lookup
- * @base:	base directory to lookup from
- *
- * The name must have been verified and hashed (see lookup_one_len()).  Using
- * this after just full_name_hash() is unsafe.
- *
- * This function also doesn't check for search permission on base directory.
- *
- * Use lookup_one_len() instead, unless you really know what you are
- * doing.
- *
- * Do not hold i_mutex; this helper takes i_mutex if necessary.
- */
-struct dentry *lookup_hash(struct qstr *name, struct dentry *base)
-{
-	struct dentry *ret;
-
-	mutex_lock(&base->d_inode->i_mutex);
-	ret = __lookup_hash(name, base, 0);
-	mutex_unlock(&base->d_inode->i_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL(lookup_hash);
 
 /**
  * lookup_one_len - filesystem helper to lookup single pathname component
@@ -3435,7 +3408,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	 * Do the final lookup.
 	 */
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash_locked(&nd);
+	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry))
 		goto unlock;
 
@@ -3744,7 +3717,7 @@ retry:
 		goto exit1;
 
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash_locked(&nd);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto exit2;
@@ -3861,7 +3834,7 @@ retry:
 		goto exit1;
 retry_deleg:
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash_locked(&nd);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
@@ -4382,7 +4355,7 @@ retry:
 retry_deleg:
 	trap = lock_rename(new_dir, old_dir);
 
-	old_dentry = lookup_hash_locked(&oldnd);
+	old_dentry = lookup_hash(&oldnd);
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
@@ -4390,7 +4363,7 @@ retry_deleg:
 	error = -ENOENT;
 	if (d_is_negative(old_dentry))
 		goto exit4;
-	new_dentry = lookup_hash_locked(&newnd);
+	new_dentry = lookup_hash(&newnd);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;
