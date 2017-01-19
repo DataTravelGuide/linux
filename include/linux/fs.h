@@ -1104,6 +1104,18 @@ struct file_lock {
 
 extern void send_sigio(struct fown_struct *fown, int fd, int band);
 
+/*
+ * Return the inode to use for locking
+ *
+ * For overlayfs this should be the overlay inode, not the real inode returned
+ * by file_inode().  For any other fs file_inode(filp) and locks_inode(filp) are
+ * equal.
+ */
+static inline struct inode *locks_inode(const struct file *f)
+{
+	return f->f_path.dentry->d_inode;
+}
+
 #ifdef CONFIG_FILE_LOCKING
 extern int fcntl_getlk(struct file *, struct flock __user *);
 extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
@@ -1299,12 +1311,12 @@ static inline struct inode *file_inode(const struct file *f)
 
 static inline int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
-	return posix_lock_inode_wait(file_inode(filp), fl);
+	return posix_lock_inode_wait(locks_inode(filp), fl);
 }
 
 static inline int flock_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
-	return flock_lock_inode_wait(file_inode(filp), fl);
+	return flock_lock_inode_wait(locks_inode(filp), fl);
 }
 
 struct fasync_struct {
@@ -2244,7 +2256,7 @@ static inline int mandatory_lock(struct inode *ino)
 
 static inline int locks_verify_locked(struct file *file)
 {
-	if (mandatory_lock(file_inode(file)))
+	if (mandatory_lock(locks_inode(file)))
 		return locks_mandatory_locked(file);
 	return 0;
 }
