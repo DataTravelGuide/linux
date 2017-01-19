@@ -207,25 +207,6 @@ static void ovl_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 	kfree(data);
 }
 
-static int ovl_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
-{
-	struct path realpath;
-	struct inode *realinode;
-	const struct cred *old_cred;
-	int err;
-
-	ovl_path_real(dentry, &realpath);
-	realinode = realpath.dentry->d_inode;
-
-	if (!realinode->i_op->readlink)
-		return -EINVAL;
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = realinode->i_op->readlink(realpath.dentry, buf, bufsiz);
-	revert_creds(old_cred);
-	return err;
-}
-
 bool ovl_is_private_xattr(const char *name)
 {
 	return strncmp(name, OVL_XATTR_PREFIX,
@@ -415,7 +396,7 @@ static const struct inode_operations ovl_symlink_inode_operations = {
 	.setattr	= ovl_setattr,
 	.follow_link	= ovl_follow_link,
 	.put_link	= ovl_put_link,
-	.readlink	= ovl_readlink,
+	.readlink	= generic_readlink,
 	.getattr	= ovl_getattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
