@@ -2219,7 +2219,7 @@ extern int rw_verify_area(int, struct file *, loff_t *, size_t);
 #define FLOCK_VERIFY_WRITE 2
 
 #ifdef CONFIG_FILE_LOCKING
-extern int locks_mandatory_locked(struct inode *);
+extern int locks_mandatory_locked(struct file *);
 extern int locks_mandatory_area(int, struct inode *, struct file *, loff_t, size_t);
 
 /*
@@ -2242,10 +2242,10 @@ static inline int mandatory_lock(struct inode *ino)
 	return IS_MANDLOCK(ino) && __mandatory_lock(ino);
 }
 
-static inline int locks_verify_locked(struct inode *inode)
+static inline int locks_verify_locked(struct file *file)
 {
-	if (mandatory_lock(inode))
-		return locks_mandatory_locked(inode);
+	if (mandatory_lock(file_inode(file)))
+		return locks_mandatory_locked(file);
 	return 0;
 }
 
@@ -2316,7 +2316,7 @@ static inline int break_layout(struct inode *inode, bool wait)
 }
 
 #else /* !CONFIG_FILE_LOCKING */
-static inline int locks_mandatory_locked(struct inode *inode)
+static inline int locks_mandatory_locked(struct file *file)
 {
 	return 0;
 }
@@ -2338,7 +2338,7 @@ static inline int mandatory_lock(struct inode *inode)
 	return 0;
 }
 
-static inline int locks_verify_locked(struct inode *inode)
+static inline int locks_verify_locked(struct file *file)
 {
 	return 0;
 }
