@@ -111,6 +111,15 @@ extern int open_check_o_direct(struct file *f);
 extern spinlock_t inode_sb_list_lock;
 extern void inode_add_lru(struct inode *inode);
 
+extern bool __atime_needs_update(const struct path *, struct inode *, bool);
+static inline bool atime_needs_update_rcu(const struct path *path,
+					  struct inode *inode)
+{
+	return __atime_needs_update(path, inode, true);
+}
+
+extern bool atime_needs_update_rcu(const struct path *, struct inode *);
+
 /*
  * fs-writeback.c
  */
