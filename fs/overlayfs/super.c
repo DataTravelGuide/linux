@@ -1051,6 +1051,21 @@ ovl_posix_acl_xattr_set(struct dentry *dentry,
 
 	posix_acl_release(acl);
 
+	/*
+	 * Check if sgid bit needs to be cleared (actual setacl operation will
+	 * be done with mounter's capabilities and so that won't do it for us).
+	 */
+	if (unlikely(inode->i_mode & S_ISGID) &&
+	    handler_flags == ACL_TYPE_ACCESS &&
+	    !in_group_p(inode->i_gid) &&
+	    !capable_wrt_inode_uidgid(inode, CAP_FSETID)) {
+		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
+
+		err = ovl_setattr(dentry, &iattr);
+		if (err)
+			return err;
+	}
+
 	err = ovl_xattr_set(dentry, handler_flags == ACL_TYPE_DEFAULT ? XATTR_NAME_POSIX_ACL_DEFAULT : XATTR_NAME_POSIX_ACL_ACCESS,
 			     value, size, flags);
 	if (!err)
