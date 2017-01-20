@@ -170,7 +170,8 @@
 #define PCI_DEVICE_ID_AMD_15H_M60H_NB_F2 0x1572
 #define PCI_DEVICE_ID_AMD_16H_NB_F1	0x1531
 #define PCI_DEVICE_ID_AMD_16H_NB_F2	0x1532
-
+#define PCI_DEVICE_ID_AMD_17H_DF_F0    0x1460
+#define PCI_DEVICE_ID_AMD_17H_DF_F6    0x1466
 /*
  * Function 1 - Address Map
  */
@@ -315,6 +316,7 @@ enum amd_families {
 	F15_M30H_CPUS,
 	F15_M60H_CPUS,
 	F16_CPUS,
+	F17_CPUS,
 	NUM_FAMILIES,
 };
 
@@ -345,6 +347,10 @@ struct chip_select {
 
 	u32 csmasks[NUM_CHIPSELECTS];
 	u8 m_cnt;
+};
+
+struct amd64_umc {
+	u32 sdp_ctrl;		/* SDP Control reg */
 };
 
 struct amd64_pvt {
@@ -394,6 +400,8 @@ struct amd64_pvt {
 
 	/* cache the dram_type */
 	enum mem_type dram_type;
+
+	struct amd64_umc *umc;	/* UMC registers */
 };
 
 enum err_codes {
@@ -507,7 +515,7 @@ struct low_ops {
 
 struct amd64_family_type {
 	const char *ctl_name;
-	u16 f1_id, f2_id;
+	u16 f0_id, f1_id, f2_id, f6_id;
 	struct low_ops ops;
 };
 
