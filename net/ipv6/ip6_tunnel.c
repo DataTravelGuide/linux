@@ -895,7 +895,7 @@ drop:
 
 static int ip4ip6_rcv(struct sk_buff *skb)
 {
-	return ipxip6_rcv(skb, IPPROTO_IP, &tpi_v4,
+	return ipxip6_rcv(skb, IPPROTO_IPIP, &tpi_v4,
 			  ip4ip6_dscp_ecn_decapsulate);
 }
 
