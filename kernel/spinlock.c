@@ -115,6 +115,19 @@ BUILD_LOCK_OPS(write, rwlock);
 
 #endif
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+#undef _raw_spin_lock
+#undef _raw_spin_lock_irq
+
+void __lockfunc _raw_qspin_lock(raw_spinlock_t *lock)
+		__attribute__((weak, alias("_raw_spin_lock")));
+EXPORT_SYMBOL(_raw_qspin_lock);
+
+void __lockfunc _raw_qspin_lock_irq(raw_spinlock_t *lock)
+		__attribute__((weak, alias("_raw_spin_lock_irq")));
+EXPORT_SYMBOL(_raw_qspin_lock_irq);
+#endif
+
 #ifndef CONFIG_INLINE_SPIN_TRYLOCK
 int __lockfunc _raw_spin_trylock(raw_spinlock_t *lock)
 {

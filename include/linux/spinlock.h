@@ -167,6 +167,11 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 }
 #endif
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+#define _raw_spin_lock(lock)		_raw_qspin_lock(lock)
+#define _raw_spin_lock_irq(lock)	_raw_qspin_lock_irq(lock)
+#endif
+
 /*
  * Define the various spin_lock methods.  Note we define these
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The
