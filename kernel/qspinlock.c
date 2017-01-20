@@ -96,16 +96,16 @@ static inline u32 encode_tail(int cpu, int idx)
 #ifdef CONFIG_DEBUG_SPINLOCK
 	BUG_ON(idx > 3);
 #endif
-	tail  = (cpu + 1) << _Q_TAIL_CPU_OFFSET;
-	tail |= idx << _Q_TAIL_IDX_OFFSET; /* assume < 4 */
+	tail  =  cpu << _Q_TAIL_CPU_OFFSET;
+	tail |= (idx << (_Q_TAIL_IDX_OFFSET + 1)) | (1 << _Q_TAIL_IDX_OFFSET);
 
 	return tail;
 }
 
 static inline struct mcs_spinlock *decode_tail(u32 tail)
 {
-	int cpu = (tail >> _Q_TAIL_CPU_OFFSET) - 1;
-	int idx = (tail &  _Q_TAIL_IDX_MASK) >> _Q_TAIL_IDX_OFFSET;
+	int cpu = tail >> _Q_TAIL_CPU_OFFSET;
+	int idx = (tail &  _Q_TAIL_IDX_MASK) >> (_Q_TAIL_IDX_OFFSET + 1);
 
 	return per_cpu_ptr(&mcs_nodes[idx], cpu);
 }
@@ -317,6 +317,16 @@ done:
 EXPORT_SYMBOL(queued_spin_unlock_wait);
 #endif
 
+/*
+ * Enable paravirt_ticketlocks_enabled call sites patching.
+ */
+static int __init queued_enable_pv_ticketlock(void)
+{
+	static_key_slow_inc(&paravirt_ticketlocks_enabled);
+	return 0;
+}
+pure_initcall(queued_enable_pv_ticketlock);
+
 #endif /* _GEN_PV_LOCK_SLOWPATH */
 
 /**
@@ -403,9 +413,16 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	 * store-release that clears the locked bit and create lock
 	 * sequentiality; this is because not all clear_pending_set_locked()
 	 * implementations imply full barriers.
+	 *
+	 * We also need to check for possible _Q_UNLOCKED_VAL.
 	 */
-	while ((val = smp_load_acquire(&lock->val.counter)) & _Q_LOCKED_MASK)
+	for (;;) {
+		val = smp_load_acquire(&lock->val.counter);
+		if (!(val & _Q_LOCKED_MASK) ||
+		    ((val & _Q_LOCKED_MASK) == _Q_UNLOCKED_VAL))
+			break;
 		cpu_relax();
+	}
 
 	/*
 	 * take ownership and clear the pending bit.
@@ -488,8 +505,16 @@ queue:
 	if ((val = pv_wait_head_or_lock(lock, node)))
 		goto locked;
 
-	while ((val = smp_load_acquire(&lock->val.counter)) & _Q_LOCKED_PENDING_MASK)
+	/*
+	 * Check for the _Q_UNLOCKED_VAL as well.
+	 */
+	for (;;) {
+		val = smp_load_acquire(&lock->val.counter);
+		if (!(val & _Q_LOCKED_PENDING_MASK) ||
+		    ((val & _Q_LOCKED_PENDING_MASK) == _Q_UNLOCKED_VAL))
+			break;
 		cpu_relax();
+	}
 
 locked:
 	/*

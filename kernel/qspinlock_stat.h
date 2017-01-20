@@ -28,6 +28,10 @@
  *   pv_wait_early	- # of early vCPU wait's
  *   pv_wait_head	- # of vCPU wait's at the queue head
  *   pv_wait_node	- # of vCPU wait's at a non-head queue node
+ *   pv_ticket_unlock	- # of ticket unlock calls
+ *   pv_ticket_slow	- # of ticket unlock slowpath calls
+ *   pv_ticket_wait	- # of ticket unlock waits
+ *   pv_unhash_fail	- # of pv_unhash failures
  *
  * Writing to the "reset_counters" file will reset all the above counter
  * values.
@@ -51,6 +55,10 @@ enum qlock_stats {
 	qstat_pv_wait_early,
 	qstat_pv_wait_head,
 	qstat_pv_wait_node,
+	qstat_pv_ticket_unlock,
+	qstat_pv_ticket_slow,
+	qstat_pv_ticket_wait,
+	qstat_pv_unhash_fail,
 	qstat_num,	/* Total number of statistical counters */
 	qstat_reset_cnts = qstat_num,
 };
@@ -75,6 +83,10 @@ static const char * const qstat_names[qstat_num + 1] = {
 	[qstat_pv_wait_early]      = "pv_wait_early",
 	[qstat_pv_wait_head]       = "pv_wait_head",
 	[qstat_pv_wait_node]       = "pv_wait_node",
+	[qstat_pv_ticket_unlock]   = "pv_ticket_unlock",
+	[qstat_pv_ticket_slow]     = "pv_ticket_slow",
+	[qstat_pv_ticket_wait]     = "pv_ticket_wait",
+	[qstat_pv_unhash_fail]     = "pv_unhash_fail",
 	[qstat_reset_cnts]         = "reset_counters",
 };
 

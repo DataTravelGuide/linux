@@ -80,8 +80,10 @@ static __always_inline int queued_spin_is_contended(struct qspinlock *lock)
  */
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
-	if (!atomic_read(&lock->val) &&
-	   (atomic_cmpxchg(&lock->val, 0, _Q_LOCKED_VAL) == 0))
+	int val = atomic_read(&lock->val);
+
+	if ((!val || (val == _Q_UNLOCKED_VAL)) &&
+	   (atomic_cmpxchg(&lock->val, val, _Q_LOCKED_VAL) == val))
 		return 1;
 	return 0;
 }

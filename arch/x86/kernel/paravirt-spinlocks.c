@@ -9,6 +9,9 @@
 #include <asm/paravirt.h>
 
 #ifdef CONFIG_QUEUED_SPINLOCKS
+extern void __pv_ticket_unlock_slowpath(struct arch_spinlock *lock,
+					__ticket_t ticket);
+
 __visible void __native_queued_spin_unlock(struct qspinlock *lock)
 {
 	native_queued_spin_unlock(lock);
@@ -25,13 +28,14 @@ bool pv_is_native_spin_unlock(void)
 
 struct pv_lock_ops pv_lock_ops = {
 #ifdef CONFIG_SMP
+	.lock_spinning = __PV_IS_CALLEE_SAVE(paravirt_nop),
 #ifdef CONFIG_QUEUED_SPINLOCKS
-	.queued_spin_lock_slowpath = native_queued_spin_lock_slowpath,
+	.unlock_kick = __pv_ticket_unlock_slowpath,
 	.queued_spin_unlock = PV_CALLEE_SAVE(__native_queued_spin_unlock),
+	.queued_spin_lock_slowpath = native_queued_spin_lock_slowpath,
 	.wait = paravirt_nop,
 	.kick = paravirt_nop,
 #else /* !CONFIG_QUEUED_SPINLOCKS */
-	.lock_spinning = __PV_IS_CALLEE_SAVE(paravirt_nop),
 	.unlock_kick = paravirt_nop,
 #endif /* !CONFIG_QUEUED_SPINLOCKS */
 #endif /* SMP */

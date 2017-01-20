@@ -20,7 +20,9 @@
  * native_queued_spin_unlock().
  */
 
-#define _Q_SLOW_VAL	(3U << _Q_LOCKED_OFFSET)
+#define _Q_SLOW_BIT		(4U << _Q_LOCKED_OFFSET)
+#define _Q_SLOW_VAL		(5U << _Q_LOCKED_OFFSET)
+#define _Q_SLOW_UNLOCKED_VAL	(_Q_SLOW_VAL | _Q_UNLOCKED_VAL)
 
 /*
  * Queue Node Adaptive Spinning
@@ -97,10 +99,11 @@ static __always_inline void clear_pending(struct qspinlock *lock)
 static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 {
 	struct __qspinlock *l = (void *)lock;
+	u8 locked = READ_ONCE(l->locked);
 
-	return !READ_ONCE(l->locked) &&
-	       (cmpxchg(&l->locked_pending, _Q_PENDING_VAL, _Q_LOCKED_VAL)
-			== _Q_PENDING_VAL);
+	return (!locked || (locked == _Q_UNLOCKED_VAL)) &&
+	       (cmpxchg(&l->locked_pending, (_Q_PENDING_VAL | locked),
+			_Q_LOCKED_VAL) == (_Q_PENDING_VAL | locked));
 }
 #else /* _Q_PENDING_BITS == 8 */
 static __always_inline void set_pending(struct qspinlock *lock)
@@ -239,13 +242,11 @@ static struct pv_node *pv_unhash(struct qspinlock *lock)
 		}
 	}
 	/*
-	 * Hard assume we'll find an entry.
-	 *
-	 * This guarantees a limited lookup time and is itself guaranteed by
-	 * having the lock owner do the unhash -- IFF the unlock sees the
-	 * SLOW flag, there MUST be a hash entry.
+	 * Due to racing between ticket unlockers and/or queued unlockers,
+	 * it is possible that the hash entry can't be found.
 	 */
-	BUG();
+	qstat_inc(qstat_pv_unhash_fail, true);
+	return NULL;
 }
 
 /*
@@ -415,6 +416,8 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 		clear_pending(lock);
 
 		if (!lp) { /* ONCE */
+			u8 locked;
+
 			lp = pv_hash(lock, pn);
 
 			/*
@@ -428,7 +431,8 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 			 *
 			 * Matches the smp_rmb() in __pv_queued_spin_unlock().
 			 */
-			if (xchg(&l->locked, _Q_SLOW_VAL) == 0) {
+			locked = xchg(&l->locked, _Q_SLOW_VAL);
+			if (!locked || (locked == _Q_UNLOCKED_VAL)) {
 				/*
 				 * The lock was free and now we own the lock.
 				 * Change the lock value back to _Q_LOCKED_VAL
@@ -470,7 +474,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 	struct __qspinlock *l = (void *)lock;
 	struct pv_node *node;
 
-	if (unlikely(locked != _Q_SLOW_VAL)) {
+	if (unlikely(locked & ~_Q_SLOW_UNLOCKED_VAL)) {
 		WARN(!debug_locks_silent,
 		     "pvqspinlock: lock 0x%lx has corrupted value 0x%x!\n",
 		     (unsigned long)lock, atomic_read(&lock->val));
@@ -503,8 +507,10 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 	 * vCPU is harmless other than the additional latency in completing
 	 * the unlock.
 	 */
-	qstat_inc(qstat_pv_kick_unlock, true);
-	pv_kick(node->cpu);
+	if (node) {
+		qstat_inc(qstat_pv_kick_unlock, true);
+		pv_kick(node->cpu);
+	}
 }
 
 /*
@@ -535,3 +541,68 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 	__pv_queued_spin_unlock_slowpath(lock, locked);
 }
 #endif /* __pv_queued_spin_unlock */
+
+/*
+ * Handle unlock call from ticket lock unlock code.
+ *
+ * The given ticket value will be the lower 16 bits of the lock before
+ * the atomic add with 2 added afterward.
+ */
+void __pv_ticket_unlock_slowpath(struct qspinlock *lock, __ticket_t ticket)
+{
+	struct __qspinlock *l = (void *)lock;
+	struct pv_node *node;
+	u8 locked = READ_ONCE(l->locked);
+
+	qstat_inc(qstat_pv_ticket_unlock, true);
+
+	/*
+	 * As long as the current lock value isn't _Q_SLOW_UNLOCKED_VAL, we
+	 * can safely return and be done with it. The atomic add performed
+	 * by the ticket unlock code will make sure that the top lock waiter
+	 * act properly.
+	 */
+	if (locked != _Q_SLOW_UNLOCKED_VAL)
+		return;
+
+	/*
+	 * In the rare case that the _Q_SLOW_BIT wasn't set before the
+	 * atomic add, but is set now. There are 2 possibilities:
+	 * 1) The lock waiter set the slow bit in between the lower 16 bits
+	 *    read and the atomic add that follows right after that. We
+	 *    need to do a CPU kick.
+	 * 2) The original lock waiter is gone and another lock waiter set
+	 *    the _Q_SLOW_UNLOCKED_VAL, which should be handled by the
+	 *    corresponding unlocker, not us.
+	 *
+	 * We just spin for a little while to see if the value changes and
+	 * be done with it if it ever changes.
+	 */
+	if (!(ticket & _Q_SLOW_BIT)) {
+		int loop = 16;
+
+		qstat_inc(qstat_pv_ticket_wait, true);
+		do {
+			cpu_relax();
+			locked = READ_ONCE(l->locked);
+			if (locked != _Q_SLOW_UNLOCKED_VAL)
+				return;
+		} while (--loop > 0);
+	}
+
+	qstat_inc(qstat_pv_ticket_slow, true);
+	node = pv_unhash(lock);
+	locked = cmpxchg(&l->locked, _Q_SLOW_UNLOCKED_VAL, 0);
+
+	/*
+	 * It is possible that we still have a race here, so we may not find
+	 * the node to kick. In this case, the locked value should have been
+	 * changed from _Q_SLOW_UNLOCKED_VAL.
+	 */
+	WARN_ON_ONCE((locked != _Q_SLOW_UNLOCKED_VAL) != !node);
+
+	if (node) {
+		qstat_inc(qstat_pv_kick_unlock, true);
+		pv_kick(node->cpu);
+	}
+}

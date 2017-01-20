@@ -31,12 +31,12 @@
 /*
  * Maintain the same kABI signature as the ticket lock.
  */
+typedef u16 __ticket_t;
 #ifndef __GENKSYMS__
 typedef struct qspinlock {
 	atomic_t	val;
 } arch_spinlock_t;
 #else
-typedef u16 __ticket_t;
 typedef u32 __ticketpair_t;
 
 typedef struct arch_spinlock {
@@ -57,18 +57,18 @@ typedef struct arch_spinlock {
 /*
  * Bitfields in the atomic value:
  *
- * When NR_CPUS < 16K
+ * When NR_CPUS <= 8K
  *  0- 7: locked byte
  *     8: pending
  *  9-15: not used
- * 16-17: tail index
- * 18-31: tail cpu (+1)
+ * 16-18: tail index (*2 + 1)
+ * 19-31: tail cpu
  *
- * When NR_CPUS >= 16K
+ * When NR_CPUS > 8K
  *  0- 7: locked byte
  *     8: pending
- *  9-10: tail index
- * 11-31: tail cpu (+1)
+ *  9-11: tail index (*2 + 1)
+ * 12-31: tail cpu
  */
 #define	_Q_SET_MASK(type)	(((1U << _Q_ ## type ## _BITS) - 1)\
 				      << _Q_ ## type ## _OFFSET)
@@ -77,7 +77,7 @@ typedef struct arch_spinlock {
 #define _Q_LOCKED_MASK		_Q_SET_MASK(LOCKED)
 
 #define _Q_PENDING_OFFSET	(_Q_LOCKED_OFFSET + _Q_LOCKED_BITS)
-#if CONFIG_NR_CPUS < (1U << 14)
+#if CONFIG_NR_CPUS <= (1U << 13)
 #define _Q_PENDING_BITS		8
 #else
 #define _Q_PENDING_BITS		1
@@ -85,7 +85,7 @@ typedef struct arch_spinlock {
 #define _Q_PENDING_MASK		_Q_SET_MASK(PENDING)
 
 #define _Q_TAIL_IDX_OFFSET	(_Q_PENDING_OFFSET + _Q_PENDING_BITS)
-#define _Q_TAIL_IDX_BITS	2
+#define _Q_TAIL_IDX_BITS	3
 #define _Q_TAIL_IDX_MASK	_Q_SET_MASK(TAIL_IDX)
 
 #define _Q_TAIL_CPU_OFFSET	(_Q_TAIL_IDX_OFFSET + _Q_TAIL_IDX_BITS)
@@ -97,5 +97,11 @@ typedef struct arch_spinlock {
 
 #define _Q_LOCKED_VAL		(1U << _Q_LOCKED_OFFSET)
 #define _Q_PENDING_VAL		(1U << _Q_PENDING_OFFSET)
+
+/*
+ * Special code to handle ticket unlock code which adds 2 to _Q_LOCKED_VAL.
+ */
+#define _Q_UNLOCKED_BIT		2
+#define _Q_UNLOCKED_VAL		3
 
 #endif /* __ASM_GENERIC_QSPINLOCK_TYPES_H */
