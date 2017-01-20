@@ -39,5 +39,8 @@ typedef struct arch_spinlock {
 #endif /* CONFIG_QUEUED_SPINLOCKS */
 
 #include <asm/rwlock.h>
+#ifdef CONFIG_QUEUE_RWLOCK
+#include <asm-generic/qrwlock_types.h>
+#endif
 
 #endif /* _ASM_X86_SPINLOCK_TYPES_H */

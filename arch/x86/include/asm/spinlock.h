@@ -275,6 +275,10 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 		     : "+m" (rw->write) : "i" (RW_LOCK_BIAS) : "memory");
 }
 
+#ifdef CONFIG_QUEUE_RWLOCK
+#include <asm/qrwlock.h>
+#endif /* CONFIG_QUEUE_RWLOCK */
+
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
