@@ -415,4 +415,14 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
 
+/*
+ * Add qspinlock and qrwlock includes
+ */
+#ifdef CONFIG_QUEUED_RWLOCKS
+#include <generated/qrwlock.h>
+#include <generated/qrwlock_api_smp.h>
+#else
+#include <asm-generic/qrwlock_remap.h>
+#endif
+
 #endif /* __LINUX_SPINLOCK_H */

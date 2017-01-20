@@ -115,6 +115,7 @@ BUILD_LOCK_OPS(write, rwlock);
 
 #endif
 
+/* BEGIN_SPINLOCK */
 #ifdef CONFIG_QUEUED_SPINLOCKS
 #undef _raw_spin_lock
 #undef _raw_spin_lock_irq
@@ -208,7 +209,9 @@ void __lockfunc _raw_spin_unlock_bh(raw_spinlock_t *lock)
 }
 EXPORT_SYMBOL(_raw_spin_unlock_bh);
 #endif
+/* END_SPINLOCK */
 
+/* BEGIN_RWLOCK */
 #ifndef CONFIG_INLINE_READ_TRYLOCK
 int __lockfunc _raw_read_trylock(rwlock_t *lock)
 {
@@ -352,6 +355,7 @@ void __lockfunc _raw_write_unlock_bh(rwlock_t *lock)
 }
 EXPORT_SYMBOL(_raw_write_unlock_bh);
 #endif
+/* END_RWLOCK */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 

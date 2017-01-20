@@ -865,6 +865,11 @@ include/config/kernel.release: include/config/auto.conf FORCE
 # Listed in dependency order
 PHONY += prepare archprepare prepare0 prepare1 prepare2 prepare3
 
+#
+# Generate qrwlock specific files
+#
+include $(srctree)/Makefile.qlock
+
 # prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
@@ -887,7 +892,7 @@ prepare1: prepare2 $(version_h) include/generated/utsrelease.h \
 
 archprepare: archheaders archscripts prepare1 scripts_basic
 
-prepare0: archprepare FORCE
+prepare0: archprepare $(qlock_files) FORCE
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
