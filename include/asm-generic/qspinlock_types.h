@@ -28,9 +28,26 @@
 #include <linux/atomic.h>
 #endif
 
+/*
+ * Maintain the same kABI signature as the ticket lock.
+ */
+#ifndef __GENKSYMS__
 typedef struct qspinlock {
 	atomic_t	val;
 } arch_spinlock_t;
+#else
+typedef u16 __ticket_t;
+typedef u32 __ticketpair_t;
+
+typedef struct arch_spinlock {
+	union {
+		__ticketpair_t	head_tail;
+		struct __raw_tickets {
+			__ticket_t head, tail;
+		} tickets;
+	};
+} arch_spinlock_t;
+#endif
 
 /*
  * Initializier

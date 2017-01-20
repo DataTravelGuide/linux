@@ -163,13 +163,14 @@ void __lockfunc _raw_spin_lock_bh(raw_spinlock_t *lock)
 EXPORT_SYMBOL(_raw_spin_lock_bh);
 #endif
 
-#ifdef CONFIG_UNINLINE_SPIN_UNLOCK
+#ifndef CONFIG_UNINLINE_SPIN_UNLOCK
+#undef _raw_spin_unlock
+#endif
 void __lockfunc _raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__raw_spin_unlock(lock);
 }
 EXPORT_SYMBOL(_raw_spin_unlock);
-#endif
 
 #ifndef CONFIG_INLINE_SPIN_UNLOCK_IRQRESTORE
 void __lockfunc _raw_spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned long flags)
