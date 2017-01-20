@@ -282,7 +282,7 @@ static inline void check_for_tasks(int cpu)
 	struct task_struct *p;
 	cputime_t utime, stime;
 
-	write_lock_irq(&tasklist_lock);
+	qwrite_lock_irq(&tasklist_lock);
 	for_each_process(p) {
 		task_cputime(p, &utime, &stime);
 		if (task_cpu(p) == cpu && p->state == TASK_RUNNING &&
@@ -292,7 +292,7 @@ static inline void check_for_tasks(int cpu)
 				p->comm, task_pid_nr(p), cpu,
 				p->state, p->flags);
 	}
-	write_unlock_irq(&tasklist_lock);
+	qwrite_unlock_irq(&tasklist_lock);
 }
 
 struct take_cpu_down_param {

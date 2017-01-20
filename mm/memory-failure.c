@@ -387,7 +387,7 @@ static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
  * on behalf of the thread group. Return task_struct of the (first found)
  * dedicated thread if found, and return NULL otherwise.
  *
- * We already hold read_lock(&tasklist_lock) in the caller, so we don't
+ * We already hold qread_lock(&tasklist_lock) in the caller, so we don't
  * have to call rcu_read_lock/unlock() in this function.
  */
 static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
@@ -438,7 +438,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 		return;
 
 	pgoff = page_to_pgoff(page);
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	for_each_process (tsk) {
 		struct anon_vma_chain *vmac;
 		struct task_struct *t = task_early_kill(tsk, force_early);
@@ -454,7 +454,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 				add_to_kill(t, page, vma, to_kill, tkc);
 		}
 	}
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 	page_unlock_anon_vma_read(av);
 }
 
@@ -469,7 +469,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 	struct address_space *mapping = page->mapping;
 
 	mutex_lock(&mapping->i_mmap_mutex);
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	for_each_process(tsk) {
 		pgoff_t pgoff = page_to_pgoff(page);
 		struct task_struct *t = task_early_kill(tsk, force_early);
@@ -489,7 +489,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 				add_to_kill(t, page, vma, to_kill, tkc);
 		}
 	}
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 	mutex_unlock(&mapping->i_mmap_mutex);
 }
 

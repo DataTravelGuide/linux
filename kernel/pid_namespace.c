@@ -202,7 +202,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	 * 	  maintain a tasklist for each pid namespace.
 	 *
 	 */
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	nr = next_pidmap(pid_ns, 1);
 	while (nr > 0) {
 		rcu_read_lock();
@@ -215,7 +215,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 
 		nr = next_pidmap(pid_ns, nr);
 	}
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 
 	/* Firstly reap the EXIT_ZOMBIE children we may have. */
 	do {
@@ -297,9 +297,9 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 		return -EINVAL;
 	}
 
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	force_sig(SIGKILL, pid_ns->child_reaper);
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 
 	do_exit(0);
 

@@ -97,16 +97,16 @@ DEFINE_PER_CPU(unsigned long, process_counts) = 0;
 /* Place it into the same section/cacheline with tasklist_lock */
 __attribute__((__section__(".data..cacheline_aligned")))
 static atomic_t tasklist_waiters = ATOMIC_INIT(0);
-__cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
+__cacheline_aligned DEFINE_QRWLOCK(tasklist_lock);  /* outer */
 
 void tasklist_write_lock_irq(void)
 {
 	local_irq_disable();
-	if (write_trylock(&tasklist_lock))
+	if (qwrite_trylock(&tasklist_lock))
 		return;
 
 	atomic_inc(&tasklist_waiters);
-	write_lock(&tasklist_lock);
+	qwrite_lock(&tasklist_lock);
 	atomic_dec(&tasklist_waiters);
 }
 
@@ -121,7 +121,7 @@ void tasklist_read_lock(void)
 	while (atomic_read(&tasklist_waiters))
 		cpu_relax();
 no_wait:
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 }
 
 #ifdef CONFIG_PROVE_RCU
@@ -1555,7 +1555,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	recalc_sigpending();
 	if (signal_pending(current)) {
 		spin_unlock(&current->sighand->siglock);
-		write_unlock_irq(&tasklist_lock);
+		qwrite_unlock_irq(&tasklist_lock);
 		retval = -ERESTARTNOINTR;
 		goto bad_fork_cancel_cgroup;
 	}
@@ -1595,7 +1595,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	total_forks++;
 	spin_unlock(&current->sighand->siglock);
-	write_unlock_irq(&tasklist_lock);
+	qwrite_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
 	cgroup_post_fork(p, cgrp_ss_priv);
 	if (clone_flags & CLONE_THREAD)

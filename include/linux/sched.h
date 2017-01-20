@@ -273,7 +273,7 @@ extern char ___assert_task_state[1 - 2*!!(
  * _adding_ to the beginning of the run-queue has
  * a separate lock).
  */
-extern rwlock_t tasklist_lock;
+extern qrwlock_t tasklist_lock;
 extern spinlock_t mmlist_lock;
 
 extern void tasklist_write_lock_irq(void);
@@ -2670,8 +2670,8 @@ static inline int thread_group_empty(struct task_struct *p)
  * pins the final release of task.io_context.  Also protects ->cpuset and
  * ->cgroup.subsys[]. And ->vfork_done.
  *
- * Nests both inside and outside of read_lock(&tasklist_lock).
- * It must not be nested with write_lock_irq(&tasklist_lock),
+ * Nests both inside and outside of qread_lock(&tasklist_lock).
+ * It must not be nested with qwrite_lock_irq(&tasklist_lock),
  * neither inside nor outside.
  */
 static inline void task_lock(struct task_struct *p)

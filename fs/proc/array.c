@@ -647,7 +647,7 @@ get_children_pid(struct inode *inode, struct pid *pid_prev, loff_t pos)
 	}
 
 out:
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 	return pid;
 }
 

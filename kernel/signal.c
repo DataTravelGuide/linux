@@ -1464,7 +1464,7 @@ static int kill_something_info(int sig, struct siginfo *info, pid_t pid)
 		}
 		ret = count ? retval : -ESRCH;
 	}
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 
 	return ret;
 }
@@ -1523,9 +1523,9 @@ int kill_pgrp(struct pid *pid, int sig, int priv)
 {
 	int ret;
 
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	ret = __kill_pgrp_info(sig, __si_special(priv), pid);
-	read_unlock(&tasklist_lock);
+	qread_unlock(&tasklist_lock);
 
 	return ret;
 }
@@ -1893,7 +1893,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	task_clear_jobctl_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
-	read_lock(&tasklist_lock);
+	qread_lock(&tasklist_lock);
 	if (may_ptrace_stop()) {
 		/*
 		 * Notify parents of the stop.
@@ -1916,7 +1916,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		 * XXX: implement read_unlock_no_resched().
 		 */
 		preempt_disable();
-		read_unlock(&tasklist_lock);
+		qread_unlock(&tasklist_lock);
 		preempt_enable_no_resched();
 		freezable_schedule();
 	} else {
@@ -1937,7 +1937,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		__set_current_state(TASK_RUNNING);
 		if (clear_code)
 			current->exit_code = 0;
-		read_unlock(&tasklist_lock);
+		qread_unlock(&tasklist_lock);
 	}
 
 	/*
@@ -2090,9 +2090,9 @@ static bool do_signal_stop(int signr)
 		 * TASK_TRACED.
 		 */
 		if (notify) {
-			read_lock(&tasklist_lock);
+			qread_lock(&tasklist_lock);
 			do_notify_parent_cldstop(current, false, notify);
-			read_unlock(&tasklist_lock);
+			qread_unlock(&tasklist_lock);
 		}
 
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
@@ -2237,13 +2237,13 @@ relock:
 		 * the ptracer of the group leader too unless it's gonna be
 		 * a duplicate.
 		 */
-		read_lock(&tasklist_lock);
+		qread_lock(&tasklist_lock);
 		do_notify_parent_cldstop(current, false, why);
 
 		if (ptrace_reparented(current->group_leader))
 			do_notify_parent_cldstop(current->group_leader,
 						true, why);
-		read_unlock(&tasklist_lock);
+		qread_unlock(&tasklist_lock);
 
 		goto relock;
 	}
@@ -2491,9 +2491,9 @@ out:
 	 * should always go to the real parent of the group leader.
 	 */
 	if (unlikely(group_stop)) {
-		read_lock(&tasklist_lock);
+		qread_lock(&tasklist_lock);
 		do_notify_parent_cldstop(tsk, false, group_stop);
-		read_unlock(&tasklist_lock);
+		qread_unlock(&tasklist_lock);
 	}
 }
 
