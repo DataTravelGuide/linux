@@ -507,7 +507,7 @@ struct low_ops {
 
 struct amd64_family_type {
 	const char *ctl_name;
-	u16 f1_id, f3_id;
+	u16 f1_id, f2_id;
 	struct low_ops ops;
 };
 
