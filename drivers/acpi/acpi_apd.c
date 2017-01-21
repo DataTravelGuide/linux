@@ -76,6 +76,11 @@ static struct apd_device_desc cz_i2c_desc = {
 	.fixed_clk_rate = 133000000,
 };
 
+static const struct apd_device_desc wt_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 150000000,
+};
+
 static struct apd_device_desc cz_uart_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 48000000,
@@ -142,7 +147,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	/* Generic apd devices */
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 	{ "AMD0010", APD_ADDR(cz_i2c_desc) },
-	{ "AMDI0010", APD_ADDR(cz_i2c_desc) },
+	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
 	{ "AMD0020", APD_ADDR(cz_uart_desc) },
 	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMD0030", },
