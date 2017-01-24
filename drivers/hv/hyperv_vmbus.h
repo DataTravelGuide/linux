@@ -603,7 +603,11 @@ extern int hv_synic_cleanup(unsigned int cpu);
 
 extern void hv_synic_clockevents_cleanup(void);
 
+extern void hv_clockevents_bind(int cpu);
+
 extern void hv_clockevents_unbind(int cpu);
+
+extern int hv_synic_cpu_used(unsigned int cpu);
 
 /*
  * Host version information.

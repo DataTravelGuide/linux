@@ -815,39 +815,6 @@ static void vmbus_isr(void)
 	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR, 0);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int hyperv_cpu_disable(void)
-{
-	return -ENOSYS;
-}
-
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-	static void *previous_cpu_disable;
-
-	/*
-	 * Offlining a CPU when running on newer hypervisors (WS2012R2, Win8,
-	 * ...) is not supported at this moment as channel interrupts are
-	 * distributed across all of them.
-	 */
-
-	if ((vmbus_proto_version == VERSION_WS2008) ||
-	    (vmbus_proto_version == VERSION_WIN7))
-		return;
-
-	if (vmbus_loaded) {
-		previous_cpu_disable = smp_ops.cpu_disable;
-		smp_ops.cpu_disable = hyperv_cpu_disable;
-		pr_notice("CPU offlining is not supported by hypervisor\n");
-	} else if (previous_cpu_disable)
-		smp_ops.cpu_disable = previous_cpu_disable;
-}
-#else
-static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
-{
-}
-#endif
-
 static void hv_synic_init_oncpu(void *arg)
 {
 	int cpu = get_cpu();
@@ -872,8 +839,15 @@ static int hv_cpuhp_callback(struct notifier_block *nfb,
 		hv_synic_init(cpu);
 		break;
 	case CPU_DYING:
-		hv_clockevents_unbind(cpu);
 		hv_synic_cleanup(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+		if (hv_synic_cpu_used(cpu))
+			return NOTIFY_BAD;
+		hv_clockevents_unbind(cpu);
+		break;
+	case CPU_DOWN_FAILED:
+		hv_clockevents_bind(cpu);
 		break;
 	}
 
@@ -926,8 +900,6 @@ static int vmbus_bus_init(int irq)
 	ret = vmbus_connect();
 	if (ret)
 		goto err_connect;
-
-	hv_cpu_hotplug_quirk(true);
 
 	/*
 	 * Only register if the crash MSRs are available
@@ -1410,6 +1382,9 @@ static void hv_kexec_handler(void)
 
 	hv_synic_clockevents_cleanup();
 	vmbus_initiate_unload(false);
+	vmbus_connection.conn_state = DISCONNECTED;
+	/* Make sure conn_state is set as hv_synic_cleanup checks for it */
+	mb();
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, hv_synic_cleanup_oncpu, NULL, 1);
 	hv_cleanup(false);
@@ -1425,6 +1400,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * doing the cleanup for current CPU only. This should be sufficient
 	 * for kdump.
 	 */
+	vmbus_connection.conn_state = DISCONNECTED;
 	hv_clockevents_unbind(cpu);
 	hv_synic_cleanup(cpu);
 	hv_cleanup(true);
@@ -1502,7 +1478,6 @@ static void __exit vmbus_exit(void)
 	cpu_notifier_register_done();
 	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	hv_cpu_hotplug_quirk(false);
 }
 
 
