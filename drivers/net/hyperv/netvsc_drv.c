@@ -41,7 +41,6 @@
 
 #include "hyperv_net.h"
 
-
 #define RING_SIZE_MIN 64
 #define LINKCHANGE_INT (2 * HZ)
 #define NETVSC_HW_FEATURES	(NETIF_F_RXCSUM | \
@@ -408,7 +407,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 			FIELD_SIZEOF(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
-
 	packet->q_idx = skb_get_queue_mapping(skb);
 
 	packet->total_data_buflen = skb->len;
@@ -594,7 +592,6 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 
 	schedule_delayed_work(&ndev_ctx->dwork, 0);
 }
-
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 				struct hv_netvsc_packet *packet,
@@ -1300,7 +1297,6 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	return NOTIFY_OK;
 }
 
-
 static int netvsc_vf_down(struct net_device *vf_netdev)
 {
 	struct net_device *ndev;
@@ -1333,7 +1329,6 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 
 	return NOTIFY_OK;
 }
-
 
 static int netvsc_unregister_vf(struct net_device *vf_netdev)
 {
@@ -1463,7 +1458,6 @@ static int netvsc_remove(struct hv_device *dev)
 		return 0;
 	}
 
-
 	ndev_ctx = netdev_priv(net);
 	net_device = ndev_ctx->nvdev;
 
@@ -1509,7 +1503,6 @@ static struct  hv_driver netvsc_drv = {
 	.probe = netvsc_probe,
 	.remove = netvsc_remove,
 };
-
 
 /*
  * On Hyper-V, every VF interface is matched with a corresponding
