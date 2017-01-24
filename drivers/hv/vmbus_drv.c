@@ -859,7 +859,7 @@ static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
  */
 static int vmbus_bus_init(int irq)
 {
-	int ret;
+	int ret, cpu;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
@@ -902,7 +902,10 @@ static int vmbus_bus_init(int irq)
 	return 0;
 
 err_connect:
-	on_each_cpu(hv_synic_cleanup, NULL, 1);
+	for_each_online_cpu(cpu) {
+		hv_clockevents_unbind(cpu);
+		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+	}
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
@@ -1370,12 +1373,15 @@ static void hv_kexec_handler(void)
 
 static void hv_crash_handler(struct pt_regs *regs)
 {
+	int cpu = smp_processor_id();
+
 	vmbus_initiate_unload(true);
 	/*
 	 * In crash handler we can't schedule synic cleanup for all CPUs,
 	 * doing the cleanup for current CPU only. This should be sufficient
 	 * for kdump.
 	 */
+	hv_clockevents_unbind(cpu);
 	hv_synic_cleanup(NULL);
 	hv_cleanup(true);
 };

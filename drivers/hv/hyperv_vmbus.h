@@ -603,6 +603,8 @@ extern void hv_synic_cleanup(void *arg);
 
 extern void hv_synic_clockevents_cleanup(void);
 
+extern void hv_clockevents_unbind(int cpu);
+
 /*
  * Host version information.
  */

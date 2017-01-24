@@ -581,7 +581,13 @@ void hv_synic_clockevents_cleanup(void)
 	if (!(ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE))
 		return;
 
-	for_each_online_cpu(cpu)
+	for_each_present_cpu(cpu)
+		clockevents_unbind_device(hv_context.clk_evt[cpu], cpu);
+}
+
+void hv_clockevents_unbind(int cpu)
+{
+	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE)
 		clockevents_unbind_device(hv_context.clk_evt[cpu], cpu);
 }
 
