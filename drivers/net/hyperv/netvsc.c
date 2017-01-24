@@ -123,12 +123,12 @@ get_in_err:
 	return net_device;
 }
 
-static int netvsc_destroy_buf(struct hv_device *device)
+static void netvsc_destroy_buf(struct hv_device *device)
 {
 	struct nvsp_message *revoke_packet;
-	int ret = 0;
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct netvsc_device *net_device = net_device_to_netvsc_device(ndev);
+	int ret;
 
 	/*
 	 * If we got a section count, it means we received a
@@ -158,7 +158,7 @@ static int netvsc_destroy_buf(struct hv_device *device)
 		if (ret != 0) {
 			netdev_err(ndev, "unable to send "
 				"revoke receive buffer to netvsp\n");
-			return ret;
+			return;
 		}
 	}
 
@@ -173,7 +173,7 @@ static int netvsc_destroy_buf(struct hv_device *device)
 		if (ret != 0) {
 			netdev_err(ndev,
 				   "unable to teardown receive buffer's gpadl\n");
-			return ret;
+			return;
 		}
 		net_device->recv_buf_gpadl_handle = 0;
 	}
@@ -217,7 +217,7 @@ static int netvsc_destroy_buf(struct hv_device *device)
 		if (ret != 0) {
 			netdev_err(ndev, "unable to send "
 				   "revoke send buffer to netvsp\n");
-			return ret;
+			return;
 		}
 	}
 	/* Teardown the gpadl on the vsp end */
@@ -231,7 +231,7 @@ static int netvsc_destroy_buf(struct hv_device *device)
 		if (ret != 0) {
 			netdev_err(ndev,
 				   "unable to teardown send buffer's gpadl\n");
-			return ret;
+			return;
 		}
 		net_device->send_buf_gpadl_handle = 0;
 	}
@@ -241,8 +241,6 @@ static int netvsc_destroy_buf(struct hv_device *device)
 		net_device->send_buf = NULL;
 	}
 	kfree(net_device->send_section_map);
-
-	return ret;
 }
 
 static int netvsc_init_buf(struct hv_device *device)
