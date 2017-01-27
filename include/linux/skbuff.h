@@ -555,7 +555,6 @@ static inline u32 skb_mstamp_us_delta(const struct skb_mstamp *t1,
  *	@xmit_more: More SKBs are pending for this queue
  *	@napi_id: id of the NAPI struct this skb came from
  *	@secmark: security marking
- *	@offload_fwd_mark: fwding offload mark
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
  *	@vlan_proto: vlan encapsulation protocol
@@ -688,21 +687,9 @@ struct sk_buff {
 		RH_KABI_DEPRECATE(dma_cookie_t,	dma_cookie)
 	};
 #endif
-#ifdef __GENKSYMS__
 #ifdef CONFIG_NETWORK_SECMARK
 	__u32			secmark;
 #endif
-#else
-	union {
-#ifdef CONFIG_NETWORK_SECMARK
-		__u32		secmark;
-#endif
-#ifdef CONFIG_NET_SWITCHDEV
-		__u32		offload_fwd_mark;
-#endif
-	};
-#endif
-
 	union {
 		__u32		mark;
 		__u32		dropcount;
@@ -729,7 +716,8 @@ struct sk_buff {
 	RH_KABI_EXTEND(__u8	csum_level:2)
 	RH_KABI_EXTEND(__u8	rh_csum_pad:1)
 	RH_KABI_EXTEND(__u8	csum_bad:1)
-	/* 12 bit hole */
+	RH_KABI_EXTEND(__u8	offload_fwd_mark:1)
+	/* 11 bit hole */
 	RH_KABI_EXTEND(kmemcheck_bitfield_end(flags3))
 
 	/* private: */

@@ -144,6 +144,8 @@ int br_handle_frame_finish(struct sock *sk, struct sk_buff *skb)
 	if (!br_allowed_ingress(p->br, nbp_vlan_group_rcu(p), skb, &vid))
 		goto out;
 
+	nbp_switchdev_frame_mark(p, skb);
+
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
 	if (p->flags & BR_LEARNING)
