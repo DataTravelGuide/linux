@@ -4005,12 +4005,6 @@ int netif_receive_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
-int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb)
-{
-	return netif_receive_skb(skb);
-}
-EXPORT_SYMBOL(netif_receive_skb_sk);
-
 /* Network device is going away, flush any packets still pending
  * Called with irqs disabled.
  */
