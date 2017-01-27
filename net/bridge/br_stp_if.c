@@ -50,7 +50,7 @@ void br_init_port(struct net_bridge_port *p)
 	p->config_pending = 0;
 }
 
-/* called under bridge lock */
+/* NO locks held */
 void br_stp_enable_bridge(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
