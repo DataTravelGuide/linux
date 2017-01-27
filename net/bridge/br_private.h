@@ -354,6 +354,9 @@ struct br_input_skb_cb {
 	int igmp;
 	int mrouters_only;
 #endif
+
+	bool proxyarp_replied;
+
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
 #endif

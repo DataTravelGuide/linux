@@ -44,6 +44,7 @@ struct br_ip_list {
 #define BR_PROMISC		BIT(7)
 #define BR_PROXYARP		BIT(8)
 #define BR_LEARNING_SYNC	BIT(9)
+#define BR_PROXYARP_WIFI	BIT(10)
 
 #define BR_DEFAULT_AGEING_TIME	(300 * HZ)
 
