@@ -104,10 +104,11 @@ struct rtnl_link_ops {
 	RH_KABI_USE_P(7, int	(*fill_slave_info)(struct sk_buff *skb,
 						   const struct net_device *dev,
 						   const struct net_device *slave_dev))
-	RH_KABI_USE_P(8, size_t	(*get_linkxstats_size)(const struct net_device *dev))
+	RH_KABI_USE_P(8, size_t	(*get_linkxstats_size)(const struct net_device *dev,
+						       int attr))
 	RH_KABI_USE_P(9, int	(*fill_linkxstats)(struct sk_buff *skb,
 						   const struct net_device *dev,
-						   int *prividx))
+						   int *prividx, int attr))
 	RH_KABI_RESERVE_P(10)
 	RH_KABI_RESERVE_P(11)
 	RH_KABI_RESERVE_P(12)
