@@ -755,16 +755,13 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
-	unsigned char vf_mac_addr[6];
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
-	if (enable) {
-		eth_zero_addr(vf_mac_addr);
-		memcpy(adapter->vfinfo[vfn].vf_mac_addresses, vf_mac_addr, 6);
-	}
+	if (enable)
+		eth_zero_addr(adapter->vfinfo[vfn].vf_mac_addresses);
 
 	return 0;
 }

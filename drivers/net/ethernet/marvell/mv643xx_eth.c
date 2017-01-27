@@ -2538,7 +2538,7 @@ static void set_params(struct mv643xx_eth_private *mp,
 	struct net_device *dev = mp->dev;
 
 	if (is_valid_ether_addr(pd->mac_addr))
-		memcpy(dev->dev_addr, pd->mac_addr, 6);
+		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
 	else
 		uc_addr_get(mp, dev->dev_addr);
 
