@@ -3162,10 +3162,8 @@ int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				IFLA_BRPORT_LEARNING_SYNC, BR_LEARNING_SYNC) ||
 	    brport_nla_put_flag(skb, flags, mask,
 				IFLA_BRPORT_UNICAST_FLOOD, BR_FLOOD) ||
-	    /* RHEL: IFLA_BRPORT_PROXYARP needs further suppport before use */
-	    /* br_setport not looking at the parsed attribute at all */
 	    brport_nla_put_flag(skb, flags, mask,
-				RESERVED_IFLA_BRPORT_PROXYARP, BR_PROXYARP)) {
+				IFLA_BRPORT_PROXYARP, BR_PROXYARP)) {
 		nla_nest_cancel(skb, protinfo);
 		goto nla_put_failure;
 	}
