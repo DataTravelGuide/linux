@@ -547,7 +547,7 @@ br_multicast_new_group(struct net_bridge *br, struct net_bridge_port *port,
 void br_multicast_free_pg(struct rcu_head *head);
 struct net_bridge_port_group *
 br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
-			    struct net_bridge_port_group *next,
+			    struct net_bridge_port_group __rcu *next,
 			    unsigned char flags);
 void br_mdb_init(void);
 void br_mdb_uninit(void);
