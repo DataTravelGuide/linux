@@ -3856,8 +3856,8 @@ EXPORT_SYMBOL_GPL(skb_partial_csum_set);
  * Otherwise returns the provided skb. Returns NULL in error cases
  * (e.g. transport_len exceeds skb length or out-of-memory).
  *
- * Caller needs to set the skb transport header and release the returned skb.
- * Provided skb is consumed.
+ * Caller needs to set the skb transport header and free any returned skb if it
+ * differs from the provided skb.
  */
 static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
 					       unsigned int transport_len)
@@ -3866,16 +3866,12 @@ static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
 	unsigned int len = skb_transport_offset(skb) + transport_len;
 	int ret;
 
-	if (skb->len < len) {
-		kfree_skb(skb);
+	if (skb->len < len)
 		return NULL;
-	} else if (skb->len == len) {
+	else if (skb->len == len)
 		return skb;
-	}
 
 	skb_chk = skb_clone(skb, GFP_ATOMIC);
-	kfree_skb(skb);
-
 	if (!skb_chk)
 		return NULL;
 
@@ -3900,8 +3896,8 @@ static struct sk_buff *skb_checksum_maybe_trim(struct sk_buff *skb,
  * If the skb has data beyond the given transport length, then a
  * trimmed & cloned skb is checked and returned.
  *
- * Caller needs to set the skb transport header and release the returned skb.
- * Provided skb is consumed.
+ * Caller needs to set the skb transport header and free any returned skb if it
+ * differs from the provided skb.
  */
 struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 				     unsigned int transport_len,
@@ -3913,23 +3909,26 @@ struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 
 	skb_chk = skb_checksum_maybe_trim(skb, transport_len);
 	if (!skb_chk)
-		return NULL;
+		goto err;
 
-	if (!pskb_may_pull(skb_chk, offset)) {
-		kfree_skb(skb_chk);
-		return NULL;
-	}
+	if (!pskb_may_pull(skb_chk, offset))
+		goto err;
 
 	__skb_pull(skb_chk, offset);
 	ret = skb_chkf(skb_chk);
 	__skb_push(skb_chk, offset);
 
-	if (ret) {
-		kfree_skb(skb_chk);
-		return NULL;
-	}
+	if (ret)
+		goto err;
 
 	return skb_chk;
+
+err:
+	if (skb_chk && skb_chk != skb)
+		kfree_skb(skb_chk);
+
+	return NULL;
+
 }
 EXPORT_SYMBOL(skb_checksum_trimmed);
 
