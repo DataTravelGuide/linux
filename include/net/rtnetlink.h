@@ -48,6 +48,9 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
  *	@get_num_rx_queues: Function to determine number of receive queues
  *			    to create when creating a new device.
  *	@get_link_net: Function to get the i/o netns of the device
+ *	@get_linkxstats_size: Function to calculate the required room for
+ *			      dumping device-specific extended link stats
+ *	@fill_linkxstats: Function to dump device-specific extended link stats
  */
 struct rtnl_link_ops {
 	struct list_head	list;
@@ -101,8 +104,10 @@ struct rtnl_link_ops {
 	RH_KABI_USE_P(7, int	(*fill_slave_info)(struct sk_buff *skb,
 						   const struct net_device *dev,
 						   const struct net_device *slave_dev))
-	RH_KABI_RESERVE_P(8)
-	RH_KABI_RESERVE_P(9)
+	RH_KABI_USE_P(8, size_t	(*get_linkxstats_size)(const struct net_device *dev))
+	RH_KABI_USE_P(9, int	(*fill_linkxstats)(struct sk_buff *skb,
+						   const struct net_device *dev,
+						   int *prividx))
 	RH_KABI_RESERVE_P(10)
 	RH_KABI_RESERVE_P(11)
 	RH_KABI_RESERVE_P(12)
