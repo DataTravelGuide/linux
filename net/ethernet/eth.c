@@ -221,11 +221,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 * variants has been configured on the receiving interface,
 	 * and if so, set skb->protocol without looking at the packet.
 	 */
-	if (unlikely(netdev_uses_dsa_tags(dev)))
-		return htons(ETH_P_DSA);
-
-	if (unlikely(netdev_uses_trailer_tags(dev)))
-		return htons(ETH_P_TRAILER);
+	if (unlikely(netdev_uses_dsa(dev)))
+		return htons(ETH_P_XDSA);
 
 	if (likely(eth_proto_is_802_3(eth->h_proto)))
 		return eth->h_proto;
