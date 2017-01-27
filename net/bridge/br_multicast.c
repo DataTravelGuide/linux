@@ -2161,10 +2161,6 @@ unlock:
 	return err;
 }
 
-#if 0
-/* RHEL: not fully supported. Other parts of the patch needed to
- * enable hardware bridging support
- */
 /**
  * br_multicast_list_adjacent - Returns snooped multicast addresses
  * @dev:	The bridge port adjacent to which to retrieve addresses
@@ -2221,4 +2217,3 @@ unlock:
 	return count;
 }
 EXPORT_SYMBOL_GPL(br_multicast_list_adjacent);
-#endif
