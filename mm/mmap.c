@@ -717,7 +717,6 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct vm_area_struct *next = vma->vm_next;
-	struct vm_area_struct *importer = NULL;
 	struct address_space *mapping = NULL;
 	struct rb_root *root = NULL;
 	struct anon_vma *anon_vma = NULL;
@@ -727,17 +726,25 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	int remove_next = 0;
 
 	if (next && !insert) {
-		struct vm_area_struct *exporter = NULL;
+		struct vm_area_struct *exporter = NULL, *importer = NULL;
 
 		if (end >= next->vm_end) {
 			/*
 			 * vma expands, overlapping all the next, and
 			 * perhaps the one after too (mprotect case 6).
 			 */
-again:			remove_next = 1 + (end > next->vm_end);
+			remove_next = 1 + (end > next->vm_end);
 			end = next->vm_end;
 			exporter = next;
 			importer = vma;
+
+			/*
+			 * If next doesn't have anon_vma, import from vma after
+			 * next, if the vma overlaps with it.
+			 */
+			if (remove_next == 2 && next && !next->anon_vma)
+				exporter = next->vm_next;
+
 		} else if (end > next->vm_start) {
 			/*
 			 * vma expands, overlapping part of the next:
@@ -768,7 +775,7 @@ again:			remove_next = 1 + (end > next->vm_end);
 				return -ENOMEM;
 		}
 	}
-
+again:
 	if (file) {
 		mapping = file->f_mapping;
 		if (!(vma->vm_flags & VM_NONLINEAR)) {
@@ -892,8 +899,11 @@ again:			remove_next = 1 + (end > next->vm_end);
 		 * up the code too much to do both in one go.
 		 */
 		next = vma->vm_next;
-		if (remove_next == 2)
+		if (remove_next == 2) {
+			remove_next = 1;
+			end = next->vm_end;
 			goto again;
+		}
 		else if (next)
 			vma_gap_update(next);
 		else
