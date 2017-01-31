@@ -404,40 +404,37 @@ static ssize_t hfi1_aio_write(struct kiocb *kiocb, const struct iovec *iovec,
 	struct hfi1_filedata *fd = kiocb->ki_filp->private_data;
 	struct hfi1_user_sdma_pkt_q *pq = fd->pq;
 	struct hfi1_user_sdma_comp_q *cq = fd->cq;
-	int ret = 0, done = 0, reqs = 0;
+	int done = 0, reqs = 0;
 
-	if (!cq || !pq) {
-		ret = -EIO;
-		goto done;
-	}
+	if (!cq || !pq)
+		return -EIO;
 
-	if (!dim) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!dim)
+		return -EINVAL;
 
 	hfi1_cdbg(SDMA, "SDMA request from %u:%u (%lu)",
 		  fd->uctxt->ctxt, fd->subctxt, dim);
 
-	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs) {
-		ret = -ENOSPC;
-		goto done;
-	}
+	if (atomic_read(&pq->n_reqs) == pq->n_max_reqs)
+		return -ENOSPC;
 
 	while (dim) {
+		int ret;
 		unsigned long count = 0;
 
 		ret = hfi1_user_sdma_process_request(
 			kiocb->ki_filp,	(struct iovec *)(iovec + done),
 			dim, &count);
-		if (ret)
-			goto done;
+		if (ret) {
+			reqs = ret;
+			break;
+		}
 		dim -= count;
 		done += count;
 		reqs++;
 	}
-done:
-	return ret ? ret : reqs;
+
+	return reqs;
 }
 
 static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
