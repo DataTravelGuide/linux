@@ -12,11 +12,11 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x018f       | 0x0146         |
- * | Mailbox commands             |       0x1191       | 0x111a-0x111b  |
+ * | Mailbox commands             |       0x1196       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
  * |                              |                    | 0x1018-0x1019  |
  * |                              |                    | 0x1115-0x1116  |
- * |                              |                    | 0x10ca         |
+ * |                              |                    | 0x10ca,0x1193  |
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
  * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2099-0x20a4  |
