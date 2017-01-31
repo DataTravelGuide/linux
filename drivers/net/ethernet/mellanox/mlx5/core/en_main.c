@@ -253,7 +253,7 @@ void mlx5e_update_stats(struct mlx5e_priv *priv)
 	mlx5e_update_sw_counters(priv);
 }
 
-static void mlx5e_update_stats_work(struct work_struct *work)
+void mlx5e_update_stats_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct mlx5e_priv *priv = container_of(dwork, struct mlx5e_priv,
@@ -1577,7 +1577,7 @@ static int mlx5e_create_rqt(struct mlx5e_priv *priv, int sz,
 	return err;
 }
 
-static void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt)
+void mlx5e_destroy_rqt(struct mlx5e_priv *priv, struct mlx5e_rqt *rqt)
 {
 	rqt->enabled = false;
 	mlx5_core_destroy_rqt(priv->mdev, rqt->rqtn);
@@ -1590,7 +1590,7 @@ static int mlx5e_create_indirect_rqts(struct mlx5e_priv *priv)
 	return mlx5e_create_rqt(priv, MLX5E_INDIR_RQT_SIZE, 0, rqt);
 }
 
-static int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
+int mlx5e_create_direct_rqts(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rqt *rqt;
 	int err;
@@ -1805,6 +1805,7 @@ static void mlx5e_netdev_set_tcs(struct net_device *netdev)
 int mlx5e_open_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int num_txqs;
 	int err;
 
@@ -1840,9 +1841,14 @@ int mlx5e_open_locked(struct net_device *netdev)
 #ifdef CONFIG_RFS_ACCEL
 	priv->netdev->rx_cpu_rmap = priv->mdev->rmap;
 #endif
+	if (priv->profile->update_stats)
+		queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
 
-	queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
-
+	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		err = mlx5e_add_sqs_fwd_rules(priv);
+		if (err)
+			goto err_close_channels;
+	}
 	return 0;
 
 err_close_channels:
@@ -1852,7 +1858,7 @@ err_clear_state_opened_flag:
 	return err;
 }
 
-static int mlx5e_open(struct net_device *netdev)
+int mlx5e_open(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
@@ -1867,6 +1873,7 @@ static int mlx5e_open(struct net_device *netdev)
 int mlx5e_close_locked(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
 
 	/* May already be CLOSED in case a previous configuration operation
 	 * (e.g RX/TX queue size change) that involves close&open failed.
@@ -1876,6 +1883,9 @@ int mlx5e_close_locked(struct net_device *netdev)
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
+	if (MLX5_CAP_GEN(mdev, vport_group_manager))
+		mlx5e_remove_sqs_fwd_rules(priv);
+
 	mlx5e_timestamp_cleanup(priv);
 	netif_carrier_off(priv->netdev);
 	mlx5e_redirect_rqts(priv);
@@ -1884,7 +1894,7 @@ int mlx5e_close_locked(struct net_device *netdev)
 	return 0;
 }
 
-static int mlx5e_close(struct net_device *netdev)
+int mlx5e_close(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
@@ -2019,7 +2029,7 @@ static void mlx5e_destroy_tis(struct mlx5e_priv *priv, int tc)
 	mlx5_core_destroy_tis(priv->mdev, priv->tisn[tc]);
 }
 
-static int mlx5e_create_tises(struct mlx5e_priv *priv)
+int mlx5e_create_tises(struct mlx5e_priv *priv)
 {
 	int err;
 	int tc;
@@ -2039,7 +2049,7 @@ err_close_tises:
 	return err;
 }
 
-static void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
+void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv)
 {
 	int tc;
 
@@ -2205,7 +2215,7 @@ err_destroy_tirs:
 	return err;
 }
 
-static int mlx5e_create_direct_tirs(struct mlx5e_priv *priv)
+int mlx5e_create_direct_tirs(struct mlx5e_priv *priv)
 {
 	int nch = priv->profile->max_nch(priv->mdev);
 	struct mlx5e_tir *tir;
@@ -2252,7 +2262,7 @@ static void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv)
 		mlx5e_destroy_tir(priv->mdev, &priv->indir_tir[i]);
 }
 
-static void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv)
+void mlx5e_destroy_direct_tirs(struct mlx5e_priv *priv)
 {
 	int nch = priv->profile->max_nch(priv->mdev);
 	int i;
@@ -2312,7 +2322,7 @@ static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 	return mlx5e_setup_tc(dev, tc->tc);
 }
 
-static struct rtnl_link_stats64 *
+struct rtnl_link_stats64 *
 mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -3041,6 +3051,10 @@ static void mlx5e_set_netdev_dev_addr(struct net_device *netdev)
 	}
 }
 
+static const struct switchdev_ops mlx5e_switchdev_ops = {
+	.switchdev_port_attr_get	= mlx5e_attr_get,
+};
+
 static void mlx5e_build_nic_netdev(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -3122,6 +3136,11 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
 
 	mlx5e_set_netdev_dev_addr(netdev);
+
+#ifdef CONFIG_NET_SWITCHDEV
+	if (MLX5_CAP_GEN(mdev, vport_group_manager))
+		netdev->switchdev_ops = &mlx5e_switchdev_ops;
+#endif
 }
 
 static void mlx5e_create_q_counter(struct mlx5e_priv *priv)
@@ -3297,6 +3316,8 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	if (MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		rep.load = mlx5e_nic_rep_load;
+		rep.unload = mlx5e_nic_rep_unload;
 		rep.vport = 0;
 		rep.priv_data = priv;
 		mlx5_eswitch_register_vport_rep(esw, &rep);
@@ -3323,8 +3344,8 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.max_tc		   = MLX5E_MAX_NUM_TC,
 };
 
-static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
-				 const struct mlx5e_profile *profile, void *ppriv)
+void *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
+			  const struct mlx5e_profile *profile, void *ppriv)
 {
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
@@ -3419,6 +3440,8 @@ static void mlx5e_register_vport_rep(struct mlx5_core_dev *mdev)
 	for (vport = 1; vport < total_vfs; vport++) {
 		struct mlx5_eswitch_rep rep;
 
+		rep.load = mlx5e_vport_rep_load;
+		rep.unload = mlx5e_vport_rep_unload;
 		rep.vport = vport;
 		mlx5_eswitch_register_vport_rep(esw, &rep);
 	}
@@ -3449,7 +3472,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 	return ret;
 }
 
-static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv)
+void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv)
 {
 	const struct mlx5e_profile *profile = priv->profile;
 	struct net_device *netdev = priv->netdev;
