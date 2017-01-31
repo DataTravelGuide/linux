@@ -1507,7 +1507,8 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	if (!ft) {
 		ft = mlx5_create_auto_grouped_flow_table(ns, priority,
 							 num_entries,
-							 num_groups);
+							 num_groups,
+							 0);
 
 		if (!IS_ERR(ft)) {
 			prio->refcount = 0;
