@@ -610,6 +610,7 @@ struct hfi1_pportdata {
 	struct work_struct freeze_work;
 	struct work_struct link_downgrade_work;
 	struct work_struct link_bounce_work;
+	struct delayed_work start_link_work;
 	/* host link state variables */
 	struct mutex hls_lock;
 	u32 host_link_state;
@@ -664,6 +665,7 @@ struct hfi1_pportdata {
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
 	u8 last_pstate;		/* info only */
+	u8 qsfp_retry_count;
 
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
