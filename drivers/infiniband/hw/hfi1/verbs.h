@@ -185,7 +185,7 @@ struct ahg_ib_header {
 	u8 ahgidx;
 };
 
-struct hfi1_pio_header {
+struct hfi1_sdma_header {
 	__le64 pbc;
 	struct hfi1_ib_header hdr;
 } __packed;
