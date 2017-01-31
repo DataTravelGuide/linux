@@ -26,6 +26,7 @@ enum scsi_timeouts {
  * minimum value is 32
  */
 #define SCSI_MAX_SG_SEGMENTS	128
+#define SG_CHUNK_SIZE		SCSI_MAX_SG_SEGMENTS
 
 /*
  * Like SCSI_MAX_SG_SEGMENTS, but for archs that have sg chaining. This limit
@@ -33,8 +34,10 @@ enum scsi_timeouts {
  */
 #ifdef ARCH_HAS_SG_CHAIN
 #define SCSI_MAX_SG_CHAIN_SEGMENTS	2048
+#define SG_MAX_SEGMENTS			SCSI_MAX_SG_CHAIN_SEGMENTS
 #else
 #define SCSI_MAX_SG_CHAIN_SEGMENTS	SCSI_MAX_SG_SEGMENTS
+#define SG_MAX_SEGMENTS			SG_CHUNK_SIZE
 #endif
 
 /*
