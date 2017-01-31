@@ -44,8 +44,9 @@ enum {
 };
 
 struct mlx5e_rq_param {
-	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
-	struct mlx5_wq_param       wq;
+	u32			rqc[MLX5_ST_SZ_DW(rqc)];
+	struct mlx5_wq_param	wq;
+	bool			am_enabled;
 };
 
 struct mlx5e_sq_param {
@@ -365,6 +366,9 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		wqe->data.byte_count = cpu_to_be32(byte_count);
 	}
 
+	INIT_WORK(&rq->am.work, mlx5e_rx_am_work);
+	rq->am.mode = priv->params.rx_cq_period_mode;
+
 	rq->wq_type = priv->params.rq_wq_type;
 	rq->pdev    = c->pdev;
 	rq->netdev  = c->netdev;
@@ -537,6 +541,9 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 	if (err)
 		goto err_disable_rq;
 
+	if (param->am_enabled)
+		set_bit(MLX5E_RQ_STATE_AM, &c->rq.state);
+
 	set_bit(MLX5E_RQ_STATE_POST_WQES_ENABLE, &rq->state);
 
 	sq->ico_wqe_info[pi].opcode     = MLX5_OPCODE_NOP;
@@ -571,6 +578,8 @@ static void mlx5e_close_rq(struct mlx5e_rq *rq)
 
 	/* avoid destroying rq before mlx5e_poll_rx_cq() is done with it */
 	napi_synchronize(&rq->channel->napi);
+
+	cancel_work_sync(&rq->am.work);
 
 	mlx5e_disable_rq(rq);
 	mlx5e_free_rx_descs(rq);
@@ -1159,6 +1168,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 {
 	struct mlx5e_cq_moder icosq_cq_moder = {0, 0};
 	struct net_device *netdev = priv->netdev;
+	struct mlx5e_cq_moder rx_cq_profile;
 	int cpu = mlx5e_get_cpu(priv, ix);
 	struct mlx5e_channel *c;
 	struct mlx5e_sq *sq;
@@ -1177,6 +1187,11 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->mkey_be  = cpu_to_be32(priv->mkey.key);
 	c->num_tc   = priv->params.num_tc;
 
+	if (priv->params.rx_am_enabled)
+		rx_cq_profile = mlx5e_am_get_def_profile(priv->params.rx_cq_period_mode);
+	else
+		rx_cq_profile = priv->params.rx_cq_moderation;
+
 	mlx5e_build_channeltc_to_txq_map(priv, ix);
 
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
@@ -1190,7 +1205,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 		goto err_close_icosq_cq;
 
 	err = mlx5e_open_cq(c, &cparam->rx_cq, &c->rq.cq,
-			    priv->params.rx_cq_moderation);
+			    rx_cq_profile);
 	if (err)
 		goto err_close_tx_cqs;
 
@@ -1290,6 +1305,8 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 
 	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
 	param->wq.linear = 1;
+
+	param->am_enabled = priv->params.rx_am_enabled;
 }
 
 static void mlx5e_build_drop_rq_param(struct mlx5e_rq_param *param)
@@ -2934,6 +2951,9 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	u32 link_speed = 0;
 	u32 pci_bw = 0;
+	u8 cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
+					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
+					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 
 	priv->params.log_sq_size           =
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
@@ -2980,8 +3000,8 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
 					    BIT(priv->params.log_rq_size));
 
-	mlx5e_set_rx_cq_mode_params(&priv->params,
-				    MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+	priv->params.rx_am_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
+	mlx5e_set_rx_cq_mode_params(&priv->params, cq_period_mode);
 
 	priv->params.tx_cq_moderation.usec =
 		MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
