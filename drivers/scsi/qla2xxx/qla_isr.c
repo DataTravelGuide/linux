@@ -3035,6 +3035,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	/* Enable MSI-X vectors for the base queue */
 	for (i = 0; i < 2; i++) {
 		qentry = &ha->msix_entries[i];
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
@@ -3046,8 +3048,6 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		if (ret)
 			goto msix_register_fail;
 		qentry->have_irq = 1;
-		qentry->rsp = rsp;
-		rsp->msix = qentry;
 	}
 
 	/*
@@ -3056,12 +3056,12 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	 */
 	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
 		qentry = &ha->msix_entries[ATIO_VECTOR];
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
 		ret = request_irq(qentry->vector,
 			qla83xx_msix_entries[ATIO_VECTOR].handler,
 			0, qla83xx_msix_entries[ATIO_VECTOR].name, rsp);
 		qentry->have_irq = 1;
-		qentry->rsp = rsp;
-		rsp->msix = qentry;
 	}
 
 msix_register_fail:
