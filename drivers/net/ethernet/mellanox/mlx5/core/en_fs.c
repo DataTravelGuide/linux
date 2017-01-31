@@ -37,6 +37,14 @@
 #include <linux/mlx5/fs.h>
 #include "en.h"
 
+enum {
+	MLX5E_VLAN_FT_LEVEL = 0,
+	MLX5E_MAIN_FT_LEVEL
+};
+
+#define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
+
+enum {
 static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_l2_rule *ai, int type);
 static void mlx5e_del_l2_flow_rule(struct mlx5e_priv *priv,
@@ -1049,8 +1057,8 @@ static int mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	int err;
 
 	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
-				       MLX5E_VLAN_TABLE_SIZE, MLX5E_VLAN_FT_LEVEL, 0);
+	ft->t = mlx5_create_flow_table(priv->fts.ns, 1, MLX5E_MAIN_TABLE_SIZE,
+				       MLX5E_MAIN_FT_LEVEL);
 
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
@@ -1126,7 +1134,9 @@ int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 
 	mlx5e_ethtool_init_steering(priv);
 
-	return 0;
+	ft->num_groups = 0;
+	ft->t = mlx5_create_flow_table(priv->fts.ns, 1, MLX5E_VLAN_TABLE_SIZE,
+				       MLX5E_VLAN_FT_LEVEL);
 
 err_destroy_l2_table:
 	mlx5e_destroy_l2_table(priv);
@@ -1136,8 +1146,22 @@ err_destroy_arfs_tables:
 	mlx5e_arfs_destroy_tables(priv);
 
 	return err;
-}
+	if (err)
+		goto err_free_g;
 
+	err = mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
+	if (err)
+		goto err_destroy_vlan_flow_groups;
+
+	return 0;
+
+err_destroy_vlan_flow_groups:
+	mlx5e_destroy_groups(ft);
+err_free_g:
+	kfree(ft->g);
+err_destroy_vlan_flow_table:
+	mlx5_destroy_flow_table(ft->t);
+	ft->t = NULL;
 void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
 {
 	mlx5e_destroy_vlan_table(priv);
@@ -1145,4 +1169,27 @@ void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
 	mlx5e_destroy_ttc_table(priv);
 	mlx5e_arfs_destroy_tables(priv);
 	mlx5e_ethtool_cleanup_steering(priv);
+}
+	if (!priv->fts.ns)
+		return -EINVAL;
+
+	err = mlx5e_create_main_flow_table(priv);
+	if (err)
+		return err;
+
+	err = mlx5e_create_vlan_flow_table(priv);
+	if (err)
+		goto err_destroy_main_flow_table;
+
+
+err_destroy_main_flow_table:
+	mlx5e_destroy_main_flow_table(priv);
+
+	return err;
+}
+void mlx5e_destroy_flow_tables(struct mlx5e_priv *priv)
+{
+	mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_UNTAGGED, 0);
+	mlx5e_destroy_vlan_flow_table(priv);
+	mlx5e_destroy_main_flow_table(priv);
 }
