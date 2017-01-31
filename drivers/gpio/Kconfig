@@ -89,6 +89,13 @@ config GPIO_GENERIC
 
 # put drivers in the right section, in alphabetical order
 
+config GPIO_AMDPT
+	tristate "AMD Promontory GPIO support"
+	depends on ACPI
+	help
+	  driver for GPIO functionality on Promontory IOHub
+	  Require ACPI ASL code to enumerate as a platform device.
+
 config GPIO_DA9052
 	tristate "Dialog DA9052 GPIO"
 	depends on PMIC_DA9052
