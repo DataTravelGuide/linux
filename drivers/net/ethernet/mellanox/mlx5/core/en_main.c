@@ -3473,6 +3473,13 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 #endif
 	}
 
+#define FT_CAP(f) MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.f)
+	if (FT_CAP(flow_modify_en) &&
+	    FT_CAP(modify_root) &&
+	    FT_CAP(identified_miss_table_mode) &&
+	    FT_CAP(flow_table_modify))
+		priv->netdev->hw_features      |= NETIF_F_HW_TC;
+
 	netdev->features         |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
