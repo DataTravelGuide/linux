@@ -109,7 +109,7 @@ config PINCTRL_IMX6SL
 	  Say Y here to enable the imx6sl pinctrl driver
 
 config PINCTRL_AMD
-	bool "AMD GPIO pin control"
+	tristate "AMD GPIO pin control"
 	depends on GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINCONF
