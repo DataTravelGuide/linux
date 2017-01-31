@@ -1013,7 +1013,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	if (ib_query_gid(priv->ca, priv->port, 0, &gid0, NULL))
 		return false;
 
-	netif_addr_lock(priv->dev);
+	netif_addr_lock_bh(priv->dev);
 
 	/* The subnet prefix may have changed, update it now so we won't have
 	 * to do it later
@@ -1024,12 +1024,12 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 
 	search_gid.global.interface_id = priv->local_gid.global.interface_id;
 
-	netif_addr_unlock(priv->dev);
+	netif_addr_unlock_bh(priv->dev);
 
 	err = ib_find_gid(priv->ca, &search_gid, IB_GID_TYPE_IB,
 			  priv->dev, &port, &index);
 
-	netif_addr_lock(priv->dev);
+	netif_addr_lock_bh(priv->dev);
 
 	if (search_gid.global.interface_id !=
 	    priv->local_gid.global.interface_id)
@@ -1090,7 +1090,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	}
 
 out:
-	netif_addr_unlock(priv->dev);
+	netif_addr_unlock_bh(priv->dev);
 
 	return ret;
 }
