@@ -1255,6 +1255,13 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #endif
 };
 
+static const struct devlink_ops mlx5_devlink_ops = {
+#ifdef CONFIG_MLX5_CORE_EN
+	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
+	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
+#endif
+};
+
 #define MLX5_IB_MOD "mlx5_ib"
 static int init_one(struct pci_dev *pdev,
 		    const struct pci_device_id *id)
@@ -1319,6 +1326,18 @@ clean_load:
 	mlx5_unload_one(dev, priv, true);
 clean_health:
 	mlx5_pagealloc_cleanup(dev);
+		goto clean_health;
+	}
+
+	err = devlink_register(devlink, &pdev->dev);
+	if (err)
+		goto clean_load;
+
+	return 0;
+
+clean_load:
+	mlx5_unload_one(dev, priv);
+clean_health:
 	mlx5_health_cleanup(dev);
 close_pci:
 	mlx5_pci_close(dev, priv);
@@ -1335,6 +1354,10 @@ static void remove_one(struct pci_dev *pdev)
 	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_priv *priv = &dev->priv;
 
+	devlink_unregister(devlink);
+	if (mlx5_unload_one(dev, priv)) {
+		dev_err(&dev->pdev->dev, "mlx5_unload_one failed\n");
+		mlx5_health_cleanup(dev);
 	devlink_unregister(devlink);
 	mlx5_unregister_device(dev);
 

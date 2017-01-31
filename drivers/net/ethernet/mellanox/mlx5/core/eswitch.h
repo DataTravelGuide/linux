@@ -35,7 +35,6 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
-#include <linux/hashtable.h>
 #include <net/devlink.h>
 #include <linux/mlx5/device.h>
 
@@ -325,6 +324,9 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				  int vport, u16 vlan, u8 qos, u8 set_flags);
+
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
+int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
