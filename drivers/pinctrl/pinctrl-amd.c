@@ -211,8 +211,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			pin_num = AMD_GPIO_PINS_BANK3 + i;
 			break;
 		default:
-			/* Illegal bank number, ignore */
-			continue;
+			return;
 		}
 		for (; i < pin_num; i++) {
 			seq_printf(s, "pin%d\t", i);
