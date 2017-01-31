@@ -61,7 +61,7 @@ void rds_tcp_accept_work(struct sock *sk);
 
 /* tcp_connect.c */
 int rds_tcp_conn_connect(struct rds_connection *conn);
-void rds_tcp_conn_shutdown(struct rds_connection *conn);
+void rds_tcp_conn_path_shutdown(struct rds_conn_path *conn);
 void rds_tcp_state_change(struct sock *sk);
 
 /* tcp_listen.c */
@@ -81,8 +81,8 @@ int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
 			     size_t size);
 
 /* tcp_send.c */
-void rds_tcp_xmit_prepare(struct rds_connection *conn);
-void rds_tcp_xmit_complete(struct rds_connection *conn);
+void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp);
+void rds_tcp_xmit_path_complete(struct rds_conn_path *cp);
 int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		 unsigned int hdr_off, unsigned int sg, unsigned int off);
 void rds_tcp_write_space(struct sock *sk);
