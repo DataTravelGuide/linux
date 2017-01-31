@@ -705,6 +705,7 @@ struct lpfc_hba {
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
 	uint32_t cfg_enable_npiv;
+	uint32_t cfg_use_blk_mq;
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
 	uint32_t cfg_link_speed;

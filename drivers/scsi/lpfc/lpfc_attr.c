@@ -2763,6 +2763,9 @@ LPFC_ATTR(sli_mode, 0, 0, 3,
 LPFC_ATTR_R(enable_npiv, 1, 0, 1,
 	"Enable NPIV functionality");
 
+LPFC_ATTR_R(use_blk_mq, 1, 0, 1,
+	"Enable blk_mq functionality");
+
 LPFC_ATTR_R(fcf_failover_policy, 1, 1, 2,
 	"FCF Fast failover=1 Priority failover=2");
 
@@ -4726,6 +4729,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_enable_SmartSAN,
 	&dev_attr_lpfc_max_luns,
 	&dev_attr_lpfc_enable_npiv,
+	&dev_attr_lpfc_use_blk_mq,
 	&dev_attr_lpfc_fcf_failover_policy,
 	&dev_attr_lpfc_enable_rrq,
 	&dev_attr_nport_evt_cnt,
@@ -5749,6 +5753,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
 	lpfc_task_mgmt_tmo_init(phba, lpfc_task_mgmt_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
+	lpfc_use_blk_mq_init(phba, lpfc_use_blk_mq);
 	lpfc_fcf_failover_policy_init(phba, lpfc_fcf_failover_policy);
 	lpfc_enable_rrq_init(phba, lpfc_enable_rrq);
 	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);

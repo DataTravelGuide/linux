@@ -3386,6 +3386,10 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	 * max xri value determined in hba setup.
 	 */
 	shost->can_queue = phba->cfg_hba_queue_depth - 10;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		shost->use_blk_mq = phba->cfg_use_blk_mq ? true : false;
+	else
+		shost->use_blk_mq = false; /* sli3 HBAs do no support MQ */
 	if (dev != &phba->pcidev->dev) {
 		shost->transportt = lpfc_vport_transport_template;
 		vport->port_type = LPFC_NPIV_PORT;
