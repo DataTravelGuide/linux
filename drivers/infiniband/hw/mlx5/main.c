@@ -1959,11 +1959,10 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
-	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_spec *spec;
-	const void *ib_flow = (const void *)flow_attr + sizeof(*flow_attr);
+	void *ib_flow = flow_attr + 1;
 	unsigned int spec_index;
-	u32 flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
+	u32 action;
 	int err = 0;
 
 	if (!is_valid_attr(flow_attr))
@@ -1980,16 +1979,22 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 
 	for (spec_index = 0; spec_index < flow_attr->num_of_specs; spec_index++) {
 		err = parse_flow_attr(spec->match_criteria,
-				      spec->match_value, ib_flow, &flow_tag);
+				      spec->match_value, ib_flow);
 		if (err < 0)
 			goto free;
 
 		ib_flow += ((union ib_flow_spec *)ib_flow)->size;
 	}
 
-	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
-	flow_act.action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
+	/* Outer header support only */
+	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria))
+		<< 0;
+	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
 		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
+	handler->rule = mlx5_add_flow_rule(ft, spec,
+					   action,
+					   MLX5_FS_DEFAULT_FLOW_TAG,
+					   dst);
 
 	if (flow_tag != MLX5_FS_DEFAULT_FLOW_TAG &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||

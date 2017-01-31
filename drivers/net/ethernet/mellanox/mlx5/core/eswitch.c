@@ -243,6 +243,10 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_destination dest;
 	struct mlx5_flow_spec *spec;
+			    MLX5_MATCH_OUTER_HEADERS);
+	struct mlx5_flow_rule *flow_rule = NULL;
+	struct mlx5_flow_destination dest;
+	struct mlx5_flow_spec *spec;
 	void *mv_misc = NULL;
 	void *mc_misc = NULL;
 	u8 *dmac_v = NULL;
@@ -253,7 +257,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 
 	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
+		pr_warn("FDB: Failed to alloc match parameters\n");
 		return NULL;
 	}
 	dmac_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
@@ -282,8 +286,11 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 		  "\tFDB add rule dmac_v(%pM) dmac_c(%pM) -> vport(%d)\n",
 		  dmac_v, dmac_c, vport);
 	spec->match_criteria_enable = match_header;
-	flow_act.action =  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule =
+		mlx5_add_flow_rule(esw->fdb_table.fdb, spec,
+				   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+				   0, &dest);
+	if (IS_ERR(flow_rule)) {
 		mlx5_add_flow_rules(esw->fdb_table.fdb, spec,
 				    &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
@@ -1209,8 +1216,8 @@ static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
 static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport)
 {
-	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_spec *spec;
+	u8 smac[ETH_ALEN];
 	int err = 0;
 	u8 *smac_v;
 
@@ -1255,6 +1262,14 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	if (vport->info.spoofchk) {
 		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.smac_47_16);
 		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.smac_15_0);
+	}
+
+	if (vport->vlan || vport->qos)
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.vlan_tag);
+
+	if (vport->spoofchk) {
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.smac_47_16);
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.smac_15_0);
 		smac_v = MLX5_ADDR_OF(fte_match_param,
 				      spec->match_value,
 				      outer_headers.smac_47_16);
@@ -1262,10 +1277,10 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	}
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	vport->ingress.allow_rule =
-		mlx5_add_flow_rules(vport->ingress.acl, spec,
-				    &flow_act, NULL, 0);
+		mlx5_add_flow_rule(vport->ingress.acl, spec,
+				   MLX5_FLOW_CONTEXT_ACTION_ALLOW,
+				   0, NULL);
 	if (IS_ERR(vport->ingress.allow_rule)) {
 		err = PTR_ERR(vport->ingress.allow_rule);
 		esw_warn(esw->dev,
@@ -1276,8 +1291,11 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	}
 
 	memset(spec, 0, sizeof(*spec));
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	vport->ingress.drop_rule =
+		mlx5_add_flow_rule(vport->ingress.acl, spec,
+				   MLX5_FLOW_CONTEXT_ACTION_DROP,
+				   0, NULL);
+	if (IS_ERR(vport->ingress.drop_rule)) {
 		mlx5_add_flow_rules(vport->ingress.acl, spec,
 				    &flow_act, NULL, 0);
 	if (IS_ERR(vport->ingress.drop_rule)) {
@@ -1299,7 +1317,6 @@ out:
 static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 				   struct mlx5_vport *vport)
 {
-	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
@@ -1323,6 +1340,10 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
 	spec = mlx5_vzalloc(sizeof(*spec));
+		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
+		  vport->vport, vport->vlan, vport->qos);
+
+	spec = mlx5_vzalloc(sizeof(*spec));
 	if (!spec) {
 		err = -ENOMEM;
 		esw_warn(esw->dev, "vport[%d] configure egress rules failed, err(%d)\n",
@@ -1334,8 +1355,14 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.vlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.vlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
-	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->info.vlan);
+	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->vlan);
 
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	vport->egress.allowed_vlan =
+		mlx5_add_flow_rule(vport->egress.acl, spec,
+				   MLX5_FLOW_CONTEXT_ACTION_ALLOW,
+				   0, NULL);
+	if (IS_ERR(vport->egress.allowed_vlan)) {
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 	vport->egress.allowed_vlan =
@@ -1352,10 +1379,10 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 
 	/* Drop others rule (star rule) */
 	memset(spec, 0, sizeof(*spec));
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	vport->egress.drop_rule =
-		mlx5_add_flow_rules(vport->egress.acl, spec,
-				    &flow_act, NULL, 0);
+		mlx5_add_flow_rule(vport->egress.acl, spec,
+				   MLX5_FLOW_CONTEXT_ACTION_DROP,
+				   0, NULL);
 	if (IS_ERR(vport->egress.drop_rule)) {
 		err = PTR_ERR(vport->egress.drop_rule);
 		esw_warn(esw->dev,

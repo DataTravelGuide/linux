@@ -1006,7 +1006,10 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 
 static struct mlx5_flow_rule *
 _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		    u8 match_criteria_enable,
+		   struct mlx5_flow_spec *spec,
+		    u32 action,
+		    u32 flow_tag,
+		    struct mlx5_flow_destination *dest)
 static struct mlx5_flow_handle *alloc_handle(int num_rules)
 {
 	struct mlx5_flow_handle *handle;
@@ -1406,7 +1409,7 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 					   g->mask.match_criteria,
 					   spec->match_criteria)) {
 			rule = add_rule_fg(g, spec->match_value,
-					   flow_act, dest, dest_num);
+					   action, flow_tag, dest);
 			if (!IS_ERR(rule) || PTR_ERR(rule) != -ENOSPC)
 				goto unlock;
 		}
@@ -1418,12 +1421,17 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		goto unlock;
 	}
 
-	rule = add_rule_fg(g, spec->match_value, flow_act, dest, dest_num);
+	rule = add_rule_fg(g, spec->match_value,
+			   action, flow_tag, dest);
 	if (IS_ERR(rule)) {
 		/* Remove assumes refcount > 0 and autogroup creates a group
-		 * with a refcount = 0.
-		 */
-		unlock_ref_node(&ft->node);
+
+struct mlx5_flow_rule *
+mlx5_add_flow_rule(struct mlx5_flow_table *ft,
+		   struct mlx5_flow_spec *spec,
+		   u32 action,
+		   u32 flow_tag,
+		   struct mlx5_flow_destination *dest)
 		tree_get_node(&g->node);
 		tree_remove_node(&g->node);
 		return rule;
@@ -1473,7 +1481,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		}
 	}
 
-	handle = _mlx5_add_flow_rules(ft, spec, flow_act, dest, dest_num);
+	rule = _mlx5_add_flow_rule(ft, spec, action, flow_tag, dest);
 
 	if (sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
 		if (!IS_ERR_OR_NULL(handle) &&

@@ -82,6 +82,12 @@ struct mlx5_flow_spec {
 	u32  match_value[MLX5_ST_SZ_DW(fte_match_param)];
 };
 
+struct mlx5_flow_spec {
+	u8   match_criteria_enable;
+	u32  match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
+	u32  match_value[MLX5_ST_SZ_DW(fte_match_param)];
+};
+
 struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
@@ -130,6 +136,12 @@ int mlx5_destroy_flow_table(struct mlx5_flow_table *ft);
  * match_criteria_enable
  * match_criteria
  */
+struct mlx5_flow_rule *
+mlx5_add_flow_rule(struct mlx5_flow_table *ft,
+		   struct mlx5_flow_spec *spec,
+		   u32 action,
+		   u32 flow_tag,
+		   struct mlx5_flow_destination *dest);
 struct mlx5_flow_group *
 mlx5_create_flow_group(struct mlx5_flow_table *ft, u32 *in);
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);

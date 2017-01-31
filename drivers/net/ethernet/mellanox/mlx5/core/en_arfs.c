@@ -210,6 +210,10 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 		goto out;
 	}
 
+	arfs_t->default_rule = mlx5_add_flow_rule(arfs_t->ft.t, spec,
+						  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+						  MLX5_FS_DEFAULT_FLOW_TAG,
+						  &dest);
 	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, spec,
 						   &flow_act,
 						   &dest, 1);
@@ -553,7 +557,9 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	}
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = priv->direct_tir[arfs_rule->rxq].tirn;
-	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
+	rule = mlx5_add_flow_rule(ft, spec, MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+				  MLX5_FS_DEFAULT_FLOW_TAG,
+				  &dest);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: add rule(filter id=%d, rq idx=%d) failed, err=%d\n",
