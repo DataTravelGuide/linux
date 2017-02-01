@@ -605,7 +605,7 @@ struct netdev_queue {
 	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
 	int			xmit_lock_owner;
 	/*
-	 * please use this field instead of dev->trans_start
+	 * Time (in jiffies) of last Tx
 	 */
 	unsigned long		trans_start;
 
@@ -1720,11 +1720,7 @@ struct net_device {
 
 	/* These may be needed for future network-power-down code. */
 
-	/*
-	 * trans_start here is expensive for high speed devices on SMP,
-	 * please use netdev_queue->trans_start instead.
-	 */
-	unsigned long		trans_start;	/* Time (in jiffies) of last Tx	*/
+	RH_KABI_DEPRECATE(unsigned long, trans_start)
 
 	int			watchdog_timeo; /* used by dev_watchdog() */
 	struct timer_list	watchdog_timer;
@@ -3501,7 +3497,13 @@ static inline void txq_trans_update(struct netdev_queue *txq)
 /* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
 static inline void netif_trans_update(struct net_device *dev)
 {
-	dev->trans_start = jiffies;
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
+
+	if (txq->trans_start != jiffies)
+		txq->trans_start = jiffies;
+
+	/* RHEL - update deprecated trans_start for old binary modules */
+	dev->rh_reserved_trans_start = jiffies;
 }
 
 /**
