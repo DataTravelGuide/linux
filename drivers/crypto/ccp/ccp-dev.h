@@ -30,7 +30,6 @@
 
 #define TRNG_RETRIES			10
 
-
 /****** Register Mappings ******/
 #define Q_MASK_REG			0x000
 #define TRNG_OUT_REG			0x00c
@@ -253,6 +252,9 @@ struct ccp_device {
 	/* Suspend support */
 	unsigned int suspending;
 	wait_queue_head_t suspend_queue;
+
+	/* DMA caching attribute support */
+	unsigned int axcache;
 };
 
 
