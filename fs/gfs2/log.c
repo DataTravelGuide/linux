@@ -699,7 +699,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	    (tr->tr_num_buf_new || tr->tr_num_databuf_new)) {
 		gfs2_assert_withdraw(sdp, tr->tr_t_gh.gh_gl);
 		sdp->sd_log_tr = tr;
-		tr->tr_attached = 1;
+		set_bit(TR_ATTACHED, &tr->tr_flags);
 	}
 	gfs2_log_unlock(sdp);
 }
