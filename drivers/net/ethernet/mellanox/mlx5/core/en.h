@@ -529,12 +529,8 @@ struct mlx5e_priv {
 	u32                        indir_tirn[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_direct_tir    direct_tir[MLX5E_MAX_NUM_CHANNELS];
 
-	struct mlx5e_flow_tables   fts;
-	struct mlx5e_eth_addr_db   eth_addr;
-	struct mlx5e_vlan_db       vlan;
-#ifdef CONFIG_MLX5_CORE_EN_VXLAN
+	struct mlx5e_flow_steering fs;
 	struct mlx5e_vxlan_db      vxlan;
-#endif
 
 	struct mlx5e_params        params;
 	struct workqueue_struct    *wq;

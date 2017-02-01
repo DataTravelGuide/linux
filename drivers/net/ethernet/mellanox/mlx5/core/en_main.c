@@ -2476,7 +2476,6 @@ static int mlx5e_get_vf_stats(struct net_device *dev,
 					    vf_stats);
 }
 
-#if IS_ENABLED(CONFIG_MLX5_CORE_EN_VXLAN)
 static void mlx5e_add_vxlan_port(struct net_device *netdev,
 				 sa_family_t sa_family, __be16 port)
 {
@@ -2548,7 +2547,6 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 
 	return features;
 }
-#endif
 
 static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_open                = mlx5e_open,
@@ -2583,11 +2581,9 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_change_mtu          = mlx5e_change_mtu,
 	.ndo_do_ioctl            = mlx5e_ioctl,
-#ifdef CONFIG_MLX5_CORE_EN_VXLAN
 	.ndo_add_vxlan_port      = mlx5e_add_vxlan_port,
 	.ndo_del_vxlan_port      = mlx5e_del_vxlan_port,
 	.ndo_features_check      = mlx5e_features_check,
-#endif
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
