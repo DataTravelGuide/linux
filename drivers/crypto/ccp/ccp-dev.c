@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -569,51 +569,32 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 }
 #endif
 
-static const struct x86_cpu_id ccp_support[] = {
-	{ X86_VENDOR_AMD, 22, },
-	{ },
-};
-
 static int __init ccp_mod_init(void)
 {
-	struct cpuinfo_x86 *cpuinfo = &boot_cpu_data;
+#ifdef CONFIG_X86
 	int ret;
 
-	if (!x86_match_cpu(ccp_support))
+	ret = ccp_pci_init();
+	if (ret)
+		return ret;
+
+	/* Don't leave the driver loaded if init failed */
+	if (!ccp_get_device()) {
+		ccp_pci_exit();
 		return -ENODEV;
-
-	switch (cpuinfo->x86) {
-	case 22:
-		if ((cpuinfo->x86_model < 48) || (cpuinfo->x86_model > 63))
-			return -ENODEV;
-
-		ret = ccp_pci_init();
-		if (ret)
-			return ret;
-
-		/* Don't leave the driver loaded if init failed */
-		if (!ccp_get_device()) {
-			ccp_pci_exit();
-			return -ENODEV;
-		}
-
-		return 0;
-
-		break;
 	}
+
+	return 0;
+#endif
 
 	return -ENODEV;
 }
 
 static void __exit ccp_mod_exit(void)
 {
-	struct cpuinfo_x86 *cpuinfo = &boot_cpu_data;
-
-	switch (cpuinfo->x86) {
-	case 22:
-		ccp_pci_exit();
-		break;
-	}
+#ifdef CONFIG_X86
+	ccp_pci_exit();
+#endif
 }
 
 module_init(ccp_mod_init);
