@@ -933,7 +933,7 @@ dm9000_init_dm9000(struct net_device *dev)
 	/* Init Driver variable */
 	db->tx_pkt_cnt = 0;
 	db->queue_pkt_len = 0;
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 }
 
 /* Our watchdog timed out. Called by the networking layer */
@@ -951,7 +951,7 @@ static void dm9000_timeout(struct net_device *dev)
 	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 
 	/* Restore previous register address */

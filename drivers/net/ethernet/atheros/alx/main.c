@@ -1136,7 +1136,7 @@ static void alx_netif_stop(struct alx_priv *alx)
 {
 	int i;
 
-	alx->dev->trans_start = jiffies;
+	netif_trans_update(alx->dev);
 	if (netif_carrier_ok(alx->dev)) {
 		netif_carrier_off(alx->dev);
 		netif_tx_disable(alx->dev);

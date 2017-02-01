@@ -736,7 +736,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 					ret = NETDEV_TX_OK;
 				} else {
-					netdev->trans_start = jiffies;
+					netif_trans_update(netdev);
 					hw->ep_shm_info[dest_epid].ep_stats
 						.tx_buffer_full += 1;
 					netif_tx_stop_queue(cur_queue);
