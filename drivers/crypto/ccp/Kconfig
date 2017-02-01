@@ -5,6 +5,6 @@ config CRYPTO_DEV_CCP_DD
 	select HW_RANDOM
 	help
 	  Provides the interface to use the AMD Cryptographic Coprocessor
-	  which can be used to accelerate or offload encryption operations
-	  such as SHA, AES and more. If you choose 'M' here, this module
-	  will be called ccp.
+	  which can be used to offload encryption operations such as SHA,
+	  AES and more. If you choose 'M' here, this module will be called
+	  ccp.
