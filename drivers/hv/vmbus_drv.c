@@ -848,6 +848,43 @@ static void hv_cpu_hotplug_quirk(bool vmbus_loaded)
 }
 #endif
 
+static void hv_synic_init_oncpu(void *arg)
+{
+	int cpu = get_cpu();
+	hv_synic_init(cpu);
+	put_cpu();
+}
+
+static void hv_synic_cleanup_oncpu(void *arg)
+{
+	int cpu = get_cpu();
+	hv_synic_cleanup(cpu);
+	put_cpu();
+}
+
+static int hv_cpuhp_callback(struct notifier_block *nfb,
+			     unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long) hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_STARTING:
+		hv_synic_init(cpu);
+		break;
+	case CPU_DYING:
+		hv_clockevents_unbind(cpu);
+		hv_synic_cleanup(cpu);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block hv_cpuhp_notifier __refdata = {
+       .notifier_call = hv_cpuhp_callback,
+       .priority = INT_MAX,
+};
+
 /*
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
@@ -881,7 +918,11 @@ static int vmbus_bus_init(int irq)
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	on_each_cpu(hv_synic_init, NULL, 1);
+	cpu_notifier_register_begin();
+	on_each_cpu(hv_synic_init_oncpu, NULL, 1);
+	__register_hotcpu_notifier(&hv_cpuhp_notifier);
+	cpu_notifier_register_done();
+
 	ret = vmbus_connect();
 	if (ret)
 		goto err_connect;
@@ -902,10 +943,13 @@ static int vmbus_bus_init(int irq)
 	return 0;
 
 err_connect:
+	cpu_notifier_register_begin();
+	__unregister_hotcpu_notifier(&hv_cpuhp_notifier);
 	for_each_online_cpu(cpu) {
 		hv_clockevents_unbind(cpu);
-		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+		smp_call_function_single(cpu, hv_synic_cleanup_oncpu, NULL, 1);
 	}
+	cpu_notifier_register_done();
 err_alloc:
 	hv_synic_free();
 	hv_remove_vmbus_irq();
@@ -1367,7 +1411,7 @@ static void hv_kexec_handler(void)
 	hv_synic_clockevents_cleanup();
 	vmbus_initiate_unload(false);
 	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+		smp_call_function_single(cpu, hv_synic_cleanup_oncpu, NULL, 1);
 	hv_cleanup(false);
 };
 
@@ -1382,7 +1426,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * for kdump.
 	 */
 	hv_clockevents_unbind(cpu);
-	hv_synic_cleanup(NULL);
+	hv_synic_cleanup(cpu);
 	hv_cleanup(true);
 };
 
@@ -1449,10 +1493,13 @@ static void __exit vmbus_exit(void)
 	}
 	bus_unregister(&hv_bus);
 	hv_cleanup(false);
+	cpu_notifier_register_begin();
+	__unregister_hotcpu_notifier(&hv_cpuhp_notifier);
 	for_each_online_cpu(cpu) {
 		tasklet_kill(hv_context.event_dpc[cpu]);
-		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
+		smp_call_function_single(cpu, hv_synic_cleanup_oncpu, NULL, 1);
 	}
+	cpu_notifier_register_done();
 	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 	hv_cpu_hotplug_quirk(false);
