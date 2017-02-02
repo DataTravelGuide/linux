@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mod_devicetable.h>
@@ -168,6 +169,7 @@ struct mii_bus {
 	 * interrupt at the index matching its address
 	 */
 	int *irq;
+	RH_KABI_EXTEND(struct module *owner)
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
@@ -177,7 +179,8 @@ static inline struct mii_bus *mdiobus_alloc(void)
 	return mdiobus_alloc_size(0);
 }
 
-int mdiobus_register(struct mii_bus *bus);
+int __mdiobus_register(struct mii_bus *bus, struct module *owner);
+#define mdiobus_register(bus) __mdiobus_register(bus, THIS_MODULE)
 void mdiobus_unregister(struct mii_bus *bus);
 void mdiobus_free(struct mii_bus *bus);
 struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv);
