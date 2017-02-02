@@ -65,8 +65,9 @@ typedef enum {
 	PHY_INTERFACE_MODE_SMII,
 } phy_interface_t;
 
+#define PHY_INTERFACE_MODE_XGMII	(PHY_INTERFACE_MODE_SMII+1)
 #define PHY_INTERFACE_MODE_MAX \
-	(PHY_INTERFACE_MODE_SMII - PHY_INTERFACE_MODE_NA + 1)
+	(PHY_INTERFACE_MODE_XGMII - PHY_INTERFACE_MODE_NA + 1)
 
 /**
  * It maps 'enum phy_interface_t' found in include/linux/phy.h
