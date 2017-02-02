@@ -165,7 +165,13 @@ static u64 rapl_timer_ms;
 
 static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 {
-	return rapl_pmus->pmus[topology_logical_package_id(cpu)];
+	unsigned int pkgid = topology_logical_package_id(cpu);
+
+	/*
+	 * The unsigned check also catches the '-1' return value for non
+	 * existent mappings in the topology map.
+	 */
+	return pkgid < rapl_pmus->maxpkg ? rapl_pmus->pmus[pkgid] : NULL;
 }
 
 static inline u64 rapl_read_counter(struct perf_event *event)
@@ -404,6 +410,8 @@ static int rapl_pmu_event_init(struct perf_event *event)
 
 	/* must be done before validate_group */
 	pmu = cpu_to_rapl_pmu(event->cpu);
+	if (!pmu)
+		return -EINVAL;
 	event->cpu = pmu->cpu;
 	event->pmu_private = pmu;
 	event->hw.event_base = msr;
@@ -591,6 +599,20 @@ static int rapl_cpu_online(unsigned int cpu)
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 	int target;
 
+	if (!pmu) {
+		pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
+		if (!pmu)
+			return -ENOMEM;
+
+		raw_spin_lock_init(&pmu->lock);
+		INIT_LIST_HEAD(&pmu->active_list);
+		pmu->pmu = &rapl_pmus->pmu;
+		pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
+		rapl_hrtimer_init(pmu);
+
+		rapl_pmus->pmus[topology_logical_package_id(cpu)] = pmu;
+	}
+
 	/*
 	 * Check if there is an online cpu in the package which collects rapl
 	 * events already.
@@ -604,37 +626,12 @@ static int rapl_cpu_online(unsigned int cpu)
 	return 0;
 }
 
-static int rapl_cpu_prepare(unsigned int cpu)
-{
-	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
-
-	if (pmu)
-		return 0;
-
-	pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
-	if (!pmu)
-		return -ENOMEM;
-
-	raw_spin_lock_init(&pmu->lock);
-	INIT_LIST_HEAD(&pmu->active_list);
-	pmu->pmu = &rapl_pmus->pmu;
-	pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
-	pmu->cpu = -1;
-	rapl_hrtimer_init(pmu);
-	rapl_pmus->pmus[topology_logical_package_id(cpu)] = pmu;
-	return 0;
-}
-
 static int rapl_cpu_notifier(struct notifier_block *self,
 			     unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		rapl_cpu_prepare(cpu);
-		break;
-
 	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
 		rapl_cpu_online(cpu);
@@ -795,10 +792,9 @@ static int __init rapl_prepare_cpus(void)
 		if (rapl_pmus->pmus[pkg])
 			continue;
 
-		ret = rapl_cpu_prepare(cpu);
+		ret = rapl_cpu_online(cpu);
 		if (ret)
 			return ret;
-		rapl_cpu_online(cpu);
 	}
 	return 0;
 }
