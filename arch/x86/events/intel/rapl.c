@@ -564,14 +564,14 @@ const struct attribute_group *rapl_attr_groups[] = {
 	NULL,
 };
 
-static void rapl_cpu_exit(int cpu)
+static int rapl_cpu_offline(unsigned int cpu)
 {
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 	int target;
 
 	/* Check if exiting cpu is used for collecting rapl events */
 	if (!cpumask_test_and_clear_cpu(cpu, &rapl_cpu_mask))
-		return;
+		return 0;
 
 	pmu->cpu = -1;
 	/* Find a new cpu to collect rapl events */
@@ -583,9 +583,10 @@ static void rapl_cpu_exit(int cpu)
 		pmu->cpu = target;
 		perf_pmu_migrate_context(pmu->pmu, cpu, target);
 	}
+	return 0;
 }
 
-static void rapl_cpu_init(int cpu)
+static int rapl_cpu_online(unsigned int cpu)
 {
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 	int target;
@@ -596,13 +597,14 @@ static void rapl_cpu_init(int cpu)
 	 */
 	target = cpumask_any_and(&rapl_cpu_mask, topology_core_cpumask(cpu));
 	if (target < nr_cpu_ids)
-		return;
+		return 0;
 
 	cpumask_set_cpu(cpu, &rapl_cpu_mask);
 	pmu->cpu = cpu;
+	return 0;
 }
 
-static int rapl_cpu_prepare(int cpu)
+static int rapl_cpu_prepare(unsigned int cpu)
 {
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 
@@ -635,11 +637,11 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 
 	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
-		rapl_cpu_init(cpu);
+		rapl_cpu_online(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
-		rapl_cpu_exit(cpu);
+		rapl_cpu_offline(cpu);
 		break;
 	}
 	return NOTIFY_OK;
@@ -796,7 +798,7 @@ static int __init rapl_prepare_cpus(void)
 		ret = rapl_cpu_prepare(cpu);
 		if (ret)
 			return ret;
-		rapl_cpu_init(cpu);
+		rapl_cpu_online(cpu);
 	}
 	return 0;
 }
