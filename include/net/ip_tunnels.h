@@ -129,7 +129,8 @@ struct ip_tunnel {
 	struct gro_cells	gro_cells;
 
 	/* Reserved slots. For Red Hat usage only. */
-	RH_KABI_USE(1, bool	collect_md)
+	RH_KABI_USE2(1, bool	collect_md,
+			bool	ignore_df)
 	RH_KABI_RESERVE(2)
 	RH_KABI_RESERVE(3)
 	RH_KABI_RESERVE(4)
