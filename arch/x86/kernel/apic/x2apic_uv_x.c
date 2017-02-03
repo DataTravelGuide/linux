@@ -1558,6 +1558,8 @@ void __init uv_system_init(void)
 
 	if (is_uv_system())
 		uv_system_init_hub();
+	else
+		uv_nmi_setup_hubless();
 }
 
 apic_driver(apic_x2apic_uv_x);
