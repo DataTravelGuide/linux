@@ -504,6 +504,13 @@ struct phy_driver {
 	void (*get_wol)(struct phy_device *dev, struct ethtool_wolinfo *wol);
 
 	struct device_driver driver;
+
+	/* Determines the auto negotiation result */
+	RH_KABI_EXTEND(int (*aneg_done)(struct phy_device *phydev))
+
+	/* PHY API is not on symbol whitelist now so we can extend
+	 * this structure directly via simple RH_KABI_EXTEND.
+	 */
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)
 
