@@ -48,6 +48,12 @@ struct ipv6_devconf {
 	__s32		accept_dad;
 	__s32		force_tllao;
 	__s32           ndisc_notify;
+#ifndef __GENKSYMS__
+	struct ipv6_stable_secret {
+		bool initialized;
+		struct in6_addr secret;
+	} stable_secret;
+#endif
 	void		*sysctl;
 };
 

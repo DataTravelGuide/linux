@@ -46,6 +46,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
+#include <linux/inet.h>
 #include <linux/in6.h>
 #include <linux/netdevice.h>
 #include <linux/if_addr.h>
@@ -101,6 +102,9 @@
 #endif
 
 #define	INFINITY_LIFE_TIME	0xFFFFFFFF
+
+#define IPV6_MAX_STRLEN \
+	sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
 
 static inline u32 cstamp_delta(unsigned long cstamp)
 {
@@ -199,6 +203,9 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 	.disable_ipv6		= 0,
 	.accept_dad		= 1,
+	.stable_secret		= {
+		.initialized = false,
+	}
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -234,6 +241,9 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.accept_source_route	= 0,	/* we do not accept RH0 by default. */
 	.disable_ipv6		= 0,
 	.accept_dad		= 1,
+	.stable_secret		= {
+		.initialized = false,
+	},
 };
 
 /* Check if a valid qdisc is available */
@@ -4361,6 +4371,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ACCEPT_DAD] = cnf->accept_dad;
 	array[DEVCONF_FORCE_TLLAO] = cnf->force_tllao;
 	array[DEVCONF_NDISC_NOTIFY] = cnf->ndisc_notify;
+	/* we omit DEVCONF_STABLE_SECRET for now */
 }
 
 static inline size_t inet6_ifla6_size(void)
@@ -4963,6 +4974,54 @@ int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
+					 void __user *buffer, size_t *lenp,
+					 loff_t *ppos)
+{
+	int err;
+	struct in6_addr addr;
+	char str[IPV6_MAX_STRLEN];
+	struct ctl_table lctl = *ctl;
+	struct ipv6_stable_secret *secret = ctl->data;
+
+	lctl.maxlen = IPV6_MAX_STRLEN;
+	lctl.data = str;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (!write && !secret->initialized) {
+		err = -EIO;
+		goto out;
+	}
+
+	if (!write) {
+		err = snprintf(str, sizeof(str), "%pI6",
+			       &secret->secret);
+		if (err >= sizeof(str)) {
+			err = -EIO;
+			goto out;
+		}
+	}
+
+	err = proc_dostring(&lctl, write, buffer, lenp, ppos);
+	if (err || !write)
+		goto out;
+
+	if (in6_pton(str, -1, addr.in6_u.u6_addr8, -1, NULL) != 1) {
+		err = -EIO;
+		goto out;
+	}
+
+	secret->initialized = true;
+	secret->secret = addr;
+
+out:
+	rtnl_unlock();
+
+	return err;
+}
+
 static struct addrconf_sysctl_table
 {
 	struct ctl_table_header *sysctl_header;
@@ -5206,6 +5265,13 @@ static struct addrconf_sysctl_table
 			.proc_handler   = proc_dointvec
 		},
 		{
+			.procname	= "stable_secret",
+			.data		= &ipv6_devconf.stable_secret,
+			.maxlen		= IPV6_MAX_STRLEN,
+			.mode		= 0600,
+			.proc_handler	= addrconf_sysctl_stable_secret,
+		},
+		{
 			/* sentinel */
 		}
 	},
@@ -5300,6 +5366,9 @@ static int __net_init addrconf_init_net(struct net *net)
 	/* these will be inherited by all namespaces */
 	dflt->autoconf = ipv6_defaults.autoconf;
 	dflt->disable_ipv6 = ipv6_defaults.disable_ipv6;
+
+	dflt->stable_secret.initialized = false;
+	all->stable_secret.initialized = false;
 
 	net->ipv6.devconf_all = all;
 	net->ipv6.devconf_dflt = dflt;
