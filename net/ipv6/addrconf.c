@@ -2111,6 +2111,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 	__u32 valid_lft;
 	__u32 prefered_lft;
 	int addr_type;
+	u32 addr_flags = 0;
 	struct inet6_dev *in6_dev;
 	struct net *net = dev_net(dev);
 
@@ -2221,6 +2222,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 				   IN6_ADDR_GEN_MODE_STABLE_PRIVACY &&
 				   !ipv6_generate_stable_address(&addr, 0,
 								 in6_dev)) {
+				addr_flags |= IFA_F_STABLE_PRIVACY;
 				goto ok;
 			} else if (ipv6_generate_eui64(addr.s6_addr + 8, dev) &&
 				   ipv6_inherit_eui64(addr.s6_addr + 8, in6_dev)) {
@@ -2240,7 +2242,6 @@ ok:
 
 		if (ifp == NULL && valid_lft) {
 			int max_addresses = in6_dev->cnf.max_addresses;
-			u32 addr_flags = 0;
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 			if (in6_dev->cnf.optimistic_dad &&
@@ -2738,17 +2739,17 @@ static void init_loopback(struct net_device *dev)
 	}
 }
 
-static void addrconf_add_linklocal(struct inet6_dev *idev, const struct in6_addr *addr)
+static void addrconf_add_linklocal(struct inet6_dev *idev,
+				   const struct in6_addr *addr, u32 flags)
 {
 	struct inet6_ifaddr *ifp;
-	u32 addr_flags = IFA_F_PERMANENT;
+	u32 addr_flags = flags | IFA_F_PERMANENT;
 
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	if (idev->cnf.optimistic_dad &&
 	    !dev_net(idev->dev)->ipv6.devconf_all->forwarding)
 		addr_flags |= IFA_F_OPTIMISTIC;
 #endif
-
 
 	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags,
 			    INFINITY_LIFE_TIME, INFINITY_LIFE_TIME);
@@ -2847,7 +2848,8 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 
 	if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
 		if (!ipv6_generate_stable_address(&addr, 0, idev))
-			addrconf_add_linklocal(idev, &addr);
+			addrconf_add_linklocal(idev, &addr,
+					       IFA_F_STABLE_PRIVACY);
 		else if (prefix_route)
 			addrconf_prefix_route(&addr, 64, idev->dev, 0, 0);
 	} else if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_EUI64) {
@@ -2856,7 +2858,7 @@ static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 		 * couldn't generate one.
 		 */
 		if (ipv6_generate_eui64(addr.s6_addr + 8, idev->dev) == 0)
-			addrconf_add_linklocal(idev, &addr);
+			addrconf_add_linklocal(idev, &addr, 0);
 		else if (prefix_route)
 			addrconf_prefix_route(&addr, 64, idev->dev, 0, 0);
 	}
