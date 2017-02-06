@@ -770,6 +770,8 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+	net->idgen_retries = 3;
+	net->idgen_delay = 1 * HZ;
 
 	err = ipv6_init_mibs(net);
 	if (err)

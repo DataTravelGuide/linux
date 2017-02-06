@@ -172,6 +172,9 @@ struct net {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK) && defined(CONFIG_NF_CT_PROTO_UDPLITE)
 	RH_KABI_EXTEND(struct nf_udplite_net ct_udplite)
 #endif
+
+	RH_KABI_EXTEND(int idgen_retries)
+	RH_KABI_EXTEND(int idgen_delay)
 };
 
 /*
