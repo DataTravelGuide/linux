@@ -20,6 +20,11 @@
 
 #include "ccp-dev.h"
 
+/*
+ * Note: We do not support CCP Crypto in RHEL7
+ */
+#define RHEL_SUPPORT_CCP_CRYPTO	0
+
 /* SHA initial context values */
 static const __be32 ccp_sha1_init[SHA1_DIGEST_SIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA1_H0), cpu_to_be32(SHA1_H1),
@@ -90,6 +95,7 @@ static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
 	return 0;
 }
 
+#if RHEL_SUPPORT_CCP_CRYPTO
 static void ccp_update_sg_workarea(struct ccp_sg_workarea *wa, unsigned int len)
 {
 	unsigned int nbytes = min_t(u64, len, wa->bytes_left);
@@ -104,6 +110,7 @@ static void ccp_update_sg_workarea(struct ccp_sg_workarea *wa, unsigned int len)
 		wa->sg_used = 0;
 	}
 }
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 
 static void ccp_dm_free(struct ccp_dm_workarea *wa)
 {
@@ -173,6 +180,7 @@ static void ccp_set_dm_area(struct ccp_dm_workarea *wa, unsigned int wa_offset,
 				 0);
 }
 
+#if RHEL_SUPPORT_CCP_CRYPTO
 static void ccp_get_dm_area(struct ccp_dm_workarea *wa, unsigned int wa_offset,
 			    struct scatterlist *sg, unsigned int sg_offset,
 			    unsigned int len)
@@ -241,6 +249,7 @@ static void ccp_reverse_get_dm_area(struct ccp_dm_workarea *wa,
 		nbytes -= sb_len;
 	}
 }
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 
 static void ccp_free_data(struct ccp_data *data, struct ccp_cmd_queue *cmd_q)
 {
@@ -274,6 +283,7 @@ e_err:
 	return ret;
 }
 
+#if RHEL_SUPPORT_CCP_CRYPTO
 static unsigned int ccp_queue_buf(struct ccp_data *data, unsigned int from)
 {
 	struct ccp_sg_workarea *sg_wa = &data->sg_wa;
@@ -405,6 +415,7 @@ static void ccp_process_data(struct ccp_data *src, struct ccp_data *dst,
 					       op->dst.u.dma.length);
 	}
 }
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 
 static int ccp_copy_to_from_sb(struct ccp_cmd_queue *cmd_q,
 			       struct ccp_dm_workarea *wa, u32 jobid, u32 sb,
@@ -445,6 +456,7 @@ static int ccp_copy_to_sb(struct ccp_cmd_queue *cmd_q,
 	return ccp_copy_to_from_sb(cmd_q, wa, jobid, sb, byte_swap, false);
 }
 
+#if RHEL_SUPPORT_CCP_CRYPTO
 static int ccp_copy_from_sb(struct ccp_cmd_queue *cmd_q,
 			    struct ccp_dm_workarea *wa, u32 jobid, u32 sb,
 			    u32 byte_swap)
@@ -1330,6 +1342,7 @@ e_sb:
 
 	return ret;
 }
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 
 static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 				struct ccp_cmd *cmd)
@@ -1525,6 +1538,7 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 	return ret;
 }
 
+#if RHEL_SUPPORT_CCP_CRYPTO
 static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
 	struct ccp_ecc_engine *ecc = &cmd->u.ecc;
@@ -1836,6 +1850,7 @@ static int ccp_run_ecc_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		return -EINVAL;
 	}
 }
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 
 int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 {
@@ -1847,6 +1862,7 @@ int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	cmd_q->free_slots = cmd_q->ccp->vdata->perform->get_free_slots(cmd_q);
 
 	switch (cmd->engine) {
+#if RHEL_SUPPORT_CCP_CRYPTO
 	case CCP_ENGINE_AES:
 		ret = ccp_run_aes_cmd(cmd_q, cmd);
 		break;
@@ -1859,15 +1875,18 @@ int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	case CCP_ENGINE_RSA:
 		ret = ccp_run_rsa_cmd(cmd_q, cmd);
 		break;
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 	case CCP_ENGINE_PASSTHRU:
 		if (cmd->flags & CCP_CMD_PASSTHRU_NO_DMA_MAP)
 			ret = ccp_run_passthru_nomap_cmd(cmd_q, cmd);
 		else
 			ret = ccp_run_passthru_cmd(cmd_q, cmd);
 		break;
+#if RHEL_SUPPORT_CCP_CRYPTO
 	case CCP_ENGINE_ECC:
 		ret = ccp_run_ecc_cmd(cmd_q, cmd);
 		break;
+#endif /* RHEL_SUPPORT_CCP_CRYPTO */
 	default:
 		ret = -EINVAL;
 	}
