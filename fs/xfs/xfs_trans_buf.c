@@ -313,7 +313,7 @@ xfs_trans_read_buf_map(
 			trace_xfs_trans_read_buf_io(bp, _RET_IP_);
 			ASSERT(!(bp->b_flags & XBF_ASYNC));
 			ASSERT(bp->b_iodone == NULL);
-			XFS_BUF_READ(bp);
+			bp->b_flags |= XBF_READ;
 			bp->b_ops = ops;
 
 			error = xfs_buf_submit_wait(bp);
