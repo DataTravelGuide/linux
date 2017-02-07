@@ -311,7 +311,7 @@ xfs_trans_read_buf_map(
 		ASSERT(!bp->b_error);
 		if (!(bp->b_flags & XBF_DONE)) {
 			trace_xfs_trans_read_buf_io(bp, _RET_IP_);
-			ASSERT(!XFS_BUF_ISASYNC(bp));
+			ASSERT(!(bp->b_flags & XBF_ASYNC));
 			ASSERT(bp->b_iodone == NULL);
 			XFS_BUF_READ(bp);
 			bp->b_ops = ops;
