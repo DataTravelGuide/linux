@@ -108,8 +108,8 @@ static struct notifier_block hyperv_panic_block = {
 
 static const char *fb_mmio_name = "fb_range";
 static struct resource *fb_mmio;
-struct resource *hyperv_mmio;
-DEFINE_SEMAPHORE(hyperv_mmio_lock);
+static struct resource *hyperv_mmio;
+static DEFINE_SEMAPHORE(hyperv_mmio_lock);
 
 struct hv_device_info {
 	struct hv_ring_buffer_debug_info inbound;
