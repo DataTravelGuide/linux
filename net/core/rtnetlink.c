@@ -3499,6 +3499,9 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u32 filter_mask;
 	int err;
 
+	if (nlmsg_len(nlh) < sizeof(*ifsm))
+		return -EINVAL;
+
 	ifsm = nlmsg_data(nlh);
 	if (ifsm->ifindex > 0)
 		dev = __dev_get_by_index(net, ifsm->ifindex);
@@ -3546,6 +3549,9 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = cb->args[1];
 
 	cb->seq = net->dev_base_seq;
+
+	if (nlmsg_len(cb->nlh) < sizeof(*ifsm))
+		return -EINVAL;
 
 	ifsm = nlmsg_data(cb->nlh);
 	filter_mask = ifsm->filter_mask;
