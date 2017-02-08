@@ -369,7 +369,7 @@ xfs_xattr_acl_set(struct dentry *dentry, const char *name,
 		const void *value, size_t size, int flags, int type)
 {
 	struct inode *inode = dentry->d_inode;
-	struct posix_acl *acl = NULL;
+	struct posix_acl *acl = NULL, *real_acl = NULL;
 	int error = 0;
 
 	if (flags & XATTR_CREATE)
@@ -403,17 +403,13 @@ xfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(inode->i_sb)))
 		goto out_release;
 
+	real_acl = acl;
 	if (type == ACL_TYPE_ACCESS) {
-		umode_t mode = inode->i_mode;
-		error = posix_acl_equiv_mode(acl, &mode);
+		umode_t mode;
 
-		if (error <= 0) {
-			posix_acl_release(acl);
-			acl = NULL;
-
-			if (error < 0)
-				return error;
-		}
+		error = posix_acl_update_mode(inode, &mode, &real_acl);
+		if (error)
+			goto out_release;
 
 		error = xfs_set_mode(inode, mode);
 		if (error)
@@ -421,7 +417,7 @@ xfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	}
 
  set_acl:
-	error = xfs_set_acl(inode, type, acl);
+	error = xfs_set_acl(inode, type, real_acl);
  out_release:
 	posix_acl_release(acl);
  out:
