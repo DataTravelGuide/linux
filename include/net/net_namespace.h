@@ -163,6 +163,9 @@ struct net {
 	 */
 	RH_KABI_EXTEND(int sctp_pf_enable)
 	RH_KABI_EXTEND(struct list_head	nfct_timeout_list)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK) && defined(CONFIG_NF_CT_PROTO_DCCP)
+	RH_KABI_EXTEND(struct nf_dccp_net ct_dccp)
+#endif
 };
 
 /*
