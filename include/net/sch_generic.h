@@ -285,7 +285,9 @@ static inline spinlock_t *qdisc_lock(struct Qdisc *qdisc)
 
 static inline struct Qdisc *qdisc_root(const struct Qdisc *qdisc)
 {
-	return qdisc->dev_queue->qdisc;
+	struct Qdisc *q = rcu_dereference_rtnl(qdisc->dev_queue->qdisc);
+
+	return q;
 }
 
 static inline struct Qdisc *qdisc_root_sleeping(const struct Qdisc *qdisc)
@@ -411,7 +413,7 @@ static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
 	struct Qdisc *qdisc;
 
 	for (; i < dev->num_tx_queues; i++) {
-		qdisc = netdev_get_tx_queue(dev, i)->qdisc;
+		qdisc = rtnl_dereference(netdev_get_tx_queue(dev, i)->qdisc);
 		if (qdisc) {
 			spin_lock_bh(qdisc_lock(qdisc));
 			qdisc_reset(qdisc);
@@ -429,13 +431,18 @@ static inline void qdisc_reset_all_tx(struct net_device *dev)
 static inline bool qdisc_all_tx_empty(const struct net_device *dev)
 {
 	unsigned int i;
+
+	rcu_read_lock();
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		const struct Qdisc *q = txq->qdisc;
+		const struct Qdisc *q = rcu_dereference(txq->qdisc);
 
-		if (q->q.qlen)
+		if (q->q.qlen) {
+			rcu_read_unlock();
 			return false;
+		}
 	}
+	rcu_read_unlock();
 	return true;
 }
 
@@ -443,9 +450,10 @@ static inline bool qdisc_all_tx_empty(const struct net_device *dev)
 static inline bool qdisc_tx_changing(const struct net_device *dev)
 {
 	unsigned int i;
+
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		if (txq->qdisc != txq->qdisc_sleeping)
+		if (rcu_access_pointer(txq->qdisc) != txq->qdisc_sleeping)
 			return true;
 	}
 	return false;
@@ -455,9 +463,10 @@ static inline bool qdisc_tx_changing(const struct net_device *dev)
 static inline bool qdisc_tx_is_noop(const struct net_device *dev)
 {
 	unsigned int i;
+
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		if (txq->qdisc != &noop_qdisc)
+		if (rcu_access_pointer(txq->qdisc) != &noop_qdisc)
 			return false;
 	}
 	return true;
