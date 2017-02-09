@@ -169,6 +169,9 @@ struct net {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK) && defined(CONFIG_NF_CT_PROTO_SCTP)
 	RH_KABI_EXTEND(struct nf_sctp_net ct_sctp)
 #endif
+#if IS_ENABLED(CONFIG_NF_CONNTRACK) && defined(CONFIG_NF_CT_PROTO_UDPLITE)
+	RH_KABI_EXTEND(struct nf_udplite_net ct_udplite)
+#endif
 };
 
 /*
