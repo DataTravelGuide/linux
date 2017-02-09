@@ -159,7 +159,7 @@ struct Qdisc_class_ops {
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
-	struct tcf_proto **	(*tcf_chain)(struct Qdisc *, unsigned long);
+	struct tcf_proto __rcu ** (*tcf_chain)(struct Qdisc *, unsigned long);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);
@@ -237,8 +237,8 @@ struct tcf_proto_ops {
 
 struct tcf_proto {
 	/* Fast access part */
-	struct tcf_proto	*next;
-	void			*root;
+	struct tcf_proto __rcu	*next;
+	void __rcu		*root;
 	int			(*classify)(struct sk_buff *,
 					    const struct tcf_proto *,
 					    struct tcf_result *);
@@ -250,6 +250,7 @@ struct tcf_proto {
 	struct Qdisc		*q;
 	void			*data;
 	const struct tcf_proto_ops	*ops;
+	RH_KABI_EXTEND(struct rcu_head		rcu)
 };
 
 struct qdisc_skb_cb {
@@ -405,7 +406,7 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 void __qdisc_calculate_pkt_len(struct sk_buff *skb,
 			       const struct qdisc_size_table *stab);
 void tcf_destroy(struct tcf_proto *tp);
-void tcf_destroy_chain(struct tcf_proto **fl);
+void tcf_destroy_chain(struct tcf_proto __rcu **fl);
 
 /* Reset all TX qdiscs greater then index of a device.  */
 static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
