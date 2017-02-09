@@ -1145,10 +1145,8 @@ static int qat_alg_aead_init(struct crypto_tfm *tfm,
 		return -EFAULT;
 	spin_lock_init(&ctx->lock);
 	ctx->qat_hash_alg = hash;
-	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
-		sizeof(struct aead_request) +
-		sizeof(struct qat_crypto_request));
 	ctx->tfm = tfm;
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm), sizeof(struct qat_crypto_request));
 	return 0;
 }
 
@@ -1198,8 +1196,7 @@ static int qat_alg_ablkcipher_init(struct crypto_tfm *tfm)
 	struct qat_alg_ablkcipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	spin_lock_init(&ctx->lock);
-	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
-					sizeof(struct qat_crypto_request);
+	tfm->crt_ablkcipher.reqsize = sizeof(struct qat_crypto_request);
 	ctx->tfm = tfm;
 	return 0;
 }
