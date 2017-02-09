@@ -213,10 +213,14 @@ struct tcf_proto_ops {
 
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
 	void			(*put)(struct tcf_proto*, unsigned long);
-	int			(*change)(struct net *net, struct sk_buff *,
+	RH_KABI_REPLACE(int	(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
-					unsigned long *);
+					unsigned long *),
+			int	(*change)(struct net *net, struct sk_buff *,
+					struct tcf_proto*, unsigned long,
+					u32 handle, struct nlattr **,
+					unsigned long *, bool))
 	int			(*delete)(struct tcf_proto*, unsigned long);
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
 
