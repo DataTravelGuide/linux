@@ -4405,7 +4405,7 @@ int sctp_transport_walk_start(struct rhashtable_iter *iter)
 {
 	int err;
 
-	err = rhashtable_walk_init(&sctp_transport_hashtable, iter);
+	err = rhashtable_walk_init(&sctp_transport_hashtable, iter, GFP_KERNEL);
 	if (err)
 		return err;
 
