@@ -13,7 +13,6 @@
  * Self Test
  **************************************************************************/
 
-#include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/jhash.h>
 #include <linux/kernel.h>
@@ -192,7 +191,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 	 * Insert entries into table with all keys even numbers
 	 */
 	pr_info("  Adding %d keys\n", entries);
-	start = ktime_to_ns(ktime_get());
+	start = ktime_get_ns();
 	for (i = 0; i < entries; i++) {
 		struct test_obj *obj = &array[i];
 
@@ -229,7 +228,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 		cond_resched();
 	}
 
-	end = ktime_to_ns(ktime_get());
+	end = ktime_get_ns();
 	pr_info("  Duration of test: %lld ns\n", end - start);
 
 	return end - start;
