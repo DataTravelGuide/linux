@@ -5996,12 +5996,14 @@ S:	Maintained
 F:	Documentation/scsi/NinjaSCSI.txt
 F:	drivers/scsi/nsp32*
 
-NTB DRIVER
+NTB DRIVER CORE
 M:	Jon Mason <jon.mason@intel.com>
+M:	Allen Hubbe <Allen.Hubbe@emc.com>
 S:	Supported
 F:	drivers/ntb/
 F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
+F:	include/linux/ntb_transport.h
 
 NTFS FILESYSTEM
 M:	Anton Altaparmakov <anton@tuxera.com>
