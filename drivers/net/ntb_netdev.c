@@ -464,15 +464,18 @@ static void ntb_netdev_remove(struct device *client_dev)
 	struct net_device *ndev;
 	struct pci_dev *pdev;
 	struct ntb_netdev *dev;
+	bool found  = false;
 
 	ntb = dev_ntb(client_dev->parent);
 	pdev = ntb->pdev;
 
 	list_for_each_entry(dev, &dev_list, list) {
-		if (dev->pdev == pdev)
+		if (dev->pdev == pdev) {
+			found = true;
 			break;
+		}
 	}
-	if (dev == NULL)
+	if (!found)
 		return;
 
 	list_del(&dev->list);
