@@ -326,7 +326,9 @@ void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(skb_free_datagram_locked);
 
 int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
-			unsigned int flags)
+			unsigned int flags,
+			void (*destructor)(struct sock *sk,
+					   struct sk_buff *skb))
 {
 	int err = 0;
 
@@ -336,6 +338,8 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
 		if (skb == skb_peek(&sk->sk_receive_queue)) {
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			atomic_dec(&skb->users);
+			if (destructor)
+				destructor(sk, skb);
 			err = 0;
 		}
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
@@ -369,7 +373,7 @@ EXPORT_SYMBOL(__sk_queue_drop_skb);
 
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 {
-	int err = __sk_queue_drop_skb(sk, skb, flags);
+	int err = __sk_queue_drop_skb(sk, skb, flags, NULL);
 
 	kfree_skb(skb);
 	sk_mem_reclaim_partial(sk);
