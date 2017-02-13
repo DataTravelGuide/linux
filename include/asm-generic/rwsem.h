@@ -41,8 +41,8 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	while ((tmp = sem->count) >= 0) {
-		if (tmp == cmpxchg(&sem->count, tmp,
+	while ((tmp = atomic_long_read(&sem->count)) >= 0) {
+		if (tmp == atomic_long_cmpxchg(&sem->count, tmp,
 				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
 			return 1;
 		}
@@ -72,7 +72,7 @@ static inline int __down_write_trylock(struct rw_semaphore *sem)
 {
 	long tmp;
 
-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+	tmp = atomic_long_cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
 		      RWSEM_ACTIVE_WRITE_BIAS);
 	return tmp == RWSEM_UNLOCKED_VALUE;
 }
