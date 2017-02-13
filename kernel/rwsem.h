@@ -53,6 +53,48 @@ static inline bool rwsem_owner_is_reader(struct task_struct *owner)
 {
 	return owner == RWSEM_READER_OWNED;
 }
+
+/*
+ * struct slist contains a pointer to a struct list circular list.
+ * The head of the slist is the entry pointed to by the slist. The tail
+ * is the one pointed to by the "prev" member of the head.
+ */
+static inline void INIT_SLIST_HEAD(struct slist_head *head)
+{
+	WRITE_ONCE(head->next, (void *)head);
+}
+
+static inline bool slist_is_singular(struct slist_head *head)
+{
+	return !slist_empty(head) && list_empty(head->next);
+}
+
+static inline void slist_add_tail(struct list_head  *new,
+				  struct slist_head *head)
+{
+	if (slist_empty(head)) {
+		INIT_LIST_HEAD(new);
+		head->next = new;
+	} else {
+		list_add_tail(new, head->next);
+	}
+}
+
+static inline void slist_del(struct list_head  *node,
+			     struct slist_head *head)
+{
+	if (head->next == node) {
+		if (list_empty(node)) {
+			INIT_SLIST_HEAD(head);
+			node->next = LIST_POISON1;
+			node->prev = LIST_POISON2;
+			return;
+		}
+		head->next = node->next;
+	}
+	list_del(node);
+}
+
 #else
 static inline void rwsem_set_owner(struct rw_semaphore *sem)
 {
@@ -65,4 +107,10 @@ static inline void rwsem_clear_owner(struct rw_semaphore *sem)
 static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
 {
 }
+
+#define slist_head			list_head
+#define INIT_SLIST_HEAD(head)		INIT_LIST_HEAD(head)
+#define slist_is_singular(head)		list_is_singular(head)
+#define slist_add_tail(new, head)	list_add_tail(new, head)
+#define slist_del(node, head)		list_del(node)
 #endif

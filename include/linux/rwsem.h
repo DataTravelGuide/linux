@@ -24,6 +24,26 @@ struct rw_semaphore;
 #include <linux/rwsem-spinlock.h> /* use a generic implementation */
 #define __RWSEM_INIT_COUNT(name)	.count = RWSEM_UNLOCKED_VALUE
 #else
+
+#ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+struct slist_head {
+	struct list_head *next;
+};
+
+/*
+ * Is slist_head empty?
+ */
+static inline bool slist_empty(struct slist_head *head)
+{
+	return READ_ONCE(head->next) == (void *)head;
+}
+
+#define SLIST_HEAD_INIT(name)	{ (void *)&(name) }
+#else
+#define SLIST_HEAD_INIT(name)	LIST_HEAD_INIT(name)
+#define slist_empty(name)	list_empty(name)
+#endif
+
 /* All arch specific implementations share the same struct */
 struct rw_semaphore {
 	RH_KABI_REPLACE(long		count,
@@ -31,14 +51,14 @@ struct rw_semaphore {
 	raw_spinlock_t	wait_lock;
 #if defined(CONFIG_RWSEM_SPIN_ON_OWNER) && !defined(__GENKSYMS__)
 	struct optimistic_spin_queue osq; /* spinner MCS lock */
-#endif
-	struct list_head	wait_list;
-#if defined(CONFIG_RWSEM_SPIN_ON_OWNER) && !defined(__GENKSYMS__)
+	struct slist_head	wait_list;
 	/*
 	 * Write owner. Used as a speculative check to see
 	 * if the owner is running on the cpu.
 	 */
-	struct task_struct *owner;
+	struct task_struct	*owner;
+#else
+	struct list_head	wait_list;
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
@@ -71,14 +91,15 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 #endif
 
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
-#define __RWSEM_OPT_INIT(lockname) , .osq = OSQ_LOCK_UNLOCKED, .owner = NULL
+#define __RWSEM_OPT_INIT(lockname) , .osq = OSQ_LOCK_UNLOCKED,	\
+				     .owner = (void *)&(lockname).wait_list
 #else
 #define __RWSEM_OPT_INIT(lockname)
 #endif
 
 #define __RWSEM_INITIALIZER(name)				\
 	{ __RWSEM_INIT_COUNT(name),				\
-	  .wait_list = LIST_HEAD_INIT((name).wait_list),	\
+	  .wait_list = SLIST_HEAD_INIT((name).wait_list),	\
 	  .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock)	\
 	  __RWSEM_OPT_INIT(name)				\
 	  __RWSEM_DEP_MAP_INIT(name) }
@@ -104,7 +125,7 @@ do {								\
  */
 static inline int rwsem_is_contended(struct rw_semaphore *sem)
 {
-	return !list_empty(&sem->wait_list);
+	return !slist_empty(&sem->wait_list);
 }
 
 /*
