@@ -98,7 +98,7 @@ static void vmd_irq_enable(struct irq_data *data)
 {
 	struct irq_desc *desc = irq_to_desc(data->irq);
 	struct msi_desc *msidesc = irq_desc_get_msi_desc(desc);
-	struct vmd_irq *vmdirq = data->chip_data;
+	struct vmd_irq *vmdirq = data->handler_data;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&list_lock, flags);
@@ -111,7 +111,7 @@ static void vmd_irq_enable(struct irq_data *data)
 
 static void vmd_irq_disable(struct irq_data *data)
 {
-	struct vmd_irq *vmdirq = data->chip_data;
+	struct vmd_irq *vmdirq = data->handler_data;
 	unsigned long flags;
 
 	data->chip->irq_mask(data);
@@ -200,7 +200,6 @@ static int vmd_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		irq_set_handler_data(virq, vmdirq);
 		irq_set_chip_and_handler(virq, &vmd_msi_controller,
 					 handle_simple_irq);
-		irq_set_chip_data(virq, vmdirq);
 
 		msg.address_hi = MSI_ADDR_BASE_HI;
 		msg.address_lo = MSI_ADDR_BASE_LO | MSI_ADDR_DEST_ID(vmdirq->irq->index);
