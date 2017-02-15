@@ -7303,6 +7303,9 @@ static struct sched_domain_topology_level default_topology[] = {
 #ifdef CONFIG_SCHED_BOOK
 	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
 #endif
+#ifdef CONFIG_SCHED_DRAWER
+	{ cpu_drawer_mask, SD_INIT_NAME(DRAWER) },
+#endif
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
