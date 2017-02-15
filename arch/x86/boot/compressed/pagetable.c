@@ -19,7 +19,18 @@
 
 /* These actually do the work of building the kernel identity maps. */
 #include <asm/init.h>
+
+/* This disables the mm tracking functions during boot stage */
+#define __X86_64_MMTRACK_H__
+static inline void mm_track_pte(pte_t *ptep)	{}
+static inline void mm_track_pmd(pmd_t *pmdp)	{}
+static inline void mm_track_pud(pud_t *pudp)	{}
+static inline void mm_track_pgd(pgd_t *pgdp) 	{}
+static inline void mm_track_phys(void *physp)	{}
+static inline int harvest_user(void) { return 0; }
+
 #include <asm/pgtable.h>
+
 #include "../../mm/ident_map.c"
 
 /* Used by pgtable.h asm code to force instruction serialization. */
