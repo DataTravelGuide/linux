@@ -61,7 +61,7 @@ displays the statistics gathered since it was forked.
 .nf
 \fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
 \fBAVG_MHz\fP number of cycles executed divided by time elapsed.
-\fB%Busy\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
+\fBBusy%\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
 \fBBzy_MHz\fP average clock rate while the CPU was busy (in "c0" state).
 \fBTSC_MHz\fP average MHz that the TSC ran during the entire interval.
 .fi
@@ -96,7 +96,7 @@ Subsequent rows show per-CPU statistics.
 
 .nf
 [root@ivy]# ./turbostat
-    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
+    Core     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
        -       -       6    0.36    1596    3492       0    0.59    0.01   99.04    0.00      23      24   23.82    0.01   72.47    0.00    6.40    1.01    0.00
        0       0       9    0.58    1596    3492       0    0.28    0.01   99.13    0.00      23      24   23.82    0.01   72.47    0.00    6.40    1.01    0.00
        0       4       1    0.07    1596    3492       0    0.79
@@ -146,7 +146,7 @@ cpu0: MSR_IA32_THERM_STATUS: 0x88340000 (48 C +/- 1)
 cpu1: MSR_IA32_THERM_STATUS: 0x88440000 (32 C +/- 1)
 cpu2: MSR_IA32_THERM_STATUS: 0x88450000 (31 C +/- 1)
 cpu3: MSR_IA32_THERM_STATUS: 0x88490000 (27 C +/- 1)
-    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp PkgWatt CorWatt GFXWatt
+    Core     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp PkgWatt CorWatt GFXWatt
        -       -     493   12.64    3898    3498       0   12.64    0.00    0.00   74.72      47      47   21.62   13.74    0.00
        0       0       4    0.11    3894    3498       0   99.89    0.00    0.00    0.00      47      47   21.62   13.74    0.00
        0       4    3897   99.98    3898    3498       0    0.02
@@ -179,7 +179,7 @@ until ^C while the other CPUs are mostly idle:
 .nf
 root@ivy: turbostat cat /dev/zero > /dev/null
 ^C
-    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
+    Core     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
        -       -     496   12.75    3886    3492       0   13.16    0.04   74.04    0.00      36      36    0.00    0.00    0.00    0.00   23.15   17.65    0.00
        0       0      22    0.57    3830    3492       0    0.83    0.02   98.59    0.00      27      36    0.00    0.00    0.00    0.00   23.15   17.65    0.00
        0       4       9    0.24    3829    3492       0    1.15
@@ -200,9 +200,9 @@ As cpu5 is very busy, it prevents its sibling, cpu1,
 from entering a c-state deeper than c1.
 
 Note that the Avg_MHz column reflects the total number of cycles executed
-divided by the measurement interval.  If the %Busy column is 100%,
+divided by the measurement interval.  If the Busy% column is 100%,
 then the processor was running at that speed the entire interval.
-The Avg_MHz multiplied by the %Busy results in the Bzy_MHz --
+The Avg_MHz multiplied by the Busy% results in the Bzy_MHz --
 which is the average frequency while the processor was executing --
 not including any non-busy idle time.
 
@@ -238,7 +238,7 @@ in the brand string in /proc/cpuinfo.  On a system where
 the TSC stops in idle, TSC_MHz will drop
 below the processor's base frequency.
 
-%Busy = MPERF_delta/TSC_delta
+Busy% = MPERF_delta/TSC_delta
 
 Bzy_MHz = TSC_delta/APERF_delta/MPERF_delta/measurement_interval
 
