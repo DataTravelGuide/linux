@@ -499,17 +499,10 @@ void choose_random_location(unsigned long input,
 	/* By default, keep output position unchanged. */
 	*virt_addr = *output;
 
-#ifdef CONFIG_HIBERNATION
-	if (!cmdline_find_option_bool("kaslr")) {
-		warn("KASLR disabled: 'kaslr' not on cmdline (hibernation selected).");
-		return;
-	}
-#else
 	if (cmdline_find_option_bool("nokaslr")) {
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		return;
 	}
-#endif
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
