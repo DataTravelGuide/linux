@@ -63,6 +63,8 @@ static inline void x86_ce4100_early_setup(void) { }
 
 #ifndef _SETUP
 
+#include <linux/kernel.h>
+
 /*
  * This is set up by the setup-routine at boot-time
  */
