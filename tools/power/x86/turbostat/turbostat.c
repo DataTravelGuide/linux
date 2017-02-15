@@ -91,6 +91,8 @@ char *output_buffer, *outp;
 unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
+unsigned int do_gfx_rc6_ms;
+unsigned long long  gfx_cur_rc6_ms;
 unsigned int do_gfx_mhz;
 unsigned int gfx_cur_mhz;
 unsigned int tcc_activation_temp;
@@ -189,6 +191,7 @@ struct pkg_data {
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
 	unsigned long long pkg_both_core_gfxe_c0;
+	unsigned long long gfx_rc6_ms;
 	unsigned int gfx_mhz;
 	unsigned int package_id;
 	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
@@ -365,6 +368,9 @@ void print_header(void)
 		outp += sprintf(outp, " CoreTmp");
 	if (do_ptm)
 		outp += sprintf(outp, "  PkgTmp");
+
+	if (do_gfx_rc6_ms)
+		outp += sprintf(outp, " GFX%%rc6");
 
 	if (do_gfx_mhz)
 		outp += sprintf(outp, "  GFXMHz");
@@ -611,6 +617,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_ptm)
 		outp += sprintf(outp, "%8d", p->pkg_temp_c);
 
+	/* GFXrc6 */
+	if (do_gfx_rc6_ms)
+		outp += sprintf(outp, "%8.2f", 100.0 * p->gfx_rc6_ms / 1000.0 / interval_float);
+
 	/* GFXMHz */
 	if (do_gfx_mhz)
 		outp += sprintf(outp, "%8d", p->gfx_mhz);
@@ -753,6 +763,7 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc10 = new->pc10 - old->pc10;
 	old->pkg_temp_c = new->pkg_temp_c;
 
+	old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
 	old->gfx_mhz = new->gfx_mhz;
 
 	DELTA_WRAP32(new->energy_pkg, old->energy_pkg);
@@ -919,6 +930,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->rapl_dram_perf_status = 0;
 	p->pkg_temp_c = 0;
 
+	p->gfx_rc6_ms = 0;
 	p->gfx_mhz = 0;
 }
 int sum_counters(struct thread_data *t, struct core_data *c,
@@ -972,6 +984,7 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.packages.energy_cores += p->energy_cores;
 	average.packages.energy_gfx += p->energy_gfx;
 
+	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
 	average.packages.gfx_mhz = p->gfx_mhz;
 
 	average.packages.pkg_temp_c = MAX(average.packages.pkg_temp_c, p->pkg_temp_c);
@@ -1189,6 +1202,10 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -17;
 		p->pkg_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
+
+	if (do_gfx_rc6_ms)
+		p->gfx_rc6_ms = gfx_cur_rc6_ms;
+
 	if (do_gfx_mhz)
 		p->gfx_mhz = gfx_cur_mhz;
 
@@ -1843,6 +1860,29 @@ int snapshot_proc_interrupts(void)
 	return 0;
 }
 /*
+ * snapshot_gfx_rc6_ms()
+ *
+ * record snapshot of
+ * /sys/class/drm/card0/power/rc6_residency_ms
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_gfx_rc6_ms(void)
+{
+	FILE *fp;
+	int retval;
+
+	fp = fopen_or_die("/sys/class/drm/card0/power/rc6_residency_ms", "r");
+
+	retval = fscanf(fp, "%lld", &gfx_cur_rc6_ms);
+	if (retval != 1)
+		err(1, "GFX rc6");
+
+	fclose(fp);
+
+	return 0;
+}
+/*
  * snapshot_gfx_mhz()
  *
  * record snapshot of
@@ -1876,6 +1916,9 @@ int snapshot_proc_sysfs_files(void)
 {
 	if (snapshot_proc_interrupts())
 		return 1;
+
+	if (do_gfx_rc6_ms)
+		snapshot_gfx_rc6_ms();
 
 	if (do_gfx_mhz)
 		snapshot_gfx_mhz();
@@ -3190,6 +3233,8 @@ void process_cpuid()
 
 	if (has_skl_msrs(family, model))
 		calculate_tsc_tweak();
+
+	do_gfx_rc6_ms = !access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK);
 
 	do_gfx_mhz = !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK);
 
