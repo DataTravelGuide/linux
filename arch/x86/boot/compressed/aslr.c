@@ -1,6 +1,5 @@
 #include "misc.h"
 
-#ifdef CONFIG_RANDOMIZE_BASE
 #include <asm/msr.h>
 #include <asm/archrandom.h>
 #include <asm/e820.h>
@@ -338,5 +337,3 @@ unsigned char *choose_kernel_location(struct boot_params *boot_params,
 out:
 	return (unsigned char *)choice;
 }
-
-#endif /* CONFIG_RANDOMIZE_BASE */
