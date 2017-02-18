@@ -208,6 +208,9 @@ struct audit_context {
 		struct {
 			int			argc;
 		} execve;
+		RH_KABI_EXTEND(struct {
+			char			*name;
+		} module;)
 	};
 	int fds[2];
 };
