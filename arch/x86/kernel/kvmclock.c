@@ -28,6 +28,7 @@
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
+#include <asm/kvmclock.h>
 
 static int kvmclock = 1;
 static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
@@ -171,7 +172,7 @@ bool kvm_check_and_clear_guest_paused(void)
 	return ret;
 }
 
-static struct clocksource kvm_clock = {
+struct clocksource kvm_clock = {
 	.name = "kvm-clock",
 	.read = kvm_clock_get_cycles,
 	.rating = 400,
