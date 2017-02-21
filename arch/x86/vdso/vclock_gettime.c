@@ -98,7 +98,7 @@ static notrace cycle_t vread_pvclock(int *mode)
 		version = pvclock_read_begin(&pvti->pvti);
 		flags = pvti->pvti.flags;
 
-		ret = __pvclock_read_cycles(&pvti->pvti);
+		ret = __pvclock_read_cycles(&pvti->pvti, rdtsc_ordered());
 
 		/*
 		 * Test we're still on the cpu as well as the version.
