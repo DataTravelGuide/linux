@@ -144,6 +144,9 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos,
 	u16 vlan_tag;
 	int rc;
 
+	if (bp->hwrm_spec_code < 0x10201)
+		return -ENOTSUPP;
+
 	if (vlan_proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
 

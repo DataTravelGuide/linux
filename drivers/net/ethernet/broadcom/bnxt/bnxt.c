@@ -3432,6 +3432,7 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	unsigned int ring = 0, grp_idx;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_cfg_input req = {0};
+	u16 def_vlan = 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_CFG, -1, -1);
 	/* Only RSS support for now TBD: COS & LB */
@@ -3452,7 +3453,11 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN +
 			      VLAN_HLEN);
 
-	if (bp->flags & BNXT_FLAG_STRIP_VLAN)
+#ifdef CONFIG_BNXT_SRIOV
+	if (BNXT_VF(bp))
+		def_vlan = bp->vf.vlan;
+#endif
+	if ((bp->flags & BNXT_FLAG_STRIP_VLAN) || def_vlan)
 		req.flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_VLAN_STRIP_MODE);
 
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -4419,6 +4424,11 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	if (rc)
 		netdev_warn(bp->dev, "HWRM set coalescing failure rc: %x\n",
 			    rc);
+
+	if (BNXT_VF(bp)) {
+		bnxt_hwrm_func_qcfg(bp);
+		netdev_update_features(bp->dev);
+	}
 
 	return 0;
 
@@ -5659,7 +5669,14 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 			features |= NETIF_F_HW_VLAN_CTAG_RX |
 				    NETIF_F_HW_VLAN_STAG_RX;
 	}
-
+#ifdef CONFIG_BNXT_SRIOV
+	if (BNXT_VF(bp)) {
+		if (bp->vf.vlan) {
+			features &= ~(NETIF_F_HW_VLAN_CTAG_RX |
+				      NETIF_F_HW_VLAN_STAG_RX);
+		}
+	}
+#endif
 	return features;
 }
 
