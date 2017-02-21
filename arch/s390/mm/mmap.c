@@ -60,7 +60,7 @@ static inline int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
-static unsigned long mmap_rnd(void)
+unsigned long arch_mmap_rnd(void)
 {
 	if (!(current->flags & PF_RANDOMIZE))
 		return 0;
@@ -190,7 +190,8 @@ unsigned long randomize_et_dyn(void)
 	return base + mmap_rnd();
 }
 
-#ifndef CONFIG_64BIT
+	if (current->flags & PF_RANDOMIZE)
+		base += arch_mmap_rnd();
 
 /*
  * This function, called very early during the creation of a new
@@ -198,6 +199,11 @@ unsigned long randomize_et_dyn(void)
  */
 void arch_pick_mmap_layout(struct mm_struct *mm)
 {
+	unsigned long random_factor = 0UL;
+
+	if (current->flags & PF_RANDOMIZE)
+		random_factor = arch_mmap_rnd();
+
 	/*
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
@@ -274,7 +280,11 @@ s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr,
  * process VM image, sets up which VM layout function to use:
  */
 void arch_pick_mmap_layout(struct mm_struct *mm)
-{
+	unsigned long random_factor = 0UL;
+
+	if (current->flags & PF_RANDOMIZE)
+		random_factor = arch_mmap_rnd();
+
 	/*
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
