@@ -54,6 +54,7 @@
 #include "bnxt.h"
 #include "bnxt_sriov.h"
 #include "bnxt_ethtool.h"
+#include "bnxt_dcb.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -4997,7 +4998,7 @@ static void bnxt_enable_napi(struct bnxt *bp)
 	}
 }
 
-static void bnxt_tx_disable(struct bnxt *bp)
+void bnxt_tx_disable(struct bnxt *bp)
 {
 	int i;
 	struct bnxt_tx_ring_info *txr;
@@ -5015,7 +5016,7 @@ static void bnxt_tx_disable(struct bnxt *bp)
 	netif_carrier_off(bp->dev);
 }
 
-static void bnxt_tx_enable(struct bnxt *bp)
+void bnxt_tx_enable(struct bnxt *bp)
 {
 	int i;
 	struct bnxt_tx_ring_info *txr;
@@ -6690,6 +6691,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
+	bnxt_dcb_free(bp);
 	pci_iounmap(pdev, bp->bar2);
 	pci_iounmap(pdev, bp->bar1);
 	pci_iounmap(pdev, bp->bar0);
@@ -6913,6 +6915,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX;
 	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	dev->priv_flags |= IFF_UNICAST_FLT;
+
+	bnxt_dcb_init(bp);
 
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
