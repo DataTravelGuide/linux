@@ -118,8 +118,15 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 
 	mm->mmap_legacy_base = mmap_legacy_base(random_factor);
 
+ */
+void arch_pick_mmap_layout(struct mm_struct *mm)
+{
+	unsigned long random_factor = 0UL;
+
 	if (current->flags & PF_RANDOMIZE)
 		random_factor = mmap_rnd();
+
+	mm->mmap_legacy_base = mmap_legacy_base(random_factor);
 
 	mm->mmap_legacy_base = mmap_legacy_base(random_factor);
 
