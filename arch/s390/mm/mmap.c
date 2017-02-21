@@ -181,18 +181,13 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 unsigned long randomize_et_dyn(void)
 {
-	unsigned long base;
+	if (current->flags & PF_RANDOMIZE)
+		return arch_mmap_rnd();
 
-	base = STACK_TOP / 3 * 2;
-	if (!is_32bit_task())
-		/* Align to 4GB */
-		base &= ~((1UL << 32) - 1);
-	return base + mmap_rnd();
+	return 0UL;
 }
 
-	if (current->flags & PF_RANDOMIZE)
-		base += arch_mmap_rnd();
-
+#ifndef CONFIG_64BIT
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
