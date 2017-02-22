@@ -580,4 +580,21 @@ acpi_debug_print_raw(u32 requested_debug_level,
 		     const char *format, ...) ACPI_PRINTF_LIKE(6);
 #endif
 
+/*
+ * Application prototypes
+ *
+ * All interfaces used by application will be configured
+ * out of the ACPICA build unless the ACPI_APPLICATION
+ * flag is defined.
+ */
+#ifdef ACPI_APPLICATION
+#define ACPI_APP_DEPENDENT_RETURN_VOID(prototype) \
+	prototype;
+
+#else
+#define ACPI_APP_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_APPLICATION */
+
 #endif				/* __ACXFACE_H__ */
