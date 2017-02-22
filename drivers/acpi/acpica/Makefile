@@ -175,5 +175,5 @@ acpi-y +=		\
 	utxferror.o	\
 	utxfmutex.o
 
-acpi-$(ACPI_FUTURE_USAGE) += uttrack.o utcache.o
+acpi-$(ACPI_FUTURE_USAGE) += utprint.o uttrack.o utcache.o
 

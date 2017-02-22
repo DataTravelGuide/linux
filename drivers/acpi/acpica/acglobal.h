@@ -515,6 +515,14 @@ extern const struct ah_device_id asl_device_ids[];
 
 ACPI_FILE ACPI_INIT_GLOBAL(acpi_gbl_output_file, NULL);
 
+/* Print buffer */
+
+extern acpi_spinlock acpi_gbl_print_lock;	/* For print buffer */
+acpi_spinlock acpi_gbl_print_lock;
+
+extern char acpi_gbl_print_buffer[1024];
+char acpi_gbl_print_buffer[1024];
+
 #endif				/* ACPI_APPLICATION */
 
 #endif				/* __ACGLOBAL_H__ */
