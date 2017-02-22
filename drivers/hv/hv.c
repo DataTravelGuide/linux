@@ -181,6 +181,8 @@ static struct clocksource hyperv_cs_tsc = {
 		.mask           = CLOCKSOURCE_MASK(64),
 		.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static struct clocksource *hyperv_cs_old;
 #endif
 
 
@@ -256,6 +258,8 @@ int hv_init(void)
 
 		wrmsrl(HV_X64_MSR_REFERENCE_TSC, tsc_msr.as_uint64);
 		clocksource_register_hz(&hyperv_cs_tsc, NSEC_PER_SEC/100);
+		hyperv_cs_old = hyperv_cs;
+		hyperv_cs = &hyperv_cs_tsc;
 	}
 #endif
 	return 0;
@@ -303,6 +307,7 @@ void hv_cleanup(bool crash)
 		 * a clocksource is impossible and redundant in this case.
 		 */
 		if (!oops_in_progress) {
+			hyperv_cs = hyperv_cs_old;
 			clocksource_change_rating(&hyperv_cs_tsc, 10);
 			clocksource_unregister(&hyperv_cs_tsc);
 		}
