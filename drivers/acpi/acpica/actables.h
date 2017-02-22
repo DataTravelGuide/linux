@@ -168,4 +168,6 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 
 acpi_status acpi_tb_parse_root_table(acpi_physical_address rsdp_address);
 
+u32 acpi_tb_get_rsdp_length(struct acpi_table_rsdp *rsdp);
+
 #endif				/* __ACTABLES_H__ */

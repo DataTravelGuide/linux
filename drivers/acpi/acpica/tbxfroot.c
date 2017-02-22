@@ -51,6 +51,36 @@ ACPI_MODULE_NAME("tbxfroot")
 /* Local prototypes */
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_tb_get_rsdp_length
+ *
+ * PARAMETERS:  rsdp                - Pointer to RSDP
+ *
+ * RETURN:      Table length
+ *
+ * DESCRIPTION: Get the length of the RSDP
+ *
+ ******************************************************************************/
+u32 acpi_tb_get_rsdp_length(struct acpi_table_rsdp *rsdp)
+{
+
+	if (!ACPI_VALIDATE_RSDP_SIG(rsdp->signature)) {
+
+		/* BAD Signature */
+
+		return (0);
+	}
+
+	/* "Length" field is available if table version >= 2 */
+
+	if (rsdp->revision >= 2) {
+		return (rsdp->length);
+	} else {
+		return (ACPI_RSDP_CHECKSUM_LENGTH);
+	}
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_tb_validate_rsdp
  *
  * PARAMETERS:  rsdp                - Pointer to unvalidated RSDP
