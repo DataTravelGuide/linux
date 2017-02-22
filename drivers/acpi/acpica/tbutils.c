@@ -458,10 +458,10 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 				   ACPI_CAST_PTR(struct acpi_table_header,
 						 rsdp));
 
-	/* Differentiate between RSDT and XSDT root tables */
+	/* Use XSDT if present and not overridden. Otherwise, use RSDT */
 
-	if (rsdp->revision > 1 && rsdp->xsdt_physical_address
-			&& !acpi_rsdt_forced) {
+	if ((rsdp->revision > 1) &&
+	    rsdp->xsdt_physical_address && !acpi_gbl_do_not_use_xsdt) {
 		/*
 		 * Root table is an XSDT (64-bit physical addresses). We must use the
 		 * XSDT if the revision is > 1 and the XSDT pointer is present, as per
