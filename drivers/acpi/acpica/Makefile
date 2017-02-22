@@ -148,6 +148,7 @@ acpi-y +=		\
 acpi-y +=		\
 	utaddress.o	\
 	utalloc.o	\
+	utascii.o	\
 	utbuffer.o	\
 	utcopy.o	\
 	utexcep.o	\
