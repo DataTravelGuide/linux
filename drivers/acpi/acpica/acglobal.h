@@ -514,6 +514,7 @@ extern const struct ah_device_id asl_device_ids[];
 #ifdef ACPI_APPLICATION
 
 ACPI_FILE ACPI_INIT_GLOBAL(acpi_gbl_output_file, NULL);
+u8 ACPI_INIT_GLOBAL(acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 
