@@ -201,7 +201,8 @@ struct tcf_result {
 };
 
 struct tcf_proto_ops {
-	struct tcf_proto_ops	*next;
+	RH_KABI_REPLACE_UNSAFE(struct tcf_proto_ops	*next,
+			       struct list_head		head)
 	char			kind[IFNAMSIZ];
 
 	int			(*classify)(struct sk_buff *,
