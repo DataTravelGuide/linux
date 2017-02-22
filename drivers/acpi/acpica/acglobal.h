@@ -435,7 +435,7 @@ ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
  *
  ****************************************************************************/
 
-ACPI_EXTERN u8 acpi_gbl_db_output_flags;
+ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_db_output_flags, ACPI_DB_CONSOLE_OUTPUT);
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -510,5 +510,11 @@ ACPI_FILE ACPI_INIT_GLOBAL(acpi_gbl_debug_file, NULL);
 
 extern const struct ah_predefined_name asl_predefined_info[];
 extern const struct ah_device_id asl_device_ids[];
+
+#ifdef ACPI_APPLICATION
+
+ACPI_FILE ACPI_INIT_GLOBAL(acpi_gbl_output_file, NULL);
+
+#endif				/* ACPI_APPLICATION */
 
 #endif				/* __ACGLOBAL_H__ */
