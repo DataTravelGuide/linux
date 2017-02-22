@@ -261,6 +261,24 @@ u32 acpi_os_get_line(char *buffer);
 #endif
 
 /*
+ * Obtain ACPI table(s)
+ */
+acpi_status
+acpi_os_get_table_by_name(char *signature,
+			  u32 instance,
+			  struct acpi_table_header **table,
+			  acpi_physical_address * address);
+
+acpi_status
+acpi_os_get_table_by_index(u32 index,
+			   struct acpi_table_header **table,
+			   u32 *instance, acpi_physical_address * address);
+
+acpi_status
+acpi_os_get_table_by_address(acpi_physical_address address,
+			     struct acpi_table_header **table);
+
+/*
  * Directory manipulation
  */
 void *acpi_os_open_directory(char *pathname,
