@@ -390,6 +390,7 @@ static void acpi_tb_release_temporal_table(struct acpi_table_desc *table_desc)
  *
  * PARAMETERS:  table_index             - Index into root table array
  *              new_table_desc          - New table descriptor to install
+ *              override                - Whether override should be performed
  *
  * RETURN:      None
  *
@@ -402,7 +403,8 @@ static void acpi_tb_release_temporal_table(struct acpi_table_desc *table_desc)
 
 void
 acpi_tb_install_and_override_table(u32 table_index,
-				   struct acpi_table_desc *new_table_desc)
+				   struct acpi_table_desc *new_table_desc,
+				   u8 override)
 {
 	if (table_index >= acpi_gbl_root_table_list.current_table_count) {
 		return;
@@ -415,7 +417,9 @@ acpi_tb_install_and_override_table(u32 table_index,
 	 * one if desired. Any table within the RSDT/XSDT can be replaced,
 	 * including the DSDT which is pointed to by the FADT.
 	 */
-	acpi_tb_override_table(new_table_desc);
+	if (override) {
+		acpi_tb_override_table(new_table_desc);
+	}
 
 	acpi_tb_install_table(&acpi_gbl_root_table_list.tables[table_index],
 			      new_table_desc->address, new_table_desc->flags,
@@ -480,7 +484,7 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 
-	acpi_tb_install_and_override_table(table_index, &new_table_desc);
+	acpi_tb_install_and_override_table(table_index, &new_table_desc, TRUE);
 
 release_and_exit:
 
@@ -543,6 +547,7 @@ acpi_tb_is_equivalent_table(struct acpi_table_desc *table_desc, u32 table_index)
  *                                    address depending on the table_flags)
  *              flags               - Flags for the table
  *              reload              - Whether reload should be performed
+ *              override            - Whether override should be performed
  *              table_index         - Where the table index is returned
  *
  * RETURN:      Status
@@ -558,7 +563,8 @@ acpi_tb_is_equivalent_table(struct acpi_table_desc *table_desc, u32 table_index)
 
 acpi_status
 acpi_tb_install_non_fixed_table(acpi_physical_address address,
-				u8 flags, u8 reload, u32 *table_index)
+				u8 flags,
+				u8 reload, u8 override, u32 *table_index)
 {
 	u32 i;
 	acpi_status status = AE_OK;
@@ -684,7 +690,7 @@ acpi_tb_install_non_fixed_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 	*table_index = i;
-	acpi_tb_install_and_override_table(i, &new_table_desc);
+	acpi_tb_install_and_override_table(i, &new_table_desc, override);
 
 release_and_exit:
 
