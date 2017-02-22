@@ -211,6 +211,9 @@
 #elif defined(__HAIKU__)
 #include "achaiku.h"
 
+#elif defined(__QNX__)
+#include "acqnx.h"
+
 #else
 
 /* Unknown environment */
