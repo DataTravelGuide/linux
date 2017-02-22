@@ -139,6 +139,8 @@ acpi_status acpi_subsystem_status(void);
 acpi_status acpi_get_system_info(struct acpi_buffer *ret_buffer);
 #endif
 
+acpi_status acpi_get_statistics(struct acpi_statistics *stats);
+
 const char *acpi_format_exception(acpi_status exception);
 
 acpi_status acpi_purge_cached_objects(void);
