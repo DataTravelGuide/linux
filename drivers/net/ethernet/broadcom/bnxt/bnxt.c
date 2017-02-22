@@ -6279,6 +6279,7 @@ static void bnxt_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 }
 
 static const struct net_device_ops bnxt_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
 	.ndo_stop		= bnxt_close,
@@ -6294,7 +6295,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #ifdef CONFIG_BNXT_SRIOV
 	.ndo_get_vf_config	= bnxt_get_vf_config,
 	.ndo_set_vf_mac		= bnxt_set_vf_mac,
-	.ndo_set_vf_vlan	= bnxt_set_vf_vlan,
+	.extended.ndo_set_vf_vlan	= bnxt_set_vf_vlan,
 	.ndo_set_vf_rate	= bnxt_set_vf_bw,
 	.ndo_set_vf_link_state	= bnxt_set_vf_link_state,
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,

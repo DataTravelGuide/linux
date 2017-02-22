@@ -13017,6 +13017,7 @@ static int bnx2x_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 }
 
 static const struct net_device_ops bnx2x_netdev_ops = {
+	.ndo_size		= sizeof(struct net_device_ops),
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
 	.ndo_start_xmit		= bnx2x_start_xmit,
@@ -13037,7 +13038,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_setup_tc		= __bnx2x_setup_tc,
 #ifdef CONFIG_BNX2X_SRIOV
 	.ndo_set_vf_mac		= bnx2x_set_vf_mac,
-	.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
+	.extended.ndo_set_vf_vlan	= bnx2x_set_vf_vlan,
 	.ndo_get_vf_config	= bnx2x_get_vf_config,
 #endif
 #ifdef NETDEV_FCOE_WWNN

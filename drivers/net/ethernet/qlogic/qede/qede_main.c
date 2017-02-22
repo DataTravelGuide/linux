@@ -103,7 +103,8 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 static void qede_link_update(void *dev, struct qed_link_output *link);
 
 #ifdef CONFIG_QED_SRIOV
-static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
+static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
+			    __be16 vlan_proto)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 
@@ -111,6 +112,9 @@ static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
 		DP_NOTICE(edev, "Illegal vlan value %d\n", vlan);
 		return -EINVAL;
 	}
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	DP_VERBOSE(edev, QED_MSG_IOV, "Setting Vlan 0x%04x to VF [%d]\n",
 		   vlan, vf);
@@ -2158,6 +2162,7 @@ static void qede_del_geneve_port(struct net_device *dev,
 #endif
 
 static const struct net_device_ops qede_netdev_ops = {
+	.ndo_size = sizeof(struct net_device_ops),
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
 	.ndo_start_xmit = qede_start_xmit,
@@ -2167,7 +2172,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_change_mtu = qede_change_mtu,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_mac = qede_set_vf_mac,
-	.ndo_set_vf_vlan = qede_set_vf_vlan,
+	.extended.ndo_set_vf_vlan = qede_set_vf_vlan,
 #endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,

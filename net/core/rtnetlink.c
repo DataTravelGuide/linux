@@ -843,6 +843,9 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 			(nla_total_size(0) +
 			 nla_total_size(sizeof(struct ifla_vf_mac)) +
 			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
+			 nla_total_size(0) + /* nest IFLA_VF_VLAN_LIST */
+			 nla_total_size(MAX_VLAN_LIST_LEN *
+					sizeof(struct ifla_vf_vlan_info)) +
 			 nla_total_size(sizeof(struct ifla_vf_spoofchk)) +
 			 nla_total_size(sizeof(struct ifla_vf_tx_rate)) +
 			 nla_total_size(sizeof(struct ifla_vf_rate)) +
@@ -1101,14 +1104,15 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 					       struct nlattr *vfinfo)
 {
 	struct ifla_vf_rss_query_en vf_rss_query_en;
+	struct nlattr *vf, *vfstats, *vfvlanlist;
 	struct ifla_vf_link_state vf_linkstate;
+	struct ifla_vf_vlan_info vf_vlan_info;
 	struct ifla_vf_spoofchk vf_spoofchk;
 	struct ifla_vf_tx_rate vf_tx_rate;
 	struct ifla_vf_stats vf_stats;
 	struct ifla_vf_trust vf_trust;
 	struct ifla_vf_vlan vf_vlan;
 	struct ifla_vf_rate vf_rate;
-	struct nlattr *vf, *vfstats;
 	struct ifla_vf_mac vf_mac;
 	struct ifla_vf_info ivi;
 
@@ -1125,11 +1129,14 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	 * IFLA_VF_LINK_STATE_AUTO which equals zero
 	 */
 	ivi.linkstate = 0;
+	/* VLAN Protocol by default is 802.1Q */
+	ivi.vlan_proto = htons(ETH_P_8021Q);
 	if (dev->netdev_ops->ndo_get_vf_config(dev, vfs_num, &ivi))
 		return 0;
 
 	vf_mac.vf =
 		vf_vlan.vf =
+		vf_vlan_info.vf =
 		vf_rate.vf =
 		vf_tx_rate.vf =
 		vf_spoofchk.vf =
@@ -1140,6 +1147,9 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	memcpy(vf_mac.mac, ivi.mac, sizeof(ivi.mac));
 	vf_vlan.vlan = ivi.vlan;
 	vf_vlan.qos = ivi.qos;
+	vf_vlan_info.vlan = ivi.vlan;
+	vf_vlan_info.qos = ivi.qos;
+	vf_vlan_info.vlan_proto = ivi.vlan_proto;
 	vf_tx_rate.rate = ivi.max_tx_rate;
 	vf_rate.min_tx_rate = ivi.min_tx_rate;
 	vf_rate.max_tx_rate = ivi.max_tx_rate;
@@ -1148,10 +1158,8 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	vf_rss_query_en.setting = ivi.rss_query_en;
 	vf_trust.setting = ivi.trusted;
 	vf = nla_nest_start(skb, IFLA_VF_INFO);
-	if (!vf) {
-		nla_nest_cancel(skb, vfinfo);
-		return -EMSGSIZE;
-	}
+	if (!vf)
+		goto nla_put_vfinfo_failure;
 	if (nla_put(skb, IFLA_VF_MAC, sizeof(vf_mac), &vf_mac) ||
 	    nla_put(skb, IFLA_VF_VLAN, sizeof(vf_vlan), &vf_vlan) ||
 	    nla_put(skb, IFLA_VF_RATE, sizeof(vf_rate),
@@ -1167,17 +1175,23 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 		    &vf_rss_query_en) ||
 	    nla_put(skb, IFLA_VF_TRUST,
 		    sizeof(vf_trust), &vf_trust))
-		return -EMSGSIZE;
+		goto nla_put_vf_failure;
+	vfvlanlist = nla_nest_start(skb, IFLA_VF_VLAN_LIST);
+	if (!vfvlanlist)
+		goto nla_put_vf_failure;
+	if (nla_put(skb, IFLA_VF_VLAN_INFO, sizeof(vf_vlan_info),
+		    &vf_vlan_info)) {
+		nla_nest_cancel(skb, vfvlanlist);
+		goto nla_put_vf_failure;
+	}
+	nla_nest_end(skb, vfvlanlist);
 	memset(&vf_stats, 0, sizeof(vf_stats));
 	if (dev->netdev_ops->ndo_get_vf_stats)
 		dev->netdev_ops->ndo_get_vf_stats(dev, vfs_num,
 						&vf_stats);
 	vfstats = nla_nest_start(skb, IFLA_VF_STATS);
-	if (!vfstats) {
-		nla_nest_cancel(skb, vf);
-		nla_nest_cancel(skb, vfinfo);
-		return -EMSGSIZE;
-	}
+	if (!vfstats)
+		goto nla_put_vf_failure;
 	if (nla_put_u64_64bit(skb, IFLA_VF_STATS_RX_PACKETS,
 			      vf_stats.rx_packets, IFLA_VF_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, IFLA_VF_STATS_TX_PACKETS,
@@ -1189,11 +1203,19 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	    nla_put_u64_64bit(skb, IFLA_VF_STATS_BROADCAST,
 			      vf_stats.broadcast, IFLA_VF_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, IFLA_VF_STATS_MULTICAST,
-			      vf_stats.multicast, IFLA_VF_STATS_PAD))
-		return -EMSGSIZE;
+			      vf_stats.multicast, IFLA_VF_STATS_PAD)) {
+		nla_nest_cancel(skb, vfstats);
+		goto nla_put_vf_failure;
+	}
 	nla_nest_end(skb, vfstats);
 	nla_nest_end(skb, vf);
 	return 0;
+
+nla_put_vf_failure:
+	nla_nest_cancel(skb, vf);
+nla_put_vfinfo_failure:
+	nla_nest_cancel(skb, vfinfo);
+	return -EMSGSIZE;
 }
 
 static int rtnl_fill_link_ifmap(struct sk_buff *skb, struct net_device *dev)
@@ -1405,6 +1427,7 @@ static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
 static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 	[IFLA_VF_MAC]		= { .len = sizeof(struct ifla_vf_mac) },
 	[IFLA_VF_VLAN]		= { .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_VLAN_LIST]     = { .type = NLA_NESTED },
 	[IFLA_VF_TX_RATE]	= { .len = sizeof(struct ifla_vf_tx_rate) },
 	[IFLA_VF_SPOOFCHK]	= { .len = sizeof(struct ifla_vf_spoofchk) },
 	[IFLA_VF_RATE]		= { .len = sizeof(struct ifla_vf_rate) },
@@ -1598,9 +1621,50 @@ static int do_setvfinfo(struct net_device *dev, struct nlattr **tb)
 		struct ifla_vf_vlan *ivv = nla_data(tb[IFLA_VF_VLAN]);
 
 		err = -EOPNOTSUPP;
-		if (ops->ndo_set_vf_vlan)
-			err = ops->ndo_set_vf_vlan(dev, ivv->vf, ivv->vlan,
-						   ivv->qos);
+		if (get_ndo_ext(ops,ndo_set_vf_vlan))
+			err = get_ndo_ext(ops, ndo_set_vf_vlan)(dev, ivv->vf,
+								ivv->vlan,
+								ivv->qos,
+								htons(ETH_P_8021Q));
+		else if (ops->ndo_set_vf_vlan_rh73)
+			err = ops->ndo_set_vf_vlan_rh73(dev, ivv->vf, ivv->vlan,
+							ivv->qos);
+
+		if (err < 0)
+			return err;
+	}
+
+	if (tb[IFLA_VF_VLAN_LIST]) {
+		struct ifla_vf_vlan_info *ivvl[MAX_VLAN_LIST_LEN];
+		struct nlattr *attr;
+		int rem, len = 0;
+
+		err = -EOPNOTSUPP;
+		if (!get_ndo_ext(ops, ndo_set_vf_vlan) &&
+		    !ops->ndo_set_vf_vlan_rh73)
+			return err;
+
+		nla_for_each_nested(attr, tb[IFLA_VF_VLAN_LIST], rem) {
+			if (nla_type(attr) != IFLA_VF_VLAN_INFO ||
+			    nla_len(attr) < NLA_HDRLEN) {
+				return -EINVAL;
+			}
+			if (len >= MAX_VLAN_LIST_LEN)
+				return -EOPNOTSUPP;
+			ivvl[len] = nla_data(attr);
+
+			len++;
+		}
+		if (get_ndo_ext(ops, ndo_set_vf_vlan))
+			err = get_ndo_ext(ops, ndo_set_vf_vlan)(dev,
+								ivvl[0]->vf,
+								ivvl[0]->vlan,
+								ivvl[0]->qos,
+								ivvl[0]->vlan_proto);
+		else if (ivvl[0]->vlan_proto == htons(ETH_P_8021Q))
+			err = ops->ndo_set_vf_vlan_rh73(dev, ivvl[0]->vf,
+							ivvl[0]->vlan,
+							ivvl[0]->qos);
 		if (err < 0)
 			return err;
 	}

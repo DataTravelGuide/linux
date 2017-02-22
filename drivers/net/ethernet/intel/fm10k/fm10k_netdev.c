@@ -1364,13 +1364,13 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_get_stats64	= fm10k_get_stats64,
 	.ndo_setup_tc		= __fm10k_setup_tc,
 	.ndo_set_vf_mac		= fm10k_ndo_set_vf_mac,
-	.ndo_set_vf_vlan	= fm10k_ndo_set_vf_vlan,
+	.extended.ndo_set_vf_vlan	= fm10k_ndo_set_vf_vlan,
 	.ndo_set_vf_tx_rate	= fm10k_ndo_set_vf_bw,
 	.ndo_get_vf_config	= fm10k_ndo_get_vf_config,
 	.ndo_add_vxlan_port	= fm10k_add_vxlan_port,
 	.ndo_del_vxlan_port	= fm10k_del_vxlan_port,
-#if 0
 	.ndo_size		= sizeof(struct net_device_ops),
+#if 0
 	.extended.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.extended.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
 #endif

@@ -866,6 +866,8 @@ struct tc_to_netdev {
  *	address family that the UDP tunnel is not listening to anymore. The
  *	operation is protected by the RTNL.
  *
+ * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan,
+ *			  u8 qos, __be16 proto);
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -899,6 +901,9 @@ struct net_device_ops_extended {
 						       struct neighbour *n);
 	void			(*ndo_neigh_destroy)(struct net_device *dev,
 						     struct neighbour *n);
+	int			(*ndo_set_vf_vlan)(struct net_device *dev,
+						   int vf, u16 vlan, u8 qos,
+						   __be16 proto);
 };
 
 /*
@@ -998,7 +1003,6 @@ struct net_device_ops_extended {
  *
  *	SR-IOV management functions.
  * int (*ndo_set_vf_mac)(struct net_device *dev, int vf, u8* mac);
- * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan, u8 qos);
  * int (*ndo_set_vf_rate)(struct net_device *dev, int vf, int min_tx_rate,
  *			  int max_tx_rate);
  * int (*ndo_set_vf_spoofchk)(struct net_device *dev, int vf, bool setting);
@@ -1212,8 +1216,10 @@ struct net_device_ops {
 #endif
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
 						  int queue, u8 *mac);
-	int			(*ndo_set_vf_vlan)(struct net_device *dev,
-						   int queue, u16 vlan, u8 qos);
+	RH_KABI_RENAME(int      (*ndo_set_vf_vlan),
+		       int      (*ndo_set_vf_vlan_rh73))(struct net_device *dev,
+							 int queue, u16 vlan,
+							 u8 qos);
 	int			(*ndo_set_vf_tx_rate)(struct net_device *dev,
 						      int vf, int rate);
 	int			(*ndo_set_vf_spoofchk)(struct net_device *dev,
