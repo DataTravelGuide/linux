@@ -135,6 +135,7 @@ acpi-y +=		\
 acpi-$(ACPI_FUTURE_USAGE) += rsdump.o rsdumpinfo.o
 
 acpi-y +=		\
+	tbdata.o	\
 	tbfadt.o	\
 	tbfind.o	\
 	tbinstal.o	\
