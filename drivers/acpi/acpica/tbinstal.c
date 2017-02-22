@@ -193,7 +193,7 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 
 	/* Validate and verify a table before installation */
 
-	status = acpi_tb_verify_table(&new_table_desc, signature);
+	status = acpi_tb_verify_temp_table(&new_table_desc, signature);
 	if (ACPI_FAILURE(status)) {
 		goto release_and_exit;
 	}
@@ -265,7 +265,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/* Validate and verify a table before installation */
 
-	status = acpi_tb_verify_table(&new_table_desc, NULL);
+	status = acpi_tb_verify_temp_table(&new_table_desc, NULL);
 	if (ACPI_FAILURE(status)) {
 		goto release_and_exit;
 	}
@@ -422,7 +422,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 
 	/* Validate and verify a table before overriding */
 
-	status = acpi_tb_verify_table(&new_table_desc, NULL);
+	status = acpi_tb_verify_temp_table(&new_table_desc, NULL);
 	if (ACPI_FAILURE(status)) {
 		return;
 	}
@@ -444,7 +444,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 	acpi_tb_init_table_descriptor(old_table_desc, new_table_desc.address,
 				      new_table_desc.flags,
 				      new_table_desc.pointer);
-	acpi_tb_validate_table(old_table_desc);
+	acpi_tb_validate_temp_table(old_table_desc);
 
 	/* Release the temporary table descriptor */
 

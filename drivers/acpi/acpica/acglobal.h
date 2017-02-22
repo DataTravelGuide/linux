@@ -106,6 +106,15 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_create_osi_method, TRUE);
 u8 ACPI_INIT_GLOBAL(acpi_gbl_use_default_register_widths, TRUE);
 
 /*
+ * Whether or not to verify the table checksum before installation. Set
+ * this to TRUE to verify the table checksum before install it to the table
+ * manager. Note that enabling this option causes errors to happen in some
+ * OSPMs during early initialization stages. Default behavior is to do such
+ * verification.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_verify_table_checksum, TRUE);
+
+/*
  * Optionally enable output from the AML Debug Object.
  */
 bool ACPI_INIT_GLOBAL(acpi_gbl_enable_aml_debug_object, FALSE);
