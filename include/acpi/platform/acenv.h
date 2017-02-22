@@ -156,6 +156,9 @@
 #define ACPI_DISASSEMBLER
 #endif
 
+#ifdef ACPI_DUMP_APP
+#define USE_NATIVE_ALLOCATE_ZEROED
+#endif
 
 /*! [Begin] no source code translation */
 
