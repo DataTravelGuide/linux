@@ -1796,6 +1796,12 @@ static int __init storvsc_drv_init(void)
 	 * Install Hyper-V specific timeout handler.
 	 */
 	fc_transport_template->eh_timed_out = storvsc_eh_timed_out;
+	/*
+	 * The default user scan function associated with FC (fc_user_scan)
+	 * is not suitable for FC hosts on Hyper-V. Set it to NULL so we can
+	 * support manual scan of FC targets on Hyper-V.x
+	 */
+	fc_transport_template->user_scan = NULL;
 #endif
 
 	ret = vmbus_driver_register(&storvsc_drv);
