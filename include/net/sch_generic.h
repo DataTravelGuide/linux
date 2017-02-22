@@ -225,8 +225,12 @@ struct tcf_proto_ops {
 	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
 
 	/* rtnetlink specific */
-	int			(*dump)(struct tcf_proto*, unsigned long,
-					struct sk_buff *skb, struct tcmsg*);
+	RH_KABI_REPLACE(
+			int	(*dump)(struct tcf_proto*, unsigned long,
+					struct sk_buff *skb, struct tcmsg*),
+			int	(*dump)(struct net*, struct tcf_proto*, unsigned long,
+					struct sk_buff *skb, struct tcmsg*)
+		       )
 
 	struct module		*owner;
 };
