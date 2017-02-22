@@ -340,7 +340,7 @@ static char *acpi_ut_format_number(char *string,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_vsnprintf
+ * FUNCTION:    vsnprintf
  *
  * PARAMETERS:  string              - String with boundary
  *              size                - Boundary of the string
@@ -353,9 +353,7 @@ static char *acpi_ut_format_number(char *string,
  *
  ******************************************************************************/
 
-int
-acpi_ut_vsnprintf(char *string,
-		  acpi_size size, const char *format, va_list args)
+int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 {
 	u8 base = 10;
 	u8 type = 0;
@@ -580,7 +578,7 @@ acpi_ut_vsnprintf(char *string,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_snprintf
+ * FUNCTION:    snprintf
  *
  * PARAMETERS:  string              - String with boundary
  *              size                - Boundary of the string
@@ -592,13 +590,38 @@ acpi_ut_vsnprintf(char *string,
  *
  ******************************************************************************/
 
-int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...)
+int snprintf(char *string, acpi_size size, const char *format, ...)
 {
 	va_list args;
 	int length;
 
 	va_start(args, format);
-	length = acpi_ut_vsnprintf(string, size, format, args);
+	length = vsnprintf(string, size, format, args);
+	va_end(args);
+
+	return (length);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    sprintf
+ *
+ * PARAMETERS:  string              - String with boundary
+ *              Format, ...         - Standard printf format
+ *
+ * RETURN:      Number of bytes actually written.
+ *
+ * DESCRIPTION: Formatted output to a string.
+ *
+ ******************************************************************************/
+
+int sprintf(char *string, const char *format, ...)
+{
+	va_list args;
+	int length;
+
+	va_start(args, format);
+	length = vsnprintf(string, ACPI_UINT32_MAX, format, args);
 	va_end(args);
 
 	return (length);
@@ -607,7 +630,60 @@ int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...)
 #ifdef ACPI_APPLICATION
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_file_vprintf
+ * FUNCTION:    vprintf
+ *
+ * PARAMETERS:  format              - Standard printf format
+ *              args                - Argument list
+ *
+ * RETURN:      Number of bytes actually written.
+ *
+ * DESCRIPTION: Formatted output to stdout using argument list pointer.
+ *
+ ******************************************************************************/
+
+int vprintf(const char *format, va_list args)
+{
+	acpi_cpu_flags flags;
+	int length;
+
+	flags = acpi_os_acquire_lock(acpi_gbl_print_lock);
+	length = vsnprintf(acpi_gbl_print_buffer,
+			   sizeof(acpi_gbl_print_buffer), format, args);
+
+	(void)acpi_os_write_file(ACPI_FILE_OUT, acpi_gbl_print_buffer, length,
+				 1);
+	acpi_os_release_lock(acpi_gbl_print_lock, flags);
+
+	return (length);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    printf
+ *
+ * PARAMETERS:  Format, ...         - Standard printf format
+ *
+ * RETURN:      Number of bytes actually written.
+ *
+ * DESCRIPTION: Formatted output to stdout.
+ *
+ ******************************************************************************/
+
+int printf(const char *format, ...)
+{
+	va_list args;
+	int length;
+
+	va_start(args, format);
+	length = vprintf(format, args);
+	va_end(args);
+
+	return (length);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    vfprintf
  *
  * PARAMETERS:  file                - File descriptor
  *              format              - Standard printf format
@@ -619,14 +695,14 @@ int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...)
  *
  ******************************************************************************/
 
-int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args)
+int vfprintf(FILE * file, const char *format, va_list args)
 {
 	acpi_cpu_flags flags;
 	int length;
 
 	flags = acpi_os_acquire_lock(acpi_gbl_print_lock);
-	length = acpi_ut_vsnprintf(acpi_gbl_print_buffer,
-				   sizeof(acpi_gbl_print_buffer), format, args);
+	length = vsnprintf(acpi_gbl_print_buffer,
+			   sizeof(acpi_gbl_print_buffer), format, args);
 
 	(void)acpi_os_write_file(file, acpi_gbl_print_buffer, length, 1);
 	acpi_os_release_lock(acpi_gbl_print_lock, flags);
@@ -636,7 +712,7 @@ int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_file_printf
+ * FUNCTION:    fprintf
  *
  * PARAMETERS:  file                - File descriptor
  *              Format, ...         - Standard printf format
@@ -647,13 +723,13 @@ int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args)
  *
  ******************************************************************************/
 
-int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...)
+int fprintf(FILE * file, const char *format, ...)
 {
 	va_list args;
 	int length;
 
 	va_start(args, format);
-	length = acpi_ut_file_vprintf(file, format, args);
+	length = vfprintf(file, format, args);
 	va_end(args);
 
 	return (length);
