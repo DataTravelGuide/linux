@@ -176,6 +176,9 @@ static inline void acpi_os_free(void *a)
 			cond_resched(); \
 	} while (0)
 #endif
+#ifndef __iomem
+#define __iomem
+#endif
 
 /*
  * When lockdep is enabled, the spin_lock_init() macro stringifies it's
