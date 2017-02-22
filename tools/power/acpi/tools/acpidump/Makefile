@@ -40,7 +40,6 @@ TOOL_OBJS = \
 	utprint.o\
 	utstring.o\
 	utxferror.o\
-	oslibcfs.o\
 	oslinuxtbl.o\
 	cmfsize.o\
 	getopt.o
