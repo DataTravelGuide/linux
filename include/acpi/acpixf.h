@@ -83,6 +83,7 @@ extern u32 acpi_gbl_trace_flags;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u8 acpi_gbl_truncate_io_addresses;
 extern u8 acpi_gbl_use_default_register_widths;
+extern u8 acpi_gbl_disable_ssdt_table_install;
 
 /*
  * Hardware-reduced prototypes. All interfaces that use these macros will
