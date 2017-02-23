@@ -362,3 +362,4 @@ NI_SYSCALL					/* 350 sys_memfd_create */
 NI_SYSCALL					/* 351 sys_bpf */
 SYSCALL(sys_ni_syscall,sys_s390_pci_mmio_write,sys_s390_pci_mmio_write_wrapper)
 SYSCALL(sys_ni_syscall,sys_s390_pci_mmio_read,sys_s390_pci_mmio_read_wrapper)
+SYSCALL(sys_copy_file_range,sys_copy_file_range,sys_copy_file_range_wrapper) /* 375 */

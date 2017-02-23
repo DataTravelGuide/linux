@@ -289,7 +289,8 @@
 /* Number 351 is reserved for sys_bpf */
 #define __NR_s390_pci_mmio_write	352
 #define __NR_s390_pci_mmio_read		353
-#define NR_syscalls 354
+#define __NR_copy_file_range	375
+#define NR_syscalls 355
 
 /* 
  * There are some system calls that are not present on 64 bit, some
