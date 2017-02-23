@@ -376,8 +376,10 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 	 * long write-back delay. This will be adjusted in
 	 * update_nfs_request below if the region is not locked. */
 	req->wb_page    = page;
-	req->wb_index	= page_file_index(page);
-	page_cache_get(page);
+	if (page) {
+		req->wb_index = page_file_index(page);
+		page_cache_get(page);
+	}
 	req->wb_offset  = offset;
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
