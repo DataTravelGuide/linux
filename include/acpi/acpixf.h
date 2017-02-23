@@ -80,7 +80,7 @@ extern u8 acpi_gbl_do_not_use_xsdt;
 extern u8 acpi_gbl_verify_table_checksum;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u32 acpi_gbl_trace_flags;
-extern bool acpi_gbl_enable_aml_debug_object;
+extern u8 acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_enable_interpreter_slack;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u8 acpi_gbl_truncate_io_addresses;
