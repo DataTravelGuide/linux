@@ -216,6 +216,10 @@ static struct test generic_tests[] = {
 		.func = test__perf_hooks,
 	},
 	{
+		.desc = "unit_number__scnprintf",
+		.func = test__unit_number__scnprint,
+	},
+	{
 		.func = NULL,
 	},
 };
