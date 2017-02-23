@@ -4090,6 +4090,8 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	return ret;
 }
 
+#ifdef CONFIG_TRACER_MAX_TRACE
+
 static ssize_t
 tracing_max_lat_read(struct file *filp, char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
@@ -4121,6 +4123,8 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 
 	return cnt;
 }
+
+#endif
 
 static int tracing_open_pipe(struct inode *inode, struct file *filp)
 {
@@ -5040,12 +5044,14 @@ static int snapshot_raw_open(struct inode *inode, struct file *filp)
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
 
+#ifdef CONFIG_TRACER_MAX_TRACE
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
 	.write		= tracing_max_lat_write,
 	.llseek		= generic_file_llseek,
 };
+#endif
 
 static const struct file_operations set_tracer_fops = {
 	.open		= tracing_open_generic,
