@@ -4090,7 +4090,7 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	return ret;
 }
 
-#ifdef CONFIG_TRACER_MAX_TRACE
+#if defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)
 
 static ssize_t
 tracing_max_lat_read(struct file *filp, char __user *ubuf,
@@ -5044,7 +5044,7 @@ static int snapshot_raw_open(struct inode *inode, struct file *filp)
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
 
-#ifdef CONFIG_TRACER_MAX_TRACE
+#if defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)
 static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
@@ -6373,7 +6373,7 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("tracing_on", 0644, d_tracer,
 			  tr, &rb_simple_fops);
 
-#ifdef CONFIG_TRACER_MAX_TRACE
+#if defined(CONFIG_TRACER_MAX_TRACE) || defined(CONFIG_HWLAT_TRACER)
 	trace_create_file("tracing_max_latency", 0644, d_tracer,
 			&tr->max_latency, &tracing_max_lat_fops);
 #endif
