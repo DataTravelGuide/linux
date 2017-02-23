@@ -67,6 +67,7 @@ int test__kmod_path__parse(int subtest);
 int test__thread_map(int subtest);
 int test_session_topology(int subtest);
 int test__thread_map_synthesize(int subtest);
+int test__thread_map_remove(int subtest);
 int test__cpu_map_synthesize(int subtest);
 int test__synthesize_stat_config(int subtest);
 int test__synthesize_stat(int subtest);
