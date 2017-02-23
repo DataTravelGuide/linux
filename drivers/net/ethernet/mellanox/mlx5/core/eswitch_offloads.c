@@ -1007,13 +1007,3 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 
 	rep->valid = false;
 }
-
-int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
-{
-	return -EOPNOTSUPP;
-}
-
-int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
-{
-	return -EOPNOTSUPP;
-}

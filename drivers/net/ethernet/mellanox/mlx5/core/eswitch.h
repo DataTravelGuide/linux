@@ -318,6 +318,8 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index);
 
+#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
+
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
