@@ -775,6 +775,9 @@ void hfi1_put_proc_affinity(int cpu)
 	}
 	mutex_unlock(&affinity->lock);
 }
+	}
+	mutex_unlock(&affinity->lock);
+}
 
 int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
 			   size_t count)
