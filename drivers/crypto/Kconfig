@@ -399,4 +399,6 @@ config CRYPTO_DEV_VMX
 
 source "drivers/crypto/vmx/Kconfig"
 
+source "drivers/crypto/chelsio/Kconfig"
+
 endif # CRYPTO_HW
