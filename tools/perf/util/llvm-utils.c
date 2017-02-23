@@ -43,8 +43,10 @@ int perf_llvm_config(const char *var, const char *value)
 		llvm_param.kbuild_dir = strdup(value);
 	else if (!strcmp(var, "kbuild-opts"))
 		llvm_param.kbuild_opts = strdup(value);
-	else
+	else {
+		pr_debug("Invalid LLVM config option: %s\n", value);
 		return -1;
+	}
 	return 0;
 }
 
