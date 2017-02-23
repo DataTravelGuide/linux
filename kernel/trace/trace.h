@@ -36,6 +36,7 @@ enum trace_type {
 	TRACE_USER_STACK,
 	TRACE_BLK,
 	TRACE_BPUTS,
+	TRACE_HWLAT,
 
 	__TRACE_LAST_TYPE,
 };
@@ -282,6 +283,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct print_entry, TRACE_PRINT);	\
 		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct bputs_entry, TRACE_BPUTS);	\
+		IF_ASSIGN(var, ent, struct hwlat_entry, TRACE_HWLAT);	\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
@@ -527,6 +529,7 @@ void tracing_reset_online_cpus(struct trace_buffer *buf);
 void tracing_reset_current(int cpu);
 void tracing_reset_all_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
+int tracer_tracing_is_on(struct trace_array *tr);
 struct dentry *trace_create_file(const char *name,
 				 umode_t mode,
 				 struct dentry *parent,
