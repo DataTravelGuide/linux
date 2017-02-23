@@ -45,7 +45,9 @@
 #include <linux/time64.h>
 
 struct switch_output {
+	bool		 enabled;
 	bool		 signal;
+	unsigned long	 size;
 	const char	*str;
 	bool		 set;
 };
@@ -70,6 +72,23 @@ struct record {
 	unsigned long long	samples;
 };
 
+static volatile int auxtrace_record__snapshot_started;
+static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
+static DEFINE_TRIGGER(switch_output_trigger);
+
+static bool switch_output_signal(struct record *rec)
+{
+	return rec->switch_output.signal &&
+	       trigger_is_ready(&switch_output_trigger);
+}
+
+static bool switch_output_size(struct record *rec)
+{
+	return rec->switch_output.size &&
+	       trigger_is_ready(&switch_output_trigger) &&
+	       (rec->bytes_written >= rec->switch_output.size);
+}
+
 static int record__write(struct record *rec, void *bf, size_t size)
 {
 	if (perf_data_file__write(rec->session->file, bf, size) < 0) {
@@ -78,6 +97,10 @@ static int record__write(struct record *rec, void *bf, size_t size)
 	}
 
 	rec->bytes_written += size;
+
+	if (switch_output_size(rec))
+		trigger_hit(&switch_output_trigger);
+
 	return 0;
 }
 
@@ -196,10 +219,6 @@ out:
 static volatile int done;
 static volatile int signr = -1;
 static volatile int child_finished;
-
-static volatile int auxtrace_record__snapshot_started;
-static DEFINE_TRIGGER(auxtrace_snapshot_trigger);
-static DEFINE_TRIGGER(switch_output_trigger);
 
 static void sig_handler(int sig)
 {
@@ -846,11 +865,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
 
-	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.signal) {
+	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.enabled) {
 		signal(SIGUSR2, snapshot_sig_handler);
 		if (rec->opts.auxtrace_snapshot_mode)
 			trigger_on(&auxtrace_snapshot_trigger);
-		if (rec->switch_output.signal)
+		if (rec->switch_output.enabled)
 			trigger_on(&switch_output_trigger);
 	} else {
 		signal(SIGUSR2, SIG_IGN);
@@ -1349,6 +1368,14 @@ out_free:
 static int switch_output_setup(struct record *rec)
 {
 	struct switch_output *s = &rec->switch_output;
+	static struct parse_tag tags_size[] = {
+		{ .tag  = 'B', .mult = 1       },
+		{ .tag  = 'K', .mult = 1 << 10 },
+		{ .tag  = 'M', .mult = 1 << 20 },
+		{ .tag  = 'G', .mult = 1 << 30 },
+		{ .tag  = 0 },
+	};
+	unsigned long val;
 
 	if (!s->set)
 		return 0;
@@ -1356,10 +1383,22 @@ static int switch_output_setup(struct record *rec)
 	if (!strcmp(s->str, "signal")) {
 		s->signal = true;
 		pr_debug("switch-output with SIGUSR2 signal\n");
-		return 0;
+		goto enabled;
+	}
+
+	val = parse_tag_value(s->str, tags_size);
+	if (val != (unsigned long) -1) {
+		s->size = val;
+		pr_debug("switch-output with %s size threshold\n", s->str);
+		goto enabled;
 	}
 
 	return -1;
+
+enabled:
+	rec->timestamp_filename = true;
+	s->enabled              = true;
+	return 0;
 }
 
 static const char * const __record_usage[] = {
@@ -1524,8 +1563,9 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
 	OPT_STRING_OPTARG_SET(0, "switch-output", &record.switch_output.str,
-			  &record.switch_output.set, "signal",
-			  "Switch output when receive SIGUSR2", "signal"),
+			  &record.switch_output.set, "signal,size",
+			  "Switch output when receive SIGUSR2 or cross size threshold",
+			  "signal"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
 	OPT_END()
@@ -1574,9 +1614,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -EINVAL;
 	}
 
-	if (rec->switch_output.signal)
-		rec->timestamp_filename = true;
-
 	if (!rec->itr) {
 		rec->itr = auxtrace_record__init(rec->evlist, &err);
 		if (err)
@@ -1617,7 +1654,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (rec->no_buildid_cache || rec->no_buildid) {
 		disable_buildid_cache();
-	} else if (rec->switch_output.signal) {
+	} else if (rec->switch_output.enabled) {
 		/*
 		 * In 'perf record --switch-output', disable buildid
 		 * generation by default to reduce data file switching
@@ -1709,6 +1746,8 @@ out:
 
 static void snapshot_sig_handler(int sig __maybe_unused)
 {
+	struct record *rec = &record;
+
 	if (trigger_is_ready(&auxtrace_snapshot_trigger)) {
 		trigger_hit(&auxtrace_snapshot_trigger);
 		auxtrace_record__snapshot_started = 1;
@@ -1716,6 +1755,6 @@ static void snapshot_sig_handler(int sig __maybe_unused)
 			trigger_error(&auxtrace_snapshot_trigger);
 	}
 
-	if (trigger_is_ready(&switch_output_trigger))
+	if (switch_output_signal(rec))
 		trigger_hit(&switch_output_trigger);
 }
