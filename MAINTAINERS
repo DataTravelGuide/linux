@@ -5592,6 +5592,7 @@ T:	git://openfabrics.org/~eli/connect-ib.git
 S:	Supported
 F:	drivers/net/ethernet/mellanox/mlx5/core/
 F:	include/linux/mlx5/
+F:	include/uapi/rdma/mlx5-abi.h
 
 Mellanox MLX5 IB driver
 M:      Eli Cohen <eli@mellanox.com>
