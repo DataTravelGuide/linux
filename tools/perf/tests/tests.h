@@ -77,6 +77,7 @@ int test__backward_ring_buffer(int subtest);
 int test__cpu_map_print(int subtest);
 int test__is_printable_array(int subtest);
 int test__bitmap_print(int subtest);
+int test__perf_hooks(int subtest);
 
 #if defined(__arm__) || defined(__aarch64__)
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
