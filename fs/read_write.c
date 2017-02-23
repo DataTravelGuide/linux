@@ -1342,6 +1342,8 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
+	struct file_operations_extend *fop_in = to_fop_extend(file_in->f_op);
+	struct file_operations_extend *fop_out = to_fop_extend(file_out->f_op);
 	ssize_t ret;
 
 	if (flags != 0)
@@ -1374,8 +1376,8 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	 * Try cloning first, this is supported by more file systems, and
 	 * more efficient if both clone and copy are supported (e.g. NFS).
 	 */
-	if (file_in->f_op->clone_file_range) {
-		ret = file_in->f_op->clone_file_range(file_in, pos_in,
+	if (fop_in && fop_in->clone_file_range) {
+		ret = fop_in->clone_file_range(file_in, pos_in,
 				file_out, pos_out, len);
 		if (ret == 0) {
 			ret = len;
@@ -1383,8 +1385,8 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 		}
 	}
 
-	if (file_out->f_op->copy_file_range) {
-		ret = file_out->f_op->copy_file_range(file_in, pos_in, file_out,
+	if (fop_out && fop_out->copy_file_range) {
+		ret = fop_out->copy_file_range(file_in, pos_in, file_out,
 						      pos_out, len, flags);
 		if (ret != -EOPNOTSUPP)
 			goto done;
@@ -1500,6 +1502,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
+	struct file_operations_extend *fop = to_fop_extend(file_in->f_op);
 	int ret;
 
 	if (inode_in->i_sb != inode_out->i_sb ||
@@ -1514,7 +1517,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
 	    (file_out->f_flags & O_APPEND) ||
-	    !file_in->f_op->clone_file_range)
+	    (fop && !fop->clone_file_range))
 		return -EBADF;
 
 	ret = clone_verify_area(file_in, pos_in, len, false);
@@ -1532,7 +1535,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (ret)
 		return ret;
 
-	ret = file_in->f_op->clone_file_range(file_in, pos_in,
+	ret = fop->clone_file_range(file_in, pos_in,
 			file_out, pos_out, len);
 	if (!ret) {
 		fsnotify_access(file_in);

@@ -1748,6 +1748,8 @@ struct file_operations {
 struct file_operations_extend {
 	struct file_operations kabi_fops;
 	void (*mremap)(struct file *, struct vm_area_struct *);
+	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
+	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
 };
 
 #define to_fop_extend(fop)	\
