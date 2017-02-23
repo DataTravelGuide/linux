@@ -281,28 +281,30 @@ out:
 }
 #endif /* CONFIG_NFS_V4_2 */
 
-const struct file_operations nfs4_file_operations = {
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= nfs_file_read,
-	.aio_write	= nfs_file_write,
-	.mmap		= nfs_file_mmap,
-	.open		= nfs4_file_open,
-	.flush		= nfs4_file_flush,
-	.release	= nfs_file_release,
-	.fsync		= nfs4_file_fsync,
-	.lock		= nfs_lock,
-	.flock		= nfs_flock,
-	.splice_read	= nfs_file_splice_read,
-	.splice_write	= nfs_file_splice_write,
-	.check_flags	= nfs_check_flags,
-	.setlease	= nfs_setlease,
+const struct file_operations_extend nfs4_file_operations = {
+	.kabi_fops = {
+		.read		= do_sync_read,
+		.write		= do_sync_write,
+		.aio_read	= nfs_file_read,
+		.aio_write	= nfs_file_write,
+		.mmap		= nfs_file_mmap,
+		.open		= nfs4_file_open,
+		.flush		= nfs4_file_flush,
+		.release	= nfs_file_release,
+		.fsync		= nfs4_file_fsync,
+		.lock		= nfs_lock,
+		.flock		= nfs_flock,
+		.splice_read	= nfs_file_splice_read,
+		.splice_write	= nfs_file_splice_write,
+		.check_flags	= nfs_check_flags,
+		.setlease	= nfs_setlease,
 #ifdef CONFIG_NFS_V4_2
-	.copy_file_range = nfs4_copy_file_range,
-	.llseek		= nfs4_file_llseek,
-	.fallocate	= nfs42_fallocate,
-	.clone_file_range = nfs42_clone_file_range,
+		.llseek		= nfs4_file_llseek,
+		.fallocate	= nfs42_fallocate,
 #else
-	.llseek		= nfs_file_llseek,
+		.llseek		= nfs_file_llseek,
 #endif
+	},
+	.copy_file_range = nfs4_copy_file_range,
+	.clone_file_range = nfs42_clone_file_range,
 };
