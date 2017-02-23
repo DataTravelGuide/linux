@@ -201,6 +201,7 @@ goals := $(filter-out all sub-make, $(MAKECMDGOALS))
 $(goals) all: sub-make
 
 sub-make: fixdep
+	@./check-headers.sh
 	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
 
 else # force_fixdep
@@ -393,6 +394,12 @@ PMU_EVENTS_IN := $(OUTPUT)pmu-events/pmu-events-in.o
 
 export JEVENTS
 
+build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+
+$(PERF_IN): prepare FORCE
+	$(Q)$(MAKE) $(build)=perf
+
+$(JEVENTS_IN): FORCE
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): prepare FORCE
