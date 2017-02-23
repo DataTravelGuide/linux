@@ -369,3 +369,4 @@ SYSCALL(ni_syscall) /* sys_bpf */
 SYSCALL(ni_syscall) /* sys_execveat */
 PPC64ONLY(switch_endian)
 SYSCALL_SPU(userfaultfd)
+SYSCALL(copy_file_range)
