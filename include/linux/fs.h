@@ -2061,6 +2061,7 @@ struct file_system_type {
 #define FS_HAS_DOPS_WRAPPER	4096	/* kabi: fs is using dentry_operations_wrapper. sb->s_d_op points to
 dentry_operations_wrapper */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
+#define FS_HAS_FO_EXTEND	65536 	/* fs is using the file_operations_extend struture */
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
@@ -2081,6 +2082,8 @@ dentry_operations_wrapper */
 #define sb_has_rm_xquota(sb)	((sb)->s_type->fs_flags & FS_HAS_RM_XQUOTA)
 #define sb_has_nextdqblk(sb)	((sb)->s_type->fs_flags & FS_HAS_NEXTDQBLK)
 #define sb_has_dops_wrapper(sb)	((sb)->s_type->fs_flags & FS_HAS_DOPS_WRAPPER)
+#define fb_has_fo_extend(fb)	\
+	(file_inode(fp)->i_sb->s_type->fs_flags & FS_HAS_FO_EXTEND)
 
 /*
  * FIXME: These should be in include/linux/dcache.h but there
@@ -2103,6 +2106,15 @@ static inline dop_real_t get_real_dop(struct dentry *dentry)
 		return NULL;
 
 	return (offsetof(struct dentry_operations_wrapper, d_real) < wrapper->size) ? wrapper->d_real : NULL;
+}
+
+static inline struct file_operations_extend *
+get_fo_extend(struct file *fp)
+{
+	if (!fb_has_fo_extend(fp))
+		return NULL;
+
+	return to_fop_extend(fp->f_op);
 }
 
 /**

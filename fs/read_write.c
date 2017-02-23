@@ -1342,8 +1342,8 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
-	struct file_operations_extend *fop_in = to_fop_extend(file_in->f_op);
-	struct file_operations_extend *fop_out = to_fop_extend(file_out->f_op);
+	struct file_operations_extend *fop_in = get_fo_extend(file_in);
+	struct file_operations_extend *fop_out = get_fo_extend(file_out);
 	ssize_t ret;
 
 	if (flags != 0)
@@ -1502,7 +1502,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
-	struct file_operations_extend *fop = to_fop_extend(file_in->f_op);
+	struct file_operations_extend *fop = get_fo_extend(file_in);
 	int ret;
 
 	if (inode_in->i_sb != inode_out->i_sb ||
@@ -1517,7 +1517,7 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
 	    (file_out->f_flags & O_APPEND) ||
-	    (fop && !fop->clone_file_range))
+	    (!fop || !fop->clone_file_range))
 		return -EBADF;
 
 	ret = clone_verify_area(file_in, pos_in, len, false);
