@@ -56,7 +56,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 	struct mlx5_cqe64 *cqe;
 	u16 sqcc;
 
-	if (unlikely(test_bit(MLX5E_SQ_STATE_FLUSH, &sq->state)))
+	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return;
 
 	cqe = mlx5e_get_cqe(cq);
