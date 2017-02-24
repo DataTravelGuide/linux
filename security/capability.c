@@ -119,6 +119,13 @@ static int cap_dentry_init_security(struct dentry *dentry, int mode,
 	return -EOPNOTSUPP;
 }
 
+static int cap_dentry_create_files_as(struct dentry *dentry, int mode,
+				      struct qstr *name,
+				      const struct cred *old, struct cred *new)
+{
+	return 0;
+}
+
 static int cap_inode_alloc_security(struct inode *inode)
 {
 	return 0;
@@ -243,6 +250,16 @@ static int cap_inode_listsecurity(struct inode *inode, char *buffer,
 static void cap_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	*secid = 0;
+}
+
+static int cap_inode_copy_up(struct dentry *src, struct cred **new)
+{
+	return 0;
+}
+
+static int cap_inode_copy_up_xattr(const char *name)
+{
+	return -EOPNOTSUPP;
 }
 
 #ifdef CONFIG_SECURITY_PATH
@@ -951,6 +968,7 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, sb_clone_mnt_opts);
 	set_to_cap_if_null(ops, sb_parse_opts_str);
 	set_to_cap_if_null(ops, dentry_init_security);
+	set_to_cap_if_null(ops, dentry_create_files_as);
 	set_to_cap_if_null(ops, inode_alloc_security);
 	set_to_cap_if_null(ops, inode_free_security);
 	set_to_cap_if_null(ops, inode_init_security);
@@ -978,6 +996,8 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, inode_setsecurity);
 	set_to_cap_if_null(ops, inode_listsecurity);
 	set_to_cap_if_null(ops, inode_getsecid);
+	set_to_cap_if_null(ops, inode_copy_up);
+	set_to_cap_if_null(ops, inode_copy_up_xattr);
 #ifdef CONFIG_SECURITY_PATH
 	set_to_cap_if_null(ops, path_mknod);
 	set_to_cap_if_null(ops, path_mkdir);
