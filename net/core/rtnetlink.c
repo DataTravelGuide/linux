@@ -2965,6 +2965,26 @@ skip:
 	return 0;
 }
 
+static inline bool ndo_has_fdb_dump(const struct net_device_ops *ops)
+{
+	return (get_ndo_ext(ops, ndo_fdb_dump) ||
+		ops->ndo_fdb_dump_rh72);
+}
+
+static inline int ndo_wrap_fdb_dump(const struct net_device_ops *ops,
+				    struct sk_buff *skb,
+				    struct netlink_callback *cb,
+				    struct net_device *dev,
+				    struct net_device *filter_dev, int idx)
+{
+	if (get_ndo_ext(ops, ndo_fdb_dump))
+		return get_ndo_ext(ops, ndo_fdb_dump)(skb, cb, dev, filter_dev,
+						      idx);
+
+	return ops->ndo_fdb_dump_rh72(skb, cb, filter_dev ? filter_dev : dev,
+				      idx);
+}
+
 /**
  * ndo_dflt_fdb_dump - default netdevice operation to dump an FDB table.
  * @nlh: netlink message header
@@ -3046,22 +3066,16 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 
 		if (dev->priv_flags & IFF_BRIDGE_PORT) {
-			if (cops && get_ndo_ext(cops, ndo_fdb_dump))
-				idx = get_ndo_ext(cops, ndo_fdb_dump)
-					(skb, cb, br_dev, dev, idx);
-			else if (cops && cops->ndo_fdb_dump_rh72)
-				idx = cops->ndo_fdb_dump_rh72(skb, cb, dev,
-							      idx);
+			if (cops && ndo_has_fdb_dump(cops))
+				idx = ndo_wrap_fdb_dump(cops, skb, cb, br_dev,
+							dev, idx);
 		}
 		if (cb->args[1] == -EMSGSIZE)
 			break;
 
-		if (get_ndo_ext(dev->netdev_ops, ndo_fdb_dump))
-			idx = get_ndo_ext(dev->netdev_ops, ndo_fdb_dump)
-				(skb, cb, dev, NULL, idx);
-		else if (dev->netdev_ops->ndo_fdb_dump_rh72)
-			idx = dev->netdev_ops->ndo_fdb_dump_rh72(skb, cb, dev,
-								 idx);
+		if (ndo_has_fdb_dump(dev->netdev_ops))
+			idx = ndo_wrap_fdb_dump(dev->netdev_ops, skb, cb,
+						dev, NULL, idx);
 		else
 			idx = ndo_dflt_fdb_dump(skb, cb, dev, NULL, idx);
 		if (cb->args[1] == -EMSGSIZE)
