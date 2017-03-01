@@ -2121,6 +2121,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
 			unsigned int flags,
 			void (*destructor)(struct sock *sk,
 					   struct sk_buff *skb));
+int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 extern int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 
 extern int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb);
