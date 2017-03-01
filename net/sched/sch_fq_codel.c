@@ -218,8 +218,9 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
  * to dequeue a packet from queue. Note: backlog is handled in
  * codel, we dont need to reduce it here.
  */
-static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
+static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
 {
+	struct Qdisc *sch = ctx;
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct fq_codel_flow *flow;
 	struct sk_buff *skb = NULL;
@@ -229,8 +230,16 @@ static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
 		skb = dequeue_head(flow);
 		q->backlogs[flow - q->flows] -= qdisc_pkt_len(skb);
 		sch->q.qlen--;
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
 	}
 	return skb;
+}
+
+static void drop_func(struct sk_buff *skb, void *ctx)
+{
+	struct Qdisc *sch = ctx;
+
+	qdisc_drop(skb, sch);
 }
 
 static struct sk_buff *fq_codel_dequeue(struct Qdisc *sch)
@@ -261,8 +270,9 @@ begin:
 	prev_ecn_mark = q->cstats.ecn_mark;
 	prev_backlog = sch->qstats.backlog;
 
-	skb = codel_dequeue(sch, &q->cparams, &flow->cvars, &q->cstats,
-			    dequeue);
+	skb = codel_dequeue(sch, &sch->qstats.backlog, &q->cparams,
+			    &flow->cvars, &q->cstats, qdisc_pkt_len,
+			    codel_get_enqueue_time, drop_func, dequeue_func);
 
 	flow->dropped += q->cstats.drop_count - prev_drop_count;
 	flow->dropped += q->cstats.ecn_mark - prev_ecn_mark;
@@ -410,9 +420,10 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 	q->perturbation = net_random();
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
-	codel_params_init(&q->cparams, sch);
+	codel_params_init(&q->cparams);
 	codel_stats_init(&q->cstats);
 	q->cparams.ecn = true;
+	q->cparams.mtu = psched_mtu(qdisc_dev(sch));
 
 	if (opt) {
 		int err = fq_codel_change(sch, opt);
