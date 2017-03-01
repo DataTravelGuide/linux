@@ -376,6 +376,10 @@ static int xgbe_probe(struct platform_device *pdev)
 	if (!pdata->mii_bus_id) {
 		dev_err(dev, "failed to allocate mii bus id\n");
 		ret = -ENOMEM;
+	attr = device_get_dma_attr(dev);
+	if (attr == DEV_DMA_NOT_SUPPORTED) {
+		dev_err(dev, "DMA is not supported");
+		ret = -ENODEV;
 		goto err_io;
 	}
 	ret = xgbe_mdio_register(pdata);
