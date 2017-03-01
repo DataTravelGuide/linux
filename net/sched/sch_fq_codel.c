@@ -25,6 +25,8 @@
 #include <net/pkt_sched.h>
 #include <net/flow_keys.h>
 #include <net/codel.h>
+#include <net/codel_impl.h>
+#include <net/codel_qdisc.h>
 
 /*	Fair Queue CoDel.
  *
