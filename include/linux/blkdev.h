@@ -1498,14 +1498,39 @@ static inline bool bvec_gap_to_prev(struct request_queue *q,
 	return __bvec_gap_to_prev(q, bprv, offset);
 }
 
+/*
+ * Check if the two bvecs from two bios can be merged to one segment.
+ * If yes, no need to check gap between the two bios since the 1st bio
+ * and the 1st bvec in the 2nd bio can be handled in one segment.
+ */
+static inline bool bios_segs_mergeable(struct request_queue *q,
+		struct bio *prev, struct bio_vec *prev_last_bv,
+		struct bio_vec *next_first_bv)
+{
+	if (!BIOVEC_PHYS_MERGEABLE(prev_last_bv, next_first_bv))
+		return false;
+	if (!BIOVEC_SEG_BOUNDARY(q, prev_last_bv, next_first_bv))
+		return false;
+	if (prev->bi_seg_back_size + next_first_bv->bv_len >
+			queue_max_segment_size(q))
+		return false;
+	return true;
+}
+
 static inline bool bio_will_gap(struct request_queue *q, struct bio *prev,
 			 struct bio *next)
 {
-	if (!bio_has_data(prev) || !queue_virt_boundary(q))
-		return false;
+	if (bio_has_data(prev) && queue_virt_boundary(q)) {
+		struct bio_vec *pb, *nb;
 
-	return __bvec_gap_to_prev(q, &prev->bi_io_vec[prev->bi_vcnt - 1],
-				  next->bi_io_vec[0].bv_offset);
+		pb = &prev->bi_io_vec[prev->bi_vcnt - 1];
+		nb = &next->bi_io_vec[0];
+
+		if (!bios_segs_mergeable(q, prev, pb, nb))
+			return __bvec_gap_to_prev(q, pb, nb->bv_offset);
+	}
+
+	return false;
 }
 
 static inline bool req_gap_back_merge(struct request *req, struct bio *bio)
