@@ -200,6 +200,8 @@ static struct hv_driver hv_uio_drv = {
 static int __init
 hyperv_module_init(void)
 {
+	mark_tech_preview("Hyper-V UIO generic driver", THIS_MODULE);
+
 	return vmbus_driver_register(&hv_uio_drv);
 }
 
