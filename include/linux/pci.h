@@ -318,6 +318,7 @@ struct pci_dev {
 						   corresponding bridge */
 	RH_KABI_FILL_HOLE(unsigned int  ignore_hotplug:1)
 	RH_KABI_FILL_HOLE(unsigned int  hotplug_user_indicators:1)
+	RH_KABI_FILL_HOLE(unsigned int  bridge_d3:1)  /* Allow D3 for bridge*/
 	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
 	unsigned int	d3cold_delay;	/* D3cold->D0 transition time in ms */
 
@@ -1091,6 +1092,8 @@ int pci_back_from_sleep(struct pci_dev *dev);
 bool pci_dev_run_wake(struct pci_dev *dev);
 bool pci_check_pme_status(struct pci_dev *dev);
 void pci_pme_wakeup_bus(struct pci_bus *bus);
+void pci_d3cold_enable(struct pci_dev *dev);
+void pci_d3cold_disable(struct pci_dev *dev);
 
 int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable);
 
