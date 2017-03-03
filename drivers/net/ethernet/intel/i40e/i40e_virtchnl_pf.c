@@ -861,9 +861,6 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 		goto error_alloc;
 	total_queue_pairs += pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
 
-	/* RHEL7.3 keep vf trusted for now */
-	vf->trusted = 1;
-
 	if (vf->trusted)
 		set_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
 	else
@@ -1112,6 +1109,8 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		/* assign default capabilities */
 		set_bit(I40E_VIRTCHNL_VF_CAP_L2, &vfs[i].vf_caps);
 		vfs[i].spoofchk = true;
+		/* RHEL7: keep VFs trusted by default */
+		vfs[i].trusted = true;
 		/* VF resources get allocated during reset */
 		i40e_reset_vf(&vfs[i], false);
 
