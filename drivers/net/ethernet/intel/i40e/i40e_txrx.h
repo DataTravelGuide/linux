@@ -298,6 +298,15 @@ enum i40e_ring_state_t {
 
 /* struct that defines a descriptor ring, associated with a VSI */
 struct i40e_ring {
+/* some useful defines for virtchannel interface, which
+ * is the only remaining user of header split
+ */
+	u16 count;			/* Number of descriptors */
+	u16 reg_idx;			/* HW register index of the ring */
+	u16 rx_buf_len;
+
+/* struct that defines a descriptor ring, associated with a VSI */
+struct i40e_ring {
 	struct i40e_ring *next;		/* pointer to next ring in q_vector */
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */

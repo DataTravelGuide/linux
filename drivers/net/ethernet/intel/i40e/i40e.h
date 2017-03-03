@@ -122,9 +122,9 @@
 #define I40E_CURRENT_NVM_VERSION_HI	0x2
 #define I40E_CURRENT_NVM_VERSION_LO	0x40
 
-#define I40E_RX_DESC(R, i)	\
+#define I40E_RX_DESC(R, i)			\
 	(&(((union i40e_32byte_rx_desc *)((R)->desc))[i]))
-#define I40E_TX_DESC(R, i)	\
+#define I40E_TX_DESC(R, i)			\
 	(&(((struct i40e_tx_desc *)((R)->desc))[i]))
 #define I40E_TX_CTXTDESC(R, i)	\
 	(&(((struct i40e_tx_context_desc *)((R)->desc))[i]))
