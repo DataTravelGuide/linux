@@ -1423,6 +1423,12 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb,
 			     u8 rx_ptype)
 {
+}
+
+/**
+ * i40e_cleanup_headers - Correct empty headers
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @skb: pointer to current skb being fixed
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
 			I40E_RXD_QW1_STATUS_SHIFT;
@@ -1901,9 +1907,79 @@ static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
 	return vsi->rx_rings[idx]->rx_itr_setting;
 }
 
-static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
+/**
+ * i40e_page_is_reusable - check if any reuse is possible
+ * @page: page struct to check
+ *
+ * A page is not reusable if it was allocated under low memory
+ * conditions, or it's not in the same NUMA node as this CPU.
+ */
+static inline bool i40e_page_is_reusable(struct page *page)
 {
-	return vsi->tx_rings[idx]->tx_itr_setting;
+	return (page_to_nid(page) == numa_mem_id()) &&
+		!page_is_pfmemalloc(page);
+}
+
+/**
+ * i40e_can_reuse_rx_page - Determine if this page can be reused by
+ * the adapter for another receive
+ *
+ * @rx_buffer: buffer containing the page
+ * @page: page address from rx_buffer
+ * @truesize: actual size of the buffer in this page
+ *
+ * If page is reusable, rx_buffer->page_offset is adjusted to point to
+ * an unused region in the page.
+ *
+ * For small pages, @truesize will be a constant value, half the size
+ * of the memory at page.  We'll attempt to alternate between high and
+ * low halves of the page, with one half ready for use by the hardware
+ * and the other half being consumed by the stack.  We use the page
+ * ref count to determine whether the stack has finished consuming the
+ * portion of this page that was passed up with a previous packet.  If
+ * the page ref count is >1, we'll assume the "other" half page is
+ * still busy, and this page cannot be reused.
+ *
+ * For larger pages, @truesize will be the actual space used by the
+ * received packet (adjusted upward to an even multiple of the cache
+ * line size).  This will advance through the page by the amount
+ * actually consumed by the received packets while there is still
+ * space for a buffer.  Each region of larger pages will be used at
+ * most once, after which the page will not be reused.
+ *
+ * In either case, if the page is reusable its refcount is increased.
+ **/
+static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer,
+				   struct page *page,
+				   const unsigned int truesize)
+{
+#if (PAGE_SIZE >= 8192)
+	unsigned int last_offset = PAGE_SIZE - I40E_RXBUFFER_2048;
+#endif
+
+	/* Is any reuse possible? */
+	if (unlikely(!i40e_page_is_reusable(page)))
+		return false;
+
+#if (PAGE_SIZE < 8192)
+	/* if we are only owner of page we can reuse it */
+	if (unlikely(page_count(page) != 1))
+		return false;
+
+	/* flip page offset to other buffer */
+	rx_buffer->page_offset ^= truesize;
+#else
+	/* move offset up to the next cache line */
+	rx_buffer->page_offset += truesize;
+
+	if (rx_buffer->page_offset > last_offset)
+		return false;
+#endif
+
+	/* Inc ref count on page before passing it up to the stack */
+	get_page(page);
+
+	return true;
 }
 
 /**
@@ -1915,28 +1991,56 @@ static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
 static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 					  struct i40e_q_vector *q_vector)
 {
-	struct i40e_hw *hw = &vsi->back->hw;
-	bool rx = false, tx = false;
-	u32 rxval, txval;
-	int vector;
-	int idx = q_vector->v_idx;
+	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = I40E_RXBUFFER_2048;
+#else
+	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+#endif
+	unsigned int pull_len;
+
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
 
 	vector = (q_vector->v_idx + vsi->base_vector);
 
 	/* avoid dynamic calculation if in countdown mode OR if
 	 * all dynamic is disabled
 	 */
-	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
+	if (size <= I40E_RX_HDR_SIZE) {
+		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
-	rx_itr_setting = get_rx_itr(vsi, idx);
-	tx_itr_setting = get_tx_itr(vsi, idx);
+		/* page is reusable, we can reuse buffer as-is */
+		if (likely(i40e_page_is_reusable(page)))
+			return true;
 
-	if (q_vector->itr_countdown > 0 ||
-	    (!ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting) &&
-	     !ITR_IS_DYNAMIC(vsi->tx_rings[idx]->tx_itr_setting))) {
-		goto enable_int;
+		return false;
 	}
 
+	/* we need the header to contain the greater of either
+	 * ETH_HLEN or 60 bytes if the skb->len is less than
+	 * 60 for skb_pad.
+	 */
+	pull_len = eth_get_headlen(va, I40E_RX_HDR_SIZE);
+
+	/* align pull length to size of long to optimize
+	 * memcpy performance
+	 */
+	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	va += pull_len;
+	size -= pull_len;
+
+add_tail_frag:
+	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+			(unsigned long)va & ~PAGE_MASK, size, truesize);
+
+	return i40e_can_reuse_rx_page(rx_buffer, page, truesize);
+}
+
+/**
 	if (ITR_IS_DYNAMIC(vsi->rx_rings[idx]->rx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
 		rxval = i40e_buildreg_itr(I40E_RX_ITR, q_vector->rx.itr);
