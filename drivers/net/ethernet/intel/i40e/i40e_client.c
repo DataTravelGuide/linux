@@ -1007,7 +1007,6 @@ int i40e_register_client(struct i40e_client *client)
 
 	pr_info("i40e: Registered client %s with return code %d\n",
 		client->name, ret);
-	mark_tech_preview("i40iw", THIS_MODULE);
 out:
 	return ret;
 }
