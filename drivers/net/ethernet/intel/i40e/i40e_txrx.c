@@ -2838,6 +2838,7 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	tx_ring->next_to_use = i;
 
+	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 	i40e_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* write last descriptor with EOP bit */
@@ -2867,6 +2868,15 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * pending and interrupts were disabled the service task will
 	 * trigger a force WB.
 	 */
+	if (skb->xmit_more  &&
+	    !netif_xmit_stopped(txring_txq(tx_ring))) {
+		tx_ring->flags |= I40E_TXR_FLAGS_LAST_XMIT_MORE_SET;
+		tail_bump = false;
+	} else if (!skb->xmit_more &&
+		   !netif_xmit_stopped(txring_txq(tx_ring)) &&
+		   (!(tx_ring->flags & I40E_TXR_FLAGS_LAST_XMIT_MORE_SET)) &&
+		   (tx_ring->packet_stride < WB_STRIDE) &&
+		   (desc_count < WB_STRIDE)) {
 	if (netif_xmit_stopped(txring_txq(tx_ring))) {
 		goto do_rs;
 	} else if (skb->xmit_more) {

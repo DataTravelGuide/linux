@@ -509,4 +509,13 @@ static inline struct netdev_queue *txring_txq(const struct i40e_ring *ring)
 {
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
+
+/**
+ * txring_txq - Find the netdev Tx ring based on the i40e Tx ring
+ * @ring: Tx ring to find the netdev equivalent of
+ **/
+static inline struct netdev_queue *txring_txq(const struct i40e_ring *ring)
+{
+	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
+}
 #endif /* _I40E_TXRX_H_ */
