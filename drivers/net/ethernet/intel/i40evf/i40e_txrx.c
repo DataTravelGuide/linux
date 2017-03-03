@@ -1644,6 +1644,14 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 	first->gso_segs = gso_segs;
 	first->bytecount += (first->gso_segs - 1) * *hdr_len;
 
+	/* pull values out of skb_shinfo */
+	gso_size = skb_shinfo(skb)->gso_size;
+	gso_segs = skb_shinfo(skb)->gso_segs;
+
+	/* update GSO size and bytecount with header size */
+	first->gso_segs = gso_segs;
+	first->bytecount += (first->gso_segs - 1) * *hdr_len;
+
 	/* find the field values */
 	cd_cmd = I40E_TX_CTX_DESC_TSO;
 	cd_tso_len = skb->len - *hdr_len;
@@ -2162,6 +2170,13 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		count = i40e_txd_use_count(skb->len);
 		tx_ring->tx_stats.tx_linearize++;
 	}
+		if (__skb_linearize(skb)) {
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+		count = i40e_txd_use_count(skb->len);
+		tx_ring->tx_stats.tx_linearize++;
+	}
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
@@ -2173,6 +2188,12 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
+
+	/* record the location of the first descriptor for this packet */
+	first = &tx_ring->tx_bi[tx_ring->next_to_use];
+	first->skb = skb;
+	first->bytecount = skb->len;
+	first->gso_segs = 1;
 
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_bi[tx_ring->next_to_use];
@@ -2194,11 +2215,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_IPV6;
 
 	tso = i40e_tso(first, &hdr_len, &cd_type_cmd_tso_mss);
-
-	if (tso < 0)
-		goto out_drop;
-	else if (tso)
-		tx_flags |= I40E_TX_FLAGS_TSO;
 
 	/* Always offload the checksum, since it's in the data descriptor */
 	tso = i40e_tx_enable_csum(skb, &tx_flags, &td_cmd, &td_offset,
