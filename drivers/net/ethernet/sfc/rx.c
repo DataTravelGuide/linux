@@ -335,7 +335,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
+	EFX_WARN_ON_ONCE_PARANOID(fill_level > rx_queue->efx->rxq_entries);
 	if (fill_level >= rx_queue->fast_fill_trigger)
 		goto out;
 
@@ -347,7 +347,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue, bool atomic)
 
 	batch_size = efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	space = rx_queue->max_fill - fill_level;
-	EFX_BUG_ON_PARANOID(space < batch_size);
+	EFX_WARN_ON_ONCE_PARANOID(space < batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
@@ -475,7 +475,7 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 		return NULL;
 	}
 
-	EFX_BUG_ON_PARANOID(rx_buf->len < hdr_len);
+	EFX_WARN_ON_ONCE_PARANOID(rx_buf->len < hdr_len);
 
 	memcpy(skb->data + efx->rx_ip_align, eh - efx->rx_prefix_size,
 	       efx->rx_prefix_size + hdr_len);
@@ -682,7 +682,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->rxq_entries), EFX_MIN_DMAQ_SIZE);
-	EFX_BUG_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
+	EFX_WARN_ON_PARANOID(entries > EFX_MAX_DMAQ_SIZE);
 	rx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,
@@ -849,7 +849,7 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		 * together, so just strip the vlan header and filter
 		 * on the IP part.
 		 */
-		EFX_BUG_ON_PARANOID(skb_headlen(skb) < sizeof(*vh));
+		EFX_WARN_ON_ONCE_PARANOID(skb_headlen(skb) < sizeof(*vh));
 		ether_type = vh->h_vlan_encapsulated_proto;
 		nhoff = sizeof(struct vlan_hdr);
 	} else {
@@ -873,20 +873,20 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		const struct iphdr *ip =
 			(const struct iphdr *)(skb->data + nhoff);
 
-		EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + sizeof(*ip));
+		EFX_WARN_ON_ONCE_PARANOID(skb_headlen(skb) < nhoff + sizeof(*ip));
 		if (ip_is_fragment(ip))
 			return -EPROTONOSUPPORT;
 		spec.ip_proto = ip->protocol;
 		spec.rem_host[0] = ip->saddr;
 		spec.loc_host[0] = ip->daddr;
-		EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
+		EFX_WARN_ON_ONCE_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
 		ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
 	} else {
 		const struct ipv6hdr *ip6 =
 			(const struct ipv6hdr *)(skb->data + nhoff);
 
-		EFX_BUG_ON_PARANOID(skb_headlen(skb) <
-				    nhoff + sizeof(*ip6) + 4);
+		EFX_WARN_ON_ONCE_PARANOID(skb_headlen(skb) <
+					  nhoff + sizeof(*ip6) + 4);
 		spec.ip_proto = ip6->nexthdr;
 		memcpy(spec.rem_host, &ip6->saddr, sizeof(ip6->saddr));
 		memcpy(spec.loc_host, &ip6->daddr, sizeof(ip6->daddr));
