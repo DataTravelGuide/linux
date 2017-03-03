@@ -243,6 +243,13 @@ struct i40e_hw_capabilities {
 	u32  npar_enable;
 	u32  os2bmc;
 	u32  valid_functions;
+	u32  mng_protocols_over_mctp;
+#define I40E_MNG_PROTOCOL_PLDM		0x2
+#define I40E_MNG_PROTOCOL_OEM_COMMANDS	0x4
+#define I40E_MNG_PROTOCOL_NCSI		0x8
+	u32  npar_enable;
+	u32  os2bmc;
+	u32  valid_functions;
 	bool sr_iov_1_1;
 	bool vmdq;
 	bool evb_802_1_qbg; /* Edge Virtual Bridging */
