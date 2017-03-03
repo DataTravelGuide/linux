@@ -1907,6 +1907,11 @@ static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
 	return vsi->rx_rings[idx]->rx_itr_setting;
 }
 
+static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
+{
+	return vsi->tx_rings[idx]->tx_itr_setting;
+}
+
 /**
  * i40e_page_is_reusable - check if any reuse is possible
  * @page: page struct to check
@@ -1976,8 +1981,8 @@ static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer,
 		return false;
 #endif
 
-	/* Inc ref count on page before passing it up to the stack */
-	get_page(page);
+	rx_itr_setting = get_rx_itr(vsi, idx);
+	tx_itr_setting = get_tx_itr(vsi, idx);
 
 	return true;
 }
