@@ -2866,6 +2866,78 @@ static inline void i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	i++;
 	if (i == tx_ring->count)
+
+	tx_ring->next_to_use = i;
+
+	i40e_maybe_stop_tx(tx_ring, DESC_NEEDED);
+
+	/* write last descriptor with EOP bit */
+	td_cmd |= I40E_TX_DESC_CMD_EOP;
+
+	/* We can OR these values together as they both are checked against
+	 * 4 below and at this point desc_count will be used as a boolean value
+	 * after this if/else block.
+	 */
+	desc_count |= ++tx_ring->packet_stride;
+
+	/* Algorithm to optimize tail and RS bit setting:
+	 * if queue is stopped
+	 *	mark RS bit
+	 *	reset packet counter
+	 * else if xmit_more is supported and is true
+	 *	advance packet counter to 4
+	 *	reset desc_count to 0
+	 *
+	 * if desc_count >= 4
+	 *	mark RS bit
+	 *	reset packet counter
+	 * if desc_count > 0
+	 *	update tail
+	 *
+	 * Note: If there are less than 4 descriptors
+	 * pending and interrupts were disabled the service task will
+	 * trigger a force WB.
+	 */
+	if (netif_xmit_stopped(txring_txq(tx_ring))) {
+		goto do_rs;
+	} else if (skb->xmit_more) {
+		/* set stride to arm on next packet and reset desc_count */
+		tx_ring->packet_stride = WB_STRIDE;
+		desc_count = 0;
+	} else if (desc_count >= WB_STRIDE) {
+do_rs:
+		/* write last descriptor with RS bit set */
+		td_cmd |= I40E_TX_DESC_CMD_RS;
+		tx_ring->packet_stride = 0;
+	}
+
+	tx_desc->cmd_type_offset_bsz =
+			build_ctob(td_cmd, td_offset, size, td_tag);
+
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.
+	 *
+	 * We also use this memory barrier to make certain all of the
+	 * status bits have been updated before next_to_watch is written.
+	 */
+	wmb();
+
+	/* set next_to_watch value indicating a packet is present */
+	first->next_to_watch = tx_desc;
+
+	/* notify HW of packet */
+	if (desc_count) {
+		writel(i, tx_ring->tail);
+
+		/* we need this if more than one processor can write to our tail
+		 * at a time, it synchronizes IO on IA64/Altix systems
+		 */
+		mmiowb();
+	}
+
+	return;
+
+dma_error:
 		i = 0;
 
 	tx_ring->next_to_use = i;
