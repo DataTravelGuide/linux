@@ -9475,8 +9475,13 @@ _mpt3sas_init(void)
 static void __exit
 _mpt3sas_exit(void)
 {
+#ifdef MPT2SAS_SCSI
+	pr_info("mpt2sas version %s unloading\n",
+				MPT2SAS_DRIVER_VERSION);
+#else
 	pr_info("mpt3sas version %s unloading\n",
 				MPT3SAS_DRIVER_VERSION);
+#endif /* MPT2SAS_SCSI */
 
 	pci_unregister_driver(&mpt3sas_driver);
 
