@@ -458,6 +458,14 @@ struct i40e_aqc_arp_proxy_data {
 #define I40E_AQ_ARP_ENA		0x2000
 #define I40E_AQ_ARP_ADD_IPV4	0x4000
 #define I40E_AQ_ARP_DEL_IPV4	0x8000
+/* Set ARP Proxy command / response (indirect 0x0104) */
+struct i40e_aqc_arp_proxy_data {
+	__le16	command_flags;
+#define I40E_AQ_ARP_INIT_IPV4	0x0800
+#define I40E_AQ_ARP_UNSUP_CTL	0x1000
+#define I40E_AQ_ARP_ENA		0x2000
+#define I40E_AQ_ARP_ADD_IPV4	0x4000
+#define I40E_AQ_ARP_DEL_IPV4	0x8000
 	__le16	table_id;
 	__le32	enabled_offloads;
 #define I40E_AQ_ARP_DIRECTED_OFFLOAD_ENABLE	0x00000020
@@ -468,6 +476,25 @@ struct i40e_aqc_arp_proxy_data {
 };
 
 I40E_CHECK_STRUCT_LEN(0x14, i40e_aqc_arp_proxy_data);
+	__le16	table_idx_ipv6_0;
+	__le16	table_idx_ipv6_1;
+	__le16	control;
+#define I40E_AQ_NS_PROXY_ADD_0		0x0001
+#define I40E_AQ_NS_PROXY_DEL_0		0x0002
+#define I40E_AQ_NS_PROXY_ADD_1		0x0004
+#define I40E_AQ_NS_PROXY_DEL_1		0x0008
+#define I40E_AQ_NS_PROXY_ADD_IPV6_0	0x0010
+#define I40E_AQ_NS_PROXY_DEL_IPV6_0	0x0020
+#define I40E_AQ_NS_PROXY_ADD_IPV6_1	0x0040
+#define I40E_AQ_NS_PROXY_DEL_IPV6_1	0x0080
+#define I40E_AQ_NS_PROXY_COMMAND_SEQ	0x0100
+#define I40E_AQ_NS_PROXY_INIT_IPV6_TBL	0x0200
+#define I40E_AQ_NS_PROXY_INIT_MAC_TBL	0x0400
+#define I40E_AQ_NS_PROXY_OFFLOAD_ENABLE	0x0800
+#define I40E_AQ_NS_PROXY_DIRECTED_OFFLOAD_ENABLE	0x1000
+	u8	mac_addr_0[6];
+	u8	mac_addr_1[6];
+	u8	local_mac_addr[6];
 
 /* Set NS Proxy Table Entry Command (indirect 0x0105) */
 struct i40e_aqc_ns_proxy_data {
