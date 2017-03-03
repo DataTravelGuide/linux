@@ -1691,6 +1691,10 @@ struct net_device {
 	struct netdev_queue __rcu *ingress_queue;
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
+#if CONFIG_NET_CLS_ACT
+	RH_KABI_FILL_HOLE(struct tcf_proto __rcu *ingress_cl_list)
+#endif
+	/* Hole: 16 bytes remain */
 
 /*
  * Cache lines mostly used on transmit path
