@@ -268,10 +268,6 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
 
-	/* RHEL7.1 has FCoE disabled */
-	dev_info(&pf->pdev->dev, "FCoE capability is disabled\n");
-	return 0;
-
 	pf->flags &= ~I40E_FLAG_FCOE_ENABLED;
 	pf->num_fcoe_qps = 0;
 	pf->fcoe_hmc_cntx_num = 0;
