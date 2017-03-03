@@ -2931,7 +2931,7 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		goto error;
 	}
 
-	if (max_tx_rate < 50) {
+	if ((max_tx_rate < 50) && (max_tx_rate > 0)) {
 		dev_warn(&pf->pdev->dev, "Setting max Tx rate to minimum usable value of 50Mbps.\n");
 		max_tx_rate = 50;
 	}
