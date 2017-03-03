@@ -718,6 +718,10 @@ bool i40evf_alloc_rx_buffers_ps(struct i40e_ring *rx_ring, u16 cleaned_count)
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
+		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma + bi->page_offset);
+
+		rx_desc++;
+		bi++;
 		rx_desc->read.pkt_addr =
 				cpu_to_le64(bi->page_dma + bi->page_offset);
 		rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
@@ -1196,18 +1200,17 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 
 		i = rx_ring->next_to_clean;
 		rx_desc = I40E_RX_DESC(rx_ring, i);
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-			I40E_RXD_QW1_STATUS_SHIFT;
 
-		if (!(rx_status & BIT(I40E_RX_DESC_STATUS_DD_SHIFT)))
-			break;
+		rx_desc = I40E_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
-		 * DD bit is set.
+		/* status_error_len will always be zero for unused descriptors
+		 * because it's cleared in cleanup, and overlaps with hdr_addr
+		 * which is always zero because packet split isn't used, if the
+		 * hardware wrote DD then it will be non-zero
 		 */
-		dma_rmb();
+		if (!i40e_test_staterr(rx_desc,
+				       BIT(I40E_RX_DESC_STATUS_DD_SHIFT)))
+			break;
 
 		rx_bi = &rx_ring->rx_bi[i];
 		skb = rx_bi->skb;
@@ -1252,7 +1255,12 @@ static int i40e_clean_rx_irq_1buf(struct i40e_ring *rx_ring, int budget)
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
+			   I40E_RXD_QW1_PTYPE_SHIFT;
+
+		/* populate checksum, VLAN, and protocol */
+		i40evf_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
 		i40e_rx_checksum(vsi, skb, rx_status, rx_error, rx_ptype);
 
