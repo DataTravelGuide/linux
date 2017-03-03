@@ -9415,6 +9415,8 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 
 	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
+	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
+
 	/* record features VLANs can make use of */
 	netdev->vlan_features |= netdev->hw_enc_features |
 				 NETIF_F_TSO_MANGLEID;
