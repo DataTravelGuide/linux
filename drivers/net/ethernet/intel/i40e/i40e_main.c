@@ -11394,8 +11394,8 @@ static void i40e_remove(struct pci_dev *pdev)
 			 ret_code);
 
 	/* destroy the locks only once, here */
-	mutex_destroy(&pf->hw.aq.arq_mutex);
-	mutex_destroy(&pf->hw.aq.asq_mutex);
+	mutex_destroy(&hw->aq.arq_mutex);
+	mutex_destroy(&hw->aq.asq_mutex);
 
 	/* Clear all dynamic memory lists of rings, q_vectors, and VSIs */
 	i40e_clear_interrupt_scheme(pf);
