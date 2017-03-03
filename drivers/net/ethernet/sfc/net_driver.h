@@ -856,6 +856,7 @@ struct vfdi_status;
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
+ * @rss_active: RSS enabled on hardware
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
@@ -993,6 +994,7 @@ struct efx_nic {
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
+	bool rss_active;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;

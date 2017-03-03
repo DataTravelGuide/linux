@@ -983,6 +983,8 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 
 	case ETHTOOL_GRXFH: {
 		info->data = 0;
+		if (!efx->rss_active) /* No RSS */
+			return 0;
 		switch (info->flow_type) {
 		case TCP_V4_FLOW:
 			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
