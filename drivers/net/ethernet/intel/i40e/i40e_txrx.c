@@ -1281,7 +1281,10 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 		   I40E_RXD_QW1_ERROR_SHIFT;
 	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
 		    I40E_RXD_QW1_STATUS_SHIFT;
-	decoded = decode_rx_desc_ptype(ptype);
+				    u16 rx_ptype)
+{
+	struct i40e_rx_ptype_decoded decoded = decode_rx_desc_ptype(rx_ptype);
+	bool ipv4, ipv6, tunnel = false;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -1422,11 +1425,16 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 
 	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
+	 * doesn't make it a hard requirement so if we have validated the
+	 * inner checksum report CHECKSUM_UNNECESSARY.
+	 */
+	if (decoded.inner_prot & (I40E_RX_PTYPE_INNER_PROT_TCP |
+				  I40E_RX_PTYPE_INNER_PROT_UDP |
+				  I40E_RX_PTYPE_INNER_PROT_SCTP))
+		tunnel = true;
 
-	i40e_rx_hash(rx_ring, rx_desc, skb, rx_ptype);
-
-	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->csum_level = tunnel ? 1 : 0;
 
 	i40e_rx_checksum(rx_ring->vsi, skb, rx_desc);
 
