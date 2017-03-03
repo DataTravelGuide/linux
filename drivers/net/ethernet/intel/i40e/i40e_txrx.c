@@ -1423,18 +1423,23 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
 		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
 
-	if (unlikely(tsynvalid))
-		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
-	 * doesn't make it a hard requirement so if we have validated the
-	 * inner checksum report CHECKSUM_UNNECESSARY.
+	/* If there is an outer header present that might contain a checksum
+	 * we need to bump the checksum level by 1 to reflect the fact that
+	 * we are indicating we validated the inner checksum.
 	 */
-	if (decoded.inner_prot & (I40E_RX_PTYPE_INNER_PROT_TCP |
-				  I40E_RX_PTYPE_INNER_PROT_UDP |
-				  I40E_RX_PTYPE_INNER_PROT_SCTP))
-		tunnel = true;
+	if (decoded.tunnel_type >= I40E_RX_PTYPE_TUNNEL_IP_GRENAT)
+		skb->csum_level = 1;
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	skb->csum_level = tunnel ? 1 : 0;
+	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
+	switch (decoded.inner_prot) {
+	case I40E_RX_PTYPE_INNER_PROT_TCP:
+	case I40E_RX_PTYPE_INNER_PROT_UDP:
+	case I40E_RX_PTYPE_INNER_PROT_SCTP:
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		/* fall though */
+	default:
+		break;
+	}
 
 	i40e_rx_checksum(rx_ring->vsi, skb, rx_desc);
 
