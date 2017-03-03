@@ -410,6 +410,17 @@ struct i40e_ring {
 } ____cacheline_internodealigned_in_smp;
 
 enum i40e_latency_range {
+	struct sk_buff *skb;		/* When i40e_clean_rx_ring_irq() must
+					 * return before it sees the EOP for
+					 * the current packet, we save that skb
+					 * here and resume receiving this
+					 * packet the next time
+					 * i40e_clean_rx_ring_irq() is called
+					 * for this ring.
+					 */
+} ____cacheline_internodealigned_in_smp;
+
+enum i40e_latency_range {
 	I40E_LOWEST_LATENCY = 0,
 	I40E_LOW_LATENCY = 1,
 	I40E_BULK_LATENCY = 2,
