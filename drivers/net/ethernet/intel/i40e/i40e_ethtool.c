@@ -377,6 +377,13 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf, u32 *supported,
 		*supported |= SUPPORTED_Autoneg;
 		*advertising |= ADVERTISED_Autoneg;
 	}
+	if (phy_types & I40E_CAP_PHY_TYPE_25GBASE_KR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_CR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_SR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_LR) {
+		*supported |= SUPPORTED_Autoneg;
+		*advertising |= ADVERTISED_Autoneg;
+	}
 }
 
 /**
@@ -507,6 +514,14 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		ecmd->advertising = ADVERTISED_Autoneg;
 		/* TODO: add speeds when ethtool is ready to support*/
 		break;
+	case I40E_PHY_TYPE_25GBASE_KR:
+	case I40E_PHY_TYPE_25GBASE_CR:
+	case I40E_PHY_TYPE_25GBASE_SR:
+	case I40E_PHY_TYPE_25GBASE_LR:
+		ecmd->supported = SUPPORTED_Autoneg;
+		ecmd->advertising = ADVERTISED_Autoneg;
+		/* TODO: add speeds when ethtool is ready to support*/
+		break;
 	default:
 		/* if we got here and link is up something bad is afoot */
 		netdev_info(netdev, "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
@@ -527,6 +542,14 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	switch (link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_40000);
+		break;
+	case I40E_LINK_SPEED_25GB:
+#ifdef SPEED_25000
+		ethtool_cmd_speed_set(ecmd, SPEED_25000);
+#else
+		netdev_info(netdev,
+			    "Speed is 25G, display not supported by this version of ethtool.\n");
+#endif
 		break;
 	case I40E_LINK_SPEED_25GB:
 #ifdef SPEED_25000

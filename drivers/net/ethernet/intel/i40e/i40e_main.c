@@ -5415,6 +5415,9 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 	case I40E_LINK_SPEED_25GB:
 		speed = "25 G";
 		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = "25 G";
+		break;
 	case I40E_LINK_SPEED_10GB:
 		speed = "10 G";
 		break;
