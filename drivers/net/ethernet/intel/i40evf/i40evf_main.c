@@ -638,6 +638,17 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
 }
 
 /**
+static void i40evf_configure_rx(struct i40evf_adapter *adapter)
+{
+	struct i40e_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < adapter->num_active_queues; i++) {
+		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
+		adapter->rx_rings[i].rx_buf_len = I40EVF_RXBUFFER_2048;
+	}
+}
+
  * i40evf_configure_rx - Configure Receive Unit after Reset
  * @adapter: board private structure
  *

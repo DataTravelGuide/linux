@@ -664,6 +664,12 @@ static u32 i40evf_get_priv_flags(struct net_device *dev)
 	return ret_flags;
 }
 
+	struct i40evf_adapter *adapter = netdev_priv(dev);
+	bool reset_required = false;
+
+	/* if needed, issue reset to cause things to take effect */
+	if (reset_required)
+		i40evf_schedule_reset(adapter);
 /**
  * i40evf_set_priv_flags - set private flags
  * @dev: network interface device structure

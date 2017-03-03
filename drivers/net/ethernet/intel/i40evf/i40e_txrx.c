@@ -501,6 +501,12 @@ void i40evf_clean_rx_ring(struct i40e_ring *rx_ring)
 
 	/* ring already cleared, nothing to do */
 	if (!rx_ring->rx_bi)
+	if (!rx_ring->rx_bi)
+		return;
+
+	/* Free all the Rx ring sk_buffs */
+	for (i = 0; i < rx_ring->count; i++) {
+		rx_bi = &rx_ring->rx_bi[i];
 		return;
 
 	/* Free all the Rx ring sk_buffs */
