@@ -1636,6 +1636,24 @@ enum i40e_aq_hmc_profile {
 	I40E_HMC_PROFILE_EQUAL		= 3,
 };
 
+/* Get and set the active HMC resource profile and status.
+ * (direct 0x0500) and (direct 0x0501)
+ */
+struct i40e_aq_get_set_hmc_resource_profile {
+	u8	pm_profile;
+	u8	pe_vf_enabled;
+	u8	reserved[14];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aq_get_set_hmc_resource_profile);
+
+enum i40e_aq_hmc_profile {
+	/* I40E_HMC_PROFILE_NO_CHANGE	= 0, reserved */
+	I40E_HMC_PROFILE_DEFAULT	= 1,
+	I40E_HMC_PROFILE_FAVOR_VF	= 2,
+	I40E_HMC_PROFILE_EQUAL		= 3,
+};
+
 /* Get PHY Abilities (indirect 0x0600) uses the generic indirect struct */
 
 /* set in param0 for get phy abilities to report qualified modules */
