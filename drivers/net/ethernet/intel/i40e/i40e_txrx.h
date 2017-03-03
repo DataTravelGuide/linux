@@ -170,6 +170,43 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 
 #define I40E_RX_NEXT_DESC_PREFETCH(r, i, n)		\
 	do {						\
+#define I40E_MAX_DATA_PER_TXD_ALIGNED \
+	(I40E_MAX_DATA_PER_TXD & ~(I40E_MAX_READ_REQ_SIZE - 1))
+
+/**
+ * i40e_txd_use_count  - estimate the number of descriptors needed for Tx
+ * @size: transmit request size in bytes
+ *
+ * Due to hardware alignment restrictions (4K alignment), we need to
+ * assume that we can have no more than 12K of data per descriptor, even
+ * though each descriptor can take up to 16K - 1 bytes of aligned memory.
+ * Thus, we need to divide by 12K. But division is slow! Instead,
+ * we decompose the operation into shifts and one relatively cheap
+ * multiply operation.
+ *
+ * To divide by 12K, we first divide by 4K, then divide by 3:
+ *     To divide by 4K, shift right by 12 bits
+ *     To divide by 3, multiply by 85, then divide by 256
+ *     (Divide by 256 is done by shifting right by 8 bits)
+ * Finally, we add one to round up. Because 256 isn't an exact multiple of
+ * 3, we'll underestimate near each multiple of 12K. This is actually more
+ * accurate as we have 4K - 1 of wiggle room that we can fit into the last
+ * segment.  For our purposes this is accurate out to 1M which is orders of
+ * magnitude greater than our largest possible GSO size.
+ *
+ * This would then be implemented as:
+ *     return (((size >> 12) * 85) >> 8) + 1;
+ *
+ * Since multiplication and division are commutative, we can reorder
+ * operations into:
+ *     return ((size * 85) >> 20) + 1;
+ */
+static inline unsigned int i40e_txd_use_count(unsigned int size)
+{
+	return ((size * 85) >> 20) + 1;
+}
+
+/* Tx Descriptors needed, worst case */
 		I40E_RX_NEXT_DESC((r), (i), (n));	\
 		prefetch((n));				\
 	} while (0)
