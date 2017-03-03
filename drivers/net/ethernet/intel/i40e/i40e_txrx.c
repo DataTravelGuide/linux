@@ -2888,15 +2888,17 @@ do_rs:
 	first->next_to_watch = tx_desc;
 
 	/* notify HW of packet */
-	if (desc_count) {
-		writel(i, tx_ring->tail);
-
+	if (!tail_bump) {
+		prefetchw(tx_desc + 1);
+	} else {
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch.  (Only
+		 * applicable for weak-ordered memory model archs,
 		/* we need this if more than one processor can write to our tail
 		 * at a time, it synchronizes IO on IA64/Altix systems
 		 */
 		mmiowb();
 	}
-
 	return;
 
 dma_error:
