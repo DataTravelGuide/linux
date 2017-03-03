@@ -1594,7 +1594,6 @@ static bool i40e_add_rx_frag(struct i40e_ring *rx_ring,
 			     struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
-	unsigned char *va = page_address(page) + rx_buffer->page_offset;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = I40E_RXBUFFER_2048;
 #else
@@ -1656,6 +1655,13 @@ static inline
 struct sk_buff *i40e_fetch_rx_buffer(struct i40e_ring *rx_ring,
 				     union i40e_rx_desc *rx_desc,
 				     struct sk_buff *skb)
+{
+	u64 local_status_error_len =
+		le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+	unsigned int size =
+		(local_status_error_len & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+struct sk_buff *i40e_fetch_rx_buffer(struct i40e_ring *rx_ring,
+				     union i40e_rx_desc *rx_desc)
 {
 	u64 local_status_error_len =
 		le64_to_cpu(rx_desc->wb.qword1.status_error_len);
