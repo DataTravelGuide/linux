@@ -2245,6 +2245,40 @@ static void qede_del_geneve_port(struct net_device *dev,
 }
 #endif
 
+/* 8B udp header + 8B base tunnel header + 32B option length */
+#define QEDE_MAX_TUN_HDR_LEN 48
+
+static netdev_features_t qede_features_check(struct sk_buff *skb,
+					    struct net_device *dev,
+					    netdev_features_t features)
+{
+       if (skb->encapsulation) {
+	       u8 l4_proto = 0;
+
+	       switch (vlan_get_protocol(skb)) {
+	       case htons(ETH_P_IP):
+		       l4_proto = ip_hdr(skb)->protocol;
+		       break;
+	       case htons(ETH_P_IPV6):
+		       l4_proto = ipv6_hdr(skb)->nexthdr;
+		       break;
+	       default:
+		       return features;
+	       }
+
+	       /* Disable offloads for geneve tunnels, as HW can't parse
+		* the geneve header which has option length greater than 32B.
+		*/
+	       if ((l4_proto == IPPROTO_UDP) &&
+		   ((skb_inner_mac_header(skb) -
+		     skb_transport_header(skb)) > QEDE_MAX_TUN_HDR_LEN))
+		       return features & ~(NETIF_F_CSUM_MASK |
+					   NETIF_F_GSO_MASK);
+       }
+
+       return features;
+}
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_size = sizeof(struct net_device_ops),
 	.ndo_open = qede_open,
@@ -2276,6 +2310,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_add_geneve_port = qede_add_geneve_port,
 	.ndo_del_geneve_port = qede_del_geneve_port,
 #endif
+	.ndo_features_check = qede_features_check,
 };
 
 /* -------------------------------------------------------------------------
