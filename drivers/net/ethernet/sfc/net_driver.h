@@ -739,6 +739,7 @@ struct vfdi_status;
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
  * @rss_active: RSS enabled on hardware
+ * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
@@ -877,6 +878,7 @@ struct efx_nic {
 	u32 rx_indir_table[128];
 	bool rx_scatter;
 	bool rss_active;
+	bool rx_hash_udp_4tuple;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;
