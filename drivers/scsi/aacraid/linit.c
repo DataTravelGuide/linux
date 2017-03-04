@@ -1203,6 +1203,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 	int i;
 	int cpu;
 
+	aac->adapter_shutdown = 1;
 	aac_send_shutdown(aac);
 
 	if (aac->aif_thread) {
