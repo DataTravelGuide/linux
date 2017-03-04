@@ -142,6 +142,9 @@ config QEDE_GENEVE
 config QED_RDMA
 	bool
 
+config QED_ISCSI
+	bool
+
 config INFINIBAND_QEDR
 	tristate "QLogic qede RoCE sources [debug]"
 	depends on QEDE && 64BIT
