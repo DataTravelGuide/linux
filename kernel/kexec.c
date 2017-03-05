@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/swap.h>
 #include <linux/syscore_ops.h>
+#include <linux/compiler.h>
 #include <linux/security.h>
 #include <linux/hugetlb.h>
 
@@ -2711,10 +2712,10 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
  * provide an empty default implementation here -- architecture
  * code may override this
  */
-void __attribute__ ((weak)) arch_crash_save_vmcoreinfo(void)
+void __weak arch_crash_save_vmcoreinfo(void)
 {}
 
-unsigned long __attribute__ ((weak)) paddr_vmcoreinfo_note(void)
+unsigned long __weak paddr_vmcoreinfo_note(void)
 {
 	return __pa((unsigned long)(char *)&vmcoreinfo_note);
 }
