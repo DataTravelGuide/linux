@@ -147,7 +147,7 @@ int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 	(list_empty(&(_exts)->actions))
 
 #define tc_for_each_action(_a, _exts) \
-	list_for_each_entry(a, &(_exts)->actions, list)
+	list_for_each_entry(_a, &(_exts)->actions, list)
 
 static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
 					   u64 packets, u64 lastuse)
