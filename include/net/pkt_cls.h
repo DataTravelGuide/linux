@@ -423,4 +423,9 @@ static inline bool tc_flags_valid(u32 flags)
 	return true;
 }
 
+static inline bool tc_in_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
+}
+
 #endif
