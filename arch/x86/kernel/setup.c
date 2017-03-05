@@ -515,7 +515,7 @@ static void __init memblock_x86_reserve_range_setup_data(void)
  * --------- Crashkernel reservation ------------------------------
  */
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 /* 16M alignment for crash kernel regions */
 #define CRASH_ALIGN            (16 << 20)
