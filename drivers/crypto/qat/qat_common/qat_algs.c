@@ -654,6 +654,7 @@ static void qat_alg_free_bufl(struct qat_crypto_instance *inst,
 	size_t sz_out = qat_req->buf.sz_out;
 	int i;
 
+	kfree(qat_req->buf.iv);
 	for (i = 0; i < bl->num_bufs; i++)
 		dma_unmap_single(dev, bl->bufers[i].addr,
 				 bl->bufers[i].len, DMA_BIDIRECTIONAL);
@@ -691,6 +692,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	struct scatterlist *sg;
 	size_t sz_out, sz = sizeof(struct qat_alg_buf_list) +
 			((1 + n + assoc_n) * sizeof(struct qat_alg_buf));
+	u8 *civ = NULL;
 
 	if (unlikely(!n))
 		return -EINVAL;
@@ -723,7 +725,13 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	}
 
 	if (ivlen) {
-		bufl->bufers[bufs].addr = dma_map_single(dev, iv, ivlen,
+		civ = kmalloc_node(ivlen, GFP_ATOMIC,
+				  dev_to_node(&GET_DEV(inst->accel_dev)));
+		if (!civ)
+			goto err;
+		memcpy(civ, iv, ivlen);
+
+		bufl->bufers[bufs].addr = dma_map_single(dev, civ, ivlen,
 							 DMA_BIDIRECTIONAL);
 		bufl->bufers[bufs].len = ivlen;
 		if (unlikely(dma_mapping_error(dev, bufl->bufers[bufs].addr)))
@@ -749,6 +757,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	qat_req->buf.bl = bufl;
 	qat_req->buf.blp = blp;
 	qat_req->buf.sz = sz;
+	qat_req->buf.iv = civ;
 	/* Handle out of place operation */
 	if (sgl != sglout) {
 		struct qat_alg_buf *bufers;
@@ -798,6 +807,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	return 0;
 err:
 	dev_err(dev, "Failed to map buf for dma\n");
+	kfree(civ);
 	sg_nctr = 0;
 	for (i = 0; i < n + bufs; i++)
 		if (!dma_mapping_error(dev, bufl->bufers[i].addr))

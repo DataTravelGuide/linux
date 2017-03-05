@@ -71,6 +71,7 @@ struct qat_crypto_request_buffs {
 	dma_addr_t bloutp;
 	size_t sz;
 	size_t sz_out;
+	u8 *iv;
 };
 
 struct qat_crypto_request;
