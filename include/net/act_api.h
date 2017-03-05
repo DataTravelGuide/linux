@@ -108,6 +108,7 @@ struct tc_action_ops {
 			struct nlattr *est, struct tc_action *act, int ovr,
 			int bind);
 	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
+	void	(*stats_update)(struct tc_action *, u64, u32, u64);
 };
 
 int tcf_hash_search(struct tc_action *a, u32 index);
@@ -147,10 +148,21 @@ int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 
 #define tc_for_each_action(_a, _exts) \
 	list_for_each_entry(a, &(_exts)->actions, list)
+
+static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
+					   u64 packets, u64 lastuse)
+{
+	if (!a->ops->stats_update)
+		return;
+
+	a->ops->stats_update(a, bytes, packets, lastuse);
+}
+
 #else /* CONFIG_NET_CLS_ACT */
 
 #define tc_no_actions(_exts) true
 #define tc_for_each_action(_a, _exts) while (0)
+#define tcf_action_stats_update(a, bytes, packets, lastuse)
 
 #endif /* CONFIG_NET_CLS_ACT */
 #endif
