@@ -1860,7 +1860,6 @@ unsigned long long __init arch_default_crash_base(void)
  */
 static int __init parse_crashkernel_suffix(char *cmdline,
 					   unsigned long long	*crash_size,
-					   unsigned long long	*crash_base,
 					   const char *suffix)
 {
 	char *cur = cmdline;
@@ -1949,7 +1948,7 @@ static int __init __parse_crashkernel(char *cmdline,
 
 	if (suffix)
 		return parse_crashkernel_suffix(ck_cmdline, crash_size,
-				crash_base, suffix);
+				suffix);
 #ifdef CONFIG_KEXEC_AUTO_RESERVE
 	if (strncmp(ck_cmdline, "auto", 4) == 0) {
 		unsigned long long size;
