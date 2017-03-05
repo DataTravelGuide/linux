@@ -35,7 +35,7 @@
 #include <linux/crash_dump.h>
 #include <linux/frame.h>
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 #include <linux/kexec.h>
 #endif
 
@@ -1732,7 +1732,7 @@ static struct notifier_block xen_hvm_cpu_notifier = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 static void xen_hvm_shutdown(void)
 {
 	native_machine_shutdown();
@@ -1763,7 +1763,7 @@ static void __init xen_hvm_guest_init(void)
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	if (xen_running_on_version_or_later(3, 2)) {
 		machine_ops.shutdown = xen_hvm_shutdown;
 		machine_ops.crash_shutdown = xen_hvm_crash_shutdown;
