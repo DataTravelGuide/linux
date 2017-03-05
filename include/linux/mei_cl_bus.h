@@ -8,7 +8,7 @@
 struct mei_cl_device;
 struct mei_device;
 
-typedef void (*mei_cldev_event_cb_t)(struct mei_cl_device *device,
+typedef void (*mei_cldev_event_cb_t)(struct mei_cl_device *cldev,
 			       u32 events, void *context);
 
 /**
@@ -62,13 +62,12 @@ struct mei_cl_driver {
 
 	const struct mei_cl_device_id *id_table;
 
-	int (*probe)(struct mei_cl_device *dev,
+	int (*probe)(struct mei_cl_device *cldev,
 		     const struct mei_cl_device_id *id);
-	int (*remove)(struct mei_cl_device *dev);
+	int (*remove)(struct mei_cl_device *cldev);
 };
 
-int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
-				struct module *owner);
+int __mei_cldev_driver_register(struct mei_cl_driver *cldrv, struct module *owner);
 #define mei_cldev_driver_register(cldrv)	\
 	__mei_cldev_driver_register(cldrv, THIS_MODULE)
 
