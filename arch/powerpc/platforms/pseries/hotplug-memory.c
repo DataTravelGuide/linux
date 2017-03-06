@@ -22,6 +22,7 @@
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/sparsemem.h>
+#include "pseries.h"
 
 static bool rtas_hp_event;
 
