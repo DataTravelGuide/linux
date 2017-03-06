@@ -78,14 +78,17 @@ void enic_rfs_flw_tbl_init(struct enic *enic)
 	enic->rfs_h.max = enic->config.num_arfs;
 	enic->rfs_h.free = enic->rfs_h.max;
 	enic->rfs_h.toclean = 0;
-	enic_rfs_timer_start(enic);
+	init_timer(&enic->rfs_h.rfs_may_expire);
+	enic->rfs_h.rfs_may_expire.function = enic_flow_may_expire;
+	enic->rfs_h.rfs_may_expire.data = (unsigned long)enic;
+	mod_timer(&enic->rfs_h.rfs_may_expire, jiffies + HZ/4);
 }
 
 void enic_rfs_flw_tbl_free(struct enic *enic)
 {
 	int i;
 
-	enic_rfs_timer_stop(enic);
+	del_timer_sync(&enic->rfs_h.rfs_may_expire);
 	spin_lock_bh(&enic->rfs_h.lock);
 	enic->rfs_h.free = 0;
 	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
