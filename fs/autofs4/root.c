@@ -281,8 +281,8 @@ static int autofs4_mount_wait(struct dentry *dentry, bool rcu_walk)
 		pr_debug("waiting for mount name=%pd\n", dentry);
 		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
 		pr_debug("mount wait done status=%d\n", status);
+		ino->last_used = jiffies;
 	}
-	ino->last_used = jiffies;
 	return status;
 }
 
@@ -319,16 +319,21 @@ static struct dentry *autofs4_mountpoint_changed(struct path *path)
 	 */
 	if (autofs_type_indirect(sbi->type) && d_unhashed(dentry)) {
 		struct dentry *parent = dentry->d_parent;
-		struct autofs_info *ino;
 		struct dentry *new;
 
 		new = d_lookup(parent, &dentry->d_name);
 		if (!new)
 			return NULL;
-		ino = autofs4_dentry_ino(new);
-		ino->last_used = jiffies;
-		dput(path->dentry);
-		path->dentry = new;
+		if (new == dentry)
+			dput(new);
+		else {
+			struct autofs_info *ino;
+
+			ino = autofs4_dentry_ino(new);
+			ino->last_used = jiffies;
+			dput(path->dentry);
+			path->dentry = new;
+		}
 	}
 	return path->dentry;
 }
