@@ -88,4 +88,6 @@ extern void mark_mounts_for_expiry(struct list_head *mounts);
 
 extern dev_t name_to_dev_t(const char *name);
 
+extern bool path_is_mountpoint(const struct path *path);
+
 #endif /* _LINUX_MOUNT_H */
