@@ -3144,7 +3144,7 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 {
 	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	if (!MLX5_CAP_GEN(mdev, eth_net_offloads) ||
 	    !MLX5_CAP_GEN(mdev, nic_flow_table) ||
 	    !MLX5_CAP_ETH(mdev, csum_cap) ||
@@ -3156,7 +3156,7 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 			       < 3) {
 		mlx5_core_warn(mdev,
 			       "Not creating net device, some required device capabilities are missing\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
 		mlx5_core_warn(mdev, "CQ modiration is not supported\n");
