@@ -3062,7 +3062,7 @@ int ext4_dax_get_block(struct inode *inode, sector_t iblock,
 	map.m_len = bh_result->b_size >> inode->i_blkbits;
 	credits = ext4_chunk_trans_blocks(inode, map.m_len);
 	if (create) {
-		flags |= EXT4_GET_BLOCKS_PRE_IO | EXT4_GET_BLOCKS_CREATE_ZERO;
+		flags |= EXT4_GET_BLOCKS_CREATE_ZERO;
 		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
@@ -3078,30 +3078,6 @@ int ext4_dax_get_block(struct inode *inode, sector_t iblock,
 	}
 	if (ret <= 0)
 		goto out;
-	if (map.m_flags & EXT4_MAP_UNWRITTEN) {
-		int err2;
-
-		/*
-		 * We are protected by i_mmap_sem or i_mutex so we know block
-		 * cannot go away from under us even though we dropped
-		 * i_data_sem. Convert extent to written and write zeros there.
-		 *
-		 * Note: We may get here even when create == 0.
-		 */
-		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
-		if (IS_ERR(handle)) {
-			ret = PTR_ERR(handle);
-			goto out;
-		}
-
-		err = ext4_map_blocks(handle, inode, &map,
-		      EXT4_GET_BLOCKS_CONVERT | EXT4_GET_BLOCKS_CREATE_ZERO);
-		if (err < 0)
-			ret = err;
-		err2 = ext4_journal_stop(handle);
-		if (err2 < 0 && ret > 0)
-			ret = err2;
-	}
 out:
 	WARN_ON_ONCE(ret == 0 && create);
 	if (ret > 0) {
