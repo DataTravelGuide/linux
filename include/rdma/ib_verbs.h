@@ -1594,9 +1594,10 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_TCP		= 0x40,
 	IB_FLOW_SPEC_UDP		= 0x41,
 	IB_FLOW_SPEC_VXLAN_TUNNEL	= 0x50,
+	IB_FLOW_SPEC_INNER		= 0x100,
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
-#define IB_FLOW_SPEC_SUPPORT_LAYERS 4
+#define IB_FLOW_SPEC_SUPPORT_LAYERS 8
 
 /* Flow steering rule priority is set according to it's domain.
  * Lower domain value means higher priority.
@@ -1624,7 +1625,7 @@ struct ib_flow_eth_filter {
 };
 
 struct ib_flow_spec_eth {
-	enum ib_flow_spec_type	  type;
+	u32			  type;
 	u16			  size;
 	struct ib_flow_eth_filter val;
 	struct ib_flow_eth_filter mask;
@@ -1638,7 +1639,7 @@ struct ib_flow_ib_filter {
 };
 
 struct ib_flow_spec_ib {
-	enum ib_flow_spec_type	 type;
+	u32			 type;
 	u16			 size;
 	struct ib_flow_ib_filter val;
 	struct ib_flow_ib_filter mask;
@@ -1663,7 +1664,7 @@ struct ib_flow_ipv4_filter {
 };
 
 struct ib_flow_spec_ipv4 {
-	enum ib_flow_spec_type	   type;
+	u32			   type;
 	u16			   size;
 	struct ib_flow_ipv4_filter val;
 	struct ib_flow_ipv4_filter mask;
@@ -1681,7 +1682,7 @@ struct ib_flow_ipv6_filter {
 };
 
 struct ib_flow_spec_ipv6 {
-	enum ib_flow_spec_type	   type;
+	u32			   type;
 	u16			   size;
 	struct ib_flow_ipv6_filter val;
 	struct ib_flow_ipv6_filter mask;
@@ -1695,7 +1696,7 @@ struct ib_flow_tcp_udp_filter {
 };
 
 struct ib_flow_spec_tcp_udp {
-	enum ib_flow_spec_type	      type;
+	u32			      type;
 	u16			      size;
 	struct ib_flow_tcp_udp_filter val;
 	struct ib_flow_tcp_udp_filter mask;
@@ -1710,7 +1711,7 @@ struct ib_flow_tunnel_filter {
  * the tunnel_id from val has the vni value
  */
 struct ib_flow_spec_tunnel {
-	enum ib_flow_spec_type	      type;
+	u32			      type;
 	u16			      size;
 	struct ib_flow_tunnel_filter  val;
 	struct ib_flow_tunnel_filter  mask;
@@ -1718,7 +1719,7 @@ struct ib_flow_spec_tunnel {
 
 union ib_flow_spec {
 	struct {
-		enum ib_flow_spec_type	type;
+		u32			type;
 		u16			size;
 	};
 	struct ib_flow_spec_eth		eth;
