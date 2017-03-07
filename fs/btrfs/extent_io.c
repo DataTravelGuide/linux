@@ -5577,7 +5577,7 @@ void le_bitmap_set(u8 *map, unsigned int start, int len)
 		*p |= mask_to_set;
 		len -= bits_to_set;
 		bits_to_set = BITS_PER_BYTE;
-		mask_to_set = ~(u8)0;
+		mask_to_set = ~0;
 		p++;
 	}
 	if (len) {
@@ -5597,7 +5597,7 @@ void le_bitmap_clear(u8 *map, unsigned int start, int len)
 		*p &= ~mask_to_clear;
 		len -= bits_to_clear;
 		bits_to_clear = BITS_PER_BYTE;
-		mask_to_clear = ~(u8)0;
+		mask_to_clear = ~0;
 		p++;
 	}
 	if (len) {
@@ -5687,7 +5687,7 @@ void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
 		kaddr[offset] |= mask_to_set;
 		len -= bits_to_set;
 		bits_to_set = BITS_PER_BYTE;
-		mask_to_set = ~(u8)0;
+		mask_to_set = ~0;
 		if (++offset >= PAGE_CACHE_SIZE && len > 0) {
 			offset = 0;
 			page = eb->pages[++i];
@@ -5729,7 +5729,7 @@ void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
 		kaddr[offset] &= ~mask_to_clear;
 		len -= bits_to_clear;
 		bits_to_clear = BITS_PER_BYTE;
-		mask_to_clear = ~(u8)0;
+		mask_to_clear = ~0;
 		if (++offset >= PAGE_CACHE_SIZE && len > 0) {
 			offset = 0;
 			page = eb->pages[++i];
