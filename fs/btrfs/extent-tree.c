@@ -4143,7 +4143,7 @@ commit_trans:
 
 			if (need_commit > 0) {
 				btrfs_start_delalloc_roots(fs_info, 0, -1);
-				btrfs_wait_ordered_roots(fs_info, -1);
+				btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
 			}
 
 			trans = btrfs_join_transaction(root);
@@ -4586,7 +4586,8 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 */
 		btrfs_start_delalloc_roots(root->fs_info, 0, nr_items);
 		if (!current->journal_info)
-			btrfs_wait_ordered_roots(root->fs_info, nr_items);
+			btrfs_wait_ordered_roots(root->fs_info, nr_items,
+						 0, (u64)-1);
 	}
 }
 
@@ -4635,7 +4636,8 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		if (trans)
 			return;
 		if (wait_ordered)
-			btrfs_wait_ordered_roots(root->fs_info, items);
+			btrfs_wait_ordered_roots(root->fs_info, items,
+						 0, (u64)-1);
 		return;
 	}
 
@@ -4674,7 +4676,8 @@ skip_async:
 
 		loops++;
 		if (wait_ordered && !trans) {
-			btrfs_wait_ordered_roots(root->fs_info, items);
+			btrfs_wait_ordered_roots(root->fs_info, items,
+						 0, (u64)-1);
 		} else {
 			time_left = schedule_timeout_killable(1);
 			if (time_left)
