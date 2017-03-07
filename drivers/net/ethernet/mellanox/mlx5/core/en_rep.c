@@ -297,7 +297,7 @@ static int mlx5e_init_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	struct mlx5_core_dev *mdev = priv->mdev;
-	struct mlx5_flow_rule *flow_rule;
+	struct mlx5_flow_handle *flow_rule;
 	int err;
 	int i;
 
@@ -337,7 +337,7 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	int i;
 
-	mlx5_del_flow_rule(rep->vport_rx_rule);
+	mlx5_del_flow_rules(rep->vport_rx_rule);
 	mlx5e_destroy_direct_tirs(priv);
 	for (i = 0; i < priv->params.num_channels; i++)
 		mlx5e_destroy_rqt(priv, &priv->direct_tir[i].rqt);
