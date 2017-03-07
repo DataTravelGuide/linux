@@ -1766,6 +1766,12 @@ struct mlx5_ifc_cmd_inter_comp_event_bits {
 struct mlx5_ifc_cmd_inter_comp_event_bits {
 	u8         command_completion_vector[0x20];
 
+	u8         reserved_at_4c0[0x300];
+};
+
+struct mlx5_ifc_cmd_inter_comp_event_bits {
+	u8         command_completion_vector[0x20];
+
 	u8         reserved_at_20[0xc0];
 };
 
@@ -2920,8 +2926,6 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_3635_cntrs_grp_data_layout_bits eth_3635_cntrs_grp_data_layout;
 	struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits eth_extended_cntrs_grp_data_layout;
-	struct mlx5_ifc_eth_per_prio_grp_data_layout_bits eth_per_prio_grp_data_layout;
-	struct mlx5_ifc_eth_per_traffic_grp_data_layout_bits eth_per_traffic_grp_data_layout;
 	u8         reserved_at_0[0x7c0];
 };
 
@@ -7317,6 +7321,12 @@ struct mlx5_ifc_pmlp_reg_bits {
 	u8         lane2_module_mapping[0x20];
 
 	u8         lane3_module_mapping[0x20];
+	union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits counter_set;
+};
+
+struct mlx5_ifc_ppad_reg_bits {
+	u8         reserved_at_0[0x3];
+	u8         single_mac[0x1];
 
 	u8         reserved_at_a0[0x160];
 };
