@@ -841,10 +841,6 @@ static noinline int btrfs_mksubvol(struct path *parent,
 	if (IS_ERR(dentry))
 		goto out_unlock;
 
-	error = -EEXIST;
-	if (dentry->d_inode)
-		goto out_dput;
-
 	error = btrfs_may_create(dir, dentry);
 	if (error)
 		goto out_dput;
