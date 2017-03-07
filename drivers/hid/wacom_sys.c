@@ -1174,7 +1174,7 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 	wacom->battery.battery.get_property = wacom_battery_get_property;
 	sprintf(wacom->battery.bat_name, "wacom_battery_%ld", n);
 	wacom->battery.battery.name = wacom->battery.bat_name;
-	wacom->battery.battery.type = POWER_SUPPLY_TYPE_BATTERY;
+	wacom->battery.battery.type = POWER_SUPPLY_TYPE_USB;
 	wacom->battery.battery.use_for_apm = 0;
 
 	wacom->battery.ac.properties = wacom_ac_props;
