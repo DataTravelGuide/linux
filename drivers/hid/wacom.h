@@ -129,6 +129,7 @@ struct wacom {
 	struct kobject *remote_dir;
 	struct attribute_group remote_group[5];
 	struct power_supply ac;
+	bool resources;
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
