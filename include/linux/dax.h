@@ -5,6 +5,9 @@
 #include <linux/mm.h>
 #include <asm/pgtable.h>
 
+/* We use lowest available exceptional entry bit for locking */
+#define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
+
 ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
                   const struct iovec *iov, loff_t pos, unsigned long nr_segs,
                   get_block_t get_block, dio_iodone_t end_io, int flags);
