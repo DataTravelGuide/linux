@@ -2894,4 +2894,6 @@ static inline bool ext4_aligned_io(struct inode *inode, loff_t off, loff_t len)
 
 #endif	/* __KERNEL__ */
 
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+
 #endif	/* _EXT4_H */
