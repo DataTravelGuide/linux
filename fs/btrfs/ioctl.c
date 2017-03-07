@@ -1457,8 +1457,6 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 	if (range->compress_type == BTRFS_COMPRESS_LZO) {
 		btrfs_set_fs_incompat(root->fs_info, COMPRESS_LZO);
-		btrfs_sysfs_feature_update(root->fs_info,
-			BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO, FEAT_INCOMPAT);
 	}
 
 	ret = defrag_count;
@@ -4147,8 +4145,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	btrfs_free_path(path);
 
 	btrfs_set_fs_incompat(root->fs_info, DEFAULT_SUBVOL);
-	btrfs_sysfs_feature_update(root->fs_info,
-		BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL, FEAT_INCOMPAT);
 	btrfs_end_transaction(trans, root);
 out:
 	mnt_drop_write_file(file);
