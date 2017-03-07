@@ -2029,6 +2029,8 @@ static void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 			if (priv->tx_cq[t] && priv->tx_cq[t][i])
 				mlx4_en_destroy_cq(priv, &priv->tx_cq[t][i]);
 		}
+		kfree(priv->tx_ring[t]);
+		kfree(priv->tx_cq[t]);
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -2201,7 +2203,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int t;
 
 	en_dbg(DRV, priv, "Destroying netdev on port:%d\n", priv->port);
 
@@ -2234,11 +2235,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mlx4_en_free_resources(priv);
 	mutex_unlock(&mdev->state_lock);
-
-	for (t = 0; t < MLX4_EN_NUM_TX_TYPES; t++) {
-		kfree(priv->tx_ring[t]);
-		kfree(priv->tx_cq[t]);
-	}
 
 	free_netdev(dev);
 }
