@@ -35,6 +35,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
+#include <linux/hashtable.h>
 #include <net/devlink.h>
 #include <linux/mlx5/device.h>
 
@@ -201,7 +202,6 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_group *vport_rx_group;
 	struct mlx5_eswitch_rep *vport_reps;
 	DECLARE_HASHTABLE(encap_tbl, 8);
-	u8 inline_mode;
 };
 
 struct mlx5_eswitch {
@@ -272,6 +272,24 @@ enum {
 
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
 #define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
+
+struct mlx5_encap_info {
+	__be32 daddr;
+	__be32 tun_id;
+	__be16 tp_dst;
+};
+
+struct mlx5_encap_entry {
+	struct hlist_node encap_hlist;
+	struct list_head flows;
+	u32 encap_id;
+	struct neighbour *n;
+	struct mlx5_encap_info tun_info;
+	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
+
+	struct net_device *out_dev;
+	int tunnel_type;
+};
 
 struct mlx5_encap_info {
 	__be32 daddr;
