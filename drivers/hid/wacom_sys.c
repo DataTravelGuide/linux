@@ -1082,8 +1082,12 @@ static int wacom_ac_get_property(struct power_supply *psy,
 static int wacom_initialize_battery(struct wacom *wacom)
 {
 	static atomic_t battery_no = ATOMIC_INIT(0);
+	struct device *dev = &wacom->hdev->dev;
 	int error;
 	unsigned long n;
+
+	if (!devres_open_group(dev, &wacom->battery, GFP_KERNEL))
+		return -ENOMEM;
 
 	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) {
 		n = atomic_inc_return(&battery_no) - 1;
@@ -1104,31 +1108,34 @@ static int wacom_initialize_battery(struct wacom *wacom)
 		wacom->ac.type = POWER_SUPPLY_TYPE_MAINS;
 		wacom->ac.use_for_apm = 0;
 
-		error = power_supply_register(&wacom->hdev->dev,
-					      &wacom->battery);
+		error = devm_power_supply_register(&wacom->hdev->dev,
+						   &wacom->battery);
 		if (error)
-			return error;
+			goto err;
 
 		power_supply_powers(&wacom->battery, &wacom->hdev->dev);
 
-		error = power_supply_register(&wacom->hdev->dev, &wacom->ac);
+		error = devm_power_supply_register(&wacom->hdev->dev, &wacom->ac);
 		if (error) {
-			power_supply_unregister(&wacom->battery);
-			return error;
+			goto err;
 		}
 
 		power_supply_powers(&wacom->ac, &wacom->hdev->dev);
 	}
 
+	devres_close_group(dev, &wacom->battery);
 	return 0;
+
+err:
+	devres_release_group(dev, &wacom->battery);
+	return error;
 }
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
 	if (wacom->battery.dev) {
-		power_supply_unregister(&wacom->battery);
+		devres_release_group(&wacom->hdev->dev, &wacom->battery);
 		wacom->battery.dev = NULL;
-		power_supply_unregister(&wacom->ac);
 		wacom->ac.dev = NULL;
 	}
 }
@@ -1727,7 +1734,6 @@ fail_remote:
 fail_leds:
 	wacom_clean_inputs(wacom);
 fail_register_inputs:
-	wacom_destroy_battery(wacom);
 fail_battery:
 	wacom_remove_shared_data(wacom);
 fail_shared_data:
@@ -1916,7 +1922,6 @@ static void wacom_remove(struct hid_device *hdev)
 	wacom_clean_inputs(wacom);
 	if (hdev->bus == BUS_BLUETOOTH)
 		device_remove_file(&hdev->dev, &dev_attr_speed);
-	wacom_destroy_battery(wacom);
 	wacom_remove_shared_data(wacom);
 
 	hid_set_drvdata(hdev, NULL);
