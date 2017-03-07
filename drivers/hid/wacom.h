@@ -116,6 +116,17 @@ struct wacom_group_leds {
 	u8 select; /* status led selector (0..3) */
 };
 
+struct wacom_battery {
+	struct power_supply battery;
+	struct power_supply ac;
+	char bat_name[WACOM_NAME_MAX];
+	char ac_name[WACOM_NAME_MAX];
+	int battery_capacity;
+	int bat_charging;
+	int bat_connected;
+	int ps_connected;
+};
+
 struct wacom_remote {
 	spinlock_t remote_lock;
 	struct kfifo remote_fifo;
@@ -125,6 +136,7 @@ struct wacom_remote {
 		u32 serial;
 		struct input_dev *input;
 		bool registered;
+		struct wacom_battery battery;
 	} remotes[WACOM_MAX_REMOTES];
 };
 
@@ -144,8 +156,7 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
-	struct power_supply battery;
-	struct power_supply ac;
+	struct wacom_battery battery;
 	bool resources;
 };
 
