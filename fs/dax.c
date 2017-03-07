@@ -823,29 +823,19 @@ static int dax_insert_mapping(struct address_space *mapping,
 		.sector = to_sector(bh, mapping->host),
 		.size = bh->b_size,
 	};
-	int error;
 	void *ret;
 	void *entry = *entryp;
 
-	mutex_lock(&mapping->i_mmap_mutex);
-
-	if (dax_map_atomic(bdev, &dax) < 0) {
-		error = PTR_ERR(dax.addr);
-		goto out;
-	}
+	if (dax_map_atomic(bdev, &dax) < 0)
+		return PTR_ERR(dax.addr);
 	dax_unmap_atomic(bdev, &dax);
 
 	ret = dax_insert_mapping_entry(mapping, vmf, entry, dax.sector);
-	if (IS_ERR(ret)) {
-		error = PTR_ERR(ret);
-		goto out;
-	}
+	if (IS_ERR(ret))
+		return PTR_ERR(ret);
 	*entryp = ret;
 
-	error = vm_insert_mixed(vma, vaddr, dax.pfn);
- out:
-	mutex_unlock(&mapping->i_mmap_mutex);
-	return error;
+	return vm_insert_mixed(vma, vaddr, dax.pfn);
 }
 
 /**
@@ -1052,8 +1042,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		truncate_pagecache_range(inode, lstart, lend);
 	}
 
-	mutex_lock(&mapping->i_mmap_mutex);
-
 	/*
 	 * If we allocated new storage, make sure no process has any
 	 * zero pages covering this hole
@@ -1136,8 +1124,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	}
 
  out:
-	mutex_unlock(&mapping->i_mmap_mutex);
-
 	return result;
 
  fallback:
