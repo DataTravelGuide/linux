@@ -102,7 +102,8 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	rds_tcp_tune(new_sock);
 
-	inet = inet_sk(new_sock->sk);
+	for (i = 0; i < npaths; i++) {
+		struct rds_conn_path *cp = &conn->c_path[i];
 
 	rdsdebug("accepted tcp %pI4:%u -> %pI4:%u\n",
 		 &inet->inet_saddr, ntohs(inet->inet_sport),
