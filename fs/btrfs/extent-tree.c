@@ -2973,7 +2973,6 @@ again:
 			spin_unlock(&delayed_refs->lock);
 			goto out;
 		}
-		count = (unsigned long)-1;
 
 		while (node) {
 			head = rb_entry(node, struct btrfs_delayed_ref_head,
