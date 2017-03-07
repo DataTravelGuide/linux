@@ -753,6 +753,7 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 	handle_t *handle = ext4_journal_current_handle();
 	struct ext4_map_blocks map;
 	int ret = 0, started = 0;
+	int retries = 0;
 	int dio_credits;
 
 	if (ext4_has_inline_data(inode))
@@ -766,6 +767,7 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 		if (map.m_len > DIO_MAX_BLOCKS)
 			map.m_len = DIO_MAX_BLOCKS;
 		dio_credits = ext4_chunk_trans_blocks(inode, map.m_len);
+retry:
 		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
 					    dio_credits);
 		if (IS_ERR(handle)) {
@@ -776,6 +778,11 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 	}
 
 	ret = ext4_map_blocks(handle, inode, &map, flags);
+	if (started) {
+		ext4_journal_stop(handle);
+		if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+			goto retry;
+	}
 	if (ret > 0) {
 		ext4_io_end_t *io_end = ext4_inode_aio(inode);
 
@@ -789,8 +796,6 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 		/* hole case, need to fill in bh->b_size */
 		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
 	}
-	if (started)
-		ext4_journal_stop(handle);
 	return ret;
 }
 
@@ -3055,12 +3060,14 @@ int ext4_dax_get_block(struct inode *inode, sector_t iblock,
 	int credits;
 	struct ext4_map_blocks map;
 	handle_t *handle = NULL;
+	int retries = 0;
 	int flags = 0;
 
 	ext4_debug("inode %lu, create flag %d\n", inode->i_ino, create);
 	map.m_lblk = iblock;
 	map.m_len = bh_result->b_size >> inode->i_blkbits;
 	credits = ext4_chunk_trans_blocks(inode, map.m_len);
+retry:
 	if (create) {
 		flags |= EXT4_GET_BLOCKS_CREATE_ZERO;
 		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
@@ -3073,6 +3080,8 @@ int ext4_dax_get_block(struct inode *inode, sector_t iblock,
 	ret = ext4_map_blocks(handle, inode, &map, flags);
 	if (create) {
 		err = ext4_journal_stop(handle);
+		if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+			goto retry;
 		if (ret >= 0 && err < 0)
 			ret = err;
 	}
