@@ -48,12 +48,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_flow_spec *spec,
 				u32 action, u32 src_vport, u32 dst_vport)
 {
-	struct mlx5_flow_destination dest = { 0 };
-	struct mlx5_fc *counter = NULL;
-	struct mlx5_flow_handle *rule;
-	void *misc;
-	int action;
-
 	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {0};
 	struct mlx5_fc *counter = NULL;
@@ -320,8 +314,7 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule))
 		esw_warn(esw->dev, "FDB: Failed to add send to vport rule err %ld\n", PTR_ERR(flow_rule));
 out:
@@ -402,8 +395,7 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 
 	flow_rule = mlx5_add_flow_rules(esw->fdb_table.offloads.fdb, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		err = PTR_ERR(flow_rule);
 		esw_warn(esw->dev,  "FDB: Failed to add miss flow rule err %d\n", err);
@@ -638,9 +630,9 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = tirn;
 
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule = mlx5_add_flow_rules(esw->offloads.ft_offloads, spec,
-					MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-					0, &dest, 1);
+				       &flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
 		goto out;

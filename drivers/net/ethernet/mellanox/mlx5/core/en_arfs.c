@@ -182,6 +182,14 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_destination dest;
 	struct mlx5e_tir *tir = priv->indir_tir;
 	struct mlx5_flow_spec *spec;
+	struct mlx5_flow_act flow_act = {
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+		.encap_id = 0,
+	};
+	struct mlx5_flow_destination dest;
+	struct mlx5e_tir *tir = priv->indir_tir;
+	struct mlx5_flow_spec *spec;
 	int err = 0;
 
 	spec = mlx5_vzalloc(sizeof(*spec));
@@ -211,8 +219,7 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 	}
 
 	arfs_t->default_rule = mlx5_add_flow_rules(arfs_t->ft.t, spec,
-						   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-						   MLX5_FS_DEFAULT_FLOW_TAG,
+						   &flow_act,
 						   &dest, 1);
 	if (IS_ERR(arfs_t->default_rule)) {
 		err = PTR_ERR(arfs_t->default_rule);
@@ -478,6 +485,14 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	struct mlx5e_arfs_tables *arfs = &priv->fs.arfs;
 	struct arfs_tuple *tuple = &arfs_rule->tuple;
 	struct mlx5_flow_handle *rule = NULL;
+	struct mlx5_flow_act flow_act = {
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
+		.encap_id = 0,
+	};
+	struct mlx5e_arfs_tables *arfs = &priv->fs.arfs;
+	struct arfs_tuple *tuple = &arfs_rule->tuple;
+	struct mlx5_flow_handle *rule = NULL;
 	struct mlx5_flow_destination dest;
 	struct arfs_table *arfs_table;
 	struct mlx5_flow_spec *spec;
@@ -554,9 +569,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	}
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dest.tir_num = priv->direct_tir[arfs_rule->rxq].tirn;
-	rule = mlx5_add_flow_rules(ft, spec, MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-				   MLX5_FS_DEFAULT_FLOW_TAG,
-				   &dest, 1);
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: add rule(filter id=%d, rq idx=%d) failed, err=%d\n",
