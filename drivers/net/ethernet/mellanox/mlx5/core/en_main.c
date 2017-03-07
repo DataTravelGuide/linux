@@ -280,6 +280,18 @@ static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
 
 	mlx5_core_query_out_of_buffer(priv->mdev, priv->q_counter,
 				      &qcnt->rx_out_of_buffer);
+}
+
+void mlx5e_update_stats(struct mlx5e_priv *priv)
+{
+	mlx5e_update_q_counter(priv);
+	mlx5e_update_vport_counters(priv);
+	mlx5e_update_pport_counters(priv);
+	mlx5e_update_sw_counters(priv);
+}
+
+void mlx5e_update_stats_work(struct work_struct *work)
+				      &qcnt->rx_out_of_buffer);
 				      &qcnt->rx_out_of_buffer);
 }
 

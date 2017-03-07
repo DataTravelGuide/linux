@@ -279,6 +279,12 @@ struct mlx5e_rq_stats {
 struct mlx5e_rq_stats {
 	u64 packets;
 	u64 bytes;
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+};
+
+struct mlx5e_rq_stats {
+	u64 packets;
+	u64 bytes;
 	u64 csum_complete;
 	u64 csum_unnecessary_inner;
 	u64 csum_none;
