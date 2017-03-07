@@ -267,6 +267,12 @@ static const struct counter_desc pport_phy_statistical_stats_desc[] = {
 };
 
 static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+};
+
+struct mlx5e_rq_stats {
+	u64 packets;
+	u64 bytes;
 	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
 	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
 	{ "tx_prio%d_bytes", PPORT_PER_PRIO_OFF(tx_octets) },
@@ -372,9 +378,6 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
 #define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
 #define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
-#define NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) \
-	(ARRAY_SIZE(pport_phy_statistical_stats_desc) * \
-	 MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
 #define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS \
 	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
