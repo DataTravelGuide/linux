@@ -1,10 +1,6 @@
-
 #include <linux/percpu.h>
-#include <linux/mutex.h>
 #include <linux/sched.h>
-#include "mcs_spinlock.h"
-
-#ifdef CONFIG_SMP
+#include <linux/osq_lock.h>
 
 /*
  * An MCS like lock especially tailored for optimistic spinning for sleeping
@@ -113,7 +109,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 * cmpxchg in an attempt to undo our queueing.
 	 */
 
-	while (!ACCESS_ONCE(node->locked)) {
+	while (!smp_load_acquire(&node->locked)) {
 		/*
 		 * If we need to reschedule bail... so we can block.
 		 */
@@ -205,6 +201,3 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	if (next)
 		ACCESS_ONCE(next->locked) = 1;
 }
-
-#endif
-

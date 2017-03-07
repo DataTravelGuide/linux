@@ -109,20 +109,5 @@ void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 	/* Pass lock to next waiter. */
 	arch_mcs_spin_unlock_contended(&next->locked);
 }
-/*
- * Cancellable version of the MCS lock above.
- *
- * Intended for adaptive spinning of sleeping locks:
- * mutex_lock()/rwsem_down_{read,write}() etc.
- */
-
-struct optimistic_spin_node {
-	struct optimistic_spin_node *next, *prev;
-	int locked; /* 1 if lock acquired */
-	int cpu; /* encoded CPU # value */
-};
-
-extern bool osq_lock(struct optimistic_spin_queue *lock);
-extern void osq_unlock(struct optimistic_spin_queue *lock);
 
 #endif /* __LINUX_MCS_SPINLOCK_H */
