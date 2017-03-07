@@ -839,16 +839,16 @@ static int dax_insert_mapping(struct address_space *mapping,
 }
 
 /**
- * __dax_fault - handle a page fault on a DAX file
+ * dax_fault - handle a page fault on a DAX file
  * @vma: The virtual memory area where the fault occurred
  * @vmf: The description of the fault
  * @get_block: The filesystem method used to translate file offsets to blocks
  *
  * When a page fault occurs, filesystems may call this helper in their
- * fault handler for DAX files. __dax_fault() assumes the caller has done all
+ * fault handler for DAX files. dax_fault() assumes the caller has done all
  * the necessary locking for the page fault to proceed successfully.
  */
-int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 			get_block_t get_block)
 {
 	struct file *file = vma->vm_file;
@@ -933,33 +933,6 @@ int __dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		return VM_FAULT_SIGBUS | major;
 	return VM_FAULT_NOPAGE | major;
 }
-EXPORT_SYMBOL(__dax_fault);
-
-/**
- * dax_fault - handle a page fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * When a page fault occurs, filesystems may call this helper in their
- * fault handler for DAX files.
- */
-int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-	      get_block_t get_block)
-{
-	int result;
-	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-
-	if (vmf->flags & FAULT_FLAG_WRITE) {
-		sb_start_pagefault(sb);
-		file_update_time(vma->vm_file);
-	}
-	result = __dax_fault(vma, vmf, get_block);
-	if (vmf->flags & FAULT_FLAG_WRITE)
-		sb_end_pagefault(sb);
-
-	return result;
-}
 EXPORT_SYMBOL_GPL(dax_fault);
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE)
@@ -969,7 +942,16 @@ EXPORT_SYMBOL_GPL(dax_fault);
  */
 #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
 
-int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+/**
+ * dax_pmd_fault - handle a PMD fault on a DAX file
+ * @vma: The virtual memory area where the fault occurred
+ * @vmf: The description of the fault
+ * @get_block: The filesystem method used to translate file offsets to blocks
+ *
+ * When a page fault occurs, filesystems may call this helper in their
+ * pmd_fault handler for DAX files.
+ */
+int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		pmd_t *pmd, unsigned int flags, get_block_t get_block)
 {
 	struct file *file = vma->vm_file;
@@ -1107,7 +1089,7 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 		 *
 		 * The PMD path doesn't have an equivalent to
 		 * dax_pfn_mkwrite(), though, so for a read followed by a
-		 * write we traverse all the way through __dax_pmd_fault()
+		 * write we traverse all the way through dax_pmd_fault()
 		 * twice.  This means we can just skip inserting a radix tree
 		 * entry completely on the initial read and just wait until
 		 * the write to insert a dirty entry.
@@ -1130,33 +1112,6 @@ int __dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
 	count_vm_event(THP_FAULT_FALLBACK);
 	result = VM_FAULT_FALLBACK;
 	goto out;
-}
-EXPORT_SYMBOL_GPL(__dax_pmd_fault);
-
-/**
- * dax_pmd_fault - handle a PMD fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * When a page fault occurs, filesystems may call this helper in their
- * pmd_fault handler for DAX files.
- */
-int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-			pmd_t *pmd, unsigned int flags, get_block_t get_block)
-{
-	int result;
-	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
-
-	if (flags & FAULT_FLAG_WRITE) {
-		sb_start_pagefault(sb);
-		file_update_time(vma->vm_file);
-	}
-	result = __dax_pmd_fault(vma, address, pmd, flags, get_block);
-	if (flags & FAULT_FLAG_WRITE)
-		sb_end_pagefault(sb);
-
-	return result;
 }
 EXPORT_SYMBOL_GPL(dax_pmd_fault);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
