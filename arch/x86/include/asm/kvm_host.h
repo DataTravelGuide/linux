@@ -33,7 +33,7 @@
 #include <asm/asm.h>
 
 #define KVM_MAX_VCPUS 288
-#define KVM_SOFT_MAX_VCPUS 240
+#define KVM_SOFT_MAX_VCPUS 288
 #define KVM_USER_MEM_SLOTS 509
 /* memory slots that are not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 3
