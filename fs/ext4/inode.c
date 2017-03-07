@@ -785,6 +785,9 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 			set_buffer_defer_completion(bh);
 		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
 		ret = 0;
+	} else if (ret == 0) {
+		/* hole case, need to fill in bh->b_size */
+		bh->b_size = inode->i_sb->s_blocksize * map.m_len;
 	}
 	if (started)
 		ext4_journal_stop(handle);
@@ -3111,6 +3114,9 @@ out:
 		ext4_update_bh_state(bh_result, map.m_flags);
 		bh_result->b_size = map.m_len << inode->i_blkbits;
 		ret = 0;
+	} else if (ret == 0) {
+		/* hole case, need to fill in bh->b_size */
+		bh_result->b_size = map.m_len << inode->i_blkbits;
 	}
 	return ret;
 }
