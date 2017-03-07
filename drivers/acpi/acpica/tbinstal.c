@@ -361,6 +361,14 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	*table_index = i;
 	acpi_tb_install_table_with_override(i, &new_table_desc, override);
 
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_INSTALL,
+					     new_table_desc.pointer,
+					     acpi_gbl_table_handler_context);
+	}
+
 release_and_exit:
 
 	/* Release the temporary table descriptor */
