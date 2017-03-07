@@ -1093,8 +1093,8 @@ int mlx5e_create_flow_tables(struct mlx5e_priv *priv)
 	priv->fts.ns = mlx5_get_flow_namespace(priv->mdev,
 					       MLX5_FLOW_NAMESPACE_KERNEL);
 
-	if (!priv->fts.ns)
-		return -EINVAL;
+	if (!priv->fs.ns)
+		return -EOPNOTSUPP;
 
 	err = mlx5e_arfs_create_tables(priv);
 	if (err) {
