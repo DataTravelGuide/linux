@@ -3518,7 +3518,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = 2;
+	path->reada = READA_FORWARD;
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
