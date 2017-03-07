@@ -1991,10 +1991,10 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 		<< 0;
 	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
 		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
-	handler->rule = mlx5_add_flow_rule(ft, spec,
+	handler->rule = mlx5_add_flow_rules(ft, spec,
 					   action,
 					   MLX5_FS_DEFAULT_FLOW_TAG,
-					   dst);
+					   dst, 1);
 
 	if (flow_tag != MLX5_FS_DEFAULT_FLOW_TAG &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||

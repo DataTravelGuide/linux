@@ -568,10 +568,13 @@ struct mlx5e_tc_flow_table {
 
 struct mlx5e_flow_tables {
 	struct mlx5_flow_namespace	*ns;
-	struct mlx5e_tc_flow_table	tc;
-	struct mlx5e_flow_table		vlan;
-	struct mlx5e_flow_table		main;
-	bool          filter_disabled;
+struct mlx5e_vlan_table {
+	struct mlx5e_flow_table		ft;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	struct mlx5_flow_handle	*active_vlans_rule[VLAN_N_VID];
+	struct mlx5_flow_handle	*untagged_rule;
+	struct mlx5_flow_handle	*any_vlan_rule;
+	bool		filter_disabled;
 };
 
 struct mlx5e_l2_table {

@@ -289,6 +289,13 @@ static struct mlx5_flow_handle *
 add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		      struct mlx5_flow_table *ft,
 		      struct ethtool_rx_flow_spec *fs)
+						  size - 1);
+}
+
+static struct mlx5_flow_handle *
+add_ethtool_flow_rule(struct mlx5e_priv *priv,
+		      struct mlx5_flow_table *ft,
+		      struct ethtool_rx_flow_spec *fs)
 {
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_flow_act flow_act = {0};
@@ -319,8 +326,8 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	}
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
-	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
-	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, 1);
+	rule = mlx5_add_flow_rules(ft, spec, action,
+				   MLX5_FS_DEFAULT_FLOW_TAG, dst, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		netdev_err(priv->netdev, "%s: failed to add ethtool steering rule: %d\n",

@@ -380,7 +380,6 @@ static void mlx5e_cleanup_rep_rx(struct mlx5e_priv *priv)
 	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	int i;
 
-	mlx5e_tc_cleanup(priv);
 	mlx5_del_flow_rules(rep->vport_rx_rule);
 	mlx5e_destroy_direct_tirs(priv);
 	for (i = 0; i < priv->params.num_channels; i++)
