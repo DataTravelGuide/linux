@@ -1091,12 +1091,6 @@ static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY
 };
 
-static enum power_supply_property wacom_ac_props[] = {
-	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_SCOPE,
-};
-
 static int wacom_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
@@ -1133,29 +1127,6 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
-static int wacom_ac_get_property(struct power_supply *psy,
-				enum power_supply_property psp,
-				union power_supply_propval *val)
-{
-	struct wacom_battery *battery = container_of(psy, struct wacom_battery, ac);
-	int ret = 0;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_PRESENT:
-		/* fall through */
-	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = battery->ps_connected;
-		break;
-	case POWER_SUPPLY_PROP_SCOPE:
-		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
 static int __wacom_initialize_battery(struct wacom *wacom,
 				      struct wacom_battery *battery)
 {
@@ -1177,26 +1148,12 @@ static int __wacom_initialize_battery(struct wacom *wacom,
 	wacom->battery.battery.type = POWER_SUPPLY_TYPE_USB;
 	wacom->battery.battery.use_for_apm = 0;
 
-	wacom->battery.ac.properties = wacom_ac_props;
-	wacom->battery.ac.num_properties = ARRAY_SIZE(wacom_ac_props);
-	wacom->battery.ac.get_property = wacom_ac_get_property;
-	sprintf(wacom->battery.ac_name, "wacom_ac_%ld", n);
-	wacom->battery.ac.name = wacom->battery.ac_name;
-	wacom->battery.ac.type = POWER_SUPPLY_TYPE_MAINS;
-	wacom->battery.ac.use_for_apm = 0;
-
 	error = devm_power_supply_register(&wacom->hdev->dev,
 					   &wacom->battery.battery);
 	if (error)
 		goto err;
 
-	error = devm_power_supply_register(&wacom->hdev->dev,
-					   &wacom->battery.ac);
-	if (error)
-		goto err;
-
 	power_supply_powers(&wacom->battery.battery, &wacom->hdev->dev);
-	power_supply_powers(&wacom->battery.ac, &wacom->hdev->dev);
 
 	devres_close_group(dev, &wacom->battery);
 	return 0;
@@ -1220,7 +1177,6 @@ static void wacom_destroy_battery(struct wacom *wacom)
 		devres_release_group(&wacom->hdev->dev,
 				     &wacom->battery);
 		wacom->battery.battery.dev = NULL;
-		wacom->battery.ac.dev = NULL;
 	}
 }
 
