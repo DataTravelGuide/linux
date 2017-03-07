@@ -3248,7 +3248,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 			rmb();
 
 			if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
-				napi_complete(napi);
+				napi_complete_done(napi, rx_work_done);
 				/* Re-enable interrupts */
 				DP(NETIF_MSG_RX_STATUS,
 				   "Update index to %d\n", fp->fp_hc_idx);
