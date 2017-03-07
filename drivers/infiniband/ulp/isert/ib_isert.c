@@ -772,6 +772,8 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		ret = isert_disconnected_handler(cma_id, event->event);
 		break;
 	case RDMA_CM_EVENT_REJECTED:       /* FALLTHRU */
+		isert_info("Connection rejected: %s\n",
+			   rdma_reject_msg(cma_id, event->status));
 	case RDMA_CM_EVENT_UNREACHABLE:    /* FALLTHRU */
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		ret = isert_connect_error(cma_id);
