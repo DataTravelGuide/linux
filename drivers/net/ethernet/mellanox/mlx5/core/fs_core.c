@@ -929,14 +929,15 @@ struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_nam
 							    int prio,
 							    int num_flow_table_entries,
 							    int max_num_groups,
-							    u32 level)
+							    u32 level,
+							    u32 flags)
 {
 	struct mlx5_flow_table *ft;
 
 	if (max_num_groups > num_flow_table_entries)
 		return ERR_PTR(-EINVAL);
 
-	ft = mlx5_create_flow_table(ns, prio, num_flow_table_entries, level);
+	ft = mlx5_create_flow_table(ns, prio, num_flow_table_entries, level, flags);
 	if (IS_ERR(ft))
 		return ft;
 
@@ -2030,7 +2031,7 @@ static int create_anchor_flow_table(struct mlx5_flow_steering *steering)
 	ns = mlx5_get_flow_namespace(steering->dev, MLX5_FLOW_NAMESPACE_ANCHOR);
 	if (WARN_ON(!ns))
 		return -EINVAL;
-	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE, ANCHOR_LEVEL);
+	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE, ANCHOR_LEVEL, 0);
 	if (IS_ERR(ft)) {
 		mlx5_core_err(steering->dev, "Failed to create last anchor flow table");
 		return PTR_ERR(ft);

@@ -1071,8 +1071,8 @@ static int mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 	int err;
 
 	ft->num_groups = 0;
-	ft->t = mlx5_create_flow_table(priv->fts.ns, 1, MLX5E_MAIN_TABLE_SIZE,
-				       MLX5E_MAIN_FT_LEVEL);
+	ft->t = mlx5_create_flow_table(priv->fs.ns, MLX5E_NIC_PRIO,
+				       MLX5E_VLAN_TABLE_SIZE, MLX5E_VLAN_FT_LEVEL, 0);
 
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
