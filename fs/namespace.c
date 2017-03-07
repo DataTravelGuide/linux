@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
+#include <linux/module.h>
 #include <linux/kernfs.h>
 #include <linux/bootmem.h>
 #include <linux/task_work.h>
@@ -2789,6 +2790,11 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns)
 	return new_ns;
 }
 
+/* namespace.unpriv_enable = 1 */
+static bool enable_unpriv_mnt_ns_creation;
+module_param_named(unpriv_enable, enable_unpriv_mnt_ns_creation, bool, 0444);
+MODULE_PARM_DESC(unpriv_enable, "Enable unprivileged creation of mount namespaces");
+
 struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 		struct user_namespace *user_ns, struct fs_struct *new_fs)
 {
@@ -2806,9 +2812,17 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 		return ns;
 	}
 
-	/* Unprivileged creation currently disabled in RHEL7  */
-	if (!capable(CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
+	/* Unprivileged creation currently tech preview in RHEL7  */
+	if (user_ns != &init_user_ns) {
+		static int __read_mostly called_mark_tech_preview = 0;
+		if (!enable_unpriv_mnt_ns_creation) {
+			put_mnt_ns(ns);
+			return ERR_PTR(-EPERM);
+		}
+		if (!called_mark_tech_preview &&
+		    !xchg(&called_mark_tech_preview, 1))
+			mark_tech_preview("unpriv mount namespace", NULL);
+	}
 
 	old = ns->root;
 
