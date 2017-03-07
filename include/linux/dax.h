@@ -8,7 +8,6 @@
 ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
                   const struct iovec *iov, loff_t pos, unsigned long nr_segs,
                   get_block_t get_block, dio_iodone_t end_io, int flags);
-int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size);
 int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
 int dax_truncate_page(struct inode *, loff_t from, get_block_t);
 int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
