@@ -474,7 +474,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 					 bio_get_nr_vecs(dev->bdev));
 	else
 		pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
-	sctx = kzalloc(sizeof(*sctx), GFP_NOFS);
+	sctx = kzalloc(sizeof(*sctx), GFP_KERNEL);
 	if (!sctx)
 		goto nomem;
 	atomic_set(&sctx->refs, 1);
@@ -485,7 +485,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
 		struct scrub_bio *sbio;
 
-		sbio = kzalloc(sizeof(*sbio), GFP_NOFS);
+		sbio = kzalloc(sizeof(*sbio), GFP_KERNEL);
 		if (!sbio)
 			goto nomem;
 		sctx->bios[i] = sbio;
@@ -1667,7 +1667,7 @@ static int scrub_add_page_to_wr_bio(struct scrub_ctx *sctx,
 again:
 	if (!wr_ctx->wr_curr_bio) {
 		wr_ctx->wr_curr_bio = kzalloc(sizeof(*wr_ctx->wr_curr_bio),
-					      GFP_NOFS);
+					      GFP_KERNEL);
 		if (!wr_ctx->wr_curr_bio) {
 			mutex_unlock(&wr_ctx->wr_lock);
 			return -ENOMEM;
@@ -1684,7 +1684,8 @@ again:
 		sbio->dev = wr_ctx->tgtdev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = btrfs_io_bio_alloc(GFP_NOFS, wr_ctx->pages_per_wr_bio);
+			bio = btrfs_io_bio_alloc(GFP_KERNEL,
+					wr_ctx->pages_per_wr_bio);
 			if (!bio) {
 				mutex_unlock(&wr_ctx->wr_lock);
 				return -ENOMEM;
@@ -2089,7 +2090,8 @@ again:
 		sbio->dev = spage->dev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = btrfs_io_bio_alloc(GFP_NOFS, sctx->pages_per_rd_bio);
+			bio = btrfs_io_bio_alloc(GFP_KERNEL,
+					sctx->pages_per_rd_bio);
 			if (!bio)
 				return -ENOMEM;
 			sbio->bio = bio;
@@ -2254,7 +2256,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 	struct scrub_block *sblock;
 	int index;
 
-	sblock = kzalloc(sizeof(*sblock), GFP_NOFS);
+	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2272,7 +2274,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 		struct scrub_page *spage;
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
-		spage = kzalloc(sizeof(*spage), GFP_NOFS);
+		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
 leave_nomem:
 			spin_lock(&sctx->stat_lock);
@@ -2299,7 +2301,7 @@ leave_nomem:
 			spage->have_csum = 0;
 		}
 		sblock->page_count++;
-		spage->page = alloc_page(GFP_NOFS);
+		spage->page = alloc_page(GFP_KERNEL);
 		if (!spage->page)
 			goto leave_nomem;
 		len -= l;
@@ -2554,7 +2556,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 	struct scrub_block *sblock;
 	int index;
 
-	sblock = kzalloc(sizeof(*sblock), GFP_NOFS);
+	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
 	if (!sblock) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2574,7 +2576,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 		struct scrub_page *spage;
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
-		spage = kzalloc(sizeof(*spage), GFP_NOFS);
+		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
 leave_nomem:
 			spin_lock(&sctx->stat_lock);
@@ -2604,7 +2606,7 @@ leave_nomem:
 			spage->have_csum = 0;
 		}
 		sblock->page_count++;
-		spage->page = alloc_page(GFP_NOFS);
+		spage->page = alloc_page(GFP_KERNEL);
 		if (!spage->page)
 			goto leave_nomem;
 		len -= l;
