@@ -399,6 +399,7 @@ int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 
 		/* Process width */
 
+		width = -1;
 		if (isdigit((int)*format)) {
 			format = acpi_ut_scan_number(format, &number);
 			width = (s32) number;
@@ -413,6 +414,7 @@ int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 
 		/* Process precision */
 
+		precision = -1;
 		if (*format == '.') {
 			++format;
 			if (isdigit((int)*format)) {
@@ -429,6 +431,7 @@ int vsnprintf(char *string, acpi_size size, const char *format, va_list args)
 
 		/* Process qualifier */
 
+		qualifier = -1;
 		if (*format == 'h' || *format == 'l' || *format == 'L') {
 			qualifier = *format;
 			++format;
