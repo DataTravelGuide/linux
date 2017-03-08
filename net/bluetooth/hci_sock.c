@@ -485,6 +485,11 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 		ver[0] = BT_SUBSYS_VERSION;
 		put_unaligned_le16(BT_SUBSYS_REVISION, ver + 1);
 		break;
+	case HCI_CHANNEL_USER:
+		format = 0x0001;
+		ver[0] = BT_SUBSYS_VERSION;
+		put_unaligned_le16(BT_SUBSYS_REVISION, ver + 1);
+		break;
 	case HCI_CHANNEL_CONTROL:
 		format = 0x0002;
 		mgmt_fill_version_info(ver);
@@ -606,6 +611,7 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 
 	switch (hci_pi(sk)->channel) {
 	case HCI_CHANNEL_RAW:
+	case HCI_CHANNEL_USER:
 	case HCI_CHANNEL_CONTROL:
 		break;
 	default:
@@ -745,6 +751,7 @@ static int hci_sock_release(struct socket *sock)
 		atomic_dec(&monitor_promisc);
 		break;
 	case HCI_CHANNEL_RAW:
+	case HCI_CHANNEL_USER:
 	case HCI_CHANNEL_CONTROL:
 		/* Send event to monitor */
 		skb = create_monitor_ctrl_close(sk);
@@ -1088,7 +1095,35 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		}
 
 		hci_pi(sk)->channel = haddr.hci_channel;
+
+		if (!hci_sock_gen_cookie(sk)) {
+			/* In the case when a cookie has already been assigned,
+			 * this socket will transition from a raw socket into
+			 * an user channel socket. For a clean transition, send
+			 * the close notification first.
+			 */
+			skb = create_monitor_ctrl_close(sk);
+			if (skb) {
+				hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+						    HCI_SOCK_TRUSTED, NULL);
+				kfree_skb(skb);
+			}
+		}
+
+		/* The user channel is restricted to CAP_NET_ADMIN
+		 * capabilities and with that implicitly trusted.
+		 */
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+
 		hci_pi(sk)->hdev = hdev;
+
+		/* Send event to monitor */
+		skb = create_monitor_ctrl_open(sk);
+		if (skb) {
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+					    HCI_SOCK_TRUSTED, NULL);
+			kfree_skb(skb);
+		}
 
 		atomic_inc(&hdev->promisc);
 		break;
