@@ -275,7 +275,8 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 	return next;
 }
 
-static unsigned long do_brk(unsigned long addr, unsigned long len);
+static unsigned long do_brk(unsigned long addr, unsigned long len,
+			    struct list_head *uf);
 
 SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
@@ -284,6 +285,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	struct mm_struct *mm = current->mm;
 	unsigned long min_brk;
 	bool populate;
+	LIST_HEAD(uf);
 
 	down_write(&mm->mmap_sem);
 
@@ -321,7 +323,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 
 	/* Always allow shrinking brk. */
 	if (brk <= mm->brk) {
-		if (!do_munmap(mm, newbrk, oldbrk-newbrk))
+		if (!do_munmap(mm, newbrk, oldbrk-newbrk, &uf))
 			goto set_brk;
 		goto out;
 	}
@@ -331,13 +333,14 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		goto out;
 
 	/* Ok, looks good - let it rip. */
-	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk)
+	if (do_brk(oldbrk, newbrk-oldbrk, &uf) != oldbrk)
 		goto out;
 
 set_brk:
 	mm->brk = brk;
 	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
 	up_write(&mm->mmap_sem);
+	userfaultfd_unmap_complete(mm, &uf);
 	if (populate)
 		mm_populate(oldbrk, newbrk - oldbrk);
 	return brk;
@@ -1371,7 +1374,8 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
 unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
 			unsigned long flags, unsigned long pgoff,
-			unsigned long *populate)
+			unsigned long *populate,
+			struct list_head *uf)
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
@@ -1513,7 +1517,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			vm_flags |= VM_NORESERVE;
 	}
 
-	addr = mmap_region(file, addr, len, vm_flags, pgoff);
+	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf);
 	if (!IS_ERR_VALUE(addr) &&
 	    ((vm_flags & VM_LOCKED) ||
 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
@@ -1648,7 +1652,8 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
 }
 
 unsigned long mmap_region(struct file *file, unsigned long addr,
-		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff)
+		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
+		struct list_head *uf)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
@@ -1677,7 +1682,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 	error = -ENOMEM;
 munmap_back:
 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
-		if (do_munmap(mm, addr, len))
+		if (do_munmap(mm, addr, len, uf))
 			return -ENOMEM;
 		goto munmap_back;
 	}
@@ -2679,7 +2684,8 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
  * work.  This now handles partial unmappings.
  * Jeremy Fitzhardinge <jeremy@goop.org>
  */
-int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
+	      struct list_head *uf)
 {
 	unsigned long end;
 	struct vm_area_struct *vma, *prev, *last;
@@ -2701,6 +2707,13 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	end = start + len;
 	if (vma->vm_start >= end)
 		return 0;
+
+	if (uf) {
+		int error = userfaultfd_unmap_prep(vma, start, end, uf);
+
+		if (error)
+			return error;
+	}
 
 	/*
 	 * If we need to split any vma, do it now to save pain later.
@@ -2767,10 +2780,12 @@ int vm_munmap(unsigned long start, size_t len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
+	LIST_HEAD(uf);
 
 	down_write(&mm->mmap_sem);
-	ret = do_munmap(mm, start, len);
+	ret = do_munmap(mm, start, len, &uf);
 	up_write(&mm->mmap_sem);
+	userfaultfd_unmap_complete(mm, &uf);
 	return ret;
 }
 EXPORT_SYMBOL(vm_munmap);
@@ -2796,7 +2811,7 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
  *  anonymous maps.  eventually we may be able to do some
  *  brk-specific accounting here.
  */
-static unsigned long do_brk(unsigned long addr, unsigned long len)
+static unsigned long do_brk(unsigned long addr, unsigned long len, struct list_head *uf)
 {
 	struct mm_struct * mm = current->mm;
 	struct vm_area_struct * vma, * prev;
@@ -2839,7 +2854,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
 	 */
  munmap_back:
 	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
-		if (do_munmap(mm, addr, len))
+		if (do_munmap(mm, addr, len, uf))
 			return -ENOMEM;
 		goto munmap_back;
 	}
@@ -2891,11 +2906,13 @@ unsigned long vm_brk(unsigned long addr, unsigned long len)
 	struct mm_struct *mm = current->mm;
 	unsigned long ret;
 	bool populate;
+	LIST_HEAD(uf);
 
 	down_write(&mm->mmap_sem);
-	ret = do_brk(addr, len);
+	ret = do_brk(addr, len, &uf);
 	populate = ((mm->def_flags & VM_LOCKED) != 0);
 	up_write(&mm->mmap_sem);
+	userfaultfd_unmap_complete(mm, &uf);
 	if (populate)
 		mm_populate(addr, len);
 	return ret;
