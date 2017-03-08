@@ -946,6 +946,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			atomic_inc(&hdev->promisc);
 		}
 
+		hci_pi(sk)->channel = haddr.hci_channel;
 		hci_pi(sk)->hdev = hdev;
 		break;
 
@@ -1008,9 +1009,10 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			}
 		}
 
-		atomic_inc(&hdev->promisc);
-
+		hci_pi(sk)->channel = haddr.hci_channel;
 		hci_pi(sk)->hdev = hdev;
+
+		atomic_inc(&hdev->promisc);
 		break;
 
 	case HCI_CHANNEL_MONITOR:
@@ -1023,6 +1025,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			err = -EPERM;
 			goto done;
 		}
+
+		hci_pi(sk)->channel = haddr.hci_channel;
 
 		/* The monitor interface is restricted to CAP_NET_RAW
 		 * capabilities and with that implicitly trusted.
@@ -1049,6 +1053,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			err = -EPERM;
 			goto done;
 		}
+
+		hci_pi(sk)->channel = haddr.hci_channel;
 		break;
 
 	default:
@@ -1069,6 +1075,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		if (capable(CAP_NET_ADMIN))
 			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+
+		hci_pi(sk)->channel = haddr.hci_channel;
 
 		/* At the moment the index and unconfigured index events
 		 * are enabled unconditionally. Setting them on each
@@ -1193,7 +1201,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_state == BT_CLOSED)
 		 */
-		if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
+		if (hci_pi(sk)->channel == HCI_CHANNEL_CONTROL) {
 			struct sk_buff *skb;
 
 			hci_sock_gen_cookie(sk);
@@ -1658,6 +1666,8 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 		err = -ENOPROTOOPT;
 		break;
 	}
+
+	sk->sk_state = BT_BOUND;
 
 done:
 	release_sock(sk);
