@@ -6738,7 +6738,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		return -ENOMEM;
 
 	fkeys = &new_fltr->fkeys;
-	if (!skb_flow_dissect_flow_keys(skb, fkeys)) {
+	if (!skb_flow_dissect_flow_keys(skb, fkeys, 0)) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
