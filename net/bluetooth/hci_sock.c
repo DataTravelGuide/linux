@@ -471,14 +471,29 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 {
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
+	u16 format;
+	u8 ver[3];
+	u32 flags;
 
 	/* No message needed when cookie is not present */
 	if (!hci_pi(sk)->cookie)
 		return NULL;
 
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_CONTROL:
+		format = 0x0002;
+		mgmt_fill_version_info(ver);
+		break;
+	default:
+		/* No message for unsupported format */
+		return NULL;
+	}
+
 	skb = bt_skb_alloc(14 + TASK_COMM_LEN , GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+
+	flags = hci_sock_test_flag(sk, HCI_SOCK_TRUSTED) ? 0x1 : 0x0;
 
 	put_unaligned_le32(hci_pi(sk)->cookie, skb_put(skb, 4));
 	put_unaligned_le16(opcode, skb_put(skb, 2));
@@ -584,6 +599,14 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	if (!hci_pi(sk)->cookie)
 		return NULL;
 
+	switch (hci_pi(sk)->channel) {
+	case HCI_CHANNEL_CONTROL:
+		break;
+	default:
+		/* No message for unsupported format */
+		return NULL;
+	}
+
 	skb = bt_skb_alloc(4, GFP_ATOMIC);
 	if (!skb)
 		return;
@@ -650,10 +673,9 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 	}
 }
 
-static struct hci_mgmt_chan *__hci_mgmt_chan_find(unsigned short channel)
-{
-	struct hci_mgmt_chan *c;
-
+		skb = create_monitor_ctrl_open(sk);
+		if (!skb)
+			continue;
 	list_for_each_entry(c, &mgmt_chan_list, list) {
 		if (c->channel == channel)
 			return c;
