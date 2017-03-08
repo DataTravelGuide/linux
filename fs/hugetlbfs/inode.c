@@ -475,11 +475,11 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			if (unlikely(page_mapped(page))) {
 				BUG_ON(truncate_op);
 
-				i_mmap_lock_write(mapping);
+				mutex_lock(&mapping->i_mmap_mutex);
 				hugetlb_vmdelete_list(&mapping->i_mmap,
 					next * pages_per_huge_page(h),
 					(next + 1) * pages_per_huge_page(h));
-				i_mmap_unlock_write(mapping);
+				mutex_unlock(&mapping->i_mmap_mutex);
 			}
 
 			lock_page(page);
