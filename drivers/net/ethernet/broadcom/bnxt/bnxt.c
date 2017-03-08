@@ -3318,9 +3318,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
 	req.ip_protocol = keys->basic.ip_proto;
 
-	req.src_ipaddr[0] = keys->addrs.src;
+	req.src_ipaddr[0] = keys->addrs.v4addrs.src;
 	req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-	req.dst_ipaddr[0] = keys->addrs.dst;
+	req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
 	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 
 	req.src_port = keys->ports.src;
@@ -6692,8 +6692,8 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	struct flow_keys *keys1 = &f1->fkeys;
 	struct flow_keys *keys2 = &f2->fkeys;
 
-	if (keys1->addrs.src == keys2->addrs.src &&
-	    keys1->addrs.dst == keys2->addrs.dst &&
+	if (keys1->addrs.v4addrs.src == keys2->addrs.v4addrs.src &&
+	    keys1->addrs.v4addrs.dst == keys2->addrs.v4addrs.dst &&
 	    keys1->ports.ports == keys2->ports.ports &&
 	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
 	    keys1->basic.n_proto == keys2->basic.n_proto &&

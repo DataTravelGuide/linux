@@ -546,10 +546,10 @@ fltr_found:
 	else
 		goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.src;
+	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
 	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.dst;
+	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
 	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
 	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;

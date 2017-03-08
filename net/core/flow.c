@@ -509,8 +509,8 @@ __u32 __get_hash_from_flowi4(struct flowi4 *fl4, struct flow_keys *keys)
 {
 	memset(keys, 0, sizeof(*keys));
 
-	keys->addrs.src = fl4->saddr;
-	keys->addrs.dst = fl4->daddr;
+	keys->addrs.v4addrs.src = fl4->saddr;
+	keys->addrs.v4addrs.dst = fl4->daddr;
 	keys->ports.src = fl4->fl4_sport;
 	keys->ports.dst = fl4->fl4_dport;
 	keys->basic.ip_proto = fl4->flowi4_proto;

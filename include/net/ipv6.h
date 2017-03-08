@@ -698,6 +698,20 @@ void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb);
 
 int ip6_dst_hoplimit(struct dst_entry *dst);
 
+/* copy IPv6 saddr & daddr to flow_keys, possibly using 64bit load/store
+ * Equivalent to :	flow->v6addrs.src = iph->saddr;
+ *			flow->v6addrs.dst = iph->daddr;
+ */
+static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
+					    const struct ipv6hdr *iph)
+{
+	BUILD_BUG_ON(offsetof(typeof(flow->addrs), v6addrs.dst) !=
+		     offsetof(typeof(flow->addrs), v6addrs.src) +
+		     sizeof(flow->addrs.v6addrs.src));
+	memcpy(&flow->addrs.v6addrs, &iph->saddr, sizeof(flow->addrs.v6addrs));
+	flow->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 static inline void ip6_set_txhash(struct sock *sk)
 {
@@ -707,8 +721,11 @@ static inline void ip6_set_txhash(struct sock *sk)
 
 	memset(&keys, 0, sizeof(keys));
 
-	keys.addrs.src = (__force __be32)ipv6_addr_hash(&np->saddr);
-	keys.addrs.dst = (__force __be32)ipv6_addr_hash(&sk->sk_v6_daddr);
+	memcpy(&keys.addrs.v6addrs.src, &np->saddr,
+	       sizeof(keys.addrs.v6addrs.src));
+	memcpy(&keys.addrs.v6addrs.dst, &sk->sk_v6_daddr,
+	       sizeof(keys.addrs.v6addrs.dst));
+	keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	keys.ports.src = inet->inet_sport;
 	keys.ports.dst = inet->inet_dport;
 
