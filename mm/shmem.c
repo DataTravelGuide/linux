@@ -1554,7 +1554,6 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	struct address_space *mapping = inode->i_mapping;
 	gfp_t gfp = mapping_gfp_mask(mapping);
 	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
-	struct mem_cgroup *memcg;
 	spinlock_t *ptl;
 	void *page_kaddr;
 	struct page *page;
@@ -1562,7 +1561,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	int ret;
 
 	ret = -ENOMEM;
-	if (shmem_acct_block(info->flags, 1))
+	if (shmem_acct_block(info->flags))
 		goto out;
 	if (sbinfo->max_blocks) {
 		if (percpu_counter_compare(&sbinfo->used_blocks,
@@ -1596,23 +1595,22 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	}
 
 	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
-	__SetPageLocked(page);
-	__SetPageSwapBacked(page);
+	__set_page_locked(page);
+	SetPageSwapBacked(page);
 	__SetPageUptodate(page);
 
-	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg, false);
+	ret = mem_cgroup_cache_charge(page, dst_mm,
+				      gfp & GFP_RECLAIM_MASK);
 	if (ret)
 		goto out_release;
 
 	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
 	if (!ret) {
-		ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL);
+		ret = shmem_add_to_page_cache(page, mapping, pgoff, gfp, NULL);
 		radix_tree_preload_end();
 	}
 	if (ret)
 		goto out_release_uncharge;
-
-	mem_cgroup_commit_charge(page, memcg, false, false);
 
 	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
 	if (dst_vma->vm_flags & VM_WRITE)
@@ -1632,7 +1630,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	spin_unlock(&info->lock);
 
 	inc_mm_counter(dst_mm, mm_counter_file(page));
-	page_add_file_rmap(page, false);
+	page_add_file_rmap(page);
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
 
 	/* No need to invalidate - it was non-present before */
@@ -1645,7 +1643,7 @@ out:
 out_release_uncharge_unlock:
 	pte_unmap_unlock(dst_pte, ptl);
 out_release_uncharge:
-	mem_cgroup_cancel_charge(page, memcg, false);
+	mem_cgroup_uncharge_cache_page(page);
 out_release:
 	unlock_page(page);
 	put_page(page);
