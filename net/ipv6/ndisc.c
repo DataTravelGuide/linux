@@ -72,15 +72,6 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 
-/* Set to 3 to get tracing... */
-#define ND_DEBUG 1
-
-#define ND_PRINTK(val, level, fmt, ...)				\
-do {								\
-	if (val <= ND_DEBUG)					\
-		net_##level##_ratelimited(fmt, ##__VA_ARGS__);	\
-} while (0)
-
 static u32 ndisc_hash(const void *pkey,
 		      const struct net_device *dev,
 		      __u32 *hash_rnd);
@@ -146,8 +137,8 @@ struct neigh_table nd_tbl = {
 };
 EXPORT_SYMBOL_GPL(nd_tbl);
 
-static void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
-				     int data_len, int pad)
+void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
+			      int data_len, int pad)
 {
 	int space = __ndisc_opt_addr_space(data_len, pad);
 	u8 *opt = skb_put(skb, space);
@@ -165,6 +156,7 @@ static void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
 	if ((space -= data_len) > 0)
 		memset(opt, 0, space);
 }
+EXPORT_SYMBOL_GPL(__ndisc_fill_addr_option);
 
 static inline void ndisc_fill_addr_option(struct sk_buff *skb, int type,
 					  void *data)
