@@ -539,23 +539,23 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 fltr_found:
 	fkeys = &fltr->fkeys;
-	if (fkeys->ip_proto == IPPROTO_TCP)
+	if (fkeys->basic.ip_proto == IPPROTO_TCP)
 		fs->flow_type = TCP_V4_FLOW;
-	else if (fkeys->ip_proto == IPPROTO_UDP)
+	else if (fkeys->basic.ip_proto == IPPROTO_UDP)
 		fs->flow_type = UDP_V4_FLOW;
 	else
 		goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->src;
+	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.src;
 	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->dst;
+	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.dst;
 	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->port16[0];
+	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.port16[0];
 	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->port16[1];
+	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.port16[1];
 	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
 
 	fs->ring_cookie = fltr->rxq;

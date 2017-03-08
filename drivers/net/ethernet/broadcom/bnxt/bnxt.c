@@ -3316,16 +3316,16 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.ethertype = htons(ETH_P_IP);
 	memcpy(req.src_macaddr, fltr->src_mac_addr, ETH_ALEN);
 	req.ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
-	req.ip_protocol = keys->ip_proto;
+	req.ip_protocol = keys->basic.ip_proto;
 
-	req.src_ipaddr[0] = keys->src;
+	req.src_ipaddr[0] = keys->addrs.src;
 	req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-	req.dst_ipaddr[0] = keys->dst;
+	req.dst_ipaddr[0] = keys->addrs.dst;
 	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 
-	req.src_port = keys->port16[0];
+	req.src_port = keys->ports.port16[0];
 	req.src_port_mask = cpu_to_be16(0xffff);
-	req.dst_port = keys->port16[1];
+	req.dst_port = keys->ports.port16[1];
 	req.dst_port_mask = cpu_to_be16(0xffff);
 
 	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
@@ -6692,11 +6692,11 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	struct flow_keys *keys1 = &f1->fkeys;
 	struct flow_keys *keys2 = &f2->fkeys;
 
-	if (keys1->src == keys2->src &&
-	    keys1->dst == keys2->dst &&
-	    keys1->ports == keys2->ports &&
-	    keys1->ip_proto == keys2->ip_proto &&
-	    keys1->n_proto == keys2->n_proto &&
+	if (keys1->addrs.src == keys2->addrs.src &&
+	    keys1->addrs.dst == keys2->addrs.dst &&
+	    keys1->ports.ports == keys2->ports.ports &&
+	    keys1->basic.ip_proto == keys2->basic.ip_proto &&
+	    keys1->basic.n_proto == keys2->basic.n_proto &&
 	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr) &&
 	    ether_addr_equal(f1->dst_mac_addr, f2->dst_mac_addr))
 		return true;
@@ -6738,14 +6738,14 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		return -ENOMEM;
 
 	fkeys = &new_fltr->fkeys;
-	if (!skb_flow_dissect(skb, fkeys)) {
+	if (!skb_flow_dissect_flow_keys(skb, fkeys)) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
 
-	if ((fkeys->n_proto != htons(ETH_P_IP)) ||
-	    ((fkeys->ip_proto != IPPROTO_TCP) &&
-	     (fkeys->ip_proto != IPPROTO_UDP))) {
+	if ((fkeys->basic.n_proto != htons(ETH_P_IP)) ||
+	    ((fkeys->basic.ip_proto != IPPROTO_TCP) &&
+	     (fkeys->basic.ip_proto != IPPROTO_UDP))) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
