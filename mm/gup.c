@@ -427,7 +427,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 		if (is_vm_hugetlb_page(vma)) {
 			i = follow_hugetlb_page(mm, vma, pages, vmas,
-					&start, &nr_pages, i, gup_flags);
+					&start, &nr_pages, i,
+					gup_flags, nonblocking);
 			continue;
 		}
 
