@@ -552,10 +552,10 @@ fltr_found:
 	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.dst;
 	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.port16[0];
+	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
 	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.port16[1];
+	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
 	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
 
 	fs->ring_cookie = fltr->rxq;

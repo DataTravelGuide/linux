@@ -3323,9 +3323,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.dst_ipaddr[0] = keys->addrs.dst;
 	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
 
-	req.src_port = keys->ports.port16[0];
+	req.src_port = keys->ports.src;
 	req.src_port_mask = cpu_to_be16(0xffff);
-	req.dst_port = keys->ports.port16[1];
+	req.dst_port = keys->ports.dst;
 	req.dst_port_mask = cpu_to_be16(0xffff);
 
 	req.dst_id = cpu_to_le16(vnic->fw_vnic_id);
