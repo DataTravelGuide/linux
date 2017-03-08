@@ -472,7 +472,11 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
 
-	skb = bt_skb_alloc(6 + len, GFP_ATOMIC);
+	/* No message needed when cookie is not present */
+	if (!hci_pi(sk)->cookie)
+		return NULL;
+
+	skb = bt_skb_alloc(14 + TASK_COMM_LEN , GFP_ATOMIC);
 	if (!skb)
 		return NULL;
 
@@ -516,8 +520,11 @@ send_monitor_note(struct sock *sk, const char *fmt, ...)
 	__net_timestamp(skb);
 
 	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
-	hdr->opcode = cpu_to_le16(HCI_MON_SYSTEM_NOTE);
-	hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_OPEN);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	if (sock_queue_rcv_skb(sk, skb))
@@ -573,7 +580,11 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 	struct hci_ev_stack_internal *ev;
 	struct sk_buff *skb;
 
-	skb = bt_skb_alloc(HCI_EVENT_HDR_SIZE + sizeof(*ev) + dlen, GFP_ATOMIC);
+	/* No message needed when cookie is not present */
+	if (!hci_pi(sk)->cookie)
+		return NULL;
+
+	skb = bt_skb_alloc(4, GFP_ATOMIC);
 	if (!skb)
 		return;
 
@@ -1080,6 +1091,13 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		break;
 	}
 
+	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_CLOSE);
+	if (hci_pi(sk)->hdev)
+		hdr->index = cpu_to_le16(hci_pi(sk)->hdev->id);
+	else
+		hdr->index = cpu_to_le16(HCI_DEV_NONE);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
 
 	hci_pi(sk)->channel = haddr.hci_channel;
 	sk->sk_state = BT_BOUND;
