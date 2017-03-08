@@ -1908,8 +1908,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
 		if (!page)
 			goto out_uncharge_cgroup;
-
-		if (!avoid_reserve && vma_has_reserves(vma, chg)) {
+		if (!avoid_reserve && vma_has_reserves(vma, gbl_chg)) {
 			SetPagePrivate(page);
 			h->resv_huge_pages--;
 		}
