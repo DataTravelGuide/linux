@@ -248,7 +248,7 @@ ipv4_connected:
 		goto out;
 
 	sk->sk_state = TCP_ESTABLISHED;
-	ip6_set_txhash(sk);
+	sk_set_txhash(sk);
 out:
 	return err;
 }
