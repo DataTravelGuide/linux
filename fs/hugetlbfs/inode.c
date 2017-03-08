@@ -550,12 +550,12 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		struct address_space *mapping = inode->i_mapping;
 
 		mutex_lock(&inode->i_mutex);
-		i_mmap_lock_write(mapping);
+		mutex_lock(&mapping->i_mmap_mutex);
 		if (!RB_EMPTY_ROOT(&mapping->i_mmap))
 			hugetlb_vmdelete_list(&mapping->i_mmap,
 						hole_start >> PAGE_SHIFT,
 						hole_end  >> PAGE_SHIFT);
-		i_mmap_unlock_write(mapping);
+		mutex_unlock(&mapping->i_mmap_mutex);
 		remove_inode_hugepages(inode, hole_start, hole_end);
 		mutex_unlock(&inode->i_mutex);
 	}
