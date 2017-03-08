@@ -503,6 +503,10 @@ struct hci_dev {
 	int (*set_bdaddr)(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 #endif
 	RH_KABI_EXTEND( struct led_trigger	*power_led)
+#endif
+	RH_KABI_EXTEND( const char		*hw_info)
+	RH_KABI_EXTEND( const char		*fw_info)
+	RH_KABI_EXTEND( __u16			appearance)
 
 };
 
