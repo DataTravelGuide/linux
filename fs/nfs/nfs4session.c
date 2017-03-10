@@ -215,7 +215,8 @@ static void nfs4_reset_slot_table(struct nfs4_slot_table *tbl,
 		u32 server_highest_slotid,
 		u32 ivalue)
 {
-	struct nfs4_slot **p;
+	u32 cur_seq = 0;
+	bool ret = false;
 
 	nfs4_shrink_slot_table(tbl, server_highest_slotid + 1);
 	p = &tbl->slots;
