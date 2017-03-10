@@ -247,7 +247,14 @@ static bool ds_error_can_merge(struct nfs4_ff_layout_ds_err *err,  u64 offset,
 {
 	return err->status == status && err->opnum == opnum &&
 	       nfs4_stateid_match(&err->stateid, stateid) &&
-	       !memcmp(&err->deviceid, deviceid, sizeof(*deviceid)) &&
+		return e1->opnum < e2->opnum ? -1 : 1;
+	if (e1->status != e2->status)
+		return e1->status < e2->status ? -1 : 1;
+	ret = memcmp(e1->stateid.data, e2->stateid.data,
+			sizeof(e1->stateid.data));
+	if (ret != 0)
+		return ret;
+	ret = memcmp(&e1->deviceid, &e2->deviceid, sizeof(e1->deviceid));
 	       end_offset(err->offset, err->length) >= offset &&
 	       err->offset <= end_offset(offset, length);
 }
