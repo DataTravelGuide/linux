@@ -897,6 +897,7 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
 	lo->plh_return_iomode = 0;
+	lo->plh_return_seq = 0;
 	pnfs_get_layout_hdr(lo);
 	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 	return true;
@@ -967,6 +968,7 @@ static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
 		bool send;
 
 		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
+		stateid.seqid = cpu_to_be32(lo->plh_return_seq);
 		iomode = lo->plh_return_iomode;
 		send = pnfs_prepare_layoutreturn(lo);
 		spin_unlock(&inode->i_lock);
@@ -1972,15 +1974,30 @@ void pnfs_ld_write_done(struct nfs_pgio_header *hdr)
 EXPORT_SYMBOL_GPL(pnfs_ld_write_done);
 
 static void
-pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
-		struct nfs_pgio_header *hdr)
+pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
+			 u32 seq)
 {
-	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
+		iomode = IOMODE_ANY;
+	lo->plh_return_iomode = iomode;
+	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+	if (!lo->plh_return_seq || pnfs_seqid_is_newer(seq, lo->plh_return_seq))
+		lo->plh_return_seq = seq;
+}
 
-	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
-		list_splice_tail_init(&hdr->pages, &mirror->pg_list);
-		nfs_pageio_reset_write_mds(desc);
-		mirror->pg_recoalesce = 1;
+				continue;
+			remaining++;
+			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
+			pnfs_set_plh_return_info(lo, return_range->iomode, lseg->pls_seq);
+		}
+	return remaining;
+}
+	bool return_now = false;
+
+	spin_lock(&inode->i_lock);
+	pnfs_set_plh_return_info(lo, range.iomode, lseg->pls_seq);
+	/*
+	 * mark all matching lsegs so that we are sure to have no live
+	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
 	}
 	nfs_pgio_data_destroy(hdr);
 	hdr->release(hdr);
