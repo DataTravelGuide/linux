@@ -1725,6 +1725,10 @@ out_forget_reply:
 	lseg->pls_layout = lo;
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
 	goto out;
+	if (lo->plh_return_iomode != 0)
+		iomode = IOMODE_ANY;
+	lo->plh_return_iomode = iomode;
+	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 }
 
 /**
@@ -1762,8 +1766,6 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			mark_lseg_invalid(lseg, tmp_list);
 			pnfs_set_plh_return_iomode(lo, return_range->iomode);
-			set_bit(NFS_LAYOUT_RETURN_REQUESTED,
-					&lo->plh_flags);
 		}
 }
 
