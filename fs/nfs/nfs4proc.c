@@ -930,9 +930,29 @@ static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 	struct nfs4_call_sync_data *data = calldata;
 	struct nfs4_session *session = nfs4_get_session(data->seq_server);
 
-	dprintk("--> %s data->seq_server %p\n", __func__, data->seq_server);
+	switch (stateid->type) {
+	default:
+		break;
+	case NFS4_INVALID_STATEID_TYPE:
+	case NFS4_SPECIAL_STATEID_TYPE:
+		return -NFS4ERR_BAD_STATEID;
+	case NFS4_REVOKED_STATEID_TYPE:
+		goto out_free;
+	}
 
-	nfs41_setup_sequence(session, data->seq_args, data->seq_res, task);
+	status = nfs41_test_stateid(server, stateid, cred);
+	switch (status) {
+	case -NFS4ERR_EXPIRED:
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_DELEG_REVOKED:
+		break;
+	default:
+		return status;
+	}
+out_free:
+	/* Ack the revoked state to the server */
+	nfs41_free_stateid(server, stateid, cred);
+	return -NFS4ERR_EXPIRED;
 }
 
 static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
@@ -2426,6 +2446,8 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 	rcu_read_unlock();
 	status = nfs41_test_stateid(server, &stateid, cred);
 	trace_nfs4_test_delegation_stateid(state, NULL, status);
+	if (status == -NFS4ERR_EXPIRED || status == -NFS4ERR_BAD_STATEID)
+		nfs_finish_clear_delegation_stateid(state, &stateid);
 
 	if (status != NFS_OK) {
 		/* Free the stateid unless the server explicitly
@@ -2467,6 +2489,9 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 		if (status != -NFS4ERR_BAD_STATEID)
 			nfs41_free_stateid(server, stateid, cred);
 
+	status = nfs41_test_and_free_expired_stateid(server, stateid, cred);
+	trace_nfs4_test_open_stateid(state, NULL, status);
+	if (status == -NFS4ERR_EXPIRED || status == -NFS4ERR_BAD_STATEID) {
 		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
 		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 		clear_bit(NFS_O_RDWR_STATE, &state->flags);
@@ -6108,7 +6133,7 @@ out:
  */
 static int nfs41_check_expired_locks(struct nfs4_state *state)
 {
-	int status, ret = -NFS4ERR_BAD_STATEID;
+	int status, ret = NFS_OK;
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = NFS_SERVER(state->inode);
 
@@ -6127,8 +6152,15 @@ static int nfs41_check_expired_locks(struct nfs4_state *state)
 					nfs41_free_stateid(server,
 							&lsp->ls_stateid,
 							cred);
+					&lsp->ls_stateid,
+					cred);
+			trace_nfs4_test_lock_stateid(state, lsp, status);
+			if (status == -NFS4ERR_EXPIRED ||
+			    status == -NFS4ERR_BAD_STATEID)
 				clear_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
+			else if (status != NFS_OK) {
 				ret = status;
+				break;
 			}
 		}
 	};
