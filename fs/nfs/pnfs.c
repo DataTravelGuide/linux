@@ -883,7 +883,7 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 		return false;
 	lo->plh_return_iomode = 0;
 	pnfs_get_layout_hdr(lo);
-	clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE, &lo->plh_flags);
+	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 	return true;
 }
 
@@ -927,7 +927,7 @@ pnfs_layout_need_return(struct pnfs_layout_hdr *lo)
 {
 	struct pnfs_layout_segment *s;
 
-	if (!test_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE, &lo->plh_flags))
+	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
 		return false;
 
 	/* Defer layoutreturn until all lsegs are done */
@@ -943,7 +943,7 @@ static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	struct inode *inode= lo->plh_inode;
 
-	if (!test_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE, &lo->plh_flags))
+	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
 		return;
 	spin_lock(&inode->i_lock);
 	if (pnfs_layout_need_return(lo)) {
@@ -1083,7 +1083,7 @@ bool pnfs_roc(struct inode *ino)
 
 	stateid = lo->plh_stateid;
 	/* always send layoutreturn if being marked so */
-	if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
+	if (test_and_clear_bit(NFS_LAYOUT_RETURN_REQUESTED,
 				   &lo->plh_flags))
 		layoutreturn = pnfs_prepare_layoutreturn(lo);
 
@@ -1748,7 +1748,10 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg->pls_range.length);
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			mark_lseg_invalid(lseg, tmp_list);
-			set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
+			pnfs_set_plh_return_iomode(lo, return_range->iomode);
+			if (!mark_lseg_invalid(lseg, tmp_list))
+				remaining++;
+			set_bit(NFS_LAYOUT_RETURN_REQUESTED,
 					&lo->plh_flags);
 		}
 }
