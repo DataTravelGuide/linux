@@ -5,6 +5,7 @@
 
 struct request;
 struct task_struct;
+struct mmc_blk_data;
 
 struct mmc_blk_request {
 	struct mmc_request	mrq;
@@ -51,7 +52,7 @@ struct mmc_queue {
 	unsigned int		flags;
 #define MMC_QUEUE_SUSPENDED	(1 << 0)
 #define MMC_QUEUE_NEW_REQUEST	(1 << 1)
-	void			*data;
+	struct mmc_blk_data	*blkdata;
 	struct request_queue	*queue;
 	struct mmc_queue_req	mqrq[2];
 	struct mmc_queue_req	*mqrq_cur;
