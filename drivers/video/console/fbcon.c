@@ -3338,7 +3338,6 @@ static const struct consw fb_con = {
 	.con_putcs 		= fbcon_putcs,
 	.con_cursor 		= fbcon_cursor,
 	.con_scroll 		= fbcon_scroll,
-	.con_bmove 		= fbcon_bmove,
 	.con_switch 		= fbcon_switch,
 	.con_blank 		= fbcon_blank,
 	.con_font_set 		= fbcon_set_font,
