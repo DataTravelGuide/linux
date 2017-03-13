@@ -360,10 +360,6 @@ static void ch341_set_termios(struct tty_struct *tty,
 	ctrl = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX | CH341_LCR_CS8;
 
 	if (baud_rate) {
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->line_control |= (CH341_BIT_DTR | CH341_BIT_RTS);
-		spin_unlock_irqrestore(&priv->lock, flags);
-
 		priv->baud_rate = baud_rate;
 
 		r = ch341_init_set_baudrate(port->serial->dev, priv, ctrl);
@@ -371,19 +367,16 @@ static void ch341_set_termios(struct tty_struct *tty,
 			priv->baud_rate = tty_termios_baud_rate(old_termios);
 			tty_termios_copy_hw(&tty->termios, old_termios);
 		}
-	} else {
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->line_control &= ~(CH341_BIT_DTR | CH341_BIT_RTS);
-		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
-	ch341_set_handshake(port->serial->dev, priv->line_control);
+	spin_lock_irqsave(&priv->lock, flags);
+	if (C_BAUD(tty) == B0)
+		priv->line_control &= ~(CH341_BIT_DTR | CH341_BIT_RTS);
+	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
+		priv->line_control |= (CH341_BIT_DTR | CH341_BIT_RTS);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Unimplemented:
-	 * (cflag & CSIZE) : data bits [5, 8]
-	 * (cflag & PARENB) : parity {NONE, EVEN, ODD}
-	 * (cflag & CSTOPB) : stop bits [1, 2]
-	 */
+	ch341_set_handshake(port->serial->dev, priv->line_control);
 }
 
 static void ch341_break_ctl(struct tty_struct *tty, int break_state)
