@@ -787,7 +787,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	    tty->termios.c_cflag & CBAUD) {
 		info->signals |= SerialSignal_DTR;
  		if (!(tty->termios.c_cflag & CRTSCTS) ||
- 		    !test_bit(TTY_THROTTLED, &tty->flags)) {
+ 		    !tty_throttled(tty)) {
 			info->signals |= SerialSignal_RTS;
  		}
 		spin_lock_irqsave(&info->lock,flags);
