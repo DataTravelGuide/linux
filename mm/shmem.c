@@ -1596,7 +1596,7 @@ int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
 	__set_page_locked(page);
-	SetPageSwapBacked(page);
+	__SetPageSwapBacked(page);
 	__SetPageUptodate(page);
 
 	ret = mem_cgroup_cache_charge(page, dst_mm,
