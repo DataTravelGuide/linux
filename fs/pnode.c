@@ -254,9 +254,9 @@ static int propagate_one(struct mount *m)
 	last_dest = m;
 	last_source = child;
 	if (m->mnt_master != dest_master) {
-		br_read_lock(&vfsmount_lock);
+		read_seqlock_excl(&mount_lock);
 		SET_MNT_MARK(m->mnt_master);
-		br_read_unlock(&vfsmount_lock);
+		read_sequnlock_excl(&mount_lock);
 	}
 	list_add_tail(&child->mnt_hash, list);
 	return 0;
