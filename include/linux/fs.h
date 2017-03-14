@@ -1513,6 +1513,7 @@ struct super_block {
 
 	/* AIO completions deferred from interrupt context */
 	RH_KABI_EXTEND(struct workqueue_struct *s_dio_done_wq)
+	RH_KABI_EXTEND(struct rcu_head rcu)
 };
 
 extern const unsigned super_block_wrapper_version;
