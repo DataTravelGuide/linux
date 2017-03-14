@@ -428,4 +428,15 @@ static inline bool tc_in_hw(u32 flags)
 	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
 }
 
+enum tc_matchall_command {
+	TC_CLSMATCHALL_REPLACE,
+	TC_CLSMATCHALL_DESTROY,
+};
+
+struct tc_cls_matchall_offload {
+	enum tc_matchall_command command;
+	struct tcf_exts *exts;
+	unsigned long cookie;
+};
+
 #endif
