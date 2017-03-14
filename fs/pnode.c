@@ -314,13 +314,13 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		} while (n != m);
 	}
 out:
-	br_read_lock(&vfsmount_lock);
+	lock_mount_hash();
 	list_for_each_entry(n, tree_list, mnt_hash) {
 		m = n->mnt_parent;
 		if (m->mnt_master != dest_mnt->mnt_master)
 			CLEAR_MNT_MARK(m->mnt_master);
 	}
-	br_read_unlock(&vfsmount_lock);
+	unlock_mount_hash();
 	return ret;
 }
 
