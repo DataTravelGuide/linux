@@ -876,6 +876,14 @@ struct tc_to_netdev {
  *
  * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan,
  *			  u8 qos, __be16 proto);
+ *
+ * bool (*ndo_has_offload_stats)(int attr_id)
+ *	Return true if this device supports offload stats of this attr_id.
+ *
+ * int (*ndo_get_offload_stats)(int attr_id, const struct net_device *dev,
+ *	void *attr_data)
+ *	Get statistics for offload operations by attr_id. Write it into the
+ *	attr_data pointer.
  */
 struct net_device_ops_extended {
 	int			(*ndo_set_vf_trust)(struct net_device *dev,
@@ -917,6 +925,10 @@ struct net_device_ops_extended {
 						struct net_device *dev,
 						struct net_device *filter_dev,
 						int *idx);
+	bool			(*ndo_has_offload_stats)(int attr_id);
+	int			(*ndo_get_offload_stats)(int attr_id,
+							 const struct net_device *dev,
+							 void *attr_data);
 };
 
 /*
