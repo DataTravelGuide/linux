@@ -141,3 +141,9 @@ extern int d_set_mounted(struct dentry *dentry);
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;
+
+/*
+ * fs_pin.c
+ */
+extern void sb_pin_kill(struct super_block *sb);
+extern void mnt_pin_kill(struct mount *m);
