@@ -89,6 +89,8 @@ extern struct mount *__lookup_mnt_last(struct vfsmount *, struct dentry *);
 
 extern bool legitimize_mnt(struct vfsmount *, unsigned);
 
+extern int may_detach_mounts;
+
 extern void __detach_mounts(struct dentry *dentry);
 
 static inline void detach_mounts(struct dentry *dentry)
@@ -134,6 +136,9 @@ static inline bool is_local_mountpoint(struct dentry *dentry)
 {
 	if (!d_mountpoint(dentry))
 		return false;
+
+	if (!may_detach_mounts)
+		return true;
 
 	return __is_local_mountpoint(dentry);
 }

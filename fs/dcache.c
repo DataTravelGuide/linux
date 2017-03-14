@@ -1268,7 +1268,7 @@ static void check_and_drop(void *_data)
  * rename_lock ensuring there are no races with d_set_mounted.  This
  * ensures there are no unhashed dentries on the path to a mountpoint.
  */
-void d_invalidate(struct dentry *dentry)
+int d_invalidate(struct dentry *dentry)
 {
 	/*
 	 * If it's already been dropped, return OK.
@@ -1276,14 +1276,14 @@ void d_invalidate(struct dentry *dentry)
 	spin_lock(&dentry->d_lock);
 	if (d_unhashed(dentry)) {
 		spin_unlock(&dentry->d_lock);
-		return;
+		return 0;
 	}
 	spin_unlock(&dentry->d_lock);
 
 	/* Negative dentries can be dropped without further checks */
 	if (!dentry->d_inode) {
 		d_drop(dentry);
-		return;
+		return 0;
 	}
 
 	for (;;) {
@@ -1300,12 +1300,17 @@ void d_invalidate(struct dentry *dentry)
 			shrink_dentry_list(&data.select.dispose);
 
 		if (data.mountpoint) {
-			detach_mounts(data.mountpoint);
-			dput(data.mountpoint);
+			if (may_detach_mounts) {
+				detach_mounts(data.mountpoint);
+				dput(data.mountpoint);
+			} else {
+				dput(data.mountpoint);
+				return -EBUSY;
+			}
 		}
 
 		if (!data.mountpoint && !data.select.found)
-			break;
+			return 0;
 
 		cond_resched();
 	}

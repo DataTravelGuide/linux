@@ -1538,6 +1538,8 @@ static int do_umount(struct mount *mnt, int flags)
 	return retval;
 }
 
+int may_detach_mounts __read_mostly;
+
 /*
  * __detach_mounts - lazily unmount all mounts on the specified dentry
  *

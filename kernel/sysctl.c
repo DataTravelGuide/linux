@@ -96,6 +96,7 @@
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
+extern int may_detach_mounts;
 extern int max_threads;
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
@@ -1734,6 +1735,15 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(pipe_user_pages_soft),
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "may_detach_mounts",
+		.data		= &may_detach_mounts,
+		.maxlen		= sizeof(may_detach_mounts),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 	{ }
 };

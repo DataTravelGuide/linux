@@ -2562,7 +2562,9 @@ out_up_write:
 out_unlock_inode:
 	mutex_unlock(&inode->i_mutex);
 	if (!err) {
-		d_invalidate(dentry);
+		err = d_invalidate(dentry);
+		if (err)
+			goto out_dput;
 		btrfs_invalidate_inodes(dest);
 		d_delete(dentry);
 		ASSERT(dest->send_in_progress == 0);
