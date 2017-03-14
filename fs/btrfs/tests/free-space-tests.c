@@ -99,7 +99,8 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-static int test_bitmaps(struct btrfs_block_group_cache *cache)
+static int test_bitmaps(struct btrfs_block_group_cache *cache,
+			u32 sectorsize)
 {
 	u64 next_bitmap_offset;
 	int ret;
@@ -139,7 +140,7 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache)
 	 * The first bitmap we have starts at offset 0 so the next one is just
 	 * at the end of the first bitmap.
 	 */
-	next_bitmap_offset = (u64)(BITS_PER_BITMAP * 4096);
+	next_bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
 
 	/* Test a bit straddling two bitmaps */
 	ret = test_add_free_space_entry(cache, next_bitmap_offset -
@@ -169,9 +170,10 @@ static int test_bitmaps(struct btrfs_block_group_cache *cache)
 }
 
 /* This is the high grade jackassery */
-static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache)
+static int test_bitmaps_and_extents(struct btrfs_block_group_cache *cache,
+				    u32 sectorsize)
 {
-	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * 4096);
+	u64 bitmap_offset = (u64)(BITS_PER_BITMAP * sectorsize);
 	int ret;
 
 	test_msg("Running bitmap and extent tests\n");
@@ -405,7 +407,8 @@ static int check_cache_empty(struct btrfs_block_group_cache *cache)
  * extent entries, both for clustered and non-clustered allocation requests.
  */
 static int
-test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
+test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
+				       u32 sectorsize)
 {
 	int ret;
 	u64 offset;
@@ -548,8 +551,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	 * The goal is to test that the bitmap entry space stealing doesn't
 	 * steal this space region.
 	 */
-	ret = btrfs_add_free_space(cache, 128 * 1024 * 1024 + 16 * 1024 * 1024,
-				   4096);
+	ret = btrfs_add_free_space(cache, SZ_128M + SZ_16M, sectorsize);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
@@ -610,8 +612,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 		return -ENOENT;
 	}
 
-	if (cache->free_space_ctl->free_space != (1 * 1024 * 1024 + 4096)) {
-		test_msg("Cache free space is not 1Mb + 4Kb\n");
+	if (cache->free_space_ctl->free_space != (SZ_1M + sectorsize)) {
+		test_msg("Cache free space is not 1Mb + %u\n", sectorsize);
 		return -EINVAL;
 	}
 
@@ -624,22 +626,25 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 		return -EINVAL;
 	}
 
-	/* All that remains is a 4Kb free space region in a bitmap. Confirm. */
+	/*
+	 * All that remains is a sectorsize free space region in a bitmap.
+	 * Confirm.
+	 */
 	ret = check_num_extents_and_bitmaps(cache, 1, 1);
 	if (ret)
 		return ret;
 
-	if (cache->free_space_ctl->free_space != 4096) {
-		test_msg("Cache free space is not 4Kb\n");
+	if (cache->free_space_ctl->free_space != sectorsize) {
+		test_msg("Cache free space is not %u\n", sectorsize);
 		return -EINVAL;
 	}
 
 	offset = btrfs_find_space_for_alloc(cache,
-					    0, 4096, 0,
+					    0, sectorsize, 0,
 					    &max_extent_size);
-	if (offset != (128 * 1024 * 1024 + 16 * 1024 * 1024)) {
-		test_msg("Failed to allocate 4Kb from space cache, returned offset is: %llu\n",
-			 offset);
+	if (offset != (SZ_128M + SZ_16M)) {
+		test_msg("Failed to allocate %u, returned offset : %llu\n",
+			 sectorsize, offset);
 		return -EINVAL;
 	}
 
@@ -756,7 +761,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	 * The goal is to test that the bitmap entry space stealing doesn't
 	 * steal this space region.
 	 */
-	ret = btrfs_add_free_space(cache, 32 * 1024 * 1024, 8192);
+	ret = btrfs_add_free_space(cache, SZ_32M, 2 * sectorsize);
 	if (ret) {
 		test_msg("Error adding free space: %d\n", ret);
 		return ret;
@@ -780,7 +785,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 
 	/*
 	 * Confirm that our extent entry didn't stole all free space from the
-	 * bitmap, because of the small 8Kb free space region.
+	 * bitmap, because of the small 2 * sectorsize free space region.
 	 */
 	ret = check_num_extents_and_bitmaps(cache, 2, 1);
 	if (ret)
@@ -807,8 +812,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 		return -ENOENT;
 	}
 
-	if (cache->free_space_ctl->free_space != (1 * 1024 * 1024 + 8192)) {
-		test_msg("Cache free space is not 1Mb + 8Kb\n");
+	if (cache->free_space_ctl->free_space != (SZ_1M + 2 * sectorsize)) {
+		test_msg("Cache free space is not 1Mb + %u\n", 2 * sectorsize);
 		return -EINVAL;
 	}
 
@@ -821,21 +826,25 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 		return -EINVAL;
 	}
 
-	/* All that remains is a 8Kb free space region in a bitmap. Confirm. */
+	/*
+	 * All that remains is 2 * sectorsize free space region
+	 * in a bitmap. Confirm.
+	 */
 	ret = check_num_extents_and_bitmaps(cache, 1, 1);
 	if (ret)
 		return ret;
 
-	if (cache->free_space_ctl->free_space != 8192) {
-		test_msg("Cache free space is not 8Kb\n");
+	if (cache->free_space_ctl->free_space != 2 * sectorsize) {
+		test_msg("Cache free space is not %u\n", 2 * sectorsize);
 		return -EINVAL;
 	}
 
 	offset = btrfs_find_space_for_alloc(cache,
-					    0, 8192, 0,
+					    0, 2 * sectorsize, 0,
 					    &max_extent_size);
-	if (offset != (32 * 1024 * 1024)) {
-		test_msg("Failed to allocate 8Kb from space cache, returned offset is: %llu\n",
+	if (offset != SZ_32M) {
+		test_msg("Failed to allocate %u, offset: %llu\n",
+			 2 * sectorsize,
 			 offset);
 		return -EINVAL;
 	}
@@ -850,7 +859,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-int btrfs_test_free_space_cache(void)
+int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_root *root = NULL;
@@ -858,13 +867,13 @@ int btrfs_test_free_space_cache(void)
 
 	test_msg("Running btrfs free space cache tests\n");
 
-	cache = btrfs_alloc_dummy_block_group(1024 * 1024 * 1024);
+	cache = btrfs_alloc_dummy_block_group(1024 * 1024 * 1024, sectorsize);
 	if (!cache) {
 		test_msg("Couldn't run the tests\n");
 		return 0;
 	}
 
-	root = btrfs_alloc_dummy_root();
+	root = btrfs_alloc_dummy_root(sectorsize, nodesize);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
@@ -880,14 +889,14 @@ int btrfs_test_free_space_cache(void)
 	ret = test_extents(cache);
 	if (ret)
 		goto out;
-	ret = test_bitmaps(cache);
+	ret = test_bitmaps(cache, sectorsize);
 	if (ret)
 		goto out;
-	ret = test_bitmaps_and_extents(cache);
+	ret = test_bitmaps_and_extents(cache, sectorsize);
 	if (ret)
 		goto out;
 
-	ret = test_steal_space_from_bitmap_to_extent(cache);
+	ret = test_steal_space_from_bitmap_to_extent(cache, sectorsize);
 out:
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_block_group(cache);

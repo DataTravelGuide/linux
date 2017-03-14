@@ -64,7 +64,7 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 	return count;
 }
 
-static int test_find_delalloc(void)
+static int test_find_delalloc(u32 sectorsize)
 {
 	struct inode *inode;
 	struct extent_io_tree tmp;
@@ -112,7 +112,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(&tmp, 0, 4095, NULL);
+	set_extent_delalloc(&tmp, 0, sectorsize - 1, NULL);
 	start = 0;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -121,9 +121,9 @@ static int test_find_delalloc(void)
 		test_msg("Should have found at least one delalloc\n");
 		goto out_bits;
 	}
-	if (start != 0 || end != 4095) {
-		test_msg("Expected start 0 end 4095, got start %Lu end %Lu\n",
-			 start, end);
+	if (start != 0 || end != (sectorsize - 1)) {
+		test_msg("Expected start 0 end %u, got start %llu end %llu\n",
+			sectorsize - 1, start, end);
 		goto out_bits;
 	}
 	unlock_extent(&tmp, start, end);
@@ -143,7 +143,7 @@ static int test_find_delalloc(void)
 		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
-	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL);
+	set_extent_delalloc(&tmp, sectorsize, max_bytes - 1, NULL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -171,7 +171,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 *                    |--- search ---|
 	 */
-	test_start = max_bytes + 4096;
+	test_start = max_bytes + sectorsize;
 	locked_page = find_lock_page(inode->i_mapping, test_start >>
 				     PAGE_CACHE_SHIFT);
 	if (!locked_page) {
@@ -350,14 +350,15 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	return 0;
 }
 
-static int test_eb_bitmaps(void)
+static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
-	unsigned long len = PAGE_CACHE_SIZE * 4;
+	unsigned long len;
 	unsigned long *bitmap;
 	struct extent_buffer *eb;
 	int ret;
 
 	test_msg("Running extent buffer bitmap tests\n");
+	len = sectorsize * 4;
 
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
@@ -378,7 +379,7 @@ static int test_eb_bitmaps(void)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(NULL, PAGE_CACHE_SIZE / 2, len);
+	eb = __alloc_dummy_extent_buffer(NULL, nodesize / 2, len);
 	if (!eb) {
 		test_msg("Couldn't allocate test extent buffer\n");
 		kfree(bitmap);
@@ -392,17 +393,17 @@ out:
 	return ret;
 }
 
-int btrfs_test_extent_io(void)
+int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 {
 	int ret;
 
 	test_msg("Running extent I/O tests\n");
 
-	ret = test_find_delalloc();
+	ret = test_find_delalloc(sectorsize);
 	if (ret)
 		goto out;
 
-	ret = test_eb_bitmaps();
+	ret = test_eb_bitmaps(sectorsize, nodesize);
 out:
 	test_msg("Extent I/O tests finished\n");
 	return ret;
