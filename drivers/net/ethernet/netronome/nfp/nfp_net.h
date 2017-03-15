@@ -749,8 +749,9 @@ nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_ring_set *rx,
 #ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
-void nfp_net_debugfs_adapter_add(struct nfp_net *nn);
-void nfp_net_debugfs_adapter_del(struct nfp_net *nn);
+struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
+void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id);
+void nfp_net_debugfs_dir_clean(struct dentry **dir);
 #else
 static inline void nfp_net_debugfs_create(void)
 {
@@ -760,11 +761,17 @@ static inline void nfp_net_debugfs_destroy(void)
 {
 }
 
-static inline void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
+static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
+{
+	return NULL;
+}
+
+static inline void
+nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 }
 
-static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
+static inline void nfp_net_debugfs_dir_clean(struct dentry **dir)
 {
 }
 #endif /* CONFIG_NFP_DEBUG */
