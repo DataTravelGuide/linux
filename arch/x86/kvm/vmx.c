@@ -8881,7 +8881,14 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		struct page *page;
 		page = kvm_vcpu_gpa_to_page(vcpu, vmptr);
 		if (is_error_page(page)) {
-			nested_vmx_failInvalid(vcpu);
+			/*
+			 * Reads from an unbacked page return all 1s,
+			 * which means that the 32 bits located at the
+			 * given physical address won't match the required
+			 * VMCS12_REVISION identifier.
+			 */
+			nested_vmx_failValid(vcpu,
+				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
 		new_vmcs12 = kmap(page);
