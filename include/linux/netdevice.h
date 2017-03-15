@@ -846,7 +846,7 @@ struct tc_to_netdev {
  *	default value.
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
  *		       struct net_device *dev, struct net_device *filter_dev,
- *		       int idx)
+ *		       int *idx)
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
  * void (*ndo_change_proto_down)(struct net_device *dev,
@@ -885,7 +885,7 @@ struct net_device_ops_extended {
 	int			(*ndo_set_vf_guid)(struct net_device *dev,
 						   int vf, u64 guid,
 						   int guid_type);
-	int			(*ndo_fdb_dump)(struct sk_buff *skb,
+	int			(*ndo_fdb_dump_rh73)(struct sk_buff *skb,
 						struct netlink_callback *cb,
 						struct net_device *dev,
 						struct net_device *filter_dev,
@@ -905,6 +905,11 @@ struct net_device_ops_extended {
 	int			(*ndo_set_vf_vlan)(struct net_device *dev,
 						   int vf, u16 vlan, u8 qos,
 						   __be16 proto);
+	int			(*ndo_fdb_dump)(struct sk_buff *skb,
+						struct netlink_callback *cb,
+						struct net_device *dev,
+						struct net_device *filter_dev,
+						int *idx);
 };
 
 /*
@@ -1301,7 +1306,6 @@ struct net_device_ops {
 						struct netlink_callback *cb,
 						struct net_device *dev,
 						int idx);
-
 	RH_KABI_REPLACE(int	(*ndo_bridge_setlink)(struct net_device *dev,
 						      struct nlmsghdr *nlh),
 			int	(*ndo_bridge_setlink)(struct net_device *dev,
