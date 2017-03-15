@@ -469,6 +469,7 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
+ * @ethtool_dump_flag:	Ethtool dump flag
  * @port_list:		Entry on device port list
  * @cpp:		CPP device handle if available
  */
@@ -547,6 +548,7 @@ struct nfp_net {
 	u8 __iomem *rx_bar;
 
 	struct dentry *debugfs_dir;
+	u32 ethtool_dump_flag;
 
 	struct list_head port_list;
 
