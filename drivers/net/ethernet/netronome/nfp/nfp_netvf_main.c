@@ -74,7 +74,6 @@ static const struct pci_device_id nfp_netvf_pci_device_ids[] = {
 	},
 	{ 0, } /* Required last entry. */
 };
-MODULE_DEVICE_TABLE(pci, nfp_netvf_pci_device_ids);
 
 static void nfp_netvf_get_mac_addr(struct nfp_net *nn)
 {
