@@ -793,7 +793,7 @@ static int mce_timed_out(u64 *t, const char *msg)
 	if (!mca_cfg.monarch_timeout)
 		goto out;
 	if ((s64)*t < SPINUNIT) {
-		if (mca_cfg.tolerant < 1)
+		if (mca_cfg.tolerant <= 1)
 			mce_panic(msg, NULL, NULL);
 		cpu_missing = 1;
 		return 1;
