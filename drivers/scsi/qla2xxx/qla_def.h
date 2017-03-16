@@ -2717,11 +2717,15 @@ struct isp_operations {
 
 struct scsi_qla_host;
 
+#define QLA83XX_RSPQ_MSIX_ENTRY_NUMBER 1 /* refer to qla83xx_msix_entries */
+
 struct qla_msix_entry {
 	int have_irq;
 	uint32_t vector;
 	uint16_t entry;
 	struct rsp_que *rsp;
+	struct irq_affinity_notify irq_notify;
+	int cpuid;
 };
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
@@ -2919,6 +2923,7 @@ struct qlt_hw_data {
 	uint8_t saved_add_firmware_options[2];
 
 	uint8_t tgt_node_name[WWN_SIZE];
+	int rspq_vector_cpuid;
 };
 
 /*
