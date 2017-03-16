@@ -5423,10 +5423,14 @@ struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
 {
 	struct netdev_adjacent *lower;
 
-	lower = list_first_or_null_rcu(&dev->lower_dev_list,
-				       struct netdev_adjacent, list);
+	lower = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
 
-	return lower ? lower->dev : NULL;
+	if (&lower->list == &dev->lower_dev_list)
+		return NULL;
+
+	*iter = &lower->list;
+
+	return lower->dev;
 }
 EXPORT_SYMBOL(netdev_all_lower_get_next_rcu);
 
