@@ -3827,11 +3827,29 @@ void *netdev_lower_get_next_private_rcu(struct net_device *dev,
 
 void *netdev_lower_get_next(struct net_device *dev,
 				struct list_head **iter);
+
 #define netdev_for_each_lower_dev(dev, ldev, iter) \
 	for (iter = &(dev)->adj_list.lower, \
 	     ldev = netdev_lower_get_next(dev, &(iter)); \
 	     ldev; \
 	     ldev = netdev_lower_get_next(dev, &(iter)))
+
+struct net_device *netdev_all_lower_get_next(struct net_device *dev,
+					     struct list_head **iter);
+struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
+						 struct list_head **iter);
+
+#define netdev_for_each_all_lower_dev(dev, ldev, iter) \
+	for (iter = (dev)->lower_dev_list.next, \
+	     ldev = netdev_all_lower_get_next(dev, &(iter)); \
+	     ldev; \
+	     ldev = netdev_all_lower_get_next(dev, &(iter)))
+
+#define netdev_for_each_all_lower_dev_rcu(dev, ldev, iter) \
+	for (iter = (dev)->lower_dev_list.next, \
+	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)); \
+	     ldev; \
+	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)))
 
 int netdev_walk_all_lower_dev(struct net_device *dev,
 			      int (*fn)(struct net_device *lower_dev,
