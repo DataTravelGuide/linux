@@ -31,25 +31,17 @@
 #include <linux/device.h>
 #include <linux/property.h>
 
-#ifndef CONFIG_ACPI
-/* RH kernel: build fix for s390 and powerpc */
-typedef u32 acpi_object_type;
-union acpi_object {
-	u32 dummy;
-};
-#endif
-
-#ifdef	CONFIG_ACPI
-
 #ifndef _LINUX
 #define _LINUX
 #endif
+#include <acpi/acpi.h>
+
+#ifdef	CONFIG_ACPI
 
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/dynamic_debug.h>
 
-#include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_numa.h>
