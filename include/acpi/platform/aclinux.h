@@ -61,7 +61,9 @@
 #include <linux/sched.h>
 #include <linux/atomic.h>
 #include <asm/div64.h>
+#ifdef CONFIG_ACPI
 #include <asm/acenv.h>
+#endif
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
 #include <asm/current.h>
