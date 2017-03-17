@@ -566,6 +566,7 @@ struct request_queue {
 #define QUEUE_FLAG_UNPRIV_SGIO 21	/* SG_IO free for unprivileged users */
 #define QUEUE_FLAG_NO_SG_MERGE 22	/* don't attempt to merge SG segments*/
 #define QUEUE_FLAG_SG_GAPS     23	/* queue doesn't support SG gaps */
+#define QUEUE_FLAG_DAX         24	/* device supports DAX */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
@@ -656,6 +657,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
 #define blk_queue_secdiscard(q)	(blk_queue_discard(q) && \
 	test_bit(QUEUE_FLAG_SECDISCARD, &(q)->queue_flags))
+#define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
 
 #define blk_noretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
