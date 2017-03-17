@@ -1900,8 +1900,15 @@ struct net_device {
  * This means only appends to this structure are allowed. Changes are
  * generally disallowed with the exception of field renames (but not type
  * changes nor any shuffling!).
+ *
+ *	@ndisc_ops:	Includes callbacks for different IPv6 neighbour
+ *			discovery handling. Necessary for e.g. 6LoWPAN.
+ *
  */
 struct net_device_extended {
+#if IS_ENABLED(CONFIG_IPV6)
+	const struct ndisc_ops *ndisc_ops;
+#endif
 };
 
 #define to_net_dev(d) container_of(d, struct net_device, dev)
