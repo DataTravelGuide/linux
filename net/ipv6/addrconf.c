@@ -2800,8 +2800,8 @@ static void init_loopback(struct net_device *dev)
 	}
 }
 
-static void addrconf_add_linklocal(struct inet6_dev *idev,
-				   const struct in6_addr *addr, u32 flags)
+void addrconf_add_linklocal(struct inet6_dev *idev,
+			    const struct in6_addr *addr, u32 flags)
 {
 	struct inet6_ifaddr *ifp;
 	u32 addr_flags = flags | IFA_F_PERMANENT;
@@ -3185,6 +3185,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 	return NOTIFY_OK;
 }
+EXPORT_SYMBOL_GPL(addrconf_add_linklocal);
 
 /*
  *	addrconf module should be notified of a device going up
