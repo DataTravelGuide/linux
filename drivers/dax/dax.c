@@ -299,6 +299,12 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 			|| !IS_ALIGNED(resource_size(res), align))
 		return NULL;
 
+	/* RHEL 7.4 - disable huge page support */
+	if (align != PAGE_SIZE) {
+		dev_info(parent, "alignment must be PAGE_SIZE");
+		return NULL;
+	}
+
 	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
 	if (!dax_region)
 		return NULL;
