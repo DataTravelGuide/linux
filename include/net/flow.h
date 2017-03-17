@@ -11,7 +11,7 @@
 #include <linux/in6.h>
 #include <linux/atomic.h>
 #include <linux/rh_kabi.h>
-#include <linux/skbuff.h>
+#include <net/flow_dissector.h>
 
 struct flowi_tunnel {
 	__be64			tun_id;
