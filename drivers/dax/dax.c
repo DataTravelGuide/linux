@@ -443,7 +443,7 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 
 	phys = pgoff_to_phys(dax_dev, vmf->pgoff, PAGE_SIZE);
 	if (phys == -1) {
-		dev_dbg(dev, "%s: phys_to_pgoff(%#lx) failed\n", __func__,
+		dev_dbg(dev, "%s: pgoff_to_phys(%#lx) failed\n", __func__,
 				vmf->pgoff);
 		return VM_FAULT_SIGBUS;
 	}
@@ -505,7 +505,7 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
 	pgoff = linear_page_index(vma, pmd_addr);
 	phys = pgoff_to_phys(dax_dev, pgoff, PMD_SIZE);
 	if (phys == -1) {
-		dev_dbg(dev, "%s: phys_to_pgoff(%#lx) failed\n", __func__,
+		dev_dbg(dev, "%s: pgoff_to_phys(%#lx) failed\n", __func__,
 				pgoff);
 		return VM_FAULT_SIGBUS;
 	}
