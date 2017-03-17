@@ -1774,7 +1774,7 @@ struct block_device_operations {
 	RH_KABI_REPLACE(int (*direct_access) (struct block_device *, sector_t,
 						void **, unsigned long *),
 			long (*direct_access)(struct block_device *, sector_t,
-						void **, pfn_t *))
+						void **, pfn_t *, long))
 	unsigned int (*check_events) (struct gendisk *disk,
 				      unsigned int clearing);
 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
