@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
+#include "dax.h"
 
 static int dax_major;
 static struct class *dax_class;
