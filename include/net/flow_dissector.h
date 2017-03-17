@@ -152,8 +152,6 @@ __be32 flow_get_u32_dst(const struct flow_keys *flow);
 extern struct flow_dissector flow_keys_dissector;
 extern struct flow_dissector flow_keys_buf_dissector;
 
-u32 flow_hash_from_keys(struct flow_keys *keys);
-
 /* struct flow_keys_digest:
  *
  * This structure is used to hold a digest of the full flow keys. This is a
@@ -173,5 +171,7 @@ static inline bool flow_keys_have_l4(struct flow_keys *keys)
 {
 	return (keys->ports.ports || keys->tags.flow_label);
 }
+
+u32 flow_hash_from_keys(struct flow_keys *keys);
 
 #endif
