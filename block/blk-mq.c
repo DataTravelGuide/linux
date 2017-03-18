@@ -826,7 +826,7 @@ static void blk_mq_process_rq_list(struct blk_mq_hw_ctx *hctx)
 		switch (ret) {
 		case BLK_MQ_RQ_QUEUE_OK:
 			queued++;
-			continue;
+			break;
 		case BLK_MQ_RQ_QUEUE_BUSY:
 			list_add(&rq->queuelist, &rq_list);
 			__blk_mq_requeue_request(rq);
