@@ -248,6 +248,17 @@ static struct notifier_block mirred_device_notifier = {
 	.notifier_call = mirred_device_event,
 };
 
+static int tcf_mirred_device(const struct tc_action *a, struct net *net,
+			     struct net_device **mirred_dev)
+{
+	int ifindex = tcf_mirred_ifindex(a);
+
+	*mirred_dev = __dev_get_by_index(net, ifindex);
+	if (!mirred_dev)
+		return -EINVAL;
+	return 0;
+}
+
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
 	.hinfo		=	&mirred_hash_info,
@@ -257,6 +268,7 @@ static struct tc_action_ops act_mirred_ops = {
 	.dump		=	tcf_mirred_dump,
 	.cleanup	=	tcf_mirred_release,
 	.init		=	tcf_mirred_init,
+	.get_dev	=	tcf_mirred_device,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002)");

@@ -109,6 +109,8 @@ struct tc_action_ops {
 			int bind);
 	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	int	(*get_dev)(const struct tc_action *a, struct net *net,
+			   struct net_device **mirred_dev);
 };
 
 int tcf_hash_search(struct tc_action *a, u32 index);
