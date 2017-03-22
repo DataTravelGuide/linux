@@ -185,6 +185,7 @@ struct proto_ops {
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 	RH_KABI_REPLACE(void		(*set_peek_off)(struct sock *sk, int val),
 			int		(*set_peek_off)(struct sock *sk, int val))
+	RH_KABI_EXTEND(int		(*peek_len)(struct socket *sock))
 };
 
 #define DECLARE_SOCKADDR(type, dst, src)	\
