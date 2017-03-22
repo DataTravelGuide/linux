@@ -1261,7 +1261,10 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 
 static int __init cls_fl_init(void)
 {
-	return register_tcf_proto_ops(&cls_fl_ops);
+	int rc = register_tcf_proto_ops(&cls_fl_ops);
+	if (!rc)
+		mark_tech_preview("tc flower classifier", THIS_MODULE);
+	return rc;
 }
 
 static void __exit cls_fl_exit(void)
