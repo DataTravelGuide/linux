@@ -1569,12 +1569,13 @@ static struct sk_buff *tun_ring_recv(struct tun_struct *tun,
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb = NULL;
+	int error = 0;
 
 	skb = skb_array_consume(&tfile->tx_array);
 	if (skb)
 		goto out;
 	if (noblock) {
-		*err = -EAGAIN;
+		error = -EAGAIN;
 		goto out;
 	}
 
@@ -1586,12 +1587,12 @@ static struct sk_buff *tun_ring_recv(struct tun_struct *tun,
 		if (skb)
 			break;
 		if (signal_pending(current)) {
-			*err = -ERESTARTSYS;
+			error = -ERESTARTSYS;
 			break;
 		}
 
 		if (tun->dev->reg_state != NETREG_REGISTERED) {
-			*err = -EFAULT;
+			error = -EFAULT;
 			break;
 		}
 
@@ -1602,6 +1603,7 @@ static struct sk_buff *tun_ring_recv(struct tun_struct *tun,
 	remove_wait_queue(&tfile->wq.wait, &wait);
 
 out:
+	*err = error;
 	return skb;
 }
 
