@@ -379,19 +379,16 @@ u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
-/* In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd (or alternative w),
- * for every packet that was ACKed.
- */
+/* In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd (or alternative w) */
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
-	tp->snd_cwnd_cnt += acked;
 	if (tp->snd_cwnd_cnt >= w) {
-		u32 delta = tp->snd_cwnd_cnt / w;
-
-		tp->snd_cwnd_cnt -= delta * w;
-		tp->snd_cwnd += delta;
+		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+			tp->snd_cwnd++;
+		tp->snd_cwnd_cnt = 0;
+	} else {
+		tp->snd_cwnd_cnt += acked;
 	}
-	tp->snd_cwnd = min(tp->snd_cwnd, tp->snd_cwnd_clamp);
 }
 EXPORT_SYMBOL_GPL(tcp_cong_avoid_ai);
 
