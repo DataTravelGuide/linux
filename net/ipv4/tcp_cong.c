@@ -410,13 +410,11 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	/* In "safe" area, increase. */
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
-		acked = tcp_slow_start(tp, acked);
-		if (!acked)
-			return;
-	}
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp, acked);
 	/* In dangerous area, increase slowly. */
-	tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
+	else
+		tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
 }
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 
