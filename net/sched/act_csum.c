@@ -114,8 +114,8 @@ static void *tcf_csum_skb_nextlayer(struct sk_buff *skb,
 		return (void *)(skb_network_header(skb) + ihl);
 }
 
-static int tcf_csum_ipv4_icmp(struct sk_buff *skb,
-			      unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv4_icmp(struct sk_buff *skb, unsigned int ihl,
+			      unsigned int ipl)
 {
 	struct icmphdr *icmph;
 
@@ -150,8 +150,8 @@ static int tcf_csum_ipv4_igmp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv6_icmp(struct sk_buff *skb,
-			      unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv6_icmp(struct sk_buff *skb, unsigned int ihl,
+			      unsigned int ipl)
 {
 	struct icmp6hdr *icmp6h;
 	const struct ipv6hdr *ip6h;
@@ -172,8 +172,8 @@ static int tcf_csum_ipv6_icmp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv4_tcp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv4_tcp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl)
 {
 	struct tcphdr *tcph;
 	const struct iphdr *iph;
@@ -193,8 +193,8 @@ static int tcf_csum_ipv4_tcp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv6_tcp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl)
+static int tcf_csum_ipv6_tcp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl)
 {
 	struct tcphdr *tcph;
 	const struct ipv6hdr *ip6h;
@@ -215,8 +215,8 @@ static int tcf_csum_ipv6_tcp(struct sk_buff *skb,
 	return 1;
 }
 
-static int tcf_csum_ipv4_udp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl, int udplite)
+static int tcf_csum_ipv4_udp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl, int udplite)
 {
 	struct udphdr *udph;
 	const struct iphdr *iph;
@@ -268,8 +268,8 @@ ignore_obscure_skb:
 	return 1;
 }
 
-static int tcf_csum_ipv6_udp(struct sk_buff *skb,
-			     unsigned int ihl, unsigned int ipl, int udplite)
+static int tcf_csum_ipv6_udp(struct sk_buff *skb, unsigned int ihl,
+			     unsigned int ipl, int udplite)
 {
 	struct udphdr *udph;
 	const struct ipv6hdr *ip6h;
@@ -380,8 +380,8 @@ fail:
 	return 0;
 }
 
-static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh,
-				 unsigned int ixhl, unsigned int *pl)
+static int tcf_csum_ipv6_hopopts(struct ipv6_opt_hdr *ip6xh, unsigned int ixhl,
+				 unsigned int *pl)
 {
 	int off, len, optlen;
 	unsigned char *xh = (void *)ip6xh;
@@ -494,8 +494,8 @@ fail:
 	return 0;
 }
 
-static int tcf_csum(struct sk_buff *skb,
-		    const struct tc_action *a, struct tcf_result *res)
+static int tcf_csum(struct sk_buff *skb, const struct tc_action *a,
+		    struct tcf_result *res)
 {
 	struct tcf_csum *p = a->priv;
 	int action;
@@ -531,8 +531,8 @@ drop:
 	return TC_ACT_SHOT;
 }
 
-static int tcf_csum_dump(struct sk_buff *skb,
-			 struct tc_action *a, int bind, int ref)
+static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
+			 int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_csum *p = a->priv;

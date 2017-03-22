@@ -346,8 +346,8 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	return police->tcf_action;
 }
 
-static int
-tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
+			       int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = a->priv;
@@ -404,10 +404,15 @@ police_init_module(void)
 	if (err)
 		tcf_hashinfo_destroy(&police_hash_info);
 	return err;
+	.walk		=	tcf_act_police_walker
+};
+
+static int __init police_init_module(void)
+{
+	return tcf_register_action(&act_police_ops, POL_TAB_MASK);
 }
 
-static void __exit
-police_cleanup_module(void)
+static void __exit police_cleanup_module(void)
 {
 	tcf_hashinfo_destroy(&police_hash_info);
 	tcf_unregister_action(&act_police_ops);
