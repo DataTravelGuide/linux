@@ -816,7 +816,9 @@ void __init efi_init(void)
 
 void __init efi_late_init(void)
 {
-	efi_bgrt_init();
+	/* RHEL7: Do not run on kdump kernel */
+	if (!efi_setup)
+		efi_bgrt_init();
 }
 
 void __init efi_set_executable(efi_memory_desc_t *md, bool executable)
