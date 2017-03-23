@@ -216,6 +216,7 @@ struct tun_struct {
 	struct list_head disabled;
 	void *security;
 	u32 flow_count;
+	u32 rx_batched;
 	struct tun_pcpu_stats __percpu *pcpu_stats;
 };
 
@@ -506,6 +507,8 @@ static void tun_queue_purge(struct tun_file *tfile)
 
 	while ((skb = skb_array_consume(&tfile->tx_array)) != NULL)
 		kfree_skb(skb);
+
+	skb_queue_purge(&tfile->sk.sk_write_queue);
 }
 
 static void __tun_detach(struct tun_file *tfile, bool clean)
@@ -1222,10 +1225,46 @@ static unsigned long iov_pages(const struct iovec *iv, int offset,
 	return pages;
 }
 
+static void tun_rx_batched(struct tun_struct *tun, struct tun_file *tfile,
+			   struct sk_buff *skb, int more)
+{
+	struct sk_buff_head *queue = &tfile->sk.sk_write_queue;
+	struct sk_buff_head process_queue;
+	u32 rx_batched = tun->rx_batched;
+	bool rcv = false;
+
+	if (!rx_batched || (!more && skb_queue_empty(queue))) {
+		local_bh_disable();
+		netif_receive_skb(skb);
+		local_bh_enable();
+		return;
+	}
+
+	spin_lock(&queue->lock);
+	if (!more || skb_queue_len(queue) == rx_batched) {
+		__skb_queue_head_init(&process_queue);
+		skb_queue_splice_tail_init(queue, &process_queue);
+		rcv = true;
+	} else {
+		__skb_queue_tail(queue, skb);
+	}
+	spin_unlock(&queue->lock);
+
+	if (rcv) {
+		struct sk_buff *nskb;
+
+		local_bh_disable();
+		while ((nskb = __skb_dequeue(&process_queue)))
+			netif_receive_skb(nskb);
+		netif_receive_skb(skb);
+		local_bh_enable();
+	}
+}
+
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			    void *msg_control, const struct iovec *iv,
-			    size_t total_len, size_t count, int noblock)
+			    size_t total_len, size_t count, int noblock, bool more)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
@@ -1399,9 +1438,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	rxhash = skb_get_hash(skb);
 #ifndef CONFIG_4KSTACKS
-	local_bh_disable();
-	netif_receive_skb(skb);
-	local_bh_enable();
+	tun_rx_batched(tun, tfile, skb, more);
 #else
 	netif_rx_ni(skb);
 #endif
@@ -1431,7 +1468,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 	tun_debug(KERN_INFO, tun, "tun_chr_write %ld\n", count);
 
 	result = tun_get_user(tun, tfile, NULL, iv, iov_length(iv, count),
-			      count, file->f_flags & O_NONBLOCK);
+			      count, file->f_flags & O_NONBLOCK, false);
 
 	tun_put(tun);
 	return result;
@@ -1726,7 +1763,8 @@ static int tun_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (!tun)
 		return -EBADFD;
 	ret = tun_get_user(tun, tfile, m->msg_control, m->msg_iov, total_len,
-			   m->msg_iovlen, m->msg_flags & MSG_DONTWAIT);
+			   m->msg_iovlen, m->msg_flags & MSG_DONTWAIT,
+			   m->msg_flags & MSG_MORE);
 	tun_put(tun);
 	return ret;
 }
@@ -1920,6 +1958,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun->align = NET_SKB_PAD;
 		tun->filter_attached = false;
 		tun->sndbuf = tfile->socket.sk->sk_sndbuf;
+		tun->rx_batched = 0;
 
 		tun->pcpu_stats = netdev_alloc_pcpu_stats(struct tun_pcpu_stats);
 		if (!tun->pcpu_stats) {
@@ -2572,12 +2611,37 @@ static void tun_set_msglevel(struct net_device *dev, u32 value)
 #endif
 }
 
+static int tun_get_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	ec->rx_max_coalesced_frames = tun->rx_batched;
+
+	return 0;
+}
+
+static int tun_set_coalesce(struct net_device *dev,
+			    struct ethtool_coalesce *ec)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	if (ec->rx_max_coalesced_frames > NAPI_POLL_WEIGHT)
+		tun->rx_batched = NAPI_POLL_WEIGHT;
+	else
+		tun->rx_batched = ec->rx_max_coalesced_frames;
+
+	return 0;
+}
+
 static const struct ethtool_ops tun_ethtool_ops = {
 	.get_settings	= tun_get_settings,
 	.get_drvinfo	= tun_get_drvinfo,
 	.get_msglevel	= tun_get_msglevel,
 	.set_msglevel	= tun_set_msglevel,
 	.get_link	= ethtool_op_get_link,
+	.get_coalesce   = tun_get_coalesce,
+	.set_coalesce   = tun_set_coalesce,
 };
 
 static int tun_queue_resize(struct tun_struct *tun)
