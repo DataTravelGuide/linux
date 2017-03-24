@@ -68,6 +68,8 @@ typedef struct { pteval_t pte; } pte_t;
 #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)
 #define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
+#define EFI_VA_START	 ( -4 * (_AC(1, UL) << 30))
+#define EFI_VA_END	 (-68 * (_AC(1, UL) << 30))
 
 #define EARLY_DYNAMIC_PAGE_TABLES	64
 
