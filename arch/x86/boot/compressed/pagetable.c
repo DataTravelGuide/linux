@@ -30,7 +30,9 @@ static inline void mm_track_phys(void *physp)	{}
 static inline int harvest_user(void) { return 0; }
 
 #include <asm/pgtable.h>
-
+/* Use the static base for this part of the boot process */
+#undef __PAGE_OFFSET
+#define __PAGE_OFFSET __PAGE_OFFSET_BASE
 #include "../../mm/ident_map.c"
 
 /* Used by pgtable.h asm code to force instruction serialization. */
