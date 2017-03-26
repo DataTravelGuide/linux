@@ -73,6 +73,9 @@
 #include <linux/uprobes.h>
 #include <linux/aio.h>
 #include <linux/compiler.h>
+#ifndef __GENKSYMS__
+#include <linux/user_namespace.h>
+#endif
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -311,6 +314,8 @@ void __init fork_init(unsigned long mempages)
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
 		init_task.signal->rlim[RLIMIT_NPROC];
+
+	init_user_ns.max_user_namespaces = max_threads;
 }
 
 int __weak arch_dup_task_struct(struct task_struct *dst,
