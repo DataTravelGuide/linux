@@ -22,7 +22,6 @@
 #include <linux/ctype.h>
 #include <linux/projid.h>
 #include <linux/fs_struct.h>
-#include <linux/moduleparam.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 static DEFINE_MUTEX(userns_state_mutex);
@@ -61,11 +60,6 @@ static void set_cred_user_ns(struct cred *cred, struct user_namespace *user_ns)
 	cred->user_ns = user_ns;
 }
 
-/* While user namespaces remain in tech preview disable them */
-static bool enable_user_ns_creation;
-module_param_named(enable, enable_user_ns_creation, bool, 0444);
-MODULE_PARM_DESC(enable, "Enable creation of new user namespaces");
-
 /*
  * Create a new user namespace, deriving the creator from the user in the
  * passed credentials, and replacing that user with the new root user for the
@@ -81,13 +75,6 @@ int create_user_ns(struct cred *new)
 	kgid_t group = new->egid;
 	struct ucounts *ucounts;
 	int ret, i;
-	static int __read_mostly called_mark_tech_preview = 0;
-
-	if (!enable_user_ns_creation)
-		return -EINVAL;
-
-	if (!called_mark_tech_preview && !xchg(&called_mark_tech_preview, 1))
-		mark_tech_preview("user namespace", NULL);
 
 	ret = -ENOSPC;
 	if (parent_ns->level > 32)
