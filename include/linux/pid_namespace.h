@@ -44,6 +44,7 @@ struct pid_namespace {
 	int reboot;	/* group exit code if this pidns was rebooted */
 	unsigned int proc_inum;
 	RH_KABI_EXTEND(struct rcu_head rcu)
+	RH_KABI_EXTEND(struct ucounts *ucounts)
 };
 
 extern struct pid_namespace init_pid_ns;
