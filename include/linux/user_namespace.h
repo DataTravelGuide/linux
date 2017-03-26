@@ -23,6 +23,27 @@ struct uid_gid_map {	/* 64 bytes -- 1 cache line */
 #define USERNS_INIT_FLAGS USERNS_SETGROUPS_ALLOWED
 
 struct ucounts;
+
+enum ucount_type {
+	UCOUNT_USER_NAMESPACES,
+	UCOUNT_KABI_RESERVE_1,
+	UCOUNT_KABI_RESERVE_2,
+	UCOUNT_KABI_RESERVE_3,
+	UCOUNT_KABI_RESERVE_4,
+	UCOUNT_KABI_RESERVE_5,
+	UCOUNT_KABI_RESERVE_6,
+	UCOUNT_KABI_RESERVE_7,
+	UCOUNT_KABI_RESERVE_8,
+	UCOUNT_KABI_RESERVE_9,
+	UCOUNT_KABI_RESERVE_10,
+	UCOUNT_KABI_RESERVE_11,
+	UCOUNT_KABI_RESERVE_12,
+	UCOUNT_KABI_RESERVE_13,
+	UCOUNT_KABI_RESERVE_14,
+	UCOUNT_KABI_RESERVE_15,
+	UCOUNT_COUNTS,
+};
+
 struct user_namespace {
 	struct uid_gid_map	uid_map;
 	struct uid_gid_map	gid_map;
@@ -46,7 +67,7 @@ struct user_namespace {
 	RH_KABI_EXTEND(struct ctl_table_set set)
 	RH_KABI_EXTEND(struct ctl_table_header *sysctls)
 	RH_KABI_EXTEND(struct ucounts *ucounts)
-	RH_KABI_EXTEND(int max_user_namespaces)
+	RH_KABI_EXTEND(int ucount_max[UCOUNT_COUNTS])
 };
 
 struct ucounts {
@@ -54,15 +75,15 @@ struct ucounts {
 	struct user_namespace *ns;
 	kuid_t uid;
 	atomic_t count;
-	atomic_t user_namespaces;
+	atomic_t ucount[UCOUNT_COUNTS];
 };
 
 extern struct user_namespace init_user_ns;
 
 bool setup_userns_sysctls(struct user_namespace *ns);
 void retire_userns_sysctls(struct user_namespace *ns);
-struct ucounts *inc_user_namespaces(struct user_namespace *ns, kuid_t uid);
-void dec_user_namespaces(struct ucounts *ucounts);
+struct ucounts *inc_ucount(struct user_namespace *ns, kuid_t uid, enum ucount_type type);
+void dec_ucount(struct ucounts *ucounts, enum ucount_type type);
 
 #ifdef CONFIG_USER_NS
 

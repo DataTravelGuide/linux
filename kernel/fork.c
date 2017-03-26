@@ -284,6 +284,7 @@ void __init __weak arch_task_cache_init(void) { }
 
 void __init fork_init(unsigned long mempages)
 {
+	int i;
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 #ifndef ARCH_MIN_TASKALIGN
 #define ARCH_MIN_TASKALIGN	L1_CACHE_BYTES
@@ -315,7 +316,9 @@ void __init fork_init(unsigned long mempages)
 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
 		init_task.signal->rlim[RLIMIT_NPROC];
 
-	init_user_ns.max_user_namespaces = max_threads/2;
+	for (i = 0; i < UCOUNT_COUNTS; i++) {
+		init_user_ns.ucount_max[i] = max_threads/2;
+	}
 }
 
 int __weak arch_dup_task_struct(struct task_struct *dst,
