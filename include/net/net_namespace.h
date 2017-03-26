@@ -175,6 +175,7 @@ struct net {
 
 	RH_KABI_EXTEND(int idgen_retries)
 	RH_KABI_EXTEND(int idgen_delay)
+	RH_KABI_EXTEND(struct ucounts *ucounts)
 };
 
 /*
