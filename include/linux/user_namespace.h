@@ -41,6 +41,7 @@ struct user_namespace {
 #endif
 	RH_KABI_EXTEND(int level)
 	RH_KABI_EXTEND(unsigned long flags)
+	RH_KABI_EXTEND(struct work_struct work)
 };
 
 extern struct user_namespace init_user_ns;
@@ -56,12 +57,12 @@ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
 
 extern int create_user_ns(struct cred *new);
 extern int unshare_userns(unsigned long unshare_flags, struct cred **new_cred);
-extern void free_user_ns(struct user_namespace *ns);
+extern void __put_user_ns(struct user_namespace *ns);
 
 static inline void put_user_ns(struct user_namespace *ns)
 {
 	if (ns && atomic_dec_and_test(&ns->count))
-		free_user_ns(ns);
+		__put_user_ns(ns);
 }
 
 struct seq_operations;
