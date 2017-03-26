@@ -24,6 +24,9 @@
 #include <linux/fs_struct.h>
 #include <linux/moduleparam.h>
 
+extern bool setup_userns_sysctls(struct user_namespace *ns);
+extern void retire_userns_sysctls(struct user_namespace *ns);
+
 static struct kmem_cache *user_ns_cachep __read_mostly;
 static DEFINE_MUTEX(userns_state_mutex);
 
@@ -121,14 +124,24 @@ int create_user_ns(struct cred *new)
 	ns->flags = parent_ns->flags;
 	mutex_unlock(&userns_state_mutex);
 
-	set_cred_user_ns(new, ns);
-
-	update_mnt_policy(ns);
-
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 	init_rwsem(&ns->persistent_keyring_register_sem);
 #endif
+	ret = -ENOMEM;
+	if (!setup_userns_sysctls(ns))
+		goto fail_keyring;
+
+	set_cred_user_ns(new, ns);
+
+	update_mnt_policy(ns);
 	return 0;
+fail_keyring:
+#ifdef CONFIG_PERSISTENT_KEYRINGS
+	key_put(ns->persistent_keyring_register);
+#endif
+	proc_free_inum(ns->proc_inum);
+	kmem_cache_free(user_ns_cachep, ns);
+	return ret;
 }
 
 int unshare_userns(unsigned long unshare_flags, struct cred **new_cred)
@@ -158,6 +171,7 @@ static void free_user_ns(struct work_struct *work)
 
 	do {
 		parent = ns->parent;
+		retire_userns_sysctls(ns);
 #ifdef CONFIG_PERSISTENT_KEYRINGS
 		key_put(ns->persistent_keyring_register);
 #endif

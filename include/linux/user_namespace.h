@@ -42,6 +42,8 @@ struct user_namespace {
 	RH_KABI_EXTEND(int level)
 	RH_KABI_EXTEND(unsigned long flags)
 	RH_KABI_EXTEND(struct work_struct work)
+	RH_KABI_EXTEND(struct ctl_table_set set)
+	RH_KABI_EXTEND(struct ctl_table_header *sysctls)
 };
 
 extern struct user_namespace init_user_ns;
