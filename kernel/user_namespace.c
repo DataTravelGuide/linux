@@ -89,7 +89,7 @@ int create_user_ns(struct cred *new)
 	if (!called_mark_tech_preview && !xchg(&called_mark_tech_preview, 1))
 		mark_tech_preview("user namespace", NULL);
 
-	ret = -EUSERS;
+	ret = -ENOSPC;
 	if (parent_ns->level > 32)
 		goto fail;
 
