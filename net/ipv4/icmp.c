@@ -208,11 +208,10 @@ static struct sock *icmp_sk(struct net *net)
 	return net->ipv4.icmp_sk[smp_processor_id()];
 }
 
+/* Called with BH disabled */
 static inline struct sock *icmp_xmit_lock(struct net *net)
 {
 	struct sock *sk;
-
-	local_bh_disable();
 
 	sk = icmp_sk(net);
 
@@ -220,7 +219,6 @@ static inline struct sock *icmp_xmit_lock(struct net *net)
 		/* This can happen if the output path signals a
 		 * dst_link_failure() for an outgoing ICMP packet.
 		 */
-		local_bh_enable();
 		return NULL;
 	}
 	return sk;
@@ -228,7 +226,7 @@ static inline struct sock *icmp_xmit_lock(struct net *net)
 
 static inline void icmp_xmit_unlock(struct sock *sk)
 {
-	spin_unlock_bh(&sk->sk_lock.slock);
+	spin_unlock(&sk->sk_lock.slock);
 }
 
 int sysctl_icmp_msgs_per_sec __read_mostly = 1000;
@@ -413,14 +411,17 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	if (ip_options_echo(&icmp_param->replyopts.opt.opt, skb))
 		return;
 
-	sk = icmp_xmit_lock(net);
-	if (sk == NULL)
-		return;
-	inet = inet_sk(sk);
+	/* Needed by both icmp_global_allow and icmp_xmit_lock */
+	local_bh_disable();
 
 	/* global icmp_msgs_per_sec */
 	if (!icmpv4_global_allow(net, type, code))
-		goto out_unlock;
+		goto out_bh_enable;
+
+	sk = icmp_xmit_lock(net);
+	if (!sk)
+		goto out_bh_enable;
+	inet = inet_sk(sk);
 
 	icmp_param->data.icmph.checksum = 0;
 
@@ -451,6 +452,8 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
+out_bh_enable:
+	local_bh_enable();
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -654,13 +657,16 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 	}
 
-	sk = icmp_xmit_lock(net);
-	if (!sk)
-		goto out;
+	/* Needed by both icmp_global_allow and icmp_xmit_lock */
+	local_bh_disable();
 
 	/* Check global sysctl_icmp_msgs_per_sec ratelimit */
 	if (!icmpv4_global_allow(net, type, code))
-		goto out_unlock;
+		goto out_bh_enable;
+
+	sk = icmp_xmit_lock(net);
+	if (!sk)
+		goto out_bh_enable;
 
 	/*
 	 *	Construct source address and options.
@@ -734,6 +740,8 @@ ende:
 	ip_rt_put(rt);
 out_unlock:
 	icmp_xmit_unlock(sk);
+out_bh_enable:
+	local_bh_enable();
 out:;
 }
 EXPORT_SYMBOL(icmp_send);
