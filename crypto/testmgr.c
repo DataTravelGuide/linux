@@ -784,6 +784,9 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 		if (template[i].np)
 			continue;
 
+		if (fips_enabled && template[i].fips_skip)
+			continue;
+
 		j++;
 
 		ret = -EINVAL;
@@ -890,6 +893,9 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 		else
 			memset(iv, 0, MAX_IVLEN);
 
+		if (fips_enabled && template[i].fips_skip)
+			continue;
+
 		if (!(template[i].np) || (template[i].also_non_np)) {
 			j++;
 
@@ -964,6 +970,9 @@ static int __test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 			memcpy(iv, template[i].iv, ivsize);
 		else
 			memset(iv, 0, MAX_IVLEN);
+
+		if (fips_enabled && template[i].fips_skip)
+			continue;
 
 		if (template[i].np) {
 			j++;
