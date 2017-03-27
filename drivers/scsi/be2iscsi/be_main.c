@@ -303,8 +303,6 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 	nents = 0;
-	/* take back_lock to prevent task from getting cleaned up under us */
-	spin_lock(&session->lock);
 	for (i = 0; i < conn->session->cmds_max; i++) {
 		task = conn->session->cmds[i];
 		if (!task->sc)
