@@ -246,10 +246,15 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	cp->tp = tp;
 
 	if (p->perfect) {
+		int i;
+
 		cp->perfect = kmemdup(p->perfect,
 				      sizeof(*r) * cp->hash, GFP_KERNEL);
 		if (!cp->perfect)
 			goto errout;
+		for (i = 0; i < cp->hash; i++)
+			tcf_exts_init(&cp->perfect[i].exts,
+				      TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 		balloc = 1;
 	}
 	cp->h = p->h;
@@ -345,6 +350,9 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		f = kzalloc(sizeof(*f), GFP_KERNEL);
 		if (!f)
 			goto errout_alloc;
+		f->key = handle;
+		tcindex_filter_result_init(&f->result);
+		f->next = NULL;
 	}
 
 	if (tb[TCA_TCINDEX_CLASSID]) {
@@ -368,9 +376,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		struct tcindex_filter *nfp;
 		struct tcindex_filter __rcu **fp;
 
-		f->key = handle;
-		f->result = new_filter_result;
-		f->next = NULL;
+		tcf_exts_change(tp, &f->result.exts, &r->exts);
 
 		fp = cp->h + (handle % cp->hash);
 		for (nfp = rtnl_dereference(*fp);
