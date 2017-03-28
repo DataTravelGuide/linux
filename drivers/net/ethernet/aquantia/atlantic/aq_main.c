@@ -187,6 +187,8 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	struct aq_pci_func_s *aq_pci_func = NULL;
 	int err = 0;
 
+	mark_tech_preview("aquantia", THIS_MODULE);
+
 	err = pci_enable_device(pdev);
 	if (err < 0)
 		goto err_exit;
