@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/proc_ns.h>
 #include <linux/magic.h>
+#include <linux/kernfs.h>
 #include <linux/bootmem.h>
 #include <linux/task_work.h>
 #include "pnode.h"
@@ -3126,6 +3127,10 @@ void __init mnt_init(void)
 		INIT_HLIST_HEAD(&mount_hashtable[u]);
 	for (u = 0; u <= mp_hash_mask; u++)
 		INIT_HLIST_HEAD(&mountpoint_hashtable[u]);
+
+#ifdef CONFIG_KERNFS
+	kernfs_init();
+#endif
 
 	err = sysfs_init();
 	if (err)
