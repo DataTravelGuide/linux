@@ -1898,6 +1898,9 @@ scan_target:
 
 	sdev->tagged_supported = 1;
 	scsi_activate_tcq(sdev, sdev->queue_depth);
+
+	atomic_set(&mr_device_priv_data->r1_ldio_hint,
+		   instance->r1_ldio_hint_default);
 	return 0;
 }
 
