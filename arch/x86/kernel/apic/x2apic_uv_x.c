@@ -1127,8 +1127,8 @@ void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
 	hub_info->gnode_extra =
 		(node_id.s.node_id & ~((1 << uv_cpuid.gnode_shift) - 1)) >> 1;
 
-	hub_info->gnode_upper =
-		((unsigned long)hub_info->gnode_extra << mn.m_val);
+	if (mn.m_val)
+		hub_info->gnode_upper = (u64)hub_info->gnode_extra << mn.m_val;
 
 	if (uv_gp_table) {
 		hub_info->global_mmr_base = uv_gp_table->mmr_base;
