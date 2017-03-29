@@ -6415,6 +6415,14 @@ F:	drivers/video/sti*
 F:	drivers/video/console/sti*
 F:	drivers/video/logo/logo_parisc*
 
+PARMAN
+M:	Jiri Pirko <jiri@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	lib/parman.c
+F:	lib/test_parman.c
+F:	include/linux/parman.h
+
 PC87360 HARDWARE MONITORING DRIVER
 M:	Jim Cromie <jim.cromie@gmail.com>
 L:	lm-sensors@lm-sensors.org

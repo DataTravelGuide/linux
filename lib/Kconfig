@@ -474,4 +474,7 @@ config ARCH_HAS_PMEM_API
 config ARCH_HAS_MMIO_FLUSH
 	bool
 
+config PARMAN
+	tristate "parman"
+
 endmenu
