@@ -1112,7 +1112,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
 	struct key_vector *l, *tp;
-	unsigned int nlflags = 0;
+	u16 nlflags = NLM_F_EXCL;
 	struct fib_info *fi;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
@@ -1156,6 +1156,8 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		if (cfg->fc_nlflags & NLM_F_EXCL)
 			goto out;
 
+		nlflags &= ~NLM_F_EXCL;
+
 		/* We have 2 goals:
 		 * 1. Find exact match for type, scope, fib_info to avoid
 		 * duplicate routes
@@ -1179,6 +1181,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			struct fib_info *fi_drop;
 			u8 state;
 
+			nlflags |= NLM_F_REPLACE;
 			fa = fa_first;
 			if (fa_match) {
 				if (fa == fa_match)
@@ -1222,7 +1225,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 						 new_fa->fa_tos, cfg->fc_type,
 						 tb->tb_id, cfg->fc_nlflags);
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
-				tb->tb_id, &cfg->fc_nlinfo, NLM_F_REPLACE);
+				tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
 			goto succeeded;
 		}
@@ -1234,7 +1237,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			goto out;
 
 		if (cfg->fc_nlflags & NLM_F_APPEND)
-			nlflags = NLM_F_APPEND;
+			nlflags |= NLM_F_APPEND;
 		else
 			fa = fa_first;
 	}
@@ -1242,6 +1245,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	if (!(cfg->fc_nlflags & NLM_F_CREATE))
 		goto out;
 
+	nlflags |= NLM_F_CREATE;
 	err = -ENOBUFS;
 	new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 	if (new_fa == NULL)
