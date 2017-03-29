@@ -2946,6 +2946,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
+	ring3mwait=disable
+			[KNL] Disable ring 3 MONITOR/MWAIT feature on supported
+			CPUs.
+
 	riscom8=	[HW,SERIAL]
 			Format: <io_board1>[,<io_board2>[,...<io_boardN>]]
 
