@@ -77,6 +77,7 @@ struct chcr_dev {
 	struct crypto_queue pending_queue;
 	struct uld_ctx *u_ctx;
 	unsigned char tx_channel_id;
+	unsigned char rx_channel_id;
 };
 
 struct uld_ctx {

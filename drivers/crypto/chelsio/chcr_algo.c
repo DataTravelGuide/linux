@@ -474,10 +474,10 @@ static inline void create_wreq(struct chcr_context *ctx,
 				    (calc_tx_flits_ofld(skb) * 8), 16)));
 	chcr_req->wreq.cookie = cpu_to_be64((uintptr_t)req);
 	chcr_req->wreq.rx_chid_to_rx_q_id =
-		FILL_WR_RX_Q_ID(ctx->dev->tx_channel_id, qid,
-				(hash_sz) ? IV_NOP : iv_loc);
-
-	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id);
+		FILL_WR_RX_Q_ID(ctx->dev->rx_channel_id, qid,
+				(hash_sz) ? IV_NOP : iv_loc, ctx->tx_channel_id);
+	chcr_req->ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(ctx->dev->tx_channel_id,
+						       qid);
 	chcr_req->ulptx.len = htonl((DIV_ROUND_UP((calc_tx_flits_ofld(skb) * 8),
 					16) - ((sizeof(chcr_req->wreq)) >> 4)));
 
@@ -541,7 +541,7 @@ static struct sk_buff
 	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
 	memset(chcr_req, 0, transhdr_len);
 	chcr_req->sec_cpl.op_ivinsrtofst =
-		FILL_SEC_CPL_OP_IVINSR(ctx->dev->tx_channel_id, 2, 1);
+		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 1);
 
 	chcr_req->sec_cpl.pldlen = htonl(ivsize + req->nbytes);
 	chcr_req->sec_cpl.aadstart_cipherstop_hi =
@@ -720,6 +720,7 @@ static int chcr_device_init(struct chcr_context *ctx)
 		spin_lock(&ctx->dev->lock_chcr_dev);
 		ctx->tx_channel_id = rxq_idx;
 		ctx->dev->tx_channel_id = !ctx->dev->tx_channel_id;
+		ctx->dev->rx_channel_id = 0;
 		spin_unlock(&ctx->dev->lock_chcr_dev);
 	}
 out:
@@ -812,7 +813,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 	memset(chcr_req, 0, transhdr_len);
 
 	chcr_req->sec_cpl.op_ivinsrtofst =
-		FILL_SEC_CPL_OP_IVINSR(ctx->dev->tx_channel_id, 2, 0);
+		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 0);
 	chcr_req->sec_cpl.pldlen = htonl(param->bfr_len + param->sg_len);
 
 	chcr_req->sec_cpl.aadstart_cipherstop_hi =
