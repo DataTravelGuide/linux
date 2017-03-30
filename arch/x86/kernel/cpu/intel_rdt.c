@@ -419,7 +419,7 @@ static int __init rdt_notifier_init(void)
 static int __init intel_rdt_late_init(void)
 {
 	struct rdt_resource *r;
-	int state;
+	int state, ret;
 
 	if (!get_rdt_resources())
 		return -ENODEV;
@@ -430,6 +430,12 @@ static int __init intel_rdt_late_init(void)
 
 	if (state < 0)
 		return state;
+
+	ret = rdtgroup_init();
+	if (ret) {
+		unregister_cpu_notifier(&rdt_cpu_nb);
+		return ret;
+	}
 
 	for_each_capable_rdt_resource(r)
 		pr_info("Intel RDT %s allocation detected\n", r->name);
