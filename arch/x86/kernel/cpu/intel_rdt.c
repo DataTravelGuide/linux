@@ -29,7 +29,6 @@
 #include <linux/cpu.h>
 #include <asm/processor.h>
 
-#include <asm/intel_rdt_common.h>
 #include <asm/intel-family.h>
 #include <asm/intel_rdt.h>
 
