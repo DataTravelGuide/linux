@@ -2476,20 +2476,17 @@ static int nfs40_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
-	nfs4_stateid stateid;
-	struct nfs_delegation *delegation;
-	struct rpc_cred *cred;
-	int status;
-
-	/* Get the delegation credential for use by test/free_stateid */
-	rcu_read_lock();
-	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
-	if (delegation == NULL) {
-		rcu_read_unlock();
-		return;
 	}
 
 	nfs4_stateid_copy(&stateid, &delegation->stateid);
+	if (test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) ||
+		!test_and_clear_bit(NFS_DELEGATION_TEST_EXPIRED,
+			&delegation->flags)) {
+		rcu_read_unlock();
+		nfs_finish_clear_delegation_stateid(state, &stateid);
+		return;
+	}
+
 	cred = get_rpccred(delegation->cred);
 	rcu_read_unlock();
 	status = nfs41_test_stateid(server, &stateid, cred);
