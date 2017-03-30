@@ -290,7 +290,7 @@
 #define __NR_s390_pci_mmio_write	352
 #define __NR_s390_pci_mmio_read		353
 #define __NR_copy_file_range	375
-#define NR_syscalls 355
+#define NR_syscalls 376
 
 /* 
  * There are some system calls that are not present on 64 bit, some
