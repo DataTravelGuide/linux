@@ -81,7 +81,8 @@ static struct config_group alua_lu_gps_group;
 static inline struct se_hba *
 item_to_hba(struct config_item *item)
 {
-	return container_of(to_config_group(item), struct se_hba, hba_group);
+	return sprintf(page, "%d\n",
+		       tg_pt_gp->tg_pt_gp_alua_access_state);
 }
 
 /*
