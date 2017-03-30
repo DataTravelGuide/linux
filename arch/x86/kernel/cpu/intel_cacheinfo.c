@@ -155,6 +155,7 @@ struct _cpuid4_info_regs {
 	union _cpuid4_leaf_eax eax;
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
+	unsigned int id;
 	unsigned long size;
 	struct amd_northbridge *nb;
 };
@@ -933,6 +934,12 @@ show_one_plus(physical_line_partition, base.ebx.split.physical_line_partition, 1
 show_one_plus(ways_of_associativity, base.ebx.split.ways_of_associativity, 1);
 show_one_plus(number_of_sets, base.ecx.split.number_of_sets, 1);
 
+static ssize_t show_id(struct _cpuid4_info *this_leaf, char *buf,
+		       unsigned int cpu)
+{
+	return sprintf(buf, "%u\n", this_leaf->base.id);
+}
+
 static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf,
 			 unsigned int cpu)
 {
@@ -992,6 +999,7 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf,
 static struct _cache_attr _name = \
 	__ATTR(_name, 0444, show_##_name, NULL)
 
+define_one_ro(id);
 define_one_ro(level);
 define_one_ro(type);
 define_one_ro(coherency_line_size);
@@ -1003,6 +1011,7 @@ define_one_ro(shared_cpu_map);
 define_one_ro(shared_cpu_list);
 
 static struct attribute *default_attrs[] = {
+	&id.attr,
 	&type.attr,
 	&level.attr,
 	&coherency_line_size.attr,
