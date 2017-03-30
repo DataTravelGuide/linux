@@ -137,6 +137,10 @@ static struct config_group *target_core_register_fabric(
 	struct target_fabric_configfs *tf;
 	int ret;
 
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+		return sprintf(page, "Passthrough\n");
+
+	spin_lock(&dev->dev_reservation_lock);
 	pr_debug("Target_Core_ConfigFS: REGISTER -> group: %p name:"
 			" %s\n", group, name);
 
@@ -712,6 +716,10 @@ out_global:
 
 static void __exit target_core_exit_configfs(void)
 {
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+		return sprintf(page, "SPC_PASSTHROUGH\n");
+	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+		return sprintf(page, "SPC2_RESERVATIONS\n");
 	configfs_remove_default_groups(&alua_lu_gps_group);
 	configfs_remove_default_groups(&alua_group);
 	configfs_remove_default_groups(&target_core_hbagroup);
@@ -736,7 +744,24 @@ static void __exit target_core_exit_configfs(void)
 
 MODULE_DESCRIPTION("Target_Core_Mod/ConfigFS");
 MODULE_AUTHOR("nab@Linux-iSCSI.org");
-MODULE_LICENSE("GPL");
+static ssize_t target_core_dev_pr_show_attr_res_aptpl_active(
+		struct se_device *dev, char *page)
+{
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+		return 0;
 
 module_init(target_core_init_configfs);
-module_exit(target_core_exit_configfs);
+static ssize_t target_core_dev_pr_show_attr_res_aptpl_metadata(
+		struct se_device *dev, char *page)
+{
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+		return 0;
+
+	return sprintf(page, "Ready to process PR APTPL metadata..\n");
+	u16 port_rpti = 0, tpgt = 0;
+	u8 type = 0, scope;
+
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+		return 0;
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+		return 0;
