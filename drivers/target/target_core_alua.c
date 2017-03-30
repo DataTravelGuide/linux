@@ -42,7 +42,7 @@
 #include "target_core_ua.h"
 
 static sense_reason_t core_alua_check_transition(int state, int valid,
-						 int *primary);
+						 int *primary, int explicit);
 static int core_alua_set_tg_pt_secondary_state(
 		struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem,
 		struct se_port *port, int explicit, int offline);
@@ -347,8 +347,8 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 		 * the state is a primary or secondary target port asymmetric
 		 * access state.
 		 */
-		rc = core_alua_check_transition(alua_access_state,
-						valid_states, &primary);
+		rc = core_alua_check_transition(alua_access_state, valid_states,
+						&primary, 1);
 		if (rc) {
 			/*
 			 * If the SET TARGET PORT GROUPS attempts to establish
@@ -781,7 +781,7 @@ target_alua_state_check(struct se_cmd *cmd)
  * Check implicit and explicit ALUA state change request.
  */
 static sense_reason_t
-core_alua_check_transition(int state, int valid, int *primary)
+core_alua_check_transition(int state, int valid, int *primary, int explicit)
 {
 	/*
 	 * OPTIMIZED, NON-OPTIMIZED, STANDBY and UNAVAILABLE are
@@ -823,11 +823,14 @@ core_alua_check_transition(int state, int valid, int *primary)
 		*primary = 0;
 		break;
 	case ALUA_ACCESS_STATE_TRANSITION:
-		/*
-		 * Transitioning is set internally, and
-		 * cannot be selected manually.
-		 */
-		goto not_supported;
+		if (!(valid & ALUA_T_SUP) || explicit)
+			/*
+			 * Transitioning is set internally and by tcmu daemon,
+			 * and cannot be selected through a STPG.
+			 */
+			goto not_supported;
+		*primary = 0;
+		break;
 	default:
 		pr_err("Unknown ALUA access state: 0x%02x\n", state);
 		return TCM_INVALID_PARAMETER_LIST;
@@ -1077,7 +1080,7 @@ static int core_alua_do_transition_tg_pt(
 	if (atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state) == new_state)
 		return 0;
 
-	if (new_state == ALUA_ACCESS_STATE_TRANSITION)
+	if (explicit && new_state == ALUA_ACCESS_STATE_TRANSITION)
 		return -EAGAIN;
 
 	/*
@@ -1098,15 +1101,18 @@ static int core_alua_do_transition_tg_pt(
 	 * Save the old primary ALUA access state, and set the current state
 	 * to ALUA_ACCESS_STATE_TRANSITION.
 	 */
-	tg_pt_gp->tg_pt_gp_alua_previous_state =
-		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
-	tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
-
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 			ALUA_ACCESS_STATE_TRANSITION);
 	tg_pt_gp->tg_pt_gp_alua_access_status = (explicit) ?
 				ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG :
 				ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA;
+
+	if (new_state == ALUA_ACCESS_STATE_TRANSITION)
+		return 0;
+
+	tg_pt_gp->tg_pt_gp_alua_previous_state =
+		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
+	tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
 
 	/*
 	 * Check for the optional ALUA primary state transition delay
@@ -1149,7 +1155,8 @@ int core_alua_do_port_transition(
 		return -ENODEV;
 
 	valid_states = l_tg_pt_gp->tg_pt_gp_alua_supported_states;
-	if (core_alua_check_transition(new_state, valid_states, &primary) != 0)
+	if (core_alua_check_transition(new_state, valid_states, &primary,
+				       explicit) != 0)
 		return -EINVAL;
 
 	local_lu_gp_mem = l_dev->dev_alua_lu_gp_mem;
