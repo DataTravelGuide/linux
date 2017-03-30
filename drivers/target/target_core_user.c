@@ -1042,7 +1042,7 @@ static void tcmu_free_device(struct se_device *dev)
 
 enum {
 	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_hw_max_sectors,
-	Opt_cmd_time_out, Opt_err,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -1050,7 +1050,6 @@ static match_table_t tokens = {
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
 	{Opt_hw_max_sectors, "hw_max_sectors=%u"},
-	{Opt_cmd_time_out, "cmd_time_out=%u"},
 	{Opt_err, NULL}
 };
 
@@ -1117,23 +1116,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			if (ret < 0)
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
-		case Opt_cmd_time_out:
-			if (tcmu_dev_configured(udev)) {
-				pr_err("Can not update cmd_time_out after device has been configured.\n");
-				ret = -EINVAL;
-				break;
-			}
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				break;
-			}
-			ret = kstrtouint(arg_p, 0, &udev->cmd_time_out);
-			kfree(arg_p);
-			if (ret < 0)
-				pr_err("kstrtouint() failed for cmd_time_out=\n");
-			udev->cmd_time_out *= MSEC_PER_SEC;
-			break;
 		case Opt_hw_block_size:
 			ret = tcmu_set_dev_attrib(&args[0],
 					&(dev->dev_attrib.hw_block_size));
@@ -1161,9 +1143,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
-	bl += sprintf(b + bl, "Size: %zu ", udev->dev_size);
-	bl += sprintf(b + bl, "Cmd Time Out: %lu\n",
-		      udev->cmd_time_out / MSEC_PER_SEC);
+	bl += sprintf(b + bl, "Size: %zu\n", udev->dev_size);
 
 	return bl;
 }
@@ -1244,6 +1224,42 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 	return TCM_NO_SENSE;
 }
 
+static ssize_t tcmu_dev_show_attr_cmd_time_out(struct se_dev_attrib *da,
+					       char *page)
+{
+	struct tcmu_dev *udev = container_of(da->da_dev,
+					struct tcmu_dev, se_dev);
+
+	return snprintf(page, PAGE_SIZE, "%lu\n", udev->cmd_time_out / MSEC_PER_SEC);
+}
+
+static ssize_t tcmu_dev_store_attr_cmd_time_out(struct se_dev_attrib *da,
+						const char *page, size_t count)
+{
+	struct tcmu_dev *udev = container_of(da->da_dev,
+					struct tcmu_dev, se_dev);
+	u32 val;
+	int ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("Unable to set tcmu cmd_time_out while exports exist\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (!val) {
+		pr_err("Illegal value for cmd_time_out\n");
+		return -EINVAL;
+	}
+
+	udev->cmd_time_out = val * MSEC_PER_SEC;
+	return count;
+}
+TB_DEV_ATTR(tcmu, cmd_time_out, S_IRUGO | S_IWUSR);
+
 DEF_TB_DEV_ATTRIB_RO(tcmu, hw_pi_prot_type);
 TB_DEV_ATTR_RO(tcmu, hw_pi_prot_type);
 
@@ -1261,6 +1277,7 @@ static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
 	&tcmu_dev_attrib_hw_block_size.attr,
 	&tcmu_dev_attrib_hw_max_sectors.attr,
 	&tcmu_dev_attrib_hw_queue_depth.attr,
+	&tcmu_dev_attrib_cmd_time_out.attr,
 	NULL,
 };
 
