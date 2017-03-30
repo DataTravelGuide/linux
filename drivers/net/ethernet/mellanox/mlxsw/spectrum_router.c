@@ -2107,13 +2107,37 @@ mlxsw_sp_fib4_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 	return NULL;
 }
 
+static int mlxsw_sp_fib4_node_list_append(struct mlxsw_sp_fib_entry *fib_entry,
+					  struct mlxsw_sp_fib_entry *new_entry)
+{
+	struct mlxsw_sp_fib_node *fib_node;
+
+	if (WARN_ON(!fib_entry))
+		return -EINVAL;
+
+	fib_node = fib_entry->fib_node;
+	list_for_each_entry_from(fib_entry, &fib_node->entry_list, list) {
+		if (fib_entry->params.tb_id != new_entry->params.tb_id ||
+		    fib_entry->params.tos != new_entry->params.tos ||
+		    fib_entry->params.prio != new_entry->params.prio)
+			break;
+	}
+
+	list_add_tail(&new_entry->list, &fib_entry->list);
+	return 0;
+}
+
 static int
 mlxsw_sp_fib4_node_list_insert(struct mlxsw_sp_fib_node *fib_node,
-			       struct mlxsw_sp_fib_entry *new_entry)
+			       struct mlxsw_sp_fib_entry *new_entry,
+			       bool append)
 {
 	struct mlxsw_sp_fib_entry *fib_entry;
 
 	fib_entry = mlxsw_sp_fib4_node_entry_find(fib_node, &new_entry->params);
+
+	if (append)
+		return mlxsw_sp_fib4_node_list_append(fib_entry, new_entry);
 
 	if (fib_entry) {
 		list_add_tail(&new_entry->list, &fib_entry->list);
@@ -2184,12 +2208,13 @@ mlxsw_sp_fib4_node_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_fib4_node_entry_link(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_fib_entry *fib_entry)
+					 struct mlxsw_sp_fib_entry *fib_entry,
+					 bool append)
 {
 	struct mlxsw_sp_fib_node *fib_node = fib_entry->fib_node;
 	int err;
 
-	err = mlxsw_sp_fib4_node_list_insert(fib_node, fib_entry);
+	err = mlxsw_sp_fib4_node_list_insert(fib_node, fib_entry, append);
 	if (err)
 		return err;
 
@@ -2219,7 +2244,8 @@ mlxsw_sp_fib4_node_entry_unlink(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_router_fib4_add(struct mlxsw_sp *mlxsw_sp,
-			 const struct fib_entry_notifier_info *fen_info)
+			 const struct fib_entry_notifier_info *fen_info,
+			 bool append)
 {
 	struct mlxsw_sp_fib_entry *fib_entry;
 	struct mlxsw_sp_fib_node *fib_node;
@@ -2241,7 +2267,7 @@ mlxsw_sp_router_fib4_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_fib4_entry_create;
 	}
 
-	err = mlxsw_sp_fib4_node_entry_link(mlxsw_sp, fib_entry);
+	err = mlxsw_sp_fib4_node_entry_link(mlxsw_sp, fib_entry, append);
 	if (err) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to link FIB entry to node\n");
 		goto err_fib4_node_entry_link;
@@ -2498,8 +2524,20 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
+	bool append;
 	int err;
 
+	/* Protect internal structures from changes */
+	rtnl_lock();
+	switch (fib_work->event) {
+	case FIB_EVENT_ENTRY_APPEND: /* fall through */
+	case FIB_EVENT_ENTRY_ADD:
+		append = fib_work->event == FIB_EVENT_ENTRY_APPEND;
+		err = mlxsw_sp_router_fib4_add(mlxsw_sp, &fib_work->fen_info,
+					       append);
+		if (err)
+			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		fib_info_put(fib_work->fen_info.fi);
 	INIT_LIST_HEAD(&mlxsw_sp->router.nexthop_neighs_list);
 	err = __mlxsw_sp_router_init(mlxsw_sp);
 	if (err)
@@ -2534,6 +2572,11 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	fib_work->mlxsw_sp = mlxsw_sp;
 	fib_work->event = event;
 
+	switch (event) {
+	case FIB_EVENT_ENTRY_APPEND: /* fall through */
+	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_DEL:
+		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
 err_register_fib_notifier:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
