@@ -654,6 +654,8 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
 
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
+
+		c->x86_capability[14] = cpuid_eax(0x00000006);
 	}
 
 	/* Extended state features: level 0x0000000d */
@@ -723,6 +725,9 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
 		c->x86_phys_bits = 36;
 #endif
+
+	if (c->extended_cpuid_level >= 0x8000000a)
+		c->x86_capability[15] = cpuid_edx(0x8000000a);
 
 	init_scattered_cpuid_features(c);
 }
