@@ -879,6 +879,20 @@ static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4_regs)
 	id4_regs->id = c->apicid >> index_msb;
 }
 
+int get_cpu_cache_id(int cpu, int level)
+{
+	int i;
+
+	for (i = 0; i < num_cache_leaves; i++) {
+		struct _cpuid4_info *this_leaf = CPUID4_INFO_IDX(cpu, i);
+
+		if (this_leaf->base.eax.split.level == level)
+			return this_leaf->base.id;
+	}
+
+	return -1;
+}
+
 static void get_cpu_leaves(void *_retval)
 {
 	int j, *retval = _retval, cpu = smp_processor_id();
