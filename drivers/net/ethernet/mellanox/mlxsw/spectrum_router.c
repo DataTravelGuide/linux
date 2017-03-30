@@ -1961,6 +1961,11 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->rifs);
 }
 
+struct mlxsw_sp_fib_event_work {
+	struct work_struct work;
+	struct fib_entry_notifier_info fen_info;
+	struct mlxsw_sp *mlxsw_sp;
+	unsigned long event;
 static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
@@ -2002,6 +2007,9 @@ static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_fib_event_work *fib_work =
+		container_of(work, struct mlxsw_sp_fib_event_work, work);
+	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
 	int err;
 
 	INIT_LIST_HEAD(&mlxsw_sp->router.nexthop_neighs_list);
@@ -2025,7 +2033,9 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_register_fib_notifier;
 
-	return 0;
+	INIT_WORK(&fib_work->work, mlxsw_sp_router_fib_event_work);
+	fib_work->mlxsw_sp = mlxsw_sp;
+	fib_work->event = event;
 
 err_register_fib_notifier:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
@@ -2034,6 +2044,12 @@ err_neigh_init:
 err_vrs_init:
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	return err;
+		break;
+	}
+
+	mlxsw_core_schedule_work(&fib_work->work);
+
+	return NOTIFY_DONE;
 }
 
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
