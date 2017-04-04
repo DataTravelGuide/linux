@@ -462,21 +462,10 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad;
 
 	mutex_unlock(&kernfs_mutex);
-out_valid:
 	return 1;
 out_bad:
 	mutex_unlock(&kernfs_mutex);
 out_bad_unlocked:
-	/*
-	 * @dentry doesn't match the underlying kernfs node, drop the
-	 * dentry and force lookup.  If we have submounts we must allow the
-	 * vfs caches to lie about the state of the filesystem to prevent
-	 * leaks and other nasty things, so use check_submounts_and_drop()
-	 * instead of d_drop().
-	 */
-	if (check_submounts_and_drop(dentry) != 0)
-		goto out_valid;
-
 	return 0;
 }
 
@@ -1372,40 +1361,68 @@ static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
 	return pos;
 }
 
-static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
+static int kernfs_fop_readdir(struct file *filp, void * dirent , filldir_t filldir)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct kernfs_node *parent = dentry->d_fsdata;
-	struct kernfs_node *pos = file->private_data;
+	struct dentry *dentry = filp->f_path.dentry;
+	struct kernfs_node *parent_sd = dentry->d_fsdata;
+	struct kernfs_node *pos = filp->private_data;
 	const void *ns = NULL;
+	ino_t ino;
+	loff_t off;
 
-	if (!dir_emit_dots(file, ctx))
-		return 0;
+	if (filp->f_pos == 0) {
+		ino = parent_sd->ino;
+		if (filldir(dirent, ".", 1, filp->f_pos, ino, DT_DIR) == 0)
+			filp->f_pos++;
+		else
+			return 0;
+	}
+
+	if (filp->f_pos == 1) {
+		if (parent_sd->parent)
+			ino = parent_sd->parent->ino;
+		else
+			ino = parent_sd->ino;
+		if (filldir(dirent, "..", 2, filp->f_pos, ino, DT_DIR) == 0)
+			filp->f_pos++;
+		else
+			return 0;
+	}
 	mutex_lock(&kernfs_mutex);
 
-	if (kernfs_ns_enabled(parent))
+	if (kernfs_ns_enabled(parent_sd))
 		ns = kernfs_info(dentry->d_sb)->ns;
 
-	for (pos = kernfs_dir_pos(ns, parent, ctx->pos, pos);
+	off = filp->f_pos;
+	for (pos = kernfs_dir_pos(ns, parent_sd, filp->f_pos, pos);
 	     pos;
-	     pos = kernfs_dir_next_pos(ns, parent, ctx->pos, pos)) {
+	     pos = kernfs_dir_next_pos(ns, parent_sd, filp->f_pos, pos)) {
 		const char *name = pos->name;
 		unsigned int type = dt_type(pos);
 		int len = strlen(name);
-		ino_t ino = pos->ino;
+		int ret;
 
-		ctx->pos = pos->hash;
-		file->private_data = pos;
+		ino = pos->ino;
+		off = filp->f_pos = pos->hash;
+		filp->private_data = pos;
 		kernfs_get(pos);
 
 		mutex_unlock(&kernfs_mutex);
-		if (!dir_emit(ctx, name, len, ino, type))
-			return 0;
+		ret = filldir(dirent, name, len, off, ino, type);
 		mutex_lock(&kernfs_mutex);
+		if (ret < 0)
+			break;
 	}
 	mutex_unlock(&kernfs_mutex);
-	file->private_data = NULL;
-	ctx->pos = INT_MAX;
+
+	/* don't reference last entry if its refcount is dropped */
+	if (!pos) {
+		filp->private_data = NULL;
+
+		/* EOF and not changed as 0 or 1 in read/write path */
+		if (off == filp->f_pos && off > 1)
+			filp->f_pos = INT_MAX;
+	}
 	return 0;
 }
 
@@ -1424,7 +1441,7 @@ static loff_t kernfs_dir_fop_llseek(struct file *file, loff_t offset,
 
 const struct file_operations kernfs_dir_fops = {
 	.read		= generic_read_dir,
-	.iterate	= kernfs_fop_readdir,
+	.readdir	= kernfs_fop_readdir,
 	.release	= kernfs_dir_fop_release,
 	.llseek		= kernfs_dir_fop_llseek,
 };
