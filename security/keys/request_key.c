@@ -531,6 +531,9 @@ struct key *request_key_and_link(struct key_type *type,
 	       ctx.index_key.type->name, ctx.index_key.description,
 	       callout_info, callout_len, aux, dest_keyring, flags);
 
+	if (!ctx.match)
+		return ERR_PTR(-EINVAL);
+
 	/* search all the process keyrings for a key */
 	key_ref = search_process_keyrings(&ctx);
 
