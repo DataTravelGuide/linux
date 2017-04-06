@@ -2769,7 +2769,7 @@ LPFC_ATTR(sli_mode, 0, 0, 3,
 LPFC_ATTR_R(enable_npiv, 1, 0, 1,
 	"Enable NPIV functionality");
 
-LPFC_ATTR_R(use_blk_mq, 1, 0, 1,
+LPFC_ATTR_R(use_blk_mq, 0, 0, 1,
 	"Enable blk_mq functionality");
 
 LPFC_ATTR_R(fcf_failover_policy, 1, 1, 2,
