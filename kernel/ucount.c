@@ -73,6 +73,16 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_ipc_namespaces"),
 	UCOUNT_ENTRY("max_net_namespaces"),
 	UCOUNT_ENTRY("max_mnt_namespaces"),
+	{}, /* UCOUNT_KABI_RESERVE_6 */
+	{}, /* UCOUNT_KABI_RESERVE_7 */
+	{}, /* UCOUNT_KABI_RESERVE_8 */
+	{}, /* UCOUNT_KABI_RESERVE_9 */
+	{}, /* UCOUNT_KABI_RESERVE_10 */
+	{}, /* UCOUNT_KABI_RESERVE_11 */
+	{}, /* UCOUNT_KABI_RESERVE_12 */
+	{}, /* UCOUNT_KABI_RESERVE_13 */
+	{}, /* UCOUNT_KABI_RESERVE_14 */
+	{}, /* UCOUNT_KABI_RESERVE_15 */
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
@@ -81,6 +91,7 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table *tbl;
+	BUILD_BUG_ON(ARRAY_SIZE(user_table) != (UCOUNT_COUNTS + 1));
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
 	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
 	if (tbl) {
