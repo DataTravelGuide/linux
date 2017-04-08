@@ -1035,7 +1035,11 @@ global_port_update:
 			if (atomic_read(&fcport->state) != FCS_ONLINE)
 				continue;
 			if (fcport->d_id.b24 == rscn_entry) {
-				qla2x00_mark_device_lost(vha, fcport, 0, 0);
+				/*
+				 * Logout needs to be deferred here to prevent
+				 * locking issues
+				 */
+				qla2x00_mark_device_lost(vha, fcport, 0, 1);
 				break;
 			}
 		}
