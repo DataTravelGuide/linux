@@ -224,7 +224,6 @@ struct stripe_head {
 	spinlock_t		batch_lock; /* only header's lock is useful */
 	struct list_head	batch_list; /* protected by head's batch lock*/
 
-	struct r5l_io_unit	*log_io;
 	union {
 		struct r5l_io_unit      *log_io;
 		struct ppl_io_unit      *ppl_io;
