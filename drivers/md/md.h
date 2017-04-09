@@ -120,6 +120,13 @@ struct md_rdev {
 					   * sysfs entry */
 
 	struct badblocks badblocks;
+
+	struct {
+		short offset;	/* Offset from superblock to start of PPL.
+				 * Not used by external metadata. */
+		unsigned int size;	/* Size in sectors of the PPL space */
+		sector_t sector;	/* First sector of the PPL space */
+	} ppl;
 };
 enum flag_bits {
 	Faulty,			/* device is known to have a fault */
@@ -250,6 +257,7 @@ struct mddev {
 
 	struct kobject			kobj;
 	int				hold_active;
+#define MD_HAS_PPL 9           /* The raid array has PPL feature set */
 #define	UNTIL_IOCTL	1
 #define	UNTIL_STOP	2
 

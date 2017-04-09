@@ -234,10 +234,18 @@ struct mdp_superblock_1 {
 
 	__le32	chunksize;	/* in 512byte sectors */
 	__le32	raid_disks;
-	__le32	bitmap_offset;	/* sectors after start of superblock that bitmap starts
-				 * NOTE: signed, so bitmap can be before superblock
-				 * only meaningful of feature_map[0] is set.
-				 */
+	union {
+		__le32	bitmap_offset;	/* sectors after start of superblock that bitmap starts
+					 * NOTE: signed, so bitmap can be before superblock
+					 * only meaningful of feature_map[0] is set.
+					 */
+
+		/* only meaningful when feature_map[MD_FEATURE_PPL] is set */
+		struct {
+			__le16 offset; /* sectors from start of superblock that ppl starts (signed) */
+			__le16 size; /* ppl size in sectors */
+		} ppl;
+	};
 
 	/* These are only valid with feature bit '4' */
 	__le32	new_level;	/* new level we are reshaping to		*/
@@ -309,6 +317,7 @@ struct mdp_superblock_1 {
 					     * is guided by bitmap.
 					     */
 #define	MD_FEATURE_JOURNAL		512 /* support write cache */
+#define	MD_FEATURE_PPL			1024 /* support PPL */
 #define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
 					|MD_FEATURE_RECOVERY_OFFSET	\
 					|MD_FEATURE_RESHAPE_ACTIVE	\
@@ -318,6 +327,7 @@ struct mdp_superblock_1 {
 					|MD_FEATURE_NEW_OFFSET		\
 					|MD_FEATURE_RECOVERY_BITMAP	\
 					|MD_FEATURE_JOURNAL		\
+					|MD_FEATURE_PPL			\
 					)
 
 struct r5l_payload_header {
