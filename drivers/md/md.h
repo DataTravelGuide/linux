@@ -552,6 +552,8 @@ struct md_personality
 	int (*mergeable_bvec)(struct mddev *mddev,
 			      struct bvec_merge_data *bvm,
 			      struct bio_vec *biovec);
+	/* Changes the consistency policy of an active array. */
+	int (*change_consistency_policy)(struct mddev *mddev, const char *buf);
 };
 
 struct md_sysfs_entry {
