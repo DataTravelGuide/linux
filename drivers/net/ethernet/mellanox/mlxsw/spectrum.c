@@ -4476,7 +4476,8 @@ static int __init mlxsw_sp_module_init(void)
 	return 0;
 
 err_core_driver_register:
-	unregister_netdevice_notifier(&mlxsw_sp_netdevice_nb);
+	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
+	unregister_netdevice_notifier_rh(&mlxsw_sp_netdevice_nb);
 	return err;
 }
 
