@@ -106,12 +106,14 @@ static inline void mlxsw_reg_pbmc_pack(char *payload, u8 local_port,
 struct mlxsw_reg_info {
 	u16 id;
 	u16 len; /* In u8 */
+	const char *name;
 };
 
 #define MLXSW_REG_DEFINE(_name, _id, _len)				\
 static const struct mlxsw_reg_info mlxsw_reg_##_name = {		\
 	.id = _id,							\
 	.len = _len,							\
+	.name = #_name,							\
 }
 
 #define MLXSW_REG(type) (&mlxsw_reg_##type)
@@ -4809,3 +4811,83 @@ MLXSW_REG_DEFINE(sbib, MLXSW_REG_SBIB_ID, MLXSW_REG_SBIB_LEN);
 
 /* reg_sbib_local_port
  * Local port number
+	mlxsw_reg_sbib_buff_size_set(payload, buff_size);
+}
+
+static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
+	MLXSW_REG(sgcr),
+	MLXSW_REG(spad),
+	MLXSW_REG(smid),
+	MLXSW_REG(sspr),
+	MLXSW_REG(sfdat),
+	MLXSW_REG(sfd),
+	MLXSW_REG(sfn),
+	MLXSW_REG(spms),
+	MLXSW_REG(spvid),
+	MLXSW_REG(spvm),
+	MLXSW_REG(spaft),
+	MLXSW_REG(sfgc),
+	MLXSW_REG(sftr),
+	MLXSW_REG(sfdf),
+	MLXSW_REG(sldr),
+	MLXSW_REG(slcr),
+	MLXSW_REG(slcor),
+	MLXSW_REG(spmlr),
+	MLXSW_REG(svfa),
+	MLXSW_REG(svpe),
+	MLXSW_REG(sfmr),
+	MLXSW_REG(spvmlr),
+	MLXSW_REG(qtct),
+	MLXSW_REG(qeec),
+	MLXSW_REG(pmlp),
+	MLXSW_REG(pmtu),
+	MLXSW_REG(ptys),
+	MLXSW_REG(ppad),
+	MLXSW_REG(paos),
+	MLXSW_REG(pfcc),
+	MLXSW_REG(ppcnt),
+	MLXSW_REG(pptb),
+	MLXSW_REG(pbmc),
+	MLXSW_REG(pspa),
+	MLXSW_REG(htgt),
+	MLXSW_REG(hpkt),
+	MLXSW_REG(rgcr),
+	MLXSW_REG(ritr),
+	MLXSW_REG(ratr),
+	MLXSW_REG(ralta),
+	MLXSW_REG(ralst),
+	MLXSW_REG(raltb),
+	MLXSW_REG(ralue),
+	MLXSW_REG(rauht),
+	MLXSW_REG(raleu),
+	MLXSW_REG(rauhtd),
+	MLXSW_REG(mfcr),
+	MLXSW_REG(mfsc),
+	MLXSW_REG(mfsm),
+	MLXSW_REG(mtcap),
+	MLXSW_REG(mtmp),
+	MLXSW_REG(mpat),
+	MLXSW_REG(mpar),
+	MLXSW_REG(mlcr),
+	MLXSW_REG(sbpr),
+	MLXSW_REG(sbcm),
+	MLXSW_REG(sbpm),
+	MLXSW_REG(sbmm),
+	MLXSW_REG(sbsr),
+	MLXSW_REG(sbib),
+};
+
+static inline const char *mlxsw_reg_id_str(u16 reg_id)
+{
+	const struct mlxsw_reg_info *reg_info;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mlxsw_reg_infos); i++) {
+		reg_info = mlxsw_reg_infos[i];
+		if (reg_info->id == reg_id)
+			return reg_info->name;
+	}
+	return "*UNKNOWN*";
+}
+
+/* PUDE - Port Up / Down Event
