@@ -80,7 +80,6 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
-#include <net/switchdev.h>
 #include "fib_lookup.h"
 
 static ATOMIC_NOTIFIER_HEAD(fib_chain);
@@ -1201,17 +1200,6 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 			new_fa->fa_slen = fa->fa_slen;
 
-			err = switchdev_fib_ipv4_add(key, plen, fi,
-						     new_fa->fa_tos,
-						     cfg->fc_type,
-						     cfg->fc_nlflags,
-						     tb->tb_id);
-			if (err) {
-				switchdev_fib_ipv4_abort(fi);
-				kmem_cache_free(fn_alias_kmem, new_fa);
-				goto out;
-			}
-
 			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
 						 key, plen, fi,
 						 new_fa->fa_tos, cfg->fc_type,
@@ -1257,18 +1245,10 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	new_fa->fa_state = 0;
 	new_fa->fa_slen = slen;
 
-	/* (Optionally) offload fib entry to switch hardware. */
-	err = switchdev_fib_ipv4_add(key, plen, fi, tos, cfg->fc_type,
-				     cfg->fc_nlflags, tb->tb_id);
-	if (err) {
-		switchdev_fib_ipv4_abort(fi);
-		goto out_free_new_fa;
-	}
-
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
 	if (err)
-		goto out_sw_fib_del;
+		goto out_free_new_fa;
 
 	if (!plen)
 		tb->tb_num_default++;
@@ -1281,8 +1261,6 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 succeeded:
 	return 0;
 
-out_sw_fib_del:
-	switchdev_fib_ipv4_del(key, plen, fi, tos, cfg->fc_type, tb->tb_id);
 out_free_new_fa:
 	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
@@ -1559,9 +1537,6 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!fa_to_delete)
 		return -ESRCH;
 
-	switchdev_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
-			       cfg->fc_type, tb->tb_id);
-
 	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
 				 fa_to_delete->fa_info, tos,
 				 fa_to_delete->fa_type, tb->tb_id, 0);
@@ -1639,59 +1614,6 @@ found:
 	return n;
 }
 
-/* Caller must hold RTNL */
-void fib_table_flush_external(struct fib_table *tb)
-{
-	struct trie *t = (struct trie *)tb->tb_data;
-	struct key_vector *pn = t->kv;
-	unsigned long cindex = 1;
-	struct hlist_node *tmp;
-	struct fib_alias *fa;
-
-	/* walk trie in reverse order */
-	for (;;) {
-		struct key_vector *n;
-
-		if (!(cindex--)) {
-			t_key pkey = pn->key;
-
-			/* cannot resize the trie vector */
-			if (IS_TRIE(pn))
-				break;
-
-			/* no need to resize like in flush below */
-			pn = node_parent(pn);
-			cindex = get_index(pkey, pn);
-
-			continue;
-		}
-
-		/* grab the next available node */
-		n = get_child(pn, cindex);
-		if (!n)
-			continue;
-
-		if (IS_TNODE(n)) {
-			/* record pn and cindex for leaf walking */
-			pn = n;
-			cindex = 1ul << n->bits;
-
-			continue;
-		}
-
-		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
-			struct fib_info *fi = fa->fa_info;
-
-			if (!fi || !(fi->fib_flags & RTNH_F_OFFLOAD))
-				continue;
-
-			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
-					       fi, fa->fa_tos, fa->fa_type,
-					       tb->tb_id);
-		}
-	}
-}
-
 /* Caller must hold RTNL. */
 int fib_table_flush(struct net *net, struct fib_table *tb)
 {
@@ -1742,9 +1664,6 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 				continue;
 			}
 
-			switchdev_fib_ipv4_del(n->key, KEYLENGTH - fa->fa_slen,
-					       fi, fa->fa_tos, fa->fa_type,
-					       tb->tb_id);
 			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL,
 						 n->key,
 						 KEYLENGTH - fa->fa_slen,
