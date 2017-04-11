@@ -1002,14 +1002,6 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mlxsw_sp_port->bridged)
 		return -EINVAL;
 
-	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
-					false, false);
-	if (err) {
-		netdev_err(dev, "Unable to del VIDs %d-%d\n", vid_begin,
-			   vid_end);
-		return err;
-	}
-
 	pvid = mlxsw_sp_port->pvid;
 	if (pvid >= vid_begin && pvid <= vid_end) {
 		err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, 0);
@@ -1030,6 +1022,14 @@ static int __mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 				   vid);
 			return err;
 		}
+	}
+
+	err = __mlxsw_sp_port_vlans_set(mlxsw_sp_port, vid_begin, vid_end,
+					false, false);
+	if (err) {
+		netdev_err(dev, "Unable to del VIDs %d-%d\n", vid_begin,
+			   vid_end);
+		return err;
 	}
 
 	mlxsw_sp_port_fid_leave(mlxsw_sp_port, vid_begin, vid_end);
