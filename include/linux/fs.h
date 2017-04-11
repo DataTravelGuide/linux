@@ -1023,6 +1023,8 @@ static inline int file_check_writeable(struct file *filp)
 #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
 #define FL_LAYOUT	2048	/* outstanding pNFS layout */
 
+#define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
+
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
  * asynchronous locking.
