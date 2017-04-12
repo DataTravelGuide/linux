@@ -744,6 +744,7 @@ void set_cpu_active(unsigned int cpu, bool active);
 void init_cpu_present(const struct cpumask *src);
 void init_cpu_possible(const struct cpumask *src);
 void init_cpu_online(const struct cpumask *src);
+void reset_cpu_possible_mask(void);
 
 /**
  * to_cpumask - convert an NR_CPUS bitmap to a struct cpumask *
