@@ -2070,6 +2070,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 					    (bond->params.downdelay - slave->delay) *
 					    bond->params.miimon,
 					    slave->dev->name);
+				commit++;
 				continue;
 			}
 
@@ -2105,6 +2106,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 					    bond->params.miimon,
 					    slave->dev->name);
 
+				commit++;
 				continue;
 			}
 
