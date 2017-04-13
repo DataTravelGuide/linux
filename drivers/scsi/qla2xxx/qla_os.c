@@ -143,7 +143,7 @@ MODULE_PARM_DESC(ql2xiidmaenable,
 		"Enables iIDMA settings "
 		"Default is 1 - perform iIDMA. 0 - no iIDMA.");
 
-int ql2xmqsupport = 1;
+int ql2xmqsupport = 0;
 module_param(ql2xmqsupport, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmqsupport,
 		"Enable on demand multiple queue pairs support "
