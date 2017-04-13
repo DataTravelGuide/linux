@@ -1293,10 +1293,7 @@ xfs_inode_free_eofblocks(
 {
 	int ret = 0;
 	struct xfs_eofblocks *eofb = args;
-	bool need_iolock = true;
 	int match;
-
-	ASSERT(!eofb || (eofb && eofb->eof_scan_owner != 0));
 
 	if (!xfs_can_free_eofblocks(ip, false)) {
 		/* inode could be preallocated or append-only */
@@ -1325,27 +1322,19 @@ xfs_inode_free_eofblocks(
 		if (eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE &&
 		    XFS_ISIZE(ip) < eofb->eof_min_file_size)
 			return 0;
-
-		/*
-		 * A scan owner implies we already hold the iolock. Skip it here
-		 * to avoid deadlock.
-		 */
-		if (eofb->eof_scan_owner == ip->i_ino)
-			need_iolock = false;
 	}
 
 	/*
 	 * If the caller is waiting, return -EAGAIN to keep the background
 	 * scanner moving and revisit the inode in a subsequent pass.
 	 */
-	if (need_iolock && !xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 		if (flags & SYNC_WAIT)
 			ret = -EAGAIN;
 		return ret;
 	}
 	ret = xfs_free_eofblocks(ip);
-	if (need_iolock)
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
 	return ret;
 }
@@ -1378,15 +1367,10 @@ xfs_inode_free_quota_eofblocks(
 	struct xfs_eofblocks eofb = {0};
 	struct xfs_dquot *dq;
 
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-
 	/*
-	 * Set the scan owner to avoid a potential livelock. Otherwise, the scan
-	 * can repeatedly trylock on the inode we're currently processing. We
-	 * run a sync scan to increase effectiveness and use the union filter to
+	 * Run a sync scan to increase effectiveness and use the union filter to
 	 * cover all applicable quotas in a single scan.
 	 */
-	eofb.eof_scan_owner = ip->i_ino;
 	eofb.eof_flags = XFS_EOF_FLAGS_UNION|XFS_EOF_FLAGS_SYNC;
 
 	if (XFS_IS_UQUOTA_ENFORCED(ip->i_mount)) {
