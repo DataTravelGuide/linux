@@ -448,7 +448,6 @@ bool nfs_use_readdirplus(struct inode *dir, struct file *filp)
  * use of readdirplus to accelerate any future lookups in the same
  * directory.
  */
-static
 void nfs_advise_use_readdirplus(struct inode *dir)
 {
 	struct nfs_inode *nfsi = NFS_I(dir);
