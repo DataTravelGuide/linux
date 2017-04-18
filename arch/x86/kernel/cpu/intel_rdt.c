@@ -377,7 +377,7 @@ rdt_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 
        switch (action & ~CPU_TASKS_FROZEN) {
 
-       case CPU_UP_PREPARE:
+       case CPU_ONLINE:
        case CPU_DOWN_FAILED:
                intel_rdt_online_cpu(cpu, true);
                break;
@@ -411,6 +411,7 @@ static void __init rdt_cpu_setup(void *dummy)
 
 static struct notifier_block rdt_cpu_nb = {
 	.notifier_call  = rdt_cpu_notify,
+	.priority	= -INT_MAX,
 };
 
 static int __init rdt_notifier_init(void)
