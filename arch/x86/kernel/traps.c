@@ -270,6 +270,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		goto exit_trap;
 	}
 
+	save_init_fpu(current);
 	/*
 	 * We need to look at BNDSTATUS to resolve this exception.
 	 * A NULL here might mean that it is in its 'init state',
