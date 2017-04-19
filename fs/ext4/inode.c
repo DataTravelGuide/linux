@@ -3185,7 +3185,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		 */
 		if (round_down(offset, 1<<inode->i_blkbits) >= inode->i_size &&
 		    ext4_aligned_io(inode, offset, count))
-			get_block_func = ext4_get_block_write;
+			get_block_func = ext4_get_block;
 		else
 			get_block_func = ext4_dax_get_block;
 		dio_flags = DIO_LOCKING;

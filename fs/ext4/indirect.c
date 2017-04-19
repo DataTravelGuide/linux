@@ -718,7 +718,7 @@ locked:
 			else if (round_down(offset, 1<<inode->i_blkbits) >=
 								inode->i_size &&
 			    ext4_aligned_io(inode, offset, count))
-				get_block_func = ext4_get_block_write;
+				get_block_func = ext4_get_block;
 			else
 				get_block_func = ext4_dax_get_block;
 			ret = dax_do_io(rw, iocb, inode, iov, offset, nr_segs,
