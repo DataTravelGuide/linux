@@ -1444,3 +1444,9 @@ ENTRY(sys_copy_file_range_wrapper)
 	llgfr   %r6,%r6         # size_t
 	llgfr   %r7,%r7         # unsigned int
 	jg  sys_copy_file_range
+
+ENTRY(sys_getrandom_wrapper)
+	llgtr	%r2,%r2		# void __user *
+	llgfr	%r3,%r3		# size_t
+	llgfr	%r4,%r4		# unsigned int
+	jg	sys_getrandom

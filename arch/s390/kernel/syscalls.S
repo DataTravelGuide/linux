@@ -357,7 +357,7 @@ SYSCALL(sys_sched_setattr,sys_sched_setattr,sys_sched_setattr_wrapper) /* 345 */
 SYSCALL(sys_sched_getattr,sys_sched_getattr,sys_sched_getattr_wrapper)
 NI_SYSCALL					/* 347 sys_renameat2 */
 NI_SYSCALL					/* 348 sys_seccomp */
-NI_SYSCALL					/* 349 sys_getrandom */
+SYSCALL(sys_getrandom,sys_getrandom,sys_getrandom_wrapper)
 NI_SYSCALL					/* 350 sys_memfd_create */
 NI_SYSCALL					/* 351 sys_bpf */
 SYSCALL(sys_ni_syscall,sys_s390_pci_mmio_write,sys_s390_pci_mmio_write_wrapper)
