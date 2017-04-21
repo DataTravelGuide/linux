@@ -363,7 +363,7 @@ SYSCALL_SPU(sched_setattr)
 SYSCALL_SPU(sched_getattr)
 SYSCALL(ni_syscall) /* sys_renameat2 */
 SYSCALL(ni_syscall) /* sys_seccomp */
-SYSCALL(ni_syscall) /* sys_getrandom */
+SYSCALL_SPU(getrandom)
 SYSCALL_SPU(memfd_create) /* sys_memfd_create */
 SYSCALL(ni_syscall) /* sys_bpf */
 SYSCALL(ni_syscall) /* sys_execveat */
