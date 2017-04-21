@@ -147,8 +147,8 @@ int ql2xmqsupport = 0;
 module_param(ql2xmqsupport, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmqsupport,
 		"Enable on demand multiple queue pairs support "
-		"Default is 1 for supported. "
-		"Set it to 0 to turn off mq qpair support.");
+		"Default is 0 for not supported. "
+		"Set it to 1 to enable mq qpair support.");
 
 int ql2xfwloadbin;
 module_param(ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
