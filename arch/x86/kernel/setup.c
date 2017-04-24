@@ -887,6 +887,18 @@ static void rh_check_supported(void)
 		mark_hardware_unsupported("Processor");
 	}
 
+	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) &&
+	    (boot_cpu_data.x86 >= 23)) {
+		/*
+		*  Naples/Ryzen is not supported, nor is anything that
+		*  follows
+		*/
+		pr_crit("Detected CPU family %d model %d\n",
+			boot_cpu_data.x86,
+			boot_cpu_data.x86_model);
+		mark_hardware_unsupported("AMD CPU Family");
+	}
+
 	/* Intel CPU family 6, model greater than 60 */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
 	    ((boot_cpu_data.x86 == 6))) {
@@ -908,10 +920,9 @@ static void rh_check_supported(void)
 			break;
 		default:
 			if (boot_cpu_data.x86_model > 63) {
-				printk(KERN_CRIT
-				       "Detected CPU family %d model %d\n",
-				       boot_cpu_data.x86,
-				       boot_cpu_data.x86_model);
+				pr_crit("Detected CPU family %d model %d\n",
+					boot_cpu_data.x86,
+					boot_cpu_data.x86_model);
 				mark_hardware_unsupported("Intel CPU model");
 			}
 			break;
