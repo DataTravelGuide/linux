@@ -70,6 +70,7 @@ enum {
 	PCI_PROTOCOL_VERSION_CURRENT = PCI_PROTOCOL_VERSION_1_1
 };
 
+#define CPU_AFFINITY_ALL	-1ULL
 #define PCI_CONFIG_MMIO_LENGTH	0x2000
 #define CFG_PAGE_OFFSET 0x1000
 #define CFG_PAGE_SIZE (PCI_CONFIG_MMIO_LENGTH - CFG_PAGE_OFFSET)
@@ -843,9 +844,13 @@ static void hv_compose_msi_msg(struct pci_dev *pdev, unsigned int irq,
 	 * This bit doesn't have to work on machines with more than 64
 	 * processors because Hyper-V only supports 64 in a guest.
 	 */
-	for_each_cpu_and(cpu, cfg->domain, cpu_online_mask) {
-		int_pkt->int_desc.cpu_mask |=
-			(1ULL << vmbus_cpu_number_to_vp_number(cpu));
+	if (cpumask_weight(cfg->domain) >= 32) {
+		int_pkt->int_desc.cpu_mask = CPU_AFFINITY_ALL;
+	} else {
+		for_each_cpu_and(cpu, cfg->domain, cpu_online_mask) {
+			int_pkt->int_desc.cpu_mask |=
+				(1ULL << vmbus_cpu_number_to_vp_number(cpu));
+		}
 	}
 
 	ret = vmbus_sendpacket(hpdev->hbus->hdev->channel, int_pkt,
